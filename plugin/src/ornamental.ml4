@@ -86,6 +86,16 @@ let bindings_for_inductive env mutind_body ind_bodies : CRD.t list =
          CRD.LocalAssum (Names.Name name_id, typ))
        ind_bodies)
 
+(* Get the arity of a function or function type *)
+let rec arity p =
+  match kind_of_term p with
+  | Lambda (_, _, b) ->
+     1 + arity b
+  | Prod (_, _, b) ->
+     1 + arity b
+  | _ ->
+     0
+
 (* --- Debugging, from PUMPKIN PATCH --- *)
 
 (* Using pp, prints directly to a string *)
@@ -231,6 +241,15 @@ let search_orn_params (env : env) ind_o ind_n : unit =
   failwith "parameterization is not yet supported"
 
 (* Search two inductive types for an indexing ornament *)
+let search_orn_index (env : env) ind_o ind_n : unit =
+  (*let bindings_o = bindings_for_inductive env ind_o bodies_o in
+       let bindings_n = bindings_for_inductive env ind_n bodies_n in
+       let env_o = push_rel_context bindings_o env in
+       let env_n = push_rel_context bindings_n env in
+       debug_env env_o "env_o";
+       debug_env env_n "env_n";*)
+  Printf.printf "%s\n\n" "aware of a possible indexing relationship";
+  ()
 
 (* Search two inductive types for an ornament between them *)
 let search_orn_inductive (env : env) (o : types) (n : types) : unit =
@@ -247,15 +266,14 @@ let search_orn_inductive (env : env) (o : types) (n : types) : unit =
      else
        let bodies_o = ind_o.mind_packets in
        let bodies_n = ind_n.mind_packets in
-       let bindings_o = bindings_for_inductive env ind_o bodies_o in
-       let bindings_n = bindings_for_inductive env ind_n bodies_n in
-       let env_o = push_rel_context bindings_o env in
-       let env_n = push_rel_context bindings_n env in
-       debug_env env_o "env_o";
-       debug_env env_n "env_n";
        let body_o = Array.get bodies_o 0 in
        let body_n = Array.get bodies_n 0 in
-       () (* TODO *)
+       let typ_o = type_of_inductive env ind_o body_o in
+       let typ_n = type_of_inductive env ind_n body_n in
+       if not (arity typ_o = arity typ_n) then
+         search_orn_index env ind_o ind_n
+       else
+         failwith "not supported"
   | _ ->
      failwith "not supported"
 
