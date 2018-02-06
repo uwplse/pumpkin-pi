@@ -226,6 +226,10 @@ let debug_env (env : env) (descriptor : string) : unit =
 
 (* --- Search --- *)
 
+(* Search two inductive types for a parameterizing ornament *)
+let search_orn_params (env : env) ind_o ind_n : unit =
+  failwith "parameterization is not yet supported"
+
 (* Search two inductive types for an indexing ornament *)
 
 (* Search two inductive types for an ornament between them *)
@@ -236,19 +240,24 @@ let search_orn_inductive (env : env) (o : types) (n : types) : unit =
      let ind_n = lookup_mind i_n env in
      check_inductive_supported ind_o;
      check_inductive_supported ind_n;
-     let bodies_o = ind_o.mind_packets in
-     let bodies_n = ind_n.mind_packets in
-     let bindings_o = bindings_for_inductive env ind_o bodies_o in
-     let bindings_n = bindings_for_inductive env ind_n bodies_n in
-     let env_o = push_rel_context bindings_o env in
-     let env_n = push_rel_context bindings_n env in
-     debug_env env_o "env_o";
-     debug_env env_n "env_n";
-     let body_o = Array.get bodies_o 0 in
-     let body_n = Array.get bodies_n 0 in
-     () (* TODO *)
+     let npms_o = ind_o.mind_nparams in
+     let npms_n = ind_n.mind_nparams in
+     if not (npms_o = npms_n) then
+       search_orn_params env ind_o ind_n
+     else
+       let bodies_o = ind_o.mind_packets in
+       let bodies_n = ind_n.mind_packets in
+       let bindings_o = bindings_for_inductive env ind_o bodies_o in
+       let bindings_n = bindings_for_inductive env ind_n bodies_n in
+       let env_o = push_rel_context bindings_o env in
+       let env_n = push_rel_context bindings_n env in
+       debug_env env_o "env_o";
+       debug_env env_n "env_n";
+       let body_o = Array.get bodies_o 0 in
+       let body_n = Array.get bodies_n 0 in
+       () (* TODO *)
   | _ ->
-    failwith "not supported"
+     failwith "not supported"
 
 (* --- Top-level --- *)
 
