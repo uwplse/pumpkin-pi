@@ -168,14 +168,18 @@ let rec zoom_product_type (env : env) (typ : types) : env * types =
   | _ ->
      (env, typ)
 
-(* Reconstruct a lambda from an environment *)
-let rec reconstruct_lambda (env : env) (b : types) : types =
-  if nb_rel env = 0 then
+(* Reconstruct a lambda from an environment, but stop when i are left *)
+let rec reconstruct_lambda_n (env : env) (b : types) (i : int) : types =
+  if nb_rel env = i then
     b
   else
     let (n, _, t) = CRD.to_tuple @@ lookup_rel 1 env in
     let env' = pop_rel_context 1 env in
-    reconstruct_lambda env' (mkLambda (n, t, b))
+    reconstruct_lambda_n env' (mkLambda (n, t, b)) i
+
+(* Reconstruct a lambda from an environment *)
+let reconstruct_lambda (env : env) (b : types) : types =
+  reconstruct_lambda_n env b 0
 
 (* Apply a function twice with a directionality indicator *)
 let twice (f : 'a -> 'a -> bool -> 'b) (a1 : 'a) (a2 : 'a) : 'b * 'b  =
@@ -360,19 +364,32 @@ let debug_env (env : env) (descriptor : string) : unit =
 let search_orn_params env (ind_o : inductive) (ind_n : inductive) is_fwd : types =
   failwith "parameterization is not yet supported"
 
+(* Get the index type, assuming we've added just one *)
+let rec index_type env p_o p_n =
+  match map_tuple kind_of_term (p_o, p_n) with
+  | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
+     if convertible env t_o t_n then
+       let env_t = push_rel CRD.(LocalAssum (n_o, t_o)) env in
+       index_type env_t b_o b_n
+     else
+       t_n
+  | _ ->
+     failwith "could not find indexer property"
+
 (* Search for an indexing function *)
-let search_for_indexer env elim_o elim_t_o elim_t_n : types =
+let search_for_indexer env npm elim_o elim_t_o elim_t_n : types =
   let (_, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
   let (env_indexer, _) = zoom_product_type env p_o in
-  reconstruct_lambda env_indexer elim_o (* TODO apply to things *)
+  let index_t = index_type env p_o p_n in
+  let indexer_p = reconstruct_lambda_n env_indexer index_t npm in
+  let indexer = mkApp (elim_o, Array.make 1 indexer_p) in
+  reconstruct_lambda env_indexer indexer (* TODO apply to more *)
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
-let search_orn_index_elim env elim_o elim_t_o elim_t_n is_fwd : types =
-  debug_term env elim_t_o "elim_t_o";
-  debug_term env elim_t_n "elim_t_n";
+let search_orn_index_elim env npm elim_o elim_t_o elim_t_n is_fwd : types =
   (if is_fwd then
-     let indexer = search_for_indexer env elim_o elim_t_o elim_t_n in
+     let indexer = search_for_indexer env npm elim_o elim_t_o elim_t_n in
      debug_term env indexer "indexer";
      Printf.printf "%s\n\n" "searched for an indexing function"
    else
@@ -387,12 +404,13 @@ let search_orn_index env npm ind_o ind_n is_fwd : types =
   let (elim_o, elim_n) = map_tuple (type_eliminator env) (ind_o, ind_n) in
   let (elim_t_o, elim_t_n) = map_tuple (infer_type env) (elim_o, elim_n) in
   let (env', elim_t_o', elim_t_n') = zoom_n_prod env npm elim_t_o elim_t_n in
-  search_orn_index_elim env' elim_o elim_t_o' elim_t_n' is_fwd
+  search_orn_index_elim env' npm elim_o elim_t_o' elim_t_n' is_fwd
 
 (* Search two inductive types for an ornament between them *)
 (* TODO eventually, when supporting many changes, will want to chain these *)
 (* When we do that, we'll also want better detection. For now, we just
  * assume only one at a time
+ * We also assume same order for now, of parameters and constructors and so on
  *)
 let search_orn_inductive (env : env) (o : types) (n : types) : (types * types) =
   match map_tuple kind_of_term (o, n) with
