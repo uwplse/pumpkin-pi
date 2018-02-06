@@ -1,5 +1,7 @@
 -I src
--Q theories Ornaments
+-Q theories Ornamental
 
-src/ornaments.ml4
-src/ornamental.mlpack
+src/ornamental.ml4
+src/ornaments.mlpack
+
+theories/Ornaments.v

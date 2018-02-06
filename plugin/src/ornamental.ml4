@@ -264,6 +264,6 @@ let find_ornament n d_old d_new =
 
 (* Identify an ornament given two inductive types *)
 VERNAC COMMAND EXTEND FindOrnament CLASSIFIED AS SIDEFF
-| [ "Find ornament" constr(d_old) constr(d_new) "as" ident(n)] ->
+| [ "Find" "ornament" constr(d_old) constr(d_new) "as" ident(n)] ->
   [ find_ornament n d_old d_new ]
 END

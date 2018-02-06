@@ -56,8 +56,12 @@ vo_to_obj = $(addsuffix .o,\
 
 OCAMLLIBS?=-I "src"
 COQLIBS?=\
-  -Q "theories" Ornaments\
+  -Q "theories" Ornamental\
   -I "src"
+COQCHKLIBS?=\
+  -R "theories" Ornamental
+COQDOCLIBS?=\
+  -R "theories" Ornamental
 
 ##########################
 #                        #
@@ -68,6 +72,15 @@ COQLIBS?=\
 
 OPT?=
 COQDEP?="$(COQBIN)coqdep" -c
+COQFLAGS?=-q $(OPT) $(COQLIBS) $(OTHERFLAGS) $(COQ_XML)
+COQCHKFLAGS?=-silent -o
+COQDOCFLAGS?=-interpolate -utf8
+COQC?=$(TIMER) "$(COQBIN)coqc"
+GALLINA?="$(COQBIN)gallina"
+COQDOC?="$(COQBIN)coqdoc"
+COQCHK?="$(COQBIN)coqchk"
+COQMKTOP?="$(COQBIN)coqmktop"
+
 COQSRCLIBS?=-I "$(COQLIB)kernel" \
 -I "$(COQLIB)lib" \
 -I "$(COQLIB)library" \
@@ -144,7 +157,30 @@ endif
 #                    #
 ######################
 
-ML4FILES:=src/ornaments.ml4
+VFILES:=theories/Ornaments.v
+
+ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
+-include $(addsuffix .d,$(VFILES))
+else
+ifeq ($(MAKECMDGOALS),)
+-include $(addsuffix .d,$(VFILES))
+endif
+endif
+
+.SECONDARY: $(addsuffix .d,$(VFILES))
+
+VO=vo
+VOFILES:=$(VFILES:.v=.$(VO))
+VOFILES0=$(patsubst theories/%,%,$(filter theories/%,$(VOFILES)))
+GLOBFILES:=$(VFILES:.v=.glob)
+GFILES:=$(VFILES:.v=.g)
+HTMLFILES:=$(VFILES:.v=.html)
+GHTMLFILES:=$(VFILES:.v=.g.html)
+OBJFILES=$(call vo_to_obj,$(VOFILES))
+ALLNATIVEFILES=$(OBJFILES:.o=.cmi) $(OBJFILES:.o=.cmo) $(OBJFILES:.o=.cmx) $(OBJFILES:.o=.cmxs)
+NATIVEFILES=$(foreach f, $(ALLNATIVEFILES), $(wildcard $f))
+NATIVEFILES0=$(patsubst theories/%,%,$(filter theories/%,$(NATIVEFILES)))
+ML4FILES:=src/ornamental.ml4
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(ML4FILES))
@@ -156,7 +192,7 @@ endif
 
 .SECONDARY: $(addsuffix .d,$(ML4FILES))
 
-MLPACKFILES:=src/ornamental.mlpack
+MLPACKFILES:=src/ornaments.mlpack
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(MLPACKFILES))
@@ -189,7 +225,43 @@ endif
 #                                     #
 #######################################
 
-all: $(CMOFILES) $(if $(HASNATDYNLINK_OR_EMPTY),$(CMXSFILES)) 
+all: $(VOFILES) $(CMOFILES) $(if $(HASNATDYNLINK_OR_EMPTY),$(CMXSFILES)) 
+
+quick: $(VOFILES:.vo=.vio)
+
+vio2vo:
+	$(COQC) $(COQDEBUG) $(COQFLAGS) -schedule-vio2vo $(J) $(VOFILES:%.vo=%.vio)
+checkproofs:
+	$(COQC) $(COQDEBUG) $(COQFLAGS) -schedule-vio-checking $(J) $(VOFILES:%.vo=%.vio)
+gallina: $(GFILES)
+
+html: $(GLOBFILES) $(VFILES)
+	- mkdir -p html
+	$(COQDOC) -toc $(COQDOCFLAGS) -html $(COQDOCLIBS) -d html $(VFILES)
+
+gallinahtml: $(GLOBFILES) $(VFILES)
+	- mkdir -p html
+	$(COQDOC) -toc $(COQDOCFLAGS) -html -g $(COQDOCLIBS) -d html $(VFILES)
+
+all.ps: $(VFILES)
+	$(COQDOC) -toc $(COQDOCFLAGS) -ps $(COQDOCLIBS) -o $@ `$(COQDEP) -sort -suffix .v $^`
+
+all-gal.ps: $(VFILES)
+	$(COQDOC) -toc $(COQDOCFLAGS) -ps -g $(COQDOCLIBS) -o $@ `$(COQDEP) -sort -suffix .v $^`
+
+all.pdf: $(VFILES)
+	$(COQDOC) -toc $(COQDOCFLAGS) -pdf $(COQDOCLIBS) -o $@ `$(COQDEP) -sort -suffix .v $^`
+
+all-gal.pdf: $(VFILES)
+	$(COQDOC) -toc $(COQDOCFLAGS) -pdf -g $(COQDOCLIBS) -o $@ `$(COQDEP) -sort -suffix .v $^`
+
+validate: $(VOFILES)
+	$(COQCHK) $(COQCHKFLAGS) $(COQCHKLIBS) $(notdir $(^:.vo=))
+
+beautify: $(VFILES:=.beautified)
+	for file in $^; do mv $${file%.beautified} $${file%beautified}old && mv $${file} $${file%.beautified}; done
+	@echo 'Do not do "make clean" until you are sure that everything went well!'
+	@echo 'If there were a problem, execute "for file in $$(find . -name \*.v.old -print); do mv $${file} $${file%.old}; done" in your shell/'
 
 .PHONY: all archclean beautify byte clean cleanall gallina gallinahtml html install install-doc install-natdynlink install-toploop opt printenv quick uninstall userinstall validate vio2vo
 
@@ -199,13 +271,13 @@ all: $(CMOFILES) $(if $(HASNATDYNLINK_OR_EMPTY),$(CMXSFILES))
 #                                   #
 #####################################
 
-$(addsuffix .cmx,$(filter $(basename $(MLFILES)),$(src/ornamental_MLPACK_DEPENDENCIES))): %.cmx: %.ml
-	$(SHOW)'CAMLOPT -c -for-pack Ornamental $<'
-	$(HIDE)$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) -for-pack Ornamental $<
+$(addsuffix .cmx,$(filter $(basename $(MLFILES)),$(src/ornaments_MLPACK_DEPENDENCIES))): %.cmx: %.ml
+	$(SHOW)'CAMLOPT -c -for-pack Ornaments $<'
+	$(HIDE)$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) -for-pack Ornaments $<
 
-$(addsuffix .cmx,$(filter $(basename $(ML4FILES)),$(src/ornamental_MLPACK_DEPENDENCIES))): %.cmx: %.ml4
-	$(SHOW)'CAMLOPT -c -pp -for-pack Ornamental $<'
-	$(HIDE)$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) -for-pack Ornamental $(PP) -impl $<
+$(addsuffix .cmx,$(filter $(basename $(ML4FILES)),$(src/ornaments_MLPACK_DEPENDENCIES))): %.cmx: %.ml4
+	$(SHOW)'CAMLOPT -c -pp -for-pack Ornaments $<'
+	$(HIDE)$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) -for-pack Ornaments $(PP) -impl $<
 
 ####################
 #                  #
@@ -223,9 +295,9 @@ userinstall:
 	+$(MAKE) USERINSTALL=true install
 
 install-natdynlink:
-	install -d "$(DSTROOT)"$(COQLIBINSTALL)/Ornaments; \
+	install -d "$(DSTROOT)"$(COQLIBINSTALL)/Ornamental; \
 	for i in $(CMXSFILESINC); do \
-	 install -m 0755 $$i "$(DSTROOT)"$(COQLIBINSTALL)/Ornaments/`basename $$i`; \
+	 install -m 0755 $$i "$(DSTROOT)"$(COQLIBINSTALL)/Ornamental/`basename $$i`; \
 	done
 
 install-toploop: $(MLLIBFILES:.mllib=.cmxs)
@@ -233,17 +305,27 @@ install-toploop: $(MLLIBFILES:.mllib=.cmxs)
 	 install -m 0755 $?  "$(DSTROOT)"$(COQTOPINSTALL)/
 
 install:$(if $(HASNATDYNLINK_OR_EMPTY),install-natdynlink)
-	install -d "$(DSTROOT)"$(COQLIBINSTALL)/Ornaments; \
+	cd "theories" && for i in $(NATIVEFILES0) $(GLOBFILES0) $(VFILES0) $(VOFILES0); do \
+	 install -d "`dirname "$(DSTROOT)"$(COQLIBINSTALL)/Ornamental/$$i`"; \
+	 install -m 0644 $$i "$(DSTROOT)"$(COQLIBINSTALL)/Ornamental/$$i; \
+	done
 	for i in $(CMIFILESINC) $(CMOFILESINC); do \
-	 install -m 0644 $$i "$(DSTROOT)"$(COQLIBINSTALL)/Ornaments/`basename $$i`; \
+	 install -m 0644 $$i "$(DSTROOT)"$(COQLIBINSTALL)/Ornamental/`basename $$i`; \
 	done
 
 install-doc:
+	install -d "$(DSTROOT)"$(COQDOCINSTALL)/Ornamental/html
+	for i in html/*; do \
+	 install -m 0644 $$i "$(DSTROOT)"$(COQDOCINSTALL)/Ornamental/$$i;\
+	done
 
 uninstall_me.sh: Makefile.coq
 	echo '#!/bin/sh' > $@
-	printf 'cd "$${DSTROOT}"$(COQLIBINSTALL)/Ornaments && \\\nfor i in $(CMXSFILESINC); do rm -f "`basename "$$i"`"; done && find . -type d -and -empty -delete\ncd "$${DSTROOT}"$(COQLIBINSTALL) && find "Ornaments" -maxdepth 0 -and -empty -exec rmdir -p \{\} \;\n' >> "$@"
-	printf 'cd "$${DSTROOT}"$(COQLIBINSTALL)/Ornaments && \\\nfor i in $(CMIFILESINC) $(CMOFILESINC); do rm -f "`basename "$$i"`"; done && find . -type d -and -empty -delete\ncd "$${DSTROOT}"$(COQLIBINSTALL) && find "Ornaments" -maxdepth 0 -and -empty -exec rmdir -p \{\} \;\n' >> "$@"
+	printf 'cd "$${DSTROOT}"$(COQLIBINSTALL)/Ornamental && \\\nfor i in $(CMXSFILESINC); do rm -f "`basename "$$i"`"; done && find . -type d -and -empty -delete\ncd "$${DSTROOT}"$(COQLIBINSTALL) && find "Ornamental" -maxdepth 0 -and -empty -exec rmdir -p \{\} \;\n' >> "$@"
+	printf 'cd "$${DSTROOT}"$(COQLIBINSTALL)/Ornamental && rm -f $(NATIVEFILES0) $(GLOBFILES0) $(VFILES0) $(VOFILES0) && \\\nfor i in $(CMIFILESINC) $(CMOFILESINC); do rm -f "`basename "$$i"`"; done && find . -type d -and -empty -delete\ncd "$${DSTROOT}"$(COQLIBINSTALL) && find "Ornamental" -maxdepth 0 -and -empty -exec rmdir -p \{\} \;\n' >> "$@"
+	printf 'cd "$${DSTROOT}"$(COQDOCINSTALL)/Ornamental \\\n' >> "$@"
+	printf '&& rm -f $(shell find "html" -maxdepth 1 -and -type f -print)\n' >> "$@"
+	printf 'cd "$${DSTROOT}"$(COQDOCINSTALL) && find Ornamental/html -maxdepth 0 -and -empty -exec rmdir -p \{\} \;\n' >> "$@"
 	chmod +x $@
 
 uninstall: uninstall_me.sh
@@ -276,8 +358,14 @@ clean::
 	rm -f $(ALLCMOFILES) $(CMIFILES) $(CMAFILES)
 	rm -f $(ALLCMOFILES:.cmo=.cmx) $(CMXAFILES) $(CMXSFILES) $(ALLCMOFILES:.cmo=.o) $(CMXAFILES:.cmxa=.a)
 	rm -f $(addsuffix .d,$(MLFILES) $(MLIFILES) $(ML4FILES) $(MLLIBFILES) $(MLPACKFILES))
+	rm -f $(OBJFILES) $(OBJFILES:.o=.native) $(NATIVEFILES)
+	find . -name .coq-native -type d -empty -delete
+	rm -f $(VOFILES) $(VOFILES:.vo=.vio) $(GFILES) $(VFILES:.v=.v.d) $(VFILES:=.beautified) $(VFILES:=.old)
 	rm -f all.ps all-gal.ps all.pdf all-gal.pdf all.glob $(VFILES:.v=.glob) $(VFILES:.v=.tex) $(VFILES:.v=.g.tex) all-mli.tex
 	- rm -rf html mlihtml uninstall_me.sh
+
+cleanall:: clean
+	rm -f $(patsubst %.v,.%.aux,$(VFILES))
 
 archclean::
 	rm -f *.cmx *.o
@@ -332,6 +420,38 @@ $(MLPACKFILES:.mlpack=.cmx): %.cmx: | %.mlpack
 $(addsuffix .d,$(MLPACKFILES)): %.mlpack.d: %.mlpack
 	$(SHOW)'COQDEP $<'
 	$(HIDE)$(COQDEP) $(OCAMLLIBS) -c "$<" > "$@" || ( RV=$$?; rm -f "$@"; exit $${RV} )
+
+$(VOFILES): %.vo: %.v
+	$(SHOW)COQC $<
+	$(HIDE)$(COQC) $(COQDEBUG) $(COQFLAGS) $<
+
+$(GLOBFILES): %.glob: %.v
+	$(COQC) $(COQDEBUG) $(COQFLAGS) $<
+
+$(VFILES:.v=.vio): %.vio: %.v
+	$(COQC) -quick $(COQDEBUG) $(COQFLAGS) $<
+
+$(GFILES): %.g: %.v
+	$(GALLINA) $<
+
+$(VFILES:.v=.tex): %.tex: %.v
+	$(COQDOC) $(COQDOCFLAGS) -latex $< -o $@
+
+$(HTMLFILES): %.html: %.v %.glob
+	$(COQDOC) $(COQDOCFLAGS) -html $< -o $@
+
+$(VFILES:.v=.g.tex): %.g.tex: %.v
+	$(COQDOC) $(COQDOCFLAGS) -latex -g $< -o $@
+
+$(GHTMLFILES): %.g.html: %.v %.glob
+	$(COQDOC) $(COQDOCFLAGS)  -html -g $< -o $@
+
+$(addsuffix .d,$(VFILES)): %.v.d: %.v
+	$(SHOW)'COQDEP $<'
+	$(HIDE)$(COQDEP) $(COQLIBS) "$<" > "$@" || ( RV=$$?; rm -f "$@"; exit $${RV} )
+
+$(addsuffix .beautified,$(VFILES)): %.v.beautified:
+	$(COQC) $(COQDEBUG) $(COQFLAGS) -beautify $*.v
 
 # WARNING
 #

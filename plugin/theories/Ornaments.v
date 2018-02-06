@@ -1,2 +1,2 @@
-Declare ML Module "ornamental".
+Declare ML Module "ornaments".
 
