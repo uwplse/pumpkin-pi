@@ -4,4 +4,4 @@
 *.mlpack.d
 *.o
 *.ml4.d
-
+*.cmxs

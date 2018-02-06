@@ -1,0 +1,5 @@
+-I src
+-Q theories Ornaments
+
+src/ornaments.ml4
+src/ornamental.mlpack
