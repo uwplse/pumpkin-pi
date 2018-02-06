@@ -152,13 +152,21 @@ let rec zoom_n_prod env npm typ1 typ2 : env * types * types =
     | _ ->
        failwith "more parameters expected"
 
-(* Turn a product into a lambda *)
-let rec prod_to_lambda (typ : types) : types =
+(* Zoom all the way into a lambda term *)
+let rec zoom_lambda_term (env : env) (trm : types) : env * types =
+  match kind_of_term trm with
+  | Lambda (n, t, b) ->
+     zoom_lambda_term (push_rel CRD.(LocalAssum(n, t)) env) b
+  | _ ->
+     (env, trm)
+
+(* Zoom all the way into a product type *)
+let rec zoom_product_type (env : env) (typ : types) : env * types =
   match kind_of_term typ with
   | Prod (n, t, b) ->
-     mkLambda (n, t, prod_to_lambda b)
+     zoom_product_type (push_rel CRD.(LocalAssum(n, t)) env) b
   | _ ->
-     typ
+     (env, typ)
 
 (* Reconstruct a lambda from an environment *)
 let rec reconstruct_lambda (env : env) (b : types) : types =
@@ -356,10 +364,8 @@ let search_orn_params env (ind_o : inductive) (ind_n : inductive) is_fwd : types
 let search_for_indexer env elim_o elim_t_o elim_t_n : types =
   let (_, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
-  let orn_premise = prod_to_lambda p_o in
-  (* TODO wrap inside of premise *)
-  (* TODO apply to things *)
-  elim_o
+  let (env_indexer, _) = zoom_product_type env p_o in
+  reconstruct_lambda env_indexer elim_o (* TODO apply to things *)
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
 let search_orn_index_elim env elim_o elim_t_o elim_t_n is_fwd : types =
@@ -373,8 +379,8 @@ let search_orn_index_elim env elim_o elim_t_o elim_t_n is_fwd : types =
      Printf.printf "%s\n\n" "no indexing function in this direction");
   let (_, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
-  let orn_premise = prod_to_lambda p_o in
-  reconstruct_lambda env orn_premise
+  let (env_ornament, _) = zoom_product_type env p_o in
+  reconstruct_lambda env_ornament elim_o (* TODO apply to things *)
 
 (* Search two inductive types for an indexing ornament *)
 let search_orn_index env npm ind_o ind_n is_fwd : types =
