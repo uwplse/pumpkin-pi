@@ -153,6 +153,23 @@ let rec zoom_n_prod env npm typ1 typ2 : env * types * types =
     | _ ->
        failwith "more parameters expected"
 
+(* Turn a product into a lambda *)
+let rec prod_to_lambda (typ : types) : types =
+  match kind_of_term typ with
+  | Prod (n, t, b) ->
+     mkLambda (n, t, prod_to_lambda b)
+  | _ ->
+     typ
+
+(* Reconstruct a lambda from an environment *)
+let rec reconstruct_lambda (env : env) (b : types) : types =
+  if nb_rel env = 0 then
+    b
+  else
+    let (n, _, t) = CRD.to_tuple @@ lookup_rel 1 env in
+    let env' = pop_rel_context 1 env in
+    reconstruct_lambda env' (mkLambda (n, t, b))
+
 (* --- Debugging, from PUMPKIN PATCH --- *)
 
 (* Using pp, prints directly to a string *)
@@ -327,21 +344,27 @@ let search_orn_params env (ind_o : inductive) (ind_n : inductive) : unit =
   failwith "parameterization is not yet supported"
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
-let search_orn_index_elim env (elim_o : types) (elim_n : types) : unit =
+let search_orn_index_elim env (elim_o : types) (elim_n : types) : types =
   debug_term env elim_o "elim_o";
   debug_term env elim_n "elim_n";
-  Printf.printf "%s\n\n" "aware of a possible indexing relationship";
-  (* TODO search forwards, define, use name *)
-  (* TODO search backwards, define, use a second name *)
-  ()
+  let (_, p_o, b_o) = destProd elim_o in
+  let (_, p_n, b_n) = destProd elim_n in
+  let orn_premise = prod_to_lambda p_o in
+  debug_term env orn_premise "orn_premise";
+  reconstruct_lambda env orn_premise
 
 (* Search two inductive types for an indexing ornament *)
 let search_orn_index env npm (ind_o : inductive) (ind_n : inductive) : unit =
   let (elim_o, elim_n) = map_tuple (type_eliminator_type env) (ind_o, ind_n) in
   let (env', elim_o', elim_n') = zoom_n_prod env npm elim_o elim_n in
-  search_orn_index_elim env' elim_o' elim_n'
+  let orn = search_orn_index_elim env' elim_o' elim_n' in
+  debug_term env orn "orn";
+  (* TODO search forwards, define, use name *)
+  (* TODO search backwards, define, use a second name *)
+  ()
 
 (* Search two inductive types for an ornament between them *)
+(* TODO eventually, when supporting many changes, will want to chain these *)
 let search_orn_inductive (env : env) (o : types) (n : types) : unit =
   match map_tuple kind_of_term (o, n) with
   | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->
