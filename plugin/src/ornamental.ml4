@@ -170,6 +170,16 @@ let rec reconstruct_lambda (env : env) (b : types) : types =
     let env' = pop_rel_context 1 env in
     reconstruct_lambda env' (mkLambda (n, t, b))
 
+(* Apply a function twice with a directionality indicator *)
+let twice (f : 'a -> 'a -> bool -> 'b) (a1 : 'a) (a2 : 'a) : 'b * 'b  =
+  let forward = f a1 a2 true in
+  let backward = f a2 a1 false in
+  (forward, backward)
+
+(* Reverse a tuple *)
+let reverse ((a, b) : 'a * 'b) : 'b * 'a =
+  (b, a)
+
 (* --- Debugging, from PUMPKIN PATCH --- *)
 
 (* Using pp, prints directly to a string *)
@@ -340,48 +350,52 @@ let debug_env (env : env) (descriptor : string) : unit =
 (* --- Search --- *)
 
 (* Search two inductive types for a parameterizing ornament *)
-let search_orn_params env (ind_o : inductive) (ind_n : inductive) : unit =
+let search_orn_params env (ind_o : inductive) (ind_n : inductive) is_fwd : types =
   failwith "parameterization is not yet supported"
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
-let search_orn_index_elim env (elim_o : types) (elim_n : types) : types =
+let search_orn_index_elim env (elim_o : types) (elim_n : types) is_fwd : types =
   debug_term env elim_o "elim_o";
   debug_term env elim_n "elim_n";
   let (_, p_o, b_o) = destProd elim_o in
   let (_, p_n, b_n) = destProd elim_n in
+  (if is_fwd then
+     Printf.printf "%s\n\n" "aware we must search for an indexing function"
+   else
+     Printf.printf "%s\n\n" "aware no indexing function in this direction");
   let orn_premise = prod_to_lambda p_o in
-  debug_term env orn_premise "orn_premise";
   reconstruct_lambda env orn_premise
 
 (* Search two inductive types for an indexing ornament *)
-let search_orn_index env npm (ind_o : inductive) (ind_n : inductive) : unit =
+let search_orn_index env npm (ind_o : inductive) (ind_n : inductive) is_fwd : types =
   let (elim_o, elim_n) = map_tuple (type_eliminator_type env) (ind_o, ind_n) in
   let (env', elim_o', elim_n') = zoom_n_prod env npm elim_o elim_n in
-  let orn = search_orn_index_elim env' elim_o' elim_n' in
-  debug_term env orn "orn";
-  (* TODO search forwards, define, use name *)
-  (* TODO search backwards, define, use a second name *)
-  ()
+  search_orn_index_elim env' elim_o' elim_n' is_fwd
 
 (* Search two inductive types for an ornament between them *)
 (* TODO eventually, when supporting many changes, will want to chain these *)
-let search_orn_inductive (env : env) (o : types) (n : types) : unit =
+(* When we do that, we'll also want better detection. For now, we just
+ * assume only one at a time
+ *)
+let search_orn_inductive (env : env) (o : types) (n : types) : (types * types) =
   match map_tuple kind_of_term (o, n) with
   | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->
      let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
      check_inductive_supported m_o;
      check_inductive_supported m_n;
      let (npm_o, npm_n) = map_tuple (fun m -> m.mind_nparams) (m_o, m_n) in
-     if not (npm_o = npm_n) then
-       search_orn_params env (i_o, ii_o) (i_n, ii_n)
+     if npm_o < npm_n then
+       twice (search_orn_params env) (i_o, ii_o) (i_n, ii_n)
+     else if npm_n < npm_o then
+       reverse (twice (search_orn_params env) (i_n, ii_n) (i_o, ii_o))
      else
        let npm = npm_o in
        let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
        let (arity_o, arity_n) = map_tuple arity (typ_o, typ_n) in
        if arity_o < arity_n then
-         search_orn_index env npm (i_o, ii_o) (i_n, ii_n)
+         twice (search_orn_index env npm) (i_o, ii_o) (i_n, ii_n)
        else if arity_n < arity_o then
-         search_orn_index env npm (i_n, ii_n) (i_o, ii_o)
+         reverse (twice (search_orn_index env npm) (i_n, ii_n) (i_o, ii_o))
        else
          failwith "not supported"
   | _ ->
@@ -395,7 +409,11 @@ let find_ornament n d_old d_new =
   let old_term = unwrap_definition env (intern env evm d_old) in
   let new_term = unwrap_definition env (intern env evm d_new) in
   if isInd old_term && isInd new_term then
-    search_orn_inductive env old_term new_term
+    let (orn_o_n, orn_n_o) = search_orn_inductive env old_term new_term in
+    debug_term env orn_o_n "orn_o_n";
+    debug_term env orn_n_o "orn_n_o";
+    (* TODO define and so on *)
+    ()
   else
     failwith "Only inductive types are supported"
 
