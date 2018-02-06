@@ -5,3 +5,9 @@
 *.o
 *.ml4.d
 *.cmxs
+*.coq.bak
+*.aux
+*.glob
+*.v.d
+*.vo
+
