@@ -13,6 +13,10 @@ module CRD = Context.Rel.Declaration
 
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
+(* Map f over a tuple *)
+let map_tuple (f : 'a -> 'b) ((a1, a2) : ('a * 'a)) : ('b * 'b) =
+  (f a1, f a2)
+
 (*
  * Creates a list of the range of min to max, excluding max
  * This is an auxiliary function renamed from seq in template-coq
@@ -66,8 +70,10 @@ let check_inductive_supported mutind_body : unit =
     else
       ()
 
-(* Get the type of a mutually inductive type *)
-let type_of_inductive env mutind_body ind_body : types =
+(* Get the type of an inductive type *)
+let type_of_inductive env index mutind_body : types =
+  let ind_bodies = mutind_body.mind_packets in
+  let ind_body = Array.get ind_bodies index in
   let univ_context = mutind_body.mind_universes in
   let univ_instance = UContext.instance univ_context in
   let mutind_spec = (mutind_body, ind_body) in
@@ -79,10 +85,10 @@ let type_of_inductive env mutind_body ind_body : types =
  *)
 let bindings_for_inductive env mutind_body ind_bodies : CRD.t list =
   Array.to_list
-    (Array.map
-       (fun ind_body ->
+    (Array.mapi
+       (fun i ind_body ->
          let name_id = ind_body.mind_typename in
-         let typ = type_of_inductive env mutind_body ind_body in
+         let typ = type_of_inductive env i mutind_body in
          CRD.LocalAssum (Names.Name name_id, typ))
        ind_bodies)
 
@@ -95,6 +101,10 @@ let rec arity p =
      1 + arity b
   | _ ->
      0
+
+(* Lookup the eliminator over the type sort *)
+let lookup_type_eliminator (ind : inductive) =
+  Universes.constr_of_global (Indrec.lookup_eliminator ind InType)
 
 (* --- Debugging, from PUMPKIN PATCH --- *)
 
@@ -237,11 +247,14 @@ let debug_env (env : env) (descriptor : string) : unit =
 (* --- Search --- *)
 
 (* Search two inductive types for a parameterizing ornament *)
-let search_orn_params (env : env) ind_o ind_n : unit =
+let search_orn_params env (ind_o : inductive) (ind_n : inductive) : unit =
   failwith "parameterization is not yet supported"
 
 (* Search two inductive types for an indexing ornament *)
-let search_orn_index (env : env) ind_o ind_n : unit =
+let search_orn_index env (ind_o : inductive) (ind_n : inductive) : unit =
+  let (elim_o, elim_n) = map_tuple lookup_type_eliminator (ind_o, ind_n) in
+  debug_term env elim_o "elim_o";
+  debug_term env elim_n "elim_n";
   (*let bindings_o = bindings_for_inductive env ind_o bodies_o in
        let bindings_n = bindings_for_inductive env ind_n bodies_n in
        let env_o = push_rel_context bindings_o env in
@@ -253,25 +266,18 @@ let search_orn_index (env : env) ind_o ind_n : unit =
 
 (* Search two inductive types for an ornament between them *)
 let search_orn_inductive (env : env) (o : types) (n : types) : unit =
-  match (kind_of_term o, kind_of_term n) with
+  match map_tuple kind_of_term (o, n) with
   | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->
-     let ind_o = lookup_mind i_o env in
-     let ind_n = lookup_mind i_n env in
-     check_inductive_supported ind_o;
-     check_inductive_supported ind_n;
-     let npms_o = ind_o.mind_nparams in
-     let npms_n = ind_n.mind_nparams in
-     if not (npms_o = npms_n) then
-       search_orn_params env ind_o ind_n
+     let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
+     check_inductive_supported m_o;
+     check_inductive_supported m_n;
+     let (npm_o, npm_n) = map_tuple (fun m -> m.mind_nparams) (m_o, m_n) in
+     if not (npm_o = npm_n) then
+       search_orn_params env (i_o, ii_o) (i_n, ii_n)
      else
-       let bodies_o = ind_o.mind_packets in
-       let bodies_n = ind_n.mind_packets in
-       let body_o = Array.get bodies_o 0 in
-       let body_n = Array.get bodies_n 0 in
-       let typ_o = type_of_inductive env ind_o body_o in
-       let typ_n = type_of_inductive env ind_n body_n in
+       let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
        if not (arity typ_o = arity typ_n) then
-         search_orn_index env ind_o ind_n
+         search_orn_index env (i_o, ii_o) (i_n, ii_n)
        else
          failwith "not supported"
   | _ ->
