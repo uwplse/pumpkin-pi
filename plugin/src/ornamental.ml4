@@ -137,10 +137,9 @@ let conv_ignoring_univ_inconsistency env evm trm1 trm2 : bool =
 let convertible (env : env) (trm1 : types) (trm2 : types) : bool =
   conv_ignoring_univ_inconsistency env Evd.empty trm1 trm2
 
-(* Lookup the eliminator over the type sort, unwrap, and return its type *)
-let type_eliminator_type (env : env) (ind : inductive) =
-  let elim = Universes.constr_of_global (Indrec.lookup_eliminator ind InType) in
-  infer_type env (unwrap_definition env elim)
+(* Lookup the eliminator over the type sort *)
+let type_eliminator (env : env) (ind : inductive) =
+  Universes.constr_of_global (Indrec.lookup_eliminator ind InType)
 
 (* Zoom into two terms, merging the envs, and fail if types don't match *)
 let rec zoom_n_prod env npm typ1 typ2 : env * types * types =
@@ -353,24 +352,36 @@ let debug_env (env : env) (descriptor : string) : unit =
 let search_orn_params env (ind_o : inductive) (ind_n : inductive) is_fwd : types =
   failwith "parameterization is not yet supported"
 
+(* Search for an indexing function *)
+let search_for_indexer env elim_o elim_t_o elim_t_n : types =
+  let (_, p_o, b_o) = destProd elim_t_o in
+  let (_, p_n, b_n) = destProd elim_t_n in
+  let orn_premise = prod_to_lambda p_o in
+  (* TODO wrap inside of premise *)
+  (* TODO apply to things *)
+  elim_o
+
 (* Search two inductive types for an indexing ornament, using eliminators *)
-let search_orn_index_elim env (elim_o : types) (elim_n : types) is_fwd : types =
-  debug_term env elim_o "elim_o";
-  debug_term env elim_n "elim_n";
-  let (_, p_o, b_o) = destProd elim_o in
-  let (_, p_n, b_n) = destProd elim_n in
+let search_orn_index_elim env elim_o elim_t_o elim_t_n is_fwd : types =
+  debug_term env elim_t_o "elim_t_o";
+  debug_term env elim_t_n "elim_t_n";
   (if is_fwd then
-     Printf.printf "%s\n\n" "aware we must search for an indexing function"
+     let indexer = search_for_indexer env elim_o elim_t_o elim_t_n in
+     debug_term env indexer "indexer";
+     Printf.printf "%s\n\n" "searched for an indexing function"
    else
-     Printf.printf "%s\n\n" "aware no indexing function in this direction");
+     Printf.printf "%s\n\n" "no indexing function in this direction");
+  let (_, p_o, b_o) = destProd elim_t_o in
+  let (_, p_n, b_n) = destProd elim_t_n in
   let orn_premise = prod_to_lambda p_o in
   reconstruct_lambda env orn_premise
 
 (* Search two inductive types for an indexing ornament *)
-let search_orn_index env npm (ind_o : inductive) (ind_n : inductive) is_fwd : types =
-  let (elim_o, elim_n) = map_tuple (type_eliminator_type env) (ind_o, ind_n) in
-  let (env', elim_o', elim_n') = zoom_n_prod env npm elim_o elim_n in
-  search_orn_index_elim env' elim_o' elim_n' is_fwd
+let search_orn_index env npm ind_o ind_n is_fwd : types =
+  let (elim_o, elim_n) = map_tuple (type_eliminator env) (ind_o, ind_n) in
+  let (elim_t_o, elim_t_n) = map_tuple (infer_type env) (elim_o, elim_n) in
+  let (env', elim_t_o', elim_t_n') = zoom_n_prod env npm elim_t_o elim_t_n in
+  search_orn_index_elim env' elim_o elim_t_o' elim_t_n' is_fwd
 
 (* Search two inductive types for an ornament between them *)
 (* TODO eventually, when supporting many changes, will want to chain these *)
