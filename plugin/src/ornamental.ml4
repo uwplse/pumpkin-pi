@@ -17,6 +17,14 @@ module CRD = Context.Rel.Declaration
 let map_tuple (f : 'a -> 'b) ((a1, a2) : ('a * 'a)) : ('b * 'b) =
   (f a1, f a2)
 
+(* Map3 *)
+let rec map3 (f : 'a -> 'b -> 'c -> 'd) l1 l2 l3 : 'd list =
+  match (l1, l2, l3) with
+  | ([], [], []) ->
+     []
+  | (h1 :: t1, h2 :: t2, h3 :: t3) ->
+     let r = f h1 h2 h3 in r :: map3 f t1 t2 t3
+
 (*
  * Creates a list of the range of min to max, excluding max
  * This is an auxiliary function renamed from seq in template-coq
@@ -92,6 +100,15 @@ let bindings_for_inductive env mutind_body ind_bodies : CRD.t list =
          CRD.LocalAssum (Names.Name name_id, typ))
        ind_bodies)
 
+(*
+ * Similarly but for fixpoints
+ *)
+let bindings_for_fix (names : name array) (typs : types array) : CRD.t list =
+  Array.to_list
+    (CArray.map2_i
+       (fun i name typ -> CRD.LocalAssum (name, Vars.lift i typ))
+       names typs)
+
 (* Get the arity of a function or function type *)
 let rec arity p =
   match kind_of_term p with
@@ -102,9 +119,10 @@ let rec arity p =
   | _ ->
      0
 
-(* Lookup the eliminator over the type sort *)
-let lookup_type_eliminator (ind : inductive) =
-  Universes.constr_of_global (Indrec.lookup_eliminator ind InType)
+(* Lookup the eliminator over the type sort, and unwrap the definition *)
+let get_type_eliminator (env : env) (ind : inductive) =
+  let elim = Universes.constr_of_global (Indrec.lookup_eliminator ind InType) in
+  unwrap_definition env elim
 
 (* --- Debugging, from PUMPKIN PATCH --- *)
 
@@ -147,6 +165,7 @@ let sort_as_string s =
   | Type u -> Printf.sprintf "Type %s" (universe_as_string u)
 
 (* Prints a term *)
+(* TODO this is better than the old one, merge back in with existing code! *)
 let rec term_as_string (env : env) (trm : types) =
   match kind_of_term trm with
   | Rel i ->
@@ -200,11 +219,39 @@ let rec term_as_string (env : env) (trm : types) =
      let ind_bodies = mutind_body.mind_packets in
      let name_id = (ind_bodies.(i_index)).mind_typename in
      string_of_id name_id
+  | Fix ((is, i), (ns, ts, ds)) ->
+     let env_fix = push_rel_context (bindings_for_fix ns ds) env in
+     String.concat
+       " with "
+       (map3
+          (fun n t d ->
+            Printf.sprintf
+             "(Fix %s : %s := %s)"
+             (name_as_string n)
+             (term_as_string env t)
+             (term_as_string env_fix d))
+          (Array.to_list ns)
+          (Array.to_list ts)
+          (Array.to_list ds))
+  | Case (ci, ct, m, bs) ->
+     let (i, i_index) = ci.ci_ind in
+     let mutind_body = lookup_mind i env in
+     let ind_body = mutind_body.mind_packets.(i_index) in
+     Printf.sprintf
+       "(match %s : %s with %s)"
+       (term_as_string env m)
+       (term_as_string env ct)
+       (String.concat
+          " "
+          (Array.to_list
+             (Array.mapi
+                (fun c_i b ->
+                  Printf.sprintf
+                    "(case %s => %s)"
+                    (string_of_id (ind_body.mind_consnames.(c_i)))
+                    (term_as_string env b))
+                bs)))
   | Meta mv -> (* TODO *)
-     Printf.sprintf "(%s)" (print_to_string print_constr trm)
-  | Case (ci, ct, m, bs) -> (* TODO *)
-     Printf.sprintf "(%s)" (print_to_string print_constr trm)
-  | Fix ((is, i), (ns, ts, ds)) -> (* TODO *)
      Printf.sprintf "(%s)" (print_to_string print_constr trm)
   | CoFix (i, (ns, ts, ds)) -> (* TODO *)
      Printf.sprintf "(%s)" (print_to_string print_constr trm)
@@ -252,7 +299,7 @@ let search_orn_params env (ind_o : inductive) (ind_n : inductive) : unit =
 
 (* Search two inductive types for an indexing ornament *)
 let search_orn_index env (ind_o : inductive) (ind_n : inductive) : unit =
-  let (elim_o, elim_n) = map_tuple lookup_type_eliminator (ind_o, ind_n) in
+  let (elim_o, elim_n) = map_tuple (get_type_eliminator env) (ind_o, ind_n) in
   debug_term env elim_o "elim_o";
   debug_term env elim_n "elim_n";
   (*let bindings_o = bindings_for_inductive env ind_o bodies_o in
