@@ -119,10 +119,39 @@ let rec arity p =
   | _ ->
      0
 
-(* Lookup the eliminator over the type sort, and unwrap the definition *)
-let get_type_eliminator (env : env) (ind : inductive) =
+(* Infer the type of trm in env *)
+let infer_type (env : env) (trm : types) : types =
+  let jmt = Typeops.infer env trm in
+  j_type jmt
+
+(* Check whether two terms are convertible, ignoring universe inconsistency *)
+let conv_ignoring_univ_inconsistency env evm trm1 trm2 : bool =
+  try
+    Reductionops.is_conv env evm trm1 trm2
+  with _ ->
+    match map_tuple kind_of_term (trm1, trm2) with
+    | (Sort (Type u1), Sort (Type u2)) -> true
+    | _ -> false
+
+(* Checks whether two terms are convertible in env with no evars *)
+let convertible (env : env) (trm1 : types) (trm2 : types) : bool =
+  conv_ignoring_univ_inconsistency env Evd.empty trm1 trm2
+
+(* Lookup the eliminator over the type sort, unwrap, and return its type *)
+let type_eliminator_type (env : env) (ind : inductive) =
   let elim = Universes.constr_of_global (Indrec.lookup_eliminator ind InType) in
-  unwrap_definition env elim
+  infer_type env (unwrap_definition env elim)
+
+(* Zoom into two terms, merging the envs, and fail if types don't match *)
+let rec zoom_n_prod env npm typ1 typ2 : env * types * types =
+  if npm = 0 then
+    (env, typ1, typ2)
+  else
+    match map_tuple kind_of_term (typ1, typ2) with
+    | (Prod (n1, t1, b1), Prod (n2, t2, b2)) when convertible env t1 t2  ->
+       zoom_n_prod (push_rel CRD.(LocalAssum(n1, t1)) env) (npm - 1) b1 b2
+    | _ ->
+       failwith "more parameters expected"
 
 (* --- Debugging, from PUMPKIN PATCH --- *)
 
@@ -297,19 +326,20 @@ let debug_env (env : env) (descriptor : string) : unit =
 let search_orn_params env (ind_o : inductive) (ind_n : inductive) : unit =
   failwith "parameterization is not yet supported"
 
-(* Search two inductive types for an indexing ornament *)
-let search_orn_index env (ind_o : inductive) (ind_n : inductive) : unit =
-  let (elim_o, elim_n) = map_tuple (get_type_eliminator env) (ind_o, ind_n) in
+(* Search two inductive types for an indexing ornament, using eliminators *)
+let search_orn_index_elim env (elim_o : types) (elim_n : types) : unit =
   debug_term env elim_o "elim_o";
   debug_term env elim_n "elim_n";
-  (*let bindings_o = bindings_for_inductive env ind_o bodies_o in
-       let bindings_n = bindings_for_inductive env ind_n bodies_n in
-       let env_o = push_rel_context bindings_o env in
-       let env_n = push_rel_context bindings_n env in
-       debug_env env_o "env_o";
-       debug_env env_n "env_n";*)
   Printf.printf "%s\n\n" "aware of a possible indexing relationship";
+  (* TODO search forwards, define, use name *)
+  (* TODO search backwards, define, use a second name *)
   ()
+
+(* Search two inductive types for an indexing ornament *)
+let search_orn_index env npm (ind_o : inductive) (ind_n : inductive) : unit =
+  let (elim_o, elim_n) = map_tuple (type_eliminator_type env) (ind_o, ind_n) in
+  let (env', elim_o', elim_n') = zoom_n_prod env npm elim_o elim_n in
+  search_orn_index_elim env' elim_o' elim_n'
 
 (* Search two inductive types for an ornament between them *)
 let search_orn_inductive (env : env) (o : types) (n : types) : unit =
@@ -322,9 +352,13 @@ let search_orn_inductive (env : env) (o : types) (n : types) : unit =
      if not (npm_o = npm_n) then
        search_orn_params env (i_o, ii_o) (i_n, ii_n)
      else
+       let npm = npm_o in
        let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
-       if not (arity typ_o = arity typ_n) then
-         search_orn_index env (i_o, ii_o) (i_n, ii_n)
+       let (arity_o, arity_n) = map_tuple arity (typ_o, typ_n) in
+       if arity_o < arity_n then
+         search_orn_index env npm (i_o, ii_o) (i_n, ii_n)
+       else if arity_n < arity_o then
+         search_orn_index env npm (i_n, ii_n) (i_o, ii_o)
        else
          failwith "not supported"
   | _ ->
