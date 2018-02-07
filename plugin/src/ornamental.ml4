@@ -532,9 +532,10 @@ let indexer_cases env index_type arity_o arity_n elim_t_o elim_t_n : types array
   let env_p_n = push_rel CRD.(LocalAssum (n_n, p_n)) env in
   let cs_o = Array.of_list (take_except arity_o (destruct_cases b_o)) in
   let cs_n = Array.of_list (take_except arity_n (destruct_cases b_n)) in
-  (* ^ TODO trim off arity at the end *)
   debug_terms env_p_o (Array.to_list cs_o) "cs_o";
   debug_terms env_p_n (Array.to_list cs_n) "cs_n";
+  (* TODO now, get an array of the differences between each of those *)
+  (* Basically, assume equal if one is list and one is vector, or if they're properties. Then find the extra indexes *)
   Array.of_list [] (* TODO *)
 
 (* Rewrite the old induction principle in terms of an indexed property *)
