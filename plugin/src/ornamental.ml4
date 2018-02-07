@@ -8,6 +8,7 @@ open Format
 open Univ
 open Printer
 open Declarations
+open Command
 
 module CRD = Context.Rel.Declaration
 
@@ -62,6 +63,10 @@ let all_rel_indexes (env : env) : int list =
 let intern env evm t : types =
   let (trm, _) = Constrintern.interp_constr env evm t in
   trm
+
+(* Extern a term *)
+let extern env evm t : Constrexpr.constr_expr =
+  Constrextern.extern_constr true env evm t
 
 (* Lookup a definition *)
 let lookup_definition (env : env) (def : types) : types =
@@ -401,6 +406,18 @@ let all_substs p env (src, dst) trm : types =
 let all_conv_substs =
   all_substs convertible
 
+(* Define a new Coq term *)
+let define_term (n : Id.t) (env : env) evm (trm : types) : unit =
+  do_definition
+    n
+    (Global, false, Definition)
+    None
+    []
+    None
+    (extern env evm trm)
+    None
+    (Lemmas.mk_hook (fun _ _ -> ()))
+
 (* --- Debugging, from PUMPKIN PATCH --- *)
 
 (* Using pp, prints directly to a string *)
@@ -596,6 +613,7 @@ let rec destruct_cases elim_b : types list =
 
 (* Get a single case for the indexer *)
 (* TODO Need to generalize this logic better, try sub & check approach *)
+(* TODO generalize to trees, then clean *)
 let index_case index_t prop_index env_o env_n pind_o pind_n c_o c_n : types =
   let properties i t_o t_n =
     match map_tuple kind_of_term (t_o, t_n) with
@@ -624,7 +642,7 @@ let index_case index_t prop_index env_o env_n pind_o pind_n c_o c_n : types =
        all_substs
          (fun en -> eq_constr)
          e_o
-         (mkRel (i - 1), mkRel 1)
+         (mkRel (i - 1), mkRel 1) (* assumes one index *)
          (Array.get args_n 0) (* assumes new index is first *)
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let e_b_n = push_rel CRD.(LocalAssum (n_n, t_n)) e_n in
@@ -661,36 +679,37 @@ let indexer_cases env_o env_n index_t o n : types list =
   let env_c = push_rel Crd.(LocalAssum (n_o, p_o')) env in *)
 
 (* Search for an indexing function *)
-let search_for_indexer env_o env_n npm elim_o o n : types =
-  let (pind_o, arity_o, elim_t_o) = o in
-  let (pind_n, arity_n, elim_t_n) = n in
-  let (_, p_o, b_o) = destProd elim_t_o in
-  let (_, p_n, b_n) = destProd elim_t_n in
-  let (env_indexer, _) = zoom_product_type env_o p_o in
-  let index_t = index_type env_n p_o p_n in
-  let indexer_p = reconstruct_lambda_n env_indexer index_t npm in (* index is offf *)
-  let indexer_cs = indexer_cases env_o env_n index_t o n in (* TODO use *)
-  let indexer_args = Array.of_list (indexer_p :: indexer_cs) in
-  let indexer = mkApp (elim_o, indexer_args) in
-  reconstruct_lambda env_indexer indexer (* TODO apply to more *)
+let search_for_indexer env_o env_n npm elim_o o n is_fwd : types option =
+  if is_fwd then
+    let (pind_o, arity_o, elim_t_o) = o in
+    let (pind_n, arity_n, elim_t_n) = n in
+    let (_, p_o, b_o) = destProd elim_t_o in
+    let (_, p_n, b_n) = destProd elim_t_n in
+    let (env_indexer, _) = zoom_product_type env_o p_o in
+    let index_t = index_type env_n p_o p_n in
+    let off = nb_rel env_indexer - npm in
+    let indexer_pms = List.map mkRel (List.rev (from_one_to npm)) in
+    let indexer_p = shift_by off (reconstruct_lambda_n env_indexer index_t npm) in
+    let indexer_cs = indexer_cases env_o env_n index_t o n in
+    let indexer_args = Array.of_list (List.append indexer_pms (indexer_p :: indexer_cs)) in
+    let indexer = mkApp (elim_o, indexer_args) in
+    Some (reconstruct_lambda env_indexer indexer)
+  else
+    None
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
-let search_orn_index_elim env_o env_n npm elim_o o n is_fwd : types =
-  (if is_fwd then
-     let indexer = search_for_indexer env_o env_n npm elim_o o n in
-     debug_term env_o indexer "indexer";
-     Printf.printf "%s\n\n" "searched for an indexing function"
-   else
-     Printf.printf "%s\n\n" "no indexing function in this direction");
+let search_orn_index_elim env_o env_n npm elim_o o n is_fwd : (types option * types) =
+  let indexer = search_for_indexer env_o env_n npm elim_o o n is_fwd in
   let (pind_o, arity_o, elim_t_o) = o in
   let (pind_n, arity_n, elim_t_n) = n in
   let (_, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
   let (env_ornament, _) = zoom_product_type env_o p_o in
-  reconstruct_lambda env_ornament elim_o (* TODO apply to things *)
+  let ornament = reconstruct_lambda env_ornament elim_o in (* TODO apply to things *)
+  (indexer, ornament)
 
 (* Search two inductive types for an indexing ornament *)
-let search_orn_index env npm o n is_fwd : types =
+let search_orn_index env npm o n is_fwd : (types option * types) =
   let (pind_o, arity_o) = o in
   let (pind_n, arity_n) = n in
   let (ind_o, _) = destInd pind_o in
@@ -708,8 +727,9 @@ let search_orn_index env npm o n is_fwd : types =
 (* When we do that, we'll also want better detection. For now, we just
  * assume only one at a time
  * We also assume same order for now, of parameters and constructors and so on
+ * TODO better data representations for return types etc.
  *)
-let search_orn_inductive (env : env) (o : types) (n : types) : (types * types) =
+let search_orn_inductive (env : env) (o : types) (n : types) : (types option) * types * types =
   match map_tuple kind_of_term (o, n) with
   | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->
      let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
@@ -717,19 +737,24 @@ let search_orn_inductive (env : env) (o : types) (n : types) : (types * types) =
      check_inductive_supported m_n;
      let (npm_o, npm_n) = map_tuple (fun m -> m.mind_nparams) (m_o, m_n) in
      if npm_o < npm_n then
-       twice (search_orn_params env) (i_o, ii_o) (i_n, ii_n)
+       let (orn_o, orn_n) = twice (search_orn_params env) (i_o, ii_o) (i_n, ii_n) in
+       (None, orn_o, orn_n)
      else if npm_n < npm_o then
-       reverse (twice (search_orn_params env) (i_n, ii_n) (i_o, ii_o))
+       let (orn_o, orn_n) = reverse (twice (search_orn_params env) (i_n, ii_n) (i_o, ii_o)) in
+       (None, orn_o, orn_n)
      else
        let npm = npm_o in
        let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
        let (arity_o, arity_n) = map_tuple arity (typ_o, typ_n) in
        let search_o = (o, arity_o) in
        let search_n = (n, arity_n) in
+       let search = twice (search_orn_index env npm) in
        if arity_o < arity_n then
-         twice (search_orn_index env npm) search_o search_n
+         let ((idx, orn_o), (_, orn_n)) = search search_o search_n in
+         (idx, orn_o, orn_n)
        else if arity_n < arity_o then
-         reverse (twice (search_orn_index env npm) search_n search_o)
+         let ((_, orn_o), (idx, orn_n)) = reverse (search search_n search_o) in
+         (idx, orn_o, orn_n)
        else
          failwith "not supported"
   | _ ->
@@ -743,9 +768,17 @@ let find_ornament n d_old d_new =
   let old_term = unwrap_definition env (intern env evm d_old) in
   let new_term = unwrap_definition env (intern env evm d_new) in
   if isInd old_term && isInd new_term then
-    let (orn_o_n, orn_n_o) = search_orn_inductive env old_term new_term in
-    debug_term env orn_o_n "orn_o_n";
-    debug_term env orn_n_o "orn_n_o";
+    let prefix = Id.to_string n in
+    let (idx, orn_o_n, orn_n_o) = search_orn_inductive env old_term new_term in
+    (if Option.has_some idx then
+       let idx_n_string = String.concat "_" [prefix; "index"] in
+       let idx_n = Id.of_string idx_n_string in
+       define_term idx_n env evm (Option.get idx);
+       Printf.printf "Defined indexing function %s.\n\n" idx_n_string;
+     else
+       ());
+    (*debug_term env orn_o_n "orn_o_n";
+    debug_term env orn_n_o "orn_n_o";*)
     (* TODO define and so on *)
     ()
   else
