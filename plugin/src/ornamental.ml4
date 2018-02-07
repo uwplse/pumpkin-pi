@@ -13,6 +13,21 @@ module CRD = Context.Rel.Declaration
 
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
+(* Take n elements of a list *)
+let rec take (i : int) (l : 'a list) : 'a list =
+  if i = 0 then
+    []
+  else
+    match l with
+    | [] ->
+       []
+    | h :: tl ->
+       h :: (take (i - 1) tl)
+
+(* Take all but n elements of a list *)
+let take_except (i : int) (l : 'a list) : 'a list =
+  take (List.length l - i) l
+
 (* Map f over a tuple *)
 let map_tuple (f : 'a -> 'b) ((a1, a2) : ('a * 'a)) : ('b * 'b) =
   (f a1, f a2)
@@ -510,13 +525,13 @@ let rec destruct_cases elim_b : types list =
      []
 
 (* Get the cases for the indexer *)
-let indexer_cases env index_type elim_t_o elim_t_n : types array =
+let indexer_cases env index_type arity_o arity_n elim_t_o elim_t_n : types array =
   let (n_o, p_o, b_o) = destProd elim_t_o in
   let (n_n, p_n, b_n) = destProd elim_t_n in
   let env_p_o = push_rel CRD.(LocalAssum (n_o, p_o)) env in
   let env_p_n = push_rel CRD.(LocalAssum (n_n, p_n)) env in
-  let cs_o = Array.of_list (destruct_cases b_o) in
-  let cs_n = Array.of_list (destruct_cases b_n) in
+  let cs_o = Array.of_list (take_except arity_o (destruct_cases b_o)) in
+  let cs_n = Array.of_list (take_except arity_n (destruct_cases b_n)) in
   (* ^ TODO trim off arity at the end *)
   debug_terms env_p_o (Array.to_list cs_o) "cs_o";
   debug_terms env_p_n (Array.to_list cs_n) "cs_n";
@@ -528,20 +543,20 @@ let indexer_cases env index_type elim_t_o elim_t_n : types array =
   let env_c = push_rel Crd.(LocalAssum (n_o, p_o')) env in *)
 
 (* Search for an indexing function *)
-let search_for_indexer env npm elim_o elim_t_o elim_t_n : types =
+let search_for_indexer env npm arity_o arity_n elim_o elim_t_o elim_t_n : types =
   let (_, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
   let (env_indexer, _) = zoom_product_type env p_o in
   let index_t = index_type env p_o p_n in
   let indexer_p = reconstruct_lambda_n env_indexer index_t npm in
-  let indexer_cs = indexer_cases env index_type elim_t_o elim_t_n in
+  let indexer_cs = indexer_cases env index_type arity_o arity_n elim_t_o elim_t_n in
   let indexer = mkApp (elim_o, Array.make 1 indexer_p) in
   reconstruct_lambda env_indexer indexer (* TODO apply to more *)
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
-let search_orn_index_elim env npm elim_o elim_t_o elim_t_n is_fwd : types =
+let search_orn_index_elim env npm arity_o arity_n elim_o elim_t_o elim_t_n is_fwd : types =
   (if is_fwd then
-     let indexer = search_for_indexer env npm elim_o elim_t_o elim_t_n in
+     let indexer = search_for_indexer env npm arity_o arity_n elim_o elim_t_o elim_t_n in
      debug_term env indexer "indexer";
      Printf.printf "%s\n\n" "searched for an indexing function"
    else
@@ -552,11 +567,11 @@ let search_orn_index_elim env npm elim_o elim_t_o elim_t_n is_fwd : types =
   reconstruct_lambda env_ornament elim_o (* TODO apply to things *)
 
 (* Search two inductive types for an indexing ornament *)
-let search_orn_index env npm ind_o ind_n is_fwd : types =
+let search_orn_index env npm (ind_o, arity_o) (ind_n, arity_n) is_fwd : types =
   let (elim_o, elim_n) = map_tuple (type_eliminator env) (ind_o, ind_n) in
   let (elim_t_o, elim_t_n) = map_tuple (infer_type env) (elim_o, elim_n) in
   let (env', elim_t_o', elim_t_n') = zoom_n_prod env npm elim_t_o elim_t_n in
-  search_orn_index_elim env' npm elim_o elim_t_o' elim_t_n' is_fwd
+  search_orn_index_elim env' npm arity_o arity_n elim_o elim_t_o' elim_t_n' is_fwd
 
 (* Search two inductive types for an ornament between them *)
 (* TODO eventually, when supporting many changes, will want to chain these *)
@@ -579,10 +594,12 @@ let search_orn_inductive (env : env) (o : types) (n : types) : (types * types) =
        let npm = npm_o in
        let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
        let (arity_o, arity_n) = map_tuple arity (typ_o, typ_n) in
+       let search_o = ((i_o, ii_o), arity_o) in
+       let search_n = ((i_n, ii_n), arity_n) in
        if arity_o < arity_n then
-         twice (search_orn_index env npm) (i_o, ii_o) (i_n, ii_n)
+         twice (search_orn_index env npm) search_o search_n
        else if arity_n < arity_o then
-         reverse (twice (search_orn_index env npm) (i_n, ii_n) (i_o, ii_o))
+         reverse (twice (search_orn_index env npm) search_n search_o)
        else
          failwith "not supported"
   | _ ->
