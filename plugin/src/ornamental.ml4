@@ -688,11 +688,13 @@ let search_for_indexer env_o env_n npm elim_o o n is_fwd : types option =
     let (env_indexer, _) = zoom_product_type env_o p_o in
     let index_t = index_type env_n p_o p_n in
     let off = nb_rel env_indexer - npm in
-    let indexer_pms = List.map mkRel (List.rev (from_one_to npm)) in
+    let indexer_pms = List.map shift (List.map mkRel (List.rev (from_one_to npm))) in
     let indexer_p = shift_by off (reconstruct_lambda_n env_indexer index_t npm) in
     let indexer_cs = indexer_cases env_o env_n index_t o n in
     let indexer_args = Array.of_list (List.append indexer_pms (indexer_p :: indexer_cs)) in
     let indexer = mkApp (mkApp (elim_o, indexer_args), Array.make 1 (mkRel npm)) in
+    debug_env env_indexer "env_indexer";
+    debug_term env_indexer indexer "indexer";
     Some (reconstruct_lambda env_indexer indexer)
   else
     None
@@ -775,6 +777,7 @@ let find_ornament n d_old d_new =
     (if Option.has_some idx then
        let idx_n_string = String.concat "_" [prefix; "index"] in
        let idx_n = Id.of_string idx_n_string in
+       debug_term env (Option.get idx) "idx final";
        define_term idx_n env evm (Option.get idx);
        Printf.printf "Defined indexing function %s.\n\n" idx_n_string;
      else

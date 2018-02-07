@@ -1,6 +1,8 @@
 Require Import List.
 Require Import Ornamental.Ornaments.
 
+(*--- Lists and Vectors ---*)
+
 Inductive vector (A : Type) : nat -> Type :=
 | nilV : vector A 0
 | consV : forall (n : nat), A -> vector A n -> vector A (S n).
@@ -27,3 +29,25 @@ Proof.
   intros. auto.
 Qed.
 
+(* --- Backwards lists --- *)
+
+Inductive rev_list (A : Type) : Type :=
+| rev_nil : rev_list A
+| rev_cons : rev_list A -> A -> rev_list A.
+
+Inductive rev_vector (A : Type) : nat -> Type :=
+| rev_nilV : rev_vector A 0
+| rev_consV : forall (n : nat), rev_vector A n -> A -> rev_vector A (S n).
+
+Print rev_list_rect.
+Print rev_vector_rect.
+
+Find ornament rev_list rev_vector as orn_rev_list_rev_vector.
+
+Print orn_rev_list_rev_vector_index.
+
+(* --- Binary Trees and Indexed Binary Trees --- 
+
+Inductive bintree (A : Type) : Type :=
+| leaf : bintree A
+| node : bintree A -> A -> bintree A -> *)
