@@ -728,6 +728,8 @@ let search_orn_index env npm o n is_fwd : (types option * types) =
  * assume only one at a time
  * We also assume same order for now, of parameters and constructors and so on
  * TODO better data representations for return types etc.
+ * TODO what happens when an indexed type isn't a measure, so you can't
+ * extract the index from the old type? When does that happen?
  *)
 let search_orn_inductive (env : env) (o : types) (n : types) : (types option) * types * types =
   match map_tuple kind_of_term (o, n) with
