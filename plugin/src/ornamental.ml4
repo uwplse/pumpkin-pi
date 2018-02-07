@@ -191,6 +191,129 @@ let twice (f : 'a -> 'a -> bool -> 'b) (a1 : 'a) (a2 : 'a) : 'b * 'b  =
 let reverse ((a, b) : 'a * 'b) : 'b * 'a =
   (b, a)
 
+(*
+ * Recurse on a mapping function with an environment for a fixpoint
+ *)
+let map_rec_env_fix map_rec d env a (ns : name array) (ts : types array) =
+  let fix_bindings = bindings_for_fix ns ts in
+  let env_fix = push_rel_context fix_bindings env in
+  let n = List.length fix_bindings in
+  let d_n = List.fold_left (fun a' _ -> d a') a (range 0 n) in
+  map_rec env_fix d_n
+
+(*
+ * Map a function over a term in an environment
+ * Update the environment as you go
+ * Update the argument of type 'a using the a supplied update function
+ * Return a new term
+ *)
+let rec map_term_env f d (env : env) (a : 'a) (trm : types) : types =
+  let map_rec = map_term_env f d in
+  match kind_of_term trm with
+  | Cast (c, k, t) ->
+     let c' = map_rec env a c in
+     let t' = map_rec env a t in
+     mkCast (c', k, t')
+  | Prod (n, t, b) ->
+     let t' = map_rec env a t in
+     let b' = map_rec (push_rel CRD.(LocalAssum(n, t)) env) (d a) b in
+     mkProd (n, t', b')
+  | Lambda (n, t, b) ->
+     let t' = map_rec env a t in
+     let b' = map_rec (push_rel CRD.(LocalAssum(n, t)) env) (d a) b in
+     mkLambda (n, t', b')
+  | LetIn (n, trm, typ, e) ->
+     let trm' = map_rec env a trm in
+     let typ' = map_rec env a typ in
+     let e' = map_rec (push_rel CRD.(LocalDef(n, e, typ)) env) (d a) e in
+     mkLetIn (n, trm', typ', e')
+  | App (fu, args) ->
+     let fu' = map_rec env a fu in
+     let args' = Array.map (map_rec env a) args in
+     mkApp (fu', args')
+  | Case (ci, ct, m, bs) ->
+     let ct' = map_rec env a ct in
+     let m' = map_rec env a m in
+     let bs' = Array.map (map_rec env a) bs in
+     mkCase (ci, ct', m', bs')
+  | Fix ((is, i), (ns, ts, ds)) ->
+     let ts' = Array.map (map_rec env a) ts in
+     let ds' = Array.map (map_rec_env_fix map_rec d env a ns ts) ds in
+     mkFix ((is, i), (ns, ts', ds'))
+  | CoFix (i, (ns, ts, ds)) ->
+     let ts' = Array.map (map_rec env a) ts in
+     let ds' = Array.map (map_rec_env_fix map_rec d env a ns ts) ds in
+     mkCoFix (i, (ns, ts', ds'))
+  | Proj (p, c) ->
+     let c' = map_rec env a c in
+     mkProj (p, c')
+  | _ ->
+     f env a trm
+
+(*
+ * Map a function over a term, when the environment doesn't matter
+ * Update the argument of type 'a using the a supplied update function
+ * Return a new term
+ *)
+let map_term f d (a : 'a) (trm : types) : types =
+  map_term_env (fun _ a t -> f a t) d empty_env a trm
+
+(* Unshift an index by n *)
+let unshift_i_by (n : int) (i : int) : int =
+  i - n
+
+(* Shift an index by n *)
+let shift_i_by (n : int) (i : int) : int =
+  unshift_i_by (- n) i
+
+(* Unshift an index *)
+let unshift_i (i : int) : int =
+  unshift_i_by 1 i
+
+(* Shift an index *)
+let shift_i (i : int) : int =
+  shift_i_by 1 i
+
+(*
+ * Unshifts a term by n if it is greater than the maximum index
+ * max of a local binding
+ *)
+let unshift_local (max : int) (n : int) (trm : types) : types =
+  map_term
+    (fun (m, adj) t ->
+      match kind_of_term t with
+      | Rel i ->
+         let i' = if i > m then unshift_i_by adj i else i in
+         mkRel i'
+      | _ ->
+         t)
+    (fun (m, adj) -> (shift_i m, adj))
+    (max, n)
+    trm
+
+(*
+ * Shifts a term by n if it is greater than the maximum index
+ * max of a local binding
+ *)
+let shift_local (max : int) (n : int) (trm : types) : types =
+  unshift_local max (- n) trm
+
+(* Decrement the relative indexes of a term t by n *)
+let unshift_by (n : int) (trm : types) : types =
+  unshift_local 0 n trm
+
+(* Increment the relative indexes of a term t by n *)
+let shift_by (n : int) (t : types) : types  =
+  unshift_by (- n) t
+
+(* Increment the relative indexes of a term t by one *)
+let shift (t : types) : types  =
+  shift_by 1 t
+
+(* Decrement the relative indexes of a term t by one *)
+let unshift (t : types) : types =
+  unshift_by 1 t
+
 (* --- Debugging, from PUMPKIN PATCH --- *)
 
 (* Using pp, prints directly to a string *)
@@ -376,6 +499,34 @@ let rec index_type env p_o p_n =
   | _ ->
      failwith "could not find indexer property"
 
+(* *)
+
+(* Destruct the type of an induction principle into its cases *)
+let rec destruct_cases elim_b : types list =
+  match kind_of_term elim_b with
+  | Prod (n, t, b) ->
+     t :: destruct_cases (unshift b)
+  | _ ->
+     []
+
+(* Get the cases for the indexer *)
+let indexer_cases env index_type elim_t_o elim_t_n : types array =
+  let (n_o, p_o, b_o) = destProd elim_t_o in
+  let (n_n, p_n, b_n) = destProd elim_t_n in
+  let env_p_o = push_rel CRD.(LocalAssum (n_o, p_o)) env in
+  let env_p_n = push_rel CRD.(LocalAssum (n_n, p_n)) env in
+  let cs_o = Array.of_list (destruct_cases b_o) in
+  let cs_n = Array.of_list (destruct_cases b_n) in
+  (* ^ TODO trim off arity at the end *)
+  debug_terms env_p_o (Array.to_list cs_o) "cs_o";
+  debug_terms env_p_n (Array.to_list cs_n) "cs_n";
+  Array.of_list [] (* TODO *)
+
+(* Rewrite the old induction principle in terms of an indexed property *)
+(*let index env elim_o TODO *)
+(* TODO   let p_o' = mkLambda (_, index_type, mkApp (shift p_o, mkRel 1)) in
+  let env_c = push_rel Crd.(LocalAssum (n_o, p_o')) env in *)
+
 (* Search for an indexing function *)
 let search_for_indexer env npm elim_o elim_t_o elim_t_n : types =
   let (_, p_o, b_o) = destProd elim_t_o in
@@ -383,6 +534,7 @@ let search_for_indexer env npm elim_o elim_t_o elim_t_n : types =
   let (env_indexer, _) = zoom_product_type env p_o in
   let index_t = index_type env p_o p_n in
   let indexer_p = reconstruct_lambda_n env_indexer index_t npm in
+  let indexer_cs = indexer_cases env index_type elim_t_o elim_t_n in
   let indexer = mkApp (elim_o, Array.make 1 indexer_p) in
   reconstruct_lambda env_indexer indexer (* TODO apply to more *)
 
