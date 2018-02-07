@@ -527,9 +527,22 @@ let rec destruct_cases elim_b : types list =
      []
 
 (* Get a single case for the indexer *)
-let index_case prop_index env_o env_n pind_o pind_n c_o c_n : types =
-  let properties i t_o t_n = is_rel t_o i && is_rel t_n i in
-  let old_new_terms t_o t_n = eq_constr t_o pind_o && eq_constr t_n pind_n in
+(* TODO Need to generalize this logic better, try sub & check approach *)
+let index_case index_t prop_index env_o env_n pind_o pind_n c_o c_n : types =
+  let properties i t_o t_n =
+    match map_tuple kind_of_term (t_o, t_n) with
+    | (App (f_o, args_o), App (f_n, args_n)) ->
+       is_rel f_o i && is_rel f_n i
+    | _ ->
+       is_rel t_o i && is_rel t_n i
+  in
+  let old_new_terms t_o t_n =
+    match map_tuple kind_of_term (t_o, t_n) with
+    | (App (f_o, args_o), App (f_n, args_n)) ->
+       eq_constr f_o pind_o && eq_constr f_n pind_n
+    | _ ->
+       eq_constr t_o pind_o && eq_constr t_n pind_n
+  in
   let old_new e_o e_n t_o t_n =
     old_new_terms t_o t_n ||
     old_new_terms (infer_type e_o t_o) (infer_type e_n t_n)
@@ -537,29 +550,29 @@ let index_case prop_index env_o env_n pind_o pind_n c_o c_n : types =
   let conv_modulo_change i e_o e_n t_o t_n =
     properties i t_o t_n || old_new e_o e_n t_o t_n || convertible env_o t_o t_n
   in
-  debug_term env_o c_o "c_o";
-  debug_term env_n c_n "c_n";
-  let rec diff_case i e_o e_n o n =
-    debug_term e_o o "o";
-    debug_term e_n n "n";
+  let rec diff_case i_t i e_o e_n o n =
     match map_tuple kind_of_term (o, n) with
     | (App (f_o, args_o), App (f_n, args_n)) when properties i f_o f_n ->
        Array.get args_n 0 (* assumes new index is first *)
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let e_b_n = push_rel CRD.(LocalAssum (n_n, t_n)) e_n in
        let i_b = shift_i i in
+       let i_t_b = shift i_t in
        if not (conv_modulo_change i e_o e_n t_o t_n) then
          let e_b_o = push_rel CRD.(LocalAssum (n_n, t_n)) e_o in
-         mkLambda (n_n, t_n, diff_case i_b e_b_o e_b_n (shift o) b_n)
+         unshift (diff_case i_t_b i_b e_b_o e_b_n (shift o) b_n)
        else
          let e_b_o = push_rel CRD.(LocalAssum (n_o, t_o)) e_o in
-         mkLambda (n_o, t_o, diff_case i_b e_b_o e_b_n b_o b_n)
+         if properties i t_o t_n then
+           mkLambda (n_o, i_t, diff_case i_t_b i_b e_b_o e_b_n b_o b_n)
+         else
+           mkLambda (n_o, t_o, diff_case i_t_b i_b e_b_o e_b_n b_o b_n)
     | _ ->
        failwith "unxpected case"
-  in diff_case prop_index env_o env_n c_o c_n
+  in diff_case index_t prop_index env_o env_n c_o c_n
 
 (* Get the cases for the indexer *)
-let indexer_cases env_o env_n index_type o n : types array =
+let indexer_cases env_o env_n index_t o n : types list =
   let (pind_o, arity_o, elim_t_o) = o in
   let (pind_n, arity_n, elim_t_n) = n in
   let (n_o, p_o, b_o) = destProd elim_t_o in
@@ -568,11 +581,7 @@ let indexer_cases env_o env_n index_type o n : types array =
   let env_p_n = push_rel CRD.(LocalAssum (n_n, p_n)) env_n in
   let cs_o = take_except arity_o (destruct_cases b_o) in
   let cs_n = take_except arity_n (destruct_cases b_n) in
-  Array.of_list
-    (List.map2
-       (index_case 1 env_p_o env_p_n pind_o pind_n)
-       cs_o
-       cs_n)
+  List.map2 (index_case index_t 1 env_p_o env_p_n pind_o pind_n) cs_o cs_n
 
 (* Rewrite the old induction principle in terms of an indexed property *)
 (*let index env elim_o TODO *)
@@ -588,8 +597,9 @@ let search_for_indexer env_o env_n npm elim_o o n : types =
   let (env_indexer, _) = zoom_product_type env_o p_o in
   let index_t = index_type env_n p_o p_n in
   let indexer_p = reconstruct_lambda_n env_indexer index_t npm in (* index is offf *)
-  let indexer_cs = indexer_cases env_o env_n index_type o n in (* TODO use *)
-  let indexer = mkApp (elim_o, Array.make 1 indexer_p) in
+  let indexer_cs = indexer_cases env_o env_n index_t o n in (* TODO use *)
+  let indexer_args = Array.of_list (indexer_p :: indexer_cs) in
+  let indexer = mkApp (elim_o, indexer_args) in
   reconstruct_lambda env_indexer indexer (* TODO apply to more *)
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
