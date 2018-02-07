@@ -333,6 +333,74 @@ let shift (t : types) : types  =
 let unshift (t : types) : types =
   unshift_by 1 t
 
+(*
+ * Map a function over a term in an environment
+ * Only apply the function when a proposition is true
+ * Apply the function eagerly
+ * Update the environment as you go
+ * Update the argument of type 'a using the a supplied update function
+ * Return a new term
+ *)
+let rec map_term_env_if p f d (env : env) (a : 'a) (trm : types) : types =
+  let map_rec = map_term_env_if p f d in
+  if p env a trm then
+    f env a trm
+  else
+    match kind_of_term trm with
+    | Cast (c, k, t) ->
+       let c' = map_rec env a c in
+       let t' = map_rec env a t in
+       mkCast (c', k, t')
+    | Prod (n, t, b) ->
+       let t' = map_rec env a t in
+       let b' = map_rec (push_rel CRD.(LocalAssum(n, t')) env) (d a) b in
+       mkProd (n, t', b')
+    | Lambda (n, t, b) ->
+       let t' = map_rec env a t in
+       let b' = map_rec (push_rel CRD.(LocalAssum(n, t')) env) (d a) b in
+       mkLambda (n, t', b')
+    | LetIn (n, trm, typ, e) ->
+       let trm' = map_rec env a trm in
+       let typ' = map_rec env a typ in
+       let e' = map_rec (push_rel CRD.(LocalDef(n, e, typ')) env) (d a) e in
+       mkLetIn (n, trm', typ', e')
+    | App (fu, args) ->
+       let fu' = map_rec env a fu in
+       let args' = Array.map (map_rec env a) args in
+       mkApp (fu', args')
+    | Case (ci, ct, m, bs) ->
+       let ct' = map_rec env a ct in
+       let m' = map_rec env a m in
+       let bs' = Array.map (map_rec env a) bs in
+       mkCase (ci, ct', m', bs')
+    | Fix ((is, i), (ns, ts, ds)) ->
+       let ts' = Array.map (map_rec env a) ts in
+       let ds' = Array.map (map_rec_env_fix map_rec d env a ns ts) ds in
+       mkFix ((is, i), (ns, ts', ds'))
+    | CoFix (i, (ns, ts, ds)) ->
+       let ts' = Array.map (map_rec env a) ts in
+       let ds' = Array.map (map_rec_env_fix map_rec d env a ns ts) ds in
+       mkCoFix (i, (ns, ts', ds'))
+    | Proj (pr, c) ->
+       let c' = map_rec env a c in
+       mkProj (pr, c')
+    | _ ->
+       trm
+
+(* Map a substitution over a term *)
+let all_substs p env (src, dst) trm : types =
+  map_term_env_if
+    (fun en (s, _) t -> p en s t)
+    (fun _ (_, d) _ -> d)
+    (fun (s, d) -> (shift s, shift d))
+    env
+    (src, dst)
+    trm
+
+(* In env, substitute all subterms of trm that are convertible to src with dst *)
+let all_conv_substs =
+  all_substs convertible
+
 (* --- Debugging, from PUMPKIN PATCH --- *)
 
 (* Using pp, prints directly to a string *)
@@ -553,7 +621,11 @@ let index_case index_t prop_index env_o env_n pind_o pind_n c_o c_n : types =
   let rec diff_case i_t i e_o e_n o n =
     match map_tuple kind_of_term (o, n) with
     | (App (f_o, args_o), App (f_n, args_n)) when properties i f_o f_n ->
-       Array.get args_n 0 (* assumes new index is first *)
+       all_substs
+         (fun en -> eq_constr)
+         e_o
+         (mkRel (i - 1), mkRel 1)
+         (Array.get args_n 0) (* assumes new index is first *)
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let e_b_n = push_rel CRD.(LocalAssum (n_n, t_n)) e_n in
        let i_b = shift_i i in
