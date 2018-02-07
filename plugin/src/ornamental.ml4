@@ -692,7 +692,7 @@ let search_for_indexer env_o env_n npm elim_o o n is_fwd : types option =
     let indexer_p = shift_by off (reconstruct_lambda_n env_indexer index_t npm) in
     let indexer_cs = indexer_cases env_o env_n index_t o n in
     let indexer_args = Array.of_list (List.append indexer_pms (indexer_p :: indexer_cs)) in
-    let indexer = mkApp (elim_o, indexer_args) in
+    let indexer = mkApp (mkApp (elim_o, indexer_args), Array.make 1 (mkRel npm)) in
     Some (reconstruct_lambda env_indexer indexer)
   else
     None
