@@ -152,18 +152,22 @@ let conv_ignoring_univ_inconsistency env evm trm1 trm2 : bool =
 let convertible (env : env) (trm1 : types) (trm2 : types) : bool =
   conv_ignoring_univ_inconsistency env Evd.empty trm1 trm2
 
+(* Check whether a term is a certain debruijn index *)
+let is_rel (trm : types) (i : int) : bool =
+  eq_constr trm (mkRel i)
+
 (* Lookup the eliminator over the type sort *)
 let type_eliminator (env : env) (ind : inductive) =
   Universes.constr_of_global (Indrec.lookup_eliminator ind InType)
 
-(* Zoom into two terms, merging the envs, and fail if types don't match *)
-let rec zoom_n_prod env npm typ1 typ2 : env * types * types =
+(* Zoom into a term *)
+let rec zoom_n_prod env npm typ : env * types =
   if npm = 0 then
-    (env, typ1, typ2)
+    (env, typ)
   else
-    match map_tuple kind_of_term (typ1, typ2) with
-    | (Prod (n1, t1, b1), Prod (n2, t2, b2)) when convertible env t1 t2  ->
-       zoom_n_prod (push_rel CRD.(LocalAssum(n1, t1)) env) (npm - 1) b1 b2
+    match kind_of_term typ with
+    | Prod (n1, t1, b1) ->
+       zoom_n_prod (push_rel CRD.(LocalAssum (n1, t1)) env) (npm - 1) b1
     | _ ->
        failwith "more parameters expected"
 
@@ -514,8 +518,6 @@ let rec index_type env p_o p_n =
   | _ ->
      failwith "could not find indexer property"
 
-(* *)
-
 (* Destruct the type of an induction principle into its cases *)
 let rec destruct_cases elim_b : types list =
   match kind_of_term elim_b with
@@ -524,19 +526,53 @@ let rec destruct_cases elim_b : types list =
   | _ ->
      []
 
+(* Get a single case for the indexer *)
+let index_case prop_index env_o env_n pind_o pind_n c_o c_n : types =
+  let properties i t_o t_n = is_rel t_o i && is_rel t_n i in
+  let old_new_terms t_o t_n = eq_constr t_o pind_o && eq_constr t_n pind_n in
+  let old_new e_o e_n t_o t_n =
+    old_new_terms t_o t_n ||
+    old_new_terms (infer_type e_o t_o) (infer_type e_n t_n)
+  in
+  let conv_modulo_change i e_o e_n t_o t_n =
+    properties i t_o t_n || old_new e_o e_n t_o t_n || convertible env_o t_o t_n
+  in
+  debug_term env_o c_o "c_o";
+  debug_term env_n c_n "c_n";
+  let rec diff_case i e_o e_n o n =
+    debug_term e_o o "o";
+    debug_term e_n n "n";
+    match map_tuple kind_of_term (o, n) with
+    | (App (f_o, args_o), App (f_n, args_n)) when properties i f_o f_n ->
+       Array.get args_n 0 (* assumes new index is first *)
+    | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
+       let e_b_n = push_rel CRD.(LocalAssum (n_n, t_n)) e_n in
+       let i_b = shift_i i in
+       if not (conv_modulo_change i e_o e_n t_o t_n) then
+         let e_b_o = push_rel CRD.(LocalAssum (n_n, t_n)) e_o in
+         mkLambda (n_n, t_n, diff_case i_b e_b_o e_b_n (shift o) b_n)
+       else
+         let e_b_o = push_rel CRD.(LocalAssum (n_o, t_o)) e_o in
+         mkLambda (n_o, t_o, diff_case i_b e_b_o e_b_n b_o b_n)
+    | _ ->
+       failwith "unxpected case"
+  in diff_case prop_index env_o env_n c_o c_n
+
 (* Get the cases for the indexer *)
-let indexer_cases env index_type arity_o arity_n elim_t_o elim_t_n : types array =
+let indexer_cases env_o env_n index_type o n : types array =
+  let (pind_o, arity_o, elim_t_o) = o in
+  let (pind_n, arity_n, elim_t_n) = n in
   let (n_o, p_o, b_o) = destProd elim_t_o in
   let (n_n, p_n, b_n) = destProd elim_t_n in
-  let env_p_o = push_rel CRD.(LocalAssum (n_o, p_o)) env in
-  let env_p_n = push_rel CRD.(LocalAssum (n_n, p_n)) env in
-  let cs_o = Array.of_list (take_except arity_o (destruct_cases b_o)) in
-  let cs_n = Array.of_list (take_except arity_n (destruct_cases b_n)) in
-  debug_terms env_p_o (Array.to_list cs_o) "cs_o";
-  debug_terms env_p_n (Array.to_list cs_n) "cs_n";
-  (* TODO now, get an array of the differences between each of those *)
-  (* Basically, assume equal if one is list and one is vector, or if they're properties. Then find the extra indexes *)
-  Array.of_list [] (* TODO *)
+  let env_p_o = push_rel CRD.(LocalAssum (n_o, p_o)) env_o in
+  let env_p_n = push_rel CRD.(LocalAssum (n_n, p_n)) env_n in
+  let cs_o = take_except arity_o (destruct_cases b_o) in
+  let cs_n = take_except arity_n (destruct_cases b_n) in
+  Array.of_list
+    (List.map2
+       (index_case 1 env_p_o env_p_n pind_o pind_n)
+       cs_o
+       cs_n)
 
 (* Rewrite the old induction principle in terms of an indexed property *)
 (*let index env elim_o TODO *)
@@ -544,35 +580,46 @@ let indexer_cases env index_type arity_o arity_n elim_t_o elim_t_n : types array
   let env_c = push_rel Crd.(LocalAssum (n_o, p_o')) env in *)
 
 (* Search for an indexing function *)
-let search_for_indexer env npm arity_o arity_n elim_o elim_t_o elim_t_n : types =
+let search_for_indexer env_o env_n npm elim_o o n : types =
+  let (pind_o, arity_o, elim_t_o) = o in
+  let (pind_n, arity_n, elim_t_n) = n in
   let (_, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
-  let (env_indexer, _) = zoom_product_type env p_o in
-  let index_t = index_type env p_o p_n in
-  let indexer_p = reconstruct_lambda_n env_indexer index_t npm in
-  let indexer_cs = indexer_cases env index_type arity_o arity_n elim_t_o elim_t_n in
+  let (env_indexer, _) = zoom_product_type env_o p_o in
+  let index_t = index_type env_n p_o p_n in
+  let indexer_p = reconstruct_lambda_n env_indexer index_t npm in (* index is offf *)
+  let indexer_cs = indexer_cases env_o env_n index_type o n in (* TODO use *)
   let indexer = mkApp (elim_o, Array.make 1 indexer_p) in
   reconstruct_lambda env_indexer indexer (* TODO apply to more *)
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
-let search_orn_index_elim env npm arity_o arity_n elim_o elim_t_o elim_t_n is_fwd : types =
+let search_orn_index_elim env_o env_n npm elim_o o n is_fwd : types =
   (if is_fwd then
-     let indexer = search_for_indexer env npm arity_o arity_n elim_o elim_t_o elim_t_n in
-     debug_term env indexer "indexer";
+     let indexer = search_for_indexer env_o env_n npm elim_o o n in
+     debug_term env_o indexer "indexer";
      Printf.printf "%s\n\n" "searched for an indexing function"
    else
      Printf.printf "%s\n\n" "no indexing function in this direction");
+  let (pind_o, arity_o, elim_t_o) = o in
+  let (pind_n, arity_n, elim_t_n) = n in
   let (_, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
-  let (env_ornament, _) = zoom_product_type env p_o in
+  let (env_ornament, _) = zoom_product_type env_o p_o in
   reconstruct_lambda env_ornament elim_o (* TODO apply to things *)
 
 (* Search two inductive types for an indexing ornament *)
-let search_orn_index env npm (ind_o, arity_o) (ind_n, arity_n) is_fwd : types =
+let search_orn_index env npm o n is_fwd : types =
+  let (pind_o, arity_o) = o in
+  let (pind_n, arity_n) = n in
+  let (ind_o, _) = destInd pind_o in
+  let (ind_n, _) = destInd pind_n in
   let (elim_o, elim_n) = map_tuple (type_eliminator env) (ind_o, ind_n) in
   let (elim_t_o, elim_t_n) = map_tuple (infer_type env) (elim_o, elim_n) in
-  let (env', elim_t_o', elim_t_n') = zoom_n_prod env npm elim_t_o elim_t_n in
-  search_orn_index_elim env' npm arity_o arity_n elim_o elim_t_o' elim_t_n' is_fwd
+  let (env_o, elim_t_o') = zoom_n_prod env npm elim_t_o in
+  let (env_n, elim_t_n') = zoom_n_prod env npm elim_t_n in
+  let o = (pind_o, arity_o, elim_t_o') in
+  let n = (pind_n, arity_n, elim_t_n') in
+  search_orn_index_elim env_o env_n npm elim_o o n is_fwd
 
 (* Search two inductive types for an ornament between them *)
 (* TODO eventually, when supporting many changes, will want to chain these *)
@@ -595,8 +642,8 @@ let search_orn_inductive (env : env) (o : types) (n : types) : (types * types) =
        let npm = npm_o in
        let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
        let (arity_o, arity_n) = map_tuple arity (typ_o, typ_n) in
-       let search_o = ((i_o, ii_o), arity_o) in
-       let search_n = ((i_n, ii_n), arity_n) in
+       let search_o = (o, arity_o) in
+       let search_n = (n, arity_n) in
        if arity_o < arity_n then
          twice (search_orn_index env npm) search_o search_n
        else if arity_n < arity_o then
