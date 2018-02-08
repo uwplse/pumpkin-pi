@@ -88,3 +88,31 @@ Inductive bintreeV (A : Type) : nat -> Type :=
 Find ornament bintree bintreeV as orn_bintree_bintreeV.
 
 Print orn_bintree_bintreeV_index.
+
+Definition bintree_size (A : Type) (tr : bintree A) :=
+  bintree_rect
+    A
+    (fun (_ : bintree A) => nat)
+    0
+    (fun (l : bintree A) (nl : nat) (a : A) (r : bintree A) (nr : nat) =>
+      nl + nr)
+    tr.
+
+Theorem test_index_3:
+  forall (A : Type) (tr : bintree A),
+    orn_bintree_bintreeV_index A tr = bintree_size A tr.
+Proof.
+  intros. auto.
+Qed.
+
+Find ornament bintreeV bintree as orn_bintreeV_bintree.
+
+Print orn_bintreeV_bintree_index.
+
+Theorem test_index_inv_3:
+  forall (A : Type) (tr : bintree A),
+    orn_bintreeV_bintree_index A tr = bintree_size A tr.
+Proof.
+  intros. auto.
+Qed.
+
