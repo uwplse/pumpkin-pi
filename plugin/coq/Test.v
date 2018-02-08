@@ -39,12 +39,36 @@ Inductive rev_vector (A : Type) : nat -> Type :=
 | rev_nilV : rev_vector A 0
 | rev_consV : forall (n : nat), rev_vector A n -> A -> rev_vector A (S n).
 
-Check rev_list_rect.
-Check rev_vector_rect.
-
 Find ornament rev_list rev_vector as orn_rev_list_rev_vector.
 
 Print orn_rev_list_rev_vector_index.
+
+Definition rev_list_length (A : Type) (rl : rev_list A) :=
+  rev_list_rect
+    A
+    (fun (_ : rev_list A) => nat)
+    0
+    (fun (r : rev_list A) (n : nat) (a : A) =>
+      S n)
+    rl.
+
+Theorem test_index_2:
+  forall (A : Type) (l : rev_list A),
+    orn_rev_list_rev_vector_index A l = rev_list_length A l.
+Proof.
+  intros. auto.
+Qed.
+
+Find ornament rev_vector rev_list as orn_rev_vector_rev_list.
+
+Print orn_rev_vector_rev_list_index.
+
+Theorem test_index_inv_2:
+  forall (A : Type) (l : rev_list A),
+    orn_rev_vector_rev_list_index A l = rev_list_length A l.
+Proof.
+  intros. auto.
+Qed.
 
 (* --- Binary Trees and Indexed Binary Trees --- 
 
