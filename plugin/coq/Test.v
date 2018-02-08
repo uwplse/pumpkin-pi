@@ -120,7 +120,7 @@ Qed.
 
 Inductive list2 (A : Type) (B : Type) : Type :=
 | nil2 : list2 A B
-| cons2 : forall (n : nat), A -> B -> list2 A B -> list2 A B.
+| cons2 : A -> B -> list2 A B -> list2 A B.
 
 Inductive vector2 (A : Type) (B : Type) : nat -> Type :=
 | nilV2 : vector2 A B 0
@@ -128,8 +128,10 @@ Inductive vector2 (A : Type) (B : Type) : nat -> Type :=
 
 Find ornament list2 vector2 as orn_list2_vector2.
 
-Print orn_list2_vectr2_index.
+Print orn_list2_vector2_index.
 
 (* --- TODO what happens when your index from two nats in the context? --- *)
 
 (* --- TODO what happens when your index depends on an earlier term? --- *)
+
+(* --- TODO what does it mean if the index already existed in the old constructor, but wasn't used, or was used differently? How do we handle that? ---*)
