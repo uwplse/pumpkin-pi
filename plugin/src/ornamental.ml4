@@ -636,30 +636,39 @@ let index_case index_t prop_index env_o env_n pind_o pind_n c_o c_n : types =
   let conv_modulo_change i e_o e_n t_o t_n =
     properties i t_o t_n || old_new e_o e_n t_o t_n || convertible env_o t_o t_n
   in
-  let rec diff_case i_t i e_o e_n o n =
+  let rec diff_case pil iil i_t i e_o e_n o n =
     match map_tuple kind_of_term (o, n) with
     | (App (f_o, args_o), App (f_n, args_n)) when properties i f_o f_n ->
-       all_substs
-         (fun en -> eq_constr)
-         e_o
-         (mkRel (i - 1), mkRel 1) (* assumes one index *)
-         (Array.get args_n 0) (* assumes new index is first *)
+       List.fold_left2
+         (fun idx p_i i_i ->
+           let sub_p = (mkRel i_i, mkRel p_i) in
+           let idx' = all_substs (fun _ -> eq_constr) e_o sub_p idx in
+           let i_i' = unshift_i i_i in
+           idx')
+         (Array.get args_n 0)
+         pil
+         iil
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let e_b_n = push_rel CRD.(LocalAssum (n_n, t_n)) e_n in
        let i_b = shift_i i in
        let i_t_b = shift i_t in
        if not (conv_modulo_change i e_o e_n t_o t_n) then
          let e_b_o = push_rel CRD.(LocalAssum (n_n, t_n)) e_o in
-         unshift (diff_case i_t_b i_b e_b_o e_b_n (shift o) b_n)
+         let pil' = List.map shift_i pil in
+         let iil' = 1 :: List.map shift_i iil in
+         unshift (diff_case pil' iil' i_t_b i_b e_b_o e_b_n (shift o) b_n)
        else
          let e_b_o = push_rel CRD.(LocalAssum (n_o, t_o)) e_o in
+         let iil' = List.map shift_i iil in
          if properties i t_o t_n then
-           mkLambda (n_o, i_t, diff_case i_t_b i_b e_b_o e_b_n b_o b_n)
+           let pil' = 1 :: List.map shift_i pil in
+           mkLambda (n_o, i_t, diff_case pil' iil' i_t_b i_b e_b_o e_b_n b_o b_n)
          else
-           mkLambda (n_o, t_o, diff_case i_t_b i_b e_b_o e_b_n b_o b_n)
+           let pil' = List.map shift_i pil in
+           mkLambda (n_o, t_o, diff_case pil' iil' i_t_b i_b e_b_o e_b_n b_o b_n)
     | _ ->
        failwith "unxpected case"
-  in diff_case index_t prop_index env_o env_n c_o c_n
+  in diff_case [] [] index_t prop_index env_o env_n c_o c_n
 
 (* Get the cases for the indexer *)
 let indexer_cases env_o env_n index_t o n : types list =
@@ -693,8 +702,6 @@ let search_for_indexer env_o env_n npm elim_o o n is_fwd : types option =
     let indexer_cs = indexer_cases env_o env_n index_t o n in
     let indexer_args = Array.of_list (List.append indexer_pms (indexer_p :: indexer_cs)) in
     let indexer = mkApp (mkApp (elim_o, indexer_args), Array.make 1 (mkRel npm)) in
-    debug_env env_indexer "env_indexer";
-    debug_term env_indexer indexer "indexer";
     Some (reconstruct_lambda env_indexer indexer)
   else
     None
@@ -777,7 +784,6 @@ let find_ornament n d_old d_new =
     (if Option.has_some idx then
        let idx_n_string = String.concat "_" [prefix; "index"] in
        let idx_n = Id.of_string idx_n_string in
-       debug_term env (Option.get idx) "idx final";
        define_term idx_n env evm (Option.get idx);
        Printf.printf "Defined indexing function %s.\n\n" idx_n_string;
      else

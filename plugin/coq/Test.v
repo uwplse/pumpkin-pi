@@ -39,8 +39,8 @@ Inductive rev_vector (A : Type) : nat -> Type :=
 | rev_nilV : rev_vector A 0
 | rev_consV : forall (n : nat), rev_vector A n -> A -> rev_vector A (S n).
 
-Print rev_list_rect.
-Print rev_vector_rect.
+Check rev_list_rect.
+Check rev_vector_rect.
 
 Find ornament rev_list rev_vector as orn_rev_list_rev_vector.
 
