@@ -70,8 +70,21 @@ Proof.
   intros. auto.
 Qed.
 
-(* --- Binary Trees and Indexed Binary Trees --- 
+(* --- Binary Trees and Indexed Binary Trees --- *)
 
 Inductive bintree (A : Type) : Type :=
-| leaf : bintree A
-| node : bintree A -> A -> bintree A -> *)
+| leaf :
+    bintree A
+| node :
+    bintree A -> A -> bintree A -> bintree A.
+
+Inductive bintreeV (A : Type) : nat -> Type :=
+| leafV :
+    bintreeV A 0
+| nodeV :
+    forall (n m : nat),
+      bintreeV A n -> A -> bintreeV A m -> bintreeV A (n + m).
+
+Find ornament bintree bintreeV as orn_bintree_bintreeV.
+
+Print orn_bintree_bintreeV_index.
