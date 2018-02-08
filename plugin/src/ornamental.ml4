@@ -612,8 +612,8 @@ let rec destruct_cases elim_b : types list =
      []
 
 (* Get a single case for the indexer *)
-(* TODO Need to generalize this logic better, try sub & check approach *)
-(* TODO generalize to trees, then clean *)
+(* TODO need to generalize this logic better, try sub & check approach *)
+(* TODO clean *)
 let index_case index_t prop_index env_o env_n pind_o pind_n c_o c_n : types =
   let properties i t_o t_n =
     match map_tuple kind_of_term (t_o, t_n) with
@@ -678,8 +678,10 @@ let indexer_cases env_o env_n index_t o n : types list =
   let (n_n, p_n, b_n) = destProd elim_t_n in
   let env_p_o = push_rel CRD.(LocalAssum (n_o, p_o)) env_o in
   let env_p_n = push_rel CRD.(LocalAssum (n_n, p_n)) env_n in
-  let cs_o = take_except arity_o (destruct_cases b_o) in
-  let cs_n = take_except arity_n (destruct_cases b_n) in
+  let cs_o_ext = destruct_cases b_o in
+  let cs_n_ext = destruct_cases b_n in
+  let cs_o = take_except 1 cs_o_ext in
+  let cs_n = take_except (1 + (arity_n - arity_o)) cs_n_ext in
   List.map2 (index_case index_t 1 env_p_o env_p_n pind_o pind_n) cs_o cs_n
 
 (* Rewrite the old induction principle in terms of an indexed property *)
@@ -784,6 +786,7 @@ let find_ornament n d_old d_new =
     (if Option.has_some idx then
        let idx_n_string = String.concat "_" [prefix; "index"] in
        let idx_n = Id.of_string idx_n_string in
+       debug_term env (Option.get idx) "idx";
        define_term idx_n env evm (Option.get idx);
        Printf.printf "Defined indexing function %s.\n\n" idx_n_string;
      else
