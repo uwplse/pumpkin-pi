@@ -124,14 +124,48 @@ Inductive list2 (A : Type) (B : Type) : Type :=
 
 Inductive vector2 (A : Type) (B : Type) : nat -> Type :=
 | nilV2 : vector2 A B 0
-| consV2 : forall (n : nat), A -> B -> vector2 A B n -> vector2 A B (S n).
+| consV2 : forall (n : nat), A -> B -> vector2 A B n -> vector2 A B (S (S n)).
+
+Definition length2 (A : Type) (B : Type) (l : list2 A B) :=
+  list2_rect
+    A
+    B
+    (fun (_ : list2 A B) => nat)
+    0
+    (fun (a : A) (b : B) (l' : list2 A B) (IH : nat) =>
+      S (S IH))
+    l.
 
 Find ornament list2 vector2 as orn_list2_vector2.
 
 Print orn_list2_vector2_index.
+
+Theorem test_index_4:
+  forall (A : Type) (B : Type) (l : list2 A B),
+    orn_list2_vector2_index A B l = length2 A B l.
+Proof.
+  intros. auto.
+Qed.
+
+Find ornament vector2 list2 as orn_vector2_list2.
+
+Print orn_vector2_list2_index.
+
+Theorem test_index_inv_4:
+  forall (A : Type) (B : Type) (l : list2 A B),
+    orn_vector2_list2_index A B l = length2 A B l.
+Proof.
+  intros. auto.
+Qed.
 
 (* --- TODO what happens when your index from two nats in the context? --- *)
 
 (* --- TODO what happens when your index depends on an earlier term? --- *)
 
 (* --- TODO what does it mean if the index already existed in the old constructor, but wasn't used, or was used differently? How do we handle that? ---*)
+
+(* --- TODO Or, for example, if there's only one nat but it's a tree? --- *)
+
+(* --- TODO examples from notebook etc --- *)
+
+(* --- TODO then write ornamentation function --- *)
