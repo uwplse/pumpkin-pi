@@ -167,14 +167,16 @@ Inductive bal_bintree (A : Type) : nat -> Type :=
     forall (n : nat),
       bal_bintree A n -> A -> bal_bintree A n -> bal_bintree A (n + n).
 
-Find ornament bintree bal_bintree as bintree_balancer.
-
-Print bintree_balancer_index.
-
 (*
- * We can find an indexing function, but note that to use it (and to port
- * bintrees to bal_bintrees anyways) we need a balanced premise. We should
- * be able to also infer the balanced premise automatically,
+ * This technically works, but has an extra condition we don't find yet:
+ *
+ * Find ornament bintree bal_bintree as bintree_balancer.
+ *
+ * Print bintree_balancer_index.
+ *
+ * That is, we can find an indexing function, but note that to use it
+ * (and to port bintrees to bal_bintrees anyways) we need a balanced
+ * premise. We should be able to also infer the balanced premise automatically,
  * but it's tricky to know when we actually need to do this.
  * It seems like when the same index is referenced by several of the
  * other bintrees. We should revisit this at some point.
@@ -252,6 +254,8 @@ Inductive vector4 (A : Type) : nat -> Type :=
  *)
 
 (* --- TODO adding an index when one already exists --- *)
+
+(* --- TODO adding indexes that aren't first --- *)
 
 (* --- TODO weirder indexes --- *)
 

@@ -717,21 +717,25 @@ let search_for_indexer env_o env_n npm elim_o o n is_fwd : types option =
     None
 
 (* TODO explain *)
-let orn_p env pind arity npm =
+let orn_p env pind arity npm f_index =
   let off = nb_rel env - npm in
   let shift_off = shift_by off in
-  let pargs = List.map shift_off (mk_n_rels arity) in
-  shift_off
-    (reconstruct_lambda_n
-       env
-       (mkApp (pind, Array.of_list pargs))
-       npm) (* TODO apply indexer if exists *)
+  let pargs = Array.of_list (List.map shift_off (mk_n_rels arity)) in
+  let concl = mkApp (pind, pargs) in
+  if Option.has_some f_index then
+    let indexer = Option.get f_index in
+    let index = mkApp (indexer, Array.make 1 (mkRel 1)) in
+    shift_off (reconstruct_lambda_n env (mkApp (concl, Array.make 1 index)) npm)
+  else
+    shift_off (reconstruct_lambda_n env concl npm)
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
-let search_orn_index_elim env_o env_n npm elim_o o n is_fwd : (types option * types) =
-  let indexer = search_for_indexer env_o env_n npm elim_o o n is_fwd in
+let search_orn_index_elim env_o env_n npm idx_n elim_o o n is_fwd : (types option * types) =
   let (pind_o, arity_o, elim_t_o) = o in
   let (pind_n, arity_n, elim_t_n) = n in
+  let indexer = search_for_indexer env_o env_n npm elim_o o n is_fwd in
+  let indexer_path = ModPath.MPfile (Global.current_dirpath ()) in
+  let f_indexer = mkConst (Constant.make2 indexer_path (Label.of_id idx_n)) in
   let (_, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
   let (env_ornament, _) = zoom_product_type env_o p_o in
@@ -739,7 +743,8 @@ let search_orn_index_elim env_o env_n npm elim_o o n is_fwd : (types option * ty
   debug_term env_o p_o "p_o";
   debug_term env_n p_n "p_n";
   let (pind, arity) = if is_fwd then (pind_n, arity_o) else (pind_n, arity_n) in
-  let orn_p = orn_p env_ornament pind arity npm in
+  let f_index = if is_fwd then Some f_indexer else None in
+  let orn_p = orn_p env_ornament pind arity npm f_index in
   debug_term env_ornament orn_p "orn_p";
  (* 
     let indexer_cs = indexer_cases env_o env_n index_t o n in
@@ -751,7 +756,7 @@ let search_orn_index_elim env_o env_n npm elim_o o n is_fwd : (types option * ty
   (indexer, ornament)
 
 (* Search two inductive types for an indexing ornament *)
-let search_orn_index env npm o n is_fwd : (types option * types) =
+let search_orn_index env npm idx_n o n is_fwd : (types option * types) =
   let (pind_o, arity_o) = o in
   let (pind_n, arity_n) = n in
   let (ind_o, _) = destInd pind_o in
@@ -762,7 +767,7 @@ let search_orn_index env npm o n is_fwd : (types option * types) =
   let (env_n, elim_t_n') = zoom_n_prod env npm elim_t_n in
   let o = (pind_o, arity_o, elim_t_o') in
   let n = (pind_n, arity_n, elim_t_n') in
-  search_orn_index_elim env_o env_n npm elim_o o n is_fwd
+  search_orn_index_elim env_o env_n npm idx_n elim_o o n is_fwd
 
 (* Search two inductive types for an ornament between them *)
 (* TODO eventually, when supporting many changes, will want to chain these *)
@@ -777,7 +782,7 @@ let search_orn_index env npm o n is_fwd : (types option * types) =
  * but makes indexing function ill-defined right now because we assume
  * every nat is an index regardless of constructor arity, see vector3)
  *)
-let search_orn_inductive (env : env) (o : types) (n : types) : (types option) * types * types =
+let search_orn_inductive (env : env) (idx_n : Id.t) (o : types) (n : types) : (types option) * types * types =
   match map_tuple kind_of_term (o, n) with
   | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->
      let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
@@ -796,7 +801,7 @@ let search_orn_inductive (env : env) (o : types) (n : types) : (types option) * 
        let (arity_o, arity_n) = map_tuple arity (typ_o, typ_n) in
        let search_o = (o, arity_o) in
        let search_n = (n, arity_n) in
-       let search = twice (search_orn_index env npm) in
+       let search = twice (search_orn_index env npm idx_n) in
        if arity_o < arity_n then
          let ((idx, orn_o), (_, orn_n)) = search search_o search_n in
          (idx, orn_o, orn_n)
@@ -817,11 +822,11 @@ let find_ornament n d_old d_new =
   let new_term = unwrap_definition env (intern env evm d_new) in
   if isInd old_term && isInd new_term then
     let prefix = Id.to_string n in
-    let (idx, orn_o_n, orn_n_o) = search_orn_inductive env old_term new_term in
+    let idx_n_string = String.concat "_" [prefix; "index"] in
+    let idx_n = Id.of_string idx_n_string in
+    let (idx, orn_o_n, orn_n_o) = search_orn_inductive env idx_n old_term new_term in
     (if Option.has_some idx then
-       let idx_n_string = String.concat "_" [prefix; "index"] in
-       let idx_n = Id.of_string idx_n_string in
-       define_term idx_n env evm (Option.get idx);
+       let _ = define_term idx_n env evm (Option.get idx) in
        Printf.printf "Defined indexing function %s.\n\n" idx_n_string;
      else
        ());
