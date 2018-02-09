@@ -746,14 +746,14 @@ let search_orn_index_elim env_o env_n npm idx_n elim_o o n is_fwd : (types optio
   let f_index = if is_fwd then Some f_indexer else None in
   let orn_p = orn_p env_ornament pind arity npm f_index in
   debug_term env_ornament orn_p "orn_p";
+  let orn_cs = [] (* TODO *) in
  (* 
     let indexer_cs = indexer_cases env_o env_n index_t o n in
-    let indexer_args = Array.of_list (List.append indexer_pms (indexer_p :: indexer_cs)) in
-    let indexer = mkApp (mkApp (elim_o, indexer_args), Array.make 1 (mkRel 1)) in
-    Some (reconstruct_lambda env_indexer indexer)*)
-
-  let ornament = reconstruct_lambda env_ornament elim_o in (* TODO apply to things *)
-  (indexer, ornament)
+  *)
+  let orn_args = Array.of_list (List.append pms (orn_p :: orn_cs)) in
+  let ornament = mkApp (mkApp (elim_o, orn_args), Array.make 1 (mkRel 1)) in
+  debug_term env_ornament ornament "ornament";
+  (indexer, reconstruct_lambda env_ornament ornament)
 
 (* Search two inductive types for an indexing ornament *)
 let search_orn_index env npm idx_n o n is_fwd : (types option * types) =
