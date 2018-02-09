@@ -158,13 +158,75 @@ Proof.
   intros. auto.
 Qed.
 
+(* --- Balanced binary trees --- *)
+
+Inductive bal_bintree (A : Type) : nat -> Type :=
+| bal_leaf :
+    bal_bintree A 0
+| bal_node :
+    forall (n : nat),
+      bal_bintree A n -> A -> bal_bintree A n -> bal_bintree A (n + n).
+
+Find ornament bintree bal_bintree as bintree_balancer.
+
+Print bintree_balancer_index.
+
+(*
+ * We can find an indexing function, but note that to use it (and to port
+ * bintrees to bal_bintrees anyways) we need a balanced premise. We should
+ * be able to also infer the balanced premise automatically,
+ * but it's tricky to know when we actually need to do this.
+ * It seems like when the same index is referenced by several of the
+ * other bintrees. We should revisit this at some point.
+ *)
+
+(* --- BintreeV with nats in reverse order --- *)
+
+Inductive bintreeV_rev (A : Type) : nat -> Type :=
+| leafV_rev :
+    bintreeV_rev A 0
+| nodeV_rev :
+    forall (n m : nat),
+      bintreeV_rev A m -> A -> bintreeV_rev A n -> bintreeV_rev A (n + m).
+
+Definition bintree_size_rev (A : Type) (tr : bintree A) :=
+  bintree_rect
+    A
+    (fun (_ : bintree A) => nat)
+    0
+    (fun (l : bintree A) (nl : nat) (a : A) (r : bintree A) (nr : nat) =>
+      nr + nl)
+    tr.
+
+Find ornament bintree bintreeV_rev as orn_bintree_bintreeV_rev.
+
+Print orn_bintree_bintreeV_rev_index.
+
+Theorem test_index_6:
+  forall (A : Type) (tr : bintree A),
+    orn_bintree_bintreeV_rev_index A tr = bintree_size_rev A tr.
+Proof.
+  intros. auto.
+Qed.
+
+Find ornament bintreeV_rev bintree as orn_bintreeV_rev_bintree.
+
+Print orn_bintreeV_rev_bintree_index.
+
+Theorem test_index_inv_6:
+  forall (A : Type) (tr : bintree A),
+    orn_bintreeV_rev_bintree_index A tr = bintree_size_rev A tr.
+Proof.
+  intros. auto.
+Qed.
+
+(* --- TODO weirder indexes --- *)
+
 (* --- TODO what happens when your index from two nats in the context? --- *)
 
 (* --- TODO what happens when your index depends on an earlier term? --- *)
 
 (* --- TODO what does it mean if the index already existed in the old constructor, but wasn't used, or was used differently? How do we handle that? ---*)
-
-(* --- TODO Or, for example, if there's only one nat but it's a tree? --- *)
 
 (* --- TODO examples from notebook etc --- *)
 

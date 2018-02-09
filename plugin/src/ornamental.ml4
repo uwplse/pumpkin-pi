@@ -636,16 +636,22 @@ let index_case index_t prop_index env_o env_n pind_o pind_n c_o c_n : types =
   let conv_modulo_change i e_o e_n t_o t_n =
     properties i t_o t_n || old_new e_o e_n t_o t_n || convertible env_o t_o t_n
   in
-  let rec diff_case pil iil i_t i e_o e_n o n =
+  let rec diff_index i o n =
+    match map_tuple kind_of_term (o, n) with
+    | (App (f_o, args_o), App (f_n, args_n)) when properties i f_o f_n ->
+       Array.get args_n 0 (* TODO assumes index is first *)
+    | _ ->
+       failwith "not an application of a property"
+  in let rec diff_case pil iil i_t i e_o e_n o n =
     match map_tuple kind_of_term (o, n) with
     | (App (f_o, args_o), App (f_n, args_n)) when properties i f_o f_n ->
        List.fold_left2
          (fun idx p_i i_i ->
-           let sub_p = (mkRel i_i, mkRel p_i) in
+           let sub_p = (i_i, mkRel p_i) in
            let idx' = all_substs (fun _ -> eq_constr) e_o sub_p idx in
-           let i_i' = unshift_i i_i in
+           let i_i' = unshift i_i in
            idx')
-         (Array.get args_n 0)
+         (diff_index i o n) (* TODO assumes index is first *)
          pil
          iil
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
@@ -655,16 +661,17 @@ let index_case index_t prop_index env_o env_n pind_o pind_n c_o c_n : types =
        if not (conv_modulo_change i e_o e_n t_o t_n) then
          let e_b_o = push_rel CRD.(LocalAssum (n_n, t_n)) e_o in
          let pil' = List.map shift_i pil in
-         let iil' = 1 :: List.map shift_i iil in
+         let iil' = List.map shift iil in
          unshift (diff_case pil' iil' i_t_b i_b e_b_o e_b_n (shift o) b_n)
        else
          let e_b_o = push_rel CRD.(LocalAssum (n_o, t_o)) e_o in
-         let iil' = List.map shift_i iil in
          if properties i t_o t_n then
            let pil' = 1 :: List.map shift_i pil in
+           let iil' = List.map shift (diff_index i t_o t_n :: iil) in
            mkLambda (n_o, i_t, diff_case pil' iil' i_t_b i_b e_b_o e_b_n b_o b_n)
          else
            let pil' = List.map shift_i pil in
+           let iil' = List.map shift iil in
            mkLambda (n_o, t_o, diff_case pil' iil' i_t_b i_b e_b_o e_b_n b_o b_n)
     | _ ->
        failwith "unxpected case"
@@ -741,6 +748,7 @@ let search_orn_index env npm o n is_fwd : (types option * types) =
  * TODO better data representations for return types etc.
  * TODO what happens when an indexed type isn't a measure, so you can't
  * extract the index from the old type? When does that happen?
+ * TODO figuring out when we need more premises, too, as in bal_bintrees
  *)
 let search_orn_inductive (env : env) (o : types) (n : types) : (types option) * types * types =
   match map_tuple kind_of_term (o, n) with
