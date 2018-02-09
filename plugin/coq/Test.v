@@ -251,6 +251,8 @@ Inductive vector4 (A : Type) : nat -> Type :=
  * Print orn_list_vector4_index.
  *)
 
+(* --- TODO adding an index when one already exists --- *)
+
 (* --- TODO weirder indexes --- *)
 
 (* --- TODO what happens when your index depends on an earlier term? --- *)
@@ -260,3 +262,5 @@ Inductive vector4 (A : Type) : nat -> Type :=
 (* --- TODO examples from notebook etc --- *)
 
 (* --- TODO then write ornamentation function --- *)
+
+(* --- TODO move the weirder ones to separate files; write a test script --- *)

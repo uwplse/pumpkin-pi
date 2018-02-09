@@ -693,6 +693,10 @@ let indexer_cases env_o env_n index_t o n : types list =
   let cs_n = take_except (1 + (arity_n - arity_o)) cs_n_ext in
   List.map2 (index_case index_t 1 env_p_o env_p_n pind_o pind_n) cs_o cs_n
 
+(* TODO explain, move *)
+let mk_n_rels arity =
+  List.map mkRel (List.rev (from_one_to arity))
+
 (* Search for an indexing function *)
 let search_for_indexer env_o env_n npm elim_o o n is_fwd : types option =
   if is_fwd then
@@ -703,7 +707,7 @@ let search_for_indexer env_o env_n npm elim_o o n is_fwd : types option =
     let (env_indexer, _) = zoom_product_type env_o p_o in
     let index_t = index_type env_n p_o p_n in
     let off = nb_rel env_indexer - npm in
-    let indexer_pms = List.map shift (List.map mkRel (List.rev (from_one_to npm))) in
+    let indexer_pms = List.map shift (mk_n_rels npm) in
     let indexer_p = shift_by off (reconstruct_lambda_n env_indexer index_t npm) in
     let indexer_cs = indexer_cases env_o env_n index_t o n in
     let indexer_args = Array.of_list (List.append indexer_pms (indexer_p :: indexer_cs)) in
@@ -712,26 +716,16 @@ let search_for_indexer env_o env_n npm elim_o o n is_fwd : types option =
   else
     None
 
-(* Rewrite the old induction principle in terms of an indexed property *)
-(*let index env elim_o TODO *)
-(* TODO   let p_o' = mkLambda (_, index_type, mkApp (shift p_o, mkRel 1)) in
-  let env_c = push_rel Crd.(LocalAssum (n_o, p_o')) env in *)
-
-let rec orn_p pind_o pind_n p is_fwd =
-  (* TODO refactor, clean, comment, etc etc *)
-  let is_prop pind t =
-    match kind_of_term t with
-    | App (f, args) ->
-       eq_constr f pind
-    | _ ->
-       eq_constr t pind
-  in (* TODO move recursion so we don't recurse on extra terms *)
-  let concl = if is_fwd then mkRel 1 else mkRel 1 in (* TODO actually get the concl using pind *)
-  match kind_of_term p with
-  | Prod (n, t, b) ->
-     mkProd (n, t, orn_p pind_o pind_n b is_fwd)
-  | _ ->
-     concl (* TODO placeholder *)
+(* TODO explain *)
+let orn_p env pind arity npm =
+  let off = nb_rel env - npm in
+  let shift_off = shift_by off in
+  let pargs = List.map shift_off (mk_n_rels arity) in
+  shift_off
+    (reconstruct_lambda_n
+       env
+       (mkApp (pind, Array.of_list pargs))
+       npm) (* TODO apply indexer if exists *)
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
 let search_orn_index_elim env_o env_n npm elim_o o n is_fwd : (types option * types) =
@@ -741,12 +735,11 @@ let search_orn_index_elim env_o env_n npm elim_o o n is_fwd : (types option * ty
   let (_, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
   let (env_ornament, _) = zoom_product_type env_o p_o in
-  let off = nb_rel env_ornament - npm in
-  let pms = List.map shift (List.map mkRel (List.rev (from_one_to npm))) in
+  let pms = List.map shift (mk_n_rels npm) in
   debug_term env_o p_o "p_o";
   debug_term env_n p_n "p_n";
-  let p = if is_fwd then p_o else p_n in
-  let orn_p = shift_by off (reconstruct_lambda_n env_ornament (orn_p pind_o pind_n p is_fwd) npm) in
+  let (pind, arity) = if is_fwd then (pind_n, arity_o) else (pind_n, arity_n) in
+  let orn_p = orn_p env_ornament pind arity npm in
   debug_term env_ornament orn_p "orn_p";
  (* 
     let indexer_cs = indexer_cases env_o env_n index_t o n in
