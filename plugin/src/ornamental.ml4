@@ -611,17 +611,16 @@ let rec destruct_cases elim_b : types list =
   | _ ->
      []
 
-(* Get a single case for the indexer *)
-(* TODO need to generalize this logic better, try sub & check approach *)
-(* TODO clean *)
-let index_case index_t prop_index env_o env_n pind_o pind_n c_o c_n : types =
-  let properties i t_o t_n =
-    match map_tuple kind_of_term (t_o, t_n) with
-    | (App (f_o, args_o), App (f_n, args_n)) ->
-       is_rel f_o i && is_rel f_n i
-    | _ ->
-       is_rel t_o i && is_rel t_n i
-  in
+(* TODO explain *)
+let properties i t_o t_n =
+  match map_tuple kind_of_term (t_o, t_n) with
+  | (App (f_o, args_o), App (f_n, args_n)) ->
+     is_rel f_o i && is_rel f_n i
+  | _ ->
+     is_rel t_o i && is_rel t_n i
+
+(* TODO explain *)
+let old_new pind_o pind_n e_o e_n t_o t_n =
   let old_new_terms t_o t_n =
     match map_tuple kind_of_term (t_o, t_n) with
     | (App (f_o, args_o), App (f_n, args_n)) ->
@@ -629,12 +628,15 @@ let index_case index_t prop_index env_o env_n pind_o pind_n c_o c_n : types =
     | _ ->
        eq_constr t_o pind_o && eq_constr t_n pind_n
   in
-  let old_new e_o e_n t_o t_n =
-    old_new_terms t_o t_n ||
-    old_new_terms (infer_type e_o t_o) (infer_type e_n t_n)
-  in
+  old_new_terms t_o t_n ||
+  old_new_terms (infer_type e_o t_o) (infer_type e_n t_n)
+
+(* Get a single case for the indexer *)
+(* TODO need to generalize this logic better, try sub & check approach *)
+(* TODO clean *)
+let index_case index_t prop_index env_o env_n pind_o pind_n c_o c_n : types =
   let conv_modulo_change i e_o e_n t_o t_n =
-    properties i t_o t_n || old_new e_o e_n t_o t_n || convertible env_o t_o t_n
+    properties i t_o t_n || old_new pind_o pind_n e_o e_n t_o t_n || convertible env_o t_o t_n
   in
   let rec diff_index i o n =
     match map_tuple kind_of_term (o, n) with
@@ -691,11 +693,6 @@ let indexer_cases env_o env_n index_t o n : types list =
   let cs_n = take_except (1 + (arity_n - arity_o)) cs_n_ext in
   List.map2 (index_case index_t 1 env_p_o env_p_n pind_o pind_n) cs_o cs_n
 
-(* Rewrite the old induction principle in terms of an indexed property *)
-(*let index env elim_o TODO *)
-(* TODO   let p_o' = mkLambda (_, index_type, mkApp (shift p_o, mkRel 1)) in
-  let env_c = push_rel Crd.(LocalAssum (n_o, p_o')) env in *)
-
 (* Search for an indexing function *)
 let search_for_indexer env_o env_n npm elim_o o n is_fwd : types option =
   if is_fwd then
@@ -715,6 +712,27 @@ let search_for_indexer env_o env_n npm elim_o o n is_fwd : types option =
   else
     None
 
+(* Rewrite the old induction principle in terms of an indexed property *)
+(*let index env elim_o TODO *)
+(* TODO   let p_o' = mkLambda (_, index_type, mkApp (shift p_o, mkRel 1)) in
+  let env_c = push_rel Crd.(LocalAssum (n_o, p_o')) env in *)
+
+let rec orn_p pind_o pind_n p is_fwd =
+  (* TODO refactor, clean, comment, etc etc *)
+  let is_prop pind t =
+    match kind_of_term t with
+    | App (f, args) ->
+       eq_constr f pind
+    | _ ->
+       eq_constr t pind
+  in (* TODO move recursion so we don't recurse on extra terms *)
+  let concl = if is_fwd then mkRel 1 else mkRel 1 in (* TODO actually get the concl using pind *)
+  match kind_of_term p with
+  | Prod (n, t, b) ->
+     mkProd (n, t, orn_p pind_o pind_n b is_fwd)
+  | _ ->
+     concl (* TODO placeholder *)
+
 (* Search two inductive types for an indexing ornament, using eliminators *)
 let search_orn_index_elim env_o env_n npm elim_o o n is_fwd : (types option * types) =
   let indexer = search_for_indexer env_o env_n npm elim_o o n is_fwd in
@@ -723,6 +741,19 @@ let search_orn_index_elim env_o env_n npm elim_o o n is_fwd : (types option * ty
   let (_, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
   let (env_ornament, _) = zoom_product_type env_o p_o in
+  let off = nb_rel env_ornament - npm in
+  let pms = List.map shift (List.map mkRel (List.rev (from_one_to npm))) in
+  debug_term env_o p_o "p_o";
+  debug_term env_n p_n "p_n";
+  let p = if is_fwd then p_o else p_n in
+  let orn_p = shift_by off (reconstruct_lambda_n env_ornament (orn_p pind_o pind_n p is_fwd) npm) in
+  debug_term env_ornament orn_p "orn_p";
+ (* 
+    let indexer_cs = indexer_cases env_o env_n index_t o n in
+    let indexer_args = Array.of_list (List.append indexer_pms (indexer_p :: indexer_cs)) in
+    let indexer = mkApp (mkApp (elim_o, indexer_args), Array.make 1 (mkRel 1)) in
+    Some (reconstruct_lambda env_indexer indexer)*)
+
   let ornament = reconstruct_lambda env_ornament elim_o in (* TODO apply to things *)
   (indexer, ornament)
 
@@ -749,6 +780,9 @@ let search_orn_index env npm o n is_fwd : (types option * types) =
  * TODO what happens when an indexed type isn't a measure, so you can't
  * extract the index from the old type? When does that happen?
  * TODO figuring out when we need more premises, too, as in bal_bintrees
+ * TODO figuring out when we have extra premises, too (separate concerns,
+ * but makes indexing function ill-defined right now because we assume
+ * every nat is an index regardless of constructor arity, see vector3)
  *)
 let search_orn_inductive (env : env) (o : types) (n : types) : (types option) * types * types =
   match map_tuple kind_of_term (o, n) with

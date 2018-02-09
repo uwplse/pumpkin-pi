@@ -220,9 +220,38 @@ Proof.
   intros. auto.
 Qed.
 
-(* --- TODO weirder indexes --- *)
+(* --- Vectors using multiple nats --- *)
 
-(* --- TODO what happens when your index from two nats in the context? --- *)
+(*
+ * If we add another nat to this hypothesis, then we have something incompletely
+ * determined, because we need an extra nat in each case.
+ *)
+
+Inductive vector3 (A : Type) : nat -> Type :=
+| nilV3 : vector3 A 0
+| consV3 : forall (n m : nat), A -> vector3 A n -> vector3 A (n + m).
+
+(*
+ * This will fail (as it should, for now, though with a better error):
+ *
+ * Find ornament list vector3 as orn_list_vector3.
+ *
+ * Print orn_list_vector3_index.
+ *)
+
+Inductive vector4 (A : Type) : nat -> Type :=
+| nilV4 : vector4 A 0
+| consV4 : forall (n m : nat), A -> vector4 A (n + m) -> vector4 A n.
+
+(*
+ * This will fail (as it should, for now, though with a better error):
+ *
+ * Find ornament list vector4 as orn_list_vector4.
+ *
+ * Print orn_list_vector4_index.
+ *)
+
+(* --- TODO weirder indexes --- *)
 
 (* --- TODO what happens when your index depends on an earlier term? --- *)
 
