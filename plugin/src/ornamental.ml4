@@ -724,7 +724,7 @@ let orn_p env pind arity npm f_index =
   let concl = mkApp (pind, pargs) in
   if Option.has_some f_index then
     let indexer = Option.get f_index in
-    let index = mkApp (indexer, Array.make 1 (mkRel 1)) in
+    let index = mkApp (mkApp (indexer, pargs), Array.make 1 (mkRel 1)) in
     shift_off (reconstruct_lambda_n env (mkApp (concl, Array.make 1 index)) npm)
   else
     shift_off (reconstruct_lambda_n env concl npm)
