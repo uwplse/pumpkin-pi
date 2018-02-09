@@ -634,6 +634,7 @@ let old_new pind_o pind_n e_o e_n t_o t_n =
 (* Get a single case for the indexer *)
 (* TODO need to generalize this logic better, try sub & check approach *)
 (* TODO clean *)
+(* TODO for IH apply ind_p otherwise will fail when index type is dependent *)
 let index_case index_t prop_index env_o env_n pind_o pind_n c_o c_n : types =
   let conv_modulo_change i e_o e_n t_o t_n =
     properties i t_o t_n || old_new pind_o pind_n e_o e_n t_o t_n || convertible env_o t_o t_n
@@ -717,7 +718,7 @@ let search_for_indexer env_o env_n npm elim_o o n is_fwd : types option =
     None
 
 (* TODO explain *)
-let orn_p env pind arity npm f_index =
+let ornament_p env pind arity npm f_index =
   let off = nb_rel env - npm in
   let shift_off = shift_by off in
   let pargs = Array.of_list (List.map shift_off (mk_n_rels arity)) in
@@ -728,6 +729,53 @@ let orn_p env pind arity npm f_index =
     shift_off (reconstruct_lambda_n env (mkApp (concl, Array.make 1 index)) npm)
   else
     shift_off (reconstruct_lambda_n env concl npm)
+
+(* Get a single case for the indexing ornament *)
+(* TODO need to generalize this logic better, try sub & check approach *)
+(* TODO clean *)
+let rec orn_index_case off idx_c arity i orn_p o n : types =
+  match map_tuple kind_of_term (o, n) with
+  | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
+     let orn_p_t = shift orn_p in
+     let i_t = shift_i i in
+     let off_t = shift_i off in
+     if isApp t_o then
+       let (f_o, args) = destApp t_o in
+       if is_rel f_o i then
+         let t = mkApp (orn_p, args) in
+         mkLambda (n_o, t, orn_index_case off_t idx_c arity i_t orn_p_t b_o b_n)
+       else
+         mkLambda (n_o, t_o, orn_index_case off_t idx_c arity i_t orn_p_t b_o b_n)
+     else
+       mkLambda (n_o, t_o, orn_index_case off_t idx_c arity i_t orn_p_t b_o b_n)
+  | (_, Prod (n_n, t_n, b_n)) ->
+     orn_index_case off idx_c arity i orn_p o (unshift b_n)
+  | (App (f_o, args_o), App (f_n, args_n)) ->
+     let (f, args) = destApp (Array.get args_n 1) in (* TODO assumes index is first *)
+     let args = List.rev (take_except (arity + 2) (List.rev (Array.to_list args))) in (* TODO probably only works for lists, revisit *)
+     (* TODO failing in nil case *)
+     if Option.has_some idx_c then
+       let indexer = Option.get idx_c in
+       let shift_off = shift_by off in
+       let pargs = Array.of_list (List.map shift_off (mk_n_rels arity)) in
+       let index = mkApp (mkApp (indexer, pargs), Array.make 1 (mkRel 1)) in
+       mkApp (f, Array.of_list (List.append (Array.to_list pargs) (index :: args)))
+     else
+       mkApp (f, Array.of_list args)
+  | _ ->
+     failwith "unxpected case"
+
+(* Get the cases for the ornament *)
+let orn_index_cases off f_index orn_p o n : types list =
+  let (pind_o, arity_o, elim_t_o) = o in
+  let (pind_n, arity_n, elim_t_n) = n in
+  let (n_o, p_o, b_o) = destProd elim_t_o in
+  let (n_n, p_n, b_n) = destProd elim_t_n in
+  let cs_o_ext = destruct_cases b_o in
+  let cs_n_ext = destruct_cases b_n in
+  let cs_o = take_except 1 cs_o_ext in
+  let cs_n = take_except (1 + (arity_n - arity_o)) cs_n_ext in
+  List.map2 (orn_index_case off f_index arity_o 1 orn_p) cs_o cs_n
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
 let search_orn_index_elim env_o env_n npm idx_n elim_o o n is_fwd : (types option * types) =
@@ -744,12 +792,11 @@ let search_orn_index_elim env_o env_n npm idx_n elim_o o n is_fwd : (types optio
   debug_term env_n p_n "p_n";
   let (pind, arity) = if is_fwd then (pind_n, arity_o) else (pind_n, arity_n) in
   let f_index = if is_fwd then Some f_indexer else None in
-  let orn_p = orn_p env_ornament pind arity npm f_index in
+  let orn_p = ornament_p env_ornament pind arity npm f_index in
   debug_term env_ornament orn_p "orn_p";
-  let orn_cs = [] (* TODO *) in
- (* 
-    let indexer_cs = indexer_cases env_o env_n index_t o n in
-  *)
+  let off = nb_rel env_ornament - npm in
+  let orn_cs = if is_fwd then orn_index_cases off f_index orn_p o n else orn_index_cases off f_index orn_p n o in
+  debug_terms env_ornament orn_cs "orn_cs";
   let orn_args = Array.of_list (List.append pms (orn_p :: orn_cs)) in
   let ornament = mkApp (mkApp (elim_o, orn_args), Array.make 1 (mkRel 1)) in
   debug_term env_ornament ornament "ornament";
@@ -830,9 +877,12 @@ let find_ornament n d_old d_new =
        Printf.printf "Defined indexing function %s.\n\n" idx_n_string;
      else
        ());
-    (*debug_term env orn_o_n "orn_o_n";
-    debug_term env orn_n_o "orn_n_o";*)
-    (* TODO define and so on *)
+    define_term n env evm orn_o_n;
+    Printf.printf "Defined ornament %s.\n\n" prefix;
+    let inv_n_string = String.concat "_" [prefix; "inv"] in
+    let inv_n = Id.of_string inv_n_string in
+    define_term inv_n env evm orn_n_o;
+    Printf.printf "Defined ornament %s.n\n\n" inv_n_string;
     ()
   else
     failwith "Only inductive types are supported"
