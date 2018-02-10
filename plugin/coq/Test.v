@@ -253,6 +253,8 @@ Inductive vector4 (A : Type) : nat -> Type :=
  * Print orn_list_vector4_index.
  *)
 
+(* --- TODO adding a nat index to a nat list or nat rev_list --- *)
+
 (* --- TODO adding an index when one already exists --- *)
 
 (* --- TODO adding indexes that aren't first --- *)

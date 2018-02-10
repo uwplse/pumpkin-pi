@@ -730,40 +730,10 @@ let ornament_p env pind arity npm f_index =
   else
     shift_off (reconstruct_lambda_n env concl npm)
 
-(* Get a single case for the indexing ornament *)
-(* TODO need to generalize this logic better, try sub & check approach *)
-(* TODO clean *)
+(* TODO: abstract indexed type to take an indexing function,
+   then derive what we want by applying it *)
 let rec orn_index_case off idx_c arity i orn_p o n : types =
-  match map_tuple kind_of_term (o, n) with
-  | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-     let orn_p_t = shift orn_p in
-     let i_t = shift_i i in
-     let off_t = shift_i off in
-     if isApp t_o then
-       let (f_o, args) = destApp t_o in
-       if is_rel f_o i then
-         let t = mkApp (orn_p, args) in
-         mkLambda (n_o, t, orn_index_case off_t idx_c arity i_t orn_p_t b_o b_n)
-       else
-         mkLambda (n_o, t_o, orn_index_case off_t idx_c arity i_t orn_p_t b_o b_n)
-     else
-       mkLambda (n_o, t_o, orn_index_case off_t idx_c arity i_t orn_p_t b_o b_n)
-  | (_, Prod (n_n, t_n, b_n)) ->
-     orn_index_case off idx_c arity i orn_p o (unshift b_n)
-  | (App (f_o, args_o), App (f_n, args_n)) ->
-     let (f, args) = destApp (Array.get args_n 1) in (* TODO assumes index is first *)
-     let args = List.rev (take_except (arity + 2) (List.rev (Array.to_list args))) in (* TODO probably only works for lists, revisit *)
-     (* TODO failing in nil case *)
-     if Option.has_some idx_c then
-       let indexer = Option.get idx_c in
-       let shift_off = shift_by off in
-       let pargs = Array.of_list (List.map shift_off (mk_n_rels arity)) in
-       let index = mkApp (mkApp (indexer, pargs), Array.make 1 (mkRel 1)) in
-       mkApp (f, Array.of_list (List.append (Array.to_list pargs) (index :: args)))
-     else
-       mkApp (f, Array.of_list args)
-  | _ ->
-     failwith "unxpected case"
+  o
 
 (* Get the cases for the ornament *)
 let orn_index_cases off f_index orn_p o n : types list =
