@@ -624,7 +624,7 @@ let properties i o n =
   (applies i o && applies i n) ||
   (eq_constr i o && eq_constr i n)
 
-(* TODO explain *)
+(* TODO explain, also do we need infer_type stuff? gross *)
 let old_new o n =
   let (e_o, pind_o, t_o) = o in
   let (e_n, pind_n, t_n) = n in
@@ -635,8 +635,11 @@ let old_new o n =
     | _ ->
        eq_constr t_o pind_o && eq_constr t_n pind_n
   in
-  old_new_terms t_o t_n ||
-  old_new_terms (infer_type e_o t_o) (infer_type e_n t_n)
+  try
+    old_new_terms t_o t_n ||
+      old_new_terms (infer_type e_o t_o) (infer_type e_n t_n)
+  with _ ->
+    false
 
 (* TODO explain and clean *)
 let conv_modulo_change p_i o n =
@@ -768,8 +771,6 @@ let rec stretch_property o n =
 let rec stretch_property_term o n =
   let (env_o, pind_o, p_o) = o in
   let (env_n, pind_n, p_n) = n in
-  debug_term env_o p_o "p_o";
-  debug_term env_n p_n "p_n";
   match map_tuple kind_of_term (p_o, p_n) with
   | (Lambda (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
      let env_n_b = push_rel CRD.(LocalAssum (n_n, t_n)) env_n in
@@ -872,7 +873,8 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
   let stretch_n = (env_n, pind_n, elim_t_n) in
   let elim_stretched = if is_fwd then stretch f_indexer (Array.of_list pms) stretch_o stretch_n else stretch f_indexer (Array.of_list pms) stretch_n stretch_o in (* TODO move to HOF *)
   (* TODO do we need it in other direction? *)
-  debug_term env_o elim_stretched "elim_stretched";
+  let env_debug = if is_fwd then env_o else env_n in
+  debug_term env_debug elim_stretched "elim_stretched";
   let o = (env_o, pind_o, arity_o, elim_stretched) in
   let orn_cs = if is_fwd then orn_index_cases off orn_p o n else orn_index_cases off orn_p n o in
   debug_terms env_ornament orn_cs "orn_cs";
