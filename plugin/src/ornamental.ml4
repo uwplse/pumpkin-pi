@@ -157,10 +157,6 @@ let conv_ignoring_univ_inconsistency env evm trm1 trm2 : bool =
 let convertible (env : env) (trm1 : types) (trm2 : types) : bool =
   conv_ignoring_univ_inconsistency env Evd.empty trm1 trm2
 
-(* Check whether a term is a certain debruijn index *)
-let is_rel (trm : types) (i : int) : bool =
-  eq_constr trm (mkRel i)
-
 (* Lookup the eliminator over the type sort *)
 let type_eliminator (env : env) (ind : inductive) =
   Universes.constr_of_global (Indrec.lookup_eliminator ind InType)
@@ -406,6 +402,10 @@ let all_substs p env (src, dst) trm : types =
 let all_conv_substs =
   all_substs convertible
 
+(* Same, but eq_constr *)
+let all_eq_substs =
+  all_substs (fun _ -> eq_constr) (Global.env ())
+
 (* Define a new Coq term *)
 let define_term (n : Id.t) (env : env) evm (trm : types) : unit =
   do_definition
@@ -612,12 +612,17 @@ let rec destruct_cases elim_b : types list =
      []
 
 (* TODO explain *)
-let properties i o n =
-  match map_tuple kind_of_term (o, n) with
-  | (App (f_o, args_o), App (f_n, args_n)) ->
-     is_rel f_o i && is_rel f_n i
+let applies f t =
+  match kind_of_term t with
+  | App (g, _) ->
+     eq_constr f g
   | _ ->
-     is_rel o i && is_rel n i
+     false
+
+(* TODO explain, also do we need ending? *)
+let properties i o n =
+  (applies i o && applies i n) ||
+  (eq_constr i o && eq_constr i n)
 
 (* TODO explain *)
 let old_new o n =
@@ -659,7 +664,7 @@ let index_case index_t prop_index o n : types =
        List.fold_left2
          (fun idx p_i i_i ->
            let sub_p = (i_i, mkRel p_i) in
-           let idx' = all_substs (fun _ -> eq_constr) e_o sub_p idx in
+           let idx' = all_eq_substs sub_p idx in
            let i_i' = unshift i_i in
            idx')
          (diff_index i o n) (* TODO assumes index is first *)
@@ -667,7 +672,7 @@ let index_case index_t prop_index o n : types =
          iil
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let e_b_n = push_rel CRD.(LocalAssum (n_n, t_n)) e_n in
-       let i_b = shift_i i in
+       let i_b = shift i in
        let i_t_b = shift i_t in
        if not (conv_modulo_change i (e_o, pind_o, t_o) (e_n, pind_n, t_n)) then
          let e_b_o = push_rel CRD.(LocalAssum (n_n, t_n)) e_o in
@@ -702,7 +707,7 @@ let indexer_cases index_t o n : types list =
   let cs_n = take_except (1 + (arity_n - arity_o)) cs_n_ext in
   let o c = (env_p_o, pind_o, c) in
   let n c = (env_p_n, pind_n, c) in
-  List.map2 (fun c_o c_n -> index_case index_t 1 (o c_o) (n c_n)) cs_o cs_n
+  List.map2 (fun c_o c_n -> index_case index_t (mkRel 1) (o c_o) (n c_n)) cs_o cs_n
 
 (* TODO explain, move *)
 let mk_n_rels arity =
@@ -765,7 +770,7 @@ let rec stretch_property o n =
   | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
      let env_n_b = push_rel CRD.(LocalAssum (n_n, t_n)) env_n in
      let n_b = (env_n_b, shift pind_n, b_n) in
-     if conv_modulo_change 0 (env_o, pind_o, t_o) (env_n, pind_n, t_n) then
+     if conv_modulo_change (mkRel 0) (env_o, pind_o, t_o) (env_n, pind_n, t_n) then
        let env_o_b = push_rel CRD.(LocalAssum (n_o, t_o)) env_o in
        let o_b = (env_o_b, shift pind_o, b_o) in
        mkProd (n_o, t_o, stretch_property o_b n_b)
@@ -777,16 +782,29 @@ let rec stretch_property o n =
      p_o
 
 (* Stretch out the old eliminator to match the new one *)
-let stretch o n =
+let stretch f_indexer pms o n =
   let (env_o, pind_o, elim_t_o) = o in
   let (env_n, pind_n, elim_t_n) = n in
-  let (_, p_o, b_o) = destProd elim_t_o in
+  let (n_exp, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
   let o = (env_o, pind_o, p_o) in
   let n = (env_n, pind_n, p_n) in
-  let p = stretch_property o n in
-  debug_term env_o p "p";
-  elim_t_o
+  let p_exp = stretch_property o n in
+  let b_exp =
+    map_term_env_if (* TODO can be map_term_if *)
+      (fun _ (p, pms) t -> applies p t)
+      (fun _ (p, pms) t ->
+        let p_pms = mkApp (p, pms) in
+        let t_args = Array.to_list (snd (destApp t)) in (* TODO assumes not one at a time, move out to function that unfolds arg application *)
+        let num_non_pms = List.length t_args - Array.length pms in
+        let non_pms = Array.of_list (take_except num_non_pms t_args) in
+        let index = mkApp (mkApp (f_indexer, pms), non_pms) in
+        mkApp (mkApp (p_pms, Array.make 1 index), non_pms))
+      (fun (p, pms) -> (shift p, Array.map shift pms))
+      (push_rel CRD.(LocalAssum (n_exp, p_o)) env_o)
+      (mkRel 1, pms)
+      b_o
+  in mkProd (n_exp, p_exp, b_exp)
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
 let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
@@ -806,7 +824,7 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
   let off = nb_rel env_ornament - npm in
   let stretch_o = (env_o, pind_o, elim_t_o) in
   let stretch_n = (env_n, pind_n, elim_t_n) in
-  let elim_stretched = if is_fwd then stretch stretch_o stretch_n else stretch stretch_n stretch_o in (* TODO move to HOF *)
+  let elim_stretched = if is_fwd then stretch f_indexer (Array.of_list pms) stretch_o stretch_n else stretch f_indexer (Array.of_list pms) stretch_n stretch_o in (* TODO move to HOF *)
   debug_term env_o elim_stretched "elim_stretched";
   let orn_cs = if is_fwd then orn_index_cases off f_index orn_p o n else orn_index_cases off f_index orn_p n o in
   debug_terms env_ornament orn_cs "orn_cs";
