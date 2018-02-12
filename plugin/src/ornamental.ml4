@@ -836,7 +836,6 @@ let orn_index_case off orn_p o n : types =
   let stretch_o = (env_o, pind_o, unshift_by off orn_p) in
   let stretch_n = (env_n, pind_n, p_n) in
   let stretch_p = stretch_property_term stretch_o stretch_n in
-  debug_term env_o stretch_p "stretch_p";
   with_new_p (shift_by off stretch_p) c_o
 
 (* Get the cases for the ornament *)
@@ -847,8 +846,12 @@ let orn_index_cases off orn_p o n : types list =
   let (n_n, p_n, b_n) = destProd elim_t_n in
   let cs_o_ext = destruct_cases b_o in
   let cs_n_ext = destruct_cases b_n in
+  debug_terms env_o cs_o_ext "cs_o_ext";
+  debug_terms env_n cs_n_ext "cs_n_ext";
   let cs_o = take_except 1 cs_o_ext in
   let cs_n = take_except (1 + (arity_n - arity_o)) cs_n_ext in
+  debug_terms env_o cs_o "cs_o";
+  debug_terms env_n cs_n "cs_n";
   let o c = (env_o, pind_o, p_o, c) in
   let n c = (env_n, pind_n, p_n, c) in
   List.map2 (fun c_o c_n -> orn_index_case off orn_p (o c_o) (n c_n)) cs_o cs_n
@@ -875,7 +878,8 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
   (* TODO do we need it in other direction? *)
   let env_debug = if is_fwd then env_o else env_n in
   debug_term env_debug elim_stretched "elim_stretched";
-  let o = (env_o, pind_o, arity_o, elim_stretched) in
+  let o = if is_fwd then (env_o, pind_o, arity_o, elim_stretched) else o in
+  let n = if is_fwd then n else (env_n, pind_n, arity_n, elim_stretched) in
   let orn_cs = if is_fwd then orn_index_cases off orn_p o n else orn_index_cases off orn_p n o in
   debug_terms env_ornament orn_cs "orn_cs";
   let orn_args = Array.of_list (List.append pms (orn_p :: orn_cs)) in
