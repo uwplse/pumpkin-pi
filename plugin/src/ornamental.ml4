@@ -745,23 +745,6 @@ let ornament_p env pind arity npm f_index =
   else
     shift_off (reconstruct_lambda_n env concl npm)
 
-(* TODO: abstract indexed type to take an indexing function,
-   then derive what we want by applying it *)
-let rec orn_index_case o n : types =
-  o
-
-(* Get the cases for the ornament *)
-let orn_index_cases off f_index orn_p o n : types list =
-  let (_, pind_o, arity_o, elim_t_o) = o in
-  let (_, pind_n, arity_n, elim_t_n) = n in
-  let (n_o, p_o, b_o) = destProd elim_t_o in
-  let (n_n, p_n, b_n) = destProd elim_t_n in
-  let cs_o_ext = destruct_cases b_o in
-  let cs_n_ext = destruct_cases b_n in
-  let cs_o = take_except 1 cs_o_ext in
-  let cs_n = take_except (1 + (arity_n - arity_o)) cs_n_ext in
-  List.map2 orn_index_case cs_o cs_n
-
 (* Stretch the old property to match the new one *)
 let rec stretch_property o n =
   let (env_o, pind_o, p_o) = o in
@@ -781,6 +764,27 @@ let rec stretch_property o n =
   | _ ->
      p_o
 
+(* Stretch the old property to match the new one at the term level *)
+let rec stretch_property_term o n =
+  let (env_o, pind_o, p_o) = o in
+  let (env_n, pind_n, p_n) = n in
+  debug_term env_o p_o "p_o";
+  debug_term env_n p_n "p_n";
+  match map_tuple kind_of_term (p_o, p_n) with
+  | (Lambda (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
+     let env_n_b = push_rel CRD.(LocalAssum (n_n, t_n)) env_n in
+     let n_b = (env_n_b, shift pind_n, b_n) in
+     if conv_modulo_change (mkRel 0) (env_o, pind_o, t_o) (env_n, pind_n, t_n) then
+       let env_o_b = push_rel CRD.(LocalAssum (n_o, t_o)) env_o in
+       let o_b = (env_o_b, shift pind_o, b_o) in
+       mkLambda (n_o, t_o, stretch_property_term o_b n_b)
+     else
+       let env_o_b = push_rel CRD.(LocalAssum (n_n, t_n)) env_o in
+       let o_b = (env_o_b, shift pind_o, shift p_o) in
+       mkLambda (n_n, t_n, stretch_property_term o_b n_b)
+  | _ ->
+     p_o
+
 (* Stretch out the old eliminator to match the new one *)
 let stretch f_indexer pms o n =
   let (env_o, pind_o, elim_t_o) = o in
@@ -794,17 +798,59 @@ let stretch f_indexer pms o n =
     map_term_env_if (* TODO can be map_term_if *)
       (fun _ (p, pms) t -> applies p t)
       (fun _ (p, pms) t ->
-        let p_pms = mkApp (p, pms) in
         let t_args = Array.to_list (snd (destApp t)) in (* TODO assumes not one at a time, move out to function that unfolds arg application *)
         let num_non_pms = List.length t_args - Array.length pms in
         let non_pms = Array.of_list (take_except num_non_pms t_args) in
         let index = mkApp (mkApp (f_indexer, pms), non_pms) in
-        mkApp (mkApp (p_pms, Array.make 1 index), non_pms))
+        mkApp (mkApp (p, Array.make 1 index), non_pms))
       (fun (p, pms) -> (shift p, Array.map shift pms))
       (push_rel CRD.(LocalAssum (n_exp, p_o)) env_o)
       (mkRel 1, pms)
       b_o
   in mkProd (n_exp, p_exp, b_exp)
+
+(* Modify a case to use the new property in the hypothesis *)
+let with_new_p orn_p c : types =
+  map_term_env_if (* TODO can be map_term_if *)
+    (fun _ (p_o, _) trm ->
+      match kind_of_term trm with
+      | Prod (_, t, _) ->
+         applies p_o t
+      | _ ->
+         false)
+    (fun _ (_, p_n) trm ->
+      let (n, t, b) = destProd trm in
+      let (_, args) = destApp t in
+      mkProd (n, mkApp (p_n, args), b))
+    (map_tuple shift)
+    (Global.env ())
+    (mkRel 1, orn_p)
+    c
+
+(* TODO: abstract indexed type to take an indexing function,
+   then derive what we want by applying it *)
+let orn_index_case off orn_p o n : types =
+  let (env_o, pind_o, p_o, c_o) = o in
+  let (env_n, pind_n, p_n, c_n) = n in
+  let stretch_o = (env_o, pind_o, unshift_by off orn_p) in
+  let stretch_n = (env_n, pind_n, p_n) in
+  let stretch_p = stretch_property_term stretch_o stretch_n in
+  debug_term env_o stretch_p "stretch_p";
+  with_new_p (shift_by off stretch_p) c_o
+
+(* Get the cases for the ornament *)
+let orn_index_cases off orn_p o n : types list =
+  let (env_o, pind_o, arity_o, elim_t_o) = o in
+  let (env_n, pind_n, arity_n, elim_t_n) = n in
+  let (n_o, p_o, b_o) = destProd elim_t_o in
+  let (n_n, p_n, b_n) = destProd elim_t_n in
+  let cs_o_ext = destruct_cases b_o in
+  let cs_n_ext = destruct_cases b_n in
+  let cs_o = take_except 1 cs_o_ext in
+  let cs_n = take_except (1 + (arity_n - arity_o)) cs_n_ext in
+  let o c = (env_o, pind_o, p_o, c) in
+  let n c = (env_n, pind_n, p_n, c) in
+  List.map2 (fun c_o c_n -> orn_index_case off orn_p (o c_o) (n c_n)) cs_o cs_n
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
 let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
@@ -825,8 +871,10 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
   let stretch_o = (env_o, pind_o, elim_t_o) in
   let stretch_n = (env_n, pind_n, elim_t_n) in
   let elim_stretched = if is_fwd then stretch f_indexer (Array.of_list pms) stretch_o stretch_n else stretch f_indexer (Array.of_list pms) stretch_n stretch_o in (* TODO move to HOF *)
+  (* TODO do we need it in other direction? *)
   debug_term env_o elim_stretched "elim_stretched";
-  let orn_cs = if is_fwd then orn_index_cases off f_index orn_p o n else orn_index_cases off f_index orn_p n o in
+  let o = (env_o, pind_o, arity_o, elim_stretched) in
+  let orn_cs = if is_fwd then orn_index_cases off orn_p o n else orn_index_cases off orn_p n o in
   debug_terms env_ornament orn_cs "orn_cs";
   let orn_args = Array.of_list (List.append pms (orn_p :: orn_cs)) in
   let ornament = mkApp (mkApp (elim_o, orn_args), Array.make 1 (mkRel 1)) in
