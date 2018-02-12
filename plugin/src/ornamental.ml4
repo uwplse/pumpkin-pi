@@ -866,25 +866,36 @@ let rec sub_indexes f_indexer p subs o n : types =
            List.append (* TODO may be wrong for dependent indexes *)
              (List.map2
                 (fun a_o a_n ->
+                  debug_term env_o a_o "a_o";
+                  debug_term env_n a_n "a_n";
                   if applies f_indexer a_o then
-                    (a_n, a_o)
+                    (shift a_n, shift a_o)
                   else
-                    (a_n, a_n))
+                    let types_conv = (* welp *)
+                      (try
+                         let a_o_t = infer_type env_o a_o in
+                         let a_n_t = infer_type env_n a_n in
+                         convertible env_o a_o_t a_n_t
+                       with _ ->
+                         false)
+                    in if not types_conv then
+                      (shift a_n, mkRel 1)
+                    else
+                      (shift a_n, shift a_n))
                 (Array.to_list args_o)
                 (Array.to_list args_n))
              (List.map (map_tuple shift) subs)
          in mkProd (n_o, t_o, sub_indexes f_indexer_b p_b subs_b o_b n_b)
        else
-         let subs_b = List.map (map_tuple shift) subs in
+         let subs_b = List.map (fun (src, dst) -> (src, shift dst)) subs in
          let env_o_b = push_rel CRD.(LocalAssum (n_n, t_n)) env_o in
          let o_b = (env_o_b, shift pind_o, shift c_o) in
          unshift (sub_indexes f_indexer_b p_b subs_b o_b n_b)
     | (App (f_o, args_o), App (f_n, args_n)) ->
        let args_n = List.rev (Array.to_list args_n) in
-       List.fold_left
-         (fun t sub -> all_eq_substs sub t)
-         (List.hd args_n)
-         subs
+       List.fold_right all_eq_substs subs (List.hd args_n)
+    | _ ->
+       failwith "unexpected"
 
 
 (* TODO: abstract indexed type to take an indexing function,
@@ -920,8 +931,8 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
   let indexer = search_for_indexer npm elim_o o n is_fwd in
   let indexer_path = ModPath.MPfile (Global.current_dirpath ()) in
   let f_indexer = mkConst (Constant.make2 indexer_path (Label.of_id idx_n)) in
-  let (_, p_o, b_o) = destProd elim_t_o in
-  let (_, p_n, b_n) = destProd elim_t_n in
+  let (n_o, p_o, b_o) = destProd elim_t_o in
+  let (n_n, p_n, b_n) = destProd elim_t_n in
   let (env_ornament, _) = zoom_product_type env_o p_o in
   let pms = List.map shift (mk_n_rels npm) in
   let (pind, arity) = if is_fwd then (pind_n, arity_o) else (pind_n, arity_n) in
@@ -932,8 +943,10 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
   let stretch_n = (env_n, pind_n, elim_t_n) in
   let elim_stretched = if is_fwd then stretch f_indexer (Array.of_list pms) stretch_o stretch_n else stretch f_indexer (Array.of_list pms) stretch_n stretch_o in (* TODO move to HOF *)
   (* TODO do we need it in other direction? *)
-  let o = if is_fwd then (env_o, pind_o, arity_o, elim_stretched) else o in
-  let n = if is_fwd then n else (env_n, pind_n, arity_n, elim_stretched) in
+  let env_o = push_rel (CRD.LocalAssum (n_o, p_o)) env_o in
+  let env_n = push_rel (CRD.LocalAssum (n_n, p_n)) env_n in
+  let o = if is_fwd then (env_o, pind_o, arity_o, elim_stretched) else (env_o, pind_o, arity_o, elim_t_o) in
+  let n = if is_fwd then (env_n, pind_n, arity_n, elim_t_n) else (env_n, pind_n, arity_n, elim_stretched) in
   let orn_cs = if is_fwd then orn_index_cases off f_indexer orn_p o n else orn_index_cases off f_indexer orn_p n o in
   debug_terms env_ornament orn_cs "orn_cs";
   let orn_args = Array.of_list (List.append pms (orn_p :: orn_cs)) in
@@ -1016,12 +1029,12 @@ let find_ornament n d_old d_new =
        Printf.printf "Defined indexing function %s.\n\n" idx_n_string;
      else
        ());
-   (* define_term n env evm orn_o_n;
+    define_term n env evm orn_o_n;
     Printf.printf "Defined ornament %s.\n\n" prefix;
     let inv_n_string = String.concat "_" [prefix; "inv"] in
     let inv_n = Id.of_string inv_n_string in
     define_term inv_n env evm orn_n_o;
-    Printf.printf "Defined ornament %s.n\n\n" inv_n_string;*)
+    Printf.printf "Defined ornament %s.n\n\n" inv_n_string;
     ()
   else
     failwith "Only inductive types are supported"
