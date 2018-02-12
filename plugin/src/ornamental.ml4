@@ -855,7 +855,7 @@ let rec sub_indexes f_indexer p subs o n : types =
        let env_o_b = push_rel (CRD.(LocalAssum (n_o, t_o))) env_o in
        let o_b = (env_o_b, shift pind_o, b_o) in
        let subs_b = List.map (map_tuple shift) subs in
-       mkProd (n_o, t_o, sub_indexes f_indexer_b p_b subs_b o_b n_b)
+       mkLambda (n_o, t_o, sub_indexes f_indexer_b p_b subs_b o_b n_b)
      else
        if applies p t_n then
          let env_o_b = push_rel (CRD.(LocalAssum (n_o, t_o))) env_o in
@@ -866,8 +866,6 @@ let rec sub_indexes f_indexer p subs o n : types =
            List.append (* TODO may be wrong for dependent indexes *)
              (List.map2
                 (fun a_o a_n ->
-                  debug_term env_o a_o "a_o";
-                  debug_term env_n a_n "a_n";
                   if applies f_indexer a_o then
                     (shift a_n, shift a_o)
                   else
@@ -885,7 +883,7 @@ let rec sub_indexes f_indexer p subs o n : types =
                 (Array.to_list args_o)
                 (Array.to_list args_n))
              (List.map (map_tuple shift) subs)
-         in mkProd (n_o, t_o, sub_indexes f_indexer_b p_b subs_b o_b n_b)
+         in mkLambda (n_o, t_o, sub_indexes f_indexer_b p_b subs_b o_b n_b)
        else
          let subs_b = List.map (fun (src, dst) -> (src, shift dst)) subs in
          let env_o_b = push_rel CRD.(LocalAssum (n_n, t_n)) env_o in
@@ -948,7 +946,6 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
   let o = if is_fwd then (env_o, pind_o, arity_o, elim_stretched) else (env_o, pind_o, arity_o, elim_t_o) in
   let n = if is_fwd then (env_n, pind_n, arity_n, elim_t_n) else (env_n, pind_n, arity_n, elim_stretched) in
   let orn_cs = if is_fwd then orn_index_cases off f_indexer orn_p o n else orn_index_cases off f_indexer orn_p n o in
-  debug_terms env_ornament orn_cs "orn_cs";
   let orn_args = Array.of_list (List.append pms (orn_p :: orn_cs)) in
   let ornament = mkApp (mkApp (elim_o, orn_args), Array.make 1 (mkRel 1)) in
   debug_term env_ornament ornament "ornament";
@@ -1031,10 +1028,10 @@ let find_ornament n d_old d_new =
        ());
     define_term n env evm orn_o_n;
     Printf.printf "Defined ornament %s.\n\n" prefix;
-    let inv_n_string = String.concat "_" [prefix; "inv"] in
+   (* let inv_n_string = String.concat "_" [prefix; "inv"] in
     let inv_n = Id.of_string inv_n_string in
     define_term inv_n env evm orn_n_o;
-    Printf.printf "Defined ornament %s.n\n\n" inv_n_string;
+    Printf.printf "Defined ornament %s.n\n\n" inv_n_string;*)
     ()
   else
     failwith "Only inductive types are supported"
