@@ -825,21 +825,16 @@ let stretch f_indexer pms o n =
 
 (* Modify a case to use the new property in the hypothesis *)
 let with_new_p orn_p c : types =
-  map_term_env_if (* TODO can be map_term_if *)
-    (fun _ (p_o, _) trm ->
-      match kind_of_term trm with
-      | Prod (_, t, _) ->
-         applies p_o t
-      | _ ->
-         false)
-    (fun _ (_, p_n) trm ->
-      let (n, t, b) = destProd trm in
-      let (_, args) = destApp t in
-      mkProd (n, mkApp (p_n, args), b))
-    (map_tuple shift)
-    (Global.env ())
-    (mkRel 1, orn_p)
-    c
+  let rec sub_p p_o p_n trm =
+    match kind_of_term trm with
+    | Prod (n, t, b) when applies p_o t  ->
+       let (_, args) = destApp t in
+       mkProd (n, mkApp (p_n, args), sub_p (shift p_o) (shift p_n) b)
+    | Prod (n, t, b) ->
+       mkProd (n, t, sub_p (shift p_o) (shift p_n) b)
+    | _ ->
+       trm
+  in sub_p (mkRel 1) orn_p c
 
 (* In the conclusion of each case, return c_n with c_o's indices *)
 let rec sub_indexes is_fwd f_indexer p subs o n : types =
@@ -918,6 +913,7 @@ let orn_index_case npms is_fwd indexer_f orn_p o n : types =
     else
       with_new_p (unshift_by npms orn_p) c_o
   in
+  debug_term env_o c_o "c_o";
   let o = (env_o, pind_o, c_o) in
   let n = (env_n, pind_n, c_n) in
   sub_indexes is_fwd indexer_f (mkRel 1) [] o n
@@ -1043,6 +1039,7 @@ let find_ornament n d_old d_new =
        Printf.printf "Defined indexing function %s.\n\n" idx_n_string;
      else
        ());
+    debug_term env orn_o_n "ornament";
     define_term n env evm orn_o_n;
     Printf.printf "Defined ornament %s.\n\n" prefix;
     let inv_n_string = String.concat "_" [prefix; "inv"] in
