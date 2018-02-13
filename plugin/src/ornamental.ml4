@@ -710,7 +710,7 @@ let index_case index_t prop_index o n : types =
   in diff_case [] [] index_t prop_index env_o env_n c_o c_n
 
 (* Get the cases for the indexer *)
-let indexer_cases index_t o n : types list =
+let indexer_cases index_t npms o n : types list =
   let (env_o, pind_o, arity_o, elim_t_o) = o in
   let (env_n, pind_n, arity_n, elim_t_n) = n in
   let (n_o, p_o, b_o) = destProd elim_t_o in
@@ -719,8 +719,10 @@ let indexer_cases index_t o n : types list =
   let env_p_n = push_rel CRD.(LocalAssum (n_n, p_n)) env_n in
   let cs_o_ext = destruct_cases b_o in
   let cs_n_ext = destruct_cases b_n in
-  let cs_o = take_except 1 cs_o_ext in
-  let cs_n = take_except (1 + (arity_n - arity_o)) cs_n_ext in
+  let num_final_args_o = arity_o - npms + 1 in
+  let num_final_args_n = arity_n - npms + 1 in
+  let cs_o = take_except num_final_args_o cs_o_ext in
+  let cs_n = take_except num_final_args_n cs_n_ext in
   let o c = (env_p_o, pind_o, c) in
   let n c = (env_p_n, pind_n, c) in
   List.map2 (fun c_o c_n -> index_case index_t (mkRel 1) (o c_o) (n c_n)) cs_o cs_n
@@ -741,7 +743,7 @@ let search_for_indexer npm elim_o o n is_fwd : types option =
     let off = nb_rel env_indexer - npm in
     let indexer_pms = List.map shift (mk_n_rels npm) in
     let indexer_p = shift_by off (reconstruct_lambda_n env_indexer index_t npm) in
-    let indexer_cs = indexer_cases index_t o n in
+    let indexer_cs = indexer_cases index_t npm o n in
     let indexer_args = Array.of_list (List.append indexer_pms (indexer_p :: indexer_cs)) in
     let indexer = mkApp (mkApp (elim_o, indexer_args), Array.make 1 (mkRel 1)) in
     Some (reconstruct_lambda env_indexer indexer)
@@ -925,8 +927,10 @@ let orn_index_cases npms is_fwd indexer_f orn_p o n : types list =
   let (n_n, p_n, b_n) = destProd elim_t_n in
   let cs_o_ext = destruct_cases b_o in
   let cs_n_ext = destruct_cases b_n in
-  let cs_o = take_except arity_o cs_o_ext in
-  let cs_n = take_except arity_n cs_n_ext in
+  let num_final_args_o = arity_o - npms + 1 in
+  let num_final_args_n = arity_n - npms + 1 in
+  let cs_o = take_except num_final_args_o cs_o_ext in
+  let cs_n = take_except num_final_args_n cs_n_ext in
   let o c = (env_o, pind_o, p_o, c) in
   let n c = (env_n, pind_n, p_n, c) in
   List.map2
@@ -1038,6 +1042,7 @@ let find_ornament n d_old d_new =
        Printf.printf "Defined indexing function %s.\n\n" idx_n_string;
      else
        ());
+    debug_term env orn_o_n "ornament";
     define_term n env evm orn_o_n;
     Printf.printf "Defined ornament %s.\n\n" prefix;
     let inv_n_string = String.concat "_" [prefix; "inv"] in

@@ -141,8 +141,6 @@ Definition length2 (A : Type) (B : Type) (l : list2 A B) :=
 
 Find ornament list2 vector2 as orn_list2_vector2.
 
-Print orn_list2_vector2_index.
-
 Theorem test_index_4:
   forall (A : Type) (B : Type) (l : list2 A B),
     orn_list2_vector2_index A B l = length2 A B l.
