@@ -913,7 +913,6 @@ let orn_index_case npms is_fwd indexer_f orn_p o n : types =
     else
       with_new_p (unshift_by npms orn_p) c_o
   in
-  debug_term env_o c_o "c_o";
   let o = (env_o, pind_o, c_o) in
   let n = (env_n, pind_n, c_n) in
   sub_indexes is_fwd indexer_f (mkRel 1) [] o n
@@ -1039,7 +1038,6 @@ let find_ornament n d_old d_new =
        Printf.printf "Defined indexing function %s.\n\n" idx_n_string;
      else
        ());
-    debug_term env orn_o_n "ornament";
     define_term n env evm orn_o_n;
     Printf.printf "Defined ornament %s.\n\n" prefix;
     let inv_n_string = String.concat "_" [prefix; "inv"] in

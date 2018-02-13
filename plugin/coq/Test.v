@@ -105,6 +105,20 @@ Proof.
   intros. auto.
 Qed.
 
+Theorem test_orn_3:
+  forall (A : Type) (tr : bintree A),
+    bintreeV A (bintree_size A tr).
+Proof.
+  exact orn_bintree_bintreeV.
+Qed.
+
+Theorem test_orn_inv_3:
+  forall (A : Type) (n : nat) (tr : bintreeV A n),
+    bintree A.
+Proof.
+  exact orn_bintree_bintreeV_inv.
+Qed.
+
 (* --- Lists of values of two types (making sure parameter logic works) --- *)
 
 Inductive list2 (A : Type) (B : Type) : Type :=
@@ -132,17 +146,6 @@ Print orn_list2_vector2_index.
 Theorem test_index_4:
   forall (A : Type) (B : Type) (l : list2 A B),
     orn_list2_vector2_index A B l = length2 A B l.
-Proof.
-  intros. auto.
-Qed.
-
-Find ornament vector2 list2 as orn_vector2_list2.
-
-Print orn_vector2_list2_index.
-
-Theorem test_index_inv_4:
-  forall (A : Type) (B : Type) (l : list2 A B),
-    orn_vector2_list2_index A B l = length2 A B l.
 Proof.
   intros. auto.
 Qed.
