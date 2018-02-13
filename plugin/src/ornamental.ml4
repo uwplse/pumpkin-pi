@@ -904,16 +904,18 @@ let rec sub_indexes is_fwd f_indexer p subs o n : types =
 (* TODO: abstract indexed type to take an indexing function,
    then derive what we want by applying it *)
 let orn_index_case npms is_fwd indexer_f orn_p o n : types =
-  let (env_o, pind_o, p_o, c_o) = o in
-  let (env_n, pind_n, p_n, c_n) = n in
+  let (env_o, arity_o, pind_o, p_o, c_o) = o in
+  let (env_n, arity_n, pind_n, p_n, c_n) = n in
+  debug_term env_o orn_p "orn_p";
+  let d_arity = arity_n - arity_o in
   let c_o =
     if is_fwd then
-      let stretch_o = (env_o, pind_o, unshift_by npms orn_p) in
+      let stretch_o = (env_o, pind_o, unshift_by d_arity orn_p) in
       let stretch_n = (env_n, pind_n, p_n) in
       let stretch_p = stretch_property_term stretch_o stretch_n in
-      with_new_p (shift_by npms stretch_p) c_o
+      with_new_p (shift_by d_arity stretch_p) c_o
     else
-      with_new_p (unshift_by npms orn_p) c_o
+      with_new_p (shift_by d_arity orn_p) c_o
   in
   let o = (env_o, pind_o, c_o) in
   let n = (env_n, pind_n, c_n) in
@@ -931,8 +933,8 @@ let orn_index_cases npms is_fwd indexer_f orn_p o n : types list =
   let num_final_args_n = arity_n - npms + 1 in
   let cs_o = take_except num_final_args_o cs_o_ext in
   let cs_n = take_except num_final_args_n cs_n_ext in
-  let o c = (env_o, pind_o, p_o, c) in
-  let n c = (env_n, pind_n, p_n, c) in
+  let o c = (env_o, arity_o, pind_o, p_o, c) in
+  let n c = (env_n, arity_n, pind_n, p_n, c) in
   List.map2
     (fun c_o c_n -> orn_index_case npms is_fwd indexer_f orn_p (o c_o) (n c_n))
     cs_o
