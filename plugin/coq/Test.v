@@ -27,17 +27,6 @@ Proof.
   exact orn_list_vector.
 Qed.
 
-Find ornament vector list as orn_vector_list.
-
-Print orn_vector_list_index.
-
-Theorem test_index_inv:
-  forall (A : Type) (l : list A),
-    orn_vector_list_index A l = length l.
-Proof.
-  intros. auto.
-Qed.
-
 (* --- Backwards lists --- *)
 
 Inductive rev_list (A : Type) : Type :=

@@ -842,7 +842,7 @@ let with_new_p orn_p c : types =
     c
 
 (* In the conclusion of each case, return c_n with c_o's indices *)
-let rec sub_indexes f_indexer p subs o n : types =
+let rec sub_indexes is_fwd f_indexer p subs o n : types =
   let (env_o, pind_o, c_o) = o in
   let (env_n, pind_n, c_n) = n in
   match map_tuple kind_of_term (c_o, c_n) with
@@ -855,7 +855,7 @@ let rec sub_indexes f_indexer p subs o n : types =
        let env_o_b = push_rel (CRD.(LocalAssum (n_o, t_o))) env_o in
        let o_b = (env_o_b, shift pind_o, b_o) in
        let subs_b = List.map (map_tuple shift) subs in
-       mkLambda (n_o, t_o, sub_indexes f_indexer_b p_b subs_b o_b n_b)
+       mkLambda (n_o, t_o, sub_indexes is_fwd f_indexer_b p_b subs_b o_b n_b)
      else
        if applies p t_n then
          let env_o_b = push_rel (CRD.(LocalAssum (n_o, t_o))) env_o in
@@ -883,12 +883,20 @@ let rec sub_indexes f_indexer p subs o n : types =
                 (Array.to_list args_o)
                 (Array.to_list args_n))
              (List.map (map_tuple shift) subs)
-         in mkLambda (n_o, t_o, sub_indexes f_indexer_b p_b subs_b o_b n_b)
+         in mkLambda (n_o, t_o, sub_indexes is_fwd f_indexer_b p_b subs_b o_b n_b)
        else
-         let subs_b = List.map (fun (src, dst) -> (src, shift dst)) subs in
-         let env_o_b = push_rel CRD.(LocalAssum (n_n, t_n)) env_o in
-         let o_b = (env_o_b, shift pind_o, shift c_o) in
-         unshift (sub_indexes f_indexer_b p_b subs_b o_b n_b)
+         if is_fwd then
+           let subs_b = List.map (fun (src, dst) -> (src, shift dst)) subs in
+           let env_o_b = push_rel CRD.(LocalAssum (n_n, t_n)) env_o in
+           let o_b = (env_o_b, shift pind_o, shift c_o) in
+           unshift (sub_indexes is_fwd f_indexer_b p_b subs_b o_b n_b)
+         else
+           let subs_b = List.map (fun (src, dst) -> (shift src, dst)) subs in
+           let env_n_b = push_rel CRD.(LocalAssum (n_o, t_o)) env_n in
+           let env_o_b = push_rel CRD.(LocalAssum (n_o, t_o)) env_o in
+           let n_b = (env_n_b, shift pind_n, shift c_n) in
+           let o_b = (env_o_b, shift pind_o, b_o) in
+           mkLambda (n_o, t_o, sub_indexes is_fwd f_indexer_b p_b subs_b o_b n_b)
     | (App (f_o, args_o), App (f_n, args_n)) ->
        let args_n = List.rev (Array.to_list args_n) in
        List.fold_right all_eq_substs subs (List.hd args_n)
@@ -898,29 +906,38 @@ let rec sub_indexes f_indexer p subs o n : types =
 
 (* TODO: abstract indexed type to take an indexing function,
    then derive what we want by applying it *)
-let orn_index_case off indexer_f orn_p o n : types =
+let orn_index_case npms is_fwd indexer_f orn_p o n : types =
   let (env_o, pind_o, p_o, c_o) = o in
   let (env_n, pind_n, p_n, c_n) = n in
-  let stretch_o = (env_o, pind_o, unshift_by off orn_p) in
-  let stretch_n = (env_n, pind_n, p_n) in
-  let stretch_p = stretch_property_term stretch_o stretch_n in
-  let o = (env_o, pind_o, with_new_p (shift_by off stretch_p) c_o) in
+  let c_o =
+    if is_fwd then
+      let stretch_o = (env_o, pind_o, unshift_by npms orn_p) in
+      let stretch_n = (env_n, pind_n, p_n) in
+      let stretch_p = stretch_property_term stretch_o stretch_n in
+      with_new_p (shift_by npms stretch_p) c_o
+    else
+      with_new_p (unshift_by npms orn_p) c_o
+  in
+  let o = (env_o, pind_o, c_o) in
   let n = (env_n, pind_n, c_n) in
-  sub_indexes indexer_f (mkRel 1) [] o n
+  sub_indexes is_fwd indexer_f (mkRel 1) [] o n
 
 (* Get the cases for the ornament *)
-let orn_index_cases off indexer_f orn_p o n : types list =
+let orn_index_cases npms is_fwd indexer_f orn_p o n : types list =
   let (env_o, pind_o, arity_o, elim_t_o) = o in
   let (env_n, pind_n, arity_n, elim_t_n) = n in
   let (n_o, p_o, b_o) = destProd elim_t_o in
   let (n_n, p_n, b_n) = destProd elim_t_n in
   let cs_o_ext = destruct_cases b_o in
   let cs_n_ext = destruct_cases b_n in
-  let cs_o = take_except 1 cs_o_ext in
-  let cs_n = take_except (1 + (arity_n - arity_o)) cs_n_ext in
+  let cs_o = take_except arity_o cs_o_ext in
+  let cs_n = take_except arity_n cs_n_ext in
   let o c = (env_o, pind_o, p_o, c) in
   let n c = (env_n, pind_n, p_n, c) in
-  List.map2 (fun c_o c_n -> orn_index_case off indexer_f orn_p (o c_o) (n c_n)) cs_o cs_n
+  List.map2
+    (fun c_o c_n -> orn_index_case npms is_fwd indexer_f orn_p (o c_o) (n c_n))
+    cs_o
+    cs_n
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
 let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
@@ -932,11 +949,11 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
   let (n_o, p_o, b_o) = destProd elim_t_o in
   let (n_n, p_n, b_n) = destProd elim_t_n in
   let (env_ornament, _) = zoom_product_type env_o p_o in
-  let pms = List.map shift (mk_n_rels npm) in
+  let off = nb_rel env_ornament - npm in
+  let pms = List.map (shift_by off) (mk_n_rels npm) in
   let (pind, arity) = if is_fwd then (pind_n, arity_o) else (pind_n, arity_n) in
   let f_index = if is_fwd then Some f_indexer else None in
   let orn_p = ornament_p env_ornament pind arity npm f_index in
-  let off = nb_rel env_ornament - npm in
   let stretch_o = (env_o, pind_o, elim_t_o) in
   let stretch_n = (env_n, pind_n, elim_t_n) in
   let elim_stretched = if is_fwd then stretch f_indexer (Array.of_list pms) stretch_o stretch_n else stretch f_indexer (Array.of_list pms) stretch_n stretch_o in (* TODO move to HOF *)
@@ -945,10 +962,10 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
   let env_n = push_rel (CRD.LocalAssum (n_n, p_n)) env_n in
   let o = if is_fwd then (env_o, pind_o, arity_o, elim_stretched) else (env_o, pind_o, arity_o, elim_t_o) in
   let n = if is_fwd then (env_n, pind_n, arity_n, elim_t_n) else (env_n, pind_n, arity_n, elim_stretched) in
-  let orn_cs = if is_fwd then orn_index_cases off f_indexer orn_p o n else orn_index_cases off f_indexer orn_p n o in
+  let orn_cs = List.map (shift_by (nb_rel env_ornament - nb_rel env_o)) (orn_index_cases npm is_fwd f_indexer orn_p o n) in
   let orn_args = Array.of_list (List.append pms (orn_p :: orn_cs)) in
-  let ornament = mkApp (mkApp (elim_o, orn_args), Array.make 1 (mkRel 1)) in
-  debug_term env_ornament ornament "ornament";
+  let final_args = Array.of_list (mk_n_rels off) in
+  let ornament = mkApp (mkApp (elim_o, orn_args), final_args) in
   (indexer, reconstruct_lambda env_ornament ornament)
 
 (* Search two inductive types for an indexing ornament *)
@@ -1028,10 +1045,10 @@ let find_ornament n d_old d_new =
        ());
     define_term n env evm orn_o_n;
     Printf.printf "Defined ornament %s.\n\n" prefix;
-   (* let inv_n_string = String.concat "_" [prefix; "inv"] in
+    let inv_n_string = String.concat "_" [prefix; "inv"] in
     let inv_n = Id.of_string inv_n_string in
     define_term inv_n env evm orn_n_o;
-    Printf.printf "Defined ornament %s.n\n\n" inv_n_string;*)
+    Printf.printf "Defined ornament %s.\n\n" inv_n_string;
     ()
   else
     failwith "Only inductive types are supported"
