@@ -148,6 +148,20 @@ Proof.
   intros. auto.
 Qed.
 
+Theorem test_orn_4:
+  forall (A : Type) (B : Type) (l : list2 A B),
+    vector2 A B (orn_list2_vector2_index A B l).
+Proof.
+  exact orn_list2_vector2.
+Qed.
+
+Theorem test_orn_inv_4:
+  forall (A : Type) (B : Type) (n : nat) (l : vector2 A B n),
+    list2 A B.
+Proof.
+  exact orn_list2_vector2_inv.
+Qed.
+
 (* --- Balanced binary trees --- *)
 
 Inductive bal_bintree (A : Type) : nat -> Type :=
@@ -158,7 +172,8 @@ Inductive bal_bintree (A : Type) : nat -> Type :=
       bal_bintree A n -> A -> bal_bintree A n -> bal_bintree A (n + n).
 
 (*
- * This technically works, but has an extra condition we don't find yet:
+ * This technically works for indexing,
+ * but has an extra condition we don't find yet:
  *
  * Find ornament bintree bal_bintree as bintree_balancer.
  *
@@ -192,8 +207,6 @@ Definition bintree_size_rev (A : Type) (tr : bintree A) :=
 
 Find ornament bintree bintreeV_rev as orn_bintree_bintreeV_rev.
 
-Print orn_bintree_bintreeV_rev_index.
-
 Theorem test_index_6:
   forall (A : Type) (tr : bintree A),
     orn_bintree_bintreeV_rev_index A tr = bintree_size_rev A tr.
@@ -201,16 +214,43 @@ Proof.
   intros. auto.
 Qed.
 
-Find ornament bintreeV_rev bintree as orn_bintreeV_rev_bintree.
-
-Print orn_bintreeV_rev_bintree_index.
-
-Theorem test_index_inv_6:
+Theorem test_orn_6:
   forall (A : Type) (tr : bintree A),
-    orn_bintreeV_rev_bintree_index A tr = bintree_size_rev A tr.
+    bintreeV_rev A (bintree_size_rev A tr).
 Proof.
-  intros. auto.
+  exact orn_bintree_bintreeV_rev.
 Qed.
+
+Theorem test_orn_inv_6:
+  forall (A : Type) (n : nat) (tr : bintreeV_rev A n),
+    bintree A.
+Proof.
+  exact orn_bintree_bintreeV_rev_inv.
+Qed.
+
+(* --- Nat and fin --- *)
+
+(*
+ * Not sure if possible, but might as well try.
+ *
+ * This doesn't work, though it's technically possible because (n : nat)
+ * is our original type. I think we should consider this separately from
+ * standard indexing though.
+ *
+ *
+ * Inductive fin : nat -> Type :=
+ * | F1 : forall (n : nat), fin (S n)
+ * | FS : forall (n : nat), fin n -> fin (S n).
+ *
+ * Find ornament nat fin as orn_nat_fin.
+ *
+ * Definition nat_fin_index (n : nat) :=
+ *  nat_ind
+ *  (fun (n : nat) => nat)
+ *  (S O)
+ *  (fun (n : nat) (IH : nat) => S IH)
+ *  n.
+ *)
 
 (* --- Vectors using multiple nats --- *)
 

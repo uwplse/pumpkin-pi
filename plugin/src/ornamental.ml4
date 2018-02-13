@@ -604,13 +604,30 @@ let debug_env (env : env) (descriptor : string) : unit =
 let search_orn_params env (ind_o : inductive) (ind_n : inductive) is_fwd : types =
   failwith "parameterization is not yet supported"
 
+(* TODO explain *)
+let applies f t =
+  match kind_of_term t with
+  | App (g, _) ->
+     eq_constr f g
+  | _ ->
+     false
+
+(* TODO explain *)
+let property (i : types) (t : types) : bool =
+  applies i t || eq_constr i t
+
+(* TODO explain, also do we need ending? *)
+let properties (i : types) (o : types) (n : types) =
+  property i o && property i n
+
 (* Get the index type, assuming we've added just one *)
-let rec index_type env p_o p_n =
+(* TODO handle more than one, etc. *)
+let rec index_type env pind_o p_o p_n =
   match map_tuple kind_of_term (p_o, p_n) with
   | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-     if convertible env t_o t_n then
+     if convertible env t_o t_n && not (property pind_o t_o) then
        let env_t = push_rel CRD.(LocalAssum (n_o, t_o)) env in
-       index_type env_t b_o b_n
+       index_type env_t (shift pind_o) b_o b_n
      else
        t_n
   | _ ->
@@ -624,29 +641,12 @@ let rec destruct_cases elim_b : types list =
   | _ ->
      []
 
-(* TODO explain *)
-let applies f t =
-  match kind_of_term t with
-  | App (g, _) ->
-     eq_constr f g
-  | _ ->
-     false
-
-(* TODO explain, also do we need ending? *)
-let properties i o n =
-  (applies i o && applies i n) ||
-  (eq_constr i o && eq_constr i n)
-
 (* TODO explain, also do we need infer_type stuff? gross *)
 let old_new o n =
   let (e_o, pind_o, t_o) = o in
   let (e_n, pind_n, t_n) = n in
   let old_new_terms t_o t_n =
-    match map_tuple kind_of_term (t_o, t_n) with
-    | (App (f_o, args_o), App (f_n, args_n)) ->
-       eq_constr f_o pind_o && eq_constr f_n pind_n
-    | _ ->
-       eq_constr t_o pind_o && eq_constr t_n pind_n
+    property pind_o t_o && property pind_n t_n
   in
   try
     old_new_terms t_o t_n ||
@@ -679,10 +679,7 @@ let index_case index_t prop_index o n : types =
     | (App (f_o, args_o), App (f_n, args_n)) when properties i f_o f_n ->
        List.fold_left2
          (fun idx p_i i_i ->
-           let sub_p = (i_i, mkRel p_i) in
-           let idx' = all_eq_substs sub_p idx in
-           let i_i' = unshift i_i in
-           idx')
+           all_eq_substs (i_i, mkRel p_i) idx)
          (diff_index i o n) (* TODO assumes index is first *)
          pil
          iil
@@ -690,7 +687,7 @@ let index_case index_t prop_index o n : types =
        let e_b_n = push_rel CRD.(LocalAssum (n_n, t_n)) e_n in
        let i_b = shift i in
        let i_t_b = shift i_t in
-       if not (conv_modulo_change i (e_o, pind_o, t_o) (e_n, pind_n, t_n)) then
+       if not (property t_n pind_o) && not (conv_modulo_change i (e_o, pind_o, t_o) (e_n, pind_n, t_n)) then
          let e_b_o = push_rel CRD.(LocalAssum (n_n, t_n)) e_o in
          let pil' = List.map shift_i pil in
          let iil' = List.map shift iil in
@@ -706,7 +703,7 @@ let index_case index_t prop_index o n : types =
            let iil' = List.map shift iil in
            mkLambda (n_o, t_o, diff_case pil' iil' i_t_b i_b e_b_o e_b_n b_o b_n)
     | _ ->
-       failwith "unxpected case"
+       failwith "unexpected case"
   in diff_case [] [] index_t prop_index env_o env_n c_o c_n
 
 (* Get the cases for the indexer *)
@@ -739,7 +736,7 @@ let search_for_indexer npm elim_o o n is_fwd : types option =
     let (_, p_o, b_o) = destProd elim_t_o in
     let (_, p_n, b_n) = destProd elim_t_n in
     let (env_indexer, _) = zoom_product_type env_o p_o in
-    let index_t = index_type env_n p_o p_n in
+    let index_t = index_type env_n pind_o p_o p_n in
     let off = nb_rel env_indexer - npm in
     let indexer_pms = List.map shift (mk_n_rels npm) in
     let indexer_p = shift_by off (reconstruct_lambda_n env_indexer index_t npm) in
@@ -906,7 +903,6 @@ let rec sub_indexes is_fwd f_indexer p subs o n : types =
 let orn_index_case npms is_fwd indexer_f orn_p o n : types =
   let (env_o, arity_o, pind_o, p_o, c_o) = o in
   let (env_n, arity_n, pind_n, p_n, c_n) = n in
-  debug_term env_o orn_p "orn_p";
   let d_arity = arity_n - arity_o in
   let c_o =
     if is_fwd then
@@ -1044,7 +1040,6 @@ let find_ornament n d_old d_new =
        Printf.printf "Defined indexing function %s.\n\n" idx_n_string;
      else
        ());
-    debug_term env orn_o_n "ornament";
     define_term n env evm orn_o_n;
     Printf.printf "Defined ornament %s.\n\n" prefix;
     let inv_n_string = String.concat "_" [prefix; "inv"] in
