@@ -9,10 +9,6 @@ Inductive vector (A : Type) : nat -> Type :=
 
 Find ornament list vector as orn_list_vector.
 
-Print orn_list_vector_index.
-
-Print orn_list_vector.
-
 Theorem test_index:
   forall (A : Type) (l : list A),
     orn_list_vector_index A l = length l.
@@ -27,6 +23,13 @@ Proof.
   exact orn_list_vector.
 Qed.
 
+Theorem test_orn_inv:
+  forall (A : Type) (n : nat) (v : vector A n),
+    list A.
+Proof.
+  exact orn_list_vector_inv.
+Qed.
+
 (* --- Backwards lists --- *)
 
 Inductive rev_list (A : Type) : Type :=
@@ -38,8 +41,6 @@ Inductive rev_vector (A : Type) : nat -> Type :=
 | rev_consV : forall (n : nat), rev_vector A n -> A -> rev_vector A (S n).
 
 Find ornament rev_list rev_vector as orn_rev_list_rev_vector.
-
-Print orn_rev_list_rev_vector_index.
 
 Definition rev_list_length (A : Type) (rl : rev_list A) :=
   rev_list_rect
@@ -57,15 +58,18 @@ Proof.
   intros. auto.
 Qed.
 
-Find ornament rev_vector rev_list as orn_rev_vector_rev_list.
-
-Print orn_rev_vector_rev_list_index.
-
-Theorem test_index_inv_2:
+Theorem test_orn_2:
   forall (A : Type) (l : rev_list A),
-    orn_rev_vector_rev_list_index A l = rev_list_length A l.
+    rev_vector A (rev_list_length A l).
 Proof.
-  intros. auto.
+  exact orn_rev_list_rev_vector.
+Qed.
+
+Theorem rest_orn_inv_2:
+  forall (A : Type) (n : nat) (v : rev_vector A n),
+    rev_list A.
+Proof.
+  exact orn_rev_list_rev_vector_inv.
 Qed.
 
 (* --- Binary Trees and Indexed Binary Trees --- *)
@@ -85,8 +89,6 @@ Inductive bintreeV (A : Type) : nat -> Type :=
 
 Find ornament bintree bintreeV as orn_bintree_bintreeV.
 
-Print orn_bintree_bintreeV_index.
-
 Definition bintree_size (A : Type) (tr : bintree A) :=
   bintree_rect
     A
@@ -99,17 +101,6 @@ Definition bintree_size (A : Type) (tr : bintree A) :=
 Theorem test_index_3:
   forall (A : Type) (tr : bintree A),
     orn_bintree_bintreeV_index A tr = bintree_size A tr.
-Proof.
-  intros. auto.
-Qed.
-
-Find ornament bintreeV bintree as orn_bintreeV_bintree.
-
-Print orn_bintreeV_bintree_index.
-
-Theorem test_index_inv_3:
-  forall (A : Type) (tr : bintree A),
-    orn_bintreeV_bintree_index A tr = bintree_size A tr.
 Proof.
   intros. auto.
 Qed.
