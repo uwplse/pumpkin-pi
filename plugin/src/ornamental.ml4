@@ -646,6 +646,15 @@ let convertible_mod_change env p_index o n =
 (* Shift substitutions *)
 let shift_subs = List.map (map_tuple shift)
 
+(* Shift a list *)
+let shift_all = List.map shift
+
+(* Apply an eliminator and reconstruct it from an environment *)
+let apply_eliminator env elim pms p cs final_args =
+  let args = Array.of_list (List.append pms (p :: cs)) in
+  let proof = mkApp (mkApp (elim, args), final_args) in
+  reconstruct_lambda env proof
+
 (* --- Search --- *)
 
 (* Search two inductive types for a parameterizing ornament *)
@@ -751,13 +760,11 @@ let search_for_indexer npm elim_o o n is_fwd : types option =
        let (env_ind, _) = zoom_product_type env_o p_o in
        let (index_i, index_t) = index_type env_n ind_o p_o p_n in
        let off = nb_rel env_ind - npm in
-       let pms = List.map shift (mk_n_rels npm) in
+       let pms = shift_all (mk_n_rels npm) in
        let p = shift_by off (reconstruct_lambda_n env_ind index_t npm) in
        let cs = indexer_cases index_i index_t npm o n in
-       let args = Array.of_list (List.append pms (p :: cs)) in
        let final_args = Array.of_list (mk_n_rels off) in
-       let indexer = mkApp (mkApp (elim_o, args), final_args) in
-       Some (reconstruct_lambda env_ind indexer)
+       Some (apply_eliminator env_ind elim_o pms p cs final_args)
     | _ ->
        failwith "not eliminators"
   else
@@ -975,11 +982,10 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
   let env_n = push_rel (CRD.LocalAssum (n_n, p_n)) env_n in
   let o = if is_fwd then (env_o, pind_o, arity_o, elim_stretched) else (env_o, pind_o, arity_o, elim_t_o) in
   let n = if is_fwd then (env_n, pind_n, arity_n, elim_t_n) else (env_n, pind_n, arity_n, elim_stretched) in
-  let orn_cs = List.map (shift_by (nb_rel env_ornament - nb_rel env_o)) (orn_index_cases npm is_fwd f_indexer orn_p o n) in
-  let orn_args = Array.of_list (List.append pms (orn_p :: orn_cs)) in
+  let cs = List.map (shift_by (nb_rel env_ornament - nb_rel env_o)) (orn_index_cases npm is_fwd f_indexer orn_p o n) in
   let final_args = Array.of_list (mk_n_rels off) in
-  let ornament = mkApp (mkApp (elim_o, orn_args), final_args) in
-  (indexer, reconstruct_lambda env_ornament ornament)
+  let ornament = apply_eliminator env_ornament elim_o pms orn_p cs final_args in
+  (indexer, ornament)
 
 (* Search two inductive types for an indexing ornament *)
 let search_orn_index env npm idx_n o n is_fwd : (types option * types) =
