@@ -721,22 +721,21 @@ let index_case index_i index_t o n : types =
   in diff_case index_t (mkRel 1) [] o n
 
 (* Get the cases for the indexer *)
-let indexer_cases index_i index_t npms o n : types list =
+let indexer_cases index_i index_t npm o n : types list =
   let (env_o, ind_o, arity_o, elim_t_o) = o in
   let (env_n, ind_n, arity_n, elim_t_n) = n in
-  let (n_o, p_o, b_o) = destProd elim_t_o in
-  let (n_n, p_n, b_n) = destProd elim_t_n in
-  let env_p_o = push_rel CRD.(LocalAssum (n_o, p_o)) env_o in
-  let env_p_n = push_rel CRD.(LocalAssum (n_n, p_n)) env_n in
-  let cs_o_ext = destruct_product b_o in
-  let cs_n_ext = destruct_product b_n in
-  let num_final_args_o = arity_o - npms + 1 in
-  let num_final_args_n = arity_n - npms + 1 in
-  let cs_o = take_except num_final_args_o cs_o_ext in
-  let cs_n = take_except num_final_args_n cs_n_ext in
-  let o c = (env_p_o, ind_o, c) in
-  let n c = (env_p_n, ind_n, c) in
-  List.map2 (fun c_o c_n -> index_case index_i index_t (o c_o) (n c_n)) cs_o cs_n
+  match map_tuple kind_of_term (elim_t_o, elim_t_n) with
+  | (Prod (n_o, p_o, b_o), Prod (n_n, p_n, b_n)) ->
+     let env_p_o = push_rel CRD.(LocalAssum (n_o, p_o)) env_o in
+     let env_p_n = push_rel CRD.(LocalAssum (n_n, p_n)) env_n in
+     let o c = (env_p_o, ind_o, c) in
+     let n c = (env_p_n, ind_n, c) in
+     List.map2
+       (fun c_o c_n -> index_case index_i index_t (o c_o) (n c_n))
+       (take_except (arity_o - npm + 1) (destruct_product b_o))
+       (take_except (arity_n - npm + 1) (destruct_product b_n))
+  | _ ->
+     failwith "not eliminators"
 
 (* TODO explain, move *)
 let mk_n_rels arity =
