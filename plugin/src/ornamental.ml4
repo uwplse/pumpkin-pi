@@ -639,6 +639,9 @@ let convertible_mod_change env p_index o n =
   let (pind_n, t_n) = n in
   are_or_apply p_index t_o t_n || apply_old_new o n || convertible env t_o t_n
 
+(* Shift substitutions *)
+let shift_subs = List.map (map_tuple shift)
+
 (* --- Search --- *)
 
 (* Search two inductive types for a parameterizing ornament *)
@@ -673,42 +676,49 @@ let diff_index index_i p o n =
   | _ ->
      failwith "not an application of a property"
 
-(* Get a single case for the indexer *)
-(* TODO need to generalize this logic better, try sub & check approach *)
-(* TODO clean *)
-(* TODO for IH apply ind_p otherwise will fail when index type is dependent *)
-(* TODO shift pind and stuff when you clean *)
-let index_case index_i index_t prop_index o n : types =
+(*
+ * Get a single case for the indexer, given:
+ * 1. index_i, the location of the new index in the property
+ * 2. index_t, the type of the new index in the property
+ * 3. o, the old environment, inductive type, and constructor
+ * 4. n, the new environment, inductive type, and constructor
+ *
+ * Eventually, it would be good to make this logic less ad-hoc,
+ * though the terms we are looking at here are type signatures of
+ * induction principles, and so should be very predictable.
+ *)
+let index_case index_i index_t o n : types =
   let get_index = diff_index index_i in
-  let rec diff_case subs i_t p o n =
-    let (e_o, pind_o, trm_o) = o in
-    let (e_n, pind_n, trm_n) = n in
+  let rec diff_case i_t p subs o n =
+    let (e_o, ind_o, trm_o) = o in
+    let (e_n, ind_n, trm_n) = n in
     match map_tuple kind_of_term (trm_o, trm_n) with
-    | (App (f_o, args_o), App (f_n, args_n)) when are_or_apply p f_o f_n ->
-       List.fold_right all_eq_substs subs (get_index p trm_o trm_n)
-    | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-       let e_b_n = push_rel CRD.(LocalAssum (n_n, t_n)) e_n in
-       let p_b = shift p in
-       let i_t_b = shift i_t in
-       let n_b = (e_b_n, shift pind_n, b_n) in
-       if not (is_or_applies t_n pind_o) && not (convertible_mod_change e_o p (pind_o, t_o) (pind_n, t_n)) then
-         let e_b_o = push_rel CRD.(LocalAssum (n_n, t_n)) e_o in
-         let subs' = List.map (map_tuple shift) subs in
-         let o_b = (e_b_o, shift pind_o, shift trm_o) in
-         unshift (diff_case subs' i_t_b p_b o_b n_b)
+    | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) -> (* premises *)
+       let diff_b = diff_case (shift i_t) (shift p) in
+       let e_n_b = push_rel CRD.(LocalAssum (n_n, t_n)) e_n in
+       let n_b = (e_n_b, shift ind_n, b_n) in
+       let same = convertible_mod_change e_o p in
+       if not (same (ind_o, t_o) (ind_n, t_n)) then (* index *)
+         let e_o_b = push_rel CRD.(LocalAssum (n_n, t_n)) e_o in
+         let subs_b = shift_subs subs in
+         let o_b = (e_o_b, shift ind_o, shift trm_o) in
+         unshift (diff_b subs_b o_b n_b)
        else
-         let e_b_o = push_rel CRD.(LocalAssum (n_o, t_o)) e_o in
-         let o_b = (e_b_o, shift pind_o, b_o) in
-         if apply p t_o t_n then
+         let e_o_b = push_rel CRD.(LocalAssum (n_o, t_o)) e_o in
+         let o_b = (e_o_b, shift ind_o, b_o) in
+         if apply p t_o t_n then (* inductive hypothesis *)
            let sub_index = (shift (get_index p t_o t_n), mkRel 1) in
-           let subs' = sub_index :: List.map (map_tuple shift) subs in
-           mkLambda (n_o, i_t, diff_case subs' i_t_b p_b o_b n_b)
-         else
-           let subs' = List.map (map_tuple shift) subs in
-           mkLambda (n_o, t_o, diff_case subs' i_t_b p_b o_b n_b)
+           let subs_b = sub_index :: shift_subs subs in
+           mkLambda (n_o, i_t, diff_b subs_b o_b n_b)
+         else (* no change *)
+           let subs_b = shift_subs subs in
+           mkLambda (n_o, t_o, diff_b subs_b o_b n_b)
+    | (App (f_o, _), App (f_n, _)) -> (* conclusion *)
+       let index = get_index p trm_o trm_n in
+       List.fold_right all_eq_substs subs index
     | _ ->
        failwith "unexpected case"
-  in diff_case [] index_t prop_index o n
+  in diff_case index_t (mkRel 1) [] o n
 
 (* Get the cases for the indexer *)
 let indexer_cases index_i index_t npms o n : types list =
@@ -726,7 +736,7 @@ let indexer_cases index_i index_t npms o n : types list =
   let cs_n = take_except num_final_args_n cs_n_ext in
   let o c = (env_p_o, pind_o, c) in
   let n c = (env_p_n, pind_n, c) in
-  List.map2 (fun c_o c_n -> index_case index_i index_t (mkRel 1) (o c_o) (n c_n)) cs_o cs_n
+  List.map2 (fun c_o c_n -> index_case index_i index_t (o c_o) (n c_n)) cs_o cs_n
 
 (* TODO explain, move *)
 let mk_n_rels arity =

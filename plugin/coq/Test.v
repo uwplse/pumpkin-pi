@@ -237,6 +237,8 @@ Qed.
  * is our original type. I think we should consider this separately from
  * standard indexing though.
  *
+ * See git history prior to 2/14 for some attempts at this that might
+ * be useful for later on.
  *
  * Inductive fin : nat -> Type :=
  * | F1 : forall (n : nat), fin (S n)
@@ -291,9 +293,13 @@ Inductive vector4 (A : Type) : nat -> Type :=
 
 (* --- TODO adding multiple indices at once --- *)
 
+(* --- TODO adding an index that has a type that matches an already existing index --- *)
+
+(* --- TODO adding an index with several uses --- *)
+
 (* --- TODO weirder indexes --- *)
 
-(* --- TODO indices that depend on earlier indices or parameters --- *)
+(* --- TODO indices that depend on earlier indices and parameters --- *)
 
 (* --- TODO what does it mean if the index already existed in the old constructor, but wasn't used, or was used differently? How do we handle that? ---*)
 
