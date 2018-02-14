@@ -616,9 +616,8 @@ let debug_env (env : env) (descriptor : string) : unit =
 
 (* --- Utilities that don't generalize outside of this tool --- *)
 
-(* is_or_applies but over two terms *)
-let are_or_apply (trm : types) (o : types) (n : types) : bool =
-  and_p (is_or_applies trm) o n
+let are_or_apply (trm : types) = and_p (is_or_applies trm)
+let apply (trm : types) = and_p (applies trm)
 
 (* is_or_applies over two terms with a different check *)
 let apply_old_new (o : types * types) (n : types * types) : bool =
@@ -668,47 +667,42 @@ let rec index_type env old_typ p_o p_n =
 (* TODO for IH apply ind_p otherwise will fail when index type is dependent *)
 (* TODO shift pind and stuff when you clean *)
 let index_case index_t prop_index o n : types =
-  let (env_o, pind_o, c_o) = o in
-  let (env_n, pind_n, c_n) = n in
-  let rec diff_index i o n =
+  let diff_index i o n =
     match map_tuple kind_of_term (o, n) with
     | (App (f_o, args_o), App (f_n, args_n)) when are_or_apply i f_o f_n ->
        Array.get args_n 0 (* TODO assumes index is first *)
     | _ ->
        failwith "not an application of a property"
   in
-  let rec diff_case subs i_t i o n =
-    let (e_o, trm_o) = o in
-    let (e_n, trm_n) = n in
+  let rec diff_case subs i_t p o n =
+    let (e_o, pind_o, trm_o) = o in
+    let (e_n, pind_n, trm_n) = n in
     match map_tuple kind_of_term (trm_o, trm_n) with
-    | (App (f_o, args_o), App (f_n, args_n)) when are_or_apply i f_o f_n ->
-       List.fold_left (* or right? *)
-         (fun idx sub ->
-           all_eq_substs sub idx)
-         (diff_index i trm_o trm_n) (* TODO assumes index is first *)
-         subs
+    | (App (f_o, args_o), App (f_n, args_n)) when are_or_apply p f_o f_n ->
+       List.fold_right all_eq_substs subs (diff_index p trm_o trm_n)
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let e_b_n = push_rel CRD.(LocalAssum (n_n, t_n)) e_n in
-       let i_b = shift i in
+       let p_b = shift p in
        let i_t_b = shift i_t in
-       let n_b = (e_b_n, b_n) in
-       if not (is_or_applies t_n pind_o) && not (convertible_mod_change e_o i (pind_o, t_o) (pind_n, t_n)) then
+       let n_b = (e_b_n, shift pind_n, b_n) in
+       if not (is_or_applies t_n pind_o) && not (convertible_mod_change e_o p (pind_o, t_o) (pind_n, t_n)) then
          let e_b_o = push_rel CRD.(LocalAssum (n_n, t_n)) e_o in
          let subs' = List.map (map_tuple shift) subs in
-         let o_b = (e_b_o, shift trm_o) in
-         unshift (diff_case subs' i_t_b i_b o_b n_b)
+         let o_b = (e_b_o, shift pind_o, shift trm_o) in
+         unshift (diff_case subs' i_t_b p_b o_b n_b)
        else
          let e_b_o = push_rel CRD.(LocalAssum (n_o, t_o)) e_o in
-         let o_b = (e_b_o, b_o) in
-         if are_or_apply i t_o t_n then
-           let subs' = (shift (diff_index i t_o t_n), mkRel 1) :: List.map (map_tuple shift) subs in
-           mkLambda (n_o, i_t, diff_case subs' i_t_b i_b o_b n_b)
+         let o_b = (e_b_o, shift pind_o, b_o) in
+         if apply p t_o t_n then
+           let sub_index = (shift (diff_index p t_o t_n), mkRel 1) in
+           let subs' = sub_index :: List.map (map_tuple shift) subs in
+           mkLambda (n_o, i_t, diff_case subs' i_t_b p_b o_b n_b)
          else
            let subs' = List.map (map_tuple shift) subs in
-           mkLambda (n_o, t_o, diff_case subs' i_t_b i_b o_b n_b)
+           mkLambda (n_o, t_o, diff_case subs' i_t_b p_b o_b n_b)
     | _ ->
        failwith "unexpected case"
-  in diff_case [] index_t prop_index (env_o, c_o) (env_n, c_n)
+  in diff_case [] index_t prop_index o n
 
 (* Get the cases for the indexer *)
 let indexer_cases index_t npms o n : types list =
