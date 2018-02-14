@@ -661,19 +661,20 @@ let rec index_type env old_typ p_o p_n =
   | _ ->
      failwith "could not find indexer property"
 
+(* Given an old and new application of a property, find the index *)
+let diff_index p o n =
+  match map_tuple kind_of_term (o, n) with
+  | (App (f_o, args_o), App (f_n, args_n)) when are_or_apply p f_o f_n ->
+     Array.get args_n 0 (* TODO assumes index is first *)
+  | _ ->
+     failwith "not an application of a property"
+
 (* Get a single case for the indexer *)
 (* TODO need to generalize this logic better, try sub & check approach *)
 (* TODO clean *)
 (* TODO for IH apply ind_p otherwise will fail when index type is dependent *)
 (* TODO shift pind and stuff when you clean *)
 let index_case index_t prop_index o n : types =
-  let diff_index i o n =
-    match map_tuple kind_of_term (o, n) with
-    | (App (f_o, args_o), App (f_n, args_n)) when are_or_apply i f_o f_n ->
-       Array.get args_n 0 (* TODO assumes index is first *)
-    | _ ->
-       failwith "not an application of a property"
-  in
   let rec diff_case subs i_t p o n =
     let (e_o, pind_o, trm_o) = o in
     let (e_n, pind_n, trm_n) = n in
