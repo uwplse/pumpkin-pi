@@ -620,6 +620,12 @@ let debug_env (env : env) (descriptor : string) : unit =
 let are_or_apply (trm : types) (o : types) (n : types) : bool =
   and_p (is_or_applies trm) o n
 
+(* is_or_applies over two terms with a different check *)
+let apply_old_new (o : types * types) (n : types * types) : bool =
+  let (trm_o, trm_o') = o in
+  let (trm_n, trm_n') = n in
+  is_or_applies trm_o trm_o' && is_or_applies trm_n trm_n'
+
 (* Destruct a product type into parts *)
 let rec destruct_product (trm : types) : types list =
   match kind_of_term trm with
@@ -627,6 +633,12 @@ let rec destruct_product (trm : types) : types list =
      t :: destruct_product (unshift b)
   | _ ->
      []
+
+(* Check if two terms are convertible modulo a change in inductive types *)
+let convertible_mod_change env p_index o n =
+  let (pind_o, t_o) = o in
+  let (pind_n, t_n) = n in
+  are_or_apply p_index t_o t_n || apply_old_new o n || convertible env t_o t_n
 
 (* --- Search --- *)
 
@@ -649,25 +661,6 @@ let rec index_type env old_typ p_o p_n =
        t_n
   | _ ->
      failwith "could not find indexer property"
-
-(* TODO explain, also do we need infer_type stuff? gross *)
-let old_new o n =
-  let (e_o, pind_o, t_o) = o in
-  let (e_n, pind_n, t_n) = n in
-  let old_new_terms t_o t_n =
-    is_or_applies pind_o t_o && is_or_applies pind_n t_n
-  in
-  try
-    old_new_terms t_o t_n ||
-      old_new_terms (infer_type e_o t_o) (infer_type e_n t_n)
-  with _ ->
-    false
-
-(* TODO explain and clean *)
-let conv_modulo_change p_i o n =
-  let (env_o, pind_o, t_o) = o in
-  let (env_n, pind_n, t_n) = n in
-  are_or_apply p_i t_o t_n || old_new o n || convertible env_o t_o t_n
 
 (* Get a single case for the indexer *)
 (* TODO need to generalize this logic better, try sub & check approach *)
@@ -696,7 +689,7 @@ let index_case index_t prop_index o n : types =
        let e_b_n = push_rel CRD.(LocalAssum (n_n, t_n)) e_n in
        let i_b = shift i in
        let i_t_b = shift i_t in
-       if not (is_or_applies t_n pind_o) && not (conv_modulo_change i (e_o, pind_o, t_o) (e_n, pind_n, t_n)) then
+       if not (is_or_applies t_n pind_o) && not (convertible_mod_change e_o i (pind_o, t_o) (pind_n, t_n)) then
          let e_b_o = push_rel CRD.(LocalAssum (n_n, t_n)) e_o in
          let pil' = List.map shift_i pil in
          let iil' = List.map shift iil in
@@ -777,7 +770,7 @@ let rec stretch_property o n =
   | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
      let env_n_b = push_rel CRD.(LocalAssum (n_n, t_n)) env_n in
      let n_b = (env_n_b, shift pind_n, b_n) in
-     if conv_modulo_change (mkRel 0) (env_o, pind_o, t_o) (env_n, pind_n, t_n) then
+     if convertible_mod_change env_o (mkRel 0) (pind_o, t_o) (pind_n, t_n) then
        let env_o_b = push_rel CRD.(LocalAssum (n_o, t_o)) env_o in
        let o_b = (env_o_b, shift pind_o, b_o) in
        mkProd (n_o, t_o, stretch_property o_b n_b)
@@ -796,7 +789,7 @@ let rec stretch_property_term o n =
   | (Lambda (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
      let env_n_b = push_rel CRD.(LocalAssum (n_n, t_n)) env_n in
      let n_b = (env_n_b, shift pind_n, b_n) in
-     if conv_modulo_change (mkRel 0) (env_o, pind_o, t_o) (env_n, pind_n, t_n) then
+     if convertible_mod_change env_o (mkRel 0) (pind_o, t_o) (pind_n, t_n) then
        let env_o_b = push_rel CRD.(LocalAssum (n_o, t_o)) env_o in
        let o_b = (env_o_b, shift pind_o, b_o) in
        mkLambda (n_o, t_o, stretch_property_term o_b n_b)
@@ -854,7 +847,7 @@ let rec sub_indexes is_fwd f_indexer p subs o n : types =
      let n_b = (env_n_b, shift pind_n, b_n) in
      let p_b = shift p in
      let f_indexer_b = shift f_indexer in
-     if conv_modulo_change p (env_o, pind_o, t_o) (env_n, pind_n, t_n) then
+     if convertible_mod_change env_o p (pind_o, t_o) (pind_n, t_n) then
        let env_o_b = push_rel (CRD.(LocalAssum (n_o, t_o))) env_o in
        let o_b = (env_o_b, shift pind_o, b_o) in
        let subs_b = List.map (map_tuple shift) subs in
