@@ -646,7 +646,7 @@ let search_orn_params env (ind_o : inductive) (ind_n : inductive) is_fwd : types
   failwith "parameterization is not yet supported"
 
 (*
- * Get the index type, assuming we've added just one.
+ * Get the index type and location (index of the index).
  * This doesn't yet handle adding multiple indices, or
  * adding an index that depends on the previous type.
  *)
@@ -655,17 +655,21 @@ let rec index_type env old_typ p_o p_n =
   | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
      if convertible env t_o t_n && not (is_or_applies old_typ t_o) then
        let env_t = push_rel CRD.(LocalAssum (n_o, t_o)) env in
-       index_type env_t (shift old_typ) b_o b_n
+       let (index_i, index_t) = index_type env_t (shift old_typ) b_o b_n in
+       (shift_i index_i, index_t)
      else
-       t_n
+       (0, t_n)
   | _ ->
      failwith "could not find indexer property"
 
-(* Given an old and new application of a property, find the index *)
-let diff_index p o n =
+(*
+ * Given an old and new application of a property, find the new index.
+ * This also assumes there is only one new index.
+ *)
+let diff_index index_i p o n =
   match map_tuple kind_of_term (o, n) with
   | (App (f_o, args_o), App (f_n, args_n)) when are_or_apply p f_o f_n ->
-     Array.get args_n 0 (* TODO assumes index is first *)
+     Array.get args_n index_i
   | _ ->
      failwith "not an application of a property"
 
@@ -674,13 +678,14 @@ let diff_index p o n =
 (* TODO clean *)
 (* TODO for IH apply ind_p otherwise will fail when index type is dependent *)
 (* TODO shift pind and stuff when you clean *)
-let index_case index_t prop_index o n : types =
+let index_case index_i index_t prop_index o n : types =
+  let get_index = diff_index index_i in
   let rec diff_case subs i_t p o n =
     let (e_o, pind_o, trm_o) = o in
     let (e_n, pind_n, trm_n) = n in
     match map_tuple kind_of_term (trm_o, trm_n) with
     | (App (f_o, args_o), App (f_n, args_n)) when are_or_apply p f_o f_n ->
-       List.fold_right all_eq_substs subs (diff_index p trm_o trm_n)
+       List.fold_right all_eq_substs subs (get_index p trm_o trm_n)
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let e_b_n = push_rel CRD.(LocalAssum (n_n, t_n)) e_n in
        let p_b = shift p in
@@ -695,7 +700,7 @@ let index_case index_t prop_index o n : types =
          let e_b_o = push_rel CRD.(LocalAssum (n_o, t_o)) e_o in
          let o_b = (e_b_o, shift pind_o, b_o) in
          if apply p t_o t_n then
-           let sub_index = (shift (diff_index p t_o t_n), mkRel 1) in
+           let sub_index = (shift (get_index p t_o t_n), mkRel 1) in
            let subs' = sub_index :: List.map (map_tuple shift) subs in
            mkLambda (n_o, i_t, diff_case subs' i_t_b p_b o_b n_b)
          else
@@ -706,7 +711,7 @@ let index_case index_t prop_index o n : types =
   in diff_case [] index_t prop_index o n
 
 (* Get the cases for the indexer *)
-let indexer_cases index_t npms o n : types list =
+let indexer_cases index_i index_t npms o n : types list =
   let (env_o, pind_o, arity_o, elim_t_o) = o in
   let (env_n, pind_n, arity_n, elim_t_n) = n in
   let (n_o, p_o, b_o) = destProd elim_t_o in
@@ -721,7 +726,7 @@ let indexer_cases index_t npms o n : types list =
   let cs_n = take_except num_final_args_n cs_n_ext in
   let o c = (env_p_o, pind_o, c) in
   let n c = (env_p_n, pind_n, c) in
-  List.map2 (fun c_o c_n -> index_case index_t (mkRel 1) (o c_o) (n c_n)) cs_o cs_n
+  List.map2 (fun c_o c_n -> index_case index_i index_t (mkRel 1) (o c_o) (n c_n)) cs_o cs_n
 
 (* TODO explain, move *)
 let mk_n_rels arity =
@@ -735,11 +740,11 @@ let search_for_indexer npm elim_o o n is_fwd : types option =
     let (_, p_o, b_o) = destProd elim_t_o in
     let (_, p_n, b_n) = destProd elim_t_n in
     let (env_indexer, _) = zoom_product_type env_o p_o in
-    let index_t = index_type env_n pind_o p_o p_n in
+    let (index_i, index_t) = index_type env_n pind_o p_o p_n in
     let off = nb_rel env_indexer - npm in
     let indexer_pms = List.map shift (mk_n_rels npm) in
     let indexer_p = shift_by off (reconstruct_lambda_n env_indexer index_t npm) in
-    let indexer_cs = indexer_cases index_t npm o n in
+    let indexer_cs = indexer_cases index_i index_t npm o n in
     let indexer_args = Array.of_list (List.append indexer_pms (indexer_p :: indexer_cs)) in
     let indexer = mkApp (mkApp (elim_o, indexer_args), Array.make 1 (mkRel 1)) in
     Some (reconstruct_lambda env_indexer indexer)
