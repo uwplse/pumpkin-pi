@@ -677,17 +677,16 @@ let index_case index_t prop_index o n : types =
     | _ ->
        failwith "not an application of a property"
   in
-  let rec diff_case pil iil i_t i o n =
+  let rec diff_case subs i_t i o n =
     let (e_o, trm_o) = o in
     let (e_n, trm_n) = n in
     match map_tuple kind_of_term (trm_o, trm_n) with
     | (App (f_o, args_o), App (f_n, args_n)) when are_or_apply i f_o f_n ->
-       List.fold_left2
-         (fun idx p_i i_i ->
-           all_eq_substs (i_i, mkRel p_i) idx)
+       List.fold_left (* or right? *)
+         (fun idx sub ->
+           all_eq_substs sub idx)
          (diff_index i trm_o trm_n) (* TODO assumes index is first *)
-         pil
-         iil
+         subs
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let e_b_n = push_rel CRD.(LocalAssum (n_n, t_n)) e_n in
        let i_b = shift i in
@@ -695,24 +694,21 @@ let index_case index_t prop_index o n : types =
        let n_b = (e_b_n, b_n) in
        if not (is_or_applies t_n pind_o) && not (convertible_mod_change e_o i (pind_o, t_o) (pind_n, t_n)) then
          let e_b_o = push_rel CRD.(LocalAssum (n_n, t_n)) e_o in
-         let pil' = List.map shift_i pil in
-         let iil' = List.map shift iil in
+         let subs' = List.map (map_tuple shift) subs in
          let o_b = (e_b_o, shift trm_o) in
-         unshift (diff_case pil' iil' i_t_b i_b o_b n_b)
+         unshift (diff_case subs' i_t_b i_b o_b n_b)
        else
          let e_b_o = push_rel CRD.(LocalAssum (n_o, t_o)) e_o in
          let o_b = (e_b_o, b_o) in
          if are_or_apply i t_o t_n then
-           let pil' = 1 :: List.map shift_i pil in
-           let iil' = List.map shift (diff_index i t_o t_n :: iil) in
-           mkLambda (n_o, i_t, diff_case pil' iil' i_t_b i_b o_b n_b)
+           let subs' = (shift (diff_index i t_o t_n), mkRel 1) :: List.map (map_tuple shift) subs in
+           mkLambda (n_o, i_t, diff_case subs' i_t_b i_b o_b n_b)
          else
-           let pil' = List.map shift_i pil in
-           let iil' = List.map shift iil in
-           mkLambda (n_o, t_o, diff_case pil' iil' i_t_b i_b o_b n_b)
+           let subs' = List.map (map_tuple shift) subs in
+           mkLambda (n_o, t_o, diff_case subs' i_t_b i_b o_b n_b)
     | _ ->
        failwith "unexpected case"
-  in diff_case [] [] index_t prop_index (env_o, c_o) (env_n, c_n)
+  in diff_case [] index_t prop_index (env_o, c_o) (env_n, c_n)
 
 (* Get the cases for the indexer *)
 let indexer_cases index_t npms o n : types list =
