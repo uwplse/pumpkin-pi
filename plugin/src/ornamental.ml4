@@ -447,6 +447,10 @@ let define_term (n : Id.t) (env : env) evm (trm : types) : unit =
     None
     (Lemmas.mk_hook (fun _ _ -> ()))
 
+(* Make n relative indices, from highest to lowest *)
+let mk_n_rels n =
+  List.map mkRel (List.rev (from_one_to n))
+
 (* --- Debugging, from PUMPKIN PATCH --- *)
 
 (* Using pp, prints directly to a string *)
@@ -737,26 +741,25 @@ let indexer_cases index_i index_t npm o n : types list =
   | _ ->
      failwith "not eliminators"
 
-(* TODO explain, move *)
-let mk_n_rels arity =
-  List.map mkRel (List.rev (from_one_to arity))
-
 (* Search for an indexing function *)
 let search_for_indexer npm elim_o o n is_fwd : types option =
   if is_fwd then
-    let (env_o, pind_o, arity_o, elim_t_o) = o in
-    let (env_n, pind_n, arity_n, elim_t_n) = n in
-    let (_, p_o, b_o) = destProd elim_t_o in
-    let (_, p_n, b_n) = destProd elim_t_n in
-    let (env_indexer, _) = zoom_product_type env_o p_o in
-    let (index_i, index_t) = index_type env_n pind_o p_o p_n in
-    let off = nb_rel env_indexer - npm in
-    let indexer_pms = List.map shift (mk_n_rels npm) in
-    let indexer_p = shift_by off (reconstruct_lambda_n env_indexer index_t npm) in
-    let indexer_cs = indexer_cases index_i index_t npm o n in
-    let indexer_args = Array.of_list (List.append indexer_pms (indexer_p :: indexer_cs)) in
-    let indexer = mkApp (mkApp (elim_o, indexer_args), Array.make 1 (mkRel 1)) in
-    Some (reconstruct_lambda env_indexer indexer)
+    let (env_o, ind_o, _, elim_t_o) = o in
+    let (env_n, _, _, elim_t_n) = n in
+    match map_tuple kind_of_term (elim_t_o, elim_t_n) with
+    | (Prod (_, p_o, b_o), Prod (_, p_n, b_n)) ->
+       let (env_ind, _) = zoom_product_type env_o p_o in
+       let (index_i, index_t) = index_type env_n ind_o p_o p_n in
+       let off = nb_rel env_ind - npm in
+       let pms = List.map shift (mk_n_rels npm) in
+       let p = shift_by off (reconstruct_lambda_n env_ind index_t npm) in
+       let cs = indexer_cases index_i index_t npm o n in
+       let args = Array.of_list (List.append pms (p :: cs)) in
+       let final_args = Array.of_list (mk_n_rels off) in
+       let indexer = mkApp (mkApp (elim_o, args), final_args) in
+       Some (reconstruct_lambda env_ind indexer)
+    | _ ->
+       failwith "not eliminators"
   else
     None
 
