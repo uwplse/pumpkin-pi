@@ -656,7 +656,7 @@ let search_orn_params env (ind_o : inductive) (ind_n : inductive) is_fwd : types
 let rec index_type env old_typ p_o p_n =
   match map_tuple kind_of_term (p_o, p_n) with
   | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-     if convertible env t_o t_n && not (is_or_applies old_typ t_o) then
+     if convertible env t_o t_n then
        let env_t = push_rel CRD.(LocalAssum (n_o, t_o)) env in
        let (index_i, index_t) = index_type env_t (shift old_typ) b_o b_n in
        (shift_i index_i, index_t)
@@ -722,8 +722,8 @@ let index_case index_i index_t o n : types =
 
 (* Get the cases for the indexer *)
 let indexer_cases index_i index_t npms o n : types list =
-  let (env_o, pind_o, arity_o, elim_t_o) = o in
-  let (env_n, pind_n, arity_n, elim_t_n) = n in
+  let (env_o, ind_o, arity_o, elim_t_o) = o in
+  let (env_n, ind_n, arity_n, elim_t_n) = n in
   let (n_o, p_o, b_o) = destProd elim_t_o in
   let (n_n, p_n, b_n) = destProd elim_t_n in
   let env_p_o = push_rel CRD.(LocalAssum (n_o, p_o)) env_o in
@@ -734,8 +734,8 @@ let indexer_cases index_i index_t npms o n : types list =
   let num_final_args_n = arity_n - npms + 1 in
   let cs_o = take_except num_final_args_o cs_o_ext in
   let cs_n = take_except num_final_args_n cs_n_ext in
-  let o c = (env_p_o, pind_o, c) in
-  let n c = (env_p_n, pind_n, c) in
+  let o c = (env_p_o, ind_o, c) in
+  let n c = (env_p_n, ind_n, c) in
   List.map2 (fun c_o c_n -> index_case index_i index_t (o c_o) (n c_n)) cs_o cs_n
 
 (* TODO explain, move *)
