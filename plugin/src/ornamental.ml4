@@ -144,6 +144,22 @@ let infer_type (env : env) (trm : types) : types =
   let jmt = Typeops.infer env trm in
   j_type jmt
 
+(* Check whether trm applies f (using eq_constr for equality) *)
+let applies (f : types) (trm : types) =
+  match kind_of_term trm with
+  | App (g, _) ->
+     eq_constr f g
+  | _ ->
+     false
+
+(* Check whether trm is trm' or applies trm', using eq_constr *)
+let is_or_applies (trm' : types) (trm : types) : bool =
+  applies trm' trm || eq_constr trm' trm
+
+(* Check that p a and p b are both true *)
+let and_p (p : 'a -> bool) (o : 'a) (n : 'a) : bool =
+  p o && p n
+
 (* Check whether two terms are convertible, ignoring universe inconsistency *)
 let conv_ignoring_univ_inconsistency env evm trm1 trm2 : bool =
   try
@@ -598,55 +614,48 @@ let env_as_string (env : env) : string =
 let debug_env (env : env) (descriptor : string) : unit =
   Printf.printf "%s: %s\n\n" descriptor (env_as_string env)
 
+(* --- Utilities that don't generalize outside of this tool --- *)
+
+(* is_or_applies but over two terms *)
+let are_or_apply (trm : types) (o : types) (n : types) : bool =
+  and_p (is_or_applies trm) o n
+
+(* Destruct a product type into parts *)
+let rec destruct_product (trm : types) : types list =
+  match kind_of_term trm with
+  | Prod (n, t, b) ->
+     t :: destruct_product (unshift b)
+  | _ ->
+     []
+
 (* --- Search --- *)
 
 (* Search two inductive types for a parameterizing ornament *)
 let search_orn_params env (ind_o : inductive) (ind_n : inductive) is_fwd : types =
   failwith "parameterization is not yet supported"
 
-(* TODO explain *)
-let applies f t =
-  match kind_of_term t with
-  | App (g, _) ->
-     eq_constr f g
-  | _ ->
-     false
-
-(* TODO explain *)
-let property (i : types) (t : types) : bool =
-  applies i t || eq_constr i t
-
-(* TODO explain, also do we need ending? *)
-let properties (i : types) (o : types) (n : types) =
-  property i o && property i n
-
-(* Get the index type, assuming we've added just one *)
-(* TODO handle more than one, etc. *)
-let rec index_type env pind_o p_o p_n =
+(*
+ * Get the index type, assuming we've added just one.
+ * This doesn't yet handle adding multiple indices, or
+ * adding an index that depends on the previous type.
+ *)
+let rec index_type env old_typ p_o p_n =
   match map_tuple kind_of_term (p_o, p_n) with
   | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-     if convertible env t_o t_n && not (property pind_o t_o) then
+     if convertible env t_o t_n && not (is_or_applies old_typ t_o) then
        let env_t = push_rel CRD.(LocalAssum (n_o, t_o)) env in
-       index_type env_t (shift pind_o) b_o b_n
+       index_type env_t (shift old_typ) b_o b_n
      else
        t_n
   | _ ->
      failwith "could not find indexer property"
-
-(* Destruct the type of an induction principle into its cases *)
-let rec destruct_cases elim_b : types list =
-  match kind_of_term elim_b with
-  | Prod (n, t, b) ->
-     t :: destruct_cases (unshift b)
-  | _ ->
-     []
 
 (* TODO explain, also do we need infer_type stuff? gross *)
 let old_new o n =
   let (e_o, pind_o, t_o) = o in
   let (e_n, pind_n, t_n) = n in
   let old_new_terms t_o t_n =
-    property pind_o t_o && property pind_n t_n
+    is_or_applies pind_o t_o && is_or_applies pind_n t_n
   in
   try
     old_new_terms t_o t_n ||
@@ -658,7 +667,7 @@ let old_new o n =
 let conv_modulo_change p_i o n =
   let (env_o, pind_o, t_o) = o in
   let (env_n, pind_n, t_n) = n in
-  properties p_i t_o t_n || old_new o n || convertible env_o t_o t_n
+  are_or_apply p_i t_o t_n || old_new o n || convertible env_o t_o t_n
 
 (* Get a single case for the indexer *)
 (* TODO need to generalize this logic better, try sub & check approach *)
@@ -670,13 +679,13 @@ let index_case index_t prop_index o n : types =
   let (env_n, pind_n, c_n) = n in
   let rec diff_index i o n =
     match map_tuple kind_of_term (o, n) with
-    | (App (f_o, args_o), App (f_n, args_n)) when properties i f_o f_n ->
+    | (App (f_o, args_o), App (f_n, args_n)) when are_or_apply i f_o f_n ->
        Array.get args_n 0 (* TODO assumes index is first *)
     | _ ->
        failwith "not an application of a property"
   in let rec diff_case pil iil i_t i e_o e_n o n =
     match map_tuple kind_of_term (o, n) with
-    | (App (f_o, args_o), App (f_n, args_n)) when properties i f_o f_n ->
+    | (App (f_o, args_o), App (f_n, args_n)) when are_or_apply i f_o f_n ->
        List.fold_left2
          (fun idx p_i i_i ->
            all_eq_substs (i_i, mkRel p_i) idx)
@@ -687,14 +696,14 @@ let index_case index_t prop_index o n : types =
        let e_b_n = push_rel CRD.(LocalAssum (n_n, t_n)) e_n in
        let i_b = shift i in
        let i_t_b = shift i_t in
-       if not (property t_n pind_o) && not (conv_modulo_change i (e_o, pind_o, t_o) (e_n, pind_n, t_n)) then
+       if not (is_or_applies t_n pind_o) && not (conv_modulo_change i (e_o, pind_o, t_o) (e_n, pind_n, t_n)) then
          let e_b_o = push_rel CRD.(LocalAssum (n_n, t_n)) e_o in
          let pil' = List.map shift_i pil in
          let iil' = List.map shift iil in
          unshift (diff_case pil' iil' i_t_b i_b e_b_o e_b_n (shift o) b_n)
        else
          let e_b_o = push_rel CRD.(LocalAssum (n_o, t_o)) e_o in
-         if properties i t_o t_n then
+         if are_or_apply i t_o t_n then
            let pil' = 1 :: List.map shift_i pil in
            let iil' = List.map shift (diff_index i t_o t_n :: iil) in
            mkLambda (n_o, i_t, diff_case pil' iil' i_t_b i_b e_b_o e_b_n b_o b_n)
@@ -714,8 +723,8 @@ let indexer_cases index_t npms o n : types list =
   let (n_n, p_n, b_n) = destProd elim_t_n in
   let env_p_o = push_rel CRD.(LocalAssum (n_o, p_o)) env_o in
   let env_p_n = push_rel CRD.(LocalAssum (n_n, p_n)) env_n in
-  let cs_o_ext = destruct_cases b_o in
-  let cs_n_ext = destruct_cases b_n in
+  let cs_o_ext = destruct_product b_o in
+  let cs_n_ext = destruct_product b_n in
   let num_final_args_o = arity_o - npms + 1 in
   let num_final_args_n = arity_n - npms + 1 in
   let cs_o = take_except num_final_args_o cs_o_ext in
@@ -923,8 +932,8 @@ let orn_index_cases npms is_fwd indexer_f orn_p o n : types list =
   let (env_n, pind_n, arity_n, elim_t_n) = n in
   let (n_o, p_o, b_o) = destProd elim_t_o in
   let (n_n, p_n, b_n) = destProd elim_t_n in
-  let cs_o_ext = destruct_cases b_o in
-  let cs_n_ext = destruct_cases b_n in
+  let cs_o_ext = destruct_product b_o in
+  let cs_n_ext = destruct_product b_n in
   let num_final_args_o = arity_o - npms + 1 in
   let num_final_args_n = arity_n - npms + 1 in
   let cs_o = take_except num_final_args_o cs_o_ext in

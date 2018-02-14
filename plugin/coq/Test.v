@@ -289,9 +289,11 @@ Inductive vector4 (A : Type) : nat -> Type :=
 
 (* --- TODO adding indexes that aren't first --- *)
 
+(* --- TODO adding multiple indices at once --- *)
+
 (* --- TODO weirder indexes --- *)
 
-(* --- TODO what happens when your index depends on an earlier term? --- *)
+(* --- TODO indices that depend on earlier indices or parameters --- *)
 
 (* --- TODO what does it mean if the index already existed in the old constructor, but wasn't used, or was used differently? How do we handle that? ---*)
 
