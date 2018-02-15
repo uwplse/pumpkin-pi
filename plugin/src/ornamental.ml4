@@ -925,27 +925,26 @@ let stretch env indexer pms o n =
 let sub_index f_indexer subs o n =
   let (env_o, app_o) = o in
   let (env_n, app_n) = n in
-  let (args_o, args_n) = map_tuple snd (map_tuple destApp (app_o, app_n)) in
-  List.append (* TODO may be wrong for dependent indexes *)
-    (List.map2
-       (fun a_o a_n ->
-         if applies f_indexer a_o then
-           (shift a_n, shift a_o)
-         else
-           let types_conv = (* welp *)
-             (try
-                let a_o_t = infer_type env_o a_o in
-                let a_n_t = infer_type env_n a_n in
-                convertible env_o a_o_t a_n_t
-              with _ ->
-                false)
-           in if not types_conv then
-                (shift a_n, mkRel 1)
-              else
-                (shift a_n, shift a_n))
-       (Array.to_list args_o)
-       (Array.to_list args_n))
-    subs
+  let (args_o, args_n) = map_tuple unfold_args (app_o, app_n) in
+  let args = List.combine args_o args_n in
+  let different (a_o, a_n) = (* TODO move me, see if we really need two envs *)
+    let is_index = applies f_indexer a_o in
+    try
+      let a_o_t = infer_type env_o a_o in
+      let a_n_t = infer_type env_n a_n in
+      is_index || not (convertible env_o a_o_t a_n_t)
+    with _ ->
+      is_index
+  in
+  let new_subs =
+    List.map
+      (fun (a_o, a_n) ->
+        if applies f_indexer a_o then
+          (shift a_n, shift a_o)
+        else
+          (shift a_n, mkRel 1))
+      (List.filter different args)
+  in List.append new_subs subs
 
 (* In the conclusion of each case, return c_n with c_o's indices *)
 let sub_indexes is_fwd f_indexer p subs o n : types =
