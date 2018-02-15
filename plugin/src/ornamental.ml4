@@ -919,66 +919,67 @@ let stretch env indexer pms o n =
   in mkProd (n_exp, p_exp, b_exp)
 
 (* In the conclusion of each case, return c_n with c_o's indices *)
-let rec sub_indexes is_fwd f_indexer p subs o n : types =
-  let (env_o, pind_o, c_o) = o in
-  let (env_n, pind_n, c_n) = n in
-  match map_tuple kind_of_term (c_o, c_n) with
-  | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-     let env_n_b = push_local (n_n, t_n) env_n in
-     let n_b = (env_n_b, shift pind_n, b_n) in
-     let p_b = shift p in
-     let f_indexer_b = shift f_indexer in
-     if same_mod_indexing env_o p (pind_o, t_o) (pind_n, t_n) then
-       let env_o_b = push_local (n_o, t_o) env_o in
-       let o_b = (env_o_b, shift pind_o, b_o) in
-       let subs_b = List.map (map_tuple shift) subs in
-       mkLambda (n_o, t_o, sub_indexes is_fwd f_indexer_b p_b subs_b o_b n_b)
-     else
-       if applies p t_n then
+let sub_indexes is_fwd f_indexer p subs o n : types =
+  let rec sub p subs o n =
+    let (env_o, pind_o, c_o) = o in
+    let (env_n, pind_n, c_n) = n in
+    match map_tuple kind_of_term (c_o, c_n) with
+    | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
+       let env_n_b = push_local (n_n, t_n) env_n in
+       let n_b = (env_n_b, shift pind_n, b_n) in
+       let p_b = shift p in
+       if same_mod_indexing env_o p (pind_o, t_o) (pind_n, t_n) then
          let env_o_b = push_local (n_o, t_o) env_o in
          let o_b = (env_o_b, shift pind_o, b_o) in
-         let (_, args_o) = destApp t_o in
-         let (_, args_n) = destApp t_n in
-         let subs_b =
-           List.append (* TODO may be wrong for dependent indexes *)
-             (List.map2
-                (fun a_o a_n ->
-                  if applies f_indexer a_o then
-                    (shift a_n, shift a_o)
-                  else
-                    let types_conv = (* welp *)
-                      (try
-                         let a_o_t = infer_type env_o a_o in
-                         let a_n_t = infer_type env_n a_n in
-                         convertible env_o a_o_t a_n_t
+         let subs_b = List.map (map_tuple shift) subs in
+         mkLambda (n_o, t_o, sub p_b subs_b o_b n_b)
+       else
+         if applies p t_n then
+           let env_o_b = push_local (n_o, t_o) env_o in
+           let o_b = (env_o_b, shift pind_o, b_o) in
+           let (_, args_o) = destApp t_o in
+           let (_, args_n) = destApp t_n in
+           let subs_b =
+             List.append (* TODO may be wrong for dependent indexes *)
+               (List.map2
+                  (fun a_o a_n ->
+                    if applies f_indexer a_o then
+                      (shift a_n, shift a_o)
+                    else
+                      let types_conv = (* welp *)
+                        (try
+                           let a_o_t = infer_type env_o a_o in
+                           let a_n_t = infer_type env_n a_n in
+                           convertible env_o a_o_t a_n_t
                        with _ ->
                          false)
-                    in if not types_conv then
-                      (shift a_n, mkRel 1)
-                    else
-                      (shift a_n, shift a_n))
-                (Array.to_list args_o)
-                (Array.to_list args_n))
-             (List.map (map_tuple shift) subs)
-         in mkLambda (n_o, t_o, sub_indexes is_fwd f_indexer_b p_b subs_b o_b n_b)
-       else
-         if is_fwd then
-           let subs_b = List.map (fun (src, dst) -> (src, shift dst)) subs in
-           let env_o_b = push_local (n_n, t_n) env_o in
-           let o_b = (env_o_b, shift pind_o, shift c_o) in
-           unshift (sub_indexes is_fwd f_indexer_b p_b subs_b o_b n_b)
+                      in if not types_conv then
+                           (shift a_n, mkRel 1)
+                         else
+                           (shift a_n, shift a_n))
+                  (Array.to_list args_o)
+                  (Array.to_list args_n))
+               (List.map (map_tuple shift) subs)
+           in mkLambda (n_o, t_o, sub p_b subs_b o_b n_b)
          else
-           let subs_b = List.map (fun (src, dst) -> (shift src, dst)) subs in
-           let env_n_b = push_local (n_o, t_o) env_n in
-           let env_o_b = push_local (n_o, t_o) env_o in
-           let n_b = (env_n_b, shift pind_n, shift c_n) in
-           let o_b = (env_o_b, shift pind_o, b_o) in
-           mkLambda (n_o, t_o, sub_indexes is_fwd f_indexer_b p_b subs_b o_b n_b)
+           if is_fwd then
+             let subs_b = List.map (fun (src, dst) -> (src, shift dst)) subs in
+             let env_o_b = push_local (n_n, t_n) env_o in
+             let o_b = (env_o_b, shift pind_o, shift c_o) in
+             unshift (sub p_b subs_b o_b n_b)
+           else
+             let subs_b = List.map (fun (src, dst) -> (shift src, dst)) subs in
+             let env_n_b = push_local (n_o, t_o) env_n in
+             let env_o_b = push_local (n_o, t_o) env_o in
+             let n_b = (env_n_b, shift pind_n, shift c_n) in
+             let o_b = (env_o_b, shift pind_o, b_o) in
+             mkLambda (n_o, t_o, sub p_b subs_b o_b n_b)
     | (App (f_o, args_o), App (f_n, args_n)) ->
        let args_n = List.rev (Array.to_list args_n) in
        List.fold_right all_eq_substs subs (List.hd args_n)
     | _ ->
        failwith "unexpected"
+  in sub p subs o n
 
 
 (* TODO: abstract indexed type to take an indexing function,
