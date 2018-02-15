@@ -881,21 +881,19 @@ let stretch_property env o n =
  * Stretch out the old eliminator type to match the new one
  * That is, add indexes to the old one to match new
  *)
-let stretch env f_indexer pms o n =
+let stretch env indexer pms o n =
   let (ind_o, elim_t_o) = o in
   let (ind_n, elim_t_n) = n in
   let (n_exp, p_o, b_o) = destProd elim_t_o in
-  let (_, p_n, b_n) = destProd elim_t_n in
+  let (_, p_n, _) = destProd elim_t_n in
   let p_exp = stretch_property_type env (ind_o, p_o) (ind_n, p_n) in
   let b_exp =
     map_term_if
       (fun (p, _) t -> applies p t)
       (fun (p, pms) t ->
-        let t_args = unfold_args t in
-        let num_non_pms = List.length t_args - Array.length pms in
-        let non_pms = Array.of_list (take_except num_non_pms t_args) in
-        let index = mkApp (mkApp (f_indexer, pms), non_pms) in
-        mkApp (mkApp (p, Array.make 1 index), non_pms))
+        let non_pms = Array.of_list (unfold_args t) in
+        let index = mkApp (indexer, Array.append pms non_pms) in
+        mkApp (p, Array.append (Array.make 1 index) non_pms))
       (fun (p, pms) -> (shift p, Array.map shift pms))
       (mkRel 1, pms)
       b_o
