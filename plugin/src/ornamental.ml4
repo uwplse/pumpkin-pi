@@ -654,11 +654,17 @@ let shift_subs = List.map (map_tuple shift)
 (* Shift a list *)
 let shift_all = List.map shift
 
+(* Shift all elements of a list by n *)
+let shift_all_by n = List.map (shift_by n)
+
 (* Apply an eliminator and reconstruct it from an environment *)
 let apply_eliminator env elim pms p cs final_args =
   let args = Array.of_list (List.append pms (p :: cs)) in
   let proof = mkApp (mkApp (elim, args), final_args) in
   reconstruct_lambda env proof
+
+(* Find the offset of some environment from some number of parameters *)
+let offset env npm = nb_rel env - npm
 
 (* --- Search --- *)
 
@@ -769,7 +775,7 @@ let search_for_indexer npm elim_o o n is_fwd : types option =
     | (Prod (_, p_o, b_o), Prod (_, p_n, b_n)) ->
        let (env_ind, _) = zoom_product_type env_o p_o in
        let (index_i, index_t) = index_type env_n ind_o p_o p_n in
-       let off = nb_rel env_ind - npm in
+       let off = offset env_ind npm in
        let pms = shift_all (mk_n_rels npm) in
        let p = shift_by off (reconstruct_lambda_n env_ind index_t npm) in
        let cs = indexer_cases index_i index_t npm o n in
@@ -780,18 +786,21 @@ let search_for_indexer npm elim_o o n is_fwd : types option =
   else
     None
 
-(* TODO explain *)
-let ornament_p env pind arity npm f_index =
-  let off = nb_rel env - npm in
-  let shift_off = shift_by off in
-  let pargs = Array.of_list (List.map shift_off (mk_n_rels arity)) in
-  let concl = mkApp (pind, pargs) in
-  if Option.has_some f_index then
-    let indexer = Option.get f_index in
-    let index = mkApp (mkApp (indexer, pargs), Array.make 1 (mkRel 1)) in
-    shift_off (reconstruct_lambda_n env (mkApp (concl, Array.make 1 index)) npm)
-  else
-    shift_off (reconstruct_lambda_n env concl npm)
+(* Find the property that the ornament proves *)
+let ornament_p env ind arity npm indexer_opt =
+  let off = offset env npm in
+  let args = Array.of_list (shift_all_by off (mk_n_rels arity)) in
+  let concl =
+    match indexer_opt with
+    | Some indexer ->
+       (* forward (indexing) direction *)
+       let indexer = Option.get indexer_opt in
+       let index = mkApp (indexer, Array.append args (Array.make 1 (mkRel 1))) in
+       mkApp (ind, Array.append args (Array.make 1 index))
+    | None ->
+       (* backward (deindexing) direction *)
+       mkApp (ind, args)
+  in shift_by off (reconstruct_lambda_n env concl npm)
 
 (* Stretch the old property to match the new one *)
 let rec stretch_property o n =
