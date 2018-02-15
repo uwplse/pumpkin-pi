@@ -738,6 +738,7 @@ let rec index_type env old_typ p_o p_n =
 let diff_index index_i p o n =
   match map_tuple kind_of_term (o, n) with
   | (App (f_o, args_o), App (f_n, args_n)) when are_or_apply p f_o f_n ->
+     let args_n = Array.of_list (unfold_args n) in
      Array.get args_n index_i
   | _ ->
      failwith "not an application of a property"
