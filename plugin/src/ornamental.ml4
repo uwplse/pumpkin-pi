@@ -675,6 +675,12 @@ let same_type o n =
 (* Shift substitutions *)
 let shift_subs = List.map (map_tuple shift)
 
+(* Shift from substitutions *)
+let shift_from = List.map (fun (s, d) -> (shift s, d))
+
+(* Shift to substitutions *)
+let shift_to = List.map (fun (s, d) -> (s, shift d))
+
 (* Shift a list *)
 let shift_all = List.map shift
 
@@ -961,36 +967,37 @@ let sub_indexes is_fwd f_indexer p subs o n : types =
     let (env_n, ind_n, c_n) = n in
     match map_tuple kind_of_term (c_o, c_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-       let env_n_b = push_local (n_n, t_n) env_n in
-       let n_b = (env_n_b, shift ind_n, b_n) in
        let p_b = shift p in
        let same = same_mod_indexing env_o p (ind_o, t_o) (ind_n, t_n) in
-       if same || (isApp t_o && applies p t_n) then
+       if same || applies p t_n then
          let env_o_b = push_local (n_o, t_o) env_o in
-         let subs_b = shift_subs subs in
+         let env_n_b = push_local (n_n, t_n) env_n in
          let o_b = (env_o_b, shift ind_o, b_o) in
+         let n_b = (env_n_b, shift ind_n, b_n) in
+         let subs_b = shift_subs subs in
          if same then
            (* no index, keep recursing *)
            mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
          else
-           (* new index, get it so we can substitute in the conclusion *)
+           (* inductive hypothesis, get the index *)
            let subs_b = sub_index f_indexer subs_b (env_o, t_o) (env_n, t_n) in
            mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
        else
+         (* new hypothesis from which the index is computed *)
+         let new_index = if is_fwd then (n_n, t_n) else (n_o, t_o) in
+         let b_o_b = if is_fwd then shift c_o else b_o in
+         let b_n_b = if is_fwd then b_n else shift c_n in
+         let env_o_b = push_local new_index env_o in
+         let env_n_b = push_local new_index env_n in
+         let o_b = (env_o_b, shift ind_o, b_o_b) in
+         let n_b = (env_n_b, shift ind_n, b_n_b) in
+         let subs_b = if is_fwd then shift_to subs else shift_from subs in
          if is_fwd then
-           let subs_b = List.map (fun (src, dst) -> (src, shift dst)) subs in
-           let env_o_b = push_local (n_n, t_n) env_o in
-           let o_b = (env_o_b, shift ind_o, shift c_o) in
            unshift (sub p_b subs_b o_b n_b)
          else
-           let subs_b = List.map (fun (src, dst) -> (shift src, dst)) subs in
-           let env_n_b = push_local (n_o, t_o) env_n in
-           let env_o_b = push_local (n_o, t_o) env_o in
-           let n_b = (env_n_b, shift ind_n, shift c_n) in
-           let o_b = (env_o_b, shift ind_o, b_o) in
            mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
     | (App (f_o, args_o), App (f_n, args_n)) ->
-       let args_n = List.rev (Array.to_list args_n) in
+       let args_n = List.rev (unfold_args c_n) in
        List.fold_right all_eq_substs subs (List.hd args_n)
     | _ ->
        failwith "unexpected"

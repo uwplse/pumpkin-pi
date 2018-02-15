@@ -285,6 +285,8 @@ Inductive vector4 (A : Type) : nat -> Type :=
  * Print orn_list_vector4_index.
  *)
 
+(* --- TODO adding an index that is computed from a hypothesis with a different type --- *)
+
 (* --- TODO adding a nat index to a nat list or nat rev_list --- *)
 
 (* --- TODO adding an index when one already exists --- *)
