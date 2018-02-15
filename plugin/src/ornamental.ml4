@@ -1002,23 +1002,28 @@ let sub_indexes is_fwd f_indexer p subs o n : types =
   in sub p subs o n
 
 
-(* TODO: abstract indexed type to take an indexing function,
-   then derive what we want by applying it *)
+(*
+ * Get the cases for an indexing ornament.
+ *
+ * This currently works in the following way:
+ * 1. If it's forwards, then adjust the property to have the index
+ * 2. Substitute in the property to the old case
+ * 3. Substitute in the indexes (or lack thereof, if backwards)
+ *
+ * Eventually, we might want to think of this as (or rewrite this to)
+ * abstracting the indexed type to take an indexing function, then
+ * deriving the result through specialization.
+ *)
 let orn_index_case npms is_fwd indexer_f orn_p o n : types =
-  let (env_o, arity_o, pind_o, p_o, c_o) = o in
-  let (env_n, arity_n, pind_n, p_n, c_n) = n in
+  let when_forward f a = if is_fwd then f a else a in
+  let (env_o, arity_o, ind_o, _, c_o) = o in
+  let (env_n, arity_n, ind_n, p_n, c_n) = n in
   let d_arity = arity_n - arity_o in
-  let c_o =
-    if is_fwd then
-      let stretch_o = (pind_o, unshift_by d_arity orn_p) in
-      let stretch_n = (pind_n, p_n) in
-      let stretch_p = stretch_property env_o stretch_o stretch_n in
-      with_new_p (shift_by d_arity stretch_p) c_o
-    else
-      with_new_p (shift_by d_arity orn_p) c_o
-  in
-  let o = (env_o, pind_o, c_o) in
-  let n = (env_n, pind_n, c_n) in
+  let adjust p = stretch_property env_o (ind_o, p) (ind_n, p_n) in
+  let p_o = when_forward (fun p -> adjust (unshift_by d_arity p)) orn_p in
+  let c_o = with_new_p (shift_by d_arity p_o) c_o in
+  let o = (env_o, ind_o, c_o) in
+  let n = (env_n, ind_n, c_n) in
   prod_to_lambda (sub_indexes is_fwd indexer_f (mkRel 1) [] o n)
 
 (* Get the cases for the ornament *)
