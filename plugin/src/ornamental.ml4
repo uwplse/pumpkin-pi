@@ -1001,9 +1001,8 @@ let sub_indexes is_fwd f_indexer p subs o n : types =
        failwith "unexpected"
   in sub p subs o n
 
-
 (*
- * Get the cases for an indexing ornament.
+ * Get a case for an indexing ornament.
  *
  * This currently works in the following way:
  * 1. If it's forwards, then adjust the property to have the index
@@ -1014,7 +1013,7 @@ let sub_indexes is_fwd f_indexer p subs o n : types =
  * abstracting the indexed type to take an indexing function, then
  * deriving the result through specialization.
  *)
-let orn_index_case npms is_fwd indexer_f orn_p o n : types =
+let orn_index_case is_fwd indexer_f orn_p o n : types =
   let when_forward f a = if is_fwd then f a else a in
   let (env_o, arity_o, ind_o, _, c_o) = o in
   let (env_n, arity_n, ind_n, p_n, c_n) = n in
@@ -1030,20 +1029,16 @@ let orn_index_case npms is_fwd indexer_f orn_p o n : types =
 let orn_index_cases npms is_fwd indexer_f orn_p o n : types list =
   let (env_o, pind_o, arity_o, elim_t_o) = o in
   let (env_n, pind_n, arity_n, elim_t_n) = n in
-  let (n_o, p_o, b_o) = destProd elim_t_o in
-  let (n_n, p_n, b_n) = destProd elim_t_n in
-  let cs_o_ext = deconstruct_product b_o in
-  let cs_n_ext = deconstruct_product b_n in
-  let num_final_args_o = arity_o - npms + 1 in
-  let num_final_args_n = arity_n - npms + 1 in
-  let cs_o = take_except num_final_args_o cs_o_ext in
-  let cs_n = take_except num_final_args_n cs_n_ext in
-  let o c = (env_o, arity_o, pind_o, p_o, c) in
-  let n c = (env_n, arity_n, pind_n, p_n, c) in
-  List.map2
-    (fun c_o c_n -> orn_index_case npms is_fwd indexer_f orn_p (o c_o) (n c_n))
-    cs_o
-    cs_n
+  match map_tuple kind_of_term (elim_t_o, elim_t_n) with
+  | (Prod (_, p_o, b_o), Prod (_, p_n, b_n)) ->
+     let o c = (env_o, arity_o, pind_o, p_o, c) in
+     let n c = (env_n, arity_n, pind_n, p_n, c) in
+     List.map2
+       (fun c_o c_n -> orn_index_case is_fwd indexer_f orn_p (o c_o) (n c_n))
+       (take_except (arity_o - npms + 1) (deconstruct_product b_o))
+       (take_except (arity_n - npms + 1) (deconstruct_product b_n))
+  | _ ->
+     failwith "not an eliminator"
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
 let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
