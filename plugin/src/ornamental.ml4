@@ -708,6 +708,25 @@ let unfold_args trm =
        [trm]
   in List.append (List.tl (unfold f)) (Array.to_list args)
 
+(*
+ * Modify a case of an eliminator application to use
+ * the new property p in its hypotheses
+ *)
+let with_new_p p c : types =
+  let rec sub_p sub trm =
+    let (p_o, p_n) = sub in
+    match kind_of_term trm with
+    | Prod (n, t, b) ->
+       let sub_b = map_tuple shift sub in
+       if applies p_o t then
+         let (_, args) = destApp t in
+         mkProd (n, mkApp (p_n, args), sub_p sub_b b)
+       else
+         mkProd (n, t, sub_p sub_b b)
+    | _ ->
+       trm
+  in sub_p (mkRel 1, p) c
+
 (* --- Search --- *)
 
 (* Search two inductive types for a parameterizing ornament *)
@@ -898,19 +917,6 @@ let stretch env indexer pms o n =
       (mkRel 1, pms)
       b_o
   in mkProd (n_exp, p_exp, b_exp)
-
-(* Modify a case to use the new property in the hypothesis *)
-let with_new_p orn_p c : types =
-  let rec sub_p p_o p_n trm =
-    match kind_of_term trm with
-    | Prod (n, t, b) when applies p_o t  ->
-       let (_, args) = destApp t in
-       mkProd (n, mkApp (p_n, args), sub_p (shift p_o) (shift p_n) b)
-    | Prod (n, t, b) ->
-       mkProd (n, t, sub_p (shift p_o) (shift p_n) b)
-    | _ ->
-       trm
-  in sub_p (mkRel 1) orn_p c
 
 (* In the conclusion of each case, return c_n with c_o's indices *)
 let rec sub_indexes is_fwd f_indexer p subs o n : types =
