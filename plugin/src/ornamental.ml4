@@ -962,6 +962,7 @@ let sub_index f_indexer subs o n =
 
 (* In the conclusion of each case, return c_n with c_o's indices *)
 let sub_indexes is_fwd f_indexer p subs o n : types =
+  let directional a b = if is_fwd then a else b in
   let rec sub p subs o n =
     let (env_o, ind_o, c_o) = o in
     let (env_n, ind_n, c_n) = n in
@@ -984,18 +985,15 @@ let sub_indexes is_fwd f_indexer p subs o n : types =
            mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
        else
          (* new hypothesis from which the index is computed *)
-         let new_index = if is_fwd then (n_n, t_n) else (n_o, t_o) in
-         let b_o_b = if is_fwd then shift c_o else b_o in
-         let b_n_b = if is_fwd then b_n else shift c_n in
+         let subs_b = directional (shift_to subs) (shift_from subs) in
+         let new_index = directional (n_n, t_n) (n_o, t_o) in
+         let (b_o_b, b_n_b) = directional (shift c_o, b_n) (b_o, shift c_n) in
          let env_o_b = push_local new_index env_o in
          let env_n_b = push_local new_index env_n in
          let o_b = (env_o_b, shift ind_o, b_o_b) in
          let n_b = (env_n_b, shift ind_n, b_n_b) in
-         let subs_b = if is_fwd then shift_to subs else shift_from subs in
-         if is_fwd then
-           unshift (sub p_b subs_b o_b n_b)
-         else
-           mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
+         let subbed_b = sub p_b subs_b o_b n_b in
+         directional (unshift subbed_b) (mkProd (n_o, t_o, subbed_b))
     | (App (f_o, args_o), App (f_n, args_n)) ->
        let args_n = List.rev (unfold_args c_n) in
        List.fold_right all_eq_substs subs (List.hd args_n)
