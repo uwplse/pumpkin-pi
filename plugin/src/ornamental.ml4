@@ -663,6 +663,15 @@ let same_mod_indexing env p_index o n =
   let (t_o, t_n) = map_tuple snd (o, n) in
   are_or_apply p_index t_o t_n || same_mod_change env o n
 
+(* Check if two terms have the same type, ignoring universe inconsinstency *)
+let same_type o n =
+  let (env_o, t_o) = o in
+  let (env_n, t_n) = n in
+  try
+    convertible env_o (infer_type env_o t_o) (infer_type env_n t_n)
+  with _ ->
+    false
+
 (* Shift substitutions *)
 let shift_subs = List.map (map_tuple shift)
 
@@ -921,29 +930,28 @@ let stretch env indexer pms o n =
 (*
  * Given terms that apply properties, update the
  * substitution list to include the corresponding new index
+ *
+ * This may be wrong for dependent indices (may need some kind of fold,
+ * or the order may be incorrect). We'll need to see when we test that case.
  *)
 let sub_index f_indexer subs o n =
   let (env_o, app_o) = o in
   let (env_n, app_n) = n in
   let (args_o, args_n) = map_tuple unfold_args (app_o, app_n) in
   let args = List.combine args_o args_n in
-  let different (a_o, a_n) = (* TODO move me, see if we really need two envs *)
-    let is_index = applies f_indexer a_o in
-    try
-      let a_o_t = infer_type env_o a_o in
-      let a_n_t = infer_type env_n a_n in
-      is_index || not (convertible env_o a_o_t a_n_t)
-    with _ ->
-      is_index
-  in
   let new_subs =
     List.map
       (fun (a_o, a_n) ->
         if applies f_indexer a_o then
+          (* substitute the inductive hypothesis *)
           (shift a_n, shift a_o)
         else
+          (* substitute the index *)
           (shift a_n, mkRel 1))
-      (List.filter different args)
+      (List.filter
+         (fun (a_o, a_n) ->
+           applies f_indexer a_o || not (same_type (env_o, a_o) (env_n, a_n)))
+         args)
   in List.append new_subs subs
 
 (* In the conclusion of each case, return c_n with c_o's indices *)
