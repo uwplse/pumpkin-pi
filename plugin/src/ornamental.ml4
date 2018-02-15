@@ -436,6 +436,14 @@ let all_substs p env (src, dst) trm : types =
 (* Locally empty environment *)
 let empty = Global.env ()
 
+(* Map_term_env_if with an empty environment *)
+let map_term_if p f d =
+  map_term_env_if
+    (fun _ a t -> p a t)
+    (fun _ a t -> f a t)
+    d
+    empty
+
 (* In env, substitute all subterms of trm that are convertible to src with dst *)
 let all_conv_substs =
   all_substs convertible
@@ -689,6 +697,17 @@ let rec lambda_to_prod trm =
   | _ ->
      trm
 
+(* Get a list of all arguments, fully unfolded at the head *)
+let unfold_args trm =
+  let (f, args) = destApp trm in
+  let rec unfold trm =
+    match kind_of_term trm with
+    | App (f, args) ->
+       List.append (unfold f) (Array.to_list args)
+    | _ ->
+       [trm]
+  in List.append (List.tl (unfold f)) (Array.to_list args)
+
 (* --- Search --- *)
 
 (* Search two inductive types for a parameterizing ornament *)
@@ -857,26 +876,26 @@ let stretch_property env o n =
   let o = (ind_o, lambda_to_prod p_o) in
   prod_to_lambda (stretch_property_type env o n)
 
-(* Stretch out the old eliminator to match the new one *)
-let stretch f_indexer pms o n =
-  let (env_o, pind_o, elim_t_o) = o in
-  let (env_n, pind_n, elim_t_n) = n in
+(*
+ * Stretch out the old eliminator type to match the new one
+ * That is, add indexes to the old one to match new
+ *)
+let stretch env f_indexer pms o n =
+  let (ind_o, elim_t_o) = o in
+  let (ind_n, elim_t_n) = n in
   let (n_exp, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
-  let o = (pind_o, p_o) in
-  let n = (pind_n, p_n) in
-  let p_exp = stretch_property_type env_o o n in
+  let p_exp = stretch_property_type env (ind_o, p_o) (ind_n, p_n) in
   let b_exp =
-    map_term_env_if (* TODO can be map_term_if *)
-      (fun _ (p, pms) t -> applies p t)
-      (fun _ (p, pms) t ->
-        let t_args = Array.to_list (snd (destApp t)) in (* TODO assumes not one at a time, move out to function that unfolds arg application *)
+    map_term_if
+      (fun (p, _) t -> applies p t)
+      (fun (p, pms) t ->
+        let t_args = unfold_args t in
         let num_non_pms = List.length t_args - Array.length pms in
         let non_pms = Array.of_list (take_except num_non_pms t_args) in
         let index = mkApp (mkApp (f_indexer, pms), non_pms) in
         mkApp (mkApp (p, Array.make 1 index), non_pms))
       (fun (p, pms) -> (shift p, Array.map shift pms))
-      (push_local (n_exp, p_o) env_o)
       (mkRel 1, pms)
       b_o
   in mkProd (n_exp, p_exp, b_exp)
@@ -1010,9 +1029,9 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
   let (pind, arity) = if is_fwd then (pind_n, arity_o) else (pind_n, arity_n) in
   let f_index = if is_fwd then Some f_indexer else None in
   let orn_p = ornament_p env_ornament pind arity npm f_index in
-  let stretch_o = (env_o, pind_o, elim_t_o) in
-  let stretch_n = (env_n, pind_n, elim_t_n) in
-  let elim_stretched = if is_fwd then stretch f_indexer (Array.of_list pms) stretch_o stretch_n else stretch f_indexer (Array.of_list pms) stretch_n stretch_o in (* TODO move to HOF *)
+  let stretch_o = (pind_o, elim_t_o) in
+  let stretch_n = (pind_n, elim_t_n) in
+  let elim_stretched = if is_fwd then stretch env_o f_indexer (Array.of_list pms) stretch_o stretch_n else stretch env_o f_indexer (Array.of_list pms) stretch_n stretch_o in (* TODO move to HOF *)
   let env_o = push_local (n_o, p_o) env_o in
   let env_n = push_local (n_n, p_n) env_n in
   let o = if is_fwd then (env_o, pind_o, arity_o, elim_stretched) else (env_o, pind_o, arity_o, elim_t_o) in
