@@ -433,13 +433,16 @@ let all_substs p env (src, dst) trm : types =
     (src, dst)
     trm
 
+(* Locally empty environment *)
+let empty = Global.env ()
+
 (* In env, substitute all subterms of trm that are convertible to src with dst *)
 let all_conv_substs =
   all_substs convertible
 
 (* Same, but eq_constr *)
 let all_eq_substs =
-  all_substs (fun _ -> eq_constr) (Global.env ())
+  all_substs (fun _ -> eq_constr) empty
 
 (* Define a new Coq term *)
 let define_term (n : Id.t) (env : env) evm (trm : types) : unit =
@@ -623,7 +626,7 @@ let env_as_string (env : env) : string =
 let debug_env (env : env) (descriptor : string) : unit =
   Printf.printf "%s: %s\n\n" descriptor (env_as_string env)
 
-(* --- Utilities that don't generalize outside of this tool --- *)
+(* --- Utilities that might not generalize outside of this tool --- *)
 
 let are_or_apply (trm : types) = and_p (is_or_applies trm)
 let apply (trm : types) = and_p (applies trm)
@@ -642,11 +645,15 @@ let rec deconstruct_product (trm : types) : types list =
   | _ ->
      []
 
-(* Check if two terms are convertible modulo a change in inductive types *)
-let convertible_mod_change env p_index o n =
-  let (pind_o, t_o) = o in
-  let (pind_n, t_n) = n in
-  are_or_apply p_index t_o t_n || apply_old_new o n || convertible env t_o t_n
+(* Check if two terms are the same modulo a change of an inductive type *)
+let same_mod_change env o n =
+  let (t_o, t_n) = map_tuple snd (o, n) in
+  apply_old_new o n || convertible env t_o t_n
+
+(* Check if two terms are the same modulo an indexing of an inductive type *)
+let same_mod_indexing env p_index o n =
+  let (t_o, t_n) = map_tuple snd (o, n) in
+  are_or_apply p_index t_o t_n || same_mod_change env o n
 
 (* Shift substitutions *)
 let shift_subs = List.map (map_tuple shift)
@@ -665,6 +672,22 @@ let apply_eliminator env elim pms p cs final_args =
 
 (* Find the offset of some environment from some number of parameters *)
 let offset env npm = nb_rel env - npm
+
+(* Recursively turn a product into a function *)
+let rec prod_to_lambda trm =
+  match kind_of_term trm with
+  | Prod (n, t, b) ->
+     mkLambda (n, t, prod_to_lambda b)
+  | _ ->
+     trm
+
+(* Recursively turn a function into a product *)
+let rec lambda_to_prod trm =
+  match kind_of_term trm with
+  | Lambda (n, t, b) ->
+     mkProd (n, t, lambda_to_prod b)
+  | _ ->
+     trm
 
 (* --- Search --- *)
 
@@ -722,7 +745,7 @@ let index_case index_i index_t o n : types =
        let diff_b = diff_case (shift i_t) (shift p) in
        let e_n_b = push_local (n_n, t_n) e_n in
        let n_b = (e_n_b, shift ind_n, b_n) in
-       let same = convertible_mod_change e_o p in
+       let same = same_mod_indexing e_o p in
        if not (same (ind_o, t_o) (ind_n, t_n)) then
          (* index *)
          let e_o_b = push_local (n_n, t_n) e_o in
@@ -802,43 +825,39 @@ let ornament_p env ind arity npm indexer_opt =
        mkApp (ind, args)
   in shift_by off (reconstruct_lambda_n env concl npm)
 
-(* Stretch the old property to match the new one *)
-let rec stretch_property o n =
-  let (env_o, pind_o, p_o) = o in
-  let (env_n, pind_n, p_n) = n in
+(*
+ * Stretch the old property type to match the new one
+ * That is, add indices where they are missing in the old property
+ *)
+let rec stretch_property_type o n =
+  let (env_o, ind_o, p_o) = o in
+  let (env_n, ind_n, p_n) = n in
   match map_tuple kind_of_term (p_o, p_n) with
   | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
      let env_n_b = push_local (n_n, t_n) env_n in
-     let n_b = (env_n_b, shift pind_n, b_n) in
-     if convertible_mod_change env_o (mkRel 0) (pind_o, t_o) (pind_n, t_n) then
+     let n_b = (env_n_b, shift ind_n, b_n) in
+     let ind_o_b = shift ind_o in
+     if same_mod_change env_o (ind_o, t_o) (ind_n, t_n) then
        let env_o_b = push_local (n_o, t_o) env_o in
-       let o_b = (env_o_b, shift pind_o, b_o) in
-       mkProd (n_o, t_o, stretch_property o_b n_b)
+       let o_b = (env_o_b, ind_o_b, b_o) in
+       mkProd (n_o, t_o, stretch_property_type o_b n_b)
      else
        let env_o_b = push_local (n_n, t_n) env_o in
-       let o_b = (env_o_b, shift pind_o, shift p_o) in
-       mkProd (n_n, t_n, stretch_property o_b n_b)
+       let o_b = (env_o_b, ind_o_b, shift p_o) in
+       mkProd (n_n, t_n, stretch_property_type o_b n_b)
   | _ ->
      p_o
 
-(* Stretch the old property to match the new one at the term level *)
-let rec stretch_property_term o n =
-  let (env_o, pind_o, p_o) = o in
-  let (env_n, pind_n, p_n) = n in
-  match map_tuple kind_of_term (p_o, p_n) with
-  | (Lambda (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-     let env_n_b = push_local (n_n, t_n) env_n in
-     let n_b = (env_n_b, shift pind_n, b_n) in
-     if convertible_mod_change env_o (mkRel 0) (pind_o, t_o) (pind_n, t_n) then
-       let env_o_b = push_local (n_o, t_o) env_o in
-       let o_b = (env_o_b, shift pind_o, b_o) in
-       mkLambda (n_o, t_o, stretch_property_term o_b n_b)
-     else
-       let env_o_b = push_local (n_n, t_n) env_o in
-       let o_b = (env_o_b, shift pind_o, shift p_o) in
-       mkLambda (n_n, t_n, stretch_property_term o_b n_b)
-  | _ ->
-     p_o
+(*
+ * Stretch the old property to match the new one at the term level
+ *
+ * Hilariously, this function is defined as an ornamented
+ * version of stretch_property_type.
+ *)
+let stretch_property o n =
+  let (env_o, ind_o, p_o) = o in
+  let o = (env_o, ind_o, lambda_to_prod p_o) in
+  prod_to_lambda (stretch_property_type o n)
 
 (* Stretch out the old eliminator to match the new one *)
 let stretch f_indexer pms o n =
@@ -848,7 +867,7 @@ let stretch f_indexer pms o n =
   let (_, p_n, b_n) = destProd elim_t_n in
   let o = (env_o, pind_o, p_o) in
   let n = (env_n, pind_n, p_n) in
-  let p_exp = stretch_property o n in
+  let p_exp = stretch_property_type o n in
   let b_exp =
     map_term_env_if (* TODO can be map_term_if *)
       (fun _ (p, pms) t -> applies p t)
@@ -887,7 +906,7 @@ let rec sub_indexes is_fwd f_indexer p subs o n : types =
      let n_b = (env_n_b, shift pind_n, b_n) in
      let p_b = shift p in
      let f_indexer_b = shift f_indexer in
-     if convertible_mod_change env_o p (pind_o, t_o) (pind_n, t_n) then
+     if same_mod_indexing env_o p (pind_o, t_o) (pind_n, t_n) then
        let env_o_b = push_local (n_o, t_o) env_o in
        let o_b = (env_o_b, shift pind_o, b_o) in
        let subs_b = List.map (map_tuple shift) subs in
@@ -950,7 +969,7 @@ let orn_index_case npms is_fwd indexer_f orn_p o n : types =
     if is_fwd then
       let stretch_o = (env_o, pind_o, unshift_by d_arity orn_p) in
       let stretch_n = (env_n, pind_n, p_n) in
-      let stretch_p = stretch_property_term stretch_o stretch_n in
+      let stretch_p = stretch_property stretch_o stretch_n in
       with_new_p (shift_by d_arity stretch_p) c_o
     else
       with_new_p (shift_by d_arity orn_p) c_o
