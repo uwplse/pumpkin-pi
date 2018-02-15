@@ -468,6 +468,13 @@ let define_term (n : Id.t) (env : env) evm (trm : types) : unit =
 let mk_n_rels n =
   List.map mkRel (List.rev (from_one_to n))
 
+(* The current path *)
+let current_path = ModPath.MPfile (Global.current_dirpath ())
+
+(* Define a constant from an ID in the current path *)
+let make_constant id =
+  mkConst (Constant.make2 current_path (Label.of_id id))
+
 (* --- Debugging, from PUMPKIN PATCH --- *)
 
 (* Using pp, prints directly to a string *)
@@ -1047,27 +1054,30 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
   let (env_o, ind_o, arity_o, elim_t_o) = o in
   let (env_n, ind_n, arity_n, elim_t_n) = n in
   let indexer = search_for_indexer npm elim_o o n is_fwd in
-  let indexer_path = ModPath.MPfile (Global.current_dirpath ()) in
-  let f_indexer = mkConst (Constant.make2 indexer_path (Label.of_id idx_n)) in
-  let (n_o, p_o, b_o) = destProd elim_t_o in
-  let (n_n, p_n, b_n) = destProd elim_t_n in
-  let (env_ornament, _) = zoom_product_type env_o p_o in
-  let off = offset env_ornament npm in
-  let pms = shift_all_by off (mk_n_rels npm) in
-  let (ind, arity) = directional (ind_n, arity_o) (ind_n, arity_n) in
-  let f_index = directional (Some f_indexer) None in
-  let orn_p = ornament_p env_ornament ind arity npm f_index in
-  let align = stretch env_o f_indexer (Array.of_list pms) in
-  let elim_t = call_directional align (ind_o, elim_t_o) (ind_n, elim_t_n) in
-  let (elim_t_o, elim_t_n) = directional (elim_t, elim_t_n) (elim_t_o, elim_t) in
-  let env_o = push_local (n_o, p_o) env_o in
-  let env_n = push_local (n_n, p_n) env_n in
-  let o = (env_o, ind_o, arity_o, elim_t_o) in
-  let n = (env_n, ind_n, arity_n, elim_t_n) in
-  let cs = List.map (shift_by (nb_rel env_ornament - nb_rel env_o)) (orn_index_cases npm is_fwd f_indexer orn_p o n) in
-  let final_args = Array.of_list (mk_n_rels off) in
-  let ornament = apply_eliminator env_ornament elim_o pms orn_p cs final_args in
-  (indexer, ornament)
+  let f_indexer = make_constant idx_n in
+  let f_indexer_opt = directional (Some f_indexer) None in
+  match map_tuple kind_of_term (elim_t_o, elim_t_n) with
+  | (Prod (n_o, p_o, b_o), Prod (n_n, p_n, b_n)) ->
+     let (env_ornament, _) = zoom_product_type env_o p_o in
+     let env_o_b = push_local (n_o, p_o) env_o in
+     let env_n_b = push_local (n_n, p_n) env_n in
+     let off = offset env_ornament npm in
+     let pms = shift_all_by off (mk_n_rels npm) in
+     let align = stretch env_o f_indexer (Array.of_list pms) in
+     let elim_t = call_directional align (ind_o, elim_t_o) (ind_n, elim_t_n) in
+     let elim_t_o = directional elim_t elim_t_o in
+     let elim_t_n = directional elim_t_n elim_t in
+     let o = (env_o_b, ind_o, arity_o, elim_t_o) in
+     let n = (env_n_b, ind_n, arity_n, elim_t_n) in
+     let (ind, arity) = directional (ind_n, arity_o) (ind_n, arity_n) in
+     let off_b = offset env_ornament (nb_rel env_o_b) in
+     let p = ornament_p env_ornament ind arity npm f_indexer_opt in
+     let cs = shift_all_by off_b (orn_index_cases npm is_fwd f_indexer p o n) in
+     let final_args = Array.of_list (mk_n_rels off) in
+     let ornament = apply_eliminator env_ornament elim_o pms p cs final_args in
+     (indexer, ornament)
+  | _ ->
+     failwith "not eliminators"
 
 (* Search two inductive types for an indexing ornament *)
 let search_orn_index env npm idx_n o n is_fwd : (types option * types) =
