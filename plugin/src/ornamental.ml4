@@ -475,6 +475,11 @@ let current_path = ModPath.MPfile (Global.current_dirpath ())
 let make_constant id =
   mkConst (Constant.make2 current_path (Label.of_id id))
 
+(* Add a suffix to a name identifier *)
+let with_suffix id suffix =
+  let prefix = Id.to_string id in
+  Id.of_string (String.concat "_" [prefix; suffix])
+
 (* --- Debugging, from PUMPKIN PATCH --- *)
 
 (* Using pp, prints directly to a string *)
@@ -1106,60 +1111,61 @@ let search_orn_index env npm idx_n o n is_fwd : (types option * types) =
  * but makes indexing function ill-defined right now because we assume
  * every nat is an index regardless of constructor arity, see vector3)
  *)
-let search_orn_inductive (env : env) (idx_n : Id.t) (o : types) (n : types) : (types option) * types * types =
-  match map_tuple kind_of_term (o, n) with
+let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : types) : (types option) * types * types =
+  match map_tuple kind_of_term (trm_o, trm_n) with
   | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->
      let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
      check_inductive_supported m_o;
      check_inductive_supported m_n;
      let (npm_o, npm_n) = map_tuple (fun m -> m.mind_nparams) (m_o, m_n) in
-     if npm_o < npm_n then
-       let (orn_o, orn_n) = twice (search_orn_params env) (i_o, ii_o) (i_n, ii_n) in
-       (None, orn_o, orn_n)
-     else if npm_n < npm_o then
-       let (orn_o, orn_n) = reverse (twice (search_orn_params env) (i_n, ii_n) (i_o, ii_o)) in
-       (None, orn_o, orn_n)
+     if not (npm_o = npm_n) then
+       (* new parameter *)
+       let search_params = twice (search_orn_params env) in
+       if npm_o < npm_n then
+         let (orn_o, orn_n) = search_params (i_o, ii_o) (i_n, ii_n) in
+         (None, orn_o, orn_n)
+       else
+         let (orn_o, orn_n) = reverse (search_params (i_n, ii_n) (i_o, ii_o)) in
+         (None, orn_o, orn_n)
      else
        let npm = npm_o in
        let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
        let (arity_o, arity_n) = map_tuple arity (typ_o, typ_n) in
-       let search_o = (o, arity_o) in
-       let search_n = (n, arity_n) in
-       let search = twice (search_orn_index env npm idx_n) in
-       if arity_o < arity_n then
-         let ((idx, orn_o), (_, orn_n)) = search search_o search_n in
-         (idx, orn_o, orn_n)
-       else if arity_n < arity_o then
-         let ((_, orn_o), (idx, orn_n)) = reverse (search search_n search_o) in
-         (idx, orn_o, orn_n)
+       if not (arity_o = arity_n) then
+         let o = (trm_o, arity_o) in
+         let n = (trm_n, arity_n) in
+         let search_indices = twice (search_orn_index env npm idx_n) in
+         if arity_o < arity_n then
+           let ((idx, orn_o), (_, orn_n)) = search_indices o n in
+           (idx, orn_o, orn_n)
+         else
+           let ((_, orn_o), (idx, orn_n)) = reverse (search_indices n o) in
+           (idx, orn_o, orn_n)
        else
-         failwith "not supported"
+         failwith "this kind of change is not yet supported"
   | _ ->
-     failwith "not supported"
+     failwith "this kind of change is not yet supported"
 
 (* --- Top-level --- *)
 
 (* Identify an ornament *)
 let find_ornament n d_old d_new =
   let (evm, env) = Lemmas.get_current_context () in
-  let old_term = unwrap_definition env (intern env evm d_old) in
-  let new_term = unwrap_definition env (intern env evm d_new) in
-  if isInd old_term && isInd new_term then
-    let prefix = Id.to_string n in
-    let idx_n_string = String.concat "_" [prefix; "index"] in
-    let idx_n = Id.of_string idx_n_string in
-    let (idx, orn_o_n, orn_n_o) = search_orn_inductive env idx_n old_term new_term in
+  let trm_o = unwrap_definition env (intern env evm d_old) in
+  let trm_n = unwrap_definition env (intern env evm d_new) in
+  if isInd trm_o && isInd trm_n then
+    let idx_n = with_suffix n "index" in
+    let (idx, orn_o_n, orn_n_o) = search_orn_inductive env idx_n trm_o trm_n in
     (if Option.has_some idx then
        let _ = define_term idx_n env evm (Option.get idx) in
-       Printf.printf "Defined indexing function %s.\n\n" idx_n_string;
+       Printf.printf "Defined indexing function %s.\n\n" (string_of_id idx_n);
      else
        ());
     define_term n env evm orn_o_n;
-    Printf.printf "Defined ornament %s.\n\n" prefix;
-    let inv_n_string = String.concat "_" [prefix; "inv"] in
-    let inv_n = Id.of_string inv_n_string in
+    Printf.printf "Defined ornament %s.\n\n" (string_of_id n);
+    let inv_n = with_suffix n "inv" in
     define_term inv_n env evm orn_n_o;
-    Printf.printf "Defined ornament %s.\n\n" inv_n_string;
+    Printf.printf "Defined ornament %s.\n\n" (string_of_id inv_n);
     ()
   else
     failwith "Only inductive types are supported"
