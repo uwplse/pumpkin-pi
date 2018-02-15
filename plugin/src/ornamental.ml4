@@ -829,22 +829,20 @@ let ornament_p env ind arity npm indexer_opt =
  * Stretch the old property type to match the new one
  * That is, add indices where they are missing in the old property
  *)
-let rec stretch_property_type o n =
-  let (env_o, ind_o, p_o) = o in
-  let (env_n, ind_n, p_n) = n in
+let rec stretch_property_type env o n =
+  let (ind_o, p_o) = o in
+  let (ind_n, p_n) = n in
   match map_tuple kind_of_term (p_o, p_n) with
   | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-     let env_n_b = push_local (n_n, t_n) env_n in
-     let n_b = (env_n_b, shift ind_n, b_n) in
-     let ind_o_b = shift ind_o in
-     if same_mod_change env_o (ind_o, t_o) (ind_n, t_n) then
-       let env_o_b = push_local (n_o, t_o) env_o in
-       let o_b = (env_o_b, ind_o_b, b_o) in
-       mkProd (n_o, t_o, stretch_property_type o_b n_b)
+     let n_b = (shift ind_n, b_n) in
+     if same_mod_change env (ind_o, t_o) (ind_n, t_n) then
+       let env_b = push_local (n_o, t_o) env in
+       let o_b = (shift ind_o, b_o) in
+       mkProd (n_o, t_o, stretch_property_type env_b o_b n_b)
      else
-       let env_o_b = push_local (n_n, t_n) env_o in
-       let o_b = (env_o_b, ind_o_b, shift p_o) in
-       mkProd (n_n, t_n, stretch_property_type o_b n_b)
+       let env_b = push_local (n_n, t_n) env in
+       let o_b = (shift ind_o, shift p_o) in
+       mkProd (n_n, t_n, stretch_property_type env_b o_b n_b)
   | _ ->
      p_o
 
@@ -854,10 +852,10 @@ let rec stretch_property_type o n =
  * Hilariously, this function is defined as an ornamented
  * version of stretch_property_type.
  *)
-let stretch_property o n =
-  let (env_o, ind_o, p_o) = o in
-  let o = (env_o, ind_o, lambda_to_prod p_o) in
-  prod_to_lambda (stretch_property_type o n)
+let stretch_property env o n =
+  let (ind_o, p_o) = o in
+  let o = (ind_o, lambda_to_prod p_o) in
+  prod_to_lambda (stretch_property_type env o n)
 
 (* Stretch out the old eliminator to match the new one *)
 let stretch f_indexer pms o n =
@@ -865,9 +863,9 @@ let stretch f_indexer pms o n =
   let (env_n, pind_n, elim_t_n) = n in
   let (n_exp, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
-  let o = (env_o, pind_o, p_o) in
-  let n = (env_n, pind_n, p_n) in
-  let p_exp = stretch_property_type o n in
+  let o = (pind_o, p_o) in
+  let n = (pind_n, p_n) in
+  let p_exp = stretch_property_type env_o o n in
   let b_exp =
     map_term_env_if (* TODO can be map_term_if *)
       (fun _ (p, pms) t -> applies p t)
@@ -967,9 +965,9 @@ let orn_index_case npms is_fwd indexer_f orn_p o n : types =
   let d_arity = arity_n - arity_o in
   let c_o =
     if is_fwd then
-      let stretch_o = (env_o, pind_o, unshift_by d_arity orn_p) in
-      let stretch_n = (env_n, pind_n, p_n) in
-      let stretch_p = stretch_property stretch_o stretch_n in
+      let stretch_o = (pind_o, unshift_by d_arity orn_p) in
+      let stretch_n = (pind_n, p_n) in
+      let stretch_p = stretch_property env_o stretch_o stretch_n in
       with_new_p (shift_by d_arity stretch_p) c_o
     else
       with_new_p (shift_by d_arity orn_p) c_o
