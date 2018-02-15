@@ -295,6 +295,8 @@ Inductive vector4 (A : Type) : nat -> Type :=
 
 (* --- TODO adding an index that has a type that matches an already existing index --- *)
 
+(* --- TODO indexing by the old type, but without making it fin-like --- *)
+
 (* --- TODO adding an index with several uses --- *)
 
 (* --- TODO weirder indexes --- *)

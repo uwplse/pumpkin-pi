@@ -68,6 +68,12 @@ let intern env evm t : types =
 let extern env evm t : Constrexpr.constr_expr =
   Constrextern.extern_constr true env evm t
 
+(* Push a local binding to an environment *)
+let push_local (n, t) = push_rel CRD.(LocalAssum (n, t))
+
+(* Push a let-in definition to an environment *)
+let push_local_in (n, e, t) = push_rel CRD.(LocalDef(n, e, t))
+
 (* Lookup a definition *)
 let lookup_definition (env : env) (def : types) : types =
   match kind_of_term def with
@@ -184,7 +190,7 @@ let rec zoom_n_prod env npm typ : env * types =
   else
     match kind_of_term typ with
     | Prod (n1, t1, b1) ->
-       zoom_n_prod (push_rel CRD.(LocalAssum (n1, t1)) env) (npm - 1) b1
+       zoom_n_prod (push_local (n1, t1) env) (npm - 1) b1
     | _ ->
        failwith "more parameters expected"
 
@@ -192,7 +198,7 @@ let rec zoom_n_prod env npm typ : env * types =
 let rec zoom_lambda_term (env : env) (trm : types) : env * types =
   match kind_of_term trm with
   | Lambda (n, t, b) ->
-     zoom_lambda_term (push_rel CRD.(LocalAssum(n, t)) env) b
+     zoom_lambda_term (push_local (n, t) env) b
   | _ ->
      (env, trm)
 
@@ -200,7 +206,7 @@ let rec zoom_lambda_term (env : env) (trm : types) : env * types =
 let rec zoom_product_type (env : env) (typ : types) : env * types =
   match kind_of_term typ with
   | Prod (n, t, b) ->
-     zoom_product_type (push_rel CRD.(LocalAssum(n, t)) env) b
+     zoom_product_type (push_local (n, t) env) b
   | _ ->
      (env, typ)
 
@@ -265,16 +271,16 @@ let rec map_term_env f d (env : env) (a : 'a) (trm : types) : types =
      mkCast (c', k, t')
   | Prod (n, t, b) ->
      let t' = map_rec env a t in
-     let b' = map_rec (push_rel CRD.(LocalAssum(n, t)) env) (d a) b in
+     let b' = map_rec (push_local (n, t) env) (d a) b in
      mkProd (n, t', b')
   | Lambda (n, t, b) ->
      let t' = map_rec env a t in
-     let b' = map_rec (push_rel CRD.(LocalAssum(n, t)) env) (d a) b in
+     let b' = map_rec (push_local (n, t) env) (d a) b in
      mkLambda (n, t', b')
   | LetIn (n, trm, typ, e) ->
      let trm' = map_rec env a trm in
      let typ' = map_rec env a typ in
-     let e' = map_rec (push_rel CRD.(LocalDef(n, e, typ)) env) (d a) e in
+     let e' = map_rec (push_local_in (n, e, typ) env) (d a) e in
      mkLetIn (n, trm', typ', e')
   | App (fu, args) ->
      let fu' = map_rec env a fu in
@@ -383,16 +389,16 @@ let rec map_term_env_if p f d (env : env) (a : 'a) (trm : types) : types =
        mkCast (c', k, t')
     | Prod (n, t, b) ->
        let t' = map_rec env a t in
-       let b' = map_rec (push_rel CRD.(LocalAssum(n, t')) env) (d a) b in
+       let b' = map_rec (push_local (n, t') env) (d a) b in
        mkProd (n, t', b')
     | Lambda (n, t, b) ->
        let t' = map_rec env a t in
-       let b' = map_rec (push_rel CRD.(LocalAssum(n, t')) env) (d a) b in
+       let b' = map_rec (push_local (n, t') env) (d a) b in
        mkLambda (n, t', b')
     | LetIn (n, trm, typ, e) ->
        let trm' = map_rec env a trm in
        let typ' = map_rec env a typ in
-       let e' = map_rec (push_rel CRD.(LocalDef(n, e, typ')) env) (d a) e in
+       let e' = map_rec (push_local_in (n, e, typ') env) (d a) e in
        mkLetIn (n, trm', typ', e')
     | App (fu, args) ->
        let fu' = map_rec env a fu in
@@ -492,7 +498,6 @@ let sort_as_string s =
   | Type u -> Printf.sprintf "Type %s" (universe_as_string u)
 
 (* Prints a term *)
-(* TODO this is better than the old one, merge back in with existing code! *)
 let rec term_as_string (env : env) (trm : types) =
   match kind_of_term trm with
   | Rel i ->
@@ -514,20 +519,20 @@ let rec term_as_string (env : env) (trm : types) =
        "(Π (%s : %s) . %s)"
        (name_as_string n)
        (term_as_string env t)
-       (term_as_string (push_rel CRD.(LocalAssum(n, t)) env) b)
+       (term_as_string (push_local (n, t) env) b)
   | Lambda (n, t, b) ->
      Printf.sprintf
        "(λ (%s : %s) . %s)"
        (name_as_string n)
        (term_as_string env t)
-       (term_as_string (push_rel CRD.(LocalAssum(n, t)) env) b)
+       (term_as_string (push_local (n, t) env) b)
   | LetIn (n, trm, typ, e) ->
      Printf.sprintf
        "(let (%s : %s) := %s in %s)"
        (name_as_string n)
        (term_as_string env typ)
        (term_as_string env typ)
-       (term_as_string (push_rel CRD.(LocalDef(n, e, typ)) env) e)
+       (term_as_string (push_local_in (n, e, typ) env) e)
   | App (f, xs) ->
      Printf.sprintf
        "(%s %s)"
@@ -629,11 +634,11 @@ let apply_old_new (o : types * types) (n : types * types) : bool =
   let (trm_n, trm_n') = n in
   is_or_applies trm_o trm_o' && is_or_applies trm_n trm_n'
 
-(* Destruct a product type into parts *)
-let rec destruct_product (trm : types) : types list =
+(* Deconstruct a product type (A -> B -> ... -> D) into A, B, ..., D *)
+let rec deconstruct_product (trm : types) : types list =
   match kind_of_term trm with
   | Prod (n, t, b) ->
-     t :: destruct_product (unshift b)
+     t :: deconstruct_product (unshift b)
   | _ ->
      []
 
@@ -670,7 +675,7 @@ let rec index_type env old_typ p_o p_n =
   match map_tuple kind_of_term (p_o, p_n) with
   | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
      if convertible env t_o t_n then
-       let env_t = push_rel CRD.(LocalAssum (n_o, t_o)) env in
+       let env_t = push_local (n_o, t_o) env in
        let (index_i, index_t) = index_type env_t (shift old_typ) b_o b_n in
        (shift_i index_i, index_t)
      else
@@ -706,27 +711,32 @@ let index_case index_i index_t o n : types =
     let (e_o, ind_o, trm_o) = o in
     let (e_n, ind_n, trm_n) = n in
     match map_tuple kind_of_term (trm_o, trm_n) with
-    | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) -> (* premises *)
+    | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
+       (* premises *)
        let diff_b = diff_case (shift i_t) (shift p) in
-       let e_n_b = push_rel CRD.(LocalAssum (n_n, t_n)) e_n in
+       let e_n_b = push_local (n_n, t_n) e_n in
        let n_b = (e_n_b, shift ind_n, b_n) in
        let same = convertible_mod_change e_o p in
-       if not (same (ind_o, t_o) (ind_n, t_n)) then (* index *)
-         let e_o_b = push_rel CRD.(LocalAssum (n_n, t_n)) e_o in
+       if not (same (ind_o, t_o) (ind_n, t_n)) then
+         (* index *)
+         let e_o_b = push_local (n_n, t_n) e_o in
          let subs_b = shift_subs subs in
          let o_b = (e_o_b, shift ind_o, shift trm_o) in
          unshift (diff_b subs_b o_b n_b)
        else
-         let e_o_b = push_rel CRD.(LocalAssum (n_o, t_o)) e_o in
+         let e_o_b = push_local (n_o, t_o) e_o in
          let o_b = (e_o_b, shift ind_o, b_o) in
-         if apply p t_o t_n then (* inductive hypothesis *)
+         if apply p t_o t_n then
+           (* inductive hypothesis *)
            let sub_index = (shift (get_index p t_o t_n), mkRel 1) in
            let subs_b = sub_index :: shift_subs subs in
            mkLambda (n_o, i_t, diff_b subs_b o_b n_b)
-         else (* no change *)
+         else
+           (* no change *)
            let subs_b = shift_subs subs in
            mkLambda (n_o, t_o, diff_b subs_b o_b n_b)
-    | (App (f_o, _), App (f_n, _)) -> (* conclusion *)
+    | (App (f_o, _), App (f_n, _)) ->
+       (* conclusion *)
        let index = get_index p trm_o trm_n in
        List.fold_right all_eq_substs subs index
     | _ ->
@@ -739,14 +749,14 @@ let indexer_cases index_i index_t npm o n : types list =
   let (env_n, ind_n, arity_n, elim_t_n) = n in
   match map_tuple kind_of_term (elim_t_o, elim_t_n) with
   | (Prod (n_o, p_o, b_o), Prod (n_n, p_n, b_n)) ->
-     let env_p_o = push_rel CRD.(LocalAssum (n_o, p_o)) env_o in
-     let env_p_n = push_rel CRD.(LocalAssum (n_n, p_n)) env_n in
+     let env_p_o = push_local (n_o, p_o) env_o in
+     let env_p_n = push_local (n_n, p_n) env_n in
      let o c = (env_p_o, ind_o, c) in
      let n c = (env_p_n, ind_n, c) in
      List.map2
        (fun c_o c_n -> index_case index_i index_t (o c_o) (n c_n))
-       (take_except (arity_o - npm + 1) (destruct_product b_o))
-       (take_except (arity_n - npm + 1) (destruct_product b_n))
+       (take_except (arity_o - npm + 1) (deconstruct_product b_o))
+       (take_except (arity_n - npm + 1) (deconstruct_product b_n))
   | _ ->
      failwith "not eliminators"
 
@@ -789,14 +799,14 @@ let rec stretch_property o n =
   let (env_n, pind_n, p_n) = n in
   match map_tuple kind_of_term (p_o, p_n) with
   | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-     let env_n_b = push_rel CRD.(LocalAssum (n_n, t_n)) env_n in
+     let env_n_b = push_local (n_n, t_n) env_n in
      let n_b = (env_n_b, shift pind_n, b_n) in
      if convertible_mod_change env_o (mkRel 0) (pind_o, t_o) (pind_n, t_n) then
-       let env_o_b = push_rel CRD.(LocalAssum (n_o, t_o)) env_o in
+       let env_o_b = push_local (n_o, t_o) env_o in
        let o_b = (env_o_b, shift pind_o, b_o) in
        mkProd (n_o, t_o, stretch_property o_b n_b)
      else
-       let env_o_b = push_rel CRD.(LocalAssum (n_n, t_n)) env_o in
+       let env_o_b = push_local (n_n, t_n) env_o in
        let o_b = (env_o_b, shift pind_o, shift p_o) in
        mkProd (n_n, t_n, stretch_property o_b n_b)
   | _ ->
@@ -808,14 +818,14 @@ let rec stretch_property_term o n =
   let (env_n, pind_n, p_n) = n in
   match map_tuple kind_of_term (p_o, p_n) with
   | (Lambda (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-     let env_n_b = push_rel CRD.(LocalAssum (n_n, t_n)) env_n in
+     let env_n_b = push_local (n_n, t_n) env_n in
      let n_b = (env_n_b, shift pind_n, b_n) in
      if convertible_mod_change env_o (mkRel 0) (pind_o, t_o) (pind_n, t_n) then
-       let env_o_b = push_rel CRD.(LocalAssum (n_o, t_o)) env_o in
+       let env_o_b = push_local (n_o, t_o) env_o in
        let o_b = (env_o_b, shift pind_o, b_o) in
        mkLambda (n_o, t_o, stretch_property_term o_b n_b)
      else
-       let env_o_b = push_rel CRD.(LocalAssum (n_n, t_n)) env_o in
+       let env_o_b = push_local (n_n, t_n) env_o in
        let o_b = (env_o_b, shift pind_o, shift p_o) in
        mkLambda (n_n, t_n, stretch_property_term o_b n_b)
   | _ ->
@@ -840,7 +850,7 @@ let stretch f_indexer pms o n =
         let index = mkApp (mkApp (f_indexer, pms), non_pms) in
         mkApp (mkApp (p, Array.make 1 index), non_pms))
       (fun (p, pms) -> (shift p, Array.map shift pms))
-      (push_rel CRD.(LocalAssum (n_exp, p_o)) env_o)
+      (push_local (n_exp, p_o) env_o)
       (mkRel 1, pms)
       b_o
   in mkProd (n_exp, p_exp, b_exp)
@@ -864,18 +874,18 @@ let rec sub_indexes is_fwd f_indexer p subs o n : types =
   let (env_n, pind_n, c_n) = n in
   match map_tuple kind_of_term (c_o, c_n) with
   | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-     let env_n_b = push_rel (CRD.LocalAssum (n_n, t_n)) env_n in
+     let env_n_b = push_local (n_n, t_n) env_n in
      let n_b = (env_n_b, shift pind_n, b_n) in
      let p_b = shift p in
      let f_indexer_b = shift f_indexer in
      if convertible_mod_change env_o p (pind_o, t_o) (pind_n, t_n) then
-       let env_o_b = push_rel (CRD.(LocalAssum (n_o, t_o))) env_o in
+       let env_o_b = push_local (n_o, t_o) env_o in
        let o_b = (env_o_b, shift pind_o, b_o) in
        let subs_b = List.map (map_tuple shift) subs in
        mkLambda (n_o, t_o, sub_indexes is_fwd f_indexer_b p_b subs_b o_b n_b)
      else
        if applies p t_n then
-         let env_o_b = push_rel (CRD.(LocalAssum (n_o, t_o))) env_o in
+         let env_o_b = push_local (n_o, t_o) env_o in
          let o_b = (env_o_b, shift pind_o, b_o) in
          let (_, args_o) = destApp t_o in
          let (_, args_n) = destApp t_n in
@@ -904,13 +914,13 @@ let rec sub_indexes is_fwd f_indexer p subs o n : types =
        else
          if is_fwd then
            let subs_b = List.map (fun (src, dst) -> (src, shift dst)) subs in
-           let env_o_b = push_rel CRD.(LocalAssum (n_n, t_n)) env_o in
+           let env_o_b = push_local (n_n, t_n) env_o in
            let o_b = (env_o_b, shift pind_o, shift c_o) in
            unshift (sub_indexes is_fwd f_indexer_b p_b subs_b o_b n_b)
          else
            let subs_b = List.map (fun (src, dst) -> (shift src, dst)) subs in
-           let env_n_b = push_rel CRD.(LocalAssum (n_o, t_o)) env_n in
-           let env_o_b = push_rel CRD.(LocalAssum (n_o, t_o)) env_o in
+           let env_n_b = push_local (n_o, t_o) env_n in
+           let env_o_b = push_local (n_o, t_o) env_o in
            let n_b = (env_n_b, shift pind_n, shift c_n) in
            let o_b = (env_o_b, shift pind_o, b_o) in
            mkLambda (n_o, t_o, sub_indexes is_fwd f_indexer_b p_b subs_b o_b n_b)
@@ -946,8 +956,8 @@ let orn_index_cases npms is_fwd indexer_f orn_p o n : types list =
   let (env_n, pind_n, arity_n, elim_t_n) = n in
   let (n_o, p_o, b_o) = destProd elim_t_o in
   let (n_n, p_n, b_n) = destProd elim_t_n in
-  let cs_o_ext = destruct_product b_o in
-  let cs_n_ext = destruct_product b_n in
+  let cs_o_ext = deconstruct_product b_o in
+  let cs_n_ext = deconstruct_product b_n in
   let num_final_args_o = arity_o - npms + 1 in
   let num_final_args_n = arity_n - npms + 1 in
   let cs_o = take_except num_final_args_o cs_o_ext in
@@ -977,9 +987,8 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
   let stretch_o = (env_o, pind_o, elim_t_o) in
   let stretch_n = (env_n, pind_n, elim_t_n) in
   let elim_stretched = if is_fwd then stretch f_indexer (Array.of_list pms) stretch_o stretch_n else stretch f_indexer (Array.of_list pms) stretch_n stretch_o in (* TODO move to HOF *)
-  (* TODO do we need it in other direction? *)
-  let env_o = push_rel (CRD.LocalAssum (n_o, p_o)) env_o in
-  let env_n = push_rel (CRD.LocalAssum (n_n, p_n)) env_n in
+  let env_o = push_local (n_o, p_o) env_o in
+  let env_n = push_local (n_n, p_n) env_n in
   let o = if is_fwd then (env_o, pind_o, arity_o, elim_stretched) else (env_o, pind_o, arity_o, elim_t_o) in
   let n = if is_fwd then (env_n, pind_n, arity_n, elim_t_n) else (env_n, pind_n, arity_n, elim_stretched) in
   let cs = List.map (shift_by (nb_rel env_ornament - nb_rel env_o)) (orn_index_cases npm is_fwd f_indexer orn_p o n) in
