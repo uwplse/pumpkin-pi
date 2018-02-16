@@ -172,11 +172,36 @@ Inductive nat_vector : nat -> Type :=
 | nat_nilV : nat_vector 0
 | nat_consV : forall (n : nat), nat -> nat_vector n -> nat_vector (S n).
 
-Check nat_list_rect.
-
 Find ornament nat_list nat_vector as orn_natlist_natvector.
 
-(* TODO test *)
+Definition nat_length (l : nat_list) :=
+  nat_list_rect
+    (fun (_ : nat_list) => nat)
+    0
+    (fun (_ : nat) (_ : nat_list) (IH : nat) =>
+      S IH)
+    l.
+
+Theorem test_index_5:
+  forall (l : nat_list),
+    orn_natlist_natvector_index l = nat_length l.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_5:
+  forall (l : nat_list),
+    nat_vector (nat_length l).
+Proof.
+  exact orn_natlist_natvector.
+Qed.
+
+Theorem test_orn_inv_5:
+  forall (n : nat) (v : nat_vector n),
+    nat_list.
+Proof.
+  exact orn_natlist_natvector_inv.
+Qed.
 
 (* --- BintreeV with nats in reverse order --- *)
 
