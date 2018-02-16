@@ -1099,18 +1099,6 @@ let search_orn_index env npm idx_n o n is_fwd : (types option * types) =
   search_orn_index_elim npm idx_n elim_o o n is_fwd
 
 (* Search two inductive types for an ornament between them *)
-(* TODO eventually, when supporting many changes, will want to chain these *)
-(* When we do that, we'll also want better detection. For now, we just
- * assume only one at a time
- * We also assume same order for now, of parameters and constructors and so on
- * TODO better data representations for return types etc.
- * TODO what happens when an indexed type isn't a measure, so you can't
- * extract the index from the old type? When does that happen?
- * TODO figuring out when we need more premises, too, as in bal_bintrees
- * TODO figuring out when we have extra premises, too (separate concerns,
- * but makes indexing function ill-defined right now because we assume
- * every nat is an index regardless of constructor arity, see vector3)
- *)
 let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : types) : (types option) * types * types =
   match map_tuple kind_of_term (trm_o, trm_n) with
   | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->

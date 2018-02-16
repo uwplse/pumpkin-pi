@@ -162,30 +162,21 @@ Proof.
   exact orn_list2_vector2_inv.
 Qed.
 
-(* --- Balanced binary trees --- *)
+(* --- Adding a nat index to a nat list --- *)
 
-Inductive bal_bintree (A : Type) : nat -> Type :=
-| bal_leaf :
-    bal_bintree A 0
-| bal_node :
-    forall (n : nat),
-      bal_bintree A n -> A -> bal_bintree A n -> bal_bintree A (n + n).
+Inductive nat_list : Type :=
+| nat_nil : nat_list
+| nat_cons : nat -> nat_list -> nat_list.
 
-(*
- * This technically works for indexing,
- * but has an extra condition we don't find yet:
- *
- * Find ornament bintree bal_bintree as bintree_balancer.
- *
- * Print bintree_balancer_index.
- *
- * That is, we can find an indexing function, but note that to use it
- * (and to port bintrees to bal_bintrees anyways) we need a balanced
- * premise. We should be able to also infer the balanced premise automatically,
- * but it's tricky to know when we actually need to do this.
- * It seems like when the same index is referenced by several of the
- * other bintrees. We should revisit this at some point.
- *)
+Inductive nat_vector : nat -> Type :=
+| nat_nilV : nat_vector 0
+| nat_consV : forall (n : nat), nat -> nat_vector n -> nat_vector (S n).
+
+Check nat_list_rect.
+
+Find ornament nat_list nat_vector as orn_natlist_natvector.
+
+(* TODO test *)
 
 (* --- BintreeV with nats in reverse order --- *)
 
@@ -228,66 +219,8 @@ Proof.
   exact orn_bintree_bintreeV_rev_inv.
 Qed.
 
-(* --- Nat and fin --- *)
-
-(*
- * Not sure if possible, but might as well try.
- *
- * This doesn't work, though it's technically possible because (n : nat)
- * is our original type. I think we should consider this separately from
- * standard indexing though.
- *
- * See git history prior to 2/14 for some attempts at this that might
- * be useful for later on.
- *
- * Inductive fin : nat -> Type :=
- * | F1 : forall (n : nat), fin (S n)
- * | FS : forall (n : nat), fin n -> fin (S n).
- *
- * Find ornament nat fin as orn_nat_fin.
- *
- * Definition nat_fin_index (n : nat) :=
- *  nat_ind
- *  (fun (n : nat) => nat)
- *  (S O)
- *  (fun (n : nat) (IH : nat) => S IH)
- *  n.
- *)
-
-(* --- Vectors using multiple nats --- *)
-
-(*
- * If we add another nat to this hypothesis, then we have something incompletely
- * determined, because we need an extra nat in each case.
- *)
-
-Inductive vector3 (A : Type) : nat -> Type :=
-| nilV3 : vector3 A 0
-| consV3 : forall (n m : nat), A -> vector3 A n -> vector3 A (n + m).
-
-(*
- * This will fail (as it should, for now, though with a better error):
- *
- * Find ornament list vector3 as orn_list_vector3.
- *
- * Print orn_list_vector3_index.
- *)
-
-Inductive vector4 (A : Type) : nat -> Type :=
-| nilV4 : vector4 A 0
-| consV4 : forall (n m : nat), A -> vector4 A (n + m) -> vector4 A n.
-
-(*
- * This will fail (as it should, for now, though with a better error):
- *
- * Find ornament list vector4 as orn_list_vector4.
- *
- * Print orn_list_vector4_index.
- *)
 
 (* --- TODO adding an index that is computed from a hypothesis with a different type --- *)
-
-(* --- TODO adding a nat index to a nat list or nat rev_list --- *)
 
 (* --- TODO adding an index when one already exists --- *)
 
@@ -307,8 +240,9 @@ Inductive vector4 (A : Type) : nat -> Type :=
 
 (* --- TODO what does it mean if the index already existed in the old constructor, but wasn't used, or was used differently? How do we handle that? ---*)
 
+(* --- TODO base cases with arguments --- *)
+
 (* --- TODO examples from notebook etc --- *)
 
-(* --- TODO then write ornamentation function --- *)
+(* --- TODO write a test script --- *)
 
-(* --- TODO move the weirder ones to separate files; write a test script --- *)
