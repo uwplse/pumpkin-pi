@@ -244,6 +244,20 @@ Proof.
   exact orn_bintree_bintreeV_rev_inv.
 Qed.
 
+(* --- Adding an index whose type that matches an already existing index --- *)
+
+Inductive doublevector (A : Type) : nat -> nat -> Type :=
+| dnilV : doublevector A 0 0
+| dconsV :
+    forall (n m : nat),
+      A -> doublevector A n m -> doublevector A (S (S n)) (S m).
+
+Find ornament vector doublevector as orn_vector_doublevector.
+
+(*
+ * The above fails; should investigate next week.
+ * Unsure where it even gets to in the code.
+ *)
 
 (* --- TODO adding an index that is computed from a hypothesis with a different type --- *)
 
@@ -252,8 +266,6 @@ Qed.
 (* --- TODO adding indexes that aren't first --- *)
 
 (* --- TODO adding multiple indices at once --- *)
-
-(* --- TODO adding an index that has a type that matches an already existing index --- *)
 
 (* --- TODO indexing by the old type, but without making it fin-like --- *)
 
