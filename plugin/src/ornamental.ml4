@@ -972,6 +972,63 @@ let sub_index f_indexer subs o n =
          args)
   in List.append new_subs subs
 
+(*
+ * Check recursively whether a term contains another term
+ * Super limited though, need to generalize or use a HOF
+ *)
+let rec contains_term c trm =
+  if eq_constr c trm then
+    true
+  else
+    match kind_of_term trm with
+    | App (f, _) ->
+       contains_term c f || List.exists (contains_term c) (unfold_args trm)
+    | Lambda (_, t, b) ->
+       contains_term c t || contains_term (shift c) b
+    | Prod (_, t, b) ->
+       contains_term c t || contains_term (shift c) b
+    | _ ->
+       false
+
+(*
+ * Check if a term is used as a new index in one of the two eliminator types.
+ *
+ * This check exists to avoid recursing into to two terms with the same type
+ * when one is an index, and the other is not.
+ *
+ * Its current use is inefficient and we can speed this up at some point.
+ *)
+let rec new_index f_indexer p i trm_o trm_n : bool =
+  let rec applies_new_index p i trm_o trm_n =
+    let args_o = unfold_args trm_o in
+    let args_n = unfold_args trm_n in
+    let args = List.combine args_o args_n in
+    List.exists
+      (contains_term i)
+      (List.map
+         snd
+         (List.filter
+            (fun (a_o, _) -> applies f_indexer a_o)
+            args))
+  in
+  match map_tuple kind_of_term (trm_o, trm_n) with
+  | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) when isApp t_o ->
+     let args_o = unfold_args t_o in
+     if List.exists (applies f_indexer) args_o then
+       if not (applies p t_n) then
+         new_index f_indexer (shift p) (shift i) (shift trm_o) b_n
+       else
+         new_index f_indexer p i t_o t_n
+         || (new_index f_indexer (shift p) (shift i) b_o b_n)
+     else
+       new_index f_indexer (shift p) (shift i) b_o b_n
+  | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
+     new_index f_indexer (shift p) (shift i) b_o b_n
+  | (App (f_o, args_o), App (f_n, args_n)) ->
+     applies_new_index p i trm_o trm_n
+  | _ ->
+     failwith "unexpected case finding new index"
+
 (* In the conclusion of each case, return c_n with c_o's indices *)
 let sub_indexes is_fwd f_indexer p subs o n : types =
   let directional a b = if is_fwd then a else b in
@@ -982,18 +1039,20 @@ let sub_indexes is_fwd f_indexer p subs o n : types =
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let p_b = shift p in
        let same = same_mod_indexing env_o p (ind_o, t_o) (ind_n, t_n) in
-       if same || applies p t_n then
+       let false_lead_fwd = new_index f_indexer p_b (mkRel 1) in
+       let false_lead = directional false_lead_fwd (fun _ _ -> false) in
+       if applies p t_n || (same && not (false_lead b_o b_n)) then
          let env_o_b = push_local (n_o, t_o) env_o in
          let env_n_b = push_local (n_n, t_n) env_n in
          let o_b = (env_o_b, shift ind_o, b_o) in
          let n_b = (env_n_b, shift ind_n, b_n) in
          let subs_b = shift_subs subs in
-         if same then
-           (* no index, keep recursing *)
-           mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
-         else
+         if applies p t_n then
            (* inductive hypothesis, get the index *)
            let subs_b = sub_index f_indexer subs_b (env_o, t_o) (env_n, t_n) in
+           mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
+         else
+           (* no index, keep recursing *)
            mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
        else
          (* new hypothesis from which the index is computed *)
@@ -1010,7 +1069,7 @@ let sub_indexes is_fwd f_indexer p subs o n : types =
        let args_n = List.rev (unfold_args c_n) in
        List.fold_right all_eq_substs subs (List.hd args_n)
     | _ ->
-       failwith "unexpected"
+       failwith "unexpected case substituting index"
   in sub p subs o n
 
 (*
