@@ -946,14 +946,13 @@ let indexer_cases index_i index_t npm o n : types list =
      failwith "not eliminators"
 
 (* Search for an indexing function *)
-let search_for_indexer npm elim_o o n is_fwd : types option =
+let search_for_indexer index_i index_t npm elim_o o n is_fwd : types option =
   if is_fwd then
     let (env_o, _, arity_o, elim_t_o) = o in
     let (env_n, _, _, elim_t_n) = n in
     match map_tuple kind_of_term (elim_t_o, elim_t_n) with
     | (Prod (_, p_o, b_o), Prod (_, p_n, b_n)) ->
        let (env_ind, _) = zoom_product_type env_o p_o in
-       let (index_i, index_t) = index_type env_n elim_t_o elim_t_n in
        let off = offset env_ind npm in
        let pms = shift_all_by (arity_o - npm + 1) (mk_n_rels npm) in
        let p = shift_by off (reconstruct_lambda_n env_ind index_t npm) in
@@ -967,8 +966,9 @@ let search_for_indexer npm elim_o o n is_fwd : types option =
 
 (* Find the property that the ornament proves *)
 let ornament_p env ind arity npm indexer_opt =
-  let off = offset env npm - (arity - npm) in
-  let args = Array.of_list (shift_all_by off (mk_n_rels arity)) in
+  let off = offset env npm in
+  let off_args = off - (arity - npm) in
+  let args = Array.of_list (shift_all_by off_args (mk_n_rels arity)) in
   let concl =
     match indexer_opt with
     | Some indexer ->
@@ -1102,7 +1102,7 @@ let rec new_index f_indexer p i trm_o trm_n : bool =
      failwith "unexpected case finding new index"
 
 (* In the conclusion of each case, return c_n with c_o's indices *)
-let sub_indexes is_fwd f_indexer p subs o n : types =
+let sub_indexes index_i is_fwd f_indexer p subs o n : types =
   let directional a b = if is_fwd then a else b in
   let rec sub p subs o n =
     let (env_o, ind_o, c_o) = o in
@@ -1156,30 +1156,37 @@ let sub_indexes is_fwd f_indexer p subs o n : types =
  * abstracting the indexed type to take an indexing function, then
  * deriving the result through specialization.
  *)
-let orn_index_case is_fwd indexer_f orn_p o n : types =
+let orn_index_case index_i is_fwd indexer_f orn_p o n : types =
   let when_forward f a = if is_fwd then f a else a in
   let (env_o, arity_o, ind_o, _, c_o) = o in
   let (env_n, arity_n, ind_n, p_n, c_n) = n in
   let d_arity = arity_n - arity_o in
   let adjust p = stretch_property env_o (ind_o, p) (ind_n, p_n) in
+  debug_env env_o "env_o";
+  debug_term env_o orn_p "p_o";
   let p_o = when_forward (fun p -> adjust (unshift_by d_arity p)) orn_p in
+  debug_term env_o (shift_by d_arity p_o) "p_o'";
   let c_o = with_new_p (shift_by d_arity p_o) c_o in
   let o = (env_o, ind_o, c_o) in
   let n = (env_n, ind_n, c_n) in
-  prod_to_lambda (sub_indexes is_fwd indexer_f (mkRel 1) [] o n)
+  prod_to_lambda (sub_indexes index_i is_fwd indexer_f (mkRel 1) [] o n)
 
 (* Get the cases for the ornament *)
-let orn_index_cases npms is_fwd indexer_f orn_p o n : types list =
+let orn_index_cases index_i npm is_fwd indexer_f orn_p o n : types list =
   let (env_o, pind_o, arity_o, elim_t_o) = o in
   let (env_n, pind_n, arity_n, elim_t_n) = n in
   match map_tuple kind_of_term (elim_t_o, elim_t_n) with
   | (Prod (_, p_o, b_o), Prod (_, p_n, b_n)) ->
      let o c = (env_o, arity_o, pind_o, p_o, c) in
      let n c = (env_n, arity_n, pind_n, p_n, c) in
+     let arity = if is_fwd then arity_o else arity_n in
      List.map2
-       (fun c_o c_n -> orn_index_case is_fwd indexer_f orn_p (o c_o) (n c_n))
-       (take_except (arity_o - npms + 1) (deconstruct_product b_o))
-       (take_except (arity_n - npms + 1) (deconstruct_product b_n))
+       (fun c_o c_n ->
+         shift_by
+           (arity - npm)
+           (orn_index_case index_i is_fwd indexer_f orn_p (o c_o) (n c_n)))
+       (take_except (arity_o - npm + 1) (deconstruct_product b_o))
+       (take_except (arity_n - npm + 1) (deconstruct_product b_n))
   | _ ->
      failwith "not an eliminator"
 
@@ -1189,7 +1196,8 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
   let call_directional f a b = if is_fwd then f a b else f b a in
   let (env_o, ind_o, arity_o, elim_t_o) = o in
   let (env_n, ind_n, arity_n, elim_t_n) = n in
-  let indexer = search_for_indexer npm elim_o o n is_fwd in
+  let (index_i, index_t) = index_type env_n elim_t_o elim_t_n in
+  let indexer = search_for_indexer index_i index_t npm elim_o o n is_fwd in
   let f_indexer = make_constant idx_n in
   let f_indexer_opt = directional (Some f_indexer) None in
   match map_tuple kind_of_term (elim_t_o, elim_t_n) with
@@ -1208,7 +1216,8 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
      let (ind, arity) = directional (ind_n, arity_o) (ind_n, arity_n) in
      let off_b = offset env_ornament (nb_rel env_o_b) - (arity - npm) in
      let p = ornament_p env_ornament ind arity npm f_indexer_opt in
-     let cs = shift_all_by off_b (orn_index_cases npm is_fwd f_indexer p o n) in
+     let p_cs = unshift_by (arity - npm) p in
+     let cs = shift_all_by off_b (orn_index_cases index_i npm is_fwd f_indexer p_cs o n) in
      let final_args = Array.of_list (mk_n_rels off) in
      let ornament = apply_eliminator env_ornament elim_o pms p cs final_args in
      (indexer, ornament)
