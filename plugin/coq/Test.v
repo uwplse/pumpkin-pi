@@ -285,7 +285,39 @@ Proof.
   exact orn_vector_doublevector_inv.
 Qed.
 
-(* --- TODO after, swap positions and try that one, too --- *)
+(* --- Same as above, but switch the position we change --- *)
+
+Inductive doublevector2 (A : Type) : nat -> nat -> Type :=
+| dnilV2 : doublevector2 A 0 0
+| dconsV2 :
+    forall (n m : nat),
+      A -> doublevector2 A n m -> doublevector2 A (S n) (S (S m)).
+
+Find ornament vector doublevector2 as orn_vector_doublevector2.
+
+Theorem test_index_8:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector2_index A n = vector_double_size A n.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_8:
+  forall (A : Type) (n : nat) (v : vector A n),
+    doublevector2 A n (vector_double_size A n v).
+Proof.
+  exact orn_vector_doublevector2.
+Qed.
+
+Theorem test_orn_inv_8:
+  forall (A : Type) (n : nat) (m : nat) (d : doublevector2 A n m),
+    vector A n.
+Proof.
+  exact orn_vector_doublevector2_inv.
+Qed.
+
+(* --- Don't change at all --- *)
+
 
 (* --- TODO adding an index that is computed from a hypothesis with a different type --- *)
 
