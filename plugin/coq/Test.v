@@ -259,6 +259,8 @@ Find ornament vector doublevector as orn_vector_doublevector.
  * Unsure where it even gets to in the code.
  *)
 
+(* --- TODO after, swap positions and try that one, too --- *)
+
 (* --- TODO adding an index that is computed from a hypothesis with a different type --- *)
 
 (* --- TODO adding an index when one already exists --- *)

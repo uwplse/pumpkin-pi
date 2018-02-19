@@ -754,6 +754,24 @@ let with_new_p p c : types =
        trm
   in sub_p (mkRel 1, p) c
 
+(*
+ * Check recursively whether a term contains another term
+ * Super limited though, need to generalize or use a HOF
+ *)
+let rec contains_term c trm =
+  if eq_constr c trm then
+    true
+  else
+    match kind_of_term trm with
+    | App (f, _) ->
+       contains_term c f || List.exists (contains_term c) (unfold_args trm)
+    | Lambda (_, t, b) ->
+       contains_term c t || contains_term (shift c) b
+    | Prod (_, t, b) ->
+       contains_term c t || contains_term (shift c) b
+    | _ ->
+       false
+
 (* --- Search --- *)
 
 (* Search two inductive types for a parameterizing ornament *)
@@ -761,21 +779,57 @@ let search_orn_params env (ind_o : inductive) (ind_n : inductive) is_fwd : types
   failwith "parameterization is not yet supported"
 
 (*
+ * TODO explain
+ *)
+let diff_app i trm_o trm_n =
+  let args_o = Array.of_list (unfold_args trm_o) in
+  if i >= Array.length args_o then
+    true
+  else
+    let args_n = Array.of_list (unfold_args trm_n) in
+    let arg_o = Array.get args_o i in
+    let arg_n = Array.get args_n i in
+    not (eq_constr arg_o arg_n) (* TODO can be conv *)
+
+(*
+ * TODO explain
+ *)
+let new_index i trm_o trm_n =
+  let rec is_new_index p trm_o trm_n =
+    match map_tuple kind_of_term (trm_o, trm_n) with
+    | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
+       let p_b = shift p in
+       if applies p t_o && not (applies p t_n) then
+         is_new_index p_b (shift trm_o) b_n
+       else
+         is_new_index p t_o t_n || is_new_index p_b b_o b_n
+    | (App (_, _), App (_, _)) when applies p trm_o && applies p trm_n ->
+       diff_app i trm_o trm_n
+    | _ ->
+       false
+  in is_new_index (mkRel 1) trm_o trm_n
+
+(*
  * Get the index type and location (index of the index).
  * This doesn't yet handle adding multiple indices, or
  * adding an index that depends on the previous type.
  *)
-let rec index_type env old_typ p_o p_n =
-  match map_tuple kind_of_term (p_o, p_n) with
-  | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-     if convertible env t_o t_n then
-       let env_t = push_local (n_o, t_o) env in
-       let (index_i, index_t) = index_type env_t (shift old_typ) b_o b_n in
-       (shift_i index_i, index_t)
-     else
-       (0, t_n)
-  | _ ->
-     failwith "could not find indexer property"
+let index_type env elim_t_o elim_t_n =
+  let (_, p_o, b_o) = destProd elim_t_o in
+  let (_, p_n, b_n) = destProd elim_t_n in
+  let rec poss_indices e p_o p_n =
+    match map_tuple kind_of_term (p_o, p_n) with
+    | (Prod (n_o, t_o, b_o), Prod (_, t_n, b_n)) ->
+       if convertible e t_o t_n then
+         let e_b = push_local (n_o, t_o) e in
+         let same = poss_indices e_b b_o b_n in
+         let different = (0, t_n) in
+         different :: (List.map (fun (i, i_t) -> (shift_i i, i_t)) same)
+       else
+         [(0, t_n)]
+    | _ ->
+       failwith "could not find indexer property"
+  in List.find (fun (i, _) -> new_index i b_o b_n) (poss_indices env p_o p_n)
 
 (*
  * Given an old and new application of a property, find the new index.
@@ -788,6 +842,45 @@ let diff_index index_i p o n =
      Array.get args_n index_i
   | _ ->
      failwith "not an application of a property"
+
+(* TODO explain *)
+(* TODO e_n here is also just for debugging *)
+let computes_index e index_i i trm =
+  debug_term e trm "checking if trm computes index";
+  let args = Array.of_list (unfold_args trm) in
+  let index = Array.get args index_i in
+  Printf.printf "index_i: %d\n" index_i;
+  debug_term e index "index";
+  debug_term e i "i";
+  contains_term i index
+
+(*
+ * TODO reconcile with other new_index function, explain,
+ * use to improve that new_index function
+ *
+ * Returns true if the parameter is used to compute the index at position
+ * index_i
+ *
+ * TODO env is only for debugging, remove after
+ *)
+let rec is_index e index_i p i trm =
+  debug_term e trm "trm";
+  match kind_of_term trm with
+  | Prod (n, t, b) ->
+     let p_b = shift p in
+     let i_b = shift i in
+     let e_b = push_local (n, t) e in
+     if applies p t then
+       let x = 0 in Printf.printf "%s\n\n" "applies p";
+       computes_index e index_i i t || is_index e_b index_i p_b i_b b
+     else
+       let x = 0 in Printf.printf "%s\n\n" "recursing";
+       is_index e_b index_i p_b i_b b
+  | App (_, _) ->
+     Printf.printf "%s\n\n" "in final app";
+     computes_index e index_i i trm
+  | _ ->
+     failwith "unexpected"
 
 (*
  * Get a single case for the indexer, given:
@@ -805,14 +898,18 @@ let index_case index_i index_t o n : types =
   let rec diff_case i_t p subs o n =
     let (e_o, ind_o, trm_o) = o in
     let (e_n, ind_n, trm_n) = n in
+    debug_term e_o trm_o "trm_o";
+    debug_term e_n trm_n "trm_n";
     match map_tuple kind_of_term (trm_o, trm_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        (* premises *)
-       let diff_b = diff_case (shift i_t) (shift p) in
+       let p_b = shift p in
+       let diff_b = diff_case (shift i_t) p_b in
        let e_n_b = push_local (n_n, t_n) e_n in
        let n_b = (e_n_b, shift ind_n, b_n) in
        let same = same_mod_indexing e_o p in
-       if not (same (ind_o, t_o) (ind_n, t_n)) then
+       let false_lead = is_index e_n_b index_i p_b (mkRel 1) in
+       if (not (same (ind_o, t_o) (ind_n, t_n))) || false_lead b_n then
          (* index *)
          let e_o_b = push_local (n_n, t_n) e_o in
          let subs_b = shift_subs subs in
@@ -863,7 +960,7 @@ let search_for_indexer npm elim_o o n is_fwd : types option =
     match map_tuple kind_of_term (elim_t_o, elim_t_n) with
     | (Prod (_, p_o, b_o), Prod (_, p_n, b_n)) ->
        let (env_ind, _) = zoom_product_type env_o p_o in
-       let (index_i, index_t) = index_type env_n ind_o p_o p_n in
+       let (index_i, index_t) = index_type env_n elim_t_o elim_t_n in
        let off = offset env_ind npm in
        let pms = shift_all (mk_n_rels npm) in
        let p = shift_by off (reconstruct_lambda_n env_ind index_t npm) in
@@ -971,24 +1068,6 @@ let sub_index f_indexer subs o n =
            applies f_indexer a_o || not (same_type (env_o, a_o) (env_n, a_n)))
          args)
   in List.append new_subs subs
-
-(*
- * Check recursively whether a term contains another term
- * Super limited though, need to generalize or use a HOF
- *)
-let rec contains_term c trm =
-  if eq_constr c trm then
-    true
-  else
-    match kind_of_term trm with
-    | App (f, _) ->
-       contains_term c f || List.exists (contains_term c) (unfold_args trm)
-    | Lambda (_, t, b) ->
-       contains_term c t || contains_term (shift c) b
-    | Prod (_, t, b) ->
-       contains_term c t || contains_term (shift c) b
-    | _ ->
-       false
 
 (*
  * Check if a term is used as a new index in one of the two eliminator types.
