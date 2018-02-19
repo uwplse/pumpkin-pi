@@ -967,7 +967,7 @@ let search_for_indexer npm elim_o o n is_fwd : types option =
 
 (* Find the property that the ornament proves *)
 let ornament_p env ind arity npm indexer_opt =
-  let off = offset env npm in
+  let off = offset env npm - (arity - npm) in
   let args = Array.of_list (shift_all_by off (mk_n_rels arity)) in
   let concl =
     match indexer_opt with
@@ -1280,6 +1280,7 @@ let find_ornament n d_old d_new =
        Printf.printf "Defined indexing function %s.\n\n" (string_of_id idx_n);
      else
        ());
+    debug_term env orn_o_n "orn_o_n";
     define_term n env evm orn_o_n;
     Printf.printf "Defined ornament %s.\n\n" (string_of_id n);
     let inv_n = with_suffix n "inv" in
