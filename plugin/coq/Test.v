@@ -254,10 +254,36 @@ Inductive doublevector (A : Type) : nat -> nat -> Type :=
 
 Find ornament vector doublevector as orn_vector_doublevector.
 
-(*
- * The above fails; should investigate next week.
- * Unsure where it even gets to in the code.
- *)
+Definition vector_double_size (A : Type) (n : nat) (v : vector A n) :=
+  vector_rect
+    A
+    (fun (n : nat) (v : vector A n) => nat)
+    O
+    (fun (n : nat) (a : A) (v : vector A n) (IH : nat) =>
+      S (S IH))
+    n
+    v.
+
+Theorem test_index_7:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector_index A n = vector_double_size A n.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_7:
+  forall (A : Type) (n : nat) (v : vector A n),
+    doublevector A (vector_double_size A n v) n.
+Proof.
+  exact orn_vector_doublevector.
+Qed.
+
+Theorem test_orn_inv_7:
+  forall (A : Type) (n : nat) (m : nat) (d : doublevector A n m),
+    vector A m.
+Proof.
+  exact orn_vector_doublevector_inv.
+Qed.
 
 (* --- TODO after, swap positions and try that one, too --- *)
 
