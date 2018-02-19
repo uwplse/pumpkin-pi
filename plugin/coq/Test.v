@@ -266,7 +266,7 @@ Definition vector_double_size (A : Type) (n : nat) (v : vector A n) :=
 
 Theorem test_index_7:
   forall (A : Type) (n : nat) (v : vector A n),
-    orn_vector_doublevector_index A n = vector_double_size A n.
+    orn_vector_doublevector_index A n v = vector_double_size A n v.
 Proof.
   intros. auto.
 Qed.
@@ -297,7 +297,7 @@ Find ornament vector doublevector2 as orn_vector_doublevector2.
 
 Theorem test_index_8:
   forall (A : Type) (n : nat) (v : vector A n),
-    orn_vector_doublevector2_index A n = vector_double_size A n.
+    orn_vector_doublevector2_index A n v = vector_double_size A n v.
 Proof.
   intros. auto.
 Qed.
@@ -316,8 +316,87 @@ Proof.
   exact orn_vector_doublevector2_inv.
 Qed.
 
-(* --- Don't change at all --- *)
+(* --- Same as above, but with an identical index --- *)
 
+Inductive doublevector3 (A : Type) : nat -> nat -> Type :=
+| dnilV3 : doublevector3 A 0 0
+| dconsV3 :
+    forall (n m : nat),
+      A -> doublevector3 A n m -> doublevector3 A (S n) (S m).
+
+Find ornament vector doublevector3 as orn_vector_doublevector3.
+
+Definition vector_size (A : Type) (n : nat) (v : vector A n) :=
+  vector_rect
+    A
+    (fun (n : nat) (v : vector A n) => nat)
+    O
+    (fun (n : nat) (a : A) (v : vector A n) (IH : nat) =>
+      S IH)
+    n
+    v.
+
+Theorem test_index_9:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector3_index A n v = vector_size A n v.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_9:
+  forall (A : Type) (n : nat) (v : vector A n),
+    doublevector3 A n (vector_size A n v).
+Proof.
+  exact orn_vector_doublevector3.
+Qed.
+
+Theorem test_orn_inv_9:
+  forall (A : Type) (n : nat) (m : nat) (d : doublevector3 A n m),
+    vector A n.
+Proof.
+  exact orn_vector_doublevector3_inv.
+Qed.
+
+(* --- What if we change a base case index? --- *)
+
+Inductive doublevector4 (A : Type) : nat -> nat -> Type :=
+| dnilV4 : doublevector4 A 1 0
+| dconsV4 :
+    forall (n m : nat),
+      A -> doublevector4 A n m -> doublevector4 A (S n) (S m).
+
+Find ornament vector doublevector4 as orn_vector_doublevector4.
+
+Definition S_vector_size (A : Type) (n : nat) (v : vector A n) :=
+  vector_rect
+    A
+    (fun (n : nat) (v : vector A n) => nat)
+    1
+    (fun (n : nat) (a : A) (v : vector A n) (IH : nat) =>
+      S IH)
+    n
+    v.
+
+Theorem test_index_10:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector4_index A n v = S_vector_size A n v.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_10:
+  forall (A : Type) (n : nat) (v : vector A n),
+    doublevector4 A (S_vector_size A n v) n.
+Proof.
+  exact orn_vector_doublevector4.
+Qed.
+
+Theorem test_orn_inv_10:
+  forall (A : Type) (n : nat) (m : nat) (d : doublevector4 A n m),
+    vector A m.
+Proof.
+  exact orn_vector_doublevector4_inv.
+Qed.
 
 (* --- TODO adding an index that is computed from a hypothesis with a different type --- *)
 
