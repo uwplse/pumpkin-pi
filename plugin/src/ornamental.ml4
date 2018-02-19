@@ -980,7 +980,6 @@ let search_for_indexer index_i index_t npm elim_o o n is_fwd : types option =
 let ornament_p index_i env ind arity npm indexer_opt =
   let off = offset env npm in
   let off_args = off - (arity - npm) in
-  Printf.printf "%d!\n" (npm + index_i);
   let args = shift_all_by off_args (mk_n_rels arity) in
   let concl =
     match indexer_opt with
@@ -995,7 +994,7 @@ let ornament_p index_i env ind arity npm indexer_opt =
        let (before, after) = take_split (npm + index_i) args in
        let after = shift_all_by (- 1) after in
        mkApp (ind, Array.of_list (List.append before after))
-  in debug_term env concl "concl"; shift_by off (reconstruct_lambda_n env concl npm)
+  in shift_by off (reconstruct_lambda_n env concl npm)
 
 (*
  * Stretch the old property type to match the new one
@@ -1091,9 +1090,10 @@ let sub_indexes index_i is_fwd f_indexer p subs o n : types =
        let p_b = shift p in
        let same = same_mod_indexing env_o p (ind_o, t_o) (ind_n, t_n) in
        let env_n_b = push_local (n_n, t_n) env_n in
-       let false_lead_fwd = is_index env_n_b index_i p_b (mkRel 1) in
-       let false_lead = directional false_lead_fwd (fun _ -> false) in
-       if applies p t_n || (same && not (false_lead b_n)) then
+       let false_lead_fwd _ b_n = is_index env_n_b index_i p_b (mkRel 1) b_n in
+       let false_lead_bwd b_o _ = is_index env_n_b index_i p_b (mkRel 1) b_o in
+       let false_lead = directional false_lead_fwd false_lead_bwd in
+       if applies p t_n || (same && not (false_lead b_o b_n)) then
          let env_o_b = push_local (n_o, t_o) env_o in
          let o_b = (env_o_b, shift ind_o, b_o) in
          let n_b = (env_n_b, shift ind_n, b_n) in
@@ -1269,7 +1269,6 @@ let find_ornament n d_old d_new =
     define_term n env evm orn_o_n;
     Printf.printf "Defined ornament %s.\n\n" (string_of_id n);
     let inv_n = with_suffix n "inv" in
-    debug_term env orn_n_o "orn_n_o";
     define_term inv_n env evm orn_n_o;
     Printf.printf "Defined ornament %s.\n\n" (string_of_id inv_n);
     ()
