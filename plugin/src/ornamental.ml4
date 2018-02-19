@@ -970,7 +970,6 @@ let search_for_indexer index_i index_t npm elim_o o n is_fwd : types option =
        let p = shift_by off (reconstruct_lambda_n env_ind index_t npm) in
        let cs = indexer_cases index_i index_t npm o n in
        let final_args = Array.of_list (mk_n_rels off) in
-       debug_terms env_ind (Array.to_list final_args) "final_args";
        Some (apply_eliminator env_ind elim_o pms p cs final_args)
     | _ ->
        failwith "not eliminators"
@@ -978,40 +977,42 @@ let search_for_indexer index_i index_t npm elim_o o n is_fwd : types option =
     None
 
 (* Find the property that the ornament proves *)
-let ornament_p env ind arity npm indexer_opt =
+let ornament_p index_i env ind arity npm indexer_opt =
   let off = offset env npm in
   let off_args = off - (arity - npm) in
-  let args = Array.of_list (shift_all_by off_args (mk_n_rels arity)) in
+  let args = shift_all_by off_args (mk_n_rels arity) in
   let concl =
     match indexer_opt with
     | Some indexer ->
        (* forward (indexing) direction *)
        let indexer = Option.get indexer_opt in
-       let index = mkApp (indexer, Array.append args (Array.make 1 (mkRel 1))) in
-       mkApp (ind, Array.append args (Array.make 1 index))
+       let index = mkApp (indexer, Array.of_list (List.append args [mkRel 1])) in
+       let (before, after) = take_split (npm + index_i) args in
+       mkApp (ind, Array.of_list (List.append before (index :: after)))
     | None ->
        (* backward (deindexing) direction *)
-       mkApp (ind, args)
+       mkApp (ind, Array.of_list args)
   in shift_by off (reconstruct_lambda_n env concl npm)
 
 (*
  * Stretch the old property type to match the new one
  * That is, add indices where they are missing in the old property
+ * For now just supports one index
  *)
-let rec stretch_property_type env o n =
+let rec stretch_property_type index_i env o n =
   let (ind_o, p_o) = o in
   let (ind_n, p_n) = n in
   match map_tuple kind_of_term (p_o, p_n) with
   | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
      let n_b = (shift ind_n, b_n) in
-     if same_mod_change env (ind_o, t_o) (ind_n, t_n) then
-       let env_b = push_local (n_o, t_o) env in
-       let o_b = (shift ind_o, b_o) in
-       mkProd (n_o, t_o, stretch_property_type env_b o_b n_b)
-     else
+     if index_i = 0 then
        let env_b = push_local (n_n, t_n) env in
        let o_b = (shift ind_o, shift p_o) in
-       mkProd (n_n, t_n, stretch_property_type env_b o_b n_b)
+       mkProd (n_n, t_n, shift p_o)
+     else
+       let env_b = push_local (n_o, t_o) env in
+       let o_b = (shift ind_o, b_o) in
+       mkProd (n_o, t_o, stretch_property_type (index_i - 1) env_b o_b n_b)
   | _ ->
      p_o
 
@@ -1021,10 +1022,10 @@ let rec stretch_property_type env o n =
  * Hilariously, this function is defined as an ornamented
  * version of stretch_property_type.
  *)
-let stretch_property env o n =
+let stretch_property index_i env o n =
   let (ind_o, p_o) = o in
   let o = (ind_o, lambda_to_prod p_o) in
-  prod_to_lambda (stretch_property_type env o n)
+  prod_to_lambda (stretch_property_type index_i env o n)
 
 (*
  * Stretch out the old eliminator type to match the new one
@@ -1035,7 +1036,7 @@ let stretch index_i env indexer pms o n =
   let (ind_n, elim_t_n) = n in
   let (n_exp, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, _) = destProd elim_t_n in
-  let p_exp = stretch_property_type env (ind_o, p_o) (ind_n, p_n) in
+  let p_exp = stretch_property_type index_i env (ind_o, p_o) (ind_n, p_n) in
   let b_exp =
     map_term_if
       (fun (p, _) t -> applies p t)
@@ -1082,8 +1083,6 @@ let sub_indexes index_i is_fwd f_indexer p subs o n : types =
   let rec sub p subs o n =
     let (env_o, ind_o, c_o) = o in
     let (env_n, ind_n, c_n) = n in
-    debug_term env_o c_o "c_o";
-    debug_term env_n c_n "c_n";
     match map_tuple kind_of_term (c_o, c_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let p_b = shift p in
@@ -1138,7 +1137,7 @@ let orn_index_case index_i is_fwd indexer_f orn_p o n : types =
   let (env_o, arity_o, ind_o, _, c_o) = o in
   let (env_n, arity_n, ind_n, p_n, c_n) = n in
   let d_arity = arity_n - arity_o in
-  let adjust p = stretch_property env_o (ind_o, p) (ind_n, p_n) in
+  let adjust p = stretch_property index_i env_o (ind_o, p) (ind_n, p_n) in
   let p_o = when_forward (fun p -> adjust (unshift_by d_arity p)) orn_p in
   let c_o = with_new_p (shift_by d_arity p_o) c_o in
   let o = (env_o, ind_o, c_o) in
@@ -1190,7 +1189,7 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
      let o = (env_o_b, ind_o, arity_o, elim_t_o) in
      let n = (env_n_b, ind_n, arity_n, elim_t_n) in
      let off_b = offset env_ornament (nb_rel env_o_b) - (arity - npm) in
-     let p = ornament_p env_ornament ind arity npm f_indexer_opt in
+     let p = ornament_p index_i env_ornament ind arity npm f_indexer_opt in
      let p_cs = unshift_by (arity - npm) p in
      let cs = shift_all_by off_b (orn_index_cases index_i npm is_fwd f_indexer p_cs o n) in
      let final_args = Array.of_list (mk_n_rels off) in
