@@ -846,12 +846,8 @@ let diff_index index_i p o n =
 (* TODO explain *)
 (* TODO e_n here is also just for debugging *)
 let computes_index e index_i i trm =
-  debug_term e trm "checking if trm computes index";
   let args = Array.of_list (unfold_args trm) in
   let index = Array.get args index_i in
-  Printf.printf "index_i: %d\n" index_i;
-  debug_term e index "index";
-  debug_term e i "i";
   contains_term i index
 
 (*
@@ -864,20 +860,16 @@ let computes_index e index_i i trm =
  * TODO env is only for debugging, remove after
  *)
 let rec is_index e index_i p i trm =
-  debug_term e trm "trm";
   match kind_of_term trm with
   | Prod (n, t, b) ->
      let p_b = shift p in
      let i_b = shift i in
      let e_b = push_local (n, t) e in
      if applies p t then
-       let x = 0 in Printf.printf "%s\n\n" "applies p";
        computes_index e index_i i t || is_index e_b index_i p_b i_b b
      else
-       let x = 0 in Printf.printf "%s\n\n" "recursing";
        is_index e_b index_i p_b i_b b
   | App (_, _) ->
-     Printf.printf "%s\n\n" "in final app";
      computes_index e index_i i trm
   | _ ->
      failwith "unexpected"
@@ -898,8 +890,6 @@ let index_case index_i index_t o n : types =
   let rec diff_case i_t p subs o n =
     let (e_o, ind_o, trm_o) = o in
     let (e_n, ind_n, trm_n) = n in
-    debug_term e_o trm_o "trm_o";
-    debug_term e_n trm_n "trm_n";
     match map_tuple kind_of_term (trm_o, trm_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        (* premises *)
@@ -946,7 +936,10 @@ let indexer_cases index_i index_t npm o n : types list =
      let o c = (env_p_o, ind_o, c) in
      let n c = (env_p_n, ind_n, c) in
      List.map2
-       (fun c_o c_n -> index_case index_i index_t (o c_o) (n c_n))
+       (fun c_o c_n ->
+         shift_by
+           (arity_o - npm)
+           (index_case index_i index_t (o c_o) (n c_n)))
        (take_except (arity_o - npm + 1) (deconstruct_product b_o))
        (take_except (arity_n - npm + 1) (deconstruct_product b_n))
   | _ ->
@@ -955,14 +948,14 @@ let indexer_cases index_i index_t npm o n : types list =
 (* Search for an indexing function *)
 let search_for_indexer npm elim_o o n is_fwd : types option =
   if is_fwd then
-    let (env_o, ind_o, _, elim_t_o) = o in
+    let (env_o, _, arity_o, elim_t_o) = o in
     let (env_n, _, _, elim_t_n) = n in
     match map_tuple kind_of_term (elim_t_o, elim_t_n) with
     | (Prod (_, p_o, b_o), Prod (_, p_n, b_n)) ->
        let (env_ind, _) = zoom_product_type env_o p_o in
        let (index_i, index_t) = index_type env_n elim_t_o elim_t_n in
        let off = offset env_ind npm in
-       let pms = shift_all (mk_n_rels npm) in
+       let pms = shift_all_by (arity_o - npm + 1) (mk_n_rels npm) in
        let p = shift_by off (reconstruct_lambda_n env_ind index_t npm) in
        let cs = indexer_cases index_i index_t npm o n in
        let final_args = Array.of_list (mk_n_rels off) in
