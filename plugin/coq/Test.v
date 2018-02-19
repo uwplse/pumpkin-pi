@@ -398,13 +398,19 @@ Proof.
   exact orn_vector_doublevector4_inv.
 Qed.
 
-(* --- TODO adding an index that is computed from a hypothesis with a different type --- *)
+(* --- Index is computed from a hypothesis with a different type --- *)
 
-(* --- TODO adding an index when one already exists --- *)
+Require Import ZArith.
 
-(* --- TODO adding indexes that aren't first --- *)
+Inductive vector_int (A : Type) : Z -> Type :=
+| nilV_int : vector_int A (Z.of_nat 0)
+| consV_int :
+    forall (n : nat),
+       A -> vector_int A (Z.of_nat n) -> vector_int A (Z.of_nat (S n)).
 
-(* --- TODO adding multiple indices at once --- *)
+Find ornament list vector_int as orn_list_vectorint.
+
+(* TODO above fails, figure out why *)
 
 (* --- TODO indexing by the old type, but without making it fin-like --- *)
 
@@ -412,11 +418,13 @@ Qed.
 
 (* --- TODO weirder indexes --- *)
 
-(* --- TODO indices that depend on earlier indices and parameters --- *)
+(* --- TODO indices that depend on earlier indices and parameters, including ones of different types --- *)
 
 (* --- TODO what does it mean if the index already existed in the old constructor, but wasn't used, or was used differently? How do we handle that? ---*)
 
 (* --- TODO base cases with arguments --- *)
+
+(* --- TODO adding multiple indices at once --- *)
 
 (* --- TODO examples from notebook etc --- *)
 
