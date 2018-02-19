@@ -958,6 +958,7 @@ let search_for_indexer index_i index_t npm elim_o o n is_fwd : types option =
        let p = shift_by off (reconstruct_lambda_n env_ind index_t npm) in
        let cs = indexer_cases index_i index_t npm o n in
        let final_args = Array.of_list (mk_n_rels off) in
+       debug_terms env_ind (Array.to_list final_args) "final_args";
        Some (apply_eliminator env_ind elim_o pms p cs final_args)
     | _ ->
        failwith "not eliminators"
@@ -1062,60 +1063,23 @@ let sub_index f_indexer subs o n =
          args)
   in List.append new_subs subs
 
-(*
- * Check if a term is used as a new index in one of the two eliminator types.
- *
- * This check exists to avoid recursing into to two terms with the same type
- * when one is an index, and the other is not.
- *
- * Its current use is inefficient and we can speed this up at some point.
- *)
-let rec new_index f_indexer p i trm_o trm_n : bool =
-  let rec applies_new_index p i trm_o trm_n =
-    let args_o = unfold_args trm_o in
-    let args_n = unfold_args trm_n in
-    let args = List.combine args_o args_n in
-    List.exists
-      (contains_term i)
-      (List.map
-         snd
-         (List.filter
-            (fun (a_o, _) -> applies f_indexer a_o)
-            args))
-  in
-  match map_tuple kind_of_term (trm_o, trm_n) with
-  | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) when isApp t_o ->
-     let args_o = unfold_args t_o in
-     if List.exists (applies f_indexer) args_o then
-       if not (applies p t_n) then
-         new_index f_indexer (shift p) (shift i) (shift trm_o) b_n
-       else
-         new_index f_indexer p i t_o t_n
-         || (new_index f_indexer (shift p) (shift i) b_o b_n)
-     else
-       new_index f_indexer (shift p) (shift i) b_o b_n
-  | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-     new_index f_indexer (shift p) (shift i) b_o b_n
-  | (App (f_o, args_o), App (f_n, args_n)) ->
-     applies_new_index p i trm_o trm_n
-  | _ ->
-     failwith "unexpected case finding new index"
-
 (* In the conclusion of each case, return c_n with c_o's indices *)
 let sub_indexes index_i is_fwd f_indexer p subs o n : types =
   let directional a b = if is_fwd then a else b in
   let rec sub p subs o n =
     let (env_o, ind_o, c_o) = o in
     let (env_n, ind_n, c_n) = n in
+    debug_term env_o c_o "c_o";
+    debug_term env_n c_n "c_n";
     match map_tuple kind_of_term (c_o, c_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let p_b = shift p in
        let same = same_mod_indexing env_o p (ind_o, t_o) (ind_n, t_n) in
-       let false_lead_fwd = new_index f_indexer p_b (mkRel 1) in
-       let false_lead = directional false_lead_fwd (fun _ _ -> false) in
-       if applies p t_n || (same && not (false_lead b_o b_n)) then
+       let env_n_b = push_local (n_n, t_n) env_n in
+       let false_lead_fwd = is_index env_n_b index_i p_b (mkRel 1) in
+       let false_lead = directional false_lead_fwd (fun _ -> false) in
+       if applies p t_n || (same && not (false_lead b_n)) then
          let env_o_b = push_local (n_o, t_o) env_o in
-         let env_n_b = push_local (n_n, t_n) env_n in
          let o_b = (env_o_b, shift ind_o, b_o) in
          let n_b = (env_n_b, shift ind_n, b_n) in
          let subs_b = shift_subs subs in
@@ -1162,10 +1126,7 @@ let orn_index_case index_i is_fwd indexer_f orn_p o n : types =
   let (env_n, arity_n, ind_n, p_n, c_n) = n in
   let d_arity = arity_n - arity_o in
   let adjust p = stretch_property env_o (ind_o, p) (ind_n, p_n) in
-  debug_env env_o "env_o";
-  debug_term env_o orn_p "p_o";
   let p_o = when_forward (fun p -> adjust (unshift_by d_arity p)) orn_p in
-  debug_term env_o (shift_by d_arity p_o) "p_o'";
   let c_o = with_new_p (shift_by d_arity p_o) c_o in
   let o = (env_o, ind_o, c_o) in
   let n = (env_n, ind_n, c_n) in
@@ -1207,13 +1168,14 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
      let env_n_b = push_local (n_n, p_n) env_n in
      let off = offset env_ornament npm in
      let pms = shift_all_by off (mk_n_rels npm) in
-     let align = stretch env_o f_indexer (Array.of_list pms) in
+     let (ind, arity) = directional (ind_n, arity_o) (ind_n, arity_n) in
+     let align_pms = Array.of_list (List.map (unshift_by (arity - npm)) pms) in
+     let align = stretch env_o f_indexer align_pms in
      let elim_t = call_directional align (ind_o, elim_t_o) (ind_n, elim_t_n) in
      let elim_t_o = directional elim_t elim_t_o in
      let elim_t_n = directional elim_t_n elim_t in
      let o = (env_o_b, ind_o, arity_o, elim_t_o) in
      let n = (env_n_b, ind_n, arity_n, elim_t_n) in
-     let (ind, arity) = directional (ind_n, arity_o) (ind_n, arity_n) in
      let off_b = offset env_ornament (nb_rel env_o_b) - (arity - npm) in
      let p = ornament_p env_ornament ind arity npm f_indexer_opt in
      let p_cs = unshift_by (arity - npm) p in
