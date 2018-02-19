@@ -980,6 +980,7 @@ let search_for_indexer index_i index_t npm elim_o o n is_fwd : types option =
 let ornament_p index_i env ind arity npm indexer_opt =
   let off = offset env npm in
   let off_args = off - (arity - npm) in
+  Printf.printf "%d!\n" (npm + index_i);
   let args = shift_all_by off_args (mk_n_rels arity) in
   let concl =
     match indexer_opt with
@@ -991,8 +992,10 @@ let ornament_p index_i env ind arity npm indexer_opt =
        mkApp (ind, Array.of_list (List.append before (index :: after)))
     | None ->
        (* backward (deindexing) direction *)
-       mkApp (ind, Array.of_list args)
-  in shift_by off (reconstruct_lambda_n env concl npm)
+       let (before, after) = take_split (npm + index_i) args in
+       let after = shift_all_by (- 1) after in
+       mkApp (ind, Array.of_list (List.append before after))
+  in debug_term env concl "concl"; shift_by off (reconstruct_lambda_n env concl npm)
 
 (*
  * Stretch the old property type to match the new one
@@ -1169,7 +1172,7 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
   let call_directional f a b = if is_fwd then f a b else f b a in
   let (env_o, ind_o, arity_o, elim_t_o) = o in
   let (env_n, ind_n, arity_n, elim_t_n) = n in
-  let (index_i, index_t) = index_type env_n elim_t_o elim_t_n in
+  let (index_i, index_t) = call_directional (index_type env_n) elim_t_o elim_t_n in
   let indexer = search_for_indexer index_i index_t npm elim_o o n is_fwd in
   let f_indexer = make_constant idx_n in
   let f_indexer_opt = directional (Some f_indexer) None in
@@ -1263,10 +1266,10 @@ let find_ornament n d_old d_new =
        Printf.printf "Defined indexing function %s.\n\n" (string_of_id idx_n);
      else
        ());
-    debug_term env orn_o_n "orn_o_n";
     define_term n env evm orn_o_n;
     Printf.printf "Defined ornament %s.\n\n" (string_of_id n);
     let inv_n = with_suffix n "inv" in
+    debug_term env orn_n_o "orn_n_o";
     define_term inv_n env evm orn_n_o;
     Printf.printf "Defined ornament %s.\n\n" (string_of_id inv_n);
     ()
