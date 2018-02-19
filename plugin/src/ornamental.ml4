@@ -29,6 +29,18 @@ let rec take (i : int) (l : 'a list) : 'a list =
 let take_except (i : int) (l : 'a list) : 'a list =
   take (List.length l - i) l
 
+(* Like take, but return the remainder too *)
+let rec take_split (i : int) (l : 'a list) : ('a list * 'a list) =
+  if i = 0 then
+    ([], l)
+  else
+    match l with
+    | [] ->
+       ([], [])
+    | h :: tl ->
+       let (before, after) = take_split (i - 1) tl in
+       (h :: before, after)
+
 (* Map f over a tuple *)
 let map_tuple (f : 'a -> 'b) ((a1, a2) : ('a * 'a)) : ('b * 'b) =
   (f a1, f a2)
@@ -1018,7 +1030,7 @@ let stretch_property env o n =
  * Stretch out the old eliminator type to match the new one
  * That is, add indexes to the old one to match new
  *)
-let stretch env indexer pms o n =
+let stretch index_i env indexer pms o n =
   let (ind_o, elim_t_o) = o in
   let (ind_n, elim_t_n) = n in
   let (n_exp, p_o, b_o) = destProd elim_t_o in
@@ -1028,9 +1040,10 @@ let stretch env indexer pms o n =
     map_term_if
       (fun (p, _) t -> applies p t)
       (fun (p, pms) t ->
-        let non_pms = Array.of_list (unfold_args t) in
-        let index = mkApp (indexer, Array.append pms non_pms) in
-        mkApp (p, Array.append (Array.make 1 index) non_pms))
+        let non_pms = unfold_args t in
+        let index = mkApp (indexer, Array.append pms (Array.of_list non_pms)) in
+        let (before, after) = take_split index_i non_pms in
+        mkApp (p, Array.of_list (List.append before (index :: after))))
       (fun (p, pms) -> (shift p, Array.map shift pms))
       (mkRel 1, pms)
       b_o
@@ -1170,7 +1183,7 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
      let pms = shift_all_by off (mk_n_rels npm) in
      let (ind, arity) = directional (ind_n, arity_o) (ind_n, arity_n) in
      let align_pms = Array.of_list (List.map (unshift_by (arity - npm)) pms) in
-     let align = stretch env_o f_indexer align_pms in
+     let align = stretch index_i env_o f_indexer align_pms in
      let elim_t = call_directional align (ind_o, elim_t_o) (ind_n, elim_t_n) in
      let elim_t_o = directional elim_t elim_t_o in
      let elim_t_n = directional elim_t_n elim_t in
