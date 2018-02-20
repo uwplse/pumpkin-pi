@@ -1251,6 +1251,60 @@ let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : typ
   | _ ->
      failwith "this kind of change is not yet supported"
 
+(* --- Application --- *)
+
+(* Get the inductive types applied in a hypothesis or conclusion *)
+let rec ind_of (trm : types) : types =
+  match kind_of_term trm with
+  | App (f, args) ->
+     ind_of f
+  | Ind (_, _) ->
+     trm
+  | _ ->
+     failwith "not an inductive type"
+
+(* Get the inductive types an ornament maps between *)
+let rec ind_of_orn (orn_type : types) : types * types =
+  match kind_of_term orn_type with
+  | Prod (n, t, b) when isProd b ->
+     ind_of_orn b
+  | Prod (n, t, b) ->
+     (ind_of t, ind_of b)
+  | _ ->
+     failwith "not an ornament"
+
+(*
+ * orn_list_vect
+     : forall (A : Type) (l : list A), vector A (list_index l)
+ *
+ * (list, vector)
+ *)
+
+(* Definition hd (default:A) (l:list A) :=
+    list_rect
+      (fun (_ : list A) => A)
+      default
+      (fun (x : A) (_ : list A) (_ : A) =>
+        x)
+      l.
+ *)
+
+(* Apply an ornament to the conclusion of a function *)
+let ornament_concls (env : env) (orn : types) (from_ind : types) (trm : types) =
+  trm (* TODO *)
+
+(* Apply an ornament to the hypotheses of a function *)
+let ornament_hypos (env : env) (orn : types) (from_ind : types) (trm : types) =
+  trm (* TODO *)
+
+(*
+ * Apply an ornament, but don't reduce the result.
+ *)
+let ornament (env : env) (orn : types) (trm : types) =
+  let orn_type = infer_type env orn in
+  let (from_ind, to_ind) = ind_of_orn orn_type in (* TODO to_ind unused *)
+  ornament_concls env orn from_ind (ornament_hypos env orn from_ind trm)
+
 (* --- Top-level --- *)
 
 (* Identify an ornament *)
@@ -1276,8 +1330,35 @@ let find_ornament n d_old d_new =
   else
     failwith "Only inductive types are supported"
 
+(* Apply an ornament, but don't reduce *)
+let apply_ornament n d_orn d_old =
+  let (evm, env) = Lemmas.get_current_context () in
+  let orn = unwrap_definition env (intern env evm d_orn) in
+  let trm_o = unwrap_definition env (intern env evm d_old) in
+  let trm_n = ornament env orn trm_o in
+  define_term n env evm trm_n;
+  Printf.printf "Defined ornamented fuction %s.\n\n" (string_of_id n);
+  ()
+
+(* --- Commands --- *)
+
 (* Identify an ornament given two inductive types *)
 VERNAC COMMAND EXTEND FindOrnament CLASSIFIED AS SIDEFF
 | [ "Find" "ornament" constr(d_old) constr(d_new) "as" ident(n)] ->
   [ find_ornament n d_old d_new ]
+END
+
+(*
+ * Given an ornament and a function, derive the ornamented version that
+ * doesn't internalize the ornament.
+ *
+ * This is equivalent to porting the hypotheses and conclusions we apply
+ * the function to via the ornament, but not actually reducing the
+ * result to get something of a useful type. It's the first step in
+ * lifting functions, which will be chained eventually to lift
+ * functions entirely.
+ *)
+VERNAC COMMAND EXTEND ApplyOrnament CLASSIFIED AS SIDEFF
+| [ "Apply" "ornament" constr(d_orn) "in" constr(d_old) "as" ident(n)] ->
+  [ apply_ornament n d_orn d_old ]
 END
