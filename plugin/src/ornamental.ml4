@@ -1263,15 +1263,25 @@ let rec ind_of (trm : types) : types =
   | _ ->
      failwith "not an inductive type"
 
-(* Get the inductive types an ornament maps between *)
+(* Get the inductive types an ornament maps between, including their arguments *)
 let rec ind_of_orn (orn_type : types) : types * types =
   match kind_of_term orn_type with
   | Prod (n, t, b) when isProd b ->
      ind_of_orn b
   | Prod (n, t, b) ->
-     (ind_of t, ind_of b)
+     (t, b)
   | _ ->
      failwith "not an ornament"
+
+(* Apply an ornament to the conclusion of a function *)
+let ornament_concls (env : env) (orn : types) (from_ind : types) (trm : types) =
+  trm (* TODO *)
+
+(*
+ * Apply an ornament to the hypotheses of a function
+ *)
+let rec ornament_hypos (orn : types) (from_ind : types) (env : env) (trm : types) =
+  trm (* TODO *)
 
 (*
  * orn_list_vect
@@ -1289,21 +1299,70 @@ let rec ind_of_orn (orn_type : types) : types * types =
       l.
  *)
 
-(* Apply an ornament to the conclusion of a function *)
-let ornament_concls (env : env) (orn : types) (from_ind : types) (trm : types) =
-  trm (* TODO *)
-
-(* Apply an ornament to the hypotheses of a function *)
-let ornament_hypos (env : env) (orn : types) (from_ind : types) (trm : types) =
+(*
+ * Extend function with a new index for every old hypothesis, if we
+ * are getting stronger
+ *)
+let rec extend_index (index_prod : types) (from_ind : types) (trm : types) =
   trm (* TODO *)
 
 (*
+ * Substitute the ornamented type in the hypothesis
+ *)
+let sub_in_hypo (index_i : int) (index_prod : types) (from_ind : types) (to_ind : types) (trm : types) =
+  let reduce = Reductionops.nf_betaiota Evd.empty in (* TODO move *)
+  let n_subs = ref 0 in
+  let subbed =
+    map_term_if
+      (fun _ t -> is_or_applies from_ind t)
+      (fun _ t ->
+        n_subs := !n_subs + 1;
+        let args = if isApp t then unfold_args t else [] in
+        let index_type = reduce (mkApp (index_prod, Array.of_list args)) in
+        let (before, after) = take_split index_i args in
+        let idx = mkRel 1 in
+        let b_args = List.append (shift_all before) (idx :: shift_all after) in
+        let b = mkApp (to_ind, Array.of_list b_args) in
+        mkProd (Anonymous, index_type, b))
+      (fun _ -> ())
+      ()
+      trm
+  in (!n_subs, subbed)
+
+(*
  * Apply an ornament, but don't reduce the result.
+ *
+ * TODO determine direction, act accordingly
+ *
+ * TODO assumes indexing ornament for now
  *)
 let ornament (env : env) (orn : types) (trm : types) =
-  let orn_type = infer_type env orn in
-  let (from_ind, to_ind) = ind_of_orn orn_type in (* TODO to_ind unused *)
-  ornament_concls env orn from_ind (ornament_hypos env orn from_ind trm)
+  let reduce = Reductionops.nf_betaiota Evd.empty in
+  let orn_type = reduce (infer_type env orn) in
+  let (from_with_args, to_with_args) = ind_of_orn orn_type in
+  let from_args = unfold_args from_with_args in
+  let to_args = unfold_args to_with_args in
+  if List.length from_args < List.length to_args then
+    (* ornament *)
+    let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
+    let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
+    let (env_arg, _) = zoom_product_type env orn_type in
+    let index_type = unshift (reduce (infer_type env_arg index)) in
+    let env_index = pop_rel_context 1 env_arg in
+    let index_lam = reconstruct_lambda env_index index_type in
+    let (from_ind, to_ind) = map_tuple ind_of (from_with_args, to_with_args) in
+    let (env_hypos, body) = zoom_lambda_term env trm in
+    let temp = mkRel 1 in
+    let hypos = reconstruct_lambda env_hypos temp in
+    let (n_subs, subbed_hypos) = sub_in_hypo index_i index_lam from_ind to_ind hypos in
+    let (env_subbed, _) = zoom_lambda_term env subbed_hypos in
+    let subbed = reconstruct_lambda env_subbed body in
+    debug_term env subbed "subbed";
+    Printf.printf "%d\n" n_subs;
+    subbed (* TODO *)
+  else
+    (* deornament [TODO] *)
+    failwith "not yet implemented"
 
 (* --- Top-level --- *)
 
