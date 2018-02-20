@@ -87,3 +87,27 @@ Inductive vector4 (A : Type) : nat -> Type :=
  *
  * Print orn_list_vector4_index.
  *)
+
+(* --- Index is computed from a hypothesis with a different type --- *)
+
+Require Import ZArith.
+
+Inductive vector_int (A : Type) : Z -> Type :=
+| nilV_int : vector_int A (Z.of_nat 0)
+| consV_int :
+    forall (n : nat),
+       A -> vector_int A (Z.of_nat n) -> vector_int A (Z.of_nat (S n)).
+
+(*
+ * This fails:
+ * Find ornament list vector_int as orn_list_vectorint.
+ *
+ * For this to pass, we really need to chain it with PUMPKIN, because what
+ * is happening is we first need to find the patch that gets us from list
+ * to vector, and then we need to get from that indexing function
+ * to Z by searching for a patch. This is really cool.
+ *
+ * An alternative approach is to get the function that gets us back from
+ * Z to nat, so that we can make use of the inductive hypothesis.
+ * But that is much less clear to me.
+ *)

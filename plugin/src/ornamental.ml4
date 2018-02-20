@@ -1262,6 +1262,7 @@ let find_ornament n d_old d_new =
     let idx_n = with_suffix n "index" in
     let (idx, orn_o_n, orn_n_o) = search_orn_inductive env idx_n trm_o trm_n in
     (if Option.has_some idx then
+       let x = 0 in debug_term env (Option.get idx) "idx";
        let _ = define_term idx_n env evm (Option.get idx) in
        Printf.printf "Defined indexing function %s.\n\n" (string_of_id idx_n);
      else

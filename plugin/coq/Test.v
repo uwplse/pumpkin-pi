@@ -398,20 +398,6 @@ Proof.
   exact orn_vector_doublevector4_inv.
 Qed.
 
-(* --- Index is computed from a hypothesis with a different type --- *)
-
-Require Import ZArith.
-
-Inductive vector_int (A : Type) : Z -> Type :=
-| nilV_int : vector_int A (Z.of_nat 0)
-| consV_int :
-    forall (n : nat),
-       A -> vector_int A (Z.of_nat n) -> vector_int A (Z.of_nat (S n)).
-
-Find ornament list vector_int as orn_list_vectorint.
-
-(* TODO above fails, figure out why *)
-
 (* --- TODO indexing by the old type, but without making it fin-like --- *)
 
 (* --- TODO adding an index with several uses --- *)
