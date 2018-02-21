@@ -1309,21 +1309,25 @@ let rec extend_index (index_prod : types) (from_ind : types) (trm : types) =
 (*
  * Substitute the ornamented type in the hypothesis
  *)
-let sub_in_hypo (index_i : int) (index_prod : types) (from_ind : types) (to_ind : types) (trm : types) =
+let rec sub_in_hypo (index_i : int) (index_prod : types) (from_ind : types) (to_ind : types) (trm : types) =
   let reduce = Reductionops.nf_betaiota Evd.empty in (* TODO move *)
   let n_subs = ref 0 in
   let subbed =
     map_term_if
-      (fun _ t -> is_or_applies from_ind t)
-      (fun _ t ->
+      (fun _ trm ->
+        match kind_of_term trm with
+        | Lambda (n, t, b) ->  is_or_applies from_ind t
+        | _ -> false)
+      (fun _ trm ->
         n_subs := !n_subs + 1;
+        let (n, t, b) = destLambda trm in
         let args = if isApp t then unfold_args t else [] in
         let index_type = reduce (mkApp (index_prod, Array.of_list args)) in
         let (before, after) = take_split index_i args in
         let idx = mkRel 1 in
-        let b_args = List.append (shift_all before) (idx :: shift_all after) in
-        let b = mkApp (to_ind, Array.of_list b_args) in
-        mkProd (Anonymous, index_type, b))
+        let t_args = List.append (shift_all before) (idx :: shift_all after) in
+        let t_ind = mkApp (to_ind, Array.of_list t_args) in (* TODO recurse *)
+        mkLambda (Anonymous, index_type, mkLambda (n, t_ind, all_eq_substs (mkRel 2, mkRel 1) (shift b))))
       (fun _ -> ())
       ()
       trm
@@ -1351,12 +1355,7 @@ let ornament (env : env) (orn : types) (trm : types) =
     let env_index = pop_rel_context 1 env_arg in
     let index_lam = reconstruct_lambda env_index index_type in
     let (from_ind, to_ind) = map_tuple ind_of (from_with_args, to_with_args) in
-    let (env_hypos, body) = zoom_lambda_term env trm in
-    let temp = mkRel 1 in
-    let hypos = reconstruct_lambda env_hypos temp in
-    let (n_subs, subbed_hypos) = sub_in_hypo index_i index_lam from_ind to_ind hypos in
-    let (env_subbed, _) = zoom_lambda_term env subbed_hypos in
-    let subbed = reconstruct_lambda env_subbed body in
+    let (n_subs, subbed) = sub_in_hypo index_i index_lam from_ind to_ind trm in
     debug_term env subbed "subbed";
     Printf.printf "%d\n" n_subs;
     subbed (* TODO *)
