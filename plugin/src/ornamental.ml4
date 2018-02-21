@@ -1413,7 +1413,9 @@ let rec extend_index (index_prod : types) (from_ind : types) (trm : types) =
   trm (* TODO *)
 
 (*
- * Substitute the ornamented type in the hypothesis
+ * Substitute the ornamented type in the hypotheses.
+ * Return both the term with ornamented hypotheses and the number
+ * of substitutions that occurred.
  *)
 let sub_in_hypo (env : env) (index_i : int) (index_prod : types) (from_ind : types) (to_ind : types) (trm : types) =
   let hypos = prod_to_lambda (reduce_term (infer_type env trm)) in
@@ -1421,13 +1423,13 @@ let sub_in_hypo (env : env) (index_i : int) (index_prod : types) (from_ind : typ
     map_term_if_lazy
     (fun _ trm ->
       match kind_of_term trm with
-      | Lambda (n, t, b) ->  is_or_applies from_ind t
+      | Lambda (_, t, _) ->  is_or_applies from_ind t
       | _ -> false)
     (fun _ trm ->
       let (n, t, b) = destLambda trm in
       let args = if isApp t then unfold_args t else [] in
-      let index_type = reduce_term (mkApp (index_prod, Array.of_list args)) in
       let (before, after) = take_split index_i args in
+      let index_type = reduce_term (mkApp (index_prod, Array.of_list before)) in
       let idx = mkRel 1 in
       let t_args = List.append (shift_all before) (idx :: shift_all after) in
       let t_ind = mkApp (to_ind, Array.of_list t_args) in
