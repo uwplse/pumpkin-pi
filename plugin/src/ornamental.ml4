@@ -869,7 +869,7 @@ let rec lambda_to_prod trm =
      trm
 
 (* Get a list of all arguments, fully unfolded at the head *)
-let unfold_args trm =
+let unfold_args_app trm =
   let (f, args) = destApp trm in
   let rec unfold trm =
     match kind_of_term trm with
@@ -878,6 +878,10 @@ let unfold_args trm =
     | _ ->
        [trm]
   in List.append (List.tl (unfold f)) (Array.to_list args)
+
+(* Like unfold_args_app, but return empty if it's not an application *)
+let unfold_args trm =
+  if isApp trm then unfold_args_app trm else []
 
 (*
  * Modify a case of an eliminator application to use
@@ -1013,6 +1017,13 @@ let get_new_index index_i p o n =
  *)
 let insert_index index_i index args =
   let (before, after) = take_split index_i args in
+  List.append before (index :: after)
+
+(*
+ * Insert an index and shift the arguments before and after it by n
+ *)
+let insert_index_shift index_i index args n =
+  let (before, after) = take_split index_i (shift_all_by n args) in
   List.append before (index :: after)
 
 (*
@@ -1440,12 +1451,13 @@ let sub_in_hypo (env : env) (index_i : int) (index_prod : types) (from_ind : typ
       | _ -> false)
     (fun _ trm ->
       let (n, t, b) = destLambda trm in
-      let args = if isApp t then unfold_args t else [] in
+      let args = unfold_args t in
       let (before, after) = take_split index_i args in
       let index_type = reduce_term (mkApp (index_prod, Array.of_list before)) in
-      let t_args = insert_index index_i (mkRel 1) (shift_all args) in
+      let t_args = insert_index_shift index_i (mkRel 1) args 1 in
       let t_ind = mkApp (to_ind, Array.of_list t_args) in
-      mkLambda (Anonymous, index_type, mkLambda (n, t_ind, all_eq_substs (mkRel 2, mkRel 1) (shift b))))
+      let sub_ind = all_eq_substs (mkRel 2, mkRel 1) in
+      mkLambda (Anonymous, index_type, mkLambda (n, t_ind, sub_ind (shift b))))
     (fun _ -> ())
     ()
     hypos
@@ -1461,10 +1473,9 @@ let ornament_args env index_i from_ind orn trm =
          | Lambda (n, t, b) ->
             let (_, _, h) = CRD.to_tuple @@ lookup_rel i env in
             if is_or_applies from_ind t then
-              let args = if isApp t then unfold_args t else [] in
               let index = mkRel i in
-              let t_args = insert_index index_i index (shift_all_by i args) in
-              let orn_app = mkApp (orn, Array.of_list (List.append t_args [unshift index])) in
+              let args = insert_index_shift index_i index (unfold_args t) i in
+              let orn_app = mkApp (orn, Array.of_list (List.append args [unshift index])) in
               (mkApp (trm, Array.make 1 orn_app), b)
             else if eq_constr h t then (* TODO test multi-nat-index case *)
               (mkApp (trm, Array.make 1 (mkRel i)), b)
