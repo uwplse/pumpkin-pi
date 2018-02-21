@@ -840,6 +840,18 @@ let rec contains_term c trm =
     | _ ->
        false
 
+(*
+ * Get the argument to an application of a property at argument position i.
+ * This unfolds all arguments first.
+ *)
+let get_arg i trm =
+  match kind_of_term trm with
+  | App (_, _) ->
+     let args = Array.of_list (unfold_args trm) in
+     Array.get args i
+  | _ ->
+     failwith "not an application"
+
 (* --- Search --- *)
 
 (* Search two inductive types for a parameterizing ornament *)
@@ -847,20 +859,28 @@ let search_orn_params env (ind_o : inductive) (ind_n : inductive) is_fwd : types
   failwith "parameterization is not yet supported"
 
 (*
- * TODO explain
+ * Returns true if two applications contain have a different
+ * argument at index i.
+ *
+ * For now, this uses precise equality, but we can loosen this
+ * to convertibility if desirable.
  *)
-let diff_app i trm_o trm_n =
-  let args_o = Array.of_list (unfold_args trm_o) in
-  if i >= Array.length args_o then
+let diff_arg i trm_o trm_n =
+  try
+    let arg_o = get_arg i trm_o in
+    let arg_n = get_arg i trm_n in
+    not (eq_constr arg_o arg_n)
+  with _ ->
     true
-  else
-    let args_n = Array.of_list (unfold_args trm_n) in
-    let arg_o = Array.get args_o i in
-    let arg_n = Array.get args_n i in
-    not (eq_constr arg_o arg_n) (* TODO can be conv *)
 
 (*
- * TODO explain
+ * Returns true if the argument at index i to property p is
+ * an index in trm_n that was not an index in trm_o.
+ *
+ * In other words, this looks for applications of the property p
+ * in the induction principle type, checks the argument at index i,
+ * and determines whether they were equal. If they are ever not equal,
+ * then the index is considered to be new.
  *)
 let new_index i trm_o trm_n =
   let rec is_new_index p trm_o trm_n =
@@ -872,7 +892,7 @@ let new_index i trm_o trm_n =
        else
          is_new_index p t_o t_n || is_new_index p_b b_o b_n
     | (App (_, _), App (_, _)) when applies p trm_o && applies p trm_n ->
-       diff_app i trm_o trm_n
+       diff_arg i trm_o trm_n
     | _ ->
        false
   in is_new_index (mkRel 1) trm_o trm_n
@@ -912,8 +932,7 @@ let diff_index index_i p o n =
      failwith "not an application of a property"
 
 (* TODO explain *)
-(* TODO e_n here is also just for debugging *)
-let computes_index e index_i i trm =
+let computes_index index_i i trm =
   let args = Array.of_list (unfold_args trm) in
   let index = Array.get args index_i in
   contains_term i index
@@ -934,11 +953,11 @@ let rec is_index e index_i p i trm =
      let i_b = shift i in
      let e_b = push_local (n, t) e in
      if applies p t then
-       computes_index e index_i i t || is_index e_b index_i p_b i_b b
+       computes_index index_i i t || is_index e_b index_i p_b i_b b
      else
        is_index e_b index_i p_b i_b b
   | App (_, _) ->
-     computes_index e index_i i trm
+     computes_index index_i i trm
   | _ ->
      failwith "unexpected"
 
@@ -1452,7 +1471,6 @@ let find_ornament n d_old d_new =
     let idx_n = with_suffix n "index" in
     let (idx, orn_o_n, orn_n_o) = search_orn_inductive env idx_n trm_o trm_n in
     (if Option.has_some idx then
-       let x = 0 in debug_term env (Option.get idx) "idx";
        let _ = define_term idx_n env evm (Option.get idx) in
        Printf.printf "Defined indexing function %s.\n\n" (string_of_id idx_n);
      else

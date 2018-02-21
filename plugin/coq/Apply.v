@@ -12,3 +12,5 @@ Definition hd (A : Type) (default : A) (l : list A) :=
     l.
 
 Apply ornament orn_list_vector orn_list_vector_inv in hd as hd_vect_auto.
+
+Print hd_vect_auto.
