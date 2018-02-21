@@ -14,3 +14,21 @@ Definition hd (A : Type) (default : A) (l : list A) :=
 Apply ornament orn_list_vector orn_list_vector_inv in hd as hd_vect_auto.
 
 Print hd_vect_auto.
+
+(* TODO test *)
+
+Definition append (A : Type) (l1 : list A) (l2 : list A) :=
+  list_rect
+    (fun (_ : list A) => list A)
+    l2
+    (fun (a : A) (_ : list A) (IH : list A) =>
+      a :: IH)
+    l1.
+
+Apply ornament orn_list_vector orn_list_vector_inv in append as append_vect_auto.
+
+Print append_vect_auto.
+
+(* TODO test *)
+
+

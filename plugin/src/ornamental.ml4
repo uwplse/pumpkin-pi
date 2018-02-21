@@ -1490,28 +1490,29 @@ let sub_in_hypos (index_i : int) (index_lam : types) (from_ind : types) (to_ind 
 
 (*
  * Apply the ornament to the arguments
+ * TODO clean this
  *)
 let ornament_args env index_i from_ind orn trm =
-  fst
+  let (trm, _, _) =
     (List.fold_left
-       (fun (trm, hypos) i ->
+       (fun (trm, hypos, nind) i ->
          match kind_of_term hypos with
          | Lambda (n, t, b) ->
             let (_, _, h) = CRD.to_tuple @@ lookup_rel i env in
             if is_or_applies from_ind t then
-              let index = mkRel i in
+              let index = mkRel (i - nind) in
               let args = insert_index_shift index_i index (unfold_args t) i in
               let orn_app = mkApp (orn, Array.of_list (List.append args [unshift index])) in
-              (mkApp (trm, Array.make 1 orn_app), b)
+              (mkApp (trm, Array.make 1 orn_app), b, nind + 1)
             else if eq_constr h t then (* TODO test multi-nat-index case *)
-              (mkApp (trm, Array.make 1 (mkRel i)), b)
+              (mkApp (trm, Array.make 1 (mkRel i)), b, nind)
             else
-              (trm, unshift b)
+              (trm, unshift b, nind)
          | _ ->
-            (trm, hypos)
-       )
-       (trm, prod_to_lambda (reduce_type env trm)) (* TODO redundant *)
+            (trm, hypos, nind))
+       (trm, prod_to_lambda (reduce_type env trm), 0) (* TODO redundant *)
        (List.rev (all_rel_indexes env)))
+  in trm
 
 (* Ornament the hypotheses *)
 let ornament_hypos env orn index_i (from_ind, to_ind) trm =
@@ -1545,7 +1546,7 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
     let forget = orn_inv in
     let (from_ind, to_ind) = map_tuple ind_of (from_with_args, to_with_args) in
     let orn = { indexer; promote; forget } in
-    ornament_hypos env orn index_i (from_ind, to_ind) trm
+    ornament_hypos env orn index_i (from_ind, to_ind) trm (* TODO concls too *)
   else
     (* deornament [TODO] *)
     failwith "not yet implemented"
