@@ -786,6 +786,10 @@ let env_as_string (env : env) : string =
 let debug_env (env : env) (descriptor : string) : unit =
   Printf.printf "%s: %s\n\n" descriptor (env_as_string env)
 
+(* Default reducer *)
+let reduce_term (trm : types) : types =
+  Reductionops.nf_betaiotazeta Evd.empty trm
+
 (* --- Utilities that might not generalize outside of this tool --- *)
 
 let are_or_apply (trm : types) = and_p (is_or_applies trm)
@@ -1412,8 +1416,7 @@ let rec extend_index (index_prod : types) (from_ind : types) (trm : types) =
  * Substitute the ornamented type in the hypothesis
  *)
 let sub_in_hypo (env : env) (index_i : int) (index_prod : types) (from_ind : types) (to_ind : types) (trm : types) =
-  let reduce = Reductionops.nf_betaiota Evd.empty in (* TODO move *)
-  let hypos = prod_to_lambda (reduce (infer_type env trm)) in
+  let hypos = prod_to_lambda (reduce_term (infer_type env trm)) in
   map_track
     map_term_if_lazy
     (fun _ trm ->
@@ -1423,7 +1426,7 @@ let sub_in_hypo (env : env) (index_i : int) (index_prod : types) (from_ind : typ
     (fun _ trm ->
       let (n, t, b) = destLambda trm in
       let args = if isApp t then unfold_args t else [] in
-      let index_type = reduce (mkApp (index_prod, Array.of_list args)) in
+      let index_type = reduce_term (mkApp (index_prod, Array.of_list args)) in
       let (before, after) = take_split index_i args in
       let idx = mkRel 1 in
       let t_args = List.append (shift_all before) (idx :: shift_all after) in
@@ -1437,7 +1440,6 @@ let sub_in_hypo (env : env) (index_i : int) (index_prod : types) (from_ind : typ
  * Apply the ornament to the arguments
  *)
 let ornament_args env index_i from_ind orn trm =
-  let reduce = Reductionops.nf_betaiota Evd.empty in (* TODO move *)
   fst
     (List.fold_left
        (fun (trm, hypos) i ->
@@ -1458,7 +1460,7 @@ let ornament_args env index_i from_ind orn trm =
          | _ ->
             (trm, hypos)
        )
-       (trm, prod_to_lambda (reduce (infer_type env trm))) (* TODO redundant *)
+       (trm, prod_to_lambda (reduce_term (infer_type env trm))) (* TODO redundant *)
        (List.rev (all_rel_indexes env)))
 (*
  * Apply an ornament, but don't reduce the result.
@@ -1468,8 +1470,7 @@ let ornament_args env index_i from_ind orn trm =
  * TODO assumes indexing ornament for now
  *)
 let ornament (env : env) (orn : types) (orn_inv : types) (trm : types) =
-  let reduce = Reductionops.nf_betaiota Evd.empty in
-  let orn_type = reduce (infer_type env orn) in
+  let orn_type = reduce_term (infer_type env orn) in
   let (from_with_args, to_with_args) = ind_of_orn orn_type in
   let from_args = unfold_args from_with_args in
   let to_args = unfold_args to_with_args in
@@ -1478,7 +1479,7 @@ let ornament (env : env) (orn : types) (orn_inv : types) (trm : types) =
     let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
     let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
     let (env_arg, _) = zoom_product_type env orn_type in
-    let index_type = unshift (reduce (infer_type env_arg index)) in
+    let index_type = unshift (reduce_term (infer_type env_arg index)) in
     let env_index = pop_rel_context 1 env_arg in
     let index_lam = reconstruct_lambda env_index index_type in
     let (from_ind, to_ind) = map_tuple ind_of (from_with_args, to_with_args) in
