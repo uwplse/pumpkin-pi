@@ -12,6 +12,21 @@ open Command
 
 module CRD = Context.Rel.Declaration
 
+(* --- Ornaments --- *)
+
+(*
+ * For now, an ornament is an optional indexing function, a function
+ * from T1 -> T2, a function from T2 -> T1. Later, it will also contain
+ * patches and extra premises, and these will be present both in the top-level
+ * type and as premises to the functions in both directions.
+ *)
+type ornament =
+  {
+    indexer : types option;
+    promote : types;
+    forget : types;
+  }
+
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
 (* Take n elements of a list *)
@@ -221,6 +236,10 @@ let rec zoom_product_type (env : env) (typ : types) : env * types =
      zoom_product_type (push_local (n, t) env) b
   | _ ->
      (env, typ)
+
+(* Zoom into the environment *)
+let zoom_env zoom (env : env) (trm : types) : env =
+  fst (zoom env trm)
 
 (* Reconstruct a lambda from an environment, but stop when i are left *)
 let rec reconstruct_lambda_n (env : env) (b : types) (i : int) : types =
@@ -578,12 +597,6 @@ let map_track_env mapper p f d env a trm =
   let f_track en a t = occ := !occ + 1; f en a t in
   (!occ, mapper p f_track d env a trm)
 
-(* map and track without environments *)
-let map_track mapper p f d a trm =
-  let occ = ref 0 in
-  let f_track a t = occ := !occ + 1; f a t in
-  (!occ, mapper p f_track d a trm)
-
 (* In env, substitute all subterms of trm that are convertible to src with dst *)
 let all_conv_substs =
   all_substs convertible
@@ -789,6 +802,10 @@ let debug_env (env : env) (descriptor : string) : unit =
 (* Default reducer *)
 let reduce_term (trm : types) : types =
   Reductionops.nf_betaiotazeta Evd.empty trm
+
+(* Reduce the type *)
+let reduce_type (env : env) (trm : types) : types =
+  reduce_term (infer_type env trm)
 
 (* --- Utilities that might not generalize outside of this tool --- *)
 
@@ -1119,7 +1136,7 @@ let search_for_indexer index_i index_t npm elim_o o n is_fwd : types option =
     let (env_n, _, _, elim_t_n) = n in
     match map_tuple kind_of_term (elim_t_o, elim_t_n) with
     | (Prod (_, p_o, b_o), Prod (_, p_n, b_n)) ->
-       let (env_ind, _) = zoom_product_type env_o p_o in
+       let env_ind = zoom_env zoom_product_type env_o p_o in
        let off = offset env_ind npm in
        let pms = shift_all_by (arity_o - npm + 1) (mk_n_rels npm) in
        let p = shift_by off (reconstruct_lambda_n env_ind index_t npm) in
@@ -1330,7 +1347,7 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
   let f_indexer_opt = directional (Some f_indexer) None in
   match map_tuple kind_of_term (elim_t_o, elim_t_n) with
   | (Prod (n_o, p_o, b_o), Prod (n_n, p_n, b_n)) ->
-     let (env_ornament, _) = zoom_product_type env_o p_o in
+     let env_ornament = zoom_env zoom_product_type env_o p_o in
      let env_o_b = push_local (n_o, p_o) env_o in
      let env_n_b = push_local (n_n, p_n) env_n in
      let off = offset env_ornament npm in
@@ -1368,7 +1385,7 @@ let search_orn_index env npm idx_n o n is_fwd : (types option * types) =
   search_orn_index_elim npm idx_n elim_o o n is_fwd
 
 (* Search two inductive types for an ornament between them *)
-let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : types) : (types option) * types * types =
+let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : types) : ornament =
   match map_tuple kind_of_term (trm_o, trm_n) with
   | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->
      let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
@@ -1378,12 +1395,13 @@ let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : typ
      if not (npm_o = npm_n) then
        (* new parameter *)
        let search_params = twice (search_orn_params env) in
+       let indexer = None in
        if npm_o < npm_n then
-         let (orn_o, orn_n) = search_params (i_o, ii_o) (i_n, ii_n) in
-         (None, orn_o, orn_n)
+         let (promote, forget) = search_params (i_o, ii_o) (i_n, ii_n) in
+         { indexer; promote; forget }
        else
-         let (orn_o, orn_n) = reverse (search_params (i_n, ii_n) (i_o, ii_o)) in
-         (None, orn_o, orn_n)
+         let (promote, forget) = search_params (i_n, ii_n) (i_o, ii_o) in
+         { indexer; promote; forget }
      else
        let npm = npm_o in
        let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
@@ -1393,11 +1411,11 @@ let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : typ
          let n = (trm_n, arity_n) in
          let search_indices = twice (search_orn_index env npm idx_n) in
          if arity_o < arity_n then
-           let ((idx, orn_o), (_, orn_n)) = search_indices o n in
-           (idx, orn_o, orn_n)
+           let ((indexer, promote), (_, forget)) = search_indices o n in
+           { indexer; promote; forget }
          else
-           let ((_, orn_o), (idx, orn_n)) = reverse (search_indices n o) in
-           (idx, orn_o, orn_n)
+           let ((indexer, promote), (_, forget)) = search_indices n o in
+           { indexer; promote; forget }
        else
          failwith "this kind of change is not yet supported"
   | _ ->
@@ -1441,13 +1459,11 @@ let rec extend_index (index_prod : types) (from_ind : types) (trm : types) =
  * Return both the term with ornamented hypotheses and the number
  * of substitutions that occurred.
  *)
-let sub_in_hypo (env : env) (index_i : int) (index_prod : types) (from_ind : types) (to_ind : types) (trm : types) =
-  let hypos = prod_to_lambda (reduce_term (infer_type env trm)) in
-  map_track
-    map_term_if_lazy
+let sub_in_hypos (index_i : int) (index_prod : types) (from_ind : types) (to_ind : types) (hypos : types) =
+  map_term_if_lazy
     (fun _ trm ->
       match kind_of_term trm with
-      | Lambda (_, t, _) ->  is_or_applies from_ind t
+      | Lambda (_, t, _) -> is_or_applies from_ind t
       | _ -> false)
     (fun _ trm ->
       let (n, t, b) = destLambda trm in
@@ -1484,8 +1500,23 @@ let ornament_args env index_i from_ind orn trm =
          | _ ->
             (trm, hypos)
        )
-       (trm, prod_to_lambda (reduce_term (infer_type env trm))) (* TODO redundant *)
+       (trm, prod_to_lambda (reduce_type env trm)) (* TODO redundant *)
        (List.rev (all_rel_indexes env)))
+
+(*
+ * Ornament the hypotheses
+ *)
+let ornament_hypos env orn orn_type index_i index (from_ind, to_ind) trm =
+  let env_arg = zoom_env zoom_product_type env orn_type in (* TODO try w just orn *)
+  let index_type = unshift (reduce_type env_arg index) in
+  let env_index = pop_rel_context 1 env_arg in
+  let index_lam = reconstruct_lambda env_index index_type in
+  let hypos = prod_to_lambda (reduce_type env trm) in
+  let subbed_hypos = sub_in_hypos index_i index_lam from_ind to_ind hypos in
+  let env_hypos = zoom_env zoom_lambda_term env subbed_hypos in
+  let concl = ornament_args env_hypos index_i from_ind orn.forget trm in
+  reconstruct_lambda env_hypos concl
+
 (*
  * Apply an ornament, but don't reduce the result.
  *
@@ -1493,8 +1524,8 @@ let ornament_args env index_i from_ind orn trm =
  *
  * TODO assumes indexing ornament for now
  *)
-let ornament (env : env) (orn : types) (orn_inv : types) (trm : types) =
-  let orn_type = reduce_term (infer_type env orn) in
+let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
+  let orn_type = reduce_type env orn in
   let (from_with_args, to_with_args) = ind_of_orn orn_type in
   let from_args = unfold_args from_with_args in
   let to_args = unfold_args to_with_args in
@@ -1502,15 +1533,12 @@ let ornament (env : env) (orn : types) (orn_inv : types) (trm : types) =
     (* ornament *)
     let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
     let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
-    let (env_arg, _) = zoom_product_type env orn_type in
-    let index_type = unshift (reduce_term (infer_type env_arg index)) in
-    let env_index = pop_rel_context 1 env_arg in
-    let index_lam = reconstruct_lambda env_index index_type in
+    let indexer = Some (fst (destApp index)) in
+    let promote = orn in
+    let forget = orn_inv in
     let (from_ind, to_ind) = map_tuple ind_of (from_with_args, to_with_args) in
-    let (n_subs, subbed_hypos) = sub_in_hypo env index_i index_lam from_ind to_ind trm in
-    let (env_hypos, _) = zoom_lambda_term env subbed_hypos in
-    let concl = ornament_args env_hypos index_i from_ind orn_inv trm in
-    reconstruct_lambda env_hypos concl (* TODO ornament conclusion, etc *)
+    let orn = { indexer; promote; forget } in
+    ornament_hypos env orn orn_type index_i index (from_ind, to_ind) trm
   else
     (* deornament [TODO] *)
     failwith "not yet implemented"
@@ -1524,16 +1552,17 @@ let find_ornament n d_old d_new =
   let trm_n = unwrap_definition env (intern env evm d_new) in
   if isInd trm_o && isInd trm_n then
     let idx_n = with_suffix n "index" in
-    let (idx, orn_o_n, orn_n_o) = search_orn_inductive env idx_n trm_o trm_n in
+    let orn = search_orn_inductive env idx_n trm_o trm_n in
+    let idx = orn.indexer in
     (if Option.has_some idx then
        let _ = define_term idx_n env evm (Option.get idx) in
        Printf.printf "Defined indexing function %s.\n\n" (string_of_id idx_n);
      else
        ());
-    define_term n env evm orn_o_n;
+    define_term n env evm orn.promote;
     Printf.printf "Defined ornament %s.\n\n" (string_of_id n);
     let inv_n = with_suffix n "inv" in
-    define_term inv_n env evm orn_n_o;
+    define_term inv_n env evm orn.forget;
     Printf.printf "Defined ornament %s.\n\n" (string_of_id inv_n);
     ()
   else
@@ -1545,7 +1574,7 @@ let apply_ornament n d_orn d_orn_inv d_old =
   let c_orn = intern env evm d_orn in
   let c_orn_inv = intern env evm d_orn_inv in
   let c_o = intern env evm d_old in
-  let trm_n = ornament env c_orn c_orn_inv c_o in
+  let trm_n = ornament_no_red env c_orn c_orn_inv c_o in
   define_term n env evm trm_n;
   Printf.printf "Defined ornamented fuction %s.\n\n" (string_of_id n);
   ()
