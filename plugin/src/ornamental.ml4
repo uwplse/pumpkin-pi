@@ -900,12 +900,6 @@ let get_arg i trm =
   | _ ->
      failwith "not an application"
 
-(* --- Search --- *)
-
-(* Search two inductive types for a parameterizing ornament *)
-let search_orn_params env (ind_o : inductive) (ind_n : inductive) is_fwd : types =
-  failwith "parameterization is not yet supported"
-
 (*
  * Returns true if two applications contain have a different
  * argument at index i.
@@ -920,6 +914,8 @@ let diff_arg i trm_o trm_n =
     not (eq_constr arg_o arg_n)
   with _ ->
     true
+
+(* --- Differencing and identifying indices --- *)
 
 (*
  * Returns true if the argument at index i to property p is
@@ -944,6 +940,24 @@ let new_index i trm_o trm_n =
     | _ ->
        false
   in is_new_index (mkRel 1) trm_o trm_n
+
+(*
+ * Returns true if the hypothesis i is used to compute the index at position
+ * index_i in any application of a property p in the eliminator type trm.
+ *)
+let rec computes_index index_i p i trm =
+  match kind_of_term trm with
+  | Prod (n, t, b) ->
+     let p_b = shift p in
+     let i_b = shift i in
+     if applies p t then
+       contains_term i (get_arg index_i t) || computes_index index_i p_b i_b b
+     else
+       computes_index index_i p_b i_b b
+  | App (_, _) ->
+     contains_term i (get_arg index_i trm)
+  | _ ->
+     failwith "unexpected"
 
 (*
  * Get the index type and location (index of the index).
@@ -978,37 +992,11 @@ let get_new_index index_i p o n =
   | _ ->
      failwith "not an application of a property"
 
-(*
- * Returns true when the term i is used to compute the index at position
- * index_i in the application trm of an inductive property or type.
- * This is used to check whether a hypothesis is used to compute an index.
- *)
-let computes_index index_i i trm =
-  contains_term i (get_arg index_i trm)
+(* --- Search --- *)
 
-(*
- * TODO reconcile with other new_index function, explain,
- * use to improve that new_index function
- *
- * Returns true if the parameter is used to compute the index at position
- * index_i
- *
- * TODO env is only for debugging, remove after
- *)
-let rec is_index e index_i p i trm =
-  match kind_of_term trm with
-  | Prod (n, t, b) ->
-     let p_b = shift p in
-     let i_b = shift i in
-     let e_b = push_local (n, t) e in
-     if applies p t then
-       computes_index index_i i t || is_index e_b index_i p_b i_b b
-     else
-       is_index e_b index_i p_b i_b b
-  | App (_, _) ->
-     computes_index index_i i trm
-  | _ ->
-     failwith "unexpected"
+(* Search two inductive types for a parameterizing ornament *)
+let search_orn_params env (ind_o : inductive) (ind_n : inductive) is_fwd : types =
+  failwith "parameterization is not yet supported"
 
 (*
  * Get a single case for the indexer, given:
@@ -1034,7 +1022,7 @@ let index_case index_i index_t o n : types =
        let e_n_b = push_local (n_n, t_n) e_n in
        let n_b = (e_n_b, shift ind_n, b_n) in
        let same = same_mod_indexing e_o p in
-       let false_lead = is_index e_n_b index_i p_b (mkRel 1) in
+       let false_lead = computes_index index_i p_b (mkRel 1) in
        if (not (same (ind_o, t_o) (ind_n, t_n))) || false_lead b_n then
          (* index *)
          let e_o_b = push_local (n_n, t_n) e_o in
@@ -1214,8 +1202,8 @@ let sub_indexes index_i is_fwd f_indexer p subs o n : types =
        let p_b = shift p in
        let same = same_mod_indexing env_o p (ind_o, t_o) (ind_n, t_n) in
        let env_n_b = push_local (n_n, t_n) env_n in
-       let false_lead_fwd _ b_n = is_index env_n_b index_i p_b (mkRel 1) b_n in
-       let false_lead_bwd b_o _ = is_index env_n_b index_i p_b (mkRel 1) b_o in
+       let false_lead_fwd _ b_n = computes_index index_i p_b (mkRel 1) b_n in
+       let false_lead_bwd b_o _ = computes_index index_i p_b (mkRel 1) b_o in
        let false_lead = directional false_lead_fwd false_lead_bwd in
        if applies p t_n || (same && not (false_lead b_o b_n)) then
          let env_o_b = push_local (n_o, t_o) env_o in
