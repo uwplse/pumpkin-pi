@@ -952,6 +952,16 @@ let diff_arg i trm_o trm_n =
   with _ ->
     true
 
+(* Remove the final hypothesis of a lambda *)
+let rec remove_final_hypo trm =
+  match kind_of_term trm with
+  | Lambda (n, t, b) when isLambda b ->
+     mkLambda (n, t, remove_final_hypo b)
+  | Lambda (n, t, b) ->
+     unshift b
+  | _ ->
+     failwith "not a lambda"
+
 (* --- Differencing and identifying indices --- *)
 
 (*
@@ -1459,7 +1469,7 @@ let rec extend_index (index_prod : types) (from_ind : types) (trm : types) =
  * Return both the term with ornamented hypotheses and the number
  * of substitutions that occurred.
  *)
-let sub_in_hypos (index_i : int) (index_prod : types) (from_ind : types) (to_ind : types) (hypos : types) =
+let sub_in_hypos (index_i : int) (index_lam : types) (from_ind : types) (to_ind : types) (hypos : types) =
   map_term_if_lazy
     (fun _ trm ->
       match kind_of_term trm with
@@ -1469,7 +1479,7 @@ let sub_in_hypos (index_i : int) (index_prod : types) (from_ind : types) (to_ind
       let (n, t, b) = destLambda trm in
       let args = unfold_args t in
       let (before, after) = take_split index_i args in
-      let index_type = reduce_term (mkApp (index_prod, Array.of_list before)) in
+      let index_type = reduce_term (mkApp (index_lam, Array.of_list before)) in
       let t_args = insert_index_shift index_i (mkRel 1) args 1 in
       let t_ind = mkApp (to_ind, Array.of_list t_args) in
       let sub_ind = all_eq_substs (mkRel 2, mkRel 1) in
@@ -1503,14 +1513,11 @@ let ornament_args env index_i from_ind orn trm =
        (trm, prod_to_lambda (reduce_type env trm)) (* TODO redundant *)
        (List.rev (all_rel_indexes env)))
 
-(*
- * Ornament the hypotheses
- *)
-let ornament_hypos env orn orn_type index_i index (from_ind, to_ind) trm =
-  let env_arg = zoom_env zoom_product_type env orn_type in (* TODO try w just orn *)
-  let index_type = unshift (reduce_type env_arg index) in
-  let env_index = pop_rel_context 1 env_arg in
-  let index_lam = reconstruct_lambda env_index index_type in
+(* Ornament the hypotheses *)
+let ornament_hypos env orn index_i (from_ind, to_ind) trm =
+  let indexer = Option.get orn.indexer in
+  let indexer_type = reduce_type env indexer in
+  let index_lam = remove_final_hypo (prod_to_lambda indexer_type) in
   let hypos = prod_to_lambda (reduce_type env trm) in
   let subbed_hypos = sub_in_hypos index_i index_lam from_ind to_ind hypos in
   let env_hypos = zoom_env zoom_lambda_term env subbed_hypos in
@@ -1538,7 +1545,7 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
     let forget = orn_inv in
     let (from_ind, to_ind) = map_tuple ind_of (from_with_args, to_with_args) in
     let orn = { indexer; promote; forget } in
-    ornament_hypos env orn orn_type index_i index (from_ind, to_ind) trm
+    ornament_hypos env orn index_i (from_ind, to_ind) trm
   else
     (* deornament [TODO] *)
     failwith "not yet implemented"
