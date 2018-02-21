@@ -1453,17 +1453,6 @@ let rec ind_of_orn (orn_type : types) : types * types =
   | _ ->
      failwith "not an ornament"
 
-(* Apply an ornament to the conclusion of a function *)
-let ornament_concls (env : env) (orn : types) (from_ind : types) (trm : types) =
-  trm (* TODO implement *)
-
-(*
- * Extend function with a new index for every old hypothesis, if we
- * are getting stronger
- *)
-let rec extend_index (index_prod : types) (from_ind : types) (trm : types) =
-  trm (* TODO *)
-
 (*
  * Substitute the ornamented type in the hypotheses.
  * Return both the term with ornamented hypotheses and the number
@@ -1492,8 +1481,8 @@ let sub_in_hypos (index_i : int) (index_lam : types) (from_ind : types) (to_ind 
  * Apply the ornament to the arguments
  * TODO clean this
  *)
-let ornament_args env index_i from_ind orn trm =
-  let (trm, _, _) =
+let ornament_args env index_i from_ind orn (trm, nind) =
+  let (trm, _, nind) =
     (List.fold_left
        (fun (trm, hypos, nind) i ->
          match kind_of_term hypos with
@@ -1510,20 +1499,31 @@ let ornament_args env index_i from_ind orn trm =
               (trm, unshift b, nind)
          | _ ->
             (trm, hypos, nind))
-       (trm, prod_to_lambda (reduce_type env trm), 0) (* TODO redundant *)
+       (trm, prod_to_lambda (reduce_type env trm), nind) (* TODO redundant *)
        (List.rev (all_rel_indexes env)))
-  in trm
+  in (trm, nind)
 
 (* Ornament the hypotheses *)
-let ornament_hypos env orn index_i (from_ind, to_ind) trm =
+let ornament_hypos env orn index_i (from_ind, to_ind) (trm, nind) =
   let indexer = Option.get orn.indexer in
   let indexer_type = reduce_type env indexer in
   let index_lam = remove_final_hypo (prod_to_lambda indexer_type) in
   let hypos = prod_to_lambda (reduce_type env trm) in
   let subbed_hypos = sub_in_hypos index_i index_lam from_ind to_ind hypos in
   let env_hypos = zoom_env zoom_lambda_term env subbed_hypos in
-  let concl = ornament_args env_hypos index_i from_ind orn.forget trm in
-  reconstruct_lambda env_hypos concl
+  let (concl, nind) = ornament_args env_hypos index_i from_ind orn.forget (trm, nind) in
+  (reconstruct_lambda env_hypos concl, nind)
+
+(* Ornament the conclusion *)
+let ornament_concls concl_typ env orn index_i (from_ind, to_ind) (trm, nind) =
+  if is_or_applies from_ind concl_typ then
+    let (env_zoom, trm_zoom) = zoom_lambda_term env trm in
+    let args = shift_all_by nind (unfold_args concl_typ) in
+    let promote = mkApp (orn.promote, Array.of_list args) in
+    let concl = mkApp (promote, Array.make 1 trm_zoom) in
+    reconstruct_lambda env_zoom concl
+  else
+    trm
 
 (*
  * Apply an ornament, but don't reduce the result.
@@ -1546,7 +1546,9 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
     let forget = orn_inv in
     let (from_ind, to_ind) = map_tuple ind_of (from_with_args, to_with_args) in
     let orn = { indexer; promote; forget } in
-    ornament_hypos env orn index_i (from_ind, to_ind) trm (* TODO concls too *)
+    let app_orn ornamenter = ornamenter env orn index_i (from_ind, to_ind) in
+    let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
+    app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, 0))
   else
     (* deornament [TODO] *)
     failwith "not yet implemented"
