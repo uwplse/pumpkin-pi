@@ -572,6 +572,18 @@ let exists_subterm p d =
     d
     empty
 
+(* map and track with environments *)
+let map_track_env mapper p f d env a trm =
+  let occ = ref 0 in
+  let f_track en a t = occ := !occ + 1; f en a t in
+  (!occ, mapper p f_track d env a trm)
+
+(* map and track without environments *)
+let map_track mapper p f d a trm =
+  let occ = ref 0 in
+  let f_track a t = occ := !occ + 1; f a t in
+  (!occ, mapper p f_track d a trm)
+
 (* In env, substitute all subterms of trm that are convertible to src with dst *)
 let all_conv_substs =
   all_substs convertible
@@ -1387,23 +1399,7 @@ let rec ind_of_orn (orn_type : types) : types * types =
 
 (* Apply an ornament to the conclusion of a function *)
 let ornament_concls (env : env) (orn : types) (from_ind : types) (trm : types) =
-  trm (* TODO *)
-
-(*
- * orn_list_vect
-     : forall (A : Type) (l : list A), vector A (list_index l)
- *
- * (list, vector)
- *)
-
-(* Definition hd (default:A) (l:list A) :=
-    list_rect
-      (fun (_ : list A) => A)
-      default
-      (fun (x : A) (_ : list A) (_ : A) =>
-        x)
-      l.
- *)
+  trm (* TODO implement *)
 
 (*
  * Extend function with a new index for every old hypothesis, if we
@@ -1418,27 +1414,24 @@ let rec extend_index (index_prod : types) (from_ind : types) (trm : types) =
 let sub_in_hypo (env : env) (index_i : int) (index_prod : types) (from_ind : types) (to_ind : types) (trm : types) =
   let reduce = Reductionops.nf_betaiota Evd.empty in (* TODO move *)
   let hypos = prod_to_lambda (reduce (infer_type env trm)) in
-  let n_subs = ref 0 in
-  let subbed =
+  map_track
     map_term_if_lazy
-      (fun _ trm ->
-        match kind_of_term trm with
-        | Lambda (n, t, b) ->  is_or_applies from_ind t
-        | _ -> false)
-      (fun _ trm ->
-        n_subs := !n_subs + 1;
-        let (n, t, b) = destLambda trm in
-        let args = if isApp t then unfold_args t else [] in
-        let index_type = reduce (mkApp (index_prod, Array.of_list args)) in
-        let (before, after) = take_split index_i args in
-        let idx = mkRel 1 in
-        let t_args = List.append (shift_all before) (idx :: shift_all after) in
-        let t_ind = mkApp (to_ind, Array.of_list t_args) in (* TODO recurse *)
-        mkLambda (Anonymous, index_type, mkLambda (n, t_ind, all_eq_substs (mkRel 2, mkRel 1) (shift b))))
-      (fun _ -> ())
-      ()
-      hypos
-  in (!n_subs, subbed)
+    (fun _ trm ->
+      match kind_of_term trm with
+      | Lambda (n, t, b) ->  is_or_applies from_ind t
+      | _ -> false)
+    (fun _ trm ->
+      let (n, t, b) = destLambda trm in
+      let args = if isApp t then unfold_args t else [] in
+      let index_type = reduce (mkApp (index_prod, Array.of_list args)) in
+      let (before, after) = take_split index_i args in
+      let idx = mkRel 1 in
+      let t_args = List.append (shift_all before) (idx :: shift_all after) in
+      let t_ind = mkApp (to_ind, Array.of_list t_args) in
+      mkLambda (Anonymous, index_type, mkLambda (n, t_ind, all_eq_substs (mkRel 2, mkRel 1) (shift b))))
+    (fun _ -> ())
+    ()
+    hypos
 
 (*
  * Apply the ornament to the arguments
