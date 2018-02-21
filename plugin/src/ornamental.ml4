@@ -1008,6 +1008,22 @@ let get_new_index index_i p o n =
   | _ ->
      failwith "not an application of a property"
 
+(*
+ * Insert an index into a list of terms in the location index_i
+ *)
+let insert_index index_i index args =
+  let (before, after) = take_split index_i args in
+  List.append before (index :: after)
+
+(*
+ * Remove an index from a list of terms in the location index_i
+ * Unshift arguments after index_i, since the index is no longer in
+ * the hypotheses
+ *)
+let remove_index index_i args =
+  let (before, after) = take_split index_i args in
+  List.append before (shift_all_by (- 1) after)
+
 (* --- Search --- *)
 
 (* Search two inductive types for a parameterizing ornament *)
@@ -1109,19 +1125,17 @@ let ornament_p index_i env ind arity npm indexer_opt =
   let off = offset env npm in
   let off_args = off - (arity - npm) in
   let args = shift_all_by off_args (mk_n_rels arity) in
+  let index_i_npm = npm + index_i in
   let concl =
     match indexer_opt with
     | Some indexer ->
        (* forward (indexing) direction *)
        let indexer = Option.get indexer_opt in
        let index = mkApp (indexer, Array.of_list (List.append args [mkRel 1])) in
-       let (before, after) = take_split (npm + index_i) args in
-       mkApp (ind, Array.of_list (List.append before (index :: after)))
+       mkApp (ind, Array.of_list (insert_index index_i_npm index args))
     | None ->
        (* backward (deindexing) direction *)
-       let (before, after) = take_split (npm + index_i) args in
-       let after = shift_all_by (- 1) after in
-       mkApp (ind, Array.of_list (List.append before after))
+       mkApp (ind, Array.of_list (remove_index index_i_npm args))
   in shift_by off (reconstruct_lambda_n env concl npm)
 
 (*
@@ -1173,8 +1187,7 @@ let stretch index_i env indexer pms o n =
       (fun (p, pms) t ->
         let non_pms = unfold_args t in
         let index = mkApp (indexer, Array.append pms (Array.of_list non_pms)) in
-        let (before, after) = take_split index_i non_pms in
-        mkApp (p, Array.of_list (List.append before (index :: after))))
+        mkApp (p, Array.of_list (insert_index index_i index non_pms)))
       (fun (p, pms) -> (shift p, Array.map shift pms))
       (mkRel 1, pms)
       b_o
@@ -1430,8 +1443,7 @@ let sub_in_hypo (env : env) (index_i : int) (index_prod : types) (from_ind : typ
       let args = if isApp t then unfold_args t else [] in
       let (before, after) = take_split index_i args in
       let index_type = reduce_term (mkApp (index_prod, Array.of_list before)) in
-      let idx = mkRel 1 in
-      let t_args = List.append (shift_all before) (idx :: shift_all after) in
+      let t_args = insert_index index_i (mkRel 1) (shift_all args) in
       let t_ind = mkApp (to_ind, Array.of_list t_args) in
       mkLambda (Anonymous, index_type, mkLambda (n, t_ind, all_eq_substs (mkRel 2, mkRel 1) (shift b))))
     (fun _ -> ())
@@ -1450,10 +1462,9 @@ let ornament_args env index_i from_ind orn trm =
             let (_, _, h) = CRD.to_tuple @@ lookup_rel i env in
             if is_or_applies from_ind t then
               let args = if isApp t then unfold_args t else [] in
-              let (before, after) = take_split index_i args in
-              let idx = mkRel i in
-              let t_args = List.append (shift_all_by i before) (idx :: shift_all_by i after) in
-              let orn_app = mkApp (orn, Array.of_list (List.append t_args [(unshift (mkRel i))])) in
+              let index = mkRel i in
+              let t_args = insert_index index_i index (shift_all_by i args) in
+              let orn_app = mkApp (orn, Array.of_list (List.append t_args [unshift index])) in
               (mkApp (trm, Array.make 1 orn_app), b)
             else if eq_constr h t then (* TODO test multi-nat-index case *)
               (mkApp (trm, Array.make 1 (mkRel i)), b)
