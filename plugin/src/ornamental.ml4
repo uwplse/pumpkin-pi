@@ -436,6 +436,59 @@ let rec map_term_env_if p f d (env : env) (a : 'a) (trm : types) : types =
        trm
 
 (*
+ * Like map_term_env_if, but just return true if the proposition is satisfied,
+ * and false otherwise.
+ *
+ * We can make this even more general and just take a combinator
+ * and a mapping function and so on, in the future.
+ *)
+let rec exists_subterm_env p d (env : env) (a : 'a) (trm : types) : bool =
+  let exists p a = List.exists p (Array.to_list a) in
+  let map_rec = exists_subterm_env p d in
+  if p env a trm then
+    true
+  else
+    match kind_of_term trm with
+    | Cast (c, k, t) ->
+       let c' = map_rec env a c in
+       let t' = map_rec env a t in
+       c' || t'
+    | Prod (n, t, b) ->
+       let t' = map_rec env a t in
+       let b' = map_rec (push_local (n, t) env) (d a) b in
+       t' || b'
+    | Lambda (n, t, b) ->
+       let t' = map_rec env a t in
+       let b' = map_rec (push_local (n, t) env) (d a) b in
+       t' || b'
+    | LetIn (n, trm, typ, e) ->
+       let trm' = map_rec env a trm in
+       let typ' = map_rec env a typ in
+       let e' = map_rec (push_local_in (n, e, typ) env) (d a) e in
+       trm' || typ' || e'
+    | App (fu, args) ->
+       let fu' = map_rec env a fu in
+       let args' = exists (map_rec env a) args in
+       fu' || args'
+    | Case (ci, ct, m, bs) ->
+       let ct' = map_rec env a ct in
+       let m' = map_rec env a m in
+       let bs' = exists (map_rec env a) bs in
+       ct' || m' || bs'
+    | Fix ((is, i), (ns, ts, ds)) ->
+       let ts' = exists (map_rec env a) ts in
+       let ds' = exists (map_rec_env_fix map_rec d env a ns ts) ds in
+       ts' || ds'
+    | CoFix (i, (ns, ts, ds)) ->
+       let ts' = exists (map_rec env a) ts in
+       let ds' = exists (map_rec_env_fix map_rec d env a ns ts) ds in
+       ts' || ds'
+    | Proj (pr, c) ->
+       map_rec env a c
+    | _ ->
+       false
+
+(*
  * Lazy version
  *)
 let rec map_term_env_if_lazy p f d (env : env) (a : 'a) (trm : types) : types =
@@ -509,6 +562,13 @@ let map_term_if_lazy p f d =
   map_term_env_if_lazy
     (fun _ a t -> p a t)
     (fun _ a t -> f a t)
+    d
+    empty
+
+(* exists_subterm_env with an empty environment *)
+let exists_subterm p d =
+  exists_subterm_env
+    (fun _ a t -> p a t)
     d
     empty
 
@@ -824,21 +884,9 @@ let with_new_p p c : types =
 
 (*
  * Check recursively whether a term contains another term
- * Super limited though, need to generalize or use a HOF
  *)
-let rec contains_term c trm =
-  if eq_constr c trm then
-    true
-  else
-    match kind_of_term trm with
-    | App (f, _) ->
-       contains_term c f || List.exists (contains_term c) (unfold_args trm)
-    | Lambda (_, t, b) ->
-       contains_term c t || contains_term (shift c) b
-    | Prod (_, t, b) ->
-       contains_term c t || contains_term (shift c) b
-    | _ ->
-       false
+let contains_term c trm =
+  exists_subterm eq_constr shift c trm
 
 (*
  * Get the argument to an application of a property at argument position i.
@@ -923,19 +971,20 @@ let index_type env elim_t_o elim_t_n =
  * Given an old and new application of a property, find the new index.
  * This also assumes there is only one new index.
  *)
-let diff_index index_i p o n =
+let get_new_index index_i p o n =
   match map_tuple kind_of_term (o, n) with
-  | (App (f_o, args_o), App (f_n, args_n)) when are_or_apply p f_o f_n ->
-     let args_n = Array.of_list (unfold_args n) in
-     Array.get args_n index_i
+  | (App (f_o, _), App (f_n, _)) when are_or_apply p f_o f_n ->
+     get_arg index_i n
   | _ ->
      failwith "not an application of a property"
 
-(* TODO explain *)
+(*
+ * Returns true when the term i is used to compute the index at position
+ * index_i in the application trm of an inductive property or type.
+ * This is used to check whether a hypothesis is used to compute an index.
+ *)
 let computes_index index_i i trm =
-  let args = Array.of_list (unfold_args trm) in
-  let index = Array.get args index_i in
-  contains_term i index
+  contains_term i (get_arg index_i trm)
 
 (*
  * TODO reconcile with other new_index function, explain,
@@ -973,7 +1022,7 @@ let rec is_index e index_i p i trm =
  * induction principles, and so should be very predictable.
  *)
 let index_case index_i index_t o n : types =
-  let get_index = diff_index index_i in
+  let get_index = get_new_index index_i in
   let rec diff_case i_t p subs o n =
     let (e_o, ind_o, trm_o) = o in
     let (e_n, ind_n, trm_n) = n in
