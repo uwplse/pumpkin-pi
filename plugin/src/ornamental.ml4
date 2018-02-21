@@ -435,6 +435,54 @@ let rec map_term_env_if p f d (env : env) (a : 'a) (trm : types) : types =
     | _ ->
        trm
 
+(*
+ * Lazy version
+ *)
+let rec map_term_env_if_lazy p f d (env : env) (a : 'a) (trm : types) : types =
+  let map_rec = map_term_env_if_lazy p f d in
+  let trm' =
+    match kind_of_term trm with
+    | Cast (c, k, t) ->
+       let c' = map_rec env a c in
+       let t' = map_rec env a t in
+       mkCast (c', k, t')
+    | Prod (n, t, b) ->
+       let t' = map_rec env a t in
+       let b' = map_rec (push_local (n, t') env) (d a) b in
+       mkProd (n, t', b')
+    | Lambda (n, t, b) ->
+       let t' = map_rec env a t in
+       let b' = map_rec (push_local (n, t') env) (d a) b in
+       mkLambda (n, t', b')
+    | LetIn (n, trm, typ, e) ->
+       let trm' = map_rec env a trm in
+       let typ' = map_rec env a typ in
+       let e' = map_rec (push_local_in (n, e, typ') env) (d a) e in
+       mkLetIn (n, trm', typ', e')
+    | App (fu, args) ->
+       let fu' = map_rec env a fu in
+       let args' = Array.map (map_rec env a) args in
+       mkApp (fu', args')
+    | Case (ci, ct, m, bs) ->
+       let ct' = map_rec env a ct in
+       let m' = map_rec env a m in
+       let bs' = Array.map (map_rec env a) bs in
+       mkCase (ci, ct', m', bs')
+    | Fix ((is, i), (ns, ts, ds)) ->
+       let ts' = Array.map (map_rec env a) ts in
+       let ds' = Array.map (map_rec_env_fix map_rec d env a ns ts) ds in
+       mkFix ((is, i), (ns, ts', ds'))
+    | CoFix (i, (ns, ts, ds)) ->
+       let ts' = Array.map (map_rec env a) ts in
+       let ds' = Array.map (map_rec_env_fix map_rec d env a ns ts) ds in
+       mkCoFix (i, (ns, ts', ds'))
+    | Proj (pr, c) ->
+       let c' = map_rec env a c in
+       mkProj (pr, c')
+    | _ ->
+       trm
+  in if p env a trm' then f env a trm' else trm'
+
 (* Map a substitution over a term *)
 let all_substs p env (src, dst) trm : types =
   map_term_env_if
@@ -451,6 +499,14 @@ let empty = Global.env ()
 (* Map_term_env_if with an empty environment *)
 let map_term_if p f d =
   map_term_env_if
+    (fun _ a t -> p a t)
+    (fun _ a t -> f a t)
+    d
+    empty
+
+(* Lazy version *)
+let map_term_if_lazy p f d =
+  map_term_env_if_lazy
     (fun _ a t -> p a t)
     (fun _ a t -> f a t)
     d
@@ -1278,12 +1334,6 @@ let ornament_concls (env : env) (orn : types) (from_ind : types) (trm : types) =
   trm (* TODO *)
 
 (*
- * Apply an ornament to the hypotheses of a function
- *)
-let rec ornament_hypos (orn : types) (from_ind : types) (env : env) (trm : types) =
-  trm (* TODO *)
-
-(*
  * orn_list_vect
      : forall (A : Type) (l : list A), vector A (list_index l)
  *
@@ -1309,11 +1359,12 @@ let rec extend_index (index_prod : types) (from_ind : types) (trm : types) =
 (*
  * Substitute the ornamented type in the hypothesis
  *)
-let rec sub_in_hypo (index_i : int) (index_prod : types) (from_ind : types) (to_ind : types) (trm : types) =
+let sub_in_hypo (env : env) (index_i : int) (index_prod : types) (from_ind : types) (to_ind : types) (trm : types) =
   let reduce = Reductionops.nf_betaiota Evd.empty in (* TODO move *)
+  let hypos = prod_to_lambda (reduce (infer_type env trm)) in
   let n_subs = ref 0 in
   let subbed =
-    map_term_if
+    map_term_if_lazy
       (fun _ trm ->
         match kind_of_term trm with
         | Lambda (n, t, b) ->  is_or_applies from_ind t
@@ -1330,9 +1381,36 @@ let rec sub_in_hypo (index_i : int) (index_prod : types) (from_ind : types) (to_
         mkLambda (Anonymous, index_type, mkLambda (n, t_ind, all_eq_substs (mkRel 2, mkRel 1) (shift b))))
       (fun _ -> ())
       ()
-      trm
+      hypos
   in (!n_subs, subbed)
 
+(*
+ * Apply the ornament to the arguments
+ *)
+let ornament_args env index_i from_ind orn trm =
+  let reduce = Reductionops.nf_betaiota Evd.empty in (* TODO move *)
+  fst
+    (List.fold_left
+       (fun (trm, hypos) i ->
+         match kind_of_term hypos with
+         | Lambda (n, t, b) ->
+            let (_, _, h) = CRD.to_tuple @@ lookup_rel i env in
+            if is_or_applies from_ind t then
+              let args = if isApp t then unfold_args t else [] in
+              let (before, after) = take_split index_i args in
+              let idx = mkRel i in
+              let t_args = List.append (shift_all_by i before) (idx :: shift_all_by i after) in
+              let orn_app = mkApp (orn, Array.of_list (List.append t_args [(unshift (mkRel i))])) in
+              (mkApp (trm, Array.make 1 orn_app), b)
+            else if eq_constr h t then (* TODO test multi-nat-index case *)
+              (mkApp (trm, Array.make 1 (mkRel i)), b)
+            else
+              (trm, unshift b)
+         | _ ->
+            (trm, hypos)
+       )
+       (trm, prod_to_lambda (reduce (infer_type env trm))) (* TODO redundant *)
+       (List.rev (all_rel_indexes env)))
 (*
  * Apply an ornament, but don't reduce the result.
  *
@@ -1340,7 +1418,7 @@ let rec sub_in_hypo (index_i : int) (index_prod : types) (from_ind : types) (to_
  *
  * TODO assumes indexing ornament for now
  *)
-let ornament (env : env) (orn : types) (trm : types) =
+let ornament (env : env) (orn : types) (orn_inv : types) (trm : types) =
   let reduce = Reductionops.nf_betaiota Evd.empty in
   let orn_type = reduce (infer_type env orn) in
   let (from_with_args, to_with_args) = ind_of_orn orn_type in
@@ -1355,10 +1433,10 @@ let ornament (env : env) (orn : types) (trm : types) =
     let env_index = pop_rel_context 1 env_arg in
     let index_lam = reconstruct_lambda env_index index_type in
     let (from_ind, to_ind) = map_tuple ind_of (from_with_args, to_with_args) in
-    let (n_subs, subbed) = sub_in_hypo index_i index_lam from_ind to_ind trm in
-    debug_term env subbed "subbed";
-    Printf.printf "%d\n" n_subs;
-    subbed (* TODO *)
+    let (n_subs, subbed_hypos) = sub_in_hypo env index_i index_lam from_ind to_ind trm in
+    let (env_hypos, _) = zoom_lambda_term env subbed_hypos in
+    let concl = ornament_args env_hypos index_i from_ind orn_inv trm in
+    reconstruct_lambda env_hypos concl (* TODO ornament conclusion, etc *)
   else
     (* deornament [TODO] *)
     failwith "not yet implemented"
@@ -1389,11 +1467,12 @@ let find_ornament n d_old d_new =
     failwith "Only inductive types are supported"
 
 (* Apply an ornament, but don't reduce *)
-let apply_ornament n d_orn d_old =
+let apply_ornament n d_orn d_orn_inv d_old =
   let (evm, env) = Lemmas.get_current_context () in
-  let orn = unwrap_definition env (intern env evm d_orn) in
-  let trm_o = unwrap_definition env (intern env evm d_old) in
-  let trm_n = ornament env orn trm_o in
+  let c_orn = intern env evm d_orn in
+  let c_orn_inv = intern env evm d_orn_inv in
+  let c_o = intern env evm d_old in
+  let trm_n = ornament env c_orn c_orn_inv c_o in
   define_term n env evm trm_n;
   Printf.printf "Defined ornamented fuction %s.\n\n" (string_of_id n);
   ()
@@ -1417,6 +1496,6 @@ END
  * functions entirely.
  *)
 VERNAC COMMAND EXTEND ApplyOrnament CLASSIFIED AS SIDEFF
-| [ "Apply" "ornament" constr(d_orn) "in" constr(d_old) "as" ident(n)] ->
-  [ apply_ornament n d_orn d_old ]
+| [ "Apply" "ornament" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
+  [ apply_ornament n d_orn d_orn_inv d_old ]
 END

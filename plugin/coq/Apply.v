@@ -11,4 +11,4 @@ Definition hd (A : Type) (default : A) (l : list A) :=
       x)
     l.
 
-Apply ornament orn_list_vector in hd as hd_vect.
+Apply ornament orn_list_vector orn_list_vector_inv in hd as hd_vect_auto.
