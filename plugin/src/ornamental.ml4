@@ -1504,7 +1504,9 @@ let ornament_args env index_i from_ind orn (trm, nind) =
   in (trm, nind)
 
 (* Ornament the hypotheses *)
-let ornament_hypos env orn index_i (from_ind, to_ind) (trm, nind) =
+let ornament_hypos env orn index_i (from_ind, to_ind) is_fwd (trm, nind) =
+  (* TODO use is_fwd, in backward case remove hypos that compute indices,
+     and remove indices *)
   let indexer = Option.get orn.indexer in
   let indexer_type = reduce_type env indexer in
   let index_lam = remove_final_hypo (prod_to_lambda indexer_type) in
@@ -1515,7 +1517,7 @@ let ornament_hypos env orn index_i (from_ind, to_ind) (trm, nind) =
   (reconstruct_lambda env_hypos concl, nind)
 
 (* Ornament the conclusion *)
-let ornament_concls concl_typ env orn index_i (from_ind, to_ind) (trm, nind) =
+let ornament_concls concl_typ env orn index_i (from_ind, to_ind) is_fwd (trm, nind) =
   if is_or_applies from_ind concl_typ then
     let (env_zoom, trm_zoom) = zoom_lambda_term env trm in
     let args = shift_all_by nind (unfold_args concl_typ) in
@@ -1537,21 +1539,37 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
   let (from_with_args, to_with_args) = ind_of_orn orn_type in
   let from_args = unfold_args from_with_args in
   let to_args = unfold_args to_with_args in
-  if List.length from_args < List.length to_args then
+  let is_fwd = List.length from_args < List.length to_args in
+  if is_fwd then
     (* ornament *)
     let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
     let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
     let indexer = Some (fst (destApp index)) in
     let promote = orn in
     let forget = orn_inv in
-    let (from_ind, to_ind) = map_tuple ind_of (from_with_args, to_with_args) in
     let orn = { indexer; promote; forget } in
-    let app_orn ornamenter = ornamenter env orn index_i (from_ind, to_ind) in
+    let (from_ind, to_ind) = map_tuple ind_of (from_with_args, to_with_args) in
+    let app_orn ornamenter = ornamenter env orn index_i (from_ind, to_ind) is_fwd in
     let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
     app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, 0))
   else
-    (* deornament [TODO] *)
-    failwith "not yet implemented"
+    (* deornament *) (* TODO refactor common stuff *)
+    let orn_type_inv = reduce_type env orn_inv in
+    let (from_with_args, to_with_args) = ind_of_orn orn_type_inv in
+    let from_args = unfold_args from_with_args in
+    let to_args = unfold_args to_with_args in
+    let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
+    let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
+    let indexer = Some (fst (destApp index)) in
+    let promote = orn_inv in
+    let forget = orn in
+    let orn = { indexer; promote; forget } in
+    let (from_ind, to_ind) = map_tuple ind_of (to_with_args, from_with_args) in
+    let app_orn ornamenter = ornamenter env orn index_i (from_ind, to_ind) is_fwd in
+    let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
+    let orn = app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, 0)) in
+    debug_term env orn "orn";
+    orn
 
 (* --- Top-level --- *)
 

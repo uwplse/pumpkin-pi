@@ -3,6 +3,13 @@ Require Import List.
 Require Import Ornamental.Ornaments.
 Require Import Test.
 
+(*
+ * Test applying ornaments to lift functions, without internalizing
+ * the ornamentation (so the type won't be useful yet).
+ *)
+
+(* --- Simple functions on lists --- *)
+
 Definition hd (A : Type) (default : A) (l : list A) :=
   list_rect
     (fun (_ : list A) => A)
@@ -10,8 +17,6 @@ Definition hd (A : Type) (default : A) (l : list A) :=
     (fun (x : A) (_ : list A) (_ : A) =>
       x)
     l.
-
-Apply ornament orn_list_vector orn_list_vector_inv in hd as hd_vect_auto.
 
 Definition hd_vect (A : Type) (default : A) (n : nat) (v : vector A n) :=
   vector_rect
@@ -22,6 +27,9 @@ Definition hd_vect (A : Type) (default : A) (n : nat) (v : vector A n) :=
       x)
     n
     v.
+
+Apply ornament orn_list_vector orn_list_vector_inv in hd as hd_vect_auto.
+Apply ornament orn_list_vector_inv orn_list_vector in hd_vect as hd_auto.
 
 (*
  * Note how it's not definitionally equal, but we can prove it.
@@ -85,5 +93,5 @@ Proof.
   intros. induction v; induction v'; try apply eq_vect_cons; auto.
 Qed.
 
-
+(* TODO test more to see if there are bugs before internalizing *)
 

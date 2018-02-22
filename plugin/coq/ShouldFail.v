@@ -98,6 +98,18 @@ Inductive vector_int (A : Type) : Z -> Type :=
     forall (n : nat),
        A -> vector_int A (Z.of_nat n) -> vector_int A (Z.of_nat (S n)).
 
+Require Import Test.
+
+Theorem vector_int_index:
+  forall (A : Type) (n : nat),
+     vector A n ->
+     Z.
+Proof.
+  intros. induction X.
+  - apply (Z.of_nat 0).
+  - apply Z.of_nat. apply (S n).
+Qed.
+
 (*
  * This fails:
  * Find ornament list vector_int as orn_list_vectorint.
