@@ -1481,7 +1481,10 @@ let sub_in_hypos (index_i : int) (index_lam : types) (from_ind : types) (to_ind 
  * Apply the ornament to the arguments
  * TODO clean this
  *)
-let ornament_args env index_i from_ind orn (trm, nind) =
+let ornament_args env index_i from_ind orn is_fwd (trm, nind) =
+  debug_term env trm "trm";
+  debug_term env (prod_to_lambda (reduce_type env trm)) "typ";
+  let orn_f = if is_fwd then orn.forget else orn.promote in
   let (trm, _, nind) =
     (List.fold_left
        (fun (trm, hypos, nind) i ->
@@ -1489,10 +1492,15 @@ let ornament_args env index_i from_ind orn (trm, nind) =
          | Lambda (n, t, b) ->
             let (_, _, h) = CRD.to_tuple @@ lookup_rel i env in
             if is_or_applies from_ind t then
-              let index = mkRel (i - nind) in
-              let args = insert_index_shift index_i index (unfold_args t) i in
-              let orn_app = mkApp (orn, Array.of_list (List.append args [unshift index])) in
-              (mkApp (trm, Array.make 1 orn_app), b, nind + 1)
+              if is_fwd then
+                let index = mkRel (i - nind) in
+                let args = insert_index_shift index_i index (unfold_args t) i in
+                let orn_app = mkApp (orn_f, Array.of_list (List.append args [unshift index])) in
+                (mkApp (trm, Array.make 1 orn_app), b, nind + 1)
+              else
+                let args = remove_index index_i (shift_all_by i (unfold_args t)) in
+                let orn_app = mkApp (orn_f, Array.of_list args) in
+                (mkApp (trm, Array.make 1 orn_app), b, nind + 1)
             else if eq_constr h t then (* TODO test multi-nat-index case *)
               (mkApp (trm, Array.make 1 (mkRel i)), b, nind)
             else
@@ -1513,7 +1521,7 @@ let ornament_hypos env orn index_i (from_ind, to_ind) is_fwd (trm, nind) =
   let hypos = prod_to_lambda (reduce_type env trm) in
   let subbed_hypos = sub_in_hypos index_i index_lam from_ind to_ind hypos in
   let env_hypos = zoom_env zoom_lambda_term env subbed_hypos in
-  let (concl, nind) = ornament_args env_hypos index_i from_ind orn.forget (trm, nind) in
+  let (concl, nind) = ornament_args env_hypos index_i from_ind orn is_fwd (trm, nind) in
   (reconstruct_lambda env_hypos concl, nind)
 
 (* Ornament the conclusion *)
