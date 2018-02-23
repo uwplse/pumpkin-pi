@@ -1567,10 +1567,16 @@ let ornament_hypos env orn index_i (from_ind, to_ind) is_fwd (trm, indices) =
 let ornament_concls concl_typ env orn index_i (from_ind, to_ind) is_fwd (trm, indices) =
   if is_or_applies from_ind concl_typ then
     let (env_zoom, trm_zoom) = zoom_lambda_term env trm in
-    let args = shift_all_by (List.length indices) (unfold_args concl_typ) in
-    let promote = mkApp (orn.promote, Array.of_list args) in
-    let concl = mkApp (promote, Array.make 1 trm_zoom) in
-    (reconstruct_lambda env_zoom concl, indices)
+    if is_fwd then
+      let args = shift_all_by (List.length indices) (unfold_args concl_typ) in
+      let promote = mkApp (orn.promote, Array.of_list args) in
+      let concl = mkApp (promote, Array.make 1 trm_zoom) in
+      (reconstruct_lambda env_zoom concl, indices)
+    else
+      let args = unfold_args (List.fold_right all_eq_substs indices concl_typ) in
+      let forget = mkApp (orn.forget, Array.of_list args) in
+      let concl = mkApp (forget, Array.make 1 trm_zoom) in
+      (reconstruct_lambda env_zoom concl, indices)
   else
     (trm, indices)
 

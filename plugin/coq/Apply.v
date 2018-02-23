@@ -31,8 +31,6 @@ Definition hd_vect (A : Type) (default : A) (n : nat) (v : vector A n) :=
 Apply ornament orn_list_vector orn_list_vector_inv in hd as hd_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in hd_vect as hd_auto.
 
-Print hd_auto.
-
 (*
  * Note how it's not definitionally equal, but we can prove it.
  * For it to be definitionally equal, we need to internalize the
@@ -43,6 +41,13 @@ Theorem test_orn_hd :
     hd_vect_auto A a n v = hd_vect A a n v.
 Proof.
   intros. induction v; auto.
+Qed.
+
+Theorem test_deorn_hd :
+  forall (A : Type) (a : A) (l : list A),
+    hd_auto A a l = hd A a l.
+Proof.
+  intros. induction l; auto.
 Qed.
 
 Definition append (A : Type) (l1 : list A) (l2 : list A) :=
@@ -64,6 +69,7 @@ Definition append_vect (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 :
     v1.
 
 Apply ornament orn_list_vector orn_list_vector_inv in append as append_vect_auto.
+Apply ornament orn_list_vector_inv orn_list_vector in append_vect as append_auto.
 
 (*
  * For this one, we can't state the equality, but we can use existsT.
@@ -93,6 +99,25 @@ Theorem test_orn_append:
 Proof.
   unfold eq_vect.
   intros. induction v; induction v'; try apply eq_vect_cons; auto.
+Qed.
+
+(*
+ * To prove the deornamentation case, we need the same lemma,
+ * but we can state the equality directly.
+ *)
+Theorem eq_cons:
+  forall A (l : list A) (l' : list A),
+    l = l' ->
+    forall (a : A), a :: l = a :: l'.
+Proof.
+  intros. inversion H. subst. auto.
+Qed.
+
+Theorem test_deorn_append:
+  forall A (l : list A) (l' : list A),
+    append A l l' = append_auto A l l'.
+Proof.
+  intros. induction l; induction l'; try apply eq_cons; auto.
 Qed.
 
 (* TODO test more to see if there are bugs before internalizing *)
