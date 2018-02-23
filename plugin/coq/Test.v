@@ -486,6 +486,35 @@ Inductive hd_list_alt : forall (A : Type), option A -> Type :=
 
 Find ornament list_alt hd_list_alt as orn_listalt_hdlistalt.
 
+Definition list_alt_hd (A : Type) (l : list_alt A) :=
+  list_alt_rect
+    (fun (A : Type) (_ : list_alt A) => option A)
+    (fun (A : Type) => None) 
+    (fun (A : Type) (a : A) (_ : list_alt A) (_ : option A) =>
+       Some a)
+    A
+    l.
+
+Theorem test_orn_index_13:
+  forall (A : Type) (l : list_alt A),
+    list_alt_hd A l = orn_listalt_hdlistalt_index A l.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_13:
+  forall (A : Type) (l : list_alt A),
+    hd_list_alt A (list_alt_hd A l).
+Proof.
+  exact orn_listalt_hdlistalt.
+Qed.
+
+Theorem test_orn_inv_13:
+  forall (A : Type) (ao : option A) (l : hd_list_alt A ao),
+    list_alt A.
+Proof.
+  exact orn_listalt_hdlistalt_inv.
+Qed.
 
 (* --- TODO indexing by the old type, but without making it fin-like --- *)
 
@@ -493,11 +522,9 @@ Find ornament list_alt hd_list_alt as orn_listalt_hdlistalt.
 
 (* --- TODO weirder indexes --- *)
 
-(* --- TODO indices that depend on earlier indices and parameters, including ones of different types --- *)
-
 (* --- TODO what does it mean if the index already existed in the old constructor, but wasn't used, or was used differently? How do we handle that? ---*)
 
-(* --- TODO base cases with arguments --- *)
+(* --- TODO base cases with arguments (base case index comes from argument) --- *)
 
 (* --- TODO adding multiple indices at once --- *)
 
