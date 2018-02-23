@@ -31,6 +31,8 @@ Definition hd_vect (A : Type) (default : A) (n : nat) (v : vector A n) :=
 Apply ornament orn_list_vector orn_list_vector_inv in hd as hd_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in hd_vect as hd_auto.
 
+Print hd_auto.
+
 (*
  * Note how it's not definitionally equal, but we can prove it.
  * For it to be definitionally equal, we need to internalize the

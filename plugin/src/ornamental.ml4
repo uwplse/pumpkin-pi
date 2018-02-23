@@ -926,6 +926,26 @@ let contains_term c trm =
   exists_subterm eq_constr shift c trm
 
 (*
+ * This function removes any terms from the hypothesis of a lambda
+ * that are not referenced in the body, so that the term
+ * has only hypotheses that are referenced.
+ *
+ * It's different from the version in PUMPKIN PATCH because it ignores
+ * possible universe inconsistency.
+ *)
+let rec remove_unused_hypos (env : env) (trm : types) : types =
+  match kind_of_term trm with
+  | Lambda (n, t, b) ->
+     let env_b = push_rel CRD.(LocalAssum(n, t)) env in
+     let b' = remove_unused_hypos env_b b in
+     if contains_term (mkRel 1) b' then
+       mkLambda (n, t, b')
+     else
+       remove_unused_hypos env (unshift b')
+  | _ ->
+     trm
+
+(*
  * Get the argument to an application of a property at argument position i.
  * This unfolds all arguments first.
  *)
@@ -1595,8 +1615,7 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
     let app_orn ornamenter = ornamenter env orn index_i (from_ind, to_ind) is_fwd in
     let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
     let orn = fst (app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, []))) in
-    debug_term env orn "orn";
-    orn
+    remove_unused_hypos env orn (* weakens guarantee but gives better result *)
 
 (* --- Top-level --- *)
 
