@@ -516,17 +516,48 @@ Proof.
   exact orn_listalt_hdlistalt_inv.
 Qed.
 
-(* --- TODO indexing by the old type, but without making it fin-like --- *)
+(* --- Indexing by the old type, but without making it fin-like --- *)
+
+Inductive nat_nat : nat -> Type :=
+| OO : nat_nat 0
+| SS : forall (n : nat), nat_nat n -> nat_nat (S n).
+
+Find ornament nat nat_nat as orn_nat_natnat.
+
+Definition nat_size (n : nat) :=
+  nat_rect
+    (fun (_ : nat) => nat)
+    O
+    (fun (_ : nat) (IH : nat) =>
+      S IH)
+    n.
+
+Theorem test_orn_index_14:
+  forall (n : nat),
+    nat_size n = orn_nat_natnat_index n.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_14:
+  forall (n : nat),
+    nat_nat (nat_size n).
+Proof.
+  exact orn_nat_natnat.
+Qed.
+
+Theorem test_orn_inv_14:
+  forall (n : nat) (nn : nat_nat n),
+    nat.
+Proof.
+  exact orn_nat_natnat_inv.
+Qed.
 
 (* --- TODO adding an index with several uses --- *)
 
 (* --- TODO weirder indexes --- *)
 
 (* --- TODO what does it mean if the index already existed in the old constructor, but wasn't used, or was used differently? How do we handle that? ---*)
-
-(* --- TODO base cases with arguments (base case index comes from argument) --- *)
-
-(* --- TODO adding multiple indices at once --- *)
 
 (* --- TODO examples from notebook etc --- *)
 

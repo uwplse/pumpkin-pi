@@ -1032,7 +1032,12 @@ let new_index i trm_o trm_n =
        else
          is_new_index p t_o t_n || is_new_index p_b b_o b_n
     | (App (_, _), App (_, _)) when applies p trm_o && applies p trm_n ->
-       diff_arg i trm_o trm_n
+       let args_o = List.rev (List.tl (List.rev (unfold_args trm_o))) in
+       let args_n = List.rev (List.tl (List.rev (unfold_args trm_n))) in
+       diff_arg
+         i
+         (mkApp (p, Array.of_list args_o))
+         (mkApp (p, Array.of_list args_n))
     | _ ->
        false
   in is_new_index (mkRel 1) trm_o trm_n
@@ -1070,6 +1075,7 @@ let computes_only_index env index_i p i trm =
 (*
  * Get the index type and location (index of the index).
  * This doesn't yet handle adding multiple indices.
+ *
  * If indices depend on earlier types, the types may be dependent;
  * the client needs to shift by the appropriate offset.
  *)
@@ -1079,7 +1085,7 @@ let index_type env elim_t_o elim_t_n =
   let rec poss_indices e p_o p_n =
     match map_tuple kind_of_term (p_o, p_n) with
     | (Prod (n_o, t_o, b_o), Prod (_, t_n, b_n)) ->
-       if convertible e t_o t_n then
+       if isProd b_o && convertible e t_o t_n then
          let e_b = push_local (n_o, t_o) e in
          let same = poss_indices e_b b_o b_n in
          let different = (0, t_n) in
