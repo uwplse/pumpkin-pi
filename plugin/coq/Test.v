@@ -398,6 +398,60 @@ Proof.
   exact orn_vector_doublevector4_inv.
 Qed.
 
+(* --- Indices that are computed from existing hypotheses --- *)
+
+Inductive hd_nat_list : nat -> Type :=
+| hd_nat_nil : hd_nat_list 0
+| hd_nat_cons :
+    forall (m : nat) (n : nat),
+      hd_nat_list m ->
+      hd_nat_list n.
+
+Find ornament nat_list hd_nat_list as orn_natlist_hdnatlist.
+
+Definition nat_list_hd (nl : nat_list) :=
+  nat_list_rect
+    (fun (_ : nat_list) => nat)
+    0
+    (fun (n : nat) (_ : nat_list) (_ : nat) =>
+      n)
+    nl.
+
+Theorem test_index_11:
+  forall (nl : nat_list),
+    nat_list_hd nl = orn_natlist_hdnatlist_index nl.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_11:
+  forall (nl : nat_list),
+    hd_nat_list (nat_list_hd nl).
+Proof.
+  exact orn_natlist_hdnatlist.
+Qed.
+
+Theorem test_orn_inv_11:
+  forall (h : nat) (hnl : hd_nat_list h),
+    nat_list.
+Proof.
+  exact orn_natlist_hdnatlist_inv.
+Qed.
+
+(* --- Indices that depend on parameters --- *)
+(* TODO this is a doubly hard case because it also 
+   computes the index from something that already existed
+   in the case. So try after an easier one
+
+Inductive hd_list (A : Type) : option A -> Type :=
+| hd_nil : hd_list A None
+| hd_cons :
+    forall (ao : option A) (a : A),
+      hd_list A ao ->
+      hd_list A (Some a).
+
+Find ornament list hd_list as orn_list_hdlist. *)
+
 (* --- TODO indexing by the old type, but without making it fin-like --- *)
 
 (* --- TODO adding an index with several uses --- *)

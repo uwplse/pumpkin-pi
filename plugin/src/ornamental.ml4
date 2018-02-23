@@ -1118,7 +1118,8 @@ let index_case index_i index_t o n : types =
        let e_n_b = push_local (n_n, t_n) e_n in
        let n_b = (e_n_b, shift ind_n, b_n) in
        let same = same_mod_indexing e_o p in
-       let false_lead = computes_index index_i p_b (mkRel 1) in
+       let same_arity = arity b_o = arity b_n in
+       let false_lead b_n = not same_arity && (computes_index index_i p_b (mkRel 1)) b_n in
        if (not (same (ind_o, t_o) (ind_n, t_n))) || false_lead b_n then
          (* index *)
          let e_o_b = push_local (n_n, t_n) e_o in
@@ -1297,7 +1298,8 @@ let sub_indexes index_i is_fwd f_indexer p subs o n : types =
        let env_n_b = push_local (n_n, t_n) env_n in
        let false_lead_fwd _ b_n = computes_index index_i p_b (mkRel 1) b_n in
        let false_lead_bwd b_o _ = computes_index index_i p_b (mkRel 1) b_o in
-       let false_lead = directional false_lead_fwd false_lead_bwd in
+       let same_arity b_o b_n = (arity b_o = arity b_n) in
+       let false_lead b_o b_n = (not (same_arity b_o b_n)) && (directional false_lead_fwd false_lead_bwd) b_o b_n in
        if applies p t_n || (same && not (false_lead b_o b_n)) then
          let env_o_b = push_local (n_o, t_o) env_o in
          let o_b = (env_o_b, shift ind_o, b_o) in
