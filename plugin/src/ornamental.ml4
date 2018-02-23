@@ -1055,10 +1055,16 @@ let insert_index_shift index_i index args n =
 
 (*
  * Remove an index from a list of terms in the location index_i
+ *)
+let remove_index index_i args =
+  let (before, after) = take_split index_i args in
+  List.append before (List.tl after)
+
+(*
  * Unshift arguments after index_i, since the index is no longer in
  * the hypotheses
  *)
-let remove_index index_i args =
+let adjust_no_index index_i args =
   let (before, after) = take_split index_i args in
   List.append before (shift_all_by (- 1) after)
 
@@ -1173,7 +1179,7 @@ let ornament_p index_i env ind arity npm indexer_opt =
        mkApp (ind, Array.of_list (insert_index index_i_npm index args))
     | None ->
        (* backward (deindexing) direction *)
-       mkApp (ind, Array.of_list (remove_index index_i_npm args))
+       mkApp (ind, Array.of_list (adjust_no_index index_i_npm args))
   in shift_by off (reconstruct_lambda_n env concl npm)
 
 (*
@@ -1458,7 +1464,7 @@ let rec ind_of_orn (orn_type : types) : types * types =
  * Return both the term with ornamented hypotheses and the number
  * of substitutions that occurred.
  *)
-let sub_in_hypos (index_i : int) (index_lam : types) (from_ind : types) (to_ind : types) (hypos : types) =
+let sub_in_hypos (index_i : int) (index_lam : types) (from_ind : types) (to_ind : types) (hypos : types) (is_fwd : bool) =
   map_term_if_lazy
     (fun _ trm ->
       match kind_of_term trm with
@@ -1467,12 +1473,17 @@ let sub_in_hypos (index_i : int) (index_lam : types) (from_ind : types) (to_ind 
     (fun _ trm ->
       let (n, t, b) = destLambda trm in
       let args = unfold_args t in
-      let (before, after) = take_split index_i args in
-      let index_type = reduce_term (mkApp (index_lam, Array.of_list before)) in
-      let t_args = insert_index_shift index_i (mkRel 1) args 1 in
-      let t_ind = mkApp (to_ind, Array.of_list t_args) in
-      let sub_ind = all_eq_substs (mkRel 2, mkRel 1) in
-      mkLambda (Anonymous, index_type, mkLambda (n, t_ind, sub_ind (shift b))))
+      if is_fwd then
+        let (before, after) = take_split index_i args in
+        let index_type = reduce_term (mkApp (index_lam, Array.of_list before)) in
+        let t_args = insert_index_shift index_i (mkRel 1) args 1 in
+        let t_ind = mkApp (to_ind, Array.of_list t_args) in
+        let sub_ind = all_eq_substs (mkRel 2, mkRel 1) in
+        mkLambda (Anonymous, index_type, mkLambda (n, t_ind, sub_ind (shift b)))
+      else
+        let t_args = remove_index index_i args in
+        let t_ind = mkApp (to_ind, Array.of_list t_args) in
+        mkLambda (n, t_ind, b))
     (fun _ -> ())
     ()
     hypos
@@ -1481,59 +1492,67 @@ let sub_in_hypos (index_i : int) (index_lam : types) (from_ind : types) (to_ind 
  * Apply the ornament to the arguments
  * TODO clean this
  *)
-let ornament_args env index_i from_ind orn is_fwd (trm, nind) =
-  debug_term env trm "trm";
-  debug_term env (prod_to_lambda (reduce_type env trm)) "typ";
+let ornament_args env index_i from_ind orn is_fwd (trm, indices) =
   let orn_f = if is_fwd then orn.forget else orn.promote in
-  let (trm, _, nind) =
-    (List.fold_left
-       (fun (trm, hypos, nind) i ->
+  let indexer = Option.get orn.indexer in
+  let (trm, _, indices) =
+    List.fold_left
+       (fun (trm, hypos, indices) i ->
          match kind_of_term hypos with
          | Lambda (n, t, b) ->
             let (_, _, h) = CRD.to_tuple @@ lookup_rel i env in
             if is_or_applies from_ind t then
               if is_fwd then
+                let nind = List.length indices in
                 let index = mkRel (i - nind) in
                 let args = insert_index_shift index_i index (unfold_args t) i in
-                let orn_app = mkApp (orn_f, Array.of_list (List.append args [unshift index])) in
-                (mkApp (trm, Array.make 1 orn_app), b, nind + 1)
+                let indexed = unshift index in
+                let orn_app = mkApp (orn_f, Array.of_list (List.append args [indexed])) in
+                let sub_index = (index, mkApp (indexer, Array.of_list (List.append (shift_all_by i (unfold_args t)) [indexed]))) in
+                (mkApp (trm, Array.make 1 orn_app), b, sub_index :: indices)
               else
-                let args = remove_index index_i (shift_all_by i (unfold_args t)) in
+                let index = shift_by i (get_arg index_i t) in
+                let args = adjust_no_index index_i (shift_all_by i (unfold_args t)) in
                 let orn_app = mkApp (orn_f, Array.of_list args) in
-                (mkApp (trm, Array.make 1 orn_app), b, nind + 1)
+                let indexed = unshift index in
+                let sub_index = (index, mkApp (indexer, Array.of_list (List.append (remove_index index_i (shift_all_by i (unfold_args t))) [indexed]))) in
+                (mkApp (trm, Array.make 1 orn_app), b, sub_index :: indices)
             else if eq_constr h t then (* TODO test multi-nat-index case *)
-              (mkApp (trm, Array.make 1 (mkRel i)), b, nind)
+              (mkApp (trm, Array.make 1 (mkRel i)), b, indices)
             else
-              (trm, unshift b, nind)
+              (trm, unshift b, indices)
          | _ ->
-            (trm, hypos, nind))
-       (trm, prod_to_lambda (reduce_type env trm), nind) (* TODO redundant *)
-       (List.rev (all_rel_indexes env)))
-  in (trm, nind)
+            (trm, hypos, indices))
+       (trm, prod_to_lambda (reduce_type env trm), indices) (* TODO redundant *)
+       (List.rev (all_rel_indexes env))
+  in (trm, indices)
 
 (* Ornament the hypotheses *)
-let ornament_hypos env orn index_i (from_ind, to_ind) is_fwd (trm, nind) =
-  (* TODO use is_fwd, in backward case remove hypos that compute indices,
-     and remove indices *)
+let ornament_hypos env orn index_i (from_ind, to_ind) is_fwd (trm, indices) =
   let indexer = Option.get orn.indexer in
   let indexer_type = reduce_type env indexer in
   let index_lam = remove_final_hypo (prod_to_lambda indexer_type) in
   let hypos = prod_to_lambda (reduce_type env trm) in
-  let subbed_hypos = sub_in_hypos index_i index_lam from_ind to_ind hypos in
+  let subbed_hypos = sub_in_hypos index_i index_lam from_ind to_ind hypos is_fwd in
   let env_hypos = zoom_env zoom_lambda_term env subbed_hypos in
-  let (concl, nind) = ornament_args env_hypos index_i from_ind orn is_fwd (trm, nind) in
-  (reconstruct_lambda env_hypos concl, nind)
+  let (concl, indices) = ornament_args env_hypos index_i from_ind orn is_fwd (trm, indices) in
+  if is_fwd then
+    (reconstruct_lambda env_hypos concl, indices)
+  else
+    (* Will this error if the indexer is used elsewhere? *)
+    let indexed = List.fold_right all_eq_substs indices concl in
+    (reconstruct_lambda env_hypos indexed, indices)
 
 (* Ornament the conclusion *)
-let ornament_concls concl_typ env orn index_i (from_ind, to_ind) is_fwd (trm, nind) =
+let ornament_concls concl_typ env orn index_i (from_ind, to_ind) is_fwd (trm, indices) =
   if is_or_applies from_ind concl_typ then
     let (env_zoom, trm_zoom) = zoom_lambda_term env trm in
-    let args = shift_all_by nind (unfold_args concl_typ) in
+    let args = shift_all_by (List.length indices) (unfold_args concl_typ) in
     let promote = mkApp (orn.promote, Array.of_list args) in
     let concl = mkApp (promote, Array.make 1 trm_zoom) in
-    reconstruct_lambda env_zoom concl
+    (reconstruct_lambda env_zoom concl, indices)
   else
-    trm
+    (trm, indices)
 
 (*
  * Apply an ornament, but don't reduce the result.
@@ -1559,7 +1578,7 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
     let (from_ind, to_ind) = map_tuple ind_of (from_with_args, to_with_args) in
     let app_orn ornamenter = ornamenter env orn index_i (from_ind, to_ind) is_fwd in
     let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
-    app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, 0))
+    fst (app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, [])))
   else
     (* deornament *) (* TODO refactor common stuff *)
     let orn_type_inv = reduce_type env orn_inv in
@@ -1575,7 +1594,7 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
     let (from_ind, to_ind) = map_tuple ind_of (to_with_args, from_with_args) in
     let app_orn ornamenter = ornamenter env orn index_i (from_ind, to_ind) is_fwd in
     let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
-    let orn = app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, 0)) in
+    let orn = fst (app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, []))) in
     debug_term env orn "orn";
     orn
 
