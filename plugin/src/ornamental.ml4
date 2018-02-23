@@ -1028,8 +1028,9 @@ let rec computes_index index_i p i trm =
 
 (*
  * Get the index type and location (index of the index).
- * This doesn't yet handle adding multiple indices, or
- * adding an index that depends on the previous type.
+ * This doesn't yet handle adding multiple indices.
+ * If indices depend on earlier types, the types may be dependent;
+ * the client needs to shift by the appropriate offset.
  *)
 let index_type env elim_t_o elim_t_n =
   let (_, p_o, b_o) = destProd elim_t_o in
@@ -1171,6 +1172,7 @@ let search_for_indexer index_i index_t npm elim_o o n is_fwd : types option =
   if is_fwd then
     let (env_o, _, arity_o, elim_t_o) = o in
     let (env_n, _, _, elim_t_n) = n in
+    let index_t = shift_by npm index_t in
     match map_tuple kind_of_term (elim_t_o, elim_t_n) with
     | (Prod (_, p_o, b_o), Prod (_, p_n, b_n)) ->
        let env_ind = zoom_env zoom_product_type env_o p_o in

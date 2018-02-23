@@ -439,9 +439,6 @@ Proof.
 Qed.
 
 (* --- Indices that depend on parameters --- *)
-(* TODO this is a doubly hard case because it also 
-   computes the index from something that already existed
-   in the case. So try after an easier one
 
 Inductive hd_list (A : Type) : option A -> Type :=
 | hd_nil : hd_list A None
@@ -450,7 +447,28 @@ Inductive hd_list (A : Type) : option A -> Type :=
       hd_list A ao ->
       hd_list A (Some a).
 
-Find ornament list hd_list as orn_list_hdlist. *)
+Find ornament list hd_list as orn_list_hdlist.
+
+Theorem test_orn_index_12:
+  forall (A : Type) (l : list A),
+    hd_error l = orn_list_hdlist_index A l.
+Proof.
+  intros. induction l; auto. (* not reducable because only one is a fix *)
+Qed.
+
+Theorem test_orn_12:
+  forall (A : Type) (l : list A),
+    hd_list A (orn_list_hdlist_index A l).
+Proof.
+  exact orn_list_hdlist.
+Qed.
+
+Theorem test_orn_inv_12:
+  forall (A : Type) (ao : option A) (hl : hd_list A ao),
+    list A.
+Proof.
+  exact orn_list_hdlist_inv.
+Qed.
 
 (* --- TODO indexing by the old type, but without making it fin-like --- *)
 
