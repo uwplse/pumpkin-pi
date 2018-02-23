@@ -985,6 +985,35 @@ let rec remove_final_hypo trm =
 (* --- Differencing and identifying indices --- *)
 
 (*
+ * Insert an index into a list of terms in the location index_i
+ *)
+let insert_index index_i index args =
+  let (before, after) = take_split index_i args in
+  List.append before (index :: after)
+
+(*
+ * Insert an index and shift the arguments before and after it by n
+ *)
+let insert_index_shift index_i index args n =
+  let (before, after) = take_split index_i (shift_all_by n args) in
+  List.append before (index :: after)
+
+(*
+ * Remove an index from a list of terms in the location index_i
+ *)
+let remove_index index_i args =
+  let (before, after) = take_split index_i args in
+  List.append before (List.tl after)
+
+(*
+ * Unshift arguments after index_i, since the index is no longer in
+ * the hypotheses
+ *)
+let adjust_no_index index_i args =
+  let (before, after) = take_split index_i args in
+  List.append before (shift_all_by (- 1) after)
+
+(*
  * Returns true if the argument at index i to property p is
  * an index in trm_n that was not an index in trm_o.
  *
@@ -1027,6 +1056,18 @@ let rec computes_index index_i p i trm =
      failwith "unexpected"
 
 (*
+ * Returns true if the hypothesis i is _only_ used to compute the index
+ * at index_i, and is not used to compute any other indices
+ *)
+let computes_only_index env index_i p i trm =
+  let indices = List.map unshift_i (from_one_to (arity (infer_type env p) - 1)) in
+  if computes_index index_i p i trm then
+    let indices_not_i = remove_index index_i indices in
+    List.for_all (fun j -> not (computes_index j p i trm)) indices_not_i
+  else
+    false
+
+(*
  * Get the index type and location (index of the index).
  * This doesn't yet handle adding multiple indices.
  * If indices depend on earlier types, the types may be dependent;
@@ -1060,35 +1101,6 @@ let get_new_index index_i p o n =
   | _ ->
      failwith "not an application of a property"
 
-(*
- * Insert an index into a list of terms in the location index_i
- *)
-let insert_index index_i index args =
-  let (before, after) = take_split index_i args in
-  List.append before (index :: after)
-
-(*
- * Insert an index and shift the arguments before and after it by n
- *)
-let insert_index_shift index_i index args n =
-  let (before, after) = take_split index_i (shift_all_by n args) in
-  List.append before (index :: after)
-
-(*
- * Remove an index from a list of terms in the location index_i
- *)
-let remove_index index_i args =
-  let (before, after) = take_split index_i args in
-  List.append before (List.tl after)
-
-(*
- * Unshift arguments after index_i, since the index is no longer in
- * the hypotheses
- *)
-let adjust_no_index index_i args =
-  let (before, after) = take_split index_i args in
-  List.append before (shift_all_by (- 1) after)
-
 (* --- Search --- *)
 
 (* Search two inductive types for a parameterizing ornament *)
@@ -1106,21 +1118,21 @@ let search_orn_params env (ind_o : inductive) (ind_n : inductive) is_fwd : types
  * though the terms we are looking at here are type signatures of
  * induction principles, and so should be very predictable.
  *)
-let index_case index_i index_t o n : types =
+let index_case index_i p o n : types =
   let get_index = get_new_index index_i in
-  let rec diff_case i_t p subs o n =
+  let rec diff_case p_i p subs o n =
     let (e_o, ind_o, trm_o) = o in
     let (e_n, ind_n, trm_n) = n in
     match map_tuple kind_of_term (trm_o, trm_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        (* premises *)
        let p_b = shift p in
-       let diff_b = diff_case (shift i_t) p_b in
+       let diff_b = diff_case (shift p_i) p_b in
        let e_n_b = push_local (n_n, t_n) e_n in
        let n_b = (e_n_b, shift ind_n, b_n) in
        let same = same_mod_indexing e_o p in
        let same_arity = arity b_o = arity b_n in
-       let false_lead b_n = not same_arity && (computes_index index_i p_b (mkRel 1)) b_n in
+       let false_lead b_n = not same_arity && (computes_only_index e_n_b index_i p_b (mkRel 1)) b_n in
        if (not (same (ind_o, t_o) (ind_n, t_n))) || false_lead b_n then
          (* index *)
          let e_o_b = push_local (n_n, t_n) e_o in
@@ -1134,7 +1146,7 @@ let index_case index_i index_t o n : types =
            (* inductive hypothesis *)
            let sub_index = (shift (get_index p t_o t_n), mkRel 1) in
            let subs_b = sub_index :: shift_subs subs in
-           mkLambda (n_o, i_t, diff_b subs_b o_b n_b)
+           mkLambda (n_o, mkApp (p_i, Array.of_list (unfold_args t_o)), diff_b subs_b o_b n_b)
          else
            (* no change *)
            let subs_b = shift_subs subs in
@@ -1145,10 +1157,10 @@ let index_case index_i index_t o n : types =
        List.fold_right all_eq_substs subs index
     | _ ->
        failwith "unexpected case"
-  in diff_case index_t (mkRel 1) [] o n
+  in diff_case p (mkRel 1) [] o n
 
 (* Get the cases for the indexer *)
-let indexer_cases index_i index_t npm o n : types list =
+let indexer_cases index_i p npm o n : types list =
   let (env_o, ind_o, arity_o, elim_t_o) = o in
   let (env_n, ind_n, arity_n, elim_t_n) = n in
   match map_tuple kind_of_term (elim_t_o, elim_t_n) with
@@ -1161,7 +1173,7 @@ let indexer_cases index_i index_t npm o n : types list =
        (fun c_o c_n ->
          shift_by
            (arity_o - npm)
-           (index_case index_i index_t (o c_o) (n c_n)))
+           (index_case index_i p (o c_o) (n c_n)))
        (take_except (arity_o - npm + 1) (deconstruct_product b_o))
        (take_except (arity_n - npm + 1) (deconstruct_product b_n))
   | _ ->
@@ -1178,10 +1190,12 @@ let search_for_indexer index_i index_t npm elim_o o n is_fwd : types option =
        let env_ind = zoom_env zoom_product_type env_o p_o in
        let off = offset env_ind npm in
        let pms = shift_all_by (arity_o - npm + 1) (mk_n_rels npm) in
-       let p = shift_by off (reconstruct_lambda_n env_ind index_t npm) in
-       let cs = indexer_cases index_i index_t npm o n in
+       let index_t_p = shift_by index_i index_t in
+       let p = reconstruct_lambda_n env_ind index_t_p npm in
+       let cs = indexer_cases index_i (shift p) npm o n in
        let final_args = Array.of_list (mk_n_rels off) in
-       Some (apply_eliminator env_ind elim_o pms p cs final_args)
+       let p_elim = shift_by off p in
+       Some (apply_eliminator env_ind elim_o pms p_elim cs final_args)
     | _ ->
        failwith "not eliminators"
   else
@@ -1288,6 +1302,7 @@ let sub_index f_indexer subs o n =
   in List.append new_subs subs
 
 (* In the conclusion of each case, return c_n with c_o's indices *)
+(* TODO clean again, see if any of these checks are redundant *)
 let sub_indexes index_i is_fwd f_indexer p subs o n : types =
   let directional a b = if is_fwd then a else b in
   let rec sub p subs o n =
@@ -1297,13 +1312,13 @@ let sub_indexes index_i is_fwd f_indexer p subs o n : types =
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let p_b = shift p in
        let same = same_mod_indexing env_o p (ind_o, t_o) (ind_n, t_n) in
+       let env_o_b = push_local (n_o, t_o) env_o in
        let env_n_b = push_local (n_n, t_n) env_n in
-       let false_lead_fwd _ b_n = computes_index index_i p_b (mkRel 1) b_n in
-       let false_lead_bwd b_o _ = computes_index index_i p_b (mkRel 1) b_o in
+       let false_lead_fwd _ b_n = computes_only_index env_n_b index_i p_b (mkRel 1) b_n in
+       let false_lead_bwd b_o _ = computes_only_index env_o_b index_i p_b (mkRel 1) b_o in
        let same_arity b_o b_n = (arity b_o = arity b_n) in
        let false_lead b_o b_n = (not (same_arity b_o b_n)) && (directional false_lead_fwd false_lead_bwd) b_o b_n in
        if applies p t_n || (same && not (false_lead b_o b_n)) then
-         let env_o_b = push_local (n_o, t_o) env_o in
          let o_b = (env_o_b, shift ind_o, b_o) in
          let n_b = (env_n_b, shift ind_n, b_n) in
          let subs_b = shift_subs subs in

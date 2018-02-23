@@ -470,6 +470,23 @@ Proof.
   exact orn_list_hdlist_inv.
 Qed.
 
+(* --- Indices that depend on prior indices --- *)
+
+Inductive list_alt : Type -> Type :=
+| nil_alt : forall A, list_alt A
+| cons_alt :
+    forall A, A -> list_alt A -> list_alt A.
+
+Inductive hd_list_alt : forall (A : Type), option A -> Type :=
+| hd_nil_alt : forall A, hd_list_alt A None
+| hd_cons_alt :
+    forall A (ao : option A) (a : A),
+      hd_list_alt A ao ->
+      hd_list_alt A (Some a).
+
+Find ornament list_alt hd_list_alt as orn_listalt_hdlistalt.
+
+
 (* --- TODO indexing by the old type, but without making it fin-like --- *)
 
 (* --- TODO adding an index with several uses --- *)
