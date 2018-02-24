@@ -553,8 +553,6 @@ Proof.
   exact orn_nat_natnat_inv.
 Qed.
 
-(* --- TODO adding an index with several uses --- *)
-
 (* --- TODO weirder indexes --- *)
 
 (* --- TODO what does it mean if the index already existed in the old constructor, but wasn't used, or was used differently? How do we handle that? ---*)

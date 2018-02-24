@@ -123,3 +123,20 @@ Qed.
  * Z to nat, so that we can make use of the inductive hypothesis.
  * But that is much less clear to me.
  *)
+
+(* --- Index must be eliminated --- *)
+
+Inductive bintree_weird (A : Type) : nat -> Type :=
+| leafW :
+    bintree_weird A 0
+| nodeW :
+    forall (n m : nat),
+      bintree_weird A n -> A -> bintree_weird A (n + m) -> bintree_weird A n.
+
+(*
+ * This fails:
+ * Find ornament bintree bintree_weird as orn_bintree_bintreeweird.
+ *
+ * Basically, we can't figure out the conclusion from the hypotheses
+ * since there's no way to eliminate (n + m) automatically.
+ *)
