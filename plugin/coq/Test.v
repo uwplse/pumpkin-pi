@@ -553,9 +553,11 @@ Proof.
   exact orn_nat_natnat_inv.
 Qed.
 
-(* --- TODO weirder indexes --- *)
+(* --- TODO Index already existed in the old constructor, but wasn't used --- *)
 
-(* --- TODO what does it mean if the index already existed in the old constructor, but wasn't used, or was used differently? How do we handle that? ---*)
+(* --- TODO Index already existed in the old constructor, but was used differently --- *)
+
+(* --- TODO weirder indexes --- *)
 
 (* --- TODO examples from notebook etc --- *)
 
