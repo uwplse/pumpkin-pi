@@ -1774,6 +1774,15 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
     let orn = fst (app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, []))) in
     remove_unused_hypos env orn (* weakens guarantee but gives better result *)
 
+(* --- Reduction --- *)
+
+(*
+ * Compose two applications of an induction principle that are
+ * structurally the same.
+ *)
+let compose_inductive t_old t_new =
+  t_new (* TODO *)
+
 (*
  * This takes a term (f o orn_inv) and reduces it to f' where orn_inv is
  * moved inside of the function.
@@ -1789,9 +1798,32 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
  *)
 let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
   debug_term env trm "trm";
-  let factors = factor_term env trm in
-  List.iter (fun (en, t) -> debug_term en t "factor") factors;
-  trm
+  debug_term env orn_inv "orn_inv";
+  let factors = List.rev (factor_term env trm) in
+  let (env, base) = List.hd factors in
+  let orn_inv_body = unwrap_definition env orn_inv in
+  let internalized =
+    reconstruct_lambda
+      env
+      (List.fold_left
+         (fun t_app (_, t) ->
+           let app = reduce_term (mkApp (shift t, Array.make 1 t_app)) in
+           if applies orn_inv t_app then
+             let (e_body, t_body) = zoom_lambda_term env t in
+             debug_term env (shift t) "t";
+             debug_term env t_app "t_app";
+             debug_term env t_body "t_body";
+             let t_body_red = reduce_term (Reductionops.whd_delta env Evd.empty t_body) in
+             let tapp_body_red = reduce_term (Reductionops.whd_delta env Evd.empty t_app) in
+             debug_term env t_body_red "t_body_red";
+             debug_term env tapp_body_red "tapp_body_red";
+             compose_inductive t_body_red tapp_body_red
+           else
+             (* TODO *)
+             app)
+         base
+         (List.tl factors))
+  in debug_term env internalized "internalized"; internalized
 
 
 (* --- Top-level --- *)
