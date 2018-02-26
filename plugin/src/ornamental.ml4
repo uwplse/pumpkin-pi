@@ -1780,8 +1780,8 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
  * Compose two applications of an induction principle that are
  * structurally the same.
  *)
-let compose_inductive t_old t_new =
-  t_new (* TODO *)
+let compose_inductive g f =
+  f (* TODO *)
 
 (*
  * This takes a term (f o orn_inv) and reduces it to f' where orn_inv is
