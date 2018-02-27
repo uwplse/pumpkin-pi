@@ -989,14 +989,13 @@ let shift_all = List.map shift
 let shift_all_by n = List.map (shift_by n)
 
 (* Apply an eliminator *)
-let apply_eliminator env elim pms p cs final_args =
+let apply_eliminator elim pms p cs final_args =
   let args = Array.of_list (List.append pms (p :: cs)) in
-  let proof = mkApp (mkApp (elim, args), final_args) in
-  reconstruct_lambda env proof
+  mkApp (mkApp (elim, args), final_args)
 
 (* Apply an eliminator and reconstruct it from an environment *)
 let apply_eliminator_recons env elim pms p cs final_args =
-  reconstruct_lambda env (apply_eliminator env elim pms p cs final_args)
+  reconstruct_lambda env (apply_eliminator elim pms p cs final_args)
 
 (* Get the first function of an application *)
 let rec first_fun t =
@@ -1932,13 +1931,10 @@ let compose_inductive orn_f (env_g, g) (env_f, f) =
   let ip = ip_f in
   let pms = pms_f in
   let p = compose_p orn_f p_g p_f in
-  debug_terms env_g cs_g "cs_g";
-  debug_terms env_f cs_f "cs_f";
   let npms_g = List.length pms_g in
   let cs = List.map2 (compose_c env_f env_g orn_f npms_g ip_g p_g) cs_g cs_f in
-  debug_terms env_g cs "cs";
-  let args = args_f (* TODO *) in
-  apply_eliminator env_g ip pms p cs args
+  let args = args_f in
+  apply_eliminator ip pms p cs args
 
 (*
  * This takes a term (f o orn_inv) and reduces it to f' where orn_inv is
@@ -1954,8 +1950,6 @@ let compose_inductive orn_f (env_g, g) (env_f, f) =
  * will build on.
  *)
 let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
-  debug_term env trm "trm";
-  debug_term env orn_inv "orn_inv";
   let factors = List.rev (factor_term env trm) in
   let (env, base) = List.hd factors in
   let orn_inv_body = unwrap_definition env orn_inv in
@@ -1976,7 +1970,7 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
              app)
          base
          (List.tl factors))
-  in debug_term env internalized "internalized"; internalized
+  in internalized
 
 
 (* --- Top-level --- *)
