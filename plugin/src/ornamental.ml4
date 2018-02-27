@@ -1822,25 +1822,22 @@ let compose_p orn_f p_g p_f =
   reconstruct_lambda env_p_f (reduce_term body)
 
 (*
-g :=
-  list_rect
-    A
-    (λ (l : list A) . A)
-    default
-    (λ (x : A) (l : list A) (IH : A) .
-      x)
-    l.
-
-f :=
-  vector_rect
-    A
-    (λ (n0 : nat) (v : vector A n0) . list A)
-    (nil A)
-    (λ (n0 : nat) (a : A) (v0 : vector A n0) (IH : list A) .
-      cons A a IH)
-    n
-    l.
+ * Compose the IH for a constructor
  *)
+let compose_ih env_g npms_g ip_g p_g c_f =
+  Printf.printf "%d\n" npms_g;
+  let ip_g_typ = reduce_type env_g ip_g in
+  let from_typ = first_fun (fst (ind_of_orn ip_g_typ)) in
+  map_term_if
+    (fun _ trm -> is_or_applies from_typ trm)
+    (fun p trm ->
+      let args = unfold_args trm in
+      let (_, non_pms) = take_split npms_g args in
+      let dummy_args = Array.make 1 (mkRel 0) in
+      reduce_term (mkApp (mkApp (p, Array.of_list non_pms), dummy_args)))
+    shift
+    p_g
+    c_f
 
 (*
  * Compose two constructors for two applications of an induction principle
@@ -1848,14 +1845,31 @@ f :=
  *
  * For now, this does not handle nested induction.
  *)
-let compose_c orn_f c_g c_f =
+let compose_c env_g orn_f npms_g ip_g p_g c_g c_f =
+  let c_f = compose_ih env_g npms_g ip_g p_g c_f in
   let (env_c_f, _) = zoom_lambda_term empty_env c_f in
   let off = nb_rel env_c_f in
   (* TODO: basically, apply the other constructor to all of the same args,
      except not the new indices, and where there is a list ornament.
      is there an easy way to do this? *)
+  (* Also, change each IH to the new type *)
   let body = mkApp (shift_by off c_g, Array.of_list []) in
   reconstruct_lambda env_c_f (reduce_term body)
+
+(*
+   (λ (x : A) (l : list A) (IH : A) .
+     x)
+
+   (λ (n0 : nat) (a : A) (v0 : vector A n0) (IH : list A) .
+     cons A a IH)
+
+  (λ (n0 : nat) (a : A) (v0 : vector A n0) (IH : list A) .
+    (λ (x : A) (l : list A) (IH : A) .
+      x) a (forget n0 v0) (....))
+
+     x)
+ *)
+
 
 (*
  * Compose two applications of an induction principle that are
@@ -1869,7 +1883,8 @@ let compose_inductive orn_f (env_g, g) (env_f, f) =
   let p = compose_p orn_f p_g p_f in
   debug_terms env_g cs_g "cs_g";
   debug_terms env_f cs_f "cs_f";
-  let cs = List.map2 (compose_c orn_f) cs_g cs_f in
+  let npms_g = List.length pms_g in
+  let cs = List.map2 (compose_c env_g orn_f npms_g ip_g p_g) cs_g cs_f in
   debug_terms env_g cs "cs";
   let args = args_f (* TODO *) in
   apply_eliminator env_g ip pms p cs args
