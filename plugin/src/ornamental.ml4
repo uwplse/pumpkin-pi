@@ -1847,9 +1847,15 @@ f :=
  * that are structurally the same when one is an ornament.
  *
  * For now, this does not handle nested induction.
+ *)
 let compose_c orn_f c_g c_f =
-  let (env_c_f, _) = zoom_lambda_term 
-  c_g (* TODO *)*)
+  let (env_c_f, _) = zoom_lambda_term empty_env c_f in
+  let off = nb_rel env_c_f in
+  (* TODO: basically, apply the other constructor to all of the same args,
+     except not the new indices, and where there is a list ornament.
+     is there an easy way to do this? *)
+  let body = mkApp (shift_by off c_g, Array.of_list []) in
+  reconstruct_lambda env_c_f (reduce_term body)
 
 (*
  * Compose two applications of an induction principle that are
@@ -1863,7 +1869,8 @@ let compose_inductive orn_f (env_g, g) (env_f, f) =
   let p = compose_p orn_f p_g p_f in
   debug_terms env_g cs_g "cs_g";
   debug_terms env_f cs_f "cs_f";
-  let cs = List.map2 (compose_p orn_f) cs_g cs_f in
+  let cs = List.map2 (compose_c orn_f) cs_g cs_f in
+  debug_terms env_g cs "cs";
   let args = args_f (* TODO *) in
   apply_eliminator env_g ip pms p cs args
 
