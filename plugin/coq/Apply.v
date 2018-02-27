@@ -43,6 +43,8 @@ Proof.
   intros. induction v; auto.
 Qed.
 
+Print hd_vect_auto.
+
 Theorem test_deorn_hd :
   forall (A : Type) (a : A) (l : list A),
     hd_auto A a l = hd A a l.
@@ -70,6 +72,8 @@ Definition append_vect (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 :
 
 Apply ornament orn_list_vector orn_list_vector_inv in append as append_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in append_vect as append_auto.
+
+Check append_vect_auto.
 
 (*
  * For this one, we can't state the equality, but we can use existsT.

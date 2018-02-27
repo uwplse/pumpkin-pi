@@ -994,6 +994,74 @@ let apply_eliminator env elim pms p cs final_args =
   let proof = mkApp (mkApp (elim, args), final_args) in
   reconstruct_lambda env proof
 
+(* Get the first function of an application *)
+let rec first_fun t =
+  match kind_of_term t with
+  | App (f, args) ->
+     first_fun f
+  | _ ->
+     t
+
+(* Get the inductive types applied in a hypothesis or conclusion *)
+let rec ind_of (trm : types) : types =
+  match kind_of_term trm with
+  | App (f, args) ->
+     ind_of f
+  | Ind (_, _) ->
+     trm
+  | _ ->
+     failwith "not an inductive type"
+
+(* Get the inductive types an ornament maps between, including their arguments *)
+let rec ind_of_orn (orn_type : types) : types * types =
+  match kind_of_term orn_type with
+  | Prod (n, t, b) when isProd b ->
+     ind_of_orn b
+  | Prod (n, t, b) ->
+     (t, b)
+  | _ ->
+     failwith "not an ornament"
+
+(* Get a list of all arguments, fully unfolded at the head *)
+let unfold_args_app trm =
+  let (f, args) = destApp trm in
+  let rec unfold trm =
+    match kind_of_term trm with
+    | App (f, args) ->
+       List.append (unfold f) (Array.to_list args)
+    | _ ->
+       [trm]
+  in List.append (List.tl (unfold f)) (Array.to_list args)
+
+(* Like unfold_args_app, but return empty if it's not an application *)
+let unfold_args trm =
+  if isApp trm then unfold_args_app trm else []
+
+(*
+ * Get the argument to an application of a property at argument position i.
+ * This unfolds all arguments first.
+ *)
+let get_arg i trm =
+  match kind_of_term trm with
+  | App (_, _) ->
+     let args = Array.of_list (unfold_args trm) in
+     Array.get args i
+  | _ ->
+     failwith "not an application"
+
+(* Deconstruct an eliminator application *)
+let deconstruct_eliminator env app =
+  let ip = first_fun app in
+  let ip_args = unfold_args app in
+  let ip_typ = reduce_type env ip in
+  let from_typ =  first_fun (fst (ind_of_orn ip_typ)) in
+  let ((from_i, _), _) = destInd from_typ in
+  let npms = (lookup_mind from_i env).mind_nparams in
+  let (pms, pmd_args) = take_split npms ip_args in
+  let (p :: cs_and_args) = pmd_args in
+  let (cs, args) = take_split (arity ip_typ - npms - 2) cs_and_args in
+  (ip, pms, p, cs, Array.of_list args)
+
 (* Find the offset of some environment from some number of parameters *)
 let offset env npm = nb_rel env - npm
 
@@ -1012,21 +1080,6 @@ let rec lambda_to_prod trm =
      mkProd (n, t, lambda_to_prod b)
   | _ ->
      trm
-
-(* Get a list of all arguments, fully unfolded at the head *)
-let unfold_args_app trm =
-  let (f, args) = destApp trm in
-  let rec unfold trm =
-    match kind_of_term trm with
-    | App (f, args) ->
-       List.append (unfold f) (Array.to_list args)
-    | _ ->
-       [trm]
-  in List.append (List.tl (unfold f)) (Array.to_list args)
-
-(* Like unfold_args_app, but return empty if it's not an application *)
-let unfold_args trm =
-  if isApp trm then unfold_args_app trm else []
 
 (*
  * Modify a case of an eliminator application to use
@@ -1072,18 +1125,6 @@ let rec remove_unused_hypos (env : env) (trm : types) : types =
        remove_unused_hypos env (unshift b')
   | _ ->
      trm
-
-(*
- * Get the argument to an application of a property at argument position i.
- * This unfolds all arguments first.
- *)
-let get_arg i trm =
-  match kind_of_term trm with
-  | App (_, _) ->
-     let args = Array.of_list (unfold_args trm) in
-     Array.get args i
-  | _ ->
-     failwith "not an application"
 
 (*
  * Returns true if two applications contain have a different
@@ -1612,26 +1653,6 @@ let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : typ
 
 (* --- Application --- *)
 
-(* Get the inductive types applied in a hypothesis or conclusion *)
-let rec ind_of (trm : types) : types =
-  match kind_of_term trm with
-  | App (f, args) ->
-     ind_of f
-  | Ind (_, _) ->
-     trm
-  | _ ->
-     failwith "not an inductive type"
-
-(* Get the inductive types an ornament maps between, including their arguments *)
-let rec ind_of_orn (orn_type : types) : types * types =
-  match kind_of_term orn_type with
-  | Prod (n, t, b) when isProd b ->
-     ind_of_orn b
-  | Prod (n, t, b) ->
-     (t, b)
-  | _ ->
-     failwith "not an ornament"
-
 (*
  * Substitute the ornamented type in the hypotheses.
  * Return both the term with ornamented hypotheses and the number
@@ -1777,11 +1798,36 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
 (* --- Reduction --- *)
 
 (*
+g :=
+  list_rect
+    A
+    (λ (l : list A) . A)
+    default
+    (λ (x : A) (l : list A) (IH : A) .
+      x)
+    l.
+
+f :=
+  vector_rect
+    A
+    (λ (n0 : nat) (v : vector A n0) . list A)
+    (nil A)
+    (λ (n0 : nat) (a : A) (v0 : vector A n0) (IH : list A) .
+      cons A a IH)
+    n
+    l.
+ *)
+
+(*
  * Compose two applications of an induction principle that are
  * structurally the same.
+ *
+ * A
  *)
-let compose_inductive g f =
-  f (* TODO *)
+let compose_inductive (env_g, g) (env_f, f) =
+  let (ip_f, pms_f, p_f, cs_f, args_f) = deconstruct_eliminator env_f f in
+  let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
+  apply_eliminator env_g ip_g pms_g p_g cs_g args_g (* TODO *)
 
 (*
  * This takes a term (f o orn_inv) and reduces it to f' where orn_inv is
@@ -1802,22 +1848,18 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
   let factors = List.rev (factor_term env trm) in
   let (env, base) = List.hd factors in
   let orn_inv_body = unwrap_definition env orn_inv in
+  let delta env trm = Reductionops.whd_delta env Evd.empty trm in
   let internalized =
     reconstruct_lambda
       env
       (List.fold_left
-         (fun t_app (_, t) ->
+         (fun t_app (en, t) ->
            let app = reduce_term (mkApp (shift t, Array.make 1 t_app)) in
            if applies orn_inv t_app then
-             let (e_body, t_body) = zoom_lambda_term env t in
-             debug_term env (shift t) "t";
-             debug_term env t_app "t_app";
-             debug_term env t_body "t_body";
-             let t_body_red = reduce_term (Reductionops.whd_delta env Evd.empty t_body) in
-             let tapp_body_red = reduce_term (Reductionops.whd_delta env Evd.empty t_app) in
-             debug_term env t_body_red "t_body_red";
-             debug_term env tapp_body_red "tapp_body_red";
-             compose_inductive t_body_red tapp_body_red
+             let (e_body, t_body) = zoom_lambda_term en t in
+             let t_body_red = reduce_term (delta e_body t_body) in
+             let tapp_body_red = reduce_term (delta env t_app) in
+             compose_inductive (e_body, t_body_red) (env, tapp_body_red)
            else
              (* TODO *)
              app)
