@@ -1127,17 +1127,56 @@ let contains_term c trm =
  * It's different from the version in PUMPKIN PATCH because it ignores
  * possible universe inconsistency.
  *)
-let rec remove_unused_hypos (env : env) (trm : types) : types =
+let rec remove_unused_hypos (trm : types) : types =
   match kind_of_term trm with
   | Lambda (n, t, b) ->
-     let env_b = push_rel CRD.(LocalAssum(n, t)) env in
-     let b' = remove_unused_hypos env_b b in
+     let b' = remove_unused_hypos b in
      if contains_term (mkRel 1) b' then
        mkLambda (n, t, b')
      else
-       remove_unused_hypos env (unshift b')
+       remove_unused_hypos (unshift b')
   | _ ->
      trm
+
+(*
+ * Get only the hypos that are used in the body,
+ * but in the order they appear in the lambda
+ *)
+let get_used_hypos (trm : types) : types list =
+  let rec get_used trm i =
+    match kind_of_term trm with
+    | Lambda (n, t, b) ->
+       let b' = remove_unused_hypos b in
+       let bs = get_used b (unshift_i i) in
+       if contains_term (mkRel 1) b' then
+         mkRel i :: bs
+       else
+         bs
+    | _ ->
+       []
+  in get_used trm (arity trm)
+
+(*
+ * Get the hypos that are used in the body, or that match
+ * a certain predicate on the type
+ *)
+let get_used_or_p_hypos (p : types -> bool) (trm : types) : types list =
+  let rec get_used trm i =
+    match kind_of_term trm with
+    | Lambda (n, t, b) ->
+       let bs = get_used b (unshift_i i) in
+       if p t then
+         mkRel i :: bs
+       else
+         let b' = remove_unused_hypos b in
+         if contains_term (mkRel 1) b' then
+           mkRel i :: bs
+         else
+           bs
+    | _ ->
+       []
+  in get_used trm (arity trm)
+
 
 (*
  * Returns true if two applications contain have a different
@@ -1806,7 +1845,7 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
     let app_orn ornamenter = ornamenter env orn index_i (from_ind, to_ind) is_fwd in
     let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
     let orn = fst (app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, []))) in
-    remove_unused_hypos env orn (* weakens guarantee but gives better result *)
+    remove_unused_hypos orn (* weakens guarantee but gives better result *)
 
 (* --- Reduction --- *)
 
@@ -1825,7 +1864,6 @@ let compose_p orn_f p_g p_f =
  * Compose the IH for a constructor
  *)
 let compose_ih env_g npms_g ip_g p_g c_f =
-  Printf.printf "%d\n" npms_g;
   let ip_g_typ = reduce_type env_g ip_g in
   let from_typ = first_fun (fst (ind_of_orn ip_g_typ)) in
   map_term_if
@@ -1844,17 +1882,32 @@ let compose_ih env_g npms_g ip_g p_g c_f =
  * that are structurally the same when one is an ornament.
  *
  * For now, this does not handle nested induction.
+ *
+ * TODO clean, refactor orn/deorn, take fewer arguments, etc.
  *)
-let compose_c env_g orn_f npms_g ip_g p_g c_g c_f =
+let compose_c env_f env_g orn_f npms_g ip_g p_g c_g c_f =
+  let orn_f_typ = reduce_type env_f orn_f in
+  let to_typ = first_fun (fst (ind_of_orn orn_f_typ)) in
+  let is_deorn = is_or_applies to_typ in
+  let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_f = compose_ih env_g npms_g ip_g p_g c_f in
+  let (env_f_body, _ ) = zoom_lambda_term env_f c_f in
   let (env_c_f, _) = zoom_lambda_term empty_env c_f in
   let off = nb_rel env_c_f in
-  (* TODO: basically, apply the other constructor to all of the same args,
-     except not the new indices, and where there is a list ornament.
-     is there an easy way to do this? *)
-  (* Also, change each IH to the new type *)
-  let body = mkApp (shift_by off c_g, Array.of_list []) in
-  reconstruct_lambda env_c_f (reduce_term body)
+  let f = shift_by off c_g in
+  let args =
+    List.map
+      (map_term_env_if
+         (fun env _ trm ->
+           is_deorn (reduce_type env trm))
+         (fun env _ trm ->
+           let args = unfold_args (reduce_type env trm) in
+           mkApp (orn_f, Array.of_list (List.append args [trm])))
+         (fun _ -> ())
+         env_f_body
+         ())
+      c_f_used
+  in reconstruct_lambda env_c_f (reduce_term (mkApp (f, Array.of_list args)))
 
 (*
    (λ (x : A) (l : list A) (IH : A) .
@@ -1863,11 +1916,9 @@ let compose_c env_g orn_f npms_g ip_g p_g c_g c_f =
    (λ (n0 : nat) (a : A) (v0 : vector A n0) (IH : list A) .
      cons A a IH)
 
-  (λ (n0 : nat) (a : A) (v0 : vector A n0) (IH : list A) .
+  (λ (n0 : nat) (a : A) (v0 : vector A n0) (IH : A) .
     (λ (x : A) (l : list A) (IH : A) .
-      x) a (forget n0 v0) (....))
-
-     x)
+      x) a (forget n0 v0) IH)
  *)
 
 
@@ -1884,7 +1935,7 @@ let compose_inductive orn_f (env_g, g) (env_f, f) =
   debug_terms env_g cs_g "cs_g";
   debug_terms env_f cs_f "cs_f";
   let npms_g = List.length pms_g in
-  let cs = List.map2 (compose_c env_g orn_f npms_g ip_g p_g) cs_g cs_f in
+  let cs = List.map2 (compose_c env_f env_g orn_f npms_g ip_g p_g) cs_g cs_f in
   debug_terms env_g cs "cs";
   let args = args_f (* TODO *) in
   apply_eliminator env_g ip pms p cs args
