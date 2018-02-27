@@ -988,11 +988,15 @@ let shift_all = List.map shift
 (* Shift all elements of a list by n *)
 let shift_all_by n = List.map (shift_by n)
 
-(* Apply an eliminator and reconstruct it from an environment *)
+(* Apply an eliminator *)
 let apply_eliminator env elim pms p cs final_args =
   let args = Array.of_list (List.append pms (p :: cs)) in
   let proof = mkApp (mkApp (elim, args), final_args) in
   reconstruct_lambda env proof
+
+(* Apply an eliminator and reconstruct it from an environment *)
+let apply_eliminator_recons env elim pms p cs final_args =
+  reconstruct_lambda env (apply_eliminator env elim pms p cs final_args)
 
 (* Get the first function of an application *)
 let rec first_fun t =
@@ -1379,7 +1383,7 @@ let search_for_indexer index_i index_t npm elim_o o n is_fwd : types option =
        let cs = indexer_cases index_i (shift p) npm o n in
        let final_args = Array.of_list (mk_n_rels off) in
        let p_elim = shift_by off p in
-       Some (apply_eliminator env_ind elim_o pms p_elim cs final_args)
+       Some (apply_eliminator_recons env_ind elim_o pms p_elim cs final_args)
     | _ ->
        failwith "not eliminators"
   else
@@ -1604,7 +1608,7 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
      let p_cs = unshift_by (arity - npm) p in
      let cs = shift_all_by off_b (orn_index_cases index_i npm is_fwd f_indexer p_cs o n) in
      let final_args = Array.of_list (mk_n_rels off) in
-     let ornament = apply_eliminator env_ornament elim_o pms p cs final_args in
+     let ornament = apply_eliminator_recons env_ornament elim_o pms p cs final_args in
      (indexer, ornament)
   | _ ->
      failwith "not eliminators"
@@ -1807,6 +1811,17 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
 (* --- Reduction --- *)
 
 (*
+ * Compose two properties for two applications of an induction principle
+ * that are structurally the same when one is an ornament.
+ *)
+let compose_p orn_f p_g p_f =
+  let (env_p_f, _) = zoom_lambda_term empty_env p_f in
+  let off = nb_rel env_p_f in
+  let orn_app = mkApp (orn_f, Array.of_list (mk_n_rels off)) in
+  let body = mkApp (shift_by off p_g, Array.make 1 orn_app) in
+  reconstruct_lambda env_p_f (reduce_term body)
+
+(*
 g :=
   list_rect
     A
@@ -1828,22 +1843,13 @@ f :=
  *)
 
 (*
- * Compose two properties for two applications of an induction principle
- * that are structurally the same when one is an ornament.
- *)
-let compose_p orn_f p_g p_f =
-  let (env_p_f, _) = zoom_lambda_term empty_env p_f in
-  let off = nb_rel env_p_f in
-  let orn_app = mkApp (orn_f, Array.of_list (mk_n_rels off)) in
-  let body = mkApp (shift_by off p_g, Array.make 1 orn_app) in
-  reconstruct_lambda env_p_f (reduce_term body)
-
-(*
  * Compose two constructors for two applications of an induction principle
  * that are structurally the same when one is an ornament.
- *)
+ *
+ * For now, this does not handle nested induction.
 let compose_c orn_f c_g c_f =
-  c_g (* TODO *)
+  let (env_c_f, _) = zoom_lambda_term 
+  c_g (* TODO *)*)
 
 (*
  * Compose two applications of an induction principle that are
@@ -1852,13 +1858,13 @@ let compose_c orn_f c_g c_f =
 let compose_inductive orn_f (env_g, g) (env_f, f) =
   let (ip_f, pms_f, p_f, cs_f, args_f) = deconstruct_eliminator env_f f in
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
-  let ip = ip_g in
+  let ip = ip_f in
   let pms = pms_f in
   let p = compose_p orn_f p_g p_f in
   debug_terms env_g cs_g "cs_g";
   debug_terms env_f cs_f "cs_f";
-  let cs = List.map2 (compose_c orn_f) cs_g cs_f in
-  let args = args_g (* TODO *) in
+  let cs = List.map2 (compose_p orn_f) cs_g cs_f in
+  let args = args_f (* TODO *) in
   apply_eliminator env_g ip pms p cs args
 
 (*
