@@ -1049,17 +1049,26 @@ let get_arg i trm =
   | _ ->
      failwith "not an application"
 
-(* Deconstruct an eliminator application *)
+(*
+ * Deconstruct an eliminator application.
+ *
+ * Assumes the inductive type is not mutually inductive,
+ *)
 let deconstruct_eliminator env app =
   let ip = first_fun app in
   let ip_args = unfold_args app in
   let ip_typ = reduce_type env ip in
   let from_typ =  first_fun (fst (ind_of_orn ip_typ)) in
   let ((from_i, _), _) = destInd from_typ in
-  let npms = (lookup_mind from_i env).mind_nparams in
+  let from_m = lookup_mind from_i env in
+  let npms = from_m.mind_nparams in
+  let from_arity = arity (type_of_inductive env 0 from_m) in
+  let num_indices = from_arity - npms in
+  let num_props = 1 in
+  let num_constrs = arity ip_typ - npms - num_props - num_indices - 1 in
   let (pms, pmd_args) = take_split npms ip_args in
   let (p :: cs_and_args) = pmd_args in
-  let (cs, args) = take_split (arity ip_typ - npms - 2) cs_and_args in
+  let (cs, args) = take_split num_constrs cs_and_args in
   (ip, pms, p, cs, Array.of_list args)
 
 (* Find the offset of some environment from some number of parameters *)
@@ -1830,6 +1839,13 @@ let compose_p orn_f p_g p_f =
   reconstruct_lambda env_p_f (reduce_term body)
 
 (*
+ * Compose two constructors for two applications of an induction principle
+ * that are structurally the same when one is an ornament.
+ *)
+let compose_c orn_f c_g c_f =
+  c_g (* TODO *)
+
+(*
  * Compose two applications of an induction principle that are
  * structurally the same when one is an ornament.
  *)
@@ -1839,7 +1855,9 @@ let compose_inductive orn_f (env_g, g) (env_f, f) =
   let ip = ip_g in
   let pms = pms_f in
   let p = compose_p orn_f p_g p_f in
-  let cs = cs_g (* TODO *) in
+  debug_terms env_g cs_g "cs_g";
+  debug_terms env_f cs_f "cs_f";
+  let cs = List.map2 (compose_c orn_f) cs_g cs_f in
   let args = args_g (* TODO *) in
   apply_eliminator env_g ip pms p cs args
 
