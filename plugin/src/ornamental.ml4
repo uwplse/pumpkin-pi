@@ -1819,15 +1819,29 @@ f :=
  *)
 
 (*
- * Compose two applications of an induction principle that are
- * structurally the same.
- *
- * A
+ * Compose two properties for two applications of an induction principle
+ * that are structurally the same when one is an ornament.
  *)
-let compose_inductive (env_g, g) (env_f, f) =
+let compose_p orn_f p_g p_f =
+  let (env_p_f, _) = zoom_lambda_term empty_env p_f in
+  let off = nb_rel env_p_f in
+  let orn_app = mkApp (orn_f, Array.of_list (mk_n_rels off)) in
+  let body = mkApp (shift_by off p_g, Array.make 1 orn_app) in
+  reconstruct_lambda env_p_f (reduce_term body)
+
+(*
+ * Compose two applications of an induction principle that are
+ * structurally the same when one is an ornament.
+ *)
+let compose_inductive orn_f (env_g, g) (env_f, f) =
   let (ip_f, pms_f, p_f, cs_f, args_f) = deconstruct_eliminator env_f f in
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
-  apply_eliminator env_g ip_g pms_g p_g cs_g args_g (* TODO *)
+  let ip = ip_g in
+  let pms = pms_f in
+  let p = compose_p orn_f p_g p_f in
+  let cs = cs_g (* TODO *) in
+  let args = args_g (* TODO *) in
+  apply_eliminator env_g ip pms p cs args
 
 (*
  * This takes a term (f o orn_inv) and reduces it to f' where orn_inv is
@@ -1859,7 +1873,7 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
              let (e_body, t_body) = zoom_lambda_term en t in
              let t_body_red = reduce_term (delta e_body t_body) in
              let tapp_body_red = reduce_term (delta env t_app) in
-             compose_inductive (e_body, t_body_red) (env, tapp_body_red)
+             compose_inductive orn_inv (e_body, t_body_red) (env, tapp_body_red)
            else
              (* TODO *)
              app)
