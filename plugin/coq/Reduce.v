@@ -24,6 +24,29 @@ Proof.
   intros. reflexivity.
 Qed.
 
+Reduce ornament orn_list_vector orn_list_vector_inv in hd_vect_error_auto as hd_vect_error_red.
+
+Theorem test_hd_vect_error:
+  forall (A : Type) (n : nat) (v : vector A n),
+    hd_vect_error A n v = hd_vect_error_red A n v.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Reduce ornament orn_list_vector_inv orn_list_vector in hd_error_auto as hd_error_red.
+
+Theorem test_hd_error:
+  forall (A : Type) (l : list A),
+    hd_error A l = hd_error_red A l.
+Proof.
+  intros. reflexivity.
+Qed.
+
 (* TODO app *)
 
+(* Currently fails: *)
+Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red.
+
 (* TODO proofs and more complex things *)
+
+(* TODO other types *)

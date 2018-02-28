@@ -52,6 +52,44 @@ Proof.
   intros. induction l; auto.
 Qed.
 
+Definition hd_error (A : Type) (l:list A) :=
+  list_rect
+    (fun (_ : list A) => option A)
+    None
+    (fun (x : A) (_ : list A) (_ : option A) =>
+      Some x)
+    l.
+
+Definition hd_vect_error (A : Type) (n : nat) (v : vector A n) :=
+  vector_rect
+    A
+    (fun (n0 : nat) (_ : vector A n0) => option A)
+    None
+    (fun (n0 : nat) (x : A) (_ : vector A n0) (_ : option A) =>
+      Some x)
+    n
+    v.
+
+Apply ornament orn_list_vector orn_list_vector_inv in hd_error as hd_vect_error_auto.
+Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_error as hd_error_auto.
+
+(*
+ * Same situation as above
+ *)
+Theorem test_orn_hd_error :
+  forall (A : Type) (n : nat) (v : vector A n),
+    hd_vect_error_auto A n v = hd_vect_error A n v.
+Proof.
+  intros. induction v; auto.
+Qed.
+
+Theorem test_deorn_hd_error :
+  forall (A : Type) (a : A) (l : list A),
+    hd_error_auto A l = hd_error A l.
+Proof.
+  intros. induction l; auto.
+Qed.
+
 Definition append (A : Type) (l1 : list A) (l2 : list A) :=
   list_rect
     (fun (_ : list A) => list A)
@@ -124,5 +162,53 @@ Proof.
   intros. induction l; induction l'; try apply eq_cons; auto.
 Qed.
 
+Definition tl (A : Type) (l:list A) :=
+  list_rect
+    (fun (_ : list A) => list A)
+    nil
+    (fun (a : A) (m : list A) (_ : list A) =>
+      m)
+    l.
+
+Definition tl_vect (A : Type) (n : nat) (v : vector A n) :=
+  vector_rect
+    A
+    (fun (n0 : nat) (_ : vector A n0) => vector A (pred n0))
+    (nilV A)
+    (fun (n0 : nat) (a : A) (v : vector A n0) (_ : vector A (pred n0)) =>
+      v)
+    n
+    v.
+
+Apply ornament orn_list_vector orn_list_vector_inv in tl as tl_vect_auto.
+Apply ornament orn_list_vector_inv orn_list_vector in tl_vect as tl_auto.
+
+(*
+ * Same situation as above
+ *)
+Theorem test_orn_tl :
+  forall (A : Type) (n : nat) (v : vector A n),
+    eq_vect
+      A
+      (orn_list_vector_index A (tl A (orn_list_vector_inv A n v)))
+      (tl_vect_auto A n v)
+      (pred n)
+      (tl_vect A n v).
+Proof.
+  intros. induction v. 
+  - unfold eq_vect. auto.
+Admitted. (* other case is hard *)
+
+Theorem test_deorn_hd_error :
+  forall (A : Type) (a : A) (l : list A),
+    hd_error_auto A l = hd_error A l.
+Proof.
+  intros. induction l; auto.
+Qed.
+
+(* TODO try In, then you can try the facts about In, which should translate over as soon
+   as app translates over. Then try app_nil_r and so on. *)
+
 (* TODO test more to see if there are bugs before internalizing *)
 
+(* TODO test some functions on other types besides lists/vectors *)
