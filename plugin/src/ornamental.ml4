@@ -1867,7 +1867,7 @@ let compose_p npms index_i orn_f p_g p_f is_fwd =
 (*
  * Compose the IH for a constructor
  *)
-let compose_ih env_g npms_g ip_g p_g c_f =
+let compose_ih env_g npms_g ip_g p_g c_f is_fwd =
   let ip_g_typ = reduce_type env_g ip_g in
   let from_typ = first_fun (fst (ind_of_orn ip_g_typ)) in
   map_term_if
@@ -1875,6 +1875,7 @@ let compose_ih env_g npms_g ip_g p_g c_f =
     (fun p trm ->
       let args = unfold_args trm in
       let (_, non_pms) = take_split npms_g args in
+      let p = if is_fwd then p else unshift p in
       let dummy_args = Array.make 1 (mkRel 0) in
       reduce_term (mkApp (mkApp (p, Array.of_list non_pms), dummy_args)))
     shift
@@ -1889,16 +1890,19 @@ let compose_ih env_g npms_g ip_g p_g c_f =
  *
  * TODO clean, refactor orn/deorn, take fewer arguments, etc.
  *)
-let compose_c env_f env_g orn_f npms_g ip_g p_g c_g c_f =
+let compose_c env_f env_g orn_f npms_g ip_g p_g is_fwd c_g c_f =
   let orn_f_typ = reduce_type env_f orn_f in
   let to_typ = first_fun (fst (ind_of_orn orn_f_typ)) in
   let is_deorn = is_or_applies to_typ in
+  let always_true _ = true in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
-  let c_f = compose_ih env_g npms_g ip_g p_g c_f in
+  let c_g_used = get_used_or_p_hypos always_true c_g in
+  let c_f = compose_ih env_g npms_g ip_g p_g c_f is_fwd in
   let (env_f_body, _ ) = zoom_lambda_term env_f c_f in
   let (env_c_f, _) = zoom_lambda_term empty_env c_f in
   let off = nb_rel env_c_f in
-  let f = shift_by off c_g in
+  let f = if is_fwd then shift_by off c_g else shift_by (off - 1) c_g in
+  let c_used = if is_fwd then c_f_used else c_g_used in
   let args =
     List.map
       (map_term_env_if
@@ -1910,7 +1914,7 @@ let compose_c env_f env_g orn_f npms_g ip_g p_g c_g c_f =
          (fun _ -> ())
          env_f_body
          ())
-      c_f_used
+      c_used
   in reconstruct_lambda env_c_f (reduce_term (mkApp (f, Array.of_list args)))
 
 (*
@@ -1924,7 +1928,7 @@ let compose_inductive index_i orn_f (env_g, g) (env_f, f) is_fwd =
   let pms = pms_f in
   let p = compose_p (List.length pms) index_i orn_f p_g p_f is_fwd in
   let npms_g = List.length pms_g in
-  let cs = List.map2 (compose_c env_f env_g orn_f npms_g ip_g p_g) cs_g cs_f in
+  let cs = List.map2 (compose_c env_f env_g orn_f npms_g ip_g p_g is_fwd) cs_g cs_f in
   let args = args_f in
   apply_eliminator ip pms p cs args
 
@@ -2003,7 +2007,6 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
   let (env, base) = List.hd factors in
   let orn_inv_body = unwrap_definition env orn_inv in
   let delta env trm = Reductionops.whd_delta env Evd.empty trm in
-  List.iter (fun (en, f) -> debug_env en "en"; debug_term en f "factor") factors;
   let internalized =
     reconstruct_lambda
       env
