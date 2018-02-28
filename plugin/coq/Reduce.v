@@ -15,6 +15,8 @@ Proof.
   intros. reflexivity.
 Qed.
 
+Reduce ornament orn_list_vector_inv orn_list_vector in hd_auto as hd_red.
+
 (* TODO app *)
 
 (* TODO deorn *)

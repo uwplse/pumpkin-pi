@@ -1852,12 +1852,17 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
  * Compose two properties for two applications of an induction principle
  * that are structurally the same when one is an ornament.
  *)
-let compose_p orn_f p_g p_f =
-  let (env_p_f, _) = zoom_lambda_term empty_env p_f in
+let compose_p npms index_i orn_f p_g p_f is_fwd =
+  let (env_p_f, p_f_body) = zoom_lambda_term empty_env p_f in
   let off = nb_rel env_p_f in
-  let orn_app = mkApp (orn_f, Array.of_list (mk_n_rels off)) in
-  let body = mkApp (shift_by off p_g, Array.make 1 orn_app) in
-  reconstruct_lambda env_p_f (reduce_term body)
+  let orn_app = mkApp (orn_f, Array.of_list (mk_n_rels (npms + off))) in
+  let body =
+    if is_fwd then
+      shift_by off (mkApp (p_g, Array.make 1 orn_app))
+    else
+      let index = get_arg index_i p_f_body in
+      shift_by (off - 1) (mkApp (p_g, Array.of_list [index; orn_app]))
+  in reconstruct_lambda env_p_f (reduce_term body)
 
 (*
  * Compose the IH for a constructor
@@ -1909,28 +1914,15 @@ let compose_c env_f env_g orn_f npms_g ip_g p_g c_g c_f =
   in reconstruct_lambda env_c_f (reduce_term (mkApp (f, Array.of_list args)))
 
 (*
-   (λ (x : A) (l : list A) (IH : A) .
-     x)
-
-   (λ (n0 : nat) (a : A) (v0 : vector A n0) (IH : list A) .
-     cons A a IH)
-
-  (λ (n0 : nat) (a : A) (v0 : vector A n0) (IH : A) .
-    (λ (x : A) (l : list A) (IH : A) .
-      x) a (forget n0 v0) IH)
- *)
-
-
-(*
  * Compose two applications of an induction principle that are
  * structurally the same when one is an ornament.
  *)
-let compose_inductive orn_f (env_g, g) (env_f, f) =
+let compose_inductive index_i orn_f (env_g, g) (env_f, f) is_fwd =
   let (ip_f, pms_f, p_f, cs_f, args_f) = deconstruct_eliminator env_f f in
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
   let ip = ip_f in
   let pms = pms_f in
-  let p = compose_p orn_f p_g p_f in
+  let p = compose_p (List.length pms) index_i orn_f p_g p_f is_fwd in
   let npms_g = List.length pms_g in
   let cs = List.map2 (compose_c env_f env_g orn_f npms_g ip_g p_g) cs_g cs_f in
   let args = args_f in
@@ -1948,12 +1940,70 @@ let compose_inductive orn_f (env_g, g) (env_f, f) =
  * of the induction principle for the unornamented type. Basically,
  * this is a very preliminary attempt at solving this problem, which I
  * will build on.
+ *
+ * TODO: Ornamentation direction is fine, but deornamentation direction
+ * is horrid. Indices complicate factoring. This problem may happen
+ * for other types, so maybe we want a special factoring function
+ * instead of all of this nonsense. We'll find out later when we try
+ * to extend this, I guess.
  *)
 let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
-  let factors = List.rev (factor_term env trm) in
+  let orn_type = reduce_type env orn in
+  let (from_with_args, to_with_args) = ind_of_orn orn_type in
+  let from_args = unfold_args from_with_args in
+  let to_args = unfold_args to_with_args in
+  let is_fwd = List.length from_args < List.length to_args in
+  let to_args_idx =
+    if is_fwd then
+      List.mapi (fun i t -> (i, t)) to_args
+    else
+      let orn_type_inv = reduce_type env orn_inv in
+      let (from_with_args, to_with_args) = ind_of_orn orn_type_inv in
+      let from_args = unfold_args from_with_args in
+      let to_args = unfold_args to_with_args in
+      List.mapi (fun i t -> (i, t)) to_args
+  in
+  let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
+  let indexer = fst (destApp index) in
+  let is_orn = is_or_applies (first_fun from_with_args) in
+  let temp_index = (* TODO only need this in one direction *)
+    map_term_if
+      (fun _ trm -> applies indexer trm)
+      (fun _ trm -> mkRel 0)
+      (fun _ -> ())
+      ()
+  in
+  let reindex =
+    map_term_if
+      (fun _ trm -> eq_constr trm (mkRel 0))
+      (fun ii trm -> ii)
+      shift
+      (mkRel 1)
+  in
+  let factors =
+    if is_fwd then
+      List.rev (factor_term env trm)
+    else
+      let factors_indexed = List.rev (factor_term env (temp_index trm)) in
+      let factors_deindexed = List.map (fun (e, t) -> (e, temp_index t)) factors_indexed in
+      List.map
+        (fun (en, f) ->
+          match kind_of_term f with
+          | Lambda (n, t, b) when is_orn t ->
+             let t_args = remove_index index_i (unfold_args t) in
+             let index_f = prod_to_lambda (reduce_type en (first_fun index)) in
+             let dummy = mkRel 0 in
+             let index = reduce_term (mkApp (index_f, Array.of_list (List.append t_args [dummy]))) in
+             let body = mkLambda (n, reindex (shift t), reindex (shift b)) in
+             (en, mkLambda (Anonymous, index, body))
+          | _ ->
+             (en, f))
+        factors_deindexed
+  in
   let (env, base) = List.hd factors in
   let orn_inv_body = unwrap_definition env orn_inv in
   let delta env trm = Reductionops.whd_delta env Evd.empty trm in
+  List.iter (fun (en, f) -> debug_env en "en"; debug_term en f "factor") factors;
   let internalized =
     reconstruct_lambda
       env
@@ -1964,7 +2014,7 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
              let (e_body, t_body) = zoom_lambda_term en t in
              let t_body_red = reduce_term (delta e_body t_body) in
              let tapp_body_red = reduce_term (delta env t_app) in
-             compose_inductive orn_inv (e_body, t_body_red) (env, tapp_body_red)
+             compose_inductive index_i orn_inv (e_body, t_body_red) (env, tapp_body_red) is_fwd
            else
              (* TODO *)
              app)
