@@ -1055,7 +1055,7 @@ let get_arg i trm =
 (*
  * Deconstruct an eliminator application.
  *
- * Assumes the inductive type is not mutually inductive,
+ * Assumes the inductive type is not mutually inductive.
  *)
 let deconstruct_eliminator env app =
   let ip = first_fun app in
@@ -1806,44 +1806,43 @@ let ornament_concls concl_typ env orn index_i (from_ind, to_ind) is_fwd (trm, in
     (trm, indices)
 
 (*
+ * Determine if the direction is forwards or backwards
+ * True if forwards, false if backwards
+ *)
+let direction (env : env) (orn : types) : bool =
+  let orn_type = reduce_type env orn in
+  let (from_args, to_args) = map_tuple unfold_args (ind_of_orn orn_type) in
+  List.length from_args < List.length to_args
+
+(*
  * Apply an ornament, but don't reduce the result.
  *
- * TODO assumes indexing ornament for now
+ * Assumes indexing ornament for now
  *)
 let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
-  let orn_type = reduce_type env orn in
+  let is_fwd = direction env orn in
+  let orn_type = reduce_type env (if is_fwd then orn else orn_inv) in
   let (from_with_args, to_with_args) = ind_of_orn orn_type in
   let from_args = unfold_args from_with_args in
   let to_args = unfold_args to_with_args in
-  let is_fwd = List.length from_args < List.length to_args in
+  let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
+  let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
+  let indexer = Some (fst (destApp index)) in
+  let promote = if is_fwd then orn else orn_inv in
+  let forget = if is_fwd then orn_inv else orn in
+  let orn = { indexer; promote; forget } in
+  let (from_ind, to_ind) =
+    if is_fwd then
+      map_tuple ind_of (from_with_args, to_with_args)
+    else
+      map_tuple ind_of (to_with_args, from_with_args)
+  in
+  let app_orn ornamenter = ornamenter env orn index_i (from_ind, to_ind) is_fwd in
+  let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
+  let orn = fst (app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, []))) in
   if is_fwd then
-    (* ornament *)
-    let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
-    let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
-    let indexer = Some (fst (destApp index)) in
-    let promote = orn in
-    let forget = orn_inv in
-    let orn = { indexer; promote; forget } in
-    let (from_ind, to_ind) = map_tuple ind_of (from_with_args, to_with_args) in
-    let app_orn ornamenter = ornamenter env orn index_i (from_ind, to_ind) is_fwd in
-    let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
-    fst (app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, [])))
+    orn
   else
-    (* deornament *) (* TODO refactor common stuff *)
-    let orn_type_inv = reduce_type env orn_inv in
-    let (from_with_args, to_with_args) = ind_of_orn orn_type_inv in
-    let from_args = unfold_args from_with_args in
-    let to_args = unfold_args to_with_args in
-    let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
-    let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
-    let indexer = Some (fst (destApp index)) in
-    let promote = orn_inv in
-    let forget = orn in
-    let orn = { indexer; promote; forget } in
-    let (from_ind, to_ind) = map_tuple ind_of (to_with_args, from_with_args) in
-    let app_orn ornamenter = ornamenter env orn index_i (from_ind, to_ind) is_fwd in
-    let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
-    let orn = fst (app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, []))) in
     remove_unused_hypos orn (* weakens guarantee but gives better result *)
 
 (* --- Reduction --- *)
