@@ -15,12 +15,14 @@ module CRD = Context.Rel.Declaration
 (* --- Ornaments --- *)
 
 (*
- * For now, an ornament is an optional indexing function, a function
+ * For now, an ornamental promotion is an optional indexing function, a function
  * from T1 -> T2, a function from T2 -> T1. Later, it will also contain
  * patches and extra premises, and these will be present both in the top-level
  * type and as premises to the functions in both directions.
+ *
+ * We don't represent ornaments directly, yet, but this may also be useful.
  *)
-type ornament =
+type promotion =
   {
     indexer : types option;
     promote : types;
@@ -1666,7 +1668,7 @@ let search_orn_index env npm idx_n o n is_fwd : (types option * types) =
   search_orn_index_elim npm idx_n elim_o o n is_fwd
 
 (* Search two inductive types for an ornament between them *)
-let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : types) : ornament =
+let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : types) : promotion =
   match map_tuple kind_of_term (trm_o, trm_n) with
   | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->
      let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
@@ -2039,10 +2041,10 @@ let find_ornament n d_old d_new =
      else
        ());
     define_term n env evm orn.promote;
-    Printf.printf "Defined ornament %s.\n\n" (string_of_id n);
+    Printf.printf "Defined promotion %s.\n\n" (string_of_id n);
     let inv_n = with_suffix n "inv" in
     define_term inv_n env evm orn.forget;
-    Printf.printf "Defined ornament %s.\n\n" (string_of_id inv_n);
+    Printf.printf "Defined forgetful function %s.\n\n" (string_of_id inv_n);
     ()
   else
     failwith "Only inductive types are supported"
