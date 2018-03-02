@@ -1945,14 +1945,10 @@ let compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd c_g c_f =
   let is_deorn = is_or_applies to_typ in
   let always_true _ = true in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
-  debug_terms env_f c_f_used "c_f_used";
   let c_g_used = get_used_or_p_hypos always_true c_g in
-  debug_terms env_g c_g_used "c_g_used";
   let c_f = compose_ih orn index_i env_g npms_g ip_g p_g c_f is_fwd in
-  debug_term env_g c_f "c_f";
   let (env_f_body, _ ) = zoom_lambda_term env_f c_f in
-  let (env_c_f, _) = zoom_lambda_term empty_env c_f in
-  let off = nb_rel env_c_f in
+  let off = nb_rel env_f_body - nb_rel env_f in
   let f = if is_fwd then shift_by off c_g else shift_by (off - 1) c_g in
   let c_used = if is_fwd then c_f_used else c_g_used in
   let args =
@@ -1967,7 +1963,7 @@ let compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd c_g c_f =
          env_f_body
          ())
       c_used
-  in reconstruct_lambda env_c_f (reduce_term (mkApp (f, Array.of_list args)))
+  in reconstruct_lambda_n env_f_body (reduce_term (mkApp (f, Array.of_list args))) (nb_rel env_f)
 
 (*
  * Compose two applications of an induction principle that are
