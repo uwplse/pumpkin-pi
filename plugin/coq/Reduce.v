@@ -6,6 +6,10 @@ Require Import Apply.
 
 (* --- Simple functions on lists --- *)
 
+(*
+ * hd and hd_vect
+ *)
+
 Reduce ornament orn_list_vector orn_list_vector_inv in hd_vect_auto as hd_vect_red.
 
 Theorem test_hd_vect:
@@ -23,6 +27,10 @@ Theorem test_hd:
 Proof.
   intros. reflexivity.
 Qed.
+
+(*
+ * hd_error and hd_vect_error
+ *)
 
 Reduce ornament orn_list_vector orn_list_vector_inv in hd_vect_error_auto as hd_vect_error_red.
 
@@ -42,9 +50,24 @@ Proof.
   intros. reflexivity.
 Qed.
 
+(*
+ * tl and tl_vect
+ *)
+
+Reduce ornament orn_list_vector orn_list_vector_inv in tl_vect_auto as tl_vect_red.
+
+Print tl_vect_red.
+
+Theorem test_tl_vect:
+  forall (A : Type) (n : nat) (v : vector A n),
+    tl_vect A n v = tl_vect_red A n v.
+Proof.
+  intros. reflexivity.
+Qed.
+
 (* TODO app *)
 
-(* Currently fails: *)
+(* Currently fails (factoring problem) *)
 Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red.
 
 (* TODO proofs and more complex things *)

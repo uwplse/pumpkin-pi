@@ -197,20 +197,6 @@ Proof.
   - apply eq_vect_cons. apply IHv.
 Qed.
 
-Theorem coh_vect:
-  forall (A : Type) (n : nat) (v : vector A n),
-    eq_vect
-      A
-      (orn_list_vector_index A (orn_list_vector_inv A n v))
-      (orn_list_vector A (orn_list_vector_inv A n v))
-      n
-      v.
-Proof.
-  intros. induction v.
-  - reflexivity.
-  - apply eq_vect_cons. apply IHv.
-Qed.
-
 (*
  * Same situation as above
  *)

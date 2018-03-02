@@ -1948,6 +1948,8 @@ let compose_c env_f env_g orn_f npms_g ip_g p_g is_fwd c_g c_f =
  * structurally the same when one is an ornament.
  *)
 let compose_inductive index_i orn_f (env_g, g) (env_f, f) is_fwd =
+  debug_term env_g g "g";
+  debug_term env_f f "f";
   let (ip_f, pms_f, p_f, cs_f, args_f) = deconstruct_eliminator env_f f in
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
   let ip = ip_f in
@@ -1991,6 +1993,7 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
   let promote = orn in
   let forget = orn_inv in
   let orn = { indexer; promote; forget } in
+  debug_term env trm "trm";
   let composite = apply_if_bwd (temporary_index orn) trm in
   let factors =
     apply_if_bwd
@@ -2015,23 +2018,31 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
   in
   let (env, base) = List.hd factors in
   let delta env trm = Reductionops.whd_delta env Evd.empty trm in
-  let internalized =
-    reconstruct_lambda
-      env
-      (List.fold_left
-         (fun t_app (en, t) ->
-           let app = reduce_term (mkApp (shift t, Array.make 1 t_app)) in
-           if applies orn.promote t_app || applies orn.forget t_app then
-             let (e_body, t_body) = zoom_lambda_term en t in
-             let t_body_red = reduce_term (delta e_body t_body) in
-             let tapp_body_red = reduce_term (delta env t_app) in
-             compose_inductive index_i orn_inv (e_body, t_body_red) (env, tapp_body_red) is_fwd
-           else
-             (* TODO *)
-             app)
-         base
-         (List.tl factors))
-  in internalized
+  let (internalized, _) =
+    List.fold_left
+      (fun (t_app, composed) (en, t) ->
+        (* TODO need a better way to do this *)
+        debug_term env t_app "t_app";
+        let (e_body, t_body) = zoom_lambda_term en t in
+        debug_term e_body t_body "t_body";
+        if (applies orn.promote t_app || applies orn.promote t_body) && isApp t_app then
+          let t_body_red = reduce_term (delta e_body t_body) in
+          let t_app_body_red = if composed then t_app else reduce_term (delta env t_app) in
+          let ((e_g, t_g), (e_f, t_f)) =
+            ((e_body, t_body_red), (env, t_app_body_red))
+          in (compose_inductive index_i orn.promote (e_g, t_g) (e_f, t_f) is_fwd, true)
+        else if (applies orn.forget t_app || applies orn.forget t_body) && isApp t_app then
+          let t_body_red = reduce_term (delta e_body t_body) in
+          let t_app_body_red = if composed then t_app else reduce_term (delta env t_app) in
+          let ((e_g, t_g), (e_f, t_f)) =
+            ((e_body, t_body_red), (env, t_app_body_red))
+          in (compose_inductive index_i orn.forget (e_g, t_g) (e_f, t_f) is_fwd, true)
+        else
+          (* TODO *)
+          (reduce_term (mkApp (shift t, Array.make 1 t_app))), composed)
+      (base, false)
+      (List.tl factors)
+  in debug_term env internalized "internalized"; reconstruct_lambda env internalized
 
 
 (* --- Top-level --- *)
