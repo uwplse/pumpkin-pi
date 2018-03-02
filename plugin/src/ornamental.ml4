@@ -1979,8 +1979,8 @@ let compose_inductive index_i orn_f (env_g, g) (env_f, f) is_fwd =
  *)
 let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
   let is_fwd = direction env orn in
-  let reverse_if_bwd (a, b) = if is_fwd then (a, b) else reverse (a, b) in
-  let (orn, orn_inv) = reverse_if_bwd (orn, orn_inv) in
+  let apply_if_bwd f x = if is_fwd then x else f x in
+  let (orn, orn_inv) =  apply_if_bwd reverse (orn, orn_inv) in
   let orn_type = reduce_type env orn in
   let (from_with_args, to_with_args) = ind_of_orn orn_type in
   let from_args = unfold_args from_with_args in
@@ -1991,27 +1991,27 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
   let promote = orn in
   let forget = orn_inv in
   let orn = { indexer; promote; forget } in
+  let composite = apply_if_bwd (temporary_index orn) trm in
   let factors =
-    if is_fwd then
-      List.rev (factor_term env trm)
-    else
-      let is_orn = is_or_applies (first_fun to_with_args) in
-      let factors_indexed = List.rev (factor_term env (temporary_index orn trm)) in
-      let factors_deindexed = List.map (fun (e, t) -> (e, temporary_index orn t)) factors_indexed in
-      List.map
-        (fun (en, f) ->
-          match kind_of_term f with
-          | Lambda (n, t, b) when is_orn t ->
-             let t_args = remove_index index_i (unfold_args t) in
-             let index_f = prod_to_lambda (reduce_type en (first_fun index)) in
-             let dummy = mkRel 0 in
-             let index = reduce_term (mkApp (index_f, Array.of_list (List.append t_args [dummy]))) in
-             let index_i = mkRel 1 in
-             let body = mkLambda (n, reindex index_i (shift t), reindex index_i (shift b)) in
-             (en, mkLambda (Anonymous, index, body))
-          | _ ->
-             (en, f))
-        factors_deindexed
+    apply_if_bwd
+      (fun fs ->
+        let fs_temp = List.map (fun (e, t) -> (e, temporary_index orn t)) fs in
+        let is_orn = is_or_applies (first_fun to_with_args) in
+        List.map
+          (fun (en, f) ->
+            match kind_of_term f with
+            | Lambda (n, t, b) when is_orn t ->
+               let t_args = remove_index index_i (unfold_args t) in
+               let index_f = prod_to_lambda (reduce_type en (first_fun index)) in
+               let dummy = mkRel 0 in
+               let index_args = Array.of_list (List.append t_args [dummy]) in
+               let index = reduce_term (mkApp (index_f, index_args)) in
+               let body = reindex (mkRel 1) (mkLambda (n, shift t, shift b)) in
+               (en, mkLambda (Anonymous, index, body))
+            | _ ->
+               (en, f))
+          fs_temp)
+      (List.rev (factor_term env composite))
   in
   let (env, base) = List.hd factors in
   let delta env trm = Reductionops.whd_delta env Evd.empty trm in
