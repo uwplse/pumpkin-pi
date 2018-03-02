@@ -1877,8 +1877,11 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
 (*
  * Compose two properties for two applications of an induction principle
  * that are structurally the same when one is an ornament.
+ *
+ * TODO this isn't doing what we want when we have an indexer in the existing
+ * one, we end up with the wrong offset
  *)
-let compose_p npms index_i orn_f p_g p_f is_fwd =
+let compose_p npms index_i orn_f p_g p_f is_fwd is_forget =
   let (env_p_f, p_f_body) = zoom_lambda_term empty_env p_f in
   let off = nb_rel env_p_f in
   let orn_app = mkApp (orn_f, Array.of_list (mk_n_rels (npms + off))) in
@@ -1947,14 +1950,14 @@ let compose_c env_f env_g orn_f npms_g ip_g p_g is_fwd c_g c_f =
  * Compose two applications of an induction principle that are
  * structurally the same when one is an ornament.
  *)
-let compose_inductive index_i orn_f (env_g, g) (env_f, f) is_fwd =
-  debug_term env_g g "g";
-  debug_term env_f f "f";
+let compose_inductive index_i orn_f (env_g, g) (env_f, f) is_fwd is_forget =
   let (ip_f, pms_f, p_f, cs_f, args_f) = deconstruct_eliminator env_f f in
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
   let ip = ip_f in
   let pms = pms_f in
-  let p = compose_p (List.length pms) index_i orn_f p_g p_f is_fwd in
+  debug_term env_f p_f "p_f";
+  debug_term env_g p_g "p_g";
+  let p = compose_p (List.length pms) index_i orn_f p_g p_f is_fwd is_forget in
   let npms_g = List.length pms_g in
   let cs = List.map2 (compose_c env_f env_g orn_f npms_g ip_g p_g is_fwd) cs_g cs_f in
   let args = args_f in
@@ -2018,25 +2021,23 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
   in
   let (env, base) = List.hd factors in
   let delta env trm = Reductionops.whd_delta env Evd.empty trm in
-  let (internalized, _) =
+  let (internalized, _) = (* TODO promote/forget needs to depend on order, whether t_app or not? *)
     List.fold_left
       (fun (t_app, composed) (en, t) ->
         (* TODO need a better way to do this *)
-        debug_term env t_app "t_app";
         let (e_body, t_body) = zoom_lambda_term en t in
-        debug_term e_body t_body "t_body";
         if (applies orn.promote t_app || applies orn.promote t_body) && isApp t_app then
           let t_body_red = reduce_term (delta e_body t_body) in
           let t_app_body_red = if composed then t_app else reduce_term (delta env t_app) in
           let ((e_g, t_g), (e_f, t_f)) =
             ((e_body, t_body_red), (env, t_app_body_red))
-          in (compose_inductive index_i orn.promote (e_g, t_g) (e_f, t_f) is_fwd, true)
+          in (compose_inductive index_i orn.promote (e_g, t_g) (e_f, t_f) is_fwd false, true)
         else if (applies orn.forget t_app || applies orn.forget t_body) && isApp t_app then
           let t_body_red = reduce_term (delta e_body t_body) in
           let t_app_body_red = if composed then t_app else reduce_term (delta env t_app) in
           let ((e_g, t_g), (e_f, t_f)) =
             ((e_body, t_body_red), (env, t_app_body_red))
-          in (compose_inductive index_i orn.forget (e_g, t_g) (e_f, t_f) is_fwd, true)
+          in (compose_inductive index_i orn.forget (e_g, t_g) (e_f, t_f) is_fwd true, true)
         else
           (* TODO *)
           (reduce_term (mkApp (shift t, Array.make 1 t_app))), composed)
