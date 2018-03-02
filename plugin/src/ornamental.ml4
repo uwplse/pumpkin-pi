@@ -1178,7 +1178,6 @@ let get_used_or_p_hypos (p : types -> bool) (trm : types) : types list =
        []
   in get_used trm (arity trm)
 
-
 (*
  * Returns true if two applications contain have a different
  * argument at index i.
@@ -1203,6 +1202,35 @@ let rec remove_final_hypo trm =
      unshift b
   | _ ->
      failwith "not a lambda"
+
+(*
+ * Substitute all applications of an indexer with a temporary index,
+ * so that other functions can ignore indices.
+ *
+ * This is kind of gross, so hopefully we don't need it eventually.
+ *)
+let temporary_index orn trm =
+  if Option.has_some orn.indexer then
+    let indexer = Option.get orn.indexer in
+    map_term_if
+      (fun _ t -> applies indexer t)
+      (fun _ t -> mkRel 0)
+      (fun _ -> ())
+      ()
+      trm
+  else
+    trm
+
+(*
+ * Swap back in a real index, assuming the index is temporary.
+ *)
+let reindex index trm =
+  map_term_if
+    (fun _ trm -> eq_constr trm (mkRel 0))
+    (fun idx trm -> idx)
+    shift
+    index
+    trm
 
 (* --- Differencing and identifying indices --- *)
 
@@ -1959,29 +1987,17 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
   let to_args = unfold_args to_with_args in
   let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
   let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
-  let indexer = fst (destApp index) in
-  let is_orn = is_or_applies (first_fun to_with_args) in
-  let (orn, orn_inv) = reverse_if_bwd (orn, orn_inv) in
-  let temp_index = (* TODO only need this in one direction *)
-    map_term_if
-      (fun _ trm -> applies indexer trm)
-      (fun _ trm -> mkRel 0)
-      (fun _ -> ())
-      ()
-  in
-  let reindex =
-    map_term_if
-      (fun _ trm -> eq_constr trm (mkRel 0))
-      (fun ii trm -> ii)
-      shift
-      (mkRel 1)
-  in
+  let indexer = Some (fst (destApp index)) in
+  let promote = orn in
+  let forget = orn_inv in
+  let orn = { indexer; promote; forget } in
   let factors =
     if is_fwd then
       List.rev (factor_term env trm)
     else
-      let factors_indexed = List.rev (factor_term env (temp_index trm)) in
-      let factors_deindexed = List.map (fun (e, t) -> (e, temp_index t)) factors_indexed in
+      let is_orn = is_or_applies (first_fun to_with_args) in
+      let factors_indexed = List.rev (factor_term env (temporary_index orn trm)) in
+      let factors_deindexed = List.map (fun (e, t) -> (e, temporary_index orn t)) factors_indexed in
       List.map
         (fun (en, f) ->
           match kind_of_term f with
@@ -1990,14 +2006,14 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
              let index_f = prod_to_lambda (reduce_type en (first_fun index)) in
              let dummy = mkRel 0 in
              let index = reduce_term (mkApp (index_f, Array.of_list (List.append t_args [dummy]))) in
-             let body = mkLambda (n, reindex (shift t), reindex (shift b)) in
+             let index_i = mkRel 1 in
+             let body = mkLambda (n, reindex index_i (shift t), reindex index_i (shift b)) in
              (en, mkLambda (Anonymous, index, body))
           | _ ->
              (en, f))
         factors_deindexed
   in
   let (env, base) = List.hd factors in
-  let orn_inv_body = unwrap_definition env orn_inv in
   let delta env trm = Reductionops.whd_delta env Evd.empty trm in
   let internalized =
     reconstruct_lambda
@@ -2005,7 +2021,7 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
       (List.fold_left
          (fun t_app (en, t) ->
            let app = reduce_term (mkApp (shift t, Array.make 1 t_app)) in
-           if applies orn_inv t_app then
+           if applies orn.promote t_app || applies orn.forget t_app then
              let (e_body, t_body) = zoom_lambda_term en t in
              let t_body_red = reduce_term (delta e_body t_body) in
              let tapp_body_red = reduce_term (delta env t_app) in
