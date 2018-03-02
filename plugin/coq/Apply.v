@@ -183,6 +183,34 @@ Definition tl_vect (A : Type) (n : nat) (v : vector A n) :=
 Apply ornament orn_list_vector orn_list_vector_inv in tl as tl_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in tl_vect as tl_auto.
 
+Theorem coh_vect:
+  forall (A : Type) (n : nat) (v : vector A n),
+    eq_vect
+      A
+      (orn_list_vector_index A (orn_list_vector_inv A n v))
+      (orn_list_vector A (orn_list_vector_inv A n v))
+      n
+      v.
+Proof.
+  intros. induction v.
+  - reflexivity.
+  - apply eq_vect_cons. apply IHv.
+Qed.
+
+Theorem coh_vect:
+  forall (A : Type) (n : nat) (v : vector A n),
+    eq_vect
+      A
+      (orn_list_vector_index A (orn_list_vector_inv A n v))
+      (orn_list_vector A (orn_list_vector_inv A n v))
+      n
+      v.
+Proof.
+  intros. induction v.
+  - reflexivity.
+  - apply eq_vect_cons. apply IHv.
+Qed.
+
 (*
  * Same situation as above
  *)
@@ -195,15 +223,24 @@ Theorem test_orn_tl :
       (pred n)
       (tl_vect A n v).
 Proof.
-  intros. induction v. 
-  - unfold eq_vect. auto.
-Admitted. (* other case is hard *)
+  unfold eq_vect.
+  intros. induction v; try apply coh_vect; auto.
+Qed.
 
-Theorem test_deorn_hd_error :
-  forall (A : Type) (a : A) (l : list A),
-    hd_error_auto A l = hd_error A l.
+Theorem coh:
+  forall (A : Type) (l : list A),
+    orn_list_vector_inv A (orn_list_vector_index A l) (orn_list_vector A l) = l.
 Proof.
-  intros. induction l; auto.
+  intros. induction l.
+  - reflexivity.
+  - apply eq_cons. apply IHl.
+Qed.
+
+Theorem test_deorn_tl :
+  forall (A : Type) (a : A) (l : list A),
+    tl_auto A l = tl A l.
+Proof.
+  intros. induction l; try apply coh; auto.
 Qed.
 
 (* TODO try In, then you can try the facts about In, which should translate over as soon
