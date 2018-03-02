@@ -1950,24 +1950,18 @@ let compose_inductive index_i orn_f (env_g, g) (env_f, f) is_fwd =
  * to extend this, I guess.
  *)
 let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
+  let is_fwd = direction env orn in
+  let reverse_if_bwd (a, b) = if is_fwd then (a, b) else reverse (a, b) in
+  let (orn, orn_inv) = reverse_if_bwd (orn, orn_inv) in
   let orn_type = reduce_type env orn in
   let (from_with_args, to_with_args) = ind_of_orn orn_type in
   let from_args = unfold_args from_with_args in
   let to_args = unfold_args to_with_args in
-  let is_fwd = List.length from_args < List.length to_args in
-  let to_args_idx =
-    if is_fwd then
-      List.mapi (fun i t -> (i, t)) to_args
-    else
-      let orn_type_inv = reduce_type env orn_inv in
-      let (from_with_args, to_with_args) = ind_of_orn orn_type_inv in
-      let from_args = unfold_args from_with_args in
-      let to_args = unfold_args to_with_args in
-      List.mapi (fun i t -> (i, t)) to_args
-  in
+  let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
   let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
   let indexer = fst (destApp index) in
-  let is_orn = is_or_applies (first_fun from_with_args) in
+  let is_orn = is_or_applies (first_fun to_with_args) in
+  let (orn, orn_inv) = reverse_if_bwd (orn, orn_inv) in
   let temp_index = (* TODO only need this in one direction *)
     map_term_if
       (fun _ trm -> applies indexer trm)
