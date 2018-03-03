@@ -31,6 +31,22 @@ type promotion =
 
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
+(* Take the union of two lists, maintaining order *)
+let rec union (c : 'a -> 'a -> int) (l1 : 'a list) (l2 : 'a list) : 'a list =
+  match (l1, l2) with
+  | (h1 :: t1, h2 :: t2) ->
+     let ch = c h1 h2 in
+     if ch = 0 then
+       h1 :: union c t1 t2
+     else if ch > 0 then
+       h1 :: union c t1 l2
+     else
+       h2 :: union c l1 t2
+  | (h1 :: t1, _) ->
+     l1
+  | (_, _) ->
+     l2
+
 (* Take n elements of a list *)
 let rec take (i : int) (l : 'a list) : 'a list =
   if i = 0 then
@@ -1950,20 +1966,23 @@ let compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd c_g c_f =
   let (env_f_body, _ ) = zoom_lambda_term env_f c_f in
   let off = nb_rel env_f_body - nb_rel env_f in
   let f = if is_fwd then shift_by off c_g else shift_by (off - 1) c_g in
-  let c_used = if is_fwd then c_f_used else c_g_used in
+  let cmp r1 r2 = destRel r1 - destRel r2 in
+  let c_used = union cmp c_f_used c_g_used in
   let args =
     List.map
       (map_term_env_if
          (fun env _ trm ->
            is_deorn (reduce_type env trm))
          (fun env _ trm ->
+           debug_term env (reduce_type env trm) "typ";
            let args = unfold_args (reduce_type env trm) in
+           debug_terms env args "args inside";
            mkApp (orn_f, Array.of_list (List.append args [trm])))
          (fun _ -> ())
          env_f_body
          ())
       c_used
-  in reconstruct_lambda_n env_f_body (reduce_term (mkApp (f, Array.of_list args))) (nb_rel env_f)
+  in debug_terms env_f_body args "args"; reconstruct_lambda_n env_f_body (reduce_term (mkApp (f, Array.of_list args))) (nb_rel env_f)
 
 (*
  * Compose two applications of an induction principle that are
