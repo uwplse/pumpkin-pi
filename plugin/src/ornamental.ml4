@@ -1898,7 +1898,7 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
  * true, so need to fix accordingly. To know how to do that, need to test
  * with tree or something
  *)
-let compose_p npms index_i orn p_g p_f is_fwd =
+let compose_p npms index_i orn p_g p_f is_fwd is_g =
   let orn_f = if is_fwd then orn.forget else orn.promote in
   let (env_p_f, p_f_body) = zoom_lambda_term empty_env p_f in
   let off = nb_rel env_p_f in
@@ -1951,7 +1951,7 @@ let compose_ih orn index_i env_g npms_g ip_g p_g c_f is_fwd =
  *
  * TODO clean, refactor orn/deorn, take fewer arguments, etc.
  *)
-let compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd c_g c_f =
+let compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd is_g c_g c_f =
   debug_term env_g c_g "c_g";
   debug_term env_f c_f "c_f";
   let orn_f = if is_fwd then orn.forget else orn.promote in
@@ -1963,39 +1963,44 @@ let compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd c_g c_f =
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_g_used = get_used_or_p_hypos always_true c_g in
   let c_f = compose_ih orn index_i env_g npms_g ip_g p_g c_f is_fwd in
-  let (env_f_body, _ ) = zoom_lambda_term env_f c_f in
+  let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let off = nb_rel env_f_body - nb_rel env_f in
-  let f = if is_fwd then shift_by off c_g else shift_by (off - 1) c_g in
-  let cmp r1 r2 = destRel r1 - destRel r2 in
-  let c_used = union cmp c_f_used c_g_used in
-  let args =
-    List.map
-      (map_term_env_if
-         (fun env _ trm ->
-           is_deorn (reduce_type env trm))
-         (fun env _ trm ->
-           debug_term env (reduce_type env trm) "typ";
-           let args = unfold_args (reduce_type env trm) in
-           debug_terms env args "args inside";
-           mkApp (orn_f, Array.of_list (List.append args [trm])))
-         (fun _ -> ())
-         env_f_body
-         ())
-      c_used
-  in debug_terms env_f_body args "args"; reconstruct_lambda_n env_f_body (reduce_term (mkApp (f, Array.of_list args))) (nb_rel env_f)
+  if not is_g then
+    let f = if is_fwd then shift_by off c_g else shift_by (off - 1) c_g in
+    let c_used = if is_fwd then c_f_used else c_g_used in
+    let args =
+      List.map
+        (map_term_env_if
+           (fun env _ trm ->
+             is_deorn (reduce_type env trm))
+           (fun env _ trm ->
+             let args = unfold_args (reduce_type env trm) in
+             mkApp (orn_f, Array.of_list (List.append args [trm])))
+           (fun _ -> ())
+           env_f_body
+           ())
+        c_used
+    in reconstruct_lambda_n env_f_body (reduce_term (mkApp (f, Array.of_list args))) (nb_rel env_f)
+  else
+    let f = if is_fwd then orn.promote else orn.forget in
+    let f_body_typ = reduce_type env_f_body f_body in
+    debug_term env_f_body f_body_typ "f_body_typ";
+    let args = List.append (unfold_args f_body_typ) [f_body] in
+    debug_terms env_f_body args "args";
+    reconstruct_lambda_n env_f_body (reduce_term (mkApp (f, Array.of_list args))) (nb_rel env_f)
 
 (*
  * Compose two applications of an induction principle that are
  * structurally the same when one is an ornament.
  *)
-let compose_inductive index_i orn (env_g, g) (env_f, f) is_fwd =
+let compose_inductive index_i orn (env_g, g) (env_f, f) is_fwd is_g =
   let (ip_f, pms_f, p_f, cs_f, args_f) = deconstruct_eliminator env_f f in
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
   let ip = ip_f in
   let pms = pms_f in
-  let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd in
+  let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd is_g in
   let npms_g = List.length pms_g in
-  let cs = List.map2 (compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd) cs_g cs_f in
+  let cs = List.map2 (compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd is_g) cs_g cs_f in
   let args = args_f in
   apply_eliminator ip pms p cs args
 
@@ -2067,13 +2072,17 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
           let t_app_body_red = if composed then t_app else reduce_term (delta env t_app) in
           let ((e_g, t_g), (e_f, t_f)) =
             ((e_body, t_body_red), (env, t_app_body_red))
-          in (compose_inductive index_i orn (e_g, t_g) (e_f, t_f) is_fwd, true)
+          in
+          let is_g = applies orn.promote t_body in
+          (compose_inductive index_i orn (e_g, t_g) (e_f, t_f) is_fwd is_g, true)
         else if (applies orn.forget t_app || applies orn.forget t_body) && isApp t_app then
           let t_body_red = reduce_term (delta e_body t_body) in
           let t_app_body_red = if composed then t_app else reduce_term (delta env t_app) in
           let ((e_g, t_g), (e_f, t_f)) =
             ((e_body, t_body_red), (env, t_app_body_red))
-          in (compose_inductive index_i orn (e_g, t_g) (e_f, t_f) is_fwd, true)
+          in
+          let is_g = applies orn.forget t_body in
+          (compose_inductive index_i orn (e_g, t_g) (e_f, t_f) is_fwd is_g, true)
         else
           (* TODO *)
           (reduce_term (mkApp (shift t, Array.make 1 t_app))), composed)
