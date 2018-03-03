@@ -1898,7 +1898,7 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
  * true, so need to fix accordingly. To know how to do that, need to test
  * with tree or something
  *)
-let compose_p npms index_i orn p_g p_f is_fwd is_g =
+let compose_p npms index_i orn p_g p_f is_fwd indexer =
   let orn_f = if is_fwd then orn.forget else orn.promote in
   let (env_p_f, p_f_body) = zoom_lambda_term empty_env p_f in
   let off = nb_rel env_p_f in
@@ -1906,7 +1906,14 @@ let compose_p npms index_i orn p_g p_f is_fwd is_g =
   let shift_pms_by = shift_local (npms + 1) in
   let body =
     if is_fwd then
-      shift_pms_by off (mkApp (p_g, Array.make 1 orn_app))
+      if Option.has_some indexer then
+        let index = Option.get indexer in
+        let (orn_f, orn_args) = destApp orn_app in
+        let orn_args = insert_index index_i index (remove_index index_i (Array.to_list orn_args)) in
+        let orn_app = mkApp (orn_f, Array.of_list orn_args) in
+        shift_pms_by off (mkApp (p_g, Array.make 1 orn_app))
+      else
+        shift_pms_by off (mkApp (p_g, Array.make 1 orn_app))
     else
       let index = get_arg index_i p_f_body in
       shift_pms_by (off - 1) (mkApp (p_g, Array.of_list [index; orn_app]))
@@ -1992,17 +1999,34 @@ let compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd is_g c_g c_f =
 (*
  * Compose two applications of an induction principle that are
  * structurally the same when one is an ornament.
+ *
+ * TODO clean
  *)
 let compose_inductive index_i orn (env_g, g) (env_f, f) is_fwd is_g =
   let (ip_f, pms_f, p_f, cs_f, args_f) = deconstruct_eliminator env_f f in
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
   let ip = ip_f in
   let pms = pms_f in
-  let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd is_g in
-  let npms_g = List.length pms_g in
-  let cs = List.map2 (compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd is_g) cs_g cs_f in
-  let args = args_f in
-  apply_eliminator ip pms p cs args
+  if is_g then
+    let indexer = Option.get orn.indexer in
+    let (env_f_body, f_body) = zoom_lambda_term env_f f in
+    let f_typ = reduce_type env_f_body f_body in
+    let f_typ_args = unfold_args f_typ in
+    debug_term env_f_body f_typ "f_typ";
+    let index_args = List.append f_typ_args [f_body] in
+    let indexer = mkApp (indexer, Array.of_list index_args) in
+    debug_term env_f_body indexer "indexer";
+    let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd (Some indexer) in
+    let npms_g = List.length pms_g in
+    let cs = List.map2 (compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd is_g) cs_g cs_f in
+    let args = args_f in
+    apply_eliminator ip pms p cs args
+  else
+    let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd None in
+    let npms_g = List.length pms_g in
+    let cs = List.map2 (compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd is_g) cs_g cs_f in
+    let args = args_f in
+    apply_eliminator ip pms p cs args
 
 (*
  * This takes a term (f o orn_inv) and reduces it to f' where orn_inv is
