@@ -2028,6 +2028,7 @@ let compose_inductive idx_n index_i orn (env_g, g) (env_f, f) is_fwd is_g =
     let f_typ_args = unfold_args f_typ in
     let index_args = List.append f_typ_args [f_body] in
     let indexer = reconstruct_lambda env_f_body (mkApp (indexer, Array.of_list index_args)) in
+    (* TODO recursively compose inductive with the indexer, or do later, or something *)
     let f_indexer = Some (make_constant idx_n) in
     let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd f_indexer in
     let npms_g = List.length pms_g in

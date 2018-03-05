@@ -56,6 +56,8 @@ Qed.
 
 Reduce ornament orn_list_vector orn_list_vector_inv in tl_vect_auto as tl_vect_red.
 
+Print tl_vect_red_index.
+
 Print tl_vect_red.
 
 Theorem test_tl_vect:
