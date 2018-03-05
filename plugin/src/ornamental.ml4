@@ -1897,6 +1897,8 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
  * TODO else case right now assumes new index is first, but not necessarily
  * true, so need to fix accordingly. To know how to do that, need to test
  * with tree or something
+ *
+ * TODO define the applied indexing function before applying it here
  *)
 let compose_p npms index_i orn p_g p_f is_fwd indexer =
   let orn_f = if is_fwd then orn.forget else orn.promote in
@@ -1907,10 +1909,20 @@ let compose_p npms index_i orn p_g p_f is_fwd indexer =
   let body =
     if is_fwd then
       if Option.has_some indexer then
-        let index = Option.get indexer in
+        let f_index = Option.get indexer in
+        let index_pms = shift_all_by (npms + off) (mk_n_rels npms) in
+        let index_nonpms = shift_all_by npms (mk_n_rels off) in
+        let index_args = Array.of_list (List.append index_pms index_nonpms) in
+        let index = mkApp (f_index, index_args) in
+        let reindex ts = insert_index index_i index (remove_index index_i ts) in
+        let (env_p_g, p_g_body) = zoom_lambda_term empty_env p_g in
+        let p_g_f = first_fun p_g_body in
+        let p_g_args = Array.of_list (reindex (unfold_args p_g_body)) in
+        let p_g = reconstruct_lambda env_p_g (mkApp (p_g_f, p_g_args)) in
+        (*
         let (orn_f, orn_args) = destApp orn_app in
         let orn_args = insert_index index_i index (remove_index index_i (Array.to_list orn_args)) in
-        let orn_app = mkApp (orn_f, Array.of_list orn_args) in
+        let orn_app = mkApp (orn_f, Array.of_list orn_args) in*)
         shift_pms_by off (mkApp (p_g, Array.make 1 orn_app))
       else
         shift_pms_by off (mkApp (p_g, Array.make 1 orn_app))
@@ -2002,7 +2014,7 @@ let compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd is_g c_g c_f =
  *
  * TODO clean
  *)
-let compose_inductive index_i orn (env_g, g) (env_f, f) is_fwd is_g =
+let compose_inductive idx_n index_i orn (env_g, g) (env_f, f) is_fwd is_g =
   let (ip_f, pms_f, p_f, cs_f, args_f) = deconstruct_eliminator env_f f in
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
   let ip = ip_f in
@@ -2014,19 +2026,22 @@ let compose_inductive index_i orn (env_g, g) (env_f, f) is_fwd is_g =
     let f_typ_args = unfold_args f_typ in
     debug_term env_f_body f_typ "f_typ";
     let index_args = List.append f_typ_args [f_body] in
-    let indexer = mkApp (indexer, Array.of_list index_args) in
-    debug_term env_f_body indexer "indexer";
-    let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd (Some indexer) in
+    let indexer = reconstruct_lambda env_f_body (mkApp (indexer, Array.of_list index_args)) in
+    let f_indexer = make_constant idx_n in
+    let index = mkApp (f_indexer, Array.of_list (mk_n_rels (List.length pms))) in
+    debug_term env_g index "index";
+    let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd (Some f_indexer) in
+    debug_term env_g p "p";
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd is_g) cs_g cs_f in
     let args = args_f in
-    apply_eliminator ip pms p cs args
+    (apply_eliminator ip pms p cs args, Some indexer)
   else
     let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd None in
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd is_g) cs_g cs_f in
     let args = args_f in
-    apply_eliminator ip pms p cs args
+    (apply_eliminator ip pms p cs args, None)
 
 (*
  * This takes a term (f o orn_inv) and reduces it to f' where orn_inv is
@@ -2047,7 +2062,7 @@ let compose_inductive index_i orn (env_g, g) (env_f, f) is_fwd is_g =
  * instead of all of this nonsense. We'll find out later when we try
  * to extend this, I guess.
  *)
-let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
+let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm : types) =
   let is_fwd = direction env orn in
   let apply_if_bwd f x = if is_fwd then x else f x in
   let (orn, orn_inv) =  apply_if_bwd reverse (orn, orn_inv) in
@@ -2061,7 +2076,6 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
   let promote = orn in
   let forget = orn_inv in
   let orn = { indexer; promote; forget } in
-  debug_term env trm "trm";
   let composite = apply_if_bwd (temporary_index orn) trm in
   let factors =
     apply_if_bwd
@@ -2086,10 +2100,10 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
   in
   let (env, base) = List.hd factors in
   let delta env trm = Reductionops.whd_delta env Evd.empty trm in
-  let (internalized, _) = (* TODO promote/forget needs to depend on order, whether t_app or not? *)
+  let ((internalized, indexer), _) =
     List.fold_left
-      (fun (t_app, composed) (en, t) ->
-        (* TODO need a better way to do this *)
+      (fun ((t_app, indexer), composed) (en, t) ->
+        (* TODO clean *)
         let (e_body, t_body) = zoom_lambda_term en t in
         if (applies orn.promote t_app || applies orn.promote t_body) && isApp t_app then
           let t_body_red = reduce_term (delta e_body t_body) in
@@ -2098,7 +2112,7 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
             ((e_body, t_body_red), (env, t_app_body_red))
           in
           let is_g = applies orn.promote t_body in
-          (compose_inductive index_i orn (e_g, t_g) (e_f, t_f) is_fwd is_g, true)
+          (compose_inductive idx_n index_i orn (e_g, t_g) (e_f, t_f) is_fwd is_g, true)
         else if (applies orn.forget t_app || applies orn.forget t_body) && isApp t_app then
           let t_body_red = reduce_term (delta e_body t_body) in
           let t_app_body_red = if composed then t_app else reduce_term (delta env t_app) in
@@ -2106,13 +2120,15 @@ let internalize (env : env) (orn : types) (orn_inv : types) (trm : types) =
             ((e_body, t_body_red), (env, t_app_body_red))
           in
           let is_g = applies orn.forget t_body in
-          (compose_inductive index_i orn (e_g, t_g) (e_f, t_f) is_fwd is_g, true)
+          (compose_inductive idx_n index_i orn (e_g, t_g) (e_f, t_f) is_fwd is_g, true)
         else
           (* TODO *)
-          (reduce_term (mkApp (shift t, Array.make 1 t_app))), composed)
-      (base, false)
+          ((reduce_term (mkApp (shift t, Array.make 1 t_app))), indexer), composed)
+      ((base, None), false)
       (List.tl factors)
-  in debug_term env internalized "internalized"; reconstruct_lambda env internalized
+  in debug_term env internalized "internalized";
+     (if Option.has_some indexer then debug_term env (Option.get indexer) "indexer" else ());
+     (reconstruct_lambda env internalized, indexer)
 
 
 (* --- Top-level --- *)
@@ -2158,7 +2174,14 @@ let reduce_ornament n d_orn d_orn_inv d_old =
   let c_orn_inv = intern env evm d_orn_inv in
   let c_o = intern env evm d_old in
   let trm_o = unwrap_definition env c_o in
-  let trm_n = internalize env c_orn c_orn_inv trm_o in
+  let idx_n = with_suffix n "index" in
+  let (trm_n, indexer) = internalize env idx_n c_orn c_orn_inv trm_o in
+  (if Option.has_some indexer then
+     let indexer_trm = Option.get indexer in
+     define_term idx_n env evm indexer_trm;
+     Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
+   else
+     ());
   define_term n env evm trm_n;
   Printf.printf "Defined reduced ornamened function %s.\n\n" (string_of_id n);
   ()
