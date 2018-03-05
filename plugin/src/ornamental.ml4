@@ -1939,33 +1939,30 @@ let compose_ih orn index_i indexer env_g npms_g ip_g p_g c_f is_fwd =
       let args = unfold_args trm in
       let (pms, non_pms) = map_tuple Array.of_list (take_split npms_g args) in
       let p_g = if is_fwd then p_g else unshift p_g in
-      let orn_final = mkRel 1 in
+      let orn_final = Array.make 1 (mkRel 1) in
       let orn_pms = mkApp (orn_f, pms) in
       if is_fwd then
+        let (_, _, orn_final_typ) = CRD.to_tuple @@ lookup_rel 1 en in
+        let typ_args = Array.of_list (unfold_args orn_final_typ) in
+        let orn_idx = shift (Array.get typ_args index_i) in
+        let orn_app = mkApp (mkApp (orn_pms, Array.make 1 orn_idx), non_pms) in
+        let p_args = Array.make 1 (mkApp (orn_app, orn_final)) in
         if Option.has_some indexer then
           let f_index = Option.get indexer in
-          let index = shift (mkApp (mkApp (mkApp (f_index, pms), non_pms), Array.make 1 orn_final)) in
+          let index_pms = mkApp (f_index, pms) in
+          let index_indexed = mkApp (index_pms, Array.make 1 orn_idx) in
+          let index = shift (mkApp (mkApp (index_indexed, non_pms), orn_final)) in
           let reindex ts = insert_index index_i index (remove_index index_i ts) in
           let (env_p_g, p_g_body) = zoom_lambda_term empty_env p_g in
           let p_g_f = first_fun p_g_body in
           let p_g_args = Array.of_list (reindex (unfold_args p_g_body)) in
           let p_g = reconstruct_lambda env_p_g (mkApp (p_g_f, p_g_args)) in
-          let (_, _, orn_final_typ) = CRD.to_tuple @@ lookup_rel 1 en in
-          let typ_args = Array.of_list (unfold_args orn_final_typ) in
-          let orn_idx = shift (Array.get typ_args index_i) in
-          let orn_app = mkApp (mkApp (orn_pms, Array.make 1 orn_idx), non_pms) in
-          let p_args = Array.make 1 (mkApp (orn_app, Array.make 1 orn_final)) in
           reduce_term (mkApp (mkApp (p_g, non_pms), p_args))
         else
-          let (_, _, orn_final_typ) = CRD.to_tuple @@ lookup_rel 1 en in
-          let typ_args = Array.of_list (unfold_args orn_final_typ) in
-          let orn_idx = shift (Array.get typ_args index_i) in
-          let orn_app = mkApp (mkApp (orn_pms, Array.make 1 orn_idx), non_pms) in
-          let p_args = Array.make 1 (mkApp (orn_app, Array.make 1 orn_final)) in
           reduce_term (mkApp (mkApp (p_g, non_pms), p_args))
       else
         let orn_app = mkApp (orn_pms, non_pms) in
-        let p_args = Array.make 1 (mkApp (orn_app, Array.make 1 orn_final)) in
+        let p_args = Array.make 1 (mkApp (orn_app, orn_final)) in
         reduce_term (mkApp (mkApp (p_g, non_pms), p_args)))
     shift
     env_g
