@@ -1978,12 +1978,9 @@ let compose_ih orn index_i indexer env_g npms_g ip_g p_g c_f is_fwd =
  * TODO clean, refactor orn/deorn, take fewer arguments, etc.
  *)
 let compose_c env_f env_g orn index_i f_indexer npms_g ip_g p_g is_fwd is_g c_g c_f =
-  debug_term env_g c_g "c_g";
-  debug_term env_f c_f "c_f";
   let orn_f = if is_fwd then orn.forget else orn.promote in
   let orn_f_typ = reduce_type env_f orn_f in
   let to_typ = first_fun (fst (ind_of_orn orn_f_typ)) in
-  debug_term env_f to_typ "to_typ";
   let is_deorn = is_or_applies to_typ in
   let always_true _ = true in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
@@ -2010,9 +2007,7 @@ let compose_c env_f env_g orn index_i f_indexer npms_g ip_g p_g is_fwd is_g c_g 
   else
     let f = if is_fwd then orn.promote else orn.forget in
     let f_body_typ = reduce_type env_f_body f_body in
-    debug_term env_f_body f_body_typ "f_body_typ";
     let args = List.append (unfold_args f_body_typ) [f_body] in
-    debug_terms env_f_body args "args";
     reconstruct_lambda_n env_f_body (reduce_term (mkApp (f, Array.of_list args))) (nb_rel env_f)
 
 (*
@@ -2031,7 +2026,6 @@ let compose_inductive idx_n index_i orn (env_g, g) (env_f, f) is_fwd is_g =
     let (env_f_body, f_body) = zoom_lambda_term env_f f in
     let f_typ = reduce_type env_f_body f_body in
     let f_typ_args = unfold_args f_typ in
-    debug_term env_f_body f_typ "f_typ";
     let index_args = List.append f_typ_args [f_body] in
     let indexer = reconstruct_lambda env_f_body (mkApp (indexer, Array.of_list index_args)) in
     let f_indexer = Some (make_constant idx_n) in
@@ -2130,9 +2124,7 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
           ((reduce_term (mkApp (shift t, Array.make 1 t_app))), indexer), composed)
       ((base, None), false)
       (List.tl factors)
-  in debug_term env internalized "internalized";
-     (if Option.has_some indexer then debug_term env (Option.get indexer) "indexer" else ());
-     (reconstruct_lambda env internalized, indexer)
+  in (reconstruct_lambda env internalized, indexer)
 
 
 (* --- Top-level --- *)
