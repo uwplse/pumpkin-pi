@@ -1814,7 +1814,6 @@ let ornament_args env index_i (from_ind, to_ind) orn is_fwd (trm, indices) =
                 let orn_app = mkApp (orn_f, Array.of_list args) in
                 let indexed = unshift index in
                 let t_args = unfold_args t in
-                debug_terms env t_args "t_args";
                 let sub_index = (index, mkApp (indexer, Array.of_list (List.append (remove_index index_i (shift_all_by i t_args)) [indexed]))) in
                 (mkApp (trm, Array.make 1 orn_app), b, sub_index :: indices)
             else if eq_constr h t then (* TODO test multi-nat-index case *)
@@ -1840,9 +1839,7 @@ let ornament_hypos env orn index_i (from_ind, to_ind) is_fwd (trm, indices) =
     (reconstruct_lambda env_hypos concl, indices)
   else
     (* Will this error if the indexer is used elsewhere? *)
-    let x = 0 in debug_term env_hypos concl "concl";
     let indexed = List.fold_right all_eq_substs indices concl in
-    debug_term env_hypos indexed "indexed";
     (reconstruct_lambda env_hypos indexed, indices)
 
 (* Ornament the conclusion *)
@@ -1855,7 +1852,6 @@ let ornament_concls concl_typ env orn index_i (from_ind, to_ind) is_fwd (trm, in
       let concl = mkApp (promote, Array.make 1 trm_zoom) in
       (reconstruct_lambda env_zoom concl, indices)
     else
-      let x = 0 in debug_term env_zoom concl_typ "concl_typ";
       let args =
         List.map
           (fun a ->
@@ -1877,12 +1873,8 @@ let ornament_concls concl_typ env orn index_i (from_ind, to_ind) is_fwd (trm, in
                  a))
           (unfold_args concl_typ)
       in
-      debug_terms env_zoom args "args";
       let forget = mkApp (orn.forget, Array.of_list args) in
-      debug_term env_zoom forget "forget";
-      debug_term env_zoom trm_zoom "trm_zoom";
       let concl = mkApp (forget, Array.make 1 trm_zoom) in
-      debug_term env_zoom concl "concl";
       (reconstruct_lambda env_zoom concl, indices)
   else
     (trm, indices)
@@ -2241,7 +2233,6 @@ let apply_ornament n d_orn d_orn_inv d_old =
   let c_orn_inv = intern env evm d_orn_inv in
   let c_o = intern env evm d_old in
   let trm_n = ornament_no_red env c_orn c_orn_inv c_o in
-  debug_term env trm_n "trm_n";
   define_term n env evm trm_n;
   Printf.printf "Defined ornamented fuction %s.\n\n" (string_of_id n);
   ()

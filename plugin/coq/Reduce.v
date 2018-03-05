@@ -56,16 +56,18 @@ Qed.
 
 Reduce ornament orn_list_vector orn_list_vector_inv in tl_vect_auto as tl_vect_red.
 
-Print tl_vect_red_index.
-
-Print tl_vect_red.
-
 Theorem test_tl_vect:
   forall (A : Type) (n : nat) (v : vector A n),
     tl_vect A n v = tl_vect_red A n v.
 Proof.
   intros. reflexivity.
 Qed.
+
+(*
+ * TODO after cleaning:
+ *)
+
+Reduce ornament orn_list_vector_inv orn_list_vector in tl_auto as tl_red.
 
 (* TODO app *)
 
