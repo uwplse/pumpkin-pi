@@ -615,6 +615,12 @@ let map_track_env mapper p f d env a trm =
   let f_track en a t = occ := !occ + 1; f en a t in
   (!occ, mapper p f_track d env a trm)
 
+(* map and track *)
+let map_track mapper p f d a trm =
+  let occ = ref 0 in
+  let f_track a t = occ := !occ + 1; f a t in
+  (!occ, mapper p f_track d a trm)
+
 (* In env, substitute all subterms of trm that are convertible to src with dst *)
 let all_conv_substs =
   all_substs convertible
@@ -1996,6 +2002,7 @@ let compose_c env_f env_g orn index_i f_indexer npms_g ip_g p_g is_fwd is_g is_i
   if not is_g then
     let f = if is_fwd then shift_by off c_g else shift_by (off - 1) c_g in
     let c_used = if is_fwd then c_f_used else c_g_used in
+    (* Does this generalize? *)
     let args =
       List.map
         (map_term_env_if
@@ -2008,21 +2015,48 @@ let compose_c env_f env_g orn index_i f_indexer npms_g ip_g p_g is_fwd is_g is_i
            env_f_body
            ())
         c_used
-    in reconstruct_lambda_n env_f_body (reduce_term (mkApp (f, Array.of_list args))) (nb_rel env_f)
-  else
-    let f =
-      if is_indexer then
-        Option.get orn.indexer
-      else if is_fwd then
-        orn.promote 
-      else
-        orn.forget
     in
+    let f_app = reduce_term (mkApp (f, Array.of_list args)) in
+    reconstruct_lambda_n env_f_body f_app (nb_rel env_f)
+  else if is_indexer then
+    let f = Option.get orn.indexer in
     let f_body_typ = reduce_type env_f_body f_body in
-    debug_term env_f_body f_body_typ "f_body_typ";
-    let args = List.append (unfold_args f_body_typ) [f_body] in
-    debug_term env_f_body (mkApp (f, Array.of_list args)) "f (args)";
-    reconstruct_lambda_n env_f_body (reduce_term (mkApp (f, Array.of_list args))) (nb_rel env_f)
+    let (nsubs, f_body) =
+      map_track
+        map_term_if
+        (fun _ trm -> applies orn_f trm)
+        (fun _ trm -> get_arg index_i trm)
+        (fun _ -> ())
+        ()
+        f_body
+    in
+    (* Does this generalize, too? *)
+    if nsubs > 0 then
+      reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
+    else
+      let f_args = List.append (unfold_args f_body_typ) [f_body] in
+      let f_app = Reductionops.nf_all env_f_body Evd.empty (mkApp (f, Array.of_list f_args)) in
+      reconstruct_lambda_n env_f_body f_app (nb_rel env_f)
+  else
+    let f = if is_fwd then orn.promote else orn.forget in
+    debug_term env_f_body f_body "f_body";
+    let f_body_typ = reduce_type env_f_body f_body in
+    let (nsubs, f_body) =
+      map_track
+        map_term_if
+        (fun _ trm -> applies orn_f trm)
+        (fun _ trm -> List.hd (List.rev (unfold_args trm)))
+        (fun _ -> ())
+        ()
+        f_body
+    in
+    (* Does this generalize, too? *)
+    if nsubs > 0 then
+      reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
+    else
+      let args = List.append (unfold_args f_body_typ) [f_body] in
+      let f_app = Reductionops.nf_all env_f_body Evd.empty (mkApp (f, Array.of_list args)) in
+      reconstruct_lambda_n env_f_body f_app (nb_rel env_f)
 
 (*
  * Compose two applications of an induction principle that are
