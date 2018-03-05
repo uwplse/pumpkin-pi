@@ -1897,8 +1897,6 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
  * TODO else case right now assumes new index is first, but not necessarily
  * true, so need to fix accordingly. To know how to do that, need to test
  * with tree or something
- *
- * TODO define the applied indexing function before applying it here
  *)
 let compose_p npms index_i orn p_g p_f is_fwd indexer =
   let orn_f = if is_fwd then orn.forget else orn.promote in
@@ -1919,10 +1917,6 @@ let compose_p npms index_i orn p_g p_f is_fwd indexer =
         let p_g_f = first_fun p_g_body in
         let p_g_args = Array.of_list (reindex (unfold_args p_g_body)) in
         let p_g = reconstruct_lambda env_p_g (mkApp (p_g_f, p_g_args)) in
-        (*
-        let (orn_f, orn_args) = destApp orn_app in
-        let orn_args = insert_index index_i index (remove_index index_i (Array.to_list orn_args)) in
-        let orn_app = mkApp (orn_f, Array.of_list orn_args) in*)
         shift_pms_by off (mkApp (p_g, Array.make 1 orn_app))
       else
         shift_pms_by off (mkApp (p_g, Array.make 1 orn_app))
@@ -1933,30 +1927,46 @@ let compose_p npms index_i orn p_g p_f is_fwd indexer =
 
 (*
  * Compose the IH for a constructor
+ * TODO should just get the new p and apply that
  *)
-let compose_ih orn index_i env_g npms_g ip_g p_g c_f is_fwd =
+let compose_ih orn index_i indexer env_g npms_g ip_g p_g c_f is_fwd =
   let orn_f = if is_fwd then orn.forget else orn.promote in
   let ip_g_typ = reduce_type env_g ip_g in
   let from_typ = first_fun (fst (ind_of_orn ip_g_typ)) in
   map_term_env_if
     (fun _ _ trm -> is_or_applies from_typ trm)
-    (fun en p trm ->
+    (fun en p_g trm ->
       let args = unfold_args trm in
       let (pms, non_pms) = map_tuple Array.of_list (take_split npms_g args) in
-      let p = if is_fwd then p else unshift p in
+      let p_g = if is_fwd then p_g else unshift p_g in
       let orn_final = mkRel 1 in
       let orn_pms = mkApp (orn_f, pms) in
       if is_fwd then
-        let (_, _, orn_final_typ) = CRD.to_tuple @@ lookup_rel 1 en in
-        let typ_args = Array.of_list (unfold_args orn_final_typ) in
-        let orn_idx = shift (Array.get typ_args index_i) in
-        let orn_app = mkApp (mkApp (orn_pms, Array.make 1 orn_idx), non_pms) in
-        let p_args = Array.make 1 (mkApp (orn_app, Array.make 1 orn_final)) in
-        reduce_term (mkApp (mkApp (p, non_pms), p_args))
+        if Option.has_some indexer then
+          let f_index = Option.get indexer in
+          let index = shift (mkApp (mkApp (mkApp (f_index, pms), non_pms), Array.make 1 orn_final)) in
+          let reindex ts = insert_index index_i index (remove_index index_i ts) in
+          let (env_p_g, p_g_body) = zoom_lambda_term empty_env p_g in
+          let p_g_f = first_fun p_g_body in
+          let p_g_args = Array.of_list (reindex (unfold_args p_g_body)) in
+          let p_g = reconstruct_lambda env_p_g (mkApp (p_g_f, p_g_args)) in
+          let (_, _, orn_final_typ) = CRD.to_tuple @@ lookup_rel 1 en in
+          let typ_args = Array.of_list (unfold_args orn_final_typ) in
+          let orn_idx = shift (Array.get typ_args index_i) in
+          let orn_app = mkApp (mkApp (orn_pms, Array.make 1 orn_idx), non_pms) in
+          let p_args = Array.make 1 (mkApp (orn_app, Array.make 1 orn_final)) in
+          reduce_term (mkApp (mkApp (p_g, non_pms), p_args))
+        else
+          let (_, _, orn_final_typ) = CRD.to_tuple @@ lookup_rel 1 en in
+          let typ_args = Array.of_list (unfold_args orn_final_typ) in
+          let orn_idx = shift (Array.get typ_args index_i) in
+          let orn_app = mkApp (mkApp (orn_pms, Array.make 1 orn_idx), non_pms) in
+          let p_args = Array.make 1 (mkApp (orn_app, Array.make 1 orn_final)) in
+          reduce_term (mkApp (mkApp (p_g, non_pms), p_args))
       else
         let orn_app = mkApp (orn_pms, non_pms) in
         let p_args = Array.make 1 (mkApp (orn_app, Array.make 1 orn_final)) in
-        reduce_term (mkApp (mkApp (p, non_pms), p_args)))
+        reduce_term (mkApp (mkApp (p_g, non_pms), p_args)))
     shift
     env_g
     p_g
@@ -1970,7 +1980,7 @@ let compose_ih orn index_i env_g npms_g ip_g p_g c_f is_fwd =
  *
  * TODO clean, refactor orn/deorn, take fewer arguments, etc.
  *)
-let compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd is_g c_g c_f =
+let compose_c env_f env_g orn index_i f_indexer npms_g ip_g p_g is_fwd is_g c_g c_f =
   debug_term env_g c_g "c_g";
   debug_term env_f c_f "c_f";
   let orn_f = if is_fwd then orn.forget else orn.promote in
@@ -1981,7 +1991,7 @@ let compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd is_g c_g c_f =
   let always_true _ = true in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_g_used = get_used_or_p_hypos always_true c_g in
-  let c_f = compose_ih orn index_i env_g npms_g ip_g p_g c_f is_fwd in
+  let c_f = compose_ih orn index_i f_indexer env_g npms_g ip_g p_g c_f is_fwd in
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let off = nb_rel env_f_body - nb_rel env_f in
   if not is_g then
@@ -2027,19 +2037,16 @@ let compose_inductive idx_n index_i orn (env_g, g) (env_f, f) is_fwd is_g =
     debug_term env_f_body f_typ "f_typ";
     let index_args = List.append f_typ_args [f_body] in
     let indexer = reconstruct_lambda env_f_body (mkApp (indexer, Array.of_list index_args)) in
-    let f_indexer = make_constant idx_n in
-    let index = mkApp (f_indexer, Array.of_list (mk_n_rels (List.length pms))) in
-    debug_term env_g index "index";
-    let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd (Some f_indexer) in
-    debug_term env_g p "p";
+    let f_indexer = Some (make_constant idx_n) in
+    let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd f_indexer in
     let npms_g = List.length pms_g in
-    let cs = List.map2 (compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd is_g) cs_g cs_f in
+    let cs = List.map2 (compose_c env_f env_g orn index_i f_indexer npms_g ip_g p_g is_fwd is_g) cs_g cs_f in
     let args = args_f in
     (apply_eliminator ip pms p cs args, Some indexer)
   else
     let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd None in
     let npms_g = List.length pms_g in
-    let cs = List.map2 (compose_c env_f env_g orn index_i npms_g ip_g p_g is_fwd is_g) cs_g cs_f in
+    let cs = List.map2 (compose_c env_f env_g orn index_i None npms_g ip_g p_g is_fwd is_g) cs_g cs_f in
     let args = args_f in
     (apply_eliminator ip pms p cs args, None)
 
