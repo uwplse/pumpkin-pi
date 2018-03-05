@@ -69,8 +69,8 @@ Qed.
 
 (* TODO app *)
 
-(* Currently fails (factoring problem) *)
-Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red.
+(* Currently fails (factoring problem) 
+Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red.*)
 
 (* TODO proofs and more complex things *)
 

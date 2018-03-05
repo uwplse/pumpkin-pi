@@ -1789,7 +1789,7 @@ let sub_in_hypos (index_i : int) (index_lam : types) (from_ind : types) (to_ind 
  * Apply the ornament to the arguments
  * TODO clean this
  *)
-let ornament_args env index_i from_ind orn is_fwd (trm, indices) =
+let ornament_args env index_i (from_ind, to_ind) orn is_fwd (trm, indices) =
   let orn_f = if is_fwd then orn.forget else orn.promote in
   let indexer = Option.get orn.indexer in
   let (trm, _, indices) =
@@ -1804,15 +1804,18 @@ let ornament_args env index_i from_ind orn is_fwd (trm, indices) =
                 let index = mkRel (i - nind) in
                 let args = insert_index_shift index_i index (unfold_args t) i in
                 let indexed = unshift index in
+                let t_args = unfold_args t in
                 let orn_app = mkApp (orn_f, Array.of_list (List.append args [indexed])) in
-                let sub_index = (index, mkApp (indexer, Array.of_list (List.append (shift_all_by i (unfold_args t)) [indexed]))) in
+                let sub_index = (index, mkApp (indexer, Array.of_list (List.append (shift_all_by i t_args) [indexed]))) in
                 (mkApp (trm, Array.make 1 orn_app), b, sub_index :: indices)
               else
                 let index = shift_by i (get_arg index_i t) in
                 let args = adjust_no_index index_i (shift_all_by i (unfold_args t)) in
                 let orn_app = mkApp (orn_f, Array.of_list args) in
                 let indexed = unshift index in
-                let sub_index = (index, mkApp (indexer, Array.of_list (List.append (remove_index index_i (shift_all_by i (unfold_args t))) [indexed]))) in
+                let t_args = unfold_args t in
+                debug_terms env t_args "t_args";
+                let sub_index = (index, mkApp (indexer, Array.of_list (List.append (remove_index index_i (shift_all_by i t_args)) [indexed]))) in
                 (mkApp (trm, Array.make 1 orn_app), b, sub_index :: indices)
             else if eq_constr h t then (* TODO test multi-nat-index case *)
               (mkApp (trm, Array.make 1 (mkRel i)), b, indices)
@@ -1832,12 +1835,14 @@ let ornament_hypos env orn index_i (from_ind, to_ind) is_fwd (trm, indices) =
   let hypos = prod_to_lambda (reduce_type env trm) in
   let subbed_hypos = sub_in_hypos index_i index_lam from_ind to_ind hypos is_fwd in
   let env_hypos = zoom_env zoom_lambda_term env subbed_hypos in
-  let (concl, indices) = ornament_args env_hypos index_i from_ind orn is_fwd (trm, indices) in
+  let (concl, indices) = ornament_args env_hypos index_i (from_ind, to_ind) orn is_fwd (trm, indices) in
   if is_fwd then
     (reconstruct_lambda env_hypos concl, indices)
   else
     (* Will this error if the indexer is used elsewhere? *)
+    let x = 0 in debug_term env_hypos concl "concl";
     let indexed = List.fold_right all_eq_substs indices concl in
+    debug_term env_hypos indexed "indexed";
     (reconstruct_lambda env_hypos indexed, indices)
 
 (* Ornament the conclusion *)
@@ -1850,9 +1855,34 @@ let ornament_concls concl_typ env orn index_i (from_ind, to_ind) is_fwd (trm, in
       let concl = mkApp (promote, Array.make 1 trm_zoom) in
       (reconstruct_lambda env_zoom concl, indices)
     else
-      let args = unfold_args (List.fold_right all_eq_substs indices concl_typ) in
+      let x = 0 in debug_term env_zoom concl_typ "concl_typ";
+      let args =
+        List.map
+          (fun a ->
+            List.fold_right
+              all_eq_substs
+              indices
+              (map_term_env_if (* TODO refactor these HOFs *)
+                 (fun env _ trm ->
+                   try
+                     is_or_applies to_ind (reduce_type env trm)
+                   with _ ->
+                     false)
+                 (fun env _ trm ->
+                   let args = unfold_args (reduce_type env trm) in
+                   mkApp (orn.promote, Array.of_list (List.append args [trm])))
+                 (fun _ -> ())
+                 env_zoom
+                 ()
+                 a))
+          (unfold_args concl_typ)
+      in
+      debug_terms env_zoom args "args";
       let forget = mkApp (orn.forget, Array.of_list args) in
+      debug_term env_zoom forget "forget";
+      debug_term env_zoom trm_zoom "trm_zoom";
       let concl = mkApp (forget, Array.make 1 trm_zoom) in
+      debug_term env_zoom concl "concl";
       (reconstruct_lambda env_zoom concl, indices)
   else
     (trm, indices)
@@ -1987,8 +2017,6 @@ let compose_ih orn index_i indexer env_g npms_g ip_g p_g c_f is_fwd =
  * TODO clean, refactor orn/deorn, take fewer arguments, etc.
  *)
 let compose_c env_f env_g orn index_i f_indexer npms_g ip_g p_g is_fwd is_g is_indexer c_g c_f =
-  debug_term env_f c_f "c_f";
-  debug_term env_g c_g "c_g";
   let orn_f = if is_fwd then orn.forget else orn.promote in
   let orn_f_typ = reduce_type env_f orn_f in
   let to_typ = first_fun (fst (ind_of_orn orn_f_typ)) in
@@ -2039,7 +2067,6 @@ let compose_c env_f env_g orn index_i f_indexer npms_g ip_g p_g is_fwd is_g is_i
       reconstruct_lambda_n env_f_body f_app (nb_rel env_f)
   else
     let f = if is_fwd then orn.promote else orn.forget in
-    debug_term env_f_body f_body "f_body";
     let f_body_typ = reduce_type env_f_body f_body in
     let (nsubs, f_body) =
       map_track
@@ -2067,8 +2094,6 @@ let compose_c env_f env_g orn index_i f_indexer npms_g ip_g p_g is_fwd is_g is_i
 let compose_inductive idx_n index_i orn (env_g, g) (env_f, f) is_fwd is_g is_indexer =
   let (ip_f, pms_f, p_f, cs_f, args_f) = deconstruct_eliminator env_f f in
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
-  debug_term env_f p_f "p_f";
-  debug_term env_g p_g "p_g";
   let ip = ip_f in
   let pms = pms_f in
   if is_g && not is_indexer then
@@ -2175,8 +2200,6 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
           else
             let t_f = t_app in
             let is_g = applies orn_indexer t_body in
-            debug_term e_g t_g "t_g";
-            debug_term e_f t_f "t_f";
             (compose_inductive idx_n index_i orn (e_g, t_g) (e_f, t_f) is_fwd is_g true, true)
         else
           (* TODO *)
@@ -2218,6 +2241,7 @@ let apply_ornament n d_orn d_orn_inv d_old =
   let c_orn_inv = intern env evm d_orn_inv in
   let c_o = intern env evm d_old in
   let trm_n = ornament_no_red env c_orn c_orn_inv c_o in
+  debug_term env trm_n "trm_n";
   define_term n env evm trm_n;
   Printf.printf "Defined ornamented fuction %s.\n\n" (string_of_id n);
   ()

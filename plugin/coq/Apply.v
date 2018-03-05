@@ -170,13 +170,24 @@ Definition tl (A : Type) (l:list A) :=
       m)
     l.
 
+(* For now, we don't eliminate the vector reference, since incides might refer to other things *)
+Definition pred_vect (A : Type) (n : nat) (v : vector A n) :=
+  vector_rect
+    A
+    (fun (n0 : nat) (_ : vector A n0) => nat)
+    0
+    (fun (n0 : nat) (a : A) (v0 : vector A n0) (_ : nat) =>
+      n0)
+    n
+    v.
+
 Definition tl_vect (A : Type) (n : nat) (v : vector A n) :=
   vector_rect
     A
-    (fun (n0 : nat) (_ : vector A n0) => vector A (pred n0))
+    (fun (n0 : nat) (v0 : vector A n0) => vector A (pred_vect A n0 v0))
     (nilV A)
-    (fun (n0 : nat) (a : A) (v : vector A n0) (_ : vector A (pred n0)) =>
-      v)
+    (fun (n0 : nat) (a : A) (v0 : vector A n0) (_ : vector A (pred_vect A n0 v0)) =>
+      v0)
     n
     v.
 
@@ -206,7 +217,7 @@ Theorem test_orn_tl :
       A
       (orn_list_vector_index A (tl A (orn_list_vector_inv A n v)))
       (tl_vect_auto A n v)
-      (pred n)
+      (pred_vect A n v)
       (tl_vect A n v).
 Proof.
   unfold eq_vect.
