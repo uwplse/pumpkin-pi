@@ -1014,7 +1014,6 @@ let factor_term (env : env) (trm : types) : factors =
 let factor_term_dep (env : env) (trm : types) : factor_tree =
   let (env_zoomed, trm_zoomed) = zoom_lambda_term env (reduce_term trm) in
   let tree_body = find_path_dep env_zoomed trm_zoomed in
-  debug_factors_dep tree_body;
   let rec factor_dep t =
     match t with
     | Factor ((env, body), children) ->
@@ -1022,15 +1021,11 @@ let factor_term_dep (env : env) (trm : types) : factor_tree =
        if is_assumption env body then
          Factor ((env, body), children)
        else
-         let x = 0 in
-         Printf.printf "nb_rel env: %d\n" (nb_rel env);
          let num_old_rels = nb_rel env_zoomed in
          let num_new_rels = nb_rel env - num_old_rels in
          let lambda = reconstruct_lambda_n env body (num_old_rels - 1) in
-         debug_env env "env";
-         let env = pop_rel_context (num_new_rels + 1) env in
-         debug_env env "env'";
-         Factor ((env, lambda), children)
+         let env_lambda = pop_rel_context (num_new_rels + 1) env in
+         Factor ((env_lambda, lambda), children)
     | Unit ->
        Unit
   in factor_dep tree_body
