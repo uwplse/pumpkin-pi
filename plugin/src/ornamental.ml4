@@ -944,10 +944,7 @@ let rec find_path (env : env) (trm : types) : factors =
  * Dependent version of the above
  *)
 let rec find_path_dep (env : env) (trm : types) : factor_tree =
-  debug_term env trm "trm";
   if is_assumption env trm then
-    let x = 0 in
-    Printf.printf "%s\n\n" "is assumption!";
     Factor ((env, trm), [])
   else
     match kind_of_term trm with
@@ -985,10 +982,7 @@ let rec find_path_dep (env : env) (trm : types) : factor_tree =
                  (en, [Unit]))
              (env, [])
              nonempty_trees
-         in List.iter debug_factors_dep children;
-            Printf.printf "%s\n\n" "done printing children";
-            debug_env env "env";
-            Factor ((env, mkApp (f, assumed)), children)
+         in Factor ((env, mkApp (f, assumed)), children)
        else
 	 Unit
     | _ -> (* other terms not yet implemented *)
@@ -1021,20 +1015,25 @@ let factor_term_dep (env : env) (trm : types) : factor_tree =
   let (env_zoomed, trm_zoomed) = zoom_lambda_term env (reduce_term trm) in
   let tree_body = find_path_dep env_zoomed trm_zoomed in
   debug_factors_dep tree_body;
-  let rec factor_dep i t =
+  let rec factor_dep t =
     match t with
     | Factor ((env, body), children) ->
-       let children = List.mapi factor_dep children in
+       let children = List.map factor_dep children in
        if is_assumption env body then
          Factor ((env, body), children)
        else
-         let lambda = reconstruct_lambda_n env body (nb_rel env - i - 1) in
-         let all_rels = List.rev (from_one_to (i + 1)) in
-         let env = List.fold_right pop_rel_context all_rels env in
+         let x = 0 in
+         Printf.printf "nb_rel env: %d\n" (nb_rel env);
+         let num_old_rels = nb_rel env_zoomed in
+         let num_new_rels = nb_rel env - num_old_rels in
+         let lambda = reconstruct_lambda_n env body (num_old_rels - 1) in
+         debug_env env "env";
+         let env = pop_rel_context (num_new_rels + 1) env in
+         debug_env env "env'";
          Factor ((env, lambda), children)
     | Unit ->
        Unit
-  in factor_dep 0 tree_body
+  in factor_dep tree_body
 
 (*
  * Reconstruct factors as terms using hypotheses from the environment.
