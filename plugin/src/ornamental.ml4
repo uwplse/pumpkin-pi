@@ -863,12 +863,12 @@ let apply_assumption (fs : factors) (trm : types) : types =
 (*
  * Apply the assumption in the dependent version
  *)
-let apply_assumption_dep (i : int) (fs : factor_tree) (trm : types) : types =
+let apply_assumption_dep (i : int) (fs : factor_tree) (trm : types) : types * int =
   match fs with
   | Factor (_, _) ->
-     mkRel i
+     (mkRel i, i - 1)
   | Unit ->
-     trm
+     (shift_by (i - 1) trm, i)
 
 (*
  * Check if the term is the assumption (last term in the environment)
@@ -956,38 +956,27 @@ let rec find_path_dep (env : env) (trm : types) : factor_tree =
        let filter_nonunit = List.filter (fun t -> not (t = Unit)) in
        let nonempty_trees = filter_nonunit (Array.to_list trees) in
        let num_trees = List.length nonempty_trees in
-       let assume_arg i a =
-         let num_args = Array.length args in
-         Printf.printf "%d\n" (num_args - i);
-         apply_assumption_dep (num_args - i) (Array.get trees i) a
+       let rec assume_args i j args =
+         match args with
+         | h :: tl ->
+            let (h', j') = apply_assumption_dep j (Array.get trees i) h in
+            h' :: (assume_args (i + 1) j' tl)
+         | [] ->
+            []
        in
-       let args_assumed = Array.mapi assume_arg args in
+       let assumed = Array.of_list (assume_args 0 num_trees (Array.to_list args)) in
        if num_trees > 0 then
-         let (env', children) =
+         let (env, children) =
            List.fold_left
              (fun ((en, cn) : env * factor_tree list) (tr : factor_tree) ->
                let (Factor ((env_arg, arg), children)) = tr in
                try
                  if List.length cn > 0 then
-                   let x = 0 in debug_env env_arg "env_arg"; debug_term env_arg arg "arg";
                    let (Factor ((en_prev, prev), _)) = List.hd cn in
-                   debug_env en_prev "en_prev";
-                   debug_term en_prev prev "prev";
-                   let arg = all_conv_substs env_arg (prev, mkRel 1) (shift_by (List.length cn - 1) arg) in
-                   debug_term env_arg arg "arg'";
-                   let t = reduce_type en_prev prev in
-                   debug_term env_arg t "t";
-                   let env_arg = push_local (Anonymous, t) en_prev in
-                   debug_env env_arg "env_arg";
-                   (* let env_arg = en in TODO will fail right now when subs
-                   debug_env env_arg "env_arg'";*)
-                   let t = reduce_type env_arg (shift arg) in
-                   debug_term env_arg t "t";
-                   let t = all_conv_substs env_arg (shift prev, mkRel 2) t in
-                   debug_term env_arg t "t";
-                   let en_t = push_local (Anonymous, unshift t) en in
-                   debug_env en_t "en_t";
-                   (en_t, ((Factor ((env_arg, shift arg), children)) :: cn))
+                   let t = reduce_type env_arg arg in
+                   let t = all_conv_substs env_arg (prev, mkRel 1) t in
+                   let en_t = push_local (Anonymous, t) en in
+                   (en_t, ((Factor ((env_arg, arg), children)) :: cn))
                  else
                    let t = unshift (reduce_type env_arg arg) in
                    let en_t = assume env_arg Anonymous t in
@@ -998,7 +987,8 @@ let rec find_path_dep (env : env) (trm : types) : factor_tree =
              nonempty_trees
          in List.iter debug_factors_dep children;
             Printf.printf "%s\n\n" "done printing children";
-            Factor ((env, mkApp (f, args_assumed)), children)
+            debug_env env "env";
+            Factor ((env, mkApp (f, assumed)), children)
        else
 	 Unit
     | _ -> (* other terms not yet implemented *)
