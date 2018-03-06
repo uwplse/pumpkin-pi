@@ -2226,7 +2226,8 @@ let compose_inductive idx_n index_i orn (env_g, g) (env_f, f) is_fwd is_g is_ind
  *)
 let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm : types) =
   let is_fwd = direction env orn in
-  let apply_if_bwd f x = if is_fwd then x else f x in
+  let apply_if b f x = if b then f x else x in
+  let apply_if_bwd f x = apply_if (not is_fwd) f x in
   let (orn, orn_inv) =  apply_if_bwd reverse (orn, orn_inv) in
   let orn_type = reduce_type env orn in
   let (from_with_args, to_with_args) = ind_of_orn orn_type in
@@ -2264,6 +2265,7 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   in
   let (env, base) = List.hd factors in
   let delta env trm = Reductionops.whd_delta env Evd.empty trm in
+  let reduce env trm = reduce_term (delta env trm) in
   let orn_indexer = Option.get orn.indexer in
   (*let rec compose_factors fs = TODO not yet implemented
     match fs with
@@ -2280,26 +2282,21 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let ((internalized, indexer), _) =
     List.fold_left
       (fun ((t_app, indexer), composed) (en, t) ->
-        (* TODO clean *)
         let (e_body, t_body) = zoom_lambda_term en t in
-        let uses f = (applies f t_app || applies f t_body) && isApp t_app in
-        if (uses orn.promote) || (uses orn.forget) || (uses orn_indexer) then
-          let e_g = e_body in
-          let t_g = reduce_term (delta e_body t_body) in
-          let e_f = env in
-          let t_f = if composed then t_app else reduce_term (delta env t_app) in
-          if uses orn.promote then
-            let is_g = applies orn.promote t_body in
-            (compose_inductive idx_n index_i orn (e_g, t_g) (e_f, t_f) is_fwd is_g false, true)
-          else if uses orn.forget then
-            let is_g = applies orn.forget t_body in
-            (compose_inductive idx_n index_i orn (e_g, t_g) (e_f, t_f) is_fwd is_g false, true)
-          else
-            let t_f = t_app in
-            let is_g = applies orn_indexer t_body in
-            (compose_inductive idx_n index_i orn (e_g, t_g) (e_f, t_f) is_fwd is_g true, true)
+        let body_uses f = applies f t_body in
+        let uses f = (applies f t_app || body_uses f) && isApp t_app in
+        let promotes = uses orn.promote in
+        let forgets = uses orn.forget in
+        let indexes = uses orn_indexer in
+        let branch a b c = if promotes then a else if forgets then b else c in
+        let no_red = branch composed composed true in
+        if promotes || forgets || indexes then
+          let g = (e_body, reduce_term (delta e_body t_body)) in
+          let f = (env, apply_if (not no_red) (reduce env) t_app) in
+          let orn_f = branch orn.promote orn.forget orn_indexer in
+          let is_g = applies orn_f t_body in
+          (compose_inductive idx_n index_i orn g f is_fwd is_g indexes, true)
         else
-          (* TODO *)
           ((reduce_term (mkApp (shift t, Array.make 1 t_app))), indexer), composed)
       ((base, None), false)
       (List.tl factors)
