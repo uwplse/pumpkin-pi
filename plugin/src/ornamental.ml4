@@ -982,7 +982,7 @@ let rec find_path_dep (env : env) (trm : types) : factor_tree =
                  (en, [Unit]))
              (env, [])
              nonempty_trees
-         in Factor ((env, mkApp (f, assumed)), children)
+         in Factor ((env, mkApp (f, assumed)), List.rev children)
        else
 	 Unit
     | _ -> (* other terms not yet implemented *)
@@ -2203,7 +2203,8 @@ let compose_inductive idx_n index_i orn (env_g, g) (env_f, f) is_fwd is_g is_ind
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g orn index_i None npms_g ip_g p_g is_fwd is_g is_indexer) cs_g cs_f in
     let args = args_f in
-    (apply_eliminator ip pms p cs args, None)
+    let app = apply_eliminator ip pms p cs args in
+    (app, None)
 
 (*
  * This takes a term (f o orn_inv) and reduces it to f' where orn_inv is
@@ -2242,65 +2243,46 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let composite = apply_if_bwd (temporary_index orn) trm in
   let factors_dep = factor_term_dep env trm in (* TODO testing *)
   debug_factors_dep factors_dep;
-  let factors =
-    apply_if_bwd
-      (fun fs ->
-        let fs_temp = List.map (fun (e, t) -> (e, temporary_index orn t)) fs in
-        let is_orn = is_or_applies (first_fun to_with_args) in
-        List.map
-          (fun (en, f) ->
-            match kind_of_term f with
-            | Lambda (n, t, b) when is_orn t ->
-               let t_args = remove_index index_i (unfold_args t) in
-               let index_f = prod_to_lambda (reduce_type en (first_fun index)) in
-               let dummy = mkRel 0 in
-               let index_args = Array.of_list (List.append t_args [dummy]) in
-               let index = reduce_term (mkApp (index_f, index_args)) in
-               let body = reindex (mkRel 1) (mkLambda (n, shift t, shift b)) in
-               (en, mkLambda (Anonymous, index, body))
-            | _ ->
-               (en, f))
-          fs_temp)
-      (List.rev (factor_term env composite))
-  in
-  let (env, base) = List.hd factors in
   let delta env trm = Reductionops.whd_delta env Evd.empty trm in
   let reduce env trm = reduce_term (delta env trm) in
   let orn_indexer = Option.get orn.indexer in
-  (*let rec compose_factors fs = TODO not yet implemented
+  let (Factor ((env, base), children)) = factors_dep in
+  let rec compose_factors fs =
     match fs with
     | Factor ((en, t), children) ->
-       let ((t_app, indexer), composed) =
-         List.fold_left
-           (fun _ ((a, i), c) ->
-             (( ) composed && c
-           )
-           _
-           (compose_factors children)
-       in
-       let (e_body, t_body) = *)
-  let ((internalized, indexer), _) =
-    List.fold_left
-      (fun ((t_app, indexer), composed) (en, t) ->
-        let (e_body, t_body) = zoom_lambda_term en t in
-        let body_uses f = applies f t_body in
-        let uses f = (applies f t_app || body_uses f) && isApp t_app in
-        let promotes = uses orn.promote in
-        let forgets = uses orn.forget in
-        let indexes = uses orn_indexer in
-        let branch a b c = if promotes then a else if forgets then b else c in
-        let no_red = branch composed composed true in
-        if promotes || forgets || indexes then
-          let g = (e_body, reduce_term (delta e_body t_body)) in
-          let f = (env, apply_if (not no_red) (reduce env) t_app) in
-          let orn_f = branch orn.promote orn.forget orn_indexer in
-          let is_g = applies orn_f t_body in
-          (compose_inductive idx_n index_i orn g f is_fwd is_g indexes, true)
-        else
-          ((reduce_term (mkApp (shift t, Array.make 1 t_app))), indexer), composed)
-      ((base, None), false)
-      (List.tl factors)
-  in (reconstruct_lambda env internalized, indexer)
+       if List.length children > 0 then
+         let children_comp = List.map compose_factors children in
+         let ((t_app, indexer), env, composed) = List.hd (List.rev children_comp) in
+         let (e_body, t_body) = zoom_lambda_term en t in
+         debug_term env t_app "t_app";
+         debug_term e_body t_body "t_body";
+         let body_uses f = applies f t_body in
+         let uses f = (applies f t_app || body_uses f) && isApp t_app in
+         let promotes = uses orn.promote in
+         let forgets = uses orn.forget in
+         let indexes = uses orn_indexer in
+         let branch a b c = if promotes then a else if forgets then b else c in
+         let no_red = branch composed composed true in
+         if promotes || forgets || indexes then
+           let g = (e_body, reduce_term (delta e_body t_body)) in
+           debug_term (fst g) (snd g) "g";
+           debug_term env (reduce env t_app) "t_app reduced";
+           let f = (env, apply_if (not no_red) (reduce env) t_app) in
+           debug_term (fst f) (snd f) "f";
+           let orn_f = branch orn.promote orn.forget orn_indexer in
+           let is_g = applies orn_f t_body in
+           (compose_inductive idx_n index_i orn g f is_fwd is_g indexes, env, true)
+         else
+           let x = 0 in debug_term en t_app "t_app";
+           (((reduce_term (mkApp (shift t, Array.make 1 t_app))), indexer), env, composed)
+       else
+         ((t, None), en, false)
+    | Unit ->
+       failwith "unexpected"
+  in
+  let ((internalized, indexer), env, _) = compose_factors factors_dep in
+  debug_term env internalized "internalized";
+  (reconstruct_lambda env internalized, indexer)
 
 
 (* --- Top-level --- *)
