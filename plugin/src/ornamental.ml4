@@ -834,8 +834,22 @@ let debug_env (env : env) (descriptor : string) : unit =
 (* --- Factoring, from PUMPKIN PATCH --- *)
 
 type factors = (env * types) list
+type factor_tree = Unit | Factor of (env * types) * factor_tree list
 
 let assumption : types = mkRel 1
+
+(* Debug dependent factors *)
+let debug_factors_dep (fs : factor_tree) : unit =
+  let rec as_string fs =
+    match fs with
+    | Factor ((en, t), cn) ->
+       Printf.sprintf
+         "Factor %s [%s]"
+         (term_as_string en t)
+         (String.concat "; " (List.map as_string cn))
+    | Unit ->
+       "Unit"
+  in Printf.printf "%s\n\n" (as_string fs)
 
 (*
  * Apply the assumption (last term in the environment) in the term
@@ -845,6 +859,16 @@ let apply_assumption (fs : factors) (trm : types) : types =
     assumption
   else
     trm
+
+(*
+ * Apply the assumption in the dependent version
+ *)
+let apply_assumption_dep (i : int) (fs : factor_tree) (trm : types) : types =
+  match fs with
+  | Factor (_, _) ->
+     mkRel i
+  | Unit ->
+     trm
 
 (*
  * Check if the term is the assumption (last term in the environment)
@@ -917,6 +941,57 @@ let rec find_path (env : env) (trm : types) : factors =
        []
 
 (*
+ * Dependent version of the above
+ *)
+let rec find_path_dep (env : env) (trm : types) : factor_tree =
+  debug_term env trm "trm";
+  if is_assumption env trm then
+    let x = 0 in
+    Printf.printf "%s\n\n" "is assumption!";
+    Factor ((env, trm), [])
+  else
+    match kind_of_term trm with
+    | App (f, args) ->
+       let trees = Array.map (find_path_dep env) args in
+       let filter_nonunit = List.filter (fun t -> not (t = Unit)) in
+       let nonempty_trees = filter_nonunit (Array.to_list trees) in
+       Printf.printf "%s\n\n" "args:";
+       List.iter debug_factors_dep nonempty_trees;
+       let num_trees = List.length nonempty_trees in
+       Printf.printf "num trees: %d\n\n" num_trees;
+       let assume_arg i a =
+         let num_args = Array.length args in
+         apply_assumption_dep (num_args - i) (Array.get trees i) a
+       in
+       let args_assumed = Array.mapi assume_arg args in
+       if num_trees > 0 then
+         let (env, children) =
+           List.fold_left
+             (fun ((en, cn) : env * factor_tree list) (tr : factor_tree) ->
+               let (Factor ((env_arg, arg), children)) = tr in
+               try
+                 if List.length cn > 0 then
+                   let env_arg = en in
+                   let (Factor ((_, prev), _)) = List.hd cn in
+                   let arg = all_conv_substs env_arg (prev, mkRel 1) arg in
+                   let t = reduce_type env_arg arg in
+                   let en_t = push_local (Anonymous, t) en in
+                   (en_t, ((Factor ((env_arg, shift arg), children)) :: cn))
+                 else
+                   let t = unshift (reduce_type env_arg arg) in
+                   let en_t = assume en Anonymous t in
+                   (en_t, [tr])
+               with _ ->
+                 (en, [Unit]))
+             (env, [])
+             nonempty_trees
+         in Factor ((env, mkApp (f, args_assumed)), children)
+       else
+	 Unit
+    | _ -> (* other terms not yet implemented *)
+       Unit
+
+(*
  * Given a term trm, if the type of trm is a function type
  * X -> Z, find factors through which it passes
  * (e.g., [H : X, F : X -> Y, G : Y -> Z] where trm = G o F)
@@ -935,6 +1010,27 @@ let factor_term (env : env) (trm : types) : factors =
 	let (n, _, t) = CRD.to_tuple @@ lookup_rel 1 env in
 	(pop_rel_context 1 env, mkLambda (n, t, body)))
     path_body
+
+(*
+ * Dependent version
+ *)
+let factor_term_dep (env : env) (trm : types) : factor_tree =
+  let (env_zoomed, trm_zoomed) = zoom_lambda_term env (reduce_term trm) in
+  let tree_body = find_path_dep env_zoomed trm_zoomed in
+  let rec factor_dep i t =
+    match t with
+    | Factor ((env, body), children) ->
+       let children = List.mapi factor_dep children in
+       if is_assumption env body then
+         Factor ((env, body), children)
+       else
+         let lambda = reconstruct_lambda_n env body (nb_rel env - i - 1) in
+         let all_rels = List.rev (from_one_to (i + 1)) in
+         let env = List.fold_right pop_rel_context all_rels env in
+         Factor ((env, lambda), children)
+    | Unit ->
+       Unit
+  in factor_dep 0 tree_body
 
 (*
  * Reconstruct factors as terms using hypotheses from the environment.
@@ -2145,6 +2241,8 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let forget = orn_inv in
   let orn = { indexer; promote; forget } in
   let composite = apply_if_bwd (temporary_index orn) trm in
+  let factors_dep = factor_term_dep env trm in (* TODO testing *)
+  debug_factors_dep factors_dep;
   let factors =
     apply_if_bwd
       (fun fs ->
@@ -2169,6 +2267,18 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let (env, base) = List.hd factors in
   let delta env trm = Reductionops.whd_delta env Evd.empty trm in
   let orn_indexer = Option.get orn.indexer in
+  (*let rec compose_factors fs = TODO not yet implemented
+    match fs with
+    | Factor ((en, t), children) ->
+       let ((t_app, indexer), composed) =
+         List.fold_left
+           (fun _ ((a, i), c) ->
+             (( ) composed && c
+           )
+           _
+           (compose_factors children)
+       in
+       let (e_body, t_body) = *)
   let ((internalized, indexer), _) =
     List.fold_left
       (fun ((t_app, indexer), composed) (en, t) ->
