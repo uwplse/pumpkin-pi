@@ -970,13 +970,14 @@ let rec find_path_dep (env : env) (trm : types) : factor_tree =
                try
                  if List.length cn > 0 then
                    let (Factor ((en_prev, prev), _)) = List.hd cn in
+                   let off = nb_rel en - nb_rel en_prev in
                    let t = reduce_type env_arg arg in
-                   let t = all_conv_substs env_arg (prev, mkRel 1) t in
-                   let en_t = push_local (Anonymous, t) en in
+                   let t = all_conv_substs en_prev (prev, mkRel (1 - off)) t in
+                   let en_t = push_local (Anonymous, shift_by off t) en in
                    (en_t, ((Factor ((env_arg, arg), children)) :: cn))
                  else
                    let t = unshift (reduce_type env_arg arg) in
-                   let en_t = assume env_arg Anonymous t in
+                   let en_t = assume en Anonymous t in
                    (en_t, [((Factor ((env_arg, arg), children)))])
                with _ ->
                  (en, [Unit]))
@@ -2251,8 +2252,9 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
     match fs with
     | Factor ((en, t), children) ->
        if List.length children > 0 then
-         let children_comp = List.map compose_factors children in
-         let ((t_app, indexer), env, composed) = List.hd (List.rev children_comp) in
+         let children_comp = List.rev (List.map compose_factors children) in
+         let (((t_app, indexer), env, composed) :: tl) = children_comp in
+         let t_tl = List.map (fun ((t, _), _, _) -> t) (List.rev tl) in
          let (e_body, t_body) = zoom_lambda_term en t in
          debug_term env t_app "t_app";
          debug_term e_body t_body "t_body";
@@ -2266,15 +2268,14 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
          if promotes || forgets || indexes then
            let g = (e_body, reduce_term (delta e_body t_body)) in
            debug_term (fst g) (snd g) "g";
-           debug_term env (reduce env t_app) "t_app reduced";
            let f = (env, apply_if (not no_red) (reduce env) t_app) in
            debug_term (fst f) (snd f) "f";
            let orn_f = branch orn.promote orn.forget orn_indexer in
            let is_g = applies orn_f t_body in
            (compose_inductive idx_n index_i orn g f is_fwd is_g indexes, env, true)
          else
-           let x = 0 in debug_term en t_app "t_app";
-           (((reduce_term (mkApp (shift t, Array.make 1 t_app))), indexer), env, composed)
+           let t_args = Array.of_list (List.append t_tl [t_app]) in
+           (((reduce_term (mkApp (shift t, t_args))), indexer), env, composed)
        else
          ((t, None), en, false)
     | Unit ->
