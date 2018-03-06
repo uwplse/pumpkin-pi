@@ -1932,7 +1932,6 @@ let compose_p npms index_i orn p_g p_f is_fwd indexer =
   let off = nb_rel env_p_f in
   let orn_app = mkApp (orn_f, Array.of_list (mk_n_rels (npms + off))) in
   let shift_pms_by = shift_local (npms + 1) in
-  Printf.printf "%s\n\n" (if Option.has_some indexer then "some" else "none");
   let body =
     if is_fwd then
       if Option.has_some indexer then
@@ -1948,13 +1947,11 @@ let compose_p npms index_i orn p_g p_f is_fwd indexer =
         let p_g = reconstruct_lambda env_p_g (mkApp (p_g_f, p_g_args)) in
         shift_pms_by off (mkApp (p_g, Array.make 1 orn_app))
       else
-        let x = 0 in
-        Printf.printf "%d\n\n" 1;
         shift_pms_by off (mkApp (p_g, Array.make 1 orn_app))
     else
       let index = get_arg index_i p_f_body in
       shift_pms_by (off - 1) (mkApp (p_g, Array.of_list [index; orn_app]))
-  in Printf.printf "%d\n\n" 2; reconstruct_lambda env_p_f (reduce_term body)
+  in reconstruct_lambda env_p_f (reduce_term body)
 
 (*
  * Compose the IH for a constructor
