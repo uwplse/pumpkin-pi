@@ -2183,24 +2183,29 @@ let compose_inductive idx_n index_i orn (env_g, g) (env_f, f) is_fwd is_g is_ind
   if is_g && not is_indexer then
     let indexer = Option.get orn.indexer in
     let (env_f_body, f_body) = zoom_lambda_term env_f f in
+    debug_term env_f_body f_body "f_body";
     let f_typ = reduce_type env_f_body f_body in
+    debug_term env_f_body f_typ "f_typ"; (* f_body is ill-typed *)
     let f_typ_args = unfold_args f_typ in
     let index_args = List.append f_typ_args [f_body] in
     let indexer = reconstruct_lambda env_f_body (mkApp (indexer, Array.of_list index_args)) in
     let f_indexer = Some (make_constant idx_n) in
     let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd f_indexer in
+    debug_term env_g p "p";
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g orn index_i f_indexer npms_g ip_g p_g is_fwd is_g is_indexer) cs_g cs_f in
     let args = args_f in
     (apply_eliminator ip pms p cs args, Some indexer)
   else if is_indexer then
     let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd None in
+    debug_term env_g p "p";
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g orn index_i None npms_g ip_g p_g is_fwd is_g is_indexer) cs_g cs_f in
     let args = args_f in
     (apply_eliminator ip pms p cs args, None)
   else
     let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd None in
+    debug_term env_g p "p";
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g orn index_i None npms_g ip_g p_g is_fwd is_g is_indexer) cs_g cs_f in
     let args = args_f in
@@ -2275,7 +2280,10 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
            (compose_inductive idx_n index_i orn g f is_fwd is_g indexes, env, true)
          else
            let t_args = Array.of_list (List.append t_tl [t_app]) in
-           (((reduce_term (mkApp (shift t, t_args))), indexer), env, composed)
+           let app = reduce_term (mkApp (shift t, t_args)) in
+           (* TODO tl is always empty, unused *)
+           debug_term env app "app";
+           ((app, indexer), env, composed)
        else
          ((t, None), en, false)
     | Unit ->
