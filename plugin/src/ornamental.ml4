@@ -2020,15 +2020,17 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
  * TODO else case right now assumes new index is first, but not necessarily
  * true, so need to fix accordingly. To know how to do that, need to test
  * with tree or something
+ *
+ * TODO env is temp for debugging
  *)
 let compose_p npms index_i orn p_g p_f is_fwd indexer =
   let orn_f = if is_fwd then orn.forget else orn.promote in
   let (env_p_f, p_f_body) = zoom_lambda_term empty_env p_f in
   let off = nb_rel env_p_f in
   let orn_app = mkApp (orn_f, Array.of_list (mk_n_rels (npms + off))) in
-  let shift_pms_by = shift_local (npms + 1) in
   let body =
     if is_fwd then
+      let shift_pms = shift_local (npms + 1) off in
       if Option.has_some indexer then
         let f_index = Option.get indexer in
         let index_pms = shift_all_by (npms + off) (mk_n_rels npms) in
@@ -2040,12 +2042,13 @@ let compose_p npms index_i orn p_g p_f is_fwd indexer =
         let p_g_f = first_fun p_g_body in
         let p_g_args = Array.of_list (reindex (unfold_args p_g_body)) in
         let p_g = reconstruct_lambda env_p_g (mkApp (p_g_f, p_g_args)) in
-        shift_pms_by off (mkApp (p_g, Array.make 1 orn_app))
+        shift_pms (mkApp (p_g, Array.make 1 orn_app))
       else
-        shift_pms_by off (mkApp (p_g, Array.make 1 orn_app))
+        shift_pms (mkApp (p_g, Array.make 1 orn_app))
     else
+      let orn_app = shift_local npms off orn_app in
       let index = get_arg index_i p_f_body in
-      shift_pms_by (off - 1) (mkApp (p_g, Array.of_list [index; orn_app]))
+      mkApp (p_g, Array.of_list [index; orn_app])
   in reconstruct_lambda env_p_f (reduce_term body)
 
 (*
@@ -2183,29 +2186,26 @@ let compose_inductive idx_n index_i orn (env_g, g) (env_f, f) is_fwd is_g is_ind
   if is_g && not is_indexer then
     let indexer = Option.get orn.indexer in
     let (env_f_body, f_body) = zoom_lambda_term env_f f in
-    debug_term env_f_body f_body "f_body";
     let f_typ = reduce_type env_f_body f_body in
-    debug_term env_f_body f_typ "f_typ"; (* f_body is ill-typed *)
     let f_typ_args = unfold_args f_typ in
     let index_args = List.append f_typ_args [f_body] in
     let indexer = reconstruct_lambda env_f_body (mkApp (indexer, Array.of_list index_args)) in
     let f_indexer = Some (make_constant idx_n) in
     let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd f_indexer in
-    debug_term env_g p "p";
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g orn index_i f_indexer npms_g ip_g p_g is_fwd is_g is_indexer) cs_g cs_f in
     let args = args_f in
     (apply_eliminator ip pms p cs args, Some indexer)
   else if is_indexer then
     let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd None in
-    debug_term env_g p "p";
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g orn index_i None npms_g ip_g p_g is_fwd is_g is_indexer) cs_g cs_f in
     let args = args_f in
     (apply_eliminator ip pms p cs args, None)
   else
     let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd None in
-    debug_term env_g p "p";
+    debug_env env_f "env_f";
+    debug_term env_f p "p";
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g orn index_i None npms_g ip_g p_g is_fwd is_g is_indexer) cs_g cs_f in
     let args = args_f in
@@ -2261,8 +2261,6 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
          let (((t_app, indexer), env, composed) :: tl) = children_comp in
          let t_tl = List.map (fun ((t, _), _, _) -> t) (List.rev tl) in
          let (e_body, t_body) = zoom_lambda_term en t in
-         debug_term env t_app "t_app";
-         debug_term e_body t_body "t_body";
          let body_uses f = applies f t_body in
          let uses f = (applies f t_app || body_uses f) && isApp t_app in
          let promotes = uses orn.promote in
@@ -2273,11 +2271,15 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
          if promotes || forgets || indexes then
            let g = (e_body, reduce_term (delta e_body t_body)) in
            debug_term (fst g) (snd g) "g";
+           debug_term (fst g) (reduce_type (fst g) (snd g)) "g typ";
            let f = (env, apply_if (not no_red) (reduce env) t_app) in
            debug_term (fst f) (snd f) "f";
+           debug_term (fst f) (reduce_type (fst f) (snd f)) "f typ";
            let orn_f = branch orn.promote orn.forget orn_indexer in
            let is_g = applies orn_f t_body in
-           (compose_inductive idx_n index_i orn g f is_fwd is_g indexes, env, true)
+           let (app, indexer) = compose_inductive idx_n index_i orn g f is_fwd is_g indexes in
+           debug_term (fst f) app "app";
+           ((app, indexer), env, true)
          else
            let t_args = Array.of_list (List.append t_tl [t_app]) in
            let app = reduce_term (mkApp (shift t, t_args)) in
