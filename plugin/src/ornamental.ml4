@@ -2159,7 +2159,7 @@ let compose_inductive idx_n index_i orn (env_g, g) (env_f, f) is_fwd is_g is_ind
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
   let ip = ip_f in
   let pms = pms_f in
-  if is_g && not is_indexer then
+  if is_fwd && is_g && not is_indexer then
     let indexer = Option.get orn.indexer in
     let (env_f_body, f_body) = zoom_lambda_term env_f f in
     let f_typ = reduce_type env_f_body f_body in
@@ -2221,8 +2221,7 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let forget = orn_inv in
   let orn = { indexer; promote; forget } in
   let composite = apply_if_bwd (temporary_index orn) trm in
-  let factors_dep = factor_term_dep env trm in (* TODO testing *)
-  debug_factors_dep factors_dep;
+  let factors_dep = factor_term_dep env trm in
   let delta env trm = Reductionops.whd_delta env Evd.empty trm in
   let reduce env trm = reduce_term (delta env trm) in
   let orn_indexer = Option.get orn.indexer in
@@ -2244,21 +2243,14 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
          let no_red = branch composed composed true in
          if promotes || forgets || indexes then
            let g = (e_body, reduce_term (delta e_body t_body)) in
-           debug_term (fst g) (snd g) "g";
-           debug_term (fst g) (reduce_type (fst g) (snd g)) "g typ";
            let f = (env, apply_if (not no_red) (reduce env) t_app) in
-           debug_term (fst f) (snd f) "f";
-           debug_term (fst f) (reduce_type (fst f) (snd f)) "f typ";
            let orn_f = branch orn.promote orn.forget orn_indexer in
            let is_g = applies orn_f t_body in
            let (app, indexer) = compose_inductive idx_n index_i orn g f is_fwd is_g indexes in
-           debug_term (fst f) app "app";
            ((app, indexer), env, true)
          else
            let t_args = Array.of_list (List.append t_tl [t_app]) in
            let app = reduce_term (mkApp (shift t, t_args)) in
-           (* TODO tl is always empty, unused *)
-           debug_term env app "app";
            ((app, indexer), env, composed)
        else
          ((t, None), en, false)
@@ -2266,7 +2258,6 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
        failwith "unexpected"
   in
   let ((internalized, indexer), env, _) = compose_factors factors_dep in
-  debug_term env internalized "internalized";
   (reconstruct_lambda env internalized, indexer)
 
 
