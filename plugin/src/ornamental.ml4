@@ -1998,17 +1998,17 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
  * Compose two properties for two applications of an induction principle
  * that are structurally the same when one is an ornament.
  *
- * TODO else case right now assumes new index is first, but not necessarily
- * true, so need to fix accordingly. To know how to do that, need to test
- * with tree or something
- *
- * TODO env is temp for debugging
+ * TODO env temp for debugging
+ * TODO clean & simplify like all other code
  *)
-let compose_p npms index_i orn p_g p_f is_fwd indexer =
+let compose_p env npms index_i orn p_g p_f is_fwd indexer =
   let orn_f = if is_fwd then orn.forget else orn.promote in
   let (env_p_f, p_f_body) = zoom_lambda_term empty_env p_f in
+  let (env, _) = zoom_lambda_term env p_f in
   let off = nb_rel env_p_f in
   let orn_app = mkApp (orn_f, Array.of_list (mk_n_rels (npms + off))) in
+  let (pms, non_pms) = take_split npms (unfold_args p_f_body) in
+  let p_args orn_app = Array.of_list (List.append non_pms [orn_app]) in
   let body =
     if is_fwd then
       let shift_pms = shift_local (npms + 1) off in
@@ -2023,13 +2023,12 @@ let compose_p npms index_i orn p_g p_f is_fwd indexer =
         let p_g_f = first_fun p_g_body in
         let p_g_args = Array.of_list (reindex (unfold_args p_g_body)) in
         let p_g = reconstruct_lambda env_p_g (mkApp (p_g_f, p_g_args)) in
-        shift_pms (mkApp (p_g, Array.make 1 orn_app))
+        shift_pms (mkApp (p_g, p_args orn_app))
       else
-        shift_pms (mkApp (p_g, Array.make 1 orn_app))
+        shift_pms (mkApp (p_g, p_args orn_app))
     else
       let orn_app = shift_local npms off orn_app in
-      let index = get_arg index_i p_f_body in
-      mkApp (p_g, Array.of_list [index; orn_app])
+      mkApp (p_g, p_args orn_app)
   in reconstruct_lambda env_p_f (reduce_term body)
 
 (*
@@ -2148,19 +2147,19 @@ let compose_inductive idx_n index_i orn (env_g, g) (env_f, f) is_fwd is_g is_ind
     let index_args = List.append f_typ_args [f_body] in
     let indexer = reconstruct_lambda env_f_body (mkApp (indexer, Array.of_list index_args)) in
     let f_indexer = Some (make_constant idx_n) in
-    let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd f_indexer in
+    let p = compose_p env_f (List.length pms) index_i orn p_g p_f is_fwd f_indexer in
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g orn index_i f_indexer npms_g ip_g is_fwd is_g is_indexer p) cs_g cs_f in
     let args = args_f in
     (apply_eliminator ip pms p cs args, Some indexer)
   else if is_indexer then
-    let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd None in
+    let p = compose_p env_f (List.length pms) index_i orn p_g p_f is_fwd None in
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g orn index_i None npms_g ip_g is_fwd is_g is_indexer p) cs_g cs_f in
     let args = args_f in
     (apply_eliminator ip pms p cs args, None)
   else
-    let p = compose_p (List.length pms) index_i orn p_g p_f is_fwd None in
+    let p = compose_p env_f (List.length pms) index_i orn p_g p_f is_fwd None in
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g orn index_i None npms_g ip_g is_fwd is_g is_indexer p) cs_g cs_f in
     let args = args_f in
@@ -2220,9 +2219,8 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
     match fs with
     | Factor ((en, t), children) ->
        if List.length children > 0 then
-         let children_comp = List.rev (List.map compose_factors children) in
-         let (((t_app, indexer), env, composed) :: tl) = children_comp in
-         let t_tl = List.map (fun ((t, _), _, _) -> t) (List.rev tl) in
+         let child = List.hd (List.rev children) in
+         let ((t_app, indexer), env, composed) = compose_factors child in
          let (e_body, t_body) = zoom_lambda_term en t in
          let body_uses f = applies f t_body in
          let uses f = (applies f t_app || body_uses f) && isApp t_app in
@@ -2232,15 +2230,14 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
          let branch a b c = if promotes then a else if forgets then b else c in
          let no_red = branch composed composed true in
          if promotes || forgets || indexes then
-           let g = (e_body, reduce_term (delta e_body t_body)) in
+           let g = (e_body, reduce e_body t_body) in
            let f = (env, apply_if (not no_red) (reduce env) t_app) in
            let orn_f = branch orn.promote orn.forget orn_indexer in
            let is_g = applies orn_f t_body in
            let (app, indexer) = compose_inductive idx_n index_i orn g f is_fwd is_g indexes in
            ((app, indexer), env, true)
          else
-           let t_args = Array.of_list (List.append t_tl [t_app]) in
-           let app = reduce_term (mkApp (shift t, t_args)) in
+           let app = reduce_term (mkApp (shift t, Array.make 1 t_app)) in
            ((app, indexer), env, composed)
        else
          ((t, None), en, false)
