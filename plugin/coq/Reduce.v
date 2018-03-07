@@ -63,17 +63,24 @@ Proof.
   intros. reflexivity.
 Qed.
 
-(*
- * TODO after cleaning:
- *)
-
 Reduce ornament orn_list_vector_inv orn_list_vector in tl_auto as tl_red.
 
-(* TODO app *)
+Theorem test_tl:
+  forall (A : Type) (l : list A),
+    tl A l = tl_red A l.
+Proof.
+  intros. reflexivity.
+Qed.
 
-(* Currently fails (factoring problem) 
-Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red.*)
+Print append.
+Print append_vect_auto.
+
+(*
+ * Application (TODO fails because of factoring problem)
+ *)
+
+Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red. 
 
 (* TODO proofs and more complex things *)
 
-(* TODO other types *)
+(* TODO other types besides lists *)

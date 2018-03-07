@@ -854,9 +854,9 @@ let debug_factors_dep (fs : factor_tree) : unit =
 (*
  * Apply the assumption (last term in the environment) in the term
  *)
-let apply_assumption (fs : factors) (trm : types) : types =
+let apply_assumption assum (fs : factors) (trm : types) : types =
   if List.length fs > 0 then
-    assumption
+    assum
   else
     trm
 
@@ -873,15 +873,22 @@ let apply_assumption_dep (i : int) (fs : factor_tree) (trm : types) : types * in
 (*
  * Check if the term is the assumption (last term in the environment)
  *)
-let is_assumption (env : env) (trm : types) : bool =
-  convertible env trm assumption
+let is_assumption (assum : types) (env : env) (trm : types) : bool =
+  convertible env trm assum
 
 (*
  * Assume a term of type typ in an environment
  *)
-let assume (env : env) (n : name) (typ : types) : env =
-  let env_pop = pop_rel_context 1 env in
-  push_rel CRD.(LocalAssum(n, typ)) env_pop
+let assume (assum : types) (env : env) (n : name) (typ : types) : env =
+  let assum_ind = destRel assum in
+  let non_assums =
+    List.map
+      (fun i -> lookup_rel i env)
+      (from_one_to (assum_ind - 1))
+  in
+  let env_pop = pop_rel_context assum_ind env in
+  let env_assum = push_rel CRD.(LocalAssum (n, typ)) env_pop in
+  List.fold_right push_rel non_assums env_assum
 
 (*
  * Auxiliary path-finding function, once we are zoomed into a lambda
@@ -915,24 +922,24 @@ let assume (env : env) (n : name) (typ : types) : env =
  * fail for inveresion, but we might want it if we use factoring for other
  * purposes, like to simplify abstraction.
  *)
-let rec find_path (env : env) (trm : types) : factors =
-  if is_assumption env trm then
+let rec find_path (assum : types) (env : env) (trm : types) : factors =
+  if is_assumption assum env trm then
     [(env, trm)]
   else
     match kind_of_term trm with
     | App (f, args) ->
-       let paths = Array.map (find_path env) args in
+       let paths = Array.map (find_path assum env) args in
        let nonempty_paths = List.filter (fun l -> List.length l > 0) (Array.to_list paths) in
        if List.length nonempty_paths > 1 then
 	 [(env, trm)]
        else if List.length nonempty_paths = 1 then
 	 let path = List.hd nonempty_paths in
 	 let (env_arg, arg) = List.hd path in
-         let assume_arg i a = apply_assumption (Array.get paths i) a in
+         let assume_arg i a = apply_assumption assum (Array.get paths i) a in
          let args_assumed = Array.mapi assume_arg args in
 	 try
            let t = unshift (reduce_type env_arg arg) in
-	   (assume env Anonymous t, mkApp (f, args_assumed)) :: path
+	   (assume assum env Anonymous t, mkApp (f, args_assumed)) :: path
 	 with _ ->
 	   []
        else
@@ -942,14 +949,16 @@ let rec find_path (env : env) (trm : types) : factors =
 
 (*
  * Dependent version of the above
+ * TODO clean
+ * TODO this and above not yet fully working for when assum isn't 1
  *)
-let rec find_path_dep (env : env) (trm : types) : factor_tree =
-  if is_assumption env trm then
+let rec find_path_dep (assum : types) (env : env) (trm : types) : factor_tree =
+  if is_assumption assum env trm then
     Factor ((env, trm), [])
   else
     match kind_of_term trm with
     | App (f, args) ->
-       let trees = Array.map (find_path_dep env) args in
+       let trees = Array.map (find_path_dep assum env) args in
        let filter_nonunit = List.filter (fun t -> not (t = Unit)) in
        let nonempty_trees = filter_nonunit (Array.to_list trees) in
        let num_trees = List.length nonempty_trees in
@@ -961,7 +970,8 @@ let rec find_path_dep (env : env) (trm : types) : factor_tree =
          | [] ->
             []
        in
-       let assumed = Array.of_list (assume_args 0 num_trees (Array.to_list args)) in
+       let assum_ind = destRel assum in
+       let assumed = Array.of_list (assume_args 0 (num_trees + assum_ind - 1) (Array.to_list args)) in
        if num_trees > 0 then
          let (env, children) =
            List.fold_left
@@ -977,7 +987,7 @@ let rec find_path_dep (env : env) (trm : types) : factor_tree =
                    (en_t, ((Factor ((env_arg, arg), children)) :: cn))
                  else
                    let t = unshift (reduce_type env_arg arg) in
-                   let en_t = assume en Anonymous t in
+                   let en_t = assume assum en Anonymous t in
                    (en_t, [((Factor ((env_arg, arg), children)))])
                with _ ->
                  (en, [Unit]))
@@ -997,12 +1007,12 @@ let rec find_path_dep (env : env) (trm : types) : factor_tree =
  * First zoom in all the way, then use the auxiliary path-finding
  * function.
  *)
-let factor_term (env : env) (trm : types) : factors =
+let factor_term (assum : types) (env : env) (trm : types) : factors =
   let (env_zoomed, trm_zoomed) = zoom_lambda_term env (reduce_term trm) in
-  let path_body = find_path env_zoomed trm_zoomed in
+  let path_body = find_path assum env_zoomed trm_zoomed in
   List.map
     (fun (env, body) ->
-      if is_assumption env body then
+      if is_assumption assum env body then
 	(env, body)
       else
 	let (n, _, t) = CRD.to_tuple @@ lookup_rel 1 env in
@@ -1012,14 +1022,14 @@ let factor_term (env : env) (trm : types) : factors =
 (*
  * Dependent version
  *)
-let factor_term_dep (env : env) (trm : types) : factor_tree =
+let factor_term_dep (assum : types) (env : env) (trm : types) : factor_tree =
   let (env_zoomed, trm_zoomed) = zoom_lambda_term env (reduce_term trm) in
-  let tree_body = find_path_dep env_zoomed trm_zoomed in
+  let tree_body = find_path_dep assum env_zoomed trm_zoomed in
   let rec factor_dep t =
     match t with
     | Factor ((env, body), children) ->
        let children = List.map factor_dep children in
-       if is_assumption env body then
+       if is_assumption assum env body then
          Factor ((env, body), children)
        else
          let num_old_rels = nb_rel env_zoomed in
@@ -1319,35 +1329,6 @@ let rec remove_final_hypo trm =
      unshift b
   | _ ->
      failwith "not a lambda"
-
-(*
- * Substitute all applications of an indexer with a temporary index,
- * so that other functions can ignore indices.
- *
- * This is kind of gross, so hopefully we don't need it eventually.
- *)
-let temporary_index orn trm =
-  if Option.has_some orn.indexer then
-    let indexer = Option.get orn.indexer in
-    map_term_if
-      (fun _ t -> applies indexer t)
-      (fun _ t -> mkRel 0)
-      (fun _ -> ())
-      ()
-      trm
-  else
-    trm
-
-(*
- * Swap back in a real index, assuming the index is temporary.
- *)
-let reindex index trm =
-  map_term_if
-    (fun _ trm -> eq_constr trm (mkRel 0))
-    (fun idx trm -> idx)
-    shift
-    index
-    trm
 
 (* --- Differencing and identifying indices --- *)
 
@@ -2199,11 +2180,7 @@ let compose_inductive idx_n index_i orn (env_g, g) (env_f, f) is_fwd is_g is_ind
  * this is a very preliminary attempt at solving this problem, which I
  * will build on.
  *
- * TODO: Ornamentation direction is fine, but deornamentation direction
- * is horrid. Indices complicate factoring. This problem may happen
- * for other types, so maybe we want a special factoring function
- * instead of all of this nonsense. We'll find out later when we try
- * to extend this, I guess.
+ * TODO need to clean a lot
  *)
 let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm : types) =
   let is_fwd = direction env orn in
@@ -2220,10 +2197,23 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let promote = orn in
   let forget = orn_inv in
   let orn = { indexer; promote; forget } in
-  let composite = apply_if_bwd (temporary_index orn) trm in
-  let factors_dep = factor_term_dep env trm in
+  let c = ref None in
+  let _ =
+    map_term_if
+      (fun _ t ->
+        isConst t && not (eq_constr t orn.promote || eq_constr t orn.forget))
+      (fun _ t -> c := Some t; t)
+      (fun _ -> ())
+      ()
+      trm
+  in
+  let unorn = unwrap_definition env (Option.get !c) in
+  let (_, unorn_typ) = zoom_product_type env (infer_type env unorn) in
+  (* TODO this is sensitive to how the function is written *)
+  let assum = List.hd (List.rev (unfold_args unorn_typ)) in
   let delta env trm = Reductionops.whd_delta env Evd.empty trm in
   let reduce env trm = reduce_term (delta env trm) in
+  let factors_dep = factor_term_dep assum env trm in 
   let orn_indexer = Option.get orn.indexer in
   let (Factor ((env, base), children)) = factors_dep in
   let rec compose_factors fs =
