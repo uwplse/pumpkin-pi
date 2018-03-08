@@ -50,6 +50,13 @@ let lift_to (l : lifting) = if l.is_fwd then l.orn.promote else l.orn.forget
 
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
+(* Apply a function f to x if b holds, otherwise just return x *)
+let map_if b f x = if b then f x else x
+
+(* This should be in the standard library, but isn't bound for some reason *)
+let map_default f default x =
+  if Option.has_some x then f (Option.get x) else default
+
 (* Take the union of two lists, maintaining order *)
 let rec union (c : 'a -> 'a -> int) (l1 : 'a list) (l2 : 'a list) : 'a list =
   match (l1, l2) with
@@ -2038,20 +2045,21 @@ let compose_p env npms index_i (l : lifting) p_g p_f =
   let body =
     if is_fwd then
       let shift_pms = shift_local (npms + 1) off in
-      if Option.has_some l.lifted_indexer then
-        let f_index = Option.get l.lifted_indexer in
-        let index_pms = shift_all_by (npms + off) (mk_n_rels npms) in
-        let index_nonpms = shift_all_by npms (mk_n_rels off) in
-        let index_args = Array.of_list (List.append index_pms index_nonpms) in
-        let index = mkApp (f_index, index_args) in
-        let reindex ts = insert_index index_i index (remove_index index_i ts) in
-        let (env_p_g, p_g_body) = zoom_lambda_term empty_env p_g in
-        let p_g_f = first_fun p_g_body in
-        let p_g_args = Array.of_list (reindex (unfold_args p_g_body)) in
-        let p_g = reconstruct_lambda env_p_g (mkApp (p_g_f, p_g_args)) in
-        shift_pms (mkApp (p_g, p_args orn_app))
-      else
-        shift_pms (mkApp (p_g, p_args orn_app))
+      let p_g =
+        map_default
+          (fun f_index ->
+            let index_pms = shift_all_by (npms + off) (mk_n_rels npms) in
+            let index_nonpms = shift_all_by npms (mk_n_rels off) in
+            let index_args = Array.of_list (List.append index_pms index_nonpms) in
+            let index = mkApp (f_index, index_args) in
+            let reindex ts = insert_index index_i index (remove_index index_i ts) in
+            let (env_p_g, p_g_body) = zoom_lambda_term empty_env p_g in
+            let p_g_f = first_fun p_g_body in
+            let p_g_args = Array.of_list (reindex (unfold_args p_g_body)) in
+            reconstruct_lambda env_p_g (mkApp (p_g_f, p_g_args)))
+          p_g
+          l.lifted_indexer
+      in shift_pms (mkApp (p_g, p_args orn_app))
     else
       let orn_app = shift_local npms off orn_app in
       mkApp (p_g, p_args orn_app)
@@ -2213,9 +2221,7 @@ let compose_inductive idx_n index_i (l : lifting) (env_g, g) (env_f, f) is_g is_
  *)
 let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm : types) =
   let is_fwd = direction env orn in
-  let apply_if b f x = if b then f x else x in
-  let apply_if_bwd f x = apply_if (not is_fwd) f x in
-  let (orn, orn_inv) =  apply_if_bwd reverse (orn, orn_inv) in
+  let (orn, orn_inv) =  map_if (not is_fwd) reverse (orn, orn_inv) in
   let orn_type = reduce_type env orn in
   let (from_with_args, to_with_args) = ind_of_orn orn_type in
   let from_args = unfold_args from_with_args in
@@ -2263,7 +2269,7 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
          let no_red = branch composed composed true in
          if promotes || forgets || indexes then
            let g = (e_body, reduce e_body t_body) in
-           let f = (env, apply_if (not no_red) (reduce env) t_app) in
+           let f = (env, map_if (not no_red) (reduce env) t_app) in
            let orn_f = branch orn.promote orn.forget orn_indexer in
            let is_g = applies orn_f t_body in
            let (app, indexer) = compose_inductive idx_n index_i l g f is_g indexes in
