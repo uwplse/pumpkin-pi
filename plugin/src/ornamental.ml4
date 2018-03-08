@@ -2044,9 +2044,10 @@ let compose_p env npms index_i (l : lifting) p_g p_f =
   let orn_app = shift_pms (mkApp (orn_f, Array.of_list (mk_n_rels (npms + off)))) in
   let (pms, non_pms) = take_split npms (unfold_args p_f_body) in
   let p_args orn_app = Array.of_list (List.append non_pms [orn_app]) in
-  let body =
-    if is_fwd then (* TODO check shift_pms and so on *)
-      let p_g =
+  let p_g =
+    map_if
+      is_fwd
+      (fun p_g ->
         map_default
           (fun f_index ->
             let index_pms = shift_all_by (npms + off) (mk_n_rels npms) in
@@ -2059,11 +2060,9 @@ let compose_p env npms index_i (l : lifting) p_g p_f =
             let p_g_args = Array.of_list (reindex (unfold_args p_g_body)) in
             shift_pms (reconstruct_lambda env_p_g (mkApp (p_g_f, p_g_args))))
           (shift_pms p_g)
-          l.lifted_indexer
-      in mkApp (p_g, p_args orn_app)
-    else
-      mkApp (p_g, p_args orn_app)
-  in reconstruct_lambda env_p_f (reduce_term body)
+          l.lifted_indexer)
+      p_g
+  in reconstruct_lambda env_p_f (reduce_term (mkApp (p_g, p_args orn_app)))
 
 (*
  * Compose the IH for a constructor
