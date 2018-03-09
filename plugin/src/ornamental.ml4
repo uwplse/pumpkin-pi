@@ -695,6 +695,10 @@ let with_suffix id suffix =
 let reduce_term (trm : types) : types =
   Reductionops.nf_betaiotazeta Evd.empty trm
 
+(* nf_all *)
+let reduce_nf (env : env) (trm : types) : types =
+  Reductionops.nf_all env Evd.empty trm
+
 (* Reduce the type *)
 let reduce_type (env : env) (trm : types) : types =
   reduce_term (infer_type env trm)
@@ -2141,12 +2145,13 @@ let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g is_indexer p c_
         f_body
     in
     (* Does this generalize, too? *)
-    if nsubs > 0 then
-      reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
-    else
-      let f_args = List.append (unfold_args f_body_typ) [f_body] in
-      let f_app = Reductionops.nf_all env_f_body Evd.empty (mkApp (f, Array.of_list f_args)) in
-      reconstruct_lambda_n env_f_body f_app (nb_rel env_f)
+    let f_body =
+      if nsubs > 0 then
+        f_body
+      else
+        let f_args = List.append (unfold_args f_body_typ) [f_body] in
+        reduce_nf env_f_body (mkAppl (f, f_args))
+    in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
   else
     let f = lift_to l in
     let f_body_typ = reduce_type env_f_body f_body in
@@ -2164,7 +2169,7 @@ let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g is_indexer p c_
       reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
     else
       let args = List.append (unfold_args f_body_typ) [f_body] in
-      let f_app = Reductionops.nf_all env_f_body Evd.empty (mkApp (f, Array.of_list args)) in
+      let f_app = reduce_nf env_f_body (mkAppl (f, args)) in
       reconstruct_lambda_n env_f_body f_app (nb_rel env_f)
 
 (*
