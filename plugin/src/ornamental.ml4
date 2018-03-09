@@ -694,9 +694,13 @@ let map_track_unit mapper p f trm =
 
 (* Some simple combinations *)
 let map_track_unit_env_if = map_track_env_unit map_term_env_if
+let map_track_unit_env_if_lazy = map_track_env_unit map_term_env_if_lazy
 let map_unit_env_if = map_unit_env map_term_env_if
+let map_unit_env_if_lazy = map_unit_env map_term_env_if_lazy
 let map_track_unit_if = map_track_unit map_term_if
+let map_track_unit_if_lazy = map_track_unit map_term_if_lazy
 let map_unit_if = map_unit map_term_if
+let map_unit_if_lazy = map_unit map_term_if_lazy
                              
 (* In env, substitute all subterms of trm that are convertible to src with dst *)
 let all_conv_substs =
@@ -1926,12 +1930,12 @@ let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : typ
  * of substitutions that occurred.
  *)
 let sub_in_hypos (index_i : int) (index_lam : types) (from_ind : types) (to_ind : types) (hypos : types) (is_fwd : bool) =
-  map_term_if_lazy
-    (fun _ trm ->
+  map_unit_if_lazy
+    (fun trm ->
       match kind_of_term trm with
       | Lambda (_, t, _) -> is_or_applies from_ind t
       | _ -> false)
-    (fun _ trm ->
+    (fun trm ->
       let (n, t, b) = destLambda trm in
       let args = unfold_args t in
       if is_fwd then
@@ -1945,8 +1949,6 @@ let sub_in_hypos (index_i : int) (index_lam : types) (from_ind : types) (to_ind 
         let t_args = remove_index index_i args in
         let t_ind = mkAppl (to_ind, t_args) in
         mkLambda (n, t_ind, b))
-    (fun _ -> ())
-    ()
     hypos
 
 (*
@@ -2012,37 +2014,30 @@ let ornament_hypos env (l : lifting) index_i (from_ind, to_ind) (trm, indices) =
 
 (* Ornament the conclusion *)
 let ornament_concls concl_typ env (l : lifting) index_i (from_ind, to_ind) (trm, indices) =
-  let orn = l.orn in
-  let is_fwd = l.is_fwd in
-  let orn_f = lift_to l in
   if is_or_applies from_ind concl_typ then
     let (env_zoom, trm_zoom) = zoom_lambda_term env trm in
     let args =
-      if is_fwd then
-        shift_all_by (List.length indices) (unfold_args concl_typ)
-      else
-        List.map
+      map_directional
+        (shift_all_by (List.length indices))
+        (List.map
           (fun a ->
             List.fold_right
               all_eq_substs
               indices
-              (map_term_env_if (* TODO refactor these HOFs *)
-                 (fun env _ trm ->
+              (map_unit_env_if (* TODO refactor these HOFs *)
+                 (fun env trm ->
                    try
-                     is_or_applies to_ind (reduce_type env trm)
+                     on_type (is_or_applies to_ind) env trm
                    with _ ->
                      false)
-                 (fun env _ trm ->
-                   let args = unfold_args (reduce_type env trm) in
-                   mkAppl (orn.promote, snoc trm args))
-                 (fun _ -> ())
+                 (fun env trm ->
+                   mkAppl (lift_back l, snoc trm (on_type unfold_args env trm)))
                  env_zoom
-                 ()
-                 a))
+                 a)))
+        l
         (unfold_args concl_typ)
     in
-    let forget = mkAppl (orn_f, args) in
-    let concl = mkApp (forget, Array.make 1 trm_zoom) in
+    let concl = mkAppl (lift_to l, snoc trm_zoom args) in
     (reconstruct_lambda env_zoom concl, indices)
   else
     (trm, indices)
