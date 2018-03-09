@@ -139,6 +139,9 @@ let intern env evm t : types =
 let extern env evm t : Constrexpr.constr_expr =
   Constrextern.extern_constr true env evm t
 
+(* mkApp with a list *)
+let mkAppl (f, args) = mkApp (f, Array.of_list args)
+
 (* Push a local binding to an environment *)
 let push_local (n, t) = push_rel CRD.(LocalAssum (n, t))
 
@@ -1414,10 +1417,7 @@ let new_index i trm_o trm_n =
     | (App (_, _), App (_, _)) when applies p trm_o && applies p trm_n ->
        let args_o = List.rev (List.tl (List.rev (unfold_args trm_o))) in
        let args_n = List.rev (List.tl (List.rev (unfold_args trm_n))) in
-       diff_arg
-         i
-         (mkApp (p, Array.of_list args_o))
-         (mkApp (p, Array.of_list args_n))
+       diff_arg i (mkAppl (p, args_o)) (mkAppl (p, args_n))
     | _ ->
        false
   in is_new_index (mkRel 1) trm_o trm_n
@@ -1532,7 +1532,7 @@ let index_case index_i p o n : types =
            (* inductive hypothesis *)
            let sub_index = (shift (get_index p t_o t_n), mkRel 1) in
            let subs_b = sub_index :: shift_subs subs in
-           mkLambda (n_o, mkApp (p_i, Array.of_list (unfold_args t_o)), diff_b subs_b o_b n_b)
+           mkLambda (n_o, mkAppl (p_i, unfold_args t_o), diff_b subs_b o_b n_b)
          else
            (* no change *)
            let subs_b = shift_subs subs in
@@ -1598,11 +1598,11 @@ let ornament_p index_i env ind arity npm indexer_opt =
     | Some indexer ->
        (* forward (indexing) direction *)
        let indexer = Option.get indexer_opt in
-       let index = mkApp (indexer, Array.of_list (List.append args [mkRel 1])) in
-       mkApp (ind, Array.of_list (insert_index index_i_npm index args))
+       let index = mkAppl (indexer, List.append args [mkRel 1]) in
+       mkAppl (ind, insert_index index_i_npm index args)
     | None ->
        (* backward (deindexing) direction *)
-       mkApp (ind, Array.of_list (adjust_no_index index_i_npm args))
+       mkAppl (ind, adjust_no_index index_i_npm args)
   in shift_by off (reconstruct_lambda_n env concl npm)
 
 (*
@@ -1654,7 +1654,7 @@ let stretch index_i env indexer pms o n =
       (fun (p, pms) t ->
         let non_pms = unfold_args t in
         let index = mkApp (indexer, Array.append pms (Array.of_list non_pms)) in
-        mkApp (p, Array.of_list (insert_index index_i index non_pms)))
+        mkAppl (p, insert_index index_i index non_pms))
       (fun (p, pms) -> (shift p, Array.map shift pms))
       (mkRel 1, pms)
       b_o
@@ -1880,14 +1880,14 @@ let sub_in_hypos (index_i : int) (index_lam : types) (from_ind : types) (to_ind 
       let args = unfold_args t in
       if is_fwd then
         let (before, after) = take_split index_i args in
-        let index_type = reduce_term (mkApp (index_lam, Array.of_list before)) in
+        let index_type = reduce_term (mkAppl (index_lam, before)) in
         let t_args = insert_index_shift index_i (mkRel 1) args 1 in
-        let t_ind = mkApp (to_ind, Array.of_list t_args) in
+        let t_ind = mkAppl (to_ind, t_args) in
         let sub_ind = all_eq_substs (mkRel 2, mkRel 1) in
         mkLambda (Anonymous, index_type, mkLambda (n, t_ind, sub_ind (shift b)))
       else
         let t_args = remove_index index_i args in
-        let t_ind = mkApp (to_ind, Array.of_list t_args) in
+        let t_ind = mkAppl (to_ind, t_args) in
         mkLambda (n, t_ind, b))
     (fun _ -> ())
     ()
@@ -1915,16 +1915,16 @@ let ornament_args env index_i (from_ind, to_ind) (l : lifting) (trm, indices) =
                 let args = insert_index_shift index_i index (unfold_args t) i in
                 let indexed = unshift index in
                 let t_args = unfold_args t in
-                let orn_app = mkApp (orn_f, Array.of_list (List.append args [indexed])) in
-                let sub_index = (index, mkApp (indexer, Array.of_list (List.append (shift_all_by i t_args) [indexed]))) in
+                let orn_app = mkAppl (orn_f, List.append args [indexed]) in
+                let sub_index = (index, mkAppl (indexer, List.append (shift_all_by i t_args) [indexed])) in
                 (mkApp (trm, Array.make 1 orn_app), b, sub_index :: indices)
               else
                 let index = shift_by i (get_arg index_i t) in
                 let args = adjust_no_index index_i (shift_all_by i (unfold_args t)) in
-                let orn_app = mkApp (orn_f, Array.of_list args) in
+                let orn_app = mkAppl (orn_f, args) in
                 let indexed = unshift index in
                 let t_args = unfold_args t in
-                let sub_index = (index, mkApp (indexer, Array.of_list (List.append (remove_index index_i (shift_all_by i t_args)) [indexed]))) in
+                let sub_index = (index, mkAppl (indexer, List.append (remove_index index_i (shift_all_by i t_args)) [indexed])) in
                 (mkApp (trm, Array.make 1 orn_app), b, sub_index :: indices)
             else if eq_constr h t then (* TODO test multi-nat-index case *)
               (mkApp (trm, Array.make 1 (mkRel i)), b, indices)
@@ -1978,14 +1978,14 @@ let ornament_concls concl_typ env (l : lifting) index_i (from_ind, to_ind) (trm,
                      false)
                  (fun env _ trm ->
                    let args = unfold_args (reduce_type env trm) in
-                   mkApp (orn.promote, Array.of_list (List.append args [trm])))
+                   mkAppl (orn.promote, List.append args [trm]))
                  (fun _ -> ())
                  env_zoom
                  ()
                  a))
         (unfold_args concl_typ)
     in
-    let forget = mkApp (orn_f, Array.of_list args) in
+    let forget = mkAppl (orn_f, args) in
     let concl = mkApp (forget, Array.make 1 trm_zoom) in
     (reconstruct_lambda env_zoom concl, indices)
   else
@@ -2045,9 +2045,9 @@ let compose_p npms index_i (l : lifting) p_g p_f =
   let off = nb_rel env_p_f in
   let shift_pms = shift_local off off in
   let nhypos = npms + off in
-  let orn_app = shift_pms (mkApp (orn_f, Array.of_list (mk_n_rels nhypos))) in
+  let orn_app = shift_pms (mkAppl (orn_f, mk_n_rels nhypos)) in
   let (_, non_pms) = take_split npms (unfold_args p_f_b) in
-  let p_args = Array.of_list (List.append non_pms [orn_app]) in
+  let p_args = List.append non_pms [orn_app] in
   let p =
     map_if
       is_fwd
@@ -2056,17 +2056,17 @@ let compose_p npms index_i (l : lifting) p_g p_f =
           (fun indexer ->
             let i_pms = shift_all_by nhypos (mk_n_rels npms) in
             let i_non_pms = shift_all_by npms (mk_n_rels off) in
-            let i_args = Array.of_list (List.append i_pms i_non_pms) in
-            let index = mkApp (indexer, i_args) in
+            let i_args = List.append i_pms i_non_pms in
+            let index = mkAppl (indexer, i_args) in
             let (env_p_g, p_g_b) = zoom_lambda_term empty_env p_g in
             let p_g_f = first_fun p_g_b in
             let p_g_args = reindex index_i index (unfold_args p_g_b) in
-            let p_b = mkApp (p_g_f, Array.of_list p_g_args) in
+            let p_b = mkAppl (p_g_f, p_g_args) in
             shift_pms (reconstruct_lambda env_p_g p_b))
           (shift_pms p_g)
           l.lifted_indexer)
       p_g
-  in reconstruct_lambda env_p_f (reduce_term (mkApp (p, p_args)))
+  in reconstruct_lambda env_p_f (reduce_term (mkAppl (p, p_args)))
 
 (*
  * Compose the IH for a constructor
