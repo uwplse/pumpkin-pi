@@ -72,6 +72,10 @@ let map_default f default x =
 let last (l : 'a list) : 'a =
   List.hd (List.rev l)
 
+(* Snoc *)
+let snoc (a : 'a) (l : 'a list) : 'a list =
+  List.append l [a]
+
 (* Take the union of two lists, maintaining order *)
 let rec union (c : 'a -> 'a -> int) (l1 : 'a list) (l2 : 'a list) : 'a list =
   match (l1, l2) with
@@ -1650,7 +1654,7 @@ let ornament_p index_i env ind arity npm indexer_opt =
     | Some indexer ->
        (* forward (indexing) direction *)
        let indexer = Option.get indexer_opt in
-       let index = mkAppl (indexer, List.append args [mkRel 1]) in
+       let index = mkAppl (indexer, snoc (mkRel 1) args) in
        mkAppl (ind, insert_index index_i_npm index args)
     | None ->
        (* backward (deindexing) direction *)
@@ -1967,8 +1971,8 @@ let ornament_args env index_i (from_ind, to_ind) (l : lifting) (trm, indices) =
                 let args = insert_index_shift index_i index (unfold_args t) i in
                 let indexed = unshift index in
                 let t_args = unfold_args t in
-                let orn_app = mkAppl (orn_f, List.append args [indexed]) in
-                let sub_index = (index, mkAppl (indexer, List.append (shift_all_by i t_args) [indexed])) in
+                let orn_app = mkAppl (orn_f, snoc indexed args) in
+                let sub_index = (index, mkAppl (indexer, snoc indexed (shift_all_by i t_args))) in
                 (mkApp (trm, Array.make 1 orn_app), b, sub_index :: indices)
               else
                 let index = shift_by i (get_arg index_i t) in
@@ -1976,7 +1980,7 @@ let ornament_args env index_i (from_ind, to_ind) (l : lifting) (trm, indices) =
                 let orn_app = mkAppl (orn_f, args) in
                 let indexed = unshift index in
                 let t_args = unfold_args t in
-                let sub_index = (index, mkAppl (indexer, List.append (remove_index index_i (shift_all_by i t_args)) [indexed])) in
+                let sub_index = (index, mkAppl (indexer, snoc indexed (remove_index index_i (shift_all_by i t_args)))) in
                 (mkApp (trm, Array.make 1 orn_app), b, sub_index :: indices)
             else if eq_constr h t then (* TODO test multi-nat-index case *)
               (mkApp (trm, Array.make 1 (mkRel i)), b, indices)
@@ -2030,7 +2034,7 @@ let ornament_concls concl_typ env (l : lifting) index_i (from_ind, to_ind) (trm,
                      false)
                  (fun env _ trm ->
                    let args = unfold_args (reduce_type env trm) in
-                   mkAppl (orn.promote, List.append args [trm]))
+                   mkAppl (orn.promote, snoc trm args))
                  (fun _ -> ())
                  env_zoom
                  ()
@@ -2095,7 +2099,7 @@ let compose_p npms index_i (l : lifting) p_g p_f =
   let shift_pms = shift_local off off in
   let orn_app = shift_pms (mkAppl (lift_back l, mk_n_rels (npms + off))) in
   let (_, non_pms) = take_split npms (unfold_args p_f_b) in
-  let p_args = List.append non_pms [orn_app] in
+  let p_args = snoc orn_app non_pms in
   let p =
     map_forward
       (fun p_g ->
@@ -2164,19 +2168,18 @@ let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g p c_g c_f =
           (map_unit_env_if
              (on_type is_deorn)
              (fun env trm ->
-               mkAppl (orn_f, List.append (on_type unfold_args env trm) [trm]))
+               mkAppl (orn_f, snoc trm (on_type unfold_args env trm)))
              env_f_body)
           c_used
       in reduce_term (mkAppl (f, args))
     else
-      let f_body_typ = reduce_type env_f_body f_body in
       let arg_i = if_indexer l index_i (arity orn_f_typ - 1) in
       let (nsubs, f_body) = map_track_unit_if (applies orn_f) (get_arg arg_i) f_body in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
       (* Does this generalize, too? *)
       map_if
         (fun f_body ->
-          let f_args = List.append (unfold_args f_body_typ) [f_body] in
+          let f_args = snoc f_body (on_type unfold_args env_f_body f_body) in
           reduce_nf env_f_body (mkAppl (f, f_args)))
         (nsubs = 0)
         f_body
@@ -2195,9 +2198,8 @@ let compose_inductive idx_n index_i (l : lifting) (env_g, g) (env_f, f) is_g =
     if l.is_fwd && is_g && not l.is_indexer then
       let indexer = Option.get l.orn.indexer in
       let (env_f_body, f_body) = zoom_lambda_term env_f f in
-      let f_typ = reduce_type env_f_body f_body in
-      let f_typ_args = unfold_args f_typ in
-      let index_args = List.append f_typ_args [f_body] in
+      let f_typ_args = on_type unfold_args env_f_body f_body in
+      let index_args = snoc f_body f_typ_args in
       let indexer = reconstruct_lambda env_f_body (mkAppl (indexer, index_args)) in
       let lifted_indexer = Some (make_constant idx_n) in
       ({ l with lifted_indexer }, Some indexer)
