@@ -31,8 +31,11 @@ type promotion =
 
 (*
  * A lifting is an ornamental promotion between types, a direction,
- * and an optional indexer for the promoted function
- * (may add more things here later)
+ * a hint whether it corresponds to an indexing function for an outer lifting,
+ * and an optional indexer for the promoted function.
+ *
+ * I may add more things here later. This is just a convenient configuration
+ * for promoting functions.
  *)
 type lifting =
   {
@@ -58,6 +61,20 @@ let map_directional f g l x = map_if_else f g l.is_fwd x
 let map_indexer f g l x = map_if_else f g l.is_indexer x
 let map_forward f l x = map_if f l.is_fwd x
 let map_if_indexer f l x = map_if f l.is_indexer x
+
+(*
+ * A composition is a pair of functions and environments with
+ * a corresponding lifting. It also contains a hint is_g, which says
+ * whether lifting is applied to g or to f. This represents a single (factored)
+ * applied but not simplified ornamentation.
+ *)
+type composition =
+  {
+    l : lifting;
+    g : env * types;
+    f : env * types;
+    is_g : bool;
+  }
   
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
@@ -2088,7 +2105,10 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
  * Compose two properties for two applications of an induction principle
  * that are structurally the same when one is an ornament.
  *)
-let compose_p npms index_i (l : lifting) p_g p_f =
+let compose_p npms index_i (comp : composition) =
+  let l = comp.l in
+  let (_, p_g) = comp.g in
+  let (_, p_f) = comp.f in
   let (env_p_f, p_f_b) = zoom_lambda_term empty_env p_f in
   let off = nb_rel env_p_f in
   let shift_pms = shift_local off off in
@@ -2143,7 +2163,10 @@ let compose_ih env_g npms_g ip_g c_f p =
  *
  * TODO clean, refactor orn/deorn, take fewer arguments, etc.
  *)
-let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g p c_g c_f =
+let compose_c index_i npms_g ip_g p (comp : composition) =
+  let l = comp.l in
+  let (env_g, c_g) = comp.g in
+  let (env_f, c_f) = comp.f in
   let orn_f = lift_back l in
   let orn_f_typ = reduce_type env_f orn_f in
   let to_typ = first_fun (fst (ind_of_orn orn_f_typ)) in
@@ -2154,7 +2177,7 @@ let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g p c_g c_f =
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let off = offset env_f_body (nb_rel env_f) in
   let f_body =
-    if not is_g then
+    if not comp.is_g then
       let f = map_directional (shift_by off) (shift_by (off - 1)) l c_g in
       let c_used = directional l c_f_used c_g_used in
       (* Does this generalize? *)
@@ -2186,11 +2209,14 @@ let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g p c_g c_f =
  *
  * TODO clean
  *)
-let compose_inductive idx_n index_i (l : lifting) (env_g, g) (env_f, f) is_g =
+let compose_inductive idx_n index_i (comp : composition) =
+  let l = comp.l in
+  let (env_g, g) = comp.g in
+  let (env_f, f) = comp.f in
   let (ip, pms, p_f, cs_f, args) = deconstruct_eliminator env_f f in
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
   let (l, indexer) =
-    if l.is_fwd && is_g && not l.is_indexer then
+    if l.is_fwd && comp.is_g && not l.is_indexer then
       let indexer = Option.get l.orn.indexer in
       let (env_f_body, f_body) = zoom_lambda_term env_f f in
       let f_typ_args = on_type unfold_args env_f_body f_body in
@@ -2201,8 +2227,11 @@ let compose_inductive idx_n index_i (l : lifting) (env_g, g) (env_f, f) is_g =
     else
       (l, None)
   in
-  let p = compose_p (List.length pms) index_i l p_g p_f in
-  let cs = List.map2 (compose_c env_f env_g l index_i (List.length pms_g) ip_g is_g p) cs_g cs_f in
+  let comp = { comp with l = l } in
+  let c_p = { comp with g = (env_g, p_g); f = (env_f, p_f) } in
+  let p = compose_p (List.length pms) index_i c_p in
+  let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
+  let cs = List.map (compose_c index_i (List.length pms_g) ip_g p) c_cs in
   (apply_eliminator ip pms p cs args, indexer)
 (*
  * This takes a term (f o orn_inv) and reduces it to f' where orn_inv is
@@ -2272,7 +2301,8 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
            let f = (env, map_if (reduce env) (not no_red) t_app) in
            let orn_f = branch orn.promote orn.forget orn_indexer in
            let is_g = applies orn_f t_body in
-           let (app, indexer) = compose_inductive idx_n index_i l g f is_g in
+           let comp = { l ; g ; f ; is_g } in
+           let (app, indexer) = compose_inductive idx_n index_i comp in
            ((app, indexer), env, true)
          else
            let app = reduce_term (mkApp (shift t, Array.make 1 t_app)) in
