@@ -48,10 +48,15 @@ type lifting =
 let lift_back (l : lifting) = if l.is_fwd then l.orn.forget else l.orn.promote
 let lift_to (l : lifting) = if l.is_fwd then l.orn.promote else l.orn.forget
 
+(*
+ * Directional mapping over liftings
+ *)
+let map_directional f l x = if l.is_fwd then f x else x
+
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
 (* Apply a function f to x if b holds, otherwise just return x *)
-let map_if b f x = if b then f x else x
+let map_if f b x = if b then f x else x
 
 (* This should be in the standard library, but isn't bound for some reason *)
 let map_default f default x =
@@ -2035,36 +2040,31 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
 (*
  * Compose two properties for two applications of an induction principle
  * that are structurally the same when one is an ornament.
- *
- * TODO clean & simplify like all other code
  *)
 let compose_p npms index_i (l : lifting) p_g p_f =
-  let is_fwd = l.is_fwd in
-  let orn_f = lift_back l in
   let (env_p_f, p_f_b) = zoom_lambda_term empty_env p_f in
   let off = nb_rel env_p_f in
   let shift_pms = shift_local off off in
-  let nhypos = npms + off in
-  let orn_app = shift_pms (mkAppl (orn_f, mk_n_rels nhypos)) in
+  let orn_app = shift_pms (mkAppl (lift_back l, mk_n_rels (npms + off))) in
   let (_, non_pms) = take_split npms (unfold_args p_f_b) in
   let p_args = List.append non_pms [orn_app] in
   let p =
-    map_if
-      is_fwd
+    map_directional
       (fun p_g ->
+        let p_g = shift_pms p_g in
         map_default
           (fun indexer ->
-            let i_pms = shift_all_by nhypos (mk_n_rels npms) in
+            let i_pms = shift_all_by (npms + off + off) (mk_n_rels npms) in
             let i_non_pms = shift_all_by npms (mk_n_rels off) in
             let i_args = List.append i_pms i_non_pms in
             let index = mkAppl (indexer, i_args) in
             let (env_p_g, p_g_b) = zoom_lambda_term empty_env p_g in
             let p_g_f = first_fun p_g_b in
             let p_g_args = reindex index_i index (unfold_args p_g_b) in
-            let p_b = mkAppl (p_g_f, p_g_args) in
-            shift_pms (reconstruct_lambda env_p_g p_b))
-          (shift_pms p_g)
+            reconstruct_lambda env_p_g (mkAppl (p_g_f, p_g_args)))
+          p_g
           l.lifted_indexer)
+      l
       p_g
   in reconstruct_lambda env_p_f (reduce_term (mkAppl (p, p_args)))
 
@@ -2189,6 +2189,7 @@ let compose_inductive idx_n index_i (l : lifting) (env_g, g) (env_f, f) is_g is_
     let lifted_indexer = Some (make_constant idx_n) in
     let l = { l with lifted_indexer } in
     let p = compose_p (List.length pms) index_i l p_g p_f in
+    debug_term env_f p "p";
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g l index_i npms_g ip_g is_g is_indexer p) cs_g cs_f in
     let args = args_f in
@@ -2224,7 +2225,7 @@ let compose_inductive idx_n index_i (l : lifting) (env_g, g) (env_f, f) is_g is_
  *)
 let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm : types) =
   let is_fwd = direction env orn in
-  let (orn, orn_inv) =  map_if (not is_fwd) reverse (orn, orn_inv) in
+  let (orn, orn_inv) =  map_if reverse (not is_fwd) (orn, orn_inv) in
   let orn_type = reduce_type env orn in
   let (from_with_args, to_with_args) = ind_of_orn orn_type in
   let from_args = unfold_args from_with_args in
@@ -2272,7 +2273,7 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
          let no_red = branch composed composed true in
          if promotes || forgets || indexes then
            let g = (e_body, reduce e_body t_body) in
-           let f = (env, map_if (not no_red) (reduce env) t_app) in
+           let f = (env, map_if (reduce env) (not no_red) t_app) in
            let orn_f = branch orn.promote orn.forget orn_indexer in
            let is_g = applies orn_f t_body in
            let (app, indexer) = compose_inductive idx_n index_i l g f is_g indexes in
