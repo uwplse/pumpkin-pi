@@ -38,6 +38,7 @@ type lifting =
   {
     orn : promotion;
     is_fwd : bool;
+    is_indexer : bool;
     lifted_indexer : types option;
   }
 
@@ -48,15 +49,20 @@ type lifting =
 let lift_back (l : lifting) = if l.is_fwd then l.orn.forget else l.orn.promote
 let lift_to (l : lifting) = if l.is_fwd then l.orn.promote else l.orn.forget
 
-(*
- * Directional mapping over liftings
- *)
-let map_directional f l x = if l.is_fwd then f x else x
-
+(* Control structures *)
+let map_if_else f g b x = if b then f x else g x
+let map_if f b x = map_if_else f (fun a -> a) b x
+let directional l a b = if l.is_fwd then a else b
+let if_indexer l a b = if l.is_indexer then a else b
+let map_directional f g l x = map_if_else f g l.is_fwd x
+let map_indexer f g l x = map_if_else f g l.is_indexer x
+let map_forward f l x = map_if f l.is_fwd x
+let map_if_indexer f l x = map_if f l.is_indexer x
+  
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
 (* Apply a function f to x if b holds, otherwise just return x *)
-let map_if f b x = if b then f x else x
+
 
 (* This should be in the standard library, but isn't bound for some reason *)
 let map_default f default x =
@@ -2066,7 +2072,8 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
   let forget = orn_inv in
   let orn = { indexer; promote; forget } in
   let lifted_indexer = None in
-  let l = { orn ; is_fwd ; lifted_indexer } in
+  let is_indexer = false in
+  let l = { orn ; is_fwd ; lifted_indexer ; is_indexer } in
   let (from_ind, to_ind) = reverse_if_bwd (map_tuple ind_of (from_with_args, to_with_args)) in
   let app_orn ornamenter = ornamenter env l index_i (from_ind, to_ind) in
   let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
@@ -2090,7 +2097,7 @@ let compose_p npms index_i (l : lifting) p_g p_f =
   let (_, non_pms) = take_split npms (unfold_args p_f_b) in
   let p_args = List.append non_pms [orn_app] in
   let p =
-    map_directional
+    map_forward
       (fun p_g ->
         let p_g = shift_pms p_g in
         map_default
@@ -2137,7 +2144,7 @@ let compose_ih env_g npms_g ip_g c_f p =
  *
  * TODO clean, refactor orn/deorn, take fewer arguments, etc.
  *)
-let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g is_indexer p c_g c_f =
+let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g p c_g c_f =
   let orn_f = lift_back l in
   let orn_f_typ = reduce_type env_f orn_f in
   let to_typ = first_fun (fst (ind_of_orn orn_f_typ)) in
@@ -2149,24 +2156,23 @@ let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g is_indexer p c_
   let off = offset env_f_body (nb_rel env_f) in
   let f_body =
     if not is_g then
-      let f = if l.is_fwd then shift_by off c_g else shift_by (off - 1) c_g in
-      let c_used = if l.is_fwd then c_f_used else c_g_used in
+      let f = map_directional (shift_by off) (shift_by (off - 1)) l c_g in
+      let c_used = directional l c_f_used c_g_used in
       (* Does this generalize? *)
       let args =
         List.map
           (map_unit_env_if
              (on_type is_deorn)
              (fun env trm ->
-               let args = unfold_args (reduce_type env trm) in
-               mkAppl (orn_f, List.append args [trm]))
+               mkAppl (orn_f, List.append (on_type unfold_args env trm) [trm]))
              env_f_body)
           c_used
       in reduce_term (mkAppl (f, args))
     else
       let f_body_typ = reduce_type env_f_body f_body in
-      let arg_i = if is_indexer then index_i else arity orn_f_typ - 1 in
+      let arg_i = if_indexer l index_i (arity orn_f_typ - 1) in
       let (nsubs, f_body) = map_track_unit_if (applies orn_f) (get_arg arg_i) f_body in
-      let f = if is_indexer then Option.get l.orn.indexer else lift_to l in
+      let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
       (* Does this generalize, too? *)
       map_if
         (fun f_body ->
@@ -2182,7 +2188,8 @@ let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g is_indexer p c_
  *
  * TODO clean
  *)
-let compose_inductive idx_n index_i (l : lifting) (env_g, g) (env_f, f) is_g is_indexer =
+let compose_inductive idx_n index_i (l : lifting) (env_g, g) (env_f, f) is_g =
+  let is_indexer = l.is_indexer in
   let is_fwd = l.is_fwd in
   let orn = l.orn in
   let (ip_f, pms_f, p_f, cs_f, args_f) = deconstruct_eliminator env_f f in
@@ -2200,19 +2207,19 @@ let compose_inductive idx_n index_i (l : lifting) (env_g, g) (env_f, f) is_g is_
     let l = { l with lifted_indexer } in
     let p = compose_p (List.length pms) index_i l p_g p_f in
     let npms_g = List.length pms_g in
-    let cs = List.map2 (compose_c env_f env_g l index_i npms_g ip_g is_g is_indexer p) cs_g cs_f in
+    let cs = List.map2 (compose_c env_f env_g l index_i npms_g ip_g is_g p) cs_g cs_f in
     let args = args_f in
     (apply_eliminator ip pms p cs args, Some indexer)
   else if is_indexer then
     let p = compose_p (List.length pms) index_i l p_g p_f in
     let npms_g = List.length pms_g in
-    let cs = List.map2 (compose_c env_f env_g l index_i npms_g ip_g is_g is_indexer p) cs_g cs_f in
+    let cs = List.map2 (compose_c env_f env_g l index_i npms_g ip_g is_g p) cs_g cs_f in
     let args = args_f in
     (apply_eliminator ip pms p cs args, None)
   else
     let p = compose_p (List.length pms) index_i l p_g p_f in
     let npms_g = List.length pms_g in
-    let cs = List.map2 (compose_c env_f env_g l index_i npms_g ip_g is_g is_indexer p) cs_g cs_f in
+    let cs = List.map2 (compose_c env_f env_g l index_i npms_g ip_g is_g p) cs_g cs_f in
     let args = args_f in
     let app = apply_eliminator ip pms p cs args in
     (app, None)
@@ -2246,7 +2253,8 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let forget = orn_inv in
   let orn = { indexer; promote; forget } in
   let lifted_indexer = None in
-  let l = { orn ; is_fwd ; lifted_indexer } in
+  let is_indexer = false in
+  let l = { orn ; is_fwd ; lifted_indexer ; is_indexer } in
   let c = ref None in
   let _ =
     map_term_if
@@ -2281,11 +2289,12 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
          let branch a b c = if promotes then a else if forgets then b else c in
          let no_red = branch composed composed true in
          if promotes || forgets || indexes then
+           let l = { l with is_indexer = indexes } in
            let g = (e_body, reduce e_body t_body) in
            let f = (env, map_if (reduce env) (not no_red) t_app) in
            let orn_f = branch orn.promote orn.forget orn_indexer in
            let is_g = applies orn_f t_body in
-           let (app, indexer) = compose_inductive idx_n index_i l g f is_g indexes in
+           let (app, indexer) = compose_inductive idx_n index_i l g f is_g in
            ((app, indexer), env, true)
          else
            let app = reduce_term (mkApp (shift t, Array.make 1 t_app)) in
