@@ -2147,35 +2147,34 @@ let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g is_indexer p c_
   let c_f = compose_ih env_g npms_g ip_g c_f p in
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let off = offset env_f_body (nb_rel env_f) in
-  if not is_g then
-    let f = if l.is_fwd then shift_by off c_g else shift_by (off - 1) c_g in
-    let c_used = if l.is_fwd then c_f_used else c_g_used in
-    (* Does this generalize? *)
-    let args =
-      List.map
-        (map_unit_env_if
-           (on_type is_deorn)
-           (fun env trm ->
-             let args = unfold_args (reduce_type env trm) in
-             mkAppl (orn_f, List.append args [trm]))
-           env_f_body)
-        c_used
-    in
-    let f_app = reduce_term (mkAppl (f, args)) in
-    reconstruct_lambda_n env_f_body f_app (nb_rel env_f)
-  else
-    let f_body_typ = reduce_type env_f_body f_body in
-    let arg_i = if is_indexer then index_i else arity orn_f_typ - 1 in
-    let (nsubs, f_body) = map_track_unit_if (applies orn_f) (get_arg arg_i) f_body in
-    let f = if is_indexer then Option.get l.orn.indexer else lift_to l in
-    (* Does this generalize, too? *)
-    let f_body =
-      if nsubs > 0 then
+  let f_body =
+    if not is_g then
+      let f = if l.is_fwd then shift_by off c_g else shift_by (off - 1) c_g in
+      let c_used = if l.is_fwd then c_f_used else c_g_used in
+      (* Does this generalize? *)
+      let args =
+        List.map
+          (map_unit_env_if
+             (on_type is_deorn)
+             (fun env trm ->
+               let args = unfold_args (reduce_type env trm) in
+               mkAppl (orn_f, List.append args [trm]))
+             env_f_body)
+          c_used
+      in reduce_term (mkAppl (f, args))
+    else
+      let f_body_typ = reduce_type env_f_body f_body in
+      let arg_i = if is_indexer then index_i else arity orn_f_typ - 1 in
+      let (nsubs, f_body) = map_track_unit_if (applies orn_f) (get_arg arg_i) f_body in
+      let f = if is_indexer then Option.get l.orn.indexer else lift_to l in
+      (* Does this generalize, too? *)
+      map_if
+        (fun f_body ->
+          let f_args = List.append (unfold_args f_body_typ) [f_body] in
+          reduce_nf env_f_body (mkAppl (f, f_args)))
+        (nsubs = 0)
         f_body
-      else
-        let f_args = List.append (unfold_args f_body_typ) [f_body] in
-        reduce_nf env_f_body (mkAppl (f, f_args))
-    in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
+  in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
 
 (*
  * Compose two applications of an induction principle that are
