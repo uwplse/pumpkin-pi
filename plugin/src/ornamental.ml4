@@ -2237,12 +2237,10 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let l = { orn ; is_fwd ; lifted_indexer ; is_indexer } in
   let c = ref None in
   let _ =
-    map_term_if
-      (fun _ t ->
+    map_unit_if
+      (fun t ->
         isConst t && not (eq_constr t orn.promote || eq_constr t orn.forget))
-      (fun _ t -> c := Some t; t)
-      (fun _ -> ())
-      ()
+      (fun t -> c := Some t; t)
       trm
   in
   let unorn = unwrap_definition env (Option.get !c) in
