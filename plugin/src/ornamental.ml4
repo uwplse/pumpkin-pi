@@ -2041,12 +2041,12 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
 let compose_p npms index_i (l : lifting) p_g p_f =
   let is_fwd = l.is_fwd in
   let orn_f = lift_back l in
-  let (env_p_f, p_f_body) = zoom_lambda_term empty_env p_f in
+  let (env_p_f, p_f_b) = zoom_lambda_term empty_env p_f in
   let off = nb_rel env_p_f in
   let shift_pms = shift_local off off in
   let nhypos = npms + off in
   let orn_app = shift_pms (mkApp (orn_f, Array.of_list (mk_n_rels nhypos))) in
-  let (_, non_pms) = take_split npms (unfold_args p_f_body) in
+  let (_, non_pms) = take_split npms (unfold_args p_f_b) in
   let p_args = Array.of_list (List.append non_pms [orn_app]) in
   let p =
     map_if
@@ -2058,10 +2058,11 @@ let compose_p npms index_i (l : lifting) p_g p_f =
             let i_non_pms = shift_all_by npms (mk_n_rels off) in
             let i_args = Array.of_list (List.append i_pms i_non_pms) in
             let index = mkApp (indexer, i_args) in
-            let (env_p_g, p_g_body) = zoom_lambda_term empty_env p_g in
-            let p_g_f = first_fun p_g_body in
-            let p_g_args = Array.of_list (reindex index_i index (unfold_args p_g_body)) in
-            shift_pms (reconstruct_lambda env_p_g (mkApp (p_g_f, p_g_args))))
+            let (env_p_g, p_g_b) = zoom_lambda_term empty_env p_g in
+            let p_g_f = first_fun p_g_b in
+            let p_g_args = reindex index_i index (unfold_args p_g_b) in
+            let p_b = mkApp (p_g_f, Array.of_list p_g_args) in
+            shift_pms (reconstruct_lambda env_p_g p_b))
           (shift_pms p_g)
           l.lifted_indexer)
       p_g
