@@ -2215,7 +2215,7 @@ let compose_inductive idx_n index_i (comp : composition) =
   let (env_f, f) = comp.f in
   let (ip, pms, p_f, cs_f, args) = deconstruct_eliminator env_f f in
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
-  let (l, indexer) =
+  let (comp, indexer) =
     if l.is_fwd && comp.is_g && not l.is_indexer then
       let indexer = Option.get l.orn.indexer in
       let (env_f_body, f_body) = zoom_lambda_term env_f f in
@@ -2223,11 +2223,11 @@ let compose_inductive idx_n index_i (comp : composition) =
       let index_args = snoc f_body f_typ_args in
       let indexer = reconstruct_lambda env_f_body (mkAppl (indexer, index_args)) in
       let lifted_indexer = Some (make_constant idx_n) in
-      ({ l with lifted_indexer }, Some indexer)
+      let l = { l with lifted_indexer } in
+      ({ comp with l }, Some indexer)
     else
-      (l, None)
+      (comp, None)
   in
-  let comp = { comp with l = l } in
   let c_p = { comp with g = (env_g, p_g); f = (env_f, p_f) } in
   let p = compose_p (List.length pms) index_i c_p in
   let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
@@ -2250,16 +2250,12 @@ let compose_inductive idx_n index_i (comp : composition) =
  *)
 let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm : types) =
   let is_fwd = direction env orn in
-  let (orn, orn_inv) =  map_if reverse (not is_fwd) (orn, orn_inv) in
-  let orn_type = reduce_type env orn in
-  let (from_with_args, to_with_args) = ind_of_orn orn_type in
-  let from_args = unfold_args from_with_args in
-  let to_args = unfold_args to_with_args in
+  let (promote, forget) =  map_if reverse (not is_fwd) (orn, orn_inv) in
+  let inds = on_type ind_of_orn env promote in
+  let to_args = unfold_args (snd inds) in
   let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
   let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
-  let indexer = Some (fst (destApp index)) in
-  let promote = orn in
-  let forget = orn_inv in
+  let indexer = Some (first_fun index) in
   let orn = { indexer; promote; forget } in
   let lifted_indexer = None in
   let is_indexer = false in
@@ -2275,7 +2271,7 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let unorn = unwrap_definition env (Option.get !c) in
   let (_, unorn_typ) = zoom_product_type env (infer_type env unorn) in
   (* TODO this is sensitive to how the function is written *)
-  let assum = List.hd (List.rev (unfold_args unorn_typ)) in
+  let assum = last (unfold_args unorn_typ) in
   let delta env trm = Reductionops.whd_delta env Evd.empty trm in
   let reduce env trm = reduce_term (delta env trm) in
   let factors_dep = factor_term_dep assum env trm in 
@@ -2292,11 +2288,11 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
          let uses f = (applies f t_app || body_uses f) && isApp t_app in
          let promotes = uses orn.promote in
          let forgets = uses orn.forget in
-         let indexes = uses orn_indexer in
+         let is_indexer = uses orn_indexer in
          let branch a b c = if promotes then a else if forgets then b else c in
          let no_red = branch composed composed true in
-         if promotes || forgets || indexes then
-           let l = { l with is_indexer = indexes } in
+         if promotes || forgets || is_indexer then
+           let l = { l with is_indexer } in
            let g = (e_body, reduce e_body t_body) in
            let f = (env, map_if (reduce env) (not no_red) t_app) in
            let orn_f = branch orn.promote orn.forget orn_indexer in
