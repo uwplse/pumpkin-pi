@@ -2069,7 +2069,8 @@ let compose_p npms index_i (l : lifting) p_g p_f =
   in reconstruct_lambda env_p_f (reduce_term (mkAppl (p, p_args)))
 
 (*
- * Compose the IH for a constructor
+ * Compose the IH for a constructor.
+ * This simply uses the new property p.
  *)
 let compose_ih env_g npms_g ip_g c_f p =
   let ip_g_typ = reduce_type env_g ip_g in
@@ -2077,11 +2078,11 @@ let compose_ih env_g npms_g ip_g c_f p =
   map_term_env_if
     (fun _ _ trm -> is_or_applies from_typ trm)
     (fun en p trm ->
-      let orn_final = Array.make 1 (mkRel 1) in
+      let orn_final = [mkRel 1] in
       let (_, _, orn_final_typ) = CRD.to_tuple @@ lookup_rel 1 en in
       let typ_args = shift_all (unfold_args orn_final_typ) in
-      let non_pms = Array.of_list (snd (take_split npms_g typ_args)) in
-      reduce_term (mkApp (mkApp (p, non_pms), orn_final)))
+      let (_, non_pms) = take_split npms_g typ_args in
+      reduce_term (mkAppl (mkAppl (p, non_pms), orn_final)))
     shift
     env_g
     p
