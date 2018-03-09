@@ -62,6 +62,10 @@ let map_if f b x = if b then f x else x
 let map_default f default x =
   if Option.has_some x then f (Option.get x) else default
 
+(* Get the last element of a list *)
+let last (l : 'a list) : 'a =
+  List.hd (List.rev l)
+
 (* Take the union of two lists, maintaining order *)
 let rec union (c : 'a -> 'a -> int) (l1 : 'a list) (l2 : 'a list) : 'a list =
   match (l1, l2) with
@@ -2159,34 +2163,30 @@ let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g is_indexer p c_
     in
     let f_app = reduce_term (mkAppl (f, args)) in
     reconstruct_lambda_n env_f_body f_app (nb_rel env_f)
-  else if is_indexer then
-    let f = Option.get l.orn.indexer in
-    let f_body_typ = reduce_type env_f_body f_body in
-    let (nsubs, f_body) = map_track_unit_if (applies orn_f) (get_arg index_i) f_body in
-    (* Does this generalize, too? *)
-    let f_body =
-      if nsubs > 0 then
-        f_body
-      else
-        let f_args = List.append (unfold_args f_body_typ) [f_body] in
-        reduce_nf env_f_body (mkAppl (f, f_args))
-    in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
   else
-    let f = lift_to l in
     let f_body_typ = reduce_type env_f_body f_body in
-    let (nsubs, f_body) =
-      map_track_unit_if
-        (applies orn_f)
-        (fun trm -> List.hd (List.rev (unfold_args trm)))
-        f_body
-    in
-    (* Does this generalize, too? *)
-    if nsubs > 0 then
-      reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
+    let arg_i = if is_indexer then index_i else arity orn_f_typ - 1 in
+    let (nsubs, f_body) = map_track_unit_if (applies orn_f) (get_arg arg_i) f_body in
+    if is_indexer then
+      let f = Option.get l.orn.indexer in
+      (* Does this generalize, too? *)
+      let f_body =
+        if nsubs > 0 then
+          f_body
+        else
+          let f_args = List.append (unfold_args f_body_typ) [f_body] in
+          reduce_nf env_f_body (mkAppl (f, f_args))
+      in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
     else
-      let args = List.append (unfold_args f_body_typ) [f_body] in
-      let f_app = reduce_nf env_f_body (mkAppl (f, args)) in
-      reconstruct_lambda_n env_f_body f_app (nb_rel env_f)
+      let f = lift_to l in
+      (* Does this generalize, too? *)
+      let f_body =
+        if nsubs > 0 then
+          f_body
+        else
+          let args = List.append (unfold_args f_body_typ) [f_body] in
+          reduce_nf env_f_body (mkAppl (f, args))
+      in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
 
 (*
  * Compose two applications of an induction principle that are
@@ -2211,7 +2211,6 @@ let compose_inductive idx_n index_i (l : lifting) (env_g, g) (env_f, f) is_g is_
     let lifted_indexer = Some (make_constant idx_n) in
     let l = { l with lifted_indexer } in
     let p = compose_p (List.length pms) index_i l p_g p_f in
-    debug_term env_f p "p";
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g l index_i npms_g ip_g is_g is_indexer p) cs_g cs_f in
     let args = args_f in
