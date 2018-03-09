@@ -2167,26 +2167,15 @@ let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g is_indexer p c_
     let f_body_typ = reduce_type env_f_body f_body in
     let arg_i = if is_indexer then index_i else arity orn_f_typ - 1 in
     let (nsubs, f_body) = map_track_unit_if (applies orn_f) (get_arg arg_i) f_body in
-    if is_indexer then
-      let f = Option.get l.orn.indexer in
-      (* Does this generalize, too? *)
-      let f_body =
-        if nsubs > 0 then
-          f_body
-        else
-          let f_args = List.append (unfold_args f_body_typ) [f_body] in
-          reduce_nf env_f_body (mkAppl (f, f_args))
-      in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
-    else
-      let f = lift_to l in
-      (* Does this generalize, too? *)
-      let f_body =
-        if nsubs > 0 then
-          f_body
-        else
-          let args = List.append (unfold_args f_body_typ) [f_body] in
-          reduce_nf env_f_body (mkAppl (f, args))
-      in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
+    let f = if is_indexer then Option.get l.orn.indexer else lift_to l in
+    (* Does this generalize, too? *)
+    let f_body =
+      if nsubs > 0 then
+        f_body
+      else
+        let f_args = List.append (unfold_args f_body_typ) [f_body] in
+        reduce_nf env_f_body (mkAppl (f, f_args))
+    in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
 
 (*
  * Compose two applications of an induction principle that are
