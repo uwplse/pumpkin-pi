@@ -1380,6 +1380,12 @@ let remove_index index_i args =
   List.append before (List.tl after)
 
 (*
+ * Insert an index where an old index was
+ *)
+let reindex index_i index args =
+  insert_index index_i index (remove_index index_i args)
+
+(*
  * Unshift arguments after index_i, since the index is no longer in
  * the hypotheses
  *)
@@ -2030,39 +2036,36 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
  * Compose two properties for two applications of an induction principle
  * that are structurally the same when one is an ornament.
  *
- * TODO env temp for debugging
  * TODO clean & simplify like all other code
  *)
-let compose_p env npms index_i (l : lifting) p_g p_f =
+let compose_p npms index_i (l : lifting) p_g p_f =
   let is_fwd = l.is_fwd in
   let orn_f = lift_back l in
   let (env_p_f, p_f_body) = zoom_lambda_term empty_env p_f in
-  let (env_p_g, _) = zoom_lambda_term empty_env p_g in
-  let (env, _) = zoom_lambda_term env p_f in
   let off = nb_rel env_p_f in
   let shift_pms = shift_local off off in
-  let orn_app = shift_pms (mkApp (orn_f, Array.of_list (mk_n_rels (npms + off)))) in
-  let (pms, non_pms) = take_split npms (unfold_args p_f_body) in
-  let p_args orn_app = Array.of_list (List.append non_pms [orn_app]) in
-  let p_g =
+  let nhypos = npms + off in
+  let orn_app = shift_pms (mkApp (orn_f, Array.of_list (mk_n_rels nhypos))) in
+  let (_, non_pms) = take_split npms (unfold_args p_f_body) in
+  let p_args = Array.of_list (List.append non_pms [orn_app]) in
+  let p =
     map_if
       is_fwd
       (fun p_g ->
         map_default
-          (fun f_index ->
-            let index_pms = shift_all_by (npms + off) (mk_n_rels npms) in
-            let index_nonpms = shift_all_by npms (mk_n_rels off) in
-            let index_args = Array.of_list (List.append index_pms index_nonpms) in
-            let index = mkApp (f_index, index_args) in
-            let reindex ts = insert_index index_i index (remove_index index_i ts) in
+          (fun indexer ->
+            let i_pms = shift_all_by nhypos (mk_n_rels npms) in
+            let i_non_pms = shift_all_by npms (mk_n_rels off) in
+            let i_args = Array.of_list (List.append i_pms i_non_pms) in
+            let index = mkApp (indexer, i_args) in
             let (env_p_g, p_g_body) = zoom_lambda_term empty_env p_g in
             let p_g_f = first_fun p_g_body in
-            let p_g_args = Array.of_list (reindex (unfold_args p_g_body)) in
+            let p_g_args = Array.of_list (reindex index_i index (unfold_args p_g_body)) in
             shift_pms (reconstruct_lambda env_p_g (mkApp (p_g_f, p_g_args))))
           (shift_pms p_g)
           l.lifted_indexer)
       p_g
-  in reconstruct_lambda env_p_f (reduce_term (mkApp (p_g, p_args orn_app)))
+  in reconstruct_lambda env_p_f (reduce_term (mkApp (p, p_args)))
 
 (*
  * Compose the IH for a constructor
@@ -2184,19 +2187,19 @@ let compose_inductive idx_n index_i (l : lifting) (env_g, g) (env_f, f) is_g is_
     let indexer = reconstruct_lambda env_f_body (mkApp (indexer, Array.of_list index_args)) in
     let lifted_indexer = Some (make_constant idx_n) in
     let l = { l with lifted_indexer } in
-    let p = compose_p env_f (List.length pms) index_i l p_g p_f in
+    let p = compose_p (List.length pms) index_i l p_g p_f in
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g l index_i npms_g ip_g is_g is_indexer p) cs_g cs_f in
     let args = args_f in
     (apply_eliminator ip pms p cs args, Some indexer)
   else if is_indexer then
-    let p = compose_p env_f (List.length pms) index_i l p_g p_f in
+    let p = compose_p (List.length pms) index_i l p_g p_f in
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g l index_i npms_g ip_g is_g is_indexer p) cs_g cs_f in
     let args = args_f in
     (apply_eliminator ip pms p cs args, None)
   else
-    let p = compose_p env_f (List.length pms) index_i l p_g p_f in
+    let p = compose_p (List.length pms) index_i l p_g p_f in
     let npms_g = List.length pms_g in
     let cs = List.map2 (compose_c env_f env_g l index_i npms_g ip_g is_g is_indexer p) cs_g cs_f in
     let args = args_f in
