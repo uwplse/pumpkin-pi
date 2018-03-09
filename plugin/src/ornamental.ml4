@@ -2189,41 +2189,24 @@ let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g p c_g c_f =
  * TODO clean
  *)
 let compose_inductive idx_n index_i (l : lifting) (env_g, g) (env_f, f) is_g =
-  let is_indexer = l.is_indexer in
-  let is_fwd = l.is_fwd in
-  let orn = l.orn in
-  let (ip_f, pms_f, p_f, cs_f, args_f) = deconstruct_eliminator env_f f in
+  let (ip, pms, p_f, cs_f, args) = deconstruct_eliminator env_f f in
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
-  let ip = ip_f in
-  let pms = pms_f in
-  if is_fwd && is_g && not is_indexer then
-    let indexer = Option.get orn.indexer in
-    let (env_f_body, f_body) = zoom_lambda_term env_f f in
-    let f_typ = reduce_type env_f_body f_body in
-    let f_typ_args = unfold_args f_typ in
-    let index_args = List.append f_typ_args [f_body] in
-    let indexer = reconstruct_lambda env_f_body (mkApp (indexer, Array.of_list index_args)) in
-    let lifted_indexer = Some (make_constant idx_n) in
-    let l = { l with lifted_indexer } in
-    let p = compose_p (List.length pms) index_i l p_g p_f in
-    let npms_g = List.length pms_g in
-    let cs = List.map2 (compose_c env_f env_g l index_i npms_g ip_g is_g p) cs_g cs_f in
-    let args = args_f in
-    (apply_eliminator ip pms p cs args, Some indexer)
-  else if is_indexer then
-    let p = compose_p (List.length pms) index_i l p_g p_f in
-    let npms_g = List.length pms_g in
-    let cs = List.map2 (compose_c env_f env_g l index_i npms_g ip_g is_g p) cs_g cs_f in
-    let args = args_f in
-    (apply_eliminator ip pms p cs args, None)
-  else
-    let p = compose_p (List.length pms) index_i l p_g p_f in
-    let npms_g = List.length pms_g in
-    let cs = List.map2 (compose_c env_f env_g l index_i npms_g ip_g is_g p) cs_g cs_f in
-    let args = args_f in
-    let app = apply_eliminator ip pms p cs args in
-    (app, None)
-
+  let (l, indexer) =
+    if l.is_fwd && is_g && not l.is_indexer then
+      let indexer = Option.get l.orn.indexer in
+      let (env_f_body, f_body) = zoom_lambda_term env_f f in
+      let f_typ = reduce_type env_f_body f_body in
+      let f_typ_args = unfold_args f_typ in
+      let index_args = List.append f_typ_args [f_body] in
+      let indexer = reconstruct_lambda env_f_body (mkAppl (indexer, index_args)) in
+      let lifted_indexer = Some (make_constant idx_n) in
+      ({ l with lifted_indexer }, Some indexer)
+    else
+      (l, None)
+  in
+  let p = compose_p (List.length pms) index_i l p_g p_f in
+  let cs = List.map2 (compose_c env_f env_g l index_i (List.length pms_g) ip_g is_g p) cs_g cs_f in
+  (apply_eliminator ip pms p cs args, indexer)
 (*
  * This takes a term (f o orn_inv) and reduces it to f' where orn_inv is
  * moved inside of the function.
