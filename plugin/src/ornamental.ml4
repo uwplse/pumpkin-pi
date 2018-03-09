@@ -241,6 +241,9 @@ let applies (f : types) (trm : types) =
 let is_or_applies (trm' : types) (trm : types) : bool =
   applies trm' trm || eq_constr trm' trm
 
+(* Always true *)
+let always_true _ = true
+                                
 (* Check that p a and p b are both true *)
 let and_p (p : 'a -> bool) (o : 'a) (n : 'a) : bool =
   p o && p n
@@ -643,6 +646,14 @@ let exists_subterm p d =
     d
     empty
 
+(* map env without any a *)
+let map_unit_env mapper p f env trm =
+  mapper (fun en _ t -> p en t) (fun en _ t -> f en t) (fun _ -> ()) env () trm
+         
+(* map without any a *)
+let map_unit mapper p f trm =
+  mapper (fun _ t -> p t) (fun _ t -> f t) (fun _ -> ()) () trm
+
 (* map and track with environments *)
 let map_track_env mapper p f d env a trm =
   let occ = ref 0 in
@@ -655,6 +666,25 @@ let map_track mapper p f d a trm =
   let f_track a t = occ := !occ + 1; f a t in
   (!occ, mapper p f_track d a trm)
 
+(* map and track with environments *)
+let map_track_env_unit mapper p f env trm =
+  let occ = ref 0 in
+  let f_track en t = occ := !occ + 1; f en t in
+  (!occ, map_unit_env mapper p f_track env trm)
+
+(* map and track without any a *)
+let map_track_unit mapper p f trm =
+  let occ = ref 0 in
+  let f_track t = occ := !occ + 1; f t in
+  (!occ, map_unit mapper p f_track trm)
+
+(* Some simple combinations *)
+let map_track_unit_env_if = map_track_env_unit map_term_env_if
+let map_unit_env_if = map_unit_env map_term_env_if
+let map_track_unit_if = map_track_unit map_term_if
+let map_unit_if = map_unit map_term_if
+
+                                   
 (* In env, substitute all subterms of trm that are convertible to src with dst *)
 let all_conv_substs =
   all_substs convertible
@@ -2101,49 +2131,35 @@ let compose_ih env_g npms_g ip_g c_f p =
  * TODO clean, refactor orn/deorn, take fewer arguments, etc.
  *)
 let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g is_indexer p c_g c_f =
-  let orn = l.orn in
-  let is_fwd = l.is_fwd in
   let orn_f = lift_back l in
   let orn_f_typ = reduce_type env_f orn_f in
   let to_typ = first_fun (fst (ind_of_orn orn_f_typ)) in
   let is_deorn = is_or_applies to_typ in
-  let always_true _ = true in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_g_used = get_used_or_p_hypos always_true c_g in
   let c_f = compose_ih env_g npms_g ip_g c_f p in
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
-  let off = nb_rel env_f_body - nb_rel env_f in
+  let off = offset env_f_body (nb_rel env_f) in
   if not is_g then
-    let f = if is_fwd then shift_by off c_g else shift_by (off - 1) c_g in
-    let c_used = if is_fwd then c_f_used else c_g_used in
+    let f = if l.is_fwd then shift_by off c_g else shift_by (off - 1) c_g in
+    let c_used = if l.is_fwd then c_f_used else c_g_used in
     (* Does this generalize? *)
     let args =
       List.map
-        (map_term_env_if
-           (fun env _ trm ->
-             is_deorn (reduce_type env trm))
-           (fun env _ trm ->
+        (map_unit_env_if
+           (fun env trm -> is_deorn (reduce_type env trm))
+           (fun env trm ->
              let args = unfold_args (reduce_type env trm) in
              mkApp (orn_f, Array.of_list (List.append args [trm])))
-           (fun _ -> ())
-           env_f_body
-           ())
+           env_f_body)
         c_used
     in
     let f_app = reduce_term (mkApp (f, Array.of_list args)) in
     reconstruct_lambda_n env_f_body f_app (nb_rel env_f)
   else if is_indexer then
-    let f = Option.get orn.indexer in
+    let f = Option.get l.orn.indexer in
     let f_body_typ = reduce_type env_f_body f_body in
-    let (nsubs, f_body) =
-      map_track
-        map_term_if
-        (fun _ trm -> applies orn_f trm)
-        (fun _ trm -> get_arg index_i trm)
-        (fun _ -> ())
-        ()
-        f_body
-    in
+    let (nsubs, f_body) = map_track_unit_if (applies orn_f) (get_arg index_i) f_body in
     (* Does this generalize, too? *)
     let f_body =
       if nsubs > 0 then
@@ -2156,12 +2172,9 @@ let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g is_indexer p c_
     let f = lift_to l in
     let f_body_typ = reduce_type env_f_body f_body in
     let (nsubs, f_body) =
-      map_track
-        map_term_if
-        (fun _ trm -> applies orn_f trm)
-        (fun _ trm -> List.hd (List.rev (unfold_args trm)))
-        (fun _ -> ())
-        ()
+      map_track_unit_if
+        (applies orn_f)
+        (fun trm -> List.hd (List.rev (unfold_args trm)))
         f_body
     in
     (* Does this generalize, too? *)
