@@ -683,8 +683,7 @@ let map_track_unit_env_if = map_track_env_unit map_term_env_if
 let map_unit_env_if = map_unit_env map_term_env_if
 let map_track_unit_if = map_track_unit map_term_if
 let map_unit_if = map_unit map_term_if
-
-                                   
+                             
 (* In env, substitute all subterms of trm that are convertible to src with dst *)
 let all_conv_substs =
   all_substs convertible
@@ -732,6 +731,10 @@ let reduce_nf (env : env) (trm : types) : types =
 (* Reduce the type *)
 let reduce_type (env : env) (trm : types) : types =
   reduce_term (infer_type env trm)
+
+(* Apply on types instead of on terms *)
+let on_type f env trm =
+  f (reduce_type env trm)
 
 (* --- Debugging, from PUMPKIN PATCH --- *)
 
@@ -2147,14 +2150,14 @@ let compose_c env_f env_g (l : lifting) index_i npms_g ip_g is_g is_indexer p c_
     let args =
       List.map
         (map_unit_env_if
-           (fun env trm -> is_deorn (reduce_type env trm))
+           (on_type is_deorn)
            (fun env trm ->
              let args = unfold_args (reduce_type env trm) in
-             mkApp (orn_f, Array.of_list (List.append args [trm])))
+             mkAppl (orn_f, List.append args [trm]))
            env_f_body)
         c_used
     in
-    let f_app = reduce_term (mkApp (f, Array.of_list args)) in
+    let f_app = reduce_term (mkAppl (f, args)) in
     reconstruct_lambda_n env_f_body f_app (nb_rel env_f)
   else if is_indexer then
     let f = Option.get l.orn.indexer in
