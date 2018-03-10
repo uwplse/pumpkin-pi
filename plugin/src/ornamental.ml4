@@ -1059,6 +1059,8 @@ let rec find_path (assum : types) (env : env) (trm : types) : factors =
  * TODO this and above not yet fully working for when assum isn't 1
  *)
 let rec find_path_dep (assum : types) (env : env) (trm : types) : factor_tree =
+  debug_term env assum "assum";
+  debug_term env trm "trm";
   if is_assumption assum env trm then
     Factor ((env, trm), [])
   else
@@ -1083,6 +1085,7 @@ let rec find_path_dep (assum : types) (env : env) (trm : types) : factor_tree =
            List.fold_left
              (fun ((en, cn) : env * factor_tree list) (tr : factor_tree) ->
                let (Factor ((env_arg, arg), children)) = tr in
+               debug_term env_arg arg "arg";
                try
                  if List.length cn > 0 then
                    let (Factor ((en_prev, prev), _)) = List.hd cn in
@@ -1093,7 +1096,9 @@ let rec find_path_dep (assum : types) (env : env) (trm : types) : factor_tree =
                    (en_t, ((Factor ((env_arg, arg), children)) :: cn))
                  else
                    let t = unshift (reduce_type env_arg arg) in
+                   debug_env en "en";
                    let en_t = assume assum en Anonymous t in
+                   debug_env en_t "en_t";
                    (en_t, [((Factor ((env_arg, arg), children)))])
                with _ ->
                  (en, [Unit]))
@@ -1130,6 +1135,7 @@ let factor_term (assum : types) (env : env) (trm : types) : factors =
  *)
 let factor_term_dep (assum : types) (env : env) (trm : types) : factor_tree =
   let (env_zoomed, trm_zoomed) = zoom_lambda_term env (reduce_term trm) in
+  debug_env env_zoomed "env_zoomed";
   let tree_body = find_path_dep assum env_zoomed trm_zoomed in
   let rec factor_dep t =
     match t with
@@ -2264,17 +2270,24 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let _ =
     map_unit_if
       (fun t ->
-        isConst t && not (eq_constr t orn.promote || eq_constr t orn.forget))
-      (fun t -> c := Some t; t)
+        match kind_of_term t with
+        | App (_, _) ->
+           let f = first_fun t in
+           isConst f && not (eq_constr f orn.promote || eq_constr f orn.forget)
+        | _ ->
+           false)
+      (fun t ->
+        let unorn = unwrap_definition env (first_fun t) in
+        (* TODO this is sensitive to how the function is written *)
+        let (_, unorn_typ) = zoom_product_type env (infer_type env unorn) in
+        let assum_i = arity unorn - destRel (last (unfold_args unorn_typ)) in
+        c := Some (last (unfold_args (get_arg assum_i t))); t)
       trm
   in
-  let unorn = unwrap_definition env (Option.get !c) in
-  let (_, unorn_typ) = zoom_product_type env (infer_type env unorn) in
-  (* TODO this is sensitive to how the function is written *)
-  let assum = last (unfold_args unorn_typ) in
+  let assum = Option.get !c in
   let delta env trm = Reductionops.whd_delta env Evd.empty trm in
   let reduce env trm = reduce_term (delta env trm) in
-  let factors_dep = factor_term_dep assum env trm in 
+  let factors_dep = factor_term_dep assum env trm in
   let orn_indexer = Option.get orn.indexer in
   let (Factor ((env, base), children)) = factors_dep in
   let rec compose_factors fs =
