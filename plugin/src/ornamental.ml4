@@ -2184,6 +2184,8 @@ let compose_c index_i npms_g ip_g p (comp : composition) =
   let l = comp.l in
   let (env_g, c_g) = comp.g in
   let (env_f, c_f) = comp.f in
+  debug_term env_g c_g "c_g";
+  debug_term env_f c_f "c_f";
   let orn_f = lift_back l in
   let orn_f_typ = reduce_type env_f orn_f in
   let to_typ = first_fun (fst (ind_of_orn orn_f_typ)) in
@@ -2191,6 +2193,7 @@ let compose_c index_i npms_g ip_g p (comp : composition) =
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_g_used = get_used_or_p_hypos always_true c_g in
   let c_f = compose_ih env_g npms_g ip_g c_f p in
+  debug_term env_f c_f "c_f";
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let off = offset env_f_body (nb_rel env_f) in
   let f_body =
@@ -2209,12 +2212,21 @@ let compose_c index_i npms_g ip_g p (comp : composition) =
       in reduce_term (mkAppl (f, args))
     else
       let arg_i = if_indexer l index_i (arity orn_f_typ - 1) in
+      Printf.printf "%d\n" arg_i;
+      debug_term env_f_body f_body "f_body";
       let (nsubs, f_body) = map_track_unit_if (applies orn_f) (get_arg arg_i) f_body in
+      debug_term env_f_body f_body "f_body";
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
+      debug_term env_f_body f "f";
+      Printf.printf "%d\n" nsubs;
       (* Does this generalize, too? *)
       map_if
         (fun f_body ->
+          debug_term env_f_body f_body "f_body";
+          debug_env env_f_body "env_f_body";
+          debug_term env_f_body (infer_type env_f_body f_body) "f_body_typ";
           let f_args = snoc f_body (on_type unfold_args env_f_body f_body) in
+          debug_terms env_f_body f_args "f_args";
           reduce_nf env_f_body (mkAppl (f, f_args)))
         (nsubs = 0)
         f_body
@@ -2251,6 +2263,7 @@ let compose_inductive idx_n index_i (comp : composition) =
   debug_term env_f p "p";
   let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
   let cs = List.map (compose_c index_i (List.length pms_g) ip_g p) c_cs in
+  debug_terms env_f cs "cs";
   (apply_eliminator ip pms p cs args, indexer)
 (*
  * This takes a term (f o orn_inv) and reduces it to f' where orn_inv is
