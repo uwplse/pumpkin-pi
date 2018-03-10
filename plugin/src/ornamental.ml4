@@ -1095,7 +1095,7 @@ let rec find_path_dep (assum : types) (env : env) (trm : types) : factor_tree =
                    let en_t = push_local (Anonymous, shift_by off t) en in
                    (en_t, ((Factor ((env_arg, arg), children)) :: cn))
                  else
-                   let t = unshift (reduce_type env_arg arg) in
+                   let t = unshift_by (destRel assum) (reduce_type env_arg arg) in
                    debug_env en "en";
                    let en_t = assume assum en Anonymous t in
                    debug_env en_t "en_t";
