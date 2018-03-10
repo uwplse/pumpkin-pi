@@ -969,10 +969,10 @@ let apply_assumption assum (fs : factors) (trm : types) : types =
 (*
  * Apply the assumption in the dependent version
  *)
-let apply_assumption_dep (i : int) (fs : factor_tree) (trm : types) : types * int =
+let apply_assumption_dep (i : int) (j : int) (fs : factor_tree) (trm : types) : types * int =
   match fs with
   | Factor (_, _) ->
-     (mkRel i, i - 1)
+     (mkRel (i + j - 1), i - 1)
   | Unit ->
      (shift_by (i - 1) trm, i)
 
@@ -1067,25 +1067,38 @@ let rec find_path_dep (assum : types) (env : env) (trm : types) : factor_tree =
     match kind_of_term trm with
     | App (f, args) ->
        let trees = Array.map (find_path_dep assum env) args in
+       Array.iter debug_factors_dep trees;
        let filter_nonunit = List.filter (fun t -> not (t = Unit)) in
        let nonempty_trees = filter_nonunit (Array.to_list trees) in
        let num_trees = List.length nonempty_trees in
-       let rec assume_args i j args =
+       let rec assume_args i j k args =
          match args with
          | h :: tl ->
-            let (h', j') = apply_assumption_dep j (Array.get trees i) h in
-            h' :: (assume_args (i + 1) j' tl)
+            let (h', j') =
+              (match (Array.get trees i) with
+               | Factor (_, _) ->
+                  (mkRel (j + k - 1), j - 1)
+               | Unit ->
+                  if j > 1 then
+                    let off = j - 1 in
+                    (shift_by off h, j)
+                  else
+                    (h, j))
+            in
+            (*let (h', j') = apply_assumption_dep j k (Array.get trees i) h in*)
+            h' :: (assume_args (i + 1) j' k tl)
          | [] ->
             []
        in
        let assum_ind = destRel assum in
-       let assumed = Array.of_list (assume_args 0 (num_trees + assum_ind - 1) (Array.to_list args)) in
+       let args = Array.to_list args in
+       let assumed = Array.of_list (assume_args 0 num_trees assum_ind (* TODO *) args) in
+       debug_terms env args "args";
        if num_trees > 0 then
          let (env, children) =
            List.fold_left
              (fun ((en, cn) : env * factor_tree list) (tr : factor_tree) ->
                let (Factor ((env_arg, arg), children)) = tr in
-               debug_term env_arg arg "arg";
                try
                  if List.length cn > 0 then
                    let (Factor ((en_prev, prev), _)) = List.hd cn in
@@ -1096,9 +1109,7 @@ let rec find_path_dep (assum : types) (env : env) (trm : types) : factor_tree =
                    (en_t, ((Factor ((env_arg, arg), children)) :: cn))
                  else
                    let t = unshift_by (destRel assum) (reduce_type env_arg arg) in
-                   debug_env en "en";
                    let en_t = assume assum en Anonymous t in
-                   debug_env en_t "en_t";
                    (en_t, [((Factor ((env_arg, arg), children)))])
                with _ ->
                  (en, [Unit]))
@@ -1135,7 +1146,6 @@ let factor_term (assum : types) (env : env) (trm : types) : factors =
  *)
 let factor_term_dep (assum : types) (env : env) (trm : types) : factor_tree =
   let (env_zoomed, trm_zoomed) = zoom_lambda_term env (reduce_term trm) in
-  debug_env env_zoomed "env_zoomed";
   let tree_body = find_path_dep assum env_zoomed trm_zoomed in
   let rec factor_dep t =
     match t with
@@ -2127,13 +2137,14 @@ let compose_p npms index_i (comp : composition) =
         let p_g = shift_pms p_g in
         map_default
           (fun indexer ->
-            let i_pms = shift_all_by (npms + off + off) (mk_n_rels npms) in
+            let (env_p_g, p_g_b) = zoom_lambda_term empty_env p_g in
+            let p_g_f = first_fun p_g_b in
+            let p_g_args_old = unfold_args p_g_b in
+            let (i_pms, _) = take_split npms p_g_args_old in
             let i_non_pms = shift_all_by npms (mk_n_rels off) in
             let i_args = List.append i_pms i_non_pms in
             let index = mkAppl (indexer, i_args) in
-            let (env_p_g, p_g_b) = zoom_lambda_term empty_env p_g in
-            let p_g_f = first_fun p_g_b in
-            let p_g_args = reindex index_i index (unfold_args p_g_b) in
+            let p_g_args = reindex index_i index p_g_args_old in
             reconstruct_lambda env_p_g (mkAppl (p_g_f, p_g_args)))
           p_g
           l.lifted_indexer)
@@ -2227,6 +2238,7 @@ let compose_inductive idx_n index_i (comp : composition) =
       let (env_f_body, f_body) = zoom_lambda_term env_f f in
       let f_typ_args = on_type unfold_args env_f_body f_body in
       let index_args = snoc f_body f_typ_args in
+      debug_terms env_f_body index_args "index_args";
       let indexer = reconstruct_lambda env_f_body (mkAppl (indexer, index_args)) in
       let lifted_indexer = Some (make_constant idx_n) in
       let l = { l with lifted_indexer } in
@@ -2236,6 +2248,7 @@ let compose_inductive idx_n index_i (comp : composition) =
   in
   let c_p = { comp with g = (env_g, p_g); f = (env_f, p_f) } in
   let p = compose_p (List.length pms) index_i c_p in
+  debug_term env_f p "p";
   let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
   let cs = List.map (compose_c index_i (List.length pms_g) ip_g p) c_cs in
   (apply_eliminator ip pms p cs args, indexer)
@@ -2288,6 +2301,7 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let delta env trm = Reductionops.whd_delta env Evd.empty trm in
   let reduce env trm = reduce_term (delta env trm) in
   let factors_dep = factor_term_dep assum env trm in
+  debug_factors_dep factors_dep;
   let orn_indexer = Option.get orn.indexer in
   let (Factor ((env, base), children)) = factors_dep in
   let rec compose_factors fs =
@@ -2308,10 +2322,13 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
            let l = { l with is_indexer } in
            let g = (e_body, reduce e_body t_body) in
            let f = (env, map_if (reduce env) (not no_red) t_app) in
+           debug_term (fst g) (snd g) "g";
+           debug_term (fst f) (snd f) "f";
            let orn_f = branch orn.promote orn.forget orn_indexer in
            let is_g = applies orn_f t_body in
            let comp = { l ; g ; f ; is_g } in
            let (app, indexer) = compose_inductive idx_n index_i comp in
+           debug_term (fst f) app "app";
            ((app, indexer), env, true)
          else
            let app = reduce_term (mkApp (shift t, Array.make 1 t_app)) in
