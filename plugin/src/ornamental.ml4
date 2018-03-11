@@ -46,6 +46,14 @@ type lifting =
   }
 
 (*
+ * Initialize a lifting
+ *)
+let initialize_lifting orn is_fwd =
+  let lifted_indexer = None in
+  let is_indexer = false in
+  { orn ; is_fwd ; lifted_indexer ; is_indexer }
+    
+(*
  * These two functions determine what function to use to go back to
  * an old type or get to a new type when lifting
  *)
@@ -2083,7 +2091,7 @@ let direction (env : env) (orn : types) : bool =
   let orn_type = reduce_type env orn in
   let (from_args, to_args) = map_tuple unfold_args (ind_of_orn orn_type) in
   List.length from_args < List.length to_args
-
+    
 (*
  * Apply an ornament, but don't reduce the result.
  *
@@ -2103,9 +2111,7 @@ let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
   let promote = orn in
   let forget = orn_inv in
   let orn = { indexer; promote; forget } in
-  let lifted_indexer = None in
-  let is_indexer = false in
-  let l = { orn ; is_fwd ; lifted_indexer ; is_indexer } in
+  let l = initialize_lifting orn is_fwd in
   let (from_ind, to_ind) = reverse_if_bwd (map_tuple ind_of (from_with_args, to_with_args)) in
   let app_orn ornamenter = ornamenter env l index_i (from_ind, to_ind) in
   let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
@@ -2289,9 +2295,7 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
   let indexer = Some (first_fun index) in
   let orn = { indexer; promote; forget } in
-  let lifted_indexer = None in
-  let is_indexer = false in
-  let l = { orn ; is_fwd ; lifted_indexer ; is_indexer } in
+  let l = initialize_lifting orn is_fwd in
   let c = ref None in
   let _ =
     map_unit_if
