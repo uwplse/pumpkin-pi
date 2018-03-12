@@ -2249,8 +2249,9 @@ let compose_c index_i npms_g ip_g p (comp : composition) =
  *
  * TODO clean
  *)
-let compose_inductive idx_n index_i (comp : composition) =
+let compose_inductive idx_n (comp : composition) =
   let l = comp.l in
+  let index_i = Option.get l.orn.index_i in
   let (env_g, g) = comp.g in
   let (env_f, f) = comp.f in
   let (ip, pms, p_f, cs_f, args) = deconstruct_eliminator env_f f in
@@ -2313,9 +2314,9 @@ let factor_ornamented (orn : promotion) (env : env) (trm : types) : factor_tree 
  *)
 let rec compose_orn_factors (l : lifting) idx_n fs =
   let reduce env trm = reduce_term (delta env trm) in
-  let orn = l.orn in
-  let orn_indexer = Option.get orn.indexer in
-  let index_i = Option.get orn.index_i in
+  let promote = l.orn.promote in
+  let forget = l.orn.forget in
+  let orn_indexer = Option.get l.orn.indexer in
   match fs with
   | Factor ((en, t), children) ->
      if List.length children > 0 then
@@ -2324,8 +2325,7 @@ let rec compose_orn_factors (l : lifting) idx_n fs =
        let (e_body, t_body) = zoom_lambda_term en t in
        let body_uses f = applies f t_body in
        let uses f = (applies f t_app || body_uses f) && isApp t_app in
-       let promotes = uses orn.promote in
-       let forgets = uses orn.forget in
+       let (promotes, forgets) = map_tuple uses (promote, forget) in
        let is_indexer = uses orn_indexer in
        let branch a b c = if promotes then a else if forgets then b else c in
        let no_red = branch composed composed true in
@@ -2335,10 +2335,10 @@ let rec compose_orn_factors (l : lifting) idx_n fs =
          let f = (env, map_if (reduce env) (not no_red) t_app) in
          debug_term (fst g) (snd g) "g";
          debug_term (fst f) (snd f) "f";
-         let orn_f = branch orn.promote orn.forget orn_indexer in
+         let orn_f = branch promote forget orn_indexer in
          let is_g = applies orn_f t_body in
          let comp = { l ; g ; f ; is_g } in
-         let (app, indexer) = compose_inductive idx_n index_i comp in
+         let (app, indexer) = compose_inductive idx_n comp in
          debug_term (fst f) app "app";
          ((app, indexer), env, true)
        else
