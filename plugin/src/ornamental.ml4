@@ -24,6 +24,7 @@ module CRD = Context.Rel.Declaration
  *)
 type promotion =
   {
+    index_i : int option;
     indexer : types option;
     promote : types;
     forget : types;
@@ -1878,7 +1879,7 @@ let orn_index_cases index_i npm is_fwd indexer_f orn_p o n : types list =
      failwith "not an eliminator"
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
-let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
+let search_orn_index_elim npm idx_n elim_o o n is_fwd : (int option * types option * types) =
   let directional a b = if is_fwd then a else b in
   let call_directional f a b = if is_fwd then f a b else f b a in
   let (env_o, ind_o, arity_o, elim_t_o) = o in
@@ -1908,12 +1909,12 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (types option * types) =
      let cs = shift_all_by off_b (orn_index_cases index_i npm is_fwd f_indexer p_cs o n) in
      let final_args = Array.of_list (mk_n_rels off) in
      let ornament = apply_eliminator_recons env_ornament elim_o pms p cs final_args in
-     (indexer, ornament)
+     (directional (Some index_i) None, indexer, ornament)
   | _ ->
      failwith "not eliminators"
 
 (* Search two inductive types for an indexing ornament *)
-let search_orn_index env npm idx_n o n is_fwd : (types option * types) =
+let search_orn_index env npm idx_n o n is_fwd : (int option * types option * types) =
   let (pind_o, arity_o) = o in
   let (pind_n, arity_n) = n in
   let (ind_o, _) = destInd pind_o in
@@ -1938,12 +1939,13 @@ let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : typ
        (* new parameter *)
        let search_params = twice (search_orn_params env) in
        let indexer = None in
+       let index_i = None in
        if npm_o < npm_n then
          let (promote, forget) = search_params (i_o, ii_o) (i_n, ii_n) in
-         { indexer; promote; forget }
+         { index_i; indexer; promote; forget }
        else
          let (promote, forget) = search_params (i_n, ii_n) (i_o, ii_o) in
-         { indexer; promote; forget }
+         { index_i; indexer; promote; forget }
      else
        let npm = npm_o in
        let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
@@ -1951,13 +1953,10 @@ let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : typ
        if not (arity_o = arity_n) then
          let o = (trm_o, arity_o) in
          let n = (trm_n, arity_n) in
+         let (o, n) = map_if reverse (arity_n <= arity_o) (o, n) in
          let search_indices = twice (search_orn_index env npm idx_n) in
-         if arity_o < arity_n then
-           let ((indexer, promote), (_, forget)) = search_indices o n in
-           { indexer; promote; forget }
-         else
-           let ((indexer, promote), (_, forget)) = search_indices n o in
-           { indexer; promote; forget }
+         let ((index_i, indexer, promote), (_, _, forget)) = search_indices o n in
+         { index_i; indexer; promote; forget }
        else
          failwith "this kind of change is not yet supported"
   | _ ->
@@ -1970,7 +1969,8 @@ let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : typ
  * Return both the term with ornamented hypotheses and the number
  * of substitutions that occurred.
  *)
-let sub_in_hypos (index_i : int) (index_lam : types) (from_ind : types) (to_ind : types) (hypos : types) (is_fwd : bool) =
+let sub_in_hypos (l : lifting) (index_lam : types) (from_ind : types) (to_ind : types) (hypos : types) =
+  let index_i = Option.get l.orn.index_i in
   map_unit_if_lazy
     (fun trm ->
       match kind_of_term trm with
@@ -1979,7 +1979,7 @@ let sub_in_hypos (index_i : int) (index_lam : types) (from_ind : types) (to_ind 
     (fun trm ->
       let (n, t, b) = destLambda trm in
       let args = unfold_args t in
-      if is_fwd then
+      if l.is_fwd then
         let (before, after) = take_split index_i args in
         let index_type = reduce_term (mkAppl (index_lam, before)) in
         let t_args = insert_index_shift index_i (mkRel 1) args 1 in
@@ -1996,10 +1996,11 @@ let sub_in_hypos (index_i : int) (index_lam : types) (from_ind : types) (to_ind 
  * Apply the ornament to the arguments
  * TODO clean this
  *)
-let ornament_args env index_i (from_ind, to_ind) (l : lifting) (trm, indices) =
+let ornament_args env (from_ind, to_ind) (l : lifting) (trm, indices) =
   let orn = l.orn in
   let is_fwd = l.is_fwd in
   let orn_f = lift_back l in
+  let index_i = Option.get orn.index_i in
   let indexer = Option.get orn.indexer in
   let (trm, _, indices) =
     List.fold_left
@@ -2036,25 +2037,21 @@ let ornament_args env index_i (from_ind, to_ind) (l : lifting) (trm, indices) =
   in (trm, indices)
 
 (* Ornament the hypotheses *)
-let ornament_hypos env (l : lifting) index_i (from_ind, to_ind) (trm, indices) =
+let ornament_hypos env (l : lifting) (from_ind, to_ind) (trm, indices) =
   let orn = l.orn in
-  let is_fwd = l.is_fwd in 
+  let is_fwd = l.is_fwd in
   let indexer = Option.get orn.indexer in
   let indexer_type = reduce_type env indexer in
   let index_lam = remove_final_hypo (prod_to_lambda indexer_type) in
-  let hypos = prod_to_lambda (reduce_type env trm) in
-  let subbed_hypos = sub_in_hypos index_i index_lam from_ind to_ind hypos is_fwd in
+  let hypos = on_type prod_to_lambda env trm in
+  let subbed_hypos = sub_in_hypos l index_lam from_ind to_ind hypos in
   let env_hypos = zoom_env zoom_lambda_term env subbed_hypos in
-  let (concl, indices) = ornament_args env_hypos index_i (from_ind, to_ind) l (trm, indices) in
-  if is_fwd then
-    (reconstruct_lambda env_hypos concl, indices)
-  else
-    (* Will this error if the indexer is used elsewhere? *)
-    let indexed = List.fold_right all_eq_substs indices concl in
-    (reconstruct_lambda env_hypos indexed, indices)
+  let (concl, indices) = ornament_args env_hypos (from_ind, to_ind) l (trm, indices) in
+  let sub_ind = map_if (List.fold_right all_eq_substs indices) (not is_fwd) in
+  (reconstruct_lambda env_hypos (sub_ind concl), indices)
 
 (* Ornament the conclusion *)
-let ornament_concls concl_typ env (l : lifting) index_i (from_ind, to_ind) (trm, indices) =
+let ornament_concls concl_typ env (l : lifting) (from_ind, to_ind) (trm, indices) =
   if is_or_applies from_ind concl_typ then
     let (env_zoom, trm_zoom) = zoom_lambda_term env trm in
     let args =
@@ -2091,35 +2088,39 @@ let direction (env : env) (orn : types) : bool =
   let orn_type = reduce_type env orn in
   let (from_args, to_args) = map_tuple unfold_args (ind_of_orn orn_type) in
   List.length from_args < List.length to_args
-    
+
+(*
+ * Initialize an ornamentation
+ * TODO move up
+ *)
+let initialize_orn env promote forget =
+  let inds = on_type ind_of_orn env promote in
+  let to_args = unfold_args (snd inds) in
+  let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
+  let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
+  let index_i = Some index_i in
+  let indexer = Some (first_fun index) in
+  { index_i; indexer; promote; forget }
+                                      
 (*
  * Apply an ornament, but don't reduce the result.
  *
  * Assumes indexing ornament for now
+ *
+ * TODO remove_unused_hypos weakens guarantee but gives better result
  *)
-let ornament_no_red (env : env) (orn : types) (orn_inv : types) (trm : types) =
-  let is_fwd = direction env orn in
-  let reverse_if_bwd (a, b) = if is_fwd then (a, b) else reverse (a, b) in
-  let (orn, orn_inv) = reverse_if_bwd (orn, orn_inv) in
-  let orn_type = reduce_type env orn in
-  let (from_with_args, to_with_args) = ind_of_orn orn_type in
-  let from_args = unfold_args from_with_args in
-  let to_args = unfold_args to_with_args in
-  let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
-  let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
-  let indexer = Some (fst (destApp index)) in
-  let promote = orn in
-  let forget = orn_inv in
-  let orn = { indexer; promote; forget } in
+let ornament_no_red (env : env) (orn_f : types) (orn_inv_f : types) (trm : types) =
+  let is_fwd = direction env orn_f in
+  let (promote, forget) = map_if reverse (not is_fwd) (orn_f, orn_inv_f) in
+  let orn = initialize_orn env promote forget in
   let l = initialize_lifting orn is_fwd in
-  let (from_ind, to_ind) = reverse_if_bwd (map_tuple ind_of (from_with_args, to_with_args)) in
-  let app_orn ornamenter = ornamenter env l index_i (from_ind, to_ind) in
+  let orn_type = reduce_type env orn.promote in
+  let (from_with_args, to_with_args) = ind_of_orn orn_type in
+  let (from_ind, to_ind) = map_if reverse (not is_fwd) (map_tuple ind_of (from_with_args, to_with_args)) in
+  let app_orn ornamenter = ornamenter env l (from_ind, to_ind) in
   let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
-  let orn = fst (app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, []))) in
-  if is_fwd then
-    orn
-  else
-    remove_unused_hypos orn (* weakens guarantee but gives better result *)
+  let orned = fst (app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, []))) in
+  map_if remove_unused_hypos (not is_fwd) orned
 
 (* --- Reduction --- *)
 
@@ -2289,12 +2290,7 @@ let compose_inductive idx_n index_i (comp : composition) =
 let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm : types) =
   let is_fwd = direction env orn in
   let (promote, forget) =  map_if reverse (not is_fwd) (orn, orn_inv) in
-  let inds = on_type ind_of_orn env promote in
-  let to_args = unfold_args (snd inds) in
-  let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
-  let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
-  let indexer = Some (first_fun index) in
-  let orn = { indexer; promote; forget } in
+  let orn = initialize_orn env promote forget in                         
   let l = initialize_lifting orn is_fwd in
   let c = ref None in
   let _ =
@@ -2320,6 +2316,7 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let factors_dep = factor_term_dep assum env trm in
   debug_factors_dep factors_dep;
   let orn_indexer = Option.get orn.indexer in
+  let index_i = Option.get orn.index_i in
   let (Factor ((env, base), children)) = factors_dep in
   let rec compose_factors fs =
     match fs with
