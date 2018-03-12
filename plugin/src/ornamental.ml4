@@ -768,6 +768,10 @@ let with_suffix id suffix =
 let reduce_term (trm : types) : types =
   Reductionops.nf_betaiotazeta Evd.empty trm
 
+(* Delta reduction *)
+let delta (env : env) (trm : types) =
+  Reductionops.whd_delta env Evd.empty trm
+                         
 (* nf_all *)
 let reduce_nf (env : env) (trm : types) : types =
   Reductionops.nf_all env Evd.empty trm
@@ -2311,7 +2315,6 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
       trm
   in
   let assum = Option.get !c in
-  let delta env trm = Reductionops.whd_delta env Evd.empty trm in
   let reduce env trm = reduce_term (delta env trm) in
   let factors_dep = factor_term_dep assum env trm in
   debug_factors_dep factors_dep;
