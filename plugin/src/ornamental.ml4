@@ -305,6 +305,22 @@ let convertible (env : env) (trm1 : types) (trm2 : types) : bool =
 let type_eliminator (env : env) (ind : inductive) =
   Universes.constr_of_global (Indrec.lookup_eliminator ind InType)
 
+(* Recursively turn a product into a function *)
+let rec prod_to_lambda trm =
+  match kind_of_term trm with
+  | Prod (n, t, b) ->
+     mkLambda (n, t, prod_to_lambda b)
+  | _ ->
+     trm
+
+(* Recursively turn a function into a product *)
+let rec lambda_to_prod trm =
+  match kind_of_term trm with
+  | Lambda (n, t, b) ->
+     mkProd (n, t, lambda_to_prod b)
+  | _ ->
+     trm
+                             
 (* Zoom into a term *)
 let rec zoom_n_prod env npm typ : env * types =
   if npm = 0 then
@@ -315,6 +331,12 @@ let rec zoom_n_prod env npm typ : env * types =
        zoom_n_prod (push_local (n1, t1) env) (npm - 1) b1
     | _ ->
        failwith "more parameters expected"
+
+(* Lambda version *)
+let zoom_n_lambda env npm trm : env * types =
+  Printf.printf "npm: %d\n" npm;
+  let (env, typ) = zoom_n_prod env npm (lambda_to_prod trm) in
+  (env, prod_to_lambda typ)
 
 (* Zoom all the way into a lambda term *)
 let rec zoom_lambda_term (env : env) (trm : types) : env * types =
@@ -1076,15 +1098,12 @@ let rec find_path (assum : types) (env : env) (trm : types) : factors =
  * TODO this and above not yet fully working for when assum isn't 1
  *)
 let rec find_path_dep (assum : types) (env : env) (trm : types) : factor_tree =
-  debug_term env assum "assum";
-  debug_term env trm "trm";
   if is_assumption assum env trm then
     Factor ((env, trm), [])
   else
     match kind_of_term trm with
     | App (f, args) ->
        let trees = Array.map (find_path_dep assum env) args in
-       Array.iter debug_factors_dep trees;
        let filter_nonunit = List.filter (fun t -> not (t = Unit)) in
        let nonempty_trees = filter_nonunit (Array.to_list trees) in
        let num_trees = List.length nonempty_trees in
@@ -1110,7 +1129,6 @@ let rec find_path_dep (assum : types) (env : env) (trm : types) : factor_tree =
        let assum_ind = destRel assum in
        let args = Array.to_list args in
        let assumed = Array.of_list (assume_args 0 num_trees assum_ind (* TODO *) args) in
-       debug_terms env args "args";
        if num_trees > 0 then
          let (env, children) =
            List.fold_left
@@ -1164,6 +1182,8 @@ let factor_term (assum : types) (env : env) (trm : types) : factors =
 let factor_term_dep (assum : types) (env : env) (trm : types) : factor_tree =
   let (env_zoomed, trm_zoomed) = zoom_lambda_term env (reduce_term env trm) in
   let tree_body = find_path_dep assum env_zoomed trm_zoomed in
+  let assum_ind = destRel assum in
+  debug_factors_dep tree_body;
   let rec factor_dep t =
     match t with
     | Factor ((env, body), children) ->
@@ -1173,8 +1193,9 @@ let factor_term_dep (assum : types) (env : env) (trm : types) : factor_tree =
        else
          let num_old_rels = nb_rel env_zoomed in
          let num_new_rels = nb_rel env - num_old_rels in
-         let lambda = reconstruct_lambda_n env body (num_old_rels - 1) in
-         let env_lambda = pop_rel_context (num_new_rels + 1) env in
+         let lambda = reconstruct_lambda_n env body (num_old_rels - assum_ind) in
+         let env_lambda = pop_rel_context (num_new_rels + assum_ind) env in
+         debug_term env_lambda lambda "lambda";
          Factor ((env_lambda, lambda), children)
     | Unit ->
        Unit
@@ -1344,22 +1365,6 @@ let deconstruct_eliminator env app =
 
 (* Find the offset of some environment from some number of parameters *)
 let offset env npm = nb_rel env - npm
-
-(* Recursively turn a product into a function *)
-let rec prod_to_lambda trm =
-  match kind_of_term trm with
-  | Prod (n, t, b) ->
-     mkLambda (n, t, prod_to_lambda b)
-  | _ ->
-     trm
-
-(* Recursively turn a function into a product *)
-let rec lambda_to_prod trm =
-  match kind_of_term trm with
-  | Lambda (n, t, b) ->
-     mkProd (n, t, lambda_to_prod b)
-  | _ ->
-     trm
 
 (*
  * Modify a case of an eliminator application to use
@@ -2322,22 +2327,26 @@ let get_assum orn env trm =
 (*
  * Factor an ornamented, but not yet reduced function
  *)
-let factor_ornamented (orn : promotion) (env : env) (trm : types) : factor_tree =
-  factor_term_dep (get_assum orn env trm) env trm
+let factor_ornamented (orn : promotion) (env : env) (trm : types) =
+  let assum = get_assum orn env trm in
+  (destRel assum, factor_term_dep assum env trm)
 
 (*
  * Compose factors of an ornamented, but not yet reduced function
  *)
-let rec compose_orn_factors (l : lifting) idx_n fs =
+let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
   let promote = l.orn.promote in
   let forget = l.orn.forget in
   let orn_indexer = Option.get l.orn.indexer in
+  debug_factors_dep fs;
   match fs with
   | Factor ((en, t), children) ->
      if List.length children > 0 then
        let child = List.hd (List.rev children) in
-       let ((t_app, indexer), env, composed) = compose_orn_factors l idx_n child in
+       let ((t_app, indexer), env, composed) = compose_orn_factors l assum_ind idx_n child in
        let (e_body, t_body) = zoom_lambda_term en t in
+       debug_term e_body t_body "t_body";
+       debug_env e_body "e_body";
        let body_uses f = applies f t_body in
        let uses f = (applies f t_app || body_uses f) && isApp t_app in
        let promotes = uses promote in
@@ -2348,6 +2357,7 @@ let rec compose_orn_factors (l : lifting) idx_n fs =
          let l = { l with is_indexer } in
          let g = (e_body, chain_reduce reduce_term delta e_body t_body) in
          let f = (env, map_if (chain_reduce reduce_term delta env) red t_app) in
+         debug_env (fst g) "g_env";
          debug_term (fst g) (snd g) "g";
          debug_term (fst f) (snd f) "f";
          let orn_f = if promotes then promote else if forgets then forget else orn_indexer in
@@ -2357,8 +2367,20 @@ let rec compose_orn_factors (l : lifting) idx_n fs =
          debug_term (fst f) app "app";
          ((app, indexer), env, true)
        else
-         let app = reduce_term env (mkApp (shift t, Array.make 1 t_app)) in
-         ((app, indexer), env, composed)
+         let x = 0 in debug_term en t "t";
+                      debug_env en "en";
+                      debug_env env "env";
+         let t = shift_by assum_ind t in
+         debug_term env t "shifted t";
+         let t_args =
+           if not composed then
+             let post_assums = mk_n_rels (assum_ind - 1) in
+             t_app :: post_assums
+           else
+             [t_app]
+         in debug_terms env t_args "t_args";
+            debug_term env (reduce_term env (mkAppl (t, t_args))) "t_app";
+            ((reduce_term env (mkAppl (t, t_args)), indexer), env, composed)
      else
        ((t, None), en, false)
   | Unit ->
@@ -2382,8 +2404,8 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let (promote, forget) =  map_if reverse (not is_fwd) (orn, orn_inv) in
   let orn = initialize_orn env promote forget in                         
   let l = initialize_lifting orn is_fwd in
-  let factors = factor_ornamented orn env trm in
-  let ((internalized, indexer), env, _) = compose_orn_factors l idx_n factors in
+  let (assum_ind, factors) = factor_ornamented orn env trm in
+  let ((internalized, indexer), env, _) = compose_orn_factors l assum_ind idx_n factors in
   (reconstruct_lambda env internalized, indexer)
 
 
@@ -2434,6 +2456,7 @@ let reduce_ornament n d_orn d_orn_inv d_old =
   let (trm_n, indexer) = internalize env idx_n c_orn c_orn_inv trm_o in
   (if Option.has_some indexer then
      let indexer_o = Option.get indexer in
+     debug_term env indexer_o "indexer_o";
      let (indexer_n, _) = internalize env idx_n c_orn c_orn_inv indexer_o in
      define_term idx_n env evm indexer_n;
      Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
