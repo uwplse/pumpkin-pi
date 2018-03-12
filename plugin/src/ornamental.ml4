@@ -2301,6 +2301,12 @@ let get_assum orn env trm =
         c := Some (last (unfold_args (get_arg assum_i t))); t)
       trm
   in Option.get !c
+
+(*
+ * Factor an ornamented, but not yet reduced function
+ *)
+let factor_ornamented (orn : promotion) (env : env) (trm : types) : factor_tree =
+  factor_term_dep (get_assum orn env trm) env trm
     
 (*
  * This takes a term (f o orn_inv) and reduces it to f' where orn_inv is
@@ -2322,10 +2328,9 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let (promote, forget) =  map_if reverse (not is_fwd) (orn, orn_inv) in
   let orn = initialize_orn env promote forget in                         
   let l = initialize_lifting orn is_fwd in
-  let assum = get_assum orn env trm in
-  let reduce env trm = reduce_term (delta env trm) in
-  let factors_dep = factor_term_dep assum env trm in
+  let factors_dep = factor_ornamented orn env trm in
   debug_factors_dep factors_dep;
+  let reduce env trm = reduce_term (delta env trm) in
   let orn_indexer = Option.get orn.indexer in
   let index_i = Option.get orn.index_i in
   let (Factor ((env, base), children)) = factors_dep in
