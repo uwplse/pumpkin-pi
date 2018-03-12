@@ -2276,6 +2276,32 @@ let compose_inductive idx_n index_i (comp : composition) =
   let cs = List.map (compose_c index_i (List.length pms_g) ip_g p) c_cs in
   debug_terms env_f cs "cs";
   (apply_eliminator ip pms p cs args, indexer)
+
+(*
+ * Find the assumption for factoring in an ornamented, but not
+ * yet reduced function. This is dependent on how the function is written
+ * for now, and so might fail for some inductive definitions;
+ * we should test this a lot and generalize it.
+ *)
+let get_assum orn env trm =
+  let c = ref None in
+  let _ =
+    map_unit_if
+      (fun t ->
+        match kind_of_term t with
+        | App (_, _) ->
+           let f = first_fun t in
+           isConst f && not (eq_constr f orn.promote || eq_constr f orn.forget)
+        | _ ->
+           false)
+      (fun t ->
+        let unorn = unwrap_definition env (first_fun t) in
+        let (_, unorn_typ) = zoom_product_type env (infer_type env unorn) in
+        let assum_i = arity unorn - destRel (last (unfold_args unorn_typ)) in
+        c := Some (last (unfold_args (get_arg assum_i t))); t)
+      trm
+  in Option.get !c
+    
 (*
  * This takes a term (f o orn_inv) and reduces it to f' where orn_inv is
  * moved inside of the function.
@@ -2296,25 +2322,7 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let (promote, forget) =  map_if reverse (not is_fwd) (orn, orn_inv) in
   let orn = initialize_orn env promote forget in                         
   let l = initialize_lifting orn is_fwd in
-  let c = ref None in
-  let _ =
-    map_unit_if
-      (fun t ->
-        match kind_of_term t with
-        | App (_, _) ->
-           let f = first_fun t in
-           isConst f && not (eq_constr f orn.promote || eq_constr f orn.forget)
-        | _ ->
-           false)
-      (fun t ->
-        let unorn = unwrap_definition env (first_fun t) in
-        (* TODO this is sensitive to how the function is written *)
-        let (_, unorn_typ) = zoom_product_type env (infer_type env unorn) in
-        let assum_i = arity unorn - destRel (last (unfold_args unorn_typ)) in
-        c := Some (last (unfold_args (get_arg assum_i t))); t)
-      trm
-  in
-  let assum = Option.get !c in
+  let assum = get_assum orn env trm in
   let reduce env trm = reduce_term (delta env trm) in
   let factors_dep = factor_term_dep assum env trm in
   debug_factors_dep factors_dep;
