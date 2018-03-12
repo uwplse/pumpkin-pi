@@ -765,7 +765,7 @@ let with_suffix id suffix =
   Id.of_string (String.concat "_" [prefix; suffix])
 
 (* Default reducer *)
-let reduce_term (trm : types) : types =
+let reduce_term (env : env) (trm : types) : types =
   Reductionops.nf_betaiotazeta Evd.empty trm
 
 (* Delta reduction *)
@@ -778,7 +778,11 @@ let reduce_nf (env : env) (trm : types) : types =
 
 (* Reduce the type *)
 let reduce_type (env : env) (trm : types) : types =
-  reduce_term (infer_type env trm)
+  reduce_term env (infer_type env trm)
+
+(* Chain reduction *)
+let chain_reduce rg rf (env : env) (trm : types) : types =
+  rg env (rf env trm)
 
 (* Apply on types instead of on terms *)
 let on_type f env trm =
@@ -1143,7 +1147,7 @@ let rec find_path_dep (assum : types) (env : env) (trm : types) : factor_tree =
  * function.
  *)
 let factor_term (assum : types) (env : env) (trm : types) : factors =
-  let (env_zoomed, trm_zoomed) = zoom_lambda_term env (reduce_term trm) in
+  let (env_zoomed, trm_zoomed) = zoom_lambda_term env (reduce_term env trm) in
   let path_body = find_path assum env_zoomed trm_zoomed in
   List.map
     (fun (env, body) ->
@@ -1158,7 +1162,7 @@ let factor_term (assum : types) (env : env) (trm : types) : factors =
  * Dependent version
  *)
 let factor_term_dep (assum : types) (env : env) (trm : types) : factor_tree =
-  let (env_zoomed, trm_zoomed) = zoom_lambda_term env (reduce_term trm) in
+  let (env_zoomed, trm_zoomed) = zoom_lambda_term env (reduce_term env trm) in
   let tree_body = find_path_dep assum env_zoomed trm_zoomed in
   let rec factor_dep t =
     match t with
@@ -1985,7 +1989,7 @@ let sub_in_hypos (l : lifting) (index_lam : types) (from_ind : types) (to_ind : 
       let args = unfold_args t in
       if l.is_fwd then
         let (before, after) = take_split index_i args in
-        let index_type = reduce_term (mkAppl (index_lam, before)) in
+        let index_type = reduce_term empty_env (mkAppl (index_lam, before)) in
         let t_args = insert_index_shift index_i (mkRel 1) args 1 in
         let t_ind = mkAppl (to_ind, t_args) in
         let sub_ind = all_eq_substs (mkRel 2, mkRel 1) in
@@ -2161,7 +2165,7 @@ let compose_p npms index_i (comp : composition) =
           l.lifted_indexer)
       l
       p_g
-  in reconstruct_lambda env_p_f (reduce_term (mkAppl (p, p_args)))
+  in reconstruct_lambda env_p_f (reduce_term env_p_f (mkAppl (p, p_args)))
 
 (*
  * Compose the IH for a constructor.
@@ -2177,7 +2181,7 @@ let compose_ih env_g npms_g ip_g c_f p =
       let (_, _, orn_final_typ) = CRD.to_tuple @@ lookup_rel 1 en in
       let typ_args = shift_all (unfold_args orn_final_typ) in
       let (_, non_pms) = take_split npms_g typ_args in
-      reduce_term (mkAppl (mkAppl (p, non_pms), orn_final)))
+      reduce_term en (mkAppl (mkAppl (p, non_pms), orn_final)))
     shift
     env_g
     p
@@ -2220,7 +2224,7 @@ let compose_c index_i npms_g ip_g p (comp : composition) =
                mkAppl (orn_f, snoc trm (on_type unfold_args env trm)))
              env_f_body)
           c_used
-      in reduce_term (mkAppl (f, args))
+      in reduce_term env_f_body (mkAppl (f, args))
     else
       let arg_i = if_indexer l index_i (arity orn_f_typ - 1) in
       Printf.printf "%d\n" arg_i;
@@ -2313,7 +2317,6 @@ let factor_ornamented (orn : promotion) (env : env) (trm : types) : factor_tree 
  * Compose factors of an ornamented, but not yet reduced function
  *)
 let rec compose_orn_factors (l : lifting) idx_n fs =
-  let reduce env trm = reduce_term (delta env trm) in
   let promote = l.orn.promote in
   let forget = l.orn.forget in
   let orn_indexer = Option.get l.orn.indexer in
@@ -2331,8 +2334,8 @@ let rec compose_orn_factors (l : lifting) idx_n fs =
        let no_red = branch composed composed true in
        if promotes || forgets || is_indexer then
          let l = { l with is_indexer } in
-         let g = (e_body, reduce e_body t_body) in
-         let f = (env, map_if (reduce env) (not no_red) t_app) in
+         let g = (e_body, chain_reduce reduce_term delta e_body t_body) in
+         let f = (env, map_if (chain_reduce reduce_term delta env) (not no_red) t_app) in
          debug_term (fst g) (snd g) "g";
          debug_term (fst f) (snd f) "f";
          let orn_f = branch promote forget orn_indexer in
@@ -2342,7 +2345,7 @@ let rec compose_orn_factors (l : lifting) idx_n fs =
          debug_term (fst f) app "app";
          ((app, indexer), env, true)
        else
-         let app = reduce_term (mkApp (shift t, Array.make 1 t_app)) in
+         let app = reduce_term env (mkApp (shift t, Array.make 1 t_app)) in
          ((app, indexer), env, composed)
      else
        ((t, None), en, false)
