@@ -2201,16 +2201,14 @@ let compose_c npms_g ip_g p (comp : composition) =
   let index_i = Option.get l.orn.index_i in
   let (env_g, c_g) = comp.g in
   let (env_f, c_f) = comp.f in
-  debug_term env_g c_g "c_g";
-  debug_term env_f c_f "c_f";
   let orn_f = lift_back l in
   let orn_f_typ = reduce_type env_f orn_f in
   let to_typ = first_fun (fst (ind_of_orn orn_f_typ)) in
   let is_deorn = is_or_applies to_typ in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_g_used = get_used_or_p_hypos always_true c_g in
+  let (env_f_body_old, _) = zoom_lambda_term env_f c_f in
   let c_f = compose_ih env_g npms_g ip_g c_f p in
-  debug_term env_f c_f "c_f";
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let off = offset env_f_body (nb_rel env_f) in
   let f_body =
@@ -2229,31 +2227,18 @@ let compose_c npms_g ip_g p (comp : composition) =
       in reduce_term env_f_body (mkAppl (f, args))
     else
       let arg_i = if_indexer l index_i (arity orn_f_typ - 1) in
-      Printf.printf "%d\n" arg_i;
       let (nsubs, f_body) = map_track_unit_if (applies orn_f) (get_arg arg_i) f_body in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
-      let orn_g = lift_to l in
-      let orn_g_typ = reduce_type env_g orn_g in 
-      let from_type = first_fun (fst (ind_of_orn orn_f_typ)) in
-      let is_orn = is_or_applies from_type in
-      Printf.printf "%d\n" nsubs;
+      let orn_g_typ = reduce_type env_g (lift_to l) in 
+      let from_typ = first_fun (fst (ind_of_orn orn_g_typ)) in
+      let is_orn = is_or_applies from_typ in
       (* Does this generalize, too? *)
       map_if
-        (fun f_body ->
-          (* TODO: this fails, need to defer substituting the IH as well *)
-          debug_term env_f_body f_body "f_body";
-          let f_body =
-            map_unit_env_if
-              (on_type is_deorn)
-              (fun env trm ->
-                mkAppl (orn_g, snoc trm (on_type unfold_args env trm)))
-              env_f_body
-              f_body
-          in debug_term env_f_body f_body "f_body'";
-          debug_term env_f_body (infer_type env_f_body f_body) "f_body_typ";
-          let f_args = snoc f_body (on_type unfold_args env_f_body f_body) in
-          debug_terms env_f_body f_args "f_args";
-          reduce_nf env_f_body (mkAppl (f, f_args)))
+        (map_unit_env_if
+           (on_type is_orn)
+           (fun env trm ->
+             mkAppl (f, snoc trm (on_type unfold_args env trm)))
+           env_f_body_old)
         (nsubs = 0)
         f_body
   in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
@@ -2296,10 +2281,8 @@ let compose_inductive idx_n (comp : composition) =
       (Option.has_some indexer)
       p
   in
-  debug_term env_f p_exp "p_exp";
   let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
   let cs_exp = List.map (compose_c (List.length pms_g) ip_g p_exp) c_cs in
-  debug_terms env_f cs_exp "cs_exp";
   let cs = (* undo the above *)
     List.map
       (map_if
