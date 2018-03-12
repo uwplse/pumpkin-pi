@@ -2206,7 +2206,6 @@ let compose_c npms_g ip_g p (comp : composition) =
   let orn_f = lift_back l in
   let orn_f_typ = reduce_type env_f orn_f in
   let to_typ = first_fun (fst (ind_of_orn orn_f_typ)) in
-  debug_term env_f to_typ "to_typ";
   let is_deorn = is_or_applies to_typ in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_g_used = get_used_or_p_hypos always_true c_g in
@@ -2231,17 +2230,26 @@ let compose_c npms_g ip_g p (comp : composition) =
     else
       let arg_i = if_indexer l index_i (arity orn_f_typ - 1) in
       Printf.printf "%d\n" arg_i;
-      debug_term env_f_body f_body "f_body";
       let (nsubs, f_body) = map_track_unit_if (applies orn_f) (get_arg arg_i) f_body in
-      debug_term env_f_body f_body "f_body";
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
-      debug_term env_f_body f "f";
+      let orn_g = lift_to l in
+      let orn_g_typ = reduce_type env_g orn_g in 
+      let from_type = first_fun (fst (ind_of_orn orn_f_typ)) in
+      let is_orn = is_or_applies from_type in
       Printf.printf "%d\n" nsubs;
       (* Does this generalize, too? *)
       map_if
         (fun f_body ->
+          (* TODO: this fails, need to defer substituting the IH as well *)
           debug_term env_f_body f_body "f_body";
-          debug_env env_f_body "env_f_body";
+          let f_body =
+            map_unit_env_if
+              (on_type is_deorn)
+              (fun env trm ->
+                mkAppl (orn_g, snoc trm (on_type unfold_args env trm)))
+              env_f_body
+              f_body
+          in debug_term env_f_body f_body "f_body'";
           debug_term env_f_body (infer_type env_f_body f_body) "f_body_typ";
           let f_args = snoc f_body (on_type unfold_args env_f_body f_body) in
           debug_terms env_f_body f_args "f_args";
@@ -2392,7 +2400,6 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let orn = initialize_orn env promote forget in                         
   let l = initialize_lifting orn is_fwd in
   let factors = factor_ornamented orn env trm in
-  debug_factors_dep factors;
   let ((internalized, indexer), env, _) = compose_orn_factors l idx_n factors in
   (reconstruct_lambda env internalized, indexer)
 
