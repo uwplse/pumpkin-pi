@@ -2163,7 +2163,6 @@ let compose_p npms post_assums (comp : composition) =
             let p_g_args_old = unfold_args p_g_b in
             let (i_pms, _) = take_split npms p_g_args_old in
             let i_non_pms = shift_all_by npms (mk_n_rels off) in
-            Printf.printf "num post_assums: %d\n" (List.length post_assums);
             let i_args = List.append (List.append i_pms i_non_pms) (shift_all_by (off + 1) post_assums) in
             let index = mkAppl (indexer, i_args) in
             let p_g_args = reindex index_i index p_g_args_old in
@@ -2246,18 +2245,31 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
              let args = unfold_args trm in
              let ihs = List.filter (on_type is_orn env) args in
              let typ_args = on_type unfold_args env trm in
-             map_if
-               (fun body ->
-                 List.fold_right
-                   all_eq_substs
-                   (List.map
-                      (fun ih ->
-                        let app = mkAppl (f, snoc ih typ_args) in
-                        (reduce_nf env app, ih))
-                      ihs)
-                   (reduce_nf env body))
-               comp.l.is_indexer
-               (mkAppl (f, snoc trm typ_args)))
+             List.fold_right
+               (all_conv_substs env)
+               (List.append
+                  (if l.is_indexer then
+                     []
+                   else
+                     (List.map
+                        (fun ih ->
+                          let app = mkAppl (Option.get l.orn.indexer, snoc ih typ_args) in
+                          let ih_typ_args = on_type unfold_args env ih in
+                          let orn_args = on_type unfold_args env (mkAppl (f, snoc ih ih_typ_args)) in
+                          let pre_args = snoc ih orn_args in
+                          let f_l = Option.get l.lifted_indexer in
+                          let app_l = mkAppl (f_l, List.append pre_args (shift_all_by (nb_rel env_f_body - nb_rel env_f) post_assums)) in
+                          debug_term env app "app";
+                          debug_term env app_l "app_l";
+                          (app, app_l))
+                        ihs))
+                  (List.map
+                     (fun ih ->
+                       let app = mkAppl (f, snoc ih typ_args) in
+                       debug_term env app "app";
+                       (app, ih))
+                     ihs))
+               (reduce_nf env (mkAppl (f, snoc trm typ_args))))
            env_f_body_old)
         (nsubs = 0)
         f_body
