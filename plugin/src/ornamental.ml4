@@ -2307,7 +2307,48 @@ let get_assum orn env trm =
  *)
 let factor_ornamented (orn : promotion) (env : env) (trm : types) : factor_tree =
   factor_term_dep (get_assum orn env trm) env trm
-    
+
+(*
+ * Compose factors of an ornamented, but not yet reduced function
+ *)
+let rec compose_orn_factors (l : lifting) idx_n fs =
+  let reduce env trm = reduce_term (delta env trm) in
+  let orn = l.orn in
+  let orn_indexer = Option.get orn.indexer in
+  let index_i = Option.get orn.index_i in
+  match fs with
+  | Factor ((en, t), children) ->
+     if List.length children > 0 then
+       let child = List.hd (List.rev children) in
+       let ((t_app, indexer), env, composed) = compose_orn_factors l idx_n child in
+       let (e_body, t_body) = zoom_lambda_term en t in
+       let body_uses f = applies f t_body in
+       let uses f = (applies f t_app || body_uses f) && isApp t_app in
+       let promotes = uses orn.promote in
+       let forgets = uses orn.forget in
+       let is_indexer = uses orn_indexer in
+       let branch a b c = if promotes then a else if forgets then b else c in
+       let no_red = branch composed composed true in
+       if promotes || forgets || is_indexer then
+         let l = { l with is_indexer } in
+         let g = (e_body, reduce e_body t_body) in
+         let f = (env, map_if (reduce env) (not no_red) t_app) in
+         debug_term (fst g) (snd g) "g";
+         debug_term (fst f) (snd f) "f";
+         let orn_f = branch orn.promote orn.forget orn_indexer in
+         let is_g = applies orn_f t_body in
+         let comp = { l ; g ; f ; is_g } in
+         let (app, indexer) = compose_inductive idx_n index_i comp in
+         debug_term (fst f) app "app";
+         ((app, indexer), env, true)
+       else
+         let app = reduce_term (mkApp (shift t, Array.make 1 t_app)) in
+         ((app, indexer), env, composed)
+     else
+       ((t, None), en, false)
+  | Unit ->
+     failwith "unexpected"
+                  
 (*
  * This takes a term (f o orn_inv) and reduces it to f' where orn_inv is
  * moved inside of the function.
@@ -2320,55 +2361,15 @@ let factor_ornamented (orn : promotion) (env : env) (trm : types) : factor_tree 
  * of the induction principle for the unornamented type. Basically,
  * this is a very preliminary attempt at solving this problem, which I
  * will build on.
- *
- * TODO need to clean a lot
  *)
 let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm : types) =
   let is_fwd = direction env orn in
   let (promote, forget) =  map_if reverse (not is_fwd) (orn, orn_inv) in
   let orn = initialize_orn env promote forget in                         
   let l = initialize_lifting orn is_fwd in
-  let factors_dep = factor_ornamented orn env trm in
-  debug_factors_dep factors_dep;
-  let reduce env trm = reduce_term (delta env trm) in
-  let orn_indexer = Option.get orn.indexer in
-  let index_i = Option.get orn.index_i in
-  let (Factor ((env, base), children)) = factors_dep in
-  let rec compose_factors fs =
-    match fs with
-    | Factor ((en, t), children) ->
-       if List.length children > 0 then
-         let child = List.hd (List.rev children) in
-         let ((t_app, indexer), env, composed) = compose_factors child in
-         let (e_body, t_body) = zoom_lambda_term en t in
-         let body_uses f = applies f t_body in
-         let uses f = (applies f t_app || body_uses f) && isApp t_app in
-         let promotes = uses orn.promote in
-         let forgets = uses orn.forget in
-         let is_indexer = uses orn_indexer in
-         let branch a b c = if promotes then a else if forgets then b else c in
-         let no_red = branch composed composed true in
-         if promotes || forgets || is_indexer then
-           let l = { l with is_indexer } in
-           let g = (e_body, reduce e_body t_body) in
-           let f = (env, map_if (reduce env) (not no_red) t_app) in
-           debug_term (fst g) (snd g) "g";
-           debug_term (fst f) (snd f) "f";
-           let orn_f = branch orn.promote orn.forget orn_indexer in
-           let is_g = applies orn_f t_body in
-           let comp = { l ; g ; f ; is_g } in
-           let (app, indexer) = compose_inductive idx_n index_i comp in
-           debug_term (fst f) app "app";
-           ((app, indexer), env, true)
-         else
-           let app = reduce_term (mkApp (shift t, Array.make 1 t_app)) in
-           ((app, indexer), env, composed)
-       else
-         ((t, None), en, false)
-    | Unit ->
-       failwith "unexpected"
-  in
-  let ((internalized, indexer), env, _) = compose_factors factors_dep in
+  let factors = factor_ornamented orn env trm in
+  debug_factors_dep factors;
+  let ((internalized, indexer), env, _) = compose_orn_factors l idx_n factors in
   (reconstruct_lambda env internalized, indexer)
 
 
