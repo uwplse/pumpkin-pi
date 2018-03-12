@@ -2321,7 +2321,23 @@ let compose_inductive idx_n post_assums (comp : composition) =
          (fun c_exp ->
            let li = Option.get comp.l.lifted_indexer in
            let i = Option.get indexer in
-           all_eq_substs (i, li) c_exp)
+           let orn_i = Option.get l.orn.indexer in
+           map_unit_env_if
+             (fun _ trm -> is_or_applies li trm)
+             (fun env trm ->
+               let index = get_arg index_i trm in
+               debug_term env index "index";
+               if is_or_applies orn_i index then
+                 let ih = last (unfold_args index) in
+                 debug_term env ih "ih";
+                 let ih_typ = reduce_type env ih in
+                 debug_term env ih_typ "ih_typ";
+                 let ih_ind = Array.get (Array.of_list (unfold_args ih_typ)) index_i in
+                 ih_ind
+               else
+                 trm)
+             env_f
+             (all_eq_substs (i, li) c_exp))
          (Option.has_some indexer))
       cs_exp
   in debug_terms env_f cs "cs"; (apply_eliminator ip pms p cs args, indexer)
