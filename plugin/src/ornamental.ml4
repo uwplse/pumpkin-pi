@@ -2182,7 +2182,7 @@ let compose_ih env_g npms_g ip_g c_f p =
       let (_, _, orn_final_typ) = CRD.to_tuple @@ lookup_rel 1 en in
       let typ_args = shift_all (unfold_args orn_final_typ) in
       let (_, non_pms) = take_split npms_g typ_args in
-      reduce_term en (mkAppl (mkAppl (p, non_pms), orn_final)))
+      mkAppl (mkAppl (p, non_pms), orn_final))
     shift
     env_g
     p
@@ -2279,10 +2279,29 @@ let compose_inductive idx_n (comp : composition) =
   let c_p = { comp with g = (env_g, p_g); f = (env_f, p_f) } in
   let p = compose_p (List.length pms) c_p in
   debug_term env_f p "p";
+  let p_exp = (* defer defining the indexer *)
+    map_if
+      (fun p ->
+        let li = Option.get comp.l.lifted_indexer in
+        let i = Option.get indexer in
+        all_eq_substs (li, i) p)
+      (Option.has_some indexer)
+      p
+  in
+  debug_term env_f p_exp "p_exp";
   let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
-  let cs = List.map (compose_c (List.length pms_g) ip_g p) c_cs in
-  debug_terms env_f cs "cs";
-  (apply_eliminator ip pms p cs args, indexer)
+  let cs_exp = List.map (compose_c (List.length pms_g) ip_g p_exp) c_cs in
+  debug_terms env_f cs_exp "cs_exp";
+  let cs = (* undo the above *)
+    List.map
+      (map_if
+         (fun c_exp ->
+           let li = Option.get comp.l.lifted_indexer in
+           let i = Option.get indexer in
+           all_eq_substs (i, li) c_exp)
+         (Option.has_some indexer))
+      cs_exp
+  in debug_terms env_f cs "cs"; (apply_eliminator ip pms p cs args, indexer)
 
 (*
  * Find the assumption for factoring in an ornamented, but not
