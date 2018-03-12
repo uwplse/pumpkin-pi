@@ -2242,7 +2242,18 @@ let compose_c npms_g ip_g p (comp : composition) =
         (map_unit_env_if
            (on_type is_orn)
            (fun env trm ->
-             mkAppl (f, snoc trm (on_type unfold_args env trm)))
+             let args = unfold_args trm in
+             let ihs = List.filter (on_type is_orn env) args in
+             debug_terms env ihs "ihs";
+             let typ_args = on_type unfold_args env trm in
+             List.fold_right
+               all_eq_substs
+               (List.map
+                  (fun ih ->
+                    let app = reduce_nf env (mkAppl (f, snoc ih typ_args)) in
+                    (app, ih))
+                  ihs)
+               (reduce_nf env (mkAppl (f, snoc trm typ_args))))
            env_f_body_old)
         (nsubs = 0)
         f_body
