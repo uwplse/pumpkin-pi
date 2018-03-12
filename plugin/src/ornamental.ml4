@@ -1183,7 +1183,6 @@ let factor_term_dep (assum : types) (env : env) (trm : types) : factor_tree =
   let (env_zoomed, trm_zoomed) = zoom_lambda_term env (reduce_term env trm) in
   let tree_body = find_path_dep assum env_zoomed trm_zoomed in
   let assum_ind = destRel assum in
-  debug_factors_dep tree_body;
   let rec factor_dep t =
     match t with
     | Factor ((env, body), children) ->
@@ -1195,7 +1194,6 @@ let factor_term_dep (assum : types) (env : env) (trm : types) : factor_tree =
          let num_new_rels = nb_rel env - num_old_rels in
          let lambda = reconstruct_lambda_n env body (num_old_rels - assum_ind) in
          let env_lambda = pop_rel_context (num_new_rels + assum_ind) env in
-         debug_term env_lambda lambda "lambda";
          Factor ((env_lambda, lambda), children)
     | Unit ->
        Unit
@@ -2259,14 +2257,11 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
                           let pre_args = snoc ih orn_args in
                           let f_l = Option.get l.lifted_indexer in
                           let app_l = mkAppl (f_l, List.append pre_args (shift_all_by (nb_rel env_f_body - nb_rel env_f) post_assums)) in
-                          debug_term env app "app";
-                          debug_term env app_l "app_l";
                           (app, app_l))
                         ihs))
                   (List.map
                      (fun ih ->
                        let app = mkAppl (f, snoc ih typ_args) in
-                       debug_term env app "app";
                        (app, ih))
                      ihs))
                (reduce_nf env (mkAppl (f, snoc trm typ_args))))
@@ -2303,7 +2298,6 @@ let compose_inductive idx_n post_assums (comp : composition) =
   in
   let c_p = { comp with g = (env_g, p_g); f = (env_f, p_f) } in
   let p = compose_p (List.length pms) post_assums c_p in
-  debug_term env_f p "p";
   let p_exp = (* defer defining the indexer *)
     map_if
       (fun p ->
@@ -2326,21 +2320,17 @@ let compose_inductive idx_n post_assums (comp : composition) =
              (fun _ trm -> is_or_applies li trm)
              (fun env trm ->
                let index = get_arg index_i trm in
-               debug_term env index "index";
                if is_or_applies orn_i index then
                  let ih = last (unfold_args index) in
-                 debug_term env ih "ih";
                  let ih_typ = reduce_type env ih in
-                 debug_term env ih_typ "ih_typ";
-                 let ih_ind = Array.get (Array.of_list (unfold_args ih_typ)) index_i in
-                 ih_ind
+                 Array.get (Array.of_list (unfold_args ih_typ)) index_i
                else
                  trm)
              env_f
              (all_eq_substs (i, li) c_exp))
          (Option.has_some indexer))
       cs_exp
-  in debug_terms env_f cs "cs"; (apply_eliminator ip pms p cs args, indexer)
+  in (apply_eliminator ip pms p cs args, indexer)
 
 (*
  * Find the assumption for factoring in an ornamented, but not
@@ -2381,7 +2371,6 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
   let promote = l.orn.promote in
   let forget = l.orn.forget in
   let orn_indexer = Option.get l.orn.indexer in
-  debug_factors_dep fs;
   match fs with
   | Factor ((en, t), children) ->
      if List.length children > 0 then
@@ -2389,8 +2378,6 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
        let child = List.hd (List.rev children) in
        let ((t_app, indexer), env, composed) = compose_orn_factors l assum_ind idx_n child in
        let (e_body, t_body) = zoom_lambda_term en t in
-       debug_term e_body t_body "t_body";
-       debug_env e_body "e_body";
        let body_uses f = applies f t_body in
        let uses f = (applies f t_app || body_uses f) && isApp t_app in
        let promotes = uses promote in
@@ -2401,30 +2388,19 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
          let l = { l with is_indexer } in
          let g = (e_body, chain_reduce reduce_term delta e_body t_body) in
          let f = (env, map_if (chain_reduce reduce_term delta env) red t_app) in
-         debug_env (fst g) "g_env";
-         debug_term (fst g) (snd g) "g";
-         debug_term (fst f) (snd f) "f";
          let orn_f = if promotes then promote else if forgets then forget else orn_indexer in
          let is_g = applies orn_f t_body in
          let comp = { l ; g ; f ; is_g } in
          let (app, indexer) = compose_inductive idx_n post_assums comp in
-         (if Option.has_some indexer then debug_term (fst f) (Option.get indexer) "indexer" else ());
-         debug_term (fst f) app "app";
          ((app, indexer), env, true)
        else
-         let x = 0 in debug_term en t "t";
-                      debug_env en "en";
-                      debug_env env "env";
          let t = shift_by assum_ind t in
-         debug_term env t "shifted t";
          let t_args =
            if not composed then
              t_app :: post_assums
            else
              [t_app]
-         in debug_terms env t_args "t_args";
-            debug_term env (reduce_term env (mkAppl (t, t_args))) "t_app";
-            ((reduce_term env (mkAppl (t, t_args)), indexer), env, composed)
+         in ((reduce_term env (mkAppl (t, t_args)), indexer), env, composed)
      else
        ((t, None), en, false)
   | Unit ->
@@ -2500,7 +2476,6 @@ let reduce_ornament n d_orn d_orn_inv d_old =
   let (trm_n, indexer) = internalize env idx_n c_orn c_orn_inv trm_o in
   (if Option.has_some indexer then
      let indexer_o = Option.get indexer in
-     debug_term env indexer_o "indexer_o";
      let (indexer_n, _) = internalize env idx_n c_orn c_orn_inv indexer_o in
      define_term idx_n env evm indexer_n;
      Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
