@@ -98,13 +98,24 @@ Definition append (A : Type) (l1 : list A) (l2 : list A) :=
       a :: IH)
     l1.
 
+(* For now, we don't eliminate the vector reference, since incides might refer to other things *)
+Definition plus_vect (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 : vector A n2) :=
+  vector_rect
+    A
+    (fun (n0 : nat) (_ : vector A n0) => nat)
+    n2
+    (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : nat) =>
+      S (IH))
+    n1
+    v1.
+
 Definition append_vect (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 : vector A n2) :=
   vector_rect
     A
-    (fun (n0 : nat) (_ : vector A n0) => vector A (n0 + n2))
+    (fun (n0 : nat) (v0 : vector A n0) => vector A (plus_vect A n0 v0 n2 v2))
     v2
-    (fun (n0 : nat) (a : A) (_ : vector A n0) (IH : vector A (n0 + n2)) =>
-      consV A (n0 + n2) a IH)
+    (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : vector A (plus_vect A n0 v0 n2 v2)) =>
+      consV A (plus_vect A n0 v0 n2 v2) a IH)
     n1
     v1.
 
@@ -132,7 +143,7 @@ Theorem test_orn_append:
   forall A n (v : vector A n) n' (v' : vector A n'),
     eq_vect
       A
-      (n + n')
+      (plus_vect A n v n' v')
       (append_vect A n v n' v')
       (orn_list_vector_index
         A

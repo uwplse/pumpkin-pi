@@ -72,14 +72,25 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Print append.
-Print append_vect_auto.
-
 (*
- * Application (TODO fails because of factoring problem)
+ * Application
  *)
 
 Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red. 
+
+Theorem test_append_vect:
+  forall (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 : vector A n2),
+    append_vect A n1 v1 n2 v2 = append_vect_red A n1 v1 n2 v2.
+Proof.
+  intros. reflexivity.
+Qed.
+
+(*
+ * TODO the opposite direction fails, investigate
+ *)
+Reduce ornament orn_list_vector_inv orn_list_vector in append_auto as append_red.
+
+Print append_red. (* TODO test *)
 
 (* TODO proofs and more complex things *)
 
