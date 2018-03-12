@@ -2136,8 +2136,9 @@ let ornament_no_red (env : env) (orn_f : types) (orn_inv_f : types) (trm : types
  * Compose two properties for two applications of an induction principle
  * that are structurally the same when one is an ornament.
  *)
-let compose_p npms index_i (comp : composition) =
+let compose_p npms (comp : composition) =
   let l = comp.l in
+  let index_i = Option.get l.orn.index_i in
   let (_, p_g) = comp.g in
   let (_, p_f) = comp.f in
   let (env_p_f, p_f_b) = zoom_lambda_term empty_env p_f in
@@ -2195,8 +2196,9 @@ let compose_ih env_g npms_g ip_g c_f p =
  *
  * TODO clean, refactor orn/deorn, take fewer arguments, etc.
  *)
-let compose_c index_i npms_g ip_g p (comp : composition) =
+let compose_c npms_g ip_g p (comp : composition) =
   let l = comp.l in
+  let index_i = Option.get l.orn.index_i in
   let (env_g, c_g) = comp.g in
   let (env_f, c_f) = comp.f in
   debug_term env_g c_g "c_g";
@@ -2204,6 +2206,7 @@ let compose_c index_i npms_g ip_g p (comp : composition) =
   let orn_f = lift_back l in
   let orn_f_typ = reduce_type env_f orn_f in
   let to_typ = first_fun (fst (ind_of_orn orn_f_typ)) in
+  debug_term env_f to_typ "to_typ";
   let is_deorn = is_or_applies to_typ in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_g_used = get_used_or_p_hypos always_true c_g in
@@ -2266,7 +2269,6 @@ let compose_inductive idx_n (comp : composition) =
       let (env_f_body, f_body) = zoom_lambda_term env_f f in
       let f_typ_args = on_type unfold_args env_f_body f_body in
       let index_args = snoc f_body f_typ_args in
-      debug_terms env_f_body index_args "index_args";
       let indexer = reconstruct_lambda env_f_body (mkAppl (indexer, index_args)) in
       let lifted_indexer = Some (make_constant idx_n) in
       let l = { l with lifted_indexer } in
@@ -2275,10 +2277,10 @@ let compose_inductive idx_n (comp : composition) =
       (comp, None)
   in
   let c_p = { comp with g = (env_g, p_g); f = (env_f, p_f) } in
-  let p = compose_p (List.length pms) index_i c_p in
+  let p = compose_p (List.length pms) c_p in
   debug_term env_f p "p";
   let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
-  let cs = List.map (compose_c index_i (List.length pms_g) ip_g p) c_cs in
+  let cs = List.map (compose_c (List.length pms_g) ip_g p) c_cs in
   debug_terms env_f cs "cs";
   (apply_eliminator ip pms p cs args, indexer)
 
@@ -2328,17 +2330,17 @@ let rec compose_orn_factors (l : lifting) idx_n fs =
        let (e_body, t_body) = zoom_lambda_term en t in
        let body_uses f = applies f t_body in
        let uses f = (applies f t_app || body_uses f) && isApp t_app in
-       let (promotes, forgets) = map_tuple uses (promote, forget) in
+       let promotes = uses promote in
+       let forgets = uses forget in
        let is_indexer = uses orn_indexer in
-       let branch a b c = if promotes then a else if forgets then b else c in
-       let no_red = branch composed composed true in
        if promotes || forgets || is_indexer then
+         let red = not (if promotes || forgets then composed else true) in
          let l = { l with is_indexer } in
          let g = (e_body, chain_reduce reduce_term delta e_body t_body) in
-         let f = (env, map_if (chain_reduce reduce_term delta env) (not no_red) t_app) in
+         let f = (env, map_if (chain_reduce reduce_term delta env) red t_app) in
          debug_term (fst g) (snd g) "g";
          debug_term (fst f) (snd f) "f";
-         let orn_f = branch promote forget orn_indexer in
+         let orn_f = if promotes then promote else if forgets then forget else orn_indexer in
          let is_g = applies orn_f t_body in
          let comp = { l ; g ; f ; is_g } in
          let (app, indexer) = compose_inductive idx_n comp in
