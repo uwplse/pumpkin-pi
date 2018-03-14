@@ -86,7 +86,7 @@ Proof.
 Qed.
 
 (*
- * TODO the opposite direction fails, investigate
+ * TODO the opposite direction fails, investigate (probably a factoring problem)
  *)
 Reduce ornament orn_list_vector_inv orn_list_vector in append_auto as append_red.
 

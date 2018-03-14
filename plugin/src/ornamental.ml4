@@ -1022,6 +1022,22 @@ let is_assumption (assum : types) (env : env) (trm : types) : bool =
   convertible env trm assum
 
 (*
+ * Assume but don't replace
+ *)
+let assume_no_replace (assum : types) (env : env) (n : name) (typ : types) : env =
+  let assum_ind = destRel assum in
+  let non_assums =
+    List.map
+      (fun i ->
+        let (n, _, t) = CRD.to_tuple @@ lookup_rel i env in
+        (n, shift t))
+      (from_one_to (assum_ind - 1))
+  in
+  let env_pop = pop_rel_context (assum_ind - 1) env in
+  let env_assum = push_rel CRD.(LocalAssum (n, typ)) env_pop in
+  List.fold_right push_local non_assums env_assum
+  
+(*
  * Assume a term of type typ in an environment
  *)
 let assume (assum : types) (env : env) (n : name) (typ : types) : env =
@@ -1107,50 +1123,64 @@ let rec find_path_dep (assum : types) (env : env) (trm : types) : factor_tree =
        let filter_nonunit = List.filter (fun t -> not (t = Unit)) in
        let nonempty_trees = filter_nonunit (Array.to_list trees) in
        let num_trees = List.length nonempty_trees in
-       let rec assume_args i j k args =
+       let assum_ind = destRel assum in
+       let env_old = env in
+       let rec assume_args env tree_i factors_left args =
          match args with
          | h :: tl ->
-            let (h', j') =
-              (match (Array.get trees i) with
+            let off = nb_rel env - nb_rel env_old in
+            let (h', factors_left') =
+              (match (Array.get trees tree_i) with
                | Factor (_, _) ->
-                  (mkRel (j + k - 1), j - 1)
+                  Printf.printf "arg %d has a factor\n" tree_i;
+                  Printf.printf "factors left: %d\n" factors_left;
+                  Printf.printf "returning rel %d\n" (factors_left + assum_ind - 1);
+                  Printf.printf "adjusting j to %d\n\n" (factors_left - 1);
+                  (mkRel (factors_left + assum_ind - 1), factors_left - 1)
                | Unit ->
-                  if j > 1 then
-                    let off = j - 1 in
-                    (shift_by off h, j)
-                  else
-                    (h, j))
+                  Printf.printf "arg %d has no factors\n" tree_i;
+                  Printf.printf "keeping j as %d\n" factors_left;
+                  Printf.printf "shifting arg by %d\n\n" off;
+                  (shift_local assum_ind off h, factors_left))
             in
             (*let (h', j') = apply_assumption_dep j k (Array.get trees i) h in*)
-            h' :: (assume_args (i + 1) j' k tl)
+            h' :: (assume_args env (tree_i + 1) factors_left' tl)
          | [] ->
             []
        in
-       let assum_ind = destRel assum in
        let args = Array.to_list args in
-       let assumed = Array.of_list (assume_args 0 num_trees assum_ind (* TODO *) args) in
        if num_trees > 0 then
          let (env, children) =
            List.fold_left
              (fun ((en, cn) : env * factor_tree list) (tr : factor_tree) ->
                let (Factor ((env_arg, arg), children)) = tr in
-               try
-                 if List.length cn > 0 then
-                   let (Factor ((en_prev, prev), _)) = List.hd cn in
-                   let off = nb_rel en - nb_rel en_prev in
-                   let t = reduce_type env_arg arg in
-                   let t = all_conv_substs en_prev (prev, mkRel (1 - off)) t in
-                   let en_t = push_local (Anonymous, shift_by off t) en in
-                   (en_t, ((Factor ((env_arg, arg), children)) :: cn))
-                 else
-                   let t = unshift_by (destRel assum) (reduce_type env_arg arg) in
-                   let en_t = assume assum en Anonymous t in
-                   (en_t, [((Factor ((env_arg, arg), children)))])
-               with _ ->
-                 (en, [Unit]))
+               if List.length cn > 0 then
+                 let (Factor ((en_prev, prev), _)) = List.hd cn in
+                 let off = nb_rel en - nb_rel en_prev in
+                 let t = reduce_type env_arg arg in
+                 let t = all_conv_substs en_prev (prev, mkRel (assum_ind - off)) t in
+                 debug_env en "en";
+                 debug_term en t "t";
+                 (* Instead of pushing to front, should be pushing
+                      to the correct offset *)
+                 (* TODO now, the offset is wrong, need to adjust
+                      correctly *)
+                 let en_t = assume_no_replace assum en Anonymous (shift_by (off - assum_ind + 1) t) in
+                 debug_env en_t "en_t";
+                 (en_t, ((Factor ((env_arg, arg), children)) :: cn))
+               else
+                 let t = unshift_by assum_ind (reduce_type env_arg arg) in
+                 debug_env en "en";
+                 let en_t = assume assum en Anonymous t in
+                 debug_env en_t "en_t";
+                 (en_t, [((Factor ((env_arg, arg), children)))]))
              (env, [])
              nonempty_trees
-         in Factor ((env, mkApp (f, assumed)), List.rev children)
+         in
+         (* There's a weird problem here; in theory need env for each 
+            factor, but we aren't getting that *)
+         let assumed = Array.of_list (assume_args env 0 num_trees (* TODO *) args) in
+         debug_env env_old "env_old"; debug_env env "env"; debug_terms env args "args"; debug_terms env (Array.to_list assumed) "assumed"; Factor ((env, mkApp (f, assumed)), List.rev children)
        else
 	 Unit
     | _ -> (* other terms not yet implemented *)
@@ -1181,7 +1211,9 @@ let factor_term (assum : types) (env : env) (trm : types) : factors =
  *)
 let factor_term_dep (assum : types) (env : env) (trm : types) : factor_tree =
   let (env_zoomed, trm_zoomed) = zoom_lambda_term env (reduce_term env trm) in
+  debug_term env_zoomed assum "assum";
   let tree_body = find_path_dep assum env_zoomed trm_zoomed in
+  Printf.printf "%s\n" "found";
   let assum_ind = destRel assum in
   let rec factor_dep t =
     match t with
