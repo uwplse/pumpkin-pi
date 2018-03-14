@@ -2258,19 +2258,40 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
           []
       in
       let index_args = indexes env_g c_used (lambda_to_prod c_g) in
-      let index_args = List.filter (fun a -> not (is_or_applies from_typ (infer_type env_g_body a))) index_args in
-      debug_terms env_g_body index_args "index_args";
+      let index_args = List.mapi (fun i _ -> i) (List.filter (fun a -> not (is_or_applies from_typ (infer_type env_g_body a))) index_args) in
       (* Does this generalize? *)
       let args =
-        List.map
-          (map_unit_env_if
-             (on_type is_deorn)
-             (fun env trm ->
-               mkAppl (orn_f, snoc trm (on_type unfold_args env trm)))
-             env_f_body)
-          c_used
-      in
-      debug_term env_f_body f "f"; debug_terms env_f_body args "args"; reduce_term env_f_body (mkAppl (f, args))
+        List.mapi
+          (fun i a -> (* TODO put this together based on the vs, then filter out stuff in index_args *)
+            (* TODO what should this even be? like, if we need to elim something, like in the tree example, then what? *)
+            if List.mem i index_args then
+              mkRel 0 (* Later just sub w/ something reasonable *)
+            else
+              a)
+          (List.map
+             (map_unit_env_if
+                (on_type is_deorn)
+                (fun env trm ->
+                  mkAppl (orn_f, snoc trm (on_type unfold_args env trm)))
+                env_f_body)
+             c_used)
+      in let app = reduce_term env_f_body (mkAppl (f, args)) in
+         debug_term env_f_body app "app";
+         (* TODO now sub in *)
+         map_unit_env_if
+           (fun en tr ->
+             match kind_of_term tr with
+             | App (_, _) ->
+                let args = unfold_args tr in
+                List.exists (eq_constr (mkRel 0)) args
+             | _ ->
+                false)
+           (fun en tr ->
+             let args = unfold_args tr in
+           (* TODO sub in each arg w/ the index after it *)
+             tr)
+           env_f_body
+           app
     else
       let arg_i = if_indexer l index_i (arity orn_f_typ - 1) in
       let (nsubs, f_body) = map_track_unit_if (applies orn_f) (get_arg arg_i) f_body in
