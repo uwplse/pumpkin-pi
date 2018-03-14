@@ -1559,17 +1559,20 @@ let rec computes_index index_i p i trm =
        contains_term i (get_arg index_i t) || computes_index index_i p_b i_b b
      else
        computes_index index_i p_b i_b b
-  | App (_, _) ->
+  | App (_, _) when applies p trm ->
      contains_term i (get_arg index_i trm)
   | _ ->
-     failwith "unexpected"
+     false
 
 (*
  * Returns true if the hypothesis i is _only_ used to compute the index
  * at index_i, and is not used to compute any other indices
  *)
 let computes_only_index env index_i p i trm =
+  debug_term env trm "trm";
+  debug_term env p "p";
   let indices = List.map unshift_i (from_one_to (arity (infer_type env p) - 1)) in
+  (List.iter (Printf.printf "%d\n") indices);
   if computes_index index_i p i trm then
     let indices_not_i = remove_index index_i indices in
     List.for_all (fun j -> not (computes_index j p i trm)) indices_not_i
@@ -2218,17 +2221,45 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
   let orn_f = lift_back l in
   let orn_f_typ = reduce_type env_f orn_f in
   let to_typ = first_fun (fst (ind_of_orn orn_f_typ)) in
+  let orn_g_typ = reduce_type env_g (lift_to l) in 
+  let from_typ = first_fun (fst (ind_of_orn orn_g_typ)) in
   let is_deorn = is_or_applies to_typ in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_g_used = get_used_or_p_hypos always_true c_g in
+  debug_term env_f c_f "c_f";
+  debug_term env_g c_g "c_g";
   let (env_f_body_old, _) = zoom_lambda_term env_f c_f in
   let c_f = compose_ih env_g npms_g ip_g c_f p in
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
-  let off = offset env_f_body (nb_rel env_f) in
+  let off_f = offset env_f_body (nb_rel env_f) in
   let f_body =
     if not comp.is_g then
-      let f = map_directional (shift_by off) (shift_by (off - 1)) l c_g in
+      let (env_g_body, _) = zoom_lambda_term env_g c_g in
+      let off_g = offset env_g_body (nb_rel env_g) in
+      let off = offset env_f_body (nb_rel env_g) in
+      let num_assums = List.length post_assums in
+      let f_f = shift_local num_assums (offset env_f (nb_rel env_g)) c_g in
+      let shift_if = if num_assums > off_g then num_assums - off_g else 0 in
+      let f = shift_by off_f f_f in
       let c_used = directional l c_f_used c_g_used in
+      debug_terms env_g_body c_used "c_used";
+      let rec indexes env args trm =
+        debug_term env trm "trm";
+        if not l.is_fwd then
+          match (args, kind_of_term trm) with
+          | (h :: tl, Prod (n, t, b)) ->
+             if computes_index index_i from_typ (mkRel 1) b then (* TODO should be comptues_only_index but to do that, need to fix a bug *)
+               h :: indexes (push_local (n, t) env) tl b
+             else
+               indexes (push_local (n, t) env) tl b
+          | _ ->
+             []
+        else
+          []
+      in
+      let index_args = indexes env_g c_used (lambda_to_prod c_g) in
+      let index_args = List.filter (fun a -> not (is_or_applies from_typ (infer_type env_g_body a))) index_args in
+      debug_terms env_g_body index_args "index_args";
       (* Does this generalize? *)
       let args =
         List.map
@@ -2238,13 +2269,12 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
                mkAppl (orn_f, snoc trm (on_type unfold_args env trm)))
              env_f_body)
           c_used
-      in reduce_term env_f_body (mkAppl (f, args))
+      in
+      debug_term env_f_body f "f"; debug_terms env_f_body args "args"; reduce_term env_f_body (mkAppl (f, args))
     else
       let arg_i = if_indexer l index_i (arity orn_f_typ - 1) in
       let (nsubs, f_body) = map_track_unit_if (applies orn_f) (get_arg arg_i) f_body in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
-      let orn_g_typ = reduce_type env_g (lift_to l) in 
-      let from_typ = first_fun (fst (ind_of_orn orn_g_typ)) in
       let is_orn = is_or_applies from_typ in
       (* Does this generalize, too? *)
       map_if
