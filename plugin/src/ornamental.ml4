@@ -1569,8 +1569,6 @@ let rec computes_index index_i p i trm =
  * at index_i, and is not used to compute any other indices
  *)
 let computes_only_index env index_i p i trm =
-  debug_term env trm "trm";
-  debug_term env p "p";
   let indices = List.map unshift_i (from_one_to (arity (infer_type env p) - 1)) in
   (List.iter (Printf.printf "%d\n") indices);
   if computes_index index_i p i trm then
@@ -2244,7 +2242,6 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
       let c_used = directional l c_f_used c_g_used in
       debug_terms env_g_body c_used "c_used";
       let rec indexes env args trm =
-        debug_term env trm "trm";
         if not l.is_fwd then
           match (args, kind_of_term trm) with
           | (h :: tl, Prod (n, t, b)) ->
@@ -2277,7 +2274,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
              c_used)
       in let app = reduce_term env_f_body (mkAppl (f, args)) in
          debug_term env_f_body app "app";
-         (* TODO now sub in *)
+         let app =
          map_unit_env_if
            (fun en tr ->
              match kind_of_term tr with
@@ -2287,21 +2284,58 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
              | _ ->
                 false)
            (fun en tr ->
+             debug_term en tr "tr";
              let args = unfold_args tr in
-           (* TODO sub in each arg w/ the index after it *)
-             tr)
+             debug_terms en args "args";
+             debug_term en from_typ "from_typ";
+             let v_args =
+               List.filter
+                 (fun (i, a) ->
+                   try
+                     on_type (is_or_applies from_typ) en a
+                   with _ ->
+                     false)
+                 (List.mapi (fun i a -> (i, a)) args)
+             in
+             let i_args =
+               List.map
+                 (fun (i, v) ->
+                   debug_term en v "v";
+                   let v_t = reduce_type en v in
+                   let num_args = List.length (unfold_args v_t) in
+                   debug_term en v_t "v_t";
+                   let off = num_args - index_i in
+                   (i - off, get_arg index_i v_t))
+                 v_args
+             in
+             let args =
+               List.mapi
+                 (fun i a ->
+                   if eq_constr a (mkRel 0) && (List.mem_assoc i i_args) then
+                     List.assoc i i_args
+                   else
+                     a)
+                 args
+             in let app = mkAppl (first_fun tr, args) in
+                debug_term env_f_body app "app";
+                app)
            env_f_body
            app
+         in app
     else
       let arg_i = if_indexer l index_i (arity orn_f_typ - 1) in
       let (nsubs, f_body) = map_track_unit_if (applies orn_f) (get_arg arg_i) f_body in
+      debug_term env_f_body f_body "f_body";
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
       let is_orn = is_or_applies from_typ in
       (* Does this generalize, too? *)
       map_if
         (map_unit_env_if
-           (on_type is_orn)
            (fun env trm ->
+             debug_term env trm "trm";
+             on_type is_orn env trm)
+           (fun env trm ->
+             debug_term env trm "trm";
              let args = unfold_args trm in
              let ihs = List.filter (on_type is_orn env) args in
              let typ_args = on_type unfold_args env trm in
@@ -2360,6 +2394,7 @@ let compose_inductive idx_n post_assums (comp : composition) =
   in
   let c_p = { comp with g = (env_g, p_g); f = (env_f, p_f) } in
   let p = compose_p (List.length pms) post_assums c_p in
+  debug_term env_f p "p";
   let p_exp = (* defer defining the indexer *)
     map_if
       (fun p ->
@@ -2371,6 +2406,7 @@ let compose_inductive idx_n post_assums (comp : composition) =
   in
   let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
   let cs_exp = List.map (compose_c (List.length pms_g) ip_g p_exp post_assums) c_cs in
+  debug_terms env_f cs_exp "cs_exp";
   let cs = (* undo the above *)
     List.map
       (map_if
@@ -2392,7 +2428,7 @@ let compose_inductive idx_n post_assums (comp : composition) =
              (all_eq_substs (i, li) c_exp))
          (Option.has_some indexer))
       cs_exp
-  in (apply_eliminator ip pms p cs args, indexer)
+  in debug_terms env_f cs "cs"; (apply_eliminator ip pms p cs args, indexer)
 
 (*
  * Find the assumption for factoring in an ornamented, but not
