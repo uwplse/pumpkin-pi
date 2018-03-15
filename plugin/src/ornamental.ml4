@@ -2321,7 +2321,13 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
                 app)
            env_f_body
            app
-         in app
+         in
+         if is_or_applies from_typ (infer_type env_f_body app) then
+           let x = 0 in
+           Printf.printf "%s\n\n" "here";
+           app
+         else
+           app
     else
       let arg_i = if_indexer l index_i (arity orn_f_typ - 1) in
       let (nsubs, f_body) = map_track_unit_if (applies orn_f) (get_arg arg_i) f_body in
