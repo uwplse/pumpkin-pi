@@ -1970,7 +1970,7 @@ let pack env index_typ f_indexer index_i npm ind ind_n arity is_fwd unpacked =
     let packer_indexed = mkAppl (shift_by arity packer, [mkRel 1]) in
     let pack_b = mkLambda (Anonymous, packer_indexed, unpacked_indexed) in
     let pack_unpacked = mkLambda (Anonymous, index_typ, pack_b) in
-    let packed = mkAppl (sigT_rect, [index_typ; packer; elim; pack_unpacked]) in
+    let packed = mkAppl (sigT_rect, [index_typ; packer; elim; pack_unpacked; mkRel 1]) in
     (env_packed, packed)
               
 (* Search two inductive types for an indexing ornament, using eliminators *)
