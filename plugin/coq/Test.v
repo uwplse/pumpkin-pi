@@ -35,13 +35,18 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Print orn_list_vector_inv.
-
 Theorem test_orn_inv:
   forall (A : Type) (v : packed_vector A),
     list A.
 Proof.
   exact orn_list_vector_inv.
+Qed.
+
+Theorem test_orn_inv_unpack:
+  forall (A : Type) (n : nat) (v : vector A n),
+    list A.
+Proof.
+  intros. apply orn_list_vector_inv. exists n. apply v.
 Qed.
 
 (* --- Backwards lists --- *)
@@ -90,10 +95,17 @@ Proof.
 Qed.
 
 Theorem test_orn_inv_2:
-  forall (A : Type) (n : nat) (l : rev_vector A n),
+  forall (A : Type) (l : packed_rev_vector A),
     rev_list A.
 Proof.
   exact orn_rev_list_rev_vector_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_2:
+  forall (A : Type) (n : nat) (v : rev_vector A n),
+    rev_list A.
+Proof.
+  intros. apply orn_rev_list_rev_vector_inv. exists n. apply v.
 Qed.
 
 (* --- Binary Trees and Indexed Binary Trees --- *)
@@ -147,11 +159,19 @@ Proof.
 Qed.
 
 Theorem test_orn_inv_3:
-  forall (A : Type) (n : nat) (tr : bintreeV A n),
+  forall (A : Type) (tr : packed_bintreeV A),
     bintree A.
 Proof.
   exact orn_bintree_bintreeV_inv.
 Qed.
+
+Theorem test_orn_inv_unpack_3:
+  forall (A : Type) (n : nat) (tr : bintreeV A n),
+    bintree A.
+Proof.
+  intros. apply orn_bintree_bintreeV_inv. exists n. apply tr.
+Qed.
+
 
 (* --- Lists of values of two types (making sure parameter logic works) --- *)
 
@@ -200,10 +220,17 @@ Proof.
 Qed.
 
 Theorem test_orn_inv_4:
-  forall (A : Type) (B : Type) (n : nat) (l : vector2 A B n),
+  forall (A : Type) (B : Type) (l : packed_vector2 A B),
     list2 A B.
 Proof.
   exact orn_list2_vector2_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_4:
+  forall (A : Type) (B : Type) (n : nat) (l : vector2 A B n),
+    bintree A.
+Proof.
+  intros. apply orn_bintree_bintreeV_inv. exists n. apply tr.
 Qed.
 
 (* --- Adding a nat index to a nat list --- *)
