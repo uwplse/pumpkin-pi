@@ -7,6 +7,9 @@ Inductive vector (A : Type) : nat -> Type :=
 | nilV : vector A 0
 | consV : forall (n : nat), A -> vector A n -> vector A (S n).
 
+Definition packed_vector (T : Type) :=
+  sigT (A := nat) (fun (n : nat) => vector T n).
+
 Find ornament list vector as orn_list_vector.
 
 Theorem test_index:
