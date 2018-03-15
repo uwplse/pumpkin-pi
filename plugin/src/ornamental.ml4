@@ -1032,34 +1032,49 @@ let is_assumption (assum : types) (env : env) (trm : types) : bool =
   convertible env trm assum
 
 (*
+ * Lookup n rels and remove then
+ *)
+let lookup_pop (n : int) (env : env) =
+  let rels = List.map (fun i -> lookup_rel i env) (from_one_to n) in
+  (pop_rel_context n env, rels)
+              
+(*
  * Assume but don't replace
  *)
 let assume_no_replace (assum : types) (env : env) (n : name) (typ : types) : env =
   let assum_ind = destRel assum in
+  let (env_pop, non_assums) = lookup_pop (assum_ind - 1) env in
   let non_assums =
     List.map
-      (fun i ->
-        let (n, _, t) = CRD.to_tuple @@ lookup_rel i env in
+      (fun rel ->
+        let (n, _, t) = CRD.to_tuple rel in
         (n, shift t))
-      (from_one_to (assum_ind - 1))
+      non_assums
   in
-  let env_pop = pop_rel_context (assum_ind - 1) env in
-  let env_assum = push_rel CRD.(LocalAssum (n, typ)) env_pop in
+  let env_assum = push_local (n, typ) env_pop in
   List.fold_right push_local non_assums env_assum
-  
+                  
 (*
  * Assume a term of type typ in an environment
  *)
 let assume (assum : types) (env : env) (n : name) (typ : types) : env =
   let assum_ind = destRel assum in
-  let non_assums =
-    List.map
-      (fun i -> lookup_rel i env)
-      (from_one_to (assum_ind - 1))
-  in
-  let env_pop = pop_rel_context assum_ind env in
-  let env_assum = push_rel CRD.(LocalAssum (n, typ)) env_pop in
+  let (env_pop, non_assums) = lookup_pop (assum_ind - 1) env in
+  let env_assum = push_local (n, typ) (pop_rel_context 1 env_pop) in
   List.fold_right push_rel non_assums env_assum
+
+(*
+ * Remove the binding at index i from the environment
+ *)
+let remove_rel (i : int) (env : env) : env =
+  let (env_pop, popped) = lookup_pop i env in
+  let push =
+    List.map
+      (fun rel ->
+        let (n, _, t) = CRD.to_tuple rel in
+        (n, unshift t))
+      (List.rev (List.tl (List.rev popped)))
+  in List.fold_right push_local push env_pop
 
 (*
  * Auxiliary path-finding function, once we are zoomed into a lambda
@@ -1942,8 +1957,8 @@ let pack env index_typ f_indexer index_i npm ind arity is_fwd unpacked =
     let packed_args = reindex index_i (mkRel 1) unpacked_args in
     let reindexed = mkAppl (ind, packed_args) in
     let packer = mkLambda (Anonymous, index_typ, reindexed) in
-    let packed_typ = mkAppl (sigT, [index_typ; reindexed]) in 
-    let env_packed = push_local (from_n, packed_typ) (pop_rel_context 1 env) in
+    let packed_typ = mkAppl (sigT, [index_typ; packer]) in
+    let env_packed = push_local (from_n, packed_typ) (remove_rel (nb_rel env - index_i - 1) (pop_rel_context 1 env)) in
     (env_packed, unpacked) (* TODO *)
               
 (* Search two inductive types for an indexing ornament, using eliminators *)
@@ -1979,7 +1994,7 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (int option * types opti
      let index_i_o = directional (Some index_i) None in
      let unpacked = apply_eliminator elim_o pms p cs final_args in
      let packer ind ar = pack env_ornament index_t f_indexer index_i npm ind ar is_fwd unpacked in
-     let packed = directional (packer ind_n arity_n) (packer ind_o arity_o) in
+     let packed = if is_fwd then (packer ind_n arity_n) else (packer ind_o arity_o) in
      debug_env (fst packed) "packed_env";
      (index_i_o, indexer, reconstruct_lambda (fst packed) (snd packed))
   | _ ->
