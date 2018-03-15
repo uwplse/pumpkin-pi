@@ -1907,6 +1907,7 @@ let orn_index_cases index_i npm is_fwd indexer_f orn_p o n : types list =
 (* TODO explain *)
 let pack n index_typ f_indexer unpacked npm index_i =
   let (_, ind, arity, _) = n in
+  let index_typ = shift_by (arity - 1) index_typ in
   let unpacked_args = shift_all (mk_n_rels (arity - 1)) in
   let packed_args = insert_index_shift (npm + index_i) (mkRel 1) unpacked_args 1 in
   let reindexed = mkAppl (ind, packed_args) in
@@ -2546,6 +2547,7 @@ let find_ornament n d_old d_new =
        Printf.printf "Defined indexing function %s.\n\n" (string_of_id idx_n);
      else
        ());
+    debug_term env orn.promote "orn.promote";
     define_term n env evm orn.promote;
     Printf.printf "Defined promotion %s.\n\n" (string_of_id n);
     let inv_n = with_suffix n "inv" in
