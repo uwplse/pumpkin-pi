@@ -2547,7 +2547,6 @@ let find_ornament n d_old d_new =
        Printf.printf "Defined indexing function %s.\n\n" (string_of_id idx_n);
      else
        ());
-    debug_term env orn.promote "orn.promote";
     define_term n env evm orn.promote;
     Printf.printf "Defined promotion %s.\n\n" (string_of_id n);
     let inv_n = with_suffix n "inv" in

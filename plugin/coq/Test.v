@@ -571,9 +571,16 @@ Qed.
 
 Theorem test_orn_12:
   forall (A : Type) (l : list A),
-    hd_list A (orn_list_hdlist_index A l).
+    packed_hd_list A.
 Proof.
   exact orn_list_hdlist.
+Qed.
+
+Theorem test_orn_index_12:
+  forall (A : Type) (l : list A),
+    projT1 (orn_list_hdlist A l) = orn_list_hdlist_index A l.
+Proof.
+  intros. reflexivity.
 Qed.
 
 Theorem test_orn_inv_12:
@@ -611,7 +618,7 @@ Definition list_alt_hd (A : Type) (l : list_alt A) :=
     A
     l.
 
-Theorem test_orn_index_13:
+Theorem test_index_13:
   forall (A : Type) (l : list_alt A),
     list_alt_hd A l = orn_listalt_hdlistalt_index A l.
 Proof.
@@ -620,9 +627,16 @@ Qed.
 
 Theorem test_orn_13:
   forall (A : Type) (l : list_alt A),
-    hd_list_alt A (list_alt_hd A l).
+    packed_hd_list_alt A.
 Proof.
   exact orn_listalt_hdlistalt.
+Qed.
+
+Theorem test_orn_index_13:
+  forall (A : Type) (l : list_alt A),
+    projT1 (orn_listalt_hdlistalt A l) = orn_listalt_hdlistalt_index A l.
+Proof.
+  intros. reflexivity.
 Qed.
 
 Theorem test_orn_inv_13:
@@ -651,7 +665,7 @@ Definition nat_size (n : nat) :=
       S IH)
     n.
 
-Theorem test_orn_index_14:
+Theorem test_index_14:
   forall (n : nat),
     nat_size n = orn_nat_natnat_index n.
 Proof.
@@ -660,9 +674,16 @@ Qed.
 
 Theorem test_orn_14:
   forall (n : nat),
-    nat_nat (nat_size n).
+    packed_nat_nat.
 Proof.
   exact orn_nat_natnat.
+Qed.
+
+Theorem test_orn_index_14:
+  forall (n : nat),
+    projT1 (orn_nat_natnat n) = orn_nat_natnat_index n.
+Proof.
+  intros. reflexivity.
 Qed.
 
 Theorem test_orn_inv_14:
