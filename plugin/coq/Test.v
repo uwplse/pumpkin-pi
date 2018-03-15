@@ -44,6 +44,8 @@ Qed.
 
 Print temporary.
 
+Check sigT_rect.
+
 Theorem test_orn_inv:
   forall (A : Type) (n : nat) (v : vector A n),
     list A.

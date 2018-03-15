@@ -1938,7 +1938,7 @@ let orn_index_cases index_i npm is_fwd indexer_f orn_p o n : types list =
  *
  * TODO later, refactor code common to both cases
  *)
-let pack env index_typ f_indexer index_i npm ind arity is_fwd unpacked =
+let pack env index_typ f_indexer index_i npm ind ind_n arity is_fwd unpacked =
   let index_i = npm + index_i in
   if is_fwd then
     (* pack conclusion *)
@@ -1958,8 +1958,20 @@ let pack env index_typ f_indexer index_i npm ind arity is_fwd unpacked =
     let reindexed = mkAppl (ind, packed_args) in
     let packer = mkLambda (Anonymous, index_typ, reindexed) in
     let packed_typ = mkAppl (sigT, [index_typ; packer]) in
-    let env_packed = push_local (from_n, packed_typ) (remove_rel (nb_rel env - index_i - 1) (pop_rel_context 1 env)) in
-    (env_packed, unpacked) (* TODO *)
+    let env_pop = pop_rel_context 1 env in
+    let index_rel = nb_rel env_pop - index_i in
+    let env_packed = push_local (from_n, packed_typ) (remove_rel index_rel env_pop) in
+    let elim_b = shift (mkAppl (ind_n, shift_all (mk_n_rels (arity - 1)))) in
+    let elim_t = mkAppl (sigT, [index_typ; shift packer]) in
+    let elim = mkLambda (Anonymous, elim_t, elim_b) in
+    let unpacked_shift = shift unpacked in
+    let subs = [(mkRel (index_rel + 2), mkRel 2); (mkRel 2, mkRel 1)] in
+    let unpacked_indexed = List.fold_right all_eq_substs subs unpacked_shift in
+    let packer_indexed = mkAppl (shift_by arity packer, [mkRel 1]) in
+    let pack_b = mkLambda (Anonymous, packer_indexed, unpacked_indexed) in
+    let pack_unpacked = mkLambda (Anonymous, index_typ, pack_b) in
+    let packed = mkAppl (sigT_rect, [index_typ; packer; elim; pack_unpacked]) in
+    (env_packed, packed)
               
 (* Search two inductive types for an indexing ornament, using eliminators *)
 let search_orn_index_elim npm idx_n elim_o o n is_fwd : (int option * types option * types) =
@@ -1993,9 +2005,8 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (int option * types opti
      let final_args = Array.of_list (mk_n_rels off) in
      let index_i_o = directional (Some index_i) None in
      let unpacked = apply_eliminator elim_o pms p cs final_args in
-     let packer ind ar = pack env_ornament index_t f_indexer index_i npm ind ar is_fwd unpacked in
+     let packer ind ar = pack env_ornament index_t f_indexer index_i npm ind ind_n ar is_fwd unpacked in (* TODO clean args *)
      let packed = if is_fwd then (packer ind_n arity_n) else (packer ind_o arity_o) in
-     debug_env (fst packed) "packed_env";
      (index_i_o, indexer, reconstruct_lambda (fst packed) (snd packed))
   | _ ->
      failwith "not eliminators"
