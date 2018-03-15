@@ -33,6 +33,15 @@ Proof.
   intros. reflexivity.
 Qed.
 
+Theorem temporary:
+  forall (A : Type) (v : packed_vector A),
+    list A.
+Proof.
+  intros. induction v. apply (orn_list_vector_inv A x p). 
+Qed.
+
+Print temporary.
+
 Theorem test_orn_inv:
   forall (A : Type) (n : nat) (v : vector A n),
     list A.

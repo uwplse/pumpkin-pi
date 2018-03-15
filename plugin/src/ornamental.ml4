@@ -1904,11 +1904,22 @@ let orn_index_cases index_i npm is_fwd indexer_f orn_p o n : types list =
   | _ ->
      failwith "not an eliminator"
 
-(* TODO explain *)
+(*
+ * This packs an ornament to or from an indexed type like Vector A n,
+ * with n at index_i, into a sigma type. The theory of this is more elegant,
+ * and the types are easier to reason about automatically. However,
+ * the other version may be more desirable for users.
+ *
+ * It is simple to extract the unpacked version from this form;
+ * later it might be useful to define both separately.
+ * For now we have a metatheoretic guarantee about the indexer we return
+ * corresponding to the projection of the sigma type.
+ *)
 let pack n index_typ f_indexer unpacked npm index_i =
   let (_, ind, arity, _) = n in
-  let index_typ = shift_by (arity - 1) index_typ in
-  let unpacked_args = shift_all (mk_n_rels (arity - 1)) in
+  let off = arity - 1 in
+  let index_typ = shift_by off index_typ in
+  let unpacked_args = shift_all (mk_n_rels off) in
   let packed_args = insert_index_shift (npm + index_i) (mkRel 1) unpacked_args 1 in
   let reindexed = mkAppl (ind, packed_args) in
   let packer = mkLambda (Anonymous, index_typ, reindexed) in
