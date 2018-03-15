@@ -87,13 +87,19 @@ type composition =
   
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
-(* existT *)
+let coq_init_specif = ModPath.MPfile (DirPath.make (List.map Id.of_string ["Specif"; "Init"; "Coq"]))
+                                     
+(* sigma types *)
+let sigT : types =
+  mkInd (MutInd.make1 (KerName.make2 coq_init_specif (Label.make "sigT")), 0)
+    
+(* Introduction for sigma types *)
 let existT : types =
-  let modpath = ModPath.MPfile (DirPath.make (List.map Id.of_string ["Specif"; "Init"; "Coq"])) in
-  let label = Label.make "sigT" in
-  let kername = KerName.make2 modpath label in
-  let sigT = MutInd.make1 kername in
-  mkConstruct ((sigT, 0), 1)
+  mkConstruct (fst (destInd sigT), 1)
+
+(* Elimination for sigma types *)
+let sigT_rect : types =
+  mkConst (Constant.make2 coq_init_specif (Label.make "sigT_rect"))
               
 (* This should be in the standard library, but isn't bound for some reason *)
 let map_default f default x =
@@ -1905,7 +1911,7 @@ let orn_index_cases index_i npm is_fwd indexer_f orn_p o n : types list =
      failwith "not an eliminator"
 
 (*
- * This packs an ornament to or from an indexed type like Vector A n,
+ * This packs an ornamental promotion to/from an indexed type like Vector A n,
  * with n at index_i, into a sigma type. The theory of this is more elegant,
  * and the types are easier to reason about automatically. However,
  * the other version may be more desirable for users.
@@ -1914,17 +1920,31 @@ let orn_index_cases index_i npm is_fwd indexer_f orn_p o n : types list =
  * later it might be useful to define both separately.
  * For now we have a metatheoretic guarantee about the indexer we return
  * corresponding to the projection of the sigma type.
+ *
+ * TODO later, refactor code common to both cases
  *)
-let pack n index_typ f_indexer unpacked npm index_i =
-  let (_, ind, arity, _) = n in
-  let off = arity - 1 in
-  let index_typ = shift_by off index_typ in
-  let unpacked_args = shift_all (mk_n_rels off) in
-  let packed_args = insert_index_shift (npm + index_i) (mkRel 1) unpacked_args 1 in
-  let reindexed = mkAppl (ind, packed_args) in
-  let packer = mkLambda (Anonymous, index_typ, reindexed) in
-  let index = mkAppl (f_indexer, mk_n_rels arity) in
-  mkAppl (existT, [index_typ; packer; index; unpacked])
+let pack env index_typ f_indexer index_i npm ind arity is_fwd unpacked =
+  let index_i = npm + index_i in
+  if is_fwd then
+    (* pack conclusion *)
+    let off = arity - 1 in
+    let index_typ = shift_by off index_typ in
+    let unpacked_args = shift_all (mk_n_rels off) in
+    let packed_args = insert_index_shift index_i (mkRel 1) unpacked_args 1 in
+    let reindexed = mkAppl (ind, packed_args) in
+    let packer = mkLambda (Anonymous, index_typ, reindexed) in
+    let index = mkAppl (f_indexer, mk_n_rels arity) in
+    (env, mkAppl (existT, [index_typ; packer; index; unpacked]))
+  else
+    (* pack hypothesis *)
+    let (from_n, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
+    let unpacked_args = unfold_args unpacked_typ in
+    let packed_args = reindex index_i (mkRel 1) unpacked_args in
+    let reindexed = mkAppl (ind, packed_args) in
+    let packer = mkLambda (Anonymous, index_typ, reindexed) in
+    let packed_typ = mkAppl (sigT, [index_typ; reindexed]) in 
+    let env_packed = push_local (from_n, packed_typ) (pop_rel_context 1 env) in
+    (env_packed, unpacked) (* TODO *)
               
 (* Search two inductive types for an indexing ornament, using eliminators *)
 let search_orn_index_elim npm idx_n elim_o o n is_fwd : (int option * types option * types) =
@@ -1958,8 +1978,10 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (int option * types opti
      let final_args = Array.of_list (mk_n_rels off) in
      let index_i_o = directional (Some index_i) None in
      let unpacked = apply_eliminator elim_o pms p cs final_args in
-     let packed = map_default (pack n index_t f_indexer unpacked npm) unpacked index_i_o in
-     (index_i_o, indexer, reconstruct_lambda env_ornament packed)
+     let packer ind ar = pack env_ornament index_t f_indexer index_i npm ind ar is_fwd unpacked in
+     let packed = directional (packer ind_n arity_n) (packer ind_o arity_o) in
+     debug_env (fst packed) "packed_env";
+     (index_i_o, indexer, reconstruct_lambda (fst packed) (snd packed))
   | _ ->
      failwith "not eliminators"
               

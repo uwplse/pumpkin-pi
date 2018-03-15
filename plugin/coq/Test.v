@@ -10,6 +10,8 @@ Inductive vector (A : Type) : nat -> Type :=
 Definition packed_vector (T : Type) :=
   sigT (A := nat) (fun (n : nat) => vector T n).
 
+Print packed_vector.
+
 Find ornament list vector as orn_list_vector.
 
 Theorem test_index:
