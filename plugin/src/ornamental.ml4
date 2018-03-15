@@ -87,9 +87,14 @@ type composition =
   
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
-(* Apply a function f to x if b holds, otherwise just return x *)
-
-
+(* existT *)
+let existT : types =
+  let modpath = ModPath.MPfile (DirPath.make (List.map Id.of_string ["Specif"; "Init"; "Coq"])) in
+  let label = Label.make "sigT" in
+  let kername = KerName.make2 modpath label in
+  let sigT = MutInd.make1 kername in
+  mkConstruct ((sigT, 0), 1)
+              
 (* This should be in the standard library, but isn't bound for some reason *)
 let map_default f default x =
   if Option.has_some x then f (Option.get x) else default
@@ -1899,6 +1904,16 @@ let orn_index_cases index_i npm is_fwd indexer_f orn_p o n : types list =
   | _ ->
      failwith "not an eliminator"
 
+(* TODO explain *)
+let pack n index_typ f_indexer unpacked npm index_i =
+  let (_, ind, arity, _) = n in
+  let unpacked_args = shift_all (mk_n_rels (arity - 1)) in
+  let packed_args = insert_index_shift (npm + index_i) (mkRel 1) unpacked_args 1 in
+  let reindexed = mkAppl (ind, packed_args) in
+  let packer = mkLambda (Anonymous, index_typ, reindexed) in
+  let index = mkAppl (f_indexer, mk_n_rels arity) in
+  mkAppl (existT, [index_typ; packer; index; unpacked])
+              
 (* Search two inductive types for an indexing ornament, using eliminators *)
 let search_orn_index_elim npm idx_n elim_o o n is_fwd : (int option * types option * types) =
   let directional a b = if is_fwd then a else b in
@@ -1929,12 +1944,18 @@ let search_orn_index_elim npm idx_n elim_o o n is_fwd : (int option * types opti
      let p_cs = unshift_by (arity - npm) p in
      let cs = shift_all_by off_b (orn_index_cases index_i npm is_fwd f_indexer p_cs o n) in
      let final_args = Array.of_list (mk_n_rels off) in
-     let ornament = apply_eliminator_recons env_ornament elim_o pms p cs final_args in
-     (directional (Some index_i) None, indexer, ornament)
+     let index_i_o = directional (Some index_i) None in
+     let unpacked = apply_eliminator elim_o pms p cs final_args in
+     let packed = map_default (pack n index_t f_indexer unpacked npm) unpacked index_i_o in
+     (index_i_o, indexer, reconstruct_lambda env_ornament packed)
   | _ ->
      failwith "not eliminators"
-
-(* Search two inductive types for an indexing ornament *)
+              
+(*
+ * Search two inductive types for an indexing ornament
+ *
+ * TODO later: take sigma directly, so that we're told what the new index is, to simplify
+ *)
 let search_orn_index env npm idx_n o n is_fwd : (int option * types option * types) =
   let (pind_o, arity_o) = o in
   let (pind_n, arity_n) = n in
@@ -1947,6 +1968,7 @@ let search_orn_index env npm idx_n o n is_fwd : (int option * types option * typ
   let o = (env_o, pind_o, arity_o, elim_t_o') in
   let n = (env_n, pind_n, arity_n, elim_t_n') in
   search_orn_index_elim npm idx_n elim_o o n is_fwd
+  
 
 (* Search two inductive types for an ornament between them *)
 let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : types) : promotion =
