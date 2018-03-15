@@ -10,8 +10,6 @@ Inductive vector (A : Type) : nat -> Type :=
 Definition packed_vector (T : Type) :=
   sigT (A := nat) (fun (n : nat) => vector T n).
 
-Print packed_vector.
-
 Find ornament list vector as orn_list_vector.
 
 Theorem test_index:
@@ -228,9 +226,9 @@ Qed.
 
 Theorem test_orn_inv_unpack_4:
   forall (A : Type) (B : Type) (n : nat) (l : vector2 A B n),
-    bintree A.
+    list2 A B.
 Proof.
-  intros. apply orn_bintree_bintreeV_inv. exists n. apply tr.
+  intros. apply orn_list2_vector2_inv. exists n. apply l.
 Qed.
 
 (* --- Adding a nat index to a nat list --- *)
@@ -278,10 +276,17 @@ Proof.
 Qed.
 
 Theorem test_orn_inv_5:
-  forall (n : nat) (v : nat_vector n),
+  forall (v : packed_nat_vector),
     nat_list.
 Proof.
   exact orn_natlist_natvector_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_5:
+  forall (n : nat) (v : nat_vector n),
+    nat_list.
+Proof.
+  intros. apply orn_natlist_natvector_inv. exists n. apply v.
 Qed.
 
 (* --- BintreeV with nats in reverse order --- *)
@@ -329,10 +334,17 @@ Proof.
 Qed.
 
 Theorem test_orn_inv_6:
-  forall (A : Type) (n : nat) (tr : bintreeV_rev A n),
+  forall (A : Type) (tr : packed_bintreeV_rev A),
     bintree A.
 Proof.
   exact orn_bintree_bintreeV_rev_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_6:
+  forall (A : Type) (n : nat) (tr : bintreeV_rev A n),
+    bintree A.
+Proof.
+  intros. apply orn_bintree_bintreeV_rev_inv. exists n. apply tr.
 Qed.
 
 (* --- Adding an index whose type that matches an already existing index --- *)
@@ -380,10 +392,17 @@ Proof.
 Qed.
 
 Theorem test_orn_inv_7:
-  forall (A : Type) (n : nat) (m : nat) (d : doublevector A n m),
+  forall (A : Type) (m : nat) (d : packed_doublevector A m),
     vector A m.
 Proof.
   exact orn_vector_doublevector_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_7:
+  forall (A : Type) (n : nat) (m : nat) (d : doublevector A n m),
+    vector A m.
+Proof.
+  intros. apply orn_vector_doublevector_inv. exists n. apply d.
 Qed.
 
 (* --- Same as above, but switch the position we change --- *)
