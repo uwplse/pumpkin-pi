@@ -41,10 +41,12 @@ Proof.
   intros. induction pv; induction p; auto.
 Qed.
 
-(*
- * TODO then test that we can extract hd_vect from this if we want,
- * and same for all functions below
- *)
+Theorem test_orn_hd_proj :
+  forall (A : Type) (a : A) (n : nat) (v : vector A n),
+    hd_vect_auto A a (existT (vector A) n v) = hd_vect A a n v.
+Proof.
+  intros. induction v; auto.
+Qed.
 
 Theorem test_deorn_hd :
   forall (A : Type) (a : A) (l : list A),
@@ -52,11 +54,6 @@ Theorem test_deorn_hd :
 Proof.
   intros. induction l; auto.
 Qed.
-
-(*
- * TODO then test that we can get this from hd_vect if we want,
- * and same for all functions below
- *)
 
 Definition hd_error (A : Type) (l:list A) :=
   list_rect
@@ -90,6 +87,13 @@ Theorem test_orn_hd_error :
     hd_vect_error_auto A pv = hd_vect_error_packed A pv.
 Proof.
   intros. induction pv; induction p; auto.
+Qed.
+
+Theorem test_orn_hd_error_proj :
+  forall (A : Type) (n : nat) (v : vector A n),
+    hd_vect_error_auto A (existT (vector A) n v) = hd_vect_error A n v.
+Proof.
+  intros. induction v; auto.
 Qed.
 
 Theorem test_deorn_hd_error :
@@ -155,6 +159,20 @@ Theorem test_orn_append:
     append_vect_packed A pv1 pv2 = append_vect_auto A pv1 pv2.
 Proof.
   intros. induction pv1; induction pv2; induction p; induction p0; try apply eq_vect_cons; auto.
+Qed.
+
+Theorem test_orn_append_proj :
+  forall (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 : vector A n2),
+    existT
+      (vector A)
+      (projT1 (append_vect_auto A (existT (vector A) n1 v1) (existT (vector A) n2 v2)))
+      (projT2 (append_vect_auto A (existT (vector A) n1 v1) (existT (vector A) n2 v2))) =
+    existT
+      (vector A)
+      (plus_vect A n1 v1 n2 v2)
+      (append_vect A n1 v1 n2 v2).
+Proof.
+  intros. induction v1; induction v2; try apply eq_vect_cons; auto.
 Qed.
 
 (*
@@ -232,6 +250,20 @@ Theorem test_orn_tl :
     tl_vect_auto A pv = tl_vect_packed A pv.
 Proof.
   intros. induction pv; induction p; try apply coh_vect; auto.
+Qed.
+
+Theorem test_orn_tl_proj :
+  forall (A : Type) (n : nat) (v : vector A n),
+    existT
+      (vector A)
+      (projT1 (tl_vect_auto A (existT (vector A) n v)))
+      (projT2 (tl_vect_auto A (existT (vector A) n v))) =
+    existT
+      (vector A)
+      (pred_vect A n v)
+      (tl_vect A n v).
+Proof.
+  intros. induction v; try apply coh_vect; auto.
 Qed.
 
 Theorem coh:
