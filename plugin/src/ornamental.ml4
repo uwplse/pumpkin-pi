@@ -1978,6 +1978,14 @@ let pack env index_typ f_indexer index_i npm ind ind_n arity is_fwd unpacked =
     let elim = mkLambda (Anonymous, elim_t, elim_b) in
     let packed = mkAppl (sigT_rect, [shift index_typ; packer; elim; pack_off; mkRel 1]) in
     (env_packed, packed)
+
+(* 
+ * Unpack
+ * TODO only handles one of two directions for now
+ *)
+let unpack env orn =
+  let (env_orn, body) = zoom_lambda_term env orn in
+  reconstruct_lambda env_orn (last (unfold_args body))
               
 (* Search two inductive types for an indexing ornament, using eliminators *)
 let search_orn_index_elim npm idx_n elim_o o n is_fwd : (int option * types option * types) =
@@ -2138,10 +2146,13 @@ let ornament_args env (from_ind, to_ind) (l : lifting) (trm, indices) =
 
 (* Ornament the hypotheses *)
 let ornament_hypos env (l : lifting) (from_ind, to_ind) (trm, indices) =
+  Printf.printf "%s\n\n" "ornamenting hypos";
   let orn = l.orn in
   let is_fwd = l.is_fwd in
   let indexer = Option.get orn.indexer in
+  debug_term env indexer "indexer";
   let indexer_type = reduce_type env indexer in
+  debug_term env indexer_type "indexer_type";
   let index_lam = remove_final_hypo (prod_to_lambda indexer_type) in
   let hypos = on_type prod_to_lambda env trm in
   let subbed_hypos = sub_in_hypos l index_lam from_ind to_ind hypos in
@@ -2202,8 +2213,9 @@ let direction (env : env) (orn : types) : bool =
  * TODO move up
  *)
 let initialize_orn env promote forget =
-  let inds = on_type ind_of_orn env promote in
-  let to_args = unfold_args (snd inds) in
+  let promote_unpacked = unpack env (unwrap_definition env promote) in
+  let to_ind = snd (on_type ind_of_orn env promote_unpacked) in
+  let to_args = unfold_args to_ind in
   let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
   let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
   let index_i = Some index_i in
@@ -2219,15 +2231,11 @@ let initialize_orn env promote forget =
  * since it's much nicer that way.
  *)
 let ornament_no_red (env : env) (orn_f : types) (orn_inv_f : types) (trm : types) =
-  Printf.printf "%s\n\n" "applying ornament";
   let is_fwd = direction env orn_f in
-  Printf.printf "%s\n\n" "got direction";
-  Printf.printf "%s\n\n" (if is_fwd then "fwd" else "bckwd");
   let (promote, forget) = map_if reverse (not is_fwd) (orn_f, orn_inv_f) in
   let orn = initialize_orn env promote forget in
   let l = initialize_lifting orn is_fwd in
   let orn_type = reduce_type env orn.promote in
-  debug_term env orn_type "orn_type";
   let (from_with_args, to_with_args) = ind_of_orn orn_type in
   let (from_ind, to_ind) = map_if reverse (not is_fwd) (map_tuple ind_of (from_with_args, to_with_args)) in
   let app_orn ornamenter = ornamenter env l (from_ind, to_ind) in
