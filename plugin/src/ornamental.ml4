@@ -2087,18 +2087,9 @@ let sub_in_hypos (l : lifting) (index_lam : types) (from_ind : types) (to_ind : 
       | _ -> false)
     (fun trm ->
       let (n, t, b) = destLambda trm in
-      let args = unfold_args t in
-      if l.is_fwd then
-        let (before, after) = take_split index_i args in
-        let index_type = reduce_term empty_env (mkAppl (index_lam, before)) in
-        let t_args = insert_index_shift index_i (mkRel 1) args 1 in
-        let t_ind = mkAppl (to_ind, t_args) in
-        let sub_ind = all_eq_substs (mkRel 2, mkRel 1) in
-        mkLambda (Anonymous, index_type, mkLambda (n, t_ind, sub_ind (shift b)))
-      else
-        let t_args = remove_index index_i args in
-        let t_ind = mkAppl (to_ind, t_args) in
-        mkLambda (n, t_ind, b))
+      let t_args = unfold_args t in
+      let t_ind = mkAppl (to_ind, t_args) in
+      mkLambda (n, t_ind, b))
     hypos
 
 (*
@@ -2154,6 +2145,7 @@ let ornament_hypos env (l : lifting) (from_ind, to_ind) (trm, indices) =
   let index_lam = remove_final_hypo (prod_to_lambda indexer_type) in
   let hypos = on_type prod_to_lambda env trm in
   let subbed_hypos = sub_in_hypos l index_lam from_ind to_ind hypos in
+  debug_term env subbed_hypos "subbed_hypos";
   let env_hypos = zoom_env zoom_lambda_term env subbed_hypos in
   let (concl, indices) = ornament_args env_hypos (from_ind, to_ind) l (trm, indices) in
   let sub_ind = map_if (List.fold_right all_eq_substs indices) (not is_fwd) in
@@ -2194,9 +2186,16 @@ let ornament_concls concl_typ env (l : lifting) (from_ind, to_ind) (trm, indices
  * True if forwards, false if backwards
  *)
 let direction (env : env) (orn : types) : bool =
-  let orn_type = reduce_type env orn in
-  let (from_args, to_args) = map_tuple unfold_args (ind_of_orn orn_type) in
-  List.length from_args < List.length to_args
+  let rec wrapped (from_ind, to_ind) =
+    if not (applies sigT from_ind) then
+      true
+    else
+      if not (applies sigT to_ind) then
+        false
+      else
+        let (from_args, to_args) = map_tuple unfold_args (from_ind, to_ind) in
+        wrapped (map_tuple last (from_args, to_args))
+  in wrapped (ind_of_orn (reduce_type env orn))
 
 (*
  * Initialize an ornamentation
@@ -2214,16 +2213,21 @@ let initialize_orn env promote forget =
 (*
  * Apply an ornament, but don't reduce the result.
  *
- * Assumes indexing ornament for now
- *
- * TODO remove_unused_hypos weakens guarantee but gives better result
+ * Assumes indexing ornament for now.
+ * For a version that dealt with eliminating the sigma type, but was messier,
+ * see code prior to 3/15. For now, we leave that step to later,
+ * since it's much nicer that way.
  *)
 let ornament_no_red (env : env) (orn_f : types) (orn_inv_f : types) (trm : types) =
+  Printf.printf "%s\n\n" "applying ornament";
   let is_fwd = direction env orn_f in
+  Printf.printf "%s\n\n" "got direction";
+  Printf.printf "%s\n\n" (if is_fwd then "fwd" else "bckwd");
   let (promote, forget) = map_if reverse (not is_fwd) (orn_f, orn_inv_f) in
   let orn = initialize_orn env promote forget in
   let l = initialize_lifting orn is_fwd in
   let orn_type = reduce_type env orn.promote in
+  debug_term env orn_type "orn_type";
   let (from_with_args, to_with_args) = ind_of_orn orn_type in
   let (from_ind, to_ind) = map_if reverse (not is_fwd) (map_tuple ind_of (from_with_args, to_with_args)) in
   let app_orn ornamenter = ornamenter env l (from_ind, to_ind) in
