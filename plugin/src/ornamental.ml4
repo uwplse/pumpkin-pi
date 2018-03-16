@@ -2143,8 +2143,18 @@ let ornament_hypos env (l : lifting) (from_ind, to_ind) trm =
 
 (* Ornament the conclusion *)
 let ornament_concls concl_typ env (l : lifting) (from_ind, to_ind) trm =
-  if is_or_applies from_ind concl_typ then
+  let is_fwd = l.is_fwd in
+  let from_ind = zoom_sig is_fwd from_ind in
+  if is_or_applies from_ind (zoom_sig is_fwd concl_typ) then
     let (env_zoom, trm_zoom) = zoom_lambda_term env trm in
+    let concl_args =
+      if is_fwd then
+        unfold_args concl_typ
+      else
+        remove_index
+          (Option.get l.orn.index_i)
+          (unfold_args (unshift (snd (zoom_lambda_term empty_env (last (unfold_args concl_typ))))))
+    in
     let args =
       List.map
         (fun a ->
@@ -2158,7 +2168,7 @@ let ornament_concls concl_typ env (l : lifting) (from_ind, to_ind) trm =
               mkAppl (lift_back l, snoc trm (on_type unfold_args env trm)))
             env_zoom
             a)
-        (unfold_args concl_typ)
+        concl_args
     in
     let concl = mkAppl (lift_to l, snoc trm_zoom args) in
     reconstruct_lambda env_zoom concl

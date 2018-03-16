@@ -29,11 +29,7 @@ Definition hd_vect (A : Type) (default : A) (n : nat) (v : vector A n) :=
     v.
 
 Definition hd_vect_packed (A : Type) (default : A) (pv : packed_vector A) :=
-  sigT_rect
-    (fun _ : packed_vector A => A)
-    (fun (n : nat) (v : vector A n) =>
-      hd_vect A default n v)
-    pv.
+  hd_vect A default (projT1 pv) (projT2 pv).
 
 Apply ornament orn_list_vector orn_list_vector_inv in hd as hd_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_packed as hd_auto.
@@ -81,11 +77,7 @@ Definition hd_vect_error (A : Type) (n : nat) (v : vector A n) :=
     v.
 
 Definition hd_vect_error_packed (A : Type) (pv : packed_vector A) :=
-  sigT_rect
-    (fun _ : packed_vector A => option A)
-    (fun (n : nat) (v : vector A n) =>
-      hd_vect_error A n v)
-    pv.
+  hd_vect_error A (projT1 pv) (projT2 pv).
 
 Apply ornament orn_list_vector orn_list_vector_inv in hd_error as hd_vect_error_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_error_packed as hd_error_auto.
@@ -136,52 +128,33 @@ Definition append_vect (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 :
     n1
     v1.
 
-Theorem append_vect_packed :
-  forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
-    packed_vector A.
-Proof.
-  intros. apply orn_list_vector.
-  apply append.
-  - apply orn_list_vector_inv. apply pv1.
-  - apply orn_list_vector_inv. apply pv2.
-Qed.
-
-Print append_vect_packed.
-(* TODO define etc once this works *)
+Definition append_vect_packed (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A) :=
+  existT
+    (fun H : nat => vector A H)
+    (plus_vect A (projT1 pv1) (projT2 pv1) (projT1 pv2) (projT2 pv2))
+    (append_vect A (projT1 pv1) (projT2 pv1) (projT1 pv2) (projT2 pv2)).
 
 Apply ornament orn_list_vector orn_list_vector_inv in append as append_vect_auto.
-Apply ornament orn_list_vector_inv orn_list_vector in append_vect as append_auto.
-
-Check append_vect_auto.
+Apply ornament orn_list_vector_inv orn_list_vector in append_vect_packed as append_auto.
 
 (*
  * For this one, we can't state the equality, but we can use existsT.
  *)
-Definition eq_vect A n (v : vector A n) n' (v' : vector A n') :=
-  existT (vector A) n v = existT (vector A) n' v'.
-
 Theorem eq_vect_cons:
-  forall A n (v : vector A n) n' (v' : vector A n'),
-    eq_vect A n v n' v' ->
-    forall (a : A), eq_vect A (S n) (consV A n a v) (S n') (consV A n' a v').
+  forall A n (v : vector A n) n' (v' : vector A n'), 
+    existT (vector A) n v = existT (vector A) n' v' ->
+    forall (a : A),
+      (existT (vector A) (S n) (consV A n a v)) =
+      (existT (vector A) (S n') (consV A n' a v')).
 Proof.
-  unfold eq_vect.
   intros. inversion H. subst. auto.
 Qed.
 
 Theorem test_orn_append:
-  forall A n (v : vector A n) n' (v' : vector A n'),
-    eq_vect
-      A
-      (plus_vect A n v n' v')
-      (append_vect A n v n' v')
-      (orn_list_vector_index
-        A
-        (append A (orn_list_vector_inv A n v) (orn_list_vector_inv A n' v')))
-      (append_vect_auto A n v n' v').
+  forall A (pv1 : packed_vector A) (pv2 : packed_vector A),
+    append_vect_packed A pv1 pv2 = append_vect_auto A pv1 pv2.
 Proof.
-  unfold eq_vect.
-  intros. induction v; induction v'; try apply eq_vect_cons; auto.
+  intros. induction pv1; induction pv2; induction p; induction p0; try apply eq_vect_cons; auto.
 Qed.
 
 (*
