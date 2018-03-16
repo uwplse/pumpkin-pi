@@ -1069,10 +1069,12 @@ let assume (assum : types) (env : env) (n : name) (typ : types) : env =
 let remove_rel (i : int) (env : env) : env =
   let (env_pop, popped) = lookup_pop i env in
   let push =
-    List.map
-      (fun rel ->
+    List.mapi
+      (fun j rel ->
+        Printf.printf "j: %d\n\n" j;
+        Printf.printf "i: %d\n\n" i;
         let (n, _, t) = CRD.to_tuple rel in
-        (n, unshift t))
+        (n, unshift_local (i - j - 1) 1 t))
       (List.rev (List.tl (List.rev popped)))
   in List.fold_right push_local push env_pop
 
@@ -1538,6 +1540,12 @@ let reindex index_i index args =
   insert_index index_i index (remove_index index_i args)
 
 (*
+ * Insert an index where an old index was and shift after
+ *)
+let reindex_shift index_i index args n =
+  insert_index_shift index_i index (remove_index index_i args) n
+
+(*
  * Unshift arguments after index_i, since the index is no longer in
  * the hypotheses
  *)
@@ -1939,13 +1947,12 @@ let orn_index_cases index_i npm is_fwd indexer_f orn_p o n : types list =
  * TODO later, refactor code common to both cases
  *)
 let pack env index_typ f_indexer index_i npm ind ind_n arity is_fwd unpacked =
-  let index_i = npm + index_i in
   if is_fwd then
     (* pack conclusion *)
     let off = arity - 1 in
     let index_typ = shift_by off index_typ in
     let unpacked_args = shift_all (mk_n_rels off) in
-    let packed_args = insert_index_shift index_i (mkRel 1) unpacked_args 1 in
+    let packed_args = insert_index_shift (npm + index_i) (mkRel 1) unpacked_args 1 in
     let reindexed = mkAppl (ind, packed_args) in
     let packer = mkLambda (Anonymous, index_typ, reindexed) in
     let index = mkAppl (f_indexer, mk_n_rels arity) in
@@ -1953,24 +1960,40 @@ let pack env index_typ f_indexer index_i npm ind ind_n arity is_fwd unpacked =
   else
     (* pack hypothesis *)
     let (from_n, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
-    let unpacked_args = unfold_args unpacked_typ in
-    let packed_args = reindex index_i (mkRel 1) unpacked_args in
+    debug_env env "env";
+    let unpacked_args = unfold_args (shift unpacked_typ) in
+    Printf.printf "index_i: %d\n" index_i;
+    Printf.printf "npm: %d\n" npm;
+    let packed_args = reindex_shift (npm + index_i) (mkRel 1) unpacked_args 1 in
     let reindexed = mkAppl (ind, packed_args) in
     let packer = mkLambda (Anonymous, index_typ, reindexed) in
+    debug_term env packer "packer";
     let packed_typ = mkAppl (sigT, [index_typ; packer]) in
     let env_pop = pop_rel_context 1 env in
-    let index_rel = nb_rel env_pop - index_i in
-    let env_packed = push_local (from_n, packed_typ) (remove_rel index_rel env_pop) in
+    let index_rel = nb_rel env_pop - (npm + index_i) in
+    let env_push = push_local (from_n, unshift packed_typ) env_pop in
+    debug_env env_push "env_push";
+    debug_term env_push unpacked "unpacked";
+    let packer_indexed = reduce_term env_push (mkAppl (packer, [mkRel (index_rel + 1)])) in
+    debug_term env (shift_local index_rel 1 (shift unpacked)) "blah";
+    let unpack_b_b = all_eq_substs (mkRel (4 - index_rel), mkRel 1) (shift_local index_rel 1 (shift unpacked)) in
+    Printf.printf "index_rel: %d\n" index_rel;
+    debug_term env unpack_b_b "unpack_b_b";
+    let unpack_b = mkLambda (Anonymous, shift_local 1 1 (all_eq_substs (mkRel (index_rel + 1), mkRel 1) packer_indexed), all_eq_substs (mkRel (index_rel + 3), mkRel 2) unpack_b_b) in
+    let pack_unpacked = mkLambda (Anonymous, index_typ, unpack_b) in
+    debug_term env pack_unpacked "pack_unpacked";
+    let env_packed = remove_rel (index_rel + 1) env_push in
+    let pack_off = unshift_local index_rel 1 pack_unpacked in
+    debug_env env_packed "env_packed";
+    debug_term env_packed pack_off "pack_off";
+    debug_term env_push packer "packer";
+    let packer = unshift_local index_rel 1 packer in
+    debug_term env_packed packer "packer";
     let elim_b = shift (mkAppl (ind_n, shift_all (mk_n_rels (arity - 1)))) in
-    let elim_t = mkAppl (sigT, [index_typ; shift packer]) in
+    let elim_t = mkAppl (sigT, [index_typ; packer]) in
     let elim = mkLambda (Anonymous, elim_t, elim_b) in
-    let unpacked_shift = shift unpacked in
-    let subs = [(mkRel (index_rel + 2), mkRel 2); (mkRel 2, mkRel 1)] in
-    let unpacked_indexed = List.fold_right all_eq_substs subs unpacked_shift in
-    let packer_indexed = mkAppl (shift_by 2 packer, [mkRel 1]) in
-    let pack_b = mkLambda (Anonymous, packer_indexed, unpacked_indexed) in
-    let pack_unpacked = mkLambda (Anonymous, index_typ, pack_b) in
-    let packed = mkAppl (sigT_rect, [index_typ; packer; elim; pack_unpacked; mkRel 1]) in
+    let packed = mkAppl (sigT_rect, [index_typ; packer; elim; pack_off; mkRel 1]) in
+    debug_term env_packed packed "packed";
     (env_packed, packed)
               
 (* Search two inductive types for an indexing ornament, using eliminators *)
@@ -2609,6 +2632,7 @@ let find_ornament n d_old d_new =
     define_term n env evm orn.promote;
     Printf.printf "Defined promotion %s.\n\n" (string_of_id n);
     let inv_n = with_suffix n "inv" in
+    debug_term env orn.forget "forget";
     define_term inv_n env evm orn.forget;
     Printf.printf "Defined forgetful function %s.\n\n" (string_of_id inv_n);
     ()
