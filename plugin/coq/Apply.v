@@ -47,19 +47,18 @@ Qed.
 Print hd_vect_packed_2.
 
 Apply ornament orn_list_vector orn_list_vector_inv in hd as hd_vect_auto.
-Apply ornament orn_list_vector_inv orn_list_vector in hd_vect as hd_auto.
+Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_packed as hd_auto.
+
+Theorem test_orn_hd :
+  forall (A : Type) (a : A) (pv : packed_vector A),
+    hd_vect_auto A a pv = hd_vect_packed A a pv.
+Proof.
+  intros. induction pv; induction p; auto.
+Qed.
 
 (*
- * Note how it's not definitionally equal, but we can prove it.
- * For it to be definitionally equal, we need to internalize the
- * ornamentation and run some reduction steps.
+ * TODO then test that we can extract hd_vect from this if we want
  *)
-Theorem test_orn_hd :
-  forall (A : Type) (a : A) (n : nat) (v : vector A n),
-    hd_vect_auto A a n v = hd_vect A a n v.
-Proof.
-  intros. induction v; auto.
-Qed.
 
 Print hd_vect_auto.
 

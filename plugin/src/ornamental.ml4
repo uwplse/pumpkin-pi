@@ -2094,12 +2094,10 @@ let sub_in_hypos (l : lifting) (index_lam : types) (from_ind : types) (to_ind : 
  * Apply the ornament to the arguments
  * TODO clean this
  *)
-let ornament_args env (from_ind, to_ind) (l : lifting) (trm, indices) =
+let ornament_args env (from_ind, to_ind) (l : lifting) trm =
   let orn = l.orn in
   let is_fwd = l.is_fwd in
   let orn_f = lift_back l in
-  let index_i = Option.get orn.index_i in
-  let indexer = Option.get orn.indexer in
   let typ = reduce_type env trm in
   debug_term env typ "typ";
   debug_term env trm "trm";
@@ -2116,7 +2114,7 @@ let ornament_args env (from_ind, to_ind) (l : lifting) (trm, indices) =
   in mkAppl (trm, ornament_arg (arity typ) typ)
 
 (* Ornament the hypotheses *)
-let ornament_hypos env (l : lifting) (from_ind, to_ind) (trm, indices) =
+let ornament_hypos env (l : lifting) (from_ind, to_ind) trm =
   Printf.printf "%s\n\n" "ornamenting hypos";
   let orn = l.orn in
   let is_fwd = l.is_fwd in
@@ -2126,41 +2124,33 @@ let ornament_hypos env (l : lifting) (from_ind, to_ind) (trm, indices) =
   let hypos = on_type prod_to_lambda env trm in
   let subbed_hypos = sub_in_hypos l index_lam from_ind to_ind hypos in
   let env_hypos = zoom_env zoom_lambda_term env subbed_hypos in
-  let concl = ornament_args env_hypos (from_ind, to_ind) l (trm, indices) in
+  let concl = ornament_args env_hypos (from_ind, to_ind) l trm in
   debug_term env_hypos concl "concl";
-  (*let sub_ind = map_if (List.fold_right all_eq_substs indices) (not is_fwd) in
-   *)
-  (reconstruct_lambda env_hypos concl, []) (* TODO remove old code *)
+  reconstruct_lambda env_hypos concl
 
 (* Ornament the conclusion *)
-let ornament_concls concl_typ env (l : lifting) (from_ind, to_ind) (trm, indices) =
+let ornament_concls concl_typ env (l : lifting) (from_ind, to_ind) trm =
   if is_or_applies from_ind concl_typ then
     let (env_zoom, trm_zoom) = zoom_lambda_term env trm in
     let args =
-      map_directional
-        (shift_all_by (List.length indices))
-        (List.map
-          (fun a ->
-            List.fold_right
-              all_eq_substs
-              indices
-              (map_unit_env_if (* TODO refactor these HOFs *)
-                 (fun env trm ->
-                   try
-                     on_type (is_or_applies to_ind) env trm
-                   with _ ->
-                     false)
-                 (fun env trm ->
-                   mkAppl (lift_back l, snoc trm (on_type unfold_args env trm)))
-                 env_zoom
-                 a)))
-        l
+      List.map
+        (fun a ->
+          map_unit_env_if
+            (fun env trm ->
+              try
+                on_type (is_or_applies to_ind) env trm
+              with _ ->
+                false)
+            (fun env trm ->
+              mkAppl (lift_back l, snoc trm (on_type unfold_args env trm)))
+            env_zoom
+            a)
         (unfold_args concl_typ)
     in
     let concl = mkAppl (lift_to l, snoc trm_zoom args) in
-    (reconstruct_lambda env_zoom concl, indices)
+    reconstruct_lambda env_zoom concl
   else
-    (trm, indices)
+    trm
 
 (*
  * Determine if the direction is forwards or backwards
@@ -2213,7 +2203,7 @@ let ornament_no_red (env : env) (orn_f : types) (orn_inv_f : types) (trm : types
   let to_ind = reconstruct_lambda env_to (unshift to_with_args) in
   let app_orn ornamenter = ornamenter env l (from_ind, to_ind) in
   let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
-  let orned = fst (app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, []))) in
+  let orned = app_orn (ornament_concls concl_typ) (app_orn ornament_hypos trm) in
   map_if remove_unused_hypos (not is_fwd) orned
 
 (* --- Reduction --- *)
