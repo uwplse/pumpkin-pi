@@ -35,17 +35,6 @@ Definition hd_vect_packed (A : Type) (default : A) (pv : packed_vector A) :=
       hd_vect A default n v)
     pv.
 
-Theorem hd_vect_packed_2 :
-  forall (A : Type) (default : A) (pv : packed_vector A),
-    A.
-Proof.
-  intros. apply hd. 
-  - apply default.
-  - apply orn_list_vector_inv. apply pv.
-Qed.
-
-Print hd_vect_packed_2.
-
 Apply ornament orn_list_vector orn_list_vector_inv in hd as hd_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_packed as hd_auto.
 
@@ -57,10 +46,9 @@ Proof.
 Qed.
 
 (*
- * TODO then test that we can extract hd_vect from this if we want
+ * TODO then test that we can extract hd_vect from this if we want,
+ * and same for all functions below
  *)
-
-Print hd_vect_auto.
 
 Theorem test_deorn_hd :
   forall (A : Type) (a : A) (l : list A),
@@ -68,6 +56,11 @@ Theorem test_deorn_hd :
 Proof.
   intros. induction l; auto.
 Qed.
+
+(*
+ * TODO then test that we can get this from hd_vect if we want,
+ * and same for all functions below
+ *)
 
 Definition hd_error (A : Type) (l:list A) :=
   list_rect
@@ -87,17 +80,24 @@ Definition hd_vect_error (A : Type) (n : nat) (v : vector A n) :=
     n
     v.
 
+Definition hd_vect_error_packed (A : Type) (pv : packed_vector A) :=
+  sigT_rect
+    (fun _ : packed_vector A => option A)
+    (fun (n : nat) (v : vector A n) =>
+      hd_vect_error A n v)
+    pv.
+
 Apply ornament orn_list_vector orn_list_vector_inv in hd_error as hd_vect_error_auto.
-Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_error as hd_error_auto.
+Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_error_packed as hd_error_auto.
 
 (*
  * Same situation as above
  *)
 Theorem test_orn_hd_error :
-  forall (A : Type) (n : nat) (v : vector A n),
-    hd_vect_error_auto A n v = hd_vect_error A n v.
+  forall (A : Type) (pv : packed_vector A),
+    hd_vect_error_auto A pv = hd_vect_error_packed A pv.
 Proof.
-  intros. induction v; auto.
+  intros. induction pv; induction p; auto.
 Qed.
 
 Theorem test_deorn_hd_error :
@@ -135,6 +135,19 @@ Definition append_vect (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 :
       consV A (plus_vect A n0 v0 n2 v2) a IH)
     n1
     v1.
+
+Theorem append_vect_packed :
+  forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
+    packed_vector A.
+Proof.
+  intros. apply orn_list_vector.
+  apply append.
+  - apply orn_list_vector_inv. apply pv1.
+  - apply orn_list_vector_inv. apply pv2.
+Qed.
+
+Print append_vect_packed.
+(* TODO define etc once this works *)
 
 Apply ornament orn_list_vector orn_list_vector_inv in append as append_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in append_vect as append_auto.

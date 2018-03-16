@@ -2118,11 +2118,12 @@ let ornament_args env (from_ind, to_ind) (l : lifting) trm =
   let rec ornament_arg env i typ =
     match kind_of_term typ with
     | Prod (n, t, b) ->
+       let ornament_b = ornament_arg (push_local (n, t) env) (unshift_i i) b in
        if is_or_applies from_ind (zoom_sig is_fwd (reduce_nf env t)) then
-         let t_args = unfold_args (shift t) in
-         [mkAppl (orn_f, snoc (mkRel 1) t_args)]
+         let t_args = unfold_args (shift_by i t) in
+         mkAppl (orn_f, snoc (mkRel i) t_args) :: ornament_b
        else
-         mkRel i :: (ornament_arg (push_local (n, t) env) (unshift_i i) b)
+         mkRel i :: ornament_b
     | _ ->
        []
   in mkAppl (trm, ornament_arg env (arity typ) typ)
