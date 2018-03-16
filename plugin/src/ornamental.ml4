@@ -2238,17 +2238,19 @@ let ornament_no_red (env : env) (orn_f : types) (orn_inv_f : types) (trm : types
  * Compose two properties for two applications of an induction principle
  * that are structurally the same when one is an ornament.
  *)
-let compose_p npms post_assums (comp : composition) =
+let compose_p npms post_assums inner (comp : composition) =
   let l = comp.l in
   let index_i = Option.get l.orn.index_i in
   let (_, p_g) = comp.g in
-  let (_, p_f) = comp.f in
+  let (env_f, p_f) = comp.f in
   let (env_p_f, p_f_b) = zoom_lambda_term empty_env p_f in
   let off = nb_rel env_p_f in
+  Printf.printf "%d\n" off;
   let shift_pms = shift_local off off in
   let orn_app = shift_local off (off + List.length post_assums) (mkAppl (lift_back l, mk_n_rels (npms + off))) in
   let (_, non_pms) = take_split npms (unfold_args p_f_b) in
   let p_args = snoc orn_app non_pms in
+  debug_terms env_f p_args "p_args";
   let p =
     map_forward
       (fun p_g ->
@@ -2268,7 +2270,12 @@ let compose_p npms post_assums (comp : composition) =
           l.lifted_indexer)
       l
       p_g
-  in reconstruct_lambda env_p_f (reduce_term env_p_f (mkAppl (p, p_args)))
+  in
+  let app = reduce_term env_p_f (mkAppl (p, p_args)) in
+  if inner then
+    reconstruct_lambda env_p_f (shift_pms app)
+  else
+    reconstruct_lambda env_p_f app
 
 (*
  * Compose the IH for a constructor.
@@ -2444,7 +2451,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
  *
  * TODO clean
  *)
-let compose_inductive idx_n post_assums (comp : composition) =
+let rec compose_inductive idx_n post_assums inner (comp : composition) =
   let l = comp.l in
   let index_i = Option.get l.orn.index_i in
   let (env_g, g) = comp.g in
@@ -2465,7 +2472,8 @@ let compose_inductive idx_n post_assums (comp : composition) =
       (comp, None)
   in
   let c_p = { comp with g = (env_g, p_g); f = (env_f, p_f) } in
-  let p = compose_p (List.length pms) post_assums c_p in
+  let p = compose_p (List.length pms) post_assums inner c_p in
+  debug_term env_f p "p";
   let p_exp = (* defer defining the indexer *)
     map_if
       (fun p ->
@@ -2475,30 +2483,42 @@ let compose_inductive idx_n post_assums (comp : composition) =
       (Option.has_some indexer)
       p
   in
-  let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
-  let cs_exp = List.map (compose_c (List.length pms_g) ip_g p_exp post_assums) c_cs in
-  let cs = (* undo the above *)
-    List.map
-      (map_if
-         (fun c_exp ->
-           let li = Option.get comp.l.lifted_indexer in
-           let i = Option.get indexer in
-           let orn_i = Option.get l.orn.indexer in
-           map_unit_env_if
-             (fun _ trm -> is_or_applies li trm)
-             (fun env trm ->
-               let index = get_arg index_i trm in
-               if is_or_applies orn_i index then
-                 let ih = last (unfold_args index) in
-                 let ih_typ = reduce_type env ih in
-                 Array.get (Array.of_list (unfold_args ih_typ)) index_i
-               else
-                 trm)
-             env_f
-             (all_eq_substs (i, li) c_exp))
-         (Option.has_some indexer))
-      cs_exp
+  let (cs, indexer) =
+    if not inner && l.is_fwd && not comp.is_g then
+      (* bubble inside the sigT_rect *)
+      let c = List.hd cs_f in
+      let (env_c, c_body) = zoom_lambda_term env_f c in
+      debug_term env_c c_body "c_body";
+      let c_cs = { comp with f = (env_c, c_body)} in
+      let (c_comp, indexer) = compose_inductive idx_n post_assums true c_cs in
+      debug_term env_c c_comp "c_comp";
+      ([reconstruct_lambda env_c c_comp], indexer)
+    else
+      let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
+      let cs_exp = List.map (compose_c (List.length pms_g) ip_g p_exp post_assums) c_cs in
+      (* undo the above *)
+      (List.map
+        (map_if
+           (fun c_exp ->
+             let li = Option.get comp.l.lifted_indexer in
+             let i = Option.get indexer in
+             let orn_i = Option.get l.orn.indexer in
+             map_unit_env_if
+               (fun _ trm -> is_or_applies li trm)
+               (fun env trm ->
+                 let index = get_arg index_i trm in
+                 if is_or_applies orn_i index then
+                   let ih = last (unfold_args index) in
+                   let ih_typ = reduce_type env ih in
+                   Array.get (Array.of_list (unfold_args ih_typ)) index_i
+                 else
+                   trm)
+               env_f
+               (all_eq_substs (i, li) c_exp))
+           (Option.has_some indexer))
+        cs_exp, indexer)
   in (apply_eliminator ip pms p cs args, indexer)
+    
 
 (*
  * Find the assumption for factoring in an ornamented, but not
@@ -2556,10 +2576,12 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
          let l = { l with is_indexer } in
          let g = (e_body, chain_reduce reduce_term delta e_body t_body) in
          let f = (env, map_if (chain_reduce reduce_term delta env) red t_app) in
+         debug_term (fst g) (snd g) "g";
+         debug_term (fst f) (snd f) "f";
          let orn_f = if promotes then promote else if forgets then forget else orn_indexer in
          let is_g = applies orn_f t_body in
          let comp = { l ; g ; f ; is_g } in
-         let (app, indexer) = compose_inductive idx_n post_assums comp in
+         let (app, indexer) = compose_inductive idx_n post_assums false comp in
          ((app, indexer), env, true)
        else
          let t = shift_by assum_ind t in
