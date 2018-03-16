@@ -2230,8 +2230,7 @@ let ornament_no_red (env : env) (orn_f : types) (orn_inv_f : types) (trm : types
   let to_ind = reconstruct_lambda env_to (unshift to_with_args) in
   let app_orn ornamenter = ornamenter env l (map_if reverse (not is_fwd) (from_ind, to_ind)) in
   let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
-  let orned = app_orn (ornament_concls concl_typ) (app_orn ornament_hypos trm) in
-  map_if remove_unused_hypos (not is_fwd) orned
+  app_orn (ornament_concls concl_typ) (app_orn ornament_hypos trm)
 
 (* --- Reduction --- *)
 
