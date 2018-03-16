@@ -1328,16 +1328,6 @@ let rec first_fun t =
   | _ ->
      t
 
-(* Get the inductive types applied in a hypothesis or conclusion *)
-let rec ind_of (trm : types) : types =
-  match kind_of_term trm with
-  | App (f, args) ->
-     ind_of f
-  | Ind (_, _) ->
-     trm
-  | _ ->
-     failwith "not an inductive type"
-
 (* Get the inductive types an ornament maps between, including their arguments *)
 let rec ind_of_orn (orn_type : types) : types * types =
   match kind_of_term orn_type with
@@ -2096,7 +2086,7 @@ let sub_in_hypos (l : lifting) (index_lam : types) (from_ind : types) (to_ind : 
     (fun trm ->
       let (n, t, b) = destLambda trm in
       let t_args = unfold_args t in
-      let t_ind = mkAppl (to_ind, t_args) in
+      let t_ind = reduce_term empty_env (mkAppl (to_ind, t_args)) in
       mkLambda (n, t_ind, b))
     hypos
 
@@ -2150,11 +2140,11 @@ let ornament_hypos env (l : lifting) (from_ind, to_ind) (trm, indices) =
   let orn = l.orn in
   let is_fwd = l.is_fwd in
   let indexer = Option.get orn.indexer in
-  debug_term env indexer "indexer";
   let indexer_type = reduce_type env indexer in
-  debug_term env indexer_type "indexer_type";
   let index_lam = remove_final_hypo (prod_to_lambda indexer_type) in
   let hypos = on_type prod_to_lambda env trm in
+  debug_term env hypos "hypos";
+  debug_term env to_ind "to_ind";
   let subbed_hypos = sub_in_hypos l index_lam from_ind to_ind hypos in
   debug_term env subbed_hypos "subbed_hypos";
   let env_hypos = zoom_env zoom_lambda_term env subbed_hypos in
@@ -2236,8 +2226,11 @@ let ornament_no_red (env : env) (orn_f : types) (orn_inv_f : types) (trm : types
   let orn = initialize_orn env promote forget in
   let l = initialize_lifting orn is_fwd in
   let orn_type = reduce_type env orn.promote in
-  let (from_with_args, to_with_args) = ind_of_orn orn_type in
-  let (from_ind, to_ind) = map_if reverse (not is_fwd) (map_tuple ind_of (from_with_args, to_with_args)) in
+  let (from_with_args, to_with_args) = map_if reverse (not is_fwd) (ind_of_orn orn_type) in
+  let env_to = pop_rel_context 1 (fst (zoom_product_type env orn_type)) in
+  debug_env env_to "env_to";
+  let from_ind = first_fun from_with_args in
+  let to_ind = reconstruct_lambda env_to (unshift to_with_args) in
   let app_orn ornamenter = ornamenter env l (from_ind, to_ind) in
   let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
   let orned = fst (app_orn (ornament_concls concl_typ) (app_orn ornament_hypos (trm, []))) in
