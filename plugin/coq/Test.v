@@ -725,10 +725,17 @@ Proof.
 Qed.
 
 Theorem test_orn_inv_13:
-  forall (A : Type) (ao : option A) (l : hd_list_alt A ao),
+  forall (A : Type) (l : packed_hd_list_alt A),
     list_alt A.
 Proof.
   exact orn_listalt_hdlistalt_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_13:
+  forall (A : Type) (ao : option A) (l : hd_list_alt A ao),
+    list_alt A.
+Proof.
+  intros. apply orn_listalt_hdlistalt_inv. exists ao. apply l.
 Qed.
 
 (* --- Indexing by the old type, but without making it fin-like --- *)
@@ -772,11 +779,19 @@ Proof.
 Qed.
 
 Theorem test_orn_inv_14:
-  forall (n : nat) (nn : nat_nat n),
+  forall (nn : packed_nat_nat),
     nat.
 Proof.
   exact orn_nat_natnat_inv.
 Qed.
+
+Theorem test_orn_inv_unpack_14:
+  forall (n : nat) (nn : nat_nat n),
+    nat.
+Proof.
+  intros. apply orn_nat_natnat_inv. exists n. apply nn.
+Qed.
+
 
 (* --- TODO Index already existed in the old constructor, but wasn't used --- *)
 
