@@ -205,17 +205,19 @@ Definition tl_vect (A : Type) (n : nat) (v : vector A n) :=
     n
     v.
 
+Definition tl_vect_packed (A : Type) (pv : packed_vector A) :=
+  existT
+    (vector A) (* note currying when reducing *)
+    (pred_vect A (projT1 pv) (projT2 pv))
+    (tl_vect A (projT1 pv) (projT2 pv)).
+
 Apply ornament orn_list_vector orn_list_vector_inv in tl as tl_vect_auto.
-Apply ornament orn_list_vector_inv orn_list_vector in tl_vect as tl_auto.
+Apply ornament orn_list_vector_inv orn_list_vector in tl_vect_packed as tl_auto.
 
 Theorem coh_vect:
   forall (A : Type) (n : nat) (v : vector A n),
-    eq_vect
-      A
-      (orn_list_vector_index A (orn_list_vector_inv A n v))
-      (orn_list_vector A (orn_list_vector_inv A n v))
-      n
-      v.
+    existT (vector A) (orn_list_vector_index A (orn_list_vector_inv A (existT (vector A) n v))) (projT2 (orn_list_vector A (orn_list_vector_inv A (existT (vector A) n v)))) = 
+    existT (vector A) n v.
 Proof.
   intros. induction v.
   - reflexivity.
@@ -226,13 +228,8 @@ Qed.
  * Same situation as above
  *)
 Theorem test_orn_tl :
-  forall (A : Type) (n : nat) (v : vector A n),
-    eq_vect
-      A
-      (orn_list_vector_index A (tl A (orn_list_vector_inv A n v)))
-      (tl_vect_auto A n v)
-      (pred_vect A n v)
-      (tl_vect A n v).
+  forall (A : Type) (pv : packed_vector A),
+    tl_vect_auto A pv = tl_vect_packed A pv.
 Proof.
   unfold eq_vect.
   intros. induction v; try apply coh_vect; auto.

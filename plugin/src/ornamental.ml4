@@ -2151,9 +2151,14 @@ let ornament_concls concl_typ env (l : lifting) (from_ind, to_ind) trm =
       if is_fwd then
         unfold_args concl_typ
       else
-        remove_index
-          (Option.get l.orn.index_i)
-          (unfold_args (unshift (snd (zoom_lambda_term empty_env (last (unfold_args concl_typ))))))
+        let concl_typ = snd (zoom_lambda_term empty_env (last (unfold_args concl_typ))) in
+        let concl_args = unfold_args concl_typ in
+        try
+          remove_index
+            (Option.get l.orn.index_i)
+            (shift_all_by (- 1) concl_args)
+        with _ ->
+          concl_args
     in
     let args =
       List.map
