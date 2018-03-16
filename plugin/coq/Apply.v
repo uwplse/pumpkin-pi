@@ -231,13 +231,12 @@ Theorem test_orn_tl :
   forall (A : Type) (pv : packed_vector A),
     tl_vect_auto A pv = tl_vect_packed A pv.
 Proof.
-  unfold eq_vect.
-  intros. induction v; try apply coh_vect; auto.
+  intros. induction pv; induction p; try apply coh_vect; auto.
 Qed.
 
 Theorem coh:
   forall (A : Type) (l : list A),
-    orn_list_vector_inv A (orn_list_vector_index A l) (orn_list_vector A l) = l.
+    orn_list_vector_inv A (existT (vector A) (orn_list_vector_index A l) (projT2 (orn_list_vector A l))) = l.
 Proof.
   intros. induction l.
   - reflexivity.
