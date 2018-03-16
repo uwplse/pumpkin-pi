@@ -440,10 +440,17 @@ Proof.
 Qed.
 
 Theorem test_orn_inv_8:
-  forall (A : Type) (n : nat) (m : nat) (d : doublevector2 A n m),
+  forall (A : Type) (n : nat) (d : packed_doublevector2 A n),
     vector A n.
 Proof.
   exact orn_vector_doublevector2_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_8:
+  forall (A : Type) (n : nat) (m : nat) (d : doublevector2 A n m),
+    vector A n.
+Proof.
+  intros. apply orn_vector_doublevector2_inv. exists m. apply d.
 Qed.
 
 (* --- Same as above, but with an identical index --- *)
@@ -491,10 +498,17 @@ Proof.
 Qed.
 
 Theorem test_orn_inv_9:
-  forall (A : Type) (n : nat) (m : nat) (d : doublevector3 A n m),
+  forall (A : Type) (n : nat) (d : packed_doublevector3 A n),
     vector A n.
 Proof.
   exact orn_vector_doublevector3_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_9:
+  forall (A : Type) (n : nat) (m : nat) (d : doublevector3 A n m),
+    vector A n.
+Proof.
+  intros. apply orn_vector_doublevector3_inv. exists m. apply d.
 Qed.
 
 (* --- What if we change a base case index? --- *)
@@ -542,10 +556,17 @@ Proof.
 Qed.
 
 Theorem test_orn_inv_10:
-  forall (A : Type) (n : nat) (m : nat) (d : doublevector4 A n m),
+  forall (A : Type) (m : nat) (d : packed_doublevector4 A m),
     vector A m.
 Proof.
   exact orn_vector_doublevector4_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_10:
+  forall (A : Type) (n : nat) (m : nat) (d : doublevector4 A n m),
+    vector A m.
+Proof.
+  intros. apply orn_vector_doublevector4_inv. exists n. apply d.
 Qed.
 
 (* --- Indices that are computed from existing hypotheses --- *)
@@ -592,10 +613,17 @@ Proof.
 Qed.
 
 Theorem test_orn_inv_11:
-  forall (h : nat) (hnl : hd_nat_list h),
+  forall (hnl : packed_hd_nat_list),
     nat_list.
 Proof.
   exact orn_natlist_hdnatlist_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_11:
+  forall (h : nat) (hnl : hd_nat_list h),
+    nat_list.
+Proof.
+  intros. apply orn_natlist_hdnatlist_inv. exists h. apply hnl.
 Qed.
 
 (* --- Indices that depend on parameters --- *)
@@ -634,10 +662,17 @@ Proof.
 Qed.
 
 Theorem test_orn_inv_12:
-  forall (A : Type) (ao : option A) (hl : hd_list A ao),
+  forall (A : Type) (hl : packed_hd_list A),
     list A.
 Proof.
   exact orn_list_hdlist_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_12:
+  forall (A : Type) (ao : option A) (hl : hd_list A ao),
+    list A.
+Proof.
+  intros. apply orn_list_hdlist_inv. exists ao. apply hl.
 Qed.
 
 (* --- Indices that depend on prior indices --- *)
