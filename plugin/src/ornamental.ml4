@@ -1961,22 +1961,22 @@ let pack env index_typ f_indexer index_i npm ind ind_n arity is_fwd unpacked =
     let unpacked_args = unfold_args (shift unpacked_typ) in
     let packed_args = reindex_shift (npm + index_i) (mkRel 1) unpacked_args 1 in
     let reindexed = mkAppl (ind, packed_args) in
-    let packer = mkLambda (Anonymous, index_typ, reindexed) in
-    let packed_typ = mkAppl (sigT, [index_typ; packer]) in
+    let packer = mkLambda (Anonymous, shift (shift index_typ), reindexed) in
+    let packed_typ = mkAppl (sigT, [shift (shift index_typ); packer]) in
     let env_pop = pop_rel_context 1 env in
     let index_rel = nb_rel env_pop - (npm + index_i) in
     let env_push = push_local (from_n, unshift packed_typ) env_pop in
     let packer_indexed = reduce_term env_push (mkAppl (packer, [mkRel (index_rel + 1)])) in
     let unpack_b_b = all_eq_substs (mkRel (4 - index_rel), mkRel 1) (shift_local index_rel 1 (shift unpacked)) in
     let unpack_b = mkLambda (Anonymous, shift_local 1 1 (all_eq_substs (mkRel (index_rel + 1), mkRel 1) packer_indexed), all_eq_substs (mkRel (index_rel + 3), mkRel 2) unpack_b_b) in
-    let pack_unpacked = mkLambda (Anonymous, index_typ, unpack_b) in
+    let pack_unpacked = mkLambda (Anonymous, shift (shift index_typ), unpack_b) in
     let env_packed = remove_rel (index_rel + 1) env_push in
     let pack_off = unshift_local index_rel 1 pack_unpacked in
-    let packer = unshift_local index_rel 1 packer in
+    let packer = mkLambda (Anonymous, shift index_typ, unshift_local (index_rel + 1) 1 reindexed) in
     let elim_b = shift (mkAppl (ind_n, shift_all (mk_n_rels (arity - 1)))) in
-    let elim_t = mkAppl (sigT, [index_typ; packer]) in
+    let elim_t = mkAppl (sigT, [shift index_typ; packer]) in
     let elim = mkLambda (Anonymous, elim_t, elim_b) in
-    let packed = mkAppl (sigT_rect, [index_typ; packer; elim; pack_off; mkRel 1]) in
+    let packed = mkAppl (sigT_rect, [shift index_typ; packer; elim; pack_off; mkRel 1]) in
     (env_packed, packed)
               
 (* Search two inductive types for an indexing ornament, using eliminators *)
