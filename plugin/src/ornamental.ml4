@@ -2071,23 +2071,38 @@ let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : typ
 
 (* --- Application --- *)
 
+(* TODO explain *)
+let zoom_sig is_fwd t =
+  if is_fwd then
+    t
+  else
+    try
+      let lambda = last (unfold_args (snd (zoom_lambda_term empty_env t))) in
+      first_fun (snd (zoom_lambda_term empty_env lambda))
+    with _ ->
+      t
+              
 (*
  * Substitute the ornamented type in the hypotheses.
  * Return both the term with ornamented hypotheses and the number
  * of substitutions that occurred.
  *)
-let sub_in_hypos (l : lifting) (index_lam : types) (from_ind : types) (to_ind : types) (hypos : types) =
+let sub_in_hypos (l : lifting) (env : env) (index_lam : types) (from_ind : types) (to_ind : types) (hypos : types) =
+  let is_fwd = l.is_fwd in
   let index_i = Option.get l.orn.index_i in
-  map_unit_if_lazy
-    (fun trm ->
+  let from_ind = zoom_sig is_fwd from_ind in
+  map_unit_env_if_lazy
+    (fun env trm ->
       match kind_of_term trm with
-      | Lambda (_, t, _) -> is_or_applies from_ind t
+      | Lambda (_, t, _) ->
+         is_or_applies from_ind (zoom_sig is_fwd (reduce_nf env t))
       | _ -> false)
-    (fun trm ->
+    (fun env trm ->
       let (n, t, b) = destLambda trm in
       let t_args = unfold_args t in
-      let t_ind = reduce_term empty_env (mkAppl (to_ind, t_args)) in
+      let t_ind = reduce_term env (mkAppl (to_ind, t_args)) in
       mkLambda (n, t_ind, b))
+    env
     hypos
 
 (*
@@ -2099,33 +2114,30 @@ let ornament_args env (from_ind, to_ind) (l : lifting) trm =
   let is_fwd = l.is_fwd in
   let orn_f = lift_back l in
   let typ = reduce_type env trm in
-  debug_term env typ "typ";
-  debug_term env trm "trm";
-  let rec ornament_arg i typ =
+  let from_ind = zoom_sig is_fwd from_ind in
+  let rec ornament_arg env i typ =
     match kind_of_term typ with
     | Prod (n, t, b) ->
-       if is_or_applies from_ind t then
+       if is_or_applies from_ind (zoom_sig is_fwd (reduce_nf env t)) then
          let t_args = unfold_args (shift t) in
          [mkAppl (orn_f, snoc (mkRel 1) t_args)]
        else
-         mkRel i :: (ornament_arg (unshift_i i) b)
+         mkRel i :: (ornament_arg (push_local (n, t) env) (unshift_i i) b)
     | _ ->
        []
-  in mkAppl (trm, ornament_arg (arity typ) typ)
+  in mkAppl (trm, ornament_arg env (arity typ) typ)
 
 (* Ornament the hypotheses *)
 let ornament_hypos env (l : lifting) (from_ind, to_ind) trm =
-  Printf.printf "%s\n\n" "ornamenting hypos";
   let orn = l.orn in
   let is_fwd = l.is_fwd in
   let indexer = Option.get orn.indexer in
   let indexer_type = reduce_type env indexer in
   let index_lam = remove_final_hypo (prod_to_lambda indexer_type) in
   let hypos = on_type prod_to_lambda env trm in
-  let subbed_hypos = sub_in_hypos l index_lam from_ind to_ind hypos in
+  let subbed_hypos = sub_in_hypos l env index_lam from_ind to_ind hypos in
   let env_hypos = zoom_env zoom_lambda_term env subbed_hypos in
   let concl = ornament_args env_hypos (from_ind, to_ind) l trm in
-  debug_term env_hypos concl "concl";
   reconstruct_lambda env_hypos concl
 
 (* Ornament the conclusion *)
@@ -2196,12 +2208,11 @@ let ornament_no_red (env : env) (orn_f : types) (orn_inv_f : types) (trm : types
   let orn = initialize_orn env promote forget in
   let l = initialize_lifting orn is_fwd in
   let orn_type = reduce_type env orn.promote in
-  let (from_with_args, to_with_args) = map_if reverse (not is_fwd) (ind_of_orn orn_type) in
+  let (from_with_args, to_with_args) = ind_of_orn orn_type in
   let env_to = pop_rel_context 1 (fst (zoom_product_type env orn_type)) in
-  debug_env env_to "env_to";
   let from_ind = first_fun from_with_args in
   let to_ind = reconstruct_lambda env_to (unshift to_with_args) in
-  let app_orn ornamenter = ornamenter env l (from_ind, to_ind) in
+  let app_orn ornamenter = ornamenter env l (map_if reverse (not is_fwd) (from_ind, to_ind)) in
   let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
   let orned = app_orn (ornament_concls concl_typ) (app_orn ornament_hypos trm) in
   map_if remove_unused_hypos (not is_fwd) orned
