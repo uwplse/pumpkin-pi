@@ -2100,39 +2100,20 @@ let ornament_args env (from_ind, to_ind) (l : lifting) (trm, indices) =
   let orn_f = lift_back l in
   let index_i = Option.get orn.index_i in
   let indexer = Option.get orn.indexer in
-  let (trm, _, indices) =
-    List.fold_left
-       (fun (trm, hypos, indices) i ->
-         match kind_of_term hypos with
-         | Lambda (n, t, b) ->
-            let (_, _, h) = CRD.to_tuple @@ lookup_rel i env in
-            if is_or_applies from_ind t then
-              if is_fwd then
-                let nind = List.length indices in
-                let index = mkRel (i - nind) in
-                let args = insert_index_shift index_i index (unfold_args t) i in
-                let indexed = unshift index in
-                let t_args = unfold_args t in
-                let orn_app = mkAppl (orn_f, snoc indexed args) in
-                let sub_index = (index, mkAppl (indexer, snoc indexed (shift_all_by i t_args))) in
-                (mkApp (trm, Array.make 1 orn_app), b, sub_index :: indices)
-              else
-                let index = shift_by i (get_arg index_i t) in
-                let args = adjust_no_index index_i (shift_all_by i (unfold_args t)) in
-                let orn_app = mkAppl (orn_f, args) in
-                let indexed = unshift index in
-                let t_args = unfold_args t in
-                let sub_index = (index, mkAppl (indexer, snoc indexed (remove_index index_i (shift_all_by i t_args)))) in
-                (mkApp (trm, Array.make 1 orn_app), b, sub_index :: indices)
-            else if eq_constr h t then (* TODO test multi-nat-index case *)
-              (mkApp (trm, Array.make 1 (mkRel i)), b, indices)
-            else
-              (trm, unshift b, indices)
-         | _ ->
-            (trm, hypos, indices))
-       (trm, prod_to_lambda (reduce_type env trm), indices) (* TODO redundant *)
-       (List.rev (all_rel_indexes env))
-  in (trm, indices)
+  let typ = reduce_type env trm in
+  debug_term env typ "typ";
+  debug_term env trm "trm";
+  let rec ornament_arg i typ =
+    match kind_of_term typ with
+    | Prod (n, t, b) ->
+       if is_or_applies from_ind t then
+         let t_args = unfold_args (shift t) in
+         [mkAppl (orn_f, snoc (mkRel 1) t_args)]
+       else
+         mkRel i :: (ornament_arg (unshift_i i) b)
+    | _ ->
+       []
+  in mkAppl (trm, ornament_arg (arity typ) typ)
 
 (* Ornament the hypotheses *)
 let ornament_hypos env (l : lifting) (from_ind, to_ind) (trm, indices) =
@@ -2143,14 +2124,13 @@ let ornament_hypos env (l : lifting) (from_ind, to_ind) (trm, indices) =
   let indexer_type = reduce_type env indexer in
   let index_lam = remove_final_hypo (prod_to_lambda indexer_type) in
   let hypos = on_type prod_to_lambda env trm in
-  debug_term env hypos "hypos";
-  debug_term env to_ind "to_ind";
   let subbed_hypos = sub_in_hypos l index_lam from_ind to_ind hypos in
-  debug_term env subbed_hypos "subbed_hypos";
   let env_hypos = zoom_env zoom_lambda_term env subbed_hypos in
-  let (concl, indices) = ornament_args env_hypos (from_ind, to_ind) l (trm, indices) in
-  let sub_ind = map_if (List.fold_right all_eq_substs indices) (not is_fwd) in
-  (reconstruct_lambda env_hypos (sub_ind concl), indices)
+  let concl = ornament_args env_hypos (from_ind, to_ind) l (trm, indices) in
+  debug_term env_hypos concl "concl";
+  (*let sub_ind = map_if (List.fold_right all_eq_substs indices) (not is_fwd) in
+   *)
+  (reconstruct_lambda env_hypos concl, []) (* TODO remove old code *)
 
 (* Ornament the conclusion *)
 let ornament_concls concl_typ env (l : lifting) (from_ind, to_ind) (trm, indices) =
