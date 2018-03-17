@@ -2304,6 +2304,8 @@ let compose_ih env_g npms_g ip_g c_f p =
  * For now, this does not handle nested induction.
  *
  * TODO clean, refactor orn/deorn, take fewer arguments, etc.
+ * TODO can massively simplify with packed type, but will take work
+ * to figure out exactly what can go
  *)
 let compose_c npms_g ip_g p post_assums (comp : composition) =
   let l = comp.l in
@@ -2312,14 +2314,18 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
   let (env_f, c_f) = comp.f in
   let orn_f = lift_back l in
   let orn_f_typ = reduce_type env_f orn_f in
-  let to_typ = first_fun (fst (ind_of_orn orn_f_typ)) in
+  (* TODO don't do do this in rev direction, get first fun, swap, etc *)
+  let to_typ = zoom_sig (not l.is_fwd) (fst (ind_of_orn orn_f_typ)) in
   let orn_g_typ = reduce_type env_g (lift_to l) in 
   let from_typ = first_fun (fst (ind_of_orn orn_g_typ)) in
+  debug_term env_f to_typ "to_typ";
   let is_deorn = is_or_applies to_typ in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
+  debug_term env_f c_f "c_f";
   let c_g_used = get_used_or_p_hypos always_true c_g in
   let (env_f_body_old, _) = zoom_lambda_term env_f c_f in
   let c_f = compose_ih env_g npms_g ip_g c_f p in
+  debug_term env_f c_f "c_f";
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let off_f = offset env_f_body (nb_rel env_f) in
   let f_body =
@@ -2332,6 +2338,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
       let shift_if = if num_assums > off_g then num_assums - off_g else 0 in
       let f = shift_by off_f f_f in
       let c_used = directional l c_f_used c_g_used in
+      debug_terms env_f_body c_used "c_used";
       let rec indexes env args trm =
         if not l.is_fwd then
           match (args, kind_of_term trm) with
@@ -2363,8 +2370,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
                   mkAppl (orn_f, snoc trm (on_type unfold_args env trm)))
                 env_f_body)
              c_used)
-      in let app = reduce_term env_f_body (mkAppl (f, args)) in
-         let app =
+      in debug_term env_f_body f "f"; debug_terms env_f_body args "args"; let app = reduce_term env_f_body (mkAppl (f, args)) in
          map_unit_env_if
            (fun en tr ->
              match kind_of_term tr with
@@ -2404,7 +2410,6 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
              in mkAppl (first_fun tr, args))
            env_f_body
            app
-         in app
     else
       let arg_i = if_indexer l index_i (arity orn_f_typ - 1) in
       let (nsubs, f_body) = map_track_unit_if (applies orn_f) (get_arg arg_i) f_body in
@@ -2443,7 +2448,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
            env_f_body_old)
         (nsubs = 0)
         f_body
-  in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
+  in debug_term env_f_body f_body "f_body"; reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
 
 (*
  * Compose two applications of an induction principle that are
@@ -2492,7 +2497,7 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
       let c_cs = { comp with f = (env_c, c_body)} in
       let (c_comp, indexer) = compose_inductive idx_n post_assums true c_cs in
       debug_term env_c c_comp "c_comp";
-      ([reconstruct_lambda env_c c_comp], indexer)
+      ([reconstruct_lambda_n env_c c_comp (nb_rel env_f)], indexer)
     else
       let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
       let cs_exp = List.map (compose_c (List.length pms_g) ip_g p_exp post_assums) c_cs in
@@ -2582,6 +2587,7 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
          let is_g = applies orn_f t_body in
          let comp = { l ; g ; f ; is_g } in
          let (app, indexer) = compose_inductive idx_n post_assums false comp in
+         debug_term (fst f) (reduce_term (fst f) app) "app";
          ((app, indexer), env, true)
        else
          let t = shift_by assum_ind t in
