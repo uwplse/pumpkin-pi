@@ -2245,12 +2245,10 @@ let compose_p npms post_assums inner (comp : composition) =
   let (env_f, p_f) = comp.f in
   let (env_p_f, p_f_b) = zoom_lambda_term empty_env p_f in
   let off = nb_rel env_p_f in
-  Printf.printf "%d\n" off;
   let shift_pms = shift_local off off in
   let orn_app = shift_local off (off + List.length post_assums) (mkAppl (lift_back l, mk_n_rels (npms + off))) in
   let (_, non_pms) = take_split npms (unfold_args p_f_b) in
   let p_args = snoc orn_app non_pms in
-  debug_terms env_f p_args "p_args";
   let p =
     map_forward
       (fun p_g ->
@@ -2271,9 +2269,7 @@ let compose_p npms post_assums inner (comp : composition) =
       l
       p_g
   in
-  debug_term env_f p "p";
   let app = reduce_term env_p_f (mkAppl (p, p_args)) in
-  debug_term env_f app "app";
   if inner then
     reconstruct_lambda env_p_f (shift_pms app)
   else

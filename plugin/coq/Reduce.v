@@ -18,7 +18,7 @@ Theorem test_hd_vect:
   forall (A : Type) (default : A) (pv : packed_vector A),
     hd_vect_packed A default pv = hd_vect_red A default pv.
 Proof.
-  intros. induction pv. reflexivity.
+  intros. reflexivity.
 Qed.
 
 (* TODO test relation to old version, eventually branch & simplify etc *)
@@ -44,7 +44,7 @@ Theorem test_hd_vect_error:
   forall (A : Type) (pv : packed_vector A),
     hd_vect_error_packed A pv = hd_vect_error_red A pv.
 Proof.
-  intros. induction pv. reflexivity.
+  intros. reflexivity.
 Qed.
 
 Reduce ornament orn_list_vector_inv orn_list_vector in hd_error_auto as hd_error_red.

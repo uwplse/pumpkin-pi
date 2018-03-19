@@ -78,7 +78,11 @@ Definition hd_vect_error (A : Type) (n : nat) (v : vector A n) :=
     v.
 
 Definition hd_vect_error_packed (A : Type) (pv : packed_vector A) :=
-  hd_vect_error A (projT1 pv) (projT2 pv).
+  sigT_rect
+    (fun _ : packed_vector A => option A)
+    (fun (n : nat) (v0 : vector A n) =>
+      hd_vect_error A n v0)
+    pv.
 
 Apply ornament orn_list_vector orn_list_vector_inv in hd_error as hd_vect_error_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_error_packed as hd_error_auto.
