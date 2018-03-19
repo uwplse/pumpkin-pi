@@ -2574,18 +2574,29 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
   let orn_indexer = Option.get l.orn.indexer in
   match fs with
   | Factor ((en, t), children) ->
+     debug_term en t "t";
      if List.length children > 0 then
        let post_assums = mk_n_rels (assum_ind - 1) in
        let child = List.hd (List.rev children) in
        let ((t_app, indexer), env, composed) = compose_orn_factors l assum_ind idx_n child in
+       debug_term env t_app "t_app";
        let (e_body, t_body) = zoom_lambda_term en t in
+       debug_term e_body t_body "t_body";
        let body_uses f = applies f t_body in
-       let uses f = (applies f t_app || body_uses f) && isApp t_app in
-       let promotes = uses promote in
+       let uses f = (is_or_applies f t_app || body_uses f) && isApp t_app in
+       let (env_promote, promote_exp) = zoom_lambda_term env (delta env promote) in
+       let promote_inner = get_arg 3 promote_exp in
+       let promote_inner_recons = reconstruct_lambda_n env_promote promote_inner (nb_rel env) in
+       let t_app_typ = reduce_type env t_app in
+       let t_app_args = unfold_args t_app_typ in
+       let deindex = List.exists (applies orn_indexer) t_app_args in
+       let promote_args = map_if (remove_index (Option.get l.orn.index_i)) deindex t_app_args in
+       let promote_param = reduce_term env (mkAppl (promote_inner_recons, snoc (mkRel 1) promote_args)) in (* should it be mkRel assum_ind? *)
+       let promotes = uses promote || uses promote_param in
        let forgets = uses forget in
        let is_indexer = uses orn_indexer in
        if promotes || forgets || is_indexer then
-         let red = not (if promotes || forgets then composed else true) in
+         let red = not (if uses promote_param then true else if promotes || forgets then composed else true) in
          let l = { l with is_indexer } in
          debug_term e_body t_body "g pre_red";
          debug_term env t_app "f pre_red";
@@ -2600,11 +2611,22 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
          if applies sigT_rect (snd g) && applies existT (snd f) then
            (* eliminate the existT [TODO move] *)
            let g_inner = get_arg 3 (snd g) in
-           let cs_f = List.tl (List.tl (unfold_args (snd f))) in
            debug_term (fst g) g_inner "g_inner";
-           let g_comp = mkAppl (g_inner, cs_f) in
+           let cs_f = List.tl (List.tl (unfold_args (snd f))) in
+           debug_terms (fst f) cs_f "cs_f";
+           let inner = mkAppl (g_inner, cs_f) in
+           debug_term (fst f) inner "inner";
+           let inner_factors = factor_term_dep (mkRel assum_ind) (fst f) inner in
+           debug_factors_dep inner_factors;
+           compose_orn_factors l assum_ind idx_n inner_factors
+           (* let (env_g_body, g_body) = zoom_lambda_term (fst g) g_inner in
+           let g_body_red = chain_reduce reduce_term delta env_g_body g_body in
+           debug_term env_g_body g_body_red "g_body";
+           let g_comp = mkAppl (reconstruct_lambda_n env_g_body g_body_red (nb_rel (fst g)), List.rev (List.tl (List.rev cs_f))) in
+           let g = (env_g_body, g_comp) in
+           let f = last cs_f in
            debug_term env g_comp "g_comp";
-           ((g_comp, None), env, true)
+           let comp = { l ; g ; f ; is_g } in*)
          else
            let (app, indexer) = compose_inductive idx_n post_assums false comp in
            debug_term (fst f) (reduce_term (fst f) app) "app";
