@@ -25,6 +25,8 @@ Qed.
 
 Reduce ornament orn_list_vector_inv orn_list_vector in hd_auto as hd_red.
 
+Print hd_red.
+
 Theorem test_hd:
   forall (A : Type) (default : A) (l : list A),
     hd A default l = hd_red A default l.
