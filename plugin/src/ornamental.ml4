@@ -2541,7 +2541,6 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
  * we should test this a lot and generalize it.
  *)
 let get_assum orn env trm =
-  debug_term env trm "trm";
   let c = ref None in
   let _ =
     map_unit_if
@@ -2549,13 +2548,11 @@ let get_assum orn env trm =
         match kind_of_term t with
         | App (_, _) ->
            let f = first_fun t in
-           debug_term env f "f";
            isConst f && not (eq_constr f orn.promote || eq_constr f orn.forget)
         | _ ->
            false)
       (fun t ->
         let unorn = unwrap_definition env (first_fun t) in
-        debug_term env unorn "unorn";
         let (_, unorn_typ) = zoom_product_type env (infer_type env unorn) in
         let assum_i = arity unorn - destRel (last (unfold_args unorn_typ)) in
         c := Some (last (unfold_args (get_arg assum_i t))); t)
@@ -2566,9 +2563,7 @@ let get_assum orn env trm =
  * Factor an ornamented, but not yet reduced function
  *)
 let factor_ornamented (orn : promotion) (env : env) (trm : types) =
-  Printf.printf "%s\n\n" "factoring";
   let assum = get_assum orn env trm in
-  debug_term env assum "assum";
   (destRel assum, factor_term_dep assum env trm)
 
 (*
@@ -2597,6 +2592,7 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
          let f = (env, map_if (chain_reduce reduce_term delta env) red t_app) in
          debug_term (fst g) (snd g) "g";
          debug_term (fst f) (snd f) "f";
+         (* TODO should we still reduce f in this case? getting existT *)
          let orn_f = if promotes then promote else if forgets then forget else orn_indexer in
          let is_g = applies orn_f t_body in
          let comp = { l ; g ; f ; is_g } in
@@ -2635,7 +2631,6 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let orn = initialize_orn env promote forget in                         
   let l = initialize_lifting orn is_fwd in
   let (assum_ind, factors) = factor_ornamented orn env trm in
-  debug_factors_dep factors;
   let ((internalized, indexer), env, _) = compose_orn_factors l assum_ind idx_n factors in
   (reconstruct_lambda env internalized, indexer)
 
