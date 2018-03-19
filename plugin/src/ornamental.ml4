@@ -2314,6 +2314,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
   let (env_f, c_f) = comp.f in
   let (orn_f, orn_g) = (lift_back l, lift_to l) in
   let orn_f_typ = reduce_type env_f orn_f in
+  debug_term env_f orn_f_typ "orn_f_typ";
   let orn_g_typ = reduce_type env_g orn_g in
   let (to_typ, from_typ) =
     if l.is_fwd then
@@ -2322,6 +2323,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
       let to_typ = first_fun (snd (zoom_lambda_term empty_env to_typ_lam)) in
       (to_typ, first_fun (fst (ind_of_orn orn_g_typ)))
     else
+      let x = 0 in debug_term env_f (fst (ind_of_orn orn_f_typ)) "ind_of_orn orn_f_typ";
       (zoom_sig (not l.is_fwd) (fst (ind_of_orn orn_f_typ)), first_fun (fst (ind_of_orn orn_g_typ)))
   in
   debug_term env_f to_typ "to_typ";
@@ -2539,6 +2541,7 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
  * we should test this a lot and generalize it.
  *)
 let get_assum orn env trm =
+  debug_term env trm "trm";
   let c = ref None in
   let _ =
     map_unit_if
@@ -2546,11 +2549,13 @@ let get_assum orn env trm =
         match kind_of_term t with
         | App (_, _) ->
            let f = first_fun t in
+           debug_term env f "f";
            isConst f && not (eq_constr f orn.promote || eq_constr f orn.forget)
         | _ ->
            false)
       (fun t ->
         let unorn = unwrap_definition env (first_fun t) in
+        debug_term env unorn "unorn";
         let (_, unorn_typ) = zoom_product_type env (infer_type env unorn) in
         let assum_i = arity unorn - destRel (last (unfold_args unorn_typ)) in
         c := Some (last (unfold_args (get_arg assum_i t))); t)
@@ -2561,7 +2566,9 @@ let get_assum orn env trm =
  * Factor an ornamented, but not yet reduced function
  *)
 let factor_ornamented (orn : promotion) (env : env) (trm : types) =
+  Printf.printf "%s\n\n" "factoring";
   let assum = get_assum orn env trm in
+  debug_term env assum "assum";
   (destRel assum, factor_term_dep assum env trm)
 
 (*
@@ -2628,6 +2635,7 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let orn = initialize_orn env promote forget in                         
   let l = initialize_lifting orn is_fwd in
   let (assum_ind, factors) = factor_ornamented orn env trm in
+  debug_factors_dep factors;
   let ((internalized, indexer), env, _) = compose_orn_factors l assum_ind idx_n factors in
   (reconstruct_lambda env internalized, indexer)
 

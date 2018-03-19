@@ -10,8 +10,6 @@ Require Import Apply.
  * hd and hd_vect
  *)
 
-Print hd_vect_packed.
-
 Reduce ornament orn_list_vector orn_list_vector_inv in hd_vect_auto as hd_vect_red.
 
 Print hd_vect_red.

@@ -29,7 +29,11 @@ Definition hd_vect (A : Type) (default : A) (n : nat) (v : vector A n) :=
     v.
 
 Definition hd_vect_packed (A : Type) (default : A) (pv : packed_vector A) :=
-  hd_vect A default (projT1 pv) (projT2 pv).
+  sigT_rect
+    (fun _ : packed_vector A => A)
+    (fun (n : nat) (v0 : vector A n) =>
+      hd_vect A default n v0)
+    pv.
 
 Apply ornament orn_list_vector orn_list_vector_inv in hd as hd_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_packed as hd_auto.
