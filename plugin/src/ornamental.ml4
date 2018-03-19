@@ -2312,7 +2312,6 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
   let (env_f, c_f) = comp.f in
   let (orn_f, orn_g) = (lift_back l, lift_to l) in
   let orn_f_typ = reduce_type env_f orn_f in
-  debug_term env_f orn_f_typ "orn_f_typ";
   let orn_g_typ = reduce_type env_g orn_g in
   let (to_typ, from_typ) =
     if l.is_fwd then
@@ -2321,18 +2320,13 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
       let to_typ = first_fun (snd (zoom_lambda_term empty_env to_typ_lam)) in
       (to_typ, first_fun (fst (ind_of_orn orn_g_typ)))
     else
-      let x = 0 in debug_term env_f (fst (ind_of_orn orn_f_typ)) "ind_of_orn orn_f_typ";
       (zoom_sig (not l.is_fwd) (fst (ind_of_orn orn_f_typ)), first_fun (fst (ind_of_orn orn_g_typ)))
   in
-  debug_term env_f to_typ "to_typ";
-  debug_term env_g from_typ "from_typ";
   let is_deorn = is_or_applies to_typ in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
-  debug_term env_f c_f "c_f";
   let c_g_used = get_used_or_p_hypos always_true c_g in
   let (env_f_body_old, _) = zoom_lambda_term env_f c_f in
   let c_f = compose_ih env_g npms_g ip_g c_f p in
-  debug_term env_f c_f "c_f";
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let off_f = offset env_f_body (nb_rel env_f) in
   let f_body =
@@ -2345,7 +2339,6 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
       let shift_if = if num_assums > off_g then num_assums - off_g else 0 in
       let f = shift_by off_f f_f in
       let c_used = directional l c_f_used c_g_used in
-      debug_terms env_f_body c_used "c_used";
       let rec indexes env args trm =
         if not l.is_fwd then
           match (args, kind_of_term trm) with
@@ -2374,10 +2367,19 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
              (map_unit_env_if
                 (on_type is_deorn)
                 (fun env trm ->
-                  mkAppl (orn_f, snoc trm (on_type unfold_args env trm)))
+                  let typ = reduce_type env trm in
+                  let index = get_arg index_i typ in
+                  let index_typ = infer_type env index in
+                  let unpacked_args = unfold_args typ in
+                  let packed_args = reindex index_i (mkRel 1) (shift_all unpacked_args) in
+                  let reindexed = mkAppl (first_fun typ, packed_args) in 
+                  let packer = mkLambda (Anonymous, index_typ, reindexed) in
+                  let deindexed = remove_index index_i unpacked_args in
+                  let packed = mkAppl (existT, [index_typ; packer; index; trm]) in
+                  mkAppl (orn_f, snoc packed deindexed))
                 env_f_body)
              c_used)
-      in debug_term env_f_body f "f"; debug_terms env_f_body args "args"; let app = reduce_term env_f_body (mkAppl (f, args)) in
+      in let app = reduce_term env_f_body (mkAppl (f, args)) in
          map_unit_env_if
            (fun en tr ->
              match kind_of_term tr with
@@ -2455,7 +2457,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
            env_f_body_old)
         (nsubs = 0)
         f_body
-  in debug_term env_f_body f_body "f_body"; reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
+  in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
 
 (*
  * Compose two applications of an induction principle that are
@@ -2485,9 +2487,6 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
   in
   let c_p = { comp with g = (env_g, p_g); f = (env_f, p_f) } in
   let p = compose_p (List.length pms) post_assums inner c_p in
-  debug_term env_f p_f "p_f";
-  debug_term env_g p_g "p_g";
-  debug_term env_f p "p";
   let p_exp = (* defer defining the indexer *)
     map_if
       (fun p ->
@@ -2505,7 +2504,6 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
       let (env_c, c_body) = zoom_lambda_term env_f c in
       let c_cs = { comp with f = (env_c, c_body)} in
       let (c_comp, indexer) = compose_inductive idx_n post_assums true c_cs in
-      debug_term env_c c_comp "c_comp";
       ([reconstruct_lambda_n env_c c_comp (nb_rel env_f)], indexer)
     else
       let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
@@ -2575,7 +2573,6 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
   let orn_indexer = Option.get l.orn.indexer in
   match fs with
   | Factor ((en, t), children) ->
-     debug_term en t "t";
      if List.length children > 0 then
        let post_assums = mk_n_rels (assum_ind - 1) in
        let child = List.hd (List.rev children) in
