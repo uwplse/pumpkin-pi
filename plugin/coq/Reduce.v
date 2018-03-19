@@ -41,10 +41,10 @@ Qed.
 Reduce ornament orn_list_vector orn_list_vector_inv in hd_vect_error_auto as hd_vect_error_red.
 
 Theorem test_hd_vect_error:
-  forall (A : Type) (n : nat) (v : vector A n),
-    hd_vect_error A n v = hd_vect_error_red A n v.
+  forall (A : Type) (pv : packed_vector A),
+    hd_vect_error_packed A pv = hd_vect_error_red A pv.
 Proof.
-  intros. reflexivity.
+  intros. induction pv. reflexivity.
 Qed.
 
 Reduce ornament orn_list_vector_inv orn_list_vector in hd_error_auto as hd_error_red.

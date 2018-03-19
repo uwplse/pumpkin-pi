@@ -2254,7 +2254,7 @@ let compose_p npms post_assums inner (comp : composition) =
   let p =
     map_forward
       (fun p_g ->
-        let p_g = shift_pms p_g in
+        let p_g = shift_by off p_g in
         map_default
           (fun indexer ->
             let (env_p_g, p_g_b) = zoom_lambda_term empty_env p_g in
@@ -2271,7 +2271,9 @@ let compose_p npms post_assums inner (comp : composition) =
       l
       p_g
   in
+  debug_term env_f p "p";
   let app = reduce_term env_p_f (mkAppl (p, p_args)) in
+  debug_term env_f app "app";
   if inner then
     reconstruct_lambda env_p_f (shift_pms app)
   else
@@ -2487,6 +2489,8 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
   in
   let c_p = { comp with g = (env_g, p_g); f = (env_f, p_f) } in
   let p = compose_p (List.length pms) post_assums inner c_p in
+  debug_term env_f p_f "p_f";
+  debug_term env_g p_g "p_g";
   debug_term env_f p "p";
   let p_exp = (* defer defining the indexer *)
     map_if
@@ -2505,6 +2509,7 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
       let (env_c, c_body) = zoom_lambda_term env_f c in
       let c_cs = { comp with f = (env_c, c_body)} in
       let (c_comp, indexer) = compose_inductive idx_n post_assums true c_cs in
+      debug_term env_c c_comp "c_comp";
       ([reconstruct_lambda_n env_c c_comp (nb_rel env_f)], indexer)
     else
       let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
