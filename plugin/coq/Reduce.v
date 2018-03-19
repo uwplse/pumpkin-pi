@@ -14,6 +14,8 @@ Print hd_vect_packed.
 
 Reduce ornament orn_list_vector orn_list_vector_inv in hd_vect_auto as hd_vect_red.
 
+Print hd_vect_red.
+
 Theorem test_hd_vect:
   forall (A : Type) (default : A) (pv : packed_vector A),
     hd_vect_packed A default pv = hd_vect_red A default pv.

@@ -2312,13 +2312,20 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
   let index_i = Option.get l.orn.index_i in
   let (env_g, c_g) = comp.g in
   let (env_f, c_f) = comp.f in
-  let orn_f = lift_back l in
+  let (orn_f, orn_g) = (lift_back l, lift_to l) in
   let orn_f_typ = reduce_type env_f orn_f in
-  (* TODO don't do do this in rev direction, get first fun, swap, etc *)
-  let to_typ = zoom_sig (not l.is_fwd) (fst (ind_of_orn orn_f_typ)) in
-  let orn_g_typ = reduce_type env_g (lift_to l) in 
-  let from_typ = first_fun (fst (ind_of_orn orn_g_typ)) in
+  let orn_g_typ = reduce_type env_g orn_g in
+  let (to_typ, from_typ) =
+    if l.is_fwd then
+      let to_typ_sig = zoom_sig l.is_fwd (fst (ind_of_orn orn_f_typ)) in
+      let to_typ_lam = last (unfold_args to_typ_sig) in
+      let to_typ = first_fun (snd (zoom_lambda_term empty_env to_typ_lam)) in
+      (to_typ, first_fun (fst (ind_of_orn orn_g_typ)))
+    else
+      (zoom_sig (not l.is_fwd) (fst (ind_of_orn orn_f_typ)), first_fun (fst (ind_of_orn orn_g_typ)))
+  in
   debug_term env_f to_typ "to_typ";
+  debug_term env_g from_typ "from_typ";
   let is_deorn = is_or_applies to_typ in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
   debug_term env_f c_f "c_f";
