@@ -2555,7 +2555,7 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
   Printf.printf "%s\n\n" (if inner then "inner" else "outer");
   Printf.printf "%s\n\n" (if not comp.is_g then "not g" else "g");
   let (cs, indexer) =
-    if applies sigT_rect f && l.is_fwd && not comp.is_g then
+    if applies sigT_rect f && l.is_fwd then
       (* TODO factoring should handle *)
       (* bubble inside the sigT_rect (is this the best way?) *)
       let c = List.hd cs_f in
@@ -2658,12 +2658,23 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
        let deindex = List.exists (applies orn_indexer) t_app_args in
        let promote_args = map_if (remove_index (Option.get l.orn.index_i)) deindex t_app_args in
        let promote_param = reduce_term env (mkAppl (promote_inner_recons, snoc (mkRel 1) promote_args)) in (* should it be mkRel assum_ind? *)
+       debug_term env orn_indexer "orn_indexer";
        let promotes = uses promote || uses promote_param in
        let forgets = uses forget in
-       let is_indexer = uses orn_indexer in
+       let is_indexer_inner =
+         let body_is = is_or_applies sigT_rect t_body in
+         let app_is = is_or_applies sigT_rect t_app in
+         if app_is || body_is then
+           let inner = get_arg 3 (if body_is then t_body else t_app) in
+           let (_, inner_zoom) = zoom_lambda_term env inner in
+           is_or_applies orn_indexer inner_zoom
+         else
+           false
+       in
+       let is_indexer = uses orn_indexer || is_indexer_inner in
        if promotes || forgets || is_indexer then
          let red_f = not (if uses promote_param then true else if promotes || forgets then composed else true) in
-         let red_g = not (if uses promote_param then l.is_fwd else false) in
+         let red_g = not (if uses promote_param || is_indexer_inner then l.is_fwd else false) in
          let l = { l with is_indexer } in
          debug_term e_body t_body "g pre_red";
          debug_term env t_app "f pre_red";
@@ -2705,6 +2716,15 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
            let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_orn_factors l assum_ind idx_n inner_factors in
            debug_term env (Option.get indexer_inner) "indexer_inner";
            ((t_app_inner, indexer_inner), env_inner, composed_inner)
+         else if applies sigT_rect (snd g) && is_indexer_inner then
+           let inner = get_arg 3 (snd g) in
+           let (env_inner, inner_body) = zoom_lambda_term (fst g) inner in
+           let inner_factors = factor_term_dep (mkRel assum_ind) env_inner inner_body in
+           debug_factors_dep inner_factors;
+           let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_orn_factors l assum_ind idx_n inner_factors in
+           debug_term env_inner t_app_inner "t_app_inner";
+           ((t_app_inner, indexer_inner), env_inner, composed_inner)
+           (* TODO wrap in a sigT_rect *)
          else
            let (app, indexer) = compose_inductive idx_n post_assums false comp in
            debug_term (fst f) (reduce_term (fst f) app) "app";
