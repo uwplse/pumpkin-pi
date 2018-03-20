@@ -2608,10 +2608,18 @@ let get_assum orn env trm =
         | _ ->
            false)
       (fun t ->
-        let unorn = unwrap_definition env (first_fun t) in
-        let (_, unorn_typ) = zoom_product_type env (infer_type env unorn) in
-        let assum_i = arity unorn - destRel (last (unfold_args unorn_typ)) in
-        c := Some (last (unfold_args (get_arg assum_i t))); t)
+        let c' =
+          if applies sigT_rect t then
+            (* indexer *)
+            Some (last (unfold_args t))
+          else
+            (* function *)
+            let unorn = unwrap_definition env (first_fun t) in
+            let (_, unorn_typ) = zoom_product_type env (infer_type env unorn) in
+            let unorn_typ_args = unfold_args unorn_typ in
+            let assum_i = arity unorn - destRel (last unorn_typ_args) in
+            Some (last (unfold_args (get_arg assum_i t)))
+        in c := c'; t)
       trm
   in Option.get !c
 
