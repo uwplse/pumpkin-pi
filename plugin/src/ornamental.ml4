@@ -2256,32 +2256,34 @@ let compose_p npms post_assums inner (comp : composition) =
         let p_g = shift_by f_g_off p_g in
         let p_g = shift_by off p_g in
         map_default
-          (fun indexer ->
+          (fun indexer ->(* TODO may not yet handle HOFs *)
             let (env_p_g, p_g_b) = zoom_lambda_term env_g p_g in
-            debug_env env_p_g "env_p_g";
-            debug_term env_p_g p_g_b "p_g_b";
-            let p_g_f = first_fun p_g_b in
-            let p_g_args_old = unfold_args p_g_b in
-            debug_terms env_p_g p_g_args_old "p_g_args_old";
-            let (i_pms, _) = take_split npms p_g_args_old in
-            let i_non_pms = shift_all_by npms (mk_n_rels off) in
-            let i_args = List.append (List.append i_pms i_non_pms) (shift_all_by (off + 1) post_assums) in
+            let p_g_b_as = reindex index_i (mkRel 1) (unfold_args (shift p_g_b)) in
+            let p_g_b = mkAppl (first_fun p_g_b, p_g_b_as) in
             let pack_index = mkRel 2 in
             let index_typ = infer_type env_p_f pack_index in
-            debug_term env_p_f pack_index "pack_index";
-            debug_term env_p_f index_typ "index_typ";
-            debug_env env_p_f "env_p_f";
+            let p_g_l = mkLambda (Anonymous, index_typ, p_g_b) in
+            debug_term env_p_g p_g_l "p_g_l";
+            let p_g_packed = mkAppl (sigT, [index_typ; p_g_l]) in
+            debug_term env_p_g p_g_packed "p_g_packed";
+            reconstruct_lambda_n env_p_g p_g_packed (nb_rel env_g)
+            (* Keeping below in case we need it for app *) 
+            (*let p_g_f = first_fun p_g_b in
+            let p_g_args_old = unfold_args p_g_b in
+           
             let unpacked = mkRel 1 in
             let unpacked_typ = infer_type env_p_f unpacked in
-            let unpacked_args = reindex index_i (mkRel 1) (unfold_args (shift unpacked_typ)) in
+            
+            
+            
+            let unpacked_args = unfold_args (shift unpacked_typ) in
             let packer_body = mkAppl (first_fun unpacked_typ, unpacked_args) in
             let packer = mkLambda (Anonymous, index_typ, packer_body) in
-            debug_term env_p_f packer "packer";
             let packed_args = [index_typ; packer; pack_index; unpacked] in
             let packed = mkAppl (existT, packed_args) in
             let index = shift (mkAppl (indexer, reindex index_i packed (unfold_args unpacked_typ))) in
             let p_g_args = reindex index_i index p_g_args_old in
-            reconstruct_lambda_n env_p_g (mkAppl (p_g_f, p_g_args)) (nb_rel env_g))
+            reconstruct_lambda_n env_p_g (mkAppl (p_g_f, p_g_args)) (nb_rel env_g)*))
           p_g
           l.lifted_indexer)
       l
@@ -2477,7 +2479,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
             if l.is_indexer then
               get_arg 2 last_arg
             else
-              get_arg 3 last_arg)
+              last_arg)
           f_body
       in
       debug_term env_f_body f_body "f_body";
