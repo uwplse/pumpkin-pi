@@ -2722,9 +2722,10 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
            let inner_factors = factor_term_dep (mkRel assum_ind) env_inner inner_body in
            debug_factors_dep inner_factors;
            let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_orn_factors l assum_ind idx_n inner_factors in
-           debug_term env_inner t_app_inner "t_app_inner";
-           ((t_app_inner, indexer_inner), env_inner, composed_inner)
-           (* TODO wrap in a sigT_rect *)
+           let indexer_lam = reconstruct_lambda_n env_inner t_app_inner 2 in
+           let args = reindex 3 indexer_lam (unfold_args (snd g)) in
+           let indexer = mkAppl (sigT_rect, args) in
+           ((indexer, indexer_inner), pop_rel_context 2 env_inner, composed_inner)
          else
            let (app, indexer) = compose_inductive idx_n post_assums false comp in
            debug_term (fst f) (reduce_term (fst f) app) "app";
@@ -2814,14 +2815,16 @@ let reduce_ornament n d_orn d_orn_inv d_old =
   (if Option.has_some indexer then
      let indexer_o = Option.get indexer in
      let (indexer_n, _) = internalize env idx_n c_orn c_orn_inv indexer_o in
-     debug_term env indexer_n "indexer_n";
      define_term idx_n env evm indexer_n;
      Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
    else
      ());
-  define_term n env evm trm_n;
-  Printf.printf "Defined reduced ornamened function %s.\n\n" (string_of_id n);
-  ()
+  try
+    define_term n env evm trm_n;
+    Printf.printf "Defined reduced ornamened function %s.\n\n" (string_of_id n);
+    ()
+  with _ ->
+    ()
 
 (* --- Commands --- *)
 

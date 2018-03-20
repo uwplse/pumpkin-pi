@@ -6,6 +6,10 @@ Require Import Apply.
 
 (* --- Simple functions on lists --- *)
 
+Print projT1.
+
+Print sigT_rect.
+
 (*
  * hd and hd_vect
  *)
@@ -62,7 +66,7 @@ Qed.
 
 Reduce ornament orn_list_vector orn_list_vector_inv in tl_vect_auto as tl_vect_red.
 
-Print tl_vect_red.
+Print tl_vect_red. 
 
 Theorem test_tl_vect:
   forall (A : Type) (pv : packed_vector A),
