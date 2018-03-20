@@ -2741,6 +2741,7 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let orn = initialize_orn env promote forget in                         
   let l = initialize_lifting orn is_fwd in
   let (assum_ind, factors) = factor_ornamented orn env trm in
+  debug_factors_dep factors;
   let ((internalized, indexer), env, _) = compose_orn_factors l assum_ind idx_n factors in
   (reconstruct_lambda env internalized, indexer)
 
@@ -2793,6 +2794,7 @@ let reduce_ornament n d_orn d_orn_inv d_old =
   (if Option.has_some indexer then
      let indexer_o = Option.get indexer in
      let (indexer_n, _) = internalize env idx_n c_orn c_orn_inv indexer_o in
+     debug_term env indexer_n "indexer_n";
      define_term idx_n env evm indexer_n;
      Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
    else
