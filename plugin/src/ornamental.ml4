@@ -2509,7 +2509,6 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
  * TODO clean
  *)
 let rec compose_inductive idx_n post_assums inner (comp : composition) =
-  (* TODO remove old inner, and handle case where type actually is sigT as edge *)
   let l = comp.l in
   let index_i = Option.get l.orn.index_i in
   let (env_g, g) = comp.g in
@@ -2518,11 +2517,14 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
   let (comp, indexer) =
     if l.is_fwd && comp.is_g && not l.is_indexer then
+      (* Build the lifted indexer *)
       let indexer = Option.get l.orn.indexer in
       let (env_f_body, f_body) = zoom_lambda_term env_f f in
       let f_typ_args = on_type unfold_args env_f_body f_body in
       let index_args = snoc f_body f_typ_args in
-      let indexer = reconstruct_lambda env_f_body (mkAppl (indexer, index_args)) in
+      let env_indexer = remove_rel (3 + (List.length post_assums)) env_f_body in
+      let indexer_body = unshift_local 3 1 (mkAppl (indexer, index_args)) in
+      let indexer = reconstruct_lambda env_indexer indexer_body in
       let lifted_indexer = Some (make_constant idx_n) in
       let l = { l with lifted_indexer } in
       ({ comp with l }, Some indexer)
@@ -2684,8 +2686,9 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
            debug_term env_f_inner inner "inner";
            let inner_factors = factor_term_dep (mkRel assum_ind) env_f_inner inner in
            debug_factors_dep inner_factors;
-           let c = compose_orn_factors l assum_ind idx_n inner_factors in
-           c
+           let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_orn_factors l assum_ind idx_n inner_factors in
+           debug_term env_inner (Option.get indexer_inner) "indexer_inner";
+           ((t_app_inner, indexer_inner), env_inner, composed_inner)
            (*mkApp (existT, [ ; ; ; c]) TODO apply existT *)
          else
            let (app, indexer) = compose_inductive idx_n post_assums false comp in

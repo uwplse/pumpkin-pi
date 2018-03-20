@@ -146,6 +146,8 @@ Definition append_vect_packed (A : Type) (pv1 : packed_vector A) (pv2 : packed_v
     (plus_vect A (projT1 pv1) (projT2 pv1) (projT1 pv2) (projT2 pv2))
     (append_vect A (projT1 pv1) (projT2 pv1) (projT1 pv2) (projT2 pv2)).
 
+Print append_vect_packed.
+
 Apply ornament orn_list_vector orn_list_vector_inv in append as append_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in append_vect_packed as append_auto.
 
@@ -221,12 +223,19 @@ Definition pred_vect (A : Type) (n : nat) (v : vector A n) :=
     n
     v.
 
+Definition pred_vect_exp (A : Type) (pv : packed_vector A) :=
+  sigT_rect
+    (fun _ : packed_vector A => nat)
+    (fun (n0 : nat) (v0 : vector A n0) =>
+      pred_vect A n0 v0)
+    pv.
+
 Definition tl_vect (A : Type) (n : nat) (v : vector A n) :=
   vector_rect
     A
-    (fun (n0 : nat) (v0 : vector A n0) => vector A (pred_vect A n0 v0))
+    (fun (n0 : nat) (v0 : vector A n0) => vector A (pred_vect_exp A (existT (vector A) n0 v0)))
     (nilV A)
-    (fun (n0 : nat) (a : A) (v0 : vector A n0) (_ : vector A (pred_vect A n0 v0)) =>
+    (fun (n0 : nat) (a : A) (v0 : vector A n0) (_ : vector A (pred_vect_exp A (existT (vector A) n0 v0))) =>
       v0)
     n
     v.
