@@ -240,6 +240,8 @@ Definition tl_vect (A : Type) (n : nat) (v : vector A n) :=
     n
     v.
 
+Print pred_vect_exp.
+
 Definition tl_vect_packed (A : Type) (pv : packed_vector A) :=
   existT
     (vector A) (* note currying when reducing *)
