@@ -2377,8 +2377,6 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
   let index_i = Option.get l.orn.index_i in
   let (env_g, c_g) = comp.g in
   let (env_f, c_f) = comp.f in
-  debug_term env_g c_g "c_g";
-  debug_term env_f c_f "c_f";
   let (orn_f, orn_g) = (lift_back l, lift_to l) in
   let orn_f_typ = reduce_type env_f orn_f in
   let orn_g_typ = reduce_type env_g orn_g in
@@ -2458,17 +2456,12 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
                 env_f_body)
              c_used)
       in let app = reduce_term env_f_body (mkAppl (f, args)) in
-         debug_term env_f_body f "f";
          map_if
            (map_unit_env_if
               (fun _ trm -> applies existT trm)
               (fun env trm ->
-                debug_term env trm "trm";
                 let last_arg = get_arg 3 trm in
-                debug_term env last_arg "last_arg";
                 let last_arg_typ = reduce_type env last_arg in
-                debug_term env last_arg_typ "last_arg_typ";
-                debug_term env from_typ "from_typ";
                 if is_or_applies to_typ last_arg_typ then
                   (* TODO not sure what to best do, handles base case, hack *)
                   trm
@@ -2478,17 +2471,12 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
            (not l.is_fwd)
            app
     else      
-      let arg_i = if_indexer l index_i (arity orn_f_typ - 1) in
-      debug_term env_g c_g "c_g";
-      debug_term env_f c_f "c_f";
-      debug_term env_f orn_f "orn_f";
       let (nsubs, f_body) =
         map_track_unit_if
           (applies orn_f)
           (fun f_body ->
             let f_args = unfold_args f_body in
             let last_arg = last f_args in
-            debug_term env_f_body last_arg "last_arg";
             if l.is_indexer then
               get_arg 2 last_arg
             else
@@ -2497,19 +2485,15 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
       in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
       let is_orn = is_or_applies (if l.is_fwd then from_typ else to_typ) in
-      debug_term env_f_body f_body "f_body";
       (* Does this generalize, too? *)
       let f_body =
         map_if (* TODO maybe can remove this now *)
           (map_unit_env_if
              (on_type is_orn)
              (fun env trm ->
-               debug_term env trm "trm";
                let args = unfold_args trm in
                let ihs = List.filter (on_type is_orn env) args in
                let typ_args = map_if (remove_index index_i) (not l.is_fwd) (on_type unfold_args env trm) in
-               debug_terms env typ_args "typ_args";
-               debug_term env f "f";
                let trm =
                  map_if
                    (fun trm ->
@@ -2524,7 +2508,6 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
                    (not l.is_fwd)
                    trm
                in
-               debug_term env (reduce_nf env (mkAppl (f, snoc trm typ_args))) "f (args)";
                (*List.fold_right
                (all_conv_substs env)
                (List.append
@@ -2615,8 +2598,6 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
           (* same *)
           let c = List.hd cs_g in
           let (env_c, c_body) = zoom_lambda_term env_g c in
-          debug_term env_c c_body "g";
-          debug_term env_f f "f";
           (*t cs_f =
             List.map
               (map_unit_env_if
@@ -2629,7 +2610,6 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
                  env_f)
               cs_f
           in*)
-          debug_terms env_f cs_f "cs_f";
           let (_, _, _, cs_g, _) = deconstruct_eliminator env_c c_body in
           let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_c, c_g); f = (env_f, c_f)}) cs_g cs_f in
           List.map (compose_c (List.length pms_g) ip_g p_exp post_assums) c_cs
@@ -2638,7 +2618,6 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
           List.map (compose_c (List.length pms_g) ip_g p_exp post_assums) c_cs
       in
       (* undo the above *)
-      debug_terms env_f cs_exp "cs_exp";
       (List.map
          (map_if
             (fun c_exp ->
@@ -2739,10 +2718,7 @@ let rec compose_orn_factors (l : lifting) no_reduce assum_ind idx_n fs =
        let (env_promote, promote_exp) = zoom_lambda_term env (delta env promote) in
        let promote_inner = get_arg 3 promote_exp in
        let promote_inner_recons = reconstruct_lambda_n env_promote promote_inner (nb_rel env) in
-       Printf.printf "%s\n\n" "reducing the type of t_app";
-       debug_env env "env";
        let t_app_typ = reduce_type env t_app in
-       debug_term env t_app_typ "t_app_typ";
        let t_app_args = unfold_args t_app_typ in
        let deindex = List.exists (applies orn_indexer) t_app_args in
        let promote_args = map_if (remove_index (Option.get l.orn.index_i)) deindex t_app_args in
@@ -2763,8 +2739,6 @@ let rec compose_orn_factors (l : lifting) no_reduce assum_ind idx_n fs =
        if promotes || forgets || is_indexer then
          let orn_f = if promotes then promote else if forgets then forget else orn_indexer in
          let is_g = applies orn_f t_body || is_or_applies promote_param t_body in
-         debug_term e_body t_body "t_body";
-         debug_term e_body promote_param "promote_param";
          (* Currently reducing g when we shoudn't be; figure out why
             Maybe just implement a thing that reduces only until we have an
             application of an induction principle *)
