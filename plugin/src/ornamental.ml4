@@ -2389,7 +2389,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
   let (to_typ, from_typ) = map_if reverse (not l.is_fwd) (to_typ, from_typ) in
   debug_term env_f to_typ "to_typ";
   debug_term env_f from_typ "from_typ";
-  let is_deorn = is_or_applies to_typ in
+  let is_deorn = is_or_applies (if l.is_fwd then to_typ else from_typ) in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_g_used = get_used_or_p_hypos always_true c_g in
   let (env_f_body_old, _) = zoom_lambda_term env_f c_f in
@@ -2435,12 +2435,8 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
             if List.mem i index_args then
               try
                 let f_indexer = Option.get l.orn.indexer in
-                debug_term env_f_body f_body "f_body";
-                debug_term env_g_body g_body "g_body";
                 let last_arg = last (unfold_args g_body) in
-                debug_term env_g_body last_arg "last_arg";
                 let last_arg_type = infer_type env_g_body last_arg in
-                debug_term env_g_body last_arg_type "last_arg_type";
                 let (before, after) = take_split index_i (unfold_args last_arg_type) in
                 let last_args = List.append (shift_all_by (- 2) before) (List.tl after) in
                 mkAppl (f_indexer, snoc last_arg last_args)
@@ -2452,19 +2448,25 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
              (map_unit_env_if
                 (fun env trm ->
                   debug_term env trm "trm";
+                  debug_term env from_typ "from_type";
                   on_type is_deorn env trm)
                 (fun env trm ->
                   let typ = reduce_type env trm in
                   debug_term env typ "typ";
-                  let index = get_arg index_i typ in
-                  let index_typ = infer_type env index in
-                  let unpacked_args = unfold_args typ in
-                  let packed_args = reindex index_i (mkRel 1) (shift_all unpacked_args) in
-                  let reindexed = mkAppl (first_fun typ, packed_args) in 
-                  let packer = mkLambda (Anonymous, index_typ, reindexed) in
-                  let deindexed = remove_index index_i unpacked_args in
-                  let packed = mkAppl (existT, [index_typ; packer; index; trm]) in
-                  mkAppl (orn_f, snoc packed deindexed))
+                  if l.is_fwd then
+                    let index = get_arg index_i typ in
+                    let index_typ = infer_type env index in
+                    let unpacked_args = unfold_args typ in
+                    let packed_args = reindex index_i (mkRel 1) (shift_all unpacked_args) in
+                    let reindexed = mkAppl (first_fun typ, packed_args) in 
+                    let packer = mkLambda (Anonymous, index_typ, reindexed) in
+                    let deindexed = remove_index index_i unpacked_args in
+                    let packed = mkAppl (existT, [index_typ; packer; index; trm]) in
+                    mkAppl (orn_f, snoc packed deindexed)
+                  else
+                    let typ_args = unfold_args typ in
+                    mkAppl (orn_f, snoc trm typ_args)
+                )
                 env_f_body)
              c_used)
       in let app = reduce_term env_f_body (mkAppl (f, args)) in
