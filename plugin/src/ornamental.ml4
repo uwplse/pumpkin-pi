@@ -2450,13 +2450,30 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
                     mkAppl (orn_f, snoc packed deindexed)
                   else
                     let typ_args = unfold_args typ in
-                    mkAppl (orn_f, snoc trm typ_args)
-                )
+                    mkAppl (orn_f, snoc trm typ_args))
                 env_f_body)
              c_used)
       in let app = reduce_term env_f_body (mkAppl (f, args)) in
+         debug_term env_f_body f "f";
          map_if
-           (map_unit_if (applies existT) (get_arg 3))
+           (map_unit_env_if
+              (fun _ trm -> applies existT trm)
+              (fun env trm ->
+                debug_term env trm "trm";
+                let last_arg = get_arg 3 trm in
+                debug_term env last_arg "last_arg";
+                let last_arg_typ = reduce_type env last_arg in
+                debug_term env last_arg_typ "last_arg_typ";
+                debug_term env from_typ "from_typ";
+                if is_or_applies to_typ last_arg_typ then
+                  (* TODO hack, just apply function above to body too *)
+                  let x = 0 in
+                  Printf.printf "%s\n\n" "is_deorn";
+                  let typ_args = remove_index index_i (unfold_args last_arg_typ) in
+                  reduce_nf env (mkAppl (orn_g, snoc trm typ_args))
+                else
+                  last_arg)
+              env_f_body)
            (not l.is_fwd)
            app
     else      
