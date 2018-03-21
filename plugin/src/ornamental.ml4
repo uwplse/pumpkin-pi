@@ -2072,12 +2072,22 @@ let search_orn_inductive (env : env) (idx_n : Id.t) (trm_o : types) (trm_n : typ
 (* --- Application --- *)
 
 (* TODO explain *)
+let zoom_sig_outer is_fwd t =
+  if is_fwd then
+    t
+  else
+    try
+      last (unfold_args (snd (zoom_lambda_term empty_env t)))
+    with _ ->
+      t
+              
+(* TODO explain *)
 let zoom_sig is_fwd t =
   if is_fwd then
     t
   else
     try
-      let lambda = last (unfold_args (snd (zoom_lambda_term empty_env t))) in
+      let lambda = zoom_sig_outer is_fwd t in
       first_fun (snd (zoom_lambda_term empty_env lambda))
     with _ ->
       t
@@ -2143,8 +2153,11 @@ let ornament_hypos env (l : lifting) (from_ind, to_ind) trm =
 
 (* Ornament the conclusion *)
 let ornament_concls concl_typ env (l : lifting) (from_ind, to_ind) trm =
+  debug_term env trm "trm";
   let is_fwd = l.is_fwd in
   let from_ind = zoom_sig is_fwd from_ind in
+  debug_term env from_ind "from_ind";
+  debug_term env (zoom_sig is_fwd concl_typ) "concl_typ";
   if is_or_applies from_ind (zoom_sig is_fwd concl_typ) then
     let (env_zoom, trm_zoom) = zoom_lambda_term env trm in
     let concl_args =
@@ -2230,6 +2243,8 @@ let ornament_no_red (env : env) (orn_f : types) (orn_inv_f : types) (trm : types
   let to_ind = reconstruct_lambda env_to (unshift to_with_args) in
   let app_orn ornamenter = ornamenter env l (map_if reverse (not is_fwd) (from_ind, to_ind)) in
   let (env_concl, concl_typ) = zoom_product_type env (reduce_type env trm) in
+  let concl_typ = reduce_nf env_concl concl_typ in
+  debug_term env_concl concl_typ "concl_typ";
   app_orn (ornament_concls concl_typ) (app_orn ornament_hypos trm)
 
 (* --- Reduction --- *)

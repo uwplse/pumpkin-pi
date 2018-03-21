@@ -230,36 +230,35 @@ Definition pred_vect_exp (A : Type) (pv : packed_vector A) :=
       pred_vect A n0 v0)
     pv.
 
+Definition tl_vect (A : Type) (n : nat) (v : vector A n) :=
+  vector_rect
+   A
+   (fun (n0 : nat) (v0 : vector A n0) => vector A (pred_vect A n0 v0))
+   (nilV A)
+   (fun (n0 : nat) (a : A) (v0 : vector A n0) (_ : vector A (pred_vect A n0 v0)) =>
+     v0)
+   n
+   v.
+
 (* This version might only work since we don't need the index of the IH *)
-Definition tl_vect (A : Type) (pv : packed_vector A) :=
+Definition tl_vect_packed (A : Type) (pv : packed_vector A) :=
   sigT_rect
     (fun _ : packed_vector A => packed_vector A)
     (fun (n : nat) (v : vector A n) =>
       vector_rect
-        A
-        (fun (n0 : nat) (v0 : vector A n0) => packed_vector A)
-        (existT (vector A) 0 (nilV A))
-        (fun (n0 : nat) (a : A) (v0 : vector A n0) (_ : packed_vector A) =>
-          existT (vector A) n0 v0)
-        n
-        v)
+       A
+       (fun (n0 : nat) (v0 : vector A n0) => packed_vector A)
+       (existT (vector A) 0 (nilV A))
+       (fun (n0 : nat) (a : A) (v0 : vector A n0) (_ : packed_vector A) =>
+         existT (vector A) n0 v0)
+       n
+      v)
     pv.
-
-Print tl_vect.
-Check tl_vect.
-
-
-
-Print pred_vect_exp.
-
-Definition tl_vect_packed (A : Type) (pv : packed_vector A) :=
-  existT
-    (vector A) (* note currying when reducing *)
-    (pred_vect A (projT1 pv) (projT2 pv))
-    (tl_vect A (projT1 pv) (projT2 pv)).
 
 Apply ornament orn_list_vector orn_list_vector_inv in tl as tl_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in tl_vect_packed as tl_auto.
+
+(* TODO fix application *)
 
 Theorem coh_vect:
   forall (A : Type) (n : nat) (v : vector A n),
