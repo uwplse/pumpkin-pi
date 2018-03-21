@@ -69,6 +69,8 @@ Qed.
 
 Reduce ornament orn_list_vector_inv orn_list_vector in tl_auto as tl_red.
 
+Print tl_red.
+
 Theorem test_tl:
   forall (A : Type) (l : list A),
     tl A l = tl_red A l.

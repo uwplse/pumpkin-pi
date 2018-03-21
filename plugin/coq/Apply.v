@@ -241,15 +241,16 @@ Definition tl_vect (A : Type) (n : nat) (v : vector A n) :=
    v.
 
 (* This version might only work since we don't need the index of the IH *)
+(* TODO! Universe inconsistency prevents us from being able to use packed_vector *)
 Definition tl_vect_packed (A : Type) (pv : packed_vector A) :=
   sigT_rect
-    (fun _ : packed_vector A => packed_vector A)
+    (fun _ : sigT (fun (n : nat) => vector A n) => sigT (fun (n : nat) => vector A n))
     (fun (n : nat) (v : vector A n) =>
       vector_rect
        A
-       (fun (n0 : nat) (v0 : vector A n0) => packed_vector A)
+       (fun (n0 : nat) (v0 : vector A n0) => sigT (fun (n : nat) => vector A n))
        (existT (vector A) 0 (nilV A))
-       (fun (n0 : nat) (a : A) (v0 : vector A n0) (_ : packed_vector A) =>
+       (fun (n0 : nat) (a : A) (v0 : vector A n0) (_ : sigT (fun (n : nat) => vector A n)) =>
          existT (vector A) n0 v0)
        n
       v)

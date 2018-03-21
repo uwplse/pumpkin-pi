@@ -834,7 +834,7 @@ let make_constant id =
 let with_suffix id suffix =
   let prefix = Id.to_string id in
   Id.of_string (String.concat "_" [prefix; suffix])
-
+               
 (* Default reducer *)
 let reduce_term (env : env) (trm : types) : types =
   Reductionops.nf_betaiotazeta Evd.empty trm
@@ -2316,12 +2316,12 @@ let compose_p npms post_assums inner (comp : composition) =
   let orn_app = shift_local off (off + List.length post_assums) (mkAppl (lift_back l, mk_n_rels (npms + off))) in
   let (_, non_pms) = take_split npms (unfold_args p_f_b) in
   let p_args = snoc orn_app non_pms in
+  let f_g_off = nb_rel env_f - nb_rel env_g in
+  let p_g = shift_by f_g_off p_g in
+  let p_g = shift_by off p_g in
   let p =
     map_forward
       (fun p_g ->
-        let f_g_off = nb_rel env_f - nb_rel env_g in
-        let p_g = shift_by f_g_off p_g in
-        let p_g = shift_by off p_g in
         map_default
           (fun indexer ->(* TODO may not yet handle HOFs *)
             let (env_p_g, p_g_b) = zoom_lambda_term env_g p_g in
@@ -2337,6 +2337,8 @@ let compose_p npms post_assums inner (comp : composition) =
       l
       p_g
   in
+  debug_term env_p_f p "p";
+  debug_terms env_p_f p_args "p_args";
   let app = reduce_term env_p_f (mkAppl (p, p_args)) in
   reconstruct_lambda_n env_p_f app (nb_rel env_f)
 
@@ -2354,7 +2356,7 @@ let compose_ih env_g npms_g ip_g c_f p =
       let (_, _, orn_final_typ) = CRD.to_tuple @@ lookup_rel 1 en in
       let typ_args = shift_all (unfold_args orn_final_typ) in
       let (_, non_pms) = take_split npms_g typ_args in
-      mkAppl (mkAppl (p, non_pms), orn_final))
+      reduce_term en (mkAppl (mkAppl (p, non_pms), orn_final)))
     shift
     env_g
     p
@@ -2466,11 +2468,8 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
                 debug_term env last_arg_typ "last_arg_typ";
                 debug_term env from_typ "from_typ";
                 if is_or_applies to_typ last_arg_typ then
-                  (* TODO hack, just apply function above to body too *)
-                  let x = 0 in
-                  Printf.printf "%s\n\n" "is_deorn";
-                  let typ_args = remove_index index_i (unfold_args last_arg_typ) in
-                  reduce_nf env (mkAppl (orn_g, snoc trm typ_args))
+                  (* TODO not sure what to best do, handles base case, hack *)
+                  trm
                 else
                   last_arg)
               env_f_body)
@@ -2562,8 +2561,11 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
     else
       (comp, None)
   in
+  debug_term env_g p_g "p_g";
+  debug_term env_f p_f "p_f";
   let c_p = { comp with g = (env_g, p_g); f = (env_f, p_f) } in
   let p = compose_p (List.length pms) post_assums inner c_p in
+  debug_term env_f p "p";
   let p_exp = (* defer defining the indexer *)
     map_if
       (fun p ->
@@ -2574,7 +2576,7 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
       p
   in
   let (cs, indexer) =
-    if applies sigT_rect f && l.is_fwd then
+    if applies sigT_rect f then
       (* TODO factoring should handle *)
       (* bubble inside the sigT_rect (is this the best way?) *)
       let c = List.hd cs_f in
@@ -2582,6 +2584,16 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
       let c_cs = { comp with f = (env_c, c_body)} in
       let (c_comp, indexer) = compose_inductive idx_n post_assums true c_cs in
       ([reconstruct_lambda_n env_c c_comp (nb_rel env_f)], indexer)
+    else if applies sigT_rect g then
+      (* same *)
+      let c = List.hd cs_g in
+      let (env_c, c_body) = zoom_lambda_term env_g c in
+      debug_term env_c c_body "g";
+      debug_term env_f f "f";
+      let c_cs = { comp with g = (env_c, c_body)} in
+      let (c_comp, indexer) = compose_inductive idx_n post_assums true c_cs in
+      debug_term env_c c_comp "c_comp";
+      ([reconstruct_lambda_n env_c c_comp (nb_rel env_g)], indexer)
     else
       let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
       let cs_exp = List.map (compose_c (List.length pms_g) ip_g p_exp post_assums) c_cs in
@@ -2686,7 +2698,10 @@ let rec compose_orn_factors (l : lifting) no_reduce assum_ind idx_n fs =
        let (env_promote, promote_exp) = zoom_lambda_term env (delta env promote) in
        let promote_inner = get_arg 3 promote_exp in
        let promote_inner_recons = reconstruct_lambda_n env_promote promote_inner (nb_rel env) in
+       Printf.printf "%s\n\n" "reducing the type of t_app";
+       debug_env env "env";
        let t_app_typ = reduce_type env t_app in
+       debug_term env t_app_typ "t_app_typ";
        let t_app_args = unfold_args t_app_typ in
        let deindex = List.exists (applies orn_indexer) t_app_args in
        let promote_args = map_if (remove_index (Option.get l.orn.index_i)) deindex t_app_args in
@@ -2847,6 +2862,7 @@ let reduce_ornament n d_orn d_orn_inv d_old =
      Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
    else
      ());
+  debug_term env trm_n "trm_n";
   define_term n env evm trm_n;
   Printf.printf "Defined reduced ornamened function %s.\n\n" (string_of_id n);
   ()
