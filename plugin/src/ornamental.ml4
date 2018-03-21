@@ -2401,7 +2401,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
       debug_term env_g c_g "c_g";
       debug_term env_f c_f "c_f";
       let num_assums = List.length post_assums in
-      let f_f = shift_local num_assums (offset env_f (nb_rel env_g)) c_g in
+      let f_f = shift_local (*num_assums*) 0 (offset env_f (nb_rel env_g)) c_g in
       let shift_if = if num_assums > off_g then num_assums - off_g else 0 in
       let f = shift_by off_f f_f in
       let c_used = c_g_used in
@@ -2459,6 +2459,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
              c_used)
       in let app = reduce_term env_f_body (mkAppl (f, args)) in
          debug_term env_f_body app "app";
+         debug_term env_f_body f "f";
          map_if
            (map_unit_env_if
               (fun _ trm -> applies existT trm)
