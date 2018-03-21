@@ -2614,7 +2614,7 @@ let factor_ornamented (orn : promotion) (env : env) (trm : types) =
 (*
  * Compose factors of an ornamented, but not yet reduced function
  *)
-let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
+let rec compose_orn_factors (l : lifting) no_reduce assum_ind idx_n fs =
   let promote = l.orn.promote in
   let forget = l.orn.forget in
   let orn_indexer = Option.get l.orn.indexer in
@@ -2623,7 +2623,7 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
      if List.length children > 0 then
        let post_assums = mk_n_rels (assum_ind - 1) in
        let child = List.hd (List.rev children) in
-       let ((t_app, indexer), env, composed) = compose_orn_factors l assum_ind idx_n child in
+       let ((t_app, indexer), env, composed) = compose_orn_factors l no_reduce assum_ind idx_n child in
        debug_term env t_app "t_app";
        let (e_body, t_body) = zoom_lambda_term en t in
        debug_term e_body t_body "t_body";
@@ -2651,8 +2651,15 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
        in
        let is_indexer = uses orn_indexer || is_indexer_inner in
        if promotes || forgets || is_indexer then
+         let orn_f = if promotes then promote else if forgets then forget else orn_indexer in
+         let is_g = applies orn_f t_body || is_or_applies promote_param t_body in
+         debug_term e_body t_body "t_body";
+         debug_term e_body promote_param "promote_param";
          let red_f = not (if uses promote_param then true else if promotes || forgets then composed else true) in
          let red_g = not (if uses promote_param || is_indexer_inner then l.is_fwd else false) in
+         (* Currently reducing g when we shoudn't be; figure out why
+            Maybe just implement a thing that reduces only until we have an
+            application of an induction principle *)
          let l = { l with is_indexer } in
          debug_term e_body t_body "g pre_red";
          debug_term env t_app "f pre_red";
@@ -2661,8 +2668,6 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
          debug_term (fst g) (snd g) "g";
          debug_term (fst f) (snd f) "f";
          (* TODO should we still reduce f in this case? getting existT *)
-         let orn_f = if promotes then promote else if forgets then forget else orn_indexer in
-         let is_g = applies orn_f t_body || is_or_applies promote_param t_body in
          let comp = { l ; g ; f ; is_g } in
          if applies sigT_rect (snd g) && applies existT (snd f) then
            (* eliminate the existT [TODO move] *)
@@ -2670,7 +2675,7 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
            let cs_f = List.tl (List.tl (unfold_args (snd f))) in
            let inner = mkAppl (g_inner, cs_f) in
            let inner_factors = factor_term_dep (mkRel assum_ind) (fst f) inner in
-           compose_orn_factors l assum_ind idx_n inner_factors
+           compose_orn_factors l true assum_ind idx_n inner_factors
          else if applies sigT_rect (snd f) && applies existT (snd g) then
            (* eliminate the existT [TODO move] *)
            let f_inner = get_arg 3 (snd f) in
@@ -2680,7 +2685,7 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
            let c_f = reduce_term (fst g) (mkAppl (c_g_f, List.rev (List.tl (List.rev (unfold_args t_body))))) in
            let inner = mkAppl (shift_by 2 c_f, [f_inner_body]) in
            let inner_factors = factor_term_dep (mkRel assum_ind) env_f_inner inner in
-           let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_orn_factors l assum_ind idx_n inner_factors in
+           let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_orn_factors l true assum_ind idx_n inner_factors in
            let app_lam = reconstruct_lambda_n env_inner t_app_inner 2 in
            let f_p_old = get_arg 2 (snd f) in
            let (env_f_p, _) = zoom_lambda_term empty_env f_p_old in
@@ -2694,7 +2699,7 @@ let rec compose_orn_factors (l : lifting) assum_ind idx_n fs =
            let inner = get_arg 3 (snd g) in
            let (env_inner, inner_body) = zoom_lambda_term (fst g) inner in
            let inner_factors = factor_term_dep (mkRel assum_ind) env_inner inner_body in
-           let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_orn_factors l assum_ind idx_n inner_factors in
+           let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_orn_factors l true assum_ind idx_n inner_factors in
            let indexer_lam = reconstruct_lambda_n env_inner t_app_inner 2 in
            let args = reindex 3 indexer_lam (unfold_args (snd g)) in
            let indexer = mkAppl (sigT_rect, args) in
@@ -2734,7 +2739,7 @@ let internalize (env : env) (idx_n : Id.t) (orn : types) (orn_inv : types) (trm 
   let orn = initialize_orn env promote forget in                         
   let l = initialize_lifting orn is_fwd in
   let (assum_ind, factors) = factor_ornamented orn env trm in
-  let ((internalized, indexer), env, _) = compose_orn_factors l assum_ind idx_n factors in
+  let ((internalized, indexer), env, _) = compose_orn_factors l false assum_ind idx_n factors in
   (reconstruct_lambda env internalized, indexer)
 
 
