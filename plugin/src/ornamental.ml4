@@ -2130,6 +2130,23 @@ let zoom_sig is_fwd t =
       first_fun (snd (zoom_lambda_term empty_env lambda))
     with _ ->
       t
+
+(* zoom_sig if t actually applies sigT *)
+let zoom_if_sig_outer t =
+  if applies sigT t then
+    zoom_sig_outer false t
+  else
+    t
+
+(* Get the inductive type for t with no params, zooming if it's a sig *)
+let inner_ind_type t =
+  match kind_of_term (zoom_if_sig_outer t) with
+  | Lambda (_, _, b) when isApp b ->
+     first_fun b
+  | App (_, _) ->
+     first_fun t
+  | _ ->
+     failwith "failed to infer inductive type to match against"
               
 (*
  * Substitute the ornamented type in the hypotheses.
@@ -2361,15 +2378,17 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
   let (orn_f, orn_g) = (lift_back l, lift_to l) in
   let orn_f_typ = reduce_type env_f orn_f in
   let orn_g_typ = reduce_type env_g orn_g in
-  let (to_typ, from_typ) =
-    if l.is_fwd then
-      let to_typ_sig = zoom_sig l.is_fwd (fst (ind_of_orn orn_f_typ)) in
-      let to_typ_lam = last (unfold_args to_typ_sig) in
-      let to_typ = first_fun (snd (zoom_lambda_term empty_env to_typ_lam)) in
-      (to_typ, first_fun (fst (ind_of_orn orn_g_typ)))
-    else
-      (zoom_sig (not l.is_fwd) (fst (ind_of_orn orn_f_typ)), first_fun (fst (ind_of_orn orn_g_typ)))
-  in
+  debug_term env_f orn_f_typ "orn_f_typ";
+  debug_term env_g orn_g_typ "orn_g_typ";
+  let ind_f_typ = fst (ind_of_orn orn_f_typ) in
+  let ind_g_typ = fst (ind_of_orn orn_g_typ) in
+  debug_term env_f ind_f_typ "ind_f_typ";
+  debug_term env_g ind_g_typ "ind_g_typ";
+  let to_typ = inner_ind_type ind_f_typ in
+  let from_typ = inner_ind_type ind_g_typ in
+  let (to_typ, from_typ) = map_if reverse (not l.is_fwd) (to_typ, from_typ) in
+  debug_term env_f to_typ "to_typ";
+  debug_term env_f from_typ "from_typ";
   let is_deorn = is_or_applies to_typ in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_g_used = get_used_or_p_hypos always_true c_g in
@@ -2390,7 +2409,10 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
       let c_used = c_g_used in
       let rec indexes env args trm = (* TODO probably can remove now with sigma version *)
         if List.length c_f_used != List.length c_g_used then
-          let test_typ = if l.is_fwd then to_typ else from_typ in
+          let test_typ = to_typ in
+          debug_term env to_typ "to_typ";
+          debug_term env from_typ "from_typ";
+          debug_term env test_typ "test_typ";
           match (args, kind_of_term trm) with
           | (h :: tl, Prod (n, t, b)) ->
              if computes_index index_i test_typ (mkRel 1) b then (* TODO should be comptues_only_index but to do that, need to fix a bug *)
@@ -2403,6 +2425,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
           []
       in
       let index_args = indexes env_g c_g_used (lambda_to_prod c_g) in
+      debug_terms env_g_body index_args "index_args";
       let index_args = List.mapi (fun i _ -> i) (List.filter (fun a -> not (is_or_applies from_typ (infer_type env_g_body a))) index_args) in
       (* Does this generalize? *)
       let args =
@@ -2410,21 +2433,29 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
           (fun i a -> (* TODO put this together based on the vs, then filter out stuff in index_args *)
             (* TODO what should this even be? like, if we need to elim something, like in the tree example, then what? *)
             if List.mem i index_args then
-              let f_indexer = Option.get l.orn.indexer in
-              let last_arg = last (unfold_args g_body) in
-              let last_arg = last (unfold_args last_arg) in
-              let last_arg_type = infer_type env_g_body last_arg in
-              let (before, after) = take_split index_i (unfold_args last_arg_type) in
-              let last_args = List.append (shift_all_by (- 2) before) (List.tl after) in
-              mkAppl (f_indexer, snoc last_arg last_args)
-                     (* Later just sub w/ something reasonable *)
+              try
+                let f_indexer = Option.get l.orn.indexer in
+                debug_term env_f_body f_body "f_body";
+                debug_term env_g_body g_body "g_body";
+                let last_arg = last (unfold_args g_body) in
+                debug_term env_g_body last_arg "last_arg";
+                let last_arg_type = infer_type env_g_body last_arg in
+                debug_term env_g_body last_arg_type "last_arg_type";
+                let (before, after) = take_split index_i (unfold_args last_arg_type) in
+                let last_args = List.append (shift_all_by (- 2) before) (List.tl after) in
+                mkAppl (f_indexer, snoc last_arg last_args)
+              with _ ->
+                mkRel 0
             else
               a)
           (List.map
              (map_unit_env_if
-                (on_type is_deorn)
+                (fun env trm ->
+                  debug_term env trm "trm";
+                  on_type is_deorn env trm)
                 (fun env trm ->
                   let typ = reduce_type env trm in
+                  debug_term env typ "typ";
                   let index = get_arg index_i typ in
                   let index_typ = infer_type env index in
                   let unpacked_args = unfold_args typ in
@@ -2437,6 +2468,9 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
                 env_f_body)
              c_used)
       in let app = reduce_term env_f_body (mkAppl (f, args)) in
+         debug_term env_f_body f "f";
+         debug_terms env_f_body args "args";
+         debug_term env_f_body app "app";
          map_unit_env_if
            (fun en tr ->
              match kind_of_term tr with
