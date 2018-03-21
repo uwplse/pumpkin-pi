@@ -2316,8 +2316,6 @@ let compose_p npms post_assums inner (comp : composition) =
   let orn_app = shift_local off (off + List.length post_assums) (mkAppl (lift_back l, mk_n_rels (npms + off))) in
   let (_, p_f_b) = zoom_lambda_term env_p_f (zoom_if_sig_outer p_f_b_old) in
   let p_f_b_args = map_if (remove_index index_i) (not (eq_constr p_f_b_old p_f_b)) (unfold_args p_f_b) in
-  debug_term env_p_f p_f_b "p_f_b";
-  debug_terms env_p_f p_f_b_args "p_f_b_args";
   let (_, non_pms) = take_split npms p_f_b_args in
   let p_args = snoc orn_app non_pms in
   let f_g_off = nb_rel env_f - nb_rel env_g in
@@ -2341,8 +2339,6 @@ let compose_p npms post_assums inner (comp : composition) =
       l
       p_g
   in
-  debug_term env_p_f p "p";
-  debug_terms env_p_f p_args "p_args";
   let app = reduce_term env_p_f (mkAppl (p, p_args)) in
   reconstruct_lambda_n env_p_f app (nb_rel env_f)
 
@@ -2381,6 +2377,8 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
   let index_i = Option.get l.orn.index_i in
   let (env_g, c_g) = comp.g in
   let (env_f, c_f) = comp.f in
+  debug_term env_g c_g "c_g";
+  debug_term env_f c_f "c_f";
   let (orn_f, orn_g) = (lift_back l, lift_to l) in
   let orn_f_typ = reduce_type env_f orn_f in
   let orn_g_typ = reduce_type env_g orn_g in
@@ -2481,12 +2479,16 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
            app
     else      
       let arg_i = if_indexer l index_i (arity orn_f_typ - 1) in
+      debug_term env_g c_g "c_g";
+      debug_term env_f c_f "c_f";
+      debug_term env_f orn_f "orn_f";
       let (nsubs, f_body) =
         map_track_unit_if
           (applies orn_f)
           (fun f_body ->
             let f_args = unfold_args f_body in
             let last_arg = last f_args in
+            debug_term env_f_body last_arg "last_arg";
             if l.is_indexer then
               get_arg 2 last_arg
             else
@@ -2494,16 +2496,36 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
           f_body
       in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
-      let is_orn = is_or_applies from_typ in
+      let is_orn = is_or_applies (if l.is_fwd then from_typ else to_typ) in
+      debug_term env_f_body f_body "f_body";
       (* Does this generalize, too? *)
-      map_if (* TODO maybe can remove this now *)
-        (map_unit_env_if
-           (on_type is_orn)
-           (fun env trm ->
-             let args = unfold_args trm in
-             let ihs = List.filter (on_type is_orn env) args in
-             let typ_args = on_type unfold_args env trm in
-             List.fold_right
+      let f_body =
+        map_if (* TODO maybe can remove this now *)
+          (map_unit_env_if
+             (on_type is_orn)
+             (fun env trm ->
+               debug_term env trm "trm";
+               let args = unfold_args trm in
+               let ihs = List.filter (on_type is_orn env) args in
+               let typ_args = map_if (remove_index index_i) (not l.is_fwd) (on_type unfold_args env trm) in
+               debug_terms env typ_args "typ_args";
+               debug_term env f "f";
+               let trm =
+                 map_if
+                   (fun trm ->
+                     let typ = infer_type env trm in
+                     let index = get_arg index_i typ in
+                     let index_typ = infer_type env index in
+                     let unpacked_args = unfold_args typ in
+                     let packed_args = reindex index_i (mkRel 1) (shift_all unpacked_args) in
+                     let reindexed = mkAppl (first_fun typ, packed_args) in 
+                     let packer = mkLambda (Anonymous, index_typ, reindexed) in
+                     mkAppl (existT, [index_typ; packer; index; trm]))
+                   (not l.is_fwd)
+                   trm
+               in
+               debug_term env (reduce_nf env (mkAppl (f, snoc trm typ_args))) "f (args)";
+               (*List.fold_right
                (all_conv_substs env)
                (List.append
                   (if l.is_indexer then
@@ -2521,13 +2543,15 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
                         ihs))
                   (List.map
                      (fun ih ->
+                       debug_term env f "f";
                        let app = mkAppl (f, snoc ih typ_args) in
                        (app, ih))
-                     ihs))
+                     ihs))*)
                (reduce_nf env (mkAppl (f, snoc trm typ_args))))
-           env_f_body_old)
-        (nsubs = 0)
-        f_body
+             env_f_body_old)
+          (nsubs = 0)
+          f_body
+      in map_if (map_unit_if (applies existT) (get_arg 3)) (not l.is_fwd) f_body
   in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
 
 (*
@@ -2565,11 +2589,8 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
     else
       (comp, None)
   in
-  debug_term env_g p_g "p_g";
-  debug_term env_f p_f "p_f";
   let c_p = { comp with g = (env_g, p_g); f = (env_f, p_f) } in
   let p = compose_p (List.length pms) post_assums inner c_p in
-  debug_term env_f p "p";
   let p_exp = (* defer defining the indexer *)
     map_if
       (fun p ->
@@ -2588,20 +2609,36 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
       let c_cs = { comp with f = (env_c, c_body)} in
       let (c_comp, indexer) = compose_inductive idx_n post_assums true c_cs in
       ([reconstruct_lambda_n env_c c_comp (nb_rel env_f)], indexer)
-    else if applies sigT_rect g then
-      (* same *)
-      let c = List.hd cs_g in
-      let (env_c, c_body) = zoom_lambda_term env_g c in
-      debug_term env_c c_body "g";
-      debug_term env_f f "f";
-      let c_cs = { comp with g = (env_c, c_body)} in
-      let (c_comp, indexer) = compose_inductive idx_n post_assums true c_cs in
-      debug_term env_c c_comp "c_comp";
-      ([reconstruct_lambda_n env_c c_comp (nb_rel env_g)], indexer)
     else
-      let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
-      let cs_exp = List.map (compose_c (List.length pms_g) ip_g p_exp post_assums) c_cs in
+      let cs_exp =
+        if applies sigT_rect g then
+          (* same *)
+          let c = List.hd cs_g in
+          let (env_c, c_body) = zoom_lambda_term env_g c in
+          debug_term env_c c_body "g";
+          debug_term env_f f "f";
+          (*t cs_f =
+            List.map
+              (map_unit_env_if
+                 (fun _ trm -> applies existT trm)
+                 (fun env trm ->
+                   let last_arg = get_arg 3 trm in
+                   let typ_args = on_type unfold_args env last_arg in
+                   let orn_args = remove_index index_i typ_args in
+                   mkAppl (l.orn.forget, snoc trm orn_args))
+                 env_f)
+              cs_f
+          in*)
+          debug_terms env_f cs_f "cs_f";
+          let (_, _, _, cs_g, _) = deconstruct_eliminator env_c c_body in
+          let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_c, c_g); f = (env_f, c_f)}) cs_g cs_f in
+          List.map (compose_c (List.length pms_g) ip_g p_exp post_assums) c_cs
+        else
+          let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
+          List.map (compose_c (List.length pms_g) ip_g p_exp post_assums) c_cs
+      in
       (* undo the above *)
+      debug_terms env_f cs_exp "cs_exp";
       (List.map
          (map_if
             (fun c_exp ->
