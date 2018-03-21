@@ -2473,45 +2473,10 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
          debug_term env_f_body f "f";
          debug_terms env_f_body args "args";
          debug_term env_f_body app "app";
-         map_unit_env_if
-           (fun en tr ->
-             match kind_of_term tr with
-             | App (_, _) ->
-                let args = unfold_args tr in
-                List.exists (eq_constr (mkRel 0)) args
-             | _ ->
-                false)
-           (fun en tr ->
-             let args = unfold_args tr in
-             let v_args =
-               List.filter
-                 (fun (i, a) ->
-                   try
-                     on_type (is_or_applies from_typ) en a
-                   with _ ->
-                     false)
-                 (List.mapi (fun i a -> (i, a)) args)
-             in
-             let i_args =
-               List.map
-                 (fun (i, v) ->
-                     let v_t = reduce_type en v in
-                     let num_args = List.length (unfold_args v_t) in
-                     let off = num_args - index_i in
-                     (i - off, get_arg index_i v_t))
-                 v_args
-             in
-             let args =
-               List.mapi
-                 (fun i a ->
-                   if eq_constr a (mkRel 0) && (List.mem_assoc i i_args) then
-                     List.assoc i i_args
-                   else
-                     a)
-                 args
-             in mkAppl (first_fun tr, args))
-             env_f_body
-             app
+         map_if
+           (map_unit_if (applies existT) (get_arg 3))
+           (not l.is_fwd)
+           app
     else      
       let arg_i = if_indexer l index_i (arity orn_f_typ - 1) in
       let (nsubs, f_body) =
