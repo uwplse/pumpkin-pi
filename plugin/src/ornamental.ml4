@@ -2393,11 +2393,13 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let off_f = offset env_f_body (nb_rel env_f) in
   let (env_g_body, g_body) = zoom_lambda_term env_g c_g in
-  let is_g = comp.is_g || is_or_applies l.orn.forget g_body in
+  let is_g = comp.is_g in
   let f_body =
     if not is_g then
       let off_g = offset env_g_body (nb_rel env_g) in
       let off = offset env_f_body (nb_rel env_g) in
+      debug_term env_g c_g "c_g";
+      debug_term env_f c_f "c_f";
       let num_assums = List.length post_assums in
       let f_f = shift_local num_assums (offset env_f (nb_rel env_g)) c_g in
       let shift_if = if num_assums > off_g then num_assums - off_g else 0 in
@@ -2456,6 +2458,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
                 env_f_body)
              c_used)
       in let app = reduce_term env_f_body (mkAppl (f, args)) in
+         debug_term env_f_body app "app";
          map_if
            (map_unit_env_if
               (fun _ trm -> applies existT trm)
@@ -2548,6 +2551,8 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
   let index_i = Option.get l.orn.index_i in
   let (env_g, g) = comp.g in
   let (env_f, f) = comp.f in
+  debug_term env_g g "g";
+  debug_term env_f f "f";
   let (ip, pms, p_f, cs_f, args) = deconstruct_eliminator env_f f in
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
   let (comp, indexer) =
