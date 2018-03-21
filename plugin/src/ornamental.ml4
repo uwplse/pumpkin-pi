@@ -234,6 +234,45 @@ let check_inductive_supported mutind_body : unit =
     else
       ()
 
+(*
+ * Check if a constant is an inductive elminator
+ * If so, return the inductive type
+ *)
+let inductive_of_elim (env : env) (pc : pconstant) : mutual_inductive option =
+  let (c, u) = pc in
+  let kn = Constant.canonical c in
+  let (modpath, dirpath, label) = KerName.repr kn in
+  let rec try_find_ind is_rev =
+    try
+      let label_string = Label.to_string label in
+      let label_length = String.length label_string in
+      let split_index = String.rindex_from label_string (if is_rev then (label_length - 3) else label_length) '_'  in
+      let suffix_length = label_length - split_index in
+      let suffix = String.sub label_string split_index suffix_length in
+      if (suffix = "_ind" || suffix = "_rect" || suffix = "_rec" || suffix = "_ind_r") then
+        let ind_label_string = String.sub label_string 0 split_index in
+        let ind_label = Label.of_id (Id.of_string_soft ind_label_string) in
+        let ind_name = MutInd.make1 (KerName.make modpath dirpath ind_label) in
+        lookup_mind ind_name env;
+        Some ind_name
+      else
+        if not is_rev then
+          try_find_ind true
+        else
+          None
+    with _ ->
+      if not is_rev then
+        try_find_ind true
+      else
+        None
+  in try_find_ind false
+
+(*
+ * Boolean version of above that doesn't care about the term type
+ *)
+let is_elim (env : env) (trm : types) =
+  isConst trm && Option.has_some (inductive_of_elim env (destConst trm))
+
 (* Get the type of an inductive type *)
 let type_of_inductive env index mutind_body : types =
   let ind_bodies = mutind_body.mind_packets in
@@ -2611,6 +2650,21 @@ let factor_ornamented (orn : promotion) (env : env) (trm : types) =
   let assum = get_assum orn env trm in
   (destRel assum, factor_term_dep assum env trm)
 
+
+(*
+ * TODO move
+ * Only reduce until you have an application of an induction principle,
+ * or reducing doesn't change the term
+ * Then, do nothing
+ *)
+let rec reduce_to_ind env trm =
+  match kind_of_term trm with
+  | App (_, _) when is_elim env (first_fun trm) ->
+     trm
+  | _ ->
+     let reduced = chain_reduce reduce_term delta env trm in
+     map_if (reduce_to_ind env) (not (eq_constr reduced trm)) reduced
+
 (*
  * Compose factors of an ornamented, but not yet reduced function
  *)
@@ -2655,16 +2709,14 @@ let rec compose_orn_factors (l : lifting) no_reduce assum_ind idx_n fs =
          let is_g = applies orn_f t_body || is_or_applies promote_param t_body in
          debug_term e_body t_body "t_body";
          debug_term e_body promote_param "promote_param";
-         let red_f = not (if uses promote_param then true else if promotes || forgets then composed else true) in
-         let red_g = not (if uses promote_param || is_indexer_inner then l.is_fwd else false) in
          (* Currently reducing g when we shoudn't be; figure out why
             Maybe just implement a thing that reduces only until we have an
             application of an induction principle *)
          let l = { l with is_indexer } in
          debug_term e_body t_body "g pre_red";
          debug_term env t_app "f pre_red";
-         let g = (e_body, map_if (chain_reduce reduce_term delta e_body) red_g t_body) in
-         let f = (env, map_if (chain_reduce reduce_term delta env) red_f t_app) in
+         let g = (e_body, reduce_to_ind e_body t_body) in
+         let f = (env, reduce_to_ind env t_app) in
          debug_term (fst g) (snd g) "g";
          debug_term (fst f) (snd f) "f";
          (* TODO should we still reduce f in this case? getting existT *)
