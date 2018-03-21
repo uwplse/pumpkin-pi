@@ -2310,11 +2310,15 @@ let compose_p npms post_assums inner (comp : composition) =
   let index_i = Option.get l.orn.index_i in
   let (env_g, p_g) = comp.g in
   let (env_f, p_f) = comp.f in
-  let (env_p_f, p_f_b) = zoom_lambda_term env_f p_f in
+  let (env_p_f, p_f_b_old) = zoom_lambda_term env_f p_f in
   let off = nb_rel env_p_f - nb_rel env_f in
   let shift_pms = shift_local off off in
   let orn_app = shift_local off (off + List.length post_assums) (mkAppl (lift_back l, mk_n_rels (npms + off))) in
-  let (_, non_pms) = take_split npms (unfold_args p_f_b) in
+  let (_, p_f_b) = zoom_lambda_term env_p_f (zoom_if_sig_outer p_f_b_old) in
+  let p_f_b_args = map_if (remove_index index_i) (not (eq_constr p_f_b_old p_f_b)) (unfold_args p_f_b) in
+  debug_term env_p_f p_f_b "p_f_b";
+  debug_terms env_p_f p_f_b_args "p_f_b_args";
+  let (_, non_pms) = take_split npms p_f_b_args in
   let p_args = snoc orn_app non_pms in
   let f_g_off = nb_rel env_f - nb_rel env_g in
   let p_g = shift_by f_g_off p_g in
