@@ -80,54 +80,18 @@ Qed.
  * Application
  *)
 
-Definition check2 (A : Type) (n : nat) (v : vector A n) (l2 : @sigT nat (fun (n1 : nat) => vector A n1)) :=
-  vector_rect
-    A
-    (fun (n0 : nat) (v0 : vector A n0) =>
-      @sigT nat (fun (n1 : nat) => vector A n1))
-    l2
-    (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : @sigT nat (fun (n1 : nat) => vector A n1)) =>
-      @existT
-        nat
-        (fun (n1 : nat) => vector A n1)
-        (S
-          (@sigT_rect
-             nat
-             (fun (n1 : nat) => vector A n1)
-             (fun (pv : @sigT nat (fun (n1 : nat) => vector A n1)) => nat)
-             (fun (n1 : nat) (v1 : vector A n1) => n1)
-             IH))
-        (@consV
-          A
-          (@sigT_rect
-            nat
-            (fun (n1 : nat) => vector A n1) 
-            (fun (pv : @sigT nat (fun (n1 : nat) => vector A n1)) => nat)
-            (fun (n1 : nat) (v1 : vector A n1) => n1)
-            IH)
-          a
-          (@sigT_rect
-            nat
-            (fun (n1 : nat) => vector A n1)
-            (fun (pv : @sigT nat (fun (n1 : nat) => vector A n1)) => 
-              vector
-                A
-                (@sigT_rect
-                  nat
-                  (fun (n1 : nat) => vector A n1)
-                  (fun (pv : @sigT nat (fun (n1 : nat) => vector A n1)) => nat)
-                  (fun (n1 : nat) (v1 : vector A n1) => n1)
-                  pv))
-            (fun (n1 : nat) (v1 : vector A n1) => v1)
-            IH)))
-     n
-     v.
-
-Check check2.
-
 Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red. 
 
 Print append_vect_red.
+
+(*
+ * Temporary test until we can actually test:
+ *)
+Eval compute in (append_vect_red nat (existT (vector nat) 0 (nilV nat)) (existT (vector nat) 0 (nilV nat))).
+Eval compute in (append_vect_red nat (existT (vector nat) 0 (nilV nat)) (existT (vector nat) 1 (consV nat 0 4 (nilV nat)))).
+Eval compute in (append_vect_red nat (existT (vector nat) 1 (consV nat 0 4 (nilV nat))) (existT (vector nat) 0 (nilV nat)) ).
+Eval compute in (append_vect_red nat (existT (vector nat) 1 (consV nat 0 4 (nilV nat))) (existT (vector nat) 1 (consV nat 0 7 (nilV nat)))).
+
 
 Theorem test_append_vect:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
@@ -138,11 +102,10 @@ Qed.
 
 (*
  * TODO the opposite direction fails, investigate (probably a factoring problem)
- *)
 Reduce ornament orn_list_vector_inv orn_list_vector in append_auto as append_red.
 
 Print append_red. (* TODO test *)
-
+*)
 (* TODO proofs and more complex things *)
 
 (* TODO other types besides lists *)
