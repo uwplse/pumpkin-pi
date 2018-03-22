@@ -67,6 +67,33 @@ Proof.
   intros. reflexivity.
 Qed.
 
+Print sigT_rect.
+
+Definition check (A : Type) (n0 : nat) (a : A) (v0 : vector A n0) (IH : (@sigT nat (fun (n1 : nat) => vector A n1))) :=
+  @consV
+    A
+    (@sigT_rect
+      nat
+      (fun (n1 : nat) => vector A n1) 
+      (fun (pv : @sigT nat (fun (n1 : nat) => vector A n1)) => nat)
+      (fun (n1 : nat) (v1 : vector A n1) => n1)
+      IH)
+     a
+     (@sigT_rect
+       nat
+       (fun (n1 : nat) => vector A n1)
+       (fun (pv : @sigT nat (fun (n1 : nat) => vector A n1)) =>
+         vector
+           A
+           (@sigT_rect
+             nat
+             (fun (n1 : nat) => vector A n1)
+             (fun (pv : @sigT nat (fun (n1 : nat) => vector A n1)) => nat)
+             (fun (n1 : nat) (v1 : vector A n1) => n1)
+             pv))
+       (fun (n1 : nat) (v1 : vector A n1) => v1)
+       IH).
+
 Reduce ornament orn_list_vector_inv orn_list_vector in tl_auto as tl_red.
 
 Theorem test_tl:
