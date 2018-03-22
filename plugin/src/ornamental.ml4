@@ -2436,8 +2436,8 @@ let reduce_ornament_f env index_i orn trm =
         if eq_constr app_ind_sub app then
           trm
         else
-          (*mkAppl (existT, reindex 3 app_ind_sub (reindex 2 ind_sub (unfold_args unfolded))) *)
-          app_ind_sub
+         mkAppl (existT, reindex 3 app_ind_sub (reindex 2 ind_sub (unfold_args unfolded)))
+                (*  app_ind_sub *)
       with _ ->
         trm (* TODO why error? *)
     )
@@ -2689,18 +2689,6 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
           (* same *)
           let c = List.hd cs_g in
           let (env_c, c_body) = zoom_lambda_term env_g c in
-          (*t cs_f =
-            List.map
-              (map_unit_env_if
-                 (fun _ trm -> applies existT trm)
-                 (fun env trm ->
-                   let last_arg = get_arg 3 trm in
-                   let typ_args = on_type unfold_args env last_arg in
-                   let orn_args = remove_index index_i typ_args in
-                   mkAppl (l.orn.forget, snoc trm orn_args))
-                 env_f)
-              cs_f
-          in*)
           let (_, _, _, cs_g, _) = deconstruct_eliminator env_c c_body in
           let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_c, c_g); f = (env_f, c_f)}) cs_g cs_f in
           List.map (compose_c (List.length pms_g) ip_g p_exp post_assums) c_cs
@@ -2731,7 +2719,16 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
                 (all_eq_substs (i, li) c_exp))
             (Option.has_some indexer))
          cs_exp, indexer)
-  in (apply_eliminator ip pms p cs args, indexer)
+  in
+  debug_term env_f ip "ip";
+  debug_terms env_f pms "pms";
+  debug_term env_f p "p";
+  debug_terms env_f cs "cs";
+  debug_terms env_f (Array.to_list args) "args";
+  let elim = apply_eliminator ip pms p cs args in
+  debug_term env_f elim "elim";
+  debug_term env_f (infer_type env_f elim) "elim_typ";
+  (elim, indexer)
     
 
 (*
