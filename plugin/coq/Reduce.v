@@ -71,7 +71,6 @@ Print sigT_rect.
 
 Check existT.
 
-(*
 Definition check2 (A : Type) (n : nat) (v : vector A n) (l2 : @sigT nat (fun (n1 : nat) => vector A n1)) :=
   vector_rect
     A
@@ -82,7 +81,13 @@ Definition check2 (A : Type) (n : nat) (v : vector A n) (l2 : @sigT nat (fun (n1
       @existT
         nat
         (fun (n1 : nat) => vector A n1)
-        ( )
+        (S
+          (@sigT_rect
+             nat
+             (fun (n1 : nat) => vector A n1)
+             (fun (pv : @sigT nat (fun (n1 : nat) => vector A n1)) => nat)
+             (fun (n1 : nat) (v1 : vector A n1) => n1)
+             IH))
         (@consV
           A
           (@sigT_rect
@@ -107,33 +112,9 @@ Definition check2 (A : Type) (n : nat) (v : vector A n) (l2 : @sigT nat (fun (n1
             (fun (n1 : nat) (v1 : vector A n1) => v1)
             IH)))
      n
-     v.*)
+     v.
 
-
-Definition check (A : Type) (n0 : nat) (a : A) (v0 : vector A n0) (IH : (@sigT nat (fun (n1 : nat) => vector A n1))) :=
-  @consV
-    A
-    (@sigT_rect
-      nat
-      (fun (n1 : nat) => vector A n1) 
-      (fun (pv : @sigT nat (fun (n1 : nat) => vector A n1)) => nat)
-      (fun (n1 : nat) (v1 : vector A n1) => n1)
-      IH)
-     a
-     (@sigT_rect
-       nat
-       (fun (n1 : nat) => vector A n1)
-       (fun (pv : @sigT nat (fun (n1 : nat) => vector A n1)) =>
-         vector
-           A
-           (@sigT_rect
-             nat
-             (fun (n1 : nat) => vector A n1)
-             (fun (pv : @sigT nat (fun (n1 : nat) => vector A n1)) => nat)
-             (fun (n1 : nat) (v1 : vector A n1) => n1)
-             pv))
-       (fun (n1 : nat) (v1 : vector A n1) => v1)
-       IH).
+Check check2.
 
 Reduce ornament orn_list_vector_inv orn_list_vector in tl_auto as tl_red.
 
