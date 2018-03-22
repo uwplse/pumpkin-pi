@@ -67,9 +67,18 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Print sigT_rect.
+Reduce ornament orn_list_vector_inv orn_list_vector in tl_auto as tl_red.
 
-Check existT.
+Theorem test_tl:
+  forall (A : Type) (l : list A),
+    tl A l = tl_red A l.
+Proof.
+  intros. reflexivity.
+Qed.
+
+(*
+ * Application
+ *)
 
 Definition check2 (A : Type) (n : nat) (v : vector A n) (l2 : @sigT nat (fun (n1 : nat) => vector A n1)) :=
   vector_rect
@@ -116,26 +125,15 @@ Definition check2 (A : Type) (n : nat) (v : vector A n) (l2 : @sigT nat (fun (n1
 
 Check check2.
 
-Reduce ornament orn_list_vector_inv orn_list_vector in tl_auto as tl_red.
-
-Theorem test_tl:
-  forall (A : Type) (l : list A),
-    tl A l = tl_red A l.
-Proof.
-  intros. reflexivity.
-Qed.
-
-(*
- * Application
- *)
-
 Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red. 
 
+Print append_vect_red.
+
 Theorem test_append_vect:
-  forall (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 : vector A n2),
-    append_vect A n1 v1 n2 v2 = append_vect_red A n1 v1 n2 v2.
+  forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
+    append_vect_packed A pv1 pv2  = append_vect_red A pv1 pv2.
 Proof.
-  intros. reflexivity.
+  intros. induction pv1. reflexivity.
 Qed.
 
 (*

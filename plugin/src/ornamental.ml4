@@ -1025,6 +1025,23 @@ let env_as_string (env : env) : string =
 let debug_env (env : env) (descriptor : string) : unit =
   Printf.printf "%s: %s\n\n" descriptor (env_as_string env)
 
+(* --- TODO move this --- *)
+
+(* Same, but skip j first *)
+let rec reconstruct_lambda_n_skip (env : env) (b : types) (i : int) (j : int) : types =
+  Printf.printf "i left: %d\n" (nb_rel env - i);
+  Printf.printf "j left to skip: %d\n" j;
+  debug_term env b "b";
+  if nb_rel env = i then
+    b
+  else
+    let (n, _, t) = CRD.to_tuple @@ lookup_rel 1 env in
+    let env' = pop_rel_context 1 env in
+    if j <= 0 then
+      reconstruct_lambda_n_skip env' (mkLambda (n, t, b)) i j
+    else
+      reconstruct_lambda_n_skip env' (unshift b) (i - 1) (j - 1)
+                
 (* --- Factoring, from PUMPKIN PATCH --- *)
 
 type factors = (env * types) list
@@ -2843,15 +2860,24 @@ let rec compose_orn_factors (l : lifting) no_reduce assum_ind idx_n fs =
            let inner = mkAppl (shift_by 2 c_f, [f_inner_body]) in
            let inner_factors = factor_term_dep (mkRel assum_ind) env_f_inner inner in
            let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_orn_factors l true assum_ind idx_n inner_factors in
-           let app_lam = reconstruct_lambda_n env_inner t_app_inner 2 in
+           debug_term env_inner t_app_inner "t_app_inner";
+           debug_env env_inner "env_inner";
+           (*let env_inner' = remove_rel assum_ind (remove_rel assum_ind env_inner) in*)
+           let env_inner' = pop_rel_context (assum_ind + 2 - 1) env_inner in
+           Printf.printf "skipping %d:\n" (assum_ind - 1);
+           let app_lam = reconstruct_lambda_n_skip env_inner t_app_inner (nb_rel env_inner - 2) (assum_ind - 1) in
+           debug_env env_inner' "env_inner'";
+           debug_term env_inner' app_lam "app_lam";
            let f_p_old = get_arg 2 (snd f) in
            let (env_f_p, _) = zoom_lambda_term empty_env f_p_old in
            let f_p_body = unshift (reduce_type env_inner t_app_inner) in
-           let f_p_new = reconstruct_lambda env_f_p f_p_body in
+           let f_p_new = reconstruct_lambda env_f_p (unshift_by (assum_ind - 1) f_p_body) in
+           debug_term env_inner' f_p_new "f_p_new";
            let f_args = unfold_args (snd f) in
            let args = reindex 3 app_lam (reindex 2 f_p_new f_args) in
            let app = mkAppl (sigT_rect, args) in
-           ((app, indexer_inner), pop_rel_context 2 env_inner, composed_inner)
+           debug_term env_inner' app "app";
+           ((app, indexer_inner), env_inner', composed_inner)
          else if applies sigT_rect (snd g) && is_indexer_inner then
            let inner = get_arg 3 (snd g) in
            let (env_inner, inner_body) = zoom_lambda_term (fst g) inner in
@@ -2867,6 +2893,7 @@ let rec compose_orn_factors (l : lifting) no_reduce assum_ind idx_n fs =
               debug_term env (Option.get indexer) "indexer"
             else
               ());
+           debug_term env app "app";
            ((app, indexer), env, true)
        else
          let t = shift_by assum_ind t in
@@ -2950,11 +2977,14 @@ let reduce_ornament n d_orn d_orn_inv d_old =
   let idx_n = with_suffix n "index" in
   let (trm_n, indexer) = internalize env idx_n c_orn c_orn_inv trm_o in
   (if Option.has_some indexer then
-     let indexer_o = Option.get indexer in
-     debug_term env indexer_o "indexer_o";
-     let (indexer_n, _) = internalize env idx_n c_orn c_orn_inv indexer_o in
-     define_term idx_n env evm indexer_n;
-     Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
+     try
+       let indexer_o = Option.get indexer in
+       debug_term env indexer_o "indexer_o";
+       let (indexer_n, _) = internalize env idx_n c_orn c_orn_inv indexer_o in
+       define_term idx_n env evm indexer_n;
+       Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
+     with _ ->
+       Printf.printf "%s.\n\n" "An indexer exists, but there was an error finding it."
    else
      ());
   debug_term env trm_n "trm_n";
