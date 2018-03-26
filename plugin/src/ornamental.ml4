@@ -2648,7 +2648,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
  *
  * TODO clean
  *)
-let rec compose_inductive idx_n post_assums inner (comp : composition) =
+let rec compose_inductive idx_n post_assums assum_ind inner (comp : composition) =
   let l = comp.l in
   let index_i = Option.get l.orn.index_i in
   let (env_g, g) = comp.g in
@@ -2661,14 +2661,15 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
     if l.is_fwd && comp.is_g && not l.is_indexer then
       (* Build the lifted indexer *)
       let indexer = Option.get l.orn.indexer in
+      debug_env env_f "env_f";
       let (env_f_body, f_body) = zoom_lambda_term env_f f in
       let f_typ_args = on_type unfold_args env_f_body f_body in
       let index_args = snoc f_body f_typ_args in
       let indexer_unpacked_body = mkAppl (indexer, index_args) in
-      let indexer_unpacked = reconstruct_lambda_n env_f_body indexer_unpacked_body 2 in
-      let env_packed = pop_rel_context 2 env_f_body in
-      let index_type = infer_type env_f_body (mkRel 2) in
-      let packer = infer_type env_packed (mkRel 1) in
+      let indexer_unpacked = reconstruct_lambda_n_skip env_f_body indexer_unpacked_body (nb_rel env_f_body - 2) (assum_ind - 1) in
+      let env_packed = pop_rel_context (assum_ind + 2 - 1) env_f_body in
+      let index_type = infer_type env_f_body (mkRel (2 + assum_ind - 1)) in
+      let packer = infer_type env_packed (mkRel (1 + assum_ind - 1)) in
       let packed_type_b = shift index_type in
       let packed_type = mkLambda (Anonymous, packer, packed_type_b) in 
       let indexer_body = mkAppl (sigT_rect, [index_type; packer; packed_type; indexer_unpacked; mkRel (1 + List.length post_assums)]) in
@@ -2698,7 +2699,7 @@ let rec compose_inductive idx_n post_assums inner (comp : composition) =
       let c = List.hd cs_f in
       let (env_c, c_body) = zoom_lambda_term env_f c in
       let c_cs = { comp with f = (env_c, c_body)} in
-      let (c_comp, indexer) = compose_inductive idx_n post_assums true c_cs in
+      let (c_comp, indexer) = compose_inductive idx_n post_assums assum_ind true c_cs in
       ([reconstruct_lambda_n env_c c_comp (nb_rel env_f)], indexer)
     else
       let cs_exp =
@@ -2868,6 +2869,7 @@ let rec compose_orn_factors (l : lifting) no_reduce assum_ind idx_n fs =
            let app_lam = reconstruct_lambda_n_skip env_inner t_app_inner (nb_rel env_inner - 2) (assum_ind - 1) in
            debug_env env_inner' "env_inner'";
            debug_term env_inner' app_lam "app_lam";
+           debug_term env_inner' (Option.get indexer_inner) "indexer_inner";
            let f_p_old = get_arg 2 (snd f) in
            let (env_f_p, _) = zoom_lambda_term empty_env f_p_old in
            let f_p_body = unshift (reduce_type env_inner t_app_inner) in
@@ -2888,7 +2890,7 @@ let rec compose_orn_factors (l : lifting) no_reduce assum_ind idx_n fs =
            let indexer = mkAppl (sigT_rect, args) in
            ((indexer, indexer_inner), pop_rel_context 2 env_inner, composed_inner)
          else
-           let (app, indexer) = compose_inductive idx_n post_assums false comp in
+           let (app, indexer) = compose_inductive idx_n post_assums assum_ind false comp in
            (if Option.has_some indexer then
               debug_term env (Option.get indexer) "indexer"
             else
@@ -2977,14 +2979,11 @@ let reduce_ornament n d_orn d_orn_inv d_old =
   let idx_n = with_suffix n "index" in
   let (trm_n, indexer) = internalize env idx_n c_orn c_orn_inv trm_o in
   (if Option.has_some indexer then
-     try
-       let indexer_o = Option.get indexer in
-       debug_term env indexer_o "indexer_o";
-       let (indexer_n, _) = internalize env idx_n c_orn c_orn_inv indexer_o in
-       define_term idx_n env evm indexer_n;
-       Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
-     with _ ->
-       Printf.printf "%s.\n\n" "An indexer exists, but there was an error finding it."
+     let indexer_o = Option.get indexer in
+     debug_term env indexer_o "indexer_o";
+     let (indexer_n, _) = internalize env idx_n c_orn c_orn_inv indexer_o in
+     define_term idx_n env evm indexer_n;
+     Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
    else
      ());
   debug_term env trm_n "trm_n";

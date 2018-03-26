@@ -84,15 +84,6 @@ Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as appen
 
 Print append_vect_red.
 
-(*
- * Temporary test until we can actually test:
- *)
-Eval compute in (append_vect_red nat (existT (vector nat) 0 (nilV nat)) (existT (vector nat) 0 (nilV nat))).
-Eval compute in (append_vect_red nat (existT (vector nat) 0 (nilV nat)) (existT (vector nat) 1 (consV nat 0 4 (nilV nat)))).
-Eval compute in (append_vect_red nat (existT (vector nat) 1 (consV nat 0 4 (nilV nat))) (existT (vector nat) 0 (nilV nat)) ).
-Eval compute in (append_vect_red nat (existT (vector nat) 1 (consV nat 0 4 (nilV nat))) (existT (vector nat) 1 (consV nat 0 7 (nilV nat)))).
-
-
 Theorem test_append_vect:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
     append_vect_packed A pv1 pv2  = append_vect_red A pv1 pv2.
@@ -100,10 +91,11 @@ Proof.
   intros. induction pv1. reflexivity.
 Qed.
 
-(*
- * TODO the opposite direction fails, investigate (probably a factoring problem)
+(* TODO to make this useful, should sub in projT1 and projT2 and so on 
 Reduce ornament orn_list_vector_inv orn_list_vector in append_auto as append_red.
+*)
 
+(*
 Print append_red. (* TODO test *)
 *)
 (* TODO proofs and more complex things *)
