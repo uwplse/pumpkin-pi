@@ -8,6 +8,42 @@ Require Import Test.
  * the ornamentation (so the type won't be useful yet).
  *)
 
+(* --- Experimental, may integrate into automation at some point --- *)
+
+Definition packed_vect_rect (A : Type) (P : sigT (vector A) -> Type)
+  (pb : P (existT (vector A) 0 (nilV A)))
+  (pih : forall (a : A) (pv : sigT (vector A)), P pv -> P (existT (vector A) (S (projT1 pv)) (consV A (projT1 pv) a (projT2 pv)))) 
+  (pv : sigT (vector A)) :=
+  sigT_rect
+    (fun (pv0 : sigT (vector A)) => P pv0)
+    (fun (n0 : nat) (v0 : vector A n0) =>
+       vector_rect
+          A
+          (fun (n1 : nat) (v1 : vector A n1) => P (existT (vector A) n1 v1))
+          pb
+          (fun (n1 : nat) (a : A) (v1 : vector A n1) (IH : P (existT (vector A) n1 v1)) =>
+             pih a (existT (vector A) n1 v1) IH)
+          n0
+          v0)
+    pv.
+
+Definition packed_vect_ind (A : Type) (P : sigT (vector A) -> Prop)
+  (pb : P (existT (vector A) 0 (nilV A)))
+  (pih : forall (a : A) (pv : sigT (vector A)), P pv -> P (existT (vector A) (S (projT1 pv)) (consV A (projT1 pv) a (projT2 pv)))) 
+  (pv : sigT (vector A)) :=
+  sigT_rect
+    (fun (pv0 : sigT (vector A)) => P pv0)
+    (fun (n0 : nat) (v0 : vector A n0) =>
+       vector_rect
+          A
+          (fun (n1 : nat) (v1 : vector A n1) => P (existT (vector A) n1 v1))
+          pb
+          (fun (n1 : nat) (a : A) (v1 : vector A n1) (IH : P (existT (vector A) n1 v1)) =>
+             pih a (existT (vector A) n1 v1) IH)
+          n0
+          v0)
+    pv.
+
 (* --- Simple functions on lists --- *)
 
 Definition hd (A : Type) (default : A) (l : list A) :=
@@ -34,6 +70,19 @@ Definition hd_vect_packed (A : Type) (default : A) (pv : packed_vector A) :=
     (fun (n : nat) (v0 : vector A n) =>
       hd_vect A default n v0)
     pv.
+
+Definition hd_vect_packed_experimental (A : Type) (default : A) (pv : packed_vector A) :=
+  packed_vect_rect
+    A
+    (fun _ : sigT (vector A) => A)
+    default
+    (fun (x : A) (_ : sigT (vector A)) (_ : A) =>
+      x)
+    pv.
+
+(* In the experimental version, note that we can keep the inductive case arguments the same,
+   which eases things a lot. *)
+(* So we may want to produce this IH literally, and use it to port proofs. *)
 
 Apply ornament orn_list_vector orn_list_vector_inv in hd as hd_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_packed as hd_auto.
@@ -181,6 +230,25 @@ Definition append_vect_packed (A : Type) (pv1 : packed_vector A) (pv2 : packed_v
         n
         v)
     pv1.
+
+(* What does this look like in the experimental version? *)
+Definition append_vect_packed_experimental (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A) :=
+  packed_vect_rect
+    A
+    (fun _ : sigT (vector A) => sigT (vector A))
+    pv2
+    (fun (a : A) (_ : sigT (vector A)) (IH : sigT (vector A)) =>
+      existT
+       (vector A)
+       (S (projT1 IH))
+       (consV A (projT1 IH) a (projT2 IH)))
+    pv1.
+
+(* So really the benefit is that it keeps n0 packed, since we'll never use it,
+   which solves more offset problems that will clean up code.
+   Should port to this eventually, but not a huge rush. Though might be necessary for proofs. 
+   It gives a better theoretical model for sure. 
+   But you still need to apply existT in the body, and port the IH and so on. *)
 
 Print append_vect_packed.
 
@@ -404,6 +472,66 @@ Theorem test_deorn_tl :
 Proof.
   intros. induction l; try apply coh; auto.
 Qed.
+
+(* --- Interesting parts: Trying some proofs --- *)
+
+(* This is our favorite proof app_nil_r, which has no exact analogue when
+   indexing becomes relevant for vectors. *)
+Definition app_nil_r (A : Type) (l : list A) :=
+  @list_ind
+    A
+    (fun (l0 : list A) => append A l0 (@nil A) = l0)
+    (@eq_refl (list A) (@nil A))
+    (fun (a : A) (l0 : list A) (IHl : append A l0 (@nil A) = l0) =>
+      @eq_ind_r
+        (list A)
+        l0
+        (fun (l1 : list A) => @cons A a l1 = @cons A a l0)
+        (@eq_refl (list A) (@cons A a l0))
+        (append A l0 (@nil A))
+        IHl)
+    l.
+ 
+Theorem app_nil_r_vect_experimental :
+  forall (A : Type) (pv : sigT (vector A)),
+    append_vect_packed_experimental A pv (existT (vector A) 0 (@nilV A)) = pv.
+Proof.
+  intros. induction pv. induction p.
+  - reflexivity.
+  - simpl. simpl in IHp. rewrite IHp. reflexivity.
+Qed.
+
+Print app_nil_r_vect_experimental.
+
+(* Does it work if we try the experimental version? 
+Definition app_nil_r_vect_exp (A : Type) (pv : sigT (vector A)) :=
+  packed_vect_ind
+    A
+    (fun pv0 : sigT (vector A) => append_vect_packed_experimental A pv0 (existT (vector A) 0 (@nilV A)) = pv0)
+    (@eq_refl (sigT (vector A)) (existT (vector A) 0 (@nilV A)))
+    (fun (a : A) (pv0 : sigT (vector A)) (IHv : append_vect_packed_experimental A pv0 (existT (vector A) 0 (@nilV A)) = pv0) =>
+      @eq_ind_r
+        (sigT (vector A))
+        pv0
+        (fun (pv1 : sigT (vector A)) => existT (vector A) (S (projT1 pv1)) (consV A (projT1 pv1) a (projT2 pv1)) = existT (vector A) (S (projT1 pv0)) (consV A (projT1 pv0) a (projT2 pv0)))
+        (@eq_refl (sigT (vector A)) (existT (vector A) (S (projT1 pv0)) (consV A (projT1 pv0) a (projT2 pv0))))
+        (append_vect_packed_experimental A pv0 (existT (vector A) 0 (@nilV A)))
+        IHv)
+    pv.*)
+
+(* (cannot unify 
+
+"(fun pv1 : {x : nat & vector A x} =>
+   existT (vector A) (S (projT1 pv1)) (consV A (projT1 pv1) a (projT2 pv1)) =
+   existT (vector A) (S (projT1 pv0)) (consV A (projT1 pv0) a (projT2 pv0)))
+ (append_vect_packed_experimental A pv0 (existT (vector A) 0 (nilV A)))" and
+"(fun pv0 : {x : nat & vector A x} => 
+    append_vect_packed_experimental A pv0 (existT (vector A) 0 (nilV A)) = pv0)
+  (existT (vector A) (S (projT1 pv0)) (consV A (projT1 pv0) a (projT2 pv0)))").
+ 
+* Not sure where this fails compared to list version but whatever, figure out
+* at some point. The proof above works, so why?
+*)
 
 (* TODO try In, then you can try the facts about In, which should translate over as soon
    as app translates over. Then try app_nil_r and so on. *)
