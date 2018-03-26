@@ -100,6 +100,14 @@ let existT : types =
 (* Elimination for sigma types *)
 let sigT_rect : types =
   mkConst (Constant.make2 coq_init_specif (Label.make "sigT_rect"))
+
+(* Left projection *)
+let projT1 : types =
+  mkConst (Constant.make2 coq_init_specif (Label.make "projT1"))
+
+(* Right projection *)
+let projT2 : types =
+  mkConst (Constant.make2 coq_init_specif (Label.make "projT2"))
               
 (* This should be in the standard library, but isn't bound for some reason *)
 let map_default f default x =
@@ -2489,6 +2497,8 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
   let c_g_used = get_used_or_p_hypos always_true c_g in
   let (env_f_body_old, _) = zoom_lambda_term env_f c_f in
   let c_f = compose_ih env_g npms_g ip_g c_f p in
+  debug_term env_f c_f "c_f";
+  debug_term env_g c_g "c_g";
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let off_f = offset env_f_body (nb_rel env_f) in
   let (env_g_body, g_body) = zoom_lambda_term env_g c_g in
@@ -2576,16 +2586,21 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
     else      
       let (nsubs, f_body) =
         map_track_unit_if
-          (applies orn_f)
+          (fun trm -> isApp trm && applies orn_f trm)
           (fun f_body ->
             let f_args = unfold_args f_body in
             let last_arg = last f_args in
             if l.is_indexer then
-              get_arg 2 last_arg
+              let last_arg_typ = infer_type env_f_body last_arg in
+              let (a :: rest) = unfold_args last_arg_typ in
+              let p = List.hd rest in
+              mkAppl (projT1, [a; p; last_arg])
             else
               last_arg)
           f_body
       in
+      debug_term env_f_body f_body "f_body";
+      debug_term env_g_body g_body "g_body";
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
       let is_orn = is_or_applies (if l.is_fwd then from_typ else to_typ) in
       (* Does this generalize, too? *)
@@ -2744,8 +2759,6 @@ let rec compose_inductive idx_n post_assums assum_ind inner (comp : composition)
   debug_terms env_f cs "cs";
   debug_terms env_f (Array.to_list args) "args";
   let elim = apply_eliminator ip pms p cs args in
-  debug_term env_f elim "elim";
-  debug_term env_f (infer_type env_f elim) "elim_typ";
   (elim, indexer)
     
 
