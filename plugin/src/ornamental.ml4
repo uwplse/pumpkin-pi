@@ -2446,12 +2446,11 @@ let rec reduce_to_ind env trm =
  *)
 let reduce_ornament_f l env index_i orn trm =
   let orn_arg = mkRel 1 in
-  (* may fail if in lambda *)
   let orn_arg_typ = zoom_if_sig_outer (infer_type env orn_arg) in
   let orn_arg_typ = map_if (fun t -> snd (zoom_lambda_term empty_env t)) (not l.is_fwd) orn_arg_typ in
-  map_unit_env_if
-    (fun _ trm -> applies orn trm)
-    (fun env trm ->
+  map_term_env_if
+    (fun _ orn_arg_typ trm -> applies orn trm)
+    (fun env orn_arg_typ trm ->
       try
         let (app, app_sub_body, app_sub) =
           let args = unfold_args trm in
@@ -2463,7 +2462,6 @@ let reduce_ornament_f l env index_i orn trm =
           if l.is_fwd && not l.is_indexer then
             let indexer = reduce_nf env (get_arg 2 unfolded) in
             let app = reduce_nf env (get_arg 3 unfolded) in
-            let typ_args = unfold_args orn_arg_typ in
             let orn_app_app = get_arg 3 orn_app_ind in
             let orn_app_app_arg = last (unfold_args orn_app_app) in
             let packed_type_old = reduce_type env orn_app_app in
@@ -2503,7 +2501,9 @@ let reduce_ornament_f l env index_i orn trm =
         in if eq_constr app_sub_body app then trm else app_sub
       with _ ->
         trm)
+    shift
     env
+    orn_arg_typ
     trm
     
 (*
