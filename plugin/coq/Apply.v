@@ -132,12 +132,25 @@ Definition plus_vect (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 : v
     n1
     v1.
 
-Definition plus_vect_exp (A : Type) (pv1 : packed_vector A) (n2 : nat) (v2 : vector A n2) :=
+(*
+ * Not used yet.
+ *)
+Definition plus_vect_exp (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A) :=
   sigT_rect
-    (fun _ : packed_vector A => nat)
+    (fun _ : sigT (fun (n : nat) => vector A n) => nat)
     (fun (n0 : nat) (v0 : vector A n0) =>
-      plus_vect A n0 v0 n2 v2)
-    pv1.
+      vector_rect
+        A
+        (fun (n0 : nat) (_ : vector A n0) => nat)
+        (sigT_rect
+          (fun _ : sigT (fun (n : nat) => vector A n) => nat)
+          (fun (n2 : nat) (v2 : vector A n2) => n2)
+          pv2)
+        (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : nat) =>
+          S IH)
+       n0
+       v0)
+   pv1.
 
 Definition append_vect (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 : vector A n2) :=
   vector_rect
@@ -149,6 +162,12 @@ Definition append_vect (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 :
     n1
     v1.
 
+(*
+ * This version doesn't reference new indexer.
+ * Eventually want to be able to get index from this too,
+ * and also want to move each of these inner sigT_rect... into projT1 or something
+ * similar.
+ *)
 Definition append_vect_packed (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A) :=
   sigT_rect
     (fun _ : sigT (fun (n : nat) => vector A n) => sigT (fun (n : nat) => vector A n))
@@ -158,40 +177,10 @@ Definition append_vect_packed (A : Type) (pv1 : packed_vector A) (pv2 : packed_v
         (fun (n0 : nat) (v0 : vector A n0) => sigT (fun (n : nat) => vector A n))
         pv2
         (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : sigT (fun (n : nat) => vector A n)) =>
-          (* TODO for now until we figure out indexer *)
-          @existT
-        nat
-        (fun (n1 : nat) => vector A n1)
-        (S
-          (@sigT_rect
-             nat
-             (fun (n1 : nat) => vector A n1)
-             (fun (pv : @sigT nat (fun (n1 : nat) => vector A n1)) => nat)
-             (fun (n1 : nat) (v1 : vector A n1) => n1)
-             IH))
-        (@consV
-          A
-          (@sigT_rect
-            nat
-            (fun (n1 : nat) => vector A n1) 
-            (fun (pv : @sigT nat (fun (n1 : nat) => vector A n1)) => nat)
-            (fun (n1 : nat) (v1 : vector A n1) => n1)
-            IH)
-          a
-          (@sigT_rect
-            nat
-            (fun (n1 : nat) => vector A n1)
-            (fun (pv : @sigT nat (fun (n1 : nat) => vector A n1)) => 
-              vector
-                A
-                (@sigT_rect
-                  nat
-                  (fun (n1 : nat) => vector A n1)
-                  (fun (pv : @sigT nat (fun (n1 : nat) => vector A n1)) => nat)
-                  (fun (n1 : nat) (v1 : vector A n1) => n1)
-                  pv))
-            (fun (n1 : nat) (v1 : vector A n1) => v1)
-            IH)))
+          existT
+            (vector A)
+            (S (projT1 IH))
+            (consV A (projT1 IH) a (projT2 IH)))
         n
         v)
     pv1.
@@ -222,6 +211,29 @@ Proof.
   intros. inversion H. subst. auto.
 Qed.
 
+Theorem eq_pv_cons:
+  forall A (pv : sigT (vector A)) (pv' : sigT (vector A)),
+    pv = pv' ->
+    forall (a : A),
+      (existT 
+        (vector A)
+        (S (projT1 pv)) 
+        (consV A (projT1 pv) a (projT2 pv))) =
+      (existT 
+        (vector A)
+        (S (projT1 pv')) 
+        (consV A (projT1 pv') a (projT2 pv'))).
+Proof.
+  intros. inversion H. subst. auto.
+Qed.
+
+Theorem vect_iso:
+  forall (A : Type) (pv : packed_vector A),
+    pv = orn_list_vector A (orn_list_vector_inv A pv).
+Proof.
+  intros. induction pv. induction p; try apply eq_vect_cons; auto.
+Qed.
+
 Theorem test_plus:
   forall A (pv1 : packed_vector A) (pv2 : packed_vector A),
     (projT1 (append_vect_packed A pv1 pv2) = projT1 (append_vect_auto A pv1 pv2)).
@@ -229,20 +241,15 @@ Proof.
   intros. induction pv1; induction pv2; induction p; induction p0; try apply eq_S; auto.
 Qed.
 
-(* TODO fix
-
 Theorem test_orn_append:
   forall A (pv1 : packed_vector A) (pv2 : packed_vector A),
-    (projT1 (append_vect_packed A pv1 pv2) = projT1 (append_vect_auto A pv1 pv2)) ->
     append_vect_packed A pv1 pv2 = append_vect_auto A pv1 pv2.
 Proof.
-  intros. induction pv1; induction pv2.
-  induction p; induction p0.
-  - auto.
-  - try apply eq_vect_cons; auto.
-  - inversion H. apply IHp in H1. apply eq_vect_cons. rewrite H. eauto. eq_vect_cons in IHp.  simpl. rewrite eq_S. inversion IHp. simpl. auto. fold orn_list_vector. erewrite <- eq_vect_cons.
-    + simpl. apply eq_vect_cons. rewrite <- IHp. auto. simpl.
-Qed.*)
+  intros. induction pv1.
+  induction p.
+  - unfold append_vect_auto. simpl. apply vect_iso.
+  - apply eq_pv_cons with (a := a) in IHp. apply IHp.
+Qed.
 
 Theorem test_orn_append_proj :
   forall (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 : vector A n2),
@@ -270,21 +277,23 @@ Proof.
   intros. inversion H. subst. auto.
 Qed.
 
-(* TODO fix 
+Theorem vect_inv_iso:
+  forall (A : Type) (l : list A),
+    l = orn_list_vector_inv A (orn_list_vector A l).
+Proof.
+  intros. induction l; try apply eq_cons; auto.
+Qed.
+
+(* TODO fix
 Theorem test_deorn_append:
   forall A (l : list A) (l' : list A),
     append A l l' = append_auto A l l'.
 Proof.
-  intros. induction l; induction l'; try apply eq_cons; auto.
-Qed.*)
-
-Definition tl (A : Type) (l:list A) :=
-  list_rect
-    (fun (_ : list A) => list A)
-    nil
-    (fun (a : A) (m : list A) (_ : list A) =>
-      m)
-    l.
+  intros A l. induction l.
+  - simpl. unfold append_auto. induction l'.
+    + auto.
+    + simpl. apply eq_cons. unfold append_vect_packed in IHl'. apply eq_cons. unfold orn_list_vector_inv in IHl'.
+*)
 
 (* For now, we don't eliminate the vector reference, since incides might refer to other things *)
 Definition pred_vect (A : Type) (n : nat) (v : vector A n) :=
@@ -303,6 +312,15 @@ Definition pred_vect_exp (A : Type) (pv : packed_vector A) :=
     (fun (n0 : nat) (v0 : vector A n0) =>
       pred_vect A n0 v0)
     pv.
+
+Definition tl (A : Type) (l : list A) :=
+  @list_rect
+   A
+   (fun (l0 : list A) => list A)
+   (@nil A)
+   (fun (a : A) (l0 : list A) (_ : list A) =>
+     l0)
+   l.
 
 Definition tl_vect (A : Type) (n : nat) (v : vector A n) :=
   vector_rect
@@ -332,6 +350,9 @@ Definition tl_vect_packed (A : Type) (pv : packed_vector A) :=
 
 Apply ornament orn_list_vector orn_list_vector_inv in tl as tl_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in tl_vect_packed as tl_auto.
+
+Print tl_vect_auto.
+Print tl.
 
 (* TODO fix application *)
 
@@ -378,8 +399,10 @@ Proof.
   - apply eq_cons. apply IHl.
 Qed.
 
+Print tl_auto.
+
 Theorem test_deorn_tl :
-  forall (A : Type) (a : A) (l : list A),
+  forall (A : Type) (l : list A),
     tl_auto A l = tl A l.
 Proof.
   intros. induction l; try apply coh; auto.
