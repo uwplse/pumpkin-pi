@@ -859,39 +859,6 @@ let reduce_nf (env : env) (trm : types) : types =
 let reduce_type (env : env) (trm : types) : types =
   reduce_term env (infer_type env trm)
 
-(* Get a list of all arguments, fully unfolded at the head *)
-let unfold_args_app trm =
-  let (f, args) = destApp trm in
-  let rec unfold trm =
-    match kind_of_term trm with
-    | App (f, args) ->
-       List.append (unfold f) (Array.to_list args)
-    | _ ->
-       [trm]
-  in List.append (List.tl (unfold f)) (Array.to_list args)
-
-(* Like unfold_args_app, but return empty if it's not an application *)
-let unfold_args trm =
-  if isApp trm then unfold_args_app trm else []
-
-(* Reduce the type, but where there's a projT1 expand to ignore univ. *)
-let reduce_type_projT1 (env : env) (trm : types) : types =
-  let trm_sub =
-    map_unit_env_if
-      (fun _ tr -> isApp tr && applies projT1 tr)
-      (fun en tr ->
-        let (a :: rest) = unfold_args tr in
-        let p = List.hd rest in
-        let final = last rest in
-        let packer_type = mkLambda (Anonymous, reduce_type en final, shift a) in
-        let packer_body_type = mkAppl (shift p, [mkRel 1]) in
-        let packer_body = mkLambda (Anonymous, packer_body_type, mkRel 2) in
-        let packer = mkLambda (Anonymous, a, packer_body) in
-        mkAppl (sigT_rect, [a; p; packer_type; packer; final]))
-      env
-      trm
-  in reduce_term env (infer_type env trm_sub)
-
 (* Chain reduction *)
 let chain_reduce rg rf (env : env) (trm : types) : types =
   rg env (rf env trm)
@@ -1065,9 +1032,55 @@ let env_as_string (env : env) : string =
 (* Debug an environment *)
 let debug_env (env : env) (descriptor : string) : unit =
   Printf.printf "%s: %s\n\n" descriptor (env_as_string env)
-
+                
 (* --- TODO move this --- *)
 
+(* Get a list of all arguments, fully unfolded at the head *)
+let unfold_args_app trm =
+  let (f, args) = destApp trm in
+  let rec unfold trm =
+    match kind_of_term trm with
+    | App (f, args) ->
+       List.append (unfold f) (Array.to_list args)
+    | _ ->
+       [trm]
+  in List.append (List.tl (unfold f)) (Array.to_list args)
+
+(* Like unfold_args_app, but return empty if it's not an application *)
+let unfold_args trm =
+  if isApp trm then unfold_args_app trm else []
+
+(* Reduce the type, but where there's a projT1 expand to ignore univ. *)
+let reduce_type_proj (env : env) (trm : types) : types =
+  let trm_sub =
+    map_unit_env_if
+      (fun _ tr -> isApp tr && (applies projT1 tr || applies projT2 tr))
+      (fun en tr ->
+        let (a :: rest) = unfold_args tr in
+        let p = List.hd rest in
+        let arg = last rest in
+        let arg_type = reduce_type en arg in
+        let packer_type = mkLambda (Anonymous, arg_type, shift a) in
+        let packer_body_type = mkAppl (shift p, [mkRel 1]) in
+        let packer_body = mkLambda (Anonymous, packer_body_type, mkRel 2) in
+        let packer = mkLambda (Anonymous, a, packer_body) in
+        if applies projT1 tr then
+          mkAppl (sigT_rect, [a; p; packer_type; packer; arg])
+        else
+          let a = shift a in
+          let pt1 = shift p in
+          let packer_t_t1 = shift packer_type in
+          let p_t1 = shift packer in
+          let t1 = mkAppl (sigT_rect, [a; pt1; packer_t_t1; p_t1; mkRel 1]) in
+          let packer_type_body = mkAppl (pt1, [t1]) in
+          let packer_type = mkLambda (Anonymous, arg_type, packer_type_body) in
+          let packer_body = mkLambda (Anonymous, packer_body_type, mkRel 1) in
+          let packer = mkLambda (Anonymous, a, packer_body) in
+          mkAppl (sigT_rect, [a; p; packer_type; packer; arg]))
+      env
+      trm
+  in reduce_term env (infer_type env trm_sub)
+                 
 (* Same, but skip j first *)
 let rec reconstruct_lambda_n_skip (env : env) (b : types) (i : int) (j : int) : types =
   Printf.printf "i left: %d\n" (nb_rel env - i);
@@ -2466,9 +2479,7 @@ let reduce_ornament_f l env index_i orn trm =
           debug_term env orn_app_indexer "orn_app_indexer";
           let orn_app_indexer_arg = last (unfold_args orn_app_indexer) in
           let orn_app_indexer = mkAppl (projT1, [index_type; packed_type; orn_app_indexer_arg]) in
-          let packer_type = mkLambda (Anonymous, mkAppl (sigT, [index_type; packed_type]), mkAppl (first_fun packed_body, reindex index_i (shift_local 1 1 orn_app_indexer) (unfold_args packed_body))) in
-          let packer = mkLambda (Anonymous, index_type, mkLambda (Anonymous, packed_body, mkRel 1)) in
-          let orn_app_app_arg = mkAppl (sigT_rect, [index_type; packed_type; packer_type; packer; orn_app_app_arg]) in
+          let orn_app_app_arg = mkAppl (projT2, [index_type; packed_type; orn_app_app_arg]) in
           let orn_app_red_app = get_arg 3 orn_app_red in
           let orn_app_indexer_red = get_arg 2 orn_app_red in
           debug_term env orn_app_red_app "orn_app_red_app";
@@ -2903,7 +2914,7 @@ let rec compose_orn_factors (l : lifting) no_reduce assum_ind idx_n fs =
            debug_term env_inner' (Option.get indexer_inner) "indexer_inner";
            let f_p_old = get_arg 2 (snd f) in
            let (env_f_p, _) = zoom_lambda_term empty_env f_p_old in
-           let f_p_body = unshift (reduce_type_projT1 env_inner t_app_inner) in
+           let f_p_body = unshift (reduce_type_proj env_inner t_app_inner) in
            let f_p_new = reconstruct_lambda env_f_p (unshift_by (assum_ind - 1) f_p_body) in
            debug_term env_inner' f_p_new "f_p_new";
            let f_args = unfold_args (snd f) in
