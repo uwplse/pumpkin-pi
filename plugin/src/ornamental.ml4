@@ -2894,13 +2894,17 @@ let rec compose_orn_factors (l : lifting) no_reduce assum_ind idx_n fs =
            let args = reindex 3 app_lam (reindex 2 f_p_new f_args) in
            let app = mkAppl (sigT_rect, args) in
            debug_term env_inner' app "app";
+           debug_env env_inner' "env_inner'";
            ((app, indexer_inner), env_inner', composed_inner)
          else if applies sigT_rect (snd g) && is_indexer_inner then
            let inner = get_arg 3 (snd g) in
            let (env_inner, inner_body) = zoom_lambda_term (fst g) inner in
            let inner_factors = factor_term_dep (mkRel assum_ind) env_inner inner_body in
            let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_orn_factors l true assum_ind idx_n inner_factors in
-           let indexer_lam = reconstruct_lambda_n env_inner t_app_inner 2 in
+           debug_term env_inner t_app_inner "t_app_inner";
+           debug_env env_inner "env_inner";
+           let indexer_lam = reconstruct_lambda_n env_inner t_app_inner (nb_rel env_inner - 2) in
+           debug_term (pop_rel_context 2 env_inner) indexer_lam "indexer_lam";
            let args = reindex 3 indexer_lam (unfold_args (snd g)) in
            let indexer = mkAppl (sigT_rect, args) in
            ((indexer, indexer_inner), pop_rel_context 2 env_inner, composed_inner)

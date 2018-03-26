@@ -142,10 +142,7 @@ Definition plus_vect_exp (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector
       vector_rect
         A
         (fun (n0 : nat) (_ : vector A n0) => nat)
-        (sigT_rect
-          (fun _ : sigT (fun (n : nat) => vector A n) => nat)
-          (fun (n2 : nat) (v2 : vector A n2) => n2)
-          pv2)
+        (projT1 pv2)
         (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : nat) =>
           S IH)
        n0
