@@ -94,9 +94,7 @@ Proof.
   intros. induction pv1. reflexivity.
 Qed.
 
-(* TODO to make this useful, should sub in projT1 and projT2 and so on 
 Reduce ornament orn_list_vector_inv orn_list_vector in append_auto as append_red.
-*)
 
 (*
 Print append_red. (* TODO test *)
