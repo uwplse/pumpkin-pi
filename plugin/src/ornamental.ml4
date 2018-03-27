@@ -1857,8 +1857,6 @@ let rec stretch_property_type index_i env o n =
   | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
      let n_b = (shift ind_n, b_n) in
      if index_i = 0 then
-       let env_b = push_local (n_n, t_n) env in
-       let o_b = (shift ind_o, shift p_o) in
        mkProd (n_n, t_n, shift p_o)
      else
        let env_b = push_local (n_o, t_o) env in
@@ -2211,7 +2209,6 @@ let inner_ind_type t =
  *)
 let sub_in_hypos (l : lifting) (env : env) (index_lam : types) (from_ind : types) (to_ind : types) (hypos : types) =
   let is_fwd = l.is_fwd in
-  let index_i = Option.get l.orn.index_i in
   let from_ind = zoom_sig is_fwd from_ind in
   map_unit_env_if_lazy
     (fun env trm ->
@@ -2232,7 +2229,6 @@ let sub_in_hypos (l : lifting) (env : env) (index_lam : types) (from_ind : types
  * TODO clean this
  *)
 let ornament_args env (from_ind, to_ind) (l : lifting) trm =
-  let orn = l.orn in
   let is_fwd = l.is_fwd in
   let orn_f = lift_back l in
   let typ = reduce_type env trm in
@@ -2253,7 +2249,6 @@ let ornament_args env (from_ind, to_ind) (l : lifting) trm =
 (* Ornament the hypotheses *)
 let ornament_hypos env (l : lifting) (from_ind, to_ind) trm =
   let orn = l.orn in
-  let is_fwd = l.is_fwd in
   let indexer = Option.get orn.indexer in
   let indexer_type = reduce_type env indexer in
   let index_lam = remove_final_hypo (prod_to_lambda indexer_type) in
@@ -2368,7 +2363,6 @@ let compose_p npms post_assums inner (comp : composition) =
   let (env_f, p_f) = comp.f in
   let (env_p_f, p_f_b_old) = zoom_lambda_term env_f p_f in
   let off = nb_rel env_p_f - nb_rel env_f in
-  let shift_pms = shift_local off off in
   let orn_app = shift_local off (off + List.length post_assums) (mkAppl (lift_back l, mk_n_rels (npms + off))) in
   let (_, p_f_b) = zoom_lambda_term env_p_f (zoom_if_sig_outer p_f_b_old) in
   let p_f_b_args = map_if (remove_index index_i) (not (eq_constr p_f_b_old p_f_b)) (unfold_args p_f_b) in
@@ -2469,7 +2463,6 @@ let reduce_ornament_f l env index_i orn trm =
     (fun env orn_arg_typ trm ->
       try
         let (app, app_sub_body, app_sub) =
-          let args = unfold_args trm in
           let unfolded = chain_reduce reduce_term delta env trm in
           let typ_args = map_if (remove_index index_i) (not l.is_fwd) (unfold_args orn_arg_typ) in
           let orn_app = mkAppl (orn, snoc orn_arg typ_args) in
@@ -2484,8 +2477,6 @@ let reduce_ornament_f l env index_i orn trm =
             let index_type = reduce_type env (get_arg index_i packed_type_old) in
             let packed_body = reindex_body index_i (mkRel 1) (shift packed_type_old) in
             let packed_type = mkLambda (Anonymous, index_type, packed_body) in
-            let orn_app_indexer = get_arg 2 orn_app_ind in
-            let orn_app_indexer_arg = last (unfold_args orn_app_indexer) in
             let orn_app_indexer = project_index index_type packed_type orn_app_app_arg in
             let orn_app_app_arg = project_value index_type packed_type orn_app_app_arg in
             let orn_app_red_app = get_arg 3 orn_app_red in
@@ -2500,15 +2491,10 @@ let reduce_ornament_f l env index_i orn trm =
             let packed_body = reindex_body index_i (mkRel 1) (shift orn_arg_typ) in
             let packed_type = mkLambda (Anonymous, index_type, packed_body) in
             let app_projT1 = project_index index_type packed_type orn_arg in
-            let app_projT1_red = reduce_nf env app_projT1 in
             let app_projT2 = project_value index_type packed_type orn_arg in
-            let app_projT2_red = reduce_nf env app_projT2 in
             let orn_app_app = mkAppl (get_arg 3 orn_app_ind, [app_projT1; app_projT2]) in
             let orn_app_app_red = reduce_nf env orn_app_app in
-            let app_sub = all_eq_substs (orn_app_app_red, orn_app_app) app in
-            let orn_app_red = all_eq_substs (app_projT1_red, app_projT1) orn_app_red in
-            let orn_app_red = all_eq_substs (app_projT2_red, app_projT2) orn_app_red in
-            let app_sub = all_eq_substs (orn_app_app, orn_arg) app_sub in
+            let app_sub = all_eq_substs (orn_app_app_red, orn_arg) app in
             (* TODO is that sound? think more about other cases *)
             (app, app_sub, app_sub)
           else
@@ -2557,12 +2543,9 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
   let is_g = comp.is_g in
   let f_body =
     if not is_g then
-      let off_g = offset env_g_body (nb_rel env_g) in
-      let off = offset env_f_body (nb_rel env_g) in
       let num_assums = List.length post_assums in
       (* TODO f_f logic unclear *)
       let f_f = shift_local (if l.is_fwd then 0 else num_assums) (offset env_f (nb_rel env_g)) c_g in
-      let shift_if = if num_assums > off_g then num_assums - off_g else 0 in
       let f = shift_by off_f f_f in
       let c_used = c_g_used in
       let rec indexes env args trm = (* TODO probably can remove now with sigma version *)
@@ -2863,9 +2846,6 @@ let rec compose_orn_factors (l : lifting) no_reduce assum_ind idx_n fs =
        if promotes || forgets || is_indexer then
          let orn_f = if promotes then promote else if forgets then forget else orn_indexer in
          let is_g = applies orn_f t_body || is_or_applies promote_param t_body in
-         (* Currently reducing g when we shoudn't be; figure out why
-            Maybe just implement a thing that reduces only until we have an
-            application of an induction principle *)
          let l = { l with is_indexer } in
          let g = (e_body, reduce_to_ind e_body t_body) in
          let f = (env, reduce_to_ind env t_app) in
