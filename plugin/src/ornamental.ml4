@@ -2506,7 +2506,7 @@ let reduce_ornament_f l env index_i orn trm =
             debug_term env orn_app "orn_app";
             debug_term env app "app";
             debug_term env orn_app_red "orn_app_red";
-            let packed_type_old = reduce_type env orn_app_ind in
+            debug_term env orn_app_ind "orn_app_ind";
             let index_type = get_arg 0 (infer_type env orn_arg) in
             let packed_body = reindex_body index_i (mkRel 1) (shift orn_arg_typ) in
             let packed_type = mkLambda (Anonymous, index_type, packed_body) in
@@ -2518,8 +2518,11 @@ let reduce_ornament_f l env index_i orn trm =
             debug_term env app_projT2 "app_projT2";
             let app_projT2_red = reduce_nf env app_projT2 in
             debug_term env app_projT2_red "app_projT2_red";
-            let app_sub = all_eq_substs (app_projT1_red, app_projT1) app in
-            let app_sub = all_eq_substs (app_projT2_red, app_projT2) app_sub in
+            let orn_app_app = mkAppl (get_arg 3 orn_app_ind, [app_projT1; app_projT2]) in
+            debug_term env orn_app_app "orn_app_app";
+            let orn_app_app_red = reduce_nf env orn_app_app in
+            debug_term env orn_app_app_red "orn_app_app_red";
+            let app_sub = all_eq_substs (orn_app_app_red, orn_app_app) app in
             debug_term env app_sub "app_sub";
             let orn_app_red = all_eq_substs (app_projT1_red, app_projT1) orn_app_red in
             let orn_app_red = all_eq_substs (app_projT2_red, app_projT2) orn_app_red in
