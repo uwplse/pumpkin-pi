@@ -2434,6 +2434,22 @@ let rec reduce_to_ind env trm =
 
 (*
  * TODO move
+ *)
+let project_index index_typ typ trm =
+  mkAppl (projT1, [index_typ; typ; trm])
+
+(*
+ * TODO move
+ *)
+let project_value index_typ typ trm =
+  mkAppl (projT2, [index_typ; typ; trm])
+
+(* TODO move *)
+let reindex_body index_i index trm =
+  mkAppl (first_fun trm, reindex index_i index (unfold_args trm))
+            
+(*
+ * TODO move
  * Delta-unfold, simplify, delta-unfold internally, simplify, and so on
  * until nothing changes
  *
@@ -2447,7 +2463,7 @@ let rec reduce_to_ind env trm =
 let reduce_ornament_f l env index_i orn trm =
   let orn_arg = mkRel 1 in
   let orn_arg_typ = zoom_if_sig_outer (infer_type env orn_arg) in
-  let orn_arg_typ = map_if (fun t -> snd (zoom_lambda_term empty_env t)) (not l.is_fwd) orn_arg_typ in
+  let orn_arg_typ = map_if (fun t -> unshift (snd (zoom_lambda_term empty_env t))) (not l.is_fwd) orn_arg_typ in
   map_term_env_if
     (fun _ orn_arg_typ trm -> applies orn trm)
     (fun env orn_arg_typ trm ->
@@ -2455,7 +2471,7 @@ let reduce_ornament_f l env index_i orn trm =
         let (app, app_sub_body, app_sub) =
           let args = unfold_args trm in
           let unfolded = chain_reduce reduce_term delta env trm in
-          let typ_args = map_if (fun args -> shift_all_by (- 1) (remove_index index_i args)) (not l.is_fwd) (unfold_args orn_arg_typ) in
+          let typ_args = map_if (remove_index index_i) (not l.is_fwd) (unfold_args orn_arg_typ) in
           let orn_app = mkAppl (orn, snoc orn_arg typ_args) in
           let orn_app_ind = reduce_to_ind env orn_app in
           let orn_app_red = reduce_nf env orn_app in
@@ -2466,12 +2482,12 @@ let reduce_ornament_f l env index_i orn trm =
             let orn_app_app_arg = last (unfold_args orn_app_app) in
             let packed_type_old = reduce_type env orn_app_app in
             let index_type = reduce_type env (get_arg index_i packed_type_old) in
-            let packed_body = mkAppl (first_fun packed_type_old, reindex index_i (mkRel 1) (unfold_args (shift packed_type_old))) in
+            let packed_body = reindex_body index_i (mkRel 1) (shift packed_type_old) in
             let packed_type = mkLambda (Anonymous, index_type, packed_body) in
             let orn_app_indexer = get_arg 2 orn_app_ind in
             let orn_app_indexer_arg = last (unfold_args orn_app_indexer) in
-            let orn_app_indexer = mkAppl (projT1, [index_type; packed_type; orn_app_indexer_arg]) in
-            let orn_app_app_arg = mkAppl (projT2, [index_type; packed_type; orn_app_app_arg]) in
+            let orn_app_indexer = project_index index_type packed_type orn_app_app_arg in
+            let orn_app_app_arg = project_value index_type packed_type orn_app_app_arg in
             let orn_app_red_app = get_arg 3 orn_app_red in
             let orn_app_indexer_red = get_arg 2 orn_app_red in
             let ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) indexer in
@@ -2490,8 +2506,25 @@ let reduce_ornament_f l env index_i orn trm =
             debug_term env orn_app "orn_app";
             debug_term env app "app";
             debug_term env orn_app_red "orn_app_red";
-            let app_sub = all_eq_substs (orn_app_red, orn_app) app in
-            (* TODO clean/shorten step *)
+            let packed_type_old = reduce_type env orn_app_ind in
+            let index_type = get_arg 0 (infer_type env orn_arg) in
+            let packed_body = reindex_body index_i (mkRel 1) (shift orn_arg_typ) in
+            let packed_type = mkLambda (Anonymous, index_type, packed_body) in
+            let app_projT1 = project_index index_type packed_type orn_arg in
+            debug_term env app_projT1 "app_projT1";
+            let app_projT1_red = reduce_nf env app_projT1 in
+            debug_term env app_projT1_red "app_projT1_red";
+            let app_projT2 = project_value index_type packed_type orn_arg in
+            debug_term env app_projT2 "app_projT2";
+            let app_projT2_red = reduce_nf env app_projT2 in
+            debug_term env app_projT2_red "app_projT2_red";
+            let app_sub = all_eq_substs (app_projT1_red, app_projT1) app in
+            let app_sub = all_eq_substs (app_projT2_red, app_projT2) app_sub in
+            debug_term env app_sub "app_sub";
+            let orn_app_red = all_eq_substs (app_projT1_red, app_projT1) orn_app_red in
+            let orn_app_red = all_eq_substs (app_projT2_red, app_projT2) orn_app_red in
+            debug_term env orn_app_red "orn_app_red";
+            let app_sub = all_eq_substs (orn_app_red, orn_app) app_sub in
             debug_term env app_sub "app_sub";
             (app, app_sub, app_sub)
           else
@@ -2636,7 +2669,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
               let last_arg_typ = infer_type env_f_body last_arg in
               let (a :: rest) = unfold_args last_arg_typ in
               let p = List.hd rest in
-              mkAppl (projT1, [a; p; last_arg])
+              project_index a p last_arg
             else
               last_arg)
           f_body
