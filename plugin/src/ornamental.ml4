@@ -2527,7 +2527,8 @@ let reduce_ornament_f l env index_i orn trm =
             let orn_app_red = all_eq_substs (app_projT1_red, app_projT1) orn_app_red in
             let orn_app_red = all_eq_substs (app_projT2_red, app_projT2) orn_app_red in
             debug_term env orn_app_red "orn_app_red";
-            let app_sub = all_eq_substs (orn_app_red, orn_app) app_sub in
+            let app_sub = all_eq_substs (orn_app_app, orn_arg) app_sub in
+            (* TODO is that sound? think more about other cases *)
             debug_term env app_sub "app_sub";
             (app, app_sub, app_sub)
           else
