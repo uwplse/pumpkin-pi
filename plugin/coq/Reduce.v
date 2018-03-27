@@ -103,9 +103,6 @@ Proof.
   intros. reflexivity.
 Qed.
 
-(*
-Print append_red. (* TODO test *)
-*)
 (* TODO proofs and more complex things *)
 
 (* TODO other types besides lists *)
