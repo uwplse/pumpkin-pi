@@ -349,16 +349,24 @@ Proof.
   intros. induction l; try apply eq_cons; auto.
 Qed.
 
-(* TODO fix
+Theorem append_cons:
+  forall (A : Type) (a : A) (l l' : list A),
+    append_auto A (a :: l) l' =
+    a :: append_auto A l l'.
+Proof.
+  intros. unfold append_auto. induction l, l'; auto.
+Qed.
+
 Theorem test_deorn_append:
   forall A (l : list A) (l' : list A),
     append A l l' = append_auto A l l'.
 Proof.
-  intros A l. induction l.
-  - simpl. unfold append_auto. induction l'.
-    + auto.
-    + simpl. apply eq_cons. unfold append_vect_packed in IHl'. apply eq_cons. unfold orn_list_vector_inv in IHl'.
-*)
+  intros. induction l, l'.
+  - auto.
+  - simpl. apply vect_inv_iso.
+  - simpl. rewrite append_cons. apply eq_cons. apply IHl. 
+  - simpl. rewrite append_cons. apply eq_cons. apply IHl. 
+Qed.
 
 (* For now, we don't eliminate the vector reference, since incides might refer to other things *)
 Definition pred_vect (A : Type) (n : nat) (v : vector A n) :=
@@ -491,10 +499,11 @@ Definition app_nil_r (A : Type) (l : list A) :=
         (append A l0 (@nil A))
         IHl)
     l.
+
  
 Theorem app_nil_r_vect_experimental :
   forall (A : Type) (pv : sigT (vector A)),
-    append_vect_packed_experimental A pv (existT (vector A) 0 (@nilV A)) = pv.
+    append_vect_packed A pv (existT (vector A) 0 (@nilV A)) = pv.
 Proof.
   intros. induction pv. induction p.
   - reflexivity.
@@ -503,7 +512,37 @@ Qed.
 
 Print app_nil_r_vect_experimental.
 
-(* Does it work if we try the experimental version? 
+
+Definition app_nil_r_vect_packed (A : Type) (pv : packed_vector A) :=
+  @sigT_ind 
+    nat 
+    (vector A)
+    (fun (pv0 : sigT (vector A)) => append_vect_packed A pv0 (existT (vector A) O (nilV A)) = pv0)
+    (fun (n : nat) (v : vector A n) =>
+      vector_ind 
+        A
+        (fun (n0 : nat) (v0 : vector A n0) => 
+          append_vect_packed A (existT (vector A) n0 v0) (existT (vector A) O (nilV A)) = existT (vector A) n0 v0)
+        (@eq_refl (sigT (vector A)) (existT (vector A) O (nilV A)))
+        (fun (n0 : nat) (a : A) (v0 : vector A n0) (IHp : append_vect_packed A (existT (vector A) n0 v0) (existT (vector A) O (nilV A)) = existT (vector A) n0 v0) =>
+          @eq_ind_r 
+          (sigT (vector A)) 
+          (existT (vector A) n0 v0)
+          (fun (pv1 : sigT (vector A)) => 
+             existT (vector A) (S (projT1 pv1)) (consV A (projT1 pv1) a (projT2 pv1)) = existT (vector A) (S n0) (consV A n0 a v0))
+          (@eq_refl (sigT (vector A)) (existT (vector A) (S n0) (consV A n0 a v0)))
+          (vector_rect A (fun (n0 : nat) (_ : vector A n0) => @sigT nat (fun n1 : nat => vector A n1))
+           (@existT nat (vector A) O (nilV A))
+           (fun (n0 : nat) (a0 : A) (_ : vector A n0) (IH : @sigT nat (fun n1 : nat => vector A n1)) =>
+            @existT nat (vector A) (S (@projT1 nat (fun n1 : nat => vector A n1) IH))
+              (consV A (@projT1 nat (fun n1 : nat => vector A n1) IH) a0
+                 (@projT2 nat (fun n1 : nat => vector A n1) IH))) n0 v0) IHp
+      :
+      @eq (@sigT nat (fun n0 : nat => vector A n0))
+        (append_vect_packed A (@existT nat (vector A) (S n0) (consV A n0 a v0)) (@existT nat (vector A) O (nilV A)))
+        (@existT nat (vector A) (S n0) (consV A n0 a v0))) n v) pv.
+
+(* Does it work if we try the experimental version and pack it? 
 Definition app_nil_r_vect_exp (A : Type) (pv : sigT (vector A)) :=
   packed_vect_ind
     A
@@ -531,6 +570,7 @@ Definition app_nil_r_vect_exp (A : Type) (pv : sigT (vector A)) :=
  
 * Not sure where this fails compared to list version but whatever, figure out
 * at some point. The proof above works, so why?
+* Try the casting.
 *)
 
 (* TODO try In, then you can try the facts about In, which should translate over as soon
