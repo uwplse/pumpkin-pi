@@ -91,10 +91,17 @@ Theorem test_append_vect:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
     append_vect_packed A pv1 pv2  = append_vect_red A pv1 pv2.
 Proof.
-  intros. induction pv1. reflexivity.
+  intros. reflexivity.
 Qed.
 
 Reduce ornament orn_list_vector_inv orn_list_vector in append_auto as append_red.
+
+Theorem test_append :
+  forall (A : Type) (l1 : list A) (l2 : list A),
+    append A l1 l2  = append_red A l1 l2.
+Proof.
+  intros. reflexivity.
+Qed.
 
 (*
 Print append_red. (* TODO test *)
