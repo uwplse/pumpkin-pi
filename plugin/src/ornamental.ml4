@@ -2531,13 +2531,11 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
   let from_typ = inner_ind_type ind_g_typ in
   let (to_typ, from_typ) = map_if reverse (not l.is_fwd) (to_typ, from_typ) in
   let is_deorn = is_or_applies (if l.is_fwd then to_typ else from_typ) in
-  let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_g_used = get_used_or_p_hypos always_true c_g in
   let (env_f_body_old, _) = zoom_lambda_term env_f c_f in
   let c_f = compose_ih env_g npms_g ip_g c_f p in
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let off_f = offset env_f_body (nb_rel env_f) in
-  let (env_g_body, g_body) = zoom_lambda_term env_g c_g in
   let is_g = comp.is_g in
   let f_body =
     if not is_g then
