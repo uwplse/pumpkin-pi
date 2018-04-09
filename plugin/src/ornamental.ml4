@@ -1635,6 +1635,14 @@ let reindex_shift index_i index args n =
 let adjust_no_index index_i args =
   let (before, after) = take_split index_i args in
   List.append before (shift_all_by (- 1) after)
+              
+(* Given a type and the location of the argument, abstract by the argument *)
+let abstract_arg env i typ =
+  debug_term env typ "typ";
+  let arg = get_arg i typ in
+  let arg_typ = infer_type env arg in
+  let args = reindex i (mkRel 1) (shift_all (unfold_args typ)) in
+  mkLambda (Anonymous, arg_typ, mkAppl (first_fun typ, args))
 
 (*
  * Returns true if the argument at index i to property p is
@@ -2013,7 +2021,7 @@ let orn_index_cases index_i npm is_fwd indexer_f orn_p o n : types list =
        (take_except (arity_n - npm + 1) (deconstruct_product b_n))
   | _ ->
      failwith "not an eliminator"
-
+              
 (*
  * This packs an ornamental promotion to/from an indexed type like Vector A n,
  * with n at index_i, into a sigma type. The theory of this is more elegant,
@@ -2031,12 +2039,13 @@ let pack env index_typ f_indexer index_i npm ind ind_n arity is_fwd unpacked =
   if is_fwd then
     (* pack conclusion *)
     let off = arity - 1 in
-    let index_typ = shift_by off index_typ in
-    let unpacked_args = shift_all (mk_n_rels off) in
-    let packed_args = insert_index_shift (npm + index_i) (mkRel 1) unpacked_args 1 in
-    let reindexed = mkAppl (ind, packed_args) in
-    let packer = mkLambda (Anonymous, index_typ, reindexed) in
+    let index_i = npm + index_i in
+    let unpacked_args = mk_n_rels off in
+    let packed_args = insert_index_shift index_i (mkRel 1) unpacked_args 1 in
+    let env_abs = push_local (Anonymous, index_typ) env in
+    let packer = abstract_arg env_abs index_i (mkAppl (ind, packed_args)) in
     let index = mkAppl (f_indexer, mk_n_rels arity) in
+    let index_typ = shift_by off index_typ in
     (env, mkAppl (existT, [index_typ; packer; index; unpacked]))
   else
     (* pack hypothesis *)
@@ -2601,7 +2610,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
       let is_orn = is_or_applies (if l.is_fwd then from_typ else to_typ) in
       (* Does this generalize, too? *)
       let f_body =
-        map_if (* TODO maybe can remove this now *)
+        map_if
           (map_unit_env_if
              (on_type is_orn)
              (fun env trm ->
