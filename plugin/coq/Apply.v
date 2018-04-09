@@ -500,18 +500,7 @@ Definition app_nil_r (A : Type) (l : list A) :=
         IHl)
     l.
 
- 
-Theorem app_nil_r_vect_experimental :
-  forall (A : Type) (pv : sigT (vector A)),
-    append_vect_packed A pv (existT (vector A) 0 (@nilV A)) = pv.
-Proof.
-  intros. induction pv. induction p.
-  - reflexivity.
-  - simpl. simpl in IHp. rewrite IHp. reflexivity.
-Qed.
-
-Print app_nil_r_vect_experimental.
-
+(* packed vector version*)
 Definition app_nil_r_vect_packed (A : Type) (pv : packed_vector A) :=
   @sigT_ind 
     nat 
@@ -525,20 +514,74 @@ Definition app_nil_r_vect_packed (A : Type) (pv : packed_vector A) :=
         (@eq_refl (sigT (vector A)) (existT (vector A) O (nilV A)))
         (fun (n0 : nat) (a : A) (v0 : vector A n0) (IHp : append_vect_packed A (existT (vector A) n0 v0) (existT (vector A) O (nilV A)) = existT (vector A) n0 v0) =>
           @eq_ind_r 
-          (sigT (vector A)) 
-          (existT (vector A) n0 v0)
-          (fun (pv1 : sigT (vector A)) => 
-             existT (vector A) (S (projT1 pv1)) (consV A (projT1 pv1) a (projT2 pv1)) = existT (vector A) (S n0) (consV A n0 a v0))
-          (@eq_refl (sigT (vector A)) (existT (vector A) (S n0) (consV A n0 a v0)))
-          (append_vect_packed A (existT (vector A) n0 v0) (existT (vector A) 0 (nilV A)))
-          IHp : append_vect_packed A (existT (vector A) (S n0) (consV A n0 a v0)) (existT (vector A) O (nilV A)) = existT (vector A) (S n0) (consV A n0 a v0)) 
-       n 
-       v) 
+            (sigT (vector A)) 
+            (existT (vector A) n0 v0)
+            (fun (pv1 : sigT (vector A)) => 
+              existT (vector A) (S (projT1 pv1)) (consV A (projT1 pv1) a (projT2 pv1)) = existT (vector A) (S n0) (consV A n0 a v0))
+            (@eq_refl (sigT (vector A)) (existT (vector A) (S n0) (consV A n0 a v0)))
+            (append_vect_packed A (existT (vector A) n0 v0) (existT (vector A) 0 (nilV A)))
+            IHp)
+        n 
+        v) 
     pv.
 
-(* Note above how we need to cast IHp. Why? Is this significant? How do we determine this? *)
+(* Now what happens if we try to directly use this? We can remove the outer existT with no issue: *)
+Definition app_nil_r_vect_het (A : Type) (n : nat) (v : vector A n) :=
+  vector_ind 
+    A
+    (fun (n0 : nat) (v0 : vector A n0) => 
+      append_vect_packed A (existT (vector A) n0 v0) (existT (vector A) O (nilV A)) = existT (vector A) n0 v0)
+    (@eq_refl (sigT (vector A)) (existT (vector A) O (nilV A)))
+    (fun (n0 : nat) (a : A) (v0 : vector A n0) (IHp : append_vect_packed A (existT (vector A) n0 v0) (existT (vector A) O (nilV A)) = existT (vector A) n0 v0) =>
+      @eq_ind_r 
+        (sigT (vector A)) 
+        (existT (vector A) n0 v0)
+        (fun (pv1 : sigT (vector A)) => 
+          existT (vector A) (S (projT1 pv1)) (consV A (projT1 pv1) a (projT2 pv1)) = existT (vector A) (S n0) (consV A n0 a v0))
+        (@eq_refl (sigT (vector A)) (existT (vector A) (S n0) (consV A n0 a v0)))
+        (append_vect_packed A (existT (vector A) n0 v0) (existT (vector A) 0 (nilV A)))
+        IHp 
+      : append_vect_packed A (existT (vector A) (S n0) (consV A n0 a v0)) (existT (vector A) O (nilV A)) = existT (vector A) (S n0) (consV A n0 a v0)) 
+    n 
+    v.
 
-(* Does it work if we try the experimental version and pack it? 
+Check sigT_rect.
+Check existT.
+
+Check eq.
+Print eq.
+
+(* That gives us the heterogenous equality. *)
+
+(* But this will fail: 
+Definition app_nil_r_vect (A : Type) (n : nat) (v : vector A n) :=
+  vector_ind 
+    A
+    (fun (n0 : nat) (v0 : vector A n0) => 
+      append_vect A n0 v0 0 (nilV A) = v0)
+    (@eq_refl (vector A) (nilV A))
+    (fun (n0 : nat) (a : A) (v0 : vector A n0) (IHp : append_vect A n0 v0 0 (nilV A) = v0) =>
+      @eq_ind_r 
+        (vector A)
+        v0
+        (fun (v1 : vector A n0) => 
+          consV A n0 a v1 = consV A n0 a v0)
+        (@eq_refl (vector A) (consV A n0 a v0))
+        (append_vect A n0 v0 0 (nilV A))
+        IHp 
+      : append_vect A (S n0) (consV A n0 a v0) O (nilV A) = consV A n0 a v0) 
+    n 
+    v.
+
+The property passed to vector_ind fails type-checking:
+The term "v0" has type "vector A n0" while it is expected to have type "vector A (plus_vect A n0 v0 O (nilV A))".
+We have an equality between sigmas. We can't get this to an equality between right projections in all cases, unless
+the indices are definitionally equal.
+Does this problem just happen for equality?
+What about for other functions we call? It's really that they don't have the same type.
+*)
+
+(* Does it work if we try the experimental version and pack it? (TODO try w/ cast)
 Definition app_nil_r_vect_exp (A : Type) (pv : sigT (vector A)) :=
   packed_vect_ind
     A
