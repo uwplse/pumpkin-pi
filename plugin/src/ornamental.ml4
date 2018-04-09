@@ -2368,12 +2368,25 @@ let compose_p npms post_assums inner (comp : composition) =
   let (env_f, p_f) = comp.f in
   let (env_p_f, p_f_b_old) = zoom_lambda_term env_f p_f in
   let off = nb_rel env_p_f - nb_rel env_f in
+  Printf.printf "%s\n" (if inner then "inner" else "not inner");
+  debug_env env_p_f "env_p_f";
+  Printf.printf "off: %d\n" off;
+  Printf.printf "num assums: %d\n" (List.length post_assums);
   let orn_app =
     if not inner then
       shift_local off (off + List.length post_assums) (mkAppl (lift_back l, mk_n_rels (npms + 1)))
     else
-      shift_local 1 2 (mkAppl (lift_back l, mk_n_rels (npms + 1)))
+      let inner = mkRel 1 in
+      let typ = reduce_type env_p_f inner in
+      let typ_args = unfold_args typ in
+      let index = mkRel 2 in
+      let index_typ = infer_type env_p_f index in
+      let unpacked_args = unfold_args typ in
+      let packer = abstract_arg env_p_f index_i typ in
+      let unpacked = mkAppl (existT, [index_typ; packer; index; inner]) in
+      mkAppl (lift_back l, snoc unpacked (remove_index index_i typ_args))
   in
+  debug_term env_p_f orn_app "orn_app";
       (* TODO this is off for app_nil_r example *)
   let (_, p_f_b) = zoom_lambda_term env_p_f (zoom_if_sig_outer p_f_b_old) in
   let p_f_b_args = map_if (remove_index index_i) (not (eq_constr p_f_b_old p_f_b)) (unfold_args p_f_b) in

@@ -131,6 +131,9 @@ Qed.
  *)
 
 Reduce ornament orn_list_vector orn_list_vector_inv in app_nil_r_vect_auto as app_nil_r_vect_red.
+
+Print app_nil_r_vect_red.
+
 Reduce ornament orn_list_vector_inv orn_list_vector in app_nil_r_auto as app_nil_r_red.
 
 (* TODO more proofs *)
