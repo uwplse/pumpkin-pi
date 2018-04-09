@@ -20,6 +20,7 @@ Proof.
 Qed.
 
 (* TODO test relation to old version, eventually branch & simplify etc *)
+(* TODO generate coherence proof if asked for *)
 
 Reduce ornament orn_list_vector_inv orn_list_vector in hd_auto as hd_red.
 
@@ -58,8 +59,6 @@ Qed.
 
 Reduce ornament orn_list_vector orn_list_vector_inv in tl_vect_auto as tl_vect_red.
 
-Print tl_vect_red. 
-
 Theorem test_tl_vect:
   forall (A : Type) (pv : packed_vector A),
     tl_vect_packed A pv = tl_vect_red A pv.
@@ -82,10 +81,32 @@ Qed.
 
 Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red. 
 
-Print append_vect_red_index.
-(* TODO test *)
+Theorem test_append_vect_red_index:
+  forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
+    append_vect_red_index A pv1 pv2 = plus_vect_exp A pv1 pv2.
+Proof.
+  intros. reflexivity.
+Qed.
 
-Print append_vect_red.
+(* Some basic sanity checking, should auto-generate at some point*)
+Theorem test_append_vect_red_index_correct_unpacked:
+  forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
+    append_vect_red_index A pv1 pv2 = plus_vect A (projT1 pv1) (projT2 pv1) (projT1 pv2) (projT2 pv2).
+Proof.  
+  intros. induction pv1. induction p.
+  - reflexivity.
+  - simpl. simpl in IHp. rewrite IHp. reflexivity.
+Qed.
+
+Theorem test_append_vect_red_index_correct:
+  forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
+    append_vect_red_index A pv1 pv2 = projT1 (append_vect_red A pv1 pv2).
+Proof.
+  intros. induction pv1. induction p.
+  - reflexivity.
+  - rewrite test_append_vect_red_index_correct_unpacked. 
+    unfold plus_vect. simpl. simpl in IHp. rewrite IHp. reflexivity.
+Qed.
 
 Theorem test_append_vect:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
