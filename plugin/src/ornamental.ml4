@@ -2636,6 +2636,15 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
       in map_if (map_unit_if (applies existT) (get_arg 3)) (not l.is_fwd) f_body
   in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
 
+(* Map compose_c *)
+let compose_cs npms ip p post_assums comp gs fs =
+  let comp_cs =
+    List.map2
+      (fun c_g c_f -> { comp with g = (fst gs, c_g); f = (fst fs, c_f)})
+      (snd gs)
+      (snd fs)
+  in List.map (compose_c npms ip p post_assums) comp_cs
+
 (*
  * Compose two applications of an induction principle that are
  * structurally the same when one is an ornament.
@@ -2649,6 +2658,8 @@ let rec compose_inductive idx_n post_assums assum_ind inner (comp : composition)
   let (env_f, f) = comp.f in
   let (ip, pms, p_f, cs_f, args) = deconstruct_eliminator env_f f in
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
+  let npms = List.length pms in
+  let npms_g = List.length pms_g in
   let (comp, indexer) =
     if l.is_fwd && comp.is_g && not l.is_indexer then
       (* Build the lifted indexer *)
@@ -2672,7 +2683,7 @@ let rec compose_inductive idx_n post_assums assum_ind inner (comp : composition)
       (comp, None)
   in
   let c_p = { comp with g = (env_g, p_g); f = (env_f, p_f) } in
-  let p = compose_p (List.length pms) post_assums inner c_p in
+  let p = compose_p npms post_assums inner c_p in
   let (cs, indexer) =
     if applies sigT_rect f then
       (* TODO factoring should handle *)
@@ -2683,21 +2694,19 @@ let rec compose_inductive idx_n post_assums assum_ind inner (comp : composition)
       let (c_comp, indexer) = compose_inductive idx_n post_assums assum_ind true c_cs in
       ([reconstruct_lambda_n env_c c_comp (nb_rel env_f)], indexer)
     else
-      let cs_exp =
-        if applies sigT_rect g then
-          (* same *)
-          let c = List.hd cs_g in
-          let (env_c, c_body) = zoom_lambda_term env_g c in
-          let (_, _, _, cs_g, _) = deconstruct_eliminator env_c c_body in
-          let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_c, c_g); f = (env_f, c_f)}) cs_g cs_f in
-          List.map (compose_c (List.length pms_g) ip_g p post_assums) c_cs
-        else
-          let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
-          List.map (compose_c (List.length pms_g) ip_g p post_assums) c_cs
-      in (cs_exp, indexer)
-  in
-  let elim = apply_eliminator ip pms p cs args in
-  (elim, indexer)
+      let (env_g, cs_g) =
+        map_if
+          (fun (env, cs) ->
+            let (env_c, c) = zoom_lambda_term env (List.hd cs) in
+            let (_, _, _, cs, _) = deconstruct_eliminator env_c c in
+            (env_c, cs))
+          (applies sigT_rect g)
+          (env_g, cs_g)
+      in
+      let gs = (env_g, cs_g) in
+      let fs = (env_f, cs_f) in
+      (compose_cs npms_g ip_g p post_assums comp gs fs, indexer)
+  in (apply_eliminator ip pms p cs args, indexer)
     
 
 (*
