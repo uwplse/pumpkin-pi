@@ -2546,21 +2546,6 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
       let f_f = shift_local (if l.is_fwd then 0 else num_assums) (offset env_f (nb_rel env_g)) c_g in
       let f = shift_by off_f f_f in
       let c_used = c_g_used in
-      let rec indexes env args trm = (* TODO probably can remove now with sigma version *)
-        if List.length c_f_used != List.length c_g_used then
-          match (args, kind_of_term trm) with
-          | (h :: tl, Prod (n, t, b)) ->
-             if computes_index index_i to_typ (mkRel 1) b then (* TODO should be comptues_only_index but to do that, need to fix a bug *)
-               h :: indexes (push_local (n, t) env) tl b
-             else
-               indexes (push_local (n, t) env) tl b
-          | _ ->
-             []
-        else
-          []
-      in
-      let index_args = indexes env_g c_g_used (lambda_to_prod c_g) in
-      let index_args = List.mapi (fun i _ -> i) (List.filter (fun a -> not (is_or_applies from_typ (infer_type env_g_body a))) index_args) in
       (* Does this generalize? *)
       let args =
         List.map
