@@ -2368,10 +2368,6 @@ let compose_p npms post_assums inner (comp : composition) =
   let (env_f, p_f) = comp.f in
   let (env_p_f, p_f_b_old) = zoom_lambda_term env_f p_f in
   let off = nb_rel env_p_f - nb_rel env_f in
-  Printf.printf "%s\n" (if inner then "inner" else "not inner");
-  debug_env env_p_f "env_p_f";
-  Printf.printf "off: %d\n" off;
-  Printf.printf "num assums: %d\n" (List.length post_assums);
   let orn_app =
     if not inner then
       shift_local off (off + List.length post_assums) (mkAppl (lift_back l, mk_n_rels (npms + 1)))
@@ -2809,6 +2805,8 @@ let rec compose_orn_factors (l : lifting) no_reduce assum_ind idx_n fs =
          let l = { l with is_indexer } in
          let g = (e_body, reduce_to_ind e_body t_body) in
          let f = (env, reduce_to_ind env t_app) in
+         debug_term (fst g) (snd g) "g";
+         debug_term (fst f) (snd f) "f";
          let comp = { l ; g ; f ; is_g } in
          if applies sigT_rect (snd g) && applies existT (snd f) then
            (* eliminate the existT [TODO move] *)

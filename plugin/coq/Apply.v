@@ -491,7 +491,7 @@ Definition app_nil_r (A : Type) (l : list A) :=
 
 (* packed vector version*)
 Definition app_nil_r_vect_packed (A : Type) (pv : packed_vector A) :=
-  @sigT_ind 
+  @sigT_rect
     nat 
     (vector A)
     (fun (pv0 : sigT (vector A)) => append_vect_packed A pv0 (existT (vector A) O (nilV A)) = pv0)
