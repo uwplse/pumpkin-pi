@@ -1636,7 +1636,7 @@ let adjust_no_index index_i args =
 (* Given a type and the location of the argument, abstract by the argument *)
 let abstract_arg env i typ =
   let arg = get_arg i typ in
-  let arg_typ = infer_type env arg in
+  let arg_typ = reduce_type env arg in
   let args = reindex i (mkRel 1) (shift_all (unfold_args typ)) in
   mkLambda (Anonymous, arg_typ, mkAppl (first_fun typ, args))
 
@@ -2381,9 +2381,9 @@ let compose_p npms post_assums inner (comp : composition) =
       (fun p_g ->
         map_default
           (fun indexer ->(* TODO may not yet handle HOFs *)
-            let (env_p_g, p_g_b) = zoom_lambda_term env_g p_g in
-            let p_g_b_as = reindex index_i (mkRel 1) (unfold_args (shift p_g_b)) in
-            let p_g_b = mkAppl (first_fun p_g_b, p_g_b_as) in
+            let (env_p_g, p_g_b_old) = zoom_lambda_term env_g p_g in
+            let p_g_b_as = reindex index_i (mkRel 1) (unfold_args (shift p_g_b_old)) in
+            let p_g_b = mkAppl (first_fun p_g_b_old, p_g_b_as) in
             let pack_index = mkRel 2 in
             let index_typ = infer_type env_p_f pack_index in
             let p_g_l = mkLambda (Anonymous, index_typ, p_g_b) in
@@ -2478,8 +2478,7 @@ let reduce_ornament_f l env index_i orn trm =
             let orn_app_app_arg = last (unfold_args orn_app_app) in
             let packed_type_old = reduce_type env orn_app_app in
             let index_type = reduce_type env (get_arg index_i packed_type_old) in
-            let packed_body = reindex_body index_i (mkRel 1) (shift packed_type_old) in
-            let packed_type = mkLambda (Anonymous, index_type, packed_body) in
+            let packed_type = abstract_arg env index_i packed_type_old in
             let orn_app_indexer = project_index index_type packed_type orn_app_app_arg in
             let orn_app_app_arg = project_value index_type packed_type orn_app_app_arg in
             let orn_app_red_app = get_arg 3 orn_app_red in
@@ -2560,9 +2559,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
                  let index = get_arg index_i typ in
                  let index_typ = infer_type env index in
                  let unpacked_args = unfold_args typ in
-                 let packed_args = reindex index_i (mkRel 1) (shift_all unpacked_args) in
-                 let reindexed = mkAppl (first_fun typ, packed_args) in 
-                 let packer = mkLambda (Anonymous, index_typ, reindexed) in
+                 let packer = abstract_arg env index_i typ in
                  let deindexed = remove_index index_i unpacked_args in
                  let packed = mkAppl (existT, [index_typ; packer; index; trm]) in
                  mkAppl (orn_f, snoc packed deindexed)
@@ -2619,10 +2616,7 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
                      let typ = infer_type env trm in
                      let index = get_arg index_i typ in
                      let index_typ = infer_type env index in
-                     let unpacked_args = unfold_args typ in
-                     let packed_args = reindex index_i (mkRel 1) (shift_all unpacked_args) in
-                     let reindexed = mkAppl (first_fun typ, packed_args) in 
-                     let packer = mkLambda (Anonymous, index_typ, reindexed) in
+                     let packer = abstract_arg env index_i typ in
                      mkAppl (existT, [index_typ; packer; index; trm]))
                    (not l.is_fwd)
                    trm
@@ -2668,7 +2662,7 @@ let rec compose_inductive idx_n post_assums assum_ind inner (comp : composition)
       let index_type = infer_type env_f_body (mkRel (2 + assum_ind - 1)) in
       let packer = infer_type env_packed (mkRel (1 + assum_ind - 1)) in
       let packed_type_b = shift index_type in
-      let packed_type = mkLambda (Anonymous, packer, packed_type_b) in 
+      let packed_type = mkLambda (Anonymous, packer, packed_type_b) in
       let indexer_body = mkAppl (sigT_rect, [index_type; packer; packed_type; indexer_unpacked; mkRel (1 + List.length post_assums)]) in
       let indexer = reconstruct_lambda env_packed indexer_body in
       let lifted_indexer = Some (make_constant idx_n) in
