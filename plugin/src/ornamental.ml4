@@ -1083,9 +1083,6 @@ let reduce_type_proj (env : env) (trm : types) : types =
                  
 (* Same, but skip j first *)
 let rec reconstruct_lambda_n_skip (env : env) (b : types) (i : int) (j : int) : types =
-  Printf.printf "i left: %d\n" (nb_rel env - i);
-  Printf.printf "j left to skip: %d\n" j;
-  debug_term env b "b";
   if nb_rel env = i then
     b
   else
@@ -1638,7 +1635,6 @@ let adjust_no_index index_i args =
               
 (* Given a type and the location of the argument, abstract by the argument *)
 let abstract_arg env i typ =
-  debug_term env typ "typ";
   let arg = get_arg i typ in
   let arg_typ = infer_type env arg in
   let args = reindex i (mkRel 1) (shift_all (unfold_args typ)) in
@@ -2036,10 +2032,10 @@ let orn_index_cases index_i npm is_fwd indexer_f orn_p o n : types list =
  * TODO later, refactor code common to both cases
  *)
 let pack env index_typ f_indexer index_i npm ind ind_n arity is_fwd unpacked =
+  let index_i = npm + index_i in
   if is_fwd then
     (* pack conclusion *)
     let off = arity - 1 in
-    let index_i = npm + index_i in
     let unpacked_args = mk_n_rels off in
     let packed_args = insert_index_shift index_i (mkRel 1) unpacked_args 1 in
     let env_abs = push_local (Anonymous, index_typ) env in
@@ -2050,13 +2046,13 @@ let pack env index_typ f_indexer index_i npm ind ind_n arity is_fwd unpacked =
   else
     (* pack hypothesis *)
     let (from_n, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
-    let unpacked_args = unfold_args (shift unpacked_typ) in
-    let packed_args = reindex_shift (npm + index_i) (mkRel 1) unpacked_args 1 in
-    let reindexed = mkAppl (ind, packed_args) in
-    let packer = mkLambda (Anonymous, shift (shift index_typ), reindexed) in
+    let unpacked_args = unfold_args unpacked_typ in
+    let packed_args = reindex_shift index_i (mkRel 1) unpacked_args 1 in
+    let env_abs = push_local (Anonymous, shift index_typ) env in
+    let packer = abstract_arg env_abs index_i (mkAppl (ind, packed_args)) in
     let packed_typ = mkAppl (sigT, [shift (shift index_typ); packer]) in
     let env_pop = pop_rel_context 1 env in
-    let index_rel = nb_rel env_pop - (npm + index_i) in
+    let index_rel = nb_rel env_pop - index_i in
     let env_push = push_local (from_n, unshift packed_typ) env_pop in
     let packer_indexed = reduce_term env_push (mkAppl (packer, [mkRel (index_rel + 1)])) in
     let unpack_b_b = all_eq_substs (mkRel (4 - index_rel), mkRel 1) (shift_local index_rel 1 (shift unpacked)) in
@@ -2064,7 +2060,7 @@ let pack env index_typ f_indexer index_i npm ind ind_n arity is_fwd unpacked =
     let pack_unpacked = mkLambda (Anonymous, shift (shift index_typ), unpack_b) in
     let env_packed = remove_rel (index_rel + 1) env_push in
     let pack_off = unshift_local index_rel 1 pack_unpacked in
-    let packer = mkLambda (Anonymous, shift index_typ, unshift_local (index_rel + 1) 1 reindexed) in
+    let packer = unshift_local index_rel 1 packer in
     let elim_b = shift (mkAppl (ind_n, shift_all (mk_n_rels (arity - 1)))) in
     let elim_t = mkAppl (sigT, [shift index_typ; packer]) in
     let elim = mkLambda (Anonymous, elim_t, elim_b) in
