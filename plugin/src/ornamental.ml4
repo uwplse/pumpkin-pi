@@ -2368,7 +2368,13 @@ let compose_p npms post_assums inner (comp : composition) =
   let (env_f, p_f) = comp.f in
   let (env_p_f, p_f_b_old) = zoom_lambda_term env_f p_f in
   let off = nb_rel env_p_f - nb_rel env_f in
-  let orn_app = shift_local off (off + List.length post_assums) (mkAppl (lift_back l, mk_n_rels (npms + off))) in
+  let orn_app =
+    if not inner then
+      shift_local off (off + List.length post_assums) (mkAppl (lift_back l, mk_n_rels (npms + 1)))
+    else
+      shift_local 1 2 (mkAppl (lift_back l, mk_n_rels (npms + 1)))
+  in
+      (* TODO this is off for app_nil_r example *)
   let (_, p_f_b) = zoom_lambda_term env_p_f (zoom_if_sig_outer p_f_b_old) in
   let p_f_b_args = map_if (remove_index index_i) (not (eq_constr p_f_b_old p_f_b)) (unfold_args p_f_b) in
   let (_, non_pms) = take_split npms p_f_b_args in
@@ -2393,8 +2399,7 @@ let compose_p npms post_assums inner (comp : composition) =
           l.lifted_indexer)
       l
       p_g
-  in
-  let app = reduce_term env_p_f (mkAppl (p, p_args)) in
+  in let app = reduce_term env_p_f (mkAppl (p, p_args)) in
   reconstruct_lambda_n env_p_f app (nb_rel env_f)
 
 (*
@@ -2658,8 +2663,7 @@ let rec compose_inductive idx_n post_assums assum_ind inner (comp : composition)
   let (env_f, f) = comp.f in
   let (ip, pms, p_f, cs_f, args) = deconstruct_eliminator env_f f in
   let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g g in
-  let npms = List.length pms in
-  let npms_g = List.length pms_g in
+  let npms = List.length pms_g in
   let (comp, indexer) =
     if l.is_fwd && comp.is_g && not l.is_indexer then
       (* Build the lifted indexer *)
@@ -2705,7 +2709,7 @@ let rec compose_inductive idx_n post_assums assum_ind inner (comp : composition)
       in
       let gs = (env_g, cs_g) in
       let fs = (env_f, cs_f) in
-      (compose_cs npms_g ip_g p post_assums comp gs fs, indexer)
+      (compose_cs npms ip_g p post_assums comp gs fs, indexer)
   in (apply_eliminator ip pms p cs args, indexer)
     
 
@@ -2920,6 +2924,7 @@ let reduce_ornament n d_orn d_orn_inv d_old =
      Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
    else
      ());
+  debug_term env trm_n "trm_n";
   define_term n env evm trm_n;
   Printf.printf "Defined reduced ornamened function %s.\n\n" (string_of_id n);
   ()
