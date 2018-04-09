@@ -2451,8 +2451,6 @@ let reindex_body index_i index trm =
  * assumes promotion for now
  * also assumes assumption at index 1,
  * need to support IHs at other indices. (TODO)
- *
- * TODO use projT1 etc
  *)
 let reduce_ornament_f l env index_i orn trm =
   let orn_arg = mkRel 1 in
@@ -2565,41 +2563,26 @@ let compose_c npms_g ip_g p post_assums (comp : composition) =
       let index_args = List.mapi (fun i _ -> i) (List.filter (fun a -> not (is_or_applies from_typ (infer_type env_g_body a))) index_args) in
       (* Does this generalize? *)
       let args =
-        List.mapi
-          (fun i a -> (* TODO put this together based on the vs, then filter out stuff in index_args *)
-            (* TODO what should this even be? like, if we need to elim something, like in the tree example, then what? *)
-            if List.mem i index_args then
-              try
-                let f_indexer = Option.get l.orn.indexer in
-                let last_arg = last (unfold_args g_body) in
-                let last_arg_type = infer_type env_g_body last_arg in
-                let (before, after) = take_split index_i (unfold_args last_arg_type) in
-                let last_args = List.append (shift_all_by (- 2) before) (List.tl after) in
-                mkAppl (f_indexer, snoc last_arg last_args)
-              with _ ->
-                mkRel 0
-            else
-              a)
-          (List.map
-             (map_unit_env_if
-                (on_type is_deorn)
-                (fun env trm ->
-                  let typ = reduce_type env trm in
-                  if l.is_fwd then
-                    let index = get_arg index_i typ in
-                    let index_typ = infer_type env index in
-                    let unpacked_args = unfold_args typ in
-                    let packed_args = reindex index_i (mkRel 1) (shift_all unpacked_args) in
-                    let reindexed = mkAppl (first_fun typ, packed_args) in 
-                    let packer = mkLambda (Anonymous, index_typ, reindexed) in
-                    let deindexed = remove_index index_i unpacked_args in
-                    let packed = mkAppl (existT, [index_typ; packer; index; trm]) in
-                    mkAppl (orn_f, snoc packed deindexed)
-                  else
-                    let typ_args = unfold_args typ in
-                    mkAppl (orn_f, snoc trm typ_args))
-                env_f_body)
-             c_used)
+        List.map
+          (map_unit_env_if
+             (on_type is_deorn)
+             (fun env trm ->
+               let typ = reduce_type env trm in
+               if l.is_fwd then
+                 let index = get_arg index_i typ in
+                 let index_typ = infer_type env index in
+                 let unpacked_args = unfold_args typ in
+                 let packed_args = reindex index_i (mkRel 1) (shift_all unpacked_args) in
+                 let reindexed = mkAppl (first_fun typ, packed_args) in 
+                 let packer = mkLambda (Anonymous, index_typ, reindexed) in
+                 let deindexed = remove_index index_i unpacked_args in
+                 let packed = mkAppl (existT, [index_typ; packer; index; trm]) in
+                 mkAppl (orn_f, snoc packed deindexed)
+               else
+                 let typ_args = unfold_args typ in
+                 mkAppl (orn_f, snoc trm typ_args))
+             env_f_body)
+          c_used
       in let app = reduce_term env_f_body (mkAppl (f, args)) in
          map_if
            (map_unit_env_if
