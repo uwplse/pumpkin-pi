@@ -2673,15 +2673,6 @@ let rec compose_inductive idx_n post_assums assum_ind inner (comp : composition)
   in
   let c_p = { comp with g = (env_g, p_g); f = (env_f, p_f) } in
   let p = compose_p (List.length pms) post_assums inner c_p in
-  let p_exp = (* defer defining the indexer (can we omit now that we pack?) *)
-    map_if
-      (fun p ->
-        let li = Option.get comp.l.lifted_indexer in
-        let i = Option.get indexer in
-        all_eq_substs (li, i) p)
-      (Option.has_some indexer)
-      p
-  in
   let (cs, indexer) =
     if applies sigT_rect f then
       (* TODO factoring should handle *)
@@ -2699,10 +2690,10 @@ let rec compose_inductive idx_n post_assums assum_ind inner (comp : composition)
           let (env_c, c_body) = zoom_lambda_term env_g c in
           let (_, _, _, cs_g, _) = deconstruct_eliminator env_c c_body in
           let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_c, c_g); f = (env_f, c_f)}) cs_g cs_f in
-          List.map (compose_c (List.length pms_g) ip_g p_exp post_assums) c_cs
+          List.map (compose_c (List.length pms_g) ip_g p post_assums) c_cs
         else
           let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
-          List.map (compose_c (List.length pms_g) ip_g p_exp post_assums) c_cs
+          List.map (compose_c (List.length pms_g) ip_g p post_assums) c_cs
       in
       (* undo the above *)
       (List.map
