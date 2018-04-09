@@ -2694,29 +2694,7 @@ let rec compose_inductive idx_n post_assums assum_ind inner (comp : composition)
         else
           let c_cs = List.map2 (fun c_g c_f -> { comp with g = (env_g, c_g); f = (env_f, c_f) }) cs_g cs_f in
           List.map (compose_c (List.length pms_g) ip_g p post_assums) c_cs
-      in
-      (* undo the above *)
-      (List.map
-         (map_if
-            (fun c_exp ->
-              let li = Option.get comp.l.lifted_indexer in
-              let i = Option.get indexer in
-              let orn_i = Option.get l.orn.indexer in
-              map_unit_env_if
-                (fun _ trm -> is_or_applies li trm)
-                (fun env trm ->
-                  let existT_trm = last (unfold_args trm) in
-                  let index = get_arg 2 existT_trm in
-                  if is_or_applies orn_i index then
-                    let ih = last (unfold_args index) in
-                    let ih_typ = reduce_type env ih in
-                    Array.get (Array.of_list (unfold_args ih_typ)) index_i
-                  else
-                    trm)
-                env_f
-                (all_eq_substs (i, li) c_exp))
-            (Option.has_some indexer))
-         cs_exp, indexer)
+      in (cs_exp, indexer)
   in
   let elim = apply_eliminator ip pms p cs args in
   (elim, indexer)
