@@ -133,8 +133,6 @@ Definition hd_vect_error_packed (A : Type) (pv : packed_vector A) :=
       hd_vect_error A n v0)
     pv.
 
-Print hd_vect_error_packed.
-
 Apply ornament orn_list_vector orn_list_vector_inv in hd_error as hd_vect_error_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_error_packed as hd_error_auto.
 
@@ -249,8 +247,6 @@ Definition append_vect_packed_experimental (A : Type) (pv1 : packed_vector A) (p
    Should port to this eventually, but not a huge rush. Though might be necessary for proofs. 
    It gives a better theoretical model for sure. 
    But you still need to apply existT in the body, and port the IH and so on. *)
-
-Print append_vect_packed.
 
 Apply ornament orn_list_vector orn_list_vector_inv in append as append_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in append_vect_packed as append_auto.
@@ -424,11 +420,6 @@ Definition tl_vect_packed (A : Type) (pv : packed_vector A) :=
 Apply ornament orn_list_vector orn_list_vector_inv in tl as tl_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in tl_vect_packed as tl_auto.
 
-Print tl_vect_auto.
-Print tl.
-
-(* TODO fix application *)
-
 Theorem coh_vect:
   forall (A : Type) (n : nat) (v : vector A n),
     existT (vector A) (orn_list_vector_index A (orn_list_vector_inv A (existT (vector A) n v))) (projT2 (orn_list_vector A (orn_list_vector_inv A (existT (vector A) n v)))) = 
@@ -471,8 +462,6 @@ Proof.
   - reflexivity.
   - apply eq_cons. apply IHl.
 Qed.
-
-Print tl_auto.
 
 Theorem test_deorn_tl :
   forall (A : Type) (l : list A),
@@ -525,6 +514,11 @@ Definition app_nil_r_vect_packed (A : Type) (pv : packed_vector A) :=
         v) 
     pv.
 
+Apply ornament orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_auto.
+Apply ornament orn_list_vector_inv orn_list_vector in app_nil_r_vect_packed as app_nil_r_auto.
+
+(* --- Code below is experimental/thinking about what's next ---*)
+
 (* Now what happens if we try to directly use this? We can remove the outer existT with no issue: *)
 Definition app_nil_r_vect_het (A : Type) (n : nat) (v : vector A n) :=
   vector_ind 
@@ -544,12 +538,6 @@ Definition app_nil_r_vect_het (A : Type) (n : nat) (v : vector A n) :=
       : append_vect_packed A (existT (vector A) (S n0) (consV A n0 a v0)) (existT (vector A) O (nilV A)) = existT (vector A) (S n0) (consV A n0 a v0)) 
     n 
     v.
-
-Check sigT_rect.
-Check existT.
-
-Check eq.
-Print eq.
 
 (* That gives us the heterogenous equality. *)
 
