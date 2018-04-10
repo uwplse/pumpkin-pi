@@ -517,6 +517,8 @@ Definition app_nil_r_vect_packed (A : Type) (pv : packed_vector A) :=
 Apply ornament orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in app_nil_r_vect_packed as app_nil_r_auto.
 
+Print app_nil_r_auto.
+
 (* TODO try In, then you can try the facts about In, which should translate over as soon
    as app translates over. Then try app_nil_r and so on. *)
 
