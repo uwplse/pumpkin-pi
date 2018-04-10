@@ -2586,11 +2586,12 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
                else
                  let typ_args = unfold_args typ in
                  let orn = mkAppl (orn_f, snoc trm typ_args) in
-                 let orn_typ = reduce_type env evd orn in
+                 (* let orn_typ = reduce_type env evd orn in TODO in progress
                  let packed_type = get_arg 1 orn_typ in
                  let (_, index_type, _) = destLambda packed_type in (* TODO hack! will not always work *)
                  debug_term env packed_type "packed_type";
-                 project_value index_type packed_type orn)
+                 project_value index_type packed_type orn*)
+                 orn)
              env_f_body)
           c_used
       in let app = reduce_term env_f_body (mkAppl (f, args)) in
