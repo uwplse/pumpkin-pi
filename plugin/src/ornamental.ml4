@@ -1669,6 +1669,30 @@ let new_index i trm_o trm_n =
   in is_new_index (mkRel 1) trm_o trm_n
 
 (*
+ * Returns the first inductive hypothesis in the eliminator type trm
+ * for which the hypothesis h is used to compute the index at position index_i
+ *)
+let rec index_ih index_i p h trm i =
+  match kind_of_term trm with
+  | Prod (n, t, b) ->
+     let p_b = shift p in
+     let i_b = shift h in
+     if applies p t then
+       if contains_term h (get_arg index_i t) then
+         Some (mkRel i, t)
+       else
+         index_ih index_i p_b i_b b (i - 1)
+     else
+       index_ih index_i p_b i_b b (i - 1)
+  | App (_, _) when applies p trm ->
+     if contains_term h (get_arg index_i trm) then
+       Some (mkRel i, trm)
+     else
+       None
+  | _ ->
+     None
+                  
+(*
  * Returns true if the hypothesis i is used to compute the index at position
  * index_i in any application of a property p in the eliminator type trm.
  *)
@@ -2526,7 +2550,25 @@ let reduce_ornament_f l env evd index_i orn trm =
     env
     orn_arg_typ
     trm
-    
+
+(*
+ * Get the (index arg index, IH) pairs for a constructor
+ *)
+let rec indexes env to_typ index_i f_hs g_hs trm i =
+  let num_args = List.length g_hs in
+  if List.length f_hs != num_args then
+    match (g_hs, kind_of_term trm) with
+    | (h :: tl, Prod (n, t, b)) ->
+       let index_ih_opt = index_ih index_i to_typ (mkRel 1) b (num_args - (i + 1)) in
+       map_if
+         (fun tl -> (i, Option.get index_ih_opt) :: tl)
+         (Option.has_some index_ih_opt)
+         (indexes (push_local (n, t) env) to_typ index_i f_hs tl b (i + 1))
+    | _ ->
+       []
+  else
+    []
+  
 (*
  * Compose two constructors for two applications of an induction principle
  * that are structurally the same when one is an ornament.
@@ -2568,40 +2610,60 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       let f_f = shift_local (if l.is_fwd then 0 else num_assums) (offset env_f (nb_rel env_g)) c_g in
       let f = shift_by off_f f_f in
       let c_used = c_g_used in
-      (* Does this generalize? *)
+      let index_args = indexes env_g to_typ index_i c_f_used c_g_used (lambda_to_prod c_g) 0 in
       let args =
-        List.map
-          (map_unit_env_if
-             (fun env trm -> on_type is_deorn env evd trm)
-             (fun env trm ->
-               let typ = reduce_type env evd trm in
-               if l.is_fwd then
-                 let index = get_arg index_i typ in
-                 let index_typ = infer_type env evd index in
-                 let unpacked_args = unfold_args typ in
-                 let packer = abstract_arg env evd index_i typ in
-                 let deindexed = remove_index index_i unpacked_args in
-                 let packed = mkAppl (existT, [index_typ; packer; index; trm]) in
-                 mkAppl (orn_f, snoc packed deindexed)
-               else
-                 let typ_args = unfold_args typ in
-                 let orn = mkAppl (orn_f, snoc trm typ_args) in
-                 (* let orn_typ = reduce_type env evd orn in TODO in progress
-                 let packed_type = get_arg 1 orn_typ in
-                 let (_, index_type, _) = destLambda packed_type in (* TODO hack! will not always work *)
-                 debug_term env packed_type "packed_type";
-                 project_value index_type packed_type orn*)
-                 orn)
-             env_f_body)
+        List.mapi
+          (fun i arg ->
+            if (not l.is_fwd) && (List.mem_assoc i index_args) then
+              let index_type = infer_type env_g_body evd arg in
+              let (ih, _) = List.assoc i index_args in
+              let ih_typ = reduce_type env_f_body evd ih in
+              debug_term env_f_body ih "ih";
+              debug_term env_f_body ih_typ "ih_typ";
+              let indexer = Option.get l.orn.indexer in
+              let typ_args = unfold_args (reduce_term env_f_body ih_typ) in
+              let orn = mkAppl (indexer, snoc ih typ_args) in
+              orn
+              (*let orn_typ = reduce_type env_f_body evd orn in
+              let packed_type = get_arg 1 orn_typ in
+              project_index index_type packed_type orn*)
+            else
+              map_unit_env_if
+                (fun env trm -> on_type is_deorn env evd trm)
+                (fun env trm ->
+                  let typ = reduce_type env evd trm in
+                  if l.is_fwd then
+                    let index = get_arg index_i typ in
+                    let index_typ = infer_type env evd index in
+                    let unpacked_args = unfold_args typ in
+                    let packer = abstract_arg env evd index_i typ in
+                    let deindexed = remove_index index_i unpacked_args in
+                    let packed = mkAppl (existT, [index_typ; packer; index; trm]) in
+                    mkAppl (orn_f, snoc packed deindexed)
+                  else
+                    let typ_args = unfold_args typ in
+                    let orn = mkAppl (orn_f, snoc trm typ_args) in
+                    let orn_typ = reduce_type env evd orn in
+                    let packed_type = get_arg 1 orn_typ in
+                    (* line below sensitive to how we define ornaments *)
+                    let (_, index_type, _) = destLambda packed_type in
+                    debug_term env packed_type "packed_type";
+                    project_value index_type packed_type orn)
+              env_f_body
+              arg)
           c_used
-      in let app = reduce_term env_f_body (mkAppl (f, args)) in
+      in debug_term env_f_body f "f";
+         debug_terms env_f_body args "args";
+      let app = reduce_term env_f_body (mkAppl (f, args)) in
          map_if
            (map_unit_env_if
               (fun _ trm -> applies existT trm)
               (fun env trm ->
+                debug_term env trm "trm";
                 let last_arg = get_arg 3 trm in
                 debug_term env last_arg "last_arg";
-                try
+                trm
+                (*try
                   let last_arg_typ = reduce_type env evd last_arg in
                   if is_or_applies to_typ last_arg_typ then
                     (* TODO not sure what to best do, handles base case, hack *)
@@ -2609,26 +2671,34 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
                   else
                     last_arg
                 with _ ->
-                  last_arg)
+                  last_arg*))
               env_f_body)
            (not l.is_fwd)
            app
     else      
-      let (nsubs, f_body) =
+      (*let (nsubs, f_body) =
         map_track_unit_if
-          (fun trm -> isApp trm && applies orn_f trm)
+          (fun trm ->
+            isApp trm &&
+              ((l.is_fwd && applies orn_f trm) ||
+               (not l.is_fwd && applies existT trm)))
           (fun f_body ->
             let f_args = unfold_args f_body in
             let last_arg = last f_args in
+            debug_term env_f_body last_arg "last_arg";
             if l.is_indexer then
               let last_arg_typ = infer_type env_f_body evd last_arg in
               let (a :: rest) = unfold_args last_arg_typ in
               let p = List.hd rest in
               project_index a p last_arg
+            else if l.is_fwd then
+              last_arg (* TODO *)
             else
-              last_arg)
+              f_body
+              (*let last_arg_args = unfold_args last_arg in
+              last last_arg_args*))
           f_body
-      in
+      in*)
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
       let is_orn = is_or_applies (if l.is_fwd then from_typ else to_typ) in
       (* Does this generalize, too? *)
@@ -2661,7 +2731,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
                  (fun t -> last (unfold_args t))
                  app)
              env_f_body_old)
-          (nsubs = 0)
+          true
           f_body
       in map_if (map_unit_if (applies existT) (get_arg 3)) (not l.is_fwd) f_body
   in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
