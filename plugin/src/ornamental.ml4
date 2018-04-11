@@ -2666,15 +2666,16 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       let orn_f = map_indexer (fun l -> Option.get l.orn.indexer) lift_back l l in
       let c_f_all = get_used_or_p_hypos always_true c_f in
       let index_args_f = indexes env_g to_typ index_i c_f_all c_g_used (lambda_to_prod c_f) 0 in
-      debug_terms env_f_body c_f_used "c_f_used";
+      (*debug_terms env_f_body c_f_all "c_f_all";
       debug_terms env_g_body c_g_used "c_g_used";
       debug_term env_f c_f "c_f";
-      debug_term env_g to_typ "to_typ";
+      debug_term env_g to_typ "to_typ";*)
       let app =
-        map_if_else
+       (* map_if_else
           (reduce_nf env_f_body)
-          (reduce_ornament_f l env_f_body evd index_i orn_f)
-          (List.length index_args_f = 0)
+          (*(reduce_ornament_f l env_f_body evd index_i orn_f false)*)
+          (fun trm -> trm)
+          (List.length index_args_f = 0)*)
           app_pre_red
       in
       debug_term env_f_body app "app";
@@ -2690,12 +2691,15 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
          (fun env trm ->
            debug_term env trm "trm that applies orn";
            let args = unfold_args trm in
-           let ihs = List.filter (on_type is_orn env evd) args in
+           let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
            let typ_args = map_if (remove_index index_i) (not l.is_fwd) (on_type unfold_args env evd trm) in
+           debug_terms env typ_args "typ_args";
            let trm =
              map_if
                (fun trm ->
-                 let typ = infer_type env evd trm in
+                 debug_term env trm "trm";
+                 let typ = reduce_type env evd trm in
+                 debug_term env typ "typ";
                  let index = get_arg index_i typ in
                  let index_typ = infer_type env evd index in
                  let packer = abstract_arg env evd index_i typ in
@@ -2706,12 +2710,31 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
            debug_term env trm "trm after applying existT";
            let app_pre_red = mkAppl (f, snoc trm typ_args) in
            debug_term env app_pre_red "app_pre_red";
+           debug_terms env ihs "ihs";
+           (*let app_port_ihs =
+             map_unit_if
+               (fun trm ->
+                 isApp trm &&
+                 applies f trm &&
+                 List.exists (eq_constr (last (unfold_args trm))) ihs)
+               (fun t -> last (unfold_args t))
+               app_pre_red
+           in debug_term env_f_body app_port_ihs "app_port_ihs";*)
            (* TODO below if case is temporary for base case, to test out *)
            (* Try to figure out what to do when you have a lambda *)
            let app =
              map_if_else
                (reduce_nf env)
-               (reduce_ornament_f l env evd index_i f)
+               (map_unit_if
+                  (applies (lift_to l))
+                  (fun trm ->
+                    let from = last (unfold_args trm) in
+                    if applies (lift_back l) from then
+                      let existT_app = last (unfold_args trm) in
+                      let unpacked = last (unfold_args existT_app) in
+                      reduce_ornament_f l env evd index_i f unpacked
+                    else
+                      reduce_ornament_f l env evd index_i f trm))
                (List.length index_args = 0)
                app_pre_red
            in
@@ -2720,13 +2743,14 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
            (* TODO reduce the other one earlier *)
            debug_term env app "app";
            (* Port the application to the IH *)
-           map_unit_if
+           (*map_unit_if
              (fun trm ->
                isApp trm &&
                applies f trm &&
                List.exists (eq_constr (last (unfold_args trm))) ihs)
              (fun t -> last (unfold_args t))
-             app)
+             app)*)
+           app)
          env_f_body_old
          f_body
       in map_if (map_unit_if (applies existT) (get_arg 3)) (not l.is_fwd) f_body
