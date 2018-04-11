@@ -2497,68 +2497,74 @@ let reindex_body index_i index trm =
  * also assumes assumption at index 1,
  * need to support IHs at other indices. (TODO)
  *)
-let reduce_ornament_f l env evd index_i orn trm =
-  let orn_arg = mkRel 1 in (* not always a good assumption *)
-  let orn_arg_typ = zoom_if_sig_outer (infer_type env evd orn_arg) in
-  let orn_arg_typ = map_if (fun t -> unshift (snd (zoom_lambda_term empty_env t))) (not l.is_fwd) orn_arg_typ in
-  map_term_env_if
-    (fun _ orn_arg_typ trm -> applies orn trm)
-    (fun env orn_arg_typ trm ->
-      debug_term env trm "simplifying trm";
-      try
-        let (app, app_sub_body, app_sub) =
-          let unfolded = chain_reduce reduce_term delta env trm in
-          debug_term env unfolded "unfolded";
-          let typ_args = map_if (remove_index index_i) (not l.is_fwd) (unfold_args orn_arg_typ) in
-          let orn_app = mkAppl (orn, snoc orn_arg typ_args) in
-          let orn_app_ind = reduce_to_ind env orn_app in
-          let orn_app_red = reduce_nf env orn_app in
-          if l.is_fwd && not l.is_indexer then
-            let indexer = reduce_nf env (get_arg 2 unfolded) in
-            let app = reduce_nf env (get_arg 3 unfolded) in
-            debug_term env app "app";
-            let orn_app_app = get_arg 3 orn_app_ind in
-            debug_term env orn_app_app "orn_app_app";
-            let orn_app_app_arg = last (unfold_args orn_app_app) in
-            debug_term env orn_app_app_arg "orn_app_app_arg";
-            let packed_type_old = reduce_type env evd orn_app_app in
-            debug_term env packed_type_old "packed_type_old";
-            let index_type = reduce_type env evd (get_arg index_i packed_type_old) in
-            let packed_type = abstract_arg env evd index_i packed_type_old in
-            debug_term env packed_type "packed_type";
-            let orn_app_indexer = project_index index_type packed_type orn_app_app_arg in
-            let orn_app_app_arg = project_value index_type packed_type orn_app_app_arg in
-            let orn_app_red_app = get_arg 3 orn_app_red in
-            let orn_app_indexer_red = get_arg 2 orn_app_red in
-            let ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) indexer in
-            let app_sub = all_eq_substs (orn_app_red_app, orn_app_app_arg) app in
-            debug_term env app_sub "app_sub";
-            let app_ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) app_sub in
-            debug_term env app_ind_sub "app_ind_sub";
-            (app, app_ind_sub, mkAppl (existT, reindex 3 app_ind_sub (reindex 2 ind_sub (unfold_args unfolded))))
-          else if not l.is_indexer then
-            let app = reduce_nf env unfolded in
-            let index_type = get_arg 0 (infer_type env evd orn_arg) in
-            let packed_body = reindex_body index_i (mkRel 1) (shift orn_arg_typ) in
-            let packed_type = mkLambda (Anonymous, index_type, packed_body) in
-            let app_projT1 = project_index index_type packed_type orn_arg in
-            let app_projT2 = project_value index_type packed_type orn_arg in
-            let orn_app_app = mkAppl (get_arg 3 orn_app_ind, [app_projT1; app_projT2]) in
-            let orn_app_app_red = reduce_nf env orn_app_app in
-            let app_sub = all_eq_substs (orn_app_app_red, orn_arg) app in
-            (* TODO is that sound? think more about other cases *)
-            (app, app_sub, app_sub)
-          else
-            let app = reduce_nf env unfolded in
-            let app_sub = all_eq_substs (orn_app_red, orn_app) app in
-            (app, app_sub, app_sub)
-        in if eq_constr app_sub_body app then trm else app_sub
-      with _ ->
-        trm)
-    shift
-    env
-    orn_arg_typ
+let reduce_ornament_f l env evd index_i orn trm orn_args =
+  let orn_arg_typs = List.map (fun a -> zoom_if_sig_outer (infer_type env evd a)) orn_args in
+  let orn_arg_typs = List.map (map_if (fun t -> unshift (snd (zoom_lambda_term empty_env t))) (not l.is_fwd)) orn_arg_typs in
+  (* TODO filter out bad ones *)
+  (* TODO inefficient now *)
+  List.fold_left2
+    (fun trm orn_arg orn_arg_typ ->
+       map_term_env_if
+         (fun _ orn_arg_typ trm -> applies orn trm)
+         (fun env orn_arg_typ trm ->
+           debug_term env trm "simplifying trm";
+           try
+             let (app, app_sub_body, app_sub) =
+               let unfolded = chain_reduce reduce_term delta env trm in
+               debug_term env unfolded "unfolded";
+               let typ_args = map_if (remove_index index_i) (not l.is_fwd) (unfold_args orn_arg_typ) in
+               let orn_app = mkAppl (orn, snoc orn_arg typ_args) in
+               let orn_app_ind = reduce_to_ind env orn_app in
+               let orn_app_red = reduce_nf env orn_app in
+               if l.is_fwd && not l.is_indexer then
+                 let indexer = reduce_nf env (get_arg 2 unfolded) in
+                 let app = reduce_nf env (get_arg 3 unfolded) in
+                 debug_term env app "app";
+                 let orn_app_app = get_arg 3 orn_app_ind in
+                 debug_term env orn_app_app "orn_app_app";
+                 let orn_app_app_arg = last (unfold_args orn_app_app) in
+                 debug_term env orn_app_app_arg "orn_app_app_arg";
+                 let packed_type_old = reduce_type env evd orn_app_app in
+                 debug_term env packed_type_old "packed_type_old";
+                 let index_type = reduce_type env evd (get_arg index_i packed_type_old) in
+                 let packed_type = abstract_arg env evd index_i packed_type_old in
+                 debug_term env packed_type "packed_type";
+                 let orn_app_indexer = project_index index_type packed_type orn_app_app_arg in
+                 let orn_app_app_arg = project_value index_type packed_type orn_app_app_arg in
+                 let orn_app_red_app = get_arg 3 orn_app_red in
+                 let orn_app_indexer_red = get_arg 2 orn_app_red in
+                 let ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) indexer in
+                 let app_sub = all_eq_substs (orn_app_red_app, orn_app_app_arg) app in
+                 debug_term env app_sub "app_sub";
+                 let app_ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) app_sub in
+                 debug_term env app_ind_sub "app_ind_sub";
+                 (app, app_ind_sub, mkAppl (existT, reindex 3 app_ind_sub (reindex 2 ind_sub (unfold_args unfolded))))
+               else if not l.is_indexer then
+                 let app = reduce_nf env unfolded in
+                 let index_type = get_arg 0 (infer_type env evd orn_arg) in
+                 let packed_body = reindex_body index_i (mkRel 1) (shift orn_arg_typ) in
+                 let packed_type = mkLambda (Anonymous, index_type, packed_body) in
+                 let app_projT1 = project_index index_type packed_type orn_arg in
+                 let app_projT2 = project_value index_type packed_type orn_arg in
+                 let orn_app_app = mkAppl (get_arg 3 orn_app_ind, [app_projT1; app_projT2]) in
+                 let orn_app_app_red = reduce_nf env orn_app_app in
+                 let app_sub = all_eq_substs (orn_app_app_red, orn_arg) app in
+                 (* TODO is that sound? think more about other cases *)
+                 (app, app_sub, app_sub)
+               else
+                 let app = reduce_nf env unfolded in
+                 let app_sub = all_eq_substs (orn_app_red, orn_app) app in
+                 (app, app_sub, app_sub)
+             in if eq_constr app_sub_body app then trm else app_sub
+           with _ ->
+             trm)
+         shift
+         env
+         orn_arg_typ
+         trm)
     trm
+    orn_args
+    orn_arg_typs
 
 (*
  * Get the (index arg index, IH) pairs for a constructor
@@ -2681,7 +2687,13 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       debug_term env_f_body app "app";
       app
     else
-      let index_args = indexes env_g to_typ index_i c_f_used c_g_used (lambda_to_prod c_f) 0 in
+      let c_f_all = get_used_or_p_hypos always_true c_f in
+      let index_args = indexes env_g to_typ index_i c_f_all c_g_used (lambda_to_prod (if l.is_fwd then c_f else c_g)) 0 in
+      debug_terms env_f_body c_f_all "c_f_all";
+      debug_terms env_g_body c_g_used "c_g_used";
+      debug_term env_g (if l.is_fwd then c_f else c_g) "c_f";
+      debug_term env_g to_typ "to_typ";
+      Printf.printf "%d\n\n" (List.length index_args);
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
       let is_orn = is_or_applies (if l.is_fwd then from_typ else to_typ) in
       (* Does this generalize, too? *)
@@ -2722,35 +2734,64 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
            in debug_term env_f_body app_port_ihs "app_port_ihs";*)
            (* TODO below if case is temporary for base case, to test out *)
            (* Try to figure out what to do when you have a lambda *)
+           let orn_args = mk_n_rels (nb_rel env) in
+           debug_terms env orn_args "orn_args before filtering";
+           let orn_args = if not l.is_indexer then List.filter (on_type is_orn env evd) orn_args else List.filter (fun trm -> on_type is_deorn env evd trm || on_type is_orn env evd trm) orn_args in
+           debug_terms env orn_args "orn_args";
            let app =
-             map_if_else
+             map_if
                (reduce_nf env)
-               (map_unit_if
-                  (applies (lift_to l))
-                  (fun trm ->
-                    let from = last (unfold_args trm) in
-                    if applies (lift_back l) from then
-                      let existT_app = last (unfold_args trm) in
-                      let unpacked = last (unfold_args existT_app) in
-                      reduce_ornament_f l env evd index_i f unpacked
-                    else
-                      reduce_ornament_f l env evd index_i f trm))
                (List.length index_args = 0)
-               app_pre_red
+               (map_unit_if
+                  (applies f)
+                  (fun trm ->
+                    debug_term env trm "trm!";
+                    let from = last (unfold_args trm) in 
+                    debug_term env from "from";
+                    if l.is_indexer then
+                      if is_or_applies (lift_back l) from then
+                        let existT_app = last (unfold_args from) in
+                        if is_or_applies existT existT_app then
+                          let index = get_arg 2 existT_app in
+                          reduce_ornament_f l env evd index_i f index orn_args
+                        else
+                          reduce_ornament_f l env evd index_i f trm orn_args
+                      else
+                        reduce_ornament_f l env evd index_i f trm orn_args
+                    else if l.is_fwd then
+                      if is_or_applies (lift_back l) from then
+                        let existT_app = last (unfold_args from) in
+                        reduce_ornament_f l env evd index_i f existT_app orn_args
+                      else
+                        reduce_ornament_f l env evd index_i f trm orn_args
+                    else
+                      let x = 0 in debug_term env from "from";
+                      if is_or_applies existT from then
+                        let proj = last (unfold_args from) in
+                        debug_term env proj "proj";
+                        if is_or_applies projT2 proj then
+                          let unpacked = last (unfold_args proj) in
+                          let unpacked_from = last (unfold_args unpacked) in
+                          debug_term env unpacked_from "unpacked_from";
+                          reduce_ornament_f l env evd index_i f unpacked_from orn_args
+                        else
+                          reduce_ornament_f l env evd index_i f trm orn_args
+                      else
+                        reduce_ornament_f l env evd index_i f trm orn_args)
+                  app_pre_red)
            in
            (* TODO pass _all_ IHs from index_args to reduce_ornament_f, not just
               rel 1, then make use of all of them *)
            (* TODO reduce the other one earlier *)
            debug_term env app "app";
            (* Port the application to the IH *)
-           (*map_unit_if
+           map_unit_if
              (fun trm ->
                isApp trm &&
                applies f trm &&
                List.exists (eq_constr (last (unfold_args trm))) ihs)
              (fun t -> last (unfold_args t))
-             app)*)
-           app)
+             app)
          env_f_body_old
          f_body
       in map_if (map_unit_if (applies existT) (get_arg 3)) (not l.is_fwd) f_body
