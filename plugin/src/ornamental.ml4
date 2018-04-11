@@ -2800,6 +2800,9 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
                           reduce_ornament_f l env evd index_i f (last (unfold_args proj)) orn_args
                         else
                           reduce_ornament_f l env evd index_i f trm orn_args
+                      else if is_or_applies (lift_back l) from then
+                        let last_arg = last (unfold_args from) in
+                        reduce_ornament_f l env evd index_i f last_arg orn_args
                       else
                         reduce_ornament_f l env evd index_i f trm orn_args)
                   app_pre_red)
