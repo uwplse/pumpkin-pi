@@ -2661,101 +2661,74 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
               env_f_body
               arg)
           c_used
-      in debug_term env_f_body f "f";
-         debug_terms env_f_body args "args";
-      let app = reduce_term env_f_body (mkAppl (f, args)) in
-         map_if
-           (map_unit_env_if
-              (fun _ trm -> applies existT trm)
-              (fun env trm ->
-                debug_term env trm "trm";
-                let last_arg = get_arg 3 trm in
-                debug_term env last_arg "last_arg";
-                trm
-                (*try
-                  let last_arg_typ = reduce_type env evd last_arg in
-                  if is_or_applies to_typ last_arg_typ then
-                    (* TODO not sure what to best do, handles base case, hack *)
-                    trm
-                  else
-                    last_arg
-                with _ ->
-                  last_arg*))
-              env_f_body)
-           (not l.is_fwd)
-           app
-    else      
-      (*let (nsubs, f_body) =
-        map_track_unit_if
-          (fun trm ->
-            isApp trm &&
-              ((l.is_fwd && applies orn_f trm) ||
-               (not l.is_fwd && applies existT trm)))
-          (fun f_body ->
-            let f_args = unfold_args f_body in
-            let last_arg = last f_args in
-            debug_term env_f_body last_arg "last_arg";
-            if l.is_indexer then
-              let last_arg_typ = infer_type env_f_body evd last_arg in
-              let (a :: rest) = unfold_args last_arg_typ in
-              let p = List.hd rest in
-              project_index a p last_arg
-            else if l.is_fwd then
-              last_arg (* TODO *)
-            else
-              f_body
-              (*let last_arg_args = unfold_args last_arg in
-              last last_arg_args*))
-          f_body
-      in*)
+      in let app_pre_red = reduce_term env_f_body (mkAppl (f, args)) in
+      debug_term env_f_body app_pre_red "app_pre_red";
+      let orn_f = map_indexer (fun l -> Option.get l.orn.indexer) lift_back l l in
+      let c_f_all = get_used_or_p_hypos always_true c_f in
+      let index_args_f = indexes env_g to_typ index_i c_f_all c_g_used (lambda_to_prod c_f) 0 in
+      debug_terms env_f_body c_f_used "c_f_used";
+      debug_terms env_g_body c_g_used "c_g_used";
+      debug_term env_f c_f "c_f";
+      debug_term env_g to_typ "to_typ";
+      let app =
+        map_if_else
+          (reduce_nf env_f_body)
+          (reduce_ornament_f l env_f_body evd index_i orn_f)
+          (List.length index_args_f = 0)
+          app_pre_red
+      in
+      debug_term env_f_body app "app";
+      app
+    else
+      let index_args = indexes env_g to_typ index_i c_f_used c_g_used (lambda_to_prod c_f) 0 in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
       let is_orn = is_or_applies (if l.is_fwd then from_typ else to_typ) in
       (* Does this generalize, too? *)
       let f_body =
-        map_if
-          (map_unit_env_if
-             (fun env trm -> on_type is_orn env evd trm)
-             (fun env trm ->
-               debug_term env trm "trm that applies orn";
-               let args = unfold_args trm in
-               let ihs = List.filter (on_type is_orn env evd) args in
-               let typ_args = map_if (remove_index index_i) (not l.is_fwd) (on_type unfold_args env evd trm) in
-               let trm =
-                 map_if
-                   (fun trm ->
-                     let typ = infer_type env evd trm in
-                     let index = get_arg index_i typ in
-                     let index_typ = infer_type env evd index in
-                     let packer = abstract_arg env evd index_i typ in
-                     mkAppl (existT, [index_typ; packer; index; trm]))
-                   (not l.is_fwd)
-                   trm
-               in
-               debug_term env trm "application of existT";
-               let app =
-                 if not (isLambda c_f) then
-                   (* TODO temporary for base case, to test out *)
-                   reduce_nf env (mkAppl (f, snoc trm typ_args))
-                 else
-                   if not l.is_indexer then
-                     mkAppl (f, snoc (reduce_ornament_f l env evd index_i (lift_back l) trm) typ_args)
-                   else
-                     mkAppl (f, snoc trm typ_args)
-               in
-               debug_term env app "app";
-               let app = reduce_ornament_f l env evd index_i f app in
-               debug_term env app "app";
-               (* Port the application to the IH *)
-               map_unit_if
-                 (fun trm ->
-                   isApp trm &&
-                   applies f trm &&
-                   List.exists (eq_constr (last (unfold_args trm))) ihs)
-                 (fun t -> last (unfold_args t))
-                 app)
-             env_f_body_old)
-          true
-          f_body
+       map_unit_env_if
+         (fun env trm -> on_type is_orn env evd trm)
+         (fun env trm ->
+           debug_term env trm "trm that applies orn";
+           let args = unfold_args trm in
+           let ihs = List.filter (on_type is_orn env evd) args in
+           let typ_args = map_if (remove_index index_i) (not l.is_fwd) (on_type unfold_args env evd trm) in
+           let trm =
+             map_if
+               (fun trm ->
+                 let typ = infer_type env evd trm in
+                 let index = get_arg index_i typ in
+                 let index_typ = infer_type env evd index in
+                 let packer = abstract_arg env evd index_i typ in
+                 mkAppl (existT, [index_typ; packer; index; trm]))
+               (not l.is_fwd)
+               trm
+           in
+           debug_term env trm "trm after applying existT";
+           let app_pre_red = mkAppl (f, snoc trm typ_args) in
+           debug_term env app_pre_red "app_pre_red";
+           (* TODO below if case is temporary for base case, to test out *)
+           (* Try to figure out what to do when you have a lambda *)
+           let app =
+             map_if_else
+               (reduce_nf env)
+               (reduce_ornament_f l env evd index_i f)
+               (List.length index_args = 0)
+               app_pre_red
+           in
+           (* TODO pass _all_ IHs from index_args to reduce_ornament_f, not just
+              rel 1, then make use of all of them *)
+           (* TODO reduce the other one earlier *)
+           debug_term env app "app";
+           (* Port the application to the IH *)
+           map_unit_if
+             (fun trm ->
+               isApp trm &&
+               applies f trm &&
+               List.exists (eq_constr (last (unfold_args trm))) ihs)
+             (fun t -> last (unfold_args t))
+             app)
+         env_f_body_old
+         f_body
       in map_if (map_unit_if (applies existT) (get_arg 3)) (not l.is_fwd) f_body
   in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
 
