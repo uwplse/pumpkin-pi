@@ -2621,6 +2621,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let (env_g_body, g_body) = zoom_lambda_term env_g c_g in
   let off_f = offset env_f_body (nb_rel env_f) in
+  let off_g = offset env_g_body (nb_rel env_g) in
   let is_g = comp.is_g in
   let f_body =
     if not is_g then
@@ -2693,36 +2694,43 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
     else
       let c_f_all = get_used_or_p_hypos always_true c_f in
       let index_args = indexes env_g to_typ index_i c_f_all c_g_used (lambda_to_prod (if l.is_fwd then c_f else c_g)) 0 in
-      debug_terms env_f_body c_f_all "c_f_all";
-      debug_terms env_g_body c_g_used "c_g_used";
-      debug_term env_g (if l.is_fwd then c_f else c_g) "c_f";
-      debug_term env_g to_typ "to_typ";
-      Printf.printf "%d\n\n" (List.length index_args);
+      debug_term env_f_body from_typ "from_typ";
+      debug_term env_f_body to_typ "to_typ";
+      debug_term env_f_body f_body "f_body";
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
-      let is_orn = is_or_applies (if l.is_fwd then from_typ else to_typ) in
+      
+      let is_orn env trm =
+        let typ = if l.is_fwd then from_typ else shift_by (nb_rel env_f_body - 1) ind_g_typ in
+        is_or_applies typ trm || convertible env typ trm
+      in
       (* Does this generalize, too? *)
       let f_body =
        map_unit_env_if
-         (fun env trm -> on_type is_orn env evd trm)
+         (fun env trm ->
+           debug_term env trm "trm";
+           debug_term env (reduce_type env evd trm) "trm typ";
+           debug_term env (if l.is_fwd then from_typ else shift_by (nb_rel env_f_body - 1) ind_g_typ) "looking for typ";
+           on_type (is_orn env) env evd trm)
          (fun env trm ->
            debug_term env trm "trm that applies orn";
            let args = unfold_args trm in
            let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
-           let typ_args = map_if (remove_index index_i) (not l.is_fwd) (on_type unfold_args env evd trm) in
-           debug_terms env typ_args "typ_args";
-           let trm =
-             map_if
-               (fun trm ->
-                 debug_term env trm "trm";
-                 let typ = reduce_type env evd trm in
-                 debug_term env typ "typ";
-                 let index = get_arg index_i typ in
-                 let index_typ = infer_type env evd index in
-                 let packer = abstract_arg env evd index_i typ in
-                 mkAppl (existT, [index_typ; packer; index; trm]))
-               (not l.is_fwd)
-               trm
+           let typ_args =
+             if l.is_fwd then
+               on_type unfold_args env evd trm
+             else
+               let typ = reduce_type env evd trm in
+               debug_term env typ "typ";
+               let packer = get_arg 1 typ in
+               debug_term env packer "packer";
+               if isLambda packer then (* TODO hack with vector A *)
+                 let packer_body = unshift (snd (zoom_lambda_term env packer)) in
+                 debug_term env packer_body "packer_body";
+                 remove_index index_i (unfold_args packer_body)
+               else
+                 unfold_args packer
            in
+           debug_terms env typ_args "typ_args";
            debug_term env trm "trm after applying existT";
            let app_pre_red = mkAppl (f, snoc trm typ_args) in
            debug_term env app_pre_red "app_pre_red";
@@ -2740,7 +2748,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
            (* Try to figure out what to do when you have a lambda *)
            let orn_args = mk_n_rels (nb_rel env) in
            debug_terms env orn_args "orn_args before filtering";
-           let orn_args = List.filter (on_type is_orn env evd) orn_args in
+           let orn_args = List.filter (on_type (is_orn env) env evd) orn_args in
            debug_terms env orn_args "orn_args";
            let app =
              map_if
@@ -2788,6 +2796,8 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
                           let unpacked_from = last (unfold_args unpacked) in
                           debug_term env unpacked_from "unpacked_from";
                           reduce_ornament_f l env evd index_i f unpacked_from orn_args
+                        else if is_or_applies (lift_to l) proj then
+                          reduce_ornament_f l env evd index_i f (last (unfold_args proj)) orn_args
                         else
                           reduce_ornament_f l env evd index_i f trm orn_args
                       else
