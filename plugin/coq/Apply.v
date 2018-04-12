@@ -489,6 +489,24 @@ Definition app_nil_r (A : Type) (l : list A) :=
         IHl)
     l.
 
+(* What we can get without lifting app *)
+Definition app_nil_r_alt (A : Type) (l : list A) :=
+  @list_ind
+    A
+    (fun (l0 : list A) => 
+      append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)) = orn_list_vector A l0)
+    (@eq_refl (sigT (vector A)) (existT (vector A) 0 (nilV A)))
+    (fun (a : A) (l0 : list A) (IHl : append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)) = orn_list_vector A l0) =>
+      @eq_ind_r
+        (sigT (vector A))
+        (orn_list_vector A l0)
+        (fun (v1 : sigT (vector A)) => existT (vector A) (S (projT1 v1)) (consV A (projT1 v1) a (projT2 v1)) = existT (vector A) (S (projT1 (orn_list_vector A l0))) (consV A (projT1 (orn_list_vector A l0)) a (projT2 (orn_list_vector A l0))))
+        (@eq_refl (sigT (vector A)) (existT (vector A) (S (projT1 (orn_list_vector A l0))) (consV A (projT1 (orn_list_vector A l0)) a (projT2 (orn_list_vector A l0)))))
+        (append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)))
+        IHl)
+    l.
+
+
 (* packed vector version*)
 Definition app_nil_r_vect_packed (A : Type) (pv : packed_vector A) :=
   @sigT_rect
