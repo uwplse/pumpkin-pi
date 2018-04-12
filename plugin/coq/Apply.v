@@ -489,8 +489,8 @@ Definition app_nil_r (A : Type) (l : list A) :=
         IHl)
     l.
 
-(* What we can get without lifting app *)
-Definition app_nil_r_alt (A : Type) (l : list A) :=
+(* what we can get without doing a higher lifting of append inside of the proof *)
+Definition app_nil_r_lower (A : Type) (l : list A) :=
   @list_ind
     A
     (fun (l0 : list A) => 
@@ -505,28 +505,6 @@ Definition app_nil_r_alt (A : Type) (l : list A) :=
         (append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)))
         IHl)
     l.
-
-(* What we currently have:
-( TODO try to get this to work fully )
-(* What we have *)
-Definition app_nil_r_current (A : Type) (l : list A) :=
-  list_rect 
-    A 
-    (fun (l0 : list A) => 
-      append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)) = orn_list_vector A l0)
-    (@eq_refl (sigT (vector A)) (existT (vector A) O (nilV A))) 
-    (fun (a : A) (l0 : list A) (IHl : append_vect_packed A (orn_list_vector A l0) (existT (vector A) O (nilV A)) = orn_list_vector A l0)) =>
-      @eq_ind_r 
-        (sigT (vector A)) 
-        (existT (vector A) (orn_list_vector_index A l0) (projT2 nat (vector A) (orn_list_vector A l0))) 
-        (fun (v1 : sigT (vector A)) =>
-          (existT (vector A) (S (projT1 v1)) (consV A (projT1 v1) a (projT2 v1)) =
-          (existT (vector A) (S (orn_list_vector_index A l0)) (consV A (orn_list_vector_index A l0) a (projT2 (orn_list_vector A l0)))) 
-        (@eq_refl (sigT (vector A)) (existT (vector A) (S (orn_list_vector_index A l0)) (consV A (orn_list_vector_index A l0) a (projT2 (orn_list_vector A l0))))) 
-        (append_vect_packed A (existT (orn_list_vector_index A l0) (projT2 (orn_list_vector A l0))) (existT 0 (nilV A))) 
-        IHl) 
-   l.
-*)
 
 (* packed vector version*)
 Definition app_nil_r_vect_packed (A : Type) (pv : packed_vector A) :=
@@ -553,10 +531,44 @@ Definition app_nil_r_vect_packed (A : Type) (pv : packed_vector A) :=
         v) 
     pv.
 
+(* what we can get without doing a hgiher lifting of append inside of the proof *)
+Definition app_nil_r_vect_packed_lower (A : Type) (pv : packed_vector A) :=
+  @sigT_rect
+    nat 
+    (vector A)
+    (fun (pv0 : sigT (vector A)) => append A (orn_list_vector_inv A pv0) (@nil A) = orn_list_vector_inv A pv0)
+    (fun (n : nat) (v : vector A n) =>
+      vector_ind 
+        A
+        (fun (n0 : nat) (v0 : vector A n0) => 
+          append A (orn_list_vector_inv A (existT (vector A) n0 v0)) (@nil A) = orn_list_vector_inv A (existT (vector A) n0 v0))
+        (@eq_refl (list A) (@nil A))
+        (fun (n0 : nat) (a : A) (v0 : vector A n0) (IHp : append A (orn_list_vector_inv A (existT (vector A) n0 v0)) (@nil A) = orn_list_vector_inv A (existT (vector A) n0 v0)) =>
+          @eq_ind_r 
+            (list A) 
+            (orn_list_vector_inv A (existT (vector A) n0 v0))
+            (fun (pv1 : list A) => 
+              @cons A a pv1 = @cons A a (orn_list_vector_inv A (existT (vector A) n0 v0)))
+            (@eq_refl (list A) (@cons A a (orn_list_vector_inv A (existT (vector A) n0 v0))))
+            (append A (orn_list_vector_inv A (existT (vector A) n0 v0)) (@nil A))
+            IHp)
+        n 
+        v) 
+    pv.
+
+(* 
+ * There's a commuting diagram in here somewhere with lower and higher liftings.
+ * Look how precisely they correspond to each other (each lower to both highers).
+ * This may help us understand how we "know" to change the type arguments to eq_ind_r.
+ * We may need to recursively lift eq_ind_r or all applications of eq_ind_r to handle this.
+ *)
+
+(*
+ * TODO tests using these/showing equality manually like the above, but also for lower and higher
+ *)
+
 Apply ornament orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in app_nil_r_vect_packed as app_nil_r_auto.
-
-Print app_nil_r_auto.
 
 (* TODO try In, then you can try the facts about In, which should translate over as soon
    as app translates over. Then try app_nil_r and so on. *)
