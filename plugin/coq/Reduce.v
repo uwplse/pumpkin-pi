@@ -179,8 +179,6 @@ Proof.
   - simpl. apply eq_cons with (a := a) in IHl. apply IHl. 
 Qed.
 
-Check sigT_rect.
-
 Lemma app_coh:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
     orn_list_vector A (append A (orn_list_vector_inv A pv1) (orn_list_vector_inv A pv2)) = append_vect_red A pv1 pv2.
@@ -224,8 +222,29 @@ Qed.
 (*
  * Using that, we show the theorem we actually want. Again, the intermediate proofs will eventually
  * be obsolete and we'll produce this term directly, though maybe this tells us more about
- * how to compose what we have with some function to get the higher-lifted version (TODO):
+ * how to compose what we have with some function to get the higher-lifted version:
  *)
+
+Check app_nil_r_vect_red.
+
+Theorem test_app_nil_r_vect:
+  forall (A : Type) (pv : packed_vector A),
+    append_vect_red A pv (existT (vector A) 0 (nilV A)) = pv.
+Proof.
+  intros. rewrite <- app_coh. rewrite app_nil_r_vect_red. apply coh_vect_packed. 
+Qed.
+
+(* 
+ * NOTE: We can simplify the above term at some point, which will give more clarity on
+ * the lifted term we're looking for.
+ *)
+
+Theorem test_app_nil_r:
+  forall (A : Type) (l : list A),
+    append_red A l (@nil A) = l.
+Proof.
+  intros. rewrite <- app_coh_inv. rewrite app_nil_r_red. apply coh_list.
+Qed.
 
 (* 
  * NOTE: The app_nil_r case needs an automatic proof of indices, which it doesn't have yet.
