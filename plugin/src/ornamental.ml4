@@ -2417,6 +2417,23 @@ let compose_p evd npms post_assums inner (comp : composition) =
   let f_g_off = nb_rel env_f - nb_rel env_g in
   let p_g = shift_by f_g_off p_g in
   let p_g = shift_by off p_g in
+  debug_term env_p_f p_g "p_g";
+  let p_g =
+    map_if
+      (map_unit_if
+         (is_or_applies existT)
+         (fun trm ->
+           (* TODO not sufficiently general, can break, try to *)
+           let last_arg = last (unfold_args trm) in
+           if contains_term last_arg (mkRel 1) then
+             last_arg
+           else
+             trm))
+           (* TODO will fail with cosntant existT like nilV, try *)
+      (not l.is_fwd)
+      p_g
+  in
+  debug_term env_p_f p_g "p_g";
   let p =
     map_forward
       (fun p_g ->
