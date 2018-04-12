@@ -2620,8 +2620,6 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let index_i = Option.get l.orn.index_i in
   let (env_g, c_g) = comp.g in
   let (env_f, c_f) = comp.f in
-  debug_term env_g c_g "c_g";
-  debug_term env_f c_f "c_f";
   let (orn_f, orn_g) = (lift_back l, lift_to l) in
   let orn_f_typ = reduce_type env_f evd orn_f in
   let orn_g_typ = reduce_type env_g evd orn_g in
@@ -2655,15 +2653,14 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
               let index_type = infer_type env_g_body evd arg in
               let (ih, _) = List.assoc i index_args in
               let ih_typ = reduce_type env_f_body evd ih in
-              debug_term env_f_body ih "ih";
-              debug_term env_f_body ih_typ "ih_typ";
               let indexer = Option.get l.orn.indexer in
               let typ_args = unfold_args (reduce_term env_f_body ih_typ) in
-              let orn = mkAppl (indexer, snoc ih typ_args) in
-              orn
-              (*let orn_typ = reduce_type env_f_body evd orn in
+              let orn = mkAppl (lift_back l, snoc ih typ_args) in
+              let orn_typ = reduce_type env_f_body evd orn in
               let packed_type = get_arg 1 orn_typ in
-              project_index index_type packed_type orn*)
+              project_index index_type packed_type orn
+              (*let orn = mkAppl (indexer, snoc ih typ_args) in
+              orn*)
             else
               map_unit_env_if
                 (fun env trm -> on_type is_deorn env evd trm)
@@ -2684,33 +2681,11 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
                     let packed_type = get_arg 1 orn_typ in
                     (* line below sensitive to how we define ornaments *)
                     let (_, index_type, _) = destLambda packed_type in
-                    debug_term env packed_type "packed_type";
                     project_value index_type packed_type orn)
               env_f_body
               arg)
           c_used
-      in
-      debug_term env_f_body f "f";
-      debug_terms env_f_body args "args";
-      let app_pre_red = reduce_term env_f_body (mkAppl (f, args)) in
-      debug_term env_f_body app_pre_red "app_pre_red";
-      let orn_f = map_indexer (fun l -> Option.get l.orn.indexer) lift_back l l in
-      let c_f_all = get_used_or_p_hypos always_true c_f in
-      let index_args_f = indexes env_g to_typ index_i c_f_all c_g_used (lambda_to_prod c_f) 0 in
-      (*debug_terms env_f_body c_f_all "c_f_all";
-      debug_terms env_g_body c_g_used "c_g_used";
-      debug_term env_f c_f "c_f";
-      debug_term env_g to_typ "to_typ";*)
-      let app =
-       (* map_if_else
-          (reduce_nf env_f_body)
-          (*(reduce_ornament_f l env_f_body evd index_i orn_f false)*)
-          (fun trm -> trm)
-          (List.length index_args_f = 0)*)
-          app_pre_red
-      in
-      debug_term env_f_body app "app";
-      app
+      in reduce_term env_f_body (mkAppl (f, args))
     else
       let c_f_all = get_used_or_p_hypos always_true c_f in
       let index_args = indexes env_g to_typ index_i c_f_all c_g_used (lambda_to_prod (if l.is_fwd then c_f else c_g)) 0 in
