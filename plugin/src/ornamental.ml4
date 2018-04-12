@@ -2672,7 +2672,10 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
               env_f_body
               arg)
           c_used
-      in let app_pre_red = reduce_term env_f_body (mkAppl (f, args)) in
+      in
+      debug_term env_f_body f "f";
+      debug_terms env_f_body args "args";
+      let app_pre_red = reduce_term env_f_body (mkAppl (f, args)) in
       debug_term env_f_body app_pre_red "app_pre_red";
       let orn_f = map_indexer (fun l -> Option.get l.orn.indexer) lift_back l l in
       let c_f_all = get_used_or_p_hypos always_true c_f in
