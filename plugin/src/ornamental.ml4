@@ -88,10 +88,6 @@ type composition =
   }
   
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
-
-(* Lookup the eliminator over the type sort *)
-let type_eliminator (env : env) (ind : inductive) =
-  Universes.constr_of_global (Indrec.lookup_eliminator ind InType)
                              
 (* Zoom into a term *)
 let rec zoom_n_prod env npm typ : env * types =

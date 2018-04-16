@@ -61,7 +61,12 @@ val is_elim : env -> types -> bool
  * Get the type of an inductive type
  *)
 val type_of_inductive : env -> int -> mutual_inductive_body -> types
-                                
+
+(*
+ * Lookup the eliminator over the type sort
+ *)
+val type_eliminator : env -> inductive -> types
+                                                                 
 (* --- Environments --- *)
 
 (*

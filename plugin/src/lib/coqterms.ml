@@ -131,6 +131,10 @@ let type_of_inductive env index mutind_body : types =
   let univ_instance = UContext.instance univ_context in
   let mutind_spec = (mutind_body, ind_body) in
   Inductive.type_of_inductive env (mutind_spec, univ_instance)
+
+(* Lookup the eliminator over the type sort *)
+let type_eliminator (env : env) (ind : inductive) =
+  Universes.constr_of_global (Indrec.lookup_eliminator ind InType)
                              
 (* --- Environments --- *)
 
