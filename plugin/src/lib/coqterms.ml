@@ -7,6 +7,9 @@ open Term
 open Names
 open Constrexpr
 open Evd
+open Utilities
+
+module CRD = Context.Rel.Declaration
 
 (* --- Constants --- *)
 
@@ -44,7 +47,37 @@ let intern env evd t : types =
 (* Extern a term *)
 let extern env evd t : constr_expr =
   Constrextern.extern_constr true env evd t
-          
+                             
 (* --- Terms --- *)
           
 (* --- Environments --- *)
+
+(* Return a list of all indexes in env, starting with 1 *)
+let all_rel_indexes (env : env) : int list =
+  from_one_to (nb_rel env)
+
+(* Push a local binding to an environment *)
+let push_local (n, t) = push_rel CRD.(LocalAssum (n, t))
+
+(* Push a let-in definition to an environment *)
+let push_let_in (n, e, t) = push_rel CRD.(LocalDef(n, e, t))
+
+(* Lookup a definition *)
+let lookup_definition (env : env) (def : types) : types =
+  match kind_of_term def with
+  | Const (c, u) ->
+     let c_body = (lookup_constant c env).const_body in
+     (match c_body with
+      | Def cs -> Mod_subst.force_constr cs
+      | OpaqueDef o -> Opaqueproof.force_proof (Global.opaque_tables ()) o
+      | _ -> failwith "an axiom has no definition")
+  | Ind _ -> def
+  | _ -> failwith "not a definition"
+
+(* Fully lookup a def in env, but return the term if it is not a definition *)
+let rec unwrap_definition (env : env) (trm : types) : types =
+  try
+    unwrap_definition env (lookup_definition env trm)
+  with _ ->
+    trm
+

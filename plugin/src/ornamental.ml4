@@ -89,37 +89,8 @@ type composition =
   
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
-(* Return a list of all indexes in env, starting with 1 *)
-let all_rel_indexes (env : env) : int list =
-  from_one_to (nb_rel env)
-
 (* mkApp with a list *)
 let mkAppl (f, args) = mkApp (f, Array.of_list args)
-
-(* Push a local binding to an environment *)
-let push_local (n, t) = push_rel CRD.(LocalAssum (n, t))
-
-(* Push a let-in definition to an environment *)
-let push_local_in (n, e, t) = push_rel CRD.(LocalDef(n, e, t))
-
-(* Lookup a definition *)
-let lookup_definition (env : env) (def : types) : types =
-  match kind_of_term def with
-  | Const (c, u) ->
-     let c_body = (lookup_constant c env).const_body in
-     (match c_body with
-      | Def cs -> Mod_subst.force_constr cs
-      | OpaqueDef o -> Opaqueproof.force_proof (Global.opaque_tables ()) o
-      | _ -> failwith "an axiom has no definition")
-  | Ind _ -> def
-  | _ -> failwith "not a definition"
-
-(* Fully lookup a def in env, but return the term if it is not a definition *)
-let rec unwrap_definition (env : env) (trm : types) : types =
-  try
-    unwrap_definition env (lookup_definition env trm)
-  with _ ->
-    trm
 
 (* Don't support mutually inductive or coinductive types yet *)
 let check_inductive_supported mutind_body : unit =
@@ -377,7 +348,7 @@ let rec map_term_env f d (env : env) (a : 'a) (trm : types) : types =
   | LetIn (n, trm, typ, e) ->
      let trm' = map_rec env a trm in
      let typ' = map_rec env a typ in
-     let e' = map_rec (push_local_in (n, e, typ) env) (d a) e in
+     let e' = map_rec (push_let_in (n, e, typ) env) (d a) e in
      mkLetIn (n, trm', typ', e')
   | App (fu, args) ->
      let fu' = map_rec env a fu in
@@ -495,7 +466,7 @@ let rec map_term_env_if p f d (env : env) (a : 'a) (trm : types) : types =
     | LetIn (n, trm, typ, e) ->
        let trm' = map_rec env a trm in
        let typ' = map_rec env a typ in
-       let e' = map_rec (push_local_in (n, e, typ') env) (d a) e in
+       let e' = map_rec (push_let_in (n, e, typ') env) (d a) e in
        mkLetIn (n, trm', typ', e')
     | App (fu, args) ->
        let fu' = map_rec env a fu in
@@ -549,7 +520,7 @@ let rec exists_subterm_env p d (env : env) (a : 'a) (trm : types) : bool =
     | LetIn (n, trm, typ, e) ->
        let trm' = map_rec env a trm in
        let typ' = map_rec env a typ in
-       let e' = map_rec (push_local_in (n, e, typ) env) (d a) e in
+       let e' = map_rec (push_let_in (n, e, typ) env) (d a) e in
        trm' || typ' || e'
     | App (fu, args) ->
        let fu' = map_rec env a fu in
@@ -595,7 +566,7 @@ let rec map_term_env_if_lazy p f d (env : env) (a : 'a) (trm : types) : types =
     | LetIn (n, trm, typ, e) ->
        let trm' = map_rec env a trm in
        let typ' = map_rec env a typ in
-       let e' = map_rec (push_local_in (n, e, typ') env) (d a) e in
+       let e' = map_rec (push_let_in (n, e, typ') env) (d a) e in
        mkLetIn (n, trm', typ', e')
     | App (fu, args) ->
        let fu' = map_rec env a fu in
@@ -834,7 +805,7 @@ let rec term_as_string (env : env) (trm : types) =
        (name_as_string n)
        (term_as_string env typ)
        (term_as_string env typ)
-       (term_as_string (push_local_in (n, e, typ) env) e)
+       (term_as_string (push_let_in (n, e, typ) env) e)
   | App (f, xs) ->
      Printf.sprintf
        "(%s %s)"
