@@ -44,6 +44,8 @@ val from_one_to : int -> int list
 (* --- Tuples --- *)
 
 val map_tuple : ('a -> 'b) -> ('a * 'a) -> ('b * 'b)
+val twice : ('a -> 'a -> bool -> 'b) -> 'a -> 'a -> ('b * 'b)
+val reverse: ('a * 'b) -> ('b * 'a)
 
 (* --- Propositions --- *)
 

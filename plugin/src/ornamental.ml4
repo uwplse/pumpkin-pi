@@ -89,16 +89,6 @@ type composition =
   
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
-(* Apply a function twice with a directionality indicator *)
-let twice (f : 'a -> 'a -> bool -> 'b) (a1 : 'a) (a2 : 'a) : 'b * 'b  =
-  let forward = f a1 a2 true in
-  let backward = f a2 a1 false in
-  (forward, backward)
-
-(* Reverse a tuple *)
-let reverse ((a, b) : 'a * 'b) : 'b * 'a =
-  (b, a)
-
 (*
  * Recurse on a mapping function with an environment for a fixpoint
  *)
