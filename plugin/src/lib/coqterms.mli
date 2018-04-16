@@ -28,6 +28,19 @@ val intern : env -> evar_map -> constr_expr -> types
  *)
 val extern : env -> evar_map -> types -> constr_expr
 
+(* --- Constructing terms --- *)
+
+(*
+ * mkApp with a list (instead of an array) of arguments
+ *)
+val mkAppl : (types * types list) -> types
+
+(*
+ * Ornament between products and lambdas, without changing anything else
+ *)
+val prod_to_lambda : types -> types
+val lambda_to_prod : types -> types
+                                           
 (* --- Environments --- *)
 
 (*

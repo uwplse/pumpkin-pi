@@ -89,9 +89,6 @@ type composition =
   
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
-(* mkApp with a list *)
-let mkAppl (f, args) = mkApp (f, Array.of_list args)
-
 (* Don't support mutually inductive or coinductive types yet *)
 let check_inductive_supported mutind_body : unit =
   let ind_bodies = mutind_body.mind_packets in
@@ -225,22 +222,6 @@ let convertible (env : env) (trm1 : types) (trm2 : types) : bool =
 (* Lookup the eliminator over the type sort *)
 let type_eliminator (env : env) (ind : inductive) =
   Universes.constr_of_global (Indrec.lookup_eliminator ind InType)
-
-(* Recursively turn a product into a function *)
-let rec prod_to_lambda trm =
-  match kind_of_term trm with
-  | Prod (n, t, b) ->
-     mkLambda (n, t, prod_to_lambda b)
-  | _ ->
-     trm
-
-(* Recursively turn a function into a product *)
-let rec lambda_to_prod trm =
-  match kind_of_term trm with
-  | Lambda (n, t, b) ->
-     mkProd (n, t, lambda_to_prod b)
-  | _ ->
-     trm
                              
 (* Zoom into a term *)
 let rec zoom_n_prod env npm typ : env * types =

@@ -48,8 +48,27 @@ let intern env evd t : types =
 let extern env evd t : constr_expr =
   Constrextern.extern_constr true env evd t
                              
-(* --- Terms --- *)
-          
+(* --- Constructing terms --- *)
+
+(* mkApp with a list *)
+let mkAppl (f, args) = mkApp (f, Array.of_list args)
+
+(* Recursively turn a product into a function *)
+let rec prod_to_lambda trm =
+  match kind_of_term trm with
+  | Prod (n, t, b) ->
+     mkLambda (n, t, prod_to_lambda b)
+  | _ ->
+     trm
+
+(* Recursively turn a function into a product *)
+let rec lambda_to_prod trm =
+  match kind_of_term trm with
+  | Lambda (n, t, b) ->
+     mkProd (n, t, lambda_to_prod b)
+  | _ ->
+     trm
+                             
 (* --- Environments --- *)
 
 (* Return a list of all indexes in env, starting with 1 *)
