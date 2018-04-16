@@ -88,3 +88,20 @@ val bindings_for_inductive :
   env -> mutual_inductive_body -> one_inductive_body array -> CRD.t list
 val bindings_for_fix : name array -> types array -> CRD.t list
                                                           
+(* --- Basic questions about terms --- *)
+
+(*
+ * Get the arity of a function or function type
+ *)
+val arity : types -> int
+
+(* 
+ * Check whether a term (second argument) applies a function (first argument)
+ * Don't consider terms convertible to the function
+ *)
+val applies : types -> types -> bool
+
+(*
+ * Check whether a term either is exactly a function or applies it
+ *)
+val is_or_applies : types  -> types -> bool

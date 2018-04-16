@@ -89,34 +89,12 @@ type composition =
   
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
-(* Get the arity of a function or function type *)
-let rec arity p =
-  match kind_of_term p with
-  | Lambda (_, _, b) ->
-     1 + arity b
-  | Prod (_, _, b) ->
-     1 + arity b
-  | _ ->
-     0
-
 (* Infer the type of trm in env *)
 let infer_type (env : env) evd (trm : types) : types =
   Typing.unsafe_type_of env evd trm
       (*
   let jmt = Typeops.infer env trm in
   j_type jmt*)
-
-(* Check whether trm applies f (using eq_constr for equality) *)
-let applies (f : types) (trm : types) =
-  match kind_of_term trm with
-  | App (g, _) ->
-     eq_constr f g
-  | _ ->
-     false
-
-(* Check whether trm is trm' or applies trm', using eq_constr *)
-let is_or_applies (trm' : types) (trm : types) : bool =
-  applies trm' trm || eq_constr trm' trm
 
 (* Always true *)
 let always_true _ = true

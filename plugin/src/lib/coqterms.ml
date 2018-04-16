@@ -185,3 +185,28 @@ let bindings_for_fix (names : name array) (typs : types array) : CRD.t list =
        (fun i name typ -> CRD.LocalAssum (name, Vars.lift i typ))
        names typs)
 
+(* --- Basic questions about terms --- *)
+
+(*
+ * Get the arity of a function or function type
+ *)
+let rec arity p =
+  match kind_of_term p with
+  | Lambda (_, _, b) ->
+     1 + arity b
+  | Prod (_, _, b) ->
+     1 + arity b
+  | _ ->
+     0
+
+(* Check whether trm applies f (using eq_constr for equality) *)
+let applies (f : types) (trm : types) =
+  match kind_of_term trm with
+  | App (g, _) ->
+     eq_constr f g
+  | _ ->
+     false
+
+(* Check whether trm is trm' or applies trm', using eq_constr *)
+let is_or_applies (trm' : types) (trm : types) : bool =
+  applies trm' trm || eq_constr trm' trm
