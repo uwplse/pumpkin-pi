@@ -90,14 +90,6 @@ type composition =
   }
   
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
-                             
-(* In env, substitute all subterms of trm that are convertible to src with dst *)
-let all_conv_substs =
-  all_substs convertible
-
-(* Same, but eq_constr *)
-let all_eq_substs =
-  all_substs (fun _ -> eq_constr) (*empty TODO *) (Global.env ())
 
 (* Define a new Coq term *)
 let define_term (n : Id.t) (env : env) evm (trm : types) : unit =

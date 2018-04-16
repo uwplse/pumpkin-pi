@@ -144,4 +144,12 @@ val all_substs :
   types ->
   types
 
-    
+(*
+ * all_substs with convertibility
+ *)
+val all_conv_substs : env -> (types * types) -> types -> types
+
+(*
+ * all_substs with eq_constr and the empty environment
+ *)
+val all_eq_substs : (types * types) -> types -> types
