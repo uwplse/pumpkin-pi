@@ -10,6 +10,7 @@ open Evd
 open Utilities
 open Declarations
 open Univ
+open Command
        
 module CRD = Context.Rel.Declaration
 
@@ -49,6 +50,18 @@ let intern env evd t : types =
 (* Extern a term *)
 let extern env evd t : constr_expr =
   Constrextern.extern_constr true env evd t
+
+(* Define a new Coq term *)
+let define_term (n : Id.t) (env : env) (evm : evar_map) (trm : types) : unit =
+  do_definition
+    n
+    (Global, false, Definition)
+    None
+    []
+    None
+    (extern env evm trm)
+    None
+    (Lemmas.mk_hook (fun _ _ -> ()))
                              
 (* --- Constructing terms --- *)
 

@@ -8,7 +8,6 @@ open Format
 open Univ
 open Printer
 open Declarations
-open Command
 open Utilities
 open Coqterms
 open Hofs
@@ -90,18 +89,6 @@ type composition =
   }
   
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
-
-(* Define a new Coq term *)
-let define_term (n : Id.t) (env : env) evm (trm : types) : unit =
-  do_definition
-    n
-    (Global, false, Definition)
-    None
-    []
-    None
-    (extern env evm trm)
-    None
-    (Lemmas.mk_hook (fun _ _ -> ()))
 
 (* Make n relative indices, from highest to lowest *)
 let mk_n_rels n =
