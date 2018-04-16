@@ -54,9 +54,11 @@ vo_to_obj = $(addsuffix .o,\
 #                        #
 ##########################
 
-OCAMLLIBS?=-I "src"
+OCAMLLIBS?=-I "src/lib"\
+  -I "src"
 COQLIBS?=\
   -Q "theories" Ornamental\
+  -I "src/lib"\
   -I "src"
 COQCHKLIBS?=\
   -R "theories" Ornamental
@@ -194,6 +196,18 @@ endif
 
 .SECONDARY: $(addsuffix .d,$(ML4FILES))
 
+MLFILES:=src/lib/coqterms.ml
+
+ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
+-include $(addsuffix .d,$(MLFILES))
+else
+ifeq ($(MAKECMDGOALS),)
+-include $(addsuffix .d,$(MLFILES))
+endif
+endif
+
+.SECONDARY: $(addsuffix .d,$(MLFILES))
+
 MLPACKFILES:=src/ornaments.mlpack
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
@@ -206,15 +220,27 @@ endif
 
 .SECONDARY: $(addsuffix .d,$(MLPACKFILES))
 
-ALLCMOFILES:=$(ML4FILES:.ml4=.cmo) $(MLPACKFILES:.mlpack=.cmo)
+MLIFILES:=src/lib/coqterms.mli
+
+ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
+-include $(addsuffix .d,$(MLIFILES))
+else
+ifeq ($(MAKECMDGOALS),)
+-include $(addsuffix .d,$(MLIFILES))
+endif
+endif
+
+.SECONDARY: $(addsuffix .d,$(MLIFILES))
+
+ALLCMOFILES:=$(ML4FILES:.ml4=.cmo) $(MLFILES:.ml=.cmo) $(MLPACKFILES:.mlpack=.cmo)
 CMOFILES=$(filter-out $(addsuffix .cmo,$(foreach lib,$(MLLIBFILES:.mllib=_MLLIB_DEPENDENCIES) $(MLPACKFILES:.mlpack=_MLPACK_DEPENDENCIES),$($(lib)))),$(ALLCMOFILES))
-CMOFILESINC=$(filter $(wildcard src/*),$(CMOFILES)) 
+CMOFILESINC=$(filter $(wildcard src/lib/*),$(CMOFILES)) $(filter $(wildcard src/*),$(CMOFILES)) 
 CMXFILES=$(CMOFILES:.cmo=.cmx)
 OFILES=$(CMXFILES:.cmx=.o)
-CMIFILES=$(ALLCMOFILES:.cmo=.cmi)
-CMIFILESINC=$(filter $(wildcard src/*),$(CMIFILES)) 
+CMIFILES=$(sort $(ALLCMOFILES:.cmo=.cmi) $(MLIFILES:.mli=.cmi))
+CMIFILESINC=$(filter $(wildcard src/lib/*),$(CMIFILES)) $(filter $(wildcard src/*),$(CMIFILES)) 
 CMXSFILES=$(CMXFILES:.cmx=.cmxs)
-CMXSFILESINC=$(filter $(wildcard src/*),$(CMXSFILES)) 
+CMXSFILESINC=$(filter $(wildcard src/lib/*),$(CMXSFILES)) $(filter $(wildcard src/*),$(CMXSFILES)) 
 ifeq '$(HASNATDYNLINK)' 'true'
 HASNATDYNLINK_OR_EMPTY := yes
 else
@@ -228,6 +254,13 @@ endif
 #######################################
 
 all: $(VOFILES) $(CMOFILES) $(if $(HASNATDYNLINK_OR_EMPTY),$(CMXSFILES)) 
+
+mlihtml: $(MLIFILES:.mli=.cmi)
+	 mkdir $@ || rm -rf $@/*
+	$(OCAMLFIND) ocamldoc -html -rectypes -d $@ -m A $(ZDEBUG) $(ZFLAGS) $(^:.cmi=.mli)
+
+all-mli.tex: $(MLIFILES:.mli=.cmi)
+	$(OCAMLFIND) ocamldoc -latex -rectypes -o $@ -m A $(ZDEBUG) $(ZFLAGS) $(^:.cmi=.mli)
 
 quick: $(VOFILES:.vo=.vio)
 
@@ -320,6 +353,10 @@ install-doc:
 	for i in html/*; do \
 	 install -m 0644 $$i "$(DSTROOT)"$(COQDOCINSTALL)/Ornamental/$$i;\
 	done
+	install -d "$(DSTROOT)"$(COQDOCINSTALL)/Ornamental/mlihtml
+	for i in mlihtml/*; do \
+	 install -m 0644 $$i "$(DSTROOT)"$(COQDOCINSTALL)/Ornamental/$$i;\
+	done
 
 uninstall_me.sh: Makefile.coq
 	echo '#!/bin/sh' > $@
@@ -328,6 +365,9 @@ uninstall_me.sh: Makefile.coq
 	printf 'cd "$${DSTROOT}"$(COQDOCINSTALL)/Ornamental \\\n' >> "$@"
 	printf '&& rm -f $(shell find "html" -maxdepth 1 -and -type f -print)\n' >> "$@"
 	printf 'cd "$${DSTROOT}"$(COQDOCINSTALL) && find Ornamental/html -maxdepth 0 -and -empty -exec rmdir -p \{\} \;\n' >> "$@"
+	printf 'cd "$${DSTROOT}"$(COQDOCINSTALL)/Ornamental \\\n' >> "$@"
+	printf '&& rm -f $(shell find "mlihtml" -maxdepth 1 -and -type f -print)\n' >> "$@"
+	printf 'cd "$${DSTROOT}"$(COQDOCINSTALL) && find Ornamental/mlihtml -maxdepth 0 -and -empty -exec rmdir -p \{\} \;\n' >> "$@"
 	chmod +x $@
 
 uninstall: uninstall_me.sh
@@ -353,6 +393,8 @@ uninstall: uninstall_me.sh
 	@echo "B $(COQLIB)config" >> .merlin
 	@echo "B $(COQLIB)ltac" >> .merlin
 	@echo "B $(COQLIB)engine" >> .merlin
+	@echo "B /home/tringer/ornamental-search/plugin/src/lib" >> .merlin
+	@echo "S /home/tringer/ornamental-search/plugin/src/lib" >> .merlin
 	@echo "B /home/tringer/ornamental-search/plugin/src" >> .merlin
 	@echo "S /home/tringer/ornamental-search/plugin/src" >> .merlin
 
@@ -391,6 +433,14 @@ Makefile.coq: _CoqProject
 #                 #
 ###################
 
+$(MLIFILES:.mli=.cmi): %.cmi: %.mli
+	$(SHOW)'CAMLC -c $<'
+	$(HIDE)$(CAMLC) $(ZDEBUG) $(ZFLAGS) $<
+
+$(addsuffix .d,$(MLIFILES)): %.mli.d: %.mli
+	$(SHOW)'CAMLDEP $<'
+	$(HIDE)$(CAMLDEP) $(OCAMLLIBS) "$<" > "$@" || ( RV=$$?; rm -f "$@"; exit $${RV} )
+
 $(ML4FILES:.ml4=.cmo): %.cmo: %.ml4
 	$(SHOW)'CAMLC -pp -c $<'
 	$(HIDE)$(CAMLC) $(ZDEBUG) $(ZFLAGS) $(PP) -impl $<
@@ -402,6 +452,18 @@ $(filter-out $(addsuffix .cmx,$(foreach lib,$(MLPACKFILES:.mlpack=_MLPACK_DEPEND
 $(addsuffix .d,$(ML4FILES)): %.ml4.d: %.ml4
 	$(SHOW)'CAMLDEP -pp $<'
 	$(HIDE)$(CAMLDEP) $(OCAMLLIBS) $(PP) -impl "$<" > "$@" || ( RV=$$?; rm -f "$@"; exit $${RV} )
+
+$(MLFILES:.ml=.cmo): %.cmo: %.ml
+	$(SHOW)'CAMLC -c $<'
+	$(HIDE)$(CAMLC) $(ZDEBUG) $(ZFLAGS) $<
+
+$(filter-out $(addsuffix .cmx,$(foreach lib,$(MLPACKFILES:.mlpack=_MLPACK_DEPENDENCIES),$($(lib)))),$(MLFILES:.ml=.cmx)): %.cmx: %.ml
+	$(SHOW)'CAMLOPT -c $<'
+	$(HIDE)$(CAMLOPTC) $(ZDEBUG) $(ZFLAGS) $<
+
+$(addsuffix .d,$(MLFILES)): %.ml.d: %.ml
+	$(SHOW)'CAMLDEP $<'
+	$(HIDE)$(CAMLDEP) $(OCAMLLIBS) "$<" > "$@" || ( RV=$$?; rm -f "$@"; exit $${RV} )
 
 $(filter-out $(MLLIBFILES:.mllib=.cmxs),$(MLFILES:.ml=.cmxs) $(ML4FILES:.ml4=.cmxs) $(MLPACKFILES:.mlpack=.cmxs)): %.cmxs: %.cmx
 	$(SHOW)'CAMLOPT -shared -o $@'

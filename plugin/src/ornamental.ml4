@@ -9,6 +9,7 @@ open Univ
 open Printer
 open Declarations
 open Command
+open Coqterms
 
 module CRD = Context.Rel.Declaration
 

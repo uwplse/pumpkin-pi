@@ -1,5 +1,9 @@
+-I src/lib
 -I src
 -Q theories Ornamental
+
+src/lib/coqterms.ml
+src/lib/coqterms.mli
 
 src/ornamental.ml4
 src/ornaments.mlpack
