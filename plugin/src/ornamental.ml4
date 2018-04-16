@@ -91,42 +91,6 @@ type composition =
   
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
-(* Map a substitution over a term *)
-let all_substs p env (src, dst) trm : types =
-  map_term_env_if
-    (fun en (s, _) t -> p en s t)
-    (fun _ (_, d) _ -> d)
-    (fun (s, d) -> (shift s, shift d))
-    env
-    (src, dst)
-    trm
-
-(* Locally empty environment *)
-let empty = Global.env ()
-
-(* Map_term_env_if with an empty environment *)
-let map_term_if p f d =
-  map_term_env_if
-    (fun _ a t -> p a t)
-    (fun _ a t -> f a t)
-    d
-    empty
-
-(* Lazy version *)
-let map_term_if_lazy p f d =
-  map_term_env_if_lazy
-    (fun _ a t -> p a t)
-    (fun _ a t -> f a t)
-    d
-    empty
-
-(* exists_subterm_env with an empty environment *)
-let exists_subterm p d =
-  exists_subterm_env
-    (fun _ a t -> p a t)
-    d
-    empty
-
 (* map env without any a *)
 let map_unit_env mapper p f env trm =
   mapper (fun en _ t -> p en t) (fun en _ t -> f en t) (fun _ -> ()) env () trm
@@ -175,7 +139,7 @@ let all_conv_substs =
 
 (* Same, but eq_constr *)
 let all_eq_substs =
-  all_substs (fun _ -> eq_constr) empty
+  all_substs (fun _ -> eq_constr) (*empty TODO *) (Global.env ())
 
 (* Define a new Coq term *)
 let define_term (n : Id.t) (env : env) evm (trm : types) : unit =

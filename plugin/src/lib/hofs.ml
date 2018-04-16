@@ -161,3 +161,41 @@ let rec map_term_env_if_lazy p f d (env : env) (a : 'a) (trm : types) : types =
     | _ ->
        trm
   in if p env a trm' then f env a trm' else trm'
+
+(* Locally empty environment *)
+let empty = Global.env ()
+
+(* Map_term_env_if with an empty environment *)
+let map_term_if p f d =
+  map_term_env_if
+    (fun _ a t -> p a t)
+    (fun _ a t -> f a t)
+    d
+    empty
+
+(* Lazy version *)
+let map_term_if_lazy p f d =
+  map_term_env_if_lazy
+    (fun _ a t -> p a t)
+    (fun _ a t -> f a t)
+    d
+    empty
+
+(* exists_subterm_env with an empty environment *)
+let exists_subterm p d =
+  exists_subterm_env
+    (fun _ a t -> p a t)
+    d
+    empty
+
+(* --- Substitution --- *)
+
+(* Map a substitution over a term *)
+let all_substs p env (src, dst) trm : types =
+  map_term_env_if
+    (fun en (s, _) t -> p en s t)
+    (fun _ (_, d) _ -> d)
+    (fun (s, d) -> (shift s, shift d))
+    env
+    (src, dst)
+    trm

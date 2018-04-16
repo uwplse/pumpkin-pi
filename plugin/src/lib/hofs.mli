@@ -27,6 +27,17 @@ val map_term_env_if :
   types
 
 (*
+ * Like map_term_env_if, but use an empty environment
+ *)
+val map_term_if :
+  ('a -> types -> bool) ->
+  ('a -> types -> types) ->
+  ('a -> 'a) ->
+  'a ->
+  types ->
+  types
+
+(*
  * Map a function over a term in an environment
  * Only apply the function when a proposition is true
  * Apply the function lazily
@@ -39,6 +50,17 @@ val map_term_env_if_lazy :
   (env -> 'a -> types -> types) ->
   ('a -> 'a) ->
   env ->
+  'a ->
+  types ->
+  types
+
+(*
+ * Like map_term_env_if_lazy, but use the empty environment
+ *)
+val map_term_if_lazy :
+  ('a -> types -> bool) ->
+  ('a -> types -> types) ->
+  ('a -> 'a) ->
   'a ->
   types ->
   types
@@ -58,3 +80,28 @@ val exists_subterm_env :
   'a ->
   types ->
   bool
+
+(* 
+ * Like exists_subterm_env, but use the empty environment 
+ *)
+val exists_subterm :
+  ('a -> types -> bool) ->
+  ('a -> 'a) ->
+  'a ->
+  types ->
+  bool
+
+(* --- Substitution --- *)
+
+(* 
+ * Map a substitution over subterms of a term at the highest level possible
+ * Apply the substitution only when the proposition is true
+ *)
+val all_substs :
+  (env -> types -> types -> bool) ->
+  env ->
+  (types * types) ->
+  types ->
+  types
+
+    
