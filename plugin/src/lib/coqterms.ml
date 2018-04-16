@@ -210,3 +210,9 @@ let applies (f : types) (trm : types) =
 (* Check whether trm is trm' or applies trm', using eq_constr *)
 let is_or_applies (trm' : types) (trm : types) : bool =
   applies trm' trm || eq_constr trm' trm
+
+(* --- Convertibility and types --- *)
+                                
+(* Infer the type of trm in env *)
+let infer_type (env : env) (evd : evar_map) (trm : types) : types =
+  Typing.unsafe_type_of env evd trm

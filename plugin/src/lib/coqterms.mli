@@ -105,3 +105,13 @@ val applies : types -> types -> bool
  * Check whether a term either is exactly a function or applies it
  *)
 val is_or_applies : types  -> types -> bool
+
+(* --- Convertibility and types --- *)
+                                
+(*
+ * Type-checking
+ * 
+ * Current implementation may cause universe leaks, which will just cause 
+ * conservative failure of the plugin
+ *)
+val infer_type : env -> evar_map -> types -> types

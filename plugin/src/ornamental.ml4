@@ -89,13 +89,6 @@ type composition =
   
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
-(* Infer the type of trm in env *)
-let infer_type (env : env) evd (trm : types) : types =
-  Typing.unsafe_type_of env evd trm
-      (*
-  let jmt = Typeops.infer env trm in
-  j_type jmt*)
-
 (* Always true *)
 let always_true _ = true
                                 
