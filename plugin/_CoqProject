@@ -7,6 +7,10 @@ src/lib/utilities.mli
 
 src/lib/coqterms.ml
 src/lib/coqterms.mli
+src/lib/debruijn.ml
+src/lib/debruijn.mli
+src/lib/hofs.ml
+src/lib/hofs.mli
 
 src/ornamental.ml4
 src/ornaments.mlpack

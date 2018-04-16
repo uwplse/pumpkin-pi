@@ -158,3 +158,29 @@ val reconstruct_product_n : env -> types -> int -> types
 val reconstruct_lambda : env -> types -> types
 val reconstruct_product : env -> types -> types
 
+(* --- Basic mapping --- *)
+
+val map_rec_env_fix :
+  (env -> 'a -> 'b) ->
+  ('a -> 'a) ->
+  env ->
+  'a ->
+  name array ->
+  types array ->
+  'b
+    
+val map_term_env :
+  (env -> 'a -> types -> types) ->
+  ('a -> 'a) ->
+  env ->
+  'a ->
+  types ->
+  types
+
+val map_term :
+  ('a -> types -> types) ->
+  ('a -> 'a) ->
+  'a ->
+  types ->
+  types
+
