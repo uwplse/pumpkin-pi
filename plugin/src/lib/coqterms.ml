@@ -16,6 +16,9 @@ module CRD = Context.Rel.Declaration
 
 (* --- Constants --- *)
 
+(* The current path *)
+let current_path = ModPath.MPfile (Global.current_dirpath ())
+
 let coq_init_specif =
   ModPath.MPfile
     (DirPath.make (List.map Id.of_string ["Specif"; "Init"; "Coq"]))
@@ -155,6 +158,10 @@ let type_eliminator (env : env) (ind : inductive) =
 let all_rel_indexes (env : env) : int list =
   from_one_to (nb_rel env)
 
+(* Make n relative indices, from highest to lowest *)
+let mk_n_rels n =
+  List.map mkRel (List.rev (from_one_to n))
+              
 (* Push a local binding to an environment *)
 let push_local (n, t) = push_rel CRD.(LocalAssum (n, t))
 

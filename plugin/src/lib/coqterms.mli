@@ -12,7 +12,9 @@ open Declarations
 module CRD = Context.Rel.Declaration
 
 (* --- Constants --- *)
-                                     
+
+val current_path : ModPath.t
+               
 val sigT : types
 val existT : types
 val sigT_rect : types
@@ -77,7 +79,12 @@ val type_eliminator : env -> inductive -> types
 (*
  * Return a list of all indexes in env as ints, starting with 1
  *)
-val all_rel_indexes : env -> int list                              
+val all_rel_indexes : env -> int list
+
+(*
+ * Return a list of relative indexes, from highest to lowest, of size n
+ *)
+val mk_n_rels : int -> types list
 
 (*
  * Push to an environment

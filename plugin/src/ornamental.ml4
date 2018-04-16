@@ -90,13 +90,6 @@ type composition =
   
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
-(* Make n relative indices, from highest to lowest *)
-let mk_n_rels n =
-  List.map mkRel (List.rev (from_one_to n))
-
-(* The current path *)
-let current_path = ModPath.MPfile (Global.current_dirpath ())
-
 (* Define a constant from an ID in the current path *)
 let make_constant id =
   mkConst (Constant.make2 current_path (Label.of_id id))
