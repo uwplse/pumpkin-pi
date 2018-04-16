@@ -199,3 +199,19 @@ let all_substs p env (src, dst) trm : types =
     env
     (src, dst)
     trm
+
+(* --- Variations --- *)
+
+(* map env without any a *)
+let map_unit_env mapper p f env trm =
+  mapper (fun en _ t -> p en t) (fun en _ t -> f en t) (fun _ -> ()) env () trm
+         
+(* map without any a *)
+let map_unit mapper p f trm =
+  mapper (fun _ t -> p t) (fun _ t -> f t) (fun _ -> ()) () trm
+
+(* Some simple combinations *)
+let map_unit_env_if = map_unit_env map_term_env_if
+let map_unit_env_if_lazy = map_unit_env map_term_env_if_lazy
+let map_unit_if = map_unit map_term_if
+let map_unit_if_lazy = map_unit map_term_if_lazy

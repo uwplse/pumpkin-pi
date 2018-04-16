@@ -90,48 +90,6 @@ type composition =
   }
   
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
-
-(* map env without any a *)
-let map_unit_env mapper p f env trm =
-  mapper (fun en _ t -> p en t) (fun en _ t -> f en t) (fun _ -> ()) env () trm
-         
-(* map without any a *)
-let map_unit mapper p f trm =
-  mapper (fun _ t -> p t) (fun _ t -> f t) (fun _ -> ()) () trm
-
-(* map and track with environments *)
-let map_track_env mapper p f d env a trm =
-  let occ = ref 0 in
-  let f_track en a t = occ := !occ + 1; f en a t in
-  (!occ, mapper p f_track d env a trm)
-
-(* map and track *)
-let map_track mapper p f d a trm =
-  let occ = ref 0 in
-  let f_track a t = occ := !occ + 1; f a t in
-  (!occ, mapper p f_track d a trm)
-
-(* map and track with environments *)
-let map_track_env_unit mapper p f env trm =
-  let occ = ref 0 in
-  let f_track en t = occ := !occ + 1; f en t in
-  (!occ, map_unit_env mapper p f_track env trm)
-
-(* map and track without any a *)
-let map_track_unit mapper p f trm =
-  let occ = ref 0 in
-  let f_track t = occ := !occ + 1; f t in
-  (!occ, map_unit mapper p f_track trm)
-
-(* Some simple combinations *)
-let map_track_unit_env_if = map_track_env_unit map_term_env_if
-let map_track_unit_env_if_lazy = map_track_env_unit map_term_env_if_lazy
-let map_unit_env_if = map_unit_env map_term_env_if
-let map_unit_env_if_lazy = map_unit_env map_term_env_if_lazy
-let map_track_unit_if = map_track_unit map_term_if
-let map_track_unit_if_lazy = map_track_unit map_term_if_lazy
-let map_unit_if = map_unit map_term_if
-let map_unit_if_lazy = map_unit map_term_if_lazy
                              
 (* In env, substitute all subterms of trm that are convertible to src with dst *)
 let all_conv_substs =

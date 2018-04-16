@@ -27,6 +27,16 @@ val map_term_env_if :
   types
 
 (*
+ * Like map_term_env_if, but use unit for 'a
+ *)
+val map_unit_env_if :
+  (env -> types -> bool) ->
+  (env -> types -> types) ->
+  env ->
+  types ->
+  types
+
+(*
  * Like map_term_env_if, but use an empty environment
  *)
 val map_term_if :
@@ -36,6 +46,16 @@ val map_term_if :
   'a ->
   types ->
   types
+
+(*
+ * Like map_term_if, but use unit for 'a
+ *)
+val map_unit_if :
+  (types -> bool) ->
+  (types -> types) ->
+  types ->
+  types
+
 
 (*
  * Map a function over a term in an environment
@@ -54,6 +74,17 @@ val map_term_env_if_lazy :
   types ->
   types
 
+
+(*
+ * Like map_term_env_if_lazy, but use unit for 'a
+ *)
+val map_unit_env_if_lazy :
+  (env -> types -> bool) ->
+  (env -> types -> types) ->
+  env ->
+  types ->
+  types
+
 (*
  * Like map_term_env_if_lazy, but use the empty environment
  *)
@@ -62,6 +93,15 @@ val map_term_if_lazy :
   ('a -> types -> types) ->
   ('a -> 'a) ->
   'a ->
+  types ->
+  types
+    
+(*
+ * Like map_term_if_lazy, but use unit for 'a
+ *)
+val map_unit_if_lazy :
+  (types -> bool) ->
+  (types -> types) ->
   types ->
   types
 
