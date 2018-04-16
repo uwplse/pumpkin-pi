@@ -45,6 +45,11 @@ val define_term : Id.t -> env -> evar_map -> types -> unit
  *)
 val mkAppl : (types * types list) -> types
 
+(* 
+ * Define a constant from an ID in the current path
+ *)
+val make_constant: Id.t -> types
+
 (*
  * Ornament between products and lambdas, without changing anything else
  *)
@@ -123,7 +128,7 @@ val applies : types -> types -> bool
  *)
 val is_or_applies : types  -> types -> bool
 
-(* --- Convertibility and types --- *)
+(* --- Convertibility, reduction, and types --- *)
                                 
 (*
  * Type-checking
@@ -137,6 +142,25 @@ val infer_type : env -> evar_map -> types -> types
  * Convertibility, ignoring universe constraints
  *)
 val convertible : env -> types -> types -> bool
+
+(*
+ * Reduction
+ *)
+val reduce_term : env -> types -> types (* betaiotazeta *)
+val delta : env -> types -> types (* delta *)
+val reduce_nf : env -> types ->  types (* nf_all *)
+val reduce_type : env -> evar_map -> types -> types (* betaiotazeta on types *)
+val chain_reduce : (* sequencing *)
+  (env -> types -> types) ->
+  (env -> types -> types) ->
+  env ->
+  types ->
+  types
+
+(* 
+ * Apply a function on a type instead of on the term
+ *)
+val on_type : (types -> 'a) -> env -> evar_map -> types -> 'a
 
 (* --- Zooming and reconstructing --- *)
                     
@@ -196,3 +220,9 @@ val map_term :
   types ->
   types
 
+(* --- Names --- *)
+
+(* 
+ * Add a string suffix to a name identifier 
+ *)
+val with_suffix : Id.t -> string -> Id.t

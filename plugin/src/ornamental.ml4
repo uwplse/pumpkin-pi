@@ -87,41 +87,6 @@ type composition =
     f : env * types;
     is_g : bool;
   }
-  
-(* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
-
-(* Define a constant from an ID in the current path *)
-let make_constant id =
-  mkConst (Constant.make2 current_path (Label.of_id id))
-
-(* Add a suffix to a name identifier *)
-let with_suffix id suffix =
-  let prefix = Id.to_string id in
-  Id.of_string (String.concat "_" [prefix; suffix])
-               
-(* Default reducer *)
-let reduce_term (env : env) (trm : types) : types =
-  Reductionops.nf_betaiotazeta Evd.empty trm
-
-(* Delta reduction *)
-let delta (env : env) (trm : types) =
-  Reductionops.whd_delta env Evd.empty trm
-                         
-(* nf_all *)
-let reduce_nf (env : env) (trm : types) : types =
-  Reductionops.nf_all env Evd.empty trm
-
-(* Reduce the type *)
-let reduce_type (env : env) evd (trm : types) : types =
-  reduce_term env (infer_type env evd trm)
-
-(* Chain reduction *)
-let chain_reduce rg rf (env : env) (trm : types) : types =
-  rg env (rf env trm)
-
-(* Apply on types instead of on terms *)
-let on_type f env evd trm =
-  f (reduce_type env evd trm)
 
 (* --- Debugging, from PUMPKIN PATCH --- *)
 
