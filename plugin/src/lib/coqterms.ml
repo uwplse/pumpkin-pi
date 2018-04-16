@@ -8,7 +8,9 @@ open Names
 open Constrexpr
 open Evd
 open Utilities
-
+open Declarations
+open Univ
+       
 module CRD = Context.Rel.Declaration
 
 (* --- Constants --- *)
@@ -68,6 +70,67 @@ let rec lambda_to_prod trm =
      mkProd (n, t, lambda_to_prod b)
   | _ ->
      trm
+
+(* --- Inductive types and their eliminators --- *)
+
+(* Don't support mutually inductive or coinductive types yet *)
+let check_inductive_supported mutind_body : unit =
+  let ind_bodies = mutind_body.mind_packets in
+  if not (Array.length ind_bodies = 1) then
+    failwith "mutually inductive types not yet supported"
+  else
+    if (mutind_body.mind_finite = Decl_kinds.CoFinite) then
+      failwith "coinductive types not yet supported"
+    else
+      ()
+
+(*
+ * Check if a constant is an inductive elminator
+ * If so, return the inductive type
+ *)
+let inductive_of_elim (env : env) (pc : pconstant) : mutual_inductive option =
+  let (c, u) = pc in
+  let kn = Constant.canonical c in
+  let (modpath, dirpath, label) = KerName.repr kn in
+  let rec try_find_ind is_rev =
+    try
+      let label_string = Label.to_string label in
+      let label_length = String.length label_string in
+      let split_index = String.rindex_from label_string (if is_rev then (label_length - 3) else label_length) '_'  in
+      let suffix_length = label_length - split_index in
+      let suffix = String.sub label_string split_index suffix_length in
+      if (suffix = "_ind" || suffix = "_rect" || suffix = "_rec" || suffix = "_ind_r") then
+        let ind_label_string = String.sub label_string 0 split_index in
+        let ind_label = Label.of_id (Id.of_string_soft ind_label_string) in
+        let ind_name = MutInd.make1 (KerName.make modpath dirpath ind_label) in
+        lookup_mind ind_name env;
+        Some ind_name
+      else
+        if not is_rev then
+          try_find_ind true
+        else
+          None
+    with _ ->
+      if not is_rev then
+        try_find_ind true
+      else
+        None
+  in try_find_ind false
+
+(*
+ * Boolean version of above that doesn't care about the term type
+ *)
+let is_elim (env : env) (trm : types) =
+  isConst trm && Option.has_some (inductive_of_elim env (destConst trm))
+
+(* Get the type of an inductive type *)
+let type_of_inductive env index mutind_body : types =
+  let ind_bodies = mutind_body.mind_packets in
+  let ind_body = Array.get ind_bodies index in
+  let univ_context = mutind_body.mind_universes in
+  let univ_instance = UContext.instance univ_context in
+  let mutind_spec = (mutind_body, ind_body) in
+  Inductive.type_of_inductive env (mutind_spec, univ_instance)
                              
 (* --- Environments --- *)
 

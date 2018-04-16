@@ -7,6 +7,7 @@ open Term
 open Evd
 open Constrexpr
 open Names
+open Declarations
 
 (* --- Constants --- *)
                                      
@@ -40,7 +41,25 @@ val mkAppl : (types * types list) -> types
  *)
 val prod_to_lambda : types -> types
 val lambda_to_prod : types -> types
-                                           
+
+(* --- Inductive types and their eliminators --- *)
+
+(*
+ * Fail if the inductive type is mutually inductive or coinductive
+ *)
+val check_inductive_supported : mutual_inductive_body -> unit
+
+(*
+ * Determine if a term represents an inductive eliminator
+ * For now, this is a naive syntactic check
+ *)
+val is_elim : env -> types -> bool
+
+(*
+ * Get the type of an inductive type
+ *)
+val type_of_inductive : env -> int -> mutual_inductive_body -> types
+                                
 (* --- Environments --- *)
 
 (*
