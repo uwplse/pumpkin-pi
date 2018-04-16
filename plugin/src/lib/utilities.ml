@@ -66,3 +66,10 @@ let rec range (min : int) (max : int) : int list =
 (* Creates a list from the index 1 to max, inclusive *)
 let from_one_to (max : int) : int list =
   range 1 (max + 1)
+
+(* Always true *)
+let always_true _ = true
+                                
+(* Check that p a and p b are both true *)
+let and_p (p : 'a -> bool) (o : 'a) (n : 'a) : bool =
+  p o && p n

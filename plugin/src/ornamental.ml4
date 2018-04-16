@@ -89,13 +89,6 @@ type composition =
   
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
-(* Always true *)
-let always_true _ = true
-                                
-(* Check that p a and p b are both true *)
-let and_p (p : 'a -> bool) (o : 'a) (n : 'a) : bool =
-  p o && p n
-
 (* Check whether two terms are convertible, ignoring universe inconsistency *)
 let conv_ignoring_univ_inconsistency env evm trm1 trm2 : bool =
   try

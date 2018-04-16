@@ -44,3 +44,8 @@ val from_one_to : int -> int list
 (* --- Tuples --- *)
 
 val map_tuple : ('a -> 'b) -> ('a * 'a) -> ('b * 'b)
+
+(* --- Propositions --- *)
+
+val always_true : 'a -> bool
+val and_p : ('a -> bool) -> 'a -> 'a -> bool
