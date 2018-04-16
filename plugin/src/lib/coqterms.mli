@@ -8,6 +8,8 @@ open Evd
 open Constrexpr
 open Names
 open Declarations
+       
+module CRD = Context.Rel.Declaration
 
 (* --- Constants --- *)
                                      
@@ -78,3 +80,11 @@ val push_let_in : (name * types * types) -> env -> env
  *)
 val lookup_definition : env -> types -> types
 val unwrap_definition : env -> types -> types
+
+(*
+ * Get bindings to push to an environment
+ *)
+val bindings_for_inductive :
+  env -> mutual_inductive_body -> one_inductive_body array -> CRD.t list
+val bindings_for_fix : name array -> types array -> CRD.t list
+                                                          

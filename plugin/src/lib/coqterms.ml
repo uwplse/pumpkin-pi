@@ -163,3 +163,25 @@ let rec unwrap_definition (env : env) (trm : types) : types =
   with _ ->
     trm
 
+(*
+ * Inductive types create bindings that we need to push to the environment
+ * This function gets those bindings
+ *)
+let bindings_for_inductive env mutind_body ind_bodies : CRD.t list =
+  Array.to_list
+    (Array.mapi
+       (fun i ind_body ->
+         let name_id = ind_body.mind_typename in
+         let typ = type_of_inductive env i mutind_body in
+         CRD.LocalAssum (Names.Name name_id, typ))
+       ind_bodies)
+
+(*
+ * Similarly but for fixpoints
+ *)
+let bindings_for_fix (names : name array) (typs : types array) : CRD.t list =
+  Array.to_list
+    (CArray.map2_i
+       (fun i name typ -> CRD.LocalAssum (name, Vars.lift i typ))
+       names typs)
+
