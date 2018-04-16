@@ -1,0 +1,68 @@
+(*
+ * Basic utilities for collections, optionals, and so on
+ *)
+
+(* This should be in the standard library, but isn't bound for some reason *)
+let map_default f default x =
+  if Option.has_some x then f (Option.get x) else default
+
+(* Get the last element of a list *)
+let last (l : 'a list) : 'a =
+  List.hd (List.rev l)
+
+(* Snoc *)
+let snoc (a : 'a) (l : 'a list) : 'a list =
+  List.append l [a]
+
+(* Take n elements of a list *)
+let rec take (i : int) (l : 'a list) : 'a list =
+  if i = 0 then
+    []
+  else
+    match l with
+    | [] ->
+       []
+    | h :: tl ->
+       h :: (take (i - 1) tl)
+
+(* Take all but n elements of a list *)
+let take_except (i : int) (l : 'a list) : 'a list =
+  take (List.length l - i) l
+
+(* Like take, but return the remainder too *)
+let rec take_split (i : int) (l : 'a list) : ('a list * 'a list) =
+  if i = 0 then
+    ([], l)
+  else
+    match l with
+    | [] ->
+       ([], [])
+    | h :: tl ->
+       let (before, after) = take_split (i - 1) tl in
+       (h :: before, after)
+
+(* Map f over a tuple *)
+let map_tuple (f : 'a -> 'b) ((a1, a2) : ('a * 'a)) : ('b * 'b) =
+  (f a1, f a2)
+
+(* Map3 *)
+let rec map3 (f : 'a -> 'b -> 'c -> 'd) l1 l2 l3 : 'd list =
+  match (l1, l2, l3) with
+  | ([], [], []) ->
+     []
+  | (h1 :: t1, h2 :: t2, h3 :: t3) ->
+     let r = f h1 h2 h3 in r :: map3 f t1 t2 t3
+
+(*
+ * Creates a list of the range of min to max, excluding max
+ * This is an auxiliary function renamed from seq in template-coq
+ *)
+let rec range (min : int) (max : int) : int list =
+  if min < max then
+    min :: range (min + 1) max
+  else
+    []
+
+(* Creates a list from the index 1 to max, inclusive *)
+let from_one_to (max : int) : int list =
+  range 1 (max + 1)

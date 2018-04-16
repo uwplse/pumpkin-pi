@@ -2,6 +2,9 @@
 -I src
 -Q theories Ornamental
 
+src/lib/utilities.ml
+src/lib/utilities.mli
+
 src/lib/coqterms.ml
 src/lib/coqterms.mli
 
