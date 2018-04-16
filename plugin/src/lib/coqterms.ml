@@ -5,6 +5,8 @@
 open Environ
 open Term
 open Names
+open Constrexpr
+open Evd
 
 (* --- Constants --- *)
 
@@ -31,3 +33,18 @@ let projT1 : types =
 (* Right projection *)
 let projT2 : types =
   mkConst (Constant.make2 coq_init_specif (Label.make "projT2"))
+
+(* --- Representations --- *)
+
+(* Intern a term (for now, ignore the resulting evar_map) *)
+let intern env evd t : types =
+  let (trm, _) = Constrintern.interp_constr env evd t in
+  trm
+
+(* Extern a term *)
+let extern env evd t : constr_expr =
+  Constrextern.extern_constr true env evd t
+          
+(* --- Terms --- *)
+          
+(* --- Environments --- *)

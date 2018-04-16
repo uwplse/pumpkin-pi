@@ -93,15 +93,6 @@ type composition =
 let all_rel_indexes (env : env) : int list =
   from_one_to (nb_rel env)
 
-(* Intern a term *)
-let intern env evm t : types =
-  let (trm, _) = Constrintern.interp_constr env evm t in
-  trm
-
-(* Extern a term *)
-let extern env evm t : Constrexpr.constr_expr =
-  Constrextern.extern_constr true env evm t
-
 (* mkApp with a list *)
 let mkAppl (f, args) = mkApp (f, Array.of_list args)
 
