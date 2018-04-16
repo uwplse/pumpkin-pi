@@ -89,19 +89,6 @@ type composition =
   
 (* --- Auxiliary functions, mostly from PUMPKIN PATCH --- *)
 
-(* Check whether two terms are convertible, ignoring universe inconsistency *)
-let conv_ignoring_univ_inconsistency env evm trm1 trm2 : bool =
-  try
-    Reductionops.is_conv env evm trm1 trm2
-  with _ ->
-    match map_tuple kind_of_term (trm1, trm2) with
-    | (Sort (Type u1), Sort (Type u2)) -> true
-    | _ -> false
-
-(* Checks whether two terms are convertible in env with no evars *)
-let convertible (env : env) (trm1 : types) (trm2 : types) : bool =
-  conv_ignoring_univ_inconsistency env Evd.empty trm1 trm2
-
 (* Lookup the eliminator over the type sort *)
 let type_eliminator (env : env) (ind : inductive) =
   Universes.constr_of_global (Indrec.lookup_eliminator ind InType)

@@ -115,3 +115,8 @@ val is_or_applies : types  -> types -> bool
  * conservative failure of the plugin
  *)
 val infer_type : env -> evar_map -> types -> types
+                                               
+(*
+ * Convertibility, ignoring universe constraints
+ *)
+val convertible : env -> types -> types -> bool

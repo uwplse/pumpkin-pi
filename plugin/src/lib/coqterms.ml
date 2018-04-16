@@ -216,3 +216,16 @@ let is_or_applies (trm' : types) (trm : types) : bool =
 (* Infer the type of trm in env *)
 let infer_type (env : env) (evd : evar_map) (trm : types) : types =
   Typing.unsafe_type_of env evd trm
+
+(* Check whether two terms are convertible, ignoring universe inconsistency *)
+let conv_ignoring_univ_inconsistency env evm trm1 trm2 : bool =
+  try
+    Reductionops.is_conv env evm trm1 trm2
+  with _ ->
+    match map_tuple kind_of_term (trm1, trm2) with
+    | (Sort (Type u1), Sort (Type u2)) -> true
+    | _ -> false
+
+(* Checks whether two terms are convertible in env with no evars *)
+let convertible (env : env) (trm1 : types) (trm2 : types) : bool =
+  conv_ignoring_univ_inconsistency env Evd.empty trm1 trm2
