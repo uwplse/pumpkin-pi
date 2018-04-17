@@ -121,13 +121,19 @@ val arity : types -> int
 (* 
  * Check whether a term (second argument) applies a function (first argument)
  * Don't consider terms convertible to the function
+ *
+ * In the plural version, check for both the second and third terms
  *)
 val applies : types -> types -> bool
+val apply : types -> types -> types -> bool
 
 (*
  * Check whether a term either is exactly a function or applies it
+ *
+ * In the plural version, check for both the second and the third terms
  *)
 val is_or_applies : types  -> types -> bool
+val are_or_apply : types -> types -> types -> bool
 
 (* --- Convertibility, reduction, and types --- *)
                                 

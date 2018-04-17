@@ -95,6 +95,7 @@ type composition =
 
 (*
  * Remove the binding at index i from the environment
+ * TODO move this wherever you move pack/unpack
  *)
 let remove_rel (i : int) (env : env) : env =
   let (env_pop, popped) = lookup_pop i env in
@@ -105,9 +106,6 @@ let remove_rel (i : int) (env : env) : env =
         (n, unshift_local (i - j - 1) 1 t))
       (List.rev (List.tl (List.rev popped)))
   in List.fold_right push_local push env_pop
-
-let are_or_apply (trm : types) = and_p (is_or_applies trm)
-let apply (trm : types) = and_p (applies trm)
 
 (* is_or_applies over two terms with a different check *)
 let apply_old_new (o : types * types) (n : types * types) : bool =

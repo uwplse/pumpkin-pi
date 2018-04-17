@@ -244,6 +244,10 @@ let applies (f : types) (trm : types) =
 let is_or_applies (trm' : types) (trm : types) : bool =
   applies trm' trm || eq_constr trm' trm
 
+(* Versions over two terms *)
+let are_or_apply (trm : types) = and_p (is_or_applies trm)
+let apply (trm : types) = and_p (applies trm)
+
 (* --- Convertibility, reduction, and types --- *)
                                 
 (* Infer the type of trm in env *)
