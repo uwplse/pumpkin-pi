@@ -169,18 +169,20 @@ let assume_no_replace (assum : types) (env : env) (n : name) (typ : types) : env
 (* 
  * Update the assumptions to search recursively
  *)
-let rec assume_args off trees assum_ind tree_i factors_left args =
-  match args with
-  | h :: tl ->
-     let (h', factors_left') =
-       (match (Array.get trees tree_i) with
-        | Factor (_, _) ->
-           (mkRel (factors_left + assum_ind - 1), factors_left - 1)
-        | Unit ->
-           (shift_local assum_ind off h, factors_left))
-     in h' :: (assume_args off trees assum_ind (tree_i + 1) factors_left' tl)
-  | [] ->
-     []
+let assume_args off trees assum_ind tree_i factors_left args =
+  let rec assume_rec tree_i factors_left args =
+    match args with
+    | h :: tl ->
+       let (h', factors_left') =
+         (match Array.get trees tree_i with
+          | Factor (_, _) ->
+             (mkRel (factors_left + assum_ind - 1), factors_left - 1)
+          | Unit ->
+             (shift_local assum_ind off h, factors_left))
+       in h' :: (assume_rec (tree_i + 1) factors_left' tl)
+    | [] ->
+       []
+  in assume_rec tree_i factors_left args
 
 (*
  * Dependent version of the above
@@ -206,21 +208,23 @@ let rec find_path_dep (assum : types) (env : env) evd (trm : types) : factor_tre
                if List.length cn > 0 then
                  let (Factor ((en_prev, prev), _)) = List.hd cn in
                  let off = nb_rel en - nb_rel en_prev in
-                 let t = reduce_type env_arg evd arg in
-                 let t = all_conv_substs en_prev (prev, mkRel (assum_ind - off)) t in
-                 let en_t = assume_no_replace assum en Anonymous (shift_by (off - assum_ind + 1) t) in
+                 let assum_ind_sub = assum_ind - off in
+                 let assum_sub = mkRel assum_ind_sub in
+                 let sub_assum = all_conv_substs en_prev (prev, assum_sub) in
+                 let t = on_type sub_assum env_arg evd arg in
+                 let t_shift = shift_by (1 - assum_ind_sub) t in 
+                 let en_t = assume_no_replace assum en Anonymous t_shift in
                  (en_t, ((Factor ((env_arg, arg), children)) :: cn))
                else
-                 let t = unshift_by assum_ind (reduce_type env_arg evd arg) in
+                 let t = on_type (unshift_by assum_ind) env_arg evd arg in
                  let en_t = assume assum en Anonymous t in
-
                  (en_t, [((Factor ((env_arg, arg), children)))]))
              (env, [])
              nonempty_trees
          in
          let off = nb_rel env - nb_rel env_old in
-         let assumed = Array.of_list (assume_args off trees assum_ind 0 num_trees args) in
-         Factor ((env, mkApp (f, assumed)), List.rev children)
+         let assumed = assume_args off trees assum_ind 0 num_trees args in
+         Factor ((env, mkAppl (f, assumed)), List.rev children)
        else
 	 Unit
     | _ -> (* other terms not yet implemented *)
