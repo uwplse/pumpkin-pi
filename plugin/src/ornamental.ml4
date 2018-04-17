@@ -91,21 +91,6 @@ type composition =
                 
 (* --- TODO move this --- *)
 
-(* Get a list of all arguments, fully unfolded at the head *)
-let unfold_args_app trm =
-  let (f, args) = destApp trm in
-  let rec unfold trm =
-    match kind_of_term trm with
-    | App (f, args) ->
-       List.append (unfold f) (Array.to_list args)
-    | _ ->
-       [trm]
-  in List.append (List.tl (unfold f)) (Array.to_list args)
-
-(* Like unfold_args_app, but return empty if it's not an application *)
-let unfold_args trm =
-  if isApp trm then unfold_args_app trm else []
-
 (* Reduce the type, but where there's a projT1 expand to ignore univ. *)
 let reduce_type_proj (env : env) evd (trm : types) : types =
   let trm_sub =

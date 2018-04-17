@@ -226,3 +226,11 @@ val map_term :
  * Add a string suffix to a name identifier 
  *)
 val with_suffix : Id.t -> string -> Id.t
+
+(* --- Application and arguments --- *)
+
+(*
+ * Get a list of all arguments of a type unfolded at the head
+ * Return empty if it's not an application
+ *)
+val unfold_args : types -> types list
