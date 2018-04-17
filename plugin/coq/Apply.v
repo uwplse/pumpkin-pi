@@ -731,6 +731,51 @@ Print eq.
  *
  * ALL THIS is a separate step after reduction because it changes the type. Reduction up to this
  * point should be type-preserving!
+ *
+ *  gamma <---- id -----> gamma
+ *    |                     |
+ *    | (list A)            | (packed_vector A)
+ *    V                     V
+ *   Type <--- ??? ----->  Type
+ *    |                     |
+ *    | l1                  | v1
+ *    V                     V
+ *  list A <-- orn --> packed_vector A 
+ *    |                     |
+ *    | eq_refl             | eq_refl
+ *    V                     V
+ * eq (list A) l1 l1 <---> eq (packed_vector A) v1 v1
+ *)
+
+Check eq_rect.
+Check eq_ind.
+
+(*
+ *  gamma <---- id -----> gamma
+ *    |                     |
+ *    | (list A)            | (packed_vector A)
+ *    V                     V
+ *   Type <--- ??? ----->  Type
+ *    |                     |
+ *    | l1                  | v1
+ *    V                     V
+ *  list A <-- orn --> packed_vector A 
+ *    |                     |
+ *    | P                   | P'
+ *    V                     V
+ *  (list A -> Type) <--> (packed_vector A -> Type)
+ *    |                     |
+ *    | px                  | px'
+ *    V                     V
+ *  P l1 <----------------> P l1'
+ *    |                     |
+ *    | l2                  | v2
+ *    V                     V
+ *  list A <-- orn -----> packed_vector A
+ *    |                     |
+ *    | pe                  | pe
+ *    V                     V
+ *  eq (list A) l1 l2 <--> eq (packed_vector A) v1 v2
  *)
 
 (* But maybe we can think of this as another reduction? *)
