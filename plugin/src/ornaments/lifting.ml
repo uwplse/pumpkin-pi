@@ -79,4 +79,5 @@ let if_indexer l a b = if l.is_indexer then a else b
 let map_directional f g l x = map_if_else f g l.is_fwd x
 let map_indexer f g l x = map_if_else f g l.is_indexer x
 let map_forward f l x = map_if f l.is_fwd x
+let map_backward f l x = map_if f (not l.is_fwd) x
 let map_if_indexer f l x = map_if f l.is_indexer x

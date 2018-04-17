@@ -1078,7 +1078,7 @@ let reindex_body index_i index trm =
  *)
 let reduce_ornament_f l env evd index_i orn trm orn_args =
   let orn_arg_typs = List.map (fun a -> zoom_if_sig_outer (infer_type env evd a)) orn_args in
-  let orn_arg_typs = List.map (map_if (fun t -> unshift (snd (zoom_lambda_term empty_env t))) (not l.is_fwd)) orn_arg_typs in
+  let orn_arg_typs = List.map (map_backward (fun t -> unshift (snd (zoom_lambda_term empty_env t))) l) orn_arg_typs in
   (* TODO inefficient now *)
   List.fold_left2
     (fun trm orn_arg orn_arg_typ ->
@@ -1088,7 +1088,7 @@ let reduce_ornament_f l env evd index_i orn trm orn_args =
            try
              let (app, app_sub_body, app_sub) =
                let unfolded = chain_reduce reduce_term delta env trm in
-               let typ_args = map_if (remove_index index_i) (not l.is_fwd) (unfold_args orn_arg_typ) in
+               let typ_args = map_backward (remove_index index_i) l (unfold_args orn_arg_typ) in
                let orn_app = mkAppl (orn, snoc orn_arg typ_args) in
                let orn_app_ind = reduce_to_ind env orn_app in
                let orn_app_red = reduce_nf env orn_app in
@@ -1175,7 +1175,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let ind_g_typ = fst (ind_of_orn orn_g_typ) in
   let to_typ = inner_ind_type ind_f_typ in
   let from_typ = inner_ind_type ind_g_typ in
-  let (to_typ, from_typ) = map_if reverse (not l.is_fwd) (to_typ, from_typ) in
+  let (to_typ, from_typ) = map_backward reverse l (to_typ, from_typ) in
   let is_deorn = is_or_applies (if l.is_fwd then to_typ else from_typ) in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_g_used = get_used_or_p_hypos always_true c_g in
@@ -1318,7 +1318,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
              app)
          env_f_body_old
          f_body
-      in map_if (map_unit_if (applies existT) (get_arg 3)) (not l.is_fwd) f_body
+      in map_backward (map_unit_if (applies existT) (get_arg 3)) l f_body
   in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
 
 (* Map compose_c *)
