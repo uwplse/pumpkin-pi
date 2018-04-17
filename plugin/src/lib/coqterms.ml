@@ -360,6 +360,12 @@ let bindings_for_fix (names : name array) (typs : types array) : CRD.t list =
        (fun i name typ -> CRD.LocalAssum (name, Vars.lift i typ))
        names typs)
 
+(* Find the offset of some environment from some number of parameters *)
+let offset env npm = nb_rel env - npm
+
+(* Find the offset between two environments *)
+let offset2 env1 env2 = nb_rel env1 - nb_rel env2
+
 (* --- Basic mapping --- *)
 
 (*

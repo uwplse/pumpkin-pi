@@ -125,6 +125,12 @@ val unwrap_definition : env -> types -> types
 val bindings_for_inductive :
   env -> mutual_inductive_body -> one_inductive_body array -> CRD.t list
 val bindings_for_fix : name array -> types array -> CRD.t list
+
+(*
+ * Offset between an environment and an index, or two environments, respectively
+ *)
+val offset : env -> int -> int
+val offset2 : env -> env -> int
                                                           
 (* --- Basic questions about terms --- *)
 

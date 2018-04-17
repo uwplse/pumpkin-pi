@@ -119,9 +119,6 @@ let rec ind_of_orn (orn_type : types) : types * types =
   | _ ->
      failwith "not an ornament"
 
-(* Find the offset of some environment from some number of parameters *)
-let offset env npm = nb_rel env - npm
-
 (*
  * Modify a case of an eliminator application to use
  * the new property p in its hypotheses
@@ -718,7 +715,7 @@ let pack env evd index_typ f_indexer index_i npm ind ind_n arity is_fwd unpacked
     let packer = abstract_arg env_abs evd index_i (mkAppl (ind, packed_args)) in
     let packed_typ = mkAppl (sigT, [shift (shift index_typ); packer]) in
     let env_pop = pop_rel_context 1 env in
-    let index_rel = nb_rel env_pop - index_i in
+    let index_rel = offset env_pop index_i in
     let env_push = push_local (from_n, unshift packed_typ) env_pop in
     let packer_indexed = reduce_term env_push (mkAppl (packer, [mkRel (index_rel + 1)])) in
     let unpack_b_b = all_eq_substs (mkRel (4 - index_rel), mkRel 1) (shift_local index_rel 1 (shift unpacked)) in
@@ -766,7 +763,7 @@ let search_orn_index_elim evd npm idx_n elim_o o n is_fwd : (int option * types 
      let elim_t_n = directional elim_t_n elim_t in
      let o = (env_o_b, ind_o, arity_o, elim_t_o) in
      let n = (env_n_b, ind_n, arity_n, elim_t_n) in
-     let off_b = offset env_ornament (nb_rel env_o_b) - (arity - npm) in
+     let off_b = offset2 env_ornament env_o_b - (arity - npm) in
      let p = ornament_p index_i env_ornament ind arity npm f_indexer_opt in
      let p_cs = unshift_by (arity - npm) p in
      let cs = shift_all_by off_b (orn_index_cases evd index_i npm is_fwd f_indexer p_cs o n) in
@@ -1034,7 +1031,7 @@ let compose_p evd npms post_assums inner (comp : composition) =
   let (env_g, p_g) = comp.g in
   let (env_f, p_f) = comp.f in
   let (env_p_f, p_f_b_old) = zoom_lambda_term env_f p_f in
-  let off = nb_rel env_p_f - nb_rel env_f in
+  let off = offset2 env_p_f env_f in
   let orn_app =
     if not inner then
       shift_local off (off + List.length post_assums) (mkAppl (lift_back l, mk_n_rels (npms + 1)))
@@ -1053,7 +1050,7 @@ let compose_p evd npms post_assums inner (comp : composition) =
   let p_f_b_args = map_if (remove_index index_i) (not (eq_constr p_f_b_old p_f_b)) (unfold_args p_f_b) in
   let (_, non_pms) = take_split npms p_f_b_args in
   let p_args = snoc orn_app non_pms in
-  let f_g_off = nb_rel env_f - nb_rel env_g in
+  let f_g_off = offset2 env_f env_g in
   let p_g = shift_by f_g_off p_g in
   let p_g = shift_by off p_g in
   let p_g =
@@ -1258,14 +1255,14 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let c_f = compose_ih env_g evd npms_g ip_g c_f p in
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let (env_g_body, g_body) = zoom_lambda_term env_g c_g in
-  let off_f = offset env_f_body (nb_rel env_f) in
-  let off_g = offset env_g_body (nb_rel env_g) in
+  let off_f = offset2 env_f_body env_f in
+  let off_g = offset2 env_g_body env_g in
   let is_g = comp.is_g in
   let f_body =
     if not is_g then
       let num_assums = List.length post_assums in
       (* TODO f_f logic unclear *)
-      let f_f = shift_local (if l.is_fwd then 0 else num_assums) (offset env_f (nb_rel env_g)) c_g in
+      let f_f = shift_local (if l.is_fwd then 0 else num_assums) (offset2 env_f env_g) c_g in
       let f = shift_by off_f f_f in
       let c_used = c_g_used in
       let index_args = indexes env_g to_typ index_i c_f_used c_g_used (lambda_to_prod c_g) 0 in
@@ -1315,7 +1312,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
       
       let is_orn env trm =
-        let typ = if l.is_fwd then from_typ else shift_by (nb_rel env_f_body - 1) ind_g_typ in
+        let typ = if l.is_fwd then from_typ else shift_by (offset env_f_body 1) ind_g_typ in
         is_or_applies typ trm || convertible env typ trm
       in
       (* Does this generalize, too? *)
@@ -1427,7 +1424,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner (comp : composit
       let f_typ_args = on_type unfold_args env_f_body evd f_body in
       let index_args = snoc f_body f_typ_args in
       let indexer_unpacked_body = mkAppl (indexer, index_args) in
-      let indexer_unpacked = reconstruct_lambda_n_skip env_f_body indexer_unpacked_body (nb_rel env_f_body - 2) (assum_ind - 1) in
+      let indexer_unpacked = reconstruct_lambda_n_skip env_f_body indexer_unpacked_body (offset env_f_body 2) (assum_ind - 1) in
       let env_packed = pop_rel_context (assum_ind + 2 - 1) env_f_body in
       let index_type = infer_type env_f_body evd (mkRel (2 + assum_ind - 1)) in
       let packer = infer_type env_packed evd (mkRel (1 + assum_ind - 1)) in
@@ -1568,7 +1565,7 @@ let rec compose_orn_factors evd (l : lifting) no_reduce assum_ind idx_n fs =
            let inner = mkAppl (shift_by 2 c_f, [f_inner_body]) in
            let inner_factors = factor_term_dep (mkRel assum_ind) env_f_inner evd inner in
            let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_orn_factors evd l true assum_ind idx_n inner_factors in
-           let app_lam = reconstruct_lambda_n_skip env_inner t_app_inner (nb_rel env_inner - 2) (assum_ind - 1) in
+           let app_lam = reconstruct_lambda_n_skip env_inner t_app_inner (offset env_inner 2) (assum_ind - 1) in
            let env_inner' = pop_rel_context (assum_ind + 2 - 1) env_inner in
            let f_p_old = get_arg 2 (snd f) in
            let (env_f_p, _) = zoom_lambda_term empty_env f_p_old in
@@ -1583,7 +1580,7 @@ let rec compose_orn_factors evd (l : lifting) no_reduce assum_ind idx_n fs =
            let (env_inner, inner_body) = zoom_lambda_term (fst g) inner in
            let inner_factors = factor_term_dep (mkRel assum_ind) env_inner evd inner_body in
            let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_orn_factors evd l true assum_ind idx_n inner_factors in
-           let indexer_lam = reconstruct_lambda_n env_inner t_app_inner (nb_rel env_inner - 2) in
+           let indexer_lam = reconstruct_lambda_n env_inner t_app_inner (offset env_inner 2) in
            let args = reindex 3 indexer_lam (unfold_args (snd g)) in
            let indexer = mkAppl (sigT_rect, args) in
            ((indexer, indexer_inner), pop_rel_context 2 env_inner, composed_inner)
