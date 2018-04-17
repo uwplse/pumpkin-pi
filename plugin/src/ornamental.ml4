@@ -109,6 +109,7 @@ let remove_rel (i : int) (env : env) : env =
   in List.fold_right push_local push env_pop
 
 (* Get the inductive types an ornament maps between, including their arguments *)
+(* TODO move this wherever you move ornaments *)
 let rec ind_of_orn (orn_type : types) : types * types =
   match kind_of_term orn_type with
   | Prod (n, t, b) when isProd b ->
@@ -117,18 +118,6 @@ let rec ind_of_orn (orn_type : types) : types * types =
      (t, b)
   | _ ->
      failwith "not an ornament"
-              
-(*
- * Get the argument to an application of a property at argument position i.
- * This unfolds all arguments first.
- *)
-let get_arg i trm =
-  match kind_of_term trm with
-  | App (_, _) ->
-     let args = Array.of_list (unfold_args trm) in
-     Array.get args i
-  | _ ->
-     failwith "not an application"
 
 (*
  * Deconstruct an eliminator application.

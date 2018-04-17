@@ -396,3 +396,15 @@ let rec first_fun t =
      first_fun f
   | _ ->
      t
+
+(*
+ * Get the argument to an application of a property at argument position i
+ * This unfolds all arguments first
+ *)
+let get_arg i trm =
+  match kind_of_term trm with
+  | App (_, _) ->
+     let args = Array.of_list (unfold_args trm) in
+     Array.get args i
+  | _ ->
+     failwith "not an application"
