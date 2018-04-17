@@ -27,6 +27,36 @@ Definition packed_vect_rect (A : Type) (P : sigT (vector A) -> Type)
           v0)
     pv.
 
+Definition packed_vect_rect' (A : Type) (P : forall (n : nat), vector A n -> Type)
+  (pb : P 0 (nilV A))
+  (pih : forall (a : A) (pv : sigT (vector A)), P (projT1 pv) (projT2 pv) -> P (S (projT1 pv)) (consV A (projT1 pv) a (projT2 pv))) 
+  (pv : sigT (vector A)) :=
+  sigT_rect
+    (fun (pv0 : sigT (vector A)) => P (projT1 pv0) (projT2 pv0))
+    (fun (n0 : nat) (v0 : vector A n0) =>
+       vector_rect
+          A
+          (fun (n1 : nat) (v1 : vector A n1) => P n1 v1)
+          pb
+          (fun (n1 : nat) (a : A) (v1 : vector A n1) (IH : P n1 v1) =>
+             pih a (existT (vector A) n1 v1) IH)
+          n0
+          v0)
+    pv.
+
+Definition packed_vect_rect'' (A : Type) (P : sigT (vector A) -> Type)
+  (pb : P (existT (vector A) 0 (nilV A)))
+  (pih : forall (a : A) (pv : sigT (vector A)), P pv -> P (existT (vector A) (S (projT1 pv)) (consV A (projT1 pv) a (projT2 pv)))) 
+  (pv : sigT (vector A)) :=
+  vector_rect
+    A
+    (fun (n0 : nat) (v0 : vector A n0) => P (existT (vector A) n0 v0))
+    pb
+    (fun (n1 : nat) (a : A) (v1 : vector A n1) (IH : P (existT (vector A) n1 v1)) =>
+      pih a (existT (vector A) n1 v1) IH)
+    (projT1 pv)
+    (projT2 pv).
+
 Definition packed_vect_ind (A : Type) (P : sigT (vector A) -> Prop)
   (pb : P (existT (vector A) 0 (nilV A)))
   (pih : forall (a : A) (pv : sigT (vector A)), P pv -> P (existT (vector A) (S (projT1 pv)) (consV A (projT1 pv) a (projT2 pv)))) 
@@ -242,6 +272,19 @@ Definition append_vect_packed_experimental (A : Type) (pv1 : packed_vector A) (p
        (consV A (projT1 IH) a (projT2 IH)))
     pv1.
 
+(* What does this look like in the experimental version? *)
+Definition append_vect_packed_experimental_2 (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A) :=
+  packed_vect_rect''
+    A
+    (fun _ : sigT (vector A) => sigT (vector A))
+    pv2
+    (fun (a : A) (_ : sigT (vector A)) (IH : sigT (vector A)) =>
+      existT
+       (vector A)
+       (S (projT1 IH))
+       (consV A (projT1 IH) a (projT2 IH)))
+    pv1.
+
 (* So really the benefit is that it keeps n0 packed, since we'll never use it,
    which solves more offset problems that will clean up code.
    Should port to this eventually, but not a huge rush. Though might be necessary for proofs. 
@@ -309,6 +352,17 @@ Proof.
   intros. induction pv1.
   induction p.
   - unfold append_vect_auto. simpl. apply vect_iso.
+  - apply eq_pv_cons with (a := a) in IHp. apply IHp.
+Qed.
+
+Theorem test_orn_append_unfolded: (* for convenience later *)
+  forall A (pv1 : packed_vector A) (pv2 : packed_vector A),
+    append_vect_packed A pv1 pv2 =
+    orn_list_vector A (append A (orn_list_vector_inv A pv1) (orn_list_vector_inv A pv2)).
+Proof.
+  intros. induction pv1.
+  induction p.
+  - simpl. apply vect_iso.
   - apply eq_pv_cons with (a := a) in IHp. apply IHp.
 Qed.
 
@@ -506,7 +560,7 @@ Definition app_nil_r_lower (A : Type) (l : list A) :=
         IHl)
     l.
 
-(* packed vector version*)
+(* packed vector version *)
 Definition app_nil_r_vect_packed (A : Type) (pv : packed_vector A) :=
   @sigT_rect
     nat 
@@ -531,7 +585,61 @@ Definition app_nil_r_vect_packed (A : Type) (pv : packed_vector A) :=
         v) 
     pv.
 
-(* what we can get without doing a hgiher lifting of append inside of the proof *)
+(* Or, using the fancy IP (note the extra existT we need here though) *)
+Definition app_nil_r_vect_packed_alt (A : Type) (pv : packed_vector A) :=
+  packed_vect_rect
+    A
+    (fun (pv0 : sigT (vector A)) => append_vect_packed A (existT (vector A) (projT1 pv0) (projT2 pv0)) (existT (vector A) O (nilV A)) = existT (vector A) (projT1 pv0) (projT2 pv0))
+    (@eq_refl (sigT (vector A)) (existT (vector A) O (nilV A)))
+    (fun (a : A) (pv0 : sigT (vector A)) (IHp : append_vect_packed A (existT (vector A) (projT1 pv0) (projT2 pv0)) (existT (vector A) O (nilV A)) = (existT (vector A) (projT1 pv0) (projT2 pv0))) =>
+      @eq_ind_r 
+        (sigT (vector A)) 
+        (existT (vector A) (projT1 pv0) (projT2 pv0))
+        (fun (pv1 : sigT (vector A)) => 
+          existT (vector A) (S (projT1 pv1)) (consV A (projT1 pv1) a (projT2 pv1)) = existT (vector A) (S (projT1 pv0)) (consV A (projT1 pv0) a (projT2 pv0)))
+        (@eq_refl (sigT (vector A)) (existT (vector A) (S (projT1 pv0)) (consV A (projT1 pv0) a (projT2 pv0))))
+        (append_vect_packed A (existT (vector A) (projT1 pv0) (projT2 pv0)) (existT (vector A) 0 (nilV A)))
+        IHp)
+    pv.
+
+(* If we use the alternate IP, we get something better: *)
+Definition app_nil_r_vect_packed_alt_2 (A : Type) (pv : packed_vector A) :=
+  packed_vect_rect''
+    A
+    (fun (pv0 : sigT (vector A)) => append_vect_packed_experimental_2 A pv0 (existT (vector A) O (nilV A)) = pv0)
+    (@eq_refl (sigT (vector A)) (existT (vector A) O (nilV A)))
+    (fun (a : A) (pv0 : sigT (vector A)) (IHp : append_vect_packed_experimental_2 A pv0 (existT (vector A) O (nilV A)) = pv0) =>
+      @eq_ind_r 
+        (sigT (vector A)) 
+        pv0
+        (fun (pv1 : sigT (vector A)) => 
+          existT (vector A) (S (projT1 pv1)) (consV A (projT1 pv1) a (projT2 pv1)) = existT (vector A) (S (projT1 pv0)) (consV A (projT1 pv0) a (projT2 pv0)))
+        (@eq_refl (sigT (vector A)) (existT (vector A) (S (projT1 pv0)) (consV A (projT1 pv0) a (projT2 pv0))))
+        (append_vect_packed_experimental_2 A pv0 (existT (vector A) 0 (nilV A)))
+        IHp)
+    pv.
+
+(* But the theorem statement above still turns pv into (existT (vector A) (projT1 pv) (projT2 pv)),
+   which should be unecessary. Not sure how to get around this using this view of things. *)
+
+(* Compare to app_nil_r:
+Definition app_nil_r (A : Type) (l : list A) :=
+  @list_ind
+    A
+    (fun (l0 : list A) => append A l0 (@nil A) = l0)
+    (@eq_refl (list A) (@nil A))
+    (fun (a : A) (l0 : list A) (IHl : append A l0 (@nil A) = l0) =>
+      @eq_ind_r
+        (list A)
+        l0
+        (fun (l1 : list A) => @cons A a l1 = @cons A a l0)
+        (@eq_refl (list A) (@cons A a l0))
+        (append A l0 (@nil A))
+        IHl)
+    l.
+*)
+
+(* what we can get without doing a higher lifting of append inside of the proof *)
 Definition app_nil_r_vect_packed_lower (A : Type) (pv : packed_vector A) :=
   @sigT_rect
     nat 
@@ -555,6 +663,47 @@ Definition app_nil_r_vect_packed_lower (A : Type) (pv : packed_vector A) :=
         n 
         v) 
     pv.
+
+(*
+ * TODO can we even get lower version with packed IP?
+ *)
+
+(* What happens if we try to immediately lift app_nil_r to use new app _before_ doing "lower" step? *)
+Definition app_nil_r_higher (A : Type) (l : list A) :=
+  @list_ind
+    A
+    (fun (l0 : list A) => append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)) = orn_list_vector A l0)
+    (@eq_refl (packed_vector A) (existT (vector A) 0 (nilV A)))
+    (fun (a : A) (l0 : list A) (IHl : append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)) = orn_list_vector A l0) =>
+      @eq_ind_r
+        (packed_vector A)
+        (orn_list_vector A l0)
+        (fun (pv : packed_vector A) => existT (vector A) (S (projT1 pv)) (consV A (projT1 pv) a (projT2 pv)) = existT (vector A) (S (projT1 (orn_list_vector A l0))) (consV A (projT1 (orn_list_vector A l0)) a (projT2 (orn_list_vector A l0))))
+        (@eq_refl (packed_vector A) (existT (vector A) (S (projT1 (orn_list_vector A l0))) (consV A (projT1 (orn_list_vector A l0)) a (projT2 (orn_list_vector A l0)))))
+        (append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)))
+        IHl)
+    l.
+
+(* Doing this still required understanding how to lift the eq_ind_r term, which is the hard part. *)
+(* But maybe we can think of this as another reduction? *)
+
+Theorem higher_lifting_from_tests:
+  forall (A : Type) (pv : packed_vector A),
+     append_vect_packed A pv (existT (vector A) 0 (nilV A)) = pv.
+Proof.
+  intros.
+  rewrite test_orn_append_unfolded. (* Take us from higher to lower *)
+  rewrite app_nil_r_vect_packed_lower. (* Solve the LHS *)
+  rewrite <- vect_iso. (* Get rid of forward/backward *)
+  reflexivity.
+Qed.
+
+Print higher_lifting_from_tests. 
+(* And this is something like what we would want to reduce, though fix it up to not include references to morphisms. *)
+
+(* Or should we lift the application of eq_ind_r somehow? How do we know to lift that? What does that mean? *)
+(* TODO think more *)
+(* TODO move this to thoughts.v *)
 
 (* 
  * There's a commuting diagram in here somewhere with lower and higher liftings.
