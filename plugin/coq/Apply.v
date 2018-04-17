@@ -543,10 +543,6 @@ Definition app_nil_r (A : Type) (l : list A) :=
         IHl)
     l.
 
-Check app_nil_r.
-
-Check append_vect_packed.
-
 (* what we can get without doing a higher lifting of append inside of the proof *)
 Definition app_nil_r_lower (A : Type) (l : list A) :=
   @list_ind
@@ -563,8 +559,6 @@ Definition app_nil_r_lower (A : Type) (l : list A) :=
         (append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)))
         IHl)
     l.
-
-Check app_nil_r_lower.
 
 (* packed vector version *)
 Definition app_nil_r_vect_packed (A : Type) (pv : packed_vector A) :=
@@ -670,9 +664,6 @@ Definition app_nil_r_vect_packed_lower (A : Type) (pv : packed_vector A) :=
         v) 
     pv.
 
-Check app_nil_r_vect_packed_lower.
-Check app_nil_r_vect_packed.
-
 (*
  * TODO can we even get lower version with packed IP?
  *)
@@ -694,8 +685,6 @@ Definition app_nil_r_higher (A : Type) (l : list A) :=
     l.
 
 (* Doing this still required understanding how to lift the eq_ind_r term, which is the hard part. *)
-
-Print eq.
 
 (* 
  * Why _does_ the type of eq_ind_r change anyways?
@@ -747,9 +736,6 @@ Print eq.
  * eq (list A) l1 l1 <---> eq (packed_vector A) v1 v1
  *)
 
-Check eq_rect.
-Check eq_ind.
-
 (*
  *  gamma <---- id -----> gamma
  *    |                     |
@@ -791,7 +777,6 @@ Proof.
   reflexivity.
 Qed.
 
-Print higher_lifting_from_tests. 
 (* And this is something like what we would want to reduce, though fix it up to not include references to morphisms. *)
 
 (* Or should we lift the application of eq_ind_r somehow? How do we know to lift that? What does that mean? *)
