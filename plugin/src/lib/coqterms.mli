@@ -220,3 +220,8 @@ val with_suffix : Id.t -> string -> Id.t
  * Return empty if it's not an application
  *)
 val unfold_args : types -> types list
+
+(*
+ * Get the very first function of an application
+ *)
+val first_fun : types -> types

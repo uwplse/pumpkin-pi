@@ -388,3 +388,11 @@ let unfold_args_app trm =
 (* Like unfold_args_app, but return empty if it's not an application *)
 let unfold_args trm =
   if isApp trm then unfold_args_app trm else []
+
+(* Get the first function of an application *)
+let rec first_fun t =
+  match kind_of_term t with
+  | App (f, args) ->
+     first_fun f
+  | _ ->
+     t

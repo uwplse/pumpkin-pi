@@ -108,14 +108,6 @@ let remove_rel (i : int) (env : env) : env =
       (List.rev (List.tl (List.rev popped)))
   in List.fold_right push_local push env_pop
 
-(* Get the first function of an application *)
-let rec first_fun t =
-  match kind_of_term t with
-  | App (f, args) ->
-     first_fun f
-  | _ ->
-     t
-
 (* Get the inductive types an ornament maps between, including their arguments *)
 let rec ind_of_orn (orn_type : types) : types * types =
   match kind_of_term orn_type with
