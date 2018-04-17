@@ -40,6 +40,7 @@ let remove_rel (i : int) (env : env) : env =
 (*
  * Modify a case of an eliminator application to use
  * the new property p in its hypotheses
+ * TODO move to differencing once differencing finds ornaments
  *)
 let with_new_p p c : types =
   let rec sub_p sub trm =
@@ -883,22 +884,6 @@ let ornament_concls concl_typ env evd (l : lifting) (from_ind, to_ind) trm =
     reconstruct_lambda env_zoom concl
   else
     trm
-
-(*
- * Determine if the direction is forwards or backwards
- * True if forwards, false if backwards
- *)
-let direction (env : env) evd (orn : types) : bool =
-  let rec wrapped (from_ind, to_ind) =
-    if not (applies sigT from_ind) then
-      true
-    else
-      if not (applies sigT to_ind) then
-        false
-      else
-        let (from_args, to_args) = map_tuple unfold_args (from_ind, to_ind) in
-        wrapped (map_tuple last (from_args, to_args))
-  in wrapped (on_type ind_of_promotion_type env evd orn)
 
 (*
  * Initialize an ornamentation
