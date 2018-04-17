@@ -1,5 +1,6 @@
 -I src/lib
 -I src/ornaments
+-I src/components
 -I src
 -Q theories Ornamental
 
@@ -18,13 +19,13 @@ src/lib/hofs.mli
 src/lib/printing.ml
 src/lib/printing.mli
 
-src/lib/factoring.ml
-src/lib/factoring.mli
-src/lib/differencing.ml
-src/lib/differencing.mli
-
 src/ornaments/lifting.ml
 src/ornaments/lifting.mli
+
+src/components/factoring.ml
+src/components/factoring.mli
+src/components/differencing.ml
+src/components/differencing.mli
 
 src/ornamental.ml4
 src/ornaments.mlpack
