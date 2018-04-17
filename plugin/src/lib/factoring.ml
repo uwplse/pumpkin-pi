@@ -28,6 +28,16 @@ let assume (assum : types) (env : env) (n : name) (typ : types) : env =
   let (env_pop, non_assums) = lookup_pop (assum_ind - 1) env in
   let env_assum = push_local (n, typ) (pop_rel_context 1 env_pop) in
   List.fold_right push_rel non_assums env_assum
+
+(* --- Type-level factoring --- *)
+
+(* Deconstruct a product type (A -> B -> ... -> D) into A, B, ..., D *)
+let rec factor_product (trm : types) : types list =
+  match kind_of_term trm with
+  | Prod (n, t, b) ->
+     t :: factor_product (unshift b)
+  | _ ->
+     []
        
 (* --- Non-dependent factoring --- *)
 

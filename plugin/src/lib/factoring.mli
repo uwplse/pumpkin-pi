@@ -5,6 +5,10 @@
 open Term
 open Environ
 open Evd
+
+(* --- Type-level factoring --- *)
+
+val factor_product : types -> types list
        
 (* --- Non-dependent factoring --- *)       
 

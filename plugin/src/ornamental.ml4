@@ -108,18 +108,11 @@ let remove_rel (i : int) (env : env) : env =
   in List.fold_right push_local push env_pop
 
 (* is_or_applies over two terms with a different check *)
+(* TODO move this wherever you handle differencing *)
 let apply_old_new (o : types * types) (n : types * types) : bool =
   let (trm_o, trm_o') = o in
   let (trm_n, trm_n') = n in
   is_or_applies trm_o trm_o' && is_or_applies trm_n trm_n'
-
-(* Deconstruct a product type (A -> B -> ... -> D) into A, B, ..., D *)
-let rec deconstruct_product (trm : types) : types list =
-  match kind_of_term trm with
-  | Prod (n, t, b) ->
-     t :: deconstruct_product (unshift b)
-  | _ ->
-     []
 
 (* Check if two terms are the same modulo a change of an inductive type *)
 let same_mod_change env o n =
@@ -565,8 +558,8 @@ let indexer_cases evd index_i p npm o n : types list =
          shift_by
            (arity_o - npm)
            (index_case evd index_i p (o c_o) (n c_n)))
-       (take_except (arity_o - npm + 1) (deconstruct_product b_o))
-       (take_except (arity_n - npm + 1) (deconstruct_product b_n))
+       (take_except (arity_o - npm + 1) (factor_product b_o))
+       (take_except (arity_n - npm + 1) (factor_product b_n))
   | _ ->
      failwith "not eliminators"
 
@@ -774,8 +767,8 @@ let orn_index_cases evd index_i npm is_fwd indexer_f orn_p o n : types list =
          shift_by
            (arity - npm)
            (orn_index_case evd index_i is_fwd indexer_f orn_p (o c_o) (n c_n)))
-       (take_except (arity_o - npm + 1) (deconstruct_product b_o))
-       (take_except (arity_n - npm + 1) (deconstruct_product b_n))
+       (take_except (arity_o - npm + 1) (factor_product b_o))
+       (take_except (arity_n - npm + 1) (factor_product b_n))
   | _ ->
      failwith "not an eliminator"
               
