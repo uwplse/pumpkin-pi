@@ -80,7 +80,8 @@ let rec find_path (assum : types) (env : env) evd (trm : types) : factors =
     match kind_of_term trm with
     | App (f, args) ->
        let paths = Array.map (find_path assum env evd) args in
-       let nonempty_paths = List.filter (fun l -> List.length l > 0) (Array.to_list paths) in
+       let filter_nonempty = List.filter (fun l -> List.length l > 0) in
+       let nonempty_paths = filter_nonempty (Array.to_list paths) in
        if List.length nonempty_paths > 1 then
 	 [(env, trm)]
        else if List.length nonempty_paths = 1 then
@@ -165,9 +166,24 @@ let assume_no_replace (assum : types) (env : env) (n : name) (typ : types) : env
   let env_assum = push_local (n, typ) env_pop in
   List.fold_right push_local non_assums env_assum
 
+(* 
+ * Update the assumptions to search recursively
+ *)
+let rec assume_args off trees assum_ind tree_i factors_left args =
+  match args with
+  | h :: tl ->
+     let (h', factors_left') =
+       (match (Array.get trees tree_i) with
+        | Factor (_, _) ->
+           (mkRel (factors_left + assum_ind - 1), factors_left - 1)
+        | Unit ->
+           (shift_local assum_ind off h, factors_left))
+     in h' :: (assume_args off trees assum_ind (tree_i + 1) factors_left' tl)
+  | [] ->
+     []
+
 (*
  * Dependent version of the above
- * TODO clean
  *)
 let rec find_path_dep (assum : types) (env : env) evd (trm : types) : factor_tree =
   if is_assumption assum env trm then
@@ -180,22 +196,8 @@ let rec find_path_dep (assum : types) (env : env) evd (trm : types) : factor_tre
        let nonempty_trees = filter_nonunit (Array.to_list trees) in
        let num_trees = List.length nonempty_trees in
        let assum_ind = destRel assum in
-       let env_old = env in
-       let rec assume_args env tree_i factors_left args =
-         match args with
-         | h :: tl ->
-            let off = nb_rel env - nb_rel env_old in
-            let (h', factors_left') =
-              (match (Array.get trees tree_i) with
-               | Factor (_, _) ->
-                  (mkRel (factors_left + assum_ind - 1), factors_left - 1)
-               | Unit ->
-                  (shift_local assum_ind off h, factors_left))
-            in h' :: (assume_args env (tree_i + 1) factors_left' tl)
-         | [] ->
-            []
-       in
        let args = Array.to_list args in
+       let env_old = env in
        if num_trees > 0 then
          let (env, children) =
            List.fold_left
@@ -216,7 +218,8 @@ let rec find_path_dep (assum : types) (env : env) evd (trm : types) : factor_tre
              (env, [])
              nonempty_trees
          in
-         let assumed = Array.of_list (assume_args env 0 num_trees args) in
+         let off = nb_rel env - nb_rel env_old in
+         let assumed = Array.of_list (assume_args off trees assum_ind 0 num_trees args) in
          Factor ((env, mkApp (f, assumed)), List.rev children)
        else
 	 Unit
