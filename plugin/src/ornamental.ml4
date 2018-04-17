@@ -90,37 +90,6 @@ type composition =
   }
                 
 (* --- TODO move this --- *)
-
-(* Reduce the type, but where there's a projT1 expand to ignore univ. *)
-let reduce_type_proj (env : env) evd (trm : types) : types =
-  let trm_sub =
-    map_unit_env_if
-      (fun _ tr -> isApp tr && (applies projT1 tr || applies projT2 tr))
-      (fun en tr ->
-        let (a :: rest) = unfold_args tr in
-        let p = List.hd rest in
-        let arg = last rest in
-        let arg_type = reduce_type en evd arg in
-        let packer_type = mkLambda (Anonymous, arg_type, shift a) in
-        let packer_body_type = mkAppl (shift p, [mkRel 1]) in
-        let packer_body = mkLambda (Anonymous, packer_body_type, mkRel 2) in
-        let packer = mkLambda (Anonymous, a, packer_body) in
-        if applies projT1 tr then
-          mkAppl (sigT_rect, [a; p; packer_type; packer; arg])
-        else
-          let a = shift a in
-          let pt1 = shift p in
-          let packer_t_t1 = shift packer_type in
-          let p_t1 = shift packer in
-          let t1 = mkAppl (sigT_rect, [a; pt1; packer_t_t1; p_t1; mkRel 1]) in
-          let packer_type_body = mkAppl (pt1, [t1]) in
-          let packer_type = mkLambda (Anonymous, arg_type, packer_type_body) in
-          let packer_body = mkLambda (Anonymous, packer_body_type, mkRel 1) in
-          let packer = mkLambda (Anonymous, a, packer_body) in
-          mkAppl (sigT_rect, [a; p; packer_type; packer; arg]))
-      env
-      trm
-  in reduce_term env (infer_type env evd trm_sub)
                  
 (* Same, but skip j first *)
 let rec reconstruct_lambda_n_skip (env : env) (b : types) (i : int) (j : int) : types =
@@ -1971,7 +1940,7 @@ let rec compose_orn_factors evd (l : lifting) no_reduce assum_ind idx_n fs =
            let env_inner' = pop_rel_context (assum_ind + 2 - 1) env_inner in
            let f_p_old = get_arg 2 (snd f) in
            let (env_f_p, _) = zoom_lambda_term empty_env f_p_old in
-           let f_p_body = unshift (reduce_type_proj env_inner evd t_app_inner) in
+           let f_p_body = unshift (reduce_type env_inner evd t_app_inner) in
            let f_p_new = reconstruct_lambda env_f_p (unshift_by (assum_ind - 1) f_p_body) in
            let f_args = unfold_args (snd f) in
            let args = reindex 3 app_lam (reindex 2 f_p_new f_args) in
