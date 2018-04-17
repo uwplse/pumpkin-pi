@@ -119,28 +119,6 @@ let rec ind_of_orn (orn_type : types) : types * types =
   | _ ->
      failwith "not an ornament"
 
-(*
- * Deconstruct an eliminator application.
- *
- * Assumes the inductive type is not mutually inductive.
- *)
-let deconstruct_eliminator env evd app =
-  let ip = first_fun app in
-  let ip_args = unfold_args app in
-  let ip_typ = reduce_type env evd ip in
-  let from_typ =  first_fun (fst (ind_of_orn ip_typ)) in
-  let ((from_i, _), _) = destInd from_typ in
-  let from_m = lookup_mind from_i env in
-  let npms = from_m.mind_nparams in
-  let from_arity = arity (type_of_inductive env 0 from_m) in
-  let num_indices = from_arity - npms in
-  let num_props = 1 in
-  let num_constrs = arity ip_typ - npms - num_props - num_indices - 1 in
-  let (pms, pmd_args) = take_split npms ip_args in
-  let (p :: cs_and_args) = pmd_args in
-  let (cs, args) = take_split num_constrs cs_and_args in
-  (ip, pms, p, cs, Array.of_list args)
-
 (* Find the offset of some environment from some number of parameters *)
 let offset env npm = nb_rel env - npm
 
@@ -509,9 +487,10 @@ let search_for_indexer evd index_i index_t npm elim_o o n is_fwd : types option 
        let index_t_p = shift_by index_i index_t in
        let p = reconstruct_lambda_n env_ind index_t_p npm in
        let cs = indexer_cases evd index_i (shift p) npm o n in
-       let final_args = Array.of_list (mk_n_rels off) in
-       let p_elim = shift_by off p in
-       let app = apply_eliminator elim_o pms p_elim cs final_args in
+       let final_args = mk_n_rels off in
+       let p = shift_by off p in
+       let elim = elim_o in
+       let app = apply_eliminator {elim; pms; p; cs; final_args} in
        Some (reconstruct_lambda env_ind app)
     | _ ->
        failwith "not eliminators"
@@ -791,9 +770,10 @@ let search_orn_index_elim evd npm idx_n elim_o o n is_fwd : (int option * types 
      let p = ornament_p index_i env_ornament ind arity npm f_indexer_opt in
      let p_cs = unshift_by (arity - npm) p in
      let cs = shift_all_by off_b (orn_index_cases evd index_i npm is_fwd f_indexer p_cs o n) in
-     let final_args = Array.of_list (mk_n_rels off) in
+     let final_args = mk_n_rels off in
      let index_i_o = directional (Some index_i) None in
-     let unpacked = apply_eliminator elim_o pms p cs final_args in
+     let elim = elim_o in
+     let unpacked = apply_eliminator {elim; pms; p; cs; final_args} in
      let packer ind ar = pack env_ornament evd index_t f_indexer index_i npm ind ind_n ar is_fwd unpacked in (* TODO clean args *)
      let packed = if is_fwd then (packer ind_n arity_n) else (packer ind_o arity_o) in
      (index_i_o, indexer, reconstruct_lambda (fst packed) (snd packed))
@@ -1436,9 +1416,9 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner (comp : composit
   let index_i = Option.get l.orn.index_i in
   let (env_g, g) = comp.g in
   let (env_f, f) = comp.f in
-  let (ip, pms, p_f, cs_f, args) = deconstruct_eliminator env_f evd f in
-  let (ip_g, pms_g, p_g, cs_g, args_g) = deconstruct_eliminator env_g evd g in
-  let npms = List.length pms_g in
+  let f_app = deconstruct_eliminator env_f evd f in
+  let g_app = deconstruct_eliminator env_g evd g in
+  let npms = List.length g_app.pms in
   let (comp, indexer) =
     if l.is_fwd && comp.is_g && not l.is_indexer then
       (* Build the lifted indexer *)
@@ -1461,31 +1441,30 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner (comp : composit
     else
       (comp, None)
   in
-  let c_p = { comp with g = (env_g, p_g); f = (env_f, p_f) } in
+  let c_p = { comp with g = (env_g, g_app.p); f = (env_f, f_app.p) } in
   let p = compose_p evd npms post_assums inner c_p in
   let (cs, indexer) =
     if applies sigT_rect f then
       (* TODO factoring should handle *)
       (* bubble inside the sigT_rect (is this the best way?) *)
-      let c = List.hd cs_f in
+      let c = List.hd f_app.cs in
       let (env_c, c_body) = zoom_lambda_term env_f c in
       let c_cs = { comp with f = (env_c, c_body)} in
       let (c_comp, indexer) = compose_inductive evd idx_n post_assums assum_ind true c_cs in
       ([reconstruct_lambda_n env_c c_comp (nb_rel env_f)], indexer)
     else
-      let (env_g, cs_g) =
+      let gs =
         map_if
           (fun (env, cs) ->
             let (env_c, c) = zoom_lambda_term env (List.hd cs) in
-            let (_, _, _, cs, _) = deconstruct_eliminator env_c evd c in
-            (env_c, cs))
+            let c_app = deconstruct_eliminator env_c evd c in
+            (env_c, c_app.cs))
           (applies sigT_rect g)
-          (env_g, cs_g)
+          (env_g, g_app.cs)
       in
-      let gs = (env_g, cs_g) in
-      let fs = (env_f, cs_f) in
-      (compose_cs evd npms ip_g p post_assums comp gs fs, indexer)
-  in (apply_eliminator ip pms p cs args, indexer)
+      let fs = (env_f, f_app.cs) in
+      (compose_cs evd npms g_app.elim p post_assums comp gs fs, indexer)
+  in (apply_eliminator {f_app with p; cs}, indexer)
     
 
 (*

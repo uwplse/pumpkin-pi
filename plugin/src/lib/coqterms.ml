@@ -91,6 +91,116 @@ let rec lambda_to_prod trm =
   | _ ->
      trm
 
+(* --- Application and arguments --- *)
+
+(* Get a list of all arguments, fully unfolded at the head *)
+let unfold_args_app trm =
+  let (f, args) = destApp trm in
+  let rec unfold trm =
+    match kind_of_term trm with
+    | App (f, args) ->
+       List.append (unfold f) (Array.to_list args)
+    | _ ->
+       [trm]
+  in List.append (List.tl (unfold f)) (Array.to_list args)
+
+(* Like unfold_args_app, but return empty if it's not an application *)
+let unfold_args trm =
+  if isApp trm then unfold_args_app trm else []
+
+(* Get the first function of an application *)
+let rec first_fun t =
+  match kind_of_term t with
+  | App (f, args) ->
+     first_fun f
+  | _ ->
+     t
+
+(*
+ * Get the argument to an application of a property at argument position i
+ * This unfolds all arguments first
+ *)
+let get_arg i trm =
+  match kind_of_term trm with
+  | App (_, _) ->
+     let args = Array.of_list (unfold_args trm) in
+     Array.get args i
+  | _ ->
+     failwith "not an application"
+
+(* --- Convertibility, reduction, and types --- *)
+                                
+(* Infer the type of trm in env *)
+let infer_type (env : env) (evd : evar_map) (trm : types) : types =
+  Typing.unsafe_type_of env evd trm
+
+(* Check whether two terms are convertible, ignoring universe inconsistency *)
+let conv_ignoring_univ_inconsistency env evm trm1 trm2 : bool =
+  try
+    Reductionops.is_conv env evm trm1 trm2
+  with _ ->
+    match map_tuple kind_of_term (trm1, trm2) with
+    | (Sort (Type u1), Sort (Type u2)) -> true
+    | _ -> false
+
+(* Checks whether two terms are convertible in env with no evars *)
+let convertible (env : env) (trm1 : types) (trm2 : types) : bool =
+  conv_ignoring_univ_inconsistency env Evd.empty trm1 trm2
+
+(* Default reducer *)
+let reduce_term (env : env) (trm : types) : types =
+  Reductionops.nf_betaiotazeta Evd.empty trm
+
+(* Delta reduction *)
+let delta (env : env) (trm : types) =
+  Reductionops.whd_delta env Evd.empty trm
+                         
+(* nf_all *)
+let reduce_nf (env : env) (trm : types) : types =
+  Reductionops.nf_all env Evd.empty trm
+
+(* Reduce the type *)
+let reduce_type (env : env) evd (trm : types) : types =
+  reduce_term env (infer_type env evd trm)
+
+(* Chain reduction *)
+let chain_reduce rg rf (env : env) (trm : types) : types =
+  rg env (rf env trm)
+
+(* Apply on types instead of on terms *)
+let on_type f env evd trm =
+  f (reduce_type env evd trm)
+
+(* --- Basic questions about terms --- *)
+
+(*
+ * Get the arity of a function or function type
+ *)
+let rec arity p =
+  match kind_of_term p with
+  | Lambda (_, _, b) ->
+     1 + arity b
+  | Prod (_, _, b) ->
+     1 + arity b
+  | _ ->
+     0
+
+(* Check whether trm applies f (using eq_constr for equality) *)
+let applies (f : types) (trm : types) =
+  match kind_of_term trm with
+  | App (g, _) ->
+     eq_constr f g
+  | _ ->
+     false
+
+(* Check whether trm is trm' or applies trm', using eq_constr *)
+let is_or_applies (trm' : types) (trm : types) : bool =
+  applies trm' trm || eq_constr trm' trm
+
+(* Versions over two terms *)
+let are_or_apply (trm : types) = and_p (is_or_applies trm)
+let apply (trm : types) = and_p (applies trm)
+              
 (* --- Inductive types and their eliminators --- *)
 
 (* Don't support mutually inductive or coinductive types yet *)
@@ -156,10 +266,37 @@ let type_of_inductive env index mutind_body : types =
 let type_eliminator (env : env) (ind : inductive) =
   Universes.constr_of_global (Indrec.lookup_eliminator ind InType)
 
+(* Applications of eliminators *)
+type elim_app =
+  {
+    elim : types;
+    pms : types list;
+    p : types;
+    cs : types list;
+    final_args : types list;
+  }
+
 (* Apply an eliminator *)
-let apply_eliminator elim pms p cs final_args =
-  let args = Array.of_list (List.append pms (p :: cs)) in
-  mkApp (mkApp (elim, args), final_args)
+let apply_eliminator (ea : elim_app) : types =
+  let args = List.append ea.pms (ea.p :: ea.cs) in
+  mkAppl (mkAppl (ea.elim, args), ea.final_args)
+        
+(* Deconstruct an eliminator application *)
+let deconstruct_eliminator env evd app : elim_app =
+  let elim = first_fun app in
+  let ip_args = unfold_args app in
+  let ip_typ = reduce_type env evd elim in
+  let from_i = Option.get (inductive_of_elim env (destConst elim)) in
+  let from_m = lookup_mind from_i env in
+  let npms = from_m.mind_nparams in
+  let from_arity = arity (type_of_inductive env 0 from_m) in
+  let num_indices = from_arity - npms in
+  let num_props = 1 in
+  let num_constrs = arity ip_typ - npms - num_props - num_indices - 1 in
+  let (pms, pmd_args) = take_split npms ip_args in
+  let (p :: cs_and_args) = pmd_args in
+  let (cs, final_args) = take_split num_constrs cs_and_args in
+  { elim; pms; p; cs; final_args } 
                              
 (* --- Environments --- *)
 
@@ -222,79 +359,6 @@ let bindings_for_fix (names : name array) (typs : types array) : CRD.t list =
     (CArray.map2_i
        (fun i name typ -> CRD.LocalAssum (name, Vars.lift i typ))
        names typs)
-
-(* --- Basic questions about terms --- *)
-
-(*
- * Get the arity of a function or function type
- *)
-let rec arity p =
-  match kind_of_term p with
-  | Lambda (_, _, b) ->
-     1 + arity b
-  | Prod (_, _, b) ->
-     1 + arity b
-  | _ ->
-     0
-
-(* Check whether trm applies f (using eq_constr for equality) *)
-let applies (f : types) (trm : types) =
-  match kind_of_term trm with
-  | App (g, _) ->
-     eq_constr f g
-  | _ ->
-     false
-
-(* Check whether trm is trm' or applies trm', using eq_constr *)
-let is_or_applies (trm' : types) (trm : types) : bool =
-  applies trm' trm || eq_constr trm' trm
-
-(* Versions over two terms *)
-let are_or_apply (trm : types) = and_p (is_or_applies trm)
-let apply (trm : types) = and_p (applies trm)
-
-(* --- Convertibility, reduction, and types --- *)
-                                
-(* Infer the type of trm in env *)
-let infer_type (env : env) (evd : evar_map) (trm : types) : types =
-  Typing.unsafe_type_of env evd trm
-
-(* Check whether two terms are convertible, ignoring universe inconsistency *)
-let conv_ignoring_univ_inconsistency env evm trm1 trm2 : bool =
-  try
-    Reductionops.is_conv env evm trm1 trm2
-  with _ ->
-    match map_tuple kind_of_term (trm1, trm2) with
-    | (Sort (Type u1), Sort (Type u2)) -> true
-    | _ -> false
-
-(* Checks whether two terms are convertible in env with no evars *)
-let convertible (env : env) (trm1 : types) (trm2 : types) : bool =
-  conv_ignoring_univ_inconsistency env Evd.empty trm1 trm2
-
-(* Default reducer *)
-let reduce_term (env : env) (trm : types) : types =
-  Reductionops.nf_betaiotazeta Evd.empty trm
-
-(* Delta reduction *)
-let delta (env : env) (trm : types) =
-  Reductionops.whd_delta env Evd.empty trm
-                         
-(* nf_all *)
-let reduce_nf (env : env) (trm : types) : types =
-  Reductionops.nf_all env Evd.empty trm
-
-(* Reduce the type *)
-let reduce_type (env : env) evd (trm : types) : types =
-  reduce_term env (infer_type env evd trm)
-
-(* Chain reduction *)
-let chain_reduce rg rf (env : env) (trm : types) : types =
-  rg env (rf env trm)
-
-(* Apply on types instead of on terms *)
-let on_type f env evd trm =
-  f (reduce_type env evd trm)
 
 (* --- Basic mapping --- *)
 
@@ -371,40 +435,3 @@ let map_term f d (a : 'a) (trm : types) : types =
 let with_suffix id suffix =
   let prefix = Id.to_string id in
   Id.of_string (String.concat "_" [prefix; suffix])
-
-(* --- Application and arguments --- *)
-
-(* Get a list of all arguments, fully unfolded at the head *)
-let unfold_args_app trm =
-  let (f, args) = destApp trm in
-  let rec unfold trm =
-    match kind_of_term trm with
-    | App (f, args) ->
-       List.append (unfold f) (Array.to_list args)
-    | _ ->
-       [trm]
-  in List.append (List.tl (unfold f)) (Array.to_list args)
-
-(* Like unfold_args_app, but return empty if it's not an application *)
-let unfold_args trm =
-  if isApp trm then unfold_args_app trm else []
-
-(* Get the first function of an application *)
-let rec first_fun t =
-  match kind_of_term t with
-  | App (f, args) ->
-     first_fun f
-  | _ ->
-     t
-
-(*
- * Get the argument to an application of a property at argument position i
- * This unfolds all arguments first
- *)
-let get_arg i trm =
-  match kind_of_term trm with
-  | App (_, _) ->
-     let args = Array.of_list (unfold_args trm) in
-     Array.get args i
-  | _ ->
-     failwith "not an application"

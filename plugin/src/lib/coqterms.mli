@@ -79,16 +79,20 @@ val type_of_inductive : env -> int -> mutual_inductive_body -> types
  *)
 val type_eliminator : env -> inductive -> types
 
-(* 
- * Apply an eliminator
+(*
+ * Applications of eliminators
  *)
-val apply_eliminator :
-  types -> (* eliminator *)
-  types list -> (* parameters *)
-  types -> (* property *)
-  types list -> (* constructors *)
-  types array -> (* final arguments *)
-  types
+type elim_app =
+  {
+    elim : types;
+    pms : types list;
+    p : types;
+    cs : types list;
+    final_args : types list;
+  }
+                                            
+val apply_eliminator : elim_app -> types
+val deconstruct_eliminator : env-> evar_map -> types -> elim_app
   
 (* --- Environments --- *)
 
