@@ -155,6 +155,11 @@ let type_of_inductive env index mutind_body : types =
 (* Lookup the eliminator over the type sort *)
 let type_eliminator (env : env) (ind : inductive) =
   Universes.constr_of_global (Indrec.lookup_eliminator ind InType)
+
+(* Apply an eliminator *)
+let apply_eliminator elim pms p cs final_args =
+  let args = Array.of_list (List.append pms (p :: cs)) in
+  mkApp (mkApp (elim, args), final_args)
                              
 (* --- Environments --- *)
 

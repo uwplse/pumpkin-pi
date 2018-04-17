@@ -108,15 +108,6 @@ let remove_rel (i : int) (env : env) : env =
       (List.rev (List.tl (List.rev popped)))
   in List.fold_right push_local push env_pop
 
-(* Apply an eliminator *)
-let apply_eliminator elim pms p cs final_args =
-  let args = Array.of_list (List.append pms (p :: cs)) in
-  mkApp (mkApp (elim, args), final_args)
-
-(* Apply an eliminator and reconstruct it from an environment *)
-let apply_eliminator_recons env elim pms p cs final_args =
-  reconstruct_lambda env (apply_eliminator elim pms p cs final_args)
-
 (* Get the first function of an application *)
 let rec first_fun t =
   match kind_of_term t with
@@ -539,7 +530,8 @@ let search_for_indexer evd index_i index_t npm elim_o o n is_fwd : types option 
        let cs = indexer_cases evd index_i (shift p) npm o n in
        let final_args = Array.of_list (mk_n_rels off) in
        let p_elim = shift_by off p in
-       Some (apply_eliminator_recons env_ind elim_o pms p_elim cs final_args)
+       let app = apply_eliminator elim_o pms p_elim cs final_args in
+       Some (reconstruct_lambda env_ind app)
     | _ ->
        failwith "not eliminators"
   else

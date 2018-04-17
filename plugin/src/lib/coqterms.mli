@@ -78,7 +78,18 @@ val type_of_inductive : env -> int -> mutual_inductive_body -> types
  * Lookup the eliminator over the type sort
  *)
 val type_eliminator : env -> inductive -> types
-                                                                 
+
+(* 
+ * Apply an eliminator
+ *)
+val apply_eliminator :
+  types -> (* eliminator *)
+  types list -> (* parameters *)
+  types -> (* property *)
+  types list -> (* constructors *)
+  types array -> (* final arguments *)
+  types
+  
 (* --- Environments --- *)
 
 (*
