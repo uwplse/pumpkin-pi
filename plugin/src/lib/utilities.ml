@@ -83,3 +83,7 @@ let always_true _ = true
 (* Check that p a and p b are both true *)
 let and_p (p : 'a -> bool) (o : 'a) (n : 'a) : bool =
   p o && p n
+
+(* Control structures *)
+let map_if_else f g b x = if b then f x else g x
+let map_if f b x = map_if_else f (fun a -> a) b x

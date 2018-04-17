@@ -55,10 +55,12 @@ vo_to_obj = $(addsuffix .o,\
 ##########################
 
 OCAMLLIBS?=-I "src/lib"\
+  -I "src/ornaments"\
   -I "src"
 COQLIBS?=\
   -Q "theories" Ornamental\
   -I "src/lib"\
+  -I "src/ornaments"\
   -I "src"
 COQCHKLIBS?=\
   -R "theories" Ornamental
@@ -203,7 +205,8 @@ MLFILES:=src/lib/utilities.ml\
   src/lib/hofs.ml\
   src/lib/printing.ml\
   src/lib/factoring.ml\
-  src/lib/differencing.ml
+  src/lib/differencing.ml\
+  src/ornaments/lifting.ml
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(MLFILES))
@@ -234,7 +237,8 @@ MLIFILES:=src/lib/utilities.mli\
   src/lib/hofs.mli\
   src/lib/printing.mli\
   src/lib/factoring.mli\
-  src/lib/differencing.mli
+  src/lib/differencing.mli\
+  src/ornaments/lifting.mli
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(MLIFILES))
@@ -248,13 +252,13 @@ endif
 
 ALLCMOFILES:=$(ML4FILES:.ml4=.cmo) $(MLFILES:.ml=.cmo) $(MLPACKFILES:.mlpack=.cmo)
 CMOFILES=$(filter-out $(addsuffix .cmo,$(foreach lib,$(MLLIBFILES:.mllib=_MLLIB_DEPENDENCIES) $(MLPACKFILES:.mlpack=_MLPACK_DEPENDENCIES),$($(lib)))),$(ALLCMOFILES))
-CMOFILESINC=$(filter $(wildcard src/lib/*),$(CMOFILES)) $(filter $(wildcard src/*),$(CMOFILES)) 
+CMOFILESINC=$(filter $(wildcard src/lib/*),$(CMOFILES)) $(filter $(wildcard src/ornaments/*),$(CMOFILES)) $(filter $(wildcard src/*),$(CMOFILES)) 
 CMXFILES=$(CMOFILES:.cmo=.cmx)
 OFILES=$(CMXFILES:.cmx=.o)
 CMIFILES=$(sort $(ALLCMOFILES:.cmo=.cmi) $(MLIFILES:.mli=.cmi))
-CMIFILESINC=$(filter $(wildcard src/lib/*),$(CMIFILES)) $(filter $(wildcard src/*),$(CMIFILES)) 
+CMIFILESINC=$(filter $(wildcard src/lib/*),$(CMIFILES)) $(filter $(wildcard src/ornaments/*),$(CMIFILES)) $(filter $(wildcard src/*),$(CMIFILES)) 
 CMXSFILES=$(CMXFILES:.cmx=.cmxs)
-CMXSFILESINC=$(filter $(wildcard src/lib/*),$(CMXSFILES)) $(filter $(wildcard src/*),$(CMXSFILES)) 
+CMXSFILESINC=$(filter $(wildcard src/lib/*),$(CMXSFILES)) $(filter $(wildcard src/ornaments/*),$(CMXSFILES)) $(filter $(wildcard src/*),$(CMXSFILES)) 
 ifeq '$(HASNATDYNLINK)' 'true'
 HASNATDYNLINK_OR_EMPTY := yes
 else
@@ -409,6 +413,8 @@ uninstall: uninstall_me.sh
 	@echo "B $(COQLIB)engine" >> .merlin
 	@echo "B /home/tringer/ornamental-search/plugin/src/lib" >> .merlin
 	@echo "S /home/tringer/ornamental-search/plugin/src/lib" >> .merlin
+	@echo "B /home/tringer/ornamental-search/plugin/src/ornaments" >> .merlin
+	@echo "S /home/tringer/ornamental-search/plugin/src/ornaments" >> .merlin
 	@echo "B /home/tringer/ornamental-search/plugin/src" >> .merlin
 	@echo "S /home/tringer/ornamental-search/plugin/src" >> .merlin
 

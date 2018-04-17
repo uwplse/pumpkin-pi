@@ -1,4 +1,5 @@
 -I src/lib
+-I src/ornaments
 -I src
 -Q theories Ornamental
 
@@ -21,6 +22,9 @@ src/lib/factoring.ml
 src/lib/factoring.mli
 src/lib/differencing.ml
 src/lib/differencing.mli
+
+src/ornaments/lifting.ml
+src/ornaments/lifting.mli
 
 src/ornamental.ml4
 src/ornaments.mlpack

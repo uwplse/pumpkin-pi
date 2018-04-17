@@ -51,3 +51,8 @@ val reverse: ('a * 'b) -> ('b * 'a)
 
 val always_true : 'a -> bool
 val and_p : ('a -> bool) -> 'a -> 'a -> bool
+
+(* --- Control structures --- *)
+                                          
+val map_if_else : ('a -> 'b) -> ('a -> 'b) -> bool -> 'a -> 'b
+val map_if : ('a -> 'a) -> bool -> 'a -> 'a
