@@ -321,7 +321,7 @@ let reindex_shift index_i index args n =
  *)
 let adjust_no_index index_i args =
   let (before, after) = take_split index_i args in
-  List.append before (shift_all_by (- 1) after)
+  List.append before (unshift_all after)
               
 (* Given a type and the location of the argument, abstract by the argument *)
 let abstract_arg env evd i typ =
@@ -992,7 +992,7 @@ let ornament_concls concl_typ env evd (l : lifting) (from_ind, to_ind) trm =
         try
           remove_index
             (Option.get l.orn.index_i)
-            (shift_all_by (- 1) concl_args)
+            (unshift_all concl_args)
         with _ ->
           concl_args
     in
