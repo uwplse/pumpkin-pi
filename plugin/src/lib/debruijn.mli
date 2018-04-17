@@ -39,3 +39,26 @@ val shift_by : int -> types -> types
 val shift : types -> types
 val unshift : types -> types
 
+(* --- Lists --- *)
+
+(*
+ * Shifting and unshifting a list 
+ *)
+val shift_all : types list -> types list
+val unshift_all : types list -> types list
+
+(*
+ * Shifting and unshifting a list by an amount
+ *)
+val shift_all_by : int -> types list -> types list
+val unshift_all_by : int -> types list -> types list
+
+(* --- Substitutions --- *)
+
+(*
+ * Shifting a list of substitutions or its projections
+ *)
+val shift_subs : (types * types) list -> (types * types) list
+val shift_from : (types * types) list -> (types * types) list
+val shift_to : (types * types) list -> (types * types) list
+

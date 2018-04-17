@@ -4,7 +4,8 @@
 
 open Term
 open Coqterms
-
+open Utilities
+       
 (* --- Numbers --- *)
 
 (* Unshift an index by n *)
@@ -64,3 +65,28 @@ let shift (t : types) : types  =
 (* Decrement the relative indexes of a term t by one *)
 let unshift (t : types) : types =
   unshift_by 1 t
+
+(* --- Lists --- *)
+
+(* Shift a list *)
+let shift_all = List.map shift
+
+(* Shift all elements of a list by n *)
+let shift_all_by n = List.map (shift_by n)
+
+(* Unshift a list *)
+let unshift_all = List.map unshift
+
+(* Unshift all elements of a list by n *)
+let unshift_all_by n = List.map (unshift_by n)
+
+(* --- Substitutions --- *)
+
+(* Shift substitutions *)
+let shift_subs = List.map (map_tuple shift)
+
+(* Shift from substitutions *)
+let shift_from = List.map (fun (s, d) -> (shift s, d))
+
+(* Shift to substitutions *)
+let shift_to = List.map (fun (s, d) -> (s, shift d))

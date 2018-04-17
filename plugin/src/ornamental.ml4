@@ -108,21 +108,6 @@ let remove_rel (i : int) (env : env) : env =
       (List.rev (List.tl (List.rev popped)))
   in List.fold_right push_local push env_pop
 
-(* Shift substitutions *)
-let shift_subs = List.map (map_tuple shift)
-
-(* Shift from substitutions *)
-let shift_from = List.map (fun (s, d) -> (shift s, d))
-
-(* Shift to substitutions *)
-let shift_to = List.map (fun (s, d) -> (s, shift d))
-
-(* Shift a list *)
-let shift_all = List.map shift
-
-(* Shift all elements of a list by n *)
-let shift_all_by n = List.map (shift_by n)
-
 (* Apply an eliminator *)
 let apply_eliminator elim pms p cs final_args =
   let args = Array.of_list (List.append pms (p :: cs)) in
