@@ -199,6 +199,7 @@ endif
 MLFILES:=src/lib/utilities.ml\
   src/lib/coqterms.ml\
   src/lib/debruijn.ml\
+  src/lib/zooming.ml\
   src/lib/hofs.ml\
   src/lib/printing.ml
 
@@ -227,6 +228,7 @@ endif
 MLIFILES:=src/lib/utilities.mli\
   src/lib/coqterms.mli\
   src/lib/debruijn.mli\
+  src/lib/zooming.mli\
   src/lib/hofs.mli\
   src/lib/printing.mli
 

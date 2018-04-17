@@ -9,6 +9,8 @@ src/lib/coqterms.ml
 src/lib/coqterms.mli
 src/lib/debruijn.ml
 src/lib/debruijn.mli
+src/lib/zooming.ml
+src/lib/zooming.mli
 src/lib/hofs.ml
 src/lib/hofs.mli
 

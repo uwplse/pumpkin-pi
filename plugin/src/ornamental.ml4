@@ -12,6 +12,7 @@ open Utilities
 open Coqterms
 open Hofs
 open Debruijn
+open Zooming
 open Printing (* TODO clean above once refactored *)
 
 module CRD = Context.Rel.Declaration
@@ -88,20 +89,6 @@ type composition =
     f : env * types;
     is_g : bool;
   }
-                
-(* --- TODO move this --- *)
-                 
-(* Same, but skip j first *)
-let rec reconstruct_lambda_n_skip (env : env) (b : types) (i : int) (j : int) : types =
-  if nb_rel env = i then
-    b
-  else
-    let (n, _, t) = CRD.to_tuple @@ lookup_rel 1 env in
-    let env' = pop_rel_context 1 env in
-    if j <= 0 then
-      reconstruct_lambda_n_skip env' (mkLambda (n, t, b)) i j
-    else
-      reconstruct_lambda_n_skip env' (unshift b) (i - 1) (j - 1)
                 
 (* --- Factoring, from PUMPKIN PATCH --- *)
 

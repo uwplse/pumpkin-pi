@@ -162,38 +162,6 @@ val chain_reduce : (* sequencing *)
  *)
 val on_type : (types -> 'a) -> env -> evar_map -> types -> 'a
 
-(* --- Zooming and reconstructing --- *)
-                    
-(*
- * Zoom n deep
- *)
-val zoom_n_prod : env -> int -> types -> (env * types)
-val zoom_n_lambda : env -> int -> types -> (env * types)
-
-(*
- * Zoom all the way
- *)
-val zoom_lambda_term : env -> types -> (env * types)
-val zoom_product_type : env -> types -> (env * types)
-
-(* 
- * Projections of zooming
- *)
-val zoom_env : (env -> types -> (env * types)) -> env -> types -> env
-val zoom_term : (env -> types -> (env * types)) -> env -> types -> types
-
-(* 
- * Reconstruct until n are left
- *)
-val reconstruct_lambda_n : env -> types -> int -> types
-val reconstruct_product_n : env -> types -> int -> types
-
-(* 
- * Reconstruct fully
- *)
-val reconstruct_lambda : env -> types -> types
-val reconstruct_product : env -> types -> types
-
 (* --- Basic mapping --- *)
 
 val map_rec_env_fix :
