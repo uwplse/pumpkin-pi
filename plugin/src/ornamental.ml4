@@ -16,7 +16,8 @@ open Zooming
 open Printing
 open Factoring
 open Differencing
-open Lifting (* TODO clean above once refactored *)
+open Lifting
+open Promotions (* TODO clean above once refactored *)
 
 module CRD = Context.Rel.Declaration
 
@@ -35,17 +36,6 @@ let remove_rel (i : int) (env : env) : env =
         (n, unshift_local (i - j - 1) 1 t))
       (List.rev (List.tl (List.rev popped)))
   in List.fold_right push_local push env_pop
-
-(* Get the inductive types an ornament maps between, including their arguments *)
-(* TODO move this wherever you move ornaments *)
-let rec ind_of_orn (orn_type : types) : types * types =
-  match kind_of_term orn_type with
-  | Prod (n, t, b) when isProd b ->
-     ind_of_orn b
-  | Prod (n, t, b) ->
-     (t, b)
-  | _ ->
-     failwith "not an ornament"
 
 (*
  * Modify a case of an eliminator application to use
@@ -908,7 +898,7 @@ let direction (env : env) evd (orn : types) : bool =
       else
         let (from_args, to_args) = map_tuple unfold_args (from_ind, to_ind) in
         wrapped (map_tuple last (from_args, to_args))
-  in wrapped (ind_of_orn (reduce_type env evd orn))
+  in wrapped (on_type ind_of_promotion_type env evd orn)
 
 (*
  * Initialize an ornamentation
@@ -916,7 +906,7 @@ let direction (env : env) evd (orn : types) : bool =
  *)
 let initialize_orn env evd promote forget =
   let promote_unpacked = unpack env (unwrap_definition env promote) in
-  let to_ind = snd (on_type ind_of_orn env evd promote_unpacked) in
+  let to_ind = snd (on_type ind_of_promotion_type env evd promote_unpacked) in
   let to_args = unfold_args to_ind in
   let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
   let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
@@ -938,7 +928,7 @@ let ornament_no_red (env : env) evd (orn_f : types) (orn_inv_f : types) (trm : t
   let orn = initialize_orn env evd promote forget in
   let l = initialize_lifting orn is_fwd in
   let orn_type = reduce_type env evd orn.promote in
-  let (from_with_args, to_with_args) = ind_of_orn orn_type in
+  let (from_with_args, to_with_args) = ind_of_promotion_type orn_type in
   let env_to = pop_rel_context 1 (fst (zoom_product_type env orn_type)) in
   let from_ind = first_fun from_with_args in
   let to_ind = reconstruct_lambda env_to (unshift to_with_args) in
@@ -1022,7 +1012,7 @@ let compose_p evd npms post_assums inner (comp : composition) =
  *)
 let compose_ih env_g evd npms_g ip_g c_f p =
   let ip_g_typ = reduce_type env_g evd ip_g in
-  let from_typ = first_fun (fst (ind_of_orn ip_g_typ)) in
+  let from_typ = first_fun (fst (ind_of_promotion_type ip_g_typ)) in
   map_term_env_if
     (fun _ _ trm -> is_or_applies from_typ trm)
     (fun en p trm ->
@@ -1171,8 +1161,8 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let (orn_f, orn_g) = (lift_back l, lift_to l) in
   let orn_f_typ = reduce_type env_f evd orn_f in
   let orn_g_typ = reduce_type env_g evd orn_g in
-  let ind_f_typ = fst (ind_of_orn orn_f_typ) in
-  let ind_g_typ = fst (ind_of_orn orn_g_typ) in
+  let ind_f_typ = fst (ind_of_promotion_type orn_f_typ) in
+  let ind_g_typ = fst (ind_of_promotion_type orn_g_typ) in
   let to_typ = inner_ind_type ind_f_typ in
   let from_typ = inner_ind_type ind_g_typ in
   let (to_typ, from_typ) = map_backward reverse l (to_typ, from_typ) in

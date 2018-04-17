@@ -206,6 +206,7 @@ MLFILES:=src/lib/utilities.ml\
   src/lib/zooming.ml\
   src/lib/hofs.ml\
   src/lib/printing.ml\
+  src/ornaments/promotions.ml\
   src/ornaments/lifting.ml\
   src/components/factoring.ml\
   src/components/differencing.ml
@@ -238,6 +239,7 @@ MLIFILES:=src/lib/utilities.mli\
   src/lib/zooming.mli\
   src/lib/hofs.mli\
   src/lib/printing.mli\
+  src/ornaments/promotions.mli\
   src/ornaments/lifting.mli\
   src/components/factoring.mli\
   src/components/differencing.mli
