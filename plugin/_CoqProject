@@ -17,6 +17,9 @@ src/lib/hofs.mli
 src/lib/printing.ml
 src/lib/printing.mli
 
+src/lib/factoring.ml
+src/lib/factoring.mli
+
 src/ornamental.ml4
 src/ornaments.mlpack
 

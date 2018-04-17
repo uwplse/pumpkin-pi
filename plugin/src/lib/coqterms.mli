@@ -100,6 +100,7 @@ val push_let_in : (name * types * types) -> env -> env
 (*
  * Lookup from an environment
  *)
+val lookup_pop : int -> env -> (env * CRD.t list)
 val lookup_definition : env -> types -> types
 val unwrap_definition : env -> types -> types
 

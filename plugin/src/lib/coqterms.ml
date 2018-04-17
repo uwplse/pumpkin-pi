@@ -172,6 +172,11 @@ let push_local (n, t) = push_rel CRD.(LocalAssum (n, t))
 (* Push a let-in definition to an environment *)
 let push_let_in (n, e, t) = push_rel CRD.(LocalDef(n, e, t))
 
+(* Lookup n rels and remove then *)
+let lookup_pop (n : int) (env : env) =
+  let rels = List.map (fun i -> lookup_rel i env) (from_one_to n) in
+  (pop_rel_context n env, rels)
+
 (* Lookup a definition *)
 let lookup_definition (env : env) (def : types) : types =
   match kind_of_term def with
