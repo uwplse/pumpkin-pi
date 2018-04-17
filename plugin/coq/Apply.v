@@ -543,6 +543,10 @@ Definition app_nil_r (A : Type) (l : list A) :=
         IHl)
     l.
 
+Check app_nil_r.
+
+Check append_vect_packed.
+
 (* what we can get without doing a higher lifting of append inside of the proof *)
 Definition app_nil_r_lower (A : Type) (l : list A) :=
   @list_ind
@@ -559,6 +563,8 @@ Definition app_nil_r_lower (A : Type) (l : list A) :=
         (append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)))
         IHl)
     l.
+
+Check app_nil_r_lower.
 
 (* packed vector version *)
 Definition app_nil_r_vect_packed (A : Type) (pv : packed_vector A) :=
@@ -664,6 +670,9 @@ Definition app_nil_r_vect_packed_lower (A : Type) (pv : packed_vector A) :=
         v) 
     pv.
 
+Check app_nil_r_vect_packed_lower.
+Check app_nil_r_vect_packed.
+
 (*
  * TODO can we even get lower version with packed IP?
  *)
@@ -685,6 +694,45 @@ Definition app_nil_r_higher (A : Type) (l : list A) :=
     l.
 
 (* Doing this still required understanding how to lift the eq_ind_r term, which is the hard part. *)
+
+Print eq.
+
+(* 
+ * Why _does_ the type of eq_ind_r change anyways?
+ * And the same for eq_refl?
+ * It's because the theorem type is changing from:
+ * 
+ * append A l0 (@nil A) = l0
+ *
+ * To:
+ *
+ * append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)) = orn_list_vector A l0
+ *
+ * And each of these = is actually (eq (list A)) or (eq (packed_vector A))
+ * So actually, we need to solve this problem at the type level, too, to get the new induction principle property
+ *
+ * eq is an inductive type:
+ *   Inductive eq (A : Type) (x : A) : A -> Prop :=  
+ *   | eq_refl : x = x.
+ *
+ * We had:
+ *    eq (list A) l1 : list A -> Prop :=
+ *    | eq_refl : eq (list A) l1 l1.
+ *
+ * We want:
+ *    eq (packed_vector A) v1 : packed_vector A -> Prop :=
+ *    | eq_refl : eq (packed_vectorA) v1 v1.
+ *
+ * Once we lift that, the eq_refl change is obvious, and the eliminator should follow. Just instantiate A differently.
+ *
+ * We can lift any (l : list A) to some (v : packed_vector A).
+ * We need to know to change the type instantation.
+ * Or we just need to know (A : Type) (x : A) so we lift at the type-level too, but is that general enough?
+ *
+ * ALL THIS is a separate step after reduction because it changes the type. Reduction up to this
+ * point should be type-preserving!
+ *)
+
 (* But maybe we can think of this as another reduction? *)
 
 Theorem higher_lifting_from_tests:

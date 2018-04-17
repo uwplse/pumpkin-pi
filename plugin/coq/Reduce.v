@@ -226,6 +226,7 @@ Qed.
  *)
 
 Check app_nil_r_vect_red.
+Print app_nil_r_vect_red.
 
 Theorem test_app_nil_r_vect:
   forall (A : Type) (pv : packed_vector A),
@@ -245,6 +246,9 @@ Theorem test_app_nil_r:
 Proof.
   intros. rewrite <- app_coh_inv. rewrite app_nil_r_red. apply coh_list.
 Qed.
+
+Check app_nil_r_vect_red.
+Check app_nil_r_vect_auto.
 
 (* 
  * NOTE: The app_nil_r case needs an automatic proof of indices, which it doesn't have yet.
