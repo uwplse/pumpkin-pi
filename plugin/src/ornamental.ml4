@@ -14,7 +14,8 @@ open Hofs
 open Debruijn
 open Zooming
 open Printing
-open Factoring (* TODO clean above once refactored *)
+open Factoring
+open Differencing (* TODO clean above once refactored *)
 
 module CRD = Context.Rel.Declaration
 
@@ -106,32 +107,6 @@ let remove_rel (i : int) (env : env) : env =
         (n, unshift_local (i - j - 1) 1 t))
       (List.rev (List.tl (List.rev popped)))
   in List.fold_right push_local push env_pop
-
-(* is_or_applies over two terms with a different check *)
-(* TODO move this wherever you handle differencing *)
-let apply_old_new (o : types * types) (n : types * types) : bool =
-  let (trm_o, trm_o') = o in
-  let (trm_n, trm_n') = n in
-  is_or_applies trm_o trm_o' && is_or_applies trm_n trm_n'
-
-(* Check if two terms are the same modulo a change of an inductive type *)
-let same_mod_change env o n =
-  let (t_o, t_n) = map_tuple snd (o, n) in
-  apply_old_new o n || convertible env t_o t_n
-
-(* Check if two terms are the same modulo an indexing of an inductive type *)
-let same_mod_indexing env p_index o n =
-  let (t_o, t_n) = map_tuple snd (o, n) in
-  are_or_apply p_index t_o t_n || same_mod_change env o n
-
-(* Check if two terms have the same type, ignoring universe inconsinstency *)
-let same_type evd o n =
-  let (env_o, t_o) = o in
-  let (env_n, t_n) = n in
-  try
-    convertible env_o (infer_type env_o evd t_o) (infer_type env_n evd t_n)
-  with _ ->
-    false
 
 (* Shift substitutions *)
 let shift_subs = List.map (map_tuple shift)
@@ -679,7 +654,7 @@ let sub_index evd f_indexer subs o n =
           (shift a_n, mkRel 1))
       (List.filter
          (fun (a_o, a_n) ->
-           applies f_indexer a_o || not (same_type evd (env_o, a_o) (env_n, a_n)))
+           applies f_indexer a_o || not (same_type env_o evd (env_o, a_o) (env_n, a_n)))
          args)
   in List.append new_subs subs
 

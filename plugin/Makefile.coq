@@ -202,7 +202,8 @@ MLFILES:=src/lib/utilities.ml\
   src/lib/zooming.ml\
   src/lib/hofs.ml\
   src/lib/printing.ml\
-  src/lib/factoring.ml
+  src/lib/factoring.ml\
+  src/lib/differencing.ml
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(MLFILES))
@@ -232,7 +233,8 @@ MLIFILES:=src/lib/utilities.mli\
   src/lib/zooming.mli\
   src/lib/hofs.mli\
   src/lib/printing.mli\
-  src/lib/factoring.mli
+  src/lib/factoring.mli\
+  src/lib/differencing.mli
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(MLIFILES))
