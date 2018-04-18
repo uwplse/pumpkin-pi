@@ -31,9 +31,18 @@ val diff_arg : int -> types -> types -> bool
  * Both pairs are the old inductive type with the old term,
  * and the new inductive type with the new term
  *)
+(*
+ * TODO hide eventually
+ *)
 val same_mod_indexing :
   env -> types -> (types * types) -> (types * types) -> bool
 
+(* --- Indexers --- *)
+
+(* 
+ * TODO hide eventually all of these eventually
+ *)
+                                                          
 (*
  * Assuming there is an indexing ornamental relationship between two 
  * eliminators, get the type and location of the new index.
@@ -42,3 +51,19 @@ val same_mod_indexing :
  * the client needs to shift by the appropriate offset.
  *)
 val new_index_type : env -> types -> types -> (int * types)
+
+(*
+ * Search for an indexing function that relates two inductive types
+ * For example, a list and vector are related via list length
+ * TODO clean type 
+ *)
+val search_for_indexer :
+  evar_map ->
+  int ->
+  types ->
+  int ->
+  types ->
+  (env * types * int * types) ->
+  (env * types * int * types) ->
+  bool ->
+  types option
