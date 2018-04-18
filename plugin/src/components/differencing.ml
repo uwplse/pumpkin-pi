@@ -126,6 +126,29 @@ let get_new_index index_i p o n =
      failwith "not an application of a property"
 
 (*
+ * Convenience function that rules out hypotheses that the algorithm thinks 
+ * compute candidate old indices that actually compute new indices, so that 
+ * we only have to do this much computation when we have a lead to begin with.
+ *
+ * The gist is that any new hypothesis in a constructor that has a different
+ * type from the corresponding hypothesis in the old constructor definitely 
+ * computes a new index, assuming an indexing ornamental relationship
+ * and no other changes. So if we find one of those we just assume it's an
+ * index. But this does not capture every kind of index, so if we can't
+ * make that assumption, then we need to do an extra check.
+ * 
+ * An example might be if an inductive type already has an index of type nat, 
+ * and then we add a new index of type nat next to it. We then need to figure
+ * out which index is the new one, and a naive (but efficient) algorithm may 
+ * ignore the correct index. This lets us only check that condition
+ * in those situations, and otherwise just look for obvious indices by
+ * comparing hypotheses.
+ *)
+let false_lead env evd index_i p b_o b_n =
+  let same_arity = (arity b_o = arity b_n) in
+  not same_arity && (computes_only_index env evd index_i p (mkRel 1) b_n)
+
+(*
  * Get a single case for the indexer, given:
  * 1. index_i, the location of the new index in the property
  * 2. index_t, the type of the new index in the property
@@ -149,9 +172,8 @@ let index_case evd index_i p o n : types =
        let e_n_b = push_local (n_n, t_n) e_n in
        let n_b = (e_n_b, shift ind_n, b_n) in
        let same = same_mod_indexing e_o p in
-       let same_arity = arity b_o = arity b_n in
-       let false_lead b_n = not same_arity && (computes_only_index e_n_b evd index_i p_b (mkRel 1)) b_n in
-       if (not (same (ind_o, t_o) (ind_n, t_n))) || false_lead b_n then
+       let is_false_lead = false_lead e_n_b evd index_i p_b b_o in
+       if (not (same (ind_o, t_o) (ind_n, t_n))) || (is_false_lead b_n) then
          (* index *)
          let e_o_b = push_local (n_n, t_n) e_o in
          let subs_b = shift_subs subs in
@@ -169,7 +191,7 @@ let index_case evd index_i p o n : types =
            (* no change *)
            let subs_b = shift_subs subs in
            mkLambda (n_o, t_o, diff_b subs_b o_b n_b)
-    | (App (f_o, _), App (f_n, _)) ->
+    | (App (_, _), App (_, _)) ->
        (* conclusion *)
        let index = get_index p trm_o trm_n in
        List.fold_right all_eq_substs subs index
@@ -198,13 +220,13 @@ let indexer_cases evd index_i p npm o n : types list =
      failwith "not eliminators"
 
 (* Search for an indexing function *)
-let search_for_indexer evd index_i index_t npm elim_o o n is_fwd : types option =
+let search_for_indexer evd index_i index_t npm elim o n is_fwd : types option =
   if is_fwd then
     let (env_o, _, arity_o, elim_t_o) = o in
     let (env_n, _, _, elim_t_n) = n in
     let index_t = shift_by npm index_t in
     match map_tuple kind_of_term (elim_t_o, elim_t_n) with
-    | (Prod (_, p_o, b_o), Prod (_, p_n, b_n)) ->
+    | (Prod (_, p_o, _), Prod (_, p_n, _)) ->
        let env_ind = zoom_env zoom_product_type env_o p_o in
        let off = offset env_ind npm in
        let pms = shift_all_by (arity_o - npm + 1) (mk_n_rels npm) in
@@ -213,7 +235,6 @@ let search_for_indexer evd index_i index_t npm elim_o o n is_fwd : types option 
        let cs = indexer_cases evd index_i (shift p) npm o n in
        let final_args = mk_n_rels off in
        let p = shift_by off p in
-       let elim = elim_o in
        let app = apply_eliminator {elim; pms; p; cs; final_args} in
        Some (reconstruct_lambda env_ind app)
     | _ ->
