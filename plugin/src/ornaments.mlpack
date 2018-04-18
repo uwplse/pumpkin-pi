@@ -4,6 +4,7 @@ Coqterms
 Debruijn
 Zooming
 Hofs
+Indexing
 
 Printing
 
@@ -11,6 +12,7 @@ Promotions
 Lifting
 
 Factoring
+Abstraction
 Differencing
 
 Ornamental

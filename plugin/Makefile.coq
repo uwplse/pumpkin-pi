@@ -205,10 +205,12 @@ MLFILES:=src/lib/utilities.ml\
   src/lib/debruijn.ml\
   src/lib/zooming.ml\
   src/lib/hofs.ml\
+  src/lib/indexing.ml\
   src/lib/printing.ml\
   src/ornaments/promotions.ml\
   src/ornaments/lifting.ml\
   src/components/factoring.ml\
+  src/components/abstraction.ml\
   src/components/differencing.ml
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
@@ -238,10 +240,12 @@ MLIFILES:=src/lib/utilities.mli\
   src/lib/debruijn.mli\
   src/lib/zooming.mli\
   src/lib/hofs.mli\
+  src/lib/indexing.mli\
   src/lib/printing.mli\
   src/ornaments/promotions.mli\
   src/ornaments/lifting.mli\
   src/components/factoring.mli\
+  src/components/abstraction.mli\
   src/components/differencing.mli
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)

@@ -15,6 +15,8 @@ src/lib/zooming.ml
 src/lib/zooming.mli
 src/lib/hofs.ml
 src/lib/hofs.mli
+src/lib/indexing.ml
+src/lib/indexing.mli
 
 src/lib/printing.ml
 src/lib/printing.mli
@@ -26,6 +28,8 @@ src/ornaments/lifting.mli
 
 src/components/factoring.ml
 src/components/factoring.mli
+src/components/abstraction.ml
+src/components/abstraction.mli
 src/components/differencing.ml
 src/components/differencing.mli
 

@@ -17,7 +17,9 @@ open Printing
 open Factoring
 open Differencing
 open Lifting
-open Promotions (* TODO clean above once refactored *)
+open Promotions
+open Abstraction
+open Indexing (* TODO clean above once refactored *)
 
 module CRD = Context.Rel.Declaration
 
@@ -126,54 +128,6 @@ let rec remove_final_hypo trm =
      failwith "not a lambda"
 
 (* --- Differencing and identifying indices --- *)
-
-(*
- * Insert an index into a list of terms in the location index_i
- *)
-let insert_index index_i index args =
-  let (before, after) = take_split index_i args in
-  List.append before (index :: after)
-
-(*
- * Insert an index and shift the arguments before and after it by n
- *)
-let insert_index_shift index_i index args n =
-  let (before, after) = take_split index_i (shift_all_by n args) in
-  List.append before (index :: after)
-
-(*
- * Remove an index from a list of terms in the location index_i
- *)
-let remove_index index_i args =
-  let (before, after) = take_split index_i args in
-  List.append before (List.tl after)
-
-(*
- * Insert an index where an old index was
- *)
-let reindex index_i index args =
-  insert_index index_i index (remove_index index_i args)
-
-(*
- * Insert an index where an old index was and shift after
- *)
-let reindex_shift index_i index args n =
-  insert_index_shift index_i index (remove_index index_i args) n
-
-(*
- * Unshift arguments after index_i, since the index is no longer in
- * the hypotheses
- *)
-let adjust_no_index index_i args =
-  let (before, after) = take_split index_i args in
-  List.append before (unshift_all after)
-              
-(* Given a type and the location of the argument, abstract by the argument *)
-let abstract_arg env evd i typ =
-  let arg = get_arg i typ in
-  let arg_typ = reduce_type env evd arg in
-  let args = reindex i (mkRel 1) (shift_all (unfold_args typ)) in
-  mkLambda (Anonymous, arg_typ, mkAppl (first_fun typ, args))
 
 (*
  * Returns true if the argument at index i to property p is
@@ -597,8 +551,8 @@ let pack env evd index_typ f_indexer index_i npm ind ind_n arity is_fwd unpacked
   if is_fwd then
     (* pack conclusion *)
     let off = arity - 1 in
-    let unpacked_args = mk_n_rels off in
-    let packed_args = insert_index_shift index_i (mkRel 1) unpacked_args 1 in
+    let unpacked_args = shift_all (mk_n_rels off) in
+    let packed_args = insert_index index_i (mkRel 1) unpacked_args in
     let env_abs = push_local (Anonymous, index_typ) env in
     let packer = abstract_arg env_abs evd index_i (mkAppl (ind, packed_args)) in
     let index = mkAppl (f_indexer, mk_n_rels arity) in
@@ -607,8 +561,8 @@ let pack env evd index_typ f_indexer index_i npm ind ind_n arity is_fwd unpacked
   else
     (* pack hypothesis *)
     let (from_n, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
-    let unpacked_args = unfold_args unpacked_typ in
-    let packed_args = reindex_shift index_i (mkRel 1) unpacked_args 1 in
+    let unpacked_args = shift_all (unfold_args unpacked_typ) in
+    let packed_args = reindex index_i (mkRel 1) unpacked_args in
     let env_abs = push_local (Anonymous, shift index_typ) env in
     let packer = abstract_arg env_abs evd index_i (mkAppl (ind, packed_args)) in
     let packed_typ = mkAppl (sigT, [shift (shift index_typ); packer]) in
