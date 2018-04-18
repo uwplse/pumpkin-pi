@@ -128,36 +128,6 @@ let rec remove_final_hypo trm =
      failwith "not a lambda"
 
 (* --- Differencing and identifying indices --- *)
-                  
-(*
- * Returns true if the hypothesis i is used to compute the index at position
- * index_i in any application of a property p in the eliminator type trm.
- *)
-let rec computes_index index_i p i trm =
-  match kind_of_term trm with
-  | Prod (n, t, b) ->
-     let p_b = shift p in
-     let i_b = shift i in
-     if applies p t then
-       contains_term i (get_arg index_i t) || computes_index index_i p_b i_b b
-     else
-       computes_index index_i p_b i_b b
-  | App (_, _) when applies p trm ->
-     contains_term i (get_arg index_i trm)
-  | _ ->
-     false
-
-(*
- * Returns true if the hypothesis i is _only_ used to compute the index
- * at index_i, and is not used to compute any other indices
- *)
-let computes_only_index env evd index_i p i trm =
-  let indices = List.map unshift_i (from_one_to (arity (infer_type env evd p) - 1)) in
-  if computes_index index_i p i trm then
-    let indices_not_i = remove_index index_i indices in
-    List.for_all (fun j -> not (computes_index j p i trm)) indices_not_i
-  else
-    false
 
 (*
  * Given an old and new application of a property, find the new index.
