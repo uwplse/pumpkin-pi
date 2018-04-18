@@ -299,8 +299,8 @@ let search_for_indexer evd index_i index_t npm elim o n is_fwd : types option =
 (* --- Indexing ornaments --- *)
 
 (*
+ * Utility function
  * Remove the binding at index i from the environment
- * TODO move this wherever you move pack/unpack
  *)
 let remove_rel (i : int) (env : env) : env =
   let (env_pop, popped) = lookup_pop i env in
@@ -315,19 +315,15 @@ let remove_rel (i : int) (env : env) : env =
 (*
  * Modify a case of an eliminator application to use
  * the new property p in its hypotheses
- * TODO move to differencing once differencing finds ornaments
  *)
-let with_new_p p c : types =
+let with_new_property p c : types =
   let rec sub_p sub trm =
     let (p_o, p_n) = sub in
     match kind_of_term trm with
     | Prod (n, t, b) ->
-       let sub_b = map_tuple shift sub in
-       if applies p_o t then
-         let (_, args) = destApp t in
-         mkProd (n, mkApp (p_n, args), sub_p sub_b b)
-       else
-         mkProd (n, t, sub_p sub_b b)
+       let sub_p_n t = mkAppl (p_n, unfold_args t) in
+       let t' = map_if sub_p_n (applies p_o t) t in
+       mkProd (n, t', sub_p (map_tuple shift sub) b)
     | _ ->
        trm
   in sub_p (mkRel 1, p) c
@@ -442,7 +438,7 @@ let orn_index_case evd index_i is_fwd indexer_f orn_p o n : types =
   let d_arity = arity_n - arity_o in
   let adjust p = stretch_property index_i env_o (ind_o, p) (ind_n, p_n) in
   let p_o = when_forward (fun p -> adjust (unshift_by d_arity p)) orn_p in
-  let c_o = with_new_p (shift_by d_arity p_o) c_o in
+  let c_o = with_new_property (shift_by d_arity p_o) c_o in
   let o = (env_o, ind_o, c_o) in
   let n = (env_n, ind_n, c_n) in
   prod_to_lambda (sub_indexes evd index_i is_fwd indexer_f (mkRel 1) [] o n)
