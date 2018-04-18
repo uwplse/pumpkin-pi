@@ -376,7 +376,6 @@ let sub_index evd f_indexer subs o n =
   in List.append new_subs subs
 
 (* In the conclusion of each case, return c_n with c_o's indices *)
-(* TODO clean again, see if any of these checks are redundant *)
 let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
   let directional a b = if is_fwd then a else b in
   let rec sub p subs o n =
@@ -388,11 +387,8 @@ let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
        let same = same_mod_indexing env_o p (ind_o, t_o) (ind_n, t_n) in
        let env_o_b = push_local (n_o, t_o) env_o in
        let env_n_b = push_local (n_n, t_n) env_n in
-       let false_lead_fwd _ b_n = computes_only_index env_n_b evd index_i p_b (mkRel 1) b_n in
-       let false_lead_bwd b_o _ = computes_only_index env_o_b evd index_i p_b (mkRel 1) b_o in
-       let same_arity b_o b_n = (arity b_o = arity b_n) in
-       let false_lead b_o b_n = (not (same_arity b_o b_n)) && (directional false_lead_fwd false_lead_bwd) b_o b_n in
-       if applies p t_n || (same && not (false_lead b_o b_n)) then
+       let is_false_lead b_o b_n = false_lead (directional env_n_b env_o_b) evd index_i p_b (directional b_o b_n) (directional b_n b_o) in
+       if applies p t_n || (same && not (is_false_lead b_o b_n)) then
          let o_b = (env_o_b, shift ind_o, b_o) in
          let n_b = (env_n_b, shift ind_n, b_n) in
          let subs_b = shift_subs subs in
