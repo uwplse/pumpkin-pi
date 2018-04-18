@@ -115,21 +115,6 @@ let get_used_or_p_hypos (p : types -> bool) (trm : types) : types list =
        []
   in get_used trm (arity trm)
 
-(*
- * Returns true if two applications contain have a different
- * argument at index i.
- *
- * For now, this uses precise equality, but we can loosen this
- * to convertibility if desirable.
- *)
-let diff_arg i trm_o trm_n =
-  try
-    let arg_o = get_arg i trm_o in
-    let arg_n = get_arg i trm_n in
-    not (eq_constr arg_o arg_n)
-  with _ ->
-    true
-
 (* Remove the final hypothesis of a lambda *)
 let rec remove_final_hypo trm =
   match kind_of_term trm with

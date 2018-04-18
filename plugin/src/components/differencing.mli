@@ -16,6 +16,13 @@ open Evd
 val same_type :
   env -> evar_map -> (env * types) -> (env * types) -> bool
 
+(*
+ * Returns true if two applications contain have a different
+ * argument at the given index, using precise syntactic equality.
+ * Return true vacuously if the terms are not applications at all.
+ *)
+val diff_arg : int -> types -> types -> bool
+
 (* --- Differencing inductive types --- *)
                                                                        
 (* 

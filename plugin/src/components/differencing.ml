@@ -18,6 +18,21 @@ let same_type env evd o n =
   with _ ->
     false
 
+(*
+ * Returns true if two applications contain have a different
+ * argument at index i.
+ *
+ * For now, this uses precise equality, but we can loosen this
+ * to convertibility if desirable.
+ *)
+let diff_arg i trm_o trm_n =
+  try
+    let arg_o = get_arg i trm_o in
+    let arg_n = get_arg i trm_n in
+    not (eq_constr arg_o arg_n)
+  with _ ->
+    true
+
 (* --- Differencing inductive types --- *)
 
 (* is_or_applies over two terms with a different check *)
