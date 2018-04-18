@@ -5,6 +5,10 @@
 open Utilities
 open Term
 open Environ
+open Coqterms
+open Zooming
+open Promotions
+open Hofs
 
 (* --- Datatypes --- *)
 
@@ -55,6 +59,26 @@ type composition =
   }
 
 (* --- Initialization --- *)
+
+(* 
+ * Unpack a promotion
+ *)
+let unpack_promotion env promotion =
+  let (env_promotion, body) = zoom_lambda_term env promotion in
+  reconstruct_lambda env_promotion (last (unfold_args body))
+    
+(*
+ * Initialize a promotion
+ *)
+let initialize_promotion env evd promote forget =
+  let promote_unpacked = unpack_promotion env (unwrap_definition env promote) in
+  let to_ind = snd (on_type ind_of_promotion_type env evd promote_unpacked) in
+  let to_args = unfold_args to_ind in
+  let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
+  let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
+  let index_i = Some index_i in
+  let indexer = Some (first_fun index) in
+  { index_i; indexer; promote; forget }
 
 (*
  * Initialize a lifting

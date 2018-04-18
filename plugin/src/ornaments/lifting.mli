@@ -4,6 +4,7 @@
 
 open Term
 open Environ
+open Evd
 
 (* --- Datatypes --- *)
 
@@ -54,6 +55,11 @@ type composition =
   }
 
 (* --- Initialization --- *)
+
+(* 
+ * Initialize a promotion, given promotion and forgetful functions
+ *)
+val initialize_promotion : env -> evar_map -> types -> types -> promotion
 
 (*
  * Initialize a lifting, given a promotion and a direction 

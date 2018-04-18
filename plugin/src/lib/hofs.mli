@@ -153,3 +153,11 @@ val all_conv_substs : env -> (types * types) -> types -> types
  * all_substs with eq_constr and the empty environment
  *)
 val all_eq_substs : (types * types) -> types -> types
+
+(* --- Containment --- *)
+
+(* 
+ * Check whether the first term contains the second as a subterm, 
+ * using exact syntactic equality
+ *)
+val contains_term : types -> types -> bool

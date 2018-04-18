@@ -208,6 +208,14 @@ let all_conv_substs =
 let all_eq_substs =
   all_substs (fun _ -> eq_constr) empty
 
+(* --- Containment --- *)
+             
+(*
+ * Check recursively whether a term contains another term
+ *)
+let contains_term c trm =
+  exists_subterm eq_constr shift c trm
+
 (* --- Variations --- *)
 
 (* map env without any a *)
