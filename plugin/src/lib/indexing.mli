@@ -28,3 +28,16 @@ val reindex : int -> 'a -> 'a list -> 'a list
  * the index is no longer a hypothesis
  *)
 val adjust_no_index : int -> types list -> types list
+
+(*
+ * Given (in order) an index location, an inductive property, a hypothesis,
+ * the type of a constructor body, and a number of arguments to a constructor 
+ * left in that body, return the first inductive hypothesis in the body 
+ * for which the hypothesis is used to compute the index at the supplied
+ * location.
+ *
+ * The return type is a pair of the index hypothesis location in the inductive
+ * type and the inductive hypothesis that first references that hypothesis,
+ * or None if no such index exists.
+ *)
+val index_ih : int -> types -> types -> types -> int -> (types * types) option

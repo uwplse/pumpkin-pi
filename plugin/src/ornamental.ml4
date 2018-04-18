@@ -128,30 +128,6 @@ let rec remove_final_hypo trm =
      failwith "not a lambda"
 
 (* --- Differencing and identifying indices --- *)
-
-(*
- * Returns the first inductive hypothesis in the eliminator type trm
- * for which the hypothesis h is used to compute the index at position index_i
- *)
-let rec index_ih index_i p h trm i =
-  match kind_of_term trm with
-  | Prod (n, t, b) ->
-     let p_b = shift p in
-     let i_b = shift h in
-     if applies p t then
-       if contains_term h (get_arg index_i t) then
-         Some (mkRel i, t)
-       else
-         index_ih index_i p_b i_b b (i - 1)
-     else
-       index_ih index_i p_b i_b b (i - 1)
-  | App (_, _) when applies p trm ->
-     if contains_term h (get_arg index_i trm) then
-       Some (mkRel i, trm)
-     else
-       None
-  | _ ->
-     None
                   
 (*
  * Returns true if the hypothesis i is used to compute the index at position
@@ -979,7 +955,8 @@ let rec indexes env to_typ index_i f_hs g_hs trm i =
   if List.length f_hs != num_args then
     match (g_hs, kind_of_term trm) with
     | (h :: tl, Prod (n, t, b)) ->
-       let index_ih_opt = index_ih index_i to_typ (mkRel 1) b (num_args - (i + 1)) in
+       let num_args_left = num_args - (i + 1) in
+       let index_ih_opt = index_ih index_i to_typ (mkRel 1) b num_args_left in
        map_if
          (fun tl -> (i, Option.get index_ih_opt) :: tl)
          (Option.has_some index_ih_opt)
