@@ -328,7 +328,10 @@ let with_new_property p c : types =
        trm
   in sub_p (mkRel 1, p) c
 
-(* Find the property that the ornament proves *)
+(* 
+ * Find the property that the ornamental promotion or forgetful function proves
+ * for an indexing function
+ *)
 let ornament_p index_i env ind arity npm indexer_opt =
   let off = offset env npm in
   let off_args = off - (arity - npm) in
@@ -337,21 +340,18 @@ let ornament_p index_i env ind arity npm indexer_opt =
   let concl =
     match indexer_opt with
     | Some indexer ->
-       (* forward (indexing) direction *)
+       (* forward (indexing/promotion) direction *)
        let indexer = Option.get indexer_opt in
        let index = mkAppl (indexer, snoc (mkRel 1) args) in
        mkAppl (ind, insert_index index_i_npm index args)
     | None ->
-       (* backward (deindexing) direction *)
+       (* backward (deindexing/forgetful) direction *)
        mkAppl (ind, adjust_no_index index_i_npm args)
   in shift_by off (reconstruct_lambda_n env concl npm)
 
 (*
  * Given terms that apply properties, update the
  * substitution list to include the corresponding new index
- *
- * This may be wrong for dependent indices (may need some kind of fold,
- * or the order may be incorrect). We'll need to see when we test that case.
  *)
 let sub_index evd f_indexer subs o n =
   let (env_o, app_o) = o in
@@ -369,7 +369,9 @@ let sub_index evd f_indexer subs o n =
           (shift a_n, mkRel 1))
       (List.filter
          (fun (a_o, a_n) ->
-           applies f_indexer a_o || not (same_type env_o evd (env_o, a_o) (env_n, a_n)))
+           let o = (env_o, a_o) in
+           let n = (env_n, a_n) in
+           applies f_indexer a_o || not (same_type env_o evd o n))
          args)
   in List.append new_subs subs
 
