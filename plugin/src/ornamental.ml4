@@ -184,30 +184,6 @@ let computes_only_index env evd index_i p i trm =
     false
 
 (*
- * Get the index type and location (index of the index).
- * This doesn't yet handle adding multiple indices.
- *
- * If indices depend on earlier types, the types may be dependent;
- * the client needs to shift by the appropriate offset.
- *)
-let index_type env elim_t_o elim_t_n =
-  let (_, p_o, b_o) = destProd elim_t_o in
-  let (_, p_n, b_n) = destProd elim_t_n in
-  let rec poss_indices e p_o p_n =
-    match map_tuple kind_of_term (p_o, p_n) with
-    | (Prod (n_o, t_o, b_o), Prod (_, t_n, b_n)) ->
-       if isProd b_o && convertible e t_o t_n then
-         let e_b = push_local (n_o, t_o) e in
-         let same = poss_indices e_b b_o b_n in
-         let different = (0, t_n) in
-         different :: (List.map (fun (i, i_t) -> (shift_i i, i_t)) same)
-       else
-         [(0, t_n)]
-    | _ ->
-       failwith "could not find indexer property"
-  in List.find (fun (i, _) -> new_index i b_o b_n) (poss_indices env p_o p_n)
-
-(*
  * Given an old and new application of a property, find the new index.
  * This also assumes there is only one new index.
  *)
@@ -562,7 +538,7 @@ let search_orn_index_elim evd npm idx_n elim_o o n is_fwd : (int option * types 
   let call_directional f a b = if is_fwd then f a b else f b a in
   let (env_o, ind_o, arity_o, elim_t_o) = o in
   let (env_n, ind_n, arity_n, elim_t_n) = n in
-  let (index_i, index_t) = call_directional (index_type env_n) elim_t_o elim_t_n in
+  let (index_i, index_t) = call_directional (new_index_type env_n) elim_t_o elim_t_n in
   let indexer = search_for_indexer evd index_i index_t npm elim_o o n is_fwd in
   let f_indexer = make_constant idx_n in
   let f_indexer_opt = directional (Some f_indexer) None in

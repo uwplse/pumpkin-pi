@@ -35,19 +35,10 @@ val same_mod_indexing :
   env -> types -> (types * types) -> (types * types) -> bool
 
 (*
- * Returns true if the argument at the supplied index location of the 
- * inductive property (which should be at relative index 1 before calling
- * this function) is an index to some application of the induction principle
- * in the second term that was not an index to any application of the induction
- * principle in the first term.
+ * Assuming there is an indexing ornamental relationship between two 
+ * eliminators, get the type and location of the new index.
  *
- * In other words, this looks for applications of the property
- * in the induction principle type, checks the argument at the location,
- * and determines whether they were equal. If they are ever not equal,
- * then the index is considered to be new. Since we are ornamenting,
- * we can assume that we maintain the same inductive structure, and so
- * we should encounter applications of the induction principle in both
- * terms in exactly the same order.
+ * If indices depend on earlier types, the types may be dependent;
+ * the client needs to shift by the appropriate offset.
  *)
-val new_index : int -> types -> types -> bool
-
+val new_index_type : env -> types -> types -> (int * types)
