@@ -393,14 +393,14 @@ let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
        if applies p t_n || (same && not (is_false_lead b_o b_n)) then
          let o_b = (env_o_b, shift ind_o, b_o) in
          let n_b = (env_n_b, shift ind_n, b_n) in
-         let subs_b = shift_subs subs in
-         if applies p t_n then
-           (* inductive hypothesis, get the index *)
-           let subs_b = sub_index evd f_indexer subs_b (env_o, t_o) (env_n, t_n) in
-           mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
-         else
-           (* no index, keep recursing *)
-           mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
+         let subs_b =
+           map_if
+             (fun subs ->
+               (* add the index for the IH to the substitutions *)
+               sub_index evd f_indexer subs (env_o, t_o) (env_n, t_n))
+             (applies p t_n) (* t_n is an IH *)
+             (shift_subs subs)
+         in mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
        else
          (* new hypothesis from which the index is computed *)
          let subs_b = directional (shift_to subs) (shift_from subs) in
@@ -411,10 +411,9 @@ let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
          let o_b = (env_o_b, shift ind_o, b_o_b) in
          let n_b = (env_n_b, shift ind_n, b_n_b) in
          let subbed_b = sub p_b subs_b o_b n_b in
-         directional (unshift subbed_b) (mkProd (n_o, t_o, subbed_b))
+         (directional unshift (fun b -> mkProd (n_o, t_o, b))) subbed_b
     | (App (f_o, args_o), App (f_n, args_n)) ->
-       let args_n = List.rev (unfold_args c_n) in
-       List.fold_right all_eq_substs subs (List.hd args_n)
+       List.fold_right all_eq_substs subs (last (unfold_args c_n))
     | _ ->
        failwith "unexpected case substituting index"
   in sub p subs o n
