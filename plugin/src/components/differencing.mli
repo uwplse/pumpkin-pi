@@ -37,33 +37,21 @@ val diff_arg : int -> types -> types -> bool
 val same_mod_indexing :
   env -> types -> (types * types) -> (types * types) -> bool
 
-(* --- Indexers --- *)
+(* --- Indexing ornaments --- *)
 
 (* 
- * TODO hide eventually all of these eventually
+ * TODO comment
+ * TODO clean type
+ * TODO erase interface if not accessed from outside
+ * TODO clean implementations of everything under this line
  *)
-                                                          
-(*
- * Assuming there is an indexing ornamental relationship between two 
- * eliminators, get the type and location of the new index.
- *
- * If indices depend on earlier types, the types may be dependent;
- * the client needs to shift by the appropriate offset.
- *)
-val new_index_type : env -> types -> types -> (int * types)
-
-(*
- * Search for an indexing function that relates two inductive types
- * For example, a list and vector are related via list length
- * TODO clean type 
- *)
-val search_for_indexer :
+val search_orn_index :
+  env ->
   evar_map ->
   int ->
-  types ->
-  int ->
-  types ->
-  (env * types * int * types) ->
-  (env * types * int * types) ->
+  Names.Id.t ->
+  (types * int) ->
+  (types * int) ->
   bool ->
-  types option
+  (int option * types option * types)
+
