@@ -387,7 +387,9 @@ let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
        let same = same_mod_indexing env_o p (ind_o, t_o) (ind_n, t_n) in
        let env_o_b = push_local (n_o, t_o) env_o in
        let env_n_b = push_local (n_n, t_n) env_n in
-       let is_false_lead b_o b_n = false_lead (directional env_n_b env_o_b) evd index_i p_b (directional b_o b_n) (directional b_n b_o) in
+       let false_lead_f b_o b_n = false_lead env_n_b evd index_i p_b b_o b_n in
+       let false_lead_b b_o b_n = false_lead env_o_b evd index_i p_b b_n b_o in
+       let is_false_lead = directional false_lead_f false_lead_b in
        if applies p t_n || (same && not (is_false_lead b_o b_n)) then
          let o_b = (env_o_b, shift ind_o, b_o) in
          let n_b = (env_n_b, shift ind_n, b_n) in
