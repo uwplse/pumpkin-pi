@@ -81,6 +81,24 @@ Qed.
 
 Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red. 
 
+(* for understanding reduction, TODO move *)
+Definition append_vect_packed_pre_red (A : Type) (pv1 pv2 : packed_vector A) :=
+sigT_rect (fun _ : {n : nat & vector A n} => {n : nat & vector A n})
+  (fun (n : nat) (v : vector A n) =>
+   vector_rect 
+     A 
+     (fun (n0 : nat) (_ : vector A n0) => {n1 : nat & vector A n1}) 
+     pv2
+     (fun (n0 : nat) (a : A) (v : vector A n0) (IH : {n1 : nat & vector A n1}) =>
+       orn_list_vector 
+         A 
+         ((fun (al : A) (l : list A) (IHl : list A) => al :: IHl) 
+          a 
+          (orn_list_vector_inv A (existT (vector A) n0 v)) 
+          (orn_list_vector_inv A IH)))
+      (*existT (vector A) (S (projT1 IH)) (consV A (projT1 IH) a (projT2 IH))*) 
+     n v) pv1.
+
 Theorem test_append_vect_red_index:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
     append_vect_red_index A pv1 pv2 = plus_vect_exp A pv1 pv2.
