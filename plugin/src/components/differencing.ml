@@ -560,12 +560,11 @@ let pack env evd idx f_indexer o n is_fwd unpacked =
     pack_hypothesis env evd idx o n unpacked
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
-let search_orn_index_elim evd npm indexer_n elim_o o n is_fwd =
+let search_orn_index_elim evd idx npm indexer_n elim_o o n is_fwd =
   let directional a b = if is_fwd then a else b in
   let call_directional f a b = if is_fwd then f a b else f b a in
   let (env_o, ind_o, arity_o, elim_t_o) = o in
   let (env_n, ind_n, arity_n, elim_t_n) = n in
-  let idx = call_directional (new_index_type env_n) elim_t_o elim_t_n in
   let indexer = search_for_indexer evd idx npm elim_o o n is_fwd in
   let f_indexer = make_constant indexer_n in
   let f_indexer_opt = directional (Some f_indexer) None in
@@ -609,9 +608,11 @@ let search_orn_index_elim evd npm indexer_n elim_o o n is_fwd =
  * take the sigma type directly, so that the tool is told what the new index
  * location is. But this logic is useful for when that isn't true, like when
  * the tool is running fully automatically on existing code to generate
- * new theorems.
+ * new theorems. I've factored out the indexing logic so that
+ * later on, it can try to get this from the user with few code changes.
  *)
 let search_orn_index env evd npm indexer_n o n is_fwd =
+  let call_directional f a b = if is_fwd then f a b else f b a in
   let (pind_o, arity_o) = o in
   let (pind_n, arity_n) = n in
   let (ind_o, _) = destInd pind_o in
@@ -622,7 +623,8 @@ let search_orn_index env evd npm indexer_n o n is_fwd =
   let (env_n, elim_t_n') = zoom_n_prod env npm elim_t_n in
   let o = (env_o, pind_o, arity_o, elim_t_o') in
   let n = (env_n, pind_n, arity_n, elim_t_n') in
-  search_orn_index_elim evd npm indexer_n elim_o o n is_fwd
+  let idx = call_directional (new_index_type env_n) elim_t_o' elim_t_n' in
+  search_orn_index_elim evd idx npm indexer_n elim_o o n is_fwd
 
 (* --- Parameterization ornaments --- *)
 
