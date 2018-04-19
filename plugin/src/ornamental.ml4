@@ -26,24 +26,6 @@ module CRD = Context.Rel.Declaration
 (* --- Utilities that might not generalize outside of this tool --- *)
 
 (*
- * Get only the hypos that are used in the body,
- * but in the order they appear in the lambda
- *)
-let get_used_hypos (trm : types) : types list =
-  let rec get_used trm i =
-    match kind_of_term trm with
-    | Lambda (n, t, b) ->
-       let b' = remove_unused_hypos b in
-       let bs = get_used b (unshift_i i) in
-       if contains_term (mkRel 1) b' then
-         mkRel i :: bs
-       else
-         bs
-    | _ ->
-       []
-  in get_used trm (arity trm)
-
-(*
  * Get the hypos that are used in the body, or that match
  * a certain predicate on the type
  *)
