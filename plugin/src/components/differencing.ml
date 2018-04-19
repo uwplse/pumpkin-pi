@@ -12,6 +12,7 @@ open Hofs
 open Factoring
 open Zooming
 open Abstraction
+open Printing
        
 (* --- Differencing terms --- *)
 
@@ -461,36 +462,47 @@ let orn_index_cases evd index_i npm is_fwd indexer_f orn_p o n : types list =
      failwith "not an eliminator"
 
 (*
+ * Make a packer function for existT/sigT
+ *)
+let make_packer env evd typ args (index_i, index_typ) is_fwd =
+  let sub_index = if is_fwd then insert_index else reindex in
+  let packed_args = sub_index index_i (mkRel 1) (shift_all args) in
+  let env_abs = push_local (Anonymous, index_typ) env in
+  abstract_arg env_abs evd index_i (mkAppl (typ, packed_args))
+              
+(*
  * Pack the conclusion of an ornamental promotion
  *)
-let pack_conclusion env evd (index_i, index_typ) f_indexer n unpacked =
+let pack_conclusion env evd idx f_indexer n unpacked =
+  let (_, index_typ) = idx in
   let (ind, arity) = n in
   let off = arity - 1 in
-  let unpacked_args = shift_all (mk_n_rels off) in
-  let packed_args = insert_index index_i (mkRel 1) unpacked_args in
-  let env_abs = push_local (Anonymous, index_typ) env in
-  let packer = abstract_arg env_abs evd index_i (mkAppl (ind, packed_args)) in
+  let packer = make_packer env evd ind (mk_n_rels off) idx true in
   let index = mkAppl (f_indexer, mk_n_rels arity) in
   (env, pack_existT (shift_by off index_typ) packer index unpacked)
-
+    
+(*
+ * Pack the hypothesis type into a sigT, and update the environment
+ *)
+let pack_hypothesis_type env index_typ packer (id, unpacked_typ) : env =
+  let packed_typ = pack_sigT index_typ (unshift packer) in
+  push_local (id, packed_typ) (pop_rel_context 1 env)
+    
 (*
  * Pack the hypothesis of an ornamental forgetful function
  *)
-let pack_hypothesis env evd (index_i, index_typ) o n unpacked =
+let pack_hypothesis env evd idx o n unpacked =
+  let (index_i, index_typ) = idx in
   let (ind, arity) = o in
   let (ind_n, _) = n in
+  let index_typ = shift index_typ in
+  let (id, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
+  let packer = make_packer env evd ind (unfold_args unpacked_typ) idx false in
+  let env_push = pack_hypothesis_type env index_typ packer (id, unpacked_typ) in
   let index = mkRel 1 in
   let indexed = mkRel 2 in
-  let index_typ = shift index_typ in
-  let (from_n, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
-  let unpacked_args = shift_all (unfold_args unpacked_typ) in
-  let packed_args = reindex index_i index unpacked_args in
-  let env_abs = push_local (Anonymous, index_typ) env in
-  let packer = abstract_arg env_abs evd index_i (mkAppl (ind, packed_args)) in
-  let packed_typ = pack_sigT index_typ (unshift packer) in
   let env_pop = pop_rel_context 1 env in
   let index_rel = offset env_pop index_i in
-  let env_push = push_local (from_n, packed_typ) env_pop in
   let packer_app = mkAppl (shift packer, [index]) in
   let packer_indexed = reduce_term env_push packer_app in
   let unpacked = shift_local index_rel 1 (shift unpacked) in
@@ -516,11 +528,11 @@ let pack_hypothesis env evd (index_i, index_typ) o n unpacked =
  * For now we have a metatheoretic guarantee about the indexer we return
  * corresponding to the projection of the sigma type.
  *)
-let pack env evd index f_indexer o n is_fwd unpacked =
+let pack env evd idx f_indexer o n is_fwd unpacked =
   if is_fwd then
-    pack_conclusion env evd index f_indexer n unpacked
+    pack_conclusion env evd idx f_indexer n unpacked
   else
-    pack_hypothesis env evd index o n unpacked
+    pack_hypothesis env evd idx o n unpacked
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
 let search_orn_index_elim evd npm idx_n elim_o o n is_fwd =
