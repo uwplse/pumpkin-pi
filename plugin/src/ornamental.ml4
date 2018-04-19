@@ -23,35 +23,12 @@ open Indexing
 open Hypotheses (* TODO clean above once refactored *)
 
 module CRD = Context.Rel.Declaration
-
-(* Zoom into a sigma ty *)
-let zoom_sig_outer t =
-  last (unfold_args t)
-
-(* TODO explain *)
-let zoom_sig t =
-  let lambda = zoom_sig_outer t in
-  first_fun (zoom_term zoom_lambda_term empty_env lambda)
-
-(* zoom_sig if t actually applies sigT *)
-let zoom_if_sig_outer t =
-  if applies sigT t then
-    zoom_sig_outer t
-  else
-    t
-
-(* TODO explain *)
-let zoom_if_sig t =
-  if applies sigT t then
-    zoom_sig t
-  else
-    t
                
 (* --- Application --- *)
 
 (* Get the inductive type for t with no params, zooming if it's a sig *)
 let inner_ind_type t =
-  match kind_of_term (zoom_if_sig_outer t) with
+  match kind_of_term (zoom_if_sig_lambda t) with
   | Lambda (_, _, b) when isApp b ->
      first_fun b
   | App (_, _) ->
@@ -121,7 +98,7 @@ let ornament_concls concl_typ env evd (l : lifting) (from_ind, _) trm =
       if is_fwd then
         unfold_args concl_typ
       else
-        let concl_typ = snd (zoom_lambda_term empty_env (last (unfold_args concl_typ))) in
+        let concl_typ = zoom_term zoom_lambda_term empty_env (zoom_sig_lambda concl_typ) in
         let concl_args = unfold_args concl_typ in
         try
           remove_index
@@ -193,7 +170,7 @@ let compose_p evd npms post_assums inner (comp : composition) =
       let unpacked = mkAppl (existT, [index_typ; packer; index; inner]) in
       mkAppl (lift_back l, snoc unpacked (remove_index index_i typ_args))
   in
-  let (_, p_f_b) = zoom_lambda_term env_p_f (zoom_if_sig_outer p_f_b_old) in
+  let (_, p_f_b) = zoom_lambda_term env_p_f (zoom_if_sig_lambda p_f_b_old) in
   let p_f_b_args = map_if (remove_index index_i) (not (eq_constr p_f_b_old p_f_b)) (unfold_args p_f_b) in
   let (_, non_pms) = take_split npms p_f_b_args in
   let p_args = snoc orn_app non_pms in
@@ -296,7 +273,7 @@ let reindex_body index_i index trm =
  * need to support IHs at other indices. (TODO)
  *)
 let reduce_ornament_f l env evd index_i orn trm orn_args =
-  let orn_arg_typs = List.map (fun a -> zoom_if_sig_outer (infer_type env evd a)) orn_args in
+  let orn_arg_typs = List.map (on_type zoom_if_sig_lambda env evd) orn_args in
   let orn_arg_typs = List.map (map_backward (fun t -> unshift (snd (zoom_lambda_term empty_env t))) l) orn_arg_typs in
   (* TODO inefficient now *)
   List.fold_left2

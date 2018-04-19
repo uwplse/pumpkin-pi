@@ -6,6 +6,7 @@ open Term
 open Environ
 open Coqterms
 open Debruijn
+open Utilities
 
 (* --- Zooming --- *)
 
@@ -49,28 +50,28 @@ let zoom_env zoom (env : env) (trm : types) : env =
 let zoom_term zoom (env : env) (trm : types) : types =
   snd (zoom env trm)
 
-(* Zoom into a sigma ty 
-let zoom_sig_outer t =
-  last (unfold_args (snd (zoom_lambda_term empty_env t)))
+(* Get the last argument of a sigma *)
+let zoom_sig_lambda t =
+  last (unfold_args t)
 
-(* TODO explain *)
+(* Get the very first function from the body of the last argument of a sigma *)
 let zoom_sig t =
-  let lambda = zoom_sig_outer t in
-  first_fun (snd (zoom_lambda_term empty_env lambda))
+  let lambda = zoom_sig_lambda t in
+  first_fun (zoom_term zoom_lambda_term empty_env lambda)
 
 (* zoom_sig if t actually applies sigT *)
-let zoom_if_sig_outer t =
+let zoom_if_sig_lambda t =
   if applies sigT t then
-    zoom_sig_outer t
+    zoom_sig_lambda t
   else
     t
 
-(* TODO explain *)
+(* zoom if t actually applies sigT *)
 let zoom_if_sig t =
   if applies sigT t then
     zoom_sig t
   else
-    t*)
+    t
 
 (* --- Reconstruction --- *)
 

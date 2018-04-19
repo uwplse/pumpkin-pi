@@ -20,6 +20,16 @@ val zoom_product_type : env -> types -> (env * types)
 val zoom_env : (env -> types -> (env * types)) -> env -> types -> env
 val zoom_term : (env -> types -> (env * types)) -> env -> types -> types
 
+(* --- Zooming for sigma types --- *)
+
+val zoom_sig_lambda : types -> types
+val zoom_sig : types -> types
+
+(* --- Conditional zooming for sigma types --- *)
+
+val zoom_if_sig_lambda : types -> types
+val zoom_if_sig : types -> types
+                             
 (* --- Reconstruct until n are left --- *)
                                                                      
 val reconstruct_lambda_n : env -> types -> int -> types
