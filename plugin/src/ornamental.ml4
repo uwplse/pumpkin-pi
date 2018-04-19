@@ -127,10 +127,6 @@ let rec reduce_to_ind env trm =
   | _ ->
      let reduced = chain_reduce reduce_term delta env trm in
      map_if (reduce_to_ind env) (not (eq_constr reduced trm)) reduced
-
-(* TODO move *)
-let reindex_body index_i index trm =
-  mkAppl (first_fun trm, reindex index_i index (unfold_args trm))
             
 (*
  * TODO move
@@ -176,8 +172,8 @@ let reduce_ornament_f l env evd index_i orn trm orn_args =
                  (app, app_ind_sub, mkAppl (existT, reindex 3 app_ind_sub (reindex 2 ind_sub (unfold_args unfolded))))
                else if not l.is_indexer then
                  let app = reduce_nf env unfolded in
-                 let index_type = get_arg 0 (infer_type env evd orn_arg) in
-                 let packed_body = reindex_body index_i (mkRel 1) (shift orn_arg_typ) in
+                 let index_type = get_arg 0 (infer_type env evd orn_arg) in 
+                 let packed_body = mkAppl (first_fun orn_arg_typ, reindex index_i (mkRel 1) (unfold_args (shift orn_arg_typ))) in
                  let packed_type = mkLambda (Anonymous, index_type, packed_body) in
                  let app_projT1 = project_index index_type packed_type orn_arg in
                  let app_projT2 = project_value index_type packed_type orn_arg in
