@@ -222,10 +222,11 @@ let indexer_cases evd index_i p npm o n : types list =
      failwith "not eliminators"
 
 (* Search for an indexing function *)
-let search_for_indexer evd index_i index_t npm elim o n is_fwd : types option =
+let search_for_indexer evd idx npm elim o n is_fwd : types option =
   if is_fwd then
     let (env_o, _, arity_o, elim_t_o) = o in
     let (env_n, _, _, elim_t_n) = n in
+    let (index_i, index_t) = idx in
     let index_t = shift_by npm index_t in
     match map_tuple kind_of_term (elim_t_o, elim_t_n) with
     | (Prod (_, p_o, _), Prod (_, p_n, _)) ->
@@ -557,43 +558,45 @@ let pack env evd idx f_indexer o n is_fwd unpacked =
     pack_hypothesis env evd idx o n unpacked
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
-let search_orn_index_elim evd npm idx_n elim_o o n is_fwd =
+let search_orn_index_elim evd npm indexer_n elim_o o n is_fwd =
   let directional a b = if is_fwd then a else b in
   let call_directional f a b = if is_fwd then f a b else f b a in
   let (env_o, ind_o, arity_o, elim_t_o) = o in
   let (env_n, ind_n, arity_n, elim_t_n) = n in
-  let (index_i, index_t) = call_directional (new_index_type env_n) elim_t_o elim_t_n in
-  let indexer = search_for_indexer evd index_i index_t npm elim_o o n is_fwd in
-  let f_indexer = make_constant idx_n in
+  let idx = call_directional (new_index_type env_n) elim_t_o elim_t_n in
+  let indexer = search_for_indexer evd idx npm elim_o o n is_fwd in
+  let f_indexer = make_constant indexer_n in
   let f_indexer_opt = directional (Some f_indexer) None in
   match map_tuple kind_of_term (elim_t_o, elim_t_n) with
   | (Prod (n_o, p_o, b_o), Prod (n_n, p_n, b_n)) ->
-     let env_ornament = zoom_env zoom_product_type env_o p_o in
      let env_o_b = push_local (n_o, p_o) env_o in
      let env_n_b = push_local (n_n, p_n) env_n in
+     let env_ornament = zoom_env zoom_product_type env_o p_o in
      let off = offset env_ornament npm in
      let pms = shift_all_by off (mk_n_rels npm) in
      let (ind, arity) = directional (ind_n, arity_o) (ind_n, arity_n) in
-     let align_pms = Array.of_list (List.map (unshift_by (arity - npm)) pms) in
-     let align = stretch index_i env_o f_indexer align_pms in
+     let nind = arity - npm in
+     let align_pms = Array.of_list (unshift_all_by nind pms) in
+     let (idx_i, idx_t) = idx in
+     let align = stretch idx_i env_o f_indexer align_pms in
      let elim_t = call_directional align (ind_o, elim_t_o) (ind_n, elim_t_n) in
      let elim_t_o = directional elim_t elim_t_o in
      let elim_t_n = directional elim_t_n elim_t in
      let o = (env_o_b, ind_o, arity_o, elim_t_o) in
      let n = (env_n_b, ind_n, arity_n, elim_t_n) in
-     let off_b = offset2 env_ornament env_o_b - (arity - npm) in
-     let p = ornament_p index_i env_ornament ind arity npm f_indexer_opt in
-     let p_cs = unshift_by (arity - npm) p in
-     let cs = shift_all_by off_b (orn_index_cases evd index_i npm is_fwd f_indexer p_cs o n) in
+     let p = ornament_p idx_i env_ornament ind arity npm f_indexer_opt in
+     let p_cs = unshift_by nind p in
+     let adj = shift_all_by (offset2 env_ornament env_o_b - nind) in
+     let cs = adj (orn_index_cases evd idx_i npm is_fwd f_indexer p_cs o n) in
      let final_args = mk_n_rels off in
-     let index_i_o = directional (Some index_i) None in
+     let idx_i_o = directional (Some idx_i) None in
      let elim = elim_o in
      let unpacked = apply_eliminator {elim; pms; p; cs; final_args} in
      let o = (ind_o, arity_o) in
      let n = (ind_n, arity_n) in
-     let index = (npm + index_i, index_t) in
-     let packed = pack env_ornament evd index f_indexer o n is_fwd unpacked in
-     (index_i_o, indexer, reconstruct_lambda (fst packed) (snd packed))
+     let idx = (npm + idx_i, idx_t) in
+     let packed = pack env_ornament evd idx f_indexer o n is_fwd unpacked in
+     (idx_i_o, indexer, reconstruct_lambda (fst packed) (snd packed))
   | _ ->
      failwith "not eliminators"
 
