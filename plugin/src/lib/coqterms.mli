@@ -56,6 +56,16 @@ val make_constant: Id.t -> types
 val prod_to_lambda : types -> types
 val lambda_to_prod : types -> types
 
+(*
+ * Pack an existT term from an index type, packer, index, and unpacked version 
+ *)
+val pack_existT : types -> types -> types -> types -> types
+
+(*
+ * Pack a sigT type from an index type and a packer 
+ *)
+val pack_sigT : types -> types -> types
+
 (* --- Inductive types and their eliminators --- *)
 
 (*

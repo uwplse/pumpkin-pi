@@ -60,59 +60,6 @@ let same_mod_indexing env p_index o n =
 (* --- Indexers --- *)
 
 (*
- * Stretch the old property type to match the new one
- * That is, add indices where they are missing in the old property
- * For now just supports one index
- *)
-let rec stretch_property_type index_i env o n =
-  let (ind_o, p_o) = o in
-  let (ind_n, p_n) = n in
-  match map_tuple kind_of_term (p_o, p_n) with
-  | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-     let n_b = (shift ind_n, b_n) in
-     if index_i = 0 then
-       mkProd (n_n, t_n, shift p_o)
-     else
-       let env_b = push_local (n_o, t_o) env in
-       let o_b = (shift ind_o, b_o) in
-       mkProd (n_o, t_o, stretch_property_type (index_i - 1) env_b o_b n_b)
-  | _ ->
-     p_o
-
-(*
- * Stretch the old property to match the new one at the term level
- *
- * Hilariously, this function is defined as an ornamented
- * version of stretch_property_type.
- *)
-let stretch_property index_i env o n =
-  let (ind_o, p_o) = o in
-  let o = (ind_o, lambda_to_prod p_o) in
-  prod_to_lambda (stretch_property_type index_i env o n)
-
-(*
- * Stretch out the old eliminator type to match the new one
- * That is, add indexes to the old one to match new
- *)
-let stretch index_i env indexer pms o n =
-  let (ind_o, elim_t_o) = o in
-  let (ind_n, elim_t_n) = n in
-  let (n_exp, p_o, b_o) = destProd elim_t_o in
-  let (_, p_n, _) = destProd elim_t_n in
-  let p_exp = stretch_property_type index_i env (ind_o, p_o) (ind_n, p_n) in
-  let b_exp =
-    map_term_if
-      (fun (p, _) t -> applies p t)
-      (fun (p, pms) t ->
-        let non_pms = unfold_args t in
-        let index = mkApp (indexer, Array.append pms (Array.of_list non_pms)) in
-        mkAppl (p, insert_index index_i index non_pms))
-      (fun (p, pms) -> (shift p, Array.map shift pms))
-      (mkRel 1, pms)
-      b_o
-  in mkProd (n_exp, p_exp, b_exp)
-
-(*
  * Returns true if the argument at the supplied index location of the 
  * inductive property (which should be at relative index 1 before calling
  * this function) is an index to some application of the induction principle
@@ -299,6 +246,59 @@ let search_for_indexer evd index_i index_t npm elim o n is_fwd : types option =
 (* --- Indexing ornaments --- *)
 
 (*
+ * Stretch the old property type to match the new one
+ * That is, add indices where they are missing in the old property
+ * For now just supports one index
+ *)
+let rec stretch_property_type index_i env o n =
+  let (ind_o, p_o) = o in
+  let (ind_n, p_n) = n in
+  match map_tuple kind_of_term (p_o, p_n) with
+  | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
+     let n_b = (shift ind_n, b_n) in
+     if index_i = 0 then
+       mkProd (n_n, t_n, shift p_o)
+     else
+       let env_b = push_local (n_o, t_o) env in
+       let o_b = (shift ind_o, b_o) in
+       mkProd (n_o, t_o, stretch_property_type (index_i - 1) env_b o_b n_b)
+  | _ ->
+     p_o
+
+(*
+ * Stretch the old property to match the new one at the term level
+ *
+ * Hilariously, this function is defined as an ornamented
+ * version of stretch_property_type.
+ *)
+let stretch_property index_i env o n =
+  let (ind_o, p_o) = o in
+  let o = (ind_o, lambda_to_prod p_o) in
+  prod_to_lambda (stretch_property_type index_i env o n)
+
+(*
+ * Stretch out the old eliminator type to match the new one
+ * That is, add indexes to the old one to match new
+ *)
+let stretch index_i env indexer pms o n =
+  let (ind_o, elim_t_o) = o in
+  let (ind_n, elim_t_n) = n in
+  let (n_exp, p_o, b_o) = destProd elim_t_o in
+  let (_, p_n, _) = destProd elim_t_n in
+  let p_exp = stretch_property_type index_i env (ind_o, p_o) (ind_n, p_n) in
+  let b_exp =
+    map_term_if
+      (fun (p, _) t -> applies p t)
+      (fun (p, pms) t ->
+        let non_pms = unfold_args t in
+        let index = mkApp (indexer, Array.append pms (Array.of_list non_pms)) in
+        mkAppl (p, insert_index index_i index non_pms))
+      (fun (p, pms) -> (shift p, Array.map shift pms))
+      (mkRel 1, pms)
+      b_o
+  in mkProd (n_exp, p_exp, b_exp)
+
+(*
  * Utility function
  * Remove the binding at index i from the environment
  *)
@@ -419,7 +419,7 @@ let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
   in sub p subs o n
 
 (*
- * Get a case for an indexing ornament.
+ * Get a case for an indexing ornamental promotion/forgetful function.
  *
  * This currently works in the following way:
  * 1. If it's forwards, then adjust the property to have the index
@@ -431,18 +431,17 @@ let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
  * deriving the result through specialization.
  *)
 let orn_index_case evd index_i is_fwd indexer_f orn_p o n : types =
-  let when_forward f a = if is_fwd then f a else a in
   let (env_o, arity_o, ind_o, _, c_o) = o in
   let (env_n, arity_n, ind_n, p_n, c_n) = n in
   let d_arity = arity_n - arity_o in
   let adjust p = stretch_property index_i env_o (ind_o, p) (ind_n, p_n) in
-  let p_o = when_forward (fun p -> adjust (unshift_by d_arity p)) orn_p in
+  let p_o = map_if (fun p -> adjust (unshift_by d_arity p)) is_fwd orn_p in
   let c_o = with_new_property (shift_by d_arity p_o) c_o in
   let o = (env_o, ind_o, c_o) in
   let n = (env_n, ind_n, c_n) in
   prod_to_lambda (sub_indexes evd index_i is_fwd indexer_f (mkRel 1) [] o n)
 
-(* Get the cases for the ornament *)
+(* Get the cases for the ornamental promotion/forgetful function. *)
 let orn_index_cases evd index_i npm is_fwd indexer_f orn_p o n : types list =
   let (env_o, pind_o, arity_o, elim_t_o) = o in
   let (env_n, pind_n, arity_n, elim_t_n) = n in
@@ -473,41 +472,44 @@ let orn_index_cases evd index_i npm is_fwd indexer_f orn_p o n : types list =
  * corresponding to the projection of the sigma type.
  *
  * TODO later, refactor code common to both cases
+ * TODO clean args
  *)
 let pack env evd index_typ f_indexer index_i npm ind ind_n arity is_fwd unpacked =
   let index_i = npm + index_i in
+  let off = arity - 1 in
+  let off_rels = mk_n_rels off in
+  let assum = mkRel 1 in
   if is_fwd then
     (* pack conclusion *)
-    let off = arity - 1 in
-    let unpacked_args = shift_all (mk_n_rels off) in
-    let packed_args = insert_index index_i (mkRel 1) unpacked_args in
+    let unpacked_args = shift_all off_rels in
+    let packed_args = insert_index index_i assum unpacked_args in
     let env_abs = push_local (Anonymous, index_typ) env in
     let packer = abstract_arg env_abs evd index_i (mkAppl (ind, packed_args)) in
     let index = mkAppl (f_indexer, mk_n_rels arity) in
     let index_typ = shift_by off index_typ in
-    (env, mkAppl (existT, [index_typ; packer; index; unpacked]))
+    (env, pack_existT index_typ packer index unpacked)
   else
     (* pack hypothesis *)
     let (from_n, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
     let unpacked_args = shift_all (unfold_args unpacked_typ) in
-    let packed_args = reindex index_i (mkRel 1) unpacked_args in
-    let env_abs = push_local (Anonymous, shift index_typ) env in
+    let packed_args = reindex index_i assum unpacked_args in
+    let index_typ = shift index_typ in
+    let env_abs = push_local (Anonymous, index_typ) env in
     let packer = abstract_arg env_abs evd index_i (mkAppl (ind, packed_args)) in
-    let packed_typ = mkAppl (sigT, [shift (shift index_typ); packer]) in
+    let packed_typ = pack_sigT (shift index_typ) packer in
     let env_pop = pop_rel_context 1 env in
     let index_rel = offset env_pop index_i in
     let env_push = push_local (from_n, unshift packed_typ) env_pop in
     let packer_indexed = reduce_term env_push (mkAppl (packer, [mkRel (index_rel + 1)])) in
-    let unpack_b_b = all_eq_substs (mkRel (4 - index_rel), mkRel 1) (shift_local index_rel 1 (shift unpacked)) in
-    let unpack_b = mkLambda (Anonymous, shift_local 1 1 (all_eq_substs (mkRel (index_rel + 1), mkRel 1) packer_indexed), all_eq_substs (mkRel (index_rel + 3), mkRel 2) unpack_b_b) in
-    let pack_unpacked = mkLambda (Anonymous, shift (shift index_typ), unpack_b) in
+    let unpack_b_b = all_eq_substs (mkRel (4 - index_rel), assum) (shift_local index_rel 1 (shift unpacked)) in
+    let unpack_b = mkLambda (Anonymous, shift_local 1 1 (all_eq_substs (mkRel (index_rel + 1), assum) packer_indexed), all_eq_substs (mkRel (index_rel + 3), mkRel 2) unpack_b_b) in
+    let pack_unpacked = mkLambda (Anonymous, shift index_typ, unpack_b) in
     let env_packed = remove_rel (index_rel + 1) env_push in
     let pack_off = unshift_local index_rel 1 pack_unpacked in
     let packer = unshift_local index_rel 1 packer in
-    let elim_b = shift (mkAppl (ind_n, shift_all (mk_n_rels (arity - 1)))) in
-    let elim_t = mkAppl (sigT, [shift index_typ; packer]) in
-    let elim = mkLambda (Anonymous, elim_t, elim_b) in
-    let packed = mkAppl (sigT_rect, [shift index_typ; packer; elim; pack_off; mkRel 1]) in
+    let elim_b = shift (mkAppl (ind_n, shift_all off_rels)) in
+    let elim = mkLambda (Anonymous, pack_sigT index_typ packer, elim_b) in
+    let packed = mkAppl (sigT_rect, [index_typ; packer; elim; pack_off; assum]) in
     (env_packed, packed)
 
 (* Search two inductive types for an indexing ornament, using eliminators *)

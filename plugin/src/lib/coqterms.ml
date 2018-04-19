@@ -91,6 +91,18 @@ let rec lambda_to_prod trm =
   | _ ->
      trm
 
+(*
+ * Pack an existT term from an index type, packer, index, and unpacked version 
+ *)
+let pack_existT index_type packer index unpacked =
+  mkAppl (existT, [index_type; packer; index; unpacked])
+
+(*
+ * Pack a sigT type from an index type and a packer
+ *)
+let pack_sigT index_type packer =
+  mkAppl (sigT, [index_type; packer])
+
 (* --- Application and arguments --- *)
 
 (* Get a list of all arguments, fully unfolded at the head *)
