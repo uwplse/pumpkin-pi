@@ -493,7 +493,33 @@ let pack_hypothesis_type env index_typ packer (id, unpacked_typ) : env =
  *)
 let apply_packer env packer arg =
   reduce_term env (mkAppl (packer, [mkRel 1]))
-    
+
+(*
+ * Remove the index from the environment, and adjust terms appropriately
+ *)
+let adjust_to_elim env index_rel packer packed =
+  let env_packed = remove_rel (index_rel + 1) env in
+  let adjust = unshift_local index_rel 1 in
+  (env_packed, adjust packer, adjust packed)
+
+(*
+ * Pack the unpacked term to eliminate using the new hypothesis
+ *)
+let pack_unpacked env packer index_typ index_rel unpacked =
+  let sub_typ = all_eq_substs (mkRel (4 - index_rel), mkRel 1) in
+  let sub_index = all_eq_substs (mkRel (index_rel + 3), mkRel 2) in
+  let adjust trm = shift_local index_rel 1 (shift trm) in
+  let typ_body = sub_index (sub_typ (adjust unpacked)) in
+  let packer_indexed = apply_packer env (shift packer) (mkRel 1) in
+  let index_body = mkLambda (Anonymous, packer_indexed, typ_body) in
+  mkLambda (Anonymous, shift index_typ, index_body)
+
+(* 
+ * Get the body of the eliminator when packing the hypothesis
+ *)
+let elim_body index_typ packer f args =
+  mkLambda (Anonymous, pack_sigT index_typ packer, shift (mkAppl (f, args)))
+              
 (*
  * Pack the hypothesis of an ornamental forgetful function
  *)
@@ -505,21 +531,13 @@ let pack_hypothesis env evd idx o n unpacked =
   let (id, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
   let packer = make_packer env evd ind (unfold_args unpacked_typ) idx false in
   let env_push = pack_hypothesis_type env index_typ packer (id, unpacked_typ) in
-  let packer_indexed = apply_packer env_push (shift packer) (mkRel 1) in
-  let index = mkRel 1 in
-  let indexed = mkRel 2 in
   let index_rel = offset (pop_rel_context 1 env) index_i in
-  let unpacked = shift_local index_rel 1 (shift unpacked) in
-  let unpacked = all_eq_substs (mkRel (4 - index_rel), index) unpacked in
-  let unpacked = all_eq_substs (mkRel (index_rel + 3), indexed) unpacked in
-  let unpacked = mkLambda (Anonymous, packer_indexed, unpacked) in
-  let pack_unpacked = mkLambda (Anonymous, shift index_typ, unpacked) in
-  let env_packed = remove_rel (index_rel + 1) env_push in
-  let pack_off = unshift_local index_rel 1 pack_unpacked in
-  let packer = unshift_local index_rel 1 packer in
-  let elim_b = shift (mkAppl (ind_n, shift_all (mk_n_rels (arity - 1)))) in
-  let elim = mkLambda (Anonymous, pack_sigT index_typ packer, elim_b) in
-  (env_packed, elim_sigT index_typ packer elim pack_off (mkRel 1))
+  let packed = pack_unpacked env_push packer index_typ index_rel unpacked in
+  let adjusted = adjust_to_elim env_push index_rel packer packed in
+  let (env_packed, packer, packed) = adjusted in
+  let ind_n_args = shift_all (mk_n_rels (arity - 1)) in
+  let elim = elim_body index_typ packer ind_n ind_n_args in
+  (env_packed, elim_sigT index_typ packer elim packed (mkRel 1))
 
 (*
  * This packs an ornamental promotion to/from an indexed type like Vector A n,
