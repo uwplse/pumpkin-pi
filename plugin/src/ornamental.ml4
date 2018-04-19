@@ -25,16 +25,6 @@ open Hypotheses (* TODO clean above once refactored *)
 module CRD = Context.Rel.Declaration
                
 (* --- Application --- *)
-
-(* Get the inductive type for t with no params, zooming if it's a sig *)
-let inner_ind_type t =
-  match kind_of_term (zoom_if_sig_lambda t) with
-  | Lambda (_, _, b) when isApp b ->
-     first_fun b
-  | App (_, _) ->
-     first_fun t
-  | _ ->
-     failwith "failed to infer inductive type to match against"
               
 (*
  * Substitute the ornamented type in the hypotheses.
@@ -370,8 +360,8 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let orn_g_typ = reduce_type env_g evd orn_g in
   let ind_f_typ = fst (ind_of_promotion_type orn_f_typ) in
   let ind_g_typ = fst (ind_of_promotion_type orn_g_typ) in
-  let to_typ = inner_ind_type ind_f_typ in
-  let from_typ = inner_ind_type ind_g_typ in
+  let to_typ = map_directional zoom_sig first_fun l ind_f_typ in
+  let from_typ = map_directional first_fun zoom_sig l ind_g_typ in
   let (to_typ, from_typ) = map_backward reverse l (to_typ, from_typ) in
   let is_deorn = is_or_applies (if l.is_fwd then to_typ else from_typ) in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
@@ -510,7 +500,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
              (fun trm ->
                isApp trm &&
                applies f trm &&
-               List.exists (eq_constr (last_arg trm) ihs)
+               List.exists (eq_constr (last_arg trm)) ihs)
              last_arg
              app)
          env_f_body_old
