@@ -28,26 +28,24 @@ module CRD = Context.Rel.Declaration
 
 (* TODO explain *)
 let zoom_sig_outer t =
-  try
-    last (unfold_args (snd (zoom_lambda_term empty_env t)))
-  with _ ->
-    t
-              
+  last (unfold_args (snd (zoom_lambda_term empty_env t)))
+
 (* TODO explain *)
-let zoom_sig is_fwd t =
-  if is_fwd then
-    t
-  else
-    try
-      let lambda = zoom_sig_outer t in
-      first_fun (snd (zoom_lambda_term empty_env lambda))
-    with _ ->
-      t
+let zoom_sig t =
+  let lambda = zoom_sig_outer t in
+  first_fun (snd (zoom_lambda_term empty_env lambda))
 
 (* zoom_sig if t actually applies sigT *)
 let zoom_if_sig_outer t =
   if applies sigT t then
     zoom_sig_outer t
+  else
+    t
+
+(* TODO explain *)
+let zoom_if_sig t =
+  if applies sigT t then
+    zoom_sig t
   else
     t
 
@@ -68,12 +66,12 @@ let inner_ind_type t =
  *)
 let sub_in_hypos (l : lifting) (env : env) (index_lam : types) (from_ind : types) (to_ind : types) (hypos : types) =
   let is_fwd = l.is_fwd in
-  let from_ind = zoom_sig is_fwd from_ind in
+  let from_ind = map_if zoom_sig (not is_fwd) from_ind in
   map_unit_env_if_lazy
     (fun env trm ->
       match kind_of_term trm with
       | Lambda (_, t, _) ->
-         is_or_applies from_ind (zoom_sig is_fwd (reduce_nf env t))
+         is_or_applies from_ind (zoom_if_sig (reduce_nf env t))
       | _ -> false)
     (fun env trm ->
       let (n, t, b) = destLambda trm in
@@ -91,12 +89,12 @@ let ornament_args env evd (from_ind, to_ind) (l : lifting) trm =
   let is_fwd = l.is_fwd in
   let orn_f = lift_back l in
   let typ = reduce_type env evd trm in
-  let from_ind = zoom_sig is_fwd from_ind in
+  let from_ind = map_if zoom_sig (not is_fwd) from_ind in
   let rec ornament_arg env i typ =
     match kind_of_term typ with
     | Prod (n, t, b) ->
        let ornament_b = ornament_arg (push_local (n, t) env) (unshift_i i) b in
-       if is_or_applies from_ind (zoom_sig is_fwd (reduce_nf env t)) then
+       if is_or_applies from_ind (zoom_if_sig (reduce_nf env t)) then
          let t_args = unfold_args (shift_by i t) in
          mkAppl (orn_f, snoc (mkRel i) t_args) :: ornament_b
        else
@@ -120,8 +118,8 @@ let ornament_hypos env evd (l : lifting) (from_ind, to_ind) trm =
 (* Ornament the conclusion *)
 let ornament_concls concl_typ env evd (l : lifting) (from_ind, to_ind) trm =
   let is_fwd = l.is_fwd in
-  let from_ind = zoom_sig is_fwd from_ind in
-  if is_or_applies from_ind (zoom_sig is_fwd concl_typ) then
+  let from_ind = map_if zoom_sig (not is_fwd) from_ind in
+  if is_or_applies from_ind (zoom_if_sig concl_typ) then
     let (env_zoom, trm_zoom) = zoom_lambda_term env trm in
     let concl_args =
       if is_fwd then
