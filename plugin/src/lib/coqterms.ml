@@ -103,6 +103,13 @@ let pack_existT index_type packer index unpacked =
 let pack_sigT index_type packer =
   mkAppl (sigT, [index_type; packer])
 
+(*
+ * Eliminate a sigT given an index type, packer, packed type, unpacked term,
+ * and the term itself
+ *)
+let elim_sigT index_type packer packed_type unpacked trm =
+  mkAppl (sigT_rect, [index_type; packer; packed_type; unpacked; trm])
+
 (* --- Application and arguments --- *)
 
 (* Get a list of all arguments, fully unfolded at the head *)

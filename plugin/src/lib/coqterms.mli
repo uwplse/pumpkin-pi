@@ -66,6 +66,12 @@ val pack_existT : types -> types -> types -> types -> types
  *)
 val pack_sigT : types -> types -> types
 
+(*
+ * Eliminate a sigT given an index type, packer, packed type, unpacked term,
+ * and the term itself
+ *)
+val elim_sigT : types -> types -> types -> types -> types -> types
+
 (* --- Inductive types and their eliminators --- *)
 
 (*

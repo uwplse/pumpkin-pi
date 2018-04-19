@@ -478,39 +478,42 @@ let pack env evd index_typ f_indexer index_i npm ind ind_n arity is_fwd unpacked
   let index_i = npm + index_i in
   let off = arity - 1 in
   let off_rels = mk_n_rels off in
-  let assum = mkRel 1 in
+  let unpacked = map_if shift (not is_fwd) unpacked in
   if is_fwd then
     (* pack conclusion *)
     let unpacked_args = shift_all off_rels in
-    let packed_args = insert_index index_i assum unpacked_args in
+    let packed_args = insert_index index_i (mkRel 1) unpacked_args in
     let env_abs = push_local (Anonymous, index_typ) env in
     let packer = abstract_arg env_abs evd index_i (mkAppl (ind, packed_args)) in
     let index = mkAppl (f_indexer, mk_n_rels arity) in
-    let index_typ = shift_by off index_typ in
-    (env, pack_existT index_typ packer index unpacked)
+    (env, pack_existT (shift_by off index_typ) packer index unpacked)
   else
     (* pack hypothesis *)
+    let index = mkRel 1 in
+    let indexed = mkRel 2 in
+    let index_typ = shift index_typ in
     let (from_n, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
     let unpacked_args = shift_all (unfold_args unpacked_typ) in
-    let packed_args = reindex index_i assum unpacked_args in
-    let index_typ = shift index_typ in
+    let packed_args = reindex index_i index unpacked_args in
     let env_abs = push_local (Anonymous, index_typ) env in
     let packer = abstract_arg env_abs evd index_i (mkAppl (ind, packed_args)) in
-    let packed_typ = pack_sigT (shift index_typ) packer in
+    let packed_typ = pack_sigT index_typ (unshift packer) in
     let env_pop = pop_rel_context 1 env in
     let index_rel = offset env_pop index_i in
-    let env_push = push_local (from_n, unshift packed_typ) env_pop in
-    let packer_indexed = reduce_term env_push (mkAppl (packer, [mkRel (index_rel + 1)])) in
-    let unpack_b_b = all_eq_substs (mkRel (4 - index_rel), assum) (shift_local index_rel 1 (shift unpacked)) in
-    let unpack_b = mkLambda (Anonymous, shift_local 1 1 (all_eq_substs (mkRel (index_rel + 1), assum) packer_indexed), all_eq_substs (mkRel (index_rel + 3), mkRel 2) unpack_b_b) in
-    let pack_unpacked = mkLambda (Anonymous, shift index_typ, unpack_b) in
+    let env_push = push_local (from_n, packed_typ) env_pop in
+    let packer_app = mkAppl (shift packer, [index]) in
+    let packer_indexed = reduce_term env_push packer_app in
+    let unpacked = shift_local index_rel 1 unpacked in
+    let unpacked = all_eq_substs (mkRel (4 - index_rel), index) unpacked in
+    let unpacked = all_eq_substs (mkRel (index_rel + 3), indexed) unpacked in
+    let unpacked = mkLambda (Anonymous, packer_indexed, unpacked) in
+    let pack_unpacked = mkLambda (Anonymous, shift index_typ, unpacked) in
     let env_packed = remove_rel (index_rel + 1) env_push in
     let pack_off = unshift_local index_rel 1 pack_unpacked in
     let packer = unshift_local index_rel 1 packer in
     let elim_b = shift (mkAppl (ind_n, shift_all off_rels)) in
     let elim = mkLambda (Anonymous, pack_sigT index_typ packer, elim_b) in
-    let packed = mkAppl (sigT_rect, [index_typ; packer; elim; pack_off; assum]) in
-    (env_packed, packed)
+    (env_packed, elim_sigT index_typ packer elim pack_off (mkRel 1))
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
 let search_orn_index_elim evd npm idx_n elim_o o n is_fwd =
