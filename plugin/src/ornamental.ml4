@@ -4,26 +4,13 @@ open Term
 open Names
 open Environ
 open Constrarg
-open Format
-open Univ
-open Printer
-open Declarations
 open Utilities
 open Coqterms
-open Hofs
-open Debruijn
-open Zooming
 open Printing
-open Factoring
 open Differencing
 open Lifting
 open Promotions
-open Abstraction
-open Indexing
-open Hypotheses
-open Specialization (* TODO clean above once refactored *)
-
-module CRD = Context.Rel.Declaration
+open Specialization
 
 (* --- Top-level --- *)
 
