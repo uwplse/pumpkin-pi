@@ -609,7 +609,7 @@ let search_orn_index_elim evd npm indexer_n elim_o o n is_fwd =
  * the tool is running fully automatically on existing code to generate
  * new theorems.
  *)
-let search_orn_index env evd npm idx_n o n is_fwd =
+let search_orn_index env evd npm indexer_n o n is_fwd =
   let (pind_o, arity_o) = o in
   let (pind_n, arity_n) = n in
   let (ind_o, _) = destInd pind_o in
@@ -620,4 +620,4 @@ let search_orn_index env evd npm idx_n o n is_fwd =
   let (env_n, elim_t_n') = zoom_n_prod env npm elim_t_n in
   let o = (env_o, pind_o, arity_o, elim_t_o') in
   let n = (env_n, pind_n, arity_n, elim_t_n') in
-  search_orn_index_elim evd npm idx_n elim_o o n is_fwd
+  search_orn_index_elim evd npm indexer_n elim_o o n is_fwd
