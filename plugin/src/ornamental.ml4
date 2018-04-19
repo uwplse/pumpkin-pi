@@ -26,25 +26,6 @@ module CRD = Context.Rel.Declaration
 (* --- Utilities that might not generalize outside of this tool --- *)
 
 (*
- * This function removes any terms from the hypothesis of a lambda
- * that are not referenced in the body, so that the term
- * has only hypotheses that are referenced.
- *
- * It's different from the version in PUMPKIN PATCH because it ignores
- * possible universe inconsistency.
- *)
-let rec remove_unused_hypos (trm : types) : types =
-  match kind_of_term trm with
-  | Lambda (n, t, b) ->
-     let b' = remove_unused_hypos b in
-     if contains_term (mkRel 1) b' then
-       mkLambda (n, t, b')
-     else
-       remove_unused_hypos (unshift b')
-  | _ ->
-     trm
-
-(*
  * Get only the hypos that are used in the body,
  * but in the order they appear in the lambda
  *)
@@ -854,7 +835,6 @@ let internalize (env : env) evd (idx_n : Id.t) (orn : types) (orn_inv : types) (
   let (assum_ind, factors) = factor_ornamented orn env evd trm in
   let ((internalized, indexer), env, _) = compose_orn_factors evd l false assum_ind idx_n factors in
   (reconstruct_lambda env internalized, indexer)
-
 
 (* --- Top-level --- *)
 

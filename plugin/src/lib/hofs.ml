@@ -231,3 +231,21 @@ let map_unit_env_if = map_unit_env map_term_env_if
 let map_unit_env_if_lazy = map_unit_env map_term_env_if_lazy
 let map_unit_if = map_unit map_term_if
 let map_unit_if_lazy = map_unit map_term_if_lazy
+
+(* --- Filtering --- *)
+
+(*
+ * This function removes any terms from the hypothesis of a lambda
+ * that are not referenced in the body, so that the term
+ * has only hypotheses that are referenced.
+ *)
+let rec remove_unused_hypos (trm : types) : types =
+  match kind_of_term trm with
+  | Lambda (n, t, b) ->
+     let b' = remove_unused_hypos b in
+     if contains_term (mkRel 1) b' then
+       mkLambda (n, t, b')
+     else
+       remove_unused_hypos (unshift b')
+  | _ ->
+     trm
