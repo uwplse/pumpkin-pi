@@ -13,6 +13,8 @@ open Factoring
 open Zooming
 open Abstraction
 open Printing
+open Lifting
+open Declarations
        
 (* --- Differencing terms --- *)
 
@@ -621,3 +623,51 @@ let search_orn_index env evd npm indexer_n o n is_fwd =
   let o = (env_o, pind_o, arity_o, elim_t_o') in
   let n = (env_n, pind_n, arity_n, elim_t_n') in
   search_orn_index_elim evd npm indexer_n elim_o o n is_fwd
+
+(* --- Parameterization ornaments --- *)
+
+(*
+ * Search two inductive types for a parameterization ornament
+ * This is not yet supported
+ *)
+let search_orn_params env ind_o ind_n is_fwd : types =
+  failwith "parameterization is not yet supported"
+                        
+(* --- Ornamental differencing --- *)
+
+(* 
+ * Search two inductive types for an ornament between them 
+ *)
+let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
+  match map_tuple kind_of_term (trm_o, trm_n) with
+  | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->
+     let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
+     check_inductive_supported m_o;
+     check_inductive_supported m_n;
+     let (npm_o, npm_n) = map_tuple (fun m -> m.mind_nparams) (m_o, m_n) in
+     if not (npm_o = npm_n) then
+       (* new parameter *)
+       let search_params = twice (search_orn_params env) in
+       let indexer = None in
+       let index_i = None in
+       if npm_o < npm_n then
+         let (promote, forget) = search_params (i_o, ii_o) (i_n, ii_n) in
+         { index_i; indexer; promote; forget }
+       else
+         let (promote, forget) = search_params (i_n, ii_n) (i_o, ii_o) in
+         { index_i; indexer; promote; forget }
+     else
+       let npm = npm_o in
+       let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
+       let (arity_o, arity_n) = map_tuple arity (typ_o, typ_n) in
+       if not (arity_o = arity_n) then
+         let o = (trm_o, arity_o) in
+         let n = (trm_n, arity_n) in
+         let (o, n) = map_if reverse (arity_n <= arity_o) (o, n) in
+         let search_indices = twice (search_orn_index env evd npm indexer_id) in
+         let ((index_i, indexer, promote), (_, _, forget)) = search_indices o n in
+         { index_i; indexer; promote; forget }
+       else
+         failwith "this kind of change is not yet supported"
+  | _ ->
+     failwith "this kind of change is not yet supported"

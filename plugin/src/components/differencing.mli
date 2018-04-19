@@ -5,22 +5,19 @@
 open Term
 open Environ
 open Evd
+open Names
+open Lifting
+       
+(* --- Ornamental differencing --- *)
 
-(* --- Indexing ornaments --- *)
 
 (* 
- * TODO comment
- * TODO clean type
- * TODO erase interface if not accessed from outside
- * TODO clean implementations of everything under this line
+ * Search two inductive types for an ornamental promotion between them
  *)
-val search_orn_index :
+val search_orn_inductive :
   env ->
   evar_map ->
-  int ->
-  Names.Id.t ->
-  (types * int) ->
-  (types * int) ->
-  bool ->
-  (int option * types option * types)
-
+  Id.t -> (* name to assign an indexer function, if one is found *)
+  types -> (* old inductive type *)
+  types -> (* new inductive type *)
+  promotion (* ornamental prmotion *)
