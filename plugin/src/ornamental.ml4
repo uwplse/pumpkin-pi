@@ -24,16 +24,14 @@ open Hypotheses (* TODO clean above once refactored *)
 
 module CRD = Context.Rel.Declaration
 
-(* --- Application --- *)
-
-(* TODO explain *)
+(* Zoom into a sigma ty *)
 let zoom_sig_outer t =
-  last (unfold_args (snd (zoom_lambda_term empty_env t)))
+  last (unfold_args t)
 
 (* TODO explain *)
 let zoom_sig t =
   let lambda = zoom_sig_outer t in
-  first_fun (snd (zoom_lambda_term empty_env lambda))
+  first_fun (zoom_term zoom_lambda_term empty_env lambda)
 
 (* zoom_sig if t actually applies sigT *)
 let zoom_if_sig_outer t =
@@ -48,6 +46,8 @@ let zoom_if_sig t =
     zoom_sig t
   else
     t
+               
+(* --- Application --- *)
 
 (* Get the inductive type for t with no params, zooming if it's a sig *)
 let inner_ind_type t =
@@ -66,7 +66,6 @@ let inner_ind_type t =
  *)
 let sub_in_hypos (l : lifting) (env : env) (index_lam : types) (from_ind : types) (to_ind : types) (hypos : types) =
   let is_fwd = l.is_fwd in
-  let from_ind = map_if zoom_sig (not is_fwd) from_ind in
   map_unit_env_if_lazy
     (fun env trm ->
       match kind_of_term trm with
@@ -85,11 +84,10 @@ let sub_in_hypos (l : lifting) (env : env) (index_lam : types) (from_ind : types
  * Apply the ornament to the arguments
  * TODO clean this
  *)
-let ornament_args env evd (from_ind, to_ind) (l : lifting) trm =
+let ornament_args env evd from_ind (l : lifting) trm =
   let is_fwd = l.is_fwd in
   let orn_f = lift_back l in
   let typ = reduce_type env evd trm in
-  let from_ind = map_if zoom_sig (not is_fwd) from_ind in
   let rec ornament_arg env i typ =
     match kind_of_term typ with
     | Prod (n, t, b) ->
@@ -112,16 +110,14 @@ let ornament_hypos env evd (l : lifting) (from_ind, to_ind) trm =
   let hypos = on_type prod_to_lambda env evd trm in
   let subbed_hypos = sub_in_hypos l env index_lam from_ind to_ind hypos in
   let env_hypos = zoom_env zoom_lambda_term env subbed_hypos in
-  let concl = ornament_args env_hypos evd (from_ind, to_ind) l trm in
-  reconstruct_lambda env_hypos concl
+  reconstruct_lambda env_hypos (ornament_args env_hypos evd from_ind l trm)
 
 (* Ornament the conclusion *)
-let ornament_concls concl_typ env evd (l : lifting) (from_ind, to_ind) trm =
+let ornament_concls concl_typ env evd (l : lifting) (from_ind, _) trm =
   let is_fwd = l.is_fwd in
-  let from_ind = map_if zoom_sig (not is_fwd) from_ind in
   if is_or_applies from_ind (zoom_if_sig concl_typ) then
     let (env_zoom, trm_zoom) = zoom_lambda_term env trm in
-    let concl_args =
+    let args =
       if is_fwd then
         unfold_args concl_typ
       else
@@ -133,21 +129,6 @@ let ornament_concls concl_typ env evd (l : lifting) (from_ind, to_ind) trm =
             (unshift_all concl_args)
         with _ ->
           concl_args
-    in
-    let args =
-      List.map
-        (fun a ->
-          map_unit_env_if
-            (fun env trm ->
-              try
-                on_type (is_or_applies to_ind) env evd trm
-              with _ ->
-                false)
-            (fun env trm ->
-              mkAppl (lift_back l, snoc trm (on_type unfold_args env evd trm)))
-            env_zoom
-            a)
-        concl_args
     in
     let concl = mkAppl (lift_to l, snoc trm_zoom args) in
     reconstruct_lambda env_zoom concl
@@ -169,10 +150,18 @@ let ornament_no_red (env : env) evd (orn_f : types) (orn_inv_f : types) (trm : t
   let l = initialize_lifting orn is_fwd in
   let orn_type = reduce_type env evd orn.promote in
   let (from_with_args, to_with_args) = ind_of_promotion_type orn_type in
-  let env_to = pop_rel_context 1 (fst (zoom_product_type env orn_type)) in
+  let env_to = pop_rel_context 1 (zoom_env zoom_product_type env orn_type) in
   let from_ind = first_fun from_with_args in
   let to_ind = reconstruct_lambda env_to (unshift to_with_args) in
-  let app_orn ornamenter = ornamenter env evd l (map_if reverse (not is_fwd) (from_ind, to_ind)) in
+  let app_orn ornamenter =
+    let (from_ind, to_ind) =
+      map_if
+        (fun (f, t) ->
+          (zoom_sig (zoom_term zoom_lambda_term empty_env t), f))
+        (not is_fwd)
+        (from_ind, to_ind)
+    in ornamenter env evd l (from_ind, to_ind)
+  in
   let (env_concl, concl_typ) = zoom_product_type env (reduce_type env evd trm) in
   let concl_typ = reduce_nf env_concl concl_typ in
   app_orn (ornament_concls concl_typ) (app_orn ornament_hypos trm)

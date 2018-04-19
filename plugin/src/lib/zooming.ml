@@ -7,6 +7,8 @@ open Environ
 open Coqterms
 open Debruijn
 
+(* --- Zooming --- *)
+
 (* Zoom into a term *)
 let rec zoom_n_prod env npm typ : env * types =
   if npm = 0 then
@@ -46,6 +48,31 @@ let zoom_env zoom (env : env) (trm : types) : env =
 (* Zoom into the term *)
 let zoom_term zoom (env : env) (trm : types) : types =
   snd (zoom env trm)
+
+(* Zoom into a sigma ty 
+let zoom_sig_outer t =
+  last (unfold_args (snd (zoom_lambda_term empty_env t)))
+
+(* TODO explain *)
+let zoom_sig t =
+  let lambda = zoom_sig_outer t in
+  first_fun (snd (zoom_lambda_term empty_env lambda))
+
+(* zoom_sig if t actually applies sigT *)
+let zoom_if_sig_outer t =
+  if applies sigT t then
+    zoom_sig_outer t
+  else
+    t
+
+(* TODO explain *)
+let zoom_if_sig t =
+  if applies sigT t then
+    zoom_sig t
+  else
+    t*)
+
+(* --- Reconstruction --- *)
 
 (* Reconstruct a lambda from an environment, but stop when i are left *)
 let rec reconstruct_lambda_n (env : env) (b : types) (i : int) : types =
