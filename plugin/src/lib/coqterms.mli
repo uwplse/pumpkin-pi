@@ -72,6 +72,16 @@ val pack_sigT : types -> types -> types
  *)
 val elim_sigT : types -> types -> types -> types -> types -> types
 
+(*
+ * Left projection of a sigma type given an index type, type, and packed term
+ *)
+val project_index : types -> types -> types -> types
+
+(*
+ * Right projection of a sigma type given an index type, type, and packed term
+ *)
+val project_value : types -> types -> types -> types
+
 (* --- Inductive types and their eliminators --- *)
 
 (*

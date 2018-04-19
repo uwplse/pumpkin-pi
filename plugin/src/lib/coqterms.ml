@@ -110,6 +110,19 @@ let pack_sigT index_type packer =
 let elim_sigT index_type packer packed_type unpacked trm =
   mkAppl (sigT_rect, [index_type; packer; packed_type; unpacked; trm])
 
+(*
+ * Left projection of a sigma type
+ *)
+let project_index index_typ typ trm =
+  mkAppl (projT1, [index_typ; typ; trm])
+
+(*
+ * Right projection of a sigma type
+ *)
+let project_value index_typ typ trm =
+  mkAppl (projT2, [index_typ; typ; trm])
+
+
 (* --- Application and arguments --- *)
 
 (* Get a list of all arguments, fully unfolded at the head *)

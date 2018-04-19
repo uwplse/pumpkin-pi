@@ -128,18 +128,6 @@ let rec reduce_to_ind env trm =
      let reduced = chain_reduce reduce_term delta env trm in
      map_if (reduce_to_ind env) (not (eq_constr reduced trm)) reduced
 
-(*
- * TODO move
- *)
-let project_index index_typ typ trm =
-  mkAppl (projT1, [index_typ; typ; trm])
-
-(*
- * TODO move
- *)
-let project_value index_typ typ trm =
-  mkAppl (projT2, [index_typ; typ; trm])
-
 (* TODO move *)
 let reindex_body index_i index trm =
   mkAppl (first_fun trm, reindex index_i index (unfold_args trm))
