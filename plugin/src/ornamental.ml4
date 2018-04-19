@@ -183,9 +183,9 @@ let compose_p evd npms post_assums inner (comp : composition) =
          (is_or_applies existT)
          (fun trm ->
            (* TODO not sufficiently general, can break, try to *)
-           let last_arg = last (unfold_args trm) in
-           if contains_term last_arg (mkRel 1) then
-             last_arg
+           let la = last_arg trm in
+           if contains_term la (mkRel 1) then
+             la
            else
              trm))
            (* TODO will fail with cosntant existT like nilV, try *)
@@ -292,7 +292,7 @@ let reduce_ornament_f l env evd index_i orn trm orn_args =
                  let indexer = reduce_nf env (get_arg 2 unfolded) in
                  let app = reduce_nf env (get_arg 3 unfolded) in
                  let orn_app_app = get_arg 3 orn_app_ind in
-                 let orn_app_app_arg = last (unfold_args orn_app_app) in
+                 let orn_app_app_arg = last_arg orn_app_app in
                  let packed_type_old = reduce_type env evd orn_app_app in
                  let index_type = reduce_type env evd (get_arg index_i packed_type_old) in
                  let packed_type = abstract_arg env evd index_i packed_type_old in
@@ -471,37 +471,37 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
                (map_unit_if
                   (applies f)
                   (fun trm ->
-                    let from = last (unfold_args trm) in 
+                    let from = last_arg trm in 
                     if l.is_indexer then
                       if is_or_applies (lift_back l) from then
-                        let last_arg = last (unfold_args from) in
-                        let last_arg_typ = reduce_type env evd last_arg in
-                        let index_type = get_arg 0 last_arg_typ in
-                        let packed_type = get_arg 1 last_arg_typ in
-                        let app_projT1 = project_index index_type packed_type last_arg in
+                        let la = last_arg from in
+                        let la_typ = reduce_type env evd la in
+                        let idx_type = get_arg 0 la_typ in
+                        let packed_type = get_arg 1 la_typ in
+                        let app_projT1 = project_index idx_type packed_type la in
                         reduce_ornament_f l env evd index_i f app_projT1 orn_args              
                       else
                         reduce_ornament_f l env evd index_i f trm orn_args
                     else if l.is_fwd then
                       if is_or_applies (lift_back l) from then
-                        let existT_app = last (unfold_args from) in
+                        let existT_app = last_arg from in
                         reduce_ornament_f l env evd index_i f existT_app orn_args
                       else
                         reduce_ornament_f l env evd index_i f trm orn_args
                     else
                       if is_or_applies existT from then
-                        let proj = last (unfold_args from) in
+                        let proj = last_arg from in
                         if is_or_applies projT2 proj then
-                          let unpacked = last (unfold_args proj) in
-                          let unpacked_from = last (unfold_args unpacked) in
+                          let unpacked = last_arg proj in
+                          let unpacked_from = last_arg unpacked in
                           reduce_ornament_f l env evd index_i f unpacked_from orn_args
                         else if is_or_applies (lift_to l) proj then
-                          reduce_ornament_f l env evd index_i f (last (unfold_args proj)) orn_args
+                          reduce_ornament_f l env evd index_i f (last_arg proj) orn_args
                         else
                           reduce_ornament_f l env evd index_i f trm orn_args
                       else if is_or_applies (lift_back l) from then
-                        let last_arg = last (unfold_args from) in
-                        reduce_ornament_f l env evd index_i f last_arg orn_args
+                        let la = last_arg from in
+                        reduce_ornament_f l env evd index_i f la orn_args
                       else
                         reduce_ornament_f l env evd index_i f trm orn_args)
                   app_pre_red)
@@ -510,8 +510,8 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
              (fun trm ->
                isApp trm &&
                applies f trm &&
-               List.exists (eq_constr (last (unfold_args trm))) ihs)
-             (fun t -> last (unfold_args t))
+               List.exists (eq_constr (last_arg trm) ihs)
+             last_arg
              app)
          env_f_body_old
          f_body
@@ -610,14 +610,13 @@ let get_assum orn env evd trm =
         let c' =
           if applies sigT_rect t then
             (* indexer *)
-            Some (last (unfold_args t))
+            Some (last_arg t)
           else
             (* function *)
             let unorn = unwrap_definition env (first_fun t) in
             let (_, unorn_typ) = zoom_product_type env (infer_type env evd unorn) in
-            let unorn_typ_args = unfold_args unorn_typ in
-            let assum_i = arity unorn - destRel (last unorn_typ_args) in
-            Some (last (unfold_args (get_arg assum_i t)))
+            let assum_i = arity unorn - destRel (last_arg unorn_typ) in
+            Some (last_arg (get_arg assum_i t))
         in c := c'; t)
       trm
   in Option.get !c
@@ -684,7 +683,7 @@ let rec compose_orn_factors evd (l : lifting) no_reduce assum_ind idx_n fs =
            (* eliminate the existT [TODO move] *)
            let f_inner = get_arg 3 (snd f) in
            let (env_f_inner, f_inner_body) = zoom_lambda_term (fst f) f_inner in
-           let c_g = last (unfold_args (snd g)) in
+           let c_g = last_arg (snd g) in
            let c_g_f = reconstruct_lambda (fst g) c_g in
            let c_f = reduce_term (fst g) (mkAppl (c_g_f, List.rev (List.tl (List.rev (unfold_args t_body))))) in
            let inner = mkAppl (shift_by 2 c_f, [f_inner_body]) in

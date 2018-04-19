@@ -52,7 +52,7 @@ let zoom_term zoom (env : env) (trm : types) : types =
 
 (* Get the last argument of a sigma *)
 let zoom_sig_lambda t =
-  last (unfold_args t)
+  last_arg t
 
 (* Get the very first function from the body of the last argument of a sigma *)
 let zoom_sig t =

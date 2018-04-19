@@ -127,6 +127,10 @@ let unfold_args_app trm =
 let unfold_args trm =
   if isApp trm then unfold_args_app trm else []
 
+(* Get the last argument of an application *)
+let last_arg trm =
+  if isApp trm then last (unfold_args trm) else failwith "not an application"
+
 (* Get the first function of an application *)
 let rec first_fun t =
   match kind_of_term t with

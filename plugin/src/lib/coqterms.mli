@@ -248,6 +248,11 @@ val with_suffix : Id.t -> string -> Id.t
 val unfold_args : types -> types list
 
 (*
+ * Get the very last argument of an application
+ *)
+val last_arg : types -> types
+
+(*
  * Get the very first function of an application
  *)
 val first_fun : types -> types
