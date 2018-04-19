@@ -27,14 +27,11 @@ module CRD = Context.Rel.Declaration
 (* --- Application --- *)
 
 (* TODO explain *)
-let zoom_sig_outer is_fwd t =
-  if is_fwd then
+let zoom_sig_outer t =
+  try
+    last (unfold_args (snd (zoom_lambda_term empty_env t)))
+  with _ ->
     t
-  else
-    try
-      last (unfold_args (snd (zoom_lambda_term empty_env t)))
-    with _ ->
-      t
               
 (* TODO explain *)
 let zoom_sig is_fwd t =
@@ -42,7 +39,7 @@ let zoom_sig is_fwd t =
     t
   else
     try
-      let lambda = zoom_sig_outer is_fwd t in
+      let lambda = zoom_sig_outer t in
       first_fun (snd (zoom_lambda_term empty_env lambda))
     with _ ->
       t
@@ -50,7 +47,7 @@ let zoom_sig is_fwd t =
 (* zoom_sig if t actually applies sigT *)
 let zoom_if_sig_outer t =
   if applies sigT t then
-    zoom_sig_outer false t
+    zoom_sig_outer t
   else
     t
 
