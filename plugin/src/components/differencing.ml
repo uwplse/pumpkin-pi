@@ -470,15 +470,12 @@ let orn_index_cases evd index_i npm is_fwd indexer_f orn_p o n : types list =
  * later it might be useful to define both separately.
  * For now we have a metatheoretic guarantee about the indexer we return
  * corresponding to the projection of the sigma type.
- *
- * TODO later, refactor code common to both cases
- * TODO clean args
  *)
-let pack env evd index_typ f_indexer index_i npm ind ind_n arity is_fwd unpacked =
-  let index_i = npm + index_i in
+let pack env evd (index_i, index_typ) f_indexer ind_o ind_n arity is_fwd unpacked =
   let off = arity - 1 in
   let off_rels = mk_n_rels off in
   let unpacked = map_if shift (not is_fwd) unpacked in
+  let ind = if is_fwd then ind_n else ind_o in
   if is_fwd then
     (* pack conclusion *)
     let unpacked_args = shift_all off_rels in
@@ -548,8 +545,8 @@ let search_orn_index_elim evd npm idx_n elim_o o n is_fwd =
      let index_i_o = directional (Some index_i) None in
      let elim = elim_o in
      let unpacked = apply_eliminator {elim; pms; p; cs; final_args} in
-     let packer ind ar = pack env_ornament evd index_t f_indexer index_i npm ind ind_n ar is_fwd unpacked in (* TODO clean args *)
-     let packed = if is_fwd then (packer ind_n arity_n) else (packer ind_o arity_o) in
+     let packer ar = pack env_ornament evd (npm + index_i, index_t) f_indexer ind_o ind_n ar is_fwd unpacked in (* TODO clean args *)
+     let packed = if is_fwd then (packer arity_n) else (packer arity_o) in
      (index_i_o, indexer, reconstruct_lambda (fst packed) (snd packed))
   | _ ->
      failwith "not eliminators"
