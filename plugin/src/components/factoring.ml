@@ -11,6 +11,7 @@ open Names
 open Debruijn
 open Zooming
 open Hofs
+open Lifting
 
 (* --- Shared logic --- *)
 
@@ -275,3 +276,44 @@ let debug_factors_dep (fs : factor_tree) (s : string) : unit =
     | Unit ->
        "Unit"
   in Printf.printf "%s: %s\n\n" s (as_string fs)
+
+(* --- Factoring lifted but not reduced functions --- *)
+
+(*
+ * Find the assumption for factoring in an ornamented, but not
+ * yet reduced function. This is dependent on how the function is written
+ * for now, and so might fail for some inductive definitions;
+ * we should test this a lot and generalize it.
+ *)
+let get_assum orn env evd trm =
+  let c = ref None in
+  let _ =
+    map_unit_if
+      (fun t ->
+        match kind_of_term t with
+        | App (_, _) ->
+           let f = first_fun t in
+           isConst f && not (eq_constr f orn.promote || eq_constr f orn.forget)
+        | _ ->
+           false)
+      (fun t ->
+        let c' =
+          if applies sigT_rect t then
+            (* indexer *)
+            Some (last_arg t)
+          else
+            (* function *)
+            let unorn = unwrap_definition env (first_fun t) in
+            let (_, unorn_typ) = zoom_product_type env (infer_type env evd unorn) in
+            let assum_i = arity unorn - destRel (last_arg unorn_typ) in
+            Some (last_arg (get_arg assum_i t))
+        in c := c'; t)
+      trm
+  in Option.get !c
+
+(*
+ * Factor an ornamented, but not yet reduced function
+ *)
+let factor_ornamented (orn : promotion) (env : env) evd (trm : types) =
+  let assum = get_assum orn env evd trm in
+  (destRel assum, factor_term_dep assum env evd trm)

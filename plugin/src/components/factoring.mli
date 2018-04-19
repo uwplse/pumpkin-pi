@@ -5,6 +5,7 @@
 open Term
 open Environ
 open Evd
+open Lifting
 
 (* --- Type-level factoring --- *)
 
@@ -25,3 +26,12 @@ type factor_tree = Unit | Factor of (env * types) * factor_tree list
                                                          
 val factor_term_dep : types -> env -> evar_map -> types -> factor_tree
 val debug_factors_dep : factor_tree -> string -> unit
+
+(* --- Factoring lifted but not reduced functions --- *)
+
+(* 
+ * Factor a lifted but not yet reduced function
+ * Return both the factor tree and the index of the assumption
+ *)
+val factor_ornamented :
+  promotion -> env -> evar_map -> types -> (int * factor_tree)

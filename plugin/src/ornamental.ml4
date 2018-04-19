@@ -242,7 +242,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let is_deorn = is_or_applies (if l.is_fwd then to_typ else from_typ) in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_g_used = get_all_hypos c_g in
-  let (env_f_body_old, _) = zoom_lambda_term env_f c_f in
+  let env_f_body_old = zoom_env zoom_lambda_term env_f c_f in
   let c_f = compose_ih env_g evd npms_g ip_g c_f p in
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let (env_g_body, g_body) = zoom_lambda_term env_g c_g in
@@ -453,46 +453,6 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner (comp : composit
       let fs = (env_f, f_app.cs) in
       (compose_cs evd npms g_app.elim p post_assums comp gs fs, indexer)
   in (apply_eliminator {f_app with p; cs}, indexer)
-    
-
-(*
- * Find the assumption for factoring in an ornamented, but not
- * yet reduced function. This is dependent on how the function is written
- * for now, and so might fail for some inductive definitions;
- * we should test this a lot and generalize it.
- *)
-let get_assum orn env evd trm =
-  let c = ref None in
-  let _ =
-    map_unit_if
-      (fun t ->
-        match kind_of_term t with
-        | App (_, _) ->
-           let f = first_fun t in
-           isConst f && not (eq_constr f orn.promote || eq_constr f orn.forget)
-        | _ ->
-           false)
-      (fun t ->
-        let c' =
-          if applies sigT_rect t then
-            (* indexer *)
-            Some (last_arg t)
-          else
-            (* function *)
-            let unorn = unwrap_definition env (first_fun t) in
-            let (_, unorn_typ) = zoom_product_type env (infer_type env evd unorn) in
-            let assum_i = arity unorn - destRel (last_arg unorn_typ) in
-            Some (last_arg (get_arg assum_i t))
-        in c := c'; t)
-      trm
-  in Option.get !c
-
-(*
- * Factor an ornamented, but not yet reduced function
- *)
-let factor_ornamented (orn : promotion) (env : env) evd (trm : types) =
-  let assum = get_assum orn env evd trm in
-  (destRel assum, factor_term_dep assum env evd trm)
 
 (*
  * Compose factors of an ornamented, but not yet reduced function
