@@ -461,6 +461,51 @@ let orn_index_cases evd index_i npm is_fwd indexer_f orn_p o n : types list =
      failwith "not an eliminator"
 
 (*
+ * Pack the conclusion of an ornamental promotion
+ *)
+let pack_conclusion env evd (index_i, index_typ) f_indexer n unpacked =
+  let (ind, arity) = n in
+  let off = arity - 1 in
+  let unpacked_args = shift_all (mk_n_rels off) in
+  let packed_args = insert_index index_i (mkRel 1) unpacked_args in
+  let env_abs = push_local (Anonymous, index_typ) env in
+  let packer = abstract_arg env_abs evd index_i (mkAppl (ind, packed_args)) in
+  let index = mkAppl (f_indexer, mk_n_rels arity) in
+  (env, pack_existT (shift_by off index_typ) packer index unpacked)
+
+(*
+ * Pack the hypothesis of an ornamental forgetful function
+ *)
+let pack_hypothesis env evd (index_i, index_typ) o n unpacked =
+  let (ind, arity) = o in
+  let (ind_n, _) = n in
+  let index = mkRel 1 in
+  let indexed = mkRel 2 in
+  let index_typ = shift index_typ in
+  let (from_n, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
+  let unpacked_args = shift_all (unfold_args unpacked_typ) in
+  let packed_args = reindex index_i index unpacked_args in
+  let env_abs = push_local (Anonymous, index_typ) env in
+  let packer = abstract_arg env_abs evd index_i (mkAppl (ind, packed_args)) in
+  let packed_typ = pack_sigT index_typ (unshift packer) in
+  let env_pop = pop_rel_context 1 env in
+  let index_rel = offset env_pop index_i in
+  let env_push = push_local (from_n, packed_typ) env_pop in
+  let packer_app = mkAppl (shift packer, [index]) in
+  let packer_indexed = reduce_term env_push packer_app in
+  let unpacked = shift_local index_rel 1 (shift unpacked) in
+  let unpacked = all_eq_substs (mkRel (4 - index_rel), index) unpacked in
+  let unpacked = all_eq_substs (mkRel (index_rel + 3), indexed) unpacked in
+  let unpacked = mkLambda (Anonymous, packer_indexed, unpacked) in
+  let pack_unpacked = mkLambda (Anonymous, shift index_typ, unpacked) in
+  let env_packed = remove_rel (index_rel + 1) env_push in
+  let pack_off = unshift_local index_rel 1 pack_unpacked in
+  let packer = unshift_local index_rel 1 packer in
+  let elim_b = shift (mkAppl (ind_n, shift_all (mk_n_rels (arity - 1)))) in
+  let elim = mkLambda (Anonymous, pack_sigT index_typ packer, elim_b) in
+  (env_packed, elim_sigT index_typ packer elim pack_off (mkRel 1))
+
+(*
  * This packs an ornamental promotion to/from an indexed type like Vector A n,
  * with n at index_i, into a sigma type. The theory of this is more elegant,
  * and the types are easier to reason about automatically. However,
@@ -471,46 +516,11 @@ let orn_index_cases evd index_i npm is_fwd indexer_f orn_p o n : types list =
  * For now we have a metatheoretic guarantee about the indexer we return
  * corresponding to the projection of the sigma type.
  *)
-let pack env evd (index_i, index_typ) f_indexer ind_o ind_n arity is_fwd unpacked =
-  let off = arity - 1 in
-  let off_rels = mk_n_rels off in
-  let unpacked = map_if shift (not is_fwd) unpacked in
-  let ind = if is_fwd then ind_n else ind_o in
+let pack env evd index f_indexer o n is_fwd unpacked =
   if is_fwd then
-    (* pack conclusion *)
-    let unpacked_args = shift_all off_rels in
-    let packed_args = insert_index index_i (mkRel 1) unpacked_args in
-    let env_abs = push_local (Anonymous, index_typ) env in
-    let packer = abstract_arg env_abs evd index_i (mkAppl (ind, packed_args)) in
-    let index = mkAppl (f_indexer, mk_n_rels arity) in
-    (env, pack_existT (shift_by off index_typ) packer index unpacked)
+    pack_conclusion env evd index f_indexer n unpacked
   else
-    (* pack hypothesis *)
-    let index = mkRel 1 in
-    let indexed = mkRel 2 in
-    let index_typ = shift index_typ in
-    let (from_n, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
-    let unpacked_args = shift_all (unfold_args unpacked_typ) in
-    let packed_args = reindex index_i index unpacked_args in
-    let env_abs = push_local (Anonymous, index_typ) env in
-    let packer = abstract_arg env_abs evd index_i (mkAppl (ind, packed_args)) in
-    let packed_typ = pack_sigT index_typ (unshift packer) in
-    let env_pop = pop_rel_context 1 env in
-    let index_rel = offset env_pop index_i in
-    let env_push = push_local (from_n, packed_typ) env_pop in
-    let packer_app = mkAppl (shift packer, [index]) in
-    let packer_indexed = reduce_term env_push packer_app in
-    let unpacked = shift_local index_rel 1 unpacked in
-    let unpacked = all_eq_substs (mkRel (4 - index_rel), index) unpacked in
-    let unpacked = all_eq_substs (mkRel (index_rel + 3), indexed) unpacked in
-    let unpacked = mkLambda (Anonymous, packer_indexed, unpacked) in
-    let pack_unpacked = mkLambda (Anonymous, shift index_typ, unpacked) in
-    let env_packed = remove_rel (index_rel + 1) env_push in
-    let pack_off = unshift_local index_rel 1 pack_unpacked in
-    let packer = unshift_local index_rel 1 packer in
-    let elim_b = shift (mkAppl (ind_n, shift_all off_rels)) in
-    let elim = mkLambda (Anonymous, pack_sigT index_typ packer, elim_b) in
-    (env_packed, elim_sigT index_typ packer elim pack_off (mkRel 1))
+    pack_hypothesis env evd index o n unpacked
 
 (* Search two inductive types for an indexing ornament, using eliminators *)
 let search_orn_index_elim evd npm idx_n elim_o o n is_fwd =
@@ -545,8 +555,10 @@ let search_orn_index_elim evd npm idx_n elim_o o n is_fwd =
      let index_i_o = directional (Some index_i) None in
      let elim = elim_o in
      let unpacked = apply_eliminator {elim; pms; p; cs; final_args} in
-     let packer ar = pack env_ornament evd (npm + index_i, index_t) f_indexer ind_o ind_n ar is_fwd unpacked in (* TODO clean args *)
-     let packed = if is_fwd then (packer arity_n) else (packer arity_o) in
+     let o = (ind_o, arity_o) in
+     let n = (ind_n, arity_n) in
+     let index = (npm + index_i, index_t) in
+     let packed = pack env_ornament evd index f_indexer o n is_fwd unpacked in
      (index_i_o, indexer, reconstruct_lambda (fst packed) (snd packed))
   | _ ->
      failwith "not eliminators"
