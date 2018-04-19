@@ -647,25 +647,26 @@ let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
      let (npm_o, npm_n) = map_tuple (fun m -> m.mind_nparams) (m_o, m_n) in
      if not (npm_o = npm_n) then
        (* new parameter *)
-       let search_params = twice (search_orn_params env) in
+       let search = twice (search_orn_params env) in
        let indexer = None in
        let index_i = None in
        if npm_o < npm_n then
-         let (promote, forget) = search_params (i_o, ii_o) (i_n, ii_n) in
+         let (promote, forget) = search (i_o, ii_o) (i_n, ii_n) in
          { index_i; indexer; promote; forget }
        else
-         let (promote, forget) = search_params (i_n, ii_n) (i_o, ii_o) in
+         let (promote, forget) = search (i_n, ii_n) (i_o, ii_o) in
          { index_i; indexer; promote; forget }
      else
        let npm = npm_o in
        let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
        let (arity_o, arity_n) = map_tuple arity (typ_o, typ_n) in
        if not (arity_o = arity_n) then
+         (* new index *)
          let o = (trm_o, arity_o) in
          let n = (trm_n, arity_n) in
          let (o, n) = map_if reverse (arity_n <= arity_o) (o, n) in
-         let search_indices = twice (search_orn_index env evd npm indexer_id) in
-         let ((index_i, indexer, promote), (_, _, forget)) = search_indices o n in
+         let search = twice (search_orn_index env evd npm indexer_id) in
+         let ((index_i, indexer, promote), (_, _, forget)) = search o n in
          { index_i; indexer; promote; forget }
        else
          failwith "this kind of change is not yet supported"
