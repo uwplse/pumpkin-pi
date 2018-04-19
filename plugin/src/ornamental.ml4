@@ -24,18 +24,6 @@ open Hypotheses (* TODO clean above once refactored *)
 
 module CRD = Context.Rel.Declaration
 
-(* --- Utilities that might not generalize outside of this tool --- *)
-
-(* Remove the final hypothesis of a lambda *)
-let rec remove_final_hypo trm =
-  match kind_of_term trm with
-  | Lambda (n, t, b) when isLambda b ->
-     mkLambda (n, t, remove_final_hypo b)
-  | Lambda (n, t, b) ->
-     unshift b
-  | _ ->
-     failwith "not a lambda"
-
 (* --- Application --- *)
 
 (* TODO explain *)

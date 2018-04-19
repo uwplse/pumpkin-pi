@@ -7,6 +7,16 @@ open Hofs
 open Debruijn
 open Utilities
 open Coqterms
+
+(* Remove the final hypothesis of a lambda *)
+let rec remove_final_hypo trm =
+  match kind_of_term trm with
+  | Lambda (n, t, b) when isLambda b ->
+     mkLambda (n, t, remove_final_hypo b)
+  | Lambda (n, t, b) ->
+     unshift b
+  | _ ->
+     failwith "not a lambda"
        
 (*
  * This function removes any terms from the hypothesis of a lambda

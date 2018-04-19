@@ -5,7 +5,12 @@
 open Term
 
 (*
- * Rremoves any terms from the hypothesis of a lambda
+ * Remove the final hypothesis of a lambda
+ *)
+val remove_final_hypo : types -> types
+       
+(*
+ * Remove any terms from the hypothesis of a lambda
  * that are not referenced in the body, so that the term
  * has only hypotheses that are referenced
  *)
