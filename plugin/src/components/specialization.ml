@@ -140,7 +140,6 @@ let compose_p evd npms post_assums inner (comp : composition) =
       let typ_args = unfold_args typ in
       let index = mkRel 2 in
       let index_typ = infer_type env_p_f evd index in
-      let unpacked_args = unfold_args typ in
       let packer = abstract_arg env_p_f evd index_i typ in
       let unpacked = mkAppl (existT, [index_typ; packer; index; inner]) in
       mkAppl (lift_back l, snoc unpacked (remove_index index_i typ_args))
@@ -340,7 +339,6 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let (env_g_body, g_body) = zoom_lambda_term env_g c_g in
   let off_f = offset2 env_f_body env_f in
-  let off_g = offset2 env_g_body env_g in
   let is_g = comp.is_g in
   let f_body =
     if not is_g then
@@ -357,14 +355,11 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
               let index_type = infer_type env_g_body evd arg in
               let (ih, _) = List.assoc i index_args in
               let ih_typ = reduce_type env_f_body evd ih in
-              let indexer = Option.get l.orn.indexer in
               let typ_args = unfold_args (reduce_term env_f_body ih_typ) in
               let orn = mkAppl (lift_back l, snoc ih typ_args) in
               let orn_typ = reduce_type env_f_body evd orn in
               let packed_type = get_arg 1 orn_typ in
               project_index index_type packed_type orn
-              (*let orn = mkAppl (indexer, snoc ih typ_args) in
-              orn*)
             else
               map_unit_env_if
                 (fun env trm -> on_type is_deorn env evd trm)
@@ -405,7 +400,6 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
          (fun env trm ->
            on_type (is_orn env) env evd trm)
          (fun env trm ->
-           let args = unfold_args trm in
            let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
            let typ_args =
              if l.is_fwd then
@@ -494,7 +488,6 @@ let compose_cs evd npms ip p post_assums comp gs fs =
  *)
 let rec compose_inductive evd idx_n post_assums assum_ind inner (comp : composition) =
   let l = comp.l in
-  let index_i = Option.get l.orn.index_i in
   let (env_g, g) = comp.g in
   let (env_f, f) = comp.f in
   let f_app = deconstruct_eliminator env_f evd f in
