@@ -161,12 +161,3 @@ val all_eq_substs : (types * types) -> types -> types
  * using exact syntactic equality
  *)
 val contains_term : types -> types -> bool
-
-(* --- Filtering --- *)
-
-(*
- * This function removes any terms from the hypothesis of a lambda
- * that are not referenced in the body, so that the term
- * has only hypotheses that are referenced.
- *)
-val remove_unused_hypos : types -> types

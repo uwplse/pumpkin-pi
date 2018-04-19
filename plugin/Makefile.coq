@@ -206,6 +206,7 @@ MLFILES:=src/lib/utilities.ml\
   src/lib/zooming.ml\
   src/lib/hofs.ml\
   src/lib/indexing.ml\
+  src/lib/hypotheses.ml\
   src/lib/printing.ml\
   src/ornaments/promotions.ml\
   src/ornaments/lifting.ml\
@@ -241,6 +242,7 @@ MLIFILES:=src/lib/utilities.mli\
   src/lib/zooming.mli\
   src/lib/hofs.mli\
   src/lib/indexing.mli\
+  src/lib/hypotheses.mli\
   src/lib/printing.mli\
   src/ornaments/promotions.mli\
   src/ornaments/lifting.mli\

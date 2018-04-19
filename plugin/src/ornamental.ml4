@@ -19,32 +19,12 @@ open Differencing
 open Lifting
 open Promotions
 open Abstraction
-open Indexing (* TODO clean above once refactored *)
+open Indexing
+open Hypotheses (* TODO clean above once refactored *)
 
 module CRD = Context.Rel.Declaration
 
 (* --- Utilities that might not generalize outside of this tool --- *)
-
-(*
- * Get the hypos that are used in the body, or that match
- * a certain predicate on the type
- *)
-let get_used_or_p_hypos (p : types -> bool) (trm : types) : types list =
-  let rec get_used trm i =
-    match kind_of_term trm with
-    | Lambda (n, t, b) ->
-       let bs = get_used b (unshift_i i) in
-       if p t then
-         mkRel i :: bs
-       else
-         let b' = remove_unused_hypos b in
-         if contains_term (mkRel 1) b' then
-           mkRel i :: bs
-         else
-           bs
-    | _ ->
-       []
-  in get_used trm (arity trm)
 
 (* Remove the final hypothesis of a lambda *)
 let rec remove_final_hypo trm =
@@ -446,7 +426,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let (to_typ, from_typ) = map_backward reverse l (to_typ, from_typ) in
   let is_deorn = is_or_applies (if l.is_fwd then to_typ else from_typ) in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
-  let c_g_used = get_used_or_p_hypos always_true c_g in
+  let c_g_used = get_all_hypos c_g in
   let (env_f_body_old, _) = zoom_lambda_term env_f c_f in
   let c_f = compose_ih env_g evd npms_g ip_g c_f p in
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
