@@ -144,7 +144,7 @@ let compose_p evd npms post_assums inner (comp : composition) =
       let unpacked = mkAppl (existT, [index_typ; packer; index; inner]) in
       mkAppl (lift_back l, snoc unpacked (remove_index index_i typ_args))
   in
-  let (_, p_f_b) = zoom_lambda_term env_p_f (zoom_if_sig_lambda p_f_b_old) in
+  let p_f_b = zoom_term zoom_lambda_term env_p_f (zoom_if_sig_lambda p_f_b_old) in
   let p_f_b_args = map_if (remove_index index_i) (not (eq_constr p_f_b_old p_f_b)) (unfold_args p_f_b) in
   let (_, non_pms) = take_split npms p_f_b_args in
   let p_args = snoc orn_app non_pms in
@@ -307,6 +307,57 @@ let rec indexes env to_typ index_i f_hs g_hs trm i =
        []
   else
     []
+
+(*
+ * This reduces the body of an ornamented constructor to a reasonable term
+ * TODO handle in a separate step
+ *)
+let reduce_constr_body env evd l is_orn index_i index_args body =
+  let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
+  let orn_args = mk_n_rels (nb_rel env) in
+  let orn_args = List.filter (on_type (is_orn env) env evd) orn_args in
+  map_if
+    (reduce_nf env)
+    (List.length index_args = 0 && not l.is_indexer)
+    (map_unit_if
+       (applies f)
+       (fun trm ->
+         let from = last_arg trm in 
+         if l.is_indexer then
+           if is_or_applies (lift_back l) from then
+             let la = last_arg from in
+             let la_typ = reduce_type env evd la in
+             let idx_type = get_arg 0 la_typ in
+             let packed_type = get_arg 1 la_typ in
+             let app_projT1 = project_index idx_type packed_type la in
+             reduce_ornament_f l env evd index_i f app_projT1 orn_args
+           else
+             reduce_ornament_f l env evd index_i f trm orn_args
+         else if l.is_fwd then
+           if is_or_applies (lift_back l) from then
+             let existT_app = last_arg from in
+             reduce_ornament_f l env evd index_i f existT_app orn_args
+           else
+             reduce_ornament_f l env evd index_i f trm orn_args
+         else
+           if is_or_applies existT from then
+             let proj = last_arg from in
+             if is_or_applies projT2 proj then
+               let unpacked = last_arg proj in
+               let unpacked_from = last_arg unpacked in
+               reduce_ornament_f l env evd index_i f unpacked_from orn_args
+             else if is_or_applies (lift_to l) proj then
+               reduce_ornament_f l env evd index_i f (last_arg proj) orn_args
+             else
+               reduce_ornament_f l env evd index_i f trm orn_args
+           else if is_or_applies (lift_back l) from then
+             let la = last_arg from in
+             reduce_ornament_f l env evd index_i f la orn_args
+           else
+             reduce_ornament_f l env evd index_i f trm orn_args)
+       body)
+
+      
   
 (*
  * Compose two constructors for two applications of an induction principle
@@ -389,7 +440,6 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       let c_f_all = get_used_or_p_hypos always_true c_f in
       let index_args = indexes env_g to_typ index_i c_f_all c_g_used (lambda_to_prod (if l.is_fwd then c_f else c_g)) 0 in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
-      
       let is_orn env trm =
         let typ = if l.is_fwd then from_typ else shift_by (offset env_f_body 1) ind_g_typ in
         is_or_applies typ trm || convertible env typ trm
@@ -414,51 +464,8 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
                  unfold_args packer
            in
            let app_pre_red = mkAppl (f, snoc trm typ_args) in
-           let orn_args = mk_n_rels (nb_rel env) in
-           let orn_args = List.filter (on_type (is_orn env) env evd) orn_args in
            (* TODO reinspect condition below, may be bad sometimes *)
-           let app =
-             map_if
-               (reduce_nf env)
-               (List.length index_args = 0 && not l.is_indexer)
-               (map_unit_if
-                  (applies f)
-                  (fun trm ->
-                    let from = last_arg trm in 
-                    if l.is_indexer then
-                      if is_or_applies (lift_back l) from then
-                        let la = last_arg from in
-                        let la_typ = reduce_type env evd la in
-                        let idx_type = get_arg 0 la_typ in
-                        let packed_type = get_arg 1 la_typ in
-                        let app_projT1 = project_index idx_type packed_type la in
-                        reduce_ornament_f l env evd index_i f app_projT1 orn_args              
-                      else
-                        reduce_ornament_f l env evd index_i f trm orn_args
-                    else if l.is_fwd then
-                      if is_or_applies (lift_back l) from then
-                        let existT_app = last_arg from in
-                        reduce_ornament_f l env evd index_i f existT_app orn_args
-                      else
-                        reduce_ornament_f l env evd index_i f trm orn_args
-                    else
-                      if is_or_applies existT from then
-                        let proj = last_arg from in
-                        if is_or_applies projT2 proj then
-                          let unpacked = last_arg proj in
-                          let unpacked_from = last_arg unpacked in
-                          reduce_ornament_f l env evd index_i f unpacked_from orn_args
-                        else if is_or_applies (lift_to l) proj then
-                          reduce_ornament_f l env evd index_i f (last_arg proj) orn_args
-                        else
-                          reduce_ornament_f l env evd index_i f trm orn_args
-                      else if is_or_applies (lift_back l) from then
-                        let la = last_arg from in
-                        reduce_ornament_f l env evd index_i f la orn_args
-                      else
-                        reduce_ornament_f l env evd index_i f trm orn_args)
-                  app_pre_red)
-           in
+           let app = reduce_constr_body env evd l is_orn index_i index_args app_pre_red in
            map_unit_if
              (fun trm ->
                isApp trm &&
