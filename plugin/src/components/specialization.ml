@@ -337,6 +337,31 @@ let reduce_promoted_constr_body env evd l trm =
     (* leave as-is *)
     trm
 
+(* 
+ * Reduces the body of a constructor of a forgetful function
+ *)
+let reduce_forgotten_constr_body env evd l trm =
+  let from = last_arg trm in
+  if is_or_applies existT from then
+    let proj = last_arg from in
+    if is_or_applies projT2 proj then
+      (* eliminate existT of the projection *)
+      let unpacked = last_arg proj in
+      last_arg unpacked
+    else if is_or_applies (lift_to l) proj then
+      (* eliminate existT of the forgetful function *)
+      last_arg proj
+    else
+      (* leave as-is *)
+      trm
+  else if is_or_applies (lift_back l) from then
+    (* eliminate the promotion function *)
+    last_arg from
+  else
+    (* leave as-is *)
+    trm
+
+  
 (*
  * This reduces the body of an ornamented constructor to a reasonable term
  * TODO handle in a separate step
@@ -351,27 +376,14 @@ let reduce_constr_body env evd l is_orn index_i index_args body =
     (map_unit_if
        (applies f)
        (fun trm ->
-         let to_reduce =
+         let reduce_body trm =
            if l.is_indexer then
              reduce_indexer_constr_body env evd l trm
            else if l.is_fwd then
              reduce_promoted_constr_body env evd l trm
            else
-             let from = last_arg trm in
-             if is_or_applies existT from then
-               let proj = last_arg from in
-               if is_or_applies projT2 proj then
-                 let unpacked = last_arg proj in
-                 last_arg unpacked
-               else if is_or_applies (lift_to l) proj then
-                 last_arg proj
-               else
-                 trm
-             else if is_or_applies (lift_back l) from then
-               last_arg from
-             else
-               trm 
-         in reduce_ornament_f l env evd index_i f to_reduce orn_args)
+             reduce_forgotten_constr_body env evd l trm
+         in reduce_ornament_f l env evd index_i f (reduce_body trm) orn_args)
        body)
 
       
