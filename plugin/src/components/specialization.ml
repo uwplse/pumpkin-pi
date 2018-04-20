@@ -308,6 +308,22 @@ let rec indexes env to_typ index_i f_hs g_hs trm i =
   else
     []
 
+(* 
+ * Reduces the body of a constructor of an indexer
+ *)
+let reduce_indexer_constr_body env evd l index_i orn_args trm =
+  let f = Option.get l.orn.indexer in
+  let from = last_arg trm in
+  if is_or_applies (lift_back l) from then
+    let la = last_arg from in
+    let la_typ = reduce_type env evd la in
+    let idx_type = get_arg 0 la_typ in
+    let packed_type = get_arg 1 la_typ in
+    let app_projT1 = project_index idx_type packed_type la in
+    reduce_ornament_f l env evd index_i f app_projT1 orn_args
+  else
+    reduce_ornament_f l env evd index_i f trm orn_args
+
 (*
  * This reduces the body of an ornamented constructor to a reasonable term
  * TODO handle in a separate step
@@ -322,17 +338,9 @@ let reduce_constr_body env evd l is_orn index_i index_args body =
     (map_unit_if
        (applies f)
        (fun trm ->
-         let from = last_arg trm in 
+         let from = last_arg trm in
          if l.is_indexer then
-           if is_or_applies (lift_back l) from then
-             let la = last_arg from in
-             let la_typ = reduce_type env evd la in
-             let idx_type = get_arg 0 la_typ in
-             let packed_type = get_arg 1 la_typ in
-             let app_projT1 = project_index idx_type packed_type la in
-             reduce_ornament_f l env evd index_i f app_projT1 orn_args
-           else
-             reduce_ornament_f l env evd index_i f trm orn_args
+           reduce_indexer_constr_body env evd l index_i orn_args trm
          else if l.is_fwd then
            if is_or_applies (lift_back l) from then
              let existT_app = last_arg from in
