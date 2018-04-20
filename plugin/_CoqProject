@@ -34,6 +34,8 @@ src/components/abstraction.ml
 src/components/abstraction.mli
 src/components/specialization.ml
 src/components/specialization.mli
+src/components/specialization2.ml
+src/components/specialization2.mli
 src/components/differencing.ml
 src/components/differencing.mli
 
