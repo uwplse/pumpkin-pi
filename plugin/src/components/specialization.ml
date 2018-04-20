@@ -311,18 +311,31 @@ let rec indexes env to_typ index_i f_hs g_hs trm i =
 (* 
  * Reduces the body of a constructor of an indexer
  *)
-let reduce_indexer_constr_body env evd l index_i orn_args trm =
+let reduce_indexer_constr_body env evd l trm =
   let f = Option.get l.orn.indexer in
   let from = last_arg trm in
   if is_or_applies (lift_back l) from then
+    (* eliminate the promotion/forgetful function *)
     let la = last_arg from in
     let la_typ = reduce_type env evd la in
     let idx_type = get_arg 0 la_typ in
     let packed_type = get_arg 1 la_typ in
-    let app_projT1 = project_index idx_type packed_type la in
-    reduce_ornament_f l env evd index_i f app_projT1 orn_args
+    project_index idx_type packed_type la
   else
-    reduce_ornament_f l env evd index_i f trm orn_args
+    (* leave as-is *)
+    trm
+
+(*
+ * Reduces the body of a constructor of a promoted function
+ *)
+let reduce_promoted_constr_body env evd l trm =
+  let from = last_arg trm in
+  if is_or_applies (lift_back l) from then
+    (* eliminate the promotion function *)
+    last_arg from
+  else
+    (* leave as-is *)
+    trm
 
 (*
  * This reduces the body of an ornamented constructor to a reasonable term
@@ -338,31 +351,27 @@ let reduce_constr_body env evd l is_orn index_i index_args body =
     (map_unit_if
        (applies f)
        (fun trm ->
-         let from = last_arg trm in
-         if l.is_indexer then
-           reduce_indexer_constr_body env evd l index_i orn_args trm
-         else if l.is_fwd then
-           if is_or_applies (lift_back l) from then
-             let existT_app = last_arg from in
-             reduce_ornament_f l env evd index_i f existT_app orn_args
+         let to_reduce =
+           if l.is_indexer then
+             reduce_indexer_constr_body env evd l trm
+           else if l.is_fwd then
+             reduce_promoted_constr_body env evd l trm
            else
-             reduce_ornament_f l env evd index_i f trm orn_args
-         else
-           if is_or_applies existT from then
-             let proj = last_arg from in
-             if is_or_applies projT2 proj then
-               let unpacked = last_arg proj in
-               let unpacked_from = last_arg unpacked in
-               reduce_ornament_f l env evd index_i f unpacked_from orn_args
-             else if is_or_applies (lift_to l) proj then
-               reduce_ornament_f l env evd index_i f (last_arg proj) orn_args
+             let from = last_arg trm in
+             if is_or_applies existT from then
+               let proj = last_arg from in
+               if is_or_applies projT2 proj then
+                 let unpacked = last_arg proj in
+                 last_arg unpacked
+               else if is_or_applies (lift_to l) proj then
+                 last_arg proj
+               else
+                 trm
+             else if is_or_applies (lift_back l) from then
+               last_arg from
              else
-               reduce_ornament_f l env evd index_i f trm orn_args
-           else if is_or_applies (lift_back l) from then
-             let la = last_arg from in
-             reduce_ornament_f l env evd index_i f la orn_args
-           else
-             reduce_ornament_f l env evd index_i f trm orn_args)
+               trm 
+         in reduce_ornament_f l env evd index_i f to_reduce orn_args)
        body)
 
       
