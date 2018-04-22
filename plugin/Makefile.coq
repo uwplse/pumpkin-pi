@@ -213,7 +213,6 @@ MLFILES:=src/lib/utilities.ml\
   src/components/factoring.ml\
   src/components/abstraction.ml\
   src/components/specialization.ml\
-  src/components/specialization2.ml\
   src/components/differencing.ml
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
@@ -251,7 +250,6 @@ MLIFILES:=src/lib/utilities.mli\
   src/components/factoring.mli\
   src/components/abstraction.mli\
   src/components/specialization.mli\
-  src/components/specialization2.mli\
   src/components/differencing.mli
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)

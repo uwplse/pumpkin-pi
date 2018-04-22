@@ -11,7 +11,6 @@ open Differencing
 open Lifting
 open Promotions
 open Specialization
-open Specialization2 (* experimental *)
 
 (* --- Top-level --- *)
 
@@ -77,29 +76,6 @@ let reduce_ornament n d_orn d_orn_inv d_old =
   Printf.printf "Defined reduced ornamened function %s.\n\n" (string_of_id n);
   ()
 
-(* Experimental syntactic lifting *)
-let lift_ornament n d_orn d_orn_inv d_old =
-  let (evd, env) = Lemmas.get_current_context () in
-  let c_orn = intern env evd d_orn in
-  let c_orn_inv = intern env evd d_orn_inv in
-  let c_o = intern env evd d_old in
-  let trm_o = unwrap_definition env c_o in
-  let idx_n = with_suffix n "index" in
-  let is_fwd = direction env evd c_orn in
-  let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
-  let orn = initialize_promotion env evd promote forget in
-  let l = initialize_lifting orn is_fwd in
-  let (trm_n, indexer_opt) = lift env evd l trm_o in
-  (if Option.has_some indexer_opt then
-     let indexer = Option.get indexer_opt in
-     define_term idx_n env evd indexer;
-     Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
-   else
-     ());
-  define_term n env evd trm_n;
-  Printf.printf "Defined reduced ornamened function %s.\n\n" (string_of_id n);
-  ()
-
 (* --- Commands --- *)
 
 (* Identify an ornament given two inductive types *)
@@ -129,14 +105,4 @@ END
 VERNAC COMMAND EXTEND ReduceOrnament CLASSIFIED AS SIDEFF
 | [ "Reduce" "ornament" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
   [ reduce_ornament n d_orn d_orn_inv d_old ]
-END
-
-(*
- * This is an experimental command that does application and reduction
- * in one step, syntactically. I am not sure whether this will always work,
- * so for now this exists to test against the current approach.
- *)
-VERNAC COMMAND EXTEND Lift CLASSIFIED AS SIDEFF
-| [ "Lift" constr(d_old) "along" constr(d_orn) constr(d_orn_inv) "to" ident(n)] ->
-  [ lift_ornament n d_orn d_orn_inv d_old ]
 END
