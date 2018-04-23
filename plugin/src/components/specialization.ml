@@ -155,7 +155,6 @@ let compose_p evd npms post_assums inner (comp : composition) =
   let p_f_b_args = map_if (remove_index index_i) (not (eq_constr p_f_b_old p_f_b)) (unfold_args p_f_b) in
   let (_, non_pms) = take_split npms p_f_b_args in
   let p_args = snoc orn_app non_pms in
-  let p_g = shift_to_env (env_g, env_p_f) p_g in
   let p_g =
     map_if
       (map_unit_if
@@ -169,7 +168,7 @@ let compose_p evd npms post_assums inner (comp : composition) =
              trm))
            (* TODO will fail with cosntant existT like nilV, try *)
       (not l.is_fwd)
-      p_g
+      (shift_to_env (env_g, env_p_f) p_g)
   in
   let p =
     map_forward
@@ -317,7 +316,6 @@ let rec indexes env to_typ index_i f_hs g_hs trm i =
  * Reduces the body of a constructor of an indexer
  *)
 let reduce_indexer_constr_body env evd l trm =
-  let f = Option.get l.orn.indexer in
   let from = last_arg trm in
   if is_or_applies (lift_back l) from then
     (* eliminate the promotion/forgetful function *)
