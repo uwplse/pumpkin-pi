@@ -148,9 +148,7 @@ let compose_p evd npms post_assums inner (comp : composition) =
   let p_f_b_args = map_if (remove_index index_i) (not (eq_constr p_f_b_old p_f_b)) (unfold_args p_f_b) in
   let (_, non_pms) = take_split npms p_f_b_args in
   let p_args = snoc orn_app non_pms in
-  let f_g_off = offset2 env_f env_g in
-  let p_g = shift_to_env (env_g, env_f) p_g in
-  let p_g = shift_by off p_g in
+  let p_g = shift_to_env (env_g, env_p_f) p_g in
   let p_g =
     map_if
       (map_unit_if
