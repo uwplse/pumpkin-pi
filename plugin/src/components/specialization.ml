@@ -121,7 +121,6 @@ let apply_indexing_ornament env evd l trm =
  *)
 
 (*
- * TODO move, use elsewhere
  * Pack arguments inside of a sigT type
  *)
 let pack_inner env evd l unpacked =
