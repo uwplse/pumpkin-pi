@@ -207,19 +207,19 @@ let compose_p evd npms post_assums inner (comp : composition) =
  * Compose the IH for a constructor.
  * This simply uses the new property p.
  *)
-let compose_ih env_g evd npms_g ip_g c_f p =
-  let ip_g_typ = reduce_type env_g evd ip_g in
+let compose_ih evd npms ip p comp =
+  let (env_f, c_f) = comp.f in
+  let ip_g_typ = reduce_type env_f evd ip in
   let from_typ = first_fun (fst (ind_of_promotion_type ip_g_typ)) in
   map_term_env_if
     (fun _ _ trm -> is_or_applies from_typ trm)
     (fun en p trm ->
-      let orn_final = [mkRel 1] in
       let (_, _, orn_final_typ) = CRD.to_tuple @@ lookup_rel 1 en in
-      let typ_args = shift_all (unfold_args orn_final_typ) in
-      let (_, non_pms) = take_split npms_g typ_args in
-      reduce_term en (mkAppl (mkAppl (p, non_pms), orn_final)))
+      let typ_args = unfold_args (shift orn_final_typ) in
+      let non_pms = snd (take_split npms typ_args) in
+      reduce_term en (mkAppl (p, snoc (mkRel 1) non_pms)))
     shift
-    env_g
+    env_f
     p
     c_f
 
@@ -431,7 +431,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_g_used = get_all_hypos c_g in
   let env_f_body_old = zoom_env zoom_lambda_term env_f c_f in
-  let c_f = compose_ih env_g evd npms_g ip_g c_f p in
+  let c_f = compose_ih evd npms_g ip_g p comp in
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let (env_g_body, g_body) = zoom_lambda_term env_g c_g in
   let off_f = offset2 env_f_body env_f in
