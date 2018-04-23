@@ -154,25 +154,19 @@ let compose_p_args evd npms post_assums inner comp =
   let reindex_if_sig = map_if (remove_index index_i) (applies sigT p_b) in
   let inner_args = reindex_if_sig (unfold_args (zoom_if_sig_app p_b)) in
   snoc orn_app (snd (take_split npms inner_args))
-       
+
 (*
- * Compose two properties for two applications of an induction principle
- * that are structurally the same when one is an ornament.
- *
- * This works by finding (p, p_args) and returning their application.
- * 
+ * Get the function for composing two applications of an induction
+ * principle that are structurally the same when one is an ornament.
  *)
-let compose_p evd npms post_assums inner (comp : composition) =
+let compose_p_fun evd (comp : composition) =
   let l = comp.l in
   let index_i = Option.get l.orn.index_i in
   let (env_g, p_g) = comp.g in
   let (env_f, p_f) = comp.f in
-  let (env_p_f, p_f_b_old) = zoom_lambda_term env_f p_f in
-  let off = offset2 env_p_f env_f in
-
-  let p_args = compose_p_args evd npms post_assums inner comp in
+  let env_p_f = zoom_env zoom_lambda_term env_f p_f in
   let p_g =
-    map_if
+    map_backward
       (map_unit_if
          (is_or_applies existT)
          (fun trm ->
@@ -183,27 +177,40 @@ let compose_p evd npms post_assums inner (comp : composition) =
            else
              trm))
            (* TODO will fail with cosntant existT like nilV, try *)
-      (not l.is_fwd)
+      l
       (shift_to_env (env_g, env_p_f) p_g)
   in
-  let p =
-    map_forward
-      (fun p_g ->
-        map_default
-          (fun indexer ->(* TODO may not yet handle HOFs *)
-            let (env_p_g, p_g_b_old) = zoom_lambda_term env_g p_g in
-            let p_g_b_as = reindex index_i (mkRel 1) (unfold_args (shift p_g_b_old)) in
-            let p_g_b = mkAppl (first_fun p_g_b_old, p_g_b_as) in
-            let pack_index = mkRel 2 in
-            let index_typ = infer_type env_p_f evd pack_index in
-            let p_g_l = mkLambda (Anonymous, index_typ, p_g_b) in
-            let p_g_packed = pack_sigT index_typ p_g_l in
-            reconstruct_lambda_n env_p_g p_g_packed (nb_rel env_g))
-          p_g
-          l.lifted_indexer)
-      l
-      p_g
-  in let app = reduce_term env_p_f (mkAppl (p, p_args)) in
+  map_forward
+    (fun p_g ->
+      map_default
+        (fun indexer ->(* TODO may not yet handle HOFs *)
+          let (env_p_g, p_g_b_old) = zoom_lambda_term env_g p_g in
+          let p_g_b_as = reindex index_i (mkRel 1) (unfold_args (shift p_g_b_old)) in
+          let p_g_b = mkAppl (first_fun p_g_b_old, p_g_b_as) in
+          let pack_index = mkRel 2 in
+          let index_typ = infer_type env_p_f evd pack_index in
+          let p_g_l = mkLambda (Anonymous, index_typ, p_g_b) in
+          let p_g_packed = pack_sigT index_typ p_g_l in
+          reconstruct_lambda_n env_p_g p_g_packed (nb_rel env_g))
+        p_g
+        l.lifted_indexer)
+    l
+    p_g
+    
+(*
+ * Compose two properties for two applications of an induction principle
+ * that are structurally the same when one is an ornament.
+ *
+ * This works by finding (p, p_args) and returning their application.
+ * This will be an adjusted version of an existing p
+ * with new arguments that are promoted/forgotten/indexed appropriately.
+ *)
+let compose_p evd npms post_assums inner (comp : composition) =
+  let (env_f, p_f) = comp.f in
+  let env_p_f = zoom_env zoom_lambda_term env_f p_f in
+  let p_args = compose_p_args evd npms post_assums inner comp in
+  let p = compose_p_fun evd comp in
+  let app = reduce_term env_p_f (mkAppl (p, p_args)) in
   reconstruct_lambda_n env_p_f app (nb_rel env_f)
 
 (*
