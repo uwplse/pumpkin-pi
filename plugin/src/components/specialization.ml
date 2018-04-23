@@ -175,7 +175,7 @@ let compose_p_fun evd (comp : composition) =
          let packer = abs_i (mkLambda (Anonymous, index_typ, shift p_g_b)) in
          let p_g_packed = pack_sigT index_typ packer in
          reconstruct_lambda_n env_p_g p_g_packed (nb_rel env_g))
-       (l.is_fwd && comp.is_g && not l.is_indexer))
+       (comp.is_g && not l.is_indexer))
     (map_unit_env_if
        (fun _ -> is_or_applies existT)
        (fun env trm ->
