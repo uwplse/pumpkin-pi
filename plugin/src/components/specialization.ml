@@ -165,22 +165,9 @@ let compose_p_fun evd (comp : composition) =
   let (env_g, p_g) = comp.g in
   let (env_f, p_f) = comp.f in
   let env_p_f = zoom_env zoom_lambda_term env_f p_f in
-  let p_g =
-    map_backward
-      (map_unit_if
-         (is_or_applies existT)
-         (fun trm ->
-           (* TODO not sufficiently general, can break, try to *)
-           let la = last_arg trm in
-           if contains_term la (mkRel 1) then
-             la
-           else
-             trm))
-           (* TODO will fail with cosntant existT like nilV, try *)
-      l
-      (shift_to_env (env_g, env_p_f) p_g)
-  in
-  map_forward
+  let p_g_in_p_f = shift_to_env (env_g, env_p_f) p_g in
+  debug_term env_p_f p_g_in_p_f "p_g";
+  map_directional
     (fun p_g ->
       map_default
         (fun indexer ->(* TODO may not yet handle HOFs *)
@@ -194,8 +181,20 @@ let compose_p_fun evd (comp : composition) =
           reconstruct_lambda_n env_p_g p_g_packed (nb_rel env_g))
         p_g
         l.lifted_indexer)
+    (map_unit_env_if
+       (fun _ -> is_or_applies existT)
+       (fun env trm ->
+         debug_term env trm "trm";
+         (* TODO not sufficiently general, can break, try to *)
+         let la = last_arg trm in
+         if contains_term la (mkRel 1) then
+           la
+         else
+           trm)
+       env_p_f)
+    (* TODO will fail with cosntant existT like nilV, try *)
     l
-    p_g
+    p_g_in_p_f
     
 (*
  * Compose two properties for two applications of an induction principle
