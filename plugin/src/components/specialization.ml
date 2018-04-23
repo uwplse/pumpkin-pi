@@ -292,21 +292,18 @@ let reduce_ornament_f l env evd index_i orn trm orn_args =
 (*
  * Get the (index arg index, IH) pairs for a constructor
  *)
-let rec indexes env to_typ index_i f_hs g_hs trm i =
+let rec indexes env to_typ index_i g_hs trm i =
   let num_args = List.length g_hs in
-  if List.length f_hs != num_args then
-    match (g_hs, kind_of_term trm) with
-    | (h :: tl, Prod (n, t, b)) ->
-       let num_args_left = num_args - (i + 1) in
-       let index_ih_opt = index_ih index_i to_typ (mkRel 1) b num_args_left in
-       map_if
-         (fun tl -> (i, Option.get index_ih_opt) :: tl)
-         (Option.has_some index_ih_opt)
-         (indexes (push_local (n, t) env) to_typ index_i f_hs tl b (i + 1))
-    | _ ->
-       []
-  else
-    []
+  match (g_hs, kind_of_term trm) with
+  | (h :: tl, Prod (n, t, b)) ->
+     let num_args_left = num_args - (i + 1) in
+     let index_ih_opt = index_ih index_i to_typ (mkRel 1) b num_args_left in
+     map_if
+       (fun tl -> (i, Option.get index_ih_opt) :: tl)
+       (Option.has_some index_ih_opt)
+       (indexes (push_local (n, t) env) to_typ index_i tl b (i + 1))
+  | _ ->
+     []
 
 (* 
  * Reduces the body of a constructor of an indexer
@@ -384,8 +381,6 @@ let reduce_constr_body env evd l is_orn index_i index_args body =
              reduce_forgotten_constr_body env evd l trm
          in reduce_ornament_f l env evd index_i f (reduce_body trm) orn_args)
        body)
-
-      
   
 (*
  * Compose two constructors for two applications of an induction principle
@@ -403,13 +398,11 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let (env_g, c_g) = comp.g in
   let (env_f, c_f) = comp.f in
   let (orn_f, orn_g) = (lift_back l, lift_to l) in
-  let orn_f_typ = reduce_type env_f evd orn_f in
-  let orn_g_typ = reduce_type env_g evd orn_g in
-  let ind_f_typ = fst (ind_of_promotion_type orn_f_typ) in
-  let ind_g_typ = fst (ind_of_promotion_type orn_g_typ) in
-  let to_typ = map_directional zoom_sig first_fun l ind_f_typ in
-  let from_typ = map_directional first_fun zoom_sig l ind_g_typ in
-  let (to_typ, from_typ) = map_backward reverse l (to_typ, from_typ) in
+  let ind_f_typ = fst (on_type ind_of_promotion_type env_f evd orn_f) in
+  let ind_g_typ = fst (on_type ind_of_promotion_type env_g evd orn_g) in
+  let forget_typ = map_directional zoom_sig first_fun l ind_f_typ in
+  let promote_typ = map_directional first_fun zoom_sig l ind_g_typ in
+  let (to_typ, from_typ) = map_backward reverse l (forget_typ, promote_typ) in
   let is_deorn = is_or_applies (if l.is_fwd then to_typ else from_typ) in
   let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_g_used = get_all_hypos c_g in
@@ -426,7 +419,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       let f_f = shift_local (if l.is_fwd then 0 else num_assums) (offset2 env_f env_g) c_g in
       let f = shift_by off_f f_f in
       let c_used = c_g_used in
-      let index_args = indexes env_g to_typ index_i c_f_used c_g_used (lambda_to_prod c_g) 0 in
+      let index_args = indexes env_g to_typ index_i c_g_used (lambda_to_prod c_g) 0 in
       let args =
         List.mapi
           (fun i arg ->
@@ -460,7 +453,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       in reduce_term env_f_body (mkAppl (f, args))
     else
       let c_f_all = get_used_or_p_hypos always_true c_f in
-      let index_args = indexes env_g to_typ index_i c_f_all c_g_used (lambda_to_prod (if l.is_fwd then c_f else c_g)) 0 in
+      let index_args = indexes env_g to_typ index_i c_g_used (lambda_to_prod (if l.is_fwd then c_f else c_g)) 0 in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
       let is_orn env trm =
         let typ = if l.is_fwd then from_typ else shift_by (offset env_f_body 1) ind_g_typ in
