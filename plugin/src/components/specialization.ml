@@ -134,8 +134,33 @@ let pack_inner env evd l unpacked =
   mkAppl (lift_back l, snoc ex (remove_index index_i typ_args))
 
 (*
+ * Get the arguments for composing two applications of an induction
+ * principle that are structurally the same when one is an ornament.
+ *)
+let compose_p_args evd npms post_assums inner comp =
+  let l = comp.l in
+  let (env, p) = comp.f in
+  let index_i = Option.get l.orn.index_i in
+  let (env_b, p_b) = zoom_lambda_term env p in
+  let off = offset2 env_b env in
+  let orn_app =
+    if not inner then
+      shift_local off (off + List.length post_assums) (mkAppl (lift_back l, mk_n_rels (npms + 1)))
+    else
+      pack_inner env_b evd l (mkRel 1)
+  in
+  let inner_app = zoom_term zoom_lambda_term env_b (zoom_if_sig_lambda p_b) in
+  let inner_args = map_if (remove_index index_i) (not (eq_constr p_b inner_app)) (unfold_args inner_app) in
+  let non_pms = snd (take_split npms inner_args) in
+  snoc orn_app non_pms
+
+  
+(*
  * Compose two properties for two applications of an induction principle
  * that are structurally the same when one is an ornament.
+ *
+ * This works by finding (p, p_args) and returning their application.
+ * 
  *)
 let compose_p evd npms post_assums inner (comp : composition) =
   let l = comp.l in
@@ -144,16 +169,8 @@ let compose_p evd npms post_assums inner (comp : composition) =
   let (env_f, p_f) = comp.f in
   let (env_p_f, p_f_b_old) = zoom_lambda_term env_f p_f in
   let off = offset2 env_p_f env_f in
-  let orn_app =
-    if not inner then
-      shift_local off (off + List.length post_assums) (mkAppl (lift_back l, mk_n_rels (npms + 1)))
-    else
-      pack_inner env_p_f evd l (mkRel 1)
-  in
-  let p_f_b = zoom_term zoom_lambda_term env_p_f (zoom_if_sig_lambda p_f_b_old) in
-  let p_f_b_args = map_if (remove_index index_i) (not (eq_constr p_f_b_old p_f_b)) (unfold_args p_f_b) in
-  let (_, non_pms) = take_split npms p_f_b_args in
-  let p_args = snoc orn_app non_pms in
+
+  let p_args = compose_p_args evd npms post_assums inner comp in
   let p_g =
     map_if
       (map_unit_if
