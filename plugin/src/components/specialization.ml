@@ -124,12 +124,11 @@ let apply_indexing_ornament env evd l trm =
  * TODO move, use elsewhere
  * Pack arguments inside of a sigT type
  *)
-let pack_inner env evd l =
+let pack_inner env evd l unpacked =
   let index_i = Option.get l.orn.index_i in
-  let unpacked = mkRel 1 in
   let typ = reduce_type env evd unpacked in
+  let index = get_arg index_i typ in
   let typ_args = unfold_args typ in
-  let index = mkRel 2 in
   let index_typ = infer_type env evd index in
   let packer = abstract_arg env evd index_i typ in
   let ex = pack_existT index_typ packer index unpacked in
@@ -150,7 +149,7 @@ let compose_p evd npms post_assums inner (comp : composition) =
     if not inner then
       shift_local off (off + List.length post_assums) (mkAppl (lift_back l, mk_n_rels (npms + 1)))
     else
-      pack_inner env_p_f evd l
+      pack_inner env_p_f evd l (mkRel 1)
   in
   let p_f_b = zoom_term zoom_lambda_term env_p_f (zoom_if_sig_lambda p_f_b_old) in
   let p_f_b_args = map_if (remove_index index_i) (not (eq_constr p_f_b_old p_f_b)) (unfold_args p_f_b) in
@@ -452,13 +451,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
                 (fun env trm ->
                   let typ = reduce_type env evd trm in
                   if l.is_fwd then
-                    let index = get_arg index_i typ in
-                    let index_typ = infer_type env evd index in
-                    let unpacked_args = unfold_args typ in
-                    let packer = abstract_arg env evd index_i typ in
-                    let deindexed = remove_index index_i unpacked_args in
-                    let packed = mkAppl (existT, [index_typ; packer; index; trm]) in
-                    mkAppl (orn_f, snoc packed deindexed)
+                    pack_inner env evd l trm
                   else
                     let typ_args = unfold_args typ in
                     let orn = mkAppl (orn_f, snoc trm typ_args) in
