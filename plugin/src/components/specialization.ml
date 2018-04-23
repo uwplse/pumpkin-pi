@@ -121,6 +121,21 @@ let apply_indexing_ornament env evd l trm =
  *)
 
 (*
+ * TODO move, use elsewhere
+ * Pack arguments inside of a sigT type
+ *)
+let pack_inner env evd l =
+  let index_i = Option.get l.orn.index_i in
+  let unpacked = mkRel 1 in
+  let typ = reduce_type env evd unpacked in
+  let typ_args = unfold_args typ in
+  let index = mkRel 2 in
+  let index_typ = infer_type env evd index in
+  let packer = abstract_arg env evd index_i typ in
+  let ex = pack_existT index_typ packer index unpacked in
+  mkAppl (lift_back l, snoc ex (remove_index index_i typ_args))
+
+(*
  * Compose two properties for two applications of an induction principle
  * that are structurally the same when one is an ornament.
  *)
@@ -135,14 +150,7 @@ let compose_p evd npms post_assums inner (comp : composition) =
     if not inner then
       shift_local off (off + List.length post_assums) (mkAppl (lift_back l, mk_n_rels (npms + 1)))
     else
-      let unpacked = mkRel 1 in
-      let typ = reduce_type env_p_f evd unpacked in
-      let typ_args = unfold_args typ in
-      let index = mkRel 2 in
-      let index_typ = infer_type env_p_f evd index in
-      let packer = abstract_arg env_p_f evd index_i typ in
-      let ex = pack_existT index_typ packer index unpacked in
-      mkAppl (lift_back l, snoc ex (remove_index index_i typ_args))
+      pack_inner env_p_f evd l
   in
   let p_f_b = zoom_term zoom_lambda_term env_p_f (zoom_if_sig_lambda p_f_b_old) in
   let p_f_b_args = map_if (remove_index index_i) (not (eq_constr p_f_b_old p_f_b)) (unfold_args p_f_b) in
