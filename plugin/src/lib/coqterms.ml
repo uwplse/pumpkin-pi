@@ -332,7 +332,20 @@ let deconstruct_eliminator env evd app : elim_app =
   let (pms, pmd_args) = take_split npms ip_args in
   let (p :: cs_and_args) = pmd_args in
   let (cs, final_args) = take_split num_constrs cs_and_args in
-  { elim; pms; p; cs; final_args } 
+  { elim; pms; p; cs; final_args }
+
+(*
+ * Only reduce until you have an application of an induction principle,
+ * or reducing doesn't change the term
+ * Then, do nothing
+ *)
+let rec reduce_to_ind env trm =
+  match kind_of_term trm with
+  | App (_, _) when is_elim env (first_fun trm) ->
+     trm
+  | _ ->
+     let reduced = chain_reduce reduce_term delta env trm in
+     map_if (reduce_to_ind env) (not (eq_constr reduced trm)) reduced
                              
 (* --- Environments --- *)
 

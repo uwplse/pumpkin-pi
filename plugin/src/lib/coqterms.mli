@@ -204,6 +204,7 @@ val reduce_term : env -> types -> types (* betaiotazeta *)
 val delta : env -> types -> types (* delta *)
 val reduce_nf : env -> types ->  types (* nf_all *)
 val reduce_type : env -> evar_map -> types -> types (* betaiotazeta on types *)
+val reduce_to_ind : env -> types -> types (* reduce to applied eliminator *)
 val chain_reduce : (* sequencing *)
   (env -> types -> types) ->
   (env -> types -> types) ->
