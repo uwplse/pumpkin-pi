@@ -5,6 +5,7 @@
 open Term
 open Coqterms
 open Utilities
+open Environ
        
 (* --- Numbers --- *)
 
@@ -90,3 +91,9 @@ let shift_from = List.map (fun (s, d) -> (shift s, d))
 
 (* Shift to substitutions *)
 let shift_to = List.map (fun (s, d) -> (s, shift d))
+
+(* --- Adjusting to new environments --- *)
+
+(* Shift a term by the offset from env_o to env_n *)
+let shift_to_env (env_o, env_n) trm =
+  shift_by (offset2 env_n env_o) trm

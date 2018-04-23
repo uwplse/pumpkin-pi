@@ -148,7 +148,11 @@ Qed.
  * app_nil_r is a proof that only exists inside of the sigma 
  *)
 
+Print app_nil_r_vect_auto.
+
 Reduce ornament orn_list_vector orn_list_vector_inv in app_nil_r_vect_auto as app_nil_r_vect_red.
+
+Check app_nil_r_vect_red.
 
 Reduce ornament orn_list_vector_inv orn_list_vector in app_nil_r_auto as app_nil_r_red.
 

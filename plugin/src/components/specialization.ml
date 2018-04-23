@@ -149,7 +149,7 @@ let compose_p evd npms post_assums inner (comp : composition) =
   let (_, non_pms) = take_split npms p_f_b_args in
   let p_args = snoc orn_app non_pms in
   let f_g_off = offset2 env_f env_g in
-  let p_g = shift_by f_g_off p_g in
+  let p_g = shift_to_env (env_g, env_f) p_g in
   let p_g = shift_by off p_g in
   let p_g =
     map_if

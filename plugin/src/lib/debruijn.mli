@@ -3,6 +3,7 @@
  *)
 
 open Term
+open Environ
 
 (* --- Numbers --- *)
 
@@ -62,3 +63,9 @@ val shift_subs : (types * types) list -> (types * types) list
 val shift_from : (types * types) list -> (types * types) list
 val shift_to : (types * types) list -> (types * types) list
 
+(* --- Adjusting to new environments --- *)
+
+(* 
+ * Shift a term from the old (first) environment to the new (second) environment
+ *)
+val shift_to_env : (env * env) -> types -> types

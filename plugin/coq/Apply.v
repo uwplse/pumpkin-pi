@@ -585,6 +585,8 @@ Definition app_nil_r_vect_packed (A : Type) (pv : packed_vector A) :=
         v) 
     pv.
 
+Check app_nil_r_vect_packed.
+
 (* Or, using the fancy IP (note the extra existT we need here though) *)
 Definition app_nil_r_vect_packed_alt (A : Type) (pv : packed_vector A) :=
   packed_vect_rect
