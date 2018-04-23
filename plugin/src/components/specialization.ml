@@ -190,7 +190,6 @@ let compose_p_fun evd (comp : composition) =
          else
            trm)
        env_p_f)
-    (* TODO will fail with cosntant existT like nilV, try *)
     l
     p_g_in_p_f
     
