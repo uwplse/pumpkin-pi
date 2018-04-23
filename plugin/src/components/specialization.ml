@@ -181,7 +181,7 @@ let compose_p evd npms post_assums inner (comp : composition) =
             let pack_index = mkRel 2 in
             let index_typ = infer_type env_p_f evd pack_index in
             let p_g_l = mkLambda (Anonymous, index_typ, p_g_b) in
-            let p_g_packed = mkAppl (sigT, [index_typ; p_g_l]) in
+            let p_g_packed = pack_sigT index_typ p_g_l in
             reconstruct_lambda_n env_p_g p_g_packed (nb_rel env_g))
           p_g
           l.lifted_indexer)
@@ -540,7 +540,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner (comp : composit
       let packer = infer_type env_packed evd (mkRel (1 + assum_ind - 1)) in
       let packed_type_b = shift index_type in
       let packed_type = mkLambda (Anonymous, packer, packed_type_b) in
-      let indexer_body = mkAppl (sigT_rect, [index_type; packer; packed_type; indexer_unpacked; mkRel (1 + List.length post_assums)]) in
+      let indexer_body = elim_sigT index_type packer packed_type indexer_unpacked (mkRel (1 + List.length post_assums)) in
       let indexer = reconstruct_lambda env_packed indexer_body in
       let lifted_indexer = Some (make_constant idx_n) in
       let l = { l with lifted_indexer } in
