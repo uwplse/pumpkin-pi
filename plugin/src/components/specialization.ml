@@ -229,9 +229,6 @@ let compose_ih evd npms ip p comp =
  * until nothing changes
  *
  * for reducing ornaments
- * assumes promotion for now
- * also assumes assumption at index 1,
- * need to support IHs at other indices. (TODO)
  *)
 let reduce_ornament_f l env evd index_i orn trm orn_args =
   let orn_arg_typs = List.map (on_type zoom_if_sig_lambda env evd) orn_args in
