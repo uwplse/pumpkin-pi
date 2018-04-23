@@ -36,6 +36,13 @@ let reindex index_i index args =
 let reindex_app reindexer app =
   mkAppl (first_fun app, reindexer (unfold_args app))
 
+(*
+ * Reindex the body of a lambda
+ *)
+let reindex_body reindexer lam =
+  let (n, t, b) = destLambda lam in
+  mkLambda (n, t, reindexer b)
+
 (* --- Managing inductive property arguments --- *)
 
 (*

@@ -166,25 +166,24 @@ let compose_p_fun evd (comp : composition) =
   let (env_f, p_f) = comp.f in
   let env_p_f = zoom_env zoom_lambda_term env_f p_f in
   let p_g_in_p_f = shift_to_env (env_g, env_p_f) p_g in
-  debug_term env_p_f p_g_in_p_f "p_g";
   map_directional
     (fun p_g ->
       map_default
-        (fun indexer ->(* TODO may not yet handle HOFs *)
-          let (env_p_g, p_g_b_old) = zoom_lambda_term env_g p_g in
-          let p_g_b = reindex_app (reindex index_i (mkRel 1)) (shift p_g_b_old) in
-          let pack_index = mkRel 2 in
-          let index_typ = infer_type env_p_f evd pack_index in
-          let p_g_l = mkLambda (Anonymous, index_typ, p_g_b) in
-          let p_g_packed = pack_sigT index_typ p_g_l in
+        (fun _ ->(* TODO may not yet handle HOFs *)
+          let (env_p_g, p_g_b) = zoom_lambda_term env_g p_g in
+          let index_typ = infer_type env_p_f evd (mkRel 2) in
+          let abs_i = reindex_body (reindex_app (reindex index_i (mkRel 1))) in
+          let packer = abs_i (mkLambda (Anonymous, index_typ, shift p_g_b)) in
+          let p_g_packed = pack_sigT index_typ packer in
           reconstruct_lambda_n env_p_g p_g_packed (nb_rel env_g))
         p_g
-        l.lifted_indexer)
+        l.lifted_indexer) (* when does this condition fire? *)
     (map_unit_env_if
        (fun _ -> is_or_applies existT)
        (fun env trm ->
-         debug_term env trm "trm";
-         (* TODO not sufficiently general, can break, try to *)
+         (* TODO really should be applying orn_inv, then simplifying *)
+         (* it will look like inside of compose_c *)
+         (* so try other proofs and see where this breaks *)
          let la = last_arg trm in
          if contains_term la (mkRel 1) then
            la

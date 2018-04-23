@@ -29,6 +29,11 @@ val reindex : int -> 'a -> 'a list -> 'a list
  * Reindex the arguments of an application using a reindexer
  *)
 val reindex_app : (types list -> types list) -> types -> types
+                                                           
+(*
+ * Reindex the body of a lambda
+ *)
+val reindex_body : (types -> types) -> types -> types
 
 (*
  * Unshift all arguments after the location of an argument, since
