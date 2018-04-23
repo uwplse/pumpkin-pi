@@ -261,7 +261,7 @@ Theorem test_app_nil_r:
   forall (A : Type) (l : list A),
     append_red A l (@nil A) = l.
 Proof.
-  intros. rewrite <- app_coh_inv. rewrite app_nil_r_red. apply coh_list.
+  intros. rewrite <- app_coh_inv. unfold orn_list_vector. rewrite app_nil_r_red. apply coh_list.
 Qed.
 
 (* 

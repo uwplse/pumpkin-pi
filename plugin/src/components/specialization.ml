@@ -147,7 +147,14 @@ let compose_p_args evd npms post_assums inner comp =
       let off = offset2 env_b env in
       let nargs = arity (unwrap_definition env (lift_back l)) in
       let shift_pms = shift_local off (off + List.length post_assums) in
-      shift_pms (mkAppl (lift_back l, mk_n_rels nargs))
+      map_backward
+        (fun t ->
+          let index_type = get_arg index_i t in
+          let packed_body = reindex_app (reindex index_i (mkRel 1)) (shift t) in
+          let packed_type = mkLambda (Anonymous, index_type, packed_body) in
+          project_value index_type packed_type t)
+        l
+        (shift_pms (mkAppl (lift_back l, mk_n_rels nargs)))
     else
       pack_inner env_b evd l (mkRel 1)
   in
@@ -166,9 +173,10 @@ let compose_p_fun evd (comp : composition) =
   let (env_f, p_f) = comp.f in
   let env_p_f = zoom_env zoom_lambda_term env_f p_f in
   let p_g_in_p_f = shift_to_env (env_g, env_p_f) p_g in
-  map_directional
+  map_forward
     (map_if
-       (fun p_g ->(* TODO may not yet handle HOFs *)
+       (fun p_g ->
+         (* pack the conclusion *)
          let (env_p_g, p_g_b) = zoom_lambda_term env_g p_g in
          let index_typ = infer_type env_p_f evd (mkRel 2) in
          let abs_i = reindex_body (reindex_app (reindex index_i (mkRel 1))) in
@@ -176,18 +184,6 @@ let compose_p_fun evd (comp : composition) =
          let p_g_packed = pack_sigT index_typ packer in
          reconstruct_lambda_n env_p_g p_g_packed (nb_rel env_g))
        (comp.is_g && not l.is_indexer))
-    (map_unit_env_if
-       (fun _ -> is_or_applies existT)
-       (fun env trm ->
-         (* TODO really should be applying orn_inv, then simplifying *)
-         (* it will look like inside of compose_c *)
-         (* so try other proofs and see where this breaks *)
-         let la = last_arg trm in
-         if contains_term la (mkRel 1) then
-           la
-         else
-           trm)
-       env_p_f)
     l
     p_g_in_p_f
     
