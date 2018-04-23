@@ -150,8 +150,8 @@ let compose_p_args evd npms post_assums inner comp =
       map_backward
         (fun t ->
           let index_type = get_arg index_i t in
-          let packed_body = reindex_app (reindex index_i (mkRel 1)) (shift t) in
-          let packed_type = mkLambda (Anonymous, index_type, packed_body) in
+          let abs_i = reindex_body (reindex_app (reindex index_i (mkRel 1))) in
+          let packed_type = abs_i (mkLambda (Anonymous, index_type, shift t)) in
           project_value index_type packed_type t)
         l
         (shift_pms (mkAppl (lift_back l, mk_n_rels nargs)))
