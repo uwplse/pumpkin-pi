@@ -30,6 +30,12 @@ let remove_index index_i args =
 let reindex index_i index args =
   insert_index index_i index (remove_index index_i args)
 
+(*
+ * Reindex using a reindexer, but for an application
+ *)
+let reindex_app reindexer app =
+  mkAppl (first_fun app, reindexer (unfold_args app))
+
 (* --- Managing inductive property arguments --- *)
 
 (*

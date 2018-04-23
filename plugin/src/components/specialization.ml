@@ -172,8 +172,7 @@ let compose_p_fun evd (comp : composition) =
       map_default
         (fun indexer ->(* TODO may not yet handle HOFs *)
           let (env_p_g, p_g_b_old) = zoom_lambda_term env_g p_g in
-          let p_g_b_as = reindex index_i (mkRel 1) (unfold_args (shift p_g_b_old)) in
-          let p_g_b = mkAppl (first_fun p_g_b_old, p_g_b_as) in
+          let p_g_b = reindex_app (reindex index_i (mkRel 1)) (shift p_g_b_old) in
           let pack_index = mkRel 2 in
           let index_typ = infer_type env_p_f evd pack_index in
           let p_g_l = mkLambda (Anonymous, index_typ, p_g_b) in
@@ -290,8 +289,8 @@ let reduce_ornament_f l env evd index_i orn trm orn_args =
                  (app, app_ind_sub, mkAppl (existT, reindex 3 app_ind_sub (reindex 2 ind_sub (unfold_args unfolded))))
                else if not l.is_indexer then
                  let app = reduce_nf env unfolded in
-                 let index_type = get_arg 0 (infer_type env evd orn_arg) in 
-                 let packed_body = mkAppl (first_fun orn_arg_typ, reindex index_i (mkRel 1) (unfold_args (shift orn_arg_typ))) in
+                 let index_type = get_arg 0 (infer_type env evd orn_arg) in
+                 let packed_body = reindex_app (reindex index_i (mkRel 1)) (shift orn_arg_typ) in
                  let packed_type = mkLambda (Anonymous, index_type, packed_body) in
                  let app_projT1 = project_index index_type packed_type orn_arg in
                  let app_projT2 = project_value index_type packed_type orn_arg in

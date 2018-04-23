@@ -24,6 +24,11 @@ val remove_index : int -> 'a list -> 'a list
 val reindex : int -> 'a -> 'a list -> 'a list
 
 (* --- Managing inductive property arguments --- *)
+                           
+(*
+ * Reindex the arguments of an application using a reindexer
+ *)
+val reindex_app : (types list -> types list) -> types -> types
 
 (*
  * Unshift all arguments after the location of an argument, since
