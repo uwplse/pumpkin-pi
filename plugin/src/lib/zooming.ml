@@ -54,15 +54,26 @@ let zoom_term zoom (env : env) (trm : types) : types =
 let zoom_sig_lambda t =
   last_arg t
 
+(* Get the application from the body of the last argument of a sigma *)
+let zoom_sig_app t =
+  let lambda = zoom_sig_lambda t in
+  zoom_term zoom_lambda_term empty_env lambda
+
 (* Get the very first function from the body of the last argument of a sigma *)
 let zoom_sig t =
-  let lambda = zoom_sig_lambda t in
-  first_fun (zoom_term zoom_lambda_term empty_env lambda)
+  first_fun (zoom_sig_app t)
 
 (* zoom_sig if t actually applies sigT *)
 let zoom_if_sig_lambda t =
   if applies sigT t then
     zoom_sig_lambda t
+  else
+    t
+
+(* zoom_sig_app if actually applies sigT *)
+let zoom_if_sig_app t =
+  if applies sigT t then
+    zoom_sig_app t
   else
     t
 

@@ -142,19 +142,19 @@ let compose_p_args evd npms post_assums inner comp =
   let (env, p) = comp.f in
   let index_i = Option.get l.orn.index_i in
   let (env_b, p_b) = zoom_lambda_term env p in
-  let off = offset2 env_b env in
   let orn_app =
     if not inner then
-      shift_local off (off + List.length post_assums) (mkAppl (lift_back l, mk_n_rels (npms + 1)))
+      let off = offset2 env_b env in
+      let nargs = arity (unwrap_definition env (lift_back l)) in
+      let shift_pms = shift_local off (off + List.length post_assums) in
+      shift_pms (mkAppl (lift_back l, mk_n_rels nargs))
     else
       pack_inner env_b evd l (mkRel 1)
   in
-  let inner_app = zoom_term zoom_lambda_term env_b (zoom_if_sig_lambda p_b) in
-  let inner_args = map_if (remove_index index_i) (not (eq_constr p_b inner_app)) (unfold_args inner_app) in
-  let non_pms = snd (take_split npms inner_args) in
-  snoc orn_app non_pms
-
-  
+  let reindex_if_sig = map_if (remove_index index_i) (applies sigT p_b) in
+  let inner_args = reindex_if_sig (unfold_args (zoom_if_sig_app p_b)) in
+  snoc orn_app (snd (take_split npms inner_args))
+       
 (*
  * Compose two properties for two applications of an induction principle
  * that are structurally the same when one is an ornament.
