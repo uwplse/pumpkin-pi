@@ -167,17 +167,15 @@ let compose_p_fun evd (comp : composition) =
   let env_p_f = zoom_env zoom_lambda_term env_f p_f in
   let p_g_in_p_f = shift_to_env (env_g, env_p_f) p_g in
   map_directional
-    (fun p_g ->
-      map_default
-        (fun _ ->(* TODO may not yet handle HOFs *)
-          let (env_p_g, p_g_b) = zoom_lambda_term env_g p_g in
-          let index_typ = infer_type env_p_f evd (mkRel 2) in
-          let abs_i = reindex_body (reindex_app (reindex index_i (mkRel 1))) in
-          let packer = abs_i (mkLambda (Anonymous, index_typ, shift p_g_b)) in
-          let p_g_packed = pack_sigT index_typ packer in
-          reconstruct_lambda_n env_p_g p_g_packed (nb_rel env_g))
-        p_g
-        l.lifted_indexer) (* when does this condition fire? *)
+    (map_if
+       (fun p_g ->(* TODO may not yet handle HOFs *)
+         let (env_p_g, p_g_b) = zoom_lambda_term env_g p_g in
+         let index_typ = infer_type env_p_f evd (mkRel 2) in
+         let abs_i = reindex_body (reindex_app (reindex index_i (mkRel 1))) in
+         let packer = abs_i (mkLambda (Anonymous, index_typ, shift p_g_b)) in
+         let p_g_packed = pack_sigT index_typ packer in
+         reconstruct_lambda_n env_p_g p_g_packed (nb_rel env_g))
+       (l.is_fwd && comp.is_g && not l.is_indexer))
     (map_unit_env_if
        (fun _ -> is_or_applies existT)
        (fun env trm ->
