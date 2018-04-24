@@ -264,10 +264,10 @@ let reduce_ornament_f_arg l env evd orn trm arg =
             map_indexer
               (all_eq_substs (orn_app_red, orn_app))
               (fun t ->
-                let [index_type; packer; _; unpacked; _] = unfold_args orn_app_ind in
-                let arg_indexer = project_index index_type packer arg in
-                let arg_value = project_value index_type packer arg in
-                let unpacked_app = mkAppl (unpacked, [arg_indexer; arg_value]) in
+                let elim = dest_sigT_elim orn_app_ind in
+                let arg_indexer = project_index elim.index_type elim.packer arg in
+                let arg_value = project_value elim.index_type elim.packer arg in
+                let unpacked_app = mkAppl (elim.unpacked, [arg_indexer; arg_value]) in
                 let unpacked_app_red = reduce_nf env unpacked_app in
                 all_eq_substs (unpacked_app_red, arg) t)
               l
