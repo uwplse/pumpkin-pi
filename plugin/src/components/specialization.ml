@@ -231,10 +231,10 @@ let compose_ih evd npms ip p comp =
  *)
 let reduce_ornament_f_arg l env evd orn trm arg =
   let index_i = Option.get l.orn.index_i in
-  let arg_typ = on_type (map_backward (fun t -> unshift (zoom_sig_app t)) l) env evd arg in
+  let index_type = get_arg 0 (infer_type env evd arg) in
   map_term_env_if
-    (fun _ arg_typ trm -> applies orn trm)
-    (fun env arg_typ trm ->
+    (fun _ _ trm -> applies orn trm)
+    (fun env (arg, arg_typ) trm ->
       try
         let (app, app_sub_body, app_sub) =
           let unfolded = chain_reduce reduce_term delta env trm in
@@ -277,9 +277,9 @@ let reduce_ornament_f_arg l env evd orn trm arg =
         in if eq_constr app_sub_body app then trm else app_sub
       with _ ->
         trm)
-    shift
+    (map_tuple shift)
     env
-    arg_typ
+    (arg, on_type (map_backward (fun t -> unshift (zoom_sig_app t)) l) env evd arg)
     trm
   
             
