@@ -244,20 +244,20 @@ let reduce_ornament_f_arg l env evd orn trm arg =
       let orn_app_red = reduce_nf env orn_app in
       let (app_red, app, app_packed) =
         if l.is_fwd && not l.is_indexer then
-          let [index_type; packer; index; unpacked] = unfold_args unfolded in
-          let index_red = reduce_nf env index in
-          let unpacked_red = reduce_nf env unpacked in
-          let [_; _; _; unpacked_orn] = unfold_args orn_app_ind in
-          let packer = on_type abstract env evd unpacked_orn in
-          let arg_indexer = project_index index_type packer arg in
-          let arg_value = project_value index_type packer arg in
-          (* TODO move these to dest_existT, etc *)
-          let [_; _; orn_red_index; orn_red_unpacked] = unfold_args orn_app_red  in
-          let fold_index = all_eq_substs (orn_red_index, arg_indexer) in
-          let fold_value = all_eq_substs (orn_red_unpacked, arg_value) in
-          let index = fold_index index_red in
-          let unpacked = fold_index (fold_value unpacked_red) in
-          (unpacked_red, unpacked, pack_existT {index_type; packer; index; unpacked})
+          let unfolded_ex = dest_existT unfolded in
+          let orn_app_ind_ex = dest_existT orn_app_ind in
+          let orn_app_red_ex = dest_existT orn_app_red in
+          let packer = on_type abstract env evd orn_app_ind_ex.unpacked in
+          let arg_indexer = project_index unfolded_ex.index_type packer arg in
+          let arg_value = project_value unfolded_ex.index_type packer arg in
+          let fold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
+          let fold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
+          let unfolded_index_red = reduce_nf env unfolded_ex.index in
+          let unfolded_unpacked_red = reduce_nf env unfolded_ex.unpacked in
+          let index = fold_index unfolded_index_red in
+          let unpacked = fold_index (fold_value unfolded_unpacked_red) in
+          let packed = pack_existT { unfolded_ex with index; unpacked } in
+          (unfolded_unpacked_red, unpacked, packed)
         else
           let app_red = reduce_nf env unfolded in
           let app =
