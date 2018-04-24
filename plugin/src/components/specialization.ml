@@ -227,7 +227,7 @@ let compose_ih evd npms ip p comp =
  * Meta-reduction of an applied ornament in the forward direction in the
  * non-indexer case, when the ornament application produces an existT term.
  *)
-let reduce_existT_app l env evd orn trm arg =
+let reduce_existT_app l evd orn env arg trm =
   let orn_app = mkAppl (orn, snoc arg (on_type unfold_args env evd arg)) in
   let unfolded = chain_reduce reduce_term delta env trm in
   let orn_app_red = reduce_nf env orn_app in
@@ -255,7 +255,7 @@ let reduce_existT_app l env evd orn trm arg =
 (*
  * Meta-reduction of an applied ornament in the indexer case.
  *)
-let reduce_indexer_app l env evd orn trm arg =
+let reduce_indexer_app l evd orn env arg trm =
   let orn_app = mkAppl (orn, snoc arg (on_type unfold_args env evd arg)) in
   let unfolded = chain_reduce reduce_term delta env trm in
   let orn_app_red = reduce_nf env orn_app in
@@ -272,7 +272,7 @@ let reduce_indexer_app l env evd orn trm arg =
  * Meta-reduction of an applied ornament in the backwards non-indexer case,
  * when the application of the induction principle eliminates a sigT.
  *)
-let reduce_sigT_elim_app l env evd orn trm arg =
+let reduce_sigT_elim_app l evd orn env arg trm =
   let deindex = remove_index (Option.get l.orn.index_i) in
   let arg_typ = unshift (on_type zoom_sig_app env evd arg) in
   let orn_app = mkAppl (orn, snoc arg (deindex (unfold_args arg_typ))) in
@@ -296,27 +296,25 @@ let reduce_sigT_elim_app l env evd orn trm arg =
 (* 
  * Get the meta-reduction function for a lifted term.
  *)
-let meta_reduction_function l =
+let meta_reduce l =
   if l.is_fwd && not l.is_indexer then
     (* rewrite in the unpacked body of an existT *)
-    reduce_existT_app
+    reduce_existT_app l
   else if l.is_indexer then
     (* rewrite in the application of an indexer *)
-    reduce_indexer_app
+    reduce_indexer_app l
   else
     (* rewrite inside of an eliminator of a sigT *)
-    reduce_sigT_elim_app
+    reduce_sigT_elim_app l
 
 (*
  * Meta-reduction of an applied ornament to simplify and then rewrite
  * in terms of the ornament and indexer applied to the specific argument.
  *)
 let reduce_ornament_f_arg l env evd orn trm arg =
-  let reduce = meta_reduction_function l in
   map_term_env_if
     (fun _ _ trm -> applies orn trm)
-    (fun env arg trm ->
-      reduce l env evd orn trm arg)
+    (meta_reduce l evd orn)
     shift
     env
     arg
