@@ -247,8 +247,8 @@ let reduce_ornament_f_arg l env evd orn trm arg =
         let (app, app_sub_body, app_sub) =
           if l.is_fwd && not l.is_indexer then
             let [index_type; packer; index; unpacked] = unfold_args unfolded in
-            let indexer = reduce_nf env index in
-            let app = reduce_nf env unpacked in
+            let index_red = reduce_nf env index in
+            let unpacked_red = reduce_nf env unpacked in
             let orn_app_app = get_arg 3 orn_app_ind in
             let orn_app_app_arg = last_arg orn_app_app in
             let packed_type_old = reduce_type env evd orn_app_app in
@@ -257,10 +257,10 @@ let reduce_ornament_f_arg l env evd orn trm arg =
             let orn_app_app_arg = project_value index_type packed_type orn_app_app_arg in
             let orn_app_red_app = get_arg 3 orn_app_red in
             let orn_app_indexer_red = get_arg 2 orn_app_red in
-            let ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) indexer in
-            let app_sub = all_eq_substs (orn_app_red_app, orn_app_app_arg) app in
+            let ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) index_red in
+            let app_sub = all_eq_substs (orn_app_red_app, orn_app_app_arg) unpacked_red in
             let app_ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) app_sub in
-            (app, app_ind_sub, pack_existT index_type packer ind_sub app_ind_sub)
+            (unpacked_red, app_ind_sub, pack_existT index_type packer ind_sub app_ind_sub)
           else if not l.is_indexer then
             let app = reduce_nf env unfolded in
             let index_type = get_arg 0 (infer_type env evd arg) in
