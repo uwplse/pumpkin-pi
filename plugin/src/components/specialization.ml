@@ -242,38 +242,40 @@ let reduce_ornament_f_arg l env evd orn trm arg =
       let orn_app = mkAppl (orn, snoc arg orn_args) in
       let orn_app_ind = reduce_to_ind env orn_app in
       let orn_app_red = reduce_nf env orn_app in
-      let (app_red, app, app_packed) =
-        if l.is_fwd && not l.is_indexer then
-          let unfolded_ex = dest_existT unfolded in
-          let orn_app_ind_ex = dest_existT orn_app_ind in
-          let orn_app_red_ex = dest_existT orn_app_red in
-          let packer = on_type abstract env evd orn_app_ind_ex.unpacked in
-          let arg_indexer = project_index unfolded_ex.index_type packer arg in
-          let arg_value = project_value unfolded_ex.index_type packer arg in
-          let fold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
-          let fold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
-          let unfolded_index_red = reduce_nf env unfolded_ex.index in
-          let unfolded_unpacked_red = reduce_nf env unfolded_ex.unpacked in
-          let index = fold_index unfolded_index_red in
-          let unpacked = fold_index (fold_value unfolded_unpacked_red) in
-          let packed = pack_existT { unfolded_ex with index; unpacked } in
-          (unfolded_unpacked_red, unpacked, packed)
+      if l.is_fwd && not l.is_indexer then
+        let unfolded_ex = dest_existT unfolded in
+        let orn_app_ind_ex = dest_existT orn_app_ind in
+        let orn_app_red_ex = dest_existT orn_app_red in
+        let packer = on_type abstract env evd orn_app_ind_ex.unpacked in
+        let arg_indexer = project_index unfolded_ex.index_type packer arg in
+        let arg_value = project_value unfolded_ex.index_type packer arg in
+        let fold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
+        let fold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
+        let unfolded_index_red = reduce_nf env unfolded_ex.index in
+        let unfolded_unpacked_red = reduce_nf env unfolded_ex.unpacked in
+        let index = fold_index unfolded_index_red in
+        let unpacked = fold_index (fold_value unfolded_unpacked_red) in
+        if eq_constr unfolded_unpacked_red unpacked then
+          (* nothing to rewrite *)
+          trm
         else
-          let app_red = reduce_nf env unfolded in
-          let app =
-            map_indexer
-              (all_eq_substs (orn_app_red, orn_app))
-              (fun t ->
-                let elim = dest_sigT_elim orn_app_ind in
-                let arg_indexer = project_index elim.index_type elim.packer arg in
-                let arg_value = project_value elim.index_type elim.packer arg in
-                let unpacked_app = mkAppl (elim.unpacked, [arg_indexer; arg_value]) in
-                let unpacked_app_red = reduce_nf env unpacked_app in
-                all_eq_substs (unpacked_app_red, arg) t)
-              l
-              app_red
-          in (app_red, app, app)
-      in if eq_constr app_red app then trm else app_packed)
+          (* pack the rewritten term *)
+          pack_existT { unfolded_ex with index; unpacked }
+      else
+        let app_red = reduce_nf env unfolded in
+        let app =
+          map_indexer
+            (all_eq_substs (orn_app_red, orn_app))
+            (fun t ->
+              let elim = dest_sigT_elim orn_app_ind in
+              let arg_indexer = project_index elim.index_type elim.packer arg in
+              let arg_value = project_value elim.index_type elim.packer arg in
+              let unpacked_app = mkAppl (elim.unpacked, [arg_indexer; arg_value]) in
+              let unpacked_app_red = reduce_nf env unpacked_app in
+              all_eq_substs (unpacked_app_red, arg) t)
+            l
+            app_red
+        in if eq_constr app_red app then trm else app)
     (map_tuple shift)
     env
     (arg, on_type (map_backward (fun t -> unshift (zoom_sig_app t)) l) env evd arg)
