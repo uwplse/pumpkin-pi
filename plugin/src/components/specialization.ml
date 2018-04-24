@@ -231,14 +231,18 @@ let compose_ih evd npms ip p comp =
  *)
 let reduce_ornament_f_arg l env evd orn trm arg =
   let index_i = Option.get l.orn.index_i in
+  let deindex = remove_index index_i in
+  let get_index = get_arg index_i in
+  let abstract = abstract_arg env evd index_i in
+  let abstract_body = reindex_body (reindex_app (reindex index_i (mkRel 1))) in
   map_term_env_if
     (fun _ _ trm -> applies orn trm)
     (fun env (arg, arg_typ) trm ->
       try
         let (app, app_sub_body, app_sub) =
           let unfolded = chain_reduce reduce_term delta env trm in
-          let typ_args = map_backward (remove_index index_i) l (unfold_args arg_typ) in
-          let orn_app = mkAppl (orn, snoc arg typ_args) in
+          let orn_args = map_backward deindex l (unfold_args arg_typ) in
+          let orn_app = mkAppl (orn, snoc arg orn_args) in
           let orn_app_ind = reduce_to_ind env orn_app in
           let orn_app_red = reduce_nf env orn_app in
           if l.is_fwd && not l.is_indexer then
@@ -247,8 +251,8 @@ let reduce_ornament_f_arg l env evd orn trm arg =
             let orn_app_app = get_arg 3 orn_app_ind in
             let orn_app_app_arg = last_arg orn_app_app in
             let packed_type_old = reduce_type env evd orn_app_app in
-            let index_type = reduce_type env evd (get_arg index_i packed_type_old) in
-            let packed_type = abstract_arg env evd index_i packed_type_old in
+            let index_type = reduce_type env evd (get_index packed_type_old) in
+            let packed_type = abstract packed_type_old in
             let orn_app_indexer = project_index index_type packed_type orn_app_app_arg in
             let orn_app_app_arg = project_value index_type packed_type orn_app_app_arg in
             let orn_app_red_app = get_arg 3 orn_app_red in
@@ -260,8 +264,7 @@ let reduce_ornament_f_arg l env evd orn trm arg =
           else if not l.is_indexer then
             let app = reduce_nf env unfolded in
             let index_type = get_arg 0 (infer_type env evd arg) in
-            let packed_body = reindex_app (reindex index_i (mkRel 1)) (shift arg_typ) in
-            let packed_type = mkLambda (Anonymous, index_type, packed_body) in
+            let packed_type = abstract_body (mkLambda (Anonymous, index_type, shift arg_typ)) in
             let app_projT1 = project_index index_type packed_type arg in
             let app_projT2 = project_value index_type packed_type arg in
             let orn_app_app = mkAppl (get_arg 3 orn_app_ind, [app_projT1; app_projT2]) in
