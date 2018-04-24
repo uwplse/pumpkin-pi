@@ -354,9 +354,9 @@ let reduce_indexer_constr_body env evd l trm =
   let from = last_arg trm in
   if is_or_applies (lift_back l) from then
     (* eliminate the promotion/forgetful function *)
-    let la = last_arg from in
-    let app = on_type dest_sigT env evd la in
-    project_index app.index_type app.packer la
+    let arg = last_arg from in
+    let app = on_type dest_sigT env evd arg in
+    project_index app.index_type app.packer arg
   else
     (* leave as-is *)
     trm
