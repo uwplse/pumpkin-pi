@@ -222,73 +222,74 @@ let compose_ih evd npms ip p comp =
     env_f
     p
     c_f
+
+(*
+ * Meta-reduction of an applied ornament to simplify and then rewrite
+ * in terms of the ornament and indexer applied to the specific argument.
+ *
+ * TODO clean, check efficiency
+ *)
+let reduce_ornament_f_arg l env evd orn trm orn_arg =
+  let index_i = Option.get l.orn.index_i in
+  let orn_arg_typ = on_type zoom_if_sig_lambda env evd orn_arg in
+  let orn_arg_typ = map_backward (fun t -> unshift (zoom_term zoom_lambda_term empty_env t)) l orn_arg_typ in
+  map_term_env_if
+    (fun _ orn_arg_typ trm -> applies orn trm)
+    (fun env orn_arg_typ trm ->
+      try
+        let (app, app_sub_body, app_sub) =
+          let unfolded = chain_reduce reduce_term delta env trm in
+          let typ_args = map_backward (remove_index index_i) l (unfold_args orn_arg_typ) in
+          let orn_app = mkAppl (orn, snoc orn_arg typ_args) in
+          let orn_app_ind = reduce_to_ind env orn_app in
+          let orn_app_red = reduce_nf env orn_app in
+          if l.is_fwd && not l.is_indexer then
+            let indexer = reduce_nf env (get_arg 2 unfolded) in
+            let app = reduce_nf env (get_arg 3 unfolded) in
+            let orn_app_app = get_arg 3 orn_app_ind in
+            let orn_app_app_arg = last_arg orn_app_app in
+            let packed_type_old = reduce_type env evd orn_app_app in
+            let index_type = reduce_type env evd (get_arg index_i packed_type_old) in
+            let packed_type = abstract_arg env evd index_i packed_type_old in
+            let orn_app_indexer = project_index index_type packed_type orn_app_app_arg in
+            let orn_app_app_arg = project_value index_type packed_type orn_app_app_arg in
+            let orn_app_red_app = get_arg 3 orn_app_red in
+            let orn_app_indexer_red = get_arg 2 orn_app_red in
+            let ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) indexer in
+            let app_sub = all_eq_substs (orn_app_red_app, orn_app_app_arg) app in
+            let app_ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) app_sub in
+            (app, app_ind_sub, mkAppl (existT, reindex 3 app_ind_sub (reindex 2 ind_sub (unfold_args unfolded))))
+          else if not l.is_indexer then
+            let app = reduce_nf env unfolded in
+            let index_type = get_arg 0 (infer_type env evd orn_arg) in
+            let packed_body = reindex_app (reindex index_i (mkRel 1)) (shift orn_arg_typ) in
+            let packed_type = mkLambda (Anonymous, index_type, packed_body) in
+            let app_projT1 = project_index index_type packed_type orn_arg in
+            let app_projT2 = project_value index_type packed_type orn_arg in
+            let orn_app_app = mkAppl (get_arg 3 orn_app_ind, [app_projT1; app_projT2]) in
+            let orn_app_app_red = reduce_nf env orn_app_app in
+            let app_sub = all_eq_substs (orn_app_app_red, orn_arg) app in
+            (* TODO is that sound? think more about other cases *)
+            (app, app_sub, app_sub)
+          else
+            let app = reduce_nf env unfolded in
+            let app_sub = all_eq_substs (orn_app_red, orn_app) app in
+            (app, app_sub, app_sub)
+        in if eq_constr app_sub_body app then trm else app_sub
+      with _ ->
+        trm)
+    shift
+    env
+    orn_arg_typ
+    trm
+  
             
 (*
- * TODO move
- * Delta-unfold, simplify, delta-unfold internally, simplify, and so on
- * until nothing changes
- *
- * for reducing ornaments
+ * Meta-reduction of an applied ornament to simplify and then rewrite
+ * in terms of the ornament and indexer applied to arguments from the list.
  *)
 let reduce_ornament_f l env evd orn trm orn_args =
-  let index_i = Option.get l.orn.index_i in
-  let orn_arg_typs = List.map (on_type zoom_if_sig_lambda env evd) orn_args in
-  let orn_arg_typs = List.map (map_backward (fun t -> unshift (snd (zoom_lambda_term empty_env t))) l) orn_arg_typs in
-  (* TODO inefficient now *)
-  List.fold_left2
-    (fun trm orn_arg orn_arg_typ ->
-       map_term_env_if
-         (fun _ orn_arg_typ trm -> applies orn trm)
-         (fun env orn_arg_typ trm ->
-           try
-             let (app, app_sub_body, app_sub) =
-               let unfolded = chain_reduce reduce_term delta env trm in
-               let typ_args = map_backward (remove_index index_i) l (unfold_args orn_arg_typ) in
-               let orn_app = mkAppl (orn, snoc orn_arg typ_args) in
-               let orn_app_ind = reduce_to_ind env orn_app in
-               let orn_app_red = reduce_nf env orn_app in
-               if l.is_fwd && not l.is_indexer then
-                 let indexer = reduce_nf env (get_arg 2 unfolded) in
-                 let app = reduce_nf env (get_arg 3 unfolded) in
-                 let orn_app_app = get_arg 3 orn_app_ind in
-                 let orn_app_app_arg = last_arg orn_app_app in
-                 let packed_type_old = reduce_type env evd orn_app_app in
-                 let index_type = reduce_type env evd (get_arg index_i packed_type_old) in
-                 let packed_type = abstract_arg env evd index_i packed_type_old in
-                 let orn_app_indexer = project_index index_type packed_type orn_app_app_arg in
-                 let orn_app_app_arg = project_value index_type packed_type orn_app_app_arg in
-                 let orn_app_red_app = get_arg 3 orn_app_red in
-                 let orn_app_indexer_red = get_arg 2 orn_app_red in
-                 let ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) indexer in
-                 let app_sub = all_eq_substs (orn_app_red_app, orn_app_app_arg) app in
-                 let app_ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) app_sub in
-                 (app, app_ind_sub, mkAppl (existT, reindex 3 app_ind_sub (reindex 2 ind_sub (unfold_args unfolded))))
-               else if not l.is_indexer then
-                 let app = reduce_nf env unfolded in
-                 let index_type = get_arg 0 (infer_type env evd orn_arg) in
-                 let packed_body = reindex_app (reindex index_i (mkRel 1)) (shift orn_arg_typ) in
-                 let packed_type = mkLambda (Anonymous, index_type, packed_body) in
-                 let app_projT1 = project_index index_type packed_type orn_arg in
-                 let app_projT2 = project_value index_type packed_type orn_arg in
-                 let orn_app_app = mkAppl (get_arg 3 orn_app_ind, [app_projT1; app_projT2]) in
-                 let orn_app_app_red = reduce_nf env orn_app_app in
-                 let app_sub = all_eq_substs (orn_app_app_red, orn_arg) app in
-                 (* TODO is that sound? think more about other cases *)
-                 (app, app_sub, app_sub)
-               else
-                 let app = reduce_nf env unfolded in
-                 let app_sub = all_eq_substs (orn_app_red, orn_app) app in
-                 (app, app_sub, app_sub)
-             in if eq_constr app_sub_body app then trm else app_sub
-           with _ ->
-             trm)
-         shift
-         env
-         orn_arg_typ
-         trm)
-    trm
-    orn_args
-    orn_arg_typs
+  List.fold_left (reduce_ornament_f_arg l env evd orn) trm orn_args
 
 (*
  * Get the (index arg index, IH) pairs for a constructor
