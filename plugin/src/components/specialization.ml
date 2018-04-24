@@ -350,7 +350,7 @@ let indexes to_typ index_i num_args trm =
 (* 
  * Reduces the body of a constructor of an indexer
  *)
-let reduce_indexer_constr_body env evd l trm =
+let reduce_indexer_constr_body l env evd trm =
   let from = last_arg trm in
   if is_or_applies (lift_back l) from then
     (* eliminate the promotion/forgetful function *)
@@ -364,7 +364,7 @@ let reduce_indexer_constr_body env evd l trm =
 (*
  * Reduces the body of a constructor of a promoted function
  *)
-let reduce_promoted_constr_body env evd l trm =
+let reduce_promoted_constr_body l env evd trm =
   let from = last_arg trm in
   if is_or_applies (lift_back l) from then
     (* eliminate the promotion function *)
@@ -376,17 +376,16 @@ let reduce_promoted_constr_body env evd l trm =
 (* 
  * Reduces the body of a constructor of a forgetful function
  *)
-let reduce_forgotten_constr_body env evd l trm =
+let reduce_forgotten_constr_body l env evd trm =
   let from = last_arg trm in
   if is_or_applies existT from then
-    let proj = last_arg from in
-    if is_or_applies projT2 proj then
-      (* eliminate existT of the projection *)
-      let unpacked = last_arg proj in
-      last_arg unpacked
-    else if is_or_applies (lift_to l) proj then
+    let ex = dest_existT from in
+    if is_or_applies projT2 ex.unpacked then
+      (* eliminate existT of the projection of a promotion *)
+      last_arg (last_arg ex.unpacked)
+    else if is_or_applies (lift_to l) ex.unpacked then
       (* eliminate existT of the forgetful function *)
-      last_arg proj
+      last_arg ex.unpacked
     else
       (* leave as-is *)
       trm
@@ -397,10 +396,19 @@ let reduce_forgotten_constr_body env evd l trm =
     (* leave as-is *)
     trm
 
+(*
+ * Get the pre-meta-reduction function for a constructor body.
+ *)
+let pre_reduce l =
+  if l.is_indexer then
+    reduce_indexer_constr_body l
+  else if l.is_fwd then
+    reduce_promoted_constr_body l
+  else
+    reduce_forgotten_constr_body l
   
 (*
  * This reduces the body of an ornamented constructor to a reasonable term
- * TODO handle in a separate step
  *)
 let reduce_constr_body env evd l is_orn index_i index_args body =
   let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
@@ -412,14 +420,7 @@ let reduce_constr_body env evd l is_orn index_i index_args body =
     (map_unit_if
        (applies f)
        (fun trm ->
-         let reduce_body trm =
-           if l.is_indexer then
-             reduce_indexer_constr_body env evd l trm
-           else if l.is_fwd then
-             reduce_promoted_constr_body env evd l trm
-           else
-             reduce_forgotten_constr_body env evd l trm
-         in reduce_ornament_f l env evd f (reduce_body trm) orn_args)
+         reduce_ornament_f l env evd f (pre_reduce l env evd trm) orn_args)
        body)
   
 (*
