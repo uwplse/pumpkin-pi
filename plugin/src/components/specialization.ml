@@ -476,10 +476,8 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
                   else
                     let typ_args = on_type unfold_args env evd trm in
                     let orn = mkAppl (orn_f, snoc trm typ_args) in
-                    let packed_type = get_arg 1 (reduce_type env evd orn) in
-                    (* line below sensitive to how we define ornaments *)
-                    let (_, index_type, _) = destLambda packed_type in
-                    project_value index_type packed_type orn)
+                    let packed_type = on_type dest_sigT env evd orn in
+                    project_value packed_type.index_type packed_type.packer orn)
                 (fun evd -> evd)
                 env_f_body
                 evd
