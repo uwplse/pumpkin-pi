@@ -292,16 +292,15 @@ let reduce_ornament_f l env evd index_i orn trm orn_args =
 (*
  * Get the (index arg index, IH) pairs for a constructor
  *)
-let rec indexes env to_typ index_i g_hs trm i =
-  let num_args = List.length g_hs in
-  match (g_hs, kind_of_term trm) with
-  | (h :: tl, Prod (n, t, b)) ->
+let rec indexes env to_typ index_i num_args trm i =
+  match kind_of_term trm with
+  | Prod (n, t, b) ->
      let num_args_left = num_args - (i + 1) in
      let index_ih_opt = index_ih index_i to_typ (mkRel 1) b num_args_left in
      map_if
        (fun tl -> (i, Option.get index_ih_opt) :: tl)
        (Option.has_some index_ih_opt)
-       (indexes (push_local (n, t) env) to_typ index_i tl b (i + 1))
+       (indexes (push_local (n, t) env) to_typ index_i (num_args - 1) b (i + 1))
   | _ ->
      []
 
@@ -404,7 +403,6 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let promote_typ = map_directional first_fun zoom_sig l ind_g_typ in
   let (to_typ, from_typ) = map_backward reverse l (forget_typ, promote_typ) in
   let is_deorn = is_or_applies (if l.is_fwd then to_typ else from_typ) in
-  let c_f_used = get_used_or_p_hypos is_deorn c_f in
   let c_g_used = get_all_hypos c_g in
   let env_f_body_old = zoom_env zoom_lambda_term env_f c_f in
   let c_f = compose_ih evd npms_g ip_g p comp in
@@ -419,7 +417,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       let f_f = shift_local (if l.is_fwd then 0 else num_assums) (offset2 env_f env_g) c_g in
       let f = shift_by off_f f_f in
       let c_used = c_g_used in
-      let index_args = indexes env_g to_typ index_i c_g_used (lambda_to_prod c_g) 0 in
+      let index_args = indexes env_g to_typ index_i (List.length c_g_used) (lambda_to_prod c_g) 0 in
       let args =
         List.mapi
           (fun i arg ->
@@ -453,7 +451,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       in reduce_term env_f_body (mkAppl (f, args))
     else
       let c_f_all = get_used_or_p_hypos always_true c_f in
-      let index_args = indexes env_g to_typ index_i c_g_used (lambda_to_prod (if l.is_fwd then c_f else c_g)) 0 in
+      let index_args = indexes env_g to_typ index_i (List.length c_g_used) (lambda_to_prod (if l.is_fwd then c_f else c_g)) 0 in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
       let is_orn env trm =
         let typ = if l.is_fwd then from_typ else shift_by (offset env_f_body 1) ind_g_typ in
