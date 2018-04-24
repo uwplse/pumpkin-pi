@@ -155,7 +155,7 @@ let pack_existT (app : existT_app) : types =
 let dest_existT (trm : types) : existT_app =
   let [index_type; packer; index; unpacked] = unfold_args trm in
   { index_type; packer; index; unpacked }
-
+    
 (*
  * Pack a sigT type from an index type and a packer
  *)
@@ -163,11 +163,35 @@ let pack_sigT index_type packer =
   mkAppl (sigT, [index_type; packer])
 
 (*
+ * An application of sigT_rect
+ *)
+type sigT_elim =
+  {
+    index_type : types;
+    packer : types;
+    packed_type : types;
+    unpacked : types;
+    arg : types;
+  }
+         
+(*
  * Eliminate a sigT given an index type, packer, packed type, unpacked term,
  * and the term itself
  *)
-let elim_sigT index_type packer packed_type unpacked trm =
-  mkAppl (sigT_rect, [index_type; packer; packed_type; unpacked; trm])
+let elim_sigT (app : sigT_elim) =
+  let index_type = app.index_type in
+  let packer = app.packer in
+  let packed_type = app.packed_type in
+  let unpacked = app.unpacked in
+  let arg = app.arg in
+  mkAppl (sigT_rect, [index_type; packer; packed_type; unpacked; arg])
+
+(*
+ * Deconstruct an application of sigT_rect
+ *)
+let dest_sigT_elim (trm : types) =
+  let [index_type; packer; packed_type; unpacked; arg] = unfold_args trm in
+  { index_type; packer; packed_type; unpacked; arg }
 
 (*
  * Left projection of a sigma type

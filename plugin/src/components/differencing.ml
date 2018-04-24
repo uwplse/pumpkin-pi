@@ -527,20 +527,21 @@ let elim_body index_typ packer f args =
  * Pack the hypothesis of an ornamental forgetful function
  *)
 let pack_hypothesis env evd idx o n unpacked =
-  let (index_i, index_typ) = idx in
+  let (index_i, index_type) = idx in
   let (ind, arity) = o in
   let (ind_n, _) = n in
-  let index_typ = shift index_typ in
+  let index_type = shift index_type in
   let (id, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
   let packer = make_packer env evd ind (unfold_args unpacked_typ) idx false in
-  let env_push = pack_hypothesis_type env index_typ packer (id, unpacked_typ) in
+  let env_push = pack_hypothesis_type env index_type packer (id, unpacked_typ) in
   let index_rel = offset (pop_rel_context 1 env) index_i in
-  let packed = pack_unpacked env_push packer index_typ index_rel unpacked in
-  let adjusted = adjust_to_elim env_push index_rel packer packed in
-  let (env_packed, packer, packed) = adjusted in
+  let unpacked = pack_unpacked env_push packer index_type index_rel unpacked in
+  let adjusted = adjust_to_elim env_push index_rel packer unpacked in
+  let (env_packed, packer, unpacked) = adjusted in
   let ind_n_args = shift_all (mk_n_rels (arity - 1)) in
-  let elim = elim_body index_typ packer ind_n ind_n_args in
-  (env_packed, elim_sigT index_typ packer elim packed (mkRel 1))
+  let packed_type = elim_body index_type packer ind_n ind_n_args in
+  let arg = mkRel 1 in
+  (env_packed, elim_sigT { index_type; packer; packed_type; unpacked; arg })
 
 (*
  * This packs an ornamental promotion to/from an indexed type like Vector A n,

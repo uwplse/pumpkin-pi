@@ -79,10 +79,22 @@ val dest_existT : types -> existT_app
 val pack_sigT : types -> types -> types
 
 (*
- * Eliminate a sigT given an index type, packer, packed type, unpacked term,
- * and the term itself
+ * An application of sigT_rect
  *)
-val elim_sigT : types -> types -> types -> types -> types -> types
+type sigT_elim =
+  {
+    index_type : types;
+    packer : types;
+    packed_type : types;
+    unpacked : types;
+    arg : types;
+  }
+                                    
+(*
+ * Convert between a term and a sigT_elim
+ *)
+val elim_sigT : sigT_elim -> types
+val dest_sigT_elim : types -> sigT_elim
 
 (*
  * Left projection of a sigma type given an index type, type, and packed term
