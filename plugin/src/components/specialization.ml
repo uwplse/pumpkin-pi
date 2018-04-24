@@ -355,11 +355,8 @@ let reduce_indexer_constr_body env evd l trm =
   if is_or_applies (lift_back l) from then
     (* eliminate the promotion/forgetful function *)
     let la = last_arg from in
-    let la_typ = reduce_type env evd la in
-    debug_term env la_typ "la_typ";
-    let idx_type = get_arg 0 la_typ in
-    let packed_type = get_arg 1 la_typ in
-    project_index idx_type packed_type la
+    let app = on_type dest_sigT env evd la in
+    project_index app.index_type app.packer la
   else
     (* leave as-is *)
     trm
