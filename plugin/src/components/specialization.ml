@@ -238,47 +238,44 @@ let reduce_ornament_f_arg l env evd orn trm arg =
   map_term_env_if
     (fun _ _ trm -> applies orn trm)
     (fun env (arg, arg_typ) trm ->
-      try
-        let unfolded = chain_reduce reduce_term delta env trm in
-        let orn_args = map_backward deindex l (unfold_args arg_typ) in
-        let orn_app = mkAppl (orn, snoc arg orn_args) in
-        let orn_app_ind = reduce_to_ind env orn_app in
-        let orn_app_red = reduce_nf env orn_app in
-        let (app, app_sub_body, app_sub) =
-          if l.is_fwd && not l.is_indexer then
-            let [index_type; packer; index; unpacked] = unfold_args unfolded in
-            let index_red = reduce_nf env index in
-            let unpacked_red = reduce_nf env unpacked in
-            let orn_app_app = get_arg 3 orn_app_ind in
-            let orn_app_app_arg = last_arg orn_app_app in
-            let packed_type_old = reduce_type env evd orn_app_app in
-            let packed_type = abstract packed_type_old in
-            let orn_app_indexer = project_index index_type packed_type orn_app_app_arg in
-            let orn_app_app_arg = project_value index_type packed_type orn_app_app_arg in
-            let orn_app_red_app = get_arg 3 orn_app_red in
-            let orn_app_indexer_red = get_arg 2 orn_app_red in
-            let ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) index_red in
-            let app_sub = all_eq_substs (orn_app_red_app, orn_app_app_arg) unpacked_red in
-            let app_ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) app_sub in
-            (unpacked_red, app_ind_sub, pack_existT index_type packer ind_sub app_ind_sub)
-          else if not l.is_indexer then
-            let app = reduce_nf env unfolded in
-            let index_type = get_arg 0 (infer_type env evd arg) in
-            let packed_type = abstract_body (mkLambda (Anonymous, index_type, shift arg_typ)) in
-            let app_projT1 = project_index index_type packed_type arg in
-            let app_projT2 = project_value index_type packed_type arg in
-            let orn_app_app = mkAppl (get_arg 3 orn_app_ind, [app_projT1; app_projT2]) in
-            let orn_app_app_red = reduce_nf env orn_app_app in
-            let app_sub = all_eq_substs (orn_app_app_red, arg) app in
-            (* TODO is that sound? think more about other cases *)
-            (app, app_sub, app_sub)
-          else
-            let app = reduce_nf env unfolded in
-            let app_sub = all_eq_substs (orn_app_red, orn_app) app in
-            (app, app_sub, app_sub)
-        in if eq_constr app_sub_body app then trm else app_sub
-      with _ ->
-        trm)
+      let unfolded = chain_reduce reduce_term delta env trm in
+      let orn_args = map_backward deindex l (unfold_args arg_typ) in
+      let orn_app = mkAppl (orn, snoc arg orn_args) in
+      let orn_app_ind = reduce_to_ind env orn_app in
+      let orn_app_red = reduce_nf env orn_app in
+      let (app, app_sub_body, app_sub) =
+        if l.is_fwd && not l.is_indexer then
+          let [index_type; packer; index; unpacked] = unfold_args unfolded in
+          let index_red = reduce_nf env index in
+          let unpacked_red = reduce_nf env unpacked in
+          let [_; _; _; unpacked_orn] = unfold_args orn_app_ind in
+          let orn_app_app_arg = last_arg unpacked_orn in
+          let packed_type_old = reduce_type env evd unpacked_orn in
+          let packed_type = abstract packed_type_old in
+          let orn_app_indexer = project_index index_type packed_type orn_app_app_arg in
+          let orn_app_app_arg = project_value index_type packed_type orn_app_app_arg in
+          let orn_app_red_app = get_arg 3 orn_app_red in
+          let orn_app_indexer_red = get_arg 2 orn_app_red in
+          let ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) index_red in
+          let app_sub = all_eq_substs (orn_app_red_app, orn_app_app_arg) unpacked_red in
+          let app_ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) app_sub in
+          (unpacked_red, app_ind_sub, pack_existT index_type packer ind_sub app_ind_sub)
+        else if not l.is_indexer then
+          let app = reduce_nf env unfolded in
+          let index_type = get_arg 0 (infer_type env evd arg) in
+          let packed_type = abstract_body (mkLambda (Anonymous, index_type, shift arg_typ)) in
+          let app_projT1 = project_index index_type packed_type arg in
+          let app_projT2 = project_value index_type packed_type arg in
+          let orn_app_app = mkAppl (get_arg 3 orn_app_ind, [app_projT1; app_projT2]) in
+          let orn_app_app_red = reduce_nf env orn_app_app in
+          let app_sub = all_eq_substs (orn_app_app_red, arg) app in
+          (* TODO is that sound? think more about other cases *)
+          (app, app_sub, app_sub)
+        else
+          let app = reduce_nf env unfolded in
+          let app_sub = all_eq_substs (orn_app_red, orn_app) app in
+          (app, app_sub, app_sub)
+      in if eq_constr app_sub_body app then trm else app_sub)
     (map_tuple shift)
     env
     (arg, on_type (map_backward (fun t -> unshift (zoom_sig_app t)) l) env evd arg)
