@@ -224,12 +224,12 @@ let compose_ih evd npms ip p comp =
     c_f
 
 (*
- * Meta-reduction of an applied in the forward direction in the
+ * Meta-reduction of an applied ornament in the forward direction in the
  * non-indexer case, when the ornament application produces an existT term.
  *)
-let reduce_existT_app l env evd unfolded orn_app_ind orn_app_red trm arg =
-  let index_i = Option.get l.orn.index_i in
-  let abstract = abstract_arg env evd index_i in
+let reduce_existT_app l env evd unfolded orn_app orn_app_red trm arg =
+  let orn_app_ind = reduce_to_ind env orn_app in
+  let abstract = abstract_arg env evd (Option.get l.orn.index_i) in
   let unfolded_ex = dest_existT unfolded in
   let orn_app_ind_ex = dest_existT orn_app_ind in
   let orn_app_red_ex = dest_existT orn_app_red in
@@ -243,11 +243,24 @@ let reduce_existT_app l env evd unfolded orn_app_ind orn_app_red trm arg =
   let index = fold_index unfolded_index_red in
   let unpacked = fold_index (fold_value unfolded_unpacked_red) in
   if eq_constr unfolded_unpacked_red unpacked then
-    (* nothing to rewrite *)
+    (* nothing to rewrite; ensure termination *)
     trm
   else
     (* pack the rewritten term *)
     pack_existT { unfolded_ex with index; unpacked }
+
+(*
+ * Meta-reduction of an applied ornament in the indexer case.
+ *)
+let reduce_indexer_app l env evd unfolded orn_app orn_app_red trm arg =
+  let app_red = reduce_nf env unfolded in
+  let app = all_eq_substs (orn_app_red, orn_app) app_red in
+  if eq_constr app_red app then
+    (* nothing to rewrite; ensure termination *)
+    trm
+  else
+    (* return the rewritten term *)
+    app
 
 (*
  * Meta-reduction of an applied ornament to simplify and then rewrite
@@ -265,25 +278,22 @@ let reduce_ornament_f_arg l env evd orn trm arg =
       let unfolded = chain_reduce reduce_term delta env trm in
       let orn_args = map_backward deindex l (unfold_args arg_typ) in
       let orn_app = mkAppl (orn, snoc arg orn_args) in
-      let orn_app_ind = reduce_to_ind env orn_app in
       let orn_app_red = reduce_nf env orn_app in
       if l.is_fwd && not l.is_indexer then
-        reduce_existT_app l env evd unfolded orn_app_ind orn_app_red trm arg
+        reduce_existT_app l env evd unfolded orn_app orn_app_red trm arg
       else
-        let app_red = reduce_nf env unfolded in
-        let app =
-          map_indexer
-            (all_eq_substs (orn_app_red, orn_app))
-            (fun t ->
-              let elim = dest_sigT_elim orn_app_ind in
-              let arg_indexer = project_index elim.index_type elim.packer arg in
-              let arg_value = project_value elim.index_type elim.packer arg in
-              let unpacked_app = mkAppl (elim.unpacked, [arg_indexer; arg_value]) in
-              let unpacked_app_red = reduce_nf env unpacked_app in
-              all_eq_substs (unpacked_app_red, arg) t)
-            l
-            app_red
-        in if eq_constr app_red app then trm else app)
+        if l.is_indexer then
+          reduce_indexer_app l env evd unfolded orn_app orn_app_red trm arg
+        else
+          let app_red = reduce_nf env unfolded in
+          let orn_app_ind = reduce_to_ind env orn_app in
+          let elim = dest_sigT_elim orn_app_ind in
+          let arg_indexer = project_index elim.index_type elim.packer arg in
+          let arg_value = project_value elim.index_type elim.packer arg in
+          let unpacked_app = mkAppl (elim.unpacked, [arg_indexer; arg_value]) in
+          let unpacked_app_red = reduce_nf env unpacked_app in
+          let app = all_eq_substs (unpacked_app_red, arg) app_red in
+          if eq_constr app_red app then trm else app)
     (map_tuple shift)
     env
     (arg, on_type (map_backward (fun t -> unshift (zoom_sig_app t)) l) env evd arg)
