@@ -74,9 +74,19 @@ val pack_existT : existT_app -> types
 val dest_existT : types -> existT_app
 
 (*
- * Pack a sigT type from an index type and a packer 
+ * An application of sigT
  *)
-val pack_sigT : types -> types -> types
+type sigT_app =
+  {
+    index_type : types;
+    packer : types;
+  }
+
+(*
+ * Convert between a term and a sigT_app
+ *)
+val pack_sigT : sigT_app -> types
+val dest_sigT : types -> sigT_app 
 
 (*
  * An application of sigT_rect

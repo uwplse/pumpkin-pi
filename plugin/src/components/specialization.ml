@@ -178,10 +178,10 @@ let compose_p_fun evd (comp : composition) =
        (fun p_g ->
          (* pack the conclusion *)
          let (env_p_g, p_g_b) = zoom_lambda_term env_g p_g in
-         let index_typ = infer_type env_p_f evd (mkRel 2) in
+         let index_type = infer_type env_p_f evd (mkRel 2) in
          let abs_i = reindex_body (reindex_app (reindex index_i (mkRel 1))) in
-         let packer = abs_i (mkLambda (Anonymous, index_typ, shift p_g_b)) in
-         let p_g_packed = pack_sigT index_typ packer in
+         let packer = abs_i (mkLambda (Anonymous, index_type, shift p_g_b)) in
+         let p_g_packed = pack_sigT { index_type ; packer } in
          reconstruct_lambda_n env_p_g p_g_packed (nb_rel env_g))
        (comp.is_g && not l.is_indexer))
     l
@@ -356,6 +356,7 @@ let reduce_indexer_constr_body env evd l trm =
     (* eliminate the promotion/forgetful function *)
     let la = last_arg from in
     let la_typ = reduce_type env evd la in
+    debug_term env la_typ "la_typ";
     let idx_type = get_arg 0 la_typ in
     let packed_type = get_arg 1 la_typ in
     project_index idx_type packed_type la

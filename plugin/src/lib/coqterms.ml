@@ -155,12 +155,28 @@ let pack_existT (app : existT_app) : types =
 let dest_existT (trm : types) : existT_app =
   let [index_type; packer; index; unpacked] = unfold_args trm in
   { index_type; packer; index; unpacked }
+
+(*
+ * An application of sigT
+ *)
+type sigT_app =
+  {
+    index_type : types;
+    packer : types;
+  }
     
 (*
  * Pack a sigT type from an index type and a packer
  *)
-let pack_sigT index_type packer =
-  mkAppl (sigT, [index_type; packer])
+let pack_sigT (app : sigT_app) =
+  mkAppl (sigT, [app.index_type; app.packer])
+
+(*
+ * Deconsruct a sigT type from a type
+ *)      
+let dest_sigT (typ : types) =
+  let [index_type; packer] = unfold_args typ in
+  { index_type; packer }
 
 (*
  * An application of sigT_rect

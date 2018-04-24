@@ -487,8 +487,9 @@ let pack_conclusion env evd idx f_indexer n unpacked =
 (*
  * Pack the hypothesis type into a sigT, and update the environment
  *)
-let pack_hypothesis_type env index_typ packer (id, unpacked_typ) : env =
-  let packed_typ = pack_sigT index_typ (unshift packer) in
+let pack_hypothesis_type env index_type packer (id, unpacked_typ) : env =
+  let packer = unshift packer in
+  let packed_typ = pack_sigT { index_type ; packer } in
   push_local (id, packed_typ) (pop_rel_context 1 env)
 
 (* 
@@ -520,8 +521,9 @@ let pack_unpacked env packer index_typ index_rel unpacked =
 (* 
  * Get the body of the eliminator when packing the hypothesis
  *)
-let elim_body index_typ packer f args =
-  mkLambda (Anonymous, pack_sigT index_typ packer, shift (mkAppl (f, args)))
+let elim_body index_type packer f args =
+  let packed_type = pack_sigT { index_type; packer } in
+  mkLambda (Anonymous, packed_type, shift (mkAppl (f, args)))
               
 (*
  * Pack the hypothesis of an ornamental forgetful function
