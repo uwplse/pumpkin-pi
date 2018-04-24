@@ -242,7 +242,7 @@ let reduce_ornament_f_arg l env evd orn trm arg =
       let orn_app = mkAppl (orn, snoc arg orn_args) in
       let orn_app_ind = reduce_to_ind env orn_app in
       let orn_app_red = reduce_nf env orn_app in
-      let (app, app_sub_body, app_sub) =
+      let (app_red, app, app_packed) =
         if l.is_fwd && not l.is_indexer then
           let [index_type; packer; index; unpacked] = unfold_args unfolded in
           let index_red = reduce_nf env index in
@@ -258,21 +258,22 @@ let reduce_ornament_f_arg l env evd orn trm arg =
           let index = fold_index index_red in
           let unpacked = fold_index (fold_value unpacked_red) in
           (unpacked_red, unpacked, pack_existT index_type packer index unpacked)
-        else if not l.is_indexer then
-          let red = reduce_nf env unfolded in
-          let [index_type; packer; _; unpacked; _] = unfold_args orn_app_ind in
-          let arg_indexer = project_index index_type packer arg in
-          let arg_value = project_value index_type packer arg in
-          let unpacked_app = mkAppl (unpacked, [arg_indexer; arg_value]) in
-          let unpacked_app_red = reduce_nf env unpacked_app in
-          let fold_arg = all_eq_substs (unpacked_app_red, arg) in
-          let app_sub = fold_arg red in (* TODO rename me *)
-          (red, app_sub, app_sub)
         else
-          let app = reduce_nf env unfolded in
-          let app_sub = all_eq_substs (orn_app_red, orn_app) app in
-          (app, app_sub, app_sub)
-      in if eq_constr app_sub_body app then trm else app_sub)
+          let app_red = reduce_nf env unfolded in
+          let app =
+            map_indexer
+              (all_eq_substs (orn_app_red, orn_app))
+              (fun t ->
+                let [index_type; packer; _; unpacked; _] = unfold_args orn_app_ind in
+                let arg_indexer = project_index index_type packer arg in
+                let arg_value = project_value index_type packer arg in
+                let unpacked_app = mkAppl (unpacked, [arg_indexer; arg_value]) in
+                let unpacked_app_red = reduce_nf env unpacked_app in
+                all_eq_substs (unpacked_app_red, arg) t)
+              l
+              app_red
+          in (app_red, app, app)
+      in if eq_constr app_red app then trm else app_packed)
     (map_tuple shift)
     env
     (arg, on_type (map_backward (fun t -> unshift (zoom_sig_app t)) l) env evd arg)
