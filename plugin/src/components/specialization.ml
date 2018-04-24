@@ -291,6 +291,9 @@ let reduce_ornament_f l env evd index_i orn trm orn_args =
 
 (*
  * Get the (index arg index, IH) pairs for a constructor
+ * 
+ * Need to test: What happens if the index isn't the first argument in
+ * the new constructor? Unsure if the recursion condition is correct here.
  *)
 let indexes to_typ index_i num_args trm =
   let rec constr_indexes t i =
@@ -405,21 +408,17 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let promote_typ = map_directional first_fun zoom_sig l ind_g_typ in
   let (to_typ, from_typ) = map_backward reverse l (forget_typ, promote_typ) in
   let is_deorn = is_or_applies (if l.is_fwd then to_typ else from_typ) in
-  let c_g_used = get_all_hypos c_g in
   let env_f_body_old = zoom_env zoom_lambda_term env_f c_f in
   let c_f = compose_ih evd npms_g ip_g p comp in
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let (env_g_body, g_body) = zoom_lambda_term env_g c_g in
-  let off_f = offset2 env_f_body env_f in
   let is_g = comp.is_g in
   let f_body =
     if not is_g then
-      let num_assums = List.length post_assums in
       (* TODO f_f logic unclear *)
-      let f_f = shift_local (if l.is_fwd then 0 else num_assums) (offset2 env_f env_g) c_g in
-      let f = shift_by off_f f_f in
-      let c_used = c_g_used in
-      let index_args = indexes to_typ index_i (List.length c_g_used) (lambda_to_prod c_g) in
+      let f_f = shift_local (if l.is_fwd then 0 else List.length post_assums) (offset2 env_f env_g) c_g in
+      let f = shift_to_env (env_f, env_f_body) f_f in
+      let index_args = indexes to_typ index_i (arity c_g) (lambda_to_prod c_g) in
       let args =
         List.mapi
           (fun i arg ->
@@ -449,11 +448,10 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
                     project_value index_type packed_type orn)
               env_f_body
               arg)
-          c_used
+          (get_all_hypos c_g)
       in reduce_term env_f_body (mkAppl (f, args))
     else
-      let c_f_all = get_used_or_p_hypos always_true c_f in
-      let index_args = indexes to_typ index_i (List.length c_g_used) (lambda_to_prod (if l.is_fwd then c_f else c_g)) in
+      let index_args = indexes to_typ index_i (arity c_g) (lambda_to_prod (if l.is_fwd then c_f else c_g)) in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
       let is_orn env trm =
         let typ = if l.is_fwd then from_typ else shift_by (offset env_f_body 1) ind_g_typ in
