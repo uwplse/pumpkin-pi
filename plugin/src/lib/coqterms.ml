@@ -183,8 +183,7 @@ let dest_sigT (typ : types) =
  *)
 type sigT_elim =
   {
-    index_type : types;
-    packer : types;
+    to_elim : sigT_app;
     packed_type : types;
     unpacked : types;
     arg : types;
@@ -195,8 +194,8 @@ type sigT_elim =
  * and the term itself
  *)
 let elim_sigT (app : sigT_elim) =
-  let index_type = app.index_type in
-  let packer = app.packer in
+  let index_type = app.to_elim.index_type in
+  let packer = app.to_elim.packer in
   let packed_type = app.packed_type in
   let unpacked = app.unpacked in
   let arg = app.arg in
@@ -207,19 +206,20 @@ let elim_sigT (app : sigT_elim) =
  *)
 let dest_sigT_elim (trm : types) =
   let [index_type; packer; packed_type; unpacked; arg] = unfold_args trm in
-  { index_type; packer; packed_type; unpacked; arg }
+  let to_elim = { index_type ; packer } in
+  { to_elim; packed_type; unpacked; arg }
 
 (*
  * Left projection of a sigma type
  *)
-let project_index index_typ typ trm =
-  mkAppl (projT1, [index_typ; typ; trm])
+let project_index (app : sigT_app) trm =
+  mkAppl (projT1, [app.index_type; app.packer; trm])
 
 (*
  * Right projection of a sigma type
  *)
-let project_value index_typ typ trm =
-  mkAppl (projT2, [index_typ; typ; trm])
+let project_value (app : sigT_app) trm =
+  mkAppl (projT2, [app.index_type; app.packer; trm])
 
 (* --- Convertibility, reduction, and types --- *)
                                 

@@ -93,8 +93,7 @@ val dest_sigT : types -> sigT_app
  *)
 type sigT_elim =
   {
-    index_type : types;
-    packer : types;
+    to_elim : sigT_app;
     packed_type : types;
     unpacked : types;
     arg : types;
@@ -107,14 +106,14 @@ val elim_sigT : sigT_elim -> types
 val dest_sigT_elim : types -> sigT_elim
 
 (*
- * Left projection of a sigma type given an index type, type, and packed term
+ * Left projection of a sigma type given a sigma type and term of that type
  *)
-val project_index : types -> types -> types -> types
+val project_index : sigT_app -> types -> types
 
 (*
- * Right projection of a sigma type given an index type, type, and packed term
+ * Right projection of a sigma type given a sigma type and term of that type
  *)
-val project_value : types -> types -> types -> types
+val project_value : sigT_app -> types -> types
 
 (* --- Inductive types and their eliminators --- *)
 

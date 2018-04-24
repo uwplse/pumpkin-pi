@@ -543,7 +543,8 @@ let pack_hypothesis env evd idx o n unpacked =
   let ind_n_args = shift_all (mk_n_rels (arity - 1)) in
   let packed_type = elim_body index_type packer ind_n ind_n_args in
   let arg = mkRel 1 in
-  (env_packed, elim_sigT { index_type; packer; packed_type; unpacked; arg })
+  let to_elim = { index_type; packer } in
+  (env_packed, elim_sigT { to_elim; packed_type; unpacked; arg })
 
 (*
  * This packs an ornamental promotion to/from an indexed type like Vector A n,

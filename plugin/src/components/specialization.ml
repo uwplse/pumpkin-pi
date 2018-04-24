@@ -151,8 +151,8 @@ let compose_p_args evd npms post_assums inner comp =
         (fun t ->
           let index_type = get_arg index_i t in
           let abs_i = reindex_body (reindex_app (reindex index_i (mkRel 1))) in
-          let packed_type = abs_i (mkLambda (Anonymous, index_type, shift t)) in
-          project_value index_type packed_type t)
+          let packer = abs_i (mkLambda (Anonymous, index_type, shift t)) in
+          project_value { index_type; packer } t)
         l
         (shift_pms (mkAppl (lift_back l, mk_n_rels nargs)))
     else
@@ -237,8 +237,10 @@ let reduce_existT_app l evd orn env arg trm =
   let orn_app_ind_ex = dest_existT orn_app_ind in
   let orn_app_red_ex = dest_existT orn_app_red in
   let packer = on_type abstract env evd orn_app_ind_ex.unpacked in
-  let arg_indexer = project_index unfolded_ex.index_type packer arg in
-  let arg_value = project_value unfolded_ex.index_type packer arg in
+  let index_type = unfolded_ex.index_type in
+  let arg_sigT = { index_type ; packer } in
+  let arg_indexer = project_index arg_sigT arg in
+  let arg_value = project_value arg_sigT arg in
   let fold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
   let fold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
   let unfolded_index_red = reduce_nf env unfolded_ex.index in
@@ -280,8 +282,8 @@ let reduce_sigT_elim_app l evd orn env arg trm =
   let orn_app_ind = reduce_to_ind env orn_app in
   let app_red = reduce_nf env unfolded in
   let elim = dest_sigT_elim orn_app_ind in
-  let arg_indexer = project_index elim.index_type elim.packer arg in
-  let arg_value = project_value elim.index_type elim.packer arg in
+  let arg_indexer = project_index elim.to_elim arg in
+  let arg_value = project_value elim.to_elim arg in
   let unpacked_app = mkAppl (elim.unpacked, [arg_indexer; arg_value]) in
   let unpacked_app_red = reduce_nf env unpacked_app in
   let app = all_eq_substs (unpacked_app_red, arg) app_red in
@@ -355,8 +357,7 @@ let reduce_indexer_constr_body l env evd trm =
   if is_or_applies (lift_back l) from then
     (* eliminate the promotion/forgetful function *)
     let arg = last_arg from in
-    let app = on_type dest_sigT env evd arg in
-    project_index app.index_type app.packer arg
+    project_index (on_type dest_sigT env evd arg) arg
   else
     (* leave as-is *)
     trm
@@ -465,8 +466,8 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
               let typ_args = unfold_args (reduce_term env_f_body ih_typ) in
               let orn = mkAppl (lift_back l, snoc ih typ_args) in
               let orn_typ = reduce_type env_f_body evd orn in
-              let packed_type = get_arg 1 orn_typ in
-              project_index index_type packed_type orn
+              let packer = get_arg 1 orn_typ in
+              project_index { index_type ; packer } orn
             else
               map_term_env_if
                 (on_type is_deorn)
@@ -476,8 +477,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
                   else
                     let typ_args = on_type unfold_args env evd trm in
                     let orn = mkAppl (orn_f, snoc trm typ_args) in
-                    let packed_type = on_type dest_sigT env evd orn in
-                    project_value packed_type.index_type packed_type.packer orn)
+                    project_value (on_type dest_sigT env evd orn) orn)
                 (fun evd -> evd)
                 env_f_body
                 evd
@@ -562,7 +562,8 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner (comp : composit
       let packed_type_b = shift index_type in
       let packed_type = mkLambda (Anonymous, packer, packed_type_b) in
       let arg = mkRel (1 + List.length post_assums) in
-      let indexer_body = elim_sigT { index_type; packer; packed_type; unpacked; arg } in
+      let to_elim = { index_type; packer } in
+      let indexer_body = elim_sigT { to_elim; packed_type; unpacked; arg } in
       let indexer = reconstruct_lambda env_packed indexer_body in
       let lifted_indexer = Some (make_constant idx_n) in
       let l = { l with lifted_indexer } in
