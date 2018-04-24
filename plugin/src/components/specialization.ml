@@ -230,7 +230,8 @@ let compose_ih evd npms ip p comp =
  *
  * for reducing ornaments
  *)
-let reduce_ornament_f l env evd index_i orn trm orn_args =
+let reduce_ornament_f l env evd orn trm orn_args =
+  let index_i = Option.get l.orn.index_i in
   let orn_arg_typs = List.map (on_type zoom_if_sig_lambda env evd) orn_args in
   let orn_arg_typs = List.map (map_backward (fun t -> unshift (snd (zoom_lambda_term empty_env t))) l) orn_arg_typs in
   (* TODO inefficient now *)
@@ -383,7 +384,7 @@ let reduce_constr_body env evd l is_orn index_i index_args body =
              reduce_promoted_constr_body env evd l trm
            else
              reduce_forgotten_constr_body env evd l trm
-         in reduce_ornament_f l env evd index_i f (reduce_body trm) orn_args)
+         in reduce_ornament_f l env evd f (reduce_body trm) orn_args)
        body)
   
 (*
