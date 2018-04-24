@@ -57,9 +57,21 @@ val prod_to_lambda : types -> types
 val lambda_to_prod : types -> types
 
 (*
- * Pack an existT term from an index type, packer, index, and unpacked version 
+ * An application of existT
  *)
-val pack_existT : types -> types -> types -> types -> types
+type existT_app =
+  {
+    index_type : types;
+    packer : types;
+    index : types;
+    unpacked : types;
+  }
+
+(*
+ * Convert between a term and an existT_app
+ *)
+val pack_existT : existT_app -> types
+val dest_existT : types -> existT_app
 
 (*
  * Pack a sigT type from an index type and a packer 

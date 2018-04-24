@@ -65,63 +65,6 @@ let define_term (n : Id.t) (env : env) (evm : evar_map) (trm : types) : unit =
     (extern env evm trm)
     None
     (Lemmas.mk_hook (fun _ _ -> ()))
-                             
-(* --- Constructing terms --- *)
-
-(* mkApp with a list *)
-let mkAppl (f, args) = mkApp (f, Array.of_list args)
-
-(* Define a constant from an ID in the current path *)
-let make_constant id =
-  mkConst (Constant.make2 current_path (Label.of_id id))
-
-(* Recursively turn a product into a function *)
-let rec prod_to_lambda trm =
-  match kind_of_term trm with
-  | Prod (n, t, b) ->
-     mkLambda (n, t, prod_to_lambda b)
-  | _ ->
-     trm
-
-(* Recursively turn a function into a product *)
-let rec lambda_to_prod trm =
-  match kind_of_term trm with
-  | Lambda (n, t, b) ->
-     mkProd (n, t, lambda_to_prod b)
-  | _ ->
-     trm
-
-(*
- * Pack an existT term from an index type, packer, index, and unpacked version 
- *)
-let pack_existT index_type packer index unpacked =
-  mkAppl (existT, [index_type; packer; index; unpacked])
-
-(*
- * Pack a sigT type from an index type and a packer
- *)
-let pack_sigT index_type packer =
-  mkAppl (sigT, [index_type; packer])
-
-(*
- * Eliminate a sigT given an index type, packer, packed type, unpacked term,
- * and the term itself
- *)
-let elim_sigT index_type packer packed_type unpacked trm =
-  mkAppl (sigT_rect, [index_type; packer; packed_type; unpacked; trm])
-
-(*
- * Left projection of a sigma type
- *)
-let project_index index_typ typ trm =
-  mkAppl (projT1, [index_typ; typ; trm])
-
-(*
- * Right projection of a sigma type
- *)
-let project_value index_typ typ trm =
-  mkAppl (projT2, [index_typ; typ; trm])
-
 
 (* --- Application and arguments --- *)
 
@@ -163,6 +106,80 @@ let get_arg i trm =
      Array.get args i
   | _ ->
      failwith "not an application"
+    
+(* --- Constructing terms --- *)
+
+(* mkApp with a list *)
+let mkAppl (f, args) = mkApp (f, Array.of_list args)
+
+(* Define a constant from an ID in the current path *)
+let make_constant id =
+  mkConst (Constant.make2 current_path (Label.of_id id))
+
+(* Recursively turn a product into a function *)
+let rec prod_to_lambda trm =
+  match kind_of_term trm with
+  | Prod (n, t, b) ->
+     mkLambda (n, t, prod_to_lambda b)
+  | _ ->
+     trm
+
+(* Recursively turn a function into a product *)
+let rec lambda_to_prod trm =
+  match kind_of_term trm with
+  | Lambda (n, t, b) ->
+     mkProd (n, t, lambda_to_prod b)
+  | _ ->
+     trm
+
+(*
+ * An application of existT
+ *)
+type existT_app =
+  {
+    index_type : types;
+    packer : types;
+    index : types;
+    unpacked : types;
+  }
+
+(*
+ * Pack an existT term from an index type, packer, index, and unpacked version 
+ *)
+let pack_existT (app : existT_app) : types =
+  mkAppl (existT, [app.index_type; app.packer; app.index; app.unpacked])
+
+(*
+ * Deconstruct an existT term
+ *)
+let dest_existT (trm : types) : existT_app =
+  let [index_type; packer; index; unpacked] = unfold_args trm in
+  { index_type; packer; index; unpacked }
+
+(*
+ * Pack a sigT type from an index type and a packer
+ *)
+let pack_sigT index_type packer =
+  mkAppl (sigT, [index_type; packer])
+
+(*
+ * Eliminate a sigT given an index type, packer, packed type, unpacked term,
+ * and the term itself
+ *)
+let elim_sigT index_type packer packed_type unpacked trm =
+  mkAppl (sigT_rect, [index_type; packer; packed_type; unpacked; trm])
+
+(*
+ * Left projection of a sigma type
+ *)
+let project_index index_typ typ trm =
+  mkAppl (projT1, [index_typ; typ; trm])
+
+(*
+ * Right projection of a sigma type
+ *)
+let project_value index_typ typ trm =
+  mkAppl (projT2, [index_typ; typ; trm])
 
 (* --- Convertibility, reduction, and types --- *)
                                 

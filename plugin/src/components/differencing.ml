@@ -477,12 +477,12 @@ let make_packer env evd typ args (index_i, index_typ) is_fwd =
  * Pack the conclusion of an ornamental promotion
  *)
 let pack_conclusion env evd idx f_indexer n unpacked =
-  let (_, index_typ) = idx in
   let (ind, arity) = n in
   let off = arity - 1 in
+  let index_type = shift_by off (snd idx) in
   let packer = make_packer env evd ind (mk_n_rels off) idx true in
   let index = mkAppl (f_indexer, mk_n_rels arity) in
-  (env, pack_existT (shift_by off index_typ) packer index unpacked)
+  (env, pack_existT {index_type; packer; index; unpacked})
     
 (*
  * Pack the hypothesis type into a sigT, and update the environment

@@ -128,9 +128,9 @@ let pack_inner env evd l unpacked =
   let typ = reduce_type env evd unpacked in
   let index = get_arg index_i typ in
   let typ_args = unfold_args typ in
-  let index_typ = infer_type env evd index in
+  let index_type = infer_type env evd index in
   let packer = abstract_arg env evd index_i typ in
-  let ex = pack_existT index_typ packer index unpacked in
+  let ex = pack_existT {index_type; packer; index; unpacked} in
   mkAppl (lift_back l, snoc ex (remove_index index_i typ_args))
 
 (*
@@ -257,7 +257,7 @@ let reduce_ornament_f_arg l env evd orn trm arg =
           let fold_value = all_eq_substs (orn_red_unpacked, arg_value) in
           let index = fold_index index_red in
           let unpacked = fold_index (fold_value unpacked_red) in
-          (unpacked_red, unpacked, pack_existT index_type packer index unpacked)
+          (unpacked_red, unpacked, pack_existT {index_type; packer; index; unpacked})
         else
           let app_red = reduce_nf env unfolded in
           let app =
