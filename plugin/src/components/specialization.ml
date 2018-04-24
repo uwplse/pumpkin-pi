@@ -248,9 +248,10 @@ let reduce_ornament_f_arg l env evd orn trm arg =
           let index_red = reduce_nf env index in
           let unpacked_red = reduce_nf env unpacked in
           let [_; _; _; unpacked_orn] = unfold_args orn_app_ind in
-          let packed_type = on_type abstract env evd unpacked_orn in
-          let arg_indexer = project_index index_type packed_type arg in
-          let arg_value = project_value index_type packed_type arg in
+          let packer = on_type abstract env evd unpacked_orn in
+          let arg_indexer = project_index index_type packer arg in
+          let arg_value = project_value index_type packer arg in
+          (* TODO move these to dest_existT, etc *)
           let [_; _; orn_red_index; orn_red_unpacked] = unfold_args orn_app_red  in
           let fold_index = all_eq_substs (orn_red_index, arg_indexer) in
           let fold_value = all_eq_substs (orn_red_unpacked, arg_value) in
@@ -258,16 +259,15 @@ let reduce_ornament_f_arg l env evd orn trm arg =
           let unpacked = fold_index (fold_value unpacked_red) in
           (unpacked_red, unpacked, pack_existT index_type packer index unpacked)
         else if not l.is_indexer then
-          let app = reduce_nf env unfolded in
-          let index_type = on_type (get_arg 0) env evd arg in
-          let packed_type = abstract_body (mkLambda (Anonymous, index_type, shift arg_typ)) in
-          let arg_indexer = project_index index_type packed_type arg in
-          let arg_value = project_value index_type packed_type arg in
-          let orn_app_app = mkAppl (get_arg 3 orn_app_ind, [arg_indexer; arg_value]) in
-          let orn_app_app_red = reduce_nf env orn_app_app in
-          let app_sub = all_eq_substs (orn_app_app_red, arg) app in
-          (* TODO is that sound? think more about other cases *)
-          (app, app_sub, app_sub)
+          let red = reduce_nf env unfolded in
+          let [index_type; packer; _; unpacked; _] = unfold_args orn_app_ind in
+          let arg_indexer = project_index index_type packer arg in
+          let arg_value = project_value index_type packer arg in
+          let unpacked_app = mkAppl (unpacked, [arg_indexer; arg_value]) in
+          let unpacked_app_red = reduce_nf env unpacked_app in
+          let fold_arg = all_eq_substs (unpacked_app_red, arg) in
+          let app_sub = fold_arg red in (* TODO rename me *)
+          (red, app_sub, app_sub)
         else
           let app = reduce_nf env unfolded in
           let app_sub = all_eq_substs (orn_app_red, orn_app) app in
