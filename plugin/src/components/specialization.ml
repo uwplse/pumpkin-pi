@@ -239,19 +239,19 @@ let reduce_ornament_f_arg l env evd orn trm arg =
     (fun _ _ trm -> applies orn trm)
     (fun env (arg, arg_typ) trm ->
       try
+        let unfolded = chain_reduce reduce_term delta env trm in
+        let orn_args = map_backward deindex l (unfold_args arg_typ) in
+        let orn_app = mkAppl (orn, snoc arg orn_args) in
+        let orn_app_ind = reduce_to_ind env orn_app in
+        let orn_app_red = reduce_nf env orn_app in
         let (app, app_sub_body, app_sub) =
-          let unfolded = chain_reduce reduce_term delta env trm in
-          let orn_args = map_backward deindex l (unfold_args arg_typ) in
-          let orn_app = mkAppl (orn, snoc arg orn_args) in
-          let orn_app_ind = reduce_to_ind env orn_app in
-          let orn_app_red = reduce_nf env orn_app in
           if l.is_fwd && not l.is_indexer then
-            let indexer = reduce_nf env (get_arg 2 unfolded) in
-            let app = reduce_nf env (get_arg 3 unfolded) in
+            let [index_type; packer; index; unpacked] = unfold_args unfolded in
+            let indexer = reduce_nf env index in
+            let app = reduce_nf env unpacked in
             let orn_app_app = get_arg 3 orn_app_ind in
             let orn_app_app_arg = last_arg orn_app_app in
             let packed_type_old = reduce_type env evd orn_app_app in
-            let index_type = reduce_type env evd (get_index packed_type_old) in
             let packed_type = abstract packed_type_old in
             let orn_app_indexer = project_index index_type packed_type orn_app_app_arg in
             let orn_app_app_arg = project_value index_type packed_type orn_app_app_arg in
@@ -260,7 +260,7 @@ let reduce_ornament_f_arg l env evd orn trm arg =
             let ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) indexer in
             let app_sub = all_eq_substs (orn_app_red_app, orn_app_app_arg) app in
             let app_ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) app_sub in
-            (app, app_ind_sub, mkAppl (existT, reindex 3 app_ind_sub (reindex 2 ind_sub (unfold_args unfolded))))
+            (app, app_ind_sub, pack_existT index_type packer ind_sub app_ind_sub)
           else if not l.is_indexer then
             let app = reduce_nf env unfolded in
             let index_type = get_arg 0 (infer_type env evd arg) in
