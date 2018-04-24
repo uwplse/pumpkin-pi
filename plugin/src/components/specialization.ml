@@ -411,10 +411,9 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let env_f_body_old = zoom_env zoom_lambda_term env_f c_f in
   let c_f = compose_ih evd npms_g ip_g p comp in
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
-  let (env_g_body, g_body) = zoom_lambda_term env_g c_g in
-  let is_g = comp.is_g in
+  let env_g_body = zoom_env zoom_lambda_term env_g c_g in
   let f_body =
-    if not is_g then
+    if not comp.is_g then
       (* TODO f_f logic unclear *)
       let f_f = shift_local (if l.is_fwd then 0 else List.length post_assums) (offset2 env_f env_g) c_g in
       let f = shift_to_env (env_f, env_f_body) f_f in
@@ -432,9 +431,9 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
               let packed_type = get_arg 1 orn_typ in
               project_index index_type packed_type orn
             else
-              map_unit_env_if
-                (fun env trm -> on_type is_deorn env evd trm)
-                (fun env trm ->
+              map_term_env_if
+                (on_type is_deorn)
+                (fun env evd trm ->
                   let typ = reduce_type env evd trm in
                   if l.is_fwd then
                     pack_inner env evd l trm
@@ -446,8 +445,10 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
                     (* line below sensitive to how we define ornaments *)
                     let (_, index_type, _) = destLambda packed_type in
                     project_value index_type packed_type orn)
-              env_f_body
-              arg)
+                (fun evd -> evd)
+                env_f_body
+                evd
+                arg)
           (get_all_hypos c_g)
       in reduce_term env_f_body (mkAppl (f, args))
     else
