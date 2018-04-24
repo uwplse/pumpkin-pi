@@ -248,16 +248,15 @@ let reduce_ornament_f_arg l env evd orn trm arg =
           let index_red = reduce_nf env index in
           let unpacked_red = reduce_nf env unpacked in
           let [_; _; _; unpacked_orn] = unfold_args orn_app_ind in
-          let packed_type_old = reduce_type env evd unpacked_orn in
-          let packed_type = abstract packed_type_old in
-          let orn_app_indexer = project_index index_type packed_type arg in
-          let orn_app_app_arg = project_value index_type packed_type arg in
-          let orn_app_red_app = get_arg 3 orn_app_red in
-          let orn_app_indexer_red = get_arg 2 orn_app_red in
-          let ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) index_red in
-          let app_sub = all_eq_substs (orn_app_red_app, orn_app_app_arg) unpacked_red in
-          let app_ind_sub = all_eq_substs (orn_app_indexer_red, orn_app_indexer) app_sub in
-          (unpacked_red, app_ind_sub, pack_existT index_type packer ind_sub app_ind_sub)
+          let packed_type = on_type abstract env evd unpacked_orn in
+          let arg_indexer = project_index index_type packed_type arg in
+          let arg_value = project_value index_type packed_type arg in
+          let [_; _; orn_red_index; orn_red_unpacked] = unfold_args orn_app_red in
+          let fold_index = all_eq_substs (orn_red_index, arg_indexer) in
+          let fold_value = all_eq_substs (orn_red_unpacked, arg_value) in
+          let index = fold_index index_red in
+          let unpacked = fold_index (fold_value unpacked_red) in
+          (unpacked_red, unpacked, pack_existT index_type packer index unpacked)
         else if not l.is_indexer then
           let app = reduce_nf env unfolded in
           let index_type = get_arg 0 (infer_type env evd arg) in
