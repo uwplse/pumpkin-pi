@@ -231,7 +231,6 @@ let compose_ih evd npms ip p comp =
  *)
 let reduce_ornament_f_arg l env evd orn trm arg =
   let index_i = Option.get l.orn.index_i in
-  let index_type = get_arg 0 (infer_type env evd arg) in
   map_term_env_if
     (fun _ _ trm -> applies orn trm)
     (fun env (arg, arg_typ) trm ->
