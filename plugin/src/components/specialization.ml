@@ -227,7 +227,8 @@ let compose_ih evd npms ip p comp =
  * Meta-reduction of an applied ornament in the forward direction in the
  * non-indexer case, when the ornament application produces an existT term.
  *)
-let reduce_existT_app l env evd orn_app trm arg =
+let reduce_existT_app l env evd orn trm arg =
+  let orn_app = mkAppl (orn, snoc arg (on_type unfold_args env evd arg)) in
   let unfolded = chain_reduce reduce_term delta env trm in
   let orn_app_red = reduce_nf env orn_app in
   let orn_app_ind = reduce_to_ind env orn_app in
@@ -254,7 +255,8 @@ let reduce_existT_app l env evd orn_app trm arg =
 (*
  * Meta-reduction of an applied ornament in the indexer case.
  *)
-let reduce_indexer_app l env evd orn_app trm arg =
+let reduce_indexer_app l env evd orn trm arg =
+  let orn_app = mkAppl (orn, snoc arg (on_type unfold_args env evd arg)) in
   let unfolded = chain_reduce reduce_term delta env trm in
   let orn_app_red = reduce_nf env orn_app in
   let app_red = reduce_nf env unfolded in
@@ -270,7 +272,10 @@ let reduce_indexer_app l env evd orn_app trm arg =
  * Meta-reduction of an applied ornament in the backwards non-indexer case,
  * when the application of the induction principle eliminates a sigT.
  *)
-let reduce_sigT_elim_app l env evd orn_app trm arg =
+let reduce_sigT_elim_app l env evd orn trm arg =
+  let deindex = remove_index (Option.get l.orn.index_i) in
+  let arg_typ = unshift (on_type zoom_sig_app env evd arg) in
+  let orn_app = mkAppl (orn, snoc arg (deindex (unfold_args arg_typ))) in
   let unfolded = chain_reduce reduce_term delta env trm in
   let orn_app_red = reduce_nf env orn_app in
   let orn_app_ind = reduce_to_ind env orn_app in
@@ -307,17 +312,14 @@ let meta_reduction_function l =
  * in terms of the ornament and indexer applied to the specific argument.
  *)
 let reduce_ornament_f_arg l env evd orn trm arg =
-  let deindex = remove_index (Option.get l.orn.index_i) in
   let reduce = meta_reduction_function l in
   map_term_env_if
     (fun _ _ trm -> applies orn trm)
-    (fun env (arg, arg_typ) trm ->
-      let orn_args = map_backward deindex l (unfold_args arg_typ) in
-      let orn_app = mkAppl (orn, snoc arg orn_args) in
-      reduce l env evd orn_app trm arg)
-    (map_tuple shift)
+    (fun env arg trm ->
+      reduce l env evd orn trm arg)
+    shift
     env
-    (arg, on_type (map_backward (fun t -> unshift (zoom_sig_app t)) l) env evd arg)
+    arg
     trm
   
             
