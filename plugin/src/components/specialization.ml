@@ -224,6 +224,32 @@ let compose_ih evd npms ip p comp =
     c_f
 
 (*
+ * Meta-reduction of an applied in the forward direction in the
+ * non-indexer case, when the ornament application produces an existT term.
+ *)
+let reduce_existT_app l env evd unfolded orn_app_ind orn_app_red trm arg =
+  let index_i = Option.get l.orn.index_i in
+  let abstract = abstract_arg env evd index_i in
+  let unfolded_ex = dest_existT unfolded in
+  let orn_app_ind_ex = dest_existT orn_app_ind in
+  let orn_app_red_ex = dest_existT orn_app_red in
+  let packer = on_type abstract env evd orn_app_ind_ex.unpacked in
+  let arg_indexer = project_index unfolded_ex.index_type packer arg in
+  let arg_value = project_value unfolded_ex.index_type packer arg in
+  let fold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
+  let fold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
+  let unfolded_index_red = reduce_nf env unfolded_ex.index in
+  let unfolded_unpacked_red = reduce_nf env unfolded_ex.unpacked in
+  let index = fold_index unfolded_index_red in
+  let unpacked = fold_index (fold_value unfolded_unpacked_red) in
+  if eq_constr unfolded_unpacked_red unpacked then
+    (* nothing to rewrite *)
+    trm
+  else
+    (* pack the rewritten term *)
+    pack_existT { unfolded_ex with index; unpacked }
+
+(*
  * Meta-reduction of an applied ornament to simplify and then rewrite
  * in terms of the ornament and indexer applied to the specific argument.
  *
@@ -232,7 +258,6 @@ let compose_ih evd npms ip p comp =
 let reduce_ornament_f_arg l env evd orn trm arg =
   let index_i = Option.get l.orn.index_i in
   let deindex = remove_index index_i in
-  let abstract = abstract_arg env evd index_i in
   let abstract_body = reindex_body (reindex_app (reindex index_i (mkRel 1))) in
   map_term_env_if
     (fun _ _ trm -> applies orn trm)
@@ -243,24 +268,7 @@ let reduce_ornament_f_arg l env evd orn trm arg =
       let orn_app_ind = reduce_to_ind env orn_app in
       let orn_app_red = reduce_nf env orn_app in
       if l.is_fwd && not l.is_indexer then
-        let unfolded_ex = dest_existT unfolded in
-        let orn_app_ind_ex = dest_existT orn_app_ind in
-        let orn_app_red_ex = dest_existT orn_app_red in
-        let packer = on_type abstract env evd orn_app_ind_ex.unpacked in
-        let arg_indexer = project_index unfolded_ex.index_type packer arg in
-        let arg_value = project_value unfolded_ex.index_type packer arg in
-        let fold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
-        let fold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
-        let unfolded_index_red = reduce_nf env unfolded_ex.index in
-        let unfolded_unpacked_red = reduce_nf env unfolded_ex.unpacked in
-        let index = fold_index unfolded_index_red in
-        let unpacked = fold_index (fold_value unfolded_unpacked_red) in
-        if eq_constr unfolded_unpacked_red unpacked then
-          (* nothing to rewrite *)
-          trm
-        else
-          (* pack the rewritten term *)
-          pack_existT { unfolded_ex with index; unpacked }
+        reduce_existT_app l env evd unfolded orn_app_ind orn_app_red trm arg
       else
         let app_red = reduce_nf env unfolded in
         let app =
