@@ -277,7 +277,6 @@ let reduce_sigT_elim_app l evd orn env arg trm =
   let arg_typ = unshift (on_type zoom_sig_app env evd arg) in
   let orn_app = mkAppl (orn, snoc arg (deindex (unfold_args arg_typ))) in
   let unfolded = chain_reduce reduce_term delta env trm in
-  let orn_app_red = reduce_nf env orn_app in
   let orn_app_ind = reduce_to_ind env orn_app in
   let app_red = reduce_nf env unfolded in
   let elim = dest_sigT_elim orn_app_ind in
