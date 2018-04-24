@@ -293,18 +293,18 @@ let reduce_ornament_f l env evd index_i orn trm orn_args =
  * Get the (index arg index, IH) pairs for a constructor
  *)
 let indexes to_typ index_i num_args trm =
-  let rec constr_indexes na t i =
+  let rec constr_indexes t i =
     match kind_of_term t with
     | Prod (n, t, b) ->
-       let num_args_left = na - (i + 1) in
+       let num_args_left = num_args - (i + 1) in
        let index_ih_opt = index_ih index_i to_typ (mkRel 1) b num_args_left in
        map_if
          (fun tl -> (i, Option.get index_ih_opt) :: tl)
          (Option.has_some index_ih_opt)
-         (constr_indexes (na - 1) b (i + 1))
+         (constr_indexes b (i + 1))
     | _ ->
        []
-  in constr_indexes num_args trm 0
+  in constr_indexes trm 0
 
 (* 
  * Reduces the body of a constructor of an indexer
