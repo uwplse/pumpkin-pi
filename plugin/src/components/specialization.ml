@@ -469,7 +469,19 @@ let pack_ihs l env evd (from_typ, to_typ) c_g =
         pack_inner env evd l arg
       else
         arg)
-    (get_all_hypos c_g)   
+    (get_all_hypos c_g)
+
+(*
+ * Given a term with the type we are promoting to/forgetting from, 
+ * get all of the arguments to that type that aren't the new/forgotten index
+ *)
+let non_index_typ_args l env evd trm =
+  if l.is_fwd then
+    on_type unfold_args env evd trm
+  else
+    let app = on_type dest_sigT env evd trm in
+    let deindex = remove_index (Option.get l.orn.index_i) in
+    deindex (unfold_args (reduce_term env (mkAppl (app.packer, [mkRel 0]))))
   
 (*
  * Compose two constructors for two applications of an induction principle
@@ -522,15 +534,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       in
       (* Does this generalize, too? *)
       let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
-      let typ_args =
-        if l.is_fwd then
-          on_type unfold_args env_f_body_old evd f_body
-        else
-          let f_body_app = on_type dest_sigT env_f_body_old evd f_body in
-          let packer = f_body_app.packer in
-          let packed = reduce_term env_f_body_old (mkAppl (packer, [mkRel 0])) in
-          remove_index index_i (unfold_args packed)
-      in
+      let typ_args = non_index_typ_args l env_f_body_old evd f_body in
       let app_pre_red = mkAppl (f, snoc f_body typ_args) in
       (* TODO reinspect condition below, may be bad sometimes *)
       let app = reduce_constr_body env_f_body_old evd l is_orn index_i index_args app_pre_red in
