@@ -608,12 +608,12 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
   let p = compose_p evd npms post_assums inner c_p in
   let (cs, indexer) =
     if applies sigT_rect f then
-      (* TODO factoring should handle *)
-      (* bubble inside the sigT_rect (is this the best way?) *)
+      (* recurse inside the sigT_rect *)
+      let compose_rec = compose_inductive evd idx_n post_assums assum_ind true in
       let c = List.hd f_app.cs in
       let (env_c, c_body) = zoom_lambda_term env_f c in
-      let c_cs = { comp with f = (env_c, c_body)} in
-      let (c_comp, indexer) = compose_inductive evd idx_n post_assums assum_ind true c_cs in
+      let c_inner = { comp with f = (env_c, c_body)} in
+      let (c_comp, indexer) = compose_rec c_inner in
       ([reconstruct_lambda_n env_c c_comp (nb_rel env_f)], indexer)
     else
       let gs =
