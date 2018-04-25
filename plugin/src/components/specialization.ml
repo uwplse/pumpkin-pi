@@ -488,10 +488,6 @@ let non_index_typ_args l env evd trm =
  * that are structurally the same when one is an ornament.
  *
  * For now, this does not handle nested induction.
- *
- * TODO clean, refactor orn/deorn, take fewer arguments, etc.
- * TODO can massively simplify with packed type, but will take work
- * to figure out exactly what can go
  *)
 let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let l = comp.l in
@@ -523,10 +519,9 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
           is_or_applies from_typ trm
         else
           if is_or_applies sigT trm then
-            (* TODO fails in vector A case instead of lamda ... vector A n [instead, check all args are equal) *)
             let ind_app = dest_sigT ind_g_typ in
             let trm_app = dest_sigT trm in
-            let unpacked_type = zoom_sig trm in
+            let unpacked_type = first_fun (reduce_term env (mkAppl (trm_app.packer, [mkRel 0]))) in
             eq_constr to_typ unpacked_type &&
             eq_constr ind_app.index_type trm_app.index_type
           else
