@@ -425,21 +425,32 @@ let filter_orn l env evd (from_typ, to_typ) index_type args =
       else
         false
   in List.filter (on_type (is_orn env) env evd) args
-  
+
 (*
- * This reduces the body of an ornamented constructor to a reasonable term
+ * When we ornament in both directions and we're currently reducing g o f
+ * where g is the promotion/forgetful function and f is already reduced,
+ * we need to unpack applications of the function to the inductive
+ * hypotheses. This function does that.
+ *)
+let unpack_ihs f ihs trm =
+  map_unit_if
+    (fun t ->
+      isApp t && applies f t && List.exists (eq_constr (last_arg t)) ihs)
+    last_arg
+    trm
+                 
+(*
+ * This reduces the body of an ornamented constructor to a reasonable term,
+ * when we ornament in both directions
  *)
 let reduce_constr_body env evd l (from_typ, to_typ) index_type index_args body =
   let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
   let all_args = mk_n_rels (nb_rel env) in
   let orn_args = filter_orn l env evd (from_typ, to_typ) index_type all_args in
   let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
-  map_unit_if
-    (fun trm ->
-      isApp trm &&
-        applies f trm &&
-          List.exists (eq_constr (last_arg trm)) ihs)
-    last_arg
+  unpack_ihs
+    f
+    ihs
     (map_if
        (reduce_nf env)
        (List.length index_args = 0 && not l.is_indexer)
