@@ -407,11 +407,12 @@ let pre_reduce l =
     reduce_promoted_constr_body l
   else
     reduce_forgotten_constr_body l
-  
+
 (*
- * This reduces the body of an ornamented constructor to a reasonable term
+ * Filter the arguments to only the ones that have the type we are
+ * promoting/forgetting from
  *)
-let reduce_constr_body env evd l (from_typ, to_typ) ind_g_typ index_args body =
+let filter_orn l env evd (from_typ, to_typ) index_type args =
   let is_orn env trm =
     if l.is_fwd then
       is_or_applies from_typ trm
@@ -420,13 +421,18 @@ let reduce_constr_body env evd l (from_typ, to_typ) ind_g_typ index_args body =
         let trm_app = dest_sigT trm in
         let unpacked_type = first_fun (dummy_index env trm_app.packer) in
         eq_constr to_typ unpacked_type &&
-        eq_constr (dest_sigT ind_g_typ).index_type trm_app.index_type
+        eq_constr index_type trm_app.index_type
       else
         false
-  in
+  in List.filter (on_type (is_orn env) env evd) args
+  
+(*
+ * This reduces the body of an ornamented constructor to a reasonable term
+ *)
+let reduce_constr_body env evd l (from_typ, to_typ) index_type index_args body =
   let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
-  let orn_args = mk_n_rels (nb_rel env) in
-  let orn_args = List.filter (on_type (is_orn env) env evd) orn_args in
+  let all_args = mk_n_rels (nb_rel env) in
+  let orn_args = filter_orn l env evd (from_typ, to_typ) index_type all_args in
   map_if
     (reduce_nf env)
     (List.length index_args = 0 && not l.is_indexer)
@@ -530,7 +536,8 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
       let typ_args = non_index_typ_args l env_f_body_old evd f_body in
       let app_pre_red = mkAppl (f, snoc f_body typ_args) in
-      let app = reduce_constr_body env_f_body_old evd l (from_typ, to_typ) ind_g_typ index_args app_pre_red in
+      let index_type = (dest_sigT (directional l ind_f_typ ind_g_typ)).index_type in
+      let app = reduce_constr_body env_f_body_old evd l (from_typ, to_typ) index_type index_args app_pre_red in
       let f_body =
         map_unit_if
           (fun trm ->
