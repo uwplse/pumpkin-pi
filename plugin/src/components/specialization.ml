@@ -347,7 +347,7 @@ let indexes to_typ index_i num_args trm =
          (constr_indexes b (i + 1))
     | _ ->
        []
-  in constr_indexes trm 0
+  in constr_indexes (lambda_to_prod trm) 0
 
 (* 
  * Reduces the body of a constructor of an indexer
@@ -484,7 +484,7 @@ let project_value_from_ih l env evd ih =
  *)
 let project_ihs l env evd (from_typ, to_typ) c_g =
   let index_i = Option.get l.orn.index_i in
-  let index_args = indexes to_typ index_i (arity c_g) (lambda_to_prod c_g) in
+  let index_args = indexes to_typ index_i (arity c_g) c_g in
   List.mapi
     (fun i arg ->
       if List.mem_assoc i index_args then
@@ -530,12 +530,10 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let l = comp.l in
   let (env_g, c_g) = comp.g in
   let (env_f, c_f) = comp.f in
-  let (orn_f, orn_g) = (lift_back l, lift_to l) in
-  let ind_f_typ = fst (on_type ind_of_promotion_type env_f evd orn_f) in
-  let ind_g_typ = fst (on_type ind_of_promotion_type env_g evd orn_g) in
-  let forget_typ = map_directional zoom_sig first_fun l ind_f_typ in
-  let promote_typ = map_directional first_fun zoom_sig l ind_g_typ in
-  let (to_typ, from_typ) = map_backward reverse l (forget_typ, promote_typ) in
+  let (orn_f, orn_g) = (l.orn.forget, l.orn.promote) in
+  let promotion_type env trm = fst (on_type ind_of_promotion_type env evd trm) in
+  let to_typ = zoom_sig (promotion_type env_f orn_f) in
+  let from_typ = first_fun (promotion_type env_g orn_g) in
   let env_f_body_old = zoom_env zoom_lambda_term env_f c_f in
   let c_f = compose_ih evd npms_g ip_g p comp in
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
@@ -548,11 +546,12 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       let args = lift_args l env_f_body evd (from_typ, to_typ) c_g in
       reduce_term env_f_body (mkAppl (f, args))
     else
-      let index_i = Option.get l.orn.index_i in
-      let index_args = indexes to_typ index_i (arity c_g) (lambda_to_prod (directional l c_f c_g)) in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
-      let typ_args = non_index_typ_args l env_f_body_old evd f_body in
-      let app = mkAppl (f, snoc f_body typ_args) in
+      let index_i = Option.get l.orn.index_i in
+      let c_indexed = directional l c_f c_g in
+      let index_args = indexes to_typ index_i (arity c_g) c_indexed in
+      let args = snoc f_body (non_index_typ_args l env_f_body_old evd f_body) in
+      let app = mkAppl (f, args) in
       reduce_constr_body env_f_body_old evd l (from_typ, to_typ) index_args app
   in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
 
