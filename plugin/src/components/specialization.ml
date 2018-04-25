@@ -445,7 +445,9 @@ let project_value_from_ih l env evd ih =
 (*
  * This does the index and value projections of the IHs when forgetting.
  *)
-let project_ihs l env evd from_typ index_args args =
+let project_ihs l env evd (from_typ, to_typ) c_g args =
+  let index_i = Option.get l.orn.index_i in
+  let index_args = indexes to_typ index_i (arity c_g) (lambda_to_prod c_g) in
   List.mapi
     (fun i arg ->
       if List.mem_assoc i index_args then
@@ -486,16 +488,15 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       (* TODO f_f logic unclear *)
       let f_f = shift_local (if l.is_fwd then 0 else List.length post_assums) (offset2 env_f env_g) c_g in
       let f = shift_to_env (env_f, env_f_body) f_f in
-      let index_args = indexes to_typ index_i (arity c_g) (lambda_to_prod c_g) in
       let args =
         map_directional
-          (List.mapi
-             (fun i arg ->
+          (List.map
+             (fun arg ->
                if on_type (is_or_applies to_typ) env_f_body evd arg then
                  pack_inner env_f_body evd l arg
                else
                  arg))
-          (project_ihs l env_f_body evd from_typ index_args)
+          (project_ihs l env_f_body evd (from_typ, to_typ) c_g)
           l
           (get_all_hypos c_g)
       in reduce_term env_f_body (mkAppl (f, args))
