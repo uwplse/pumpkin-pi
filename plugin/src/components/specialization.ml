@@ -529,12 +529,11 @@ let non_index_typ_args l env evd trm =
 let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let l = comp.l in
   let (env_g, c_g) = comp.g in
-  let (env_f, c_f) = comp.f in
+  let (env_f, c_f_old) = comp.f in
   let (orn_f, orn_g) = (l.orn.forget, l.orn.promote) in
   let promotion_type env trm = fst (on_type ind_of_promotion_type env evd trm) in
   let to_typ = zoom_sig (promotion_type env_f orn_f) in
   let from_typ = first_fun (promotion_type env_g orn_g) in
-  let env_f_body_old = zoom_env zoom_lambda_term env_f c_f in
   let c_f = compose_ih evd npms_g ip_g p comp in
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let f_body =
@@ -546,6 +545,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       let args = lift_args l env_f_body evd (from_typ, to_typ) c_g in
       reduce_term env_f_body (mkAppl (f, args))
     else
+      let env_f_body_old = zoom_env zoom_lambda_term env_f c_f_old in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
       let index_i = Option.get l.orn.index_i in
       let c_indexed = directional l c_f c_g in
