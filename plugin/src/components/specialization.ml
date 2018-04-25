@@ -458,6 +458,18 @@ let project_ihs l env evd (from_typ, to_typ) c_g =
       else
         arg)
     (get_all_hypos c_g)
+
+(*
+ * In the promotion direction, we need to do the opposite, and pack each IH.
+ *)
+let pack_ihs l env evd (from_typ, to_typ) c_g =
+  List.map
+    (fun arg ->
+      if on_type (is_or_applies to_typ) env evd arg then
+        pack_inner env evd l arg
+      else
+        arg)
+    (get_all_hypos c_g)   
   
 (*
  * Compose two constructors for two applications of an induction principle
@@ -488,20 +500,8 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       (* TODO f_f logic unclear *)
       let f_f = shift_local (if l.is_fwd then 0 else List.length post_assums) (offset2 env_f env_g) c_g in
       let f = shift_to_env (env_f, env_f_body) f_f in
-      let args =
-        map_directional
-          (fun c_g ->
-            List.map
-              (fun arg ->
-                if on_type (is_or_applies to_typ) env_f_body evd arg then
-                  pack_inner env_f_body evd l arg
-                else
-                  arg)
-              (get_all_hypos c_g))
-          (project_ihs l env_f_body evd (from_typ, to_typ))
-          l
-          c_g
-      in reduce_term env_f_body (mkAppl (f, args))
+      let args = map_directional pack_ihs project_ihs l l env_f_body evd (from_typ, to_typ) c_g in
+      reduce_term env_f_body (mkAppl (f, args))
     else
       let index_args = indexes to_typ index_i (arity c_g) (lambda_to_prod (if l.is_fwd then c_f else c_g)) in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
