@@ -511,11 +511,12 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
           is_or_applies from_typ trm
         else
           if is_or_applies sigT trm then
-            let app = dest_sigT ind_g_typ in
+            (* TODO fails in vector A case instead of lamda ... vector A n *)
+            let ind_app = dest_sigT ind_g_typ in
             let trm_app = dest_sigT trm in
             let unpacked_type = zoom_sig trm in
             eq_constr to_typ unpacked_type &&
-            eq_constr app.index_type trm_app.index_type
+            eq_constr ind_app.index_type trm_app.index_type
           else
             false
       in
@@ -525,13 +526,10 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
         if l.is_fwd then
           on_type unfold_args env_f_body_old evd f_body
         else
-          let typ = reduce_type env_f_body_old evd f_body in
-          let packer = get_arg 1 typ in
-          if isLambda packer then (* TODO hack with vector A *)
-            let packer_body = unshift (zoom_term zoom_lambda_term env_f_body_old packer) in
-            remove_index index_i (unfold_args packer_body)
-          else
-            unfold_args packer
+          let f_body_app = on_type dest_sigT env_f_body_old evd f_body in
+          let packer = f_body_app.packer in
+          let packed = reduce_term env_f_body_old (mkAppl (packer, [mkRel 0])) in
+          remove_index index_i (unfold_args packed)
       in
       let app_pre_red = mkAppl (f, snoc f_body typ_args) in
       (* TODO reinspect condition below, may be bad sometimes *)
