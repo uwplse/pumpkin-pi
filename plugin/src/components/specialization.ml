@@ -433,14 +433,21 @@ let reduce_constr_body env evd l (from_typ, to_typ) index_type index_args body =
   let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
   let all_args = mk_n_rels (nb_rel env) in
   let orn_args = filter_orn l env evd (from_typ, to_typ) index_type all_args in
-  map_if
-    (reduce_nf env)
-    (List.length index_args = 0 && not l.is_indexer)
-    (map_unit_if
-       (applies f)
-       (fun trm ->
-         reduce_ornament_f l env evd f (pre_reduce l env evd trm) orn_args)
-       body)
+  let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
+  map_unit_if
+    (fun trm ->
+      isApp trm &&
+        applies f trm &&
+          List.exists (eq_constr (last_arg trm)) ihs)
+    last_arg
+    (map_if
+       (reduce_nf env)
+       (List.length index_args = 0 && not l.is_indexer)
+       (map_unit_if
+          (applies f)
+          (fun trm ->
+            reduce_ornament_f l env evd f (pre_reduce l env evd trm) orn_args)
+          body))
 
 (* 
  * When forgetting, we do not have indices to pass to the constructor,
@@ -532,21 +539,11 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
     else
       let index_args = indexes to_typ index_i (arity c_g) (lambda_to_prod (directional l c_f c_g)) in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
-      (* Does this generalize, too? *)
-      let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
       let typ_args = non_index_typ_args l env_f_body_old evd f_body in
-      let app_pre_red = mkAppl (f, snoc f_body typ_args) in
+      let app = mkAppl (f, snoc f_body typ_args) in
       let index_type = (dest_sigT (directional l ind_f_typ ind_g_typ)).index_type in
-      let app = reduce_constr_body env_f_body_old evd l (from_typ, to_typ) index_type index_args app_pre_red in
-      let f_body =
-        map_unit_if
-          (fun trm ->
-            isApp trm &&
-              applies f trm &&
-                List.exists (eq_constr (last_arg trm)) ihs)
-          last_arg
-          app
-      in map_backward (map_unit_if (applies existT) (get_arg 3)) l f_body
+      let app_red = reduce_constr_body env_f_body_old evd l (from_typ, to_typ) index_type index_args app in
+      map_backward (map_unit_if (applies existT) (get_arg 3)) l app_red
   in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
 
 (* Map compose_c *)
