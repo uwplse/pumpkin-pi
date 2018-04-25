@@ -477,17 +477,18 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       let args =
         List.mapi
           (fun i arg ->
-            if (not l.is_fwd) && (List.mem_assoc i index_args) then
-              let ih = fst (List.assoc i index_args) in
-              project_index_from_ih l env_f_body evd ih
-            else
-              if on_type is_deorn env_f_body evd arg then
-                if l.is_fwd then
-                  pack_inner env_f_body evd l arg
-                else
-                  project_value_from_ih l env_f_body evd arg
+            if not l.is_fwd then
+              if List.mem_assoc i index_args then
+                let ih = fst (List.assoc i index_args) in
+                project_index_from_ih l env_f_body evd ih
+              else if on_type is_deorn env_f_body evd arg then
+                project_value_from_ih l env_f_body evd arg
               else
-                arg)
+                arg
+            else if on_type is_deorn env_f_body evd arg then
+              pack_inner env_f_body evd l arg
+            else
+              arg)
           (get_all_hypos c_g)
       in reduce_term env_f_body (mkAppl (f, args))
     else
