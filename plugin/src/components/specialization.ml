@@ -423,6 +423,15 @@ let reduce_constr_body env evd l is_orn index_i index_args body =
        (fun trm ->
          reduce_ornament_f l env evd f (pre_reduce l env evd trm) orn_args)
        body)
+
+(* 
+ * When forgetting, we do not have indices to pass to the constructor,
+ * so for each of those arguments, we must project the index from the
+ * result of promoting the corresponding IH. This function does that projection.
+ *)
+let project_index_from_ih l env evd ih =
+  let orn = mkAppl (lift_back l, snoc ih (on_type unfold_args env evd ih)) in
+  project_index (on_type dest_sigT env evd orn) orn
   
 (*
  * Compose two constructors for two applications of an induction principle
@@ -460,11 +469,8 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
         List.mapi
           (fun i arg ->
             if (not l.is_fwd) && (List.mem_assoc i index_args) then
-              let (ih, _) = List.assoc i index_args in
-              let ih_typ = reduce_type env_f_body evd ih in
-              let typ_args = unfold_args (reduce_term env_f_body ih_typ) in
-              let orn = mkAppl (lift_back l, snoc ih typ_args) in
-              project_index (on_type dest_sigT env_f_body evd orn) orn
+              let ih = fst (List.assoc i index_args) in
+              project_index_from_ih l env_f_body evd ih
             else
               map_term_env_if
                 (on_type is_deorn)
