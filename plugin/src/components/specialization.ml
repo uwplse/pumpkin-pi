@@ -445,7 +445,7 @@ let project_value_from_ih l env evd ih =
 (*
  * This does the index and value projections of the IHs when forgetting.
  *)
-let project_ihs l env evd (from_typ, to_typ) c_g args =
+let project_ihs l env evd (from_typ, to_typ) c_g =
   let index_i = Option.get l.orn.index_i in
   let index_args = indexes to_typ index_i (arity c_g) (lambda_to_prod c_g) in
   List.mapi
@@ -457,7 +457,7 @@ let project_ihs l env evd (from_typ, to_typ) c_g args =
         project_value_from_ih l env evd arg
       else
         arg)
-    args
+    (get_all_hypos c_g)
   
 (*
  * Compose two constructors for two applications of an induction principle
@@ -490,15 +490,17 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       let f = shift_to_env (env_f, env_f_body) f_f in
       let args =
         map_directional
-          (List.map
-             (fun arg ->
-               if on_type (is_or_applies to_typ) env_f_body evd arg then
-                 pack_inner env_f_body evd l arg
-               else
-                 arg))
-          (project_ihs l env_f_body evd (from_typ, to_typ) c_g)
+          (fun c_g ->
+            List.map
+              (fun arg ->
+                if on_type (is_or_applies to_typ) env_f_body evd arg then
+                  pack_inner env_f_body evd l arg
+                else
+                  arg)
+              (get_all_hypos c_g))
+          (project_ihs l env_f_body evd (from_typ, to_typ))
           l
-          (get_all_hypos c_g)
+          c_g
       in reduce_term env_f_body (mkAppl (f, args))
     else
       let index_args = indexes to_typ index_i (arity c_g) (lambda_to_prod (if l.is_fwd then c_f else c_g)) in
