@@ -616,6 +616,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
       let (c_comp, indexer) = compose_rec c_inner in
       ([reconstruct_lambda_n env_c c_comp (nb_rel env_f)], indexer)
     else
+      (* compose the constructors *)
       let gs =
         map_if
           (fun (env, cs) ->
