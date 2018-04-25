@@ -500,7 +500,8 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       (* TODO f_f logic unclear *)
       let f_f = shift_local (if l.is_fwd then 0 else List.length post_assums) (offset2 env_f env_g) c_g in
       let f = shift_to_env (env_f, env_f_body) f_f in
-      let args = map_directional pack_ihs project_ihs l l env_f_body evd (from_typ, to_typ) c_g in
+      let lift_args = map_directional pack_ihs project_ihs l in
+      let args = lift_args l env_f_body evd (from_typ, to_typ) c_g in
       reduce_term env_f_body (mkAppl (f, args))
     else
       let index_args = indexes to_typ index_i (arity c_g) (lambda_to_prod (if l.is_fwd then c_f else c_g)) in
