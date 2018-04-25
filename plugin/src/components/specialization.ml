@@ -448,17 +448,16 @@ let reduce_constr_body env evd l (from_typ, to_typ) index_type index_args body =
   let all_args = mk_n_rels (nb_rel env) in
   let orn_args = filter_orn l env evd (from_typ, to_typ) index_type all_args in
   let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
-  unpack_ihs
-    f
-    ihs
-    (map_if
-       (reduce_nf env)
-       (List.length index_args = 0 && not l.is_indexer)
-       (map_unit_if
-          (applies f)
-          (fun trm ->
-            reduce_ornament_f l env evd f (pre_reduce l env evd trm) orn_args)
-          body))
+  let red_body =
+    map_if
+      (reduce_nf env)
+      (List.length index_args = 0 && not l.is_indexer)
+      (map_unit_if
+         (applies f)
+         (fun trm ->
+           reduce_ornament_f l env evd f (pre_reduce l env evd trm) orn_args)
+         body)
+  in unpack_ihs f ihs red_body
 
 (* 
  * When forgetting, we do not have indices to pass to the constructor,
@@ -553,8 +552,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       let typ_args = non_index_typ_args l env_f_body_old evd f_body in
       let app = mkAppl (f, snoc f_body typ_args) in
       let index_type = (dest_sigT (directional l ind_f_typ ind_g_typ)).index_type in
-      let app_red = reduce_constr_body env_f_body_old evd l (from_typ, to_typ) index_type index_args app in
-      map_backward (map_unit_if (applies existT) (get_arg 3)) l app_red
+      reduce_constr_body env_f_body_old evd l (from_typ, to_typ) index_type index_args app
   in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
 
 (* Map compose_c *)
