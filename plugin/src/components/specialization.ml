@@ -481,16 +481,12 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
               let ih = fst (List.assoc i index_args) in
               project_index_from_ih l env_f_body evd ih
             else
-              map_term_env_if
-                (on_type is_deorn)
-                (fun env evd trm ->
-                  if l.is_fwd then
-                    pack_inner env evd l trm
-                  else
-                    project_value_from_ih l env evd trm)
-                (fun evd -> evd)
-                env_f_body
-                evd
+              if on_type is_deorn env_f_body evd arg then
+                if l.is_fwd then
+                  pack_inner env_f_body evd l arg
+                else
+                  project_value_from_ih l env_f_body evd arg
+              else
                 arg)
           (get_all_hypos c_g)
       in reduce_term env_f_body (mkAppl (f, args))
