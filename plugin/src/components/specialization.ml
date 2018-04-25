@@ -497,14 +497,14 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let f_body =
     if not comp.is_g then
-      (* it's still unclear to me why local_min is as it is *)
-      let local_min = directional l 0 (List.length post_assums) in
-      let f = shift_local local_min (offset2 env_f_body env_g) c_g in
+      (* it's still unclear to me why local_max is what it is *)
+      let local_max = directional l 0 (List.length post_assums) in
+      let f = shift_local local_max (offset2 env_f_body env_g) c_g in
       let lift_args = map_directional pack_ihs project_ihs l in
       let args = lift_args l env_f_body evd (from_typ, to_typ) c_g in
       reduce_term env_f_body (mkAppl (f, args))
     else
-      let index_args = indexes to_typ index_i (arity c_g) (lambda_to_prod (if l.is_fwd then c_f else c_g)) in
+      let index_args = indexes to_typ index_i (arity c_g) (lambda_to_prod (directional l c_f c_g)) in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
       let is_orn env trm =
         let typ = if l.is_fwd then from_typ else shift_by (offset env_f_body 1) ind_g_typ in
