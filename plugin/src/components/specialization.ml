@@ -410,18 +410,20 @@ let pre_reduce l =
 
 (*
  * Filter the arguments to only the ones that have the type we are
- * promoting/forgetting from
+ * promoting/forgetting from.
+ *
+ * For simplicity, we assume that the function doesn't have any other
+ * applications of that type that don't use the new index, otherwise
+ * we would need to track the type arguments everywhere, which is tedious
  *)
-let filter_orn l env evd (from_typ, to_typ) index_type args =
+let filter_orn l env evd (from_typ, to_typ) args =
   let is_orn env trm =
     if l.is_fwd then
       is_or_applies from_typ trm
     else
       if is_or_applies sigT trm then
         let trm_app = dest_sigT trm in
-        let unpacked_type = first_fun (dummy_index env trm_app.packer) in
-        eq_constr to_typ unpacked_type &&
-        eq_constr index_type trm_app.index_type
+        eq_constr to_typ (first_fun (dummy_index env trm_app.packer))
       else
         false
   in List.filter (on_type (is_orn env) env evd) args
@@ -443,10 +445,10 @@ let unpack_ihs f ihs trm =
  * This reduces the body of an ornamented constructor to a reasonable term,
  * when we ornament in both directions
  *)
-let reduce_constr_body env evd l (from_typ, to_typ) index_type index_args body =
+let reduce_constr_body env evd l (from_typ, to_typ) index_args body =
   let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
   let all_args = mk_n_rels (nb_rel env) in
-  let orn_args = filter_orn l env evd (from_typ, to_typ) index_type all_args in
+  let orn_args = filter_orn l env evd (from_typ, to_typ) all_args in
   let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
   let red_body =
     map_if
@@ -526,7 +528,6 @@ let non_index_typ_args l env evd trm =
  *)
 let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let l = comp.l in
-  let index_i = Option.get l.orn.index_i in
   let (env_g, c_g) = comp.g in
   let (env_f, c_f) = comp.f in
   let (orn_f, orn_g) = (lift_back l, lift_to l) in
@@ -547,12 +548,12 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       let args = lift_args l env_f_body evd (from_typ, to_typ) c_g in
       reduce_term env_f_body (mkAppl (f, args))
     else
+      let index_i = Option.get l.orn.index_i in
       let index_args = indexes to_typ index_i (arity c_g) (lambda_to_prod (directional l c_f c_g)) in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
       let typ_args = non_index_typ_args l env_f_body_old evd f_body in
       let app = mkAppl (f, snoc f_body typ_args) in
-      let index_type = (dest_sigT (directional l ind_f_typ ind_g_typ)).index_type in
-      reduce_constr_body env_f_body_old evd l (from_typ, to_typ) index_type index_args app
+      reduce_constr_body env_f_body_old evd l (from_typ, to_typ) index_args app
   in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
 
 (* Map compose_c *)
