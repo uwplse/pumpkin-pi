@@ -481,7 +481,7 @@ let non_index_typ_args l env evd trm =
   else
     let app = on_type dest_sigT env evd trm in
     let deindex = remove_index (Option.get l.orn.index_i) in
-    deindex (unfold_args (reduce_term env (mkAppl (app.packer, [mkRel 0]))))
+    deindex (unfold_args (with_dummy_index env app.packer))
   
 (*
  * Compose two constructors for two applications of an induction principle
@@ -521,7 +521,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
           if is_or_applies sigT trm then
             let ind_app = dest_sigT ind_g_typ in
             let trm_app = dest_sigT trm in
-            let unpacked_type = first_fun (reduce_term env (mkAppl (trm_app.packer, [mkRel 0]))) in
+            let unpacked_type = first_fun (with_dummy_index env trm_app.packer) in
             eq_constr to_typ unpacked_type &&
             eq_constr ind_app.index_type trm_app.index_type
           else

@@ -43,6 +43,13 @@ let reindex_body reindexer lam =
   let (n, t, b) = destLambda lam in
   mkLambda (n, t, reindexer b)
 
+(*
+ * Apply the term to a dummy index, when we would like the other arguments,
+ * but we are not sure if the term is a lambda or curried
+ *)
+let with_dummy_index env f =
+  reduce_term env (mkAppl (f, [mkRel 0]))
+
 (* --- Managing inductive property arguments --- *)
 
 (*
