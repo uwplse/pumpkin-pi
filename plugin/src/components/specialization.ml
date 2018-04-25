@@ -478,11 +478,9 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let forget_typ = map_directional zoom_sig first_fun l ind_f_typ in
   let promote_typ = map_directional first_fun zoom_sig l ind_g_typ in
   let (to_typ, from_typ) = map_backward reverse l (forget_typ, promote_typ) in
-  let is_deorn = is_or_applies (if l.is_fwd then to_typ else from_typ) in
   let env_f_body_old = zoom_env zoom_lambda_term env_f c_f in
   let c_f = compose_ih evd npms_g ip_g p comp in
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
-  let env_g_body = zoom_env zoom_lambda_term env_g c_g in
   let f_body =
     if not comp.is_g then
       (* TODO f_f logic unclear *)
@@ -493,7 +491,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
         map_directional
           (List.mapi
              (fun i arg ->
-               if on_type is_deorn env_f_body evd arg then
+               if on_type (is_or_applies to_typ) env_f_body evd arg then
                  pack_inner env_f_body evd l arg
                else
                  arg))
