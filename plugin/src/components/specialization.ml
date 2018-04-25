@@ -497,9 +497,9 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
   let f_body =
     if not comp.is_g then
-      (* TODO f_f logic unclear *)
-      let f_f = shift_local (if l.is_fwd then 0 else List.length post_assums) (offset2 env_f env_g) c_g in
-      let f = shift_to_env (env_f, env_f_body) f_f in
+      (* it's still unclear to me why local_min is as it is *)
+      let local_min = directional l 0 (List.length post_assums) in
+      let f = shift_local local_min (offset2 env_f_body env_g) c_g in
       let lift_args = map_directional pack_ihs project_ihs l in
       let args = lift_args l env_f_body evd (from_typ, to_typ) c_g in
       reduce_term env_f_body (mkAppl (f, args))
