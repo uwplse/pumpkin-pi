@@ -29,7 +29,7 @@ val reindex : int -> 'a -> 'a list -> 'a list
  * Apply the term to a dummy index, when we would like the other arguments,
  * but we are not sure if the term is a lambda or curried
  *)
-val with_dummy_index : env -> types -> types
+val dummy_index : env -> types -> types
                            
 (*
  * Reindex the arguments of an application using a reindexer
