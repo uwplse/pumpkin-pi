@@ -411,7 +411,7 @@ let pre_reduce l =
 (*
  * This reduces the body of an ornamented constructor to a reasonable term
  *)
-let reduce_constr_body env evd l is_orn index_i index_args body =
+let reduce_constr_body env evd l is_orn index_args body =
   let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
   let orn_args = mk_n_rels (nb_rel env) in
   let orn_args = List.filter (on_type (is_orn env) env evd) orn_args in
@@ -523,7 +523,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
           is_or_applies from_typ trm
         else
           if is_or_applies sigT trm then
-            (* TODO fails in vector A case instead of lamda ... vector A n *)
+            (* TODO fails in vector A case instead of lamda ... vector A n [instead, check all args are equal) *)
             let ind_app = dest_sigT ind_g_typ in
             let trm_app = dest_sigT trm in
             let unpacked_type = zoom_sig trm in
@@ -537,7 +537,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       let typ_args = non_index_typ_args l env_f_body_old evd f_body in
       let app_pre_red = mkAppl (f, snoc f_body typ_args) in
       (* TODO reinspect condition below, may be bad sometimes *)
-      let app = reduce_constr_body env_f_body_old evd l is_orn index_i index_args app_pre_red in
+      let app = reduce_constr_body env_f_body_old evd l is_orn index_args app_pre_red in
       let f_body =
         map_unit_if
           (fun trm ->
