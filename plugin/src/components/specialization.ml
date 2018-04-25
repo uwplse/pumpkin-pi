@@ -460,14 +460,11 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
         List.mapi
           (fun i arg ->
             if (not l.is_fwd) && (List.mem_assoc i index_args) then
-              let index_type = infer_type env_g_body evd arg in
               let (ih, _) = List.assoc i index_args in
               let ih_typ = reduce_type env_f_body evd ih in
               let typ_args = unfold_args (reduce_term env_f_body ih_typ) in
               let orn = mkAppl (lift_back l, snoc ih typ_args) in
-              let orn_typ = reduce_type env_f_body evd orn in
-              let packer = get_arg 1 orn_typ in
-              project_index { index_type ; packer } orn
+              project_index (on_type dest_sigT env_f_body evd orn) orn
             else
               map_term_env_if
                 (on_type is_deorn)
