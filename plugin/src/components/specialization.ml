@@ -441,6 +441,21 @@ let project_index_from_ih l env evd ih =
 let project_value_from_ih l env evd ih =
   let orn = mkAppl (lift_back l, snoc ih (on_type unfold_args env evd ih)) in
   project_value (on_type dest_sigT env evd orn) orn
+
+(*
+ * This does the index and value projections of the IHs when forgetting.
+ *)
+let project_ihs l env evd from_typ index_args args =
+  List.mapi
+    (fun i arg ->
+      if List.mem_assoc i index_args then
+        let ih = fst (List.assoc i index_args) in
+        project_index_from_ih l env evd ih
+      else if on_type (is_or_applies from_typ) env evd arg then
+        project_value_from_ih l env evd arg
+      else
+        arg)
+    args
   
 (*
  * Compose two constructors for two applications of an induction principle
@@ -475,20 +490,15 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       let f = shift_to_env (env_f, env_f_body) f_f in
       let index_args = indexes to_typ index_i (arity c_g) (lambda_to_prod c_g) in
       let args =
-        List.mapi
-          (fun i arg ->
-            if not l.is_fwd then
-              if List.mem_assoc i index_args then
-                let ih = fst (List.assoc i index_args) in
-                project_index_from_ih l env_f_body evd ih
-              else if on_type is_deorn env_f_body evd arg then
-                project_value_from_ih l env_f_body evd arg
-              else
-                arg
-            else if on_type is_deorn env_f_body evd arg then
-              pack_inner env_f_body evd l arg
-            else
-              arg)
+        map_directional
+          (List.mapi
+             (fun i arg ->
+               if on_type is_deorn env_f_body evd arg then
+                 pack_inner env_f_body evd l arg
+               else
+                 arg))
+          (project_ihs l env_f_body evd from_typ index_args)
+          l
           (get_all_hypos c_g)
       in reduce_term env_f_body (mkAppl (f, args))
     else
