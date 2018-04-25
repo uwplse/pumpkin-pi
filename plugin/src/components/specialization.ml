@@ -569,18 +569,18 @@ let compose_cs evd npms ip p post_assums comp gs fs =
  *)
 let build_lifted_indexer evd idx_n assum_ind comp =
   let l = comp.l in
-  let (env_f, f) = comp.f in
+  let (env, f) = comp.f in
   if l.is_fwd && comp.is_g && not l.is_indexer then
     let index_ind = assum_ind + 1 in
-    let post_assum_ind = assum_ind - 1 in
+    let stop_ind = assum_ind - 1 in
     let indexer = Option.get l.orn.indexer in
-    let (env_f_body, f_body) = zoom_lambda_term env_f f in
-    let index_args = snoc f_body (on_type unfold_args env_f_body evd f_body) in
+    let (env_b, b) = zoom_lambda_term env f in
+    let index_args = snoc b (on_type unfold_args env_b evd b) in
     let indexer_app = mkAppl (indexer, index_args) in
-    let unpacked_rels = offset env_f_body 2 in
-    let unpacked = reconstruct_lambda_n_skip env_f_body indexer_app unpacked_rels post_assum_ind in
-    let env_packed = pop_rel_context index_ind env_f_body in
-    let index_type = infer_type env_f_body evd (mkRel index_ind) in
+    let unpack e t = reconstruct_lambda_n_skip e t (offset e 2) stop_ind in 
+    let unpacked = unpack env_b indexer_app in
+    let env_packed = pop_rel_context index_ind env_b in
+    let index_type = infer_type env_b evd (mkRel index_ind) in
     let packer = infer_type env_packed evd (mkRel assum_ind) in
     let packed_type = mkLambda (Anonymous, packer, shift index_type) in
     let arg = mkRel assum_ind in
