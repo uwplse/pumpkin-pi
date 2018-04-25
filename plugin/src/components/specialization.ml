@@ -432,6 +432,15 @@ let reduce_constr_body env evd l is_orn index_i index_args body =
 let project_index_from_ih l env evd ih =
   let orn = mkAppl (lift_back l, snoc ih (on_type unfold_args env evd ih)) in
   project_index (on_type dest_sigT env evd orn) orn
+                
+(* 
+ * When forgetting, for every IH, to pass that IH to the constructor, 
+ * we must project out the value from the result of promoting the IH. 
+ * This function does that promotion.
+ *)
+let project_value_from_ih l env evd ih =
+  let orn = mkAppl (lift_back l, snoc ih (on_type unfold_args env evd ih)) in
+  project_value (on_type dest_sigT env evd orn) orn
   
 (*
  * Compose two constructors for two applications of an induction principle
@@ -478,9 +487,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
                   if l.is_fwd then
                     pack_inner env evd l trm
                   else
-                    let typ_args = on_type unfold_args env evd trm in
-                    let orn = mkAppl (orn_f, snoc trm typ_args) in
-                    project_value (on_type dest_sigT env evd orn) orn)
+                    project_value_from_ih l env evd trm)
                 (fun evd -> evd)
                 env_f_body
                 evd
