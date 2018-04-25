@@ -567,10 +567,8 @@ let compose_cs evd npms ip p post_assums comp gs fs =
 (*
  * Compose two applications of an induction principle that are
  * structurally the same when one is an ornament.
- *
- * TODO clean
  *)
-let rec compose_inductive evd idx_n post_assums assum_ind inner (comp : composition) =
+let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
   let l = comp.l in
   let (env_g, g) = comp.g in
   let (env_f, f) = comp.f in
@@ -580,23 +578,22 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner (comp : composit
   let (comp, indexer) =
     if l.is_fwd && comp.is_g && not l.is_indexer then
       (* Build the lifted indexer *)
+      let index_ind = assum_ind + 1 in
+      let post_assum_ind = assum_ind - 1 in
       let indexer = Option.get l.orn.indexer in
       let (env_f_body, f_body) = zoom_lambda_term env_f f in
-      let f_typ_args = on_type unfold_args env_f_body evd f_body in
-      let index_args = snoc f_body f_typ_args in
-      let indexer_unpacked_body = mkAppl (indexer, index_args) in
-      let unpacked = reconstruct_lambda_n_skip env_f_body indexer_unpacked_body (offset env_f_body 2) (assum_ind - 1) in
-      let env_packed = pop_rel_context (assum_ind + 2 - 1) env_f_body in
-      let index_type = infer_type env_f_body evd (mkRel (2 + assum_ind - 1)) in
-      let packer = infer_type env_packed evd (mkRel (1 + assum_ind - 1)) in
-      let packed_type_b = shift index_type in
-      let packed_type = mkLambda (Anonymous, packer, packed_type_b) in
+      let index_args = snoc f_body (on_type unfold_args env_f_body evd f_body) in
+      let indexer_app = mkAppl (indexer, index_args) in
+      let unpacked = reconstruct_lambda_n_skip env_f_body indexer_app (offset env_f_body 2) post_assum_ind in
+      let env_packed = pop_rel_context index_ind env_f_body in
+      let index_type = infer_type env_f_body evd (mkRel index_ind) in
+      let packer = infer_type env_packed evd (mkRel assum_ind) in
+      let packed_type = mkLambda (Anonymous, packer, shift index_type) in
       let arg = mkRel (1 + List.length post_assums) in
       let to_elim = { index_type; packer } in
       let indexer_body = elim_sigT { to_elim; packed_type; unpacked; arg } in
       let indexer = reconstruct_lambda env_packed indexer_body in
-      let lifted_indexer = Some (make_constant idx_n) in
-      let l = { l with lifted_indexer } in
+      let l = { l with lifted_indexer = Some (make_constant idx_n) } in
       ({ comp with l }, Some indexer)
     else
       (comp, None)
