@@ -565,6 +565,34 @@ let compose_cs evd npms ip p post_assums comp gs fs =
   in List.map (compose_c evd npms ip p post_assums) comp_cs
 
 (*
+ * Build the lifted indexer, if applicable
+ *)
+let build_lifted_indexer evd idx_n assum_ind comp =
+  let l = comp.l in
+  let (env_f, f) = comp.f in
+  if l.is_fwd && comp.is_g && not l.is_indexer then
+    let index_ind = assum_ind + 1 in
+    let post_assum_ind = assum_ind - 1 in
+    let indexer = Option.get l.orn.indexer in
+    let (env_f_body, f_body) = zoom_lambda_term env_f f in
+    let index_args = snoc f_body (on_type unfold_args env_f_body evd f_body) in
+    let indexer_app = mkAppl (indexer, index_args) in
+    let unpacked_rels = offset env_f_body 2 in
+    let unpacked = reconstruct_lambda_n_skip env_f_body indexer_app unpacked_rels post_assum_ind in
+    let env_packed = pop_rel_context index_ind env_f_body in
+    let index_type = infer_type env_f_body evd (mkRel index_ind) in
+    let packer = infer_type env_packed evd (mkRel assum_ind) in
+    let packed_type = mkLambda (Anonymous, packer, shift index_type) in
+    let arg = mkRel assum_ind in
+    let to_elim = { index_type; packer } in
+    let indexer_body = elim_sigT { to_elim; packed_type; unpacked; arg } in
+    let indexer = reconstruct_lambda env_packed indexer_body in
+    let l = { l with lifted_indexer = Some (make_constant idx_n) } in
+    ({ comp with l }, Some indexer)
+  else
+    (comp, None)
+      
+(*
  * Compose two applications of an induction principle that are
  * structurally the same when one is an ornament.
  *)
@@ -575,29 +603,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
   let f_app = deconstruct_eliminator env_f evd f in
   let g_app = deconstruct_eliminator env_g evd g in
   let npms = List.length g_app.pms in
-  let (comp, indexer) =
-    if l.is_fwd && comp.is_g && not l.is_indexer then
-      (* Build the lifted indexer *)
-      let index_ind = assum_ind + 1 in
-      let post_assum_ind = assum_ind - 1 in
-      let indexer = Option.get l.orn.indexer in
-      let (env_f_body, f_body) = zoom_lambda_term env_f f in
-      let index_args = snoc f_body (on_type unfold_args env_f_body evd f_body) in
-      let indexer_app = mkAppl (indexer, index_args) in
-      let unpacked = reconstruct_lambda_n_skip env_f_body indexer_app (offset env_f_body 2) post_assum_ind in
-      let env_packed = pop_rel_context index_ind env_f_body in
-      let index_type = infer_type env_f_body evd (mkRel index_ind) in
-      let packer = infer_type env_packed evd (mkRel assum_ind) in
-      let packed_type = mkLambda (Anonymous, packer, shift index_type) in
-      let arg = mkRel (1 + List.length post_assums) in
-      let to_elim = { index_type; packer } in
-      let indexer_body = elim_sigT { to_elim; packed_type; unpacked; arg } in
-      let indexer = reconstruct_lambda env_packed indexer_body in
-      let l = { l with lifted_indexer = Some (make_constant idx_n) } in
-      ({ comp with l }, Some indexer)
-    else
-      (comp, None)
-  in
+  let (comp, indexer) = build_lifted_indexer evd idx_n assum_ind comp in
   let c_p = { comp with g = (env_g, g_app.p); f = (env_f, f_app.p) } in
   let p = compose_p evd npms post_assums inner c_p in
   let (cs, indexer) =
