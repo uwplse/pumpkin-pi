@@ -507,8 +507,17 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
       let index_args = indexes to_typ index_i (arity c_g) (lambda_to_prod (directional l c_f c_g)) in
       let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
       let is_orn env trm =
-        let typ = if l.is_fwd then from_typ else shift_by (offset env_f_body 1) ind_g_typ in
-        is_or_applies typ trm || convertible env typ trm
+        if l.is_fwd then
+          is_or_applies from_typ trm
+        else
+          if is_or_applies sigT trm then (* may need to reduce term first *)
+            let app = dest_sigT ind_g_typ in
+            let trm_app = dest_sigT trm in
+            let unpacked_type = zoom_sig trm in
+            eq_constr to_typ unpacked_type &&
+            eq_constr app.index_type trm_app.index_type
+          else
+            false
       in
       (* Does this generalize, too? *)
       let f_body =
