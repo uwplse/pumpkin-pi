@@ -86,13 +86,9 @@ let higher_lifting n d_orn d_orn_inv d_f_old d_f_new d_old =
   let c_o = intern env evd d_old in
   let is_fwd = direction env evd c_orn in
   let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
-  let (promote_f, forget_f) = map_if reverse (not is_fwd) (c_f_old, c_f_new) in
   let orn = initialize_promotion env evd promote forget in
-  let lower = Some (initialize_lifting orn is_fwd) in
-  let higher_orn = initialize_promotion env evd c_f_old c_f_new in
-  let higher = initialize_lifting higher_orn is_fwd in
-  let l = { higher with lower } in
-  (* TODO implement from here on, config higher lifting then run *)
+  let l = initialize_lifting orn is_fwd in
+  (* TODO implement from here on *)
   let trm_n = unwrap_definition env c_o in
   define_term n env evd trm_n 
 

@@ -42,7 +42,6 @@ type lifting =
     is_fwd : bool;
     is_indexer : bool;
     lifted_indexer : types option;
-    lower : lifting option;
   }
 
 (*
@@ -76,13 +75,10 @@ let initialize_promotion env evd promote forget =
   let to_ind = snd (on_type ind_of_promotion_type env evd promote_unpacked) in
   let to_args = unfold_args to_ind in
   let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
-  let (index_i, indexer) =
-    try
-      let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
-      (Some index_i, Some index)
-    with _ ->
-      (None, None)
-  in { index_i; indexer; promote; forget }
+  let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
+  let index_i = Some index_i in
+  let indexer = Some index in
+  { index_i; indexer; promote; forget }
 
 (*
  * Initialize a lifting
@@ -90,8 +86,7 @@ let initialize_promotion env evd promote forget =
 let initialize_lifting orn is_fwd =
   let lifted_indexer = None in
   let is_indexer = false in
-  let lower = None in
-  { orn ; is_fwd ; lifted_indexer ; is_indexer ; lower }
+  { orn ; is_fwd ; lifted_indexer ; is_indexer }
 
 (* --- Control structures --- *)
     

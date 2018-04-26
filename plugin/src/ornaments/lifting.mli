@@ -38,7 +38,6 @@ type lifting =
     is_fwd : bool;
     is_indexer : bool;
     lifted_indexer : types option;
-    lower : lifting option;
   }
 
 (*
