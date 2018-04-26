@@ -612,7 +612,6 @@ let build_lifted_indexer evd idx_n assum_ind comp =
  * structurally the same when one is an ornament.
  *)
 let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
-  let l = comp.l in
   let (env_g, g) = comp.g in
   let (env_f, f) = comp.f in
   let f_app = deconstruct_eliminator env_f evd f in
@@ -668,7 +667,33 @@ let factor_elim_existT evd assum_ind f g g_no_red =
         factor_term_dep (mkRel assum_ind) env evd inner)
       env_f
       (dest_sigT_elim f).unpacked
-       
+
+(*
+ * When composing factors, determine if we have an application of
+ * the promotion function. Return (f_promotes, g_promotes).
+ *)
+let promotes evd l assum_ind g f =
+  let (env_g, g) = g in
+  let (env_f, f) = f in
+  let promote = l.orn.promote in
+  let indexer = Option.get l.orn.indexer in
+  let index_i = Option.get l.orn.index_i in
+  let promote_unpacked =
+    zoom_apply_lambda_n
+      (nb_rel env_f)
+      (fun _ trm -> (dest_existT trm).unpacked)
+      env_f
+      (delta env_f promote)
+  in
+  let typ_args = on_type unfold_args env_f evd f in
+  let deindex = List.exists (applies indexer) typ_args in
+  let assum = mkRel assum_ind in
+  let args = snoc assum (map_if (remove_index index_i) deindex typ_args) in
+  let promote_param = reduce_term env_f (mkAppl (promote_unpacked, args)) in
+  let g_promotes = is_or_applies promote g || is_or_applies promote_param g in
+  let f_promotes = is_or_applies promote f || is_or_applies promote_param f in
+  (f_promotes, isApp f && g_promotes)
+  
 (*
  * Compose factors of an ornamented, but not yet reduced function
  *)
@@ -676,7 +701,6 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
   let compose_rec l fs = compose_orn_factors evd l assum_ind idx_n fs in
   let promote = l.orn.promote in
   let forget = l.orn.forget in
-  let index_i = Option.get l.orn.index_i in
   let orn_indexer = Option.get l.orn.indexer in
   match fs with
   | Factor ((en, t), children) ->
@@ -686,18 +710,7 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        let (e_body, t_body) = zoom_lambda_term en t in
        let body_uses f = is_or_applies f t_body in
        let uses f = (is_or_applies f t_app || body_uses f) && isApp t_app in
-       let promote_unpacked =
-         zoom_apply_lambda_n
-           (nb_rel env)
-           (fun _ trm -> (dest_existT trm).unpacked)
-           env
-           (delta env promote)
-       in
-       let t_app_args = on_type unfold_args env evd t_app in
-       let deindex = List.exists (applies orn_indexer) t_app_args in
-       let promote_args = map_if (remove_index index_i) deindex t_app_args in
-       let promote_param = reduce_term env (mkAppl (promote_unpacked, snoc (mkRel assum_ind) promote_args)) in
-       let promotes = uses promote || uses promote_param in
+       let (f_promotes, g_promotes) = promotes evd l assum_ind (e_body, t_body) (env, t_app) in
        let forgets = uses forget in
        let is_indexer_inner =
          let body_is = is_or_applies sigT_rect t_body in
@@ -709,9 +722,9 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
            false
        in
        let is_indexer = uses orn_indexer || is_indexer_inner in
-       if promotes || forgets || is_indexer then
-         let orn_f = if promotes then promote else if forgets then forget else orn_indexer in
-         let is_g = applies orn_f t_body || is_or_applies promote_param t_body in
+       if (f_promotes || g_promotes) || forgets || is_indexer then
+         let orn_f = if f_promotes || g_promotes then promote else if forgets then forget else orn_indexer in
+         let is_g = applies orn_f t_body || g_promotes in
          let l = { l with is_indexer } in
          let g = (e_body, reduce_to_ind e_body t_body) in
          let f = (env, reduce_to_ind env t_app) in
