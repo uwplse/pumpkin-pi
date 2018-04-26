@@ -750,6 +750,10 @@ let is_indexer l g f =
     
 (*
  * Compose factors of an ornamented, but not yet reduced function
+ *
+ * Note: Now that we are in sigmas, we can probably go back to non-dependent
+ * factoring. But that is a major effort, so for now we just always get the
+ * last factor.
  *)
 let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
   let compose_rec l fs = compose_orn_factors evd l assum_ind idx_n fs in
@@ -822,7 +826,7 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
  * this is a very preliminary attempt at solving this problem, which I
  * will build on.
  *)
-let internalize env evd (indexer_name : Id.t) (l : lifting) (trm : types) =
-  let (assum_ind, factors) = factor_ornamented l.orn env evd trm in
-  let ((internalized, indexer), env, _) = compose_orn_factors evd l assum_ind indexer_name factors in
-  (reconstruct_lambda env internalized, indexer)
+let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
+  let (assum_ind, fs) = factor_ornamented l.orn env evd trm in
+  let ((body, indexer), env, _) = compose_orn_factors evd l assum_ind idx_n fs in
+  (reconstruct_lambda env body, indexer)
