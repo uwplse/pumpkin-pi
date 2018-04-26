@@ -835,8 +835,10 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
 
 let do_higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
   map_unit_env_if
-    (fun en t -> true)
-    (fun en t -> t)
+    (fun en t ->
+      List.mem_assoc t lifted)
+    (fun en t ->
+      List.assoc t lifted)
     env
     trm (* TODO implemet *)
     

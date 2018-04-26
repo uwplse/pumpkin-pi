@@ -9,8 +9,8 @@ Require Import Reduce.
  * Tests for higher lifting.
  *)
 
-Higher lift orn_list_vector orn_list_vector_inv in app_nil_r_vect_red along append_red append_vect_red as app_nil_r_vect_red_higher.
-Higher lift orn_list_vector_inv orn_list_vector in app_nil_r_red along append_vect_red append_red as app_nil_r_red_higher.
+Higher lift orn_list_vector orn_list_vector_inv in app_nil_r_vect_red along append append_vect_red as app_nil_r_vect_red_higher.
+Higher lift orn_list_vector_inv orn_list_vector in app_nil_r_red along append_vect_packed append_red as app_nil_r_red_higher.
 
 (*
  * These will fail until it's actually implemented
