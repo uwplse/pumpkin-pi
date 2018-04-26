@@ -732,22 +732,16 @@ let is_indexer l g f =
  *)
 let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
   let compose_rec l fs = compose_orn_factors evd l assum_ind idx_n fs in
-  let promote = l.orn.promote in
-  let forget = l.orn.forget in
-  let orn_indexer = Option.get l.orn.indexer in
   match fs with
   | Factor ((en, t), children) ->
      if List.length children > 0 then
        let post_assums = mk_n_rels (assum_ind - 1) in
        let ((t_app, indexer), env, composed) = compose_rec l (last children) in
        let (e_body, t_body) = zoom_lambda_term en t in
-       let body_uses f = is_or_applies f t_body in
-       let uses f = (is_or_applies f t_app || body_uses f) && isApp t_app in
        let (f_promotes, g_promotes) = promotes evd l assum_ind (e_body, t_body) (env, t_app) in
        let (f_forgets, g_forgets) = forgets l (e_body, t_body) (env, t_app) in
        let (f_is_indexer, g_is_indexer, is_indexer_inner) = is_indexer l (e_body, t_body) (env, t_app) in
        if (f_promotes || g_promotes) || (f_forgets || g_forgets) || (f_is_indexer || g_is_indexer) then
-         let orn_f = if f_promotes || g_promotes then promote else if (f_forgets || g_forgets) then forget else orn_indexer in
          let is_g = g_promotes || g_forgets || g_is_indexer in
          let l = { l with is_indexer = f_is_indexer || g_is_indexer } in
          let g = (e_body, reduce_to_ind e_body t_body) in
