@@ -711,17 +711,16 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
            let app = elim_sigT { f_app with packed_type; unpacked } in
            ((app, indexer), env', composed)
          else if applies sigT_rect (snd g) && is_indexer_inner then
-           let inner = get_arg 3 (snd g) in
-           let (env_inner, inner_body) = zoom_lambda_term (fst g) inner in
-           let inner_factors = factor_term_dep (mkRel assum_ind) env_inner evd inner_body in
-           let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_rec l inner_factors in
-           let indexer_lam = reconstruct_lambda_n env_inner t_app_inner (offset env_inner 2) in
-           let args = reindex 3 indexer_lam (unfold_args (snd g)) in
-           let indexer = mkAppl (sigT_rect, args) in
-           ((indexer, indexer_inner), pop_rel_context 2 env_inner, composed_inner)
+           let g_app = dest_sigT_elim (snd g) in
+           let (env_b, b) = zoom_lambda_term (fst g) g_app.unpacked in
+           let inner_factors = factor_term_dep (mkRel assum_ind) env_b evd b in
+           let ((t_app, indexer), env, composed) = compose_rec l inner_factors in
+           let unpacked = reconstruct_lambda_n env t_app (offset env 2) in
+           let app = elim_sigT { g_app with unpacked } in
+           ((app, indexer), pop_rel_context 2 env, composed)
          else
-           let (app, indexer) = compose_inductive evd idx_n post_assums assum_ind false comp in
-           ((app, indexer), env, true)
+           let compose = compose_inductive evd idx_n post_assums assum_ind in
+           (compose false comp, env, true)
        else
          let t = shift_by assum_ind t in
          let t_args =
