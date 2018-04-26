@@ -833,3 +833,5 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
 
 (* --- Higher lifting --- *)
 
+let higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
+  (unwrap_definition env trm, None) (* TODO implement *)

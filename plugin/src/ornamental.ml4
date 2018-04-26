@@ -89,9 +89,9 @@ let higher_lifting n d_orn d_orn_inv d_f_old d_f_new d_old =
   let orn = initialize_promotion env evd promote forget in
   let l = initialize_lifting orn is_fwd in
   let lifted = [ (c_f_old, c_f_new) ] in
-  (* TODO implement from here on *)
-  let trm_n = unwrap_definition env c_o in
-  define_term n env evd trm_n 
+  let (higher_lifted, _) = higher_lift env evd lifted l c_o in
+  (* TODO indexing proof & print something after defined *)
+  define_term n env evd higher_lifted
 
 (* --- Commands --- *)
 
