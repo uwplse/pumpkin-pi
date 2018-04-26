@@ -834,8 +834,8 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
 (* --- Higher lifting --- *)
 
 let do_higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
-  unwrap_definition env trm (* TODO implemet *)
+  trm (* TODO implemet *)
     
-let higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
+let higher_lift env evd (lifted : (types * types) list) (l : lifting) def =
   let indexing_proof = None in (* TODO implement *)
-  (do_higher_lift env evd lifted l trm, indexing_proof)
+  (do_higher_lift env evd lifted l (unwrap_definition env def), indexing_proof)
