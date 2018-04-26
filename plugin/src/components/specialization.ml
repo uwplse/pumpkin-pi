@@ -737,22 +737,23 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
      if List.length children > 0 then
        let post_assums = mk_n_rels (assum_ind - 1) in
        let ((t_app, indexer), env, composed) = compose_rec l (last children) in
-       let (e_body, t_body) = zoom_lambda_term en t in
-       let (f_promotes, g_promotes) = promotes evd l assum_ind (e_body, t_body) (env, t_app) in
-       let (f_forgets, g_forgets) = forgets l (e_body, t_body) (env, t_app) in
-       let (f_is_indexer, g_is_indexer, is_indexer_inner) = is_indexer l (e_body, t_body) (env, t_app) in
+       let g = zoom_lambda_term en t in
+       let f = (env, t_app) in
+       let (f_promotes, g_promotes) = promotes evd l assum_ind g f in
+       let (f_forgets, g_forgets) = forgets l g f in
+       let (f_is_indexer, g_is_indexer, is_indexer_inner) = is_indexer l g f in
        if (f_promotes || g_promotes) || (f_forgets || g_forgets) || (f_is_indexer || g_is_indexer) then
          let is_g = g_promotes || g_forgets || g_is_indexer in
          let l = { l with is_indexer = f_is_indexer || g_is_indexer } in
-         let g = (e_body, reduce_to_ind e_body t_body) in
-         let f = (env, reduce_to_ind env t_app) in
-         let comp = { l ; g ; f ; is_g } in    
-         if applies sigT_rect (snd g) && applies existT (snd f) then
-           compose_rec l (factor_elim_existT evd assum_ind f g t_body)
-         else if applies sigT_rect (snd f) && applies existT (snd g) then
-           let inner_factors = factor_elim_existT evd assum_ind f g t_body in
+         let g_ind = (fst g, reduce_to_ind (fst g) (snd g)) in
+         let f_ind = (fst f, reduce_to_ind (fst f) (snd f)) in
+         let comp = { l ; g = g_ind ; f = f_ind ; is_g } in    
+         if applies sigT_rect (snd g_ind) && applies existT (snd f_ind) then
+           compose_rec l (factor_elim_existT evd assum_ind f_ind g_ind (snd g))
+         else if applies sigT_rect (snd f_ind) && applies existT (snd g_ind) then
+           let inner_factors = factor_elim_existT evd assum_ind f_ind g_ind (snd g) in
            let ((t_app, indexer), env, composed) = compose_rec l inner_factors in
-           let f_app = dest_sigT_elim (snd f) in
+           let f_app = dest_sigT_elim (snd f_ind) in
            let recons e t = reconstruct_lambda_n_skip e t (offset e 2) in
            let unpacked = recons env t_app (assum_ind - 1) in
            let env' = pop_rel_context (assum_ind + 1) env in
@@ -764,12 +765,12 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
            in
            let app = elim_sigT { f_app with packed_type; unpacked } in
            ((app, indexer), env', composed)
-         else if applies sigT_rect (snd g) && is_indexer_inner then
-           let g_app = dest_sigT_elim (snd g) in
+         else if applies sigT_rect (snd g_ind) && is_indexer_inner then
+           let g_app = dest_sigT_elim (snd g_ind) in
            let inner_factors =
              in_lambda_body
                (fun env_b b -> factor_term_dep (mkRel assum_ind) env_b evd b)
-               (fst g)
+               (fst g_ind)
                g_app.unpacked
            in
            let ((t_app, indexer), env, composed) = compose_rec l inner_factors in
