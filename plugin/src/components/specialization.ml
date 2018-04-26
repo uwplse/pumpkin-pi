@@ -834,7 +834,11 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
 (* --- Higher lifting --- *)
 
 let do_higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
-  trm (* TODO implemet *)
+  map_unit_env_if
+    (fun en t -> true)
+    (fun en t -> t)
+    env
+    trm (* TODO implemet *)
     
 let higher_lift env evd (lifted : (types * types) list) (l : lifting) def =
   let indexing_proof = None in (* TODO implement *)
