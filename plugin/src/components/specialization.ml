@@ -100,7 +100,6 @@ let ornament_concls concl_typ env evd (l : lifting) (from_ind, _) trm =
        env)
     (is_or_applies from_ind (zoom_if_sig concl_typ))
     trm
-
                                       
 (*
  * Apply an ornament, but don't reduce the result.
@@ -834,13 +833,34 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
 (* --- Higher lifting --- *)
 
 let do_higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
-  map_unit_env_if
-    (fun en t ->
-      List.mem_assoc t lifted)
-    (fun en t ->
-      List.assoc t lifted)
-    env
-    trm (* TODO implemet *)
+  let orn_type = reduce_type env evd l.orn.promote in
+  let (from_with_args, to_with_args) = ind_of_promotion_type orn_type in
+  let env_to = pop_rel_context 1 (zoom_env zoom_product_type env orn_type) in
+  let from_ind = first_fun (first_fun from_with_args) in
+  let to_ind = reconstruct_lambda env_to (unshift to_with_args) in
+  debug_term env to_ind "to_ind";
+  debug_term env from_ind "from_ind";
+  debug_term env (lift_to l) "lift_to l";
+  (* TODO split below into a sequence just to speed up checks *)
+  map_unit_if
+    (fun t -> List.mem_assoc t lifted)
+    (fun t -> List.assoc t lifted)
+    (map_unit_env_if
+       (fun en t ->
+         if isApp t && List.mem_assoc (first_fun t) lifted then
+           false
+         else
+           try
+             on_type (is_or_applies from_ind) en evd t
+           with _ ->
+             false)
+       (fun en t ->
+         debug_term en t "t";
+         let typ_args = non_index_typ_args l en evd t in
+         debug_terms en typ_args "typ_args";
+         mkAppl (lift_to l, snoc t typ_args))
+       env
+       trm)
     
 let higher_lift env evd (lifted : (types * types) list) (l : lifting) def =
   let indexing_proof = None in (* TODO implement *)
