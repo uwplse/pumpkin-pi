@@ -658,17 +658,21 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
 
 (*
  * Factor the inside of an application of a sigT_elim to an existT,
- * or the opposite way around
+ * or the opposite way around, or the application of a sigT_elim to
+ * an indexer. In other words, meta-reduce complex sigT_elim terms when
+ * the result is obvious.
  *)
 let factor_elim_existT evd assum_ind f g g_no_red =
   let (env_f, f) = f in
   let (env_g, g) = g in
   if applies sigT_rect g && applies existT f then
+    (* sigT .... o existT .... *)
     let g_inner = (dest_sigT_elim g).unpacked in
     let f_app = dest_existT f in
     let inner = mkAppl (g_inner, [f_app.index; f_app.unpacked]) in
     factor_term_dep (mkRel assum_ind) env_f evd inner
-  else
+  else if applies sigT_rect f && applies existT g then
+    (* existT ... o sigT .... *)
     let c_g = reconstruct_lambda env_g (dest_existT g).unpacked in
     let typ_args = List.rev (List.tl (List.rev (unfold_args g_no_red))) in
     let c_f = reduce_term env_g (mkAppl (c_g, typ_args)) in
@@ -678,6 +682,12 @@ let factor_elim_existT evd assum_ind f g g_no_red =
         factor_term_dep (mkRel assum_ind) env evd inner)
       env_f
       (dest_sigT_elim f).unpacked
+  else
+    (* existT ... o indexer ... *)
+    in_lambda_body
+      (fun env trm -> factor_term_dep (mkRel assum_ind) env evd trm)
+      env_g
+      (dest_sigT_elim g).unpacked
 
 (*
  * When composing factors, determine if we have an application of
@@ -777,17 +787,12 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
            let t_app_packed = elim_sigT { f_app with packed_type; unpacked } in
            ((t_app_packed, indexer), pack_env assum_ind env, composed)
          else if applies sigT_rect (snd g_ind) && is_indexer_inner then
-           let g_app = dest_sigT_elim (snd g_ind) in
-           let inner_fs =
-             in_lambda_body
-               (fun env_b b -> factor_term_dep (mkRel assum_ind) env_b evd b)
-               (fst g_ind)
-               g_app.unpacked
-           in
+           let inner_fs = factor_elim_existT evd assum_ind f_ind g_ind (snd g) in
            let ((t_app, indexer), env, composed) = compose_rec l inner_fs in
-           let unpacked = reconstruct_lambda_n env t_app (offset env 2) in
-           let app = elim_sigT { g_app with unpacked } in
-           ((app, indexer), pop_rel_context 2 env, composed)
+           let g_app = dest_sigT_elim (snd g_ind) in
+           let unpacked = reconstruct_packed 1 env t_app in
+           let t_app_packed = elim_sigT { g_app with unpacked } in
+           ((t_app_packed, indexer), pack_env 1 env, composed)
          else
            let compose = compose_inductive evd idx_n post_assums assum_ind in
            (compose false comp, env, true)
