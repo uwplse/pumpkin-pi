@@ -55,6 +55,9 @@ val in_body :
   env ->
   types ->
   'a
+
+val in_lambda_body :
+  (env -> types -> 'a) -> env -> types -> 'a
                                             
 (* --- Zoom in, apply a function, then reconstruct the result --- *)
 

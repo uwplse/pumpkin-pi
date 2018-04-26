@@ -143,8 +143,7 @@ let compose_p_args evd npms post_assums inner comp =
   let l = comp.l in
   let (env, p) = comp.f in
   let index_i = Option.get l.orn.index_i in
-  in_body
-    zoom_lambda_term
+  in_lambda_body
     (fun env_b p_b ->
       let orn_app =
         if not inner then
@@ -561,8 +560,7 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
         let index_i = Option.get l.orn.index_i in
         let c_indexed = directional l c_f c_g in
         let index_args = indexes to_typ index_i (arity c_g) c_indexed in
-        in_body
-          zoom_lambda_term
+        in_lambda_body
           (fun env_old _ ->
             let args = snoc trm (non_index_typ_args l env_old evd trm) in
             let app = mkAppl (f, args) in
@@ -637,8 +635,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
       let gs =
         map_if
           (fun (env, cs) ->
-            in_body
-              zoom_lambda_term
+            in_lambda_body
               (fun env trm -> (env, (deconstruct_eliminator env evd trm).cs))
               env
               (List.hd cs))
@@ -665,8 +662,7 @@ let factor_elim_existT evd assum_ind f g g_no_red =
     let c_g = reconstruct_lambda env_g (dest_existT g).unpacked in
     let typ_args = List.rev (List.tl (List.rev (unfold_args g_no_red))) in
     let c_f = reduce_term env_g (mkAppl (c_g, typ_args)) in
-    in_body
-      zoom_lambda_term
+    in_lambda_body
       (fun env trm ->
         let inner = mkAppl (shift_by 2 c_f, [trm]) in
         factor_term_dep (mkRel assum_ind) env evd inner)
@@ -708,7 +704,7 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
          let app_is = is_or_applies sigT_rect t_app in
          if app_is || body_is then
            let inner = get_arg 3 (if body_is then t_body else t_app) in
-           in_body zoom_lambda_term (fun _ -> is_or_applies orn_indexer) env inner
+           in_lambda_body (fun _ -> is_or_applies orn_indexer) env inner
          else
            false
        in
@@ -740,8 +736,7 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
          else if applies sigT_rect (snd g) && is_indexer_inner then
            let g_app = dest_sigT_elim (snd g) in
            let inner_factors =
-             in_body
-               zoom_lambda_term
+             in_lambda_body
                (fun env_b b -> factor_term_dep (mkRel assum_ind) env_b evd b)
                (fst g)
                g_app.unpacked

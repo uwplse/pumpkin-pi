@@ -146,6 +146,8 @@ let in_body zoom f env trm =
   let (env_body, trm_body) = zoom env trm in
   f env_body trm_body
 
+let in_lambda_body f env trm = in_body zoom_lambda_term f env trm
+
 (*
  * Zoom in, apply a function, then reconstruct the result
  *)
