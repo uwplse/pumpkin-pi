@@ -76,6 +76,22 @@ let reduce_ornament n d_orn d_orn_inv d_old =
   Printf.printf "Defined reduced ornamened function %s.\n\n" (string_of_id n);
   ()
 
+(* Higher lifting *)
+let higher_lift n d_orn d_orn_inv d_f_old d_f_new d_old =
+  let (evd, env) = Lemmas.get_current_context () in
+  let c_orn = intern env evd d_orn in
+  let c_orn_inv = intern env evd d_orn_inv in
+  let c_f_old = intern env evd d_f_old in
+  let c_f_new = intern env evd d_f_new in
+  let c_o = intern env evd d_old in
+  let is_fwd = direction env evd c_orn in
+  let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
+  let orn = initialize_promotion env evd promote forget in
+  let l = initialize_lifting orn is_fwd in
+  (* TODO implement from here on, config higher lifting then run *)
+  let trm_n = unwrap_definition env c_o in
+  define_term n env evd trm_n 
+
 (* --- Commands --- *)
 
 (* Identify an ornament given two inductive types *)
@@ -100,9 +116,23 @@ VERNAC COMMAND EXTEND ApplyOrnament CLASSIFIED AS SIDEFF
 END
 
 (*
- * Reduce an application of an ornament.
+ * Meta-reduce an application of an ornament.
+ * This command should always preserve the type of the argument,
+ * but produce a term inducts over the new domain and reduces
+ * internal application as much as possible. So for simple
+ * functions, this will be enough, but for proofs, there is one more step.
  *)
 VERNAC COMMAND EXTEND ReduceOrnament CLASSIFIED AS SIDEFF
 | [ "Reduce" "ornament" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
   [ reduce_ornament n d_orn d_orn_inv d_old ]
+END
+
+(*
+ * The higher-lifting step is not type-preserving, but instead
+ * takes a meta-reduced application and substitutes in an already-lifted
+ * type that still occurs in the meta-reduced term and type.
+ *)
+VERNAC COMMAND EXTEND HigherLifting CLASSIFIED AS SIDEFF
+| [ "Higher" "lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "along" constr(d_f_old) constr (d_f_new) "as" ident(n) ] ->
+  [ higher_lift n d_orn d_orn_inv d_f_old d_f_new d_old ]
 END
