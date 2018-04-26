@@ -631,6 +631,15 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
   in (apply_eliminator {f_app with p; cs}, indexer)
 
 (*
+ * Factor the inside of an application of a sigT_elim to an existT
+ *)
+let factor_inner evd assum_ind f g =
+  let g_inner = (dest_sigT_elim (snd g)).unpacked in
+  let f_app = dest_existT (snd f) in
+  let inner = mkAppl (g_inner, [f_app.index; f_app.unpacked]) in
+  factor_term_dep (mkRel assum_ind) (fst f) evd inner
+       
+(*
  * Compose factors of an ornamented, but not yet reduced function
  *)
 let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
@@ -641,7 +650,7 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
   | Factor ((en, t), children) ->
      if List.length children > 0 then
        let post_assums = mk_n_rels (assum_ind - 1) in
-       let child = List.hd (List.rev children) in
+       let child = last children in
        let ((t_app, indexer), env, composed) = compose_orn_factors evd l assum_ind idx_n child in
        let (e_body, t_body) = zoom_lambda_term en t in
        let body_uses f = is_or_applies f t_body in
@@ -675,14 +684,11 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
          let f = (env, reduce_to_ind env t_app) in
          let comp = { l ; g ; f ; is_g } in
          if applies sigT_rect (snd g) && applies existT (snd f) then
-           (* eliminate the existT [TODO move] *)
-           let g_inner = get_arg 3 (snd g) in
-           let cs_f = List.tl (List.tl (unfold_args (snd f))) in
-           let inner = mkAppl (g_inner, cs_f) in
-           let inner_factors = factor_term_dep (mkRel assum_ind) (fst f) evd inner in
+           (* eliminate the existT *)
+           let inner_factors = factor_inner evd assum_ind f g in
            compose_orn_factors evd l assum_ind idx_n inner_factors
          else if applies sigT_rect (snd f) && applies existT (snd g) then
-           (* eliminate the existT [TODO move] *)
+           (* eliminate the existT *)
            let f_inner = get_arg 3 (snd f) in
            let (env_f_inner, f_inner_body) = zoom_lambda_term (fst f) f_inner in
            let c_g = last_arg (snd g) in
