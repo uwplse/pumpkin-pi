@@ -655,6 +655,7 @@ let factor_elim_existT evd assum_ind f g g_no_red =
  * Compose factors of an ornamented, but not yet reduced function
  *)
 let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
+  let compose_rec l fs = compose_orn_factors evd l assum_ind idx_n fs in
   let promote = l.orn.promote in
   let forget = l.orn.forget in
   let orn_indexer = Option.get l.orn.indexer in
@@ -663,7 +664,7 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
      if List.length children > 0 then
        let post_assums = mk_n_rels (assum_ind - 1) in
        let child = last children in
-       let ((t_app, indexer), env, composed) = compose_orn_factors evd l assum_ind idx_n child in
+       let ((t_app, indexer), env, composed) = compose_rec l child in
        let (e_body, t_body) = zoom_lambda_term en t in
        let body_uses f = is_or_applies f t_body in
        let uses f = (is_or_applies f t_app || body_uses f) && isApp t_app in
@@ -696,26 +697,25 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
          let f = (env, reduce_to_ind env t_app) in
          let comp = { l ; g ; f ; is_g } in    
          if applies sigT_rect (snd g) && applies existT (snd f) then
-           let inner_factors = factor_elim_existT evd assum_ind f g t_body in
-           compose_orn_factors evd l assum_ind idx_n inner_factors
+           compose_rec l (factor_elim_existT evd assum_ind f g t_body)
          else if applies sigT_rect (snd f) && applies existT (snd g) then
            let inner_factors = factor_elim_existT evd assum_ind f g t_body in
-           let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_orn_factors evd l assum_ind idx_n inner_factors in
-           let app_lam = reconstruct_lambda_n_skip env_inner t_app_inner (offset env_inner 2) (assum_ind - 1) in
-           let env_inner' = pop_rel_context (assum_ind + 2 - 1) env_inner in
+           let ((t_app, indexer), env, composed) = compose_rec l inner_factors in
+           let app_lam = reconstruct_lambda_n_skip env t_app (offset env 2) (assum_ind - 1) in
+           let env' = pop_rel_context (assum_ind + 2 - 1) env in
            let f_p_old = get_arg 2 (snd f) in
-           let (env_f_p, _) = zoom_lambda_term empty_env f_p_old in
-           let f_p_body = unshift (reduce_type env_inner evd t_app_inner) in
+           let env_f_p = zoom_env zoom_lambda_term empty_env f_p_old in
+           let f_p_body = unshift (reduce_type env evd t_app) in
            let f_p_new = reconstruct_lambda env_f_p (unshift_by (assum_ind - 1) f_p_body) in
            let f_args = unfold_args (snd f) in
            let args = reindex 3 app_lam (reindex 2 f_p_new f_args) in
            let app = mkAppl (sigT_rect, args) in
-           ((app, indexer_inner), env_inner', composed_inner)
+           ((app, indexer), env', composed)
          else if applies sigT_rect (snd g) && is_indexer_inner then
            let inner = get_arg 3 (snd g) in
            let (env_inner, inner_body) = zoom_lambda_term (fst g) inner in
            let inner_factors = factor_term_dep (mkRel assum_ind) env_inner evd inner_body in
-           let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_orn_factors evd l assum_ind idx_n inner_factors in
+           let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_rec l inner_factors in
            let indexer_lam = reconstruct_lambda_n env_inner t_app_inner (offset env_inner 2) in
            let args = reindex 3 indexer_lam (unfold_args (snd g)) in
            let indexer = mkAppl (sigT_rect, args) in
