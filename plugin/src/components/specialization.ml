@@ -702,11 +702,12 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
            let inner_factors = factor_elim_existT evd assum_ind f g t_body in
            let ((t_app, indexer), env, composed) = compose_rec l inner_factors in
            let f_app = dest_sigT_elim (snd f) in
-           let unpacked = reconstruct_lambda_n_skip env t_app (offset env 2) (assum_ind - 1) in
-           let env' = pop_rel_context (assum_ind + 2 - 1) env in
+           let recons e t = reconstruct_lambda_n_skip e t (offset e 2) in
+           let unpacked = recons env t_app (assum_ind - 1) in
+           let env' = pop_rel_context (assum_ind + 1) env in
            let env_f_p = zoom_env zoom_lambda_term empty_env f_app.packed_type in
-           let f_p_body = unshift (reduce_type env evd t_app) in
-           let packed_type = reconstruct_lambda env_f_p (unshift_by (assum_ind - 1) f_p_body) in
+           let packed_body = unshift_by assum_ind (reduce_type env evd t_app) in
+           let packed_type = reconstruct_lambda env_f_p packed_body in
            let app = elim_sigT { f_app with packed_type; unpacked } in
            ((app, indexer), env', composed)
          else if applies sigT_rect (snd g) && is_indexer_inner then
