@@ -705,7 +705,28 @@ let promotes evd l assum_ind g f =
   let g_promotes = is_or_applies promote g || is_or_applies promote_param g in
   let f_promotes = is_or_applies promote f || is_or_applies promote_param f in
   (f_promotes, isApp f && g_promotes)
-  
+
+(*
+ * When composing factors, determine if we have an application of
+ * the indexer. Return (f_indexes, g_indexes, is_inner).
+ *)
+let is_indexer l g f =
+  let (env_g, g) = g in
+  let (env_f, f) = f in
+  let indexer = Option.get l.orn.indexer in
+  let is_indexer_inner t =
+    if is_or_applies sigT_rect t then
+      let inner = get_arg 3 t in (* TODO use dest *)
+      in_lambda_body (fun _ -> is_or_applies indexer) env_f inner
+    else
+      false
+  in
+  let f_indexes_inner = is_indexer_inner f in
+  let g_indexes_inner = is_indexer_inner g in
+  let f_is_indexer = is_or_applies indexer f || f_indexes_inner in
+  let g_is_indexer = is_or_applies indexer g || g_indexes_inner in
+  (f_is_indexer, g_is_indexer, f_indexes_inner || g_indexes_inner)
+    
 (*
  * Compose factors of an ornamented, but not yet reduced function
  *)
@@ -724,20 +745,11 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        let uses f = (is_or_applies f t_app || body_uses f) && isApp t_app in
        let (f_promotes, g_promotes) = promotes evd l assum_ind (e_body, t_body) (env, t_app) in
        let (f_forgets, g_forgets) = forgets l (e_body, t_body) (env, t_app) in
-       let is_indexer_inner =
-         let body_is = is_or_applies sigT_rect t_body in
-         let app_is = is_or_applies sigT_rect t_app in
-         if app_is || body_is then
-           let inner = get_arg 3 (if body_is then t_body else t_app) in
-           in_lambda_body (fun _ -> is_or_applies orn_indexer) env inner
-         else
-           false
-       in
-       let is_indexer = uses orn_indexer || is_indexer_inner in
-       if (f_promotes || g_promotes) || (f_forgets || g_forgets) || is_indexer then
+       let (f_is_indexer, g_is_indexer, is_indexer_inner) = is_indexer l (e_body, t_body) (env, t_app) in
+       if (f_promotes || g_promotes) || (f_forgets || g_forgets) || (f_is_indexer || g_is_indexer) then
          let orn_f = if f_promotes || g_promotes then promote else if (f_forgets || g_forgets) then forget else orn_indexer in
-         let is_g = applies orn_f t_body || g_promotes in
-         let l = { l with is_indexer } in
+         let is_g = g_promotes || g_forgets || g_is_indexer in
+         let l = { l with is_indexer = f_is_indexer || g_is_indexer } in
          let g = (e_body, reduce_to_ind e_body t_body) in
          let f = (env, reduce_to_ind env t_app) in
          let comp = { l ; g ; f ; is_g } in    
