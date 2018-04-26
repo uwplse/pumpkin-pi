@@ -830,3 +830,6 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
   let (assum_ind, fs) = factor_ornamented l.orn env evd trm in
   let ((body, indexer), env, _) = compose_orn_factors evd l assum_ind idx_n fs in
   (reconstruct_lambda env body, indexer)
+
+(* --- Higher lifting --- *)
+

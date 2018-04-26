@@ -42,6 +42,7 @@ type lifting =
     is_fwd : bool;
     is_indexer : bool;
     lifted_indexer : types option;
+    lower : lifting option;
   }
 
 (*
@@ -86,7 +87,8 @@ let initialize_promotion env evd promote forget =
 let initialize_lifting orn is_fwd =
   let lifted_indexer = None in
   let is_indexer = false in
-  { orn ; is_fwd ; lifted_indexer ; is_indexer }
+  let lower = None in
+  { orn ; is_fwd ; lifted_indexer ; is_indexer ; lower }
 
 (* --- Control structures --- *)
     
