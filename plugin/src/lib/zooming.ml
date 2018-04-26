@@ -140,11 +140,17 @@ let rec reconstruct_product_n_skip (env : env) (b : types) (i : int) (j : int) :
 (* --- Higher-order zooming --- *)
 
 (*
+ * Zoom in and apply a function
+ *)
+let in_body zoom f env trm =
+  let (env_body, trm_body) = zoom env trm in
+  f env_body trm_body
+
+(*
  * Zoom in, apply a function, then reconstruct the result
  *)
-let zoom_apply zoom reconstruct f env trm =
-  let (env_body, trm_body) = zoom env trm in
-  reconstruct env_body (f env_body trm_body)
+let zoom_apply zoom reconstruct f =
+  in_body zoom (fun env trm -> reconstruct env (f env trm))
 
 let zoom_apply_lambda =
   zoom_apply zoom_lambda_term reconstruct_lambda

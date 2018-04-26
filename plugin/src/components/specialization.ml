@@ -58,9 +58,10 @@ let ornament_args env evd from_ind l trm =
 (* Apply the promotion/forgetful function to the hypotheses *)
 let ornament_hypos env evd (l : lifting) (from_ind, to_ind) trm =
   let hypos = on_type prod_to_lambda env evd trm in
-  let subbed_hypos = sub_in_hypos l env from_ind to_ind hypos in
-  let env_hypos = zoom_env zoom_lambda_term env subbed_hypos in
-  reconstruct_lambda env_hypos (ornament_args env_hypos evd from_ind l trm)
+  zoom_apply_lambda
+    (fun env _ -> ornament_args env evd from_ind l trm)
+    env
+    (sub_in_hypos l env from_ind to_ind hypos)
 
 (* Apply the promotion/forgetful function to the conclusion, if applicable *)
 let ornament_concls concl_typ env evd (l : lifting) (from_ind, _) trm =
@@ -109,8 +110,8 @@ let apply_indexing_ornament env evd l trm =
       (from_ind, to_ind)
   in
   let app_orn ornamenter = ornamenter env evd l inds in
-  let (env_concl, concl_typ) = on_type (zoom_product_type env) env evd trm in
-  let concl_typ = reduce_nf env_concl concl_typ in
+  let typ = reduce_type env evd trm in
+  let concl_typ = in_body zoom_product_type reduce_nf env typ in
   app_orn (ornament_concls concl_typ) (app_orn ornament_hypos trm)
           
 (* --- Meta-reduction --- *)
@@ -142,26 +143,31 @@ let compose_p_args evd npms post_assums inner comp =
   let l = comp.l in
   let (env, p) = comp.f in
   let index_i = Option.get l.orn.index_i in
-  let (env_b, p_b) = zoom_lambda_term env p in
-  let orn_app =
-    if not inner then
-      let off = offset2 env_b env in
-      let nargs = arity (unwrap_definition env (lift_back l)) in
-      let shift_pms = shift_local off (off + List.length post_assums) in
-      map_backward
-        (fun t ->
-          let index_type = get_arg index_i t in
-          let abs_i = reindex_body (reindex_app (reindex index_i (mkRel 1))) in
-          let packer = abs_i (mkLambda (Anonymous, index_type, shift t)) in
-          project_value { index_type; packer } t)
-        l
-        (shift_pms (mkAppl (lift_back l, mk_n_rels nargs)))
-    else
-      pack_inner env_b evd l (mkRel 1)
-  in
-  let reindex_if_sig = map_if (remove_index index_i) (applies sigT p_b) in
-  let inner_args = reindex_if_sig (unfold_args (zoom_if_sig_app p_b)) in
-  snoc orn_app (snd (take_split npms inner_args))
+  in_body
+    zoom_lambda_term
+    (fun env_b p_b ->
+      let orn_app =
+        if not inner then
+          let off = offset2 env_b env in
+          let nargs = arity (unwrap_definition env (lift_back l)) in
+          let shift_pms = shift_local off (off + List.length post_assums) in
+          map_backward
+            (fun t ->
+              let index_type = get_arg index_i t in
+              let index = mkRel 1 in
+              let abs_i = reindex_body (reindex_app (reindex index_i index)) in
+              let packer = abs_i (mkLambda (Anonymous, index_type, shift t)) in
+              project_value { index_type; packer } t)
+            l
+            (shift_pms (mkAppl (lift_back l, mk_n_rels nargs)))
+        else
+          pack_inner env_b evd l (mkRel 1)
+      in
+      let reindex_if_sig = map_if (remove_index index_i) (applies sigT p_b) in
+      let inner_args = reindex_if_sig (unfold_args (zoom_if_sig_app p_b)) in
+      snoc orn_app (snd (take_split npms inner_args)))
+    env
+    p
 
 (*
  * Get the function for composing two applications of an induction
@@ -540,25 +546,31 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let to_typ = zoom_sig (promotion_type env_f orn_f) in
   let from_typ = first_fun (promotion_type env_g orn_g) in
   let c_f = compose_ih evd npms_g ip_g p comp in
-  let (env_f_body, f_body) = zoom_lambda_term env_f c_f in
-  let f_body =
-    if not comp.is_g then
-      (* it's still unclear to me why local_max is what it is *)
-      let local_max = directional l 0 (List.length post_assums) in
-      let f = shift_local local_max (offset2 env_f_body env_g) c_g in
-      let lift_args = map_directional pack_ihs project_ihs l in
-      let args = lift_args l env_f_body evd (from_typ, to_typ) c_g in
-      reduce_term env_f_body (mkAppl (f, args))
-    else
-      let env_f_body_old = zoom_env zoom_lambda_term env_f c_f_old in
-      let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
-      let index_i = Option.get l.orn.index_i in
-      let c_indexed = directional l c_f c_g in
-      let index_args = indexes to_typ index_i (arity c_g) c_indexed in
-      let args = snoc f_body (non_index_typ_args l env_f_body_old evd f_body) in
-      let app = mkAppl (f, args) in
-      reduce_constr_body env_f_body_old evd l (from_typ, to_typ) index_args app
-  in reconstruct_lambda_n env_f_body f_body (nb_rel env_f)
+  zoom_apply_lambda_n
+    (nb_rel env_f)
+    (fun env trm ->
+      if not comp.is_g then
+        (* it's still unclear to me why local_max is what it is *)
+        let local_max = directional l 0 (List.length post_assums) in
+        let f = shift_local local_max (offset2 env env_g) c_g in
+        let lift_args = map_directional pack_ihs project_ihs l in
+        let args = lift_args l env evd (from_typ, to_typ) c_g in
+        reduce_term env (mkAppl (f, args))
+      else
+        let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
+        let index_i = Option.get l.orn.index_i in
+        let c_indexed = directional l c_f c_g in
+        let index_args = indexes to_typ index_i (arity c_g) c_indexed in
+        in_body
+          zoom_lambda_term
+          (fun env_old _ ->
+            let args = snoc trm (non_index_typ_args l env_old evd trm) in
+            let app = mkAppl (f, args) in
+            reduce_constr_body env_old evd l (from_typ, to_typ) index_args app)
+          env_f
+          c_f_old)
+    env_f
+    c_f
 
 (* Map compose_c *)
 let compose_cs evd npms ip p post_assums comp gs fs =
@@ -615,7 +627,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
     if applies sigT_rect f then
       (* recurse inside the sigT_rect *)
       let compose_rec = compose_inductive evd idx_n post_assums assum_ind true in
-      let c = List.hd f_app.cs in    
+      let c = List.hd f_app.cs in
       let (env_c, c_body) = zoom_lambda_term env_f c in
       let c_inner = { comp with f = (env_c, c_body)} in
       let (c_comp, indexer) = compose_rec c_inner in
@@ -625,9 +637,11 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
       let gs =
         map_if
           (fun (env, cs) ->
-            let (env_c, c) = zoom_lambda_term env (List.hd cs) in
-            let c_app = deconstruct_eliminator env_c evd c in
-            (env_c, c_app.cs))
+            in_body
+              zoom_lambda_term
+              (fun env trm -> (env, (deconstruct_eliminator env evd trm).cs))
+              env
+              (List.hd cs))
           (applies sigT_rect g)
           (env_g, g_app.cs)
       in
@@ -648,13 +662,16 @@ let factor_elim_existT evd assum_ind f g g_no_red =
     let inner = mkAppl (g_inner, [f_app.index; f_app.unpacked]) in
     factor_term_dep (mkRel assum_ind) env_f evd inner
   else
-    let f_inner = (dest_sigT_elim f).unpacked in
-    let (env_f_inner, f_inner_body) = zoom_lambda_term env_f f_inner in
     let c_g = reconstruct_lambda env_g (dest_existT g).unpacked in
     let typ_args = List.rev (List.tl (List.rev (unfold_args g_no_red))) in
     let c_f = reduce_term env_g (mkAppl (c_g, typ_args)) in
-    let inner = mkAppl (shift_by 2 c_f, [f_inner_body]) in
-    factor_term_dep (mkRel assum_ind) env_f_inner evd inner 
+    in_body
+      zoom_lambda_term
+      (fun env trm ->
+        let inner = mkAppl (shift_by 2 c_f, [trm]) in
+        factor_term_dep (mkRel assum_ind) env evd inner)
+      env_f
+      (dest_sigT_elim f).unpacked
        
 (*
  * Compose factors of an ornamented, but not yet reduced function
@@ -680,8 +697,7 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
            env
            (delta env promote)
        in
-       let t_app_typ = reduce_type env evd t_app in
-       let t_app_args = unfold_args t_app_typ in
+       let t_app_args = on_type unfold_args env evd t_app in
        let deindex = List.exists (applies orn_indexer) t_app_args in
        let promote_args = map_if (remove_index index_i) deindex t_app_args in
        let promote_param = reduce_term env (mkAppl (promote_unpacked, snoc (mkRel assum_ind) promote_args)) in
@@ -692,8 +708,7 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
          let app_is = is_or_applies sigT_rect t_app in
          if app_is || body_is then
            let inner = get_arg 3 (if body_is then t_body else t_app) in
-           let (_, inner_zoom) = zoom_lambda_term env inner in
-           is_or_applies orn_indexer inner_zoom
+           in_body zoom_lambda_term (fun _ -> is_or_applies orn_indexer) env inner
          else
            false
        in
@@ -724,8 +739,13 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
            ((app, indexer), env', composed)
          else if applies sigT_rect (snd g) && is_indexer_inner then
            let g_app = dest_sigT_elim (snd g) in
-           let (env_b, b) = zoom_lambda_term (fst g) g_app.unpacked in
-           let inner_factors = factor_term_dep (mkRel assum_ind) env_b evd b in
+           let inner_factors =
+             in_body
+               zoom_lambda_term
+               (fun env_b b -> factor_term_dep (mkRel assum_ind) env_b evd b)
+               (fst g)
+               g_app.unpacked
+           in
            let ((t_app, indexer), env, composed) = compose_rec l inner_factors in
            let unpacked = reconstruct_lambda_n env t_app (offset env 2) in
            let app = elim_sigT { g_app with unpacked } in
