@@ -156,6 +156,9 @@ let zoom_apply zoom reconstruct f =
 
 let zoom_apply_lambda =
   zoom_apply zoom_lambda_term reconstruct_lambda
+
+let zoom_apply_lambda_empty f =
+  zoom_apply zoom_lambda_term reconstruct_lambda (fun _ -> f) empty_env
              
 let zoom_apply_lambda_n n =
   zoom_apply zoom_lambda_term (fun e t -> reconstruct_lambda_n e t n)

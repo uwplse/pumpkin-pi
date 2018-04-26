@@ -72,6 +72,9 @@ val zoom_apply :
 val zoom_apply_lambda :
   (env -> types -> types) -> env -> types -> types
 
+val zoom_apply_lambda_empty :
+  (types -> types) -> types -> types
+
 val zoom_apply_lambda_n :
   int -> (env -> types -> types) -> env -> types -> types
 

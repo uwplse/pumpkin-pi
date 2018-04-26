@@ -600,7 +600,6 @@ let build_lifted_indexer evd idx_n assum_ind comp =
   let l = comp.l in
   let (env, f) = comp.f in
   if l.is_fwd && comp.is_g && not l.is_indexer then
-    let stop_ind = assum_ind - 1 in
     let indexer = Option.get l.orn.indexer in
     let (env_b, b) = zoom_lambda_term env f in
     let index_args = snoc b (on_type unfold_args env_b evd b) in
@@ -771,13 +770,12 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
            let f_app = dest_sigT_elim (snd f_ind) in
            let unpacked = reconstruct_packed assum_ind env t_app in
            let packed_type =
-             zoom_apply_lambda
-               (fun _ _ -> on_type (unshift_by assum_ind) env evd t_app)
-               empty_env
+             zoom_apply_lambda_empty
+               (fun _ -> on_type (unshift_by assum_ind) env evd t_app)
                f_app.packed_type
            in
-           let app = elim_sigT { f_app with packed_type; unpacked } in
-           ((app, indexer), pack_env assum_ind env, composed)
+           let t_app_packed = elim_sigT { f_app with packed_type; unpacked } in
+           ((t_app_packed, indexer), pack_env assum_ind env, composed)
          else if applies sigT_rect (snd g_ind) && is_indexer_inner then
            let g_app = dest_sigT_elim (snd g_ind) in
            let inner_fs =
