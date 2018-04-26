@@ -46,3 +46,23 @@ val reconstruct_product_n_skip : env -> types -> int -> int -> types
                                                                  
 val reconstruct_lambda : env -> types -> types
 val reconstruct_product : env -> types -> types
+
+(* --- Zoom in, apply a function, then reconstruct the result --- *)
+
+val zoom_apply :
+  (env -> types -> (env * types)) -> (* zoomer *)
+  (env -> types -> types) -> (* reconstructer *)
+  (env -> types -> types) -> (* function *)
+  env ->
+  types ->
+  types
+
+val zoom_apply_lambda :
+  (env -> types -> types) -> env -> types -> types
+
+val zoom_apply_lambda_n :
+  int -> (env -> types -> types) -> env -> types -> types
+
+val zoom_apply_lambda_n_skip :
+  int -> int -> (env -> types -> types) -> env -> types -> types
+

@@ -65,23 +65,24 @@ let ornament_hypos env evd (l : lifting) (from_ind, to_ind) trm =
 (* Apply the promotion/forgetful function to the conclusion, if applicable *)
 let ornament_concls concl_typ env evd (l : lifting) (from_ind, _) trm =
   map_if
-    (fun trm ->
-      let (env_zoom, trm_zoom) = zoom_lambda_term env trm in
-      let args =
-        map_directional
-          unfold_args
-          (fun concl_typ ->
-            let lam_typ = zoom_sig_lambda concl_typ in
-            let inner_typ = zoom_term zoom_lambda_term empty_env lam_typ in
-            let concl_args = unfold_args inner_typ in
-            try
-              remove_index (Option.get l.orn.index_i) (unshift_all concl_args)
-            with _ ->
-              (* curried *)
-              concl_args)
-          l
-          concl_typ
-      in reconstruct_lambda env_zoom (mkAppl (lift_to l, snoc trm_zoom args)))
+    (zoom_apply_lambda
+       (fun _ trm_zoom ->
+         let args =
+           map_directional
+             unfold_args
+             (fun concl_typ ->
+               let lam_typ = zoom_sig_lambda concl_typ in
+               let inner_typ = zoom_term zoom_lambda_term empty_env lam_typ in
+               let concl_args = unfold_args inner_typ in
+               try
+                 remove_index (Option.get l.orn.index_i) (unshift_all concl_args)
+               with _ ->
+                 (* curried *)
+                 concl_args)
+             l
+             concl_typ
+         in mkAppl (lift_to l, snoc trm_zoom args))
+       env)
     (is_or_applies from_ind (zoom_if_sig concl_typ))
     trm
 
@@ -175,14 +176,15 @@ let compose_p_fun evd (comp : composition) =
   let p_g_in_p_f = shift_to_env (env_g, env_p_f) p_g in
   map_forward
     (map_if
-       (fun p_g ->
-         (* pack the conclusion *)
-         let (env_p_g, p_g_b) = zoom_lambda_term env_g p_g in
-         let index_type = infer_type env_p_f evd (mkRel 2) in
-         let abs_i = reindex_body (reindex_app (reindex index_i (mkRel 1))) in
-         let packer = abs_i (mkLambda (Anonymous, index_type, shift p_g_b)) in
-         let p_g_packed = pack_sigT { index_type ; packer } in
-         reconstruct_lambda_n env_p_g p_g_packed (nb_rel env_g))
+       (zoom_apply_lambda_n
+          (nb_rel env_g)
+          (fun _ trm ->
+            (* pack the conclusion *)
+            let index_type = infer_type env_p_f evd (mkRel 2) in
+            let abs_i = reindex_body (reindex_app (reindex index_i (mkRel 1))) in
+            let packer = abs_i (mkLambda (Anonymous, index_type, shift trm)) in
+            pack_sigT { index_type ; packer })
+          env_g)
        (comp.is_g && not l.is_indexer))
     l
     p_g_in_p_f
@@ -197,11 +199,14 @@ let compose_p_fun evd (comp : composition) =
  *)
 let compose_p evd npms post_assums inner (comp : composition) =
   let (env_f, p_f) = comp.f in
-  let env_p_f = zoom_env zoom_lambda_term env_f p_f in
-  let p_args = compose_p_args evd npms post_assums inner comp in
-  let p = compose_p_fun evd comp in
-  let app = reduce_term env_p_f (mkAppl (p, p_args)) in
-  reconstruct_lambda_n env_p_f app (nb_rel env_f)
+  zoom_apply_lambda_n
+    (nb_rel env_f)
+    (fun env _ ->
+      let p_args = compose_p_args evd npms post_assums inner comp in
+      let p = compose_p_fun evd comp in
+      reduce_term env (mkAppl (p, p_args)))
+    env_f
+    p_f
 
 (*
  * Compose the IH for a constructor.
@@ -610,7 +615,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
     if applies sigT_rect f then
       (* recurse inside the sigT_rect *)
       let compose_rec = compose_inductive evd idx_n post_assums assum_ind true in
-      let c = List.hd f_app.cs in
+      let c = List.hd f_app.cs in    
       let (env_c, c_body) = zoom_lambda_term env_f c in
       let c_inner = { comp with f = (env_c, c_body)} in
       let (c_comp, indexer) = compose_rec c_inner in
@@ -658,24 +663,28 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
   let compose_rec l fs = compose_orn_factors evd l assum_ind idx_n fs in
   let promote = l.orn.promote in
   let forget = l.orn.forget in
+  let index_i = Option.get l.orn.index_i in
   let orn_indexer = Option.get l.orn.indexer in
   match fs with
   | Factor ((en, t), children) ->
      if List.length children > 0 then
        let post_assums = mk_n_rels (assum_ind - 1) in
-       let child = last children in
-       let ((t_app, indexer), env, composed) = compose_rec l child in
+       let ((t_app, indexer), env, composed) = compose_rec l (last children) in
        let (e_body, t_body) = zoom_lambda_term en t in
        let body_uses f = is_or_applies f t_body in
        let uses f = (is_or_applies f t_app || body_uses f) && isApp t_app in
-       let (env_promote, promote_exp) = zoom_lambda_term env (delta env promote) in
-       let promote_inner = get_arg 3 promote_exp in
-       let promote_inner_recons = reconstruct_lambda_n env_promote promote_inner (nb_rel env) in
+       let promote_unpacked =
+         zoom_apply_lambda_n
+           (nb_rel env)
+           (fun _ trm -> (dest_existT trm).unpacked)
+           env
+           (delta env promote)
+       in
        let t_app_typ = reduce_type env evd t_app in
        let t_app_args = unfold_args t_app_typ in
        let deindex = List.exists (applies orn_indexer) t_app_args in
-       let promote_args = map_if (remove_index (Option.get l.orn.index_i)) deindex t_app_args in
-       let promote_param = reduce_term env (mkAppl (promote_inner_recons, snoc (mkRel assum_ind) promote_args)) in
+       let promote_args = map_if (remove_index index_i) deindex t_app_args in
+       let promote_param = reduce_term env (mkAppl (promote_unpacked, snoc (mkRel assum_ind) promote_args)) in
        let promotes = uses promote || uses promote_param in
        let forgets = uses forget in
        let is_indexer_inner =
@@ -705,9 +714,12 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
            let recons e t = reconstruct_lambda_n_skip e t (offset e 2) in
            let unpacked = recons env t_app (assum_ind - 1) in
            let env' = pop_rel_context (assum_ind + 1) env in
-           let env_f_p = zoom_env zoom_lambda_term empty_env f_app.packed_type in
-           let packed_body = unshift_by assum_ind (reduce_type env evd t_app) in
-           let packed_type = reconstruct_lambda env_f_p packed_body in
+           let packed_type =
+             zoom_apply_lambda
+               (fun _ _ -> on_type (unshift_by assum_ind) env evd t_app)
+               empty_env
+               f_app.packed_type
+           in
            let app = elim_sigT { f_app with packed_type; unpacked } in
            ((app, indexer), env', composed)
          else if applies sigT_rect (snd g) && is_indexer_inner then

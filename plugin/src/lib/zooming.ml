@@ -136,3 +136,22 @@ let rec reconstruct_product_n_skip (env : env) (b : types) (i : int) (j : int) :
       reconstruct_product_n_skip env' (mkProd (n, t, b)) i j
     else
       reconstruct_product_n_skip env' (unshift b) (i - 1) (j - 1)
+
+(* --- Higher-order zooming --- *)
+
+(*
+ * Zoom in, apply a function, then reconstruct the result
+ *)
+let zoom_apply zoom reconstruct f env trm =
+  let (env_body, trm_body) = zoom env trm in
+  reconstruct env_body (f env_body trm_body)
+
+let zoom_apply_lambda =
+  zoom_apply zoom_lambda_term reconstruct_lambda
+             
+let zoom_apply_lambda_n n =
+  zoom_apply zoom_lambda_term (fun e t -> reconstruct_lambda_n e t n)
+
+let zoom_apply_lambda_n_skip n skip =
+  zoom_apply zoom_lambda_term (fun e t -> reconstruct_lambda_n_skip e t n skip)
+
