@@ -18,6 +18,20 @@ open Abstraction
 open Hypotheses
 open Names
 
+(* --- Some utilities for meta-reduction --- *)
+
+(*
+ * Adjust an environment to remove the unpacked references
+ *)
+let pack_env assum_ind env =
+  pop_rel_context (assum_ind + 1) env
+
+(*
+ * Reconstruct a lambda in an unpacked environment
+ *)
+let reconstruct_packed assum_ind env trm =
+  reconstruct_lambda_n_skip env trm (offset env 2) (assum_ind - 1)
+
 (* --- Application of ornaments before meta-reduction --- *)
               
 (*
@@ -586,16 +600,14 @@ let build_lifted_indexer evd idx_n assum_ind comp =
   let l = comp.l in
   let (env, f) = comp.f in
   if l.is_fwd && comp.is_g && not l.is_indexer then
-    let index_ind = assum_ind + 1 in
     let stop_ind = assum_ind - 1 in
     let indexer = Option.get l.orn.indexer in
     let (env_b, b) = zoom_lambda_term env f in
     let index_args = snoc b (on_type unfold_args env_b evd b) in
     let indexer_app = mkAppl (indexer, index_args) in
-    let unpack e t = reconstruct_lambda_n_skip e t (offset e 2) stop_ind in 
-    let unpacked = unpack env_b indexer_app in
-    let env_packed = pop_rel_context index_ind env_b in
-    let index_type = infer_type env_b evd (mkRel index_ind) in
+    let unpacked = reconstruct_packed assum_ind env_b indexer_app in
+    let env_packed = pack_env assum_ind env_b in
+    let index_type = infer_type env_b evd (mkRel (assum_ind + 1)) in
     let packer = infer_type env_packed evd (mkRel assum_ind) in
     let packed_type = mkLambda (Anonymous, packer, shift index_type) in
     let arg = mkRel assum_ind in
@@ -754,12 +766,10 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
          if applies sigT_rect (snd g_ind) && applies existT (snd f_ind) then
            compose_rec l (factor_elim_existT evd assum_ind f_ind g_ind (snd g))
          else if applies sigT_rect (snd f_ind) && applies existT (snd g_ind) then
-           let inner_factors = factor_elim_existT evd assum_ind f_ind g_ind (snd g) in
-           let ((t_app, indexer), env, composed) = compose_rec l inner_factors in
+           let inner_fs = factor_elim_existT evd assum_ind f_ind g_ind (snd g) in
+           let ((t_app, indexer), env, composed) = compose_rec l inner_fs in
            let f_app = dest_sigT_elim (snd f_ind) in
-           let recons e t = reconstruct_lambda_n_skip e t (offset e 2) in
-           let unpacked = recons env t_app (assum_ind - 1) in
-           let env' = pop_rel_context (assum_ind + 1) env in
+           let unpacked = reconstruct_packed assum_ind env t_app in
            let packed_type =
              zoom_apply_lambda
                (fun _ _ -> on_type (unshift_by assum_ind) env evd t_app)
@@ -767,16 +777,16 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
                f_app.packed_type
            in
            let app = elim_sigT { f_app with packed_type; unpacked } in
-           ((app, indexer), env', composed)
+           ((app, indexer), pack_env assum_ind env, composed)
          else if applies sigT_rect (snd g_ind) && is_indexer_inner then
            let g_app = dest_sigT_elim (snd g_ind) in
-           let inner_factors =
+           let inner_fs =
              in_lambda_body
                (fun env_b b -> factor_term_dep (mkRel assum_ind) env_b evd b)
                (fst g_ind)
                g_app.unpacked
            in
-           let ((t_app, indexer), env, composed) = compose_rec l inner_factors in
+           let ((t_app, indexer), env, composed) = compose_rec l inner_fs in
            let unpacked = reconstruct_lambda_n env t_app (offset env 2) in
            let app = elim_sigT { g_app with unpacked } in
            ((app, indexer), pop_rel_context 2 env, composed)
