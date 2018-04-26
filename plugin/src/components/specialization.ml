@@ -670,6 +670,18 @@ let factor_elim_existT evd assum_ind f g g_no_red =
 
 (*
  * When composing factors, determine if we have an application of
+ * the forgetful function. Return (f_forgets, g_forgets).
+ *)
+let forgets l g f =
+  let (env_g, g) = g in
+  let (env_f, f) = f in
+  let forget = l.orn.forget in
+  let f_forgets = is_or_applies forget f in
+  let g_forgets = is_or_applies forget g in
+  (f_forgets, isApp f && g_forgets)
+
+(*
+ * When composing factors, determine if we have an application of
  * the promotion function. Return (f_promotes, g_promotes).
  *)
 let promotes evd l assum_ind g f =
@@ -711,7 +723,7 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        let body_uses f = is_or_applies f t_body in
        let uses f = (is_or_applies f t_app || body_uses f) && isApp t_app in
        let (f_promotes, g_promotes) = promotes evd l assum_ind (e_body, t_body) (env, t_app) in
-       let forgets = uses forget in
+       let (f_forgets, g_forgets) = forgets l (e_body, t_body) (env, t_app) in
        let is_indexer_inner =
          let body_is = is_or_applies sigT_rect t_body in
          let app_is = is_or_applies sigT_rect t_app in
@@ -722,8 +734,8 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
            false
        in
        let is_indexer = uses orn_indexer || is_indexer_inner in
-       if (f_promotes || g_promotes) || forgets || is_indexer then
-         let orn_f = if f_promotes || g_promotes then promote else if forgets then forget else orn_indexer in
+       if (f_promotes || g_promotes) || (f_forgets || g_forgets) || is_indexer then
+         let orn_f = if f_promotes || g_promotes then promote else if (f_forgets || g_forgets) then forget else orn_indexer in
          let is_g = applies orn_f t_body || g_promotes in
          let l = { l with is_indexer } in
          let g = (e_body, reduce_to_ind e_body t_body) in
