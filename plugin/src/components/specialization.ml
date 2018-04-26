@@ -631,13 +631,25 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
   in (apply_eliminator {f_app with p; cs}, indexer)
 
 (*
- * Factor the inside of an application of a sigT_elim to an existT
+ * Factor the inside of an application of a sigT_elim to an existT,
+ * or the opposite way around
  *)
-let factor_inner evd assum_ind f g =
-  let g_inner = (dest_sigT_elim (snd g)).unpacked in
-  let f_app = dest_existT (snd f) in
-  let inner = mkAppl (g_inner, [f_app.index; f_app.unpacked]) in
-  factor_term_dep (mkRel assum_ind) (fst f) evd inner
+let factor_elim_existT evd assum_ind f g g_no_red =
+  let (env_f, f) = f in
+  let (env_g, g) = g in
+  if applies sigT_rect g && applies existT f then
+    let g_inner = (dest_sigT_elim g).unpacked in
+    let f_app = dest_existT f in
+    let inner = mkAppl (g_inner, [f_app.index; f_app.unpacked]) in
+    factor_term_dep (mkRel assum_ind) env_f evd inner
+  else
+    let f_inner = (dest_sigT_elim f).unpacked in
+    let (env_f_inner, f_inner_body) = zoom_lambda_term env_f f_inner in
+    let c_g = reconstruct_lambda env_g (dest_existT g).unpacked in
+    let typ_args = List.rev (List.tl (List.rev (unfold_args g_no_red))) in
+    let c_f = reduce_term env_g (mkAppl (c_g, typ_args)) in
+    let inner = mkAppl (shift_by 2 c_f, [f_inner_body]) in
+    factor_term_dep (mkRel assum_ind) env_f_inner evd inner 
        
 (*
  * Compose factors of an ornamented, but not yet reduced function
@@ -682,20 +694,12 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
          let l = { l with is_indexer } in
          let g = (e_body, reduce_to_ind e_body t_body) in
          let f = (env, reduce_to_ind env t_app) in
-         let comp = { l ; g ; f ; is_g } in
+         let comp = { l ; g ; f ; is_g } in    
          if applies sigT_rect (snd g) && applies existT (snd f) then
-           (* eliminate the existT *)
-           let inner_factors = factor_inner evd assum_ind f g in
+           let inner_factors = factor_elim_existT evd assum_ind f g t_body in
            compose_orn_factors evd l assum_ind idx_n inner_factors
          else if applies sigT_rect (snd f) && applies existT (snd g) then
-           (* eliminate the existT *)
-           let f_inner = get_arg 3 (snd f) in
-           let (env_f_inner, f_inner_body) = zoom_lambda_term (fst f) f_inner in
-           let c_g = last_arg (snd g) in
-           let c_g_f = reconstruct_lambda (fst g) c_g in
-           let c_f = reduce_term (fst g) (mkAppl (c_g_f, List.rev (List.tl (List.rev (unfold_args t_body))))) in
-           let inner = mkAppl (shift_by 2 c_f, [f_inner_body]) in
-           let inner_factors = factor_term_dep (mkRel assum_ind) env_f_inner evd inner in
+           let inner_factors = factor_elim_existT evd assum_ind f g t_body in
            let ((t_app_inner, indexer_inner), env_inner, composed_inner) = compose_orn_factors evd l assum_ind idx_n inner_factors in
            let app_lam = reconstruct_lambda_n_skip env_inner t_app_inner (offset env_inner 2) (assum_ind - 1) in
            let env_inner' = pop_rel_context (assum_ind + 2 - 1) env_inner in
