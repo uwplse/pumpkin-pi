@@ -716,8 +716,8 @@ let is_indexer l g f =
   let indexer = Option.get l.orn.indexer in
   let is_indexer_inner t =
     if is_or_applies sigT_rect t then
-      let inner = get_arg 3 t in (* TODO use dest *)
-      in_lambda_body (fun _ -> is_or_applies indexer) env_f inner
+      let unpacked = (dest_sigT_elim t).unpacked in
+      in_lambda_body (fun _ -> is_or_applies indexer) env_f unpacked
     else
       false
   in
@@ -742,9 +742,12 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        let (f_promotes, g_promotes) = promotes evd l assum_ind g f in
        let (f_forgets, g_forgets) = forgets l g f in
        let (f_is_indexer, g_is_indexer, is_indexer_inner) = is_indexer l g f in
-       if (f_promotes || g_promotes) || (f_forgets || g_forgets) || (f_is_indexer || g_is_indexer) then
+       let is_promote = f_promotes || g_promotes in
+       let is_forget = f_forgets || g_forgets in
+       let is_index = f_is_indexer || g_is_indexer in
+       if is_promote || is_forget || is_index then
          let is_g = g_promotes || g_forgets || g_is_indexer in
-         let l = { l with is_indexer = f_is_indexer || g_is_indexer } in
+         let l = { l with is_indexer = is_index } in
          let g_ind = (fst g, reduce_to_ind (fst g) (snd g)) in
          let f_ind = (fst f, reduce_to_ind (fst f) (snd f)) in
          let comp = { l ; g = g_ind ; f = f_ind ; is_g } in    
