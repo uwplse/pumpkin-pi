@@ -833,35 +833,45 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
 (* --- Higher lifting --- *)
 
 let do_higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
+  let index_i = Option.get l.orn.index_i in
   let orn_type = reduce_type env evd l.orn.promote in
-  let (from_with_args, to_with_args) = ind_of_promotion_type orn_type in
-  let env_to = pop_rel_context 1 (zoom_env zoom_product_type env orn_type) in
-  let from_ind = first_fun (first_fun from_with_args) in
-  let to_ind = reconstruct_lambda env_to (unshift to_with_args) in
-  debug_term env to_ind "to_ind";
-  debug_term env from_ind "from_ind";
-  debug_term env (lift_to l) "lift_to l";
-  (* TODO split below into a sequence just to speed up checks *)
+  let (orn_f, orn_g) = (l.orn.forget, l.orn.promote) in
+  let promotion_type env trm = fst (on_type ind_of_promotion_type env evd trm) in
+  let to_typ = zoom_sig (promotion_type env l.orn.forget) in
+  let from_typ = first_fun (promotion_type env l.orn.promote) in
+  let index_type = get_arg 0 (promotion_type env l.orn.forget) in (* TODO clean *)
+  let (from_typ, to_typ) = map_backward reverse l (from_typ, to_typ) in
   map_unit_if
     (fun t -> List.mem_assoc t lifted)
     (fun t -> List.assoc t lifted)
-    (map_unit_env_if
-       (fun en t ->
-         if isApp t && List.mem_assoc (first_fun t) lifted then
-           false
-         else
-           try
-             on_type (is_or_applies from_ind) en evd t
-           with _ ->
-             false)
-       (fun en t ->
-         debug_term en t "t";
-         let typ_args = non_index_typ_args l en evd t in
-         debug_terms en typ_args "typ_args";
-         mkAppl (lift_to l, snoc t typ_args))
-       env
-       trm)
+    (map_term_if
+       (fun _ -> is_or_applies from_typ)
+       (fun index_type t ->
+         let t_args = unfold_args t in
+         let app = mkAppl (to_typ, t_args) in
+         let abs_i = reindex_body (reindex_app (insert_index index_i (mkRel 1))) in
+         let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
+         pack_sigT { index_type ; packer })
+       shift
+       index_type
+       (map_unit_env_if
+          (fun en t ->
+            if isApp t && List.mem_assoc (first_fun t) lifted then
+              false
+            else
+              try
+                on_type (is_or_applies from_typ) en evd t
+              with _ ->
+                (* will this ever be problematic? doing these all at once *)
+                false)
+          (fun en t ->
+            mkAppl (lift_to l, snoc t (non_index_typ_args l en evd t)))
+          env
+          trm))
     
 let higher_lift env evd (lifted : (types * types) list) (l : lifting) def =
   let indexing_proof = None in (* TODO implement *)
-  (do_higher_lift env evd lifted l (unwrap_definition env def), indexing_proof)
+  let trm = unwrap_definition env def in
+  let higher_lifted = do_higher_lift env evd lifted l trm in
+  debug_term env higher_lifted "higher_lifted";
+  (higher_lifted, indexing_proof)
