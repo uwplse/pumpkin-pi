@@ -77,7 +77,7 @@ let reduce_ornament n d_orn d_orn_inv d_old =
   ()
 
 (* Higher lifting *)
-let higher_lift n d_orn d_orn_inv d_f_old d_f_new d_old =
+let higher_lifting n d_orn d_orn_inv d_f_old d_f_new d_old =
   let (evd, env) = Lemmas.get_current_context () in
   let c_orn = intern env evd d_orn in
   let c_orn_inv = intern env evd d_orn_inv in
@@ -86,8 +86,12 @@ let higher_lift n d_orn d_orn_inv d_f_old d_f_new d_old =
   let c_o = intern env evd d_old in
   let is_fwd = direction env evd c_orn in
   let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
+  let (promote_f, forget_f) = map_if reverse (not is_fwd) (c_f_old, c_f_new) in
   let orn = initialize_promotion env evd promote forget in
-  let l = initialize_lifting orn is_fwd in
+  let lower = Some (initialize_lifting orn is_fwd) in
+  let higher_orn = initialize_promotion env evd c_f_old c_f_new in
+  let higher = initialize_lifting higher_orn is_fwd in
+  let l = { higher with lower } in
   (* TODO implement from here on, config higher lifting then run *)
   let trm_n = unwrap_definition env c_o in
   define_term n env evd trm_n 
@@ -134,5 +138,5 @@ END
  *)
 VERNAC COMMAND EXTEND HigherLifting CLASSIFIED AS SIDEFF
 | [ "Higher" "lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "along" constr(d_f_old) constr (d_f_new) "as" ident(n) ] ->
-  [ higher_lift n d_orn d_orn_inv d_f_old d_f_new d_old ]
+  [ higher_lifting n d_orn d_orn_inv d_f_old d_f_new d_old ]
 END
