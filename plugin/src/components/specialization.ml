@@ -855,11 +855,8 @@ let substitute_liftings lifted trm =
 let substitute_lifted_type l env (from_type, to_type) index_type trm =
   let index_i = Option.get l.orn.index_i in
   map_term_env_if
-    (fun en _ t ->
-      is_orn l en (from_type, to_type) t ||
-      ((not l.is_fwd) && is_or_applies to_type t))
+    (fun en _ -> is_orn l en (from_type, to_type))
     (fun en index_type t ->
-      debug_term en t "t";
       if l.is_fwd then
         let t_args = unfold_args t in
         let app = mkAppl (to_type, t_args) in
@@ -868,16 +865,9 @@ let substitute_lifted_type l env (from_type, to_type) index_type trm =
         let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
         pack_sigT { index_type ; packer }
       else
-        (* TODO how to avoid replacing inside of existT? *)
-        (* need a way _not_ to recurse if inside an existT *)
-        if is_or_applies sigT t then
-          let packed = dummy_index en (dest_sigT t).packer in
-          let t_args = remove_index index_i (unfold_args packed) in
-          mkAppl (from_type, t_args)
-        else
-          let args = unfold_args t in
-          let t_args = remove_index index_i args in
-          mkAppl (from_type, t_args))
+        let packed = dummy_index en (dest_sigT t).packer in
+        let t_args = remove_index index_i (unfold_args packed) in
+        mkAppl (from_type, t_args))
     shift
     env
     index_type
