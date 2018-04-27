@@ -299,7 +299,7 @@ let reduce_indexer_app l evd orn env arg trm =
  *)
 let reduce_sigT_elim_app l evd orn env arg trm =
   let deindex = remove_index (Option.get l.orn.index_i) in
-  let arg_typ = unshift (on_type zoom_sig_app env evd arg) in
+  let arg_typ = dummy_index env ((on_type dest_sigT env evd arg).packer) in
   let orn_app = mkAppl (orn, snoc arg (deindex (unfold_args arg_typ))) in
   let unfolded = chain_reduce reduce_term delta env trm in
   let orn_app_ind = reduce_to_ind env orn_app in
@@ -342,8 +342,7 @@ let reduce_ornament_f_arg l env evd orn trm arg =
     shift
     env
     arg
-    trm
-  
+    trm 
             
 (*
  * Meta-reduction of an applied ornament to simplify and then rewrite
@@ -879,27 +878,25 @@ let substitute_lifted_terms env evd lifted l (from_type, to_type) trm =
   let typ_is_orn en t = on_type (is_orn l en (from_type, to_type)) en evd t in
   map_unit_env_if
     (fun en t ->
-      if not l.is_fwd then
-        (* TODO until we make sure the rest works for this case *)
+      if isApp t && List.mem_assoc (first_fun t) lifted then
         false
       else
-        if isApp t && List.mem_assoc (first_fun t) lifted then
-          false
-        else
-          try
-            typ_is_orn en t
-          with _ ->
-            (* will this ever be problematic? doing these all at once *)
-            false)
+        try
+          typ_is_orn en t
+        with _ ->
+          (* will this ever be problematic? *)
+          false)
     (fun en t ->
       let typ_args = non_index_typ_args l en evd t in
       let app = mkAppl (lift_to l, snoc t typ_args) in
+      debug_term en t "t";
       let pre = pre_reduce l en evd app in
-      let args = unfold_args t in
+      debug_term en pre "pre";
+      let args = unfold_args (directional l t pre) in
+      debug_terms en args "args";
       let orn_args = filter_orn l en evd (from_type, to_type) args in
-      (* TODO why can't we call reduce_constr_body here? *)
+      debug_terms en orn_args "orn_args";
       if not (List.length orn_args > 0) then
-        (* TODO check and fix guard condition *)
         reduce_nf en pre
       else
         let red = reduce_ornament_f l en evd (lift_to l) pre orn_args in
@@ -931,5 +928,4 @@ let higher_lift env evd (lifted : (types * types) list) (l : lifting) def =
   let indexing_proof = None in (* TODO implement *)
   let trm = unwrap_definition env def in
   let higher_lifted = do_higher_lift env evd lifted l trm in
-  debug_term env higher_lifted "higher_lifted";
   (higher_lifted, indexing_proof)
