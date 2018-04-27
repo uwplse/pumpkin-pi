@@ -856,9 +856,19 @@ let substitute_lifted_type l (from_type, to_type) index_type trm =
     (fun index_type t ->
       let t_args = unfold_args t in
       let app = mkAppl (to_type, t_args) in
-      let abs_i = reindex_body (reindex_app (insert_index index_i (mkRel 1))) in
-      let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
-      pack_sigT { index_type ; packer })
+      if l.is_fwd then
+        let index = mkRel 1 in
+        let abs_i = reindex_body (reindex_app (insert_index index_i index)) in
+        let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
+        pack_sigT { index_type ; packer }
+      else
+        (* TODO broken, should probably check different condition *)
+        (* want to check the sigT .... instead of list *)
+        (* inspect terms manually to see what we really want to substitute *)
+        if List.length t_args > index_i then
+          reindex_app (remove_index index_i) app
+        else
+          app)
     shift
     index_type
     trm
@@ -883,14 +893,18 @@ let do_higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
        index_type
        (map_unit_env_if
           (fun en t ->
-            if isApp t && List.mem_assoc (first_fun t) lifted then
+            if not l.is_fwd then
+              (* TODO until we make sure the rest works for this case *)
               false
             else
-              try
-                on_type (is_or_applies from_typ) en evd t
-              with _ ->
-                (* will this ever be problematic? doing these all at once *)
-                false)
+              if isApp t && List.mem_assoc (first_fun t) lifted then
+                false
+              else
+                try
+                  on_type (is_or_applies from_typ) en evd t
+                with _ ->
+                  (* will this ever be problematic? doing these all at once *)
+                  false)
           (fun en t ->
             let typ_args = non_index_typ_args l en evd t in
             let app = mkAppl (lift_to l, snoc t typ_args) in
@@ -906,11 +920,7 @@ let do_higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
                 if List.exists (on_type (is_or_applies from_typ) en evd) (unfold_args t) then
                   let arg = List.find (on_type (is_or_applies from_typ) en evd) (unfold_args t) in
                   let red =reduce_ornament_f_arg l en evd (lift_to l) pre arg in
-                  map_unit_if
-                     (applies (lift_back l))
-                     (last_arg)
-                     red
-                                                 
+                  map_unit_if (applies (lift_back l)) (last_arg) red
                 else
                   reduce_ornament_f_arg l en evd (lift_to l) pre t
               in
