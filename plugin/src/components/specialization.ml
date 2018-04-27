@@ -832,6 +832,20 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
 
 (* --- Higher lifting --- *)
 
+(*
+ * Substitute the lower lifted terms into the term
+ *
+ * When I move to Nate's infrastructure, this will instead check the
+ * canonical structure
+ *)
+let substitute_liftings lifted trm =
+  map_unit_if
+    (fun t -> List.mem_assoc t lifted)
+    (fun t -> List.assoc t lifted)
+    trm
+(*
+ * TODO explain, clean, generalize, get other direction working
+ *)
 let do_higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
   let index_i = Option.get l.orn.index_i in
   let orn_type = reduce_type env evd l.orn.promote in
@@ -841,9 +855,8 @@ let do_higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
   let from_typ = first_fun (promotion_type env l.orn.promote) in
   let index_type = get_arg 0 (promotion_type env l.orn.forget) in (* TODO clean *)
   let (from_typ, to_typ) = map_backward reverse l (from_typ, to_typ) in
-  map_unit_if
-    (fun t -> List.mem_assoc t lifted)
-    (fun t -> List.assoc t lifted)
+  substitute_liftings
+    lifted
     (map_term_if
        (fun _ -> is_or_applies from_typ)
        (fun index_type t ->

@@ -23,6 +23,8 @@ Proof.
   exact app_nil_r_vect_red_higher.
 Qed.
 
+Print app_nil_r_vect_red_higher.
+
 (*
 Theorem test_app_nil_r:
   forall (A : Type) (l : list A),
