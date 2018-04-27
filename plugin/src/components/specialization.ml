@@ -898,7 +898,7 @@ let substitute_lifted_terms env evd lifted l (from_type, to_type) trm =
       let args = unfold_args t in
       let orn_args = filter_orn l en evd (from_type, to_type) args in
       (* TODO why can't we call reduce_constr_body here? *)
-      if not (is_or_applies existT pre || List.length orn_args > 0) then
+      if not (List.length orn_args > 0) then
         (* TODO check and fix guard condition *)
         reduce_nf en pre
       else
