@@ -865,7 +865,25 @@ let do_higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
                 (* will this ever be problematic? doing these all at once *)
                 false)
           (fun en t ->
-            mkAppl (lift_to l, snoc t (non_index_typ_args l en evd t)))
+            let typ_args = non_index_typ_args l en evd t in
+            let app = mkAppl (lift_to l, snoc t typ_args) in
+            let pre = pre_reduce l en evd app in
+            (* TODO why can't we call reduce_constr_body here? *)
+            if not (is_or_applies existT pre) && not (List.exists (is_or_applies (lift_back l)) (unfold_args t)) && not (List.exists (on_type (is_or_applies from_typ) en evd) (unfold_args t)) then
+              (* TODO check and fix guard condition *)
+              reduce_nf en pre
+            else
+              let x = 0 in
+              debug_term en pre "pre";
+              let red =
+                if List.exists (on_type (is_or_applies from_typ) en evd) (unfold_args t) then
+                  let arg = List.find (on_type (is_or_applies from_typ) en evd) (unfold_args t) in
+                  reduce_ornament_f_arg l en evd (lift_to l) pre arg
+                else
+                  reduce_ornament_f_arg l en evd (lift_to l) pre t
+              in
+              debug_term en red "red";
+              red)
           env
           trm))
     
