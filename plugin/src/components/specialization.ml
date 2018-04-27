@@ -878,7 +878,12 @@ let do_higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
               let red =
                 if List.exists (on_type (is_or_applies from_typ) en evd) (unfold_args t) then
                   let arg = List.find (on_type (is_or_applies from_typ) en evd) (unfold_args t) in
-                  reduce_ornament_f_arg l en evd (lift_to l) pre arg
+                  let red =reduce_ornament_f_arg l en evd (lift_to l) pre arg in
+                  map_unit_if
+                     (applies (lift_back l))
+                     (last_arg)
+                     red
+                                                 
                 else
                   reduce_ornament_f_arg l en evd (lift_to l) pre t
               in
