@@ -849,8 +849,6 @@ let substitute_liftings lifted trm =
 
 (*
  * Substitute the new type wherever the old type was
- *
- * TODO will fail in one of two directions for now
  *)
 let substitute_lifted_type l env (from_type, to_type) index_type trm =
   let index_i = Option.get l.orn.index_i in
@@ -872,6 +870,49 @@ let substitute_lifted_type l env (from_type, to_type) index_type trm =
     env
     index_type
     trm
+
+(*
+ * TODO explain, clean, generalize, get other direction working
+ * (see proof term in foo.txt)
+ *)
+let substitute_lifted_terms env evd lifted l (from_typ, to_typ) trm =
+   map_unit_env_if
+     (fun en t ->
+       if not l.is_fwd then
+         (* TODO until we make sure the rest works for this case *)
+         false
+       else
+         if isApp t && List.mem_assoc (first_fun t) lifted then
+           false
+         else
+           try
+             on_type (is_or_applies from_typ) en evd t
+           with _ ->
+             (* will this ever be problematic? doing these all at once *)
+             false)
+     (fun en t ->
+       let typ_args = non_index_typ_args l en evd t in
+       let app = mkAppl (lift_to l, snoc t typ_args) in
+       let pre = pre_reduce l en evd app in
+       (* TODO why can't we call reduce_constr_body here? *)
+       if not (is_or_applies existT pre) && not (List.exists (is_or_applies (lift_back l)) (unfold_args t)) && not (List.exists (on_type (is_or_applies from_typ) en evd) (unfold_args t)) then
+         (* TODO check and fix guard condition *)
+         reduce_nf en pre
+       else
+         let x = 0 in
+         debug_term en pre "pre";
+         let red =
+           if List.exists (on_type (is_or_applies from_typ) en evd) (unfold_args t) then
+             let arg = List.find (on_type (is_or_applies from_typ) en evd) (unfold_args t) in
+             let red =reduce_ornament_f_arg l en evd (lift_to l) pre arg in
+             map_unit_if (applies (lift_back l)) (last_arg) red
+           else
+             reduce_ornament_f_arg l en evd (lift_to l) pre t
+         in
+         debug_term en red "red";
+         red)
+     env
+     trm
     
 (*
  * TODO explain, clean, generalize, get other direction working
@@ -891,43 +932,7 @@ let do_higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
        env
        (from_typ, to_typ)
        index_type
-       (map_unit_env_if
-          (fun en t ->
-            if not l.is_fwd then
-              (* TODO until we make sure the rest works for this case *)
-              false
-            else
-              if isApp t && List.mem_assoc (first_fun t) lifted then
-                false
-              else
-                try
-                  on_type (is_or_applies from_typ) en evd t
-                with _ ->
-                  (* will this ever be problematic? doing these all at once *)
-                  false)
-          (fun en t ->
-            let typ_args = non_index_typ_args l en evd t in
-            let app = mkAppl (lift_to l, snoc t typ_args) in
-            let pre = pre_reduce l en evd app in
-            (* TODO why can't we call reduce_constr_body here? *)
-            if not (is_or_applies existT pre) && not (List.exists (is_or_applies (lift_back l)) (unfold_args t)) && not (List.exists (on_type (is_or_applies from_typ) en evd) (unfold_args t)) then
-              (* TODO check and fix guard condition *)
-              reduce_nf en pre
-            else
-              let x = 0 in
-              debug_term en pre "pre";
-              let red =
-                if List.exists (on_type (is_or_applies from_typ) en evd) (unfold_args t) then
-                  let arg = List.find (on_type (is_or_applies from_typ) en evd) (unfold_args t) in
-                  let red =reduce_ornament_f_arg l en evd (lift_to l) pre arg in
-                  map_unit_if (applies (lift_back l)) (last_arg) red
-                else
-                  reduce_ornament_f_arg l en evd (lift_to l) pre t
-              in
-              debug_term en red "red";
-              red)
-          env
-          trm))
+       (substitute_lifted_terms env evd lifted l (from_typ, to_typ) trm))
     
 let higher_lift env evd (lifted : (types * types) list) (l : lifting) def =
   let indexing_proof = None in (* TODO implement *)

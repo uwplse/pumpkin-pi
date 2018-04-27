@@ -556,7 +556,7 @@ Definition app_nil_r_lower (A : Type) (l : list A) :=
         (orn_list_vector A l0)
         (fun (v1 : sigT (vector A)) => existT (vector A) (S (projT1 v1)) (consV A (projT1 v1) a (projT2 v1)) = existT (vector A) (S (projT1 (orn_list_vector A l0))) (consV A (projT1 (orn_list_vector A l0)) a (projT2 (orn_list_vector A l0))))
         (@eq_refl (sigT (vector A)) (existT (vector A) (S (projT1 (orn_list_vector A l0))) (consV A (projT1 (orn_list_vector A l0)) a (projT2 (orn_list_vector A l0)))))
-        (append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)))
+        (append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A))) 
         IHl)
     l.
 
