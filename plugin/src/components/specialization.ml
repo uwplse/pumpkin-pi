@@ -903,16 +903,12 @@ let substitute_lifted_terms env evd lifted l (from_type, to_type) trm =
       else
         let x = 0 in
         debug_term en pre "pre";
-        let red =
-          if List.exists (typ_is_orn en) args then
-            let arg = List.find (typ_is_orn en) args in
-            let red = reduce_ornament_f_arg l en evd (lift_to l) pre arg in
-            map_unit_if (applies (lift_back l)) (last_arg) red
-          else
-            reduce_ornament_f_arg l en evd (lift_to l) pre t
-        in
-        debug_term en red "red";
-        red)
+        let orn_args = filter_orn l en evd (from_type, to_type) args in
+        if List.length orn_args > 0 then
+          let red = reduce_ornament_f l en evd (lift_to l) pre orn_args in
+          map_unit_if (applies (lift_back l)) last_arg red
+        else
+          reduce_ornament_f_arg l en evd (lift_to l) pre t)
     env
     trm
     
