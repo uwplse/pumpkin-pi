@@ -432,24 +432,27 @@ let pre_reduce l =
     reduce_forgotten_constr_body l
 
 (*
- * Filter the arguments to only the ones that have the type we are
- * promoting/forgetting from.
+ * Determine whether a type is the type we are ornamenting from
  *
  * For simplicity, we assume that the function doesn't have any other
  * applications of that type that don't use the new index, otherwise
  * we would need to track the type arguments everywhere, which is tedious
  *)
-let filter_orn l env evd (from_typ, to_typ) args =
-  let is_orn env trm =
-    if l.is_fwd then
-      is_or_applies from_typ trm
+let is_orn l env (from_typ, to_typ) typ =
+  if l.is_fwd then
+    is_or_applies from_typ typ
+  else
+    if is_or_applies sigT typ then
+      eq_constr to_typ (first_fun (dummy_index env (dest_sigT typ).packer))
     else
-      if is_or_applies sigT trm then
-        let trm_app = dest_sigT trm in
-        eq_constr to_typ (first_fun (dummy_index env trm_app.packer))
-      else
-        false
-  in List.filter (on_type (is_orn env) env evd) args
+      false
+                                 
+(*
+ * Filter the arguments to only the ones that have the type we are
+ * promoting/forgetting from.
+ *)
+let filter_orn l env evd (from_typ, to_typ) args =
+  List.filter (on_type (is_orn l env (from_typ, to_typ)) env evd) args
 
 (*
  * When we ornament in both directions and we're currently reducing g o f
