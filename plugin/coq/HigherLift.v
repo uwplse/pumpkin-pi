@@ -28,3 +28,5 @@ Theorem test_app_nil_r:
 Proof.
   exact app_nil_r_red_higher.
 Qed.
+
+Print app_nil_r_red_higher.

@@ -889,13 +889,10 @@ let substitute_lifted_terms env evd lifted l (from_type, to_type) trm =
     (fun en t ->
       let typ_args = non_index_typ_args l en evd t in
       let app = mkAppl (lift_to l, snoc t typ_args) in
-      debug_term en t "t";
       let pre = pre_reduce l en evd app in
-      debug_term en pre "pre";
-      let args = unfold_args (directional l t pre) in
-      debug_terms en args "args";
+      let args = unfold_args (map_if (fun t -> (dest_existT t).unpacked) (applies existT t) t) in
+      let args = List.map (fun a -> if applies projT2 a then last_arg a else a) args in
       let orn_args = filter_orn l en evd (from_type, to_type) args in
-      debug_terms en orn_args "orn_args";
       if not (List.length orn_args > 0) then
         reduce_nf en pre
       else
