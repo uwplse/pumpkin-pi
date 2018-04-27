@@ -896,19 +896,14 @@ let substitute_lifted_terms env evd lifted l (from_type, to_type) trm =
       let app = mkAppl (lift_to l, snoc t typ_args) in
       let pre = pre_reduce l en evd app in
       let args = unfold_args t in
+      let orn_args = filter_orn l en evd (from_type, to_type) args in
       (* TODO why can't we call reduce_constr_body here? *)
-      if not (is_or_applies existT pre) && not (List.exists (typ_is_orn en) args) then
+      if not (is_or_applies existT pre || List.length orn_args > 0) then
         (* TODO check and fix guard condition *)
         reduce_nf en pre
       else
-        let x = 0 in
-        debug_term en pre "pre";
-        let orn_args = filter_orn l en evd (from_type, to_type) args in
-        if List.length orn_args > 0 then
-          let red = reduce_ornament_f l en evd (lift_to l) pre orn_args in
-          map_unit_if (applies (lift_back l)) last_arg red
-        else
-          reduce_ornament_f_arg l en evd (lift_to l) pre t)
+        let red = reduce_ornament_f l en evd (lift_to l) pre orn_args in
+        map_unit_if (applies (lift_back l)) last_arg red)
     env
     trm
     
