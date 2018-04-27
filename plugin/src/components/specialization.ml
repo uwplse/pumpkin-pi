@@ -843,6 +843,26 @@ let substitute_liftings lifted trm =
     (fun t -> List.mem_assoc t lifted)
     (fun t -> List.assoc t lifted)
     trm
+
+(*
+ * Substitute the new type wherever the old type was
+ *
+ * TODO will fail in one of two directions for now
+ *)
+let substitute_lifted_type l (from_type, to_type) index_type trm =
+  let index_i = Option.get l.orn.index_i in
+  map_term_if
+    (fun _ -> is_or_applies from_type)
+    (fun index_type t ->
+      let t_args = unfold_args t in
+      let app = mkAppl (to_type, t_args) in
+      let abs_i = reindex_body (reindex_app (insert_index index_i (mkRel 1))) in
+      let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
+      pack_sigT { index_type ; packer })
+    shift
+    index_type
+    trm
+    
 (*
  * TODO explain, clean, generalize, get other direction working
  *)
@@ -857,15 +877,9 @@ let do_higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
   let (from_typ, to_typ) = map_backward reverse l (from_typ, to_typ) in
   substitute_liftings
     lifted
-    (map_term_if
-       (fun _ -> is_or_applies from_typ)
-       (fun index_type t ->
-         let t_args = unfold_args t in
-         let app = mkAppl (to_typ, t_args) in
-         let abs_i = reindex_body (reindex_app (insert_index index_i (mkRel 1))) in
-         let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
-         pack_sigT { index_type ; packer })
-       shift
+    (substitute_lifted_type
+       l
+       (from_typ, to_typ)
        index_type
        (map_unit_env_if
           (fun en t ->
