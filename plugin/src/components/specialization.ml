@@ -897,7 +897,7 @@ let substitute_lifted_terms env evd lifted l (from_type, to_type) trm =
       let pre = pre_reduce l en evd app in
       let args = unfold_args t in
       (* TODO why can't we call reduce_constr_body here? *)
-      if not (is_or_applies existT pre) && not (List.exists (is_or_applies (lift_back l)) args) && not (List.exists (typ_is_orn en) args) then
+      if not (is_or_applies existT pre) && not (List.exists (typ_is_orn en) args) then
         (* TODO check and fix guard condition *)
         reduce_nf en pre
       else
