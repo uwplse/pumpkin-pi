@@ -430,7 +430,7 @@ let pre_reduce l =
     reduce_promoted_constr_body l
   else
     reduce_forgotten_constr_body l
-
+                                 
 (*
  * Determine whether a type is the type we are ornamenting from
  *
@@ -852,27 +852,34 @@ let substitute_liftings lifted trm =
  *
  * TODO will fail in one of two directions for now
  *)
-let substitute_lifted_type l (from_type, to_type) index_type trm =
+let substitute_lifted_type l env (from_type, to_type) index_type trm =
   let index_i = Option.get l.orn.index_i in
-  map_term_if
-    (fun _ -> is_or_applies from_type)
-    (fun index_type t ->
-      let t_args = unfold_args t in
-      let app = mkAppl (to_type, t_args) in
+  map_term_env_if
+    (fun en _ t ->
+      is_orn l en (from_type, to_type) t ||
+      ((not l.is_fwd) && is_or_applies to_type t))
+    (fun en index_type t ->
+      debug_term en t "t";
       if l.is_fwd then
+        let t_args = unfold_args t in
+        let app = mkAppl (to_type, t_args) in
         let index = mkRel 1 in
         let abs_i = reindex_body (reindex_app (insert_index index_i index)) in
         let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
         pack_sigT { index_type ; packer }
       else
-        (* TODO broken, should probably check different condition *)
-        (* want to check the sigT .... instead of list *)
-        (* inspect terms manually to see what we really want to substitute *)
-        if List.length t_args > index_i then
-          reindex_app (remove_index index_i) app
+        (* TODO how to avoid replacing inside of existT? *)
+        (* need a way _not_ to recurse if inside an existT *)
+        if is_or_applies sigT t then
+          let packed = dummy_index en (dest_sigT t).packer in
+          let t_args = remove_index index_i (unfold_args packed) in
+          mkAppl (from_type, t_args)
         else
-          app)
+          let args = unfold_args t in
+          let t_args = remove_index index_i args in
+          mkAppl (from_type, t_args))
     shift
+    env
     index_type
     trm
     
@@ -887,11 +894,11 @@ let do_higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
   let to_typ = zoom_sig (promotion_type env l.orn.forget) in
   let from_typ = first_fun (promotion_type env l.orn.promote) in
   let index_type = get_arg 0 (promotion_type env l.orn.forget) in (* TODO clean *)
-  let (from_typ, to_typ) = map_backward reverse l (from_typ, to_typ) in
   substitute_liftings
     lifted
     (substitute_lifted_type
        l
+       env
        (from_typ, to_typ)
        index_type
        (map_unit_env_if
