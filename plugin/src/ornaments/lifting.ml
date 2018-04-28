@@ -9,6 +9,13 @@ open Coqterms
 open Zooming
 open Promotions
 open Hofs
+open Constrexpr
+open Globnames
+open Constrextern
+open Names
+open Recordops
+open Libnames
+open Constrexpr_ops
 
 (* --- Datatypes --- *)
 
@@ -105,3 +112,60 @@ let map_indexer f g l x = map_if_else f g l.is_indexer x
 let map_forward f l x = map_if f l.is_fwd x
 let map_backward f l x = map_if f (not l.is_fwd) x
 let map_if_indexer f l x = map_if f l.is_indexer x
+
+(* --- Database of liftings for higher lifting --- *)
+
+(*
+ * This code is by Nate Yazdani, ported into this plugin
+ * and renamed for consistency
+ *)
+
+(** Construct the external expression for a definition. *)
+let expr_of_global (g : global_reference) : constr_expr =
+  let r = extern_reference Loc.ghost Id.Set.empty g in
+  CAppExpl (Loc.ghost, (None, r, None), [])
+
+(** Record information of the lifting structure. *)
+let structure : struc_typ =
+  let ind = destIndRef (Nametab.locate (qualid_of_string "Ornamental.Lifted.t")) in
+  lookup_structure ind
+
+(** Base-term projection of the lifting structure. *)
+let project : global_reference =
+  Nametab.locate (qualid_of_string "Ornamental.Lifted.base")
+
+(** Constructor of the lifting structure. *)
+let construct : constr_expr =
+  let global = ConstructRef structure.s_CONST in
+  mkRefC (extern_reference Loc.ghost Id.Set.empty global)
+
+(** Build the identifier [X + "_lift"] to use as the name of the lifting instance
+    for the definition [base] with name [M_1.M_2...M_n.X]. *)
+let name_lifted (base : global_reference) : Id.t =
+  let name = Nametab.basename_of_global base in
+  Id.of_string (String.concat "_" [Id.to_string name; "lift"])
+
+(** Build an external expression for the lifting instance for the definition
+    [base] given its lifted definition [lift]. *)
+let make_lifted (base : global_reference) (lift : global_reference) : constr_expr =
+  mkAppC (construct, [expr_of_global base; expr_of_global lift])
+
+(** Register a canonical lifting for the definition [base] given its lifted
+    definition [lift]. *)
+let declare_lifted (base : global_reference) (lift : global_reference) : unit =
+  let ident = name_lifted base in
+  let package = make_lifted base lift in
+  let hook = Lemmas.mk_hook (fun _ -> declare_canonical_structure) in
+  Command.do_definition ident
+    (Decl_kinds.Global, false, Decl_kinds.CanonicalStructure)
+    None [] None package None hook    
+
+(** Retrieve the canonical lifting for the definition [base], or raise
+    [Not_found] if there is no such canonical lifting. *)
+let search_lifted (base : global_reference) : types =
+  let env = Global.env () in
+  let (_, info) = lookup_canonical_conversion (project, Const_cs base) in
+  (* Reduce the lifting instance down to HNF to extract the target component. *)
+  let package = Reduction.whd_all env info.o_DEF in
+  let (cons, args) = Term.decompose_appvect package in
+  args.(3)

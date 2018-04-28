@@ -40,4 +40,5 @@ src/components/differencing.mli
 src/ornamental.ml4
 src/ornaments.mlpack
 
+theories/Lifted.v
 theories/Ornaments.v
