@@ -670,10 +670,70 @@ Definition app_nil_r_higher (A : Type) (l : list A) :=
 Apply ornament orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in app_nil_r_vect_packed as app_nil_r_auto.
 
+Theorem in_split : 
+  forall A x (l:list A), In A x l -> exists l1 l2, l = l1++x::l2.
+Proof.
+  induction l; simpl; destruct 1.
+  subst a; auto.
+  exists nil, l; auto.
+  destruct (IHl H) as (l1,(l2,H0)).
+  exists (a::l1), l2; simpl; f_equal; auto.
+Qed.
 
-(* TODO try In, then you can try the facts about In, which should translate over as soon
-   as app translates over. Then try app_nil_r and so on. *)
+Apply ornament orn_list_vector orn_list_vector_inv in in_split as in_split_vect_auto.
 
-(* TODO test more to see if there are bugs before internalizing *)
+Print in_split_vect_auto.
 
-(* TODO test some functions on other types besides lists/vectors *)
+(* --- Proofs that don't induct over list/vector. TODO can we do anything about these? --- *)
+
+(*
+Theorem nil_cons : 
+  forall (A : Type) (x:A) (l:list A), nil <> x :: l.
+Proof.
+  intros; discriminate.
+Qed.
+
+Theorem nil_consV :
+  forall (A : Type) (x:A) (pv : packed_vector A),
+    (existT (vector A) 0 (nilV A)) <> (existT (vector A) (S (projT1 pv)) (consV A (projT1 pv) x (projT2 pv))).
+Proof.
+  intros; discriminate.
+Qed.
+
+ (** Destruction *)
+
+  Theorem destruct_list : forall (A : Type) (l : list A), {x:A & {tl:list A | l = x::tl}}+{l = nil}.
+  Proof.
+    induction l as [|a tail].
+    right; reflexivity.
+    left; exists a, tail; reflexivity.
+  Qed.
+
+Theorem hd_error_nil : 
+  forall A, hd_error A (@nil A) = None.
+Proof.
+  simpl; reflexivity.
+Qed.
+
+Theorem hd_error_nil_vect :
+  forall A, hd_vect_error_packed A (existT (vector A) 0 (nilV A)) = None.
+Proof.
+  simpl; reflexivity.
+Qed.
+
+(* TODO this is only actual worth doing anything with if you higher-lift [but it works]: *)
+Higher lift orn_list_vector orn_list_vector_inv in hd_error_nil as hd_error_nil_red.
+
+Theorem hd_error_cons : 
+  forall A (l : list A) (x : A), hd_error A (x::l) = Some x.
+Proof.
+  intros; simpl; reflexivity.
+Qed.
+
+ *)
+
+(* TODO decide what to do with these, see if can port, etc. *)
+
+(* --- *)
+
+(* TODO non list/vect tests *)

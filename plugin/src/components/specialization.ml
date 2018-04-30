@@ -57,26 +57,38 @@ let non_index_args l env trm =
     unfold_args trm
 
 (* --- Application of ornaments before meta-reduction --- *)
-              
+
 (*
  * Substitute the ornamented type in the hypotheses.
+ * TODO clean up after updates
  *)
-let sub_in_hypos l env from_ind to_ind hypos =
-  let index_i = Option.get l.orn.index_i in
-  map_unit_env_if_lazy
-    (fun env trm ->
-      match kind_of_term trm with
-      | Lambda (_, t, _) ->
-         is_or_applies from_ind (zoom_if_sig (reduce_nf env t))
-      | _ ->
-         false)
-    (fun env trm ->
-      let (n, t, b) = destLambda trm in
-      let t_args = non_index_args l env t in
-      mkLambda (n, reduce_term env (mkAppl (to_ind, t_args)), b))
-    env
-    hypos
-
+let sub_in_hypos l env evd from_ind to_ind hypos =
+  let rec sub env trm =
+    match kind_of_term trm with
+    | Prod (n, t, b) ->
+       let t' =
+         map_unit_env_if
+           (fun env trm ->
+             is_or_applies from_ind (zoom_if_sig (reduce_nf env trm)))
+           (fun env trm ->
+             reduce_term env (mkAppl (to_ind, non_index_args l env trm)))
+           env
+           (map_unit_env_if
+              (fun env trm ->
+                try
+                  is_or_applies from_ind (zoom_if_sig (reduce_type env evd trm))
+                with _ ->
+                  false)
+              (fun env trm ->
+                let t_args = non_index_typ_args l env evd trm in
+                mkAppl (lift_back l, snoc trm t_args))
+              env
+              t)
+       in mkProd (n, t', sub (push_local (n, t) env) b)
+    | _ ->
+       trm
+  in sub env hypos
+                
 (* Apply the promotion/forgetful function to the arguments *)
 let ornament_args env evd from_ind l trm =
   let rec ornament_arg env i typ =
@@ -94,12 +106,12 @@ let ornament_args env evd from_ind l trm =
 
 (* Apply the promotion/forgetful function to the hypotheses *)
 let ornament_hypos env evd (l : lifting) (from_ind, to_ind) trm =
-  let hypos = on_type prod_to_lambda env evd trm in
-  let subbed = sub_in_hypos l env from_ind to_ind hypos in
+  let hypos = reduce_type env evd trm in
+  let subbed = sub_in_hypos l env evd from_ind to_ind hypos in
   zoom_apply_lambda
     (fun env _ -> ornament_args env evd from_ind l trm)
     env
-    subbed
+    (prod_to_lambda subbed)
 
 (* Apply the promotion/forgetful function to the conclusion, if applicable *)
 let ornament_concls concl_typ env evd (l : lifting) (from_ind, _) trm =
@@ -149,7 +161,9 @@ let apply_indexing_ornament env evd l trm =
   let app_orn ornamenter = ornamenter env evd l inds in
   let typ = reduce_type env evd trm in
   let concl_typ = in_body zoom_product_type reduce_nf env typ in
-  app_orn (ornament_concls concl_typ) (app_orn ornament_hypos trm)
+  let orn = app_orn (ornament_concls concl_typ) (app_orn ornament_hypos trm) in
+  debug_term env orn "orn";
+  orn
           
 (* --- Meta-reduction --- *)
 
