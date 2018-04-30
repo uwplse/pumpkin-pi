@@ -88,7 +88,8 @@ let higher_lifting n d_orn d_orn_inv d_f_old d_f_new d_old =
   let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
   let orn = initialize_promotion env evd promote forget in
   let l = initialize_lifting orn is_fwd in
-  let lifted = [ (c_f_old, c_f_new) ] in
+  (* TODO later on, register as we define; this is for testing *)
+  declare_lifted c_f_old c_f_new;
   let (higher_lifted, _) = higher_lift env evd lifted l c_o in
   (* TODO indexing proof & print something after defined *)
   define_term n env evd higher_lifted

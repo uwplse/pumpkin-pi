@@ -86,3 +86,12 @@ val map_if_indexer : ('a -> 'a) -> lifting -> 'a -> 'a
 
 (* --- Database for higher lifting --- *)
 
+(*
+ * Register a lifting to the database
+ *)
+val declare_lifted : types -> types -> unit
+
+(*
+ * Search the database for a lifting
+ *)                                       
+val search_lifted : env -> types -> types option

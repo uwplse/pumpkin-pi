@@ -162,12 +162,14 @@ let declare_lifted (base : types) (lift : types) : unit =
     (Decl_kinds.Global, false, Decl_kinds.CanonicalStructure)
     None [] None package None hook    
 
-(** Retrieve the canonical lifting for the definition [base], or raise
-    [Not_found] if there is no such canonical lifting. *)
-let search_lifted (env : env) (base : types) : types =
-  let base = global_of_constr base in
-  let (_, info) = lookup_canonical_conversion (project, Const_cs base) in
-  (* Reduce the lifting instance down to HNF to extract the target component. *)
-  let package = Reduction.whd_all env info.o_DEF in
-  let (cons, args) = Term.decompose_appvect package in
-  args.(3)
+(** Retrieve the canonical lifting for the definition [base]. *)
+let search_lifted (env : env) (base : types) : types option =
+  try
+    let base = global_of_constr base in
+    let (_, info) = lookup_canonical_conversion (project, Const_cs base) in
+    (* Reduce the lifting instance to HNF to extract the target component. *)
+    let package = Reduction.whd_all env info.o_DEF in
+    let (cons, args) = Term.decompose_appvect package in
+    Some (args.(3))
+  with _ ->
+    None

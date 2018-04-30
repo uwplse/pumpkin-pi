@@ -29,10 +29,12 @@ val internalize :
   types -> (* term to reduce *)
   (types * types option) (* reduced term and optional indexer *)
 
+(*
+ * Lift a proof along lifted functions it refers to
+ *)
 val higher_lift :
   env ->
   evar_map ->
-  (types * types) list -> (* lower lifted types *)
   lifting -> (* lifting configuration *)
   types -> (* reduced term *)
   (types * types option) (* higher lifting and optional indexing proof *)

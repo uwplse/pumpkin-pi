@@ -840,10 +840,10 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
  * When I move to Nate's infrastructure, this will instead check the
  * canonical structure
  *)
-let substitute_liftings lifted trm =
+let substitute_liftings env trm =
   map_unit_if
-    (fun t -> List.mem_assoc t lifted)
-    (fun t -> List.assoc t lifted)
+    isConst
+    (fun t -> map_default (fun l -> l) t (search_lifted env t))
     trm
 
 (*
@@ -874,11 +874,11 @@ let substitute_lifted_type l env (from_type, to_type) index_type trm =
  * TODO explain, clean, generalize, get other direction working
  * (see proof term in foo.txt)
  *)
-let substitute_lifted_terms env evd lifted l (from_type, to_type) trm =
+let substitute_lifted_terms env evd l (from_type, to_type) trm =
   let typ_is_orn en t = on_type (is_orn l en (from_type, to_type)) en evd t in
   map_unit_env_if
     (fun en t ->
-      if isApp t && List.mem_assoc (first_fun t) lifted then
+      if isApp t && Option.has_some (search_lifted en (first_fun t)) then
         false
       else
         try
@@ -904,7 +904,7 @@ let substitute_lifted_terms env evd lifted l (from_type, to_type) trm =
 (*
  * TODO explain, clean, generalize, get other direction working
  *)
-let do_higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
+let do_higher_lift env evd (l : lifting) trm =
   let index_i = Option.get l.orn.index_i in
   let orn_type = reduce_type env evd l.orn.promote in
   let (orn_f, orn_g) = (l.orn.forget, l.orn.promote) in
@@ -913,16 +913,16 @@ let do_higher_lift env evd (lifted : (types * types) list) (l : lifting) trm =
   let from_typ = first_fun (promotion_type env l.orn.promote) in
   let index_type = get_arg 0 (promotion_type env l.orn.forget) in (* TODO clean *)
   substitute_liftings
-    lifted
+    env
     (substitute_lifted_type
        l
        env
        (from_typ, to_typ)
        index_type
-       (substitute_lifted_terms env evd lifted l (from_typ, to_typ) trm))
+       (substitute_lifted_terms env evd l (from_typ, to_typ) trm))
     
-let higher_lift env evd (lifted : (types * types) list) (l : lifting) def =
+let higher_lift env evd (l : lifting) def =
   let indexing_proof = None in (* TODO implement *)
   let trm = unwrap_definition env def in
-  let higher_lifted = do_higher_lift env evd lifted l trm in
+  let higher_lifted = do_higher_lift env evd l trm in
   (higher_lifted, indexing_proof)
