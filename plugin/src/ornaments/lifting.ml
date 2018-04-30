@@ -152,7 +152,9 @@ let make_lifted (base : global_reference) (lift : global_reference) : constr_exp
 
 (** Register a canonical lifting for the definition [base] given its lifted
     definition [lift]. *)
-let declare_lifted (base : global_reference) (lift : global_reference) : unit =
+let declare_lifted (base : types) (lift : types) : unit =
+  let base = global_of_constr base in
+  let lift = global_of_constr lift in
   let ident = name_lifted base in
   let package = make_lifted base lift in
   let hook = Lemmas.mk_hook (fun _ -> declare_canonical_structure) in
@@ -162,8 +164,8 @@ let declare_lifted (base : global_reference) (lift : global_reference) : unit =
 
 (** Retrieve the canonical lifting for the definition [base], or raise
     [Not_found] if there is no such canonical lifting. *)
-let search_lifted (base : global_reference) : types =
-  let env = Global.env () in
+let search_lifted (env : env) (base : types) : types =
+  let base = global_of_constr base in
   let (_, info) = lookup_canonical_conversion (project, Const_cs base) in
   (* Reduce the lifting instance down to HNF to extract the target component. *)
   let package = Reduction.whd_all env info.o_DEF in

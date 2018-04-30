@@ -84,3 +84,5 @@ val map_forward : ('a -> 'a) -> lifting -> 'a -> 'a
 val map_backward : ('a -> 'a) -> lifting -> 'a -> 'a
 val map_if_indexer : ('a -> 'a) -> lifting -> 'a -> 'a
 
+(* --- Database for higher lifting --- *)
+
