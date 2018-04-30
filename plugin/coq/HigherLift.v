@@ -18,8 +18,6 @@ Proof.
   exact app_nil_r_vect_red_higher.
 Qed.
 
-Print app_nil_r_vect_red_higher.
-
 Higher lift orn_list_vector_inv orn_list_vector in app_nil_r_red as app_nil_r_red_higher.
 
 Theorem test_app_nil_r:
@@ -28,5 +26,3 @@ Theorem test_app_nil_r:
 Proof.
   exact app_nil_r_red_higher.
 Qed.
-
-Print app_nil_r_red_higher.
