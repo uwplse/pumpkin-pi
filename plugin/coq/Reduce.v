@@ -142,6 +142,24 @@ Proof.
   intros. reflexivity.
 Qed.
 
+Reduce ornament orn_list_vector orn_list_vector_inv in In_vect_auto as In_vect_red.
+
+Theorem test_in_vect:
+  forall (A : Type) (a : A) (pv : packed_vector A),
+    In_vect A a pv = In_vect_red A a pv.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Reduce ornament orn_list_vector_inv orn_list_vector in In_auto as In_red.
+
+Theorem test_in:
+  forall (A : Type) (a : A) (l : list A),
+    In A a l = In_red A a l.
+Proof.
+  intros. reflexivity.
+Qed.
+
 (* --- Proofs --- *)
 
 (* 

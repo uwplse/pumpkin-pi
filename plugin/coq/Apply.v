@@ -555,6 +555,12 @@ Definition In_vect (A : Type) (a : A) (pv : sigT (vector A)) : Prop :=
 Apply ornament orn_list_vector orn_list_vector_inv in In as In_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in In_vect as In_auto.
 
+(*
+ * TODO proofs at some point that this is OK
+ *)
+
+(* TODO next: before doing more proofs and so on, test In, then try reducing, etc *)
+
 (* --- Interesting parts: Trying some proofs --- *)
 
 (* This is our favorite proof app_nil_r, which has no exact analogue when
