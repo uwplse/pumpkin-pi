@@ -195,5 +195,8 @@ let search_canonical (env : env) (base : types) : types option =
 (** Retrieve the canonical lifting for the definition [base].
     Return the reduced version if it exists. *)
 let search_lifted (env : env) (base : types) : types option =
-  map_default (search_canonical env) None (search_canonical env base)
+  map_default
+    (fun l -> map_default (fun r -> Some r) (Some l) (search_canonical env l))
+    None
+    (search_canonical env base)
  
