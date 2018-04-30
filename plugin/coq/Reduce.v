@@ -244,7 +244,7 @@ Proof.
 Qed.
 
 (*
- * NOTE: Note the unpack_rect thing which mattered a lot. Can we internalize this
+ * NOTE: Note the unpack_re ct thing which mattered a lot. Can we internalize this
  * into an induction principle itself?
  *)
 
@@ -284,6 +284,12 @@ Qed.
  * function in the case that we lift back to vectors, like with append_vect and tl_vect.
  * Below we manually derive the proofs we would want, so we can implement this later (TODO).
  *)
+
+(* TODO not yet working: 
+Reduce ornament orn_list_vector orn_list_vector_inv in in_split_vect_auto as in_split_vect_red.
+*)
+
+(* TODO opposite direction too once it's done *)
 
 (* --- Unimplemented ideas --- *)
 

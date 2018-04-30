@@ -161,9 +161,7 @@ let apply_indexing_ornament env evd l trm =
   let app_orn ornamenter = ornamenter env evd l inds in
   let typ = reduce_type env evd trm in
   let concl_typ = in_body zoom_product_type reduce_nf env typ in
-  let orn = app_orn (ornament_concls concl_typ) (app_orn ornament_hypos trm) in
-  debug_term env orn "orn";
-  orn
+  app_orn (ornament_concls concl_typ) (app_orn ornament_hypos trm)
           
 (* --- Meta-reduction --- *)
 

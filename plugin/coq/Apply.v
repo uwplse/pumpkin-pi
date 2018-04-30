@@ -678,11 +678,11 @@ Proof.
   exists nil, l; auto.
   destruct (IHl H) as (l1,(l2,H0)).
   exists (a::l1), l2; simpl; f_equal; auto.
-Qed.
+Defined.
 
 Apply ornament orn_list_vector orn_list_vector_inv in in_split as in_split_vect_auto.
 
-Print in_split_vect_auto.
+(* TODO opposite direction too *)
 
 (* --- Proofs that don't induct over list/vector. TODO can we do anything about these? --- *)
 
