@@ -836,9 +836,6 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
 
 (*
  * Substitute the lower lifted terms into the term
- *
- * When I move to Nate's infrastructure, this will instead check the
- * canonical structure
  *)
 let substitute_liftings env trm =
   map_unit_if
@@ -871,8 +868,8 @@ let substitute_lifted_type l env (from_type, to_type) index_type trm =
     trm
 
 (*
- * TODO explain, clean, generalize, get other direction working
- * (see proof term in foo.txt)
+ * Substitute every term of the type we are promoting/forgetting from 
+ * with a term with the corresponding promoted/forgotten type
  *)
 let substitute_lifted_terms env evd l (from_type, to_type) trm =
   let typ_is_orn en t = on_type (is_orn l en (from_type, to_type)) en evd t in
@@ -905,20 +902,18 @@ let substitute_lifted_terms env evd l (from_type, to_type) trm =
  * TODO explain, clean, generalize, get other direction working
  *)
 let do_higher_lift env evd (l : lifting) trm =
-  let index_i = Option.get l.orn.index_i in
-  let orn_type = reduce_type env evd l.orn.promote in
-  let (orn_f, orn_g) = (l.orn.forget, l.orn.promote) in
-  let promotion_type env trm = fst (on_type ind_of_promotion_type env evd trm) in
-  let to_typ = zoom_sig (promotion_type env l.orn.forget) in
-  let from_typ = first_fun (promotion_type env l.orn.promote) in
-  let index_type = get_arg 0 (promotion_type env l.orn.forget) in (* TODO clean *)
+  let promotion_type en t = fst (on_type ind_of_promotion_type en evd t) in
+  let forget_typ = promotion_type env l.orn.forget in
+  let promote_typ = promotion_type env l.orn.promote in
+  let to_typ = zoom_sig forget_typ in
+  let from_typ = first_fun promote_typ in
   substitute_liftings
     env
     (substitute_lifted_type
        l
        env
        (from_typ, to_typ)
-       index_type
+       (dest_sigT forget_typ).index_type
        (substitute_lifted_terms env evd l (from_typ, to_typ) trm))
     
 let higher_lift env evd (l : lifting) def =
