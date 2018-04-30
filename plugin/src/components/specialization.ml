@@ -899,7 +899,8 @@ let substitute_lifted_terms env evd l (from_type, to_type) trm =
     trm
     
 (*
- * TODO explain, clean, generalize, get other direction working
+ * Implementation of higher lifting, which substitutes in the lifted
+ * functions, the ornamented and reduced terms, and the ornamented types
  *)
 let do_higher_lift env evd (l : lifting) trm =
   let promotion_type en t = fst (on_type ind_of_promotion_type en evd t) in
@@ -915,7 +916,12 @@ let do_higher_lift env evd (l : lifting) trm =
        (from_typ, to_typ)
        (dest_sigT forget_typ).index_type
        (substitute_lifted_terms env evd l (from_typ, to_typ) trm))
-    
+
+(*
+ * Given a reduced lifting of a proof term that refers to other
+ * terms that have already been lifted, lift the proof to
+ * use the lifted versions of those terms
+ *)   
 let higher_lift env evd (l : lifting) def =
   let indexing_proof = None in (* TODO implement *)
   let trm = unwrap_definition env def in
