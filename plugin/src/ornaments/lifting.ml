@@ -145,6 +145,12 @@ let name_lifted (base : global_reference) : Id.t =
   let name = Nametab.basename_of_global base in
   Id.of_string (String.concat "_" [Id.to_string name; "lift"])
 
+(** Build the identifier [X + "_red"] to use as the name of the reduced lifting
+ instance for the definition [base] with name [M_1.M_2...M_n.X]. *)
+let name_reduced (base : global_reference) : Id.t =
+  let name = Nametab.basename_of_global base in
+  Id.of_string (String.concat "_" [Id.to_string name; "red"])
+
 (** Build an external expression for the lifting instance for the definition
     [base] given its lifted definition [lift]. *)
 let make_lifted (base : global_reference) (lift : global_reference) : constr_expr =
@@ -160,10 +166,22 @@ let declare_lifted (base : types) (lift : types) : unit =
   let hook = Lemmas.mk_hook (fun _ -> declare_canonical_structure) in
   Command.do_definition ident
     (Decl_kinds.Global, false, Decl_kinds.CanonicalStructure)
-    None [] None package None hook    
+    None [] None package None hook
+
+(** Register a canonical reduction for the lifted definition [lift] 
+    given its reduced definition [red]. *)
+let declare_reduced (lift : types) (red : types) : unit =
+  let lift = global_of_constr lift in
+  let red = global_of_constr red in
+  let ident = name_reduced lift in
+  let package = make_lifted lift red in
+  let hook = Lemmas.mk_hook (fun _ -> declare_canonical_structure) in
+  Command.do_definition ident
+    (Decl_kinds.Global, false, Decl_kinds.CanonicalStructure)
+    None [] None package None hook
 
 (** Retrieve the canonical lifting for the definition [base]. *)
-let search_lifted (env : env) (base : types) : types option =
+let search_canonical (env : env) (base : types) : types option =
   try
     let base = global_of_constr base in
     let (_, info) = lookup_canonical_conversion (project, Const_cs base) in
@@ -173,3 +191,9 @@ let search_lifted (env : env) (base : types) : types option =
     Some (args.(3))
   with _ ->
     None
+
+(** Retrieve the canonical lifting for the definition [base].
+    Return the reduced version if it exists. *)
+let search_lifted (env : env) (base : types) : types option =
+  map_default (search_canonical env) None (search_canonical env base)
+ 

@@ -92,6 +92,11 @@ val map_if_indexer : ('a -> 'a) -> lifting -> 'a -> 'a
 val declare_lifted : types -> types -> unit
 
 (*
- * Search the database for a lifting
+ * Register a reduction of a lifting to the database
+ *)
+val declare_reduced : types -> types -> unit
+
+(*
+ * Search the database for a lifting (return the reduced version if it exists)
  *)                                       
 val search_lifted : env -> types -> types option

@@ -49,6 +49,7 @@ let apply_ornament n d_orn d_orn_inv d_old =
   let l = initialize_lifting orn is_fwd in
   let trm_n = apply_indexing_ornament env evd l c_o in
   define_term n env evd trm_n;
+  declare_lifted c_o (make_constant n);
   Printf.printf "Defined ornamented fuction %s.\n\n" (string_of_id n);
   ()
 
@@ -73,24 +74,21 @@ let reduce_ornament n d_orn d_orn_inv d_old =
    else
      ());
   define_term n env evd trm_n;
+  declare_lifted c_o (make_constant n);
   Printf.printf "Defined reduced ornamened function %s.\n\n" (string_of_id n);
   ()
 
 (* Higher lifting *)
-let higher_lifting n d_orn d_orn_inv d_f_old d_f_new d_old =
+let higher_lifting n d_orn d_orn_inv d_old =
   let (evd, env) = Lemmas.get_current_context () in
   let c_orn = intern env evd d_orn in
   let c_orn_inv = intern env evd d_orn_inv in
-  let c_f_old = intern env evd d_f_old in
-  let c_f_new = intern env evd d_f_new in
   let c_o = intern env evd d_old in
   let is_fwd = direction env evd c_orn in
   let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
   let orn = initialize_promotion env evd promote forget in
   let l = initialize_lifting orn is_fwd in
-  (* TODO later on, register as we define; this is for testing *)
-  declare_lifted c_f_old c_f_new;
-  let (higher_lifted, _) = higher_lift env evd lifted l c_o in
+  let (higher_lifted, _) = higher_lift env evd l c_o in
   (* TODO indexing proof & print something after defined *)
   define_term n env evd higher_lifted
 
@@ -135,6 +133,11 @@ END
  * type that still occurs in the meta-reduced term and type.
  *)
 VERNAC COMMAND EXTEND HigherLifting CLASSIFIED AS SIDEFF
-| [ "Higher" "lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "along" constr(d_f_old) constr (d_f_new) "as" ident(n) ] ->
-  [ higher_lifting n d_orn d_orn_inv d_f_old d_f_new d_old ]
+| [ "Higher" "lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n) ] ->
+  [ higher_lifting n d_orn d_orn_inv d_old ]
 END
+
+(*
+ * TODO combine these steps optionally into a single reduction mechanism
+ * that will have way better syntax since it will remember everything
+ *)
