@@ -36,10 +36,9 @@ let reconstruct_packed assum_ind env trm =
               
 (*
  * Substitute the ornamented type in the hypotheses.
- * Return both the term with ornamented hypotheses and the number
- * of substitutions that occurred.
  *)
 let sub_in_hypos l env from_ind to_ind hypos =
+  let index_i = Option.get l.orn.index_i in
   map_unit_env_if_lazy
     (fun env trm ->
       match kind_of_term trm with
@@ -48,9 +47,16 @@ let sub_in_hypos l env from_ind to_ind hypos =
       | _ ->
          false)
     (fun env trm ->
+      debug_term env trm "trm";
       let (n, t, b) = destLambda trm in
-      let t_ind = reduce_term env (mkAppl (to_ind, unfold_args t)) in
-      mkLambda (n, t_ind, b))
+      let t = reduce_nf env t in
+      let t_args =
+        if is_or_applies sigT t then
+          let packer = (dest_sigT t).packer in
+          remove_index index_i (unfold_args (dummy_index env packer))
+        else
+          unfold_args t
+      in mkLambda (n, reduce_term env (mkAppl (to_ind, t_args)), b))
     env
     hypos
 
@@ -72,10 +78,13 @@ let ornament_args env evd from_ind l trm =
 (* Apply the promotion/forgetful function to the hypotheses *)
 let ornament_hypos env evd (l : lifting) (from_ind, to_ind) trm =
   let hypos = on_type prod_to_lambda env evd trm in
+  debug_term env trm "trm";
+  let subbed = sub_in_hypos l env from_ind to_ind hypos in
+  debug_term env subbed "subbed";
   zoom_apply_lambda
     (fun env _ -> ornament_args env evd from_ind l trm)
     env
-    (sub_in_hypos l env from_ind to_ind hypos)
+    subbed
 
 (* Apply the promotion/forgetful function to the conclusion, if applicable *)
 let ornament_concls concl_typ env evd (l : lifting) (from_ind, _) trm =

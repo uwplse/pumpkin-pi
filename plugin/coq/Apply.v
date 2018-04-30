@@ -524,6 +524,37 @@ Proof.
   intros. induction l; try apply coh; auto.
 Qed.
 
+(*
+ * In as an indutive definition
+ *)
+Definition In (A : Type) (a : A) (l : list A) : Prop :=
+  @list_rect
+    A
+    (fun (_ : list A) => Prop)
+    False
+    (fun (b : A) (l0 : list A) (IHl : Prop) =>
+      a = b \/ IHl)
+    l.
+
+Definition In_vect (A : Type) (a : A) (pv : sigT (vector A)) : Prop :=
+  sigT_rect
+    (fun _ : packed_vector A => Prop)
+    (fun (n0 : nat) (v0 : vector A n0) =>
+      @vector_rect
+        A
+        (fun (n1 : nat) (_ : vector A n1) => Prop)
+        False
+        (fun (n1 : nat) (b : A) (_ : vector A n1) (IHv : Prop) =>
+          a = b \/ IHv)
+        n0
+        v0)
+    pv.
+
+(* TODO what happens if you curry the vector_rect application? and so on *)
+
+Apply ornament orn_list_vector orn_list_vector_inv in In as In_vect_auto.
+Apply ornament orn_list_vector_inv orn_list_vector in In_vect as In_auto.
+
 (* --- Interesting parts: Trying some proofs --- *)
 
 (* This is our favorite proof app_nil_r, which has no exact analogue when
@@ -632,6 +663,7 @@ Definition app_nil_r_higher (A : Type) (l : list A) :=
 
 Apply ornament orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in app_nil_r_vect_packed as app_nil_r_auto.
+
 
 (* TODO try In, then you can try the facts about In, which should translate over as soon
    as app translates over. Then try app_nil_r and so on. *)
