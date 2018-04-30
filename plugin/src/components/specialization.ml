@@ -31,6 +31,30 @@ let pack_env assum_ind env =
  *)
 let reconstruct_packed assum_ind env trm =
   reconstruct_lambda_n_skip env trm (offset env 2) (assum_ind - 1)
+            
+(*
+ * Given a term with the type we are promoting to/forgetting from, 
+ * get all of the arguments to that type that aren't the new/forgotten index
+ *)
+let non_index_typ_args l env evd trm =
+  if l.is_fwd then
+    on_type unfold_args env evd trm
+  else
+    let app = on_type dest_sigT env evd trm in
+    let deindex = remove_index (Option.get l.orn.index_i) in
+    deindex (unfold_args (dummy_index env app.packer))
+
+(*
+ * Same, but at the term level
+ *)
+let non_index_args l env trm =
+  let index_i = Option.get l.orn.index_i in
+  let trm = reduce_nf env trm in
+  if is_or_applies sigT trm then
+    let packer = (dest_sigT trm).packer in
+    remove_index index_i (unfold_args (dummy_index env packer))
+  else
+    unfold_args trm
 
 (* --- Application of ornaments before meta-reduction --- *)
               
@@ -47,16 +71,9 @@ let sub_in_hypos l env from_ind to_ind hypos =
       | _ ->
          false)
     (fun env trm ->
-      debug_term env trm "trm";
       let (n, t, b) = destLambda trm in
-      let t = reduce_nf env t in
-      let t_args =
-        if is_or_applies sigT t then
-          let packer = (dest_sigT t).packer in
-          remove_index index_i (unfold_args (dummy_index env packer))
-        else
-          unfold_args t
-      in mkLambda (n, reduce_term env (mkAppl (to_ind, t_args)), b))
+      let t_args = non_index_args l env t in
+      mkLambda (n, reduce_term env (mkAppl (to_ind, t_args)), b))
     env
     hypos
 
@@ -67,7 +84,7 @@ let ornament_args env evd from_ind l trm =
     | Prod (n, t, b) ->
        let ornament_b = ornament_arg (push_local (n, t) env) (unshift_i i) b in
        if is_or_applies from_ind (zoom_if_sig (reduce_nf env t)) then
-         let t_args = unfold_args (shift_by i t) in
+         let t_args = non_index_args l env (shift_by i t) in
          mkAppl (lift_back l, snoc (mkRel i) t_args) :: ornament_b
        else
          mkRel i :: ornament_b
@@ -78,9 +95,7 @@ let ornament_args env evd from_ind l trm =
 (* Apply the promotion/forgetful function to the hypotheses *)
 let ornament_hypos env evd (l : lifting) (from_ind, to_ind) trm =
   let hypos = on_type prod_to_lambda env evd trm in
-  debug_term env trm "trm";
   let subbed = sub_in_hypos l env from_ind to_ind hypos in
-  debug_term env subbed "subbed";
   zoom_apply_lambda
     (fun env _ -> ornament_args env evd from_ind l trm)
     env
@@ -541,18 +556,6 @@ let pack_ihs l env evd (from_typ, to_typ) c_g =
       else
         arg)
     (get_all_hypos c_g)
-
-(*
- * Given a term with the type we are promoting to/forgetting from, 
- * get all of the arguments to that type that aren't the new/forgotten index
- *)
-let non_index_typ_args l env evd trm =
-  if l.is_fwd then
-    on_type unfold_args env evd trm
-  else
-    let app = on_type dest_sigT env evd trm in
-    let deindex = remove_index (Option.get l.orn.index_i) in
-    deindex (unfold_args (dummy_index env app.packer))
   
 (*
  * Compose two constructors for two applications of an induction principle
