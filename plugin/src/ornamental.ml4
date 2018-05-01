@@ -66,19 +66,14 @@ let reduce_ornament n d_orn d_orn_inv d_old =
   let orn = initialize_promotion env evd promote forget in
   let l = initialize_lifting orn is_fwd in
   let (trm_n, indexer) = internalize env evd idx_n l trm_o in
-  debug_term env trm_n "trm_n";
   (if Option.has_some indexer then
      let indexer_o = Option.get indexer in
-     debug_term env indexer_o "indexer_o";
      let (indexer_n, _) = internalize env evd idx_n l indexer_o in
-     debug_term env indexer_n "indexer_n";
      define_term idx_n env evd indexer_n;
      Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
    else
      ());
-  Printf.printf "%s\n\n" "defining the term";
   define_term n env evd trm_n;
-  Printf.printf "%s\n\n" "declaring the lifting";
   declare_lifted c_o (make_constant n);
   Printf.printf "Defined reduced ornamened function %s.\n\n" (string_of_id n);
   ()

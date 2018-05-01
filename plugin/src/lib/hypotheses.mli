@@ -25,3 +25,8 @@ val get_used_or_p_hypos : (types -> bool) -> types -> types list
  * Get all hypotheses of a term
  *)
 val get_all_hypos : types -> types list    
+
+(*
+ * Get n hypothesis of a term
+ *)
+val get_n_hypos : int -> types -> types list

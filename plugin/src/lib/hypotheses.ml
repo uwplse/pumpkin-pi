@@ -60,3 +60,8 @@ let get_used_or_p_hypos (p : types -> bool) (trm : types) : types list =
  *)
 let get_all_hypos = get_used_or_p_hypos (always_true)
 
+(*
+ * Get n hypothesis of a term
+ *)
+let get_n_hypos nhs trm =
+  take nhs (get_all_hypos trm)

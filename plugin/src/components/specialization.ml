@@ -548,8 +548,10 @@ let project_ihs l env evd (from_typ, to_typ) c_g =
   let index_args = indexes to_typ index_i (arity c_g) c_g in
   List.mapi
     (fun i arg ->
+      debug_term env arg "arg";
       if List.mem_assoc i index_args then
         let ih = fst (List.assoc i index_args) in
+        debug_term env ih "ih";
         project_index_from_ih l env evd ih
       else if on_type (is_or_applies from_typ) env evd arg then
         project_value_from_ih l env evd arg
@@ -560,14 +562,19 @@ let project_ihs l env evd (from_typ, to_typ) c_g =
 (*
  * In the promotion direction, we need to do the opposite, and pack each IH.
  *)
-let pack_ihs l env evd (from_typ, to_typ) c_g =
+let pack_ihs c_f_old l env evd (from_typ, to_typ) c_g =
+  debug_term env c_g "c_g";
+  let index_args = indexes to_typ (Option.get l.orn.index_i) (arity c_g) c_g in
+  let nhs = arity c_f_old + 2 * (List.length index_args) in
+  Printf.printf "%d\n" nhs;
   List.map
     (fun arg ->
+      debug_term env arg "arg";
       if on_type (is_or_applies to_typ) env evd arg then
         pack_inner env evd l arg
       else
         arg)
-    (get_all_hypos c_g)
+    (get_n_hypos nhs c_g)
   
 (*
  * Compose two constructors for two applications of an induction principle
@@ -579,11 +586,14 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let l = comp.l in
   let (env_g, c_g) = comp.g in
   let (env_f, c_f_old) = comp.f in
+  debug_term env_g c_g "c_g";
+  debug_term env_f c_f_old "c_f_old";
   let (orn_f, orn_g) = (l.orn.forget, l.orn.promote) in
   let promotion_type env trm = fst (on_type ind_of_promotion_type env evd trm) in
   let to_typ = zoom_sig (promotion_type env_f orn_f) in
   let from_typ = first_fun (promotion_type env_g orn_g) in
   let c_f = compose_ih evd npms_g ip_g p comp in
+  (*let env_g_body = zoom_env zoom_lambda_term env_g c_g in*)
   zoom_apply_lambda_n
     (nb_rel env_f)
     (fun env trm ->
@@ -591,8 +601,11 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
         (* it's still unclear to me why local_max is what it is *)
         let local_max = directional l 0 (List.length post_assums) in
         let f = shift_local local_max (offset2 env env_g) c_g in
-        let lift_args = map_directional pack_ihs project_ihs l in
+        debug_term env f "f";
+        (* TODO: We actually don't want args here, since it's a base case *)
+        let lift_args = map_directional (pack_ihs c_f_old) project_ihs l in
         let args = lift_args l env evd (from_typ, to_typ) c_g in
+        debug_terms env args "args";
         reduce_term env (mkAppl (f, args))
       else
         let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
