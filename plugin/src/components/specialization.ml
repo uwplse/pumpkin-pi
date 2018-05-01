@@ -660,7 +660,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
   let (comp, indexer) = build_lifted_indexer evd idx_n assum_ind comp in
   let c_p = { comp with g = (env_g, g_app.p); f = (env_f, f_app.p) } in
   let p = compose_p evd npms assum_ind inner c_p in
-  let (cs, indexer) =
+  let (cs, indexer, final_args) =
     if applies sigT_rect f then
       (* recurse inside the sigT_rect *)
       let compose_rec = compose_inductive evd idx_n post_assums assum_ind true in
@@ -669,7 +669,10 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
       let c_inner = { comp with f = (env_c, c_body)} in
       let (c_comp, indexer) = compose_rec c_inner in
       let recons = reconstruct_lambda_n env_c c_comp (nb_rel env_f) in
-      ([recons], indexer)
+      let nfinal = arity p + 1 - npms in
+      let curried_args = mk_n_rels (nfinal - List.length f_app.final_args) in
+      let final_args = List.append f_app.final_args curried_args in
+      ([recons], indexer, final_args)
     else
       (* compose the constructors *)
       let gs =
@@ -683,8 +686,9 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
           (env_g, g_app.cs)
       in
       let fs = (env_f, f_app.cs) in
-      (compose_cs evd npms g_app.elim p post_assums comp gs fs, indexer)
-  in (apply_eliminator {f_app with p; cs}, indexer)
+      let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
+      (cs, indexer, f_app.final_args)
+  in (apply_eliminator {f_app with p; cs; final_args}, indexer)
 
 (*
  * Factor the inside of an application of a sigT_elim to an existT,
@@ -955,4 +959,5 @@ let higher_lift env evd (l : lifting) def =
   let indexing_proof = None in (* TODO implement *)
   let trm = unwrap_definition env def in
   let higher_lifted = do_higher_lift env evd l trm in
+  debug_term env higher_lifted "higher_lifted";
   (higher_lifted, indexing_proof)
