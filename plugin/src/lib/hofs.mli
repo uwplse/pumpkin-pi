@@ -27,9 +27,31 @@ val map_term_env_if :
   types
 
 (*
+ * Use the old environment instead
+ *)
+val map_term_env_if_old :
+  (env -> 'a -> types -> bool) ->
+  (env -> 'a -> types -> types) ->
+  ('a -> 'a) ->
+  env ->
+  'a ->
+  types ->
+  types
+
+(*
  * Like map_term_env_if, but use unit for 'a
  *)
 val map_unit_env_if :
+  (env -> types -> bool) ->
+  (env -> types -> types) ->
+  env ->
+  types ->
+  types
+
+(*
+ * Use the old environment instead
+ *)
+val map_unit_env_if_old :
   (env -> types -> bool) ->
   (env -> types -> types) ->
   env ->
