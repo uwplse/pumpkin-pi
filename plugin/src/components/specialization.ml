@@ -183,6 +183,9 @@ let pack_inner env evd l unpacked =
 (*
  * Get the arguments for composing two applications of an induction
  * principle that are structurally the same when one is an ornament.
+ *
+ * TODO: We will need to restest this when our unornamented type itself
+ * has an index, to check indexing logic for assum_args.
  *)
 let compose_p_args evd npms assum_ind inner comp =
   let l = comp.l in
@@ -852,6 +855,7 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
 let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
   let (assum_ind, fs) = factor_ornamented l.orn env evd trm in
   let ((body, indexer), env, _) = compose_orn_factors evd l assum_ind idx_n fs in
+  debug_term env body "body";
   (reconstruct_lambda env body, indexer)
 
 (* --- Higher lifting --- *)
