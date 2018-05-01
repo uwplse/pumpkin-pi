@@ -26,3 +26,7 @@ Theorem test_app_nil_r:
 Proof.
   exact app_nil_r_red_higher.
 Qed.
+
+Higher lift orn_list_vector orn_list_vector_inv in in_split_vect_red as in_split_vect_higher.
+
+Print in_split_vect_higher.

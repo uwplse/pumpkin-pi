@@ -563,9 +563,6 @@ let project_ihs l env evd (from_typ, to_typ) c_g =
 let pack_ihs c_f_old l env evd (from_typ, to_typ) c_g =
   let index_args = indexes to_typ (Option.get l.orn.index_i) (arity c_f_old) c_f_old in
   let nhs = arity c_f_old - List.length index_args in
-  Printf.printf "%d\n" (arity c_f_old);
-  Printf.printf "%d\n" nhs;
-  
   List.map
     (fun arg ->
       if on_type (is_or_applies to_typ) env evd arg then
@@ -584,8 +581,6 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let l = comp.l in
   let (env_g, c_g) = comp.g in
   let (env_f, c_f_old) = comp.f in
-  debug_term env_g c_g "c_g";
-  debug_term env_f c_f_old "c_f";
   let (orn_f, orn_g) = (l.orn.forget, l.orn.promote) in
   let promotion_type env trm = fst (on_type ind_of_promotion_type env evd trm) in
   let to_typ = zoom_sig (promotion_type env_f orn_f) in
@@ -602,8 +597,6 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
         (* TODO: We actually don't want args here, since it's a base case *)
         let lift_args = map_directional (pack_ihs c_f_old) project_ihs l in
         let args = lift_args l env evd (from_typ, to_typ) c_g in
-        debug_term env f "f";
-        debug_terms env args "args";
         reduce_term env (mkAppl (f, args))
       else
         let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in

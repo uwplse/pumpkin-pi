@@ -296,6 +296,8 @@ Qed.
 
 Reduce ornament orn_list_vector orn_list_vector_inv in in_split_vect_auto as in_split_vect_red.
 
+Print in_split_vect_red.
+
 (* TODO opposite direction too once it's done *)
 
 (* --- Unimplemented ideas --- *)
