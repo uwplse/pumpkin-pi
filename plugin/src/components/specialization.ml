@@ -424,17 +424,12 @@ let reduce_indexer_constr_body l env evd trm =
  * Reduces the body of a constructor of a promoted function
  *)
 let reduce_promoted_constr_body l env evd trm =
-  debug_term env trm "trm";
-  map_unit_if
-    isApp
-    (fun t ->
-      let from = last_arg t in
-      if is_or_applies (lift_back l) from then
-        (* eliminate the promotion function *)
-        last_arg from
-      else
-        (* leave as-is *)
-        t)
+  let from = last_arg trm in
+  if is_or_applies (lift_back l) from then
+    (* eliminate the promotion function *)
+    last_arg from
+  else
+    (* leave as-is *)
     trm
 
 (* 
@@ -924,18 +919,21 @@ let substitute_lifted_terms env evd l (from_type, to_type) trm =
     (fun en t ->
       let typ_args = non_index_typ_args l en evd t in
       let app = mkAppl (lift_to l, snoc t typ_args) in
+      debug_term en app "app";
       let pre = pre_reduce l en evd app in
-      debug_term en t "t";
       debug_term en pre "pre";
       let args = if not (isApp t) then [t] else unfold_args (map_if (fun t -> (dest_existT t).unpacked) (applies existT t) t) in
       let args = List.map (fun a -> if applies projT2 a then last_arg a else a) args in
       let orn_args = filter_orn l en evd (from_type, to_type) args in
       debug_terms en orn_args "orn_args";
+      let red =
       if not (List.length orn_args > 0) then
         reduce_nf en pre
       else
         let red = reduce_ornament_f l en evd (lift_to l) pre orn_args in
-        map_unit_if (applies (lift_back l)) last_arg red)
+        map_unit_if (applies (lift_back l)) last_arg (map_unit_if (applies (lift_to l)) last_arg red)
+      in debug_term en red "red";
+         red)
     env
     trm
     
@@ -963,4 +961,5 @@ let higher_lift env evd (l : lifting) def =
   let indexing_proof = None in (* TODO implement *)
   let trm = unwrap_definition env def in
   let higher_lifted = do_higher_lift env evd l trm in
+  debug_term env higher_lifted "higher_lifted";
   (higher_lifted, indexing_proof)
