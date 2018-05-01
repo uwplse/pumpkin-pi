@@ -424,12 +424,17 @@ let reduce_indexer_constr_body l env evd trm =
  * Reduces the body of a constructor of a promoted function
  *)
 let reduce_promoted_constr_body l env evd trm =
-  let from = last_arg trm in
-  if is_or_applies (lift_back l) from then
-    (* eliminate the promotion function *)
-    last_arg from
-  else
-    (* leave as-is *)
+  debug_term env trm "trm";
+  map_unit_if
+    isApp
+    (fun t ->
+      let from = last_arg trm in
+      if is_or_applies (lift_back l) from then
+        (* eliminate the promotion function *)
+        last_arg from
+      else
+        (* leave as-is *)
+        trm)
     trm
 
 (* 
@@ -920,9 +925,12 @@ let substitute_lifted_terms env evd l (from_type, to_type) trm =
       let typ_args = non_index_typ_args l en evd t in
       let app = mkAppl (lift_to l, snoc t typ_args) in
       let pre = pre_reduce l en evd app in
+      debug_term en t "t";
+      debug_term en pre "pre";
       let args = if not (isApp t) then [t] else unfold_args (map_if (fun t -> (dest_existT t).unpacked) (applies existT t) t) in
       let args = List.map (fun a -> if applies projT2 a then last_arg a else a) args in
       let orn_args = filter_orn l en evd (from_type, to_type) args in
+      debug_terms en orn_args "orn_args";
       if not (List.length orn_args > 0) then
         reduce_nf en pre
       else
@@ -940,9 +948,9 @@ let do_higher_lift env evd (l : lifting) trm =
   let forget_typ = promotion_type env l.orn.forget in
   let promote_typ = promotion_type env l.orn.promote in
   let typs = (first_fun promote_typ, zoom_sig forget_typ) in
+  Printf.printf "%s\n\n" "-----------------------";
   let index_type = (dest_sigT forget_typ).index_type in
   let lifted_trms = substitute_lifted_terms env evd l typs trm in
-  debug_term env lifted_trms "lifted_trms";
   let lifted_typs = substitute_lifted_type l env typs index_type lifted_trms in
   substitute_liftings env lifted_typs
 

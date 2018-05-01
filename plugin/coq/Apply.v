@@ -670,6 +670,7 @@ Definition app_nil_r_higher (A : Type) (l : list A) :=
 Apply ornament orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in app_nil_r_vect_packed as app_nil_r_auto.
 
+(* Old version; get working eventually [TODO breaks on higher lifting]
 Theorem in_split : 
   forall A x (l:list A), In A x l -> exists l1 l2, l = append A l1 (x::l2).
 Proof.
@@ -678,13 +679,22 @@ Proof.
   exists nil, l; auto.
   destruct (IHl H) as (l1,(l2,H0)).
   exists (a::l1), l2; simpl; f_equal; auto.
+Defined.*)
+
+Theorem in_split : 
+  forall A x (l:list A), In A x l -> exists l1 l2, l = append A l1 (x::l2).
+Proof.
+  induction l; simpl; induction 1.
+  subst a; auto.
+  exists nil, l; auto.
+  apply IHl in H. (* induction H. *)
+  induction H. induction H. 
+  exists (a::x0), x1; simpl; f_equal; auto.
 Defined.
 
 Print in_split.
 
 Apply ornament orn_list_vector orn_list_vector_inv in in_split as in_split_vect_auto.
-
-Check in_split_vect_auto.
 
 (* TODO opposite direction too *)
 
