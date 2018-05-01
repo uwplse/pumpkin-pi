@@ -294,9 +294,7 @@ Qed.
  * Below we manually derive the proofs we would want, so we can implement this later (TODO).
  *)
 
-(* TODO not yet working: 
 Reduce ornament orn_list_vector orn_list_vector_inv in in_split_vect_auto as in_split_vect_red.
-*)
 
 (* TODO opposite direction too once it's done *)
 

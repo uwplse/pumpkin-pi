@@ -184,7 +184,7 @@ let pack_inner env evd l unpacked =
  * Get the arguments for composing two applications of an induction
  * principle that are structurally the same when one is an ornament.
  *)
-let compose_p_args evd npms post_assums inner comp =
+let compose_p_args evd npms assum_ind inner comp =
   let l = comp.l in
   let (env, p) = comp.f in
   let index_i = Option.get l.orn.index_i in
@@ -193,8 +193,9 @@ let compose_p_args evd npms post_assums inner comp =
       let orn_app =
         if not inner then
           let off = offset2 env_b env in
-          let nargs = arity (unwrap_definition env (lift_back l)) in
-          let shift_pms = shift_local off (off + List.length post_assums) in
+          let assum = shift_by off (mkRel assum_ind) in
+          let assum_args = non_index_typ_args l env_b evd assum in
+          let post_assum_args = mk_n_rels off in
           map_backward
             (fun t ->
               let index_type = get_arg index_i t in
@@ -203,7 +204,7 @@ let compose_p_args evd npms post_assums inner comp =
               let packer = abs_i (mkLambda (Anonymous, index_type, shift t)) in
               project_value { index_type; packer } t)
             l
-            (shift_pms (mkAppl (lift_back l, mk_n_rels nargs)))
+            (mkAppl (lift_back l, List.append assum_args post_assum_args))
         else
           pack_inner env_b evd l (mkRel 1)
       in
@@ -247,12 +248,12 @@ let compose_p_fun evd (comp : composition) =
  * This will be an adjusted version of an existing p
  * with new arguments that are promoted/forgotten/indexed appropriately.
  *)
-let compose_p evd npms post_assums inner (comp : composition) =
+let compose_p evd npms assum_ind inner (comp : composition) =
   let (env_f, p_f) = comp.f in
   zoom_apply_lambda_n
     (nb_rel env_f)
     (fun env _ ->
-      let p_args = compose_p_args evd npms post_assums inner comp in
+      let p_args = compose_p_args evd npms assum_ind inner comp in
       let p = compose_p_fun evd comp in
       reduce_term env (mkAppl (p, p_args)))
     env_f
@@ -651,7 +652,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
   let npms = List.length g_app.pms in
   let (comp, indexer) = build_lifted_indexer evd idx_n assum_ind comp in
   let c_p = { comp with g = (env_g, g_app.p); f = (env_f, f_app.p) } in
-  let p = compose_p evd npms post_assums inner c_p in
+  let p = compose_p evd npms assum_ind inner c_p in
   let (cs, indexer) =
     if applies sigT_rect f then
       (* recurse inside the sigT_rect *)
@@ -660,7 +661,8 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
       let (env_c, c_body) = zoom_lambda_term env_f c in
       let c_inner = { comp with f = (env_c, c_body)} in
       let (c_comp, indexer) = compose_rec c_inner in
-      ([reconstruct_lambda_n env_c c_comp (nb_rel env_f)], indexer)
+      let recons = reconstruct_lambda_n env_c c_comp (nb_rel env_f) in
+      ([recons], indexer)
     else
       (* compose the constructors *)
       let gs =
