@@ -920,7 +920,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) trm =
       let typ_args = non_index_typ_args l en evd t in
       let app = mkAppl (lift_to l, snoc t typ_args) in
       let pre = pre_reduce l en evd app in
-      let args = unfold_args (map_if (fun t -> (dest_existT t).unpacked) (applies existT t) t) in
+      let args = if not (isApp t) then [t] else unfold_args (map_if (fun t -> (dest_existT t).unpacked) (applies existT t) t) in
       let args = List.map (fun a -> if applies projT2 a then last_arg a else a) args in
       let orn_args = filter_orn l en evd (from_type, to_type) args in
       if not (List.length orn_args > 0) then
@@ -939,16 +939,12 @@ let do_higher_lift env evd (l : lifting) trm =
   let promotion_type en t = fst (on_type ind_of_promotion_type en evd t) in
   let forget_typ = promotion_type env l.orn.forget in
   let promote_typ = promotion_type env l.orn.promote in
-  let to_typ = zoom_sig forget_typ in
-  let from_typ = first_fun promote_typ in
-  substitute_liftings
-    env
-    (substitute_lifted_type
-       l
-       env
-       (from_typ, to_typ)
-       (dest_sigT forget_typ).index_type
-       (substitute_lifted_terms env evd l (from_typ, to_typ) trm))
+  let typs = (first_fun promote_typ, zoom_sig forget_typ) in
+  let index_type = (dest_sigT forget_typ).index_type in
+  let lifted_trms = substitute_lifted_terms env evd l typs trm in
+  debug_term env lifted_trms "lifted_trms";
+  let lifted_typs = substitute_lifted_type l env typs index_type lifted_trms in
+  substitute_liftings env lifted_typs
 
 (*
  * Given a reduced lifting of a proof term that refers to other
@@ -959,5 +955,4 @@ let higher_lift env evd (l : lifting) def =
   let indexing_proof = None in (* TODO implement *)
   let trm = unwrap_definition env def in
   let higher_lifted = do_higher_lift env evd l trm in
-  debug_term env higher_lifted "higher_lifted";
   (higher_lifted, indexing_proof)
