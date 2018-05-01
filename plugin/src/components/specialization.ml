@@ -31,30 +31,26 @@ let pack_env assum_ind env =
  *)
 let reconstruct_packed assum_ind env trm =
   reconstruct_lambda_n_skip env trm (offset env 2) (assum_ind - 1)
-            
+
+(*
+ * Given a type we are promoting to/forgetting from, 
+ * get all of the arguments to that type that aren't the new/forgotten index
+ *)
+let non_index_args l env typ =
+  let index_i = Option.get l.orn.index_i in
+  let typ = reduce_nf env typ in
+  if is_or_applies sigT typ then
+    let packer = (dest_sigT typ).packer in
+    remove_index index_i (unfold_args (dummy_index env packer))
+  else
+    unfold_args typ
+                         
 (*
  * Given a term with the type we are promoting to/forgetting from, 
  * get all of the arguments to that type that aren't the new/forgotten index
  *)
 let non_index_typ_args l env evd trm =
-  if l.is_fwd then
-    on_type unfold_args env evd trm
-  else
-    let app = on_type dest_sigT env evd trm in
-    let deindex = remove_index (Option.get l.orn.index_i) in
-    deindex (unfold_args (dummy_index env app.packer))
-
-(*
- * Same, but at the term level
- *)
-let non_index_args l env trm =
-  let index_i = Option.get l.orn.index_i in
-  let trm = reduce_nf env trm in
-  if is_or_applies sigT trm then
-    let packer = (dest_sigT trm).packer in
-    remove_index index_i (unfold_args (dummy_index env packer))
-  else
-    unfold_args trm
+  on_type (non_index_args l env) env evd trm
 
 (* --- Application of ornaments before meta-reduction --- *)
 

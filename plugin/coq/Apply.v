@@ -680,6 +680,8 @@ Proof.
   exists (a::l1), l2; simpl; f_equal; auto.
 Defined.
 
+Print in_split.
+
 Apply ornament orn_list_vector orn_list_vector_inv in in_split as in_split_vect_auto.
 
 (* TODO opposite direction too *)
