@@ -428,7 +428,7 @@ let reduce_promoted_constr_body l env evd trm =
   map_unit_if
     isApp
     (fun t ->
-      let from = last_arg trm in
+      let from = last_arg t in
       if is_or_applies (lift_back l) from then
         (* eliminate the promotion function *)
         last_arg from
