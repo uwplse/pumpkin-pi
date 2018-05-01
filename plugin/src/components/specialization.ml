@@ -434,7 +434,7 @@ let reduce_promoted_constr_body l env evd trm =
         last_arg from
       else
         (* leave as-is *)
-        trm)
+        t)
     trm
 
 (* 
