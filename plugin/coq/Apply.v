@@ -681,15 +681,29 @@ Proof.
   exists (a::l1), l2; simpl; f_equal; auto.
 Defined.*)
 
+(* [TODO] f_equal messes up this version; revisit soon
 Theorem in_split : 
   forall A x (l:list A), In A x l -> exists l1 l2, l = append A l1 (x::l2).
 Proof.
   induction l; simpl; induction 1.
   subst a; auto.
   exists nil, l; auto.
-  apply IHl in H. (* induction H. *)
+  apply IHl in H. 
+  induction H. induction H.  (* f_equal messes things up *)
+  exists (a::x0), x1. simpl. f_equal. auto.
+Defined.*)
+
+Theorem in_split : 
+  forall A x (l:list A), In A x l -> exists l1 l2, l = append A l1 (x::l2).
+Proof.
+  induction l; simpl; induction 1.
+  subst a; auto.
+  exists nil, l; auto.
+  apply IHl in H. 
   induction H. induction H. 
-  exists (a::x0), x1; simpl; f_equal; auto.
+  exists (a::x0), x1. simpl. 
+  rewrite H. (* instead of f_equal, for now *)
+  auto.
 Defined.
 
 Print in_split.

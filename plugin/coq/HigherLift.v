@@ -43,6 +43,9 @@ Higher lift orn_list_vector orn_list_vector_inv in in_split_vect_red as in_split
  *   f (existT nat (vector A) n v0)))
  *
  * But the normal substitute and reduce strategy doesn't figure that out.
+ *
+ * Also, f_equal takes (cons A a) as a parameter, and that's
+ * a function still. How do we know to lift that?
  *)
 
 Print in_split_vect_higher.

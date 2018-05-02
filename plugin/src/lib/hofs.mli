@@ -96,11 +96,32 @@ val map_term_env_if_lazy :
   types ->
   types
 
-
+(*
+ * Same, with old environment
+ *)
+val map_term_env_if_lazy_old :
+  (env -> 'a -> types -> bool) ->
+  (env -> 'a -> types -> types) ->
+  ('a -> 'a) ->
+  env ->
+  'a ->
+  types ->
+  types
+    
 (*
  * Like map_term_env_if_lazy, but use unit for 'a
  *)
 val map_unit_env_if_lazy :
+  (env -> types -> bool) ->
+  (env -> types -> types) ->
+  env ->
+  types ->
+  types
+
+(*
+ * Same, with old environment
+ *)
+val map_unit_env_if_lazy_old :
   (env -> types -> bool) ->
   (env -> types -> types) ->
   env ->
