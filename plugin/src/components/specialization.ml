@@ -918,7 +918,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
          mkLetIn (n, trm', typ', e')
       | App (fu, args) ->
          let args' = Array.map (sub_rec en index_type) args in
-         if (isConstruct fu || eq_constr (lift_back l) fu) && typ_is_orn en tr then
+         if (not (Option.has_some (search_lifted en fu))) && typ_is_orn en tr then
            let typ_args = non_index_typ_args l en evd tr in
            debug_term en tr "tr";
            let app = mkAppl (lift_to l, snoc tr typ_args) in
