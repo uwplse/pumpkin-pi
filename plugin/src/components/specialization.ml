@@ -874,11 +874,14 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
  * TODO clean me
  * TODO honestly maybe just don't map, just recursively do this,
  * it's probably easier
+ *
+ * TODO pass new env too, then type-check at each step
+ * while debugging so we can find the first place things screw up
  *)
 let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
   let index_i = Option.get l.orn.index_i in
   let typ_is_orn en t = on_type (is_orn l en (from_type, to_type)) en evd t in
-  let rec substitute en index_type tr =
+  let rec substitute en en' index_type tr =
     let sub_rec = substitute in
     let lifted_opt = search_lifted en tr in
     let has_lifted = Option.has_some lifted_opt in
@@ -900,34 +903,31 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
     else
       match kind_of_term tr with
       | Cast (c, k, t) ->
-         let c' = sub_rec en index_type c in
-         let t' = sub_rec en index_type t in
+         let c' = sub_rec en en' index_type c in
+         let t' = sub_rec en en' index_type t in
          mkCast (c', k, t')
       | Prod (n, t, b) ->
-         let t' = sub_rec en index_type t in
-         let b' = sub_rec (push_local (n, t) en) (shift index_type) b in
+         let t' = sub_rec en en' index_type t in
+         let b' = sub_rec (push_local (n, t) en) (push_local (n, t') en') (shift index_type) b in
          mkProd (n, t', b')
       | Lambda (n, t, b) ->
-         let t' = sub_rec en index_type t in
-         let b' = sub_rec (push_local (n, t) en) (shift index_type) b in
+         let t' = sub_rec en en' index_type t in
+         let b' = sub_rec (push_local (n, t) en) (push_local (n, t') en') (shift index_type) b in
          mkLambda (n, t', b')
       | LetIn (n, trm, typ, e) ->
-         let trm' = sub_rec en index_type trm in
-         let typ' = sub_rec en index_type typ in
-         let e' = sub_rec (push_let_in (n, e, typ) en) (shift index_type) e in
+         let trm' = sub_rec en en' index_type trm in
+         let typ' = sub_rec en en' index_type typ in
+         let e' = sub_rec (push_let_in (n, e, typ) en) (push_let_in (n, e, typ') en') (shift index_type) e in
          mkLetIn (n, trm', typ', e')
       | App (fu, args) ->
-         let args' = Array.map (sub_rec en index_type) args in
+         let args' = Array.map (sub_rec en en' index_type) args in
          if (not (Option.has_some (search_lifted en fu))) && typ_is_orn en tr then
            let typ_args = non_index_typ_args l en evd tr in
-           debug_term en tr "tr";
            let app = mkAppl (lift_to l, snoc tr typ_args) in
            let pre = pre_reduce l en evd app in
-           debug_term en pre "pre";
            let red_args = unfold_args (map_if (fun t -> (dest_existT t).unpacked) (applies existT tr) tr) in
            let red_args = List.map (fun a -> if applies projT2 a then last_arg a else a) red_args in
            let orn_args = filter_orn l en evd (from_type, to_type) red_args in
-           debug_terms en orn_args "orn_args";
            let red =
              if not (List.length orn_args > 0) then
                reduce_nf en pre
@@ -935,35 +935,38 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
                let red = reduce_ornament_f l en evd (lift_to l) pre orn_args in
                map_unit_if (applies (lift_back l)) last_arg (map_unit_if (applies (lift_to l)) last_arg red)
            in
-           debug_term en red "red";
            let red_sub =
              Array.to_list
                (Array.mapi
-                  (fun i a -> debug_term en (Array.get args' i) "args'"; (a, Array.get args' i))
+                  (fun i a -> (a, Array.get args' i))
                   args)
            in let subbed = List.fold_right all_eq_substs red_sub red in
-              debug_term en subbed "subbed";
               subbed
          else
-           let fu' = sub_rec en index_type fu in
-           debug_term en tr "tr";
-           debug_term en (mkApp (fu', args')) "rec";
-           mkApp (fu', args')
+           let fu' = sub_rec en en' index_type fu in
+           let app = mkApp (fu', args') in
+           (try
+             let typ = reduce_type en' evd app in
+             app
+           with _ ->
+             let x = 0 in
+             debug_term en' app "app didn't type-check";
+             app)   
       | Case (ci, ct, m, bs) ->
-         let ct' = sub_rec en index_type ct in
-         let m' = sub_rec en index_type m in
-         let bs' = Array.map (sub_rec en index_type) bs in
+         let ct' = sub_rec en en' index_type ct in
+         let m' = sub_rec en en' index_type m in
+         let bs' = Array.map (sub_rec en en' index_type) bs in
          mkCase (ci, ct', m', bs')
       | Fix ((is, i), (ns, ts, ds)) ->
-         let ts' = Array.map (sub_rec en index_type) ts in
-         let ds' = Array.map (map_rec_env_fix sub_rec shift en index_type ns ts) ds in
+         let ts' = Array.map (sub_rec en en' index_type) ts in
+         let ds' = Array.map (map_rec_env_fix (fun en -> sub_rec en en') shift en index_type ns ts) ds in
          mkFix ((is, i), (ns, ts', ds'))
       | CoFix (i, (ns, ts, ds)) ->
-         let ts' = Array.map (sub_rec en index_type) ts in
-         let ds' = Array.map (map_rec_env_fix sub_rec shift en index_type ns ts) ds in
+         let ts' = Array.map (sub_rec en en' index_type) ts in
+         let ds' = Array.map (map_rec_env_fix (fun en -> sub_rec en en') shift en index_type ns ts) ds in
          mkCoFix (i, (ns, ts', ds'))
       | Proj (pr, c) ->
-         let c' = sub_rec en index_type c in
+         let c' = sub_rec en en' index_type c in
          mkProj (pr, c')
       | Construct _  when typ_is_orn en tr ->
          let typ_args = non_index_typ_args l en evd tr in
@@ -974,7 +977,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
          reduce_nf en pre (* TODO check w/ nat *)
       | _ ->
          tr
-  in substitute env index_type trm
+  in substitute env env index_type trm
 (*map_term_env_if_old
     (fun en _ t ->
       debug_term en t "t";
@@ -1051,5 +1054,4 @@ let higher_lift env evd (l : lifting) def =
   let indexing_proof = None in (* TODO implement *)
   let trm = unwrap_definition env def in
   let higher_lifted = do_higher_lift env evd l trm in
-  debug_term env higher_lifted "higher_lifted";
   (higher_lifted, indexing_proof)

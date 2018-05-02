@@ -701,8 +701,9 @@ Proof.
   exists nil, l; auto.
   apply IHl in H. 
   induction H. induction H. 
-  exists (a::x0), x1. simpl. 
+  exists (a::x0), x1.
   rewrite H. (* instead of f_equal, for now *)
+  simpl.
   auto.
 Defined.
 
