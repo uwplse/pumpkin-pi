@@ -866,78 +866,152 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
   (reconstruct_lambda env body, indexer)
 
 (* --- Higher lifting --- *)
-
+    
 (*
- * Substitute the lower lifted terms into the term
+ * Substitute every term of the type we are promoting/forgetting from 
+ * with a term with the corresponding promoted/forgotten type
+ *
+ * TODO clean me
+ * TODO honestly maybe just don't map, just recursively do this,
+ * it's probably easier
  *)
-let substitute_liftings env trm =
-  map_unit_env_if_lazy
-    (fun _ t -> isConst t)
-    (fun en t ->
-      map_default (fun l -> l) t (search_lifted env t))
-    env
-    trm
-
-(*
- * Substitute the new type wherever the old type was
- *)
-let substitute_lifted_type l env (from_type, to_type) index_type trm =
+let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
   let index_i = Option.get l.orn.index_i in
-  map_term_env_if
-    (fun en _ -> is_orn l en (from_type, to_type))
-    (fun en index_type t ->
+  let typ_is_orn en t = on_type (is_orn l en (from_type, to_type)) en evd t in
+  let rec substitute en index_type tr =
+    let sub_rec = substitute in
+    let lifted_opt = search_lifted en tr in
+    let has_lifted = Option.has_some lifted_opt in
+    let trm_is_orn = is_orn l en (from_type, to_type) tr in
+    let typ_is_orn = on_type (is_orn l en (from_type, to_type)) en evd tr in
+    if has_lifted then
+      Option.get lifted_opt
+    else if typ_is_orn then
+      let typ_args = non_index_typ_args l en evd tr in
+      debug_term en tr "tr";
+      let app = mkAppl (lift_to l, snoc tr typ_args) in
+      let pre = pre_reduce l en evd app in
+      debug_term en pre "pre";
+      let args = if not (isApp tr) then [tr] else unfold_args (map_if (fun t -> (dest_existT tr).unpacked) (applies existT tr) tr) in
+      let args = List.map (fun a -> if applies projT2 a then last_arg a else a) args in
+      let orn_args = filter_orn l en evd (from_type, to_type) args in
+      debug_terms en orn_args "orn_args";
+      let red =
+        if not (List.length orn_args > 0) then
+          reduce_nf en pre
+        else
+          let red = reduce_ornament_f l en evd (lift_to l) pre orn_args in
+          map_unit_if (applies (lift_back l)) last_arg (map_unit_if (applies (lift_to l)) last_arg red)
+      in debug_term en red "red"; red
+    else if trm_is_orn then
+      let x = 0 in
+      Printf.printf "%s\n\n" "is_orn";
       if l.is_fwd then
-        let t_args = unfold_args t in
+        let t_args = unfold_args tr in
         let app = mkAppl (to_type, t_args) in
         let index = mkRel 1 in
         let abs_i = reindex_body (reindex_app (insert_index index_i index)) in
         let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
         pack_sigT { index_type ; packer }
       else
-        let packed = dummy_index en (dest_sigT t).packer in
+        let packed = dummy_index en (dest_sigT tr).packer in
         let t_args = remove_index index_i (unfold_args packed) in
-        mkAppl (from_type, t_args))
+        mkAppl (from_type, t_args)
+    else
+      match kind_of_term tr with
+      | Cast (c, k, t) ->
+         let c' = sub_rec en index_type c in
+         let t' = sub_rec en index_type t in
+         mkCast (c', k, t')
+      | Prod (n, t, b) ->
+         let t' = sub_rec en index_type t in
+         let b' = sub_rec (push_local (n, t) en) (shift index_type) b in
+         mkProd (n, t', b')
+      | Lambda (n, t, b) ->
+         let t' = sub_rec en index_type t in
+         let b' = sub_rec (push_local (n, t) en) (shift index_type) b in
+         mkLambda (n, t', b')
+      | LetIn (n, trm, typ, e) ->
+         let trm' = sub_rec en index_type trm in
+         let typ' = sub_rec en index_type typ in
+         let e' = sub_rec (push_let_in (n, e, typ) en) (shift index_type) e in
+         mkLetIn (n, trm', typ', e')
+      | App (fu, args) ->
+         let fu' = sub_rec en index_type fu in
+         let args' = Array.map (sub_rec en index_type) args in
+         mkApp (fu', args')
+      | Case (ci, ct, m, bs) ->
+         let ct' = sub_rec en index_type ct in
+         let m' = sub_rec en index_type m in
+         let bs' = Array.map (sub_rec en index_type) bs in
+         mkCase (ci, ct', m', bs')
+      | Fix ((is, i), (ns, ts, ds)) ->
+         let ts' = Array.map (sub_rec en index_type) ts in
+         let ds' = Array.map (map_rec_env_fix sub_rec shift en index_type ns ts) ds in
+         mkFix ((is, i), (ns, ts', ds'))
+      | CoFix (i, (ns, ts, ds)) ->
+         let ts' = Array.map (sub_rec en index_type) ts in
+         let ds' = Array.map (map_rec_env_fix sub_rec shift en index_type ns ts) ds in
+         mkCoFix (i, (ns, ts', ds'))
+      | Proj (pr, c) ->
+         let c' = sub_rec en index_type c in
+         mkProj (pr, c')
+      | _ ->
+         tr
+  in substitute env index_type trm
+(*map_term_env_if_old
+    (fun en _ t ->
+      debug_term en t "t";
+      (* TODO inefficient this way, make a better mapper that saves results *)
+      (* Or one that does mult. simultaneously w/ diff conds and results *)
+      if isConst t && Option.has_some (search_lifted env t) then
+        true
+      else if is_orn l en (from_type, to_type) t then
+        true
+      else
+        try
+          typ_is_orn en t
+        with Reduction.NotArity ->
+          false)
+    (fun en index_type t ->
+      let lifted = search_lifted env t in
+      if Option.has_some lifted then
+        Option.get lifted
+      else if is_orn l en (from_type, to_type) t then
+        let x = 0 in
+        Printf.printf "%s\n\n" "is_orn";
+        if l.is_fwd then
+          let t_args = unfold_args t in
+          let app = mkAppl (to_type, t_args) in
+          let index = mkRel 1 in
+          let abs_i = reindex_body (reindex_app (insert_index index_i index)) in
+          let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
+          pack_sigT { index_type ; packer }
+        else
+          let packed = dummy_index en (dest_sigT t).packer in
+          let t_args = remove_index index_i (unfold_args packed) in
+          mkAppl (from_type, t_args)
+      else
+        let typ_args = non_index_typ_args l en evd t in
+        debug_term en t "t";
+        let app = mkAppl (lift_to l, snoc t typ_args) in
+        let pre = pre_reduce l en evd app in
+        debug_term en pre "pre";
+        let args = if not (isApp t) then [t] else unfold_args (map_if (fun t -> (dest_existT t).unpacked) (applies existT t) t) in
+        let args = List.map (fun a -> if applies projT2 a then last_arg a else a) args in
+        let orn_args = filter_orn l en evd (from_type, to_type) args in
+        debug_terms en orn_args "orn_args";
+        let red =
+          if not (List.length orn_args > 0) then
+            reduce_nf en pre
+          else
+            let red = reduce_ornament_f l en evd (lift_to l) pre orn_args in
+            map_unit_if (applies (lift_back l)) last_arg (map_unit_if (applies (lift_to l)) last_arg red)
+        in debug_term en red "red"; red)
     shift
     env
     index_type
-    trm
-
-(*
- * Substitute every term of the type we are promoting/forgetting from 
- * with a term with the corresponding promoted/forgotten type
- *)
-let substitute_lifted_terms env evd l (from_type, to_type) trm =
-  let typ_is_orn en t = on_type (is_orn l en (from_type, to_type)) en evd t in
-  map_unit_env_if_old
-    (fun en t ->
-      if isApp t && Option.has_some (search_lifted en (first_fun t)) then
-        false
-      else
-        typ_is_orn en t)
-    (fun en t ->
-      debug_term en t "t";
-      let typ_args = non_index_typ_args l en evd t in
-      let app = mkAppl (lift_to l, snoc t typ_args) in
-      let pre = pre_reduce l en evd app in
-      debug_term en pre "pre";
-      let args = if not (isApp t) then [t] else unfold_args (map_if (fun t -> (dest_existT t).unpacked) (applies existT t) t) in
-      let args = List.map (fun a -> if applies projT2 a then last_arg a else a) args in (* TODO get what's inside of the append, somehow, not the append itself *)
-      (* really want to recurse as deep as possible into the term and get all the rels *)
-      (* or just get the hypos before calling the function, by getting
-        the rels from the env and then checking which ones have the type,
-        and just trying to call reduce_ornament_f with those. like
-       we do earlier, but idk why old one didn't work here (do this thursday) *)
-      let orn_args = filter_orn l en evd (from_type, to_type) args in
-      debug_terms en orn_args "orn_args";
-      let red =
-      if not (List.length orn_args > 0) then
-        reduce_nf en pre
-      else
-        let red = reduce_ornament_f l en evd (lift_to l) pre orn_args in
-        map_unit_if (applies (lift_back l)) last_arg (map_unit_if (applies (lift_to l)) last_arg red)
-      in debug_term en red "red"; red)
-    env
-    trm
+    trm*)
     
 (*
  * Implementation of higher lifting, which substitutes in the lifted
@@ -950,9 +1024,7 @@ let do_higher_lift env evd (l : lifting) trm =
   let typs = (first_fun promote_typ, zoom_sig forget_typ) in
   Printf.printf "%s\n\n" "-----------------------";
   let index_type = (dest_sigT forget_typ).index_type in
-  let lifted_trms = substitute_lifted_terms env evd l typs trm in
-  let lifted_typs = substitute_lifted_type l env typs index_type lifted_trms in
-  substitute_liftings env lifted_typs
+  substitute_lifted_terms env evd l typs index_type trm
 
 (*
  * Given a reduced lifting of a proof term that refers to other
@@ -963,4 +1035,5 @@ let higher_lift env evd (l : lifting) def =
   let indexing_proof = None in (* TODO implement *)
   let trm = unwrap_definition env def in
   let higher_lifted = do_higher_lift env evd l trm in
+  debug_term env higher_lifted "higher_lifted";
   (higher_lifted, indexing_proof)
