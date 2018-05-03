@@ -794,9 +794,12 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        let ((t_app, indexer), env, composed) = compose_rec l (last children) in
        let g = zoom_lambda_term en t in
        let f = (env, t_app) in
+       debug_term (fst g) (snd g) "g";
+       debug_term (fst f) (snd f) "f";
        let (f_promotes, g_promotes) = promotes evd l assum_ind g f in
        let (f_forgets, g_forgets) = forgets l g f in
        let (f_is_indexer, g_is_indexer, is_indexer_inner) = is_indexer l g f in
+       Printf.printf "%s\n\n" "determined all the things";
        let is_promote = f_promotes || g_promotes in
        let is_forget = f_forgets || g_forgets in
        let is_index = f_is_indexer || g_is_indexer in
@@ -853,7 +856,9 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
  * will build on.
  *)
 let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
+  Printf.printf "%s\n\n" "factoring";
   let (assum_ind, fs) = factor_ornamented l.orn env evd trm in
+  Printf.printf "%s\n\n" "factored";
   let ((body, indexer), env, _) = compose_orn_factors evd l assum_ind idx_n fs in
   (reconstruct_lambda env body, indexer)
 
@@ -962,59 +967,6 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
       | _ ->
          tr
   in substitute env env index_type trm
-(*map_term_env_if_old
-    (fun en _ t ->
-      debug_term en t "t";
-      (* TODO inefficient this way, make a better mapper that saves results *)
-      (* Or one that does mult. simultaneously w/ diff conds and results *)
-      if isConst t && Option.has_some (search_lifted env t) then
-        true
-      else if is_orn l en (from_type, to_type) t then
-        true
-      else
-        try
-          typ_is_orn en t
-        with Reduction.NotArity ->
-          false)
-    (fun en index_type t ->
-      let lifted = search_lifted env t in
-      if Option.has_some lifted then
-        Option.get lifted
-      else if is_orn l en (from_type, to_type) t then
-        let x = 0 in
-        Printf.printf "%s\n\n" "is_orn";
-        if l.is_fwd then
-          let t_args = unfold_args t in
-          let app = mkAppl (to_type, t_args) in
-          let index = mkRel 1 in
-          let abs_i = reindex_body (reindex_app (insert_index index_i index)) in
-          let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
-          pack_sigT { index_type ; packer }
-        else
-          let packed = dummy_index en (dest_sigT t).packer in
-          let t_args = remove_index index_i (unfold_args packed) in
-          mkAppl (from_type, t_args)
-      else
-        let typ_args = non_index_typ_args l en evd t in
-        debug_term en t "t";
-        let app = mkAppl (lift_to l, snoc t typ_args) in
-        let pre = pre_reduce l en evd app in
-        debug_term en pre "pre";
-        let args = if not (isApp t) then [t] else unfold_args (map_if (fun t -> (dest_existT t).unpacked) (applies existT t) t) in
-        let args = List.map (fun a -> if applies projT2 a then last_arg a else a) args in
-        let orn_args = filter_orn l en evd (from_type, to_type) args in
-        debug_terms en orn_args "orn_args";
-        let red =
-          if not (List.length orn_args > 0) then
-            reduce_nf en pre
-          else
-            let red = reduce_ornament_f l en evd (lift_to l) pre orn_args in
-            map_unit_if (applies (lift_back l)) last_arg (map_unit_if (applies (lift_to l)) last_arg red)
-        in debug_term en red "red"; red)
-    shift
-    env
-    index_type
-    trm*)
     
 (*
  * Implementation of higher lifting, which substitutes in the lifted

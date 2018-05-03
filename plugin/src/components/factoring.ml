@@ -12,6 +12,7 @@ open Debruijn
 open Zooming
 open Hofs
 open Lifting
+open Utilities
 
 (* --- Shared logic --- *)
 
@@ -305,7 +306,9 @@ let get_assum orn env evd trm =
             (* function *)
             let unorn = unwrap_definition env (first_fun t) in
             let (_, unorn_typ) = zoom_product_type env (infer_type env evd unorn) in
-            let assum_i = arity unorn - destRel (last_arg unorn_typ) in
+            let last_a = last_arg unorn_typ in
+            let assum_a = map_if last_arg (applies projT2 last_a) last_a in
+            let assum_i = arity unorn - destRel assum_a in
             Some (last_arg (get_arg assum_i t))
         in c := c'; t)
       trm

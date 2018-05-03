@@ -118,7 +118,7 @@ Definition hd_vect_packed_experimental (A : Type) (default : A) (pv : packed_vec
 (* So we may want to produce this IH literally, and use it to port proofs. *)
 
 Apply ornament orn_list_vector orn_list_vector_inv in hd as hd_vect_auto.
-Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_packed as hd_auto.
+Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_packed_alt as hd_auto.
 
 Theorem test_orn_hd :
   forall (A : Type) (a : A) (pv : packed_vector A),
