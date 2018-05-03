@@ -259,21 +259,13 @@ Qed.*)
  * the lifted term we're looking for.
  *)
 
+(* TODO fix 
 Theorem test_app_nil_r:
   forall (A : Type) (l : list A),
     append_red A l (@nil A) = l.
 Proof.
   intros. rewrite <- app_coh_inv. unfold orn_list_vector. rewrite app_nil_r_red. apply coh_list.
-Qed.
-
-Theorem app_nil_r:
-  forall (A : Type) (l : list A),
-    append A l nil = l.
-Proof. 
-  intros. induction l.
-  - auto.
-  - simpl. rewrite IHl. reflexivity.
-Qed. 
+Qed.*)
 
 (* 
  * NOTE: The app_nil_r case needs an automatic proof of indices, which it doesn't have yet.

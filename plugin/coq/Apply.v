@@ -170,7 +170,7 @@ Definition hd_vect_error_packed_alt (A : Type) (pv : packed_vector A) :=
   hd_vect_error A (projT1 pv) (projT2 pv).
 
 Apply ornament orn_list_vector orn_list_vector_inv in hd_error as hd_vect_error_auto.
-Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_error_packed as hd_error_auto.
+Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_error_packed_alt as hd_error_auto.
 
 (*
  * Same situation as above
@@ -311,7 +311,7 @@ Definition append_vect_packed_experimental_2 (A : Type) (pv1 : packed_vector A) 
    But you still need to apply existT in the body, and port the IH and so on. *)
 
 Apply ornament orn_list_vector orn_list_vector_inv in append as append_vect_auto.
-Apply ornament orn_list_vector_inv orn_list_vector in append_vect_packed as append_auto.
+Apply ornament orn_list_vector_inv orn_list_vector in append_vect_packed_alt as append_auto.
 
 (*
  * For this one, we can't state the equality, but we can use existsT.
@@ -501,7 +501,7 @@ Definition tl_vect_packed_alt (A : Type) (pv : packed_vector A) :=
     (projT2 pv).
 
 Apply ornament orn_list_vector orn_list_vector_inv in tl as tl_vect_auto.
-Apply ornament orn_list_vector_inv orn_list_vector in tl_vect_packed as tl_auto.
+Apply ornament orn_list_vector_inv orn_list_vector in tl_vect_packed_alt as tl_auto.
 
 Theorem coh_vect:
   forall (A : Type) (n : nat) (v : vector A n),
@@ -592,7 +592,7 @@ Definition In_vect_alt (A : Type) (a : A) (pv : sigT (vector A)) : Prop :=
 (* TODO what happens if you curry the vector_rect application? and so on *)
 
 Apply ornament orn_list_vector orn_list_vector_inv in In as In_vect_auto.
-Apply ornament orn_list_vector_inv orn_list_vector in In_vect as In_auto.
+Apply ornament orn_list_vector_inv orn_list_vector in In_vect_alt as In_auto.
 
 (*
  * TODO proofs at some point that this is OK
@@ -678,6 +678,25 @@ Definition app_nil_r_vect_packed (A : Type) (pv : packed_vector A) :=
         v) 
     pv.
 
+(* packed vector version *)
+Definition app_nil_r_vect_packed_alt (A : Type) (pv : packed_vector A) :=
+  vector_ind 
+    A
+    (fun (n0 : nat) (v0 : vector A n0) => 
+      append_vect_packed_alt A (existT (vector A) n0 v0) (existT (vector A) O (nilV A)) = existT (vector A) n0 v0)
+    (@eq_refl (sigT (vector A)) (existT (vector A) O (nilV A)))
+    (fun (n0 : nat) (a : A) (v0 : vector A n0) (IHp : append_vect_packed A (existT (vector A) n0 v0) (existT (vector A) O (nilV A)) = existT (vector A) n0 v0) =>
+      @eq_ind_r 
+        (sigT (vector A)) 
+        (existT (vector A) n0 v0)
+        (fun (pv1 : sigT (vector A)) => 
+          existT (vector A) (S (projT1 pv1)) (consV A (projT1 pv1) a (projT2 pv1)) = existT (vector A) (S n0) (consV A n0 a v0))
+        (@eq_refl (sigT (vector A)) (existT (vector A) (S n0) (consV A n0 a v0)))
+        (append_vect_packed A (existT (vector A) n0 v0) (existT (vector A) 0 (nilV A)))
+        IHp)
+    (projT1 pv) 
+    (projT2 pv).
+
 (* what we can get without doing a higher lifting of append inside of the proof *)
 Definition app_nil_r_vect_packed_lower (A : Type) (pv : packed_vector A) :=
   @sigT_rect
@@ -743,7 +762,7 @@ Definition app_nil_r_higher (A : Type) (l : list A) :=
     l.
 
 Apply ornament orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_auto.
-Apply ornament orn_list_vector_inv orn_list_vector in app_nil_r_vect_packed as app_nil_r_auto.
+Apply ornament orn_list_vector_inv orn_list_vector in app_nil_r_vect_packed_alt as app_nil_r_auto.
 
 (* Old version; get working eventually [TODO breaks on higher lifting]
 Theorem in_split : 

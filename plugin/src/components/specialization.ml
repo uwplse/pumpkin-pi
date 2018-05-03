@@ -794,12 +794,9 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        let ((t_app, indexer), env, composed) = compose_rec l (last children) in
        let g = zoom_lambda_term en t in
        let f = (env, t_app) in
-       debug_term (fst g) (snd g) "g";
-       debug_term (fst f) (snd f) "f";
        let (f_promotes, g_promotes) = promotes evd l assum_ind g f in
        let (f_forgets, g_forgets) = forgets l g f in
        let (f_is_indexer, g_is_indexer, is_indexer_inner) = is_indexer l g f in
-       Printf.printf "%s\n\n" "determined all the things";
        let is_promote = f_promotes || g_promotes in
        let is_forget = f_forgets || g_forgets in
        let is_index = f_is_indexer || g_is_indexer in
@@ -809,8 +806,15 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
          let g_ind = (fst g, reduce_to_ind (fst g) (snd g)) in
          let f_ind = (fst f, reduce_to_ind (fst f) (snd f)) in
          let comp = { l ; g = g_ind ; f = f_ind ; is_g } in    
-         if applies sigT_rect (snd g_ind) && applies existT (snd f_ind) then
-           compose_rec l (factor_elim_existT evd assum_ind f_ind g_ind (snd g))
+         if applies existT (snd f_ind) then
+           let env_orn = zoom_env zoom_lambda_term empty_env (unwrap_definition (fst f_ind) (lift_to l)) in
+           let c_f = reconstruct_lambda env_orn (shift_by (nb_rel env_orn) (dest_existT (snd f_ind)).unpacked) in
+           let typ_args = List.rev (List.tl (List.rev (unfold_args (snd f)))) in
+           let f_inner = reduce_term (fst f_ind) (mkAppl (c_f, snoc (mkRel assum_ind) typ_args)) in
+           let f_ind = zoom_lambda_term (fst f_ind) f_inner in
+           let comp = { comp with f = f_ind } in
+           let composed = compose_inductive evd idx_n post_assums assum_ind false comp in   
+           (composed, env, true)
          else if applies existT (snd g_ind) then
            let c_g = reconstruct_lambda (fst g_ind) (dest_existT (snd g_ind)).unpacked in
            let typ_args = List.rev (List.tl (List.rev (unfold_args (snd g)))) in
@@ -856,9 +860,7 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
  * will build on.
  *)
 let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
-  Printf.printf "%s\n\n" "factoring";
   let (assum_ind, fs) = factor_ornamented l.orn env evd trm in
-  Printf.printf "%s\n\n" "factored";
   let ((body, indexer), env, _) = compose_orn_factors evd l assum_ind idx_n fs in
   (reconstruct_lambda env body, indexer)
 
