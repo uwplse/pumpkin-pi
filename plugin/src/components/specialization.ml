@@ -629,6 +629,8 @@ let build_lifted_indexer evd idx_n assum_ind comp =
   let l = comp.l in
   let (env, f) = comp.f in
   if l.is_fwd && comp.is_g && not l.is_indexer then
+    (*
+    TODO fix
     let indexer = Option.get l.orn.indexer in
     let (env_b, b) = zoom_lambda_term env f in
     let index_args = snoc b (on_type unfold_args env_b evd b) in
@@ -641,9 +643,9 @@ let build_lifted_indexer evd idx_n assum_ind comp =
     let arg = mkRel assum_ind in
     let to_elim = { index_type; packer } in
     let indexer_body = elim_sigT { to_elim; packed_type; unpacked; arg } in
-    let indexer = reconstruct_lambda env_packed indexer_body in
+    let indexer = reconstruct_lambda env_packed indexer_body in*)
     let l = { l with lifted_indexer = Some (make_constant idx_n) } in
-    ({ comp with l }, Some indexer)
+    ({ comp with l }, None)
   else
     (comp, None)
       
@@ -660,35 +662,44 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
   let (comp, indexer) = build_lifted_indexer evd idx_n assum_ind comp in
   let c_p = { comp with g = (env_g, g_app.p); f = (env_f, f_app.p) } in
   let p = compose_p evd npms assum_ind inner c_p in
-  let (cs, indexer, final_args) =
-    if applies sigT_rect f then
-      (* recurse inside the sigT_rect *)
-      let compose_rec = compose_inductive evd idx_n post_assums assum_ind true in
-      let c = List.hd f_app.cs in
-      let (env_c, c_body) = zoom_lambda_term env_f c in
-      let c_inner = { comp with f = (env_c, c_body)} in
-      let (c_comp, indexer) = compose_rec c_inner in
-      let recons = reconstruct_lambda_n env_c c_comp (nb_rel env_f) in
-      let nfinal = arity p + 1 - npms in
-      let curried_args = mk_n_rels (nfinal - List.length f_app.final_args) in
-      let final_args = List.append f_app.final_args curried_args in
-      ([recons], indexer, final_args)
-    else
-      (* compose the constructors *)
-      let gs =
-        map_if
-          (fun (env, cs) ->
-            in_lambda_body
-              (fun env trm -> (env, (deconstruct_eliminator env evd trm).cs))
-              env
-              (List.hd cs))
-          (applies sigT_rect g)
-          (env_g, g_app.cs)
-      in
-      let fs = (env_f, f_app.cs) in
-      let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
-      (cs, indexer, f_app.final_args)
-  in (apply_eliminator {f_app with p; cs; final_args}, indexer)
+  if applies sigT_rect f then
+    (* recurse inside the sigT_rect *) (* TODO using same logic, if we make elim. use proj instead, can we simplify significantly? *)
+    let compose_rec = compose_inductive evd idx_n post_assums assum_ind true in
+    let c = List.hd f_app.cs in
+    let (env_c, c_body) = zoom_lambda_term env_f c in
+    let c_inner = { comp with f = (env_c, c_body)} in
+    let (c_comp, indexer) = compose_rec c_inner in
+    let recons = reconstruct_lambda_n env_c c_comp (nb_rel env_f) in
+    let nfinal = arity p + 1 - npms in
+    let curried_args = mk_n_rels (nfinal - List.length f_app.final_args) in
+    let final_args = List.append f_app.final_args curried_args in
+    let last_arg = last final_args in
+    let other_args = List.rev (List.tl (List.rev final_args)) in
+    (* TODO what happens if we add an index somewhere other than next to last? investigate, fix *)
+    (* TODO left off here, trying to fix this for last proof *)
+    debug_term env_f last_arg "last_arg";
+    debug_term env_f (reduce_type env_f evd last_arg) "last_arg_typ";
+    let last_arg_typ = on_type dest_sigT env_f evd last_arg in
+    Printf.printf "%s\n\n" "here";
+    let proj_index = project_index last_arg_typ last_arg in
+    let proj_value = project_value last_arg_typ last_arg in
+    let inner = reduce_term env_f (mkAppl (recons, List.append other_args [proj_index; proj_value])) in
+    (inner, indexer)
+  else
+    (* compose the constructors *)
+    let gs =
+      map_if
+        (fun (env, cs) ->
+          in_lambda_body
+            (fun env trm -> (env, (deconstruct_eliminator env evd trm).cs))
+            env
+            (List.hd cs))
+        (applies sigT_rect g)
+        (env_g, g_app.cs)
+    in
+    let fs = (env_f, f_app.cs) in
+    let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
+    (apply_eliminator {f_app with p; cs}, indexer)
 
 (*
  * Factor the inside of an application of a sigT_elim to an existT,
@@ -705,17 +716,6 @@ let factor_elim_existT evd assum_ind f g g_no_red =
     let f_app = dest_existT f in
     let inner = mkAppl (g_inner, [f_app.index; f_app.unpacked]) in
     factor_term_dep (mkRel assum_ind) env_f evd inner
-  else if applies sigT_rect f && applies existT g then
-    (* existT ... o sigT .... *)
-    let c_g = reconstruct_lambda env_g (dest_existT g).unpacked in
-    let typ_args = List.rev (List.tl (List.rev (unfold_args g_no_red))) in
-    let c_f = reduce_term env_g (mkAppl (c_g, typ_args)) in
-    in_lambda_body
-      (fun env trm ->
-        let inner = mkAppl (shift_by 2 c_f, [trm]) in
-        factor_term_dep (mkRel assum_ind) env evd inner)
-      env_f
-      (dest_sigT_elim f).unpacked
   else
     (* existT ... o indexer ... *)
     in_lambda_body
@@ -798,6 +798,8 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        let ((t_app, indexer), env, composed) = compose_rec l (last children) in
        let g = zoom_lambda_term en t in
        let f = (env, t_app) in
+       debug_term (fst g) (snd g) "g pre red";
+       debug_term (fst f) (snd f) "f pre red";
        let (f_promotes, g_promotes) = promotes evd l assum_ind g f in
        let (f_forgets, g_forgets) = forgets l g f in
        let (f_is_indexer, g_is_indexer, is_indexer_inner) = is_indexer l g f in
@@ -809,21 +811,19 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
          let l = { l with is_indexer = is_index } in
          let g_ind = (fst g, reduce_to_ind (fst g) (snd g)) in
          let f_ind = (fst f, reduce_to_ind (fst f) (snd f)) in
+         debug_term (fst g_ind) (snd g_ind) "g";
+         debug_term (fst f_ind) (snd f_ind) "f";
          let comp = { l ; g = g_ind ; f = f_ind ; is_g } in    
          if applies sigT_rect (snd g_ind) && applies existT (snd f_ind) then
            compose_rec l (factor_elim_existT evd assum_ind f_ind g_ind (snd g))
-         else if applies sigT_rect (snd f_ind) && applies existT (snd g_ind) then
-           let inner_fs = factor_elim_existT evd assum_ind f_ind g_ind (snd g) in
-           let ((t_app, indexer), env, composed) = compose_rec l inner_fs in
-           let f_app = dest_sigT_elim (snd f_ind) in
-           let unpacked = reconstruct_packed assum_ind env t_app in
-           let packed_type =
-             zoom_apply_lambda_empty
-               (fun _ -> on_type (unshift_by assum_ind) env evd t_app)
-               f_app.packed_type
-           in
-           let t_app_packed = elim_sigT { f_app with packed_type; unpacked } in
-           ((t_app_packed, indexer), pack_env assum_ind env, composed)
+         else if applies existT (snd g_ind) then
+           let c_g = reconstruct_lambda (fst g_ind) (dest_existT (snd g_ind)).unpacked in
+           let typ_args = List.rev (List.tl (List.rev (unfold_args (snd g)))) in
+           let g_inner = reduce_term (fst g_ind) (mkAppl (c_g, typ_args)) in
+           let g_ind = zoom_lambda_term (fst g_ind) g_inner in
+           let comp = { comp with g = g_ind } in
+           let composed = compose_inductive evd idx_n post_assums assum_ind false comp in
+           (composed, env, true)
          else if applies sigT_rect (snd g_ind) && is_indexer_inner then
            let inner_fs = factor_elim_existT evd assum_ind f_ind g_ind (snd g) in
            let ((t_app, indexer), env, composed) = compose_rec l inner_fs in
@@ -945,13 +945,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
          else
            let fu' = sub_rec en en' index_type fu in
            let app = mkApp (fu', args') in
-           (try
-             let typ = reduce_type en' evd app in
-             app
-           with _ ->
-             let x = 0 in
-             debug_term en' app "app didn't type-check";
-             app)   
+           app
       | Case (ci, ct, m, bs) ->
          let ct' = sub_rec en en' index_type ct in
          let m' = sub_rec en en' index_type m in

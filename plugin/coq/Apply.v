@@ -101,6 +101,9 @@ Definition hd_vect_packed (A : Type) (default : A) (pv : packed_vector A) :=
       hd_vect A default n v0)
     pv.
 
+Definition hd_vect_packed_alt (A : Type) (default : A) (pv : packed_vector A) :=
+  hd_vect A default (projT1 pv) (projT2 pv).
+
 Definition hd_vect_packed_experimental (A : Type) (default : A) (pv : packed_vector A) :=
   packed_vect_rect
     A
@@ -162,6 +165,9 @@ Definition hd_vect_error_packed (A : Type) (pv : packed_vector A) :=
     (fun (n : nat) (v0 : vector A n) =>
       hd_vect_error A n v0)
     pv.
+
+Definition hd_vect_error_packed_alt (A : Type) (pv : packed_vector A) :=
+  hd_vect_error A (projT1 pv) (projT2 pv).
 
 Apply ornament orn_list_vector orn_list_vector_inv in hd_error as hd_vect_error_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_error_packed as hd_error_auto.
@@ -258,6 +264,19 @@ Definition append_vect_packed (A : Type) (pv1 : packed_vector A) (pv2 : packed_v
         n
         v)
     pv1.
+
+Definition append_vect_packed_alt (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A) :=
+     vector_rect
+        A
+        (fun (n0 : nat) (v0 : vector A n0) => sigT (fun (n : nat) => vector A n))
+        pv2
+        (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : sigT (fun (n : nat) => vector A n)) =>
+          existT
+            (vector A)
+            (S (projT1 IH))
+            (consV A (projT1 IH) a (projT2 IH)))
+        (projT1 pv1)
+        (projT2 pv1).
 
 (* What does this look like in the experimental version? *)
 Definition append_vect_packed_experimental (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A) :=
@@ -471,6 +490,16 @@ Definition tl_vect_packed (A : Type) (pv : packed_vector A) :=
       v)
     pv.
 
+Definition tl_vect_packed_alt (A : Type) (pv : packed_vector A) :=
+  vector_rect
+    A
+    (fun (n0 : nat) (v0 : vector A n0) => sigT (fun (n : nat) => vector A n))
+    (existT (vector A) 0 (nilV A))
+    (fun (n0 : nat) (a : A) (v0 : vector A n0) (_ : sigT (fun (n : nat) => vector A n)) =>
+      existT (vector A) n0 v0)
+    (projT1 pv)
+    (projT2 pv).
+
 Apply ornament orn_list_vector orn_list_vector_inv in tl as tl_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in tl_vect_packed as tl_auto.
 
@@ -550,6 +579,16 @@ Definition In_vect (A : Type) (a : A) (pv : sigT (vector A)) : Prop :=
         v0)
     pv.
 
+Definition In_vect_alt (A : Type) (a : A) (pv : sigT (vector A)) : Prop :=
+      @vector_rect
+        A
+        (fun (n1 : nat) (_ : vector A n1) => Prop)
+        False
+        (fun (n1 : nat) (b : A) (_ : vector A n1) (IHv : Prop) =>
+          a = b \/ IHv)
+        (projT1 pv)
+        (projT2 pv).
+
 (* TODO what happens if you curry the vector_rect application? and so on *)
 
 Apply ornament orn_list_vector orn_list_vector_inv in In as In_vect_auto.
@@ -594,6 +633,23 @@ Definition app_nil_r_lower (A : Type) (l : list A) :=
         (fun (v1 : sigT (vector A)) => existT (vector A) (S (projT1 v1)) (consV A (projT1 v1) a (projT2 v1)) = existT (vector A) (S (projT1 (orn_list_vector A l0))) (consV A (projT1 (orn_list_vector A l0)) a (projT2 (orn_list_vector A l0))))
         (@eq_refl (sigT (vector A)) (existT (vector A) (S (projT1 (orn_list_vector A l0))) (consV A (projT1 (orn_list_vector A l0)) a (projT2 (orn_list_vector A l0)))))
         (append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A))) 
+        IHl)
+    l.
+
+(* what we can get without doing a higher lifting of append inside of the proof *)
+Definition app_nil_r_lower_alt (A : Type) (l : list A) :=
+  @list_ind
+    A
+    (fun (l0 : list A) => 
+      append_vect_packed_alt A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)) = orn_list_vector A l0)
+    (@eq_refl (sigT (vector A)) (existT (vector A) 0 (nilV A)))
+    (fun (a : A) (l0 : list A) (IHl : append_vect_packed_alt A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)) = orn_list_vector A l0) =>
+      @eq_ind_r
+        (sigT (vector A))
+        (orn_list_vector A l0)
+        (fun (v1 : sigT (vector A)) => existT (vector A) (S (projT1 v1)) (consV A (projT1 v1) a (projT2 v1)) = existT (vector A) (S (projT1 (orn_list_vector A l0))) (consV A (projT1 (orn_list_vector A l0)) a (projT2 (orn_list_vector A l0))))
+        (@eq_refl (sigT (vector A)) (existT (vector A) (S (projT1 (orn_list_vector A l0))) (consV A (projT1 (orn_list_vector A l0)) a (projT2 (orn_list_vector A l0)))))
+        (append_vect_packed_alt A (orn_list_vector A l0) (existT (vector A) 0 (nilV A))) 
         IHl)
     l.
 
@@ -646,6 +702,25 @@ Definition app_nil_r_vect_packed_lower (A : Type) (pv : packed_vector A) :=
         n 
         v) 
     pv.
+
+(* what we can get without doing a higher lifting of append inside of the proof *)
+Definition app_nil_r_vect_packed_lower_alt (A : Type) (pv : packed_vector A) :=
+      vector_ind 
+        A
+        (fun (n0 : nat) (v0 : vector A n0) => 
+          append A (orn_list_vector_inv A (existT (vector A) n0 v0)) (@nil A) = orn_list_vector_inv A (existT (vector A) n0 v0))
+        (@eq_refl (list A) (@nil A))
+        (fun (n0 : nat) (a : A) (v0 : vector A n0) (IHp : append A (orn_list_vector_inv A (existT (vector A) n0 v0)) (@nil A) = orn_list_vector_inv A (existT (vector A) n0 v0)) =>
+          @eq_ind_r 
+            (list A) 
+            (orn_list_vector_inv A (existT (vector A) n0 v0))
+            (fun (pv1 : list A) => 
+              @cons A a pv1 = @cons A a (orn_list_vector_inv A (existT (vector A) n0 v0)))
+            (@eq_refl (list A) (@cons A a (orn_list_vector_inv A (existT (vector A) n0 v0))))
+            (append A (orn_list_vector_inv A (existT (vector A) n0 v0)) (@nil A))
+            IHp)
+        (projT1 pv)
+        (projT2 pv).
 
 (*
  * TODO can we even get lower version with packed IP?
@@ -702,8 +777,8 @@ Proof.
   apply IHl in H. 
   induction H. induction H. 
   exists (a::x0), x1.
-  rewrite H. (* instead of f_equal, for now *)
   simpl.
+  rewrite H. (* instead of f_equal, for now *)
   auto.
 Defined.
 

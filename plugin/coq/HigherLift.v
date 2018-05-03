@@ -47,6 +47,22 @@ Definition check_list (A : Type) (a : A) (l0 : list A) (x1 : list A) (x : A) (x0
        (eq_refl (cons a (append A x0 (cons x x1))))
        H6).
 
+(*
+ * List version, alt
+ *)
+Definition check_list_alt (A : Type) (a : A) (l0 : list A) (x1 : list A) (x : A) (x0 : list A)
+                      (H6 : l0 = append A x0 (cons x x1)) :=
+  ex_intro
+    (fun (l2 : list A) =>
+      cons a l0 =
+      append A (cons a x0) (cons x l2)) 
+    x1
+    (eq_ind_r
+      (fun (l0 : list A) =>
+         cons a l0 =
+         append A (cons a x0) (cons x x1))
+       (eq_refl (cons a (append A x0 (cons x x1))))
+       H6).
 
 Print in_split_vect_red.
 
@@ -67,6 +83,86 @@ Definition check_lower (A : Type) (a : A) (n : nat) (v0 : vector A n) (x1 : list
       (fun (l0 : list A) =>
         cons a l0 =
         cons a (append A x0 (x :: x1)))
+      eq_refl 
+      H6).
+
+Definition check_sub (A : Type) (a : A) (n : nat) (v0 : vector A n) (x1 : sigT (vector A)) (x : A) (x0 : sigT (vector A))
+                 (H6 : existT (vector A) n v0 = append_vect_red A x0 (existT (fun H6 : nat => vector A H6) (S (projT1 x1)) (consV A (projT1 x1) x (projT2 x1)))) :=
+  eq_ind_r 
+      (fun (l0 : sigT (vector A)) =>
+         existT (vector A) (S (projT1 l0)) (consV A (projT1 l0) a (projT2 l0)) = 
+         existT 
+           (vector A) 
+           (S 
+             (projT1 (append_vect_red A x0 (existT (vector A) (S (projT1 x1)) (consV A (projT1 x1) x (projT2 x1)))))) 
+           (consV 
+             A
+             (projT1 (append_vect_red A x0 (existT (vector A) (S (projT1 x1)) (consV A (projT1 x1) x (projT2 x1))))) 
+             a 
+             (projT2 (append_vect_red A x0 (existT (vector A) (S (projT1 x1)) (consV A (projT1 x1) x (projT2 x1))))))) 
+      eq_refl 
+      H6.
+
+Check check_sub.
+
+(* This would go through, if we changed the property, but no idea if it's what we want: *)
+Definition check_different_p (A : Type) (a : A) (n : nat) (v0 : vector A n) (x1 : sigT (vector A)) (x : A) (x0 : sigT (vector A))
+                 (H6 : existT (vector A) n v0 = append_vect_red A x0 (existT (fun H6 : nat => vector A H6) (S (projT1 x1)) (consV A (projT1 x1) x (projT2 x1)))) :=
+  ex_intro 
+    (fun (l2 : sigT (vector A)) =>
+      existT (vector A) (S (projT1 (existT (vector A) n v0))) (consV A (projT1 (existT (vector A) n v0)) a (projT2 (existT (vector A) n v0))) = 
+      existT (vector A) (S (projT1 (append_vect_red A x0 (existT (vector A) (S (projT1 l2)) (consV A (projT1 l2) x (projT2 l2)))))) (consV A (projT1 (append_vect_red A x0 (existT (vector A) (S (projT1 l2)) (consV A (projT1 l2) x (projT2 l2))))) a (projT2 (append_vect_red A x0 (existT (vector A) (S (projT1 l2)) (consV A (projT1 l2) x (projT2 l2)))))))
+    x1
+    (eq_ind_r 
+      (fun (l0 : sigT (vector A)) =>
+         existT (vector A) (S (projT1 l0)) (consV A (projT1 l0) a (projT2 l0)) = 
+         existT 
+           (vector A) 
+           (S 
+             (projT1 (append_vect_red A x0 (existT (vector A) (S (projT1 x1)) (consV A (projT1 x1) x (projT2 x1)))))) 
+           (consV 
+             A
+             (projT1 (append_vect_red A x0 (existT (vector A) (S (projT1 x1)) (consV A (projT1 x1) x (projT2 x1))))) 
+             a 
+             (projT2 (append_vect_red A x0 (existT (vector A) (S (projT1 x1)) (consV A (projT1 x1) x (projT2 x1))))))) 
+      eq_refl 
+      H6).
+
+Print append_vect_red.
+
+Definition append_vect_red_alt :=
+fun (A : Type) (l1 l2 : {H : nat & vector A H}) =>
+  vector_rect 
+    A
+    (fun (n : nat) (_ : vector A n) => sigT (vector A)) 
+    l2
+    (fun (n : nat) (a : A) (_ : vector A n) (H1 : sigT (vector A)) =>
+      existT (vector A) (S (projT1 H1)) (consV A (projT1 H1) a (projT2 H1))) 
+    (projT1 l1)
+    (projT2 l1).
+
+(*
+ * Does that version of append have better properties?
+ *)
+Definition check_alt (A : Type) (a : A) (n : nat) (v0 : vector A n) (x1 : sigT (vector A)) (x : A) (x0 : sigT (vector A))
+                 (H6 : existT (vector A) n v0 = append_vect_red_alt A x0 (existT (fun H6 : nat => vector A H6) (S (projT1 x1)) (consV A (projT1 x1) x (projT2 x1)))) :=
+  ex_intro 
+    (fun (l2 : sigT (vector A)) =>
+      existT (vector A) (S (projT1 (existT (vector A) n v0))) (consV A (projT1 (existT (vector A) n v0)) a (projT2 (existT (vector A) n v0))) = 
+      append_vect_red_alt A (existT (vector A) (S (projT1 x0)) (consV A (projT1 x0) a (projT2 x0))) (existT (vector A) (S (projT1 l2)) (consV A (projT1 l2) x (projT2 l2))))
+    x1
+    (eq_ind_r 
+      (fun (l0 : sigT (vector A)) =>
+         existT (vector A) (S (projT1 l0)) (consV A (projT1 l0) a (projT2 l0)) = 
+         existT 
+           (vector A) 
+           (S 
+             (projT1 (append_vect_red_alt A x0 (existT (vector A) (S (projT1 x1)) (consV A (projT1 x1) x (projT2 x1)))))) 
+           (consV 
+             A
+             (projT1 (append_vect_red_alt A x0 (existT (vector A) (S (projT1 x1)) (consV A (projT1 x1) x (projT2 x1))))) 
+             a 
+             (projT2 (append_vect_red_alt A x0 (existT (vector A) (S (projT1 x1)) (consV A (projT1 x1) x (projT2 x1))))))) 
       eq_refl 
       H6).
 
@@ -130,6 +226,8 @@ existT (fun H2 : nat => vector A H2)
  *)
 
 Print projT2.
+
+Check in_split_vect_red.
 
 Higher lift orn_list_vector orn_list_vector_inv in in_split_vect_red as in_split_vect_higher.
 
