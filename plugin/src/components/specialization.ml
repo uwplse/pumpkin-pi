@@ -670,17 +670,14 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
     let c_inner = { comp with f = (env_c, c_body)} in
     let (c_comp, indexer) = compose_rec c_inner in
     let recons = reconstruct_lambda_n env_c c_comp (nb_rel env_f) in
-    let nfinal = arity p + 1 - npms in
+    let nfinal = arity p - npms in
     let curried_args = mk_n_rels (nfinal - List.length f_app.final_args) in
     let final_args = List.append f_app.final_args curried_args in
     let last_arg = last final_args in
     let other_args = List.rev (List.tl (List.rev final_args)) in
     (* TODO what happens if we add an index somewhere other than next to last? investigate, fix *)
     (* TODO left off here, trying to fix this for last proof *)
-    debug_term env_f last_arg "last_arg";
-    debug_term env_f (reduce_type env_f evd last_arg) "last_arg_typ";
     let last_arg_typ = on_type dest_sigT env_f evd last_arg in
-    Printf.printf "%s\n\n" "here";
     let proj_index = project_index last_arg_typ last_arg in
     let proj_value = project_value last_arg_typ last_arg in
     let inner = reduce_term env_f (mkAppl (recons, List.append other_args [proj_index; proj_value])) in
@@ -798,8 +795,6 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        let ((t_app, indexer), env, composed) = compose_rec l (last children) in
        let g = zoom_lambda_term en t in
        let f = (env, t_app) in
-       debug_term (fst g) (snd g) "g pre red";
-       debug_term (fst f) (snd f) "f pre red";
        let (f_promotes, g_promotes) = promotes evd l assum_ind g f in
        let (f_forgets, g_forgets) = forgets l g f in
        let (f_is_indexer, g_is_indexer, is_indexer_inner) = is_indexer l g f in
@@ -811,8 +806,6 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
          let l = { l with is_indexer = is_index } in
          let g_ind = (fst g, reduce_to_ind (fst g) (snd g)) in
          let f_ind = (fst f, reduce_to_ind (fst f) (snd f)) in
-         debug_term (fst g_ind) (snd g_ind) "g";
-         debug_term (fst f_ind) (snd f_ind) "f";
          let comp = { l ; g = g_ind ; f = f_ind ; is_g } in    
          if applies sigT_rect (snd g_ind) && applies existT (snd f_ind) then
            compose_rec l (factor_elim_existT evd assum_ind f_ind g_ind (snd g))
@@ -964,10 +957,8 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
          mkProj (pr, c')
       | Construct _  when typ_is_orn en tr ->
          let typ_args = non_index_typ_args l en evd tr in
-         debug_term en tr "tr";
          let app = mkAppl (lift_to l, snoc tr typ_args) in
          let pre = pre_reduce l en evd app in
-         debug_term en pre "pre";
          reduce_nf en pre (* TODO check w/ nat *)
       | _ ->
          tr
@@ -1035,7 +1026,6 @@ let do_higher_lift env evd (l : lifting) trm =
   let forget_typ = promotion_type env l.orn.forget in
   let promote_typ = promotion_type env l.orn.promote in
   let typs = (first_fun promote_typ, zoom_sig forget_typ) in
-  Printf.printf "%s\n\n" "-----------------------";
   let index_type = (dest_sigT forget_typ).index_type in
   substitute_lifted_terms env evd l typs index_type trm
 
