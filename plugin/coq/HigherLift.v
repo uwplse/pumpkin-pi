@@ -11,11 +11,34 @@ Require Import Reduce.
 
 Higher lift orn_list_vector orn_list_vector_inv in app_nil_r_vect_red as app_nil_r_vect_red_higher.
 
-Theorem test_app_nil_r_vect:
-  forall (A : Type) (pv : packed_vector A),
-    append_vect_red A pv (existT (vector A) 0 (nilV A)) = pv.
+Theorem test_app_nil_r_vect_exact:
+  forall (A : Type) (pv : sigT (vector A)),
+    append_vect_red A (existT (vector A) (projT1 pv) (projT2 pv)) (existT (vector A) 0 (nilV A)) = (existT (vector A) (projT1 pv) (projT2 pv)).
 Proof.
   exact app_nil_r_vect_red_higher.
+Qed.
+
+(*
+ * Convert between representations, should do automatically eventually
+ *)
+Lemma conv:
+  forall (A : Type) (P : A -> Type) (s : sigT P),
+    s = existT P (projT1 s) (projT2 s).
+Proof.
+  intros. induction s. reflexivity.
+Qed. 
+
+(*
+ * TODO now that we are using eliminators instead, need to transfer proof 
+ * over to better type. Should do this automatically eventually.
+ *)
+Theorem test_app_nil_r_vect:
+  forall (A : Type) (pv : sigT (vector A)),
+    append_vect_red A pv (existT (vector A) 0 (nilV A)) = pv.
+Proof.
+  intros.
+  rewrite (conv nat (vector A) pv).
+  apply app_nil_r_vect_red_higher.
 Qed.
 
 Higher lift orn_list_vector_inv orn_list_vector in app_nil_r_red as app_nil_r_red_higher.

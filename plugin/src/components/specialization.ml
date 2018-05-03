@@ -676,7 +676,6 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
     let last_arg = last final_args in
     let other_args = List.rev (List.tl (List.rev final_args)) in
     (* TODO what happens if we add an index somewhere other than next to last? investigate, fix *)
-    (* TODO left off here, trying to fix this for last proof *)
     let last_arg_typ = on_type dest_sigT env_f evd last_arg in
     let proj_index = project_index last_arg_typ last_arg in
     let proj_value = project_value last_arg_typ last_arg in
