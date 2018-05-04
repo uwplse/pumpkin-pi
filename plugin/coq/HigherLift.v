@@ -75,4 +75,17 @@ Higher lift orn_list_vector orn_list_vector_inv in in_split_vect_red as in_split
 
 Print in_split_vect_higher.
 
-(* TODO test *)
+(*
+ * TODO in_split_vect is missing one application of its last argument, missing from reduction step.
+ *)
+
+(*
+
+Theorem test_in_split_vect_exact:
+  forall (A : Type) (x : A) (pv : sigT (vector A)),
+    In_vect_red A x pv ->
+    In_vect_red A x (existT (fun H0 : nat => vector A H0) (projT1 pv) (projT2 pv)) ->
+       exists l1 l2 : {H : nat & vector A H},
+         existT (fun H0 : nat => vector A H0) (projT1 l) (projT2 l) =
+         append_vect_red A l1
+           (existT (fun H : nat => vector A H) (S (projT1 l2)) (consV A (projT1 l2) x (projT2 l2)))*)

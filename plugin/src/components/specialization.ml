@@ -658,17 +658,17 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
     let c_inner = { comp with f = (env_c, c_body)} in
     let (c_comp, indexer) = compose_rec c_inner in
     let recons = reconstruct_lambda_n env_c c_comp (nb_rel env_f) in
-    let nfinal = arity p - npms in
-    let curried_args = mk_n_rels (nfinal - List.length f_app.final_args) in
+    let curried_args = mk_n_rels (arity p - List.length f_app.final_args) in
     let final_args = List.append f_app.final_args curried_args in
-    let last_arg = last final_args in
-    let other_args = List.rev (List.tl (List.rev final_args)) in
+    (* TODO still assumes no currying up to certain point; investigate *)
+    let last_arg = last f_app.final_args in
+    let other_args = List.rev (List.tl (List.rev f_app.final_args)) in
     (* TODO what happens if we add an index somewhere other than next to last? investigate, fix *)
     let last_arg_typ = on_type dest_sigT env_f evd last_arg in
     let proj_index = project_index last_arg_typ last_arg in
     let proj_value = project_value last_arg_typ last_arg in
     let inner = reduce_term env_f (mkAppl (recons, List.append other_args [proj_index; proj_value])) in
-    (inner, indexer)
+    (mkAppl (inner, curried_args), indexer)
   else
     (* compose the constructors *)
     let gs =
@@ -683,22 +683,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
     in
     let fs = (env_f, f_app.cs) in
     let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
-    let final_args = f_app.final_args
-     (* map_indexer
-        (fun (args : types list) ->
-          (* TODO refactor, figure out why we skip one here *)
-          let args = List.rev (List.tl (List.rev args)) in
-          let last_a = last args in
-          let last_a_inner = last_arg last_a in
-          let other_args = List.rev (List.tl (List.rev args)) in
-          let last_arg_typ = on_type dest_sigT env_f evd last_a_inner in
-          let proj_index = project_index last_arg_typ last_a_inner in
-          let proj_value = last_a in
-          List.append other_args [proj_index; proj_value])
-        (fun args -> args)
-        comp.l
-        f_app.final_args *)
-    in (apply_eliminator {f_app with p; cs; final_args}, indexer)
+    (apply_eliminator {f_app with p; cs}, indexer)
 
 (*
  * Factor the inside of an application of a sigT_elim to an existT,
@@ -862,8 +847,29 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
  *)
 let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
   let (assum_ind, fs) = factor_ornamented l.orn env evd trm in
-  let ((body, indexer), env, _) = compose_orn_factors evd l assum_ind idx_n fs in
-  (reconstruct_lambda env body, indexer)
+  let ((body, indexer), env_body, _) = compose_orn_factors evd l assum_ind idx_n fs in
+  let reconstructed = reconstruct_lambda env_body body in
+  let rec pack_hypos en tr = (* TODO move, explain *)
+    match kind_of_term tr with
+    | Lambda (n, t, b) ->
+       let t' =
+         map_term_env_if
+           (fun _ -> eq_constr) 
+           (fun en assum tr ->
+             let typ_app = on_type dest_sigT en evd tr in
+             let index_type = typ_app.index_type in
+             let packer = typ_app.packer in
+             let index = project_index typ_app tr in
+             let unpacked = project_value typ_app tr in
+             pack_existT {index_type; packer; index; unpacked})
+           shift
+           en
+           (mkRel (assum_ind - arity tr))
+           t
+       in mkLambda (n, t', pack_hypos (push_local (n, t') en) b)
+    | _ ->
+       tr
+  in (map_forward (pack_hypos env_body) l reconstructed, indexer)
 
 (* --- Higher lifting --- *)
     

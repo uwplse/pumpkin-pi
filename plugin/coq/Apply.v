@@ -801,6 +801,8 @@ Print in_split.
 
 Apply ornament orn_list_vector orn_list_vector_inv in in_split as in_split_vect_auto.
 
+Print in_split_vect_auto.
+
 (* TODO opposite direction too *)
 
 (* --- Proofs that don't induct over list/vector. TODO can we do anything about these? --- *)
