@@ -19,9 +19,6 @@ Proof.
   intros. reflexivity.
 Qed.
 
-(* TODO! in application & reduction, get opposite direction working this way too,
-   using projections instead, all throughout *)
-
 (* TODO test relation to old version, eventually branch & simplify etc *)
 (* TODO generate coherence proof if asked for *)
 
@@ -84,7 +81,9 @@ Qed.
 
 Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red. 
 
-(* TODO fix later
+Print append_vect_red_index.
+
+(* TODO fix when we fix indexes
 Theorem test_append_vect_red_index:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
     append_vect_red_index A pv1 pv2 = plus_vect_exp A pv1 pv2.

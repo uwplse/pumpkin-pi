@@ -219,18 +219,14 @@ Definition plus_vect (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 : v
  * Not used yet.
  *)
 Definition plus_vect_exp (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A) :=
-  sigT_rect
-    (fun _ : sigT (fun (n : nat) => vector A n) => nat)
-    (fun (n0 : nat) (v0 : vector A n0) =>
-      vector_rect
-        A
-        (fun (n0 : nat) (_ : vector A n0) => nat)
-        (projT1 pv2)
-        (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : nat) =>
-          S IH)
-       n0
-       v0)
-   pv1.
+  vector_rect
+     A
+     (fun (n0 : nat) (_ : vector A n0) => nat)
+     (projT1 pv2)
+     (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : nat) =>
+        S IH)
+     (projT1 pv1)
+     (projT2 pv1).
 
 Definition append_vect (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 : vector A n2) :=
   vector_rect

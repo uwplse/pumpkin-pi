@@ -299,9 +299,10 @@ let get_assum orn env evd trm =
            false)
       (fun t ->
         let c' =
-          if applies sigT_rect t then
+          if applies (Option.get orn.indexer) t then
             (* indexer *)
-            Some (last_arg t)
+            let last_a = last_arg (last_arg t) in
+            Some (map_if last_arg (applies projT2 last_a) last_a)
           else
             (* function *)
             let unorn = unwrap_definition env (first_fun t) in

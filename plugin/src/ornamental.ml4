@@ -68,7 +68,8 @@ let reduce_ornament n d_orn d_orn_inv d_old =
   let (trm_n, indexer) = internalize env evd idx_n l trm_o in
   (if Option.has_some indexer then
      let indexer_o = Option.get indexer in
-     let (indexer_n, _) = internalize env evd idx_n l indexer_o in
+     let (indexer_n, _) = (*internalize env evd idx_n l indexer_o in TODO fix *)
+       (indexer_o, None) in
      define_term idx_n env evd indexer_n;
      Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
    else

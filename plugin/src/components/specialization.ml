@@ -323,7 +323,7 @@ let reduce_indexer_app l evd orn env arg trm =
   let app_red = reduce_nf env unfolded in
   let app = all_eq_substs (orn_app_red, orn_app) app_red in
   if eq_constr app_red app then
-    (* nothing to rewrite; ensure termination *)
+   (* nothing to rewrite; ensure termination *)
     trm
   else
     (* return the rewritten term *)
@@ -357,10 +357,14 @@ let reduce_sigT_elim_app l evd orn env arg trm =
  * Get the meta-reduction function for a lifted term.
  *)
 let meta_reduce l =
+  Printf.printf "%s\n\n" "meta-reducing";
+  Printf.printf "%s\n\n" (if l.is_indexer then "is indexer" else "not indexer");
   if l.is_fwd && not l.is_indexer then
     (* rewrite in the unpacked body of an existT *)
     reduce_existT_app l
   else if l.is_indexer then
+    let x = 0 in
+    Printf.printf "%s\n\n" "returning reduce_indexer_app";
     (* rewrite in the application of an indexer *)
     reduce_indexer_app l
   else
@@ -629,13 +633,12 @@ let build_lifted_indexer evd idx_n assum_ind comp =
   let l = comp.l in
   let (env, f) = comp.f in
   if l.is_fwd && comp.is_g && not l.is_indexer then
-    (*
-    TODO fix
     let indexer = Option.get l.orn.indexer in
     let (env_b, b) = zoom_lambda_term env f in
     let index_args = snoc b (on_type unfold_args env_b evd b) in
     let indexer_app = mkAppl (indexer, index_args) in
-    let unpacked = reconstruct_packed assum_ind env_b indexer_app in
+    let unpacked = reconstruct_lambda env_b indexer_app in
+    (*debug_term env unpacked "unpacked";
     let env_packed = pack_env assum_ind env_b in
     let index_type = infer_type env_b evd (mkRel (assum_ind + 1)) in
     let packer = infer_type env_packed evd (mkRel assum_ind) in
@@ -643,9 +646,9 @@ let build_lifted_indexer evd idx_n assum_ind comp =
     let arg = mkRel assum_ind in
     let to_elim = { index_type; packer } in
     let indexer_body = elim_sigT { to_elim; packed_type; unpacked; arg } in
-    let indexer = reconstruct_lambda env_packed indexer_body in*)
-    let l = { l with lifted_indexer = Some (make_constant idx_n) } in
-    ({ comp with l }, None)
+    let indexer = reconstruct_lambda env_packed indexer_body in
+    let l = { l with lifted_indexer = Some (make_constant idx_n) } in*)
+    ({ comp with l }, Some unpacked)
   else
     (comp, None)
       
@@ -669,6 +672,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
     let (env_c, c_body) = zoom_lambda_term env_f c in
     let c_inner = { comp with f = (env_c, c_body)} in
     let (c_comp, indexer) = compose_rec c_inner in
+    (if Option.has_some indexer then debug_term env_f (Option.get indexer) "indexer inner" else ());
     let recons = reconstruct_lambda_n env_c c_comp (nb_rel env_f) in
     let nfinal = arity p - npms in
     let curried_args = mk_n_rels (nfinal - List.length f_app.final_args) in
@@ -695,7 +699,22 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
     in
     let fs = (env_f, f_app.cs) in
     let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
-    (apply_eliminator {f_app with p; cs}, indexer)
+    let final_args =
+      map_indexer
+        (fun (args : types list) ->
+          (* TODO refactor, figure out why we skip one here *)
+          let args = List.rev (List.tl (List.rev args)) in
+          let last_a = last args in
+          let last_a_inner = last_arg last_a in
+          let other_args = List.rev (List.tl (List.rev args)) in
+          let last_arg_typ = on_type dest_sigT env_f evd last_a_inner in
+          let proj_index = project_index last_arg_typ last_a_inner in
+          let proj_value = last_a in
+          List.append other_args [proj_index; proj_value])
+        (fun args -> args)
+        comp.l
+        f_app.final_args
+    in (apply_eliminator {f_app with p; cs; final_args}, indexer)
 
 (*
  * Factor the inside of an application of a sigT_elim to an existT,
@@ -706,18 +725,11 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
 let factor_elim_existT evd assum_ind f g g_no_red =
   let (env_f, f) = f in
   let (env_g, g) = g in
-  if applies sigT_rect g && applies existT f then
-    (* sigT .... o existT .... *)
-    let g_inner = (dest_sigT_elim g).unpacked in
-    let f_app = dest_existT f in
-    let inner = mkAppl (g_inner, [f_app.index; f_app.unpacked]) in
-    factor_term_dep (mkRel assum_ind) env_f evd inner
-  else
-    (* existT ... o indexer ... *)
-    in_lambda_body
-      (fun env trm -> factor_term_dep (mkRel assum_ind) env evd trm)
-      env_g
-      (dest_sigT_elim g).unpacked
+  (* existT ... o indexer ... *)
+  in_lambda_body
+    (fun env trm -> factor_term_dep (mkRel assum_ind) env evd trm)
+    env_g
+    g
 
 (*
  * When composing factors, determine if we have an application of
@@ -738,6 +750,7 @@ let forgets l g f =
 let promotes evd l assum_ind g f =
   let (env_g, g) = g in
   let (env_f, f) = f in
+  Printf.printf "%s\n\n" "checking promotes";
   let promote = l.orn.promote in
   let indexer = Option.get l.orn.indexer in
   let index_i = Option.get l.orn.index_i in
@@ -755,6 +768,7 @@ let promotes evd l assum_ind g f =
   let promote_param = reduce_term env_f (mkAppl (promote_unpacked, args)) in
   let g_promotes = is_or_applies promote g || is_or_applies promote_param g in
   let f_promotes = is_or_applies promote f || is_or_applies promote_param f in
+  Printf.printf "%s\n\n" "checked promotes";
   (f_promotes, isApp f && g_promotes)
 
 (*
@@ -794,12 +808,12 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        let ((t_app, indexer), env, composed) = compose_rec l (last children) in
        let g = zoom_lambda_term en t in
        let f = (env, t_app) in
-       let (f_promotes, g_promotes) = promotes evd l assum_ind g f in
-       let (f_forgets, g_forgets) = forgets l g f in
        let (f_is_indexer, g_is_indexer, is_indexer_inner) = is_indexer l g f in
+       let is_index = f_is_indexer || g_is_indexer in
+       let (f_promotes, g_promotes) = (if not is_index then promotes evd l assum_ind g f else (false, false)) in
+       let (f_forgets, g_forgets) = (if not is_index then forgets l g f else (false, false)) in
        let is_promote = f_promotes || g_promotes in
        let is_forget = f_forgets || g_forgets in
-       let is_index = f_is_indexer || g_is_indexer in
        if is_promote || is_forget || is_index then
          let is_g = g_promotes || g_forgets || g_is_indexer in
          let l = { l with is_indexer = is_index } in
@@ -823,13 +837,15 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
            let comp = { comp with g = g_ind } in
            let composed = compose_inductive evd idx_n post_assums assum_ind false comp in
            (composed, env, true)
-         else if applies sigT_rect (snd g_ind) && is_indexer_inner then
-           let inner_fs = factor_elim_existT evd assum_ind f_ind g_ind (snd g) in
-           let ((t_app, indexer), env, composed) = compose_rec l inner_fs in
-           let g_app = dest_sigT_elim (snd g_ind) in
+         else if is_index then
+           (* TODO fix me *)
+           let f_ind = zoom_lambda_term (fst f_ind) (snd f_ind) in
+           let comp = { comp with f = f_ind } in
+           let (t_app, indexer) = compose_inductive evd idx_n post_assums assum_ind false comp in
+           (*let g_app = dest_sigT_elim (snd g_ind) in
            let unpacked = reconstruct_packed 1 env t_app in
-           let t_app_packed = elim_sigT { g_app with unpacked } in
-           ((t_app_packed, indexer), pack_env 1 env, composed)
+           let t_app_packed = elim_sigT { g_app with unpacked } in*)
+           ((unshift t_app, indexer), pop_rel_context 1 (fst f_ind), composed)
          else
            let compose = compose_inductive evd idx_n post_assums assum_ind in
            (compose false comp, env, true)
