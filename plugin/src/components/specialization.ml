@@ -586,7 +586,6 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let to_typ = zoom_sig (promotion_type env_f orn_f) in
   let from_typ = first_fun (promotion_type env_g orn_g) in
   let c_f = compose_ih evd npms_g ip_g p comp in
-  (*let env_g_body = zoom_env zoom_lambda_term env_g c_g in*)
   zoom_apply_lambda_n
     (nb_rel env_f)
     (fun env trm ->
@@ -781,6 +780,8 @@ let is_indexer l g f =
  * Note: Now that we are in sigmas, we can probably go back to non-dependent
  * factoring. But that is a major effort, so for now we just always get the
  * last factor.
+ *
+ * TODO clean again after changing the terms we return
  *)
 let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
   let compose_rec l fs = compose_orn_factors evd l assum_ind idx_n fs in
@@ -830,10 +831,8 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        else
          if List.length children > 1 && l.is_indexer then
            let ((t_app_index, _), env_index, _) = compose_rec l (last (List.rev (List.tl (List.rev children)))) in
-           let f_index = (env_index, t_app_index) in
-           (* TODO left off here, need both projections to move on *)
            let t = shift_by assum_ind t in
-           let t_args = [t_app_index; t_app] in
+           let t_args = List.append [t_app_index; t_app] post_assums in
            ((reduce_term env (mkAppl (t, t_args)), indexer), env, composed)
          else
            let t = shift_by assum_ind t in

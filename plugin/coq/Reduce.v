@@ -59,6 +59,8 @@ Qed.
 
 Reduce ornament orn_list_vector orn_list_vector_inv in tl_vect_auto as tl_vect_red.
 
+Print tl_vect_red_index.
+
 Theorem test_tl_vect:
   forall (A : Type) (pv : packed_vector A),
     tl_vect_packed_alt A pv = tl_vect_red A pv.
