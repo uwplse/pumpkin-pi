@@ -83,13 +83,12 @@ Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as appen
 
 Print append_vect_red_index.
 
-(* TODO fix when we fix indexes
 Theorem test_append_vect_red_index:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
     append_vect_red_index A pv1 pv2 = plus_vect_exp A pv1 pv2.
 Proof.
   intros. reflexivity.
-Qed.*)
+Qed.
 
 (* Some basic sanity checking, should auto-generate at some point
  TODO fix later

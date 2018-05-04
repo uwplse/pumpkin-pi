@@ -357,14 +357,10 @@ let reduce_sigT_elim_app l evd orn env arg trm =
  * Get the meta-reduction function for a lifted term.
  *)
 let meta_reduce l =
-  Printf.printf "%s\n\n" "meta-reducing";
-  Printf.printf "%s\n\n" (if l.is_indexer then "is indexer" else "not indexer");
   if l.is_fwd && not l.is_indexer then
     (* rewrite in the unpacked body of an existT *)
     reduce_existT_app l
   else if l.is_indexer then
-    let x = 0 in
-    Printf.printf "%s\n\n" "returning reduce_indexer_app";
     (* rewrite in the application of an indexer *)
     reduce_indexer_app l
   else
@@ -634,20 +630,10 @@ let build_lifted_indexer evd idx_n assum_ind comp =
   let (env, f) = comp.f in
   if l.is_fwd && comp.is_g && not l.is_indexer then
     let indexer = Option.get l.orn.indexer in
-    let (env_b, b) = zoom_lambda_term env f in
+    let (env_b, b) = zoom_lambda_term env f in    
     let index_args = snoc b (on_type unfold_args env_b evd b) in
     let indexer_app = mkAppl (indexer, index_args) in
     let unpacked = reconstruct_lambda env_b indexer_app in
-    (*debug_term env unpacked "unpacked";
-    let env_packed = pack_env assum_ind env_b in
-    let index_type = infer_type env_b evd (mkRel (assum_ind + 1)) in
-    let packer = infer_type env_packed evd (mkRel assum_ind) in
-    let packed_type = mkLambda (Anonymous, packer, shift index_type) in
-    let arg = mkRel assum_ind in
-    let to_elim = { index_type; packer } in
-    let indexer_body = elim_sigT { to_elim; packed_type; unpacked; arg } in
-    let indexer = reconstruct_lambda env_packed indexer_body in
-    let l = { l with lifted_indexer = Some (make_constant idx_n) } in*)
     ({ comp with l }, Some unpacked)
   else
     (comp, None)
@@ -672,7 +658,6 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
     let (env_c, c_body) = zoom_lambda_term env_f c in
     let c_inner = { comp with f = (env_c, c_body)} in
     let (c_comp, indexer) = compose_rec c_inner in
-    (if Option.has_some indexer then debug_term env_f (Option.get indexer) "indexer inner" else ());
     let recons = reconstruct_lambda_n env_c c_comp (nb_rel env_f) in
     let nfinal = arity p - npms in
     let curried_args = mk_n_rels (nfinal - List.length f_app.final_args) in
@@ -699,8 +684,8 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
     in
     let fs = (env_f, f_app.cs) in
     let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
-    let final_args =
-      map_indexer
+    let final_args = f_app.final_args
+     (* map_indexer
         (fun (args : types list) ->
           (* TODO refactor, figure out why we skip one here *)
           let args = List.rev (List.tl (List.rev args)) in
@@ -713,7 +698,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
           List.append other_args [proj_index; proj_value])
         (fun args -> args)
         comp.l
-        f_app.final_args
+        f_app.final_args *)
     in (apply_eliminator {f_app with p; cs; final_args}, indexer)
 
 (*
@@ -750,7 +735,6 @@ let forgets l g f =
 let promotes evd l assum_ind g f =
   let (env_g, g) = g in
   let (env_f, f) = f in
-  Printf.printf "%s\n\n" "checking promotes";
   let promote = l.orn.promote in
   let indexer = Option.get l.orn.indexer in
   let index_i = Option.get l.orn.index_i in
@@ -768,7 +752,6 @@ let promotes evd l assum_ind g f =
   let promote_param = reduce_term env_f (mkAppl (promote_unpacked, args)) in
   let g_promotes = is_or_applies promote g || is_or_applies promote_param g in
   let f_promotes = is_or_applies promote f || is_or_applies promote_param f in
-  Printf.printf "%s\n\n" "checked promotes";
   (f_promotes, isApp f && g_promotes)
 
 (*
@@ -816,7 +799,6 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        let is_forget = f_forgets || g_forgets in
        if is_promote || is_forget || is_index then
          let is_g = g_promotes || g_forgets || g_is_indexer in
-         let l = { l with is_indexer = is_index } in
          let g_ind = (fst g, reduce_to_ind (fst g) (snd g)) in
          let f_ind = (fst f, reduce_to_ind (fst f) (snd f)) in
          let comp = { l ; g = g_ind ; f = f_ind ; is_g } in    
@@ -837,26 +819,30 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
            let comp = { comp with g = g_ind } in
            let composed = compose_inductive evd idx_n post_assums assum_ind false comp in
            (composed, env, true)
-         else if is_index then
-           (* TODO fix me *)
+         else if is_index then 
            let f_ind = zoom_lambda_term (fst f_ind) (snd f_ind) in
            let comp = { comp with f = f_ind } in
            let (t_app, indexer) = compose_inductive evd idx_n post_assums assum_ind false comp in
-           (*let g_app = dest_sigT_elim (snd g_ind) in
-           let unpacked = reconstruct_packed 1 env t_app in
-           let t_app_packed = elim_sigT { g_app with unpacked } in*)
-           ((unshift t_app, indexer), pop_rel_context 1 (fst f_ind), composed)
+           ((t_app, indexer), fst f_ind, composed)
          else
            let compose = compose_inductive evd idx_n post_assums assum_ind in
            (compose false comp, env, true)
        else
-         let t = shift_by assum_ind t in
-         let t_args =
-           if not composed then
-             t_app :: post_assums
-           else
-             [t_app]
-         in ((reduce_term env (mkAppl (t, t_args)), indexer), env, composed)
+         if List.length children > 1 && l.is_indexer then
+           let ((t_app_index, _), env_index, _) = compose_rec l (last (List.rev (List.tl (List.rev children)))) in
+           let f_index = (env_index, t_app_index) in
+           (* TODO left off here, need both projections to move on *)
+           let t = shift_by assum_ind t in
+           let t_args = [t_app_index; t_app] in
+           ((reduce_term env (mkAppl (t, t_args)), indexer), env, composed)
+         else
+           let t = shift_by assum_ind t in
+           let t_args =
+             if not composed then
+               t_app :: post_assums
+             else
+               [t_app]
+           in ((reduce_term env (mkAppl (t, t_args)), indexer), env, composed)
      else
        ((t, None), en, false)
   | Unit ->
