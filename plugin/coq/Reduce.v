@@ -14,7 +14,7 @@ Reduce ornament orn_list_vector orn_list_vector_inv in hd_vect_auto as hd_vect_r
 
 Theorem test_hd_vect:
   forall (A : Type) (default : A) (pv : packed_vector A),
-    hd_vect_packed_alt A default pv = hd_vect_red A default pv.
+    hd_vect_packed A default pv = hd_vect_red A default pv.
 Proof.
   intros. reflexivity.
 Qed.
@@ -39,7 +39,7 @@ Reduce ornament orn_list_vector orn_list_vector_inv in hd_vect_error_auto as hd_
 
 Theorem test_hd_vect_error:
   forall (A : Type) (pv : packed_vector A),
-    hd_vect_error_packed_alt A pv = hd_vect_error_red A pv.
+    hd_vect_error_packed A pv = hd_vect_error_red A pv.
 Proof.
   intros. reflexivity.
 Qed.
@@ -63,7 +63,7 @@ Print tl_vect_red_index.
 
 Theorem test_tl_vect:
   forall (A : Type) (pv : packed_vector A),
-    tl_vect_packed_alt A pv = tl_vect_red A pv.
+    tl_vect_packed A pv = tl_vect_red A pv.
 Proof.
   intros. reflexivity.
 Qed.
@@ -115,7 +115,7 @@ Qed.*)
 
 Theorem test_append_vect:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
-    append_vect_packed_alt A pv1 pv2  = append_vect_red A pv1 pv2.
+    append_vect_packed A pv1 pv2  = append_vect_red A pv1 pv2.
 Proof.
   intros. reflexivity.
 Qed.
@@ -133,7 +133,7 @@ Reduce ornament orn_list_vector orn_list_vector_inv in In_vect_auto as In_vect_r
 
 Theorem test_in_vect:
   forall (A : Type) (a : A) (pv : packed_vector A),
-    In_vect_alt A a pv = In_vect_red A a pv.
+    In_vect A a pv = In_vect_red A a pv.
 Proof.
   intros. reflexivity.
 Qed.
@@ -154,7 +154,6 @@ Qed.
  *)
 
 Reduce ornament orn_list_vector orn_list_vector_inv in app_nil_r_vect_auto as app_nil_r_vect_red.
-
 Reduce ornament orn_list_vector_inv orn_list_vector in app_nil_r_auto as app_nil_r_red.
 
 (* 
@@ -166,7 +165,7 @@ Reduce ornament orn_list_vector_inv orn_list_vector in app_nil_r_auto as app_nil
 
 Theorem test_app_nil_r_vect_lower:
   forall (A : Type) (pv : packed_vector A),
-    app_nil_r_vect_red A pv = app_nil_r_vect_packed_lower_alt A pv.
+    app_nil_r_vect_red A pv = app_nil_r_vect_packed_lower A pv.
 Proof.
   intros. reflexivity.
 Qed.
@@ -278,6 +277,7 @@ Reduce ornament orn_list_vector orn_list_vector_inv in in_split_vect_auto as in_
 
 Print in_split_vect_red.
 
+(* TODO test *)
 (* TODO opposite direction too once it's done *)
 
 (* --- Unimplemented ideas --- *)

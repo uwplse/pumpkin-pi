@@ -113,7 +113,7 @@ let ornament_concls concl_typ env evd (l : lifting) (from_ind, _) trm =
   let index_i = Option.get l.orn.index_i in
   map_if
     (zoom_apply_lambda
-       (fun _ trm_zoom ->
+       (fun env_zoom trm_zoom ->
          mkAppl (lift_to l, snoc trm_zoom (non_index_args l env concl_typ)))
        env)
     (is_or_applies from_ind (zoom_if_sig concl_typ))
@@ -142,7 +142,7 @@ let apply_indexing_ornament env evd l trm =
   in
   let app_orn ornamenter = ornamenter env evd l inds in
   let typ = reduce_type env evd trm in
-  let concl_typ = in_body zoom_product_type reduce_nf env typ in
+  let concl_typ = in_body zoom_product_type reduce_term env typ in
   app_orn (ornament_concls concl_typ) (app_orn ornament_hypos trm)
           
 (* --- Meta-reduction --- *)
