@@ -747,7 +747,33 @@ let is_indexer l g f =
     (f_is_indexer, g_is_indexer, f_indexes_inner || g_indexes_inner)
   else
     (false, false, false)
-    
+
+(*
+ * Configure the composition
+ *)
+let configure_compose_inductive assum_ind l (f, g) is_g =
+  let g_ind = (fst g, reduce_to_ind (fst g) (snd g)) in
+  let f_ind = (fst f, reduce_to_ind (fst f) (snd f)) in
+  let comp = { l ; g = g_ind ; f = f_ind ; is_g } in    
+  if applies existT (snd f_ind) then
+    let env_orn = zoom_env zoom_lambda_term empty_env (unwrap_definition (fst f_ind) (lift_to l)) in
+    let c_f = reconstruct_lambda env_orn (shift_by (nb_rel env_orn) (dest_existT (snd f_ind)).unpacked) in
+    let typ_args = List.rev (List.tl (List.rev (unfold_args (snd f)))) in
+    let f_inner = reduce_term (fst f_ind) (mkAppl (c_f, snoc (mkRel assum_ind) typ_args)) in
+    let f_ind = zoom_lambda_term (fst f_ind) f_inner in
+    { comp with f = f_ind }
+  else if applies existT (snd g_ind) then
+    let c_g = reconstruct_lambda (fst g_ind) (dest_existT (snd g_ind)).unpacked in
+    let typ_args = List.rev (List.tl (List.rev (unfold_args (snd g)))) in
+    let g_inner = reduce_term (fst g_ind) (mkAppl (c_g, typ_args)) in
+    let g_ind = zoom_lambda_term (fst g_ind) g_inner in
+    { comp with g = g_ind }
+  else if l.is_indexer then 
+    let f_ind = zoom_lambda_term (fst f_ind) (snd f_ind) in
+    { comp with f = f_ind }
+  else
+    comp
+  
 (*
  * Compose factors of an ornamented, but not yet reduced function
  *
@@ -772,34 +798,9 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        let is_forget = f_forgets || g_forgets in
        if is_promote || is_forget || is_index then
          let is_g = g_promotes || g_forgets || g_is_indexer in
-         let g_ind = (fst g, reduce_to_ind (fst g) (snd g)) in
-         let f_ind = (fst f, reduce_to_ind (fst f) (snd f)) in
-         let comp = { l ; g = g_ind ; f = f_ind ; is_g } in    
-         if applies existT (snd f_ind) then
-           let env_orn = zoom_env zoom_lambda_term empty_env (unwrap_definition (fst f_ind) (lift_to l)) in
-           let c_f = reconstruct_lambda env_orn (shift_by (nb_rel env_orn) (dest_existT (snd f_ind)).unpacked) in
-           let typ_args = List.rev (List.tl (List.rev (unfold_args (snd f)))) in
-           let f_inner = reduce_term (fst f_ind) (mkAppl (c_f, snoc (mkRel assum_ind) typ_args)) in
-           let f_ind = zoom_lambda_term (fst f_ind) f_inner in
-           let comp = { comp with f = f_ind } in
-           let composed = compose_inductive evd idx_n post_assums assum_ind false comp in   
-           (composed, env, true)
-         else if applies existT (snd g_ind) then
-           let c_g = reconstruct_lambda (fst g_ind) (dest_existT (snd g_ind)).unpacked in
-           let typ_args = List.rev (List.tl (List.rev (unfold_args (snd g)))) in
-           let g_inner = reduce_term (fst g_ind) (mkAppl (c_g, typ_args)) in
-           let g_ind = zoom_lambda_term (fst g_ind) g_inner in
-           let comp = { comp with g = g_ind } in
-           let composed = compose_inductive evd idx_n post_assums assum_ind false comp in
-           (composed, env, true)
-         else if is_index then 
-           let f_ind = zoom_lambda_term (fst f_ind) (snd f_ind) in
-           let comp = { comp with f = f_ind } in
-           let (t_app, indexer) = compose_inductive evd idx_n post_assums assum_ind false comp in
-           ((t_app, indexer), fst f_ind, composed)
-         else
-           let compose = compose_inductive evd idx_n post_assums assum_ind in
-           (compose false comp, env, true)
+         let comp = configure_compose_inductive assum_ind l (f, g) is_g in
+         let comped = compose_inductive evd idx_n post_assums assum_ind false comp in
+         (comped, fst comp.f, true)
        else
          if List.length children > 1 && l.is_indexer then
            let ((t_app_index, _), env_index, _) = compose_rec l (last (List.rev (List.tl (List.rev children)))) in
