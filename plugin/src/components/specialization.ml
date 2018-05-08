@@ -619,9 +619,6 @@ let build_lifted_indexer evd idx_n assum_ind comp =
 (*
  * Compose two applications of an induction principle that are
  * structurally the same when one is an ornament.
- *
- * LATER: implementation will likely break if we add an index somewhere 
- * other than next to last, so should investigate
  *)
 let rec compose_inductive evd idx_n post_assums assum_ind comp =
   let rec compose inner comp =
@@ -641,14 +638,16 @@ let rec compose_inductive evd idx_n post_assums assum_ind comp =
       let (c_comp, indexer) = compose true c_inner in
       let recons = reconstruct_lambda_n env_c c_comp (nb_rel env_f) in
       let curried_args = mk_n_rels (arity p - List.length f_app.final_args) in
-      let final_args = List.append f_app.final_args curried_args in
-      let last_arg = last f_app.final_args in
-      let other_args = List.rev (List.tl (List.rev f_app.final_args)) in
-      let last_arg_typ = on_type dest_sigT env_f evd last_arg in
-      let proj_index = project_index last_arg_typ last_arg in
-      let proj_value = project_value last_arg_typ last_arg in
-      let inner = reduce_term env_f (mkAppl (recons, List.append other_args [proj_index; proj_value])) in
-      (mkAppl (inner, curried_args), indexer)
+      let args_packed = List.append f_app.final_args curried_args in
+      let assum = mkRel assum_ind in
+      let assum_typ = on_type dest_sigT env_f evd assum in
+      let proj_index = project_index assum_typ assum in
+      let proj_value = project_value assum_typ assum in
+      let index_i = Option.get comp.l.orn.index_i - npms in
+      let args_indexed = insert_index index_i proj_index args_packed in
+      let args_unpacked = reindex (arity f_app.p) proj_value args_indexed in
+      let inner = reduce_term env_f (mkAppl (recons, args_unpacked)) in
+      (inner, indexer)
     else
       (* compose the constructors *)
       let gs =
@@ -665,21 +664,6 @@ let rec compose_inductive evd idx_n post_assums assum_ind comp =
       let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
       (apply_eliminator {f_app with p; cs}, indexer)
   in compose false comp
-
-(*
- * Factor the inside of an application of a sigT_elim to an existT,
- * or the opposite way around, or the application of a sigT_elim to
- * an indexer. In other words, meta-reduce complex sigT_elim terms when
- * the result is obvious.
- *)
-let factor_elim_existT evd assum_ind f g g_no_red =
-  let (env_f, f) = f in
-  let (env_g, g) = g in
-  (* existT ... o indexer ... *)
-  in_lambda_body
-    (fun env trm -> factor_term_dep (mkRel assum_ind) env evd trm)
-    env_g
-    g
 
 (*
  * When composing factors, determine if we have an application of
