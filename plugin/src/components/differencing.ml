@@ -540,11 +540,11 @@ let pack_hypothesis env evd idx o n unpacked =
   let unpacked = pack_unpacked env_push packer index_type index_rel unpacked in
   let adjusted = adjust_to_elim env_push index_rel packer unpacked in
   let (env_packed, packer, unpacked) = adjusted in
-  let ind_n_args = shift_all (mk_n_rels (arity - 1)) in
-  let packed_type = elim_body index_type packer ind_n ind_n_args in
   let arg = mkRel 1 in
-  let to_elim = { index_type; packer } in
-  (env_packed, elim_sigT { to_elim; packed_type; unpacked; arg })
+  let arg_typ = on_type dest_sigT env_packed evd arg in
+  let index = project_index arg_typ arg in
+  let value = project_value arg_typ arg in
+  (env_packed, reduce_term env_packed (mkAppl (unpacked, [index; value])))
 
 (*
  * This packs an ornamental promotion to/from an indexed type like Vector A n,
