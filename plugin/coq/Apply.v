@@ -120,6 +120,30 @@ Definition hd_vect_packed_experimental (A : Type) (default : A) (pv : packed_vec
 Apply ornament orn_list_vector orn_list_vector_inv in hd as hd_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_packed_alt as hd_auto.
 
+Print hd_vect_auto.
+
+(* TODO temporary for testing *)
+Definition orn_list_vector_inv' (A : Type) (pv : sigT (vector A)) :=
+  vector_rect 
+    A
+    (fun (n : nat) (_ : vector A n) => list A) 
+    nil
+    (fun (n : nat) (a : A) (v0 : vector A n) (H1 : list A) => 
+      a :: H1) 
+    (projT1 pv)
+    (projT2 pv).
+
+(* TODO temporary for testing *)
+Definition hd_vect_auto_alt (A : Type) (default : A) (pv : sigT (vector A)):=
+  hd A default (orn_list_vector_inv' A pv).
+
+Check hd_vect_auto_alt.
+
+Eval compute in hd_vect_auto.
+Eval compute in hd_vect_auto_alt.
+
+(* TODO, slightly. So change this too, at some point. *)
+
 Theorem test_orn_hd :
   forall (A : Type) (a : A) (pv : packed_vector A),
     hd_vect_auto A a pv = hd_vect_packed A a pv.

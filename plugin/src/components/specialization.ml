@@ -148,12 +148,6 @@ let apply_indexing_ornament env evd l trm =
 (* --- Meta-reduction --- *)
 
 (*
- * TODO from here on out needs clean-up
- * TODO separate out into steps instead of doing everything at once
- * TODO maybe even separate application this way too
- *)
-
-(*
  * Pack arguments inside of a sigT type
  *)
 let pack_inner env evd l unpacked =
@@ -170,7 +164,7 @@ let pack_inner env evd l unpacked =
  * Get the arguments for composing two applications of an induction
  * principle that are structurally the same when one is an ornament.
  *
- * TODO: We will need to restest this when our unornamented type itself
+ * LATER: We will need to restest this when our unornamented type itself
  * has an index, to check indexing logic for assum_args.
  *)
 let compose_p_args evd npms assum_ind inner comp =
@@ -579,7 +573,6 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
         (* it's still unclear to me why local_max is what it is *)
         let local_max = directional l 0 (List.length post_assums) in
         let f = shift_local local_max (offset2 env env_g) c_g in
-        (* TODO: We actually don't want args here, since it's a base case *)
         let lift_args = map_directional (pack_ihs c_f_old) project_ihs l in
         let args = lift_args l env evd (from_typ, to_typ) c_g in
         reduce_term env (mkAppl (f, args))
@@ -626,6 +619,9 @@ let build_lifted_indexer evd idx_n assum_ind comp =
 (*
  * Compose two applications of an induction principle that are
  * structurally the same when one is an ornament.
+ *
+ * LATER: implementation will likely break if we add an index somewhere 
+ * other than next to last, so should investigate
  *)
 let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
   let (env_g, g) = comp.g in
@@ -637,7 +633,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
   let c_p = { comp with g = (env_g, g_app.p); f = (env_f, f_app.p) } in
   let p = compose_p evd npms assum_ind inner c_p in
   if applies sigT_rect f then
-    (* recurse inside the sigT_rect *) (* TODO using same logic, if we make elim. use proj instead, can we simplify significantly? *)
+    (* recurse inside the sigT_rect *)
     let compose_rec = compose_inductive evd idx_n post_assums assum_ind true in
     let c = List.hd f_app.cs in
     let (env_c, c_body) = zoom_lambda_term env_f c in
@@ -646,10 +642,8 @@ let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
     let recons = reconstruct_lambda_n env_c c_comp (nb_rel env_f) in
     let curried_args = mk_n_rels (arity p - List.length f_app.final_args) in
     let final_args = List.append f_app.final_args curried_args in
-    (* TODO still assumes no currying up to certain point; investigate *)
     let last_arg = last f_app.final_args in
     let other_args = List.rev (List.tl (List.rev f_app.final_args)) in
-    (* TODO what happens if we add an index somewhere other than next to last? investigate, fix *)
     let last_arg_typ = on_type dest_sigT env_f evd last_arg in
     let proj_index = project_index last_arg_typ last_arg in
     let proj_value = project_value last_arg_typ last_arg in
@@ -691,59 +685,68 @@ let factor_elim_existT evd assum_ind f g g_no_red =
  * the forgetful function. Return (f_forgets, g_forgets).
  *)
 let forgets l g f =
-  let (env_g, g) = g in
-  let (env_f, f) = f in
-  let forget = l.orn.forget in
-  let f_forgets = is_or_applies forget f in
-  let g_forgets = is_or_applies forget g in
-  (f_forgets, isApp f && g_forgets)
+  if not l.is_indexer then
+    let (env_g, g) = g in
+    let (env_f, f) = f in
+    let forget = l.orn.forget in
+    let f_forgets = is_or_applies forget f in
+    let g_forgets = is_or_applies forget g in
+    (f_forgets, isApp f && g_forgets)
+  else
+    (false, false)
 
 (*
  * When composing factors, determine if we have an application of
  * the promotion function. Return (f_promotes, g_promotes).
  *)
 let promotes evd l assum_ind g f =
-  let (env_g, g) = g in
-  let (env_f, f) = f in
-  let promote = l.orn.promote in
-  let indexer = Option.get l.orn.indexer in
-  let index_i = Option.get l.orn.index_i in
-  let promote_unpacked =
-    zoom_apply_lambda_n
-      (nb_rel env_f)
-      (fun _ trm -> (dest_existT trm).unpacked)
-      env_f
-      (delta env_f promote)
-  in
-  let typ_args = on_type unfold_args env_f evd f in
-  let deindex = List.exists (applies indexer) typ_args in
-  let assum = mkRel assum_ind in
-  let args = snoc assum (map_if (remove_index index_i) deindex typ_args) in
-  let promote_param = reduce_term env_f (mkAppl (promote_unpacked, args)) in
-  let g_promotes = is_or_applies promote g || is_or_applies promote_param g in
-  let f_promotes = is_or_applies promote f || is_or_applies promote_param f in
-  (f_promotes, isApp f && g_promotes)
+  if not l.is_indexer then
+    let (env_g, g) = g in
+    let (env_f, f) = f in
+    let promote = l.orn.promote in
+    let indexer = Option.get l.orn.indexer in
+    let index_i = Option.get l.orn.index_i in
+    let promote_unpacked =
+      zoom_apply_lambda_n
+        (nb_rel env_f)
+        (fun _ trm -> (dest_existT trm).unpacked)
+        env_f
+        (delta env_f promote)
+    in
+    let typ_args = on_type unfold_args env_f evd f in
+    let deindex = List.exists (applies indexer) typ_args in
+    let assum = mkRel assum_ind in
+    let args = snoc assum (map_if (remove_index index_i) deindex typ_args) in
+    let promote_param = reduce_term env_f (mkAppl (promote_unpacked, args)) in
+    let g_promotes = is_or_applies promote g || is_or_applies promote_param g in
+    let f_promotes = is_or_applies promote f || is_or_applies promote_param f in
+    (f_promotes, isApp f && g_promotes)
+  else
+    (false, false)
 
 (*
  * When composing factors, determine if we have an application of
  * the indexer. Return (f_indexes, g_indexes, is_inner).
  *)
 let is_indexer l g f =
-  let (env_g, g) = g in
-  let (env_f, f) = f in
-  let indexer = Option.get l.orn.indexer in
-  let is_indexer_inner t =
-    if is_or_applies sigT_rect t then
-      let unpacked = (dest_sigT_elim t).unpacked in
-      in_lambda_body (fun _ -> is_or_applies indexer) env_f unpacked
-    else
-      false
-  in
-  let f_indexes_inner = is_indexer_inner f in
-  let g_indexes_inner = is_indexer_inner g in
-  let f_is_indexer = is_or_applies indexer f || f_indexes_inner in
-  let g_is_indexer = is_or_applies indexer g || g_indexes_inner in
-  (f_is_indexer, g_is_indexer, f_indexes_inner || g_indexes_inner)
+  if l.is_indexer then
+    let (env_g, g) = g in
+    let (env_f, f) = f in
+    let indexer = Option.get l.orn.indexer in
+    let is_indexer_inner t =
+      if is_or_applies sigT_rect t then
+        let unpacked = (dest_sigT_elim t).unpacked in
+        in_lambda_body (fun _ -> is_or_applies indexer) env_f unpacked
+      else
+        false
+    in
+    let f_indexes_inner = is_indexer_inner f in
+    let g_indexes_inner = is_indexer_inner g in
+    let f_is_indexer = is_or_applies indexer f || f_indexes_inner in
+    let g_is_indexer = is_or_applies indexer g || g_indexes_inner in
+    (f_is_indexer, g_is_indexer, f_indexes_inner || g_indexes_inner)
+  else
+    (false, false, false)
     
 (*
  * Compose factors of an ornamented, but not yet reduced function
@@ -751,8 +754,6 @@ let is_indexer l g f =
  * Note: Now that we are in sigmas, we can probably go back to non-dependent
  * factoring. But that is a major effort, so for now we just always get the
  * last factor.
- *
- * TODO clean again after changing the terms we return
  *)
 let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
   let compose_rec l fs = compose_orn_factors evd l assum_ind idx_n fs in
@@ -765,8 +766,8 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        let f = (env, t_app) in
        let (f_is_indexer, g_is_indexer, is_indexer_inner) = is_indexer l g f in
        let is_index = f_is_indexer || g_is_indexer in
-       let (f_promotes, g_promotes) = (if not is_index then promotes evd l assum_ind g f else (false, false)) in
-       let (f_forgets, g_forgets) = (if not is_index then forgets l g f else (false, false)) in
+       let (f_promotes, g_promotes) = promotes evd l assum_ind g f in
+       let (f_forgets, g_forgets) = forgets l g f in
        let is_promote = f_promotes || g_promotes in
        let is_forget = f_forgets || g_forgets in
        if is_promote || is_forget || is_index then
