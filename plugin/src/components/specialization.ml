@@ -785,19 +785,18 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
          let comped = compose_inductive evd idx_n post_assums assum_ind comp in
          (comped, fst comp.f, true)
        else
-         if List.length children > 1 && l.is_indexer then
-           let ((t_app_index, _), env_index, _) = compose_rec l (last (List.rev (List.tl (List.rev children)))) in
-           let t = shift_by assum_ind t in
-           let t_args = List.append [t_app_index; t_app] post_assums in
-           ((reduce_term env (mkAppl (t, t_args)), indexer), env, composed)
-         else
-           let t = shift_by assum_ind t in
-           let t_args =
-             if not composed then
-               t_app :: post_assums
-             else
-               [t_app]
-           in ((reduce_term env (mkAppl (t, t_args)), indexer), env, composed)
+         let t = shift_by assum_ind t in
+         let num_child = List.length children in
+         let t_args =
+           if num_child > 1 && l.is_indexer then
+             let index = Array.get (Array.of_list children) (num_child - 2) in
+             let ((t_app_index, _), _, _) = compose_rec l index in
+             List.append [t_app_index; t_app] post_assums
+           else if not composed then
+             t_app :: post_assums
+           else
+             [t_app]
+         in ((reduce_term env (mkAppl (t, t_args)), indexer), env, composed)
      else
        ((t, None), en, false)
   | Unit ->
