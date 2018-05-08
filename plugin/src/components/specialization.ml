@@ -56,9 +56,8 @@ let non_index_typ_args l env evd trm =
 
 (*
  * Substitute the ornamented type in the hypotheses.
- * TODO clean up after updates
  *)
-let sub_in_hypos l env evd from_ind to_ind hypos =
+let sub_in_hypos l env evd (from_ind, to_ind) hypos =
   let rec sub env trm =
     match kind_of_term trm with
     | Prod (n, t, b) ->
@@ -72,7 +71,7 @@ let sub_in_hypos l env evd from_ind to_ind hypos =
            (map_unit_env_if
               (fun env trm ->
                 try
-                  is_or_applies from_ind (zoom_if_sig (reduce_type env evd trm))
+                  is_or_applies from_ind (on_type zoom_if_sig env evd trm)
                 with _ ->
                   false)
               (fun env trm ->
@@ -103,7 +102,7 @@ let ornament_args env evd from_ind l trm =
 (* Apply the promotion/forgetful function to the hypotheses *)
 let ornament_hypos env evd (l : lifting) (from_ind, to_ind) trm =
   let hypos = reduce_type env evd trm in
-  let subbed = sub_in_hypos l env evd from_ind to_ind hypos in
+  let subbed = sub_in_hypos l env evd (from_ind, to_ind) hypos in
   zoom_apply_lambda
     (fun env _ -> ornament_args env evd from_ind l trm)
     env
