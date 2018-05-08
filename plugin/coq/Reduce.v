@@ -59,6 +59,8 @@ Qed.
 
 Reduce ornament orn_list_vector orn_list_vector_inv in tl_vect_auto as tl_vect_red.
 
+Print tl_vect_red_index.
+
 Theorem test_tl_vect:
   forall (A : Type) (pv : packed_vector A),
     tl_vect_packed A pv = tl_vect_red A pv.
@@ -81,23 +83,7 @@ Qed.
 
 Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red. 
 
-(* for understanding reduction, TODO move *)
-Definition append_vect_packed_pre_red (A : Type) (pv1 pv2 : packed_vector A) :=
-sigT_rect (fun _ : {n : nat & vector A n} => {n : nat & vector A n})
-  (fun (n : nat) (v : vector A n) =>
-   vector_rect 
-     A 
-     (fun (n0 : nat) (_ : vector A n0) => {n1 : nat & vector A n1}) 
-     pv2
-     (fun (n0 : nat) (a : A) (v : vector A n0) (IH : {n1 : nat & vector A n1}) =>
-       orn_list_vector 
-         A 
-         ((fun (al : A) (l : list A) (IHl : list A) => al :: IHl) 
-          a 
-          (orn_list_vector_inv A (existT (vector A) n0 v)) 
-          (orn_list_vector_inv A IH)))
-      (*existT (vector A) (S (projT1 IH)) (consV A (projT1 IH) a (projT2 IH))*) 
-     n v) pv1.
+Print append_vect_red_index.
 
 Theorem test_append_vect_red_index:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
@@ -106,7 +92,8 @@ Proof.
   intros. reflexivity.
 Qed.
 
-(* Some basic sanity checking, should auto-generate at some point*)
+(* Some basic sanity checking, should auto-generate at some point
+ TODO fix later
 Theorem test_append_vect_red_index_correct_unpacked:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
     append_vect_red_index A pv1 pv2 = plus_vect A (projT1 pv1) (projT2 pv1) (projT1 pv2) (projT2 pv2).
@@ -124,7 +111,7 @@ Proof.
   - reflexivity.
   - rewrite test_append_vect_red_index_correct_unpacked. 
     unfold plus_vect. simpl. simpl in IHp. rewrite IHp. reflexivity.
-Qed.
+Qed.*)
 
 Theorem test_append_vect:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
@@ -167,7 +154,6 @@ Qed.
  *)
 
 Reduce ornament orn_list_vector orn_list_vector_inv in app_nil_r_vect_auto as app_nil_r_vect_red.
-
 Reduce ornament orn_list_vector_inv orn_list_vector in app_nil_r_auto as app_nil_r_red.
 
 (* 
@@ -259,33 +245,26 @@ Qed.
  * how to compose what we have with some function to get the higher-lifted version:
  *)
 
+(* TODO fix 
 Theorem test_app_nil_r_vect:
   forall (A : Type) (pv : packed_vector A),
     append_vect_red A pv (existT (vector A) 0 (nilV A)) = pv.
 Proof.
-  intros. rewrite <- app_coh. rewrite app_nil_r_vect_red. apply coh_vect_packed. 
-Qed.
+  intros. simpl. rewrite <- app_coh. simpl. rewrite app_nil_r_vect_red. apply coh_vect_packed. 
+Qed.*)
 
 (* 
  * NOTE: We can simplify the above term at some point, which will give more clarity on
  * the lifted term we're looking for.
  *)
 
+(* TODO fix 
 Theorem test_app_nil_r:
   forall (A : Type) (l : list A),
     append_red A l (@nil A) = l.
 Proof.
   intros. rewrite <- app_coh_inv. unfold orn_list_vector. rewrite app_nil_r_red. apply coh_list.
-Qed.
-
-Theorem app_nil_r:
-  forall (A : Type) (l : list A),
-    append A l nil = l.
-Proof. 
-  intros. induction l.
-  - auto.
-  - simpl. rewrite IHl. reflexivity.
-Qed. 
+Qed.*)
 
 (* 
  * NOTE: The app_nil_r case needs an automatic proof of indices, which it doesn't have yet.
@@ -298,6 +277,7 @@ Reduce ornament orn_list_vector orn_list_vector_inv in in_split_vect_auto as in_
 
 Print in_split_vect_red.
 
+(* TODO test *)
 (* TODO opposite direction too once it's done *)
 
 (* --- Unimplemented ideas --- *)

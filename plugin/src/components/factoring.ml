@@ -12,6 +12,7 @@ open Debruijn
 open Zooming
 open Hofs
 open Lifting
+open Utilities
 
 (* --- Shared logic --- *)
 
@@ -101,8 +102,10 @@ let rec find_path (assum : types) (env : env) evd (trm : types) : factors =
          let assume_arg i a = apply_assumption assum (Array.get paths i) a in
          let args_assumed = Array.mapi assume_arg args in
 	 try
-           let t = unshift_by (destRel assum) (reduce_type env_arg evd arg) in
-	   (assume assum env Anonymous t, mkApp (f, args_assumed)) :: path
+           let assum_ind = destRel assum in
+           let t = unshift_by assum_ind (reduce_type env_arg evd arg) in
+           let (n, _, _) = CRD.to_tuple @@ lookup_rel assum_ind env in
+	   (assume assum env n t, mkApp (f, args_assumed)) :: path
 	 with _ ->
 	   []
        else
@@ -228,7 +231,8 @@ let rec find_path_dep (assum : types) (env : env) evd (trm : types) : factor_tre
                  (en_t, ((Factor ((env_arg, arg), children)) :: cn))
                else
                  let t = on_type (unshift_by assum_ind) env_arg evd arg in
-                 let en_t = assume assum en Anonymous t in
+                 let (n, _, _) = CRD.to_tuple @@ lookup_rel assum_ind en in
+                 let en_t = assume assum en n t in
                  (en_t, [((Factor ((env_arg, arg), children)))]))
              (env, [])
              nonempty_trees
@@ -298,14 +302,17 @@ let get_assum orn env evd trm =
            false)
       (fun t ->
         let c' =
-          if applies sigT_rect t then
+          if applies (Option.get orn.indexer) t then
             (* indexer *)
-            Some (last_arg t)
+            let last_a = last_arg (last_arg t) in
+            Some (map_if last_arg (applies projT2 last_a) last_a)
           else
             (* function *)
             let unorn = unwrap_definition env (first_fun t) in
             let (_, unorn_typ) = zoom_product_type env (infer_type env evd unorn) in
-            let assum_i = arity unorn - destRel (last_arg unorn_typ) in
+            let last_a = last_arg unorn_typ in
+            let assum_a = map_if last_arg (applies projT2 last_a) last_a in
+            let assum_i = arity unorn - destRel assum_a in
             Some (last_arg (get_arg assum_i t))
         in c := c'; t)
       trm
