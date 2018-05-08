@@ -847,24 +847,21 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
  * Substitute every term of the type we are promoting/forgetting from 
  * with a term with the corresponding promoted/forgotten type
  *
- * TODO clean me
- * TODO honestly maybe just don't map, just recursively do this,
- * it's probably easier
- *
- * TODO pass new env too, then type-check at each step
- * while debugging so we can find the first place things screw up
+ * LATER: This doesn't yet handle partial applications of constructors;
+ * need to handle that at some point.
+ * Also, should clean more.
  *)
 let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
   let index_i = Option.get l.orn.index_i in
   let typ_is_orn en t = on_type (is_orn l en (from_type, to_type)) en evd t in
-  let rec substitute en en' index_type tr =
-    let sub_rec = substitute in
+  let rec sub_rec en en' index_type tr =
     let lifted_opt = search_lifted en tr in
     let has_lifted = Option.has_some lifted_opt in
-    let trm_is_orn = is_orn l en (from_type, to_type) tr in
     if has_lifted then
+      (* substitute in a lower-lifted term *)
       Option.get lifted_opt
-    else if trm_is_orn then
+    else if is_orn l en (from_type, to_type) tr then
+      (* substitute in a lifted type *)
       if l.is_fwd then
         let t_args = unfold_args tr in
         let app = mkAppl (to_type, t_args) in
@@ -884,16 +881,22 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
          mkCast (c', k, t')
       | Prod (n, t, b) ->
          let t' = sub_rec en en' index_type t in
-         let b' = sub_rec (push_local (n, t) en) (push_local (n, t') en') (shift index_type) b in
+         let en_b = push_local (n, t) en in
+         let en_b' = push_local (n, t') en' in
+         let b' = sub_rec en_b en_b' (shift index_type) b in
          mkProd (n, t', b')
       | Lambda (n, t, b) ->
          let t' = sub_rec en en' index_type t in
-         let b' = sub_rec (push_local (n, t) en) (push_local (n, t') en') (shift index_type) b in
+         let en_b = push_local (n, t) en in
+         let en_b' = push_local (n, t') en' in
+         let b' = sub_rec en_b en_b' (shift index_type) b in
          mkLambda (n, t', b')
       | LetIn (n, trm, typ, e) ->
          let trm' = sub_rec en en' index_type trm in
          let typ' = sub_rec en en' index_type typ in
-         let e' = sub_rec (push_let_in (n, e, typ) en) (push_let_in (n, e, typ') en') (shift index_type) e in
+         let en_e = push_let_in (n, e, typ) en in
+         let en_e' = push_let_in (n, e, typ') en' in
+         let e' = sub_rec en_e en_e' (shift index_type) e in
          mkLetIn (n, trm', typ', e')
       | App (fu, args) ->
          let args' = Array.map (sub_rec en en' index_type) args in
@@ -911,17 +914,13 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
                let red = reduce_ornament_f l en evd (lift_to l) pre orn_args in
                map_unit_if (applies (lift_back l)) last_arg (map_unit_if (applies (lift_to l)) last_arg red)
            in
-           let red_sub =
-             Array.to_list
-               (Array.mapi
-                  (fun i a -> (a, Array.get args' i))
-                  args)
-           in let subbed = List.fold_right all_eq_substs red_sub red in
-              subbed
+           List.fold_right
+             all_eq_substs
+             (Array.to_list (Array.mapi (fun i a -> (a, args'.(i))) args))
+             red
          else
            let fu' = sub_rec en en' index_type fu in
-           let app = mkApp (fu', args') in
-           app
+           mkApp (fu', args')
       | Case (ci, ct, m, bs) ->
          let ct' = sub_rec en en' index_type ct in
          let m' = sub_rec en en' index_type m in
@@ -945,7 +944,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
          reduce_nf en pre (* TODO check w/ nat *)
       | _ ->
          tr
-  in substitute env env index_type trm
+  in sub_rec env env index_type trm
     
 (*
  * Implementation of higher lifting, which substitutes in the lifted
