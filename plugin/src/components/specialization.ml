@@ -623,47 +623,48 @@ let build_lifted_indexer evd idx_n assum_ind comp =
  * LATER: implementation will likely break if we add an index somewhere 
  * other than next to last, so should investigate
  *)
-let rec compose_inductive evd idx_n post_assums assum_ind inner comp =
-  let (env_g, g) = comp.g in
-  let (env_f, f) = comp.f in
-  let f_app = deconstruct_eliminator env_f evd f in
-  let g_app = deconstruct_eliminator env_g evd g in
-  let npms = List.length g_app.pms in
-  let (comp, indexer) = build_lifted_indexer evd idx_n assum_ind comp in
-  let c_p = { comp with g = (env_g, g_app.p); f = (env_f, f_app.p) } in
-  let p = compose_p evd npms assum_ind inner c_p in
-  if applies sigT_rect f then
-    (* recurse inside the sigT_rect *)
-    let compose_rec = compose_inductive evd idx_n post_assums assum_ind true in
-    let c = List.hd f_app.cs in
-    let (env_c, c_body) = zoom_lambda_term env_f c in
-    let c_inner = { comp with f = (env_c, c_body)} in
-    let (c_comp, indexer) = compose_rec c_inner in
-    let recons = reconstruct_lambda_n env_c c_comp (nb_rel env_f) in
-    let curried_args = mk_n_rels (arity p - List.length f_app.final_args) in
-    let final_args = List.append f_app.final_args curried_args in
-    let last_arg = last f_app.final_args in
-    let other_args = List.rev (List.tl (List.rev f_app.final_args)) in
-    let last_arg_typ = on_type dest_sigT env_f evd last_arg in
-    let proj_index = project_index last_arg_typ last_arg in
-    let proj_value = project_value last_arg_typ last_arg in
-    let inner = reduce_term env_f (mkAppl (recons, List.append other_args [proj_index; proj_value])) in
-    (mkAppl (inner, curried_args), indexer)
-  else
-    (* compose the constructors *)
-    let gs =
-      map_if
-        (fun (env, cs) ->
-          in_lambda_body
-            (fun env trm -> (env, (deconstruct_eliminator env evd trm).cs))
-            env
-            (List.hd cs))
-        (applies sigT_rect g)
-        (env_g, g_app.cs)
-    in
-    let fs = (env_f, f_app.cs) in
-    let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
-    (apply_eliminator {f_app with p; cs}, indexer)
+let rec compose_inductive evd idx_n post_assums assum_ind comp =
+  let rec compose inner comp =
+    let (env_g, g) = comp.g in
+    let (env_f, f) = comp.f in
+    let f_app = deconstruct_eliminator env_f evd f in
+    let g_app = deconstruct_eliminator env_g evd g in
+    let npms = List.length g_app.pms in
+    let (comp, indexer) = build_lifted_indexer evd idx_n assum_ind comp in
+    let c_p = { comp with g = (env_g, g_app.p); f = (env_f, f_app.p) } in
+    let p = compose_p evd npms assum_ind inner c_p in
+    if applies sigT_rect f then
+      (* recurse inside the sigT_rect *)
+      let c = List.hd f_app.cs in
+      let (env_c, c_body) = zoom_lambda_term env_f c in
+      let c_inner = { comp with f = (env_c, c_body)} in
+      let (c_comp, indexer) = compose true c_inner in
+      let recons = reconstruct_lambda_n env_c c_comp (nb_rel env_f) in
+      let curried_args = mk_n_rels (arity p - List.length f_app.final_args) in
+      let final_args = List.append f_app.final_args curried_args in
+      let last_arg = last f_app.final_args in
+      let other_args = List.rev (List.tl (List.rev f_app.final_args)) in
+      let last_arg_typ = on_type dest_sigT env_f evd last_arg in
+      let proj_index = project_index last_arg_typ last_arg in
+      let proj_value = project_value last_arg_typ last_arg in
+      let inner = reduce_term env_f (mkAppl (recons, List.append other_args [proj_index; proj_value])) in
+      (mkAppl (inner, curried_args), indexer)
+    else
+      (* compose the constructors *)
+      let gs =
+        map_if
+          (fun (env, cs) ->
+            in_lambda_body
+              (fun env trm -> (env, (deconstruct_eliminator env evd trm).cs))
+              env
+              (List.hd cs))
+          (applies sigT_rect g)
+          (env_g, g_app.cs)
+      in
+      let fs = (env_f, f_app.cs) in
+      let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
+      (apply_eliminator {f_app with p; cs}, indexer)
+  in compose false comp
 
 (*
  * Factor the inside of an application of a sigT_elim to an existT,
@@ -799,7 +800,7 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        if is_promote || is_forget || is_index then
          let is_g = g_promotes || g_forgets || g_is_indexer in
          let comp = configure_compose_inductive assum_ind l (f, g) is_g in
-         let comped = compose_inductive evd idx_n post_assums assum_ind false comp in
+         let comped = compose_inductive evd idx_n post_assums assum_ind comp in
          (comped, fst comp.f, true)
        else
          if List.length children > 1 && l.is_indexer then
