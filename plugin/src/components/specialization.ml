@@ -754,9 +754,6 @@ let configure_compose_inductive assum_ind l (f, g) is_g =
     let exT_inner = reduce_term (fst exT_ind) (mkAppl (c, c_args)) in
     let exT_ind = zoom_lambda_term (fst exT_ind) exT_inner in
     if existT_f then { comp with f = exT_ind } else { comp with g = exT_ind }
-  else if l.is_indexer then 
-    let f_ind = zoom_lambda_term (fst f_ind) (snd f_ind) in
-    { comp with f = f_ind }
   else
     comp
   
