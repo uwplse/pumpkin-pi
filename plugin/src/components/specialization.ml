@@ -110,24 +110,11 @@ let ornament_hypos env evd (l : lifting) (from_ind, to_ind) trm =
 
 (* Apply the promotion/forgetful function to the conclusion, if applicable *)
 let ornament_concls concl_typ env evd (l : lifting) (from_ind, _) trm =
+  let index_i = Option.get l.orn.index_i in
   map_if
     (zoom_apply_lambda
        (fun _ trm_zoom ->
-         let args =
-           map_directional
-             unfold_args
-             (fun concl_typ ->
-               let lam_typ = zoom_sig_lambda concl_typ in
-               let inner_typ = zoom_term zoom_lambda_term empty_env lam_typ in
-               let concl_args = unfold_args inner_typ in
-               try
-                 remove_index (Option.get l.orn.index_i) (unshift_all concl_args)
-               with _ ->
-                 (* curried *)
-                 concl_args)
-             l
-             concl_typ
-         in mkAppl (lift_to l, snoc trm_zoom args))
+         mkAppl (lift_to l, snoc trm_zoom (non_index_args l env concl_typ)))
        env)
     (is_or_applies from_ind (zoom_if_sig concl_typ))
     trm
