@@ -102,8 +102,10 @@ let rec find_path (assum : types) (env : env) evd (trm : types) : factors =
          let assume_arg i a = apply_assumption assum (Array.get paths i) a in
          let args_assumed = Array.mapi assume_arg args in
 	 try
-           let t = unshift_by (destRel assum) (reduce_type env_arg evd arg) in
-	   (assume assum env Anonymous t, mkApp (f, args_assumed)) :: path
+           let assum_ind = destRel assum in
+           let t = unshift_by assum_ind (reduce_type env_arg evd arg) in
+           let (n, _, _) = CRD.to_tuple @@ lookup_rel assum_ind env in
+	   (assume assum env n t, mkApp (f, args_assumed)) :: path
 	 with _ ->
 	   []
        else
@@ -229,7 +231,8 @@ let rec find_path_dep (assum : types) (env : env) evd (trm : types) : factor_tre
                  (en_t, ((Factor ((env_arg, arg), children)) :: cn))
                else
                  let t = on_type (unshift_by assum_ind) env_arg evd arg in
-                 let en_t = assume assum en Anonymous t in
+                 let (n, _, _) = CRD.to_tuple @@ lookup_rel assum_ind en in
+                 let en_t = assume assum en n t in
                  (en_t, [((Factor ((env_arg, arg), children)))]))
              (env, [])
              nonempty_trees

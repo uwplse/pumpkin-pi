@@ -739,20 +739,21 @@ let is_indexer l g f =
 let configure_compose_inductive assum_ind l (f, g) is_g =
   let g_ind = (fst g, reduce_to_ind (fst g) (snd g)) in
   let f_ind = (fst f, reduce_to_ind (fst f) (snd f)) in
-  let comp = { l ; g = g_ind ; f = f_ind ; is_g } in    
-  if applies existT (snd f_ind) then
-    let env_orn = zoom_env zoom_lambda_term empty_env (unwrap_definition (fst f_ind) (lift_to l)) in
-    let c_f = reconstruct_lambda env_orn (shift_by (nb_rel env_orn) (dest_existT (snd f_ind)).unpacked) in
-    let typ_args = List.rev (List.tl (List.rev (unfold_args (snd f)))) in
-    let f_inner = reduce_term (fst f_ind) (mkAppl (c_f, snoc (mkRel assum_ind) typ_args)) in
-    let f_ind = zoom_lambda_term (fst f_ind) f_inner in
-    { comp with f = f_ind }
-  else if applies existT (snd g_ind) then
-    let c_g = reconstruct_lambda (fst g_ind) (dest_existT (snd g_ind)).unpacked in
-    let typ_args = List.rev (List.tl (List.rev (unfold_args (snd g)))) in
-    let g_inner = reduce_term (fst g_ind) (mkAppl (c_g, typ_args)) in
-    let g_ind = zoom_lambda_term (fst g_ind) g_inner in
-    { comp with g = g_ind }
+  let comp = { l ; g = g_ind ; f = f_ind ; is_g } in
+  let existT_f = applies existT (snd f_ind) in
+  let existT_g = applies existT (snd g_ind) in
+  if existT_f || existT_g then
+    let exT_ind = if existT_f then f_ind else g_ind in
+    let exT = if existT_f then f else g in
+    let orn_body = unwrap_definition (fst f_ind) (lift_to l) in
+    let env_orn = zoom_env zoom_lambda_term empty_env orn_body in
+    let unpacked = (dest_existT (snd exT_ind)).unpacked in
+    let c = reconstruct_lambda env_orn (shift_by (nb_rel env_orn) unpacked) in
+    let typ_args = List.rev (List.tl (List.rev (unfold_args (snd exT)))) in
+    let c_args = map_if (snoc (mkRel assum_ind)) existT_f typ_args in
+    let exT_inner = reduce_term (fst exT_ind) (mkAppl (c, c_args)) in
+    let exT_ind = zoom_lambda_term (fst exT_ind) exT_inner in
+    if existT_f then { comp with f = exT_ind } else { comp with g = exT_ind }
   else if l.is_indexer then 
     let f_ind = zoom_lambda_term (fst f_ind) (snd f_ind) in
     { comp with f = f_ind }
