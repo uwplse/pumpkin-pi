@@ -237,7 +237,6 @@ let compose_p evd npms assum_ind (comp : composition) =
     (nb_rel env_f)
     (fun env _ ->
       let p_args = compose_p_args evd npms assum_ind comp in
-      debug_terms env p_args "p_args";
       let p = compose_p_fun evd comp in
       reduce_term env (mkAppl (p, p_args)))
     env_f
@@ -249,7 +248,6 @@ let compose_p evd npms assum_ind (comp : composition) =
  *)
 let compose_ih evd npms ip p comp =
   let (env_f, c_f) = comp.f in
-  debug_term env_f c_f "c_f";
   let ip_g_typ = reduce_type env_f evd ip in
   let from_typ = first_fun (fst (ind_of_promotion_type ip_g_typ)) in
   let index_i = Option.get comp.l.orn.index_i in
@@ -268,7 +266,6 @@ let compose_ih evd npms ip p comp =
                else
                  false)
            (fun en p trm ->
-             debug_term en trm "trm";
              let (_, _, orn_final_typ) = CRD.to_tuple @@ lookup_rel 1 en in
              let typ_args = unfold_args (shift orn_final_typ) in
              let non_pms = snd (take_split npms typ_args) in
@@ -367,7 +364,6 @@ let meta_reduce l =
  * in terms of the ornament and indexer applied to the specific argument.
  *)
 let reduce_ornament_f_arg l env evd orn trm arg =
-  debug_term env trm "pre-reduced trm";
   map_term_env_if
     (fun _ _ trm -> applies orn trm)
     (meta_reduce l evd orn)
@@ -420,7 +416,6 @@ let reduce_indexer_constr_body l env evd trm =
  * Reduces the body of a constructor of a promoted function
  *)
 let reduce_promoted_constr_body l env evd trm =
-  debug_term env trm "reducing trm";
   let from = last_arg trm in
   if is_or_applies (lift_back l) from then
     (* eliminate the promotion function *)
@@ -433,7 +428,6 @@ let reduce_promoted_constr_body l env evd trm =
  * Reduces the body of a constructor of a forgetful function
  *)
 let reduce_forgotten_constr_body l env evd trm =
-  debug_term env trm "reducing trm";
   let from = last_arg trm in
   if is_or_applies existT from then
     let ex = dest_existT from in
@@ -647,44 +641,13 @@ let rec compose_inductive evd idx_n post_assums assum_ind comp =
     let npms = List.length g_app.pms in
     let (comp, indexer) = build_lifted_indexer evd idx_n assum_ind comp in
     let c_p = { comp with g = (env_g, g_app.p); f = (env_f, f_app.p) } in
-    debug_term env_g g_app.p "p_g";
-    debug_term env_f f_app.p "p_f";
     let p = compose_p evd npms assum_ind c_p in
-    debug_term env_f p "p";
-    if applies sigT_rect f then
-      (* recurse inside the sigT_rect *) (* TODO now, combine w/ other case *)
-      let c = List.hd f_app.cs in
-      let (env_c, c_body) = zoom_lambda_term env_f c in
-      let c_inner = { comp with f = (env_c, c_body)} in
-      let (c_comp, indexer) = compose true c_inner in
-      let recons = reconstruct_lambda_n env_c c_comp (nb_rel env_f) in
-      let curried_args = mk_n_rels (arity p - List.length f_app.final_args) in
-      let args_packed = List.append f_app.final_args curried_args in
-      let assum = mkRel assum_ind in
-      let assum_typ = on_type dest_sigT env_f evd assum in
-      let proj_index = project_index assum_typ assum in
-      let proj_value = project_value assum_typ assum in
-      let index_i = Option.get comp.l.orn.index_i - npms in
-      let args_indexed = insert_index index_i proj_index args_packed in
-      let args_unpacked = reindex (arity f_app.p) proj_value args_indexed in
-      let inner = reduce_term env_f (mkAppl (recons, args_unpacked)) in
-      (inner, indexer)
-    else
-      (* compose the constructors *)
-      let gs = (env_g, g_app.cs) in
-      (*  map_if
-          (fun (env, cs) ->
-            in_lambda_body
-              (fun env trm -> (env, (deconstruct_eliminator env evd trm).cs))
-              env
-              (List.hd cs))
-          (applies sigT_rect g)
-          (env_g, g_app.cs)
-      in*)
-      let fs = (env_f, f_app.cs) in
-      let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
-      debug_terms env_f cs "cs";
-      (apply_eliminator {f_app with p; cs}, indexer)
+    let gs = (env_g, g_app.cs) in
+    let fs = (env_f, f_app.cs) in
+    let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
+    let curried_args = mk_n_rels (arity p - List.length f_app.final_args) in
+    let final_args = List.append f_app.final_args curried_args in
+    (apply_eliminator {f_app with p; cs; final_args}, indexer)
   in compose false comp
 
 (*
