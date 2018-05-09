@@ -1,12 +1,6 @@
 Require Import List.
 Require Import Ornamental.Ornaments.
 
-(*
- * TODO: Does this all have better properties if the inverse
- * ornaments themselves all use projT1/projT2 instead of
- * sigT_rect?
- *) 
-
 (*--- Lists and Vectors ---*)
 
 Inductive vector (A : Type) : nat -> Type :=

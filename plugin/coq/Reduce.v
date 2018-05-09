@@ -228,26 +228,34 @@ Qed.
  * how to compose what we have with some function to get the higher-lifted version:
  *)
 
-(* TODO fix 
+(* TODO move this *)
+Lemma conv:
+  forall (A : Type) (P : A -> Type) (s : sigT P),
+    s = existT P (projT1 s) (projT2 s).
+Proof.
+  intros. induction s. reflexivity.
+Qed. 
+
 Theorem test_app_nil_r_vect:
   forall (A : Type) (pv : packed_vector A),
     append_vect_red A pv (existT (vector A) 0 (nilV A)) = pv.
 Proof.
-  intros. simpl. rewrite <- app_coh. simpl. rewrite app_nil_r_vect_red. apply coh_vect_packed. 
-Qed.*)
+  intros.
+  rewrite (conv nat (vector A) pv). 
+  rewrite <- app_coh. rewrite app_nil_r_vect_red. apply coh_vect_packed. 
+Qed.
 
 (* 
  * NOTE: We can simplify the above term at some point, which will give more clarity on
  * the lifted term we're looking for.
  *)
 
-(* TODO fix 
 Theorem test_app_nil_r:
   forall (A : Type) (l : list A),
     append_red A l (@nil A) = l.
 Proof.
   intros. rewrite <- app_coh_inv. unfold orn_list_vector. rewrite app_nil_r_red. apply coh_list.
-Qed.*)
+Qed.
 
 (* 
  * NOTE: The app_nil_r case needs an automatic proof of indices, which it doesn't have yet.

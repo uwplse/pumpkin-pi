@@ -109,6 +109,7 @@ Qed.
 
 (*
  * Note the above is still predictable enough to derive, which is very good 
+ * Should we do it?
  *)
 
 
