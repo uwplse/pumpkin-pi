@@ -208,31 +208,14 @@ Proof.
   - simpl. apply eq_pv_cons with (a := a) in IHp. apply IHp. 
 Qed.
 
-Lemma unpack_rect:
-  forall (A : Type) (P : forall (n : nat), vector A n -> Type) pnil pcons (pv : packed_vector A),
-    vector_rect A P pnil pcons (projT1 pv) (projT2 pv) =
-    sigT_rect 
-      (fun (pv : sigT (vector A)) => P (projT1 pv) (projT2 pv)) 
-      (fun (n : nat) (v : vector A n) =>
-         vector_rect A P pnil pcons n v)
-      pv.
-Proof.
-  intros. induction pv. auto.
-Qed.
-
 Theorem app_coh_inv:
   forall (A : Type) (l1 : list A) (l2 : list A),
     orn_list_vector_inv A (append_vect_packed A (orn_list_vector A l1) (orn_list_vector A l2)) = append_red A l1 l2.
 Proof.
   intros. induction l1.
   - apply coh_list.
-  - simpl. apply eq_cons with (a := a) in IHl1. rewrite unpack_rect. apply IHl1. 
+  - simpl. apply eq_cons with (a := a) in IHl1. apply IHl1. 
 Qed.
-
-(*
- * NOTE: Note the unpack_re ct thing which mattered a lot. Can we internalize this
- * into an induction principle itself?
- *)
 
 (*
  * NOTE: The above proofs have predictable structures. Especially consider eq_pv_cons and how it is used
@@ -245,26 +228,34 @@ Qed.
  * how to compose what we have with some function to get the higher-lifted version:
  *)
 
-(* TODO fix 
+(* TODO move this *)
+Lemma conv:
+  forall (A : Type) (P : A -> Type) (s : sigT P),
+    s = existT P (projT1 s) (projT2 s).
+Proof.
+  intros. induction s. reflexivity.
+Qed. 
+
 Theorem test_app_nil_r_vect:
   forall (A : Type) (pv : packed_vector A),
     append_vect_red A pv (existT (vector A) 0 (nilV A)) = pv.
 Proof.
-  intros. simpl. rewrite <- app_coh. simpl. rewrite app_nil_r_vect_red. apply coh_vect_packed. 
-Qed.*)
+  intros.
+  rewrite (conv nat (vector A) pv). 
+  rewrite <- app_coh. rewrite app_nil_r_vect_red. apply coh_vect_packed. 
+Qed.
 
 (* 
  * NOTE: We can simplify the above term at some point, which will give more clarity on
  * the lifted term we're looking for.
  *)
 
-(* TODO fix 
 Theorem test_app_nil_r:
   forall (A : Type) (l : list A),
     append_red A l (@nil A) = l.
 Proof.
   intros. rewrite <- app_coh_inv. unfold orn_list_vector. rewrite app_nil_r_red. apply coh_list.
-Qed.*)
+Qed.
 
 (* 
  * NOTE: The app_nil_r case needs an automatic proof of indices, which it doesn't have yet.

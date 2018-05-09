@@ -28,7 +28,8 @@ Definition hd_vect (A : Type) (default : A) (n : nat) (v : vector A n) :=
     n
     v.
 
-(* TODO in rev dir, should support both kinds; keep for now
+(* TODO in rev dir, should support both kinds; keep for now for when we add back later
+   (see code prior to May 9th for how to support sigT_rect)
 Definition hd_vect_packed (A : Type) (default : A) (pv : packed_vector A) :=
   sigT_rect
     (fun _ : packed_vector A => A)
@@ -42,29 +43,11 @@ Definition hd_vect_packed (A : Type) (default : A) (pv : packed_vector A) :=
 Apply ornament orn_list_vector orn_list_vector_inv in hd as hd_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_packed as hd_auto.
 
-(* TODO temporary for testing when we reformulate orn
-Definition orn_list_vector_inv' (A : Type) (pv : sigT (vector A)) :=
-  vector_rect 
-    A
-    (fun (n : nat) (_ : vector A n) => list A) 
-    nil
-    (fun (n : nat) (a : A) (v0 : vector A n) (H1 : list A) => 
-      a :: H1) 
-    (projT1 pv)
-    (projT2 pv).
-
-(* TODO temporary for testing *)
-Definition hd_vect_auto_alt (A : Type) (default : A) (pv : sigT (vector A)):=
-  hd A default (orn_list_vector_inv' A pv).
-
-Eval compute in hd_vect_auto.
-Eval compute in hd_vect_auto_alt.*)
-
 Theorem test_orn_hd :
   forall (A : Type) (a : A) (pv : packed_vector A),
     hd_vect_auto A a pv = hd_vect_packed A a pv.
 Proof.
-  intros. induction pv; induction p; auto.
+  intros. induction pv. induction p; auto.
 Qed.
 
 Theorem test_orn_hd_proj :
@@ -173,9 +156,7 @@ Definition append_vect (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 :
 
 (*
  * This version doesn't reference new indexer.
- * Eventually want to be able to get index from this too,
- * and also want to move each of these inner sigT_rect... into projT1 or something
- * similar.
+ * Eventually want to be able to get index from this too.
  *)
 Definition append_vect_packed (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A) :=
   vector_rect
@@ -635,6 +616,8 @@ Qed.
  *)
 
 (* TODO decide what to do with these, see if can port, etc. *)
+
+(* TODO the rest of the list library *)
 
 (* --- *)
 

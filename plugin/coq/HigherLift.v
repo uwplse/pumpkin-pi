@@ -74,6 +74,7 @@ Higher lift orn_list_vector orn_list_vector_inv in in_split_vect_red as in_split
  *)
 
 Print in_split_vect_higher.
+Print in_split_vect_red.
 
 (*
  * TODO note how the type still doesn't look even as nice as the one we state below,
@@ -108,6 +109,7 @@ Qed.
 
 (*
  * Note the above is still predictable enough to derive, which is very good 
+ * Should we do it?
  *)
 
 
