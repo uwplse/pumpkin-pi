@@ -531,7 +531,6 @@ let elim_body index_type packer f args =
 let pack_hypothesis env evd idx o n unpacked =
   let (index_i, index_type) = idx in
   let (ind, arity) = o in
-  let (ind_n, _) = n in
   let index_type = shift index_type in
   let (id, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
   let packer = make_packer env evd ind (unfold_args unpacked_typ) idx false in
