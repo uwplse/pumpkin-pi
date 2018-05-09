@@ -187,13 +187,13 @@ let compose_p_args evd npms assum_ind comp =
         snoc orn_app non_pms
       else
         let orn_app = mkAppl (lift_back l, orn_args) in
+        let orn_app_typ = on_type dest_sigT env_b evd orn_app in
+        let value = project_value orn_app_typ orn_app in
         if comp.is_g then
-          let orn_app_typ = on_type dest_sigT env_b evd orn_app in
           let index = project_index orn_app_typ orn_app in
-          let value = project_value orn_app_typ orn_app in
           snoc value (insert_index index_i index non_pms)
         else
-          snoc orn_app non_pms)
+          snoc value non_pms)
     env
     p
 
@@ -237,6 +237,7 @@ let compose_p evd npms assum_ind (comp : composition) =
     (nb_rel env_f)
     (fun env _ ->
       let p_args = compose_p_args evd npms assum_ind comp in
+      debug_terms env p_args "p_args";
       let p = compose_p_fun evd comp in
       reduce_term env (mkAppl (p, p_args)))
     env_f
@@ -271,13 +272,7 @@ let compose_ih evd npms ip p comp =
              let (_, _, orn_final_typ) = CRD.to_tuple @@ lookup_rel 1 en in
              let typ_args = unfold_args (shift orn_final_typ) in
              let non_pms = snd (take_split npms typ_args) in
-             if comp.l.is_fwd then
-               l
-               let proj_index = project_index assum_typ (mkRel in
-               let proj_value = project_value assum_typ assum in
-               
-             else
-               reduce_term en (mkAppl (p, snoc (mkRel 1) non_pms)))
+             reduce_term en (mkAppl (p, snoc (mkRel 1) non_pms)))
            shift
            en
            p
@@ -584,18 +579,11 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let l = comp.l in
   let (env_g, c_g) = comp.g in
   let (env_f, c_f_old) = comp.f in
-  debug_term env_g c_g "c_g";
-  debug_term env_f c_f_old "c_f";
   let (orn_f, orn_g) = (l.orn.forget, l.orn.promote) in
   let promotion_type env trm = fst (on_type ind_of_promotion_type env evd trm) in
   let to_typ = zoom_sig (promotion_type env_f orn_f) in
-  debug_term env_f to_typ "to_typ";
   let from_typ = first_fun (promotion_type env_g orn_g) in
-  debug_term env_f from_typ "from_typ";
-  debug_term env_g ip_g "ip_g";
-  debug_term env_g p "p";
   let c_f = compose_ih evd npms_g ip_g p comp in
-  debug_term env_f c_f "c_f after composing IH";
   zoom_apply_lambda_n
     (nb_rel env_f)
     (fun env trm ->
@@ -614,7 +602,6 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
         in_lambda_body
           (fun env_old _ ->
             let args = snoc trm (non_index_typ_args l env_old evd trm) in
-            debug_terms env_old args "args";
             let app = mkAppl (f, args) in
             reduce_constr_body env_old evd l (from_typ, to_typ) index_args app)
           env_f
@@ -655,13 +642,13 @@ let rec compose_inductive evd idx_n post_assums assum_ind comp =
   let rec compose inner comp =
     let (env_g, g) = comp.g in
     let (env_f, f) = comp.f in
-    debug_term env_f f "f";
-    debug_term env_g g "g";
     let f_app = deconstruct_eliminator env_f evd f in
     let g_app = deconstruct_eliminator env_g evd g in
     let npms = List.length g_app.pms in
     let (comp, indexer) = build_lifted_indexer evd idx_n assum_ind comp in
     let c_p = { comp with g = (env_g, g_app.p); f = (env_f, f_app.p) } in
+    debug_term env_g g_app.p "p_g";
+    debug_term env_f f_app.p "p_f";
     let p = compose_p evd npms assum_ind c_p in
     debug_term env_f p "p";
     if applies sigT_rect f then

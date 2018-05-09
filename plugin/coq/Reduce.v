@@ -208,31 +208,14 @@ Proof.
   - simpl. apply eq_pv_cons with (a := a) in IHp. apply IHp. 
 Qed.
 
-Lemma unpack_rect:
-  forall (A : Type) (P : forall (n : nat), vector A n -> Type) pnil pcons (pv : packed_vector A),
-    vector_rect A P pnil pcons (projT1 pv) (projT2 pv) =
-    sigT_rect 
-      (fun (pv : sigT (vector A)) => P (projT1 pv) (projT2 pv)) 
-      (fun (n : nat) (v : vector A n) =>
-         vector_rect A P pnil pcons n v)
-      pv.
-Proof.
-  intros. induction pv. auto.
-Qed.
-
 Theorem app_coh_inv:
   forall (A : Type) (l1 : list A) (l2 : list A),
     orn_list_vector_inv A (append_vect_packed A (orn_list_vector A l1) (orn_list_vector A l2)) = append_red A l1 l2.
 Proof.
   intros. induction l1.
   - apply coh_list.
-  - simpl. apply eq_cons with (a := a) in IHl1. rewrite unpack_rect. apply IHl1. 
+  - simpl. apply eq_cons with (a := a) in IHl1. apply IHl1. 
 Qed.
-
-(*
- * NOTE: Note the unpack_re ct thing which mattered a lot. Can we internalize this
- * into an induction principle itself?
- *)
 
 (*
  * NOTE: The above proofs have predictable structures. Especially consider eq_pv_cons and how it is used
