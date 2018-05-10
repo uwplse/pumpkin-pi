@@ -525,7 +525,6 @@ Definition app_nil_r_higher (A : Type) (l : list A) :=
 Apply ornament orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in app_nil_r_vect_packed as app_nil_r_auto.
 
-(* Old version; get working eventually [TODO breaks on higher lifting]
 Theorem in_split : 
   forall A x (l:list A), In A x l -> exists l1 l2, l = append A l1 (x::l2).
 Proof.
@@ -533,33 +532,7 @@ Proof.
   subst a; auto.
   exists nil, l; auto.
   destruct (IHl H) as (l1,(l2,H0)).
-  exists (a::l1), l2; simpl; f_equal; auto.
-Defined.*)
-
-(* [TODO] f_equal messes up this version; revisit soon
-Theorem in_split : 
-  forall A x (l:list A), In A x l -> exists l1 l2, l = append A l1 (x::l2).
-Proof.
-  induction l; simpl; induction 1.
-  subst a; auto.
-  exists nil, l; auto.
-  apply IHl in H. 
-  induction H. induction H.  (* f_equal messes things up *)
-  exists (a::x0), x1. simpl. f_equal. auto.
-Defined.*)
-
-Theorem in_split : 
-  forall A x (l:list A), In A x l -> exists l1 l2, l = append A l1 (x::l2).
-Proof.
-  induction l; simpl; induction 1.
-  subst a; auto.
-  exists nil, l; auto.
-  apply IHl in H. 
-  induction H. induction H. 
-  exists (a::x0), x1.
-  simpl.
-  rewrite H. (* instead of f_equal, for now *)
-  auto.
+  exists (a::l1), l2; simpl. apply f_equal. auto.
 Defined. (* TODO any way around defined? *)
 
 Apply ornament orn_list_vector orn_list_vector_inv in in_split as in_split_vect_auto.

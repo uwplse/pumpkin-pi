@@ -43,6 +43,8 @@ Qed.
 
 Higher lift orn_list_vector_inv orn_list_vector in app_nil_r_red as app_nil_r_red_higher.
 
+Print app_nil_r_red_higher.
+
 Theorem test_app_nil_r:
   forall (A : Type) (l : list A),
     append_red A l (@nil A) = l.
@@ -74,7 +76,6 @@ Higher lift orn_list_vector orn_list_vector_inv in in_split_vect_red as in_split
  *)
 
 Print in_split_vect_higher.
-Print in_split_vect_red.
 
 (*
  * TODO note how the type still doesn't look even as nice as the one we state below,

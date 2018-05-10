@@ -3,6 +3,8 @@
  *)
 
 open Term
+open Environ
+open Evd
 
 (*
  * Remove the final hypothesis of a lambda
@@ -30,3 +32,8 @@ val get_all_hypos : types -> types list
  * Get n hypothesis of a term
  *)
 val get_n_hypos : int -> types -> types list
+
+(*
+ * Eta expansion of an application or function
+ *)
+val expand_eta : env -> evar_map -> types -> types

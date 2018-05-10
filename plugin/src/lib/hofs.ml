@@ -312,7 +312,7 @@ let all_eq_substs =
  *)
 let contains_term c trm =
   exists_subterm eq_constr shift c trm
-
+                 
 (* --- Variations --- *)
 
 (* map env without any a *)

@@ -159,7 +159,7 @@ let pack_inner env evd l unpacked =
   let packer = abstract_arg env evd index_i typ in
   let ex = pack_existT {index_type; packer; index; unpacked} in
   mkAppl (lift_back l, snoc ex (remove_index index_i typ_args))
-
+         
 (*
  * Get the arguments for composing two applications of an induction
  * principle that are structurally the same when one is an ornament.
@@ -633,22 +633,20 @@ let build_lifted_indexer evd idx_n assum_ind comp =
  * structurally the same when one is an ornament.
  *)
 let rec compose_inductive evd idx_n post_assums assum_ind comp =
-  let rec compose inner comp =
-    let (env_g, g) = comp.g in
-    let (env_f, f) = comp.f in
-    let f_app = deconstruct_eliminator env_f evd f in
-    let g_app = deconstruct_eliminator env_g evd g in
-    let npms = List.length g_app.pms in
-    let (comp, indexer) = build_lifted_indexer evd idx_n assum_ind comp in
-    let c_p = { comp with g = (env_g, g_app.p); f = (env_f, f_app.p) } in
-    let p = compose_p evd npms assum_ind c_p in
-    let gs = (env_g, g_app.cs) in
-    let fs = (env_f, f_app.cs) in
-    let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
-    let curried_args = mk_n_rels (arity p - List.length f_app.final_args) in
-    let final_args = List.append f_app.final_args curried_args in
-    (apply_eliminator {f_app with p; cs; final_args}, indexer)
-  in compose false comp
+  let (env_g, g) = comp.g in
+  let (env_f, f) = comp.f in
+  let f_app = deconstruct_eliminator env_f evd f in
+  let g_app = deconstruct_eliminator env_g evd g in
+  let npms = List.length g_app.pms in
+  let (comp, indexer) = build_lifted_indexer evd idx_n assum_ind comp in
+  let c_p = { comp with g = (env_g, g_app.p); f = (env_f, f_app.p) } in
+  let p = compose_p evd npms assum_ind c_p in
+  let gs = (env_g, g_app.cs) in
+  let fs = (env_f, f_app.cs) in
+  let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
+  let curried_args = mk_n_rels (arity p - List.length f_app.final_args) in
+  let final_args = List.append f_app.final_args curried_args in
+  (apply_eliminator {f_app with p; cs; final_args}, indexer)
 
 (*
  * When composing factors, determine if we have an application of
@@ -721,7 +719,7 @@ let is_indexer l g f =
 (*
  * Configure the composition
  *)
-let configure_compose_inductive assum_ind l (f, g) is_g =
+let configure_compose_inductive evd assum_ind l (f, g) is_g =
   let g_ind = (fst g, reduce_to_ind (fst g) (snd g)) in
   let f_ind = (fst f, reduce_to_ind (fst f) (snd f)) in
   let comp = { l ; g = g_ind ; f = f_ind ; is_g } in
@@ -766,7 +764,7 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        let is_forget = f_forgets || g_forgets in
        if is_promote || is_forget || is_index then
          let is_g = g_promotes || g_forgets || g_is_indexer in
-         let comp = configure_compose_inductive assum_ind l (f, g) is_g in
+         let comp = configure_compose_inductive evd assum_ind l (f, g) is_g in
          let comped = compose_inductive evd idx_n post_assums assum_ind comp in
          (comped, fst comp.f, true)
        else
@@ -837,6 +835,19 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
  * Also, should clean more.
  *)
 let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
+  let trm =
+    map_unit_env_if_lazy
+      (fun _ tr ->
+        match kind_of_term tr with
+        | Construct (((i, i_index), _), u) ->
+           let ind = mkInd (i, i_index) in
+           eq_constr ind (directional l from_type to_type)
+        | _ ->
+           false (* TODO also handle type list/vect *))
+      (fun en -> expand_eta en evd)
+      env
+      trm
+  in
   let index_i = Option.get l.orn.index_i in
   let typ_is_orn en t = on_type (is_orn l en (from_type, to_type)) en evd t in
   let rec sub_rec en en' index_type tr =
@@ -889,7 +900,8 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
            let typ_args = non_index_typ_args l en evd tr in
            let app = mkAppl (lift_to l, snoc tr typ_args) in
            let pre = pre_reduce l en evd app in
-           let red_args = unfold_args (map_if (fun t -> (dest_existT t).unpacked) (applies existT tr) tr) in
+           (* TODO red_args logic is brittle, should fix *)
+           let red_args = List.map (reduce_term env) (unfold_args (map_if (fun t -> (dest_existT t).unpacked) (applies existT tr) tr)) in
            let red_args = List.map (fun a -> if applies projT2 a then last_arg a else a) red_args in
            let orn_args = filter_orn l en evd (from_type, to_type) red_args in
            let red =

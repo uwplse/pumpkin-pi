@@ -198,6 +198,19 @@ let assume_args off trees assum_ind tree_i factors_left args =
        []
   in assume_rec tree_i factors_left args
 
+(* Debug dependent factors *)
+let debug_factors_dep (fs : factor_tree) (s : string) : unit =
+  let rec as_string fs =
+    match fs with
+    | Factor ((en, t), cn) ->
+       Printf.sprintf
+         "Factor %s [%s]"
+         (term_as_string en t)
+         (String.concat "; " (List.map as_string cn))
+    | Unit ->
+       "Unit"
+  in Printf.printf "%s: %s\n\n" s (as_string fs)
+                
 (*
  * Dependent version of the above
  *)
@@ -221,7 +234,7 @@ let rec find_path_dep (assum : types) (env : env) evd (trm : types) : factor_tre
                let (Factor ((env_arg, arg), children)) = tr in
                if List.length cn > 0 then
                  let (Factor ((en_prev, prev), _)) = List.hd cn in
-                 let off = nb_rel en - nb_rel en_prev in
+                 let off = offset2 en en_prev in
                  let assum_ind_sub = assum_ind - off in
                  let assum_sub = mkRel assum_ind_sub in
                  let sub_assum = all_conv_substs en_prev (prev, assum_sub) in
@@ -230,7 +243,10 @@ let rec find_path_dep (assum : types) (env : env) evd (trm : types) : factor_tre
                  let en_t = assume_no_replace assum en Anonymous t_shift in
                  (en_t, ((Factor ((env_arg, arg), children)) :: cn))
                else
-                 let t = on_type (unshift_by assum_ind) env_arg evd arg in
+                 let arg_typ = reduce_type env_arg evd arg in
+                 let off = offset2 env_arg en in
+                 let arg_typ_en = unshift_by off arg_typ in
+                 let t = unshift_by assum_ind arg_typ_en in
                  let (n, _, _) = CRD.to_tuple @@ lookup_rel assum_ind en in
                  let en_t = assume assum en n t in
                  (en_t, [((Factor ((env_arg, arg), children)))]))
@@ -244,7 +260,7 @@ let rec find_path_dep (assum : types) (env : env) evd (trm : types) : factor_tre
 	 Unit
     | _ -> (* other terms not yet implemented *)
        Unit
-
+         
 (*
  * Dependent version
  *)
@@ -260,26 +276,13 @@ let factor_term_dep (assum : types) (env : env) (evd : evar_map) (trm : types) :
          Factor ((env, body), children)
        else
          let num_old_rels = nb_rel env_zoomed in
-         let num_new_rels = nb_rel env - num_old_rels in
+         let num_new_rels = offset env num_old_rels in
          let lambda = reconstruct_lambda_n env body (num_old_rels - assum_ind) in
          let env_lambda = pop_rel_context (num_new_rels + assum_ind) env in
          Factor ((env_lambda, lambda), children)
     | Unit ->
        Unit
   in factor_dep tree_body
-
-(* Debug dependent factors *)
-let debug_factors_dep (fs : factor_tree) (s : string) : unit =
-  let rec as_string fs =
-    match fs with
-    | Factor ((en, t), cn) ->
-       Printf.sprintf
-         "Factor %s [%s]"
-         (term_as_string en t)
-         (String.concat "; " (List.map as_string cn))
-    | Unit ->
-       "Unit"
-  in Printf.printf "%s: %s\n\n" s (as_string fs)
 
 (* --- Factoring lifted but not reduced functions --- *)
 

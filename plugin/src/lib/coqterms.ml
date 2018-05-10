@@ -238,8 +238,8 @@ let conv_ignoring_univ_inconsistency env evm trm1 trm2 : bool =
 
 (* Checks whether two terms are convertible in env with no evars *)
 let convertible (env : env) (trm1 : types) (trm2 : types) : bool =
-  conv_ignoring_univ_inconsistency env Evd.empty trm1 trm2
-
+  conv_ignoring_univ_inconsistency env Evd.empty trm1 trm2  
+                                   
 (* Default reducer *)
 let reduce_term (env : env) (trm : types) : types =
   Reductionops.nf_betaiotazeta Evd.empty trm
@@ -540,7 +540,7 @@ let rec map_term_env f d (env : env) (a : 'a) (trm : types) : types =
  *)
 let map_term f d (a : 'a) (trm : types) : types =
   map_term_env (fun _ a t -> f a t) d empty_env a trm
-
+    
 (* --- Names --- *)
 
 (* Add a suffix to a name identifier *)
