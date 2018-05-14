@@ -540,6 +540,44 @@ Apply ornament orn_list_vector orn_list_vector_inv in in_split as in_split_vect_
 (* TODO opposite direction too *)
 (* TODO prove it's OK *)
 
+(*
+ * Necessary to port proofs that use discriminate
+ *)
+Definition is_cons (A : Type) (l : list A) :=
+  list_rect
+    (fun (_ : list A) => Prop)
+    False
+    (fun (_ : A) (_ : list A) (_ : Prop) => True)
+    l.
+
+Apply ornament orn_list_vector orn_list_vector_inv in is_cons as is_cons_vect_auto.
+
+(* TODO port to induction everywhere, revisit
+Lemma hd_error_tl_repr : forall A l (a:A) r,
+  hd_error A l = Some a /\ tl A l = r <-> l = a :: r.
+Proof. induction l.
+  - unfold hd_error, tl; intros a r. split; firstorder discriminate.
+  - intros. simpl. split.
+   * intros (H1, H2). inversion H1. rewrite H2. reflexivity.
+   * inversion 1. subst. auto.
+Defined.
+
+Apply ornament orn_list_vector orn_list_vector_inv in hd_error_tl_repr as hd_error_tl_repr_vect_auto.
+*)
+
+(* ported to induction *)
+Lemma hd_error_some_nil : forall A l (a:A), hd_error A l = Some a -> l <> nil.
+Proof. 
+  (*unfold hd_error. [TODO] *) induction l. (* destruct l; now disccriminate [ported below] *)
+  - now discriminate.
+  - simpl. intros. unfold not. intros.
+    apply eq_ind with (P := is_cons A) in H0.
+    * apply H0. 
+    * simpl. auto. 
+Defined.
+
+Apply ornament orn_list_vector orn_list_vector_inv in hd_error_some_nil as hd_error_some_nil_vect_auto.
+
 (* --- Proofs that don't induct over list/vector. TODO can we do anything about these? --- *)
 
 (*

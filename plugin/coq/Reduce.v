@@ -83,8 +83,6 @@ Qed.
 
 Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red. 
 
-Print append_vect_red_index.
-
 Theorem test_append_vect_red_index:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
     append_vect_red_index A pv1 pv2 = plus_vect_exp A pv1 pv2.
@@ -266,10 +264,17 @@ Qed.
 
 Reduce ornament orn_list_vector orn_list_vector_inv in in_split_vect_auto as in_split_vect_red.
 
-Print in_split_vect_red.
-
 (* TODO test *)
 (* TODO opposite direction too once it's done *)
+
+(* needed for porting discriminate proofs *)
+Reduce ornament orn_list_vector orn_list_vector_inv in is_cons_vect_auto as is_cons_vect_red.
+
+(* TODO test, opposite *)
+
+Reduce ornament orn_list_vector orn_list_vector_inv in hd_error_some_nil_vect_auto as hd_error_some_nil_vect_red.
+
+(* TODO test, opposite *)
 
 (* --- Unimplemented ideas --- *)
 

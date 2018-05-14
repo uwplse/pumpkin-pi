@@ -12,6 +12,8 @@ Definition packed_vector (T : Type) :=
 
 Find ornament list vector as orn_list_vector.
 
+Print orn_list_vector_inv.
+
 Theorem test_index:
   forall (A : Type) (l : list A),
     orn_list_vector_index A l = length l.

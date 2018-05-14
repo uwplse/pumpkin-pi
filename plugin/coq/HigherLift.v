@@ -9,7 +9,13 @@ Require Import Reduce.
  * Tests for higher lifting.
  *)
 
+Print app_nil_r.
+Print app_nil_r_vect_red.
+
+
 Higher lift orn_list_vector orn_list_vector_inv in app_nil_r_vect_red as app_nil_r_vect_red_higher.
+
+Print app_nil_r_vect_red_higher.
 
 Theorem test_app_nil_r_vect_exact:
   forall (A : Type) (pv : sigT (vector A)),
@@ -112,5 +118,17 @@ Qed.
  * Note the above is still predictable enough to derive, which is very good 
  * Should we do it?
  *)
+
+Higher lift orn_list_vector orn_list_vector_inv in hd_error_some_nil_vect_red as hd_error_some_nil_vect_higher.
+
+Theorem test_hd_error_some_nil_vect_exact:
+  forall (A : Type) (l : {H : nat & vector A H}) (a : A),
+    hd_vect_error_red A (existT (vector A) (projT1 l) (projT2 l)) = Some a ->
+    existT (vector A) (projT1 l) (projT2 l) <> existT (vector A) 0 (nilV A).
+Proof.
+   exact hd_error_some_nil_vect_higher.
+Qed.
+
+(* TODO test non-exact, opposite *)
 
 

@@ -311,7 +311,7 @@ let get_assum orn env evd trm =
             Some (map_if last_arg (applies projT2 last_a) last_a)
           else
             (* function *)
-            let unorn = unwrap_definition env (first_fun t) in
+            let unorn = reduce_term env (unwrap_definition env (first_fun t)) in
             let (_, unorn_typ) = zoom_product_type env (infer_type env evd unorn) in
             let last_a = last_arg unorn_typ in
             let assum_a = map_if last_arg (applies projT2 last_a) last_a in
