@@ -179,8 +179,10 @@ let compose_p_args evd npms assum_ind comp =
       let assums = non_index_typ_args l env_b evd assum in
       let post_assums = mk_n_rels off in
       let orn_args = List.append assums post_assums in
-      let reindex_if_sig = map_if deindex (applies sigT p_b) in
-      let inner_args = reindex_if_sig (unfold_args (zoom_if_sig_app p_b)) in
+      let reindex_if_sig = map_if (fun l -> if List.length l > 0 then deindex l else l) (applies sigT p_b) in
+      let p_b_sig = zoom_if_sig_app p_b in
+      let p_b_args = unfold_args p_b_sig in
+      let inner_args = reindex_if_sig p_b_args in
       let non_pms = snd (take_split npms inner_args) in
       if l.is_fwd then
         let orn_app = pack_inner env_b evd l (last orn_args) in
@@ -568,6 +570,7 @@ let pack_ihs c_f_old l env evd (from_typ, to_typ) c_g =
  * that are structurally the same when one is an ornament.
  *
  * For now, this does not handle nested induction.
+ * [TODO] when back: debug on broken case
  *)
 let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let l = comp.l in
@@ -644,6 +647,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind comp =
   let gs = (env_g, g_app.cs) in
   let fs = (env_f, f_app.cs) in
   let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
+  debug_terms env_f cs "cs";
   let curried_args = mk_n_rels (arity p - List.length f_app.final_args) in
   let final_args = List.append f_app.final_args curried_args in
   (apply_eliminator {f_app with p; cs; final_args}, indexer)
