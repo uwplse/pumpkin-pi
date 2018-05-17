@@ -12,8 +12,6 @@ Definition packed_vector (T : Type) :=
 
 Find ornament list vector as orn_list_vector.
 
-Print orn_list_vector_inv.
-
 Theorem test_index:
   forall (A : Type) (l : list A),
     orn_list_vector_index A l = length l.
@@ -47,6 +45,100 @@ Theorem test_orn_inv_unpack:
     list A.
 Proof.
   intros. apply orn_list_vector_inv. exists n. apply v.
+Qed.
+
+(* --- Lists and "flectors" --- *)
+
+Module Type Even.
+Parameter A : Type.
+Parameter isEven : A -> bool.
+End Even.
+
+Module Flector (E : Even).
+Definition A := E.A.
+Definition isEven := E.isEven.
+Definition SIfEven a n := if isEven a then S n else n.
+
+Inductive flist : Type :=
+| nilF : flist
+| consF : 
+    forall (a : A), 
+      flist ->
+      flist.
+
+Inductive flector : nat -> Type :=
+| nilFV : flector 0
+| consFV : 
+    forall (n : nat) (a : A), 
+      flector n -> 
+      flector (SIfEven a n).
+
+(*
+ * TODO can't yet do inside of module b.c. of bug;
+ * ask in France!
+Find ornament flist flector as orn_flist_flector.
+*)
+
+(* For testing *)
+Definition countEven (l : flist) :=
+  flist_rect
+    (fun (_ : flist) => nat)
+    0
+    (fun (a : A) (l : flist) (IH : nat) =>
+      SIfEven a IH)
+    l.
+
+End Flector.
+
+(* TODO temp while fixing module bug *)
+Module natEven <: Even.
+Definition A := nat.
+Definition isEven (n : nat) := 
+  nat_rect
+    (fun (_ : nat) => bool)
+    true
+    (fun (_ : nat) (IH : bool) =>
+      negb IH)
+    n. 
+End natEven.
+
+Module natFlector := Flector natEven.
+
+Find ornament natFlector.flist natFlector.flector as orn_flist_flector_nat.
+
+Theorem test_index_flector:
+  forall (l : natFlector.flist),
+    orn_flist_flector_nat_index l = natFlector.countEven l.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_flector:
+  forall (l : natFlector.flist),
+    sigT natFlector.flector.
+Proof.
+  exact orn_flist_flector_nat.
+Qed.
+
+Theorem test_orn_index_flector:
+  forall (l : natFlector.flist),
+    projT1 (orn_flist_flector_nat l) = orn_flist_flector_nat_index l.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_inv_flector:
+  forall (v : sigT natFlector.flector),
+    natFlector.flist.
+Proof.
+  exact orn_flist_flector_nat_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_flector:
+  forall (n : nat) (v : natFlector.flector n),
+    natFlector.flist.
+Proof.
+  intros. apply orn_flist_flector_nat_inv. exists n. apply v.
 Qed.
 
 (* --- Backwards lists --- *)
@@ -127,6 +219,8 @@ Definition packed_bintreeV (T : Type) :=
   sigT (A := nat) (fun (n : nat) => bintreeV T n).
 
 Find ornament bintree bintreeV as orn_bintree_bintreeV.
+
+Print orn_bintree_bintreeV.
 
 Definition bintree_size (A : Type) (tr : bintree A) :=
   bintree_rect
