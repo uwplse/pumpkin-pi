@@ -169,11 +169,9 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Print append_vectF_red_index. 
-
 Theorem test_append_vectF:
   forall (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector),
-    append_vect_packedF pv1 pv2  = append_vectF_red pv1 pv2.
+    append_vect_packedF pv1 pv2 = append_vectF_red pv1 pv2.
 Proof.
   intros. reflexivity.
 Qed.
@@ -316,6 +314,12 @@ Theorem test_app_nil_r:
 Proof.
   intros. rewrite <- app_coh_inv. unfold orn_list_vector. rewrite app_nil_r_red. apply coh_list.
 Qed.
+
+(* app_nil_r on flectors *)
+
+Reduce ornament orn_flist_flector_nat orn_flist_flector_nat_inv in app_nil_r_vectF_auto as app_nil_r_vectF_red.
+
+(* TODO opposite direction *)
 
 (* 
  * NOTE: The app_nil_r case needs an automatic proof of indices, which it doesn't have yet.

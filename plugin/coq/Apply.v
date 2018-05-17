@@ -606,6 +606,28 @@ Definition app_nil_r_higher (A : Type) (l : list A) :=
 Apply ornament orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_auto.
 Apply ornament orn_list_vector_inv orn_list_vector in app_nil_r_vect_packed as app_nil_r_auto.
 
+(* app_nil_r with flectors *)
+
+Definition app_nil_rF (l : natFlector.flist) :=
+  natFlector.flist_ind
+    (fun (l0 : natFlector.flist) => appendF l0 natFlector.nilF = l0)
+    (@eq_refl natFlector.flist natFlector.nilF)
+    (fun (a : nat) (l0 : natFlector.flist) (IHl : appendF l0 natFlector.nilF = l0) =>
+      @eq_ind_r
+        natFlector.flist
+        l0
+        (fun (l1 : natFlector.flist) => natFlector.consF a l1 = natFlector.consF a l0)
+        (@eq_refl natFlector.flist (natFlector.consF a l0))
+        (appendF l0 natFlector.nilF)
+        IHl)
+    l.
+
+(* TODO opposite direction *)
+
+Apply ornament orn_flist_flector_nat orn_flist_flector_nat_inv in app_nil_rF as app_nil_r_vectF_auto.
+
+(* in_split *)
+
 Theorem in_split : 
   forall A x (l:list A), In A x l -> exists l1 l2, l = append A l1 (x::l2).
 Proof.

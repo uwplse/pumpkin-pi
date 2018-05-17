@@ -49,8 +49,6 @@ Qed.
 
 Higher lift orn_list_vector_inv orn_list_vector in app_nil_r_red as app_nil_r_red_higher.
 
-Print app_nil_r_red_higher.
-
 Theorem test_app_nil_r:
   forall (A : Type) (l : list A),
     append_red A l (@nil A) = l.
@@ -58,30 +56,33 @@ Proof.
   exact app_nil_r_red_higher.
 Qed.
 
-Higher lift orn_list_vector orn_list_vector_inv in in_split_vect_red as in_split_vect_higher.
+(* over flectors *)
+
+Higher lift orn_flist_flector_nat orn_flist_flector_nat_inv in app_nil_r_vectF_red as app_nil_r_vectF_red_higher.
+
+Theorem test_app_nil_r_vectF_exact:
+  forall (pv : sigT natFlector.flector),
+    append_vectF_red (existT natFlector.flector (projT1 pv) (projT2 pv)) (existT natFlector.flector 0 natFlector.nilFV) = (existT natFlector.flector (projT1 pv) (projT2 pv)).
+Proof.
+  exact app_nil_r_vectF_red_higher.
+Qed.
 
 (*
- * Interestingly, the trouble with the old definition here is with f_equal.
- *
- * Must know to reduce this:
- *
- * (λ (f : sigT nat (vector A) -> sigT nat (vector A)) . 
- *   orn_list_vector A (f (existT nat (vector A) n v0))))
- *
- * We want:
- *
- * (λ (f : sigT nat (vector A) -> sigT nat (vector A)) . 
- *   f (existT nat (vector A) n v0)))
- *
- * But the normal substitute and reduce strategy doesn't figure that out.
- *
- * Also, f_equal takes (cons A a) as a parameter, and that's
- * a function still. How do we know to lift that?
- *
- * TODO investigate later
+ * TODO now that we are using eliminators instead, need to transfer proof 
+ * over to better type. Should do this automatically eventually.
  *)
+Theorem test_app_nil_r_vectF:
+  forall (pv : sigT natFlector.flector),
+    append_vectF_red pv (existT natFlector.flector 0 natFlector.nilFV) = pv.
+Proof.
+  intros.
+  rewrite (conv nat natFlector.flector pv).
+  apply app_nil_r_vectF_red_higher.
+Qed.
 
-Print in_split_vect_higher.
+(* in_split_vect *)
+
+Higher lift orn_list_vector orn_list_vector_inv in in_split_vect_red as in_split_vect_higher.
 
 (*
  * TODO note how the type still doesn't look even as nice as the one we state below,
