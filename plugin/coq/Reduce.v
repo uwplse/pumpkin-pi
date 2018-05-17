@@ -32,6 +32,28 @@ Proof.
 Qed.
 
 (*
+ * hd and hd_vect for flectors
+ *)
+
+Reduce ornament orn_flist_flector_nat orn_flist_flector_nat_inv in hd_vectF_auto as hd_vectF_red.
+
+Theorem test_hd_vectF:
+  forall (default : nat) (pv : sigT natFlector.flector),
+    hd_vect_packedF default pv = hd_vectF_red default pv.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Reduce ornament orn_flist_flector_nat_inv orn_flist_flector_nat in hd_autoF as hd_redF.
+
+Theorem test_hdF:
+  forall (default : nat) (l : natFlector.flist),
+    hdF default l = hd_redF default l.
+Proof.
+  intros. reflexivity.
+Qed.
+
+(*
  * hd_error and hd_vect_error
  *)
 
