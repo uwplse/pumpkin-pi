@@ -314,6 +314,9 @@ let reduce_existT_app l evd orn env arg trm =
 
 (*
  * Meta-reduction of an applied ornament in the indexer case.
+ * TODO here and elsewhere (or in step after): 
+ * rewrite back other expanded functions (see append with flector;
+ * may matter for higher lifting)
  *)
 let reduce_indexer_app l evd orn env arg trm =
   let orn_app = mkAppl (orn, snoc arg (on_type unfold_args env evd arg)) in

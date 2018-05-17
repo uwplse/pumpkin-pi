@@ -169,6 +169,8 @@ Proof.
   intros. reflexivity.
 Qed.
 
+Print append_vectF_red_index. 
+
 Theorem test_append_vectF:
   forall (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector),
     append_vect_packedF pv1 pv2  = append_vectF_red pv1 pv2.
@@ -184,6 +186,7 @@ Theorem test_appendF :
 Proof.
   intros. reflexivity.
 Qed.
+
 (* In *)
 
 Reduce ornament orn_list_vector orn_list_vector_inv in In_vect_auto as In_vect_red.
