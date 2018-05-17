@@ -110,8 +110,6 @@ Proof.
   intros. induction l; auto.
 Qed.
 
-(* TODO test app, proofs *)
-
 (* hd_error *)
 
 Definition hd_error (A : Type) (l:list A) :=
@@ -336,6 +334,39 @@ Proof.
   - simpl. rewrite append_cons. apply eq_cons. apply IHl. 
   - simpl. rewrite append_cons. apply eq_cons. apply IHl. 
 Qed.
+
+(* append for flectors *)
+
+Definition appendF (l1 : natFlector.flist) (l2 : natFlector.flist) :=
+  natFlector.flist_rect
+    (fun (_ : natFlector.flist) => natFlector.flist)
+    l2
+    (fun (a : nat) (_ : natFlector.flist) (IH : natFlector.flist) =>
+      natFlector.consF a IH)
+    l1.
+
+(*
+ * This version doesn't reference new indexer.
+ * Eventually want to be able to get index from this too.
+ *)
+Definition append_vect_packedF (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector) :=
+  natFlector.flector_rect
+    (fun (n0 : nat) (v0 : natFlector.flector n0) => sigT natFlector.flector)
+    pv2
+    (fun (n0 : nat) (a : nat) (v0 : natFlector.flector n0) (IH : sigT natFlector.flector) =>
+      existT
+        natFlector.flector
+        (natFlector.SIfEven a (projT1 IH))
+        (natFlector.consFV (projT1 IH) a (projT2 IH)))
+    (projT1 pv1)
+    (projT2 pv1).
+
+Apply ornament orn_flist_flector_nat orn_flist_flector_nat_inv in appendF as append_vectF_auto.
+Apply ornament orn_flist_flector_nat_inv orn_flist_flector_nat in append_vect_packedF as appendF_auto.
+
+(* TODO test before reduction *)
+
+(* pred *)
 
 (* For now, we don't eliminate the vector reference, since incides might refer to other things *)
 Definition pred_vect (A : Type) (n : nat) (v : vector A n) :=

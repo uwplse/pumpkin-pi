@@ -112,15 +112,13 @@ Proof.
   intros. reflexivity.
 Qed.
 
-(* Some basic sanity checking, should auto-generate at some point
- TODO fix later
 Theorem test_append_vect_red_index_correct_unpacked:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
     append_vect_red_index A pv1 pv2 = plus_vect A (projT1 pv1) (projT2 pv1) (projT1 pv2) (projT2 pv2).
 Proof.  
   intros. induction pv1. induction p.
   - reflexivity.
-  - simpl. simpl in IHp. rewrite IHp. reflexivity.
+  - simpl. simpl in IHp. rewrite <- IHp. reflexivity.
 Qed.
 
 Theorem test_append_vect_red_index_correct:
@@ -129,9 +127,10 @@ Theorem test_append_vect_red_index_correct:
 Proof.
   intros. induction pv1. induction p.
   - reflexivity.
-  - rewrite test_append_vect_red_index_correct_unpacked. 
-    unfold plus_vect. simpl. simpl in IHp. rewrite IHp. reflexivity.
-Qed.*)
+  - rewrite test_append_vect_red_index_correct_unpacked in IHp.
+    rewrite test_append_vect_red_index_correct_unpacked.
+    simpl. simpl in IHp. rewrite IHp. reflexivity.
+Qed.
 
 Theorem test_append_vect:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
@@ -148,6 +147,44 @@ Theorem test_append :
 Proof.
   intros. reflexivity.
 Qed.
+
+(* Append with flector *)
+
+Reduce ornament orn_flist_flector_nat orn_flist_flector_nat_inv in append_vectF_auto as append_vectF_red. 
+
+Definition addEvensF (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector) :=
+  natFlector.flector_rect 
+    (fun (n : nat) (_ : natFlector.flector n) => nat) 
+    (projT1 pv2)
+    (fun (n : nat) (a : natFlector.A) (f : natFlector.flector n) (IH : nat) =>
+      natFlector.SIfEven a IH)
+    (projT1 pv1) 
+    (projT2 pv1).
+
+(* TODO the index is correct, but reduces SIfEven which we would rather it keep in-tact as in addEvensF *)
+Theorem test_append_vect_red_indexF:
+  forall (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector),
+    append_vectF_red_index pv1 pv2 = addEvensF pv1 pv2.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_append_vectF:
+  forall (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector),
+    append_vect_packedF pv1 pv2  = append_vectF_red pv1 pv2.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Reduce ornament orn_flist_flector_nat_inv orn_flist_flector_nat in appendF_auto as appendF_red.
+
+Theorem test_appendF :
+  forall (l1 : natFlector.flist) (l2 : natFlector.flist),
+    appendF l1 l2  = appendF_red l1 l2.
+Proof.
+  intros. reflexivity.
+Qed.
+(* In *)
 
 Reduce ornament orn_list_vector orn_list_vector_inv in In_vect_auto as In_vect_red.
 
