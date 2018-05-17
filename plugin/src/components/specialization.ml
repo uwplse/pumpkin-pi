@@ -337,7 +337,15 @@ let reduce_sigT_elim_app l evd orn env arg trm =
   let deindex = remove_index index_i in
   let arg_typ = dummy_index env ((on_type dest_sigT env evd arg).packer) in
   let orn_app = mkAppl (orn, snoc arg (deindex (unfold_args arg_typ))) in
-  let app_red = reduce_nf env trm in
+  let app_red =
+    reduce_nf
+      env
+      (map_unit_env_if_lazy (* TODO move this now that we use it twice *)
+         (fun _ tr -> eq_constr tr (first_fun arg_typ))
+         (fun en -> expand_eta en evd)
+         env
+         trm)
+  in
   let unpacked_app_red = reduce_nf env orn_app in
   let app = all_eq_substs (unpacked_app_red, arg) app_red in
   if eq_constr app_red app then
@@ -570,7 +578,6 @@ let pack_ihs c_f_old l env evd (from_typ, to_typ) c_g =
  * that are structurally the same when one is an ornament.
  *
  * For now, this does not handle nested induction.
- * [TODO] when back: debug on broken case
  *)
 let compose_c evd npms_g ip_g p post_assums (comp : composition) =
   let l = comp.l in
@@ -647,7 +654,6 @@ let rec compose_inductive evd idx_n post_assums assum_ind comp =
   let gs = (env_g, g_app.cs) in
   let fs = (env_f, f_app.cs) in
   let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
-  debug_terms env_f cs "cs";
   let curried_args = mk_n_rels (arity p - List.length f_app.final_args) in
   let final_args = List.append f_app.final_args curried_args in
   (apply_eliminator {f_app with p; cs; final_args}, indexer)
