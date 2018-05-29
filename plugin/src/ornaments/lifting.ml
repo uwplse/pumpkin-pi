@@ -177,7 +177,8 @@ let edeclare env ident (_, poly, _ as k) ~opaque sigma udecl body tyopt imps hoo
          
 (** Register a canonical lifting for the definition [base] given its lifted
     definition [lift]. *)
-let declare_lifted (env : env) (evm : evar_map) (base : types) (lift : types) : unit =
+let declare_lifted (evm : evar_map) (base : types) (lift : types) : unit =
+  let env = Global.env () in
   let base = global_of_constr base in
   let lift = global_of_constr lift in
   let n = name_lifted base in
@@ -192,7 +193,8 @@ let declare_lifted (env : env) (evm : evar_map) (base : types) (lift : types) : 
 
 (** Register a canonical reduction for the lifted definition [lift] 
     given its reduced definition [red]. *)
-let declare_reduced (env : env) (evm : evar_map) (lift : types) (red : types) : unit =
+let declare_reduced (evm : evar_map) (lift : types) (red : types) : unit =
+  let env = Global.env () in
   let lift = global_of_constr lift in
   let red = global_of_constr red in
   let n = name_reduced lift in

@@ -34,7 +34,7 @@ val extern : env -> evar_map -> types -> constr_expr
 (*
  * Define a new Coq term
  *)
-val define_term : Id.t -> env -> evar_map -> types -> evar_map
+val define_term : Id.t -> evar_map -> types -> unit
 
 (* --- Constructing terms --- *)
 

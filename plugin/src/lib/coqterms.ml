@@ -65,11 +65,10 @@ let edeclare env ident (_, poly, _ as k) ~opaque sigma udecl body tyopt imps hoo
   let univs = Evd.check_univ_decl ~poly sigma udecl in
   let ubinders = Evd.universe_binders sigma in
   let ce = Declare.definition_entry ?types:tyopt ~univs body in
-  let _ = DeclareDef.declare_definition ident k ce ubinders imps hook in
-  sigma
+  DeclareDef.declare_definition ident k ce ubinders imps hook
 
 (* Define a new Coq term *)
-let define_term (n : Id.t) (env : env) (evm : evar_map) (trm : types) : evar_map =
+let define_term (n : Id.t) (evm : evar_map) (trm : types) : unit =
   (* XXX: "Standard" term construction combinators such as `mkApp`
      don't add any universe constraints that may be needed later for
      the kernel to check that the term is correct.
@@ -85,12 +84,13 @@ let define_term (n : Id.t) (env : env) (evm : evar_map) (trm : types) : evar_map
      Beware that `type_of` will perform full type inference including
      canonical structure resolution and what not.
    *)
+  let env = Global.env () in
   let evm, _ty = Typing.type_of ~refresh:false env evm EConstr.(of_constr trm) in
   let k = (Global, Flags.is_universe_polymorphism(), Definition) in
   let udecl = Univdecls.default_univ_decl in
   let nohook = Lemmas.mk_hook (fun _ x -> x) in
   let etrm = EConstr.of_constr trm in
-  edeclare env n k ~opaque:false evm udecl etrm None [] nohook
+  ignore (edeclare env n k ~opaque:false evm udecl etrm None [] nohook)
          
 (* --- Application and arguments --- *)
 

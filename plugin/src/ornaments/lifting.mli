@@ -89,12 +89,12 @@ val map_if_indexer : ('a -> 'a) -> lifting -> 'a -> 'a
 (*
  * Register a lifting to the database
  *)
-val declare_lifted : env -> evar_map -> types -> types -> unit
+val declare_lifted : evar_map -> types -> types -> unit
 
 (*
  * Register a reduction of a lifting to the database
  *)
-val declare_reduced : env -> evar_map -> types -> types -> unit
+val declare_reduced : evar_map -> types -> types -> unit
 
 (*
  * Search the database for a lifting (return the reduced version if it exists)
