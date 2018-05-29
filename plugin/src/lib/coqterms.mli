@@ -8,6 +8,8 @@ open Evd
 open Constrexpr
 open Names
 open Declarations
+open Globnames
+open Decl_kinds
        
 module CRD = Context.Rel.Declaration
 
@@ -31,6 +33,21 @@ val intern : env -> evar_map -> constr_expr -> types
  *)
 val extern : env -> evar_map -> types -> constr_expr
 
+(*
+ * Yves Bertot's edeclare, with extra type-checking call (see comment)
+ *)
+val edeclare :
+  Id.t ->
+  (locality * polymorphic * definition_object_kind) ->
+  opaque:'a ->
+  evar_map ->
+  UState.universe_decl ->
+  EConstr.constr ->
+  EConstr.t option ->
+  Impargs.manual_implicits ->
+  global_reference Lemmas.declaration_hook ->
+  global_reference
+                                        
 (*
  * Define a new Coq term
  *)

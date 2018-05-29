@@ -157,23 +157,6 @@ let name_reduced (base : global_reference) : Id.t =
     [base] given its lifted definition [lift]. *)
 let make_lifted (base : global_reference) (lift : global_reference) : constr_expr =
   mkAppC (construct, [expr_of_global base; expr_of_global lift])
-
-(* https://github.com/ybertot/plugin_tutorials/blob/master/tuto1/src/simple_declare.ml *)
-(* TODO refactor/consolidate *)
-let edeclare env ident (_, poly, _ as k) ~opaque sigma udecl body tyopt imps hook =
-  let open EConstr in
-  let sigma = Evd.minimize_universes sigma in
-  let body = to_constr sigma body in
-  let tyopt = Option.map (to_constr sigma) tyopt in
-  let uvars_fold uvars c =
-    Univ.LSet.union uvars (Univops.universes_of_constr env c) in
-  let uvars = List.fold_left uvars_fold Univ.LSet.empty
-     (Option.List.cons tyopt [body]) in
-  let sigma = Evd.restrict_universe_context sigma uvars in
-  let univs = Evd.check_univ_decl ~poly sigma udecl in
-  let ubinders = Evd.universe_binders sigma in
-  let ce = Declare.definition_entry ?types:tyopt ~univs body in
-  DeclareDef.declare_definition ident k ce ubinders imps hook
          
 (** Register a canonical lifting for the definition [base] given its lifted
     definition [lift]. *)
@@ -184,12 +167,10 @@ let declare_lifted (evm : evar_map) (base : types) (lift : types) : unit =
   let n = name_lifted base in
   let package = make_lifted base lift in
   let hook = Lemmas.mk_hook (fun _ x -> declare_canonical_structure x; x) in
-  let k = (Global, Flags.is_universe_polymorphism(), CanonicalStructure) in
+  let k = (Global, Flags.is_universe_polymorphism (), CanonicalStructure) in
   let udecl = Univdecls.default_univ_decl in
   let etrm = EConstr.of_constr (intern env evm package) in
-  (* see comment in define_term *)
-  let evm, _ty = Typing.type_of ~refresh:false env evm etrm in
-  ignore (edeclare env n k ~opaque:false evm udecl etrm None [] hook)
+  ignore (edeclare n k ~opaque:false evm udecl etrm None [] hook)
 
 (** Register a canonical reduction for the lifted definition [lift] 
     given its reduced definition [red]. *)
@@ -200,12 +181,10 @@ let declare_reduced (evm : evar_map) (lift : types) (red : types) : unit =
   let n = name_reduced lift in
   let package = make_lifted lift red in
   let hook = Lemmas.mk_hook (fun _ x -> declare_canonical_structure x; x) in
-  let k = (Global, Flags.is_universe_polymorphism(), CanonicalStructure) in
+  let k = (Global, Flags.is_universe_polymorphism (), CanonicalStructure) in
   let udecl = Univdecls.default_univ_decl in
   let etrm = EConstr.of_constr (intern env evm package) in
-  (* see comment in define_term *)
-  let evm, _ty = Typing.type_of ~refresh:false env evm etrm in
-  ignore (edeclare env n k ~opaque:false evm udecl etrm None [] hook)
+  ignore (edeclare n k ~opaque:false evm udecl etrm None [] hook)
 
 (** Retrieve the canonical lifting for the definition [base]. *)
 let search_canonical (env : env) (base : types) : types option =
