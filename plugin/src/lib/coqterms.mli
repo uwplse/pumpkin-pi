@@ -12,8 +12,6 @@ open Declarations
 module CRD = Context.Rel.Declaration
 
 (* --- Constants --- *)
-
-val current_path : ModPath.t
                
 val sigT : types
 val existT : types
@@ -36,7 +34,7 @@ val extern : env -> evar_map -> types -> constr_expr
 (*
  * Define a new Coq term
  *)
-val define_term : Id.t -> env -> evar_map -> types -> unit
+val define_term : Id.t -> env -> evar_map -> types -> evar_map
 
 (* --- Constructing terms --- *)
 

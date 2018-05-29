@@ -10,14 +10,11 @@ open Evd
 open Utilities
 open Declarations
 open Univ
-open Command
+open Decl_kinds
        
 module CRD = Context.Rel.Declaration
 
 (* --- Constants --- *)
-
-(* The current path *)
-let current_path = ModPath.MPfile (Global.current_dirpath ())
 
 let coq_init_specif =
   ModPath.MPfile
@@ -48,24 +45,37 @@ let projT2 : types =
 (* Intern a term (for now, ignore the resulting evar_map) *)
 let intern env evd t : types =
   let (trm, _) = Constrintern.interp_constr env evd t in
-  trm
+  EConstr.to_constr evd trm
 
 (* Extern a term *)
 let extern env evd t : constr_expr =
-  Constrextern.extern_constr true env evd t
+  Constrextern.extern_constr true env evd (EConstr.of_constr t)
+
+(* https://github.com/ybertot/plugin_tutorials/blob/master/tuto1/src/simple_declare.ml *)
+let edeclare env ident (_, poly, _ as k) ~opaque sigma udecl body tyopt imps hook =
+  let open EConstr in
+  let sigma = Evd.minimize_universes sigma in
+  let body = to_constr sigma body in
+  let tyopt = Option.map (to_constr sigma) tyopt in
+  let uvars_fold uvars c =
+    Univ.LSet.union uvars (Univops.universes_of_constr env c) in
+  let uvars = List.fold_left uvars_fold Univ.LSet.empty
+     (Option.List.cons tyopt [body]) in
+  let sigma = Evd.restrict_universe_context sigma uvars in
+  let univs = Evd.check_univ_decl ~poly sigma udecl in
+  let ubinders = Evd.universe_binders sigma in
+  let ce = Declare.definition_entry ?types:tyopt ~univs body in
+  let _ = DeclareDef.declare_definition ident k ce ubinders imps hook in
+  sigma
 
 (* Define a new Coq term *)
-let define_term (n : Id.t) (env : env) (evm : evar_map) (trm : types) : unit =
-  do_definition
-    n
-    (Global, false, Definition)
-    None
-    []
-    None
-    (extern env evm trm)
-    None
-    (Lemmas.mk_hook (fun _ _ -> ()))
-
+let define_term (n : Id.t) (env : env) (evm : evar_map) (trm : types) : evar_map =
+  let k = (Global, Flags.is_universe_polymorphism(), Definition) in
+  let udecl = Univdecls.default_univ_decl in
+  let nohook = Lemmas.mk_hook (fun _ x -> x) in
+  let etrm = EConstr.of_constr trm in
+  edeclare env n k ~opaque:false evm udecl etrm None [] nohook
+         
 (* --- Application and arguments --- *)
 
 (* Get a list of all arguments, fully unfolded at the head *)
@@ -114,7 +124,7 @@ let mkAppl (f, args) = mkApp (f, Array.of_list args)
 
 (* Define a constant from an ID in the current path *)
 let make_constant id =
-  mkConst (Constant.make2 current_path (Label.of_id id))
+  mkConst (Constant.make2 (Lib.current_mp ()) (Label.of_id id))
 
 (* Recursively turn a product into a function *)
 let rec prod_to_lambda trm =
@@ -225,12 +235,14 @@ let project_value (app : sigT_app) trm =
                                 
 (* Infer the type of trm in env *)
 let infer_type (env : env) (evd : evar_map) (trm : types) : types =
-  Typing.unsafe_type_of env evd trm
+  EConstr.to_constr evd (Typing.unsafe_type_of env evd (EConstr.of_constr trm))
 
 (* Check whether two terms are convertible, ignoring universe inconsistency *)
-let conv_ignoring_univ_inconsistency env evm trm1 trm2 : bool =
+let conv_ignoring_univ_inconsistency env evm (trm1 : types) (trm2 : types) : bool =
+  let etrm1 = EConstr.of_constr trm1 in
+  let etrm2 = EConstr.of_constr trm2 in
   try
-    Reductionops.is_conv env evm trm1 trm2
+    Reductionops.is_conv env evm etrm1 etrm2
   with _ ->
     match map_tuple kind_of_term (trm1, trm2) with
     | (Sort (Type u1), Sort (Type u2)) -> true
@@ -242,15 +254,21 @@ let convertible (env : env) (trm1 : types) (trm2 : types) : bool =
                                    
 (* Default reducer *)
 let reduce_term (env : env) (trm : types) : types =
-  Reductionops.nf_betaiotazeta Evd.empty trm
+  EConstr.to_constr
+    Evd.empty
+    (Reductionops.nf_betaiotazeta env Evd.empty (EConstr.of_constr trm))
 
 (* Delta reduction *)
 let delta (env : env) (trm : types) =
-  Reductionops.whd_delta env Evd.empty trm
+  EConstr.to_constr
+    Evd.empty
+    (Reductionops.whd_delta env Evd.empty (EConstr.of_constr trm))
                          
 (* nf_all *)
 let reduce_nf (env : env) (trm : types) : types =
-  Reductionops.nf_all env Evd.empty trm
+  EConstr.to_constr
+    Evd.empty
+    (Reductionops.nf_all env Evd.empty (EConstr.of_constr trm))
 
 (* Reduce the type *)
 let reduce_type (env : env) evd (trm : types) : types =
@@ -350,8 +368,8 @@ let is_elim (env : env) (trm : types) =
 let type_of_inductive env index mutind_body : types =
   let ind_bodies = mutind_body.mind_packets in
   let ind_body = Array.get ind_bodies index in
-  let univ_context = mutind_body.mind_universes in
-  let univ_instance = UContext.instance univ_context in
+  let univs = Declareops.inductive_polymorphic_context mutind_body in
+  let univ_instance = Univ.make_abstract_instance univs in
   let mutind_spec = (mutind_body, ind_body) in
   Inductive.type_of_inductive env (mutind_spec, univ_instance)
 

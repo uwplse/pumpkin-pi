@@ -3,7 +3,7 @@ DECLARE PLUGIN "ornamental"
 open Term
 open Names
 open Environ
-open Constrarg
+open Stdarg
 open Utilities
 open Coqterms
 open Printing
@@ -23,17 +23,20 @@ let find_ornament n d_old d_new =
     let idx_n = with_suffix n "index" in
     let orn = search_orn_inductive env evm idx_n trm_o trm_n in
     let idx = orn.indexer in
-    (if Option.has_some idx then
-       let _ = define_term idx_n env evm (Option.get idx) in
-       Printf.printf "Defined indexing function %s.\n\n" (string_of_id idx_n);
-     else
-       ());
-    debug_term env orn.promote "orn.promote";
-    define_term n env evm orn.promote;
+    let evm =
+      (if Option.has_some idx then
+         let evm = define_term idx_n env evm (Option.get idx) in
+         Printf.printf "Defined indexing function %s.\n\n" (string_of_id idx_n);
+         evm
+       else
+         evm)
+    in
+    debug_term env orn.promote "promote";
+    let (_, env) = Lemmas.get_current_context () in (* update env *)
+    let _ = define_term n env evm orn.promote in
     Printf.printf "Defined promotion %s.\n\n" (string_of_id n);
     let inv_n = with_suffix n "inv" in
-    define_term inv_n env evm orn.forget;
-    Printf.printf "Defined forgetful function %s.\n\n" (string_of_id inv_n);
+    let _ = define_term inv_n env evm orn.forget in
     ()
   else
     failwith "Only inductive types are supported"
@@ -49,8 +52,8 @@ let apply_ornament n d_orn d_orn_inv d_old =
   let orn = initialize_promotion env evd promote forget in
   let l = initialize_lifting orn is_fwd in
   let trm_n = apply_indexing_ornament env evd l c_o in
-  define_term n env evd trm_n;
-  declare_lifted c_o (make_constant n);
+  let _ = define_term n env evd trm_n in
+  declare_lifted env evd c_o (make_constant n);
   Printf.printf "Defined ornamented fuction %s.\n\n" (string_of_id n);
   ()
 
@@ -71,12 +74,12 @@ let reduce_ornament n d_orn d_orn_inv d_old =
      let indexer_o = Option.get indexer in
      let l = { l with is_indexer = true } in
      let (indexer_n, _) = internalize env evd idx_n l indexer_o in
-     define_term idx_n env evd indexer_n;
+     let _ = define_term idx_n env evd indexer_n in
      Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
    else
      ());
-  define_term n env evd trm_n;
-  declare_lifted c_o (make_constant n);
+  let _ = define_term n env evd trm_n in
+  declare_lifted env evd c_o (make_constant n);
   Printf.printf "Defined reduced ornamened function %s.\n\n" (string_of_id n);
   ()
 
@@ -92,7 +95,8 @@ let higher_lifting n d_orn d_orn_inv d_old =
   let l = initialize_lifting orn is_fwd in
   let (higher_lifted, _) = higher_lift env evd l c_o in
   (* TODO indexing proof & print something after defined *)
-  define_term n env evd higher_lifted
+  let _ = define_term n env evd higher_lifted in
+  ()
 
 (* --- Commands --- *)
 
