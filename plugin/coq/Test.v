@@ -84,6 +84,42 @@ Definition countEven (l : flist) :=
       SIfEven a IH)
     l.
 
+Theorem test_index_flector:
+  forall (l : flist),
+    orn_flist_flector_index l = countEven l.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_flector:
+  forall (l : flist),
+    sigT flector.
+Proof.
+  exact orn_flist_flector.
+Qed.
+
+Theorem test_orn_index_flector:
+  forall (l : flist),
+  projT1 (orn_flist_flector l) = orn_flist_flector_index l.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_inv_flector:
+  forall (v : sigT flector),
+    flist.
+Proof.
+  exact orn_flist_flector_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_flector:
+  forall (n : nat) (v : flector n),
+    flist.
+Proof.
+  intros. apply orn_flist_flector_inv. exists n. apply v.
+Qed.
+
+
 End Flector.
 
 (* TODO temp while fixing module bug *)
@@ -100,42 +136,10 @@ End natEven.
 
 Module natFlector := Flector natEven.
 
-Find ornament natFlector.flist natFlector.flector as orn_flist_flector_nat.
+Definition orn_flist_flector_nat := natFlector.orn_flist_flector.
+Definition orn_flist_flector_nat_inv := natFlector.orn_flist_flector_inv.
+Definition orn_flist_flector_nat_index := natFlector.orn_flist_flector_index.
 
-Theorem test_index_flector:
-  forall (l : natFlector.flist),
-    orn_flist_flector_nat_index l = natFlector.countEven l.
-Proof.
-  intros. auto.
-Qed.
-
-Theorem test_orn_flector:
-  forall (l : natFlector.flist),
-    sigT natFlector.flector.
-Proof.
-  exact orn_flist_flector_nat.
-Qed.
-
-Theorem test_orn_index_flector:
-  forall (l : natFlector.flist),
-    projT1 (orn_flist_flector_nat l) = orn_flist_flector_nat_index l.
-Proof.
-  intros. reflexivity.
-Qed.
-
-Theorem test_orn_inv_flector:
-  forall (v : sigT natFlector.flector),
-    natFlector.flist.
-Proof.
-  exact orn_flist_flector_nat_inv.
-Qed.
-
-Theorem test_orn_inv_unpack_flector:
-  forall (n : nat) (v : natFlector.flector n),
-    natFlector.flist.
-Proof.
-  intros. apply orn_flist_flector_nat_inv. exists n. apply v.
-Qed.
 
 (* --- Backwards lists --- *)
 
