@@ -186,6 +186,8 @@ let declare_lifted (env : env) (evm : evar_map) (base : types) (lift : types) : 
   let k = (Global, Flags.is_universe_polymorphism(), CanonicalStructure) in
   let udecl = Univdecls.default_univ_decl in
   let etrm = EConstr.of_constr (intern env evm package) in
+  (* see comment in define_term *)
+  let evm, _ty = Typing.type_of ~refresh:false env evm etrm in
   ignore (edeclare env n k ~opaque:false evm udecl etrm None [] hook)
 
 (** Register a canonical reduction for the lifted definition [lift] 
@@ -199,6 +201,8 @@ let declare_reduced (env : env) (evm : evar_map) (lift : types) (red : types) : 
   let k = (Global, Flags.is_universe_polymorphism(), CanonicalStructure) in
   let udecl = Univdecls.default_univ_decl in
   let etrm = EConstr.of_constr (intern env evm package) in
+  (* see comment in define_term *)
+  let evm, _ty = Typing.type_of ~refresh:false env evm etrm in
   ignore (edeclare env n k ~opaque:false evm udecl etrm None [] hook)
 
 (** Retrieve the canonical lifting for the definition [base]. *)
