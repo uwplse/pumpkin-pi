@@ -60,6 +60,8 @@ Qed.
 
 Higher lift orn_flist_flector_nat orn_flist_flector_nat_inv in app_nil_r_vectF_red as app_nil_r_vectF_red_higher.
 
+Print app_nil_r_vectF_red_higher.
+
 Theorem test_app_nil_r_vectF_exact:
   forall (pv : sigT natFlector.flector),
     append_vectF_red (existT natFlector.flector (projT1 pv) (projT2 pv)) (existT natFlector.flector 0 natFlector.nilFV) = (existT natFlector.flector (projT1 pv) (projT2 pv)).

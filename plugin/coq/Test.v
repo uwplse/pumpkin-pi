@@ -73,11 +73,7 @@ Inductive flector : nat -> Type :=
       flector n -> 
       flector (SIfEven a n).
 
-(*
- * TODO can't yet do inside of module b.c. of bug;
- * ask in France!
 Find ornament flist flector as orn_flist_flector.
-*)
 
 (* For testing *)
 Definition countEven (l : flist) :=
