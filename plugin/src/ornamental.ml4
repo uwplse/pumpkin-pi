@@ -23,15 +23,12 @@ let find_ornament n d_old d_new =
     let idx_n = with_suffix n "index" in
     let orn = search_orn_inductive env evm idx_n trm_o trm_n in
     let idx = orn.indexer in
-    let evm =
-      (if Option.has_some idx then
-         let evm = define_term idx_n env evm (Option.get idx) in
-         Printf.printf "Defined indexing function %s.\n\n" (string_of_id idx_n);
-         evm
-       else
-         evm)
-    in
-    debug_term env orn.promote "promote";
+    (if Option.has_some idx then
+       let _ = define_term idx_n env evm (Option.get idx) in
+       Printf.printf "Defined indexing function %s.\n\n" (string_of_id idx_n);
+       ()
+     else
+       ());
     let (_, env) = Lemmas.get_current_context () in (* update env *)
     let _ = define_term n env evm orn.promote in
     Printf.printf "Defined promotion %s.\n\n" (string_of_id n);
@@ -53,6 +50,7 @@ let apply_ornament n d_orn d_orn_inv d_old =
   let l = initialize_lifting orn is_fwd in
   let trm_n = apply_indexing_ornament env evd l c_o in
   let _ = define_term n env evd trm_n in
+  let (_, env) = Lemmas.get_current_context () in (* refresh env *)
   declare_lifted env evd c_o (make_constant n);
   Printf.printf "Defined ornamented fuction %s.\n\n" (string_of_id n);
   ()
@@ -78,7 +76,9 @@ let reduce_ornament n d_orn d_orn_inv d_old =
      Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
    else
      ());
+  let (_, env) = Lemmas.get_current_context () in (* refresh env *)
   let _ = define_term n env evd trm_n in
+  let (_, env) = Lemmas.get_current_context () in (* refresh env *)
   declare_lifted env evd c_o (make_constant n);
   Printf.printf "Defined reduced ornamened function %s.\n\n" (string_of_id n);
   ()
