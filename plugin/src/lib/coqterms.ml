@@ -70,6 +70,22 @@ let edeclare env ident (_, poly, _ as k) ~opaque sigma udecl body tyopt imps hoo
 
 (* Define a new Coq term *)
 let define_term (n : Id.t) (env : env) (evm : evar_map) (trm : types) : evar_map =
+  (* XXX: "Standard" term construction combinators such as `mkApp`
+     don't add any universe constraints that may be needed later for
+     the kernel to check that the term is correct.
+
+     We could manually call `Evd.add_universe_constraints`
+     [high-level] or `Evd.add_constraints` [low-level]; however, that
+     turns out to be a bit heavyweight.
+
+     Instead, we call type inference on the manually-built term which
+     will happily infer the constraint for us, even if that's way more
+     costly in term of CPU cycles.
+
+     Beware that `type_of` will perform full type inference including
+     canonical structure resolution and what not.
+   *)
+  let evm, _ty = Typing.type_of ~refresh:false env evm EConstr.(of_constr trm) in
   let k = (Global, Flags.is_universe_polymorphism(), Definition) in
   let udecl = Univdecls.default_univ_decl in
   let nohook = Lemmas.mk_hook (fun _ x -> x) in
