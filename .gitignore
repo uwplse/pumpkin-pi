@@ -12,4 +12,6 @@
 *.vo
 *~
 *.d
-
+*.cmxa
+*.a
+Makefile.coq.conf

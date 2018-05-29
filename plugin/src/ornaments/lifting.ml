@@ -16,6 +16,8 @@ open Names
 open Recordops
 open Libnames
 open Constrexpr_ops
+open Decl_kinds
+open Evd
 
 (* --- Datatypes --- *)
 
@@ -122,8 +124,8 @@ let map_if_indexer f l x = map_if f l.is_indexer x
 
 (** Construct the external expression for a definition. *)
 let expr_of_global (g : global_reference) : constr_expr =
-  let r = extern_reference Loc.ghost Id.Set.empty g in
-  CAppExpl (Loc.ghost, (None, r, None), [])
+  let r = extern_reference Id.Set.empty g in
+  CAst.make @@ (CAppExpl ((None, r, None), []))
 
 (** Record information of the lifting structure. *)
 let structure : struc_typ =
@@ -137,7 +139,7 @@ let project : global_reference =
 (** Constructor of the lifting structure. *)
 let construct : constr_expr =
   let global = ConstructRef structure.s_CONST in
-  mkRefC (extern_reference Loc.ghost Id.Set.empty global)
+  mkRefC (extern_reference Id.Set.empty global)
 
 (** Build the identifier [X + "_lift"] to use as the name of the lifting instance
     for the definition [base] with name [M_1.M_2...M_n.X]. *)
@@ -155,30 +157,34 @@ let name_reduced (base : global_reference) : Id.t =
     [base] given its lifted definition [lift]. *)
 let make_lifted (base : global_reference) (lift : global_reference) : constr_expr =
   mkAppC (construct, [expr_of_global base; expr_of_global lift])
-
+         
 (** Register a canonical lifting for the definition [base] given its lifted
     definition [lift]. *)
-let declare_lifted (base : types) (lift : types) : unit =
+let declare_lifted (evm : evar_map) (base : types) (lift : types) : unit =
+  let env = Global.env () in
   let base = global_of_constr base in
   let lift = global_of_constr lift in
-  let ident = name_lifted base in
+  let n = name_lifted base in
   let package = make_lifted base lift in
-  let hook = Lemmas.mk_hook (fun _ -> declare_canonical_structure) in
-  Command.do_definition ident
-    (Decl_kinds.Global, false, Decl_kinds.CanonicalStructure)
-    None [] None package None hook
+  let hook = Lemmas.mk_hook (fun _ x -> declare_canonical_structure x; x) in
+  let k = (Global, Flags.is_universe_polymorphism (), CanonicalStructure) in
+  let udecl = Univdecls.default_univ_decl in
+  let etrm = EConstr.of_constr (intern env evm package) in
+  ignore (edeclare n k ~opaque:false evm udecl etrm None [] hook)
 
 (** Register a canonical reduction for the lifted definition [lift] 
     given its reduced definition [red]. *)
-let declare_reduced (lift : types) (red : types) : unit =
+let declare_reduced (evm : evar_map) (lift : types) (red : types) : unit =
+  let env = Global.env () in
   let lift = global_of_constr lift in
   let red = global_of_constr red in
-  let ident = name_reduced lift in
+  let n = name_reduced lift in
   let package = make_lifted lift red in
-  let hook = Lemmas.mk_hook (fun _ -> declare_canonical_structure) in
-  Command.do_definition ident
-    (Decl_kinds.Global, false, Decl_kinds.CanonicalStructure)
-    None [] None package None hook
+  let hook = Lemmas.mk_hook (fun _ x -> declare_canonical_structure x; x) in
+  let k = (Global, Flags.is_universe_polymorphism (), CanonicalStructure) in
+  let udecl = Univdecls.default_univ_decl in
+  let etrm = EConstr.of_constr (intern env evm package) in
+  ignore (edeclare n k ~opaque:false evm udecl etrm None [] hook)
 
 (** Retrieve the canonical lifting for the definition [base]. *)
 let search_canonical (env : env) (base : types) : types option =

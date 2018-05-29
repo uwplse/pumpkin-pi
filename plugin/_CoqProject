@@ -2,7 +2,7 @@
 -I src/ornaments
 -I src/components
 -I src
--Q theories Ornamental
+-R theories Ornamental
 
 src/lib/utilities.ml
 src/lib/utilities.mli
