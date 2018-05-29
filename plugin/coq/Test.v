@@ -119,7 +119,6 @@ Proof.
   intros. apply orn_flist_flector_inv. exists n. apply v.
 Qed.
 
-
 End Flector.
 
 (* TODO temp while fixing module bug *)
@@ -139,7 +138,6 @@ Module natFlector := Flector natEven.
 Definition orn_flist_flector_nat := natFlector.orn_flist_flector.
 Definition orn_flist_flector_nat_inv := natFlector.orn_flist_flector_inv.
 Definition orn_flist_flector_nat_index := natFlector.orn_flist_flector_index.
-
 
 (* --- Backwards lists --- *)
 
