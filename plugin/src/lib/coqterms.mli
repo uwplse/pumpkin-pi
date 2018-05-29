@@ -12,8 +12,6 @@ open Declarations
 module CRD = Context.Rel.Declaration
 
 (* --- Constants --- *)
-
-val current_path : ModPath.t
                
 val sigT : types
 val existT : types

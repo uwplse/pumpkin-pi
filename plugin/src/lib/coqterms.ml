@@ -16,9 +16,6 @@ module CRD = Context.Rel.Declaration
 
 (* --- Constants --- *)
 
-(* The current path *)
-let current_path = ModPath.MPfile (Global.current_dirpath ())
-
 let coq_init_specif =
   ModPath.MPfile
     (DirPath.make (List.map Id.of_string ["Specif"; "Init"; "Coq"]))
@@ -114,7 +111,7 @@ let mkAppl (f, args) = mkApp (f, Array.of_list args)
 
 (* Define a constant from an ID in the current path *)
 let make_constant id =
-  mkConst (Constant.make2 current_path (Label.of_id id))
+  mkConst (Constant.make2 (Lib.current_mp ()) (Label.of_id id))
 
 (* Recursively turn a product into a function *)
 let rec prod_to_lambda trm =
