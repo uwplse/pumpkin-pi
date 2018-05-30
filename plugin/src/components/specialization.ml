@@ -302,8 +302,8 @@ let reduce_existT_app l evd orn env arg trm =
   let fold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
   let fold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
   let unfolded_index_red = reduce_nf env unfolded_ex.index in
-  let unfolded_unpacked_red = reduce_nf env unfolded_ex.unpacked in
   let index = fold_index unfolded_index_red in
+  let unfolded_unpacked_red = reduce_nf env unfolded_ex.unpacked in
   let unpacked = fold_index (fold_value unfolded_unpacked_red) in
   if eq_constr index unfolded_index_red && eq_constr unpacked unfolded_unpacked_red then
     (* nothing to rewrite *)
@@ -376,30 +376,12 @@ let meta_reduce l =
  * Get all recursive constants
  *)
 let rec all_recursive_constants env trm =
-  let consts = all_const_subterms (fun _ _ -> true) (fun u -> u) () trm in
-  let non_axioms =
-    List.map
-      Option.get
-      (List.filter
-         (Option.has_some)
-         (List.map
-            (fun c ->
-              try
-                let def = unwrap_definition env c in
-                if not (eq_constr def c || isInd def) then
-                  Some (c, def)
-                else
-                  None
-              with _ ->
-                None)
-            consts))
-  in
-  let non_axiom_consts = List.map fst non_axioms in
-  let defs = List.map snd non_axioms in
+  let consts = all_const_subterms (fun _ trm -> Option.has_some (search_lifted env trm)) (fun u -> u) () trm in
+  let defs = List.map (unwrap_definition env) consts in
   let flat_map f l = List.flatten (List.map f l) in
   unique
     eq_constr
-    (List.append non_axiom_consts (flat_map (all_recursive_constants env) defs))
+    (List.append consts (flat_map (all_recursive_constants env) defs))
                          
 (* 
  * Fold back constants after applying a function
@@ -407,15 +389,11 @@ let rec all_recursive_constants env trm =
  * Workaround may not always work yet
  *)
 let fold_back_constants env f trm =
-  debug_term env trm "trm";
-  List.iter (fun c -> debug_term env c "const"; debug_term env (unwrap_definition env c) "def") (all_recursive_constants env trm);
-  let trm' =
   List.fold_left
     (fun red lifted ->
       all_conv_substs env (lifted, lifted) red)
     (f trm)
     (all_recursive_constants env trm)
-  in debug_term env trm' "trm'"; trm'
                          
 (*
  * Meta-reduction of an applied ornament to simplify and then rewrite
@@ -425,17 +403,13 @@ let reduce_ornament_f l env evd orn trm args =
   map_term_env_if
     (fun _ _ trm -> applies orn trm)
     (fun env args trm ->
-      try
-        fold_back_constants
-          env
-          (fun trm ->
-            List.fold_left
-              (fun trm arg -> meta_reduce l evd orn env arg trm)
-              trm
-              args)
-          trm
-      with _ ->
-        (* TODO debug *)
+      fold_back_constants
+        env
+        (fun trm ->
+          List.fold_left
+            (fun trm arg -> meta_reduce l evd orn env arg trm)
+            trm
+            args)
         trm)
     shift_all
     env
@@ -566,18 +540,20 @@ let reduce_constr_body env evd l (from_typ, to_typ) index_args body =
   let all_args = mk_n_rels (nb_rel env) in
   let orn_args = filter_orn l env evd (from_typ, to_typ) all_args in
   let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
-  debug_term env body "body";
   let red_body =
     map_if
-      (fold_back_constants env (reduce_nf env))
+      (reduce_nf env)
       (*(List.length index_args = 0 && not l.is_indexer)*)
-      false (* TODO later: right now, have superficial dependencies remaining without this line, but they compute down to the right things; to get this working again need to fix alg that folds back up well*)
+      (* TODO w/o above line we get superficial dependencies on old term, but
+         they all reduce; should cope with in some way but just an impl.
+         detail for now, though it's a workaround for refolding *)
+      false
       (map_unit_if
          (applies f)
          (fun trm ->
            reduce_ornament_f l env evd f (pre_reduce l env evd trm) orn_args)
          body)
-  in debug_term env red_body "red_body"; unpack_ihs f ihs red_body
+  in unpack_ihs f ihs red_body
 
 (* 
  * When forgetting, we do not have indices to pass to the constructor,
@@ -971,7 +947,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
            let orn_args = filter_orn l en evd (from_type, to_type) red_args in
            let red =
              if List.length orn_args = 0 then
-               fold_back_constants env (reduce_nf env) pre
+               pre (* TODO same w/ superficial deps *)
              else
                let red = reduce_ornament_f l en evd (lift_to l) pre orn_args in
                map_unit_if (applies (lift_back l)) last_arg (map_unit_if (applies (lift_to l)) last_arg red)
@@ -1003,7 +979,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
          let typ_args = non_index_typ_args l en evd tr in
          let app = mkAppl (lift_to l, snoc tr typ_args) in
          let pre = pre_reduce l en evd app in
-         reduce_nf en pre (* TODO check w/ nat *)
+         pre (* TODO check w/ nat *) (* TODO same w/ shallow deps *)
       | _ ->
          tr
   in sub_rec env env index_type trm
