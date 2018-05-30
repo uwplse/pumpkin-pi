@@ -105,6 +105,8 @@ Qed.
 
 Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red. 
 
+Print append_vect_red.
+
 Theorem test_append_vect_red_index:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
     append_vect_red_index A pv1 pv2 = plus_vect_exp A pv1 pv2.

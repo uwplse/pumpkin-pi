@@ -140,7 +140,7 @@ let mkAppl (f, args) = mkApp (f, Array.of_list args)
 
 (* Define a constant from an ID in the current path *)
 let make_constant id =
-  mkConst (Constant.make2 (Lib.current_mp ()) (Label.of_id id))
+  mkConst (Constant.make1 (Lib.make_kn id))
 
 (* Recursively turn a product into a function *)
 let rec prod_to_lambda trm =
