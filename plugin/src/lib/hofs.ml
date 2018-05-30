@@ -259,6 +259,55 @@ let rec map_term_env_if_lazy_old p f d (env : env) (a : 'a) (trm : types) : type
        trm
   in if p env a trm' then f env a trm' else trm'
 
+                                              
+(*
+ * Like map_term_env_if, but make a list of subterm results
+ *)
+let rec map_term_env_if_list p f d (env : env) (a : 'a) (trm : types) : (env * types) list =
+  let map_rec = map_term_env_if_list p f d in
+  if p env a trm then
+    [(env, f env a trm)]
+  else
+    match kind_of_term trm with
+    | Cast (c, k, t) ->
+       let c' = map_rec env a c in
+       let t' = map_rec env a t in
+       List.append c' t'
+    | Prod (n, t, b) ->
+       let t' = map_rec env a t in
+       let b' = map_rec (push_local (n, t) env) (d a) b in
+       List.append t' b'
+    | Lambda (n, t, b) ->
+       let t' = map_rec env a t in
+       let b' = map_rec (push_local (n, t) env) (d a) b in
+       List.append t' b'
+    | LetIn (n, trm, typ, e) ->
+       let trm' = map_rec env a trm in
+       let typ' = map_rec env a typ in
+       let e' = map_rec (push_let_in (n, e, typ) env) (d a) e in
+       List.append trm' (List.append typ' e')
+    | App (fu, args) ->
+       let fu' = map_rec env a fu in
+       let args' = Array.map (map_rec env a) args in
+       List.append fu' (List.flatten (Array.to_list args'))
+    | Case (ci, ct, m, bs) ->
+       let ct' = map_rec env a ct in
+       let m' = map_rec env a m in
+       let bs' = Array.map (map_rec env a) bs in
+       List.append ct' (List.append m' (List.flatten (Array.to_list bs')))
+    | Fix ((is, i), (ns, ts, ds)) ->
+       let ts' = Array.map (map_rec env a) ts in
+       let ds' = Array.map (map_rec_env_fix map_rec d env a ns ts) ds in
+       List.append (List.flatten (Array.to_list ts')) (List.flatten (Array.to_list ds'))
+    | CoFix (i, (ns, ts, ds)) ->
+       let ts' = Array.map (map_rec env a) ts in
+       let ds' = Array.map (map_rec_env_fix map_rec d env a ns ts) ds in
+       List.append (List.flatten (Array.to_list ts')) (List.flatten (Array.to_list ds'))
+    | Proj (pr, c) ->
+       map_rec env a c
+    | _ ->
+       []
+
 (* Locally empty environment *)
 let empty = Global.env ()
 
@@ -284,6 +333,18 @@ let exists_subterm p d =
     (fun _ a t -> p a t)
     d
     empty
+
+(* all subterms that match a predicate *)
+let all_const_subterms p d a t =
+  List.map
+    snd
+    (map_term_env_if_list
+       (fun _ a t -> isConst t && p a t)
+       (fun en _ t -> t)
+       d
+       empty
+       a
+       t)
 
 (* --- Substitution --- *)
 

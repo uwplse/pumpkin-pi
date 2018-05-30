@@ -108,37 +108,56 @@ Qed.
 
 (** * Empty Map *)
 
-(* TODO left off here *)
 Definition empty := Leaf.
+
+(* ORN: Directly higher lift since no induction *)
+Higher lift orn_tree_treeV orn_tree_treeV_inv in empty as emptyV.
 
 (** * Emptyness test *)
 
-Definition is_empty m := match m with Leaf => true | _ => false end.
+(* ORN: Ported to induction *)
+Definition is_empty m := tree_rect (P := fun _ => bool) true (fun _ _ _ _ _ _ _ => false) m. 
+
+(* ORN: treeV version *)
+Apply ornament orn_tree_treeV orn_tree_treeV_inv in is_empty as is_emptyV_auto.
+Reduce ornament orn_tree_treeV orn_tree_treeV_inv in is_emptyV_auto as is_emptyV.
 
 (** * Membership *)
 
 (** The [mem] function is deciding membership. It exploits the [bst] property
     to achieve logarithmic complexity. *)
 
-Fixpoint mem x m : bool :=
-   match m with
-     |  Leaf => false
-     |  Node l y _ r _ => match X.compare x y with
-             | LT _ => mem x l
-             | EQ _ => true
-             | GT _ => mem x r
-         end
-   end.
+(* ORN: ported to induction *)
+Definition mem x m : bool :=
+  tree_rect
+    (P := fun _ => bool)
+    false
+    (fun l IHl y d r IHr _ => match X.compare x y with
+     | LT _ => IHl
+     | EQ _ => true
+     | GT _ => IHr
+     end)
+    m.
 
-Fixpoint find x m : option elt :=
-   match m with
-     |  Leaf => None
-     |  Node l y d r _ => match X.compare x y with
-             | LT _ => find x l
-             | EQ _ => Some d
-             | GT _ => find x r
-         end
-   end.
+(* ORN: over treeV *)
+Apply ornament orn_tree_treeV orn_tree_treeV_inv in mem as memV_auto.
+Reduce ornament orn_tree_treeV orn_tree_treeV_inv in memV_auto as memV.
+
+(* ORN: Ported to induction *)
+Definition find x m : option elt :=
+  tree_rect
+    (P := fun _ => option elt)
+    None
+    (fun l IHl y d r IHr _ => match X.compare x y with
+     | LT _ => IHl
+     | EQ _ => Some d
+     | GT _ => IHr
+     end)
+     m.
+
+(* ORN: Over treeV *)
+Apply ornament orn_tree_treeV orn_tree_treeV_inv in find as findV_auto.
+Reduce ornament orn_tree_treeV orn_tree_treeV_inv in findV_auto as findV.
 
 (** * Helper functions *)
 
@@ -147,6 +166,11 @@ Fixpoint find x m : option elt :=
 
 Definition create l x e r :=
    Node l x e r (max (height l) (height r) + 1).
+
+Eval compute in create.
+
+(* ORN: No induction, so higher lift *)
+Higher lift orn_tree_treeV orn_tree_treeV_inv in create as createV.
 
 (** [bal l x e r] acts as [create], but performs one step of
     rebalancing if necessary, i.e. assumes [|height l - height r| <= 3]. *)

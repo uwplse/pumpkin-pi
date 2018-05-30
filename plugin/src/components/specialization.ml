@@ -305,8 +305,8 @@ let reduce_existT_app l evd orn env arg trm =
   let unfolded_unpacked_red = reduce_nf env unfolded_ex.unpacked in
   let index = fold_index unfolded_index_red in
   let unpacked = fold_index (fold_value unfolded_unpacked_red) in
-  if eq_constr unfolded_unpacked_red unpacked then
-    (* nothing to rewrite; ensure termination *)
+  if eq_constr index unfolded_index_red && eq_constr unpacked unfolded_unpacked_red then
+    (* nothing to rewrite *)
     trm
   else
     (* pack the rewritten term *)
@@ -325,7 +325,7 @@ let reduce_indexer_app l evd orn env arg trm =
   let app_red = reduce_nf env unfolded in
   let app = all_eq_substs (orn_app_red, orn_app) app_red in
   if eq_constr app_red app then
-   (* nothing to rewrite; ensure termination *)
+    (* nothing to rewrite *)
     trm
   else
     (* return the rewritten term *)
@@ -374,23 +374,32 @@ let meta_reduce l =
 
 (*
  * Meta-reduction of an applied ornament to simplify and then rewrite
- * in terms of the ornament and indexer applied to the specific argument.
- *)
-let reduce_ornament_f_arg l env evd orn trm arg =
-  map_term_env_if
-    (fun _ _ trm -> applies orn trm)
-    (meta_reduce l evd orn)
-    shift
-    env
-    arg
-    trm 
-            
-(*
- * Meta-reduction of an applied ornament to simplify and then rewrite
- * in terms of the ornament and indexer applied to arguments from the list.
+ * in terms of the ornament and indexer applied to the specific arguments
  *)
 let reduce_ornament_f l env evd orn trm args =
-  List.fold_left (reduce_ornament_f_arg l env evd orn) trm args
+  map_term_env_if
+    (fun _ _ trm -> applies orn trm)
+    (fun env args trm ->
+      let lifted_consts =
+        all_const_subterms
+          (fun _ t -> Option.has_some (search_lifted env t))
+          (fun u -> u)
+          ()
+          trm
+      in
+      (* may only work around some cases, for now *)
+      List.fold_left
+        (fun red lifted ->
+          all_conv_substs env (lifted, lifted) red)
+        (List.fold_left
+           (fun trm arg -> meta_reduce l evd orn env arg trm)
+           trm
+           args)
+        lifted_consts)
+    shift_all
+    env
+    args
+    trm 
 
 (*
  * Get the (index arg index, IH) pairs for a constructor
@@ -918,7 +927,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
            let red_args = List.map (fun a -> if applies projT2 a then last_arg a else a) red_args in
            let orn_args = filter_orn l en evd (from_type, to_type) red_args in
            let red =
-             if not (List.length orn_args > 0) then
+             if List.length orn_args = 0 then
                reduce_nf en pre
              else
                let red = reduce_ornament_f l en evd (lift_to l) pre orn_args in

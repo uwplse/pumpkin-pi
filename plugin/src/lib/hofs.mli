@@ -174,6 +174,17 @@ val exists_subterm :
   types ->
   bool
 
+(* 
+ * Like exists_subterm, but return a list of constant subterms that match
+ * 
+ *)
+val all_const_subterms :
+  ('a -> types -> bool) ->
+  ('a -> 'a) ->
+  'a ->
+  types ->
+  types list
+
 (* --- Substitution --- *)
 
 (* 
