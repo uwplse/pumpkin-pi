@@ -75,20 +75,40 @@ Find ornament tree treeV as orn_tree_treeV.
 
 (** * Basic functions on trees: height and cardinal *)
 
+(* ORN: Ported to induction from match *)
 Definition height (m : t) : int :=
-  match m with
-  | Leaf => 0
-  | Node _ _ _ _ h => h
-  end.
+  tree_rect
+    (P := fun _ : t => int)
+    0
+    (fun _ _ _ _ _ h _ => h)
+    m.
 
-Fixpoint cardinal (m : t) : nat :=
-  match m with
-   | Leaf => 0%nat
-   | Node l _ _ r _ => S (cardinal l + cardinal r)
-  end.
+(* ORN: version over sigma tv *)
+Apply ornament orn_tree_treeV orn_tree_treeV_inv in height as heightV_auto.
+Reduce ornament orn_tree_treeV orn_tree_treeV_inv in heightV_auto as heightV.
+
+(* ORN: Ported to induction from match *)
+Definition cardinal (m : t) : nat :=
+  tree_rect
+    (P := fun _ : t => nat)
+    0%nat
+    (fun _ IHl _ _ _ IHr _ => S (IHl + IHr))
+    m.
+
+(* ORN: version over sigma tv *)
+Apply ornament orn_tree_treeV orn_tree_treeV_inv in cardinal as cardinalV_auto.
+Reduce ornament orn_tree_treeV orn_tree_treeV_inv in cardinalV_auto as cardinalV.
+
+(* ORN: Note that this is just the index *)
+Theorem testOrnCardinal:
+  forall (x : sigT tv), cardinalV x = projT1 x.
+Proof.
+  intros. induction x. induction p; unfold cardinalV; simpl; auto.
+Qed.  
 
 (** * Empty Map *)
 
+(* TODO left off here *)
 Definition empty := Leaf.
 
 (** * Emptyness test *)
