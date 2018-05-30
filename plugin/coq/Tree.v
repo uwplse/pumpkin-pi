@@ -167,8 +167,6 @@ Reduce ornament orn_tree_treeV orn_tree_treeV_inv in findV_auto as findV.
 Definition create l x e r :=
    Node l x e r (max (height l) (height r) + 1).
 
-Eval compute in create.
-
 (* ORN: No induction, so higher lift *)
 Higher lift orn_tree_treeV orn_tree_treeV_inv in create as createV.
 
@@ -177,39 +175,65 @@ Higher lift orn_tree_treeV orn_tree_treeV_inv in create as createV.
 
 Definition assert_false := create.
 
-Fixpoint bal l x d r :=
+(* ORN: No induction, so higher lift *)
+Higher lift orn_tree_treeV orn_tree_treeV_inv in assert_false as assert_falseV.
+
+(* ORN: Ported to induction & factored out into functions *)
+Definition bal_l_r l x d r ll lx ld lr :=
+  tree_rect
+    (P := fun _ => tree)
+    (assert_false l x d r)
+    (fun lrl IHrl lrx lrd lrr IHrr _ =>
+      create (create ll lx ld lrl) lrx lrd (create lrr x d r))
+    lr.
+
+Definition bal_l l x d r :=
+  tree_rect
+    (P := fun _ => tree)
+    (assert_false l x d r)
+    (fun ll IHl lx ld lr IHr _ =>
+      if ge_lt_dec (height ll) (height lr) then
+        create ll lx ld (create lr x d r)
+      else
+        bal_l_r l x d r ll lx ld lr)
+    l.
+
+Definition bal_r_l l x d r rl rx rd rr :=
+  tree_rect
+    (P := fun _ => tree)
+    (assert_false l x d r)
+    (fun rll IHl rlx rld rlr IHr _ =>
+      create (create l x d rll) rlx rld (create rlr rx rd rr))
+    rl.
+
+Definition bal_r l x d r :=
+  tree_rect
+    (P := fun _ => tree)
+    (assert_false l x d r)
+    (fun rl IHl rx rd rr IHr _ =>
+      if ge_lt_dec (height rr) (height rl) then
+        create (create l x d rl) rx rd rr
+      else
+        bal_r_l l x d r rl rx rd rr)
+    r.
+
+Definition bal l x d r :=
   let hl := height l in
   let hr := height r in
   if gt_le_dec hl (hr+2) then
-    match l with
-     | Leaf => assert_false l x d r
-     | Node ll lx ld lr _ =>
-       if ge_lt_dec (height ll) (height lr) then
-         create ll lx ld (create lr x d r)
-       else
-         match lr with
-          | Leaf => assert_false l x d r
-          | Node lrl lrx lrd lrr _ =>
-              create (create ll lx ld lrl) lrx lrd (create lrr x d r)
-         end
-    end
+    bal_l l x d r
   else
     if gt_le_dec hr (hl+2) then
-      match r with
-       | Leaf => assert_false l x d r
-       | Node rl rx rd rr _ =>
-         if ge_lt_dec (height rr) (height rl) then
-            create (create l x d rl) rx rd rr
-         else
-           match rl with
-            | Leaf => assert_false l x d r
-            | Node rll rlx rld rlr _ =>
-                create (create l x d rll) rlx rld (create rlr rx rd rr)
-           end
-      end
+      bal_r l x d r
     else
       create l x d r.
 
+(* ORN: Port each to treeV *)
+Apply ornament orn_tree_treeV orn_tree_treeV_inv in bal_l_r as bal_l_rV_auto.
+Reduce ornament orn_tree_treeV orn_tree_treeV_inv in bal_l_rV_auto as bal_l_rV_red.
+Print bal_l_rV_red.
+
+Higher lift orn_tree_treeV orn_tree_treeV_inv in bal_l_rV_red as bal_l_rV.
 (** * Insertion *)
 
 Fixpoint add x d m :=

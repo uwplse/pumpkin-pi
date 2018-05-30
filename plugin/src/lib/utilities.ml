@@ -41,6 +41,14 @@ let rec take_split (i : int) (l : 'a list) : ('a list * 'a list) =
        let (before, after) = take_split (i - 1) tl in
        (h :: before, after)
 
+(*
+ * Remove duplicates from a list
+ *)
+let rec unique (eq : 'a -> 'a -> bool)  (l : 'a list) : 'a list =
+  match l with
+  | [] -> []
+  | h :: t -> h :: (List.filter (fun a -> not (eq h a)) (unique eq t))
+
 (* Map f over a tuple *)
 let map_tuple (f : 'a -> 'b) ((a1, a2) : ('a * 'a)) : ('b * 'b) =
   (f a1, f a2)

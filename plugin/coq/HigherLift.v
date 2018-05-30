@@ -56,6 +56,7 @@ Qed.
 
 (* over flectors *)
 
+Print app_nil_r_vectF_red.
 Higher lift orn_flist_flector_nat orn_flist_flector_nat_inv in app_nil_r_vectF_red as app_nil_r_vectF_red_higher.
 
 Print app_nil_r_vectF_red_higher.

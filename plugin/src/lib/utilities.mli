@@ -30,6 +30,11 @@ val take_except : int -> 'a list -> 'a list
  * Split a list l into (l1, l2) where |l1| = n and |l2| = |l| - n
  *)
 val take_split : int -> 'a list -> ('a list * 'a list)
+
+(*
+ * Remove duplicates from a list
+ *)
+val unique : ('a -> 'a -> bool) -> 'a list -> 'a list
                                      
 (*
  * [min, max)
