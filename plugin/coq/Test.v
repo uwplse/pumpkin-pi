@@ -133,7 +133,7 @@ Definition isEven (n : nat) :=
     (fun (_ : nat) => bool)
     true
     (fun (_ : nat) (IH : bool) =>
-      negb IH)
+      negb IH)  
     n. 
 End natEven.
 
@@ -215,7 +215,7 @@ Inductive bintreeV (A : Type) : nat -> Type :=
     bintreeV A 0
 | nodeV :
     forall (n m : nat),
-      bintreeV A n -> A -> bintreeV A m -> bintreeV A (n + m).
+      bintreeV A n -> A -> bintreeV A m -> bintreeV A (S (n + m)).
 
 Definition packed_bintreeV (T : Type) :=
   sigT (A := nat) (fun (n : nat) => bintreeV T n).
@@ -230,7 +230,7 @@ Definition bintree_size (A : Type) (tr : bintree A) :=
     (fun (_ : bintree A) => nat)
     0
     (fun (l : bintree A) (nl : nat) (a : A) (r : bintree A) (nr : nat) =>
-      nl + nr)
+      S (nl + nr))
     tr.
 
 Theorem test_index_3:

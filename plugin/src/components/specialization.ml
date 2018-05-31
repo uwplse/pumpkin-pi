@@ -284,6 +284,9 @@ let compose_ih evd npms ip p comp =
 
 (*
  * Get all recursive constants
+ * TODO instead of doing this and refolding, in some cases
+ * we should be able to just avoid unfolding these, at least for
+ * higher lifted functions
  *)
 let rec all_recursive_constants env trm =
   let consts = all_const_subterms (fun _ _ -> true) (fun u -> u) () trm in
@@ -416,10 +419,21 @@ let meta_reduce l =
 (*
  * Meta-reduction of an applied ornament to simplify and then rewrite
  * in terms of the ornament and indexer applied to the specific arguments
+ *
+ * !!! TODO should be able to avoid unfolding/refolding if we assume
+ * we always have recursive ornaments
  *)
 let reduce_ornament_f l env evd orn trm args =
   map_term_env_if
-    (fun _ _ trm -> applies orn trm)
+    (fun en _ trm ->
+      if applies orn trm then (* TODO unsure if general *)
+        let arg = last_arg trm in
+        if isApp arg then
+          not (Option.has_some (search_lifted en (first_fun arg)))
+        else
+          true
+      else
+        false)
     (fun env args trm ->
       fold_back_constants
         env
@@ -562,7 +576,7 @@ let reduce_constr_body env evd l (from_typ, to_typ) index_args body =
     map_if
       (fold_back_constants env (reduce_nf env))
       (*(List.length index_args = 0 && not l.is_indexer)*)
-      false (* TODO later: right now, have superficial dependencies remaining without this line, but they compute down to the right things; to get this working again need to fix alg that folds back up well*)
+      false (* TODO superficial deps *)
       (map_unit_if
          (applies f)
          (fun trm ->
@@ -973,7 +987,12 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
              red
          else
            let fu' = sub_rec en en' index_type fu in
-           mkApp (fu', args')
+           let arg = last_arg tr in
+           if applies (lift_to l) tr && isApp arg && Option.has_some (search_lifted en (first_fun arg)) then
+             (* TODO not sufficiently general? But again should just avoid this step once this works *)
+             last_arg (mkApp (fu', args'))
+           else
+             mkApp (fu', args')
       | Case (ci, ct, m, bs) ->
          let ct' = sub_rec en en' index_type ct in
          let m' = sub_rec en en' index_type m in

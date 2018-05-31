@@ -10,10 +10,12 @@ Require Import Reduce.
  *)
 
 Print app_nil_r.
+
 Print app_nil_r_vect_red.
 
-
 Higher lift orn_list_vector orn_list_vector_inv in app_nil_r_vect_red as app_nil_r_vect_red_higher.
+
+Print app_nil_r_vect_red_higher.
 
 Theorem test_app_nil_r_vect_exact:
   forall (A : Type) (pv : sigT (vector A)),

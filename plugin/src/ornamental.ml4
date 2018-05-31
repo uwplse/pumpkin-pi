@@ -90,9 +90,9 @@ let higher_lifting n d_orn d_orn_inv d_old =
   let orn = initialize_promotion env evd promote forget in
   let l = initialize_lifting orn is_fwd in
   let (higher_lifted, _) = higher_lift env evd l c_o in
-  debug_term env higher_lifted "higher_lifted";
   (* TODO indexing proof *)
   define_term n evd higher_lifted;
+  declare_lifted evd c_o (make_constant n);
   Printf.printf "Defined higher lifting %s.\n\n" (string_of_id n);
   ()
 
