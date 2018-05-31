@@ -664,7 +664,7 @@ let compose_c evd npms_g ip_g p assum_ind post_assums (comp : composition) =
         (* it's still unclear to me why local_max is what it is *)
         let local_max = directional l 0 (List.length post_assums) in
         let f = shift_local local_max (offset2 env env_g) c_g in
-        debug_term env f "f";
+        let assum = shift_local local_max (offset2 env env_g) (mkRel assum_ind) in
         let f =
           map_term_env_if
             (fun _ -> eq_constr)
@@ -672,9 +672,10 @@ let compose_c evd npms_g ip_g p assum_ind post_assums (comp : composition) =
               forget_assum e evd l t)
             shift
             env
-            (mkRel assum_ind)
+            assum
             f
         in
+        debug_term env f "f'";
         (* TODO! right now, doesn't work in tree because 
            we have forgotten to forget the argument to induction *)
         let lift_args = map_directional (pack_ihs c_f_old) project_ihs l in
