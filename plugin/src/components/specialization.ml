@@ -344,14 +344,14 @@ let reduce_existT_app l evd orn env arg trm =
   let fold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
   let fold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
   let unfolded_index_red = reduce_nf env unfolded_ex.index in
-  debug_env env "env";
-  debug_term env unfolded_ex.unpacked "unfolded";
   let unfolded_unpacked_red = reduce_nf env unfolded_ex.unpacked in
   let index = fold_index unfolded_index_red in
   let unpacked = fold_index (fold_value unfolded_unpacked_red) in
-  let index = if eq_constr index unfolded_index_red then unfolded_ex.index else index in
-  let unpacked = if eq_constr unpacked unfolded_unpacked_red then unfolded_ex.unpacked else unpacked in
-  pack_existT { unfolded_ex with index; unpacked }
+  if eq_constr index unfolded_index_red && eq_constr unpacked unfolded_unpacked_red then
+    (* don't reduce *)
+    trm
+  else
+    pack_existT { unfolded_ex with index; unpacked }
 
 (*
  * Meta-reduction of an applied ornament in the indexer case.
