@@ -69,11 +69,17 @@ let reduce_ornament n d_orn d_orn_inv d_old =
   (if Option.has_some indexer then
      let indexer_o = Option.get indexer in
      let l = { l with is_indexer = true } in
-     let (indexer_n, _) = internalize env evd idx_n l indexer_o in
-     define_term idx_n evd indexer_n;
-     Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
+     debug_term env indexer_o "indexer_o";
+     try
+       let (indexer_n, _) = internalize env evd idx_n l indexer_o in
+       debug_term env indexer_n "indexer_n";
+       define_term idx_n evd indexer_n;
+       Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
+     with _ ->
+       Printf.printf "Failed to define indexer %s. Ignoring for now.\n\n" (string_of_id idx_n)
    else
      ());
+  debug_term env trm_n "trm_n";
   define_term n evd trm_n;
   declare_lifted evd c_o (make_constant n);
   Printf.printf "Defined reduced ornamened function %s.\n\n" (string_of_id n);

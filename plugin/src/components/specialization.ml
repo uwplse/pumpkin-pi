@@ -675,12 +675,8 @@ let compose_c evd npms_g ip_g p assum_ind post_assums (comp : composition) =
             assum
             f
         in
-        debug_term env f "f'";
-        (* TODO! right now, doesn't work in tree because 
-           we have forgotten to forget the argument to induction *)
         let lift_args = map_directional (pack_ihs c_f_old) project_ihs l in
         let args = lift_args l env evd (from_typ, to_typ) c_g in
-        debug_terms env args "args";
         reduce_term env (mkAppl (f, args))
       else
         let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
@@ -729,6 +725,8 @@ let build_lifted_indexer evd idx_n assum_ind comp =
 let rec compose_inductive evd idx_n post_assums assum_ind comp =
   let (env_g, g) = comp.g in
   let (env_f, f) = comp.f in
+  debug_term env_g g "g";
+  debug_term env_f f "f";
   let f_app = deconstruct_eliminator env_f evd f in
   let g_app = deconstruct_eliminator env_g evd g in
   let npms = List.length g_app.pms in
@@ -741,6 +739,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind comp =
   debug_terms env_f cs "cs";
   let curried_args = mk_n_rels (arity p - List.length f_app.final_args) in
   let final_args = List.append f_app.final_args curried_args in
+  debug_terms env_f final_args "final_args";
   (apply_eliminator {f_app with p; cs; final_args}, indexer)
 
 (*
@@ -861,6 +860,7 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
          let is_g = g_promotes || g_forgets || g_is_indexer in
          let comp = configure_compose_inductive evd assum_ind l (f, g) is_g in
          let comped = compose_inductive evd idx_n post_assums assum_ind comp in
+         debug_term (fst comp.f) (fst comped) "comped";
          (comped, fst comp.f, true)
        else
          let t = shift_by assum_ind t in
@@ -896,14 +896,18 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
 let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
   let (assum_ind, fs) = factor_ornamented l.orn env evd trm in
   let ((body, indexer), env_body, _) = compose_orn_factors evd l assum_ind idx_n fs in
+  debug_term env_body body "body";
   let reconstructed = reconstruct_lambda env_body body in
+  debug_term env reconstructed "reconstructed";
   let rec pack_hypos en tr = (* TODO move, explain *)
+    debug_term en tr "tr";
     match kind_of_term tr with
     | Lambda (n, t, b) ->
        let t' =
          map_term_env_if
-           (fun _ -> eq_constr) 
+           (fun _ assum tr -> try eq_constr assum tr with _ -> false) 
            (fun en assum tr ->
+             debug_term en tr "!! tr";
              let typ_app = on_type dest_sigT en evd tr in
              let index_type = typ_app.index_type in
              let packer = typ_app.packer in
@@ -917,7 +921,9 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
        in mkLambda (n, t', pack_hypos (push_local (n, t') en) b)
     | _ ->
        tr
-  in (map_forward (pack_hypos env_body) l reconstructed, indexer)
+  in let foo = map_forward (pack_hypos env_body) l reconstructed in
+     debug_term env_body foo "foo";
+      (map_forward (pack_hypos env_body) l reconstructed, indexer)
 
 (* --- Higher lifting --- *)
 
