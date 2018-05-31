@@ -543,11 +543,11 @@ let reduce_constr_body env evd l (from_typ, to_typ) index_args body =
   let red_body =
     map_if
       (reduce_nf env)
-      (*(List.length index_args = 0 && not l.is_indexer)*)
+      (List.length index_args = 0 && not l.is_indexer)
       (* TODO w/o above line we get superficial dependencies on old term, but
          they all reduce; should cope with in some way but just an impl.
          detail for now, though it's a workaround for refolding *)
-      false
+      (*false*)
       (map_unit_if
          (applies f)
          (fun trm ->
@@ -979,7 +979,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
          let typ_args = non_index_typ_args l en evd tr in
          let app = mkAppl (lift_to l, snoc tr typ_args) in
          let pre = pre_reduce l en evd app in
-         pre (* TODO check w/ nat *) (* TODO same w/ shallow deps *)
+         reduce_nf en pre (* TODO check w/ nat *) (* TODO same w/ shallow deps *)
       | _ ->
          tr
   in sub_rec env env index_type trm
