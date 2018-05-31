@@ -574,9 +574,9 @@ let reduce_constr_body env evd l (from_typ, to_typ) index_args body =
   let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
   let red_body =
     map_if
-      (fold_back_constants env (reduce_nf env))
+      (fold_back_constants env (fun t -> Reductionops.whd_all env evd (EConstr.of_constr t))))
       (*(List.length index_args = 0 && not l.is_indexer)*)
-      false (* TODO superficial deps *)
+      false (* TODO superficial deps; avoid unfolding inner things here/unfold only iff constr *)
       (map_unit_if
          (applies f)
          (fun trm ->
