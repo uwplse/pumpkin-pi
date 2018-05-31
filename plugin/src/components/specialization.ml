@@ -406,10 +406,10 @@ let reduce_ornament_f l env evd orn trm args =
       fold_back_constants
         env
         (fun trm ->
-          List.fold_left
-            (fun trm arg -> meta_reduce l evd orn env arg trm)
-            trm
-            args)
+          List.fold_right
+            (meta_reduce l evd orn env)
+            args
+            trm)
         trm)
     shift_all
     env
@@ -866,7 +866,11 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
   in (map_forward (pack_hypos env_body) l reconstructed, indexer)
 
 (* --- Higher lifting --- *)
-    
+
+(*
+ * TODO in reduction step: avoid reducing anything that is higher-lifted!
+ *)
+       
 (*
  * Substitute every term of the type we are promoting/forgetting from 
  * with a term with the corresponding promoted/forgotten type
