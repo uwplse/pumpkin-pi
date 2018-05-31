@@ -250,20 +250,25 @@ Higher lift orn_tree_treeV orn_tree_treeV_inv in bal_rV_red as bal_rV.
 
 Higher lift orn_tree_treeV orn_tree_treeV_inv in bal as balV.
 
-Print balV.
-
 (** * Insertion *)
 
-Fixpoint add x d m :=
-  match m with
-   | Leaf => Node Leaf x d Leaf 1
-   | Node l y d' r h =>
+(* ORN: Ported to induction *)
+Definition add x d m :=
+  tree_rect
+    (P := fun _ => tree)
+    (Node Leaf x d Leaf 1)
+    (fun l IHl y d' r IHr h =>
       match X.compare x y with
-         | LT _ => bal (add x d l) y d' r
+         | LT _ => bal IHl y d' r
          | EQ _ => Node l y d r h
-         | GT _ => bal l y d' (add x d r)
-      end
-  end.
+         | GT _ => bal l y d' IHr
+      end)
+    m.
+
+(* ORN: Lifted *)
+Apply ornament orn_tree_treeV orn_tree_treeV_inv in add as addV_auto.
+Reduce ornament orn_tree_treeV orn_tree_treeV_inv in addV_auto as addV_red.
+Higher lift orn_tree_treeV orn_tree_treeV_inv in addV_red as addV.
 
 (** * Extraction of minimum binding
 

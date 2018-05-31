@@ -709,12 +709,16 @@ let build_lifted_indexer evd idx_n assum_ind comp =
   let l = comp.l in
   let (env, f) = comp.f in
   if l.is_fwd && comp.is_g && not l.is_indexer then
-    let indexer = Option.get l.orn.indexer in
-    let (env_b, b) = zoom_lambda_term env f in    
-    let index_args = snoc b (on_type unfold_args env_b evd b) in
-    let indexer_app = mkAppl (indexer, index_args) in
-    let unpacked = reconstruct_lambda env_b indexer_app in
-    ({ comp with l }, Some unpacked)
+    try
+      let indexer = Option.get l.orn.indexer in
+      let (env_b, b) = zoom_lambda_term env f in    
+      let index_args = snoc b (on_type unfold_args env_b evd b) in
+      let indexer_app = mkAppl (indexer, index_args) in
+      let unpacked = reconstruct_lambda env_b indexer_app in
+      ({ comp with l }, Some unpacked)
+    with _ ->
+      Printf.printf "%s\n\n" "WARNING: Failed to define indexer";
+      (comp, None)
   else
     (comp, None)
       
