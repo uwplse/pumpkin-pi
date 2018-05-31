@@ -655,8 +655,12 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
         (* it's still unclear to me why local_max is what it is *)
         let local_max = directional l 0 (List.length post_assums) in
         let f = shift_local local_max (offset2 env env_g) c_g in
+        debug_term env f "f";
+        (* TODO! right now, doesn't work in tree because 
+           we have forgotten to forget the argument to induction *)
         let lift_args = map_directional (pack_ihs c_f_old) project_ihs l in
         let args = lift_args l env evd (from_typ, to_typ) c_g in
+        debug_terms env args "args";
         reduce_term env (mkAppl (f, args))
       else
         let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
@@ -714,6 +718,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind comp =
   let gs = (env_g, g_app.cs) in
   let fs = (env_f, f_app.cs) in
   let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
+  debug_terms env_f cs "cs";
   let curried_args = mk_n_rels (arity p - List.length f_app.final_args) in
   let final_args = List.append f_app.final_args curried_args in
   (apply_eliminator {f_app with p; cs; final_args}, indexer)

@@ -234,10 +234,28 @@ Definition bal l x d r :=
 (* ORN: Port each to treeV *)
 Apply ornament orn_tree_treeV orn_tree_treeV_inv in bal_l_r as bal_l_rV_auto.
 Reduce ornament orn_tree_treeV orn_tree_treeV_inv in bal_l_rV_auto as bal_l_rV_red.
-Print bal_l_rV_red.
-(* This shouldn't reduce this low; fix *)
-
 Higher lift orn_tree_treeV orn_tree_treeV_inv in bal_l_rV_red as bal_l_rV.
+
+(* TODO must forget arg to induction to get this working 
+Apply ornament orn_tree_treeV orn_tree_treeV_inv in bal_l as bal_lV_auto.
+Reduce ornament orn_tree_treeV orn_tree_treeV_inv in bal_lV_auto as bal_lV_red.
+Higher lift orn_tree_treeV orn_tree_treeV_inv in bal_lV_red as bal_lV.
+*)
+
+Apply ornament orn_tree_treeV orn_tree_treeV_inv in bal_r_l as bal_r_lV_auto.
+Reduce ornament orn_tree_treeV orn_tree_treeV_inv in bal_r_lV_auto as bal_r_lV_red.
+Higher lift orn_tree_treeV orn_tree_treeV_inv in bal_r_lV_red as bal_r_lV.
+
+(* TODO must forget arg to induction to get this working 
+Apply ornament orn_tree_treeV orn_tree_treeV_inv in bal_r as bal_rV_auto.
+Reduce ornament orn_tree_treeV orn_tree_treeV_inv in bal_rV_auto as bal_rV_red.
+Higher lift orn_tree_treeV orn_tree_treeV_inv in bal_rV_red as bal_rV.
+*)
+
+(* TODO must get above working to get this going 
+Higher lift orn_tree_treeV orn_tree_treeV_inv in bal as balV.
+*)
+
 (** * Insertion *)
 
 Fixpoint add x d m :=
