@@ -347,8 +347,8 @@ let reduce_existT_app l evd orn env arg trm =
   let fold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
   let fold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
   let unfolded_index_red = reduce_nf env unfolded_ex.index in
-  let unfolded_unpacked_red = reduce_nf env unfolded_ex.unpacked in
   let index = fold_index unfolded_index_red in
+  let unfolded_unpacked_red = reduce_nf env unfolded_ex.unpacked in
   let unpacked = fold_index (fold_value unfolded_unpacked_red) in
   if eq_constr index unfolded_index_red && eq_constr unpacked unfolded_unpacked_red then
     (* don't reduce *)
@@ -415,7 +415,7 @@ let meta_reduce l =
   else
     (* rewrite inside of an eliminator of a sigT *)
     reduce_sigT_elim_app l
-
+                         
 (*
  * Meta-reduction of an applied ornament to simplify and then rewrite
  * in terms of the ornament and indexer applied to the specific arguments
@@ -574,7 +574,7 @@ let reduce_constr_body env evd l (from_typ, to_typ) index_args body =
   let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
   let red_body =
     map_if
-      (fold_back_constants env (fun t -> Reductionops.whd_all env evd (EConstr.of_constr t))))
+      (fold_back_constants env (reduce_nf env))
       (*(List.length index_args = 0 && not l.is_indexer)*)
       false (* TODO superficial deps; avoid unfolding inner things here/unfold only iff constr *)
       (map_unit_if
@@ -895,7 +895,11 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
   in (map_forward (pack_hypos env_body) l reconstructed, indexer)
 
 (* --- Higher lifting --- *)
-    
+
+(*
+ * TODO in reduction step: avoid reducing anything that is higher-lifted!
+ *)
+       
 (*
  * Substitute every term of the type we are promoting/forgetting from 
  * with a term with the corresponding promoted/forgotten type
@@ -976,7 +980,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
            let orn_args = filter_orn l en evd (from_type, to_type) red_args in
            let red =
              if List.length orn_args = 0 then
-               pre (* TODO same w/ superficial *)
+               pre (* TODO same w/ superficial deps *)
              else
                let red = reduce_ornament_f l en evd (lift_to l) pre orn_args in
                map_unit_if (applies (lift_back l)) last_arg (map_unit_if (applies (lift_to l)) last_arg red)
@@ -1013,7 +1017,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
          let typ_args = non_index_typ_args l en evd tr in
          let app = mkAppl (lift_to l, snoc tr typ_args) in
          let pre = pre_reduce l en evd app in
-         pre (* TODO check w/ nat *) (* TODO same w/ superficial *)
+         reduce_nf en pre (* TODO check w/ nat *)
       | _ ->
          tr
   in sub_rec env env index_type trm
