@@ -103,6 +103,7 @@ Qed.
  * Application
  *)
 
+Print append_vect_auto.
 Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red. 
 
 Print append_vect_red.
@@ -113,6 +114,9 @@ Theorem test_append_vect_red_index:
 Proof.
   intros. reflexivity.
 Qed.
+
+Print plus_vect.
+Print append_vect_red_index.
 
 Theorem test_append_vect_red_index_correct_unpacked:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),

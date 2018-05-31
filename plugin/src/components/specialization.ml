@@ -281,6 +281,51 @@ let compose_ih evd npms ip p comp =
        c
   in compose env_f p c_f
 
+
+(*
+ * Get all recursive constants
+ * TODO instead of doing this and refolding, in some cases
+ * we should be able to just avoid unfolding these, at least for
+ * higher lifted functions
+ *)
+let rec all_recursive_constants env trm =
+  let consts = all_const_subterms (fun _ _ -> true) (fun u -> u) () trm in
+  let non_axioms =
+    List.map
+      Option.get
+      (List.filter
+         (Option.has_some)
+         (List.map
+            (fun c ->
+              try
+                let def = unwrap_definition env c in
+                if not (eq_constr def c || isInd def) then
+                  Some (c, def)
+                else
+                  None
+              with _ ->
+                None)
+            consts))
+  in
+  let non_axiom_consts = List.map fst non_axioms in
+  let defs = List.map snd non_axioms in
+  let flat_map f l = List.flatten (List.map f l) in
+  unique
+    eq_constr
+    (List.append non_axiom_consts (flat_map (all_recursive_constants env) defs))
+                         
+(* 
+ * Fold back constants after applying a function
+ * Necessary for current higher lifting implementation
+ * Workaround may not always work yet
+ *)
+let fold_back_constants env f trm =
+  List.fold_left
+    (fun red lifted ->
+      all_conv_substs env (lifted, lifted) red)
+    (f trm)
+    (all_recursive_constants env trm)
+             
 (*
  * Meta-reduction of an applied ornament in the forward direction in the
  * non-indexer case, when the ornament application produces an existT term.
@@ -306,10 +351,9 @@ let reduce_existT_app l evd orn env arg trm =
   let unfolded_unpacked_red = reduce_nf env unfolded_ex.unpacked in
   let unpacked = fold_index (fold_value unfolded_unpacked_red) in
   if eq_constr index unfolded_index_red && eq_constr unpacked unfolded_unpacked_red then
-    (* nothing to rewrite *)
+    (* don't reduce *)
     trm
   else
-    (* pack the rewritten term *)
     pack_existT { unfolded_ex with index; unpacked }
 
 (*
@@ -371,37 +415,25 @@ let meta_reduce l =
   else
     (* rewrite inside of an eliminator of a sigT *)
     reduce_sigT_elim_app l
-
-(*
- * Get all recursive constants
- *)
-let rec all_recursive_constants env trm =
-  let consts = all_const_subterms (fun _ trm -> Option.has_some (search_lifted env trm)) (fun u -> u) () trm in
-  let defs = List.map (unwrap_definition env) consts in
-  let flat_map f l = List.flatten (List.map f l) in
-  unique
-    eq_constr
-    (List.append consts (flat_map (all_recursive_constants env) defs))
-                         
-(* 
- * Fold back constants after applying a function
- * Necessary for current higher lifting implementation
- * Workaround may not always work yet
- *)
-let fold_back_constants env f trm =
-  List.fold_left
-    (fun red lifted ->
-      all_conv_substs env (lifted, lifted) red)
-    (f trm)
-    (all_recursive_constants env trm)
                          
 (*
  * Meta-reduction of an applied ornament to simplify and then rewrite
  * in terms of the ornament and indexer applied to the specific arguments
+ *
+ * !!! TODO should be able to avoid unfolding/refolding if we assume
+ * we always have recursive ornaments
  *)
 let reduce_ornament_f l env evd orn trm args =
   map_term_env_if
-    (fun _ _ trm -> applies orn trm)
+    (fun en _ trm ->
+      if applies orn trm then (* TODO unsure if general *)
+        let arg = last_arg trm in
+        if isApp arg then
+          not (Option.has_some (search_lifted en (first_fun arg)))
+        else
+          true
+      else
+        false)
     (fun env args trm ->
       fold_back_constants
         env
@@ -542,12 +574,9 @@ let reduce_constr_body env evd l (from_typ, to_typ) index_args body =
   let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
   let red_body =
     map_if
-      (reduce_nf env)
-      (List.length index_args = 0 && not l.is_indexer)
-      (* TODO w/o above line we get superficial dependencies on old term, but
-         they all reduce; should cope with in some way but just an impl.
-         detail for now, though it's a workaround for refolding *)
-      (*false*)
+      (fold_back_constants env (reduce_nf env))
+      (*(List.length index_args = 0 && not l.is_indexer)*)
+      false (* TODO superficial deps; avoid unfolding inner things here/unfold only iff constr *)
       (map_unit_if
          (applies f)
          (fun trm ->
@@ -962,7 +991,12 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
              red
          else
            let fu' = sub_rec en en' index_type fu in
-           mkApp (fu', args')
+           let arg = last_arg tr in
+           if applies (lift_to l) tr && isApp arg && Option.has_some (search_lifted en (first_fun arg)) then
+             (* TODO not sufficiently general? But again should just avoid this step once this works *)
+             last_arg (mkApp (fu', args'))
+           else
+             mkApp (fu', args')
       | Case (ci, ct, m, bs) ->
          let ct' = sub_rec en en' index_type ct in
          let m' = sub_rec en en' index_type m in
@@ -983,7 +1017,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
          let typ_args = non_index_typ_args l en evd tr in
          let app = mkAppl (lift_to l, snoc tr typ_args) in
          let pre = pre_reduce l en evd app in
-         reduce_nf en pre (* TODO check w/ nat *) (* TODO same w/ shallow deps *)
+         reduce_nf en pre (* TODO check w/ nat *)
       | _ ->
          tr
   in sub_rec env env index_type trm

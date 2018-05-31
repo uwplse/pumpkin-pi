@@ -178,7 +178,10 @@ Definition assert_false := create.
 (* ORN: No induction, so higher lift *)
 Higher lift orn_tree_treeV orn_tree_treeV_inv in assert_false as assert_falseV.
 
+Print assert_falseV.
+
 (* ORN: Ported to induction & factored out into functions *)
+
 Definition bal_l_r l x d r ll lx ld lr :=
   tree_rect
     (P := fun _ => tree)
@@ -232,6 +235,7 @@ Definition bal l x d r :=
 Apply ornament orn_tree_treeV orn_tree_treeV_inv in bal_l_r as bal_l_rV_auto.
 Reduce ornament orn_tree_treeV orn_tree_treeV_inv in bal_l_rV_auto as bal_l_rV_red.
 Print bal_l_rV_red.
+(* This shouldn't reduce this low; fix *)
 
 Higher lift orn_tree_treeV orn_tree_treeV_inv in bal_l_rV_red as bal_l_rV.
 (** * Insertion *)

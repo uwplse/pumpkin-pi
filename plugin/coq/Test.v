@@ -133,7 +133,7 @@ Definition isEven (n : nat) :=
     (fun (_ : nat) => bool)
     true
     (fun (_ : nat) (IH : bool) =>
-      negb IH)
+      negb IH)  
     n. 
 End natEven.
 

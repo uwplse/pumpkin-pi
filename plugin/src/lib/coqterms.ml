@@ -279,7 +279,18 @@ let delta (env : env) (trm : types) =
   EConstr.to_constr
     Evd.empty
     (Reductionops.whd_delta env Evd.empty (EConstr.of_constr trm))
-                         
+
+(*
+ * There's a part of the env that has opacity info,
+ * so if you want to make some things opaque, can add them
+ * get env, store it, call set_strategy w/ opaque,
+ * then revert later
+ * 
+ * See environ.mli
+ * set_oracle
+ * set_strategy
+ *)
+    
 (* nf_all *)
 let reduce_nf (env : env) (trm : types) : types =
   EConstr.to_constr
