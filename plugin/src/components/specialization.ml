@@ -344,8 +344,9 @@ let reduce_existT_app l evd orn env arg trm =
   let fold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
   let fold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
   let unfolded_index_red = reduce_nf env unfolded_ex.index in
-  debug_term env (fold_back_constants env (fun trm -> let ex = dest_existT unfolded in unfolded_ex.unpacked) trm) "unpacked";
-  let unfolded_unpacked_red = try reduce_nf env unfolded_ex.unpacked with _ -> unfolded_ex.unpacked in (* TODO why index out of bounds? *)
+  debug_env env "env";
+  debug_term env unfolded_ex.unpacked "unfolded";
+  let unfolded_unpacked_red = reduce_nf env unfolded_ex.unpacked in
   let index = fold_index unfolded_index_red in
   let unpacked = fold_index (fold_value unfolded_unpacked_red) in
   let index = if eq_constr index unfolded_index_red then unfolded_ex.index else index in
@@ -423,10 +424,10 @@ let reduce_ornament_f l env evd orn trm args =
       fold_back_constants
         env
         (fun trm ->
-          List.fold_left
-            (fun trm arg -> meta_reduce l evd orn env arg trm)
-            trm
-            args)
+          List.fold_right
+            (meta_reduce l evd orn env)
+            args
+            trm)
         trm)
     shift_all
     env
