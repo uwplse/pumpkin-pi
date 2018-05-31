@@ -236,11 +236,9 @@ Apply ornament orn_tree_treeV orn_tree_treeV_inv in bal_l_r as bal_l_rV_auto.
 Reduce ornament orn_tree_treeV orn_tree_treeV_inv in bal_l_rV_auto as bal_l_rV_red.
 Higher lift orn_tree_treeV orn_tree_treeV_inv in bal_l_rV_red as bal_l_rV.
 
-(* TODO must forget arg to induction to get this working 
 Apply ornament orn_tree_treeV orn_tree_treeV_inv in bal_l as bal_lV_auto.
 Reduce ornament orn_tree_treeV orn_tree_treeV_inv in bal_lV_auto as bal_lV_red.
 Higher lift orn_tree_treeV orn_tree_treeV_inv in bal_lV_red as bal_lV.
-*)
 
 Apply ornament orn_tree_treeV orn_tree_treeV_inv in bal_r_l as bal_r_lV_auto.
 Reduce ornament orn_tree_treeV orn_tree_treeV_inv in bal_r_lV_auto as bal_r_lV_red.

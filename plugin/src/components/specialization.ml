@@ -148,6 +148,15 @@ let apply_indexing_ornament env evd l trm =
 (* --- Meta-reduction --- *)
 
 (*
+ * Forget assum inside of a sigT type
+ *)
+let forget_assum env evd l assum =
+  let index_i = Option.get l.orn.index_i in
+  let typ = reduce_type env evd assum in
+  let typ_args = non_index_args l env typ in
+  mkAppl (lift_back l, snoc assum typ_args)
+
+(*
  * Pack arguments inside of a sigT type
  *)
 let pack_inner env evd l unpacked =
@@ -159,7 +168,7 @@ let pack_inner env evd l unpacked =
   let packer = abstract_arg env evd index_i typ in
   let ex = pack_existT {index_type; packer; index; unpacked} in
   mkAppl (lift_back l, snoc ex (remove_index index_i typ_args))
-         
+
 (*
  * Get the arguments for composing two applications of an induction
  * principle that are structurally the same when one is an ornament.
@@ -639,7 +648,7 @@ let pack_ihs c_f_old l env evd (from_typ, to_typ) c_g =
  *
  * For now, this does not handle nested induction.
  *)
-let compose_c evd npms_g ip_g p post_assums (comp : composition) =
+let compose_c evd npms_g ip_g p assum_ind post_assums (comp : composition) =
   let l = comp.l in
   let (env_g, c_g) = comp.g in
   let (env_f, c_f_old) = comp.f in
@@ -656,6 +665,16 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
         let local_max = directional l 0 (List.length post_assums) in
         let f = shift_local local_max (offset2 env env_g) c_g in
         debug_term env f "f";
+        let f =
+          map_term_env_if
+            (fun _ -> eq_constr)
+            (fun e a t ->
+              forget_assum e evd l t)
+            shift
+            env
+            (mkRel assum_ind)
+            f
+        in
         (* TODO! right now, doesn't work in tree because 
            we have forgotten to forget the argument to induction *)
         let lift_args = map_directional (pack_ihs c_f_old) project_ihs l in
@@ -678,13 +697,13 @@ let compose_c evd npms_g ip_g p post_assums (comp : composition) =
     c_f
 
 (* Map compose_c *)
-let compose_cs evd npms ip p post_assums comp gs fs =
+let compose_cs evd npms ip p assum_ind post_assums comp gs fs =
   let comp_cs =
     List.map2
       (fun c_g c_f -> { comp with g = (fst gs, c_g); f = (fst fs, c_f)})
       (snd gs)
       (snd fs)
-  in List.map (compose_c evd npms ip p post_assums) comp_cs
+  in List.map (compose_c evd npms ip p assum_ind post_assums) comp_cs
 
 (*
  * Build the lifted indexer, if applicable
@@ -717,7 +736,7 @@ let rec compose_inductive evd idx_n post_assums assum_ind comp =
   let p = compose_p evd npms assum_ind c_p in
   let gs = (env_g, g_app.cs) in
   let fs = (env_f, f_app.cs) in
-  let cs = compose_cs evd npms g_app.elim p post_assums comp gs fs in
+  let cs = compose_cs evd npms g_app.elim p assum_ind post_assums comp gs fs in
   debug_terms env_f cs "cs";
   let curried_args = mk_n_rels (arity p - List.length f_app.final_args) in
   let final_args = List.append f_app.final_args curried_args in
