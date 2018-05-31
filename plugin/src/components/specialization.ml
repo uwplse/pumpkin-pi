@@ -1023,7 +1023,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
          else
            let fu' = sub_rec en en' index_type fu in
            let arg = last_arg tr in
-           if applies (lift_to l) tr && isApp arg && Option.has_some (search_lifted en (first_fun arg)) then
+           if applies (lift_to l) tr then
              (* TODO not sufficiently general? But again should just avoid this step once this works *)
              last_arg (mkApp (fu', args'))
            else
