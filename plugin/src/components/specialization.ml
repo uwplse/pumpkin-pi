@@ -594,42 +594,44 @@ let project_value_from_ih l env evd ih =
  * where g is the promotion/forgetful function and f is already reduced,
  * we need to unpack applications of the function to the inductive
  * hypotheses. This function does that.
+ *
+ * TODO messy after extending, and need to get working for indices
+ * (need to pass right function, but if we do that then we lose this
+ * fuctionality, so we need both c_g and c_f for indexes)
  *)
 let unpack_ihs env evd f ihs trm l =
-  debug_term env trm "trm";
-  if l.is_indexer then
-    map_unit_if
-      (fun t ->
-        isApp t && applies f t && List.exists (eq_constr (last_arg t)) ihs)
-      last_arg
-      trm
-  else
+  let unpacked_body =
     map_term_env_if
       (fun en ihs t ->
         isApp t && Option.has_some (search_lifted en (first_fun t)))
       (fun en ihs t ->
-        debug_term en t "t";
         let f = first_fun t in
         let args =
           List.map
             (fun a ->
-              debug_term en a "a";
               map_term_env_if
                 (fun _ ihs t -> List.exists (eq_constr t) ihs)
                 (fun en _ t ->
-                  debug_term en t "t";
-                  debug_term en (reduce_type en evd t) "typ";
                   forget_assum en evd l t)
                 shift_all
                 en
                 ihs
                 a)
             (unfold_args t)
-        in debug_term en (mkAppl (f, args)) "app"; mkAppl (f, args))
+        in mkAppl (f, args))
       shift_all
       env
       ihs
       trm
+  in
+  if l.is_indexer then
+    map_unit_if
+      (fun t ->
+        isApp t && applies f t && List.exists (eq_constr (last_arg t)) ihs)
+      last_arg
+      unpacked_body
+  else
+    unpacked_body
                  
 (*
  * This reduces the body of an ornamented constructor to a reasonable term,
@@ -641,7 +643,6 @@ let reduce_constr_body env env_new evd l (from_typ, to_typ) index_args body =
   let orn_args = filter_orn l env evd (from_typ, to_typ) all_args in
   let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
   let pre = map_unit_if (applies f) (pre_reduce l env evd) body in
-  debug_term env pre "pre";
   let red_body =
     map_if
       (fold_back_constants env (reduce_nf env))
@@ -695,15 +696,11 @@ let compose_c evd npms_g ip_g p assum_ind post_assums (comp : composition) =
   let l = comp.l in
   let (env_g, c_g) = comp.g in
   let (env_f, c_f_old) = comp.f in
-  debug_term env_g c_g "c_g";
-  debug_term env_f c_f_old "c_f";
   let (orn_f, orn_g) = (l.orn.forget, l.orn.promote) in
   let promotion_type env trm = fst (on_type ind_of_promotion_type env evd trm) in
   let to_typ = zoom_sig (promotion_type env_f orn_f) in
   let from_typ = first_fun (promotion_type env_g orn_g) in
   let c_f = compose_ih evd npms_g ip_g p comp in
-  debug_term env_f c_f "c_f'";
-  let c =
   zoom_apply_lambda_n
     (nb_rel env_f)
     (fun env trm ->
@@ -723,33 +720,12 @@ let compose_c evd npms_g ip_g p assum_ind post_assums (comp : composition) =
         in_lambda_body
           (fun env_old _ ->
             let args = snoc trm (non_index_typ_args l env_old evd trm) in
-            (*let index_args' = indexes to_typ index_i (arity c_g) (directional l c_g c_f) in
-            let ihs = List.map fst (List.map snd index_args') in
-            debug_terms env args "args";
-            debug_terms env ihs "ihs";*)
-            let lifted_args = (* TODO move this *)
-              (*List.map
-                (fun arg ->
-                  List.map
-                    (map_term_env_if
-                       ()
-                       ()
-                    )
-                    ihs*)
-                    
-                  (*if on_type (is_or_applies from_typ) env evd arg then
-                    project_value_from_ih l env evd arg
-                  else
-                    arg)*)
-                args
-            in
-            let app = mkAppl (f, lifted_args) in
+            let app = mkAppl (f, args) in
             reduce_constr_body env_old env evd l (from_typ, to_typ) index_args app)
           env_f
           c_f_old)
     env_f
     c_f
-    in debug_term env_f c "c_(g o f)"; c
 
 (* Map compose_c *)
 let compose_cs evd npms ip p assum_ind post_assums comp gs fs =
