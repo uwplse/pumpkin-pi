@@ -148,13 +148,25 @@ let apply_indexing_ornament env evd l trm =
 (* --- Meta-reduction --- *)
 
 (*
- * Forget assum inside of a sigT type
+ * Forget/promote assumption for induction
  *)
 let forget_assum env evd l assum =
   let index_i = Option.get l.orn.index_i in
   let typ = reduce_type env evd assum in
   let typ_args = non_index_args l env typ in
   mkAppl (lift_back l, snoc assum typ_args)
+
+(*
+ * Forget/promote assumption for induction everywhere in a term
+ *)
+let forget_assums env evd l assum trm =
+  map_term_env_if
+    (fun _ -> eq_constr)
+    (fun e _ -> forget_assum e evd l)
+    shift
+    env
+    assum
+    trm
 
 (*
  * Pack arguments inside of a sigT type
@@ -559,40 +571,6 @@ let is_orn l env (from_typ, to_typ) typ =
 let filter_orn l env evd (from_typ, to_typ) args =
   List.filter (on_type (is_orn l env (from_typ, to_typ)) env evd) args
 
-(*
- * When we ornament in both directions and we're currently reducing g o f
- * where g is the promotion/forgetful function and f is already reduced,
- * we need to unpack applications of the function to the inductive
- * hypotheses. This function does that.
- *)
-let unpack_ihs f ihs trm =
-  map_unit_if
-    (fun t ->
-      isApp t && applies f t && List.exists (eq_constr (last_arg t)) ihs)
-    last_arg
-    trm
-                 
-(*
- * This reduces the body of an ornamented constructor to a reasonable term,
- * when we ornament in both directions
- *)
-let reduce_constr_body env evd l (from_typ, to_typ) index_args body =
-  let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
-  let all_args = mk_n_rels (nb_rel env) in
-  let orn_args = filter_orn l env evd (from_typ, to_typ) all_args in
-  let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
-  let red_body =
-    map_if
-      (fold_back_constants env (reduce_nf env))
-      (*(List.length index_args = 0 && not l.is_indexer)*)
-      false (* TODO superficial deps; avoid unfolding inner things here/unfold only iff constr *)
-      (map_unit_if
-         (applies f)
-         (fun trm ->
-           reduce_ornament_f l env evd f (pre_reduce l env evd trm) orn_args)
-         body)
-  in unpack_ihs f ihs red_body
-
 (* 
  * When forgetting, we do not have indices to pass to the constructor,
  * so for each of those arguments, we must project the index from the
@@ -610,6 +588,71 @@ let project_index_from_ih l env evd ih =
 let project_value_from_ih l env evd ih =
   let orn = mkAppl (lift_back l, snoc ih (on_type unfold_args env evd ih)) in
   project_value (on_type dest_sigT env evd orn) orn
+              
+(*
+ * When we ornament in both directions and we're currently reducing g o f
+ * where g is the promotion/forgetful function and f is already reduced,
+ * we need to unpack applications of the function to the inductive
+ * hypotheses. This function does that.
+ *)
+let unpack_ihs env evd f ihs trm l =
+  debug_term env trm "trm";
+  if l.is_indexer then
+    map_unit_if
+      (fun t ->
+        isApp t && applies f t && List.exists (eq_constr (last_arg t)) ihs)
+      last_arg
+      trm
+  else
+    map_term_env_if
+      (fun en ihs t ->
+        isApp t && Option.has_some (search_lifted en (first_fun t)))
+      (fun en ihs t ->
+        debug_term en t "t";
+        let f = first_fun t in
+        let args =
+          List.map
+            (fun a ->
+              debug_term en a "a";
+              map_term_env_if
+                (fun _ ihs t -> List.exists (eq_constr t) ihs)
+                (fun en _ t ->
+                  debug_term en t "t";
+                  debug_term en (reduce_type en evd t) "typ";
+                  forget_assum en evd l t)
+                shift_all
+                en
+                ihs
+                a)
+            (unfold_args t)
+        in debug_term en (mkAppl (f, args)) "app"; mkAppl (f, args))
+      shift_all
+      env
+      ihs
+      trm
+                 
+(*
+ * This reduces the body of an ornamented constructor to a reasonable term,
+ * when we ornament in both directions
+ *)
+let reduce_constr_body env env_new evd l (from_typ, to_typ) index_args body =
+  let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
+  let all_args = mk_n_rels (nb_rel env) in
+  let orn_args = filter_orn l env evd (from_typ, to_typ) all_args in
+  let ihs = List.map (fun (_, (ih, _)) -> ih) index_args in
+  let pre = map_unit_if (applies f) (pre_reduce l env evd) body in
+  debug_term env pre "pre";
+  let red_body =
+    map_if
+      (fold_back_constants env (reduce_nf env))
+      (*(List.length index_args = 0 && not l.is_indexer)*)
+      false (* TODO superficial deps; avoid unfolding inner things here/unfold only iff constr *)
+      (map_unit_if
+         (applies f)
+         (fun trm ->
+           reduce_ornament_f l env evd f trm orn_args)
+         pre)
+  in unpack_ihs env_new evd f ihs red_body l
 
 (*
  * This does the index and value projections of the IHs when forgetting.
@@ -652,46 +695,61 @@ let compose_c evd npms_g ip_g p assum_ind post_assums (comp : composition) =
   let l = comp.l in
   let (env_g, c_g) = comp.g in
   let (env_f, c_f_old) = comp.f in
+  debug_term env_g c_g "c_g";
+  debug_term env_f c_f_old "c_f";
   let (orn_f, orn_g) = (l.orn.forget, l.orn.promote) in
   let promotion_type env trm = fst (on_type ind_of_promotion_type env evd trm) in
   let to_typ = zoom_sig (promotion_type env_f orn_f) in
   let from_typ = first_fun (promotion_type env_g orn_g) in
   let c_f = compose_ih evd npms_g ip_g p comp in
+  debug_term env_f c_f "c_f'";
+  let c =
   zoom_apply_lambda_n
     (nb_rel env_f)
     (fun env trm ->
       if not comp.is_g then
         (* it's still unclear to me why local_max is what it is *)
         let local_max = directional l 0 (List.length post_assums) in
-        let f = shift_local local_max (offset2 env env_g) c_g in
-        let assum = shift_local local_max (offset2 env env_g) (mkRel assum_ind) in
-        let f =
-          map_term_env_if
-            (fun _ -> eq_constr)
-            (fun e a t ->
-              forget_assum e evd l t)
-            shift
-            env
-            assum
-            f
-        in
+        let s_off = shift_local local_max (offset2 env env_g) in
+        let f = forget_assums env evd l (s_off (mkRel assum_ind)) (s_off c_g) in
         let lift_args = map_directional (pack_ihs c_f_old) project_ihs l in
         let args = lift_args l env evd (from_typ, to_typ) c_g in
         reduce_term env (mkAppl (f, args))
       else
         let f = map_indexer (fun l -> Option.get l.orn.indexer) lift_to l l in
         let index_i = Option.get l.orn.index_i in
-        let c_indexed = directional l c_f c_g in
+        let c_indexed = if l.is_indexer then c_f else directional l c_g c_f in
         let index_args = indexes to_typ index_i (arity c_g) c_indexed in
         in_lambda_body
           (fun env_old _ ->
             let args = snoc trm (non_index_typ_args l env_old evd trm) in
-            let app = mkAppl (f, args) in
-            reduce_constr_body env_old evd l (from_typ, to_typ) index_args app)
+            (*let index_args' = indexes to_typ index_i (arity c_g) (directional l c_g c_f) in
+            let ihs = List.map fst (List.map snd index_args') in
+            debug_terms env args "args";
+            debug_terms env ihs "ihs";*)
+            let lifted_args = (* TODO move this *)
+              (*List.map
+                (fun arg ->
+                  List.map
+                    (map_term_env_if
+                       ()
+                       ()
+                    )
+                    ihs*)
+                    
+                  (*if on_type (is_or_applies from_typ) env evd arg then
+                    project_value_from_ih l env evd arg
+                  else
+                    arg)*)
+                args
+            in
+            let app = mkAppl (f, lifted_args) in
+            reduce_constr_body env_old env evd l (from_typ, to_typ) index_args app)
           env_f
           c_f_old)
     env_f
     c_f
+    in debug_term env_f c "c_(g o f)"; c
 
 (* Map compose_c *)
 let compose_cs evd npms ip p assum_ind post_assums comp gs fs =

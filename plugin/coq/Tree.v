@@ -151,7 +151,7 @@ Definition find x m : option elt :=
     (fun l IHl y d r IHr _ => match X.compare x y with
      | LT _ => IHl
      | EQ _ => Some d
-     | GT _ => IHr
+     | GT _ => IHr  
      end)
      m.
 
@@ -267,8 +267,6 @@ Definition add x d m :=
 
 (* ORN: Lifted *)
 Apply ornament orn_tree_treeV orn_tree_treeV_inv in add as addV_auto.
-
-(* TODO bug here, now *)
 Reduce ornament orn_tree_treeV orn_tree_treeV_inv in addV_auto as addV_red.
 Higher lift orn_tree_treeV orn_tree_treeV_inv in addV_red as addV.
 
