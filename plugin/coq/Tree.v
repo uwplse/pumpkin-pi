@@ -252,6 +252,11 @@ Higher lift orn_tree_treeV orn_tree_treeV_inv in bal as balV.
 
 (** * Insertion *)
 
+(* TODO bug right now in meta-reduction, workaround with this: *)
+Definition node l x e r h :=
+  Node l x e r h.
+Higher lift orn_tree_treeV orn_tree_treeV_inv in node as nodeV.
+
 (* ORN: Ported to induction *)
 Definition add x d m :=
   tree_rect
@@ -260,7 +265,7 @@ Definition add x d m :=
     (fun l IHl y d' r IHr h =>
       match X.compare x y with
          | LT _ => bal IHl y d' r
-         | EQ _ => Node l y d r h
+         | EQ _ => node l y d r h (* workaround forces opacity *)
          | GT _ => bal l y d' IHr
       end)
     m.
@@ -277,13 +282,26 @@ Higher lift orn_tree_treeV orn_tree_treeV_inv in addV_red as addV.
   for [t=Leaf], we pre-unpack [t] (and forget about [h]).
 *)
 
-Fixpoint remove_min l x d r : t*(key*elt) :=
-  match l with
-    | Leaf => (r,(x,d))
-    | Node ll lx ld lr lh =>
-       let (l',m) := remove_min ll lx ld lr in
-       (bal l' x d r, m)
-  end.
+(* ORN: Ported to induction *)
+(* TODO bug in factoring, can't find assum b.c. looking in wrong place *)
+Definition remove_min l x d r : t*(key*elt) :=
+  tree_rect
+    (P := fun _ => key -> elt -> t -> t*(key*elt))
+    (fun (x : key) (d : elt) (r : t) => (r,(x,d)) : t*(key*elt))
+    (fun ll IHll lx ld lr IHlr lh =>
+      fun (x : key) (d : elt) (r : t) =>
+        let (l',m) := IHll lx ld lr in
+        (bal l' x d r, m))
+    l
+    x
+    d
+    r.
+
+(* ORN: Lifted *)
+Apply ornament orn_tree_treeV orn_tree_treeV_inv in remove_min as remove_minV_auto.
+Print remove_minV_auto.
+Reduce ornament orn_tree_treeV orn_tree_treeV_inv in remove_minV_auto as remove_minV_red.
+Higher lift orn_tree_treeV orn_tree_treeV_inv in remove_minV_red as remove_minV.
 
 (** * Merging two trees
 

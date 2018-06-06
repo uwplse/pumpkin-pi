@@ -66,6 +66,7 @@ let reduce_ornament n d_orn d_orn_inv d_old =
   let orn = initialize_promotion env evd promote forget in
   let l = initialize_lifting orn is_fwd in
   let (trm_n, indexer) = internalize env evd idx_n l trm_o in
+  debug_term env trm_n "trm_n";
   (if Option.has_some indexer then
      let indexer_o = Option.get indexer in
      let l = { l with is_indexer = true } in
@@ -93,6 +94,7 @@ let higher_lifting n d_orn d_orn_inv d_old =
   let orn = initialize_promotion env evd promote forget in
   let l = initialize_lifting orn is_fwd in
   let (higher_lifted, _) = higher_lift env evd l c_o in
+  debug_term env higher_lifted "higher_lifted";
   (* TODO indexing proof *)
   define_term n evd higher_lifted;
   declare_lifted evd c_o (make_constant n);

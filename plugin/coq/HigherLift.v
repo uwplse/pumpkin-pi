@@ -12,10 +12,34 @@ Require Import Reduce.
 Print app_nil_r.
 
 Print app_nil_r_vect_red.
+Check app_nil_r_vect_auto.
+Check app_nil_r_vect_red.
+
+Print app_nil_r_vect_auto. (* Should do existT ... projT1 and projT2 .. l, so that reduction is type-preserving fwiw *)
+Print app_nil_r.
+
+(* Note how this version doesn't yet promote append, but preserves the
+type of the auto version. When we higher-lift, we then promote append itself,
+which changes the type along the equivalence. We do that by substituting in
+our already-lifted append. We do the same thing if we have applications of another
+theorem, like app_nil_r (really should try this case)
+Definition app_nil_r_vect_red' (A : Type) (l : {H : nat & vector A H}) :=
+  vector_rect 
+    A
+    (fun (n : nat) (v : vector A n) =>
+      append A (orn_list_vector_inv A (existT (fun H : nat => vector A H) n v)) nil =
+      orn_list_vector_inv A (existT (fun H : nat => vector A H) n v)) eq_refl
+  (fun (n : nat) (a : A) (v : vector A n)
+     (H : append A (orn_list_vector_inv A (existT (fun H : nat => vector A H) n v)) nil =
+          orn_list_vector_inv A (existT (fun H : nat => vector A H) n v)) =>
+   eq_ind_r
+     (fun l1 : list A =>
+      a :: l1 =
+      a :: orn_list_vector_inv A (existT (fun H0 : nat => vector A H0) n v))
+     eq_refl H) (projT1 l) (projT2 l)
+*)
 
 Higher lift orn_list_vector orn_list_vector_inv in app_nil_r_vect_red as app_nil_r_vect_red_higher.
-
-Print app_nil_r_vect_red_higher.
 
 Theorem test_app_nil_r_vect_exact:
   forall (A : Type) (pv : sigT (vector A)),
@@ -102,6 +126,8 @@ Theorem test_in_split_vect_exact:
 Proof.
   exact in_split_vect_higher.
 Qed.
+
+Eval compute in (fun A a l => orn_list_vector A (cons a l)).
 
 Theorem test_in_split_vect:
   forall (A : Type) (x : A) (pv : sigT (vector A)),

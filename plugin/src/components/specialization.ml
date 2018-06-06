@@ -460,7 +460,11 @@ let reduce_ornament_f l env evd orn trm args =
         env
         (fun trm ->
           List.fold_right
-            (meta_reduce l evd orn env)
+            (fun arg trm ->
+              try
+                meta_reduce l evd orn env arg trm
+              with _ ->
+                trm (* TODO investigate why failing *) )
             args
             trm)
         trm)
