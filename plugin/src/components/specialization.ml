@@ -986,7 +986,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
   in
   let index_i = Option.get l.orn.index_i in
   let typ_is_orn en t = on_type (is_orn l en (from_type, to_type)) en evd t in
-  let rec sub_rec en en' index_type tr =
+  let rec sub_rec en index_type tr =
     let lifted_opt = search_lifted en tr in
     let has_lifted = Option.has_some lifted_opt in
     if has_lifted then
@@ -1008,30 +1008,27 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
     else
       match kind_of_term tr with
       | Cast (c, k, t) ->
-         let c' = sub_rec en en' index_type c in
-         let t' = sub_rec en en' index_type t in
+         let c' = sub_rec en index_type c in
+         let t' = sub_rec en index_type t in
          mkCast (c', k, t')
       | Prod (n, t, b) ->
-         let t' = sub_rec en en' index_type t in
+         let t' = sub_rec en index_type t in
          let en_b = push_local (n, t) en in
-         let en_b' = push_local (n, t') en' in
-         let b' = sub_rec en_b en_b' (shift index_type) b in
+         let b' = sub_rec en_b (shift index_type) b in
          mkProd (n, t', b')
       | Lambda (n, t, b) ->
-         let t' = sub_rec en en' index_type t in
+         let t' = sub_rec en index_type t in
          let en_b = push_local (n, t) en in
-         let en_b' = push_local (n, t') en' in
-         let b' = sub_rec en_b en_b' (shift index_type) b in
+         let b' = sub_rec en_b (shift index_type) b in
          mkLambda (n, t', b')
       | LetIn (n, trm, typ, e) ->
-         let trm' = sub_rec en en' index_type trm in
-         let typ' = sub_rec en en' index_type typ in
+         let trm' = sub_rec en index_type trm in
+         let typ' = sub_rec en index_type typ in
          let en_e = push_let_in (n, e, typ) en in
-         let en_e' = push_let_in (n, e, typ') en' in
-         let e' = sub_rec en_e en_e' (shift index_type) e in
+         let e' = sub_rec en_e (shift index_type) e in
          mkLetIn (n, trm', typ', e')
       | App (fu, args) ->
-         let args' = Array.map (sub_rec en en' index_type) args in
+         let args' = Array.map (sub_rec en index_type) args in
          if (not (Option.has_some (search_lifted en fu))) && typ_is_orn en tr then
            let typ_args = non_index_typ_args l en evd tr in
            let app = mkAppl (lift_to l, snoc tr typ_args) in
@@ -1052,7 +1049,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
              (Array.to_list (Array.mapi (fun i a -> (a, args'.(i))) args))
              red
          else
-           let fu' = sub_rec en en' index_type fu in
+           let fu' = sub_rec en index_type fu in
            let arg = last_arg tr in
            if applies (lift_to l) tr then
              (* TODO not sufficiently general? But again should just avoid this step once this works *)
@@ -1060,20 +1057,20 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
            else
              mkApp (fu', args')
       | Case (ci, ct, m, bs) ->
-         let ct' = sub_rec en en' index_type ct in
-         let m' = sub_rec en en' index_type m in
-         let bs' = Array.map (sub_rec en en' index_type) bs in
+         let ct' = sub_rec en index_type ct in
+         let m' = sub_rec en index_type m in
+         let bs' = Array.map (sub_rec en index_type) bs in
          mkCase (ci, ct', m', bs')
       | Fix ((is, i), (ns, ts, ds)) ->
-         let ts' = Array.map (sub_rec en en' index_type) ts in
-         let ds' = Array.map (map_rec_env_fix (fun en -> sub_rec en en') shift en index_type ns ts) ds in
+         let ts' = Array.map (sub_rec en index_type) ts in
+         let ds' = Array.map (map_rec_env_fix sub_rec shift en index_type ns ts) ds in
          mkFix ((is, i), (ns, ts', ds'))
       | CoFix (i, (ns, ts, ds)) ->
-         let ts' = Array.map (sub_rec en en' index_type) ts in
-         let ds' = Array.map (map_rec_env_fix (fun en -> sub_rec en en') shift en index_type ns ts) ds in
+         let ts' = Array.map (sub_rec en index_type) ts in
+         let ds' = Array.map (map_rec_env_fix sub_rec shift en index_type ns ts) ds in
          mkCoFix (i, (ns, ts', ds'))
       | Proj (pr, c) ->
-         let c' = sub_rec en en' index_type c in
+         let c' = sub_rec en index_type c in
          mkProj (pr, c')
       | Construct _  when typ_is_orn en tr ->
          let typ_args = non_index_typ_args l en evd tr in
@@ -1082,7 +1079,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
          reduce_nf en pre (* TODO check w/ nat *)
       | _ ->
          tr
-  in sub_rec env env index_type trm
+  in sub_rec env index_type trm
     
 (*
  * Implementation of higher lifting, which substitutes in the lifted
