@@ -69,22 +69,14 @@ let try_define_indexer evd n c_idx =
     Printf.printf "WARNING: Failed to define indexer %s. Ignoring for now.\n\n" idx_s
 
 (* Higher lifting *)
-let higher_lifting n d_orn d_orn_inv d_old =
-  let (evd, env) = Lemmas.get_current_context () in
-  let c_orn = intern env evd d_orn in
-  let c_orn_inv = intern env evd d_orn_inv in
-  let c_o = intern env evd d_old in
+let higher_lifting env evd c_orn c_orn_inv c_old =
   let is_fwd = direction env evd c_orn in
   let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
   let orn = initialize_promotion env evd promote forget in
   let l = initialize_lifting orn is_fwd in
-  let (higher_lifted, _) = higher_lift env evd l c_o in
-  debug_term env higher_lifted "higher_lifted";
+  let (higher_lifted, _) = higher_lift env evd l c_old in
   (* TODO indexing proof *)
-  define_term n evd higher_lifted;
-  declare_lifted evd c_o (make_constant n);
-  Printf.printf "Defined higher lifting %s.\n\n" (string_of_id n);
-  ()
+  higher_lifted
 
 (* --- Commands --- *)
 
@@ -136,21 +128,6 @@ VERNAC COMMAND EXTEND ReduceOrnament CLASSIFIED AS SIDEFF
     Printf.printf "Defined reduced ornamented function %s.\n\n" (string_of_id n) ]
 END
 
-(* Lift and meta-reduce a term across an ornament. *)
-VERNAC COMMAND EXTEND OrnamentLift CLASSIFIED AS SIDEFF
-| [ "Ornamental" "Definition" ident(n) "from" constr(d_old) "using" constr(d_orn) constr(d_orn_inv)] ->
-  [ let (evd, env) = Lemmas.get_current_context () in
-    let c_orn = intern env evd d_orn in
-    let c_orn_inv = intern env evd d_orn_inv in
-    let c_old = intern env evd d_old in
-    let c_tmp = apply_ornament env evd c_orn c_orn_inv c_old in
-    let (c_new, c_idx_opt) = reduce_ornament env evd c_orn c_orn_inv c_tmp in
-    Option.iter (try_define_indexer evd n) c_idx_opt;
-    define_term n evd c_new;
-    declare_lifted evd c_old (make_constant n);
-    Printf.printf "Defined reduced ornamented function %s.\n\n" (string_of_id n) ]
-END
-
 (*
  * The higher-lifting step is not type-preserving, but instead
  * takes a meta-reduced application and substitutes in an already-lifted
@@ -158,10 +135,28 @@ END
  *)
 VERNAC COMMAND EXTEND HigherLifting CLASSIFIED AS SIDEFF
 | [ "Higher" "lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n) ] ->
-  [ higher_lifting n d_orn d_orn_inv d_old ]
+  [ let (evd, env) = Lemmas.get_current_context () in
+    let c_orn = intern env evd d_orn in
+    let c_orn_inv = intern env evd d_orn_inv in
+    let c_old = intern env evd d_old in
+    let c_new = higher_lifting env evd c_orn c_orn_inv c_old in
+    define_term n evd c_new;
+    declare_lifted evd c_old (make_constant n);
+    Printf.printf "Defined higher-lifted ornamented fuction %s.\n\n" (string_of_id n) ]
 END
 
-(*
- * TODO combine these steps optionally into a single reduction mechanism
- * that will have way better syntax since it will remember everything
- *)
+(* Lift and meta-reduce a term across an ornament. *)
+VERNAC COMMAND EXTEND OrnamentLift CLASSIFIED AS SIDEFF
+| [ "Ornamental" "Definition" ident(n) "from" constr(d_old) "using" constr(d_orn) constr(d_orn_inv)] ->
+  [ let (evd, env) = Lemmas.get_current_context () in
+    let c_orn = intern env evd d_orn in
+    let c_orn_inv = intern env evd d_orn_inv in
+    let c_old = intern env evd d_old in
+    let c_app = apply_ornament env evd c_orn c_orn_inv c_old in
+    let (c_red, c_idx_opt) = reduce_ornament env evd c_orn c_orn_inv c_app in
+    let c_cmp = higher_lifting env evd c_orn c_orn_inv c_red in
+    Option.iter (try_define_indexer evd n) c_idx_opt;
+    define_term n evd c_cmp;
+    declare_lifted evd c_old (make_constant n);
+    Printf.printf "Defined reduced ornamented function %s.\n\n" (string_of_id n) ]
+END
