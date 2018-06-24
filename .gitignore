@@ -20,3 +20,4 @@ plugin/Makefile.coq.conf
 plugin/Makefile.coq
 plugin/Makefile.conf
 plugin/Makefile
+plugin/.merlin
