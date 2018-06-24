@@ -19,4 +19,4 @@
 plugin/Makefile.coq.conf
 plugin/Makefile.coq
 plugin/Makefile.conf
-# plugin/Makefile # probably should not check-in the auto-generated makefile
+plugin/Makefile
