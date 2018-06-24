@@ -33,7 +33,7 @@ let reconstruct_packed assum_ind env trm =
   reconstruct_lambda_n_skip env trm (offset env 2) (assum_ind - 1)
 
 (*
- * Given a type we are promoting to/forgetting from, 
+ * Given a type we are promoting to/forgetting from,
  * get all of the arguments to that type that aren't the new/forgotten index
  *)
 let non_index_args l env typ =
@@ -44,9 +44,9 @@ let non_index_args l env typ =
     remove_index index_i (unfold_args (dummy_index env packer))
   else
     unfold_args typ
-                         
+
 (*
- * Given a term with the type we are promoting to/forgetting from, 
+ * Given a term with the type we are promoting to/forgetting from,
  * get all of the arguments to that type that aren't the new/forgotten index
  *)
 let non_index_typ_args l env evd trm =
@@ -83,7 +83,7 @@ let sub_in_hypos l env evd (from_ind, to_ind) hypos =
     | _ ->
        trm
   in sub env hypos
-                
+
 (* Apply the promotion/forgetful function to the arguments *)
 let ornament_args env evd from_ind l trm =
   let rec ornament_arg env i typ =
@@ -118,7 +118,7 @@ let ornament_concls concl_typ env evd (l : lifting) (from_ind, _) trm =
        env)
     (is_or_applies from_ind (zoom_if_sig concl_typ))
     trm
-                                      
+
 (*
  * Apply an ornament, but don't reduce the result.
  *
@@ -144,7 +144,7 @@ let apply_indexing_ornament env evd l trm =
   let typ = reduce_type env evd trm in
   let concl_typ = in_body zoom_product_type reduce_term env typ in
   app_orn (ornament_concls concl_typ) (app_orn ornament_hypos trm)
-          
+
 (* --- Meta-reduction --- *)
 
 (*
@@ -245,7 +245,7 @@ let compose_p_fun evd (comp : composition) =
        (comp.is_g && not l.is_indexer))
     l
     p_g_in_p_f
-    
+
 (*
  * Compose two properties for two applications of an induction principle
  * that are structurally the same when one is an ornament.
@@ -334,8 +334,8 @@ let rec all_recursive_constants env trm =
   unique
     eq_constr
     (List.append non_axiom_consts (flat_map (all_recursive_constants env) defs))
-                         
-(* 
+
+(*
  * Fold back constants after applying a function
  * Necessary for current higher lifting implementation
  * Workaround may not always work yet
@@ -346,7 +346,7 @@ let fold_back_constants env f trm =
       all_conv_substs env (lifted, lifted) red)
     (f trm)
     (all_recursive_constants env trm)
-             
+
 (*
  * Meta-reduction of an applied ornament in the forward direction in the
  * non-indexer case, when the ornament application produces an existT term.
@@ -379,7 +379,7 @@ let reduce_existT_app l evd orn env arg trm =
 
 (*
  * Meta-reduction of an applied ornament in the indexer case.
- * TODO here and elsewhere (or in step after): 
+ * TODO here and elsewhere (or in step after):
  * rewrite back other expanded functions (see append with flector;
  * may matter for higher lifting)
  *)
@@ -423,7 +423,7 @@ let reduce_sigT_elim_app l evd orn env arg trm =
     (* return the rewritten term *)
     app
 
-(* 
+(*
  * Get the meta-reduction function for a lifted term.
  *)
 let meta_reduce l =
@@ -436,7 +436,7 @@ let meta_reduce l =
   else
     (* rewrite inside of an eliminator of a sigT *)
     reduce_sigT_elim_app l
-                         
+
 (*
  * Meta-reduction of an applied ornament to simplify and then rewrite
  * in terms of the ornament and indexer applied to the specific arguments
@@ -471,11 +471,11 @@ let reduce_ornament_f l env evd orn trm args =
     shift_all
     env
     args
-    trm 
+    trm
 
 (*
  * Get the (index arg index, IH) pairs for a constructor
- * 
+ *
  * Need to test: What happens if the index isn't the first argument in
  * the new constructor? Unsure if the recursion condition is correct here.
  *)
@@ -493,7 +493,7 @@ let indexes to_typ index_i num_args trm =
        []
   in constr_indexes (lambda_to_prod trm) 0
 
-(* 
+(*
  * Reduces the body of a constructor of an indexer
  *)
 let reduce_indexer_constr_body l env evd trm =
@@ -518,7 +518,7 @@ let reduce_promoted_constr_body l env evd trm =
     (* leave as-is *)
     trm
 
-(* 
+(*
  * Reduces the body of a constructor of a forgetful function
  *)
 let reduce_forgotten_constr_body l env evd trm =
@@ -551,7 +551,7 @@ let pre_reduce l =
     reduce_promoted_constr_body l
   else
     reduce_forgotten_constr_body l
-                                 
+
 (*
  * Determine whether a type is the type we are ornamenting from
  *
@@ -567,7 +567,7 @@ let is_orn l env (from_typ, to_typ) typ =
       eq_constr to_typ (first_fun (dummy_index env (dest_sigT typ).packer))
     else
       false
-                                 
+
 (*
  * Filter the arguments to only the ones that have the type we are
  * promoting/forgetting from.
@@ -575,7 +575,7 @@ let is_orn l env (from_typ, to_typ) typ =
 let filter_orn l env evd (from_typ, to_typ) args =
   List.filter (on_type (is_orn l env (from_typ, to_typ)) env evd) args
 
-(* 
+(*
  * When forgetting, we do not have indices to pass to the constructor,
  * so for each of those arguments, we must project the index from the
  * result of promoting the corresponding IH. This function does that projection.
@@ -583,16 +583,16 @@ let filter_orn l env evd (from_typ, to_typ) args =
 let project_index_from_ih l env evd ih =
   let orn = mkAppl (lift_back l, snoc ih (on_type unfold_args env evd ih)) in
   project_index (on_type dest_sigT env evd orn) orn
-                
-(* 
- * When forgetting, for every IH, to pass that IH to the constructor, 
- * we must project out the value from the result of promoting the IH. 
+
+(*
+ * When forgetting, for every IH, to pass that IH to the constructor,
+ * we must project out the value from the result of promoting the IH.
  * This function does that promotion.
  *)
 let project_value_from_ih l env evd ih =
   let orn = mkAppl (lift_back l, snoc ih (on_type unfold_args env evd ih)) in
   project_value (on_type dest_sigT env evd orn) orn
-              
+
 (*
  * When we ornament in both directions and we're currently reducing g o f
  * where g is the promotion/forgetful function and f is already reduced,
@@ -636,7 +636,7 @@ let unpack_ihs env evd f ihs trm l =
       unpacked_body
   else
     unpacked_body
-                 
+
 (*
  * This reduces the body of an ornamented constructor to a reasonable term,
  * when we ornament in both directions
@@ -689,7 +689,7 @@ let pack_ihs c_f_old l env evd (from_typ, to_typ) c_g =
       else
         arg)
     (get_n_hypos nhs c_g)
-  
+
 (*
  * Compose two constructors for two applications of an induction principle
  * that are structurally the same when one is an ornament.
@@ -743,13 +743,13 @@ let compose_cs evd npms ip p assum_ind post_assums comp gs fs =
 (*
  * Build the lifted indexer, if applicable
  *)
-let build_lifted_indexer evd idx_n assum_ind comp =
+let build_lifted_indexer evd assum_ind comp =
   let l = comp.l in
   let (env, f) = comp.f in
   if l.is_fwd && comp.is_g && not l.is_indexer then
     try
       let indexer = Option.get l.orn.indexer in
-      let (env_b, b) = zoom_lambda_term env f in    
+      let (env_b, b) = zoom_lambda_term env f in
       let index_args = snoc b (on_type unfold_args env_b evd b) in
       let indexer_app = mkAppl (indexer, index_args) in
       let unpacked = reconstruct_lambda env_b indexer_app in
@@ -759,18 +759,18 @@ let build_lifted_indexer evd idx_n assum_ind comp =
       (comp, None)
   else
     (comp, None)
-      
+
 (*
  * Compose two applications of an induction principle that are
  * structurally the same when one is an ornament.
  *)
-let rec compose_inductive evd idx_n post_assums assum_ind comp =
+let rec compose_inductive evd post_assums assum_ind comp =
   let (env_g, g) = comp.g in
   let (env_f, f) = comp.f in
   let f_app = deconstruct_eliminator env_f evd f in
   let g_app = deconstruct_eliminator env_g evd g in
   let npms = List.length g_app.pms in
-  let (comp, indexer) = build_lifted_indexer evd idx_n assum_ind comp in
+  let (comp, indexer) = build_lifted_indexer evd assum_ind comp in
   let c_p = { comp with g = (env_g, g_app.p); f = (env_f, f_app.p) } in
   let p = compose_p evd npms assum_ind c_p in
   let gs = (env_g, g_app.cs) in
@@ -871,7 +871,7 @@ let configure_compose_inductive evd assum_ind l (f, g) is_g =
     if existT_f then { comp with f = exT_ind } else { comp with g = exT_ind }
   else
     comp
-  
+
 (*
  * Compose factors of an ornamented, but not yet reduced function
  *
@@ -879,8 +879,8 @@ let configure_compose_inductive evd assum_ind l (f, g) is_g =
  * factoring. But that is a major effort, so for now we just always get the
  * last factor.
  *)
-let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
-  let compose_rec l fs = compose_orn_factors evd l assum_ind idx_n fs in
+let rec compose_orn_factors evd (l : lifting) assum_ind fs =
+  let compose_rec l fs = compose_orn_factors evd l assum_ind fs in
   match fs with
   | Factor ((en, t), children) ->
      if List.length children > 0 then
@@ -897,7 +897,7 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        if is_promote || is_forget || is_index then
          let is_g = g_promotes || g_forgets || g_is_indexer in
          let comp = configure_compose_inductive evd assum_ind l (f, g) is_g in
-         let comped = compose_inductive evd idx_n post_assums assum_ind comp in
+         let comped = compose_inductive evd post_assums assum_ind comp in
          (comped, fst comp.f, true)
        else
          let t = shift_by assum_ind t in
@@ -916,7 +916,7 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
        ((t, None), en, false)
   | Unit ->
      failwith "unexpected"
-                  
+
 (*
  * This takes a term (f o orn_inv) and reduces it to f' where orn_inv is
  * moved inside of the function.
@@ -930,16 +930,16 @@ let rec compose_orn_factors evd (l : lifting) assum_ind idx_n fs =
  * this is a very preliminary attempt at solving this problem, which I
  * will build on.
  *)
-let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
+let internalize env evd (l : lifting) (trm : types) =
   let (assum_ind, fs) = factor_ornamented l.orn env evd trm in
-  let ((body, indexer), env_body, _) = compose_orn_factors evd l assum_ind idx_n fs in
+  let ((body, indexer), env_body, _) = compose_orn_factors evd l assum_ind fs in
   let reconstructed = reconstruct_lambda env_body body in
   let rec pack_hypos en tr = (* TODO move, explain *)
     match kind_of_term tr with
     | Lambda (n, t, b) ->
        let t' =
          map_term_env_if
-           (fun _ assum tr -> try eq_constr assum tr with _ -> false) 
+           (fun _ assum tr -> try eq_constr assum tr with _ -> false)
            (fun en assum tr ->
              let typ_app = on_type dest_sigT en evd tr in
              let index_type = typ_app.index_type in
@@ -961,9 +961,9 @@ let internalize env evd (idx_n : Id.t) (l : lifting) (trm : types) =
 (*
  * TODO in reduction step: avoid reducing anything that is higher-lifted!
  *)
-       
+
 (*
- * Substitute every term of the type we are promoting/forgetting from 
+ * Substitute every term of the type we are promoting/forgetting from
  * with a term with the corresponding promoted/forgotten type
  *
  * LATER: This doesn't yet handle partial applications of constructors;
@@ -1080,7 +1080,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
       | _ ->
          tr
   in sub_rec env index_type trm
-    
+
 (*
  * Implementation of higher lifting, which substitutes in the lifted
  * functions, the ornamented and reduced terms, and the ornamented types
@@ -1097,7 +1097,7 @@ let do_higher_lift env evd (l : lifting) trm =
  * Given a reduced lifting of a proof term that refers to other
  * terms that have already been lifted, lift the proof to
  * use the lifted versions of those terms
- *)   
+ *)
 let higher_lift env evd (l : lifting) def =
   let indexing_proof = None in (* TODO implement *)
   let trm = unwrap_definition env def in
