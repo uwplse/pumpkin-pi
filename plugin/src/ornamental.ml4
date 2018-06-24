@@ -1,5 +1,6 @@
 DECLARE PLUGIN "ornamental"
 
+open Util
 open Term
 open Names
 open Environ
@@ -37,51 +38,35 @@ let find_ornament n d_old d_new =
   else
     failwith "Only inductive types are supported"
 
+
 (* Apply an ornament, but don't reduce *)
-let apply_ornament n d_orn d_orn_inv d_old =
-  let (evd, env) = Lemmas.get_current_context () in
-  let c_orn = intern env evd d_orn in
-  let c_orn_inv = intern env evd d_orn_inv in
-  let c_o = intern env evd d_old in
+let apply_ornament env evd c_orn c_orn_inv c_old =
   let is_fwd = direction env evd c_orn in
   let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
   let orn = initialize_promotion env evd promote forget in
   let l = initialize_lifting orn is_fwd in
-  let trm_n = apply_indexing_ornament env evd l c_o in
-  define_term n evd trm_n;
-  declare_lifted evd c_o (make_constant n);
-  Printf.printf "Defined ornamented fuction %s.\n\n" (string_of_id n);
-  ()
+  apply_indexing_ornament env evd l c_old
 
 (* Reduce an application of an ornament *)
-let reduce_ornament n d_orn d_orn_inv d_old =
-  let (evd, env) = Lemmas.get_current_context () in
-  let c_orn = intern env evd d_orn in
-  let c_orn_inv = intern env evd d_orn_inv in
-  let c_o = intern env evd d_old in
-  let trm_o = unwrap_definition env c_o in
-  let idx_n = with_suffix n "index" in
+let reduce_ornament env evd c_orn c_orn_inv c_old =
+  let trm_o = unwrap_definition env c_old in
   let is_fwd = direction env evd c_orn in
   let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
   let orn = initialize_promotion env evd promote forget in
   let l = initialize_lifting orn is_fwd in
-  let (trm_n, indexer) = internalize env evd idx_n l trm_o in
-  debug_term env trm_n "trm_n";
-  (if Option.has_some indexer then
-     let indexer_o = Option.get indexer in
-     let l = { l with is_indexer = true } in
-     try
-       let (indexer_n, _) = internalize env evd idx_n l indexer_o in
-       define_term idx_n evd indexer_n;
-       Printf.printf "Defined indexer %s.\n\n" (string_of_id idx_n)
-     with _ ->
-       Printf.printf "WARNING: Failed to define indexer %s. Ignoring for now.\n\n" (string_of_id idx_n)
-   else
-     ());
-  define_term n evd trm_n;
-  declare_lifted evd c_o (make_constant n);
-  Printf.printf "Defined reduced ornamened function %s.\n\n" (string_of_id n);
-  ()
+  let (trm_n, c_idx_opt) = internalize env evd l trm_o in
+  let l_idx = { l with is_indexer = true } in
+  let c_idx_opt' = c_idx_opt |> Option.map (internalize env evd l_idx) |> Option.map fst in
+  (trm_n, c_idx_opt')
+
+let try_define_indexer evd n c_idx =
+  let idx_n = with_suffix n "index" in
+  let idx_s = string_of_id idx_n in
+  try
+    define_term idx_n evd c_idx;
+    Printf.printf "Defined indexer %s.\n\n" idx_s
+  with _ ->
+    Printf.printf "WARNING: Failed to define indexer %s. Ignoring for now.\n\n" idx_s
 
 (* Higher lifting *)
 let higher_lifting n d_orn d_orn_inv d_old =
@@ -104,8 +89,8 @@ let higher_lifting n d_orn d_orn_inv d_old =
 (* --- Commands --- *)
 
 (* Identify an ornament given two inductive types *)
-VERNAC COMMAND EXTEND FindOrnament CLASSIFIED AS SIDEFF
-| [ "Find" "ornament" constr(d_old) constr(d_new) "as" ident(n)] ->
+VERNAC COMMAND EXTEND MultiOrnament CLASSIFIED AS SIDEFF
+| [ "Ornament" ident(n) "from" constr(d_old) "to" constr(d_new)] ->
   [ find_ornament n d_old d_new ]
 END
 
@@ -120,8 +105,15 @@ END
  * functions entirely.
  *)
 VERNAC COMMAND EXTEND ApplyOrnament CLASSIFIED AS SIDEFF
-| [ "Apply" "ornament" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
-  [ apply_ornament n d_orn d_orn_inv d_old ]
+| [ "Apply" "Ornament" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
+  [ let (evd, env) = Lemmas.get_current_context () in
+    let c_orn = intern env evd d_orn in
+    let c_orn_inv = intern env evd d_orn_inv in
+    let c_old = intern env evd d_old in
+    let c_new = apply_ornament env evd c_orn c_orn_inv c_old in
+    define_term n evd c_new;
+    declare_lifted evd c_old (make_constant n);
+    Printf.printf "Defined ornamented fuction %s.\n\n" (string_of_id n) ]
 END
 
 (*
@@ -132,8 +124,31 @@ END
  * functions, this will be enough, but for proofs, there is one more step.
  *)
 VERNAC COMMAND EXTEND ReduceOrnament CLASSIFIED AS SIDEFF
-| [ "Reduce" "ornament" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
-  [ reduce_ornament n d_orn d_orn_inv d_old ]
+| [ "Reduce" "Ornament" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
+  [ let (evd, env) = Lemmas.get_current_context () in
+    let c_orn = intern env evd d_orn in
+    let c_orn_inv = intern env evd d_orn_inv in
+    let c_old = intern env evd d_old in
+    let (c_new, c_idx_opt) = reduce_ornament env evd c_orn c_orn_inv c_old in
+    Option.iter (try_define_indexer evd n) c_idx_opt;
+    define_term n evd c_new;
+    declare_lifted evd c_old (make_constant n);
+    Printf.printf "Defined reduced ornamented function %s.\n\n" (string_of_id n) ]
+END
+
+(* Lift and meta-reduce a term across an ornament. *)
+VERNAC COMMAND EXTEND OrnamentLift CLASSIFIED AS SIDEFF
+| [ "Ornamental" "Definition" ident(n) "from" constr(d_old) "using" constr(d_orn) constr(d_orn_inv)] ->
+  [ let (evd, env) = Lemmas.get_current_context () in
+    let c_orn = intern env evd d_orn in
+    let c_orn_inv = intern env evd d_orn_inv in
+    let c_old = intern env evd d_old in
+    let c_tmp = apply_ornament env evd c_orn c_orn_inv c_old in
+    let (c_new, c_idx_opt) = reduce_ornament env evd c_orn c_orn_inv c_tmp in
+    Option.iter (try_define_indexer evd n) c_idx_opt;
+    define_term n evd c_new;
+    declare_lifted evd c_old (make_constant n);
+    Printf.printf "Defined reduced ornamented function %s.\n\n" (string_of_id n) ]
 END
 
 (*
