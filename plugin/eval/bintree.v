@@ -9,7 +9,6 @@ Infix "==" := Nat.eqb (at level 70, right associativity) : nat_scope.
 Notation "x <= y" := (Nat.leb x y) (at level 70, y at next level, right associativity) : nat_scope.
 Notation "p '.1'" := (projT1 p) (at level 8, left associativity).
 Notation "p '.2'" := (projT2 p) (at level 8, left associativity).
-Notation permutation := Permutation.
 
 Definition is_true (b : bool) : Prop := b = true.
 Coercion is_true : bool >-> Sortclass.
@@ -65,12 +64,45 @@ Definition postorder (t : bintree) : list Elem.t :=
     (fun x => [x])
     t.
 
+Lemma pre_perm_in : forall t : bintree,
+    permutes (preorder t) (inorder t).
+Proof.
+  induction t; simpl.
+  - apply perm_cons_app. apply perm_app; assumption.
+  - apply perm_skip. apply perm_nil.
+Qed.
+
+Lemma post_perm_in : forall t : bintree,
+    permutes (postorder t) (inorder t).
+Proof.
+  induction t; simpl.
+  - apply perm_app. assumption. apply perm_sym. apply perm_cons_app.
+    rewrite app_nil_r. apply perm_sym. assumption.
+  - apply perm_skip. apply perm_nil.
+Qed.
+
+Lemma pre_perm_post : forall t : bintree,
+    permutes (preorder t) (postorder t).
+Proof.
+  intro t. eapply perm_trans. exact (pre_perm_in t).
+  apply perm_sym. exact (post_perm_in t).
+Qed.
+
 Definition mirror (t : bintree) : bintree :=
   bintree_rect
     (fun _ => bintree)
     (fun v _ l _ r => Branch v r l)
     (fun v => Leaf v)
     t.
+
+Lemma mirror_perm : forall t : bintree,
+    permutes (inorder t) (inorder (mirror t)).
+Proof.
+  induction t; simpl.
+  - apply perm_sym. eapply perm_trans. apply perm_app_comm. simpl.
+    apply perm_cons_app. apply perm_sym. apply perm_app; assumption.
+  - apply perm_skip. apply perm_nil.
+Qed.
 
 End Base.
 
@@ -84,18 +116,20 @@ Inductive bintree : nat -> Type :=
   : bintree (S (Nat.max h_l h_r))
 | Leaf (val : Elem.t) : bintree O.
 
-Ornament orn_bintree_height from Base.bintree to bintree.
+Ornament orn_height from Base.bintree to bintree.
 
-Ornamental Definition preorder' from Base.preorder using orn_bintree_height orn_bintree_height_inv.
+Ornamental Definition preorder' from Base.preorder using orn_height orn_height_inv.
 Definition preorder h t := preorder' (existT _ h t).
 
-Ornamental Definition inorder' from Base.inorder using orn_bintree_height orn_bintree_height_inv.
+Ornamental Definition inorder' from Base.inorder using orn_height orn_height_inv.
 Definition inorder h t := inorder' (existT _ h t).
 
-Ornamental Definition postorder' from Base.postorder using orn_bintree_height orn_bintree_height_inv.
+Ornamental Definition postorder' from Base.postorder using orn_height orn_height_inv.
 Definition postorder h t := postorder' (existT _ h t).
 
-Ornamental Definition mirror' from Base.mirror using orn_bintree_height orn_bintree_height_inv.
+(* Ornamental Definition pre_perm_in' from Base.pre_perm_in using orn_height orn_height_inv. *)
+
+Ornamental Definition mirror' from Base.mirror using orn_height orn_height_inv.
 
 Lemma mirror_height (h : nat) (t : bintree h) :
     (mirror' (existT _ h t)).1 = h.
@@ -126,18 +160,18 @@ Inductive bintree : nat -> Type :=
   : bintree (S (size_l + size_r))
 | Leaf (val : Elem.t) : bintree (S O).
 
-Ornament orn_bintree_size from Base.bintree to bintree.
+Ornament orn_size from Base.bintree to bintree.
 
-Ornamental Definition preorder' from Base.preorder using orn_bintree_size orn_bintree_size_inv.
+Ornamental Definition preorder' from Base.preorder using orn_size orn_size_inv.
 Definition preorder s t := preorder' (existT _ s t).
 
-Ornamental Definition inorder' from Base.inorder using orn_bintree_size orn_bintree_size_inv.
+Ornamental Definition inorder' from Base.inorder using orn_size orn_size_inv.
 Definition inorder s t := inorder' (existT _ s t).
 
-Ornamental Definition postorder' from Base.postorder using orn_bintree_size orn_bintree_size_inv.
+Ornamental Definition postorder' from Base.postorder using orn_size orn_size_inv.
 Definition postorder s t := postorder' (existT _ s t).
 
-Ornamental Definition mirror' from Base.mirror using orn_bintree_size orn_bintree_size_inv.
+Ornamental Definition mirror' from Base.mirror using orn_size orn_size_inv.
 
 Lemma mirror_size (s : nat) (t : bintree s) :
     (mirror' (existT _ s t)).1 = s.
@@ -185,29 +219,29 @@ Inductive ordtree : Elem.t -> Elem.t -> bool -> Type :=
   : ordtree min_l max_r (inv ord_l ord_r max_l val min_r)
 | Leaf (val : Elem.t) : ordtree val val true.
 
-Ornament __orn_bintree_order from Base.bintree to __ordtree.
-Ornament _orn_bintree_order from __ordtree to _ordtree.
-Ornament orn_bintree_order from _ordtree to ordtree.
+Ornament __orn_ordtree from Base.bintree to __ordtree.
+Ornament _orn_ordtree from __ordtree to _ordtree.
+Ornament orn_ordtree from _ordtree to ordtree.
 
-Ornamental Definition __preorder' from Base.preorder using __orn_bintree_order __orn_bintree_order_inv.
+Ornamental Definition __preorder' from Base.preorder using __orn_ordtree __orn_ordtree_inv.
 Definition __preorder min (tree : __ordtree min) := __preorder' (existT _ min tree).
-Ornamental Definition _preorder' from __preorder using _orn_bintree_order _orn_bintree_order_inv.
+Ornamental Definition _preorder' from __preorder using _orn_ordtree _orn_ordtree_inv.
 Definition _preorder min max (tree : _ordtree min max) := _preorder' min (existT _ max tree).
-Ornamental Definition preorder' from _preorder using orn_bintree_order orn_bintree_order_inv.
+Ornamental Definition preorder' from _preorder using orn_ordtree orn_ordtree_inv.
 Definition preorder min max ord (tree : ordtree min max ord) := preorder' min max (existT _ ord tree).
 
-Ornamental Definition __inorder' from Base.inorder using __orn_bintree_order __orn_bintree_order_inv.
+Ornamental Definition __inorder' from Base.inorder using __orn_ordtree __orn_ordtree_inv.
 Definition __inorder min (tree : __ordtree min) := __inorder' (existT _ min tree).
-Ornamental Definition _inorder' from __inorder using _orn_bintree_order _orn_bintree_order_inv.
+Ornamental Definition _inorder' from __inorder using _orn_ordtree _orn_ordtree_inv.
 Definition _inorder min max (tree : _ordtree min max) := _inorder' min (existT _ max tree).
-Ornamental Definition inorder' from _inorder using orn_bintree_order orn_bintree_order_inv.
+Ornamental Definition inorder' from _inorder using orn_ordtree orn_ordtree_inv.
 Definition inorder min max ord (tree : ordtree min max ord) := inorder' min max (existT _ ord tree).
 
-Ornamental Definition __postorder' from Base.postorder using __orn_bintree_order __orn_bintree_order_inv.
+Ornamental Definition __postorder' from Base.postorder using __orn_ordtree __orn_ordtree_inv.
 Definition __postorder min (tree : __ordtree min) := __postorder' (existT _ min tree).
-Ornamental Definition _postorder' from __postorder using _orn_bintree_order _orn_bintree_order_inv.
+Ornamental Definition _postorder' from __postorder using _orn_ordtree _orn_ordtree_inv.
 Definition _postorder min max (tree : _ordtree min max) := _postorder' min (existT _ max tree).
-Ornamental Definition postorder' from _postorder using orn_bintree_order orn_bintree_order_inv.
+Ornamental Definition postorder' from _postorder using orn_ordtree orn_ordtree_inv.
 Definition postorder min max ord (tree : ordtree min max ord) := postorder' min max (existT _ ord tree).
 
 End Ordered.
@@ -259,12 +293,12 @@ Inductive binheap : nat -> Elem.t -> bool -> Type :=
   : binheap (S (Nat.max h_l h_r)) val (inv h_l h_r min_l min_r inv_l inv_r val)
 | Leaf (val : Elem.t) : binheap O val true.
 
-Ornament _orn_bintree_heap from Measured.bintree to _binheap.
-Ornament orn_bintree_heap from _binheap to binheap.
+Ornament _orn_binheap from Measured.bintree to _binheap.
+Ornament orn_binheap from _binheap to binheap.
 
-Ornamental Definition _preorder' from Measured.preorder using _orn_bintree_heap _orn_bintree_heap_inv.
+Ornamental Definition _preorder' from Measured.preorder using _orn_binheap _orn_binheap_inv.
 Definition _preorder h min (t : _binheap h min) := _preorder' h (existT _ min t).
-Ornamental Definition preorder' from _preorder using orn_bintree_heap orn_bintree_heap_inv.
+Ornamental Definition preorder' from _preorder using orn_binheap orn_binheap_inv.
 Definition preorder h min ord (t : binheap h min ord) := preorder' h min (existT _ ord t).
 
 (* Operations go here *)

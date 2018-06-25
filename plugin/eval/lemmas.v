@@ -1,3 +1,10 @@
+Require Import Sorting.Permutation.
+
+Notation permutes := Permutation.
+Notation perm_sym := Permutation_sym.
+Notation perm_app := Permutation_app.
+Notation perm_app_comm := Permutation_app_comm.
+Notation perm_cons_app := Permutation_cons_app.
 
 Lemma add_Sn_m (n m : nat) : S n + m = S (n + m).
 Proof. reflexivity. Defined.
