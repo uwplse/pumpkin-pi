@@ -14,6 +14,7 @@ VERNAC COMMAND EXTEND DefineOrnament CLASSIFIED AS SIDEFF
   [ find_ornament n d_old d_new ]
 END
 
+VERNAC COMMAND EXTEND Ornamental CLASSIFIED AS SIDEFF
 (*
  * Given an ornament and a function, derive the ornamented version that
  * doesn't internalize the ornament.
@@ -24,12 +25,9 @@ END
  * lifting functions, which will be chained eventually to lift
  * functions entirely.
  *)
-VERNAC COMMAND EXTEND Ornamental CLASSIFIED AS SIDEFF
-| [ "Apply" "Ornament" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
+| [ "Ornamental" "Application" ident(n) "from" constr(d_old) "using" constr(d_orn) constr(d_orn_inv) ] ->
   [ make_ornamental_command apply_ornament n d_old d_orn d_orn_inv;
     Printf.printf "Defined ornamented fuction %s.\n\n" (Id.to_string n) ]
-END
-
 (*
  * Meta-reduce an application of an ornament.
  * This command should always preserve the type of the argument,
@@ -37,25 +35,18 @@ END
  * internal application as much as possible. So for simple
  * functions, this will be enough, but for proofs, there is one more step.
  *)
-VERNAC COMMAND EXTEND ReduceOrnament CLASSIFIED AS SIDEFF
-| [ "Reduce" "Ornament" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
+| [ "Ornamental" "Reduction" ident(n) "from" constr(d_old) "using" constr(d_orn) constr(d_orn_inv) ] ->
   [ make_ornamental_command reduce_ornament n d_old d_orn d_orn_inv;
     Printf.printf "Defined reduced ornamented function %s.\n\n" (Id.to_string n) ]
-END
-
 (*
  * The higher-lifting step is not type-preserving, but instead
  * takes a meta-reduced application and substitutes in an already-lifted
  * type that still occurs in the meta-reduced term and type.
  *)
-VERNAC COMMAND EXTEND HigherLifting CLASSIFIED AS SIDEFF
-| [ "Higher" "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n) ] ->
+| [ "Ornamental" "Modularization" ident(n) "from" constr(d_old) "using" constr(d_orn) constr(d_orn_inv) ] ->
   [ make_ornamental_command modularize_ornament n d_old d_orn d_orn_inv;
     Printf.printf "Defined modularized ornamented fuction %s.\n\n" (Id.to_string n) ]
-END
-
-(* Lift and meta-reduce a term across an ornament. *)
-VERNAC COMMAND EXTEND OrnamentLift CLASSIFIED AS SIDEFF
+(* Do all of the above with a single command. *)
 | [ "Ornamental" "Definition" ident(n) "from" constr(d_old) "using" constr(d_orn) constr(d_orn_inv)] ->
   [ make_ornamental_command lift_by_ornament n d_old d_orn d_orn_inv;
     Printf.printf "Defined reduced, modularized ornamented function %s.\n\n" (Id.to_string n) ]
