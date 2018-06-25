@@ -10,7 +10,7 @@ Require Import Apply.
  * hd and hd_vect
  *)
 
-Reduce ornament orn_list_vector orn_list_vector_inv in hd_vect_auto as hd_vect_red.
+Ornamental Reduction hd_vect_red from hd_vect_auto using orn_list_vector orn_list_vector_inv.
 
 Theorem test_hd_vect:
   forall (A : Type) (default : A) (pv : packed_vector A),
@@ -22,7 +22,7 @@ Qed.
 (* TODO test relation to old version, eventually branch & simplify etc *)
 (* TODO generate coherence proof if asked for *)
 
-Reduce ornament orn_list_vector_inv orn_list_vector in hd_auto as hd_red.
+Ornamental Reduction hd_red from hd_auto using orn_list_vector_inv orn_list_vector.
 
 Theorem test_hd:
   forall (A : Type) (default : A) (l : list A),
@@ -35,7 +35,7 @@ Qed.
  * hd and hd_vect for flectors
  *)
 
-Reduce ornament orn_flist_flector_nat orn_flist_flector_nat_inv in hd_vectF_auto as hd_vectF_red.
+Ornamental Reduction hd_vectF_red from hd_vectF_auto using orn_flist_flector_nat orn_flist_flector_nat_inv.
 
 Theorem test_hd_vectF:
   forall (default : nat) (pv : sigT natFlector.flector),
@@ -44,7 +44,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Reduce ornament orn_flist_flector_nat_inv orn_flist_flector_nat in hd_autoF as hd_redF.
+Ornamental Reduction hd_redF from hd_autoF using orn_flist_flector_nat_inv orn_flist_flector_nat.
 
 Theorem test_hdF:
   forall (default : nat) (l : natFlector.flist),
@@ -57,7 +57,7 @@ Qed.
  * hd_error and hd_vect_error
  *)
 
-Reduce ornament orn_list_vector orn_list_vector_inv in hd_vect_error_auto as hd_vect_error_red.
+Ornamental Reduction hd_vect_error_red from hd_vect_error_auto using orn_list_vector orn_list_vector_inv.
 
 Theorem test_hd_vect_error:
   forall (A : Type) (pv : packed_vector A),
@@ -66,7 +66,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Reduce ornament orn_list_vector_inv orn_list_vector in hd_error_auto as hd_error_red.
+Ornamental Reduction hd_error_red from hd_error_auto using orn_list_vector_inv orn_list_vector.
 
 Theorem test_hd_error:
   forall (A : Type) (l : list A),
@@ -79,7 +79,7 @@ Qed.
  * tl and tl_vect
  *)
 
-Reduce ornament orn_list_vector orn_list_vector_inv in tl_vect_auto as tl_vect_red.
+Ornamental Reduction tl_vect_red from tl_vect_auto using orn_list_vector orn_list_vector_inv.
 
 Print tl_vect_red_index.
 
@@ -90,7 +90,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Reduce ornament orn_list_vector_inv orn_list_vector in tl_auto as tl_red.
+Ornamental Reduction tl_red from tl_auto using orn_list_vector_inv orn_list_vector.
 
 Theorem test_tl:
   forall (A : Type) (l : list A),
@@ -104,7 +104,7 @@ Qed.
  *)
 
 Print append_vect_auto.
-Reduce ornament orn_list_vector orn_list_vector_inv in append_vect_auto as append_vect_red. 
+Ornamental Reduction append_vect_red from append_vect_auto using orn_list_vector orn_list_vector_inv. 
 
 Print append_vect_red.
 
@@ -145,7 +145,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Reduce ornament orn_list_vector_inv orn_list_vector in append_auto as append_red.
+Ornamental Reduction append_red from append_auto using orn_list_vector_inv orn_list_vector.
 
 Theorem test_append :
   forall (A : Type) (l1 : list A) (l2 : list A),
@@ -156,7 +156,7 @@ Qed.
 
 (* Append with flector *)
 
-Reduce ornament orn_flist_flector_nat orn_flist_flector_nat_inv in append_vectF_auto as append_vectF_red. 
+Ornamental Reduction append_vectF_red from append_vectF_auto using orn_flist_flector_nat orn_flist_flector_nat_inv. 
 
 Definition addEvensF (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector) :=
   natFlector.flector_rect 
@@ -182,7 +182,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Reduce ornament orn_flist_flector_nat_inv orn_flist_flector_nat in appendF_auto as appendF_red.
+Ornamental Reduction appendF_red from appendF_auto using orn_flist_flector_nat_inv orn_flist_flector_nat.
 
 Theorem test_appendF :
   forall (l1 : natFlector.flist) (l2 : natFlector.flist),
@@ -193,7 +193,7 @@ Qed.
 
 (* In *)
 
-Reduce ornament orn_list_vector orn_list_vector_inv in In_vect_auto as In_vect_red.
+Ornamental Reduction In_vect_red from In_vect_auto using orn_list_vector orn_list_vector_inv.
 
 Theorem test_in_vect:
   forall (A : Type) (a : A) (pv : packed_vector A),
@@ -202,7 +202,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Reduce ornament orn_list_vector_inv orn_list_vector in In_auto as In_red.
+Ornamental Reduction In_red from In_auto using orn_list_vector_inv orn_list_vector.
 
 Theorem test_in:
   forall (A : Type) (a : A) (l : list A),
@@ -217,8 +217,8 @@ Qed.
  * app_nil_r is a proof that only exists inside of the sigma 
  *)
 
-Reduce ornament orn_list_vector orn_list_vector_inv in app_nil_r_vect_auto as app_nil_r_vect_red.
-Reduce ornament orn_list_vector_inv orn_list_vector in app_nil_r_auto as app_nil_r_red.
+Ornamental Reduction app_nil_r_vect_red from app_nil_r_vect_auto using orn_list_vector orn_list_vector_inv.
+Ornamental Reduction app_nil_r_red from app_nil_r_auto using orn_list_vector_inv orn_list_vector.
 
 (* 
  * NOTE: We don't yet have higher lifting implemented; these proofs don't know we've 
@@ -323,7 +323,7 @@ Qed.
 
 (* app_nil_r on flectors *)
 
-Reduce ornament orn_flist_flector_nat orn_flist_flector_nat_inv in app_nil_r_vectF_auto as app_nil_r_vectF_red.
+Ornamental Reduction app_nil_r_vectF_red from app_nil_r_vectF_auto using orn_flist_flector_nat orn_flist_flector_nat_inv.
 
 (* TODO opposite direction *)
 
@@ -334,17 +334,17 @@ Reduce ornament orn_flist_flector_nat orn_flist_flector_nat_inv in app_nil_r_vec
  * Below we manually derive the proofs we would want, so we can implement this later (TODO).
  *)
 
-Reduce ornament orn_list_vector orn_list_vector_inv in in_split_vect_auto as in_split_vect_red.
+Ornamental Reduction in_split_vect_red from in_split_vect_auto using orn_list_vector orn_list_vector_inv.
 
 (* TODO test *)
 (* TODO opposite direction too once it's done *)
 
 (* needed for porting discriminate proofs *)
-Reduce ornament orn_list_vector orn_list_vector_inv in is_cons_vect_auto as is_cons_vect_red.
+Ornamental Reduction is_cons_vect_red from is_cons_vect_auto using orn_list_vector orn_list_vector_inv.
 
 (* TODO test, opposite *)
 
-Reduce ornament orn_list_vector orn_list_vector_inv in hd_error_some_nil_vect_auto as hd_error_some_nil_vect_red.
+Ornamental Reduction hd_error_some_nil_vect_red from hd_error_some_nil_vect_auto using orn_list_vector orn_list_vector_inv.
 
 (* TODO test, opposite *)
 
