@@ -69,8 +69,8 @@ let modularize_ornament env evd c_orn c_orn_inv c_old =
 (* Perform application, meta-reduction, and modularization all in sequence *)
 let lift_by_ornament env evd c_orn c_orn_inv c_old =
   let (c_app, c_app_idx_opt) = apply_ornament env evd c_orn c_orn_inv c_old in
-  let (c_red, c_red_idx_opt) = apply_ornament env evd c_orn c_orn_inv c_app in
-  let (c_mod, c_mod_idx_opt) = apply_ornament env evd c_orn c_orn_inv c_red in
+  let (c_red, c_red_idx_opt) = reduce_ornament env evd c_orn c_orn_inv c_app in
+  let (c_mod, c_mod_idx_opt) = modularize_ornament env evd c_orn c_orn_inv c_red in
   let c_idx_opt = Option.append c_mod_idx_opt (Option.append c_red_idx_opt c_app_idx_opt) in
   (c_mod, c_idx_opt)
 
