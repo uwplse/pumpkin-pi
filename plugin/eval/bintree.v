@@ -233,7 +233,12 @@ Defined.
 Ornamental Definition mirror_permutes' from Base.mirror_permutes using orn_size orn_size_inv.
 (* NOTE: Not worth trying to prove the nice dependent typing for the above lemma. *)
 
-(* XXX: Illegal application (bug in ornamental modularization) *)
+(* XXX: Illegal pattern-match *)
+(*
+Error: A term of inductive type Base.bintree
+was given to a pattern-matching expression on the inductive type
+sigT.
+ *)
 (* Ornamental Definition mirror_inv' from Base.mirror_inv using orn_size orn_size_inv. *)
 
 End Sized.
@@ -294,7 +299,73 @@ Definition __mirror min (tree : __ordtree min) := __mirror' (existT _ min tree).
 (* XXX: Anomaly "Uncaught exception Failure("tl")." *)
 (* Ornamental Definition _mirror' from __mirror using _orn_ordtree _orn_ordtree_inv. *)
 
-(* XXX: Illegal application (bug in ornamental modularization) *)
+(* XXX: Illegal application *)
+(*
+The term "__ordtree_rect" of type
+ "forall P : forall t : Elem.t, __ordtree t -> Type,
+  (forall (min_l min_r val : Elem.t) (left : __ordtree min_l),
+   P min_l left ->
+   forall right : __ordtree min_r,
+   P min_r right -> P min_l (__Branch min_l min_r val left right)) ->
+  (forall val : Elem.t, P val (__Leaf val)) ->
+  forall (t : Elem.t) (__o : __ordtree t), P t __o"
+cannot be applied to the terms
+ "fun (t : Elem.t) (__o : __ordtree t) =>
+  permutes (Base.preorder (__orn_ordtree_inv (|t, __o|)))
+    (Base.inorder (__orn_ordtree_inv (|t, __o|)))"
+   : "forall t : Elem.t, __ordtree t -> Prop"
+ "fun (min_l min_r val : Elem.t) (left : __ordtree min_l)
+    (H : permutes (Base.preorder (__orn_ordtree_inv (|min_l, left|)))
+           (Base.inorder (__orn_ordtree_inv (|min_l, left|))))
+    (right : __ordtree min_r)
+    (H0 : permutes (Base.preorder (__orn_ordtree_inv (|min_r, right|)))
+            (Base.inorder (__orn_ordtree_inv (|min_r, right|)))) =>
+  perm_cons_app (Base.inorder (__orn_ordtree_inv (|min_l, left|)))
+    (Base.inorder (__orn_ordtree_inv (|min_r, right|))) val
+    (perm_app H H0)"
+   : "forall (min_l min_r val : Elem.t) (left : __ordtree min_l),
+      permutes (Base.preorder (__orn_ordtree_inv (|min_l, left|)))
+        (Base.inorder (__orn_ordtree_inv (|min_l, left|))) ->
+      forall right : __ordtree min_r,
+      permutes (Base.preorder (__orn_ordtree_inv (|min_r, right|)))
+        (Base.inorder (__orn_ordtree_inv (|min_r, right|))) ->
+      permutes
+        (val
+         :: Base.preorder (__orn_ordtree_inv (|min_l, left|)) ++
+            Base.preorder (__orn_ordtree_inv (|min_r, right|)))
+        (Base.inorder (__orn_ordtree_inv (|min_l, left|)) ++
+         val :: Base.inorder (__orn_ordtree_inv (|min_r, right|)))"
+ "fun val : Elem.t => perm_skip val (perm_nil Elem.t)"
+   : "forall val : Elem.t, permutes [val] [val]"
+ "t .1" : "Elem.t"
+ "t .2" : "__ordtree t .1"
+The 2nd term has type
+ "forall (min_l min_r val : Elem.t) (left : __ordtree min_l),
+  permutes (Base.preorder (__orn_ordtree_inv (|min_l, left|)))
+    (Base.inorder (__orn_ordtree_inv (|min_l, left|))) ->
+  forall right : __ordtree min_r,
+  permutes (Base.preorder (__orn_ordtree_inv (|min_r, right|)))
+    (Base.inorder (__orn_ordtree_inv (|min_r, right|))) ->
+  permutes
+    (val
+     :: Base.preorder (__orn_ordtree_inv (|min_l, left|)) ++
+        Base.preorder (__orn_ordtree_inv (|min_r, right|)))
+    (Base.inorder (__orn_ordtree_inv (|min_l, left|)) ++
+     val :: Base.inorder (__orn_ordtree_inv (|min_r, right|)))"
+which should be coercible to
+ "forall (min_l min_r val : Elem.t) (left : __ordtree min_l),
+  (fun (t : Elem.t) (__o : __ordtree t) =>
+   permutes (Base.preorder (__orn_ordtree_inv (|t, __o|)))
+     (Base.inorder (__orn_ordtree_inv (|t, __o|)))) min_l left ->
+  forall right : __ordtree min_r,
+  (fun (t : Elem.t) (__o : __ordtree t) =>
+   permutes (Base.preorder (__orn_ordtree_inv (|t, __o|)))
+     (Base.inorder (__orn_ordtree_inv (|t, __o|)))) min_r right ->
+  (fun (t : Elem.t) (__o : __ordtree t) =>
+   permutes (Base.preorder (__orn_ordtree_inv (|t, __o|)))
+     (Base.inorder (__orn_ordtree_inv (|t, __o|)))) min_l
+    (__Branch min_l min_r val left right)".
+ *)
 (* In this case, the intermediate term observed after meta-reduction is
  * ill-typed because necessary definitional equalities are blocked by explicit
  * ornamental conversions. One would think that delta/iota-reduction should
@@ -386,7 +457,20 @@ Definition postorder h min ord (t : binheap h min ord) := postorder' h min (exis
 (* XXX: Anomaly "Uncaught exception Failure("tl")." *)
 (* Ornamental Definition _mirror' from Measured.mirror using _orn_binheap _orn_binheap_inv. *)
 
+(* XXX: Anomaly "Uncaught exception Failure("tl")." *)
+(* Ornamental Definition _pre_permutes'' from Measured.pre_permutes' using _orn_binheap _orn_binheap_inv. *)
+
 (* XXX: Illegal application *)
+(*
+The term "Measured.preorder'" of type
+ "forall t : {H : nat & Measured.bintree H},
+  (fun (n : nat) (_ : Measured.bintree n) => list Elem.t) t .1 t .2"
+cannot be applied to the term
+ "(|n, (|t0, _b|)|)" : "{H : nat & {H0 : Elem.t & _binheap H H0}}"
+This term has type "{H : nat & {H0 : Elem.t & _binheap H H0}}"
+which should be coercible to
+ "{H : nat & Measured.bintree H}".
+ *)
 (* Ornamental Definition _pre_permutes' from Measured.pre_permutes using _orn_binheap _orn_binheap_inv. *)
 (* Lemma pre_permutes (s : nat) : forall (t : bintree s), *)
 (*     permutes (preorder s t) (inorder s t). *)
@@ -397,40 +481,5 @@ Definition postorder h min ord (t : binheap h min ord) := postorder' h min (exis
 (* Operations go here *)
 
 End Heaped.
-
-Module Balanced'.
-
-(* This module constructs red-black trees as an ornament of ordered (binary
- * search) trees. Unfortunately, we likely won't use it, because an explicit
- * representation of the node colorings requires adding constructor fields. The
- * types below sneak around that problem by stating the tree-balance invariant
- * in terms of subtree height, but this work-around breaks the locality of the
- * red-black balance invariant, consequently preventing implementation of the
- * color-based rebalancing operation.
- *
- * For now, we'll leave in the partial formalization, at least so that the code
- * is accessible from the Git history.
- *)
-
-Inductive _rbtree : Elem.t -> Elem.t -> bool -> nat -> Type :=
-| _Branch (h_l h_r : nat) (ord_l ord_r : bool) (min_l min_r : Elem.t) (max_l max_r : Elem.t)
-          (val : Elem.t)
-          (left : _rbtree min_l max_l ord_l h_l) (right : _rbtree min_r max_r ord_r h_r)
-  : _rbtree min_l max_r (Ordered.inv ord_l ord_r max_l val min_r) (S (Nat.max h_l h_r))
-| _Leaf (val : Elem.t) : _rbtree val val true O.
-
-Definition inv h_l h_r := Nat.leb (Nat.div h_l 2) h_r && Nat.leb (Nat.div h_r 2) h_l.
-
-Inductive rbtree : Elem.t -> Elem.t -> bool -> nat -> bool -> Type :=
-| Branch (bal_l bal_r : bool) (h_l h_r : nat) (ord_l ord_r : bool) (min_l min_r : Elem.t) (max_l max_r : Elem.t)
-         (val : Elem.t)
-         (left : rbtree min_l max_l ord_l h_l bal_l) (right : rbtree min_r max_r ord_r h_r bal_r)
-  : rbtree min_l max_r (Ordered.inv ord_l ord_r max_l val min_r) (S (Nat.max h_l h_r)) (inv h_l h_r)
-| Leaf (val : Elem.t) : rbtree val val true O true.
-
-Ornament _orn_rbtree from Ordered.ordtree to _rbtree.
-Ornament orn_rbtree from _rbtree to rbtree.
-
-End Balanced'.
 
 End CaseStudy.
