@@ -11,12 +11,35 @@ Structure t :=
 End Decidable.
 
 Notation decType := Decidable.t.
-Notation eq_dec := Decidable.eq_dec.
+Notation eq_dec := (Decidable.eq_dec _).
 Coercion Decidable.type : decType >-> Sortclass.
+
+(* A synonym for eq_rect with implicit inference of more arguments. *)
+Definition cast {A : Type} {P : A -> Type} {x y : A} (p : P x) (E : x = y) : P y :=
+  @eq_rect A x P p y E.
+
+Definition cast_trivial {A : decType} {P : A -> Type} {x : A}
+           (p : P x) (E : x = x) : @cast A P x x p E = p :=
+  eq_sym (@Eqdep_dec.eq_rect_eq_dec A eq_dec x P p E).
 
 Program Canonical Structure nat_decType :=
   Decidable.Pack nat _.
 Next Obligation. decide equality. Defined.
+
+Lemma cast_struct {A : decType} {B : A -> Type} {x y : A}
+      {g : A -> A} {inj : forall x y, g x = g y -> x = y}
+      (E : g x = g y) (f : forall x, B x -> B (g x))
+      (p : B x) : cast (f x p) E = f y (cast p (inj x y E)).
+Proof.
+  assert (E' := (inj x y E)). revert p E. rewrite E'. intros p E.
+  repeat rewrite cast_trivial. reflexivity.
+Defined.
+
+Lemma cast_contract {A : decType} {B : A -> Type}
+      {f : forall x, B x} {x y : A} (E : x = y) : cast (f x) E = f y.
+Proof.
+  assert (E' := E). revert E. rewrite E'. intros E. rewrite cast_trivial. reflexivity.
+Defined.
 
 Module Identity.
 Structure t {A : Type} :=
@@ -32,16 +55,9 @@ Notation source := Identity.source.
 Notation target := Identity.target.
 Notation equate := Identity.equate.
 
-(* A synonym for eq_rect with implicit inference of more arguments. *)
-Definition cast {A : Type} {P : A -> Type} {x y : A} (p : P x) (E : x = y) : P y :=
-  @eq_rect A x P p y E.
 Notation "<| x |>" := (cast x (equate _)).
 
 (* Notation "p :> P y" := (@cast _ P _ y (equate _) p) (left associativity, at level 90, P at level 1, y at level 1). *)
-
-Definition cast_trivial {A : decType} {P : A -> Type} {x : A} (p : P x) (E : x = x) :
-  @cast A P x x p E = p :=
-  eq_sym (@Eqdep_dec.eq_rect_eq_dec A (eq_dec A) x P p E).
 
 (* Let's make [n + 0 = n] and [n + S m = S (n + m)] canonical identities. *)
 Canonical Structure plus_n_O_idType (n : nat) :=
@@ -69,9 +85,8 @@ Fixpoint vapp {A n m} (xs : vector A n) (ys : vector A m) : vector A (n + m) :=
 Lemma cast_vcons {A n m} (x : A) (xs : vector A n) (E : S n = S m) :
     cast (vcons x xs) E = vcons x (cast xs (eq_add_S n m E)).
 Proof.
-  assert (E' := eq_add_S _ _ E). revert xs E. rewrite <- E'.
-  intros xs E. repeat rewrite cast_trivial. reflexivity.
-Qed.
+  apply (cast_struct E (fun n => @vcons A n x) xs).
+Defined.
 
 Definition bitvector := vector bool.
 Definition bv1010 : bitvector 4 :=
