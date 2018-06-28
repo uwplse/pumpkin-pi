@@ -9,6 +9,7 @@ Infix "==" := Nat.eqb (at level 70, right associativity) : nat_scope.
 Notation "x <= y" := (Nat.leb x y) (at level 70, y at next level, right associativity) : nat_scope.
 Notation "p '.1'" := (projT1 p) (at level 8, left associativity).
 Notation "p '.2'" := (projT2 p) (at level 8, left associativity).
+Notation "(| x , y |)" := (existT _ x y).
 
 Definition is_true (b : bool) : Prop := b = true.
 Coercion is_true : bool >-> Sortclass.
@@ -25,17 +26,10 @@ Parameter antisym : forall x y, leb x y -> leb y x -> x = y.
 Definition eqb x y := leb x y && leb y x.
 Definition ltb x y := leb x y && negb (leb y x).
 
-Parameters w x y z : t.
-
 End Comparable.
 
 
 Module CaseStudy (Elem : Comparable).
-
-Definition w := Elem.w.
-Definition x := Elem.x.
-Definition y := Elem.y.
-Definition z := Elem.z.
 
 Module Base.
 
@@ -64,30 +58,6 @@ Definition postorder (t : bintree) : list Elem.t :=
     (fun x => [x])
     t.
 
-Lemma pre_perm_in : forall t : bintree,
-    permutes (preorder t) (inorder t).
-Proof.
-  induction t; simpl.
-  - apply perm_cons_app. apply perm_app; assumption.
-  - apply perm_skip. apply perm_nil.
-Qed.
-
-Lemma post_perm_in : forall t : bintree,
-    permutes (postorder t) (inorder t).
-Proof.
-  induction t; simpl.
-  - apply perm_app. assumption. apply perm_sym. apply perm_cons_app.
-    rewrite app_nil_r. apply perm_sym. assumption.
-  - apply perm_skip. apply perm_nil.
-Qed.
-
-Lemma pre_perm_post : forall t : bintree,
-    permutes (preorder t) (postorder t).
-Proof.
-  intro t. eapply perm_trans. exact (pre_perm_in t).
-  apply perm_sym. exact (post_perm_in t).
-Qed.
-
 Definition mirror (t : bintree) : bintree :=
   bintree_rect
     (fun _ => bintree)
@@ -95,14 +65,44 @@ Definition mirror (t : bintree) : bintree :=
     (fun v => Leaf v)
     t.
 
-Lemma mirror_perm : forall t : bintree,
+Lemma pre_permutes : forall t : bintree,
+    permutes (preorder t) (inorder t).
+Proof.
+  induction t; simpl.
+  - apply perm_cons_app. apply perm_app; assumption.
+  - apply perm_skip. apply perm_nil.
+Defined.
+
+Lemma post_permutes : forall t : bintree,
+    permutes (postorder t) (inorder t).
+Proof.
+  induction t; simpl.
+  - apply perm_app. assumption. apply perm_sym. apply perm_cons_app.
+    rewrite app_nil_r. apply perm_sym. assumption.
+  - apply perm_skip. apply perm_nil.
+Defined.
+
+Lemma pre_post_permutes : forall t : bintree,
+    permutes (preorder t) (postorder t).
+Proof.
+  intro t. eapply perm_trans. apply pre_permutes.
+  apply perm_sym, post_permutes.
+Defined.
+
+Lemma mirror_permutes : forall t : bintree,
     permutes (inorder t) (inorder (mirror t)).
 Proof.
   induction t; simpl.
   - apply perm_sym. eapply perm_trans. apply perm_app_comm. simpl.
     apply perm_cons_app. apply perm_sym. apply perm_app; assumption.
   - apply perm_skip. apply perm_nil.
-Qed.
+Defined.
+
+Lemma mirror_inv : forall t : bintree,
+    mirror (mirror t) = t.
+Proof.
+  induction t; simpl; [rewrite IHt1, IHt2|]; reflexivity.
+Defined.
 
 End Base.
 
@@ -127,7 +127,6 @@ Definition inorder h t := inorder' (existT _ h t).
 Ornamental Definition postorder' from Base.postorder using orn_height orn_height_inv.
 Definition postorder h t := postorder' (existT _ h t).
 
-(* Ornamental Definition pre_perm_in' from Base.pre_perm_in using orn_height orn_height_inv. *)
 
 Ornamental Definition mirror' from Base.mirror using orn_height orn_height_inv.
 
@@ -145,9 +144,32 @@ Definition mirror (h : nat) (t : bintree h) : bintree h.
   rewrite mirror_height in E. rewrite E. exact b.
 Defined.
 
-Example tree :=
-  let child := Branch _ _ x (Leaf y) (Leaf z) in Branch _ _ w child child.
-Eval compute in (mirror _ tree).
+Ornamental Definition pre_permutes' from Base.pre_permutes using orn_height orn_height_inv.
+Lemma pre_permutes (h : nat) : forall (t : bintree h),
+    permutes (preorder h t) (inorder h t).
+Proof.
+  intro t. unfold preorder, inorder. set (t' := (|h, t|)). apply pre_permutes'.
+Defined.
+
+Ornamental Definition post_permutes' from Base.post_permutes using orn_height orn_height_inv.
+Lemma post_permutes (h : nat) : forall (t : bintree h),
+    permutes (postorder h t) (inorder h t).
+Proof.
+  intro t. unfold postorder, inorder. set (t' := (|h, t|)). apply post_permutes'.
+Defined.
+
+Ornamental Modularization pre_post_permutes' from Base.pre_post_permutes using orn_height orn_height_inv.
+Lemma pre_post_permutes (h : nat) : forall (t : bintree h),
+    permutes (preorder h t) (postorder h t).
+Proof.
+  intro t. unfold preorder, postorder. set (t' := (|h, t|)). apply pre_post_permutes'.
+Defined.
+
+Ornamental Definition mirror_permutes' from Base.mirror_permutes using orn_height orn_height_inv.
+(* NOTE: Not worth trying to prove the nice dependent typing for the above lemma. *)
+
+(* XXX: Illegal application (bug in ornamental modularization) *)
+(* Ornamental Definition mirror_inv' from Base.mirror_inv using orn_height orn_height_inv. *)
 
 End Measured.
 
@@ -187,9 +209,32 @@ Definition mirror (s : nat) (t : bintree s) : bintree s.
   rewrite mirror_size in E. rewrite <- E in b. exact b.
 Defined.
 
-Example tree :=
-  let child := Branch _ _ x (Leaf y) (Leaf z) in Branch _ _ w child child.
-Eval compute in (mirror _ tree).
+Ornamental Definition pre_permutes' from Base.pre_permutes using orn_size orn_size_inv.
+Lemma pre_permutes (s : nat) : forall (t : bintree s),
+    permutes (preorder s t) (inorder s t).
+Proof.
+  intro t. unfold preorder, inorder. set (t' := (|s, t|)). apply pre_permutes'.
+Defined.
+
+Ornamental Definition post_permutes' from Base.post_permutes using orn_size orn_size_inv.
+Lemma post_permutes (s : nat) : forall (t : bintree s),
+    permutes (postorder s t) (inorder s t).
+Proof.
+  intro t. unfold postorder, inorder. set (t' := (|s, t|)). apply post_permutes'.
+Defined.
+
+Ornamental Modularization pre_post_permutes' from Base.pre_post_permutes using orn_size orn_size_inv.
+Lemma pre_post_permutes (s : nat) : forall (t : bintree s),
+    permutes (preorder s t) (postorder s t).
+Proof.
+  intro t. unfold preorder, postorder. set (t' := (|s, t|)). apply pre_post_permutes'.
+Defined.
+
+Ornamental Definition mirror_permutes' from Base.mirror_permutes using orn_size orn_size_inv.
+(* NOTE: Not worth trying to prove the nice dependent typing for the above lemma. *)
+
+(* XXX: Illegal application (bug in ornamental modularization) *)
+(* Ornamental Definition mirror_inv' from Base.mirror_inv using orn_size orn_size_inv. *)
 
 End Sized.
 
@@ -244,6 +289,23 @@ Definition _postorder min max (tree : _ordtree min max) := _postorder' min (exis
 Ornamental Definition postorder' from _postorder using orn_ordtree orn_ordtree_inv.
 Definition postorder min max ord (tree : ordtree min max ord) := postorder' min max (existT _ ord tree).
 
+Ornamental Definition __mirror' from Base.mirror using __orn_ordtree __orn_ordtree_inv.
+Definition __mirror min (tree : __ordtree min) := __mirror' (existT _ min tree).
+(* XXX: Anomaly "Uncaught exception Failure("tl")." *)
+(* Ornamental Definition _mirror' from __mirror using _orn_ordtree _orn_ordtree_inv. *)
+
+(* XXX: Illegal application (bug in ornamental modularization) *)
+(* In this case, the intermediate term observed after meta-reduction is
+ * ill-typed because necessary definitional equalities are blocked by explicit
+ * ornamental conversions. One would think that delta/iota-reduction should
+ * push through the ornamental conversions and reduce to corresponding to
+ * corresponding normal forms, and even if that's not the case, ornamental
+ * modularization should substitute in the lifted version of each base function.
+ *
+ * FIXME: This kind of bug cannot be ignored.
+ *)
+(* Ornamental Definition __pre_permutes' from Base.pre_permutes using __orn_ordtree __orn_ordtree_inv. *)
+
 End Ordered.
 
 Module Balanced.
@@ -273,6 +335,16 @@ Definition _preorder min max ord h (t : _avltree min max ord h) := _preorder' mi
 Ornamental Definition preorder' from _preorder using orn_avltree orn_avltree_inv.
 Definition preorder min max ord h bal (t : avltree min max ord h bal) := preorder' min max ord h (existT _ bal t).
 
+Ornamental Definition _inorder' from Ordered.inorder using _orn_avltree _orn_avltree_inv.
+Definition _inorder min max ord h (t : _avltree min max ord h) := _inorder' min max ord (existT _ h t).
+Ornamental Definition inorder' from _inorder using orn_avltree orn_avltree_inv.
+Definition inorder min max ord h bal (t : avltree min max ord h bal) := inorder' min max ord h (existT _ bal t).
+
+Ornamental Definition _postorder' from Ordered.postorder using _orn_avltree _orn_avltree_inv.
+Definition _postorder min max ord h (t : _avltree min max ord h) := _postorder' min max ord (existT _ h t).
+Ornamental Definition postorder' from _postorder using orn_avltree orn_avltree_inv.
+Definition postorder min max ord h bal (t : avltree min max ord h bal) := postorder' min max ord h (existT _ bal t).
+
 End Balanced.
 
 Module Heaped.
@@ -300,6 +372,27 @@ Ornamental Definition _preorder' from Measured.preorder using _orn_binheap _orn_
 Definition _preorder h min (t : _binheap h min) := _preorder' h (existT _ min t).
 Ornamental Definition preorder' from _preorder using orn_binheap orn_binheap_inv.
 Definition preorder h min ord (t : binheap h min ord) := preorder' h min (existT _ ord t).
+
+Ornamental Definition _inorder' from Measured.inorder using _orn_binheap _orn_binheap_inv.
+Definition _inorder h min (t : _binheap h min) := _inorder' h (existT _ min t).
+Ornamental Definition inorder' from _inorder using orn_binheap orn_binheap_inv.
+Definition inorder h min ord (t : binheap h min ord) := inorder' h min (existT _ ord t).
+
+Ornamental Definition _postorder' from Measured.postorder using _orn_binheap _orn_binheap_inv.
+Definition _postorder h min (t : _binheap h min) := _postorder' h (existT _ min t).
+Ornamental Definition postorder' from _postorder using orn_binheap orn_binheap_inv.
+Definition postorder h min ord (t : binheap h min ord) := postorder' h min (existT _ ord t).
+
+(* XXX: Anomaly "Uncaught exception Failure("tl")." *)
+(* Ornamental Definition _mirror' from Measured.mirror using _orn_binheap _orn_binheap_inv. *)
+
+(* XXX: Illegal application *)
+(* Ornamental Definition _pre_permutes' from Measured.pre_permutes using _orn_binheap _orn_binheap_inv. *)
+(* Lemma pre_permutes (s : nat) : forall (t : bintree s), *)
+(*     permutes (preorder s t) (inorder s t). *)
+(* Proof. *)
+(*   intro t. unfold preorder, inorder. set (t' := (|s, t|)). apply pre_permutes'. *)
+(* Defined. *)
 
 (* Operations go here *)
 
