@@ -315,13 +315,17 @@ let get_assum orn env evd trm =
             let (_, unorn_typ) = zoom_product_type env (infer_type env evd unorn) in
             let last_a = last_arg unorn_typ in
             let assum_a = map_if last_arg (applies projT2 last_a) last_a in
-            let assum_i =
-              if isRel assum_a then
-                arity unorn - destRel assum_a
+            let rec unwrap a = (* hack until we get rid of factoring to guide factoring better *)
+              if isApp a then
+                unwrap (last_arg a)
+              else if isRel a then
+                a
               else
-                arity unorn - destRel (last_arg assum_a)
+                failwith "unexpected induction argument"
             in
-            Some (last_arg (get_arg assum_i t))
+            let assum_i = arity unorn - destRel (unwrap assum_a) in
+            let res = last_arg (get_arg assum_i t) in
+            Some res
         in c := c'; t)
       trm
   in Option.get !c
