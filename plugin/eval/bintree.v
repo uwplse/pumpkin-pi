@@ -7,8 +7,8 @@ Open Scope bool_scope.
 
 Infix "==" := Nat.eqb (at level 70, no associativity) : nat_scope.
 Notation "x <= y" := (Nat.leb x y) (at level 70, y at next level, no associativity) : nat_scope.
-Notation "p '.1'" := (projT1 p) (at level 8, left associativity).
-Notation "p '.2'" := (projT2 p) (at level 8, left associativity).
+Notation "p '.1'" := (projT1 p) (at level 20, left associativity).
+Notation "p '.2'" := (projT2 p) (at level 20, left associativity).
 Notation "(| x , y |)" := (existT _ x y) (only parsing).
 
 Definition is_true (b : bool) : Prop := b = true.
@@ -122,40 +122,29 @@ Ornamental Definition postorder' from Base.postorder using orn_height orn_height
 Definition postorder h t := postorder' (existT _ h t).
 
 Ornamental Definition mirror' from Base.mirror using orn_height orn_height_inv.
-
-Lemma mirror_height (h : nat) (t : bintree h) :
-    (mirror' (existT _ h t)).1 = h.
-Proof.
-  induction t; try reflexivity.
-  unfold mirror', projT1 in *. simpl in *.
-  rewrite IHt1, IHt2, max_comm. reflexivity.
-Defined.
-
 Definition mirror (h : nat) (t : bintree h) : bintree h.
-  destruct (mirror' (existT _ h t)) eqn:E.
-  apply (f_equal (@projT1 nat bintree)) in E. simpl in E.
-  rewrite mirror_height in E. rewrite E. exact b.
+  pose (T := (mirror' (existT _ h t))). replace h with (T.1). exact (T.2).
+  induction t as [h_l h_r v t_l IH_l t_r IH_r|v]; [|reflexivity].
+  change (fun h => bintree h) with bintree in *. cbn zeta in IH_l, IH_r.
+  rewrite max_comm, <- IH_l, <- IH_r. subst T. reflexivity.
 Defined.
 
 Ornamental Definition pre_permutes' from Base.pre_permutes using orn_height orn_height_inv.
-Lemma pre_permutes (h : nat) : forall (t : bintree h),
-    permutes (preorder h t) (inorder h t).
-Proof.
-  intro t. unfold preorder, inorder. set (t' := (|h, t|)). apply pre_permutes'.
+Definition pre_permutes (h : nat) (t : bintree h) :
+  permutes (preorder h t) (inorder h t).
+  unfold preorder, inorder. set (t' := (|h, t|)). apply pre_permutes'.
 Defined.
 
 Ornamental Definition post_permutes' from Base.post_permutes using orn_height orn_height_inv.
-Lemma post_permutes (h : nat) : forall (t : bintree h),
-    permutes (postorder h t) (inorder h t).
-Proof.
-  intro t. unfold postorder, inorder. set (t' := (|h, t|)). apply post_permutes'.
+Definition post_permutes (h : nat) (t : bintree h) :
+  permutes (postorder h t) (inorder h t).
+  unfold postorder, inorder. set (t' := (|h, t|)). apply post_permutes'.
 Defined.
 
 Ornamental Modularization pre_post_permutes' from Base.pre_post_permutes using orn_height orn_height_inv.
-Lemma pre_post_permutes (h : nat) : forall (t : bintree h),
-    permutes (preorder h t) (postorder h t).
-Proof.
-  intro t. unfold preorder, postorder. set (t' := (|h, t|)). apply pre_post_permutes'.
+Definition pre_post_permutes (h : nat) (t : bintree h) :
+  permutes (preorder h t) (postorder h t).
+  unfold preorder, postorder. set (t' := (|h, t|)). apply pre_post_permutes'.
 Defined.
 
 Ornamental Definition mirror_permutes' from Base.mirror_permutes using orn_height orn_height_inv.
@@ -276,91 +265,9 @@ Definition _postorder min max (tree : _ordtree min max) := _postorder' min (exis
 Ornamental Definition postorder' from _postorder using orn_order orn_order_inv.
 Definition postorder min max ord (tree : ordtree min max ord) := postorder' min max (existT _ ord tree).
 
-Ornamental Definition __mirror' from Base.mirror using __orn_order __orn_order_inv.
-Definition __mirror min (tree : __ordtree min) := (__mirror' (existT _ min tree)).2.
-(* XXX: Anomaly "Uncaught exception Constr.DestKO." (when using projT2) *)
-(* XXX: Anomaly "Uncaught exception Failure("tl")." *)
-(* Ornamental Definition _mirror' from __mirror using _orn_order _orn_order_inv. *)
-
-(* XXX: Illegal application *)
-(*
-The term "__ordtree_rect" of type
- "forall P : forall t : Elem.t, __ordtree t -> Type,
-  (forall (min_l min_r val : Elem.t) (left : __ordtree min_l),
-   P min_l left ->
-   forall right : __ordtree min_r,
-   P min_r right -> P min_l (__Branch min_l min_r val left right)) ->
-  (forall val : Elem.t, P val (__Leaf val)) ->
-  forall (t : Elem.t) (__o : __ordtree t), P t __o"
-cannot be applied to the terms
- "fun (t : Elem.t) (__o : __ordtree t) =>
-  permutes (Base.preorder (__orn_order_inv (|t, __o|)))
-    (Base.inorder (__orn_order_inv (|t, __o|)))"
-   : "forall t : Elem.t, __ordtree t -> Prop"
- "fun (min_l min_r val : Elem.t) (left : __ordtree min_l)
-    (H : permutes (Base.preorder (__orn_order_inv (|min_l, left|)))
-           (Base.inorder (__orn_order_inv (|min_l, left|))))
-    (right : __ordtree min_r)
-    (H0 : permutes (Base.preorder (__orn_order_inv (|min_r, right|)))
-            (Base.inorder (__orn_order_inv (|min_r, right|)))) =>
-  perm_cons_app (Base.inorder (__orn_order_inv (|min_l, left|)))
-    (Base.inorder (__orn_order_inv (|min_r, right|))) val
-    (perm_app H H0)"
-   : "forall (min_l min_r val : Elem.t) (left : __ordtree min_l),
-      permutes (Base.preorder (__orn_order_inv (|min_l, left|)))
-        (Base.inorder (__orn_order_inv (|min_l, left|))) ->
-      forall right : __ordtree min_r,
-      permutes (Base.preorder (__orn_order_inv (|min_r, right|)))
-        (Base.inorder (__orn_order_inv (|min_r, right|))) ->
-      permutes
-        (val
-         :: Base.preorder (__orn_order_inv (|min_l, left|)) ++
-            Base.preorder (__orn_order_inv (|min_r, right|)))
-        (Base.inorder (__orn_order_inv (|min_l, left|)) ++
-         val :: Base.inorder (__orn_order_inv (|min_r, right|)))"
- "fun val : Elem.t => perm_skip val (perm_nil Elem.t)"
-   : "forall val : Elem.t, permutes [val] [val]"
- "t .1" : "Elem.t"
- "t .2" : "__ordtree t .1"
-The 2nd term has type
- "forall (min_l min_r val : Elem.t) (left : __ordtree min_l),
-  permutes (Base.preorder (__orn_order_inv (|min_l, left|)))
-    (Base.inorder (__orn_order_inv (|min_l, left|))) ->
-  forall right : __ordtree min_r,
-  permutes (Base.preorder (__orn_order_inv (|min_r, right|)))
-    (Base.inorder (__orn_order_inv (|min_r, right|))) ->
-  permutes
-    (val
-     :: Base.preorder (__orn_order_inv (|min_l, left|)) ++
-        Base.preorder (__orn_order_inv (|min_r, right|)))
-    (Base.inorder (__orn_order_inv (|min_l, left|)) ++
-     val :: Base.inorder (__orn_order_inv (|min_r, right|)))"
-which should be coercible to
- "forall (min_l min_r val : Elem.t) (left : __ordtree min_l),
-  (fun (t : Elem.t) (__o : __ordtree t) =>
-   permutes (Base.preorder (__orn_order_inv (|t, __o|)))
-     (Base.inorder (__orn_order_inv (|t, __o|)))) min_l left ->
-  forall right : __ordtree min_r,
-  (fun (t : Elem.t) (__o : __ordtree t) =>
-   permutes (Base.preorder (__orn_order_inv (|t, __o|)))
-     (Base.inorder (__orn_order_inv (|t, __o|)))) min_r right ->
-  (fun (t : Elem.t) (__o : __ordtree t) =>
-   permutes (Base.preorder (__orn_order_inv (|t, __o|)))
-     (Base.inorder (__orn_order_inv (|t, __o|)))) min_l
-    (__Branch min_l min_r val left right)".
- *)
-(* In this case, the intermediate term observed after meta-reduction is
- * ill-typed because necessary definitional equalities are blocked by explicit
- * ornamental conversions. One would think that delta/iota-reduction should
- * push through the ornamental conversions and reduce to corresponding to
- * corresponding normal forms, and even if that's not the case, ornamental
- * modularization should substitute in the lifted version of each base function.
- *
- * FIXME: This kind of bug cannot be ignored.
- *)
 Ornamental Definition __post_permutes' from Base.post_permutes using __orn_order __orn_order_inv.
-
-Ornamental Definition __pre_permutes' from Base.pre_permutes using __orn_order __orn_order_inv.
+Definition __post_permutes min (tree : __ordtree min) := __post_permutes' (|min, tree|).
+Ornamental Definition _post_permutes' from __post_permutes using _orn_order _orn_order_inv.
 
 End Ordered.
 
