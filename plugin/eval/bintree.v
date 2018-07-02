@@ -221,7 +221,7 @@ Proof.
 Defined.
 
 Ornamental Definition mirror_permutes' from Base.mirror_permutes using orn_size orn_size_inv.
-(* NOTE: Not worth trying to prove the nice dependent typing for the above lemma. *)
+(* TODO: Prove a descriptive nice dependent type for the above lemma. *)
 
 End Sized.
 
