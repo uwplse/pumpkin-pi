@@ -98,12 +98,6 @@ Proof.
   - apply perm_skip. apply perm_nil.
 Defined.
 
-Lemma mirror_inv : forall t : bintree,
-    mirror (mirror t) = t.
-Proof.
-  induction t; simpl; [rewrite IHt1, IHt2|]; reflexivity.
-Defined.
-
 End Base.
 
 
@@ -165,10 +159,7 @@ Proof.
 Defined.
 
 Ornamental Definition mirror_permutes' from Base.mirror_permutes using orn_height orn_height_inv.
-(* NOTE: Not worth trying to prove the nice dependent typing for the above lemma. *)
-
-(* XXX: Illegal application (bug in ornamental modularization) *)
-(* Ornamental Definition mirror_inv' from Base.mirror_inv using orn_height orn_height_inv. *)
+(* TODO: Prove a descriptive dependent type for the above lemma. *)
 
 End Measured.
 
@@ -231,9 +222,6 @@ Defined.
 
 Ornamental Definition mirror_permutes' from Base.mirror_permutes using orn_size orn_size_inv.
 (* NOTE: Not worth trying to prove the nice dependent typing for the above lemma. *)
-
-(* XXX: Illegal pattern-match *)
-(* Ornamental Definition mirror_inv' from Base.mirror_inv using orn_size orn_size_inv. *)
 
 End Sized.
 
