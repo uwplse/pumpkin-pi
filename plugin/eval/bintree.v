@@ -5,11 +5,11 @@ Import ListNotations.
 
 Open Scope bool_scope.
 
-Infix "==" := Nat.eqb (at level 70, right associativity) : nat_scope.
-Notation "x <= y" := (Nat.leb x y) (at level 70, y at next level, right associativity) : nat_scope.
+Infix "==" := Nat.eqb (at level 70, no associativity) : nat_scope.
+Notation "x <= y" := (Nat.leb x y) (at level 70, y at next level, no associativity) : nat_scope.
 Notation "p '.1'" := (projT1 p) (at level 8, left associativity).
 Notation "p '.2'" := (projT2 p) (at level 8, left associativity).
-Notation "(| x , y |)" := (existT _ x y).
+Notation "(| x , y |)" := (existT _ x y) (only parsing).
 
 Definition is_true (b : bool) : Prop := b = true.
 Coercion is_true : bool >-> Sortclass.
@@ -127,7 +127,6 @@ Definition inorder h t := inorder' (existT _ h t).
 Ornamental Definition postorder' from Base.postorder using orn_height orn_height_inv.
 Definition postorder h t := postorder' (existT _ h t).
 
-
 Ornamental Definition mirror' from Base.mirror using orn_height orn_height_inv.
 
 Lemma mirror_height (h : nat) (t : bintree h) :
@@ -234,11 +233,6 @@ Ornamental Definition mirror_permutes' from Base.mirror_permutes using orn_size 
 (* NOTE: Not worth trying to prove the nice dependent typing for the above lemma. *)
 
 (* XXX: Illegal pattern-match *)
-(*
-Error: A term of inductive type Base.bintree
-was given to a pattern-matching expression on the inductive type
-sigT.
- *)
 (* Ornamental Definition mirror_inv' from Base.mirror_inv using orn_size orn_size_inv. *)
 
 End Sized.
@@ -269,35 +263,36 @@ Inductive ordtree : Elem.t -> Elem.t -> bool -> Type :=
   : ordtree min_l max_r (inv ord_l ord_r max_l val min_r)
 | Leaf (val : Elem.t) : ordtree val val true.
 
-Ornament __orn_ordtree from Base.bintree to __ordtree.
-Ornament _orn_ordtree from __ordtree to _ordtree.
-Ornament orn_ordtree from _ordtree to ordtree.
+Ornament __orn_order from Base.bintree to __ordtree.
+Ornament _orn_order from __ordtree to _ordtree.
+Ornament orn_order from _ordtree to ordtree.
 
-Ornamental Definition __preorder' from Base.preorder using __orn_ordtree __orn_ordtree_inv.
+Ornamental Definition __preorder' from Base.preorder using __orn_order __orn_order_inv.
 Definition __preorder min (tree : __ordtree min) := __preorder' (existT _ min tree).
-Ornamental Definition _preorder' from __preorder using _orn_ordtree _orn_ordtree_inv.
+Ornamental Definition _preorder' from __preorder using _orn_order _orn_order_inv.
 Definition _preorder min max (tree : _ordtree min max) := _preorder' min (existT _ max tree).
-Ornamental Definition preorder' from _preorder using orn_ordtree orn_ordtree_inv.
+Ornamental Definition preorder' from _preorder using orn_order orn_order_inv.
 Definition preorder min max ord (tree : ordtree min max ord) := preorder' min max (existT _ ord tree).
 
-Ornamental Definition __inorder' from Base.inorder using __orn_ordtree __orn_ordtree_inv.
+Ornamental Definition __inorder' from Base.inorder using __orn_order __orn_order_inv.
 Definition __inorder min (tree : __ordtree min) := __inorder' (existT _ min tree).
-Ornamental Definition _inorder' from __inorder using _orn_ordtree _orn_ordtree_inv.
+Ornamental Definition _inorder' from __inorder using _orn_order _orn_order_inv.
 Definition _inorder min max (tree : _ordtree min max) := _inorder' min (existT _ max tree).
-Ornamental Definition inorder' from _inorder using orn_ordtree orn_ordtree_inv.
+Ornamental Definition inorder' from _inorder using orn_order orn_order_inv.
 Definition inorder min max ord (tree : ordtree min max ord) := inorder' min max (existT _ ord tree).
 
-Ornamental Definition __postorder' from Base.postorder using __orn_ordtree __orn_ordtree_inv.
+Ornamental Definition __postorder' from Base.postorder using __orn_order __orn_order_inv.
 Definition __postorder min (tree : __ordtree min) := __postorder' (existT _ min tree).
-Ornamental Definition _postorder' from __postorder using _orn_ordtree _orn_ordtree_inv.
+Ornamental Definition _postorder' from __postorder using _orn_order _orn_order_inv.
 Definition _postorder min max (tree : _ordtree min max) := _postorder' min (existT _ max tree).
-Ornamental Definition postorder' from _postorder using orn_ordtree orn_ordtree_inv.
+Ornamental Definition postorder' from _postorder using orn_order orn_order_inv.
 Definition postorder min max ord (tree : ordtree min max ord) := postorder' min max (existT _ ord tree).
 
-Ornamental Definition __mirror' from Base.mirror using __orn_ordtree __orn_ordtree_inv.
-Definition __mirror min (tree : __ordtree min) := __mirror' (existT _ min tree).
+Ornamental Definition __mirror' from Base.mirror using __orn_order __orn_order_inv.
+Definition __mirror min (tree : __ordtree min) := (__mirror' (existT _ min tree)).2.
+(* XXX: Anomaly "Uncaught exception Constr.DestKO." (when using projT2) *)
 (* XXX: Anomaly "Uncaught exception Failure("tl")." *)
-(* Ornamental Definition _mirror' from __mirror using _orn_ordtree _orn_ordtree_inv. *)
+(* Ornamental Definition _mirror' from __mirror using _orn_order _orn_order_inv. *)
 
 (* XXX: Illegal application *)
 (*
@@ -311,59 +306,59 @@ The term "__ordtree_rect" of type
   forall (t : Elem.t) (__o : __ordtree t), P t __o"
 cannot be applied to the terms
  "fun (t : Elem.t) (__o : __ordtree t) =>
-  permutes (Base.preorder (__orn_ordtree_inv (|t, __o|)))
-    (Base.inorder (__orn_ordtree_inv (|t, __o|)))"
+  permutes (Base.preorder (__orn_order_inv (|t, __o|)))
+    (Base.inorder (__orn_order_inv (|t, __o|)))"
    : "forall t : Elem.t, __ordtree t -> Prop"
  "fun (min_l min_r val : Elem.t) (left : __ordtree min_l)
-    (H : permutes (Base.preorder (__orn_ordtree_inv (|min_l, left|)))
-           (Base.inorder (__orn_ordtree_inv (|min_l, left|))))
+    (H : permutes (Base.preorder (__orn_order_inv (|min_l, left|)))
+           (Base.inorder (__orn_order_inv (|min_l, left|))))
     (right : __ordtree min_r)
-    (H0 : permutes (Base.preorder (__orn_ordtree_inv (|min_r, right|)))
-            (Base.inorder (__orn_ordtree_inv (|min_r, right|)))) =>
-  perm_cons_app (Base.inorder (__orn_ordtree_inv (|min_l, left|)))
-    (Base.inorder (__orn_ordtree_inv (|min_r, right|))) val
+    (H0 : permutes (Base.preorder (__orn_order_inv (|min_r, right|)))
+            (Base.inorder (__orn_order_inv (|min_r, right|)))) =>
+  perm_cons_app (Base.inorder (__orn_order_inv (|min_l, left|)))
+    (Base.inorder (__orn_order_inv (|min_r, right|))) val
     (perm_app H H0)"
    : "forall (min_l min_r val : Elem.t) (left : __ordtree min_l),
-      permutes (Base.preorder (__orn_ordtree_inv (|min_l, left|)))
-        (Base.inorder (__orn_ordtree_inv (|min_l, left|))) ->
+      permutes (Base.preorder (__orn_order_inv (|min_l, left|)))
+        (Base.inorder (__orn_order_inv (|min_l, left|))) ->
       forall right : __ordtree min_r,
-      permutes (Base.preorder (__orn_ordtree_inv (|min_r, right|)))
-        (Base.inorder (__orn_ordtree_inv (|min_r, right|))) ->
+      permutes (Base.preorder (__orn_order_inv (|min_r, right|)))
+        (Base.inorder (__orn_order_inv (|min_r, right|))) ->
       permutes
         (val
-         :: Base.preorder (__orn_ordtree_inv (|min_l, left|)) ++
-            Base.preorder (__orn_ordtree_inv (|min_r, right|)))
-        (Base.inorder (__orn_ordtree_inv (|min_l, left|)) ++
-         val :: Base.inorder (__orn_ordtree_inv (|min_r, right|)))"
+         :: Base.preorder (__orn_order_inv (|min_l, left|)) ++
+            Base.preorder (__orn_order_inv (|min_r, right|)))
+        (Base.inorder (__orn_order_inv (|min_l, left|)) ++
+         val :: Base.inorder (__orn_order_inv (|min_r, right|)))"
  "fun val : Elem.t => perm_skip val (perm_nil Elem.t)"
    : "forall val : Elem.t, permutes [val] [val]"
  "t .1" : "Elem.t"
  "t .2" : "__ordtree t .1"
 The 2nd term has type
  "forall (min_l min_r val : Elem.t) (left : __ordtree min_l),
-  permutes (Base.preorder (__orn_ordtree_inv (|min_l, left|)))
-    (Base.inorder (__orn_ordtree_inv (|min_l, left|))) ->
+  permutes (Base.preorder (__orn_order_inv (|min_l, left|)))
+    (Base.inorder (__orn_order_inv (|min_l, left|))) ->
   forall right : __ordtree min_r,
-  permutes (Base.preorder (__orn_ordtree_inv (|min_r, right|)))
-    (Base.inorder (__orn_ordtree_inv (|min_r, right|))) ->
+  permutes (Base.preorder (__orn_order_inv (|min_r, right|)))
+    (Base.inorder (__orn_order_inv (|min_r, right|))) ->
   permutes
     (val
-     :: Base.preorder (__orn_ordtree_inv (|min_l, left|)) ++
-        Base.preorder (__orn_ordtree_inv (|min_r, right|)))
-    (Base.inorder (__orn_ordtree_inv (|min_l, left|)) ++
-     val :: Base.inorder (__orn_ordtree_inv (|min_r, right|)))"
+     :: Base.preorder (__orn_order_inv (|min_l, left|)) ++
+        Base.preorder (__orn_order_inv (|min_r, right|)))
+    (Base.inorder (__orn_order_inv (|min_l, left|)) ++
+     val :: Base.inorder (__orn_order_inv (|min_r, right|)))"
 which should be coercible to
  "forall (min_l min_r val : Elem.t) (left : __ordtree min_l),
   (fun (t : Elem.t) (__o : __ordtree t) =>
-   permutes (Base.preorder (__orn_ordtree_inv (|t, __o|)))
-     (Base.inorder (__orn_ordtree_inv (|t, __o|)))) min_l left ->
+   permutes (Base.preorder (__orn_order_inv (|t, __o|)))
+     (Base.inorder (__orn_order_inv (|t, __o|)))) min_l left ->
   forall right : __ordtree min_r,
   (fun (t : Elem.t) (__o : __ordtree t) =>
-   permutes (Base.preorder (__orn_ordtree_inv (|t, __o|)))
-     (Base.inorder (__orn_ordtree_inv (|t, __o|)))) min_r right ->
+   permutes (Base.preorder (__orn_order_inv (|t, __o|)))
+     (Base.inorder (__orn_order_inv (|t, __o|)))) min_r right ->
   (fun (t : Elem.t) (__o : __ordtree t) =>
-   permutes (Base.preorder (__orn_ordtree_inv (|t, __o|)))
-     (Base.inorder (__orn_ordtree_inv (|t, __o|)))) min_l
+   permutes (Base.preorder (__orn_order_inv (|t, __o|)))
+     (Base.inorder (__orn_order_inv (|t, __o|)))) min_l
     (__Branch min_l min_r val left right)".
  *)
 (* In this case, the intermediate term observed after meta-reduction is
@@ -375,7 +370,9 @@ which should be coercible to
  *
  * FIXME: This kind of bug cannot be ignored.
  *)
-(* Ornamental Definition __pre_permutes' from Base.pre_permutes using __orn_ordtree __orn_ordtree_inv. *)
+Ornamental Definition __post_permutes' from Base.post_permutes using __orn_order __orn_order_inv.
+
+Ornamental Definition __pre_permutes' from Base.pre_permutes using __orn_order __orn_order_inv.
 
 End Ordered.
 
