@@ -1,6 +1,6 @@
 Require Import Ornamental.Ornaments.
 Require Import Nat List Sorting.Permutation.
-Require Import lemmas.
+Require Import lemmas cast.
 Import ListNotations.
 
 Open Scope bool_scope.
@@ -148,7 +148,12 @@ Definition pre_post_permutes (h : nat) (t : bintree h) :
 Defined.
 
 Ornamental Definition mirror_permutes' from Base.mirror_permutes using orn_height orn_height_inv.
-(* TODO: Prove a descriptive dependent type for the above lemma. *)
+Definition mirror_permutes (h : nat) (t : bintree h) :
+  permutes (inorder h t) (inorder h (mirror h t)).
+  unfold inorder, mirror. rewrite cast_sigma. rewrite <- sigT_eta.
+  pose (T := existT _ h t). change h with (T.1). change t with (T.2).
+  apply mirror_permutes'.
+Defined.
 
 End Measured.
 
