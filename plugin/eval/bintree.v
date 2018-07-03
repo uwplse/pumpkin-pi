@@ -178,44 +178,38 @@ Ornamental Definition postorder' from Base.postorder using orn_size orn_size_inv
 Definition postorder s t := postorder' (existT _ s t).
 
 Ornamental Definition mirror' from Base.mirror using orn_size orn_size_inv.
-
-Lemma mirror_size (s : nat) (t : bintree s) :
-    (mirror' (existT _ s t)).1 = s.
-Proof.
-  induction t; try reflexivity.
-  unfold mirror', projT1 in *. simpl in *.
-  rewrite IHt1, IHt2, add_comm, add_comm. reflexivity.
-Defined.
-
 Definition mirror (s : nat) (t : bintree s) : bintree s.
-  destruct (mirror' (existT _ s t)) eqn:E.
-  apply (f_equal (@projT1 nat bintree)) in E. simpl in E.
-  rewrite mirror_size in E. rewrite <- E in b. exact b.
+  pose (T := (mirror' (existT _ s t))). replace s with (T.1). exact (T.2).
+  induction t as [s_l s_r v t_l IH_l t_r IH_r|v]; [|reflexivity].
+  change (fun h => bintree h) with bintree in *. cbn zeta in IH_l, IH_r.
+  rewrite add_comm, <- IH_l, <- IH_r. subst T. reflexivity.
 Defined.
 
 Ornamental Definition pre_permutes' from Base.pre_permutes using orn_size orn_size_inv.
 Lemma pre_permutes (s : nat) : forall (t : bintree s),
     permutes (preorder s t) (inorder s t).
-Proof.
   intro t. unfold preorder, inorder. set (t' := (|s, t|)). apply pre_permutes'.
 Defined.
 
 Ornamental Definition post_permutes' from Base.post_permutes using orn_size orn_size_inv.
 Lemma post_permutes (s : nat) : forall (t : bintree s),
     permutes (postorder s t) (inorder s t).
-Proof.
   intro t. unfold postorder, inorder. set (t' := (|s, t|)). apply post_permutes'.
 Defined.
 
 Ornamental Modularization pre_post_permutes' from Base.pre_post_permutes using orn_size orn_size_inv.
 Lemma pre_post_permutes (s : nat) : forall (t : bintree s),
     permutes (preorder s t) (postorder s t).
-Proof.
   intro t. unfold preorder, postorder. set (t' := (|s, t|)). apply pre_post_permutes'.
 Defined.
 
 Ornamental Definition mirror_permutes' from Base.mirror_permutes using orn_size orn_size_inv.
-(* TODO: Prove a descriptive nice dependent type for the above lemma. *)
+Definition mirror_permutes (h : nat) (t : bintree h) :
+  permutes (inorder h t) (inorder h (mirror h t)).
+  unfold inorder, mirror. rewrite cast_sigma. rewrite <- sigT_eta.
+  pose (T := existT _ h t). change h with (T.1). change t with (T.2).
+  apply mirror_permutes'.
+Defined.
 
 End Sized.
 
