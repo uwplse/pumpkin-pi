@@ -10,7 +10,6 @@ Infix "==>" := implb (at level 40, left associativity) : bool_scope.
 Notation "x <= y" := (Nat.leb x y) (at level 70, y at next level, no associativity) : nat_scope.
 Notation "p '.1'" := (projT1 p) (at level 20, left associativity).
 Notation "p '.2'" := (projT2 p) (at level 20, left associativity).
-Notation "(| x , y |)" := (existT _ x y) (only parsing).
 
 Definition is_true (b : bool) : Prop := b = true.
 Coercion is_true : bool >-> Sortclass.
@@ -127,36 +126,34 @@ Definition postorder h t := postorder' (existT _ h t).
 
 Ornamental Definition mirror' from Base.mirror using orn_height orn_height_inv.
 Definition mirror (h : nat) (t : bintree h) : bintree h.
-  pose (T := (mirror' (existT _ h t))). replace h with (T.1). exact (T.2).
+  set (T := (mirror' (existT _ h t))). replace h with (T.1). exact (T.2).
   induction t as [h_l h_r v t_l IH_l t_r IH_r|v]; [|reflexivity].
-  change (fun h => bintree h) with bintree in *. cbn zeta in IH_l, IH_r.
-  rewrite max_comm, <- IH_l, <- IH_r. subst T. reflexivity.
+ change h with (T.1). change t with (T.2). cbn zeta in IH_l, IH_r. rewrite max_comm, <- IH_l, <- IH_r. reflexivity.
 Defined.
 
 Ornamental Definition pre_permutes' from Base.pre_permutes using orn_height orn_height_inv.
 Definition pre_permutes (h : nat) (t : bintree h) :
   permutes (preorder h t) (inorder h t).
-  unfold preorder, inorder. set (t' := (|h, t|)). apply pre_permutes'.
+  unfold preorder, inorder. set (T := existT _ h t). apply pre_permutes'.
 Defined.
 
 Ornamental Definition post_permutes' from Base.post_permutes using orn_height orn_height_inv.
 Definition post_permutes (h : nat) (t : bintree h) :
   permutes (postorder h t) (inorder h t).
-  unfold postorder, inorder. set (t' := (|h, t|)). apply post_permutes'.
+  unfold postorder, inorder. set (T := existT _ h t). apply post_permutes'.
 Defined.
 
 Ornamental Modularization pre_post_permutes' from Base.pre_post_permutes using orn_height orn_height_inv.
 Definition pre_post_permutes (h : nat) (t : bintree h) :
   permutes (preorder h t) (postorder h t).
-  unfold preorder, postorder. set (t' := (|h, t|)). apply pre_post_permutes'.
+  unfold preorder, postorder. set (T := existT _ h t). apply pre_post_permutes'.
 Defined.
 
 Ornamental Definition mirror_permutes' from Base.mirror_permutes using orn_height orn_height_inv.
 Definition mirror_permutes (h : nat) (t : bintree h) :
   permutes (inorder h t) (inorder h (mirror h t)).
   unfold inorder, mirror. rewrite cast_sigma. rewrite <- sigT_eta.
-  pose (T := existT _ h t). change h with (T.1). change t with (T.2).
-  apply mirror_permutes'.
+  set (T := existT _ h t). apply mirror_permutes'.
 Defined.
 
 End Measured.
@@ -185,34 +182,32 @@ Ornamental Definition mirror' from Base.mirror using orn_size orn_size_inv.
 Definition mirror (s : nat) (t : bintree s) : bintree s.
   pose (T := (mirror' (existT _ s t))). replace s with (T.1). exact (T.2).
   induction t as [s_l s_r v t_l IH_l t_r IH_r|v]; [|reflexivity].
-  change (fun h => bintree h) with bintree in *. cbn zeta in IH_l, IH_r.
-  rewrite add_comm, <- IH_l, <- IH_r. subst T. reflexivity.
+  cbn zeta in IH_l, IH_r. rewrite add_comm, <- IH_l, <- IH_r. reflexivity.
 Defined.
 
 Ornamental Definition pre_permutes' from Base.pre_permutes using orn_size orn_size_inv.
-Lemma pre_permutes (s : nat) : forall (t : bintree s),
+Lemma pre_permutes (s : nat) (t : bintree s) :
     permutes (preorder s t) (inorder s t).
-  intro t. unfold preorder, inorder. set (t' := (|s, t|)). apply pre_permutes'.
+  unfold preorder, inorder. set (T := existT _ s t). apply pre_permutes'.
 Defined.
 
 Ornamental Definition post_permutes' from Base.post_permutes using orn_size orn_size_inv.
-Lemma post_permutes (s : nat) : forall (t : bintree s),
+Lemma post_permutes (s : nat) (t : bintree s) :
     permutes (postorder s t) (inorder s t).
-  intro t. unfold postorder, inorder. set (t' := (|s, t|)). apply post_permutes'.
+  unfold postorder, inorder. set (T := existT _ s t). apply post_permutes'.
 Defined.
 
 Ornamental Modularization pre_post_permutes' from Base.pre_post_permutes using orn_size orn_size_inv.
-Lemma pre_post_permutes (s : nat) : forall (t : bintree s),
+Lemma pre_post_permutes (s : nat) (t : bintree s) :
     permutes (preorder s t) (postorder s t).
-  intro t. unfold preorder, postorder. set (t' := (|s, t|)). apply pre_post_permutes'.
+  unfold preorder, postorder. set (T := existT _ s t). apply pre_post_permutes'.
 Defined.
 
 Ornamental Definition mirror_permutes' from Base.mirror_permutes using orn_size orn_size_inv.
 Definition mirror_permutes (h : nat) (t : bintree h) :
   permutes (inorder h t) (inorder h (mirror h t)).
   unfold inorder, mirror. rewrite cast_sigma. rewrite <- sigT_eta.
-  pose (T := existT _ h t). change h with (T.1). change t with (T.2).
-  apply mirror_permutes'.
+  set (T := existT _ h t). apply mirror_permutes'.
 Defined.
 
 End Sized.
