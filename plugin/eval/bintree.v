@@ -6,6 +6,7 @@ Import ListNotations.
 Open Scope bool_scope.
 
 Infix "==" := Nat.eqb (at level 70, no associativity) : nat_scope.
+Infix "==>" := implb (at level 40, left associativity) : bool_scope.
 Notation "x <= y" := (Nat.leb x y) (at level 70, y at next level, no associativity) : nat_scope.
 Notation "p '.1'" := (projT1 p) (at level 20, left associativity).
 Notation "p '.2'" := (projT2 p) (at level 20, left associativity).
@@ -25,6 +26,9 @@ Parameter antisym : forall x y, leb x y -> leb y x -> x = y.
 
 Definition eqb x y := leb x y && leb y x.
 Definition ltb x y := leb x y && negb (leb y x).
+
+Definition min x y := if leb x y then x else y.
+Definition max x y := if leb x y then y else x.
 
 End Comparable.
 
@@ -264,6 +268,18 @@ Definition _postorder min max (tree : _ordtree min max) := _postorder' min (exis
 Ornamental Definition postorder' from _postorder using orn_order orn_order_inv.
 Definition postorder min max ord (tree : ordtree min max ord) := postorder' min max (existT _ ord tree).
 
+Definition search {min max} (tree : ordtree min max true) (val' : Elem.t) : bool :=
+  ordtree_rect
+    (fun min max ord tree => bool)
+    (fun ord_l ord_r min_l min_r max_l max_r val left IH_left right IH_right =>
+       Elem.leb min_l val' &&
+       Elem.leb val' max_r &&
+       Elem.eqb val' val ||
+       (Elem.leb val' max_l ==> IH_left) ||
+       (Elem.leb min_r val' ==> IH_right))
+    (fun val => Elem.eqb val' val)
+    min max true tree.
+
 End Ordered.
 
 Module Balanced.
@@ -289,19 +305,32 @@ Ornament _orn_avltree from Ordered.ordtree to _avltree.
 Ornament orn_avltree from _avltree to avltree.
 
 Ornamental Definition _preorder' from Ordered.preorder using _orn_avltree _orn_avltree_inv.
-Definition _preorder min max ord h (t : _avltree min max ord h) := _preorder' min max ord (existT _ h t).
+Definition _preorder min max ord height (tree : _avltree min max ord height) :=
+  _preorder' min max ord (existT _ height tree).
 Ornamental Definition preorder' from _preorder using orn_avltree orn_avltree_inv.
-Definition preorder min max ord h bal (t : avltree min max ord h bal) := preorder' min max ord h (existT _ bal t).
+Definition preorder min max ord height bal (tree : avltree min max ord height bal) :=
+  preorder' min max ord height (existT _ bal tree).
 
 Ornamental Definition _inorder' from Ordered.inorder using _orn_avltree _orn_avltree_inv.
-Definition _inorder min max ord h (t : _avltree min max ord h) := _inorder' min max ord (existT _ h t).
+Definition _inorder min max ord height (tree : _avltree min max ord height) :=
+  _inorder' min max ord (existT _ height tree).
 Ornamental Definition inorder' from _inorder using orn_avltree orn_avltree_inv.
-Definition inorder min max ord h bal (t : avltree min max ord h bal) := inorder' min max ord h (existT _ bal t).
+Definition inorder min max ord height bal (tree : avltree min max ord height bal) :=
+  inorder' min max ord height (existT _ bal tree).
 
 Ornamental Definition _postorder' from Ordered.postorder using _orn_avltree _orn_avltree_inv.
-Definition _postorder min max ord h (t : _avltree min max ord h) := _postorder' min max ord (existT _ h t).
+Definition _postorder min max ord height (tree : _avltree min max ord height) :=
+  _postorder' min max ord (existT _ height tree).
 Ornamental Definition postorder' from _postorder using orn_avltree orn_avltree_inv.
-Definition postorder min max ord h bal (t : avltree min max ord h bal) := postorder' min max ord h (existT _ bal t).
+Definition postorder min max ord height bal (tree : avltree min max ord height bal) :=
+  postorder' min max ord height (existT _ bal tree).
+
+Ornamental Definition _search' from @Ordered.search using _orn_avltree _orn_avltree_inv.
+Definition _search {min max height} (tree : _avltree min max true height) (value : Elem.t) :=
+  _search' min max (existT _ height tree) value.
+Ornamental Definition search' from @_search using orn_avltree orn_avltree_inv.
+Definition search {min max height bal} (tree : avltree min max true height bal) value :=
+  search' min max height (existT _ bal tree) value.
 
 End Balanced.
 
