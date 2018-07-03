@@ -264,10 +264,6 @@ Definition _postorder min max (tree : _ordtree min max) := _postorder' min (exis
 Ornamental Definition postorder' from _postorder using orn_order orn_order_inv.
 Definition postorder min max ord (tree : ordtree min max ord) := postorder' min max (existT _ ord tree).
 
-Ornamental Definition __post_permutes' from Base.post_permutes using __orn_order __orn_order_inv.
-Definition __post_permutes min (tree : __ordtree min) := __post_permutes' (|min, tree|).
-Ornamental Definition _post_permutes' from __post_permutes using _orn_order _orn_order_inv.
-
 End Ordered.
 
 Module Balanced.
@@ -344,32 +340,6 @@ Ornamental Definition _postorder' from Measured.postorder using _orn_binheap _or
 Definition _postorder h min (t : _binheap h min) := _postorder' h (existT _ min t).
 Ornamental Definition postorder' from _postorder using orn_binheap orn_binheap_inv.
 Definition postorder h min ord (t : binheap h min ord) := postorder' h min (existT _ ord t).
-
-(* XXX: Anomaly "Uncaught exception Failure("tl")." *)
-(* Ornamental Definition _mirror' from Measured.mirror using _orn_binheap _orn_binheap_inv. *)
-
-(* XXX: Anomaly "Uncaught exception Failure("tl")." *)
-(* Ornamental Definition _pre_permutes'' from Measured.pre_permutes' using _orn_binheap _orn_binheap_inv. *)
-
-(* XXX: Illegal application *)
-(*
-The term "Measured.preorder'" of type
- "forall t : {H : nat & Measured.bintree H},
-  (fun (n : nat) (_ : Measured.bintree n) => list Elem.t) t .1 t .2"
-cannot be applied to the term
- "(|n, (|t0, _b|)|)" : "{H : nat & {H0 : Elem.t & _binheap H H0}}"
-This term has type "{H : nat & {H0 : Elem.t & _binheap H H0}}"
-which should be coercible to
- "{H : nat & Measured.bintree H}".
- *)
-(* Ornamental Definition _pre_permutes' from Measured.pre_permutes using _orn_binheap _orn_binheap_inv. *)
-(* Lemma pre_permutes (s : nat) : forall (t : bintree s), *)
-(*     permutes (preorder s t) (inorder s t). *)
-(* Proof. *)
-(*   intro t. unfold preorder, inorder. set (t' := (|s, t|)). apply pre_permutes'. *)
-(* Defined. *)
-
-(* Operations go here *)
 
 End Heaped.
 
