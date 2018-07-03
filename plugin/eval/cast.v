@@ -83,7 +83,7 @@ Canonical Structure plus_n_O_idType (n : nat) :=
   Identity.Pack nat (n + 0) n (eq_sym (plus_n_O n)).
 Canonical Structure plus_n_Sm_idType (n m : nat) :=
   Identity.Pack nat (n + S m) (S (n + m)) (eq_sym (plus_n_Sm n m)).
-Canonical Structure add_comm (n m : nat) :=
+Canonical Structure plusC_idType (n m : nat) :=
   Identity.Pack nat (n + m) (m + n) (add_comm n m).
 (* FIXME: Inference of canonical instances is too shallow; we really need first-order unification. *)
 
