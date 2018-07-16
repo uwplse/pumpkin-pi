@@ -454,53 +454,52 @@ Inductive doublevector (A : Type) : nat -> nat -> Type :=
 Definition packed_doublevector (A : Type) (m : nat) :=
   sigT (A := nat) (fun n : nat => doublevector A n m).
 
-(* (* FIXME: Index analysis for ornament construction needs to be more robust *) *)
-(* Ornament orn_vector_doublevector from vector to doublevector. *)
+Find ornament vector doublevector as orn_vector_doublevector.
 
-(* Definition vector_double_size (A : Type) (n : nat) (v : vector A n) := *)
-(*   vector_rect *)
-(*     A *)
-(*     (fun (n : nat) (v : vector A n) => nat) *)
-(*     O *)
-(*     (fun (n : nat) (a : A) (v : vector A n) (IH : nat) => *)
-(*       S (S IH)) *)
-(*     n *)
-(*     v. *)
+Definition vector_double_size (A : Type) (n : nat) (v : vector A n) :=
+  vector_rect
+    A
+    (fun (n : nat) (v : vector A n) => nat)
+    O
+    (fun (n : nat) (a : A) (v : vector A n) (IH : nat) =>
+      S (S IH))
+    n
+    v.
 
-(* Theorem test_index_7: *)
-(*   forall (A : Type) (n : nat) (v : vector A n), *)
-(*     orn_vector_doublevector_index A n v = vector_double_size A n v. *)
-(* Proof. *)
-(*   intros. auto. *)
-(* Qed. *)
+Theorem test_index_7:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector_index A n v = vector_double_size A n v.
+Proof.
+  intros. auto.
+Qed.
 
-(* Theorem test_orn_7: *)
-(*   forall (A : Type) (n : nat) (v : vector A n), *)
-(*     packed_doublevector A n. *)
-(* Proof. *)
-(*   exact orn_vector_doublevector. *)
-(* Qed. *)
+Theorem test_orn_7:
+  forall (A : Type) (n : nat) (v : vector A n),
+    packed_doublevector A n.
+Proof.
+  exact orn_vector_doublevector.
+Qed.
 
-(* Theorem test_orn_index_7: *)
-(*   forall (A : Type) (n : nat) (v : vector A n), *)
-(*     projT1 (orn_vector_doublevector A n v) = orn_vector_doublevector_index A n v. *)
-(* Proof. *)
-(*   intros. reflexivity. *)
-(* Qed. *)
+Theorem test_orn_index_7:
+  forall (A : Type) (n : nat) (v : vector A n),
+    projT1 (orn_vector_doublevector A n v) = orn_vector_doublevector_index A n v.
+Proof.
+  intros. reflexivity.
+Qed.
 
-(* Theorem test_orn_inv_7: *)
-(*   forall (A : Type) (m : nat) (d : packed_doublevector A m), *)
-(*     vector A m. *)
-(* Proof. *)
-(*   exact orn_vector_doublevector_inv. *)
-(* Qed. *)
+Theorem test_orn_inv_7:
+  forall (A : Type) (m : nat) (d : packed_doublevector A m),
+    vector A m.
+Proof.
+  exact orn_vector_doublevector_inv.
+Qed.
 
-(* Theorem test_orn_inv_unpack_7: *)
-(*   forall (A : Type) (n : nat) (m : nat) (d : doublevector A n m), *)
-(*     vector A m. *)
-(* Proof. *)
-(*   intros. apply orn_vector_doublevector_inv. exists n. apply d. *)
-(* Qed. *)
+Theorem test_orn_inv_unpack_7:
+  forall (A : Type) (n : nat) (m : nat) (d : doublevector A n m),
+    vector A m.
+Proof.
+  intros. apply orn_vector_doublevector_inv. exists n. apply d.
+Qed.
 
 (* (* --- Same as above, but switch the position we change --- *) *)
 

@@ -126,25 +126,40 @@ let diff_context_simple env ctx_o ctx_n =
   let open Context in
   let decls_o = List.rev ctx_o in
   let decls_n = List.rev ctx_n in
-  let rec scan env pos diff = function
-    | (decl_o :: decls_o') as decls_o,
-      (decl_n :: decls_n') ->
+  let nth_type (n : int) : types = Rel.Declaration.get_type (List.nth decls_n n) in
+  let rec scan env pos diff (decls_o, decls_n) : int option =
+    match (decls_o, decls_n) with
+    | (decl_o :: decls_o'), (decl_n :: decls_n') ->
       let shift_nth e n = Debruijn.shift_local (pos - n) 1 e in
       let type_o = Rel.Declaration.get_type decl_o in
       let type_n = Rel.Declaration.get_type decl_n in
-      let type_o' = List.fold_left shift_nth type_o diff in
+      (*let type_o' = List.fold_left shift_nth type_o diff in*)
       let env' = Environ.push_rel decl_n env in
-      if convertible env type_o' type_n then
-        scan env' (pos + 1) diff (decls_o', decls_n')
+      if convertible env type_o type_n then
+        let diff' : int option = scan env' (pos + 1) diff (decls_o', decls_n') in
+        if Option.has_some diff' && Option.get diff' = pos + 1 then
+          let type_i : types= shift_nth (nth_type (pos + 1)) 1 in
+          debug_term env' type_i "type_i";
+          debug_term env' type_o "type_o";
+          if not (convertible env type_o type_i) then
+            diff'
+          else
+            None (* ambiguous, can't use this heuristic *)
+        else
+          diff'
       else
-        scan env' (pos + 1) (pos :: diff) (decls_o, decls_n')
-    | [], decls_n -> List.map_i (fun i _ -> pos + i) 0 decls_n
-    | (_ :: _), [] -> failwith "unexpected type misalignment"
+        scan env' (pos + 1) (Some pos) (decls_o, decls_n')
+    | [], [] -> None
+    | [], (decl_n :: decls_n) -> Some pos
+    | (_ :: _), [] -> None
   in
-  let nth_type n = Rel.Declaration.get_type (List.nth decls_n n) in
-  let diff_pos = scan env 0 [] (decls_o, decls_n) in
-  let diff_typ = List.map nth_type diff_pos in
-  List.combine diff_pos diff_typ
+  let diff_pos = scan env 0 None (decls_o, decls_n) in
+  if Option.has_some diff_pos then
+    let pos = Option.get diff_pos in
+    let typ = nth_type pos in
+    Some (pos, typ)
+  else
+    None
                
 (*
  * Top-level index finder for Nate's heuristic
@@ -160,8 +175,7 @@ let new_index_type_simple env npars ind_o ind_n =
   let indf_n = Inductiveops.make_ind_family (pind_n, pars) in
   let (idcs_o, _) = Inductiveops.get_arity env indf_o in
   let (idcs_n, _) = Inductiveops.get_arity env indf_n in
-  let idcs_d = diff_context_simple env idcs_o idcs_n in
-  List.nth idcs_d 0
+  diff_context_simple env idcs_o idcs_n
 
 (*
  * Given an old and new application of a property, find the new index.
@@ -671,8 +685,15 @@ let search_orn_index env evd npm indexer_n o n is_fwd =
   let (env_n, elim_t_n') = zoom_n_prod env npm elim_t_n in
   let o = (env_o, pind_o, arity_o, elim_t_o') in
   let n = (env_n, pind_n, arity_n, elim_t_n') in
-  let idx = call_directional (new_index_type_simple env_n npm) ind_o ind_n in
-  search_orn_index_elim evd idx npm indexer_n elim_o o n is_fwd
+  let idx_op = call_directional (new_index_type_simple env_n npm) ind_o ind_n in
+  let idx =
+    if Option.has_some idx_op then
+      Option.get idx_op
+    else
+      let x = 0 in
+      Printf.printf "%s\n\n" "Ambiguity; not using simple heuristic";
+      call_directional (new_index_type env_n) elim_t_o' elim_t_n'
+  in search_orn_index_elim evd idx npm indexer_n elim_o o n is_fwd
 
 (* --- Parameterization ornaments --- *)
 
