@@ -39,7 +39,7 @@ Definition app_nil_r_vect_red' (A : Type) (l : {H : nat & vector A H}) :=
      eq_refl H) (projT1 l) (projT2 l)
 *)
 
-Higher lift orn_list_vector orn_list_vector_inv in app_nil_r_vect_red as app_nil_r_vect_red_higher.
+Ornamental Modularization app_nil_r_vect_red_higher from app_nil_r_vect_red using orn_list_vector orn_list_vector_inv.
 
 Theorem test_app_nil_r_vect_exact:
   forall (A : Type) (pv : sigT (vector A)),
@@ -71,7 +71,7 @@ Proof.
   apply app_nil_r_vect_red_higher.
 Qed.
 
-Higher lift orn_list_vector_inv orn_list_vector in app_nil_r_red as app_nil_r_red_higher.
+Ornamental Modularization app_nil_r_red_higher from app_nil_r_red using orn_list_vector_inv orn_list_vector.
 
 Theorem test_app_nil_r:
   forall (A : Type) (l : list A),
@@ -83,7 +83,7 @@ Qed.
 (* over flectors *)
 
 Print app_nil_r_vectF_red.
-Higher lift orn_flist_flector_nat orn_flist_flector_nat_inv in app_nil_r_vectF_red as app_nil_r_vectF_red_higher.
+Ornamental Modularization app_nil_r_vectF_red_higher from app_nil_r_vectF_red using orn_flist_flector_nat orn_flist_flector_nat_inv.
 
 Print app_nil_r_vectF_red_higher.
 
@@ -109,7 +109,7 @@ Qed.
 
 (* in_split_vect *)
 
-Higher lift orn_list_vector orn_list_vector_inv in in_split_vect_red as in_split_vect_higher.
+Ornamental Modularization in_split_vect_higher from in_split_vect_red using orn_list_vector orn_list_vector_inv.
 
 (*
  * TODO note how the type still doesn't look even as nice as the one we state below,
@@ -149,7 +149,7 @@ Qed.
  * Should we do it?
  *)
 
-Higher lift orn_list_vector orn_list_vector_inv in hd_error_some_nil_vect_red as hd_error_some_nil_vect_higher.
+Ornamental Modularization hd_error_some_nil_vect_higher from hd_error_some_nil_vect_red using orn_list_vector orn_list_vector_inv.
 
 Theorem test_hd_error_some_nil_vect_exact:
   forall (A : Type) (l : {H : nat & vector A H}) (a : A),

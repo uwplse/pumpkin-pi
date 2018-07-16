@@ -65,16 +65,16 @@ Definition SIfEven a n := if isEven a then S n else n.
 
 Inductive flist : Type :=
 | nilF : flist
-| consF : 
-    forall (a : A), 
+| consF :
+    forall (a : A),
       flist ->
       flist.
 
 Inductive flector : nat -> Type :=
 | nilFV : flector 0
-| consFV : 
-    forall (n : nat) (a : A), 
-      flector n -> 
+| consFV :
+    forall (n : nat) (a : A),
+      flector n ->
       flector (SIfEven a n).
 
 Find ornament flist flector as orn_flist_flector.
@@ -128,13 +128,13 @@ End Flector.
 (* TODO temp while fixing module bug *)
 Module natEven <: Even.
 Definition A := nat.
-Definition isEven (n : nat) := 
+Definition isEven (n : nat) :=
   nat_rect
     (fun (_ : nat) => bool)
     true
     (fun (_ : nat) (IH : bool) =>
-      negb IH)  
-    n. 
+      negb IH)
+    n.
 End natEven.
 
 Module natFlector := Flector natEven.
@@ -221,8 +221,6 @@ Definition packed_bintreeV (T : Type) :=
   sigT (A := nat) (fun (n : nat) => bintreeV T n).
 
 Find ornament bintree bintreeV as orn_bintree_bintreeV.
-
-Print orn_bintree_bintreeV.
 
 Definition bintree_size (A : Type) (tr : bintree A) :=
   bintree_rect
@@ -795,7 +793,7 @@ Find ornament list_alt hd_list_alt as orn_listalt_hdlistalt.
 Definition list_alt_hd (A : Type) (l : list_alt A) :=
   list_alt_rect
     (fun (A : Type) (_ : list_alt A) => option A)
-    (fun (A : Type) => None) 
+    (fun (A : Type) => None)
     (fun (A : Type) (a : A) (_ : list_alt A) (_ : option A) =>
        Some a)
     A
@@ -891,13 +889,12 @@ Proof.
 Qed.
 
 
-(* --- TODO Index already existed in the old constructor, but wasn't used --- *)
+(* (* --- TODO Index already existed in the old constructor, but wasn't used --- *) *)
 
-(* --- TODO Index already existed in the old constructor, but was used differently --- *)
+(* (* --- TODO Index already existed in the old constructor, but was used differently --- *) *)
 
-(* --- TODO weirder indexes --- *)
+(* (* --- TODO weirder indexes --- *) *)
 
-(* --- TODO examples from notebook etc --- *)
+(* (* --- TODO examples from notebook etc --- *) *)
 
-(* --- TODO write a test script --- *)
-
+(* (* --- TODO write a test script --- *) *)

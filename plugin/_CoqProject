@@ -37,6 +37,8 @@ src/components/specialization.mli
 src/components/differencing.ml
 src/components/differencing.mli
 
+src/frontend.ml
+src/frontend.mli
 src/ornamental.ml4
 src/ornaments.mlpack
 

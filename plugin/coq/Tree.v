@@ -84,8 +84,8 @@ Definition height (m : t) : int :=
     m.
 
 (* ORN: version over sigma tv *)
-Apply ornament orn_tree_treeV orn_tree_treeV_inv in height as heightV_auto.
-Reduce ornament orn_tree_treeV orn_tree_treeV_inv in heightV_auto as heightV.
+Ornamental Application heightV_auto from height using orn_tree_treeV orn_tree_treeV_inv.
+Ornamental Reduction heightV from heightV_auto using orn_tree_treeV orn_tree_treeV_inv.
 
 (* ORN: Ported to induction from match *)
 Definition cardinal (m : t) : nat :=
@@ -96,31 +96,31 @@ Definition cardinal (m : t) : nat :=
     m.
 
 (* ORN: version over sigma tv *)
-Apply ornament orn_tree_treeV orn_tree_treeV_inv in cardinal as cardinalV_auto.
-Reduce ornament orn_tree_treeV orn_tree_treeV_inv in cardinalV_auto as cardinalV.
+Ornamental Application cardinalV_auto from cardinal using orn_tree_treeV orn_tree_treeV_inv.
+Ornamental Reduction cardinalV from cardinalV_auto using orn_tree_treeV orn_tree_treeV_inv.
 
 (* ORN: Note that this is just the index *)
 Theorem testOrnCardinal:
   forall (x : sigT tv), cardinalV x = projT1 x.
 Proof.
   intros. induction x. induction p; unfold cardinalV; simpl; auto.
-Qed.  
+Qed.
 
 (** * Empty Map *)
 
 Definition empty := Leaf.
 
 (* ORN: Directly higher lift since no induction *)
-Higher lift orn_tree_treeV orn_tree_treeV_inv in empty as emptyV.
+Ornamental Modularization emptyV from empty using orn_tree_treeV orn_tree_treeV_inv.
 
 (** * Emptyness test *)
 
 (* ORN: Ported to induction *)
-Definition is_empty m := tree_rect (P := fun _ => bool) true (fun _ _ _ _ _ _ _ => false) m. 
+Definition is_empty m := tree_rect (P := fun _ => bool) true (fun _ _ _ _ _ _ _ => false) m.
 
 (* ORN: treeV version *)
-Apply ornament orn_tree_treeV orn_tree_treeV_inv in is_empty as is_emptyV_auto.
-Reduce ornament orn_tree_treeV orn_tree_treeV_inv in is_emptyV_auto as is_emptyV.
+Ornamental Application is_emptyV_auto from is_empty using orn_tree_treeV orn_tree_treeV_inv.
+Ornamental Reduction is_emptyV from is_emptyV_auto using orn_tree_treeV orn_tree_treeV_inv.
 
 (** * Membership *)
 
@@ -140,8 +140,8 @@ Definition mem x m : bool :=
     m.
 
 (* ORN: over treeV *)
-Apply ornament orn_tree_treeV orn_tree_treeV_inv in mem as memV_auto.
-Reduce ornament orn_tree_treeV orn_tree_treeV_inv in memV_auto as memV.
+Ornamental Application memV_auto from mem using orn_tree_treeV orn_tree_treeV_inv.
+Ornamental Reduction memV from memV_auto using orn_tree_treeV orn_tree_treeV_inv.
 
 (* ORN: Ported to induction *)
 Definition find x m : option elt :=
@@ -151,13 +151,13 @@ Definition find x m : option elt :=
     (fun l IHl y d r IHr _ => match X.compare x y with
      | LT _ => IHl
      | EQ _ => Some d
-     | GT _ => IHr  
+     | GT _ => IHr
      end)
      m.
 
 (* ORN: Over treeV *)
-Apply ornament orn_tree_treeV orn_tree_treeV_inv in find as findV_auto.
-Reduce ornament orn_tree_treeV orn_tree_treeV_inv in findV_auto as findV.
+Ornamental Application findV_auto from find using orn_tree_treeV orn_tree_treeV_inv.
+Ornamental Reduction findV from findV_auto using orn_tree_treeV orn_tree_treeV_inv.
 
 (** * Helper functions *)
 
@@ -168,7 +168,7 @@ Definition create l x e r :=
    Node l x e r (max (height l) (height r) + 1).
 
 (* ORN: No induction, so higher lift *)
-Higher lift orn_tree_treeV orn_tree_treeV_inv in create as createV.
+Ornamental Modularization createV from create using orn_tree_treeV orn_tree_treeV_inv.
 
 (** [bal l x e r] acts as [create], but performs one step of
     rebalancing if necessary, i.e. assumes [|height l - height r| <= 3]. *)
@@ -176,7 +176,7 @@ Higher lift orn_tree_treeV orn_tree_treeV_inv in create as createV.
 Definition assert_false := create.
 
 (* ORN: No induction, so higher lift *)
-Higher lift orn_tree_treeV orn_tree_treeV_inv in assert_false as assert_falseV.
+Ornamental Modularization assert_falseV from assert_false using orn_tree_treeV orn_tree_treeV_inv.
 
 Print assert_falseV.
 
@@ -232,30 +232,30 @@ Definition bal l x d r :=
       create l x d r.
 
 (* ORN: Port each to treeV *)
-Apply ornament orn_tree_treeV orn_tree_treeV_inv in bal_l_r as bal_l_rV_auto.
-Reduce ornament orn_tree_treeV orn_tree_treeV_inv in bal_l_rV_auto as bal_l_rV_red.
-Higher lift orn_tree_treeV orn_tree_treeV_inv in bal_l_rV_red as bal_l_rV.
+Ornamental Application bal_l_rV_auto from bal_l_r using orn_tree_treeV orn_tree_treeV_inv.
+Ornamental Reduction bal_l_rV_red from bal_l_rV_auto using orn_tree_treeV orn_tree_treeV_inv.
+Ornamental Modularization bal_l_rV from bal_l_rV_red using orn_tree_treeV orn_tree_treeV_inv.
 
-Apply ornament orn_tree_treeV orn_tree_treeV_inv in bal_l as bal_lV_auto.
-Reduce ornament orn_tree_treeV orn_tree_treeV_inv in bal_lV_auto as bal_lV_red.
-Higher lift orn_tree_treeV orn_tree_treeV_inv in bal_lV_red as bal_lV.
+Ornamental Application bal_lV_auto from bal_l using orn_tree_treeV orn_tree_treeV_inv.
+(* Ornamental Reduction bal_lV_red from bal_lV_auto using orn_tree_treeV orn_tree_treeV_inv. *)
+(* Ornamental Modularization bal_lV from bal_lV_red using orn_tree_treeV orn_tree_treeV_inv. *)
 
-Apply ornament orn_tree_treeV orn_tree_treeV_inv in bal_r_l as bal_r_lV_auto.
-Reduce ornament orn_tree_treeV orn_tree_treeV_inv in bal_r_lV_auto as bal_r_lV_red.
-Higher lift orn_tree_treeV orn_tree_treeV_inv in bal_r_lV_red as bal_r_lV.
+Ornamental Application bal_r_lV_auto from bal_r_l using orn_tree_treeV orn_tree_treeV_inv.
+Ornamental Reduction bal_r_lV_red from bal_r_lV_auto using orn_tree_treeV orn_tree_treeV_inv.
+Ornamental Modularization bal_r_lV from bal_r_lV_red using orn_tree_treeV orn_tree_treeV_inv.
 
-Apply ornament orn_tree_treeV orn_tree_treeV_inv in bal_r as bal_rV_auto.
-Reduce ornament orn_tree_treeV orn_tree_treeV_inv in bal_rV_auto as bal_rV_red.
-Higher lift orn_tree_treeV orn_tree_treeV_inv in bal_rV_red as bal_rV.
+Ornamental Application bal_rV_auto from bal_r using orn_tree_treeV orn_tree_treeV_inv.
+(* Ornamental Reduction bal_rV_red from bal_rV_auto using orn_tree_treeV orn_tree_treeV_inv. *)
+(* Ornamental Modularization bal_rV from bal_rV_red using orn_tree_treeV orn_tree_treeV_inv. *)
 
-Higher lift orn_tree_treeV orn_tree_treeV_inv in bal as balV.
+Ornamental Modularization balV from bal using orn_tree_treeV orn_tree_treeV_inv.
 
 (** * Insertion *)
 
 (* TODO bug right now in meta-reduction, workaround with this: *)
 Definition node l x e r h :=
   Node l x e r h.
-Higher lift orn_tree_treeV orn_tree_treeV_inv in node as nodeV.
+Ornamental Modularization nodeV from node using orn_tree_treeV orn_tree_treeV_inv.
 
 (* ORN: Ported to induction *)
 Definition add x d m :=
@@ -271,9 +271,9 @@ Definition add x d m :=
     m.
 
 (* ORN: Lifted *)
-Apply ornament orn_tree_treeV orn_tree_treeV_inv in add as addV_auto.
-Reduce ornament orn_tree_treeV orn_tree_treeV_inv in addV_auto as addV_red.
-Higher lift orn_tree_treeV orn_tree_treeV_inv in addV_red as addV.
+Ornamental Application addV_auto from add using orn_tree_treeV orn_tree_treeV_inv.
+Ornamental Reduction addV_red from addV_auto using orn_tree_treeV orn_tree_treeV_inv.
+Ornamental Modularization addV from addV_red using orn_tree_treeV orn_tree_treeV_inv.
 
 (** * Extraction of minimum binding
 
@@ -298,10 +298,10 @@ Definition remove_min l x d r : t*(key*elt) :=
     r.
 
 (* ORN: Lifted *)
-Apply ornament orn_tree_treeV orn_tree_treeV_inv in remove_min as remove_minV_auto.
+Ornamental Application remove_minV_auto from remove_min using orn_tree_treeV orn_tree_treeV_inv.
 Print remove_minV_auto.
-Reduce ornament orn_tree_treeV orn_tree_treeV_inv in remove_minV_auto as remove_minV_red.
-Higher lift orn_tree_treeV orn_tree_treeV_inv in remove_minV_red as remove_minV.
+(* Ornamental Reduction remove_minV_red from remove_minV_auto using orn_tree_treeV orn_tree_treeV_inv. *)
+(* Ornamental Modularization remove_minV from remove_minV_red using orn_tree_treeV orn_tree_treeV_inv. *)
 
 (** * Merging two trees
 
@@ -949,7 +949,7 @@ Proof.
  intros l x e r; functional induction (bal l x e r); intros; clearf;
  inv bst; repeat apply create_bst; auto; unfold create; try constructor;
  (apply lt_tree_node || apply gt_tree_node); auto;
- (eapply lt_tree_trans || eapply gt_tree_trans); eauto. 
+ (eapply lt_tree_trans || eapply gt_tree_trans); eauto.
 Qed.
 Hint Resolve bal_bst.
 
@@ -1459,7 +1459,7 @@ Proof.
  inversion_clear H.
  destruct H7; simpl in *.
  order.
- destruct (elements_aux_mapsto r acc x e0); intuition eauto. 
+ destruct (elements_aux_mapsto r acc x e0); intuition eauto.
 Qed.
 
 Lemma elements_sort : forall s : t elt, bst s -> sort ltk (elements s).
@@ -2056,7 +2056,7 @@ Module IntMake (I:Int)(X: OrderedType) <: S with Module E := X.
  Lemma Equivb_Equivb : forall cmp m m',
   Equivb cmp m m' <-> Raw.Proofs.Equivb cmp m m'.
  Proof.
- intros; unfold Equivb, Equiv, Raw.Proofs.Equivb, In. intuition. 
+ intros; unfold Equivb, Equiv, Raw.Proofs.Equivb, In. intuition.
  generalize (H0 k); do 2 rewrite In_alt; intuition.
  generalize (H0 k); do 2 rewrite In_alt; intuition.
  generalize (H0 k); do 2 rewrite <- In_alt; intuition.
@@ -2317,5 +2317,3 @@ Module Make_ord (X: OrderedType)(D: OrderedType)
  <: Sord with Module Data := D
             with Module MapS.E := X
  :=IntMake_ord(Z_as_Int)(X)(D).
-
-

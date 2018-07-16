@@ -40,8 +40,8 @@ Definition hd_vect_packed (A : Type) (default : A) (pv : packed_vector A) :=
 Definition hd_vect_packed (A : Type) (default : A) (pv : packed_vector A) :=
   hd_vect A default (projT1 pv) (projT2 pv).
 
-Apply ornament orn_list_vector orn_list_vector_inv in hd as hd_vect_auto.
-Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_packed as hd_auto.
+Ornamental Application hd_vect_auto from hd using orn_list_vector orn_list_vector_inv.
+Ornamental Application hd_auto from hd_vect_packed using orn_list_vector_inv orn_list_vector.
 
 Theorem test_orn_hd :
   forall (A : Type) (a : A) (pv : packed_vector A),
@@ -86,8 +86,8 @@ Definition hd_vectF (default : nat) (n : nat) (v : natFlector.flector n) :=
 Definition hd_vect_packedF (default : nat) (pv : sigT natFlector.flector) :=
   hd_vectF default (projT1 pv) (projT2 pv).
 
-Apply ornament orn_flist_flector_nat orn_flist_flector_nat_inv in hdF as hd_vectF_auto.
-Apply ornament orn_flist_flector_nat_inv orn_flist_flector_nat in hd_vect_packedF as hd_autoF.
+Ornamental Application hd_vectF_auto from hdF using orn_flist_flector_nat orn_flist_flector_nat_inv.
+Ornamental Application hd_autoF from hd_vect_packedF using orn_flist_flector_nat_inv orn_flist_flector_nat.
 
 Theorem test_orn_hdF :
   forall (a : nat) (pv : sigT natFlector.flector),
@@ -133,8 +133,8 @@ Definition hd_vect_error (A : Type) (n : nat) (v : vector A n) :=
 Definition hd_vect_error_packed (A : Type) (pv : packed_vector A) :=
   hd_vect_error A (projT1 pv) (projT2 pv).
 
-Apply ornament orn_list_vector orn_list_vector_inv in hd_error as hd_vect_error_auto.
-Apply ornament orn_list_vector_inv orn_list_vector in hd_vect_error_packed as hd_error_auto.
+Ornamental Application hd_vect_error_auto from hd_error using orn_list_vector orn_list_vector_inv.
+Ornamental Application hd_error_auto from hd_vect_error_packed using orn_list_vector_inv orn_list_vector.
 
 (*
  * Same situation as above
@@ -219,8 +219,8 @@ Definition append_vect_packed (A : Type) (pv1 : packed_vector A) (pv2 : packed_v
     (projT1 pv1)
     (projT2 pv1).
 
-Apply ornament orn_list_vector orn_list_vector_inv in append as append_vect_auto.
-Apply ornament orn_list_vector_inv orn_list_vector in append_vect_packed as append_auto.
+Ornamental Application append_vect_auto from append using orn_list_vector orn_list_vector_inv.
+Ornamental Application append_auto from append_vect_packed using orn_list_vector_inv orn_list_vector.
 
 (*
  * For this one, we can't state the equality, but we can use existsT.
@@ -361,8 +361,8 @@ Definition append_vect_packedF (pv1 : sigT natFlector.flector) (pv2 : sigT natFl
     (projT1 pv1)
     (projT2 pv1).
 
-Apply ornament orn_flist_flector_nat orn_flist_flector_nat_inv in appendF as append_vectF_auto.
-Apply ornament orn_flist_flector_nat_inv orn_flist_flector_nat in append_vect_packedF as appendF_auto.
+Ornamental Application append_vectF_auto from appendF using orn_flist_flector_nat orn_flist_flector_nat_inv.
+Ornamental Application appendF_auto from append_vect_packedF using orn_flist_flector_nat_inv orn_flist_flector_nat.
 
 (* TODO test before reduction *)
 
@@ -412,8 +412,8 @@ Definition tl_vect_packed (A : Type) (pv : packed_vector A) :=
     (projT1 pv)
     (projT2 pv).
 
-Apply ornament orn_list_vector orn_list_vector_inv in tl as tl_vect_auto.
-Apply ornament orn_list_vector_inv orn_list_vector in tl_vect_packed as tl_auto.
+Ornamental Application tl_vect_auto from tl using orn_list_vector orn_list_vector_inv.
+Ornamental Application tl_auto from tl_vect_packed using orn_list_vector_inv orn_list_vector.
 
 Lemma coh_vect:
   forall (A : Type) (n : nat) (v : vector A n),
@@ -489,8 +489,8 @@ Definition In_vect (A : Type) (a : A) (pv : sigT (vector A)) : Prop :=
 
 (* TODO what happens if you curry the vector_rect application? and so on *)
 
-Apply ornament orn_list_vector orn_list_vector_inv in In as In_vect_auto.
-Apply ornament orn_list_vector_inv orn_list_vector in In_vect as In_auto.
+Ornamental Application In_vect_auto from In using orn_list_vector orn_list_vector_inv.
+Ornamental Application In_auto from In_vect using orn_list_vector_inv orn_list_vector.
 
 (*
  * TODO proofs at some point that this is OK
@@ -603,8 +603,8 @@ Definition app_nil_r_higher (A : Type) (l : list A) :=
         IHl)
     l.
 
-Apply ornament orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_auto.
-Apply ornament orn_list_vector_inv orn_list_vector in app_nil_r_vect_packed as app_nil_r_auto.
+Ornamental Application app_nil_r_vect_auto from app_nil_r using orn_list_vector orn_list_vector_inv.
+Ornamental Application app_nil_r_auto from app_nil_r_vect_packed using orn_list_vector_inv orn_list_vector.
 
 (* app_nil_r with flectors *)
 
@@ -624,7 +624,7 @@ Definition app_nil_rF (l : natFlector.flist) :=
 
 (* TODO opposite direction *)
 
-Apply ornament orn_flist_flector_nat orn_flist_flector_nat_inv in app_nil_rF as app_nil_r_vectF_auto.
+Ornamental Application app_nil_r_vectF_auto from app_nil_rF using orn_flist_flector_nat orn_flist_flector_nat_inv.
 
 (* in_split *)
 
@@ -638,7 +638,7 @@ Proof.
   exists (a::l1), l2; simpl. apply f_equal. auto.
 Defined. (* TODO any way around defined? *)
 
-Apply ornament orn_list_vector orn_list_vector_inv in in_split as in_split_vect_auto.
+Ornamental Application in_split_vect_auto from in_split using orn_list_vector orn_list_vector_inv.
 
 (* TODO opposite direction too *)
 (* TODO prove it's OK *)
@@ -653,7 +653,7 @@ Definition is_cons (A : Type) (l : list A) :=
     (fun (_ : A) (_ : list A) (_ : Prop) => True)
     l.
 
-Apply ornament orn_list_vector orn_list_vector_inv in is_cons as is_cons_vect_auto.
+Ornamental Application is_cons_vect_auto from is_cons using orn_list_vector orn_list_vector_inv.
 
 (* TODO port to induction everywhere, revisit
 Lemma hd_error_tl_repr : forall A l (a:A) r,
@@ -665,7 +665,7 @@ Proof. induction l.
    * inversion 1. subst. auto.
 Defined.
 
-Apply ornament orn_list_vector orn_list_vector_inv in hd_error_tl_repr as hd_error_tl_repr_vect_auto.
+Ornamental Application hd_error_tl_repr_vect_auto from hd_error_tl_repr using orn_list_vector orn_list_vector_inv.
 *)
 
 (* ported to induction *)
@@ -679,7 +679,7 @@ Proof.
     * simpl. auto. 
 Defined.
 
-Apply ornament orn_list_vector orn_list_vector_inv in hd_error_some_nil as hd_error_some_nil_vect_auto.
+Ornamental Application hd_error_some_nil_vect_auto from hd_error_some_nil using orn_list_vector orn_list_vector_inv.
 
 (* --- Proofs that don't induct over list/vector. TODO can we do anything about these? --- *)
 
@@ -719,7 +719,7 @@ Proof.
 Qed.
 
 (* TODO this is only actual worth doing anything with if you higher-lift [but it works]: *)
-Higher lift orn_list_vector orn_list_vector_inv in hd_error_nil as hd_error_nil_red.
+Ornamental Modularization hd_error_nil_red from hd_error_nil using orn_list_vector orn_list_vector_inv.
 
 Theorem hd_error_cons : 
   forall A (l : list A) (x : A), hd_error A (x::l) = Some x.

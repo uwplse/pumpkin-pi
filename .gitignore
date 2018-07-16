@@ -1,6 +1,8 @@
 *.cmi
 *.cmo
 *.cmx
+*.cmt
+*.cmti
 *.mlpack.d
 *.o
 *.ml4.d
@@ -14,4 +16,8 @@
 *.d
 *.cmxa
 *.a
-Makefile.coq.conf
+plugin/Makefile.coq.conf
+plugin/Makefile.coq
+plugin/Makefile.conf
+plugin/Makefile
+plugin/.merlin

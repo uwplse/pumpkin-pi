@@ -40,7 +40,7 @@ let rec factor_product (trm : types) : types list =
      t :: factor_product (unshift b)
   | _ ->
      []
-       
+
 (* --- Non-dependent factoring --- *)
 
 type factors = (env * types) list
@@ -161,7 +161,7 @@ let debug_factors (fs : factors) (s : string) : unit =
   List.iter (fun (e, f) -> debug_term e f s) fs
 
 (* --- Dependent factoring --- *)
-                        
+
 type factor_tree = Unit | Factor of (env * types) * factor_tree list
 
 (*
@@ -180,7 +180,7 @@ let assume_no_replace (assum : types) (env : env) (n : name) (typ : types) : env
   let env_assum = push_local (n, typ) env_pop in
   List.fold_right push_local non_assums env_assum
 
-(* 
+(*
  * Update the assumptions to search recursively
  *)
 let assume_args off trees assum_ind tree_i factors_left args =
@@ -210,7 +210,7 @@ let debug_factors_dep (fs : factor_tree) (s : string) : unit =
     | Unit ->
        "Unit"
   in Printf.printf "%s: %s\n\n" s (as_string fs)
-                
+
 (*
  * Dependent version of the above
  *)
@@ -239,7 +239,7 @@ let rec find_path_dep (assum : types) (env : env) evd (trm : types) : factor_tre
                  let assum_sub = mkRel assum_ind_sub in
                  let sub_assum = all_conv_substs en_prev (prev, assum_sub) in
                  let t = on_type sub_assum env_arg evd arg in
-                 let t_shift = shift_by (1 - assum_ind_sub) t in 
+                 let t_shift = shift_by (1 - assum_ind_sub) t in
                  let en_t = assume_no_replace assum en Anonymous t_shift in
                  (en_t, ((Factor ((env_arg, arg), children)) :: cn))
                else
@@ -260,7 +260,7 @@ let rec find_path_dep (assum : types) (env : env) evd (trm : types) : factor_tre
 	 Unit
     | _ -> (* other terms not yet implemented *)
        Unit
-         
+
 (*
  * Dependent version
  *)
@@ -315,8 +315,17 @@ let get_assum orn env evd trm =
             let (_, unorn_typ) = zoom_product_type env (infer_type env evd unorn) in
             let last_a = last_arg unorn_typ in
             let assum_a = map_if last_arg (applies projT2 last_a) last_a in
-            let assum_i = arity unorn - destRel assum_a in
-            Some (last_arg (get_arg assum_i t))
+            let rec unwrap a = (* hack until we get rid of factoring to guide factoring better *)
+              if isApp a then
+                unwrap (last_arg a)
+              else if isRel a then
+                a
+              else
+                failwith "unexpected induction argument"
+            in
+            let assum_i = arity unorn - destRel (unwrap assum_a) in
+            let res = last_arg (get_arg assum_i t) in
+            Some res
         in c := c'; t)
       trm
   in Option.get !c

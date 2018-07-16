@@ -15,7 +15,7 @@ open Abstraction
 open Printing
 open Lifting
 open Declarations
-       
+
 (* --- Differencing terms --- *)
 
 (* Check if two terms have the same type, ignoring universe inconsinstency *)
@@ -100,6 +100,11 @@ let new_index i trm_o trm_n =
  *
  * If indices depend on earlier types, the types may be dependent;
  * the client needs to shift by the appropriate offset.
+ *
+ * This algorithm only runs when there is ambiguity, since Nate's
+ * algorithm can take care of simpler cases where the types enough
+ * are revealing. There are some examples of ambiguity in Test.v;
+ * these should never break, and if they do, it means the code is incorrect.
  *)
 let new_index_type env elim_t_o elim_t_n =
   let (_, p_o, b_o) = destProd elim_t_o in
@@ -117,6 +122,61 @@ let new_index_type env elim_t_o elim_t_n =
     | _ ->
        failwith "could not find indexer property"
   in List.find (fun (i, _) -> new_index i b_o b_n) (poss_indices env p_o p_n)
+               
+(*
+ * This is Nate's simple search heuristic that works when there is no ambiguity
+ *)
+let diff_context_simple env ctx_o ctx_n =
+  let open Util in
+  let open Context in
+  let decls_o = List.rev ctx_o in
+  let decls_n = List.rev ctx_n in
+  let nth_type (n : int) : types = Rel.Declaration.get_type (List.nth decls_n n) in
+  let rec scan env pos diff (decls_o, decls_n) : int option =
+    match (decls_o, decls_n) with
+    | (decl_o :: decls_o'), (decl_n :: decls_n') ->
+      let type_o = Rel.Declaration.get_type decl_o in
+      let type_n = Rel.Declaration.get_type decl_n in
+      let env' = Environ.push_rel decl_n env in
+      if convertible env type_o type_n then
+        let diff' = scan env' (pos + 1) diff (decls_o', decls_n') in
+        if Option.has_some diff' && Option.get diff' = pos + 1 then
+          let type_i = nth_type (pos + 1) in
+          if not (convertible env' (shift type_o) type_i) then
+            diff'
+          else
+            None (* ambiguous, can't use this heuristic *)
+        else
+          diff'
+      else
+        scan env' (pos + 1) (Some pos) (decls_o, decls_n')
+    | [], [] -> None
+    | [], (decl_n :: decls_n) -> Some pos
+    | (_ :: _), [] -> None
+  in
+  let diff_pos = scan env 0 None (decls_o, decls_n) in
+  if Option.has_some diff_pos then
+    let pos = Option.get diff_pos in
+    let typ = nth_type pos in
+    Some (pos, typ)
+  else
+    None
+               
+(*
+ * Top-level index finder for Nate's heuristic
+ *)
+let new_index_type_simple env npars ind_o ind_n =
+  let open Util in
+  let open Constr in
+  (* Applying each parameter increments the index for the next one. *)
+  let pars = List.make npars (mkRel npars) in
+  let pind_o = Univ.in_punivs ind_o in
+  let pind_n = Univ.in_punivs ind_n in
+  let indf_o = Inductiveops.make_ind_family (pind_o, pars) in
+  let indf_n = Inductiveops.make_ind_family (pind_n, pars) in
+  let (idcs_o, _) = Inductiveops.get_arity env indf_o in
+  let (idcs_n, _) = Inductiveops.get_arity env indf_n in
+  diff_context_simple env idcs_o idcs_n
 
 (*
  * Given an old and new application of a property, find the new index.
@@ -130,20 +190,20 @@ let get_new_index index_i p o n =
      failwith "not an application of a property"
 
 (*
- * Convenience function that rules out hypotheses that the algorithm thinks 
- * compute candidate old indices that actually compute new indices, so that 
+ * Convenience function that rules out hypotheses that the algorithm thinks
+ * compute candidate old indices that actually compute new indices, so that
  * we only have to do this much computation when we have a lead to begin with.
  *
  * The gist is that any new hypothesis in a constructor that has a different
- * type from the corresponding hypothesis in the old constructor definitely 
+ * type from the corresponding hypothesis in the old constructor definitely
  * computes a new index, assuming an indexing ornamental relationship
  * and no other changes. So if we find one of those we just assume it's an
  * index. But this does not capture every kind of index, so if we can't
  * make that assumption, then we need to do an extra check.
- * 
- * An example might be if an inductive type already has an index of type nat, 
+ *
+ * An example might be if an inductive type already has an index of type nat,
  * and then we add a new index of type nat next to it. We then need to figure
- * out which index is the new one, and a naive (but efficient) algorithm may 
+ * out which index is the new one, and a naive (but efficient) algorithm may
  * ignore the correct index. This lets us only check that condition
  * in those situations, and otherwise just look for obvious indices by
  * comparing hypotheses.
@@ -332,7 +392,7 @@ let with_new_property p c : types =
        trm
   in sub_p (mkRel 1, p) c
 
-(* 
+(*
  * Find the property that the ornamental promotion or forgetful function proves
  * for an indexing function
  *)
@@ -472,7 +532,7 @@ let make_packer env evd typ args (index_i, index_typ) is_fwd =
   let packed_args = sub_index index_i (mkRel 1) (shift_all args) in
   let env_abs = push_local (Anonymous, index_typ) env in
   abstract_arg env_abs evd index_i (mkAppl (typ, packed_args))
-              
+
 (*
  * Pack the conclusion of an ornamental promotion
  *)
@@ -483,7 +543,7 @@ let pack_conclusion env evd idx f_indexer n unpacked =
   let packer = make_packer env evd ind (mk_n_rels off) idx true in
   let index = mkAppl (f_indexer, mk_n_rels arity) in
   (env, pack_existT {index_type; packer; index; unpacked})
-    
+
 (*
  * Pack the hypothesis type into a sigT, and update the environment
  *)
@@ -492,7 +552,7 @@ let pack_hypothesis_type env index_type packer (id, unpacked_typ) : env =
   let packed_typ = pack_sigT { index_type ; packer } in
   push_local (id, packed_typ) (pop_rel_context 1 env)
 
-(* 
+(*
  * Apply the packer to the index
  *)
 let apply_packer env packer arg =
@@ -518,13 +578,13 @@ let pack_unpacked env packer index_typ index_rel unpacked =
   let index_body = mkLambda (Anonymous, packer_indexed, typ_body) in
   mkLambda (Anonymous, shift index_typ, index_body)
 
-(* 
+(*
  * Get the body of the eliminator when packing the hypothesis
  *)
 let elim_body index_type packer f args =
   let packed_type = pack_sigT { index_type; packer } in
   mkLambda (Anonymous, packed_type, shift (mkAppl (f, args)))
-              
+
 (*
  * Pack the hypothesis of an ornamental forgetful function
  *)
@@ -626,8 +686,13 @@ let search_orn_index env evd npm indexer_n o n is_fwd =
   let (env_n, elim_t_n') = zoom_n_prod env npm elim_t_n in
   let o = (env_o, pind_o, arity_o, elim_t_o') in
   let n = (env_n, pind_n, arity_n, elim_t_n') in
-  let idx = call_directional (new_index_type env_n) elim_t_o' elim_t_n' in
-  search_orn_index_elim evd idx npm indexer_n elim_o o n is_fwd
+  let idx_op = call_directional (new_index_type_simple env_n npm) ind_o ind_n in
+  let idx =
+    if Option.has_some idx_op then
+      Option.get idx_op
+    else
+      call_directional (new_index_type env_n) elim_t_o' elim_t_n'
+  in search_orn_index_elim evd idx npm indexer_n elim_o o n is_fwd
 
 (* --- Parameterization ornaments --- *)
 
@@ -637,11 +702,11 @@ let search_orn_index env evd npm indexer_n o n is_fwd =
  *)
 let search_orn_params env ind_o ind_n is_fwd : types =
   failwith "parameterization is not yet supported"
-                        
+
 (* --- Ornamental differencing --- *)
 
-(* 
- * Search two inductive types for an ornament between them 
+(*
+ * Search two inductive types for an ornament between them
  *)
 let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
   match map_tuple kind_of_term (trm_o, trm_n) with

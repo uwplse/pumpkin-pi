@@ -24,7 +24,6 @@ val apply_indexing_ornament :
 val internalize :
   env ->
   evar_map ->
-  Id.t -> (* name of indexer to generate, if applicable *)
   lifting -> (* lifting configuration *)
   types -> (* term to reduce *)
   (types * types option) (* reduced term and optional indexer *)
