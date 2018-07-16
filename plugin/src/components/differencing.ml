@@ -131,20 +131,14 @@ let diff_context_simple env ctx_o ctx_n =
   let rec scan env pos diff (decls_o, decls_n) : int option =
     match (decls_o, decls_n) with
     | (decl_o :: decls_o'), (decl_n :: decls_n') ->
-       (*let shift_nth e n = Debruijn.shift_local (pos - n) 1 e in*)
       let type_o = Rel.Declaration.get_type decl_o in
       let type_n = Rel.Declaration.get_type decl_n in
-      (*let type_o' = List.fold_left shift_nth type_o diff in*)
       let env' = Environ.push_rel decl_n env in
-      debug_term env type_o "type_o";
-      debug_term env type_n "type_n";
       if convertible env type_o type_n then
         let diff' = scan env' (pos + 1) diff (decls_o', decls_n') in
         if Option.has_some diff' && Option.get diff' = pos + 1 then
           let type_i = nth_type (pos + 1) in
-          debug_env env "env";
-          debug_term env type_i "type_i";
-          if not (convertible env type_o type_i) then
+          if not (convertible env' (shift type_o) type_i) then
             diff'
           else
             None (* ambiguous, can't use this heuristic *)
@@ -160,7 +154,6 @@ let diff_context_simple env ctx_o ctx_n =
   if Option.has_some diff_pos then
     let pos = Option.get diff_pos in
     let typ = nth_type pos in
-    debug_term env typ "typ";
     Some (pos, typ)
   else
     None
@@ -694,8 +687,6 @@ let search_orn_index env evd npm indexer_n o n is_fwd =
     if Option.has_some idx_op then
       Option.get idx_op
     else
-      let x = 0 in
-      Printf.printf "%s\n\n" "Ambiguity; not using simple heuristic";
       call_directional (new_index_type env_n) elim_t_o' elim_t_n'
   in search_orn_index_elim evd idx npm indexer_n elim_o o n is_fwd
 
