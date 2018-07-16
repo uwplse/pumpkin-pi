@@ -63,25 +63,63 @@ let same_mod_indexing env p_index o n =
 (* --- Indexers --- *)
 
 (*
- * Given two local contexts (of type [Context.Rel.t]) in which the first (the
- * "old" context) is effectively a subset of the second (the "new" context),
- * determine which declarations were inserted into the first to construct the
- * second. The answer is returned as a list of positions for the inserted
- * declarations, relative to the outermost declaration of the second (new)
- * context (i.e., context length - deBruijn index of relevant declaration).
+ * Returns true if the argument at the supplied index location of the 
+ * inductive property (which should be at relative index 1 before calling
+ * this function) is an index to some application of the induction principle
+ * in the second term that was not an index to any application of the induction
+ * principle in the first term.
  *
- * Assumptions:
- * 1. Both contexts share an outer environment, given by [env].
- * 2. Neither context contains local definitions (i.e., let definitions).
- * 3. If the new context contains an inserted declaration among a series of
- *    declarations with definitionally equal types, it suffices to choose the
- *    last declaration(s) as the one(s) "inserted".
+ * In other words, this looks for applications of the property
+ * in the induction principle type, checks the argument at the location,
+ * and determines whether they were equal. If they are ever not equal,
+ * then the index is considered to be new. Since we are ornamenting,
+ * we can assume that we maintain the same inductive structure, and so
+ * we should encounter applications of the induction principle in both
+ * terms in exactly the same order.
+ *)
+let new_index i trm_o trm_n =
+  let rec is_new_index p trm_o trm_n =
+    match map_tuple kind_of_term (trm_o, trm_n) with
+    | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
+       let p_b = shift p in
+       if applies p t_o && not (applies p t_n) then
+         is_new_index p_b (shift trm_o) b_n
+       else
+         is_new_index p t_o t_n || is_new_index p_b b_o b_n
+    | (App (_, _), App (_, _)) when applies p trm_o && applies p trm_n ->
+       let args_o = List.rev (List.tl (List.rev (unfold_args trm_o))) in
+       let args_n = List.rev (List.tl (List.rev (unfold_args trm_n))) in
+       diff_arg i (mkAppl (p, args_o)) (mkAppl (p, args_n))
+    | _ ->
+       false
+  in is_new_index (mkRel 1) trm_o trm_n
+
+(*
+ * Assuming there is an indexing ornamental relationship between two 
+ * eliminators, get the type and location of the new index.
  *
- * Assumption 3 is best illustrated by an example. Supposing the two local
- * contexts begin respectively with [x:A, y:A] and with [x':A, y':A, z':A], this
- * function assumes that it is safe to choose the third declaration, [z':A], as
- * the one "inserted". This assumption does not hold in general, particularly
- * when subsequent declarations are dependent.
+ * If indices depend on earlier types, the types may be dependent;
+ * the client needs to shift by the appropriate offset.
+ *)
+let new_index_type env elim_t_o elim_t_n =
+  let (_, p_o, b_o) = destProd elim_t_o in
+  let (_, p_n, b_n) = destProd elim_t_n in
+  let rec poss_indices e p_o p_n =
+    match map_tuple kind_of_term (p_o, p_n) with
+    | (Prod (n_o, t_o, b_o), Prod (_, t_n, b_n)) ->
+       if isProd b_o && convertible e t_o t_n then
+         let e_b = push_local (n_o, t_o) e in
+         let same = poss_indices e_b b_o b_n in
+         let different = (0, t_n) in
+         different :: (List.map (fun (i, i_t) -> (shift_i i, i_t)) same)
+       else
+         [(0, t_n)]
+    | _ ->
+       failwith "could not find indexer property"
+  in List.find (fun (i, _) -> new_index i b_o b_n) (poss_indices env p_o p_n)
+               
+(*
+ * This is Nate's simple search heuristic that works when there is no ambiguity
  *)
 let diff_context_simple env ctx_o ctx_n =
   let open Util in
@@ -107,15 +145,11 @@ let diff_context_simple env ctx_o ctx_n =
   let diff_pos = scan env 0 [] (decls_o, decls_n) in
   let diff_typ = List.map nth_type diff_pos in
   List.combine diff_pos diff_typ
-
+               
 (*
- * Assuming there is an indexing ornamental relationship between two
- * inductive families, get the type and location of the new index.
- *
- * If indices depend on earlier types, the types may be dependent;
- * the client needs to shift by the appropriate offset.
+ * Top-level index finder for Nate's heuristic
  *)
-let new_index_type env npars ind_o ind_n =
+let new_index_type_simple env npars ind_o ind_n =
   let open Util in
   let open Constr in
   (* Applying each parameter increments the index for the next one. *)
@@ -637,7 +671,7 @@ let search_orn_index env evd npm indexer_n o n is_fwd =
   let (env_n, elim_t_n') = zoom_n_prod env npm elim_t_n in
   let o = (env_o, pind_o, arity_o, elim_t_o') in
   let n = (env_n, pind_n, arity_n, elim_t_n') in
-  let idx = call_directional (new_index_type env_n npm) ind_o ind_n in
+  let idx = call_directional (new_index_type_simple env_n npm) ind_o ind_n in
   search_orn_index_elim evd idx npm indexer_n elim_o o n is_fwd
 
 (* --- Parameterization ornaments --- *)
