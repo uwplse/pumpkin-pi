@@ -71,7 +71,7 @@ Notation t := tree.
 Notation tv := treeV.
 
 (* ORN: Find the orament *)
-Ornament orn_tree_treeV from tree to treeV.
+Find ornament tree treeV as orn_tree_treeV.
 
 (** * Basic functions on trees: height and cardinal *)
 

@@ -10,7 +10,7 @@ Inductive vector (A : Type) : nat -> Type :=
 Definition packed_vector (T : Type) :=
   sigT (fun (n : nat) => vector T n).
 
-Ornament orn_list_vector from list to vector.
+Find ornament list vector as orn_list_vector.
 
 Print orn_list_vector_index.
 Print orn_list_vector.
@@ -77,7 +77,7 @@ Inductive flector : nat -> Type :=
       flector n ->
       flector (SIfEven a n).
 
-Ornament orn_flist_flector from flist to flector.
+Find ornament flist flector as orn_flist_flector.
 
 (* For testing *)
 Definition countEven (l : flist) :=
@@ -156,7 +156,7 @@ Inductive rev_vector (A : Type) : nat -> Type :=
 Definition packed_rev_vector (T : Type) :=
   sigT (A := nat) (fun (n : nat) => rev_vector T n).
 
-Ornament orn_rev_list_rev_vector from rev_list to rev_vector.
+Find ornament rev_list rev_vector as orn_rev_list_rev_vector.
 
 Definition rev_list_length (A : Type) (rl : rev_list A) :=
   rev_list_rect
@@ -220,9 +220,7 @@ Inductive bintreeV (A : Type) : nat -> Type :=
 Definition packed_bintreeV (T : Type) :=
   sigT (A := nat) (fun (n : nat) => bintreeV T n).
 
-Ornament orn_bintree_bintreeV from bintree to bintreeV.
-
-Print orn_bintree_bintreeV.
+Find ornament bintree bintreeV as orn_bintree_bintreeV.
 
 Definition bintree_size (A : Type) (tr : bintree A) :=
   bintree_rect
@@ -292,7 +290,7 @@ Definition length2 (A : Type) (B : Type) (l : list2 A B) :=
       S (S IH))
     l.
 
-Ornament orn_list2_vector2 from list2 to vector2.
+Find ornament list2 vector2 as orn_list2_vector2.
 
 Theorem test_index_4:
   forall (A : Type) (B : Type) (l : list2 A B),
@@ -342,7 +340,7 @@ Inductive nat_vector : nat -> Type :=
 Definition packed_nat_vector :=
   sigT (A := nat) (fun (n : nat) => nat_vector n).
 
-Ornament orn_natlist_natvector from nat_list to nat_vector.
+Find ornament nat_list nat_vector as orn_natlist_natvector.
 
 Definition nat_length (l : nat_list) :=
   nat_list_rect
@@ -408,7 +406,7 @@ Definition bintree_size_rev (A : Type) (tr : bintree A) :=
       nr + nl)
     tr.
 
-Ornament orn_bintree_bintreeV_rev from bintree to bintreeV_rev.
+Find ornament bintree bintreeV_rev as orn_bintree_bintreeV_rev.
 
 Theorem test_index_6:
   forall (A : Type) (tr : bintree A),

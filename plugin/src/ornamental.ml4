@@ -10,7 +10,7 @@ open Lifting
 
 (* Identify an ornament given two inductive types *)
 VERNAC COMMAND EXTEND DefineOrnament CLASSIFIED AS SIDEFF
-| [ "Ornament" ident(n) "from" constr(d_old) "to" constr(d_new)] ->
+| [ "Find" "ornament" constr(d_old) constr(d_new) "as" ident(n) ] ->
   [ find_ornament n d_old d_new ]
 END
 

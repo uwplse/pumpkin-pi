@@ -118,7 +118,7 @@ Module CaseStudy (Elem : Comparable).
       : tree (S (n_l + n_r))
     | Leaf (val : Elem.t) : tree (S O).
 
-    Ornament orn_size from Base.tree to tree.
+    Find ornament Base.tree tree as orn_size.
 
     Ornamental Definition preorder' from Base.preorder using orn_size orn_size_inv.
     Definition preorder n t := preorder' (existT _ n t).
@@ -166,7 +166,7 @@ Module CaseStudy (Elem : Comparable).
       : tree (S (Nat.max h_l h_r))
     | Leaf (val : Elem.t) : tree O.
 
-    Ornament orn_height from Base.tree to tree.
+    Find ornament Base.tree tree as orn_height.
 
     Ornamental Definition preorder' from Base.preorder using orn_height orn_height_inv.
     Definition preorder h t := preorder' (existT _ h t).
@@ -272,8 +272,8 @@ Module CaseStudy (Elem : Comparable).
       : minheap (S (Nat.max h_l h_r)) val (inv h_l h_r min_l min_r inv_l inv_r val)
     | Leaf (val : Elem.t) : minheap O val true.
 
-    Ornament _orn_heap from Measured.tree to _minheap.
-    Ornament orn_heap from _minheap to minheap.
+    Find ornament Measured.tree _minheap as _orn_heap.
+    Find ornament _minheap minheap as orn_heap.
 
     Ornamental Definition _preorder' from Measured.preorder using _orn_heap _orn_heap_inv.
     Definition _preorder h min (t : _minheap h min) := _preorder' h (existT _ min t).
@@ -318,9 +318,9 @@ Module CaseStudy (Elem : Comparable).
       : bst min_l max_r (inv ord_l ord_r max_l val min_r)
     | Leaf (val : Elem.t) : bst val val true.
 
-    Ornament __orn_order from Base.tree to __bst.
-    Ornament _orn_order from __bst to _bst.
-    Ornament orn_order from _bst to bst.
+    Find ornament Base.tree __bst as __orn_order.
+    Find ornament __bst _bst as _orn_order.
+    Find ornament _bst bst as orn_order.
 
     Ornamental Definition __preorder' from Base.preorder using __orn_order __orn_order_inv.
     Definition __preorder min (tree : __bst min) := __preorder' (existT _ min tree).
@@ -376,8 +376,8 @@ Module CaseStudy (Elem : Comparable).
       : avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r) (S (Nat.max h_l h_r)) (inv bal_l bal_r h_l h_r)
     | Leaf (val : Elem.t) : avl val val true O true.
 
-    Ornament _orn_balance from Ordered.bst to _avl.
-    Ornament orn_balance from _avl to avl.
+    Find ornament Ordered.bst _avl as _orn_balance.
+    Find ornament _avl avl as orn_balance.
 
     Ornamental Definition _preorder' from Ordered.preorder using _orn_balance _orn_balance_inv.
     Definition _preorder min max ord height (tree : _avl min max ord height) :=
