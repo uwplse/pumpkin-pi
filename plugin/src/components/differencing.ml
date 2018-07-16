@@ -100,6 +100,11 @@ let new_index i trm_o trm_n =
  *
  * If indices depend on earlier types, the types may be dependent;
  * the client needs to shift by the appropriate offset.
+ *
+ * This algorithm only runs when there is ambiguity, since Nate's
+ * algorithm can take care of simpler cases where the types enough
+ * are revealing. There are some examples of ambiguity in Test.v;
+ * these should never break, and if they do, it means the code is incorrect.
  *)
 let new_index_type env elim_t_o elim_t_n =
   let (_, p_o, b_o) = destProd elim_t_o in
@@ -120,7 +125,6 @@ let new_index_type env elim_t_o elim_t_n =
                
 (*
  * This is Nate's simple search heuristic that works when there is no ambiguity
- * TODO env is missing parameters, need to push those somehow
  *)
 let diff_context_simple env ctx_o ctx_n =
   let open Util in
