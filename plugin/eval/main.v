@@ -120,27 +120,27 @@ Module CaseStudy (Elem : Comparable).
 
     Find ornament Base.tree tree as orn_size.
 
-    Ornamental Definition preorder' from Base.preorder using orn_size orn_size_inv.
+    Lift orn_size orn_size_inv in Base.preorder as preorder'.
     Definition preorder n t := preorder' (existT _ n t).
 
-    Ornamental Definition inorder' from Base.inorder using orn_size orn_size_inv.
+    Lift orn_size orn_size_inv in Base.inorder as inorder'.
     Definition inorder n t := inorder' (existT _ n t).
 
-    Ornamental Definition postorder' from Base.postorder using orn_size orn_size_inv.
+    Lift orn_size orn_size_inv in Base.postorder as postorder'.
     Definition postorder n t := postorder' (existT _ n t).
 
-    Ornamental Definition mirror' from Base.mirror using orn_size orn_size_inv.
+    Lift orn_size orn_size_inv in Base.mirror as mirror'.
     Definition mirror (n : nat) (t : tree n) : tree n.
       pose (T := (mirror' (existT _ n t))). replace n with (T.1). exact (T.2).
       induction t as [s_l s_r v t_l IH_l t_r IH_r|v]; [|reflexivity].
       cbn zeta in IH_l, IH_r. rewrite add_comm, <- IH_l, <- IH_r. reflexivity.
     Defined.
 
-    Ornamental Definition pre_permutes' from Base.pre_permutes using orn_size orn_size_inv.
+    Lift orn_size orn_size_inv in Base.pre_permutes as pre_permutes'.
     Definition pre_permutes (n : nat) (t : tree n) : permutes (preorder n t) (inorder n t) :=
       pre_permutes' (existT _ n t).
 
-    Ornamental Definition post_permutes' from Base.post_permutes using orn_size orn_size_inv.
+    Lift orn_size orn_size_inv in Base.post_permutes as post_permutes'.
     Definition post_permutes (n : nat) (t : tree n) : permutes (postorder n t) (inorder n t) :=
       post_permutes' (existT _ n t).
 
@@ -148,7 +148,7 @@ Module CaseStudy (Elem : Comparable).
     Definition pre_post_permutes (n : nat) (t : tree n) : permutes (preorder n t) (postorder n t) :=
       pre_post_permutes' (existT _ n t).
 
-    Ornamental Definition mirror_permutes' from Base.mirror_permutes using orn_size orn_size_inv.
+    Lift orn_size orn_size_inv in Base.mirror_permutes as mirror_permutes'.
     Lemma mirror_permutes (n : nat) (t : tree n) : permutes (inorder n t) (inorder n (mirror n t)).
     Proof.
       unfold inorder, mirror. rewrite cast_sigma. rewrite <- sigT_eta.
@@ -168,27 +168,27 @@ Module CaseStudy (Elem : Comparable).
 
     Find ornament Base.tree tree as orn_height.
 
-    Ornamental Definition preorder' from Base.preorder using orn_height orn_height_inv.
+    Lift orn_height orn_height_inv in Base.preorder as preorder'.
     Definition preorder h t := preorder' (existT _ h t).
 
-    Ornamental Definition inorder' from Base.inorder using orn_height orn_height_inv.
+    Lift orn_height orn_height_inv in Base.inorder as inorder'.
     Definition inorder h t := inorder' (existT _ h t).
 
-    Ornamental Definition postorder' from Base.postorder using orn_height orn_height_inv.
+    Lift orn_height orn_height_inv in Base.postorder as postorder'.
     Definition postorder h t := postorder' (existT _ h t).
 
-    Ornamental Definition mirror' from Base.mirror using orn_height orn_height_inv.
+    Lift orn_height orn_height_inv in Base.mirror as mirror'.
     Definition mirror (h : nat) (t : tree h) : tree h.
       set (T := (mirror' (existT _ h t))). replace h with (T.1). exact (T.2).
       induction t as [h_l h_r v t_l IH_l t_r IH_r|v]; [|reflexivity].
       cbn zeta in IH_l, IH_r. rewrite max_comm, <- IH_l, <- IH_r. reflexivity.
     Defined.
 
-    Ornamental Definition pre_permutes' from Base.pre_permutes using orn_height orn_height_inv.
+    Lift orn_height orn_height_inv in Base.pre_permutes as pre_permutes'.
     Definition pre_permutes (h : nat) (t : tree h) : permutes (preorder h t) (inorder h t) :=
       pre_permutes' (existT _ h t).
 
-    Ornamental Definition post_permutes' from Base.post_permutes using orn_height orn_height_inv.
+    Lift orn_height orn_height_inv in Base.post_permutes as post_permutes'.
     Definition post_permutes (h : nat) (t : tree h) : permutes (postorder h t) (inorder h t) :=
       post_permutes' (existT _ h t).
 
@@ -196,7 +196,7 @@ Module CaseStudy (Elem : Comparable).
     Definition pre_post_permutes (h : nat) (t : tree h) : permutes (preorder h t) (postorder h t) :=
       pre_post_permutes' (existT _ h t).
 
-    Ornamental Definition mirror_permutes' from Base.mirror_permutes using orn_height orn_height_inv.
+    Lift orn_height orn_height_inv in Base.mirror_permutes as mirror_permutes'.
     Lemma mirror_permutes (h : nat) (t : tree h) : permutes (inorder h t) (inorder h (mirror h t)).
     Proof.
       unfold inorder, mirror. rewrite cast_sigma. rewrite <- sigT_eta.
@@ -275,19 +275,19 @@ Module CaseStudy (Elem : Comparable).
     Find ornament Measured.tree _minheap as _orn_heap.
     Find ornament _minheap minheap as orn_heap.
 
-    Ornamental Definition _preorder' from Measured.preorder using _orn_heap _orn_heap_inv.
+    Lift _orn_heap _orn_heap_inv in Measured.preorder as _preorder'.
     Definition _preorder h min (t : _minheap h min) := _preorder' h (existT _ min t).
-    Ornamental Definition preorder' from _preorder using orn_heap orn_heap_inv.
+    Lift orn_heap orn_heap_inv in _preorder as preorder'.
     Definition preorder h min ord (t : minheap h min ord) := preorder' h min (existT _ ord t).
 
-    Ornamental Definition _inorder' from Measured.inorder using _orn_heap _orn_heap_inv.
+    Lift _orn_heap _orn_heap_inv in Measured.inorder as _inorder'.
     Definition _inorder h min (t : _minheap h min) := _inorder' h (existT _ min t).
-    Ornamental Definition inorder' from _inorder using orn_heap orn_heap_inv.
+    Lift orn_heap orn_heap_inv in _inorder as inorder'.
     Definition inorder h min ord (t : minheap h min ord) := inorder' h min (existT _ ord t).
 
-    Ornamental Definition _postorder' from Measured.postorder using _orn_heap _orn_heap_inv.
+    Lift _orn_heap _orn_heap_inv in Measured.postorder as _postorder'.
     Definition _postorder h min (t : _minheap h min) := _postorder' h (existT _ min t).
-    Ornamental Definition postorder' from _postorder using orn_heap orn_heap_inv.
+    Lift orn_heap orn_heap_inv in _postorder as postorder'.
     Definition postorder h min ord (t : minheap h min ord) := postorder' h min (existT _ ord t).
 
   End Heaped.
@@ -322,25 +322,25 @@ Module CaseStudy (Elem : Comparable).
     Find ornament __bst _bst as _orn_order.
     Find ornament _bst bst as orn_order.
 
-    Ornamental Definition __preorder' from Base.preorder using __orn_order __orn_order_inv.
+    Lift __orn_order __orn_order_inv in Base.preorder as __preorder'.
     Definition __preorder min (tree : __bst min) := __preorder' (existT _ min tree).
-    Ornamental Definition _preorder' from __preorder using _orn_order _orn_order_inv.
+    Lift _orn_order _orn_order_inv in __preorder as _preorder'.
     Definition _preorder min max (tree : _bst min max) := _preorder' min (existT _ max tree).
-    Ornamental Definition preorder' from _preorder using orn_order orn_order_inv.
+    Lift orn_order orn_order_inv in _preorder as preorder'.
     Definition preorder min max ord (tree : bst min max ord) := preorder' min max (existT _ ord tree).
 
-    Ornamental Definition __inorder' from Base.inorder using __orn_order __orn_order_inv.
+    Lift __orn_order __orn_order_inv in Base.inorder as __inorder'.
     Definition __inorder min (tree : __bst min) := __inorder' (existT _ min tree).
-    Ornamental Definition _inorder' from __inorder using _orn_order _orn_order_inv.
+    Lift _orn_order _orn_order_inv in __inorder as _inorder'.
     Definition _inorder min max (tree : _bst min max) := _inorder' min (existT _ max tree).
-    Ornamental Definition inorder' from _inorder using orn_order orn_order_inv.
+    Lift orn_order orn_order_inv in _inorder as inorder'.
     Definition inorder min max ord (tree : bst min max ord) := inorder' min max (existT _ ord tree).
 
-    Ornamental Definition __postorder' from Base.postorder using __orn_order __orn_order_inv.
+    Lift __orn_order __orn_order_inv in Base.postorder as __postorder'.
     Definition __postorder min (tree : __bst min) := __postorder' (existT _ min tree).
-    Ornamental Definition _postorder' from __postorder using _orn_order _orn_order_inv.
+    Lift _orn_order _orn_order_inv in __postorder as _postorder'.
     Definition _postorder min max (tree : _bst min max) := _postorder' min (existT _ max tree).
-    Ornamental Definition postorder' from _postorder using orn_order orn_order_inv.
+    Lift orn_order orn_order_inv in _postorder as postorder'.
     Definition postorder min max ord (tree : bst min max ord) := postorder' min max (existT _ ord tree).
 
     Definition search {min max ord} (tree : bst min max ord) (val' : Elem.t) : bool :=
@@ -379,31 +379,31 @@ Module CaseStudy (Elem : Comparable).
     Find ornament Ordered.bst _avl as _orn_balance.
     Find ornament _avl avl as orn_balance.
 
-    Ornamental Definition _preorder' from Ordered.preorder using _orn_balance _orn_balance_inv.
+    Lift _orn_balance _orn_balance_inv in Ordered.preorder as _preorder'.
     Definition _preorder min max ord height (tree : _avl min max ord height) :=
       _preorder' min max ord (existT _ height tree).
-    Ornamental Definition preorder' from _preorder using orn_balance orn_balance_inv.
+    Lift orn_balance orn_balance_inv in _preorder as preorder'.
     Definition preorder min max ord height bal (tree : avl min max ord height bal) :=
       preorder' min max ord height (existT _ bal tree).
 
-    Ornamental Definition _inorder' from Ordered.inorder using _orn_balance _orn_balance_inv.
+    Lift _orn_balance _orn_balance_inv in Ordered.inorder as _inorder'.
     Definition _inorder min max ord height (tree : _avl min max ord height) :=
       _inorder' min max ord (existT _ height tree).
-    Ornamental Definition inorder' from _inorder using orn_balance orn_balance_inv.
+    Lift orn_balance orn_balance_inv in _inorder as inorder'.
     Definition inorder min max ord height bal (tree : avl min max ord height bal) :=
       inorder' min max ord height (existT _ bal tree).
 
-    Ornamental Definition _postorder' from Ordered.postorder using _orn_balance _orn_balance_inv.
+    Lift _orn_balance _orn_balance_inv in Ordered.postorder as _postorder'.
     Definition _postorder min max ord height (tree : _avl min max ord height) :=
       _postorder' min max ord (existT _ height tree).
-    Ornamental Definition postorder' from _postorder using orn_balance orn_balance_inv.
+    Lift orn_balance orn_balance_inv in _postorder as postorder'.
     Definition postorder min max ord height bal (tree : avl min max ord height bal) :=
       postorder' min max ord height (existT _ bal tree).
 
-    Ornamental Definition _search' from @Ordered.search using _orn_balance _orn_balance_inv.
+    Lift _orn_balance _orn_balance_inv in @Ordered.search as _search'.
     Definition _search {min max ord height} (tree : _avl min max ord height) (value : Elem.t) :=
       _search' min max ord (existT _ height tree) value.
-    Ornamental Definition search' from @_search using orn_balance orn_balance_inv.
+    Lift orn_balance orn_balance_inv in @_search as search'.
     Definition search {min max ord height bal} (tree : avl min max ord height bal) value :=
       search' min max ord height (existT _ bal tree) value.
 

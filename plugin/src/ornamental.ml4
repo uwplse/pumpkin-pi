@@ -47,7 +47,7 @@ VERNAC COMMAND EXTEND Ornamental CLASSIFIED AS SIDEFF
   [ make_ornamental_command modularize_ornament n d_old d_orn d_orn_inv;
     Printf.printf "Defined modularized ornamented fuction %s.\n\n" (Id.to_string n) ]
 (* Do all of the above with a single command. *)
-| [ "Ornamental" "Definition" ident(n) "from" constr(d_old) "using" constr(d_orn) constr(d_orn_inv)] ->
+| [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
   [ make_ornamental_command lift_by_ornament n d_old d_orn d_orn_inv;
-    Printf.printf "Defined reduced, modularized ornamented function %s.\n\n" (Id.to_string n) ]
+    Printf.printf "Defined lifted function %s.\n\n" (Id.to_string n) ]
 END
