@@ -501,392 +501,392 @@ Proof.
   intros. apply orn_vector_doublevector_inv. exists n. apply d.
 Qed.
 
-(* (* --- Same as above, but switch the position we change --- *) *)
-
-(* Inductive doublevector2 (A : Type) : nat -> nat -> Type := *)
-(* | dnilV2 : doublevector2 A 0 0 *)
-(* | dconsV2 : *)
-(*     forall (n m : nat), *)
-(*       A -> doublevector2 A n m -> doublevector2 A (S n) (S (S m)). *)
-
-(* Definition packed_doublevector2 (A : Type) (n : nat) := *)
-(*   sigT (A := nat) (fun (m : nat) => doublevector2 A n m). *)
-
-(* Ornament orn_vector_doublevector2 from vector to doublevector2. *)
-
-(* Theorem test_index_8: *)
-(*   forall (A : Type) (n : nat) (v : vector A n), *)
-(*     orn_vector_doublevector2_index A n v = vector_double_size A n v. *)
-(* Proof. *)
-(*   intros. auto. *)
-(* Qed. *)
-
-(* Theorem test_orn_8: *)
-(*   forall (A : Type) (n : nat) (v : vector A n), *)
-(*     packed_doublevector2 A n. *)
-(* Proof. *)
-(*   exact orn_vector_doublevector2. *)
-(* Qed. *)
-
-(* Theorem test_orn_index_8: *)
-(*   forall (A : Type) (n : nat) (v : vector A n), *)
-(*     projT1 (orn_vector_doublevector2 A n v) = orn_vector_doublevector2_index A n v. *)
-(* Proof. *)
-(*   intros. reflexivity. *)
-(* Qed. *)
-
-(* Theorem test_orn_inv_8: *)
-(*   forall (A : Type) (n : nat) (d : packed_doublevector2 A n), *)
-(*     vector A n. *)
-(* Proof. *)
-(*   exact orn_vector_doublevector2_inv. *)
-(* Qed. *)
-
-(* Theorem test_orn_inv_unpack_8: *)
-(*   forall (A : Type) (n : nat) (m : nat) (d : doublevector2 A n m), *)
-(*     vector A n. *)
-(* Proof. *)
-(*   intros. apply orn_vector_doublevector2_inv. exists m. apply d. *)
-(* Qed. *)
-
-(* (* --- Same as above, but with an identical index --- *) *)
-
-(* Inductive doublevector3 (A : Type) : nat -> nat -> Type := *)
-(* | dnilV3 : doublevector3 A 0 0 *)
-(* | dconsV3 : *)
-(*     forall (n m : nat), *)
-(*       A -> doublevector3 A n m -> doublevector3 A (S n) (S m). *)
-
-(* Definition packed_doublevector3 (A : Type) (n : nat) := *)
-(*   sigT (A := nat) (fun (m : nat) => doublevector3 A n m). *)
-
-(* Ornament orn_vector_doublevector3 from vector to doublevector3. *)
-
-(* Definition vector_size (A : Type) (n : nat) (v : vector A n) := *)
-(*   vector_rect *)
-(*     A *)
-(*     (fun (n : nat) (v : vector A n) => nat) *)
-(*     O *)
-(*     (fun (n : nat) (a : A) (v : vector A n) (IH : nat) => *)
-(*       S IH) *)
-(*     n *)
-(*     v. *)
-
-(* Theorem test_index_9: *)
-(*   forall (A : Type) (n : nat) (v : vector A n), *)
-(*     orn_vector_doublevector3_index A n v = vector_size A n v. *)
-(* Proof. *)
-(*   intros. auto. *)
-(* Qed. *)
-
-(* Theorem test_orn_9: *)
-(*   forall (A : Type) (n : nat) (v : vector A n), *)
-(*     packed_doublevector3 A n. *)
-(* Proof. *)
-(*   exact orn_vector_doublevector3. *)
-(* Qed. *)
-
-(* Theorem test_orn_index_9: *)
-(*   forall (A : Type) (n : nat) (v : vector A n), *)
-(*     projT1 (orn_vector_doublevector3 A n v) = orn_vector_doublevector3_index A n v. *)
-(* Proof. *)
-(*   intros. reflexivity. *)
-(* Qed. *)
-
-(* Theorem test_orn_inv_9: *)
-(*   forall (A : Type) (n : nat) (d : packed_doublevector3 A n), *)
-(*     vector A n. *)
-(* Proof. *)
-(*   exact orn_vector_doublevector3_inv. *)
-(* Qed. *)
-
-(* Theorem test_orn_inv_unpack_9: *)
-(*   forall (A : Type) (n : nat) (m : nat) (d : doublevector3 A n m), *)
-(*     vector A n. *)
-(* Proof. *)
-(*   intros. apply orn_vector_doublevector3_inv. exists m. apply d. *)
-(* Qed. *)
-
-(* (* --- What if we change a base case index? --- *) *)
-
-(* Inductive doublevector4 (A : Type) : nat -> nat -> Type := *)
-(* | dnilV4 : doublevector4 A 1 0 *)
-(* | dconsV4 : *)
-(*     forall (n m : nat), *)
-(*       A -> doublevector4 A n m -> doublevector4 A (S n) (S m). *)
-
-(* Definition packed_doublevector4 (A : Type) (m : nat) := *)
-(*   sigT (A := nat) (fun (n : nat) => doublevector4 A n m). *)
-
-(* Ornament orn_vector_doublevector4 from vector to doublevector4. *)
-
-(* Definition S_vector_size (A : Type) (n : nat) (v : vector A n) := *)
-(*   vector_rect *)
-(*     A *)
-(*     (fun (n : nat) (v : vector A n) => nat) *)
-(*     1 *)
-(*     (fun (n : nat) (a : A) (v : vector A n) (IH : nat) => *)
-(*       S IH) *)
-(*     n *)
-(*     v. *)
-
-(* Theorem test_index_10: *)
-(*   forall (A : Type) (n : nat) (v : vector A n), *)
-(*     orn_vector_doublevector4_index A n v = S_vector_size A n v. *)
-(* Proof. *)
-(*   intros. auto. *)
-(* Qed. *)
-
-(* Theorem test_orn_10: *)
-(*   forall (A : Type) (n : nat) (v : vector A n), *)
-(*     packed_doublevector4 A n. *)
-(* Proof. *)
-(*   exact orn_vector_doublevector4. *)
-(* Qed. *)
-
-(* Theorem test_orn_index_10: *)
-(*   forall (A : Type) (n : nat) (v : vector A n), *)
-(*     projT1 (orn_vector_doublevector4 A n v) = orn_vector_doublevector4_index A n v. *)
-(* Proof. *)
-(*   intros. reflexivity. *)
-(* Qed. *)
-
-(* Theorem test_orn_inv_10: *)
-(*   forall (A : Type) (m : nat) (d : packed_doublevector4 A m), *)
-(*     vector A m. *)
-(* Proof. *)
-(*   exact orn_vector_doublevector4_inv. *)
-(* Qed. *)
-
-(* Theorem test_orn_inv_unpack_10: *)
-(*   forall (A : Type) (n : nat) (m : nat) (d : doublevector4 A n m), *)
-(*     vector A m. *)
-(* Proof. *)
-(*   intros. apply orn_vector_doublevector4_inv. exists n. apply d. *)
-(* Qed. *)
-
-(* (* --- Indices that are computed from existing hypotheses --- *) *)
-
-(* Inductive hd_nat_list : nat -> Type := *)
-(* | hd_nat_nil : hd_nat_list 0 *)
-(* | hd_nat_cons : *)
-(*     forall (m : nat) (n : nat), *)
-(*       hd_nat_list m -> *)
-(*       hd_nat_list n. *)
-
-(* Definition packed_hd_nat_list := *)
-(*   sigT (A := nat) (fun (n : nat) => hd_nat_list n). *)
-
-(* Ornament orn_natlist_hdnatlist from nat_list to hd_nat_list. *)
-
-(* Definition nat_list_hd (nl : nat_list) := *)
-(*   nat_list_rect *)
-(*     (fun (_ : nat_list) => nat) *)
-(*     0 *)
-(*     (fun (n : nat) (_ : nat_list) (_ : nat) => *)
-(*       n) *)
-(*     nl. *)
-
-(* Theorem test_index_11: *)
-(*   forall (nl : nat_list), *)
-(*     nat_list_hd nl = orn_natlist_hdnatlist_index nl. *)
-(* Proof. *)
-(*   intros. auto. *)
-(* Qed. *)
-
-(* Theorem test_orn_11: *)
-(*   forall (nl : nat_list), *)
-(*     packed_hd_nat_list. *)
-(* Proof. *)
-(*   exact orn_natlist_hdnatlist. *)
-(* Qed. *)
-
-(* Theorem test_orn_index_11: *)
-(*   forall (nl : nat_list), *)
-(*     projT1 (orn_natlist_hdnatlist nl) = orn_natlist_hdnatlist_index nl. *)
-(* Proof. *)
-(*   intros. reflexivity. *)
-(* Qed. *)
-
-(* Theorem test_orn_inv_11: *)
-(*   forall (hnl : packed_hd_nat_list), *)
-(*     nat_list. *)
-(* Proof. *)
-(*   exact orn_natlist_hdnatlist_inv. *)
-(* Qed. *)
-
-(* Theorem test_orn_inv_unpack_11: *)
-(*   forall (h : nat) (hnl : hd_nat_list h), *)
-(*     nat_list. *)
-(* Proof. *)
-(*   intros. apply orn_natlist_hdnatlist_inv. exists h. apply hnl. *)
-(* Qed. *)
-
-(* (* --- Indices that depend on parameters --- *) *)
-
-(* Inductive hd_list (A : Type) : option A -> Type := *)
-(* | hd_nil : hd_list A None *)
-(* | hd_cons : *)
-(*     forall (ao : option A) (a : A), *)
-(*       hd_list A ao -> *)
-(*       hd_list A (Some a). *)
-
-(* Definition packed_hd_list (T : Type) := *)
-(*   sigT (A := option T) (fun (h : option T) => hd_list T h). *)
-
-(* Ornament orn_list_hdlist from list to hd_list. *)
-
-(* Theorem test_index_12: *)
-(*   forall (A : Type) (l : list A), *)
-(*     hd_error l = orn_list_hdlist_index A l. *)
-(* Proof. *)
-(*   intros. induction l; auto. (* not reducable because only one is a fix *) *)
-(* Qed. *)
-
-(* Theorem test_orn_12: *)
-(*   forall (A : Type) (l : list A), *)
-(*     packed_hd_list A. *)
-(* Proof. *)
-(*   exact orn_list_hdlist. *)
-(* Qed. *)
-
-(* Theorem test_orn_index_12: *)
-(*   forall (A : Type) (l : list A), *)
-(*     projT1 (orn_list_hdlist A l) = orn_list_hdlist_index A l. *)
-(* Proof. *)
-(*   intros. reflexivity. *)
-(* Qed. *)
-
-(* Theorem test_orn_inv_12: *)
-(*   forall (A : Type) (hl : packed_hd_list A), *)
-(*     list A. *)
-(* Proof. *)
-(*   exact orn_list_hdlist_inv. *)
-(* Qed. *)
-
-(* Theorem test_orn_inv_unpack_12: *)
-(*   forall (A : Type) (ao : option A) (hl : hd_list A ao), *)
-(*     list A. *)
-(* Proof. *)
-(*   intros. apply orn_list_hdlist_inv. exists ao. apply hl. *)
-(* Qed. *)
-
-(* (* --- Indices that depend on prior indices --- *) *)
-
-(* Inductive list_alt : Type -> Type := *)
-(* | nil_alt : forall A, list_alt A *)
-(* | cons_alt : *)
-(*     forall A, A -> list_alt A -> list_alt A. *)
-
-(* Inductive hd_list_alt : forall (A : Type), option A -> Type := *)
-(* | hd_nil_alt : forall A, hd_list_alt A None *)
-(* | hd_cons_alt : *)
-(*     forall A (ao : option A) (a : A), *)
-(*       hd_list_alt A ao -> *)
-(*       hd_list_alt A (Some a). *)
-
-(* Definition packed_hd_list_alt (T : Type) := *)
-(*   sigT (A := option T) (fun (h : option T) => hd_list_alt T h). *)
-
-(* Ornament orn_listalt_hdlistalt from list_alt to hd_list_alt. *)
-
-(* Definition list_alt_hd (A : Type) (l : list_alt A) := *)
-(*   list_alt_rect *)
-(*     (fun (A : Type) (_ : list_alt A) => option A) *)
-(*     (fun (A : Type) => None) *)
-(*     (fun (A : Type) (a : A) (_ : list_alt A) (_ : option A) => *)
-(*        Some a) *)
-(*     A *)
-(*     l. *)
-
-(* Theorem test_index_13: *)
-(*   forall (A : Type) (l : list_alt A), *)
-(*     list_alt_hd A l = orn_listalt_hdlistalt_index A l. *)
-(* Proof. *)
-(*   intros. auto. *)
-(* Qed. *)
-
-(* Theorem test_orn_13: *)
-(*   forall (A : Type) (l : list_alt A), *)
-(*     packed_hd_list_alt A. *)
-(* Proof. *)
-(*   exact orn_listalt_hdlistalt. *)
-(* Qed. *)
-
-(* Theorem test_orn_index_13: *)
-(*   forall (A : Type) (l : list_alt A), *)
-(*     projT1 (orn_listalt_hdlistalt A l) = orn_listalt_hdlistalt_index A l. *)
-(* Proof. *)
-(*   intros. reflexivity. *)
-(* Qed. *)
-
-(* Theorem test_orn_inv_13: *)
-(*   forall (A : Type) (l : packed_hd_list_alt A), *)
-(*     list_alt A. *)
-(* Proof. *)
-(*   exact orn_listalt_hdlistalt_inv. *)
-(* Qed. *)
-
-(* Theorem test_orn_inv_unpack_13: *)
-(*   forall (A : Type) (ao : option A) (l : hd_list_alt A ao), *)
-(*     list_alt A. *)
-(* Proof. *)
-(*   intros. apply orn_listalt_hdlistalt_inv. exists ao. apply l. *)
-(* Qed. *)
-
-(* (* --- Indexing by the old type, but without making it fin-like --- *) *)
-
-(* Inductive nat_nat : nat -> Type := *)
-(* | OO : nat_nat 0 *)
-(* | SS : forall (n : nat), nat_nat n -> nat_nat (S n). *)
-
-(* Definition packed_nat_nat := *)
-(*   sigT (A := nat) (fun (n : nat) => nat_nat n). *)
-
-(* Ornament orn_nat_natnat from nat to nat_nat. *)
-
-(* Definition nat_size (n : nat) := *)
-(*   nat_rect *)
-(*     (fun (_ : nat) => nat) *)
-(*     O *)
-(*     (fun (_ : nat) (IH : nat) => *)
-(*       S IH) *)
-(*     n. *)
-
-(* Theorem test_index_14: *)
-(*   forall (n : nat), *)
-(*     nat_size n = orn_nat_natnat_index n. *)
-(* Proof. *)
-(*   intros. auto. *)
-(* Qed. *)
-
-(* Theorem test_orn_14: *)
-(*   forall (n : nat), *)
-(*     packed_nat_nat. *)
-(* Proof. *)
-(*   exact orn_nat_natnat. *)
-(* Qed. *)
-
-(* Theorem test_orn_index_14: *)
-(*   forall (n : nat), *)
-(*     projT1 (orn_nat_natnat n) = orn_nat_natnat_index n. *)
-(* Proof. *)
-(*   intros. reflexivity. *)
-(* Qed. *)
-
-(* Theorem test_orn_inv_14: *)
-(*   forall (nn : packed_nat_nat), *)
-(*     nat. *)
-(* Proof. *)
-(*   exact orn_nat_natnat_inv. *)
-(* Qed. *)
-
-(* Theorem test_orn_inv_unpack_14: *)
-(*   forall (n : nat) (nn : nat_nat n), *)
-(*     nat. *)
-(* Proof. *)
-(*   intros. apply orn_nat_natnat_inv. exists n. apply nn. *)
-(* Qed. *)
+(* --- Same as above, but switch the position we change --- *)
+
+Inductive doublevector2 (A : Type) : nat -> nat -> Type :=
+| dnilV2 : doublevector2 A 0 0
+| dconsV2 :
+    forall (n m : nat),
+      A -> doublevector2 A n m -> doublevector2 A (S n) (S (S m)).
+
+Definition packed_doublevector2 (A : Type) (n : nat) :=
+  sigT (A := nat) (fun (m : nat) => doublevector2 A n m).
+
+Find ornament vector doublevector2 as orn_vector_doublevector2.
+
+Theorem test_index_8:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector2_index A n v = vector_double_size A n v.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_8:
+  forall (A : Type) (n : nat) (v : vector A n),
+    packed_doublevector2 A n.
+Proof.
+  exact orn_vector_doublevector2.
+Qed.
+
+Theorem test_orn_index_8:
+  forall (A : Type) (n : nat) (v : vector A n),
+    projT1 (orn_vector_doublevector2 A n v) = orn_vector_doublevector2_index A n v.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_inv_8:
+  forall (A : Type) (n : nat) (d : packed_doublevector2 A n),
+    vector A n.
+Proof.
+  exact orn_vector_doublevector2_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_8:
+  forall (A : Type) (n : nat) (m : nat) (d : doublevector2 A n m),
+    vector A n.
+Proof.
+  intros. apply orn_vector_doublevector2_inv. exists m. apply d.
+Qed.
+
+(* --- Same as above, but with an identical index --- *)
+
+Inductive doublevector3 (A : Type) : nat -> nat -> Type :=
+| dnilV3 : doublevector3 A 0 0
+| dconsV3 :
+    forall (n m : nat),
+      A -> doublevector3 A n m -> doublevector3 A (S n) (S m).
+
+Definition packed_doublevector3 (A : Type) (n : nat) :=
+  sigT (A := nat) (fun (m : nat) => doublevector3 A n m).
+
+Find ornament vector doublevector3 as orn_vector_doublevector3.
+
+Definition vector_size (A : Type) (n : nat) (v : vector A n) :=
+  vector_rect
+    A
+    (fun (n : nat) (v : vector A n) => nat)
+    O
+    (fun (n : nat) (a : A) (v : vector A n) (IH : nat) =>
+      S IH)
+    n
+    v.
+
+Theorem test_index_9:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector3_index A n v = vector_size A n v.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_9:
+  forall (A : Type) (n : nat) (v : vector A n),
+    packed_doublevector3 A n.
+Proof.
+  exact orn_vector_doublevector3.
+Qed.
+
+Theorem test_orn_index_9:
+  forall (A : Type) (n : nat) (v : vector A n),
+    projT1 (orn_vector_doublevector3 A n v) = orn_vector_doublevector3_index A n v.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_inv_9:
+  forall (A : Type) (n : nat) (d : packed_doublevector3 A n),
+    vector A n.
+Proof.
+  exact orn_vector_doublevector3_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_9:
+  forall (A : Type) (n : nat) (m : nat) (d : doublevector3 A n m),
+    vector A n.
+Proof.
+  intros. apply orn_vector_doublevector3_inv. exists m. apply d.
+Qed.
+
+(* --- What if we change a base case index? --- *)
+
+Inductive doublevector4 (A : Type) : nat -> nat -> Type :=
+| dnilV4 : doublevector4 A 1 0
+| dconsV4 :
+    forall (n m : nat),
+      A -> doublevector4 A n m -> doublevector4 A (S n) (S m).
+
+Definition packed_doublevector4 (A : Type) (m : nat) :=
+  sigT (A := nat) (fun (n : nat) => doublevector4 A n m).
+
+Find ornament vector doublevector4 as orn_vector_doublevector4.
+
+Definition S_vector_size (A : Type) (n : nat) (v : vector A n) :=
+  vector_rect
+    A
+    (fun (n : nat) (v : vector A n) => nat)
+    1
+    (fun (n : nat) (a : A) (v : vector A n) (IH : nat) =>
+      S IH)
+    n
+    v.
+
+Theorem test_index_10:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector4_index A n v = S_vector_size A n v.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_10:
+  forall (A : Type) (n : nat) (v : vector A n),
+    packed_doublevector4 A n.
+Proof.
+  exact orn_vector_doublevector4.
+Qed.
+
+Theorem test_orn_index_10:
+  forall (A : Type) (n : nat) (v : vector A n),
+    projT1 (orn_vector_doublevector4 A n v) = orn_vector_doublevector4_index A n v.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_inv_10:
+  forall (A : Type) (m : nat) (d : packed_doublevector4 A m),
+    vector A m.
+Proof.
+  exact orn_vector_doublevector4_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_10:
+  forall (A : Type) (n : nat) (m : nat) (d : doublevector4 A n m),
+    vector A m.
+Proof.
+  intros. apply orn_vector_doublevector4_inv. exists n. apply d.
+Qed.
+
+(* --- Indices that are computed from existing hypotheses --- *)
+
+Inductive hd_nat_list : nat -> Type :=
+| hd_nat_nil : hd_nat_list 0
+| hd_nat_cons :
+    forall (m : nat) (n : nat),
+      hd_nat_list m ->
+      hd_nat_list n.
+
+Definition packed_hd_nat_list :=
+  sigT (A := nat) (fun (n : nat) => hd_nat_list n).
+
+Find ornament nat_list hd_nat_list as orn_natlist_hdnatlist.
+
+Definition nat_list_hd (nl : nat_list) :=
+  nat_list_rect
+    (fun (_ : nat_list) => nat)
+    0
+    (fun (n : nat) (_ : nat_list) (_ : nat) =>
+      n)
+    nl.
+
+Theorem test_index_11:
+  forall (nl : nat_list),
+    nat_list_hd nl = orn_natlist_hdnatlist_index nl.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_11:
+  forall (nl : nat_list),
+    packed_hd_nat_list.
+Proof.
+  exact orn_natlist_hdnatlist.
+Qed.
+
+Theorem test_orn_index_11:
+  forall (nl : nat_list),
+    projT1 (orn_natlist_hdnatlist nl) = orn_natlist_hdnatlist_index nl.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_inv_11:
+  forall (hnl : packed_hd_nat_list),
+    nat_list.
+Proof.
+  exact orn_natlist_hdnatlist_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_11:
+  forall (h : nat) (hnl : hd_nat_list h),
+    nat_list.
+Proof.
+  intros. apply orn_natlist_hdnatlist_inv. exists h. apply hnl.
+Qed.
+
+(* --- Indices that depend on parameters --- *)
+
+Inductive hd_list (A : Type) : option A -> Type :=
+| hd_nil : hd_list A None
+| hd_cons :
+    forall (ao : option A) (a : A),
+      hd_list A ao ->
+      hd_list A (Some a).
+
+Definition packed_hd_list (T : Type) :=
+  sigT (A := option T) (fun (h : option T) => hd_list T h).
+
+Find ornament list hd_list as orn_list_hdlist.
+
+Theorem test_index_12:
+  forall (A : Type) (l : list A),
+    hd_error l = orn_list_hdlist_index A l.
+Proof.
+  intros. induction l; auto. (* not reducable because only one is a fix *)
+Qed.
+
+Theorem test_orn_12:
+  forall (A : Type) (l : list A),
+    packed_hd_list A.
+Proof.
+  exact orn_list_hdlist.
+Qed.
+
+Theorem test_orn_index_12:
+  forall (A : Type) (l : list A),
+    projT1 (orn_list_hdlist A l) = orn_list_hdlist_index A l.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_inv_12:
+  forall (A : Type) (hl : packed_hd_list A),
+    list A.
+Proof.
+  exact orn_list_hdlist_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_12:
+  forall (A : Type) (ao : option A) (hl : hd_list A ao),
+    list A.
+Proof.
+  intros. apply orn_list_hdlist_inv. exists ao. apply hl.
+Qed.
+
+(* --- Indices that depend on prior indices --- *)
+
+Inductive list_alt : Type -> Type :=
+| nil_alt : forall A, list_alt A
+| cons_alt :
+    forall A, A -> list_alt A -> list_alt A.
+
+Inductive hd_list_alt : forall (A : Type), option A -> Type :=
+| hd_nil_alt : forall A, hd_list_alt A None
+| hd_cons_alt :
+    forall A (ao : option A) (a : A),
+      hd_list_alt A ao ->
+      hd_list_alt A (Some a).
+
+Definition packed_hd_list_alt (T : Type) :=
+  sigT (A := option T) (fun (h : option T) => hd_list_alt T h).
+
+Find ornament list_alt hd_list_alt as orn_listalt_hdlistalt.
+
+Definition list_alt_hd (A : Type) (l : list_alt A) :=
+  list_alt_rect
+    (fun (A : Type) (_ : list_alt A) => option A)
+    (fun (A : Type) => None)
+    (fun (A : Type) (a : A) (_ : list_alt A) (_ : option A) =>
+       Some a)
+    A
+    l.
+
+Theorem test_index_13:
+  forall (A : Type) (l : list_alt A),
+    list_alt_hd A l = orn_listalt_hdlistalt_index A l.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_13:
+  forall (A : Type) (l : list_alt A),
+    packed_hd_list_alt A.
+Proof.
+  exact orn_listalt_hdlistalt.
+Qed.
+
+Theorem test_orn_index_13:
+  forall (A : Type) (l : list_alt A),
+    projT1 (orn_listalt_hdlistalt A l) = orn_listalt_hdlistalt_index A l.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_inv_13:
+  forall (A : Type) (l : packed_hd_list_alt A),
+    list_alt A.
+Proof.
+  exact orn_listalt_hdlistalt_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_13:
+  forall (A : Type) (ao : option A) (l : hd_list_alt A ao),
+    list_alt A.
+Proof.
+  intros. apply orn_listalt_hdlistalt_inv. exists ao. apply l.
+Qed.
+
+(* --- Indexing by the old type, but without making it fin-like --- *)
+
+Inductive nat_nat : nat -> Type :=
+| OO : nat_nat 0
+| SS : forall (n : nat), nat_nat n -> nat_nat (S n).
+
+Definition packed_nat_nat :=
+  sigT (A := nat) (fun (n : nat) => nat_nat n).
+
+Find ornament nat nat_nat as orn_nat_natnat.
+
+Definition nat_size (n : nat) :=
+  nat_rect
+    (fun (_ : nat) => nat)
+    O
+    (fun (_ : nat) (IH : nat) =>
+      S IH)
+    n.
+
+Theorem test_index_14:
+  forall (n : nat),
+    nat_size n = orn_nat_natnat_index n.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_14:
+  forall (n : nat),
+    packed_nat_nat.
+Proof.
+  exact orn_nat_natnat.
+Qed.
+
+Theorem test_orn_index_14:
+  forall (n : nat),
+    projT1 (orn_nat_natnat n) = orn_nat_natnat_index n.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_inv_14:
+  forall (nn : packed_nat_nat),
+    nat.
+Proof.
+  exact orn_nat_natnat_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_14:
+  forall (n : nat) (nn : nat_nat n),
+    nat.
+Proof.
+  intros. apply orn_nat_natnat_inv. exists n. apply nn.
+Qed.
 
 
 (* (* --- TODO Index already existed in the old constructor, but wasn't used --- *) *)
