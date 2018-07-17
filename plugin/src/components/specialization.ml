@@ -1005,6 +1005,19 @@ let lift_motive env evd l npms parameterized_elim motive =
     let motive_app = reduce_term env_to_motive (mkAppl (motive, args)) in
     reconstruct_lambda_n env_to_motive motive_app (nb_rel env)
 
+(* Lift a case *)
+let lift_case env evd l c =
+  if l.is_fwd then
+    (* PROMOTE-CASE *)
+    c
+  else
+    (* FORGET-CASE *)
+    c
+                         
+(* Lift cases *)
+let lift_cases env evd l cs =
+  List.map (lift_case env evd l) cs
+
 (*
  * This lifts the induction principle.
  *
@@ -1021,7 +1034,7 @@ let lift_induction_principle env evd l trm =
   let npms = List.length trm_app.pms in
   let elim = type_eliminator env (fst (destInd to_typ)) in
   let p = lift_motive env evd l npms (mkAppl (elim, trm_app.pms)) trm_app.p in
-  let cs = trm_app.cs in
+  let cs = lift_cases env evd l trm_app.cs in
   let curried_args = mk_n_rels (arity trm_app.p - List.length trm_app.final_args) in
   let final_args = lift_args_temporary env evd l npms (List.append trm_app.final_args curried_args) in
   apply_eliminator {trm_app with elim; p; cs; final_args}
