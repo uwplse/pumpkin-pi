@@ -959,6 +959,22 @@ let internalize env evd (l : lifting) (trm : types) =
   in (map_forward (pack_hypos env_body) l reconstructed, indexer)
 
 (* --- Lifting induction principle --- *)
+
+(* TODO temporary: before full refactor is done, just forget/promote the
+   arguments *)
+let lift_args_temporary env evd l npms args =
+  let arg = last args in
+  let typ_args = non_index_typ_args l env evd arg in
+  let lifted_arg = mkAppl (lift_to l, snoc arg typ_args) in
+  let index_i = (Option.get l.orn.index_i) - npms in
+  let value_i = List.length args - 1 in
+  if l.is_fwd then
+    let lifted_arg_sig = on_type dest_sigT env evd lifted_arg in
+    let index = project_index lifted_arg_sig lifted_arg in
+    let value = project_value lifted_arg_sig lifted_arg in
+    insert_index index_i index (reindex value_i value args)
+  else
+    remove_index index_i (reindex value_i lifted_arg args)
        
 (*
  * This lifts the induction principle.
@@ -978,7 +994,7 @@ let lift_induction_principle env evd l trm =
   let p = trm_app.p in
   let cs = trm_app.cs in
   let curried_args = mk_n_rels (arity p - List.length trm_app.final_args) in
-  let final_args = List.append trm_app.final_args curried_args in
+  let final_args = lift_args_temporary env evd l npms (List.append trm_app.final_args curried_args) in
   apply_eliminator {trm_app with elim; p; cs; final_args}
 
 (* --- Higher lifting --- *)
