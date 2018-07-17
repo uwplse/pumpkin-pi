@@ -690,6 +690,9 @@ let pack_ihs c_f_old l env evd (from_typ, to_typ) c_g =
         arg)
     (get_n_hypos nhs c_g)
 
+let promotion_type env evd trm =
+  fst (on_type ind_of_promotion_type env evd trm)
+    
 (*
  * Compose two constructors for two applications of an induction principle
  * that are structurally the same when one is an ornament.
@@ -701,9 +704,8 @@ let compose_c evd npms_g ip_g p assum_ind post_assums (comp : composition) =
   let (env_g, c_g) = comp.g in
   let (env_f, c_f_old) = comp.f in
   let (orn_f, orn_g) = (l.orn.forget, l.orn.promote) in
-  let promotion_type env trm = fst (on_type ind_of_promotion_type env evd trm) in
-  let to_typ = zoom_sig (promotion_type env_f orn_f) in
-  let from_typ = first_fun (promotion_type env_g orn_g) in
+  let to_typ = zoom_sig (promotion_type env_f evd orn_f) in
+  let from_typ = first_fun (promotion_type env_g evd orn_g) in
   let c_f = compose_ih evd npms_g ip_g p comp in
   zoom_apply_lambda_n
     (nb_rel env_f)
@@ -957,7 +959,7 @@ let internalize env evd (l : lifting) (trm : types) =
   in (map_forward (pack_hypos env_body) l reconstructed, indexer)
 
 (* --- Lifting induction principle --- *)
-
+       
 (*
  * This lifts the induction principle.
  *
@@ -967,13 +969,17 @@ let internalize env evd (l : lifting) (trm : types) =
  * and meta-reduction steps.
  *)
 let lift_induction_principle env evd l trm =
+  let to_typ = zoom_sig (promotion_type env evd l.orn.forget) in
+  let from_typ = first_fun (promotion_type env evd l.orn.promote) in
+  let (from_typ, to_typ) = map_backward reverse l (from_typ, to_typ) in
   let trm_app = deconstruct_eliminator env evd trm in
   let npms = List.length trm_app.pms in
+  let elim = type_eliminator env (fst (destInd to_typ)) in
   let p = trm_app.p in
   let cs = trm_app.cs in
   let curried_args = mk_n_rels (arity p - List.length trm_app.final_args) in
   let final_args = List.append trm_app.final_args curried_args in
-  apply_eliminator {trm_app with p; cs; final_args}
+  apply_eliminator {trm_app with elim; p; cs; final_args}
 
 (* --- Higher lifting --- *)
 

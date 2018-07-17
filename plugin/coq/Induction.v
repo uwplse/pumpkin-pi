@@ -27,5 +27,6 @@ End test.
 Lift induction orn_list_vector orn_list_vector_inv in hd as hd_vect_ind.
 Print hd_vect_ind.
 
+(* TODO other direction *)
 (* TODO test more once basic code works at all *)
 (* TODO try w/ eta, etc *)
