@@ -10,7 +10,9 @@ Require Import Test.
 
 Section test.
 
-  Context (A : Type) (default : A) (l : list A).
+  Parameter (A : Type).
+  Parameter (default : A).
+  Parameter (l : list A).
 
   Definition hd :=
     list_rect
@@ -26,3 +28,4 @@ Lift induction orn_list_vector orn_list_vector_inv in hd as hd_vect_ind.
 Print hd_vect_ind.
 
 (* TODO test more once basic code works at all *)
+(* TODO try w/ eta, etc *)

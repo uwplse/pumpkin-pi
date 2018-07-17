@@ -967,7 +967,13 @@ let internalize env evd (l : lifting) (trm : types) =
  * and meta-reduction steps.
  *)
 let lift_induction_principle env evd l trm =
-  trm
+  let trm_app = deconstruct_eliminator env evd trm in
+  let npms = List.length trm_app.pms in
+  let p = trm_app.p in
+  let cs = trm_app.cs in
+  let curried_args = mk_n_rels (arity p - List.length trm_app.final_args) in
+  let final_args = List.append trm_app.final_args curried_args in
+  apply_eliminator {trm_app with p; cs; final_args}
 
 (* --- Higher lifting --- *)
 

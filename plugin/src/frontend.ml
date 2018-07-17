@@ -41,7 +41,8 @@ let lift_induction env evd c_orn c_orn_inv c_old =
   let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
   let orn = initialize_promotion env evd promote forget in
   let l = initialize_lifting orn is_fwd in
-  let c_new = lift_induction_principle env evd l c_old in
+  let trm_o = unwrap_definition env c_old in
+  let c_new = lift_induction_principle env evd l trm_o in
   (c_new, None)
 
 (* Apply an ornament without meta-reduction *)
