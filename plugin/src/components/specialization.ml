@@ -978,6 +978,7 @@ let lift_args_temporary env evd l npms args =
     remove_index index_i (reindex value_i lifted_arg args)
 
 (* Lift the motive *)
+(* TODO refactor out common code w/ above *)
 let lift_motive env evd l npms parameterized_elim motive =
   let parameterized_elim_type = reduce_type env evd parameterized_elim in
   let (_, to_motive_typ, _) = destProd parameterized_elim_type in
@@ -985,16 +986,24 @@ let lift_motive env evd l npms parameterized_elim motive =
   let off = offset2 env_to_motive env in
   let motive = shift_by off motive in
   let index_i = (Option.get l.orn.index_i) - npms in
+  let args = mk_n_rels off in
+  let arg = last args in
+  let typ_args = non_index_typ_args l env evd arg in
+  let lifted_arg = mkAppl (lift_back l, snoc arg typ_args) in
+  let value_i = List.length args - 1 in
   if l.is_fwd then
     (* PROMOTE-MOTIVE *)
-    let args = remove_index index_i (mk_n_rels off) in
-    (* TODO forget *)
+    let args = remove_index index_i (reindex value_i lifted_arg args) in
     let motive_app = reduce_term env_to_motive (mkAppl (motive, args)) in
     reconstruct_lambda_n env_to_motive motive_app (nb_rel env)
   else
     (* FORGET-MOTIVE *)
-    let args = mk_n_rels off in
-    reconstruct_lambda env_to_motive (mkAppl (motive, args)) (* TODO *)
+    let lifted_arg_sig = on_type dest_sigT env evd lifted_arg in
+    let index = project_index lifted_arg_sig lifted_arg in
+    let value = project_value lifted_arg_sig lifted_arg in
+    let args = insert_index index_i index (reindex value_i value args) in 
+    let motive_app = reduce_term env_to_motive (mkAppl (motive, args)) in
+    reconstruct_lambda_n env_to_motive motive_app (nb_rel env)
 
 (*
  * This lifts the induction principle.
