@@ -975,7 +975,27 @@ let lift_args_temporary env evd l npms args =
     insert_index index_i index (reindex value_i value args)
   else
     remove_index index_i (reindex value_i lifted_arg args)
-       
+
+(* Lift the motive *)
+let lift_motive env evd l npms parameterized_elim motive =
+  let parameterized_elim_type = reduce_type env evd parameterized_elim in
+  let (_, to_motive_typ, _) = destProd parameterized_elim_type in
+  let env_to_motive = zoom_env zoom_product_type env to_motive_typ in
+  let off = offset2 env_to_motive env in
+  let motive = shift_by off motive in
+  let index_i = (Option.get l.orn.index_i) - npms in
+  if l.is_fwd then
+    (* PROMOTE-MOTIVE *)
+    let args = remove_index index_i (mk_n_rels off) in
+    debug_terms env_to_motive args "args";
+    let motive_app = reduce_term env_to_motive (mkAppl (motive, args)) in
+    debug_term env_to_motive motive_app "motive_app";
+    reconstruct_lambda_n env_to_motive motive_app (nb_rel env) (* TODO *)
+  else
+    (* FORGET-MOTIVE *)
+    let args = mk_n_rels off in
+    reconstruct_lambda env_to_motive (mkAppl (motive, args)) (* TODO *)
+
 (*
  * This lifts the induction principle.
  *
@@ -991,7 +1011,7 @@ let lift_induction_principle env evd l trm =
   let trm_app = deconstruct_eliminator env evd trm in
   let npms = List.length trm_app.pms in
   let elim = type_eliminator env (fst (destInd to_typ)) in
-  let p = trm_app.p in
+  let p = lift_motive env evd l npms (mkAppl (elim, trm_app.pms)) trm_app.p in
   let cs = trm_app.cs in
   let curried_args = mk_n_rels (arity p - List.length trm_app.final_args) in
   let final_args = lift_args_temporary env evd l npms (List.append trm_app.final_args curried_args) in
