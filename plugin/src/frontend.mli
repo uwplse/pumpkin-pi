@@ -9,7 +9,10 @@ type ornamental_command = Id.t -> constr_expr -> constr_expr -> constr_expr -> u
 (* Identify an algebraic ornament between two types and define its conversion functions  *)
 val find_ornament : Id.t -> constr_expr -> constr_expr -> unit
 
-(* Apply (i.e., lift across) an ornament without meta-reduction *)
+(* TODO temporary: given just an application of the IP, lift it *)
+val lift_induction : ornamental_action
+                                                            
+(* Apply an ornament without meta-reduction *)
 val apply_ornament : ornamental_action
 
 (* Meta-reduce a ornamental lifting *)

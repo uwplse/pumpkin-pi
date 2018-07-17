@@ -15,6 +15,14 @@ VERNAC COMMAND EXTEND FindOrnament CLASSIFIED AS SIDEFF
 END
 
 VERNAC COMMAND EXTEND Ornamental CLASSIFIED AS SIDEFF
+(* 
+ * TODO temporary
+ * lift just the induction principle, assuming the term is an application
+ * of the induction principle
+ *)
+| [ "Lift" "induction" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n) ] ->
+  [ make_ornamental_command lift_induction n d_old d_orn d_orn_inv;
+    Printf.printf "Defined ornamented fuction %s.\n\n" (Id.to_string n) ]
 (*
  * Given an ornament and a function, derive the ornamented version that
  * doesn't internalize the ornament.

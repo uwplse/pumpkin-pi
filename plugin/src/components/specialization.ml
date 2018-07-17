@@ -956,6 +956,19 @@ let internalize env evd (l : lifting) (trm : types) =
        tr
   in (map_forward (pack_hypos env_body) l reconstructed, indexer)
 
+(* --- Lifting induction principle --- *)
+
+(*
+ * This lifts the induction principle.
+ *
+ * The old application and meta-reduction steps were just hacks to accomplish
+ * this. So they did this work, but also a lot more work.
+ * Accordingly, when this is done, we'll remove the old application
+ * and meta-reduction steps.
+ *)
+let lift_induction_principle env evd l trm =
+  trm
+
 (* --- Higher lifting --- *)
 
 (*

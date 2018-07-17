@@ -19,6 +19,23 @@ val apply_indexing_ornament :
   types (* applied term *)
 
 (*
+ * This lifts the induction principle.
+ *
+ * The old application and meta-reduction steps were just hacks to accomplish
+ * this. So they did this work, but also a lot more work.
+ * Accordingly, when this is done, we'll remove the old application
+ * and meta-reduction steps.
+ * When we do that, the interface for this will also go away, since it will
+ * be purely internal.
+ *)
+val lift_induction_principle :
+  env ->
+  evar_map ->
+  lifting ->
+  types ->
+  types
+
+(*
  * Reduce an application of an indexing ornament
  *)
 val internalize :

@@ -35,7 +35,16 @@ let find_ornament n d_old d_new =
   else
     failwith "Only inductive types are supported"
 
-(* Apply (i.e., lift across) an ornament without meta-reduction *)
+(* TODO temporary: given just an application of the IP, lift it *)
+let lift_induction env evd c_orn c_orn_inv c_old =
+  let is_fwd = direction env evd c_orn in
+  let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
+  let orn = initialize_promotion env evd promote forget in
+  let l = initialize_lifting orn is_fwd in
+  let c_new = lift_induction_principle env evd l c_old in
+  (c_new, None)
+
+(* Apply an ornament without meta-reduction *)
 let apply_ornament env evd c_orn c_orn_inv c_old =
   let is_fwd = direction env evd c_orn in
   let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
