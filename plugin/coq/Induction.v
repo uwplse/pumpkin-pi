@@ -22,3 +22,4 @@ Print hd_vect_ind.
 (* TODO other direction *)
 (* TODO test more once basic code works at all *)
 (* TODO try w/ eta, etc *)
+(* TODO try types w/ indices in different places, a tree function, stuff from case studies *)

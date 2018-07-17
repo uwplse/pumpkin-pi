@@ -1006,17 +1006,54 @@ let lift_motive env evd l npms parameterized_elim motive =
     reconstruct_lambda_n env_to_motive motive_app (nb_rel env)
 
 (* Lift a case *)
-let lift_case env evd l c =
-  if l.is_fwd then
-    (* PROMOTE-CASE *)
-    c
+(* TODO clean a bunch *)
+let lift_case env evd l to_typ c_elim c =
+  let c = expand_eta env evd c in
+  let c_elim_type = reduce_type env evd c_elim in
+  let (_, to_c_typ, _) = destProd c_elim_type in
+  let env_to_c = zoom_env zoom_product_type env to_c_typ in
+  let off = offset2 env_to_c env in
+  let c = shift_by off c in
+  let (env_c_body, c_body) = zoom_lambda_term env_to_c c in
+  if not (isApp c_body) then
+    c_body (* base case that isn't inside of a lambda *)
   else
-    (* FORGET-CASE *)
-    c
+    let index_i = Option.get l.orn.index_i in
+    if l.is_fwd then
+      (* PROMOTE-CASE *)
+      let (c_f, c_args) = destApp c_body in
+      let rec lift_args args index =
+        match args with
+        | h :: tl ->
+           if eq_constr h index then
+             shift h :: (lift_args (shift_all tl) index)
+           else
+             let h_typ = reduce_type env_to_c evd h in
+             if is_or_applies to_typ h_typ then
+               let h_lifted = pack_inner env_to_c evd l h in
+               h_lifted :: lift_args tl (get_arg index_i h_typ)
+             else
+               h :: lift_args tl index
+        | _ -> []
+      in
+      let c_to_args = List.rev (lift_args (List.rev (Array.to_list c_args)) (mkRel 0)) in
+      let c_to_body = reduce_term env_to_c (mkAppl (c_f, c_to_args)) in
+      reconstruct_lambda_n env_to_c c_to_body (nb_rel env)
+    else
+      (* FORGET-CASE *)
+      (* TODO in this case, will need to track indices too *)
+      reconstruct_lambda_n env_to_c (reduce_term env_to_c c) (nb_rel env)
                          
 (* Lift cases *)
-let lift_cases env evd l cs =
-  List.map (lift_case env evd l) cs
+let lift_cases env evd l to_typ p_elim cs =
+  snd
+    (List.fold_left
+       (fun (p_elim, cs) c ->
+         let c = lift_case env evd l to_typ p_elim c in
+         let p_elim = mkAppl (p_elim, [c]) in
+         (p_elim, snoc c cs))
+       (p_elim, [])
+       cs)
 
 (*
  * This lifts the induction principle.
@@ -1033,8 +1070,10 @@ let lift_induction_principle env evd l trm =
   let trm_app = deconstruct_eliminator env evd trm in
   let npms = List.length trm_app.pms in
   let elim = type_eliminator env (fst (destInd to_typ)) in
-  let p = lift_motive env evd l npms (mkAppl (elim, trm_app.pms)) trm_app.p in
-  let cs = lift_cases env evd l trm_app.cs in
+  let param_elim = mkAppl (elim, trm_app.pms) in
+  let p = lift_motive env evd l npms param_elim trm_app.p in
+  let p_elim = mkAppl (param_elim, [p]) in
+  let cs = lift_cases env evd l to_typ p_elim trm_app.cs in
   let curried_args = mk_n_rels (arity trm_app.p - List.length trm_app.final_args) in
   let final_args = lift_args_temporary env evd l npms (List.append trm_app.final_args curried_args) in
   apply_eliminator {trm_app with elim; p; cs; final_args}
