@@ -9,6 +9,7 @@ open Differencing
 open Lifting
 open Promotions
 open Specialization
+open Zooming
 
 type ornamental_action = env -> Evd.evar_map -> constr -> constr -> constr -> constr * constr option
 type ornamental_command = Id.t -> constr_expr -> constr_expr -> constr_expr -> unit
@@ -42,8 +43,9 @@ let lift_induction env evd c_orn c_orn_inv c_old =
   let orn = initialize_promotion env evd promote forget in
   let l = initialize_lifting orn is_fwd in
   let trm_o = unwrap_definition env c_old in
-  let c_new = lift_induction_principle env evd l trm_o in
-  (c_new, None)
+  let (env_o, body_o) = zoom_lambda_term env trm_o in
+  let c_new = lift_induction_principle env_o evd l body_o in
+  (reconstruct_lambda env_o c_new, None)
 
 (* Apply an ornament without meta-reduction *)
 let apply_ornament env evd c_orn c_orn_inv c_old =

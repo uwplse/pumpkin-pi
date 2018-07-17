@@ -962,6 +962,7 @@ let internalize env evd (l : lifting) (trm : types) =
 
 (* TODO temporary: before full refactor is done, just forget/promote the
    arguments *)
+(* TODO bug here for some reason? *)
 let lift_args_temporary env evd l npms args =
   let arg = last args in
   let typ_args = non_index_typ_args l env evd arg in
@@ -987,10 +988,9 @@ let lift_motive env evd l npms parameterized_elim motive =
   if l.is_fwd then
     (* PROMOTE-MOTIVE *)
     let args = remove_index index_i (mk_n_rels off) in
-    debug_terms env_to_motive args "args";
+    (* TODO forget *)
     let motive_app = reduce_term env_to_motive (mkAppl (motive, args)) in
-    debug_term env_to_motive motive_app "motive_app";
-    reconstruct_lambda_n env_to_motive motive_app (nb_rel env) (* TODO *)
+    reconstruct_lambda_n env_to_motive motive_app (nb_rel env)
   else
     (* FORGET-MOTIVE *)
     let args = mk_n_rels off in
@@ -1013,7 +1013,7 @@ let lift_induction_principle env evd l trm =
   let elim = type_eliminator env (fst (destInd to_typ)) in
   let p = lift_motive env evd l npms (mkAppl (elim, trm_app.pms)) trm_app.p in
   let cs = trm_app.cs in
-  let curried_args = mk_n_rels (arity p - List.length trm_app.final_args) in
+  let curried_args = mk_n_rels (arity trm_app.p - List.length trm_app.final_args) in
   let final_args = lift_args_temporary env evd l npms (List.append trm_app.final_args curried_args) in
   apply_eliminator {trm_app with elim; p; cs; final_args}
 
