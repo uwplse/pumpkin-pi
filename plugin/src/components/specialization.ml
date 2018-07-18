@@ -1132,6 +1132,7 @@ let lift_induction_principle env evd l def =
   let (from_typ, to_typ) = map_backward reverse l (from_typ, to_typ) in
   let trm = expand_eta env evd (unwrap_definition env def) in
   let (env, body) = zoom_lambda_term env trm in
+  let body = reduce_to_ind env body in
   let body = reduce_term env body in
   let body_app = deconstruct_eliminator env evd body in
   let npms = List.length body_app.pms in

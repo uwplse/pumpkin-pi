@@ -104,6 +104,9 @@ let make_ornamental_command act =
     let (c_new, c_idx_opt) = act env evd c_orn c_orn_inv c_old in
     define_term n evd c_new;
     Option.iter (try_define_indexer evd n) c_idx_opt;
-    declare_lifted evd c_old (make_constant n)
+    try
+      declare_lifted evd c_old (make_constant n)
+    with _ ->
+      Printf.printf "WARNING: Failed to cache lifting."
   in
   cmd
