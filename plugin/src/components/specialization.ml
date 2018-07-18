@@ -1013,13 +1013,25 @@ let lift_case env evd l (from_typ, to_typ) p c_elim c =
   let c_eta = expand_eta env evd c in
   let c_elim_type = reduce_type env evd c_elim in
   let (_, to_c_typ, _) = destProd c_elim_type in
-  let env_to_c = zoom_env zoom_product_type env to_c_typ in
-  let off = offset2 env_to_c env in
-  let c_eta = shift_by off c_eta in (* broken when we unfold and intros *)
-  let (env_c_body, c_body) = zoom_lambda_term env_to_c c_eta in
-  if not (isApp c_body) then
-    c (* base case not inside of a lambda *)
+  let rec num_ihs env typ =
+    match kind_of_term typ with
+    | Prod (n, t, b) ->
+       if is_or_applies to_typ (reduce_term env t) then
+         let (n_b_t, b_t, b_b) = destProd b in
+         1 + num_ihs (push_local (n, t) (push_local (n_b_t, b_t) env)) b_b
+       else
+         num_ihs (push_local (n, t) env) b
+    | _ ->
+       0
+  in
+  let nihs = num_ihs env to_c_typ in
+  if nihs = 0 then
+    c (* base case *)
   else
+    let env_to_c = zoom_env zoom_product_type env to_c_typ in
+    let off = offset2 env_to_c env in
+    let c_eta = shift_by off c_eta in
+    let (env_c_body, c_body) = zoom_lambda_term env_to_c c_eta in
     let (c_f, c_args) = destApp c_body in
     let is_rec a =
       match kind_of_term a with
@@ -1028,59 +1040,55 @@ let lift_case env evd l (from_typ, to_typ) p c_elim c =
       | _ ->
          false
     in
-    if not (Array.exists is_rec c_args) then
-      c (* base case inside of lambda *)
+    let index_i = Option.get l.orn.index_i in
+    if l.is_fwd then
+      (* PROMOTE-CASE *)
+      let rec lift_args args index =
+        match args with
+        | h :: tl ->
+           if eq_constr h index then
+             shift h :: (lift_args (shift_all tl) index)
+           else
+             let h_typ = reduce_type env_to_c evd h in
+             if is_or_applies to_typ h_typ then
+               let h_lifted = pack_inner env_to_c evd l h in
+               h_lifted :: lift_args tl (get_arg index_i h_typ)
+             else
+               h :: lift_args tl index
+        | _ -> []
+      in
+      let (c_args, b_args) = take_split (off - nihs) (Array.to_list c_args) in
+      let c_args = unshift_all_by (List.length b_args) c_args in
+      let c_to_args = List.rev (lift_args (List.rev c_args) (mkRel 0)) in
+      let c_to_f = unshift_by (offset2 env_c_body env_to_c) c_f in
+      let c_to_body = reduce_term env_to_c (mkAppl (c_to_f, c_to_args)) in
+      reconstruct_lambda_n env_to_c c_to_body (nb_rel env)
     else
-      let index_i = Option.get l.orn.index_i in
-      if l.is_fwd then
-        (* PROMOTE-CASE *)
-        let rec lift_args args index =
-          match args with
-          | h :: tl ->
-             if eq_constr h index then
-               shift h :: (lift_args (shift_all tl) index)
+      (* FORGET-CASE *)
+      let rec lift_args args (index, proj_index) =
+        match args with
+        | h :: tl ->
+           if eq_constr h index then
+             proj_index :: (lift_args (unshift_all tl) (index, proj_index))
+           else
+             let h_typ = reduce_type env_c_body evd h in
+             if is_or_applies from_typ h_typ then
+               let typ_args = non_index_typ_args l env_to_c evd h in
+               let h_lifted = mkAppl (lift_back l, snoc h typ_args) in
+               let h_lifted_typ = on_type dest_sigT env_to_c evd h_lifted in
+               let proj_value = project_value h_lifted_typ h_lifted in
+               let proj_index = project_index h_lifted_typ h_lifted in
+               proj_value :: lift_args tl (get_arg index_i h_typ, proj_index)
              else
-               let h_typ = reduce_type env_to_c evd h in
-               if is_or_applies to_typ h_typ then
-                 let h_lifted = pack_inner env_to_c evd l h in
-                 h_lifted :: lift_args tl (get_arg index_i h_typ)
-               else
-                 h :: lift_args tl index
-          | _ -> []
-        in
-        let (c_args, b_args) = take_split (arity c_f) (Array.to_list c_args) in
-        let c_args = unshift_all_by (List.length b_args) c_args in
-        let c_to_args = List.rev (lift_args (List.rev c_args) (mkRel 0)) in
-        let c_to_f = unshift_by (offset2 env_c_body env_to_c) c_f in
-        let c_to_body = reduce_term env_to_c (mkAppl (c_to_f, c_to_args)) in
-        reconstruct_lambda_n env_to_c c_to_body (nb_rel env)
-      else
-        (* FORGET-CASE *)
-        (* TODO split pre/post like in promote *)
-        let rec lift_args args (index, proj_index) =
-          match args with
-          | h :: tl ->
-             if eq_constr h index then
-               proj_index :: (lift_args (unshift_all tl) (index, proj_index))
-             else
-               let h_typ = reduce_type env_c_body evd h in
-               if is_or_applies from_typ h_typ then
-                 let typ_args = non_index_typ_args l env_to_c evd h in
-                 let h_lifted = mkAppl (lift_back l, snoc h typ_args) in
-                 let h_lifted_typ = on_type dest_sigT env_to_c evd h_lifted in
-                 let proj_value = project_value h_lifted_typ h_lifted in
-                 let proj_index = project_index h_lifted_typ h_lifted in
-                 proj_value :: lift_args tl (get_arg index_i h_typ, proj_index)
-               else
-                 h :: lift_args tl (index, proj_index)
-          | _ -> []
-        in
-        let (c_args, b_args) = take_split (arity c_f) (Array.to_list c_args) in
-        let c_args = unshift_all_by (List.length b_args) c_args in
-        let c_to_args = List.rev (lift_args (List.rev c_args) (mkRel 0, mkRel 0)) in
-        let c_to_f = unshift_by (offset2 env_c_body env_to_c) c_f in
-        let c_to_body = reduce_term env_to_c (mkAppl (c_to_f, c_to_args)) in
-        reconstruct_lambda_n env_to_c c_to_body (nb_rel env)
+               h :: lift_args tl (index, proj_index)
+        | _ -> []
+      in
+      let (c_args, b_args) = take_split (off + nihs) (Array.to_list c_args) in
+      let c_args = unshift_all_by (List.length b_args) c_args in
+      let c_to_args = List.rev (lift_args (List.rev c_args) (mkRel 0, mkRel 0)) in
+      let c_to_f = unshift_by (offset2 env_c_body env_to_c) c_f in
+      let c_to_body = reduce_term env_to_c (mkAppl (c_to_f, c_to_args)) in
+      reconstruct_lambda_n env_to_c c_to_body (nb_rel env)
                          
 (* Lift cases *)
 let lift_cases env evd l (from_typ, to_typ) p p_elim cs =

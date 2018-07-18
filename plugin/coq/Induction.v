@@ -281,10 +281,8 @@ Lemma hd_error_some_nil : forall A (a : A) l, hd_error A l = Some a -> l <> nil.
 Proof. 
   (*unfold hd_error. [TODO] *) induction l. (* destruct l; now disccriminate [ported below] *)
   - now discriminate.
-  - simpl. intros. (*unfold not.*) (*intros. (* the unfold/intros makes things difficult *)
-    apply eq_ind with (P := is_cons A) in H0. TODO *)
-    unfold not.
-    apply eq_ind with (P := is_cons A).
+  - simpl. intros. unfold not. intros.
+    apply eq_ind with (P := is_cons A) in H0; auto.
     simpl.
     auto.
 Defined.
