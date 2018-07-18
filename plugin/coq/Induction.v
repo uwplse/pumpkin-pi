@@ -277,14 +277,16 @@ Lift induction orn_list_vector orn_list_vector_inv in is_cons as is_cons_vect_in
 Print is_cons_vect_ind.
 
 (* ported to induction *)
-Lemma hd_error_some_nil : forall A l (a:A), hd_error A l = Some a -> l <> nil.
+Lemma hd_error_some_nil : forall A (a : A) l, hd_error A l = Some a -> l <> nil.
 Proof. 
   (*unfold hd_error. [TODO] *) induction l. (* destruct l; now disccriminate [ported below] *)
   - now discriminate.
-  - simpl. intros. unfold not. intros.
-    apply eq_ind with (P := is_cons A) in H0.
-    * apply H0. 
-    * simpl. auto. 
+  - simpl. intros. (*unfold not.*) (*intros. (* the unfold/intros makes things difficult *)
+    apply eq_ind with (P := is_cons A) in H0. TODO *)
+    unfold not.
+    apply eq_ind with (P := is_cons A).
+    simpl.
+    auto.
 Defined.
 
 Print hd_error_some_nil.

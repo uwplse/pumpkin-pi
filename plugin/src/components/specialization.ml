@@ -1013,10 +1013,13 @@ let lift_case env evd l (from_typ, to_typ) p c_elim c =
   let c_eta = expand_eta env evd c in
   let c_elim_type = reduce_type env evd c_elim in
   let (_, to_c_typ, _) = destProd c_elim_type in
+  debug_term env to_c_typ "to_c_typ";
   let env_to_c = zoom_env zoom_product_type env to_c_typ in
+  debug_env env_to_c "env_to_c";
   let off = offset2 env_to_c env in
-  let c_eta = shift_by off c_eta in
+  let c_eta = shift_by off c_eta in (* broken when we unfold and intros *)
   let (env_c_body, c_body) = zoom_lambda_term env_to_c c_eta in
+  debug_term env_c_body c_body "c_body";
   if not (isApp c_body) then
     c (* base case not inside of a lambda *)
   else
@@ -1041,14 +1044,21 @@ let lift_case env evd l (from_typ, to_typ) p c_elim c =
                shift h :: (lift_args (shift_all tl) index)
              else
                let h_typ = reduce_type env_to_c evd h in
-               if isRel h && is_or_applies to_typ h_typ then
+               if is_or_applies to_typ h_typ then
                  let h_lifted = pack_inner env_to_c evd l h in
                  h_lifted :: lift_args tl (get_arg index_i h_typ)
                else
                  h :: lift_args tl index
           | _ -> []
         in
-        let c_to_args = List.rev (lift_args (List.rev (Array.to_list c_args)) (mkRel 0)) in
+        debug_env env_c_body "env_c_body";
+        debug_terms env_c_body (Array.to_list c_args) "c_args";
+        let (pre_args, post_args) = take_split (arity c_f) (Array.to_list c_args) in
+        let pre_args = unshift_all_by (List.length post_args) pre_args in
+        let c_to_args = List.rev (lift_args (List.rev pre_args) (mkRel 0)) in
+        debug_env env_to_c "env_to_c";
+        debug_terms env_to_c c_to_args "c_to_args";
+        let c_to_args = List.append c_to_args post_args in
         let c_to_f = unshift_by (offset2 env_c_body env_to_c) c_f in
         let c_to_body = reduce_term env_to_c (mkAppl (c_to_f, c_to_args)) in
         reconstruct_lambda_n env_to_c c_to_body (nb_rel env)
@@ -1061,7 +1071,7 @@ let lift_case env evd l (from_typ, to_typ) p c_elim c =
                proj_index :: (lift_args (unshift_all tl) (index, proj_index))
              else
                let h_typ = reduce_type env_c_body evd h in
-               if isRel h && is_or_applies from_typ h_typ then
+               if is_or_applies from_typ h_typ then
                  let typ_args = non_index_typ_args l env_to_c evd h in
                  let h_lifted = mkAppl (lift_back l, snoc h typ_args) in
                  let h_lifted_typ = on_type dest_sigT env_to_c evd h_lifted in
@@ -1128,9 +1138,18 @@ let lift_induction_principle env evd l def =
   let final_args = take (value_i + 1) body_app.final_args in
   let body = apply_eliminator { body_app with final_args } in
   let off = List.length body_app.final_args - (value_i + 1) in
-  let body = unshift_by off (lift_induction_principle_core env evd l body) in
-  let env = pop_rel_context off env in
-  reconstruct_lambda env body
+  let body = lift_induction_principle_core env evd l body in
+  debug_term env body "body";
+  debug_term env (reduce_type env evd body) "body_typ";
+  let dummy_args = Array.make off (mkRel 0) in
+  debug_env env "env";
+  let postprocess_lam = reconstruct_lambda_n env body (offset env off) in
+  let postprocess_env = pop_rel_context off env in
+  debug_term postprocess_env postprocess_lam "postprocess_lam";
+  let postprocess = reduce_term postprocess_env (mkApp (postprocess_lam, dummy_args)) in
+  debug_env postprocess_env "postprocess_env";
+  debug_term postprocess_env postprocess "postprocess";
+  reconstruct_lambda postprocess_env postprocess
   
 (* --- Higher lifting --- *)
 
