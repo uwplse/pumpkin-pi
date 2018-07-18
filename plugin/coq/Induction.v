@@ -83,8 +83,6 @@ Print hd_vect_error_ind.
 Lift induction orn_list_vector_inv orn_list_vector in hd_vect_error as hd_error_ind.
 Print hd_error_ind.
 
-aaa
-
 Definition append (A : Type) (l1 : list A) (l2 : list A) :=
   list_rect
     (fun (_ : list A) => list A)
@@ -93,172 +91,24 @@ Definition append (A : Type) (l1 : list A) (l2 : list A) :=
       a :: IH)
     l1.
 
-(* For now, we don't eliminate the vector reference, since incides might refer to other things *)
-Definition plus_vect (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 : vector A n2) :=
-  vector_rect
-    A
-    (fun (n0 : nat) (_ : vector A n0) => nat)
-    n2
-    (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : nat) =>
-      S (IH))
-    n1
-    v1.
-
-(*
- * Not used yet.
- *)
-Definition plus_vect_exp (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A) :=
-  vector_rect
-     A
-     (fun (n0 : nat) (_ : vector A n0) => nat)
-     (projT1 pv2)
-     (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : nat) =>
-        S IH)
-     (projT1 pv1)
-     (projT2 pv1).
-
-Definition append_vect (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 : vector A n2) :=
-  vector_rect
-    A
-    (fun (n0 : nat) (v0 : vector A n0) => vector A (plus_vect A n0 v0 n2 v2))
-    v2
-    (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : vector A (plus_vect A n0 v0 n2 v2)) =>
-      consV A (plus_vect A n0 v0 n2 v2) a IH)
-    n1
-    v1.
-
-(*
- * This version doesn't reference new indexer.
- * Eventually want to be able to get index from this too.
- *)
-Definition append_vect_packed (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A) :=
+Definition append_vect (A : Type) (pv1 : sigT (vector A)) (pv2 : sigT (vector A)) :=
   vector_rect
     A
     (fun (n0 : nat) (v0 : vector A n0) => sigT (fun (n : nat) => vector A n))
     pv2
     (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : sigT (fun (n : nat) => vector A n)) =>
       existT
-      (vector A)
-      (S (projT1 IH))
-      (consV A (projT1 IH) a (projT2 IH)))
+        (vector A)
+        (S (projT1 IH))
+        (consV A (projT1 IH) a (projT2 IH)))
     (projT1 pv1)
     (projT2 pv1).
 
-Ornamental Application append_vect_auto from append using orn_list_vector orn_list_vector_inv.
-Ornamental Application append_auto from append_vect_packed using orn_list_vector_inv orn_list_vector.
+Lift induction orn_list_vector orn_list_vector_inv in append as append_vect_ind.
+Print append_vect_ind.
 
-(*
- * For this one, we can't state the equality, but we can use existsT.
- *)
-Lemma eq_S:
-  forall n n',
-    n = n' ->
-    S n = S n'.
-Proof.
-  intros. subst. auto. 
-Qed.
-
-Lemma eq_vect_cons:
-  forall A n (v : vector A n) n' (v' : vector A n'), 
-    existT (vector A) n v = existT (vector A) n' v' ->
-    forall (a : A),
-      (existT (vector A) (S n) (consV A n a v)) =
-      (existT (vector A) (S n') (consV A n' a v')).
-Proof.
-  intros. inversion H. subst. auto.
-Qed.
-
-Lemma eq_pv_cons:
-  forall A (pv : sigT (vector A)) (pv' : sigT (vector A)),
-    pv = pv' ->
-    forall (a : A),
-      (existT 
-        (vector A)
-        (S (projT1 pv)) 
-        (consV A (projT1 pv) a (projT2 pv))) =
-      (existT 
-        (vector A)
-        (S (projT1 pv')) 
-        (consV A (projT1 pv') a (projT2 pv'))).
-Proof.
-  intros. inversion H. subst. auto.
-Qed.
-
-Lemma vect_iso:
-  forall (A : Type) (pv : packed_vector A),
-    pv = orn_list_vector A (orn_list_vector_inv A pv).
-Proof.
-  intros. induction pv. induction p; try apply eq_vect_cons; auto.
-Qed.
-
-Theorem test_plus:
-  forall A (pv1 : packed_vector A) (pv2 : packed_vector A),
-    (projT1 (append_vect_packed A pv1 pv2) = projT1 (append_vect_auto A pv1 pv2)).
-Proof.
-  intros. induction pv1; induction pv2; induction p; induction p0; try apply eq_S; auto.
-Qed.
-
-Theorem test_orn_append:
-  forall A (pv1 : packed_vector A) (pv2 : packed_vector A),
-    append_vect_packed A pv1 pv2 = append_vect_auto A pv1 pv2.
-Proof.
-  intros. induction pv1.
-  induction p.
-  - unfold append_vect_auto. simpl. apply vect_iso.
-  - apply eq_pv_cons with (a := a) in IHp. apply IHp.
-Qed.
-
-Theorem test_orn_append_proj :
-  forall (A : Type) (n1 : nat) (v1 : vector A n1) (n2 : nat) (v2 : vector A n2),
-    existT
-      (vector A)
-      (projT1 (append_vect_auto A (existT (vector A) n1 v1) (existT (vector A) n2 v2)))
-      (projT2 (append_vect_auto A (existT (vector A) n1 v1) (existT (vector A) n2 v2))) =
-    existT
-      (vector A)
-      (plus_vect A n1 v1 n2 v2)
-      (append_vect A n1 v1 n2 v2).
-Proof.
-  intros. induction v1; induction v2; try apply eq_vect_cons; auto.
-Qed.
-
-(*
- * To prove the deornamentation case, we need the same lemma,
- * but we can state the equality directly.
- *)
-Lemma eq_cons:
-  forall A (l : list A) (l' : list A),
-    l = l' ->
-    forall (a : A), a :: l = a :: l'.
-Proof.
-  intros. inversion H. subst. auto.
-Qed.
-
-Lemma vect_inv_iso:
-  forall (A : Type) (l : list A),
-    l = orn_list_vector_inv A (orn_list_vector A l).
-Proof.
-  intros. induction l; try apply eq_cons; auto.
-Qed.
-
-Theorem append_cons:
-  forall (A : Type) (a : A) (l l' : list A),
-    append_auto A (a :: l) l' =
-    a :: append_auto A l l'.
-Proof.
-  intros. unfold append_auto. induction l, l'; auto.
-Qed.
-
-Theorem test_deorn_append:
-  forall A (l : list A) (l' : list A),
-    append A l l' = append_auto A l l'.
-Proof.
-  intros. induction l, l'.
-  - auto.
-  - simpl. apply vect_inv_iso.
-  - simpl. rewrite append_cons. apply eq_cons. apply IHl. 
-  - simpl. rewrite append_cons. apply eq_cons. apply IHl. 
-Qed.
+Lift induction orn_list_vector_inv orn_list_vector in append_vect as append_ind.
+Print append_ind.
 
 (* append for flectors *)
 
@@ -270,11 +120,7 @@ Definition appendF (l1 : natFlector.flist) (l2 : natFlector.flist) :=
       natFlector.consF a IH)
     l1.
 
-(*
- * This version doesn't reference new indexer.
- * Eventually want to be able to get index from this too.
- *)
-Definition append_vect_packedF (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector) :=
+Definition append_vectF (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector) :=
   natFlector.flector_rect
     (fun (n0 : nat) (v0 : natFlector.flector n0) => sigT natFlector.flector)
     pv2
@@ -286,48 +132,25 @@ Definition append_vect_packedF (pv1 : sigT natFlector.flector) (pv2 : sigT natFl
     (projT1 pv1)
     (projT2 pv1).
 
-Ornamental Application append_vectF_auto from appendF using orn_flist_flector_nat orn_flist_flector_nat_inv.
-Ornamental Application appendF_auto from append_vect_packedF using orn_flist_flector_nat_inv orn_flist_flector_nat.
+Lift induction orn_flist_flector_nat orn_flist_flector_nat_inv in appendF as append_vectF_ind.
+Print append_vectF_ind.
 
-(* TODO test before reduction *)
+Lift induction orn_flist_flector_nat_inv orn_flist_flector_nat in append_vectF as appendF_ind.
+Print appendF_ind.
 
-(* pred *)
-
-(* For now, we don't eliminate the vector reference, since incides might refer to other things *)
-Definition pred_vect (A : Type) (n : nat) (v : vector A n) :=
-  vector_rect
-    A
-    (fun (n0 : nat) (_ : vector A n0) => nat)
-    0
-    (fun (n0 : nat) (a : A) (v0 : vector A n0) (_ : nat) =>
-      n0)
-    n
-    v.
-
-Definition pred_vect_exp (A : Type) (pv : packed_vector A) :=
-  pred_vect A (projT1 pv) (projT2 pv).
+(* tl *)
 
 Definition tl (A : Type) (l : list A) :=
   @list_rect
-   A
-   (fun (l0 : list A) => list A)
-   (@nil A)
-   (fun (a : A) (l0 : list A) (_ : list A) =>
-     l0)
-   l.
-
-Definition tl_vect (A : Type) (n : nat) (v : vector A n) :=
-  vector_rect
-   A
-   (fun (n0 : nat) (v0 : vector A n0) => vector A (pred_vect A n0 v0))
-   (nilV A)
-   (fun (n0 : nat) (a : A) (v0 : vector A n0) (_ : vector A (pred_vect A n0 v0)) =>
-     v0)
-   n
-   v.
+    A
+    (fun (l0 : list A) => list A)
+    (@nil A)
+    (fun (a : A) (l0 : list A) (_ : list A) =>
+      l0)
+    l.
 
 (* This version might only work since we don't need the index of the IH *)
-Definition tl_vect_packed (A : Type) (pv : packed_vector A) :=
+Definition tl_vect (A : Type) (pv : sigT (vector A)) :=
   vector_rect
     A
     (fun (n0 : nat) (v0 : vector A n0) => sigT (fun (n : nat) => vector A n))
@@ -337,58 +160,11 @@ Definition tl_vect_packed (A : Type) (pv : packed_vector A) :=
     (projT1 pv)
     (projT2 pv).
 
-Ornamental Application tl_vect_auto from tl using orn_list_vector orn_list_vector_inv.
-Ornamental Application tl_auto from tl_vect_packed using orn_list_vector_inv orn_list_vector.
+Lift induction orn_list_vector orn_list_vector_inv in tl as tl_vect_ind.
+Print tl_vect_ind.
 
-Lemma coh_vect:
-  forall (A : Type) (n : nat) (v : vector A n),
-    existT (vector A) (orn_list_vector_index A (orn_list_vector_inv A (existT (vector A) n v))) (projT2 (orn_list_vector A (orn_list_vector_inv A (existT (vector A) n v)))) = 
-    existT (vector A) n v.
-Proof.
-  intros. induction v.
-  - reflexivity.
-  - apply eq_vect_cons. apply IHv.
-Qed.
-
-(*
- * Same situation as above
- *)
-Theorem test_orn_tl :
-  forall (A : Type) (pv : packed_vector A),
-    tl_vect_auto A pv = tl_vect_packed A pv.
-Proof.
-  intros. induction pv; induction p; try apply coh_vect; auto.
-Qed.
-
-Theorem test_orn_tl_proj :
-  forall (A : Type) (n : nat) (v : vector A n),
-    existT
-      (vector A)
-      (projT1 (tl_vect_auto A (existT (vector A) n v)))
-      (projT2 (tl_vect_auto A (existT (vector A) n v))) =
-    existT
-      (vector A)
-      (pred_vect A n v)
-      (tl_vect A n v).
-Proof.
-  intros. induction v; try apply coh_vect; auto.
-Qed.
-
-Lemma coh:
-  forall (A : Type) (l : list A),
-    orn_list_vector_inv A (existT (vector A) (orn_list_vector_index A l) (projT2 (orn_list_vector A l))) = l.
-Proof.
-  intros. induction l.
-  - reflexivity.
-  - apply eq_cons. apply IHl.
-Qed.
-
-Theorem test_deorn_tl :
-  forall (A : Type) (l : list A),
-    tl_auto A l = tl A l.
-Proof.
-  intros. induction l; try apply coh; auto.
-Qed.
+Lift induction orn_list_vector_inv orn_list_vector in tl_vect as tl_ind.
+Print tl_ind.
 
 (*
  * In as an application of an induction principle
@@ -412,19 +188,14 @@ Definition In_vect (A : Type) (a : A) (pv : sigT (vector A)) : Prop :=
     (projT1 pv)
     (projT2 pv).
 
-(* TODO what happens if you curry the vector_rect application? and so on *)
+Lift induction orn_list_vector orn_list_vector_inv in In as In_vect_ind.
+Print In_vect_ind.
 
-Ornamental Application In_vect_auto from In using orn_list_vector orn_list_vector_inv.
-Ornamental Application In_auto from In_vect using orn_list_vector_inv orn_list_vector.
-
-(*
- * TODO proofs at some point that this is OK
- *)
+Lift induction orn_list_vector_inv orn_list_vector in In_vect as In_ind.
+Print In_ind.
 
 (* --- Interesting parts: Trying some proofs --- *)
 
-(* This is our favorite proof app_nil_r, which has no exact analogue when
-   indexing becomes relevant for vectors. *)
 Definition app_nil_r (A : Type) (l : list A) :=
   @list_ind
     A
@@ -440,96 +211,32 @@ Definition app_nil_r (A : Type) (l : list A) :=
         IHl)
     l.
 
-(* what we can get without doing a higher lifting of append inside of the proof *)
-Definition app_nil_r_lower (A : Type) (l : list A) :=
-  @list_ind
-    A
-    (fun (l0 : list A) => 
-      append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)) = orn_list_vector A l0)
-    (@eq_refl (sigT (vector A)) (existT (vector A) 0 (nilV A)))
-    (fun (a : A) (l0 : list A) (IHl : append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)) = orn_list_vector A l0) =>
-      @eq_ind_r
-        (sigT (vector A))
-        (orn_list_vector A l0)
-        (fun (v1 : sigT (vector A)) => existT (vector A) (S (projT1 v1)) (consV A (projT1 v1) a (projT2 v1)) = existT (vector A) (S (projT1 (orn_list_vector A l0))) (consV A (projT1 (orn_list_vector A l0)) a (projT2 (orn_list_vector A l0))))
-        (@eq_refl (sigT (vector A)) (existT (vector A) (S (projT1 (orn_list_vector A l0))) (consV A (projT1 (orn_list_vector A l0)) a (projT2 (orn_list_vector A l0)))))
-        (append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A))) 
-        IHl)
-    l.
-
-(* what we can get without doing a higher lifting of append inside of the proof *)
-Definition app_nil_r_lower_alt (A : Type) (l : list A) :=
-  @list_ind
-    A
-    (fun (l0 : list A) => 
-      append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)) = orn_list_vector A l0)
-    (@eq_refl (sigT (vector A)) (existT (vector A) 0 (nilV A)))
-    (fun (a : A) (l0 : list A) (IHl : append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)) = orn_list_vector A l0) =>
-      @eq_ind_r
-        (sigT (vector A))
-        (orn_list_vector A l0)
-        (fun (v1 : sigT (vector A)) => existT (vector A) (S (projT1 v1)) (consV A (projT1 v1) a (projT2 v1)) = existT (vector A) (S (projT1 (orn_list_vector A l0))) (consV A (projT1 (orn_list_vector A l0)) a (projT2 (orn_list_vector A l0))))
-        (@eq_refl (sigT (vector A)) (existT (vector A) (S (projT1 (orn_list_vector A l0))) (consV A (projT1 (orn_list_vector A l0)) a (projT2 (orn_list_vector A l0)))))
-        (append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A))) 
-        IHl)
-    l.
-
-(* packed vector version *)
-Definition app_nil_r_vect_packed (A : Type) (pv : packed_vector A) :=
+Definition app_nil_r_vect (A : Type) (pv : sigT (vector A)) :=
   vector_ind 
     A
     (fun (n0 : nat) (v0 : vector A n0) => 
-      append_vect_packed A (existT (vector A) n0 v0) (existT (vector A) O (nilV A)) = existT (vector A) n0 v0)
+      append_vect A (existT (vector A) n0 v0) (existT (vector A) O (nilV A)) = existT (vector A) n0 v0)
     (@eq_refl (sigT (vector A)) (existT (vector A) O (nilV A)))
-    (fun (n0 : nat) (a : A) (v0 : vector A n0) (IHp : append_vect_packed A (existT (vector A) n0 v0) (existT (vector A) O (nilV A)) = existT (vector A) n0 v0) =>
+    (fun (n0 : nat) (a : A) (v0 : vector A n0) (IHp : append_vect A (existT (vector A) n0 v0) (existT (vector A) O (nilV A)) = existT (vector A) n0 v0) =>
       @eq_ind_r 
         (sigT (vector A)) 
         (existT (vector A) n0 v0)
         (fun (pv1 : sigT (vector A)) => 
           existT (vector A) (S (projT1 pv1)) (consV A (projT1 pv1) a (projT2 pv1)) = existT (vector A) (S n0) (consV A n0 a v0))
         (@eq_refl (sigT (vector A)) (existT (vector A) (S n0) (consV A n0 a v0)))
-        (append_vect_packed A (existT (vector A) n0 v0) (existT (vector A) 0 (nilV A)))
+        (append_vect A (existT (vector A) n0 v0) (existT (vector A) 0 (nilV A)))
         IHp)
     (projT1 pv) 
     (projT2 pv).
 
-(* what we can get without doing a higher lifting of append inside of the proof *)
-Definition app_nil_r_vect_packed_lower (A : Type) (pv : packed_vector A) :=
-  vector_ind 
-    A
-    (fun (n0 : nat) (v0 : vector A n0) => 
-      append A (orn_list_vector_inv A (existT (vector A) n0 v0)) (@nil A) = orn_list_vector_inv A (existT (vector A) n0 v0))
-    (@eq_refl (list A) (@nil A))
-    (fun (n0 : nat) (a : A) (v0 : vector A n0) (IHp : append A (orn_list_vector_inv A (existT (vector A) n0 v0)) (@nil A) = orn_list_vector_inv A (existT (vector A) n0 v0)) =>
-       @eq_ind_r 
-       (list A) 
-       (orn_list_vector_inv A (existT (vector A) n0 v0))
-       (fun (pv1 : list A) => 
-         @cons A a pv1 = @cons A a (orn_list_vector_inv A (existT (vector A) n0 v0)))
-         (@eq_refl (list A) (@cons A a (orn_list_vector_inv A (existT (vector A) n0 v0))))
-         (append A (orn_list_vector_inv A (existT (vector A) n0 v0)) (@nil A))
-         IHp)
-    (projT1 pv)
-    (projT2 pv).
+Lift induction orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_ind.
+Print app_nil_r_vect_ind.
 
-(* What happens if we try to immediately lift app_nil_r to use new app _before_ doing "lower" step? *)
-Definition app_nil_r_higher (A : Type) (l : list A) :=
-  @list_ind
-    A
-    (fun (l0 : list A) => append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)) = orn_list_vector A l0)
-    (@eq_refl (packed_vector A) (existT (vector A) 0 (nilV A)))
-    (fun (a : A) (l0 : list A) (IHl : append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)) = orn_list_vector A l0) =>
-      @eq_ind_r
-        (packed_vector A)
-        (orn_list_vector A l0)
-        (fun (pv : packed_vector A) => existT (vector A) (S (projT1 pv)) (consV A (projT1 pv) a (projT2 pv)) = existT (vector A) (S (projT1 (orn_list_vector A l0))) (consV A (projT1 (orn_list_vector A l0)) a (projT2 (orn_list_vector A l0))))
-        (@eq_refl (packed_vector A) (existT (vector A) (S (projT1 (orn_list_vector A l0))) (consV A (projT1 (orn_list_vector A l0)) a (projT2 (orn_list_vector A l0)))))
-        (append_vect_packed A (orn_list_vector A l0) (existT (vector A) 0 (nilV A)))
-        IHl)
-    l.
+Lift induction orn_list_vector_inv orn_list_vector in app_nil_r_vect as app_nil_r_ind.
+Print app_nil_r_ind.
 
-Ornamental Application app_nil_r_vect_auto from app_nil_r using orn_list_vector orn_list_vector_inv.
-Ornamental Application app_nil_r_auto from app_nil_r_vect_packed using orn_list_vector_inv orn_list_vector.
+
+aaa
 
 (* app_nil_r with flectors *)
 

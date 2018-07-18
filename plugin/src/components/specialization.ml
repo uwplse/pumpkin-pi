@@ -989,15 +989,16 @@ let lift_motive env evd l npms parameterized_elim motive =
   let args = mk_n_rels off in
   let arg = last args in
   let typ_args = non_index_typ_args l env_to_motive evd arg in
-  let lifted_arg = mkAppl (lift_back l, snoc arg typ_args) in
   let value_i = List.length args - 1 in
   if l.is_fwd then
     (* PROMOTE-MOTIVE *)
+    let lifted_arg = pack_inner env_to_motive evd l arg in
     let args = remove_index index_i (reindex value_i lifted_arg args) in
     let motive_app = reduce_term env_to_motive (mkAppl (motive, args)) in
     reconstruct_lambda_n env_to_motive motive_app (nb_rel env)
   else
     (* FORGET-MOTIVE *)
+    let lifted_arg = mkAppl (lift_back l, snoc arg typ_args) in
     let lifted_arg_sig = on_type dest_sigT env_to_motive evd lifted_arg in
     let index = project_index lifted_arg_sig lifted_arg in
     let value = project_value lifted_arg_sig lifted_arg in
