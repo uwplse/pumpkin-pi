@@ -961,13 +961,14 @@ let internalize env evd (l : lifting) (trm : types) =
 (* --- Lifting induction principle --- *)
 
 (* TODO temporary: before full refactor is done, just forget/promote the
-   arguments *)
-let lift_args_temporary env evd l npms from_typ args =
-  let value_i = arity (expand_eta env evd from_typ) - npms in
-  let arg = map_backward last_arg l (Array.get (Array.of_list args) value_i) in
+   arguments (later this will be done implicitly in a later step, and as
+   such this doesn't fully work right now when you have product arguments) *)
+let lift_args_temporary env evd l npms args =
+  let arg = map_backward last_arg l (last args) in
   let typ_args = non_index_typ_args l env evd arg in
   let lifted_arg = mkAppl (lift_to l, snoc arg typ_args) in
   let index_i = (Option.get l.orn.index_i) - npms in
+  let value_i = List.length args - 1 in
   if l.is_fwd then
     let lifted_arg_sig = on_type dest_sigT env evd lifted_arg in
     let index = project_index lifted_arg_sig lifted_arg in
@@ -1079,18 +1080,15 @@ let lift_cases env evd l (from_typ, to_typ) p_elim cs =
 
 (*
  * This lifts the induction principle.
- * The input term should be fully eta-expanded before calling this.
+ * The input term should be fully eta-expanded before calling this,
+ * and should not contain extra arguments after induction.
  *
  * The old application and meta-reduction steps were just hacks to accomplish
  * this. So they did this work, but also a lot more work.
  * Accordingly, when this is done, we'll remove the old application
  * and meta-reduction steps.
  *)
-let lift_induction_principle env evd l trm =
-  let trm_eta = expand_eta env evd trm in
-  debug_term env trm "trm";
-  debug_term env (reduce_type env evd trm) "typ";
-  debug_term env trm_eta "trm_eta";
+let lift_induction_principle_core env evd l trm =
   let to_typ = zoom_sig (promotion_type env evd l.orn.forget) in
   let from_typ = first_fun (promotion_type env evd l.orn.promote) in
   let (from_typ, to_typ) = map_backward reverse l (from_typ, to_typ) in
@@ -1099,15 +1097,29 @@ let lift_induction_principle env evd l trm =
   let elim = type_eliminator env (fst (destInd to_typ)) in
   let param_elim = mkAppl (elim, trm_app.pms) in
   let p = lift_motive env evd l npms param_elim trm_app.p in
-  debug_term env p "p";
-  debug_term env trm_app.p "trm_app.p";
   let p_elim = mkAppl (param_elim, [p]) in
   let cs = lift_cases env evd l (from_typ, to_typ) p_elim trm_app.cs in
-  let curried_args = mk_n_rels (arity trm_app.p - List.length trm_app.final_args) in
-  let final_args = lift_args_temporary env evd l npms from_typ (List.append trm_app.final_args curried_args) in
-  debug_terms env final_args "final_args";
+  let final_args = lift_args_temporary env evd l npms trm_app.final_args in
   apply_eliminator {trm_app with elim; p; cs; final_args}
 
+(* TODO temporary: pre-process to test just lifting induction principle *)
+let lift_induction_principle env evd l def =
+  let to_typ = zoom_sig (promotion_type env evd l.orn.forget) in
+  let from_typ = first_fun (promotion_type env evd l.orn.promote) in
+  let (from_typ, to_typ) = map_backward reverse l (from_typ, to_typ) in
+  let trm = expand_eta env evd (unwrap_definition env def) in
+  let (env, body) = zoom_lambda_term env trm in
+  let body = reduce_term env body in
+  let body_app = deconstruct_eliminator env evd body in
+  let npms = List.length body_app.pms in
+  let value_i = arity (expand_eta env evd from_typ) - npms in
+  let final_args = take (value_i + 1) body_app.final_args in
+  let body = apply_eliminator { body_app with final_args } in
+  let off = List.length body_app.final_args - (value_i + 1) in
+  let body = unshift_by off (lift_induction_principle_core env evd l body) in
+  let env = pop_rel_context off env in
+  reconstruct_lambda env body
+  
 (* --- Higher lifting --- *)
 
 (*

@@ -11,7 +11,6 @@ open Promotions
 open Specialization
 open Zooming
 open Hypotheses
-open Printing
 
 type ornamental_action = env -> Evd.evar_map -> constr -> constr -> constr -> constr * constr option
 type ornamental_command = Id.t -> constr_expr -> constr_expr -> constr_expr -> unit
@@ -44,10 +43,8 @@ let lift_induction env evd c_orn c_orn_inv c_old =
   let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
   let orn = initialize_promotion env evd promote forget in
   let l = initialize_lifting orn is_fwd in
-  let trm_o = expand_eta env evd (unwrap_definition env c_old) in
-  let (env_o, body_o) = zoom_lambda_term env trm_o in
-  let c_new = lift_induction_principle env_o evd l (reduce_term env_o body_o) in
-  (reconstruct_lambda env_o c_new, None)
+  let c_new = lift_induction_principle env evd l c_old in
+  (c_new, None)
 
 (* Apply an ornament without meta-reduction *)
 let apply_ornament env evd c_orn c_orn_inv c_old =
