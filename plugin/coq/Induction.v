@@ -236,10 +236,6 @@ Lift induction orn_list_vector_inv orn_list_vector in app_nil_r_vect as app_nil_
 Print app_nil_r_ind.
 
 
-aaa
-
-(* app_nil_r with flectors *)
-
 Definition app_nil_rF (l : natFlector.flist) :=
   natFlector.flist_ind
     (fun (l0 : natFlector.flist) => appendF l0 natFlector.nilF = l0)
@@ -254,26 +250,25 @@ Definition app_nil_rF (l : natFlector.flist) :=
         IHl)
     l.
 
-(* TODO opposite direction *)
-
-Ornamental Application app_nil_r_vectF_auto from app_nil_rF using orn_flist_flector_nat orn_flist_flector_nat_inv.
-
-(* in_split *)
+Lift induction orn_flist_flector_nat orn_flist_flector_nat_inv in app_nil_rF as app_nil_r_vectF_ind.
+Print app_nil_r_vectF_ind.
 
 Theorem in_split : 
-  forall A x (l:list A), In A x l -> exists l1 l2, l = append A l1 (x::l2).
+  forall A x (l : list A), In A x l -> exists l1 l2, l = append A l1 (x :: l2).
 Proof.
   induction l; simpl; destruct 1.
   subst a; auto.
   exists nil, l; auto.
   destruct (IHl H) as (l1,(l2,H0)).
   exists (a::l1), l2; simpl. apply f_equal. auto.
-Defined. (* TODO any way around defined? *)
+Defined.
 
-Ornamental Application in_split_vect_auto from in_split using orn_list_vector orn_list_vector_inv.
+Print in_split.
 
-(* TODO opposite direction too *)
-(* TODO prove it's OK *)
+Lift induction orn_list_vector orn_list_vector_inv in in_split as in_split_vect_ind.
+Print in_split_vect_ind.
+
+aaa
 
 (*
  * Necessary to port proofs that use discriminate
