@@ -263,16 +263,9 @@ Proof.
   exists (a::l1), l2; simpl. apply f_equal. auto.
 Defined.
 
-Print in_split.
-
 Lift induction orn_list_vector orn_list_vector_inv in in_split as in_split_vect_ind.
 Print in_split_vect_ind.
 
-aaa
-
-(*
- * Necessary to port proofs that use discriminate
- *)
 Definition is_cons (A : Type) (l : list A) :=
   list_rect
     (fun (_ : list A) => Prop)
@@ -280,20 +273,8 @@ Definition is_cons (A : Type) (l : list A) :=
     (fun (_ : A) (_ : list A) (_ : Prop) => True)
     l.
 
-Ornamental Application is_cons_vect_auto from is_cons using orn_list_vector orn_list_vector_inv.
-
-(* TODO port to induction everywhere, revisit
-Lemma hd_error_tl_repr : forall A l (a:A) r,
-  hd_error A l = Some a /\ tl A l = r <-> l = a :: r.
-Proof. induction l.
-  - unfold hd_error, tl; intros a r. split; firstorder discriminate.
-  - intros. simpl. split.
-   * intros (H1, H2). inversion H1. rewrite H2. reflexivity.
-   * inversion 1. subst. auto.
-Defined.
-
-Ornamental Application hd_error_tl_repr_vect_auto from hd_error_tl_repr using orn_list_vector orn_list_vector_inv.
-*)
+Lift induction orn_list_vector orn_list_vector_inv in is_cons as is_cons_vect_ind.
+Print is_cons_vect_ind.
 
 (* ported to induction *)
 Lemma hd_error_some_nil : forall A l (a:A), hd_error A l = Some a -> l <> nil.
@@ -306,7 +287,11 @@ Proof.
     * simpl. auto. 
 Defined.
 
-Ornamental Application hd_error_some_nil_vect_auto from hd_error_some_nil using orn_list_vector orn_list_vector_inv.
+Print hd_error_some_nil.
+Lift induction orn_list_vector orn_list_vector_inv in hd_error_some_nil as hd_error_some_nil_vect_ind.
+Print hd_error_some_nil_vect_ind.
+
+aaa
 
 (* --- Proofs that don't induct over list/vector. TODO can we do anything about these? --- *)
 

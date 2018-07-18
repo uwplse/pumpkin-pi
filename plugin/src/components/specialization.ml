@@ -1009,70 +1009,80 @@ let lift_motive env evd l npms parameterized_elim motive =
 (* Lift a case *)
 (* TODO clean a bunch *)
 (* TODO better base-case detection *)
-let lift_case env evd l (from_typ, to_typ) c_elim c =
-  let c = expand_eta env evd c in
+let lift_case env evd l (from_typ, to_typ) p c_elim c =
+  let c_eta = expand_eta env evd c in
   let c_elim_type = reduce_type env evd c_elim in
   let (_, to_c_typ, _) = destProd c_elim_type in
   let env_to_c = zoom_env zoom_product_type env to_c_typ in
   let off = offset2 env_to_c env in
-  let c = shift_by off c in
-  let (env_c_body, c_body) = zoom_lambda_term env_to_c c in
+  let c_eta = shift_by off c_eta in
+  let (env_c_body, c_body) = zoom_lambda_term env_to_c c_eta in
   if not (isApp c_body) then
-    c_body (* base case that isn't inside of a lambda *)
+    c (* base case not inside of a lambda *)
   else
     let (c_f, c_args) = destApp c_body in
-    let index_i = Option.get l.orn.index_i in
-    if l.is_fwd then
-      (* PROMOTE-CASE *)
-      let rec lift_args args index =
-        match args with
-        | h :: tl ->
-           if eq_constr h index then
-             shift h :: (lift_args (shift_all tl) index)
-           else
-             let h_typ = reduce_type env_to_c evd h in
-             if isRel h && is_or_applies to_typ h_typ then
-               let h_lifted = pack_inner env_to_c evd l h in
-               h_lifted :: lift_args tl (get_arg index_i h_typ)
-             else
-               h :: lift_args tl index
-        | _ -> []
-      in
-      let c_to_args = List.rev (lift_args (List.rev (Array.to_list c_args)) (mkRel 0)) in
-      let c_to_f = unshift_by (offset2 env_c_body env_to_c) c_f in
-      let c_to_body = reduce_term env_to_c (mkAppl (c_to_f, c_to_args)) in
-      reconstruct_lambda_n env_to_c c_to_body (nb_rel env)
+    let is_rec a =
+      match kind_of_term a with
+      | Rel i when i <= nb_rel env_c_body ->
+         on_type (is_or_applies from_typ) env_c_body evd a
+      | _ ->
+         false
+    in
+    if not (Array.exists is_rec c_args) then
+      c (* base case inside of lambda *)
     else
-      (* FORGET-CASE *)
-       let rec lift_args args (index, proj_index) =
-        match args with
-        | h :: tl ->
-           if eq_constr h index then
-             proj_index :: (lift_args (unshift_all tl) (index, proj_index))
-           else
-             let h_typ = reduce_type env_c_body evd h in
-             if isRel h && is_or_applies from_typ h_typ then
-               let typ_args = non_index_typ_args l env_to_c evd h in
-               let h_lifted = mkAppl (lift_back l, snoc h typ_args) in
-               let h_lifted_typ = on_type dest_sigT env_to_c evd h_lifted in
-               let proj_value = project_value h_lifted_typ h_lifted in
-               let proj_index = project_index h_lifted_typ h_lifted in
-               proj_value :: lift_args tl (get_arg index_i h_typ, proj_index)
+      let index_i = Option.get l.orn.index_i in
+      if l.is_fwd then
+        (* PROMOTE-CASE *)
+        let rec lift_args args index =
+          match args with
+          | h :: tl ->
+             if eq_constr h index then
+               shift h :: (lift_args (shift_all tl) index)
              else
-               h :: lift_args tl (index, proj_index)
-        | _ -> []
-       in
-       let c_to_args = List.rev (lift_args (List.rev (Array.to_list c_args)) (mkRel 0, mkRel 0)) in
-       let c_to_f = unshift_by (offset2 env_c_body env_to_c) c_f in
-       let c_to_body = reduce_term env_to_c (mkAppl (c_to_f, c_to_args)) in
-       reconstruct_lambda_n env_to_c c_to_body (nb_rel env)
+               let h_typ = reduce_type env_to_c evd h in
+               if isRel h && is_or_applies to_typ h_typ then
+                 let h_lifted = pack_inner env_to_c evd l h in
+                 h_lifted :: lift_args tl (get_arg index_i h_typ)
+               else
+                 h :: lift_args tl index
+          | _ -> []
+        in
+        let c_to_args = List.rev (lift_args (List.rev (Array.to_list c_args)) (mkRel 0)) in
+        let c_to_f = unshift_by (offset2 env_c_body env_to_c) c_f in
+        let c_to_body = reduce_term env_to_c (mkAppl (c_to_f, c_to_args)) in
+        reconstruct_lambda_n env_to_c c_to_body (nb_rel env)
+      else
+        (* FORGET-CASE *)
+        let rec lift_args args (index, proj_index) =
+          match args with
+          | h :: tl ->
+             if eq_constr h index then
+               proj_index :: (lift_args (unshift_all tl) (index, proj_index))
+             else
+               let h_typ = reduce_type env_c_body evd h in
+               if isRel h && is_or_applies from_typ h_typ then
+                 let typ_args = non_index_typ_args l env_to_c evd h in
+                 let h_lifted = mkAppl (lift_back l, snoc h typ_args) in
+                 let h_lifted_typ = on_type dest_sigT env_to_c evd h_lifted in
+                 let proj_value = project_value h_lifted_typ h_lifted in
+                 let proj_index = project_index h_lifted_typ h_lifted in
+                 proj_value :: lift_args tl (get_arg index_i h_typ, proj_index)
+               else
+                 h :: lift_args tl (index, proj_index)
+          | _ -> []
+        in
+        let c_to_args = List.rev (lift_args (List.rev (Array.to_list c_args)) (mkRel 0, mkRel 0)) in
+        let c_to_f = unshift_by (offset2 env_c_body env_to_c) c_f in
+        let c_to_body = reduce_term env_to_c (mkAppl (c_to_f, c_to_args)) in
+        reconstruct_lambda_n env_to_c c_to_body (nb_rel env)
                          
 (* Lift cases *)
-let lift_cases env evd l (from_typ, to_typ) p_elim cs =
+let lift_cases env evd l (from_typ, to_typ) p p_elim cs =
   snd
     (List.fold_left
        (fun (p_elim, cs) c ->
-         let c = lift_case env evd l (from_typ, to_typ) p_elim c in
+         let c = lift_case env evd l (from_typ, to_typ) p p_elim c in
          let p_elim = mkAppl (p_elim, [c]) in
          (p_elim, snoc c cs))
        (p_elim, [])
@@ -1097,8 +1107,10 @@ let lift_induction_principle_core env evd l trm =
   let elim = type_eliminator env (fst (destInd to_typ)) in
   let param_elim = mkAppl (elim, trm_app.pms) in
   let p = lift_motive env evd l npms param_elim trm_app.p in
+  debug_term env p "p";
   let p_elim = mkAppl (param_elim, [p]) in
-  let cs = lift_cases env evd l (from_typ, to_typ) p_elim trm_app.cs in
+  let cs = lift_cases env evd l (from_typ, to_typ) p p_elim trm_app.cs in
+  debug_terms env cs "cs";
   let final_args = lift_args_temporary env evd l npms trm_app.final_args in
   apply_eliminator {trm_app with elim; p; cs; final_args}
 
