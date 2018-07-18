@@ -1007,6 +1007,7 @@ let lift_motive env evd l npms parameterized_elim motive =
 
 (* Lift a case *)
 (* TODO clean a bunch *)
+(* TODO better base-case detection *)
 let lift_case env evd l (from_typ, to_typ) c_elim c =
   let c = expand_eta env evd c in
   let c_elim_type = reduce_type env evd c_elim in
@@ -1029,7 +1030,7 @@ let lift_case env evd l (from_typ, to_typ) c_elim c =
              shift h :: (lift_args (shift_all tl) index)
            else
              let h_typ = reduce_type env_to_c evd h in
-             if is_or_applies to_typ h_typ then
+             if isRel h && is_or_applies to_typ h_typ then
                let h_lifted = pack_inner env_to_c evd l h in
                h_lifted :: lift_args tl (get_arg index_i h_typ)
              else
@@ -1037,7 +1038,8 @@ let lift_case env evd l (from_typ, to_typ) c_elim c =
         | _ -> []
       in
       let c_to_args = List.rev (lift_args (List.rev (Array.to_list c_args)) (mkRel 0)) in
-      let c_to_body = reduce_term env_to_c (mkAppl (c_f, c_to_args)) in
+      let c_to_f = unshift_by (offset2 env_c_body env_to_c) c_f in
+      let c_to_body = reduce_term env_to_c (mkAppl (c_to_f, c_to_args)) in
       reconstruct_lambda_n env_to_c c_to_body (nb_rel env)
     else
       (* FORGET-CASE *)
@@ -1048,7 +1050,7 @@ let lift_case env evd l (from_typ, to_typ) c_elim c =
              proj_index :: (lift_args (unshift_all tl) (index, proj_index))
            else
              let h_typ = reduce_type env_c_body evd h in
-             if is_or_applies from_typ h_typ then
+             if isRel h && is_or_applies from_typ h_typ then
                let typ_args = non_index_typ_args l env_to_c evd h in
                let h_lifted = mkAppl (lift_back l, snoc h typ_args) in
                let h_lifted_typ = on_type dest_sigT env_to_c evd h_lifted in
@@ -1060,7 +1062,8 @@ let lift_case env evd l (from_typ, to_typ) c_elim c =
         | _ -> []
        in
        let c_to_args = List.rev (lift_args (List.rev (Array.to_list c_args)) (mkRel 0, mkRel 0)) in
-       let c_to_body = reduce_term env_to_c (mkAppl (c_f, c_to_args)) in
+       let c_to_f = unshift_by (offset2 env_c_body env_to_c) c_f in
+       let c_to_body = reduce_term env_to_c (mkAppl (c_to_f, c_to_args)) in
        reconstruct_lambda_n env_to_c c_to_body (nb_rel env)
                          
 (* Lift cases *)
