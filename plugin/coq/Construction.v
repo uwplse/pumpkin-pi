@@ -10,13 +10,21 @@ Require Import Test.
 Definition nil' := @nil.
 
 Lift constructor orn_list_vector orn_list_vector_inv in nil' as nil'_c.
-Print nil'_c.
+Theorem testNil:
+  forall A, nil'_c A = existT (vector A) 0 (nilV A).
+Proof.
+  intros. reflexivity.
+Qed.
 
 Definition nilV' (A : Type) :=
   existT (vector A) 0 (nilV A).
 
 Lift constructor orn_list_vector_inv orn_list_vector in nilV' as nilV'_c.
-Print nilV'_c.
+Theorem testNilV:
+  forall A, nilV'_c A = @nil A.
+Proof.
+  intros. reflexivity.
+Qed.
 
 Definition cons' := @cons.
 

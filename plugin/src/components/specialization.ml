@@ -1166,9 +1166,19 @@ let lift_induction_principle env evd l def =
  *)
 let lift_construction_core env evd l trm =
   (* LIFT-CONSTR-ARGS & LIFT-CONSTR-FUN *)
+  let to_typ = zoom_sig (promotion_type env evd l.orn.forget) in
+  let from_typ = first_fun (promotion_type env evd l.orn.promote) in
+  let (from_typ, to_typ) = map_backward reverse l (from_typ, to_typ) in
   let typ_args = non_index_typ_args l env evd trm in
-  let orn_app = mkAppl (lift_to l, snoc trm typ_args) in
-  orn_app (* TODO *)
+  let args = unfold_args trm in
+  let typ_is_orn t = on_type (is_orn l env (from_typ, to_typ)) env evd t in
+  let rec_args = List.filter typ_is_orn args in
+  let orn = lift_to l in
+  let orn_app = mkAppl (orn, snoc trm typ_args) in
+  if List.length rec_args = 0 then
+    reduce_nf env orn_app (* base case - don't bother refolding *)
+  else
+    reduce_ornament_f l env evd orn orn_app rec_args (* refold *)
                      
 (*
  * Lift a construction, which in the forward direction is an application
