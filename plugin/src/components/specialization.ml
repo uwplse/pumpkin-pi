@@ -1245,6 +1245,9 @@ let lift_construction env evd l def =
  * LATER: This doesn't yet handle partial applications of constructors;
  * need to handle that at some point.
  * Also, should clean more.
+ *
+ * TODO will need to eta everywhere, for now just trying to hook in w/
+ * new rules
  *)
 let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
   let trm =
@@ -1304,34 +1307,38 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
          let e' = sub_rec en_e (shift index_type) e in
          mkLetIn (n, trm', typ', e')
       | App (fu, args) ->
-         let args' = Array.map (sub_rec en index_type) args in
+         let args = Array.to_list args in
          if (not (Option.has_some (search_lifted en fu))) && typ_is_orn en tr then
-           let typ_args = non_index_typ_args l en evd tr in
-           let app = mkAppl (lift_to l, snoc tr typ_args) in
-           let pre = pre_reduce l en evd app in
-           (* TODO red_args logic is brittle, should fix *)
-           let red_args = List.map (reduce_term env) (unfold_args (map_if (fun t -> (dest_existT t).unpacked) (applies existT tr) tr)) in
-           let red_args = List.map (fun a -> if applies projT2 a then last_arg a else a) red_args in
-           let orn_args = filter_orn l en evd (from_type, to_type) red_args in
-           let red =
-             if List.length orn_args = 0 then
-               pre (* TODO same w/ superficial deps *)
+           if (l.is_fwd || l.is_indexer) && isConstruct (first_fun (reduce_term en tr)) then (* TODO should be able to get rid of reduction here at some point *)
+             let tr' = lift_existential_construction en evd l tr in
+             let (fu', args') = destApp tr' in
+             mkApp (fu', Array.map (sub_rec en index_type) args')
+           else if (not l.is_fwd) && eq_constr existT fu then
+             let last_arg = last args in
+             if isApp last_arg && isConstruct (first_fun (reduce_term en last_arg)) then
+               let tr' = lift_existential_construction en evd l tr in
+               let (fu', args') = destApp tr' in
+               mkApp (fu', Array.map (sub_rec en index_type) args')
              else
-               let red = reduce_ornament_f l en evd (lift_to l) pre orn_args in
-               map_unit_if (applies (lift_back l)) last_arg (map_unit_if (applies (lift_to l)) last_arg red)
-           in
-           List.fold_right
-             all_eq_substs
-             (Array.to_list (Array.mapi (fun i a -> (a, args'.(i))) args))
-             red
-         else
-           let fu' = sub_rec en index_type fu in
-           let arg = last_arg tr in
-           if applies (lift_to l) tr then
-             (* TODO not sufficiently general? But again should just avoid this step once this works *)
-             last_arg (mkApp (fu', args'))
+               sub_rec en index_type last_arg
+           else if eq_constr (lift_back l) fu then
+             (* SECTION-RETRACTION *)
+             last_arg tr
+           else if l.is_fwd || l.is_indexer then
+             failwith "not yet implemented" (* pack somehow *)
            else
-             mkApp (fu', args')
+             failwith "invalid input"
+         else if eq_constr projT2 fu && typ_is_orn en (last args) then
+           reduce_term en (sub_rec en index_type (last args))
+           (* TODO indexer rule, projections in other direction *)
+         else if eq_constr (lift_to l) fu then
+           (* INTERNALIZE *)
+           sub_rec en index_type (last_arg tr) (* TODO eventually will not need to recurse when we remove reduction step *)
+         else
+           (* APP *)
+           let args' = List.map (sub_rec en index_type) args in
+           let fu' = sub_rec en index_type fu in
+           mkAppl (fu', args')
       | Case (ci, ct, m, bs) ->
          let ct' = sub_rec en index_type ct in
          let m' = sub_rec en index_type m in

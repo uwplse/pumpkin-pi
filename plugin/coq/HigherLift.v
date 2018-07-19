@@ -127,8 +127,6 @@ Proof.
   exact in_split_vect_higher.
 Qed.
 
-Eval compute in (fun A a l => orn_list_vector A (cons a l)).
-
 Theorem test_in_split_vect:
   forall (A : Type) (x : A) (pv : sigT (vector A)),
     In_vect_red A x pv ->
