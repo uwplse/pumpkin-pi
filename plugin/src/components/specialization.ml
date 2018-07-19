@@ -1161,6 +1161,15 @@ let lift_induction_principle env evd l def =
 
 (* --- Lifting constructions --- *)
 
+(* 
+ * Using the refolding algorithm, lift the constructor function and arguments
+ *)
+let lift_construction_core env evd l trm =
+  (* LIFT-CONSTR-ARGS & LIFT-CONSTR-FUN *)
+  let typ_args = non_index_typ_args l env evd trm in
+  let orn_app = mkAppl (lift_to l, snoc trm typ_args) in
+  orn_app (* TODO *)
+                     
 (*
  * Lift a construction, which in the forward direction is an application
  * of a constructor, and in the backward direction is an application
@@ -1170,20 +1179,21 @@ let lift_induction_principle env evd l def =
  *
  * This looks slightly different because we use the refolding algorithm
  * to derive the constructor rules, as described in Section 5 of the paper.
+ *
+ * As in the paper, the arguments are recursively lifted by the higher
+ * lifting algorithm.
  *)
 let lift_existential_construction env evd l trm =
   (* LIFT-CONSTR *)
-  debug_term env trm "trm";
   let inner_construction = map_backward last_arg l trm in
   let constr = first_fun inner_construction in
   let args = unfold_args inner_construction in
   let (env_c_body, c_body) = zoom_lambda_term env (expand_eta env evd constr) in
   let c_body = reduce_term env_c_body c_body in
   let to_refold = map_backward (pack env_c_body evd l) l c_body in
-  let refolded = to_refold (* TODO *) in
+  let refolded = lift_construction_core env_c_body evd l to_refold in
   let lifted_constr = reconstruct_lambda_n env_c_body refolded (nb_rel env) in
-  let lifted_args = args (* TODO *) in
-  reduce_term env (mkAppl (lifted_constr, lifted_args))
+  reduce_term env (mkAppl (lifted_constr, args))
 
 (* TODO temporary: pre-process to test just lifting construction *)
 let lift_construction env evd l def =
