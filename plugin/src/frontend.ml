@@ -94,6 +94,15 @@ let lift_by_ornament env evd c_orn c_orn_inv c_old =
   let c_idx_opt = Option.append c_mod_idx_opt (Option.append c_red_idx_opt c_app_idx_opt) in
   (c_mod, c_idx_opt)
 
+(* Core lifting algorithm *)
+let lift_by_ornament2 env evd c_orn c_orn_inv c_old =
+  let is_fwd = direction env evd c_orn in
+  let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
+  let orn = initialize_promotion env evd promote forget in
+  let l = initialize_lifting orn is_fwd in
+  (* TODO: Generate indexer & eventually, proof of indexing coherence. *)
+  do_lift_core env evd l c_old
+
 let try_define_indexer evd n c_idx =
   let idx_n = with_suffix n "index" in
   let idx_s = Id.to_string idx_n in

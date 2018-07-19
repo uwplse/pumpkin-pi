@@ -73,3 +73,13 @@ val higher_lift :
   lifting -> (* lifting configuration *)
   types -> (* reduced term *)
   (types * types option) (* higher lifting and optional indexing proof *)
+
+(*
+ * Lift a proof along lifted functions it refers to
+ *)
+val do_lift_core :
+  env ->
+  evar_map ->
+  lifting -> (* lifting configuration *)
+  types -> (* reduced term *)
+  (types * types option) (* higher lifting and optional indexing proof *)

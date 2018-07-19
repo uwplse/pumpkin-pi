@@ -27,5 +27,8 @@ val modularize_ornament : ornamental_action
 (* Perform application, meta-reduction, and modularization all in sequence *)
 val lift_by_ornament : ornamental_action
 
+(* Core lifting algorithm *)
+val lift_by_ornament2 : ornamental_action
+
 (* Transform an ornamental action into an ornamental command *)
 val make_ornamental_command : ornamental_action -> bool -> ornamental_command

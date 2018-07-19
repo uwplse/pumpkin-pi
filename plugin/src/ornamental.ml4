@@ -65,4 +65,8 @@ VERNAC COMMAND EXTEND Ornamental CLASSIFIED AS SIDEFF
 | [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
   [ make_ornamental_command lift_by_ornament true n d_old d_orn d_orn_inv;
     Printf.printf "Defined lifted function %s.\n\n" (Id.to_string n) ]
+(* Try moving to abridged algorithm (remove old code when done) *)
+| [ "Lift2" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
+  [ make_ornamental_command lift_by_ornament2 true n d_old d_orn d_orn_inv;
+    Printf.printf "Defined lifted function %s.\n\n" (Id.to_string n) ]
 END

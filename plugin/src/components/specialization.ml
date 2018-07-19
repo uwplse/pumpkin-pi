@@ -1362,6 +1362,25 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
   in sub_rec env index_type trm
 
 (*
+ * TODO comment/in progress (hooking in new alg.)
+ *)
+let lift_core env evd l (from_type, to_type) index_type trm =
+  trm (* TODO *)
+
+(*
+ * TODO comment/in progress (hooking in new alg.)
+ *)
+let do_lift_core env evd (l : lifting) def =
+  let indexing_proof = None in (* TODO implement *)
+  let trm = unwrap_definition env def in
+  let promotion_type en t = fst (on_type ind_of_promotion_type en evd t) in
+  let forget_typ = promotion_type env l.orn.forget in
+  let promote_typ = promotion_type env l.orn.promote in
+  let typs = (first_fun promote_typ, zoom_sig forget_typ) in
+  let index_type = (dest_sigT forget_typ).index_type in
+  (lift_core env evd l typs index_type trm, None)
+
+(*
  * Implementation of higher lifting, which substitutes in the lifted
  * functions, the ornamented and reduced terms, and the ornamented types
  *)
