@@ -1487,6 +1487,13 @@ let lift_core env evd l (from_type, to_type) index_type trm =
          (* PROJ *)
          let c' = lift en index_type c in
          mkProj (pr, c')
+      | Construct (((i, i_index), _), u) ->
+         let ind = mkInd (i, i_index) in
+         if eq_constr ind (directional l from_type to_type) then
+           (* lazy eta expansion *)
+           lift en index_type (expand_eta en evd tr)
+         else
+           tr
       | _ ->
          tr
   in lift env index_type trm
