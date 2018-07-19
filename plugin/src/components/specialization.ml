@@ -571,7 +571,8 @@ let pre_reduce l =
  * applications of that type that don't use the new index, otherwise
  * we would need to track the type arguments everywhere, which is tedious
  *)
-let is_orn l env (from_typ, to_typ) typ =
+let is_orn l env evd (from_typ, to_typ) typ =
+  let typ = reduce_term env (expand_eta env evd typ) in
   if l.is_fwd then
     is_or_applies from_typ typ
   else
@@ -585,7 +586,7 @@ let is_orn l env (from_typ, to_typ) typ =
  * promoting/forgetting from.
  *)
 let filter_orn l env evd (from_typ, to_typ) args =
-  List.filter (on_type (is_orn l env (from_typ, to_typ)) env evd) args
+  List.filter (on_type (is_orn l env evd (from_typ, to_typ)) env evd) args
 
 (*
  * When forgetting, we do not have indices to pass to the constructor,
@@ -1264,14 +1265,14 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
       trm
   in
   let index_i = Option.get l.orn.index_i in
-  let typ_is_orn en t = on_type (is_orn l en (from_type, to_type)) en evd t in
+  let typ_is_orn en t = on_type (is_orn l en evd (from_type, to_type)) en evd t in
   let rec sub_rec en index_type tr =
     let lifted_opt = search_lifted en tr in
     let has_lifted = Option.has_some lifted_opt in
     if has_lifted then
       (* substitute in a lower-lifted term *)
       Option.get lifted_opt
-    else if is_orn l en (from_type, to_type) tr then
+    else if is_orn l en evd (from_type, to_type) tr then
       (* substitute in a lifted type *)
       if l.is_fwd then
         let t_args = unfold_args tr in
@@ -1361,11 +1362,134 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
          tr
   in sub_rec env index_type trm
 
+let type_is_orn l env evd (from_type, to_type) trm =
+  on_type (is_orn l env evd (from_type, to_type)) env evd trm
+             
+let is_packed_constr l env evd (from_type, to_type) trm =
+  let right_type = type_is_orn l env evd (from_type, to_type) in
+  match kind_of_term trm with
+  | Construct _  when right_type trm ->
+     true
+  | App (f, args) ->
+     if l.is_fwd then
+       isConstruct f && right_type trm
+     else
+       if eq_constr existT f && right_type trm then
+         let last_arg = last (Array.to_list args) in
+         isApp last_arg && isConstruct (first_fun last_arg)
+       else
+         false
+  | _ ->
+     false
+             
 (*
  * TODO comment/in progress (hooking in new alg.)
+ * TODO explain differences and also guarantees (so while fix/cofix/match etc. 
+ * exist to handle more terms, they just recurse naively, and so might fail
+ * on terms that refer to the type you're lifting)
+ * TODO for now, ignores the is_indexer option/assumes it never happens
  *)
 let lift_core env evd l (from_type, to_type) index_type trm =
-  trm (* TODO *)
+  let index_i = Option.get l.orn.index_i in
+  let rec lift en index_type tr =
+    let lifted_opt = search_lifted en tr in
+    if Option.has_some lifted_opt then
+      (* CACHING *)
+      Option.get lifted_opt
+    else if is_orn l en evd (from_type, to_type) tr then
+      (* EQUIVALENCE *)
+      if l.is_fwd then
+        let t_args = unfold_args tr in
+        let app = mkAppl (to_type, t_args) in
+        let index = mkRel 1 in
+        let abs_i = reindex_body (reindex_app (insert_index index_i index)) in
+        let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
+        pack_sigT { index_type ; packer }
+      else
+        let packed = dummy_index en (dest_sigT tr).packer in
+        let t_args = remove_index index_i (unfold_args packed) in
+        mkAppl (from_type, t_args)
+    else if is_packed_constr l en evd (from_type, to_type) tr then
+      (* LIFT-CONSTR *)
+      let tr' = lift_existential_construction en evd l tr in
+      match kind_of_term tr with
+      | App (f, args) ->
+         if (not l.is_fwd) && isApp (last (Array.to_list args)) then
+           let (f', args') = destApp tr' in
+           mkApp (f', Array.map (lift en index_type) args')
+         else if l.is_fwd then
+           let ex = dest_existT tr' in
+           let (f', args') = destApp ex.unpacked in
+           let unpacked = mkApp (f', Array.map (lift en index_type) args') in
+           pack_existT { ex with unpacked }
+         else
+           tr'
+      | _ ->
+         tr'
+    else
+      match kind_of_term tr with
+      | App (f, args) ->
+         (* TODO many more rules go here *)
+         (* TODO need to expand eta in some places... probably before recursing into app *)
+         (* though may be able to get away with eta only if f is constr/elim *)
+         if eq_constr (lift_back l) f then
+           (* SECTION-RETRACTION *)
+           last_arg tr
+         else if eq_constr (lift_to l) f then
+           (* INTERNALIZE *)
+           lift en index_type (last_arg tr)
+         else
+           (* APP *)
+           let args' = Array.map (lift en index_type) args in
+           let f' = lift en index_type f in
+           mkApp (f', args')
+      | Cast (c, k, t) ->
+         (* CAST *)
+         let c' = lift en index_type c in
+         let t' = lift en index_type t in
+         mkCast (c', k, t')
+      | Prod (n, t, b) ->
+         (* PROD *)
+         let t' = lift en index_type t in
+         let en_b = push_local (n, t) en in
+         let b' = lift en_b (shift index_type) b in
+         mkProd (n, t', b')
+      | Lambda (n, t, b) ->
+         (* LAMBDA *)
+         let t' = lift en index_type t in
+         let en_b = push_local (n, t) en in
+         let b' = lift en_b (shift index_type) b in
+         mkLambda (n, t', b')
+      | LetIn (n, trm, typ, e) ->
+         (* LETIN *)
+         let trm' = lift en index_type trm in
+         let typ' = lift en index_type typ in
+         let en_e = push_let_in (n, e, typ) en in
+         let e' = lift en_e (shift index_type) e in
+         mkLetIn (n, trm', typ', e')
+      | Case (ci, ct, m, bs) ->
+         (* CASE *)
+         let ct' = lift en index_type ct in
+         let m' = lift en index_type m in
+         let bs' = Array.map (lift en index_type) bs in
+         mkCase (ci, ct', m', bs')
+      | Fix ((is, i), (ns, ts, ds)) ->
+         (* FIX *)
+         let ts' = Array.map (lift en index_type) ts in
+         let ds' = Array.map (map_rec_env_fix lift shift en index_type ns ts) ds in
+         mkFix ((is, i), (ns, ts', ds'))
+      | CoFix (i, (ns, ts, ds)) ->
+         (* COFIX *)
+         let ts' = Array.map (lift en index_type) ts in
+         let ds' = Array.map (map_rec_env_fix lift shift en index_type ns ts) ds in
+         mkCoFix (i, (ns, ts', ds'))
+      | Proj (pr, c) ->
+         (* PROJ *)
+         let c' = lift en index_type c in
+         mkProj (pr, c')
+      | _ ->
+         tr
+  in lift env index_type trm
 
 (*
  * TODO comment/in progress (hooking in new alg.)
