@@ -1149,6 +1149,29 @@ let lift_induction_principle env evd l def =
 
 (* --- Lifting constructions --- *)
 
+(*
+ * Lift a construction, which in the forward direction is an application
+ * of a constructor, and in the backward direction is an application
+ * of a constructor inside of an existential. This assumes the input
+ * term is fully eta-expanded and that it is not applied to any extra
+ * arguments at the end (though I think that's not actually possible anyways).
+ *
+ * This looks slightly different because we use the refolding algorithm
+ * to derive the constructor rules, as described in Section 5 of the paper.
+ *)
+let lift_existential_construction env evd l trm =
+  (* LIFT-CONSTR *)
+  let inner_construction = map_backward last_arg l trm in
+  let constr = first_fun inner_construction in
+  let args = unfold_args inner_construction in
+  let (env_c_body, c_body) = zoom_lambda_term env (expand_eta env evd constr) in
+  let c_body = reduce_term env_c_body c_body in
+  let to_refold = map_backward (pack_inner env_c_body evd l) l c_body in
+  let refolded = to_refold (* TODO *) in
+  let lifted_constr = reconstruct_lambda env_c_body refolded in
+  let lifted_args = args (* TODO *) in
+  reduce_term env (mkAppl (lifted_constr, lifted_args))
+
 (* TODO temporary: pre-process to test just lifting construction *)
 let lift_construction env evd l def =
   let to_typ = zoom_sig (promotion_type env evd l.orn.forget) in
