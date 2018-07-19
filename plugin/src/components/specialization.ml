@@ -169,7 +169,19 @@ let forget_assums env evd l assum trm =
     trm
 
 (*
- * Pack arguments inside of a sigT type
+ * Pack inside of a sigT type
+ *)
+let pack env evd l unpacked =
+  let index_i = Option.get l.orn.index_i in
+  let typ = reduce_type env evd unpacked in
+  let index = get_arg index_i typ in
+  let typ_args = unfold_args typ in
+  let index_type = infer_type env evd index in
+  let packer = abstract_arg env evd index_i typ in
+  pack_existT {index_type; packer; index; unpacked}
+    
+(*
+ * Pack arguments inside of a sigT type and lift
  *)
 let pack_inner env evd l unpacked =
   let index_i = Option.get l.orn.index_i in
@@ -1161,14 +1173,15 @@ let lift_induction_principle env evd l def =
  *)
 let lift_existential_construction env evd l trm =
   (* LIFT-CONSTR *)
+  debug_term env trm "trm";
   let inner_construction = map_backward last_arg l trm in
   let constr = first_fun inner_construction in
   let args = unfold_args inner_construction in
   let (env_c_body, c_body) = zoom_lambda_term env (expand_eta env evd constr) in
   let c_body = reduce_term env_c_body c_body in
-  let to_refold = map_backward (pack_inner env_c_body evd l) l c_body in
+  let to_refold = map_backward (pack env_c_body evd l) l c_body in
   let refolded = to_refold (* TODO *) in
-  let lifted_constr = reconstruct_lambda env_c_body refolded in
+  let lifted_constr = reconstruct_lambda_n env_c_body refolded (nb_rel env) in
   let lifted_args = args (* TODO *) in
   reduce_term env (mkAppl (lifted_constr, lifted_args))
 
@@ -1182,7 +1195,7 @@ let lift_construction env evd l def =
   let body = unwrap_definition env body in
   let body = reduce_term env body in
   assert (on_type (is_or_applies from_typ) env evd (map_backward last_arg l body));
-  reconstruct_lambda env body (* TODO *)
+  reconstruct_lambda env (lift_existential_construction env evd l body)
   
 (* --- Higher lifting --- *)
 
