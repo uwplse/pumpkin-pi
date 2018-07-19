@@ -1349,10 +1349,7 @@ let substitute_lifted_terms env evd l (from_type, to_type) index_type trm =
          let c' = sub_rec en index_type c in
          mkProj (pr, c')
       | Construct _  when typ_is_orn en tr ->
-         let typ_args = non_index_typ_args l en evd tr in
-         let app = mkAppl (lift_to l, snoc tr typ_args) in
-         let pre = pre_reduce l en evd app in
-         reduce_nf en pre (* TODO check w/ nat *)
+         lift_existential_construction en evd l tr
       | _ ->
          tr
   in sub_rec env index_type trm
