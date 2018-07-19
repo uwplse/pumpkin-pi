@@ -1381,6 +1381,28 @@ let is_packed_constr l env evd (from_type, to_type) trm =
          false
   | _ ->
      false
+
+let is_packed l env evd (from_type, to_type) trm =
+  let right_type = type_is_orn l env evd (from_type, to_type) in
+  if l.is_fwd then
+    false
+  else
+    match kind_of_term trm with
+    | App (f, args) ->
+       eq_constr existT f && right_type trm
+    | _ ->
+       false
+
+let is_proj l env evd (from_type, to_type) trm =
+  let right_type = type_is_orn l env evd (from_type, to_type) in
+  match kind_of_term trm with
+  | App (f, args) ->
+     if l.is_fwd then
+       eq_constr (Option.get l.orn.indexer) f && right_type (last_arg trm)
+     else
+       (eq_constr projT1 f || eq_constr projT2 f) && right_type (last_arg trm)
+  | _ ->
+     false
              
 (*
  * TODO comment/in progress (hooking in new alg.)
@@ -1388,6 +1410,8 @@ let is_packed_constr l env evd (from_type, to_type) trm =
  * exist to handle more terms, they just recurse naively, and so might fail
  * on terms that refer to the type you're lifting)
  * TODO for now, ignores the is_indexer option/assumes it never happens
+ * TODO need to think through where we need eta more / test that
+ * TODO error handling
  *)
 let lift_core env evd l (from_type, to_type) index_type trm =
   let index_i = Option.get l.orn.index_i in
@@ -1420,18 +1444,31 @@ let lift_core env evd l (from_type, to_type) index_type trm =
          else if l.is_fwd then
            let ex = dest_existT tr' in
            let (f', args') = destApp ex.unpacked in
+           let index = lift en index_type ex.index in
            let unpacked = mkApp (f', Array.map (lift en index_type) args') in
-           pack_existT { ex with unpacked }
+           pack_existT { ex with index; unpacked }
          else
            tr'
       | _ ->
          tr'
+    else if is_packed l en evd (from_type, to_type) tr then
+      (* LIFT-PACK *)
+      lift en index_type (dest_existT tr).unpacked
+    else if is_proj l en evd (from_type, to_type) tr then
+      (* LIFT-PROJECT *)
+      let arg' = lift en index_type (last_arg tr) in
+      if l.is_fwd then
+        let arg_typ' = dest_sigT (lift en index_type (reduce_type en evd tr)) in
+        project_index arg_typ' arg'
+      else if eq_constr projT1 (first_fun tr) then
+        let indexer = Option.get l.orn.indexer in
+        mkAppl (indexer, snoc arg' (non_index_typ_args l en evd tr))
+      else 
+        arg'
     else
       match kind_of_term tr with
       | App (f, args) ->
          (* TODO many more rules go here *)
-         (* TODO need to expand eta in some places... probably before recursing into app *)
-         (* though may be able to get away with eta only if f is constr/elim *)
          if eq_constr (lift_back l) f then
            (* SECTION-RETRACTION *)
            last_arg tr
@@ -1495,6 +1532,7 @@ let lift_core env evd l (from_type, to_type) index_type trm =
          else
            tr
       | _ ->
+         (* TODO expand more eta for project, type, etc *)
          tr
   in lift env index_type trm
 
