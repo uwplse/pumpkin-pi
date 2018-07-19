@@ -1168,18 +1168,33 @@ let lift_construction_core env evd l trm =
   (* LIFT-CONSTR-ARGS & LIFT-CONSTR-FUN *)
   let to_typ = zoom_sig (promotion_type env evd l.orn.forget) in
   let from_typ = first_fun (promotion_type env evd l.orn.promote) in
-  let (from_typ, to_typ) = map_backward reverse l (from_typ, to_typ) in
   let typ_args = non_index_typ_args l env evd trm in
-  let args = unfold_args trm in
-  let typ_is_orn t = on_type (is_orn l env (from_typ, to_typ)) env evd t in
-  let rec_args = List.filter typ_is_orn args in
+  let args =
+    map_backward
+      (List.map
+         (fun a ->
+           if on_type (is_or_applies to_typ) env evd a then
+             pack env evd l a
+           else
+             a))
+      l
+      (unfold_args (map_backward last_arg l trm))
+  in   
+  let rec_args = filter_orn l env evd (from_typ, to_typ) args in
   let orn = lift_to l in
   let orn_app = mkAppl (orn, snoc trm typ_args) in
   if List.length rec_args = 0 then
-    reduce_nf env orn_app (* base case - don't bother refolding *)
+    (* base case - don't bother refolding *)
+    reduce_nf env orn_app
   else
-    reduce_ornament_f l env evd orn orn_app rec_args (* refold *)
-                     
+    (* inductive case - refold *)
+    List.fold_left
+      (fun t a ->
+        let a_typ_args = non_index_typ_args l env evd a in
+        all_eq_substs (a, mkAppl (orn, snoc a a_typ_args)) t)
+      (reduce_ornament_f l env evd orn orn_app rec_args)
+      rec_args
+    
 (*
  * Lift a construction, which in the forward direction is an application
  * of a constructor, and in the backward direction is an application
