@@ -36,6 +36,25 @@ val lift_induction_principle :
   types
 
 (*
+ * This lifts a construction.
+ *
+ * Basically, this moves the refolding part of the algorithm earlier on,
+ * so that it doesn't get confused by other functions inside of the
+ * construction. Then it applies the derived rules to lift a consruction.
+ * Eventually this will be internal when we remove the old buggy code,
+ * but for now it's here for testing. Also, eventually we'll cache these,
+ * once we know what they look like, so we only have to do it once for each
+ * ornament and constructor pair.
+ *)
+val lift_construction :
+  env ->
+  evar_map ->
+  lifting ->
+  types ->
+  types
+
+
+(*
  * Reduce an application of an indexing ornament
  *)
 val internalize :

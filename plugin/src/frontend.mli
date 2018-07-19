@@ -11,6 +11,9 @@ val find_ornament : Id.t -> constr_expr -> constr_expr -> unit
 
 (* TODO temporary: given just an application of the IP, lift it *)
 val lift_induction : ornamental_action
+
+(* TODO temporary: given just a construction, lift it *)
+val lift_constructor : ornamental_action
                                                             
 (* Apply an ornament without meta-reduction *)
 val apply_ornament : ornamental_action
@@ -25,4 +28,4 @@ val modularize_ornament : ornamental_action
 val lift_by_ornament : ornamental_action
 
 (* Transform an ornamental action into an ornamental command *)
-val make_ornamental_command : ornamental_action -> ornamental_command
+val make_ornamental_command : ornamental_action -> bool -> ornamental_command

@@ -21,8 +21,15 @@ VERNAC COMMAND EXTEND Ornamental CLASSIFIED AS SIDEFF
  * of the induction principle
  *)
 | [ "Lift" "induction" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n) ] ->
-  [ make_ornamental_command lift_induction n d_old d_orn d_orn_inv;
-    Printf.printf "Defined ornamented fuction %s.\n\n" (Id.to_string n) ]
+  [ make_ornamental_command lift_induction false n d_old d_orn d_orn_inv;
+    Printf.printf "Defined fuction %s with lifted induction principle.\n\n" (Id.to_string n) ]
+(*
+ * TODO temporary
+ * lift just the constructor, assuming the term is an construction
+ *)
+| [ "Lift" "constructor" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n) ] ->
+   [ make_ornamental_command lift_constructor false n d_old d_orn d_orn_inv;
+     Printf.printf "Defined function %s with lifted constructor.\n\n" (Id.to_string n) ]
 (*
  * Given an ornament and a function, derive the ornamented version that
  * doesn't internalize the ornament.
@@ -34,7 +41,7 @@ VERNAC COMMAND EXTEND Ornamental CLASSIFIED AS SIDEFF
  * functions entirely.
  *)
 | [ "Ornamental" "Application" ident(n) "from" constr(d_old) "using" constr(d_orn) constr(d_orn_inv) ] ->
-  [ make_ornamental_command apply_ornament n d_old d_orn d_orn_inv;
+  [ make_ornamental_command apply_ornament true n d_old d_orn d_orn_inv;
     Printf.printf "Defined ornamented fuction %s.\n\n" (Id.to_string n) ]
 (*
  * Meta-reduce an application of an ornament.
@@ -44,7 +51,7 @@ VERNAC COMMAND EXTEND Ornamental CLASSIFIED AS SIDEFF
  * functions, this will be enough, but for proofs, there is one more step.
  *)
 | [ "Ornamental" "Reduction" ident(n) "from" constr(d_old) "using" constr(d_orn) constr(d_orn_inv) ] ->
-  [ make_ornamental_command reduce_ornament n d_old d_orn d_orn_inv;
+  [ make_ornamental_command reduce_ornament true n d_old d_orn d_orn_inv;
     Printf.printf "Defined reduced ornamented function %s.\n\n" (Id.to_string n) ]
 (*
  * The higher-lifting step is not type-preserving, but instead
@@ -52,10 +59,10 @@ VERNAC COMMAND EXTEND Ornamental CLASSIFIED AS SIDEFF
  * type that still occurs in the meta-reduced term and type.
  *)
 | [ "Ornamental" "Modularization" ident(n) "from" constr(d_old) "using" constr(d_orn) constr(d_orn_inv) ] ->
-  [ make_ornamental_command modularize_ornament n d_old d_orn d_orn_inv;
+  [ make_ornamental_command modularize_ornament true n d_old d_orn d_orn_inv;
     Printf.printf "Defined modularized ornamented fuction %s.\n\n" (Id.to_string n) ]
 (* Do all of the above with a single command. *)
 | [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
-  [ make_ornamental_command lift_by_ornament n d_old d_orn d_orn_inv;
+  [ make_ornamental_command lift_by_ornament true n d_old d_orn d_orn_inv;
     Printf.printf "Defined lifted function %s.\n\n" (Id.to_string n) ]
 END

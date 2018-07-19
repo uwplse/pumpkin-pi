@@ -15,7 +15,7 @@ open Hypotheses
 type ornamental_action = env -> Evd.evar_map -> constr -> constr -> constr -> constr * constr option
 type ornamental_command = Id.t -> constr_expr -> constr_expr -> constr_expr -> unit
 
-(* Identify an algebraic ornament between two types and define its conversion functions  *)
+(* Identify an algebraic ornament between two types and define its conversion functions *)
 let find_ornament n d_old d_new =
   let (evm, env) = Lemmas.get_current_context () in
   let trm_o = unwrap_definition env (intern env evm d_old) in
@@ -44,6 +44,15 @@ let lift_induction env evd c_orn c_orn_inv c_old =
   let orn = initialize_promotion env evd promote forget in
   let l = initialize_lifting orn is_fwd in
   let c_new = lift_induction_principle env evd l c_old in
+  (c_new, None)
+
+(* TODO temporary: given just a construction, lift it *)
+let lift_constructor env evd c_orn c_orn_inv c_old =
+  let is_fwd = direction env evd c_orn in
+  let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
+  let orn = initialize_promotion env evd promote forget in
+  let l = initialize_lifting orn is_fwd in
+  let c_new = lift_construction env evd l c_old in
   (c_new, None)
 
 (* Apply an ornament without meta-reduction *)
@@ -95,7 +104,7 @@ let try_define_indexer evd n c_idx =
     Printf.printf "WARNING: Failed to define indexer %s. Ignoring for now.\n\n" idx_s
 
 (* Transform an ornamental action into an ornamental command *)
-let make_ornamental_command act =
+let make_ornamental_command act cache =
   let cmd n d_old d_orn d_orn_inv =
     let (evd, env) = Lemmas.get_current_context () in
     let c_orn = intern env evd d_orn in
@@ -104,9 +113,11 @@ let make_ornamental_command act =
     let (c_new, c_idx_opt) = act env evd c_orn c_orn_inv c_old in
     define_term n evd c_new;
     Option.iter (try_define_indexer evd n) c_idx_opt;
-    try
-      declare_lifted evd c_old (make_constant n)
-    with _ ->
-      Printf.printf "WARNING: Failed to cache lifting."
-  in
-  cmd
+    if cache then
+      try
+        declare_lifted evd c_old (make_constant n)
+      with _ ->
+        Printf.printf "WARNING: Failed to cache lifting."
+    else
+      ()
+  in cmd

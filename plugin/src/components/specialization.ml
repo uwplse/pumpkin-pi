@@ -1146,6 +1146,20 @@ let lift_induction_principle env evd l def =
   let postprocess_env = pop_rel_context off env in
   let postprocess = reduce_term postprocess_env (mkApp (postprocess_lam, dummy_args)) in
   reconstruct_lambda postprocess_env postprocess
+
+(* --- Lifting constructions --- *)
+
+(* TODO temporary: pre-process to test just lifting construction *)
+let lift_construction env evd l def =
+  let to_typ = zoom_sig (promotion_type env evd l.orn.forget) in
+  let from_typ = first_fun (promotion_type env evd l.orn.promote) in
+  let (from_typ, to_typ) = map_backward reverse l (from_typ, to_typ) in
+  let trm = expand_eta env evd (unwrap_definition env def) in
+  let (env, body) = zoom_lambda_term env trm in
+  let body = unwrap_definition env body in
+  let body = reduce_term env body in
+  assert (on_type (is_or_applies from_typ) env evd (map_backward last_arg l body));
+  reconstruct_lambda env body (* TODO *)
   
 (* --- Higher lifting --- *)
 
