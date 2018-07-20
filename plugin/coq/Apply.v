@@ -7,53 +7,6 @@ Require Import Test Lift.
 
 (* pred *)
 
-(* For now, we don't eliminate the vector reference, since incides might refer to other things *)
-Definition pred_vect (A : Type) (n : nat) (v : vector A n) :=
-  vector_rect
-    A
-    (fun (n0 : nat) (_ : vector A n0) => nat)
-    0
-    (fun (n0 : nat) (a : A) (v0 : vector A n0) (_ : nat) =>
-      n0)
-    n
-    v.
-
-Definition pred_vect_exp (A : Type) (pv : packed_vector A) :=
-  pred_vect A (projT1 pv) (projT2 pv).
-
-Definition tl (A : Type) (l : list A) :=
-  @list_rect
-   A
-   (fun (l0 : list A) => list A)
-   (@nil A)
-   (fun (a : A) (l0 : list A) (_ : list A) =>
-     l0)
-   l.
-
-Definition tl_vect (A : Type) (n : nat) (v : vector A n) :=
-  vector_rect
-   A
-   (fun (n0 : nat) (v0 : vector A n0) => vector A (pred_vect A n0 v0))
-   (nilV A)
-   (fun (n0 : nat) (a : A) (v0 : vector A n0) (_ : vector A (pred_vect A n0 v0)) =>
-     v0)
-   n
-   v.
-
-(* This version might only work since we don't need the index of the IH *)
-Definition tl_vect_packed (A : Type) (pv : packed_vector A) :=
-  vector_rect
-    A
-    (fun (n0 : nat) (v0 : vector A n0) => sigT (fun (n : nat) => vector A n))
-    (existT (vector A) 0 (nilV A))
-    (fun (n0 : nat) (a : A) (v0 : vector A n0) (_ : sigT (fun (n : nat) => vector A n)) =>
-      existT (vector A) n0 v0)
-    (projT1 pv)
-    (projT2 pv).
-
-Ornamental Application tl_vect_auto from tl using orn_list_vector orn_list_vector_inv.
-Ornamental Application tl_auto from tl_vect_packed using orn_list_vector_inv orn_list_vector.
-
 (*
 Lemma coh:
   forall (A : Type) (l : list A),

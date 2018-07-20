@@ -249,5 +249,43 @@ Proof.
   intros. reflexivity.
 Qed.
 
+(* tl *)
+
+Definition tl (A : Type) (l : list A) :=
+  @list_rect
+    A
+    (fun (l0 : list A) => list A)
+    (@nil A)
+    (fun (a : A) (l0 : list A) (_ : list A) =>
+      l0)
+    l.
+
+Definition tl_vect (A : Type) (pv : packed_vector A) :=
+  vector_rect
+    A
+    (fun (n0 : nat) (v0 : vector A n0) => sigT (fun (n : nat) => vector A n))
+    (existT (vector A) 0 (nilV A))
+    (fun (n0 : nat) (a : A) (v0 : vector A n0) (_ : sigT (fun (n : nat) => vector A n)) =>
+      existT (vector A) n0 v0)
+    (projT1 pv)
+    (projT2 pv).
+
+Lift2 orn_list_vector orn_list_vector_inv in tl as tl_vect_lifted.
+
+Theorem test_tl_vect:
+  forall (A : Type) (pv : packed_vector A),
+    tl_vect A pv = tl_vect_lifted A pv.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Lift2 orn_list_vector_inv orn_list_vector in tl_vect as tl_lifted.
+
+Theorem test_tl:
+  forall (A : Type) (l : list A),
+    tl A l = tl_lifted A l.
+Proof.
+  intros. reflexivity.
+Qed.
 
 (* TODO rest of tests, eta, case study *)

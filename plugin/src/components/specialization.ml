@@ -572,7 +572,7 @@ let pre_reduce l =
  * we would need to track the type arguments everywhere, which is tedious
  *)
 let is_orn l env evd (from_typ, to_typ) typ =
-  let typ = reduce_term env (expand_eta env evd typ) in
+  let typ = reduce_nf env (expand_eta env evd typ) in
   if l.is_fwd then
     is_or_applies from_typ typ
   else
@@ -1436,6 +1436,7 @@ let lift_core env evd l (from_type, to_type) index_type trm =
       Option.get lifted_opt
     else if is_orn l en evd (from_type, to_type) tr then
       (* EQUIVALENCE *)
+      let tr = reduce_nf en tr in
       if l.is_fwd then
         let t_args = unfold_args tr in
         let app = mkAppl (to_type, t_args) in
@@ -1555,6 +1556,13 @@ let lift_core env evd l (from_type, to_type) index_type trm =
            lift en index_type (expand_eta en evd tr)
          else
            tr
+      | Const _ ->
+         (* CONST *)
+         if eq_constr tr projT1 || eq_constr tr projT2 || is_elim en tr then
+           tr
+         else
+           let lifted = lift en index_type (lookup_definition en tr) in
+           reduce_term en lifted (* TODO cache *)
       | _ ->
          (* TODO expand more eta for project, type, etc *)
          tr
@@ -1571,7 +1579,8 @@ let do_lift_core env evd (l : lifting) def =
   let promote_typ = promotion_type env l.orn.promote in
   let typs = (first_fun promote_typ, zoom_sig forget_typ) in
   let index_type = (dest_sigT forget_typ).index_type in
-  (lift_core env evd l typs index_type trm, None)
+  let lifted = lift_core env evd l typs index_type trm in
+  (lifted, None)
 
 (*
  * Implementation of higher lifting, which substitutes in the lifted

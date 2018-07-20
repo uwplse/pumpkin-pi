@@ -7,29 +7,6 @@ Require Import Lift.
 
 (* --- Simple functions on lists --- *)
 
-(*
- * tl and tl_vect
- *)
-
-Ornamental Reduction tl_vect_red from tl_vect_auto using orn_list_vector orn_list_vector_inv.
-
-Print tl_vect_red_index.
-
-Theorem test_tl_vect:
-  forall (A : Type) (pv : packed_vector A),
-    tl_vect_packed A pv = tl_vect_red A pv.
-Proof.
-  intros. reflexivity.
-Qed.
-
-Ornamental Reduction tl_red from tl_auto using orn_list_vector_inv orn_list_vector.
-
-Theorem test_tl:
-  forall (A : Type) (l : list A),
-    tl A l = tl_red A l.
-Proof.
-  intros. reflexivity.
-Qed.
 
 (*
  * Application
