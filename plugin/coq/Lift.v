@@ -408,5 +408,61 @@ Proof.
     exact app_nil_r_vectF_lifted.
 Qed.
 
+(* in_split *)
 
-(* TODO rest of tests, eta, case study *)
+Theorem in_split : 
+  forall A x (l:list A), In A x l -> exists l1 l2, l = append A l1 (x::l2).
+Proof.
+  induction l; simpl; destruct 1.
+  subst a; auto.
+  exists nil, l; auto.
+  destruct (IHl H) as (l1,(l2,H0)).
+  exists (a::l1), l2; simpl. apply f_equal. auto.
+Defined.
+
+Lift orn_list_vector orn_list_vector_inv in in_split as in_split_vect_lifted.
+
+Theorem test_in_split_vect_exact:
+  forall (A : Type) (x : A) (pv : sigT (vector A)),
+    In_vect_lifted A x (existT (vector A) (projT1 pv) (projT2 pv)) ->
+       exists pv1 pv2 : sigT (vector A),
+         existT (vector A) (projT1 pv) (projT2 pv) =
+         append_vect_lifted A pv1
+           (existT (vector A) (S (projT1 pv2)) (consV A (projT1 pv2) x (projT2 pv2))).
+Proof.
+  exact in_split_vect_lifted.
+Qed.
+
+(* discrimination *)
+
+Definition is_cons (A : Type) (l : list A) :=
+  list_rect
+    (fun (_ : list A) => Prop)
+    False
+    (fun (_ : A) (_ : list A) (_ : Prop) => True)
+    l.
+
+Lift orn_list_vector orn_list_vector_inv in is_cons as is_cons_lifted.
+
+(* hd_error_some_nil *)
+
+Lemma hd_error_some_nil : forall A l (a:A), hd_error A l = Some a -> l <> nil.
+Proof. 
+  (*unfold hd_error. [TODO] *) induction l. (* destruct l; now disccriminate [ported below] *)
+  - now discriminate.
+  - simpl. intros. unfold not. intros.
+    apply eq_ind with (P := is_cons A) in H0.
+    * apply H0. 
+    * simpl. auto. 
+Defined.
+
+Lift orn_list_vector orn_list_vector_inv in hd_error_some_nil as hd_error_some_nil_vect_lifted.
+
+Theorem test_hd_error_some_nil_vect_exact:
+  forall (A : Type) (l : {H : nat & vector A H}) (a : A),
+    hd_vect_error A (existT (vector A) (projT1 l) (projT2 l)) = Some a ->
+    existT (vector A) (projT1 l) (projT2 l) <> existT (vector A) 0 (nilV A).
+Proof.
+   exact hd_error_some_nil_vect_lifted.
+Qed.
+
