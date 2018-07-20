@@ -76,8 +76,10 @@ Definition hd_vect (A : Type) (default : A) (pv : sigT (vector A)) :=
     (projT1 pv)
     (projT2 pv).
 
-Lift2 orn_list_vector orn_list_vector_inv in hd as hd_vect_lift.
-Print hd_vect_lift.
+Lift2 orn_list_vector orn_list_vector_inv in hd as hd_vect_lifted.
+Print hd_vect_lifted.
 
-Lift2 orn_list_vector_inv orn_list_vector in hd_vect as hd_lift.
-Print hd_lift.
+Lift2 orn_list_vector_inv orn_list_vector in hd_vect as hd_lifted.
+Print hd_lifted.
+
+(* TODO rest of tests, eta, case study *)

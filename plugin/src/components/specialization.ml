@@ -1403,6 +1403,20 @@ let is_proj l env evd (from_type, to_type) trm =
        (eq_constr projT1 f || eq_constr projT2 f) && right_type (last_arg trm)
   | _ ->
      false
+
+let is_eliminator l env evd (from_type, to_type) trm =
+  let right_type = type_is_orn l env evd (from_type, to_type) in
+  match kind_of_term trm with
+  | App (f, args) when isConst f ->
+     let maybe_ind = inductive_of_elim env (destConst f) in
+     if Option.has_some maybe_ind then
+       let ind = Option.get maybe_ind in
+       eq_constr (mkInd (ind, 0)) (directional l from_type to_type)
+     else
+       false
+  | _ ->
+     false
+     
              
 (*
  * TODO comment/in progress (hooking in new alg.)
@@ -1465,10 +1479,20 @@ let lift_core env evd l (from_type, to_type) index_type trm =
         mkAppl (indexer, snoc arg' (non_index_typ_args l en evd tr))
       else 
         arg'
+    else if is_eliminator l en evd (from_type, to_type) tr then
+      (* LIFT-ELIM *)
+      let tr_elim = deconstruct_eliminator en evd tr in
+      let npms = List.length tr_elim.pms in
+      let value_i = arity (expand_eta env evd from_type) - npms in (* may be off by 1 *)
+      let (final_args, post_args) = take_split (value_i + 1) tr_elim.final_args in
+      let tr_elim_curr = apply_eliminator { tr_elim with final_args } in
+      let tr' = lift_induction_principle_core en evd l tr_elim_curr in
+      let tr'' = lift en index_type tr' in
+      let post_args' = List.map (lift en index_type) post_args in
+      mkAppl (tr'', post_args')
     else
       match kind_of_term tr with
       | App (f, args) ->
-         (* TODO many more rules go here *)
          if eq_constr (lift_back l) f then
            (* SECTION-RETRACTION *)
            last_arg tr
