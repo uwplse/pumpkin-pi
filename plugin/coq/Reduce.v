@@ -35,43 +35,6 @@ Qed.
  * Application
  *)
 
-(* Append with flector *)
-
-Ornamental Reduction append_vectF_red from append_vectF_auto using orn_flist_flector_nat orn_flist_flector_nat_inv. 
-
-Definition addEvensF (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector) :=
-  natFlector.flector_rect 
-    (fun (n : nat) (_ : natFlector.flector n) => nat) 
-    (projT1 pv2)
-    (fun (n : nat) (a : natFlector.A) (f : natFlector.flector n) (IH : nat) =>
-      natFlector.SIfEven a IH)
-    (projT1 pv1) 
-    (projT2 pv1).
-
-(* TODO the index is correct, but reduces SIfEven which we would rather it keep in-tact as in addEvensF *)
-Theorem test_append_vect_red_indexF:
-  forall (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector),
-    append_vectF_red_index pv1 pv2 = addEvensF pv1 pv2.
-Proof.
-  intros. reflexivity.
-Qed.
-
-Theorem test_append_vectF:
-  forall (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector),
-    append_vect_packedF pv1 pv2 = append_vectF_red pv1 pv2.
-Proof.
-  intros. reflexivity.
-Qed.
-
-Ornamental Reduction appendF_red from appendF_auto using orn_flist_flector_nat_inv orn_flist_flector_nat.
-
-Theorem test_appendF :
-  forall (l1 : natFlector.flist) (l2 : natFlector.flist),
-    appendF l1 l2  = appendF_red l1 l2.
-Proof.
-  intros. reflexivity.
-Qed.
-
 (* In *)
 
 Ornamental Reduction In_vect_red from In_vect_auto using orn_list_vector orn_list_vector_inv.

@@ -209,5 +209,45 @@ Proof.
   intros. reflexivity.
 Qed.
 
+(* append for flectors *)
+
+Definition appendF (l1 : natFlector.flist) (l2 : natFlector.flist) :=
+  natFlector.flist_rect
+    (fun (_ : natFlector.flist) => natFlector.flist)
+    l2
+    (fun (a : nat) (_ : natFlector.flist) (IH : natFlector.flist) =>
+      natFlector.consF a IH)
+    l1.
+
+Definition append_vectF (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector) :=
+  natFlector.flector_rect
+    (fun (n0 : nat) (v0 : natFlector.flector n0) => sigT natFlector.flector)
+    pv2
+    (fun (n0 : nat) (a : nat) (v0 : natFlector.flector n0) (IH : sigT natFlector.flector) =>
+      existT
+        natFlector.flector
+        (natFlector.SIfEven a (projT1 IH))
+        (natFlector.consFV (projT1 IH) a (projT2 IH)))
+    (projT1 pv1)
+    (projT2 pv1).
+
+Lift2 orn_flist_flector_nat orn_flist_flector_nat_inv in appendF as append_vectF_lifted.
+
+Theorem test_append_vectF:
+  forall (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector),
+    append_vectF pv1 pv2 = append_vectF_lifted pv1 pv2.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Lift2 orn_flist_flector_nat_inv orn_flist_flector_nat in append_vectF as appendF_lifted.
+
+Theorem test_appendF :
+  forall (l1 : natFlector.flist) (l2 : natFlector.flist),
+    appendF l1 l2  = appendF_lifted l1 l2.
+Proof.
+  intros. reflexivity.
+Qed.
+
 
 (* TODO rest of tests, eta, case study *)

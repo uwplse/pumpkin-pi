@@ -90,7 +90,7 @@ Print app_nil_r_vectF_red_higher.
 
 Theorem test_app_nil_r_vectF_exact:
   forall (pv : sigT natFlector.flector),
-    append_vectF_red (existT natFlector.flector (projT1 pv) (projT2 pv)) (existT natFlector.flector 0 natFlector.nilFV) = (existT natFlector.flector (projT1 pv) (projT2 pv)).
+    append_vectF_lifted (existT natFlector.flector (projT1 pv) (projT2 pv)) (existT natFlector.flector 0 natFlector.nilFV) = (existT natFlector.flector (projT1 pv) (projT2 pv)).
 Proof.
     exact app_nil_r_vectF_red_higher.
 Qed.
@@ -101,7 +101,7 @@ Qed.
  *)
 Theorem test_app_nil_r_vectF:
   forall (pv : sigT natFlector.flector),
-    append_vectF_red pv (existT natFlector.flector 0 natFlector.nilFV) = pv.
+    append_vectF_lifted pv (existT natFlector.flector 0 natFlector.nilFV) = pv.
 Proof.
   intros.
   rewrite (conv nat natFlector.flector pv).

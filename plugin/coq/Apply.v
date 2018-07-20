@@ -3,35 +3,6 @@ Require Import List.
 Require Import Ornamental.Ornaments.
 Require Import Test Lift.
 
-(* append for flectors *)
-
-Definition appendF (l1 : natFlector.flist) (l2 : natFlector.flist) :=
-  natFlector.flist_rect
-    (fun (_ : natFlector.flist) => natFlector.flist)
-    l2
-    (fun (a : nat) (_ : natFlector.flist) (IH : natFlector.flist) =>
-      natFlector.consF a IH)
-    l1.
-
-(*
- * This version doesn't reference new indexer.
- * Eventually want to be able to get index from this too.
- *)
-Definition append_vect_packedF (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector) :=
-  natFlector.flector_rect
-    (fun (n0 : nat) (v0 : natFlector.flector n0) => sigT natFlector.flector)
-    pv2
-    (fun (n0 : nat) (a : nat) (v0 : natFlector.flector n0) (IH : sigT natFlector.flector) =>
-      existT
-        natFlector.flector
-        (natFlector.SIfEven a (projT1 IH))
-        (natFlector.consFV (projT1 IH) a (projT2 IH)))
-    (projT1 pv1)
-    (projT2 pv1).
-
-Ornamental Application append_vectF_auto from appendF using orn_flist_flector_nat orn_flist_flector_nat_inv.
-Ornamental Application appendF_auto from append_vect_packedF using orn_flist_flector_nat_inv orn_flist_flector_nat.
-
 (* TODO test before reduction *)
 
 (* pred *)
