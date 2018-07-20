@@ -1561,8 +1561,12 @@ let lift_core env evd l (from_type, to_type) index_type trm =
          if eq_constr tr projT1 || eq_constr tr projT2 || is_elim en tr then
            tr
          else
-           let lifted = lift en index_type (lookup_definition en tr) in
-           reduce_term en lifted (* TODO cache *)
+           let def = lookup_definition en tr in
+           let lifted = lift en index_type def in
+           if eq_constr def lifted then
+             tr
+           else
+             reduce_term en lifted (* TODO cache *)
       | _ ->
          (* TODO expand more eta for project, type, etc *)
          tr
