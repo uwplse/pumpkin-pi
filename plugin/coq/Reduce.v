@@ -14,34 +14,6 @@ Require Import Lift.
 
 (* --- Proofs --- *)
 
-(* 
- * app_nil_r is a proof that only exists inside of the sigma 
- *)
-
-Ornamental Reduction app_nil_r_vect_red from app_nil_r_vect_auto using orn_list_vector orn_list_vector_inv.
-Ornamental Reduction app_nil_r_red from app_nil_r_auto using orn_list_vector_inv orn_list_vector.
-
-(* 
- * NOTE: We don't yet have higher lifting implemented; these proofs don't know we've 
- * lifted append, so they still append in terms of the forgetful/promotion function.
- * When we implement a database, we can further handle this step to get the types we really want.
- * For now, we prove equality reflexively to the not higher-lifted version from Apply.v (TODO).
- *)
-
-Theorem test_app_nil_r_vect_lower:
-  forall (A : Type) (pv : packed_vector A),
-    app_nil_r_vect_red A pv = app_nil_r_vect_packed_lower A pv.
-Proof.
-  intros. reflexivity.
-Qed.
-
-Theorem test_app_nil_r_lower:
-  forall (A : Type) (l : list A),
-    app_nil_r_red A l  = app_nil_r_lower A l.
-Proof.
-  intros. reflexivity.
-Qed.
-
 (*
  * Next, we prove propositional equality to the higher-lifted version; eventually,
  * these proofs will be obsolete:

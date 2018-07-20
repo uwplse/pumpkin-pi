@@ -328,4 +328,59 @@ Proof.
   intros. reflexivity.
 Qed.
 
+(* --- Proofs --- *)
+
+(* app_nil_r *)
+
+Definition app_nil_r (A : Type) (l : list A) :=
+  @list_ind
+    A
+    (fun (l0 : list A) => append A l0 (@nil A) = l0)
+    (@eq_refl (list A) (@nil A))
+    (fun (a : A) (l0 : list A) (IHl : append A l0 (@nil A) = l0) =>
+      @eq_ind_r
+        (list A)
+        l0
+        (fun (l1 : list A) => @cons A a l1 = @cons A a l0)
+        (@eq_refl (list A) (@cons A a l0))
+        (append A l0 (@nil A))
+        IHl)
+    l.
+
+Definition app_nil_r_vect (A : Type) (pv : packed_vector A) :=
+  vector_ind 
+    A
+    (fun (n0 : nat) (v0 : vector A n0) => 
+      append_vect A (existT (vector A) n0 v0) (existT (vector A) O (nilV A)) = existT (vector A) n0 v0)
+    (@eq_refl (sigT (vector A)) (existT (vector A) O (nilV A)))
+    (fun (n0 : nat) (a : A) (v0 : vector A n0) (IHp : append_vect A (existT (vector A) n0 v0) (existT (vector A) O (nilV A)) = existT (vector A) n0 v0) =>
+      @eq_ind_r 
+        (sigT (vector A)) 
+        (existT (vector A) n0 v0)
+        (fun (pv1 : sigT (vector A)) => 
+          existT (vector A) (S (projT1 pv1)) (consV A (projT1 pv1) a (projT2 pv1)) = existT (vector A) (S n0) (consV A n0 a v0))
+        (@eq_refl (sigT (vector A)) (existT (vector A) (S n0) (consV A n0 a v0)))
+        (append_vect A (existT (vector A) n0 v0) (existT (vector A) 0 (nilV A)))
+        IHp)
+    (projT1 pv) 
+    (projT2 pv).
+
+Lift orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_lifted.
+
+Theorem test_app_nil_r_vect_exact:
+  forall (A : Type) (pv : sigT (vector A)),
+    append_vect_lifted A (existT (vector A) (projT1 pv) (projT2 pv)) (existT (vector A) 0 (nilV A)) = (existT (vector A) (projT1 pv) (projT2 pv)).
+Proof.
+  exact app_nil_r_vect_lifted.
+Qed.
+
+Lift orn_list_vector_inv orn_list_vector in app_nil_r_vect as app_nil_r_lifted.
+
+Theorem test_app_nil_r:
+  forall (A : Type) (l : list A),
+    append_lifted A l (@nil A) = l.
+Proof.
+  exact app_nil_r_lifted.
+Qed.
+
 (* TODO rest of tests, eta, case study *)

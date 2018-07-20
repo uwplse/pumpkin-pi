@@ -10,45 +10,6 @@ Require Import Lift.
  * Tests for higher lifting.
  *)
 
-Print app_nil_r.
-
-Print app_nil_r_vect_red.
-Check app_nil_r_vect_auto.
-Check app_nil_r_vect_red.
-
-Print app_nil_r_vect_auto. (* Should do existT ... projT1 and projT2 .. l, so that reduction is type-preserving fwiw *)
-Print app_nil_r.
-
-(* Note how this version doesn't yet promote append, but preserves the
-type of the auto version. When we higher-lift, we then promote append itself,
-which changes the type along the equivalence. We do that by substituting in
-our already-lifted append. We do the same thing if we have applications of another
-theorem, like app_nil_r (really should try this case)
-Definition app_nil_r_vect_red' (A : Type) (l : {H : nat & vector A H}) :=
-  vector_rect 
-    A
-    (fun (n : nat) (v : vector A n) =>
-      append A (orn_list_vector_inv A (existT (fun H : nat => vector A H) n v)) nil =
-      orn_list_vector_inv A (existT (fun H : nat => vector A H) n v)) eq_refl
-  (fun (n : nat) (a : A) (v : vector A n)
-     (H : append A (orn_list_vector_inv A (existT (fun H : nat => vector A H) n v)) nil =
-          orn_list_vector_inv A (existT (fun H : nat => vector A H) n v)) =>
-   eq_ind_r
-     (fun l1 : list A =>
-      a :: l1 =
-      a :: orn_list_vector_inv A (existT (fun H0 : nat => vector A H0) n v))
-     eq_refl H) (projT1 l) (projT2 l)
-*)
-
-Ornamental Modularization app_nil_r_vect_red_higher from app_nil_r_vect_red using orn_list_vector orn_list_vector_inv.
-
-Theorem test_app_nil_r_vect_exact:
-  forall (A : Type) (pv : sigT (vector A)),
-    append_vect_lifted A (existT (vector A) (projT1 pv) (projT2 pv)) (existT (vector A) 0 (nilV A)) = (existT (vector A) (projT1 pv) (projT2 pv)).
-Proof.
-  exact app_nil_r_vect_red_higher.
-Qed.
-
 (*
  * Convert between representations, should do automatically eventually
  *)
@@ -58,28 +19,6 @@ Lemma conv:
 Proof.
   intros. induction s. reflexivity.
 Qed. 
-
-(*
- * TODO now that we are using eliminators instead, need to transfer proof 
- * over to better type. Should do this automatically eventually.
- *)
-Theorem test_app_nil_r_vect:
-  forall (A : Type) (pv : sigT (vector A)),
-    append_vect_lifted A pv (existT (vector A) 0 (nilV A)) = pv.
-Proof.
-  intros.
-  rewrite (conv nat (vector A) pv).
-  apply app_nil_r_vect_red_higher.
-Qed.
-
-Ornamental Modularization app_nil_r_red_higher from app_nil_r_red using orn_list_vector_inv orn_list_vector.
-
-Theorem test_app_nil_r:
-  forall (A : Type) (l : list A),
-    append_lifted A l (@nil A) = l.
-Proof.
-  exact app_nil_r_red_higher.
-Qed.
 
 (* over flectors *)
 
