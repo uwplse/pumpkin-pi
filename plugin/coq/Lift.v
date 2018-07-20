@@ -288,4 +288,44 @@ Proof.
   intros. reflexivity.
 Qed.
 
+(*
+ * In as an application of an induction principle
+ *)
+Definition In (A : Type) (a : A) (l : list A) : Prop :=
+  @list_rect
+    A
+    (fun (_ : list A) => Prop)
+    False
+    (fun (b : A) (l0 : list A) (IHl : Prop) =>
+      a = b \/ IHl)
+    l.
+
+Definition In_vect (A : Type) (a : A) (pv : sigT (vector A)) : Prop :=
+  @vector_rect
+    A
+    (fun (n1 : nat) (_ : vector A n1) => Prop)
+    False
+    (fun (n1 : nat) (b : A) (_ : vector A n1) (IHv : Prop) =>
+      a = b \/ IHv)
+    (projT1 pv)
+    (projT2 pv).
+
+Lift2 orn_list_vector orn_list_vector_inv in In as In_vect_lifted.
+
+Theorem test_in_vect:
+  forall (A : Type) (a : A) (pv : packed_vector A),
+    In_vect A a pv = In_vect_lifted A a pv.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Lift2 orn_list_vector_inv orn_list_vector in In_vect as In_lifted.
+
+Theorem test_in:
+  forall (A : Type) (a : A) (l : list A),
+    In A a l = In_lifted A a l.
+Proof.
+  intros. reflexivity.
+Qed.
+
 (* TODO rest of tests, eta, case study *)

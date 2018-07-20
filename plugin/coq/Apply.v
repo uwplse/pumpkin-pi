@@ -3,54 +3,6 @@ Require Import List.
 Require Import Ornamental.Ornaments.
 Require Import Test Lift.
 
-(* TODO test before reduction *)
-
-(* pred *)
-
-(*
-Lemma coh:
-  forall (A : Type) (l : list A),
-    orn_list_vector_inv A (existT (vector A) (orn_list_vector_index A l) (projT2 (orn_list_vector A l))) = l.
-Proof.
-  intros. induction l.
-  - reflexivity.
-  - apply eq_cons. apply IHl.
-Qed.
-
-Theorem test_deorn_tl :
-  forall (A : Type) (l : list A),
-    tl_auto A l = tl A l.
-Proof.
-  intros. induction l; try apply coh; auto.
-Qed.
-*)
-(*
- * In as an application of an induction principle
- *)
-Definition In (A : Type) (a : A) (l : list A) : Prop :=
-  @list_rect
-    A
-    (fun (_ : list A) => Prop)
-    False
-    (fun (b : A) (l0 : list A) (IHl : Prop) =>
-      a = b \/ IHl)
-    l.
-
-Definition In_vect (A : Type) (a : A) (pv : sigT (vector A)) : Prop :=
-  @vector_rect
-    A
-    (fun (n1 : nat) (_ : vector A n1) => Prop)
-    False
-    (fun (n1 : nat) (b : A) (_ : vector A n1) (IHv : Prop) =>
-      a = b \/ IHv)
-    (projT1 pv)
-    (projT2 pv).
-
-(* TODO what happens if you curry the vector_rect application? and so on *)
-
-Ornamental Application In_vect_auto from In using orn_list_vector orn_list_vector_inv.
-Ornamental Application In_auto from In_vect using orn_list_vector_inv orn_list_vector.
-
 (*
  * TODO proofs at some point that this is OK
  *)

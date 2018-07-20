@@ -119,7 +119,7 @@ Ornamental Modularization in_split_vect_higher from in_split_vect_red using orn_
 
 Theorem test_in_split_vect_exact:
   forall (A : Type) (x : A) (pv : sigT (vector A)),
-    In_vect_red A x (existT (vector A) (projT1 pv) (projT2 pv)) ->
+    In_vect_lifted A x (existT (vector A) (projT1 pv) (projT2 pv)) ->
        exists pv1 pv2 : sigT (vector A),
          existT (vector A) (projT1 pv) (projT2 pv) =
          append_vect_lifted A pv1
@@ -130,7 +130,7 @@ Qed.
 
 Theorem test_in_split_vect:
   forall (A : Type) (x : A) (pv : sigT (vector A)),
-    In_vect_red A x pv ->
+    In_vect_lifted A x pv ->
       exists pv1 pv2 : sigT (vector A),
         pv = 
         append_vect_lifted A pv1 

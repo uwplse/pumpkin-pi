@@ -12,26 +12,6 @@ Require Import Lift.
  * Application
  *)
 
-(* In *)
-
-Ornamental Reduction In_vect_red from In_vect_auto using orn_list_vector orn_list_vector_inv.
-
-Theorem test_in_vect:
-  forall (A : Type) (a : A) (pv : packed_vector A),
-    In_vect A a pv = In_vect_red A a pv.
-Proof.
-  intros. reflexivity.
-Qed.
-
-Ornamental Reduction In_red from In_auto using orn_list_vector_inv orn_list_vector.
-
-Theorem test_in:
-  forall (A : Type) (a : A) (l : list A),
-    In A a l = In_red A a l.
-Proof.
-  intros. reflexivity.
-Qed.
-
 (* --- Proofs --- *)
 
 (* 
