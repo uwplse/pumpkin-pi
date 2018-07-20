@@ -37,63 +37,6 @@ let find_ornament n d_old d_new =
   else
     failwith "Only inductive types are supported"
 
-(* TODO temporary: given just an application of the IP, lift it *)
-let lift_induction env evd c_orn c_orn_inv c_old =
-  let is_fwd = direction env evd c_orn in
-  let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
-  let orn = initialize_promotion env evd promote forget in
-  let l = initialize_lifting orn is_fwd in
-  let c_new = lift_induction_principle env evd l c_old in
-  (c_new, None)
-
-(* TODO temporary: given just a construction, lift it *)
-let lift_constructor env evd c_orn c_orn_inv c_old =
-  let is_fwd = direction env evd c_orn in
-  let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
-  let orn = initialize_promotion env evd promote forget in
-  let l = initialize_lifting orn is_fwd in
-  let c_new = lift_construction env evd l c_old in
-  (c_new, None)
-
-(* Apply an ornament without meta-reduction *)
-let apply_ornament env evd c_orn c_orn_inv c_old =
-  let is_fwd = direction env evd c_orn in
-  let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
-  let orn = initialize_promotion env evd promote forget in
-  let l = initialize_lifting orn is_fwd in
-  let c_new = apply_indexing_ornament env evd l c_old in
-  (c_new, None)
-
-(* Meta-reduce a ornamental lifting *)
-let reduce_ornament env evd c_orn c_orn_inv c_old =
-  let trm_o = unwrap_definition env c_old in
-  let is_fwd = direction env evd c_orn in
-  let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
-  let orn = initialize_promotion env evd promote forget in
-  let l = initialize_lifting orn is_fwd in
-  let (trm_n, c_idx_opt) = internalize env evd l trm_o in
-  let l_idx = { l with is_indexer = true } in
-  let c_idx_opt' = c_idx_opt |> Option.map (internalize env evd l_idx) |> Option.map fst in
-  (trm_n, c_idx_opt')
-
-(* Post-facto modularization of a meta-reduced ornamental lifting/application *)
-let modularize_ornament env evd c_orn c_orn_inv c_old =
-  let is_fwd = direction env evd c_orn in
-  let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
-  let orn = initialize_promotion env evd promote forget in
-  let l = initialize_lifting orn is_fwd in
-  let (c_new, _) = higher_lift env evd l c_old in
-  (* TODO: Generate proof of indexing coherence. *)
-  (c_new, None)
-
-(* Perform application, meta-reduction, and modularization all in sequence *)
-let lift_by_ornament env evd c_orn c_orn_inv c_old =
-  let (c_app, c_app_idx_opt) = apply_ornament env evd c_orn c_orn_inv c_old in
-  let (c_red, c_red_idx_opt) = reduce_ornament env evd c_orn c_orn_inv c_app in
-  let (c_mod, c_mod_idx_opt) = modularize_ornament env evd c_orn c_orn_inv c_red in
-  let c_idx_opt = Option.append c_mod_idx_opt (Option.append c_red_idx_opt c_app_idx_opt) in
-  (c_mod, c_idx_opt)
-
 (* Core lifting algorithm *)
 let lift_by_ornament2 env evd c_orn c_orn_inv c_old =
   let is_fwd = direction env evd c_orn in

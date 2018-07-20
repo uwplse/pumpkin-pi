@@ -365,7 +365,7 @@ Definition app_nil_r_vect (A : Type) (pv : packed_vector A) :=
     (projT1 pv) 
     (projT2 pv).
 
-Lift orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_lifted.
+Lift2 orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_lifted.
 
 Theorem test_app_nil_r_vect_exact:
   forall (A : Type) (pv : sigT (vector A)),
@@ -374,7 +374,7 @@ Proof.
   exact app_nil_r_vect_lifted.
 Qed.
 
-Lift orn_list_vector_inv orn_list_vector in app_nil_r_vect as app_nil_r_lifted.
+Lift2 orn_list_vector_inv orn_list_vector in app_nil_r_vect as app_nil_r_lifted.
 
 Theorem test_app_nil_r:
   forall (A : Type) (l : list A),
@@ -399,7 +399,7 @@ Definition app_nil_rF (l : natFlector.flist) :=
         IHl)
     l.
 
-Lift orn_flist_flector_nat orn_flist_flector_nat_inv in app_nil_rF as app_nil_r_vectF_lifted.
+Lift2 orn_flist_flector_nat orn_flist_flector_nat_inv in app_nil_rF as app_nil_r_vectF_lifted.
 
 Theorem test_app_nil_r_vectF_exact:
   forall (pv : sigT natFlector.flector),
@@ -420,7 +420,7 @@ Proof.
   exists (a::l1), l2; simpl. apply f_equal. auto.
 Defined.
 
-Lift orn_list_vector orn_list_vector_inv in in_split as in_split_vect_lifted.
+Lift2 orn_list_vector orn_list_vector_inv in in_split as in_split_vect_lifted.
 
 Theorem test_in_split_vect_exact:
   forall (A : Type) (x : A) (pv : sigT (vector A)),
@@ -442,7 +442,7 @@ Definition is_cons (A : Type) (l : list A) :=
     (fun (_ : A) (_ : list A) (_ : Prop) => True)
     l.
 
-Lift orn_list_vector orn_list_vector_inv in is_cons as is_cons_lifted.
+Lift2 orn_list_vector orn_list_vector_inv in is_cons as is_cons_lifted.
 
 (* hd_error_some_nil *)
 
@@ -456,7 +456,7 @@ Proof.
     * simpl. auto. 
 Defined.
 
-Lift orn_list_vector orn_list_vector_inv in hd_error_some_nil as hd_error_some_nil_vect_lifted.
+Lift2 orn_list_vector orn_list_vector_inv in hd_error_some_nil as hd_error_some_nil_vect_lifted.
 
 Theorem test_hd_error_some_nil_vect_exact:
   forall (A : Type) (l : {H : nat & vector A H}) (a : A),
