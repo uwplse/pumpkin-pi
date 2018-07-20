@@ -35,57 +35,6 @@ Qed.
  * Application
  *)
 
-Print append_vect_auto.
-Ornamental Reduction append_vect_red from append_vect_auto using orn_list_vector orn_list_vector_inv. 
-
-Print append_vect_red.
-
-Theorem test_append_vect_red_index:
-  forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
-    append_vect_red_index A pv1 pv2 = plus_vect_exp A pv1 pv2.
-Proof.
-  intros. reflexivity.
-Qed.
-
-Print plus_vect.
-Print append_vect_red_index.
-
-Theorem test_append_vect_red_index_correct_unpacked:
-  forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
-    append_vect_red_index A pv1 pv2 = plus_vect A (projT1 pv1) (projT2 pv1) (projT1 pv2) (projT2 pv2).
-Proof.  
-  intros. induction pv1. induction p.
-  - reflexivity.
-  - simpl. simpl in IHp. rewrite <- IHp. reflexivity.
-Qed.
-
-Theorem test_append_vect_red_index_correct:
-  forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
-    append_vect_red_index A pv1 pv2 = projT1 (append_vect_red A pv1 pv2).
-Proof.
-  intros. induction pv1. induction p.
-  - reflexivity.
-  - rewrite test_append_vect_red_index_correct_unpacked in IHp.
-    rewrite test_append_vect_red_index_correct_unpacked.
-    simpl. simpl in IHp. rewrite IHp. reflexivity.
-Qed.
-
-Theorem test_append_vect:
-  forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
-    append_vect_packed A pv1 pv2  = append_vect_red A pv1 pv2.
-Proof.
-  intros. reflexivity.
-Qed.
-
-Ornamental Reduction append_red from append_auto using orn_list_vector_inv orn_list_vector.
-
-Theorem test_append :
-  forall (A : Type) (l1 : list A) (l2 : list A),
-    append A l1 l2  = append_red A l1 l2.
-Proof.
-  intros. reflexivity.
-Qed.
-
 (* Append with flector *)
 
 Ornamental Reduction append_vectF_red from append_vectF_auto using orn_flist_flector_nat orn_flist_flector_nat_inv. 
@@ -177,6 +126,7 @@ Qed.
  * Next, we prove propositional equality to the higher-lifted version; eventually,
  * these proofs will be obsolete:
  *)
+(*
 Lemma coh_vect_packed:
   forall (A : Type) (pv : packed_vector A),
     orn_list_vector A (orn_list_vector_inv A pv) = pv.
@@ -206,7 +156,7 @@ Qed.
 
 Theorem app_coh_inv:
   forall (A : Type) (l1 : list A) (l2 : list A),
-    orn_list_vector_inv A (append_vect_packed A (orn_list_vector A l1) (orn_list_vector A l2)) = append_red A l1 l2.
+    orn_list_vector_inv A (append_vect A (orn_list_vector A l1) (orn_list_vector A l2)) = append_red A l1 l2.
 Proof.
   intros. induction l1.
   - apply coh_list.
@@ -251,7 +201,7 @@ Theorem test_app_nil_r:
     append_red A l (@nil A) = l.
 Proof.
   intros. rewrite <- app_coh_inv. unfold orn_list_vector. rewrite app_nil_r_red. apply coh_list.
-Qed.
+Qed.*)
 
 (* app_nil_r on flectors *)
 

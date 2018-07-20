@@ -44,7 +44,7 @@ Ornamental Modularization app_nil_r_vect_red_higher from app_nil_r_vect_red usin
 
 Theorem test_app_nil_r_vect_exact:
   forall (A : Type) (pv : sigT (vector A)),
-    append_vect_red A (existT (vector A) (projT1 pv) (projT2 pv)) (existT (vector A) 0 (nilV A)) = (existT (vector A) (projT1 pv) (projT2 pv)).
+    append_vect_lifted A (existT (vector A) (projT1 pv) (projT2 pv)) (existT (vector A) 0 (nilV A)) = (existT (vector A) (projT1 pv) (projT2 pv)).
 Proof.
   exact app_nil_r_vect_red_higher.
 Qed.
@@ -65,7 +65,7 @@ Qed.
  *)
 Theorem test_app_nil_r_vect:
   forall (A : Type) (pv : sigT (vector A)),
-    append_vect_red A pv (existT (vector A) 0 (nilV A)) = pv.
+    append_vect_lifted A pv (existT (vector A) 0 (nilV A)) = pv.
 Proof.
   intros.
   rewrite (conv nat (vector A) pv).
@@ -76,7 +76,7 @@ Ornamental Modularization app_nil_r_red_higher from app_nil_r_red using orn_list
 
 Theorem test_app_nil_r:
   forall (A : Type) (l : list A),
-    append_red A l (@nil A) = l.
+    append_lifted A l (@nil A) = l.
 Proof.
   exact app_nil_r_red_higher.
 Qed.
@@ -122,7 +122,7 @@ Theorem test_in_split_vect_exact:
     In_vect_red A x (existT (vector A) (projT1 pv) (projT2 pv)) ->
        exists pv1 pv2 : sigT (vector A),
          existT (vector A) (projT1 pv) (projT2 pv) =
-         append_vect_red A pv1
+         append_vect_lifted A pv1
            (existT (vector A) (S (projT1 pv2)) (consV A (projT1 pv2) x (projT2 pv2))).
 Proof.
   exact in_split_vect_higher.
@@ -133,7 +133,7 @@ Theorem test_in_split_vect:
     In_vect_red A x pv ->
       exists pv1 pv2 : sigT (vector A),
         pv = 
-        append_vect_red A pv1 
+        append_vect_lifted A pv1 
           (existT (vector A) (S (projT1 pv2)) (consV A (projT1 pv2) x (projT2 pv2))).
 Proof.
   intros A x pv.

@@ -163,4 +163,51 @@ Proof.
   intros. reflexivity.
 Qed.
 
+(* append *)
+
+(*
+ * Test applying ornaments to lift functions, without internalizing
+ * the ornamentation (so the type won't be useful yet).
+ *)
+
+Definition append (A : Type) (l1 : list A) (l2 : list A) :=
+  list_rect
+    (fun (_ : list A) => list A)
+    l2
+    (fun (a : A) (_ : list A) (IH : list A) =>
+      a :: IH)
+    l1.
+
+Definition append_vect (A : Type) (pv1 : sigT (vector A)) (pv2 : sigT (vector A)) :=
+  vector_rect
+    A
+    (fun (n0 : nat) (v0 : vector A n0) => sigT (fun (n : nat) => vector A n))
+    pv2
+    (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : sigT (fun (n : nat) => vector A n)) =>
+      existT
+        (vector A)
+        (S (projT1 IH))
+        (consV A (projT1 IH) a (projT2 IH)))
+    (projT1 pv1)
+    (projT2 pv1).
+
+Lift2 orn_list_vector orn_list_vector_inv in append as append_vect_lifted.
+
+Theorem test_append_vect:
+  forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
+    append_vect A pv1 pv2  = append_vect_lifted A pv1 pv2.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Lift2 orn_list_vector_inv orn_list_vector in append_vect as append_lifted.
+
+Theorem test_append :
+  forall (A : Type) (l1 : list A) (l2 : list A),
+    append A l1 l2  = append_lifted A l1 l2.
+Proof.
+  intros. reflexivity.
+Qed.
+
+
 (* TODO rest of tests, eta, case study *)
