@@ -1,62 +1,12 @@
 Add LoadPath "coq".
 Require Import List.
 Require Import Ornamental.Ornaments.
-Require Import Test.
+Require Import Test Lift.
 
 (*
  * Test applying ornaments to lift functions, without internalizing
  * the ornamentation (so the type won't be useful yet).
  *)
-
-(* hd_error *)
-
-Definition hd_error (A : Type) (l:list A) :=
-  list_rect
-    (fun (_ : list A) => option A)
-    None
-    (fun (x : A) (_ : list A) (_ : option A) =>
-      Some x)
-    l.
-
-Definition hd_vect_error (A : Type) (n : nat) (v : vector A n) :=
-  vector_rect
-    A
-    (fun (n0 : nat) (_ : vector A n0) => option A)
-    None
-    (fun (n0 : nat) (x : A) (_ : vector A n0) (_ : option A) =>
-      Some x)
-    n
-    v.
-
-Definition hd_vect_error_packed (A : Type) (pv : packed_vector A) :=
-  hd_vect_error A (projT1 pv) (projT2 pv).
-
-Ornamental Application hd_vect_error_auto from hd_error using orn_list_vector orn_list_vector_inv.
-Ornamental Application hd_error_auto from hd_vect_error_packed using orn_list_vector_inv orn_list_vector.
-
-(*
- * Same situation as above
- *)
-Theorem test_orn_hd_error :
-  forall (A : Type) (pv : packed_vector A),
-    hd_vect_error_auto A pv = hd_vect_error_packed A pv.
-Proof.
-  intros. induction pv; induction p; auto.
-Qed.
-
-Theorem test_orn_hd_error_proj :
-  forall (A : Type) (n : nat) (v : vector A n),
-    hd_vect_error_auto A (existT (vector A) n v) = hd_vect_error A n v.
-Proof.
-  intros. induction v; auto.
-Qed.
-
-Theorem test_deorn_hd_error :
-  forall (A : Type) (a : A) (l : list A),
-    hd_error_auto A l = hd_error A l.
-Proof.
-  intros. induction l; auto.
-Qed.
 
 Definition append (A : Type) (l1 : list A) (l2 : list A) :=
   list_rect

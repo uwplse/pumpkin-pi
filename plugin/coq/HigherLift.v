@@ -4,6 +4,7 @@ Require Import Ornamental.Ornaments.
 Require Import Test.
 Require Import Apply.
 Require Import Reduce.
+Require Import Lift.
 
 (*
  * Tests for higher lifting.
@@ -151,7 +152,7 @@ Ornamental Modularization hd_error_some_nil_vect_higher from hd_error_some_nil_v
 
 Theorem test_hd_error_some_nil_vect_exact:
   forall (A : Type) (l : {H : nat & vector A H}) (a : A),
-    hd_vect_error_red A (existT (vector A) (projT1 l) (projT2 l)) = Some a ->
+    hd_vect_error A (existT (vector A) (projT1 l) (projT2 l)) = Some a ->
     existT (vector A) (projT1 l) (projT2 l) <> existT (vector A) 0 (nilV A).
 Proof.
    exact hd_error_some_nil_vect_higher.

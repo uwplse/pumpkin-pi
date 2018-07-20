@@ -125,4 +125,42 @@ Proof.
   intros. reflexivity.
 Qed.
 
+(* hd_error *)
+
+Definition hd_error (A : Type) (l : list A) :=
+  list_rect
+    (fun (_ : list A) => option A)
+    None
+    (fun (x : A) (_ : list A) (_ : option A) =>
+      Some x)
+    l.
+
+Definition hd_vect_error (A : Type) (v : sigT (vector A)) :=
+  vector_rect
+    A
+    (fun (n0 : nat) (_ : vector A n0) => option A)
+    None
+    (fun (n0 : nat) (x : A) (_ : vector A n0) (_ : option A) =>
+      Some x)
+    (projT1 v)
+    (projT2 v).
+
+Lift2 orn_list_vector orn_list_vector_inv in hd_error as hd_vect_error_lifted.
+
+Theorem test_hd_vect_error:
+  forall (A : Type) (pv : packed_vector A),
+    hd_vect_error A pv = hd_vect_error_lifted A pv.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Lift2 orn_list_vector_inv orn_list_vector in hd_vect_error as hd_error_lifted.
+
+Theorem test_hd_error:
+  forall (A : Type) (l : list A),
+    hd_error A l = hd_error_lifted A l.
+Proof.
+  intros. reflexivity.
+Qed.
+
 (* TODO rest of tests, eta, case study *)

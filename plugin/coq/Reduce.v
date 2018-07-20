@@ -3,30 +3,9 @@ Require Import List.
 Require Import Ornamental.Ornaments.
 Require Import Test.
 Require Import Apply.
+Require Import Lift.
 
 (* --- Simple functions on lists --- *)
-
-(*
- * hd_error and hd_vect_error
- *)
-
-Ornamental Reduction hd_vect_error_red from hd_vect_error_auto using orn_list_vector orn_list_vector_inv.
-
-Theorem test_hd_vect_error:
-  forall (A : Type) (pv : packed_vector A),
-    hd_vect_error_packed A pv = hd_vect_error_red A pv.
-Proof.
-  intros. reflexivity.
-Qed.
-
-Ornamental Reduction hd_error_red from hd_error_auto using orn_list_vector_inv orn_list_vector.
-
-Theorem test_hd_error:
-  forall (A : Type) (l : list A),
-    hd_error A l = hd_error_red A l.
-Proof.
-  intros. reflexivity.
-Qed.
 
 (*
  * tl and tl_vect
