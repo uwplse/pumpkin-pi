@@ -8,62 +8,6 @@ Require Import Test.
  * the ornamentation (so the type won't be useful yet).
  *)
 
-(* --- Simple functions on lists --- *)
-
-Definition hd (A : Type) (default : A) (l : list A) :=
-  list_rect
-    (fun (_ : list A) => A)
-    default
-    (fun (x : A) (_ : list A) (_ : A) =>
-      x)
-    l.
-
-Definition hd_vect (A : Type) (default : A) (n : nat) (v : vector A n) :=
-  vector_rect
-    A
-    (fun (n0 : nat) (_ : vector A n0) => A)
-    default
-    (fun (n0 : nat) (x : A) (_ : vector A n0) (_ : A) =>
-      x)
-    n
-    v.
-
-(* TODO in rev dir, should support both kinds; keep for now for when we add back later
-   (see code prior to May 9th for how to support sigT_rect)
-Definition hd_vect_packed (A : Type) (default : A) (pv : packed_vector A) :=
-  sigT_rect
-    (fun _ : packed_vector A => A)
-    (fun (n : nat) (v0 : vector A n) =>
-      hd_vect A default n v0)
-    pv.*)
-
-Definition hd_vect_packed (A : Type) (default : A) (pv : packed_vector A) :=
-  hd_vect A default (projT1 pv) (projT2 pv).
-
-Ornamental Application hd_vect_auto from hd using orn_list_vector orn_list_vector_inv.
-Ornamental Application hd_auto from hd_vect_packed using orn_list_vector_inv orn_list_vector.
-
-Theorem test_orn_hd :
-  forall (A : Type) (a : A) (pv : packed_vector A),
-    hd_vect_auto A a pv = hd_vect_packed A a pv.
-Proof.
-  intros. induction pv. induction p; auto.
-Qed.
-
-Theorem test_orn_hd_proj :
-  forall (A : Type) (a : A) (n : nat) (v : vector A n),
-    hd_vect_auto A a (existT (vector A) n v) = hd_vect A a n v.
-Proof.
-  intros. induction v; auto.
-Qed.
-
-Theorem test_deorn_hd :
-  forall (A : Type) (a : A) (l : list A),
-    hd_auto A a l = hd A a l.
-Proof.
-  intros. induction l; auto.
-Qed.
-
 (* flist/flector version *)
 
 Definition hdF (default : nat) (l : natFlector.flist) :=

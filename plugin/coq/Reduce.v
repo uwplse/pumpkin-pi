@@ -7,31 +7,6 @@ Require Import Apply.
 (* --- Simple functions on lists --- *)
 
 (*
- * hd and hd_vect
- *)
-
-Ornamental Reduction hd_vect_red from hd_vect_auto using orn_list_vector orn_list_vector_inv.
-
-Theorem test_hd_vect:
-  forall (A : Type) (default : A) (pv : packed_vector A),
-    hd_vect_packed A default pv = hd_vect_red A default pv.
-Proof.
-  intros. reflexivity.
-Qed.
-
-(* TODO test relation to old version, eventually branch & simplify etc *)
-(* TODO generate coherence proof if asked for *)
-
-Ornamental Reduction hd_red from hd_auto using orn_list_vector_inv orn_list_vector.
-
-Theorem test_hd:
-  forall (A : Type) (default : A) (l : list A),
-    hd A default l = hd_red A default l.
-Proof.
-  intros. reflexivity.
-Qed.
-
-(*
  * hd and hd_vect for flectors
  *)
 
