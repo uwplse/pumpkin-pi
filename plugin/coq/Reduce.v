@@ -7,28 +7,6 @@ Require Import Apply.
 (* --- Simple functions on lists --- *)
 
 (*
- * hd and hd_vect for flectors
- *)
-
-Ornamental Reduction hd_vectF_red from hd_vectF_auto using orn_flist_flector_nat orn_flist_flector_nat_inv.
-
-Theorem test_hd_vectF:
-  forall (default : nat) (pv : sigT natFlector.flector),
-    hd_vect_packedF default pv = hd_vectF_red default pv.
-Proof.
-  intros. reflexivity.
-Qed.
-
-Ornamental Reduction hd_redF from hd_autoF using orn_flist_flector_nat_inv orn_flist_flector_nat.
-
-Theorem test_hdF:
-  forall (default : nat) (l : natFlector.flist),
-    hdF default l = hd_redF default l.
-Proof.
-  intros. reflexivity.
-Qed.
-
-(*
  * hd_error and hd_vect_error
  *)
 

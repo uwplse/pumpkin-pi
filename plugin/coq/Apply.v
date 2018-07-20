@@ -8,52 +8,6 @@ Require Import Test.
  * the ornamentation (so the type won't be useful yet).
  *)
 
-(* flist/flector version *)
-
-Definition hdF (default : nat) (l : natFlector.flist) :=
-  natFlector.flist_rect
-    (fun (_ : natFlector.flist) => nat)
-    default
-    (fun (x : nat) (_ : natFlector.flist) (_ : nat) =>
-      x)
-    l.
-
-Definition hd_vectF (default : nat) (n : nat) (v : natFlector.flector n) :=
-  natFlector.flector_rect
-    (fun (n0 : nat) (_ : natFlector.flector n0) => nat)
-    default
-    (fun (n0 : nat) (x : nat) (_ : natFlector.flector n0) (_ : nat) =>
-      x)
-    n
-    v.
-
-Definition hd_vect_packedF (default : nat) (pv : sigT natFlector.flector) :=
-  hd_vectF default (projT1 pv) (projT2 pv).
-
-Ornamental Application hd_vectF_auto from hdF using orn_flist_flector_nat orn_flist_flector_nat_inv.
-Ornamental Application hd_autoF from hd_vect_packedF using orn_flist_flector_nat_inv orn_flist_flector_nat.
-
-Theorem test_orn_hdF :
-  forall (a : nat) (pv : sigT natFlector.flector),
-    hd_vectF_auto a pv = hd_vect_packedF a pv.
-Proof.
-  intros. induction pv. induction p; auto.
-Qed.
-
-Theorem test_orn_hd_projF :
-  forall (a : nat) (n : nat) (v : natFlector.flector n),
-    hd_vectF_auto a (existT natFlector.flector n v) = hd_vectF a n v.
-Proof.
-  intros. induction v; auto.
-Qed.
-
-Theorem test_deorn_hdF :
-  forall (a : nat) (l : natFlector.flist),
-    hd_autoF a l = hdF a l.
-Proof.
-  intros. induction l; auto.
-Qed.
-
 (* hd_error *)
 
 Definition hd_error (A : Type) (l:list A) :=

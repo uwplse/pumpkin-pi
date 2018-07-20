@@ -88,4 +88,41 @@ Proof.
   intros. reflexivity.
 Qed.
 
+(* flist/flector version *)
+
+Definition hdF (default : nat) (l : natFlector.flist) :=
+  natFlector.flist_rect
+    (fun (_ : natFlector.flist) => nat)
+    default
+    (fun (x : nat) (_ : natFlector.flist) (_ : nat) =>
+      x)
+    l.
+
+Definition hd_vectF (default : nat) (pv : sigT natFlector.flector) :=
+  natFlector.flector_rect
+    (fun (n0 : nat) (_ : natFlector.flector n0) => nat)
+    default
+    (fun (n0 : nat) (x : nat) (_ : natFlector.flector n0) (_ : nat) =>
+      x)
+    (projT1 pv)
+    (projT2 pv).
+
+Lift2 orn_flist_flector_nat orn_flist_flector_nat_inv in hdF as hd_vectF_lifted.
+
+Theorem test_hd_vectF:
+  forall (default : nat) (pv : sigT natFlector.flector),
+    hd_vectF default pv = hd_vectF_lifted default pv.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Lift2 orn_flist_flector_nat_inv orn_flist_flector_nat in hd_vectF as hdF_lifted.
+
+Theorem test_hdF:
+  forall (default : nat) (l : natFlector.flist),
+    hdF default l = hdF_lifted default l.
+Proof.
+  intros. reflexivity.
+Qed.
+
 (* TODO rest of tests, eta, case study *)
