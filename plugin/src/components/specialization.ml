@@ -1426,6 +1426,7 @@ let is_eliminator l env evd (from_type, to_type) trm =
  * TODO for now, ignores the is_indexer option/assumes it never happens
  * TODO need to think through where we need eta more / test that
  * TODO error handling
+ * TODO efficiency
  *)
 let lift_core env evd l (from_type, to_type) index_type trm =
   let index_i = Option.get l.orn.index_i in
