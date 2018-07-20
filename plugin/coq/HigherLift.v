@@ -20,33 +20,6 @@ Proof.
   intros. induction s. reflexivity.
 Qed. 
 
-(* over flectors *)
-
-Print app_nil_r_vectF_red.
-Ornamental Modularization app_nil_r_vectF_red_higher from app_nil_r_vectF_red using orn_flist_flector_nat orn_flist_flector_nat_inv.
-
-Print app_nil_r_vectF_red_higher.
-
-Theorem test_app_nil_r_vectF_exact:
-  forall (pv : sigT natFlector.flector),
-    append_vectF_lifted (existT natFlector.flector (projT1 pv) (projT2 pv)) (existT natFlector.flector 0 natFlector.nilFV) = (existT natFlector.flector (projT1 pv) (projT2 pv)).
-Proof.
-    exact app_nil_r_vectF_red_higher.
-Qed.
-
-(*
- * TODO now that we are using eliminators instead, need to transfer proof 
- * over to better type. Should do this automatically eventually.
- *)
-Theorem test_app_nil_r_vectF:
-  forall (pv : sigT natFlector.flector),
-    append_vectF_lifted pv (existT natFlector.flector 0 natFlector.nilFV) = pv.
-Proof.
-  intros.
-  rewrite (conv nat natFlector.flector pv).
-  apply app_nil_r_vectF_red_higher.
-Qed.
-
 (* in_split_vect *)
 
 Ornamental Modularization in_split_vect_higher from in_split_vect_red using orn_list_vector orn_list_vector_inv.

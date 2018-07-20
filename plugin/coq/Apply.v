@@ -9,26 +9,6 @@ Require Import Test Lift.
 
 (* --- Interesting parts: Trying some proofs --- *)
 
-(* app_nil_r with flectors *)
-
-Definition app_nil_rF (l : natFlector.flist) :=
-  natFlector.flist_ind
-    (fun (l0 : natFlector.flist) => appendF l0 natFlector.nilF = l0)
-    (@eq_refl natFlector.flist natFlector.nilF)
-    (fun (a : nat) (l0 : natFlector.flist) (IHl : appendF l0 natFlector.nilF = l0) =>
-      @eq_ind_r
-        natFlector.flist
-        l0
-        (fun (l1 : natFlector.flist) => natFlector.consF a l1 = natFlector.consF a l0)
-        (@eq_refl natFlector.flist (natFlector.consF a l0))
-        (appendF l0 natFlector.nilF)
-        IHl)
-    l.
-
-(* TODO opposite direction *)
-
-Ornamental Application app_nil_r_vectF_auto from app_nil_rF using orn_flist_flector_nat orn_flist_flector_nat_inv.
-
 (* in_split *)
 
 Theorem in_split : 
