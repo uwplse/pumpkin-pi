@@ -62,8 +62,44 @@ let pack_inner env evd l unpacked =
   let ex = pack env evd l unpacked in
   let typ_args = non_index_typ_args l env evd ex in
   mkAppl (lift_back l, snoc ex typ_args)
+       
+(*
+ * Determine whether a type is the type we are ornamenting from
+ *
+ * For simplicity, we assume that the function doesn't have any other
+ * applications of that type that don't use the new index, otherwise
+ * we would need to track the type arguments everywhere, which is tedious
+ *)
+let is_orn l env evd (from_typ, to_typ) typ =
+  let typ = reduce_nf env (expand_eta env evd typ) in
+  if l.is_fwd then
+    is_or_applies from_typ typ
+  else
+    if is_or_applies sigT typ then
+      equal to_typ (first_fun (dummy_index env (dest_sigT typ).packer))
+    else
+      false
+
+(*
+ * Filter the arguments to only the ones that have the type we are
+ * promoting/forgetting from.
+ *)
+let filter_orn l env evd (from_typ, to_typ) args =
+  List.filter (on_type (is_orn l env evd (from_typ, to_typ)) env evd) args
+
+(* 
+ * Get the to/from type from the ornament
+ *)
+let promotion_type env evd trm =
+  fst (on_type ind_of_promotion_type env evd trm)
 
 (* --- Refolding --- *)
+
+(* 
+ * As explained in Section 5.1.2, the implementation uses a refolding
+ * algorithm to determine the constructor lifting rules, so that
+ * they do not need to depend on ordering information. 
+ *)
          
 (*
  * Refolding an applied ornament in the forward direction, 
@@ -100,46 +136,13 @@ let refold_projected l evd orn env arg trm =
   all_eq_substs (orn_app_red, arg) app_red
 
 (*
- * Get the meta-reduction function for a lifted term.
+ * Top-level refolding
  *)
-let meta_reduce l =
-  if l.is_fwd then refold_packed l else refold_projected l
+let refold l env evd orn trm args =
+  let refolder = if l.is_fwd then refold_packed else refold_projected in
+  List.fold_right (refolder l evd orn env) args trm
 
-(*
- * Meta-reduction of an applied ornament to simplify and then rewrite
- * in terms of the ornament applied to the specific arguments
- *)
-let reduce_ornament_f l env evd orn trm args =
-  List.fold_right (meta_reduce l evd orn env) args trm
-
-(*
- * Determine whether a type is the type we are ornamenting from
- *
- * For simplicity, we assume that the function doesn't have any other
- * applications of that type that don't use the new index, otherwise
- * we would need to track the type arguments everywhere, which is tedious
- *)
-let is_orn l env evd (from_typ, to_typ) typ =
-  let typ = reduce_nf env (expand_eta env evd typ) in
-  if l.is_fwd then
-    is_or_applies from_typ typ
-  else
-    if is_or_applies sigT typ then
-      equal to_typ (first_fun (dummy_index env (dest_sigT typ).packer))
-    else
-      false
-
-(*
- * Filter the arguments to only the ones that have the type we are
- * promoting/forgetting from.
- *)
-let filter_orn l env evd (from_typ, to_typ) args =
-  List.filter (on_type (is_orn l env evd (from_typ, to_typ)) env evd) args
-
-let promotion_type env evd trm =
-  fst (on_type ind_of_promotion_type env evd trm)
-
-(* --- Lifting induction principle --- *)
+(* --- Lifting the induction principle --- *)
 
 (* TODO temporary: before full refactor is done, just forget/promote the
    arguments (later this will be done implicitly in a later step, and as
@@ -332,7 +335,7 @@ let lift_construction_core env evd l trm =
       (fun t a ->
         let a_typ_args = non_index_typ_args l env evd a in
         all_eq_substs (a, mkAppl (orn, snoc a a_typ_args)) t)
-      (reduce_ornament_f l env evd orn orn_app rec_args)
+      (refold l env evd orn orn_app rec_args)
       rec_args
     
 (*
