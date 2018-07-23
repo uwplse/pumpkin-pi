@@ -2,7 +2,7 @@
  * Dealing with arguments of applications for indexing inductive types
  *)
 
-open Term
+open Constr
 open Utilities
 open Debruijn
 open Coqterms
@@ -61,35 +61,11 @@ let adjust_no_index index_i args =
   List.append before (unshift_all after)
 
 (*
- * Returns the first inductive hypothesis in the constructor type typ
- * for which the hypothesis h is used to compute the index at position index_i
- *)
-let rec index_ih index_i p h typ i =
-  match kind_of_term typ with
-  | Prod (n, t, b) ->
-     let p_b = shift p in
-     let i_b = shift h in
-     if applies p t then
-       if contains_term h (get_arg index_i t) then
-         Some (mkRel i, t)
-       else
-         index_ih index_i p_b i_b b (i - 1)
-     else
-       index_ih index_i p_b i_b b (i - 1)
-  | App (_, _) when applies p typ ->
-     if contains_term h (get_arg index_i typ) then
-       Some (mkRel i, typ)
-     else
-       None
-  | _ ->
-     None
-
-(*
  * Returns true if the hypothesis i is used to compute the index at position
  * index_i in any application of a property p in the eliminator type typ.
  *)
 let rec computes_index index_i p i typ =
-  match kind_of_term typ with
+  match kind typ with
   | Prod (n, t, b) ->
      let p_b = shift p in
      let i_b = shift i in

@@ -2,7 +2,7 @@
  * Datatypes for promotions and lifting
  *)
 
-open Term
+open Constr
 open Environ
 open Evd
 
@@ -36,22 +36,7 @@ type lifting =
   {
     orn : promotion;
     is_fwd : bool;
-    is_indexer : bool;
     lifted_indexer : types option;
-  }
-
-(*
- * A composition is a pair of functions and environments with
- * a corresponding lifting. It also contains a hint is_g, which says
- * whether lifting is applied to g or to f. This represents a single (factored)
- * applied but not simplified ornamentation.
- *)
-type composition =
-  {
-    l : lifting;
-    g : env * types;
-    f : env * types;
-    is_g : bool;
   }
 
 (* --- Initialization --- *)
@@ -77,12 +62,9 @@ val lift_to : lifting -> types
 
 (* Other control structures *)
 val directional : lifting -> 'a -> 'a -> 'a
-val if_indexer : lifting -> 'a -> 'a -> 'a
 val map_directional : ('a -> 'b) -> ('a -> 'b) -> lifting -> 'a -> 'b
-val map_indexer : ('a -> 'b) -> ('a -> 'b) -> lifting -> 'a -> 'b
 val map_forward : ('a -> 'a) -> lifting -> 'a -> 'a
 val map_backward : ('a -> 'a) -> lifting -> 'a -> 'a
-val map_if_indexer : ('a -> 'a) -> lifting -> 'a -> 'a
 
 (* --- Database for higher lifting --- *)
 
@@ -90,11 +72,6 @@ val map_if_indexer : ('a -> 'a) -> lifting -> 'a -> 'a
  * Register a lifting to the database
  *)
 val declare_lifted : evar_map -> types -> types -> unit
-
-(*
- * Register a reduction of a lifting to the database
- *)
-val declare_reduced : evar_map -> types -> types -> unit
 
 (*
  * Search the database for a lifting (return the reduced version if it exists)

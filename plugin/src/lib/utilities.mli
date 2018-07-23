@@ -13,6 +13,7 @@ val map_default : ('a -> 'b) -> 'b -> 'a option -> 'b
 (* --- Lists --- *)
                                                      
 val last : 'a list -> 'a
+val all_but_last : 'a list -> 'a list
 val snoc : 'a -> 'a list -> 'a list
 val map3 : ('a -> 'b -> 'c -> 'd) -> 'a list -> 'b list -> 'c list -> 'd list
 

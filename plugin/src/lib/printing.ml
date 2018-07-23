@@ -2,9 +2,8 @@
  * Debugging functions from PUMPKIN PATCH
  *)
 
-open Printer
 open Format
-open Term
+open Constr
 open Names
 open Environ
 open Declarations
@@ -19,14 +18,14 @@ let print_to_string (pp : formatter -> 'a -> unit) (trm : 'a) : string =
   Format.asprintf "%a" pp trm
 
 (* Gets n as a string *)
-let name_as_string (n : name) : string =
+let name_as_string (n : Name.t) : string =
   match n with
-  | Name id -> string_of_id id
+  | Name id -> Id.to_string id
   | Anonymous -> "_"
 
 (* Pretty prints a term using Coq's pretty printer *)
 let print_constr (fmt : formatter) (c : constr) : unit  =
-  Pp.pp_with fmt (Printer.pr_constr c)
+  Pp.pp_with fmt (Printer.pr_constr_env (Global.env ()) Evd.empty c)
 
 (* Pretty prints a universe level *)
 let print_univ_level (fmt : formatter) (l : Level.t) =
@@ -49,12 +48,12 @@ let universe_as_string u =
 (* Gets a sort as a string *)
 let sort_as_string s =
   match s with
-  | Prop _ -> if s = prop_sort then "Prop" else "Set"
-  | Type u -> Printf.sprintf "Type %s" (universe_as_string u)
+  | Term.Prop _ -> if s = Sorts.prop then "Prop" else "Set"
+  | Term.Type u -> Printf.sprintf "Type %s" (universe_as_string u)
 
 (* Prints a term *)
 let rec term_as_string (env : env) (trm : types) =
-  match kind_of_term trm with
+  match kind trm with
   | Rel i ->
      (try
        let (n, _, _) = CRD.to_tuple @@ lookup_rel i env in
@@ -62,7 +61,7 @@ let rec term_as_string (env : env) (trm : types) =
      with
        Not_found -> Printf.sprintf "(Unbound_Rel %d)" i)
   | Var v ->
-     string_of_id v
+     Id.to_string v
   | Evar (k, cs) ->
      Printf.sprintf "??"
   | Sort s ->
@@ -95,17 +94,17 @@ let rec term_as_string (env : env) (trm : types) =
        (String.concat " " (List.map (term_as_string env) (Array.to_list xs)))
   | Const (c, u) ->
      let ker_name = Constant.canonical c in
-     string_of_kn ker_name
+     KerName.to_string ker_name
   | Construct (((i, i_index), c_index), u) ->
      let mutind_body = lookup_mind i env in
      let ind_body = mutind_body.mind_packets.(i_index) in
      let constr_name_id = ind_body.mind_consnames.(c_index - 1) in
-     string_of_id constr_name_id
+     Id.to_string constr_name_id
   | Ind ((i, i_index), u) ->
      let mutind_body = lookup_mind i env in
      let ind_bodies = mutind_body.mind_packets in
      let name_id = (ind_bodies.(i_index)).mind_typename in
-     string_of_id name_id
+     Id.to_string name_id
   | Fix ((is, i), (ns, ts, ds)) ->
      let env_fix = push_rel_context (bindings_for_fix ns ds) env in
      String.concat
@@ -135,7 +134,7 @@ let rec term_as_string (env : env) (trm : types) =
                 (fun c_i b ->
                   Printf.sprintf
                     "(case %s => %s)"
-                    (string_of_id (ind_body.mind_consnames.(c_i)))
+                    (Id.to_string (ind_body.mind_consnames.(c_i)))
                     (term_as_string env b))
                 bs)))
   | Meta mv -> (* TODO *)
@@ -144,10 +143,6 @@ let rec term_as_string (env : env) (trm : types) =
      Printf.sprintf "(%s)" (print_to_string print_constr trm)
   | Proj (p, c) -> (* TODO *)
      Printf.sprintf "(%s)" (print_to_string print_constr trm)
-
-(* Print a separator string *)
-let print_separator unit : unit =
-  Printf.printf "%s\n\n" "-----------------"
 
 (* Debug a term *)
 let debug_term (env : env) (trm : types) (descriptor : string) : unit =

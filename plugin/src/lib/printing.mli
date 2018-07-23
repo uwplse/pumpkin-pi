@@ -2,7 +2,7 @@
  * Debugging functions from PUMPKIN PATCH
  *)
 
-open Term
+open Constr
 open Environ
 
 (* --- Conversion to strings --- *)

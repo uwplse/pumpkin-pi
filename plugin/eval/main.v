@@ -144,7 +144,7 @@ Module CaseStudy (Elem : Comparable).
     Definition post_permutes (n : nat) (t : tree n) : permutes (postorder n t) (inorder n t) :=
       post_permutes' (existT _ n t).
 
-    Ornamental Modularization pre_post_permutes' from Base.pre_post_permutes using orn_size orn_size_inv.
+    Lift orn_size orn_size_inv in Base.pre_post_permutes as pre_post_permutes'.
     Definition pre_post_permutes (n : nat) (t : tree n) : permutes (preorder n t) (postorder n t) :=
       pre_post_permutes' (existT _ n t).
 
@@ -192,7 +192,7 @@ Module CaseStudy (Elem : Comparable).
     Definition post_permutes (h : nat) (t : tree h) : permutes (postorder h t) (inorder h t) :=
       post_permutes' (existT _ h t).
 
-    Ornamental Modularization pre_post_permutes' from Base.pre_post_permutes using orn_height orn_height_inv.
+    Lift orn_height orn_height_inv in Base.pre_post_permutes as pre_post_permutes'.
     Definition pre_post_permutes (h : nat) (t : tree h) : permutes (preorder h t) (postorder h t) :=
       pre_post_permutes' (existT _ h t).
 

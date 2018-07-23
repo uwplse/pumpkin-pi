@@ -2,7 +2,7 @@
  * Ornamental promotion/forgetful functions
  *)
 
-open Term
+open Constr
 open Environ
 open Evd
 

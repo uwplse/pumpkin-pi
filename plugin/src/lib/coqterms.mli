@@ -3,7 +3,7 @@
  *)
 
 open Environ
-open Term
+open Constr
 open Evd
 open Constrexpr
 open Names
@@ -147,6 +147,11 @@ val is_elim : env -> types -> bool
  * Get the type of an inductive type
  *)
 val type_of_inductive : env -> int -> mutual_inductive_body -> types
+
+(*
+ * Get an inductive type from an eliminator, if possible
+ *)
+val inductive_of_elim : env -> pconstant -> mutual_inductive option
 
 (*
  * Lookup the eliminator over the type sort

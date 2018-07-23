@@ -2,7 +2,7 @@
  * Ornamental promotion/forgetful functions
  *)
 
-open Term
+open Constr
 open Evd
 open Environ
 open Coqterms
@@ -13,7 +13,7 @@ open Utilities
  * that the function maps between, including all of their arguments 
  *)
 let rec ind_of_promotion_type (typ : types) : types * types =
-  match kind_of_term typ with
+  match kind typ with
   | Prod (n, t, b) when isProd b ->
      ind_of_promotion_type b
   | Prod (n, t, b) ->
