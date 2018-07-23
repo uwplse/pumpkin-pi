@@ -66,10 +66,10 @@ let pack_inner env evd l unpacked =
 (* --- Refolding --- *)
          
 (*
- * Meta-reduction of an applied ornament in the forward direction in the
- * non-indexer case, when the ornament application produces an existT term.
+ * Refolding an applied ornament in the forward direction, 
+ * when the ornament application produces an existT term.
  *)
-let reduce_existT_app l evd orn env arg trm =
+let refold_packed l evd orn env arg trm =
   let orn_app = mkAppl (orn, snoc arg (on_type unfold_args env evd arg)) in
   let unfolded = chain_reduce reduce_term delta env trm in
   let orn_app_red = reduce_nf env orn_app in
@@ -96,27 +96,17 @@ let reduce_existT_app l evd orn env arg trm =
     pack_existT { unfolded_ex with index; unpacked }
 
 (*
- * Meta-reduction of an applied ornament in the backwards non-indexer case,
- * when the application of the induction principle eliminates a sigT.
+ * Refolding an applied ornament in the backwards direction,
+ * when the ornament application eliminates over the projections.
  *)
-let reduce_sigT_elim_app l evd orn env arg trm =
-  let index_i = Option.get l.orn.index_i in
-  let deindex = remove_index index_i in
-  let arg_typ = dummy_index env ((on_type dest_sigT env evd arg).packer) in
-  let orn_app = mkAppl (orn, snoc arg (deindex (unfold_args arg_typ))) in
-  let app_red =
-    reduce_nf
-      env
-      (map_unit_env_if_lazy (* TODO move this now that we use it twice *)
-         (fun _ tr -> equal tr (first_fun arg_typ))
-         (fun en -> expand_eta en evd)
-         env
-         trm)
-  in
+let refold_projected l evd orn env arg trm =
+  let typ_args = non_index_typ_args l env evd arg in
+  let orn_app = mkAppl (orn, snoc arg typ_args) in
+  let app_red = reduce_nf env trm in
   let unpacked_app_red = reduce_nf env orn_app in
   let app = all_eq_substs (unpacked_app_red, arg) app_red in
   if equal app_red app then
-    (* nothing to rewrite; ensure termination *)
+    (* nothing to rewrite *)
     trm
   else
     (* return the rewritten term *)
@@ -126,12 +116,7 @@ let reduce_sigT_elim_app l evd orn env arg trm =
  * Get the meta-reduction function for a lifted term.
  *)
 let meta_reduce l =
-  if l.is_fwd && not l.is_indexer then
-    (* rewrite in the unpacked body of an existT *)
-    reduce_existT_app l
-  else
-    (* rewrite inside of an eliminator of a sigT *)
-    reduce_sigT_elim_app l
+  if l.is_fwd then refold_packed l else refold_projected l
 
 (*
  * Meta-reduction of an applied ornament to simplify and then rewrite
