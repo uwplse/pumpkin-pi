@@ -56,6 +56,15 @@ let pack env evd l unpacked =
   pack_existT {index_type; packer; index; unpacked}
 
 (*
+ * Pack, but only if it's to_typ
+ *)
+let pack_to_typ env evd l (from_typ, to_typ) unpacked =
+  if on_type (is_or_applies to_typ) env evd unpacked then
+    pack env evd l unpacked
+  else
+    unpacked
+
+(*
  * Lift
  *)
 let lift env evd l trm =
@@ -330,51 +339,24 @@ let lift_elim env evd l trm_app =
  * LIFT-CONSTR-ARGS & LIFT-CONSTR-FUN
  *)
 let lift_constr_core env evd l (from_typ, to_typ) trm =
-  let typ_args = non_index_typ_args l env evd trm in
-  let args =
-    map_backward
-      (List.map
-         (fun a ->
-           if on_type (is_or_applies to_typ) env evd a then
-             pack env evd l a
-           else
-             a))
-      l
-      (unfold_args (map_backward last_arg l trm))
-  in   
-  let rec_args = filter_orn l env evd (from_typ, to_typ) args in
-  let orn = lift_to l in
-  let orn_app = lift env evd l trm in
-  (* let orn_app = mkAppl (orn, snoc trm typ_args) in *)
+  let args = unfold_args (map_backward last_arg l trm) in
+  let pack_args = List.map (pack_to_typ env evd l (from_typ, to_typ)) in
+  let packed_args = map_backward pack_args l args in  
+  let rec_args = filter_orn l env evd (from_typ, to_typ) packed_args in
   if List.length rec_args = 0 then
     (* base case - don't bother refolding *)
-    reduce_nf env orn_app
+    reduce_nf env (lift env evd l trm)
   else
     (* inductive case - refold *)
     List.fold_left
-      (fun t a ->
-        let a_typ_args = non_index_typ_args l env evd a in
-        all_eq_substs (a, mkAppl (orn, snoc a a_typ_args)) t)
-      (refold l env evd orn orn_app rec_args)
-rec_args
+      (fun t a -> all_eq_substs (a, lift env evd l a) t)
+      (refold l env evd (lift_to l) (lift env evd l trm) rec_args)
+      rec_args
     
 (*
- * Lift a construction, which in the forward direction is an application
- * of a constructor, and in the backward direction is an application
- * of a constructor inside of an existential. This assumes the input
- * term is fully eta-expanded and that it is not applied to any extra
- * arguments at the end (though I think that's not actually possible anyways).
- *
- * This looks slightly different because we use the refolding algorithm
- * to derive the constructor rules, as described in Section 5 of the paper.
- *
- * As in the paper, the arguments are recursively lifted by the higher
- * lifting algorithm.
+ * LIFT-CONSTR before recursing
  *)
-let lift_constr env evd l trm =
-  (* LIFT-CONSTR *)
-  let to_typ = zoom_sig (promotion_type env evd l.orn.forget) in
-  let from_typ = first_fun (promotion_type env evd l.orn.promote) in
+let lift_constr env evd l (from_typ, to_typ) trm =
   let inner_construction = map_backward last_arg l trm in
   let constr = first_fun inner_construction in
   let args = unfold_args inner_construction in
@@ -474,7 +456,7 @@ let lift_core env evd l (from_type, to_type) index_type trm =
         mkAppl (from_type, t_args)
     else if is_packed_constr l en evd (from_type, to_type) tr then
       (* LIFT-CONSTR *)
-      let tr' = lift_constr en evd l tr in
+      let tr' = lift_constr en evd l (from_type, to_type) tr in
       match kind tr with
       | App (f, args) ->
          if (not l.is_fwd) && isApp (last (Array.to_list args)) then
