@@ -134,27 +134,10 @@ let meta_reduce l =
 
 (*
  * Meta-reduction of an applied ornament to simplify and then rewrite
- * in terms of the ornament and indexer applied to the specific arguments
- *
- * !!! TODO should be able to avoid unfolding/refolding if we assume
- * we always have recursive ornaments
+ * in terms of the ornament applied to the specific arguments
  *)
 let reduce_ornament_f l env evd orn trm args =
-  map_term_env_if
-    (fun en _ trm ->
-      if applies orn trm then (* TODO unsure if general *)
-        let arg = last_arg trm in
-        if isApp arg then
-          not (Option.has_some (search_lifted en (first_fun arg)))
-        else
-          true
-      else
-        false)
-    (fun env -> List.fold_right (meta_reduce l evd orn env))
-    shift_all
-    env
-    args
-    trm
+  List.fold_right (meta_reduce l evd orn env) args trm
 
 (*
  * Determine whether a type is the type we are ornamenting from
