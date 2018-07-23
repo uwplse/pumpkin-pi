@@ -3,7 +3,7 @@
  *)
 
 open Utilities
-open Term
+open Constr
 open Environ
 open Coqterms
 open Zooming
@@ -51,20 +51,6 @@ type lifting =
     is_fwd : bool;
     is_indexer : bool;
     lifted_indexer : types option;
-  }
-
-(*
- * A composition is a pair of functions and environments with
- * a corresponding lifting. It also contains a hint is_g, which says
- * whether lifting is applied to g or to f. This represents a single (factored)
- * applied but not simplified ornamentation.
- *)
-type composition =
-  {
-    l : lifting;
-    g : env * types;
-    f : env * types;
-    is_g : bool;
   }
 
 (* --- Initialization --- *)
@@ -147,12 +133,6 @@ let name_lifted (base : global_reference) : Id.t =
   let name = Nametab.basename_of_global base in
   Id.of_string (String.concat "_" [Id.to_string name; "lift"])
 
-(** Build the identifier [X + "_red"] to use as the name of the reduced lifting
- instance for the definition [base] with name [M_1.M_2...M_n.X]. *)
-let name_reduced (base : global_reference) : Id.t =
-  let name = Nametab.basename_of_global base in
-  Id.of_string (String.concat "_" [Id.to_string name; "red"])
-
 (** Build an external expression for the lifting instance for the definition
     [base] given its lifted definition [lift]. *)
 let make_lifted (base : global_reference) (lift : global_reference) : constr_expr =
@@ -172,37 +152,14 @@ let declare_lifted (evm : evar_map) (base : types) (lift : types) : unit =
   let etrm = EConstr.of_constr (intern env evm package) in
   ignore (edeclare n k ~opaque:false evm udecl etrm None [] hook)
 
-(** Register a canonical reduction for the lifted definition [lift] 
-    given its reduced definition [red]. *)
-let declare_reduced (evm : evar_map) (lift : types) (red : types) : unit =
-  let env = Global.env () in
-  let lift = global_of_constr lift in
-  let red = global_of_constr red in
-  let n = name_reduced lift in
-  let package = make_lifted lift red in
-  let hook = Lemmas.mk_hook (fun _ x -> declare_canonical_structure x; x) in
-  let k = (Global, Flags.is_universe_polymorphism (), CanonicalStructure) in
-  let udecl = Univdecls.default_univ_decl in
-  let etrm = EConstr.of_constr (intern env evm package) in
-  ignore (edeclare n k ~opaque:false evm udecl etrm None [] hook)
-
 (** Retrieve the canonical lifting for the definition [base]. *)
-let search_canonical (env : env) (base : types) : types option =
+let search_lifted (env : env) (base : types) : types option =
   try
     let base = global_of_constr base in
     let (_, info) = lookup_canonical_conversion (project, Const_cs base) in
     (* Reduce the lifting instance to HNF to extract the target component. *)
     let package = Reduction.whd_all env info.o_DEF in
-    let (cons, args) = Term.decompose_appvect package in
+    let (cons, args) = decompose_appvect package in
     Some (args.(3))
   with _ ->
     None
-
-(** Retrieve the canonical lifting for the definition [base].
-    Return the reduced version if it exists. *)
-let search_lifted (env : env) (base : types) : types option =
-  map_default
-    (fun l -> map_default (fun r -> Some r) (Some l) (search_canonical env l))
-    None
-    (search_canonical env base)
- 
