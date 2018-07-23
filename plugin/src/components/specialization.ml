@@ -70,30 +70,23 @@ let pack_inner env evd l unpacked =
  * when the ornament application produces an existT term.
  *)
 let refold_packed l evd orn env arg trm =
-  let orn_app = mkAppl (orn, snoc arg (on_type unfold_args env evd arg)) in
-  let unfolded = chain_reduce reduce_term delta env trm in
+  let typ_args = non_index_typ_args l env evd arg in
+  let orn_app = mkAppl (orn, snoc arg typ_args) in
+  let app_red = reduce_nf env trm in
   let orn_app_red = reduce_nf env orn_app in
-  let orn_app_ind = reduce_to_ind env orn_app in
-  let abstract = abstract_arg env evd (Option.get l.orn.index_i) in
-  let unfolded_ex = dest_existT unfolded in
-  let orn_app_ind_ex = dest_existT orn_app_ind in
+  let app_red_ex = dest_existT app_red in
   let orn_app_red_ex = dest_existT orn_app_red in
-  let packer = on_type abstract env evd orn_app_ind_ex.unpacked in
-  let index_type = unfolded_ex.index_type in
+  let abstract = abstract_arg env evd (Option.get l.orn.index_i) in
+  let packer = on_type abstract env evd orn_app_red_ex.unpacked in
+  let index_type = app_red_ex.index_type in
   let arg_sigT = { index_type ; packer } in
   let arg_indexer = project_index arg_sigT arg in
   let arg_value = project_value arg_sigT arg in
-  let fold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
-  let fold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
-  let unfolded_index_red = reduce_nf env unfolded_ex.index in
-  let index = fold_index unfolded_index_red in
-  let unfolded_unpacked_red = reduce_nf env unfolded_ex.unpacked in
-  let unpacked = fold_index (fold_value unfolded_unpacked_red) in
-  if equal index unfolded_index_red && equal unpacked unfolded_unpacked_red then
-    (* don't reduce *)
-    trm
-  else
-    pack_existT { unfolded_ex with index; unpacked }
+  let refold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
+  let refold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
+  let index = refold_index app_red_ex.index in
+  let unpacked = refold_index (refold_value app_red_ex.unpacked) in
+  pack_existT { app_red_ex with index; unpacked }
 
 (*
  * Refolding an applied ornament in the backwards direction,
@@ -103,14 +96,8 @@ let refold_projected l evd orn env arg trm =
   let typ_args = non_index_typ_args l env evd arg in
   let orn_app = mkAppl (orn, snoc arg typ_args) in
   let app_red = reduce_nf env trm in
-  let unpacked_app_red = reduce_nf env orn_app in
-  let app = all_eq_substs (unpacked_app_red, arg) app_red in
-  if equal app_red app then
-    (* nothing to rewrite *)
-    trm
-  else
-    (* return the rewritten term *)
-    app
+  let orn_app_red = reduce_nf env orn_app in
+  all_eq_substs (orn_app_red, arg) app_red
 
 (*
  * Get the meta-reduction function for a lifted term.

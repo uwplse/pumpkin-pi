@@ -366,7 +366,7 @@ Definition app_nil_r_vect (A : Type) (pv : packed_vector A) :=
     (projT2 pv).
 
 Lift orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_lifted.
-
+		   
 Theorem test_app_nil_r_vect_exact:
   forall (A : Type) (pv : sigT (vector A)),
     append_vect_lifted A (existT (vector A) (projT1 pv) (projT2 pv)) (existT (vector A) 0 (nilV A)) = (existT (vector A) (projT1 pv) (projT2 pv)).
