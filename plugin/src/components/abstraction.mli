@@ -2,7 +2,7 @@
  * Abstraction specific to ornamental search
  *)
 
-open Term
+open Constr
 open Environ
 open Evd
 

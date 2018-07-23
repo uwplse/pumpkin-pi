@@ -1,11 +1,8 @@
 (*
- * A generalized version of the factoring component from PUMPKIN PATCH
+ * Factoring
  *)
 
-open Term
-open Environ
-open Evd
-open Lifting
+open Constr
 
 (* --- Type-level factoring --- *)
 
