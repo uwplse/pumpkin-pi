@@ -49,7 +49,6 @@ type lifting =
   {
     orn : promotion;
     is_fwd : bool;
-    is_indexer : bool;
     lifted_indexer : types option;
   }
 
@@ -80,8 +79,7 @@ let initialize_promotion env evd promote forget =
  *)
 let initialize_lifting orn is_fwd =
   let lifted_indexer = None in
-  let is_indexer = false in
-  { orn ; is_fwd ; lifted_indexer ; is_indexer }
+  { orn ; is_fwd ; lifted_indexer }
 
 (* --- Control structures --- *)
     
@@ -94,12 +92,9 @@ let lift_to (l : lifting) = if l.is_fwd then l.orn.promote else l.orn.forget
 
 (* Other control structures *)
 let directional l a b = if l.is_fwd then a else b
-let if_indexer l a b = if l.is_indexer then a else b
 let map_directional f g l x = map_if_else f g l.is_fwd x
-let map_indexer f g l x = map_if_else f g l.is_indexer x
 let map_forward f l x = map_if f l.is_fwd x
 let map_backward f l x = map_if f (not l.is_fwd) x
-let map_if_indexer f l x = map_if f l.is_indexer x
 
 (* --- Database of liftings for higher lifting --- *)
 

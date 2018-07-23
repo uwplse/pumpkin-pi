@@ -36,7 +36,6 @@ type lifting =
   {
     orn : promotion;
     is_fwd : bool;
-    is_indexer : bool;
     lifted_indexer : types option;
   }
 
@@ -63,12 +62,9 @@ val lift_to : lifting -> types
 
 (* Other control structures *)
 val directional : lifting -> 'a -> 'a -> 'a
-val if_indexer : lifting -> 'a -> 'a -> 'a
 val map_directional : ('a -> 'b) -> ('a -> 'b) -> lifting -> 'a -> 'b
-val map_indexer : ('a -> 'b) -> ('a -> 'b) -> lifting -> 'a -> 'b
 val map_forward : ('a -> 'a) -> lifting -> 'a -> 'a
 val map_backward : ('a -> 'a) -> lifting -> 'a -> 'a
-val map_if_indexer : ('a -> 'a) -> lifting -> 'a -> 'a
 
 (* --- Database for higher lifting --- *)
 
