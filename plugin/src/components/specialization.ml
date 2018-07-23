@@ -38,7 +38,7 @@ let non_index_args l env typ =
 let non_index_typ_args l env evd trm =
   on_type (non_index_args l env) env evd trm
 
-(* --- Meta-reduction --- *)
+(* --- Refolding --- *)
 
 (*
  * Pack inside of a sigT type
@@ -63,50 +63,6 @@ let pack_inner env evd l unpacked =
   let packer = abstract_arg env evd index_i typ in
   let ex = pack_existT {index_type; packer; index; unpacked} in
   mkAppl (lift_back l, snoc ex (remove_index index_i typ_args))
-
-(*
- * Get all recursive constants
- * TODO instead of doing this and refolding, in some cases
- * we should be able to just avoid unfolding these, at least for
- * higher lifted functions
- *)
-let rec all_recursive_constants env trm =
-  let consts = all_const_subterms (fun _ _ -> true) (fun u -> u) () trm in
-  let non_axioms =
-    List.map
-      Option.get
-      (List.filter
-         (Option.has_some)
-         (List.map
-            (fun c ->
-              try
-                let def = unwrap_definition env c in
-                if not (equal def c || isInd def) then
-                  Some (c, def)
-                else
-                  None
-              with _ ->
-                None)
-            consts))
-  in
-  let non_axiom_consts = List.map fst non_axioms in
-  let defs = List.map snd non_axioms in
-  let flat_map f l = List.flatten (List.map f l) in
-  unique
-    equal
-    (List.append non_axiom_consts (flat_map (all_recursive_constants env) defs))
-
-(*
- * Fold back constants after applying a function
- * Necessary for current higher lifting implementation
- * Workaround may not always work yet
- *)
-let fold_back_constants env f trm =
-  List.fold_left
-    (fun red lifted ->
-      all_conv_substs env (lifted, lifted) red)
-    (f trm)
-    (all_recursive_constants env trm)
 
 (*
  * Meta-reduction of an applied ornament in the forward direction in the
@@ -217,17 +173,13 @@ let reduce_ornament_f l env evd orn trm args =
       else
         false)
     (fun env args trm ->
-      fold_back_constants
-        env
-        (fun trm ->
-          List.fold_right
-            (fun arg trm ->
-              try
-                meta_reduce l evd orn env arg trm
-              with _ ->
-                trm (* TODO investigate why failing *) )
-            args
-            trm)
+      List.fold_right
+        (fun arg trm ->
+          try
+            meta_reduce l evd orn env arg trm
+          with _ ->
+            trm (* TODO investigate why failing *) )
+        args
         trm)
     shift_all
     env

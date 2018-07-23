@@ -1,5 +1,5 @@
 (*
- * Specialization component for ornamental search
+ * Core lifting algorithm
  *)
 
 open Constr
@@ -8,7 +8,7 @@ open Evd
 open Lifting
 
 (*
- * Lift a proof along lifted functions it refers to
+ * Lift a function or proof along an ornament
  *)
 val do_lift_core :
   env ->
