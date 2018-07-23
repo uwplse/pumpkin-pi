@@ -36,9 +36,13 @@ let non_index_args l env typ =
  * get all of the arguments to that type that aren't the new/forgotten index
  *)
 let non_index_typ_args l env evd trm =
-  on_type (non_index_args l env) env evd trm
-
-(* --- Refolding --- *)
+  if is_or_applies existT trm then
+    (* don't bother type-checking *)
+    let packer = (dest_existT trm).packer in
+    let index_i = Option.get l.orn.index_i in
+    remove_index index_i (unfold_args (dummy_index env packer))
+  else
+    on_type (non_index_args l env) env evd trm
 
 (*
  * Pack inside of a sigT type
@@ -55,15 +59,12 @@ let pack env evd l unpacked =
  * Pack arguments inside of a sigT type and lift
  *)
 let pack_inner env evd l unpacked =
-  let index_i = Option.get l.orn.index_i in
-  let typ = reduce_type env evd unpacked in
-  let index = get_arg index_i typ in
-  let typ_args = unfold_args typ in
-  let index_type = infer_type env evd index in
-  let packer = abstract_arg env evd index_i typ in
-  let ex = pack_existT {index_type; packer; index; unpacked} in
-  mkAppl (lift_back l, snoc ex (remove_index index_i typ_args))
+  let ex = pack env evd l unpacked in
+  let typ_args = non_index_typ_args l env evd ex in
+  mkAppl (lift_back l, snoc ex typ_args)
 
+(* --- Refolding --- *)
+         
 (*
  * Meta-reduction of an applied ornament in the forward direction in the
  * non-indexer case, when the ornament application produces an existT term.
