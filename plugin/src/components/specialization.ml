@@ -1,8 +1,8 @@
 (*
- * Specialization component for ornamental search
+ * Core lifting algorithm
  *)
 
-open Term
+open Constr
 open Environ
 open Zooming
 open Lifting
@@ -12,12 +12,11 @@ open Debruijn
 open Utilities
 open Indexing
 open Promotions
-open Printing
 open Abstraction
 open Hypotheses
 open Names
 
-(* --- Some utilities for meta-reduction --- *)
+(* --- Some utilities for lifting --- *)
 
 (*
  * Given a type we are promoting to/forgetting from,
@@ -48,7 +47,6 @@ let pack env evd l unpacked =
   let index_i = Option.get l.orn.index_i in
   let typ = reduce_type env evd unpacked in
   let index = get_arg index_i typ in
-  let typ_args = unfold_args typ in
   let index_type = infer_type env evd index in
   let packer = abstract_arg env evd index_i typ in
   pack_existT {index_type; packer; index; unpacked}
@@ -83,7 +81,7 @@ let rec all_recursive_constants env trm =
             (fun c ->
               try
                 let def = unwrap_definition env c in
-                if not (eq_constr def c || isInd def) then
+                if not (equal def c || isInd def) then
                   Some (c, def)
                 else
                   None
@@ -95,7 +93,7 @@ let rec all_recursive_constants env trm =
   let defs = List.map snd non_axioms in
   let flat_map f l = List.flatten (List.map f l) in
   unique
-    eq_constr
+    equal
     (List.append non_axiom_consts (flat_map (all_recursive_constants env) defs))
 
 (*
@@ -134,7 +132,7 @@ let reduce_existT_app l evd orn env arg trm =
   let index = fold_index unfolded_index_red in
   let unfolded_unpacked_red = reduce_nf env unfolded_ex.unpacked in
   let unpacked = fold_index (fold_value unfolded_unpacked_red) in
-  if eq_constr index unfolded_index_red && eq_constr unpacked unfolded_unpacked_red then
+  if equal index unfolded_index_red && equal unpacked unfolded_unpacked_red then
     (* don't reduce *)
     trm
   else
@@ -152,7 +150,7 @@ let reduce_indexer_app l evd orn env arg trm =
   let orn_app_red = reduce_nf env orn_app in
   let app_red = reduce_nf env unfolded in
   let app = all_eq_substs (orn_app_red, orn_app) app_red in
-  if eq_constr app_red app then
+  if equal app_red app then
     (* nothing to rewrite *)
     trm
   else
@@ -172,14 +170,14 @@ let reduce_sigT_elim_app l evd orn env arg trm =
     reduce_nf
       env
       (map_unit_env_if_lazy (* TODO move this now that we use it twice *)
-         (fun _ tr -> eq_constr tr (first_fun arg_typ))
+         (fun _ tr -> equal tr (first_fun arg_typ))
          (fun en -> expand_eta en evd)
          env
          trm)
   in
   let unpacked_app_red = reduce_nf env orn_app in
   let app = all_eq_substs (unpacked_app_red, arg) app_red in
-  if eq_constr app_red app then
+  if equal app_red app then
     (* nothing to rewrite; ensure termination *)
     trm
   else
@@ -249,7 +247,7 @@ let is_orn l env evd (from_typ, to_typ) typ =
     is_or_applies from_typ typ
   else
     if is_or_applies sigT typ then
-      eq_constr to_typ (first_fun (dummy_index env (dest_sigT typ).packer))
+      equal to_typ (first_fun (dummy_index env (dest_sigT typ).packer))
     else
       false
 
@@ -319,7 +317,7 @@ let lift_case env evd l (from_typ, to_typ) p c_elim c =
   let c_elim_type = reduce_type env evd c_elim in
   let (_, to_c_typ, _) = destProd c_elim_type in
   let rec num_ihs env typ =
-    match kind_of_term typ with
+    match kind typ with
     | Prod (n, t, b) ->
        if is_or_applies to_typ (reduce_term env t) then
          let (n_b_t, b_t, b_b) = destProd b in
@@ -344,7 +342,7 @@ let lift_case env evd l (from_typ, to_typ) p c_elim c =
       let rec lift_args args index =
         match args with
         | h :: tl ->
-           if eq_constr h index then
+           if equal h index then
              shift h :: (lift_args (shift_all tl) index)
            else
              let h_typ = reduce_type env_to_c evd h in
@@ -366,7 +364,7 @@ let lift_case env evd l (from_typ, to_typ) p c_elim c =
       let rec lift_args args (index, proj_index) =
         match args with
         | h :: tl ->
-           if eq_constr h index then
+           if equal h index then
              proj_index :: (lift_args (unshift_all tl) (index, proj_index))
            else
              let h_typ = reduce_type env_c_body evd h in
@@ -491,14 +489,14 @@ let type_is_orn l env evd (from_type, to_type) trm =
              
 let is_packed_constr l env evd (from_type, to_type) trm =
   let right_type = type_is_orn l env evd (from_type, to_type) in
-  match kind_of_term trm with
+  match kind trm with
   | Construct _  when right_type trm ->
      true
   | App (f, args) ->
      if l.is_fwd then
        isConstruct f && right_type trm
      else
-       if eq_constr existT f && right_type trm then
+       if equal existT f && right_type trm then
          let last_arg = last (Array.to_list args) in
          isApp last_arg && isConstruct (first_fun last_arg)
        else
@@ -511,36 +509,34 @@ let is_packed l env evd (from_type, to_type) trm =
   if l.is_fwd then
     false
   else
-    match kind_of_term trm with
+    match kind trm with
     | App (f, args) ->
-       eq_constr existT f && right_type trm
+       equal existT f && right_type trm
     | _ ->
        false
 
 let is_proj l env evd (from_type, to_type) trm =
   let right_type = type_is_orn l env evd (from_type, to_type) in
-  match kind_of_term trm with
+  match kind trm with
   | App (f, args) ->
      if l.is_fwd then
-       eq_constr (Option.get l.orn.indexer) f && right_type (last_arg trm)
+       equal (Option.get l.orn.indexer) f && right_type (last_arg trm)
      else
-       (eq_constr projT1 f || eq_constr projT2 f) && right_type (last_arg trm)
+       (equal projT1 f || equal projT2 f) && right_type (last_arg trm)
   | _ ->
      false
 
 let is_eliminator l env evd (from_type, to_type) trm =
-  let right_type = type_is_orn l env evd (from_type, to_type) in
-  match kind_of_term trm with
+  match kind trm with
   | App (f, args) when isConst f ->
      let maybe_ind = inductive_of_elim env (destConst f) in
      if Option.has_some maybe_ind then
        let ind = Option.get maybe_ind in
-       eq_constr (mkInd (ind, 0)) (directional l from_type to_type)
+       equal (mkInd (ind, 0)) (directional l from_type to_type)
      else
        false
   | _ ->
      false
-     
              
 (*
  * TODO comment/in progress (hooking in new alg.)
@@ -576,7 +572,7 @@ let lift_core env evd l (from_type, to_type) index_type trm =
     else if is_packed_constr l en evd (from_type, to_type) tr then
       (* LIFT-CONSTR *)
       let tr' = lift_existential_construction en evd l tr in
-      match kind_of_term tr with
+      match kind tr with
       | App (f, args) ->
          if (not l.is_fwd) && isApp (last (Array.to_list args)) then
            let (f', args') = destApp tr' in
@@ -600,7 +596,7 @@ let lift_core env evd l (from_type, to_type) index_type trm =
       if l.is_fwd then
         let arg_typ' = dest_sigT (lift en index_type (reduce_type en evd tr)) in
         project_index arg_typ' arg'
-      else if eq_constr projT1 (first_fun tr) then
+      else if equal projT1 (first_fun tr) then
         let indexer = Option.get l.orn.indexer in
         mkAppl (indexer, snoc arg' (non_index_typ_args l en evd tr))
       else 
@@ -617,12 +613,12 @@ let lift_core env evd l (from_type, to_type) index_type trm =
       let post_args' = List.map (lift en index_type) post_args in
       mkAppl (tr'', post_args')
     else
-      match kind_of_term tr with
+      match kind tr with
       | App (f, args) ->
-         if eq_constr (lift_back l) f then
+         if equal (lift_back l) f then
            (* SECTION-RETRACTION *)
            last_arg tr
-         else if eq_constr (lift_to l) f then
+         else if equal (lift_to l) f then
            (* INTERNALIZE *)
            lift en index_type (last_arg tr)
          else
@@ -676,20 +672,20 @@ let lift_core env evd l (from_type, to_type) index_type trm =
          mkProj (pr, c')
       | Construct (((i, i_index), _), u) ->
          let ind = mkInd (i, i_index) in
-         if eq_constr ind (directional l from_type to_type) then
+         if equal ind (directional l from_type to_type) then
            (* lazy eta expansion *)
            lift en index_type (expand_eta en evd tr)
          else
            tr
       | Const _ ->
          (* CONST *)
-         if eq_constr tr projT1 || eq_constr tr projT2 || is_elim en tr then
+         if equal tr projT1 || equal tr projT2 || is_elim en tr then
            tr
          else
            (try
               let def = lookup_definition en tr in
               let lifted = lift en index_type def in
-              if eq_constr def lifted then
+              if equal def lifted then
                 tr
               else
                 reduce_term en lifted (* TODO cache, but only when relevant *)

@@ -2,7 +2,7 @@
  * Specialization component for ornamental search
  *)
 
-open Term
+open Constr
 open Environ
 open Evd
 open Lifting
