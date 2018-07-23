@@ -19,13 +19,11 @@ let find_ornament n d_old d_new =
   if isInd trm_o && isInd trm_n then
     let idx_n = with_suffix n "index" in
     let orn = search_orn_inductive env evd idx_n trm_o trm_n in
-    begin
-      match orn.indexer with
-      | Some idx ->
+    Option.iter
+      (fun idx ->
         define_term idx_n evd idx;
-        Printf.printf "Defined indexing function %s.\n\n" (Id.to_string idx_n);
-      | None -> ()
-    end;
+        Printf.printf "Defined indexing function %s.\n\n" (Id.to_string idx_n))
+      orn.indexer;
     define_term n evd orn.promote;
     Printf.printf "Defined promotion %s.\n\n" (Id.to_string n);
     let inv_n = with_suffix n "inv" in

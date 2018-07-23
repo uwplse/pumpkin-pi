@@ -1,5 +1,5 @@
 (*
- * Differencing for ornamenting inductive types
+ * Searching for ornamental promotions between inductive types
  *)
 
 open Constr
@@ -7,8 +7,6 @@ open Environ
 open Evd
 open Names
 open Lifting
-       
-(* --- Ornamental differencing --- *)
 
 (* 
  * Search two inductive types for an ornamental promotion between them
