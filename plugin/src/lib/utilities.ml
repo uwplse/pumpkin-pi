@@ -10,6 +10,10 @@ let map_default f default x =
 let last (l : 'a list) : 'a =
   List.hd (List.rev l)
 
+(* Get all but the last element of a list *)
+let all_but_last (l : 'a list) : 'a list =
+  List.rev (List.tl (List.rev l))
+
 (* Snoc *)
 let snoc (a : 'a) (l : 'a list) : 'a list =
   List.append l [a]

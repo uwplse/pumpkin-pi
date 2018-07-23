@@ -15,6 +15,8 @@ open Zooming
 open Abstraction
 open Lifting
 open Declarations
+open Context
+open Util
 
 (* --- Differencing terms --- *)
 
@@ -36,9 +38,7 @@ let same_type env evd o n =
  *)
 let diff_arg i trm_o trm_n =
   try
-    let arg_o = get_arg i trm_o in
-    let arg_n = get_arg i trm_n in
-    not (equal arg_o arg_n)
+    not (equal (get_arg i trm_o) (get_arg i trm_n))
   with _ ->
     true
 
@@ -60,16 +60,25 @@ let same_mod_indexing env p_index o n =
   let (t_o, t_n) = map_tuple snd (o, n) in
   are_or_apply p_index t_o t_n || same_mod_change env o n
 
-(* --- Indexers --- *)
+(* --- Finding the New Index --- *)
+
+(* 
+ * As described in "Finding the New Index" in Section 5.1.1,
+ * search starts by identifying the new index and offset.
+ * There are two algorithms for this (both described in that section):
+ * the simple one cannot deal with ambiguity, but simply compares the types.
+ * A more complex algorithm runs when there is ambiguity, and compares the
+ * eliminators instead.
+ *)
 
 (*
  * Returns true if the argument at the supplied index location of the 
- * inductive property (which should be at relative index 1 before calling
+ * inductive motive (which should be at relative index 1 before calling
  * this function) is an index to some application of the induction principle
  * in the second term that was not an index to any application of the induction
  * principle in the first term.
  *
- * In other words, this looks for applications of the property
+ * In other words, this looks for applications of the motive
  * in the induction principle type, checks the argument at the location,
  * and determines whether they were equal. If they are ever not equal,
  * then the index is considered to be new. Since we are ornamenting,
@@ -77,26 +86,27 @@ let same_mod_indexing env p_index o n =
  * we should encounter applications of the induction principle in both
  * terms in exactly the same order.
  *)
-let new_index i trm_o trm_n =
-  let rec is_new_index p trm_o trm_n =
+let is_new_index i trm_o trm_n =
+  let rec is_new p trm_o trm_n =
     match map_tuple kind (trm_o, trm_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-       let p_b = shift p in
        if applies p t_o && not (applies p t_n) then
-         is_new_index p_b (shift trm_o) b_n
+         is_new (shift p) (shift trm_o) b_n
        else
-         is_new_index p t_o t_n || is_new_index p_b b_o b_n
+         is_new p t_o t_n || is_new (shift p) b_o b_n
     | (App (_, _), App (_, _)) when applies p trm_o && applies p trm_n ->
-       let args_o = List.rev (List.tl (List.rev (unfold_args trm_o))) in
-       let args_n = List.rev (List.tl (List.rev (unfold_args trm_n))) in
+       let args_o = all_but_last (unfold_args trm_o) in
+       let args_n = all_but_last (unfold_args trm_n) in
        diff_arg i (mkAppl (p, args_o)) (mkAppl (p, args_n))
     | _ ->
        false
-  in is_new_index (mkRel 1) trm_o trm_n
+  in is_new (mkRel 1) trm_o trm_n
 
 (*
  * Assuming there is an indexing ornamental relationship between two 
  * eliminators, get the type and location of the new index.
+ * This starts by identifying candidate new indices, then filters
+ * them to the ones that are truly different.
  *
  * If indices depend on earlier types, the types may be dependent;
  * the client needs to shift by the appropriate offset.
@@ -109,50 +119,51 @@ let new_index i trm_o trm_n =
 let new_index_type env elim_t_o elim_t_n =
   let (_, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
-  let rec poss_indices e p_o p_n =
+  let rec candidates e p_o p_n =
     match map_tuple kind (p_o, p_n) with
     | (Prod (n_o, t_o, b_o), Prod (_, t_n, b_n)) ->
        if isProd b_o && convertible e t_o t_n then
          let e_b = push_local (n_o, t_o) e in
-         let same = poss_indices e_b b_o b_n in
+         let same = candidates e_b b_o b_n in
          let different = (0, t_n) in
          different :: (List.map (fun (i, i_t) -> (shift_i i, i_t)) same)
        else
          [(0, t_n)]
     | _ ->
-       failwith "could not find indexer property"
-  in List.find (fun (i, _) -> new_index i b_o b_n) (poss_indices env p_o p_n)
+       failwith "could not find indexer motive"
+  in List.find (fun (i, _) -> is_new_index i b_o b_n) (candidates env p_o p_n)
                
 (*
  * This is Nate's simple search heuristic that works when there is no ambiguity
  *)
-let diff_context_simple env ctx_o ctx_n =
-  let open Util in
-  let open Context in
-  let decls_o = List.rev ctx_o in
-  let decls_n = List.rev ctx_n in
-  let nth_type (n : int) : types = Rel.Declaration.get_type (List.nth decls_n n) in
+let diff_context_simple env decls_o decls_n =
+  let nth_type n = Rel.Declaration.get_type (List.nth decls_n n) in
   let rec scan env pos diff (decls_o, decls_n) : int option =
     match (decls_o, decls_n) with
-    | (decl_o :: decls_o'), (decl_n :: decls_n') ->
+    | (decl_o :: decls_o_b), (decl_n :: decls_n_b) ->
       let type_o = Rel.Declaration.get_type decl_o in
       let type_n = Rel.Declaration.get_type decl_n in
-      let env' = Environ.push_rel decl_n env in
+      let env_b = push_rel decl_n env in
+      let pos_b = pos + 1 in
       if convertible env type_o type_n then
-        let diff' = scan env' (pos + 1) diff (decls_o', decls_n') in
-        if Option.has_some diff' && Option.get diff' = pos + 1 then
-          let type_i = nth_type (pos + 1) in
-          if not (convertible env' (shift type_o) type_i) then
-            diff'
+        let diff_b = scan env_b pos_b diff (decls_o_b, decls_n_b) in
+        if Option.has_some diff_b && Option.get diff_b = pos_b then
+          let type_i = nth_type pos_b in
+          if not (convertible env_b (shift type_o) type_i) then
+            diff_b
           else
             None (* ambiguous, can't use this heuristic *)
         else
-          diff'
+          diff_b
       else
-        scan env' (pos + 1) (Some pos) (decls_o, decls_n')
-    | [], [] -> None
-    | [], (decl_n :: decls_n) -> Some pos
-    | (_ :: _), [] -> None
+        scan env_b pos_b (Some pos) (decls_o, decls_n_b) (* this index is new *)
+    | [], (decl_n :: decls_n_b) ->
+       if List.length decls_n_b > 0 then
+         failwith "Please add just one new index at a time."
+       else
+         Some pos (* the last index is new *)
+    | _ ->
+       failwith "No new indices. Try switching directions."
   in
   let diff_pos = scan env 0 None (decls_o, decls_n) in
   if Option.has_some diff_pos then
@@ -166,8 +177,6 @@ let diff_context_simple env ctx_o ctx_n =
  * Top-level index finder for Nate's heuristic
  *)
 let new_index_type_simple env npars ind_o ind_n =
-  let open Util in
-  let open Constr in
   (* Applying each parameter increments the index for the next one. *)
   let pars = List.make npars (mkRel npars) in
   let pind_o = Univ.in_punivs ind_o in
@@ -176,10 +185,20 @@ let new_index_type_simple env npars ind_o ind_n =
   let indf_n = Inductiveops.make_ind_family (pind_n, pars) in
   let (idcs_o, _) = Inductiveops.get_arity env indf_o in
   let (idcs_n, _) = Inductiveops.get_arity env indf_n in
-  diff_context_simple env idcs_o idcs_n
+  diff_context_simple env (List.rev idcs_o) (List.rev idcs_n)
+
+(* --- Searching for the Indexer --- *)
 
 (*
- * Given an old and new application of a property, find the new index.
+ * As described in the paragraph "Searching for the Indexer" in Section
+ * 5.1.1, once the algorithm has the index offset and type, it then
+ * searches for the indexer function. It does this by
+ * traversing the types of the eliminators in parallel and forming
+ * the function as it goes, substituting in the appropriate motive.
+ *)
+                      
+(*
+ * Given an old and new application of a motive, find the new index.
  * This also assumes there is only one new index.
  *)
 let get_new_index index_i p o n =
@@ -187,7 +206,7 @@ let get_new_index index_i p o n =
   | (App (f_o, _), App (f_n, _)) when are_or_apply p f_o f_n ->
      get_arg index_i n
   | _ ->
-     failwith "not an application of a property"
+     failwith "not an application of a motive"
 
 (*
  * Convenience function that rules out hypotheses that the algorithm thinks
@@ -214,8 +233,8 @@ let false_lead env evd index_i p b_o b_n =
 
 (*
  * Get a single case for the indexer, given:
- * 1. index_i, the location of the new index in the property
- * 2. index_t, the type of the new index in the property
+ * 1. index_i, the location of the new index in the motive
+ * 2. index_t, the type of the new index in the motive
  * 3. o, the old environment, inductive type, and constructor
  * 4. n, the new environment, inductive type, and constructor
  *
@@ -307,14 +326,20 @@ let search_for_indexer evd idx npm elim o n is_fwd : types option =
   else
     None
 
-(* --- Indexing ornaments --- *)
+(* --- Searching for Promote and Forget --- *)
 
 (*
- * Stretch the old property type to match the new one
- * That is, add indices where they are missing in the old property
+ * This implements the "Searching for Promote and Forget" paragraph of
+ * Section 5.1.1. It works a lot like searching for the indexer, but
+ * it uses a different motive.
+ *)
+
+(*
+ * Stretch the old motive type to match the new one
+ * That is, add indices where they are missing in the old motive
  * For now just supports one index
  *)
-let rec stretch_property_type index_i env o n =
+let rec stretch_motive_type index_i env o n =
   let (ind_o, p_o) = o in
   let (ind_n, p_n) = n in
   match map_tuple kind (p_o, p_n) with
@@ -325,20 +350,20 @@ let rec stretch_property_type index_i env o n =
      else
        let env_b = push_local (n_o, t_o) env in
        let o_b = (shift ind_o, b_o) in
-       mkProd (n_o, t_o, stretch_property_type (index_i - 1) env_b o_b n_b)
+       mkProd (n_o, t_o, stretch_motive_type (index_i - 1) env_b o_b n_b)
   | _ ->
      p_o
 
 (*
- * Stretch the old property to match the new one at the term level
+ * Stretch the old motive to match the new one at the term level
  *
  * Hilariously, this function is defined as an ornamented
- * version of stretch_property_type.
+ * version of stretch_motive_type.
  *)
-let stretch_property index_i env o n =
+let stretch_motive index_i env o n =
   let (ind_o, p_o) = o in
   let o = (ind_o, lambda_to_prod p_o) in
-  prod_to_lambda (stretch_property_type index_i env o n)
+  prod_to_lambda (stretch_motive_type index_i env o n)
 
 (*
  * Stretch out the old eliminator type to match the new one
@@ -349,7 +374,7 @@ let stretch index_i env indexer pms o n =
   let (ind_n, elim_t_n) = n in
   let (n_exp, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, _) = destProd elim_t_n in
-  let p_exp = stretch_property_type index_i env (ind_o, p_o) (ind_n, p_n) in
+  let p_exp = stretch_motive_type index_i env (ind_o, p_o) (ind_n, p_n) in
   let b_exp =
     map_term_if
       (fun (p, _) t -> applies p t)
@@ -378,9 +403,9 @@ let remove_rel (i : int) (env : env) : env =
 
 (*
  * Modify a case of an eliminator application to use
- * the new property p in its hypotheses
+ * the new motive p in its hypotheses
  *)
-let with_new_property p c : types =
+let with_new_motive p c : types =
   let rec sub_p sub trm =
     let (p_o, p_n) = sub in
     match kind trm with
@@ -393,7 +418,7 @@ let with_new_property p c : types =
   in sub_p (mkRel 1, p) c
 
 (*
- * Find the property that the ornamental promotion or forgetful function proves
+ * Find the motive that the ornamental promotion or forgetful function proves
  * for an indexing function
  *)
 let ornament_p index_i env ind arity npm indexer_opt =
@@ -486,8 +511,8 @@ let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
  * Get a case for an indexing ornamental promotion/forgetful function.
  *
  * This currently works in the following way:
- * 1. If it's forwards, then adjust the property to have the index
- * 2. Substitute in the property to the old case
+ * 1. If it's forwards, then adjust the motive to have the index
+ * 2. Substitute in the motive to the old case
  * 3. Substitute in the indexes (or lack thereof, if backwards)
  *
  * Eventually, we might want to think of this as (or rewrite this to)
@@ -498,9 +523,9 @@ let orn_index_case evd index_i is_fwd indexer_f orn_p o n : types =
   let (env_o, arity_o, ind_o, _, c_o) = o in
   let (env_n, arity_n, ind_n, p_n, c_n) = n in
   let d_arity = arity_n - arity_o in
-  let adjust p = stretch_property index_i env_o (ind_o, p) (ind_n, p_n) in
+  let adjust p = stretch_motive index_i env_o (ind_o, p) (ind_n, p_n) in
   let p_o = map_if (fun p -> adjust (unshift_by d_arity p)) is_fwd orn_p in
-  let c_o = with_new_property (shift_by d_arity p_o) c_o in
+  let c_o = with_new_motive (shift_by d_arity p_o) c_o in
   let o = (env_o, ind_o, c_o) in
   let n = (env_n, ind_n, c_n) in
   prod_to_lambda (sub_indexes evd index_i is_fwd indexer_f (mkRel 1) [] o n)
@@ -657,6 +682,8 @@ let search_orn_index_elim evd idx npm indexer_n elim_o o n is_fwd =
   | _ ->
      failwith "not eliminators"
 
+(* --- Top-level search algorithm for indexing ornaments --- *)
+
 (*
  * Search two inductive types for an indexing ornament
  *
@@ -687,15 +714,6 @@ let search_orn_index env evd npm indexer_n o n is_fwd =
       call_directional (new_index_type env_n) elim_t_o' elim_t_n'
   in search_orn_index_elim evd idx npm indexer_n elim_o o n is_fwd
 
-(* --- Parameterization ornaments --- *)
-
-(*
- * Search two inductive types for a parameterization ornament
- * This is not yet supported
- *)
-let search_orn_params env ind_o ind_n is_fwd : types =
-  failwith "parameterization is not yet supported"
-
 (* --- Ornamental differencing --- *)
 
 (*
@@ -710,15 +728,7 @@ let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
      let (npm_o, npm_n) = map_tuple (fun m -> m.mind_nparams) (m_o, m_n) in
      if not (npm_o = npm_n) then
        (* new parameter *)
-       let search = twice (search_orn_params env) in
-       let indexer = None in
-       let index_i = None in
-       if npm_o < npm_n then
-         let (promote, forget) = search (i_o, ii_o) (i_n, ii_n) in
-         { index_i; indexer; promote; forget }
-       else
-         let (promote, forget) = search (i_n, ii_n) (i_o, ii_o) in
-         { index_i; indexer; promote; forget }
+       failwith "new parameters are not yet supported"
      else
        let npm = npm_o in
        let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
