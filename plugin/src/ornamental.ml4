@@ -1,12 +1,8 @@
 DECLARE PLUGIN "ornamental"
 
-open Util
 open Names
 open Stdarg
 open Frontend
-open Utilities
-open Coqterms
-open Lifting
 
 (* Identify an ornament given two inductive types *)
 VERNAC COMMAND EXTEND FindOrnament CLASSIFIED AS SIDEFF
