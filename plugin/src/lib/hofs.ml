@@ -2,7 +2,7 @@
  * Higher-order functions on terms
  *)
 
-open Term
+open Constr
 open Environ
 open Debruijn
 open Coqterms
@@ -20,7 +20,7 @@ let rec map_term_env_if p f d (env : env) (a : 'a) (trm : types) : types =
   if p env a trm then
     f env a trm
   else
-    match kind_of_term trm with
+    match kind trm with
     | Cast (c, k, t) ->
        let c' = map_rec env a c in
        let t' = map_rec env a t in
@@ -62,55 +62,6 @@ let rec map_term_env_if p f d (env : env) (a : 'a) (trm : types) : types =
        trm
 
 (*
- * map_term_env_if using the old environment
- *)
-let rec map_term_env_if_old p f d (env : env) (a : 'a) (trm : types) : types =
-  let map_rec = map_term_env_if_old p f d in
-  if p env a trm then
-    f env a trm
-  else
-    match kind_of_term trm with
-    | Cast (c, k, t) ->
-       let c' = map_rec env a c in
-       let t' = map_rec env a t in
-       mkCast (c', k, t')
-    | Prod (n, t, b) ->
-       let t' = map_rec env a t in
-       let b' = map_rec (push_local (n, t) env) (d a) b in
-       mkProd (n, t', b')
-    | Lambda (n, t, b) ->
-       let t' = map_rec env a t in
-       let b' = map_rec (push_local (n, t) env) (d a) b in
-       mkLambda (n, t', b')
-    | LetIn (n, trm, typ, e) ->
-       let trm' = map_rec env a trm in
-       let typ' = map_rec env a typ in
-       let e' = map_rec (push_let_in (n, e, typ) env) (d a) e in
-       mkLetIn (n, trm', typ', e')
-    | App (fu, args) ->
-       let fu' = map_rec env a fu in
-       let args' = Array.map (map_rec env a) args in
-       mkApp (fu', args')
-    | Case (ci, ct, m, bs) ->
-       let ct' = map_rec env a ct in
-       let m' = map_rec env a m in
-       let bs' = Array.map (map_rec env a) bs in
-       mkCase (ci, ct', m', bs')
-    | Fix ((is, i), (ns, ts, ds)) ->
-       let ts' = Array.map (map_rec env a) ts in
-       let ds' = Array.map (map_rec_env_fix map_rec d env a ns ts) ds in
-       mkFix ((is, i), (ns, ts', ds'))
-    | CoFix (i, (ns, ts, ds)) ->
-       let ts' = Array.map (map_rec env a) ts in
-       let ds' = Array.map (map_rec_env_fix map_rec d env a ns ts) ds in
-       mkCoFix (i, (ns, ts', ds'))
-    | Proj (pr, c) ->
-       let c' = map_rec env a c in
-       mkProj (pr, c')
-    | _ ->
-       trm
-
-(*
  * Like map_term_env_if, but just return true if the proposition is satisfied,
  * and false otherwise.
  *
@@ -123,7 +74,7 @@ let rec exists_subterm_env p d (env : env) (a : 'a) (trm : types) : bool =
   if p env a trm then
     true
   else
-    match kind_of_term trm with
+    match kind trm with
     | Cast (c, k, t) ->
        let c' = map_rec env a c in
        let t' = map_rec env a t in
@@ -169,7 +120,7 @@ let rec exists_subterm_env p d (env : env) (a : 'a) (trm : types) : bool =
 let rec map_term_env_if_lazy p f d (env : env) (a : 'a) (trm : types) : types =
   let map_rec = map_term_env_if_lazy p f d in
   let trm' =
-    match kind_of_term trm with
+    match kind trm with
     | Cast (c, k, t) ->
        let c' = map_rec env a c in
        let t' = map_rec env a t in
@@ -217,7 +168,7 @@ let rec map_term_env_if_lazy p f d (env : env) (a : 'a) (trm : types) : types =
 let rec map_term_env_if_lazy_old p f d (env : env) (a : 'a) (trm : types) : types =
   let map_rec = map_term_env_if_lazy_old p f d in
   let trm' =
-    match kind_of_term trm with
+    match kind trm with
     | Cast (c, k, t) ->
        let c' = map_rec env a c in
        let t' = map_rec env a t in
@@ -268,7 +219,7 @@ let rec map_term_env_if_list p f d (env : env) (a : 'a) (trm : types) : (env * t
   if p env a trm then
     [(env, f env a trm)]
   else
-    match kind_of_term trm with
+    match kind trm with
     | Cast (c, k, t) ->
        let c' = map_rec env a c in
        let t' = map_rec env a t in
@@ -362,9 +313,9 @@ let all_substs p env (src, dst) trm : types =
 let all_conv_substs =
   all_substs convertible
 
-(* Same, but eq_constr *)
+(* Same, but equal *)
 let all_eq_substs =
-  all_substs (fun _ -> eq_constr) empty
+  all_substs (fun _ -> equal) empty
 
 (* --- Containment --- *)
              
@@ -372,7 +323,7 @@ let all_eq_substs =
  * Check recursively whether a term contains another term
  *)
 let contains_term c trm =
-  exists_subterm eq_constr shift c trm
+  exists_subterm equal shift c trm
                  
 (* --- Variations --- *)
 
@@ -387,8 +338,6 @@ let map_unit mapper p f trm =
 (* Some simple combinations *)
 let map_unit_env_if = map_unit_env map_term_env_if
 let map_unit_env_if_lazy = map_unit_env map_term_env_if_lazy
-let map_unit_env_if_old = map_unit_env map_term_env_if_old
-let map_unit_env_if_lazy_old = map_unit_env map_term_env_if_lazy_old
 let map_unit_if = map_unit map_term_if
 let map_unit_if_lazy = map_unit map_term_if_lazy
 
