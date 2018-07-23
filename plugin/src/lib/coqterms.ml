@@ -3,13 +3,12 @@
  *)
 
 open Environ
-open Term
+open Constr
 open Names
 open Constrexpr
 open Evd
 open Utilities
 open Declarations
-open Univ
 open Decl_kinds
        
 module CRD = Context.Rel.Declaration
@@ -98,7 +97,7 @@ let define_term (n : Id.t) (evm : evar_map) (trm : types) : unit =
 let unfold_args_app trm =
   let (f, args) = destApp trm in
   let rec unfold trm =
-    match kind_of_term trm with
+    match kind trm with
     | App (f, args) ->
        List.append (unfold f) (Array.to_list args)
     | _ ->
@@ -115,7 +114,7 @@ let last_arg trm =
 
 (* Get the first function of an application *)
 let rec first_fun t =
-  match kind_of_term t with
+  match kind t with
   | App (f, args) ->
      first_fun f
   | _ ->
@@ -126,7 +125,7 @@ let rec first_fun t =
  * This unfolds all arguments first
  *)
 let get_arg i trm =
-  match kind_of_term trm with
+  match kind trm with
   | App (_, _) ->
      let args = Array.of_list (unfold_args trm) in
      Array.get args i
@@ -144,7 +143,7 @@ let make_constant id =
 
 (* Recursively turn a product into a function *)
 let rec prod_to_lambda trm =
-  match kind_of_term trm with
+  match kind trm with
   | Prod (n, t, b) ->
      mkLambda (n, t, prod_to_lambda b)
   | _ ->
@@ -152,7 +151,7 @@ let rec prod_to_lambda trm =
 
 (* Recursively turn a function into a product *)
 let rec lambda_to_prod trm =
-  match kind_of_term trm with
+  match kind trm with
   | Lambda (n, t, b) ->
      mkProd (n, t, lambda_to_prod b)
   | _ ->
@@ -260,7 +259,7 @@ let conv_ignoring_univ_inconsistency env evm (trm1 : types) (trm2 : types) : boo
   try
     Reductionops.is_conv env evm etrm1 etrm2
   with _ ->
-    match map_tuple kind_of_term (trm1, trm2) with
+    match map_tuple kind (trm1, trm2) with
     | (Sort (Type u1), Sort (Type u2)) -> true
     | _ -> false
 
@@ -315,7 +314,7 @@ let on_type f env evd trm =
  * Get the arity of a function or function type
  *)
 let rec arity p =
-  match kind_of_term p with
+  match kind p with
   | Lambda (_, _, b) ->
      1 + arity b
   | Prod (_, _, b) ->
@@ -323,17 +322,17 @@ let rec arity p =
   | _ ->
      0
 
-(* Check whether trm applies f (using eq_constr for equality) *)
+(* Check whether trm applies f (using equal for equality) *)
 let applies (f : types) (trm : types) =
-  match kind_of_term trm with
+  match kind trm with
   | App (g, _) ->
-     eq_constr f g
+     equal f g
   | _ ->
      false
 
-(* Check whether trm is trm' or applies trm', using eq_constr *)
+(* Check whether trm is trm' or applies trm', using equal *)
 let is_or_applies (trm' : types) (trm : types) : bool =
-  applies trm' trm || eq_constr trm' trm
+  applies trm' trm || equal trm' trm
 
 (* Versions over two terms *)
 let are_or_apply (trm : types) = and_p (is_or_applies trm)
@@ -347,7 +346,7 @@ let check_inductive_supported mutind_body : unit =
   if not (Array.length ind_bodies = 1) then
     failwith "mutually inductive types not yet supported"
   else
-    if (mutind_body.mind_finite = Decl_kinds.CoFinite) then
+    if (mutind_body.mind_finite = Declarations.CoFinite) then
       failwith "coinductive types not yet supported"
     else
       ()
@@ -442,12 +441,12 @@ let deconstruct_eliminator env evd app : elim_app =
  * Then, do nothing
  *)
 let rec reduce_to_ind env trm =
-  match kind_of_term trm with
+  match kind trm with
   | App (_, _) when is_elim env (first_fun trm) ->
      trm
   | _ ->
      let reduced = chain_reduce reduce_term delta env trm in
-     map_if (reduce_to_ind env) (not (eq_constr reduced trm)) reduced
+     map_if (reduce_to_ind env) (not (equal reduced trm)) reduced
                              
 (* --- Environments --- *)
 
@@ -472,7 +471,7 @@ let lookup_pop (n : int) (env : env) =
 
 (* Lookup a definition *)
 let lookup_definition (env : env) (def : types) : types =
-  match kind_of_term def with
+  match kind def with
   | Const (c, u) ->
      let c_body = (lookup_constant c env).const_body in
      (match c_body with
@@ -499,7 +498,7 @@ let bindings_for_inductive env mutind_body ind_bodies : CRD.t list =
        (fun i ind_body ->
          let name_id = ind_body.mind_typename in
          let typ = type_of_inductive env i mutind_body in
-         CRD.LocalAssum (Names.Name name_id, typ))
+         CRD.LocalAssum (Name name_id, typ))
        ind_bodies)
 
 (*
@@ -522,7 +521,7 @@ let offset2 env1 env2 = nb_rel env1 - nb_rel env2
 (*
  * Recurse on a mapping function with an environment for a fixpoint
  *)
-let map_rec_env_fix map_rec d env a (ns : name array) (ts : types array) =
+let map_rec_env_fix map_rec d env a (ns : Name.t array) (ts : types array) =
   let fix_bindings = bindings_for_fix ns ts in
   let env_fix = push_rel_context fix_bindings env in
   let n = List.length fix_bindings in
@@ -537,7 +536,7 @@ let map_rec_env_fix map_rec d env a (ns : name array) (ts : types array) =
  *)
 let rec map_term_env f d (env : env) (a : 'a) (trm : types) : types =
   let map_rec = map_term_env f d in
-  match kind_of_term trm with
+  match kind trm with
   | Cast (c, k, t) ->
      let c' = map_rec env a c in
      let t' = map_rec env a t in

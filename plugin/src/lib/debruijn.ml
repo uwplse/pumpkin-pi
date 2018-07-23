@@ -2,10 +2,9 @@
  * Debruijn managenent
  *)
 
-open Term
+open Constr
 open Coqterms
 open Utilities
-open Environ
        
 (* --- Numbers --- *)
 
@@ -34,7 +33,7 @@ let shift_i (i : int) : int =
 let unshift_local (max : int) (n : int) (trm : types) : types =
   map_term
     (fun (m, adj) t ->
-      match kind_of_term t with
+      match kind t with
       | Rel i ->
          let i' = if i > m then unshift_i_by adj i else i in
          mkRel i'

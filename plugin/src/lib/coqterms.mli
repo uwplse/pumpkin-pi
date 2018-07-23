@@ -3,7 +3,7 @@
  *)
 
 open Environ
-open Term
+open Constr
 open Evd
 open Constrexpr
 open Names

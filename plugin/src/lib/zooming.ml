@@ -2,11 +2,10 @@
  * Zooming into environments and reconstructing terms from environments
  *)
 
-open Term
+open Constr
 open Environ
 open Coqterms
 open Debruijn
-open Utilities
 
 (* --- Zooming --- *)
 
@@ -15,7 +14,7 @@ let rec zoom_n_prod env npm typ : env * types =
   if npm = 0 then
     (env, typ)
   else
-    match kind_of_term typ with
+    match kind typ with
     | Prod (n1, t1, b1) ->
        zoom_n_prod (push_local (n1, t1) env) (npm - 1) b1
     | _ ->
@@ -28,7 +27,7 @@ let zoom_n_lambda env npm trm : env * types =
 
 (* Zoom all the way into a lambda term *)
 let rec zoom_lambda_term (env : env) (trm : types) : env * types =
-  match kind_of_term trm with
+  match kind trm with
   | Lambda (n, t, b) ->
      zoom_lambda_term (push_local (n, t) env) b
   | _ ->
@@ -36,7 +35,7 @@ let rec zoom_lambda_term (env : env) (trm : types) : env * types =
 
 (* Zoom all the way into a product type *)
 let rec zoom_product_type (env : env) (typ : types) : env * types =
-  match kind_of_term typ with
+  match kind typ with
   | Prod (n, t, b) ->
      zoom_product_type (push_local (n, t) env) b
   | _ ->

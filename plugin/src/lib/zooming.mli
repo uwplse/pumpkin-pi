@@ -2,7 +2,7 @@
  * Zooming into environments and reconstructing terms from environments
  *)
 
-open Term
+open Constr
 open Environ
                  
 (* --- Zoom n deep --- *)

@@ -2,7 +2,7 @@
  * Debruijn managenent
  *)
 
-open Term
+open Constr
 open Environ
 
 (* --- Numbers --- *)
