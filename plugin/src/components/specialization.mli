@@ -14,5 +14,5 @@ val do_lift_core :
   env ->
   evar_map ->
   lifting -> (* lifting configuration *)
-  types -> (* reduced term *)
-  (types * types option) (* higher lifting and optional indexing proof *)
+  types -> (* unlifted function *)
+  types (* lifted function *)

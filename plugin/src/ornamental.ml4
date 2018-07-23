@@ -1,6 +1,5 @@
 DECLARE PLUGIN "ornamental"
 
-open Names
 open Stdarg
 open Frontend
 
@@ -13,6 +12,5 @@ END
 (* Lift a function along an ornament *)
 VERNAC COMMAND EXTEND LiftOrnament CLASSIFIED AS SIDEFF
 | [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
-  [ make_ornamental_command lift_by_ornament true n d_old d_orn d_orn_inv;
-    Printf.printf "Defined lifted function %s.\n\n" (Id.to_string n) ]
+  [ lift_by_ornament n d_old d_orn d_orn_inv ]
 END
