@@ -54,14 +54,19 @@ let pack env evd l unpacked =
   let index_type = infer_type env evd index in
   let packer = abstract_arg env evd index_i typ in
   pack_existT {index_type; packer; index; unpacked}
-    
+
+(*
+ * Lift
+ *)
+let lift env evd l trm =
+  let typ_args = non_index_typ_args l env evd trm in
+  mkAppl (lift_to l, snoc trm typ_args)
+              
 (*
  * Pack arguments and lift
  *)
 let pack_lift env evd l arg =
-  let unlifted = map_forward (pack env evd l) l arg in
-  let typ_args = non_index_typ_args l env evd unlifted in
-  mkAppl (lift_back l, snoc unlifted typ_args)
+  lift env evd l (map_backward (pack env evd l) l arg)
        
 (*
  * Determine whether a type is the type we are ornamenting from
@@ -107,6 +112,11 @@ let rec num_ihs env rec_typ typ =
        num_ihs (push_local (n, t) env) rec_typ b
   | _ ->
      0
+
+(* 
+ * Flip the direction of a lifting
+ *)
+let flip_dir l = { l with is_fwd = (not l.is_fwd) }
 
 (* --- Refolding --- *)
 
@@ -193,7 +203,7 @@ let lift_motive env evd l index_i parameterized_elim motive =
   let off = offset2 env_to_motive env in
   let motive = shift_by off motive in
   let args = mk_n_rels off in
-  let lifted_arg = pack_lift env_to_motive evd l (last args) in
+  let lifted_arg = pack_lift env_to_motive evd (flip_dir l) (last args) in
   let value_i = off - 1 in
   if l.is_fwd then
     (* PROMOTE-MOTIVE *)
@@ -220,7 +230,7 @@ let promote_case_args env evd l (_, to_typ) args =
        else
          let h_typ = reduce_type env evd h in
          if is_or_applies to_typ h_typ then
-           let h_lifted = pack_lift env evd l h in
+           let h_lifted = pack_lift env evd (flip_dir l) h in
            h_lifted :: lift_args tl (get_arg index_i h_typ)
          else
            h :: lift_args tl index
@@ -238,7 +248,7 @@ let forget_case_args env_c_b env evd l (from_typ, _) args =
        else
          let h_typ = reduce_type env_c_b evd h in
          if is_or_applies from_typ h_typ then
-           let h_lifted =  pack_lift env evd l h in
+           let h_lifted =  pack_lift env evd (flip_dir l) h in
            let h_lifted_typ = on_type dest_sigT env evd h_lifted in
            let proj_value = project_value h_lifted_typ h_lifted in
            let proj_index = project_index h_lifted_typ h_lifted in
@@ -294,20 +304,12 @@ let lift_cases env evd l (from_typ, to_typ) p p_elim cs =
        cs)
 
 (*
- * This lifts the induction principle.
- * The input term should be fully eta-expanded before calling this,
- * and should not contain extra arguments after induction.
- *
- * The old application and meta-reduction steps were just hacks to accomplish
- * this. So they did this work, but also a lot more work.
- * Accordingly, when this is done, we'll remove the old application
- * and meta-reduction steps.
+ * LIFT-ELIM steps before recursing into the rest of the algorithm
  *)
-let lift_induction_principle_core env evd l trm =
+let lift_elim env evd l trm_app =
   let to_typ = zoom_sig (promotion_type env evd l.orn.forget) in
   let from_typ = first_fun (promotion_type env evd l.orn.promote) in
   let (from_typ, to_typ) = map_backward reverse l (from_typ, to_typ) in
-  let trm_app = deconstruct_eliminator env evd trm in
   let index_i = (Option.get l.orn.index_i) - (List.length trm_app.pms) in
   let elim = type_eliminator env (fst (destInd to_typ)) in
   let param_elim = mkAppl (elim, trm_app.pms) in
@@ -319,13 +321,15 @@ let lift_induction_principle_core env evd l trm =
 
 (* --- Lifting constructions --- *)
 
-(* 
- * Using the refolding algorithm, lift the constructor function and arguments
+(*
+ * LIFT-CONSTR-ARGS and LIFT-CONSTR-FUN, but using refolding,
+ * as explained in Section 5
  *)
-let lift_construction_core env evd l trm =
-  (* LIFT-CONSTR-ARGS & LIFT-CONSTR-FUN *)
-  let to_typ = zoom_sig (promotion_type env evd l.orn.forget) in
-  let from_typ = first_fun (promotion_type env evd l.orn.promote) in
+
+(* 
+ * LIFT-CONSTR-ARGS & LIFT-CONSTR-FUN
+ *)
+let lift_constr_core env evd l (from_typ, to_typ) trm =
   let typ_args = non_index_typ_args l env evd trm in
   let args =
     map_backward
@@ -340,7 +344,8 @@ let lift_construction_core env evd l trm =
   in   
   let rec_args = filter_orn l env evd (from_typ, to_typ) args in
   let orn = lift_to l in
-  let orn_app = mkAppl (orn, snoc trm typ_args) in
+  let orn_app = lift env evd l trm in
+  (* let orn_app = mkAppl (orn, snoc trm typ_args) in *)
   if List.length rec_args = 0 then
     (* base case - don't bother refolding *)
     reduce_nf env orn_app
@@ -351,7 +356,7 @@ let lift_construction_core env evd l trm =
         let a_typ_args = non_index_typ_args l env evd a in
         all_eq_substs (a, mkAppl (orn, snoc a a_typ_args)) t)
       (refold l env evd orn orn_app rec_args)
-      rec_args
+rec_args
     
 (*
  * Lift a construction, which in the forward direction is an application
@@ -366,16 +371,18 @@ let lift_construction_core env evd l trm =
  * As in the paper, the arguments are recursively lifted by the higher
  * lifting algorithm.
  *)
-let lift_existential_construction env evd l trm =
+let lift_constr env evd l trm =
   (* LIFT-CONSTR *)
+  let to_typ = zoom_sig (promotion_type env evd l.orn.forget) in
+  let from_typ = first_fun (promotion_type env evd l.orn.promote) in
   let inner_construction = map_backward last_arg l trm in
   let constr = first_fun inner_construction in
   let args = unfold_args inner_construction in
-  let (env_c_body, c_body) = zoom_lambda_term env (expand_eta env evd constr) in
-  let c_body = reduce_term env_c_body c_body in
-  let to_refold = map_backward (pack env_c_body evd l) l c_body in
-  let refolded = lift_construction_core env_c_body evd l to_refold in
-  let lifted_constr = reconstruct_lambda_n env_c_body refolded (nb_rel env) in
+  let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd constr) in
+  let c_body = reduce_term env_c_b c_body in
+  let to_refold = map_backward (pack env_c_b evd l) l c_body in
+  let refolded = lift_constr_core env_c_b evd l (from_typ, to_typ) to_refold in
+  let lifted_constr = reconstruct_lambda_n env_c_b refolded (nb_rel env) in
   reduce_term env (mkAppl (lifted_constr, args))
   
 (* --- Core lifting --- *)
@@ -467,7 +474,7 @@ let lift_core env evd l (from_type, to_type) index_type trm =
         mkAppl (from_type, t_args)
     else if is_packed_constr l en evd (from_type, to_type) tr then
       (* LIFT-CONSTR *)
-      let tr' = lift_existential_construction en evd l tr in
+      let tr' = lift_constr en evd l tr in
       match kind tr with
       | App (f, args) ->
          if (not l.is_fwd) && isApp (last (Array.to_list args)) then
@@ -503,8 +510,7 @@ let lift_core env evd l (from_type, to_type) index_type trm =
       let npms = List.length tr_elim.pms in
       let value_i = arity (expand_eta env evd from_type) - npms in (* may be off by 1 *)
       let (final_args, post_args) = take_split (value_i + 1) tr_elim.final_args in
-      let tr_elim_curr = apply_eliminator { tr_elim with final_args } in
-      let tr' = lift_induction_principle_core en evd l tr_elim_curr in
+      let tr' = lift_elim en evd l { tr_elim with final_args } in
       let tr'' = lift en index_type tr' in
       let post_args' = List.map (lift en index_type) post_args in
       mkAppl (tr'', post_args')
