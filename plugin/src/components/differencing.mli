@@ -2,7 +2,7 @@
  * Differencing for ornamenting inductive types
  *)
 
-open Term
+open Constr
 open Environ
 open Evd
 open Names

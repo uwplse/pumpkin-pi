@@ -2,7 +2,8 @@
  * Differencing for ornamenting inductive types
  *)
 
-open Term
+open Names
+open Constr
 open Environ
 open Coqterms
 open Utilities
@@ -12,7 +13,6 @@ open Hofs
 open Factoring
 open Zooming
 open Abstraction
-open Printing
 open Lifting
 open Declarations
 
@@ -38,7 +38,7 @@ let diff_arg i trm_o trm_n =
   try
     let arg_o = get_arg i trm_o in
     let arg_n = get_arg i trm_n in
-    not (eq_constr arg_o arg_n)
+    not (equal arg_o arg_n)
   with _ ->
     true
 
@@ -79,7 +79,7 @@ let same_mod_indexing env p_index o n =
  *)
 let new_index i trm_o trm_n =
   let rec is_new_index p trm_o trm_n =
-    match map_tuple kind_of_term (trm_o, trm_n) with
+    match map_tuple kind (trm_o, trm_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let p_b = shift p in
        if applies p t_o && not (applies p t_n) then
@@ -110,7 +110,7 @@ let new_index_type env elim_t_o elim_t_n =
   let (_, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
   let rec poss_indices e p_o p_n =
-    match map_tuple kind_of_term (p_o, p_n) with
+    match map_tuple kind (p_o, p_n) with
     | (Prod (n_o, t_o, b_o), Prod (_, t_n, b_n)) ->
        if isProd b_o && convertible e t_o t_n then
          let e_b = push_local (n_o, t_o) e in
@@ -183,7 +183,7 @@ let new_index_type_simple env npars ind_o ind_n =
  * This also assumes there is only one new index.
  *)
 let get_new_index index_i p o n =
-  match map_tuple kind_of_term (o, n) with
+  match map_tuple kind (o, n) with
   | (App (f_o, _), App (f_n, _)) when are_or_apply p f_o f_n ->
      get_arg index_i n
   | _ ->
@@ -228,7 +228,7 @@ let index_case evd index_i p o n : types =
   let rec diff_case p_i p subs o n =
     let (e_o, ind_o, trm_o) = o in
     let (e_n, ind_n, trm_n) = n in
-    match map_tuple kind_of_term (trm_o, trm_n) with
+    match map_tuple kind (trm_o, trm_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        (* premises *)
        let p_b = shift p in
@@ -267,7 +267,7 @@ let index_case evd index_i p o n : types =
 let indexer_cases evd index_i p npm o n : types list =
   let (env_o, ind_o, arity_o, elim_t_o) = o in
   let (env_n, ind_n, arity_n, elim_t_n) = n in
-  match map_tuple kind_of_term (elim_t_o, elim_t_n) with
+  match map_tuple kind (elim_t_o, elim_t_n) with
   | (Prod (n_o, p_o, b_o), Prod (n_n, p_n, b_n)) ->
      let env_p_o = push_local (n_o, p_o) env_o in
      let env_p_n = push_local (n_n, p_n) env_n in
@@ -290,7 +290,7 @@ let search_for_indexer evd idx npm elim o n is_fwd : types option =
     let (env_n, _, _, elim_t_n) = n in
     let (index_i, index_t) = idx in
     let index_t = shift_by npm index_t in
-    match map_tuple kind_of_term (elim_t_o, elim_t_n) with
+    match map_tuple kind (elim_t_o, elim_t_n) with
     | (Prod (_, p_o, _), Prod (_, p_n, _)) ->
        let env_ind = zoom_env zoom_product_type env_o p_o in
        let off = offset env_ind npm in
@@ -317,7 +317,7 @@ let search_for_indexer evd idx npm elim o n is_fwd : types option =
 let rec stretch_property_type index_i env o n =
   let (ind_o, p_o) = o in
   let (ind_n, p_n) = n in
-  match map_tuple kind_of_term (p_o, p_n) with
+  match map_tuple kind (p_o, p_n) with
   | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
      let n_b = (shift ind_n, b_n) in
      if index_i = 0 then
@@ -383,7 +383,7 @@ let remove_rel (i : int) (env : env) : env =
 let with_new_property p c : types =
   let rec sub_p sub trm =
     let (p_o, p_n) = sub in
-    match kind_of_term trm with
+    match kind trm with
     | Prod (n, t, b) ->
        let sub_p_n t = mkAppl (p_n, unfold_args t) in
        let t' = map_if sub_p_n (applies p_o t) t in
@@ -445,7 +445,7 @@ let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
   let rec sub p subs o n =
     let (env_o, ind_o, c_o) = o in
     let (env_n, ind_n, c_n) = n in
-    match map_tuple kind_of_term (c_o, c_n) with
+    match map_tuple kind (c_o, c_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let p_b = shift p in
        let same = same_mod_indexing env_o p (ind_o, t_o) (ind_n, t_n) in
@@ -509,7 +509,7 @@ let orn_index_case evd index_i is_fwd indexer_f orn_p o n : types =
 let orn_index_cases evd index_i npm is_fwd indexer_f orn_p o n : types list =
   let (env_o, pind_o, arity_o, elim_t_o) = o in
   let (env_n, pind_n, arity_n, elim_t_n) = n in
-  match map_tuple kind_of_term (elim_t_o, elim_t_n) with
+  match map_tuple kind (elim_t_o, elim_t_n) with
   | (Prod (_, p_o, b_o), Prod (_, p_n, b_n)) ->
      let o c = (env_o, arity_o, pind_o, p_o, c) in
      let n c = (env_n, arity_n, pind_n, p_n, c) in
@@ -579,13 +579,6 @@ let pack_unpacked env packer index_typ index_rel unpacked =
   mkLambda (Anonymous, shift index_typ, index_body)
 
 (*
- * Get the body of the eliminator when packing the hypothesis
- *)
-let elim_body index_type packer f args =
-  let packed_type = pack_sigT { index_type; packer } in
-  mkLambda (Anonymous, packed_type, shift (mkAppl (f, args)))
-
-(*
  * Pack the hypothesis of an ornamental forgetful function
  *)
 let pack_hypothesis env evd idx o n unpacked =
@@ -631,7 +624,7 @@ let search_orn_index_elim evd idx npm indexer_n elim_o o n is_fwd =
   let indexer = search_for_indexer evd idx npm elim_o o n is_fwd in
   let f_indexer = make_constant indexer_n in
   let f_indexer_opt = directional (Some f_indexer) None in
-  match map_tuple kind_of_term (elim_t_o, elim_t_n) with
+  match map_tuple kind (elim_t_o, elim_t_n) with
   | (Prod (n_o, p_o, b_o), Prod (n_n, p_n, b_n)) ->
      let env_o_b = push_local (n_o, p_o) env_o in
      let env_n_b = push_local (n_n, p_n) env_n in
@@ -709,7 +702,7 @@ let search_orn_params env ind_o ind_n is_fwd : types =
  * Search two inductive types for an ornament between them
  *)
 let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
-  match map_tuple kind_of_term (trm_o, trm_n) with
+  match map_tuple kind (trm_o, trm_n) with
   | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->
      let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
      check_inductive_supported m_o;
