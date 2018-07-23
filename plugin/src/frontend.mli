@@ -10,7 +10,7 @@ type ornamental_command = Id.t -> constr_expr -> constr_expr -> constr_expr -> u
 val find_ornament : Id.t -> constr_expr -> constr_expr -> unit
                                                             
 (* Core lifting algorithm *)
-val lift_by_ornament2 : ornamental_action
+val lift_by_ornament : ornamental_action
 
 (* Transform an ornamental action into an ornamental command *)
 val make_ornamental_command : ornamental_action -> bool -> ornamental_command

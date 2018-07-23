@@ -11,7 +11,7 @@ Require Import Test.
 
 Definition nil' := @nil.
 
-Lift2 orn_list_vector orn_list_vector_inv in nil' as nil'_c.
+Lift orn_list_vector orn_list_vector_inv in nil' as nil'_c.
 Theorem testNil:
   forall A, nil'_c A = existT (vector A) 0 (nilV A).
 Proof.
@@ -21,7 +21,7 @@ Qed.
 Definition nilV' (A : Type) :=
   existT (vector A) 0 (nilV A).
 
-Lift2 orn_list_vector_inv orn_list_vector in nilV' as nilV'_c.
+Lift orn_list_vector_inv orn_list_vector in nilV' as nilV'_c.
 Theorem testNilV:
   forall A, nilV'_c A = @nil A.
 Proof.
@@ -30,7 +30,7 @@ Qed.
 
 Definition cons' := @cons.
 
-Lift2 orn_list_vector orn_list_vector_inv in cons' as cons'_c.
+Lift orn_list_vector orn_list_vector_inv in cons' as cons'_c.
 Theorem testCons:
   forall A a pv, 
     cons'_c A a pv = 
@@ -42,7 +42,7 @@ Qed.
 Definition consV' (A : Type) (a : A) (pv : sigT (vector A)) :=
   existT (vector A) (S (projT1 pv)) (consV A (projT1 pv) a (projT2 pv)).
 
-Lift2 orn_list_vector_inv orn_list_vector in consV' as consV'_c.
+Lift orn_list_vector_inv orn_list_vector in consV' as consV'_c.
 Theorem testConsV:
   forall A a l,
     consV'_c A a l = @cons A a l.
@@ -70,7 +70,7 @@ Definition hd_vect (A : Type) (default : A) (pv : sigT (vector A)) :=
     (projT1 pv)
     (projT2 pv).
 
-Lift2 orn_list_vector orn_list_vector_inv in hd as hd_vect_lifted.
+Lift orn_list_vector orn_list_vector_inv in hd as hd_vect_lifted.
 
 Theorem test_hd_vect:
   forall (A : Type) (default : A) (pv : packed_vector A),
@@ -79,7 +79,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Lift2 orn_list_vector_inv orn_list_vector in hd_vect as hd_lifted.
+Lift orn_list_vector_inv orn_list_vector in hd_vect as hd_lifted.
 
 Theorem test_hd:
   forall (A : Type) (default : A) (l : list A),
@@ -107,7 +107,7 @@ Definition hd_vectF (default : nat) (pv : sigT natFlector.flector) :=
     (projT1 pv)
     (projT2 pv).
 
-Lift2 orn_flist_flector_nat orn_flist_flector_nat_inv in hdF as hd_vectF_lifted.
+Lift orn_flist_flector_nat orn_flist_flector_nat_inv in hdF as hd_vectF_lifted.
 
 Theorem test_hd_vectF:
   forall (default : nat) (pv : sigT natFlector.flector),
@@ -116,7 +116,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Lift2 orn_flist_flector_nat_inv orn_flist_flector_nat in hd_vectF as hdF_lifted.
+Lift orn_flist_flector_nat_inv orn_flist_flector_nat in hd_vectF as hdF_lifted.
 
 Theorem test_hdF:
   forall (default : nat) (l : natFlector.flist),
@@ -145,7 +145,7 @@ Definition hd_vect_error (A : Type) (v : sigT (vector A)) :=
     (projT1 v)
     (projT2 v).
 
-Lift2 orn_list_vector orn_list_vector_inv in hd_error as hd_vect_error_lifted.
+Lift orn_list_vector orn_list_vector_inv in hd_error as hd_vect_error_lifted.
 
 Theorem test_hd_vect_error:
   forall (A : Type) (pv : packed_vector A),
@@ -154,7 +154,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Lift2 orn_list_vector_inv orn_list_vector in hd_vect_error as hd_error_lifted.
+Lift orn_list_vector_inv orn_list_vector in hd_vect_error as hd_error_lifted.
 
 Theorem test_hd_error:
   forall (A : Type) (l : list A),
@@ -191,7 +191,7 @@ Definition append_vect (A : Type) (pv1 : sigT (vector A)) (pv2 : sigT (vector A)
     (projT1 pv1)
     (projT2 pv1).
 
-Lift2 orn_list_vector orn_list_vector_inv in append as append_vect_lifted.
+Lift orn_list_vector orn_list_vector_inv in append as append_vect_lifted.
 
 Theorem test_append_vect:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
@@ -200,7 +200,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Lift2 orn_list_vector_inv orn_list_vector in append_vect as append_lifted.
+Lift orn_list_vector_inv orn_list_vector in append_vect as append_lifted.
 
 Theorem test_append :
   forall (A : Type) (l1 : list A) (l2 : list A),
@@ -231,7 +231,7 @@ Definition append_vectF (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.f
     (projT1 pv1)
     (projT2 pv1).
 
-Lift2 orn_flist_flector_nat orn_flist_flector_nat_inv in appendF as append_vectF_lifted.
+Lift orn_flist_flector_nat orn_flist_flector_nat_inv in appendF as append_vectF_lifted.
 
 Theorem test_append_vectF:
   forall (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector),
@@ -240,7 +240,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Lift2 orn_flist_flector_nat_inv orn_flist_flector_nat in append_vectF as appendF_lifted.
+Lift orn_flist_flector_nat_inv orn_flist_flector_nat in append_vectF as appendF_lifted.
 
 Theorem test_appendF :
   forall (l1 : natFlector.flist) (l2 : natFlector.flist),
@@ -270,7 +270,7 @@ Definition tl_vect (A : Type) (pv : packed_vector A) :=
     (projT1 pv)
     (projT2 pv).
 
-Lift2 orn_list_vector orn_list_vector_inv in tl as tl_vect_lifted.
+Lift orn_list_vector orn_list_vector_inv in tl as tl_vect_lifted.
 
 Theorem test_tl_vect:
   forall (A : Type) (pv : packed_vector A),
@@ -279,7 +279,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Lift2 orn_list_vector_inv orn_list_vector in tl_vect as tl_lifted.
+Lift orn_list_vector_inv orn_list_vector in tl_vect as tl_lifted.
 
 Theorem test_tl:
   forall (A : Type) (l : list A),
@@ -310,7 +310,7 @@ Definition In_vect (A : Type) (a : A) (pv : sigT (vector A)) : Prop :=
     (projT1 pv)
     (projT2 pv).
 
-Lift2 orn_list_vector orn_list_vector_inv in In as In_vect_lifted.
+Lift orn_list_vector orn_list_vector_inv in In as In_vect_lifted.
 
 Theorem test_in_vect:
   forall (A : Type) (a : A) (pv : packed_vector A),
@@ -319,7 +319,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Lift2 orn_list_vector_inv orn_list_vector in In_vect as In_lifted.
+Lift orn_list_vector_inv orn_list_vector in In_vect as In_lifted.
 
 Theorem test_in:
   forall (A : Type) (a : A) (l : list A),
@@ -365,7 +365,7 @@ Definition app_nil_r_vect (A : Type) (pv : packed_vector A) :=
     (projT1 pv) 
     (projT2 pv).
 
-Lift2 orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_lifted.
+Lift orn_list_vector orn_list_vector_inv in app_nil_r as app_nil_r_vect_lifted.
 
 Theorem test_app_nil_r_vect_exact:
   forall (A : Type) (pv : sigT (vector A)),
@@ -374,7 +374,7 @@ Proof.
   exact app_nil_r_vect_lifted.
 Qed.
 
-Lift2 orn_list_vector_inv orn_list_vector in app_nil_r_vect as app_nil_r_lifted.
+Lift orn_list_vector_inv orn_list_vector in app_nil_r_vect as app_nil_r_lifted.
 
 Theorem test_app_nil_r:
   forall (A : Type) (l : list A),
@@ -399,7 +399,7 @@ Definition app_nil_rF (l : natFlector.flist) :=
         IHl)
     l.
 
-Lift2 orn_flist_flector_nat orn_flist_flector_nat_inv in app_nil_rF as app_nil_r_vectF_lifted.
+Lift orn_flist_flector_nat orn_flist_flector_nat_inv in app_nil_rF as app_nil_r_vectF_lifted.
 
 Theorem test_app_nil_r_vectF_exact:
   forall (pv : sigT natFlector.flector),
@@ -420,7 +420,7 @@ Proof.
   exists (a::l1), l2; simpl. apply f_equal. auto.
 Defined.
 
-Lift2 orn_list_vector orn_list_vector_inv in in_split as in_split_vect_lifted.
+Lift orn_list_vector orn_list_vector_inv in in_split as in_split_vect_lifted.
 
 Theorem test_in_split_vect_exact:
   forall (A : Type) (x : A) (pv : sigT (vector A)),
@@ -442,7 +442,7 @@ Definition is_cons (A : Type) (l : list A) :=
     (fun (_ : A) (_ : list A) (_ : Prop) => True)
     l.
 
-Lift2 orn_list_vector orn_list_vector_inv in is_cons as is_cons_lifted.
+Lift orn_list_vector orn_list_vector_inv in is_cons as is_cons_lifted.
 
 (* hd_error_some_nil *)
 
@@ -456,7 +456,7 @@ Proof.
     * simpl. auto. 
 Defined.
 
-Lift2 orn_list_vector orn_list_vector_inv in hd_error_some_nil as hd_error_some_nil_vect_lifted.
+Lift orn_list_vector orn_list_vector_inv in hd_error_some_nil as hd_error_some_nil_vect_lifted.
 
 Theorem test_hd_error_some_nil_vect_exact:
   forall (A : Type) (l : {H : nat & vector A H}) (a : A),

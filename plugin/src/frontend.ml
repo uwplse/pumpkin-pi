@@ -38,7 +38,7 @@ let find_ornament n d_old d_new =
     failwith "Only inductive types are supported"
 
 (* Core lifting algorithm *)
-let lift_by_ornament2 env evd c_orn c_orn_inv c_old =
+let lift_by_ornament env evd c_orn c_orn_inv c_old =
   let is_fwd = direction env evd c_orn in
   let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
   let orn = initialize_promotion env evd promote forget in

@@ -84,7 +84,7 @@ Definition height (m : t) : int :=
     m.
 
 (* ORN: version over sigma tv *)
-Lift2 orn_tree_treeV orn_tree_treeV_inv in height as heightV.
+Lift orn_tree_treeV orn_tree_treeV_inv in height as heightV.
 
 (* ORN: Ported to induction from match *)
 Definition cardinal (m : t) : nat :=
@@ -95,7 +95,7 @@ Definition cardinal (m : t) : nat :=
     m.
 
 (* ORN: version over sigma tv *)
-Lift2 orn_tree_treeV orn_tree_treeV_inv in cardinal as cardinalV.
+Lift orn_tree_treeV orn_tree_treeV_inv in cardinal as cardinalV.
 
 (* ORN: Note that this is just the index *)
 Theorem testOrnCardinal:
@@ -109,7 +109,7 @@ Qed.
 Definition empty := Leaf.
 
 (* ORN: Directly higher lift since no induction *)
-Lift2 orn_tree_treeV orn_tree_treeV_inv in empty as emptyV.
+Lift orn_tree_treeV orn_tree_treeV_inv in empty as emptyV.
 
 (** * Emptyness test *)
 
@@ -117,7 +117,7 @@ Lift2 orn_tree_treeV orn_tree_treeV_inv in empty as emptyV.
 Definition is_empty m := tree_rect (P := fun _ => bool) true (fun _ _ _ _ _ _ _ => false) m.
 
 (* ORN: treeV version *)
-Lift2 orn_tree_treeV orn_tree_treeV_inv in is_empty as is_emptyV.
+Lift orn_tree_treeV orn_tree_treeV_inv in is_empty as is_emptyV.
 
 (** * Membership *)
 
@@ -137,7 +137,7 @@ Definition mem x m : bool :=
     m.
 
 (* ORN: over treeV *)
-Lift2 orn_tree_treeV orn_tree_treeV_inv in mem as memV.
+Lift orn_tree_treeV orn_tree_treeV_inv in mem as memV.
 
 (* ORN: Ported to induction *)
 Definition find x m : option elt :=
@@ -152,7 +152,7 @@ Definition find x m : option elt :=
      m.
 
 (* ORN: Over treeV *)
-Lift2 orn_tree_treeV orn_tree_treeV_inv in find as findV.
+Lift orn_tree_treeV orn_tree_treeV_inv in find as findV.
 
 (** * Helper functions *)
 
@@ -163,7 +163,7 @@ Definition create l x e r :=
    Node l x e r (max (height l) (height r) + 1).
 
 (* ORN: No induction, so higher lift *)
-Lift2 orn_tree_treeV orn_tree_treeV_inv in create as createV.
+Lift orn_tree_treeV orn_tree_treeV_inv in create as createV.
 
 (** [bal l x e r] acts as [create], but performs one step of
     rebalancing if necessary, i.e. assumes [|height l - height r| <= 3]. *)
@@ -171,7 +171,7 @@ Lift2 orn_tree_treeV orn_tree_treeV_inv in create as createV.
 Definition assert_false := create.
 
 (* ORN: No induction, so higher lift *)
-Lift2 orn_tree_treeV orn_tree_treeV_inv in assert_false as assert_falseV.
+Lift orn_tree_treeV orn_tree_treeV_inv in assert_false as assert_falseV.
 
 (* ORN: Ported to induction & factored out into functions *)
 
@@ -225,15 +225,15 @@ Definition bal l x d r :=
       create l x d r.
 
 (* ORN: Port each to treeV *)
-Lift2 orn_tree_treeV orn_tree_treeV_inv in bal_l_r as bal_l_rV.
+Lift orn_tree_treeV orn_tree_treeV_inv in bal_l_r as bal_l_rV.
 
-Lift2 orn_tree_treeV orn_tree_treeV_inv in bal_l as bal_lV.
+Lift orn_tree_treeV orn_tree_treeV_inv in bal_l as bal_lV.
 
-Lift2 orn_tree_treeV orn_tree_treeV_inv in bal_r_l as bal_r_lV.
+Lift orn_tree_treeV orn_tree_treeV_inv in bal_r_l as bal_r_lV.
 
-Lift2 orn_tree_treeV orn_tree_treeV_inv in bal_r as bal_rV.
+Lift orn_tree_treeV orn_tree_treeV_inv in bal_r as bal_rV.
 
-Lift2 orn_tree_treeV orn_tree_treeV_inv in bal as balV.
+Lift orn_tree_treeV orn_tree_treeV_inv in bal as balV.
 
 (** * Insertion *)
 
@@ -251,7 +251,7 @@ Definition add x d m :=
       end)
     m.
 
-Lift2 orn_tree_treeV orn_tree_treeV_inv in add as addV.
+Lift orn_tree_treeV orn_tree_treeV_inv in add as addV.
 
 (** * Extraction of minimum binding
 
@@ -276,7 +276,7 @@ Definition remove_min l x d r : t*(key*elt) :=
     r.
 
 (* ORN: Lifted *)
-Lift2 orn_tree_treeV orn_tree_treeV_inv in remove_min as remove_minV.
+Lift orn_tree_treeV orn_tree_treeV_inv in remove_min as remove_minV.
 
 (* --- left off here --- *)
 
