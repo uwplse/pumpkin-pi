@@ -95,25 +95,6 @@ let reduce_existT_app l evd orn env arg trm =
     pack_existT { unfolded_ex with index; unpacked }
 
 (*
- * Meta-reduction of an applied ornament in the indexer case.
- * TODO here and elsewhere (or in step after):
- * rewrite back other expanded functions (see append with flector;
- * may matter for higher lifting)
- *)
-let reduce_indexer_app l evd orn env arg trm =
-  let orn_app = mkAppl (orn, snoc arg (on_type unfold_args env evd arg)) in
-  let unfolded = chain_reduce reduce_term delta env trm in
-  let orn_app_red = reduce_nf env orn_app in
-  let app_red = reduce_nf env unfolded in
-  let app = all_eq_substs (orn_app_red, orn_app) app_red in
-  if equal app_red app then
-    (* nothing to rewrite *)
-    trm
-  else
-    (* return the rewritten term *)
-    app
-
-(*
  * Meta-reduction of an applied ornament in the backwards non-indexer case,
  * when the application of the induction principle eliminates a sigT.
  *)
@@ -147,9 +128,6 @@ let meta_reduce l =
   if l.is_fwd && not l.is_indexer then
     (* rewrite in the unpacked body of an existT *)
     reduce_existT_app l
-  else if l.is_indexer then
-    (* rewrite in the application of an indexer *)
-    reduce_indexer_app l
   else
     (* rewrite inside of an eliminator of a sigT *)
     reduce_sigT_elim_app l
