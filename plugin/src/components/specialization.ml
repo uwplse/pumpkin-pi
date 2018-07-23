@@ -150,15 +150,7 @@ let reduce_ornament_f l env evd orn trm args =
           true
       else
         false)
-    (fun env args trm ->
-      List.fold_right
-        (fun arg trm ->
-          try
-            meta_reduce l evd orn env arg trm
-          with _ ->
-            trm (* TODO investigate why failing *) )
-        args
-        trm)
+    (fun env -> List.fold_right (meta_reduce l evd orn env))
     shift_all
     env
     args
