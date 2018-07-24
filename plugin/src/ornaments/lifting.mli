@@ -9,31 +9,27 @@ open Evd
 (* --- Datatypes --- *)
 
 (*
- * For now, an ornamental promotion is an optional indexing function, a function
- * from T1 -> T2, a function from T2 -> T1. Later, it will also contain
- * patches and extra premises, and these will be present both in the top-level
- * type and as premises to the functions in both directions.
- *
- * We don't represent ornaments directly, yet, but this may also be useful.
+ * An ornamental promotion is an indexing function, a function
+ * from T1 -> T2, and a function from T2 -> T1.
  *)
 type promotion =
   {
-    index_i : int option;
-    indexer : types option;
+    indexer : types;
     promote : types;
     forget : types;
   }
 
 (*
- * A lifting is an ornamental promotion between types and a direction.
- *
- * I may add more things here later. This is just a convenient configuration
- * for promoting functions.
+ * A lifting is an ornamental promotion between types, a direction,
+ * and the offset of the index. This is a convenience configuration for
+ * lifting functions and proofs, which wraps the promotion with extra
+ * useful information.
  *)
 type lifting =
   {
     orn : promotion;
     is_fwd : bool;
+    index_i : int;
   }
 
 (* --- Initialization --- *)

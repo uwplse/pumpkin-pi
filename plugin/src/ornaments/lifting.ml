@@ -13,31 +13,27 @@ open Environ
 (* --- Datatypes --- *)
 
 (*
- * For now, an ornamental promotion is an optional indexing function, a function
- * from T1 -> T2, a function from T2 -> T1. Later, it will also contain
- * patches and extra premises, and these will be present both in the top-level
- * type and as premises to the functions in both directions.
- *
- * We don't represent ornaments directly, yet, but this may also be useful.
+ * An ornamental promotion is an indexing function, a function
+ * from T1 -> T2, and a function from T2 -> T1.
  *)
 type promotion =
   {
-    index_i : int option;
-    indexer : types option;
+    indexer : types;
     promote : types;
     forget : types;
   }
 
 (*
- * A lifting is an ornamental promotion between types and a direction.
- *
- * I may add more things here later. This is just a convenient configuration
- * for promoting functions.
+ * A lifting is an ornamental promotion between types, a direction,
+ * and the offset of the index. This is a convenience configuration for
+ * lifting functions and proofs, which wraps the promotion with extra
+ * useful information.
  *)
 type lifting =
   {
     orn : promotion;
     is_fwd : bool;
+    index_i : int;
   }
 
 (* --- Control structures --- *)
@@ -107,9 +103,8 @@ let initialize_promotion env evd promote forget =
   let to_args = unfold_args to_ind in
   let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
   let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
-  let index_i = Some index_i in
-  let indexer = Some (first_fun index) in
-  { index_i; indexer; promote; forget }
+  let indexer = first_fun index in
+  (index_i, { indexer; promote; forget } )
 
 (*
  * Initialize a lifting
@@ -117,6 +112,6 @@ let initialize_promotion env evd promote forget =
 let initialize_lifting env evd c_orn c_orn_inv =
   let is_fwd = direction env evd c_orn in
   let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
-  let orn = initialize_promotion env evd promote forget in
-  { orn ; is_fwd }
+  let (index_i, orn) = initialize_promotion env evd promote forget in
+  { orn ; is_fwd ; index_i }
                                 

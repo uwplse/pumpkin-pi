@@ -23,11 +23,10 @@ open Caching
  * get all of the arguments to that type that aren't the new/forgotten index
  *)
 let non_index_args l env typ =
-  let index_i = Option.get l.orn.index_i in
   let typ = reduce_nf env typ in
   if is_or_applies sigT typ then
     let packer = (dest_sigT typ).packer in
-    remove_index index_i (unfold_args (dummy_index env packer))
+    remove_index l.index_i (unfold_args (dummy_index env packer))
   else
     unfold_args typ
 
@@ -39,8 +38,7 @@ let non_index_typ_args l env evd trm =
   if is_or_applies existT trm then
     (* don't bother type-checking *)
     let packer = (dest_existT trm).packer in
-    let index_i = Option.get l.orn.index_i in
-    remove_index index_i (unfold_args (dummy_index env packer))
+    remove_index l.index_i (unfold_args (dummy_index env packer))
   else
     on_type (non_index_args l env) env evd trm
 
@@ -48,11 +46,10 @@ let non_index_typ_args l env evd trm =
  * Pack inside of a sigT type
  *)
 let pack env evd l unpacked =
-  let index_i = Option.get l.orn.index_i in
   let typ = reduce_type env evd unpacked in
-  let index = get_arg index_i typ in
+  let index = get_arg l.index_i typ in
   let index_type = infer_type env evd index in
-  let packer = abstract_arg env evd index_i typ in
+  let packer = abstract_arg env evd l.index_i typ in
   pack_existT {index_type; packer; index; unpacked}
 
 (*
@@ -150,7 +147,7 @@ let refold_packed l evd orn env arg trm =
   let orn_app_red = reduce_nf env orn_app in
   let app_red_ex = dest_existT app_red in
   let orn_app_red_ex = dest_existT orn_app_red in
-  let abstract = abstract_arg env evd (Option.get l.orn.index_i) in
+  let abstract = abstract_arg env evd l.index_i in
   let packer = on_type abstract env evd orn_app_red_ex.unpacked in
   let index_type = app_red_ex.index_type in
   let arg_sigT = { index_type ; packer } in
@@ -234,7 +231,6 @@ let lift_motive env evd l index_i parameterized_elim motive =
 
 (* PROMOTE-CASE-ARGS, part of LIFT-CASE-ARGS *)
 let promote_case_args env evd l (_, to_typ) args =
-  let index_i = Option.get l.orn.index_i in
   let rec lift_args args index =
     match args with
     | h :: tl ->
@@ -244,7 +240,7 @@ let promote_case_args env evd l (_, to_typ) args =
          let h_typ = reduce_type env evd h in
          if is_or_applies to_typ h_typ then
            let h_lifted = pack_lift env evd (flip_dir l) h in
-           h_lifted :: lift_args tl (get_arg index_i h_typ)
+           h_lifted :: lift_args tl (get_arg l.index_i h_typ)
          else
            h :: lift_args tl index
     | _ -> []
@@ -252,7 +248,6 @@ let promote_case_args env evd l (_, to_typ) args =
 
 (* PROMOTE-CASE-ARGS, part of LIFT-CASE-ARGS *)
 let forget_case_args env_c_b env evd l (from_typ, _) args =
-  let index_i = Option.get l.orn.index_i in
   let rec lift_args args (index, proj_index) =
     match args with
     | h :: tl ->
@@ -265,7 +260,7 @@ let forget_case_args env_c_b env evd l (from_typ, _) args =
            let h_lifted_typ = on_type dest_sigT env evd h_lifted in
            let proj_value = project_value h_lifted_typ h_lifted in
            let proj_index = project_index h_lifted_typ h_lifted in
-           proj_value :: lift_args tl (get_arg index_i h_typ, proj_index)
+           proj_value :: lift_args tl (get_arg l.index_i h_typ, proj_index)
          else
            h :: lift_args tl (index, proj_index)
     | _ -> []
@@ -323,7 +318,7 @@ let lift_elim env evd l trm_app =
   let to_typ = zoom_sig (promotion_type env evd l.orn.forget) in
   let from_typ = first_fun (promotion_type env evd l.orn.promote) in
   let (from_typ, to_typ) = map_backward reverse l (from_typ, to_typ) in
-  let index_i = (Option.get l.orn.index_i) - (List.length trm_app.pms) in
+  let index_i = l.index_i - (List.length trm_app.pms) in
   let elim = type_eliminator env (fst (destInd to_typ)) in
   let param_elim = mkAppl (elim, trm_app.pms) in
   let p = lift_motive env evd l index_i param_elim trm_app.p in
@@ -409,7 +404,7 @@ let is_proj l env evd (from_type, to_type) trm =
   match kind trm with
   | App (f, args) ->
      if l.is_fwd then
-       equal (Option.get l.orn.indexer) f && right_type (last_arg trm)
+       equal l.orn.indexer f && right_type (last_arg trm)
      else
        (equal projT1 f || equal projT2 f) && right_type (last_arg trm)
   | _ ->
@@ -436,7 +431,6 @@ let is_eliminator l env evd (from_type, to_type) trm =
  * this more robust.
  *)
 let lift_core env evd l (from_type, to_type) index_type trm =
-  let index_i = Option.get l.orn.index_i in
   let rec lift_rec en index_type tr =
     let lifted_opt = search_lifted en tr in
     if Option.has_some lifted_opt then
@@ -449,12 +443,12 @@ let lift_core env evd l (from_type, to_type) index_type trm =
         let t_args = unfold_args tr in
         let app = mkAppl (to_type, t_args) in
         let index = mkRel 1 in
-        let abs_i = reindex_body (reindex_app (insert_index index_i index)) in
+        let abs_i = reindex_body (reindex_app (insert_index l.index_i index)) in
         let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
         pack_sigT { index_type ; packer }
       else
         let packed = dummy_index en (dest_sigT tr).packer in
-        let t_args = remove_index index_i (unfold_args packed) in
+        let t_args = remove_index l.index_i (unfold_args packed) in
         mkAppl (from_type, t_args)
     else if is_packed_constr l en evd (from_type, to_type) tr then
       (* LIFT-CONSTR *)
@@ -484,8 +478,7 @@ let lift_core env evd l (from_type, to_type) index_type trm =
         let arg_typ' = dest_sigT (lift_rec en index_type (reduce_type en evd tr)) in
         project_index arg_typ' arg'
       else if equal projT1 (first_fun tr) then
-        let indexer = Option.get l.orn.indexer in
-        mkAppl (indexer, snoc arg' (non_index_typ_args l en evd tr))
+        mkAppl (l.orn.indexer, snoc arg' (non_index_typ_args l en evd tr))
       else 
         arg'
     else if is_eliminator l en evd (from_type, to_type) tr then

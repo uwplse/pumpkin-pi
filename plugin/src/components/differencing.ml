@@ -671,14 +671,13 @@ let search_orn_index_elim evd idx npm indexer_n elim_o o n is_fwd =
      let adj = shift_all_by (offset2 env_ornament env_o_b - nind) in
      let cs = adj (orn_index_cases evd idx_i npm is_fwd f_indexer p_cs o n) in
      let final_args = mk_n_rels off in
-     let idx_i_o = directional (Some idx_i) None in
      let elim = elim_o in
      let unpacked = apply_eliminator {elim; pms; p; cs; final_args} in
      let o = (ind_o, arity_o) in
      let n = (ind_n, arity_n) in
      let idx = (npm + idx_i, idx_t) in
      let packed = pack env_ornament evd idx f_indexer o n is_fwd unpacked in
-     (idx_i_o, indexer, reconstruct_lambda (fst packed) (snd packed))
+     (indexer, reconstruct_lambda (fst packed) (snd packed))
   | _ ->
      failwith "not eliminators"
 
@@ -739,8 +738,9 @@ let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
          let n = (trm_n, arity_n) in
          let (o, n) = map_if reverse (arity_n <= arity_o) (o, n) in
          let search = twice (search_orn_index env evd npm indexer_id) in
-         let ((index_i, indexer, promote), (_, _, forget)) = search o n in
-         { index_i; indexer; promote; forget }
+         let ((indexer_opt, promote), (_, forget)) = search o n in
+         let indexer = Option.get indexer_opt in
+         { indexer; promote; forget }
        else
          failwith "this kind of change is not yet supported"
   | _ ->
