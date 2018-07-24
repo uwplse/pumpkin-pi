@@ -27,3 +27,22 @@ cd <path-to-univalent-parametricity>
 coq_makefile -f _CoqProject -o Makefile
 make && make install
 ```
+
+## Running
+
+### Tests
+
+The test script runs all tests:
+
+```
+./test.sh
+```
+
+### Case Study Code
+
+The case study script updates the functions in the case study code, then runs the case studies:
+
+```
+./TODO.sh
+```
+
