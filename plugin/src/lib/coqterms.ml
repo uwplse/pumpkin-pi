@@ -308,6 +308,83 @@ let chain_reduce rg rf (env : env) (trm : types) : types =
 let on_type f env evd trm =
   f (reduce_type env evd trm)
 
+(* --- Environments --- *)
+
+(* Return a list of all indexes in env, starting with 1 *)
+let all_rel_indexes (env : env) : int list =
+  from_one_to (nb_rel env)
+
+(* Make n relative indices, from highest to lowest *)
+let mk_n_rels n =
+  List.map mkRel (List.rev (from_one_to n))
+              
+(* Push a local binding to an environment *)
+let push_local (n, t) = push_rel CRD.(LocalAssum (n, t))
+
+(* Push a let-in definition to an environment *)
+let push_let_in (n, e, t) = push_rel CRD.(LocalDef(n, e, t))
+
+(* Lookup n rels and remove then *)
+let lookup_pop (n : int) (env : env) =
+  let rels = List.map (fun i -> lookup_rel i env) (from_one_to n) in
+  (pop_rel_context n env, rels)
+
+(* Lookup a definition *)
+let lookup_definition (env : env) (def : types) : types =
+  match kind def with
+  | Const (c, u) ->
+     let c_body = (lookup_constant c env).const_body in
+     (match c_body with
+      | Def cs -> Mod_subst.force_constr cs
+      | OpaqueDef o -> Opaqueproof.force_proof (Global.opaque_tables ()) o
+      | _ -> failwith "an axiom has no definition")
+  | Ind _ -> def
+  | _ -> failwith "not a definition"
+
+(* Fully lookup a def in env, but return the term if it is not a definition *)
+let rec unwrap_definition (env : env) (trm : types) : types =
+  try
+    unwrap_definition env (lookup_definition env trm)
+  with _ ->
+    trm
+
+(* Get the type of an inductive type *)
+let type_of_inductive env index mutind_body : types =
+  let ind_bodies = mutind_body.mind_packets in
+  let ind_body = Array.get ind_bodies index in
+  let univs = Declareops.inductive_polymorphic_context mutind_body in
+  let univ_instance = Univ.make_abstract_instance univs in
+  let mutind_spec = (mutind_body, ind_body) in
+  Inductive.type_of_inductive env (mutind_spec, univ_instance)
+
+(*
+ * Inductive types create bindings that we need to push to the environment
+ * This function gets those bindings
+ *)
+let bindings_for_inductive env mutind_body ind_bodies : CRD.t list =
+  Array.to_list
+    (Array.mapi
+       (fun i ind_body ->
+         let name_id = ind_body.mind_typename in
+         let typ = type_of_inductive env i mutind_body in
+         CRD.LocalAssum (Name name_id, typ))
+       ind_bodies)
+
+(*
+ * Similarly but for fixpoints
+ *)
+let bindings_for_fix (names : name array) (typs : types array) : CRD.t list =
+  Array.to_list
+    (CArray.map2_i
+       (fun i name typ -> CRD.LocalAssum (name, Vars.lift i typ))
+       names typs)
+
+(* Find the offset of some environment from some number of parameters *)
+let offset env npm = nb_rel env - npm
+
+(* Find the offset between two environments *)
+let offset2 env1 env2 = nb_rel env1 - nb_rel env2
+
 (* --- Basic questions about terms --- *)
 
 (*
@@ -390,15 +467,6 @@ let inductive_of_elim (env : env) (pc : pconstant) : mutual_inductive option =
 let is_elim (env : env) (trm : types) =
   isConst trm && Option.has_some (inductive_of_elim env (destConst trm))
 
-(* Get the type of an inductive type *)
-let type_of_inductive env index mutind_body : types =
-  let ind_bodies = mutind_body.mind_packets in
-  let ind_body = Array.get ind_bodies index in
-  let univs = Declareops.inductive_polymorphic_context mutind_body in
-  let univ_instance = Univ.make_abstract_instance univs in
-  let mutind_spec = (mutind_body, ind_body) in
-  Inductive.type_of_inductive env (mutind_spec, univ_instance)
-
 (* Lookup the eliminator over the type sort *)
 let type_eliminator (env : env) (ind : inductive) =
   Universes.constr_of_global (Indrec.lookup_eliminator ind InType)
@@ -431,90 +499,27 @@ let deconstruct_eliminator env evd app : elim_app =
   let num_props = 1 in
   let num_constrs = arity ip_typ - npms - num_props - num_indices - 1 in
   let (pms, pmd_args) = take_split npms ip_args in
-  let (p :: cs_and_args) = pmd_args in
-  let (cs, final_args) = take_split num_constrs cs_and_args in
-  { elim; pms; p; cs; final_args }
-
-(*
- * Only reduce until you have an application of an induction principle,
- * or reducing doesn't change the term
- * Then, do nothing
- *)
-let rec reduce_to_ind env trm =
-  match kind trm with
-  | App (_, _) when is_elim env (first_fun trm) ->
-     trm
+  match pmd_args with
+  | p :: cs_and_args ->
+     let (cs, final_args) = take_split num_constrs cs_and_args in
+     { elim; pms; p; cs; final_args }
   | _ ->
-     let reduced = chain_reduce reduce_term delta env trm in
-     map_if (reduce_to_ind env) (not (equal reduced trm)) reduced
-                             
-(* --- Environments --- *)
-
-(* Return a list of all indexes in env, starting with 1 *)
-let all_rel_indexes (env : env) : int list =
-  from_one_to (nb_rel env)
-
-(* Make n relative indices, from highest to lowest *)
-let mk_n_rels n =
-  List.map mkRel (List.rev (from_one_to n))
-              
-(* Push a local binding to an environment *)
-let push_local (n, t) = push_rel CRD.(LocalAssum (n, t))
-
-(* Push a let-in definition to an environment *)
-let push_let_in (n, e, t) = push_rel CRD.(LocalDef(n, e, t))
-
-(* Lookup n rels and remove then *)
-let lookup_pop (n : int) (env : env) =
-  let rels = List.map (fun i -> lookup_rel i env) (from_one_to n) in
-  (pop_rel_context n env, rels)
-
-(* Lookup a definition *)
-let lookup_definition (env : env) (def : types) : types =
-  match kind def with
-  | Const (c, u) ->
-     let c_body = (lookup_constant c env).const_body in
-     (match c_body with
-      | Def cs -> Mod_subst.force_constr cs
-      | OpaqueDef o -> Opaqueproof.force_proof (Global.opaque_tables ()) o
-      | _ -> failwith "an axiom has no definition")
-  | Ind _ -> def
-  | _ -> failwith "not a definition"
-
-(* Fully lookup a def in env, but return the term if it is not a definition *)
-let rec unwrap_definition (env : env) (trm : types) : types =
-  try
-    unwrap_definition env (lookup_definition env trm)
-  with _ ->
-    trm
+     failwith "can't deconstruct eliminator; no final arguments"
 
 (*
- * Inductive types create bindings that we need to push to the environment
- * This function gets those bindings
+ * Given the type of a case of an eliminator,
+ * determine the number of inductive hypotheses
  *)
-let bindings_for_inductive env mutind_body ind_bodies : CRD.t list =
-  Array.to_list
-    (Array.mapi
-       (fun i ind_body ->
-         let name_id = ind_body.mind_typename in
-         let typ = type_of_inductive env i mutind_body in
-         CRD.LocalAssum (Name name_id, typ))
-       ind_bodies)
-
-(*
- * Similarly but for fixpoints
- *)
-let bindings_for_fix (names : name array) (typs : types array) : CRD.t list =
-  Array.to_list
-    (CArray.map2_i
-       (fun i name typ -> CRD.LocalAssum (name, Vars.lift i typ))
-       names typs)
-
-(* Find the offset of some environment from some number of parameters *)
-let offset env npm = nb_rel env - npm
-
-(* Find the offset between two environments *)
-let offset2 env1 env2 = nb_rel env1 - nb_rel env2
+let rec num_ihs env rec_typ typ =
+  match kind typ with
+  | Prod (n, t, b) ->
+     if is_or_applies rec_typ (reduce_term env t) then
+       let (n_b_t, b_t, b_b) = destProd b in
+       1 + num_ihs (push_local (n, t) (push_local (n_b_t, b_t) env)) rec_typ b_b
+     else
+       num_ihs (push_local (n, t) env) rec_typ b
+  | _ ->
+     0                   
 
 (* --- Basic mapping --- *)
 

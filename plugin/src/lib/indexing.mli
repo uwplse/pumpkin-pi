@@ -65,3 +65,17 @@ val computes_only_index :
   types -> (* hypothesis *)
   types -> (* eliminator type *)
   bool
+
+(* --- Getting arguments to indexed types --- *)
+
+(*
+ * Given a type we are promoting to/forgetting from,
+ * get all of the arguments to that type that aren't the new/forgotten index
+ *)
+val non_index_args : int -> env -> types -> types list
+
+(*
+ * Given a term with the type we are promoting to/forgetting from,
+ * get all of the arguments to that type that aren't the new/forgotten index
+ *)
+val non_index_typ_args : int -> env -> evar_map -> types -> types list

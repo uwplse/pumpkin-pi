@@ -1,5 +1,5 @@
 (*
- * Differencing for ornamenting inductive types
+ * Differencing component
  *)
 
 open Constr

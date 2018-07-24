@@ -66,3 +66,10 @@ val map_backward : ('a -> 'a) -> lifting -> 'a -> 'a
  * It is up to the client to adjust the offsets appropriately.
  *)
 val ind_of_promotion_type : types -> (types * types)
+
+(* --- Directionality --- *)
+       
+(* 
+ * Flip the direction of a lifting
+ *)
+val flip_dir : lifting -> lifting

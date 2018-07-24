@@ -1,5 +1,5 @@
 (*
- * Searching for ornamental promotions between inductive types
+ * Differencing component
  *)
 
 open Constr

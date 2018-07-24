@@ -172,6 +172,12 @@ type elim_app =
                                             
 val apply_eliminator : elim_app -> types
 val deconstruct_eliminator : env-> evar_map -> types -> elim_app
+
+(*
+ * Given the recursive type and the type of a case of an eliminator,
+ * determine the number of inductive hypotheses
+ *)
+val num_ihs : env -> types -> types -> int   
   
 (* --- Environments --- *)
 
@@ -257,7 +263,6 @@ val reduce_term : env -> types -> types (* betaiotazeta *)
 val delta : env -> types -> types (* delta *)
 val reduce_nf : env -> types ->  types (* nf_all *)
 val reduce_type : env -> evar_map -> types -> types (* betaiotazeta on types *)
-val reduce_to_ind : env -> types -> types (* reduce to applied eliminator *)
 val chain_reduce : (* sequencing *)
   (env -> types -> types) ->
   (env -> types -> types) ->

@@ -115,3 +115,9 @@ let initialize_lifting env evd c_orn c_orn_inv =
   let (index_i, orn) = initialize_promotion env evd promote forget in
   { orn ; is_fwd ; index_i }
                                 
+(* --- Directionality --- *)
+       
+(* 
+ * Flip the direction of a lifting
+ *)
+let flip_dir l = { l with is_fwd = (not l.is_fwd) }

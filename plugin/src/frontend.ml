@@ -2,9 +2,9 @@ open Constr
 open Names
 open Coqterms
 open Lifting
-open Specialization
 open Caching
 open Search
+open Lift
        
 (* 
  * Identify an algebraic ornament between two types
