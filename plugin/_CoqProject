@@ -24,8 +24,6 @@ src/lib/hypotheses.mli
 src/lib/printing.ml
 src/lib/printing.mli
 
-src/ornaments/promotions.ml
-src/ornaments/promotions.mli
 src/ornaments/lifting.ml
 src/ornaments/lifting.mli
 

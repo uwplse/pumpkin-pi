@@ -41,15 +41,14 @@ type lifting =
 
 (* --- Initialization --- *)
 
-(* 
- * Initialize a promotion, given promotion and forgetful functions
- *)
-val initialize_promotion : env -> evar_map -> types -> types -> promotion
-
 (*
- * Initialize a lifting, given a promotion and a direction 
+ * Initialize a lifting, given (in order):
+ * 1) an environment
+ * 2) an evar_map
+ * 3) promote if promoting, or forget if forgetting
+ * 4) forget if promoting, or promote if forgetting
  *)
-val initialize_lifting : promotion -> bool -> lifting
+val initialize_lifting : env -> evar_map -> types -> types -> lifting
 
 (* --- Control structures --- *)
     
@@ -65,3 +64,12 @@ val directional : lifting -> 'a -> 'a -> 'a
 val map_directional : ('a -> 'b) -> ('a -> 'b) -> lifting -> 'a -> 'b
 val map_forward : ('a -> 'a) -> lifting -> 'a -> 'a
 val map_backward : ('a -> 'a) -> lifting -> 'a -> 'a
+
+(* --- Information retrieval --- *)
+
+(* 
+ * Given the type of an ornamental promotion function, get the inductive types
+ * that the function maps between, including all of their arguments.
+ * It is up to the client to adjust the offsets appropriately.
+ *)
+val ind_of_promotion_type : types -> (types * types)

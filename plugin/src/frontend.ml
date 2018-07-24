@@ -4,7 +4,6 @@ open Utilities
 open Coqterms
 open Differencing
 open Lifting
-open Promotions
 open Specialization
 open Caching
 
@@ -42,10 +41,7 @@ let lift_by_ornament n d_orn d_orn_inv d_old =
   let c_orn = intern env evd d_orn in
   let c_orn_inv = intern env evd d_orn_inv in
   let c_old = intern env evd d_old in
-  let is_fwd = direction env evd c_orn in
-  let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
-  let orn = initialize_promotion env evd promote forget in
-  let l = initialize_lifting orn is_fwd in
+  let l = initialize_lifting env evd c_orn c_orn_inv in
   let lifted = do_lift_core env evd l c_old in
   define_term n evd lifted;
   Printf.printf "Defined lifted function %s.\n\n" (Id.to_string n);

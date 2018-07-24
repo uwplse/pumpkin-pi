@@ -11,7 +11,6 @@ open Coqterms
 open Debruijn
 open Utilities
 open Indexing
-open Promotions
 open Abstraction
 open Hypotheses
 open Names
