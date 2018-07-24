@@ -28,6 +28,14 @@ coq_makefile -f _CoqProject -o Makefile
 make && make install
 ```
 
+## Understanding the Code
+
+The top-level is in `ornamental.ml4`, which outsources to `frontend.ml`. From there, the two major functionalities
+are the search algorithm in `automation/search` and the lifting algorithm in `automation/lift`. A description
+of these implementations can be found in Sections 5.1.1 and 5.1.2 of the paper; the relevant theory behind these is in
+Sections 3.2, 4.1, and Appendix A.2. Please ping me if you have any questions, or create an issue so that I can
+patch up the code to better correspond to the paper.
+
 ## Running
 
 ### Tests
