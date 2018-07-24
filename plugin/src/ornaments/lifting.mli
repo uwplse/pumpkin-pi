@@ -25,9 +25,7 @@ type promotion =
   }
 
 (*
- * A lifting is an ornamental promotion between types, a direction,
- * a hint whether it corresponds to an indexing function for an outer lifting,
- * and an optional indexer for the promoted function.
+ * A lifting is an ornamental promotion between types and a direction.
  *
  * I may add more things here later. This is just a convenient configuration
  * for promoting functions.
@@ -36,7 +34,6 @@ type lifting =
   {
     orn : promotion;
     is_fwd : bool;
-    lifted_indexer : types option;
   }
 
 (* --- Initialization --- *)
