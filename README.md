@@ -18,7 +18,6 @@ make && make install
 
 ```
 cd <path-to-univalent-parametricity>
-coq_makefile -f _CoqProject -o Makefile
 make && make install
 ```
 
