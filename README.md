@@ -3,7 +3,7 @@
 The only dependency to use the plugin is Coq 8.8.
 
 To run the case study code, you also need the following:
-* An opam switch with Coq 8.7.2
+* An opam switch with Coq 8.7.1
 * The univalent parametricity framework: https://github.com/CoqHott/univalent_parametricity
 
 This is because their framework is not on Coq 8.8, and we evaluate in comparison to them. We will eventually
@@ -21,7 +21,7 @@ make && make install
 ### Case Study Dependencies
 
 ```
-opam switch <switch-with-coq-8.7.2>
+opam switch <switch-with-coq-8.7.1>
 eval `opam config env`
 cd <path-to-univalent-parametricity>
 coq_makefile -f _CoqProject -o Makefile
