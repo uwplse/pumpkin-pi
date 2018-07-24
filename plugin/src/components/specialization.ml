@@ -15,6 +15,7 @@ open Promotions
 open Abstraction
 open Hypotheses
 open Names
+open Caching
 
 (* --- Some utilities for lifting --- *)
 

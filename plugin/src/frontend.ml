@@ -6,6 +6,7 @@ open Differencing
 open Lifting
 open Promotions
 open Specialization
+open Caching
 
 (* 
  * Identify an algebraic ornament between two types

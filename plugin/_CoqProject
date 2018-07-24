@@ -1,5 +1,6 @@
 -I src/lib
 -I src/ornaments
+-I src/cache
 -I src/components
 -I src
 -R theories Ornamental
@@ -27,6 +28,9 @@ src/ornaments/promotions.ml
 src/ornaments/promotions.mli
 src/ornaments/lifting.ml
 src/ornaments/lifting.mli
+
+src/cache/caching.ml
+src/cache/caching.mli
 
 src/components/factoring.ml
 src/components/factoring.mli

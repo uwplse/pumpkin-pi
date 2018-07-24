@@ -65,15 +65,3 @@ val directional : lifting -> 'a -> 'a -> 'a
 val map_directional : ('a -> 'b) -> ('a -> 'b) -> lifting -> 'a -> 'b
 val map_forward : ('a -> 'a) -> lifting -> 'a -> 'a
 val map_backward : ('a -> 'a) -> lifting -> 'a -> 'a
-
-(* --- Database for higher lifting --- *)
-
-(*
- * Register a lifting to the database
- *)
-val declare_lifted : evar_map -> types -> types -> unit
-
-(*
- * Search the database for a lifting (return the reduced version if it exists)
- *)                                       
-val search_lifted : env -> types -> types option
