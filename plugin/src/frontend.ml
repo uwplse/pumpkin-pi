@@ -1,11 +1,11 @@
 open Constr
 open Names
 open Coqterms
-open Differencing
 open Lifting
 open Specialization
 open Caching
-
+open Search
+       
 (* 
  * Identify an algebraic ornament between two types
  * Define the components of the corresponding equivalence

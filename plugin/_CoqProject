@@ -2,6 +2,7 @@
 -I src/ornaments
 -I src/cache
 -I src/components
+-I src/automation
 -I src
 -R theories Ornamental
 
@@ -38,6 +39,9 @@ src/components/specialization.ml
 src/components/specialization.mli
 src/components/differencing.ml
 src/components/differencing.mli
+
+src/automation/search.ml
+src/automation/search.mli
 
 src/frontend.ml
 src/frontend.mli
