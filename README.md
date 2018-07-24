@@ -25,5 +25,5 @@ opam switch <switch-with-coq-8.7.2>
 eval `opam config env`
 cd <path-to-univalent-parametricity>
 coq_makefile -f _CoqProject -o Makefile
-make && make installcoqc 
+make && make install
 ```
