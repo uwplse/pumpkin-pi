@@ -8,7 +8,7 @@
 
 Require Setoid.
 Require Import PeanoNat Le Gt Minus Bool Lt.
-Require Import FP.
+From UnivalentParametricity Require Import FP.
 
 Set Implicit Arguments.
 
