@@ -14,9 +14,10 @@
    Laurent Théry (Huffmann contribution, October 2003) *)
 
 Require Import Setoid Compare_dec Morphisms FinFun.
-Require Import FP list.
+From UnivalentParametricity Require Import FP.
+Require Import list.
 
-Notation NoDup := UnivalentParametricity.eval.list.NoDup.
+Notation NoDup := list.NoDup.
 
 Set Implicit Arguments.
 
