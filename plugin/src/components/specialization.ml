@@ -8,6 +8,7 @@ open Coqterms
 open Utilities
 open Indexing
 open Abstraction
+open Constr
 
 (* --- Packing--- *)
 
@@ -43,15 +44,56 @@ let pack_lift env evd l arg =
  * algorithm to determine the constructor lifting rules, so that
  * they do not need to depend on ordering information. 
  *)
+
+(*
+ * Get all recursive constants
+ *)
+let rec all_recursive_constants env trm =
+  let consts = all_const_subterms (fun _ _ -> true) (fun u -> u) () trm in
+  let non_axioms =
+    List.map
+      Option.get
+      (List.filter
+         (Option.has_some)
+         (List.map
+            (fun c ->
+              try
+                let def = unwrap_definition env c in
+                if not (equal def c || isInd def) then
+                  Some (c, def)
+                else
+                  None
+              with _ ->
+                None)
+            consts))
+  in
+  let non_axiom_consts = List.map fst non_axioms in
+  let defs = List.map snd non_axioms in
+  unique
+    equal
+    (List.append
+       non_axiom_consts
+       (List.flatten (List.map (all_recursive_constants env) defs)))
+
+(*
+ * Fold back constants after applying a function to the normalized form
+ * Makes the produced lifted constructors dramatically nicer and faster
+ * when they refer to functions
+ *)
+let fold_back_constants env f trm =
+  List.fold_left
+    (fun red lifted ->
+      all_conv_substs env (lifted, lifted) red)
+    (f (reduce_nf env trm))
+    (all_recursive_constants env trm)
          
 (*
  * Refolding an applied ornament in the forward direction, 
  * when the ornament application produces an existT term.
  *)
-let refold_packed l evd orn env arg trm =
+let refold_packed l evd orn env arg app_red =
   let typ_args = non_index_typ_args l.index_i env evd arg in
   let orn_app = mkAppl (orn, snoc arg typ_args) in
-  let app_red = reduce_nf env trm in
   let orn_app_red = reduce_nf env orn_app in
   let app_red_ex = dest_existT app_red in
   let orn_app_red_ex = dest_existT orn_app_red in
@@ -65,16 +107,15 @@ let refold_packed l evd orn env arg trm =
   let refold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
   let index = refold_index app_red_ex.index in
   let unpacked = refold_index (refold_value app_red_ex.unpacked) in
-  pack_existT { app_red_ex with index; unpacked }
+  pack_existT {app_red_ex with index; unpacked}
 
 (*
  * Refolding an applied ornament in the backwards direction,
  * when the ornament application eliminates over the projections.
  *)
-let refold_projected l evd orn env arg trm =
+let refold_projected l evd orn env arg app_red =
   let typ_args = non_index_typ_args l.index_i env evd arg in
   let orn_app = mkAppl (orn, snoc arg typ_args) in
-  let app_red = reduce_nf env trm in
   let orn_app_red = reduce_nf env orn_app in
   all_eq_substs (orn_app_red, arg) app_red
 
@@ -83,7 +124,9 @@ let refold_projected l evd orn env arg trm =
  *)
 let refold l env evd orn trm args =
   let refolder = if l.is_fwd then refold_packed else refold_projected in
-  List.fold_right (refolder l evd orn env) args trm
+  let refolder_app = refolder l evd orn env in
+  let refold_all = List.fold_right refolder_app args in
+  fold_back_constants env refold_all trm
 
 
 
