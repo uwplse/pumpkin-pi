@@ -15,7 +15,6 @@ open Hypotheses
 open Names
 open Caching
 open Specialization
-open Printing
 
 (* --- to/from --- *)
        
@@ -115,7 +114,11 @@ let is_eliminator l env evd (from_type, to_type) trm =
  * the constructor rules ahead of time. Note that these are stored
  * with constant constructors even in the backward direction,
  * though the LIFT-CONSTR rule requires a packed from type in that direction.
- * This just makes it easier to store this as a hash for quick lookup. 
+ * This just makes it easier to store this as a hash for quick lookup.
+ *
+ * This also provides a local cache so that we can avoid cluttering the
+ * global cache, which just provides access to constants that we have
+ * unfolded and lifted internally, to avoid doing this many times.
  *
  * TODO move more of lifting config type here TBH
  *)
@@ -123,6 +126,7 @@ type lift_config =
   {
     l : lifting;
     constr_rules : types array;
+    cache : (KerName.t, types) Hashtbl.t
   }
 
 (*
@@ -180,7 +184,8 @@ let initialize_constr_rules env evd l (from_typ, to_typ) =
 (* Initialize the lift_config *)
 let initialize_lift_config env evd l (from_typ, to_typ) =
   let constr_rules = initialize_constr_rules env evd l (from_typ, to_typ) in
-  { l ; constr_rules } 
+  let cache = Hashtbl.create 100 in
+  { l ; constr_rules ; cache } 
 
 (* --- Lifting the induction principle --- *)
 
@@ -422,11 +427,11 @@ let lift_core env evd c (from_type, to_type) index_type trm =
            let args' = Array.map (lift_rec en index_type) args in
            let f' = lift_rec en index_type f in
            mkApp (f', args')
-      | Cast (c, k, t) ->
+      | Cast (ca, k, t) ->
          (* CAST *)
-         let c' = lift_rec en index_type c in
+         let ca' = lift_rec en index_type ca in
          let t' = lift_rec en index_type t in
-         mkCast (c', k, t')
+         mkCast (ca', k, t')
       | Prod (n, t, b) ->
          (* PROD *)
          let t' = lift_rec en index_type t in
@@ -462,10 +467,10 @@ let lift_core env evd c (from_type, to_type) index_type trm =
          let ts' = Array.map (lift_rec en index_type) ts in
          let ds' = Array.map (map_rec_env_fix lift_rec shift en index_type ns ts) ds in
          mkCoFix (i, (ns, ts', ds'))
-      | Proj (pr, c) ->
+      | Proj (pr, co) ->
          (* PROJ *)
-         let c' = lift_rec en index_type c in
-         mkProj (pr, c')
+         let co' = lift_rec en index_type co in
+         mkProj (pr, co')
       | Construct (((i, i_index), _), u) ->
          let ind = mkInd (i, i_index) in
          if equal ind (directional l from_type to_type) then
@@ -473,24 +478,29 @@ let lift_core env evd c (from_type, to_type) index_type trm =
            lift_rec en index_type (expand_eta en evd tr)
          else
            tr
-      | Const _ ->
-         (* CONST *)
-         if equal tr projT1 || equal tr projT2 || is_elim en tr then
-           tr
+      | Const (co, u) ->
+         let kn = Constant.canonical co in
+         if Hashtbl.mem c.cache kn then
+           (* Local CACHE *)
+           Hashtbl.find c.cache kn
          else
-           (try
-              let def = lookup_definition en tr in
-              let lifted = lift_rec en index_type def in
-              if equal def lifted then
-                tr
-              else
-                reduce_term en lifted
-            with _ ->
-              tr)
+           let lifted =
+             (try
+                (* CONST *)
+                let def = lookup_definition en tr in
+                let try_lifted = lift_rec en index_type def in
+                if equal def try_lifted then
+                  tr
+                else
+                  reduce_term en try_lifted
+              with _ ->
+                (* AXIOM *)
+                tr)
+           in Hashtbl.add c.cache kn lifted; lifted
       | _ ->
          tr
   in lift_rec env index_type trm
-
+              
 (*
  * Run the core lifting algorithm
  *)
@@ -502,4 +512,5 @@ let do_lift_core env evd (l : lifting) def =
   let typs = (first_fun promote_typ, zoom_sig forget_typ) in
   let index_type = (dest_sigT forget_typ).index_type in
   let c = initialize_lift_config env evd l typs in
+  
   lift_core env evd c typs index_type trm
