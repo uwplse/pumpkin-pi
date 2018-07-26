@@ -34,7 +34,7 @@ val intern : env -> evar_map -> constr_expr -> types
 val extern : env -> evar_map -> types -> constr_expr
 
 (*
- * Yves Bertot's edeclare, with extra type-checking call (see comment)
+ * Yves Bertot's edeclare, with extra optional type-checking call (see comment)
  *)
 val edeclare :
   Id.t ->
@@ -46,12 +46,15 @@ val edeclare :
   EConstr.t option ->
   Impargs.manual_implicits ->
   global_reference Lemmas.declaration_hook ->
+  bool ->
   global_reference
                                         
 (*
  * Define a new Coq term
+ * Refresh universes if the bool is true, otherwise don't
+ * (Refreshing universes is REALLY costly)
  *)
-val define_term : Id.t -> evar_map -> types -> unit
+val define_term : Id.t -> evar_map -> types -> bool -> unit
 
 (* --- Constructing terms --- *)
 

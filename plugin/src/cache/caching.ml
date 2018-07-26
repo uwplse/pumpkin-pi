@@ -64,12 +64,15 @@ let declare_lifted (evm : evar_map) (base : types) (lift : types) : unit =
 
 (** Retrieve the canonical lifting for the definition [base]. *)
 let search_lifted (env : env) (base : types) : types option =
-  try
-    let base = global_of_constr base in
-    let (_, info) = lookup_canonical_conversion (project, Const_cs base) in
-    (* Reduce the lifting instance to HNF to extract the target component. *)
-    let package = Reduction.whd_all env info.o_DEF in
-    let (cons, args) = decompose_appvect package in
-    Some (args.(3))
-  with _ ->
+  if isConst base then
+    try
+      let base = global_of_constr base in
+      let (_, info) = lookup_canonical_conversion (project, Const_cs base) in
+      (* Reduce the lifting instance to HNF to extract the target component. *)
+      let package = Reduction.whd_all env info.o_DEF in
+      let (cons, args) = decompose_appvect package in
+      Some (args.(3))
+    with _ ->
+      None
+  else
     None

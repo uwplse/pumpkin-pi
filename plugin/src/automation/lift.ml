@@ -16,6 +16,29 @@ open Names
 open Caching
 open Specialization
 
+(* --- Internal lifting configuration --- *)
+
+(*
+ * As explained in Section 5, LIFT-CONSTR-ARGS and LIFT-CONSTR-FUN use 
+ * refolding for order-independence. This configuration lets us compute 
+ * the constructor rules ahead of time. Note that these are stored
+ * with constant constructors even in the backward direction,
+ * though the LIFT-CONSTR rule requires a packed from type in that direction.
+ * This just makes it easier to store this as a hash for quick lookup.
+ *
+ * This also provides a local cache so that we can avoid cluttering the
+ * global cache, which just provides access to constants that we have
+ * unfolded and lifted internally, to avoid doing this many times.
+ *
+ * TODO move more of lifting config type here TBH
+ *)
+type lift_config =
+  {
+    l : lifting;
+    constr_rules : types array;
+    cache : (KerName.t, types) Hashtbl.t
+  }
+
 (* --- to/from --- *)
        
 (* 
@@ -25,6 +48,16 @@ let promotion_type env evd trm =
   fst (on_type ind_of_promotion_type env evd trm)
 
 (* --- Premises --- *)
+
+(*
+ * Check whether a constant is in the local cache
+ *)
+let is_locally_cached c trm =
+  match kind trm with
+  | Const (co, u) ->
+     Hashtbl.mem c.cache (Constant.canonical co)
+  | _ ->
+     false
 
 (*
  * Determine whether a type is the type we are ornamenting from
@@ -106,28 +139,7 @@ let is_eliminator l env evd (from_type, to_type) trm =
   | _ ->
      false
 
-(* --- Internal lifting configuration --- *)
-
-(*
- * As explained in Section 5, LIFT-CONSTR-ARGS and LIFT-CONSTR-FUN use 
- * refolding for order-independence. This configuration lets us compute 
- * the constructor rules ahead of time. Note that these are stored
- * with constant constructors even in the backward direction,
- * though the LIFT-CONSTR rule requires a packed from type in that direction.
- * This just makes it easier to store this as a hash for quick lookup.
- *
- * This also provides a local cache so that we can avoid cluttering the
- * global cache, which just provides access to constants that we have
- * unfolded and lifted internally, to avoid doing this many times.
- *
- * TODO move more of lifting config type here TBH
- *)
-type lift_config =
-  {
-    l : lifting;
-    constr_rules : types array;
-    cache : (KerName.t, types) Hashtbl.t
-  }
+(* --- Configuring the constructor liftings --- *)
 
 (*
  * For packing constructor aguments: Pack, but only if it's to_typ
@@ -351,8 +363,12 @@ let lift_core env evd c (from_type, to_type) index_type trm =
   let rec lift_rec en index_type tr =
     let lifted_opt = search_lifted en tr in
     if Option.has_some lifted_opt then
-      (* CACHING *)
+      (* GLOBAL CACHING *)
       Option.get lifted_opt
+    else if is_locally_cached c tr then
+      (* LOCAL CACHING *)
+      let (co, u) = destConst tr in
+      Hashtbl.find c.cache (Constant.canonical co)
     else if is_orn l en evd (from_type, to_type) tr then
       (* EQUIVALENCE *)
       let tr = reduce_nf en tr in
@@ -479,24 +495,19 @@ let lift_core env evd c (from_type, to_type) index_type trm =
          else
            tr
       | Const (co, u) ->
-         let kn = Constant.canonical co in
-         if Hashtbl.mem c.cache kn then
-           (* Local CACHE *)
-           Hashtbl.find c.cache kn
-         else
-           let lifted =
-             (try
-                (* CONST *)
-                let def = lookup_definition en tr in
-                let try_lifted = lift_rec en index_type def in
-                if equal def try_lifted then
-                  tr
-                else
-                  reduce_term en try_lifted
-              with _ ->
-                (* AXIOM *)
-                tr)
-           in Hashtbl.add c.cache kn lifted; lifted
+         let lifted =
+           (try
+              (* CONST *)
+              let def = lookup_definition en tr in
+              let try_lifted = lift_rec en index_type def in
+              if equal def try_lifted then
+                tr
+              else
+                reduce_term en try_lifted
+            with _ ->
+              (* AXIOM *)
+              tr)
+         in Hashtbl.add c.cache (Constant.canonical co) lifted; lifted
       | _ ->
          tr
   in lift_rec env index_type trm
@@ -512,5 +523,4 @@ let do_lift_core env evd (l : lifting) def =
   let typs = (first_fun promote_typ, zoom_sig forget_typ) in
   let index_type = (dest_sigT forget_typ).index_type in
   let c = initialize_lift_config env evd l typs in
-  
   lift_core env evd c typs index_type trm
