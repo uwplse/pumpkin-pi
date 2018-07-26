@@ -106,6 +106,81 @@ let is_eliminator l env evd (from_type, to_type) trm =
   | _ ->
      false
 
+(* --- Internal lifting configuration --- *)
+
+(*
+ * As explained in Section 5, LIFT-CONSTR-ARGS and LIFT-CONSTR-FUN use 
+ * refolding for order-independence. This configuration lets us compute 
+ * the constructor rules ahead of time. Note that these are stored
+ * with constant constructors even in the backward direction,
+ * though the LIFT-CONSTR rule requires a packed from type in that direction.
+ * This just makes it easier to store this as a hash for quick lookup. 
+ *
+ * TODO move more of lifting config type here TBH
+ *)
+type lift_config =
+  {
+    l : lifting;
+    constr_rules : types array;
+  }
+
+(*
+ * For packing constructor aguments: Pack, but only if it's to_typ
+ *)
+let pack_to_typ env evd l (from_typ, to_typ) unpacked =
+  if on_type (is_or_applies to_typ) env evd unpacked then
+    pack env evd l.index_i unpacked
+  else
+    unpacked
+
+(* 
+ * Configure LIFT-CONSTR-ARGS & LIFT-CONSTR-FUN
+ *)
+let configure_constr env evd l (from_typ, to_typ) trm =
+  let args = unfold_args (map_backward last_arg l trm) in
+  let pack_args = List.map (pack_to_typ env evd l (from_typ, to_typ)) in
+  let packed_args = map_backward pack_args l args in  
+  let rec_args = filter_orn l env evd (from_typ, to_typ) packed_args in
+  if List.length rec_args = 0 then
+    (* base case - don't bother refolding *)
+    reduce_nf env (lift env evd l trm)
+  else
+    (* inductive case - refold *)
+    List.fold_left
+      (fun t a -> all_eq_substs (a, lift env evd l a) t)
+      (refold l env evd (lift_to l) (lift env evd l trm) rec_args)
+      rec_args
+    
+(*
+ * Configure LIFT-CONSTR-ARGS and LIFT-CONSTR-FUN for a single constructor
+ *)
+let initialize_constr_rule env evd l (from_typ, to_typ) constr =
+  let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd constr) in
+  let c_body = reduce_term env_c_b c_body in
+  let to_refold = map_backward (pack env_c_b evd l.index_i) l c_body in
+  let refolded = configure_constr env_c_b evd l (from_typ, to_typ) to_refold in
+  reconstruct_lambda_n env_c_b refolded (nb_rel env)
+              
+(*
+ * Configure LIFT-CONSTR-ARGS and LIFT-CONSTR-FUN for all constructors
+ *)
+let initialize_constr_rules env evd l (from_typ, to_typ) =
+  let ((i, i_index), u) = destInd from_typ in
+  let mutind_body = lookup_mind i env in
+  let ind_bodies = mutind_body.mind_packets in
+  let ind_body = ind_bodies.(i_index) in
+  Array.mapi
+    (fun c_index _ ->
+      let constr = mkConstructU (((i, i_index), c_index + 1), u) in
+      initialize_constr_rule env evd l (from_typ, to_typ) constr)
+    ind_body.mind_consnames
+
+(* Initialize the lift_config *)
+let initialize_lift_config env evd l (from_typ, to_typ) =
+  let (from_typ, to_typ) = map_backward reverse l (from_typ, to_typ) in
+  let constr_rules = initialize_constr_rules env evd l (from_typ, to_typ) in
+  { l ; constr_rules } 
+
 (* --- Lifting the induction principle --- *)
 
 (*
@@ -313,7 +388,8 @@ let lift_constr env evd l (from_typ, to_typ) trm =
  * More caching will make this faster, and more eta-expansion will make
  * this more robust.
  *)
-let lift_core env evd l (from_type, to_type) index_type trm =
+let lift_core env evd c (from_type, to_type) index_type trm =
+  let l = c.l in
   let rec lift_rec en index_type tr =
     let lifted_opt = search_lifted en tr in
     if Option.has_some lifted_opt then
@@ -467,4 +543,5 @@ let do_lift_core env evd (l : lifting) def =
   let promote_typ = promotion_type env l.orn.promote in
   let typs = (first_fun promote_typ, zoom_sig forget_typ) in
   let index_type = (dest_sigT forget_typ).index_type in
-  lift_core env evd l typs index_type trm
+  let c = initialize_lift_config env evd l typs in
+  lift_core env evd c typs index_type trm
