@@ -118,11 +118,13 @@ let is_packed l env evd (from_type, to_type) trm =
 let is_proj l env evd (from_type, to_type) trm =
   let right_type = type_is_orn l env evd (from_type, to_type) in
   match kind trm with
-  | App (f, args) ->
+  | App _ ->
+     let f = first_fun trm in
+     let args = unfold_args trm in
      if l.is_fwd then
-       equal l.orn.indexer f && right_type (last_arg trm)
+       equal l.orn.indexer f && right_type (last args)
      else
-       (equal projT1 f || equal projT2 f) && right_type (last_arg trm)
+       (equal projT1 f || equal projT2 f) && right_type (last args)
   | _ ->
      false
 
@@ -411,14 +413,29 @@ let lift_core env evd c (from_type, to_type) index_type trm =
       lift_rec en index_type (dest_existT tr).unpacked
     else if is_proj l en evd (from_type, to_type) tr then
       (* LIFT-PROJECT *)
-      let arg' = lift_rec en index_type (last_arg tr) in
+      let arg = last_arg tr in
+      let arg' = lift_rec en index_type arg in
       if l.is_fwd then
-        let arg_typ' = dest_sigT (lift_rec en index_type (reduce_type en evd tr)) in
+        let arg_typ' = dest_sigT (lift_rec en index_type (reduce_type en evd arg)) in
         project_index arg_typ' arg'
       else if equal projT1 (first_fun tr) then
-        mkAppl (l.orn.indexer, snoc arg' (non_index_typ_args l.index_i en evd tr))
+        mkAppl (l.orn.indexer, snoc arg' (non_index_typ_args l.index_i en evd arg))
       else 
         arg'
+    else if l.is_fwd && is_proj (flip_dir l) en evd (from_type, to_type) tr then
+      (* this is just an optimization for large constructions *)
+      let f = first_fun tr in
+      let args = unfold_args tr in
+      let args' = List.map (lift_rec en index_type) args in
+      let arg' = last args' in
+      if is_or_applies existT arg' then
+        let ex' = dest_existT arg' in
+        if equal projT1 f then
+          ex'.index
+        else
+          ex'.unpacked
+      else
+        mkAppl (f, args')
     else if is_eliminator l en evd (from_type, to_type) tr then
       (* LIFT-ELIM *)
       let tr_elim = deconstruct_eliminator en evd tr in
