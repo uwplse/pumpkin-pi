@@ -15,6 +15,7 @@ open Hypotheses
 open Names
 open Caching
 open Specialization
+open Printing
 
 (* --- to/from --- *)
        
@@ -165,7 +166,8 @@ let initialize_constr_rule env evd l (from_typ, to_typ) constr =
  * Configure LIFT-CONSTR-ARGS and LIFT-CONSTR-FUN for all constructors
  *)
 let initialize_constr_rules env evd l (from_typ, to_typ) =
-  let ((i, i_index), u) = destInd from_typ in
+  let orn_typ = if l.is_fwd then from_typ else to_typ in
+  let ((i, i_index), u) = destInd orn_typ in
   let mutind_body = lookup_mind i env in
   let ind_bodies = mutind_body.mind_packets in
   let ind_body = ind_bodies.(i_index) in
@@ -177,7 +179,6 @@ let initialize_constr_rules env evd l (from_typ, to_typ) =
 
 (* Initialize the lift_config *)
 let initialize_lift_config env evd l (from_typ, to_typ) =
-  let (from_typ, to_typ) = map_backward reverse l (from_typ, to_typ) in
   let constr_rules = initialize_constr_rules env evd l (from_typ, to_typ) in
   { l ; constr_rules } 
 
@@ -331,54 +332,6 @@ let lift_elim env evd l trm_app =
   let final_args = lift_elim_args env evd l index_i trm_app.final_args in
   apply_eliminator {trm_app with elim; p; cs; final_args}
 
-(* --- Lifting constructions --- *)
-
-(*
- * LIFT-CONSTR-ARGS and LIFT-CONSTR-FUN, but using refolding,
- * as explained in Section 5
- *)
-
-(*
- * For packing constructor aguments: Pack, but only if it's to_typ
- *)
-let pack_to_typ env evd l (from_typ, to_typ) unpacked =
-  if on_type (is_or_applies to_typ) env evd unpacked then
-    pack env evd l.index_i unpacked
-  else
-    unpacked
-
-(* 
- * LIFT-CONSTR-ARGS & LIFT-CONSTR-FUN
- *)
-let lift_constr_core env evd l (from_typ, to_typ) trm =
-  let args = unfold_args (map_backward last_arg l trm) in
-  let pack_args = List.map (pack_to_typ env evd l (from_typ, to_typ)) in
-  let packed_args = map_backward pack_args l args in  
-  let rec_args = filter_orn l env evd (from_typ, to_typ) packed_args in
-  if List.length rec_args = 0 then
-    (* base case - don't bother refolding *)
-    reduce_nf env (lift env evd l trm)
-  else
-    (* inductive case - refold *)
-    List.fold_left
-      (fun t a -> all_eq_substs (a, lift env evd l a) t)
-      (refold l env evd (lift_to l) (lift env evd l trm) rec_args)
-      rec_args
-    
-(*
- * LIFT-CONSTR before recursing
- *)
-let lift_constr env evd l (from_typ, to_typ) trm =
-  let inner_construction = map_backward last_arg l trm in
-  let constr = first_fun inner_construction in
-  let args = unfold_args inner_construction in
-  let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd constr) in
-  let c_body = reduce_term env_c_b c_body in
-  let to_refold = map_backward (pack env_c_b evd l.index_i) l c_body in
-  let refolded = lift_constr_core env_c_b evd l (from_typ, to_typ) to_refold in
-  let lifted_constr = reconstruct_lambda_n env_c_b refolded (nb_rel env) in
-  reduce_term env (mkAppl (lifted_constr, args))
-
 (* --- Core algorithm --- *)
        
 (*
@@ -411,7 +364,12 @@ let lift_core env evd c (from_type, to_type) index_type trm =
         mkAppl (from_type, t_args)
     else if is_packed_constr l en evd (from_type, to_type) tr then
       (* LIFT-CONSTR *)
-      let tr' = lift_constr en evd l (from_type, to_type) tr in
+      let inner_construction = map_backward last_arg l tr in
+      let constr = first_fun inner_construction in
+      let args = unfold_args inner_construction in
+      let (((i, i_index), c_index), u) = destConstruct constr in
+      let lifted_constr = c.constr_rules.(c_index - 1) in
+      let tr' = reduce_term env (mkAppl (lifted_constr, args)) in
       match kind tr with
       | App (f, args) ->
          if (not l.is_fwd) && isApp (last (Array.to_list args)) then
