@@ -64,7 +64,6 @@ let is_locally_cached c trm =
  * Premise for EQUIVALENCE
  *)
 let is_orn l env evd (from_typ, to_typ) typ =
-  let typ = reduce_nf env (expand_eta env evd typ) in
   if l.is_fwd then
     is_or_applies from_typ typ
   else
@@ -75,14 +74,15 @@ let is_orn l env evd (from_typ, to_typ) typ =
 
 (* Like is_orn, but at the type level *)
 let type_is_orn l env evd (from_type, to_type) trm =
-  on_type (is_orn l env evd (from_type, to_type)) env evd trm
+  let typ = reduce_nf env (infer_type env evd trm) in
+  is_orn l env evd (from_type, to_type) typ
 
 (*
  * Filter the arguments to only the ones that have the type we are
  * promoting/forgetting from.
  *)
 let filter_orn l env evd (from_typ, to_typ) args =
-  List.filter (on_type (is_orn l env evd (from_typ, to_typ)) env evd) args
+  List.filter (type_is_orn l env evd (from_typ, to_typ)) args
               
 (* Premises for LIFT-CONSTR *)
 let is_packed_constr l env evd (from_type, to_type) trm =
@@ -370,7 +370,6 @@ let lift_core env evd c (from_type, to_type) index_type trm =
       Hashtbl.find c.cache (Constant.canonical co)
     else if is_orn l en evd (from_type, to_type) tr then
       (* EQUIVALENCE *)
-      let tr = reduce_nf en tr in
       if l.is_fwd then
         let t_args = unfold_args tr in
         let app = mkAppl (to_type, t_args) in
@@ -389,7 +388,7 @@ let lift_core env evd c (from_type, to_type) index_type trm =
       let args = unfold_args inner_construction in
       let (((i, i_index), c_index), u) = destConstruct constr in
       let lifted_constr = c.constr_rules.(c_index - 1) in
-      let tr' = reduce_term env (mkAppl (lifted_constr, args)) in
+      let tr' = reduce_term en (mkAppl (lifted_constr, args)) in
       match kind tr with
       | App (f, args) ->
          if (not l.is_fwd) && isApp (last (Array.to_list args)) then
@@ -398,9 +397,10 @@ let lift_core env evd c (from_type, to_type) index_type trm =
          else if l.is_fwd then
            let ex = dest_existT tr' in
            let (f', args') = destApp ex.unpacked in
-           let index = lift_rec en index_type ex.index in
            let unpacked = mkApp (f', Array.map (lift_rec en index_type) args') in
-           pack_existT { ex with index; unpacked }
+           let index = lift_rec en index_type ex.index in
+           let packer = lift_rec en index_type ex.packer in
+           pack_existT { ex with packer; index; unpacked }
          else
            tr'
       | _ ->
@@ -419,20 +419,6 @@ let lift_core env evd c (from_type, to_type) index_type trm =
         mkAppl (l.orn.indexer, snoc arg' (non_index_typ_args l.index_i en evd arg))
       else 
         arg'
-    else if l.is_fwd && is_proj (flip_dir l) en evd (from_type, to_type) tr then
-      (* this is just an optimization for large constructions *)
-      let f = first_fun tr in
-      let args = unfold_args tr in
-      let args' = List.map (lift_rec en index_type) args in
-      let arg' = last args' in
-      if is_or_applies existT arg' then
-        let ex' = dest_existT arg' in
-        if equal projT1 f then
-          ex'.index
-        else
-          ex'.unpacked
-      else
-        mkAppl (f, args')
     else if is_eliminator l en evd (from_type, to_type) tr then
       (* LIFT-ELIM *)
       let tr_elim = deconstruct_eliminator en evd tr in
@@ -454,9 +440,18 @@ let lift_core env evd c (from_type, to_type) index_type trm =
            lift_rec en index_type (last_arg tr)
          else
            (* APP *)
-           let args' = Array.map (lift_rec en index_type) args in
-           let f' = lift_rec en index_type f in
-           mkApp (f', args')
+           let args' = List.map (lift_rec en index_type) (Array.to_list args) in
+           let arg' = last args' in
+           if (is_or_applies projT1 tr || is_or_applies projT2 tr) && is_or_applies existT arg' then
+             (* optimize projections of existentials, which are common *)
+             let ex' = dest_existT arg' in
+             if equal projT1 f then
+               ex'.index
+             else
+               ex'.unpacked
+           else
+             let f' = lift_rec en index_type f in
+             mkAppl (f', args')
       | Cast (ca, k, t) ->
          (* CAST *)
          let ca' = lift_rec en index_type ca in
