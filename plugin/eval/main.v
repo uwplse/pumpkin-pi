@@ -14,7 +14,8 @@ Notation "p '.2'" := (projT2 p) (at level 20, left associativity).
 Definition is_true (b : bool) : Prop := b = true.
 Coercion is_true : bool >-> Sortclass.
 
-
+(* TODO reuse existing types as much as possible with equiv4free *)
+(* TODO run 10 times, etc *)
 Module Type Comparable.
 
   Parameter t : Type.
@@ -34,6 +35,8 @@ Module Type Comparable.
 
   Definition min x y := if leb x y then x else y.
   Definition max x y := if leb x y then y else x.
+
+  Parameters x y z : t.
 
 End Comparable.
 
@@ -107,6 +110,113 @@ Module CaseStudy (Elem : Comparable).
       - apply perm_skip. apply perm_nil.
     Defined.
 
+    (* --- Test trees --- *)
+    Module Inputs.
+      Local Coercion Leaf : Elem.t >-> tree.
+      Local Notation x := Elem.x.
+      Local Notation y := Elem.y.
+      Local Notation z := Elem.z.
+
+      (* 21 nodes, to be exact *)
+      Definition tree20 :=
+        Branch x
+               (Branch y (Branch z (Branch x y z) (Branch x y z)) (Branch x y z))
+               (Branch z (Branch x y z) (Branch x y (Branch x y z))).
+
+      (* 43 nodes, to be exact *)
+      Definition tree40 :=
+        Branch z tree20 tree20.
+
+      (* 65 nodes, to be exact *)
+      Definition tree60 :=
+        Branch y tree20 tree40.
+
+      (* 87 nodes, to be exact *)
+      Definition tree80 :=
+        Branch x tree40 tree40.
+
+      (* 109 nodes, to be exact *)
+      Definition tree100 :=
+        Branch y tree40 tree60.
+
+      (* 219 nodes, to be exact *)
+      Definition tree200 :=
+        Branch x tree100 tree100.
+
+      (* 439 nodes, to be exact *)
+      Definition tree400 :=
+        Branch y tree200 tree200.
+
+      (* 659 nodes, to be exact *)
+      Definition tree600 :=
+        Branch x tree200 tree400.
+
+      (* 879 nodes, to be exact *)
+      Definition tree800 :=
+        Branch z tree200 tree600.
+
+      (* 1099 nodes, to be exact *)
+      Definition tree1000 :=
+        Branch x tree400 tree600.
+
+      (* 2101 nodes, to be exact *)
+      Definition tree2000 :=
+        Branch y (Branch z tree200 tree800) tree1000.
+
+      (* 4203 nodes, to be exact *)
+      Definition tree4000 :=
+        Branch x tree2000 tree2000.
+
+      (* 6305 nodes, to be exact *)
+      Definition tree6000 :=
+        Branch z tree2000 tree4000.
+
+      (* 8407 nodes, to be exact *)
+      Definition tree8000 :=
+        Branch z tree4000 tree4000.
+
+      (* 10509 nodes, to be exact *)
+      Definition tree10000 :=
+        Branch z tree2000 tree8000.
+
+    End Inputs.
+
+    (* --- Base data --- *)
+    Redirect "out/preorder/base2000" Time Eval vm_compute in (preorder Inputs.tree2000).
+    Redirect "out/preorder/base4000" Time Eval vm_compute in (preorder Inputs.tree4000).
+    Redirect "out/preorder/base6000" Time Eval vm_compute in (preorder Inputs.tree6000).
+    Redirect "out/preorder/base8000" Time Eval vm_compute in (preorder Inputs.tree8000).
+    Redirect "out/preorder/base10000" Time Eval vm_compute in (preorder Inputs.tree10000).
+
+    Redirect "out/inorder/base2000" Time Eval vm_compute in (inorder Inputs.tree2000).
+    Redirect "out/inorder/base4000" Time Eval vm_compute in (inorder Inputs.tree4000).
+    Redirect "out/inorder/base6000" Time Eval vm_compute in (inorder Inputs.tree6000).
+    Redirect "out/inorder/base8000" Time Eval vm_compute in (inorder Inputs.tree8000).
+    Redirect "out/inorder/base10000" Time Eval vm_compute in (inorder Inputs.tree10000).
+
+    Redirect "out/postorder/base2000" Time Eval vm_compute in (postorder Inputs.tree2000).
+    Redirect "out/postorder/base4000" Time Eval vm_compute in (postorder Inputs.tree4000).
+    Redirect "out/postorder/base6000" Time Eval vm_compute in (postorder Inputs.tree6000).
+    Redirect "out/postorder/base8000" Time Eval vm_compute in (postorder Inputs.tree8000).
+    Redirect "out/postorder/base10000" Time Eval vm_compute in (postorder Inputs.tree10000).
+
+    Redirect "out/preorder/base20" Time Eval vm_compute in (preorder Inputs.tree20).
+    Redirect "out/preorder/base40" Time Eval vm_compute in (preorder Inputs.tree40).
+    Redirect "out/preorder/base60" Time Eval vm_compute in (preorder Inputs.tree60).
+    Redirect "out/preorder/base80" Time Eval vm_compute in (preorder Inputs.tree80).
+    Redirect "out/preorder/base100" Time Eval vm_compute in (preorder Inputs.tree100).
+
+    Redirect "out/inorder/base20" Time Eval vm_compute in (inorder Inputs.tree20).
+    Redirect "out/inorder/base40" Time Eval vm_compute in (inorder Inputs.tree40).
+    Redirect "out/inorder/base60" Time Eval vm_compute in (inorder Inputs.tree60).
+    Redirect "out/inorder/base80" Time Eval vm_compute in (inorder Inputs.tree80).
+    Redirect "out/inorder/base100" Time Eval vm_compute in (inorder Inputs.tree100).
+
+    Redirect "out/postorder/base20" Time Eval vm_compute in (postorder Inputs.tree20).
+    Redirect "out/postorder/base40" Time Eval vm_compute in (postorder Inputs.tree40).
+    Redirect "out/postorder/base60" Time Eval vm_compute in (postorder Inputs.tree60).
+    Redirect "out/postorder/base80" Time Eval vm_compute in (postorder Inputs.tree80).
+    Redirect "out/postorder/base100" Time Eval vm_compute in (postorder Inputs.tree100).
   End Base.
 
   Module Sized.
@@ -155,142 +265,32 @@ Module CaseStudy (Elem : Comparable).
       set (T := existT _ n t). apply mirror_permutes'.
     Defined.
 
+    (* --- Lifted inputs --- *)
+    Lift orn_size orn_size_inv in Base.Inputs.tree2000 as tree2000.
+    Lift orn_size orn_size_inv in Base.Inputs.tree4000 as tree4000.
+    Lift orn_size orn_size_inv in Base.Inputs.tree6000 as tree6000.
+    Lift orn_size orn_size_inv in Base.Inputs.tree8000 as tree8000.
+    Lift orn_size orn_size_inv in Base.Inputs.tree10000 as tree10000.
+
+    (* --- Sized data --- *)
+    Redirect "out/preorder/sized2000" Time Eval vm_compute in (preorder' tree2000).
+    Redirect "out/preorder/sized4000" Time Eval vm_compute in (preorder' tree4000).
+    Redirect "out/preorder/sized6000" Time Eval vm_compute in (preorder' tree6000).
+    Redirect "out/preorder/sized8000" Time Eval vm_compute in (preorder' tree8000).
+    Redirect "out/preorder/sized10000" Time Eval vm_compute in (preorder' tree10000).
+
+    Redirect "out/inorder/sized2000" Time Eval vm_compute in (inorder' tree2000).
+    Redirect "out/inorder/sized4000" Time Eval vm_compute in (inorder' tree4000).
+    Redirect "out/inorder/sized6000" Time Eval vm_compute in (inorder' tree6000).
+    Redirect "out/inorder/sized8000" Time Eval vm_compute in (inorder' tree8000).
+    Redirect "out/inorder/sized10000" Time Eval vm_compute in (inorder' tree10000).
+
+    Redirect "out/postorder/sized2000" Time Eval vm_compute in (postorder' tree2000).
+    Redirect "out/postorder/sized4000" Time Eval vm_compute in (postorder' tree4000).
+    Redirect "out/postorder/sized6000" Time Eval vm_compute in (postorder' tree6000).
+    Redirect "out/postorder/sized8000" Time Eval vm_compute in (postorder' tree8000).
+    Redirect "out/postorder/sized10000" Time Eval vm_compute in (postorder' tree10000).
   End Sized.
-
-  Module Measured.
-
-    Inductive tree : nat -> Type :=
-    | Branch (h_l h_r : nat)
-             (val : Elem.t)
-             (left : tree h_l) (right : tree h_r)
-      : tree (S (Nat.max h_l h_r))
-    | Leaf (val : Elem.t) : tree O.
-
-    Find ornament Base.tree tree as orn_height.
-
-    Lift orn_height orn_height_inv in Base.preorder as preorder'.
-    Definition preorder h t := preorder' (existT _ h t).
-
-    Lift orn_height orn_height_inv in Base.inorder as inorder'.
-    Definition inorder h t := inorder' (existT _ h t).
-
-    Lift orn_height orn_height_inv in Base.postorder as postorder'.
-    Definition postorder h t := postorder' (existT _ h t).
-
-    Lift orn_height orn_height_inv in Base.mirror as mirror'.
-    Definition mirror (h : nat) (t : tree h) : tree h.
-      set (T := (mirror' (existT _ h t))). replace h with (T.1). exact (T.2).
-      induction t as [h_l h_r v t_l IH_l t_r IH_r|v]; [|reflexivity].
-      cbn zeta in IH_l, IH_r. rewrite max_comm, <- IH_l, <- IH_r. reflexivity.
-    Defined.
-
-    Lift orn_height orn_height_inv in Base.pre_permutes as pre_permutes'.
-    Definition pre_permutes (h : nat) (t : tree h) : permutes (preorder h t) (inorder h t) :=
-      pre_permutes' (existT _ h t).
-
-    Lift orn_height orn_height_inv in Base.post_permutes as post_permutes'.
-    Definition post_permutes (h : nat) (t : tree h) : permutes (postorder h t) (inorder h t) :=
-      post_permutes' (existT _ h t).
-
-    Lift orn_height orn_height_inv in Base.pre_post_permutes as pre_post_permutes'.
-    Definition pre_post_permutes (h : nat) (t : tree h) : permutes (preorder h t) (postorder h t) :=
-      pre_post_permutes' (existT _ h t).
-
-    Lift orn_height orn_height_inv in Base.mirror_permutes as mirror_permutes'.
-    Lemma mirror_permutes (h : nat) (t : tree h) : permutes (inorder h t) (inorder h (mirror h t)).
-    Proof.
-      unfold inorder, mirror. rewrite cast_sigma. rewrite <- sigT_eta.
-      set (T := existT _ h t). apply mirror_permutes'.
-    Defined.
-
-    (* Definition current (h : nat) (t : tree h) : Elem.t := *)
-    (*   tree_rect *)
-    (*     (fun _ _ => Elem.t) *)
-    (*     (fun _ _ val _ _ _ _ => val) *)
-    (*     (fun val => val) *)
-    (*     h *)
-    (*     t. *)
-
-    (* Check (@nat_rect (fun _ => list Elem.t)). *)
-    (* Check (@nat_rect (fun i => forall h, tree h -> list Elem.t)). *)
-    (* Check (@tree_rect (fun h t => nat -> list Elem.t)). *)
-    (* Definition level (h d : nat) (t : tree h) : list Elem.t := *)
-    (*   tree_rect *)
-    (*     (fun h t => nat -> list Elem.t) *)
-    (*     (fun h_l h_r v t_l rec_l t_r rec_r d => *)
-    (*        nat_rect *)
-    (*          (fun _ => list Elem.t) *)
-    (*          [v] *)
-    (*          (fun d _ => rec_l d ++ rec_r d) *)
-    (*          d) *)
-    (*     (fun v d => *)
-    (*        nat_rect (fun _ => list Elem.t) [v] (fun _ _ => []) d) *)
-    (*     h *)
-    (*     t *)
-    (*     d. *)
-
-    (* Definition sub (h : nat) (ts : list (tree (S h))) : list (tree h) := *)
-    (*   tree_rect *)
-    (*     (fun h => list (tree h) -> list Elem.t) *)
-    (*     (row O) *)
-    (*     (fun h rec ts => (row h ts) ++ (rec )) *)
-    (*     h *)
-    (*     [t]. *)
-
-    (* Check (@nat_rect (fun i => forall h, tree h -> list Elem.t)). *)
-    (* Definition roworder (h : nat) (t : tree h) : list Elem.t := *)
-    (*   let row h ts := map (@current h) ts in *)
-    (*   nat_rect *)
-    (*     (fun h => list (tree h) -> list Elem.t) *)
-    (*     (row O) *)
-    (*     (fun h rec ts => (row h ts) ++ (rec )) *)
-    (*     h *)
-    (*     [t]. *)
-
-    (*   tree_rect *)
-    (*     (fun _ _ => list Elem.t) *)
-    (*     (fun h_l h_r val l IH_l r IH_r => *)
-    (*     ) *)
-
-  End Measured.
-
-  Module Heaped.
-
-    Inductive _minheap : nat -> Elem.t -> Type :=
-    | Branch_ (min_l min_r : Elem.t) (h_l h_r : nat) (val : Elem.t)
-              (left : _minheap h_l min_l) (right : _minheap h_r min_r)
-      : _minheap (S (Nat.max h_l h_r)) val
-    | Leaf_ (val : Elem.t) : _minheap O val.
-
-    Definition inv h_l h_r min_l min_r inv_l inv_r val : bool :=
-      inv_l && inv_r && (h_l == h_r) && Elem.ltb min_l val && Elem.ltb min_r val.
-
-    Inductive minheap : nat -> Elem.t -> bool -> Type :=
-    | Branch (inv_l inv_r : bool) (min_l min_r : Elem.t) (h_l h_r : nat)
-             (val : Elem.t)
-             (left : minheap h_l min_l inv_l) (right : minheap h_r min_r inv_r)
-      : minheap (S (Nat.max h_l h_r)) val (inv h_l h_r min_l min_r inv_l inv_r val)
-    | Leaf (val : Elem.t) : minheap O val true.
-
-    Find ornament Measured.tree _minheap as _orn_heap.
-    Find ornament _minheap minheap as orn_heap.
-
-    Lift _orn_heap _orn_heap_inv in Measured.preorder as _preorder'.
-    Definition _preorder h min (t : _minheap h min) := _preorder' h (existT _ min t).
-    Lift orn_heap orn_heap_inv in _preorder as preorder'.
-    Definition preorder h min ord (t : minheap h min ord) := preorder' h min (existT _ ord t).
-
-    Lift _orn_heap _orn_heap_inv in Measured.inorder as _inorder'.
-    Definition _inorder h min (t : _minheap h min) := _inorder' h (existT _ min t).
-    Lift orn_heap orn_heap_inv in _inorder as inorder'.
-    Definition inorder h min ord (t : minheap h min ord) := inorder' h min (existT _ ord t).
-
-    Lift _orn_heap _orn_heap_inv in Measured.postorder as _postorder'.
-    Definition _postorder h min (t : _minheap h min) := _postorder' h (existT _ min t).
-    Lift orn_heap orn_heap_inv in _postorder as postorder'.
-    Definition postorder h min ord (t : minheap h min ord) := postorder' h min (existT _ ord t).
-
-  End Heaped.
 
   Module Ordered.
 
@@ -355,6 +355,35 @@ Module CaseStudy (Elem : Comparable).
         (fun val => Elem.eqb val' val)
         min max ord tree.
 
+     (* --- Lifted inputs --- *)
+     Lift __orn_order __orn_order_inv in Base.Inputs.tree20 as __tree20.
+     Lift _orn_order _orn_order_inv in __tree20 as _tree20.
+     Lift orn_order orn_order_inv in _tree20 as tree20'.
+     Definition tree20 := projT2 (projT2 (projT2 tree20')).
+     Lift __orn_order __orn_order_inv in Base.Inputs.tree40 as __tree40.
+     Lift _orn_order _orn_order_inv in __tree40 as _tree40.
+     Lift orn_order orn_order_inv in _tree40 as tree40'.
+     Definition tree40 := projT2 (projT2 (projT2 tree40')).
+     Lift __orn_order __orn_order_inv in Base.Inputs.tree60 as __tree60.
+     Lift _orn_order _orn_order_inv in __tree60 as _tree60.
+     Lift orn_order orn_order_inv in _tree60 as tree60'.
+     Definition tree60 := projT2 (projT2 (projT2 tree60')).
+     Lift __orn_order __orn_order_inv in Base.Inputs.tree80 as __tree80.
+     Lift _orn_order _orn_order_inv in __tree80 as _tree80.
+     Lift orn_order orn_order_inv in _tree80 as tree80'.
+     Definition tree80 := projT2 (projT2 (projT2 tree80')).
+     Lift __orn_order __orn_order_inv in Base.Inputs.tree100 as __tree100.
+     Lift _orn_order _orn_order_inv in __tree100 as _tree100.
+     Lift orn_order orn_order_inv in _tree100 as tree100'.
+     Definition tree100 := projT2 (projT2 (projT2 tree100')).
+
+    (* --- Base search data --- *)
+    Redirect "out/search/base20" Time Eval vm_compute in (search tree20 Elem.x).
+    Redirect "out/search/base40" Time Eval vm_compute in (search tree40 Elem.x).
+    Redirect "out/search/base60" Time Eval vm_compute in (search tree60 Elem.x).
+    Redirect "out/search/base80" Time Eval vm_compute in (search tree80 Elem.x).
+    Redirect "out/search/base100" Time Eval vm_compute in (search tree100 Elem.x).
+
   End Ordered.
 
   Module Balanced.
@@ -407,6 +436,42 @@ Module CaseStudy (Elem : Comparable).
     Definition search {min max ord height bal} (tree : avl min max ord height bal) value :=
       search' min max ord height (existT _ bal tree) value.
 
+    (* --- Lifted inputs --- *)
+    Lift _orn_balance _orn_balance_inv in Ordered.tree20 as _tree20.
+    Lift orn_balance orn_balance_inv in _tree20 as tree20.
+    Lift _orn_balance _orn_balance_inv in Ordered.tree40 as _tree40.
+    Lift orn_balance orn_balance_inv in _tree40 as tree40.
+    Lift _orn_balance _orn_balance_inv in Ordered.tree60 as _tree60.
+    Lift orn_balance orn_balance_inv in _tree60 as tree60.
+    Lift _orn_balance _orn_balance_inv in Ordered.tree80 as _tree80.
+    Lift orn_balance orn_balance_inv in _tree80 as tree80.
+    Lift _orn_balance _orn_balance_inv in Ordered.tree100 as _tree100.
+    Lift orn_balance orn_balance_inv in _tree100 as tree100.
+
+    (* --- AVL data --- *)
+    Redirect "out/preorder/avl20" Time Eval vm_compute in (preorder' _ _ _ _ (projT2 tree20)).
+    Redirect "out/preorder/avl40" Time Eval vm_compute in (preorder' _ _ _ _ (projT2 tree40)).
+    Redirect "out/preorder/avl60" Time Eval vm_compute in (preorder' _ _ _ _ (projT2 tree60)).
+    Redirect "out/preorder/avl80" Time Eval vm_compute in (preorder' _ _ _ _ (projT2 tree80)).
+    Redirect "out/preorder/avl100" Time Eval vm_compute in (preorder' _ _ _ _ (projT2 tree100)).
+
+    Redirect "out/inorder/avl20" Time Eval vm_compute in (inorder' _ _ _ _ (projT2 tree20)).
+    Redirect "out/inorder/avl40" Time Eval vm_compute in (inorder' _ _ _ _ (projT2 tree40)).
+    Redirect "out/inorder/avl60" Time Eval vm_compute in (inorder' _ _ _ _ (projT2 tree60)).
+    Redirect "out/inorder/avl80" Time Eval vm_compute in (inorder' _ _ _ _ (projT2 tree80)).
+    Redirect "out/inorder/avl100" Time Eval vm_compute in (inorder' _ _ _ _ (projT2 tree100)).
+
+    Redirect "out/postorder/avl20" Time Eval vm_compute in (postorder' _ _ _ _ (projT2 tree20)).
+    Redirect "out/postorder/avl40" Time Eval vm_compute in (postorder' _ _ _ _ (projT2 tree40)).
+    Redirect "out/postorder/avl60" Time Eval vm_compute in (postorder' _ _ _ _ (projT2 tree60)).
+    Redirect "out/postorder/avl80" Time Eval vm_compute in (postorder' _ _ _ _ (projT2 tree80)).
+    Redirect "out/postorder/avl100" Time Eval vm_compute in (postorder' _ _ _ _ (projT2 tree100)).
+
+    Redirect "out/search/avl20" Time Eval vm_compute in (search (projT2 (projT2 tree20)) Elem.x).
+    Redirect "out/search/avl40" Time Eval vm_compute in (search (projT2 (projT2 tree40)) Elem.x).
+    Redirect "out/search/avl60" Time Eval vm_compute in (search (projT2 (projT2 tree60)) Elem.x).
+    Redirect "out/search/avl80" Time Eval vm_compute in (search (projT2 (projT2 tree80)) Elem.x).
+    Redirect "out/search/avl100" Time Eval vm_compute in (search (projT2 (projT2 tree100)) Elem.x).
   End Balanced.
 
 End CaseStudy.
@@ -440,7 +505,6 @@ Module NatComparable <: Comparable.
   Definition y := 3.
   Definition z := 7.
 End NatComparable.
-
 
 Module NatCaseStudy := CaseStudy NatComparable.
 Import NatCaseStudy.
