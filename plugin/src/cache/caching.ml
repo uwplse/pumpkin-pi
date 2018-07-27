@@ -60,7 +60,7 @@ let declare_lifted (evm : evar_map) (base : types) (lift : types) : unit =
   let k = (Global, Flags.is_universe_polymorphism (), CanonicalStructure) in
   let udecl = Univdecls.default_univ_decl in
   let etrm = EConstr.of_constr (intern env evm package) in
-  ignore (edeclare n k ~opaque:false evm udecl etrm None [] hook)
+  ignore (edeclare n k ~opaque:false evm udecl etrm None [] hook true)
 
 (** Retrieve the canonical lifting for the definition [base]. *)
 let search_lifted (env : env) (base : types) : types option =

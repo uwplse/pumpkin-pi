@@ -6,7 +6,6 @@ open Constr
 open Environ
 open Zooming
 open Lifting
-open Hofs
 open Coqterms
 open Debruijn
 open Utilities
@@ -14,6 +13,7 @@ open Indexing
 open Hypotheses
 open Names
 open Caching
+open Declarations
 open Specialization
 
 (* --- Internal lifting configuration --- *)

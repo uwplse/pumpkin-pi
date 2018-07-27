@@ -24,7 +24,7 @@ let find_ornament n d_old d_new =
     Printf.printf "Defined promotion %s.\n\n" (Id.to_string n);
     let inv_n = with_suffix n "inv" in
     define_term inv_n evd orn.forget true;
-    Printf.printf "Defiend forgetful function %s.\n\n" (Id.to_string inv_n)
+    Printf.printf "Defined forgetful function %s.\n\n" (Id.to_string inv_n)
   else
     failwith "Only inductive types are supported"
 
