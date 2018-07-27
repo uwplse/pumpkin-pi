@@ -9,6 +9,7 @@ open Utilities
 open Indexing
 open Abstraction
 open Constr
+open Printing
 
 (* --- Packing--- *)
 
@@ -81,8 +82,11 @@ let rec all_recursive_constants env trm =
  * when they refer to functions
  *)
 let fold_back_constants env f trm =
+  debug_term env trm "trm";
   List.fold_left
     (fun red lifted ->
+      debug_term env lifted "constant";
+      debug_term env (reduce_nf env lifted) "constant def";
       all_conv_substs env (lifted, lifted) red)
     (f (reduce_nf env trm))
     (all_recursive_constants env trm)
@@ -105,7 +109,11 @@ let refold_packed l evd orn env arg app_red =
   let arg_value = project_value arg_sigT arg in
   let refold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
   let refold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
+  debug_term env orn_app_red_ex.index "red_ex_index";
+  debug_term env arg_indexer "arg_indexer";
   let index = refold_index app_red_ex.index in
+  debug_term env app_red_ex.index "index_red";
+  debug_term env index "index";
   let unpacked = refold_index (refold_value app_red_ex.unpacked) in
   pack_existT {app_red_ex with index; unpacked}
 
