@@ -18,10 +18,11 @@ open Printing
  *)
 let pack env evd index_i unpacked =
   let typ = reduce_type env evd unpacked in
+  debug_term env typ "typ";
   let index = get_arg index_i typ in
   let index_type = infer_type env evd index in
   let packer = abstract_arg env evd index_i typ in
-  pack_existT {index_type; packer; index; unpacked}
+  pack_existT {index_type; packer; index; unpacked}        
 
 (* --- Lifting --- *)
 
@@ -82,11 +83,8 @@ let rec all_recursive_constants env trm =
  * when they refer to functions
  *)
 let fold_back_constants env f trm =
-  debug_term env trm "trm";
   List.fold_left
     (fun red lifted ->
-      debug_term env lifted "constant";
-      debug_term env (reduce_nf env lifted) "constant def";
       all_conv_substs env (lifted, lifted) red)
     (f (reduce_nf env trm))
     (all_recursive_constants env trm)
@@ -94,8 +92,11 @@ let fold_back_constants env f trm =
 (*
  * Refolding an applied ornament in the forward direction, 
  * when the ornament application produces an existT term.
+ *
+ * This isn't perfect yet. Refolding constants still isn't perfect.
+ * When that fails, produced terms might be slower to work with.
  *)
-let refold_packed l evd orn env arg app_red =
+let refold_arg_packed l evd orn env arg app_red =
   let typ_args = non_index_typ_args l.index_i env evd arg in
   let orn_app = mkAppl (orn, snoc arg typ_args) in
   let orn_app_red = reduce_nf env orn_app in
@@ -105,8 +106,8 @@ let refold_packed l evd orn env arg app_red =
   let packer = on_type abstract env evd orn_app_red_ex.unpacked in
   let index_type = app_red_ex.index_type in
   let arg_sigT = { index_type ; packer } in
-  let arg_indexer = project_index arg_sigT arg in
-  let arg_value = project_value arg_sigT arg in
+  let arg_indexer = project_index arg_sigT (lift env evd l arg) in
+  let arg_value = project_value arg_sigT (lift env evd l arg) in
   let refold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
   let refold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
   debug_term env orn_app_red_ex.index "red_ex_index";
@@ -114,27 +115,52 @@ let refold_packed l evd orn env arg app_red =
   let index = refold_index app_red_ex.index in
   debug_term env app_red_ex.index "index_red";
   debug_term env index "index";
-  let unpacked = refold_index (refold_value app_red_ex.unpacked) in
-  pack_existT {app_red_ex with index; unpacked}
+  refold_index (refold_value app_red_ex.unpacked)
+               (* 
+  debug_term env unpacked_lifted "unpacked";
+  let lifted_args = List.map (fun a -> (a, lift env evd l a)) args in
+  let packed_lifted = pack env evd l.index_i unpacked_lifted in
+  debug_term env packed_lifted "packed_lifted";
+  List.fold_right all_eq_substs (List.map reverse lifted_args) packed_lifted*)
 
+(* TODO comment explain etc *)
+let refold_packed l evd orn env args app_red =
+  let refold_all = List.fold_right (refold_arg_packed l evd orn env) in
+  let unpacked_lifted = refold_all args app_red in
+  debug_term env unpacked_lifted "unpacked";
+  let packed_lifted = pack env evd l.index_i unpacked_lifted in
+  debug_term env packed_lifted "packed_lifted";
+  let lifted_args = List.map (fun a -> (lift env evd l a, a)) args in
+  packed_lifted
+  (*
+  List.fold_right
+    (fun arg app_red ->
+      debug_term env unpacked_lifted "unpacked";
+      
+      let packed_lifted = pack env evd l.index_i unpacked_lifted in
+      debug_term env packed_lifted "packed_lifted";
+      List.fold_right all_eq_substs (List.map reverse lifted_args) packed_lifted
+   *)              
 (*
  * Refolding an applied ornament in the backwards direction,
  * when the ornament application eliminates over the projections.
  *)
-let refold_projected l evd orn env arg app_red =
-  let typ_args = non_index_typ_args l.index_i env evd arg in
-  let orn_app = mkAppl (orn, snoc arg typ_args) in
-  let orn_app_red = reduce_nf env orn_app in
-  all_eq_substs (orn_app_red, arg) app_red
+let refold_projected l evd orn env args app_red =
+  List.fold_right
+    (fun arg app_red ->
+      let typ_args = non_index_typ_args l.index_i env evd arg in
+      let orn_app = mkAppl (orn, snoc arg typ_args) in
+      let orn_app_red = reduce_nf env orn_app in
+      all_eq_substs (orn_app_red, lift env evd l arg) app_red)
+    args
+    app_red
 
 (*
  * Top-level refolding
  *)
 let refold l env evd orn trm args =
   let refolder = if l.is_fwd then refold_packed else refold_projected in
-  let refolder_app = refolder l evd orn env in
-  let refold_all = List.fold_right refolder_app args in
-  fold_back_constants env refold_all trm
+  fold_back_constants env (refolder l evd orn env args) trm
 
 
 

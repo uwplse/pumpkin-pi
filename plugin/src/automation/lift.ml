@@ -165,10 +165,7 @@ let configure_constr env evd l (from_typ, to_typ) trm =
     reduce_nf env (lift env evd l trm)
   else
     (* inductive case - refold *)
-    List.fold_left
-      (fun t a -> all_eq_substs (a, lift env evd l a) t)
-      (refold l env evd (lift_to l) (lift env evd l trm) rec_args)
-      rec_args
+    refold l env evd (lift_to l) (lift env evd l trm) rec_args
     
 (*
  * Configure LIFT-CONSTR-ARGS and LIFT-CONSTR-FUN for a single constructor
