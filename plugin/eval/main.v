@@ -437,41 +437,46 @@ Module CaseStudy (Elem : Comparable).
       search' min max ord height (existT _ bal tree) value.
 
     (* --- Lifted inputs --- *)
-    Lift _orn_balance _orn_balance_inv in Ordered.tree20 as _tree20.
+    Lift _orn_balance _orn_balance_inv in Ordered.tree20 as _tree20'.
+    Definition _tree20 := projT2 _tree20'.
     Lift orn_balance orn_balance_inv in _tree20 as tree20.
-    Lift _orn_balance _orn_balance_inv in Ordered.tree40 as _tree40.
+    Lift _orn_balance _orn_balance_inv in Ordered.tree40 as _tree40'.
+    Definition _tree40 := projT2 _tree40'.
     Lift orn_balance orn_balance_inv in _tree40 as tree40.
-    Lift _orn_balance _orn_balance_inv in Ordered.tree60 as _tree60.
+    Lift _orn_balance _orn_balance_inv in Ordered.tree60 as _tree60'.
+    Definition _tree60 := projT2 _tree60'.
     Lift orn_balance orn_balance_inv in _tree60 as tree60.
-    Lift _orn_balance _orn_balance_inv in Ordered.tree80 as _tree80.
+    Lift _orn_balance _orn_balance_inv in Ordered.tree80 as _tree80'.
+    Definition _tree80 := projT2 _tree80'.
     Lift orn_balance orn_balance_inv in _tree80 as tree80.
-    Lift _orn_balance _orn_balance_inv in Ordered.tree100 as _tree100.
+    Lift _orn_balance _orn_balance_inv in Ordered.tree100 as _tree100'.
+    Definition _tree100 := projT2 _tree100'.
     Lift orn_balance orn_balance_inv in _tree100 as tree100.
 
     (* --- AVL data --- *)
-    Redirect "out/preorder/avl20" Time Eval vm_compute in (preorder' _ _ _ _ (projT2 tree20)).
-    Redirect "out/preorder/avl40" Time Eval vm_compute in (preorder' _ _ _ _ (projT2 tree40)).
-    Redirect "out/preorder/avl60" Time Eval vm_compute in (preorder' _ _ _ _ (projT2 tree60)).
-    Redirect "out/preorder/avl80" Time Eval vm_compute in (preorder' _ _ _ _ (projT2 tree80)).
-    Redirect "out/preorder/avl100" Time Eval vm_compute in (preorder' _ _ _ _ (projT2 tree100)).
+    Redirect "out/preorder/avl20" Time Eval vm_compute in (preorder' _ _ _ _ tree20).
+    Redirect "out/preorder/avl40" Time Eval vm_compute in (preorder' _ _ _ _ tree40).
+    Redirect "out/preorder/avl60" Time Eval vm_compute in (preorder' _ _ _ _ tree60).
+    Redirect "out/preorder/avl80" Time Eval vm_compute in (preorder' _ _ _ _ tree80).
+    Redirect "out/preorder/avl100" Time Eval vm_compute in (preorder' _ _ _ _ tree100).
 
-    Redirect "out/inorder/avl20" Time Eval vm_compute in (inorder' _ _ _ _ (projT2 tree20)).
-    Redirect "out/inorder/avl40" Time Eval vm_compute in (inorder' _ _ _ _ (projT2 tree40)).
-    Redirect "out/inorder/avl60" Time Eval vm_compute in (inorder' _ _ _ _ (projT2 tree60)).
-    Redirect "out/inorder/avl80" Time Eval vm_compute in (inorder' _ _ _ _ (projT2 tree80)).
-    Redirect "out/inorder/avl100" Time Eval vm_compute in (inorder' _ _ _ _ (projT2 tree100)).
+    Redirect "out/inorder/avl20" Time Eval vm_compute in (inorder' _ _ _ _ tree20).
+    Redirect "out/inorder/avl40" Time Eval vm_compute in (inorder' _ _ _ _ tree40).
+    Redirect "out/inorder/avl60" Time Eval vm_compute in (inorder' _ _ _ _ tree60).
+    Redirect "out/inorder/avl80" Time Eval vm_compute in (inorder' _ _ _ _ tree80).
+    Redirect "out/inorder/avl100" Time Eval vm_compute in (inorder' _ _ _ _ tree100).
 
-    Redirect "out/postorder/avl20" Time Eval vm_compute in (postorder' _ _ _ _ (projT2 tree20)).
-    Redirect "out/postorder/avl40" Time Eval vm_compute in (postorder' _ _ _ _ (projT2 tree40)).
-    Redirect "out/postorder/avl60" Time Eval vm_compute in (postorder' _ _ _ _ (projT2 tree60)).
-    Redirect "out/postorder/avl80" Time Eval vm_compute in (postorder' _ _ _ _ (projT2 tree80)).
-    Redirect "out/postorder/avl100" Time Eval vm_compute in (postorder' _ _ _ _ (projT2 tree100)).
+    Redirect "out/postorder/avl20" Time Eval vm_compute in (postorder' _ _ _ _ tree20).
+    Redirect "out/postorder/avl40" Time Eval vm_compute in (postorder' _ _ _ _ tree40).
+    Redirect "out/postorder/avl60" Time Eval vm_compute in (postorder' _ _ _ _ tree60).
+    Redirect "out/postorder/avl80" Time Eval vm_compute in (postorder' _ _ _ _ tree80).
+    Redirect "out/postorder/avl100" Time Eval vm_compute in (postorder' _ _ _ _ tree100).
 
-    Redirect "out/search/avl20" Time Eval vm_compute in (search (projT2 (projT2 tree20)) Elem.x).
-    Redirect "out/search/avl40" Time Eval vm_compute in (search (projT2 (projT2 tree40)) Elem.x).
-    Redirect "out/search/avl60" Time Eval vm_compute in (search (projT2 (projT2 tree60)) Elem.x).
-    Redirect "out/search/avl80" Time Eval vm_compute in (search (projT2 (projT2 tree80)) Elem.x).
-    Redirect "out/search/avl100" Time Eval vm_compute in (search (projT2 (projT2 tree100)) Elem.x).
+    Redirect "out/search/avl20" Time Eval vm_compute in (search (projT2 tree20) Elem.x).
+    Redirect "out/search/avl40" Time Eval vm_compute in (search (projT2 tree40) Elem.x).
+    Redirect "out/search/avl60" Time Eval vm_compute in (search (projT2 tree60) Elem.x).
+    Redirect "out/search/avl80" Time Eval vm_compute in (search (projT2 tree80) Elem.x).
+    Redirect "out/search/avl100" Time Eval vm_compute in (search (projT2 tree100) Elem.x).
   End Balanced.
 
 End CaseStudy.
