@@ -14,8 +14,6 @@ Notation "p '.2'" := (projT2 p) (at level 20, left associativity).
 Definition is_true (b : bool) : Prop := b = true.
 Coercion is_true : bool >-> Sortclass.
 
-(* TODO reuse existing types as much as possible with equiv4free *)
-(* TODO run 10 times, etc *)
 Module Type Comparable.
 
   Parameter t : Type.
@@ -472,11 +470,11 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/postorder/avl80" Time Eval vm_compute in (postorder' _ _ _ _ tree80).
     Redirect "out/postorder/avl100" Time Eval vm_compute in (postorder' _ _ _ _ tree100).
 
-    Redirect "out/search/avl20" Time Eval vm_compute in (search (projT2 tree20) Elem.x).
-    Redirect "out/search/avl40" Time Eval vm_compute in (search (projT2 tree40) Elem.x).
-    Redirect "out/search/avl60" Time Eval vm_compute in (search (projT2 tree60) Elem.x).
-    Redirect "out/search/avl80" Time Eval vm_compute in (search (projT2 tree80) Elem.x).
-    Redirect "out/search/avl100" Time Eval vm_compute in (search (projT2 tree100) Elem.x).
+    Redirect "out/search/avl20" Time Eval vm_compute in (search' _ _ _ _ tree20 Elem.x).
+    Redirect "out/search/avl40" Time Eval vm_compute in (search' _ _ _ _ tree40 Elem.x).
+    Redirect "out/search/avl60" Time Eval vm_compute in (search' _ _ _ _ tree60 Elem.x).
+    Redirect "out/search/avl80" Time Eval vm_compute in (search' _ _ _ _ tree80 Elem.x).
+    Redirect "out/search/avl100" Time Eval vm_compute in (search' _ _ _ _ tree100 Elem.x).
   End Balanced.
 
 End CaseStudy.
