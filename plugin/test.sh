@@ -17,5 +17,6 @@ mkdir out/inorder
 mkdir out/postorder
 mkdir out/preorder
 mkdir out/search
+mkdir out/normalized
 make
 cd ..

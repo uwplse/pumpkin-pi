@@ -289,6 +289,14 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/postorder/sized6000" Time Eval vm_compute in (postorder' tree6000).
     Redirect "out/postorder/sized8000" Time Eval vm_compute in (postorder' tree8000).
     Redirect "out/postorder/sized10000" Time Eval vm_compute in (postorder' tree10000).
+
+    (* --- Normalized term sizes --- *)
+    Set Printing All.
+    Redirect "out/normalized/preorder-sized" Eval compute in preorder'.
+    Redirect "out/normalized/postorder-sized" Eval compute in postorder'.
+    Redirect "out/normalized/inorder-sized" Eval compute in inorder'.
+    Redirect "out/normalized/prepermutesin-sized" Eval compute in pre_permutes'.
+    Unset Printing All.
   End Sized.
 
   Module Ordered.
@@ -476,6 +484,14 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/search/avl60" Time Eval vm_compute in (search' _ _ _ _ tree60 Elem.x).
     Redirect "out/search/avl80" Time Eval vm_compute in (search' _ _ _ _ tree80 Elem.x).
     Redirect "out/search/avl100" Time Eval vm_compute in (search' _ _ _ _ tree100 Elem.x).
+
+    (* --- Normalized term sizes --- *)
+    Set Printing All.
+    Redirect "out/normalized/preorder-avl" Eval compute in preorder'.
+    Redirect "out/normalized/postorder-avl" Eval compute in postorder'.
+    Redirect "out/normalized/inorder-avl" Eval compute in inorder'.
+    Redirect "out/normalized/search-avl" Eval compute in search'.
+    Unset Printing All.
   End Balanced.
 
 End CaseStudy.

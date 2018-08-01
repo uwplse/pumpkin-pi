@@ -26,6 +26,7 @@ mkdir out/inorder
 mkdir out/postorder
 mkdir out/preorder
 mkdir out/search
+mkdir out/normalized
 mkdir separate
 mkdir separate/inorder
 mkdir separate/postorder
@@ -67,8 +68,7 @@ do
     tail -n 2 $f | grep -o -e '[0-9.]* secs' | sed -f times.sed >> separate/search/$name.out
   done
 
-  # TODO calculate multiplier
-  # TODO normalize functions & measure size
+  # TODO calculate multipliers, aggregate data
 done
 
 # Add the distribution data
@@ -76,6 +76,9 @@ for f in $(find separate/*/*.out); do
   echo $'\n' >> $f
   datamash --header-out mean 1 q1 1 median 1 q3 1 sstdev 1 < $f >> $f
 done
+
+# Measure normalized term size
+# TODO
 
 # Clean temporary files
 rm -r out

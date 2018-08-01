@@ -430,6 +430,14 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/postorder/sizedUP8000" Time Eval vm_compute in (postorder' tree8000).
     Redirect "../out/postorder/sizedUP10000" Time Eval vm_compute in (postorder' tree10000).
 
+    (* --- Normalized term sizes --- *)
+    Set Printing All.
+    Redirect "../out/normalized/preorder-sizedUP" Eval compute in preorder'.
+    Redirect "../out/normalized/postorder-sizedUP" Eval compute in postorder'.
+    Redirect "../out/normalized/inorder-sizedUP" Eval compute in inorder'.
+    (*Redirect "../out/normalized/prepermutesin-sizedUP" Eval compute in pre_permutes'.*)
+    Unset Printing All.
+
     Definition mirror' : {n:nat & tree n} -> {n:nat & tree n} := ↑ Base.mirror.
     Definition mirror (n : nat) (t : tree n) : tree n.
       pose (T := (mirror' (existT _ n t))). replace n with (T.1). exact (T.2).
@@ -729,6 +737,13 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/search/avlUP20" Time Eval vm_compute in (search' tree80 Elem.x).
     Redirect "../out/search/avlUP20" Time Eval vm_compute in (search' tree100 Elem.x).
 
+    (* --- Normalized term sizes --- *)
+    Set Printing All.
+    Redirect "../out/normalized/preorder-avlUP" Eval compute in preorder'.
+    Redirect "../out/normalized/postorder-avlUP" Eval compute in postorder'.
+    Redirect "../out/normalized/inorder-avlUP" Eval compute in inorder'.
+    Redirect "../out/normalized/search-avlUP" Eval compute in search'.
+    Unset Printing All.
   End Balanced.
 
 End CaseStudy.
