@@ -17,5 +17,5 @@ mkdir out/inorder
 mkdir out/postorder
 mkdir out/preorder
 mkdir out/search
-coqc main.v
+make
 cd ..

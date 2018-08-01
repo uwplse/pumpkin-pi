@@ -109,112 +109,106 @@ Module CaseStudy (Elem : Comparable).
     Defined.
 
     (* --- Test trees --- *)
-    Module Inputs.
       Local Coercion Leaf : Elem.t >-> tree.
-      Local Notation x := Elem.x.
-      Local Notation y := Elem.y.
-      Local Notation z := Elem.z.
 
       (* 21 nodes, to be exact *)
       Definition tree20 :=
-        Branch x
-               (Branch y (Branch z (Branch x y z) (Branch x y z)) (Branch x y z))
-               (Branch z (Branch x y z) (Branch x y (Branch x y z))).
+        Branch Elem.x
+               (Branch Elem.y (Branch Elem.z (Branch Elem.x Elem.y Elem.z) (Branch Elem.x Elem.y Elem.z)) (Branch Elem.x Elem.y Elem.z))
+               (Branch Elem.z (Branch Elem.x Elem.y Elem.z) (Branch Elem.x Elem.y (Branch Elem.x Elem.y Elem.z))).
 
       (* 43 nodes, to be exact *)
       Definition tree40 :=
-        Branch z tree20 tree20.
+        Branch Elem.z tree20 tree20.
 
       (* 65 nodes, to be exact *)
       Definition tree60 :=
-        Branch y tree20 tree40.
+        Branch Elem.y tree20 tree40.
 
       (* 87 nodes, to be exact *)
       Definition tree80 :=
-        Branch x tree40 tree40.
+        Branch Elem.x tree40 tree40.
 
       (* 109 nodes, to be exact *)
       Definition tree100 :=
-        Branch y tree40 tree60.
+        Branch Elem.y tree40 tree60.
 
       (* 219 nodes, to be exact *)
       Definition tree200 :=
-        Branch x tree100 tree100.
+        Branch Elem.x tree100 tree100.
 
       (* 439 nodes, to be exact *)
       Definition tree400 :=
-        Branch y tree200 tree200.
+        Branch Elem.y tree200 tree200.
 
       (* 659 nodes, to be exact *)
       Definition tree600 :=
-        Branch x tree200 tree400.
+        Branch Elem.x tree200 tree400.
 
       (* 879 nodes, to be exact *)
       Definition tree800 :=
-        Branch z tree200 tree600.
+        Branch Elem.z tree200 tree600.
 
       (* 1099 nodes, to be exact *)
       Definition tree1000 :=
-        Branch x tree400 tree600.
+        Branch Elem.x tree400 tree600.
 
       (* 2101 nodes, to be exact *)
       Definition tree2000 :=
-        Branch y (Branch z tree200 tree800) tree1000.
+        Branch Elem.y (Branch Elem.z tree200 tree800) tree1000.
 
       (* 4203 nodes, to be exact *)
       Definition tree4000 :=
-        Branch x tree2000 tree2000.
+        Branch Elem.x tree2000 tree2000.
 
       (* 6305 nodes, to be exact *)
       Definition tree6000 :=
-        Branch z tree2000 tree4000.
+        Branch Elem.z tree2000 tree4000.
 
       (* 8407 nodes, to be exact *)
       Definition tree8000 :=
-        Branch z tree4000 tree4000.
+        Branch Elem.z tree4000 tree4000.
 
       (* 10509 nodes, to be exact *)
       Definition tree10000 :=
-        Branch z tree2000 tree8000.
-
-    End Inputs.
+        Branch Elem.z tree2000 tree8000.
 
     (* --- Base data --- *)
-    Redirect "out/preorder/base2000" Time Eval vm_compute in (preorder Inputs.tree2000).
-    Redirect "out/preorder/base4000" Time Eval vm_compute in (preorder Inputs.tree4000).
-    Redirect "out/preorder/base6000" Time Eval vm_compute in (preorder Inputs.tree6000).
-    Redirect "out/preorder/base8000" Time Eval vm_compute in (preorder Inputs.tree8000).
-    Redirect "out/preorder/base10000" Time Eval vm_compute in (preorder Inputs.tree10000).
+    Redirect "out/preorder/base2000" Time Eval vm_compute in (preorder tree2000).
+    Redirect "out/preorder/base4000" Time Eval vm_compute in (preorder tree4000).
+    Redirect "out/preorder/base6000" Time Eval vm_compute in (preorder tree6000).
+    Redirect "out/preorder/base8000" Time Eval vm_compute in (preorder tree8000).
+    Redirect "out/preorder/base10000" Time Eval vm_compute in (preorder tree10000).
 
-    Redirect "out/inorder/base2000" Time Eval vm_compute in (inorder Inputs.tree2000).
-    Redirect "out/inorder/base4000" Time Eval vm_compute in (inorder Inputs.tree4000).
-    Redirect "out/inorder/base6000" Time Eval vm_compute in (inorder Inputs.tree6000).
-    Redirect "out/inorder/base8000" Time Eval vm_compute in (inorder Inputs.tree8000).
-    Redirect "out/inorder/base10000" Time Eval vm_compute in (inorder Inputs.tree10000).
+    Redirect "out/inorder/base2000" Time Eval vm_compute in (inorder tree2000).
+    Redirect "out/inorder/base4000" Time Eval vm_compute in (inorder tree4000).
+    Redirect "out/inorder/base6000" Time Eval vm_compute in (inorder tree6000).
+    Redirect "out/inorder/base8000" Time Eval vm_compute in (inorder tree8000).
+    Redirect "out/inorder/base10000" Time Eval vm_compute in (inorder tree10000).
 
-    Redirect "out/postorder/base2000" Time Eval vm_compute in (postorder Inputs.tree2000).
-    Redirect "out/postorder/base4000" Time Eval vm_compute in (postorder Inputs.tree4000).
-    Redirect "out/postorder/base6000" Time Eval vm_compute in (postorder Inputs.tree6000).
-    Redirect "out/postorder/base8000" Time Eval vm_compute in (postorder Inputs.tree8000).
-    Redirect "out/postorder/base10000" Time Eval vm_compute in (postorder Inputs.tree10000).
+    Redirect "out/postorder/base2000" Time Eval vm_compute in (postorder tree2000).
+    Redirect "out/postorder/base4000" Time Eval vm_compute in (postorder tree4000).
+    Redirect "out/postorder/base6000" Time Eval vm_compute in (postorder tree6000).
+    Redirect "out/postorder/base8000" Time Eval vm_compute in (postorder tree8000).
+    Redirect "out/postorder/base10000" Time Eval vm_compute in (postorder tree10000).
 
-    Redirect "out/preorder/base20" Time Eval vm_compute in (preorder Inputs.tree20).
-    Redirect "out/preorder/base40" Time Eval vm_compute in (preorder Inputs.tree40).
-    Redirect "out/preorder/base60" Time Eval vm_compute in (preorder Inputs.tree60).
-    Redirect "out/preorder/base80" Time Eval vm_compute in (preorder Inputs.tree80).
-    Redirect "out/preorder/base100" Time Eval vm_compute in (preorder Inputs.tree100).
+    Redirect "out/preorder/base20" Time Eval vm_compute in (preorder tree20).
+    Redirect "out/preorder/base40" Time Eval vm_compute in (preorder tree40).
+    Redirect "out/preorder/base60" Time Eval vm_compute in (preorder tree60).
+    Redirect "out/preorder/base80" Time Eval vm_compute in (preorder tree80).
+    Redirect "out/preorder/base100" Time Eval vm_compute in (preorder tree100).
 
-    Redirect "out/inorder/base20" Time Eval vm_compute in (inorder Inputs.tree20).
-    Redirect "out/inorder/base40" Time Eval vm_compute in (inorder Inputs.tree40).
-    Redirect "out/inorder/base60" Time Eval vm_compute in (inorder Inputs.tree60).
-    Redirect "out/inorder/base80" Time Eval vm_compute in (inorder Inputs.tree80).
-    Redirect "out/inorder/base100" Time Eval vm_compute in (inorder Inputs.tree100).
+    Redirect "out/inorder/base20" Time Eval vm_compute in (inorder tree20).
+    Redirect "out/inorder/base40" Time Eval vm_compute in (inorder tree40).
+    Redirect "out/inorder/base60" Time Eval vm_compute in (inorder tree60).
+    Redirect "out/inorder/base80" Time Eval vm_compute in (inorder tree80).
+    Redirect "out/inorder/base100" Time Eval vm_compute in (inorder tree100).
 
-    Redirect "out/postorder/base20" Time Eval vm_compute in (postorder Inputs.tree20).
-    Redirect "out/postorder/base40" Time Eval vm_compute in (postorder Inputs.tree40).
-    Redirect "out/postorder/base60" Time Eval vm_compute in (postorder Inputs.tree60).
-    Redirect "out/postorder/base80" Time Eval vm_compute in (postorder Inputs.tree80).
-    Redirect "out/postorder/base100" Time Eval vm_compute in (postorder Inputs.tree100).
+    Redirect "out/postorder/base20" Time Eval vm_compute in (postorder tree20).
+    Redirect "out/postorder/base40" Time Eval vm_compute in (postorder tree40).
+    Redirect "out/postorder/base60" Time Eval vm_compute in (postorder tree60).
+    Redirect "out/postorder/base80" Time Eval vm_compute in (postorder tree80).
+    Redirect "out/postorder/base100" Time Eval vm_compute in (postorder tree100).
   End Base.
 
   Module Sized.
@@ -264,11 +258,11 @@ Module CaseStudy (Elem : Comparable).
     Defined.
 
     (* --- Lifted inputs --- *)
-    Lift orn_size orn_size_inv in Base.Inputs.tree2000 as tree2000.
-    Lift orn_size orn_size_inv in Base.Inputs.tree4000 as tree4000.
-    Lift orn_size orn_size_inv in Base.Inputs.tree6000 as tree6000.
-    Lift orn_size orn_size_inv in Base.Inputs.tree8000 as tree8000.
-    Lift orn_size orn_size_inv in Base.Inputs.tree10000 as tree10000.
+    Lift orn_size orn_size_inv in Base.tree2000 as tree2000.
+    Lift orn_size orn_size_inv in Base.tree4000 as tree4000.
+    Lift orn_size orn_size_inv in Base.tree6000 as tree6000.
+    Lift orn_size orn_size_inv in Base.tree8000 as tree8000.
+    Lift orn_size orn_size_inv in Base.tree10000 as tree10000.
 
     (* --- Sized data --- *)
     Redirect "out/preorder/sized2000" Time Eval vm_compute in (preorder' tree2000).
@@ -354,23 +348,23 @@ Module CaseStudy (Elem : Comparable).
         min max ord tree.
 
      (* --- Lifted inputs --- *)
-     Lift __orn_order __orn_order_inv in Base.Inputs.tree20 as __tree20.
+     Lift __orn_order __orn_order_inv in Base.tree20 as __tree20.
      Lift _orn_order _orn_order_inv in __tree20 as _tree20.
      Lift orn_order orn_order_inv in _tree20 as tree20'.
      Definition tree20 := projT2 (projT2 (projT2 tree20')).
-     Lift __orn_order __orn_order_inv in Base.Inputs.tree40 as __tree40.
+     Lift __orn_order __orn_order_inv in Base.tree40 as __tree40.
      Lift _orn_order _orn_order_inv in __tree40 as _tree40.
      Lift orn_order orn_order_inv in _tree40 as tree40'.
      Definition tree40 := projT2 (projT2 (projT2 tree40')).
-     Lift __orn_order __orn_order_inv in Base.Inputs.tree60 as __tree60.
+     Lift __orn_order __orn_order_inv in Base.tree60 as __tree60.
      Lift _orn_order _orn_order_inv in __tree60 as _tree60.
      Lift orn_order orn_order_inv in _tree60 as tree60'.
      Definition tree60 := projT2 (projT2 (projT2 tree60')).
-     Lift __orn_order __orn_order_inv in Base.Inputs.tree80 as __tree80.
+     Lift __orn_order __orn_order_inv in Base.tree80 as __tree80.
      Lift _orn_order _orn_order_inv in __tree80 as _tree80.
      Lift orn_order orn_order_inv in _tree80 as tree80'.
      Definition tree80 := projT2 (projT2 (projT2 tree80')).
-     Lift __orn_order __orn_order_inv in Base.Inputs.tree100 as __tree100.
+     Lift __orn_order __orn_order_inv in Base.tree100 as __tree100.
      Lift _orn_order _orn_order_inv in __tree100 as _tree100.
      Lift orn_order orn_order_inv in _tree100 as tree100'.
      Definition tree100 := projT2 (projT2 (projT2 tree100')).

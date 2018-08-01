@@ -1,4 +1,4 @@
-# Used to format time measurements from Coq, per the comments in "main.v".
+# Used to format time measurements from Coq
 s/[.]\([0-9][0-9][1-9]\) /\1 /;
 s/[.]\([0-9][1-9]\) /\10 /;
 s/[.]\([0-9]\) /\100 /;

@@ -9,3 +9,6 @@ perm.vo: perm.v list.vo
 
 list.vo: list.v
 	coqc list.v
+
+clean:
+	rm -f *.vo *.glob

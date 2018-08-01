@@ -172,74 +172,69 @@ Module CaseStudy (Elem : Comparable).
     Instance Transportable_tree (P: tree -> Type) : Transportable P :=
       Transportable_decidable P Decidable_eq_tree.
 
-    Section Inputs.
       Local Coercion Leaf : Elem.t >-> tree.
-      Local Notation x := Elem.x.
-      Local Notation y := Elem.y.
-      Local Notation z := Elem.z.
 
       (* 21 nodes, to be exact *)
       Definition tree20 :=
-        Branch x
-               (Branch y (Branch z (Branch x y z) (Branch x y z)) (Branch x y z))
-               (Branch z (Branch x y z) (Branch x y (Branch x y z))).
+        Branch Elem.x
+               (Branch Elem.y (Branch Elem.z (Branch Elem.x Elem.y Elem.z) (Branch Elem.x Elem.y Elem.z)) (Branch Elem.x Elem.y Elem.z))
+               (Branch Elem.z (Branch Elem.x Elem.y Elem.z) (Branch Elem.x Elem.y (Branch Elem.x Elem.y Elem.z))).
 
       (* 43 nodes, to be exact *)
       Definition tree40 :=
-        Branch z tree20 tree20.
+        Branch Elem.z tree20 tree20.
 
       (* 65 nodes, to be exact *)
       Definition tree60 :=
-        Branch y tree20 tree40.
+        Branch Elem.y tree20 tree40.
 
       (* 87 nodes, to be exact *)
       Definition tree80 :=
-        Branch x tree40 tree40.
+        Branch Elem.x tree40 tree40.
 
       (* 109 nodes, to be exact *)
       Definition tree100 :=
-        Branch y tree40 tree60.
+        Branch Elem.y tree40 tree60.
 
       (* 219 nodes, to be exact *)
       Definition tree200 :=
-        Branch x tree100 tree100.
+        Branch Elem.x tree100 tree100.
 
       (* 439 nodes, to be exact *)
       Definition tree400 :=
-        Branch y tree200 tree200.
+        Branch Elem.y tree200 tree200.
 
       (* 659 nodes, to be exact *)
       Definition tree600 :=
-        Branch x tree200 tree400.
+        Branch Elem.x tree200 tree400.
 
       (* 879 nodes, to be exact *)
       Definition tree800 :=
-        Branch z tree200 tree600.
+        Branch Elem.z tree200 tree600.
 
       (* 1099 nodes, to be exact *)
       Definition tree1000 :=
-        Branch x tree400 tree600.
+        Branch Elem.x tree400 tree600.
 
       (* 2101 nodes, to be exact *)
       Definition tree2000 :=
-        Branch y (Branch z tree200 tree800) tree1000.
+        Branch Elem.y (Branch Elem.z tree200 tree800) tree1000.
 
       (* 4203 nodes, to be exact *)
       Definition tree4000 :=
-        Branch x tree2000 tree2000.
+        Branch Elem.x tree2000 tree2000.
 
       (* 6305 nodes, to be exact *)
       Definition tree6000 :=
-        Branch z tree2000 tree4000.
+        Branch Elem.z tree2000 tree4000.
 
       (* 8407 nodes, to be exact *)
       Definition tree8000 :=
-        Branch z tree4000 tree4000.
+        Branch Elem.z tree4000 tree4000.
 
       (* 10509 nodes, to be exact *)
       Definition tree10000 :=
-        Branch z tree2000 tree8000.
-    End Inputs.
+        Branch Elem.z tree2000 tree8000.
 
     (* 13 LoC in normal form *)
     Definition preorder (t : tree) : list Elem.t :=
