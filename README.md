@@ -2,8 +2,9 @@
 
 The only dependency to use the plugin is Coq 8.8.
 
-To run the case study code, you also need the
-univalent parametricity framework: https://github.com/CoqHott/univalent_parametricity
+To run the case study code, you also need the following:
+* The [univalent parametricity framework](https://github.com/CoqHott/univalent_parametricity)
+* [Datamash](https://www.gnu.org/software/datamash/)
 
 ## Building
 
@@ -41,9 +42,71 @@ The test script runs all tests:
 
 ### Case Study Code
 
-The case study script updates the functions in the case study code, then runs the case studies:
+There are two ways to run the case study, in two different scripts.
+The reason for the two different versions is that the univalent parametricity framework (hereon UP) has different
+Coq dependencies, so the base functions perform differently. 
+The first way uses the same exact input datatypes for both DEVOID and UP,
+copying and pasting in the functions DEVOID produces to run on the dependencies of UP;
+This is the version that the paper uses, as the results it produces are the easiest to understand.
+The second way does all of the lifting from scratch with
+the base datatypes in both the DEVOID code and UP;
+these results are more difficult to interpret, and is not the version in the paper.
+
+Each of these scripts takes a while, as it runs each function ten times each
+on large data both for DEVOID and for UP.
+
+#### Reproducing the Paper Case Study
+
+Enter the `eval` directory:
+
+``
+cd eval
+``
+
+Run the following script:
 
 ```
 ./TODO.sh
 ```
+
+Then check the `together` folder for the median runtimes (Figures 13 and 15) as well as the size of reduced functions.
+This also does a sanity check to make sure both versions of the code produce the same output.
+It does not yet try to reduce the proof that timed out with UP after an hour (it reduces it with DEVOID, but not with UP),
+otherwise the case study would take ten hours to run. To run this just once, enter the `equiv4free` directory:
+
+``
+cd equiv4free
+``
+
+In that directory, uncomment the following line in `main.v`:
+
+```
+TODO line
+```
+
+Then run the following script, which runs the UP code just once with a timeout:
+
+```
+./TODO.sh
+```
+
+The timeout is an hour, so grab a coffee or read a book or something. It should timeout,
+or finish normalizing very close to the timeout limit (if so, the script will record how long it took).
+
+#### Using Different Datatypes
+
+This is not in the paper, but you might be curious for the sake of validity whether the same benefits apply
+lifting the datatypes separately from scratch. To see that they do, run the second version, run the following script:
+
+```
+./separate.sh
+```
+
+Then check the `separate` folder for the results.
+
+
+
+
+
+
 

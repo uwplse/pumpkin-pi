@@ -32,17 +32,21 @@ mkdir separate/postorder
 mkdir separate/preorder
 mkdir separate/search
 
-for i in {1..10}
+for i in {1..10} # TODO add back 10
 do
+  echo "Run #${i}"
+
+  # Remake DEVOID case study code
   make clean
   make
 
+  # Remake Univalent Parametricity case study code
   cd equiv4free
   make clean
   make
-
   cd ..
 
+  # Add the computation times to the aggregate files
   for f in $(find out/preorder/*.out); do
     name=$(basename "${f%.*}")
     tail -n 2 $f | grep -o -e '[0-9.]* secs' | sed -f times.sed >> separate/preorder/$name.out
@@ -63,12 +67,17 @@ do
     tail -n 2 $f | grep -o -e '[0-9.]* secs' | sed -f times.sed >> separate/search/$name.out
   done
 
-  # TODO run the other code too
-  # TODO version w/ same datatypes
-  # TODO automatically take medians
+  # TODO calculate multiplier
+  # TODO normalize functions & measure size
 done
 
-# clean temporary files
+# Add the distribution data
+for f in $(find separate/*/*.out); do
+  echo $'\n' >> $f
+  datamash --header-out mean 1 q1 1 median 1 q3 1 sstdev 1 < $f >> $f
+done
+
+# Clean temporary files
 rm -r out
 
 

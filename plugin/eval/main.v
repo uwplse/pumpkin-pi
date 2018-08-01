@@ -173,6 +173,13 @@ Module CaseStudy (Elem : Comparable).
       Definition tree10000 :=
         Branch Elem.z tree2000 tree8000.
 
+    (* --- Let Coq warm up, so that base preorder numbers aren't slower than they should be --- *)
+    Redirect "out/tree2000" Time Eval vm_compute in tree2000.
+    Redirect "out/tree4000" Time Eval vm_compute in tree4000.
+    Redirect "out/tree6000" Time Eval vm_compute in tree6000.
+    Redirect "out/tree8000" Time Eval vm_compute in tree8000.
+    Redirect "out/tree10000" Time Eval vm_compute in tree10000.
+
     (* --- Base data --- *)
     Redirect "out/preorder/base2000" Time Eval vm_compute in (preorder tree2000).
     Redirect "out/preorder/base4000" Time Eval vm_compute in (preorder tree4000).

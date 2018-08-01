@@ -17,24 +17,6 @@ Hint Extern 4 => repeat (match goal with H : Logic.eq _ _ |- _ => apply logic_eq
 
 Notation "'typeof' x" := (let A := _ in let _ : A := x in A) (at level 100).
 
-(** To get ten measurements of a function's run-time, process a sequence of Vernacular commands
-    like the example below and then use the following shell command to get the list of
-    corresponding millisecond (wall-clock) times:
-    $ tail -n 2 tmp*.out | grep -o -e '[0-9.]* secs' | sed -f times.sed
- **)
-
-(* Redirect "tmp0" Time Eval vm_compute in preorder tree10000. *)
-(* Redirect "tmp1" Time Eval vm_compute in preorder tree10000. *)
-(* Redirect "tmp2" Time Eval vm_compute in preorder tree10000. *)
-(* Redirect "tmp3" Time Eval vm_compute in preorder tree10000. *)
-(* Redirect "tmp4" Time Eval vm_compute in preorder tree10000. *)
-(* Redirect "tmp5" Time Eval vm_compute in preorder tree10000. *)
-(* Redirect "tmp6" Time Eval vm_compute in preorder tree10000. *)
-(* Redirect "tmp7" Time Eval vm_compute in preorder tree10000. *)
-(* Redirect "tmp8" Time Eval vm_compute in preorder tree10000. *)
-(* Redirect "tmp9" Time Eval vm_compute in preorder tree10000. *)
-
-
 Module Type Comparable.
 
   Parameter t : Set.
@@ -243,6 +225,13 @@ Module CaseStudy (Elem : Comparable).
         (fun x _ ys _ zs => [x] ++ ys ++ zs)
         (fun x => [x])
         t.
+
+   (* --- Let Coq warm up, so that base preorder numbers aren't slower than they should be --- *)
+    Redirect "../out/treeUP2000" Time Eval vm_compute in tree2000.
+    Redirect "../out/treeUP4000" Time Eval vm_compute in tree4000.
+    Redirect "../out/treeUP6000" Time Eval vm_compute in tree6000.
+    Redirect "../out/treeUP8000" Time Eval vm_compute in tree8000.
+    Redirect "../out/treeUP10000" Time Eval vm_compute in tree10000.
 
     (* 
      * The UP framework builds on slightly different datatypes. We measure
