@@ -85,7 +85,7 @@ cd equiv4free
 In that directory, uncomment the following line in `main.v`:
 
 ```
-(*Redirect "../out/normalized/prepermutesin-sizedUP" Eval compute in pre_permutes'.*)
+(*Redirect "../out/normalized/pre_permutes-sizedUP" Eval compute in pre_permutes'.*)
 ```
 
 Then run the following script, which runs the UP code just once with a timeout:
