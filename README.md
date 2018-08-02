@@ -17,10 +17,14 @@ make && make install
 
 ### Case Study Dependencies
 
+Run the following to make the Univalent Parametricity framework:
+
 ```
 cd <path-to-univalent-parametricity>
 make && make install
 ```
+
+Datamash should install in a straightforward way from a package manager using the link above.
 
 ## Understanding the Code
 

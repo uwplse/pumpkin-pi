@@ -74,11 +74,19 @@ done
 # Add the distribution data
 for f in $(find separate/*/*.out); do
   echo $'\n' >> $f
-  datamash --header-out mean 1 q1 1 median 1 q3 1 sstdev 1 < $f >> $f
+  datamash --header-out mean 1 q1 1 median 1 q3 1 sstdev 1 < $f >> $f # TODO output into aggregate file
 done
 
 # Measure normalized term size
-# TODO
+for f in $(find out/normalized/*.out); do
+  name=$(basename "${f%.*}")
+  line=$(grep -n "     : forall" $f | cut -d : -f 1)
+  head -n $(($line-1)) $f > out/normalized/$name-notyp.out
+  loc=$(coqwc -s out/normalized/$name-notyp.out)
+  echo $loc >> separate/sizes.out
+done
+sed -i "s/out\/normalized\///" separate/sizes.out
+sed -i "s/-notyp.out//" separate/sizes.out
 
 # Clean temporary files
 rm -r out
