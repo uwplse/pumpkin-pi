@@ -74,7 +74,6 @@ for f in $(find separate/*/*.out); do
   name=$(basename "${f%.*}")
   data=$(datamash median 1 < $f)
   echo "$name : $data" >> separate/medians.out
-  echo $'\n' >> separate/medians.out
 done
 
 # Measure normalized term size
