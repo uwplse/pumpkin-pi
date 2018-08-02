@@ -33,7 +33,7 @@ mkdir separate/postorder
 mkdir separate/preorder
 mkdir separate/search
 
-for i in {1..10} # TODO add back 10
+for i in {1..2}
 do
   echo "Run #${i}"
 
@@ -67,14 +67,14 @@ do
     name=$(basename "${f%.*}")
     tail -n 2 $f | grep -o -e '[0-9.]* secs' | sed -f times.sed >> separate/search/$name.out
   done
-
-  # TODO calculate multipliers, aggregate data
 done
 
 # Add the distribution data
 for f in $(find separate/*/*.out); do
-  echo $'\n' >> $f
-  datamash --header-out mean 1 q1 1 median 1 q3 1 sstdev 1 < $f >> $f # TODO output into aggregate file
+  name=$(basename "${f%.*}")
+  data=$(datamash median 1 < $f)
+  echo "$name : $data" >> separate/medians.out
+  echo $'\n' >> separate/medians.out
 done
 
 # Measure normalized term size
