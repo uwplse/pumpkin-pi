@@ -70,7 +70,7 @@ cd eval
 Run the following script:
 
 ```
-./TODO.sh
+./together.sh
 ```
 
 Then check the `together` folder for the median runtimes (Figures 13 and 15) as well as the size of reduced functions.
