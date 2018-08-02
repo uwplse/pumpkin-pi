@@ -91,7 +91,7 @@ In that directory, uncomment the following line in `main.v`:
 Then run the following script, which runs the UP code just once with a timeout:
 
 ```
-./TODO.sh
+./prepermutes.sh
 ```
 
 The timeout is an hour, so grab a coffee or read a book or something. It should timeout,
