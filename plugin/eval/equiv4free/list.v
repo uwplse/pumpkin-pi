@@ -13,7 +13,11 @@ From UnivalentParametricity Require Import FP.
 Set Implicit Arguments.
 
 (************************************************************************)
-(* We need to copy this file in order to get universe polymorphism *)
+(* We need to copy this file in order to get universe polymorphism      *)
+(* Aside from "Set Universe Polymorhpism", we also remove duplicate     *)
+(* notations that are already in the Univalent Parametricity code,      *)
+(* and we remove unecessary proofs whose scripts break with Universe    *)
+(* Polymorphism set.                                                    *)
 (************************************************************************)
 
 Set Universe Polymorphism.

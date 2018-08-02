@@ -165,7 +165,7 @@ Module CaseStudy (Elem : Comparable).
       Definition tree6000 :=
         Branch Elem.z tree2000 tree4000.
 
-      (* 8407 nodes, to be exact *)
+(*       (* 8407 nodes, to be exact *) *)
       Definition tree8000 :=
         Branch Elem.z tree4000 tree4000.
 
@@ -291,12 +291,10 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/postorder/sized10000" Time Eval vm_compute in (postorder' tree10000).
 
     (* --- Normalized term sizes --- *)
-    Set Printing All.
     Redirect "out/normalized/preorder-sized" Eval compute in preorder'.
     Redirect "out/normalized/postorder-sized" Eval compute in postorder'.
     Redirect "out/normalized/inorder-sized" Eval compute in inorder'.
     Redirect "out/normalized/prepermutesin-sized" Eval compute in pre_permutes'.
-    Unset Printing All.
   End Sized.
 
   Module Ordered.
@@ -486,12 +484,10 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/search/avl100" Time Eval vm_compute in (search' _ _ _ _ tree100 Elem.x).
 
     (* --- Normalized term sizes --- *)
-    Set Printing All.
     Redirect "out/normalized/preorder-avl" Eval compute in preorder'.
     Redirect "out/normalized/postorder-avl" Eval compute in postorder'.
     Redirect "out/normalized/inorder-avl" Eval compute in inorder'.
     Redirect "out/normalized/search-avl" Eval compute in search'.
-    Unset Printing All.
   End Balanced.
 
 End CaseStudy.
