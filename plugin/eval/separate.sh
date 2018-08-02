@@ -33,7 +33,7 @@ mkdir separate/postorder
 mkdir separate/preorder
 mkdir separate/search
 
-for i in {1..2}
+for i in {1..10}
 do
   echo "Run #${i}"
 
