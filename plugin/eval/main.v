@@ -8,8 +8,8 @@ Open Scope bool_scope.
 Infix "==" := Nat.eqb (at level 70, no associativity) : nat_scope.
 Infix "==>" := implb (at level 40, left associativity) : bool_scope.
 Notation "x <= y" := (Nat.leb x y) (at level 70, y at next level, no associativity) : nat_scope.
-Notation "p '.1'" := (projT1 p) (at level 20, left associativity).
-Notation "p '.2'" := (projT2 p) (at level 20, left associativity).
+Notation "p '.1'" := (projT1 p) (at level 3, left associativity).
+Notation "p '.2'" := (projT2 p) (at level 3, left associativity).
 
 Definition is_true (b : bool) : Prop := b = true.
 Coercion is_true : bool >-> Sortclass.

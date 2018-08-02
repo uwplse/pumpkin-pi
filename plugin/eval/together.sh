@@ -53,12 +53,27 @@ for f in $(find out/normalized/*.out); do
   name=$(basename "${f%.*}")
   line=$(grep -n "     : forall" $f | cut -d : -f 1)
   head -n $(($line-1)) $f > out/normalized/$name-notyp.out
-  defname=$(echo $name | cut -d '-' -f 1)"'"
+  dirname=$(echo $name | cut -d '-' -f 1)
+  suffix=$(echo $name | cut -d '-' -f 2)
+  defname=$dirname"'"
   sed -i "s/$defname =/Definition $defname :=/" out/normalized/$name-notyp.out
   echo "." >> out/normalized/$name-notyp.out
-  cat out/normalized/$name-notyp.out
-  # TODO copy over produced terms into main2.v
-  # TODO copy over a command to print it
+  term=$(cat out/normalized/$name-notyp.out)
+
+  # https://stackoverflow.com/questions/29613304/is-it-possible-to-escape-regex-metacharacters-reliably-with-sed
+  IFS= read -d '' -r < <(sed -e ':a' -e '$!{N;ba' -e '}' -e 's/[&/\]/\\&/g; s/\n/\\&/g' <<<"$term")
+  term=${REPLY%$'\n'}
+  
+  sed -i "s/(\* DEF $name \*)/$term/" equiv4free/main2.v
+  sed -i "s/(\* NORMALIZE $name \*)/Redirect \"..\/out\/normalized\/$name\" Eval compute in $defname./" equiv4free/main2.v
+ 
+  if [ $defname == "search'" ]
+  then 
+     sed -i "s/(\* TIME-SMALL $name \*)/Redirect \"..\/out\/$dirname\/${suffix}20\" Time Eval vm_compute in ($defname _ _ _ _ tree20.2 Elem.x).\n\tRedirect \"..\/out\/$dirname\/${suffix}40\" Time Eval vm_compute in ($defname _ _ _ _ tree40.2 Elem.x).\n\tRedirect \"..\/out\/$dirname\/${suffix}60\" Time Eval vm_compute in ($defname _ _ _ _ tree60.2 Elem.x).\n\tRedirect \"..\/out\/$dirname\/${suffix}80\" Time Eval vm_compute in ($defname _ _ _ _ tree80.2 Elem.x).\n\tRedirect \"..\/out\/$dirname\/${suffix}100\" Time Eval vm_compute in ($defname _ _ _ _ tree100.2 Elem.x)./" equiv4free/main2.v
+  else
+    sed -i "s/(\* TIME-SMALL $name \*)/Redirect \"..\/out\/$dirname\/${suffix}20\" Time Eval vm_compute in ($defname _ _ _ _ tree20.2).\n\tRedirect \"..\/out\/$dirname\/${suffix}40\" Time Eval vm_compute in ($defname _ _ _ _ tree40.2).\n\tRedirect \"..\/out\/$dirname\/${suffix}60\" Time Eval vm_compute in ($defname _ _ _ _ tree60.2).\n\tRedirect \"..\/out\/$dirname\/${suffix}80\" Time Eval vm_compute in ($defname _ _ _ _ tree80.2).\n\tRedirect \"..\/out\/$dirname\/${suffix}100\" Time Eval vm_compute in ($defname _ _ _ _ tree100.2)./" equiv4free/main2.v
+    sed -i "s/(\* TIME-BIG $name \*)/Redirect \"..\/out\/$dirname\/${suffix}2000\" Time Eval vm_compute in ($defname tree2000).\n\tRedirect \"..\/out\/$dirname\/${suffix}4000\" Time Eval vm_compute in ($defname tree4000).\n\tRedirect \"..\/out\/$dirname\/${suffix}6000\" Time Eval vm_compute in ($defname tree6000).\n\tRedirect \"..\/out\/$dirname\/${suffix}8000\" Time Eval vm_compute in ($defname tree8000).\n\tRedirect \"..\/out\/$dirname\/${suffix}10000\" Time Eval vm_compute in ($defname tree10000)./" equiv4free/main2.v
+  fi
 done
 
 # Clean outputted directories
@@ -70,9 +85,9 @@ mkdir out/preorder
 mkdir out/search
 mkdir out/normalized
 
-#for i in {1..10} # TODO uncomment loop once everything works
-#do
-  #echo "Run #${i}"
+for i in {1..10}
+do
+  echo "Run #${i}"
 
   # Remake Univalent Parametricity case study code
   cd equiv4free
@@ -100,7 +115,7 @@ mkdir out/normalized
     name=$(basename "${f%.*}")
     tail -n 2 $f | grep -o -e '[0-9.]* secs' | sed -f times.sed >> together/search/$name.out
   done
-#done
+done
 
 # Add the distribution data
 for f in $(find together/*/*.out); do

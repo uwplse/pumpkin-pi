@@ -4,19 +4,19 @@
 # verifies the claim that it timed out in an hour trying to normalize it.
 # Go grab a coffee or something.
 
-if [ -e out ]
+if [ -e ../out ]
 then
-  rm -r out
+  rm -r ../out
 else
   :
 fi
 
-mkdir out
-mkdir out/inorder
-mkdir out/postorder
-mkdir out/preorder
-mkdir out/search
-mkdir out/normalized
+mkdir ../out
+mkdir ../out/inorder
+mkdir ../out/postorder
+mkdir ../out/preorder
+mkdir ../out/search
+mkdir ../out/normalized
 
 # Remake Univalent Parametricity case study code
 make clean

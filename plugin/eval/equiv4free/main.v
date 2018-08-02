@@ -233,15 +233,11 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/treeUP8000" Time Eval vm_compute in tree8000.
     Redirect "../out/treeUP10000" Time Eval vm_compute in tree10000.
 
-    (* 
-     * The UP framework builds on slightly different datatypes. We measure
-     * the same base functions and inputs with these datatypes. 
-     * There are two ways to run the experiments: One copying and pasting the same functions
-     * to use the same datatypes, which results in the same base function (this is the one
-     * used in the paper), and one which runs each on the separate lifted datatypes.
-     * For the latter, it is necessary to measure both base functions so that the results
-     * are comparable.
-     *)
+    Redirect "../out/preorder/baseUP20" Time Eval vm_compute in (preorder tree20).
+    Redirect "../out/preorder/baseUP40" Time Eval vm_compute in (preorder tree40).
+    Redirect "../out/preorder/baseUP60" Time Eval vm_compute in (preorder tree60).
+    Redirect "../out/preorder/baseUP80" Time Eval vm_compute in (preorder tree80).
+    Redirect "../out/preorder/baseUP100" Time Eval vm_compute in (preorder tree100).
     Redirect "../out/preorder/baseUP2000" Time Eval vm_compute in (preorder tree2000).
     Redirect "../out/preorder/baseUP4000" Time Eval vm_compute in (preorder tree4000).
     Redirect "../out/preorder/baseUP6000" Time Eval vm_compute in (preorder tree6000).
@@ -255,6 +251,11 @@ Module CaseStudy (Elem : Comparable).
         (fun x _ ys _ zs => ys ++ [x] ++ zs)
         (fun x => [x])
         t.
+    Redirect "../out/inorder/baseUP20" Time Eval vm_compute in (inorder tree20).
+    Redirect "../out/inorder/baseUP40" Time Eval vm_compute in (inorder tree40).
+    Redirect "../out/inorder/baseUP00" Time Eval vm_compute in (inorder tree60).
+    Redirect "../out/inorder/baseUP80" Time Eval vm_compute in (inorder tree80).
+    Redirect "../out/inorder/baseUP100" Time Eval vm_compute in (inorder tree100).
     Redirect "../out/inorder/baseUP2000" Time Eval vm_compute in (inorder tree2000).
     Redirect "../out/inorder/baseUP4000" Time Eval vm_compute in (inorder tree4000).
     Redirect "../out/inorder/baseUP6000" Time Eval vm_compute in (inorder tree6000).
@@ -268,6 +269,11 @@ Module CaseStudy (Elem : Comparable).
         (fun x _ ys _ zs => ys ++ zs ++ [x])
         (fun x => [x])
         t.
+    Redirect "../out/postorder/baseUP20" Time Eval vm_compute in (postorder tree20).
+    Redirect "../out/postorder/baseUP40" Time Eval vm_compute in (postorder tree40).
+    Redirect "../out/postorder/baseUP60" Time Eval vm_compute in (postorder tree60).
+    Redirect "../out/postorder/baseUP80" Time Eval vm_compute in (postorder tree80).
+    Redirect "../out/postorder/baseUP100" Time Eval vm_compute in (postorder tree100).
     Redirect "../out/postorder/baseUP2000" Time Eval vm_compute in (postorder tree2000).
     Redirect "../out/postorder/baseUP4000" Time Eval vm_compute in (postorder tree4000).
     Redirect "../out/postorder/baseUP6000" Time Eval vm_compute in (postorder tree6000).
@@ -469,6 +475,23 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/normalized/postorder-sizedUP" Eval compute in postorder'.
     Redirect "../out/normalized/inorder-sizedUP" Eval compute in inorder'.
     (*Redirect "../out/normalized/pre_permutes-sizedUP" Eval compute in pre_permutes'.*)
+
+    (* Auto-generated definitions go here in together case study *)
+    Module Comparison.
+      (* DEF inorder-sized *)
+      (* DEF postorder-sized *)
+      (* DEF preorder-sized *)
+      (* DEF pre_permutes-sized *)
+
+      (* TIME-BIG inorder-sized *)
+      (* TIME-BIG postorder-sized *)
+      (* TIME-BIG preorder-sized *)
+
+      (* NORMALIZE inorder-sized *)
+      (* NORMALIZE postorder-sized *)
+      (* NORMALIZE preorder-sized *)
+      (* NORMALIZE pre_permutes-sized *)
+    End Comparison.
 
   End Sized.
 
@@ -740,6 +763,25 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/normalized/postorder-avlUP" Eval compute in postorder'.
     Redirect "../out/normalized/inorder-avlUP" Eval compute in inorder'.
     Redirect "../out/normalized/search-avlUP" Eval compute in search'.
+
+    (* Auto-generated definitions go here in together case study *)
+    Module Comparison.
+      (* DEF inorder-avl *)
+      (* DEF postorder-avl *)
+      (* DEF preorder-avl *)
+      (* DEF search-avl *)
+
+      (* TIME-SMALL inorder-avl *)
+      (* TIME-SMALL postorder-avl *)
+      (* TIME-SMALL preorder-avl *)
+      (* TIME-SMALL search-avl *)
+
+      (* NORMALIZE inorder-avl *)
+      (* NORMALIZE postorder-avl *)
+      (* NORMALIZE preorder-avl *)
+      (* NORMALIZE search-avl *)
+    End Comparison.
+
   End Balanced.
 
 End CaseStudy.
