@@ -39,20 +39,36 @@ mkdir together/inorder
 mkdir together/postorder
 mkdir together/preorder
 mkdir together/search
+cp main.v main2.v
 cp equiv4free/main.v equiv4free/main2.v
+
+# Set DEVOID case study code to print regular terms instead of computed ones
+sed -i "s/Eval compute in/Print/" main2.v
 
 # Remake DEVOID case study code exactly once, to print terms
 make clean
-make
+make together
 
 for f in $(find out/normalized/*.out); do
   name=$(basename "${f%.*}")
   line=$(grep -n "     : forall" $f | cut -d : -f 1)
   head -n $(($line-1)) $f > out/normalized/$name-notyp.out
-  # TODO add definitions
+  defname=$(echo $name | cut -d '-' -f 1)"'"
+  sed -i "s/$defname =/Definition $defname :=/" out/normalized/$name-notyp.out
+  echo "." >> out/normalized/$name-notyp.out
+  cat out/normalized/$name-notyp.out
   # TODO copy over produced terms into main2.v
   # TODO copy over a command to print it
 done
+
+# Clean outputted directories
+rm -r out
+mkdir out
+mkdir out/inorder
+mkdir out/postorder
+mkdir out/preorder
+mkdir out/search
+mkdir out/normalized
 
 #for i in {1..10} # TODO uncomment loop once everything works
 #do
@@ -94,11 +110,19 @@ for f in $(find together/*/*.out); do
 done
 
 # Measure normalized term size
+for f in $(find out/normalized/*.out); do
+  name=$(basename "${f%.*}")
+  line=$(grep -n "     : forall" $f | cut -d : -f 1)
+  head -n $(($line-1)) $f > out/normalized/$name-notyp.out
+  loc=$(coqwc -s out/normalized/$name-notyp.out)
+  echo $loc >> together/sizes.out
+done
 
 sed -i "s/out\/normalized\///" together/sizes.out
 sed -i "s/-notyp.out//" together/sizes.out
 
 # Clean temporary files
 rm -r out
+rm main2.v
 rm equiv4free/main2.v # You can uncomment this line if you want to see the output file with everything together
 

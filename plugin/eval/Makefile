@@ -9,3 +9,6 @@ cast.vo: cast.v
 
 clean:
 	rm -f *.vo *.glob
+
+together: main2.v lemmas.vo cast.vo
+	coqc main2.v

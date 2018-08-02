@@ -468,7 +468,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/normalized/preorder-sizedUP" Eval compute in preorder'.
     Redirect "../out/normalized/postorder-sizedUP" Eval compute in postorder'.
     Redirect "../out/normalized/inorder-sizedUP" Eval compute in inorder'.
-    (*Redirect "../out/normalized/prepermutesin-sizedUP" Eval compute in pre_permutes'.*)
+    (*Redirect "../out/normalized/pre_permutes-sizedUP" Eval compute in pre_permutes'.*)
 
   End Sized.
 
