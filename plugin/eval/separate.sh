@@ -70,10 +70,10 @@ do
 done
 
 # Add the distribution data
-for f in $(find separate/*/*.out); do
-  name=$(basename "${f%.*}")
+for f in $(find together/*/*.out); do
+  name=$(dirname "${f%.*}" | cut -d / -f 2)"-"$(basename "${f%.*}")
   data=$(datamash median 1 < $f)
-  echo "$name : $data" >> separate/medians.out
+  echo "$name : $data" >> together/medians.out
 done
 
 # Measure normalized term size

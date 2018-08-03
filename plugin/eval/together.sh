@@ -119,7 +119,7 @@ done
 
 # Add the distribution data
 for f in $(find together/*/*.out); do
-  name=$(basename "${f%.*}")
+  name=$(dirname "${f%.*}" | cut -d / -f 2)"-"$(basename "${f%.*}")
   data=$(datamash median 1 < $f)
   echo "$name : $data" >> together/medians.out
 done

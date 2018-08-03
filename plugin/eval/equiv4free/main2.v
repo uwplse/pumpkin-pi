@@ -17,14 +17,6 @@ Hint Extern 4 => repeat (match goal with H : Logic.eq _ _ |- _ => apply logic_eq
 
 Notation "'typeof' x" := (let A := _ in let _ : A := x in A) (at level 100).
 
-(* List notations in FP that aren't imported *)
-Infix "::" := cons (at level 60, right associativity). 
-
-Notation "[ ]" := nil (format "[ ]").
-Notation "[ x ]" := (cons x nil).
-Notation "[ x ; y ; .. ; z ]" := (cons x (cons y .. (cons z nil) ..)).
-Notation "[ x ; .. ; y ]" := (cons x .. (cons y nil) ..) (compat "8.6").
-
 Module Type Comparable.
 
   Parameter t : Set.
@@ -486,19 +478,65 @@ Module CaseStudy (Elem : Comparable).
 
     (* Auto-generated definitions go here in together case study *)
     Module Comparison.
-      (* DEF inorder-sized *)
-      (* DEF postorder-sized *)
-      (* DEF preorder-sized *)
-      (* DEF pre_permutes-sized *)
+      Definition inorder' := 
+fun t : {H : nat & tree H} =>
+tree_rect (fun (n : nat) (_ : tree n) => list Elem.t)
+  (fun (n_l n_r : nat) (val : Elem.t) (_ : tree n_l) (H : list Elem.t)
+     (_ : tree n_r) (H0 : list Elem.t) => H ++ [val] ++ H0)
+  (fun x : Elem.t => [x]) t .1 t .2
+.
+      Definition postorder' := 
+fun t : {H : nat & tree H} =>
+tree_rect (fun (n : nat) (_ : tree n) => list Elem.t)
+  (fun (n_l n_r : nat) (val : Elem.t) (_ : tree n_l) (H : list Elem.t)
+     (_ : tree n_r) (H0 : list Elem.t) => H ++ H0 ++ [val])
+  (fun x : Elem.t => [x]) t .1 t .2
+.
+      Definition preorder' := 
+fun t : {H : nat & tree H} =>
+tree_rect (fun (n : nat) (_ : tree n) => list Elem.t)
+  (fun (n_l n_r : nat) (val : Elem.t) (_ : tree n_l) (H : list Elem.t)
+     (_ : tree n_r) (H0 : list Elem.t) => [val] ++ H ++ H0)
+  (fun x : Elem.t => [x]) t .1 t .2
+.
+      Definition pre_permutes' := 
+fun t : {H : nat & tree H} =>
+tree_rect
+  (fun (n : nat) (t0 : tree n) =>
+   permutes (preorder' (existT (fun H : nat => tree H) n t0))
+     (inorder' (existT (fun H : nat => tree H) n t0)))
+  (fun (n_l n_r : nat) (val : Elem.t) (left : tree n_l)
+     (H : permutes (preorder' (existT (fun H : nat => tree H) n_l left))
+            (inorder' (existT (fun H : nat => tree H) n_l left)))
+     (right : tree n_r)
+     (H0 : permutes (preorder' (existT (fun H0 : nat => tree H0) n_r right))
+             (inorder' (existT (fun H0 : nat => tree H0) n_r right))) =>
+   perm_cons_app (inorder' (existT (fun H1 : nat => tree H1) n_l left))
+     (inorder' (existT (fun H1 : nat => tree H1) n_r right)) val
+     (perm_app H H0)) (fun val : Elem.t => perm_skip val (perm_nil Elem.t))
+  t .1 t .2
+.
 
-      (* TIME-BIG inorder-sized *)
-      (* TIME-BIG postorder-sized *)
-      (* TIME-BIG preorder-sized *)
+      Redirect "../out/inorder/sized2000" Time Eval vm_compute in (inorder' tree2000).
+	Redirect "../out/inorder/sized4000" Time Eval vm_compute in (inorder' tree4000).
+	Redirect "../out/inorder/sized6000" Time Eval vm_compute in (inorder' tree6000).
+	Redirect "../out/inorder/sized8000" Time Eval vm_compute in (inorder' tree8000).
+	Redirect "../out/inorder/sized10000" Time Eval vm_compute in (inorder' tree10000).
+      Redirect "../out/postorder/sized2000" Time Eval vm_compute in (postorder' tree2000).
+	Redirect "../out/postorder/sized4000" Time Eval vm_compute in (postorder' tree4000).
+	Redirect "../out/postorder/sized6000" Time Eval vm_compute in (postorder' tree6000).
+	Redirect "../out/postorder/sized8000" Time Eval vm_compute in (postorder' tree8000).
+	Redirect "../out/postorder/sized10000" Time Eval vm_compute in (postorder' tree10000).
+      Redirect "../out/preorder/sized2000" Time Eval vm_compute in (preorder' tree2000).
+	Redirect "../out/preorder/sized4000" Time Eval vm_compute in (preorder' tree4000).
+	Redirect "../out/preorder/sized6000" Time Eval vm_compute in (preorder' tree6000).
+	Redirect "../out/preorder/sized8000" Time Eval vm_compute in (preorder' tree8000).
+	Redirect "../out/preorder/sized10000" Time Eval vm_compute in (preorder' tree10000).
 
-      (* NORMALIZE inorder-sized *)
-      (* NORMALIZE postorder-sized *)
-      (* NORMALIZE preorder-sized *)
-      (* NORMALIZE pre_permutes-sized *)
+      Redirect "../out/normalized/inorder-sized" Eval compute in inorder'.
+      Redirect "../out/normalized/postorder-sized" Eval compute in postorder'.
+      Redirect "../out/normalized/preorder-sized" Eval compute in preorder'.
+      Redirect "../out/normalized/pre_permutes-sized" Eval compute in pre_permutes'.
     End Comparison.
 
   End Sized.
@@ -774,20 +812,121 @@ Module CaseStudy (Elem : Comparable).
 
     (* Auto-generated definitions go here in together case study *)
     Module Comparison.
-      (* DEF inorder-avl *)
-      (* DEF postorder-avl *)
-      (* DEF preorder-avl *)
-      (* DEF search-avl *)
+      Definition inorder' := 
+fun (min max : Elem.t) (ord : bool) (height : nat)
+  (tree : {H : bool & avl min max ord height H}) =>
+(fun (min0 max0 : Elem.t) (ord0 : bool)
+   (tree0 : {H : nat & {H0 : bool & avl min0 max0 ord0 H H0}}) =>
+ avl_rect
+   (fun (t t0 : Elem.t) (b : bool) (n : nat) (b0 : bool)
+      (_ : avl t t0 b n b0) => list Elem.t)
+   (fun (bal_l bal_r : bool) (h_l h_r : nat) (ord_l ord_r : bool)
+      (min_l min_r max_l max_r val : Elem.t)
+      (_ : avl min_l max_l ord_l h_l bal_l) (H : list Elem.t)
+      (_ : avl min_r max_r ord_r h_r bal_r) (H0 : list Elem.t) =>
+    H ++ [val] ++ H0) (fun x : Elem.t => [x]) min0 max0
+   (existT (fun H : bool => {H0 : nat & {H1 : bool & avl min0 max0 H H0 H1}})
+      ord0 tree0) .1
+   (existT (fun H : bool => {H0 : nat & {H1 : bool & avl min0 max0 H H0 H1}})
+      ord0 tree0) .2 .1
+   (existT (fun H : bool => {H0 : nat & {H1 : bool & avl min0 max0 H H0 H1}})
+      ord0 tree0) .2 .2 .1
+   (existT (fun H : bool => {H0 : nat & {H1 : bool & avl min0 max0 H H0 H1}})
+      ord0 tree0) .2 .2 .2) min max ord
+  (existT (fun H : nat => {H0 : bool & avl min max ord H H0}) height tree)
+.
+      Definition postorder' := 
+fun (min max : Elem.t) (ord : bool) (height : nat)
+  (tree : {H : bool & avl min max ord height H}) =>
+(fun (min0 max0 : Elem.t) (ord0 : bool)
+   (tree0 : {H : nat & {H0 : bool & avl min0 max0 ord0 H H0}}) =>
+ avl_rect
+   (fun (t t0 : Elem.t) (b : bool) (n : nat) (b0 : bool)
+      (_ : avl t t0 b n b0) => list Elem.t)
+   (fun (bal_l bal_r : bool) (h_l h_r : nat) (ord_l ord_r : bool)
+      (min_l min_r max_l max_r val : Elem.t)
+      (_ : avl min_l max_l ord_l h_l bal_l) (H : list Elem.t)
+      (_ : avl min_r max_r ord_r h_r bal_r) (H0 : list Elem.t) =>
+    H ++ H0 ++ [val]) (fun x : Elem.t => [x]) min0 max0
+   (existT (fun H : bool => {H0 : nat & {H1 : bool & avl min0 max0 H H0 H1}})
+      ord0 tree0) .1
+   (existT (fun H : bool => {H0 : nat & {H1 : bool & avl min0 max0 H H0 H1}})
+      ord0 tree0) .2 .1
+   (existT (fun H : bool => {H0 : nat & {H1 : bool & avl min0 max0 H H0 H1}})
+      ord0 tree0) .2 .2 .1
+   (existT (fun H : bool => {H0 : nat & {H1 : bool & avl min0 max0 H H0 H1}})
+      ord0 tree0) .2 .2 .2) min max ord
+  (existT (fun H : nat => {H0 : bool & avl min max ord H H0}) height tree)
+.
+      Definition preorder' := 
+fun (min max : Elem.t) (ord : bool) (height : nat)
+  (tree : {H : bool & avl min max ord height H}) =>
+(fun (min0 max0 : Elem.t) (ord0 : bool)
+   (tree0 : {H : nat & {H0 : bool & avl min0 max0 ord0 H H0}}) =>
+ avl_rect
+   (fun (t t0 : Elem.t) (b : bool) (n : nat) (b0 : bool)
+      (_ : avl t t0 b n b0) => list Elem.t)
+   (fun (bal_l bal_r : bool) (h_l h_r : nat) (ord_l ord_r : bool)
+      (min_l min_r max_l max_r val : Elem.t)
+      (_ : avl min_l max_l ord_l h_l bal_l) (H : list Elem.t)
+      (_ : avl min_r max_r ord_r h_r bal_r) (H0 : list Elem.t) =>
+    [val] ++ H ++ H0) (fun x : Elem.t => [x]) min0 max0
+   (existT (fun H : bool => {H0 : nat & {H1 : bool & avl min0 max0 H H0 H1}})
+      ord0 tree0) .1
+   (existT (fun H : bool => {H0 : nat & {H1 : bool & avl min0 max0 H H0 H1}})
+      ord0 tree0) .2 .1
+   (existT (fun H : bool => {H0 : nat & {H1 : bool & avl min0 max0 H H0 H1}})
+      ord0 tree0) .2 .2 .1
+   (existT (fun H : bool => {H0 : nat & {H1 : bool & avl min0 max0 H H0 H1}})
+      ord0 tree0) .2 .2 .2) min max ord
+  (existT (fun H : nat => {H0 : bool & avl min max ord H H0}) height tree)
+.
+      Definition search' := 
+fun (min max : Elem.t) (ord : bool) (height : nat)
+  (tree : {H : bool & avl min max ord height H}) (value : Elem.t) =>
+(fun (min0 max0 : Elem.t) (ord0 : bool)
+   (tree0 : {H : nat & {H0 : bool & avl min0 max0 ord0 H H0}})
+   (val' : Elem.t) =>
+ avl_rect
+   (fun (t t0 : Elem.t) (b : bool) (n : nat) (b0 : bool)
+      (_ : avl t t0 b n b0) => bool)
+   (fun (bal_l bal_r : bool) (h_l h_r : nat) (ord_l ord_r : bool)
+      (min_l min_r max_l max_r val : Elem.t)
+      (_ : avl min_l max_l ord_l h_l bal_l) (H : bool)
+      (_ : avl min_r max_r ord_r h_r bal_r) (H0 : bool) =>
+    Elem.leb min_l val' && Elem.leb val' max_r && Elem.eqb val' val
+    || Elem.leb val' max_l ==> H || Elem.leb min_r val' ==> H0)
+   (fun val : Elem.t => Elem.eqb val' val) min0 max0 ord0 tree0 .1
+   tree0 .2 .1 tree0 .2 .2) min max ord
+  (existT (fun H : nat => {H0 : bool & avl min max ord H H0}) height tree)
+  value
+.
 
-      (* TIME-SMALL inorder-avl *)
-      (* TIME-SMALL postorder-avl *)
-      (* TIME-SMALL preorder-avl *)
-      (* TIME-SMALL search-avl *)
+      Redirect "../out/inorder/avl20" Time Eval vm_compute in (inorder' _ _ _ _ tree20.2).
+	Redirect "../out/inorder/avl40" Time Eval vm_compute in (inorder' _ _ _ _ tree40.2).
+	Redirect "../out/inorder/avl60" Time Eval vm_compute in (inorder' _ _ _ _ tree60.2).
+	Redirect "../out/inorder/avl80" Time Eval vm_compute in (inorder' _ _ _ _ tree80.2).
+	Redirect "../out/inorder/avl100" Time Eval vm_compute in (inorder' _ _ _ _ tree100.2).
+      Redirect "../out/postorder/avl20" Time Eval vm_compute in (postorder' _ _ _ _ tree20.2).
+	Redirect "../out/postorder/avl40" Time Eval vm_compute in (postorder' _ _ _ _ tree40.2).
+	Redirect "../out/postorder/avl60" Time Eval vm_compute in (postorder' _ _ _ _ tree60.2).
+	Redirect "../out/postorder/avl80" Time Eval vm_compute in (postorder' _ _ _ _ tree80.2).
+	Redirect "../out/postorder/avl100" Time Eval vm_compute in (postorder' _ _ _ _ tree100.2).
+      Redirect "../out/preorder/avl20" Time Eval vm_compute in (preorder' _ _ _ _ tree20.2).
+	Redirect "../out/preorder/avl40" Time Eval vm_compute in (preorder' _ _ _ _ tree40.2).
+	Redirect "../out/preorder/avl60" Time Eval vm_compute in (preorder' _ _ _ _ tree60.2).
+	Redirect "../out/preorder/avl80" Time Eval vm_compute in (preorder' _ _ _ _ tree80.2).
+	Redirect "../out/preorder/avl100" Time Eval vm_compute in (preorder' _ _ _ _ tree100.2).
+      Redirect "../out/search/avl20" Time Eval vm_compute in (search' _ _ _ _ tree20.2 Elem.x).
+	Redirect "../out/search/avl40" Time Eval vm_compute in (search' _ _ _ _ tree40.2 Elem.x).
+	Redirect "../out/search/avl60" Time Eval vm_compute in (search' _ _ _ _ tree60.2 Elem.x).
+	Redirect "../out/search/avl80" Time Eval vm_compute in (search' _ _ _ _ tree80.2 Elem.x).
+	Redirect "../out/search/avl100" Time Eval vm_compute in (search' _ _ _ _ tree100.2 Elem.x).
 
-      (* NORMALIZE inorder-avl *)
-      (* NORMALIZE postorder-avl *)
-      (* NORMALIZE preorder-avl *)
-      (* NORMALIZE search-avl *)
+      Redirect "../out/normalized/inorder-avl" Eval compute in inorder'.
+      Redirect "../out/normalized/postorder-avl" Eval compute in postorder'.
+      Redirect "../out/normalized/preorder-avl" Eval compute in preorder'.
+      Redirect "../out/normalized/search-avl" Eval compute in search'.
     End Comparison.
 
   End Balanced.
