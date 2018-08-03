@@ -387,6 +387,13 @@ Module CaseStudy (Elem : Comparable).
      Lift orn_order orn_order_inv in _tree100 as tree100'.
      Definition tree100 := projT2 (projT2 (projT2 tree100')).
 
+    (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
+    Redirect "out/tree20" Time Eval vm_compute in tree20.
+    Redirect "out/tree40" Time Eval vm_compute in tree40.
+    Redirect "out/tree60" Time Eval vm_compute in tree60.
+    Redirect "out/tree80" Time Eval vm_compute in tree80.
+    Redirect "out/tree100" Time Eval vm_compute in tree100.
+
     (* --- Base search data --- *)
     Redirect "out/search/base20" Time Eval vm_compute in (search tree20 Elem.x).
     Redirect "out/search/base40" Time Eval vm_compute in (search tree40 Elem.x).

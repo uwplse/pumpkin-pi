@@ -615,6 +615,15 @@ Module CaseStudy (Elem : Comparable).
            (Elem.leb min_r val' ==> IH_right))
         (fun val => Elem.eqb val' val)
         min max ord tree.
+
+    (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
+    Redirect "../out/treeUP20" Time Eval vm_compute in tree20.
+    Redirect "../out/treeUP40" Time Eval vm_compute in tree40.
+    Redirect "../out/treeUP60" Time Eval vm_compute in tree60.
+    Redirect "../out/treeUP80" Time Eval vm_compute in tree80.
+    Redirect "../out/treeUP100" Time Eval vm_compute in tree100.
+
+    (* --- Base search data --- *)
     Redirect "../out/search/baseUP20" Time Eval vm_compute in (search tree20.2.2.2 Elem.x).
     Redirect "../out/search/baseUP40" Time Eval vm_compute in (search tree40.2.2.2 Elem.x).
     Redirect "../out/search/baseUP60" Time Eval vm_compute in (search tree60.2.2.2 Elem.x).
