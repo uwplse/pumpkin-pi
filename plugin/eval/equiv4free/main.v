@@ -755,10 +755,10 @@ Module CaseStudy (Elem : Comparable).
     Definition search {lo hi ord h bal} (t : avl lo hi ord h bal) (x : Elem.t) : bool :=
       @search' lo hi ord (h; (bal; t)) x.
     Redirect "../out/search/avlUP20" Time Eval vm_compute in (search' tree20 Elem.x).
-    Redirect "../out/search/avlUP20" Time Eval vm_compute in (search' tree40 Elem.x).
-    Redirect "../out/search/avlUP20" Time Eval vm_compute in (search' tree60 Elem.x).
-    Redirect "../out/search/avlUP20" Time Eval vm_compute in (search' tree80 Elem.x).
-    Redirect "../out/search/avlUP20" Time Eval vm_compute in (search' tree100 Elem.x).
+    Redirect "../out/search/avlUP40" Time Eval vm_compute in (search' tree40 Elem.x).
+    Redirect "../out/search/avlUP60" Time Eval vm_compute in (search' tree60 Elem.x).
+    Redirect "../out/search/avlUP80" Time Eval vm_compute in (search' tree80 Elem.x).
+    Redirect "../out/search/avlUP100" Time Eval vm_compute in (search' tree100 Elem.x).
 
     (* --- Normalized term sizes --- *)
     Redirect "../out/normalized/preorder-avlUP" Eval compute in preorder'.
