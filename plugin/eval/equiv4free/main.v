@@ -260,7 +260,7 @@ Module CaseStudy (Elem : Comparable).
         t.
     Redirect "../out/inorder/baseUP20" Time Eval vm_compute in (inorder tree20).
     Redirect "../out/inorder/baseUP40" Time Eval vm_compute in (inorder tree40).
-    Redirect "../out/inorder/baseUP00" Time Eval vm_compute in (inorder tree60).
+    Redirect "../out/inorder/baseUP60" Time Eval vm_compute in (inorder tree60).
     Redirect "../out/inorder/baseUP80" Time Eval vm_compute in (inorder tree80).
     Redirect "../out/inorder/baseUP100" Time Eval vm_compute in (inorder tree100).
     Redirect "../out/inorder/baseUP2000" Time Eval vm_compute in (inorder tree2000).
