@@ -228,7 +228,12 @@ Module CaseStudy (Elem : Comparable).
         (fun x => [x])
         t.
 
-   (* --- Let Coq warm up, so that base preorder numbers aren't slower than they should be --- *)
+   (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
+    Redirect "../out/treeUP20" Time Eval vm_compute in tree20.
+    Redirect "../out/treeUP40" Time Eval vm_compute in tree40.
+    Redirect "../out/treeUP60" Time Eval vm_compute in tree60.
+    Redirect "../out/treeUP80" Time Eval vm_compute in tree80.
+    Redirect "../out/treeUP100" Time Eval vm_compute in tree100.
     Redirect "../out/treeUP2000" Time Eval vm_compute in tree2000.
     Redirect "../out/treeUP4000" Time Eval vm_compute in tree4000.
     Redirect "../out/treeUP6000" Time Eval vm_compute in tree6000.
