@@ -17,6 +17,8 @@ Hint Extern 4 => repeat (match goal with H : Logic.eq _ _ |- _ => apply logic_eq
 
 Notation "'typeof' x" := (let A := _ in let _ : A := x in A) (at level 100).
 
+Add Printing Let sigT. (* for consistency *)
+
 Module Type Comparable.
 
   Parameter t : Set.
