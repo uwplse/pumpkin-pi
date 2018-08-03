@@ -17,14 +17,6 @@ Hint Extern 4 => repeat (match goal with H : Logic.eq _ _ |- _ => apply logic_eq
 
 Notation "'typeof' x" := (let A := _ in let _ : A := x in A) (at level 100).
 
-(* List notations in FP that aren't imported *)
-Infix "::" := cons (at level 60, right associativity). 
-
-Notation "[ ]" := nil (format "[ ]").
-Notation "[ x ]" := (cons x nil).
-Notation "[ x ; y ; .. ; z ]" := (cons x (cons y .. (cons z nil) ..)).
-Notation "[ x ; .. ; y ]" := (cons x .. (cons y nil) ..) (compat "8.6").
-
 Module Type Comparable.
 
   Parameter t : Set.
