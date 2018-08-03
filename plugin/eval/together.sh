@@ -49,6 +49,7 @@ sed -i "s/Eval compute in/Print/" main2.v
 make clean
 make together
 
+# Copy the produced terms into the UP code, to run everything together
 for f in $(find out/normalized/*.out); do
   name=$(basename "${f%.*}")
   line=$(grep -n "     : forall" $f | cut -d : -f 1)
@@ -85,6 +86,7 @@ mkdir out/preorder
 mkdir out/search
 mkdir out/normalized
 
+# Run ten iterations of comparison
 for i in {1..10}
 do
   echo "Run #${i}"
@@ -96,24 +98,15 @@ do
   cd ..
 
   # Add the computation times to the aggregate files
-  for f in $(find out/preorder/*.out); do
+  for f in $(find out/*/*.out); do
     name=$(basename "${f%.*}")
-    tail -n 2 $f | grep -o -e '[0-9.]* secs' | sed -f times.sed >> together/preorder/$name.out
-  done
-
-  for f in $(find out/postorder/*.out); do
-    name=$(basename "${f%.*}")
-    tail -n 2 $f | grep -o -e '[0-9.]* secs' | sed -f times.sed >> together/postorder/$name.out
-  done
-
-  for f in $(find out/inorder/*.out); do
-    name=$(basename "${f%.*}")
-    tail -n 2 $f | grep -o -e '[0-9.]* secs' | sed -f times.sed >> together/inorder/$name.out
-  done
-
-  for f in $(find out/search/*.out); do
-    name=$(basename "${f%.*}")
-    tail -n 2 $f | grep -o -e '[0-9.]* secs' | sed -f times.sed >> together/search/$name.out
+    dirname=$(dirname "${f%.*}" | cut -d / -f 2)
+    if [ $dirname == "normalized" ]
+    then
+      :
+    else
+      tail -n 2 $f | grep -o -e '[0-9.]* secs' | sed -f times.sed >> together/$dirname/$name.out
+    fi
   done
 done
 
@@ -133,8 +126,34 @@ for f in $(find out/normalized/*.out); do
   echo $loc >> together/sizes.out
 done
 
+# Format term size data
 sed -i "s/out\/normalized\///" together/sizes.out
 sed -i "s/-notyp.out//" together/sizes.out
+
+# Preprocess for sanity checks
+rm -r out/normalized
+for f in $(find out/*/*.out); do
+  tail -n 2 $f > $f
+done
+
+# Run sanity checks
+for f in $(find out/*/*UP*.out); do
+  name=$(basename "${f%.*}")
+  if [[ $name =~ ^base.* ]]
+  then
+    :
+  else
+    g=$(echo $f | sed -e "s/UP//")
+    echo "Sanity checking $f and $g."
+    if [ "$(cat $f)" == "$(cat $g)" ]
+    then
+      :
+    else
+      echo "Sanity check failed. $f and $g are different." 1>&2
+      exit 1
+    fi
+  fi
+done
 
 # Clean temporary files
 rm -r out
