@@ -6,7 +6,7 @@ open Names
  * Define the components of the corresponding equivalence
  * (Don't prove section and retraction)
  *)
-val find_ornament : Id.t -> constr_expr -> constr_expr -> unit
+val find_ornament : Id.t option -> constr_expr -> constr_expr -> unit
                                                             
 (*
  * Lift the supplied function along the supplied ornament

@@ -5,17 +5,25 @@ open Lifting
 open Caching
 open Search
 open Lift
+open Utilities
        
 (* 
  * Identify an algebraic ornament between two types
  * Define the components of the corresponding equivalence
  * (Don't prove section and retraction)
  *)
-let find_ornament n d_old d_new =
+let find_ornament n_o d_old d_new =
   let (evd, env) = Pfedit.get_current_context () in
   let trm_o = unwrap_definition env (intern env evd d_old) in
   let trm_n = unwrap_definition env (intern env evd d_new) in
-  if isInd trm_o && isInd trm_n then
+  match map_tuple kind (trm_o, trm_n) with
+  | Ind ((m_o, _), _), Ind ((m_n, _), _) ->
+    let (_, _, lab_o) = KerName.repr (MutInd.canonical m_o) in
+    let (_, _, lab_n) = KerName.repr (MutInd.canonical m_n) in
+    let name_o = Label.to_id lab_o in
+    let name_n = Label.to_string lab_n in
+    let auto_n = with_suffix (with_suffix name_o "to") name_n in
+    let n = Option.default auto_n n_o in
     let idx_n = with_suffix n "index" in
     let orn = search_orn_inductive env evd idx_n trm_o trm_n in
     define_term idx_n evd orn.indexer true;
@@ -25,7 +33,7 @@ let find_ornament n d_old d_new =
     let inv_n = with_suffix n "inv" in
     define_term inv_n evd orn.forget true;
     Printf.printf "Defined forgetful function %s.\n\n" (Id.to_string inv_n)
-  else
+  |_ ->
     failwith "Only inductive types are supported"
 
 (*

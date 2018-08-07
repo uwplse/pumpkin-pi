@@ -12,10 +12,6 @@ Definition packed_vector (T : Type) :=
 
 Find ornament list vector as orn_list_vector.
 
-Print orn_list_vector_index.
-Print orn_list_vector.
-Print orn_list_vector_inv.
-
 Theorem test_index:
   forall (A : Type) (l : list A),
     orn_list_vector_index A l = length l.
@@ -49,6 +45,45 @@ Theorem test_orn_inv_unpack:
     list A.
 Proof.
   intros. apply orn_list_vector_inv. exists n. apply v.
+Qed.
+
+(* --- Test auto-generated ornament name --- *)
+
+Find ornament list vector.
+
+Theorem test_index_auto:
+  forall (A : Type) (l : list A),
+    list_to_vector_index A l = length l.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_auto:
+  forall (A : Type) (l : list A),
+    packed_vector A.
+Proof.
+  exact list_to_vector.
+Qed.
+
+Theorem test_orn_index_auto:
+  forall (A : Type) (l : list A),
+    projT1 (list_to_vector A l) = list_to_vector_index A l.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_inv_auto:
+  forall (A : Type) (v : packed_vector A),
+    list A.
+Proof.
+  exact list_to_vector_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_auto:
+  forall (A : Type) (n : nat) (v : vector A n),
+    list A.
+Proof.
+  intros. apply list_to_vector_inv. exists n. apply v.
 Qed.
 
 (* --- Lists and "flectors" --- *)
