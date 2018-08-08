@@ -36,7 +36,7 @@ type lift_config =
   {
     l : lifting;
     constr_rules : types array;
-    cache : (KerName.t, types) Hashtbl.t
+    cache : temporary_cache
   }
 
 (* --- to/from --- *)
@@ -48,16 +48,6 @@ let promotion_type env evd trm =
   fst (on_type ind_of_promotion_type env evd trm)
 
 (* --- Premises --- *)
-
-(*
- * Check whether a constant is in the local cache
- *)
-let is_locally_cached c trm =
-  match kind trm with
-  | Const (co, u) ->
-     Hashtbl.mem c.cache (Constant.canonical co)
-  | _ ->
-     false
 
 (*
  * Determine whether a type is the type we are ornamenting from
@@ -195,7 +185,7 @@ let initialize_constr_rules env evd l (from_typ, to_typ) =
 (* Initialize the lift_config *)
 let initialize_lift_config env evd l (from_typ, to_typ) =
   let constr_rules = initialize_constr_rules env evd l (from_typ, to_typ) in
-  let cache = Hashtbl.create 100 in
+  let cache = initialize_local_cache () in
   { l ; constr_rules ; cache } 
 
 (* --- Lifting the induction principle --- *)
@@ -364,10 +354,9 @@ let lift_core env evd c (from_type, to_type) index_type trm =
     if Option.has_some lifted_opt then
       (* GLOBAL CACHING *)
       Option.get lifted_opt
-    else if is_locally_cached c tr then
+    else if is_locally_cached c.cache tr then
       (* LOCAL CACHING *)
-      let (co, u) = destConst tr in
-      Hashtbl.find c.cache (Constant.canonical co)
+      lookup_local_cache c.cache tr
     else if is_orn l en evd (from_type, to_type) tr then
       (* EQUIVALENCE *)
       if l.is_fwd then
@@ -516,7 +505,7 @@ let lift_core env evd c (from_type, to_type) index_type trm =
             with _ ->
               (* AXIOM *)
               tr)
-         in Hashtbl.add c.cache (Constant.canonical co) lifted; lifted
+         in cache_local c.cache tr lifted; lifted
       | _ ->
          tr
   in lift_rec env index_type trm

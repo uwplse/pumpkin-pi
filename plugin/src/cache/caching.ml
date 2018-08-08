@@ -76,3 +76,49 @@ let search_lifted (env : env) (base : types) : types option =
       None
   else
     None
+
+(* --- Temporary cache of constants --- *)
+
+type temporary_cache = (KerName.t, types) Hashtbl.t
+
+(*
+ * Initialize the local cache
+ *)
+let initialize_local_cache () =
+  Hashtbl.create 100
+
+(*
+ * Check whether a constant is in the local cache
+ *)
+let is_locally_cached c trm =
+  match kind trm with
+  | Const (co, u) ->
+     Hashtbl.mem c (Constant.canonical co)
+  | _ ->
+     false
+       
+(*
+ * Lookup a value in the local cache
+ *)
+let lookup_local_cache c trm =
+  match kind trm with
+  | Const (co, u) ->
+     Hashtbl.find c (Constant.canonical co)
+  | _ ->
+     failwith "not cached"
+
+(*
+ * Add a value to the local cache
+ *)
+let cache_local c trm lifted =
+  match kind trm with
+  | Const (co, u) ->
+     Hashtbl.add c (Constant.canonical co) lifted
+  | _ ->
+     failwith "can't cache a non-constant"
+
+(* --- Database of ornaments --- *)
+      
+(* TODO *)
+
+
