@@ -19,11 +19,6 @@ open Utilities
  * and renamed for consistency
  *)
 
-(** Construct the external expression for a definition. *)
-let expr_of_global (g : global_reference) : constr_expr =
-  let r = extern_reference Id.Set.empty g in
-  CAst.make @@ (CAppExpl ((None, r, None), []))
-
 (** Record information of the lifting structure. *)
 let structure : struc_typ =
   let ind = destIndRef (Nametab.locate (qualid_of_string "Ornamental.Lifted.t")) in
@@ -126,7 +121,7 @@ let cache_local c trm lifted =
  * Also for now, this assumes only one ornament for every pair of types.
  *)
 
-type ornaments_cache = ((KerName.t * KerName.t), types) Hashtbl.t
+type ornaments_cache = ((KerName.t * KerName.t), global_reference) Hashtbl.t
 
 (*
  * Initialize the ornament cache
@@ -136,8 +131,8 @@ let orn_cache : ornaments_cache = Hashtbl.create 100
 (*
  * Check if an ornament is cached
  *)
-let has_ornament typ_o typ_n =
-  match map_tuple kind (typ_o, typ_n) with
+let has_ornament typs =
+  match map_tuple kind typs with
   | (Ind ((m_o, _), _), Ind ((m_n, _), _)) ->
      let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
      Hashtbl.mem orn_cache (kn_o, kn_n) && Hashtbl.mem orn_cache (kn_n, kn_o)
@@ -147,19 +142,20 @@ let has_ornament typ_o typ_n =
 (*
  * Lookup an ornament
  *)
-let lookup_ornament typ_o typ_n =
-  match map_tuple kind (typ_o, typ_n) with
-  | (Ind ((m_o, _), _), Ind ((m_n, _), _)) ->
-     let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
-     (Hashtbl.find orn_cache (kn_o, kn_n), Hashtbl.find orn_cache (kn_n, kn_o))
-  | _ ->
-     failwith "can only lookup ornaments between inductive types"
+let lookup_ornament typs =
+  if not (has_ornament typs) then
+    failwith "cannot find ornament; please supply ornamental promotion yourself"
+  else
+    let (((m_o, _), _), ((m_n, _), _)) = map_tuple destInd typs in
+    let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
+    let lookup = Hashtbl.find orn_cache in
+    (lookup (kn_o, kn_n), lookup (kn_n, kn_o))
 
 (*
  * Add an ornament to the ornament cache
  *)
-let save_ornament typ_o typ_n orn orn_inv =
-  match map_tuple kind (typ_o, typ_n) with
+let save_ornament typs (orn, orn_inv) =
+  match map_tuple kind typs with
   | (Ind ((m_o, _), _), Ind ((m_n, _), _)) ->
      let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
      Hashtbl.add orn_cache (kn_o, kn_n) orn;

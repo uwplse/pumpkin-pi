@@ -23,6 +23,9 @@ val projT2 : types
 
 (* --- Representations --- *)
 
+(** Construct the external expression for a definition. *)
+val expr_of_global : global_reference -> constr_expr
+
 (*
  * Intern a term (for now, ignore the resulting evar_map)
  *)
@@ -54,7 +57,7 @@ val edeclare :
  * Refresh universes if the bool is true, otherwise don't
  * (Refreshing universes is REALLY costly)
  *)
-val define_term : Id.t -> evar_map -> types -> bool -> unit
+val define_term : Id.t -> evar_map -> types -> bool -> global_reference
 
 (* --- Constructing terms --- *)
 
