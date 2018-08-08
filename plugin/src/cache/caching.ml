@@ -10,6 +10,7 @@ open Constrexpr_ops
 open Decl_kinds
 open Evd
 open Globnames
+open Utilities
        
 (* --- Database of liftings for higher lifting --- *)
 
@@ -117,8 +118,52 @@ let cache_local c trm lifted =
   | _ ->
      failwith "can't cache a non-constant"
 
-(* --- Database of ornaments --- *)
-      
-(* TODO *)
+(* --- Ornaments cache --- *)
 
+(*
+ * This may not yet persist across multiple files; will update the API
+ * once I hear from France, but for now, this is a proof-of-concept.
+ * Also for now, this assumes only one ornament for every pair of types.
+ *)
+
+type ornaments_cache = ((KerName.t * KerName.t), types) Hashtbl.t
+
+(*
+ * Initialize the ornament cache
+ *)
+let orn_cache : ornaments_cache = Hashtbl.create 100
+
+(*
+ * Check if an ornament is cached
+ *)
+let has_ornament typ_o typ_n =
+  match map_tuple kind (typ_o, typ_n) with
+  | (Ind ((m_o, _), _), Ind ((m_n, _), _)) ->
+     let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
+     Hashtbl.mem orn_cache (kn_o, kn_n) && Hashtbl.mem orn_cache (kn_n, kn_o)
+  | _ ->
+     false
+       
+(*
+ * Lookup an ornament
+ *)
+let lookup_ornament typ_o typ_n =
+  match map_tuple kind (typ_o, typ_n) with
+  | (Ind ((m_o, _), _), Ind ((m_n, _), _)) ->
+     let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
+     (Hashtbl.find orn_cache (kn_o, kn_n), Hashtbl.find orn_cache (kn_n, kn_o))
+  | _ ->
+     failwith "can only lookup ornaments between inductive types"
+
+(*
+ * Add an ornament to the ornament cache
+ *)
+let save_ornament typ_o typ_n orn orn_inv =
+  match map_tuple kind (typ_o, typ_n) with
+  | (Ind ((m_o, _), _), Ind ((m_n, _), _)) ->
+     let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
+     Hashtbl.add orn_cache (kn_o, kn_n) orn;
+     Hashtbl.add orn_cache (kn_n, kn_o) orn_inv
+  | _ ->
+     failwith "can't cache a non-constant"
 

@@ -32,7 +32,13 @@ let find_ornament n_o d_old d_new =
     Printf.printf "Defined promotion %s.\n\n" (Id.to_string n);
     let inv_n = with_suffix n "inv" in
     define_term inv_n evd orn.forget true;
-    Printf.printf "Defined forgetful function %s.\n\n" (Id.to_string inv_n)
+    Printf.printf "Defined forgetful function %s.\n\n" (Id.to_string inv_n);
+    (try
+       let env = Global.env () in
+       let l = initialize_lifting env evd orn.promote orn.forget in
+       save_ornament trm_o trm_n (lift_to l) (lift_back l)
+     with _ ->
+       Printf.printf "WARNING: Failed to cache ornamental promotion.")
   |_ ->
     failwith "Only inductive types are supported"
 

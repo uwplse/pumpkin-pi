@@ -39,5 +39,23 @@ val lookup_local_cache : temporary_cache -> types -> types
 val cache_local : temporary_cache -> types -> types -> unit
 
 (* --- Database of ornaments --- *)
-      
-(* TODO *)
+
+(*
+ * Check if an ornament between two types exists
+ *)
+val has_ornament : types -> types -> bool
+       
+(*
+ * Lookup an ornament between two types
+ * Arguments: typ1, typ2
+ * Order of return values: typ1_to_typ2, typ2_to_typ1
+ *)
+val lookup_ornament : types -> types -> (types * types)
+
+(*
+ * Store an ornament between two types, given the function and its inverse
+ * Order of arguments: typ1, typ2, typ1_to_typ2, typ2_to_typ1
+ *)
+val save_ornament : types -> types -> types -> types -> unit
+
+
