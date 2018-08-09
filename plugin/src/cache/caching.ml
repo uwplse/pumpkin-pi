@@ -13,6 +13,7 @@ open Globnames
 open Utilities
 open Libobject
 open Lib
+open Mod_subst
        
 (* --- Database of liftings for higher lifting --- *)
 
@@ -128,20 +129,39 @@ let cache_local c trm lifted =
  *)
 
 (* The persistent storage is backed by a normal hashtable *)
-type ornaments_cache = ((KerName.t * KerName.t), global_reference) Hashtbl.t
+module OrnamentsCache =
+  Hashtbl.Make
+    (struct
+      type t = (KerName.t * KerName.t)
+      let equal =
+        (fun (o, n) (o', n') ->
+          KerName.equal o o' && KerName.equal n n')
+      let hash =
+        (fun (o, n) ->
+          Hashset.Combine.combine (KerName.hash o) (KerName.hash n))
+    end)
 
 (* Initialize the ornament cache *)
-let orn_cache : ornaments_cache = Hashtbl.create 100
+let orn_cache = OrnamentsCache.create 100
 
 (*
  * Wrapping the table for persistence
  *)
 type orn_obj = (KerName.t * KerName.t) * global_reference
+
+let cache_ornament (_, (typs, orn)) =
+  OrnamentsCache.add orn_cache typs orn
+
+let sub_ornament (subst, (typs, orn)) =
+  (map_tuple (subst_kn subst) typs, subst_global_reference subst orn)
               
 let inOrns : orn_obj -> obj  =
   declare_object { (default_object "ORNAMENTS") with
-    cache_function = (fun (_, (typs, orn)) -> Hashtbl.add orn_cache typs orn);
-    load_function = (fun _ (_, (typs, orn)) -> Hashtbl.add orn_cache typs orn) }
+    cache_function = cache_ornament;
+    load_function = (fun _ -> cache_ornament);
+    open_function = (fun _ -> cache_ornament);
+    classify_function = (fun (typs, orn) -> Substitute (typs, orn));
+    subst_function = sub_ornament }
               
 (*
  * Check if an ornament is cached
@@ -150,7 +170,8 @@ let has_ornament typs =
   match map_tuple kind typs with
   | (Ind ((m_o, _), _), Ind ((m_n, _), _)) ->
      let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
-     Hashtbl.mem orn_cache (kn_o, kn_n) && Hashtbl.mem orn_cache (kn_n, kn_o)
+     let contains = OrnamentsCache.mem orn_cache in
+     contains (kn_o, kn_n) && contains (kn_n, kn_o)
   | _ ->
      false
        
@@ -163,7 +184,7 @@ let lookup_ornament typs =
   else
     let (((m_o, _), _), ((m_n, _), _)) = map_tuple destInd typs in
     let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
-    let lookup = Hashtbl.find orn_cache in
+    let lookup = OrnamentsCache.find orn_cache in
     (lookup (kn_o, kn_n), lookup (kn_n, kn_o))
 
 (*

@@ -89,6 +89,7 @@ Proof.
 Qed.
 
 (* flist/flector version *)
+(* these use the more verbose interface to make sure we still support it *)
 
 Definition hdF (default : nat) (l : natFlector.flist) :=
   natFlector.flist_rect
@@ -399,7 +400,8 @@ Definition app_nil_rF (l : natFlector.flist) :=
         IHl)
     l.
 
-Lift orn_flist_flector_nat orn_flist_flector_nat_inv in app_nil_rF as app_nil_r_vectF_lifted.
+(* this also checks that the shorthand notation works with functors *)
+Lift natFlector.flist natFlector.flector in app_nil_rF as app_nil_r_vectF_lifted.
 
 Theorem test_app_nil_r_vectF_exact:
   forall (pv : sigT natFlector.flector),
