@@ -30,8 +30,6 @@ Qed.
 
 Definition cons' := @cons.
 
-(* TODO remove once we get persistent storage of ornaments working. *)
-Find ornament list vector as list_to_vector.
 Lift list vector in cons' as cons'_c.
 Theorem testCons:
   forall A a pv, 

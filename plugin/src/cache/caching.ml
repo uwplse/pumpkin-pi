@@ -11,6 +11,8 @@ open Decl_kinds
 open Evd
 open Globnames
 open Utilities
+open Libobject
+open Lib
        
 (* --- Database of liftings for higher lifting --- *)
 
@@ -75,6 +77,12 @@ let search_lifted (env : env) (base : types) : types option =
 
 (* --- Temporary cache of constants --- *)
 
+(*
+ * This cache handles any constants encountered while lifting an object.
+ * It is purposely not persistent, and only lasts for a single lifting session.
+ * Otherwise, we would clog the cache with many constants.
+ *)
+
 type temporary_cache = (KerName.t, types) Hashtbl.t
 
 (*
@@ -116,18 +124,25 @@ let cache_local c trm lifted =
 (* --- Ornaments cache --- *)
 
 (*
- * This may not yet persist across multiple files; will update the API
- * once I hear from France, but for now, this is a proof-of-concept.
- * Also for now, this assumes only one ornament for every pair of types.
+ * This is a persistent cache for ornaments given the old and new kernames.
  *)
 
+(* The persistent storage is backed by a normal hashtable *)
 type ornaments_cache = ((KerName.t * KerName.t), global_reference) Hashtbl.t
 
-(*
- * Initialize the ornament cache
- *)
+(* Initialize the ornament cache *)
 let orn_cache : ornaments_cache = Hashtbl.create 100
 
+(*
+ * Wrapping the table for persistence
+ *)
+type orn_obj = (KerName.t * KerName.t) * global_reference
+              
+let inOrns : orn_obj -> obj  =
+  declare_object { (default_object "ORNAMENTS") with
+    cache_function = (fun (_, (typs, orn)) -> Hashtbl.add orn_cache typs orn);
+    load_function = (fun _ (_, (typs, orn)) -> Hashtbl.add orn_cache typs orn) }
+              
 (*
  * Check if an ornament is cached
  *)
@@ -158,8 +173,10 @@ let save_ornament typs (orn, orn_inv) =
   match map_tuple kind typs with
   | (Ind ((m_o, _), _), Ind ((m_n, _), _)) ->
      let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
-     Hashtbl.add orn_cache (kn_o, kn_n) orn;
-     Hashtbl.add orn_cache (kn_n, kn_o) orn_inv
+     let orn_obj = inOrns ((kn_o, kn_n), orn) in
+     let orn_inv_obj = inOrns ((kn_n, kn_o), orn_inv) in
+     add_anonymous_leaf orn_obj;
+     add_anonymous_leaf orn_inv_obj
   | _ ->
      failwith "can't cache a non-constant"
 
