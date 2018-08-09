@@ -178,5 +178,5 @@ let save_ornament typs (orn, orn_inv) =
      add_anonymous_leaf orn_obj;
      add_anonymous_leaf orn_inv_obj
   | _ ->
-     failwith "can't cache a non-constant"
+     failwith "can't cache a non-inductive type"
 
