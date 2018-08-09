@@ -10,6 +10,9 @@ open Constrexpr_ops
 open Decl_kinds
 open Evd
 open Globnames
+open Utilities
+open Libobject
+open Lib
        
 (* --- Database of liftings for higher lifting --- *)
 
@@ -17,11 +20,6 @@ open Globnames
  * This code is by Nate Yazdani, ported into this plugin
  * and renamed for consistency
  *)
-
-(** Construct the external expression for a definition. *)
-let expr_of_global (g : global_reference) : constr_expr =
-  let r = extern_reference Id.Set.empty g in
-  CAst.make @@ (CAppExpl ((None, r, None), []))
 
 (** Record information of the lifting structure. *)
 let structure : struc_typ =
@@ -79,6 +77,12 @@ let search_lifted (env : env) (base : types) : types option =
 
 (* --- Temporary cache of constants --- *)
 
+(*
+ * This cache handles any constants encountered while lifting an object.
+ * It is purposely not persistent, and only lasts for a single lifting session.
+ * Otherwise, we would clog the cache with many constants.
+ *)
+
 type temporary_cache = (KerName.t, types) Hashtbl.t
 
 (*
@@ -117,8 +121,62 @@ let cache_local c trm lifted =
   | _ ->
      failwith "can't cache a non-constant"
 
-(* --- Database of ornaments --- *)
-      
-(* TODO *)
+(* --- Ornaments cache --- *)
 
+(*
+ * This is a persistent cache for ornaments given the old and new kernames.
+ *)
+
+(* The persistent storage is backed by a normal hashtable *)
+type ornaments_cache = ((KerName.t * KerName.t), global_reference) Hashtbl.t
+
+(* Initialize the ornament cache *)
+let orn_cache : ornaments_cache = Hashtbl.create 100
+
+(*
+ * Wrapping the table for persistence
+ *)
+type orn_obj = (KerName.t * KerName.t) * global_reference
+              
+let inOrns : orn_obj -> obj  =
+  declare_object { (default_object "ORNAMENTS") with
+    cache_function = (fun (_, (typs, orn)) -> Hashtbl.add orn_cache typs orn);
+    load_function = (fun _ (_, (typs, orn)) -> Hashtbl.add orn_cache typs orn) }
+              
+(*
+ * Check if an ornament is cached
+ *)
+let has_ornament typs =
+  match map_tuple kind typs with
+  | (Ind ((m_o, _), _), Ind ((m_n, _), _)) ->
+     let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
+     Hashtbl.mem orn_cache (kn_o, kn_n) && Hashtbl.mem orn_cache (kn_n, kn_o)
+  | _ ->
+     false
+       
+(*
+ * Lookup an ornament
+ *)
+let lookup_ornament typs =
+  if not (has_ornament typs) then
+    failwith "cannot find ornament; please supply ornamental promotion yourself"
+  else
+    let (((m_o, _), _), ((m_n, _), _)) = map_tuple destInd typs in
+    let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
+    let lookup = Hashtbl.find orn_cache in
+    (lookup (kn_o, kn_n), lookup (kn_n, kn_o))
+
+(*
+ * Add an ornament to the ornament cache
+ *)
+let save_ornament typs (orn, orn_inv) =
+  match map_tuple kind typs with
+  | (Ind ((m_o, _), _), Ind ((m_n, _), _)) ->
+     let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
+     let orn_obj = inOrns ((kn_o, kn_n), orn) in
+     let orn_inv_obj = inOrns ((kn_n, kn_o), orn_inv) in
+     add_anonymous_leaf orn_obj;
+     add_anonymous_leaf orn_inv_obj
+  | _ ->
+     failwith "can't cache a non-inductive type"
 

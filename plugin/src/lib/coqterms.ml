@@ -10,6 +10,7 @@ open Evd
 open Utilities
 open Declarations
 open Decl_kinds
+open Constrextern
        
 module CRD = Context.Rel.Declaration
 
@@ -40,6 +41,11 @@ let projT2 : types =
   mkConst (Constant.make2 coq_init_specif (Label.make "projT2"))
 
 (* --- Representations --- *)
+
+(** Construct the external expression for a definition. *)
+let expr_of_global (g : global_reference) : constr_expr =
+  let r = extern_reference Id.Set.empty g in
+  CAst.make @@ (CAppExpl ((None, r, None), []))
 
 (* Intern a term (for now, ignore the resulting evar_map) *)
 let intern env evd t : types =
@@ -89,12 +95,12 @@ let edeclare ident (_, poly, _ as k) ~opaque sigma udecl body tyopt imps hook re
   DeclareDef.declare_definition ident k ce ubinders imps hook
 
 (* Define a new Coq term *)
-let define_term (n : Id.t) (evm : evar_map) (trm : types) (refresh : bool) : unit =
+let define_term (n : Id.t) (evm : evar_map) (trm : types) (refresh : bool) =
   let k = (Global, Flags.is_universe_polymorphism(), Definition) in
   let udecl = Univdecls.default_univ_decl in
   let nohook = Lemmas.mk_hook (fun _ x -> x) in
   let etrm = EConstr.of_constr trm in
-  ignore (edeclare n k ~opaque:false evm udecl etrm None [] nohook refresh)
+  edeclare n k ~opaque:false evm udecl etrm None [] nohook refresh
          
 (* --- Application and arguments --- *)
 

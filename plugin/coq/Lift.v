@@ -30,7 +30,7 @@ Qed.
 
 Definition cons' := @cons.
 
-Lift orn_list_vector orn_list_vector_inv in cons' as cons'_c.
+Lift list vector in cons' as cons'_c.
 Theorem testCons:
   forall A a pv, 
     cons'_c A a pv = 
@@ -42,7 +42,7 @@ Qed.
 Definition consV' (A : Type) (a : A) (pv : sigT (vector A)) :=
   existT (vector A) (S (projT1 pv)) (consV A (projT1 pv) a (projT2 pv)).
 
-Lift orn_list_vector_inv orn_list_vector in consV' as consV'_c.
+Lift vector list in consV' as consV'_c.
 Theorem testConsV:
   forall A a l,
     consV'_c A a l = @cons A a l.
