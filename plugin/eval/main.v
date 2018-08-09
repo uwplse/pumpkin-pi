@@ -232,37 +232,37 @@ Module CaseStudy (Elem : Comparable).
       : tree (S (n_l + n_r))
     | Leaf (val : Elem.t) : tree (S O).
 
-    Find ornament Base.tree tree as orn_size.
+    Find ornament Base.tree tree.
 
-    Lift orn_size orn_size_inv in Base.preorder as preorder'.
+    Lift Base.tree tree in Base.preorder as preorder'.
     Definition preorder n t := preorder' (existT _ n t).
 
-    Lift orn_size orn_size_inv in Base.inorder as inorder'.
+    Lift Base.tree tree in Base.inorder as inorder'.
     Definition inorder n t := inorder' (existT _ n t).
 
-    Lift orn_size orn_size_inv in Base.postorder as postorder'.
+    Lift Base.tree tree in Base.postorder as postorder'.
     Definition postorder n t := postorder' (existT _ n t).
 
-    Lift orn_size orn_size_inv in Base.mirror as mirror'.
+    Lift Base.tree tree in Base.mirror as mirror'.
     Definition mirror (n : nat) (t : tree n) : tree n.
       pose (T := (mirror' (existT _ n t))). replace n with (T.1). exact (T.2).
       induction t as [s_l s_r v t_l IH_l t_r IH_r|v]; [|reflexivity].
       cbn zeta in IH_l, IH_r. rewrite add_comm, <- IH_l, <- IH_r. reflexivity.
     Defined.
 
-    Lift orn_size orn_size_inv in Base.pre_permutes as pre_permutes'.
+    Lift Base.tree tree in Base.pre_permutes as pre_permutes'.
     Definition pre_permutes (n : nat) (t : tree n) : permutes (preorder n t) (inorder n t) :=
       pre_permutes' (existT _ n t).
 
-    Lift orn_size orn_size_inv in Base.post_permutes as post_permutes'.
+    Lift Base.tree tree in Base.post_permutes as post_permutes'.
     Definition post_permutes (n : nat) (t : tree n) : permutes (postorder n t) (inorder n t) :=
       post_permutes' (existT _ n t).
 
-    Lift orn_size orn_size_inv in Base.pre_post_permutes as pre_post_permutes'.
+    Lift Base.tree tree in Base.pre_post_permutes as pre_post_permutes'.
     Definition pre_post_permutes (n : nat) (t : tree n) : permutes (preorder n t) (postorder n t) :=
       pre_post_permutes' (existT _ n t).
 
-    Lift orn_size orn_size_inv in Base.mirror_permutes as mirror_permutes'.
+    Lift Base.tree tree in Base.mirror_permutes as mirror_permutes'.
     Lemma mirror_permutes (n : nat) (t : tree n) : permutes (inorder n t) (inorder n (mirror n t)).
     Proof.
       unfold inorder, mirror. rewrite cast_sigma. rewrite <- sigT_eta.
@@ -270,11 +270,11 @@ Module CaseStudy (Elem : Comparable).
     Defined.
 
     (* --- Lifted inputs --- *)
-    Lift orn_size orn_size_inv in Base.tree2000 as tree2000.
-    Lift orn_size orn_size_inv in Base.tree4000 as tree4000.
-    Lift orn_size orn_size_inv in Base.tree6000 as tree6000.
-    Lift orn_size orn_size_inv in Base.tree8000 as tree8000.
-    Lift orn_size orn_size_inv in Base.tree10000 as tree10000.
+    Lift Base.tree tree in Base.tree2000 as tree2000.
+    Lift Base.tree tree in Base.tree4000 as tree4000.
+    Lift Base.tree tree in Base.tree6000 as tree6000.
+    Lift Base.tree tree in Base.tree8000 as tree8000.
+    Lift Base.tree tree in Base.tree10000 as tree10000.
 
     (* --- Sized data --- *)
     Redirect "out/preorder/sized2000" Time Eval vm_compute in (preorder' tree2000).
@@ -328,29 +328,29 @@ Module CaseStudy (Elem : Comparable).
       : bst min_l max_r (inv ord_l ord_r max_l val min_r)
     | Leaf (val : Elem.t) : bst val val true.
 
-    Find ornament Base.tree __bst as __orn_order.
-    Find ornament __bst _bst as _orn_order.
-    Find ornament _bst bst as orn_order.
+    Find ornament Base.tree __bst.
+    Find ornament __bst _bst.
+    Find ornament _bst bst.
 
-    Lift __orn_order __orn_order_inv in Base.preorder as __preorder'.
+    Lift Base.tree __bst in Base.preorder as __preorder'.
     Definition __preorder min (tree : __bst min) := __preorder' (existT _ min tree).
-    Lift _orn_order _orn_order_inv in __preorder as _preorder'.
+    Lift __bst _bst in __preorder as _preorder'.
     Definition _preorder min max (tree : _bst min max) := _preorder' min (existT _ max tree).
-    Lift orn_order orn_order_inv in _preorder as preorder'.
+    Lift _bst bst in _preorder as preorder'.
     Definition preorder min max ord (tree : bst min max ord) := preorder' min max (existT _ ord tree).
 
-    Lift __orn_order __orn_order_inv in Base.inorder as __inorder'.
+    Lift Base.tree __bst in Base.inorder as __inorder'.
     Definition __inorder min (tree : __bst min) := __inorder' (existT _ min tree).
-    Lift _orn_order _orn_order_inv in __inorder as _inorder'.
+    Lift __bst _bst in __inorder as _inorder'.
     Definition _inorder min max (tree : _bst min max) := _inorder' min (existT _ max tree).
-    Lift orn_order orn_order_inv in _inorder as inorder'.
+    Lift _bst bst in _inorder as inorder'.
     Definition inorder min max ord (tree : bst min max ord) := inorder' min max (existT _ ord tree).
 
-    Lift __orn_order __orn_order_inv in Base.postorder as __postorder'.
+    Lift Base.tree __bst in Base.postorder as __postorder'.
     Definition __postorder min (tree : __bst min) := __postorder' (existT _ min tree).
-    Lift _orn_order _orn_order_inv in __postorder as _postorder'.
+    Lift __bst _bst in __postorder as _postorder'.
     Definition _postorder min max (tree : _bst min max) := _postorder' min (existT _ max tree).
-    Lift orn_order orn_order_inv in _postorder as postorder'.
+    Lift _bst bst in _postorder as postorder'.
     Definition postorder min max ord (tree : bst min max ord) := postorder' min max (existT _ ord tree).
 
     Definition search {min max ord} (tree : bst min max ord) (val' : Elem.t) : bool :=
@@ -366,25 +366,25 @@ Module CaseStudy (Elem : Comparable).
         min max ord tree.
 
      (* --- Lifted inputs --- *)
-     Lift __orn_order __orn_order_inv in Base.tree20 as __tree20.
-     Lift _orn_order _orn_order_inv in __tree20 as _tree20.
-     Lift orn_order orn_order_inv in _tree20 as tree20'.
+     Lift Base.tree __bst in Base.tree20 as __tree20.
+     Lift __bst _bst in __tree20 as _tree20.
+     Lift _bst bst in _tree20 as tree20'.
      Definition tree20 := projT2 (projT2 (projT2 tree20')).
-     Lift __orn_order __orn_order_inv in Base.tree40 as __tree40.
-     Lift _orn_order _orn_order_inv in __tree40 as _tree40.
-     Lift orn_order orn_order_inv in _tree40 as tree40'.
+     Lift Base.tree __bst in Base.tree40 as __tree40.
+     Lift __bst _bst in __tree40 as _tree40.
+     Lift _bst bst in _tree40 as tree40'.
      Definition tree40 := projT2 (projT2 (projT2 tree40')).
-     Lift __orn_order __orn_order_inv in Base.tree60 as __tree60.
-     Lift _orn_order _orn_order_inv in __tree60 as _tree60.
-     Lift orn_order orn_order_inv in _tree60 as tree60'.
+     Lift Base.tree __bst in Base.tree60 as __tree60.
+     Lift __bst _bst in __tree60 as _tree60.
+     Lift _bst bst in _tree60 as tree60'.
      Definition tree60 := projT2 (projT2 (projT2 tree60')).
-     Lift __orn_order __orn_order_inv in Base.tree80 as __tree80.
-     Lift _orn_order _orn_order_inv in __tree80 as _tree80.
-     Lift orn_order orn_order_inv in _tree80 as tree80'.
+     Lift Base.tree __bst in Base.tree80 as __tree80.
+     Lift __bst _bst in __tree80 as _tree80.
+     Lift _bst bst in _tree80 as tree80'.
      Definition tree80 := projT2 (projT2 (projT2 tree80')).
-     Lift __orn_order __orn_order_inv in Base.tree100 as __tree100.
-     Lift _orn_order _orn_order_inv in __tree100 as _tree100.
-     Lift orn_order orn_order_inv in _tree100 as tree100'.
+     Lift Base.tree __bst in Base.tree100 as __tree100.
+     Lift __bst _bst in __tree100 as _tree100.
+     Lift _bst bst in _tree100 as tree100'.
      Definition tree100 := projT2 (projT2 (projT2 tree100')).
 
     (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
@@ -422,53 +422,53 @@ Module CaseStudy (Elem : Comparable).
       : avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r) (S (Nat.max h_l h_r)) (inv bal_l bal_r h_l h_r)
     | Leaf (val : Elem.t) : avl val val true O true.
 
-    Find ornament Ordered.bst _avl as _orn_balance.
-    Find ornament _avl avl as orn_balance.
+    Find ornament Ordered.bst _avl.
+    Find ornament _avl avl.
 
-    Lift _orn_balance _orn_balance_inv in Ordered.preorder as _preorder'.
+    Lift Ordered.bst _avl in Ordered.preorder as _preorder'.
     Definition _preorder min max ord height (tree : _avl min max ord height) :=
       _preorder' min max ord (existT _ height tree).
-    Lift orn_balance orn_balance_inv in _preorder as preorder'.
+    Lift _avl avl in _preorder as preorder'.
     Definition preorder min max ord height bal (tree : avl min max ord height bal) :=
       preorder' min max ord height (existT _ bal tree).
 
-    Lift _orn_balance _orn_balance_inv in Ordered.inorder as _inorder'.
+    Lift Ordered.bst _avl in Ordered.inorder as _inorder'.
     Definition _inorder min max ord height (tree : _avl min max ord height) :=
       _inorder' min max ord (existT _ height tree).
-    Lift orn_balance orn_balance_inv in _inorder as inorder'.
+    Lift _avl avl in _inorder as inorder'.
     Definition inorder min max ord height bal (tree : avl min max ord height bal) :=
       inorder' min max ord height (existT _ bal tree).
 
-    Lift _orn_balance _orn_balance_inv in Ordered.postorder as _postorder'.
+    Lift Ordered.bst _avl in Ordered.postorder as _postorder'.
     Definition _postorder min max ord height (tree : _avl min max ord height) :=
       _postorder' min max ord (existT _ height tree).
-    Lift orn_balance orn_balance_inv in _postorder as postorder'.
+    Lift _avl avl in _postorder as postorder'.
     Definition postorder min max ord height bal (tree : avl min max ord height bal) :=
       postorder' min max ord height (existT _ bal tree).
 
-    Lift _orn_balance _orn_balance_inv in @Ordered.search as _search'.
+    Lift Ordered.bst _avl in @Ordered.search as _search'.
     Definition _search {min max ord height} (tree : _avl min max ord height) (value : Elem.t) :=
       _search' min max ord (existT _ height tree) value.
-    Lift orn_balance orn_balance_inv in @_search as search'.
+    Lift _avl avl in @_search as search'.
     Definition search {min max ord height bal} (tree : avl min max ord height bal) value :=
       search' min max ord height (existT _ bal tree) value.
 
     (* --- Lifted inputs --- *)
-    Lift _orn_balance _orn_balance_inv in Ordered.tree20 as _tree20'.
+    Lift Ordered.bst _avl in Ordered.tree20 as _tree20'.
     Definition _tree20 := projT2 _tree20'.
-    Lift orn_balance orn_balance_inv in _tree20 as tree20.
-    Lift _orn_balance _orn_balance_inv in Ordered.tree40 as _tree40'.
+    Lift _avl avl in _tree20 as tree20.
+    Lift Ordered.bst _avl in Ordered.tree40 as _tree40'.
     Definition _tree40 := projT2 _tree40'.
-    Lift orn_balance orn_balance_inv in _tree40 as tree40.
-    Lift _orn_balance _orn_balance_inv in Ordered.tree60 as _tree60'.
+    Lift _avl avl in _tree40 as tree40.
+    Lift Ordered.bst _avl in Ordered.tree60 as _tree60'.
     Definition _tree60 := projT2 _tree60'.
-    Lift orn_balance orn_balance_inv in _tree60 as tree60.
-    Lift _orn_balance _orn_balance_inv in Ordered.tree80 as _tree80'.
+    Lift _avl avl in _tree60 as tree60.
+    Lift Ordered.bst _avl in Ordered.tree80 as _tree80'.
     Definition _tree80 := projT2 _tree80'.
-    Lift orn_balance orn_balance_inv in _tree80 as tree80.
-    Lift _orn_balance _orn_balance_inv in Ordered.tree100 as _tree100'.
+    Lift _avl avl in _tree80 as tree80.
+    Lift Ordered.bst _avl in Ordered.tree100 as _tree100'.
     Definition _tree100 := projT2 _tree100'.
-    Lift orn_balance orn_balance_inv in _tree100 as tree100.
+    Lift _avl avl in _tree100 as tree100.
 
     (* --- AVL data --- *)
     Redirect "out/preorder/avl20" Time Eval vm_compute in (preorder' _ _ _ _ tree20).
