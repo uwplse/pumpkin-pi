@@ -6,8 +6,8 @@ open Caching
 open Search
 open Lift
 open Utilities
-       
-(* 
+
+(*
  * Identify an algebraic ornament between two types
  * Define the components of the corresponding equivalence
  * (Don't prove section and retraction)
@@ -56,7 +56,8 @@ let lift_by_ornament n d_orn d_orn_inv d_old =
   let lifted = do_lift_core env evd l c_old in
   ignore (define_term n evd lifted false);
   try
-    declare_lifted evd c_old (make_constant n);
+    let old_gref = Globnames.global_of_constr c_old in
+    let new_gref = Globnames.ConstRef (Lib.make_kn n |> Constant.make1) in
+    declare_lifted old_gref new_gref;
   with _ ->
     Printf.printf "WARNING: Failed to cache lifting."
-
