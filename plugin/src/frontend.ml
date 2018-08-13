@@ -6,6 +6,8 @@ open Caching
 open Search
 open Lift
 open Utilities
+open Pp
+open Printer
 
 (*
  * Identify an algebraic ornament between two types
@@ -61,3 +63,16 @@ let lift_by_ornament n d_orn d_orn_inv d_old =
     declare_lifted old_gref new_gref;
   with _ ->
     Printf.printf "WARNING: Failed to cache lifting."
+
+(*
+ * Lift the designated inductive type along the supplied ornament and declare the
+ * lifted version using the given suffix for type and constructor names.
+ *)
+let lift_inductive_by_ornament suf d_orn d_orn_inv ind =
+  let (evm, env) = Pfedit.get_current_context () in
+  let c_orn = intern env evm d_orn in
+  let c_orn_inv = intern env evm d_orn_inv in
+  let l = initialize_lifting env evm c_orn c_orn_inv in
+  let ind' = do_lift_ind env evm l ind suf in
+  let env' = Global.env () in
+  Feedback.msg_notice (str "Defined lifted inductive type " ++ pr_inductive env' ind')

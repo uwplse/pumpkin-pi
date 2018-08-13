@@ -16,3 +16,9 @@ VERNAC COMMAND EXTEND LiftOrnament CLASSIFIED AS SIDEFF
 | [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
   [ lift_by_ornament n d_orn d_orn_inv d_old ]
 END
+
+(* Lift an inductive type along an ornament *)
+VERNAC COMMAND EXTEND LiftInductiveOrnament CLASSIFIED AS SIDEFF
+| [ "Lift" "Inductive" ref(ind_ref) "by" constr(d_orn) constr(d_orn_inv) "with" string(suf)] ->
+  [ Nametab.global_inductive ind_ref |> lift_inductive_by_ornament suf d_orn d_orn_inv ]
+END
