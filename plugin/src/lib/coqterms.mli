@@ -222,6 +222,12 @@ val bindings_for_fix : name array -> types array -> CRD.t list
  *)
 val offset : env -> int -> int
 val offset2 : env -> env -> int
+
+(*
+ * Reconstruct local bindings around a term
+ *)
+val recompose_prod_assum : CRD.t list -> types -> types
+val recompose_lam_assum : CRD.t list -> types -> types
                                                           
 (* --- Basic questions about terms --- *)
 

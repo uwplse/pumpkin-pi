@@ -396,6 +396,16 @@ let offset env npm = nb_rel env - npm
 (* Find the offset between two environments *)
 let offset2 env1 env2 = nb_rel env1 - nb_rel env2
 
+(* Bind the declarations of a local context as product/let-in bindings *)
+let recompose_prod_assum decls term =
+  let abstract term decl = Term.mkProd_or_LetIn decl term in
+  Context.Rel.fold_inside abstract ~init:term decls
+
+(* Bind the declarations of a local context as lambda/let-in bindings *)
+let recompose_lam_assum decls term =
+  let abstract term decl = Term.mkLambda_or_LetIn decl term in
+  Context.Rel.fold_inside abstract ~init:term decls
+
 (* --- Basic questions about terms --- *)
 
 (*
