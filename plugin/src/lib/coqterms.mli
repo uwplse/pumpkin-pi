@@ -10,11 +10,11 @@ open Names
 open Declarations
 open Globnames
 open Decl_kinds
-       
+
 module CRD = Context.Rel.Declaration
 
 (* --- Constants --- *)
-               
+
 val sigT : types
 val existT : types
 val sigT_rect : types
@@ -51,7 +51,7 @@ val edeclare :
   global_reference Lemmas.declaration_hook ->
   bool ->
   global_reference
-                                        
+
 (*
  * Define a new Coq term
  * Refresh universes if the bool is true, otherwise don't
@@ -66,7 +66,7 @@ val define_term : Id.t -> evar_map -> types -> bool -> global_reference
  *)
 val mkAppl : (types * types list) -> types
 
-(* 
+(*
  * Define a constant from an ID in the current path
  *)
 val make_constant: Id.t -> types
@@ -107,7 +107,7 @@ type sigT_app =
  * Convert between a term and a sigT_app
  *)
 val pack_sigT : sigT_app -> types
-val dest_sigT : types -> sigT_app 
+val dest_sigT : types -> sigT_app
 
 (*
  * An application of sigT_rect
@@ -119,7 +119,7 @@ type sigT_elim =
     unpacked : types;
     arg : types;
   }
-                                    
+
 (*
  * Convert between a term and a sigT_elim
  *)
@@ -175,16 +175,23 @@ type elim_app =
     cs : types list;
     final_args : types list;
   }
-                                            
+
 val apply_eliminator : elim_app -> types
 val deconstruct_eliminator : env-> evar_map -> types -> elim_app
+
+(*
+ * Replace each match expression within the given term with a definitionally
+ * equal application of an eliminator, returning an updated evar_map.
+ * Fix and co-fix expressions are not supported and will fail.
+ *)
+val desugar_matches : env -> evar_map -> types -> evar_map * types
 
 (*
  * Given the recursive type and the type of a case of an eliminator,
  * determine the number of inductive hypotheses
  *)
-val num_ihs : env -> types -> types -> int   
-  
+val num_ihs : env -> types -> types -> int
+
 (* --- Environments --- *)
 
 (*
@@ -228,7 +235,7 @@ val offset2 : env -> env -> int
  *)
 val recompose_prod_assum : CRD.t list -> types -> types
 val recompose_lam_assum : CRD.t list -> types -> types
-                                                          
+
 (* --- Basic questions about terms --- *)
 
 (*
@@ -236,7 +243,7 @@ val recompose_lam_assum : CRD.t list -> types -> types
  *)
 val arity : types -> int
 
-(* 
+(*
  * Check whether a term (second argument) applies a function (first argument)
  * Don't consider terms convertible to the function
  *
@@ -254,15 +261,15 @@ val is_or_applies : types  -> types -> bool
 val are_or_apply : types -> types -> types -> bool
 
 (* --- Convertibility, reduction, and types --- *)
-                                
+
 (*
  * Type-checking
- * 
- * Current implementation may cause universe leaks, which will just cause 
+ *
+ * Current implementation may cause universe leaks, which will just cause
  * conservative failure of the plugin
  *)
 val infer_type : env -> evar_map -> types -> types
-                                               
+
 (*
  * Convertibility, ignoring universe constraints
  *)
@@ -282,7 +289,7 @@ val chain_reduce : (* sequencing *)
   types ->
   types
 
-(* 
+(*
  * Apply a function on a type instead of on the term
  *)
 val on_type : (types -> 'a) -> env -> evar_map -> types -> 'a
@@ -297,7 +304,7 @@ val map_rec_env_fix :
   name array ->
   types array ->
   'b
-    
+
 val map_term_env :
   (env -> 'a -> types -> types) ->
   ('a -> 'a) ->
@@ -315,8 +322,8 @@ val map_term :
 
 (* --- Names --- *)
 
-(* 
- * Add a string suffix to a name identifier 
+(*
+ * Add a string suffix to a name identifier
  *)
 val with_suffix : Id.t -> string -> Id.t
 
