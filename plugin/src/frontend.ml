@@ -53,7 +53,7 @@ let lift_by_ornament n d_orn d_orn_inv d_old =
   let lookup os = map_tuple Universes.constr_of_global (lookup_ornament os) in
   let (c_from, c_to) = map_if lookup are_inds (c_orn, c_orn_inv) in
   let l = initialize_lifting env evd c_from c_to in
-  let lifted = do_lift_core env evd l c_old in
+  let lifted = do_lift_defn env evd l c_old in
   ignore (define_term n evd lifted false);
   try
     let old_gref = Globnames.global_of_constr c_old in

@@ -2,6 +2,7 @@
  * Core lifting algorithm from Section 5.1.2
  *)
 
+open Util
 open Constr
 open Environ
 open Zooming
@@ -511,10 +512,9 @@ let lift_core env evd c (from_type, to_type) index_type trm =
   in lift_rec env index_type trm
 
 (*
- * Run the core lifting algorithm
+ * Run the core lifting algorithm on a term
  *)
-let do_lift_core env evd (l : lifting) def =
-  let trm = unwrap_definition env def in
+let do_lift_term env evd (l : lifting) trm =
   let promotion_type en t = fst (on_type ind_of_promotion_type en evd t) in
   let forget_typ = promotion_type env l.orn.forget in
   let promote_typ = promotion_type env l.orn.promote in
@@ -522,3 +522,121 @@ let do_lift_core env evd (l : lifting) def =
   let index_type = (dest_sigT forget_typ).index_type in
   let c = initialize_lift_config env evd l typs in
   lift_core env evd c typs index_type trm
+
+(*
+ * Run the core lifting algorithm on a definition
+ *)
+let do_lift_defn env evd (l : lifting) def =
+  let trm = unwrap_definition env def in
+  do_lift_term env evd l trm
+
+(************************************************************************)
+(*                           Inductive types                            *)
+(************************************************************************)
+
+let make_local_entry decl =
+  let entry =
+    match decl with
+    | CRD.LocalAssum (_, typ) -> Entries.LocalAssumEntry typ
+    | CRD.LocalDef (_, term, _) -> Entries.LocalDefEntry term
+  in
+  match CRD.get_name decl with
+  | Name.Name id -> (id, entry)
+  | Name.Anonymous -> failwith "Parameters to an inductive type may not be anonymous"
+
+let inst_abs_univ_ctx abs_univ_ctx =
+  let nlvls = Univ.AUContext.size abs_univ_ctx in
+  let new_lvl _ = Universes.new_univ_level () in
+  let univ_inst = Array.init nlvls new_lvl |> Univ.Instance.of_array in
+  let univ_cnst = Univ.AUContext.instantiate univ_inst abs_univ_ctx in
+  let univ_ctx = Univ.UContext.make (univ_inst, univ_cnst) in
+  univ_ctx
+
+let make_ind_univs_entry = function
+  | Monomorphic_ind univ_ctx_set ->
+    let univ_ctx = Univ.UContext.empty in
+    (Entries.Monomorphic_ind_entry univ_ctx_set, univ_ctx)
+  | Polymorphic_ind abs_univ_ctx ->
+    let univ_ctx = inst_abs_univ_ctx abs_univ_ctx in
+    (Entries.Polymorphic_ind_entry univ_ctx, univ_ctx)
+  | Cumulative_ind abs_univ_cumul ->
+    let abs_univ_ctx = Univ.ACumulativityInfo.univ_context abs_univ_cumul in
+    let univ_ctx = inst_abs_univ_ctx abs_univ_ctx in
+    let univ_var = Univ.ACumulativityInfo.variance abs_univ_cumul in
+    let univ_cumul = Univ.CumulativityInfo.make (univ_ctx, univ_var) in
+    (Entries.Cumulative_ind_entry univ_cumul, univ_ctx)
+
+let is_ind_body_template ind_body =
+  match ind_body.mind_arity with
+  | RegularArity _ -> false
+  | TemplateArity _ -> true
+
+let arity_of_ind_body ind_body =
+  match ind_body.mind_arity with
+  | RegularArity { mind_user_arity; mind_sort } ->
+    mind_user_arity
+  | TemplateArity { template_param_levels; template_level } ->
+    let sort = Constr.mkType template_level in
+    recompose_prod_assum ind_body.mind_arity_ctxt sort
+
+(*
+ * Lift the inductive type using sigma-packing.
+ *
+ * This algorithm assumes that type parameters are left constant and will lift
+ * every binding and every term of the base type to the sigma-packed ornamented
+ * type.
+ *)
+let do_lift_ind env evm lift ind suffix =
+  let (mind_body, ind_body) = Inductive.lookup_mind_specif env ind in
+  if mind_body.mind_ntypes > 1 then
+    failwith "Mutual inductive types are unsupported";
+  let univs, univ_ctx = make_ind_univs_entry mind_body.mind_universes in
+  let subst_univs = Vars.subst_instance_constr (Univ.UContext.instance univ_ctx) in
+  let env = Environ.push_context univ_ctx env in
+  let evm = Evd.update_sigma_env evm env in
+  let npars = Context.Rel.length mind_body.mind_params_ctxt in
+  let nctors = Array.length ind_body.mind_user_lc in
+  let arity = arity_of_ind_body ind_body in
+  let lift_typ n typ =
+    subst_univs typ |> do_lift_term env evm lift |> Term.decompose_prod_n_assum n
+  in
+  let lift_ctor ctor_typ =
+    mkProd (Name.Anonymous, arity, ctor_typ) |> lift_typ (npars + 1) |> snd
+  in
+  let rename ident =
+    Nameops.add_suffix ident suffix
+  in
+  let (par_ctx, idx_arity) = lift_typ npars arity in
+  let ind_entry = Entries.({
+      mind_entry_typename = rename ind_body.mind_typename;
+      mind_entry_arity = idx_arity;
+      mind_entry_template = is_ind_body_template ind_body;
+      mind_entry_consnames = Array.map_to_list rename ind_body.mind_consnames;
+      mind_entry_lc = Array.map_to_list lift_ctor ind_body.mind_user_lc;
+    })
+  in
+  let mind_entry = Entries.({
+      mind_entry_record = None;
+      mind_entry_finite = Declarations.Finite;
+      mind_entry_params = List.map make_local_entry par_ctx;
+      mind_entry_inds = [ind_entry];
+      mind_entry_universes = univs;
+      mind_entry_private = None;
+    })
+  in
+  Global.push_context false univ_ctx;
+  let ((_, ker_name), _) = Declare.declare_mind mind_entry in
+  let mind' = MutInd.make1 ker_name in
+  let ind' = (mind', 0) in
+  Indschemes.declare_default_schemes mind';
+  declare_lifted (Globnames.IndRef ind) (Globnames.IndRef ind');
+  let sorts = [Sorts.InType; Sorts.InProp] in
+  List.iter2
+    declare_lifted
+    (List.map (Indrec.lookup_eliminator ind) sorts)
+    (List.map (Indrec.lookup_eliminator ind') sorts);
+  List.iter2
+    declare_lifted
+    (List.init nctors (fun i -> Globnames.ConstructRef (ind, i + 1)))
+    (List.init nctors (fun i -> Globnames.ConstructRef (ind', i + 1)));
+  ind'
