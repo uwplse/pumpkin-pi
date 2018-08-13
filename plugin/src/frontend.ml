@@ -6,6 +6,7 @@ open Caching
 open Search
 open Lift
 open Utilities
+open Printing
        
 (* 
  * Identify an algebraic ornament between two types
@@ -54,6 +55,7 @@ let lift_by_ornament n d_orn d_orn_inv d_old =
   let (c_from, c_to) = map_if lookup are_inds (c_orn, c_orn_inv) in
   let l = initialize_lifting env evd c_from c_to in
   let lifted = do_lift_core env evd l c_old in
+  debug_term env lifted "lifted";
   ignore (define_term n evd lifted false);
   try
     declare_lifted evd c_old (make_constant n);

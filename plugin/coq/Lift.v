@@ -183,7 +183,7 @@ Definition append_vect (A : Type) (pv1 : sigT (vector A)) (pv2 : sigT (vector A)
   vector_rect
     A
     (fun (n0 : nat) (v0 : vector A n0) => sigT (fun (n : nat) => vector A n))
-    pv2
+    (existT (vector A) (projT1 pv2) (projT2 pv2))
     (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : sigT (fun (n : nat) => vector A n)) =>
       existT
         (vector A)
@@ -223,7 +223,7 @@ Definition appendF (l1 : natFlector.flist) (l2 : natFlector.flist) :=
 Definition append_vectF (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector) :=
   natFlector.flector_rect
     (fun (n0 : nat) (v0 : natFlector.flector n0) => sigT natFlector.flector)
-    pv2
+    (existT natFlector.flector (projT1 pv2) (projT2 pv2))
     (fun (n0 : nat) (a : nat) (v0 : natFlector.flector n0) (IH : sigT natFlector.flector) =>
       existT
         natFlector.flector
@@ -468,3 +468,16 @@ Proof.
    exact hd_error_some_nil_vect_lifted.
 Qed.
 
+(* --- Regressing the bug Nate caught with LIFT-PACK and variables --- *)
+
+Lemma tl_ok (A : Type) (x : A) (xs xs' : list A) : xs = cons x xs' -> tl A xs = xs'.
+Proof. 
+  intro E. rewrite E. reflexivity. 
+Defined.
+
+Lift list vector in tl_ok as tlV_ok.
+
+Theorem test_tlV_ok (A : Type) (x : A) (xs xs' : sigT (vector A)) : existT (vector A) (projT1 xs) (projT2 xs) = existT (vector A) (S (projT1 xs')) (consV A (projT1 xs') x (projT2 xs')) -> tl_vect_lifted A (existT (vector A) (projT1 xs) (projT2 xs)) = (existT (vector A) (projT1 xs') (projT2 xs')).
+Proof.
+  exact (tlV_ok A x xs xs').
+Qed.
