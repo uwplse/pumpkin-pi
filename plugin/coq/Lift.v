@@ -367,7 +367,7 @@ Definition app_nil_r_vect (A : Type) (pv : packed_vector A) :=
     (projT2 pv).
 
 Lift list vector in app_nil_r as app_nil_r_vect_lifted.
-		   
+
 Theorem test_app_nil_r_vect_exact:
   forall (A : Type) (pv : sigT (vector A)),
     append_vect_lifted A (existT (vector A) (projT1 pv) (projT2 pv)) (existT (vector A) 0 (nilV A)) = (existT (vector A) (projT1 pv) (projT2 pv)).
@@ -470,14 +470,42 @@ Qed.
 
 (* --- Regressing the bug Nate caught with LIFT-PACK and variables --- *)
 
-Lemma tl_ok (A : Type) (x : A) (xs xs' : list A) : xs = cons x xs' -> tl A xs = xs'.
+(*
+ * See: https://github.com/uwplse/ornamental-search/issues/14
+ *)
+
+Lemma tl_ok:
+ forall (A : Type) (x : A) (xs xs' : list A),
+   xs = cons x xs' -> 
+   tl A xs = xs'.
 Proof. 
-  intro E. rewrite E. reflexivity. 
+  intros A a xs xs' E. rewrite E. reflexivity. 
 Defined.
 
 Lift list vector in tl_ok as tlV_ok.
 
-Theorem test_tlV_ok (A : Type) (x : A) (xs xs' : sigT (vector A)) : existT (vector A) (projT1 xs) (projT2 xs) = existT (vector A) (S (projT1 xs')) (consV A (projT1 xs') x (projT2 xs')) -> tl_vect_lifted A (existT (vector A) (projT1 xs) (projT2 xs)) = (existT (vector A) (projT1 xs') (projT2 xs')).
+Theorem test_tlV_ok: 
+  forall (A : Type) (x : A) (xs xs' : sigT (vector A)),
+    existT (vector A) (projT1 xs) (projT2 xs) = existT (vector A) (S (projT1 xs')) (consV A (projT1 xs') x (projT2 xs')) -> 
+    tl_vect_lifted A (existT (vector A) (projT1 xs) (projT2 xs)) = (existT (vector A) (projT1 xs') (projT2 xs')).
 Proof.
-  exact (tlV_ok A x xs xs').
+  exact tlV_ok.
+Qed.
+
+Lemma uncons_eq:
+  forall (A : Type) (x y : A) (xs ys : list A),
+    cons x xs = cons y ys -> 
+    x = y /\ xs = ys.
+Proof. 
+  intros A x y xs ys E. split. exact (f_equal (hd A x) E). exact (f_equal (tl A) E). 
+Defined.
+
+Lift list vector in uncons_eq as unconsV_eq.
+
+Theorem test_uncons_eqV_ok:
+  forall (A : Type) (x y : A) (xs ys : sigT (vector A)),
+    existT (vector A) (S (projT1 xs)) (consV A (projT1 xs) x (projT2 xs)) = existT (vector A) (S (projT1 ys)) (consV A (projT1 ys) y (projT2 ys)) ->
+    x = y /\ existT (vector A) (projT1 xs) (projT2 xs) = existT (vector A) (projT1 ys) (projT2 ys).
+Proof.
+  exact unconsV_eq.
 Qed.
