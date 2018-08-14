@@ -332,7 +332,7 @@ Module CaseStudy (Elem : Comparable).
     Find ornament __bst _bst.
     Find ornament _bst bst.
 
-    Lift Base.tree __bst in Base.preorder as __preorder'. 
+    Lift Base.tree __bst in Base.preorder as __preorder'.
     Definition __preorder min (tree : __bst min) := __preorder' (existT _ min tree).
     Lift __bst _bst in __preorder as _preorder'.
     Definition _preorder min max (tree : _bst min max) := _preorder' min (existT _ max tree).

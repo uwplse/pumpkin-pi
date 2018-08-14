@@ -95,7 +95,7 @@ let is_packed_constr l env evd (from_type, to_type) trm =
 (* Premises for LIFT-PACKED *)
 let is_packed l env evd (from_type, to_type) trm =
   let right_type = type_is_orn l env evd (from_type, to_type) in
-  if l.is_fwd then (* only need to repack vars *)
+  if l.is_fwd then
     isRel trm && right_type trm
   else
     match kind trm with
@@ -360,9 +360,8 @@ let lift_core env evd c (from_type, to_type) index_type trm =
     else if is_orn l en evd (from_type, to_type) tr then
       (* EQUIVALENCE *)
       if l.is_fwd then
-        let t_args = unfold_args tr in
-        let t_args' = List.map (lift_rec en index_type) t_args in 
-        let app = mkAppl (to_type, t_args') in
+        let t_args = List.map (lift_rec en index_type) (unfold_args tr) in 
+        let app = mkAppl (to_type, t_args) in
         let index = mkRel 1 in
         let abs_i = reindex_body (reindex_app (insert_index l.index_i index)) in
         let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
@@ -398,6 +397,7 @@ let lift_core env evd c (from_type, to_type) index_type trm =
     else if is_packed l en evd (from_type, to_type) tr then
       (* LIFT-PACK *)
       if l.is_fwd then
+        (* repack variables, since projections aren't primitive *)
         let typ = reduce_type en evd tr in
         let lift_typ = dest_sigT (lift_rec en index_type typ) in
         let index = project_index lift_typ tr in
@@ -411,9 +411,8 @@ let lift_core env evd c (from_type, to_type) index_type trm =
       let arg = last_arg tr in
       let arg' = lift_rec en index_type arg in
       if l.is_fwd then
-        let arg_typ = reduce_type en evd arg in
-        let arg_typ' = lift_rec en index_type arg_typ in
-        project_index (dest_sigT arg_typ') arg'
+        let arg_typ = lift_rec en index_type (reduce_type en evd arg) in
+        project_index (dest_sigT arg_typ) arg'
       else if equal projT1 (first_fun tr) then
         mkAppl (l.orn.indexer, snoc arg' (non_index_typ_args l.index_i en evd arg))
       else 
@@ -441,8 +440,7 @@ let lift_core env evd c (from_type, to_type) index_type trm =
            (* APP *)
            let args' = List.map (lift_rec en index_type) (Array.to_list args) in
            let arg' = last args' in
-           let app_proj = is_or_applies projT1 tr || is_or_applies projT2 tr in
-           if app_proj && is_or_applies existT arg' then
+           if (is_or_applies projT1 tr || is_or_applies projT2 tr) && is_or_applies existT arg' then
              (* optimize projections of existentials, which are common *)
              let ex' = dest_existT arg' in
              if equal projT1 f then
@@ -509,7 +507,7 @@ let lift_core env evd c (from_type, to_type) index_type trm =
               (* CONST *)
               let def = lookup_definition en tr in
               let try_lifted = lift_rec en index_type def in
-              if equal def try_lifted || convertible en def try_lifted then
+              if equal def try_lifted then
                 tr
               else
                 reduce_term en try_lifted
