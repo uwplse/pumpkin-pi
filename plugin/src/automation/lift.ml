@@ -96,7 +96,7 @@ let is_packed_constr l env evd (from_type, to_type) trm =
 let is_packed l env evd (from_type, to_type) trm =
   let right_type = type_is_orn l env evd (from_type, to_type) in
   if l.is_fwd then
-    false
+    isRel trm && right_type trm
   else
     match kind trm with
     | App (f, args) ->
@@ -360,7 +360,7 @@ let lift_core env evd c (from_type, to_type) index_type trm =
     else if is_orn l en evd (from_type, to_type) tr then
       (* EQUIVALENCE *)
       if l.is_fwd then
-        let t_args = unfold_args tr in
+        let t_args = List.map (lift_rec en index_type) (unfold_args tr) in 
         let app = mkAppl (to_type, t_args) in
         let index = mkRel 1 in
         let abs_i = reindex_body (reindex_app (insert_index l.index_i index)) in
@@ -396,7 +396,16 @@ let lift_core env evd c (from_type, to_type) index_type trm =
          tr'
     else if is_packed l en evd (from_type, to_type) tr then
       (* LIFT-PACK *)
-      lift_rec en index_type (dest_existT tr).unpacked
+      if l.is_fwd then
+        (* repack variables, since projections aren't primitive *)
+        let typ = reduce_type en evd tr in
+        let lift_typ = dest_sigT (lift_rec en index_type typ) in
+        let index = project_index lift_typ tr in
+        let unpacked = project_value lift_typ tr in
+        let packer = lift_typ.packer in
+        pack_existT { index_type; packer; index; unpacked }
+      else
+        lift_rec en index_type (dest_existT tr).unpacked
     else if is_proj l en evd (from_type, to_type) tr then
       (* LIFT-PROJECT *)
       let arg = last_arg tr in
