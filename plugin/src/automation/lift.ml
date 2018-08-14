@@ -411,8 +411,8 @@ let lift_core env evd c (from_type, to_type) index_type trm =
       let arg = last_arg tr in
       let arg' = lift_rec en index_type arg in
       if l.is_fwd then
-        let arg_typ = lift_rec en index_type (reduce_type en evd arg) in
-        project_index (dest_sigT arg_typ) arg'
+        let arg_typ' = lift_rec en index_type (reduce_type en evd arg) in
+        project_index (dest_sigT arg_typ') arg'
       else if equal projT1 (first_fun tr) then
         mkAppl (l.orn.indexer, snoc arg' (non_index_typ_args l.index_i en evd arg))
       else 
