@@ -534,51 +534,6 @@ let do_lift_defn env evd (l : lifting) def =
 (*                           Inductive types                            *)
 (************************************************************************)
 
-let make_local_entry decl =
-  let entry =
-    match decl with
-    | CRD.LocalAssum (_, typ) -> Entries.LocalAssumEntry typ
-    | CRD.LocalDef (_, term, _) -> Entries.LocalDefEntry term
-  in
-  match CRD.get_name decl with
-  | Name.Name id -> (id, entry)
-  | Name.Anonymous -> failwith "Parameters to an inductive type may not be anonymous"
-
-let inst_abs_univ_ctx abs_univ_ctx =
-  let nlvls = Univ.AUContext.size abs_univ_ctx in
-  let new_lvl _ = Universes.new_univ_level () in
-  let univ_inst = Array.init nlvls new_lvl |> Univ.Instance.of_array in
-  let univ_cnst = Univ.AUContext.instantiate univ_inst abs_univ_ctx in
-  let univ_ctx = Univ.UContext.make (univ_inst, univ_cnst) in
-  univ_ctx
-
-let make_ind_univs_entry = function
-  | Monomorphic_ind univ_ctx_set ->
-    let univ_ctx = Univ.UContext.empty in
-    (Entries.Monomorphic_ind_entry univ_ctx_set, univ_ctx)
-  | Polymorphic_ind abs_univ_ctx ->
-    let univ_ctx = inst_abs_univ_ctx abs_univ_ctx in
-    (Entries.Polymorphic_ind_entry univ_ctx, univ_ctx)
-  | Cumulative_ind abs_univ_cumul ->
-    let abs_univ_ctx = Univ.ACumulativityInfo.univ_context abs_univ_cumul in
-    let univ_ctx = inst_abs_univ_ctx abs_univ_ctx in
-    let univ_var = Univ.ACumulativityInfo.variance abs_univ_cumul in
-    let univ_cumul = Univ.CumulativityInfo.make (univ_ctx, univ_var) in
-    (Entries.Cumulative_ind_entry univ_cumul, univ_ctx)
-
-let is_ind_body_template ind_body =
-  match ind_body.mind_arity with
-  | RegularArity _ -> false
-  | TemplateArity _ -> true
-
-let arity_of_ind_body ind_body =
-  match ind_body.mind_arity with
-  | RegularArity { mind_user_arity; mind_sort } ->
-    mind_user_arity
-  | TemplateArity { template_param_levels; template_level } ->
-    let sort = Constr.mkType template_level in
-    recompose_prod_assum ind_body.mind_arity_ctxt sort
-
 (*
  * Lift the inductive type using sigma-packing.
  *
@@ -618,7 +573,7 @@ let do_lift_ind env evm lift ind suffix =
   let mind_entry = Entries.({
       mind_entry_record = None;
       mind_entry_finite = Declarations.Finite;
-      mind_entry_params = List.map make_local_entry par_ctx;
+      mind_entry_params = List.map make_ind_local_entry par_ctx;
       mind_entry_inds = [ind_entry];
       mind_entry_universes = univs;
       mind_entry_private = None;

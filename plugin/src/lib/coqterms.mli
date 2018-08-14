@@ -10,11 +10,11 @@ open Names
 open Declarations
 open Globnames
 open Decl_kinds
-       
+
 module CRD = Context.Rel.Declaration
 
 (* --- Constants --- *)
-               
+
 val sigT : types
 val existT : types
 val sigT_rect : types
@@ -51,7 +51,7 @@ val edeclare :
   global_reference Lemmas.declaration_hook ->
   bool ->
   global_reference
-                                        
+
 (*
  * Define a new Coq term
  * Refresh universes if the bool is true, otherwise don't
@@ -66,7 +66,7 @@ val define_term : Id.t -> evar_map -> types -> bool -> global_reference
  *)
 val mkAppl : (types * types list) -> types
 
-(* 
+(*
  * Define a constant from an ID in the current path
  *)
 val make_constant: Id.t -> types
@@ -107,7 +107,7 @@ type sigT_app =
  * Convert between a term and a sigT_app
  *)
 val pack_sigT : sigT_app -> types
-val dest_sigT : types -> sigT_app 
+val dest_sigT : types -> sigT_app
 
 (*
  * An application of sigT_rect
@@ -119,7 +119,7 @@ type sigT_elim =
     unpacked : types;
     arg : types;
   }
-                                    
+
 (*
  * Convert between a term and a sigT_elim
  *)
@@ -175,7 +175,7 @@ type elim_app =
     cs : types list;
     final_args : types list;
   }
-                                            
+
 val apply_eliminator : elim_app -> types
 val deconstruct_eliminator : env-> evar_map -> types -> elim_app
 
@@ -183,8 +183,26 @@ val deconstruct_eliminator : env-> evar_map -> types -> elim_app
  * Given the recursive type and the type of a case of an eliminator,
  * determine the number of inductive hypotheses
  *)
-val num_ihs : env -> types -> types -> int   
-  
+val num_ihs : env -> types -> types -> int
+
+(* Determine whether template polymorphism is used for a one_inductive_body *)
+val is_ind_body_template : one_inductive_body -> bool
+
+(* Construct the arity of an inductive type from a one_inductive_body *)
+val arity_of_ind_body : one_inductive_body -> types
+
+(*
+ * Create an Entries.local_entry from a Rel.Declaration.t
+ *)
+val make_ind_local_entry : CRD.t -> Id.t * Entries.local_entry
+
+(*
+ * Given a Declarations.abstract_inductive_universes, create an
+ * Entries.inductive_universes and an instantiated universe
+ * context Univ.UContext.t
+ *)
+val make_ind_univs_entry : abstract_inductive_universes -> Entries.inductive_universes * Univ.UContext.t
+
 (* --- Environments --- *)
 
 (*
@@ -228,7 +246,14 @@ val offset2 : env -> env -> int
  *)
 val recompose_prod_assum : CRD.t list -> types -> types
 val recompose_lam_assum : CRD.t list -> types -> types
-                                                          
+
+(*
+ * Instantiate an abstract universe context, the result of which should be
+ * pushed on the current environment (with Environ.push_context) then used
+ * to update the current evar_map (with Evd.update_sigma_env).
+ *)
+val inst_abs_univ_ctx : Univ.AUContext.t -> Univ.UContext.t
+
 (* --- Basic questions about terms --- *)
 
 (*
@@ -236,7 +261,7 @@ val recompose_lam_assum : CRD.t list -> types -> types
  *)
 val arity : types -> int
 
-(* 
+(*
  * Check whether a term (second argument) applies a function (first argument)
  * Don't consider terms convertible to the function
  *
@@ -254,15 +279,15 @@ val is_or_applies : types  -> types -> bool
 val are_or_apply : types -> types -> types -> bool
 
 (* --- Convertibility, reduction, and types --- *)
-                                
+
 (*
  * Type-checking
- * 
- * Current implementation may cause universe leaks, which will just cause 
+ *
+ * Current implementation may cause universe leaks, which will just cause
  * conservative failure of the plugin
  *)
 val infer_type : env -> evar_map -> types -> types
-                                               
+
 (*
  * Convertibility, ignoring universe constraints
  *)
@@ -282,7 +307,7 @@ val chain_reduce : (* sequencing *)
   types ->
   types
 
-(* 
+(*
  * Apply a function on a type instead of on the term
  *)
 val on_type : (types -> 'a) -> env -> evar_map -> types -> 'a
@@ -297,7 +322,7 @@ val map_rec_env_fix :
   name array ->
   types array ->
   'b
-    
+
 val map_term_env :
   (env -> 'a -> types -> types) ->
   ('a -> 'a) ->
@@ -315,8 +340,8 @@ val map_term :
 
 (* --- Names --- *)
 
-(* 
- * Add a string suffix to a name identifier 
+(*
+ * Add a string suffix to a name identifier
  *)
 val with_suffix : Id.t -> string -> Id.t
 
