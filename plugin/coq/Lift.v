@@ -473,3 +473,7 @@ Definition test_letin (A : Type) (xs : {n:nat & vector A n}) : {n:nat & vector A
   existT _ n (projT2 xs).
 
 Lift vector list in test_letin as test_letin_list_lifted.
+
+Lemma test_letin_list_lifted_ok (A : Type) (xs : list A) :
+  test_letin_list_lifted A xs = xs.
+Proof. reflexivity. Defined.
