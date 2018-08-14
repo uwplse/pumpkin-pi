@@ -337,6 +337,8 @@ Module CaseStudy (Elem : Comparable).
     Lift __bst _bst in __preorder as _preorder'.
     Definition _preorder min max (tree : _bst min max) := _preorder' min (existT _ max tree).
     Lift _bst bst in _preorder as preorder'.
+    Print preorder'.
+    ffff
     Definition preorder min max ord (tree : bst min max ord) := preorder' min max (existT _ ord tree).
 
     Lift Base.tree __bst in Base.inorder as __inorder'.

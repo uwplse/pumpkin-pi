@@ -15,6 +15,7 @@ open Names
 open Caching
 open Declarations
 open Specialization
+open Printing
 
 (* --- Internal lifting configuration --- *)
 
@@ -95,8 +96,8 @@ let is_packed_constr l env evd (from_type, to_type) trm =
 (* Premises for LIFT-PACKED *)
 let is_packed l env evd (from_type, to_type) trm =
   let right_type = type_is_orn l env evd (from_type, to_type) in
-  if isRel trm && l.is_fwd then (* only need to repack vars *)
-    right_type trm
+  if l.is_fwd then (* only need to repack vars *)
+    isRel trm && right_type trm
   else
     match kind trm with
     | App (f, args) ->
@@ -402,6 +403,8 @@ let lift_core env evd c (from_type, to_type) index_type trm =
         let index = project_index lift_typ tr in
         let unpacked = project_value lift_typ tr in
         let packer = lift_typ.packer in
+        (*debug_term en tr "tr";
+        debug_term en (pack_existT { index_type; packer; index; unpacked }) "tr'";*)
         pack_existT { index_type; packer; index; unpacked }
       else
         lift_rec en index_type (dest_existT tr).unpacked
@@ -410,8 +413,9 @@ let lift_core env evd c (from_type, to_type) index_type trm =
       let arg = last_arg tr in
       let arg' = lift_rec en index_type arg in
       if l.is_fwd then
-        let arg_typ' = dest_sigT (lift_rec en index_type (reduce_type en evd arg)) in
-        project_index arg_typ' arg'
+        let arg_typ = reduce_type en evd arg in
+        let arg_typ' = lift_rec en index_type arg_typ in
+        project_index (dest_sigT arg_typ') arg'
       else if equal projT1 (first_fun tr) then
         mkAppl (l.orn.indexer, snoc arg' (non_index_typ_args l.index_i en evd arg))
       else 
@@ -509,7 +513,11 @@ let lift_core env evd c (from_type, to_type) index_type trm =
               if equal def try_lifted then
                 tr
               else
-                reduce_term en try_lifted
+                let red = reduce_term en try_lifted in
+                (*debug_term en def "def";
+                debug_term en try_lifted "try_lifted";
+                debug_term en red "red";*)
+                red
             with _ ->
               (* AXIOM *)
               tr)
