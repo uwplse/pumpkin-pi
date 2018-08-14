@@ -30,7 +30,27 @@ Section Append.
       is_app nil ys ys.
 
   Lift Inductive is_app by orn_list_vector orn_list_vector_inv with "V".
-  Print is_appV.
+
+  (* Does the lifted type former have the expected type? *)
+  Example check_is_appV
+    : forall (A : Type) (xs ys zs : {n:nat & vector A n}), Type :=
+    is_appV.
+
+  (* Does the lifted constructor for is_app_cons have the expected type? *)
+  Example check_is_app_consV
+    : forall (A : Type) (x : A) (xs ys zs : {n:nat & vector A n}),
+      is_appV A xs ys zs ->
+      is_appV A
+              (S xs.1; consV A xs.1 x xs.2)
+              ys
+              (S zs.1; consV A zs.1 x zs.2) :=
+    is_app_consV.
+
+  (* Does the lifted constructor for is_app_nil have the expected type? *)
+  Example check_is_app_nilV
+    : forall (A : Type) (ys : {n:nat & vector A n}),
+      is_appV A (O; nilV A) ys ys :=
+    is_app_nilV.
 
   (* Get the size of an is_app proof. *)
   Definition is_app_size {A : Type} (xs ys zs : list A) (H : is_app xs ys zs) : nat :=
@@ -108,7 +128,39 @@ Section Permute.
       perm xs ys -> perm ys zs -> perm xs zs.
 
   Lift Inductive perm by orn_list_vector orn_list_vector_inv with "V".
-  Print permV.
+
+  (* Does the lifted type former have the expected type? *)
+  Example check_permV
+    : forall (A : Type) (xs ys : {n:nat & vector A n}), Type :=
+    permV.
+
+  (* Does the lifted constructor for perm_nil have the expected type? *)
+  Example check_perm_nilV
+    : forall (A : Type), permV A (O; nilV A) (O; nilV A) :=
+    perm_nilV.
+
+  (* Does the lifted constructor for perm_skip have the expected type? *)
+  Example check_perm_skipV
+    : forall (A : Type) (x : A) (xs ys : {n:nat & vector A n}),
+      permV A xs ys ->
+      permV A
+            (S xs.1; consV A xs.1 x xs.2)
+            (S ys.1; consV A ys.1 x ys.2) :=
+    perm_skipV.
+
+  (* Does the lifted constructor for perm_swap have the expected type? *)
+  Example check_perm_swapV
+    : forall (A : Type) (x y : A) (xs : {n:nat & vector A n}),
+      permV A
+            (S (S xs.1); consV A (S xs.1) x (consV A xs.1 y xs.2))
+            (S (S xs.1); consV A (S xs.1) y (consV A xs.1 x xs.2)) :=
+    perm_swapV.
+
+  (* Does the lifted constructor for perm_trans have the expected type? *)
+  Example check_perm_transV
+    : forall (A : Type) (xs ys zs : {n:nat & vector A n}),
+      permV A xs ys -> permV A ys zs -> permV A xs zs :=
+    perm_transV.
 
   (* Get the size of a perm proof. *)
   Definition perm_size {A : Type} (xs ys : list A) (H : perm xs ys) : nat :=
