@@ -1,3 +1,5 @@
+open Util
+
 (*
  * Basic utilities for collections, optionals, and so on
  *)
@@ -91,7 +93,7 @@ let from_one_to (max : int) : int list =
 
 (* Always true *)
 let always_true _ = true
-                                
+
 (* Check that p a and p b are both true *)
 let and_p (p : 'a -> bool) (o : 'a) (n : 'a) : bool =
   p o && p n
@@ -99,3 +101,12 @@ let and_p (p : 'a -> bool) (o : 'a) (n : 'a) : bool =
 (* Control structures *)
 let map_if_else f g b x = if b then f x else g x
 let map_if f b x = map_if_else f (fun a -> a) b x
+
+(* If the first string is a prefix of the second, return the second's suffix *)
+let get_suffix pre str =
+  if String.is_sub pre str 0 then
+    let pos = String.length pre in
+    let len = String.length str - pos in
+    Some (String.sub str pos len)
+  else
+    None
