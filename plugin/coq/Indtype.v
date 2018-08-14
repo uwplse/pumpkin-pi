@@ -17,7 +17,7 @@ Definition length {A : Type} (xs : list A) : nat :=
     (fun _ _ n => S n)
     xs.
 
-Lift orn_list_vector orn_list_vector_inv in @length as lengthV.
+Lift list vector in @length as lengthV.
 
 (* Ex. 1: Promoting append relation from lists to vectors *)
 Section Append.
@@ -61,14 +61,14 @@ Section Append.
       (fun _ => O)
       xs ys zs
       H.
-  Lift orn_list_vector orn_list_vector_inv in @is_app_size as is_appV_size.
+  Lift list vector in @is_app_size as is_appV_size.
 
   Lemma is_app_size_len {A : Type} (xs ys zs : list A) (H : is_app xs ys zs) :
     is_app_size xs ys zs H = length xs.
   Proof.
     induction H; simpl; try rewrite IHis_app; reflexivity.
   Defined.
-  Lift orn_list_vector orn_list_vector_inv in @is_app_size_len as is_appV_size_len.
+  Lift list vector in @is_app_size_len as is_appV_size_len.
 
   Lemma is_app_len {A : Type} (xs ys zs : list A) :
     is_app xs ys zs -> length xs + length ys = length zs.
@@ -77,7 +77,7 @@ Section Append.
     - rewrite IHis_app. reflexivity.
     - reflexivity.
   Defined.
-  Lift orn_list_vector orn_list_vector_inv in @is_app_len as is_appV_len.
+  Lift list vector in @is_app_len as is_appV_len.
 
 End Append.
 
@@ -142,7 +142,7 @@ Section Permute.
       (fun _ _ _ => O)
       (fun _ _ _ _ IH_l _ IH_r => S (IH_l + IH_r))
       xs ys H.
-  Lift orn_list_vector orn_list_vector_inv in @perm_size as permV_size.
+  Lift list vector in @perm_size as permV_size.
 
   Lemma perm_len {A : Type} (xs ys : list A) :
     perm xs ys -> length xs = length ys.
@@ -153,6 +153,6 @@ Section Permute.
     - reflexivity.
     - eapply eq_trans; eauto.
   Defined.
-  Lift orn_list_vector orn_list_vector_inv in @perm_len as permV_len.
+  Lift list vector in @perm_len as permV_len.
 
 End Permute.
