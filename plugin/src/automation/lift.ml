@@ -403,8 +403,6 @@ let lift_core env evd c (from_type, to_type) index_type trm =
         let index = project_index lift_typ tr in
         let unpacked = project_value lift_typ tr in
         let packer = lift_typ.packer in
-        (*debug_term en tr "tr";
-        debug_term en (pack_existT { index_type; packer; index; unpacked }) "tr'";*)
         pack_existT { index_type; packer; index; unpacked }
       else
         lift_rec en index_type (dest_existT tr).unpacked
@@ -443,7 +441,8 @@ let lift_core env evd c (from_type, to_type) index_type trm =
            (* APP *)
            let args' = List.map (lift_rec en index_type) (Array.to_list args) in
            let arg' = last args' in
-           if (is_or_applies projT1 tr || is_or_applies projT2 tr) && is_or_applies existT arg' then
+           let app_proj = is_or_applies projT1 tr || is_or_applies projT2 tr in
+           if app_proj && is_or_applies existT arg' then
              (* optimize projections of existentials, which are common *)
              let ex' = dest_existT arg' in
              if equal projT1 f then
@@ -510,14 +509,10 @@ let lift_core env evd c (from_type, to_type) index_type trm =
               (* CONST *)
               let def = lookup_definition en tr in
               let try_lifted = lift_rec en index_type def in
-              if equal def try_lifted then
+              if equal def try_lifted || convertible en def try_lifted then
                 tr
               else
-                let red = reduce_term en try_lifted in
-                (*debug_term en def "def";
-                debug_term en try_lifted "try_lifted";
-                debug_term en red "red";*)
-                red
+                reduce_term en try_lifted
             with _ ->
               (* AXIOM *)
               tr)
