@@ -183,7 +183,7 @@ Definition append_vect (A : Type) (pv1 : sigT (vector A)) (pv2 : sigT (vector A)
   vector_rect
     A
     (fun (n0 : nat) (v0 : vector A n0) => sigT (fun (n : nat) => vector A n))
-    pv2
+    (existT (vector A) (projT1 pv2) (projT2 pv2))
     (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : sigT (fun (n : nat) => vector A n)) =>
       existT
         (vector A)
@@ -223,7 +223,7 @@ Definition appendF (l1 : natFlector.flist) (l2 : natFlector.flist) :=
 Definition append_vectF (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector) :=
   natFlector.flector_rect
     (fun (n0 : nat) (v0 : natFlector.flector n0) => sigT natFlector.flector)
-    pv2
+    (existT natFlector.flector (projT1 pv2) (projT2 pv2))
     (fun (n0 : nat) (a : nat) (v0 : natFlector.flector n0) (IH : sigT natFlector.flector) =>
       existT
         natFlector.flector
@@ -468,6 +468,7 @@ Proof.
    exact hd_error_some_nil_vect_lifted.
 Qed.
 
+(* --- Regressing the letin bug --- *)
 Definition test_letin (A : Type) (xs : {n:nat & vector A n}) : {n:nat & vector A n} :=
   let n := projT1 xs in
   existT _ n (projT2 xs).
@@ -477,3 +478,45 @@ Lift vector list in test_letin as test_letin_list_lifted.
 Lemma test_letin_list_lifted_ok (A : Type) (xs : list A) :
   test_letin_list_lifted A xs = xs.
 Proof. reflexivity. Defined.
+
+(* --- Regressing the bug Nate caught with LIFT-PACK and variables --- *)
+
+(*
+ * See: https://github.com/uwplse/ornamental-search/issues/14
+ *)
+
+Lemma tl_ok:
+ forall (A : Type) (x : A) (xs xs' : list A),
+   xs = cons x xs' -> 
+   tl A xs = xs'.
+Proof. 
+  intros A a xs xs' E. rewrite E. reflexivity. 
+Defined.
+
+Lift list vector in tl_ok as tlV_ok.
+
+Theorem test_tlV_ok: 
+  forall (A : Type) (x : A) (xs xs' : sigT (vector A)),
+    existT (vector A) (projT1 xs) (projT2 xs) = existT (vector A) (S (projT1 xs')) (consV A (projT1 xs') x (projT2 xs')) -> 
+    tl_vect_lifted A (existT (vector A) (projT1 xs) (projT2 xs)) = (existT (vector A) (projT1 xs') (projT2 xs')).
+Proof.
+  exact tlV_ok.
+Qed.
+
+Lemma uncons_eq:
+  forall (A : Type) (x y : A) (xs ys : list A),
+    cons x xs = cons y ys -> 
+    x = y /\ xs = ys.
+Proof. 
+  intros A x y xs ys E. split. exact (f_equal (hd A x) E). exact (f_equal (tl A) E). 
+Defined.
+
+Lift list vector in uncons_eq as unconsV_eq.
+
+Theorem test_uncons_eqV_ok:
+  forall (A : Type) (x y : A) (xs ys : sigT (vector A)),
+    existT (vector A) (S (projT1 xs)) (consV A (projT1 xs) x (projT2 xs)) = existT (vector A) (S (projT1 ys)) (consV A (projT1 ys) y (projT2 ys)) ->
+    x = y /\ existT (vector A) (projT1 xs) (projT2 xs) = existT (vector A) (projT1 ys) (projT2 ys).
+Proof.
+  exact unconsV_eq.
+Qed.
