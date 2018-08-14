@@ -425,7 +425,7 @@ Module CaseStudy (Elem : Comparable).
     Find ornament Ordered.bst _avl.
     Find ornament _avl avl.
 
-    Lift Ordered.bst _avl in Ordered.preorder as _preorder'. (* TODO breaks *)
+    Lift Ordered.bst _avl in Ordered.preorder as _preorder'.
     Definition _preorder min max ord height (tree : _avl min max ord height) :=
       _preorder' min max ord (existT _ height tree).
     Lift _avl avl in _preorder as preorder'.

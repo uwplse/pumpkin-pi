@@ -15,7 +15,6 @@ open Names
 open Caching
 open Declarations
 open Specialization
-open Printing
 
 (* --- Internal lifting configuration --- *)
 
@@ -362,7 +361,8 @@ let lift_core env evd c (from_type, to_type) index_type trm =
       (* EQUIVALENCE *)
       if l.is_fwd then
         let t_args = unfold_args tr in
-        let app = mkAppl (to_type, t_args) in
+        let t_args' = List.map (lift_rec en index_type) t_args in 
+        let app = mkAppl (to_type, t_args') in
         let index = mkRel 1 in
         let abs_i = reindex_body (reindex_app (insert_index l.index_i index)) in
         let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
