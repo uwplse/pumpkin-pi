@@ -46,6 +46,8 @@ The test script runs all tests:
 
 ### Case Study Code
 
+We only ssupport the case study scripts on Linux right now.
+
 There are two ways to run the case study, in two different scripts.
 The reason for the two different versions is that the univalent parametricity framework (hereon UP) has different
 Coq dependencies, so the base functions perform differently. 
