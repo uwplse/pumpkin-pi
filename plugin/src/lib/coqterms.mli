@@ -203,7 +203,7 @@ val make_ind_local_entry : CRD.t -> Id.t * Entries.local_entry
  *)
 val make_ind_univs_entry : abstract_inductive_universes -> Entries.inductive_universes * Univ.UContext.t
 
-val open_ind_body : ?global:bool -> env -> evar_map -> mutual_inductive_body -> one_inductive_body -> env * evar_map * Entries.inductive_universes * types * types list
+val open_inductive : ?global:bool -> env -> Inductive.mind_specif -> env * Entries.inductive_universes * types * types list
 
 val declare_inductive : Id.t -> Id.t list -> bool -> Entries.inductive_universes -> int -> types -> types list -> inductive
 

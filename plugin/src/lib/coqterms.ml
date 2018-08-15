@@ -594,17 +594,16 @@ let make_ind_univs_entry = function
     let univ_cumul = Univ.CumulativityInfo.make (univ_ctx, univ_var) in
     (Entries.Cumulative_ind_entry univ_cumul, univ_ctx)
 
-let open_ind_body ?(global=false) env evm mind_body ind_body =
+let open_inductive ?(global=false) env (mind_body, ind_body) =
   let univs, univ_ctx = make_ind_univs_entry mind_body.mind_universes in
   let subst_univs = Vars.subst_instance_constr (Univ.UContext.instance univ_ctx) in
   let env = Environ.push_context univ_ctx env in
-  let evm = Evd.update_sigma_env evm env in
   if global then
     Global.push_context false univ_ctx;
   let arity = arity_of_ind_body ind_body in
   let arity_ctx = [CRD.LocalAssum (Name.Anonymous, arity)] in
   let ctors_typ = Array.map (recompose_prod_assum arity_ctx) ind_body.mind_user_lc in
-  env, evm, univs, subst_univs arity, Array.map_to_list subst_univs ctors_typ
+  env, univs, subst_univs arity, Array.map_to_list subst_univs ctors_typ
 
 let declare_inductive typename consnames template univs nparam arity constypes =
   let open Entries in
