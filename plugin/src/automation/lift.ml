@@ -534,6 +534,53 @@ let do_lift_defn env evd (l : lifting) def =
 (*                           Inductive types                            *)
 (************************************************************************)
 
+let open_ind_body ?(global=false) env evm mind_body ind_body =
+  let univs, univ_ctx = make_ind_univs_entry mind_body.mind_universes in
+  let subst_univs = Vars.subst_instance_constr (Univ.UContext.instance univ_ctx) in
+  let env = Environ.push_context univ_ctx env in
+  let evm = Evd.update_sigma_env evm env in
+  if global then
+    Global.push_context false univ_ctx;
+  let arity = arity_of_ind_body ind_body in
+  let arity_ctx = [CRD.LocalAssum (Name.Anonymous, arity)] in
+  let ctors_typ = Array.map (recompose_prod_assum arity_ctx) ind_body.mind_user_lc in
+  env, evm, univs, subst_univs arity, Array.map_to_list subst_univs ctors_typ
+
+let declare_inductive typename consnames template univs params arity constypes =
+  let open Entries in
+  let ind_entry =
+    { mind_entry_typename = typename;
+      mind_entry_arity = arity;
+      mind_entry_template = template;
+      mind_entry_consnames = consnames;
+      mind_entry_lc = constypes }
+  in
+  let mind_entry =
+  { mind_entry_record = None;
+    mind_entry_finite = Declarations.Finite;
+    mind_entry_params = List.map make_ind_local_entry params;
+    mind_entry_inds = [ind_entry];
+    mind_entry_universes = univs;
+    mind_entry_private = None }
+  in
+  let ((_, ker_name), _) = Declare.declare_mind mind_entry in
+  let mind = MutInd.make1 ker_name in
+  let ind = (mind, 0) in
+  Indschemes.declare_default_schemes mind;
+  ind
+
+let declare_inductive_liftings ind ind' ncons =
+  declare_lifted (Globnames.IndRef ind) (Globnames.IndRef ind');
+  let sorts = [Sorts.InType; Sorts.InProp] in
+  List.iter2
+    declare_lifted
+    (List.map (Indrec.lookup_eliminator ind) sorts)
+    (List.map (Indrec.lookup_eliminator ind') sorts);
+  List.iter2
+    declare_lifted
+    (List.init ncons (fun i -> Globnames.ConstructRef (ind, i + 1)))
+    (List.init ncons (fun i -> Globnames.ConstructRef (ind', i + 1)))
+
 (*
  * Lift the inductive type using sigma-packing.
  *
@@ -545,53 +592,26 @@ let do_lift_ind env evm lift ind suffix =
   let (mind_body, ind_body) = Inductive.lookup_mind_specif env ind in
   if mind_body.mind_ntypes > 1 then
     failwith "Mutual inductive types are unsupported";
-  let univs, univ_ctx = make_ind_univs_entry mind_body.mind_universes in
-  let subst_univs = Vars.subst_instance_constr (Univ.UContext.instance univ_ctx) in
-  let env = Environ.push_context univ_ctx env in
-  let evm = Evd.update_sigma_env evm env in
-  let npars = Context.Rel.length mind_body.mind_params_ctxt in
-  let nctors = Array.length ind_body.mind_user_lc in
-  let arity = arity_of_ind_body ind_body in
-  let lift_typ n typ =
-    subst_univs typ |> do_lift_term env evm lift |> Term.decompose_prod_n_assum n
+  let env, evm, univs, arity, cons_types =
+    open_ind_body ~global:true env evm mind_body ind_body
   in
-  let lift_ctor ctor_typ =
-    mkProd (Name.Anonymous, arity, ctor_typ) |> lift_typ (npars + 1) |> snd
+  let nparam = Context.Rel.length mind_body.mind_params_ctxt in
+  let ncons = Array.length ind_body.mind_user_lc in
+  let lift_type typ =
+    do_lift_term env evm lift typ |> Term.decompose_prod_n_assum nparam
+  in
+  let (params', arity') = lift_type arity in
+  let cons_types' =
+    List.map (fun typ -> lift_type typ |> snd |> Term.strip_prod_n 1) cons_types
   in
   let rename ident =
     Nameops.add_suffix ident suffix
   in
-  let (par_ctx, idx_arity) = lift_typ npars arity in
-  let ind_entry = Entries.({
-      mind_entry_typename = rename ind_body.mind_typename;
-      mind_entry_arity = idx_arity;
-      mind_entry_template = is_ind_body_template ind_body;
-      mind_entry_consnames = Array.map_to_list rename ind_body.mind_consnames;
-      mind_entry_lc = Array.map_to_list lift_ctor ind_body.mind_user_lc;
-    })
+  let typename = rename ind_body.mind_typename in
+  let consnames = Array.map_to_list rename ind_body.mind_consnames in
+  let is_template = is_ind_body_template ind_body in
+  let ind' =
+    declare_inductive typename consnames is_template univs params' arity' cons_types'
   in
-  let mind_entry = Entries.({
-      mind_entry_record = None;
-      mind_entry_finite = Declarations.Finite;
-      mind_entry_params = List.map make_ind_local_entry par_ctx;
-      mind_entry_inds = [ind_entry];
-      mind_entry_universes = univs;
-      mind_entry_private = None;
-    })
-  in
-  Global.push_context false univ_ctx;
-  let ((_, ker_name), _) = Declare.declare_mind mind_entry in
-  let mind' = MutInd.make1 ker_name in
-  let ind' = (mind', 0) in
-  Indschemes.declare_default_schemes mind';
-  declare_lifted (Globnames.IndRef ind) (Globnames.IndRef ind');
-  let sorts = [Sorts.InType; Sorts.InProp] in
-  List.iter2
-    declare_lifted
-    (List.map (Indrec.lookup_eliminator ind) sorts)
-    (List.map (Indrec.lookup_eliminator ind') sorts);
-  List.iter2
-    declare_lifted
-    (List.init nctors (fun i -> Globnames.ConstructRef (ind, i + 1)))
-    (List.init nctors (fun i -> Globnames.ConstructRef (ind', i + 1)));
+  declare_inductive_liftings ind ind' ncons;
   ind'
