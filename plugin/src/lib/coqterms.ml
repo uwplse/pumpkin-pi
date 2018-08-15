@@ -606,22 +606,24 @@ let open_ind_body ?(global=false) env evm mind_body ind_body =
   let ctors_typ = Array.map (recompose_prod_assum arity_ctx) ind_body.mind_user_lc in
   env, evm, univs, subst_univs arity, Array.map_to_list subst_univs ctors_typ
 
-let declare_inductive typename consnames template univs params arity constypes =
+let declare_inductive typename consnames template univs nparam arity constypes =
   let open Entries in
+  let params, arity = Term.decompose_prod_n_assum nparam arity in
+  let constypes = List.map (Term.decompose_prod_n_assum (nparam + 1)) constypes in
   let ind_entry =
     { mind_entry_typename = typename;
       mind_entry_arity = arity;
       mind_entry_template = template;
       mind_entry_consnames = consnames;
-      mind_entry_lc = constypes }
+      mind_entry_lc = List.map snd constypes }
   in
   let mind_entry =
-  { mind_entry_record = None;
-    mind_entry_finite = Declarations.Finite;
-    mind_entry_params = List.map make_ind_local_entry params;
-    mind_entry_inds = [ind_entry];
-    mind_entry_universes = univs;
-    mind_entry_private = None }
+    { mind_entry_record = None;
+      mind_entry_finite = Declarations.Finite;
+      mind_entry_params = List.map make_ind_local_entry params;
+      mind_entry_inds = [ind_entry];
+      mind_entry_universes = univs;
+      mind_entry_private = None }
   in
   let ((_, ker_name), _) = Declare.declare_mind mind_entry in
   let mind = MutInd.make1 ker_name in

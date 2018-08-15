@@ -557,26 +557,19 @@ let do_lift_ind env evm lift ind suffix =
   let (mind_body, ind_body) = Inductive.lookup_mind_specif env ind in
   if mind_body.mind_ntypes > 1 then
     failwith "Mutual inductive types are unsupported";
-  let env, evm, univs, arity, cons_types =
+  let env, evm, univs, arity, constypes =
     open_ind_body ~global:true env evm mind_body ind_body
   in
   let nparam = Context.Rel.length mind_body.mind_params_ctxt in
   let ncons = Array.length ind_body.mind_user_lc in
-  let lift_type typ =
-    do_lift_term env evm lift typ |> Term.decompose_prod_n_assum nparam
-  in
-  let (params', arity') = lift_type arity in
-  let cons_types' =
-    List.map (fun typ -> lift_type typ |> snd |> Term.strip_prod_n 1) cons_types
-  in
-  let rename ident =
-    Nameops.add_suffix ident suffix
-  in
+  let arity' =  do_lift_term env evm lift arity in
+  let constypes' = List.map (do_lift_term env evm lift) constypes in
+  let rename ident = Nameops.add_suffix ident suffix in
   let typename = rename ind_body.mind_typename in
   let consnames = Array.map_to_list rename ind_body.mind_consnames in
   let is_template = is_ind_body_template ind_body in
   let ind' =
-    declare_inductive typename consnames is_template univs params' arity' cons_types'
+    declare_inductive typename consnames is_template univs nparam arity' constypes'
   in
   declare_inductive_liftings ind ind' ncons;
   ind'
