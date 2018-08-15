@@ -203,8 +203,22 @@ val make_ind_local_entry : CRD.t -> Id.t * Entries.local_entry
  *)
 val make_ind_univs_entry : abstract_inductive_universes -> Entries.inductive_universes * Univ.UContext.t
 
+(*
+ * For an inductive type in an environment, return the inductive's arity and
+ * recursion-quantified constructor types, all consistently instantiated with fresh
+ * universe levels, and return the universe-synchronized environment. If global
+ * is true, the global environment is also synchronized with the new universe
+ * levels and constraints. A descriptor for the inductive type's universe
+ * properties is also returned.
+ *)
 val open_inductive : ?global:bool -> env -> Inductive.mind_specif -> env * Entries.inductive_universes * types * types list
 
+(*
+ * Declare a new inductive type in the global environment. Note that the arity
+ * must quantify all parameters and that each constructor type must quantify
+ * a recursive reference and then all parameters (i.e.,
+ * forall (I : arity) (P : params), ...).
+ *)
 val declare_inductive : Id.t -> Id.t list -> bool -> Entries.inductive_universes -> int -> types -> types list -> inductive
 
 (* --- Environments --- *)
