@@ -39,17 +39,17 @@ Section Append.
   (* Does the lifted constructor for is_app_cons have the expected type? *)
   Example check_is_app_consV
     : forall (A : Type) (x : A) (xs ys zs : {n:nat & vector A n}),
-      is_appV A xs ys zs ->
+      is_appV A (xs.1; xs.2) (ys.1; ys.2) (zs.1; zs.2) ->
       is_appV A
               (S xs.1; consV A xs.1 x xs.2)
-              ys
+              (ys.1; ys.2)
               (S zs.1; consV A zs.1 x zs.2) :=
     is_app_consV.
 
   (* Does the lifted constructor for is_app_nil have the expected type? *)
   Example check_is_app_nilV
     : forall (A : Type) (ys : {n:nat & vector A n}),
-      is_appV A (O; nilV A) ys ys :=
+      is_appV A (O; nilV A) (ys.1; ys.2) (ys.1; ys.2) :=
     is_app_nilV.
 
   (* Get the size of an is_app proof. *)
