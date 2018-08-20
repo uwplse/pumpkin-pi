@@ -2,6 +2,7 @@
 
 coqc coq/Test.v
 coqc coq/Lift.v
+coqc coq/Indtype.v
 
 cd eval
 

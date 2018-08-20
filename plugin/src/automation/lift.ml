@@ -2,6 +2,7 @@
  * Core lifting algorithm from Section 5.1.2
  *)
 
+open Util
 open Constr
 open Environ
 open Zooming
@@ -350,7 +351,7 @@ let lift_elim env evd l trm_app =
 let lift_core env evd c (from_type, to_type) index_type trm =
   let l = c.l in
   let rec lift_rec en index_type tr =
-    let lifted_opt = search_lifted en tr in
+    let lifted_opt = search_lifted_term en tr in
     if Option.has_some lifted_opt then
       (* GLOBAL CACHING *)
       Option.get lifted_opt
@@ -520,10 +521,9 @@ let lift_core env evd c (from_type, to_type) index_type trm =
   in lift_rec env index_type trm
 
 (*
- * Run the core lifting algorithm
+ * Run the core lifting algorithm on a term
  *)
-let do_lift_core env evd (l : lifting) def =
-  let trm = unwrap_definition env def in
+let do_lift_term env evd (l : lifting) trm =
   let promotion_type en t = fst (on_type ind_of_promotion_type en evd t) in
   let forget_typ = promotion_type env l.orn.forget in
   let promote_typ = promotion_type env l.orn.promote in
@@ -531,3 +531,52 @@ let do_lift_core env evd (l : lifting) def =
   let index_type = (dest_sigT forget_typ).index_type in
   let c = initialize_lift_config env evd l typs in
   lift_core env evd c typs index_type trm
+
+(*
+ * Run the core lifting algorithm on a definition
+ *)
+let do_lift_defn env evd (l : lifting) def =
+  let trm = unwrap_definition env def in
+  do_lift_term env evd l trm
+
+(************************************************************************)
+(*                           Inductive types                            *)
+(************************************************************************)
+
+let declare_inductive_liftings ind ind' ncons =
+  declare_lifted (Globnames.IndRef ind) (Globnames.IndRef ind');
+  let sorts = [Sorts.InType; Sorts.InProp] in
+  List.iter2
+    declare_lifted
+    (List.map (Indrec.lookup_eliminator ind) sorts)
+    (List.map (Indrec.lookup_eliminator ind') sorts);
+  List.iter2
+    declare_lifted
+    (List.init ncons (fun i -> Globnames.ConstructRef (ind, i + 1)))
+    (List.init ncons (fun i -> Globnames.ConstructRef (ind', i + 1)))
+
+(*
+ * Lift the inductive type using sigma-packing.
+ *
+ * This algorithm assumes that type parameters are left constant and will lift
+ * every binding and every term of the base type to the sigma-packed ornamented
+ * type.
+ *)
+let do_lift_ind env evm typename suffix lift ind =
+  let (mind_body, ind_body) as mind_specif = Inductive.lookup_mind_specif env ind in
+  if mind_body.mind_ntypes > 1 then
+    failwith "Mutual inductive types are unsupported";
+  let env, univs, arity, constypes = open_inductive ~global:true env mind_specif in
+  let evm = Evd.update_sigma_env evm env in
+  let nparam = mind_body.mind_nparams_rec in
+  let arity' = do_lift_term env evm lift arity in
+  let constypes' = List.map (do_lift_term env evm lift) constypes in
+  let consnames =
+    Array.map_to_list (fun id -> Nameops.add_suffix id suffix) ind_body.mind_consnames
+  in
+  let is_template = is_ind_body_template ind_body in
+  let ind' =
+    declare_inductive typename consnames is_template univs nparam arity' constypes'
+  in
+  declare_inductive_liftings ind ind' (List.length constypes);
+  ind'

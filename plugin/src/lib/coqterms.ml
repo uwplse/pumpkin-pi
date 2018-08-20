@@ -2,6 +2,7 @@
  * Coq term and environment management
  *)
 
+open Util
 open Environ
 open Constr
 open Names
@@ -11,7 +12,7 @@ open Utilities
 open Declarations
 open Decl_kinds
 open Constrextern
-       
+
 module CRD = Context.Rel.Declaration
 
 (* --- Constants --- *)
@@ -19,11 +20,11 @@ module CRD = Context.Rel.Declaration
 let coq_init_specif =
   ModPath.MPfile
     (DirPath.make (List.map Id.of_string ["Specif"; "Init"; "Coq"]))
-                                     
+
 (* sigma types *)
 let sigT : types =
   mkInd (MutInd.make1 (KerName.make2 coq_init_specif (Label.make "sigT")), 0)
-    
+
 (* Introduction for sigma types *)
 let existT : types =
   mkConstruct (fst (destInd sigT), 1)
@@ -101,7 +102,7 @@ let define_term (n : Id.t) (evm : evar_map) (trm : types) (refresh : bool) =
   let nohook = Lemmas.mk_hook (fun _ x -> x) in
   let etrm = EConstr.of_constr trm in
   edeclare n k ~opaque:false evm udecl etrm None [] nohook refresh
-         
+
 (* --- Application and arguments --- *)
 
 (* Get a list of all arguments, fully unfolded at the head *)
@@ -142,7 +143,7 @@ let get_arg i trm =
      Array.get args i
   | _ ->
      failwith "not an application"
-    
+
 (* --- Constructing terms --- *)
 
 (* mkApp with a list *)
@@ -180,7 +181,7 @@ type existT_app =
   }
 
 (*
- * Pack an existT term from an index type, packer, index, and unpacked version 
+ * Pack an existT term from an index type, packer, index, and unpacked version
  *)
 let pack_existT (app : existT_app) : types =
   mkAppl (existT, [app.index_type; app.packer; app.index; app.unpacked])
@@ -200,7 +201,7 @@ type sigT_app =
     index_type : types;
     packer : types;
   }
-    
+
 (*
  * Pack a sigT type from an index type and a packer
  *)
@@ -209,7 +210,7 @@ let pack_sigT (app : sigT_app) =
 
 (*
  * Deconsruct a sigT type from a type
- *)      
+ *)
 let dest_sigT (typ : types) =
   let [index_type; packer] = unfold_args typ in
   { index_type; packer }
@@ -224,7 +225,7 @@ type sigT_elim =
     unpacked : types;
     arg : types;
   }
-         
+
 (*
  * Eliminate a sigT given an index type, packer, packed type, unpacked term,
  * and the term itself
@@ -258,7 +259,7 @@ let project_value (app : sigT_app) trm =
   mkAppl (projT2, [app.index_type; app.packer; trm])
 
 (* --- Convertibility, reduction, and types --- *)
-                                
+
 (* Infer the type of trm in env *)
 let infer_type (env : env) (evd : evar_map) (trm : types) : types =
   EConstr.to_constr evd (Typing.unsafe_type_of env evd (EConstr.of_constr trm))
@@ -276,8 +277,8 @@ let conv_ignoring_univ_inconsistency env evm (trm1 : types) (trm2 : types) : boo
 
 (* Checks whether two terms are convertible in env with no evars *)
 let convertible (env : env) (trm1 : types) (trm2 : types) : bool =
-  conv_ignoring_univ_inconsistency env Evd.empty trm1 trm2  
-                                   
+  conv_ignoring_univ_inconsistency env Evd.empty trm1 trm2
+
 (* Default reducer *)
 let reduce_term (env : env) (trm : types) : types =
   EConstr.to_constr
@@ -295,12 +296,12 @@ let delta (env : env) (trm : types) =
  * so if you want to make some things opaque, can add them
  * get env, store it, call set_strategy w/ opaque,
  * then revert later
- * 
+ *
  * See environ.mli
  * set_oracle
  * set_strategy
  *)
-    
+
 (* nf_all *)
 let reduce_nf (env : env) (trm : types) : types =
   EConstr.to_constr
@@ -328,7 +329,7 @@ let all_rel_indexes (env : env) : int list =
 (* Make n relative indices, from highest to lowest *)
 let mk_n_rels n =
   List.map mkRel (List.rev (from_one_to n))
-              
+
 (* Push a local binding to an environment *)
 let push_local (n, t) = push_rel CRD.(LocalAssum (n, t))
 
@@ -396,6 +397,26 @@ let offset env npm = nb_rel env - npm
 (* Find the offset between two environments *)
 let offset2 env1 env2 = nb_rel env1 - nb_rel env2
 
+(* Bind the declarations of a local context as product/let-in bindings *)
+let recompose_prod_assum decls term =
+  let abstract term decl = Term.mkProd_or_LetIn decl term in
+  Context.Rel.fold_inside abstract ~init:term decls
+
+(* Bind the declarations of a local context as lambda/let-in bindings *)
+let recompose_lam_assum decls term =
+  let abstract term decl = Term.mkLambda_or_LetIn decl term in
+  Context.Rel.fold_inside abstract ~init:term decls
+
+(* Instantiate an abstract universe context *)
+let inst_abs_univ_ctx abs_univ_ctx =
+  let nlvls = Univ.AUContext.size abs_univ_ctx in
+  (* Note that we're creating *globally* fresh universe levels. *)
+  let new_lvl _ = Universes.new_univ_level () in
+  let univ_inst = Array.init nlvls new_lvl |> Univ.Instance.of_array in
+  let univ_cnst = Univ.AUContext.instantiate univ_inst abs_univ_ctx in
+  let univ_ctx = Univ.UContext.make (univ_inst, univ_cnst) in
+  univ_ctx
+
 (* --- Basic questions about terms --- *)
 
 (*
@@ -425,7 +446,7 @@ let is_or_applies (trm' : types) (trm : types) : bool =
 (* Versions over two terms *)
 let are_or_apply (trm : types) = and_p (is_or_applies trm)
 let apply (trm : types) = and_p (applies trm)
-              
+
 (* --- Inductive types and their eliminators --- *)
 
 (* Don't support mutually inductive or coinductive types yet *)
@@ -496,7 +517,7 @@ type elim_app =
 let apply_eliminator (ea : elim_app) : types =
   let args = List.append ea.pms (ea.p :: ea.cs) in
   mkAppl (mkAppl (ea.elim, args), ea.final_args)
-        
+
 (* Deconstruct an eliminator application *)
 let deconstruct_eliminator env evd app : elim_app =
   let elim = first_fun app in
@@ -530,7 +551,84 @@ let rec num_ihs env rec_typ typ =
      else
        num_ihs (push_local (n, t) env) rec_typ b
   | _ ->
-     0                   
+     0
+
+(* Determine whether template polymorphism is used for a one_inductive_body *)
+let is_ind_body_template ind_body =
+  match ind_body.mind_arity with
+  | RegularArity _ -> false
+  | TemplateArity _ -> true
+
+(* Construct the arity of an inductive type from a one_inductive_body *)
+let arity_of_ind_body ind_body =
+  match ind_body.mind_arity with
+  | RegularArity { mind_user_arity; mind_sort } ->
+    mind_user_arity
+  | TemplateArity { template_param_levels; template_level } ->
+    let sort = Constr.mkType template_level in
+    recompose_prod_assum ind_body.mind_arity_ctxt sort
+
+(* Create an Entries.local_entry from a Rel.Declaration.t *)
+let make_ind_local_entry decl =
+  let entry =
+    match decl with
+    | CRD.LocalAssum (_, typ) -> Entries.LocalAssumEntry typ
+    | CRD.LocalDef (_, term, _) -> Entries.LocalDefEntry term
+  in
+  match CRD.get_name decl with
+  | Name.Name id -> (id, entry)
+  | Name.Anonymous -> failwith "Parameters to an inductive type may not be anonymous"
+
+(* Instantiate an abstract_inductive_universes into an Entries.inductive_universes with Univ.UContext.t *)
+let make_ind_univs_entry = function
+  | Monomorphic_ind univ_ctx_set ->
+    let univ_ctx = Univ.UContext.empty in
+    (Entries.Monomorphic_ind_entry univ_ctx_set, univ_ctx)
+  | Polymorphic_ind abs_univ_ctx ->
+    let univ_ctx = inst_abs_univ_ctx abs_univ_ctx in
+    (Entries.Polymorphic_ind_entry univ_ctx, univ_ctx)
+  | Cumulative_ind abs_univ_cumul ->
+    let abs_univ_ctx = Univ.ACumulativityInfo.univ_context abs_univ_cumul in
+    let univ_ctx = inst_abs_univ_ctx abs_univ_ctx in
+    let univ_var = Univ.ACumulativityInfo.variance abs_univ_cumul in
+    let univ_cumul = Univ.CumulativityInfo.make (univ_ctx, univ_var) in
+    (Entries.Cumulative_ind_entry univ_cumul, univ_ctx)
+
+let open_inductive ?(global=false) env (mind_body, ind_body) =
+  let univs, univ_ctx = make_ind_univs_entry mind_body.mind_universes in
+  let subst_univs = Vars.subst_instance_constr (Univ.UContext.instance univ_ctx) in
+  let env = Environ.push_context univ_ctx env in
+  if global then
+    Global.push_context false univ_ctx;
+  let arity = arity_of_ind_body ind_body in
+  let arity_ctx = [CRD.LocalAssum (Name.Anonymous, arity)] in
+  let ctors_typ = Array.map (recompose_prod_assum arity_ctx) ind_body.mind_user_lc in
+  env, univs, subst_univs arity, Array.map_to_list subst_univs ctors_typ
+
+let declare_inductive typename consnames template univs nparam arity constypes =
+  let open Entries in
+  let params, arity = Term.decompose_prod_n_assum nparam arity in
+  let constypes = List.map (Term.decompose_prod_n_assum (nparam + 1)) constypes in
+  let ind_entry =
+    { mind_entry_typename = typename;
+      mind_entry_arity = arity;
+      mind_entry_template = template;
+      mind_entry_consnames = consnames;
+      mind_entry_lc = List.map snd constypes }
+  in
+  let mind_entry =
+    { mind_entry_record = None;
+      mind_entry_finite = Declarations.Finite;
+      mind_entry_params = List.map make_ind_local_entry params;
+      mind_entry_inds = [ind_entry];
+      mind_entry_universes = univs;
+      mind_entry_private = None }
+  in
+  let ((_, ker_name), _) = Declare.declare_mind mind_entry in
+  let mind = MutInd.make1 ker_name in
+  let ind = (mind, 0) in
+  Indschemes.declare_default_schemes mind;
+  ind
 
 (* --- Basic mapping --- *)
 
@@ -600,7 +698,7 @@ let rec map_term_env f d (env : env) (a : 'a) (trm : types) : types =
  *)
 let map_term f d (a : 'a) (trm : types) : types =
   map_term_env (fun _ a t -> f a t) d empty_env a trm
-    
+
 (* --- Names --- *)
 
 (* Add a suffix to a name identifier *)

@@ -14,7 +14,7 @@ open Utilities
 open Libobject
 open Lib
 open Mod_subst
-       
+
 (* --- Database of liftings for higher lifting --- *)
 
 (*
@@ -24,17 +24,14 @@ open Mod_subst
 
 (** Record information of the lifting structure. *)
 let structure : struc_typ =
-  let ind = destIndRef (Nametab.locate (qualid_of_string "Ornamental.Lifted.t")) in
-  lookup_structure ind
-
-(** Base-term projection of the lifting structure. *)
-let project : global_reference =
-  Nametab.locate (qualid_of_string "Ornamental.Lifted.base")
+  qualid_of_string "Ornamental.Lifted.t" |> Nametab.locate |>
+  destIndRef |> lookup_structure
 
 (** Constructor of the lifting structure. *)
-let construct : constr_expr =
-  let global = ConstructRef structure.s_CONST in
-  mkRefC (extern_reference Id.Set.empty global)
+let construct_gref = ConstructRef structure.s_CONST
+
+(** Base-term projection of the lifting structure. *)
+let project_gref = Nametab.locate (qualid_of_string "Ornamental.Lifted.base")
 
 (** Build the identifier [X + "_lift"] to use as the name of the lifting instance
     for the definition [base] with name [M_1.M_2...M_n.X]. *)
@@ -42,39 +39,54 @@ let name_lifted (base : global_reference) : Id.t =
   let name = Nametab.basename_of_global base in
   Id.of_string (String.concat "_" [Id.to_string name; "lift"])
 
-(** Build an external expression for the lifting instance for the definition
-    [base] given its lifted definition [lift]. *)
-let make_lifted (base : global_reference) (lift : global_reference) : constr_expr =
-  mkAppC (construct, [expr_of_global base; expr_of_global lift])
-         
-(** Register a canonical lifting for the definition [base] given its lifted
-    definition [lift]. *)
-let declare_lifted (evm : evar_map) (base : types) (lift : types) : unit =
+(** Register a canonical lifting for the global reference [base_gref] given its
+    lifted global reference [lifted_gref]. *)
+let declare_lifted base_gref lifted_gref =
   let env = Global.env () in
-  let base = global_of_constr base in
-  let lift = global_of_constr lift in
-  let n = name_lifted base in
-  let package = make_lifted base lift in
+  let evm = Evd.from_env env in
+  let evm, construct_term = EConstr.fresh_global env evm construct_gref in
+  let evm, base_term = EConstr.fresh_global env evm base_gref in
+  let evm, base_type = Typing.type_of env evm base_term in
+  let evm, lifted_term = EConstr.fresh_global env evm lifted_gref in
+  let evm, lifted_type = Typing.type_of env evm lifted_term in
+  let packed_term =
+    EConstr.mkApp
+      (construct_term, [|base_type; lifted_type; base_term; lifted_term|])
+  in
+  let n = name_lifted base_gref in
   let hook = Lemmas.mk_hook (fun _ x -> declare_canonical_structure x; x) in
   let k = (Global, Flags.is_universe_polymorphism (), CanonicalStructure) in
   let udecl = Univdecls.default_univ_decl in
-  let etrm = EConstr.of_constr (intern env evm package) in
-  ignore (edeclare n k ~opaque:false evm udecl etrm None [] hook true)
+  ignore (edeclare n k ~opaque:false evm udecl packed_term None [] hook true)
 
-(** Retrieve the canonical lifting for the definition [base]. *)
-let search_lifted (env : env) (base : types) : types option =
-  if isConst base then
-    try
-      let base = global_of_constr base in
-      let (_, info) = lookup_canonical_conversion (project, Const_cs base) in
-      (* Reduce the lifting instance to HNF to extract the target component. *)
-      let package = Reduction.whd_all env info.o_DEF in
-      let (cons, args) = decompose_appvect package in
-      Some (args.(3))
-    with _ ->
-      None
-  else
+(** Retrieve the canonical lifting, as a term, for the global reference
+    [base_gref]. *)
+let search_lifted env base_gref =
+  try
+    let (_, info) = lookup_canonical_conversion (project_gref, Const_cs base_gref) in
+    (* Reduce the lifting instance to HNF to extract the target component. *)
+    let package = Reduction.whd_all env info.o_DEF in
+    let (cons, args) = decompose_appvect package in
+    Some (args.(3))
+  with _ ->
     None
+
+(** Retrieve the canonical lifting, as a term, for the definition [base]. *)
+let search_lifted_term env base_term =
+  try
+    global_of_constr base_term |> search_lifted env
+  with Not_found -> None
+
+(** Retrieve the canonical lifting, as a global reference, for the global
+    reference [base_gref]. *)
+let search_lifted env base_gref =
+  try
+    search_lifted env base_gref |> Option.map global_of_constr
+  with Not_found ->
+    (* A canonical lifting should always relate constant to constant,
+       inductive to inductive, etc., so both components should always be
+       representable as global references. *)
+    CErrors.user_err (Pp.str "Found illegal canonical lifting.\n")
 
 (* --- Temporary cache of constants --- *)
 
@@ -101,7 +113,7 @@ let is_locally_cached c trm =
      Hashtbl.mem c (Constant.canonical co)
   | _ ->
      false
-       
+
 (*
  * Lookup a value in the local cache
  *)
@@ -154,7 +166,7 @@ let cache_ornament (_, (typs, orn)) =
 
 let sub_ornament (subst, (typs, orn)) =
   (map_tuple (subst_kn subst) typs, subst_global_reference subst orn)
-              
+
 let inOrns : orn_obj -> obj  =
   declare_object { (default_object "ORNAMENTS") with
     cache_function = cache_ornament;
@@ -162,7 +174,7 @@ let inOrns : orn_obj -> obj  =
     open_function = (fun _ -> cache_ornament);
     classify_function = (fun (typs, orn) -> Substitute (typs, orn));
     subst_function = sub_ornament }
-              
+
 (*
  * Check if an ornament is cached
  *)
@@ -174,7 +186,7 @@ let has_ornament typs =
      contains (kn_o, kn_n) && contains (kn_n, kn_o)
   | _ ->
      false
-       
+
 (*
  * Lookup an ornament
  *)
@@ -200,4 +212,3 @@ let save_ornament typs (orn, orn_inv) =
      add_anonymous_leaf orn_inv_obj
   | _ ->
      failwith "can't cache a non-inductive type"
-
