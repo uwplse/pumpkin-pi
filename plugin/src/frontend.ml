@@ -77,7 +77,7 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
   let c_orn_inv = intern env evd d_orn_inv in
   let c_old = intern env evd d_old in
   let n_new = if suffix then suffix_term_name c_old n else n in
-  let s = if suffix then Id.to_string n else "_lifted" in
+  let s = if suffix then Id.to_string n else "_" ^ Id.to_string n in
   let are_inds = isInd c_orn && isInd c_orn_inv in
   let lookup os = map_tuple Universes.constr_of_global (lookup_ornament os) in
   let (c_from, c_to) = map_if lookup are_inds (c_orn, c_orn_inv) in
