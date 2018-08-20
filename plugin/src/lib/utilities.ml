@@ -102,11 +102,7 @@ let and_p (p : 'a -> bool) (o : 'a) (n : 'a) : bool =
 let map_if_else f g b x = if b then f x else g x
 let map_if f b x = map_if_else f (fun a -> a) b x
 
-(* If the first string is a prefix of the second, return the second's suffix *)
-let get_suffix pre str =
-  if String.is_sub pre str 0 then
-    let pos = String.length pre in
-    let len = String.length str - pos in
-    Some (String.sub str pos len)
-  else
-    None
+(* Look up the name referenced by a term and append a suffix to it. *)
+let suffix_term_name term suffix =
+  let base = Nametab.basename_of_global (Globnames.global_of_constr term) in
+  Nameops.add_suffix base (Names.Id.to_string suffix)

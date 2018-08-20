@@ -63,5 +63,5 @@ val and_p : ('a -> bool) -> 'a -> 'a -> bool
 val map_if_else : ('a -> 'b) -> ('a -> 'b) -> bool -> 'a -> 'b
 val map_if : ('a -> 'a) -> bool -> 'a -> 'a
 
-(* If the first string is a prefix of the second, return the second's suffix *)
-val get_suffix : string -> string -> string option
+(* Look up the name referenced by a term and append a suffix to it. *)
+val suffix_term_name : Constr.t -> Names.Id.t -> Names.Id.t

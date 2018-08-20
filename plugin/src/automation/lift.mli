@@ -31,7 +31,8 @@ val do_lift_defn :
 val do_lift_ind :
   env ->
   evar_map ->
+  Id.t ->
+  string ->
   lifting ->
   inductive ->
-  string ->
   inductive

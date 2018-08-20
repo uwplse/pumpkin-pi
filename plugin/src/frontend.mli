@@ -12,4 +12,4 @@ val find_ornament : Id.t option -> constr_expr -> constr_expr -> unit
  * Lift the supplied function along the supplied ornament
  * Define the lifted version
  *)
-val lift_by_ornament : Id.t -> constr_expr -> constr_expr -> constr_expr -> unit
+val lift_by_ornament : ?suffix:bool -> Id.t -> constr_expr -> constr_expr -> constr_expr -> unit

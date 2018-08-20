@@ -15,4 +15,6 @@ END
 VERNAC COMMAND EXTEND LiftOrnament CLASSIFIED AS SIDEFF
 | [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
   [ lift_by_ornament n d_orn d_orn_inv d_old ]
+| [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ".." ident(n)] ->
+  [ lift_by_ornament ~suffix:true n d_orn d_orn_inv d_old ]
 END

@@ -60,35 +60,29 @@ let lift_definition_by_ornament env evd n l c_old =
  * Lift an inductive type according to a lifting configuration, defining the
  * new lifted version and declaring type-to-type, constructor-to-constructor,
  * and eliminator-to-eliminator liftings.
- * The given name should be
  *)
-let lift_inductive_by_ornament env evm n l c_old =
+let lift_inductive_by_ornament env evm n s l c_old =
   let ind, _ = destInd c_old in
-  let n_ind = Nametab.basename_of_global (Globnames.IndRef ind) in
-  let s = Id.to_string n in
-  let s_ind = Id.to_string n_ind in
-  try
-    let suf = Option.get (get_suffix s_ind s) in
-    let ind' = do_lift_ind env evm l ind suf in
-    let env' = Global.env () in
-    Feedback.msg_notice (str "Defined lifted inductive type " ++ pr_inductive env' ind')
-  with Option.IsNone ->
-    CErrors.user_err (qs s ++ str " have " ++ qs s_ind ++ str " as a prefix")
+  let ind' = do_lift_ind env evm n s l ind in
+  let env' = Global.env () in
+  Feedback.msg_notice (str "Defined lifted inductive type " ++ pr_inductive env' ind')
 
 (*
  * Lift the supplied definition or inductive type along the supplied ornament
  * Define the lifted version
  *)
-let lift_by_ornament n d_orn d_orn_inv d_old =
+let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
   let (evd, env) = Pfedit.get_current_context () in
   let c_orn = intern env evd d_orn in
   let c_orn_inv = intern env evd d_orn_inv in
   let c_old = intern env evd d_old in
+  let n_new = if suffix then suffix_term_name c_old n else n in
+  let s = if suffix then Id.to_string n else "_lifted" in
   let are_inds = isInd c_orn && isInd c_orn_inv in
   let lookup os = map_tuple Universes.constr_of_global (lookup_ornament os) in
   let (c_from, c_to) = map_if lookup are_inds (c_orn, c_orn_inv) in
   let l = initialize_lifting env evd c_from c_to in
   if isInd c_old then
-    lift_inductive_by_ornament env evd n l c_old
+    lift_inductive_by_ornament env evd n_new s l c_old
   else
-    lift_definition_by_ornament env evd n l c_old
+    lift_definition_by_ornament env evd n_new l c_old

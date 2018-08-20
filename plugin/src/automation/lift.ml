@@ -553,7 +553,7 @@ let declare_inductive_liftings ind ind' ncons =
  * every binding and every term of the base type to the sigma-packed ornamented
  * type.
  *)
-let do_lift_ind env evm lift ind suffix =
+let do_lift_ind env evm typename suffix lift ind =
   let (mind_body, ind_body) as mind_specif = Inductive.lookup_mind_specif env ind in
   if mind_body.mind_ntypes > 1 then
     failwith "Mutual inductive types are unsupported";
@@ -562,9 +562,9 @@ let do_lift_ind env evm lift ind suffix =
   let nparam = mind_body.mind_nparams_rec in
   let arity' = do_lift_term env evm lift arity in
   let constypes' = List.map (do_lift_term env evm lift) constypes in
-  let rename ident = Nameops.add_suffix ident suffix in
-  let typename = rename ind_body.mind_typename in
-  let consnames = Array.map_to_list rename ind_body.mind_consnames in
+  let consnames =
+    Array.map_to_list (fun id -> Nameops.add_suffix id suffix) ind_body.mind_consnames
+  in
   let is_template = is_ind_body_template ind_body in
   let ind' =
     declare_inductive typename consnames is_template univs nparam arity' constypes'

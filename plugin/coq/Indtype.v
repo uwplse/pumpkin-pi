@@ -29,7 +29,7 @@ Section Append.
   | is_app_nil (ys : list A) :
       is_app nil ys ys.
 
-  Lift list vector in @is_app as is_appV.
+  Lift list vector in @is_app as ..V.
 
   (* Does the lifted type former have the expected type? *)
   Example check_is_appV
@@ -97,7 +97,7 @@ Section Permute.
   | perm_trans (xs ys zs : list A) :
       perm xs ys -> perm ys zs -> perm xs zs.
 
-  Lift list vector in @perm as permV.
+  Lift list vector in @perm as ..V.
 
   (* Does the lifted type former have the expected type? *)
   Example check_permV
