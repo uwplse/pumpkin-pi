@@ -48,7 +48,7 @@ let find_ornament n_o d_old d_new =
  *)
 let lift_definition_by_ornament env evd n l c_old =
   let lifted = do_lift_defn env evd l c_old in
-  ignore (define_term n evd lifted false);
+  ignore (define_term n evd lifted true);
   try
     let old_gref = Globnames.global_of_constr c_old in
     let new_gref = Globnames.ConstRef (Lib.make_kn n |> Constant.make1) in
