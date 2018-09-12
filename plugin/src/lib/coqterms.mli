@@ -271,8 +271,8 @@ val offset2 : env -> env -> int
 (*
  * Reconstruct local bindings around a term
  *)
-val recompose_prod_assum : CRD.t list -> types -> types
-val recompose_lam_assum : CRD.t list -> types -> types
+val recompose_prod_assum : Context.Rel.t -> types -> types
+val recompose_lam_assum : Context.Rel.t -> types -> types
 
 (*
  * Instantiate an abstract universe context, the result of which should be
