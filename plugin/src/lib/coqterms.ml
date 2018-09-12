@@ -407,13 +407,13 @@ let offset2 env1 env2 = nb_rel env1 - nb_rel env2
 
 (* Bind the declarations of a local context as product/let-in bindings *)
 let recompose_prod_assum decls term =
-  let abstract term decl = Term.mkProd_or_LetIn decl term in
-  Context.Rel.fold_inside abstract ~init:term decls
+  let bind term decl = Term.mkProd_or_LetIn decl term in
+  Context.Rel.fold_inside bind ~init:term decls
 
 (* Bind the declarations of a local context as lambda/let-in bindings *)
 let recompose_lam_assum decls term =
-  let abstract term decl = Term.mkLambda_or_LetIn decl term in
-  Context.Rel.fold_inside abstract ~init:term decls
+  let bind term decl = Term.mkLambda_or_LetIn decl term in
+  Context.Rel.fold_inside bind ~init:term decls
 
 (* Instantiate an abstract universe context *)
 let inst_abs_univ_ctx abs_univ_ctx =
