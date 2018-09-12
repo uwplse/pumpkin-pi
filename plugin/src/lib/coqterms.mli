@@ -59,6 +59,15 @@ val edeclare :
  *)
 val define_term : Id.t -> evar_map -> types -> bool -> global_reference
 
+(*
+ * Safely extract the body of a constant, instantiating any universe variables.
+ * If needed, an evar_map should be constructed from the updated environment with
+ * Evd.from_env.
+ *
+ * Raises a Match_failure if the constant does not exist.
+ *)
+val open_constant : env -> Constant.t -> env * constr
+
 (* --- Constructing terms --- *)
 
 (*

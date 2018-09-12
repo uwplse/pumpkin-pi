@@ -103,6 +103,14 @@ let define_term (n : Id.t) (evm : evar_map) (trm : types) (refresh : bool) =
   let etrm = EConstr.of_constr trm in
   edeclare n k ~opaque:false evm udecl etrm None [] nohook refresh
 
+(* Safely extract the body of a constant, instantiating any universe variables. *)
+let open_constant env const =
+  let (Some (term, auctx)) = Global.body_of_constant const in
+  let uctx = Universes.fresh_instance_from_context auctx |> Univ.UContext.make in
+  let term = Vars.subst_instance_constr (Univ.UContext.instance uctx) term in
+  let env = Environ.push_context uctx env in
+  env, term
+
 (* --- Application and arguments --- *)
 
 (* Get a list of all arguments, fully unfolded at the head *)
