@@ -361,7 +361,7 @@ let lift_core env evd c (from_type, to_type) index_type trm =
     else if is_orn l en evd (from_type, to_type) tr then
       (* EQUIVALENCE *)
       if l.is_fwd then
-        let t_args = List.map (lift_rec en index_type) (unfold_args tr) in 
+        let t_args = List.map (lift_rec en index_type) (unfold_args tr) in
         let app = mkAppl (to_type, t_args) in
         let index = mkRel 1 in
         let abs_i = reindex_body (reindex_app (insert_index l.index_i index)) in
@@ -543,17 +543,207 @@ let do_lift_defn env evd (l : lifting) def =
 (*                           Inductive types                            *)
 (************************************************************************)
 
+let rec eta_extern env evm idset term =
+  let open Misctypes in
+  let open Decl_kinds in
+  let open Globnames in
+  let open Context in
+  let open Constrexpr in
+  let open Constrexpr_ops in
+  let open Constrextern in
+  let raw_extern = EConstr.of_constr %> extern_constr ~lax:true false env evm in
+  Feedback.msg_debug (Printer.pr_constr_env env evm term);
+  match kind term with
+  | Rel _ | Var _ ->
+    let typ = infer_type env evm term in
+    if applies sigT typ then
+      let { index_type; packer } = dest_sigT typ in
+      let fst = mkApp (projT1, [|index_type; packer; term|]) in
+      let snd = mkApp (projT2, [|index_type; packer; term|]) in
+      raw_extern (mkApp (existT, [|index_type; packer; fst; snd|]))
+    else
+      raw_extern term
+  | Cast (term, _, typ) ->
+    mkCastC
+      (eta_extern env evm idset term,
+       CastConv (eta_extern env evm idset typ))
+  | Prod (name, typ, body) ->
+    let id = Namegen.next_name_away name idset in
+    let name = Name id in
+    mkProdC
+      ([CAst.make name],
+       Default Explicit,
+       eta_extern env evm idset typ,
+       eta_extern (push_local (name, typ) env) evm (Id.Set.add id idset) body)
+  | Lambda (name, typ, body) ->
+    let id = Namegen.next_name_away name idset in
+    let name = Name id in
+    mkLambdaC
+      ([CAst.make name],
+       Default Explicit,
+       eta_extern env evm idset typ,
+       eta_extern (push_local (name, typ) env) evm (Id.Set.add id idset) body)
+  | LetIn (name, term, typ, body) ->
+    let id = Namegen.next_name_away name idset in
+    let name = Name id in
+    mkLetInC
+      (CAst.make name,
+       eta_extern env evm idset term,
+       Some (eta_extern env evm idset typ),
+       eta_extern (push_let_in (name, term, typ) env) evm (Id.Set.add id idset) body)
+  | App (head, args) ->
+    if isConstruct head && eq_gr (global_of_constr existT) (global_of_constr head) then
+      raw_extern term
+    else
+      mkAppC
+        (eta_extern env evm idset head,
+         Array.map_to_list (eta_extern env evm idset) args)
+  | Const _ | Ind _ | Construct _ ->
+    let gref = global_of_constr term in
+    CAppExpl ((None, extern_reference idset gref, None), []) |> CAst.make
+  | Proj _ ->
+    raw_extern term
+  | Sort sort ->
+    let gsort =
+      match Sorts.family sort with
+      | Sorts.InProp -> GProp
+      | Sorts.InSet -> GSet
+      | Sorts.InType -> GType []
+    in
+    CSort gsort |> CAst.make
+  | Case (info, motive, discr, cases) ->
+    let eta_pattern = eta_extern_pattern idset info.ci_npar in
+    let push_binds = List.fold_right push_local in
+    let return_binds, return_type = Term.decompose_lam motive in
+    let freshen_binds =
+      List.fold_right_map
+        (fun (name, typ) idset ->
+           let id = Namegen.next_name_away name idset in
+           (Name id, typ), Id.Set.add id idset)
+    in
+    let ((discr_bind :: index_binds) as return_binds), return_idset =
+      freshen_binds return_binds idset
+    in
+    let branches =
+      Array.map2_i
+        (fun i narg case ->
+          let case_binds, case_body = Term.decompose_lam_n narg case in
+          let case_binds, idset = freshen_binds case_binds idset in
+          CAst.make
+            ([[eta_pattern (ConstructRef (info.ci_ind, i + 1)) case_binds]],
+             eta_extern (push_binds case_binds env) evm idset case_body))
+        info.ci_cstr_nargs cases
+    in
+    CCases
+      (info.ci_pp_info.style,
+       Some (eta_extern (push_binds return_binds env) evm return_idset return_type),
+       [(eta_extern env evm idset discr,
+         Some (CAst.make (fst discr_bind)),
+         Some (eta_pattern (IndRef info.ci_ind) index_binds))],
+       Array.to_list branches) |>
+    CAst.make
+  | Fix (([|rec_idx|], 0), ([|Name id|], [|typ|], [|body|])) ->
+    let ctxt, type_in_ctxt = Term.decompose_prod_assum typ in
+    let ctxt, idset =
+      Rel.fold_outside
+        (fun decl (ctxt, idset) ->
+           let name = Rel.Declaration.get_name decl in
+           let id = Namegen.next_name_away name idset in
+           let decl' = Rel.Declaration.set_name (Name id) decl in
+           Rel.add decl' ctxt, Id.Set.add id idset)
+        ctxt
+        ~init:(Rel.empty, Id.Set.add id idset)
+    in
+    let _, body_in_ctxt = Term.decompose_lam_n_decls (Rel.length ctxt) body in
+    let body_env =
+      push_local (Name id, recompose_prod_assum ctxt type_in_ctxt) env |>
+      push_rel_context (Termops.lift_rel_context 1 ctxt)
+    in
+    let rec_name = Rel.lookup (Rel.length ctxt - rec_idx) ctxt |> Rel.Declaration.get_name in
+    CFix
+      (CAst.make id,
+       [(CAst.make id,
+         (Nameops.Name.to_option rec_name |> Option.map CAst.make, CStructRec),
+         eta_extern_context env evm idset ctxt,
+         eta_extern (push_rel_context ctxt env) evm idset type_in_ctxt,
+         eta_extern body_env evm idset body_in_ctxt)]) |>
+    CAst.make
+  | Fix _ -> failwith "Mutual fixed-points unsupported"
+  | CoFix (0, ([|Name id|], [|typ|], [|body|])) ->
+    failwith "Unimplemented"
+  | CoFix _ -> failwith "Mutual co-fixed-points unsupported"
+  | Meta _ | Evar _ -> failwith "Metavars and evars unsupported"
+and eta_extern_context env evm idset context =
+    let open Context in
+    let open Decl_kinds in
+    let open Constrexpr in
+    Rel.fold_outside
+      (fun decl (binders, env) ->
+         let binder =
+           match decl with
+           | Rel.Declaration.LocalAssum (name, typ) ->
+             let type_expr = eta_extern env evm idset typ in
+             CLocalAssum ([CAst.make name], Default Explicit, type_expr)
+           | Rel.Declaration.LocalDef (name, term, typ) ->
+             let term_expr = eta_extern env evm idset term in
+             let type_expr = eta_extern env evm idset typ in
+             CLocalDef (CAst.make name, term_expr, Some type_expr)
+         in
+         (binder :: binders, push_rel decl env))
+      context
+      ~init:([], env) |> fst |> List.rev
+and eta_extern_pattern idset nparam head binds =
+    let open Constrexpr in
+    let extern_ref = Constrextern.extern_reference idset in
+    let skip_pat = CAst.make (CPatAtom None) in
+    let bind_pat =
+      let sigma_pat =
+        let existT_ref = Lazy.force Coqlib.coq_existT_ref |> extern_ref in
+        CAst.make (CPatCstr (existT_ref, Some (List.make 4 skip_pat), []))
+      in
+      function
+      | (name, typ) when applies sigT typ ->
+        CAst.make (CPatAlias (sigma_pat, CAst.make name))
+      | (Name id, typ) ->
+        CAst.make (CPatAtom (Some (CAst.make (Libnames.Ident id))))
+      | (Anonymous, _)  ->
+        skip_pat
+    in
+    CAst.make
+      (CPatCstr
+         (extern_ref head,
+          Some (binds |> List.rev_map bind_pat |> List.addn nparam skip_pat),
+          []))
+
+let define_lifted_eliminator ?(suffix="sigT") ind0 ind sort =
+  let env = Global.env () in
+  let ident =
+    let ind_name = (Inductive.lookup_mind_specif env ind |> snd).mind_typename in
+    let raw_ident = Indrec.make_elimination_ident ind_name sort in
+    Nameops.add_suffix raw_ident suffix
+  in
+  let gref = Indrec.lookup_eliminator ind sort in
+  let env, term = open_constant env (Globnames.destConstRef gref) in
+  let expr = eta_extern env (Evd.from_env env) Id.Set.empty term in
+  Feedback.msg_debug (Ppconstr.pr_constr_expr expr);
+  ComDefinition.do_definition
+    ~program_mode:false
+    ident
+    (Decl_kinds.Global, false, Decl_kinds.Scheme)
+    None
+    []
+    None
+    expr
+    None
+    (Lemmas.mk_hook (fun _ -> declare_lifted gref))
+
 let declare_inductive_liftings ind ind' ncons =
   declare_lifted (Globnames.IndRef ind) (Globnames.IndRef ind');
-  let sorts = [Sorts.InType; Sorts.InProp] in
-  List.iter2
-    declare_lifted
-    (List.map (Indrec.lookup_eliminator ind) sorts)
-    (List.map (Indrec.lookup_eliminator ind') sorts);
   List.iter2
     declare_lifted
     (List.init ncons (fun i -> Globnames.ConstructRef (ind, i + 1)))
-    (List.init ncons (fun i -> Globnames.ConstructRef (ind', i + 1)))
+    (List.init ncons (fun i -> Globnames.ConstructRef (ind', i + 1)));
+  List.iter (define_lifted_eliminator ind ind') [Sorts.InType; Sorts.InProp]
 
 (*
  * Lift the inductive type using sigma-packing.
