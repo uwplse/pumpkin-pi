@@ -409,13 +409,8 @@ let recompose_lam_assum decls term =
 
 (* Instantiate an abstract universe context *)
 let inst_abs_univ_ctx abs_univ_ctx =
-  let nlvls = Univ.AUContext.size abs_univ_ctx in
   (* Note that we're creating *globally* fresh universe levels. *)
-  let new_lvl _ = Universes.new_univ_level () in
-  let univ_inst = Array.init nlvls new_lvl |> Univ.Instance.of_array in
-  let univ_cnst = Univ.AUContext.instantiate univ_inst abs_univ_ctx in
-  let univ_ctx = Univ.UContext.make (univ_inst, univ_cnst) in
-  univ_ctx
+  Universes.fresh_instance_from_context abs_univ_ctx |> Univ.UContext.make
 
 (* --- Basic questions about terms --- *)
 
