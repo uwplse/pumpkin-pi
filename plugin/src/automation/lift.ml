@@ -543,27 +543,20 @@ let do_lift_defn env evd (l : lifting) def =
 (*                           Inductive types                            *)
 (************************************************************************)
 
-let define_lifted_eliminator ?(suffix="sigT") ind0 ind sort =
+let define_lifted_eliminator ?(suffix="_sigT") ind0 ind sort =
   let env = Global.env () in
   let ident =
     let ind_name = (Inductive.lookup_mind_specif env ind |> snd).mind_typename in
     let raw_ident = Indrec.make_elimination_ident ind_name sort in
     Nameops.add_suffix raw_ident suffix
   in
-  let gref = Indrec.lookup_eliminator ind sort in
-  let env, term = open_constant env (Globnames.destConstRef gref) in
+  let elim0 = Indrec.lookup_eliminator ind0 sort in
+  let elim = Indrec.lookup_eliminator ind sort in
+  let env, term = open_constant env (Globnames.destConstRef elim) in
   let expr = Elim.eta_extern env (Evd.from_env env) Id.Set.empty term in
-  Feedback.msg_debug (Ppconstr.pr_constr_expr expr);
   ComDefinition.do_definition
-    ~program_mode:false
-    ident
-    (Decl_kinds.Global, false, Decl_kinds.Scheme)
-    None
-    []
-    None
-    expr
-    None
-    (Lemmas.mk_hook (fun _ -> declare_lifted gref))
+    ~program_mode:false ident (Decl_kinds.Global, false, Decl_kinds.Scheme)
+    None [] None expr None (Lemmas.mk_hook (fun _ -> declare_lifted elim0))
 
 let declare_inductive_liftings ind ind' ncons =
   declare_lifted (Globnames.IndRef ind) (Globnames.IndRef ind');
