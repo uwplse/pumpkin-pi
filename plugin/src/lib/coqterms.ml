@@ -224,6 +224,15 @@ let dest_sigT (typ : types) =
   { index_type; packer }
 
 (*
+ * Build the eta-expansion of a term known to have a sigma type.
+ *)
+let eta_sigT (term : constr) (typ : types) =
+  let { index_type; packer } = dest_sigT typ in
+  let fst = mkApp (projT1, [|index_type; packer; term|]) in
+  let snd = mkApp (projT2, [|index_type; packer; term|]) in
+  mkApp (existT, [|index_type; packer; fst; snd|])
+
+(*
  * An application of sigT_rect
  *)
 type sigT_elim =
@@ -404,6 +413,12 @@ let offset env npm = nb_rel env - npm
 
 (* Find the offset between two environments *)
 let offset2 env1 env2 = nb_rel env1 - nb_rel env2
+
+(* Append two contexts (inner first, outer second), shifting internal indices. *)
+let context_app inner outer =
+  List.append
+    (Termops.lift_rel_context (Context.Rel.length outer) inner)
+    outer
 
 (* Bind the declarations of a local context as product/let-in bindings *)
 let recompose_prod_assum decls term =

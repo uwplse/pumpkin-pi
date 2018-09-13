@@ -119,6 +119,11 @@ val pack_sigT : sigT_app -> types
 val dest_sigT : types -> sigT_app
 
 (*
+ * Build the eta-expansion of a term known to have a sigma type.
+ *)
+val eta_sigT : constr -> types -> constr
+
+(*
  * An application of sigT_rect
  *)
 type sigT_elim =
@@ -267,6 +272,15 @@ val bindings_for_fix : name array -> types array -> CRD.t list
  *)
 val offset : env -> int -> int
 val offset2 : env -> env -> int
+
+(*
+ * Append two contexts (inner first, outer second), shifting internal indices.
+ *
+ * The input contexts are assumed to share the same environment, such that any
+ * external indices inside the now-inner context must be shifted to pass over
+ * the now-outer context.
+ *)
+val context_app : Context.Rel.t -> Context.Rel.t -> Context.Rel.t
 
 (*
  * Reconstruct local bindings around a term
