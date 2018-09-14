@@ -6,8 +6,8 @@ open Caching
 open Search
 open Lift
 open Utilities
-       
-(* 
+
+(*
  * Identify an algebraic ornament between two types
  * Define the components of the corresponding equivalence
  * (Don't prove section and retraction)
@@ -60,3 +60,8 @@ let lift_by_ornament n d_orn d_orn_inv d_old =
   with _ ->
     Printf.printf "WARNING: Failed to cache lifting."
 
+let translate_matches n d =
+  let (evm, env) = Pfedit.get_current_context () in
+  let term = intern env evm d |> unwrap_definition env in
+  let evm, term' = desugar_matches env evm term in
+  ignore (define_term n evm term' false)
