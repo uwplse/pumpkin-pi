@@ -60,6 +60,12 @@ let lift_by_ornament n d_orn d_orn_inv d_old =
   with _ ->
     Printf.printf "WARNING: Failed to cache lifting."
 
+(*
+ * Translate every match expression into an equivalent eliminator
+ * application, defining the new term with the given name.
+ *
+ * Currently, fixed-point expressions are _not_ supported.
+ *)
 let translate_matches n d =
   let (evm, env) = Pfedit.get_current_context () in
   let term = intern env evm d |> unwrap_definition env in
