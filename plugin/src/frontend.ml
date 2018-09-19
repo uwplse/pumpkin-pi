@@ -5,6 +5,7 @@ open Lifting
 open Caching
 open Search
 open Lift
+open Desugar
 open Utilities
 
 (*
