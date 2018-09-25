@@ -1,11 +1,8 @@
 #!/bin/bash
 
-# This runs the first of two versions of the eval, which uses separate datatypes.
-# This essentially shows that the performance is still fast even if we lift the datatypes ourselves.
-
-# This is not the version of the eval in the paper, which uses the same datatypes for both and copies and pastes the function,
-# to control for changes in performance between regular Coq and Coq with UP. This version produces times for both
-# the UP base version and the vanilla base version.
+# This runs the second of two versions of the eval, which is the version of the eval in the paper; 
+# it uses the same datatypes for both and copies and pastes the function,
+# to control for changes in performance between regular Coq and Coq with UP.
 
 if [ -e out ]
 then
