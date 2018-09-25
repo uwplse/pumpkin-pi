@@ -42,6 +42,8 @@ src/components/differencing.mli
 
 src/automation/search.ml
 src/automation/search.mli
+src/automation/elim.ml
+src/automation/elim.mli
 src/automation/lift.ml
 src/automation/lift.mli
 

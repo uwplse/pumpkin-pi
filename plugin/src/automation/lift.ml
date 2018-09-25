@@ -361,7 +361,7 @@ let lift_core env evd c (from_type, to_type) index_type trm =
     else if is_orn l en evd (from_type, to_type) tr then
       (* EQUIVALENCE *)
       if l.is_fwd then
-        let t_args = List.map (lift_rec en index_type) (unfold_args tr) in 
+        let t_args = List.map (lift_rec en index_type) (unfold_args tr) in
         let app = mkAppl (to_type, t_args) in
         let index = mkRel 1 in
         let abs_i = reindex_body (reindex_app (insert_index l.index_i index)) in
@@ -543,17 +543,28 @@ let do_lift_defn env evd (l : lifting) def =
 (*                           Inductive types                            *)
 (************************************************************************)
 
+let define_lifted_eliminator ?(suffix="_sigT") ind0 ind sort =
+  let env = Global.env () in
+  let ident =
+    let ind_name = (Inductive.lookup_mind_specif env ind |> snd).mind_typename in
+    let raw_ident = Indrec.make_elimination_ident ind_name sort in
+    Nameops.add_suffix raw_ident suffix
+  in
+  let elim0 = Indrec.lookup_eliminator ind0 sort in
+  let elim = Indrec.lookup_eliminator ind sort in
+  let env, term = open_constant env (Globnames.destConstRef elim) in
+  let expr = Elim.eta_extern env (Evd.from_env env) Id.Set.empty term in
+  ComDefinition.do_definition
+    ~program_mode:false ident (Decl_kinds.Global, false, Decl_kinds.Scheme)
+    None [] None expr None (Lemmas.mk_hook (fun _ -> declare_lifted elim0))
+
 let declare_inductive_liftings ind ind' ncons =
   declare_lifted (Globnames.IndRef ind) (Globnames.IndRef ind');
-  let sorts = [Sorts.InType; Sorts.InProp] in
-  List.iter2
-    declare_lifted
-    (List.map (Indrec.lookup_eliminator ind) sorts)
-    (List.map (Indrec.lookup_eliminator ind') sorts);
   List.iter2
     declare_lifted
     (List.init ncons (fun i -> Globnames.ConstructRef (ind, i + 1)))
-    (List.init ncons (fun i -> Globnames.ConstructRef (ind', i + 1)))
+    (List.init ncons (fun i -> Globnames.ConstructRef (ind', i + 1)));
+  List.iter (define_lifted_eliminator ind ind') [Sorts.InType; Sorts.InProp]
 
 (*
  * Lift the inductive type using sigma-packing.

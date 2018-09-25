@@ -3,6 +3,7 @@
  *)
 
 open Util
+open Context
 open Environ
 open Constr
 open Names
@@ -102,6 +103,14 @@ let define_term (n : Id.t) (evm : evar_map) (trm : types) (refresh : bool) =
   let nohook = Lemmas.mk_hook (fun _ x -> x) in
   let etrm = EConstr.of_constr trm in
   edeclare n k ~opaque:false evm udecl etrm None [] nohook refresh
+
+(* Safely extract the body of a constant, instantiating any universe variables. *)
+let open_constant env const =
+  let (Some (term, auctx)) = Global.body_of_constant const in
+  let uctx = Universes.fresh_instance_from_context auctx |> Univ.UContext.make in
+  let term = Vars.subst_instance_constr (Univ.UContext.instance uctx) term in
+  let env = Environ.push_context uctx env in
+  env, term
 
 (* --- Application and arguments --- *)
 
@@ -214,6 +223,15 @@ let pack_sigT (app : sigT_app) =
 let dest_sigT (typ : types) =
   let [index_type; packer] = unfold_args typ in
   { index_type; packer }
+
+(*
+ * Build the eta-expansion of a term known to have a sigma type.
+ *)
+let eta_sigT (term : constr) (typ : types) =
+  let { index_type; packer } = dest_sigT typ in
+  let fst = mkApp (projT1, [|index_type; packer; term|]) in
+  let snd = mkApp (projT2, [|index_type; packer; term|]) in
+  mkApp (existT, [|index_type; packer; fst; snd|])
 
 (*
  * An application of sigT_rect
@@ -336,6 +354,64 @@ let push_local (n, t) = push_rel CRD.(LocalAssum (n, t))
 (* Push a let-in definition to an environment *)
 let push_let_in (n, e, t) = push_rel CRD.(LocalDef(n, e, t))
 
+(* Make the rel declaration for a local assumption *)
+let rel_assum (name, typ) =
+  Rel.Declaration.LocalAssum (name, typ)
+
+(* Make the rel declaration for a local definition *)
+let rel_defin (name, def, typ) =
+  Rel.Declaration.LocalDef (name, def, typ)
+
+(* Get the name of a rel declaration *)
+let rel_name decl =
+  Rel.Declaration.get_name decl
+
+(* Get the optional value of a rel declaration *)
+let rel_value decl =
+  Rel.Declaration.get_value decl
+
+(* Get the type of a rel declaration *)
+let rel_type decl =
+  Rel.Declaration.get_type decl
+
+(* Map over a rel context with environment kept in synch *)
+let map_rel_context env make ctxt =
+  Rel.fold_outside
+    (fun decl (env, res) ->
+       push_rel decl env, (make env decl) :: res)
+    ctxt
+    ~init:(env, []) |>
+  snd
+
+(* Make the named declaration for a local assumption *)
+let named_assum (id, typ) =
+  Named.Declaration.LocalAssum (id, typ)
+
+(* Make the named declaration for a local definition *)
+let named_defin (id, def, typ) =
+  Named.Declaration.LocalDef (id, def, typ)
+
+(* Get the name of a named declaration *)
+let named_ident decl =
+  Named.Declaration.get_id decl
+
+(* Get the optional value of a named declaration *)
+let named_value decl =
+  Named.Declaration.get_value decl
+
+(* Get the type of a named declaration *)
+let named_type decl =
+  Named.Declaration.get_type decl
+
+(* Map over a named context with environment kept in synch *)
+let map_named_context env make ctxt =
+  Named.fold_outside
+    (fun decl (env, res) ->
+       push_named decl env, (make env decl) :: res)
+    ctxt
+    ~init:(env, []) |>
+  snd
+
 (* Lookup n rels and remove then *)
 let lookup_pop (n : int) (env : env) =
   let rels = List.map (fun i -> lookup_rel i env) (from_one_to n) in
@@ -397,25 +473,26 @@ let offset env npm = nb_rel env - npm
 (* Find the offset between two environments *)
 let offset2 env1 env2 = nb_rel env1 - nb_rel env2
 
+(* Append two contexts (inner first, outer second), shifting internal indices. *)
+let context_app inner outer =
+  List.append
+    (Termops.lift_rel_context (Rel.length outer) inner)
+    outer
+
 (* Bind the declarations of a local context as product/let-in bindings *)
 let recompose_prod_assum decls term =
-  let abstract term decl = Term.mkProd_or_LetIn decl term in
-  Context.Rel.fold_inside abstract ~init:term decls
+  let bind term decl = Term.mkProd_or_LetIn decl term in
+  Rel.fold_inside bind ~init:term decls
 
 (* Bind the declarations of a local context as lambda/let-in bindings *)
 let recompose_lam_assum decls term =
-  let abstract term decl = Term.mkLambda_or_LetIn decl term in
-  Context.Rel.fold_inside abstract ~init:term decls
+  let bind term decl = Term.mkLambda_or_LetIn decl term in
+  Rel.fold_inside bind ~init:term decls
 
 (* Instantiate an abstract universe context *)
 let inst_abs_univ_ctx abs_univ_ctx =
-  let nlvls = Univ.AUContext.size abs_univ_ctx in
   (* Note that we're creating *globally* fresh universe levels. *)
-  let new_lvl _ = Universes.new_univ_level () in
-  let univ_inst = Array.init nlvls new_lvl |> Univ.Instance.of_array in
-  let univ_cnst = Univ.AUContext.instantiate univ_inst abs_univ_ctx in
-  let univ_ctx = Univ.UContext.make (univ_inst, univ_cnst) in
-  univ_ctx
+  Universes.fresh_instance_from_context abs_univ_ctx |> Univ.UContext.make
 
 (* --- Basic questions about terms --- *)
 
@@ -705,3 +782,16 @@ let map_term f d (a : 'a) (trm : types) : types =
 let with_suffix id suffix =
   let prefix = Id.to_string id in
   Id.of_string (String.concat "_" [prefix; suffix])
+
+(* Turn a name into an optional identifier *)
+let ident_of_name = function
+  | Name id -> Some id
+  | Anonymous -> None
+
+(* Turn an identifier into an external (i.e., surface-level) reference *)
+let reference_of_ident id =
+  Libnames.Ident id |> CAst.make
+
+(* Turn a name into an optional external (i.e., surface-level) reference *)
+let reference_of_name =
+  ident_of_name %> Option.map reference_of_ident

@@ -2,6 +2,7 @@
  * Coq term and environment management
  *)
 
+open Context
 open Environ
 open Constr
 open Evd
@@ -59,6 +60,15 @@ val edeclare :
  *)
 val define_term : Id.t -> evar_map -> types -> bool -> global_reference
 
+(*
+ * Safely extract the body of a constant, instantiating any universe variables.
+ * If needed, an evar_map should be constructed from the updated environment with
+ * Evd.from_env.
+ *
+ * Raises a Match_failure if the constant does not exist.
+ *)
+val open_constant : env -> Constant.t -> env * constr
+
 (* --- Constructing terms --- *)
 
 (*
@@ -108,6 +118,11 @@ type sigT_app =
  *)
 val pack_sigT : sigT_app -> types
 val dest_sigT : types -> sigT_app
+
+(*
+ * Build the eta-expansion of a term known to have a sigma type.
+ *)
+val eta_sigT : constr -> types -> constr
 
 (*
  * An application of sigT_rect
@@ -239,6 +254,43 @@ val mk_n_rels : int -> types list
 val push_local : (name * types) -> env -> env
 val push_let_in : (name * types * types) -> env -> env
 
+
+(*
+ * Construct a rel declaration
+ *)
+val rel_assum : Name.t * 'types -> ('constr, 'types) Rel.Declaration.pt
+val rel_defin : Name.t * 'constr * 'types -> ('constr, 'types) Rel.Declaration.pt
+
+(*
+ * Project a component of a rel declaration
+ *)
+val rel_name : ('constr, 'types) Rel.Declaration.pt -> Name.t
+val rel_value : ('constr, 'types) Rel.Declaration.pt -> 'constr option
+val rel_type : ('constr, 'types) Rel.Declaration.pt -> 'types
+
+(*
+ * Map over a rel context with environment kept in synch
+ *)
+val map_rel_context : env -> (env -> Rel.Declaration.t -> 'a) -> Rel.t -> 'a list
+
+(*
+ * Construct a named declaration
+ *)
+val named_assum : Id.t * 'types -> ('constr, 'types) Named.Declaration.pt
+val named_defin : Id.t * 'constr * 'types -> ('constr, 'types) Named.Declaration.pt
+
+(*
+ * Project a component of a named declaration
+ *)
+val named_ident : ('constr, 'types) Named.Declaration.pt -> Id.t
+val named_value : ('constr, 'types) Named.Declaration.pt -> 'constr option
+val named_type : ('constr, 'types) Named.Declaration.pt -> 'types
+
+(*
+ * Map over a named context with environment kept in synch
+ *)
+val map_named_context : env -> (env -> Named.Declaration.t -> 'a) -> Named.t -> 'a list
+
 (*
  * Lookup from an environment
  *)
@@ -260,10 +312,19 @@ val offset : env -> int -> int
 val offset2 : env -> env -> int
 
 (*
+ * Append two contexts (inner first, outer second), shifting internal indices.
+ *
+ * The input contexts are assumed to share the same environment, such that any
+ * external indices inside the now-inner context must be shifted to pass over
+ * the now-outer context.
+ *)
+val context_app : Rel.t -> Rel.t -> Rel.t
+
+(*
  * Reconstruct local bindings around a term
  *)
-val recompose_prod_assum : CRD.t list -> types -> types
-val recompose_lam_assum : CRD.t list -> types -> types
+val recompose_prod_assum : Rel.t -> types -> types
+val recompose_lam_assum : Rel.t -> types -> types
 
 (*
  * Instantiate an abstract universe context, the result of which should be
@@ -362,6 +423,15 @@ val map_term :
  * Add a string suffix to a name identifier
  *)
 val with_suffix : Id.t -> string -> Id.t
+
+(* Turn a name into an optional identifier *)
+val ident_of_name : Name.t -> Id.t option
+
+(* Turn an identifier into an external (i.e., surface-level) reference *)
+val reference_of_ident : Id.t -> Libnames.reference
+
+(* Turn a name into an optional external (i.e., surface-level) reference *)
+val reference_of_name : Name.t -> Libnames.reference option
 
 (* --- Application and arguments --- *)
 
