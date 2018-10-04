@@ -32,8 +32,8 @@ Definition cons' := @cons.
 
 Lift list vector in cons' as cons'_c.
 Theorem testCons:
-  forall A a pv, 
-    cons'_c A a pv = 
+  forall A a pv,
+    cons'_c A a pv =
     existT (vector A) (S (projT1 pv)) (consV A (projT1 pv) a (projT2 pv)).
 Proof.
   intros. reflexivity.
@@ -183,7 +183,7 @@ Definition append_vect (A : Type) (pv1 : sigT (vector A)) (pv2 : sigT (vector A)
   vector_rect
     A
     (fun (n0 : nat) (v0 : vector A n0) => sigT (fun (n : nat) => vector A n))
-    pv2
+    (existT (vector A) (projT1 pv2) (projT2 pv2))
     (fun (n0 : nat) (a : A) (v0 : vector A n0) (IH : sigT (fun (n : nat) => vector A n)) =>
       existT
         (vector A)
@@ -223,7 +223,7 @@ Definition appendF (l1 : natFlector.flist) (l2 : natFlector.flist) :=
 Definition append_vectF (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector) :=
   natFlector.flector_rect
     (fun (n0 : nat) (v0 : natFlector.flector n0) => sigT natFlector.flector)
-    pv2
+    (existT natFlector.flector (projT1 pv2) (projT2 pv2))
     (fun (n0 : nat) (a : nat) (v0 : natFlector.flector n0) (IH : sigT natFlector.flector) =>
       existT
         natFlector.flector
@@ -349,25 +349,25 @@ Definition app_nil_r (A : Type) (l : list A) :=
     l.
 
 Definition app_nil_r_vect (A : Type) (pv : packed_vector A) :=
-  vector_ind 
+  vector_ind
     A
-    (fun (n0 : nat) (v0 : vector A n0) => 
+    (fun (n0 : nat) (v0 : vector A n0) =>
       append_vect A (existT (vector A) n0 v0) (existT (vector A) O (nilV A)) = existT (vector A) n0 v0)
     (@eq_refl (sigT (vector A)) (existT (vector A) O (nilV A)))
     (fun (n0 : nat) (a : A) (v0 : vector A n0) (IHp : append_vect A (existT (vector A) n0 v0) (existT (vector A) O (nilV A)) = existT (vector A) n0 v0) =>
-      @eq_ind_r 
-        (sigT (vector A)) 
+      @eq_ind_r
+        (sigT (vector A))
         (existT (vector A) n0 v0)
-        (fun (pv1 : sigT (vector A)) => 
+        (fun (pv1 : sigT (vector A)) =>
           existT (vector A) (S (projT1 pv1)) (consV A (projT1 pv1) a (projT2 pv1)) = existT (vector A) (S n0) (consV A n0 a v0))
         (@eq_refl (sigT (vector A)) (existT (vector A) (S n0) (consV A n0 a v0)))
         (append_vect A (existT (vector A) n0 v0) (existT (vector A) 0 (nilV A)))
         IHp)
-    (projT1 pv) 
+    (projT1 pv)
     (projT2 pv).
 
 Lift list vector in app_nil_r as app_nil_r_vect_lifted.
-		   
+
 Theorem test_app_nil_r_vect_exact:
   forall (A : Type) (pv : sigT (vector A)),
     append_vect_lifted A (existT (vector A) (projT1 pv) (projT2 pv)) (existT (vector A) 0 (nilV A)) = (existT (vector A) (projT1 pv) (projT2 pv)).
@@ -412,7 +412,7 @@ Qed.
 
 (* in_split *)
 
-Theorem in_split : 
+Theorem in_split :
   forall A x (l:list A), In A x l -> exists l1 l2, l = append A l1 (x::l2).
 Proof.
   induction l; simpl; destruct 1.
@@ -449,13 +449,13 @@ Lift list vector in is_cons as is_cons_lifted.
 (* hd_error_some_nil *)
 
 Lemma hd_error_some_nil : forall A l (a:A), hd_error A l = Some a -> l <> nil.
-Proof. 
+Proof.
   (*unfold hd_error. [TODO] *) induction l. (* destruct l; now disccriminate [ported below] *)
   - now discriminate.
   - simpl. intros. unfold not. intros.
     apply eq_ind with (P := is_cons A) in H0.
-    * apply H0. 
-    * simpl. auto. 
+    * apply H0.
+    * simpl. auto.
 Defined.
 
 Lift list vector in hd_error_some_nil as hd_error_some_nil_vect_lifted.
@@ -468,3 +468,55 @@ Proof.
    exact hd_error_some_nil_vect_lifted.
 Qed.
 
+(* --- Regressing the letin bug --- *)
+Definition test_letin (A : Type) (xs : {n:nat & vector A n}) : {n:nat & vector A n} :=
+  let n := projT1 xs in
+  existT _ n (projT2 xs).
+
+Lift vector list in test_letin as test_letin_list_lifted.
+
+Lemma test_letin_list_lifted_ok (A : Type) (xs : list A) :
+  test_letin_list_lifted A xs = xs.
+Proof. reflexivity. Defined.
+
+(* --- Regressing the bug Nate caught with LIFT-PACK and variables --- *)
+
+(*
+ * See: https://github.com/uwplse/ornamental-search/issues/14
+ *)
+
+Lemma tl_ok:
+ forall (A : Type) (x : A) (xs xs' : list A),
+   xs = cons x xs' -> 
+   tl A xs = xs'.
+Proof. 
+  intros A a xs xs' E. rewrite E. reflexivity. 
+Defined.
+
+Lift list vector in tl_ok as tlV_ok.
+
+Theorem test_tlV_ok: 
+  forall (A : Type) (x : A) (xs xs' : sigT (vector A)),
+    existT (vector A) (projT1 xs) (projT2 xs) = existT (vector A) (S (projT1 xs')) (consV A (projT1 xs') x (projT2 xs')) -> 
+    tl_vect_lifted A (existT (vector A) (projT1 xs) (projT2 xs)) = (existT (vector A) (projT1 xs') (projT2 xs')).
+Proof.
+  exact tlV_ok.
+Qed.
+
+Lemma uncons_eq:
+  forall (A : Type) (x y : A) (xs ys : list A),
+    cons x xs = cons y ys -> 
+    x = y /\ xs = ys.
+Proof. 
+  intros A x y xs ys E. split. exact (f_equal (hd A x) E). exact (f_equal (tl A) E). 
+Defined.
+
+Lift list vector in uncons_eq as unconsV_eq.
+
+Theorem test_uncons_eqV_ok:
+  forall (A : Type) (x y : A) (xs ys : sigT (vector A)),
+    existT (vector A) (S (projT1 xs)) (consV A (projT1 xs) x (projT2 xs)) = existT (vector A) (S (projT1 ys)) (consV A (projT1 ys) y (projT2 ys)) ->
+    x = y /\ existT (vector A) (projT1 xs) (projT2 xs) = existT (vector A) (projT1 ys) (projT2 ys).
+Proof.
+  exact unconsV_eq.
+Qed.

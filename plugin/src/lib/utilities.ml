@@ -1,3 +1,5 @@
+open Util
+
 (*
  * Basic utilities for collections, optionals, and so on
  *)
@@ -91,7 +93,7 @@ let from_one_to (max : int) : int list =
 
 (* Always true *)
 let always_true _ = true
-                                
+
 (* Check that p a and p b are both true *)
 let and_p (p : 'a -> bool) (o : 'a) (n : 'a) : bool =
   p o && p n
@@ -99,3 +101,8 @@ let and_p (p : 'a -> bool) (o : 'a) (n : 'a) : bool =
 (* Control structures *)
 let map_if_else f g b x = if b then f x else g x
 let map_if f b x = map_if_else f (fun a -> a) b x
+
+(* Look up the name referenced by a term and append a suffix to it. *)
+let suffix_term_name term suffix =
+  let base = Nametab.basename_of_global (Globnames.global_of_constr term) in
+  Nameops.add_suffix base (Names.Id.to_string suffix)

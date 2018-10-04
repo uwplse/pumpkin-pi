@@ -2,6 +2,7 @@
  * Core lifting algorithm from Section 5.1.2
  *)
 
+open Util
 open Constr
 open Environ
 open Zooming
@@ -19,8 +20,8 @@ open Specialization
 (* --- Internal lifting configuration --- *)
 
 (*
- * As explained in Section 5, LIFT-CONSTR-ARGS and LIFT-CONSTR-FUN use 
- * refolding for order-independence. This configuration lets us compute 
+ * As explained in Section 5, LIFT-CONSTR-ARGS and LIFT-CONSTR-FUN use
+ * refolding for order-independence. This configuration lets us compute
  * the constructor rules ahead of time. Note that these are stored
  * with constant constructors even in the backward direction,
  * though the LIFT-CONSTR rule requires a packed from type in that direction.
@@ -40,8 +41,8 @@ type lift_config =
   }
 
 (* --- to/from --- *)
-       
-(* 
+
+(*
  * Get the to/from type from the ornament
  *)
 let promotion_type env evd trm =
@@ -73,7 +74,7 @@ let type_is_orn l env evd (from_type, to_type) trm =
  *)
 let filter_orn l env evd (from_typ, to_typ) args =
   List.filter (type_is_orn l env evd (from_typ, to_typ)) args
-              
+
 (* Premises for LIFT-CONSTR *)
 let is_packed_constr l env evd (from_type, to_type) trm =
   let right_type = type_is_orn l env evd (from_type, to_type) in
@@ -96,7 +97,7 @@ let is_packed_constr l env evd (from_type, to_type) trm =
 let is_packed l env evd (from_type, to_type) trm =
   let right_type = type_is_orn l env evd (from_type, to_type) in
   if l.is_fwd then
-    false
+    isRel trm && right_type trm
   else
     match kind trm with
     | App (f, args) ->
@@ -142,13 +143,13 @@ let pack_to_typ env evd l (from_typ, to_typ) unpacked =
   else
     unpacked
 
-(* 
+(*
  * Configure LIFT-CONSTR-ARGS & LIFT-CONSTR-FUN
  *)
 let configure_constr env evd l (from_typ, to_typ) trm =
   let args = unfold_args (map_backward last_arg l trm) in
   let pack_args = List.map (pack_to_typ env evd l (from_typ, to_typ)) in
-  let packed_args = map_backward pack_args l args in  
+  let packed_args = map_backward pack_args l args in
   let rec_args = filter_orn l env evd (from_typ, to_typ) packed_args in
   if List.length rec_args = 0 then
     (* base case - don't bother refolding *)
@@ -156,7 +157,7 @@ let configure_constr env evd l (from_typ, to_typ) trm =
   else
     (* inductive case - refold *)
     refold l env evd (lift_to l) (lift env evd l trm) rec_args
-    
+
 (*
  * Configure LIFT-CONSTR-ARGS and LIFT-CONSTR-FUN for a single constructor
  *)
@@ -166,7 +167,7 @@ let initialize_constr_rule env evd l (from_typ, to_typ) constr =
   let to_refold = map_backward (pack env_c_b evd l.index_i) l c_body in
   let refolded = configure_constr env_c_b evd l (from_typ, to_typ) to_refold in
   reconstruct_lambda_n env_c_b refolded (nb_rel env)
-              
+
 (*
  * Configure LIFT-CONSTR-ARGS and LIFT-CONSTR-FUN for all constructors
  *)
@@ -186,7 +187,7 @@ let initialize_constr_rules env evd l (from_typ, to_typ) =
 let initialize_lift_config env evd l (from_typ, to_typ) =
   let constr_rules = initialize_constr_rules env evd l (from_typ, to_typ) in
   let cache = initialize_local_cache () in
-  { l ; constr_rules ; cache } 
+  { l ; constr_rules ; cache }
 
 (* --- Lifting the induction principle --- *)
 
@@ -195,9 +196,9 @@ let initialize_lift_config env evd l (from_typ, to_typ) =
  * as described in Section 5.2, Coq doesn't have primitive eliminators.
  * Because of this, we can't simply recursively lift the type we eliminate over;
  * we need to get the arguments to the induction principle by hand.
- * This is what the additional LIFT-ELIM-ARGS rule does. 
+ * This is what the additional LIFT-ELIM-ARGS rule does.
  *)
-                  
+
 (*
  * LIFT-ELIM-ARGS
  *)
@@ -214,7 +215,7 @@ let lift_elim_args env evd l index_i args =
   else
     remove_index index_i (reindex value_i lifted_arg args)
 
-(* 
+(*
  * PROMOTE-MOTIVE and FORGET-MOTIVE
  *)
 let lift_motive env evd l index_i parameterized_elim motive =
@@ -236,7 +237,7 @@ let lift_motive env evd l index_i parameterized_elim motive =
     let lifted_arg_sig = on_type dest_sigT env_to_motive evd lifted_arg in
     let index = project_index lifted_arg_sig lifted_arg in
     let value = project_value lifted_arg_sig lifted_arg in
-    let args = insert_index index_i index (reindex value_i value args) in 
+    let args = insert_index index_i index (reindex value_i value args) in
     let motive_app = reduce_term env_to_motive (mkAppl (motive, args)) in
     reconstruct_lambda_n env_to_motive motive_app (nb_rel env)
 
@@ -276,7 +277,7 @@ let forget_case_args env_c_b env evd l (from_typ, _) args =
            h :: lift_args tl (index, proj_index)
     | _ -> []
   in lift_args args (mkRel 0, mkRel 0)
-           
+
 (* LIFT-CASE-ARGS, an auxiliary function for LIFT-CASE *)
 let lift_case_args env_c_b env evd l (from_typ, to_typ) args =
   let lifter =
@@ -285,8 +286,8 @@ let lift_case_args env_c_b env evd l (from_typ, to_typ) args =
     else
       forget_case_args env_c_b
   in List.rev (lifter env evd l (from_typ, to_typ) (List.rev args))
-                         
-(* 
+
+(*
  * PROMOTE-CASE and FORGET-CASE
  *)
 let lift_case env evd l (from_typ, to_typ) p c_elim c =
@@ -310,7 +311,7 @@ let lift_case env evd l (from_typ, to_typ) p c_elim c =
     let c_to_f = unshift_by (offset2 env_c_b env_c) c_f in
     let c_to_body = reduce_term env_c (mkAppl (c_to_f, c_to_args)) in
     reconstruct_lambda_n env_c c_to_body (nb_rel env)
-                         
+
 (* Lift cases *)
 let lift_cases env evd l (from_typ, to_typ) p p_elim cs =
   snd
@@ -339,7 +340,7 @@ let lift_elim env evd l trm_app =
   apply_eliminator {trm_app with elim; p; cs; final_args}
 
 (* --- Core algorithm --- *)
-       
+
 (*
  * Core lifting algorithm (Figure 19)
  * A few extra rules to deal with real Coq terms as opposed to CIC.
@@ -350,7 +351,7 @@ let lift_elim env evd l trm_app =
 let lift_core env evd c (from_type, to_type) index_type trm =
   let l = c.l in
   let rec lift_rec en index_type tr =
-    let lifted_opt = search_lifted en tr in
+    let lifted_opt = search_lifted_term en tr in
     if Option.has_some lifted_opt then
       (* GLOBAL CACHING *)
       Option.get lifted_opt
@@ -360,7 +361,7 @@ let lift_core env evd c (from_type, to_type) index_type trm =
     else if is_orn l en evd (from_type, to_type) tr then
       (* EQUIVALENCE *)
       if l.is_fwd then
-        let t_args = unfold_args tr in
+        let t_args = List.map (lift_rec en index_type) (unfold_args tr) in
         let app = mkAppl (to_type, t_args) in
         let index = mkRel 1 in
         let abs_i = reindex_body (reindex_app (insert_index l.index_i index)) in
@@ -396,7 +397,16 @@ let lift_core env evd c (from_type, to_type) index_type trm =
          tr'
     else if is_packed l en evd (from_type, to_type) tr then
       (* LIFT-PACK *)
-      lift_rec en index_type (dest_existT tr).unpacked
+      if l.is_fwd then
+        (* repack variables, since projections aren't primitive *)
+        let typ = reduce_type en evd tr in
+        let lift_typ = dest_sigT (lift_rec en index_type typ) in
+        let index = project_index lift_typ tr in
+        let unpacked = project_value lift_typ tr in
+        let packer = lift_typ.packer in
+        pack_existT { index_type; packer; index; unpacked }
+      else
+        lift_rec en index_type (dest_existT tr).unpacked
     else if is_proj l en evd (from_type, to_type) tr then
       (* LIFT-PROJECT *)
       let arg = last_arg tr in
@@ -406,7 +416,7 @@ let lift_core env evd c (from_type, to_type) index_type trm =
         project_index arg_typ' arg'
       else if equal projT1 (first_fun tr) then
         mkAppl (l.orn.indexer, snoc arg' (non_index_typ_args l.index_i en evd arg))
-      else 
+      else
         arg'
     else if is_eliminator l en evd (from_type, to_type) tr then
       (* LIFT-ELIM *)
@@ -462,7 +472,7 @@ let lift_core env evd c (from_type, to_type) index_type trm =
          (* LETIN *)
          let trm' = lift_rec en index_type trm in
          let typ' = lift_rec en index_type typ in
-         let en_e = push_let_in (n, e, typ) en in
+         let en_e = push_let_in (n, trm, typ) en in
          let e' = lift_rec en_e (shift index_type) e in
          mkLetIn (n, trm', typ', e')
       | Case (ci, ct, m, bs) ->
@@ -509,12 +519,11 @@ let lift_core env evd c (from_type, to_type) index_type trm =
       | _ ->
          tr
   in lift_rec env index_type trm
-              
+
 (*
- * Run the core lifting algorithm
+ * Run the core lifting algorithm on a term
  *)
-let do_lift_core env evd (l : lifting) def =
-  let trm = unwrap_definition env def in
+let do_lift_term env evd (l : lifting) trm =
   let promotion_type en t = fst (on_type ind_of_promotion_type en evd t) in
   let forget_typ = promotion_type env l.orn.forget in
   let promote_typ = promotion_type env l.orn.promote in
@@ -522,3 +531,63 @@ let do_lift_core env evd (l : lifting) def =
   let index_type = (dest_sigT forget_typ).index_type in
   let c = initialize_lift_config env evd l typs in
   lift_core env evd c typs index_type trm
+
+(*
+ * Run the core lifting algorithm on a definition
+ *)
+let do_lift_defn env evd (l : lifting) def =
+  let trm = unwrap_definition env def in
+  do_lift_term env evd l trm
+
+(************************************************************************)
+(*                           Inductive types                            *)
+(************************************************************************)
+
+let define_lifted_eliminator ?(suffix="_sigT") ind0 ind sort =
+  let env = Global.env () in
+  let ident =
+    let ind_name = (Inductive.lookup_mind_specif env ind |> snd).mind_typename in
+    let raw_ident = Indrec.make_elimination_ident ind_name sort in
+    Nameops.add_suffix raw_ident suffix
+  in
+  let elim0 = Indrec.lookup_eliminator ind0 sort in
+  let elim = Indrec.lookup_eliminator ind sort in
+  let env, term = open_constant env (Globnames.destConstRef elim) in
+  let expr = Elim.eta_extern env (Evd.from_env env) Id.Set.empty term in
+  ComDefinition.do_definition
+    ~program_mode:false ident (Decl_kinds.Global, false, Decl_kinds.Scheme)
+    None [] None expr None (Lemmas.mk_hook (fun _ -> declare_lifted elim0))
+
+let declare_inductive_liftings ind ind' ncons =
+  declare_lifted (Globnames.IndRef ind) (Globnames.IndRef ind');
+  List.iter2
+    declare_lifted
+    (List.init ncons (fun i -> Globnames.ConstructRef (ind, i + 1)))
+    (List.init ncons (fun i -> Globnames.ConstructRef (ind', i + 1)));
+  List.iter (define_lifted_eliminator ind ind') [Sorts.InType; Sorts.InProp]
+
+(*
+ * Lift the inductive type using sigma-packing.
+ *
+ * This algorithm assumes that type parameters are left constant and will lift
+ * every binding and every term of the base type to the sigma-packed ornamented
+ * type.
+ *)
+let do_lift_ind env evm typename suffix lift ind =
+  let (mind_body, ind_body) as mind_specif = Inductive.lookup_mind_specif env ind in
+  if mind_body.mind_ntypes > 1 then
+    failwith "Mutual inductive types are unsupported";
+  let env, univs, arity, constypes = open_inductive ~global:true env mind_specif in
+  let evm = Evd.update_sigma_env evm env in
+  let nparam = mind_body.mind_nparams_rec in
+  let arity' = do_lift_term env evm lift arity in
+  let constypes' = List.map (do_lift_term env evm lift) constypes in
+  let consnames =
+    Array.map_to_list (fun id -> Nameops.add_suffix id suffix) ind_body.mind_consnames
+  in
+  let is_template = is_ind_body_template ind_body in
+  let ind' =
+    declare_inductive typename consnames is_template univs nparam arity' constypes'
+  in
+  declare_inductive_liftings ind ind' (List.length constypes);
+  ind'

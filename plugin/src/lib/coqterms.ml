@@ -3,6 +3,7 @@
  *)
 
 open Util
+open Context
 open Environ
 open Constr
 open Names
@@ -102,6 +103,14 @@ let define_term (n : Id.t) (evm : evar_map) (trm : types) (refresh : bool) =
   let nohook = Lemmas.mk_hook (fun _ x -> x) in
   let etrm = EConstr.of_constr trm in
   edeclare n k ~opaque:false evm udecl etrm None [] nohook refresh
+
+(* Safely extract the body of a constant, instantiating any universe variables. *)
+let open_constant env const =
+  let (Some (term, auctx)) = Global.body_of_constant const in
+  let uctx = Universes.fresh_instance_from_context auctx |> Univ.UContext.make in
+  let term = Vars.subst_instance_constr (Univ.UContext.instance uctx) term in
+  let env = Environ.push_context uctx env in
+  env, term
 
 (* --- Application and arguments --- *)
 
@@ -214,6 +223,15 @@ let pack_sigT (app : sigT_app) =
 let dest_sigT (typ : types) =
   let [index_type; packer] = unfold_args typ in
   { index_type; packer }
+
+(*
+ * Build the eta-expansion of a term known to have a sigma type.
+ *)
+let eta_sigT (term : constr) (typ : types) =
+  let { index_type; packer } = dest_sigT typ in
+  let fst = mkApp (projT1, [|index_type; packer; term|]) in
+  let snd = mkApp (projT2, [|index_type; packer; term|]) in
+  mkApp (existT, [|index_type; packer; fst; snd|])
 
 (*
  * An application of sigT_rect
@@ -336,6 +354,64 @@ let push_local (n, t) = push_rel CRD.(LocalAssum (n, t))
 (* Push a let-in definition to an environment *)
 let push_let_in (n, e, t) = push_rel CRD.(LocalDef(n, e, t))
 
+(* Make the rel declaration for a local assumption *)
+let rel_assum (name, typ) =
+  Rel.Declaration.LocalAssum (name, typ)
+
+(* Make the rel declaration for a local definition *)
+let rel_defin (name, def, typ) =
+  Rel.Declaration.LocalDef (name, def, typ)
+
+(* Get the name of a rel declaration *)
+let rel_name decl =
+  Rel.Declaration.get_name decl
+
+(* Get the optional value of a rel declaration *)
+let rel_value decl =
+  Rel.Declaration.get_value decl
+
+(* Get the type of a rel declaration *)
+let rel_type decl =
+  Rel.Declaration.get_type decl
+
+(* Map over a rel context with environment kept in synch *)
+let map_rel_context env make ctxt =
+  Rel.fold_outside
+    (fun decl (env, res) ->
+       push_rel decl env, (make env decl) :: res)
+    ctxt
+    ~init:(env, []) |>
+  snd
+
+(* Make the named declaration for a local assumption *)
+let named_assum (id, typ) =
+  Named.Declaration.LocalAssum (id, typ)
+
+(* Make the named declaration for a local definition *)
+let named_defin (id, def, typ) =
+  Named.Declaration.LocalDef (id, def, typ)
+
+(* Get the name of a named declaration *)
+let named_ident decl =
+  Named.Declaration.get_id decl
+
+(* Get the optional value of a named declaration *)
+let named_value decl =
+  Named.Declaration.get_value decl
+
+(* Get the type of a named declaration *)
+let named_type decl =
+  Named.Declaration.get_type decl
+
+(* Map over a named context with environment kept in synch *)
+let map_named_context env make ctxt =
+  Named.fold_outside
+    (fun decl (env, res) ->
+       push_named decl env, (make env decl) :: res)
+    ctxt
+    ~init:(env, []) |>
+  snd
+
 (* Lookup n rels and remove then *)
 let lookup_pop (n : int) (env : env) =
   let rels = List.map (fun i -> lookup_rel i env) (from_one_to n) in
@@ -397,15 +473,26 @@ let offset env npm = nb_rel env - npm
 (* Find the offset between two environments *)
 let offset2 env1 env2 = nb_rel env1 - nb_rel env2
 
+(* Append two contexts (inner first, outer second), shifting internal indices. *)
+let context_app inner outer =
+  List.append
+    (Termops.lift_rel_context (Rel.length outer) inner)
+    outer
+
 (* Bind the declarations of a local context as product/let-in bindings *)
 let recompose_prod_assum decls term =
-  let abstract term decl = Term.mkProd_or_LetIn decl term in
-  Context.Rel.fold_inside abstract ~init:term decls
+  let bind term decl = Term.mkProd_or_LetIn decl term in
+  Rel.fold_inside bind ~init:term decls
 
 (* Bind the declarations of a local context as lambda/let-in bindings *)
 let recompose_lam_assum decls term =
-  let abstract term decl = Term.mkLambda_or_LetIn decl term in
-  Context.Rel.fold_inside abstract ~init:term decls
+  let bind term decl = Term.mkLambda_or_LetIn decl term in
+  Rel.fold_inside bind ~init:term decls
+
+(* Instantiate an abstract universe context *)
+let inst_abs_univ_ctx abs_univ_ctx =
+  (* Note that we're creating *globally* fresh universe levels. *)
+  Universes.fresh_instance_from_context abs_univ_ctx |> Univ.UContext.make
 
 (* --- Basic questions about terms --- *)
 
@@ -543,6 +630,83 @@ let rec num_ihs env rec_typ typ =
   | _ ->
      0
 
+(* Determine whether template polymorphism is used for a one_inductive_body *)
+let is_ind_body_template ind_body =
+  match ind_body.mind_arity with
+  | RegularArity _ -> false
+  | TemplateArity _ -> true
+
+(* Construct the arity of an inductive type from a one_inductive_body *)
+let arity_of_ind_body ind_body =
+  match ind_body.mind_arity with
+  | RegularArity { mind_user_arity; mind_sort } ->
+    mind_user_arity
+  | TemplateArity { template_param_levels; template_level } ->
+    let sort = Constr.mkType template_level in
+    recompose_prod_assum ind_body.mind_arity_ctxt sort
+
+(* Create an Entries.local_entry from a Rel.Declaration.t *)
+let make_ind_local_entry decl =
+  let entry =
+    match decl with
+    | CRD.LocalAssum (_, typ) -> Entries.LocalAssumEntry typ
+    | CRD.LocalDef (_, term, _) -> Entries.LocalDefEntry term
+  in
+  match CRD.get_name decl with
+  | Name.Name id -> (id, entry)
+  | Name.Anonymous -> failwith "Parameters to an inductive type may not be anonymous"
+
+(* Instantiate an abstract_inductive_universes into an Entries.inductive_universes with Univ.UContext.t *)
+let make_ind_univs_entry = function
+  | Monomorphic_ind univ_ctx_set ->
+    let univ_ctx = Univ.UContext.empty in
+    (Entries.Monomorphic_ind_entry univ_ctx_set, univ_ctx)
+  | Polymorphic_ind abs_univ_ctx ->
+    let univ_ctx = inst_abs_univ_ctx abs_univ_ctx in
+    (Entries.Polymorphic_ind_entry univ_ctx, univ_ctx)
+  | Cumulative_ind abs_univ_cumul ->
+    let abs_univ_ctx = Univ.ACumulativityInfo.univ_context abs_univ_cumul in
+    let univ_ctx = inst_abs_univ_ctx abs_univ_ctx in
+    let univ_var = Univ.ACumulativityInfo.variance abs_univ_cumul in
+    let univ_cumul = Univ.CumulativityInfo.make (univ_ctx, univ_var) in
+    (Entries.Cumulative_ind_entry univ_cumul, univ_ctx)
+
+let open_inductive ?(global=false) env (mind_body, ind_body) =
+  let univs, univ_ctx = make_ind_univs_entry mind_body.mind_universes in
+  let subst_univs = Vars.subst_instance_constr (Univ.UContext.instance univ_ctx) in
+  let env = Environ.push_context univ_ctx env in
+  if global then
+    Global.push_context false univ_ctx;
+  let arity = arity_of_ind_body ind_body in
+  let arity_ctx = [CRD.LocalAssum (Name.Anonymous, arity)] in
+  let ctors_typ = Array.map (recompose_prod_assum arity_ctx) ind_body.mind_user_lc in
+  env, univs, subst_univs arity, Array.map_to_list subst_univs ctors_typ
+
+let declare_inductive typename consnames template univs nparam arity constypes =
+  let open Entries in
+  let params, arity = Term.decompose_prod_n_assum nparam arity in
+  let constypes = List.map (Term.decompose_prod_n_assum (nparam + 1)) constypes in
+  let ind_entry =
+    { mind_entry_typename = typename;
+      mind_entry_arity = arity;
+      mind_entry_template = template;
+      mind_entry_consnames = consnames;
+      mind_entry_lc = List.map snd constypes }
+  in
+  let mind_entry =
+    { mind_entry_record = None;
+      mind_entry_finite = Declarations.Finite;
+      mind_entry_params = List.map make_ind_local_entry params;
+      mind_entry_inds = [ind_entry];
+      mind_entry_universes = univs;
+      mind_entry_private = None }
+  in
+  let ((_, ker_name), _) = Declare.declare_mind mind_entry in
+  let mind = MutInd.make1 ker_name in
+  let ind = (mind, 0) in
+  Indschemes.declare_default_schemes mind;
+  ind
+
 (* --- Basic mapping --- *)
 
 (*
@@ -618,3 +782,16 @@ let map_term f d (a : 'a) (trm : types) : types =
 let with_suffix id suffix =
   let prefix = Id.to_string id in
   Id.of_string (String.concat "_" [prefix; suffix])
+
+(* Turn a name into an optional identifier *)
+let ident_of_name = function
+  | Name id -> Some id
+  | Anonymous -> None
+
+(* Turn an identifier into an external (i.e., surface-level) reference *)
+let reference_of_ident id =
+  Libnames.Ident id |> CAst.make
+
+(* Turn a name into an optional external (i.e., surface-level) reference *)
+let reference_of_name =
+  ident_of_name %> Option.map reference_of_ident

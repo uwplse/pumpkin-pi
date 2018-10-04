@@ -11,7 +11,7 @@
 val map_default : ('a -> 'b) -> 'b -> 'a option -> 'b
 
 (* --- Lists --- *)
-                                                     
+
 val last : 'a list -> 'a
 val all_but_last : 'a list -> 'a list
 val snoc : 'a -> 'a list -> 'a list
@@ -36,7 +36,7 @@ val take_split : int -> 'a list -> ('a list * 'a list)
  * Remove duplicates from a list
  *)
 val unique : ('a -> 'a -> bool) -> 'a list -> 'a list
-                                     
+
 (*
  * [min, max)
  *)
@@ -59,6 +59,9 @@ val always_true : 'a -> bool
 val and_p : ('a -> bool) -> 'a -> 'a -> bool
 
 (* --- Control structures --- *)
-                                          
+
 val map_if_else : ('a -> 'b) -> ('a -> 'b) -> bool -> 'a -> 'b
 val map_if : ('a -> 'a) -> bool -> 'a -> 'a
+
+(* Look up the name referenced by a term and append a suffix to it. *)
+val suffix_term_name : Constr.t -> Names.Id.t -> Names.Id.t

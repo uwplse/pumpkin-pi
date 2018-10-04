@@ -1,20 +1,26 @@
-open Environ
-open Constr
-open Evd
 open Globnames
+open Environ
+open Evd
+open Constr
 
 (* --- Database for higher lifting --- *)
 
 (*
  * Register a lifting to the database
  *)
-val declare_lifted : evar_map -> types -> types -> unit
+val declare_lifted : global_reference -> global_reference -> unit
 
 (*
- * Search the database for a lifting (return the reduced version if it exists)
- *)                                       
-val search_lifted : env -> types -> types option
-                            
+ * Search the database for a lifting, returning the reduced version if it exists
+ *)
+val search_lifted : env -> global_reference -> global_reference option
+
+(*
+ * Search the database for a lifting using terms, returning the reduced version
+ * if it exists
+ *)
+val search_lifted_term : env -> types -> types option
+
 (* --- Temporary cache of constants --- *)
 
 type temporary_cache
@@ -45,7 +51,7 @@ val cache_local : temporary_cache -> types -> types -> unit
  * Check if an ornament between two types exists
  *)
 val has_ornament : (types * types) -> bool
-       
+
 (*
  * Lookup an ornament between two types
  * Arguments: typ1, typ2
@@ -58,5 +64,3 @@ val lookup_ornament : (types * types) -> (global_reference * global_reference)
  * Order of arguments: typ1, typ2, typ1_to_typ2, typ2_to_typ1
  *)
 val save_ornament : (types * types) -> (global_reference * global_reference) -> unit
-
-
