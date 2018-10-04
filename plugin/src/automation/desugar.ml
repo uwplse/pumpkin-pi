@@ -6,9 +6,10 @@ open Constr
 open Declarations
 open Coqterms
 
-(* Infer the type of trm in env, safely, and update evd *)
-let e_infer_type env evd trm =
-  EConstr.of_constr trm |> Typing.e_type_of ~refresh:true env evd |> EConstr.to_constr !evd
+(* Safely infer the WHNF type of a term, updating the evar map *)
+let e_infer_type env evm term =
+  EConstr.of_constr term |> Typing.e_type_of ~refresh:true env evm |>
+  Reductionops.whd_all env !evm |> EConstr.to_constr !evm
 
 (* Does the inductive type have sort Prop? *)
 let inductive_is_proposition env ind =
@@ -106,5 +107,6 @@ let desugar_matches env evm term =
       Constr.map (aux env) term
   in
   let term' = aux env term in
+  let type' = e_infer_type env evm term' in (* NOTE: Infers universe constraints *)
   let evm' = !evm in
   evm', term'
