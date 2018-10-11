@@ -13,3 +13,11 @@ val find_ornament : Id.t option -> constr_expr -> constr_expr -> unit
  * Define the lifted version
  *)
 val lift_by_ornament : ?suffix:bool -> Id.t -> constr_expr -> constr_expr -> constr_expr -> unit
+
+(*
+ * Translate every match expression into an equivalent eliminator
+ * application, defining the new term with the given name.
+ *
+ * Currently, fixed-point expressions are _not_ supported.
+ *)
+val translate_matches : Id.t -> constr_expr -> unit

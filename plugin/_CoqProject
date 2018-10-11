@@ -46,6 +46,8 @@ src/automation/elim.ml
 src/automation/elim.mli
 src/automation/lift.ml
 src/automation/lift.mli
+src/automation/desugar.ml
+src/automation/desugar.mli
 
 src/frontend.ml
 src/frontend.mli

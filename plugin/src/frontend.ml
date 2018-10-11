@@ -5,6 +5,7 @@ open Lifting
 open Caching
 open Search
 open Lift
+open Desugar
 open Utilities
 open Pp
 open Printer
@@ -86,3 +87,15 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
     lift_inductive_by_ornament env evd n_new s l c_old
   else
     lift_definition_by_ornament env evd n_new l c_old
+
+(*
+ * Translate every match expression into an equivalent eliminator
+ * application, defining the new term with the given name.
+ *
+ * Currently, fixed-point expressions are _not_ supported.
+ *)
+let translate_matches n d =
+  let (evm, env) = Pfedit.get_current_context () in
+  let term = intern env evm d |> unwrap_definition env in
+  let evm, term' = desugar_matches env evm term in
+  ignore (define_term n evm term' false)
