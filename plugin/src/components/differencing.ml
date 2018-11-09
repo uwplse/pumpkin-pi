@@ -87,10 +87,6 @@ let is_new_index i (d : (int * (types * types)) list) =
     let rec is_new d =
       match d with
       | (off, (o, n)) :: tl ->
-	 let x = 0 in
-	 debug_term (Global.env ()) o "o";
-	 debug_term (Global.env ()) n "n";
-	 Printf.printf "offset: %d\n" off; 
 	 if equal o n then
 	   is_new tl
 	 else
@@ -100,29 +96,8 @@ let is_new_index i (d : (int * (types * types)) list) =
 	     true
       | [] ->
 	 false
-    in
-  (* TODO change isn *)
-    let isn = is_new d_arg in
-  (*let rec is_new off p trm_o trm_n =
-    match map_tuple kind (trm_o, trm_n) with
-    | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-       if applies p t_o && not (applies p t_n) then
-         is_new (off + 1) (shift p) (shift trm_o) b_n
-       else
-	 is_new off p t_o t_n || is_new off (shift p) b_o b_n
-    | (App (_, _), App (_, _)) when applies p trm_o && applies p trm_n ->
-       let args_o = all_but_last (unfold_args trm_o) in
-       let args_n = all_but_last (unfold_args trm_n) in
-       debug_term (Global.env ()) trm_o "trm_o";
-       debug_term (Global.env ()) trm_n "trm_n";
-       diff_arg i (mkAppl (p, args_o)) (mkAppl (p, args_n))
-    | _ ->
-       false
-  in let isn = is_new 0 (mkRel 1) trm_o trm_n in*)
-    Printf.printf "%s\n\n" (if isn then "it's new" else "it's not");
-    isn
+    in is_new d_arg
   with Invalid_argument (s) ->
-    Printf.printf "%s\n\n" "it's last and it's new"; 
     true (* we're on the last index *)
 
 (*
@@ -142,7 +117,7 @@ let diff_motive_apps trm_o trm_n =
        [(off, (mkAppl (p, args_o), mkAppl (p, args_n)))]
     | _ ->
        []
-  in diff 0 (mkRel 1) trm_o trm_n
+  in List.rev (diff 0 (mkRel 1) trm_o trm_n)
 
 (*
  * Assuming there is an indexing ornamental relationship between two 

@@ -1016,10 +1016,9 @@ Inductive _bst2 : nat -> nat -> Type :=
 Inductive bst2 : nat -> nat -> nat -> Type :=
 | Branch2 (ord_l : nat) (min_l min_r : nat) (max_l max_r : nat)
          (val : nat)
-         (left : bst min_l max_l ord_l) (right : bst min_r max_r ord_r)
-         (ord_r  : nat)
+         (left : bst min_l max_l ord_l) (ord_r  : nat) (right : bst min_r max_r ord_r)
       : bst2 min_l max_r (inv ord_l ord_r max_l val min_r)
-| Leaf (val : nat) : bst2 val val 1.
+| Leaf2 (val : nat) : bst2 val val 1.
 
 Find ornament _bst2 bst2.
 
