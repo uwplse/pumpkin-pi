@@ -19,6 +19,7 @@ open Lifting
 open Declarations
 open Util
 open Differencing
+open Printing
 
 (* --- Finding the new index --- *)
 
@@ -70,7 +71,7 @@ let find_new_index npm o n =
  *)
 let false_lead env evd index_i p b_o b_n =
   let same_arity = (arity b_o = arity b_n) in
-  not same_arity && (computes_only_index env evd index_i p (mkRel 1) b_n)
+  (not same_arity) && (computes_only_index env evd index_i p (mkRel 1) b_n)
 
 (*
  * Get a single case for the indexer, given:
@@ -82,6 +83,8 @@ let false_lead env evd index_i p b_o b_n =
  * Eventually, it would be good to make this logic less ad-hoc,
  * though the terms we are looking at here are type signatures of
  * induction principles, and so should be very predictable.
+ *
+ * TODO need to fix ambiguous case with bst2 in Test.v
  *)
 let index_case evd index_i p o n : types =
   let get_index = get_new_index index_i in
@@ -90,6 +93,10 @@ let index_case evd index_i p o n : types =
     let (e_n, ind_n, trm_n) = n in
     match map_tuple kind (trm_o, trm_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
+       (*
+         (Π (left : (bst2 (min_l [Rel 5]) (max_l [Rel 3]) (ord_l [Rel 6]))) . (Π (_ : ((P [Rel 8]) (min_l [Rel 6]) (max_l [Rel 4]) (ord_l [Rel 7]) (left [Rel 1]))) . (Π (ord_r : nat) . (Π (right : (bst2 (min_r [Rel 7]) (max_r [Rel 5]) (ord_r [Rel 1]))) . (Π (_ : ((P [Rel 11]) (min_r [Rel 8]) (max_r [Rel 6]) (ord_r [Rel 2]) (right [Rel 1]))) . ((P [Rel 12]) (min_l [Rel 10]) (max_r [Rel 7]) (Test.inv (ord_l [Rel 11]) (ord_r [Rel 3]) (max_l [Rel 8]) (val [Rel 6]) (min_r [Rel 9])) (Branch2 (ord_l [Rel 11]) (min_l [Rel 10]) (min_r [Rel 9]) (max_l [Rel 8]) (max_r [Rel 7]) (val [Rel 6]) (left [Rel 5]) (ord_r [Rel 3]) (right [Rel 2])))))))))
+	 probably failing at computes_only_index
+       *)
        (* premises *)
        let p_b = shift p in
        let diff_b = diff_case (shift p_i) p_b in
@@ -120,6 +127,9 @@ let index_case evd index_i p o n : types =
        let index = get_index p trm_o trm_n in
        List.fold_right all_eq_substs subs index
     | _ ->
+       let x = 0 in
+       debug_term e_o trm_o "trm_o";
+       debug_term e_n trm_n "trm_n";
        failwith "unexpected case"
   in diff_case p (mkRel 1) [] o n
 
@@ -540,7 +550,9 @@ let search_algebraic env evd npm indexer_n o n =
   let o = (env_o, pind_o, arity_o, el_o, el_t_o') in
   let n = (env_n, pind_n, arity_n, el_n, el_t_n') in
   let idx = find_new_index npm o n in
+  Printf.printf "%d\n" (fst idx);
   let indexer = find_indexer evd idx npm o n in
+  debug_term env indexer "indexer";
   let (promote, forget) = find_promote_forget evd idx npm indexer_n o n in
   { indexer; promote; forget }
 

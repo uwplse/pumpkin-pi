@@ -80,7 +80,6 @@ let same_mod_indexing env p_index o n =
  * terms in exactly the same order.
  *)
 let is_new_index i (d : (int * (types * types)) list) =
-  Printf.printf "Testing index: %d\n" i;
   try
     let arg args = get_arg i args in
     let d_arg = List.map (fun (off, (o, n)) -> (off, (arg o, arg n))) d in
