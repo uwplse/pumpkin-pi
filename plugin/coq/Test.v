@@ -1009,18 +1009,37 @@ Find ornament _bst bst.
 
 Inductive _bst2 : nat -> nat -> Type :=
 | _Branch2 (min_l min_r : nat) (max_l max_r : nat) (val : nat)
-          (left : _bst min_l max_l) (right : _bst min_r max_r)
+          (left : _bst2 min_l max_l) (right : _bst2 min_r max_r)
       : _bst2 min_l max_r
 | _Leaf2 (val : nat) : _bst2 val val.
 
 Inductive bst2 : nat -> nat -> nat -> Type :=
 | Branch2 (ord_l : nat) (min_l min_r : nat) (max_l max_r : nat)
          (val : nat)
-         (left : bst min_l max_l ord_l) (ord_r  : nat) (right : bst min_r max_r ord_r)
+         (left : bst2 min_l max_l ord_l) (ord_r : nat) (right : bst2 min_r max_r ord_r)
       : bst2 min_l max_r (inv ord_l ord_r max_l val min_r)
 | Leaf2 (val : nat) : bst2 val val 1.
 
 Find ornament _bst2 bst2.
+
+(* TODO tests *)
+
+(* --- And index --- *)
+
+Inductive _bst3 : nat -> nat -> Type :=
+| _Branch3 (min_l min_r : nat) (max_l max_r : nat) (val : nat)
+          (left : _bst3 min_l max_l) (right : _bst3 min_r max_r)
+      : _bst3 min_l max_r
+| _Leaf3 (val : nat) : _bst3 val val.
+
+Inductive bst3 : nat -> nat -> nat -> Type :=
+| Branch3 (ord_l : nat) (min_l min_r : nat) (max_l max_r : nat)
+         (val : nat)
+         (left : bst3 min_l max_l ord_l) (ord_r  : nat) (right : bst3 min_r max_r ord_r)
+      : bst3 min_l (inv ord_l ord_r max_l val min_r) max_r 
+| Leaf3 (val : nat) : bst3 val 1 val.
+
+Find ornament _bst3 bst3.
 
 (* TODO tests *)
 
