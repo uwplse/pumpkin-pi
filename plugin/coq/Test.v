@@ -923,6 +923,107 @@ Proof.
   intros. apply orn_nat_natnat_inv. exists n. apply nn.
 Qed.
 
+(* --- Regression of bug in more complicated index identification algorithm --- *)
+  
+(*
+ * Minimal test case
+ *)
+
+Inductive doublevector5 (A : Type) : nat -> nat -> Type :=
+| dnilV5 : doublevector5 A 0 0
+| dconsV5 :
+    forall (m n : nat),
+      A -> doublevector5 A n m -> doublevector5 A (S n) (S (S m)).
+
+Definition packed_doublevector5 (A : Type) (n : nat) :=
+  sigT (A := nat) (fun m : nat => doublevector5 A n m).
+
+Find ornament vector doublevector5 as orn_vector_doublevector5.
+
+Theorem test_index_15:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector5_index A n v = vector_double_size A n v.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_15:
+  forall (A : Type) (n : nat) (v : vector A n),
+    packed_doublevector5 A n.
+Proof.
+  exact orn_vector_doublevector5.
+Qed.
+
+Theorem test_orn_index_15:
+  forall (A : Type) (n : nat) (v : vector A n),
+    projT1 (orn_vector_doublevector5 A n v) = orn_vector_doublevector5_index A n v.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_inv_15:
+  forall (A : Type) (n : nat) (d : packed_doublevector5 A n),
+    vector A n.
+Proof.
+  exact orn_vector_doublevector5_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_15:
+  forall (A : Type) (n : nat) (m : nat) (d : doublevector5 A n m),
+    vector A n.
+Proof.
+  intros. apply orn_vector_doublevector5_inv. exists m. apply d.
+Qed.
+
+(* --- More regression --- *)
+
+(*
+ * From case study, made ambiguous so the more complex algorithm runs, 
+ * and then simplified
+ *)
+
+Inductive _bst : nat -> nat -> Type :=
+| _Branch (min_l min_r : nat) (max_l max_r : nat) (val : nat)
+          (left : _bst min_l max_l) (right : _bst min_r max_r)
+      : _bst min_l max_r
+| _Leaf (val : nat) : _bst val val.
+
+Definition inv (ord_l ord_r : nat) (max_l val min_r : nat) : nat :=
+  ord_l * 
+  ord_r * 
+  (if Nat.ltb max_l val then 1 else 0) *
+  (if Nat.ltb val min_r then 1 else 0).
+
+Inductive bst : nat -> nat -> nat -> Type :=
+| Branch (ord_l ord_r : nat) (min_l min_r : nat) (max_l max_r : nat)
+         (val : nat)
+         (left : bst min_l max_l ord_l) (right : bst min_r max_r ord_r)
+      : bst min_l max_r (inv ord_l ord_r max_l val min_r)
+| Leaf (val : nat) : bst val val 1.
+
+Find ornament _bst bst.
+
+(* TODO tests *)
+
+(* --- Make sure moving the hypotheses around works too --- *)
+
+Inductive _bst2 : nat -> nat -> Type :=
+| _Branch2 (min_l min_r : nat) (max_l max_r : nat) (val : nat)
+          (left : _bst min_l max_l) (right : _bst min_r max_r)
+      : _bst2 min_l max_r
+| _Leaf2 (val : nat) : _bst2 val val.
+
+Inductive bst2 : nat -> nat -> nat -> Type :=
+| Branch2 (ord_l : nat) (min_l min_r : nat) (max_l max_r : nat)
+         (val : nat)
+         (left : bst min_l max_l ord_l) (right : bst min_r max_r ord_r)
+         (ord_r  : nat)
+      : bst2 min_l max_r (inv ord_l ord_r max_l val min_r)
+| Leaf (val : nat) : bst2 val val 1.
+
+Find ornament _bst2 bst2.
+
+(* TODO tests *)
 
 (* (* --- TODO Index already existed in the old constructor, but wasn't used --- *) *)
 
