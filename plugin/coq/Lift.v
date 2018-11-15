@@ -521,7 +521,7 @@ Proof.
   exact unconsV_eq.
 Qed.
 
-(* --- Regression bug with bintree and eliminator argument lifting --- *)
+(* --- Lifting trees with different argument orders --- *)
 
 Definition bintree_map (A : Type) (B : Type) (f : A -> B) (t : bintree A) :=
   bintree_rect
@@ -530,14 +530,41 @@ Definition bintree_map (A : Type) (B : Type) (f : A -> B) (t : bintree A) :=
     (leaf B)
     (fun l IHl a r IHr => node B IHl (f a) IHr)
     t.
-      
+
+Lemma map_id: 
+  forall (A : Type) (b : bintree A),
+    bintree_map A A id b = b.
+Proof.
+  intros. induction b.
+  - auto.
+  - simpl. rewrite IHb1. rewrite IHb2. auto.
+Defined.
+
 Lift bintree bintreeV in bintree_map as bintree_mapV.
-Print bintree_mapV.
+Lift bintree bintreeV in map_id as map_idV.
 
-Lift bintree bintreeV2 in bintree_map as bintree_mapV2.
-Print bintree_mapV2. 
+(* --- Caching only handles one pair, so need an alias for now --- *)
 
-(* TODO test *)
+Definition bintree_map' (A : Type) (B : Type) (f : A -> B) (t : bintree A) :=
+  bintree_rect
+    A
+    (fun _ => bintree B)
+    (leaf B)
+    (fun l IHl a r IHr => node B IHl (f a) IHr)
+    t.
+
+Lemma map_id': 
+  forall (A : Type) (b : bintree A),
+    bintree_map' A A id b = b.
+Proof.
+  intros. induction b.
+  - auto.
+  - simpl. rewrite IHb1. rewrite IHb2. auto.
+Defined.
+
+Lift bintree bintreeV2 in bintree_map' as bintree_mapV2.
+Lift bintree bintreeV2 in map_id' as map_idV2.
+
 
 
 
