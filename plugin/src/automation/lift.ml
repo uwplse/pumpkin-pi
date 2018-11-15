@@ -16,6 +16,7 @@ open Names
 open Caching
 open Declarations
 open Specialization
+open Printing
 
 (* --- Internal lifting configuration --- *)
 
