@@ -16,6 +16,7 @@ open Names
 open Caching
 open Declarations
 open Specialization
+open Printing
 
 (* --- Internal lifting configuration --- *)
 
@@ -243,6 +244,7 @@ let lift_motive env evd l index_i parameterized_elim motive =
 
 (* PROMOTE-CASE-ARGS, part of LIFT-CASE-ARGS *)
 let promote_case_args env evd l (_, to_typ) args =
+  debug_terms env (List.map (reduce_type env evd) args) "args to promote";
   let rec lift_args args index =
     match args with
     | h :: tl ->
@@ -256,7 +258,9 @@ let promote_case_args env evd l (_, to_typ) args =
          else
            h :: lift_args tl index
     | _ -> []
-  in lift_args args (mkRel 0)
+  in let promoted = lift_args args (mkRel 0) in
+debug_terms env (List.map (reduce_type env evd) promoted) "promoted args";
+     promoted
 
 (* PROMOTE-CASE-ARGS, part of LIFT-CASE-ARGS *)
 let forget_case_args env_c_b env evd l (from_typ, _) args =
@@ -301,8 +305,12 @@ let lift_case env evd l (from_typ, to_typ) p c_elim c =
     let env_c = zoom_env zoom_product_type env to_c_typ in
     let off = offset2 env_c env in
     let c_eta = shift_by off c_eta in
+    debug_term env_c c_eta "c_eta";
     let (env_c_b, c_body) = zoom_lambda_term env_c c_eta in
+    debug_term env_c_b c_body "c_body";
     let (c_f, c_args) = destApp c_body in
+    debug_terms env_c_b (Array.to_list c_args) "c_args";
+    (* l[5] IHl[4] a[3] r[2] IHr[1] *)
     let split_i = if l.is_fwd then off - nihs else off + nihs in
     let (c_args, b_args) = take_split split_i (Array.to_list c_args) in
     let c_args = unshift_all_by (List.length b_args) c_args in

@@ -19,6 +19,7 @@ open Lifting
 open Declarations
 open Util
 open Differencing
+open Printing
 
 (* --- Finding the new index --- *)
 
@@ -329,8 +330,7 @@ let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
              (shift_subs subs)
          in mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
        else
-         (* new hypothesis from which the index is computed *)
-         let subs_b = directional (shift_to subs) (shift_from subs) in
+         let subs_b = shift_subs subs in
          let new_index = directional (n_n, t_n) (n_o, t_o) in
          let (b_o_b, b_n_b) = directional (shift c_o, b_n) (b_o, shift c_n) in
          let env_o_b = push_local new_index env_o in

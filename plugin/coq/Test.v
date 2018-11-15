@@ -923,6 +923,58 @@ Proof.
   intros. apply orn_nat_natnat_inv. exists n. apply nn.
 Qed.
 
+(* --- Binary trees with changed hypothesis order --- *)
+
+Inductive bintreeV2 (A : Type) : nat -> Type :=
+| leafV2:
+    bintreeV2 A 0
+| nodeV2 :
+    forall (n : nat), 
+      bintreeV2 A n -> 
+      A -> 
+      forall (m : nat), 
+        bintreeV2 A m -> 
+        bintreeV2 A (S (n + m)).
+
+Definition packed_bintreeV2 (T : Type) :=
+  sigT (A := nat) (fun (n : nat) => bintreeV2 T n).
+
+Find ornament bintree bintreeV2 as orn_bintree_bintreeV2.
+
+Theorem test_index_15: (* correct *)
+  forall (A : Type) (tr : bintree A),
+    orn_bintree_bintreeV2_index A tr = bintree_size A tr.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_15: (* failing to find orn_bintree_bintreeV2 *)
+  forall (A : Type) (tr : bintree A),
+    packed_bintreeV2 A.
+Proof.
+  exact orn_bintree_bintreeV2.
+Qed.
+
+Theorem test_orn_index_15:
+  forall (A : Type) (tr : bintree A),
+    projT1 (orn_bintree_bintreeV2 A tr) = orn_bintree_bintreeV2_index A tr.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_inv_15:
+  forall (A : Type) (tr : packed_bintreeV2 A),
+    bintree A.
+Proof.
+  exact orn_bintree_bintreeV2_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_15:
+  forall (A : Type) (n : nat) (tr : bintreeV2 A n),
+    bintree A.
+Proof.
+  intros. apply orn_bintree_bintreeV2_inv. exists n. apply tr.
+Qed.
 
 (* (* --- TODO Index already existed in the old constructor, but wasn't used --- *) *)
 

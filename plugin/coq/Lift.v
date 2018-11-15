@@ -520,3 +520,25 @@ Theorem test_uncons_eqV_ok:
 Proof.
   exact unconsV_eq.
 Qed.
+
+(* --- Regression bug with bintree and eliminator argument lifting --- *)
+
+Definition bintree_map (A : Type) (B : Type) (f : A -> B) (t : bintree A) :=
+  bintree_rect
+    A
+    (fun _ => bintree B)
+    (leaf B)
+    (fun l IHl a r IHr => node B IHl (f a) IHr)
+    t.
+      
+Lift bintree bintreeV in bintree_map as bintree_mapV.
+Print bintree_mapV.
+
+Lift bintree bintreeV2 in bintree_map as bintree_mapV2.
+Print bintree_mapV2. 
+
+(* TODO test *)
+
+
+
+  
