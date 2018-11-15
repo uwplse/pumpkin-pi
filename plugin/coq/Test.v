@@ -941,14 +941,14 @@ Definition packed_bintreeV2 (T : Type) :=
 
 Find ornament bintree bintreeV2 as orn_bintree_bintreeV2.
 
-Theorem test_index_15: (* correct *)
+Theorem test_index_15:
   forall (A : Type) (tr : bintree A),
     orn_bintree_bintreeV2_index A tr = bintree_size A tr.
 Proof.
   intros. auto.
 Qed.
 
-Theorem test_orn_15: (* failing to find orn_bintree_bintreeV2 *)
+Theorem test_orn_15:
   forall (A : Type) (tr : bintree A),
     packed_bintreeV2 A.
 Proof.
