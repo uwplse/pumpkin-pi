@@ -73,24 +73,31 @@ let rec computes_index index_i p i typ =
        contains_term i (get_arg index_i t) || computes_index index_i p_b i_b b
      else
        computes_index index_i p_b i_b b
-  | App (_, _) when applies p typ ->
-     contains_term i (get_arg index_i typ)
+  (*| App (_, _) when applies p typ ->
+     contains_term i (get_arg index_i typ)*)
   | _ ->
      false
 
 (*
  * Returns true if the hypothesis i is _only_ used to compute the index
  * at index_i, and is not used to compute any other indices or parameters
+ *
+ * TODO comment here and at top level: ignore final conclusion
+ * (really should move this anyways)
+ * (really don't need "computes_only_index" unless this is used elsewhere too)
  *)
 let computes_only_index env evd index_i p i typ =
   let p_arity = arity (infer_type env evd p) in
   let indices = List.map unshift_i (from_one_to (p_arity - 1)) in
-  if computes_index index_i p i typ then
+  computes_index index_i p i typ
+  (*if computes_index index_i p i typ then
     let indices_not_i = remove_index index_i indices in
     List.for_all (fun j -> not (computes_index j p i typ)) indices_not_i
   else
-    false
-
+    false*)
+  (* TODO fix back to normal / fix up more to relax assumption again
+     once we fix bug *)
+                 
 (* --- Getting arguments to indexed types --- *)
 
 (*
