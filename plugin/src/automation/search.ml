@@ -377,12 +377,10 @@ let orn_index_case evd index_i is_fwd indexer_f orn_p o n : types =
   let d_arity = arity_n - arity_o in
   let adjust p = stretch_motive index_i env_o (ind_o, p) (ind_n, p_n) in
   let p_o = map_if (fun p -> adjust (unshift_by d_arity p)) is_fwd orn_p in
-  (*let c_o = with_new_motive (shift_by d_arity p_o) c_o in*)
   let o = (env_o, ind_o, c_o) in
   let n = (env_n, ind_n, c_n) in
-  debug_term env_o c_o "c_o";
-  debug_term env_n c_n "c_n";
-  prod_to_lambda (with_new_motive (shift_by d_arity p_o) (sub_indexes evd index_i is_fwd indexer_f (mkRel 1) [] o n))
+  let subbed = sub_indexes evd index_i is_fwd indexer_f (mkRel 1) [] o n in
+  prod_to_lambda (with_new_motive (shift_by d_arity p_o) subbed)
 
 (* Get the cases for the ornamental promotion/forgetful function. *)
 let orn_index_cases evd index_i npm is_fwd indexer_f orn_p o n : types list =

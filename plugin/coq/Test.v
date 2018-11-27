@@ -1035,7 +1035,7 @@ Inductive _bst3 : nat -> nat -> Type :=
 Inductive bst3 : nat -> nat -> nat -> Type :=
 | Branch3 (ord_l : nat) (min_l min_r : nat) (max_l max_r : nat)
          (val : nat)
-         (left : bst3 min_l max_l ord_l) (ord_r  : nat) (right : bst3 min_r max_r ord_r)
+         (left : bst3 min_l ord_l max_l) (ord_r : nat) (right : bst3 min_r ord_r max_r)
       : bst3 min_l (inv ord_l ord_r max_l val min_r) max_r 
 | Leaf3 (val : nat) : bst3 val 1 val.
 
@@ -1064,6 +1064,9 @@ Find ornament bintree bintreeV2 as orn_bintree_bintreeV2.
 Theorem test_index_19:
   forall (A : Type) (tr : bintree A),
     orn_bintree_bintreeV2_index A tr = bintree_size A tr.
+Proof.
+  intros. reflexivity.
+Qed.
 
 Theorem test_orn_19: 
   forall (A : Type) (tr : bintree A),
@@ -1075,7 +1078,11 @@ Qed.
 Theorem test_orn_index_19:
   forall (A : Type) (tr : bintree A),
     projT1 (orn_bintree_bintreeV2 A tr) = orn_bintree_bintreeV2_index A tr.
+Proof.
+  intros. auto.
+Qed.
 
+Theorem test_orn_inv_19:
   forall (A : Type) (tr : packed_bintreeV2 A),
     bintree A.
 Proof.
@@ -1088,6 +1095,8 @@ Theorem test_orn_inv_unpack_19:
 Proof.
   intros. apply orn_bintree_bintreeV2_inv. exists n. apply tr.
 Qed.
+
+(* (* --- TODO new index computes a function in recursive reference, but to same type, and references other indices --- *) *)
 
 (* (* --- TODO Index already existed in the old constructor, but wasn't used --- *) *)
 
