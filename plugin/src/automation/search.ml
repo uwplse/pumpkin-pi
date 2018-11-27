@@ -73,12 +73,9 @@ let false_lead env evd index_i p b_o b_n =
   let same_arity = (arity b_o = arity b_n) in
   debug_term env b_n "checking b_n";
   debug_term env (mkRel 1) "index";
-  Printf.printf "index_i: %d\n" index_i;
-  Printf.printf "arity: %d\n" (arity (infer_type env evd p));
-  debug_term env p "p";
   let is_new_index = computes_only_index env evd index_i p (mkRel 1) b_n in
   (if is_new_index then
-     debug_term env b_o "b_o"
+     debug_term env b_o "found it! b_o"
    else
      ());
   (not same_arity) && is_new_index

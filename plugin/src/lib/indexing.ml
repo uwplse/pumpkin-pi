@@ -85,18 +85,12 @@ let rec computes_index index_i p i typ =
  * TODO comment here and at top level: ignore final conclusion
  * (really should move this anyways)
  * (really don't need "computes_only_index" unless this is used elsewhere too)
+ * TODO note stricter assumptions (really what we had before, though, bc of elim case in ShouldFail.v)
  *)
 let computes_only_index env evd index_i p i typ =
   let p_arity = arity (infer_type env evd p) in
   let indices = List.map unshift_i (from_one_to (p_arity - 1)) in
   computes_index index_i p i typ
-  (*if computes_index index_i p i typ then
-    let indices_not_i = remove_index index_i indices in
-    List.for_all (fun j -> not (computes_index j p i typ)) indices_not_i
-  else
-    false*)
-  (* TODO fix back to normal / fix up more to relax assumption again
-     once we fix bug *)
                  
 (* --- Getting arguments to indexed types --- *)
 

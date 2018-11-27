@@ -1096,8 +1096,6 @@ Proof.
   intros. apply orn_bintree_bintreeV2_inv. exists n. apply tr.
 Qed.
 
-(* (* --- TODO new index computes a function in recursive reference, but to same type, and references other indices --- *) *)
-
 (* (* --- TODO Index already existed in the old constructor, but wasn't used --- *) *)
 
 (* (* --- TODO Index already existed in the old constructor, but was used differently --- *) *)
