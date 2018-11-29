@@ -37,7 +37,6 @@ let split_functional env ind_fam body =
   in
   Array.map split_case (get_constructors env ind_fam)
 
-(* TODO: Must configure for propositional sorts *)
 let premise_of_case env ind_fam motive (narg, term) =
   let beta = Reduction.beta_appvect in
   let open_lam_assum = decompose_lam_n_decls 1 %> on_fst List.hd in
