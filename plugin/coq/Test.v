@@ -1003,15 +1003,57 @@ Inductive bst : nat -> nat -> nat -> Type :=
 
 Find ornament _bst bst.
 
-(* TODO tests *)
+Definition is_bst (n m : nat) (b : _bst n m) : nat :=
+  _bst_rect 
+    (fun _ _ _  => nat)
+    (fun (min_l min_r max_l max_r val : nat) 
+         (left : _bst min_l max_l) (IHl : nat)
+         (right : _bst min_r max_r) (IHr : nat) =>
+      inv IHl IHr max_l val min_r) 
+    (fun _ : nat => 1) 
+    n
+    m 
+    b.
+
+Definition packed_bst (n m : nat) :=
+  sigT (A := nat) (fun (p : nat) => bst n m p).
+
+Theorem test_index_16:
+  forall (n m : nat) (b : _bst n m),
+    _bst_to_bst_index n m b = is_bst n m b.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_16:
+  forall (n m : nat) (b : _bst n m),
+    packed_bst n m.
+Proof.
+  exact _bst_to_bst.
+Qed.
+
+Theorem test_orn_index_16:
+  forall (n m : nat) (b : _bst n m),
+    projT1 (_bst_to_bst n m b) = _bst_to_bst_index n m b.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_inv_16:
+  forall (n m : nat) (b : packed_bst n m),
+    _bst n m.
+Proof.
+  exact _bst_to_bst_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_16:
+  forall (n m p : nat) (b : bst n m p),
+    _bst n m.
+Proof.
+  intros n m p b. apply _bst_to_bst_inv. exists p. apply b.
+Qed.
 
 (* --- Make sure moving the hypotheses around works too --- *)
-
-Inductive _bst2 : nat -> nat -> Type :=
-| _Branch2 (min_l min_r : nat) (max_l max_r : nat) (val : nat)
-          (left : _bst2 min_l max_l) (right : _bst2 min_r max_r)
-      : _bst2 min_l max_r
-| _Leaf2 (val : nat) : _bst2 val val.
 
 Inductive bst2 : nat -> nat -> nat -> Type :=
 | Branch2 (ord_l : nat) (min_l min_r : nat) (max_l max_r : nat)
@@ -1020,17 +1062,47 @@ Inductive bst2 : nat -> nat -> nat -> Type :=
       : bst2 min_l max_r (inv ord_l ord_r max_l val min_r)
 | Leaf2 (val : nat) : bst2 val val 1.
 
-Find ornament _bst2 bst2.
+Find ornament _bst bst2.
 
-(* TODO tests *)
+Definition packed_bst2 (n m : nat) :=
+  sigT (A := nat) (fun (p : nat) => bst2 n m p).
 
-(* --- And index --- *)
+Theorem test_index_17:
+  forall (n m : nat) (b : _bst n m),
+    _bst_to_bst2_index n m b = is_bst n m b.
+Proof.
+  intros. reflexivity.
+Qed.
 
-Inductive _bst3 : nat -> nat -> Type :=
-| _Branch3 (min_l min_r : nat) (max_l max_r : nat) (val : nat)
-          (left : _bst3 min_l max_l) (right : _bst3 min_r max_r)
-      : _bst3 min_l max_r
-| _Leaf3 (val : nat) : _bst3 val val.
+Theorem test_orn_17:
+  forall (n m : nat) (b : _bst n m),
+    packed_bst2 n m.
+Proof.
+  exact _bst_to_bst2.
+Qed.
+
+Theorem test_orn_index_17:
+  forall (n m : nat) (b : _bst n m),
+    projT1 (_bst_to_bst2 n m b) = _bst_to_bst2_index n m b.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_inv_17:
+  forall (n m : nat) (b : packed_bst2 n m),
+    _bst n m.
+Proof.
+  exact _bst_to_bst2_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_17:
+  forall (n m p : nat) (b : bst2 n m p),
+    _bst n m.
+Proof.
+  intros n m p b. apply _bst_to_bst2_inv. exists p. apply b.
+Qed.
+
+(* --- Test moving around the index location --- *)
 
 Inductive bst3 : nat -> nat -> nat -> Type :=
 | Branch3 (ord_l : nat) (min_l min_r : nat) (max_l max_r : nat)
@@ -1039,9 +1111,45 @@ Inductive bst3 : nat -> nat -> nat -> Type :=
       : bst3 min_l (inv ord_l ord_r max_l val min_r) max_r 
 | Leaf3 (val : nat) : bst3 val 1 val.
 
-Find ornament _bst3 bst3.
+Find ornament _bst bst3.
 
-(* TODO tests *)
+Definition packed_bst3 (n m : nat) :=
+  sigT (A := nat) (fun (p : nat) => bst3 n p m).
+
+Theorem test_index_18:
+  forall (n m : nat) (b : _bst n m),
+    _bst_to_bst3_index n m b = is_bst n m b.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_18:
+  forall (n m : nat) (b : _bst n m),
+    packed_bst3 n m.
+Proof.
+  exact _bst_to_bst3.
+Qed.
+
+Theorem test_orn_index_18:
+  forall (n m : nat) (b : _bst n m),
+    projT1 (_bst_to_bst3 n m b) = _bst_to_bst3_index n m b.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_inv_18:
+  forall (n m : nat) (b : packed_bst3 n m),
+    _bst n m.
+Proof.
+  exact _bst_to_bst3_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_18:
+  forall (n m p : nat) (b : bst3 n p m),
+    _bst n m.
+Proof.
+  intros n m p b. apply _bst_to_bst3_inv. exists p. apply b.
+Qed.
 
 (* --- Binary trees with changed hypothesis order --- *)
 
