@@ -89,8 +89,8 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
     lift_definition_by_ornament env evd n_new l c_old
 
 (*
- * Translate each fix or match subterm into a definitionally equal eliminator
- * application, defining the new term with the given name.
+ * Translate each fix or match subterm into an equivalent application of an
+ * eliminator, defining the new term with the given name.
  *
  * Mutual fix or cofix subterms are not supported.
  *)

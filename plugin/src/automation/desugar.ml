@@ -129,7 +129,7 @@ let eliminate_match env evm info pred discr cases =
   let fix_args = Array.append (Array.of_list indices) [|discr|] in
   mkApp (fix_term, fix_args)
 
-(* Translate each match expression into a definitionally equal eliminator application *)
+(* Translate each match expression into an equivalent eliminator application *)
 let desugar_fix_match env evm term =
   let evm = ref evm in
   let rec aux env term =
