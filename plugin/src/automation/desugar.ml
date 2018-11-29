@@ -10,23 +10,19 @@ open Declarations
 open CErrors
 open Coqterms
 
-let nf_betaiotazeta env evm term =
-  (* Reduction.nf_betaiota *)
-  let open Reductionops in
-  EConstr.of_constr term |> nf_betaiotazeta env evm |> EConstr.to_constr evm
-
 let freshen_name idset name =
   let name' = Namegen.next_name_away name !idset in
   idset := Id.Set.add name' !idset;
   name'
 
-let split_functional env evm ind_fam body =
+let split_functional env ind_fam body =
   let split_case cons_sum =
     let cons = build_dependent_constructor cons_sum in
     let env = Environ.push_rel_context cons_sum.cs_args env in
     let body = Vars.lift cons_sum.cs_nargs body in
     let args = Array.append cons_sum.cs_concl_realargs [|cons|] in
-    let case = nf_betaiotazeta env evm (mkApp (body, args)) in
+    (* NOTE: May want to try beta+iota+zeta reduction *)
+    let case = Reduction.nf_betaiota env (mkApp (body, args)) in
     cons_sum.cs_nargs, recompose_lam_assum cons_sum.cs_args case
   in
   Array.map split_case (get_constructors env ind_fam)
@@ -67,7 +63,7 @@ let elimination_for_fixpoint env evm ind_fam fix_name fun_type fun_term =
   let ind_fam = lift_inductive_family 1 ind_fam in
   let nindex = inductive_nrealargs ind in
   let elim = Indrec.lookup_eliminator ind sort in
-  let cases = split_functional fix_env !evm ind_fam fun_term in
+  let cases = split_functional fix_env ind_fam fun_term in
   let motive = Vars.lift 1 fun_type |> to_lambda (nindex + 1) in
   let minors = Array.map (premise_of_case fix_env ind_fam motive) cases in
   let premises = Array.cons motive minors |> Array.map (Vars.lift (-1)) in
