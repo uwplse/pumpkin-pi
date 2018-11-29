@@ -10,12 +10,11 @@ open Declarations
 open CErrors
 open Coqterms
 
-(* Anonymize the nth lambda binding, skipping over any let bindings *)
-let anon_lam n term =
+(* Delete or "zap" the nth lambda binding, skipping over any let bindings *)
+let zap_lam n term =
   let (decl :: ctxt), body = decompose_lam_n_assum n term in
-  let decl' = Rel.Declaration.set_name Anonymous decl in
   assert (Vars.noccurn 1 body);
-  recompose_lam_assum (decl' :: ctxt) body
+  recompose_lam_assum ctxt (Vars.lift (-1) body)
 
 (* Does the inductive type have sort Prop? *)
 let inductive_is_proposition env ind_fam =
@@ -78,8 +77,8 @@ let eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term =
   let elim = Indrec.lookup_eliminator ind sort in
   let cases = split_functional fix_env ind_fam fun_term in
   let motive = Vars.lift 1 fun_type |> to_lambda (nindex + 1) in
-  let motive = if is_prop then anon_lam (nindex + 1) motive else motive in
   let minors = Array.map (premise_of_case fix_env ind_fam motive) cases in
+  let motive = if is_prop then zap_lam (nindex + 1) motive else motive in
   let premises = Array.cons motive minors |> Array.map (Vars.lift (-1)) in
   mkApp (e_new_global evm elim, Array.append params premises)
 
