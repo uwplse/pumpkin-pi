@@ -923,6 +923,234 @@ Proof.
   intros. apply orn_nat_natnat_inv. exists n. apply nn.
 Qed.
 
+(* --- Regression of bug in more complicated index identification algorithm --- *)
+  
+(*
+ * Minimal test case
+ *)
+
+Inductive doublevector5 (A : Type) : nat -> nat -> Type :=
+| dnilV5 : doublevector5 A 0 0
+| dconsV5 :
+    forall (m n : nat),
+      A -> doublevector5 A n m -> doublevector5 A (S n) (S (S m)).
+
+Definition packed_doublevector5 (A : Type) (n : nat) :=
+  sigT (A := nat) (fun m : nat => doublevector5 A n m).
+
+Find ornament vector doublevector5 as orn_vector_doublevector5.
+
+Theorem test_index_15:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector5_index A n v = vector_double_size A n v.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_15:
+  forall (A : Type) (n : nat) (v : vector A n),
+    packed_doublevector5 A n.
+Proof.
+  exact orn_vector_doublevector5.
+Qed.
+
+Theorem test_orn_index_15:
+  forall (A : Type) (n : nat) (v : vector A n),
+    projT1 (orn_vector_doublevector5 A n v) = orn_vector_doublevector5_index A n v.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_inv_15:
+  forall (A : Type) (n : nat) (d : packed_doublevector5 A n),
+    vector A n.
+Proof.
+  exact orn_vector_doublevector5_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_15:
+  forall (A : Type) (n : nat) (m : nat) (d : doublevector5 A n m),
+    vector A n.
+Proof.
+  intros. apply orn_vector_doublevector5_inv. exists m. apply d.
+Qed.
+
+(* --- More regression --- *)
+
+(*
+ * From case study, made ambiguous so the more complex algorithm runs, 
+ * and then simplified
+ *)
+
+Inductive _bst : nat -> nat -> Type :=
+| _Branch (min_l min_r : nat) (max_l max_r : nat) (val : nat)
+          (left : _bst min_l max_l) (right : _bst min_r max_r)
+      : _bst min_l max_r
+| _Leaf (val : nat) : _bst val val.
+
+Definition inv (ord_l ord_r : nat) (max_l val min_r : nat) : nat :=
+  ord_l * 
+  ord_r * 
+  (if Nat.ltb max_l val then 1 else 0) *
+  (if Nat.ltb val min_r then 1 else 0).
+
+Inductive bst : nat -> nat -> nat -> Type :=
+| Branch (ord_l ord_r : nat) (min_l min_r : nat) (max_l max_r : nat)
+         (val : nat)
+         (left : bst min_l max_l ord_l) (right : bst min_r max_r ord_r)
+      : bst min_l max_r (inv ord_l ord_r max_l val min_r)
+| Leaf (val : nat) : bst val val 1.
+
+Find ornament _bst bst.
+
+Definition is_bst (n m : nat) (b : _bst n m) : nat :=
+  _bst_rect 
+    (fun _ _ _  => nat)
+    (fun (min_l min_r max_l max_r val : nat) 
+         (left : _bst min_l max_l) (IHl : nat)
+         (right : _bst min_r max_r) (IHr : nat) =>
+      inv IHl IHr max_l val min_r) 
+    (fun _ : nat => 1) 
+    n
+    m 
+    b.
+
+Definition packed_bst (n m : nat) :=
+  sigT (A := nat) (fun (p : nat) => bst n m p).
+
+Theorem test_index_16:
+  forall (n m : nat) (b : _bst n m),
+    _bst_to_bst_index n m b = is_bst n m b.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_16:
+  forall (n m : nat) (b : _bst n m),
+    packed_bst n m.
+Proof.
+  exact _bst_to_bst.
+Qed.
+
+Theorem test_orn_index_16:
+  forall (n m : nat) (b : _bst n m),
+    projT1 (_bst_to_bst n m b) = _bst_to_bst_index n m b.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_inv_16:
+  forall (n m : nat) (b : packed_bst n m),
+    _bst n m.
+Proof.
+  exact _bst_to_bst_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_16:
+  forall (n m p : nat) (b : bst n m p),
+    _bst n m.
+Proof.
+  intros n m p b. apply _bst_to_bst_inv. exists p. apply b.
+Qed.
+
+(* --- Make sure moving the hypotheses around works too --- *)
+
+Inductive bst2 : nat -> nat -> nat -> Type :=
+| Branch2 (ord_l : nat) (min_l min_r : nat) (max_l max_r : nat)
+         (val : nat)
+         (left : bst2 min_l max_l ord_l) (ord_r : nat) (right : bst2 min_r max_r ord_r)
+      : bst2 min_l max_r (inv ord_l ord_r max_l val min_r)
+| Leaf2 (val : nat) : bst2 val val 1.
+
+Find ornament _bst bst2.
+
+Definition packed_bst2 (n m : nat) :=
+  sigT (A := nat) (fun (p : nat) => bst2 n m p).
+
+Theorem test_index_17:
+  forall (n m : nat) (b : _bst n m),
+    _bst_to_bst2_index n m b = is_bst n m b.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_17:
+  forall (n m : nat) (b : _bst n m),
+    packed_bst2 n m.
+Proof.
+  exact _bst_to_bst2.
+Qed.
+
+Theorem test_orn_index_17:
+  forall (n m : nat) (b : _bst n m),
+    projT1 (_bst_to_bst2 n m b) = _bst_to_bst2_index n m b.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_inv_17:
+  forall (n m : nat) (b : packed_bst2 n m),
+    _bst n m.
+Proof.
+  exact _bst_to_bst2_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_17:
+  forall (n m p : nat) (b : bst2 n m p),
+    _bst n m.
+Proof.
+  intros n m p b. apply _bst_to_bst2_inv. exists p. apply b.
+Qed.
+
+(* --- Test moving around the index location --- *)
+
+Inductive bst3 : nat -> nat -> nat -> Type :=
+| Branch3 (ord_l : nat) (min_l min_r : nat) (max_l max_r : nat)
+         (val : nat)
+         (left : bst3 min_l ord_l max_l) (ord_r : nat) (right : bst3 min_r ord_r max_r)
+      : bst3 min_l (inv ord_l ord_r max_l val min_r) max_r 
+| Leaf3 (val : nat) : bst3 val 1 val.
+
+Find ornament _bst bst3.
+
+Definition packed_bst3 (n m : nat) :=
+  sigT (A := nat) (fun (p : nat) => bst3 n p m).
+
+Theorem test_index_18:
+  forall (n m : nat) (b : _bst n m),
+    _bst_to_bst3_index n m b = is_bst n m b.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_18:
+  forall (n m : nat) (b : _bst n m),
+    packed_bst3 n m.
+Proof.
+  exact _bst_to_bst3.
+Qed.
+
+Theorem test_orn_index_18:
+  forall (n m : nat) (b : _bst n m),
+    projT1 (_bst_to_bst3 n m b) = _bst_to_bst3_index n m b.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_inv_18:
+  forall (n m : nat) (b : packed_bst3 n m),
+    _bst n m.
+Proof.
+  exact _bst_to_bst3_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_18:
+  forall (n m p : nat) (b : bst3 n p m),
+    _bst n m.
+Proof.
+  intros n m p b. apply _bst_to_bst3_inv. exists p. apply b.
+Qed.
+
 (* --- Binary trees with changed hypothesis order --- *)
 
 Inductive bintreeV2 (A : Type) : nat -> Type :=
@@ -941,35 +1169,35 @@ Definition packed_bintreeV2 (T : Type) :=
 
 Find ornament bintree bintreeV2 as orn_bintree_bintreeV2.
 
-Theorem test_index_15:
+Theorem test_index_19:
   forall (A : Type) (tr : bintree A),
     orn_bintree_bintreeV2_index A tr = bintree_size A tr.
 Proof.
-  intros. auto.
+  intros. reflexivity.
 Qed.
 
-Theorem test_orn_15:
+Theorem test_orn_19: 
   forall (A : Type) (tr : bintree A),
     packed_bintreeV2 A.
 Proof.
   exact orn_bintree_bintreeV2.
 Qed.
 
-Theorem test_orn_index_15:
+Theorem test_orn_index_19:
   forall (A : Type) (tr : bintree A),
     projT1 (orn_bintree_bintreeV2 A tr) = orn_bintree_bintreeV2_index A tr.
 Proof.
-  intros. reflexivity.
+  intros. auto.
 Qed.
 
-Theorem test_orn_inv_15:
+Theorem test_orn_inv_19:
   forall (A : Type) (tr : packed_bintreeV2 A),
     bintree A.
 Proof.
   exact orn_bintree_bintreeV2_inv.
 Qed.
 
-Theorem test_orn_inv_unpack_15:
+Theorem test_orn_inv_unpack_19:
   forall (A : Type) (n : nat) (tr : bintreeV2 A n),
     bintree A.
 Proof.

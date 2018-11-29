@@ -62,35 +62,22 @@ let adjust_no_index index_i args =
 
 (*
  * Returns true if the hypothesis i is used to compute the index at position
- * index_i in any application of a property p in the eliminator type typ.
+ * index_i in any application of the property p in some inductive hypothesis
+ * of the eliminator type typ
  *)
-let rec computes_index index_i p i typ =
+let rec computes_ih_index index_i p i typ =
   match kind typ with
   | Prod (n, t, b) ->
      let p_b = shift p in
      let i_b = shift i in
      if applies p t then
-       contains_term i (get_arg index_i t) || computes_index index_i p_b i_b b
+       let index = get_arg index_i t in
+       contains_term i index || computes_ih_index index_i p_b i_b b
      else
-       computes_index index_i p_b i_b b
-  | App (_, _) when applies p typ ->
-     contains_term i (get_arg index_i typ)
+       computes_ih_index index_i p_b i_b b
   | _ ->
      false
-
-(*
- * Returns true if the hypothesis i is _only_ used to compute the index
- * at index_i, and is not used to compute any other indices or parameters
- *)
-let computes_only_index env evd index_i p i typ =
-  let p_arity = arity (infer_type env evd p) in
-  let indices = List.map unshift_i (from_one_to (p_arity - 1)) in
-  if computes_index index_i p i typ then
-    let indices_not_i = remove_index index_i indices in
-    List.for_all (fun j -> not (computes_index j p i typ)) indices_not_i
-  else
-    false
-
+                 
 (* --- Getting arguments to indexed types --- *)
 
 (*
