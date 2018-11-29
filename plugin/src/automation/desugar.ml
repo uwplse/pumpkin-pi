@@ -27,6 +27,7 @@ let split_functional env ind_fam body =
   in
   Array.map split_case (get_constructors env ind_fam)
 
+(* TODO: Must configure for propositional sorts *)
 let premise_of_case env ind_fam motive (narg, term) =
   let beta = Reduction.beta_appvect in
   let open_lam_assum = decompose_lam_n_decls 1 %> on_fst List.hd in
@@ -55,7 +56,7 @@ let premise_of_case env ind_fam motive (narg, term) =
   premise
 
 (* Assumes that the fixed-point has already been regularized *)
-let elimination_for_fixpoint env evm ind_fam fix_name fun_type fun_term =
+let eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term =
   let fix_decl = rel_assum (fix_name, fun_type) in
   let (ind, _), params = dest_ind_family ind_fam |> on_snd Array.of_list in
   let sort = e_infer_sort env evm fun_type in
@@ -102,6 +103,25 @@ let predicate_of_motive nidx is_prop motive =
   else
     motive
 
+(* Convenient wrapper around eliminate_fixpoint *)
+let eliminate_match env evm info pred discr cases =
+  let pind, (params, indices) =
+    e_infer_type env evm discr |> Inductive.find_inductive env |>
+    on_snd (List.chop info.ci_npar)
+  in
+  let ind_fam = make_ind_family (pind, params) in
+  let nindex = List.length indices in
+  let ctxt, return = decompose_lam_n_assum (nindex + 1) pred in
+  let fun_body =
+    let lift = Vars.lift (nindex + 2) in
+    mkCase (info, lift pred, mkRel 1, Array.map lift cases)
+  in
+  let fun_term = recompose_lam_assum ctxt fun_body in
+  let fun_type = recompose_prod_assum ctxt return in
+  let fix_term = eliminate_fixpoint env evm ind_fam Anonymous fun_type fun_term in
+  let fix_args = Array.append (Array.of_list indices) [|discr|] in
+  mkApp (fix_term, fix_args)
+
 (* Translate each match expression into a definitionally equal eliminator application *)
 let desugar_matches env evm term =
   let evm = ref evm in
@@ -125,32 +145,13 @@ let desugar_matches env evm term =
         regularize_fixpoint (fix_size + 1) fun_type fun_body
       in
       (* TODO: Proposition-sorted inductive types *)
-      elimination_for_fixpoint env evm ind_fam fix_name fun_type fun_body |>
-      aux env
+      eliminate_fixpoint env evm ind_fam fix_name fun_type fun_body |> aux env
     | Fix _ ->
       user_err ~hdr:"desugar" (Pp.str "mutual recursion not supported")
     | CoFix _ ->
       user_err ~hdr:"desugar" (Pp.str "co-recursion not supported")
-    | Case (info, pred, discr, branches) ->
-      (* TODO: Simplify, perhaps by calling functions directly *)
-      let pind, (params, indices) =
-        Inductive.find_inductive env (e_infer_type env evm discr) |>
-        on_snd (List.chop info.ci_npar)
-      in
-      let ind_fam = make_ind_family (pind, params) in
-      let nindex = List.length indices in
-      let ctxt, return = decompose_lam_n_assum (nindex + 1) pred in
-      let fun_body =
-        let lift = Vars.lift (nindex + 2) in
-        mkCase (info, lift pred, mkRel 1, Array.map lift branches)
-      in
-      let fun_term = recompose_lam_assum ctxt fun_body in
-      let fun_type = recompose_prod_assum ctxt return in
-      let fix_term =
-        elimination_for_fixpoint env evm ind_fam Anonymous fun_type fun_term
-      in
-      let fix_args = Array.append (Array.of_list indices) [|discr|] in
-      aux env (mkApp (fix_term, fix_args))
+    | Case (info, pred, discr, cases) ->
+      eliminate_match env evm info pred discr cases |> aux env
     | _ ->
       Constr.map (aux env) term
   in
