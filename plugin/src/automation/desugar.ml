@@ -123,7 +123,7 @@ let eliminate_match env evm info pred discr cases =
   mkApp (fix_term, fix_args)
 
 (* Translate each match expression into a definitionally equal eliminator application *)
-let desugar_matches env evm term =
+let desugar_fix_match env evm term =
   let evm = ref evm in
   let rec aux env term =
     match kind term with
@@ -158,4 +158,4 @@ let desugar_matches env evm term =
   let term' = aux env term in
   let type' = e_infer_type env evm term' in (* NOTE: Infers universe constraints *)
   let evm' = !evm in
-  evm', term'
+  evm', term', type'

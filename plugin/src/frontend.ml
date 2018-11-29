@@ -97,5 +97,5 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
 let translate_matches n d =
   let (evm, env) = Pfedit.get_current_context () in
   let term = intern env evm d |> unwrap_definition env in
-  let evm, term' = desugar_matches env evm term in
+  let evm, term', _ = desugar_fix_match env evm term in
   ignore (define_term n evm term' false)
