@@ -254,6 +254,11 @@ val mk_n_rels : int -> types list
 val push_local : (name * types) -> env -> env
 val push_let_in : (name * types * types) -> env -> env
 
+(* Is the rel declaration a local assumption? *)
+val is_rel_assum : ('constr, 'types) Rel.Declaration.pt -> bool
+
+(* Is the rel declaration a local definition? *)
+val is_rel_defin : ('constr, 'types) Rel.Declaration.pt -> bool
 
 (*
  * Construct a rel declaration
@@ -272,6 +277,12 @@ val rel_type : ('constr, 'types) Rel.Declaration.pt -> 'types
  * Map over a rel context with environment kept in synch
  *)
 val map_rel_context : env -> (env -> Rel.Declaration.t -> 'a) -> Rel.t -> 'a list
+
+(* Is the named declaration an assumption? *)
+val is_named_assum : ('constr, 'types) Named.Declaration.pt -> bool
+
+(* Is the named declaration a definition? *)
+val is_named_defin : ('constr, 'types) Named.Declaration.pt -> bool
 
 (*
  * Construct a named declaration
@@ -357,6 +368,17 @@ val apply : types -> types -> types -> bool
 val is_or_applies : types  -> types -> bool
 val are_or_apply : types -> types -> types -> bool
 
+(* Is the first term equal to a "head" (application prefix) of the second?
+ * The notion of term equality is syntactic, by default modulo alpha, casts,
+ * application grouping, and universes. The result of this function is an
+ * informative boolean: an optional array, with None meaning false and Some
+ * meaning true and giving the trailing arguments.
+ *
+ * This function is similar to is_or_applies, except for term equality and the
+ * informative boolean result.
+ *)
+val eq_constr_head : ?eq_constr:(constr -> constr -> bool) -> constr -> constr -> constr array option
+
 (* --- Convertibility, reduction, and types --- *)
 
 (*
@@ -366,6 +388,15 @@ val are_or_apply : types -> types -> types -> bool
  * conservative failure of the plugin
  *)
 val infer_type : env -> evar_map -> types -> types
+
+(* Safely infer the WHNF type of a term, updating the evar map. *)
+val e_infer_type : env -> evar_map ref -> constr -> constr
+
+(* Safely infer the sort of a term, updating the evar map. *)
+val e_infer_sort : env -> evar_map ref -> constr -> Sorts.family
+
+(* Safely instantiate a global reference, updating the evar map. *)
+val e_new_global : evar_map ref -> global_reference -> constr
 
 (*
  * Convertibility, ignoring universe constraints
@@ -417,6 +448,12 @@ val map_term :
   types ->
   types
 
+(* Replace all occurrences of the first term in the second term with Rel 1,
+ * lifting de Bruijn indices as needed. The notion of term equality is modulo
+ * alpha, casts, application grouping, and universes.
+ *)
+val abstract_subterm : constr -> constr -> constr
+
 (* --- Names --- *)
 
 (*
@@ -432,6 +469,13 @@ val reference_of_ident : Id.t -> Libnames.reference
 
 (* Turn a name into an optional external (i.e., surface-level) reference *)
 val reference_of_name : Name.t -> Libnames.reference option
+
+(* Collect the set of identifiers (locally) free in the term (though really
+ * bound by the given environment). *)
+val free_vars : env -> constr -> Id.Set.t
+
+(* Collect the set of identifiers (locally) bound in the term. *)
+val bound_vars : constr -> Id.Set.t
 
 (* --- Application and arguments --- *)
 

@@ -282,6 +282,20 @@ let project_value (app : sigT_app) trm =
 let infer_type (env : env) (evd : evar_map) (trm : types) : types =
   EConstr.to_constr evd (Typing.unsafe_type_of env evd (EConstr.of_constr trm))
 
+(* Safely infer the WHNF type of a term, updating the evar map *)
+let e_infer_type env evm term =
+  EConstr.of_constr term |> Typing.e_type_of ~refresh:true env evm |>
+  Reductionops.whd_all env !evm |> EConstr.to_constr !evm
+
+(* Safely infer the sort of a term, updating the evar map *)
+let e_infer_sort env evm term =
+  EConstr.of_constr term |> Typing.e_type_of ~refresh:true env evm |>
+  Typing.e_sort_of env evm |> Sorts.family
+
+(* Safely instantiate a global reference, with proper universe handling *)
+let e_new_global evm gref =
+  Evarutil.e_new_global evm gref |> EConstr.to_constr !evm
+
 (* Check whether two terms are convertible, ignoring universe inconsistency *)
 let conv_ignoring_univ_inconsistency env evm (trm1 : types) (trm2 : types) : bool =
   let etrm1 = EConstr.of_constr trm1 in
@@ -354,6 +368,12 @@ let push_local (n, t) = push_rel CRD.(LocalAssum (n, t))
 (* Push a let-in definition to an environment *)
 let push_let_in (n, e, t) = push_rel CRD.(LocalDef(n, e, t))
 
+(* Is the rel declaration a local assumption? *)
+let is_rel_assum = Rel.Declaration.is_local_assum
+
+(* Is the rel declaration a local definition? *)
+let is_rel_defin = Rel.Declaration.is_local_def
+
 (* Make the rel declaration for a local assumption *)
 let rel_assum (name, typ) =
   Rel.Declaration.LocalAssum (name, typ)
@@ -382,6 +402,12 @@ let map_rel_context env make ctxt =
     ctxt
     ~init:(env, []) |>
   snd
+
+(* Is the named declaration an assumption? *)
+let is_named_assum = Named.Declaration.is_local_assum
+
+(* Is the named declaration a definition? *)
+let is_named_defin = Named.Declaration.is_local_def
 
 (* Make the named declaration for a local assumption *)
 let named_assum (id, typ) =
@@ -519,6 +545,23 @@ let applies (f : types) (trm : types) =
 (* Check whether trm is trm' or applies trm', using equal *)
 let is_or_applies (trm' : types) (trm : types) : bool =
   applies trm' trm || equal trm' trm
+
+(* Is the first term equal to a "head" (application prefix) of the second?
+ * The notion of term equality is syntactic (i.e., no environment) and defaults
+ * to syntactic equality modulo alpha, casts, grouping, and universes. The
+ * result of this function is an informative boolean: an optional array, with
+ * None meaning false and Some meaning true and giving the trailing arguments.
+ *
+ * This function is similar to is_or_applies, except for term equality and the
+ * informative boolean result.
+ *)
+let eq_constr_head ?(eq_constr=eq_constr_nounivs) term term' =
+  let head, args = decompose_app term in
+  let head', args' = decompose_app term' in
+  if eq_constr head head' && List.prefix_of eq_constr args args' then
+    Some (List.skipn (List.length args) args' |> Array.of_list)
+  else
+    None
 
 (* Versions over two terms *)
 let are_or_apply (trm : types) = and_p (is_or_applies trm)
@@ -776,6 +819,27 @@ let rec map_term_env f d (env : env) (a : 'a) (trm : types) : types =
 let map_term f d (a : 'a) (trm : types) : types =
   map_term_env (fun _ a t -> f a t) d empty_env a trm
 
+(* Replace all occurrences of the first term in the second term with Rel 1,
+ * lifting de Bruijn indices as needed. The notion of term equality is modulo
+ * alpha, casts, application grouping, and universes.
+ *)
+let abstract_subterm sub term =
+  (* Allocate a binding slot for the abstracted subterm *)
+  let sub = Vars.lift 1 sub in
+  let term = Vars.lift 1 term in
+  let rec surgery (nb, sub) term =
+    match eq_constr_head sub term with
+    | Some args ->
+      mkApp (mkRel (nb + 1), args)
+    | None ->
+      Constr.map_with_binders
+        (fun (nb, sub) -> nb + 1, Vars.lift 1 sub)
+        surgery
+        (nb, sub)
+        term
+  in
+  surgery (0, sub) term
+
 (* --- Names --- *)
 
 (* Add a suffix to a name identifier *)
@@ -795,3 +859,36 @@ let reference_of_ident id =
 (* Turn a name into an optional external (i.e., surface-level) reference *)
 let reference_of_name =
   ident_of_name %> Option.map reference_of_ident
+
+(* Collect the set of identifiers (locally) free in the term (though really
+ * bound by the given environment). *)
+let free_vars env term =
+  let rec aux nb idset term =
+    match kind term with
+    | Rel i ->
+      let name =
+        if i > nb then
+          Environ.lookup_rel (i - nb) env |> rel_name
+        else
+          Anonymous
+      in
+      Termops.add_vname idset name
+    | Var id ->
+      Id.Set.add id idset
+    | _ ->
+      fold_constr_with_binders ((+) 1) aux nb idset term
+  in
+  aux 0 Id.Set.empty term
+
+(* Collect the set of identifiers (locally) bound in the term. *)
+let bound_vars term =
+  let rec aux idset term =
+    let bound =
+      match kind term with
+      | Lambda (name, _, _) | LetIn (name, _, _, _) | Prod (name, _, _) -> [|name|]
+      | Fix (_, (names, _, _)) | CoFix (_, (names, _, _)) -> names
+      | _ -> [||]
+    in
+    Constr.fold aux (Array.fold_left Termops.add_vname idset bound) term
+  in
+  aux Id.Set.empty term
