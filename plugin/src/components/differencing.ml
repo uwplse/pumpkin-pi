@@ -9,7 +9,6 @@ open Utilities
 open Debruijn
 open Context
 open Util
-open Printing
 
 (* --- Differencing terms --- *)
 
