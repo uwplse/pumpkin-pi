@@ -77,6 +77,8 @@ let same_mod_indexing env p_index o n =
  * we can assume that we maintain the same inductive structure, and so
  * we should encounter applications of the induction principle in both
  * terms in exactly the same order.
+ *
+ * The implementation of this uses an offset list to adjust as it goes.
  *)
 let is_new_index i (d : (int * (types * types)) list) =
   try
@@ -95,11 +97,16 @@ let is_new_index i (d : (int * (types * types)) list) =
       | [] ->
 	 false
     in is_new d_arg
-  with Invalid_argument (s) ->
+  with Invalid_argument s ->
     true (* we're on the last index *)
 
 (*
- * TODO comment and refactor
+ * Compute the difference between the applications of motives in the IHs
+ * of eliminator types trm_o and trm_n, assuming there is some new index
+ * in the type trm_n eliminates over that is not in trm_o.
+ *
+ * Return a list of offsets paired with pairs of old and new 
+ * indices. 
  *)
 let diff_motive_apps trm_o trm_n =
   let rec diff off p trm_o trm_n = (* TODO refactor later *)
