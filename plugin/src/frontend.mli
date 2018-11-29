@@ -15,9 +15,9 @@ val find_ornament : Id.t option -> constr_expr -> constr_expr -> unit
 val lift_by_ornament : ?suffix:bool -> Id.t -> constr_expr -> constr_expr -> constr_expr -> unit
 
 (*
- * Translate every match expression into an equivalent eliminator
+ * Translate each fix or match subterm into a definitionally equal eliminator
  * application, defining the new term with the given name.
  *
- * Currently, fixed-point expressions are _not_ supported.
+ * Mutual fix or cofix subterms are not supported.
  *)
-val translate_matches : Id.t -> constr_expr -> unit
+val desugar_definition : Id.t -> constr_expr -> unit

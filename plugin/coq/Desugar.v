@@ -11,7 +11,7 @@ Definition empty (A : Type) (xs : list A) : bool :=
   | cons _ _ => false
   | nil => true
   end.
-Translate matches in empty as empty'.
+Desugar empty as empty'.
 Lift list vector in empty' as emptyV'.
 
 Definition emptyV (A : Type) (xs : {n:nat & vector A n}) : bool :=
@@ -19,7 +19,7 @@ Definition emptyV (A : Type) (xs : {n:nat & vector A n}) : bool :=
   | consV _ _ _ => false
   | nilV => true
   end.
-Translate matches in emptyV as emptyV''.
+Desugar emptyV as emptyV''.
 
 (* Note: headV and tailV use different methods to reason about the index in
  * order to improve coverage of potentially tricky edge cases.
@@ -31,10 +31,10 @@ Definition headV (A : Type) (n : nat) (xs : vector A (S n)) : A :=
   | nilV => False_rect A
   end
     I.
-Translate matches in headV as headV'.
+Desugar headV as headV'.
 
 Definition tailV (A : Type) (n : nat) (xs : vector A (S n)) : vector A n :=
   match xs in vector _ (S n) return vector A n with
   | consV _ _ xs => xs
   end.
-Translate matches in tailV as tailV'.
+Desugar tailV as tailV'.

@@ -10,6 +10,17 @@ open Declarations
 open CErrors
 open Coqterms
 
+(* Anonymize the nth lambda binding, skipping over any let bindings *)
+let anon_lam n term =
+  let (decl :: ctxt), body = decompose_lam_n_assum n term in
+  let decl' = Rel.Declaration.set_name Anonymous decl in
+  assert (Vars.noccurn 1 body);
+  recompose_lam_assum (decl' :: ctxt) body
+
+(* Does the inductive type have sort Prop? *)
+let inductive_is_proposition env ind_fam =
+  get_arity env ind_fam |> snd |> Sorts.family_equal Sorts.InProp
+
 let freshen_name idset name =
   let name' = Namegen.next_name_away name !idset in
   idset := Id.Set.add name' !idset;
@@ -60,12 +71,14 @@ let eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term =
   let fix_decl = rel_assum (fix_name, fun_type) in
   let (ind, _), params = dest_ind_family ind_fam |> on_snd Array.of_list in
   let sort = e_infer_sort env evm fun_type in
+  let is_prop = inductive_is_proposition env ind_fam in
   let fix_env = Environ.push_rel fix_decl env in
   let ind_fam = lift_inductive_family 1 ind_fam in
   let nindex = inductive_nrealargs ind in
   let elim = Indrec.lookup_eliminator ind sort in
   let cases = split_functional fix_env ind_fam fun_term in
   let motive = Vars.lift 1 fun_type |> to_lambda (nindex + 1) in
+  let motive = if is_prop then anon_lam (nindex + 1) motive else motive in
   let minors = Array.map (premise_of_case fix_env ind_fam motive) cases in
   let premises = Array.cons motive minors |> Array.map (Vars.lift (-1)) in
   mkApp (e_new_global evm elim, Array.append params premises)
@@ -88,12 +101,6 @@ let regularize_fixpoint fix_size fun_type fun_term =
     make_ind_family (pind, List.map_of_array (Vars.lift (-fix_size)) params)
   in
   ind_fam, fun_type, fun_term
-
-(* Does the inductive type have sort Prop? *)
-let inductive_is_proposition env ind =
-  Inductive.lookup_mind_specif env ind |> snd |>
-  Inductive.mind_arity |> snd |>
-  Sorts.family_equal Sorts.InProp
 
 let predicate_of_motive nidx is_prop motive =
   if is_prop then

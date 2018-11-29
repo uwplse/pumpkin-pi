@@ -89,12 +89,12 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
     lift_definition_by_ornament env evd n_new l c_old
 
 (*
- * Translate every match expression into an equivalent eliminator
+ * Translate each fix or match subterm into a definitionally equal eliminator
  * application, defining the new term with the given name.
  *
- * Currently, fixed-point expressions are _not_ supported.
+ * Mutual fix or cofix subterms are not supported.
  *)
-let translate_matches n d =
+let desugar_definition n d =
   let (evm, env) = Pfedit.get_current_context () in
   let term = intern env evm d |> unwrap_definition env in
   let evm, term', _ = desugar_fix_match env evm term in
