@@ -1,10 +1,12 @@
 Add LoadPath "coq".
-Require Import List.
 Require Import Ornamental.Ornaments.
 Require Import Test.
+Require Import List.
 
 Arguments consV {A}.
 Arguments nilV {A}.
+
+(** Simple examples, using only match terms (no fix) **)
 
 Definition empty (A : Type) (xs : list A) : bool :=
   match xs with
@@ -21,10 +23,7 @@ Definition emptyV (A : Type) (xs : {n:nat & vector A n}) : bool :=
   end.
 Desugar emptyV as emptyV''.
 
-(* Note: headV and tailV use different methods to reason about the index in
- * order to improve coverage of potentially tricky edge cases.
- *)
-
+(* NOTE: Using tricky index reasoning to cover edge case. *)
 Definition headV (A : Type) (n : nat) (xs : vector A (S n)) : A :=
   match xs in vector _ n return (match n with S _ => True | O => False end) -> A with
   | consV _ x _ => True_rect x
@@ -38,3 +37,9 @@ Definition tailV (A : Type) (n : nat) (xs : vector A (S n)) : vector A n :=
   | consV _ _ xs => xs
   end.
 Desugar tailV as tailV'.
+
+(** Simple examples, using fix and match terms **)
+
+Desugar length as length'.
+Desugar app as app'.
+Desugar list_prod as list_prod'.
