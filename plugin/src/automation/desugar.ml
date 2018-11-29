@@ -106,45 +106,6 @@ let predicate_of_motive nidx is_prop motive =
   else
     motive
 
-(* Return an array of boolean lists indicating recursive constructor parameters *)
-let inductive_recurrence_mask env ind npar =
-  let mind_body, ind_body = Inductive.lookup_mind_specif env ind in
-  let make_mask ndecl typ =
-    let aux n typ = n - 1, not (Vars.closedn n typ) in
-    decompose_prod_assum typ |> fst |> List.firstn ndecl |>
-    List.map CRD.get_type |> List.fold_left_map aux (npar + ndecl - 1) |> snd
-  in
-  Array.map2 make_mask ind_body.mind_consnrealdecls ind_body.mind_user_lc
-
-(* Translate a case from a match expression to anonymously bind recursive results *)
-let insert_recurrences env npar is_prop motive ndecl rec_mask branch =
-  let decls, branch_body = decompose_lam_n_assum ndecl branch in
-  let env = Environ.push_rel_context decls env in
-  let fresh _ =
-    let open Namegen in
-    Name.Name (Termops.vars_of_env env |> next_ident_away default_dependent_ident)
-  in
-  let aux (idecl, case) is_rec decl =
-    let env' = Environ.pop_rel_context idecl env in
-    let case' =
-      if is_rec then
-        let is_anon = CRD.get_name decl |> Name.is_anonymous in
-        let decl' = if is_anon then CRD.set_name (fresh ()) decl else decl in
-        let idcs =
-          CRD.get_type decl' |> Inductive.find_inductive env' |> snd |>
-          List.skipn npar |> List.map (Vars.lift 1)
-        in
-        let args = if is_prop then idcs else snoc (mkRel 1) idcs in
-        let recur = applistc (Vars.lift (ndecl - idecl + 1) motive) args in
-        mkLambda (Name.Anonymous, recur, Vars.lift 1 case) |>
-        recompose_lam_assum [decl']
-      else
-        recompose_lam_assum [decl] case
-    in
-    idecl + 1, case'
-  in
-  List.fold_left2 aux (1, branch_body) rec_mask decls |> snd
-
 (* Translate each match expression into a definitionally equal eliminator application *)
 let desugar_matches env evm term =
   let evm = ref evm in
@@ -175,28 +136,25 @@ let desugar_matches env evm term =
     | CoFix _ ->
       user_err ~hdr:"desugar" (Pp.str "co-recursion not supported")
     | Case (info, pred, discr, branches) ->
-      let ind = info.ci_ind in
-      let npar = info.ci_npar in
-      (* let pind, args = e_infer_type env evm discr |> EConstr.of_constr |> find_inductive env !evm in *)
-      (* elimination_for_fixpoint env evm (make_ind_family (pind, ??)) ?? motive (Vars.lift 1 term) *)
-      let nidx = inductive_nrealargs ind in
-      let elim = e_infer_sort env evm term |> Indrec.lookup_eliminator ind in
-      let is_prop = inductive_is_proposition env ind in
-      let pred = predicate_of_motive nidx is_prop pred in
-      let cases =
-        let rec_mask = inductive_recurrence_mask env ind npar in
-        let ins_rec = insert_recurrences env npar is_prop pred in
-        Array.map3 ins_rec info.ci_cstr_ndecls rec_mask branches
+      (* TODO: Simplify, perhaps by calling functions directly *)
+      let pind, (params, indices) =
+        Inductive.find_inductive env (e_infer_type env evm discr) |>
+        on_snd (List.chop info.ci_npar)
       in
-      let pars, idcs =
-        e_infer_type env evm discr |> decompose_appvect |> snd |> Array.chop npar
+      let ind_fam = make_ind_family (pind, params) in
+      let nindex = List.length indices in
+      let ctxt, return = decompose_lam_n_assum (nindex + 1) pred in
+      let fun_body =
+        let lift = Vars.lift (nindex + 2) in
+        mkCase (info, lift pred, mkRel 1, Array.map lift branches)
       in
-      let term' =
-        mkApp
-          (Evarutil.e_new_global evm elim |> EConstr.to_constr !evm,
-           Array.concat [pars; [|pred|]; cases; idcs; [|discr|]])
+      let fun_term = recompose_lam_assum ctxt fun_body in
+      let fun_type = recompose_prod_assum ctxt return in
+      let fix_term =
+        elimination_for_fixpoint env evm ind_fam Anonymous fun_type fun_term
       in
-      aux env term'
+      let fix_args = Array.append (Array.of_list indices) [|discr|] in
+      aux env (mkApp (fix_term, fix_args))
     | _ ->
       Constr.map (aux env) term
   in
