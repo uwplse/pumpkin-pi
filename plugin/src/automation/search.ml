@@ -19,7 +19,6 @@ open Lifting
 open Declarations
 open Util
 open Differencing
-open Printing
 
 (* --- Finding the new index --- *)
 
@@ -71,13 +70,7 @@ let find_new_index npm o n =
  *)
 let false_lead env evd index_i p b_o b_n =
   let same_arity = (arity b_o = arity b_n) in
-  debug_term env b_n "checking b_n";
-  debug_term env (mkRel 1) "index";
   let is_new_index = computes_only_index env evd index_i p (mkRel 1) b_n in
-  (if is_new_index then
-     debug_term env b_o "found it! b_o"
-   else
-     ());
   (not same_arity) && is_new_index
 
 (*
@@ -90,8 +83,6 @@ let false_lead env evd index_i p b_o b_n =
  * Eventually, it would be good to make this logic less ad-hoc,
  * though the terms we are looking at here are type signatures of
  * induction principles, and so should be very predictable.
- *
- * TODO need to fix ambiguous case with bst2 in Test.v
  *)
 let index_case evd index_i p o n : types =
   let get_index = get_new_index index_i in
@@ -324,8 +315,6 @@ let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
        let same = same_mod_indexing env_o p (ind_o, t_o) (ind_n, t_n) in
        let env_o_b = push_local (n_o, t_o) env_o in
        let env_n_b = push_local (n_n, t_n) env_n in
-       debug_term env_n_b b_n "b_n";
-       debug_term env_o_b b_o "b_o";
        let false_lead_f b_o b_n = false_lead env_n_b evd index_i p_b b_o b_n in
        let false_lead_b b_o b_n = false_lead env_o_b evd index_i p_b b_n b_o in
        let is_false_lead = directional false_lead_f false_lead_b in
@@ -551,12 +540,8 @@ let search_algebraic env evd npm indexer_n o n =
   let o = (env_o, pind_o, arity_o, el_o, el_t_o') in
   let n = (env_n, pind_n, arity_n, el_n, el_t_n') in
   let idx = find_new_index npm o n in
-  Printf.printf "%d\n" (fst idx);
   let indexer = find_indexer evd idx npm o n in
-  debug_term env indexer "indexer";
   let (promote, forget) = find_promote_forget evd idx npm indexer_n o n in
-  debug_term env promote "promote";
-  debug_term env forget "forget";
   { indexer; promote; forget }
 
 (* --- Top-level search --- *)
