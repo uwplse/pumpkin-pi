@@ -49,17 +49,13 @@ val adjust_no_index : int -> types list -> types list
 
 (*
  * Returns true if the hypothesis is used to compute the index at the supplied
- * location in some application of the inductive property, and furthermore,
- * is not used to compute any other indices (or parameters). 
+ * location in some application of the inductive property in an inductive
+ * hypothesis of the supplied eliminator type.
  * 
  * This is useful for checking for hypotheses that represent a new index when 
- * searching for ornaments, since the new hypotheses will not be used to
- * compute other indices, since they were not present in the old term
- * and the relationship is an ornamental indexing relationship.
+ * searching for ornaments.
  *)
-val computes_only_index :
-  env ->
-  evar_map ->
+val computes_ih_index :
   int -> (* index location *)
   types -> (* inductive property *)
   types -> (* hypothesis *)
