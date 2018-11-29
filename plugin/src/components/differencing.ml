@@ -64,6 +64,30 @@ let same_mod_indexing env p_index o n =
  *)
 
 (*
+ * Compute the difference between the applications of motives in the IHs
+ * of eliminator types trm_o and trm_n, assuming there is some new index
+ * in the type trm_n eliminates over that is not in trm_o.
+ *
+ * Return a list of offsets paired with pairs of old and new 
+ * indices. 
+ *)
+let diff_motive_apps trm_o trm_n =
+  let rec diff off p trm_o trm_n =
+    match map_tuple kind (trm_o, trm_n) with
+    | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
+       if applies p t_o && not (applies p t_n) then
+         diff (off + 1) (shift p) (shift trm_o) b_n
+       else
+	 List.append (diff off p t_o t_n) (diff off (shift p) b_o b_n)
+    | (App (_, _), App (_, _)) when applies p trm_o && applies p trm_n ->
+       let args_o = all_but_last (unfold_args trm_o) in
+       let args_n = all_but_last (unfold_args trm_n) in
+       [(off, (mkAppl (p, args_o), mkAppl (p, args_n)))]
+    | _ ->
+       []
+  in List.rev (diff 0 (mkRel 1) trm_o trm_n)
+
+(*
  * Returns true if the argument at the supplied index location of the 
  * inductive motive (which should be at relative index 1 before calling
  * this function) is an index to some application of the induction principle
@@ -80,7 +104,8 @@ let same_mod_indexing env p_index o n =
  *
  * The implementation of this uses an offset list to adjust as it goes.
  *)
-let is_new_index i (d : (int * (types * types)) list) =
+let is_new_index i b_o b_n =
+  let d = diff_motive_apps b_o b_n in
   try
     let arg args = get_arg i args in
     let d_arg = List.map (fun (off, (o, n)) -> (off, (arg o, arg n))) d in
@@ -99,30 +124,6 @@ let is_new_index i (d : (int * (types * types)) list) =
     in is_new d_arg
   with Invalid_argument s ->
     true (* we're on the last index *)
-
-(*
- * Compute the difference between the applications of motives in the IHs
- * of eliminator types trm_o and trm_n, assuming there is some new index
- * in the type trm_n eliminates over that is not in trm_o.
- *
- * Return a list of offsets paired with pairs of old and new 
- * indices. 
- *)
-let diff_motive_apps trm_o trm_n =
-  let rec diff off p trm_o trm_n = (* TODO refactor later *)
-    match map_tuple kind (trm_o, trm_n) with
-    | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-       if applies p t_o && not (applies p t_n) then
-         diff (off + 1) (shift p) (shift trm_o) b_n
-       else
-	 List.append (diff off p t_o t_n) (diff off (shift p) b_o b_n)
-    | (App (_, _), App (_, _)) when applies p trm_o && applies p trm_n ->
-       let args_o = all_but_last (unfold_args trm_o) in
-       let args_n = all_but_last (unfold_args trm_n) in
-       [(off, (mkAppl (p, args_o), mkAppl (p, args_n)))]
-    | _ ->
-       []
-  in List.rev (diff 0 (mkRel 1) trm_o trm_n)
 
 (*
  * Assuming there is an indexing ornamental relationship between two 
@@ -153,9 +154,7 @@ let new_index_type env elim_t_o elim_t_n =
          [(0, t_n)]
     | _ ->
        failwith "could not find indexer motive"
-  in
-  let d = diff_motive_apps b_o b_n in
-  List.find (fun (i, _) -> is_new_index i d) (candidates env p_o p_n)
+  in List.find (fun (i, _) -> is_new_index i b_o b_n) (candidates env p_o p_n)
                
 (*
  * This is Nate's simple search heuristic that works when there is no ambiguity
