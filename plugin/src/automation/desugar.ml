@@ -101,14 +101,6 @@ let regularize_fixpoint fix_size fun_type fun_term =
   in
   ind_fam, fun_type, fun_term
 
-let predicate_of_motive nidx is_prop motive =
-  if is_prop then
-    (* Induction principles for propositional types are non-dependent. *)
-    let decls, motive_body = decompose_lam_n_assum (nidx + 1) motive in
-    Vars.lift (-1) motive_body |> recompose_lam_assum (List.tl decls)
-  else
-    motive
-
 (* Convenient wrapper around eliminate_fixpoint *)
 let eliminate_match env evm info pred discr cases =
   let pind, (params, indices) =
