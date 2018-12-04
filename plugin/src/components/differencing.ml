@@ -179,17 +179,5 @@ let new_index_type_simple env npars ind_o ind_n =
   let (idcs_n, _) = Inductiveops.get_arity env indf_n in
   diff_context_simple env (List.rev idcs_o) (List.rev idcs_n)
 
-(* --- More differencing with new indices --- *)
-
-(*
- * Given an old and new application of a motive, find the new index.
- * This also assumes there is only one new index.
- *)
-let get_new_index index_i p o n =
-  match map_tuple kind (o, n) with
-  | (App (f_o, _), App (f_n, _)) when are_or_apply p f_o f_n ->
-     get_arg index_i n
-  | _ ->
-     failwith "not an application of a motive"
 
 

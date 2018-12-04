@@ -85,7 +85,6 @@ let false_lead env evd index_i p b_o b_n =
  * induction principles, and so should be very predictable.
  *)
 let index_case evd index_i p o n : types =
-  let get_index = get_new_index index_i in
   let rec diff_case p_i p subs o n =
     let (e_o, ind_o, trm_o) = o in
     let (e_n, ind_n, trm_n) = n in
@@ -94,7 +93,7 @@ let index_case evd index_i p o n : types =
        (* premises *)
        let p_b = shift p in
        let diff_b = diff_case (shift p_i) p_b in
-       let e_n_b = push_local (n_n, t_n) e_n in
+       let e_n_b = push_local (n_n, t_n) e_n in (* do I need both envs? *)
        let n_b = (e_n_b, shift ind_n, b_n) in
        let same = same_mod_indexing e_o p in
        let is_false_lead = false_lead e_n_b evd index_i p_b b_o in
@@ -109,7 +108,7 @@ let index_case evd index_i p o n : types =
          let o_b = (e_o_b, shift ind_o, b_o) in
          if apply p t_o t_n then
            (* inductive hypothesis *)
-           let sub_index = (shift (get_index p t_o t_n), mkRel 1) in
+           let sub_index = (shift (get_arg index_i t_n), mkRel 1) in
            let subs_b = sub_index :: shift_subs subs in
            mkLambda (n_o, mkAppl (p_i, unfold_args t_o), diff_b subs_b o_b n_b)
          else
@@ -118,7 +117,7 @@ let index_case evd index_i p o n : types =
            mkLambda (n_o, t_o, diff_b subs_b o_b n_b)
     | (App (_, _), App (_, _)) ->
        (* conclusion *)
-       let index = get_index p trm_o trm_n in
+       let index = get_arg index_i trm_n in
        List.fold_right all_eq_substs subs index
     | _ ->
        failwith "unexpected case"
