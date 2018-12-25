@@ -1257,6 +1257,59 @@ Proof.
   intros. apply double_is_even_inv. exists n. apply e.
 Qed.
 
+(* --- More refinement --- *)
+
+Inductive is_odd : nat -> Type :=
+| odd_1 : is_odd 1
+| odd_SS : forall (n : nat), is_odd n -> is_odd (S (S n)).
+
+Definition exists_odd:=
+  sigT is_odd.
+
+Find ornament nat is_odd as one_plus_double_is_odd.
+
+Definition one_plus_double (n : nat) :=
+  nat_rect
+    (fun (n0 : nat) => nat)
+    1
+    (fun (n0 : nat) (IH : nat) => S (S IH))
+    n.
+
+Theorem test_index_21:
+  forall (n : nat),
+    one_plus_double_is_odd_index n = one_plus_double n.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_21: 
+  forall (n : nat),
+    exists_odd.
+Proof.
+  exact one_plus_double_is_odd.
+Qed.
+
+Theorem test_orn_index_21:
+  forall (n : nat),
+    projT1 (one_plus_double_is_odd n) = one_plus_double n.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_inv_21:
+  forall (eo : exists_odd),
+    nat.
+Proof.
+  exact one_plus_double_is_odd_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_21:
+  forall (n : nat) (o : is_odd n),
+    nat.
+Proof.
+  intros. apply one_plus_double_is_odd_inv. exists n. apply o.
+Qed.
+
 (* (* --- TODO Index already existed in the old constructor, but wasn't used --- *) *)
 
 (* (* --- TODO Index already existed in the old constructor, but was used differently --- *) *)
