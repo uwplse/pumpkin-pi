@@ -578,5 +578,70 @@ Definition plus (n : nat) (m : nat) :=
 
 Lift nat is_even in plus as is_even_plus. *)
 
+(* Now, one interesting difference here is that we find one indexer,
+   but the indexer isn't actually necessarily unique;
+   could map base case to 2, or 4, or 6...
+   so it's like the fin case except we can find an answer,
+   it's just one of many answers *)
 
-  
+(* Here's what we want: *)
+
+Definition is_even_plus (n : sigT is_even) (m : sigT is_even) :=
+  is_even_rect
+    (fun (n0 : nat) (e : is_even n0) => sigT is_even)
+    (existT is_even (projT1 m) (projT2 m)) (* hypothesis is lifted already *)
+    (fun (n0 : nat) (e : is_even n0) (IH : sigT is_even) => 
+       existT
+         is_even
+         (S (S (projT1 IH)))                (* compute via indexer *)
+         (even_SS (projT1 IH) (projT2 IH))) (* S -> even_SS *)
+    (projT1 n)
+    (projT2 n).
+
+(* --- More refinement --- *)
+
+(* TODO there must be a loop in the code somewhere w/ indexing by old type:
+
+Lift nat is_odd in plus as is_odd_plus. *)
+
+(* Now, one interesting difference here is that we find one indexer,
+   but the indexer isn't actually necessarily unique;
+   could map base case to 2, or 4, or 6...
+   so it's like the fin case except we can find an answer,
+   it's just one of many answers *)
+
+(* Here's what we want: *)
+
+Print one_plus_double.
+
+Definition is_odd_plus (n : sigT is_odd) (m : sigT is_odd) :=
+  is_odd_rect
+    (fun (n0 : nat) (e : is_odd n0) => sigT is_odd)
+    (existT is_odd (projT1 m) (projT2 m)) (* hypothesis is lifted already *)
+    (fun (n0 : nat) (e : is_odd n0) (IH : sigT is_odd) => 
+       existT
+         is_odd
+         (S (S (projT1 IH)))                (* compute via indexer *)
+         (odd_SS (projT1 IH) (projT2 IH)))   (* S -> odd_SS *)
+    (projT1 n)
+    (projT2 n).
+
+(* proves that if you add two odds and _subtract_ one, you get an odd *)
+(* why this if the indexer is double and _add_ one? *)
+(* we want this to preserve the indexing property *)
+(* much like projT1 (appv pv1 pv2) = length (app (vtl pv1) (vtl pv2)) *)
+(* so, projT1 (is_odd_plus n m) = one_plus_double (plus (one_plus_double_is_odd_inv n) (one_plus_double_is_odd_inv m)) *)
+
+Eval compute in (projT1 (is_odd_plus (existT is_odd 5 (odd_SS 3 (odd_SS 1 odd_1))) (existT is_odd 3 (odd_SS 1 odd_1)))).
+(* 7 *)
+Eval compute in one_plus_double (plus (one_plus_double_is_odd_inv (existT is_odd 5 (odd_SS 3 (odd_SS 1 odd_1)))) (one_plus_double_is_odd_inv (existT is_odd 3 (odd_SS 1 odd_1)))).
+(* 7 *) (* cool! *)
+
+Eval compute in (is_even_plus (existT is_even 4 (even_SS 2 (even_SS 0 even_O))) (existT is_even 2 (even_SS 0 even_O))).
+(* 6 is even *)
+
+Eval compute in (is_even_plus (existT is_even 2 (even_SS 0 even_O)) (existT is_even 4 (even_SS 2 (even_SS 0 even_O)))).
+(* 6 is even *)
+
+Eval compute in (is_odd_plus (existT is_odd 5 (odd_SS 3 (odd_SS 1 odd_1))) (existT is_odd 3 (odd_SS 1 odd_1))).
+(* 7 is odd *)
