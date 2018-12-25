@@ -1204,6 +1204,59 @@ Proof.
   intros. apply orn_bintree_bintreeV2_inv. exists n. apply tr.
 Qed.
 
+(* --- Refinement --- *)
+
+Inductive is_even : nat -> Type :=
+| even_O : is_even O
+| even_SS : forall (n : nat), is_even n -> is_even (S (S n)).
+
+Definition exists_even:=
+  sigT is_even.
+
+Find ornament nat is_even as double_is_even.
+
+Definition double (n : nat) :=
+  nat_rect
+    (fun (n0 : nat) => nat)
+    O
+    (fun (n0 : nat) (IH : nat) => S (S IH))
+    n.
+
+Theorem test_index_20:
+  forall (n : nat),
+    double_is_even_index n = double n.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_20: 
+  forall (n : nat),
+    exists_even.
+Proof.
+  exact double_is_even.
+Qed.
+
+Theorem test_orn_index_20:
+  forall (n : nat),
+    projT1 (double_is_even n) = double n.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_inv_20:
+  forall (ee : exists_even),
+    nat.
+Proof.
+  exact double_is_even_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_20:
+  forall (n : nat) (e : is_even n),
+    nat.
+Proof.
+  intros. apply double_is_even_inv. exists n. apply e.
+Qed.
+
 (* (* --- TODO Index already existed in the old constructor, but wasn't used --- *) *)
 
 (* (* --- TODO Index already existed in the old constructor, but was used differently --- *) *)

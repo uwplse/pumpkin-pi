@@ -565,7 +565,18 @@ Defined.
 Lift bintree bintreeV2 in bintree_map' as bintree_mapV2.
 Lift bintree bintreeV2 in map_id' as map_idV2.
 
+(* --- Refinement --- *)
 
+Definition plus (n : nat) (m : nat) :=
+  nat_rect
+    (fun (n0 : nat) => nat)
+    m
+    (fun (n0 : nat) (IH : nat) => S IH)
+    n.
+
+(* TODO there must be a loop in the code somewhere w/ indexing by old type:
+
+Lift nat is_even in plus as is_even_plus. *)
 
 
   

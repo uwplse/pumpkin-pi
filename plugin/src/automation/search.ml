@@ -303,6 +303,7 @@ let sub_index evd f_indexer subs o n =
   in List.append new_subs subs
 
 (* In the conclusion of each case, return c_n with c_o's indices *)
+(* TODO make match paper better *)
 let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
   let directional a b = if is_fwd then a else b in
   let rec sub p subs o n =
