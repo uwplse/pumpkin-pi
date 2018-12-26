@@ -338,7 +338,7 @@ let lift_elim env evd l trm_app =
   let p_elim = mkAppl (param_elim, [p]) in
   let cs = lift_cases env evd l (from_typ, to_typ) p p_elim trm_app.cs in
   let final_args = lift_elim_args env evd l index_i trm_app.final_args in
-  apply_eliminator {trm_app with elim; p; cs; final_args}
+  { trm_app with elim; p; cs; final_args }
 
 (* --- Core algorithm --- *)
 
@@ -421,13 +421,22 @@ let lift_core env evd c (from_type, to_type) index_type trm =
       else
         arg'
     else if is_eliminator l en evd (from_type, to_type) tr then
-      (* LIFT-ELIM *)
+      (* LIFT-ELIM *) (* TODO clean after changing *)
       let tr_elim = deconstruct_eliminator en evd tr in
       let npms = List.length tr_elim.pms in
       let value_i = arity (expand_eta env evd from_type) - npms in
       let (final_args, post_args) = take_split (value_i + 1) tr_elim.final_args in
-      let tr' = lift_elim en evd l { tr_elim with final_args } in
-      let tr'' = lift_rec en index_type tr' in
+      let tr_elim' = lift_elim en evd l { tr_elim with final_args } in
+      let p' = tr_elim'.p in
+      debug_term en p' "p'";
+      let p = zoom_apply_lambda_n (nb_rel en) (fun e -> lift_rec e index_type) en p' in
+      debug_term en p "p";
+      let cs' = tr_elim'.cs in
+      let cs = List.map (lift_rec en index_type) cs' in (* TODO *)
+      let final_args' = tr_elim'.final_args in
+      let final_args = List.map (lift_rec en index_type) final_args' in (* TODO *)
+      let tr_elim'' = { tr_elim' with p; cs; final_args } in
+      let tr'' = apply_eliminator tr_elim'' in
       let post_args' = List.map (lift_rec en index_type) post_args in
       mkAppl (tr'', post_args')
     else
