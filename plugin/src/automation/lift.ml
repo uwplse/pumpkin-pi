@@ -353,7 +353,10 @@ let lift_core env evd c (from_type, to_type) index_type trm =
   let l = c.l in
   let rec lift_rec en index_type tr =
     let lifted_opt = search_lifted_term en tr in
-    if Option.has_some lifted_opt then
+    if l.is_fwd && is_or_applies to_type tr then
+      (* don't infinitely recurse on refinement case *)
+      tr
+    else if Option.has_some lifted_opt then
       (* GLOBAL CACHING *)
       Option.get lifted_opt
     else if is_locally_cached c.cache tr then
@@ -413,7 +416,8 @@ let lift_core env evd c (from_type, to_type) index_type trm =
       let arg = last_arg tr in
       let arg' = lift_rec en index_type arg in
       if l.is_fwd then
-        let arg_typ' = dest_sigT (lift_rec en index_type (reduce_type en evd arg)) in
+        let arg_typ = reduce_type en evd arg in
+        let arg_typ' = dest_sigT (lift_rec en index_type arg_typ) in
         project_index arg_typ' arg'
       else if equal projT1 (first_fun tr) then
         mkAppl (l.orn.indexer, snoc arg' (non_index_typ_args l.index_i en evd arg))
@@ -437,21 +441,33 @@ let lift_core env evd c (from_type, to_type) index_type trm =
            last_arg tr
          else if equal (lift_to l) f then
            (* INTERNALIZE *)
-           lift_rec en index_type (last_arg tr)
+           let lifted = lift_rec en index_type (last_arg tr) in
+           debug_term en tr "tr";
+           debug_term en lifted "lifted";
+           lifted
          else
            (* APP *)
-           let args' = List.map (lift_rec en index_type) (Array.to_list args) in
-           let arg' = last args' in
-           if (is_or_applies projT1 tr || is_or_applies projT2 tr) && is_or_applies existT arg' then
-             (* optimize projections of existentials, which are common *)
-             let ex' = dest_existT arg' in
-             if equal projT1 f then
-               ex'.index
-             else
-               ex'.unpacked
+           let is_proj = is_or_applies projT1 tr || is_or_applies projT2 tr in
+           let args = Array.to_list args in
+           let last_arg = last args in
+           if is_proj && is_or_applies (lift_to l) last_arg then
+             (* treat projections of lifting as one unit *)
+             let last_arg' = lift_rec en index_type last_arg in
+             mkAppl (f, snoc last_arg' (all_but_last args))
+             (* there is probably a better workaround for refinement *)
            else
-             let f' = lift_rec en index_type f in
-             mkAppl (f', args')
+             let args' = List.map (lift_rec en index_type) args in
+             let arg' = last args' in
+             if is_proj && is_or_applies existT arg' then
+               (* optimize projections of existentials, which are common *)
+               let ex' = dest_existT arg' in
+               if equal projT1 f then
+                 ex'.index
+               else
+                 ex'.unpacked
+             else
+               let f' = lift_rec en index_type f in
+               mkAppl (f', args')
       | Cast (ca, k, t) ->
          (* CAST *)
          let ca' = lift_rec en index_type ca in

@@ -574,9 +574,9 @@ Definition plus (n : nat) (m : nat) :=
     (fun (n0 : nat) (IH : nat) => S IH)
     n.
 
-(* TODO there must be a loop in the code somewhere w/ indexing by old type:
+(* TODO there must be a loop in the code somewhere w/ indexing by old type:*)
 
-Lift nat is_even in plus as is_even_plus. *)
+Lift nat is_even in plus as is_even_plus.
 
 (* Now, one interesting difference here is that we find one indexer,
    but the indexer isn't actually necessarily unique;
@@ -586,7 +586,7 @@ Lift nat is_even in plus as is_even_plus. *)
 
 (* Here's what we want: *)
 
-Definition is_even_plus (n : sigT is_even) (m : sigT is_even) :=
+Definition is_even_plus_expected (n : sigT is_even) (m : sigT is_even) :=
   is_even_rect
     (fun (n0 : nat) (e : is_even n0) => sigT is_even)
     (existT is_even (projT1 m) (projT2 m)) (* hypothesis is lifted already *)
@@ -597,6 +597,8 @@ Definition is_even_plus (n : sigT is_even) (m : sigT is_even) :=
          (even_SS (projT1 IH) (projT2 IH))) (* S -> even_SS *)
     (projT1 n)
     (projT2 n).
+
+(* TODO test *)
 
 (* --- More refinement --- *)
 
