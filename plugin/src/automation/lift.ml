@@ -426,17 +426,17 @@ let lift_core env evd c (from_type, to_type) index_type trm =
         arg'
     else if is_eliminator l en evd (from_type, to_type) tr then
       (* LIFT-ELIM *) (* TODO clean after changing *)
+      (* TODO need to handle inductive case of refinement bug *)
       let tr_elim = deconstruct_eliminator en evd tr in
       let npms = List.length tr_elim.pms in
       let value_i = arity (expand_eta env evd from_type) - npms in
       let (final_args, post_args) = take_split (value_i + 1) tr_elim.final_args in
       let tr_elim' = lift_elim en evd l { tr_elim with final_args } in
       let p' = tr_elim'.p in
-      debug_term en p' "p'";
       let p = zoom_apply_lambda_n (nb_rel en) (fun e -> lift_rec e index_type co) en p' in
-      debug_term en p "p";
       let cs' = tr_elim'.cs in
       let cs = List.map (lift_rec en index_type co) cs' in (* TODO *)
+      debug_terms en cs "cs";
       let final_args' = tr_elim'.final_args in
       let final_args = List.map (lift_rec en index_type co) final_args' in (* TODO *)
       let tr_elim'' = { tr_elim' with p; cs; final_args } in
