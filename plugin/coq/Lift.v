@@ -577,13 +577,7 @@ Definition plus (n : nat) (m : nat) :=
 (* TODO there must be a loop in the code somewhere w/ indexing by old type:*)
 
 Definition foo (IH : nat) :=
-  @existT 
-    nat 
-    (fun (n : nat) => is_even n) 
-    (S (S (@projT1 nat (fun (n : nat) => is_even n) (double_is_even IH)))) 
-    (even_SS 
-      (@projT1 nat (fun (n : nat) => is_even n) (double_is_even IH)) 
-      (@projT2 nat (fun (n : nat) => is_even n) (double_is_even IH))).
+  S IH.
 
 Definition bar (IH : sigT is_even) :=
   @existT 
