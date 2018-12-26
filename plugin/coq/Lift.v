@@ -576,7 +576,28 @@ Definition plus (n : nat) (m : nat) :=
 
 (* TODO there must be a loop in the code somewhere w/ indexing by old type:*)
 
-Lift nat is_even in plus as is_even_plus.
+Definition foo (IH : nat) :=
+  @existT 
+    nat 
+    (fun (n : nat) => is_even n) 
+    (S (S (@projT1 nat (fun (n : nat) => is_even n) (double_is_even IH)))) 
+    (even_SS 
+      (@projT1 nat (fun (n : nat) => is_even n) (double_is_even IH)) 
+      (@projT2 nat (fun (n : nat) => is_even n) (double_is_even IH))).
+
+Definition bar (IH : sigT is_even) :=
+  @existT 
+    nat 
+    (fun (n : nat) => is_even n) 
+    (S (S (@projT1 nat (fun (n : nat) => is_even n) IH))) 
+    (even_SS 
+      (@projT1 nat (fun (n : nat) => is_even n) IH) 
+      (@projT2 nat (fun (n : nat) => is_even n) IH)).
+
+Lift nat is_even in foo as test_ih.
+Print test_ih.
+(*
+Lift nat is_even in plus as is_even_plus.*)
 
 (* Now, one interesting difference here is that we find one indexer,
    but the indexer isn't actually necessarily unique;
