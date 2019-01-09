@@ -1,17 +1,87 @@
 open Util
-open Utilities
 open Names
 open Univ
 open Context
 open Term
 open Constr
 open Inductiveops
-open Declarations
 open CErrors
 open Coqterms
 
-(* Delete or "zap" the nth lambda binding, skipping over any let bindings *)
-let zap_lam n term =
+let both p q =
+  fun x -> p x && q x
+
+let define_rel_decl body decl =
+  assert (is_rel_assum decl);
+  rel_defin (rel_name decl, body, rel_type decl)
+
+let assign_rel_decl len ctxt rel term =
+  Rel.lookup rel ctxt |>
+  define_rel_decl (Vars.lift (len - rel) term) |>
+  List.assign ctxt (rel - 1)
+
+let find_inductive_quantification pos ctxt =
+  (* Collapse all local definitions, to align declarations and arguments *)
+  let ctxt = Termops.smash_rel_context ctxt in
+  (* Extract the quantified inductive type *)
+  let ind_name, ind_type =
+    let ind_decl = Rel.lookup (Rel.length ctxt - pos) ctxt in
+    rel_name ind_decl, rel_type ind_decl
+  in
+  (* Decompose the quantified inductive type *)
+  let pind, (params, indices) =
+    let pind, args = decompose_app ind_type |> on_fst destInd in
+    pind, List.chop (inductive_nparams (out_punivs pind)) args
+  in
+  (* Construct the inductive family outside the local context *)
+  let ind_fam =
+    assert (List.for_all (Vars.noccur_between 1 pos) params);
+    make_ind_family (pind, List.map (Vars.lift (-pos)) params)
+  in
+  (* Determine the argument position(s) for the inductive quantifier(s) *)
+  let ind_pos =
+    assert (List.for_all (both isRel (Vars.closedn pos)) indices);
+    let ind_rels = 0 :: List.rev_map destRel indices in
+    assert (List.distinct ind_rels);
+    List.map ((-) pos) ind_rels
+  in
+  ind_fam, ind_pos, ind_name
+
+let make_inductive_quantification env ind_fam ind_name =
+  (* Build a local context quantifying the inductive family's indices  *)
+  let ind_ctxt = get_arity env ind_fam |> fst in
+  (* Instantiate the inductive family with indices from above local context *)
+  let ind_type = build_dependent_inductive env ind_fam in
+  let ind_decl = rel_assum (ind_name, ind_type) in
+  (* Append local assumption for freshly instantiated inductive type *)
+  Rel.add ind_decl ind_ctxt
+
+let wrap_inductive_quantification ind_ctxt ind_pos ctxt =
+  let narg = Rel.nhyps ctxt in
+  List.fold_left2
+    (assign_rel_decl (Rel.length ctxt))
+    ctxt
+    (List.map ((-) narg %> Vars.adjust_rel_to_rel_context ctxt) ind_pos)
+    (Rel.to_extended_list mkRel 0 ind_ctxt)
+
+let regularize_fixpoint ind_ctxt ind_pos fun_type fun_term =
+  let ind_len = Rel.length ind_ctxt in
+  (* NOTE: This is closer to a motive... *)
+  let fun_type =
+    let ctxt, body = fun_type |> Vars.lift ind_len |> decompose_prod_assum in
+    let ctxt = wrap_inductive_quantification ind_ctxt ind_pos ctxt in
+    body |> recompose_prod_assum ctxt |> recompose_lam_assum ind_ctxt
+  in
+  let fun_term =
+    let ctxt, body = fun_term |> Vars.lift ind_len |> decompose_lam_assum in
+    let ctxt = wrap_inductive_quantification ind_ctxt ind_pos ctxt in
+    body |> recompose_lam_assum ctxt |> recompose_lam_assum ind_ctxt
+  in
+  fun_type, fun_term
+
+(* Drop the nth lambda binding, skipping over any let bindings *)
+let drop_lam n term =
+  (* TODO: Combine with function-izing type *)
   let (decl :: ctxt), body = decompose_lam_n_assum n term in
   assert (Vars.noccurn 1 body);
   recompose_lam_assum ctxt (Vars.lift (-1) body)
@@ -31,8 +101,8 @@ let split_functional env ind_fam body =
     let env = Environ.push_rel_context cons_sum.cs_args env in
     let body = Vars.lift cons_sum.cs_nargs body in
     let args = Array.append cons_sum.cs_concl_realargs [|cons|] in
-    (* NOTE: May want to try beta+iota+zeta reduction *)
-    let case = Reduction.nf_betaiota env (mkApp (body, args)) in
+    (* NOTE: May want to avoid eager zeta reduction *)
+    let case = reduce_term env (mkApp (body, args)) in
     cons_sum.cs_nargs, recompose_lam_assum cons_sum.cs_args case
   in
   Array.map split_case (get_constructors env ind_fam)
@@ -66,39 +136,17 @@ let premise_of_case env ind_fam motive (narg, term) =
 
 (* Assumes that the fixed-point has already been regularized *)
 let eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term =
-  let fix_decl = rel_assum (fix_name, fun_type) in
+  let env = push_local (fix_name, Vars.lift (-1) fun_type) env in
   let (ind, _), params = dest_ind_family ind_fam |> on_snd Array.of_list in
   let sort = e_infer_sort env evm fun_type in
   let is_prop = inductive_is_proposition env ind_fam in
-  let fix_env = Environ.push_rel fix_decl env in
-  let ind_fam = lift_inductive_family 1 ind_fam in
   let nindex = inductive_nrealargs ind in
   let elim = Indrec.lookup_eliminator ind sort in
-  let cases = split_functional fix_env ind_fam fun_term in
-  let motive = Vars.lift 1 fun_type |> to_lambda (nindex + 1) in
-  let minors = Array.map (premise_of_case fix_env ind_fam motive) cases in
-  let motive = if is_prop then zap_lam (nindex + 1) motive else motive in
-  let premises = Array.cons motive minors |> Array.map (Vars.lift (-1)) in
-  mkApp (e_new_global evm elim, Array.append params premises)
-
-let regularize_fixpoint fix_size fun_type fun_term =
-  let fix_ctxt, fun_body = decompose_lam_n_assum fix_size fun_term in
-  let fix_type = Rel.lookup 1 fix_ctxt |> rel_type in
-  let pind, args = destApp fix_type |> on_fst destInd in
-  let nparam = inductive_nparams (out_punivs pind) in
-  let params, indices = Array.chop nparam args in
-  let nindex = Array.length indices in
-  (* Are the parameters bound externally? *)
-  assert (Array.for_all (Vars.noccur_between 1 fix_size) params);
-  (* Are the indices bound internally and in order? *)
-  assert (Array.for_all_i (fun i -> isRelN (fix_size - i)) 1 indices);
-  (* Is anything else bound between the indices and the inductive term? *)
-  assert (Int.equal (nindex + 1) fix_size);
-  (* TODO: Shuffle parameters and indices by rebinding and substituting *)
-  let ind_fam =
-    make_ind_family (pind, List.map_of_array (Vars.lift (-fix_size)) params)
-  in
-  ind_fam, fun_type, fun_term
+  let cases = split_functional env ind_fam fun_term in
+  let motive = if is_prop then drop_lam (nindex + 1) fun_type else fun_type in
+  let minors = Array.map (premise_of_case env ind_fam motive) cases in
+  let premises = Array.cons motive minors in
+  mkApp (e_new_global evm elim, Array.append params premises) |> Vars.lift (-1)
 
 (* Convenient wrapper around eliminate_fixpoint *)
 let eliminate_match env evm info pred discr cases =
@@ -137,12 +185,19 @@ let desugar_fix_match env evm term =
       let annot' = aux env annot in
       let body' = aux (push_let_in (name, local', annot') env) body in
       mkLetIn (name, local', annot', body')
-    | Fix (([|fix_size|], 0), ([|fix_name|], [|fun_type|], [|fun_body|])) ->
-      let ind_fam, fun_type, fun_body =
-        regularize_fixpoint (fix_size + 1) fun_type fun_body
+    | Fix (([|fix_pos|], 0), ([|fix_name|], [|fun_type|], [|fun_term|])) ->
+      let fun_type = Vars.lift 1 fun_type in
+      let ind_fam, ind_pos, ind_name =
+        find_inductive_quantification fix_pos (lam_assum fun_term)
       in
-      (* TODO: Proposition-sorted inductive types *)
-      eliminate_fixpoint env evm ind_fam fix_name fun_type fun_body |> aux env
+      let fun_type, fun_term =
+        let ind_ctxt = make_inductive_quantification env ind_fam ind_name in
+        regularize_fixpoint ind_ctxt ind_pos fun_type fun_term
+      in
+      let env' = push_local (fix_name, Vars.lift (-1) fun_type) env in
+      (* Feedback.msg_info (Printer.pr_constr_env env' !evm fun_type); *)
+      (* Feedback.msg_info (Printer.pr_constr_env env' !evm fun_term); *)
+      eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term |> aux env
     | Fix _ ->
       user_err ~hdr:"desugar" (Pp.str "mutual recursion not supported")
     | CoFix _ ->
