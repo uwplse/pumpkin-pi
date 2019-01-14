@@ -8,6 +8,11 @@ open Inductiveops
 open CErrors
 open Coqterms
 
+let deanonymize_context env evm ctxt =
+  List.map EConstr.of_rel_decl ctxt |>
+  Namegen.name_context env evm |>
+  List.map (EConstr.to_rel_decl evm)
+
 let smash_prod_assum ctxt body =
   Rel.fold_inside
     (fun body decl ->
@@ -38,132 +43,139 @@ let define_rel_decl body decl =
   assert (is_rel_assum decl);
   rel_defin (rel_name decl, body, rel_type decl)
 
-let decompose_ind ind_type =
-  let pind, args = decompose_app ind_type |> on_fst destInd in
+let factor_assums rels ctxt =
+  let k = List.length rels in
+  let len = Rel.length ctxt in
+  let ctxt = Termops.lift_rel_context k ctxt |> Array.of_list in
+  List.iteri
+    (fun i rel ->
+       let rel' = len - rel + i + 1 in
+       assert (is_rel_assum (ctxt.(rel - 1)));
+       ctxt.(rel - 1) <- define_rel_decl (mkRel rel') ctxt.(rel - 1))
+    rels;
+  Array.to_list ctxt
+
+let decompose_indvect ind_type =
+  let pind, args = decompose_appvect ind_type |> on_fst destInd in
   let nparam = inductive_nparams (out_punivs pind) in
-  let params, indices = List.chop nparam args in
+  let params, indices = Array.chop nparam args in
   pind, params, indices
 
-(* Drop the nth lambda binding, skipping over any let bindings *)
-let drop_lam n term =
-  (* TODO: Combine with function-izing type *)
-  let (decl :: ctxt), body = decompose_lam_n_assum n term in
-  assert (Vars.noccurn 1 body);
-  recompose_lam_assum ctxt (Vars.lift (-1) body)
+let decompose_ind ind_type =
+  decompose_indvect ind_type |> on_pi2 Array.to_list |> on_pi3 Array.to_list
 
-let freshen_name idset name =
-  let name' = Namegen.next_name_away name !idset in
-  idset := Id.Set.add name' !idset;
-  name'
-
-let split_functional env ind_fam body =
-  let split_case cons_sum =
-    let cons = build_dependent_constructor cons_sum in
-    let env = Environ.push_rel_context cons_sum.cs_args env in
-    let body = Vars.lift cons_sum.cs_nargs body in
-    let args = Array.append cons_sum.cs_concl_realargs [|cons|] in
-    (* NOTE: May want to avoid eager zeta reduction *)
-    let case = reduce_term env (mkApp (body, args)) in
-    cons_sum.cs_nargs, recompose_lam_assum cons_sum.cs_args case
+let summarize_free_inductive nb ind_type =
+  let pind, params, indices = decompose_ind ind_type in
+  let ind_fam =
+    assert (List.for_all (Vars.noccur_between 1 nb) params);
+    make_ind_family (pind, params) |> lift_inductive_family (1 - nb)
   in
-  Array.map split_case (get_constructors env ind_fam)
+  let ind_rels =
+    let rels = 0 :: List.rev_map destRel indices in
+    assert (List.for_all ((>) nb) rels);
+    assert (List.distinct rels);
+    List.map ((+) 1) rels
+  in
+  ind_fam, ind_rels
 
-let premise_of_case env ind_fam motive (narg, term) =
-  let beta = Reduction.beta_appvect in
-  let open_lam_assum = decompose_lam_n_decls 1 %> on_fst List.hd in
-  let fix_name = Environ.lookup_rel 1 env |> rel_name in
+let build_inductive_context env ind_fam ind_name =
+  let ind_type = build_dependent_inductive env ind_fam in
+  let ind_decl = rel_assum (ind_name, ind_type) in
+  get_arity env ind_fam |> fst |> Rel.add ind_decl |> Termops.smash_rel_context
+
+let wrap_fixpoint fun_len ind_rels fun_ctxt =
+  let fix_head = mkRel (fun_len + 1) in
+  let fix_args =
+    let ind_rels = Array.rev_of_list ind_rels in
+    let arg_rels =
+      let is_arg_rel rel = not (Array.mem rel ind_rels) in
+      List.init fun_len ((-) fun_len) |> List.filter is_arg_rel |> Array.of_list
+    in
+    Array.append ind_rels arg_rels |> Array.map mkRel
+  in
+  recompose_lam_assum fun_ctxt (mkApp (fix_head, fix_args))
+
+let order_fixpoint ind_ctxt ind_rels fun_ctxt fun_type fun_term =
+  (* TODO: Probably cleaner to factor+smash in one go *)
+  let fun_ctxt = factor_assums ind_rels fun_ctxt in
+  let lift = Vars.liftn (Rel.length ind_ctxt) (Rel.length fun_ctxt + 1) in
+  let fun_type = fun_type |> lift |> smash_prod_assum fun_ctxt in
+  let fun_term = fun_term |> lift |> smash_lam_assum fun_ctxt in
+  Util.map_pair (recompose_lam_assum ind_ctxt) (fun_type, fun_term)
+
+let premise_of_case ind_fam rec_name motive (ctxt, body) =
+  let nb = Rel.length ctxt in
   let ind_head = dest_ind_family ind_fam |> on_fst mkIndU |> applist in
-  let idset = ref (Id.Set.union (free_vars env term) (bound_vars term)) in
-  let fixpoint_to_recurrence (ctxt, term) =
-    let arg_decl, term = open_lam_assum term in
-    let arg_type = Vars.lift 1 (rel_type arg_decl) in
-    let ctxt = Rel.add arg_decl ctxt in
-    let nbound = Rel.length ctxt in
-    match eq_constr_head (Vars.lift nbound ind_head) arg_type with
-    | Some indices ->
-      let fix_args = Array.append indices [|mkRel 1|] in
-      let fix_call = mkApp (mkRel (nbound + 1), fix_args) in
-      let rec_name = freshen_name idset fix_name in
-      let rec_type = beta (Vars.lift nbound motive) fix_args in
-      let rec_decl = rel_assum (Name rec_name, rec_type) in
-      Rel.add rec_decl ctxt, abstract_subterm fix_call term
-    | None ->
-      ctxt, term
+  let fixpoint_to_recurrence i body decl =
+    let k = nb - i in
+    let body' =
+      match eq_constr_head (Vars.lift k ind_head) (rel_type decl) with
+      | Some indices when is_rel_assum decl ->
+        let args = Array.append (Array.map (Vars.lift 1) indices) [|mkRel 1|] in
+        let rec_type = Reduction.beta_appvect (Vars.lift (k + 1) motive) args in
+        let fix_call = mkApp (mkRel (k + 2), args) in
+        mkLambda (rec_name, rec_type, abstract_subterm fix_call body)
+      | _ ->
+        body
+    in
+    mkLambda_or_LetIn decl body'
   in
-  let ctxt, body = iterate fixpoint_to_recurrence narg (Rel.empty, term) in
-  let premise = recompose_lam_assum ctxt body in
-  assert (Vars.noccurn 1 premise);
-  premise
+  List.fold_left_i fixpoint_to_recurrence 1 body ctxt
+
+let split_functional env fun_term cons_sum =
+  let cons = build_dependent_constructor cons_sum in
+  let env = Environ.push_rel_context cons_sum.cs_args env in
+  let body =
+    let head = Vars.lift cons_sum.cs_nargs fun_term in
+    let args = Array.append cons_sum.cs_concl_realargs [|cons|] in
+    mkApp (head, args) |> Reduction.nf_betaiota env
+  in
+  deanonymize_context env Evd.empty cons_sum.cs_args, body
+
+let motive_of_predicate env ind_fam pred =
+  let ind = dest_ind_family ind_fam |> fst |> out_punivs in
+  let ind_sort = get_arity env ind_fam |> snd in
+  let ind_len = inductive_nrealargs ind + 1 in
+  if Sorts.family_equal ind_sort Sorts.InProp then
+    let ctxt, body = decompose_lam_n ind_len pred in
+    assert (Vars.noccurn 1 body);
+    compose_lam (List.tl ctxt) (Vars.lift (-1) body)
+  else
+    pred
 
 (* Assumes that the fixed-point has already been regularized *)
-let eliminate_fixpoint env evm ind_fam ind_sort fun_type fun_term =
-  (* TODO: Take the quantifier context separately (or just build here...) *)
+let eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term =
+  let fix_decl = rel_assum (fix_name, Vars.lift (-1) fun_type) in
+  let env = Environ.push_rel fix_decl env in
   let (ind, _), params = dest_ind_family ind_fam |> on_snd Array.of_list in
   let sort = e_infer_sort env evm fun_type in
-  let is_prop = Sorts.family_equal ind_sort Sorts.InProp in
-  let nindex = inductive_nrealargs ind in
-  let elim = Indrec.lookup_eliminator ind sort in
-  let cases = split_functional env ind_fam fun_term in
-  let motive = if is_prop then drop_lam (nindex + 1) fun_type else fun_type in
-  let minors = Array.map (premise_of_case env ind_fam motive) cases in
+  let elim = Indrec.lookup_eliminator ind sort |> e_new_global evm in
+  let motive = motive_of_predicate env ind_fam fun_type in
+  let minors =
+    get_constructors env ind_fam |> Array.map (split_functional env fun_term) |>
+    Array.map (premise_of_case ind_fam fix_name fun_type)
+  in
   let premises = Array.cons motive minors in
-  mkApp (e_new_global evm elim, Array.append params premises) |> Vars.lift (-1)
+  mkApp (elim, Array.append params premises) |> Vars.lift (-1)
 
 (* Convenient wrapper around eliminate_fixpoint *)
 let eliminate_match env evm info pred discr cases =
-  (* TODO: Should not need to pass though fixpoint translation *)
-  let pind, (params, indices) =
-    e_infer_type env evm discr |> Inductive.find_inductive env |>
-    on_snd (List.chop info.ci_npar)
+  let env = Environ.push_rel (rel_assum (Name.Anonymous, pred)) env in
+  let pred, discr, cases =
+    Vars.lift 1 pred, Vars.lift 1 discr, Array.map (Vars.lift 1) cases
   in
-  let ind_fam = make_ind_family (pind, params) in
-  let ind_sort = get_arity env ind_fam |> snd in
-  let nindex = List.length indices in
-  let ctxt, fun_type = decompose_lam_n_assum (nindex + 1) pred in
-  let fun_body =
-    let lift = Vars.lift (nindex + 2) in
-    mkCase (info, lift pred, mkRel 1, Array.map lift cases)
+  let pind, params, indices = e_infer_type env evm discr |> decompose_indvect in
+  let ind_fam = make_ind_family (pind, Array.to_list params) in
+  let sort = e_infer_sort env evm pred in
+  let elim = Indrec.lookup_eliminator info.ci_ind sort |> e_new_global evm in
+  let motive = motive_of_predicate env ind_fam pred in
+  let minors =
+    Array.map2 decompose_lam_n_assum info.ci_cstr_nargs cases |>
+    Array.map (premise_of_case ind_fam Name.Anonymous motive)
   in
-  let fun_type = smash_lam_assum ctxt fun_type |> Vars.lift 1 in
-  let fun_term = smash_lam_assum ctxt fun_body |> Vars.lift 1 in
-  let fix_env = Environ.push_rel (rel_assum (Name.Anonymous, pred)) env in
-  let fix_term =
-    eliminate_fixpoint fix_env evm ind_fam ind_sort fun_type fun_term
-  in
-  let fix_args = Array.append (Array.of_list indices) [|discr|] in
-  mkApp (fix_term, fix_args)
-
-let regularize_fixpoint fix_pos ind_rels fun_type fun_term =
-  let ind_len = List.length ind_rels in
-  let fun_len = fix_pos + 1 in
-  let fun_ctxt = lam_n_assum fun_len fun_term in
-  let fun_type = Vars.lift ind_len fun_type |> strip_prod_n fun_len in
-  let fun_term = Vars.lift ind_len fun_term |> strip_lam_n fun_len in
-  let fix_wrap =
-    let fix_args =
-      let rec_args = List.rev_map ((+) 1) ind_rels in
-      let is_dup rel = not (List.mem rel rec_args) in
-      List.init fun_len ((-) fun_len) |> List.filter is_dup |>
-      List.append rec_args |> Array.map_of_list mkRel
-    in
-    let fix_rel = fun_len + 1 in
-    recompose_lam_assum fun_ctxt (mkApp (mkRel fix_rel, fix_args))
-  in
-  let fun_ctxt =
-    let fun_ctxt = Array.of_list fun_ctxt in
-    List.iteri
-      (fun i rel ->
-         let rel' = fun_len - rel + i + 1 in
-         fun_ctxt.(rel) <- define_rel_decl (mkRel rel') fun_ctxt.(rel))
-      ind_rels;
-    Array.to_list fun_ctxt
-  in
-  let fun_type = smash_prod_assum fun_ctxt fun_type in
-  let fun_term = smash_lam_assum fun_ctxt fun_term in
-  let fun_term =
-    Vars.liftn 1 (ind_len + 1) fun_term |> Vars.substnl [fix_wrap] ind_len
-  in
-  fun_type, fun_term
+  let premises = Array.cons motive minors in
+  mkApp (elim, Array.concat [params; premises; indices; [|discr|]]) |>
+  Vars.lift (-1)
 
 (* Translate each match expression into an equivalent eliminator application *)
 let desugar_fix_match env evm term =
@@ -184,42 +196,26 @@ let desugar_fix_match env evm term =
       let body' = aux (push_let_in (name, local', annot') env) body in
       mkLetIn (name, local', annot', body')
     | Fix (([|fix_pos|], 0), ([|fix_name|], [|fun_type|], [|fun_term|])) ->
-      (* TODO: Encapsulate the below into common regularization function *)
+      let nb = fix_pos + 1 in
       let fun_type = contract_prod_assum fun_type |> Vars.lift 1 in
       let fun_term = contract_lam_assum fun_term in
+      let fun_ctxt = lam_n_assum nb fun_term in
+      let fun_type = strip_prod_n nb fun_type in
+      let fun_term = strip_lam_n nb fun_term in
       let ind_name, ind_type =
-        let ind_decl = lam_n_assum (fix_pos + 1) fun_term |> List.hd in
+        let ind_decl = Rel.lookup 1 fun_ctxt in
         rel_name ind_decl, rel_type ind_decl
       in
-      let pind, params, indices = decompose_ind ind_type in
-      let ind_fam =
-        assert (List.for_all (Vars.noccur_between 1 fix_pos) params);
-        make_ind_family (pind, List.map (Vars.lift (-fix_pos)) params)
-      in
-      let ind_rels =
-        let rels = 0 :: List.rev_map destRel indices in
-        assert (List.for_all (fun i -> i <= fix_pos) rels);
-        assert (List.distinct rels);
-        rels
-      in
+      let ind_fam, ind_rels = summarize_free_inductive nb ind_type in
+      let fix_wrap = wrap_fixpoint nb ind_rels fun_ctxt in
+      (* NOTE: Could push all the above into order_fixpoint, nbd regardless *)
       let fun_type, fun_term =
-        (* TODO: Move most of the above into here and modularize *)
-        regularize_fixpoint fix_pos ind_rels fun_type fun_term
+        let ind_ctxt = build_inductive_context env ind_fam ind_name in
+        order_fixpoint ind_ctxt ind_rels fun_ctxt fun_type fun_term |>
+        on_snd (Vars.liftn 1 2 %> Vars.subst1 fix_wrap)
       in
-      let ind_ctxt, ind_sort =
-        let ind_fam = lift_inductive_family (-1) ind_fam in
-        let ind_type = build_dependent_inductive env ind_fam in
-        let ind_decl = rel_assum (ind_name, ind_type) in
-        get_arity env ind_fam |> on_fst (Rel.add ind_decl) |>
-        on_fst (Termops.smash_rel_context) |> on_fst (Termops.lift_rel_context 1)
-      in
-      let fun_type = recompose_lam_assum ind_ctxt fun_type in
-      let fun_term = recompose_lam_assum ind_ctxt fun_term in
-      let fix_decl = rel_assum (fix_name, Vars.lift (-1) fun_type) in
-      let fix_env = Environ.push_rel fix_decl env in
-      (* Feedback.msg_info (Printer.pr_constr_env env' !evm fun_type); *)
-      (* Feedback.msg_info (Printer.pr_constr_env env' !evm fun_term); *)
-      eliminate_fixpoint fix_env evm ind_fam ind_sort fun_type fun_term |> aux env
+      let fix_elim = eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term in
+      Vars.subst1 fix_elim fix_wrap |> aux env
     | Fix _ ->
       user_err ~hdr:"desugar" (Pp.str "mutual recursion not supported")
     | CoFix _ ->
