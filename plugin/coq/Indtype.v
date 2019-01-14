@@ -78,6 +78,35 @@ Section Append.
   Defined.
   Lift list vector in @is_app_len as is_appV_len.
 
+  Lemma app_is_app (A : Type) (xs ys : list A) : is_app xs ys (app xs ys).
+  Proof.
+    induction xs; simpl; constructor; assumption.
+  Defined.
+  Desugar app_is_app as app_is_app'.
+  (*Fail Lift orn_list_vector orn_list_vector_inv in @app_is_app as appV_is_appV_ok.*)
+
+  Lemma is_app_tl (A : Type) (xs ys zs : list A) :
+    is_app xs ys zs ->
+    is_app (tl A xs) ys (match xs with cons _ _ => (tl A zs) | nil => zs end).
+  Proof.
+    intro H. induction H; simpl.
+    - assumption.
+    - constructor.
+  Defined.
+  Desugar is_app_tl as is_app_tl'.
+  (*Fail Lift orn_list_vector orn_list_vector_inv in @is_app_tl as is_appV_tl.*)
+
+  Lemma is_app_uncons (A : Type) (x : A) (xs ys zs : list A) :
+    is_app (x :: xs) ys (x :: zs) -> is_app xs ys zs.
+  Proof.
+    remember (x :: xs) as xs' eqn:Exs. remember (x :: zs) as zs' eqn:Ezs.
+    intro H. destruct H.
+    - inversion Exs. inversion Ezs. rewrite H2, H4 in H. assumption.
+    - inversion Exs.
+  Defined.
+  Desugar is_app_uncons as is_app_uncons'.
+  (*Fail Lift orn_list_vector orn_list_vector_inv in is_app_uncons as is_appV_uncons.*)
+
 End Append.
 
 (* Ex. 2: Promoting permutation relation from lists to vectors *)
