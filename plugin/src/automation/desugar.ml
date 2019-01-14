@@ -212,7 +212,28 @@ let motive_of_predicate env ind_fam pred =
     pred
 
 (*
- * TODO
+ * Given the pre-processed components of a fix expression, build a
+ * computationally equivalent elimination expression.
+ *
+ * Pre-processing must transform the functional to abstract over the inductive
+ * family's indices and discriminee (which guards structural recursion) in
+ * canonical order and without any interleaving local definitions (or extraneous
+ * local assumptions). Pre-processing must also transform the functional's type
+ * to abstract those bindings (which quantify over the inductive type) using
+ * lambdas rather than products. Lastly, pre-processing must lift both the
+ * inductive family and the functional's type under the implicitly assumed
+ * fixed-point reference, not yet present in the environment.
+ *
+ * Note that the resulting term will not satisfy definitional equality with the
+ * original term but should satisfy definitional equality whenever the
+ * discriminee term is in canonical form (i.e., a value). This is unlikely to be
+ * a major problem, since CiC's consistency+independence of functional
+ * extensionality means that the type system has little ability to distinguish
+ * equivalent functions. _However_, the set of definitional equalities satsified
+ * by a specific realization of a function affects the necessity and sufficiency
+ * of rewritings (e.g., left- vs. right-recursive addition); this can affect the
+ * well-typedness of inductive proof terms, particularly when rewriting by an
+ * inductive hypothesis.
  *)
 let eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term =
   let fix_decl = rel_assum (fix_name, Vars.lift (-1) fun_type) in
@@ -229,7 +250,16 @@ let eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term =
   mkApp (elim, Array.append params premises) |> Vars.lift (-1)
 
 (*
- * TODO
+ * Given the components of a match expression, build a computationally
+ * equivalent elimination expression. The resulting term will not use any
+ * recurrence binding (i.e., inductive hypothesis) in its minor premises (i.e.,
+ * case functions).
+ *
+ * Note that the resulting term will not satisfy definitional equality with the
+ * original term, as Coq lacks eta-conversion between a non-recursive function
+ * and its fixed point (i.e., f /= fix[f], even when f is non-recursive). The
+ * two terms should satisfy definitional equality whenever the discriminee term
+ * is in a head-canonical form.
  *)
 let eliminate_match env evm info pred discr cases =
   let env = Environ.push_rel (rel_assum (Name.Anonymous, pred)) env in
@@ -250,7 +280,17 @@ let eliminate_match env evm info pred discr cases =
   Vars.lift (-1)
 
 (*
- * TODO
+ * Translate the given term into a computationally equivalent version using
+ * eliminators instead of match and/or fix expressions. The output term will
+ * closely simulate the input term but may satisfy a different set of
+ * definitional equalities. (Consider how left- and right-recursive
+ * implementations of addition often require different proof terms for the same
+ * theorem, though the differences here are actually much simpler.)
+ *
+ * TODO: Investigate the impact of this translation on inductive proof terms
+ * proving facts about a recursive fixed-point function. There are likely cases
+ * in which this translation necessitates additional rewritings for an inductive
+ * proof to hold with the recursive function post-translation.
  *)
 let desugar_fix_match env evm term =
   let evm = ref evm in
