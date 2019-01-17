@@ -659,3 +659,59 @@ Eval compute in (is_even_plus (existT is_even 2 (even_SS 0 even_O)) (existT is_e
 
 Eval compute in (is_odd_plus (existT is_odd 5 (odd_SS 3 (odd_SS 1 odd_1))) (existT is_odd 3 (odd_SS 1 odd_1))).
 (* 7 is odd *)
+
+(* --- More tempting refinement case --- *)
+
+Lift nat is_positive in plus as is_pos_plus.
+
+(* Now, one interesting difference here is that we find one indexer,
+   but the indexer isn't actually necessarily unique;
+   could map base case to 2, or 4, or 6...
+   so it's like the fin case except we can find an answer,
+   it's just one of many answers *)
+
+(* Here's what we want: *)
+
+Definition is_pos_plus_expected (n : sigT is_positive) (m : sigT is_positive) :=
+  is_positive_rect
+    (fun (n0 : nat) (e : is_positive n0) => sigT is_positive)
+    (existT is_positive (projT1 m) (projT2 m)) (* hypothesis is lifted already *)
+    (fun (n0 : nat) (e : is_positive n0) (IH : sigT is_positive) => 
+       existT
+         is_positive
+         (S (projT1 IH))                  (* compute via indexer *)
+         (pos_S (projT1 IH) (projT2 IH))) (* S -> pos_S *)
+    (projT1 n)
+    (projT2 n).
+
+(* TODO test to see what the term we want actually does *)
+Eval compute in (is_pos_plus_expected (existT is_positive 1 pos_1) (existT is_positive 1 pos_1)).
+(* 1 is positive *)
+Eval compute in (is_pos_plus_expected (existT is_positive 2 (pos_S 1 pos_1)) (existT is_positive 4 (pos_S 3 (pos_S 2 (pos_S 1 pos_1))))).
+(* 5 is positive *)
+(* shows predecessor of the sum of two positives is positive *)
+(* TODO is it what we actually want? try to walk through transf., discuss guarantee *)
+
+(* I suppose from that, we could easily show sum of pos is pos. First unpack: *)
+(* TODO sorta, but should find an automatable way or easier way *)
+Lemma lemma:
+  forall n m,
+    succ (projT1 (is_pos_plus_expected n m)) =
+    plus (projT1 n) (projT1 m).
+Proof.
+  intros. unfold succ. induction n. induction p.
+  - induction m. induction p; simpl in *; auto.
+  - induction m. induction p; simpl in *; auto.
+Qed.
+
+Lemma lets_see:
+  forall (n m : nat),
+    is_positive n ->
+    is_positive m ->
+    is_positive (plus n m).
+Proof.
+  intros.
+  (* TODO *)
+ (* let x := (projT1 (is_pos_plus_expected (existT is_positive n H) (existT is_positive m H0))) in x.
+  *) 
+Admitted.
