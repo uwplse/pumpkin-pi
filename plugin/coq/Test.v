@@ -1310,6 +1310,59 @@ Proof.
   intros. apply one_plus_double_is_odd_inv. exists n. apply o.
 Qed.
 
+(* --- A more compelling refinement --- *)
+
+Inductive is_positive : nat -> Type :=
+| pos_1 : is_positive 1
+| pos_S : forall (n : nat), is_positive n -> is_positive (S n).
+
+Definition exists_pos:=
+  sigT is_positive.
+
+Find ornament nat is_positive as succ_is_pos.
+
+Definition succ (n : nat) :=
+  nat_rect
+    (fun (n0 : nat) => nat)
+    1
+    (fun (n0 : nat) (IH : nat) => S IH)
+    n.
+
+Theorem test_index_22:
+  forall (n : nat),
+    succ_is_pos_index n = succ n.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_22: 
+  forall (n : nat),
+    exists_pos.
+Proof.
+  exact succ_is_pos.
+Qed.
+
+Theorem test_orn_index_22:
+  forall (n : nat),
+    projT1 (succ_is_pos n) = succ n.
+Proof.
+  intros. auto.
+Qed.
+
+Theorem test_orn_inv_22:
+  forall (ep : exists_pos),
+    nat.
+Proof.
+  exact succ_is_pos_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_22:
+  forall (n : nat) (o : is_positive n),
+    nat.
+Proof.
+  intros. apply succ_is_pos_inv. exists n. apply o.
+Qed.
+
 (* (* --- TODO Index already existed in the old constructor, but wasn't used --- *) *)
 
 (* (* --- TODO Index already existed in the old constructor, but was used differently --- *) *)
