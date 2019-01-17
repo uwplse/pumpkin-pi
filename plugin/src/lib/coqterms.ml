@@ -287,10 +287,9 @@ let e_infer_type env evm term =
   EConstr.of_constr term |> Typing.e_type_of ~refresh:true env evm |>
   Reductionops.whd_all env !evm |> EConstr.to_constr !evm
 
-(* Safely infer the sort of a term, updating the evar map *)
+(* Safely infer the sort of a type, updating the evar map *)
 let e_infer_sort env evm term =
-  EConstr.of_constr term |> Typing.e_type_of ~refresh:true env evm |>
-  Typing.e_sort_of env evm |> Sorts.family
+  EConstr.of_constr term |> Typing.e_sort_of env evm |> Sorts.family
 
 (* Safely instantiate a global reference, with proper universe handling *)
 let e_new_global evm gref =
