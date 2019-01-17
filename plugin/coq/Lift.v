@@ -715,3 +715,102 @@ Proof.
  (* let x := (projT1 (is_pos_plus_expected (existT is_positive n H) (existT is_positive m H0))) in x.
   *) 
 Admitted.
+
+(* --- Follow-up question on refinement --- *)
+
+(*
+ * What if we use the normal promotion function for 0,
+ * but then, from user input, replace all other cases
+ * with one that uses the identity indexer?
+ * When we run the promotion algorithm, what happens to plus,
+ * and what happens to proofs about plus?
+ *)
+
+Print succ_is_pos. (* real promote *)
+Print succ_is_pos_index. (* real indexer *)
+Print succ_is_pos_inv. (* real forget *)
+
+(* I think what we really want is to preprocess the argument to induction by applying the indexer: *)
+Definition plus_pos_pre (n : nat) (m : nat) :=
+  nat_rect
+    (fun (n0 : nat) => nat)
+    m
+    (fun (n0 : nat) (IH : nat) => S IH)
+    (succ_is_pos_index n).
+
+Eval compute in (plus_pos_pre 5 5).
+
+Print succ_is_pos_index.
+
+(* Lift succ_is_pos_index! *)
+Definition lifted_indexer (n : sigT is_positive) :=
+  is_positive_rect
+    (fun (n0 : nat) (_ : is_positive n0) => sigT is_positive) 
+    (existT is_positive 2 (pos_S 1 pos_1)) (* key *)
+    (fun (n0 : nat) (_ : is_positive n0) (H : sigT is_positive) => 
+      existT is_positive (S (projT1 H)) (pos_S (projT1 H) (projT2 H))) 
+    (projT1 n)
+    (projT2 n).
+
+(* Then lift that: *)
+Definition refine_plus_expected (n : sigT is_positive) (m : sigT is_positive) :=
+  is_positive_rect
+    (fun (n0 : nat) (e : is_positive n0) => sigT is_positive)
+    (existT is_positive (projT1 m) (projT2 m)) (* hypothesis is lifted already *)
+    (fun (n0 : nat) (e : is_positive n0) (IH : sigT is_positive) => 
+       existT
+         is_positive
+         (S (projT1 IH))                  (* compute via indexer *)
+         (pos_S (projT1 IH) (projT2 IH))) (* S -> pos_S *)
+    (projT1 (lifted_indexer n))
+    (projT2 (lifted_indexer n)).
+
+Eval compute in (refine_plus_expected (existT is_positive 1 pos_1) (existT is_positive 2 (pos_S 1 pos_1))). 
+
+(* OK, so that works
+   but two caveats (besides fixing the infinite recursion bug):
+   - alg currently assumes it doesn't ref indexer, so won't know how to lift indexer
+   - it's kind of ugly
+  
+  also, will it always be the indexer that gives us what we want?
+ *)
+
+(* What happens if we want to lift a proof now: *)
+Definition only_for_nats (n : nat) :=
+  ex_intro 
+    (fun m : nat => plus n m = n) 
+    0
+    (nat_ind 
+      (fun n0 : nat => plus n0 0 = n0) 
+      eq_refl
+      (fun (n0 : nat) (IHn : plus n0 0 = n0) => 
+        eq_ind_r (fun n1 : nat => S n1 = S n0) eq_refl IHn) 
+      n).
+
+(* preprocess: *)
+Definition only_for_nats_pre (n : nat) :=
+  ex_intro 
+    (fun m : nat => plus (succ_is_pos_index n) m = succ_is_pos_index n) 
+    0
+    (nat_ind 
+      (fun n0 : nat => plus n0 0 = n0) 
+      eq_refl
+      (fun (n0 : nat) (IHn : plus n0 0 = n0) => 
+        eq_ind_r (fun n1 : nat => S n1 = S n0) eq_refl IHn) 
+      (succ_is_pos_index n)).
+(* not sure how to figure out where to do this, but whatever *)
+
+(* TODO does this do anything *)
+Definition lift_only_for_nats (n : sigT is_positive) :=
+  ex_intro 
+    (fun m : sigT is_positive => refine_plus_expected (lifted_indexer n) m = lifted_indexer n) 
+    (existT is_positive 1 pos_1)
+    (is_positive_ind 
+      (fun (n0 : nat) (p : is_positive n0) => refine_plus_expected (existT is_positive n0 p) (existT is_positive 1 pos_1) = existT is_positive n0 p) 
+      eq_refl
+      (fun (n0 : nat) (IHn : plus n0 0 = n0) => 
+        eq_ind_r (fun n1 : nat => S n1 = S n0) eq_refl IHn) 
+      (projT1 (lifted_indexer n))
+      (projT2 (lifted_indexer n))).
+
+
