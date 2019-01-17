@@ -216,7 +216,8 @@ let premise_of_case ind_fam rec_name motive (ctxt, body) =
     let k = nb - i in
     let body' =
       match eq_constr_head (Vars.lift k ind_head) (rel_type decl) with
-      | Some indices when is_rel_assum decl ->
+      | Some indices ->
+        assert (is_rel_assum decl);
         let args = Array.append (Array.map (Vars.lift 1) indices) [|mkRel 1|] in
         let rec_type = Reduction.beta_appvect (Vars.lift (k + 1) motive) args in
         let fix_call = mkApp (mkRel (k + 2), args) in
@@ -267,6 +268,16 @@ let motive_of_predicate env ind_fam pred =
     pred
 
 (*
+ * Select the right eliminator for an inductive type, based on the result sort
+ * (deduced from the type predicate).
+ *)
+let eliminator_for_predicate env evm ind pred =
+  let ctxt, body = decompose_lam_assum pred in (* lambdas are never types *)
+  let env = Environ.push_rel_context ctxt env in
+  let sort = e_infer_sort env evm body in
+  Indrec.lookup_eliminator ind sort |> e_new_global evm
+
+(*
  * Given the pre-processed components of a fix expression, build a
  * computationally equivalent elimination expression.
  *
@@ -294,8 +305,7 @@ let eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term =
   let fix_decl = rel_assum (fix_name, Vars.lift (-1) fun_type) in
   let env = Environ.push_rel fix_decl env in
   let (ind, _), params = dest_ind_family ind_fam |> on_snd Array.of_list in
-  let sort = e_infer_sort env evm fun_type in
-  let elim = Indrec.lookup_eliminator ind sort |> e_new_global evm in
+  let elim = eliminator_for_predicate env evm ind fun_type in
   let motive = motive_of_predicate env ind_fam fun_type in
   let minors =
     get_constructors env ind_fam |> Array.map (split_functional env fun_term) |>
@@ -317,18 +327,18 @@ let eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term =
  * is in a head-canonical form.
  *)
 let eliminate_match env evm info pred discr cases =
-  let env = Environ.push_rel (rel_assum (Name.Anonymous, pred)) env in
+  let elim = eliminator_for_predicate env evm info.ci_ind pred in
+  let fix_decl = rel_assum (Name.Anonymous, pred) in
+  let env = Environ.push_rel fix_decl env in
   let pred, discr, cases =
     Vars.lift 1 pred, Vars.lift 1 discr, Array.map (Vars.lift 1) cases
   in
   let pind, params, indices = e_infer_type env evm discr |> decompose_indvect in
   let ind_fam = make_ind_family (pind, Array.to_list params) in
-  let sort = e_infer_sort env evm pred in
-  let elim = Indrec.lookup_eliminator info.ci_ind sort |> e_new_global evm in
   let motive = motive_of_predicate env ind_fam pred in
   let minors =
     Array.map2 decompose_lam_n_assum info.ci_cstr_nargs cases |>
-    Array.map (premise_of_case ind_fam Name.Anonymous motive)
+    Array.map (premise_of_case ind_fam Name.Anonymous pred)
   in
   let premises = Array.cons motive minors in
   mkApp (elim, Array.concat [params; premises; indices; [|discr|]]) |>
