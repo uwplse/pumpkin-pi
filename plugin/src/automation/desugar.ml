@@ -74,7 +74,15 @@ let define_rel_decl body decl =
   rel_defin (rel_name decl, body, rel_type decl)
 
 (*
- * TODO
+ * For each relative index rel_i in the list rels, transform the local
+ * assumption at rel into a local definition with body Rel(i), lifted from
+ * outside the relative context. The relative context is lifted by length(rels)
+ * to allocate fresh binding indices for each rel_i, prior to defining any local
+ * assumption.
+ *
+ * E.g., factor_assums [3; 1] [x:A; y:B; z:C] =
+ * [x:=Rel(4):lift(2,2,A); y:lift(1,2,B); z:=Rel(1):lift(0,2,C)].
+ *
  *)
 let factor_assums rels ctxt =
   let k = List.length rels in
@@ -105,7 +113,25 @@ let decompose_ind ind_type =
   decompose_indvect ind_type |> on_pi2 Array.to_list |> on_pi3 Array.to_list
 
 (*
- * TODO
+ * Summarize the recursively uniform and non-uniform components of an inductive
+ * type quantified (for recursion) by nb levels of relative (deBruijn) binding.
+ *
+ * The recursively uniform components, which constitute the inductive name and
+ * parameter terms, are summarized by an inductive family (cf., Inductiveops),
+ * lifted outside the preceding nb-1 binding levels. An assertion checks that
+ * each paremeter term is independent of those nb-1 preceding levels of binding
+ * (i.e., that each parameter is uniform w.r.t. recursion).
+ *
+ * The recursively non-uniform components, which constitute the index terms and
+ * inductive value, are summarized by a list of their relative (deBruijn)
+ * indices in standard order, lifted inside the last binding level (whence the
+ * input inductive type). Assertions check that all such relative indices are
+ * distinct and within the nb binding levels quantifying the inductive type.
+ *
+ * The "free" in this function's name refers to how an inductive type
+ * appropriately quantified for recursion should not constrain any index value,
+ * at least defininitionally. In some edge cases, fixed points can avoid such
+ * full quantification, but eliminators can never do so, at least directly.
  *)
 let summarize_free_inductive nb ind_type =
   let pind, params, indices = decompose_ind ind_type in
@@ -125,9 +151,8 @@ let summarize_free_inductive nb ind_type =
  * Construct a relative context, consisting of only local assumptions,
  * quantifying over instantiations of the inductive family.
  *
- * In other words, the output relative context assumes all indices (in canonical
- * order) and then a value of the inductive family instantiated with those
- * indices.
+ * In other words, the output relative context assumes all indices (in standard
+ * order) and then a value of the inductive type (at those indices).
  *
  * Note that an inductive family is an inductive name with parameter terms.
  *)
@@ -137,7 +162,16 @@ let build_inductive_context env ind_fam ind_name =
   get_arity env ind_fam |> fst |> Rel.add ind_decl |> Termops.smash_rel_context
 
 (*
- * TODO
+ * Build a wrapper term for a fixed point that internally reorders arguments
+ * from the functional's original order to the quantification-initial order
+ * as in an eliminator. The output term is at the same binding level as fun_ctxt
+ * (the original parameter context of the functional) and assumes that the very
+ * next outside relative (deBruijn) binding refers to the transformed recursive
+ * function (possibly due to the fixed point's self reference).
+ *
+ * Note that fun_len is literally just Rel.length fun_ctxt, and ind_rels is the
+ * list of relative indices that quantify the inductive type's index values (in
+ * standard order).
  *)
 let wrap_fixpoint fun_len ind_rels fun_ctxt =
   let fix_head = mkRel (fun_len + 1) in
@@ -152,10 +186,12 @@ let wrap_fixpoint fun_len ind_rels fun_ctxt =
   recompose_lam_assum fun_ctxt (mkApp (fix_head, fix_args))
 
 (*
- * TODO
+ * Build a re-ordered parameter context for a fixed point's functional in which
+ * the inductive type for recursion is quantified (in standard order) before all
+ * other parameters.
  *)
 let order_fixpoint ind_ctxt ind_rels fun_ctxt fun_type fun_term =
-  (* TODO: Probably cleaner to factor+smash in one go *)
+  (* TODO: Maybe cleaner to factor+smash in one go *)
   let fun_ctxt = factor_assums ind_rels fun_ctxt in
   let lift = Vars.liftn (Rel.length ind_ctxt) (Rel.length fun_ctxt + 1) in
   let fun_type = fun_type |> lift |> smash_prod_assum fun_ctxt in
@@ -163,12 +199,20 @@ let order_fixpoint ind_ctxt ind_rels fun_ctxt fun_type fun_term =
   Util.map_pair (recompose_lam_assum ind_ctxt) (fun_type, fun_term)
 
 (*
- * TODO
+ * Build the minor premise for elimination at a constructor from the
+ * corresponding case branch of a fixed point.
+ *
+ * In particular, insert recurrence bindings (for inductive hypotheses) in the
+ * appropriate positions, substituting recursive calls with the recurrence
+ * binding its value.
+ *
+ * The last argument provides the parameter context quantifying the constructor
+ * value as well as the body of the case branch for the same constructor.
  *)
 let premise_of_case ind_fam rec_name motive (ctxt, body) =
   let nb = Rel.length ctxt in
   let ind_head = dest_ind_family ind_fam |> on_fst mkIndU |> applist in
-  let fixpoint_to_recurrence i body decl =
+  let insert_recurrence i body decl =
     let k = nb - i in
     let body' =
       match eq_constr_head (Vars.lift k ind_head) (rel_type decl) with
@@ -182,10 +226,16 @@ let premise_of_case ind_fam rec_name motive (ctxt, body) =
     in
     mkLambda_or_LetIn decl body'
   in
-  List.fold_left_i fixpoint_to_recurrence 1 body ctxt
+  List.fold_left_i insert_recurrence 1 body ctxt
 
 (*
- * TODO
+ * Given a constructor summary (cf., Inductiveops), build a parameter context
+ * to quantify over constructor arguments (and thus values of that constructor)
+ * and partially evaluate the functional applied to the constructed value's type
+ * indices and to the constructed value itself.
+ *
+ * Partial evaluation reduces to beta/iota-normal form. Exclusion of delta
+ * reduction is intentional (rarely necessary, usually disadvantageous).
  *)
 let split_functional env fun_term cons_sum =
   let cons = build_dependent_constructor cons_sum in
@@ -198,7 +248,12 @@ let split_functional env fun_term cons_sum =
   deanonymize_context env Evd.empty cons_sum.cs_args, body
 
 (*
- * TODO
+ * Build a proper motive from a type predicate (that quantifies an inductive
+ * type with lambdas).
+ *
+ * This basically comes down to dropping the quantifier for a value of the
+ * inductive type (but keeping the quantifiers for type indices) if the
+ * inductive definition is Prop-sorted.
  *)
 let motive_of_predicate env ind_fam pred =
   let ind = dest_ind_family ind_fam |> fst |> out_punivs in
@@ -217,7 +272,7 @@ let motive_of_predicate env ind_fam pred =
  *
  * Pre-processing must transform the functional to abstract over the inductive
  * family's indices and discriminee (which guards structural recursion) in
- * canonical order and without any interleaving local definitions (or extraneous
+ * standard order and without any interleaving local definitions (or extraneous
  * local assumptions). Pre-processing must also transform the functional's type
  * to abstract those bindings (which quantify over the inductive type) using
  * lambdas rather than products. Lastly, pre-processing must lift both the
