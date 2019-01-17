@@ -858,36 +858,3 @@ let reference_of_ident id =
 (* Turn a name into an optional external (i.e., surface-level) reference *)
 let reference_of_name =
   ident_of_name %> Option.map reference_of_ident
-
-(* Collect the set of identifiers (locally) free in the term (though really
- * bound by the given environment). *)
-let free_vars env term =
-  let rec aux nb idset term =
-    match kind term with
-    | Rel i ->
-      let name =
-        if i > nb then
-          Environ.lookup_rel (i - nb) env |> rel_name
-        else
-          Anonymous
-      in
-      Termops.add_vname idset name
-    | Var id ->
-      Id.Set.add id idset
-    | _ ->
-      fold_constr_with_binders ((+) 1) aux nb idset term
-  in
-  aux 0 Id.Set.empty term
-
-(* Collect the set of identifiers (locally) bound in the term. *)
-let bound_vars term =
-  let rec aux idset term =
-    let bound =
-      match kind term with
-      | Lambda (name, _, _) | LetIn (name, _, _, _) | Prod (name, _, _) -> [|name|]
-      | Fix (_, (names, _, _)) | CoFix (_, (names, _, _)) -> names
-      | _ -> [||]
-    in
-    Constr.fold aux (Array.fold_left Termops.add_vname idset bound) term
-  in
-  aux Id.Set.empty term

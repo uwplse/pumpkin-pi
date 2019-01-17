@@ -470,13 +470,6 @@ val reference_of_ident : Id.t -> Libnames.reference
 (* Turn a name into an optional external (i.e., surface-level) reference *)
 val reference_of_name : Name.t -> Libnames.reference option
 
-(* Collect the set of identifiers (locally) free in the term (though really
- * bound by the given environment). *)
-val free_vars : env -> constr -> Id.Set.t
-
-(* Collect the set of identifiers (locally) bound in the term. *)
-val bound_vars : constr -> Id.Set.t
-
 (* --- Application and arguments --- *)
 
 (*
