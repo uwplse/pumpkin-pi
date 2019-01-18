@@ -142,7 +142,6 @@ let factor_assums rels ctxt =
   List.iteri
     (fun i rel ->
        let rel' = len - rel + i + 1 in
-       assert (is_rel_assum (ctxt.(rel - 1)));
        ctxt.(rel - 1) <- define_rel_decl (mkRel rel') ctxt.(rel - 1))
     rels;
   Array.to_list ctxt
