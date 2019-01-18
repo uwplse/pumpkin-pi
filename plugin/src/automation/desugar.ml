@@ -76,21 +76,45 @@ let smash_lam_assum ctxt body =
 
 (*
  * Zeta-reduce any local definitions occurring in the leading prefix of product
- * and let bindings on the term. In other words, zeta-reduce all let expressions
- * above the first non-product, non-let expression.
+ * and let bindings on the term, up through the nth product binding. In other
+ * words, zeta-reduce all let expressions until the nth iterated product.
  *)
-let contract_prod_assum term =
-  let ctxt, body = decompose_prod_assum term in
-  smash_prod_assum ctxt body
+let contract_prod_n_assum n term =
+  assert (n >= 0);
+  let rec aux n term =
+    if n > 0 then
+      match Constr.kind term with
+      | Prod (name, param, body) ->
+        mkProd (name, param, aux (n - 1) body)
+      | LetIn (name, def_term, def_type, body) ->
+        Vars.subst1 def_term body |> aux (n - 1)
+      | _ ->
+        invalid_arg "contract_prod_n_assum: not enough products"
+    else
+      term
+  in
+  aux n term
 
 (*
  * Zeta-reduce any local definitions occurring in the leading prefix of lambda
- * and let bindings on the term. In other words, zeta-reduce all let expressions
- * above the first non-lambda, non-let expression.
+ * and let bindings on the term, up through the nth lambda binding. In other
+ * words, zeta-reduce all let expressions until the nth iterated lambda.
  *)
-let contract_lam_assum term =
-  let ctxt, body = decompose_lam_assum term in
-  smash_lam_assum ctxt body
+let contract_lam_n_assum n term =
+  assert (n >= 0);
+  let rec aux n term =
+    if n > 0 then
+      match Constr.kind term with
+      | Lambda (name, param, body) ->
+        mkLambda (name, param, aux (n - 1) body)
+      | LetIn (name, def_term, def_type, body) ->
+        Vars.subst1 def_term body |> aux (n - 1)
+      | _ ->
+        invalid_arg "contract_lam_n_assum: not enough lambdas"
+    else
+      term
+  in
+  aux n term
 
 (*
  * Instantiate a local assumption as a local definition, using the provided term
@@ -397,16 +421,16 @@ let desugar_fix_match env evm term =
       mkLetIn (name, local', annot', body')
     | Fix (([|fix_pos|], 0), ([|fix_name|], [|fun_type|], [|fun_term|])) ->
       let nb = fix_pos + 1 in
-      let fun_type = contract_prod_assum fun_type |> lift_rel in
-      let fun_term = contract_lam_assum fun_term in
+      let fun_type = contract_prod_n_assum nb fun_type |> lift_rel in
+      let fun_term = contract_lam_n_assum nb fun_term in
       let fun_ctxt = lam_n_assum nb fun_term in
-      let fun_type = strip_prod_n nb fun_type in
-      let fun_term = strip_lam_n nb fun_term in
       let ind_name, ind_type = Rel.lookup 1 fun_ctxt |> pair rel_name rel_type in
       let ind_fam, ind_rels = summarize_free_inductive nb ind_type in
       let fix_wrap = wrap_fixpoint nb ind_rels fun_ctxt in
       (* NOTE: Could push all the above into order_fixpoint, nbd regardless *)
       let fun_type, fun_term =
+        let fun_type = strip_prod_n nb fun_type in
+        let fun_term = strip_lam_n nb fun_term in
         let ind_ctxt = build_inductive_context env ind_fam ind_name in
         order_fixpoint ind_ctxt ind_rels fun_ctxt fun_type fun_term |>
         on_fst drop_rel |> on_snd (lift_rels ~skip:1 1 %> Vars.subst1 fix_wrap)
