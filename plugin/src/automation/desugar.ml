@@ -9,6 +9,35 @@ open CErrors
 open Coqterms
 
 (*
+ * Pair the outputs of two functions on the same input.
+ *)
+let pair f g =
+  fun x -> f x, g x
+
+(*
+ * Convenient wrapper around Vars.liftn shift (skip + 1) term.
+ *)
+let lift_rels ?(skip=0) shift term =
+  Vars.liftn shift (skip + 1) term
+
+(*
+ * Same as lift_rels ~skip:0 1.
+ *)
+let lift_rel = lift_rels 1
+
+(*
+ * Convenient wrapper around Vars.liftn (-shift) (skip + 1) term.
+ *)
+let drop_rels ?(skip=0) shift term =
+  assert (Vars.noccur_between (skip + 1) (skip + shift) term);
+  Vars.liftn (-shift) (skip + 1) term
+
+(*
+ * Same as drop_rels ~skip:0 1.
+ *)
+let drop_rel = drop_rels 1
+
+(*
  * Give a "reasonable" name to each anonymous local declaration in the relative
  * context. Name generation is according to standard Coq policy (cf., Namegen)
  * and does not guarantee freshness, but term type-checking is only sensitive to
@@ -192,170 +221,162 @@ let wrap_fixpoint fun_len ind_rels fun_ctxt =
  *)
 let order_fixpoint ind_ctxt ind_rels fun_ctxt fun_type fun_term =
   (* TODO: Maybe cleaner to factor+smash in one go *)
-  let fun_ctxt = factor_assums ind_rels fun_ctxt in
-  let lift = Vars.liftn (Rel.length ind_ctxt) (Rel.length fun_ctxt + 1) in
-  let fun_type = fun_type |> lift |> smash_prod_assum fun_ctxt in
-  let fun_term = fun_term |> lift |> smash_lam_assum fun_ctxt in
-  Util.map_pair (recompose_lam_assum ind_ctxt) (fun_type, fun_term)
+  let lift = lift_rels ~skip:(Rel.length fun_ctxt) (Rel.length ind_ctxt) in
+  let fun_ctxt = (factor_assums ind_rels fun_ctxt) @ ind_ctxt in
+  let fun_type = smash_prod_assum fun_ctxt (lift fun_type) in
+  let fun_term = smash_lam_assum fun_ctxt (lift fun_term) in
+  fun_type, fun_term
 
 (*
  * Build the minor premise for elimination at a constructor from the
- * corresponding case branch of a fixed point.
+ * corresponding fixed-point case.
  *
  * In particular, insert recurrence bindings (for inductive hypotheses) in the
  * appropriate positions, substituting recursive calls with the recurrence
  * binding its value.
  *
- * The last argument provides the parameter context quantifying the constructor
- * value as well as the body of the case branch for the same constructor.
+ * The last argument provides the case's parameter context (quantifying
+ * constructor arguments) with the case's body term.
  *)
-let premise_of_case ind_fam rec_name motive (ctxt, body) =
+let premise_of_case env ind_fam (ctxt, body) =
   let nb = Rel.length ctxt in
   let ind_head = dest_ind_family ind_fam |> on_fst mkIndU |> applist in
+  let fix_name, fix_type = Environ.lookup_rel 1 env |> pair rel_name rel_type in
   let insert_recurrence i body decl =
     let k = nb - i in
     let body' =
-      match eq_constr_head (Vars.lift k ind_head) (rel_type decl) with
+      match eq_constr_head (lift_rels k ind_head) (rel_type decl) with
       | Some indices ->
         assert (is_rel_assum decl);
-        let args = Array.append (Array.map (Vars.lift 1) indices) [|mkRel 1|] in
-        let rec_type = Reduction.beta_appvect (Vars.lift (k + 1) motive) args in
-        let fix_call = mkApp (mkRel (k + 2), args) in
-        mkLambda (rec_name, rec_type, abstract_subterm fix_call body)
+        let args = Array.append (Array.map lift_rel indices) [|mkRel 1|] in
+        let rec_type = prod_appvect (lift_rels (k + 1) fix_type) args in
+        let fix_call = mkApp (mkRel (k + 1), args) in
+        mkLambda (fix_name, rec_type, abstract_subterm fix_call body)
       | _ ->
         body
     in
     mkLambda_or_LetIn decl body'
   in
-  List.fold_left_i insert_recurrence 1 body ctxt
+  List.fold_left_i insert_recurrence 0 body ctxt
 
 (*
  * Given a constructor summary (cf., Inductiveops), build a parameter context
  * to quantify over constructor arguments (and thus values of that constructor)
  * and partially evaluate the functional applied to the constructed value's type
- * indices and to the constructed value itself.
+ * indices and (subsequently) to the constructed value itself.
  *
  * Partial evaluation reduces to beta/iota-normal form. Exclusion of delta
- * reduction is intentional (rarely necessary, usually disadvantageous).
+ * reduction is intentional (rarely beneficial, usually detrimental).
  *)
-let split_functional env fun_term cons_sum =
+let split_case env evm fun_term cons_sum =
   let cons = build_dependent_constructor cons_sum in
   let env = Environ.push_rel_context cons_sum.cs_args env in
   let body =
-    let head = Vars.lift cons_sum.cs_nargs fun_term in
+    let head = lift_rels cons_sum.cs_nargs fun_term in
     let args = Array.append cons_sum.cs_concl_realargs [|cons|] in
     mkApp (head, args) |> Reduction.nf_betaiota env
   in
-  deanonymize_context env Evd.empty cons_sum.cs_args, body
+  deanonymize_context env evm cons_sum.cs_args, body
 
 (*
- * Build a proper motive from a type predicate (that quantifies an inductive
- * type with lambdas).
+ * Build an elimination head (partially applied eliminator) including the
+ * parameters and (sort-adjusted) motive for the given inductive family and
+ * (dependent) elimination type.
  *
- * This basically comes down to dropping the quantifier for a value of the
- * inductive type (but keeping the quantifiers for type indices) if the
- * inductive definition is Prop-sorted.
- *)
-let motive_of_predicate env ind_fam pred =
-  let ind = dest_ind_family ind_fam |> fst |> out_punivs in
-  let ind_sort = get_arity env ind_fam |> snd in
-  let ind_len = inductive_nrealargs ind + 1 in
-  if Sorts.family_equal ind_sort Sorts.InProp then
-    let ctxt, body = decompose_lam_n ind_len pred in
-    assert (Vars.noccurn 1 body);
-    compose_lam (List.tl ctxt) (Vars.lift (-1) body)
-  else
-    pred
-
-(*
- * Select the right eliminator for an inductive type, based on the result sort
- * (deduced from the type predicate).
- *)
-let eliminator_for_predicate env evm ind pred =
-  let ctxt, body = decompose_lam_assum pred in (* lambdas are never types *)
-  let env = Environ.push_rel_context ctxt env in
-  let sort = e_infer_sort env evm body in
-  Indrec.lookup_eliminator ind sort |> e_new_global evm
-
-(*
- * Given the pre-processed components of a fix expression, build a
- * computationally equivalent elimination expression.
+ * The sorts of the inductive family and of the elimination type are considered,
+ * respectively, when adjusting the elimination type into a motive (by removing
+ * dependency for Prop-sorted inductive families) and when selecting one of the
+ * inductive family's eliminators.
  *
- * Pre-processing must transform the functional to abstract over the inductive
+ * NOTE: Motive adjustment might be too overzealous; under some particular
+ * conditions, Coq does allow dependency in the elimination motive for a Prop-
+ * sorted inductive family.
+ *)
+let configure_eliminator env evm ind_fam typ =
+  let ind, params = dest_ind_family ind_fam |> on_fst out_punivs in
+  let nb = inductive_nrealargs ind + 1 in
+  let typ_ctxt, typ_body =
+    let typ_ctxt, typ_body = decompose_prod_n_assum nb typ in
+    let ind_sort = get_arity env ind_fam |> snd in
+    if Sorts.family_equal ind_sort Sorts.InProp then
+      List.tl typ_ctxt, drop_rel typ_body
+    else
+      typ_ctxt, typ_body
+  in
+  let elim =
+    let typ_env = Environ.push_rel_context typ_ctxt env in
+    let typ_sort = e_infer_sort typ_env evm typ_body in
+    Indrec.lookup_eliminator ind typ_sort |> e_new_global evm
+  in
+  let motive = recompose_lam_assum typ_ctxt typ_body in
+  mkApp (elim, Array.append (Array.of_list params) [|motive|])
+
+(*
+ * Given the regularized components of a fix expression, build an equivalent,
+ * bisimulative (i.e., algorithmically identical) elimination expression.
+ *
+ * Regularization must transform the functional to abstract over the inductive
  * family's indices and discriminee (which guards structural recursion) in
  * standard order and without any interleaving local definitions (or extraneous
- * local assumptions). Pre-processing must also transform the functional's type
- * to abstract those bindings (which quantify over the inductive type) using
- * lambdas rather than products. Lastly, pre-processing must lift both the
- * inductive family and the functional's type under the implicitly assumed
- * fixed-point reference, not yet present in the environment.
+ * local assumptions).
  *
  * Note that the resulting term will not satisfy definitional equality with the
- * original term but should satisfy definitional equality whenever the
- * discriminee term is in canonical form (i.e., a value). This is unlikely to be
- * a major problem, since CiC's consistency+independence of functional
- * extensionality means that the type system has little ability to distinguish
- * equivalent functions. _However_, the set of definitional equalities satsified
- * by a specific realization of a function affects the necessity and sufficiency
- * of rewritings (e.g., left- vs. right-recursive addition); this can affect the
- * well-typedness of inductive proof terms, particularly when rewriting by an
- * inductive hypothesis.
+ * original term but should satisfy most (all?) definitional equalities when
+ * applied to all indices and a head-canonical discriminee. Still, this could
+ * impact the well-typedness of inductive proof terms, particularly when
+ * rewriting the unrolled recursive function by an inductive hypothesis. We will
+ * know more after testing compositional translation of a complete module, which
+ * will avoid incidental mixtures of the old version (by named constant) and the
+ * new version (by expanded definition). (Such incidental mixtures arise, for
+ * example, in some of the List module's proofs regarding the In predicate.)
  *)
 let eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term =
-  let fix_decl = rel_assum (fix_name, Vars.lift (-1) fun_type) in
-  let env = Environ.push_rel fix_decl env in
-  let (ind, _), params = dest_ind_family ind_fam |> on_snd Array.of_list in
-  let elim = eliminator_for_predicate env evm ind fun_type in
-  let motive = motive_of_predicate env ind_fam fun_type in
-  let minors =
-    get_constructors env ind_fam |> Array.map (split_functional env fun_term) |>
-    Array.map (premise_of_case ind_fam fix_name fun_type)
+  let elim_head = configure_eliminator env evm ind_fam fun_type in
+  let premises =
+    let fix_env = Environ.push_rel (rel_assum (fix_name, fun_type)) env in
+    let build_premise cons_sum =
+      lift_constructor 1 cons_sum |> split_case fix_env !evm fun_term |>
+      premise_of_case fix_env ind_fam |> drop_rel
+    in
+    get_constructors env ind_fam |> Array.map build_premise
   in
-  let premises = Array.cons motive minors in
-  mkApp (elim, Array.append params premises) |> Vars.lift (-1)
+  mkApp (elim_head, premises)
 
 (*
- * Given the components of a match expression, build a computationally
- * equivalent elimination expression. The resulting term will not use any
- * recurrence binding (i.e., inductive hypothesis) in its minor premises (i.e.,
- * case functions).
+ * Given the components of a match expression, build an equivalent elimination
+ * expression. The resulting term will not use any recurrence (i.e., inductive
+ * hypothesis) bound in the minor elimination premises (i.e., case functions),
+ * since the original term was non-recursive.
  *
- * Note that the resulting term will not satisfy definitional equality with the
+ * Note that the resulting term may not satisfy definitional equality with the
  * original term, as Coq lacks eta-conversion between a non-recursive function
- * and its fixed point (i.e., f /= fix[f], even when f is non-recursive). The
- * two terms should satisfy definitional equality whenever the discriminee term
- * is in a head-canonical form.
+ * and its fixed point (i.e., f =\= fix[_.f]). Definitional equality should hold
+ * (at least) when the discriminee term is head-canonical.
  *)
 let eliminate_match env evm info pred discr cases =
-  let elim = eliminator_for_predicate env evm info.ci_ind pred in
-  let fix_decl = rel_assum (Name.Anonymous, pred) in
-  let env = Environ.push_rel fix_decl env in
-  let pred, discr, cases =
-    Vars.lift 1 pred, Vars.lift 1 discr, Array.map (Vars.lift 1) cases
-  in
-  let pind, params, indices = e_infer_type env evm discr |> decompose_indvect in
+  let typ = lambda_to_prod pred in
+  let pind, params, indices = decompose_indvect (e_infer_type env evm discr) in
   let ind_fam = make_ind_family (pind, Array.to_list params) in
-  let motive = motive_of_predicate env ind_fam pred in
-  let minors =
-    Array.map2 decompose_lam_n_assum info.ci_cstr_nargs cases |>
-    Array.map (premise_of_case ind_fam Name.Anonymous pred)
+  let elim_head = configure_eliminator env evm ind_fam typ in
+  let premises =
+    let fix_env = Environ.push_rel (rel_assum (Name.Anonymous, typ)) env in
+    let build_premise cons_narg cons_case =
+      lift_rel cons_case |> decompose_lam_n_assum cons_narg |>
+      premise_of_case fix_env ind_fam |> drop_rel
+    in
+    Array.map2 build_premise info.ci_cstr_nargs cases
   in
-  let premises = Array.cons motive minors in
-  mkApp (elim, Array.concat [params; premises; indices; [|discr|]]) |>
-  Vars.lift (-1)
+  mkApp (elim_head, Array.concat [premises; indices; [|discr|]])
 
 (*
- * Translate the given term into a computationally equivalent version using
- * eliminators instead of match and/or fix expressions. The output term will
- * closely simulate the input term but may satisfy a different set of
- * definitional equalities. (Consider how left- and right-recursive
- * implementations of addition often require different proof terms for the same
- * theorem, though the differences here are actually much simpler.)
+ * Translate the given term into an equivalent, bisimulative (i.e., homomorpic
+ * reduction behavior) version using eliminators instead of match or fix
+ * expressions.
  *
- * TODO: Investigate the impact of this translation on inductive proof terms
- * proving facts about a recursive fixed-point function. There are likely cases
- * in which this translation necessitates additional rewritings for an inductive
- * proof to hold with the recursive function post-translation.
+ * Note that the output term may satisfy a slightly different set of
+ * definitional equalities, related homomorphically to the input term's
+ * definitional equalities. (In other words, definitional equalities will at
+ * least correspond in a structural, systematic way.)
  *)
 let desugar_fix_match env evm term =
   let evm = ref evm in
@@ -376,23 +397,21 @@ let desugar_fix_match env evm term =
       mkLetIn (name, local', annot', body')
     | Fix (([|fix_pos|], 0), ([|fix_name|], [|fun_type|], [|fun_term|])) ->
       let nb = fix_pos + 1 in
-      let fun_type = contract_prod_assum fun_type |> Vars.lift 1 in
+      let fun_type = contract_prod_assum fun_type |> lift_rel in
       let fun_term = contract_lam_assum fun_term in
       let fun_ctxt = lam_n_assum nb fun_term in
       let fun_type = strip_prod_n nb fun_type in
       let fun_term = strip_lam_n nb fun_term in
-      let ind_name, ind_type =
-        let ind_decl = Rel.lookup 1 fun_ctxt in
-        rel_name ind_decl, rel_type ind_decl
-      in
+      let ind_name, ind_type = Rel.lookup 1 fun_ctxt |> pair rel_name rel_type in
       let ind_fam, ind_rels = summarize_free_inductive nb ind_type in
       let fix_wrap = wrap_fixpoint nb ind_rels fun_ctxt in
       (* NOTE: Could push all the above into order_fixpoint, nbd regardless *)
       let fun_type, fun_term =
         let ind_ctxt = build_inductive_context env ind_fam ind_name in
         order_fixpoint ind_ctxt ind_rels fun_ctxt fun_type fun_term |>
-        on_snd (Vars.liftn 1 2 %> Vars.subst1 fix_wrap)
+        on_fst drop_rel |> on_snd (lift_rels ~skip:1 1 %> Vars.subst1 fix_wrap)
       in
+      let ind_fam = lift_inductive_family (-1) ind_fam in
       let fix_elim = eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term in
       Vars.subst1 fix_elim fix_wrap |> aux env
     | Fix _ ->
