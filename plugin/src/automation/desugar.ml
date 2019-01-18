@@ -75,46 +75,44 @@ let smash_lam_assum ctxt body =
     ctxt
 
 (*
- * Zeta-reduce any local definitions occurring in the leading prefix of product
- * and let bindings on the term, up through the nth product binding. In other
- * words, zeta-reduce all let expressions until the nth iterated product.
+ * Decompose the first n product bindings, zeta-reducing let bindings to reveal
+ * further product bindings when necessary.
  *)
-let contract_prod_n_assum n term =
+let decompose_prod_n_zeta n term =
   assert (n >= 0);
-  let rec aux n term =
+  let rec aux n ctxt body =
     if n > 0 then
-      match Constr.kind term with
+      match Constr.kind body with
       | Prod (name, param, body) ->
-        mkProd (name, param, aux (n - 1) body)
+        aux (n - 1) (Rel.add (rel_assum (name, param)) ctxt) body
       | LetIn (name, def_term, def_type, body) ->
-        Vars.subst1 def_term body |> aux (n - 1)
+        aux n ctxt (Vars.subst1 def_term body)
       | _ ->
-        invalid_arg "contract_prod_n_assum: not enough products"
+        invalid_arg "decompose_prod_n_zeta: not enough products"
     else
-      term
+      ctxt, body
   in
-  aux n term
+  aux n Rel.empty term
 
 (*
- * Zeta-reduce any local definitions occurring in the leading prefix of lambda
- * and let bindings on the term, up through the nth lambda binding. In other
- * words, zeta-reduce all let expressions until the nth iterated lambda.
+ * Decompose the first n lambda bindings, zeta-reducing let bindings to reveal
+ * further lambda bindings when necessary.
  *)
-let contract_lam_n_assum n term =
+let decompose_lam_n_zeta n term =
   assert (n >= 0);
-  let rec aux n term =
+  let rec aux n ctxt body =
     if n > 0 then
-      match Constr.kind term with
+      match Constr.kind body with
       | Lambda (name, param, body) ->
-        mkLambda (name, param, aux (n - 1) body)
+        aux (n - 1) (Rel.add (rel_assum (name, param)) ctxt) body
       | LetIn (name, def_term, def_type, body) ->
-        Vars.subst1 def_term body |> aux (n - 1)
+        Vars.subst1 def_term body |> aux n ctxt
       | _ ->
-        invalid_arg "contract_lam_n_assum: not enough lambdas"
+        invalid_arg "decompose_lam_n_zeta: not enough lambdas"
     else
-      term
+      ctxt, body
   in
-  aux n term
+  aux n Rel.empty term
 
 (*
  * Instantiate a local assumption as a local definition, using the provided term
@@ -189,7 +187,7 @@ let decompose_ind ind_type =
 let summarize_free_inductive nb ind_type =
   let pind, params, indices = decompose_ind ind_type in
   let ind_fam =
-    assert (List.for_all (Vars.noccur_between 1 nb) params);
+    assert (List.for_all (Vars.noccur_between 0 nb) params);
     make_ind_family (pind, params) |> lift_inductive_family (1 - nb)
   in
   let ind_rels =
@@ -212,7 +210,8 @@ let summarize_free_inductive nb ind_type =
 let build_inductive_context env ind_fam ind_name =
   let ind_type = build_dependent_inductive env ind_fam in
   let ind_decl = rel_assum (ind_name, ind_type) in
-  get_arity env ind_fam |> fst |> Rel.add ind_decl |> Termops.smash_rel_context
+  get_arity env ind_fam |> fst |> Rel.add ind_decl |>
+  Termops.smash_rel_context |> Termops.lift_rel_context 1
 
 (*
  * Build a wrapper term for a fixed point that internally reorders arguments
@@ -237,19 +236,6 @@ let wrap_fixpoint fun_len ind_rels fun_ctxt =
     Array.append ind_rels arg_rels |> Array.map mkRel
   in
   recompose_lam_assum fun_ctxt (mkApp (fix_head, fix_args))
-
-(*
- * Build a re-ordered parameter context for a fixed point's functional in which
- * the inductive type for recursion is quantified (in standard order) before all
- * other parameters.
- *)
-let order_fixpoint ind_ctxt ind_rels fun_ctxt fun_type fun_term =
-  (* TODO: Maybe cleaner to factor+smash in one go *)
-  let lift = lift_rels ~skip:(Rel.length fun_ctxt) (Rel.length ind_ctxt) in
-  let fun_ctxt = (factor_assums ind_rels fun_ctxt) @ ind_ctxt in
-  let fun_type = smash_prod_assum fun_ctxt (lift fun_type) in
-  let fun_term = smash_lam_assum fun_ctxt (lift fun_term) in
-  fun_type, fun_term
 
 (*
  * Build the minor premise for elimination at a constructor from the
@@ -392,6 +378,25 @@ let eliminate_match env evm info pred discr cases =
   in
   mkApp (elim_head, Array.concat [premises; indices; [|discr|]])
 
+let regularize_fixpoint env fix_pos fun_type fun_term =
+  let nb = fix_pos + 1 in
+  let (ind_decl :: _), fun_type = decompose_prod_n_zeta nb fun_type in
+  let fun_ctxt, fun_term = decompose_lam_n_zeta nb fun_term in
+  let ind_fam, ind_rels = summarize_free_inductive nb (rel_type ind_decl) in
+  let ind_ctxt = build_inductive_context env ind_fam (rel_name ind_decl) in
+  let k = Rel.length ind_ctxt in
+  let fix_wrap = wrap_fixpoint nb ind_rels fun_ctxt in
+  let fun_ctxt = (factor_assums ind_rels fun_ctxt) @ ind_ctxt in
+  let fun_type =
+    lift_rels ~skip:nb (k + 1) fun_type |> smash_prod_assum fun_ctxt |>
+    drop_rel
+  in
+  let fun_term =
+    lift_rels ~skip:nb k fun_term |> smash_lam_assum fun_ctxt |>
+    lift_rels ~skip:1 1 |> Vars.subst1 fix_wrap
+  in
+  ind_fam, fun_type, fun_term, fix_wrap
+
 (*
  * Translate the given term into an equivalent, bisimulative (i.e., homomorpic
  * reduction behavior) version using eliminators instead of match or fix
@@ -405,7 +410,7 @@ let eliminate_match env evm info pred discr cases =
 let desugar_fix_match env evm term =
   let evm = ref evm in
   let rec aux env term =
-    match kind term with
+    match Constr.kind term with
     | Lambda (name, param, body) ->
       let param' = aux env param in
       let body' = aux (push_local (name, param') env) body in
@@ -420,23 +425,12 @@ let desugar_fix_match env evm term =
       let body' = aux (push_let_in (name, local', annot') env) body in
       mkLetIn (name, local', annot', body')
     | Fix (([|fix_pos|], 0), ([|fix_name|], [|fun_type|], [|fun_term|])) ->
-      let nb = fix_pos + 1 in
-      let fun_type = contract_prod_n_assum nb fun_type |> lift_rel in
-      let fun_term = contract_lam_n_assum nb fun_term in
-      let fun_ctxt = lam_n_assum nb fun_term in
-      let ind_name, ind_type = Rel.lookup 1 fun_ctxt |> pair rel_name rel_type in
-      let ind_fam, ind_rels = summarize_free_inductive nb ind_type in
-      let fix_wrap = wrap_fixpoint nb ind_rels fun_ctxt in
-      (* NOTE: Could push all the above into order_fixpoint, nbd regardless *)
-      let fun_type, fun_term =
-        let fun_type = strip_prod_n nb fun_type in
-        let fun_term = strip_lam_n nb fun_term in
-        let ind_ctxt = build_inductive_context env ind_fam ind_name in
-        order_fixpoint ind_ctxt ind_rels fun_ctxt fun_type fun_term |>
-        on_fst drop_rel |> on_snd (lift_rels ~skip:1 1 %> Vars.subst1 fix_wrap)
+      let ind_fam, fun_type, fun_term, fix_wrap =
+        regularize_fixpoint env fix_pos fun_type fun_term
       in
-      let ind_fam = lift_inductive_family (-1) ind_fam in
-      let fix_elim = eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term in
+      let fix_elim =
+        eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term
+      in
       Vars.subst1 fix_elim fix_wrap |> aux env
     | Fix _ ->
       user_err ~hdr:"desugar" (Pp.str "mutual recursion not supported")
