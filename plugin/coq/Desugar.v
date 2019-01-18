@@ -1,7 +1,7 @@
 Add LoadPath "coq".
 Require Import Ornamental.Ornaments.
 Require Import Test.
-  Require Import List.
+Require Import List.
 
 (** Test a few hand-written functions on vector **)
 Section VectorTests.
@@ -14,7 +14,7 @@ Section VectorTests.
     | consV _ _ _ => false
     | nilV => true
     end.
-  Desugar emptyV as emptyV''.
+  Desugar emptyV as emptyV'.
 
   Definition headV (A : Type) (n : nat) (xs : vector A (S n)) : A :=
     match xs in vector _ n return (match n with S _ => True | O => False end) -> A with
