@@ -278,6 +278,30 @@ val rel_type : ('constr, 'types) Rel.Declaration.pt -> 'types
  *)
 val map_rel_context : env -> (env -> Rel.Declaration.t -> 'a) -> Rel.t -> 'a list
 
+(*
+ * Bind all local declarations in the relative context onto the body term as
+ * products, substituting away (i.e., zeta-reducing) any local definitions.
+ *)
+val smash_prod_assum : Rel.t -> types -> types
+
+(*
+ * Bind all local declarations in the relative context onto the body term as
+ * lambdas, substituting away (i.e., zeta-reducing) any local definitions.
+ *)
+val smash_lam_assum : Rel.t -> constr -> constr
+
+(*
+ * Decompose the first n product bindings, zeta-reducing let bindings to reveal
+ * further product bindings when necessary.
+ *)
+val decompose_prod_n_zeta : int -> types -> Rel.t * types
+
+(*
+ * Decompose the first n lambda bindings, zeta-reducing let bindings to reveal
+ * further lambda bindings when necessary.
+ *)
+val decompose_lam_n_zeta : int -> constr -> Rel.t * constr
+
 (* Is the named declaration an assumption? *)
 val is_named_assum : ('constr, 'types) Named.Declaration.pt -> bool
 
