@@ -209,8 +209,7 @@ let summarize_free_inductive nb ind_type =
 let build_inductive_context env ind_fam ind_name =
   let ind_type = build_dependent_inductive env ind_fam in
   let ind_decl = rel_assum (ind_name, ind_type) in
-  get_arity env ind_fam |> fst |> Rel.add ind_decl |>
-  Termops.smash_rel_context |> Termops.lift_rel_context 1
+  get_arity env ind_fam |> fst |> Rel.add ind_decl |> Termops.smash_rel_context
 
 (*
  * Build a wrapper term for a fixed point that internally reorders arguments
@@ -225,6 +224,7 @@ let build_inductive_context env ind_fam ind_name =
  * standard order).
  *)
 let wrap_fixpoint fun_len ind_rels fun_ctxt =
+  let fun_ctxt = Termops.lift_rel_context 1 fun_ctxt in
   let fix_head = mkRel (fun_len + 1) in
   let fix_args =
     let ind_rels = Array.rev_of_list ind_rels in
@@ -321,13 +321,8 @@ let configure_eliminator env evm ind_fam typ =
   mkApp (elim, Array.append (Array.of_list params) [|motive|])
 
 (*
- * Given the regularized components of a fix expression, build an equivalent,
+ * Given the components of a fixed-point expression, build an equivalent,
  * bisimulative (i.e., algorithmically identical) elimination expression.
- *
- * Regularization must transform the functional to abstract over the inductive
- * family's indices and discriminee (which guards structural recursion) in
- * standard order and without any interleaving local definitions (or extraneous
- * local assumptions).
  *
  * Note that the resulting term will not satisfy definitional equality with the
  * original term but should satisfy most (all?) definitional equalities when
@@ -339,8 +334,29 @@ let configure_eliminator env evm ind_fam typ =
  * new version (by expanded definition). (Such incidental mixtures arise, for
  * example, in some of the List module's proofs regarding the In predicate.)
  *)
-let eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term =
+let eliminate_fixpoint env evm fix_pos fix_name fun_type fun_term =
+  let nb = fix_pos + 1 in
+  (* Open the (zeta-contracted) parameter context guarding recursion *)
+  let fun_ctxt, fun_type = decompose_prod_n_zeta nb fun_type in
+  let _, fun_term = decompose_lam_n_zeta nb fun_term in
+  (* Figure out what inductive type guards recursion and how it's quantified *)
+  let ind_name, ind_type = Rel.lookup 1 fun_ctxt |> pair rel_name rel_type in
+  let ind_fam, ind_rels = summarize_free_inductive nb ind_type in
+  (* Build a standard parameter context to quantify the inductive type *)
+  let ind_ctxt = build_inductive_context env ind_fam ind_name in
+  let k = Rel.length ind_ctxt in
+  (* Build a wrapper to convert from the original parameter order *)
+  let fix_wrap = wrap_fixpoint nb ind_rels fun_ctxt in
+  (* Prepend the standard parameter context, overriding shared parameters *)
+  let fun_ctxt = (factor_assums ind_rels fun_ctxt) @ ind_ctxt in
+  let fun_type = smash_prod_assum fun_ctxt (lift_rels ~skip:nb k fun_type) in
+  let fun_ctxt = Termops.lift_rel_context 1 fun_ctxt in
+  let fun_term = smash_lam_assum fun_ctxt (lift_rels ~skip:nb k fun_term) in
+  (* Reorder arguments to fixed-point calls in the functional *)
+  let fun_term = Vars.subst1 fix_wrap (lift_rels ~skip:1 1 fun_term) in
+  (* Build the elimination head (eliminator with parameters and motive) *)
   let elim_head = configure_eliminator env evm ind_fam fun_type in
+  (* Build the minor premises *)
   let premises =
     let fix_env = Environ.push_rel (rel_assum (fix_name, fun_type)) env in
     let build_premise cons_sum =
@@ -349,7 +365,8 @@ let eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term =
     in
     get_constructors env ind_fam |> Array.map build_premise
   in
-  mkApp (elim_head, premises)
+  (* Wrap the elimination expression to match the original parameter order *)
+  Vars.subst1 (mkApp (elim_head, premises)) fix_wrap
 
 (*
  * Given the components of a match expression, build an equivalent elimination
@@ -376,25 +393,6 @@ let eliminate_match env evm info pred discr cases =
     Array.map2 build_premise info.ci_cstr_nargs cases
   in
   mkApp (elim_head, Array.concat [premises; indices; [|discr|]])
-
-let regularize_fixpoint env fix_pos fun_type fun_term =
-  let nb = fix_pos + 1 in
-  let (ind_decl :: _), fun_type = decompose_prod_n_zeta nb fun_type in
-  let fun_ctxt, fun_term = decompose_lam_n_zeta nb fun_term in
-  let ind_fam, ind_rels = summarize_free_inductive nb (rel_type ind_decl) in
-  let ind_ctxt = build_inductive_context env ind_fam (rel_name ind_decl) in
-  let k = Rel.length ind_ctxt in
-  let fix_wrap = wrap_fixpoint nb ind_rels fun_ctxt in
-  let fun_ctxt = (factor_assums ind_rels fun_ctxt) @ ind_ctxt in
-  let fun_type =
-    lift_rels ~skip:nb (k + 1) fun_type |> smash_prod_assum fun_ctxt |>
-    drop_rel
-  in
-  let fun_term =
-    lift_rels ~skip:nb k fun_term |> smash_lam_assum fun_ctxt |>
-    lift_rels ~skip:1 1 |> Vars.subst1 fix_wrap
-  in
-  ind_fam, fun_type, fun_term, fix_wrap
 
 (*
  * Translate the given term into an equivalent, bisimulative (i.e., homomorpic
@@ -424,13 +422,7 @@ let desugar_fix_match env evm term =
       let body' = aux (push_let_in (name, local', annot') env) body in
       mkLetIn (name, local', annot', body')
     | Fix (([|fix_pos|], 0), ([|fix_name|], [|fun_type|], [|fun_term|])) ->
-      let ind_fam, fun_type, fun_term, fix_wrap =
-        regularize_fixpoint env fix_pos fun_type fun_term
-      in
-      let fix_elim =
-        eliminate_fixpoint env evm ind_fam fix_name fun_type fun_term
-      in
-      Vars.subst1 fix_elim fix_wrap |> aux env
+      eliminate_fixpoint env evm fix_pos fix_name fun_type fun_term |> aux env
     | Fix _ ->
       user_err ~hdr:"desugar" (Pp.str "mutual recursion not supported")
     | CoFix _ ->
