@@ -333,12 +333,9 @@ let eliminate_match env evm info pred discr cases =
  * reduction behavior) version using eliminators instead of match or fix
  * expressions.
  *
- * Note that the output term may satisfy a slightly different set of
- * definitional equalities, related homomorphically to the input term's
- * definitional equalities. (In other words, definitional equalities will at
- * least correspond in a structural, systematic way.)
+ * Mutual recursion and co-recursion are not supported.
  *)
-let desugar_fix_match env evm term =
+let desugar_term env evm term =
   let evm = ref evm in
   let rec aux env term =
     match Constr.kind term with

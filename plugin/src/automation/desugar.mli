@@ -3,9 +3,10 @@ open Evd
 open Constr
 
 (*
- * Translate each fix or match subterm into an equivalent application of an
- * eliminator, returning an updated evar_map.
+ * Translate the given term into an equivalent, bisimulative (i.e., homomorpic
+ * reduction behavior) version using eliminators instead of match or fix
+ * expressions.
  *
- * Mutual fix or cofix subterms are not supported.
+ * Mutual recursion and co-recursion are not supported.
  *)
-val desugar_fix_match : env -> evar_map -> constr -> evar_map * constr * types
+val desugar_term : env -> evar_map -> constr -> evar_map * constr * types
