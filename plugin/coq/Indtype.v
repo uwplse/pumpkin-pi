@@ -83,7 +83,8 @@ Section Append.
     induction xs; simpl; constructor; assumption.
   Defined.
   Desugar app_is_app as app_is_app'.
-  (*Fail Lift orn_list_vector orn_list_vector_inv in @app_is_app as appV_is_appV_ok.*)
+  (* This somehow fails in ornamental lifting: *)
+  Fail Lift list vector in app_is_app' as appV_is_appV.
 
   Lemma is_app_tl (A : Type) (xs ys zs : list A) :
     is_app xs ys zs ->
@@ -94,7 +95,7 @@ Section Append.
     - constructor.
   Defined.
   Desugar is_app_tl as is_app_tl'.
-  (*Fail Lift orn_list_vector orn_list_vector_inv in @is_app_tl as is_appV_tl.*)
+  Lift list vector in is_app_tl' as is_appV_tl.
 
   Lemma is_app_uncons (A : Type) (x : A) (xs ys zs : list A) :
     is_app (x :: xs) ys (x :: zs) -> is_app xs ys zs.
@@ -105,7 +106,7 @@ Section Append.
     - inversion Exs.
   Defined.
   Desugar is_app_uncons as is_app_uncons'.
-  (*Fail Lift orn_list_vector orn_list_vector_inv in is_app_uncons as is_appV_uncons.*)
+  Lift list vector in is_app_uncons' as is_appV_uncons.
 
 End Append.
 
