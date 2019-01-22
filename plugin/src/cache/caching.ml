@@ -1,14 +1,9 @@
 open Constr
-open Environ
 open Coqterms
-open Constrexpr
-open Constrextern
 open Names
 open Recordops
 open Libnames
-open Constrexpr_ops
 open Decl_kinds
-open Evd
 open Globnames
 open Utilities
 open Libobject

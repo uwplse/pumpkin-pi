@@ -1,6 +1,5 @@
 open Globnames
 open Environ
-open Evd
 open Constr
 
 (* --- Database for higher lifting --- *)
