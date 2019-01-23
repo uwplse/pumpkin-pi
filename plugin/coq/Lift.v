@@ -800,17 +800,39 @@ Definition only_for_nats_pre (n : nat) :=
       (succ_is_pos_index n)).
 (* not sure how to figure out where to do this, but whatever *)
 
-(* TODO does this do anything *)
+(* then with normal plus, lifting proof works *)
 Definition lift_only_for_nats (n : sigT is_positive) :=
   ex_intro 
-    (fun m : sigT is_positive => refine_plus_expected (lifted_indexer n) m = lifted_indexer n) 
+    (fun m : sigT is_positive => is_pos_plus_expected (existT is_positive (projT1 (lifted_indexer n)) (projT2 (lifted_indexer n))) m = existT is_positive (projT1 (lifted_indexer n)) (projT2 (lifted_indexer n))) 
+    (existT is_positive 1 pos_1)
+    (is_positive_ind 
+      (fun (n0 : nat) (p : is_positive n0) => is_pos_plus_expected (existT is_positive n0 p) (existT is_positive 1 pos_1) = existT is_positive n0 p) 
+      eq_refl
+      (fun (n0 : nat) (p : is_positive n0) (IHn : is_pos_plus_expected (existT is_positive n0 p) (existT is_positive 1 pos_1) = existT is_positive n0 p) => 
+        eq_ind_r (fun n1 : sigT is_positive => existT is_positive (S (projT1 n1)) (pos_S (projT1 n1) (projT2 n1)) = existT is_positive (S (projT1 (existT is_positive n0 p))) (pos_S (projT1 (existT is_positive n0 p)) (projT2 (existT is_positive n0 p)))) eq_refl IHn) 
+      (projT1 (lifted_indexer n))
+      (projT2 (lifted_indexer n))).
+
+Check lift_only_for_nats.
+
+(* if we instead try to use refine_plus_expected, fails, eq_refl case fails, predictably *)
+Fail Definition lift_only_for_nats' (n : sigT is_positive) :=
+  ex_intro 
+    (fun m : sigT is_positive => refine_plus_expected (existT is_positive (projT1 (lifted_indexer n)) (projT2 (lifted_indexer n))) m = existT is_positive (projT1 (lifted_indexer n)) (projT2 (lifted_indexer n))) 
     (existT is_positive 1 pos_1)
     (is_positive_ind 
       (fun (n0 : nat) (p : is_positive n0) => refine_plus_expected (existT is_positive n0 p) (existT is_positive 1 pos_1) = existT is_positive n0 p) 
       eq_refl
-      (fun (n0 : nat) (IHn : plus n0 0 = n0) => 
-        eq_ind_r (fun n1 : nat => S n1 = S n0) eq_refl IHn) 
+      (fun (n0 : nat) (p : is_positive n0) (IHn : refine_plus_expected (existT is_positive n0 p) (existT is_positive 1 pos_1) = existT is_positive n0 p) => 
+        eq_ind_r (fun n1 : sigT is_positive => existT is_positive (S (projT1 n1)) (pos_S (projT1 n1) (projT2 n1)) = existT is_positive (S (projT1 (existT is_positive n0 p))) (pos_S (projT1 (existT is_positive n0 p)) (projT2 (existT is_positive n0 p)))) eq_refl IHn) 
       (projT1 (lifted_indexer n))
       (projT2 (lifted_indexer n))).
+
+(* --- OK next --- *)
+
+(*
+ * So that's one way to do refinement.
+ * 
+ *)
 
 
