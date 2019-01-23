@@ -65,11 +65,11 @@ let define_rel_decl body decl =
  * to allocate fresh binding indices for each rel_i, prior to defining any local
  * assumption.
  *
- * E.g., factor_assums [3; 1] [x:A; y:B; z:C] =
+ * E.g., abstract_assums [3; 1] [x:A; y:B; z:C] =
  * [x:=Rel(4):lift(2,2,A); y:lift(1,2,B); z:=Rel(1):lift(0,2,C)].
  *
  *)
-let factor_assums rels ctxt =
+let abstract_assums rels ctxt =
   let k = List.length rels in
   let len = Rel.length ctxt in
   let ctxt = Termops.lift_rel_context k ctxt |> Array.of_list in
@@ -282,7 +282,7 @@ let eliminate_fixpoint env evm fix_pos fix_name fun_type fun_term =
   (* Build a wrapper to convert from the original parameter order *)
   let fix_wrap = wrap_fixpoint nb ind_rels fun_ctxt in
   (* Prepend the standard parameter context, overriding shared parameters *)
-  let fun_ctxt = (factor_assums ind_rels fun_ctxt) @ ind_ctxt in
+  let fun_ctxt = (abstract_assums ind_rels fun_ctxt) @ ind_ctxt in
   let fun_type = smash_prod_assum fun_ctxt (lift_rels ~skip:nb k fun_type) in
   let fun_ctxt = Termops.lift_rel_context 1 fun_ctxt in
   let fun_term = smash_lam_assum fun_ctxt (lift_rels ~skip:nb k fun_term) in
