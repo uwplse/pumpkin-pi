@@ -78,14 +78,6 @@ Section Append.
   Defined.
   Lift list vector in @is_app_len as is_appV_len.
 
-  Lemma app_is_app (A : Type) (xs ys : list A) : is_app xs ys (app xs ys).
-  Proof.
-    induction xs; simpl; constructor; assumption.
-  Defined.
-  Desugar app_is_app as app_is_app'.
-  (* This somehow fails in ornamental lifting: *)
-  Fail Lift list vector in app_is_app' as appV_is_appV.
-
   Lemma is_app_tl (A : Type) (xs ys zs : list A) :
     is_app xs ys zs ->
     is_app (tl A xs) ys (match xs with cons _ _ => (tl A zs) | nil => zs end).
