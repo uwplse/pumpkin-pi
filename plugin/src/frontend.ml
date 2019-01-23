@@ -99,3 +99,16 @@ let desugar_definition n d =
   let term = intern env evm d |> unwrap_definition env in
   let evm, term', _ = desugar_term env evm term in
   ignore (define_term n evm term' false)
+
+(*
+ * Translate fix and match expressions into eliminations, as in
+ * desugar_definition, compositionally throughout a whole module.
+ *)
+let desugar_module n r =
+  let env = Global.env () in
+  let mod_path =
+    CAst.with_val Nametab.locate_module (Libnames.qualid_of_reference r)
+  in
+  let mod_body = Global.lookup_module mod_path in
+  (* TODO: The actual compositional translation *)
+  Printmod.print_module true mod_path |> Feedback.msg_info

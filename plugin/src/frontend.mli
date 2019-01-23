@@ -21,3 +21,9 @@ val lift_by_ornament : ?suffix:bool -> Id.t -> constr_expr -> constr_expr -> con
  * Mutual fix or cofix subterms are not supported.
  *)
 val desugar_definition : Id.t -> constr_expr -> unit
+
+(*
+ * Translate fix and match expressions into eliminations, as in
+ * desugar_definition, compositionally throughout a whole module.
+ *)
+val desugar_module : Id.t -> Libnames.reference -> unit

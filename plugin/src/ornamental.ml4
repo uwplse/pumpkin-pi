@@ -23,4 +23,6 @@ END
 VERNAC COMMAND EXTEND TranslateMatch CLASSIFIED AS SIDEFF
 | [ "Desugar" constr(d) "as" ident(n)] ->
   [ desugar_definition n d ]
+| [ "Desugar" "Module" reference(r) "as" ident(n)] ->
+  [ desugar_module n r ]
 END
