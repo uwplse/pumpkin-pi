@@ -33,7 +33,4 @@ val new_index_type : env -> types -> types -> int * types
  * Leave offsets to the client.
  *)
 val new_index_type_simple : env -> int -> inductive -> inductive -> (int * types) option
-                                                                                (*
- * Given an old and new application of a motive, find the new index.
- *)
-val get_new_index : int -> types -> types -> types -> types
+

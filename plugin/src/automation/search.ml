@@ -19,7 +19,6 @@ open Lifting
 open Declarations
 open Util
 open Differencing
-open Printing
 
 (* --- Finding the new index --- *)
 
@@ -69,9 +68,10 @@ let find_new_index npm o n =
  * in those situations, and otherwise just look for obvious indices by
  * comparing hypotheses.
  *)
-let false_lead env evd index_i p b_o b_n =
+let false_lead index_i p b_o b_n =
   let same_arity = (arity b_o = arity b_n) in
-  not same_arity && (computes_only_index env evd index_i p (mkRel 1) b_n)
+  let is_new_index = computes_ih_index index_i p (mkRel 1) b_n in
+  (not same_arity) && is_new_index
 
 (*
  * Get a single case for the indexer, given:
@@ -85,7 +85,6 @@ let false_lead env evd index_i p b_o b_n =
  * induction principles, and so should be very predictable.
  *)
 let index_case evd index_i p o n : types =
-  let get_index = get_new_index index_i in
   let rec diff_case p_i p subs o n =
     let (e_o, ind_o, trm_o) = o in
     let (e_n, ind_n, trm_n) = n in
@@ -94,10 +93,10 @@ let index_case evd index_i p o n : types =
        (* premises *)
        let p_b = shift p in
        let diff_b = diff_case (shift p_i) p_b in
-       let e_n_b = push_local (n_n, t_n) e_n in
+       let e_n_b = push_local (n_n, t_n) e_n in (* do I need both envs? *)
        let n_b = (e_n_b, shift ind_n, b_n) in
        let same = same_mod_indexing e_o p in
-       let is_false_lead = false_lead e_n_b evd index_i p_b b_o in
+       let is_false_lead = false_lead index_i p_b b_o in
        if (not (same (ind_o, t_o) (ind_n, t_n))) || (is_false_lead b_n) then
          (* index *)
          let e_o_b = push_local (n_n, t_n) e_o in
@@ -109,7 +108,7 @@ let index_case evd index_i p o n : types =
          let o_b = (e_o_b, shift ind_o, b_o) in
          if apply p t_o t_n then
            (* inductive hypothesis *)
-           let sub_index = (shift (get_index p t_o t_n), mkRel 1) in
+           let sub_index = (shift (get_arg index_i t_n), mkRel 1) in
            let subs_b = sub_index :: shift_subs subs in
            mkLambda (n_o, mkAppl (p_i, unfold_args t_o), diff_b subs_b o_b n_b)
          else
@@ -118,7 +117,7 @@ let index_case evd index_i p o n : types =
            mkLambda (n_o, t_o, diff_b subs_b o_b n_b)
     | (App (_, _), App (_, _)) ->
        (* conclusion *)
-       let index = get_index p trm_o trm_n in
+       let index = get_arg index_i trm_n in
        List.fold_right all_eq_substs subs index
     | _ ->
        failwith "unexpected case"
@@ -315,8 +314,8 @@ let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
        let same = same_mod_indexing env_o p (ind_o, t_o) (ind_n, t_n) in
        let env_o_b = push_local (n_o, t_o) env_o in
        let env_n_b = push_local (n_n, t_n) env_n in
-       let false_lead_f b_o b_n = false_lead env_n_b evd index_i p_b b_o b_n in
-       let false_lead_b b_o b_n = false_lead env_o_b evd index_i p_b b_n b_o in
+       let false_lead_f b_o b_n = false_lead index_i p_b b_o b_n in
+       let false_lead_b b_o b_n = false_lead index_i p_b b_n b_o in
        let is_false_lead = directional false_lead_f false_lead_b in
        if applies p t_n || (same && not (is_false_lead b_o b_n)) then
          let o_b = (env_o_b, shift ind_o, b_o) in
@@ -363,10 +362,10 @@ let orn_index_case evd index_i is_fwd indexer_f orn_p o n : types =
   let d_arity = arity_n - arity_o in
   let adjust p = stretch_motive index_i env_o (ind_o, p) (ind_n, p_n) in
   let p_o = map_if (fun p -> adjust (unshift_by d_arity p)) is_fwd orn_p in
-  let c_o = with_new_motive (shift_by d_arity p_o) c_o in
   let o = (env_o, ind_o, c_o) in
   let n = (env_n, ind_n, c_n) in
-  prod_to_lambda (sub_indexes evd index_i is_fwd indexer_f (mkRel 1) [] o n)
+  let subbed = sub_indexes evd index_i is_fwd indexer_f (mkRel 1) [] o n in
+  prod_to_lambda (with_new_motive (shift_by d_arity p_o) subbed)
 
 (* Get the cases for the ornamental promotion/forgetful function. *)
 let orn_index_cases evd index_i npm is_fwd indexer_f orn_p o n : types list =
