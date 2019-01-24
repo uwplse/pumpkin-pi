@@ -35,6 +35,7 @@ Section VectorTests.
 End VectorTests.
 
 (** Test a sample of List functions and proofs **)
+(* NOTE: Untranslated constants length, app, and List.* remain in many translated terms. *)
 Section ListTests.
 
   Desugar List.hd as actual_hd.
