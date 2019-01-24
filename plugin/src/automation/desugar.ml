@@ -171,6 +171,34 @@ let wrap_fixpoint fun_len ind_rels fun_ctxt =
   recompose_lam_assum fun_ctxt (mkApp (fix_head, fix_args))
 
 (*
+ * Reorder the fixed point's parameters to quantify the inductive type like an
+ * eliminator (i.e., indices in standard order followed by the inductive type).
+ * Also return the inductive family of recursion and a wrapper function, in
+ * which the wrapped function is the first free relative index.
+ *)
+let init_fixpoint env fix_pos fun_type fun_term =
+  let nb = fix_pos + 1 in
+  (* Open the (zeta-contracted) parameter context guarding recursion *)
+  let fun_ctxt, fun_type = decompose_prod_n_zeta nb fun_type in
+  let _, fun_term = decompose_lam_n_zeta nb fun_term in
+  (* Figure out what inductive type guards recursion and how it's quantified *)
+  let ind_name, ind_type = Rel.lookup 1 fun_ctxt |> pair rel_name rel_type in
+  let ind_fam, ind_rels = summarize_free_inductive nb ind_type in
+  (* Build a standard parameter context to quantify the inductive type *)
+  let ind_ctxt = build_inductive_context env ind_fam ind_name in
+  let k = Rel.length ind_ctxt in
+  (* Build a wrapper to convert from the original parameter order *)
+  let fix_wrap = wrap_fixpoint nb ind_rels fun_ctxt in
+  (* Prepend the standard parameter context, overriding shared parameters *)
+  let fun_ctxt = (abstract_assums ind_rels fun_ctxt) @ ind_ctxt in
+  let fun_type = smash_prod_assum fun_ctxt (lift_rels ~skip:nb k fun_type) in
+  let fun_ctxt = Termops.lift_rel_context 1 fun_ctxt in
+  let fun_term = smash_lam_assum fun_ctxt (lift_rels ~skip:nb k fun_term) in
+  (* Reorder arguments to fixed-point calls in the functional *)
+  let fun_term = Vars.subst1 fix_wrap (lift_rels ~skip:1 1 fun_term) in
+  ind_fam, fun_type, fun_term, fix_wrap
+
+(*
  * Build the minor premise for elimination at a constructor from the
  * corresponding fixed-point case.
  *
@@ -269,25 +297,9 @@ let configure_eliminator env evm ind_fam typ =
  * example, in some of the List module's proofs regarding the In predicate.)
  *)
 let eliminate_fixpoint env evm fix_pos fix_name fun_type fun_term =
-  let nb = fix_pos + 1 in
-  (* Open the (zeta-contracted) parameter context guarding recursion *)
-  let fun_ctxt, fun_type = decompose_prod_n_zeta nb fun_type in
-  let _, fun_term = decompose_lam_n_zeta nb fun_term in
-  (* Figure out what inductive type guards recursion and how it's quantified *)
-  let ind_name, ind_type = Rel.lookup 1 fun_ctxt |> pair rel_name rel_type in
-  let ind_fam, ind_rels = summarize_free_inductive nb ind_type in
-  (* Build a standard parameter context to quantify the inductive type *)
-  let ind_ctxt = build_inductive_context env ind_fam ind_name in
-  let k = Rel.length ind_ctxt in
-  (* Build a wrapper to convert from the original parameter order *)
-  let fix_wrap = wrap_fixpoint nb ind_rels fun_ctxt in
-  (* Prepend the standard parameter context, overriding shared parameters *)
-  let fun_ctxt = (abstract_assums ind_rels fun_ctxt) @ ind_ctxt in
-  let fun_type = smash_prod_assum fun_ctxt (lift_rels ~skip:nb k fun_type) in
-  let fun_ctxt = Termops.lift_rel_context 1 fun_ctxt in
-  let fun_term = smash_lam_assum fun_ctxt (lift_rels ~skip:nb k fun_term) in
-  (* Reorder arguments to fixed-point calls in the functional *)
-  let fun_term = Vars.subst1 fix_wrap (lift_rels ~skip:1 1 fun_term) in
+  let ind_fam, fun_type, fun_term, fix_wrap =
+    init_fixpoint env fix_pos fun_type fun_term
+  in
   (* Build the elimination head (eliminator with parameters and motive) *)
   let elim_head = configure_eliminator env evm ind_fam fun_type in
   (* Build the minor premises *)
