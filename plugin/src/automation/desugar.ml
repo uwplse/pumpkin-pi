@@ -173,12 +173,12 @@ let wrap_fixpoint fun_len ind_rels fun_ctxt =
 (*
  * Reorder the fixed point's parameters to quantify the inductive type like an
  * eliminator (i.e., indices in standard order followed by the inductive type).
- * Also return the inductive family of recursion and a wrapper function, in
- * which the wrapped function is the first free relative index.
+ * Also return the inductive family structurally guarding recursion and a
+ * conversion function wrapping its first free relative index.
  *)
 let init_fixpoint env fix_pos fun_type fun_term =
-  let nb = fix_pos + 1 in
-  (* Open the (zeta-contracted) parameter context guarding recursion *)
+  let nb = fix_pos + 1 in (* number of parameter bindings guarding recursion *)
+  (* Pull off parameter bindings and reduce any interleaved local definitions *)
   let fun_ctxt, fun_type = decompose_prod_n_zeta nb fun_type in
   let _, fun_term = decompose_lam_n_zeta nb fun_term in
   (* Figure out what inductive type guards recursion and how it's quantified *)
