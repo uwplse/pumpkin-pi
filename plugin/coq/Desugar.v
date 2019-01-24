@@ -1,7 +1,9 @@
 Add LoadPath "coq".
 Require Import Ornamental.Ornaments.
 Require Import Test.
-Require Import List.
+Require List.
+
+Open Scope list_scope.
 
 (** Test a few hand-written functions on vector **)
 Section VectorTests.
@@ -35,31 +37,31 @@ End VectorTests.
 (** Test a sample of List functions and proofs **)
 Section ListTests.
 
-  Desugar hd as actual_hd.
+  Desugar List.hd as actual_hd.
   Definition expected_hd (A : Type) (default : A) (l : list A) : A :=
     list_rect (fun _ : list A => A) default
               (fun (x : A) (_ : list A) (_ : A) => x) l.
   Lemma test_hd : actual_hd = expected_hd. Proof. reflexivity. Qed.
 
-  Desugar hd_error as actual_hd_error.
+  Desugar List.hd_error as actual_hd_error.
   Definition expected_hd_error (A : Type) (l : list A) : option A :=
     list_rect (fun _ : list A => option A) None
               (fun (x : A) (_ : list A) (_ : option A) => Some x) l.
   Lemma test_hd_error : actual_hd_error = expected_hd_error. Proof. reflexivity. Qed.
 
-  Desugar tl as actual_tl.
+  Desugar List.tl as actual_tl.
   Definition expected_tl (A : Type) (l : list A) : list A :=
     list_rect (fun _ : list A => list A) nil (fun (_ : A) (m _ : list A) => m) l.
   Lemma test_tl : actual_tl = expected_tl. Proof. reflexivity. Qed.
 
-  Desugar In as actual_In.
+  Desugar List.In as actual_In.
   Definition expected_In (A : Type) (a : A) (l : list A) : Prop :=
     list_rect (fun _ : list A => A -> Prop) (fun _ : A => False)
               (fun (a0 : A) (_ : list A) (In : A -> Prop) (a1 : A) => a0 = a1 \/ In a1) l
               a.
   Lemma test_In : actual_In = expected_In. Proof. reflexivity. Qed.
 
-  Desugar nil_cons as actual_nil_cons.
+  Desugar List.nil_cons as actual_nil_cons.
   Definition expected_nil_cons (A : Type) (x : A) (l : list A) : nil <> (x :: l) :=
     fun (H : nil = (x :: l)) =>
       let H0 : False :=
@@ -72,7 +74,7 @@ Section ListTests.
       False_ind False H0.
   Lemma test_nil_cons : actual_nil_cons = expected_nil_cons. Proof. reflexivity. Qed.
 
-  Desugar destruct_list as actual_destruct_list.
+  Desugar List.destruct_list as actual_destruct_list.
   Definition expected_destruct_list (A : Type) (l : list A) : {x : A & {tl : list A | l = (x :: tl)%list}} + {l = nil} :=
     list_rect
       (fun l0 : list A =>
@@ -87,7 +89,7 @@ Section ListTests.
                           eq_refl))) l.
   Lemma test_destruct_list : actual_destruct_list = expected_destruct_list. Proof. reflexivity. Qed.
 
-  Desugar hd_error_tl_repr as actual_hd_error_tl_repr.
+  Desugar List.hd_error_tl_repr as actual_hd_error_tl_repr.
   Definition expected_hd_error_tl_repr (A : Type) (l : list A) :
     forall (a : A) (r : list A),
       List.hd_error l = Some a /\ List.tl l = r <-> l = (a :: r)
@@ -186,7 +188,7 @@ Section ListTests.
                 H0 eq_refl)) l.
   Lemma test_hd_error_tl_repr : actual_hd_error_tl_repr = expected_hd_error_tl_repr. Proof. reflexivity. Qed.
 
-  Desugar length_zero_iff_nil as actual_length_zero_iff_nil.
+  Desugar List.length_zero_iff_nil as actual_length_zero_iff_nil.
   Definition expected_length_zero_iff_nil (A : Type) (l : list A) : (length l = 0 -> l = nil) /\ (l = nil -> length l = 0) :=
     conj
       (list_ind (fun l0 : list A => length l0 = 0 -> l0 = nil)
@@ -208,27 +210,27 @@ Section ListTests.
       (fun H : l = nil => eq_ind_r (fun l0 : list A => length l0 = 0) (@eq_refl nat (length nil)) H).
   Lemma test_length_zero_iff_nil : actual_length_zero_iff_nil = expected_length_zero_iff_nil. Proof. reflexivity. Qed.
 
-  Desugar hd_error_nil as actual_hd_error_nil.
+  Desugar List.hd_error_nil as actual_hd_error_nil.
   Definition expected_hd_error_nil (A : Type) : List.hd_error (@nil A) = None :=
     eq_refl.
   Lemma test_hd_error_nil : actual_hd_error_nil = expected_hd_error_nil. Proof. reflexivity. Qed.
 
-  Desugar hd_error_cons as actual_hd_error_cons.
+  Desugar List.hd_error_cons as actual_hd_error_cons.
   Definition expected_hd_error_cons (A : Type) (l : list A) (x : A) : List.hd_error (x :: l) = Some x :=
     eq_refl.
   Lemma test_hd_error_cons : actual_hd_error_cons = expected_hd_error_cons. Proof. reflexivity. Qed.
 
-  Desugar in_eq as actual_in_eq.
+  Desugar List.in_eq as actual_in_eq.
   Definition expected_in_eq (A : Type) (a : A) (l : list A) : List.In a (a :: l) :=
     or_introl eq_refl.
   Lemma test_in_eq : actual_in_eq = expected_in_eq. Proof. reflexivity. Qed.
 
-  Desugar in_cons as actual_in_cons.
+  Desugar List.in_cons as actual_in_cons.
   Definition expected_in_cons (A : Type) (a b : A) (l : list A) (H : List.In b l) : List.In b (a :: l) :=
     or_intror H.
   Lemma test_in_cons : actual_in_cons = expected_in_cons. Proof. reflexivity. Qed.
 
-  Desugar not_in_cons as actual_not_in_cons.
+  Desugar List.not_in_cons as actual_not_in_cons.
   Definition expected_not_in_cons (A : Type) (x a : A) (l : list A) : ~ List.In x (a :: l) <-> x <> a /\ ~ List.In x l :=
     conj
       (fun H : ~ (a = x \/ List.In x l) =>
@@ -245,13 +247,13 @@ Section ListTests.
                         let H4 : False := H2 H3 in False_ind False H4) H0) H).
   Lemma test_not_in_cons : actual_not_in_cons = expected_not_in_cons. Proof. reflexivity. Qed.
 
-  Desugar in_nil as actual_in_nil.
+  Desugar List.in_nil as actual_in_nil.
   Definition expected_in_nil (A : Type) (a : A) : ~ List.In a nil :=
     fun (H : List.In a nil) =>
       let H0 : False := False_ind False H in H0.
   Lemma test_in_nil : actual_in_nil = expected_in_nil. Proof. reflexivity. Qed.
 
-  Desugar in_split as actual_in_split.
+  Desugar List.in_split as actual_in_split.
   Definition expected_in_split (A : Type) (x : A) (l : list A) : List.In x l -> exists l1 l2 : list A, l = (l1 ++ x :: l2) :=
     list_ind
       (fun l0 : list A =>
@@ -289,7 +291,7 @@ Section ListTests.
                              (f_equal (cons a) H2))) H1) e) H) l.
   Lemma test_in_split : actual_in_split = expected_in_split. Proof. reflexivity. Qed.
 
-  Desugar in_dec as actual_in_dec.
+  Desugar List.in_dec as actual_in_dec.
   Definition expected_in_dec (A : Type) (H : forall x y : A, {x = y} + {x <> y}) (a : A) (l : list A) : {List.In a l} + {~ List.In a l} :=
     list_rec (fun l0 : list A => {List.In a l0} + {~ List.In a l0})
              (right (List.in_nil (a:=a)))
@@ -311,7 +313,7 @@ Section ListTests.
                                       (fun Hc2 : List.In a l0 => n0 Hc2) H0)) IHl) s) l.
   Lemma test_in_dec : actual_in_dec = expected_in_dec. Proof. reflexivity. Qed.
 
-  Desugar app_cons_not_nil as actual_app_cons_not_nil.
+  Desugar List.app_cons_not_nil as actual_app_cons_not_nil.
   Definition expected_app_cons_not_nil (A : Type) (x : list A) : forall (y : list A) (a : A), nil <> (x ++ a :: y) :=
     list_ind
       (fun l : list A =>
@@ -336,12 +338,12 @@ Section ListTests.
          False_ind False H0) x.
   Lemma test_app_cons_not_nil : actual_app_cons_not_nil = expected_app_cons_not_nil. Proof. reflexivity. Qed.
 
-  Desugar app_nil_l as actual_app_nil_l.
+  Desugar List.app_nil_l as actual_app_nil_l.
   Definition expected_app_nil_l (A : Type) (l : list A) : nil ++ l = l :=
     eq_refl.
   Lemma test_app_nil_l : actual_app_nil_l = expected_app_nil_l. Proof. reflexivity. Qed.
 
-  Desugar app_nil_r as actual_app_nil_r.
+  Desugar List.app_nil_r as actual_app_nil_r.
   Definition expected_app_nil_r (A : Type) (l : list A) : (l ++ nil) = l :=
     list_ind (fun l0 : list A => (l0 ++ nil) = l0)
              (let H : A = A := eq_refl in (fun _ : A = A => eq_refl) H)
@@ -355,12 +357,12 @@ Section ListTests.
                        (f_equal (cons a) H4)) H1) H0) H) l.
   Lemma test_app_nil_r : actual_app_nil_r = expected_app_nil_r. Proof. reflexivity. Qed.
 
-  Desugar app_nil_end as actual_app_nil_end.
+  Desugar List.app_nil_end as actual_app_nil_end.
   Definition expected_app_nil_end (A : Type) (l : list A) : l = l ++ nil :=
     eq_sym (List.app_nil_r l).
   Lemma test_app_nil_end : actual_app_nil_end = expected_app_nil_end. Proof. reflexivity. Qed.
 
-  Desugar app_assoc as actual_app_assoc.
+  Desugar List.app_assoc as actual_app_assoc.
   Definition expected_app_assoc (A : Type) (l m n : list A) : l ++ m ++ n = (l ++ m) ++ n :=
     list_ind (fun l0 : list A => (l0 ++ m ++ n) = ((l0 ++ m) ++ n))
              (let H : n = n := eq_refl in
@@ -379,17 +381,17 @@ Section ListTests.
                        (f_equal (cons a) H4)) H1) H0) H) l.
   Lemma test_app_assoc : actual_app_assoc = expected_app_assoc. Proof. reflexivity. Qed.
 
-  Desugar app_assoc_reverse as actual_app_assoc_reverse.
+  Desugar List.app_assoc_reverse as actual_app_assoc_reverse.
   Definition expected_app_assoc_reverse (A : Type) (l m n : list A) : ((l ++ m) ++ n) = (l ++ m ++ n) :=
     eq_sym (List.app_assoc l m n).
   Lemma test_app_assoc_reverse : actual_app_assoc_reverse = expected_app_assoc_reverse. Proof. reflexivity. Qed.
 
-  Desugar app_comm_cons as actual_app_comm_cons.
+  Desugar List.app_comm_cons as actual_app_comm_cons.
   Definition expected_app_comm_cons (A : Type) (x y : list A) (a : A) : a :: x ++ y = (a :: x) ++ y :=
     eq_refl.
   Lemma test_app_comm_cons : actual_app_comm_cons = expected_app_comm_cons. Proof. reflexivity. Qed.
 
-  Desugar app_eq_nil as actual_app_eq_nil.
+  Desugar List.app_eq_nil as actual_app_eq_nil.
   Definition expected_app_eq_nil (A : Type) (l : list A) : forall (l' : list A), l ++ l' = nil -> l = nil /\ l' = nil :=
     list_ind
       (fun l0 : list A =>
@@ -426,7 +428,7 @@ Section ListTests.
               False_ind ((x :: l0) = nil /\ (y :: l'0) = nil) H0) l') l.
   Lemma test_app_eq_nil : actual_app_eq_nil = expected_app_eq_nil. Proof. reflexivity. Qed.
 
-  Desugar app_eq_unit as actual_app_eq_unit.
+  Desugar List.app_eq_unit as actual_app_eq_unit.
   Definition expected_app_eq_unit (A : Type) (x : list A) :
     forall (y : list A) (a : A),
       x ++ y = a :: nil -> x = nil /\ y = a :: nil \/ x = a :: nil /\ y = nil
@@ -510,7 +512,7 @@ Section ListTests.
                   H0) y) x.
   Lemma test_app_eq_unit : actual_app_eq_unit = expected_app_eq_unit. Proof. reflexivity. Qed.
 
-  Desugar app_length as actual_app_length.
+  Desugar List.app_length as actual_app_length.
   Definition expected_app_length (A : Type) (l : list A) : forall (l' : list A), length (l ++ l') = length l + length l' :=
     list_ind
       (fun l0 : list A =>
@@ -522,7 +524,7 @@ Section ListTests.
          f_equal_nat nat S (length (l0 ++ l')) (length l0 + length l') (IHl l')) l.
   Lemma test_app_length : actual_app_length = expected_app_length. Proof. reflexivity. Qed.
 
-  Desugar in_app_or as actual_in_app_or.
+  Desugar List.in_app_or as actual_in_app_or.
   Definition expected_in_app_or (A : Type) (l m : list A) (a : A) : List.In a (l ++ m) -> List.In a l \/ List.In a m :=
     list_ind
       (fun l0 : list A => List.In a (l0 ++ m) -> List.In a l0 \/ List.In a m)
@@ -536,7 +538,7 @@ Section ListTests.
                           (fun H2 : List.In a m => or_intror H2) (H H1)) H0) l.
   Lemma test_in_app_or : actual_in_app_or = expected_in_app_or. Proof. reflexivity. Qed.
 
-  Desugar in_or_app as actual_in_or_app.
+  Desugar List.in_or_app as actual_in_or_app.
   Definition expected_in_or_app (A : Type) (l m : list A) (a : A) : List.In a l \/ List.In a m -> List.In a (l ++ m) :=
     list_ind
       (fun l0 : list A => List.In a l0 \/ List.In a m -> List.In a (l0 ++ m))
@@ -553,13 +555,13 @@ Section ListTests.
            (fun H2 : List.In a m => or_intror (H0 (or_intror H2))) H1) l.
   Lemma test_in_or_app : actual_in_or_app = expected_in_or_app. Proof. reflexivity. Qed.
 
-  Desugar in_app_iff as actual_in_app_iff.
+  Desugar List.in_app_iff as actual_in_app_iff.
   Definition expected_in_app_iff (A : Type) (l l' : list A) (a : A) : List.In a (l ++ l') <-> List.In a l \/ List.In a l' :=
     conj (fun H : List.In a (l ++ l') => List.in_app_or l l' a H)
          (fun H : List.In a l \/ List.In a l' => List.in_or_app l l' a H).
   Lemma test_in_app_iff : actual_in_app_iff = expected_in_app_iff. Proof. reflexivity. Qed.
 
-  Desugar app_inv_head as actual_app_inv_head.
+  Desugar List.app_inv_head as actual_app_inv_head.
   Definition expected_app_inv_head (A : Type) (l : list A) : forall (l1 l2 : list A), (l ++ l1) = (l ++ l2) -> l1 = l2 :=
     list_ind
       (fun l0 : list A =>
@@ -582,7 +584,7 @@ Section ListTests.
          (fun H1 : (l0 ++ l1) = (l0 ++ l2) => IHl l1 l2 H1) H0) l.
   Lemma test_app_inv_head : actual_app_inv_head = expected_app_inv_head. Proof. reflexivity. Qed.
 
-  Desugar app_inv_tail as actual_app_inv_tail.
+  Desugar List.app_inv_tail as actual_app_inv_tail.
   Definition expected_app_inv_tail (A : Type) (l l1 l2 : list A) : (l1 ++ l) = (l2 ++ l) -> l1 = l2 :=
     (fun l3 : list A =>
        list_ind
@@ -657,7 +659,7 @@ Section ListTests.
                     H1) H0) l5) l3) l1 l2 l.
   Lemma test_app_inv_tail : actual_app_inv_tail = expected_app_inv_tail. Proof. reflexivity. Qed.
 
-  Desugar nth as actual_nth.
+  Desugar List.nth as actual_nth.
   Definition expected_nth (A : Type) (n : nat) (l : list A) : A -> A :=
     list_rect (fun _ : list A => nat -> A -> A)
               (fun (n0 : nat) (default : A) =>
@@ -667,7 +669,7 @@ Section ListTests.
               l n.
   Lemma test_actual_nth : actual_nth = expected_nth. Proof. reflexivity. Qed.
 
-  Desugar nth_ok as actual_nth_ok.
+  Desugar List.nth_ok as actual_nth_ok.
   Definition expected_nth_ok (A : Type) (n : nat) (l : list A) : A -> bool :=
     list_rect (fun _ : list A => nat -> A -> bool)
               (fun (n0 : nat) (_ : A) =>
@@ -678,7 +680,7 @@ Section ListTests.
                          (fun (m : nat) (_ : bool) => nth_ok m default) n0) l n.
   Lemma test_nth_ok : actual_nth_ok = expected_nth_ok. Proof. reflexivity. Qed.
 
-  Desugar nth_in_or_default as actual_nth_in_or_default.
+  Desugar List.nth_in_or_default as actual_nth_in_or_default.
   Definition expected_nth_in_or_default (A : Type) (n : nat) (l : list A) (d : A) : {List.In (List.nth n l d) l} + {List.nth n l d = d} :=
     list_rec
       (fun l0 : list A =>
@@ -707,14 +709,14 @@ Section ListTests.
                 (fun e : List.nth n1 l0 d = d => right e) s) n0) l n.
   Lemma test_nth_in_or_default : actual_nth_in_or_default = expected_nth_in_or_default. Proof. reflexivity. Qed.
 
-  Desugar nth_S_cons as actual_nth_S_cons.
+  Desugar List.nth_S_cons as actual_nth_S_cons.
   Definition expected_nth_S_cons (A : Type) (n : nat) (l : list A) (d a : A) (H : List.In (List.nth n l d) l) :
     List.In (List.nth (S n) (a :: l) d) (a :: l)
     :=
       or_intror H.
   Lemma test_nth_S_cons : actual_nth_S_cons = expected_nth_S_cons. Proof. reflexivity. Qed.
 
-  Desugar nth_error as actual_nth_error.
+  Desugar List.nth_error as actual_nth_error.
   Definition expected_nth_error (A : Type) (l : list A) (n : nat) : option A :=
     nat_rect (fun _ : nat => list A -> option A)
              (fun l0 : list A =>
@@ -725,12 +727,12 @@ Section ListTests.
                           (fun (_ : A) (l1 : list A) (_ : option A) => nth_error l1) l0) n l.
   Lemma test_nth_error : actual_nth_error = expected_nth_error. Proof. reflexivity. Qed.
 
-  Desugar nth_default as actual_nth_default.
+  Desugar List.nth_default as actual_nth_default.
   Definition expected_nth_default (A : Type) (default : A) (l : list A) (n : nat) : A :=
     option_rect (fun _ : option A => A) (fun x : A => x) default (List.nth_error l n).
   Lemma test_nth_default : actual_nth_default = expected_nth_default. Proof. reflexivity. Qed.
 
-  Desugar nth_default_eq as actual_nth_default_eq.
+  Desugar List.nth_default_eq as actual_nth_default_eq.
   Definition expected_nth_default_eq (A : Type) (n : nat) :
     forall (l : list A) (d : A), List.nth_default d l n = List.nth n l d
     :=
@@ -768,7 +770,7 @@ Section ListTests.
                   (d : A) => IHn l0 d) l) n.
   Lemma test_nth_default_eq : actual_nth_default_eq = expected_nth_default_eq. Proof. reflexivity. Qed.
 
-  Desugar nth_overflow as actual_nth_overflow.
+  Desugar List.nth_overflow as actual_nth_overflow.
   Definition expected_nth_overflow (A : Type) (l : list A) :
     forall (n : nat) (d : A), length l <= n -> List.nth n l d = d
     :=
@@ -816,7 +818,7 @@ Section ListTests.
                 IHl n0 d (Gt.gt_S_le (length l0) n0 H)) n) l.
   Lemma test_nth_overflow : actual_nth_overflow = expected_nth_overflow. Proof. reflexivity. Qed.
 
-  Desugar nth_indep as actual_nth_indep.
+  Desugar List.nth_indep as actual_nth_indep.
   Definition expected_nth_indep (A : Type) (l : list A) :
     forall (n : nat) (d d' : A), n < length l -> List.nth n l d = List.nth n l d'
     :=
@@ -871,7 +873,7 @@ Section ListTests.
         l.
   Lemma test_nth_indep : actual_nth_indep = expected_nth_indep. Proof. reflexivity. Qed.
 
-  Desugar app_nth1 as actual_app_nth1.
+  Desugar List.app_nth1 as actual_app_nth1.
   Definition expected_app_nth1 (A : Type) (l : list A) :
     forall (l' : list A) (d : A) (n : nat),
       n < length l -> List.nth n (l ++ l') d = List.nth n l d
@@ -925,7 +927,7 @@ Section ListTests.
         l.
   Lemma test_app_nth1 : actual_app_nth1 = expected_app_nth1. Proof. reflexivity. Qed.
 
-  Desugar app_nth2 as actual_app_nth2.
+  Desugar List.app_nth2 as actual_app_nth2.
   Definition expected_app_nth2 (A : Type) (l : list A) :
     forall (l' : list A) (d : A) (n : nat),
       n >= length l -> List.nth n (l ++ l') d = List.nth (n - length l) l' d
@@ -997,7 +999,7 @@ Section ListTests.
                          (IHl l' d n (Gt.gt_S_le (length l0) n H))) n0) l.
   Lemma test_app_nth2 : actual_app_nth2 = expected_app_nth2. Proof. reflexivity. Qed.
 
-  Desugar nth_split as actual_nth_split.
+  Desugar List.nth_split as actual_nth_split.
   Definition expected_nth_split (A : Type) (n : nat) (l : list A) (d : A) :
     n < length l -> exists l1 l2 : list A, l = (l1 ++ List.nth n l d :: l2) /\ length l1 = n
     :=
@@ -1171,7 +1173,7 @@ Section ListTests.
         n l.
   Lemma test_nth_split : actual_nth_split = expected_nth_split. Proof. reflexivity. Qed.
 
-  Desugar nth_error_In as actual_nth_error_In.
+  Desugar List.nth_error_In as actual_nth_error_In.
   Definition expected_nth_error_In (A : Type) (l : list A) (n : nat) (x : A) : List.nth_error l n = Some x -> List.In x l :=
     list_ind
       (fun l0 : list A =>
@@ -1222,7 +1224,7 @@ Section ListTests.
                 (H : List.nth_error l0 n1 = Some x) => or_intror (IH n1 H)) n0) l n.
   Lemma test_nth_error_In : actual_nth_error_In = expected_nth_error_In. Proof. reflexivity. Qed.
 
-  Desugar nth_error_None as actual_nth_error_None.
+  Desugar List.nth_error_None as actual_nth_error_None.
   Definition expected_nth_error_None (A : Type) (l : list A) (n : nat) : List.nth_error l n = None <-> length l <= n :=
     list_ind
       (fun l0 : list A =>
@@ -1293,7 +1295,7 @@ Section ListTests.
            n0) l n.
   Lemma test_nth_error_None : actual_nth_error_None = expected_nth_error_None. Proof. reflexivity. Qed.
 
-  Desugar nth_error_Some as actual_nth_error_Some.
+  Desugar List.nth_error_Some as actual_nth_error_Some.
   Definition expected_nth_error_Some (A : Type) (l : list A) (n : nat) : List.nth_error l n <> None <-> n < length l :=
     list_ind
       (fun l0 : list A =>
@@ -1390,7 +1392,7 @@ Section ListTests.
       l n.
   Lemma test_nth_error_Some : actual_nth_error_Some = expected_nth_error_Some. Proof. reflexivity. Qed.
 
-  Desugar nth_error_split as actual_nth_error_split.
+  Desugar List.nth_error_split as actual_nth_error_split.
   Definition expected_nth_error_split (A : Type) (l : list A) (n : nat) (a : A) :
     List.nth_error l n = Some a -> exists l1 l2 : list A, l = (l1 ++ a :: l2) /\ length l1 = n
     :=
@@ -1521,7 +1523,7 @@ Section ListTests.
         n l.
   Lemma test_nth_error_split : actual_nth_error_split = expected_nth_error_split. Proof. reflexivity. Qed.
 
-  Desugar nth_error_app1 as actual_nth_error_app1.
+  Desugar List.nth_error_app1 as actual_nth_error_app1.
   Definition expected_nth_error_app1 (A : Type) (l l' : list A) (n : nat) :
     n < length l -> List.nth_error (l ++ l') n = List.nth_error l n
     :=
@@ -1622,7 +1624,7 @@ Section ListTests.
              l0) n l.
   Lemma test_nth_error_app1 : actual_nth_error_app1 = expected_nth_error_app1. Proof. reflexivity. Qed.
 
-  Desugar nth_error_app2 as actual_nth_error_app2.
+  Desugar List.nth_error_app2 as actual_nth_error_app2.
   Definition expected_nth_error_app2 (A : Type) (l l' : list A) (n : nat) :
     length l <= n -> List.nth_error (l ++ l') n = List.nth_error l' (n - length l)
     :=
@@ -1694,7 +1696,7 @@ Section ListTests.
                 IHn l1 (Gt.gt_S_le (length l1) n0 H)) l0) n l.
   Lemma test_nth_error_app2 : actual_nth_error_app2 = expected_nth_error_app2. Proof. reflexivity. Qed.
 
-  Desugar remove as actual_remove.
+  Desugar List.remove as actual_remove.
   Definition expected_remove (A : Type) (eq_dec : forall x y : A, {x = y} + {x <> y}) (x : A) (l : list A) : list A :=
     list_rect (fun _ : list A => A -> list A) (fun _ : A => nil)
               (fun (r : A) (_ : list A) (remove : A -> list A) (x0 : A) =>
@@ -1703,7 +1705,7 @@ Section ListTests.
                               (eq_dec x0 r)) l x.
   Lemma test_remove : actual_remove = expected_remove. Proof. reflexivity. Qed.
 
-  Desugar last as actual_last.
+  Desugar List.last as actual_last.
   Definition expected_last (A : Type) (l : list A) : A -> A :=
     list_rect (fun _ : list A => A -> A) (fun d : A => d)
               (fun (a : A) (l0 : list A) (last : A -> A) (d : A) =>
@@ -1711,7 +1713,7 @@ Section ListTests.
                            (fun (_ : A) (_ : list A) (_ : A) => last d) l0) l.
   Lemma test_last : actual_last = expected_last. Proof. reflexivity. Qed.
 
-  Desugar removelast as actual_removelast.
+  Desugar List.removelast as actual_removelast.
   Definition expected_removelast (A : Type) (l : list A) : list A :=
     list_rect (fun _ : list A => list A) nil
               (fun (a : A) (l0 removelast : list A) =>
@@ -1719,7 +1721,7 @@ Section ListTests.
                            (fun (_ : A) (_ _ : list A) => (a :: removelast)) l0) l.
   Lemma test_removelast : actual_removelast = expected_removelast. Proof. reflexivity. Qed.
 
-  Desugar app_removelast_last as actual_app_removelast_last.
+  Desugar List.app_removelast_last as actual_app_removelast_last.
   Definition expected_app_removelast_last (A : Type) (l : list A) :
     forall (d : A), l <> nil -> l = (List.removelast l ++ List.last l d :: nil)
     :=
@@ -1773,7 +1775,7 @@ Section ListTests.
                            False_ind False H0))) l0 IHl) l.
   Lemma test_app_removelast_last : actual_app_removelast_last = expected_app_removelast_last. Proof. reflexivity. Qed.
 
-  Desugar exists_last as actual_exists_last.
+  Desugar List.exists_last as actual_exists_last.
   Definition expected_exists_last (A : Type) (l : list A) : l <> nil -> {l' : list A & {a : A | l = (l' ++ a :: nil)}} :=
     list_rect
       (fun l0 : list A =>
