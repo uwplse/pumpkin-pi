@@ -7,6 +7,7 @@ open Constr
 open Inductiveops
 open CErrors
 open Coqterms
+open Abstraction
 
 (*
  * Pair the outputs of two functions on the same input.
