@@ -14,6 +14,8 @@ open Declarations
 open Decl_kinds
 open Constrextern
 
+module Constmap = Names.Cmap
+
 module CRD = Context.Rel.Declaration
 
 (* --- Constants --- *)
@@ -97,12 +99,13 @@ let edeclare ident (_, poly, _ as k) ~opaque sigma udecl body tyopt imps hook re
   DeclareDef.declare_definition ident k ce ubinders imps hook
 
 (* Define a new Coq term *)
-let define_term (n : Id.t) (evm : evar_map) (trm : types) (refresh : bool) =
+let define_term ?typ (n : Id.t) (evm : evar_map) (trm : types) (refresh : bool) =
   let k = (Global, Flags.is_universe_polymorphism(), Definition) in
   let udecl = Univdecls.default_univ_decl in
   let nohook = Lemmas.mk_hook (fun _ x -> x) in
   let etrm = EConstr.of_constr trm in
-  edeclare n k ~opaque:false evm udecl etrm None [] nohook refresh
+  let etyp = Option.map EConstr.of_constr typ in
+  edeclare n k ~opaque:false evm udecl etrm etyp [] nohook refresh
 
 (* Safely extract the body of a constant, instantiating any universe variables. *)
 let open_constant env const =
@@ -508,15 +511,20 @@ let lookup_pop (n : int) (env : env) =
   let rels = List.map (fun i -> lookup_rel i env) (from_one_to n) in
   (pop_rel_context n env, rels)
 
+let force_constant_body const_body =
+  match const_body.const_body with
+  | Def const_def ->
+    Mod_subst.force_constr const_def
+  | OpaqueDef opaq ->
+    Opaqueproof.force_proof (Global.opaque_tables ()) opaq
+  | _ ->
+    CErrors.user_err ~hdr:"force_constant_body"
+      (Pp.str "An axiom has no defining term")
+
 (* Lookup a definition *)
 let lookup_definition (env : env) (def : types) : types =
   match kind def with
-  | Const (c, u) ->
-     let c_body = (lookup_constant c env).const_body in
-     (match c_body with
-      | Def cs -> Mod_subst.force_constr cs
-      | OpaqueDef o -> Opaqueproof.force_proof (Global.opaque_tables ()) o
-      | _ -> failwith "an axiom has no definition")
+  | Const (c, u) -> force_constant_body (lookup_constant c env)
   | Ind _ -> def
   | _ -> failwith "not a definition"
 

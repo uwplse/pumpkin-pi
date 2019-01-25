@@ -12,6 +12,8 @@ open Declarations
 open Globnames
 open Decl_kinds
 
+module Constmap = Names.Cmap
+
 module CRD = Context.Rel.Declaration
 
 (* --- Constants --- *)
@@ -58,7 +60,7 @@ val edeclare :
  * Refresh universes if the bool is true, otherwise don't
  * (Refreshing universes is REALLY costly)
  *)
-val define_term : Id.t -> evar_map -> types -> bool -> global_reference
+val define_term : ?typ:types -> Id.t -> evar_map -> types -> bool -> global_reference
 
 (*
  * Safely extract the body of a constant, instantiating any universe variables.
@@ -330,6 +332,7 @@ val map_named_context : env -> (env -> Named.Declaration.t -> 'a) -> Named.t -> 
  * Lookup from an environment
  *)
 val lookup_pop : int -> env -> (env * CRD.t list)
+val force_constant_body : constant_body -> constr
 val lookup_definition : env -> types -> types
 val unwrap_definition : env -> types -> types
 
