@@ -328,11 +328,12 @@ let desugar_match env evm info pred discr cases =
   let elim_head = configure_eliminator env evm ind_fam typ in
   let premises =
     let fix_env = Environ.push_rel (rel_assum (Name.Anonymous, typ)) env in
-    let build_premise cons_narg cons_case =
-      lift_rel cons_case |> decompose_lam_n_assum cons_narg |>
+    let cases = Array.map lift_rel cases in
+    let build_premise cons_case cons_sum =
+      lift_constructor 1 cons_sum |> expand_case fix_env !evm cons_case |>
       premise_of_case fix_env ind_fam |> drop_rel
     in
-    Array.map2 build_premise info.ci_cstr_nargs cases
+    get_constructors fix_env ind_fam |> Array.map2 build_premise cases
   in
   mkApp (elim_head, Array.concat [premises; indices; [|discr|]])
 
@@ -341,9 +342,9 @@ let desugar_match env evm info pred discr cases =
  * reduction behavior) version using eliminators instead of match or fix
  * expressions.
  *
- * Mutual recursion and co-recursion are not supported.
+ * Mutual recursion, co-recursion, and universe polymorphism are not supported.
  *)
-let desugar_term env evm term =
+let desugar_term env evm subst term =
   let evm = ref evm in
   let rec aux env term =
     match Constr.kind term with
@@ -368,6 +369,14 @@ let desugar_term env evm term =
       user_err ~hdr:"desugar" (Pp.str "co-recursion not supported")
     | Case (info, pred, discr, cases) ->
       desugar_match env evm info pred discr cases |> aux env
+    | Const (const, univs) ->
+      begin
+        try
+          let const' = Constmap.find const subst in
+          assert (Univ.Instance.is_empty univs);
+          mkConst const' (* NOTE: Ignores any universe polymorphism *)
+        with Not_found -> term
+      end
     | _ ->
       Constr.map (aux env) term
   in

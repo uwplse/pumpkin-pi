@@ -1,5 +1,6 @@
 open Constr
 open Names
+open Declarations
 open Coqterms
 open Lifting
 open Caching
@@ -97,18 +98,58 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
 let desugar_definition n d =
   let (evm, env) = Pfedit.get_current_context () in
   let term = intern env evm d |> unwrap_definition env in
-  let evm, term', _ = desugar_term env evm term in
+  let evm, term', _ = desugar_term env evm Constmap.empty term in
   ignore (define_term n evm term' false)
+
+let desugar_constant subst ident const_body =
+  (* TODO: Call directly from singular Vernacular command *)
+  let evm, env = Pfedit.get_current_context () in
+  let term = force_constant_body const_body in
+  let evm', term', type' = desugar_term env evm subst term in
+  (* TODO: Preserve opacity and other associated properties *)
+  (* FIXME: Assertion failure in Declare under interactive module context *)
+  ignore (define_term ~typ:type' ident evm' term' true)
+
+let decompose_module_signature mod_sign =
+  let rec aux mod_arity mod_sign =
+    match mod_sign with
+    | MoreFunctor (mod_name, mod_type, mod_sign) ->
+      aux ((mod_name, mod_type) :: mod_arity) mod_sign
+    | NoFunctor mod_fields ->
+      mod_arity, mod_fields
+  in
+  aux [] mod_sign
 
 (*
  * Translate fix and match expressions into eliminations, as in
  * desugar_definition, compositionally throughout a whole module.
  *)
-let desugar_module n r =
-  let env = Global.env () in
+let desugar_module mod_name mod_ref =
   let mod_path =
-    CAst.with_val Nametab.locate_module (Libnames.qualid_of_reference r)
+    Libnames.qualid_of_reference mod_ref |> CAst.with_val Nametab.locate_module
   in
   let mod_body = Global.lookup_module mod_path in
-  (* TODO: The actual compositional translation *)
-  Printmod.print_module true mod_path |> Feedback.msg_info
+  let mod_arity, mod_fields = decompose_module_signature mod_body.mod_type in
+  (* FIXME: Currently defining translated constants without a wrapping module *)
+  (* let mod_path' = Global.start_module mod_name in *)
+  let mod_path' = Global.current_modpath () in
+  let cache_constant label subst =
+    let const = Constant.make2 mod_path label in
+    let const' = Constant.make2 mod_path' label in
+    Constmap.add const const' subst
+  in
+  ignore
+    begin
+      List.fold_left
+        (fun subst (label, body) ->
+           (* TODO: Axioms? Submodules? *)
+           match body with
+           | SFBconst const_body ->
+             desugar_constant subst (Label.to_id label) const_body;
+             cache_constant label subst
+           | _ -> subst
+        )
+        Constmap.empty
+        mod_fields
+    end
+  (* ignore (Global.end_module (Summary.freeze_summaries ~marshallable:`Shallow) mod_name None) *)
