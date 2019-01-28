@@ -1,6 +1,7 @@
 #!/bin/bash
 
 lifted=false
+desugared=false
 liftedind=false
 liftedcase=false
 
@@ -15,6 +16,13 @@ fi
 if coqc coq/Lift.v 
 then
   lifted=true
+else
+  :
+fi
+
+if coqc coq/Desugar.v
+then
+  desugared=true
 else
   :
 fi
@@ -61,6 +69,12 @@ else
   if [ !$lifted = true ]
   then
     echo "lifting"
+  else
+    :
+  fi
+  if [ !$desugared = true ]
+  then
+    echo "desugaring fix/match expressions"
   else
     :
   fi

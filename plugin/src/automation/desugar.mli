@@ -3,8 +3,10 @@ open Evd
 open Constr
 
 (*
- * Replace each match expression within the given term with a definitionally
- * equal application of an eliminator, returning an updated evar_map.
- * Fix and co-fix expressions are not supported and will fail.
+ * Translate the given term into an equivalent, bisimulative (i.e., homomorpic
+ * reduction behavior) version using eliminators instead of match or fix
+ * expressions.
+ *
+ * Mutual recursion and co-recursion are not supported.
  *)
-val desugar_matches : env -> evar_map -> types -> evar_map * types
+val desugar_term : env -> evar_map -> constr -> evar_map * constr * types

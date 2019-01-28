@@ -19,8 +19,8 @@ VERNAC COMMAND EXTEND LiftOrnament CLASSIFIED AS SIDEFF
   [ lift_by_ornament ~suffix:true n d_orn d_orn_inv d_old ]
 END
 
-(* Translate match expressions into eliminator applications *)
+(* Desugar any/all fix/match subterms into eliminator applications *)
 VERNAC COMMAND EXTEND TranslateMatch CLASSIFIED AS SIDEFF
-| [ "Translate" "matches" "in" constr(d) "as" ident(n)] ->
-  [ translate_matches n d ]
+| [ "Desugar" constr(d) "as" ident(n)] ->
+  [ desugar_definition n d ]
 END

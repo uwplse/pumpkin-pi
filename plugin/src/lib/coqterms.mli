@@ -254,6 +254,11 @@ val mk_n_rels : int -> types list
 val push_local : (name * types) -> env -> env
 val push_let_in : (name * types * types) -> env -> env
 
+(* Is the rel declaration a local assumption? *)
+val is_rel_assum : ('constr, 'types) Rel.Declaration.pt -> bool
+
+(* Is the rel declaration a local definition? *)
+val is_rel_defin : ('constr, 'types) Rel.Declaration.pt -> bool
 
 (*
  * Construct a rel declaration
@@ -272,6 +277,36 @@ val rel_type : ('constr, 'types) Rel.Declaration.pt -> 'types
  * Map over a rel context with environment kept in synch
  *)
 val map_rel_context : env -> (env -> Rel.Declaration.t -> 'a) -> Rel.t -> 'a list
+
+(*
+ * Bind all local declarations in the relative context onto the body term as
+ * products, substituting away (i.e., zeta-reducing) any local definitions.
+ *)
+val smash_prod_assum : Rel.t -> types -> types
+
+(*
+ * Bind all local declarations in the relative context onto the body term as
+ * lambdas, substituting away (i.e., zeta-reducing) any local definitions.
+ *)
+val smash_lam_assum : Rel.t -> constr -> constr
+
+(*
+ * Decompose the first n product bindings, zeta-reducing let bindings to reveal
+ * further product bindings when necessary.
+ *)
+val decompose_prod_n_zeta : int -> types -> Rel.t * types
+
+(*
+ * Decompose the first n lambda bindings, zeta-reducing let bindings to reveal
+ * further lambda bindings when necessary.
+ *)
+val decompose_lam_n_zeta : int -> constr -> Rel.t * constr
+
+(* Is the named declaration an assumption? *)
+val is_named_assum : ('constr, 'types) Named.Declaration.pt -> bool
+
+(* Is the named declaration a definition? *)
+val is_named_defin : ('constr, 'types) Named.Declaration.pt -> bool
 
 (*
  * Construct a named declaration
@@ -357,6 +392,17 @@ val apply : types -> types -> types -> bool
 val is_or_applies : types  -> types -> bool
 val are_or_apply : types -> types -> types -> bool
 
+(* Is the first term equal to a "head" (application prefix) of the second?
+ * The notion of term equality is syntactic, by default modulo alpha, casts,
+ * application grouping, and universes. The result of this function is an
+ * informative boolean: an optional array, with None meaning false and Some
+ * meaning true and giving the trailing arguments.
+ *
+ * This function is similar to is_or_applies, except for term equality and the
+ * informative boolean result.
+ *)
+val eq_constr_head : ?eq_constr:(constr -> constr -> bool) -> constr -> constr -> constr array option
+
 (* --- Convertibility, reduction, and types --- *)
 
 (*
@@ -366,6 +412,15 @@ val are_or_apply : types -> types -> types -> bool
  * conservative failure of the plugin
  *)
 val infer_type : env -> evar_map -> types -> types
+
+(* Safely infer the WHNF type of a term, updating the evar map. *)
+val e_infer_type : env -> evar_map ref -> constr -> constr
+
+(* Safely infer the sort of a term, updating the evar map. *)
+val e_infer_sort : env -> evar_map ref -> constr -> Sorts.family
+
+(* Safely instantiate a global reference, updating the evar map. *)
+val e_new_global : evar_map ref -> global_reference -> constr
 
 (*
  * Convertibility, ignoring universe constraints

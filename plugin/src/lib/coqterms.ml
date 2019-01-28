@@ -282,6 +282,19 @@ let project_value (app : sigT_app) trm =
 let infer_type (env : env) (evd : evar_map) (trm : types) : types =
   EConstr.to_constr evd (Typing.unsafe_type_of env evd (EConstr.of_constr trm))
 
+(* Safely infer the WHNF type of a term, updating the evar map *)
+let e_infer_type env evm term =
+  EConstr.of_constr term |> Typing.e_type_of ~refresh:true env evm |>
+  Reductionops.whd_all env !evm |> EConstr.to_constr !evm
+
+(* Safely infer the sort of a type, updating the evar map *)
+let e_infer_sort env evm term =
+  EConstr.of_constr term |> Typing.e_sort_of env evm |> Sorts.family
+
+(* Safely instantiate a global reference, with proper universe handling *)
+let e_new_global evm gref =
+  Evarutil.e_new_global evm gref |> EConstr.to_constr !evm
+
 (* Check whether two terms are convertible, ignoring universe inconsistency *)
 let conv_ignoring_univ_inconsistency env evm (trm1 : types) (trm2 : types) : bool =
   let etrm1 = EConstr.of_constr trm1 in
@@ -354,6 +367,12 @@ let push_local (n, t) = push_rel CRD.(LocalAssum (n, t))
 (* Push a let-in definition to an environment *)
 let push_let_in (n, e, t) = push_rel CRD.(LocalDef(n, e, t))
 
+(* Is the rel declaration a local assumption? *)
+let is_rel_assum = Rel.Declaration.is_local_assum
+
+(* Is the rel declaration a local definition? *)
+let is_rel_defin = Rel.Declaration.is_local_def
+
 (* Make the rel declaration for a local assumption *)
 let rel_assum (name, typ) =
   Rel.Declaration.LocalAssum (name, typ)
@@ -382,6 +401,78 @@ let map_rel_context env make ctxt =
     ctxt
     ~init:(env, []) |>
   snd
+
+(*
+ * Bind all local declarations in the relative context onto the body term as
+ * products, substituting away (i.e., zeta-reducing) any local definitions.
+ *)
+let smash_prod_assum ctxt body =
+  Rel.fold_inside
+    (fun body decl ->
+       match rel_value decl with
+       | Some defn -> Vars.subst1 defn body
+       | None -> mkProd (rel_name decl, rel_type decl, body))
+    ~init:body
+    ctxt
+
+(*
+ * Bind all local declarations in the relative context onto the body term as
+ * lambdas, substituting away (i.e., zeta-reducing) any local definitions.
+ *)
+let smash_lam_assum ctxt body =
+  Rel.fold_inside
+    (fun body decl ->
+       match rel_value decl with
+       | Some defn -> Vars.subst1 defn body
+       | None -> mkLambda (rel_name decl, rel_type decl, body))
+    ~init:body
+    ctxt
+
+(*
+ * Decompose the first n product bindings, zeta-reducing let bindings to reveal
+ * further product bindings when necessary.
+ *)
+let decompose_prod_n_zeta n term =
+  assert (n >= 0);
+  let rec aux n ctxt body =
+    if n > 0 then
+      match Constr.kind body with
+      | Prod (name, param, body) ->
+        aux (n - 1) (Rel.add (rel_assum (name, param)) ctxt) body
+      | LetIn (name, def_term, def_type, body) ->
+        aux n ctxt (Vars.subst1 def_term body)
+      | _ ->
+        invalid_arg "decompose_prod_n_zeta: not enough products"
+    else
+      ctxt, body
+  in
+  aux n Rel.empty term
+
+(*
+ * Decompose the first n lambda bindings, zeta-reducing let bindings to reveal
+ * further lambda bindings when necessary.
+ *)
+let decompose_lam_n_zeta n term =
+  assert (n >= 0);
+  let rec aux n ctxt body =
+    if n > 0 then
+      match Constr.kind body with
+      | Lambda (name, param, body) ->
+        aux (n - 1) (Rel.add (rel_assum (name, param)) ctxt) body
+      | LetIn (name, def_term, def_type, body) ->
+        Vars.subst1 def_term body |> aux n ctxt
+      | _ ->
+        invalid_arg "decompose_lam_n_zeta: not enough lambdas"
+    else
+      ctxt, body
+  in
+  aux n Rel.empty term
+
+(* Is the named declaration an assumption? *)
+let is_named_assum = Named.Declaration.is_local_assum
+
+(* Is the named declaration a definition? *)
+let is_named_defin = Named.Declaration.is_local_def
 
 (* Make the named declaration for a local assumption *)
 let named_assum (id, typ) =
@@ -519,6 +610,23 @@ let applies (f : types) (trm : types) =
 (* Check whether trm is trm' or applies trm', using equal *)
 let is_or_applies (trm' : types) (trm : types) : bool =
   applies trm' trm || equal trm' trm
+
+(* Is the first term equal to a "head" (application prefix) of the second?
+ * The notion of term equality is syntactic (i.e., no environment) and defaults
+ * to syntactic equality modulo alpha, casts, grouping, and universes. The
+ * result of this function is an informative boolean: an optional array, with
+ * None meaning false and Some meaning true and giving the trailing arguments.
+ *
+ * This function is similar to is_or_applies, except for term equality and the
+ * informative boolean result.
+ *)
+let eq_constr_head ?(eq_constr=eq_constr_nounivs) term term' =
+  let head, args = decompose_app term in
+  let head', args' = decompose_app term' in
+  if eq_constr head head' && List.prefix_of eq_constr args args' then
+    Some (List.skipn (List.length args) args' |> Array.of_list)
+  else
+    None
 
 (* Versions over two terms *)
 let are_or_apply (trm : types) = and_p (is_or_applies trm)
