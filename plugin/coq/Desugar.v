@@ -1846,4 +1846,18 @@ Section ListTests.
            IHl) l.
   Lemma test_exists_last : actual_exists_last = expected_exists_last. Proof. reflexivity. Qed.
 
+  Desugar List.list_power as actual_list_power.
+  Definition expected_list_power (A B : Type) (l : list A) : list B -> list (list (A * B)) :=
+    list_rect
+      (fun _ : list A => forall B0 : Type, list B0 -> list (list (A * B0)))
+      (fun (B0 : Type) (_ : list B0) => (nil :: nil)%list)
+      (fun (l0 : A) (_ : list A)
+           (list_power : forall B0 : Type, list B0 -> list (list (A * B0)))
+           (B0 : Type) (l' : list B0) =>
+         List.flat_map
+           (fun f : list (A * B0) =>
+              List.map (fun y : B0 => ((l0, y) :: f)%list) l')
+           (list_power B0 l')) l B.
+  Lemma test_list_power : actual_list_power = expected_list_power. Proof. reflexivity. Qed.
+
 End ListTests.
