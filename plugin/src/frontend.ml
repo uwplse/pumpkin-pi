@@ -145,11 +145,20 @@ let desugar_module mod_name mod_ref =
            (* TODO: Axioms? Submodules? *)
            match body with
            | SFBconst const_body ->
-             desugar_constant subst (Label.to_id label) const_body;
-             cache_constant label subst
-           | _ -> subst
-        )
+             begin
+               try
+                 desugar_constant subst (Label.to_id label) const_body;
+                 cache_constant label subst
+               with exn ->
+                 let env = Global.env () in
+                 let const = Constant.make2 mod_path label in
+                 Feedback.msg_debug
+                   (str "failed to translate " ++ Printer.pr_constant env const);
+                 Feedback.msg_debug (CErrors.print_no_report exn);
+                 subst
+             end
+           | _ -> subst)
         Constmap.empty
         mod_fields
     end
-  (* ignore (Global.end_module (Summary.freeze_summaries ~marshallable:`Shallow) mod_name None) *)
+(* ignore (Global.end_module (Summary.freeze_summaries ~marshallable:`Shallow) mod_name None) *)
