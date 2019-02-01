@@ -21,6 +21,7 @@ END
 
 (* Desugar any/all fix/match subterms into eliminator applications *)
 VERNAC COMMAND EXTEND TranslateMatch CLASSIFIED AS SIDEFF
+(* TODO: Use reference for the source constant *)
 | [ "Desugar" constr(d) "as" ident(n)] ->
   [ desugar_definition n d ]
 | [ "Desugar" "Module" reference(r) "as" ident(n)] ->
