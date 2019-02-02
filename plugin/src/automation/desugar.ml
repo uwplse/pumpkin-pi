@@ -47,9 +47,9 @@ let drop_rel ?(skip=0) = drop_rels ~skip:skip 1
  * accumulator (frels).
  *
  * Examples:
- * - free_rels 0 (Lambda (_, Rel 2, App (Rel 2, [Rel 1; Rel 4]))) = { 1, 2, 3 }
- * - free_rels 1 (Lambda (_, Rel 2, App (Rel 2, [Rel 1; Rel 4]))) = { 2, 3 }
- * - free_rels 2 (Lambda (_, Rel 2, App (Rel 2, [Rel 1; Rel 4]))) = { 3 }
+ * - free_rels 0 {} (Lambda(_, Rel 2, App(Rel 2, [Rel 1; Rel 4]))) = { 1, 2, 3 }
+ * - free_rels 1 {} (Lambda(_, Rel 2, App(Rel 2, [Rel 1; Rel 4]))) = { 2, 3 }
+ * - free_rels 2 {} (Lambda(_, Rel 2, App(Rel 2, [Rel 1; Rel 4]))) = { 3 }
  *)
 let rec free_rels nb frels term =
   match Constr.kind term with
