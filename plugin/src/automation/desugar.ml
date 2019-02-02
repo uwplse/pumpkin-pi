@@ -40,11 +40,16 @@ let drop_rel ?(skip=0) = drop_rels ~skip:skip 1
 
 (*
  * Gather the set of relative (de Bruijn) variables occurring in the term that
- * are free under nb levels of external relative binding.
+ * are free (i.e., not bound) under nb levels of external relative binding.
  *
  * Use free_rels 0 Int.Set.empty if you do not wish to filter out any free
  * relative variables below a certain binding level (nb) or supply the initial
  * accumulator (frels).
+ *
+ * Examples:
+ * - free_rels 0 (Lambda (_, Rel 2, App (Rel 2, [Rel 1; Rel 4]))) = { 1, 2, 3 }
+ * - free_rels 1 (Lambda (_, Rel 2, App (Rel 2, [Rel 1; Rel 4]))) = { 2, 3 }
+ * - free_rels 2 (Lambda (_, Rel 2, App (Rel 2, [Rel 1; Rel 4]))) = { 3 }
  *)
 let rec free_rels nb frels term =
   match Constr.kind term with
