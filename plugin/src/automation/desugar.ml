@@ -22,9 +22,9 @@ let lift_rels ?(skip=0) shift term =
   Vars.liftn shift (skip + 1) term
 
 (*
- * Same as lift_rels ~skip:0 1.
+ * Same as lift_rels ~skip:skip 1.
  *)
-let lift_rel = lift_rels 1
+let lift_rel ?(skip=0) = lift_rels ~skip:skip 1
 
 (*
  * Convenient wrapper around Vars.liftn (-shift) (skip + 1) term.
@@ -34,9 +34,29 @@ let drop_rels ?(skip=0) shift term =
   Vars.liftn (-shift) (skip + 1) term
 
 (*
- * Same as drop_rels ~skip:0 1.
+ * Same as drop_rels ~skip:skip 1.
  *)
-let drop_rel = drop_rels 1
+let drop_rel ?(skip=0) = drop_rels ~skip:skip 1
+
+(*
+ * Gather the set of relative (de Bruijn) variables occurring in the term that
+ * are free (i.e., not bound) under nb levels of external relative binding.
+ *
+ * Use free_rels 0 Int.Set.empty if you do not wish to filter out any free
+ * relative variables below a certain binding level (nb) or supply the initial
+ * accumulator (frels).
+ *
+ * Examples:
+ * - free_rels 0 {} (Lambda(_, Rel 2, App(Rel 2, [Rel 1; Rel 4]))) = { 1, 2, 3 }
+ * - free_rels 1 {} (Lambda(_, Rel 2, App(Rel 2, [Rel 1; Rel 4]))) = { 2, 3 }
+ * - free_rels 2 {} (Lambda(_, Rel 2, App(Rel 2, [Rel 1; Rel 4]))) = { 3 }
+ *)
+let rec free_rels nb frels term =
+  match Constr.kind term with
+  | Rel i ->
+    if i > nb then Int.Set.add (Debruijn.unshift_i_by nb i) frels else frels
+  | _ ->
+    Constr.fold_constr_with_binders succ free_rels nb frels term
 
 (*
  * Give a "reasonable" name to each anonymous local declaration in the relative
@@ -60,28 +80,6 @@ let define_rel_decl body decl =
   rel_defin (rel_name decl, body, rel_type decl)
 
 (*
- * For each relative index rel_i in the list rels, transform the local
- * assumption at rel into a local definition with body Rel(i), lifted from
- * outside the relative context. The relative context is lifted by length(rels)
- * to allocate fresh binding indices for each rel_i, prior to defining any local
- * assumption.
- *
- * E.g., abstract_assums [3; 1] [x:A; y:B; z:C] =
- * [x:=Rel(4):lift(2,2,A); y:lift(1,2,B); z:=Rel(1):lift(0,2,C)].
- *
- *)
-let abstract_assums rels ctxt =
-  let k = List.length rels in
-  let len = Rel.length ctxt in
-  let ctxt = Termops.lift_rel_context k ctxt |> Array.of_list in
-  List.iteri
-    (fun i rel ->
-       let rel' = len - rel + i + 1 in
-       ctxt.(rel - 1) <- define_rel_decl (mkRel rel') ctxt.(rel - 1))
-    rels;
-  Array.to_list ctxt
-
-(*
  * Extract the components of an inductive type: the (universe-instantiated)
  * inductive name, the sequence of parameters, and the sequence of indices.
  *)
@@ -98,41 +96,6 @@ let decompose_ind ind_type =
   decompose_indvect ind_type |> on_pi2 Array.to_list |> on_pi3 Array.to_list
 
 (*
- * Summarize the recursively uniform and non-uniform components of an inductive
- * type quantified (for recursion) by nb levels of relative (deBruijn) binding.
- *
- * The recursively uniform components, which constitute the inductive name and
- * parameter terms, are summarized by an inductive family (cf., Inductiveops),
- * lifted outside the preceding nb-1 binding levels. An assertion checks that
- * each paremeter term is independent of those nb-1 preceding levels of binding
- * (i.e., that each parameter is uniform w.r.t. recursion).
- *
- * The recursively non-uniform components, which constitute the index terms and
- * inductive value, are summarized by a list of their relative (deBruijn)
- * indices in standard order, lifted inside the last binding level (whence the
- * input inductive type). Assertions check that all such relative indices are
- * distinct and within the nb binding levels quantifying the inductive type.
- *
- * The "free" in this function's name refers to how an inductive type
- * appropriately quantified for recursion should not constrain any index value,
- * at least defininitionally. In some edge cases, fixed points can avoid such
- * full quantification, but eliminators can never do so, at least directly.
- *)
-let summarize_free_inductive nb ind_type =
-  let pind, params, indices = decompose_ind ind_type in
-  let ind_fam =
-    assert (List.for_all (Vars.noccur_between 0 nb) params);
-    make_ind_family (pind, params) |> lift_inductive_family (1 - nb)
-  in
-  let ind_rels =
-    let rels = 0 :: List.rev_map destRel indices in
-    assert (List.for_all ((>) nb) rels);
-    assert (List.distinct rels);
-    List.map ((+) 1) rels
-  in
-  ind_fam, ind_rels
-
-(*
  * Construct a relative context, consisting of only local assumptions,
  * quantifying over instantiations of the inductive family.
  *
@@ -147,57 +110,33 @@ let build_inductive_context env ind_fam ind_name =
   get_arity env ind_fam |> fst |> Rel.add ind_decl |> Termops.smash_rel_context
 
 (*
- * Build a wrapper term for a fixed point that internally reorders arguments
- * from the functional's original order to the quantification-initial order
- * as in an eliminator. The output term is at the same binding level as fun_ctxt
- * (the original parameter context of the functional) and assumes that the very
- * next outside relative (deBruijn) binding refers to the transformed recursive
- * function (possibly due to the fixed point's self reference).
+ * Transform the relative context of a fixed-point function into a form suitable
+ * for simple recursion (i.e., eliminator-style quantification).
  *
- * Note that fun_len is literally just Rel.length fun_ctxt, and ind_rels is the
- * list of relative indices that quantify the inductive type's index values (in
- * standard order).
+ * The transformed relative context only satisfies that guarantee (or even
+ * well-formedness) when immediately preceded by the quantifying relative
+ * context for the inductive type and then by a wrapping relative context
+ * for the fixed point.
  *)
-let wrap_fixpoint fun_len ind_rels fun_ctxt =
-  let fun_ctxt = Termops.lift_rel_context 1 fun_ctxt in
-  let fix_head = mkRel (fun_len + 1) in
-  let fix_args =
-    let ind_rels = Array.rev_of_list ind_rels in
-    let arg_rels =
-      let is_arg_rel rel = not (Array.mem rel ind_rels) in
-      List.init fun_len ((-) fun_len) |> List.filter is_arg_rel |> Array.of_list
-    in
-    Array.append ind_rels arg_rels |> Array.map mkRel
-  in
-  recompose_lam_assum fun_ctxt (mkApp (fix_head, fix_args))
-
-(*
- * Reorder the fixed point's parameters to quantify the inductive type like an
- * eliminator (i.e., indices in standard order followed by the inductive type).
- * Also return the inductive family structurally guarding recursion and a
- * conversion function wrapping its first free relative index.
- *)
-let init_fixpoint env fix_pos fun_type fun_term =
-  let nb = fix_pos + 1 in (* number of parameter bindings guarding recursion *)
-  (* Pull off parameter bindings and reduce any interleaved local definitions *)
-  let fun_ctxt, fun_type = decompose_prod_n_zeta nb fun_type in
-  let _, fun_term = decompose_lam_n_zeta nb fun_term in
-  (* Figure out what inductive type guards recursion and how it's quantified *)
-  let ind_name, ind_type = Rel.lookup 1 fun_ctxt |> pair rel_name rel_type in
-  let ind_fam, ind_rels = summarize_free_inductive nb ind_type in
-  (* Build a standard parameter context to quantify the inductive type *)
-  let ind_ctxt = build_inductive_context env ind_fam ind_name in
-  let k = Rel.length ind_ctxt in
-  (* Build a wrapper to convert from the original parameter order *)
-  let fix_wrap = wrap_fixpoint nb ind_rels fun_ctxt in
-  (* Prepend the standard parameter context, overriding shared parameters *)
-  let fun_ctxt = (abstract_assums ind_rels fun_ctxt) @ ind_ctxt in
-  let fun_type = smash_prod_assum fun_ctxt (lift_rels ~skip:nb k fun_type) in
-  let fun_ctxt = Termops.lift_rel_context 1 fun_ctxt in
-  let fun_term = smash_lam_assum fun_ctxt (lift_rels ~skip:nb k fun_term) in
-  (* Reorder arguments to fixed-point calls in the functional *)
-  let fun_term = Vars.subst1 fix_wrap (lift_rels ~skip:1 1 fun_term) in
-  ind_fam, fun_type, fun_term, fix_wrap
+let build_recursive_context fix_ctxt params indices =
+  let nb = Rel.length fix_ctxt in (* length of fixed-point context *)
+  let nb' = nb + List.length indices + 1 in (* length of recursive context *)
+  let par_rels = List.fold_left (free_rels 0) Int.Set.empty params in
+  let idx_rels = 1 :: List.rev_map destRel indices in
+  (* NOTE: DestKO raised (above) if any index was not bound fully abstracted. *)
+  let is_rec i = i <= nb in
+  let is_par i = not (Int.Set.mem i par_rels) in (* parameter independence *)
+  assert (List.for_all is_rec idx_rels); (* Is every index bound recursively? *)
+  assert (List.distinct idx_rels); (* Are the indices bound separately and... *)
+  assert (List.for_all is_par idx_rels); (* ...independently of parameters? *)
+  (* Abstract inductive quantification to the outer inductive context *)
+  let buf = Termops.lift_rel_context nb' fix_ctxt |> Array.of_list in
+  let abstract_rel j i = buf.(i - 1) <- define_rel_decl (mkRel j) buf.(i - 1) in
+  (* Abstract each parameter-relevant binding to the wrapper context. *)
+  Int.Set.iter (abstract_rel nb') (Int.Set.filter is_rec par_rels);
+  (* Abstract the remaining inductive bindings to the eliminator context. *)
+  List.iter2 abstract_rel (List.map_i (-) (nb + 1) idx_rels) idx_rels;
+  Array.to_list buf
 
 (*
  * Build the minor premise for elimination at a constructor from the
@@ -215,14 +154,15 @@ let premise_of_case env ind_fam (ctxt, body) =
   let ind_head = dest_ind_family ind_fam |> on_fst mkIndU |> applist in
   let fix_name, fix_type = Environ.lookup_rel 1 env |> pair rel_name rel_type in
   let insert_recurrence i body decl =
-    let k = nb - i in
+    let i = Debruijn.unshift_i_by i nb in
+    let j = Debruijn.shift_i i in
     let body' =
-      match eq_constr_head (lift_rels k ind_head) (rel_type decl) with
+      match eq_constr_head (lift_rels i ind_head) (rel_type decl) with
       | Some indices ->
         assert (is_rel_assum decl);
         let args = Array.append (Array.map lift_rel indices) [|mkRel 1|] in
-        let rec_type = prod_appvect (lift_rels (k + 1) fix_type) args in
-        let fix_call = mkApp (mkRel (k + 1), args) in
+        let rec_type = prod_appvect (lift_rels j fix_type) args in
+        let fix_call = mkApp (mkRel j, args) in
         mkLambda (fix_name, rec_type, abstract_subterm fix_call body)
       | _ ->
         body
@@ -247,6 +187,17 @@ let split_case env evm fun_term cons_sum =
     let head = lift_rels cons_sum.cs_nargs fun_term in
     let args = Array.append cons_sum.cs_concl_realargs [|cons|] in
     mkApp (head, args) |> Reduction.nf_betaiota env
+  in
+  deanonymize_context env evm cons_sum.cs_args, body
+
+(*
+ * Eta-expand a case term according to the corresponding constructor's type.
+ *)
+let expand_case env evm case_term cons_sum =
+  let body =
+    let head = lift_rels cons_sum.cs_nargs case_term in
+    let args = Rel.to_extended_list mkRel 0 cons_sum.cs_args in
+    Reduction.beta_applist head args
   in
   deanonymize_context env evm cons_sum.cs_args, body
 
@@ -284,8 +235,30 @@ let configure_eliminator env evm ind_fam typ =
   mkApp (elim, Array.append (Array.of_list params) [|motive|])
 
 (*
- * Given the components of a fixed-point expression, build an equivalent,
- * bisimulative (i.e., algorithmically identical) elimination expression.
+ * Translate a fixed-point function using simple recursion (i.e., quantifying
+ * the inductive type like an eliminator) into an elimination form.
+ *)
+let desugar_recursion env evm ind_fam fix_name fix_type fix_term =
+  (* Build the elimination head (eliminator with parameters and motive) *)
+  let elim_head = configure_eliminator env evm ind_fam fix_type in
+  (* Build the minor premises *)
+  let premises =
+    let fix_env = Environ.push_rel (rel_assum (fix_name, fix_type)) env in
+    let build_premise cons_sum =
+      lift_constructor 1 cons_sum |> split_case fix_env !evm fix_term |>
+      premise_of_case fix_env ind_fam |> drop_rel
+    in
+    get_constructors env ind_fam |> Array.map build_premise
+  in
+  mkApp (elim_head, premises)
+
+(*
+ * Translate a fixed-point function into an elimination form.
+ *
+ * This function works by transforming the fixed point to use simple recursion
+ * (i.e., to quantify the inductive type like a dependent eliminator), calling
+ * desugar_recusion, and then wrapping the translated elimination form to conform
+ * to the original fixed point's type.
  *
  * Note that the resulting term will not satisfy definitional equality with the
  * original term but should satisfy most (all?) definitional equalities when
@@ -297,23 +270,45 @@ let configure_eliminator env evm ind_fam typ =
  * new version (by expanded definition). (Such incidental mixtures arise, for
  * example, in some of the List module's proofs regarding the In predicate.)
  *)
-let eliminate_fixpoint env evm fix_pos fix_name fun_type fun_term =
-  let ind_fam, fun_type, fun_term, fix_wrap =
-    init_fixpoint env fix_pos fun_type fun_term
+let desugar_fixpoint env evm fix_pos fix_name fix_type fix_term =
+  let nb = fix_pos + 1 in (* number of bindings guarding recursion *)
+  (* Pull off bindings through the parameter guarding structural recursion *)
+  let fix_ctxt, fix_type = decompose_prod_n_zeta nb fix_type in
+  let _, fix_term = decompose_lam_n_zeta nb fix_term in
+  (* Gather information on the inductive type for recursion/elimination *)
+  let ind_name, ind_type = Rel.lookup 1 fix_ctxt |> pair rel_name rel_type in
+  let pind, params, indices = decompose_ind (lift_rel ind_type) in
+  let ind_fam = make_ind_family (pind, params) in
+  let env = Environ.push_rel_context fix_ctxt env in (* for eventual wrapper *)
+  let rec_ctxt, rec_args = (* quantify the inductive type like an eliminator *)
+    let ind_ctxt = build_inductive_context env ind_fam ind_name in
+    let fun_ctxt = build_recursive_context fix_ctxt params indices in
+    fun_ctxt @ ind_ctxt,
+    Array.of_list (indices @ (mkRel 1) :: Rel.to_extended_list mkRel 0 fun_ctxt)
   in
-  (* Build the elimination head (eliminator with parameters and motive) *)
-  let elim_head = configure_eliminator env evm ind_fam fun_type in
-  (* Build the minor premises *)
-  let premises =
-    let fix_env = Environ.push_rel (rel_assum (fix_name, fun_type)) env in
-    let build_premise cons_sum =
-      lift_constructor 1 cons_sum |> split_case fix_env !evm fun_term |>
-      premise_of_case fix_env ind_fam |> drop_rel
+  let nb' = Rel.length rec_ctxt in
+  let k = Debruijn.unshift_i_by nb nb' in (* always more bindings than before *)
+  let rec_type =
+    fix_type |> lift_rels ~skip:nb nb |> (* for external wrapper *)
+    lift_rels ~skip:nb k |> smash_prod_assum rec_ctxt
+  in
+  let rec_term =
+    let nb_rec = Debruijn.shift_i nb in (* include self reference *)
+    let rec_env = Environ.push_rel (rel_assum (fix_name, rec_type)) env in
+    let rec_ctxt = Termops.lift_rel_context 1 rec_ctxt in
+    let fix_self = (* wrapper to adjust arguments for a recursive call *)
+      recompose_lam_assum
+        (Termops.lift_rel_context nb_rec fix_ctxt)
+        (mkApp (mkRel nb_rec, rec_args))
     in
-    get_constructors env ind_fam |> Array.map build_premise
+    fix_term |> lift_rels ~skip:nb_rec nb |> (* for external wrapper *)
+    lift_rels ~skip:nb k |> smash_lam_assum rec_ctxt |>
+    lift_rel ~skip:1 |> Vars.subst1 fix_self |> Reduction.nf_betaiota rec_env
   in
-  (* Wrap the elimination expression to match the original parameter order *)
-  Vars.subst1 (mkApp (elim_head, premises)) fix_wrap
+  (* Desugar the simple recursive function into an elimination form *)
+  let rec_elim = desugar_recursion env evm ind_fam fix_name rec_type rec_term in
+  (* Wrap the elimination form to reorder initial arguments *)
+  recompose_lam_assum fix_ctxt (mkApp (rec_elim, rec_args))
 
 (*
  * Given the components of a match expression, build an equivalent elimination
@@ -326,7 +321,7 @@ let eliminate_fixpoint env evm fix_pos fix_name fun_type fun_term =
  * and its fixed point (i.e., f =\= fix[_.f]). Definitional equality should hold
  * (at least) when the discriminee term is head-canonical.
  *)
-let eliminate_match env evm info pred discr cases =
+let desugar_match env evm info pred discr cases =
   let typ = lambda_to_prod pred in
   let pind, params, indices = decompose_indvect (e_infer_type env evm discr) in
   let ind_fam = make_ind_family (pind, Array.to_list params) in
@@ -366,13 +361,13 @@ let desugar_term env evm term =
       let body' = aux (push_let_in (name, local', annot') env) body in
       mkLetIn (name, local', annot', body')
     | Fix (([|fix_pos|], 0), ([|fix_name|], [|fun_type|], [|fun_term|])) ->
-      eliminate_fixpoint env evm fix_pos fix_name fun_type fun_term |> aux env
+      desugar_fixpoint env evm fix_pos fix_name fun_type fun_term |> aux env
     | Fix _ ->
       user_err ~hdr:"desugar" (Pp.str "mutual recursion not supported")
     | CoFix _ ->
       user_err ~hdr:"desugar" (Pp.str "co-recursion not supported")
     | Case (info, pred, discr, cases) ->
-      eliminate_match env evm info pred discr cases |> aux env
+      desugar_match env evm info pred discr cases |> aux env
     | _ ->
       Constr.map (aux env) term
   in
