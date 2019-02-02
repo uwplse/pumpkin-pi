@@ -48,8 +48,10 @@ let drop_rel ?(skip=0) = drop_rels ~skip:skip 1
  *)
 let rec free_rels nb frels term =
   match Constr.kind term with
-  | Rel i -> if i > nb then Int.Set.add (i - nb) frels else frels
-  | _ -> Constr.fold_constr_with_binders succ free_rels nb frels term
+  | Rel i ->
+    if i > nb then Int.Set.add (Debruijn.unshift_i_by nb i) frels else frels
+  | _ ->
+    Constr.fold_constr_with_binders succ free_rels nb frels term
 
 (*
  * Give a "reasonable" name to each anonymous local declaration in the relative
@@ -147,14 +149,15 @@ let premise_of_case env ind_fam (ctxt, body) =
   let ind_head = dest_ind_family ind_fam |> on_fst mkIndU |> applist in
   let fix_name, fix_type = Environ.lookup_rel 1 env |> pair rel_name rel_type in
   let insert_recurrence i body decl =
-    let k = nb - i in
+    let i = Debruijn.unshift_i_by i nb in
+    let j = Debruijn.shift_i i in
     let body' =
-      match eq_constr_head (lift_rels k ind_head) (rel_type decl) with
+      match eq_constr_head (lift_rels i ind_head) (rel_type decl) with
       | Some indices ->
         assert (is_rel_assum decl);
         let args = Array.append (Array.map lift_rel indices) [|mkRel 1|] in
-        let rec_type = prod_appvect (lift_rels (k + 1) fix_type) args in
-        let fix_call = mkApp (mkRel (k + 1), args) in
+        let rec_type = prod_appvect (lift_rels j fix_type) args in
+        let fix_call = mkApp (mkRel j, args) in
         mkLambda (fix_name, rec_type, abstract_subterm fix_call body)
       | _ ->
         body
@@ -278,21 +281,23 @@ let desugar_fixpoint env evm fix_pos fix_name fix_type fix_term =
     fun_ctxt @ ind_ctxt,
     Array.of_list (indices @ (mkRel 1) :: Rel.to_extended_list mkRel 0 fun_ctxt)
   in
-  let nb' = Rel.length rec_ctxt in (* always more bindings than before *)
+  let nb' = Rel.length rec_ctxt in
+  let k = Debruijn.unshift_i_by nb nb' in (* always more bindings than before *)
   let rec_type =
     fix_type |> lift_rels ~skip:nb nb |> (* for external wrapper *)
-    lift_rels ~skip:nb (nb' - nb) |> smash_prod_assum rec_ctxt
+    lift_rels ~skip:nb k |> smash_prod_assum rec_ctxt
   in
   let rec_term =
+    let nb_rec = Debruijn.shift_i nb in (* include self reference *)
     let rec_env = Environ.push_rel (rel_assum (fix_name, rec_type)) env in
     let rec_ctxt = Termops.lift_rel_context 1 rec_ctxt in
     let fix_self = (* wrapper to adjust arguments for a recursive call *)
       recompose_lam_assum
-        (Termops.lift_rel_context (nb + 1) fix_ctxt)
-        (mkApp (mkRel (nb + 1), rec_args))
+        (Termops.lift_rel_context nb_rec fix_ctxt)
+        (mkApp (mkRel nb_rec, rec_args))
     in
-    fix_term |> lift_rels ~skip:(nb + 1) nb |> (* for external wrapper *)
-    lift_rels ~skip:nb (nb' - nb) |> smash_lam_assum rec_ctxt |>
+    fix_term |> lift_rels ~skip:nb_rec nb |> (* for external wrapper *)
+    lift_rels ~skip:nb k |> smash_lam_assum rec_ctxt |>
     lift_rel ~skip:1 |> Vars.subst1 fix_self |> Reduction.nf_betaiota rec_env
   in
   (* Desugar the simple recursive function into an elimination form *)
