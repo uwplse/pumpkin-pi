@@ -103,12 +103,10 @@ let desugar_definition n d =
   ignore (define_term n evm term' false)
 
 let desugar_constant subst ident const_body =
-  (* TODO: Call directly from singular Vernacular command *)
   let evm, env = Pfedit.get_current_context () in
   let term = force_constant_body const_body in
   let evm', term', type' = desugar_term env evm subst term in
   (* TODO: Preserve opacity and other associated properties *)
-  (* FIXME: Assertion failure in Declare under interactive module context *)
   ignore (define_term ~typ:type' ident evm' term' true)
 
 let decompose_module_signature mod_sign =
@@ -131,8 +129,6 @@ let desugar_module mod_name mod_ref =
   in
   let mod_body = Global.lookup_module mod_path in
   let mod_arity, mod_fields = decompose_module_signature mod_body.mod_type in
-  (* FIXME: Currently defining translated constants without a wrapping module *)
-  (* let mod_path' = Global.start_module mod_name in *)
   let mod_path' =
     Declaremods.start_module Modintern.interp_module_ast None mod_name [] (Vernacexpr.Check [])
   in
