@@ -133,32 +133,34 @@ let desugar_module mod_name mod_ref =
   let mod_arity, mod_fields = decompose_module_signature mod_body.mod_type in
   (* FIXME: Currently defining translated constants without a wrapping module *)
   (* let mod_path' = Global.start_module mod_name in *)
-  let mod_path' = Global.current_modpath () in
+  let mod_path' =
+    Declaremods.start_module Modintern.interp_module_ast None mod_name [] (Vernacexpr.Check [])
+  in
+  Dumpglob.dump_moddef mod_path' "mod";
   let cache_constant label subst =
     let const = Constant.make2 mod_path label in
     let const' = Constant.make2 mod_path' label in
     Constmap.add const const' subst
   in
-  begin
-    let _, failed =
-      List.fold_left
-        (fun (subst, failed) (label, body) ->
-           (* TODO: Axioms? Submodules? Inductive definitions? Induction principles? *)
-           match body with
-           | SFBconst const_body ->
-             begin
-               try
-                 desugar_constant subst (Label.to_id label) const_body;
-                 (cache_constant label subst, failed)
-               with Pretype_errors.PretypeError _ ->
-                 (subst, label :: failed)
-             end
-           | _ ->
-             (subst, failed))
-        (Constmap.empty, [])
-        mod_fields
-    in
-    let pr_label = Label.to_string %> str in
-    Feedback.msg_warning (str "Failed to translate " ++ pr_enum pr_label failed)
-  end
-(* ignore (Global.end_module (Summary.freeze_summaries ~marshallable:`Shallow) mod_name None) *)
+  let _, failed =
+    List.fold_left
+      (fun (subst, failed) (label, body) ->
+         (* TODO: Axioms? Submodules? Inductive definitions? Induction principles? *)
+         match body with
+         | SFBconst const_body ->
+           begin
+             try
+               desugar_constant subst (Label.to_id label) const_body;
+               (cache_constant label subst, failed)
+             with Pretype_errors.PretypeError _ ->
+               (subst, label :: failed)
+           end
+         | _ ->
+           (subst, failed))
+      (Constmap.empty, [])
+      mod_fields
+  in
+  let pr_label = Label.to_string %> str in
+  Feedback.msg_warning (str "Failed to translate " ++ pr_enum pr_label failed);
+  let mp = Declaremods.end_module () in
+  Dumpglob.dump_modref mp "mod"
