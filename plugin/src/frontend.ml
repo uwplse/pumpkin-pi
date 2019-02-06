@@ -1,3 +1,4 @@
+open Util
 open Constr
 open Names
 open Declarations
@@ -138,27 +139,26 @@ let desugar_module mod_name mod_ref =
     let const' = Constant.make2 mod_path' label in
     Constmap.add const const' subst
   in
-  ignore
-    begin
+  begin
+    let _, failed =
       List.fold_left
-        (fun subst (label, body) ->
-           (* TODO: Axioms? Submodules? *)
+        (fun (subst, failed) (label, body) ->
+           (* TODO: Axioms? Submodules? Inductive definitions? Induction principles? *)
            match body with
            | SFBconst const_body ->
              begin
                try
                  desugar_constant subst (Label.to_id label) const_body;
-                 cache_constant label subst
-               with exn ->
-                 let env = Global.env () in
-                 let const = Constant.make2 mod_path label in
-                 Feedback.msg_debug
-                   (str "failed to translate " ++ Printer.pr_constant env const);
-                 Feedback.msg_debug (CErrors.print_no_report exn);
-                 subst
+                 (cache_constant label subst, failed)
+               with Pretype_errors.PretypeError _ ->
+                 (subst, label :: failed)
              end
-           | _ -> subst)
-        Constmap.empty
+           | _ ->
+             (subst, failed))
+        (Constmap.empty, [])
         mod_fields
-    end
+    in
+    let pr_label = Label.to_string %> str in
+    Feedback.msg_warning (str "Failed to translate " ++ pr_enum pr_label failed)
+  end
 (* ignore (Global.end_module (Summary.freeze_summaries ~marshallable:`Shallow) mod_name None) *)
