@@ -646,12 +646,9 @@ let apply (trm : types) = and_p (applies trm)
 let check_inductive_supported mutind_body : unit =
   let ind_bodies = mutind_body.mind_packets in
   if Array.length ind_bodies > 1 then
-    failwith "mutually inductive types not yet supported"
-  else
-    if (mutind_body.mind_finite = Declarations.CoFinite) then
-      failwith "coinductive types not yet supported"
-    else
-      ()
+    CErrors.user_err (Pp.str "Mutually inductive types are not supported")
+  else if (mutind_body.mind_finite = Declarations.CoFinite) then
+    CErrors.user_err (Pp.str "Coinductive types are not supported")
 
 (*
  * Check if a constant is an inductive elminator
