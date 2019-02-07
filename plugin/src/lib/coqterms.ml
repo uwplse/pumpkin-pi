@@ -645,7 +645,7 @@ let apply (trm : types) = and_p (applies trm)
 (* Don't support mutually inductive or coinductive types yet *)
 let check_inductive_supported mutind_body : unit =
   let ind_bodies = mutind_body.mind_packets in
-  if not (Array.length ind_bodies = 1) then
+  if Array.length ind_bodies > 1 then
     failwith "mutually inductive types not yet supported"
   else
     if (mutind_body.mind_finite = Declarations.CoFinite) then
