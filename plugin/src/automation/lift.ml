@@ -576,8 +576,7 @@ let declare_inductive_liftings ind ind' ncons =
  *)
 let do_lift_ind env evm typename suffix lift ind =
   let (mind_body, ind_body) as mind_specif = Inductive.lookup_mind_specif env ind in
-  if mind_body.mind_ntypes > 1 then
-    failwith "Mutual inductive types are unsupported";
+  check_inductive_supported mind_body;
   let env, univs, arity, constypes = open_inductive ~global:true env mind_specif in
   let evm = Evd.update_sigma_env evm env in
   let nparam = mind_body.mind_nparams_rec in
