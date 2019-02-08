@@ -12,7 +12,8 @@ open Declarations
 open Globnames
 open Decl_kinds
 
-module Constmap = Names.Cmap
+module Globmap = Globnames.Refmap
+module Globset = Globnames.Refset
 
 module CRD = Context.Rel.Declaration
 

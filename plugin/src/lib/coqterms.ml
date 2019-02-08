@@ -14,7 +14,8 @@ open Declarations
 open Decl_kinds
 open Constrextern
 
-module Constmap = Names.Cmap
+module Globmap = Globnames.Refmap
+module Globset = Globnames.Refset
 
 module CRD = Context.Rel.Declaration
 
