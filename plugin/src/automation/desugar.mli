@@ -11,4 +11,4 @@ open Coqterms
  *
  * Mutual recursion and co-recursion are not supported.
  *)
-val desugar_term : env -> evar_map -> Constant.t Constmap.t -> constr -> evar_map * constr * types
+val desugar_term : ?subst:(global_reference Globmap.t) -> env -> evar_map -> constr -> evar_map * constr

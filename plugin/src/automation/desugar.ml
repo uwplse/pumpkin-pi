@@ -1,5 +1,6 @@
 open Util
 open Names
+open Globnames
 open Univ
 open Context
 open Term
@@ -344,7 +345,7 @@ let desugar_match env evm info pred discr cases =
  *
  * Mutual recursion, co-recursion, and universe polymorphism are not supported.
  *)
-let desugar_term env evm subst term =
+let desugar_term ?(subst=Globmap.empty) env evm term =
   let evm = ref evm in
   let rec aux env term =
     match Constr.kind term with
@@ -361,8 +362,8 @@ let desugar_term env evm subst term =
       let annot' = aux env annot in
       let body' = aux (push_let_in (name, local', annot') env) body in
       mkLetIn (name, local', annot', body')
-    | Fix (([|fix_pos|], 0), ([|fix_name|], [|fun_type|], [|fun_term|])) ->
-      desugar_fixpoint env evm fix_pos fix_name fun_type fun_term |> aux env
+    | Fix (([|fix_pos|], 0), ([|fix_name|], [|fix_type|], [|fix_term|])) ->
+      desugar_fixpoint env evm fix_pos fix_name fix_type fix_term |> aux env
     | Fix _ ->
       user_err ~hdr:"desugar" (Pp.str "mutual recursion not supported")
     | CoFix _ ->
@@ -372,15 +373,27 @@ let desugar_term env evm subst term =
     | Const (const, univs) ->
       begin
         try
-          let const' = Constmap.find const subst in
-          assert (Univ.Instance.is_empty univs);
-          mkConst const' (* NOTE: Ignores any universe polymorphism *)
+          let const' = Globmap.find (ConstRef const) subst |> destConstRef in
+          mkConstU (const', univs)
+        with Not_found -> term
+      end
+    | Ind (ind, univs) ->
+      begin
+        try
+          let ind' = Globmap.find (IndRef ind) subst |> destIndRef in
+          mkIndU (ind', univs)
+        with Not_found -> term
+      end
+    | Construct (cons, univs) ->
+      begin
+        try
+          let cons' = Globmap.find (ConstructRef cons) subst |> destConstructRef in
+          mkConstructU (cons', univs)
         with Not_found -> term
       end
     | _ ->
       Constr.map (aux env) term
   in
   let term' = aux env term in
-  let type' = e_infer_type env evm term' in (* NOTE: Infers universe constraints *)
-  let evm' = !evm in
-  evm', term', type'
+  ignore (e_infer_type env evm term'); (* NOTE: Infers universe constraints *)
+  !evm, term'
