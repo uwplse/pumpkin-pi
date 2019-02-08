@@ -1,6 +1,7 @@
 open Util
 open Constr
 open Names
+open Globnames
 open Declarations
 open Coqterms
 open Lifting
@@ -53,8 +54,8 @@ let lift_definition_by_ornament env evd n l c_old =
   let lifted = do_lift_defn env evd l c_old in
   ignore (define_term n evd lifted true);
   try
-    let old_gref = Globnames.global_of_constr c_old in
-    let new_gref = Globnames.ConstRef (Lib.make_kn n |> Constant.make1) in
+    let old_gref = global_of_constr c_old in
+    let new_gref = ConstRef (Lib.make_kn n |> Constant.make1) in
     declare_lifted old_gref new_gref;
   with _ ->
     Printf.printf "WARNING: Failed to cache lifting."
@@ -97,17 +98,54 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
  * Mutual fix or cofix subterms are not supported.
  *)
 let desugar_definition n d =
+  (* TODO: Accept old/new names and lookup constant directly *)
   let (evm, env) = Pfedit.get_current_context () in
   let term = intern env evm d |> unwrap_definition env in
-  let evm, term', _ = desugar_term env evm Constmap.empty term in
-  ignore (define_term n evm term' false)
+  let evm, term' = desugar_term env evm term in
+  ignore (define_term n evm term' false);
+  Flags.if_verbose Feedback.msg_info
+    (seq [str "\nTranslated constant "; str "$OLD"; str " as "; Id.print n])
 
-let desugar_constant subst ident const_body =
-  let evm, env = Pfedit.get_current_context () in
+let desugar_constant subst const const_body =
+  let ident = Constant.label const |> Label.to_id in
+  let env = Global.env () in
+  let evm = Evd.from_env env in
   let term = force_constant_body const_body in
-  let evm', term', type' = desugar_term env evm subst term in
-  (* TODO: Preserve opacity and other associated properties *)
-  ignore (define_term ~typ:type' ident evm' term' true)
+  let desugar = desugar_term ~subst:subst env in
+  let evm', term' = desugar evm term in
+  let evm', type' = desugar evm' const_body.const_type in
+  (* TODO: Suppress stream of confirmation messages... *)
+  define_term ~typ:type' ident evm' term' true |> destConstRef
+
+let flip f = fun x y -> f y x
+
+let free_globals env evm =
+  EConstr.of_constr %> Termops.global_vars env evm %>
+  List.map (fun id -> Libnames.Ident id |> CAst.make |> Nametab.global) %>
+  List.fold_left (flip Globset.add) Globset.empty
+
+let desugar_inductive subst ind mind_body =
+  (* TODO: Clean up and refactor *)
+  let ind_body = mind_body.mind_packets.(0) in
+  let mind_specif = (mind_body, ind_body) in
+  let env = Global.env () in
+  let env, univs, arity, cons_types = open_inductive ~global:true env mind_specif in
+  let evm = Evd.from_env env in
+  (* let free =
+   *   List.map (free_globals env evm) (arity :: cons_types) |>
+   *   List.fold_left Globset.union Globset.empty
+   * in
+   * if Globset.inter (Globmap.domain subst) free |> Globset.is_empty then
+   *   let evm, typ = Evd.fresh_global env evm (IndRef ind) in
+   *   define_term ind_body.mind_typename evm typ true
+   * else *)
+  let desugar = desugar_term ~subst:subst env in
+  let evm, arity' = desugar evm arity in
+  let evm, cons_types' = List.fold_left_map desugar evm cons_types in
+  declare_inductive
+    ind_body.mind_typename (Array.to_list ind_body.mind_consnames)
+    (is_ind_body_template ind_body) univs
+    mind_body.mind_nparams arity' cons_types'
 
 let decompose_module_signature mod_sign =
   let rec aux mod_arity mod_sign =
@@ -120,6 +158,27 @@ let decompose_module_signature mod_sign =
   aux [] mod_sign
 
 (*
+ * Begin an interactive (i.e., elementwise) definition of a module.
+ *
+ * Optional arguments allow specifying functor parameters and module signature,
+ * each with the obvious default (non-functor and exposed structure).
+ *)
+let begin_module_structure ?(params=[]) ?(sign=(Vernacexpr.Check [])) id =
+  let mod_path =
+    Declaremods.start_module Modintern.interp_module_ast None id params sign
+  in
+  Dumpglob.dump_moddef mod_path "mod";
+  mod_path
+
+(*
+ * End an interactive (i.e., elementwise) definition of a module, begun earlier
+ * with begin_module_structure.
+ *)
+let end_module_structure () =
+  let mod_path = Declaremods.end_module () in
+  Dumpglob.dump_modref mod_path "mod"
+
+(*
  * Translate fix and match expressions into eliminations, as in
  * desugar_definition, compositionally throughout a whole module.
  *)
@@ -129,34 +188,45 @@ let desugar_module mod_name mod_ref =
   in
   let mod_body = Global.lookup_module mod_path in
   let mod_arity, mod_fields = decompose_module_signature mod_body.mod_type in
-  let mod_path' =
-    Declaremods.start_module Modintern.interp_module_ast None mod_name [] (Vernacexpr.Check [])
-  in
-  Dumpglob.dump_moddef mod_path' "mod";
-  let cache_constant label subst =
-    let const = Constant.make2 mod_path label in
-    let const' = Constant.make2 mod_path' label in
-    Constmap.add const const' subst
-  in
-  let _, failed =
+  let mod_path' = begin_module_structure mod_name in
+  let _ = (* TODO: Refactor *)
     List.fold_left
-      (fun (subst, failed) (label, body) ->
-         (* TODO: Axioms? Submodules? Inductive definitions? Induction principles? *)
-         match body with
-         | SFBconst const_body ->
+      (fun subst (label, body) ->
+         try
            begin
-             try
-               desugar_constant subst (Label.to_id label) const_body;
-               (cache_constant label subst, failed)
-             with Pretype_errors.PretypeError _ ->
-               (subst, label :: failed)
+             match body with
+             | SFBconst const_body ->
+               let const = Constant.make2 mod_path label in
+               if Globmap.mem (ConstRef const) subst then
+                 subst (* Do not re-define any schematic definitions. *)
+               else
+                 let const' = desugar_constant subst const const_body in
+                 Globmap.add (ConstRef const) (ConstRef const') subst
+             | SFBmind mind_body ->
+               check_inductive_supported mind_body;
+               let ind = (MutInd.make2 mod_path label, 0) in
+               let ind' = desugar_inductive subst ind mind_body in
+               let ncons = Inductiveops.nconstructors ind in
+               let sorts = mind_body.mind_packets.(0).mind_kelim in
+               Globmap.add (IndRef ind) (IndRef ind') subst |>
+               List.fold_right2
+                 Globmap.add
+                 (List.init ncons (fun i -> ConstructRef (ind, i + 1)))
+                 (List.init ncons (fun i -> ConstructRef (ind', i + 1))) |>
+               List.fold_right2
+                 Globmap.add
+                 (List.map (Indrec.lookup_eliminator ind) sorts)
+                 (List.map (Indrec.lookup_eliminator ind') sorts)
+             | SFBmodule mod_body -> subst (* TODO *)
+             | SFBmodtype sig_body -> subst (* TODO *)
            end
-         | _ ->
-           (subst, failed))
-      (Constmap.empty, [])
+         with Pretype_errors.PretypeError _ ->
+           "Failed to translate " ^ Label.to_string label |> str |>
+           Feedback.msg_warning;
+           subst)
+      Globmap.empty
       mod_fields
   in
-  let pr_label = Label.to_string %> str in
-  Feedback.msg_warning (str "Failed to translate " ++ pr_enum pr_label failed);
-  let mp = Declaremods.end_module () in
-  Dumpglob.dump_modref mp "mod"
+  end_module_structure ();
+  Flags.if_verbose Feedback.msg_info
+    (seq [str "\nTranslated module "; Libnames.pr_reference mod_ref; str " as "; Id.print mod_name])
