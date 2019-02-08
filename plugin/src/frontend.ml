@@ -114,15 +114,9 @@ let desugar_constant subst const const_body =
   let desugar = desugar_term ~subst:subst env in
   let evm', term' = desugar evm term in
   let evm', type' = desugar evm' const_body.const_type in
-  (* TODO: Suppress stream of confirmation messages... *)
   define_term ~typ:type' ident evm' term' true |> destConstRef
 
 let flip f = fun x y -> f y x
-
-let free_globals env evm =
-  EConstr.of_constr %> Termops.global_vars env evm %>
-  List.map (fun id -> Libnames.Ident id |> CAst.make |> Nametab.global) %>
-  List.fold_left (flip Globset.add) Globset.empty
 
 let desugar_inductive subst ind mind_body =
   (* TODO: Clean up and refactor *)
@@ -131,14 +125,6 @@ let desugar_inductive subst ind mind_body =
   let env = Global.env () in
   let env, univs, arity, cons_types = open_inductive ~global:true env mind_specif in
   let evm = Evd.from_env env in
-  (* let free =
-   *   List.map (free_globals env evm) (arity :: cons_types) |>
-   *   List.fold_left Globset.union Globset.empty
-   * in
-   * if Globset.inter (Globmap.domain subst) free |> Globset.is_empty then
-   *   let evm, typ = Evd.fresh_global env evm (IndRef ind) in
-   *   define_term ind_body.mind_typename evm typ true
-   * else *)
   let desugar = desugar_term ~subst:subst env in
   let evm, arity' = desugar evm arity in
   let evm, cons_types' = List.fold_left_map desugar evm cons_types in
