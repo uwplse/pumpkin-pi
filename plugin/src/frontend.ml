@@ -95,7 +95,14 @@ let qualify_reference r =
   Libnames.qualid_of_reference r |> CAst.with_val identity
 
 let desugar_constant subst ident const_body =
-  let env = Global.env () in
+  let env =
+    match const_body.const_universes with
+    | Monomorphic_const univs ->
+      Global.env () |> Environ.push_context_set univs
+    | Polymorphic_const univs ->
+      CErrors.user_err ~hdr:"desugar_constant"
+        (str "Universe polymorphism is not supported")
+  in
   let evm = Evd.from_env env in
   let term = force_constant_body const_body in
   let desugar = desugar_term ~subst:subst env in
