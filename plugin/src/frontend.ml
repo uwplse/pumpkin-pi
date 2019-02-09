@@ -119,10 +119,11 @@ let desugar_definition ident const_ref =
   let const = qualify_reference const_ref |> Nametab.locate_constant in
   ignore (desugar_constant Globmap.empty ident (Global.lookup_constant const))
 
-let desugar_inductive subst ident ((mind_body, ind_body) as mind_specif) =
-  (* TODO: Clean up and refactor *)
+let desugar_inductive subst ident ((mind_body, ind_body) as ind_specif) =
   let env = Global.env () in
-  let env, univs, arity, cons_types = open_inductive ~global:true env mind_specif in
+  let env, univs, arity, cons_types =
+    open_inductive ~global:true env ind_specif
+  in
   let evm, arity' = desugar_term ~subst env (Evd.from_env env) arity in
   let evm, cons_types' =
     List.fold_left_map (desugar_term ~subst env) evm cons_types
@@ -132,6 +133,37 @@ let desugar_inductive subst ident ((mind_body, ind_body) as mind_specif) =
     (is_ind_body_template ind_body) univs
     mind_body.mind_nparams arity' cons_types'
 
+let desugar_module_element subst mod_path label body =
+  let ident = Label.to_id label in
+  match body with
+  | SFBconst const_body ->
+    let const = Constant.make2 mod_path label in
+    if Globmap.mem (ConstRef const) subst then
+      subst (* Do not re-define any schematic definitions. *)
+    else
+      let const' = desugar_constant subst ident const_body in
+      Globmap.add (ConstRef const) (ConstRef const') subst
+  | SFBmind mind_body ->
+    check_inductive_supported mind_body;
+    let ind = (MutInd.make2 mod_path label, 0) in
+    let ind_body = mind_body.mind_packets.(0) in
+    let ind' = desugar_inductive subst ident (mind_body, ind_body) in
+    let ncons = Array.length ind_body.mind_consnames in
+    let sorts = ind_body.mind_kelim in
+    Globmap.add (IndRef ind) (IndRef ind') subst |>
+    List.fold_right2
+      Globmap.add
+      (List.init ncons (fun i -> ConstructRef (ind, i + 1)))
+      (List.init ncons (fun i -> ConstructRef (ind', i + 1))) |>
+    List.fold_right2
+      Globmap.add
+      (List.map (Indrec.lookup_eliminator ind) sorts)
+      (List.map (Indrec.lookup_eliminator ind') sorts)
+  | SFBmodule mod_body ->
+    subst (* TODO *)
+  | SFBmodtype sig_body ->
+    subst (* TODO *)
+
 (*
  * Translate fix and match expressions into eliminations, as in
  * desugar_definition, compositionally throughout a whole module.
@@ -139,49 +171,16 @@ let desugar_inductive subst ident ((mind_body, ind_body) as mind_specif) =
 let desugar_module mod_name mod_ref =
   let mod_path = qualify_reference mod_ref |> Nametab.locate_module in
   let mod_body = Global.lookup_module mod_path in
-  let mod_arity, mod_fields = decompose_module_signature mod_body.mod_type in
+  let mod_arity, mod_elems = decompose_module_signature mod_body.mod_type in
   assert (List.is_empty mod_arity); (* Functors are not yet supported. *)
   let mod_path' = begin_module_structure mod_name in
-  let _ = (* TODO: Refactor *)
-    List.fold_left
-      (fun subst (label, body) ->
-         try
-           begin
-             match body with
-             | SFBconst const_body ->
-               let const = Constant.make2 mod_path label in
-               if Globmap.mem (ConstRef const) subst then
-                 subst (* Do not re-define any schematic definitions. *)
-               else
-                 let ident = Constant.label const |> Label.to_id in
-                 let const' = desugar_constant subst ident const_body in
-                 Globmap.add (ConstRef const) (ConstRef const') subst
-             | SFBmind mind_body ->
-               check_inductive_supported mind_body;
-               let ind = (MutInd.make2 mod_path label, 0) in
-               let ind_body = mind_body.mind_packets.(0) in
-               let ind' = desugar_inductive subst ind_body.mind_typename (mind_body, ind_body) in
-               let ncons = Array.length ind_body.mind_consnames in
-               let sorts = ind_body.mind_kelim in
-               Globmap.add (IndRef ind) (IndRef ind') subst |>
-               List.fold_right2
-                 Globmap.add
-                 (List.init ncons (fun i -> ConstructRef (ind, i + 1)))
-                 (List.init ncons (fun i -> ConstructRef (ind', i + 1))) |>
-               List.fold_right2
-                 Globmap.add
-                 (List.map (Indrec.lookup_eliminator ind) sorts)
-                 (List.map (Indrec.lookup_eliminator ind') sorts)
-             | SFBmodule mod_body -> subst (* TODO *)
-             | SFBmodtype sig_body -> subst (* TODO *)
-           end
-         with Pretype_errors.PretypeError _ ->
-           "Failed to translate " ^ Label.to_string label |> str |>
-           Feedback.msg_warning;
-           subst)
-      Globmap.empty
-      mod_fields
-  in
+  let subst = ref Globmap.empty in
+  List.iter
+    (fun (label, body) ->
+       try
+         subst := desugar_module_element !subst mod_path label body
+       with Pretype_errors.PretypeError _ ->
+         Feedback.msg_warning (str "Failed to translate " ++ Label.print label))
+    mod_elems;
   end_module_structure ();
-  Flags.if_verbose Feedback.msg_info
-    (seq [str "\nTranslated module "; Libnames.pr_reference mod_ref; str " as "; Id.print mod_name])
+  Feedback.msg_info (str "\nModule " ++ Id.print mod_name ++ str " is defined")
