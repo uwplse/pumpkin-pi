@@ -239,6 +239,31 @@ val open_inductive : ?global:bool -> env -> Inductive.mind_specif -> env * Entri
  *)
 val declare_inductive : Id.t -> Id.t list -> bool -> Entries.inductive_universes -> int -> types -> types list -> inductive
 
+(* --- Modules --- *)
+
+(*
+ * Pull any functor parameters off the module signature, returning the list of
+ * functor parameters and the list of module elements (i.e., fields).
+ *)
+val decompose_module_signature : module_signature -> (Names.MBId.t * module_type_body) list * structure_body
+
+(*
+ * Begin an interactive (i.e., elementwise) definition of a module.
+ *
+ * Optional arguments allow specifying functor parameters and module signature,
+ * each with the obvious default (non-functor and exposed structure).
+ *)
+val begin_module_structure :
+  ?params:(Constrexpr.module_ast Declaremods.module_params) ->
+  ?sign:((Constrexpr.module_ast * Vernacexpr.inline) Vernacexpr.module_signature) ->
+  Names.Id.t -> Names.ModPath.t
+
+(*
+ * End an interactive (i.e., elementwise) definition of a module, begun earlier
+ * with begin_module_structure.
+ *)
+val end_module_structure : unit -> unit
+
 (* --- Environments --- *)
 
 (*

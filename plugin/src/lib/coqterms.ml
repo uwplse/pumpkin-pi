@@ -821,6 +821,46 @@ let declare_inductive typename consnames template univs nparam arity constypes =
   Indschemes.declare_default_schemes mind;
   ind
 
+(* --- Modules --- *)
+
+(*
+ * Pull any functor parameters off the module signature, returning the list of
+ * functor parameters and the list of module elements (i.e., fields).
+ *)
+let decompose_module_signature mod_sign =
+  let rec aux mod_arity mod_sign =
+    match mod_sign with
+    | MoreFunctor (mod_name, mod_type, mod_sign) ->
+      aux ((mod_name, mod_type) :: mod_arity) mod_sign
+    | NoFunctor mod_fields ->
+      mod_arity, mod_fields
+  in
+  aux [] mod_sign
+
+(*
+ * Begin an interactive (i.e., elementwise) definition of a module.
+ *
+ * Optional arguments allow specifying functor parameters and module signature,
+ * each with the obvious default (non-functor and exposed structure).
+ *)
+let begin_module_structure ?(params=[]) ?(sign=(Vernacexpr.Check [])) id =
+  (* NOTE: If ever needed, could define our own module_interpreter to avoid
+   * round-trips through Constrexpr.
+   *)
+  let mod_path =
+    Declaremods.start_module Modintern.interp_module_ast None id params sign
+  in
+  Dumpglob.dump_moddef mod_path "mod";
+  mod_path
+
+(*
+ * End an interactive (i.e., elementwise) definition of a module, begun earlier
+ * with begin_module_structure.
+ *)
+let end_module_structure () =
+  let mod_path = Declaremods.end_module () in
+  Dumpglob.dump_modref mod_path "mod"
+
 (* --- Basic mapping --- *)
 
 (*
