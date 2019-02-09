@@ -91,23 +91,10 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
   else
     lift_definition_by_ornament env evd n_new l c_old
 
-(*
- * Translate each fix or match subterm into an equivalent application of an
- * eliminator, defining the new term with the given name.
- *
- * Mutual fix or cofix subterms are not supported.
- *)
-let desugar_definition n d =
-  (* TODO: Accept old/new names and lookup constant directly *)
-  let (evm, env) = Pfedit.get_current_context () in
-  let term = intern env evm d |> unwrap_definition env in
-  let evm, term' = desugar_term env evm term in
-  ignore (define_term n evm term' false);
-  Flags.if_verbose Feedback.msg_info
-    (seq [str "\nTranslated constant "; str "$OLD"; str " as "; Id.print n])
+let qualify_reference r =
+  Libnames.qualid_of_reference r |> CAst.with_val identity
 
-let desugar_constant subst const const_body =
-  let ident = Constant.label const |> Label.to_id in
+let desugar_constant subst ident const_body =
   let env = Global.env () in
   let evm = Evd.from_env env in
   let term = force_constant_body const_body in
@@ -115,6 +102,16 @@ let desugar_constant subst const const_body =
   let evm', term' = desugar evm term in
   let evm', type' = desugar evm' const_body.const_type in
   define_term ~typ:type' ident evm' term' true |> destConstRef
+
+(*
+ * Translate each fix or match subterm into an equivalent application of an
+ * eliminator, defining the new term with the given name.
+ *
+ * Mutual fix or cofix subterms are not supported.
+ *)
+let desugar_definition ident const_ref =
+  let const = qualify_reference const_ref |> Nametab.locate_constant in
+  ignore (desugar_constant Globmap.empty ident (Global.lookup_constant const))
 
 let flip f = fun x y -> f y x
 
@@ -137,9 +134,7 @@ let desugar_inductive subst ind mind_body =
  * desugar_definition, compositionally throughout a whole module.
  *)
 let desugar_module mod_name mod_ref =
-  let mod_path =
-    Libnames.qualid_of_reference mod_ref |> CAst.with_val Nametab.locate_module
-  in
+  let mod_path = qualify_reference mod_ref |> Nametab.locate_module in
   let mod_body = Global.lookup_module mod_path in
   let mod_arity, mod_fields = decompose_module_signature mod_body.mod_type in
   assert (List.is_empty mod_arity); (* Functors are not yet supported. *)
@@ -155,7 +150,7 @@ let desugar_module mod_name mod_ref =
                if Globmap.mem (ConstRef const) subst then
                  subst (* Do not re-define any schematic definitions. *)
                else
-                 let const' = desugar_constant subst const const_body in
+                 let const' = desugar_constant subst (Constant.label const |> Label.to_id) const_body in
                  Globmap.add (ConstRef const) (ConstRef const') subst
              | SFBmind mind_body ->
                check_inductive_supported mind_body;
