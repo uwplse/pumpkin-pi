@@ -124,45 +124,13 @@ let desugar_inductive subst ind mind_body =
   let mind_specif = (mind_body, ind_body) in
   let env = Global.env () in
   let env, univs, arity, cons_types = open_inductive ~global:true env mind_specif in
-  let evm = Evd.from_env env in
   let desugar = desugar_term ~subst:subst env in
-  let evm, arity' = desugar evm arity in
+  let evm, arity' = desugar (Evd.from_env env) arity in
   let evm, cons_types' = List.fold_left_map desugar evm cons_types in
   declare_inductive
     ind_body.mind_typename (Array.to_list ind_body.mind_consnames)
     (is_ind_body_template ind_body) univs
     mind_body.mind_nparams arity' cons_types'
-
-let decompose_module_signature mod_sign =
-  let rec aux mod_arity mod_sign =
-    match mod_sign with
-    | MoreFunctor (mod_name, mod_type, mod_sign) ->
-      aux ((mod_name, mod_type) :: mod_arity) mod_sign
-    | NoFunctor mod_fields ->
-      mod_arity, mod_fields
-  in
-  aux [] mod_sign
-
-(*
- * Begin an interactive (i.e., elementwise) definition of a module.
- *
- * Optional arguments allow specifying functor parameters and module signature,
- * each with the obvious default (non-functor and exposed structure).
- *)
-let begin_module_structure ?(params=[]) ?(sign=(Vernacexpr.Check [])) id =
-  let mod_path =
-    Declaremods.start_module Modintern.interp_module_ast None id params sign
-  in
-  Dumpglob.dump_moddef mod_path "mod";
-  mod_path
-
-(*
- * End an interactive (i.e., elementwise) definition of a module, begun earlier
- * with begin_module_structure.
- *)
-let end_module_structure () =
-  let mod_path = Declaremods.end_module () in
-  Dumpglob.dump_modref mod_path "mod"
 
 (*
  * Translate fix and match expressions into eliminations, as in
@@ -174,6 +142,7 @@ let desugar_module mod_name mod_ref =
   in
   let mod_body = Global.lookup_module mod_path in
   let mod_arity, mod_fields = decompose_module_signature mod_body.mod_type in
+  assert (List.is_empty mod_arity); (* Functors are not yet supported. *)
   let mod_path' = begin_module_structure mod_name in
   let _ = (* TODO: Refactor *)
     List.fold_left
