@@ -517,6 +517,9 @@ val reference_of_ident : Id.t -> Libnames.reference
 (* Turn a name into an optional external (i.e., surface-level) reference *)
 val reference_of_name : Name.t -> Libnames.reference option
 
+(* Convert an external reference into a qualid.  *)
+val qualid_of_reference : Libnames.reference -> Libnames.qualid
+
 (* --- Application and arguments --- *)
 
 (*

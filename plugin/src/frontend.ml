@@ -91,96 +91,26 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
   else
     lift_definition_by_ornament env evd n_new l c_old
 
-let qualify_reference r =
-  Libnames.qualid_of_reference r |> CAst.with_val identity
-
-let desugar_constant subst ident const_body =
-  let env =
-    match const_body.const_universes with
-    | Monomorphic_const univs ->
-      Global.env () |> Environ.push_context_set univs
-    | Polymorphic_const univs ->
-      CErrors.user_err ~hdr:"desugar_constant"
-        (str "Universe polymorphism is not supported")
-  in
-  let evm = Evd.from_env env in
-  let term = force_constant_body const_body in
-  let evm, term' = desugar_term ~subst env evm term in
-  let evm, type' = desugar_term ~subst env evm const_body.const_type in
-  define_term ~typ:type' ident evm term' true |> destConstRef
-
 (*
  * Translate each fix or match subterm into an equivalent application of an
  * eliminator, defining the new term with the given name.
  *
  * Mutual fix or cofix subterms are not supported.
  *)
-let desugar_definition ident const_ref =
-  let const = qualify_reference const_ref |> Nametab.locate_constant in
-  ignore (desugar_constant Globmap.empty ident (Global.lookup_constant const))
-
-let desugar_inductive subst ident ((mind_body, ind_body) as ind_specif) =
-  let env = Global.env () in
-  let env, univs, arity, cons_types =
-    open_inductive ~global:true env ind_specif
-  in
-  let evm, arity' = desugar_term ~subst env (Evd.from_env env) arity in
-  let evm, cons_types' =
-    List.fold_left_map (desugar_term ~subst env) evm cons_types
-  in
-  declare_inductive
-    ident (Array.to_list ind_body.mind_consnames)
-    (is_ind_body_template ind_body) univs
-    mind_body.mind_nparams arity' cons_types'
-
-let desugar_module_element subst mod_path label body =
-  let ident = Label.to_id label in
-  match body with
-  | SFBconst const_body ->
-    let const = Constant.make2 mod_path label in
-    if Globmap.mem (ConstRef const) subst then
-      subst (* Do not re-define any schematic definitions. *)
-    else
-      let const' = desugar_constant subst ident const_body in
-      Globmap.add (ConstRef const) (ConstRef const') subst
-  | SFBmind mind_body ->
-    check_inductive_supported mind_body;
-    let ind = (MutInd.make2 mod_path label, 0) in
-    let ind_body = mind_body.mind_packets.(0) in
-    let ind' = desugar_inductive subst ident (mind_body, ind_body) in
-    let ncons = Array.length ind_body.mind_consnames in
-    let sorts = ind_body.mind_kelim in
-    Globmap.add (IndRef ind) (IndRef ind') subst |>
-    List.fold_right2
-      Globmap.add
-      (List.init ncons (fun i -> ConstructRef (ind, i + 1)))
-      (List.init ncons (fun i -> ConstructRef (ind', i + 1))) |>
-    List.fold_right2
-      Globmap.add
-      (List.map (Indrec.lookup_eliminator ind) sorts)
-      (List.map (Indrec.lookup_eliminator ind') sorts)
-  | SFBmodule mod_body ->
-    subst (* TODO *)
-  | SFBmodtype sig_body ->
-    subst (* TODO *)
+let do_desugar_constant ident const_ref =
+  ignore
+    begin
+      qualid_of_reference const_ref |> Nametab.locate_constant |>
+      Global.lookup_constant |> desugar_constant Globmap.empty ident
+    end
 
 (*
  * Translate fix and match expressions into eliminations, as in
  * desugar_definition, compositionally throughout a whole module.
  *)
-let desugar_module mod_name mod_ref =
-  let mod_path = qualify_reference mod_ref |> Nametab.locate_module in
-  let mod_body = Global.lookup_module mod_path in
-  let mod_arity, mod_elems = decompose_module_signature mod_body.mod_type in
-  assert (List.is_empty mod_arity); (* Functors are not yet supported. *)
-  let mod_path' = begin_module_structure mod_name in
-  let subst = ref Globmap.empty in
-  List.iter
-    (fun (label, body) ->
-       try
-         subst := desugar_module_element !subst mod_path label body
-       with Pretype_errors.PretypeError _ ->
-         Feedback.msg_warning (str "Failed to translate " ++ Label.print label))
-    mod_elems;
-  end_module_structure ();
-  Feedback.msg_info (str "\nModule " ++ Id.print mod_name ++ str " is defined")
+let do_desugar_module ident mod_ref =
+  ignore
+    begin
+      qualid_of_reference mod_ref |> Nametab.locate_module |>
+      Global.lookup_module |> desugar_module (ref Globmap.empty) ident
+    end

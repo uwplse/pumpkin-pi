@@ -23,7 +23,7 @@ END
 VERNAC COMMAND EXTEND TranslateMatch CLASSIFIED AS SIDEFF
 (* TODO: Use reference for the source constant *)
 | [ "Desugar" reference(const_ref) "as" ident(id)] ->
-  [ desugar_definition id const_ref ]
+  [ do_desugar_constant id const_ref ]
 | [ "Desugar" "Module" reference(mod_ref) "as" ident(id)] ->
-  [ desugar_module id mod_ref ]
+  [ do_desugar_module id mod_ref ]
 END

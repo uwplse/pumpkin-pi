@@ -949,3 +949,7 @@ let reference_of_ident id =
 (* Turn a name into an optional external (i.e., surface-level) reference *)
 let reference_of_name =
   ident_of_name %> Option.map reference_of_ident
+
+(* Convert an external reference into a qualid.  *)
+let qualid_of_reference =
+  Libnames.qualid_of_reference %> CAst.with_val identity
