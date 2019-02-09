@@ -105,8 +105,8 @@ let desugar_constant subst ident const_body =
   in
   let evm = Evd.from_env env in
   let term = force_constant_body const_body in
-  let evm, term' = desugar_term ~subst:subst env evm term in
-  let evm, type' = desugar_term ~subst:subst env evm const_body.const_type in
+  let evm, term' = desugar_term ~subst env evm term in
+  let evm, type' = desugar_term ~subst env evm const_body.const_type in
   define_term ~typ:type' ident evm term' true |> destConstRef
 
 (*
@@ -119,19 +119,16 @@ let desugar_definition ident const_ref =
   let const = qualify_reference const_ref |> Nametab.locate_constant in
   ignore (desugar_constant Globmap.empty ident (Global.lookup_constant const))
 
-let flip f = fun x y -> f y x
-
-let desugar_inductive subst ind mind_body =
+let desugar_inductive subst ident ((mind_body, ind_body) as mind_specif) =
   (* TODO: Clean up and refactor *)
-  let ind_body = mind_body.mind_packets.(0) in
-  let mind_specif = (mind_body, ind_body) in
   let env = Global.env () in
   let env, univs, arity, cons_types = open_inductive ~global:true env mind_specif in
-  let desugar = desugar_term ~subst:subst env in
-  let evm, arity' = desugar (Evd.from_env env) arity in
-  let evm, cons_types' = List.fold_left_map desugar evm cons_types in
+  let evm, arity' = desugar_term ~subst env (Evd.from_env env) arity in
+  let evm, cons_types' =
+    List.fold_left_map (desugar_term ~subst env) evm cons_types
+  in
   declare_inductive
-    ind_body.mind_typename (Array.to_list ind_body.mind_consnames)
+    ident (Array.to_list ind_body.mind_consnames)
     (is_ind_body_template ind_body) univs
     mind_body.mind_nparams arity' cons_types'
 
@@ -156,14 +153,16 @@ let desugar_module mod_name mod_ref =
                if Globmap.mem (ConstRef const) subst then
                  subst (* Do not re-define any schematic definitions. *)
                else
-                 let const' = desugar_constant subst (Constant.label const |> Label.to_id) const_body in
+                 let ident = Constant.label const |> Label.to_id in
+                 let const' = desugar_constant subst ident const_body in
                  Globmap.add (ConstRef const) (ConstRef const') subst
              | SFBmind mind_body ->
                check_inductive_supported mind_body;
                let ind = (MutInd.make2 mod_path label, 0) in
-               let ind' = desugar_inductive subst ind mind_body in
-               let ncons = Inductiveops.nconstructors ind in
-               let sorts = mind_body.mind_packets.(0).mind_kelim in
+               let ind_body = mind_body.mind_packets.(0) in
+               let ind' = desugar_inductive subst ind_body.mind_typename (mind_body, ind_body) in
+               let ncons = Array.length ind_body.mind_consnames in
+               let sorts = ind_body.mind_kelim in
                Globmap.add (IndRef ind) (IndRef ind') subst |>
                List.fold_right2
                  Globmap.add
