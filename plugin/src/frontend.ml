@@ -105,10 +105,9 @@ let desugar_constant subst ident const_body =
   in
   let evm = Evd.from_env env in
   let term = force_constant_body const_body in
-  let desugar = desugar_term ~subst:subst env in
-  let evm', term' = desugar evm term in
-  let evm', type' = desugar evm' const_body.const_type in
-  define_term ~typ:type' ident evm' term' true |> destConstRef
+  let evm, term' = desugar_term ~subst:subst env evm term in
+  let evm, type' = desugar_term ~subst:subst env evm const_body.const_type in
+  define_term ~typ:type' ident evm term' true |> destConstRef
 
 (*
  * Translate each fix or match subterm into an equivalent application of an
