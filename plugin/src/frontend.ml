@@ -106,7 +106,7 @@ let do_desugar_constant ident const_ref =
 
 (*
  * Translate fix and match expressions into eliminations, as in
- * desugar_definition, compositionally throughout a whole module.
+ * do_desugar_constant, compositionally throughout a whole module.
  *)
 let do_desugar_module ident mod_ref =
   ignore
