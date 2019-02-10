@@ -426,7 +426,6 @@ let desugar_module_element subst mod_path label body =
     let ind = (MutInd.make2 mod_path label, 0) in
     let ind_body = mind_body.mind_packets.(0) in
     let ind' = desugar_inductive subst ident (mind_body, ind_body) in
-    (* TODO: Deduplicate with Lift.declare_inductive_liftings. *)
     let ncons = Array.length ind_body.mind_consnames in
     let list_cons ind = List.init ncons (fun i -> ConstructRef (ind, i + 1)) in
     let sorts = ind_body.mind_kelim in
@@ -435,9 +434,13 @@ let desugar_module_element subst mod_path label body =
     List.fold_right2 Globmap.add (list_cons ind) (list_cons ind') |>
     List.fold_right2 Globmap.add (list_elim ind) (list_elim ind')
   | SFBmodule mod_body ->
-    subst (* TODO *)
+    Feedback.msg_warning
+      Pp.(str "Skipping nested module structure " ++ Label.print label);
+    subst
   | SFBmodtype sig_body ->
-    subst (* TODO *)
+    Feedback.msg_warning
+      Pp.(str "Skipping nested module signature " ++ Label.print label);
+    subst
 
 (*
  * Desugar the body structure of a module and define it in the global environment
