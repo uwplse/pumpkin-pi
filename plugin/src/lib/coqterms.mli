@@ -517,8 +517,19 @@ val reference_of_ident : Id.t -> Libnames.reference
 (* Turn a name into an optional external (i.e., surface-level) reference *)
 val reference_of_name : Name.t -> Libnames.reference option
 
-(* Convert an external reference into a qualid.  *)
+(* Convert an external reference into a qualid *)
 val qualid_of_reference : Libnames.reference -> Libnames.qualid
+
+(* Convert a term into a global reference with universes (or raise Not_found) *)
+val pglobal_of_constr : constr -> global_reference Univ.puniverses
+
+(* Convert a global reference with universes into a term *)
+val constr_of_pglobal : global_reference Univ.puniverses -> constr
+
+type global_substitution = global_reference Globmap.t
+
+(* Substitute global references throughout a term *)
+val subst_globals : global_substitution -> constr -> constr
 
 (* --- Application and arguments --- *)
 

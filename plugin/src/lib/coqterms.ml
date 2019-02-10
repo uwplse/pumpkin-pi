@@ -950,6 +950,37 @@ let reference_of_ident id =
 let reference_of_name =
   ident_of_name %> Option.map reference_of_ident
 
-(* Convert an external reference into a qualid.  *)
+(* Convert an external reference into a qualid *)
 let qualid_of_reference =
   Libnames.qualid_of_reference %> CAst.with_val identity
+
+(* Convert a term into a global reference with universes (or raise Not_found) *)
+let pglobal_of_constr term =
+  match Constr.kind term with
+  | Const (const, univs) -> ConstRef const, univs
+  | Ind (ind, univs) -> IndRef ind, univs
+  | Construct (cons, univs) -> ConstructRef cons, univs
+  | Var id -> VarRef id, Univ.Instance.empty
+  | _ -> raise Not_found
+
+(* Convert a global reference with universes into a term *)
+let constr_of_pglobal (glob, univs) =
+  match glob with
+  | ConstRef const -> mkConstU (const, univs)
+  | IndRef ind -> mkIndU (ind, univs)
+  | ConstructRef cons -> mkConstructU (cons, univs)
+  | VarRef id -> mkVar id
+
+type global_substitution = global_reference Globmap.t
+
+(* Substitute global references throughout a term *)
+let subst_globals subst term =
+  let rec aux term =
+    try
+      pglobal_of_constr term |>
+      map_puniverses (flip Globmap.find subst) |>
+      constr_of_pglobal
+    with Not_found ->
+      Constr.map aux term
+  in
+  aux term

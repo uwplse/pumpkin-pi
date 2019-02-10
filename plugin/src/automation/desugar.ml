@@ -11,8 +11,6 @@ open CErrors
 open Coqterms
 open Abstraction
 
-type global_substitution = global_reference Globmap.t
-
 (*
  * Pair the outputs of two functions on the same input.
  *)
@@ -348,7 +346,7 @@ let desugar_match env evm info pred discr cases =
  *
  * Mutual recursion, co-recursion, and universe polymorphism are not supported.
  *)
-let desugar_term env evm subst term =
+let desugar_term env evm term =
   let rec aux env term =
     match Constr.kind term with
     | Lambda (name, param, body) ->
@@ -371,32 +369,7 @@ let desugar_term env evm subst term =
     | CoFix _ ->
       user_err ~hdr:"desugar" (Pp.str "co-recursion not supported")
     | Case (info, pred, discr, cases) ->
-      (* TODO: I probably should decouple substitution from transformation *)
-      let pred' = aux env pred in
-      let discr' = aux env discr in
-      let cases' = Array.map (aux env) cases in
-      desugar_match env evm info pred' discr' cases'
-    | Const (const, univs) ->
-      begin
-        try
-          let const' = Globmap.find (ConstRef const) subst |> destConstRef in
-          mkConstU (const', univs)
-        with Not_found -> term
-      end
-    | Ind (ind, univs) ->
-      begin
-        try
-          let ind' = Globmap.find (IndRef ind) subst |> destIndRef in
-          mkIndU (ind', univs)
-        with Not_found -> term
-      end
-    | Construct (cons, univs) ->
-      begin
-        try
-          let cons' = Globmap.find (ConstructRef cons) subst |> destConstructRef in
-          mkConstructU (cons', univs)
-        with Not_found -> term
-      end
+      desugar_match env evm info pred discr cases |> aux env
     | _ ->
       Constr.map (aux env) term
   in
@@ -417,10 +390,11 @@ let desugar_constant subst ident const_body =
       CErrors.user_err ~hdr:"desugar_constant"
         Pp.(str "Universe polymorphism is not supported")
   in
-  let evm = ref (Evd.from_env env) in
   let term = force_constant_body const_body in
-  let term' = desugar_term env evm subst term in
-  let type' = desugar_term env evm subst const_body.const_type in
+  let evm = ref (Evd.from_env env) in
+  let desugar = subst_globals subst %> desugar_term env evm in
+  let term' = desugar term in
+  let type' = desugar const_body.const_type in
   define_term ~typ:type' ident !evm term' true |> destConstRef
 
 let desugar_inductive subst ident ((mind_body, ind_body) as ind_specif) =
@@ -429,8 +403,9 @@ let desugar_inductive subst ident ((mind_body, ind_body) as ind_specif) =
     open_inductive ~global:true env ind_specif
   in
   let evm = ref (Evd.from_env env) in
-  let arity' = desugar_term env evm subst arity in
-  let cons_types' = List.map (desugar_term env evm subst) cons_types in
+  let desugar = subst_globals subst %> desugar_term env evm in
+  let arity' = desugar arity in
+  let cons_types' = List.map desugar cons_types in
   declare_inductive
     ident (Array.to_list ind_body.mind_consnames)
     (is_ind_body_template ind_body) univs
@@ -451,17 +426,14 @@ let desugar_module_element subst mod_path label body =
     let ind = (MutInd.make2 mod_path label, 0) in
     let ind_body = mind_body.mind_packets.(0) in
     let ind' = desugar_inductive subst ident (mind_body, ind_body) in
+    (* TODO: Deduplicate with Lift.declare_inductive_liftings. *)
     let ncons = Array.length ind_body.mind_consnames in
+    let list_cons ind = List.init ncons (fun i -> ConstructRef (ind, i + 1)) in
     let sorts = ind_body.mind_kelim in
+    let list_elim ind = List.map (Indrec.lookup_eliminator ind) sorts in
     Globmap.add (IndRef ind) (IndRef ind') subst |>
-    List.fold_right2
-      Globmap.add
-      (List.init ncons (fun i -> ConstructRef (ind, i + 1)))
-      (List.init ncons (fun i -> ConstructRef (ind', i + 1))) |>
-    List.fold_right2
-      Globmap.add
-      (List.map (Indrec.lookup_eliminator ind) sorts)
-      (List.map (Indrec.lookup_eliminator ind') sorts)
+    List.fold_right2 Globmap.add (list_cons ind) (list_cons ind') |>
+    List.fold_right2 Globmap.add (list_elim ind) (list_elim ind')
   | SFBmodule mod_body ->
     subst (* TODO *)
   | SFBmodtype sig_body ->
