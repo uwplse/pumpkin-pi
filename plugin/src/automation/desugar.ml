@@ -460,5 +460,6 @@ let desugar_module subst ident mod_body =
            Pp.(str "Failed to translate " ++ Label.print label))
     mod_elems;
   end_module_structure ();
-  Feedback.msg_info Pp.(str "\nModule " ++ Id.print ident ++ str " is defined");
+  Flags.if_verbose Feedback.msg_info
+    Pp.(str "\nModule " ++ Id.print ident ++ str " is defined");
   mod_path'
