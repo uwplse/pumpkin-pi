@@ -397,6 +397,13 @@ let desugar_constant subst ident const_body =
   let type' = desugar const_body.const_type in
   define_term ~typ:type' ident !evm term' true |> destConstRef
 
+(*
+ * Desugar an inductive definition (neither mutual nor co-inductive) and define
+ * it in the global environment as the given identifier.
+ *
+ * Note that constructor names are unchanged and that the default set of
+ * schematic constants (usually just eliminatores) are defined as well.
+ *)
 let desugar_inductive subst ident ((mind_body, ind_body) as ind_specif) =
   let env = Global.env () in
   let env, univs, arity, cons_types =
@@ -411,6 +418,21 @@ let desugar_inductive subst ident ((mind_body, ind_body) as ind_specif) =
     (is_ind_body_template ind_body) univs
     mind_body.mind_nparams arity' cons_types'
 
+(*
+ * Desugar the module element identified by the given module path and label,
+ * defining it in the current global environment (presumably, an interactive
+ * module structure wrapping all such module elements) as the same label and
+ * returing an updated substitution of global references.
+ *
+ * When the module element is an inductive definition, this procedure will add
+ * substitutions for its constructors and eliminators, in addition to its type
+ * former.
+ *
+ * When the module element is a constant definition, this procedure will skip
+ * it if its constant symbol (module path plus label) is already present in the
+ * subsitution. This policy avoids duplicate translations of eliminators and
+ * other scheme-generated constants associated with an inductive family.
+ *)
 let desugar_module_element subst mod_path label body =
   let ident = Label.to_id label in
   match body with
