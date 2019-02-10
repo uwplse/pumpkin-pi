@@ -371,7 +371,11 @@ let desugar_term env evm subst term =
     | CoFix _ ->
       user_err ~hdr:"desugar" (Pp.str "co-recursion not supported")
     | Case (info, pred, discr, cases) ->
-      desugar_match env evm info pred discr cases |> aux env
+      (* TODO: I probably should decouple substitution from transformation *)
+      let pred' = aux env pred in
+      let discr' = aux env discr in
+      let cases' = Array.map (aux env) cases in
+      desugar_match env evm info pred' discr' cases'
     | Const (const, univs) ->
       begin
         try
