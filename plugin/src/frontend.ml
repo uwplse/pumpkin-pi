@@ -1,8 +1,6 @@
-open Util
 open Constr
 open Names
 open Globnames
-open Declarations
 open Coqterms
 open Lifting
 open Caching
