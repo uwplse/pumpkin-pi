@@ -1,9 +1,5 @@
-open Names
 open Environ
-open Evd
 open Constr
-open Declarations
-open Coqterms
 
 (*
  * Translate the given term into an equivalent, bisimulative (i.e., homomorpic
@@ -12,16 +8,4 @@ open Coqterms
  *
  * Mutual recursion and co-recursion are not supported.
  *)
-val desugar_term : env -> evar_map ref -> constr -> constr
-
-(*
- * Desugar the body term of a constant and define it in the global environment
- * as the given identifier.
- *)
-val desugar_constant : global_substitution -> Id.t -> constant_body -> Constant.t
-
-(*
- * Desugar the body structure of a module and define it in the global environment
- * as a new module by the given identifier.
- *)
-val desugar_module : global_substitution ref -> Id.t -> module_body -> ModPath.t
+val desugar_constr : env -> Evd.evar_map ref -> constr -> constr (* Coqterms.constr_transformer *)

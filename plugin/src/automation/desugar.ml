@@ -1,11 +1,9 @@
 open Util
 open Names
-open Globnames
 open Univ
 open Context
 open Term
 open Constr
-open Declarations
 open Inductiveops
 open CErrors
 open Coqterms
@@ -346,7 +344,7 @@ let desugar_match env evm info pred discr cases =
  *
  * Mutual recursion, co-recursion, and universe polymorphism are not supported.
  *)
-let desugar_term env evm term =
+let desugar_constr env evm term =
   let rec aux env term =
     match Constr.kind term with
     | Lambda (name, param, body) ->
@@ -376,112 +374,3 @@ let desugar_term env evm term =
   let term' = aux env term in
   ignore (e_infer_type env evm term'); (* to infer universe constraints *)
   term'
-
-(*
- * Desugar the body term of a constant and define it in the global environment
- * as the given identifier.
- *)
-let desugar_constant subst ident const_body =
-  let env =
-    match const_body.const_universes with
-    | Monomorphic_const univs ->
-      Global.env () |> Environ.push_context_set univs
-    | Polymorphic_const univs ->
-      CErrors.user_err ~hdr:"desugar_constant"
-        Pp.(str "Universe polymorphism is not supported")
-  in
-  let term = force_constant_body const_body in
-  let evm = ref (Evd.from_env env) in
-  let desugar = subst_globals subst %> desugar_term env evm in
-  let term' = desugar term in
-  let type' = desugar const_body.const_type in
-  define_term ~typ:type' ident !evm term' true |> destConstRef
-
-(*
- * Desugar an inductive definition (neither mutual nor co-inductive) and define
- * it in the global environment as the given identifier.
- *
- * Note that constructor names are unchanged and that the default set of
- * schematic constants (usually just eliminatores) are defined as well.
- *)
-let desugar_inductive subst ident ((mind_body, ind_body) as ind_specif) =
-  let env = Global.env () in
-  let env, univs, arity, cons_types =
-    open_inductive ~global:true env ind_specif
-  in
-  let evm = ref (Evd.from_env env) in
-  let desugar = subst_globals subst %> desugar_term env evm in
-  let arity' = desugar arity in
-  let cons_types' = List.map desugar cons_types in
-  declare_inductive
-    ident (Array.to_list ind_body.mind_consnames)
-    (is_ind_body_template ind_body) univs
-    mind_body.mind_nparams arity' cons_types'
-
-(*
- * Desugar the module element identified by the given module path and label,
- * defining it in the current global environment (presumably, an interactive
- * module structure wrapping all such module elements) as the same label and
- * returing an updated substitution of global references.
- *
- * When the module element is an inductive definition, this procedure will add
- * substitutions for its constructors and eliminators, in addition to its type
- * former.
- *
- * When the module element is a constant definition, this procedure will skip
- * it if its constant symbol (module path plus label) is already present in the
- * subsitution. This policy avoids duplicate translations of eliminators and
- * other scheme-generated constants associated with an inductive family.
- *)
-let desugar_module_element subst mod_path label body =
-  let ident = Label.to_id label in
-  match body with
-  | SFBconst const_body ->
-    let const = Constant.make2 mod_path label in
-    if Globmap.mem (ConstRef const) subst then
-      subst (* Do not re-define any schematic definitions. *)
-    else
-      let const' = desugar_constant subst ident const_body in
-      Globmap.add (ConstRef const) (ConstRef const') subst
-  | SFBmind mind_body ->
-    check_inductive_supported mind_body;
-    let ind = (MutInd.make2 mod_path label, 0) in
-    let ind_body = mind_body.mind_packets.(0) in
-    let ind' = desugar_inductive subst ident (mind_body, ind_body) in
-    let ncons = Array.length ind_body.mind_consnames in
-    let list_cons ind = List.init ncons (fun i -> ConstructRef (ind, i + 1)) in
-    let sorts = ind_body.mind_kelim in
-    let list_elim ind = List.map (Indrec.lookup_eliminator ind) sorts in
-    Globmap.add (IndRef ind) (IndRef ind') subst |>
-    List.fold_right2 Globmap.add (list_cons ind) (list_cons ind') |>
-    List.fold_right2 Globmap.add (list_elim ind) (list_elim ind')
-  | SFBmodule mod_body ->
-    Feedback.msg_warning
-      Pp.(str "Skipping nested module structure " ++ Label.print label);
-    subst
-  | SFBmodtype sig_body ->
-    Feedback.msg_warning
-      Pp.(str "Skipping nested module signature " ++ Label.print label);
-    subst
-
-(*
- * Desugar the body structure of a module and define it in the global environment
- * as a new module by the given identifier.
- *)
-let desugar_module subst ident mod_body =
-  let mod_path = mod_body.mod_mp in
-  let mod_arity, mod_elems = decompose_module_signature mod_body.mod_type in
-  assert (List.is_empty mod_arity); (* Functors are not yet supported. *)
-  let mod_path' = begin_module_structure ident in
-  List.iter
-    (fun (label, body) ->
-       try
-         subst := desugar_module_element !subst mod_path label body
-       with Pretype_errors.PretypeError _ ->
-         Feedback.msg_warning
-           Pp.(str "Failed to translate " ++ Label.print label))
-    mod_elems;
-  end_module_structure ();
-  Flags.if_verbose Feedback.msg_info
-    Pp.(str "\nModule " ++ Id.print ident ++ str " is defined");
-  mod_path'

@@ -99,7 +99,7 @@ let do_desugar_constant ident const_ref =
   ignore
     begin
       qualid_of_reference const_ref |> Nametab.locate_constant |>
-      Global.lookup_constant |> desugar_constant Globmap.empty ident
+      Global.lookup_constant |> transform_constant ident desugar_constr
     end
 
 (*
@@ -110,5 +110,5 @@ let do_desugar_module ident mod_ref =
   ignore
     begin
       qualid_of_reference mod_ref |> Nametab.locate_module |>
-      Global.lookup_module |> desugar_module (ref Globmap.empty) ident
+      Global.lookup_module |> transform_module_structure ident desugar_constr
     end

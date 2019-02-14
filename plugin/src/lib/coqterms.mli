@@ -239,31 +239,6 @@ val open_inductive : ?global:bool -> env -> Inductive.mind_specif -> env * Entri
  *)
 val declare_inductive : Id.t -> Id.t list -> bool -> Entries.inductive_universes -> int -> types -> types list -> inductive
 
-(* --- Modules --- *)
-
-(*
- * Pull any functor parameters off the module signature, returning the list of
- * functor parameters and the list of module elements (i.e., fields).
- *)
-val decompose_module_signature : module_signature -> (Names.MBId.t * module_type_body) list * structure_body
-
-(*
- * Begin an interactive (i.e., elementwise) definition of a module.
- *
- * Optional arguments allow specifying functor parameters and module signature,
- * each with the obvious default (non-functor and exposed structure).
- *)
-val begin_module_structure :
-  ?params:(Constrexpr.module_ast Declaremods.module_params) ->
-  ?sign:((Constrexpr.module_ast * Vernacexpr.inline) Vernacexpr.module_signature) ->
-  Names.Id.t -> Names.ModPath.t
-
-(*
- * End an interactive (i.e., elementwise) definition of a module, begun earlier
- * with begin_module_structure.
- *)
-val end_module_structure : unit -> unit
-
 (* --- Environments --- *)
 
 (*
@@ -530,6 +505,36 @@ type global_substitution = global_reference Globmap.t
 
 (* Substitute global references throughout a term *)
 val subst_globals : global_substitution -> constr -> constr
+
+(* --- Modules --- *)
+
+(*
+ * Pull any functor parameters off the module signature, returning the list of
+ * functor parameters and the list of module elements (i.e., fields).
+ *)
+val decompose_module_signature : module_signature -> (Names.MBId.t * module_type_body) list * structure_body
+
+(*
+ * Declare an interactive (i.e., elementwise) module structure, with the
+ * functional argument called to populate the module elements by declaration.
+ *
+ * The optional argument specifies functor parameters.
+ *)
+val declare_module_structure :
+  ?params:(Constrexpr.module_ast Declaremods.module_params) ->
+  Names.Id.t -> (unit -> unit) -> ModPath.t
+
+(* TODO *)
+type constr_transformer = env -> evar_map ref -> constr -> constr
+
+(* TODO *)
+val transform_constant : Id.t -> constr_transformer -> constant_body -> Constant.t
+
+(* TODO *)
+val transform_inductive : Id.t -> constr_transformer -> Inductive.mind_specif -> inductive
+
+(* TODO *)
+val transform_module_structure : Id.t -> constr_transformer -> module_body -> ModPath.t
 
 (* --- Application and arguments --- *)
 
