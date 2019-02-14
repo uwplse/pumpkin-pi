@@ -1027,7 +1027,7 @@ let transform_inductive ident tr_constr ((mind_body, ind_body) as ind_specif) =
 
 (*
  * Declare a new module structure under the given name with the compositionally
- * transformed (i.e., forward-substituted) elements from the given module
+ * transformed (i.e., forward-substituted) components from the given module
  * structure. Names for the components remain the same.
  *
  * NOTE: Does not support functors or nested modules.
