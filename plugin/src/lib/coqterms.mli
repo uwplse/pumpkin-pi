@@ -549,10 +549,14 @@ val transform_inductive : Id.t -> constr_transformer -> Inductive.mind_specif ->
  * transformed (i.e., forward-substituted) components from the given module
  * structure. Names for the components remain the same.
  *
+ * The optional initialization function is called immediately after the module
+ * structure begins, and its returned subsitution is applied to all other module
+ * elements.
+ *
  * NOTE: Does not support functors or nested modules.
  * NOTE: Global side effects.
  *)
-val transform_module_structure : Id.t -> constr_transformer -> module_body -> ModPath.t
+val transform_module_structure : ?init:(unit -> global_substitution) -> Id.t -> constr_transformer -> module_body -> ModPath.t
 
 (* --- Application and arguments --- *)
 

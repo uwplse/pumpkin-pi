@@ -106,9 +106,20 @@ let do_desugar_constant ident const_ref =
  * Translate fix and match expressions into eliminations, as in
  * do_desugar_constant, compositionally throughout a whole module.
  *)
-let do_desugar_module ident mod_ref =
+let do_desugar_module ?(incl=[]) ident mod_ref =
+  let open Util in
+  let consts = List.map (qualid_of_reference %> Nametab.locate_constant) incl in
+  let include_constant subst const =
+    let ident = Label.to_id (Constant.label const) in
+    let tr_constr env evm = subst_globals subst %> desugar_constr env evm in
+    let const' =
+      Global.lookup_constant const |> transform_constant ident tr_constr
+    in
+    Globmap.add (ConstRef const) (ConstRef const') subst
+  in
+  let init () = List.fold_left include_constant Globmap.empty consts in
   ignore
     begin
       qualid_of_reference mod_ref |> Nametab.locate_module |>
-      Global.lookup_module |> transform_module_structure ident desugar_constr
+      Global.lookup_module |> transform_module_structure ~init ident desugar_constr
     end

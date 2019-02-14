@@ -26,4 +26,4 @@ val do_desugar_constant : Id.t -> Libnames.reference -> unit
  * Translate fix and match expressions into eliminations, as in
  * do_desugar_constant, compositionally throughout a whole module.
  *)
-val do_desugar_module : Id.t -> Libnames.reference -> unit
+val do_desugar_module : ?incl:(Libnames.reference list) -> Id.t -> Libnames.reference -> unit

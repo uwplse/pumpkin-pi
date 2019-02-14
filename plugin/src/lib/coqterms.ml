@@ -1030,10 +1030,14 @@ let transform_inductive ident tr_constr ((mind_body, ind_body) as ind_specif) =
  * transformed (i.e., forward-substituted) components from the given module
  * structure. Names for the components remain the same.
  *
+ * The optional initialization function is called immediately after the module
+ * structure begins, and its returned subsitution is applied to all other module
+ * elements.
+ *
  * NOTE: Does not support functors or nested modules.
  * NOTE: Global side effects.
  *)
-let transform_module_structure ident tr_constr mod_body =
+let transform_module_structure ?(init=const Globmap.empty) ident tr_constr mod_body =
   let mod_path = mod_body.mod_mp in
   let mod_arity, mod_elems = decompose_module_signature mod_body.mod_type in
   assert (List.is_empty mod_arity); (* Functors are not yet supported *)
@@ -1072,4 +1076,4 @@ let transform_module_structure ident tr_constr mod_body =
   declare_module_structure
     ident
     (fun () ->
-       ignore (List.fold_left transform_module_element Globmap.empty mod_elems))
+       ignore (List.fold_left transform_module_element (init ()) mod_elems))
