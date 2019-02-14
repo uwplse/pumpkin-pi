@@ -980,10 +980,15 @@ let declare_module_structure ?(params=[]) ident declare_elements =
     Pp.(str "\nModule " ++ Id.print ident ++ str " is defined");
   mod_path
 
-(* TODO *)
+(* Type-sensitive transformation of terms *)
 type constr_transformer = env -> evar_map ref -> constr -> constr
 
-(* TODO *)
+(*
+ * Declare a new constant under the given name with the transformed term and
+ * type from the given constant.
+ *
+ * NOTE: Global side effects.
+ *)
 let transform_constant ident tr_constr const_body =
   let env =
     match const_body.const_universes with
@@ -999,7 +1004,13 @@ let transform_constant ident tr_constr const_body =
   let type' = tr_constr env evm const_body.const_type in
   define_term ~typ:type' ident !evm term' true |> Globnames.destConstRef
 
-(* TODO *)
+(*
+ * Declare a new inductive family under the given name with the transformed type
+ * arity and constructor types from the given inductive definition. Names for
+ * the constructors remain the same.
+ *
+ * NOTE: Global side effects.
+ *)
 let transform_inductive ident tr_constr ((mind_body, ind_body) as ind_specif) =
   (* TODO: Can we re-use this for ornamental lifting of inductive families? *)
   let env = Global.env () in
@@ -1014,7 +1025,14 @@ let transform_inductive ident tr_constr ((mind_body, ind_body) as ind_specif) =
     (is_ind_body_template ind_body) univs
     mind_body.mind_nparams arity' cons_types'
 
-(* TODO *)
+(*
+ * Declare a new module structure under the given name with the compositionally
+ * transformed (i.e., forward-substituted) elements from the given module
+ * structure. Names for the components remain the same.
+ *
+ * NOTE: Does not support functors or nested modules.
+ * NOTE: Global side effects.
+ *)
 let transform_module_structure ident tr_constr mod_body =
   let mod_path = mod_body.mod_mp in
   let mod_arity, mod_elems = decompose_module_signature mod_body.mod_type in

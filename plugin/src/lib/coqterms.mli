@@ -524,16 +524,34 @@ val declare_module_structure :
   ?params:(Constrexpr.module_ast Declaremods.module_params) ->
   Names.Id.t -> (unit -> unit) -> ModPath.t
 
-(* TODO *)
+(* Type-sensitive transformation of terms *)
 type constr_transformer = env -> evar_map ref -> constr -> constr
 
-(* TODO *)
+(*
+ * Declare a new constant under the given name with the transformed term and
+ * type from the given constant.
+ *
+ * NOTE: Global side effects.
+ *)
 val transform_constant : Id.t -> constr_transformer -> constant_body -> Constant.t
 
-(* TODO *)
+(*
+ * Declare a new inductive family under the given name with the transformed type
+ * arity and constructor types from the given inductive definition. Names for
+ * the constructors remain the same.
+ *
+ * NOTE: Global side effects.
+ *)
 val transform_inductive : Id.t -> constr_transformer -> Inductive.mind_specif -> inductive
 
-(* TODO *)
+(*
+ * Declare a new module structure under the given name with the compositionally
+ * transformed (i.e., forward-substituted) components from the given module
+ * structure. Names for the components remain the same.
+ *
+ * NOTE: Does not support functors or nested modules.
+ * NOTE: Global side effects.
+ *)
 val transform_module_structure : Id.t -> constr_transformer -> module_body -> ModPath.t
 
 (* --- Application and arguments --- *)
