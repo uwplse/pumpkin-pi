@@ -25,5 +25,8 @@ val do_desugar_constant : Id.t -> Libnames.reference -> unit
 (*
  * Translate fix and match expressions into eliminations, as in
  * do_desugar_constant, compositionally throughout a whole module.
+ *
+ * The optional argument is a list of constants outside the module to include
+ * in the translated module as if they were components in the input module.
  *)
 val do_desugar_module : ?incl:(Libnames.reference list) -> Id.t -> Libnames.reference -> unit

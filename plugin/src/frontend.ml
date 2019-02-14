@@ -105,6 +105,9 @@ let do_desugar_constant ident const_ref =
 (*
  * Translate fix and match expressions into eliminations, as in
  * do_desugar_constant, compositionally throughout a whole module.
+ *
+ * The optional argument is a list of constants outside the module to include
+ * in the translated module as if they were components in the input module.
  *)
 let do_desugar_module ?(incl=[]) ident mod_ref =
   let open Util in
