@@ -7,4 +7,4 @@ Require List.
  * at the cost of unwieldiness. It would be very difficult to translate terms
  * only partially while preserving well-typedness.
  *)
-Desugar Module List as List'.
+Desugar Module List as List' {include length, app}.
