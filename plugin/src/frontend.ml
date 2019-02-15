@@ -1,5 +1,6 @@
 open Constr
 open Names
+open Globnames
 open Coqterms
 open Lifting
 open Caching
@@ -51,8 +52,8 @@ let lift_definition_by_ornament env evd n l c_old =
   let lifted = do_lift_defn env evd l c_old in
   ignore (define_term n evd lifted true);
   try
-    let old_gref = Globnames.global_of_constr c_old in
-    let new_gref = Globnames.ConstRef (Lib.make_kn n |> Constant.make1) in
+    let old_gref = global_of_constr c_old in
+    let new_gref = ConstRef (Lib.make_kn n |> Constant.make1) in
     declare_lifted old_gref new_gref;
   with _ ->
     Printf.printf "WARNING: Failed to cache lifting."
@@ -94,8 +95,34 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
  *
  * Mutual fix or cofix subterms are not supported.
  *)
-let desugar_definition n d =
-  let (evm, env) = Pfedit.get_current_context () in
-  let term = intern env evm d |> unwrap_definition env in
-  let evm, term', _ = desugar_term env evm term in
-  ignore (define_term n evm term' false)
+let do_desugar_constant ident const_ref =
+  ignore
+    begin
+      qualid_of_reference const_ref |> Nametab.locate_constant |>
+      Global.lookup_constant |> transform_constant ident desugar_constr
+    end
+
+(*
+ * Translate fix and match expressions into eliminations, as in
+ * do_desugar_constant, compositionally throughout a whole module.
+ *
+ * The optional argument is a list of constants outside the module to include
+ * in the translated module as if they were components in the input module.
+ *)
+let do_desugar_module ?(incl=[]) ident mod_ref =
+  let open Util in
+  let consts = List.map (qualid_of_reference %> Nametab.locate_constant) incl in
+  let include_constant subst const =
+    let ident = Label.to_id (Constant.label const) in
+    let tr_constr env evm = subst_globals subst %> desugar_constr env evm in
+    let const' =
+      Global.lookup_constant const |> transform_constant ident tr_constr
+    in
+    Globmap.add (ConstRef const) (ConstRef const') subst
+  in
+  let init () = List.fold_left include_constant Globmap.empty consts in
+  ignore
+    begin
+      qualid_of_reference mod_ref |> Nametab.locate_module |>
+      Global.lookup_module |> transform_module_structure ~init ident desugar_constr
+    end

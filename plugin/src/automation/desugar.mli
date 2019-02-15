@@ -1,5 +1,4 @@
 open Environ
-open Evd
 open Constr
 
 (*
@@ -9,4 +8,4 @@ open Constr
  *
  * Mutual recursion and co-recursion are not supported.
  *)
-val desugar_term : env -> evar_map -> constr -> evar_map * constr * types
+val desugar_constr : env -> Evd.evar_map ref -> constr -> constr (* Coqterms.constr_transformer *)

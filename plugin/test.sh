@@ -2,10 +2,11 @@
 
 lifted=false
 desugared=false
+desugaredmod=false
 liftedind=false
 liftedcase=false
 
-if coqc coq/Test.v 
+if coqc coq/Test.v
 then
   :
 else
@@ -13,7 +14,7 @@ else
   exit 1
 fi
 
-if coqc coq/Lift.v 
+if coqc coq/Lift.v
 then
   lifted=true
 else
@@ -22,12 +23,19 @@ fi
 
 if coqc coq/Desugar.v
 then
-  desugared=true
+    desugared=true
+else
+    :
+fi
+
+if coqc coq/DesugarModule.v
+then
+  desugaredmod=true
 else
   :
 fi
 
-if coqc coq/Indtype.v 
+if coqc coq/Indtype.v
 then
   liftedind=true
 else
@@ -78,6 +86,12 @@ else
   else
     :
   fi
+  if [ !$desugaredmod = true ]
+  then
+      echo "desugaring fix/match expressions throughout a whole module"
+  else
+      :
+  fi
   if [ !$liftedind = true ]
   then
     echo "lifting inductive predicates"
@@ -92,4 +106,3 @@ else
   fi
   echo "See Coq error message."
 fi
-  

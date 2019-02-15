@@ -328,11 +328,12 @@ let desugar_match env evm info pred discr cases =
   let elim_head = configure_eliminator env evm ind_fam typ in
   let premises =
     let fix_env = Environ.push_rel (rel_assum (Name.Anonymous, typ)) env in
-    let build_premise cons_narg cons_case =
-      lift_rel cons_case |> decompose_lam_n_assum cons_narg |>
+    let cases = Array.map lift_rel cases in
+    let build_premise cons_case cons_sum =
+      lift_constructor 1 cons_sum |> expand_case fix_env !evm cons_case |>
       premise_of_case fix_env ind_fam |> drop_rel
     in
-    Array.map2 build_premise info.ci_cstr_nargs cases
+    get_constructors fix_env ind_fam |> Array.map2 build_premise cases
   in
   mkApp (elim_head, Array.concat [premises; indices; [|discr|]])
 
@@ -341,10 +342,9 @@ let desugar_match env evm info pred discr cases =
  * reduction behavior) version using eliminators instead of match or fix
  * expressions.
  *
- * Mutual recursion and co-recursion are not supported.
+ * Mutual recursion, co-recursion, and universe polymorphism are not supported.
  *)
-let desugar_term env evm term =
-  let evm = ref evm in
+let desugar_constr env evm term =
   let rec aux env term =
     match Constr.kind term with
     | Lambda (name, param, body) ->
@@ -360,8 +360,8 @@ let desugar_term env evm term =
       let annot' = aux env annot in
       let body' = aux (push_let_in (name, local', annot') env) body in
       mkLetIn (name, local', annot', body')
-    | Fix (([|fix_pos|], 0), ([|fix_name|], [|fun_type|], [|fun_term|])) ->
-      desugar_fixpoint env evm fix_pos fix_name fun_type fun_term |> aux env
+    | Fix (([|fix_pos|], 0), ([|fix_name|], [|fix_type|], [|fix_term|])) ->
+      desugar_fixpoint env evm fix_pos fix_name fix_type fix_term |> aux env
     | Fix _ ->
       user_err ~hdr:"desugar" (Pp.str "mutual recursion not supported")
     | CoFix _ ->
@@ -372,6 +372,5 @@ let desugar_term env evm term =
       Constr.map (aux env) term
   in
   let term' = aux env term in
-  let type' = e_infer_type env evm term' in (* NOTE: Infers universe constraints *)
-  let evm' = !evm in
-  evm', term', type'
+  ignore (e_infer_type env evm term'); (* to infer universe constraints *)
+  term'

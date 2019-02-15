@@ -20,4 +20,13 @@ val lift_by_ornament : ?suffix:bool -> Id.t -> constr_expr -> constr_expr -> con
  *
  * Mutual fix or cofix subterms are not supported.
  *)
-val desugar_definition : Id.t -> constr_expr -> unit
+val do_desugar_constant : Id.t -> Libnames.reference -> unit
+
+(*
+ * Translate fix and match expressions into eliminations, as in
+ * do_desugar_constant, compositionally throughout a whole module.
+ *
+ * The optional argument is a list of constants outside the module to include
+ * in the translated module as if they were components in the input module.
+ *)
+val do_desugar_module : ?incl:(Libnames.reference list) -> Id.t -> Libnames.reference -> unit

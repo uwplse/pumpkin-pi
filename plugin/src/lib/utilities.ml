@@ -102,6 +102,9 @@ let and_p (p : 'a -> bool) (o : 'a) (n : 'a) : bool =
 let map_if_else f g b x = if b then f x else g x
 let map_if f b x = map_if_else f (fun a -> a) b x
 
+(* Flip the first and second parameters of a function. *)
+let flip f = fun x y -> f y x
+
 (* Look up the name referenced by a term and append a suffix to it. *)
 let suffix_term_name term suffix =
   let base = Nametab.basename_of_global (Globnames.global_of_constr term) in

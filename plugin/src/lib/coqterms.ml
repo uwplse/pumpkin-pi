@@ -14,6 +14,9 @@ open Declarations
 open Decl_kinds
 open Constrextern
 
+module Globmap = Globnames.Refmap
+module Globset = Globnames.Refset
+
 module CRD = Context.Rel.Declaration
 
 (* --- Constants --- *)
@@ -97,12 +100,13 @@ let edeclare ident (_, poly, _ as k) ~opaque sigma udecl body tyopt imps hook re
   DeclareDef.declare_definition ident k ce ubinders imps hook
 
 (* Define a new Coq term *)
-let define_term (n : Id.t) (evm : evar_map) (trm : types) (refresh : bool) =
+let define_term ?typ (n : Id.t) (evm : evar_map) (trm : types) (refresh : bool) =
   let k = (Global, Flags.is_universe_polymorphism(), Definition) in
   let udecl = Univdecls.default_univ_decl in
   let nohook = Lemmas.mk_hook (fun _ x -> x) in
   let etrm = EConstr.of_constr trm in
-  edeclare n k ~opaque:false evm udecl etrm None [] nohook refresh
+  let etyp = Option.map EConstr.of_constr typ in
+  edeclare n k ~opaque:false evm udecl etrm etyp [] nohook refresh
 
 (* Safely extract the body of a constant, instantiating any universe variables. *)
 let open_constant env const =
@@ -508,15 +512,20 @@ let lookup_pop (n : int) (env : env) =
   let rels = List.map (fun i -> lookup_rel i env) (from_one_to n) in
   (pop_rel_context n env, rels)
 
+let force_constant_body const_body =
+  match const_body.const_body with
+  | Def const_def ->
+    Mod_subst.force_constr const_def
+  | OpaqueDef opaq ->
+    Opaqueproof.force_proof (Global.opaque_tables ()) opaq
+  | _ ->
+    CErrors.user_err ~hdr:"force_constant_body"
+      (Pp.str "An axiom has no defining term")
+
 (* Lookup a definition *)
 let lookup_definition (env : env) (def : types) : types =
   match kind def with
-  | Const (c, u) ->
-     let c_body = (lookup_constant c env).const_body in
-     (match c_body with
-      | Def cs -> Mod_subst.force_constr cs
-      | OpaqueDef o -> Opaqueproof.force_proof (Global.opaque_tables ()) o
-      | _ -> failwith "an axiom has no definition")
+  | Const (c, u) -> force_constant_body (lookup_constant c env)
   | Ind _ -> def
   | _ -> failwith "not a definition"
 
@@ -637,13 +646,10 @@ let apply (trm : types) = and_p (applies trm)
 (* Don't support mutually inductive or coinductive types yet *)
 let check_inductive_supported mutind_body : unit =
   let ind_bodies = mutind_body.mind_packets in
-  if not (Array.length ind_bodies = 1) then
-    failwith "mutually inductive types not yet supported"
-  else
-    if (mutind_body.mind_finite = Declarations.CoFinite) then
-      failwith "coinductive types not yet supported"
-    else
-      ()
+  if Array.length ind_bodies > 1 then
+    CErrors.user_err (Pp.str "Mutually inductive types are not supported")
+  else if (mutind_body.mind_finite = Declarations.CoFinite) then
+    CErrors.user_err (Pp.str "Coinductive types are not supported")
 
 (*
  * Check if a constant is an inductive elminator
@@ -903,3 +909,171 @@ let reference_of_ident id =
 (* Turn a name into an optional external (i.e., surface-level) reference *)
 let reference_of_name =
   ident_of_name %> Option.map reference_of_ident
+
+(* Convert an external reference into a qualid *)
+let qualid_of_reference =
+  Libnames.qualid_of_reference %> CAst.with_val identity
+
+(* Convert a term into a global reference with universes (or raise Not_found) *)
+let pglobal_of_constr term =
+  match Constr.kind term with
+  | Const (const, univs) -> ConstRef const, univs
+  | Ind (ind, univs) -> IndRef ind, univs
+  | Construct (cons, univs) -> ConstructRef cons, univs
+  | Var id -> VarRef id, Univ.Instance.empty
+  | _ -> raise Not_found
+
+(* Convert a global reference with universes into a term *)
+let constr_of_pglobal (glob, univs) =
+  match glob with
+  | ConstRef const -> mkConstU (const, univs)
+  | IndRef ind -> mkIndU (ind, univs)
+  | ConstructRef cons -> mkConstructU (cons, univs)
+  | VarRef id -> mkVar id
+
+type global_substitution = global_reference Globmap.t
+
+(* Substitute global references throughout a term *)
+let subst_globals subst term =
+  let rec aux term =
+    try
+      pglobal_of_constr term |>
+      map_puniverses (flip Globmap.find subst) |>
+      constr_of_pglobal
+    with Not_found ->
+      Constr.map aux term
+  in
+  aux term
+
+(* --- Modules --- *)
+
+(*
+ * Pull any functor parameters off the module signature, returning the list of
+ * functor parameters and the list of module elements (i.e., fields).
+ *)
+let decompose_module_signature mod_sign =
+  let rec aux mod_arity mod_sign =
+    match mod_sign with
+    | MoreFunctor (mod_name, mod_type, mod_sign) ->
+      aux ((mod_name, mod_type) :: mod_arity) mod_sign
+    | NoFunctor mod_fields ->
+      mod_arity, mod_fields
+  in
+  aux [] mod_sign
+
+(*
+ * Define an interactive (i.e., elementwise) module structure, with the
+ * functional argument called to populate the module elements.
+ *
+ * The optional argument specifies functor parameters.
+ *)
+let declare_module_structure ?(params=[]) ident declare_elements =
+  let mod_sign = Vernacexpr.Check [] in
+  let mod_path =
+    Declaremods.start_module Modintern.interp_module_ast None ident params mod_sign
+  in
+  Dumpglob.dump_moddef mod_path "mod";
+  declare_elements ();
+  let mod_path = Declaremods.end_module () in
+  Dumpglob.dump_modref mod_path "mod";
+  Flags.if_verbose Feedback.msg_info
+    Pp.(str "\nModule " ++ Id.print ident ++ str " is defined");
+  mod_path
+
+(* Type-sensitive transformation of terms *)
+type constr_transformer = env -> evar_map ref -> constr -> constr
+
+(*
+ * Declare a new constant under the given name with the transformed term and
+ * type from the given constant.
+ *
+ * NOTE: Global side effects.
+ *)
+let transform_constant ident tr_constr const_body =
+  let env =
+    match const_body.const_universes with
+    | Monomorphic_const univs ->
+      Global.env () |> Environ.push_context_set univs
+    | Polymorphic_const univs ->
+      CErrors.user_err ~hdr:"transform_constant"
+        Pp.(str "Universe polymorphism is not supported")
+  in
+  let term = force_constant_body const_body in
+  let evm = ref (Evd.from_env env) in
+  let term' = tr_constr env evm term in
+  let type' = tr_constr env evm const_body.const_type in
+  define_term ~typ:type' ident !evm term' true |> Globnames.destConstRef
+
+(*
+ * Declare a new inductive family under the given name with the transformed type
+ * arity and constructor types from the given inductive definition. Names for
+ * the constructors remain the same.
+ *
+ * NOTE: Global side effects.
+ *)
+let transform_inductive ident tr_constr ((mind_body, ind_body) as ind_specif) =
+  (* TODO: Can we re-use this for ornamental lifting of inductive families? *)
+  let env = Global.env () in
+  let env, univs, arity, cons_types =
+    open_inductive ~global:true env ind_specif
+  in
+  let evm = ref (Evd.from_env env) in
+  let arity' = tr_constr env evm arity in
+  let cons_types' = List.map (tr_constr env evm) cons_types in
+  declare_inductive
+    ident (Array.to_list ind_body.mind_consnames)
+    (is_ind_body_template ind_body) univs
+    mind_body.mind_nparams arity' cons_types'
+
+(*
+ * Declare a new module structure under the given name with the compositionally
+ * transformed (i.e., forward-substituted) components from the given module
+ * structure. Names for the components remain the same.
+ *
+ * The optional initialization function is called immediately after the module
+ * structure begins, and its returned subsitution is applied to all other module
+ * elements.
+ *
+ * NOTE: Does not support functors or nested modules.
+ * NOTE: Global side effects.
+ *)
+let transform_module_structure ?(init=const Globmap.empty) ident tr_constr mod_body =
+  let mod_path = mod_body.mod_mp in
+  let mod_arity, mod_elems = decompose_module_signature mod_body.mod_type in
+  assert (List.is_empty mod_arity); (* Functors are not yet supported *)
+  let transform_module_element subst (label, body) =
+    let ident = Label.to_id label in
+    let tr_constr env evm = subst_globals subst %> tr_constr env evm in
+    match body with
+    | SFBconst const_body ->
+      let const = Constant.make2 mod_path label in
+      if Globmap.mem (ConstRef const) subst then
+        subst (* Do not transform schematic definitions. *)
+      else
+        let const' = transform_constant ident tr_constr const_body in
+        Globmap.add (ConstRef const) (ConstRef const') subst
+    | SFBmind mind_body ->
+      check_inductive_supported mind_body;
+      let ind = (MutInd.make2 mod_path label, 0) in
+      let ind_body = mind_body.mind_packets.(0) in
+      let ind' = transform_inductive ident tr_constr (mind_body, ind_body) in
+      let ncons = Array.length ind_body.mind_consnames in
+      let list_cons ind = List.init ncons (fun i -> ConstructRef (ind, i + 1)) in
+      let sorts = ind_body.mind_kelim in
+      let list_elim ind = List.map (Indrec.lookup_eliminator ind) sorts in
+      Globmap.add (IndRef ind) (IndRef ind') subst |>
+      List.fold_right2 Globmap.add (list_cons ind) (list_cons ind') |>
+      List.fold_right2 Globmap.add (list_elim ind) (list_elim ind')
+    | SFBmodule mod_body ->
+      Feedback.msg_warning
+        Pp.(str "Skipping nested module structure " ++ Label.print label);
+      subst
+    | SFBmodtype sig_body ->
+      Feedback.msg_warning
+        Pp.(str "Skipping nested module signature " ++ Label.print label);
+      subst
+  in
+  declare_module_structure
+    ident
+    (fun () ->
+       ignore (List.fold_left transform_module_element (init ()) mod_elems))

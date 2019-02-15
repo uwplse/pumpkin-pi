@@ -63,5 +63,12 @@ val and_p : ('a -> bool) -> 'a -> 'a -> bool
 val map_if_else : ('a -> 'b) -> ('a -> 'b) -> bool -> 'a -> 'b
 val map_if : ('a -> 'a) -> bool -> 'a -> 'a
 
+(* --- Functions --- *)
+
+(*
+ * Flip the first and second parameters of a function.
+ *)
+val flip : ('a -> 'b -> 'c) -> ('b -> 'a -> 'c)
+
 (* Look up the name referenced by a term and append a suffix to it. *)
 val suffix_term_name : Constr.t -> Names.Id.t -> Names.Id.t

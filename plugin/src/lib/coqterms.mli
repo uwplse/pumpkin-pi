@@ -12,6 +12,9 @@ open Declarations
 open Globnames
 open Decl_kinds
 
+module Globmap = Globnames.Refmap
+module Globset = Globnames.Refset
+
 module CRD = Context.Rel.Declaration
 
 (* --- Constants --- *)
@@ -58,7 +61,7 @@ val edeclare :
  * Refresh universes if the bool is true, otherwise don't
  * (Refreshing universes is REALLY costly)
  *)
-val define_term : Id.t -> evar_map -> types -> bool -> global_reference
+val define_term : ?typ:types -> Id.t -> evar_map -> types -> bool -> global_reference
 
 (*
  * Safely extract the body of a constant, instantiating any universe variables.
@@ -330,6 +333,7 @@ val map_named_context : env -> (env -> Named.Declaration.t -> 'a) -> Named.t -> 
  * Lookup from an environment
  *)
 val lookup_pop : int -> env -> (env * CRD.t list)
+val force_constant_body : constant_body -> constr
 val lookup_definition : env -> types -> types
 val unwrap_definition : env -> types -> types
 
@@ -487,6 +491,72 @@ val reference_of_ident : Id.t -> Libnames.reference
 
 (* Turn a name into an optional external (i.e., surface-level) reference *)
 val reference_of_name : Name.t -> Libnames.reference option
+
+(* Convert an external reference into a qualid *)
+val qualid_of_reference : Libnames.reference -> Libnames.qualid
+
+(* Convert a term into a global reference with universes (or raise Not_found) *)
+val pglobal_of_constr : constr -> global_reference Univ.puniverses
+
+(* Convert a global reference with universes into a term *)
+val constr_of_pglobal : global_reference Univ.puniverses -> constr
+
+type global_substitution = global_reference Globmap.t
+
+(* Substitute global references throughout a term *)
+val subst_globals : global_substitution -> constr -> constr
+
+(* --- Modules --- *)
+
+(*
+ * Pull any functor parameters off the module signature, returning the list of
+ * functor parameters and the list of module elements (i.e., fields).
+ *)
+val decompose_module_signature : module_signature -> (Names.MBId.t * module_type_body) list * structure_body
+
+(*
+ * Declare an interactive (i.e., elementwise) module structure, with the
+ * functional argument called to populate the module elements by declaration.
+ *
+ * The optional argument specifies functor parameters.
+ *)
+val declare_module_structure :
+  ?params:(Constrexpr.module_ast Declaremods.module_params) ->
+  Names.Id.t -> (unit -> unit) -> ModPath.t
+
+(* Type-sensitive transformation of terms *)
+type constr_transformer = env -> evar_map ref -> constr -> constr
+
+(*
+ * Declare a new constant under the given name with the transformed term and
+ * type from the given constant.
+ *
+ * NOTE: Global side effects.
+ *)
+val transform_constant : Id.t -> constr_transformer -> constant_body -> Constant.t
+
+(*
+ * Declare a new inductive family under the given name with the transformed type
+ * arity and constructor types from the given inductive definition. Names for
+ * the constructors remain the same.
+ *
+ * NOTE: Global side effects.
+ *)
+val transform_inductive : Id.t -> constr_transformer -> Inductive.mind_specif -> inductive
+
+(*
+ * Declare a new module structure under the given name with the compositionally
+ * transformed (i.e., forward-substituted) components from the given module
+ * structure. Names for the components remain the same.
+ *
+ * The optional initialization function is called immediately after the module
+ * structure begins, and its returned subsitution is applied to all other module
+ * elements.
+ *
+ * NOTE: Does not support functors or nested modules.
+ * NOTE: Global side effects.
+ *)
+val transform_module_structure : ?init:(unit -> global_substitution) -> Id.t -> constr_transformer -> module_body -> ModPath.t
 
 (* --- Application and arguments --- *)
 
