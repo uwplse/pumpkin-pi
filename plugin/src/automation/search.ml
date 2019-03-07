@@ -84,7 +84,7 @@ let false_lead index_i p b_o b_n =
  * though the terms we are looking at here are type signatures of
  * induction principles, and so should be very predictable.
  *)
-let index_case env evd index_i p a b : types =
+let index_case env evd off p a b : types =
   let rec diff_case p p_a subs e a b =
     let (ind_o, trm_o) = a in
     let (ind_n, trm_n) = b in
@@ -95,7 +95,7 @@ let index_case env evd index_i p a b : types =
        let diff_b = diff_case (shift p) p_a_b in
        let b = (shift ind_n, b_b) in
        let same = same_mod_indexing e p_a in
-       let is_false_lead = false_lead index_i p_a_b b_a in
+       let is_false_lead = false_lead off p_a_b b_a in
        if (not (same (ind_o, t_a) (ind_n, t_b))) || (is_false_lead b_b) then
          (* INDEX-HYPOTHESIS *)
          let a = map_tuple shift a in
@@ -104,17 +104,16 @@ let index_case env evd index_i p a b : types =
          let e_b = push_local (n_a, t_a) e in
          let a = (shift ind_o, b_a) in
          if apply p_a t_a t_b then
-           (* inductive hypothesis *)
-           let sub_index = (shift (get_arg index_i t_b), mkRel 1) in
+           (* INDEX-IH *)
+           let sub_index = (shift (get_arg off t_b), mkRel 1) in
            let subs_b = sub_index :: shift_subs subs in
            mkLambda (n_a, mkAppl (p, unfold_args t_a), diff_b subs_b e_b a b)
          else
-           (* no change *)
+           (* INDEX-PROD *)
            mkLambda (n_a, t_a, diff_b (shift_subs subs) e_b a b)
     | (App (_, _), App (_, _)) ->
-       (* conclusion *)
-       let index = get_arg index_i trm_n in
-       List.fold_right all_eq_substs subs index
+       (* INDEX-CONCLUSION *)
+       List.fold_right all_eq_substs subs (get_arg off trm_n)
     | _ ->
        failwith "unexpected case"
   in diff_case p (mkRel 1) [] env a b
