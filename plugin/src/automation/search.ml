@@ -68,10 +68,20 @@ let find_new_index npm o n =
  * in those situations, and otherwise just look for obvious indices by
  * comparing hypotheses.
  *)
-let false_lead index_i p b_o b_n =
+let false_lead off p b_o b_n =
   let same_arity = (arity b_o = arity b_n) in
-  let is_new_index = computes_ih_index index_i p (mkRel 1) b_n in
+  let is_new_index = computes_ih_index off p (mkRel 1) b_n in
   (not same_arity) && is_new_index
+
+(*
+ * optimized new oracle
+ *
+ * TODO get rid of false_lead, explain in both places, rename computes_ih_index
+ * to is_new and say that's the actual oracle
+ *)
+let optimized_is_new env off p b_a b_b a b =
+  let is_false_lead = false_lead off (shift p) b_a in
+  (not (same_mod_indexing env p a b)) || (is_false_lead b_b)
 
 (*
  * Get a single case for the indexer, given:
@@ -91,12 +101,9 @@ let index_case env evd off p a b : types =
     match map_tuple kind (a_elim, b_elim) with
     | (Prod (n_a, t_a, b_a), Prod (n_b, t_b, b_b)) ->
        (* premises *)
-       let p_a_b = shift p_a in
-       let diff_b = diff_case (shift p) p_a_b in
+       let diff_b = diff_case (shift p) (shift p_a) in
        let b = (shift b_t, b_b) in
-       let same = same_mod_indexing e p_a in
-       let is_false_lead = false_lead off p_a_b b_a in
-       if (not (same (a_t, t_a) (b_t, t_b))) || (is_false_lead b_b) then
+       if optimized_is_new e off p_a b_a b_b (a_t, t_a) (b_t, t_b) then
          (* INDEX-HYPOTHESIS *)
          let a = map_tuple shift a in
          unshift (diff_b (shift_subs subs) (push_local (n_b, t_b) e) a b)

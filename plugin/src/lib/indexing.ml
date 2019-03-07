@@ -62,19 +62,19 @@ let adjust_no_index index_i args =
 
 (*
  * Returns true if the hypothesis i is used to compute the index at position
- * index_i in any application of the property p in some inductive hypothesis
+ * off in any application of the property p in some inductive hypothesis
  * of the eliminator type typ
  *)
-let rec computes_ih_index index_i p i typ =
+let rec computes_ih_index off p i typ =
   match kind typ with
   | Prod (n, t, b) ->
      let p_b = shift p in
      let i_b = shift i in
      if applies p t then
-       let index = get_arg index_i t in
-       contains_term i index || computes_ih_index index_i p_b i_b b
+       let index = get_arg off t in
+       contains_term i index || computes_ih_index off p_b i_b b
      else
-       computes_ih_index index_i p_b i_b b
+       computes_ih_index off p_b i_b b
   | _ ->
      false
                  
