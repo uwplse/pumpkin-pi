@@ -143,19 +143,23 @@ let indexer_cases evd index_i p npm o n : types list =
   | _ ->
      failwith "not eliminators"
 
+(* Find the motive for the indexer (INDEX-MOTIVE) *)
+let index_motive idx npm env_a p_a_t =
+  let env_ind = zoom_env zoom_product_type env_a p_a_t in
+  let (index_i, index_t) = idx in
+  let index_t_p = shift_by (npm + index_i) index_t in
+  reconstruct_lambda_n env_ind index_t_p npm
+              
 (* Search for an indexing function *)
 let find_indexer evd idx npm o n : types =
   let (env_o, _, arity_o, elim, elim_t_o) = o in
-  let (env_n, _, _, _, elim_t_n) = n in
-  let (index_i, index_t) = idx in
-  let index_t = shift_by npm index_t in
   match kind elim_t_o with
   | Prod (_, p_o, _) ->
      let env_ind = zoom_env zoom_product_type env_o p_o in
      let off = offset env_ind npm in
      let pms = shift_all_by (arity_o - npm + 1) (mk_n_rels npm) in
-     let index_t_p = shift_by index_i index_t in
-     let p = reconstruct_lambda_n env_ind index_t_p npm in
+     let p = index_motive idx npm env_o p_o in
+     let (index_i, _) = idx in
      let cs = indexer_cases evd index_i (shift p) npm o n in
      let final_args = mk_n_rels off in
      let p = shift_by off p in
