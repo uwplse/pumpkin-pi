@@ -85,17 +85,17 @@ let false_lead index_i p b_o b_n =
  * induction principles, and so should be very predictable.
  *)
 let index_case env evd index_i p a b : types =
-  let rec diff_case p_i p subs e a b =
+  let rec diff_case p p_a subs e a b =
     let (ind_o, trm_o) = a in
     let (ind_n, trm_n) = b in
     match map_tuple kind (trm_o, trm_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        (* premises *)
-       let p_b = shift p in
-       let diff_b = diff_case (shift p_i) p_b in
+       let p_a_b = shift p_a in
+       let diff_b = diff_case (shift p) p_a_b in
        let n_b = (shift ind_n, b_n) in
-       let same = same_mod_indexing e p in
-       let is_false_lead = false_lead index_i p_b b_o in
+       let same = same_mod_indexing e p_a in
+       let is_false_lead = false_lead index_i p_a_b b_o in
        if (not (same (ind_o, t_o) (ind_n, t_n))) || (is_false_lead b_n) then
          (* index *)
          let e_b = push_local (n_n, t_n) e in
@@ -105,11 +105,11 @@ let index_case env evd index_i p a b : types =
        else
          let e_b = push_local (n_o, t_o) e in
          let o_b = (shift ind_o, b_o) in
-         if apply p t_o t_n then
+         if apply p_a t_o t_n then
            (* inductive hypothesis *)
            let sub_index = (shift (get_arg index_i t_n), mkRel 1) in
            let subs_b = sub_index :: shift_subs subs in
-           mkLambda (n_o, mkAppl (p_i, unfold_args t_o), diff_b subs_b e_b o_b n_b)
+           mkLambda (n_o, mkAppl (p, unfold_args t_o), diff_b subs_b e_b o_b n_b)
          else
            (* no change *)
            let subs_b = shift_subs subs in
