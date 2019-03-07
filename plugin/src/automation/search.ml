@@ -31,15 +31,15 @@ open Differencing
  *)
 
 (* Find the new index offset and type *)
-let find_new_index npm o n =
-  let (_, pind_o, _, elim_t_o) = o in
-  let (env_n, pind_n, _, elim_t_n) = n in
+let find_new_index env_o npm o n =
+  let (pind_o, _, elim_t_o) = o in
+  let (pind_n, _, elim_t_n) = n in
   let (ind_o, ind_n) = map_tuple fst (map_tuple destInd (pind_o, pind_n)) in
-  let idx_op = new_index_type_simple env_n npm ind_o ind_n in
+  let idx_op = new_index_type_simple env_o npm ind_o ind_n in
   if Option.has_some idx_op then
     Option.get idx_op
   else
-    new_index_type env_n elim_t_o elim_t_n
+    new_index_type env_o elim_t_o elim_t_n
 
 (* --- Finding the indexer --- *)
 
@@ -152,24 +152,28 @@ let index_motive idx npm env_a p_a_t =
   reconstruct_lambda_n env_a ib_t npm
 
 (* Search for an indexing function *)
-let find_indexer evd idx a b : types =
-  let (env_pms, a_t, elim, elim_t) = a in
-  let (_, b_t, _, elim_t_b) = b in
+let find_indexer env_pms evd idx a b : types =
+  let (a_t, elim_a, elim_t_a) = a in
+  let (b_t, _, elim_t_b) = b in
   let npm = nb_rel env_pms in
   let (off, _) = idx in
-  match kind elim_t with
+  match kind elim_t_a with
   | Prod (_, p_a_t, _) ->
      let env_a = zoom_env zoom_product_type env_pms p_a_t in
      let nargs = offset env_a npm in
      let p = index_motive idx npm env_a p_a_t in
-     let a = (a_t, elim_t) in
+     let a = (a_t, elim_t_a) in
      let b = (b_t, elim_t_b) in
-     let cs = indexer_cases env_pms evd off (shift p) nargs a b in
-     let final_args = mk_n_rels nargs in
-     let pms = shift_all_by nargs (mk_n_rels npm) in
-     let p = shift_by nargs p in
-     let app = apply_eliminator {elim; pms; p; cs; final_args} in
-     reconstruct_lambda env_a app
+     let app =
+       apply_eliminator
+         {
+           elim = elim_a;
+           pms = shift_all_by nargs (mk_n_rels npm);
+           p = shift_by nargs p;
+           cs = indexer_cases env_pms evd off (shift p) nargs a b;
+           final_args = mk_n_rels nargs;
+         }
+     in reconstruct_lambda env_a app
   | _ ->
      failwith "not an eliminator"
 
@@ -543,10 +547,10 @@ let search_algebraic env evd npm indexer_n o n =
   let (el_t_o, el_t_n) = map_tuple (infer_type env evd) (el_o, el_n) in
   let (env_o, el_t_o') = zoom_n_prod env npm el_t_o in
   let (env_n, el_t_n') = zoom_n_prod env npm el_t_n in
-  let o = (env_o, pind_o, el_o, el_t_o') in
-  let n = (env_n, pind_n, el_n, el_t_n') in
-  let idx = find_new_index npm o n in
-  let indexer = find_indexer evd idx o n in
+  let o = (pind_o, el_o, el_t_o') in
+  let n = (pind_n, el_n, el_t_n') in
+  let idx = find_new_index env_o npm o n in
+  let indexer = find_indexer env_o evd idx o n in
   (* TODO simplify later *)
   let o = (env_o, pind_o, arity_o, el_o, el_t_o') in
   let n = (env_n, pind_n, arity_n, el_n, el_t_n') in
