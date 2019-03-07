@@ -50,9 +50,7 @@ let find_new_index npm o n =
  *)            
 
 (*
- * Convenience function that rules out hypotheses that the algorithm thinks
- * compute candidate old indices that actually compute new indices, so that
- * we only have to do this much computation when we have a lead to begin with.
+ * The new oracle with an optimization.
  *
  * The gist is that any new hypothesis in a constructor that has a different
  * type from the corresponding hypothesis in the old constructor definitely
@@ -68,20 +66,20 @@ let find_new_index npm o n =
  * in those situations, and otherwise just look for obvious indices by
  * comparing hypotheses.
  *)
-let false_lead off p b_o b_n =
-  let same_arity = (arity b_o = arity b_n) in
-  let is_new_index = computes_ih_index off p (mkRel 1) b_n in
-  (not same_arity) && is_new_index
-
-(*
- * optimized new oracle
- *
- * TODO get rid of false_lead, explain in both places, rename computes_ih_index
- * to is_new and say that's the actual oracle
- *)
-let optimized_is_new env off p b_a b_b a b =
-  let is_false_lead = false_lead off (shift p) b_a in
-  (not (same_mod_indexing env p a b)) || (is_false_lead b_b)
+let optimized_is_new env off p a b =
+  let (a_t, elim_a) = a in
+  let (b_t, elim_b) = b in
+  let (_, t_a, b_a) = destProd elim_a in
+  let (_, t_b, b_b) = destProd elim_b in
+  let optimize_types = not (same_mod_indexing env p (a_t, t_a) (b_t, t_b)) in
+  let optimize_arity = (arity b_a = arity b_b) in
+  if optimize_types then
+    true
+  else if optimize_arity then
+    false
+  else
+    (* call is_new *)
+    computes_ih_index off (shift p) (mkRel 1) b_b
 
 (*
  * Get a single case for the indexer, given:
@@ -95,22 +93,23 @@ let optimized_is_new env off p b_a b_b a b =
  * induction principles, and so should be very predictable.
  *)
 let index_case env evd off p a b : types =
-  let rec diff_case p p_a subs e a b =
+  let rec diff_case p p_a_b subs e a b =
     let (a_t, a_elim) = a in
     let (b_t, b_elim) = b in
     match map_tuple kind (a_elim, b_elim) with
     | (Prod (n_a, t_a, b_a), Prod (n_b, t_b, b_b)) ->
        (* premises *)
-       let diff_b = diff_case (shift p) (shift p_a) in
-       let b = (shift b_t, b_b) in
-       if optimized_is_new e off p_a b_a b_b (a_t, t_a) (b_t, t_b) then
+       let diff_b = diff_case (shift p) (shift p_a_b) in
+       if optimized_is_new e off p_a_b a b then
          (* INDEX-HYPOTHESIS *)
          let a = map_tuple shift a in
+         let b = (shift b_t, b_b) in
          unshift (diff_b (shift_subs subs) (push_local (n_b, t_b) e) a b)
        else
          let e_b = push_local (n_a, t_a) e in
          let a = (shift a_t, b_a) in
-         if apply p_a t_a t_b then
+         let b = (shift b_t, b_b) in
+         if apply p_a_b t_a t_b then
            (* INDEX-IH *)
            let sub_index = (shift (get_arg off t_b), mkRel 1) in
            let subs_b = sub_index :: shift_subs subs in
@@ -319,10 +318,15 @@ let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
        let same = same_mod_indexing env_o p (ind_o, t_o) (ind_n, t_n) in
        let env_o_b = push_local (n_o, t_o) env_o in
        let env_n_b = push_local (n_n, t_n) env_n in
-       let false_lead_f b_o b_n = false_lead index_i p_b b_o b_n in
-       let false_lead_b b_o b_n = false_lead index_i p_b b_n b_o in
-       let is_false_lead = directional false_lead_f false_lead_b in
-       if applies p t_n || (same && not (is_false_lead b_o b_n)) then
+       let not_false_lead off p b_o b_n =
+         let same_arity = (arity b_o = arity b_n) in
+         let is_new_index = computes_ih_index off p (mkRel 1) b_n in
+         same_arity || not is_new_index
+       in
+       let false_lead_f b_o b_n = not_false_lead index_i p_b b_o b_n in
+       let false_lead_b b_o b_n = not_false_lead index_i p_b b_n b_o in
+       let not_false_lead = directional false_lead_f false_lead_b in
+       if applies p t_n || (same && not_false_lead b_o b_n) then
          let o_b = (env_o_b, shift ind_o, b_o) in
          let n_b = (env_n_b, shift ind_n, b_n) in
          let subs_b =
