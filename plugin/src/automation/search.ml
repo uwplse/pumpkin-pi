@@ -125,12 +125,12 @@ let index_case env evd off p a b : types =
   in diff_case p (mkRel 1) [] env a b
 
 (* Get the cases for the indexer *)
-let indexer_cases evd off p npm a b : types list =
-  let (env_o, ind_o, arity_o, _, elim_t_o) = a in
-  let (env_n, ind_n, arity_n, _, elim_t_n) = b in
+let indexer_cases env evd off p npm a b : types list =
+  let (ind_o, arity_o, elim_t_o) = a in
+  let (ind_n, arity_n, elim_t_n) = b in
   match map_tuple kind (elim_t_o, elim_t_n) with
   | (Prod (n_o, p_o, b_o), Prod (n_n, p_n, b_n)) ->
-     let env_p_o = push_local (n_o, p_o) env_o in (* EAi pA *)
+     let env_p_o = push_local (n_o, p_o) env in (* EAi pA or EBi pB *)
      let o c = (ind_o, c) in
      let n c = (ind_n, c) in
      List.map2
@@ -151,7 +151,8 @@ let index_motive idx npm env_a p_a_t =
 
 (* Search for an indexing function *)
 let find_indexer evd idx a b : types =
-  let (env_pms, _, _, elim, elim_t) = a in
+  let (env_pms, a_t, arity, elim, elim_t) = a in
+  let (_, b_t, arity_b, _, elim_t_b) = b in
   let npm = nb_rel env_pms in
   let (off, _) = idx in
   match kind elim_t with
@@ -159,7 +160,9 @@ let find_indexer evd idx a b : types =
      let env_a = zoom_env zoom_product_type env_pms p_a_t in
      let nargs = offset env_a npm in
      let p = index_motive idx npm env_a p_a_t in
-     let cs = indexer_cases evd off (shift p) npm a b in
+     let a = (a_t, arity, elim_t) in
+     let b = (b_t, arity_b, elim_t_b) in
+     let cs = indexer_cases env_pms evd off (shift p) npm a b in
      let final_args = mk_n_rels nargs in
      let pms = shift_all_by nargs (mk_n_rels npm) in
      let p = shift_by nargs p in
