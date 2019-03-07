@@ -145,10 +145,12 @@ let indexer_cases evd index_i p npm o n : types list =
 
 (* Find the motive for the indexer (INDEX-MOTIVE) *)
 let index_motive idx npm env_a p_a_t =
-  let env_p = zoom_env zoom_product_type env_a p_a_t in
   let (index_i, index_t) = idx in
   let index_t_p = shift_by (npm + index_i) index_t in
-  reconstruct_lambda_n env_p index_t_p (nb_rel env_a)
+  reconstruct_lambda_n
+    (zoom_env zoom_product_type env_a p_a_t)
+    index_t_p
+    (nb_rel env_a)
               
 (* Search for an indexing function *)
 let find_indexer evd idx npm o n : types =
