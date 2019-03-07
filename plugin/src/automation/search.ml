@@ -150,18 +150,19 @@ let index_motive idx npm env_a p_a_t =
   reconstruct_lambda_n env_a ib_t npm
 
 (* Search for an indexing function *)
-let find_indexer evd idx npm a b : types =
-  let (env_pms, _, arity, elim, elim_t) = a in
+let find_indexer evd idx a b : types =
+  let (env_pms, _, _, elim, elim_t) = a in
+  let npm = nb_rel env_pms in
+  let (off, _) = idx in
   match kind elim_t with
   | Prod (_, p_a_t, _) ->
      let env_a = zoom_env zoom_product_type env_pms p_a_t in
-     let off = offset env_a npm in
-     let pms = shift_all_by (arity - npm + 1) (mk_n_rels npm) in
+     let nargs = offset env_a npm in
      let p = index_motive idx npm env_a p_a_t in
-     let (index_i, _) = idx in
-     let cs = indexer_cases evd index_i (shift p) npm a b in
-     let final_args = mk_n_rels off in
-     let p = shift_by off p in
+     let cs = indexer_cases evd off (shift p) npm a b in
+     let final_args = mk_n_rels nargs in
+     let pms = shift_all_by nargs (mk_n_rels npm) in
+     let p = shift_by nargs p in
      let app = apply_eliminator {elim; pms; p; cs; final_args} in
      reconstruct_lambda env_a app
   | _ ->
@@ -542,7 +543,7 @@ let search_algebraic env evd npm indexer_n o n =
   let o = (env_o, pind_o, arity_o, el_o, el_t_o') in
   let n = (env_n, pind_n, arity_n, el_n, el_t_n') in
   let idx = find_new_index npm o n in
-  let indexer = find_indexer evd idx npm o n in
+  let indexer = find_indexer evd idx o n in
   let (promote, forget) = find_promote_forget evd idx npm indexer_n o n in
   { indexer; promote; forget }
 
