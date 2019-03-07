@@ -84,60 +84,58 @@ let false_lead index_i p b_o b_n =
  * though the terms we are looking at here are type signatures of
  * induction principles, and so should be very predictable.
  *)
-let index_case evd index_i p o n : types =
-  let rec diff_case p_i p subs o n =
-    let (e_o, ind_o, trm_o) = o in
-    let (e_n, ind_n, trm_n) = n in
+let index_case env evd index_i p a b : types =
+  let rec diff_case p_i p subs e a b =
+    let (ind_o, trm_o) = a in
+    let (ind_n, trm_n) = b in
     match map_tuple kind (trm_o, trm_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        (* premises *)
        let p_b = shift p in
        let diff_b = diff_case (shift p_i) p_b in
-       let e_n_b = push_local (n_n, t_n) e_n in (* do I need both envs? *)
-       let n_b = (e_n_b, shift ind_n, b_n) in
-       let same = same_mod_indexing e_o p in
+       let n_b = (shift ind_n, b_n) in
+       let same = same_mod_indexing e p in
        let is_false_lead = false_lead index_i p_b b_o in
        if (not (same (ind_o, t_o) (ind_n, t_n))) || (is_false_lead b_n) then
          (* index *)
-         let e_o_b = push_local (n_n, t_n) e_o in
+         let e_b = push_local (n_n, t_n) e in
          let subs_b = shift_subs subs in
-         let o_b = (e_o_b, shift ind_o, shift trm_o) in
-         unshift (diff_b subs_b o_b n_b)
+         let o_b = (shift ind_o, shift trm_o) in
+         unshift (diff_b subs_b e_b o_b n_b)
        else
-         let e_o_b = push_local (n_o, t_o) e_o in
-         let o_b = (e_o_b, shift ind_o, b_o) in
+         let e_b = push_local (n_o, t_o) e in
+         let o_b = (shift ind_o, b_o) in
          if apply p t_o t_n then
            (* inductive hypothesis *)
            let sub_index = (shift (get_arg index_i t_n), mkRel 1) in
            let subs_b = sub_index :: shift_subs subs in
-           mkLambda (n_o, mkAppl (p_i, unfold_args t_o), diff_b subs_b o_b n_b)
+           mkLambda (n_o, mkAppl (p_i, unfold_args t_o), diff_b subs_b e_b o_b n_b)
          else
            (* no change *)
            let subs_b = shift_subs subs in
-           mkLambda (n_o, t_o, diff_b subs_b o_b n_b)
+           mkLambda (n_o, t_o, diff_b subs_b e_b o_b n_b)
     | (App (_, _), App (_, _)) ->
        (* conclusion *)
        let index = get_arg index_i trm_n in
        List.fold_right all_eq_substs subs index
     | _ ->
        failwith "unexpected case"
-  in diff_case p (mkRel 1) [] o n
+  in diff_case p (mkRel 1) [] env a b
 
 (* Get the cases for the indexer *)
-let indexer_cases evd index_i p npm o n : types list =
-  let (env_o, ind_o, arity_o, _, elim_t_o) = o in
-  let (env_n, ind_n, arity_n, _, elim_t_n) = n in
+let indexer_cases evd off p npm a b : types list =
+  let (env_o, ind_o, arity_o, _, elim_t_o) = a in
+  let (env_n, ind_n, arity_n, _, elim_t_n) = b in
   match map_tuple kind (elim_t_o, elim_t_n) with
   | (Prod (n_o, p_o, b_o), Prod (n_n, p_n, b_n)) ->
-     let env_p_o = push_local (n_o, p_o) env_o in
-     let env_p_n = push_local (n_n, p_n) env_n in
-     let o c = (env_p_o, ind_o, c) in
-     let n c = (env_p_n, ind_n, c) in
+     let env_p_o = push_local (n_o, p_o) env_o in (* EAi pA *)
+     let o c = (ind_o, c) in
+     let n c = (ind_n, c) in
      List.map2
        (fun c_o c_n ->
          shift_by
            (arity_o - npm)
-           (index_case evd index_i p (o c_o) (n c_n)))
+           (index_case env_p_o evd off p (o c_o) (n c_n)))
        (take_except (arity_o - npm + 1) (factor_product b_o))
        (take_except (arity_n - npm + 1) (factor_product b_n))
   | _ ->
