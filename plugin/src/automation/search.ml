@@ -89,29 +89,28 @@ let index_case env evd index_i p a b : types =
     let (ind_o, trm_o) = a in
     let (ind_n, trm_n) = b in
     match map_tuple kind (trm_o, trm_n) with
-    | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
+    | (Prod (n_a, t_a, b_a), Prod (n_b, t_b, b_b)) ->
        (* premises *)
        let p_a_b = shift p_a in
        let diff_b = diff_case (shift p) p_a_b in
-       let n_b = (shift ind_n, b_n) in
+       let b = (shift ind_n, b_b) in
        let same = same_mod_indexing e p_a in
-       let is_false_lead = false_lead index_i p_a_b b_o in
-       if (not (same (ind_o, t_o) (ind_n, t_n))) || (is_false_lead b_n) then
+       let is_false_lead = false_lead index_i p_a_b b_a in
+       if (not (same (ind_o, t_a) (ind_n, t_b))) || (is_false_lead b_b) then
          (* INDEX-HYPOTHESIS *)
-         let o_b = map_tuple shift (ind_o, trm_o) in
-         unshift (diff_b (shift_subs subs) (push_local (n_n, t_n) e) o_b n_b)
+         let a = map_tuple shift a in
+         unshift (diff_b (shift_subs subs) (push_local (n_b, t_b) e) a b)
        else
-         let e_b = push_local (n_o, t_o) e in
-         let o_b = (shift ind_o, b_o) in
-         if apply p_a t_o t_n then
+         let e_b = push_local (n_a, t_a) e in
+         let a = (shift ind_o, b_a) in
+         if apply p_a t_a t_b then
            (* inductive hypothesis *)
-           let sub_index = (shift (get_arg index_i t_n), mkRel 1) in
+           let sub_index = (shift (get_arg index_i t_b), mkRel 1) in
            let subs_b = sub_index :: shift_subs subs in
-           mkLambda (n_o, mkAppl (p, unfold_args t_o), diff_b subs_b e_b o_b n_b)
+           mkLambda (n_a, mkAppl (p, unfold_args t_a), diff_b subs_b e_b a b)
          else
            (* no change *)
-           let subs_b = shift_subs subs in
-           mkLambda (n_o, t_o, diff_b subs_b e_b o_b n_b)
+           mkLambda (n_a, t_a, diff_b (shift_subs subs) e_b a b)
     | (App (_, _), App (_, _)) ->
        (* conclusion *)
        let index = get_arg index_i trm_n in
