@@ -162,7 +162,7 @@ let find_indexer evd idx npm o n : types =
      let app = apply_eliminator {elim; pms; p; cs; final_args} in
      reconstruct_lambda env_ind app
   | _ ->
-     failwith "not eliminators"
+     failwith "not an eliminator"
 
 (* --- Finding promote and forget --- *)
 
