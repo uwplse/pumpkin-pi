@@ -315,18 +315,21 @@ let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
     match map_tuple kind (c_o, c_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let p_b = shift p in
-       let same = same_mod_indexing env_o p (ind_o, t_o) (ind_n, t_n) in
        let env_o_b = push_local (n_o, t_o) env_o in
        let env_n_b = push_local (n_n, t_n) env_n in
-       let not_false_lead off p b_o b_n =
-         let same_arity = (arity b_o = arity b_n) in
-         let is_new_index = computes_ih_index off p (mkRel 1) b_n in
-         same_arity || not is_new_index
-       in
-       let false_lead_f b_o b_n = not_false_lead index_i p_b b_o b_n in
-       let false_lead_b b_o b_n = not_false_lead index_i p_b b_n b_o in
-       let not_false_lead = directional false_lead_f false_lead_b in
-       if applies p t_n || (same && not_false_lead b_o b_n) then
+       let a = directional (ind_o, c_o) (ind_n, c_n) in
+       let b = directional (ind_n, c_n) (ind_o, c_o) in
+       if optimized_is_new env_o index_i p a b then
+         let subs_b = shift_subs subs in
+         let new_index = directional (n_n, t_n) (n_o, t_o) in
+         let (b_o_b, b_n_b) = directional (shift c_o, b_n) (b_o, shift c_n) in
+         let env_o_b = push_local new_index env_o in
+         let env_n_b = push_local new_index env_n in
+         let o_b = (env_o_b, shift ind_o, b_o_b) in
+         let n_b = (env_n_b, shift ind_n, b_n_b) in
+         let subbed_b = sub p_b subs_b o_b n_b in
+         (directional unshift (fun b -> mkProd (n_o, t_o, b))) subbed_b
+       else
          let o_b = (env_o_b, shift ind_o, b_o) in
          let n_b = (env_n_b, shift ind_n, b_n) in
          let subs_b =
@@ -337,16 +340,6 @@ let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
              (applies p t_n) (* t_n is an IH *)
              (shift_subs subs)
          in mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
-       else
-         let subs_b = shift_subs subs in
-         let new_index = directional (n_n, t_n) (n_o, t_o) in
-         let (b_o_b, b_n_b) = directional (shift c_o, b_n) (b_o, shift c_n) in
-         let env_o_b = push_local new_index env_o in
-         let env_n_b = push_local new_index env_n in
-         let o_b = (env_o_b, shift ind_o, b_o_b) in
-         let n_b = (env_n_b, shift ind_n, b_n_b) in
-         let subbed_b = sub p_b subs_b o_b n_b in
-         (directional unshift (fun b -> mkProd (n_o, t_o, b))) subbed_b
     | (App (f_o, args_o), App (f_n, args_n)) ->
        List.fold_right all_eq_substs subs (last (unfold_args c_n))
     | _ ->
