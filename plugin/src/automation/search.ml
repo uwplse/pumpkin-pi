@@ -97,11 +97,9 @@ let index_case env evd index_i p a b : types =
        let same = same_mod_indexing e p_a in
        let is_false_lead = false_lead index_i p_a_b b_o in
        if (not (same (ind_o, t_o) (ind_n, t_n))) || (is_false_lead b_n) then
-         (* index *)
-         let e_b = push_local (n_n, t_n) e in
-         let subs_b = shift_subs subs in
-         let o_b = (shift ind_o, shift trm_o) in
-         unshift (diff_b subs_b e_b o_b n_b)
+         (* INDEX-HYPOTHESIS *)
+         let o_b = map_tuple shift (ind_o, trm_o) in
+         unshift (diff_b (shift_subs subs) (push_local (n_n, t_n) e) o_b n_b)
        else
          let e_b = push_local (n_o, t_o) e in
          let o_b = (shift ind_o, b_o) in
