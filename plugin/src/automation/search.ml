@@ -86,23 +86,23 @@ let false_lead index_i p b_o b_n =
  *)
 let index_case env evd off p a b : types =
   let rec diff_case p p_a subs e a b =
-    let (ind_o, trm_o) = a in
-    let (ind_n, trm_n) = b in
+    let (a_t, trm_o) = a in
+    let (b_t, trm_n) = b in
     match map_tuple kind (trm_o, trm_n) with
     | (Prod (n_a, t_a, b_a), Prod (n_b, t_b, b_b)) ->
        (* premises *)
        let p_a_b = shift p_a in
        let diff_b = diff_case (shift p) p_a_b in
-       let b = (shift ind_n, b_b) in
+       let b = (shift b_t, b_b) in
        let same = same_mod_indexing e p_a in
        let is_false_lead = false_lead off p_a_b b_a in
-       if (not (same (ind_o, t_a) (ind_n, t_b))) || (is_false_lead b_b) then
+       if (not (same (a_t, t_a) (b_t, t_b))) || (is_false_lead b_b) then
          (* INDEX-HYPOTHESIS *)
          let a = map_tuple shift a in
          unshift (diff_b (shift_subs subs) (push_local (n_b, t_b) e) a b)
        else
          let e_b = push_local (n_a, t_a) e in
-         let a = (shift ind_o, b_a) in
+         let a = (shift a_t, b_a) in
          if apply p_a t_a t_b then
            (* INDEX-IH *)
            let sub_index = (shift (get_arg off t_b), mkRel 1) in
