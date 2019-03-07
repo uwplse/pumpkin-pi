@@ -86,9 +86,9 @@ let false_lead index_i p b_o b_n =
  *)
 let index_case env evd off p a b : types =
   let rec diff_case p p_a subs e a b =
-    let (a_t, trm_o) = a in
-    let (b_t, trm_n) = b in
-    match map_tuple kind (trm_o, trm_n) with
+    let (a_t, a_elim) = a in
+    let (b_t, b_elim) = b in
+    match map_tuple kind (a_elim, b_elim) with
     | (Prod (n_a, t_a, b_a), Prod (n_b, t_b, b_b)) ->
        (* premises *)
        let p_a_b = shift p_a in
@@ -113,7 +113,7 @@ let index_case env evd off p a b : types =
            mkLambda (n_a, t_a, diff_b (shift_subs subs) e_b a b)
     | (App (_, _), App (_, _)) ->
        (* INDEX-CONCLUSION *)
-       List.fold_right all_eq_substs subs (get_arg off trm_n)
+       List.fold_right all_eq_substs subs (get_arg off b_elim)
     | _ ->
        failwith "unexpected case"
   in diff_case p (mkRel 1) [] env a b
