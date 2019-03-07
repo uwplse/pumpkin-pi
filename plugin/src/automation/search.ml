@@ -149,8 +149,8 @@ let find_indexer evd idx npm o n : types =
   let (env_n, _, _, _, elim_t_n) = n in
   let (index_i, index_t) = idx in
   let index_t = shift_by npm index_t in
-  match map_tuple kind (elim_t_o, elim_t_n) with
-  | (Prod (_, p_o, _), Prod (_, p_n, _)) ->
+  match kind elim_t_o with
+  | Prod (_, p_o, _) ->
      let env_ind = zoom_env zoom_product_type env_o p_o in
      let off = offset env_ind npm in
      let pms = shift_all_by (arity_o - npm + 1) (mk_n_rels npm) in
