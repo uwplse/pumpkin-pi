@@ -26,12 +26,14 @@ open Differencing
  * As described in "Finding the New Index" in Section 5.1.1,
  * search starts by identifying the new index and offset.
  * The bulk of this is in the differencing component.
+ *
+ * The offset oracle
  *)
 
 (* Find the new index offset and type *)
 let find_new_index npm o n =
-  let (_, pind_o, _, _, elim_t_o) = o in
-  let (env_n, pind_n, _, _, elim_t_n) = n in
+  let (_, pind_o, _, elim_t_o) = o in
+  let (env_n, pind_n, _, elim_t_n) = n in
   let (ind_o, ind_n) = map_tuple fst (map_tuple destInd (pind_o, pind_n)) in
   let idx_op = new_index_type_simple env_n npm ind_o ind_n in
   if Option.has_some idx_op then
@@ -94,9 +96,9 @@ let optimized_is_new env off p a b =
  *)
 let index_case env evd off p a b : types =
   let rec diff_case p p_a_b subs e a b =
-    let (a_t, a_elim) = a in
-    let (b_t, b_elim) = b in
-    match map_tuple kind (a_elim, b_elim) with
+    let (a_t, c_a) = a in
+    let (b_t, c_b) = b in
+    match map_tuple kind (c_a, c_b) with
     | (Prod (n_a, t_a, b_a), Prod (n_b, t_b, b_b)) ->
        (* premises *)
        let diff_b = diff_case (shift p) (shift p_a_b) in
@@ -119,15 +121,15 @@ let index_case env evd off p a b : types =
            mkLambda (n_a, t_a, diff_b (shift_subs subs) e_b a b)
     | (App (_, _), App (_, _)) ->
        (* INDEX-CONCLUSION *)
-       List.fold_right all_eq_substs subs (get_arg off b_elim)
+       List.fold_right all_eq_substs subs (get_arg off c_b)
     | _ ->
        failwith "unexpected case"
   in diff_case p (mkRel 1) [] env a b
 
 (* Get the cases for the indexer *)
-let indexer_cases env evd off p npm a b : types list =
-  let (ind_o, arity_o, elim_t_o) = a in
-  let (ind_n, arity_n, elim_t_n) = b in
+let indexer_cases env evd off p nargs a b : types list =
+  let (ind_o, elim_t_o) = a in
+  let (ind_n, elim_t_n) = b in
   match map_tuple kind (elim_t_o, elim_t_n) with
   | (Prod (n_o, p_o, b_o), Prod (n_n, p_n, b_n)) ->
      let env_p_o = push_local (n_o, p_o) env in (* EAi pA or EBi pB *)
@@ -136,10 +138,10 @@ let indexer_cases env evd off p npm a b : types list =
      List.map2
        (fun c_o c_n ->
          shift_by
-           (arity_o - npm)
+           (nargs - 1)
            (index_case env_p_o evd off p (o c_o) (n c_n)))
-       (take_except (arity_o - npm + 1) (factor_product b_o))
-       (take_except (arity_n - npm + 1) (factor_product b_n))
+       (take_except nargs (factor_product b_o))
+       (take_except (nargs + 1) (factor_product b_n))
   | _ ->
      failwith "not eliminators"
 
@@ -151,8 +153,8 @@ let index_motive idx npm env_a p_a_t =
 
 (* Search for an indexing function *)
 let find_indexer evd idx a b : types =
-  let (env_pms, a_t, arity, elim, elim_t) = a in
-  let (_, b_t, arity_b, _, elim_t_b) = b in
+  let (env_pms, a_t, elim, elim_t) = a in
+  let (_, b_t, _, elim_t_b) = b in
   let npm = nb_rel env_pms in
   let (off, _) = idx in
   match kind elim_t with
@@ -160,9 +162,9 @@ let find_indexer evd idx a b : types =
      let env_a = zoom_env zoom_product_type env_pms p_a_t in
      let nargs = offset env_a npm in
      let p = index_motive idx npm env_a p_a_t in
-     let a = (a_t, arity, elim_t) in
-     let b = (b_t, arity_b, elim_t_b) in
-     let cs = indexer_cases env_pms evd off (shift p) npm a b in
+     let a = (a_t, elim_t) in
+     let b = (b_t, elim_t_b) in
+     let cs = indexer_cases env_pms evd off (shift p) nargs a b in
      let final_args = mk_n_rels nargs in
      let pms = shift_all_by nargs (mk_n_rels npm) in
      let p = shift_by nargs p in
@@ -541,10 +543,13 @@ let search_algebraic env evd npm indexer_n o n =
   let (el_t_o, el_t_n) = map_tuple (infer_type env evd) (el_o, el_n) in
   let (env_o, el_t_o') = zoom_n_prod env npm el_t_o in
   let (env_n, el_t_n') = zoom_n_prod env npm el_t_n in
-  let o = (env_o, pind_o, arity_o, el_o, el_t_o') in
-  let n = (env_n, pind_n, arity_n, el_n, el_t_n') in
+  let o = (env_o, pind_o, el_o, el_t_o') in
+  let n = (env_n, pind_n, el_n, el_t_n') in
   let idx = find_new_index npm o n in
   let indexer = find_indexer evd idx o n in
+  (* TODO simplify later *)
+  let o = (env_o, pind_o, arity_o, el_o, el_t_o') in
+  let n = (env_n, pind_n, arity_n, el_n, el_t_n') in
   let (promote, forget) = find_promote_forget evd idx npm indexer_n o n in
   { indexer; promote; forget }
 
