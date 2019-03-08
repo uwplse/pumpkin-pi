@@ -27,10 +27,10 @@ val same_mod_indexing : env -> types -> (types * types) -> (types * types) -> bo
 val new_index_type : env -> types -> types -> int * types
 
 (*
- * Given an environment, a number of parameters, and two inductive types, 
+ * Given an environment and two inductive types, 
  * find the new index location and type using the simple heuristic that 
  * doesn't handle ambiguity.
  * Leave offsets to the client.
  *)
-val new_index_type_simple : env -> int -> inductive -> inductive -> (int * types) option
+val new_index_type_simple : env -> inductive -> inductive -> (int * types) option
 

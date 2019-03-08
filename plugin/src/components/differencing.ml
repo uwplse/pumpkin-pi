@@ -199,8 +199,9 @@ let diff_context_simple env decls_o decls_n =
 (*
  * Top-level index finder for Nate's heuristic
  *)
-let new_index_type_simple env npars ind_o ind_n =
+let new_index_type_simple env ind_o ind_n =
   (* Applying each parameter increments the index for the next one. *)
+  let npars = nb_rel env in
   let pars = List.make npars (mkRel npars) in
   let pind_o = Univ.in_punivs ind_o in
   let pind_n = Univ.in_punivs ind_n in
