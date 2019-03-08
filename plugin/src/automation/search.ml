@@ -286,7 +286,7 @@ let ornament_p index_i env ind arity npm indexer_opt =
 (*
  * Substitute indexes and IHs in a case of promote or forget 
  *)
-let sub_promote_forget_case env evd off is_fwd p subs o n : types =
+let sub_promote_forget_case env evd off is_fwd p o n : types =
   let directional a b = if is_fwd then a else b in
   let rec sub p p_a_b subs e o n =
     let (ind_o, c_o) = o in
@@ -320,7 +320,7 @@ let sub_promote_forget_case env evd off is_fwd p subs o n : types =
            mkLambda (n_o, t_o, sub_b (shift_subs subs) e_b o n)
     | _ ->
        failwith "unexpected case substituting index"
-  in sub p (mkRel 1) subs env o n
+  in sub p (mkRel 1) [] env o n
 
 (*
  * Get a case for an indexing ornamental promotion/forgetful function.
@@ -341,7 +341,7 @@ let promote_forget_case evd index_i is_fwd orn_p o n : types =
   let p_o = map_if (fun p -> adjust (unshift_by d_arity p)) is_fwd orn_p in
   let o = (ind_o, c_o) in
   let n = (ind_n, c_n) in
-  sub_promote_forget_case env_o evd index_i is_fwd (shift_by d_arity p_o) [] o n
+  sub_promote_forget_case env_o evd index_i is_fwd (shift_by d_arity p_o) o n
 
 (* Get the cases for the ornamental promotion/forgetful function. *)
 let promote_forget_cases evd index_i npm is_fwd orn_p o n : types list =
