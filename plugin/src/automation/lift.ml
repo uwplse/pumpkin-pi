@@ -145,7 +145,7 @@ let pack_to_typ env evd l (from_typ, to_typ) unpacked =
     unpacked
 
 (*
- * Configure LIFT-CONSTR-ARGS & LIFT-CONSTR-FUN
+ * Configure NORMALIZE
  *)
 let configure_constr env evd l (from_typ, to_typ) trm =
   let args = unfold_args (map_backward last_arg l trm) in
@@ -160,7 +160,7 @@ let configure_constr env evd l (from_typ, to_typ) trm =
     refold l env evd (lift_to l) (lift env evd l trm) rec_args
 
 (*
- * Configure LIFT-CONSTR-ARGS and LIFT-CONSTR-FUN for a single constructor
+ * Configure NORMALIZE for a single constructor
  *)
 let initialize_constr_rule env evd l (from_typ, to_typ) constr =
   let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd constr) in
@@ -170,7 +170,7 @@ let initialize_constr_rule env evd l (from_typ, to_typ) constr =
   reconstruct_lambda_n env_c_b refolded (nb_rel env)
 
 (*
- * Configure LIFT-CONSTR-ARGS and LIFT-CONSTR-FUN for all constructors
+ * Configure NORMALIZE for all constructors
  *)
 let initialize_constr_rules env evd l (from_typ, to_typ) =
   let orn_typ = if l.is_fwd then from_typ else to_typ in
@@ -572,7 +572,7 @@ let declare_inductive_liftings ind ind' ncons =
  *
  * This algorithm assumes that type parameters are left constant and will lift
  * every binding and every term of the base type to the sigma-packed ornamented
- * type.
+ * type. (IND and CONSTR via caching)
  *)
 let do_lift_ind env evm typename suffix lift ind =
   let (mind_body, ind_body) as mind_specif = Inductive.lookup_mind_specif env ind in
