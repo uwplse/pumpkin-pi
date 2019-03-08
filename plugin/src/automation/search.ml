@@ -284,34 +284,8 @@ let ornament_p index_i env ind arity npm indexer_opt =
        mkAppl (ind, adjust_no_index index_i_npm args)
   in reconstruct_lambda_n env concl npm
 
-(*
- * Given terms that apply properties, update the
- * substitution list to include the corresponding new index
- *)
-let sub_index evd f_indexer subs o n =
-  let (env_o, app_o) = o in
-  let (env_n, app_n) = n in
-  let (args_o, args_n) = map_tuple unfold_args (app_o, app_n) in
-  let args = List.combine args_o args_n in
-  let new_subs =
-    List.map
-      (fun (a_o, a_n) ->
-        if applies f_indexer a_o then
-          (* substitute the inductive hypothesis *)
-          (shift a_n, shift a_o)
-        else
-          (* substitute the index *)
-          (shift a_n, mkRel 1))
-      (List.filter
-         (fun (a_o, a_n) ->
-           let o = (env_o, a_o) in
-           let n = (env_n, a_n) in
-           applies f_indexer a_o || not (same_type env_o evd o n))
-         args)
-  in List.append new_subs subs
-
 (* In the conclusion of each case, return c_n with c_o's indices *)
-let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
+let sub_indexes evd off is_fwd f_indexer p subs o n : types =
   let directional a b = if is_fwd then a else b in
   let rec sub p subs o n =
     let (env_o, ind_o, c_o) = o in
@@ -323,12 +297,13 @@ let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
        let env_n_b = push_local (n_n, t_n) env_n in
        let a = directional (ind_o, c_o) (ind_n, c_n) in
        let b = directional (ind_n, c_n) (ind_o, c_o) in
-       if optimized_is_new env_o index_i p a b then
+       if optimized_is_new env_o off p a b then
+         (* PROMOTE-HYPOTHESIS and FORGET-HYPOTHESIS *)
          let subs_b = shift_subs subs in
-         let new_index = directional (n_n, t_n) (n_o, t_o) in
+         let n_b = directional (n_n, t_n) (n_o, t_o) in
          let (b_o_b, b_n_b) = directional (shift c_o, b_n) (b_o, shift c_n) in
-         let env_o_b = push_local new_index env_o in
-         let env_n_b = push_local new_index env_n in
+         let env_o_b = push_local n_b env_o in
+         let env_n_b = push_local n_b env_n in
          let o_b = (env_o_b, shift ind_o, b_o_b) in
          let n_b = (env_n_b, shift ind_n, b_n_b) in
          let subbed_b = sub p_b subs_b o_b n_b in
@@ -340,7 +315,10 @@ let sub_indexes evd index_i is_fwd f_indexer p subs o n : types =
            map_if
              (fun subs ->
                (* add the index for the IH to the substitutions *)
-               sub_index evd f_indexer subs (env_o, t_o) (env_n, t_n))
+               let index_sub = map_tuple shift (map_tuple (get_arg off) (t_n, t_o)) in
+               let ih_sub = (shift (last_arg t_n), mkRel 1) in
+               let new_subs = [index_sub; ih_sub] in
+               List.append new_subs subs)
              (applies p t_n) (* t_n is an IH *)
              (shift_subs subs)
          in mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
