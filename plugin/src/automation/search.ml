@@ -318,11 +318,10 @@ let sub_promote_forget_case env evd off is_fwd p o n : types =
  * deriving the result through specialization.
  *)
 let promote_forget_case evd index_i is_fwd orn_p o n : types =
-  let directional a b = if is_fwd then a else b in
   let (env_o, arity_o, ind_o, _, c_o) = o in
   let (env_n, arity_n, ind_n, p_n, c_n) = n in
-  let adjust p = shift (stretch_motive index_i env_o (ind_o, unshift p) (ind_n, p_n)) in
-  let p_o = directional adjust unshift orn_p in
+  let adjust p = shift (stretch_motive index_i env_o (ind_o, p) (ind_n, p_n)) in
+  let p_o = map_if adjust is_fwd (unshift orn_p) in
   let o = (ind_o, c_o) in
   let n = (ind_n, c_n) in
   sub_promote_forget_case env_o evd index_i is_fwd p_o o n
