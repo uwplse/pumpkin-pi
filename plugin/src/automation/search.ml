@@ -127,20 +127,18 @@ let index_case env evd off p a b : types =
 
 (* Get the cases for the indexer *)
 let indexer_cases env evd off p nargs a b : types list =
-  let (ind_o, elim_t_o) = a in
-  let (ind_n, elim_t_n) = b in
-  match map_tuple kind (elim_t_o, elim_t_n) with
-  | (Prod (n_o, p_o, b_o), Prod (n_n, p_n, b_n)) ->
-     let env_p_o = push_local (n_o, p_o) env in (* EAi pA or EBi pB *)
-     let o c = (ind_o, c) in
-     let n c = (ind_n, c) in
+  let (a_t, elim_t_a) = a in
+  let (b_t, elim_t_b) = b in
+  match map_tuple kind (elim_t_a, elim_t_b) with
+  | (Prod (n_a, p_a_t, b_a), Prod (_, _, b_b)) ->
+     let env_p_a = push_local (n_a, p_a_t) env in
      List.map2
-       (fun c_o c_n ->
+       (fun c_a c_b ->
          shift_by
            (nargs - 1)
-           (index_case env_p_o evd off p (o c_o) (n c_n)))
-       (take_except nargs (factor_product b_o))
-       (take_except (nargs + 1) (factor_product b_n))
+           (index_case env_p_a evd off p (a_t, c_a) (b_t, c_b)))
+       (take_except nargs (factor_product b_a))
+       (take_except (nargs + 1) (factor_product b_b))
   | _ ->
      failwith "not eliminators"
 
