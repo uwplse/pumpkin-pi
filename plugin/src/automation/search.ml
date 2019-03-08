@@ -93,7 +93,7 @@ let optimized_is_new env off p a b =
  * though the terms we are looking at here are type signatures of
  * induction principles, and so should be very predictable.
  *)
-let index_case env evd off p a b : types =
+let index_case env off p a b : types =
   let rec diff_case p p_a_b subs e a b =
     let (a_t, c_a) = a in
     let (b_t, c_b) = b in
@@ -125,7 +125,7 @@ let index_case env evd off p a b : types =
   in diff_case p (mkRel 1) [] env a b
 
 (* Get the cases for the indexer *)
-let indexer_cases env evd off p nargs a b : types list =
+let indexer_cases env off p nargs a b : types list =
   let (a_t, elim_t_a) = a in
   let (b_t, elim_t_b) = b in
   match map_tuple kind (elim_t_a, elim_t_b) with
@@ -135,7 +135,7 @@ let indexer_cases env evd off p nargs a b : types list =
        (fun c_a c_b ->
          shift_by
            (nargs - 1)
-           (index_case env_p_a evd off p (a_t, c_a) (b_t, c_b)))
+           (index_case env_p_a off p (a_t, c_a) (b_t, c_b)))
        (take_except nargs (factor_product b_a))
        (take_except (nargs + 1) (factor_product b_b))
   | _ ->
@@ -148,7 +148,7 @@ let index_motive idx npm env_a p_a_t =
   reconstruct_lambda_n env_a ib_t npm
 
 (* Search for an indexing function *)
-let find_indexer env_pms evd idx elim_a a b : types =
+let find_indexer env_pms idx elim_a a b : types =
   let (a_t, elim_t_a) = a in
   let (b_t, elim_t_b) = b in
   let npm = nb_rel env_pms in
@@ -164,7 +164,7 @@ let find_indexer env_pms evd idx elim_a a b : types =
            elim = elim_a;
            pms = shift_all_by nargs (mk_n_rels npm);
            p = shift_by nargs p;
-           cs = indexer_cases env_pms evd off (shift p) nargs a b;
+           cs = indexer_cases env_pms off (shift p) nargs a b;
            final_args = mk_n_rels nargs;
          }
      in reconstruct_lambda env_a app
@@ -270,7 +270,7 @@ let ornament_p index_i env ind arity npm indexer_opt =
 (*
  * Substitute indexes and IHs in a case of promote or forget 
  *)
-let sub_promote_forget_case env evd off is_fwd p o n : types =
+let sub_promote_forget_case env off is_fwd p o n : types =
   let directional a b = if is_fwd then a else b in
   let rec sub p p_a_b subs e o n =
     let (ind_o, c_o) = o in
@@ -317,17 +317,17 @@ let sub_promote_forget_case env evd off is_fwd p o n : types =
  * abstracting the indexed type to take an indexing function, then
  * deriving the result through specialization.
  *)
-let promote_forget_case evd index_i is_fwd orn_p o n : types =
+let promote_forget_case index_i is_fwd orn_p o n : types =
   let (env_o, arity_o, ind_o, _, c_o) = o in
   let (env_n, arity_n, ind_n, p_n, c_n) = n in
   let adjust p = shift (stretch_motive index_i env_o (ind_o, p) (ind_n, p_n)) in
   let p_o = map_if adjust is_fwd (unshift orn_p) in
   let o = (ind_o, c_o) in
   let n = (ind_n, c_n) in
-  sub_promote_forget_case env_o evd index_i is_fwd p_o o n
+  sub_promote_forget_case env_o index_i is_fwd p_o o n
 
 (* Get the cases for the ornamental promotion/forgetful function. *)
-let promote_forget_cases evd index_i npm is_fwd orn_p o n : types list =
+let promote_forget_cases index_i npm is_fwd orn_p o n : types list =
   let (env_o, pind_o, arity_o, elim_t_o) = o in
   let (env_n, pind_n, arity_n, elim_t_n) = n in
   match map_tuple kind (elim_t_o, elim_t_n) with
@@ -339,7 +339,7 @@ let promote_forget_cases evd index_i npm is_fwd orn_p o n : types list =
        (fun c_o c_n ->
          shift_by
            (arity - npm)
-           (promote_forget_case evd index_i is_fwd orn_p (o c_o) (n c_n)))
+           (promote_forget_case index_i is_fwd orn_p (o c_o) (n c_n)))
        (take_except (arity_o - npm + 1) (factor_product b_o))
        (take_except (arity_n - npm + 1) (factor_product b_n))
   | _ ->
@@ -469,7 +469,7 @@ let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
            cs = (* TODO clean *)
              List.map
                adj
-               (promote_forget_cases evd idx_i npm is_fwd (adj (shift p)) o n);
+               (promote_forget_cases idx_i npm is_fwd (adj (shift p)) o n);
            final_args = mk_n_rels nargs;
          }
      in
@@ -503,7 +503,7 @@ let search_algebraic env evd npm indexer_n o n =
   let o = (pind_o, el_t_o') in
   let n = (pind_n, el_t_n') in
   let idx = find_new_index env_o o n in
-  let indexer = find_indexer env_o evd idx el_o o n in
+  let indexer = find_indexer env_o idx el_o o n in
   (* TODO simplify later *)
   let o = (env_o, pind_o, arity_o, el_o, el_t_o') in
   let n = (env_n, pind_n, arity_n, el_n, el_t_n') in
