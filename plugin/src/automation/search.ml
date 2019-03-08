@@ -318,19 +318,17 @@ let promote_forget_case env off is_fwd p o n : types =
  * deriving the result through specialization.
  *)
 let promote_forget_cases env index_i npm is_fwd orn_p nargs o n : types list =
-  let (pind_o, elim_t_o) = o in
-  let (pind_n, elim_t_n) = n in
+  let (o_t, elim_t_o) = o in
+  let (n_t, elim_t_n) = n in
   match map_tuple kind (elim_t_o, elim_t_n) with
   | (Prod (_, p_o, b_o), Prod (_, p_n, b_n)) ->
-     let adjust p = shift (stretch_motive index_i env (pind_o, p) (pind_n, p_n)) in
+     let adjust p = shift (stretch_motive index_i env (o_t, p) (n_t, p_n)) in
      let p_o = map_if adjust is_fwd (unshift orn_p) in
-     let o c = (pind_o, c) in
-     let n c = (pind_n, c) in
      List.map2
        (fun c_o c_n ->
          shift_by
            (if is_fwd then nargs - 1 else nargs - 2)
-           (promote_forget_case env index_i is_fwd p_o (o c_o) (n c_n)))
+           (promote_forget_case env index_i is_fwd p_o (o_t, c_o) (n_t, c_n)))
        (take_except nargs (factor_product b_o))
        (take_except (if is_fwd then nargs + 1 else nargs - 1) (factor_product b_n))
   | _ ->
