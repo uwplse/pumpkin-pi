@@ -142,7 +142,7 @@ let indexer_cases env off p nargs a b : types list =
      failwith "not eliminators"
 
 (* Find the motive for the indexer (INDEX-MOTIVE) *)
-let index_motive idx npm env_a p_a_t =
+let index_motive idx npm env_a =
   let (off, ib_t) = idx in
   let ib_t = shift_by (npm + off) ib_t in
   reconstruct_lambda_n env_a ib_t npm
@@ -157,7 +157,7 @@ let find_indexer env_pms idx elim_a a b : types =
   | Prod (_, p_a_t, _) ->
      let env_a = zoom_env zoom_product_type env_pms p_a_t in
      let nargs = offset env_a npm in
-     let p = index_motive idx npm env_a p_a_t in
+     let p = index_motive idx npm env_a in
      let app =
        apply_eliminator
          {
