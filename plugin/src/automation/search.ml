@@ -317,20 +317,22 @@ let promote_forget_case env off is_fwd p o n : types =
  * abstracting the indexed type to take an indexing function, then
  * deriving the result through specialization.
  *)
-let promote_forget_cases env index_i npm is_fwd orn_p nargs o n : types list =
+let promote_forget_cases env off is_fwd orn_p nargs o n : types list =
+  let directional a b = if is_fwd then a else b in
   let (o_t, elim_t_o) = o in
   let (n_t, elim_t_n) = n in
   match map_tuple kind (elim_t_o, elim_t_n) with
-  | (Prod (_, p_o, b_o), Prod (_, p_n, b_n)) ->
-     let adjust p = shift (stretch_motive index_i env (o_t, p) (n_t, p_n)) in
-     let p_o = map_if adjust is_fwd (unshift orn_p) in
+  | (Prod (n_o, p_o_t, b_o), Prod (_, p_n_t, b_n)) ->
+     let env_p_o = push_local (n_o, p_o_t) env in
+     let adjust p = shift (stretch_motive off env (o_t, p) (n_t, p_n_t)) in
+     let p = map_if adjust is_fwd (unshift orn_p) in
      List.map2
        (fun c_o c_n ->
          shift_by
-           (if is_fwd then nargs - 1 else nargs - 2)
-           (promote_forget_case env index_i is_fwd p_o (o_t, c_o) (n_t, c_n)))
+           (directional (nargs - 1) (nargs - 2))
+           (promote_forget_case env off is_fwd p (o_t, c_o) (n_t, c_n)))
        (take_except nargs (factor_product b_o))
-       (take_except (if is_fwd then nargs + 1 else nargs - 1) (factor_product b_n))
+       (take_except (directional (nargs + 1) (nargs - 1)) (factor_product b_n))
   | _ ->
      failwith "not an eliminator"
 
@@ -458,7 +460,7 @@ let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
            cs = (* TODO clean *)
              List.map
                adj
-               (promote_forget_cases env_o_b idx_i npm is_fwd (adj (shift p)) nargs o n);
+               (promote_forget_cases env_o idx_i is_fwd (adj (shift p)) nargs o n);
            final_args = mk_n_rels nargs;
          }
      in
