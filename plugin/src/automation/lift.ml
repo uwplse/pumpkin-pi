@@ -248,13 +248,16 @@ let promote_case_args env evd l (_, to_typ) args =
     match args with
     | h :: tl ->
        if equal h index then
+         (* DROP-INDEX *)
          shift h :: (lift_args (shift_all tl) index)
        else
          let h_typ = reduce_type env evd h in
          if is_or_applies to_typ h_typ then
+           (* FORGET-ARG *)
            let h_lifted = pack_lift env evd (flip_dir l) h in
            h_lifted :: lift_args tl (get_arg l.index_i h_typ)
          else
+           (* ARG *)
            h :: lift_args tl index
     | _ -> []
   in lift_args args (mkRel 0)
@@ -265,16 +268,19 @@ let forget_case_args env_c_b env evd l (from_typ, _) args =
     match args with
     | h :: tl ->
        if equal h index then
+         (* ADD-INDEX *)
          proj_index :: (lift_args (unshift_all tl) (index, proj_index))
        else
          let h_typ = reduce_type env_c_b evd h in
          if is_or_applies from_typ h_typ then
+           (* PROMOTE-ARG *)
            let h_lifted =  pack_lift env evd (flip_dir l) h in
            let h_lifted_typ = on_type dest_sigT env evd h_lifted in
            let proj_value = project_value h_lifted_typ h_lifted in
            let proj_index = project_index h_lifted_typ h_lifted in
            proj_value :: lift_args tl (get_arg l.index_i h_typ, proj_index)
          else
+           (* ARG *)
            h :: lift_args tl (index, proj_index)
     | _ -> []
   in lift_args args (mkRel 0, mkRel 0)
@@ -297,6 +303,7 @@ let lift_case env evd l (from_typ, to_typ) p c_elim c =
   let (_, to_c_typ, _) = destProd c_elim_type in
   let nihs = num_ihs env to_typ to_c_typ in
   if nihs = 0 then
+    (* CONCL in base case *)
     c (* base case, don't bother *)
   else
     let env_c = zoom_env zoom_product_type env to_c_typ in
@@ -311,6 +318,7 @@ let lift_case env evd l (from_typ, to_typ) p c_elim c =
     let c_to_args = lift_args c_args in
     let c_to_f = unshift_by (offset2 env_c_b env_c) c_f in
     let c_to_body = reduce_term env_c (mkAppl (c_to_f, c_to_args)) in
+    (* CONCL in inductive case *)
     reconstruct_lambda_n env_c c_to_body (nb_rel env)
 
 (* Lift cases *)
