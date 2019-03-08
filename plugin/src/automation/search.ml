@@ -282,7 +282,7 @@ let ornament_p index_i env ind arity npm indexer_opt =
     | None ->
        (* backward (deindexing/forgetful) direction *)
        mkAppl (ind, adjust_no_index index_i_npm args)
-  in shift_by off (reconstruct_lambda_n env concl npm)
+  in reconstruct_lambda_n env concl npm
 
 (*
  * Given terms that apply properties, update the
@@ -506,16 +506,15 @@ let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
      let o = (env_o_b, ind_o, arity_o, elim_t_o) in
      let n = (env_n_b, ind_n, arity_n, elim_t_n) in
      let p = ornament_p idx_i env_p_o ind arity npm f_indexer_opt in
-     let nind = arity - npm in
-     let p_cs = unshift_by nind p in
-     let adj = shift_all_by (offset2 env_p_o env_o_b - nind) in
-     let cs = adj (orn_index_cases evd idx_i npm is_fwd f_indexer p_cs o n) in
+     let adj = directional identity shift in
+     let p_cs = adj (shift p) in
+     let cs = List.map adj (orn_index_cases evd idx_i npm is_fwd f_indexer p_cs o n) in
      let unpacked =
        apply_eliminator
          {
            elim = elim_o;
            pms = shift_all_by nargs (mk_n_rels npm);
-           p;
+           p = shift_by nargs p;
            cs;
            final_args = mk_n_rels nargs;
          }
