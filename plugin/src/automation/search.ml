@@ -317,9 +317,9 @@ let sub_promote_forget_case env off is_fwd p o n : types =
  * abstracting the indexed type to take an indexing function, then
  * deriving the result through specialization.
  *)
-let promote_forget_case index_i is_fwd orn_p o n : types =
-  let (env_o, arity_o, ind_o, _, c_o) = o in
-  let (env_n, arity_n, ind_n, p_n, c_n) = n in
+let promote_forget_case index_i is_fwd orn_p env_o o n : types =
+  let (ind_o, _, c_o) = o in
+  let (ind_n, p_n, c_n) = n in
   let adjust p = shift (stretch_motive index_i env_o (ind_o, p) (ind_n, p_n)) in
   let p_o = map_if adjust is_fwd (unshift orn_p) in
   let o = (ind_o, c_o) in
@@ -332,14 +332,14 @@ let promote_forget_cases index_i npm is_fwd orn_p o n : types list =
   let (env_n, pind_n, arity_n, elim_t_n) = n in
   match map_tuple kind (elim_t_o, elim_t_n) with
   | (Prod (_, p_o, b_o), Prod (_, p_n, b_n)) ->
-     let o c = (env_o, arity_o, pind_o, p_o, c) in
-     let n c = (env_n, arity_n, pind_n, p_n, c) in
+     let o c = (pind_o, p_o, c) in
+     let n c = (pind_n, p_n, c) in
      let arity = if is_fwd then arity_o else arity_n in
      List.map2
        (fun c_o c_n ->
          shift_by
            (arity - npm)
-           (promote_forget_case index_i is_fwd orn_p (o c_o) (n c_n)))
+           (promote_forget_case index_i is_fwd orn_p env_o (o c_o) (n c_n)))
        (take_except (arity_o - npm + 1) (factor_product b_o))
        (take_except (arity_n - npm + 1) (factor_product b_n))
   | _ ->
