@@ -215,7 +215,7 @@ let stretch_motive index_i env o n =
  * Stretch out the old eliminator type to match the new one
  * That is, add indexes to the old one to match new
  *)
-let stretch index_i env indexer pms o n =
+let stretch index_i env indexer npm o n =
   let (ind_o, elim_t_o) = o in
   let (ind_n, elim_t_n) = n in
   let (n_exp, p_o, b_o) = destProd elim_t_o in
@@ -226,10 +226,10 @@ let stretch index_i env indexer pms o n =
       (fun (p, _) t -> applies p t)
       (fun (p, pms) t ->
         let non_pms = unfold_args t in
-        let index = mkApp (indexer, Array.append pms (Array.of_list non_pms)) in
+        let index = mkAppl (indexer, List.append pms non_pms) in
         mkAppl (p, insert_index index_i index non_pms))
-      (fun (p, pms) -> (shift p, Array.map shift pms))
-      (mkRel 1, pms)
+      (fun (p, pms) -> (shift p, shift_all pms))
+      (mkRel 1, shift_all (mk_n_rels npm))
       b_o
   in mkProd (n_exp, p_exp, b_exp)
 
@@ -497,18 +497,16 @@ let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
      let env_n_b = push_local (n_n, p_n) env_n in
      let env_p_o = zoom_env zoom_product_type env_o p_o in
      let nargs = offset env_p_o npm in
-     let pms = shift_all_by nargs (mk_n_rels npm) in
      let (ind, arity) = directional (ind_n, arity_o) (ind_n, arity_n) in
-     let nind = arity - npm in
-     let align_pms = Array.of_list (unshift_all_by nind pms) in
      let (idx_i, idx_t) = idx in
-     let align = stretch idx_i env_o f_indexer align_pms in
+     let align = stretch idx_i env_o f_indexer npm in
      let elim_t = call_directional align (ind_o, elim_t_o) (ind_n, elim_t_n) in
      let elim_t_o = directional elim_t elim_t_o in
      let elim_t_n = directional elim_t_n elim_t in
      let o = (env_o_b, ind_o, arity_o, elim_t_o) in
      let n = (env_n_b, ind_n, arity_n, elim_t_n) in
      let p = ornament_p idx_i env_p_o ind arity npm f_indexer_opt in
+     let nind = arity - npm in
      let p_cs = unshift_by nind p in
      let adj = shift_all_by (offset2 env_p_o env_o_b - nind) in
      let cs = adj (orn_index_cases evd idx_i npm is_fwd f_indexer p_cs o n) in
@@ -516,7 +514,7 @@ let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
        apply_eliminator
          {
            elim = elim_o;
-           pms;
+           pms = shift_all_by nargs (mk_n_rels npm);
            p;
            cs;
            final_args = mk_n_rels nargs;
