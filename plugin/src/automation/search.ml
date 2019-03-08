@@ -297,25 +297,25 @@ let sub_indexes env evd off is_fwd p subs o n : types =
        let sub_b = sub (shift p) in
        if optimized_is_new e off p (directional o n) (directional n o) then
          (* PROMOTE-HYPOTHESIS and FORGET-HYPOTHESIS *)
-         let o_b = (shift ind_o, directional (shift c_o) b_o) in
-         let n_b = (shift ind_n, directional b_n (shift c_n)) in
+         let o = (shift ind_o, directional (shift c_o) b_o) in
+         let n = (shift ind_n, directional b_n (shift c_n)) in
          directional
            unshift
            (fun b -> mkProd (n_o, t_o, b))
-           (sub_b (shift_subs subs) (push_local (n_n, t_n) e) o_b n_b)
+           (sub_b (shift_subs subs) (push_local (n_n, t_n) e) o n)
        else
          let e_b = push_local (n_o, t_o) e in
-         let o_b = (shift ind_o, b_o) in
-         let n_b = (shift ind_n, b_n) in
-         if applies p t_n then
+         let o = (shift ind_o, b_o) in
+         let n = (shift ind_n, b_n) in
+         if apply p t_o t_n then
            (* PROMOTE-IH / FORGET-IH *)
            let ib_sub = map_tuple shift (map_tuple (get_arg off) (t_n, t_o)) in
            let ih_sub = (shift (last_arg t_n), mkRel 1) in
            let subs_b = List.append [ib_sub; ih_sub] (shift_subs subs) in
-           mkProd (n_o, t_o, sub_b subs_b e_b o_b n_b)
+           mkProd (n_o, t_o, sub_b subs_b e_b o n)
          else
            (* PROMOTE-PROD / FORGET-PROD *)
-           mkProd (n_o, t_o, sub_b (shift_subs subs) e_b o_b n_b)
+           mkProd (n_o, t_o, sub_b (shift_subs subs) e_b o n)
     | _ ->
        failwith "unexpected case substituting index"
   in sub p subs env o n
