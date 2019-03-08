@@ -297,13 +297,12 @@ let sub_indexes env evd off is_fwd p subs o n : types =
        let sub_b = sub (shift p) in
        if optimized_is_new e off p (directional o n) (directional n o) then
          (* PROMOTE-HYPOTHESIS and FORGET-HYPOTHESIS *)
-         let e_b = push_local (n_n, t_n) e in
-         let n_b = directional (n_n, t_n) (n_o, t_o) in
-         let (b_o_b, b_n_b) = directional (shift c_o, b_n) (b_o, shift c_n) in
-         let o_b = (shift ind_o, b_o_b) in
-         let n_b = (shift ind_n, b_n_b) in
-         let subbed_b = sub_b (shift_subs subs) e_b o_b n_b in
-         (directional unshift (fun b -> mkProd (n_o, t_o, b))) subbed_b
+         let o_b = (shift ind_o, directional (shift c_o) b_o) in
+         let n_b = (shift ind_n, directional b_n (shift c_n)) in
+         directional
+           unshift
+           (fun b -> mkProd (n_o, t_o, b))
+           (sub_b (shift_subs subs) (push_local (n_n, t_n) e) o_b n_b)
        else
          let e_b = push_local (n_o, t_o) e in
          let o_b = (shift ind_o, b_o) in
