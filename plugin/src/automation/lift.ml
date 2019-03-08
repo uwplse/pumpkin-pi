@@ -145,9 +145,9 @@ let pack_to_typ env evd l (from_typ, to_typ) unpacked =
     unpacked
 
 (*
- * Configure NORMALIZE
+ * NORMALIZE (the result of this is cached)
  *)
-let configure_constr env evd l (from_typ, to_typ) trm =
+let lift_constr env evd l (from_typ, to_typ) trm =
   let args = unfold_args (map_backward last_arg l trm) in
   let pack_args = List.map (pack_to_typ env evd l (from_typ, to_typ)) in
   let packed_args = map_backward pack_args l args in
@@ -160,17 +160,17 @@ let configure_constr env evd l (from_typ, to_typ) trm =
     refold l env evd (lift_to l) (lift env evd l trm) rec_args
 
 (*
- * Configure NORMALIZE for a single constructor
+ * Wrapper around NORMALIZE
  *)
 let initialize_constr_rule env evd l (from_typ, to_typ) constr =
   let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd constr) in
   let c_body = reduce_term env_c_b c_body in
   let to_refold = map_backward (pack env_c_b evd l.index_i) l c_body in
-  let refolded = configure_constr env_c_b evd l (from_typ, to_typ) to_refold in
+  let refolded = lift_constr env_c_b evd l (from_typ, to_typ) to_refold in
   reconstruct_lambda_n env_c_b refolded (nb_rel env)
 
 (*
- * Configure NORMALIZE for all constructors
+ * Run NORMALIZE for all constructors, so we can cache the result
  *)
 let initialize_constr_rules env evd l (from_typ, to_typ) =
   let orn_typ = if l.is_fwd then from_typ else to_typ in
