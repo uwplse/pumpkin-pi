@@ -247,22 +247,6 @@ let remove_rel (i : int) (env : env) : env =
   in List.fold_right push_local push env_pop
 
 (*
- * Modify a case of an eliminator application to use
- * the new motive p in its hypotheses
- *)
-let with_new_motive p c : types =
-  let rec sub_p sub trm =
-    let (p_o, p_n) = sub in
-    match kind trm with
-    | Prod (n, t, b) ->
-       let sub_p_n t = mkAppl (p_n, unfold_args t) in
-       let t' = map_if sub_p_n (applies p_o t) t in
-       mkProd (n, t', sub_p (map_tuple shift sub) b)
-    | _ ->
-       trm
-  in sub_p (mkRel 1, p) c
-
-(*
  * Find the motive that the ornamental promotion or forgetful function proves
  * for an indexing function
  *)
@@ -334,14 +318,14 @@ let sub_promote_forget_case env evd off is_fwd p o n : types =
  * deriving the result through specialization.
  *)
 let promote_forget_case evd index_i is_fwd orn_p o n : types =
+  let directional a b = if is_fwd then a else b in
   let (env_o, arity_o, ind_o, _, c_o) = o in
   let (env_n, arity_n, ind_n, p_n, c_n) = n in
-  let d_arity = arity_n - arity_o in
-  let adjust p = stretch_motive index_i env_o (ind_o, p) (ind_n, p_n) in
-  let p_o = map_if (fun p -> adjust (unshift_by d_arity p)) is_fwd orn_p in
+  let adjust p = shift (stretch_motive index_i env_o (ind_o, unshift p) (ind_n, p_n)) in
+  let p_o = directional adjust unshift orn_p in
   let o = (ind_o, c_o) in
   let n = (ind_n, c_n) in
-  sub_promote_forget_case env_o evd index_i is_fwd (shift_by d_arity p_o) o n
+  sub_promote_forget_case env_o evd index_i is_fwd p_o o n
 
 (* Get the cases for the ornamental promotion/forgetful function. *)
 let promote_forget_cases evd index_i npm is_fwd orn_p o n : types list =
