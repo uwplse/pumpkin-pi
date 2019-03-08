@@ -491,7 +491,6 @@ let search_algebraic env evd npm indexer_n o n =
   let n = (pind_n, el_t_n') in
   let idx = find_new_index env_o o n in
   let indexer = find_indexer env_o idx el_o o n in
-  (* TODO simplify later *)
   let o = (pind_o, arity_o, el_o, el_t_o') in
   let n = (pind_n, arity_n, el_n, el_t_n') in
   let env_pms = env_o in
