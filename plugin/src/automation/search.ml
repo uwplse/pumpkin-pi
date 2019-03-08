@@ -283,10 +283,12 @@ let ornament_p index_i env ind arity npm indexer_opt =
        mkAppl (ind, adjust_no_index index_i_npm args)
   in reconstruct_lambda_n env concl npm
 
-(* In the conclusion of each case, return c_n with c_o's indices *)
-let sub_indexes env evd off is_fwd p subs o n : types =
+(*
+ * Substitute indexes and IHs in a case of promote or forget 
+ *)
+let sub_promote_forget_case env evd off is_fwd p subs o n : types =
   let directional a b = if is_fwd then a else b in
-  let rec sub p subs e o n =
+  let rec sub p p_a_b subs e o n =
     let (ind_o, c_o) = o in
     let (ind_n, c_n) = n in
     match map_tuple kind (c_o, c_n) with
@@ -294,39 +296,38 @@ let sub_indexes env evd off is_fwd p subs o n : types =
        (* PROMOTE-CONCLUSION / FORGET-CONCLUSION *)
        List.fold_right all_eq_substs subs (last_arg c_n)
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-       let sub_b = sub (shift p) in
-       if optimized_is_new e off p (directional o n) (directional n o) then
+       let sub_b = sub (shift p) (shift p_a_b) in
+       if optimized_is_new e off p_a_b (directional o n) (directional n o) then
          (* PROMOTE-HYPOTHESIS and FORGET-HYPOTHESIS *)
          let o = (shift ind_o, directional (shift c_o) b_o) in
          let n = (shift ind_n, directional b_n (shift c_n)) in
          directional
            unshift
-           (fun b -> mkProd (n_o, t_o, b))
+           (fun b -> mkLambda (n_o, t_o, b))
            (sub_b (shift_subs subs) (push_local (n_n, t_n) e) o n)
        else
          let e_b = push_local (n_o, t_o) e in
          let o = (shift ind_o, b_o) in
          let n = (shift ind_n, b_n) in
-         if apply p t_o t_n then
+         if apply p_a_b t_o t_n then
            (* PROMOTE-IH / FORGET-IH *)
            let ib_sub = map_tuple shift (map_tuple (get_arg off) (t_n, t_o)) in
            let ih_sub = (shift (last_arg t_n), mkRel 1) in
            let subs_b = List.append [ib_sub; ih_sub] (shift_subs subs) in
-           mkProd (n_o, t_o, sub_b subs_b e_b o n)
+           mkLambda (n_o, mkAppl (p, unfold_args t_o), sub_b subs_b e_b o n)
          else
            (* PROMOTE-PROD / FORGET-PROD *)
-           mkProd (n_o, t_o, sub_b (shift_subs subs) e_b o n)
+           mkLambda (n_o, t_o, sub_b (shift_subs subs) e_b o n)
     | _ ->
        failwith "unexpected case substituting index"
-  in sub p subs env o n
+  in sub p (mkRel 1) subs env o n
 
 (*
  * Get a case for an indexing ornamental promotion/forgetful function.
  *
  * This currently works in the following way:
  * 1. If it's forwards, then adjust the motive to have the index
- * 2. Substitute in the motive to the old case
- * 3. Substitute in the indexes (or lack thereof, if backwards)
+ * 2. Substitute in the motive, ih, & indices (or lack thereof, if backwards)
  *
  * Eventually, we might want to think of this as (or rewrite this to)
  * abstracting the indexed type to take an indexing function, then
@@ -340,8 +341,7 @@ let promote_forget_case evd index_i is_fwd orn_p o n : types =
   let p_o = map_if (fun p -> adjust (unshift_by d_arity p)) is_fwd orn_p in
   let o = (ind_o, c_o) in
   let n = (ind_n, c_n) in
-  let subbed = sub_indexes env_o evd index_i is_fwd (mkRel 1) [] o n in
-  prod_to_lambda (with_new_motive (shift_by d_arity p_o) subbed)
+  sub_promote_forget_case env_o evd index_i is_fwd (shift_by d_arity p_o) [] o n
 
 (* Get the cases for the ornamental promotion/forgetful function. *)
 let promote_forget_cases evd index_i npm is_fwd orn_p o n : types list =
