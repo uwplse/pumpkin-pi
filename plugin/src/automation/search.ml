@@ -431,6 +431,7 @@ let find_promote_or_forget env_pms evd idx indexer_n o n is_fwd =
   let (ind_o, arity_o, elim_o, elim_t_o) = o in
   let (ind_n, arity_n, elin_n, elim_t_n) = n in
   let npm = nb_rel env_pms in
+  let (off, idx_t) = idx in
   let f_indexer = make_constant indexer_n in
   let f_indexer_opt = directional (Some f_indexer) None in
   match map_tuple kind (elim_t_o, elim_t_n) with
@@ -438,14 +439,13 @@ let find_promote_or_forget env_pms evd idx indexer_n o n is_fwd =
      let env_p_o = zoom_env zoom_product_type env_pms p_o in
      let nargs = offset env_p_o npm in
      let (ind, arity) = directional (ind_n, arity_o) (ind_n, arity_n) in
-     let (idx_i, idx_t) = idx in
-     let align = stretch idx_i env_pms f_indexer npm in
+     let align = stretch off env_pms f_indexer npm in
      let elim_t = call_directional align (ind_o, elim_t_o) (ind_n, elim_t_n) in
      let elim_t_o = directional elim_t elim_t_o in
      let elim_t_n = directional elim_t_n elim_t in
      let o = (ind_o, elim_t_o) in
      let n = (ind_n, elim_t_n) in
-     let p = promote_forget_motive idx_i env_p_o ind arity npm f_indexer_opt in
+     let p = promote_forget_motive off env_p_o ind arity npm f_indexer_opt in
      let adj = directional identity shift in
      let unpacked =
        apply_eliminator
@@ -453,16 +453,16 @@ let find_promote_or_forget env_pms evd idx indexer_n o n is_fwd =
            elim = elim_o;
            pms = shift_all_by nargs (mk_n_rels npm);
            p = shift_by nargs p;
-           cs = (* TODO clean *)
+           cs =
              List.map
                adj
-               (promote_forget_cases env_pms idx_i is_fwd (adj (shift p)) nargs o n);
+               (promote_forget_cases env_pms off is_fwd (adj (shift p)) nargs o n);
            final_args = mk_n_rels nargs;
          }
      in
      let o = (ind_o, arity_o) in
      let n = (ind_n, arity_n) in
-     let idx = (npm + idx_i, idx_t) in
+     let idx = (npm + off, idx_t) in
      let packed = pack_orn env_p_o evd idx f_indexer o n is_fwd unpacked in
      reconstruct_lambda (fst packed) (snd packed)
   | _ ->
