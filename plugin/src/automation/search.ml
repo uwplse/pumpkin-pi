@@ -284,27 +284,25 @@ let ornament_p index_i env ind arity npm indexer_opt =
   in reconstruct_lambda_n env concl npm
 
 (* In the conclusion of each case, return c_n with c_o's indices *)
-let sub_indexes env evd off is_fwd f_indexer p subs o n : types =
+let sub_indexes env evd off is_fwd p subs o n : types =
   let directional a b = if is_fwd then a else b in
-  let rec sub e p subs o n =
+  let rec sub p subs e o n =
     let (ind_o, c_o) = o in
     let (ind_n, c_n) = n in
     match map_tuple kind (c_o, c_n) with
     | (App (f_o, args_o), App (f_n, args_n)) ->
        (* PROMOTE-CONCLUSION / FORGET-CONCLUSION *)
-       List.fold_right all_eq_substs subs (last (unfold_args c_n))
+       List.fold_right all_eq_substs subs (last_arg c_n)
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-       let p_b = shift p in
-       let a = directional (ind_o, c_o) (ind_n, c_n) in
-       let b = directional (ind_n, c_n) (ind_o, c_o) in
-       if optimized_is_new e off p a b then
+       let sub_b = sub (shift p) in
+       if optimized_is_new e off p (directional o n) (directional n o) then
          (* PROMOTE-HYPOTHESIS and FORGET-HYPOTHESIS *)
          let e_b = push_local (n_n, t_n) e in
          let n_b = directional (n_n, t_n) (n_o, t_o) in
          let (b_o_b, b_n_b) = directional (shift c_o, b_n) (b_o, shift c_n) in
          let o_b = (shift ind_o, b_o_b) in
          let n_b = (shift ind_n, b_n_b) in
-         let subbed_b = sub e_b p_b (shift_subs subs) o_b n_b in
+         let subbed_b = sub_b (shift_subs subs) e_b o_b n_b in
          (directional unshift (fun b -> mkProd (n_o, t_o, b))) subbed_b
        else
          let e_b = push_local (n_o, t_o) e in
@@ -315,13 +313,13 @@ let sub_indexes env evd off is_fwd f_indexer p subs o n : types =
            let ib_sub = map_tuple shift (map_tuple (get_arg off) (t_n, t_o)) in
            let ih_sub = (shift (last_arg t_n), mkRel 1) in
            let subs_b = List.append [ib_sub; ih_sub] (shift_subs subs) in
-           mkProd (n_o, t_o, sub e_b p_b subs_b o_b n_b)
+           mkProd (n_o, t_o, sub_b subs_b e_b o_b n_b)
          else
            (* PROMOTE-PROD / FORGET-PROD *)
-           mkProd (n_o, t_o, sub e_b p_b (shift_subs subs) o_b n_b)
+           mkProd (n_o, t_o, sub_b (shift_subs subs) e_b o_b n_b)
     | _ ->
        failwith "unexpected case substituting index"
-  in sub env p subs o n
+  in sub p subs env o n
 
 (*
  * Get a case for an indexing ornamental promotion/forgetful function.
@@ -335,7 +333,7 @@ let sub_indexes env evd off is_fwd f_indexer p subs o n : types =
  * abstracting the indexed type to take an indexing function, then
  * deriving the result through specialization.
  *)
-let orn_index_case evd index_i is_fwd indexer_f orn_p o n : types =
+let promote_forget_case evd index_i is_fwd orn_p o n : types =
   let (env_o, arity_o, ind_o, _, c_o) = o in
   let (env_n, arity_n, ind_n, p_n, c_n) = n in
   let d_arity = arity_n - arity_o in
@@ -343,11 +341,11 @@ let orn_index_case evd index_i is_fwd indexer_f orn_p o n : types =
   let p_o = map_if (fun p -> adjust (unshift_by d_arity p)) is_fwd orn_p in
   let o = (ind_o, c_o) in
   let n = (ind_n, c_n) in
-  let subbed = sub_indexes env_o evd index_i is_fwd indexer_f (mkRel 1) [] o n in
+  let subbed = sub_indexes env_o evd index_i is_fwd (mkRel 1) [] o n in
   prod_to_lambda (with_new_motive (shift_by d_arity p_o) subbed)
 
 (* Get the cases for the ornamental promotion/forgetful function. *)
-let orn_index_cases evd index_i npm is_fwd indexer_f orn_p o n : types list =
+let promote_forget_cases evd index_i npm is_fwd orn_p o n : types list =
   let (env_o, pind_o, arity_o, elim_t_o) = o in
   let (env_n, pind_n, arity_n, elim_t_n) = n in
   match map_tuple kind (elim_t_o, elim_t_n) with
@@ -359,7 +357,7 @@ let orn_index_cases evd index_i npm is_fwd indexer_f orn_p o n : types list =
        (fun c_o c_n ->
          shift_by
            (arity - npm)
-           (orn_index_case evd index_i is_fwd indexer_f orn_p (o c_o) (n c_n)))
+           (promote_forget_case evd index_i is_fwd orn_p (o c_o) (n c_n)))
        (take_except (arity_o - npm + 1) (factor_product b_o))
        (take_except (arity_n - npm + 1) (factor_product b_n))
   | _ ->
@@ -489,7 +487,7 @@ let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
            cs = (* TODO clean *)
              List.map
                adj
-               (orn_index_cases evd idx_i npm is_fwd f_indexer (adj (shift p)) o n);
+               (promote_forget_cases evd idx_i npm is_fwd (adj (shift p)) o n);
            final_args = mk_n_rels nargs;
          }
      in
