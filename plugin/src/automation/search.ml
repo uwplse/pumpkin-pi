@@ -317,12 +317,12 @@ let promote_forget_case env off is_fwd p o n : types =
  * abstracting the indexed type to take an indexing function, then
  * deriving the result through specialization.
  *)
-let promote_forget_cases index_i npm is_fwd orn_p o n : types list =
-  let (env_o, pind_o, arity_o, elim_t_o) = o in
-  let (env_n, pind_n, arity_n, elim_t_n) = n in
+let promote_forget_cases env index_i npm is_fwd orn_p o n : types list =
+  let (pind_o, arity_o, elim_t_o) = o in
+  let (pind_n, arity_n, elim_t_n) = n in
   match map_tuple kind (elim_t_o, elim_t_n) with
   | (Prod (_, p_o, b_o), Prod (_, p_n, b_n)) ->
-     let adjust p = shift (stretch_motive index_i env_o (pind_o, p) (pind_n, p_n)) in
+     let adjust p = shift (stretch_motive index_i env (pind_o, p) (pind_n, p_n)) in
      let p_o = map_if adjust is_fwd (unshift orn_p) in
      let o c = (pind_o, c) in
      let n c = (pind_n, c) in
@@ -331,7 +331,7 @@ let promote_forget_cases index_i npm is_fwd orn_p o n : types list =
        (fun c_o c_n ->
          shift_by
            (arity - npm)
-           (promote_forget_case env_o index_i is_fwd p_o (o c_o) (n c_n)))
+           (promote_forget_case env index_i is_fwd p_o (o c_o) (n c_n)))
        (take_except (arity_o - npm + 1) (factor_product b_o))
        (take_except (arity_n - npm + 1) (factor_product b_n))
   | _ ->
@@ -448,8 +448,8 @@ let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
      let elim_t = call_directional align (ind_o, elim_t_o) (ind_n, elim_t_n) in
      let elim_t_o = directional elim_t elim_t_o in
      let elim_t_n = directional elim_t_n elim_t in
-     let o = (env_o_b, ind_o, arity_o, elim_t_o) in
-     let n = (env_n_b, ind_n, arity_n, elim_t_n) in
+     let o = (ind_o, arity_o, elim_t_o) in
+     let n = (ind_n, arity_n, elim_t_n) in
      let p = ornament_p idx_i env_p_o ind arity npm f_indexer_opt in
      let adj = directional identity shift in
      let unpacked =
@@ -461,7 +461,7 @@ let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
            cs = (* TODO clean *)
              List.map
                adj
-               (promote_forget_cases idx_i npm is_fwd (adj (shift p)) o n);
+               (promote_forget_cases env_o_b idx_i npm is_fwd (adj (shift p)) o n);
            final_args = mk_n_rels nargs;
          }
      in
