@@ -311,17 +311,16 @@ let sub_indexes evd off is_fwd f_indexer p subs o n : types =
        else
          let o_b = (env_o_b, shift ind_o, b_o) in
          let n_b = (env_n_b, shift ind_n, b_n) in
-         let subs_b =
-           map_if
-             (fun subs ->
-               (* add the index for the IH to the substitutions *)
-               let index_sub = map_tuple shift (map_tuple (get_arg off) (t_n, t_o)) in
-               let ih_sub = (shift (last_arg t_n), mkRel 1) in
-               let new_subs = [index_sub; ih_sub] in
-               List.append new_subs subs)
-             (applies p t_n) (* t_n is an IH *)
-             (shift_subs subs)
-         in mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
+         if applies p t_n then
+           (* PROMOTE-IH / FORGET-IH *)
+           let index_sub = map_tuple shift (map_tuple (get_arg off) (t_n, t_o)) in
+           let ih_sub = (shift (last_arg t_n), mkRel 1) in
+           let new_subs = [index_sub; ih_sub] in
+           let subs_b = List.append new_subs (shift_subs subs) in
+           mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
+         else
+           let subs_b = shift_subs subs in
+           mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
     | (App (f_o, args_o), App (f_n, args_n)) ->
        List.fold_right all_eq_substs subs (last (unfold_args c_n))
     | _ ->
