@@ -496,8 +496,8 @@ let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
      let env_o_b = push_local (n_o, p_o) env_o in
      let env_n_b = push_local (n_n, p_n) env_n in
      let env_ornament = zoom_env zoom_product_type env_o p_o in
-     let off = offset env_ornament npm in
-     let pms = shift_all_by off (mk_n_rels npm) in
+     let nargs = offset env_ornament npm in
+     let pms = shift_all_by nargs (mk_n_rels npm) in
      let (ind, arity) = directional (ind_n, arity_o) (ind_n, arity_n) in
      let nind = arity - npm in
      let align_pms = Array.of_list (unshift_all_by nind pms) in
@@ -512,9 +512,16 @@ let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
      let p_cs = unshift_by nind p in
      let adj = shift_all_by (offset2 env_ornament env_o_b - nind) in
      let cs = adj (orn_index_cases evd idx_i npm is_fwd f_indexer p_cs o n) in
-     let final_args = mk_n_rels off in
-     let elim = elim_o in
-     let unpacked = apply_eliminator {elim; pms; p; cs; final_args} in
+     let unpacked =
+       apply_eliminator
+         {
+           elim = elim_o;
+           pms;
+           p;
+           cs;
+           final_args = mk_n_rels nargs;
+         }
+     in
      let o = (ind_o, arity_o) in
      let n = (ind_n, arity_n) in
      let idx = (npm + idx_i, idx_t) in
