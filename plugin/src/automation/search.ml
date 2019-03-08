@@ -495,8 +495,8 @@ let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
   | (Prod (n_o, p_o, b_o), Prod (n_n, p_n, b_n)) ->
      let env_o_b = push_local (n_o, p_o) env_o in
      let env_n_b = push_local (n_n, p_n) env_n in
-     let env_ornament = zoom_env zoom_product_type env_o p_o in
-     let nargs = offset env_ornament npm in
+     let env_p_o = zoom_env zoom_product_type env_o p_o in
+     let nargs = offset env_p_o npm in
      let pms = shift_all_by nargs (mk_n_rels npm) in
      let (ind, arity) = directional (ind_n, arity_o) (ind_n, arity_n) in
      let nind = arity - npm in
@@ -508,9 +508,9 @@ let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
      let elim_t_n = directional elim_t_n elim_t in
      let o = (env_o_b, ind_o, arity_o, elim_t_o) in
      let n = (env_n_b, ind_n, arity_n, elim_t_n) in
-     let p = ornament_p idx_i env_ornament ind arity npm f_indexer_opt in
+     let p = ornament_p idx_i env_p_o ind arity npm f_indexer_opt in
      let p_cs = unshift_by nind p in
-     let adj = shift_all_by (offset2 env_ornament env_o_b - nind) in
+     let adj = shift_all_by (offset2 env_p_o env_o_b - nind) in
      let cs = adj (orn_index_cases evd idx_i npm is_fwd f_indexer p_cs o n) in
      let unpacked =
        apply_eliminator
@@ -525,7 +525,7 @@ let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
      let o = (ind_o, arity_o) in
      let n = (ind_n, arity_n) in
      let idx = (npm + idx_i, idx_t) in
-     let packed = pack_orn env_ornament evd idx f_indexer o n is_fwd unpacked in
+     let packed = pack_orn env_p_o evd idx f_indexer o n is_fwd unpacked in
      reconstruct_lambda (fst packed) (snd packed)
   | _ ->
      failwith "not eliminators"
