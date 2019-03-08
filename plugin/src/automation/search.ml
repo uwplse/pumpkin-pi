@@ -98,8 +98,10 @@ let index_case env evd off p a b : types =
     let (a_t, c_a) = a in
     let (b_t, c_b) = b in
     match map_tuple kind (c_a, c_b) with
+    | (App (_, _), App (_, _)) ->
+       (* INDEX-CONCLUSION *)
+       List.fold_right all_eq_substs subs (get_arg off c_b)
     | (Prod (n_a, t_a, b_a), Prod (n_b, t_b, b_b)) ->
-       (* premises *)
        let diff_b = diff_case (shift p) (shift p_a_b) in
        if optimized_is_new e off p_a_b a b then
          (* INDEX-HYPOTHESIS *)
@@ -118,9 +120,6 @@ let index_case env evd off p a b : types =
          else
            (* INDEX-PROD *)
            mkLambda (n_a, t_a, diff_b (shift_subs subs) e_b a b)
-    | (App (_, _), App (_, _)) ->
-       (* INDEX-CONCLUSION *)
-       List.fold_right all_eq_substs subs (get_arg off c_b)
     | _ ->
        failwith "unexpected case"
   in diff_case p (mkRel 1) [] env a b
@@ -285,47 +284,44 @@ let ornament_p index_i env ind arity npm indexer_opt =
   in reconstruct_lambda_n env concl npm
 
 (* In the conclusion of each case, return c_n with c_o's indices *)
-let sub_indexes evd off is_fwd f_indexer p subs o n : types =
+let sub_indexes env evd off is_fwd f_indexer p subs o n : types =
   let directional a b = if is_fwd then a else b in
-  let rec sub p subs o n =
-    let (env_o, ind_o, c_o) = o in
-    let (env_n, ind_n, c_n) = n in
+  let rec sub e p subs o n =
+    let (ind_o, c_o) = o in
+    let (ind_n, c_n) = n in
     match map_tuple kind (c_o, c_n) with
+    | (App (f_o, args_o), App (f_n, args_n)) ->
+       (* PROMOTE-CONCLUSION / FORGET-CONCLUSION *)
+       List.fold_right all_eq_substs subs (last (unfold_args c_n))
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let p_b = shift p in
-       let env_o_b = push_local (n_o, t_o) env_o in
-       let env_n_b = push_local (n_n, t_n) env_n in
        let a = directional (ind_o, c_o) (ind_n, c_n) in
        let b = directional (ind_n, c_n) (ind_o, c_o) in
-       if optimized_is_new env_o off p a b then
+       if optimized_is_new e off p a b then
          (* PROMOTE-HYPOTHESIS and FORGET-HYPOTHESIS *)
-         let subs_b = shift_subs subs in
+         let e_b = push_local (n_n, t_n) e in
          let n_b = directional (n_n, t_n) (n_o, t_o) in
          let (b_o_b, b_n_b) = directional (shift c_o, b_n) (b_o, shift c_n) in
-         let env_o_b = push_local n_b env_o in
-         let env_n_b = push_local n_b env_n in
-         let o_b = (env_o_b, shift ind_o, b_o_b) in
-         let n_b = (env_n_b, shift ind_n, b_n_b) in
-         let subbed_b = sub p_b subs_b o_b n_b in
+         let o_b = (shift ind_o, b_o_b) in
+         let n_b = (shift ind_n, b_n_b) in
+         let subbed_b = sub e_b p_b (shift_subs subs) o_b n_b in
          (directional unshift (fun b -> mkProd (n_o, t_o, b))) subbed_b
        else
-         let o_b = (env_o_b, shift ind_o, b_o) in
-         let n_b = (env_n_b, shift ind_n, b_n) in
+         let e_b = push_local (n_o, t_o) e in
+         let o_b = (shift ind_o, b_o) in
+         let n_b = (shift ind_n, b_n) in
          if applies p t_n then
            (* PROMOTE-IH / FORGET-IH *)
-           let index_sub = map_tuple shift (map_tuple (get_arg off) (t_n, t_o)) in
+           let ib_sub = map_tuple shift (map_tuple (get_arg off) (t_n, t_o)) in
            let ih_sub = (shift (last_arg t_n), mkRel 1) in
-           let new_subs = [index_sub; ih_sub] in
-           let subs_b = List.append new_subs (shift_subs subs) in
-           mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
+           let subs_b = List.append [ib_sub; ih_sub] (shift_subs subs) in
+           mkProd (n_o, t_o, sub e_b p_b subs_b o_b n_b)
          else
-           let subs_b = shift_subs subs in
-           mkProd (n_o, t_o, sub p_b subs_b o_b n_b)
-    | (App (f_o, args_o), App (f_n, args_n)) ->
-       List.fold_right all_eq_substs subs (last (unfold_args c_n))
+           (* PROMOTE-PROD / FORGET-PROD *)
+           mkProd (n_o, t_o, sub e_b p_b (shift_subs subs) o_b n_b)
     | _ ->
        failwith "unexpected case substituting index"
-  in sub p subs o n
+  in sub env p subs o n
 
 (*
  * Get a case for an indexing ornamental promotion/forgetful function.
@@ -345,9 +341,9 @@ let orn_index_case evd index_i is_fwd indexer_f orn_p o n : types =
   let d_arity = arity_n - arity_o in
   let adjust p = stretch_motive index_i env_o (ind_o, p) (ind_n, p_n) in
   let p_o = map_if (fun p -> adjust (unshift_by d_arity p)) is_fwd orn_p in
-  let o = (env_o, ind_o, c_o) in
-  let n = (env_n, ind_n, c_n) in
-  let subbed = sub_indexes evd index_i is_fwd indexer_f (mkRel 1) [] o n in
+  let o = (ind_o, c_o) in
+  let n = (ind_n, c_n) in
+  let subbed = sub_indexes env_o evd index_i is_fwd indexer_f (mkRel 1) [] o n in
   prod_to_lambda (with_new_motive (shift_by d_arity p_o) subbed)
 
 (* Get the cases for the ornamental promotion/forgetful function. *)
