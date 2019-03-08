@@ -248,23 +248,20 @@ let remove_rel (i : int) (env : env) : env =
 
 (*
  * Find the motive that the ornamental promotion or forgetful function proves
- * for an indexing function
+ * for an indexing function (PROMOTE-MOTIVE and FORGET-MOTIVE)
  *)
-let ornament_p index_i env ind arity npm indexer_opt =
-  let off = offset env npm in
-  let off_args = off - (arity - npm) in
-  let args = shift_all_by off_args (mk_n_rels arity) in
-  let index_i_npm = npm + index_i in
+let promote_forget_motive off env t arity npm indexer_opt =
+  let args = shift_all (mk_n_rels arity) in
   let concl =
     match indexer_opt with
     | Some indexer ->
-       (* forward (indexing/promotion) direction *)
+       (* PROMOTE-MOTIVE *)
        let indexer = Option.get indexer_opt in
        let index = mkAppl (indexer, snoc (mkRel 1) args) in
-       mkAppl (ind, insert_index index_i_npm index args)
+       mkAppl (t, insert_index (npm + off) index args)
     | None ->
-       (* backward (deindexing/forgetful) direction *)
-       mkAppl (ind, adjust_no_index index_i_npm args)
+       (* FORGET-MOTIVE *)
+       mkAppl (t, adjust_no_index (npm + off) (shift_all args))
   in reconstruct_lambda_n env concl npm
 
 (*
@@ -449,7 +446,7 @@ let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
      let elim_t_n = directional elim_t_n elim_t in
      let o = (ind_o, elim_t_o) in
      let n = (ind_n, elim_t_n) in
-     let p = ornament_p idx_i env_p_o ind arity npm f_indexer_opt in
+     let p = promote_forget_motive idx_i env_p_o ind arity npm f_indexer_opt in
      let adj = directional identity shift in
      let unpacked =
        apply_eliminator
