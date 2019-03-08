@@ -425,22 +425,21 @@ let pack_orn env evd idx f_indexer o n is_fwd unpacked =
     pack_hypothesis env evd idx o n unpacked
 
 (* Search for the promotion or forgetful function *)
-let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
+let find_promote_or_forget env_pms evd idx indexer_n o n is_fwd =
   let directional a b = if is_fwd then a else b in
   let call_directional f a b = if is_fwd then f a b else f b a in
-  let (env_o, ind_o, arity_o, elim_o, elim_t_o) = o in
-  let (env_n, ind_n, arity_n, elin_n, elim_t_n) = n in
+  let (ind_o, arity_o, elim_o, elim_t_o) = o in
+  let (ind_n, arity_n, elin_n, elim_t_n) = n in
+  let npm = nb_rel env_pms in
   let f_indexer = make_constant indexer_n in
   let f_indexer_opt = directional (Some f_indexer) None in
   match map_tuple kind (elim_t_o, elim_t_n) with
   | (Prod (n_o, p_o, b_o), Prod (n_n, p_n, b_n)) ->
-     let env_o_b = push_local (n_o, p_o) env_o in
-     let env_n_b = push_local (n_n, p_n) env_n in
-     let env_p_o = zoom_env zoom_product_type env_o p_o in
+     let env_p_o = zoom_env zoom_product_type env_pms p_o in
      let nargs = offset env_p_o npm in
      let (ind, arity) = directional (ind_n, arity_o) (ind_n, arity_n) in
      let (idx_i, idx_t) = idx in
-     let align = stretch idx_i env_o f_indexer npm in
+     let align = stretch idx_i env_pms f_indexer npm in
      let elim_t = call_directional align (ind_o, elim_t_o) (ind_n, elim_t_n) in
      let elim_t_o = directional elim_t elim_t_o in
      let elim_t_n = directional elim_t_n elim_t in
@@ -457,7 +456,7 @@ let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
            cs = (* TODO clean *)
              List.map
                adj
-               (promote_forget_cases env_o idx_i is_fwd (adj (shift p)) nargs o n);
+               (promote_forget_cases env_pms idx_i is_fwd (adj (shift p)) nargs o n);
            final_args = mk_n_rels nargs;
          }
      in
@@ -470,8 +469,8 @@ let find_promote_or_forget evd idx npm indexer_n o n is_fwd =
      failwith "not eliminators"
 
 (* Find promote and forget *)
-let find_promote_forget evd idx npm indexer_n o n =
-  twice (find_promote_or_forget evd idx npm indexer_n) o n
+let find_promote_forget env_pms evd idx indexer_n o n =
+  twice (find_promote_or_forget env_pms evd idx indexer_n) o n
 
 (* --- Algebraic ornaments --- *)
               
@@ -493,9 +492,10 @@ let search_algebraic env evd npm indexer_n o n =
   let idx = find_new_index env_o o n in
   let indexer = find_indexer env_o idx el_o o n in
   (* TODO simplify later *)
-  let o = (env_o, pind_o, arity_o, el_o, el_t_o') in
-  let n = (env_n, pind_n, arity_n, el_n, el_t_n') in
-  let (promote, forget) = find_promote_forget evd idx npm indexer_n o n in
+  let o = (pind_o, arity_o, el_o, el_t_o') in
+  let n = (pind_n, arity_n, el_n, el_t_n') in
+  let env_pms = env_o in
+  let (promote, forget) = find_promote_forget env_pms evd idx indexer_n o n in
   { indexer; promote; forget }
 
 (* --- Top-level search --- *)
