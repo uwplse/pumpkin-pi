@@ -3,6 +3,8 @@ Require Import List.
 
 Require Import Ornamental.Ornaments.
 
+(* TODO clean up, move the user-friendly index stuff *)
+
 From Coq Require Import ssreflect ssrbool ssrfun.
 
 Module hs_to_coq'.
@@ -48,10 +50,6 @@ Lift list Vector.t in hs_to_coq.zip as zipV'.
 Lift list Vector.t in hs_to_coq.zip_with as zip_withV'.
 Lift list Vector.t in hs_to_coq.zip_with_is_zip as zip_with_is_zipV'.
 
-Print zipV'.
-Check zipV'.
-Check zip_with_is_zipV'.
-
 (* --- Unpack --- *)
 
 Require Import Coq.Logic.EqdepFacts.
@@ -60,85 +58,80 @@ Require Import Coq.Logic.EqdepFacts.
 Definition zipV {a} {b} {n} (v1 : Vector.t a n) (v2 : Vector.t b n) :=
   projT2 (zipV' a b (existT _ n v1) (existT _ n v2)).
 
-Check zipV.
-
-Check sigT_rect.
-
-(* aux function for indexing *)
-Lemma elim_sigT:
-  forall A P fnil fcons pv,
-    VectorDef.t_rect A P fnil fcons (projT1 pv) (projT2 pv) =
-    sigT_rect (fun pv' => P (projT1 pv') (projT2 pv')) (VectorDef.t_rect A P fnil fcons) pv. 
-Proof. 
-  intros. induction pv. auto.
-Qed. 
-
 Definition zip_withV {A} {B} {C} {n} (f : A -> B -> C) (v1 : Vector.t A n) (v2 : Vector.t B n) :=
   projT2 (zip_withV' A B C f (existT _ n v1) (existT _ n v2)).
 
-Check zip_with_is_zipV'.
-Check eq_sigT_eq_dep.
+Check sigT.
 
-Check zip_with_is_zipV'.
-Check eq_sigT_eq_dep.
+(* TODO this is the thing you need everywhere for automation *)
+Lemma rewrite_proj :
+  forall {A} {T : A -> Type} (s : sigT T), 
+    s = existT _ (projT1 s) (projT2 s).
+Proof.
+  intros. induction s. auto.
+Defined.
 
 Program Definition zip_with_is_zipV {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n) :=
   eq_sigT_eq_dep _ _ _ _ 
     (zip_withV pair v1 v2) 
     (zipV v1 v2)
     (zip_with_is_zipV' A B (existT _ n v1) (existT _ n v2)).
-Next Obligation. unfold zip_withV. induction v1, v2; auto. Qed.
-Next Obligation. unfold zipV. induction v1, v2; auto. Qed. (* will Unpack solve this automatically? *)
+Next Obligation. apply rewrite_proj. Qed.
+Next Obligation. apply rewrite_proj. Qed.
 
 Check zip_with_is_zipV.
 
+(* For any two vectors, we get a vector of the same length *)
 Eval compute in (zipV (Vector.cons nat 2 0 (Vector.nil nat)) (Vector.cons nat 1 0 (Vector.nil nat))).
+
+(*
+ * Obligations for the user-friendly version.
+ * Some aux lemmas first:
+ *)
+Lemma vector_nil:
+  forall {a} (v : Vector.t a 0),
+     v = Vector.nil a.
+Proof.
+  intros a. eapply Vector.case0. eauto.
+Qed.
+
+Lemma vector_hd_tl:
+  forall {a} {n} v,
+    v = Vector.cons a (Vector.hd v) n (Vector.tl v).
+Proof.
+  intros a. eapply Vector.caseS. eauto.
+Qed.
+
+(* Then it's very formulaic to show this: *)
+Lemma user_obligation1:
+  forall a b n v1 v2,
+    (projT1 (zipV' a b (existT _ n v1) (existT _ n v2))) = n.
+Proof.
+  intros. induction n.
+  - rewrite (vector_nil v1). 
+    rewrite (vector_nil v2).
+    auto.
+  - rewrite (vector_hd_tl v1). 
+    rewrite (vector_hd_tl v2).
+    simpl. f_equal. apply IHn.
+Defined.
+
+(* So one user-friendly version is just: *)
+Definition zipV_uf {a} {b} {n} (v1 : Vector.t a n) (v2 : Vector.t b n) :
+  Vector.t (a * b) n.
+Proof.
+  pose proof (zipV v1 v2) as z. simpl in z.
+  rewrite user_obligation1 in z.
+  auto.
+Defined.
+
+Print zipV_uf.
+
+(* TODO clean up and make a methodology; show similarly for the other ones *)
 
 (* Client code *)
 
 Definition BVand' {n : nat} :=
   @zip_withV _ _ _ n andb.
 
-Print BVand'.
-Require Import Bvector.
-Print BVand.
-
-Definition bistreamOr {n : nat} (xs ys : Bitstream n) :=
-  zipBits Or xs ys.
-
-(* TODO note somewhere: the index types you get here aren't nice yet *)
-
-
-Definition bitstreamFlip {n : nat} (xs : Bitstream n) : Bitstream n :=
-  mapBits Bitflip xs.
-
-(* n is index. n = 0 means set the 0th bit *)
-Fixpoint setBit {m : nat} (n : nat) : Bitstream (n + S m) -> Bitstream (n + S m).
-  refine (match n as n' return n = n' -> Bitstream (n' + S m) -> Bitstream (n' + S m) with
-          | O => fun H v => _
-          | S n' => fun H v => _
-          end eq_refl); inversion v.
-  + exact (cons _ One _ H1).
-  + exact (cons _ One _ (setBit _ _ H1)).
-Defined.
-
-Fixpoint fetchBit {m : nat} (n : nat) : Bitstream (n + S m) -> Bit.
-  refine (match n as n' return n = n' -> Bitstream (n' + S m) -> Bit with
-          | O => fun H v => _
-          | S n' => fun H v => _
-          end eq_refl); inversion v.
-  + exact h.
-  + exact (fetchBit _ _ H1).
-Defined.                                         
-  
-Theorem  compliment_of_each_other :
-  forall (n : nat) (xs : Bitstream n), bitstreamAnd xs (bitstreamFlip xs) = allZero n.
-Proof.
-  unfold Bitstream; unfold bitstreamAnd; unfold bitstreamFlip;
-    unfold zipBits; unfold mapBits; unfold allZero.
-  induction xs.
-  + auto.
-  + cbn. rewrite IHxs. rewrite and_bit_flip.
-    auto.
-Qed.
- 
+(*  TODO maybe use proof, and maybe interface back with lists
