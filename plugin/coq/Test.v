@@ -99,7 +99,7 @@ Proof.
   intros. induction v; induction p.
   - reflexivity.
   - apply eq_sigT_cons. apply IHp.
-Qed.
+Qed.  
 
 (* --- Test auto-generated ornament name --- *)
 
