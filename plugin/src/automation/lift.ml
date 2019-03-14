@@ -383,6 +383,7 @@ let lift_core env evd c (from_type, to_type) index_type trm =
     else if is_packed_constr l en evd (from_type, to_type) tr then
       (* LIFT-CONSTR *)
       (* The extra logic here is an optimization *)
+      (* It also deals with the fact that we are lazy about eta *)
       let inner = map_backward last_arg l tr in
       let constr = first_fun inner in
       let args = unfold_args inner in

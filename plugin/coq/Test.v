@@ -47,6 +47,60 @@ Proof.
   intros. apply orn_list_vector_inv. exists n. apply v.
 Qed.
 
+(*
+ * An example of showing it's an equiv (it's pretty obvious that coh. holds from
+ * test_orn_index)
+ * 
+ * TODO move this stuff
+ *)
+Lemma eq_cons:
+  forall T t l1 l2,
+    l1 = l2 ->
+    @cons T t l1 = @cons T t l2.
+Proof.
+  intros. subst. auto.
+Qed.
+
+Theorem section:
+  forall (A : Type) (l : list A),
+    orn_list_vector_inv A (orn_list_vector A l) = l.
+Proof.
+  intros. induction l.
+  - reflexivity.
+  - apply eq_cons. apply IHl.
+Qed.
+
+Require Import Coq.Logic.EqdepFacts.
+
+Definition coherence := test_orn_index.
+
+Lemma eq_dep_cons:
+  forall T n1 v1 n2 v2 t,
+    eq_dep nat (fun n0 : nat => vector T n0) n1 v1 n2 v2 ->
+    eq_dep nat (fun n0 : nat => vector T n0) (S n1) (consV T n1 t v1) (S n2) (consV T n2 t v2).
+Proof.
+  intros. apply eq_dep_dep1 in H.
+  induction H. subst.
+  simpl. constructor. 
+Qed.
+
+Lemma eq_sigT_cons:
+  forall T n1 v1 n2 v2 t,
+    (existT _ n1 v1) = (existT _ n2 v2) ->
+    (existT _ (S n1) (consV T n1 t v1)) = (existT _ (S n2) (consV T n2 t v2)).
+Proof.
+  intros. apply eq_sigT_sig_eq in H. destruct H. subst. auto.
+Qed.
+
+Theorem retraction:
+  forall (A : Type) (v : sigT (vector A)),
+    orn_list_vector A (orn_list_vector_inv A v) = v.
+Proof.
+  intros. induction v; induction p.
+  - reflexivity.
+  - apply eq_sigT_cons. apply IHp.
+Qed.
+
 (* --- Test auto-generated ornament name --- *)
 
 Find ornament list vector.
