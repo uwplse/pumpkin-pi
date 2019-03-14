@@ -382,25 +382,27 @@ let lift_core env evd c (from_type, to_type) index_type trm =
         mkAppl (from_type, t_args)
     else if is_packed_constr l en evd (from_type, to_type) tr then
       (* LIFT-CONSTR *)
-      let inner_construction = map_backward last_arg l tr in
-      let constr = first_fun inner_construction in
-      let args = unfold_args inner_construction in
+      let inner = map_backward last_arg l tr in
+      let constr = first_fun inner in
+      let args = unfold_args inner in
       let (((i, i_index), c_index), u) = destConstruct constr in
       let lifted_constr = c.constr_rules.(c_index - 1) in
-      if List.length args = 0 then
-        lifted_constr
-      else
-        let tr' = reduce_term en (mkAppl (lifted_constr, args)) in
-        if not l.is_fwd then
-          let (f', args') = destApp tr' in
-          mkApp (f', Array.map (lift_rec en index_type) args')
-        else
-          let ex = dest_existT tr' in
-          let (f', args') = destApp ex.unpacked in
-          let unpacked = mkApp (f', Array.map (lift_rec en index_type) args') in
-          let index = lift_rec en index_type ex.index in
-          let packer = lift_rec en index_type ex.packer in
-          pack_existT { ex with packer; index; unpacked }
+      map_if
+        (fun tr' ->
+          let lifted_inner = map_forward last_arg l tr' in
+          let (f', args') = destApp lifted_inner in
+          let args'' = Array.map (lift_rec en index_type) args' in
+          map_forward
+            (fun unpacked ->
+              (* pack the lifted term *)
+              let ex = dest_existT tr' in
+              let index = lift_rec en index_type ex.index in
+              let packer = lift_rec en index_type ex.packer in
+              pack_existT { ex with packer; index; unpacked })
+            l
+            (mkApp (f', args'')))
+        (List.length args > 0)
+        (reduce_term en (mkAppl (lifted_constr, args)))
     else if is_packed l en evd (from_type, to_type) tr then
       (* LIFT-PACK *)
       if l.is_fwd then
