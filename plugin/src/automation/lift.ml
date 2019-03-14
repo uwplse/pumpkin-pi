@@ -388,20 +388,18 @@ let lift_core env evd c (from_type, to_type) index_type trm =
       let (((i, i_index), c_index), u) = destConstruct constr in
       let lifted_constr = c.constr_rules.(c_index - 1) in
       let tr' = reduce_term en (mkAppl (lifted_constr, args)) in
-      match kind tr with
+      match kind inner_construction with
       | App (f, args) ->
-         if (not l.is_fwd) && isApp (last (Array.to_list args)) then
+         if not l.is_fwd then
            let (f', args') = destApp tr' in
            mkApp (f', Array.map (lift_rec en index_type) args')
-         else if l.is_fwd then
+         else
            let ex = dest_existT tr' in
            let (f', args') = destApp ex.unpacked in
            let unpacked = mkApp (f', Array.map (lift_rec en index_type) args') in
            let index = lift_rec en index_type ex.index in
            let packer = lift_rec en index_type ex.packer in
            pack_existT { ex with packer; index; unpacked }
-         else
-           tr'
       | _ ->
          tr'
     else if is_packed l en evd (from_type, to_type) tr then
