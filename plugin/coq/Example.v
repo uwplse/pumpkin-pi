@@ -55,11 +55,11 @@ Lift list Vector.t in hs_to_coq.zip_with_is_zip as zip_with_is_zipV'.
 Require Import Coq.Logic.EqdepFacts.
 
 (* TODO add in Nate's automation here *)
-Definition zipV {a} {b} {n} (v1 : Vector.t a n) (v2 : Vector.t b n) :=
-  projT2 (zipV' a b (existT _ n v1) (existT _ n v2)).
+Definition zipV {a} {b} {n1} (v1 : Vector.t a n1) {n2} (v2 : Vector.t b n2) :=
+  projT2 (zipV' a b (existT _ n1 v1) (existT _ n2 v2)).
 
-Definition zip_withV {A} {B} {C} {n} (f : A -> B -> C) (v1 : Vector.t A n) (v2 : Vector.t B n) :=
-  projT2 (zip_withV' A B C f (existT _ n v1) (existT _ n v2)).
+Definition zip_withV {A} {B} {C} (f : A -> B -> C) {n1} (v1 : Vector.t A n1) {n2} (v2 : Vector.t B n2) :=
+  projT2 (zip_withV' A B C f (existT _ n1 v1) (existT _ n2 v2)).
 
 Check sigT.
 
@@ -71,17 +71,17 @@ Proof.
   intros. induction s. auto.
 Defined.
 
-Program Definition zip_with_is_zipV {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n) :=
+Program Definition zip_with_is_zipV {A} {B} {n1} (v1 : Vector.t A n1) {n2} (v2 : Vector.t B n2) :=
   eq_sigT_eq_dep _ _ _ _ 
     (zip_withV pair v1 v2) 
     (zipV v1 v2)
-    (zip_with_is_zipV' A B (existT _ n v1) (existT _ n v2)).
+    (zip_with_is_zipV' A B (existT _ n1 v1) (existT _ n2 v2)).
 Next Obligation. apply rewrite_proj. Qed.
 Next Obligation. apply rewrite_proj. Qed.
 
 Check zip_with_is_zipV.
 
-(* For any two vectors, we get a vector of the same length *)
+(* For any two vectors of the same length, we get a vector of the same length *)
 Eval compute in (zipV (Vector.cons nat 2 0 (Vector.nil nat)) (Vector.cons nat 1 0 (Vector.nil nat))).
 
 (*
