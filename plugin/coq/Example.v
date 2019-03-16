@@ -92,22 +92,38 @@ Lemma vector_nil:
   forall {a} (v : Vector.t a 0),
      v = Vector.nil a.
 Proof.
-  intros a. eapply Vector.case0. eauto.
+  intros a. apply Vector.case0. auto.
 Qed.
 
 Lemma vector_hd_tl:
   forall {a} {n} v,
     v = Vector.cons a (Vector.hd v) n (Vector.tl v).
 Proof.
-  intros a. eapply Vector.caseS. eauto.
+  intros a. apply Vector.caseS. auto.
 Qed.
 
-(* Then it's very formulaic to show this: *)
-Lemma user_obligation1:
-  forall a b n v1 v2,
-    (projT1 (zipV' a b (existT _ n v1) (existT _ n v2))) = n.
-Proof.
-  intros. induction n.
+(* So one user-friendly version is just: *)
+Program Definition zipV_uf {a} {b} {n} (v1 : Vector.t a n) (v2 : Vector.t b n) :=
+  zipV v1 v2
+: Vector.t (a * b) n.
+Next Obligation.
+  induction n.
+  - rewrite (vector_nil v1).
+    rewrite (vector_nil v2).
+    auto.
+  - rewrite (vector_hd_tl v1). 
+    rewrite (vector_hd_tl v2).
+    simpl. f_equal. apply IHn.
+Defined.
+
+Check zip_withV'.
+
+(* And this is super formulaic: *)
+Program Definition zip_withV_uf {A} {B} {C} f {n} (v1 : Vector.t A n) (v2 : Vector.t B n) :=
+  zip_withV f v1 v2
+: Vector.t C n.
+Next Obligation.
+  induction n.
   - rewrite (vector_nil v1). 
     rewrite (vector_nil v2).
     auto.
@@ -116,22 +132,13 @@ Proof.
     simpl. f_equal. apply IHn.
 Defined.
 
-(* So one user-friendly version is just: *)
-Definition zipV_uf {a} {b} {n} (v1 : Vector.t a n) (v2 : Vector.t b n) :
-  Vector.t (a * b) n.
-Proof.
-  pose proof (zipV v1 v2) as z. simpl in z.
-  rewrite user_obligation1 in z.
-  auto.
-Defined.
 
-Print zipV_uf.
 
 (* TODO clean up and make a methodology; show similarly for the other ones   *)
 
 (* Client code *)
 
-Definition BVand' {n : nat} :=
-  @zip_withV _ _ _ n andb.
+Definition BVand' {n : nat} (v1 : Vector.t bool n) (v2 : Vector.t bool n) : Vector.t bool n := 
+  zip_withV_uf andb v1 v2.
 
 (*  TODO maybe use proof, and maybe interface back with lists
