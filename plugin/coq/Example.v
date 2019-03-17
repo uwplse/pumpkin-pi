@@ -29,6 +29,8 @@ Fixpoint zip_with {A} {B} {C} (f : A -> B -> C) (s : list A) (t : list B) : list
     | _       , _       => nil
 end.
 
+Print eqrel.
+
 Theorem zip_with_is_zip {A} {B} :
   zip_with (@pair A B) =2 zip.
 Proof. by elim => [|a s IH] [|b t] //=; rewrite IH. Qed.

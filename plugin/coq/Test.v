@@ -70,27 +70,13 @@ Proof.
   - apply eq_cons. apply IHl.
 Qed.
 
-Require Import Coq.Logic.EqdepFacts.
-
 Definition coherence := test_orn_index.
 
-Lemma eq_dep_cons:
-  forall T n1 v1 n2 v2 t,
-    eq_dep nat (fun n0 : nat => vector T n0) n1 v1 n2 v2 ->
-    eq_dep nat (fun n0 : nat => vector T n0) (S n1) (consV T n1 t v1) (S n2) (consV T n2 t v2).
-Proof.
-  intros. apply eq_dep_dep1 in H.
-  induction H. subst.
-  simpl. constructor. 
-Qed.
+Lift list vector in eq_cons as eq_sigT_cons'.
 
-Lemma eq_sigT_cons:
-  forall T n1 v1 n2 v2 t,
-    (existT _ n1 v1) = (existT _ n2 v2) ->
-    (existT _ (S n1) (consV T n1 t v1)) = (existT _ (S n2) (consV T n2 t v2)).
-Proof.
-  intros. apply eq_sigT_sig_eq in H. destruct H. subst. auto.
-Qed.
+(* TODO can get via unpack *)
+Definition eq_sigT_cons T t n1 v1 n2 v2 :=
+  eq_sigT_cons' T t (existT _ n1 v1) (existT _ n2 v2).
 
 Theorem retraction:
   forall (A : Type) (v : sigT (vector A)),
