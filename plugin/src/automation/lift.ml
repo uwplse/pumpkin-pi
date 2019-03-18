@@ -563,7 +563,7 @@ let define_lifted_eliminator ?(suffix="_sigT") ind0 ind sort =
   let elim0 = Indrec.lookup_eliminator ind0 sort in
   let elim = Indrec.lookup_eliminator ind sort in
   let env, term = open_constant env (Globnames.destConstRef elim) in
-  let expr = Elim.eta_extern env (Evd.from_env env) Id.Set.empty term in
+  let expr = Eta.eta_extern env (Evd.from_env env) Id.Set.empty term in
   ComDefinition.do_definition
     ~program_mode:false ident (Decl_kinds.Global, false, Decl_kinds.Scheme)
     None [] None expr None (Lemmas.mk_hook (fun _ -> declare_lifted elim0))
