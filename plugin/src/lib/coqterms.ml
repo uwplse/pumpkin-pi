@@ -973,7 +973,9 @@ let declare_module_structure ?(params=[]) ident declare_elements =
     Declaremods.start_module Modintern.interp_module_ast None ident params mod_sign
   in
   Dumpglob.dump_moddef mod_path "mod";
+  Printf.printf "%s\n\n" "declaring elements";
   declare_elements ();
+  Printf.printf "%s\n\n" "declared elements";
   let mod_path = Declaremods.end_module () in
   Dumpglob.dump_modref mod_path "mod";
   Flags.if_verbose Feedback.msg_info
@@ -1001,8 +1003,7 @@ let transform_constant ident tr_constr const_body =
   let term = force_constant_body const_body in
   let evm = ref (Evd.from_env env) in
   let term' = tr_constr env evm term in
-  let type' = tr_constr env evm const_body.const_type in
-  define_term ~typ:type' ident !evm term' true |> Globnames.destConstRef
+  define_term ident !evm term' true |> Globnames.destConstRef
 
 (*
  * Declare a new inductive family under the given name with the transformed type
@@ -1042,7 +1043,10 @@ let transform_module_structure ?(init=const Globmap.empty) ident tr_constr mod_b
   let mod_arity, mod_elems = decompose_module_signature mod_body.mod_type in
   assert (List.is_empty mod_arity); (* Functors are not yet supported *)
   let transform_module_element subst (label, body) =
+    let x = true in
+    Printf.printf "%s" "transforming ";
     let ident = Label.to_id label in
+    Printf.printf "%s\n\n" (Id.to_string ident);
     let tr_constr env evm = subst_globals subst %> tr_constr env evm in
     match body with
     | SFBconst const_body ->
@@ -1051,6 +1055,8 @@ let transform_module_structure ?(init=const Globmap.empty) ident tr_constr mod_b
         subst (* Do not transform schematic definitions. *)
       else
         let const' = transform_constant ident tr_constr const_body in
+        Printf.printf "%s" "transformed";
+        Printf.printf "%s\n\n" (Id.to_string ident);
         Globmap.add (ConstRef const) (ConstRef const') subst
     | SFBmind mind_body ->
       check_inductive_supported mind_body;

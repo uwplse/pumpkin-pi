@@ -11,6 +11,14 @@ From Coq Require Import ssreflect ssrbool ssrfun.
 
 Desugar Module List as List' {include length, app}.
 Find ornament list Vector.t as ltv.
+
+Module foo.
+  Definition bar := @cons.
+End foo.
+
+Desugar Module foo as foo'.
+Lift Module list Vector.t foo' as fooV.
+
 Lift Module list Vector.t List' as Vector_p.
 
 (* --- Lifting the hs_to_coq functions --- *)
