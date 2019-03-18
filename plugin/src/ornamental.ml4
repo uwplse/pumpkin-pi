@@ -17,6 +17,10 @@ VERNAC COMMAND EXTEND LiftOrnament CLASSIFIED AS SIDEFF
   [ lift_by_ornament n d_orn d_orn_inv d_old ]
 | [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ".." ident(n)] ->
   [ lift_by_ornament ~suffix:true n d_orn d_orn_inv d_old ]
+| [ "Lift" "Module" constr(d_orn) constr(d_orn_inv) reference(mod_ref) "as" ident(id) ] ->
+  [ do_lift_module id d_orn d_orn_inv mod_ref ]
+| ["Lift" "Module" constr(d_orn) constr(d_orn_inv) reference(mod_ref) "as" ident(id) "{" "include" ne_reference_list_sep(incl_refs, ",") "}" ] ->
+  [ do_lift_module ~incl:incl_refs id d_orn d_orn_inv mod_ref ]
 END
 
 (* Desugar any/all fix/match subterms into eliminator applications *)

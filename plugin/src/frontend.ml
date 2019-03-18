@@ -121,8 +121,8 @@ let do_on_module init ident mod_ref f =
  * Whole module lifting
  * At some point, refactor out the common top-level lifting logic
  *)
-let do_lift_module d_orn d_orn_inv ident mod_ref =
-  (*let open Util in
+let do_lift_module ?(incl=[]) ident d_orn d_orn_inv mod_ref =
+  let open Util in
   let consts = List.map (qualid_of_reference %> Nametab.locate_constant) incl in
   let include_constant subst const =
     let ident = Label.to_id (Constant.label const) in
@@ -131,8 +131,8 @@ let do_lift_module d_orn d_orn_inv ident mod_ref =
       Global.lookup_constant const |> transform_constant ident tr_constr
     in
     Globmap.add (ConstRef const) (ConstRef const') subst
-  in*)
-  let init () = Globmap.empty in
+  in
+  let init () = List.fold_left include_constant Globmap.empty consts in (* TODO refactor common *)
   do_on_module
     init
     ident
@@ -141,8 +141,9 @@ let do_lift_module d_orn d_orn_inv ident mod_ref =
       let evd = ! evd in (* why is this a ref? *)
       let c_orn = intern env evd d_orn in
       let c_orn_inv = intern env evd d_orn_inv in
-      let n_new = suffix_term_name c_old (Id.of_string "") in
+      let n_new = Nametab.basename_of_global (Globnames.global_of_constr c_old) in
       let s = Id.to_string n_new in
+      Printf.printf "%s\n\n" s;
       let us = map_tuple (unwrap_definition env) (c_orn, c_orn_inv) in
       let are_inds = isInd (fst us) && isInd (snd us) in
       let lookup os = map_tuple Universes.constr_of_global (lookup_ornament os) in
@@ -150,16 +151,17 @@ let do_lift_module d_orn d_orn_inv ident mod_ref =
       let l = initialize_lifting env evd c_from c_to in
       if isInd c_old then
         let ind, _ = destInd c_old in
-        do_lift_ind env evd n_new s l ind
+        mkInd (do_lift_ind env evd n_new s l ind)
       else
         let lifted = do_lift_defn env evd l c_old in
+        ignore (define_term n_new evd lifted true);
+        Printf.printf "%s\n\n" "defined";
         let old_gref = global_of_constr c_old in
         let new_gref = ConstRef (Lib.make_kn n_new |> Constant.make1) in
         declare_lifted old_gref new_gref;
+        Printf.printf "%s\n\n" "here";
         lifted) (* TODO messaging etc *)
 
-
-    
 (*
  * Translate fix and match expressions into eliminations, as in
  * do_desugar_constant, compositionally throughout a whole module.

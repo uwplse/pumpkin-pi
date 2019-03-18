@@ -7,6 +7,14 @@ Require Import Ornamental.Ornaments.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 
+(* --- Lifting the whole list module --- *)
+
+Desugar Module List as List' {include length, app}.
+Find ornament list Vector.t as ltv.
+Lift Module list Vector.t List' as Vector_p.
+
+(* --- Lifting the hs_to_coq functions --- *)
+
 Module hs_to_coq'.
 
 (* From:

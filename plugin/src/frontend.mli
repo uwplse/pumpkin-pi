@@ -22,6 +22,10 @@ val lift_by_ornament : ?suffix:bool -> Id.t -> constr_expr -> constr_expr -> con
  *)
 val do_desugar_constant : Id.t -> Libnames.reference -> unit
 
+(* --- Whole module versions --- *)
+
+val do_lift_module : ?incl:(Libnames.reference list) -> Id.t -> constr_expr -> constr_expr -> Libnames.reference -> unit
+
 (*
  * Translate fix and match expressions into eliminations, as in
  * do_desugar_constant, compositionally throughout a whole module.
