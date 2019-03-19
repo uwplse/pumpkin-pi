@@ -100,13 +100,11 @@ Proof.
   - simpl. f_equal. apply IHv1. auto.
 Defined.
 
+Import EqNotations.
+
 (* So one user-friendly version is just: *)
-Program Definition zipV_uf {a} {b} {n} (v1 : Vector.t a n) (v2 : Vector.t b n) :=
-  zipV v1 v2
-: Vector.t (a * b) n.
-Next Obligation.
-  auto using zipV_uf_aux.
-Defined.
+Definition zipV_uf {a} {b} {n} (v1 : Vector.t a n) (v2 : Vector.t b n) : Vector.t (a * b) n :=
+  rew (zipV_uf_aux v1 v2 eq_refl) in (zipV v1 v2).
 
 (* Similarly: *)
 Lemma zip_withV_uf_aux:
@@ -119,27 +117,49 @@ Proof.
   - simpl. f_equal. apply IHv1. auto.
 Defined.
 
-(* And: *)
-Program Definition zip_withV_uf {A} {B} {C} f {n} (v1 : Vector.t A n) (v2 : Vector.t B n) :=
-  zip_withV f v1 v2
-: Vector.t C n.
-Next Obligation.
-  auto using zip_withV_uf_aux.
-Defined.
+Print zip_with_is_zipV.
 
-(* TODO ideally, figure out proof too *)
+(* And: *)
+Definition zip_withV_uf {A} {B} {C} f {n} (v1 : Vector.t A n) (v2 : Vector.t B n) : Vector.t C n :=
+  rew (zip_withV_uf_aux f v1 v2 eq_refl) in (zip_withV f v1 v2).
+
 (*
+ * Via Jasper Hugunin, one way we can show this is using the fact 
+ * that nats form an hset. Then, we don't actually need any information
+ * about how our auxiliary equalities are formed.
+ *)
+From Coq Require Import Eqdep_dec Arith.
+
 Lemma zip_with_is_zipV_uf :
   forall {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n),
     zip_withV_uf pair v1 v2 = zipV_uf v1 v2.
 Proof.
-  ??
-Defined.
-*)
+  intros.
+  pose proof (zip_with_is_zipV v1 v2).
+  apply eq_dep_eq_sigT in H.
+  pose proof (eq_sigT_snd H).
+  unfold zip_withV_uf.
+  unfold zipV_uf.
+  rewrite <- H0.
+  rewrite <- eq_trans_rew_distr.
+  f_equal.
+  apply (UIP_dec Nat.eq_dec).
+Qed.
+
+(*
+ * There may be a way to show this without relying on that property
+ * of the nats, by using the way the auxiliary lemmas were defined.
+ * (If we need to define the auxiliary lemmas differently to show this,
+ * that's OK too.)
+ *)
+Lemma zip_with_is_zipV_uf_no_uip :
+  forall {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n),
+    zip_withV_uf pair v1 v2 = zipV_uf v1 v2.
+Proof.
+  (* ??? *)
+Admitted.
 
 (* Client code *)
 
 Definition BVand' {n : nat} (v1 : Vector.t bool n) (v2 : Vector.t bool n) : Vector.t bool n := 
   zip_withV_uf andb v1 v2.
-
-(*  TODO maybe use proof, and maybe interface back with lists
