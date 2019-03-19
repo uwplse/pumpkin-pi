@@ -3,10 +3,11 @@ Require Import List.
 
 Require Import Ornamental.Ornaments.
 
-(* TODO clean up, move the user-friendly index stuff *)
-
 From Coq Require Import ssreflect ssrbool ssrfun.
 
+(*
+ * Here is our library that we will lift.
+ *)
 Module hs_to_coq'.
 
 (* From:
@@ -29,14 +30,11 @@ Fixpoint zip_with {A} {B} {C} (f : A -> B -> C) (s : list A) (t : list B) : list
     | _       , _       => nil
 end.
 
-Print eqrel.
-
 Theorem zip_with_is_zip {A} {B} :
   zip_with (@pair A B) =2 zip.
 Proof. by elim => [|a s IH] [|b t] //=; rewrite IH. Qed.
 
 End hs_to_coq'.
-
 
 (* --- Preprocess --- *)
 
@@ -63,8 +61,6 @@ Definition zipV {a} {b} {n1} (v1 : Vector.t a n1) {n2} (v2 : Vector.t b n2) :=
 Definition zip_withV {A} {B} {C} (f : A -> B -> C) {n1} (v1 : Vector.t A n1) {n2} (v2 : Vector.t B n2) :=
   projT2 (zip_withV' A B C f (existT _ n1 v1) (existT _ n2 v2)).
 
-Check sigT.
-
 (* TODO this is the thing you need everywhere for automation *)
 Lemma rewrite_proj :
   forall {A} {T : A -> Type} (s : sigT T), 
@@ -88,55 +84,58 @@ Eval compute in (zipV (Vector.cons nat 2 0 (Vector.nil nat)) (Vector.cons nat 1 
 
 (*
  * Obligations for the user-friendly version.
- * Some aux lemmas first:
+ * First, just prove the indexer is what we want assuming an equality
+ * n1 = n2. This will involve just inducting over each argument in order,
+ * and the rest is straightforward: Make use of the equality,
+ * base case holds by definition, and the inductive case uses f_equal
+ * to make use of the inductive hypothesis.
  *)
-Lemma vector_nil:
-  forall {a} (v : Vector.t a 0),
-     v = Vector.nil a.
+Lemma zipV_uf_aux:
+  forall {a} {b} {n1} (v1 : Vector.t a n1) {n2} (v2 : Vector.t b n2),
+    n1 = n2 ->
+    projT1 (zipV' a b (existT _ n1 v1) (existT _ n2 v2)) = n1.
 Proof.
-  intros a. apply Vector.case0. auto.
-Qed.
-
-Lemma vector_hd_tl:
-  forall {a} {n} v,
-    v = Vector.cons a (Vector.hd v) n (Vector.tl v).
-Proof.
-  intros a. apply Vector.caseS. auto.
-Qed.
+  induction v1, v2; intros; inversion H. 
+  - auto.
+  - simpl. f_equal. apply IHv1. auto.
+Defined.
 
 (* So one user-friendly version is just: *)
 Program Definition zipV_uf {a} {b} {n} (v1 : Vector.t a n) (v2 : Vector.t b n) :=
   zipV v1 v2
 : Vector.t (a * b) n.
 Next Obligation.
-  induction n.
-  - rewrite (vector_nil v1).
-    rewrite (vector_nil v2).
-    auto.
-  - rewrite (vector_hd_tl v1). 
-    rewrite (vector_hd_tl v2).
-    simpl. f_equal. apply IHn.
+  auto using zipV_uf_aux.
 Defined.
 
-Check zip_withV'.
+(* Similarly: *)
+Lemma zip_withV_uf_aux:
+  forall {A} {B} {C} f {n1} (v1 : Vector.t A n1) {n2} (v2 : Vector.t B n2) ,
+    n1 = n2 ->
+    projT1 (zip_withV' A B C f (existT _ n1 v1) (existT _ n2 v2)) = n1.
+Proof.
+  induction v1, v2; intros; inversion H. 
+  - auto.
+  - simpl. f_equal. apply IHv1. auto.
+Defined.
 
-(* And this is super formulaic: *)
+(* And: *)
 Program Definition zip_withV_uf {A} {B} {C} f {n} (v1 : Vector.t A n) (v2 : Vector.t B n) :=
   zip_withV f v1 v2
 : Vector.t C n.
 Next Obligation.
-  induction n.
-  - rewrite (vector_nil v1). 
-    rewrite (vector_nil v2).
-    auto.
-  - rewrite (vector_hd_tl v1). 
-    rewrite (vector_hd_tl v2).
-    simpl. f_equal. apply IHn.
+  auto using zip_withV_uf_aux.
 Defined.
 
-
-
-(* TODO clean up and make a methodology; show similarly for the other ones   *)
+(* TODO ideally, figure out proof too *)
+(*
+Lemma zip_with_is_zipV_uf :
+  forall {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n),
+    zip_withV_uf pair v1 v2 = zipV_uf v1 v2.
+Proof.
+  ??
+Defined.
+*)
 
 (* Client code *)
 
