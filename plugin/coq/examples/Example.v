@@ -40,7 +40,7 @@ End hs_to_coq'.
 
 (* --- Preprocess --- *)
 
-Desugar Module hs_to_coq' as hs_to_coq.
+Preprocess Module hs_to_coq' as hs_to_coq.
 
 (* --- Search --- *)
 
@@ -56,32 +56,14 @@ Lift list Vector.t in hs_to_coq.zip_with_is_zip as zip_with_is_zipV'.
 
 Require Import Coq.Logic.EqdepFacts.
 
-(* TODO add in Nate's automation here *)
-Definition zipV {a} {b} {n1} (v1 : Vector.t a n1) {n2} (v2 : Vector.t b n2) :=
-  projT2 (zipV' a b (existT _ n1 v1) (existT _ n2 v2)).
+Unpack zipV' as zipV.
+Unpack zip_withV' as zip_withV.
+Unpack zip_with_is_zipV' as zip_with_is_zipV.
 
-Definition zip_withV {A} {B} {C} (f : A -> B -> C) {n1} (v1 : Vector.t A n1) {n2} (v2 : Vector.t B n2) :=
-  projT2 (zip_withV' A B C f (existT _ n1 v1) (existT _ n2 v2)).
-
-Check sigT.
-
-(* TODO this is the thing you need everywhere for automation *)
-Lemma rewrite_proj :
-  forall {A} {T : A -> Type} (s : sigT T), 
-    s = existT _ (projT1 s) (projT2 s).
-Proof.
-  intros. induction s. auto.
-Defined.
-
-Program Definition zip_with_is_zipV {A} {B} {n1} (v1 : Vector.t A n1) {n2} (v2 : Vector.t B n2) :=
-  eq_sigT_eq_dep _ _ _ _ 
-    (zip_withV pair v1 v2) 
-    (zipV v1 v2)
-    (zip_with_is_zipV' A B (existT _ n1 v1) (existT _ n2 v2)).
-Next Obligation. apply rewrite_proj. Qed.
-Next Obligation. apply rewrite_proj. Qed.
-
-Check zip_with_is_zipV.
+(* Enable implicit arguments *)
+Arguments zipV {_ _} {_} _ {_} _.
+Arguments zip_withV {_ _ _} _ {_} _ {_} _.
+Arguments zip_with_is_zipV {_ _} {_} _ {_} _.
 
 (* For any two vectors of the same length, we get a vector of the same length *)
 Eval compute in (zipV (Vector.cons nat 2 0 (Vector.nil nat)) (Vector.cons nat 1 0 (Vector.nil nat))).
@@ -113,12 +95,10 @@ Next Obligation.
   - rewrite (vector_nil v1).
     rewrite (vector_nil v2).
     auto.
-  - rewrite (vector_hd_tl v1). 
+  - rewrite (vector_hd_tl v1).
     rewrite (vector_hd_tl v2).
     simpl. f_equal. apply IHn.
 Defined.
-
-Check zip_withV'.
 
 (* And this is super formulaic: *)
 Program Definition zip_withV_uf {A} {B} {C} f {n} (v1 : Vector.t A n) (v2 : Vector.t B n) :=
@@ -126,21 +106,19 @@ Program Definition zip_withV_uf {A} {B} {C} f {n} (v1 : Vector.t A n) (v2 : Vect
 : Vector.t C n.
 Next Obligation.
   induction n.
-  - rewrite (vector_nil v1). 
+  - rewrite (vector_nil v1).
     rewrite (vector_nil v2).
     auto.
-  - rewrite (vector_hd_tl v1). 
+  - rewrite (vector_hd_tl v1).
     rewrite (vector_hd_tl v2).
     simpl. f_equal. apply IHn.
 Defined.
-
-
 
 (* TODO clean up and make a methodology; show similarly for the other ones   *)
 
 (* Client code *)
 
-Definition BVand' {n : nat} (v1 : Vector.t bool n) (v2 : Vector.t bool n) : Vector.t bool n := 
+Definition BVand' {n : nat} (v1 : Vector.t bool n) (v2 : Vector.t bool n) : Vector.t bool n :=
   zip_withV_uf andb v1 v2.
 
-(*  TODO maybe use proof, and maybe interface back with lists
+(*  TODO maybe use proof, and maybe interface back with lists *)

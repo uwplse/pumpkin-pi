@@ -48,11 +48,14 @@ src/automation/lift.ml
 src/automation/lift.mli
 src/automation/desugar.ml
 src/automation/desugar.mli
+src/automation/unpack.ml
+src/automation/unpack.mli
 
 src/frontend.ml
 src/frontend.mli
 src/ornamental.ml4
 src/ornaments.mlpack
 
+theories/Unpack.v
 theories/Lifted.v
 theories/Ornaments.v
