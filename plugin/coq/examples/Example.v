@@ -77,8 +77,6 @@ Program Definition zip_with_is_zipV {A} {B} {n1} (v1 : Vector.t A n1) {n2} (v2 :
 Next Obligation. apply rewrite_proj. Qed.
 Next Obligation. apply rewrite_proj. Qed.
 
-Check zip_with_is_zipV.
-
 (* For any two vectors of the same length, we get a vector of the same length *)
 Eval compute in (zipV (Vector.cons nat 2 0 (Vector.nil nat)) (Vector.cons nat 1 0 (Vector.nil nat))).
 
@@ -117,34 +115,31 @@ Proof.
   - simpl. f_equal. apply IHv1. auto.
 Defined.
 
-Print zip_with_is_zipV.
-
 (* And: *)
 Definition zip_withV_uf {A} {B} {C} f {n} (v1 : Vector.t A n) (v2 : Vector.t B n) : Vector.t C n :=
   rew (zip_withV_uf_aux f v1 v2 eq_refl) in (zip_withV f v1 v2).
 
 (*
+ * For proofs, we have to deal with dependent equality.
+ * Here's a lemma that can help us. It basically relates the
+ * auxiliary lemmas from the other proofs.
+ *
  * Via Jasper Hugunin, one way we can show this is using the fact 
  * that nats form an hset. Then, we don't actually need any information
  * about how our auxiliary equalities are formed.
  *)
 From Coq Require Import Eqdep_dec Arith.
 
-Lemma zip_with_is_zipV_uf :
-  forall {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n),
-    zip_withV_uf pair v1 v2 = zipV_uf v1 v2.
+Lemma zip_with_is_zipV_uf_aux :
+  forall  {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n),
+    zip_withV_uf_aux pair v1 v2 eq_refl =
+    eq_trans 
+      (eq_sigT_fst (eq_dep_eq_sigT _ _ _ _ _ _ (zip_with_is_zipV v1 v2))) 
+      (zipV_uf_aux v1 v2 eq_refl).
 Proof.
-  intros.
-  pose proof (zip_with_is_zipV v1 v2).
-  apply eq_dep_eq_sigT in H.
-  pose proof (eq_sigT_snd H).
-  unfold zip_withV_uf.
-  unfold zipV_uf.
-  rewrite <- H0.
-  rewrite <- eq_trans_rew_distr.
-  f_equal.
-  apply (UIP_dec Nat.eq_dec).
-Qed.
+  auto using (UIP_dec Nat.eq_dec).
+Defined.
+
 
 (*
  * There may be a way to show this without relying on that property
@@ -152,12 +147,30 @@ Qed.
  * (If we need to define the auxiliary lemmas differently to show this,
  * that's OK too.)
  *)
-Lemma zip_with_is_zipV_uf_no_uip :
-  forall {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n),
-    zip_withV_uf pair v1 v2 = zipV_uf v1 v2.
+Lemma zip_with_is_zipV_uf_aux_no_uip :
+  forall  {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n),
+    zip_withV_uf_aux pair v1 v2 eq_refl =
+    eq_trans 
+      (eq_sigT_fst (eq_dep_eq_sigT _ _ _ _ _ _ (zip_with_is_zipV v1 v2))) 
+      (zipV_uf_aux v1 v2 eq_refl).
 Proof.
   (* ??? *)
 Admitted.
+  
+
+(*
+ * Then we can get our theorem (TODO clean):
+ *)
+Lemma zip_with_is_zipV_uf :
+  forall {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n),
+    zip_withV_uf pair v1 v2 = zipV_uf v1 v2.
+Proof.
+  intros. unfold zip_withV_uf. unfold zipV_uf.
+  pose (eq_sigT_snd (eq_dep_eq_sigT _ _ _ _ _ _ (zip_with_is_zipV v1 v2))).
+  rewrite <- e.
+  rewrite zip_with_is_zipV_uf_aux_uip.
+  apply eq_trans_rew_distr.
+Defined.
 
 (* Client code *)
 
