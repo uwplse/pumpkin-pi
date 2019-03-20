@@ -19,11 +19,6 @@ let eval_tactic env evm ?goal tac =
   evm := Proofview.proofview pv |> snd;
   (* evm := TODO: solve_remaining_evars (default_inference_flags true) env evm evm0; *)
   let proofs = Proofview.partial_proof ent pv |> List.map (EConstr.to_constr !evm) in
-  (* let shelved = List.filter (Evd.is_undefined !evm) shelved in
-   * let obliged = List.filter (Evd.is_undefined !evm) obliged in
-   * List.iter (Printer.pr_constr_env env !evm %> Feedback.msg_debug) proofs;
-   * List.map (Printer.pr_existential_key !evm) obliged |> Pp.seq |> Feedback.msg_debug;
-   * List.map (Printer.pr_existential_key !evm) shelved |> Pp.seq |> Feedback.msg_debug; *)
   List.hd proofs
 
 let call_tactic env evm tac args =
