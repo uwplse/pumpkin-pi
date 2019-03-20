@@ -15,9 +15,13 @@ let tactic_script =
 let eval_tactic env evm ?goal tac =
   let typ, _ = Evarutil.e_new_type_evar env evm Evd.univ_flexible_alg in
   let (ent, pv) = Proofview.init !evm [(env, typ)] in
+  let evm0 = !evm in
   let ((), pv, (unsafe, shelved, obliged), _) = Proofview.apply env tac pv in
   evm := Proofview.proofview pv |> snd;
-  (* evm := TODO: solve_remaining_evars (default_inference_flags true) env evm evm0; *)
+  (* NOTE: Technically our current examples/tests do not require this post-processing
+   * unification step, but I suspect that it may sometimes be necessary to ensure that
+   * Coq handles any lingering typeclass/implicit argument inference in the usual way. *)
+  evm := Pretyping.solve_remaining_evars (Pretyping.default_inference_flags true) env !evm evm0;
   let proofs = Proofview.partial_proof ent pv |> List.map (EConstr.to_constr !evm) in
   List.hd proofs
 
