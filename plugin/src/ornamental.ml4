@@ -21,10 +21,10 @@ END
 
 (* Desugar any/all fix/match subterms into eliminator applications *)
 VERNAC COMMAND EXTEND TranslateMatch CLASSIFIED AS SIDEFF
-| [ "Desugar" reference(const_ref) "as" ident(id) ] ->
+| [ "Preprocess" reference(const_ref) "as" ident(id) ] ->
   [ do_desugar_constant id const_ref ]
-| [ "Desugar" "Module" reference(mod_ref) "as" ident(id) ] ->
+| [ "Preprocess" "Module" reference(mod_ref) "as" ident(id) ] ->
   [ do_desugar_module id mod_ref ]
-| [ "Desugar" "Module" reference(mod_ref) "as" ident(id) "{" "include" ne_reference_list_sep(incl_refs, ",") "}" ] ->
+| [ "Preprocess" "Module" reference(mod_ref) "as" ident(id) "{" "include" ne_reference_list_sep(incl_refs, ",") "}" ] ->
   [ do_desugar_module ~incl:incl_refs id mod_ref ]
 END
