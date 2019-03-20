@@ -5,6 +5,21 @@ Local Notation "( x ; y )" := (@existT _ _ x y).
 Local Notation "p '.1'" := (@projT1 _ _ p) (left associativity, at level 8).
 Local Notation "p '.2'" := (@projT2 _ _ p) (left associativity, at level 8).
 
+(* Redefine transparent/reducible versions of these lemmas about dependent equality *)
+Definition eq_dep_eq_sigT_red (U : Type) (P : U -> Type) (p q : U) (x : P p) (y : P q) (H : eq_dep U P p x q y) : existT P p x = existT P q y :=
+  match H in (eq_dep _ _ _ _ q0 y0) return (existT P p x = existT P q0 y0) with
+  | eq_dep_intro _ _ _ _ => eq_refl (existT P p x)
+  end.
+
+Definition eq_sigT_eq_dep_red (U : Type) (P : U -> Type) (p q : U) (x : P p) (y : P q) (H : existT P p x = existT P q y) : eq_dep U P p x q y :=
+  @eq_ind_r _
+    (existT _ q y)
+    (fun s => eq_dep U P (projT1 s) (projT2 s) q y)
+    (eq_dep_intro U P q y)
+    (existT _ p x)
+    H.
+
+(* Also define our own two lemmas to handle typical side conditions. *)
 Lemma sigT_eta {A : Type} {B : A -> Type} (p : {x:A & B x}) : p = (p.1; p.2).
 Proof. destruct p. auto. Defined.
 
@@ -24,7 +39,7 @@ Ltac rewrap unwrapped :=
       rewrap (unwrapped x)
     end
   | [ |- @eq_dep ?A ?B ?x_i ?x ?y_i ?y ] =>
-    exact (@eq_dep_eq_sigT A B x_i y_i x y unwrapped)
+    exact (@eq_dep_eq_sigT_red A B x_i y_i x y unwrapped)
   | [ |- _ ] =>
     exact unwrapped
   end.
@@ -184,7 +199,7 @@ Ltac unpack_type t :=
 (*       unpack_term (e x) (C x) *)
 (*     end *)
 (*   | @eq (@sigT ?A ?B) ?x ?y => *)
-(*     refine (eq_sigT_eq_dep A B x.1 y.1 x.2 y.2 (eq_sigT_eta e)) *)
+(*     refine (eq_sigT_eq_dep_red A B x.1 y.1 x.2 y.2 (eq_sigT_eta e)) *)
 (*   | @sigT ?A ?B => *)
 (*     exact (e.2) *)
 (*   | _ => *)
@@ -225,7 +240,7 @@ Ltac unpack e :=
       unpack (e x)
     end
   | @eq (@sigT ?A ?B) ?x ?y =>
-    refine (eq_sigT_eq_dep A B x.1 y.1 x.2 y.2 (eq_sigT_eta e))
+    refine (eq_sigT_eq_dep_red A B x.1 y.1 x.2 y.2 (eq_sigT_eta e))
   | @sigT ?A ?B =>
     exact (e.2)
   | _ =>
