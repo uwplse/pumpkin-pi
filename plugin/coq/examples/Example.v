@@ -60,6 +60,14 @@ Unpack zipV' as zipV.
 Unpack zip_withV' as zip_withV.
 Unpack zip_with_is_zipV' as zip_with_is_zipV.
 
+Check zipV.
+Check zip_withV.
+Check zip_with_is_zipV.
+(* Note that some projT{1,2} (existT _ _) redexes linger in the above; we can
+ * reduce them away if you'd like.
+*)
+
+
 (* Enable implicit arguments *)
 Arguments zipV {_ _} {_} _ {_} _.
 Arguments zip_withV {_ _ _} _ {_} _ {_} _.

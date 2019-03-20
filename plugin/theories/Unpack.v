@@ -149,56 +149,57 @@ Ltac unpack_type t :=
     exact t
   end.
 
-(* NOTE: The current type doesn't really need to be another argument... *)
-Ltac unpack_term e t :=
-  lazymatch (eval hnf in t) with
-  | forall (x : @sigT ?A ?B), @?C x =>
-    let x := fresh x in
-    let x_i := fresh x "_i" in
-    refine (fun (x_i : A) (x : B x_i) => _);
-    unpack_term (e (x_i; x)) (C (x_i; x))
-  | forall (x : ?A), @?C x =>
-    let x := fresh x in
-    lazymatch A with
-    | (@sigT ?A ?B) =>
-      let x_i := fresh x "_i" in
-      refine (fun (x_i : A) => _);
-      refine (fun (x : B x_i) => _);
-      unpack_term (e (x_i; x)) (C (x_i; x))
-    | context K [forall _, sigT _ _] =>
-      let x_i := fresh x "_i" in
-      let A' := unpack_index A in
-      refine (fun (x_i : A) => _);
-      let B' := unpack_value A x_i in
-      refine (fun (x : B' x_i) => _);
-      assert A as x' by repack x_i x;
-      unpack_term (e x') (C x')
-    | context K [forall (_ : sigT _ _), _] =>
-      let A' := unwrap A in
-      refine (fun (x : A') => _);
-      assert A as x' by rewrap x;
-      unpack_term (e x') (C x')
-    | _ =>
-      refine (fun (x : A) => _);
-      unpack_term (e x) (C x)
-    end
-  | @eq (@sigT ?A ?B) ?x ?y =>
-    refine (eq_sigT_eq_dep A B x.1 y.1 x.2 y.2 (eq_sigT_eta e))
-  | @sigT ?A ?B =>
-    exact (e.2)
-  | _ =>
-    exact e
-  end.
+(* Obviated by the below version but retained temporarily for debugging purposes. *)
+(* (* NOTE: The current type doesn't really need to be another argument... *) *)
+(* Ltac unpack_term e t := *)
+(*   lazymatch (eval hnf in t) with *)
+(*   | forall (x : @sigT ?A ?B), @?C x => *)
+(*     let x := fresh x in *)
+(*     let x_i := fresh x "_i" in *)
+(*     refine (fun (x_i : A) (x : B x_i) => _); *)
+(*     unpack_term (e (x_i; x)) (C (x_i; x)) *)
+(*   | forall (x : ?A), @?C x => *)
+(*     let x := fresh x in *)
+(*     lazymatch A with *)
+(*     | (@sigT ?A ?B) => *)
+(*       let x_i := fresh x "_i" in *)
+(*       refine (fun (x_i : A) => _); *)
+(*       refine (fun (x : B x_i) => _); *)
+(*       unpack_term (e (x_i; x)) (C (x_i; x)) *)
+(*     | context K [forall _, sigT _ _] => *)
+(*       let x_i := fresh x "_i" in *)
+(*       let A' := unpack_index A in *)
+(*       refine (fun (x_i : A) => _); *)
+(*       let B' := unpack_value A x_i in *)
+(*       refine (fun (x : B' x_i) => _); *)
+(*       assert A as x' by repack x_i x; *)
+(*       unpack_term (e x') (C x') *)
+(*     | context K [forall (_ : sigT _ _), _] => *)
+(*       let A' := unwrap A in *)
+(*       refine (fun (x : A') => _); *)
+(*       assert A as x' by rewrap x; *)
+(*       unpack_term (e x') (C x') *)
+(*     | _ => *)
+(*       refine (fun (x : A) => _); *)
+(*       unpack_term (e x) (C x) *)
+(*     end *)
+(*   | @eq (@sigT ?A ?B) ?x ?y => *)
+(*     refine (eq_sigT_eq_dep A B x.1 y.1 x.2 y.2 (eq_sigT_eta e)) *)
+(*   | @sigT ?A ?B => *)
+(*     exact (e.2) *)
+(*   | _ => *)
+(*     exact e *)
+(*   end. *)
 
-(* NOTE: The current type doesn't really need to be another argument... *)
 Ltac unpack e :=
-  lazymatch (eval hnf in ltac:(type of e)) with
-  | forall (x : @sigT ?A ?B), @?C x =>
+  let t := type of e in
+  lazymatch eval hnf in t with
+  | forall (x : @sigT ?A ?B), _ =>
     let x := fresh x in
     let x_i := fresh x "_i" in
     refine (fun (x_i : A) (x : B x_i) => _);
     unpack (e (x_i; x))
-  | forall (x : ?A), @?C x =>
+  | forall (x : ?A), _ =>
     let x := fresh x in
     lazymatch A with
     | (@sigT ?A ?B) =>
@@ -230,5 +231,3 @@ Ltac unpack e :=
   | _ =>
     exact e
   end.
-
-(* Ltac unpack e := unpack_term e ltac:(type of e). *)

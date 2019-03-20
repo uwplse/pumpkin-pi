@@ -8,17 +8,8 @@ open CErrors
 open Coqterms
 open Ltac_plugin
 
-let unpack_tactic =
+let tactic_script =
   Qualid (qualid_of_string "Ornamental.Unpack.unpack") |> CAst.make
-
-let unpack_term_tactic =
-  Qualid (qualid_of_string "Ornamental.Unpack.unpack_term") |> CAst.make
-
-let unpack_type_tactic =
-  Qualid (qualid_of_string "Ornamental.Unpack.unpack_type") |> CAst.make
-
-(* let tactify_expr e =
- *   Tacexpr.ConstrMayEval (Genredexpr.ConstrTerm e) *)
 
 (* Evaluate a tactic on no goals and return any proofs constructed *)
 let eval_tactic env evm ?goal tac =
@@ -42,8 +33,5 @@ let call_tactic env evm tac args =
   eval_tactic env evm
 
 let unpack_constant env evm const =
-  let const_term = Evarutil.e_new_global evm (ConstRef const) in
-  let const_type = Typing.e_type_of env evm const_term in
-  call_tactic env evm unpack_term_tactic
-    [Constrextern.extern_constr false env !evm const_term;
-     Constrextern.extern_constr false env !evm const_type]
+  let term = Evarutil.e_new_global evm (ConstRef const) in
+  call_tactic env evm tactic_script [Constrextern.extern_constr false env !evm term]
