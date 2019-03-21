@@ -29,7 +29,7 @@ type lifting =
   {
     orn : promotion;
     is_fwd : bool;
-    index_i : int;
+    off : int;
   }
 
 (* --- Initialization --- *)

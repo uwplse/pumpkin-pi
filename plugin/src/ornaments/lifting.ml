@@ -33,7 +33,7 @@ type lifting =
   {
     orn : promotion;
     is_fwd : bool;
-    index_i : int;
+    off : int;
   }
 
 (* --- Control structures --- *)
@@ -102,9 +102,9 @@ let initialize_promotion env evd promote forget =
   let to_ind = snd (on_type ind_of_promotion_type env evd promote_unpacked) in
   let to_args = unfold_args to_ind in
   let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
-  let (index_i, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
+  let (off, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
   let indexer = first_fun index in
-  (index_i, { indexer; promote; forget } )
+  (off, { indexer; promote; forget } )
 
 (*
  * Initialize a lifting
@@ -112,8 +112,8 @@ let initialize_promotion env evd promote forget =
 let initialize_lifting env evd c_orn c_orn_inv =
   let is_fwd = direction env evd c_orn in
   let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
-  let (index_i, orn) = initialize_promotion env evd promote forget in
-  { orn ; is_fwd ; index_i }
+  let (off, orn) = initialize_promotion env evd promote forget in
+  { orn ; is_fwd ; off }
                                 
 (* --- Directionality --- *)
        

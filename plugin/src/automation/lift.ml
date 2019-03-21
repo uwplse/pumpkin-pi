@@ -137,7 +137,7 @@ let is_eliminator l env evd (from_type, to_type) trm =
  *)
 let pack_to_typ env evd l (from_typ, to_typ) unpacked =
   if on_type (is_or_applies to_typ) env evd unpacked then
-    pack env evd l.index_i unpacked
+    pack env evd l.off unpacked
   else
     unpacked
 
@@ -162,7 +162,7 @@ let lift_constr env evd l (from_typ, to_typ) trm =
 let initialize_constr_rule env evd l (from_typ, to_typ) constr =
   let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd constr) in
   let c_body = reduce_term env_c_b c_body in
-  let to_refold = map_backward (pack env_c_b evd l.index_i) l c_body in
+  let to_refold = map_backward (pack env_c_b evd l.off) l c_body in
   let refolded = lift_constr env_c_b evd l (from_typ, to_typ) to_refold in
   reconstruct_lambda_n env_c_b refolded (nb_rel env)
 
@@ -200,34 +200,34 @@ let initialize_lift_config env evd l (from_typ, to_typ) =
 (*
  * LIFT-ELIM-ARGS
  *)
-let lift_elim_args env evd l index_i args =
+let lift_elim_args env evd l off args =
   let arg = map_backward last_arg l (last args) in
-  let typ_args = non_index_typ_args l.index_i env evd arg in
+  let typ_args = non_index_typ_args l.off env evd arg in
   let lifted_arg = mkAppl (lift_to l, snoc arg typ_args) in
   let value_i = List.length args - 1 in
   if l.is_fwd then
     let lifted_arg_sig = on_type dest_sigT env evd lifted_arg in
     let index = project_index lifted_arg_sig lifted_arg in
     let value = project_value lifted_arg_sig lifted_arg in
-    insert_index index_i index (reindex value_i value args)
+    insert_index off index (reindex value_i value args)
   else
-    remove_index index_i (reindex value_i lifted_arg args)
+    remove_index off (reindex value_i lifted_arg args)
 
 (*
  * PROMOTE-MOTIVE and FORGET-MOTIVE
  *)
-let lift_motive env evd l index_i parameterized_elim motive =
+let lift_motive env evd l off parameterized_elim motive =
   let parameterized_elim_type = reduce_type env evd parameterized_elim in
   let (_, to_motive_typ, _) = destProd parameterized_elim_type in
   let env_to_motive = zoom_env zoom_product_type env to_motive_typ in
-  let off = offset2 env_to_motive env in
-  let motive = shift_by off motive in
-  let args = mk_n_rels off in
+  let off2 = offset2 env_to_motive env in (* TODO rename *)
+  let motive = shift_by off2 motive in
+  let args = mk_n_rels off2 in
   let lifted_arg = pack_lift env_to_motive evd (flip_dir l) (last args) in
-  let value_i = off - 1 in
+  let value_i = off2 - 1 in
   if l.is_fwd then
     (* PROMOTE-MOTIVE *)
-    let args = remove_index index_i (reindex value_i lifted_arg args) in
+    let args = remove_index off (reindex value_i lifted_arg args) in
     let motive_app = reduce_term env_to_motive (mkAppl (motive, args)) in
     reconstruct_lambda_n env_to_motive motive_app (nb_rel env)
   else
@@ -235,7 +235,7 @@ let lift_motive env evd l index_i parameterized_elim motive =
     let lifted_arg_sig = on_type dest_sigT env_to_motive evd lifted_arg in
     let index = project_index lifted_arg_sig lifted_arg in
     let value = project_value lifted_arg_sig lifted_arg in
-    let args = insert_index index_i index (reindex value_i value args) in
+    let args = insert_index off index (reindex value_i value args) in
     let motive_app = reduce_term env_to_motive (mkAppl (motive, args)) in
     reconstruct_lambda_n env_to_motive motive_app (nb_rel env)
 
@@ -252,7 +252,7 @@ let promote_case_args env evd l (_, to_typ) args =
          if is_or_applies to_typ h_typ then
            (* FORGET-ARG *)
            let h_lifted = pack_lift env evd (flip_dir l) h in
-           h_lifted :: lift_args tl (get_arg l.index_i h_typ)
+           h_lifted :: lift_args tl (get_arg l.off h_typ)
          else
            (* ARG *)
            h :: lift_args tl index
@@ -275,7 +275,7 @@ let forget_case_args env_c_b env evd l (from_typ, _) args =
            let h_lifted_typ = on_type dest_sigT env evd h_lifted in
            let proj_value = project_value h_lifted_typ h_lifted in
            let proj_index = project_index h_lifted_typ h_lifted in
-           proj_value :: lift_args tl (get_arg l.index_i h_typ, proj_index)
+           proj_value :: lift_args tl (get_arg l.off h_typ, proj_index)
          else
            (* ARG *)
            h :: lift_args tl (index, proj_index)
@@ -304,11 +304,11 @@ let lift_case env evd l (from_typ, to_typ) p c_elim c =
     c (* base case, don't bother *)
   else
     let env_c = zoom_env zoom_product_type env to_c_typ in
-    let off = offset2 env_c env in
-    let c_eta = shift_by off c_eta in
+    let off2 = offset2 env_c env in (* TODO rename *)
+    let c_eta = shift_by off2 c_eta in
     let (env_c_b, c_body) = zoom_lambda_term env_c c_eta in
     let (c_f, c_args) = destApp c_body in
-    let split_i = if l.is_fwd then off - nihs else off + nihs in
+    let split_i = if l.is_fwd then off2 - nihs else off2 + nihs in
     let (c_args, b_args) = take_split split_i (Array.to_list c_args) in
     let c_args = unshift_all_by (List.length b_args) c_args in
     let lift_args = lift_case_args env_c_b env_c evd l (from_typ, to_typ) in
@@ -335,23 +335,20 @@ let lift_cases env evd l (from_typ, to_typ) p p_elim cs =
 let lift_elim env evd l trm_app =
   let (a_t, b_t, _) = typs_from_orn l env evd in
   let (from_typ, to_typ) = map_backward reverse l (a_t, b_t) in
-  let index_i = l.index_i - (List.length trm_app.pms) in
+  let off = l.off - (List.length trm_app.pms) in
   let elim = type_eliminator env (fst (destInd to_typ)) in
   let param_elim = mkAppl (elim, trm_app.pms) in
-  let p = lift_motive env evd l index_i param_elim trm_app.p in
+  let p = lift_motive env evd l off param_elim trm_app.p in
   let p_elim = mkAppl (param_elim, [p]) in
   let cs = lift_cases env evd l (from_typ, to_typ) p p_elim trm_app.cs in
-  let final_args = lift_elim_args env evd l index_i trm_app.final_args in
+  let final_args = lift_elim_args env evd l off trm_app.final_args in
   apply_eliminator {trm_app with elim; p; cs; final_args}
 
 (* --- Core algorithm --- *)
 
 (*
- * Core lifting algorithm (Figure 19)
+ * Core lifting algorithm.
  * A few extra rules to deal with real Coq terms as opposed to CIC.
- *
- * More caching will make this faster, and more eta-expansion will make
- * this more robust.
  *)
 let lift_core env evd c (a_typ, b_typ) index_type trm =
   let l = c.l in
@@ -366,15 +363,16 @@ let lift_core env evd c (a_typ, b_typ) index_type trm =
     else if is_from l en evd (a_typ, b_typ) tr then
       (* EQUIVALENCE *)
       if l.is_fwd then
-        let t_args = List.map (lift_rec en index_type) (unfold_args tr) in
-        let app = mkAppl (b_typ, t_args) in
+        let is = List.map (lift_rec en index_type) (unfold_args tr) in
+        let app = mkAppl (b_typ, is) in
         let index = mkRel 1 in
-        let abs_i = reindex_body (reindex_app (insert_index l.index_i index)) in
+        let indexed_is = insert_index l.off index in
+        let abs_i = reindex_body (reindex_app indexed_is) in
         let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
         pack_sigT { index_type ; packer }
       else
         let packed = dummy_index en (dest_sigT tr).packer in
-        let t_args = remove_index l.index_i (unfold_args packed) in
+        let t_args = remove_index l.off (unfold_args packed) in
         mkAppl (a_typ, t_args)
     else if is_packed_constr l en evd (a_typ, b_typ) tr then
       (* LIFT-CONSTR *)
@@ -421,7 +419,7 @@ let lift_core env evd c (a_typ, b_typ) index_type trm =
         let arg_typ' = dest_sigT (lift_rec en index_type (reduce_type en evd arg)) in
         project_index arg_typ' arg'
       else if equal projT1 (first_fun tr) then
-        mkAppl (l.orn.indexer, snoc arg' (non_index_typ_args l.index_i en evd arg))
+        mkAppl (l.orn.indexer, snoc arg' (non_index_typ_args l.off en evd arg))
       else
         arg'
     else if is_eliminator l en evd (a_typ, b_typ) tr then
