@@ -5,6 +5,8 @@ Local Notation "( x ; y )" := (@existT _ _ x y).
 Local Notation "p '.1'" := (@projT1 _ _ p) (left associativity, at level 8).
 Local Notation "p '.2'" := (@projT2 _ _ p) (left associativity, at level 8).
 
+Module Lemmas.
+
 (* Redefine transparent/reducible versions of these lemmas about dependent equality *)
 Definition eq_dep_eq_sigT_red (U : Type) (P : U -> Type) (p q : U) (x : P p) (y : P q) (H : eq_dep U P p x q y) : existT P p x = existT P q y :=
   match H in (eq_dep _ _ _ _ q0 y0) return (existT P p x = existT P q0 y0) with
@@ -26,6 +28,10 @@ Proof. destruct p. auto. Defined.
 Lemma eq_sigT_eta {A : Type} {B : A -> Type} {p q : {x:A & B x}} :
   p = q -> (p.1; p.2) = (q.1; q.2).
 Proof. destruct p, q. auto. Defined.
+
+End Lemmas.
+
+Import Lemmas.
 
 Ltac rewrap unwrapped :=
   lazymatch goal with
