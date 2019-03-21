@@ -48,32 +48,34 @@ let typs_from_orn l env evd =
 
 (*
  * Determine whether a type is the type we are ornamenting from
- * Premise for EQUIVALENCE
+ * That is, A when we are promoting, and B when we are forgetting
  *)
-let is_orn l env evd (from_typ, to_typ) typ =
+let is_from l env evd (a_typ, b_typ) typ =
   if l.is_fwd then
-    is_or_applies from_typ typ
+    is_or_applies a_typ typ
   else
     if is_or_applies sigT typ then
-      equal to_typ (first_fun (dummy_index env (dest_sigT typ).packer))
+      equal b_typ (first_fun (dummy_index env (dest_sigT typ).packer))
     else
       false
 
-(* Like is_orn, but at the type level *)
-let type_is_orn l env evd (from_type, to_type) trm =
+(* 
+ * Determine whether a term has the type we are ornamenting from
+ *)
+let type_is_from l env evd (a_typ, b_typ) trm =
   let typ = reduce_nf env (infer_type env evd trm) in
-  is_orn l env evd (from_type, to_type) typ
+  is_from l env evd (a_typ, b_typ) typ
 
 (*
  * Filter the arguments to only the ones that have the type we are
  * promoting/forgetting from.
  *)
-let filter_orn l env evd (from_typ, to_typ) args =
-  List.filter (type_is_orn l env evd (from_typ, to_typ)) args
+let filter_orn l env evd (a_typ, b_typ) args =
+  List.filter (type_is_from l env evd (a_typ, b_typ)) args
 
 (* Premises for LIFT-CONSTR *)
 let is_packed_constr l env evd (from_type, to_type) trm =
-  let right_type = type_is_orn l env evd (from_type, to_type) in
+  let right_type = type_is_from l env evd (from_type, to_type) in
   match kind trm with
   | Construct _  when right_type trm ->
      true
@@ -91,7 +93,7 @@ let is_packed_constr l env evd (from_type, to_type) trm =
 
 (* Premises for LIFT-PACKED *)
 let is_packed l env evd (from_type, to_type) trm =
-  let right_type = type_is_orn l env evd (from_type, to_type) in
+  let right_type = type_is_from l env evd (from_type, to_type) in
   if l.is_fwd then
     isRel trm && right_type trm
   else
@@ -103,7 +105,7 @@ let is_packed l env evd (from_type, to_type) trm =
 
 (* Premises for LIFT-PROJ *)
 let is_proj l env evd (from_type, to_type) trm =
-  let right_type = type_is_orn l env evd (from_type, to_type) in
+  let right_type = type_is_from l env evd (from_type, to_type) in
   match kind trm with
   | App _ ->
      let f = first_fun trm in
@@ -351,7 +353,7 @@ let lift_elim env evd l trm_app =
  * More caching will make this faster, and more eta-expansion will make
  * this more robust.
  *)
-let lift_core env evd c (from_type, to_type) index_type trm =
+let lift_core env evd c (a_typ, b_typ) index_type trm =
   let l = c.l in
   let rec lift_rec en index_type tr =
     let lifted_opt = search_lifted_term en tr in
@@ -361,11 +363,11 @@ let lift_core env evd c (from_type, to_type) index_type trm =
     else if is_locally_cached c.cache tr then
       (* LOCAL CACHING *)
       lookup_local_cache c.cache tr
-    else if is_orn l en evd (from_type, to_type) tr then
+    else if is_from l en evd (a_typ, b_typ) tr then
       (* EQUIVALENCE *)
       if l.is_fwd then
         let t_args = List.map (lift_rec en index_type) (unfold_args tr) in
-        let app = mkAppl (to_type, t_args) in
+        let app = mkAppl (b_typ, t_args) in
         let index = mkRel 1 in
         let abs_i = reindex_body (reindex_app (insert_index l.index_i index)) in
         let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
@@ -373,8 +375,8 @@ let lift_core env evd c (from_type, to_type) index_type trm =
       else
         let packed = dummy_index en (dest_sigT tr).packer in
         let t_args = remove_index l.index_i (unfold_args packed) in
-        mkAppl (from_type, t_args)
-    else if is_packed_constr l en evd (from_type, to_type) tr then
+        mkAppl (a_typ, t_args)
+    else if is_packed_constr l en evd (a_typ, b_typ) tr then
       (* LIFT-CONSTR *)
       (* The extra logic here is an optimization *)
       (* It also deals with the fact that we are lazy about eta *)
@@ -399,7 +401,7 @@ let lift_core env evd c (from_type, to_type) index_type trm =
             (mkApp (f', args'')))
         (List.length args > 0)
         (reduce_term en (mkAppl (lifted_constr, args)))
-    else if is_packed l en evd (from_type, to_type) tr then
+    else if is_packed l en evd (a_typ, b_typ) tr then
       (* LIFT-PACK *)
       if l.is_fwd then
         (* repack variables, since projections aren't primitive *)
@@ -411,7 +413,7 @@ let lift_core env evd c (from_type, to_type) index_type trm =
         pack_existT { index_type; packer; index; unpacked }
       else
         lift_rec en index_type (dest_existT tr).unpacked
-    else if is_proj l en evd (from_type, to_type) tr then
+    else if is_proj l en evd (a_typ, b_typ) tr then
       (* COHERENCE *)
       let arg = last_arg tr in
       let arg' = lift_rec en index_type arg in
@@ -422,11 +424,11 @@ let lift_core env evd c (from_type, to_type) index_type trm =
         mkAppl (l.orn.indexer, snoc arg' (non_index_typ_args l.index_i en evd arg))
       else
         arg'
-    else if is_eliminator l en evd (from_type, to_type) tr then
+    else if is_eliminator l en evd (a_typ, b_typ) tr then
       (* LIFT-ELIM *)
       let tr_elim = deconstruct_eliminator en evd tr in
       let npms = List.length tr_elim.pms in
-      let value_i = arity (expand_eta env evd from_type) - npms in
+      let value_i = arity (expand_eta env evd a_typ) - npms in
       let (final_args, post_args) = take_split (value_i + 1) tr_elim.final_args in
       let tr' = lift_elim en evd l { tr_elim with final_args } in
       let tr'' = lift_rec en index_type tr' in
@@ -501,7 +503,7 @@ let lift_core env evd c (from_type, to_type) index_type trm =
          mkProj (pr, co')
       | Construct (((i, i_index), _), u) ->
          let ind = mkInd (i, i_index) in
-         if equal ind (directional l from_type to_type) then
+         if equal ind (directional l a_typ b_typ) then
            (* lazy eta expansion *)
            lift_rec en index_type (expand_eta en evd tr)
          else
