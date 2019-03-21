@@ -32,13 +32,14 @@ type lift_config =
     cache : temporary_cache
   }
 
-(* --- to/from --- *)
+(* --- Recovering types from ornaments --- *)
 
 (*
- * Get the to/from type from the ornament
+ * Get the types A and B from the ornament
  *)
-let promotion_type env evd trm =
-  fst (on_type ind_of_promotion_type env evd trm)
+let typs_from_orn l env evd =
+  let indexed_typs = on_type ind_of_promotion_type env evd l.orn.promote in
+  (first_fun (fst indexed_typs), zoom_sig (snd indexed_typs))
 
 (* --- Premises --- *)
 
@@ -327,9 +328,8 @@ let lift_cases env evd l (from_typ, to_typ) p p_elim cs =
  * LIFT-ELIM steps before recursing into the rest of the algorithm
  *)
 let lift_elim env evd l trm_app =
-  let to_typ = zoom_sig (promotion_type env evd l.orn.forget) in
-  let from_typ = first_fun (promotion_type env evd l.orn.promote) in
-  let (from_typ, to_typ) = map_backward reverse l (from_typ, to_typ) in
+  let (a_typ, b_typ) = typs_from_orn l env evd in
+  let (from_typ, to_typ) = map_backward reverse l (a_typ, b_typ) in
   let index_i = l.index_i - (List.length trm_app.pms) in
   let elim = type_eliminator env (fst (destInd to_typ)) in
   let param_elim = mkAppl (elim, trm_app.pms) in
