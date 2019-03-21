@@ -174,9 +174,7 @@ let find_indexer env_pms idx elim_a a b : types =
 (* --- Finding promote and forget --- *)
 
 (*
- * This implements the "Searching for Promote and Forget" paragraph of
- * Section 5.1.1. It works a lot like searching for the indexer, but
- * it uses a different motive.
+ * This implements the "Searching for Promote and Forget" paragraph
  *)
 
 (*
@@ -184,20 +182,20 @@ let find_indexer env_pms idx elim_a a b : types =
  * That is, add indices where they are missing in the old motive
  * For now just supports one index
  *)
-let rec stretch_motive_type index_i env o n =
-  let (ind_o, p_o) = o in
-  let (ind_n, p_n) = n in
-  match map_tuple kind (p_o, p_n) with
+let rec stretch_motive_type off env o n =
+  let (o_typ, p_o_typ) = o in
+  let (n_typ, p_n_typ) = n in
+  match map_tuple kind (p_o_typ, p_n_typ) with
   | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-     let n_b = (shift ind_n, b_n) in
-     if index_i = 0 then
-       mkProd (n_n, t_n, shift p_o)
+     let n_b = (shift n_typ, b_n) in
+     if off = 0 then
+       mkProd (n_n, t_n, shift p_o_typ)
      else
        let env_b = push_local (n_o, t_o) env in
-       let o_b = (shift ind_o, b_o) in
-       mkProd (n_o, t_o, stretch_motive_type (index_i - 1) env_b o_b n_b)
+       let o_b = (shift o_typ, b_o) in
+       mkProd (n_o, t_o, stretch_motive_type (off - 1) env_b o_b n_b)
   | _ ->
-     p_o
+     p_o_typ
 
 (*
  * Stretch the old motive to match the new one at the term level
@@ -205,29 +203,29 @@ let rec stretch_motive_type index_i env o n =
  * Hilariously, this function is defined as an ornamented
  * version of stretch_motive_type.
  *)
-let stretch_motive index_i env o n =
-  let (ind_o, p_o) = o in
-  let o = (ind_o, lambda_to_prod p_o) in
-  prod_to_lambda (stretch_motive_type index_i env o n)
+let stretch_motive off env o n =
+  let (o_typ, p_o_typ) = o in
+  let o = (o_typ, lambda_to_prod p_o_typ) in
+  prod_to_lambda (stretch_motive_type off env o n)
 
 (*
  * Stretch out the old eliminator type to match the new one
  * That is, add indexes to the old one to match new
  *)
-let stretch index_i env indexer npm o n is_fwd =
+let stretch off env indexer npm o n is_fwd =
   let (a, b) = map_if reverse (not is_fwd) (o, n) in
-  let (a_typ, elim_a_typ) = a in
-  let (b_typ, elim_b_typ) = b in
-  let (n_exp, p_a_typ, b_a) = destProd elim_a_typ in
-  let (_, p_b_typ, _) = destProd elim_b_typ in
-  let p_exp = stretch_motive_type index_i env (a_typ, p_a_typ) (b_typ, p_b_typ) in
+  let (a_t, elim_a_t) = a in
+  let (b_t, elim_b_t) = b in
+  let (n_exp, p_a_t, b_a) = destProd elim_a_t in
+  let (_, p_b_t, _) = destProd elim_b_t in
+  let p_exp = stretch_motive_type off env (a_t, p_a_t) (b_t, p_b_t) in
   let b_exp =
     map_term_if
       (fun (p, _) t -> applies p t)
       (fun (p, pms) t ->
         let non_pms = unfold_args t in
         let index = mkAppl (indexer, List.append pms non_pms) in
-        mkAppl (p, insert_index index_i index non_pms))
+        mkAppl (p, insert_index off index non_pms))
       (fun (p, pms) -> (shift p, shift_all pms))
       (mkRel 1, shift_all (mk_n_rels npm))
       b_a
@@ -317,22 +315,20 @@ let promote_forget_case env off is_fwd p o n : types =
  *)
 let promote_forget_cases env off is_fwd orn_p nargs o n : types list =
   let directional a b = if is_fwd then a else b in
-  let (o_t, elim_t_o) = o in
-  let (n_t, elim_t_n) = n in
-  match map_tuple kind (elim_t_o, elim_t_n) with
-  | (Prod (n_o, p_o_t, b_o), Prod (_, p_n_t, b_n)) ->
-     let env_p_o = push_local (n_o, p_o_t) env in
-     let adjust p = shift (stretch_motive off env (o_t, p) (n_t, p_n_t)) in
-     let p = map_if adjust is_fwd (unshift orn_p) in
-     List.map2
-       (fun c_o c_n ->
-         shift_by
-           (directional (nargs - 1) (nargs - 2))
-           (promote_forget_case env off is_fwd p (o_t, c_o) (n_t, c_n)))
-       (take_except nargs (factor_product b_o))
-       (take_except (directional (nargs + 1) (nargs - 1)) (factor_product b_n))
-  | _ ->
-     failwith "not an eliminator"
+  let (o_t, elim_o_t) = o in
+  let (n_t, elim_n_t) = n in
+  let (n_o, p_o_t, b_o) = destProd elim_o_t in
+  let (_, p_n_t, b_n) = destProd elim_n_t in
+  let env_p_o = push_local (n_o, p_o_t) env in
+  let adjust p = shift (stretch_motive off env (o_t, p) (n_t, p_n_t)) in
+  let p = map_if adjust is_fwd (unshift orn_p) in
+  List.map2
+    (fun c_o c_n ->
+      shift_by
+        (directional (nargs - 1) (nargs - 2))
+        (promote_forget_case env off is_fwd p (o_t, c_o) (n_t, c_n)))
+    (take_except nargs (factor_product b_o))
+    (take_except (directional (nargs + 1) (nargs - 1)) (factor_product b_n))
 
 (*
  * Make a packer function for existT/sigT
