@@ -391,15 +391,15 @@ let pack_unpacked env packer index_typ index_rel unpacked =
 (*
  * Pack the hypothesis of an ornamental forgetful function
  *)
-let pack_hypothesis env evd idx o unpacked =
-  let (index_i, index_type) = idx in
-  let (ind, arity) = o in
-  let index_type = shift index_type in
+let pack_hypothesis env evd idx b unpacked =
+  let (off, ib_typ) = idx in
+  let (b_typ, arity) = b in
+  let ib_typ = shift ib_typ in
   let (id, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
-  let packer = make_packer env evd ind (unfold_args unpacked_typ) idx false in
-  let env_push = pack_hypothesis_type env index_type packer (id, unpacked_typ) in
-  let index_rel = offset (pop_rel_context 1 env) index_i in
-  let unpacked = pack_unpacked env_push packer index_type index_rel unpacked in
+  let packer = make_packer env evd b_typ (unfold_args unpacked_typ) idx false in
+  let env_push = pack_hypothesis_type env ib_typ packer (id, unpacked_typ) in
+  let index_rel = offset (pop_rel_context 1 env) off in
+  let unpacked = pack_unpacked env_push packer ib_typ index_rel unpacked in
   let adjusted = adjust_to_elim env_push index_rel packer unpacked in
   let (env_packed, packer, unpacked) = adjusted in
   let arg = mkRel 1 in
