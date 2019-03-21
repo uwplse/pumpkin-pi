@@ -391,7 +391,7 @@ let pack_unpacked env packer index_typ index_rel unpacked =
 (*
  * Pack the hypothesis of an ornamental forgetful function
  *)
-let pack_hypothesis env evd idx o n unpacked =
+let pack_hypothesis env evd idx o unpacked =
   let (index_i, index_type) = idx in
   let (ind, arity) = o in
   let index_type = shift index_type in
@@ -423,7 +423,7 @@ let pack_orn env evd idx f_indexer o n is_fwd unpacked =
   if is_fwd then
     pack_conclusion env evd idx f_indexer n unpacked
   else
-    pack_hypothesis env evd idx o n unpacked
+    pack_hypothesis env evd idx o unpacked
 
 (* Search for the promotion or forgetful function *)
 let find_promote_or_forget env_pms evd idx indexer_n o n is_fwd =
