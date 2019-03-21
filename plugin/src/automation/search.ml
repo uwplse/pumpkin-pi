@@ -214,12 +214,12 @@ let stretch_motive index_i env o n =
  * Stretch out the old eliminator type to match the new one
  * That is, add indexes to the old one to match new
  *)
-let stretch index_i env indexer npm o n =
-  let (ind_o, elim_t_o) = o in
-  let (ind_n, elim_t_n) = n in
-  let (n_exp, p_o, b_o) = destProd elim_t_o in
-  let (_, p_n, _) = destProd elim_t_n in
-  let p_exp = stretch_motive_type index_i env (ind_o, p_o) (ind_n, p_n) in
+let stretch index_i env indexer npm a b =
+  let (a_typ, elim_a_typ) = a in
+  let (b_typ, elim_b_typ) = b in
+  let (n_exp, p_a_typ, b_a) = destProd elim_a_typ in
+  let (_, p_b_typ, _) = destProd elim_b_typ in
+  let p_exp = stretch_motive_type index_i env (a_typ, p_a_typ) (b_typ, p_b_typ) in
   let b_exp =
     map_term_if
       (fun (p, _) t -> applies p t)
@@ -229,7 +229,7 @@ let stretch index_i env indexer npm o n =
         mkAppl (p, insert_index index_i index non_pms))
       (fun (p, pms) -> (shift p, shift_all pms))
       (mkRel 1, shift_all (mk_n_rels npm))
-      b_o
+      b_a
   in mkProd (n_exp, p_exp, b_exp)
 
 (*
@@ -426,31 +426,29 @@ let pack_orn env evd idx f_indexer o n is_fwd unpacked =
 
 (* Search for the promotion or forgetful function *)
 let find_promote_or_forget env_pms evd idx indexer_n o n is_fwd =
-  let directional a b = if is_fwd then a else b in
-  let call_directional f a b = if is_fwd then f a b else f b a in
-  let (ind_o, arity_o, elim_o, elim_t_o) = o in
-  let (ind_n, arity_n, elin_n, elim_t_n) = n in
+  let directional x y = if is_fwd then x else y in
+  let (o_typ, arity_o, elim, elim_o_typ) = o in
+  let (n_typ, arity_n, _, elim_n_typ) = n in
   let npm = nb_rel env_pms in
   let (off, idx_t) = idx in
   let f_indexer = make_constant indexer_n in
   let f_indexer_opt = directional (Some f_indexer) None in
-  match map_tuple kind (elim_t_o, elim_t_n) with
-  | (Prod (n_o, p_o, b_o), Prod (n_n, p_n, b_n)) ->
+  match kind elim_o_typ with
+  | Prod (_, p_o, _) ->
      let env_p_o = zoom_env zoom_product_type env_pms p_o in
      let nargs = offset env_p_o npm in
-     let (ind, arity) = directional (ind_n, arity_o) (ind_n, arity_n) in
-     let align = stretch off env_pms f_indexer npm in
-     let elim_t = call_directional align (ind_o, elim_t_o) (ind_n, elim_t_n) in
-     let elim_t_o = directional elim_t elim_t_o in
-     let elim_t_n = directional elim_t_n elim_t in
-     let o = (ind_o, elim_t_o) in
-     let n = (ind_n, elim_t_n) in
-     let p = promote_forget_motive off env_p_o ind arity npm f_indexer_opt in
+     let (typ, arity) = (n_typ, directional arity_o arity_n) in
+     let o = (o_typ, elim_o_typ) in
+     let n = (n_typ, elim_n_typ) in
+     let (a, b) = (directional o n, directional n o) in
+     let a = (fst a, stretch off env_pms f_indexer npm a b) in
+     let (o, n) = (directional a b, directional b a) in
+     let p = promote_forget_motive off env_p_o typ arity npm f_indexer_opt in
      let adj = directional identity shift in
      let unpacked =
        apply_eliminator
          {
-           elim = elim_o;
+           elim = elim;
            pms = shift_all_by nargs (mk_n_rels npm);
            p = shift_by nargs p;
            cs =
@@ -460,41 +458,37 @@ let find_promote_or_forget env_pms evd idx indexer_n o n is_fwd =
            final_args = mk_n_rels nargs;
          }
      in
-     let o = (ind_o, arity_o) in
-     let n = (ind_n, arity_n) in
+     let o = (o_typ, arity_o) in
+     let n = (n_typ, arity_n) in
      let idx = (npm + off, idx_t) in
      let packed = pack_orn env_p_o evd idx f_indexer o n is_fwd unpacked in
      reconstruct_lambda (fst packed) (snd packed)
   | _ ->
-     failwith "not eliminators"
+     failwith "not an eliminator"
 
-(* Find promote and forget *)
-let find_promote_forget env_pms evd idx indexer_n o n =
-  twice (find_promote_or_forget env_pms evd idx indexer_n) o n
+(* Find promote and forget, using a directional flag for abstraction *)
+let find_promote_forget env_pms evd idx indexer_n a b =
+  twice (find_promote_or_forget env_pms evd idx indexer_n) a b
 
 (* --- Algebraic ornaments --- *)
               
 (*
  * Search two inductive types for an algebraic ornament between them
- * (search algorithm from 5.1.1)
  *)
-let search_algebraic env evd npm indexer_n o n =
-  let (pind_o, arity_o) = o in
-  let (pind_n, arity_n) = n in
-  let (ind_o, _) = destInd pind_o in
-  let (ind_n, _) = destInd pind_n in
-  let (el_o, el_n) = map_tuple (type_eliminator env) (ind_o, ind_n) in
-  let (el_t_o, el_t_n) = map_tuple (infer_type env evd) (el_o, el_n) in
-  let (env_o, el_t_o') = zoom_n_prod env npm el_t_o in
-  let (env_n, el_t_n') = zoom_n_prod env npm el_t_n in
-  let o = (pind_o, el_t_o') in
-  let n = (pind_n, el_t_n') in
-  let idx = find_new_index env_o o n in
-  let indexer = find_indexer env_o idx el_o o n in
-  let o = (pind_o, arity_o, el_o, el_t_o') in
-  let n = (pind_n, arity_n, el_n, el_t_n') in
-  let env_pms = env_o in
-  let (promote, forget) = find_promote_forget env_pms evd idx indexer_n o n in
+let search_algebraic env evd npm indexer_n a b =
+  let (a_typ, arity_a) = a in
+  let (b_typ, arity_b) = b in
+  let lookup_elim typ = type_eliminator env (fst (destInd typ)) in
+  let elims = map_tuple lookup_elim (a_typ, b_typ) in
+  let zoom_elim_typ el = zoom_n_prod env npm (infer_type env evd el) in
+  let ((env_pms, el_a_typ), (_, el_b_typ)) = map_tuple zoom_elim_typ elims in
+  let a = (a_typ, el_a_typ) in
+  let b = (b_typ, el_b_typ) in
+  let idx = find_new_index env_pms a b in (* idx = (off, I_B) *)
+  let indexer = find_indexer env_pms idx (fst elims) a b in
+  let a = (a_typ, arity_a, fst elims, el_a_typ) in
+  let b = (b_typ, arity_b, snd elims, el_b_typ) in
+  let (promote, forget) = find_promote_forget env_pms evd idx indexer_n a b in
   { indexer; promote; forget }
 
 (* --- Top-level search --- *)
@@ -522,8 +516,8 @@ let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
          (* new index *)
          let o = (trm_o, arity_o) in
          let n = (trm_n, arity_n) in
-         let (o, n) = map_if reverse (arity_n <= arity_o) (o, n) in
-         search_algebraic env evd npm indexer_id o n
+         let (a, b) = map_if reverse (arity_n <= arity_o) (o, n) in
+         search_algebraic env evd npm indexer_id a b
        else
          failwith "this kind of change is not yet supported"
   | _ ->
