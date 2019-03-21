@@ -346,7 +346,7 @@ let make_packer env evd typ args (index_i, index_typ) is_fwd =
 (*
  * Pack the conclusion of an ornamental promotion
  *)
-let pack_conclusion env evd idx f_indexer n unpacked =
+let pack_conclusion f_indexer env evd idx n unpacked =
   let (ind, arity) = n in
   let off = arity - 1 in
   let index_type = shift_by off (snd idx) in
@@ -419,11 +419,8 @@ let pack_hypothesis env evd idx o unpacked =
  * For now we have a metatheoretic guarantee about the indexer we return
  * corresponding to the projection of the sigma type.
  *)
-let pack_orn env evd idx f_indexer o n is_fwd unpacked =
-  if is_fwd then
-    pack_conclusion env evd idx f_indexer n unpacked
-  else
-    pack_hypothesis env evd idx o unpacked
+let pack_orn f_indexer is_fwd =
+  if is_fwd then pack_conclusion f_indexer else pack_hypothesis
 
 (* Search for the promotion or forgetful function *)
 let find_promote_or_forget env_pms evd idx indexer_n o n is_fwd =
@@ -461,7 +458,8 @@ let find_promote_or_forget env_pms evd idx indexer_n o n is_fwd =
   let o = (o_typ, arity_o) in
   let n = (n_typ, arity_n) in
   let idx = (npm + off, idx_t) in
-  let packed = pack_orn env_p_o evd idx f_indexer o n is_fwd unpacked in
+  let b = directional n o in
+  let packed = pack_orn f_indexer is_fwd env_p_o evd idx b unpacked in
   reconstruct_lambda (fst packed) (snd packed)
 
 (* Find promote and forget, using a directional flag for abstraction *)
