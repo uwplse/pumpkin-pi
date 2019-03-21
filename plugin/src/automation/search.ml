@@ -214,7 +214,8 @@ let stretch_motive index_i env o n =
  * Stretch out the old eliminator type to match the new one
  * That is, add indexes to the old one to match new
  *)
-let stretch index_i env indexer npm a b =
+let stretch index_i env indexer npm o n is_fwd =
+  let (a, b) = map_if reverse (not is_fwd) (o, n) in
   let (a_typ, elim_a_typ) = a in
   let (b_typ, elim_b_typ) = b in
   let (n_exp, p_a_typ, b_a) = destProd elim_a_typ in
@@ -433,38 +434,35 @@ let find_promote_or_forget env_pms evd idx indexer_n o n is_fwd =
   let (off, idx_t) = idx in
   let f_indexer = make_constant indexer_n in
   let f_indexer_opt = directional (Some f_indexer) None in
-  match kind elim_o_typ with
-  | Prod (_, p_o, _) ->
-     let env_p_o = zoom_env zoom_product_type env_pms p_o in
-     let nargs = offset env_p_o npm in
-     let (typ, arity) = (n_typ, directional arity_o arity_n) in
-     let o = (o_typ, elim_o_typ) in
-     let n = (n_typ, elim_n_typ) in
-     let (a, b) = (directional o n, directional n o) in
-     let a = (fst a, stretch off env_pms f_indexer npm a b) in
-     let (o, n) = (directional a b, directional b a) in
-     let p = promote_forget_motive off env_p_o typ arity npm f_indexer_opt in
-     let adj = directional identity shift in
-     let unpacked =
-       apply_eliminator
-         {
-           elim = elim;
-           pms = shift_all_by nargs (mk_n_rels npm);
-           p = shift_by nargs p;
-           cs =
-             List.map
-               adj
-               (promote_forget_cases env_pms off is_fwd (adj (shift p)) nargs o n);
-           final_args = mk_n_rels nargs;
-         }
-     in
-     let o = (o_typ, arity_o) in
-     let n = (n_typ, arity_n) in
-     let idx = (npm + off, idx_t) in
-     let packed = pack_orn env_p_o evd idx f_indexer o n is_fwd unpacked in
-     reconstruct_lambda (fst packed) (snd packed)
-  | _ ->
-     failwith "not an eliminator"
+  let (_, p_o, _) = destProd elim_o_typ in
+  let env_p_o = zoom_env zoom_product_type env_pms p_o in
+  let nargs = offset env_p_o npm in
+  let (typ, arity) = (n_typ, directional arity_o arity_n) in
+  let o = (o_typ, elim_o_typ) in
+  let n = (n_typ, elim_n_typ) in
+  let elim_a_typ_exp = stretch off env_pms f_indexer npm o n is_fwd in
+  let o = (o_typ, directional elim_a_typ_exp elim_o_typ) in
+  let n = (n_typ, directional elim_n_typ elim_a_typ_exp) in
+  let p = promote_forget_motive off env_p_o typ arity npm f_indexer_opt in
+  let adj = directional identity shift in
+  let unpacked =
+    apply_eliminator
+      {
+        elim = elim;
+        pms = shift_all_by nargs (mk_n_rels npm);
+        p = shift_by nargs p;
+        cs =
+          List.map
+            adj
+            (promote_forget_cases env_pms off is_fwd (adj (shift p)) nargs o n);
+        final_args = mk_n_rels nargs;
+      }
+  in
+  let o = (o_typ, arity_o) in
+  let n = (n_typ, arity_n) in
+  let idx = (npm + off, idx_t) in
+  let packed = pack_orn env_p_o evd idx f_indexer o n is_fwd unpacked in
+  reconstruct_lambda (fst packed) (snd packed)
 
 (* Find promote and forget, using a directional flag for abstraction *)
 let find_promote_forget env_pms evd idx indexer_n a b =
