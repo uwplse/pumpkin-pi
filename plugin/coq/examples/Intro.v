@@ -1,18 +1,13 @@
 (*
- * Example from Section 1, using DEVOID
+ * Section 1 Example, using DEVOID
  *)
 
 Require Import Vector.
 Require Import List.
-
 Require Import Ornamental.Ornaments.
 
-(* 
- * Coq's vector definition is syntactically different from the version defined 
- * in the paper, which is simplified for the sake of presentation.
- * For simplicity, we define syntax for this.
- *)
-Definition vector := Vector.t.
+(* syntax to match paper *)
+Notation vector := Vector.t.
 
 (*
  * map_length from the list standard library
@@ -30,7 +25,7 @@ Check Vector.map.
  * We can get Vector.map from List.map.
  *)
 
-Desugar List.map as list_map'.
+Preprocess List.map as list_map'.
 Find ornament list vector as ltv.
 Lift list vector in list_map' as map_p.
 (* TODO use unpack *)

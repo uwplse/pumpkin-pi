@@ -1,11 +1,20 @@
+(*
+ * Section 2 Example
+ *)
+
+Add LoadPath "coq/examples".
 Require Import Vector.
 Require Import List.
-
 Require Import Ornamental.Ornaments.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 
 Import EqNotations.
+
+(* syntax to match paper *)
+Notation vector := Vector.t.
+Notation consV n t v := (Vector.cons _ t n v).
+Notation nilV := Vector.nil.
 
 (*
  * Here is our library that we will lift.
@@ -21,7 +30,7 @@ Definition zip {a} {b} : list a -> list b -> list (a * b)%type :=
            | nil, _bs => nil
            | _as, nil => nil
            | cons a as_, cons b bs => cons (pair a b) (zip as_ bs)
-end.
+  end.
 
 (* From:
  * https://github.com/antalsz/hs-to-coq/blob/master/core-semantics-no-values/semantics.v
@@ -30,7 +39,7 @@ Fixpoint zip_with {A} {B} {C} (f : A -> B -> C) (s : list A) (t : list B) : list
   match s , t with
     | a :: s' , b :: t' => f a b :: zip_with f s' t'
     | _       , _       => nil
-end.
+  end.
 
 Theorem zip_with_is_zip {A} {B} :
   zip_with (@pair A B) =2 zip.
@@ -44,24 +53,24 @@ Preprocess Module hs_to_coq' as hs_to_coq.
 
 (* --- Search --- *)
 
-Find ornament list Vector.t as ltv.
+Find ornament list vector as ltv.
 
 (* --- Lift --- *)
 
-Lift list Vector.t in hs_to_coq.zip as zipV'.
-Lift list Vector.t in hs_to_coq.zip_with as zip_withV'.
-Lift list Vector.t in hs_to_coq.zip_with_is_zip as zip_with_is_zipV'.
+Lift list vector in hs_to_coq.zip as zipV_p.
+Lift list vector in hs_to_coq.zip_with as zip_withV_p.
+Lift list vector in hs_to_coq.zip_with_is_zip as zip_with_is_zipV_p.
 
 (* Here are our lifted types: *)
-Check zipV'.
-Check zip_withV'.
-Check zip_with_is_zipV'.
+Check zipV_p.
+Check zip_withV_p.
+Check zip_with_is_zipV_p.
 
 (* --- Unpack --- *)
 
-Unpack zipV' as zipV.
-Unpack zip_withV' as zip_withV.
-Unpack zip_with_is_zipV' as zip_with_is_zipV.
+Unpack zipV_p as zipV.
+Unpack zip_withV_p as zip_withV.
+Unpack zip_with_is_zipV_p as zip_with_is_zipV.
 
 (* Enable implicit arguments *)
 Arguments zipV {_ _} {_} _ {_} _.
@@ -76,7 +85,7 @@ Check zip_with_is_zipV.
 (* --- Interface --- *)
 
 (* For any two vectors of the same length, we get a vector of the same length *)
-Eval compute in (zipV (Vector.cons nat 2 0 (Vector.nil nat)) (Vector.cons nat 1 0 (Vector.nil nat))).
+Eval compute in (zipV (consV 0 2 (nilV nat)) (consV 0 1 (nilV nat))).
 
 (*
  * However, this type isn't actually what we want. The user-friendly
@@ -89,9 +98,9 @@ Eval compute in (zipV (Vector.cons nat 2 0 (Vector.nil nat)) (Vector.cons nat 1 
  * the inductive case will follow by f_equal and the inductive hypothesis.
  *)
 Lemma zipV_uf_aux:
-  forall {a} {b} {n1} (v1 : Vector.t a n1) {n2} (v2 : Vector.t b n2),
+  forall {a} {b} {n1} (v1 : vector a n1) {n2} (v2 : vector b n2),
     n1 = n2 ->
-    projT1 (zipV' a b (existT _ n1 v1) (existT _ n2 v2)) = n1.
+    projT1 (zipV_p a b (existT _ n1 v1) (existT _ n2 v2)) = n1.
 Proof.
   induction v1, v2; intros; inversion H.
   - auto.
@@ -99,9 +108,9 @@ Proof.
 Defined.
 
 Lemma zip_withV_uf_aux:
-  forall {A} {B} {C} f {n1} (v1 : Vector.t A n1) {n2} (v2 : Vector.t B n2) ,
+  forall {A} {B} {C} f {n1} (v1 : vector A n1) {n2} (v2 : vector B n2) ,
     n1 = n2 ->
-    projT1 (zip_withV' A B C f (existT _ n1 v1) (existT _ n2 v2)) = n1.
+    projT1 (zip_withV_p A B C f (existT _ n1 v1) (existT _ n2 v2)) = n1.
 Proof.
   induction v1, v2; intros; inversion H.
   - auto.
@@ -109,10 +118,10 @@ Proof.
 Defined.
 
 (* Our user friendly versions then follow by simple rewriting: *)
-Definition zipV_uf {a} {b} {n} (v1 : Vector.t a n) (v2 : Vector.t b n) : Vector.t (a * b) n :=
+Definition zipV_uf {a} {b} {n} (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
   rew (zipV_uf_aux v1 v2 eq_refl) in (zipV v1 v2).
 
-Definition zip_withV_uf {A} {B} {C} f {n} (v1 : Vector.t A n) (v2 : Vector.t B n) : Vector.t C n :=
+Definition zip_withV_uf {A} {B} {C} f {n} (v1 : vector A n) (v2 : vector B n) : vector C n :=
   rew (zip_withV_uf_aux f v1 v2 eq_refl) in (zip_withV f v1 v2).
 
 (*
@@ -127,7 +136,7 @@ Definition zip_withV_uf {A} {B} {C} f {n} (v1 : Vector.t A n) (v2 : Vector.t B n
 From Coq Require Import EqdepFacts Eqdep_dec Arith.
 
 Lemma zip_with_is_zipV_uf_aux :
-  forall  {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n),
+  forall  {A} {B} {n} (v1 : vector A n) (v2 : vector B n),
     zip_withV_uf_aux pair v1 v2 eq_refl =
     eq_trans
       (eq_sigT_fst (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2)))
@@ -140,7 +149,7 @@ Defined.
  * Our theorem then follows:
  *)
 Lemma zip_with_is_zipV_uf :
-  forall {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n),
+  forall {A} {B} {n} (v1 : vector A n) (v2 : vector B n),
     zip_withV_uf pair v1 v2 = zipV_uf v1 v2.
 Proof.
   intros. unfold zip_withV_uf, zipV_uf, zipV.
@@ -151,5 +160,5 @@ Defined.
 
 (* Client code can then call our functions and proofs, for example: *)
 
-Definition BVand' {n : nat} (v1 : Vector.t bool n) (v2 : Vector.t bool n) : Vector.t bool n :=
+Definition BVand' {n : nat} (v1 : vector bool n) (v2 : vector bool n) : vector bool n :=
   zip_withV_uf andb v1 v2.

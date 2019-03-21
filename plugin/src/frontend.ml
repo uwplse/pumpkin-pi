@@ -87,8 +87,13 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
   let lookup os = map_tuple Universes.constr_of_global (lookup_ornament os) in
   let (c_from, c_to) = if are_inds then lookup us else (c_orn, c_orn_inv) in
   let l = initialize_lifting env evd c_from c_to in
-  if isInd c_old then
-    lift_inductive_by_ornament env evd n_new s l c_old
+  let u_old = unwrap_definition env c_old in
+  if isInd u_old then
+    let from_typ = fst (on_type ind_of_promotion_type env evd l.orn.promote) in
+    if not (equal u_old from_typ) then
+      lift_inductive_by_ornament env evd n_new s l c_old
+    else
+      lift_definition_by_ornament env evd n_new l c_old
   else
     lift_definition_by_ornament env evd n_new l c_old
 
