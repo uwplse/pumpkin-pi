@@ -287,13 +287,6 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/postorder/baseUP8000" Time Eval vm_compute in (postorder tree8000).
     Redirect "../out/postorder/baseUP10000" Time Eval vm_compute in (postorder tree10000).
 
-    Definition mirror (t : tree) : tree :=
-      tree_rect
-        (fun _ => tree)
-        (fun v _ l _ r => Branch v r l)
-        (fun v => Leaf v)
-        t.
-
     Lemma pre_permutes : forall t : tree,
         permutes (preorder t) (inorder t).
     Proof.
@@ -316,15 +309,6 @@ Module CaseStudy (Elem : Comparable).
     Proof.
       intro t. eapply perm_trans. apply pre_permutes.
       apply perm_sym, post_permutes.
-    Defined.
-
-    Lemma mirror_permutes : forall t : tree,
-        permutes (inorder t) (inorder (mirror t)).
-    Proof.
-      induction t; simpl.
-      - apply perm_sym. eapply perm_trans. apply perm_app_comm. simpl.
-        apply perm_cons_app. apply perm_sym. apply perm_app; assumption.
-      - apply perm_skip. apply perm_nil.
     Defined.
 
   End Base.
@@ -442,13 +426,6 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/postorder/sizedUP6000" Time Eval vm_compute in (postorder' tree6000).
     Redirect "../out/postorder/sizedUP8000" Time Eval vm_compute in (postorder' tree8000).
     Redirect "../out/postorder/sizedUP10000" Time Eval vm_compute in (postorder' tree10000).
-
-    Definition mirror' : {n:nat & tree n} -> {n:nat & tree n} := ↑ Base.mirror.
-    Definition mirror (n : nat) (t : tree n) : tree n.
-      pose (T := (mirror' (existT _ n t))). replace n with (T.1). exact (T.2).
-      subst T. induction t as [s_l s_r v t_l IH_l t_r IH_r|v]; [|reflexivity].
-      cbn in *. rewrite IH_l, IH_r. rewrite add_comm. reflexivity.
-    Defined.
 
     Lemma FP_preorder : Base.preorder ≈ preorder'.
     Proof.

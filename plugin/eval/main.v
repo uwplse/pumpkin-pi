@@ -68,13 +68,6 @@ Module CaseStudy (Elem : Comparable).
         (fun x => [x])
         t.
 
-    Definition mirror (t : tree) : tree :=
-      tree_rect
-        (fun _ => tree)
-        (fun v _ l _ r => Branch v r l)
-        (fun v => Leaf v)
-        t.
-
     Lemma pre_permutes : forall t : tree,
         permutes (preorder t) (inorder t).
     Proof.
@@ -97,15 +90,6 @@ Module CaseStudy (Elem : Comparable).
     Proof.
       intro t. eapply perm_trans. apply pre_permutes.
       apply perm_sym, post_permutes.
-    Defined.
-
-    Lemma mirror_permutes : forall t : tree,
-        permutes (inorder t) (inorder (mirror t)).
-    Proof.
-      induction t; simpl.
-      - apply perm_sym. eapply perm_trans. apply perm_app_comm. simpl.
-        apply perm_cons_app. apply perm_sym. apply perm_app; assumption.
-      - apply perm_skip. apply perm_nil.
     Defined.
 
     (* --- Test trees --- *)
@@ -235,39 +219,22 @@ Module CaseStudy (Elem : Comparable).
     Find ornament Base.tree tree.
 
     Lift Base.tree tree in Base.preorder as preorder'.
-    Definition preorder n t := preorder' (existT _ n t).
+    Unpack preorder' as preorder.
 
     Lift Base.tree tree in Base.inorder as inorder'.
-    Definition inorder n t := inorder' (existT _ n t).
+    Unpack inorder' as inorder.
 
     Lift Base.tree tree in Base.postorder as postorder'.
-    Definition postorder n t := postorder' (existT _ n t).
-
-    Lift Base.tree tree in Base.mirror as mirror'.
-    Definition mirror (n : nat) (t : tree n) : tree n.
-      pose (T := (mirror' (existT _ n t))). replace n with (T.1). exact (T.2).
-      induction t as [s_l s_r v t_l IH_l t_r IH_r|v]; [|reflexivity].
-      cbn zeta in IH_l, IH_r. rewrite add_comm, <- IH_l, <- IH_r. reflexivity.
-    Defined.
+    Unpack postorder' as postorder.
 
     Lift Base.tree tree in Base.pre_permutes as pre_permutes'.
-    Definition pre_permutes (n : nat) (t : tree n) : permutes (preorder n t) (inorder n t) :=
-      pre_permutes' (existT _ n t).
+    Unpack pre_permutes' as pre_permutes.
 
     Lift Base.tree tree in Base.post_permutes as post_permutes'.
-    Definition post_permutes (n : nat) (t : tree n) : permutes (postorder n t) (inorder n t) :=
-      post_permutes' (existT _ n t).
+    Unpack post_permutes' as post_permutes.
 
     Lift Base.tree tree in Base.pre_post_permutes as pre_post_permutes'.
-    Definition pre_post_permutes (n : nat) (t : tree n) : permutes (preorder n t) (postorder n t) :=
-      pre_post_permutes' (existT _ n t).
-
-    Lift Base.tree tree in Base.mirror_permutes as mirror_permutes'.
-    Lemma mirror_permutes (n : nat) (t : tree n) : permutes (inorder n t) (inorder n (mirror n t)).
-    Proof.
-      unfold inorder, mirror. rewrite cast_sigma. rewrite <- sigT_eta.
-      set (T := existT _ n t). apply mirror_permutes'.
-    Defined.
+    Unpack pre_post_permutes' as pre_post_permutes.
 
     (* --- Lifted inputs --- *)
     Lift Base.tree tree in Base.tree2000 as tree2000.
@@ -333,25 +300,25 @@ Module CaseStudy (Elem : Comparable).
     Find ornament _bst bst.
 
     Lift Base.tree __bst in Base.preorder as __preorder'.
-    Definition __preorder min (tree : __bst min) := __preorder' (existT _ min tree).
+    Unpack __preorder' as __preorder.
     Lift __bst _bst in __preorder as _preorder'.
-    Definition _preorder min max (tree : _bst min max) := _preorder' min (existT _ max tree).
+    Unpack _preorder' as _preorder.
     Lift _bst bst in _preorder as preorder'.
-    Definition preorder min max ord (tree : bst min max ord) := preorder' min max (existT _ ord tree).
+    Unpack preorder' as preorder.
 
     Lift Base.tree __bst in Base.inorder as __inorder'.
-    Definition __inorder min (tree : __bst min) := __inorder' (existT _ min tree).
+    Unpack __inorder' as __inorder.
     Lift __bst _bst in __inorder as _inorder'.
-    Definition _inorder min max (tree : _bst min max) := _inorder' min (existT _ max tree).
+    Unpack _inorder' as _inorder.
     Lift _bst bst in _inorder as inorder'.
-    Definition inorder min max ord (tree : bst min max ord) := inorder' min max (existT _ ord tree).
+    Unpack inorder' as inorder.
 
     Lift Base.tree __bst in Base.postorder as __postorder'.
-    Definition __postorder min (tree : __bst min) := __postorder' (existT _ min tree).
+    Unpack __postorder' as __postorder.
     Lift __bst _bst in __postorder as _postorder'.
-    Definition _postorder min max (tree : _bst min max) := _postorder' min (existT _ max tree).
+    Unpack _postorder' as _postorder.
     Lift _bst bst in _postorder as postorder'.
-    Definition postorder min max ord (tree : bst min max ord) := postorder' min max (existT _ ord tree).
+    Unpack postorder' as postorder.
 
     Definition search {min max ord} (tree : bst min max ord) (val' : Elem.t) : bool :=
       bst_rect
@@ -426,32 +393,25 @@ Module CaseStudy (Elem : Comparable).
     Find ornament _avl avl.
 
     Lift Ordered.bst _avl in Ordered.preorder as _preorder'.
-    Definition _preorder min max ord height (tree : _avl min max ord height) :=
-      _preorder' min max ord (existT _ height tree).
+    Unpack _preorder' as _preorder.
     Lift _avl avl in _preorder as preorder'.
-    Definition preorder min max ord height bal (tree : avl min max ord height bal) :=
-      preorder' min max ord height (existT _ bal tree).
+    Unpack preorder' as preorder.
 
     Lift Ordered.bst _avl in Ordered.inorder as _inorder'.
-    Definition _inorder min max ord height (tree : _avl min max ord height) :=
-      _inorder' min max ord (existT _ height tree).
+    Unpack _inorder' as _inorder.
     Lift _avl avl in _inorder as inorder'.
-    Definition inorder min max ord height bal (tree : avl min max ord height bal) :=
-      inorder' min max ord height (existT _ bal tree).
+    Unpack inorder' as inorder.
 
     Lift Ordered.bst _avl in Ordered.postorder as _postorder'.
-    Definition _postorder min max ord height (tree : _avl min max ord height) :=
-      _postorder' min max ord (existT _ height tree).
+    Unpack _postorder' as _postorder.
     Lift _avl avl in _postorder as postorder'.
-    Definition postorder min max ord height bal (tree : avl min max ord height bal) :=
-      postorder' min max ord height (existT _ bal tree).
+    Unpack postorder' as postorder.
 
     Lift Ordered.bst _avl in @Ordered.search as _search'.
-    Definition _search {min max ord height} (tree : _avl min max ord height) (value : Elem.t) :=
-      _search' min max ord (existT _ height tree) value.
+    Unpack _search' as _search.
     Lift _avl avl in @_search as search'.
-    Definition search {min max ord height bal} (tree : avl min max ord height bal) value :=
-      search' min max ord height (existT _ bal tree) value.
+    Unpack search' as search.
+    Arguments search {_ _ _ _ _} _ _.
 
     (* --- Lifted inputs --- *)
     Lift Ordered.bst _avl in Ordered.tree20 as _tree20'.
