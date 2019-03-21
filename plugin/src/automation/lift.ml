@@ -1,5 +1,5 @@
 (*
- * Core lifting algorithm from Section 5.1.2
+ * Core lifting algorithm
  *)
 
 open Util
@@ -21,18 +21,9 @@ open Printing
 (* --- Internal lifting configuration --- *)
 
 (*
- * As explained in Section 5, LIFT-CONSTR-ARGS and LIFT-CONSTR-FUN use
- * refolding for order-independence. This configuration lets us compute
- * the constructor rules ahead of time. Note that these are stored
- * with constant constructors even in the backward direction,
- * though the LIFT-CONSTR rule requires a packed from type in that direction.
- * This just makes it easier to store this as a hash for quick lookup.
- *
- * This also provides a local cache so that we can avoid cluttering the
- * global cache, which just provides access to constants that we have
- * unfolded and lifted internally, to avoid doing this many times.
- *
- * TODO move more of lifting config type here TBH
+ * Lifting configuration, along with a cache for constants encountered
+ * as the algorithm traverses, and cache for the constructor rules
+ * that refolding determines
  *)
 type lift_config =
   {
