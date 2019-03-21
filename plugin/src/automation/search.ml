@@ -337,29 +337,29 @@ let promote_forget_cases env off is_fwd orn_p nargs o n : types list =
 (*
  * Make a packer function for existT/sigT
  *)
-let make_packer env evd typ args (index_i, index_typ) is_fwd =
+let make_packer env evd b_typ args (off, ib_typ) is_fwd =
   let sub_index = if is_fwd then insert_index else reindex in
-  let packed_args = sub_index index_i (mkRel 1) (shift_all args) in
-  let env_abs = push_local (Anonymous, index_typ) env in
-  abstract_arg env_abs evd index_i (mkAppl (typ, packed_args))
+  let packed_args = sub_index off (mkRel 1) (shift_all args) in
+  let env_abs = push_local (Anonymous, ib_typ) env in
+  abstract_arg env_abs evd off (mkAppl (b_typ, packed_args))
 
 (*
  * Pack the conclusion of an ornamental promotion
  *)
-let pack_conclusion f_indexer env evd idx n unpacked =
-  let (ind, arity) = n in
+let pack_conclusion f_indexer env evd idx b unpacked =
+  let (b_typ, arity) = b in
   let off = arity - 1 in
   let index_type = shift_by off (snd idx) in
-  let packer = make_packer env evd ind (mk_n_rels off) idx true in
+  let packer = make_packer env evd b_typ (mk_n_rels off) idx true in
   let index = mkAppl (f_indexer, mk_n_rels arity) in
   (env, pack_existT {index_type; packer; index; unpacked})
 
 (*
  * Pack the hypothesis type into a sigT, and update the environment
  *)
-let pack_hypothesis_type env index_type packer (id, unpacked_typ) : env =
+let pack_hypothesis_type env ib_typ packer (id, unpacked_typ) : env =
   let packer = unshift packer in
-  let packed_typ = pack_sigT { index_type ; packer } in
+  let packed_typ = pack_sigT { index_type = ib_typ ; packer } in
   push_local (id, packed_typ) (pop_rel_context 1 env)
 
 (*
@@ -371,36 +371,35 @@ let apply_packer env packer arg =
 (*
  * Remove the index from the environment, and adjust terms appropriately
  *)
-let adjust_to_elim env index_rel packer packed =
-  let env_packed = remove_rel (index_rel + 1) env in
-  let adjust = unshift_local index_rel 1 in
+let adjust_to_elim env ib_rel packer packed =
+  let env_packed = remove_rel (ib_rel + 1) env in
+  let adjust = unshift_local ib_rel 1 in
   (env_packed, adjust packer, adjust packed)
 
 (*
  * Pack the unpacked term to eliminate using the new hypothesis
  *)
-let pack_unpacked env packer index_typ index_rel unpacked =
-  let sub_typ = all_eq_substs (mkRel (4 - index_rel), mkRel 1) in
-  let sub_index = all_eq_substs (mkRel (index_rel + 3), mkRel 2) in
-  let adjust trm = shift_local index_rel 1 (shift trm) in
+let pack_unpacked env packer ib_typ ib_rel unpacked =
+  let sub_typ = all_eq_substs (mkRel (4 - ib_rel), mkRel 1) in
+  let sub_index = all_eq_substs (mkRel (ib_rel + 3), mkRel 2) in
+  let adjust trm = shift_local ib_rel 1 (shift trm) in
   let typ_body = sub_index (sub_typ (adjust unpacked)) in
   let packer_indexed = apply_packer env (shift packer) (mkRel 1) in
   let index_body = mkLambda (Anonymous, packer_indexed, typ_body) in
-  mkLambda (Anonymous, shift index_typ, index_body)
+  mkLambda (Anonymous, shift ib_typ, index_body)
 
 (*
  * Pack the hypothesis of an ornamental forgetful function
  *)
 let pack_hypothesis env evd idx b unpacked =
-  let (off, ib_typ) = idx in
-  let (b_typ, arity) = b in
-  let ib_typ = shift ib_typ in
+  let (off, ib_typ) = (fst idx, shift (snd idx)) in
+  let (b_typ, _) = b in
   let (id, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
   let packer = make_packer env evd b_typ (unfold_args unpacked_typ) idx false in
   let env_push = pack_hypothesis_type env ib_typ packer (id, unpacked_typ) in
-  let index_rel = offset (pop_rel_context 1 env) off in
-  let unpacked = pack_unpacked env_push packer ib_typ index_rel unpacked in
-  let adjusted = adjust_to_elim env_push index_rel packer unpacked in
+  let ib_rel = offset (pop_rel_context 1 env) off in
+  let unpacked = pack_unpacked env_push packer ib_typ ib_rel unpacked in
+  let adjusted = adjust_to_elim env_push ib_rel packer unpacked in
   let (env_packed, packer, unpacked) = adjusted in
   let arg = mkRel 1 in
   let arg_typ = on_type dest_sigT env_packed evd arg in
