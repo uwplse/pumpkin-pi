@@ -5,6 +5,8 @@ Require Import Ornamental.Ornaments.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 
+Import EqNotations.
+
 (*
  * Here is our library that we will lift.
  *)
@@ -50,34 +52,41 @@ Lift list Vector.t in hs_to_coq.zip as zipV'.
 Lift list Vector.t in hs_to_coq.zip_with as zip_withV'.
 Lift list Vector.t in hs_to_coq.zip_with_is_zip as zip_with_is_zipV'.
 
-(* --- Unpack --- *)
+(* Here are our lifted types: *)
+Check zipV'.
+Check zip_withV'.
+Check zip_with_is_zipV'.
 
-Require Import Coq.Logic.EqdepFacts.
+(* --- Unpack --- *)
 
 Unpack zipV' as zipV.
 Unpack zip_withV' as zip_withV.
 Unpack zip_with_is_zipV' as zip_with_is_zipV.
-
-(* Note that some projT{1,2} (existT _ _) redexes linger below *)
-Check zipV.
-Check zip_withV.
-Check zip_with_is_zipV.
 
 (* Enable implicit arguments *)
 Arguments zipV {_ _} {_} _ {_} _.
 Arguments zip_withV {_ _ _} _ {_} _ {_} _.
 Arguments zip_with_is_zipV {_ _} {_} _ {_} _.
 
+(* Here are our unpacked types: *)
+Check zipV.
+Check zip_withV.
+Check zip_with_is_zipV.
+
+(* --- Interface --- *)
+
 (* For any two vectors of the same length, we get a vector of the same length *)
 Eval compute in (zipV (Vector.cons nat 2 0 (Vector.nil nat)) (Vector.cons nat 1 0 (Vector.nil nat))).
 
 (*
- * Obligations for the user-friendly version.
- * First, just prove the indexer is what we want assuming an equality
- * n1 = n2. This will involve just inducting over each argument in order,
- * and the rest is straightforward: Make use of the equality,
- * base case holds by definition, and the inductive case uses f_equal
- * to make use of the inductive hypothesis.
+ * However, this type isn't actually what we want. The user-friendly
+ * versions of the functions are simple to recover. 
+ *
+ * First, we will prove the indexer is what we want assuming an equality
+ * n1 = n2. This will follow by induction over each argument,
+ * and the rest will be straightforward: Substitute in the equality,
+ * at which point the base case will hold by definition, and
+ * the inductive case will follow by f_equal and the inductive hypothesis.
  *)
 Lemma zipV_uf_aux:
   forall {a} {b} {n1} (v1 : Vector.t a n1) {n2} (v2 : Vector.t b n2),
@@ -89,13 +98,6 @@ Proof.
   - simpl. f_equal. apply IHv1. auto.
 Defined.
 
-Import EqNotations.
-
-(* So one user-friendly version is just: *)
-Definition zipV_uf {a} {b} {n} (v1 : Vector.t a n) (v2 : Vector.t b n) : Vector.t (a * b) n :=
-  rew (zipV_uf_aux v1 v2 eq_refl) in (zipV v1 v2).
-
-(* Similarly: *)
 Lemma zip_withV_uf_aux:
   forall {A} {B} {C} f {n1} (v1 : Vector.t A n1) {n2} (v2 : Vector.t B n2) ,
     n1 = n2 ->
@@ -106,20 +108,23 @@ Proof.
   - simpl. f_equal. apply IHv1. auto.
 Defined.
 
-(* And: *)
+(* Our user friendly versions then follow by simple rewriting: *)
+Definition zipV_uf {a} {b} {n} (v1 : Vector.t a n) (v2 : Vector.t b n) : Vector.t (a * b) n :=
+  rew (zipV_uf_aux v1 v2 eq_refl) in (zipV v1 v2).
+
 Definition zip_withV_uf {A} {B} {C} f {n} (v1 : Vector.t A n) (v2 : Vector.t B n) : Vector.t C n :=
   rew (zip_withV_uf_aux f v1 v2 eq_refl) in (zip_withV f v1 v2).
 
 (*
  * For proofs, we have to deal with dependent equality.
- * Here's a lemma that can help us. It basically relates the
- * auxiliary lemmas from the other proofs.
- *
- * Via Jasper Hugunin, one way we can show this is using the fact
- * that nats form an hset. Then, we don't actually need any information
- * about how our auxiliary equalities are formed.
+ * This is more challenging. Essentially, we have to relate
+ * our other equalities. In the case of nat, the easiest
+ * way to do this is to use the fact that nats form an hset
+ * (credit to Jasper Hugunin). Then, we don't actually need any information
+ * about how our auxiliary equalities are formed. Otherwise,
+ * the way those equalities are formed will matter.
  *)
-From Coq Require Import Eqdep_dec Arith.
+From Coq Require Import EqdepFacts Eqdep_dec Arith.
 
 Lemma zip_with_is_zipV_uf_aux :
   forall  {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n),
@@ -131,37 +136,20 @@ Proof.
   auto using (UIP_dec Nat.eq_dec).
 Defined.
 
-
 (*
- * There may be a way to show this without relying on that property
- * of the nats, by using the way the auxiliary lemmas were defined.
- * (If we need to define the auxiliary lemmas differently to show this,
- * that's OK too.)
- *)
-Lemma zip_with_is_zipV_uf_aux_no_uip :
-  forall  {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n),
-    zip_withV_uf_aux pair v1 v2 eq_refl =
-    eq_trans
-      (eq_sigT_fst (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2)))
-      (zipV_uf_aux v1 v2 eq_refl).
-Proof.
-  (* ??? *)
-Admitted.
-
-
-(*
- * Then we can get our theorem (TODO clean):
+ * Our theorem then follows:
  *)
 Lemma zip_with_is_zipV_uf :
   forall {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n),
     zip_withV_uf pair v1 v2 = zipV_uf v1 v2.
 Proof.
   intros. unfold zip_withV_uf, zipV_uf, zipV.
-  pose (eq_sigT_snd (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2))).
-  simpl in *. rewrite <- e, zip_with_is_zipV_uf_aux. apply eq_trans_rew_distr.
+  pose proof (eq_sigT_snd (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2))).
+  simpl in *. rewrite <- H, zip_with_is_zipV_uf_aux. 
+  apply eq_trans_rew_distr.
 Defined.
 
-(* Client code *)
+(* Client code can then call our functions and proofs, for example: *)
 
 Definition BVand' {n : nat} (v1 : Vector.t bool n) (v2 : Vector.t bool n) : Vector.t bool n :=
   zip_withV_uf andb v1 v2.
