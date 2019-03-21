@@ -352,7 +352,7 @@ let lift_elim env evd l trm_app =
  *)
 let lift_core env evd c (a_typ, b_typ) index_type trm =
   let l = c.l in
-  let rec lift_rec en index_type tr =
+  let rec lift_rec en ib_typ tr = (* ib_typ recurses to shift *)
     let lifted_opt = search_lifted_term en tr in
     if Option.has_some lifted_opt then
       (* GLOBAL CACHING *)
@@ -363,13 +363,13 @@ let lift_core env evd c (a_typ, b_typ) index_type trm =
     else if is_from l en evd (a_typ, b_typ) tr then
       (* EQUIVALENCE *)
       if l.is_fwd then
-        let is = List.map (lift_rec en index_type) (unfold_args tr) in
+        let is = List.map (lift_rec en ib_typ) (unfold_args tr) in
         let app = mkAppl (b_typ, is) in
         let index = mkRel 1 in
         let indexed_is = insert_index l.off index in
         let abs_i = reindex_body (reindex_app indexed_is) in
-        let packer = abs_i (mkLambda (Anonymous, index_type, shift app)) in
-        pack_sigT { index_type ; packer }
+        let packer = abs_i (mkLambda (Anonymous, ib_typ, shift app)) in
+        pack_sigT { index_type = ib_typ; packer }
       else
         let packed = dummy_index en (dest_sigT tr).packer in
         let t_args = remove_index l.off (unfold_args packed) in
@@ -387,13 +387,13 @@ let lift_core env evd c (a_typ, b_typ) index_type trm =
         (fun tr' ->
           let lifted_inner = map_forward last_arg l tr' in
           let (f', args') = destApp lifted_inner in
-          let args'' = Array.map (lift_rec en index_type) args' in
+          let args'' = Array.map (lift_rec en ib_typ) args' in
           map_forward
             (fun unpacked ->
               (* pack the lifted term *)
               let ex = dest_existT tr' in
-              let index = lift_rec en index_type ex.index in
-              let packer = lift_rec en index_type ex.packer in
+              let index = lift_rec en ib_typ ex.index in
+              let packer = lift_rec en ib_typ ex.packer in
               pack_existT { ex with packer; index; unpacked })
             l
             (mkApp (f', args'')))
@@ -404,11 +404,11 @@ let lift_core env evd c (a_typ, b_typ) index_type trm =
       if l.is_fwd then
         (* repack variables, since projections aren't primitive *)
         let typ = reduce_type en evd tr in
-        let lift_typ = dest_sigT (lift_rec en index_type typ) in
+        let lift_typ = dest_sigT (lift_rec en ib_typ typ) in
         let index = project_index lift_typ tr in
         let unpacked = project_value lift_typ tr in
         let packer = lift_typ.packer in
-        pack_existT { index_type; packer; index; unpacked }
+        pack_existT { index_type = ib_typ; packer; index; unpacked }
       else
         lift_rec en index_type (dest_existT tr).unpacked
     else if is_proj l en evd (a_typ, b_typ) tr then
