@@ -38,7 +38,7 @@ End hs_to_coq'.
 
 (* --- Preprocess --- *)
 
-Desugar Module hs_to_coq' as hs_to_coq.
+Preprocess Module hs_to_coq' as hs_to_coq.
 
 (* --- Search --- *)
 
@@ -54,28 +54,19 @@ Lift list Vector.t in hs_to_coq.zip_with_is_zip as zip_with_is_zipV'.
 
 Require Import Coq.Logic.EqdepFacts.
 
-(* TODO add in Nate's automation here *)
-Definition zipV {a} {b} {n1} (v1 : Vector.t a n1) {n2} (v2 : Vector.t b n2) :=
-  projT2 (zipV' a b (existT _ n1 v1) (existT _ n2 v2)).
+Unpack zipV' as zipV.
+Unpack zip_withV' as zip_withV.
+Unpack zip_with_is_zipV' as zip_with_is_zipV.
 
-Definition zip_withV {A} {B} {C} (f : A -> B -> C) {n1} (v1 : Vector.t A n1) {n2} (v2 : Vector.t B n2) :=
-  projT2 (zip_withV' A B C f (existT _ n1 v1) (existT _ n2 v2)).
+(* Note that some projT{1,2} (existT _ _) redexes linger below *)
+Check zipV.
+Check zip_withV.
+Check zip_with_is_zipV.
 
-(* TODO this is the thing you need everywhere for automation *)
-Lemma rewrite_proj :
-  forall {A} {T : A -> Type} (s : sigT T), 
-    s = existT _ (projT1 s) (projT2 s).
-Proof.
-  intros. induction s. auto.
-Defined.
-
-Program Definition zip_with_is_zipV {A} {B} {n1} (v1 : Vector.t A n1) {n2} (v2 : Vector.t B n2) :=
-  eq_sigT_eq_dep _ _ _ _ 
-    (zip_withV pair v1 v2) 
-    (zipV v1 v2)
-    (zip_with_is_zipV' A B (existT _ n1 v1) (existT _ n2 v2)).
-Next Obligation. apply rewrite_proj. Qed.
-Next Obligation. apply rewrite_proj. Qed.
+(* Enable implicit arguments *)
+Arguments zipV {_ _} {_} _ {_} _.
+Arguments zip_withV {_ _ _} _ {_} _ {_} _.
+Arguments zip_with_is_zipV {_ _} {_} _ {_} _.
 
 (* For any two vectors of the same length, we get a vector of the same length *)
 Eval compute in (zipV (Vector.cons nat 2 0 (Vector.nil nat)) (Vector.cons nat 1 0 (Vector.nil nat))).
@@ -93,7 +84,7 @@ Lemma zipV_uf_aux:
     n1 = n2 ->
     projT1 (zipV' a b (existT _ n1 v1) (existT _ n2 v2)) = n1.
 Proof.
-  induction v1, v2; intros; inversion H. 
+  induction v1, v2; intros; inversion H.
   - auto.
   - simpl. f_equal. apply IHv1. auto.
 Defined.
@@ -110,7 +101,7 @@ Lemma zip_withV_uf_aux:
     n1 = n2 ->
     projT1 (zip_withV' A B C f (existT _ n1 v1) (existT _ n2 v2)) = n1.
 Proof.
-  induction v1, v2; intros; inversion H. 
+  induction v1, v2; intros; inversion H.
   - auto.
   - simpl. f_equal. apply IHv1. auto.
 Defined.
@@ -124,7 +115,7 @@ Definition zip_withV_uf {A} {B} {C} f {n} (v1 : Vector.t A n) (v2 : Vector.t B n
  * Here's a lemma that can help us. It basically relates the
  * auxiliary lemmas from the other proofs.
  *
- * Via Jasper Hugunin, one way we can show this is using the fact 
+ * Via Jasper Hugunin, one way we can show this is using the fact
  * that nats form an hset. Then, we don't actually need any information
  * about how our auxiliary equalities are formed.
  *)
@@ -133,8 +124,8 @@ From Coq Require Import Eqdep_dec Arith.
 Lemma zip_with_is_zipV_uf_aux :
   forall  {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n),
     zip_withV_uf_aux pair v1 v2 eq_refl =
-    eq_trans 
-      (eq_sigT_fst (eq_dep_eq_sigT _ _ _ _ _ _ (zip_with_is_zipV v1 v2))) 
+    eq_trans
+      (eq_sigT_fst (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2)))
       (zipV_uf_aux v1 v2 eq_refl).
 Proof.
   auto using (UIP_dec Nat.eq_dec).
@@ -150,13 +141,13 @@ Defined.
 Lemma zip_with_is_zipV_uf_aux_no_uip :
   forall  {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n),
     zip_withV_uf_aux pair v1 v2 eq_refl =
-    eq_trans 
-      (eq_sigT_fst (eq_dep_eq_sigT _ _ _ _ _ _ (zip_with_is_zipV v1 v2))) 
+    eq_trans
+      (eq_sigT_fst (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2)))
       (zipV_uf_aux v1 v2 eq_refl).
 Proof.
   (* ??? *)
 Admitted.
-  
+
 
 (*
  * Then we can get our theorem (TODO clean):
@@ -165,14 +156,12 @@ Lemma zip_with_is_zipV_uf :
   forall {A} {B} {n} (v1 : Vector.t A n) (v2 : Vector.t B n),
     zip_withV_uf pair v1 v2 = zipV_uf v1 v2.
 Proof.
-  intros. unfold zip_withV_uf. unfold zipV_uf.
-  pose (eq_sigT_snd (eq_dep_eq_sigT _ _ _ _ _ _ (zip_with_is_zipV v1 v2))).
-  rewrite <- e.
-  rewrite zip_with_is_zipV_uf_aux_uip.
-  apply eq_trans_rew_distr.
+  intros. unfold zip_withV_uf, zipV_uf, zipV.
+  pose (eq_sigT_snd (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2))).
+  simpl in *. rewrite <- e, zip_with_is_zipV_uf_aux. apply eq_trans_rew_distr.
 Defined.
 
 (* Client code *)
 
-Definition BVand' {n : nat} (v1 : Vector.t bool n) (v2 : Vector.t bool n) : Vector.t bool n := 
+Definition BVand' {n : nat} (v1 : Vector.t bool n) (v2 : Vector.t bool n) : Vector.t bool n :=
   zip_withV_uf andb v1 v2.

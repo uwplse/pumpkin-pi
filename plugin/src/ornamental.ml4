@@ -2,6 +2,9 @@ DECLARE PLUGIN "ornamental"
 
 open Stdarg
 open Frontend
+open Ltac_plugin
+open Tacinterp
+open Tacarg
 
 (* Identify an ornament given two inductive types *)
 VERNAC COMMAND EXTEND FindOrnament CLASSIFIED AS SIDEFF
@@ -21,10 +24,18 @@ END
 
 (* Desugar any/all fix/match subterms into eliminator applications *)
 VERNAC COMMAND EXTEND TranslateMatch CLASSIFIED AS SIDEFF
-| [ "Desugar" reference(const_ref) "as" ident(id) ] ->
+| [ "Preprocess" reference(const_ref) "as" ident(id) ] ->
   [ do_desugar_constant id const_ref ]
-| [ "Desugar" "Module" reference(mod_ref) "as" ident(id) ] ->
+| [ "Preprocess" "Module" reference(mod_ref) "as" ident(id) ] ->
   [ do_desugar_module id mod_ref ]
-| [ "Desugar" "Module" reference(mod_ref) "as" ident(id) "{" "include" ne_reference_list_sep(incl_refs, ",") "}" ] ->
+| [ "Preprocess" "Module" reference(mod_ref) "as" ident(id) "{" "include" ne_reference_list_sep(incl_refs, ",") "}" ] ->
   [ do_desugar_module ~incl:incl_refs id mod_ref ]
+END
+
+(* Register the Ltac script for sigma unpacking *)
+VERNAC COMMAND EXTEND UnpackSigma CLASSIFIED AS SIDEFF
+| [ "Unpack" reference(const_ref) "as" ident(id) ] ->
+  [ do_unpack_constant id const_ref ]
+(* | [ "Unpack" "Module" reference(mod_ref) "as" ident(id) ] ->
+ *   [ do_unpack_module id mod_ref ] *)
 END

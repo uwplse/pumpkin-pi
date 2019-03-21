@@ -21,14 +21,14 @@ else
   :
 fi
 
-if coqc coq/Desugar.v
+if coqc coq/Preprocess.v
 then
     desugared=true
 else
     :
 fi
 
-if coqc coq/DesugarModule.v
+if coqc coq/PreprocessModule.v
 then
   desugaredmod=true
 else

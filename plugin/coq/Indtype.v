@@ -86,7 +86,7 @@ Section Append.
     - assumption.
     - constructor.
   Defined.
-  Desugar is_app_tl as is_app_tl'.
+  Preprocess is_app_tl as is_app_tl'.
   Lift list vector in is_app_tl' as is_appV_tl.
 
   Lemma is_app_uncons (A : Type) (x : A) (xs ys zs : list A) :
@@ -97,7 +97,7 @@ Section Append.
     - inversion Exs. inversion Ezs. rewrite H2, H4 in H. assumption.
     - inversion Exs.
   Defined.
-  Desugar is_app_uncons as is_app_uncons'.
+  Preprocess is_app_uncons as is_app_uncons'.
   Lift list vector in is_app_uncons' as is_appV_uncons.
 
 End Append.
