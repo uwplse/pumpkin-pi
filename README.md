@@ -52,8 +52,10 @@ There are two ways to run the case study, in two different scripts.
 The reason for the two different versions is that the univalent parametricity framework (hereon UP) has different
 Coq dependencies, so the base functions perform differently. 
 The first way uses the same exact input datatypes for both DEVOID and UP,
-copying and pasting in the functions DEVOID produces to run on the dependencies of UP;
-This is the version that the paper uses, as the results it produces are the easiest to understand.
+copying and pasting in the lifted functions DEVOID produces to run on the dependencies of UP;
+This is the version that the paper uses, as the results it produces are the easiest to understand,
+since there are not different base numbers for each tool; all terms are normalized with the same
+set of dependencies.
 The second way does all of the lifting from scratch with
 the base datatypes in both the DEVOID code and UP;
 these results are more difficult to interpret, and is not the version in the paper.
