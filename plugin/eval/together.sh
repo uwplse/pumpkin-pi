@@ -2,7 +2,7 @@
 
 # This runs the second of two versions of the eval, which is the version of the eval in the paper; 
 # it uses the same datatypes for both and copies and pastes the function,
-# to control for changes in performance between regular Coq and Coq with UP.
+# to control for changes in performance between regular Coq and Coq with EFF.
 
 if [ -e out ]
 then
@@ -46,7 +46,7 @@ sed -i "s/Eval compute in/Print/" main2.v
 make clean
 make together
 
-# Copy the produced terms into the UP code, to run everything together
+# Copy the produced terms into the EFF code, to run everything together
 for f in $(find out/normalized/*.out); do
   name=$(basename "${f%.*}")
   line=$(grep -n "     : forall" $f | cut -d : -f 1)
@@ -134,13 +134,13 @@ for f in $(find out/*/*.out); do
 done
 
 # Run sanity checks
-for f in $(find out/*/*UP*.out); do
+for f in $(find out/*/*EFF*.out); do
   name=$(basename "${f%.*}")
   if [[ $name =~ ^base.* ]]
   then
     :
   else
-    g=$(echo $f | sed -e "s/UP//")
+    g=$(echo $f | sed -e "s/EFF//")
     echo "Sanity checking $f and $g."
     if [ "$(cat $f)" == "$(cat $g)" ]
     then
