@@ -98,6 +98,7 @@ Then run the following script, which runs the UP code just once with a timeout:
 
 The timeout is an hour, so grab a coffee or read a book or something. It should timeout,
 or finish normalizing very close to the timeout limit (if so, the script will record how long it took).
+If your computer does not have a lot of memory, you may run out of memory first.
 
 #### Using Different Datatypes
 
