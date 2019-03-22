@@ -211,12 +211,16 @@ let lift_elim_args env evd l npms args =
   let value_i = List.length args - 1 in
   let l = { l with off = l.off - npms } in (* we no longer have parameters *)
   if l.is_fwd then
-    let lifted_arg_sig = on_type dest_sigT env evd lifted_arg in
-    let i_b = project_index lifted_arg_sig lifted_arg in
-    let value = project_value lifted_arg_sig lifted_arg in
-    index l i_b (reindex value_i value args)
+    (* index and project *)
+    let b_sig = lifted_arg in
+    let b_sig_typ = on_type dest_sigT env evd b_sig in
+    let i_b = project_index b_sig_typ b_sig in
+    let b = project_value b_sig_typ b_sig in
+    index l i_b (reindex value_i b args)
   else
-    deindex l (reindex value_i lifted_arg args)
+    (* deindex and don't project *)
+    let a = lifted_arg in
+    deindex l (reindex value_i a args)
 
 (*
  * MOTIVE
