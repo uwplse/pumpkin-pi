@@ -14,7 +14,7 @@ else
   exit 1
 fi
 
-if coqc coq/Lift.v
+if coqc coq/TestLift.v
 then
   lifted=true
 else
