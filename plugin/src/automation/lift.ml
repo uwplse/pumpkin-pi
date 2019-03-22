@@ -70,7 +70,7 @@ let type_is_from l env evd (a_typ, b_typ) trm =
  * Filter the arguments to only the ones that have the type we are
  * promoting/forgetting from.
  *)
-let filter_orn l env evd (a_typ, b_typ) args =
+let filter_from l env evd (a_typ, b_typ) args =
   List.filter (type_is_from l env evd (a_typ, b_typ)) args
 
 (* Premises for LIFT-CONSTR *)
@@ -144,19 +144,21 @@ let pack_to_typ env evd l (from_typ, to_typ) unpacked =
 (*
  * NORMALIZE (the result of this is cached)
  *)
-let lift_constr env evd l (from_typ, to_typ) trm =
+let lift_constr env evd l (a_typ, b_typ) trm =
   let args = unfold_args (map_backward last_arg l trm) in
-  let pack_args = List.map (pack_to_typ env evd l (from_typ, to_typ)) in
+  let pack_args = List.map (pack_to_typ env evd l (a_typ, b_typ)) in
   let packed_args = map_backward pack_args l args in
-  let rec_args = filter_orn l env evd (from_typ, to_typ) packed_args in
+  let rec_args = filter_from l env evd (a_typ, b_typ) packed_args in
+  let app = lift env evd l trm in
   if List.length rec_args = 0 then
     (* base case - don't bother refolding *)
-    reduce_nf env (lift env evd l trm)
+    reduce_nf env app
   else
     (* inductive case - refold *)
-    refold l env evd (lift_to l) (lift env evd l trm) rec_args
+    refold l env evd (lift_to l) app rec_args
 
 (*
+ * TODO left off here (for after Russian class)
  * Wrapper around NORMALIZE
  *)
 let initialize_constr_rule env evd l (from_typ, to_typ) constr =
