@@ -361,7 +361,7 @@ let lift_cases env evd c p p_elim cs =
  *)
 let lift_elim env evd c trm_app =
   let (a_t, b_t) = c.typs in
-  let (from_typ, to_typ) = map_backward reverse c.l (a_t, b_t) in
+  let to_typ = directional c.l b_t a_t in
   let npms = List.length trm_app.pms in
   let elim = type_eliminator env (fst (destInd to_typ)) in
   let param_elim = mkAppl (elim, trm_app.pms) in
