@@ -55,12 +55,7 @@ let same_mod_indexing env p_index o n =
 (* --- Finding the New Index --- *)
 
 (* 
- * As described in "Finding the New Index" in Section 5.1.1,
- * search starts by identifying the new index and offset.
- * There are two algorithms for this (both described in that section):
- * the simple one cannot deal with ambiguity, but simply compares the types.
- * A more complex algorithm runs when there is ambiguity, and compares the
- * eliminators instead.
+ * This determines IB and off
  *)
 
 (*

@@ -23,15 +23,11 @@ open Differencing
 (* --- Finding the new index --- *)
 
 (* 
- * As described in "Finding the New Index" in Section 5.1.1,
- * search starts by identifying the new index and offset.
- * The bulk of this is in the differencing component.
- *
- * The offset oracle
+ * The offset function (wrapped with IB for convenience)
  *)
 
 (* Find the new index offset and type *)
-let find_new_index env_pms a b =
+let offset_and_ib env_pms a b =
   let (a_t, b_t) = map_tuple fst (map_tuple destInd (fst a, fst b)) in
   let idx_op = new_index_type_simple env_pms a_t b_t in
   if Option.has_some idx_op then
@@ -475,7 +471,7 @@ let search_algebraic env evd npm indexer_n a b =
   let ((env_pms, el_a_typ), (_, el_b_typ)) = map_tuple zoom_elim_typ elims in
   let a = (a_typ, el_a_typ) in
   let b = (b_typ, el_b_typ) in
-  let idx = find_new_index env_pms a b in (* idx = (off, I_B) *)
+  let idx = offset_and_ib env_pms a b in (* idx = (off, I_B) *)
   let indexer = find_indexer env_pms idx (fst elims) a b in
   let a = (a_typ, arity_a, fst elims, el_a_typ) in
   let b = (b_typ, arity_b, snd elims, el_b_typ) in
