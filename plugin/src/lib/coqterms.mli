@@ -347,8 +347,8 @@ val bindings_for_fix : name array -> types array -> CRD.t list
 (*
  * Offset between an environment and an index, or two environments, respectively
  *)
-val offset : env -> int -> int
-val offset2 : env -> env -> int
+val new_rels : env -> int -> int
+val new_rels2 : env -> env -> int
 
 (*
  * Append two contexts (inner first, outer second), shifting internal indices.

@@ -152,7 +152,7 @@ let find_indexer env_pms idx elim_a a b : types =
   match kind elim_t_a with
   | Prod (_, p_a_t, _) ->
      let env_a = zoom_env zoom_product_type env_pms p_a_t in
-     let nargs = offset env_a npm in
+     let nargs = new_rels env_a npm in
      let p = index_motive idx npm env_a in
      let app =
        apply_eliminator
@@ -389,7 +389,7 @@ let pack_hypothesis env evd idx b unpacked =
   let (id, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
   let packer = make_packer env evd b_typ (unfold_args unpacked_typ) idx false in
   let env_push = pack_hypothesis_type env ib_typ packer (id, unpacked_typ) in
-  let ib_rel = offset (pop_rel_context 1 env) off in
+  let ib_rel = new_rels (pop_rel_context 1 env) off in
   let unpacked = pack_unpacked env_push packer ib_typ ib_rel unpacked in
   let adjusted = adjust_to_elim env_push ib_rel packer unpacked in
   let (env_packed, packer, unpacked) = adjusted in
@@ -424,7 +424,7 @@ let find_promote_or_forget env_pms evd idx indexer_n o n is_fwd =
   let f_indexer_opt = directional (Some f_indexer) None in
   let (_, p_o, _) = destProd elim_o_typ in
   let env_p_o = zoom_env zoom_product_type env_pms p_o in
-  let nargs = offset env_p_o npm in
+  let nargs = new_rels env_p_o npm in
   let (typ, arity) = (n_typ, directional arity_o arity_n) in
   let o = (o_typ, elim_o_typ) in
   let n = (n_typ, elim_n_typ) in

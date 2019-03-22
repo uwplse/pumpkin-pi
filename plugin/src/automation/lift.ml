@@ -229,7 +229,7 @@ let lift_motive env evd l npms parameterized_elim p =
   let parameterized_elim_type = reduce_type env evd parameterized_elim in
   let (_, p_to_typ, _) = destProd parameterized_elim_type in
   let env_p_to = zoom_env zoom_product_type env p_to_typ in
-  let nargs = offset2 env_p_to env in (* TODO rename function *)
+  let nargs = new_rels2 env_p_to env in (* TODO rename function *)
   let p = shift_by nargs p in
   let args = mk_n_rels nargs in
   let lifted_arg = pack_lift env_p_to evd (flip_dir l) (last args) in
@@ -333,7 +333,7 @@ let lift_case env evd c p c_elim constr =
   else
     (* inductive case---need to get the arguments *)
     let env_c = zoom_env zoom_product_type env to_c_typ in
-    let nargs = offset2 env_c env in
+    let nargs = new_rels2 env_c env in
     let c_eta = shift_by nargs c_eta in
     let (env_c_b, c_body) = zoom_lambda_term env_c c_eta in
     let (c_f, c_args) = destApp c_body in
@@ -341,7 +341,7 @@ let lift_case env evd c p c_elim constr =
     let (c_args, b_args) = take_split split_i (Array.to_list c_args) in
     let c_args = unshift_all_by (List.length b_args) c_args in
     let args = lift_case_args env_c_b env_c evd c c_args in
-    let f = unshift_by (offset2 env_c_b env_c) c_f in
+    let f = unshift_by (new_rels2 env_c_b env_c) c_f in
     let body = reduce_term env_c (mkAppl (f, args)) in
     reconstruct_lambda_n env_c body (nb_rel env)
 

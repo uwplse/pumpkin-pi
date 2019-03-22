@@ -95,4 +95,4 @@ let shift_to = List.map (fun (s, d) -> (s, shift d))
 
 (* Shift a term by the offset from env_o to env_n *)
 let shift_to_env (env_o, env_n) trm =
-  shift_by (offset2 env_n env_o) trm
+  shift_by (new_rels2 env_n env_o) trm

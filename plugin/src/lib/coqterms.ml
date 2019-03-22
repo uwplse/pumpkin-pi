@@ -568,10 +568,10 @@ let bindings_for_fix (names : name array) (typs : types array) : CRD.t list =
        names typs)
 
 (* Find the offset of some environment from some number of parameters *)
-let offset env npm = nb_rel env - npm
+let new_rels env npm = nb_rel env - npm
 
 (* Find the offset between two environments *)
-let offset2 env1 env2 = nb_rel env1 - nb_rel env2
+let new_rels2 env1 env2 = nb_rel env1 - nb_rel env2
 
 (* Append two contexts (inner first, outer second), shifting internal indices. *)
 let context_app inner outer =
