@@ -207,6 +207,8 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/postorder/base100" Time Eval vm_compute in (postorder tree100).
   End Base.
 
+  (* --- Single iteration: from binary trees to sized binary trees --- *)
+
   Module Sized.
 
     Inductive tree : nat -> Type :=
@@ -268,6 +270,8 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/normalized/inorder-sized" Eval compute in inorder'.
     Redirect "out/normalized/pre_permutes-sized" Eval compute in pre_permutes'.
   End Sized.
+
+  (* --- Multiple iterations: from binary trees to binary search trees to AVL trees --- *)
 
   Module Ordered.
 

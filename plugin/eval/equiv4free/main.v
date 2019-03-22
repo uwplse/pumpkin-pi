@@ -314,6 +314,8 @@ Module CaseStudy (Elem : Comparable).
 
   End Base.
 
+  (* --- Single iteration: from binary trees to sized binary trees --- *)
+
   Module Sized.
 
     Inductive tree : nat -> Type :=
@@ -479,6 +481,8 @@ Module CaseStudy (Elem : Comparable).
     End Comparison.
 
   End Sized.
+
+  (* --- Multiple iterations: from binary trees to binary search trees to AVL trees --- *)
 
   Module Ordered.
 
