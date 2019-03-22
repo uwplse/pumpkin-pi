@@ -375,9 +375,10 @@ let lift_elim env evd c trm_app =
 
 (*
  * Core lifting algorithm.
- * A few extra rules to deal with real Coq terms as opposed to CIC.
+ * A few extra rules to deal with real Coq terms as opposed to CIC,
+ * including caching.
  *)
-let lift_core env evd c index_type trm =
+let lift_core env evd c ib_typ trm =
   let l = c.l in
   let (a_typ, b_typ) = c.typs in
   let rec lift_rec en ib_typ tr = (* ib_typ recurses to shift args *)
@@ -438,13 +439,13 @@ let lift_core env evd c index_type trm =
         let packer = lift_typ.packer in
         pack_existT { index_type = ib_typ; packer; index; unpacked }
       else
-        lift_rec en index_type (dest_existT tr).unpacked
+        lift_rec en ib_typ (dest_existT tr).unpacked
     else if is_proj c en evd tr then
       (* COHERENCE *)
       let arg = last_arg tr in
-      let arg' = lift_rec en index_type arg in
+      let arg' = lift_rec en ib_typ arg in
       if l.is_fwd then
-        let arg_typ' = dest_sigT (lift_rec en index_type (reduce_type en evd arg)) in
+        let arg_typ' = dest_sigT (lift_rec en ib_typ (reduce_type en evd arg)) in
         project_index arg_typ' arg'
       else if equal projT1 (first_fun tr) then
         mkAppl (l.orn.indexer, snoc arg' (non_index_typ_args l.off en evd arg))
@@ -457,8 +458,8 @@ let lift_core env evd c index_type trm =
       let value_i = arity (expand_eta env evd a_typ) - npms in
       let (final_args, post_args) = take_split (value_i + 1) tr_elim.final_args in
       let tr' = lift_elim en evd c { tr_elim with final_args } in
-      let tr'' = lift_rec en index_type tr' in
-      let post_args' = List.map (lift_rec en index_type) post_args in
+      let tr'' = lift_rec en ib_typ tr' in
+      let post_args' = List.map (lift_rec en ib_typ) post_args in
       mkAppl (tr'', post_args')
     else
       match kind tr with
@@ -468,10 +469,10 @@ let lift_core env evd c index_type trm =
            last_arg tr
          else if equal (lift_to l) f then
            (* INTERNALIZE *)
-           lift_rec en index_type (last_arg tr)
+           lift_rec en ib_typ (last_arg tr)
          else
            (* APP *)
-           let args' = List.map (lift_rec en index_type) (Array.to_list args) in
+           let args' = List.map (lift_rec en ib_typ) (Array.to_list args) in
            let arg' = last args' in
            if (is_or_applies projT1 tr || is_or_applies projT2 tr) && is_or_applies existT arg' then
              (* optimize projections of existentials, which are common *)
@@ -481,57 +482,57 @@ let lift_core env evd c index_type trm =
              else
                ex'.unpacked
            else
-             let f' = lift_rec en index_type f in
+             let f' = lift_rec en ib_typ f in
              mkAppl (f', args')
       | Cast (ca, k, t) ->
          (* CAST *)
-         let ca' = lift_rec en index_type ca in
-         let t' = lift_rec en index_type t in
+         let ca' = lift_rec en ib_typ ca in
+         let t' = lift_rec en ib_typ t in
          mkCast (ca', k, t')
       | Prod (n, t, b) ->
          (* PROD *)
-         let t' = lift_rec en index_type t in
+         let t' = lift_rec en ib_typ t in
          let en_b = push_local (n, t) en in
-         let b' = lift_rec en_b (shift index_type) b in
+         let b' = lift_rec en_b (shift ib_typ) b in
          mkProd (n, t', b')
       | Lambda (n, t, b) ->
          (* LAMBDA *)
-         let t' = lift_rec en index_type t in
+         let t' = lift_rec en ib_typ t in
          let en_b = push_local (n, t) en in
-         let b' = lift_rec en_b (shift index_type) b in
+         let b' = lift_rec en_b (shift ib_typ) b in
          mkLambda (n, t', b')
       | LetIn (n, trm, typ, e) ->
          (* LETIN *)
-         let trm' = lift_rec en index_type trm in
-         let typ' = lift_rec en index_type typ in
+         let trm' = lift_rec en ib_typ trm in
+         let typ' = lift_rec en ib_typ typ in
          let en_e = push_let_in (n, trm, typ) en in
-         let e' = lift_rec en_e (shift index_type) e in
+         let e' = lift_rec en_e (shift ib_typ) e in
          mkLetIn (n, trm', typ', e')
       | Case (ci, ct, m, bs) ->
          (* CASE *)
-         let ct' = lift_rec en index_type ct in
-         let m' = lift_rec en index_type m in
-         let bs' = Array.map (lift_rec en index_type) bs in
+         let ct' = lift_rec en ib_typ ct in
+         let m' = lift_rec en ib_typ m in
+         let bs' = Array.map (lift_rec en ib_typ) bs in
          mkCase (ci, ct', m', bs')
       | Fix ((is, i), (ns, ts, ds)) ->
          (* FIX *)
-         let ts' = Array.map (lift_rec en index_type) ts in
-         let ds' = Array.map (map_rec_env_fix lift_rec shift en index_type ns ts) ds in
+         let ts' = Array.map (lift_rec en ib_typ) ts in
+         let ds' = Array.map (map_rec_env_fix lift_rec shift en ib_typ ns ts) ds in
          mkFix ((is, i), (ns, ts', ds'))
       | CoFix (i, (ns, ts, ds)) ->
          (* COFIX *)
-         let ts' = Array.map (lift_rec en index_type) ts in
-         let ds' = Array.map (map_rec_env_fix lift_rec shift en index_type ns ts) ds in
+         let ts' = Array.map (lift_rec en ib_typ) ts in
+         let ds' = Array.map (map_rec_env_fix lift_rec shift en ib_typ ns ts) ds in
          mkCoFix (i, (ns, ts', ds'))
       | Proj (pr, co) ->
          (* PROJ *)
-         let co' = lift_rec en index_type co in
+         let co' = lift_rec en ib_typ co in
          mkProj (pr, co')
       | Construct (((i, i_index), _), u) ->
          let ind = mkInd (i, i_index) in
          if equal ind (directional l a_typ b_typ) then
            (* lazy eta expansion *)
-           lift_rec en index_type (expand_eta en evd tr)
+           lift_rec en ib_typ (expand_eta en evd tr)
          else
            tr
       | Const (co, u) ->
@@ -539,7 +540,7 @@ let lift_core env evd c index_type trm =
            (try
               (* CONST *)
               let def = lookup_definition en tr in
-              let try_lifted = lift_rec en index_type def in
+              let try_lifted = lift_rec en ib_typ def in
               if equal def try_lifted then
                 tr
               else
@@ -550,7 +551,7 @@ let lift_core env evd c index_type trm =
          in cache_local c.cache tr lifted; lifted
       | _ ->
          tr
-  in lift_rec env index_type trm
+  in lift_rec env ib_typ trm
 
 (*
  * Run the core lifting algorithm on a term
