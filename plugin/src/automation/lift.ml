@@ -543,6 +543,9 @@ let do_lift_defn env evd (l : lifting) def =
 (*                           Inductive types                            *)
 (************************************************************************)
 
+(*
+ * TODO clean, move all of these side effects out... they should not be here
+ *)
 let define_lifted_eliminator ?(suffix="_sigT") ind0 ind sort =
   let env = Global.env () in
   let ident =
