@@ -155,5 +155,5 @@ done
 # Clean temporary files
 rm -r out
 rm main2.v
-rm equiv4free/main2.v # You can uncomment this line if you want to see the output file with everything together
+rm equiv4free/main2.v # You can comment out this line if you want to see the output file with everything together
 
