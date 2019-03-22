@@ -3,7 +3,7 @@
 The only dependency to use the plugin is Coq 8.8.
 
 To run the case study code, you also need the following:
-* The [univalent parametricity framework](https://github.com/CoqHott/univalent_parametricity)
+* The Equivalences for Free! [univalent parametricity framework](https://github.com/CoqHott/univalent_parametricity)
 * [Datamash](https://www.gnu.org/software/datamash/)
 
 ## Building
@@ -65,9 +65,12 @@ on large data both for DEVOID and for UP.
 
 #### Reproducing the Paper Case Study
 
-The particular commit for EFF used for the results in the paper is [this commit](https://github.com/CoqHott/univalent_parametricity/tree/02383400c2711a1de1581e62e0a463759211d4df). Results are not guaranteed to
-be the same for different commits of EFF. Similarly, on different architectures, the numbers may be slightly different; the
-orders of magnitude should be comparable.
+The particular commit for EFF used for the results in the paper is [this commit](https://github.com/CoqHott/univalent_parametricity/tree/02383400c2711a1de1581e62e0a463759211d4df). We have rerun the experiments using 
+[this commit](https://github.com/CoqHott/univalent_parametricity/tree/993ec06760953331c588b47ba4ad423f7d2c0c46), 
+the newest commit at the time of release, and there results have not changed significantly. Results are not guaranteed to
+be the same for different commits of EFF, especially later ones which may include optimizations not yet implemented
+at the time of writing. Similarly, on different architectures, the numbers may be slightly different; the orders of 
+magnitude should be comparable.
 
 Enter the `eval` directory:
 
