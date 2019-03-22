@@ -289,6 +289,7 @@ Module CaseStudy (Elem : Comparable).
       : _bst min_l max_r
     | _Leaf (val : Elem.t) : _bst val val.
 
+    (* Invariant for fitting into algebraic ornaments *)
     Definition inv (ord_l ord_r : bool) (max_l val min_r : Elem.t) : bool :=
       ord_l && ord_r && Elem.ltb max_l val && Elem.ltb val min_r.
 
@@ -383,6 +384,7 @@ Module CaseStudy (Elem : Comparable).
       : _avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r) (S (Nat.max h_l h_r))
     | _Leaf (val : Elem.t) : _avl val val true O.
 
+    (* Invariant for fitting into algebraic ornaments *)
     Definition inv (bal_l bal_r : bool) (h_l h_r : nat) : bool :=
       bal_l && bal_r && (h_l - h_r <= 1) && (h_r - h_l <= 1).
 
