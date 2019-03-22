@@ -55,6 +55,17 @@ Preprocess Module hs_to_coq' as hs_to_coq.
 
 Find ornament list vector as ltv.
 
+(*
+ * This gives us these functions:
+ *)
+Print ltv.
+Print ltv_inv.
+
+(* 
+ * As mentioned in the paper, these form an equivalence.
+ * We will omit the proof for now, and show it when we demonstrate search.
+ *)
+
 (* --- Lift --- *)
 
 Lift list vector in hs_to_coq.zip as zipV_p.
