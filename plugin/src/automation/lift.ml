@@ -257,8 +257,7 @@ let lift_motive env evd l npms parameterized_elim p =
  * different, and the call to new is no longer necessary.
  *)
 let promote_case_args env evd c args =
-  let (_, to_typ) = map_backward reverse c.l c.typs in (* TODO rename etc *)
-  debug_term env to_typ "to_typ";
+  let (_, b_typ) = c.typs in
   let rec lift_args args i_b =
     match args with
     | n :: tl ->
@@ -267,7 +266,7 @@ let promote_case_args env evd c args =
          shift n :: (lift_args (shift_all tl) i_b)
        else
          let t = reduce_type env evd n in
-         if is_or_applies to_typ t then
+         if is_or_applies b_typ t then
            (* FORGET-ARG *)
            let a = pack_lift env evd (flip_dir c.l) n in
            a :: lift_args tl (get_arg c.l.off t)
