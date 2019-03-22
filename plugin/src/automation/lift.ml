@@ -37,7 +37,7 @@ type lift_config =
 
 let index l = insert_index l.off
 let deindex l = remove_index l.off
-    
+
 (* --- Recovering types from ornaments --- *)
 
 (*
@@ -208,46 +208,48 @@ let lift_elim_args env evd l npms args =
   let arg = map_backward last_arg l (last args) in
   let typ_args = non_index_typ_args l.off env evd arg in
   let lifted_arg = mkAppl (lift_to l, snoc arg typ_args) in
-  let value_i = List.length args - 1 in
+  let value_off = List.length args - 1 in
   let l = { l with off = l.off - npms } in (* we no longer have parameters *)
   if l.is_fwd then
-    (* index and project *)
+    (* project and index *)
     let b_sig = lifted_arg in
     let b_sig_typ = on_type dest_sigT env evd b_sig in
     let i_b = project_index b_sig_typ b_sig in
     let b = project_value b_sig_typ b_sig in
-    index l i_b (reindex value_i b args)
+    index l i_b (reindex value_off b args)
   else
-    (* deindex and don't project *)
+    (* don't project and deindex *)
     let a = lifted_arg in
-    deindex l (reindex value_i a args)
+    deindex l (reindex value_off a args)
 
 (*
  * MOTIVE
  *)
-let lift_motive env evd l npms parameterized_elim motive =
+let lift_motive env evd l npms parameterized_elim p =
   let parameterized_elim_type = reduce_type env evd parameterized_elim in
-  let (_, to_motive_typ, _) = destProd parameterized_elim_type in
-  let env_to_motive = zoom_env zoom_product_type env to_motive_typ in
-  let off2 = offset2 env_to_motive env in (* TODO rename *)
-  let motive = shift_by off2 motive in
-  let args = mk_n_rels off2 in
-  let lifted_arg = pack_lift env_to_motive evd (flip_dir l) (last args) in
-  let value_i = off2 - 1 in
+  let (_, p_to_typ, _) = destProd parameterized_elim_type in
+  let env_p_to = zoom_env zoom_product_type env p_to_typ in
+  let nargs = offset2 env_p_to env in (* TODO rename function *)
+  let p = shift_by nargs p in
+  let args = mk_n_rels nargs in
+  let lifted_arg = pack_lift env_p_to evd (flip_dir l) (last args) in
+  let value_off = nargs - 1 in
   let l = { l with off = l.off - npms } in (* no parameters here *)
   if l.is_fwd then
-    (* PROMOTE-MOTIVE *)
-    let args = deindex l (reindex value_i lifted_arg args) in
-    let motive_app = reduce_term env_to_motive (mkAppl (motive, args)) in
-    reconstruct_lambda_n env_to_motive motive_app (nb_rel env)
+    (* forget packed b to a, don't project, and deindex *)
+    let a = lifted_arg in
+    let args = deindex l (reindex value_off a args) in
+    let p_app = reduce_term env_p_to (mkAppl (p, args)) in
+    reconstruct_lambda_n env_p_to p_app (nb_rel env)
   else
-    (* FORGET-MOTIVE *)
-    let lifted_arg_sig = on_type dest_sigT env_to_motive evd lifted_arg in
-    let i_b = project_index lifted_arg_sig lifted_arg in
-    let value = project_value lifted_arg_sig lifted_arg in
-    let args = index l i_b (reindex value_i value args) in
-    let motive_app = reduce_term env_to_motive (mkAppl (motive, args)) in
-    reconstruct_lambda_n env_to_motive motive_app (nb_rel env)
+    (* promote a to packed b, project, and index *)
+    let b_sig = lifted_arg in
+    let b_sig_typ = on_type dest_sigT env_p_to evd b_sig in
+    let i_b = project_index b_sig_typ b_sig in
+    let b = project_value b_sig_typ b_sig in
+    let args = index l i_b (reindex value_off b args) in
+    let p_app = reduce_term env_p_to (mkAppl (p, args)) in
+    reconstruct_lambda_n env_p_to p_app (nb_rel env)
 
 (* PROMOTE-CASE-ARGS, part of LIFT-CASE-ARGS *)
 let promote_case_args env evd l (_, to_typ) args =
