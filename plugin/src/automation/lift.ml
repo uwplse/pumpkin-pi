@@ -158,29 +158,27 @@ let lift_constr env evd l (a_typ, b_typ) trm =
     refold l env evd (lift_to l) app rec_args
 
 (*
- * TODO left off here (for after Russian class)
  * Wrapper around NORMALIZE
  *)
-let initialize_constr_rule env evd l (from_typ, to_typ) constr =
+let initialize_constr_rule env evd l (a_typ, b_typ) constr =
   let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd constr) in
   let c_body = reduce_term env_c_b c_body in
   let to_refold = map_backward (pack env_c_b evd l.off) l c_body in
-  let refolded = lift_constr env_c_b evd l (from_typ, to_typ) to_refold in
+  let refolded = lift_constr env_c_b evd l (a_typ, b_typ) to_refold in
   reconstruct_lambda_n env_c_b refolded (nb_rel env)
 
 (*
  * Run NORMALIZE for all constructors, so we can cache the result
  *)
-let initialize_constr_rules env evd l (from_typ, to_typ) =
-  let orn_typ = if l.is_fwd then from_typ else to_typ in
-  let ((i, i_index), u) = destInd orn_typ in
+let initialize_constr_rules env evd l (a_typ, b_typ) =
+  let ((i, i_index), u) = destInd (directional l a_typ b_typ) in
   let mutind_body = lookup_mind i env in
   let ind_bodies = mutind_body.mind_packets in
   let ind_body = ind_bodies.(i_index) in
   Array.mapi
     (fun c_index _ ->
       let constr = mkConstructU (((i, i_index), c_index + 1), u) in
-      initialize_constr_rule env evd l (from_typ, to_typ) constr)
+      initialize_constr_rule env evd l (a_typ, b_typ) constr)
     ind_body.mind_consnames
 
 (* Initialize the lift_config *)
