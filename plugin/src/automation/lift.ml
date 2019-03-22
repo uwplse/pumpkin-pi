@@ -467,7 +467,7 @@ let lift_core env evd c ib_typ trm =
       match kind tr with
       | App (f, args) ->
          if equal (lift_back l) f then
-           (* SECTION-RETRACTION *)
+           (* SECTION/RETRACTION *)
            last_arg tr
          else if equal (lift_to l) f then
            (* INTERNALIZE *)
@@ -511,18 +511,18 @@ let lift_core env evd c ib_typ trm =
          let e' = lift_rec en_e (shift ib_typ) e in
          mkLetIn (n, trm', typ', e')
       | Case (ci, ct, m, bs) ->
-         (* CASE *)
+         (* CASE (will not work if this destructs over A; preprocess first) *)
          let ct' = lift_rec en ib_typ ct in
          let m' = lift_rec en ib_typ m in
          let bs' = Array.map (lift_rec en ib_typ) bs in
          mkCase (ci, ct', m', bs')
       | Fix ((is, i), (ns, ts, ds)) ->
-         (* FIX *)
+         (* FIX (will not work if this destructs over A; preprocess first) *)
          let ts' = Array.map (lift_rec en ib_typ) ts in
          let ds' = Array.map (map_rec_env_fix lift_rec shift en ib_typ ns ts) ds in
          mkFix ((is, i), (ns, ts', ds'))
       | CoFix (i, (ns, ts, ds)) ->
-         (* COFIX *)
+         (* COFIX (will not work if this destructs over A; preprocess first) *)
          let ts' = Array.map (lift_rec en ib_typ) ts in
          let ds' = Array.map (map_rec_env_fix lift_rec shift en ib_typ ns ts) ds in
          mkCoFix (i, (ns, ts', ds'))

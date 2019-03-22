@@ -422,7 +422,8 @@ Proof.
   exists (a::l1), l2; simpl. apply f_equal. auto.
 Defined.
 
-Lift list vector in in_split as in_split_vect_lifted.
+Preprocess in_split as in_split'.
+Lift list vector in in_split' as in_split_vect_lifted.
 
 Theorem test_in_split_vect_exact:
   forall (A : Type) (x : A) (pv : sigT (vector A)),
@@ -450,15 +451,11 @@ Lift list vector in is_cons as is_cons_lifted.
 
 Lemma hd_error_some_nil : forall A l (a:A), hd_error A l = Some a -> l <> nil.
 Proof.
-  (*unfold hd_error. [TODO] *) induction l. (* destruct l; now disccriminate [ported below] *)
-  - now discriminate.
-  - simpl. intros. unfold not. intros.
-    apply eq_ind with (P := is_cons A) in H0.
-    * apply H0.
-    * simpl. auto.
+  unfold hd_error. destruct l; now discriminate.
 Defined.
 
-Lift list vector in hd_error_some_nil as hd_error_some_nil_vect_lifted.
+Preprocess hd_error_some_nil as hd_error_some_nil'.
+Lift list vector in hd_error_some_nil' as hd_error_some_nil_vect_lifted.
 
 Theorem test_hd_error_some_nil_vect_exact:
   forall (A : Type) (l : {H : nat & vector A H}) (a : A),
