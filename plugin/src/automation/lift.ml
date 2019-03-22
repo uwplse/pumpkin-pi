@@ -284,7 +284,7 @@ let promote_case_args env evd c args =
  * different, and the call to new is no longer necessary.
  *)
 let forget_case_args env_c_b env evd c args =
-  let (from_typ, _) = map_backward reverse c.l c.typs in (* TODO rename etc *)
+  let (_, b_typ) = c.typs in
   let rec lift_args args (i_b, proj_i_b) =
     match args with
     | n :: tl ->
@@ -293,7 +293,7 @@ let forget_case_args env_c_b env evd c args =
          proj_i_b :: (lift_args (unshift_all tl) (i_b, proj_i_b))
        else
          let t = reduce_type env_c_b evd n in
-         if is_or_applies from_typ t then
+         if is_or_applies b_typ t then
            (* PROMOTE-ARG *)
            let b_sig =  pack_lift env evd (flip_dir c.l) n in
            let b_sig_typ = on_type dest_sigT env evd b_sig in
@@ -322,7 +322,6 @@ let lift_case_args env_c_b env evd c args =
  *)
 let lift_case env evd c p c_elim constr =
   let (from_typ, to_typ) = map_backward reverse c.l c.typs in (* TODO rename etc *)
-  debug_term env constr "constr";
   let c_eta = expand_eta env evd constr in
   let c_elim_type = reduce_type env evd c_elim in
   let (_, to_c_typ, _) = destProd c_elim_type in
@@ -332,7 +331,6 @@ let lift_case env evd c p c_elim constr =
     constr (* base case, don't bother *)
   else
     let env_c = zoom_env zoom_product_type env to_c_typ in
-    debug_env env_c "env_c";
     let off2 = offset2 env_c env in (* TODO rename *)
     let c_eta = shift_by off2 c_eta in
     let (env_c_b, c_body) = zoom_lambda_term env_c c_eta in
@@ -344,7 +342,6 @@ let lift_case env evd c p c_elim constr =
     let c_to_args = lift_args c_args in
     let c_to_f = unshift_by (offset2 env_c_b env_c) c_f in
     let c_to_body = reduce_term env_c (mkAppl (c_to_f, c_to_args)) in
-    debug_term env_c c_to_body "c_to_body";
     (* CONCL in inductive case *)
     reconstruct_lambda_n env_c c_to_body (nb_rel env)
 
@@ -367,14 +364,10 @@ let lift_elim env evd c trm_app =
   let (from_typ, to_typ) = map_backward reverse c.l (a_t, b_t) in
   let npms = List.length trm_app.pms in
   let elim = type_eliminator env (fst (destInd to_typ)) in
-  debug_term env elim "elim";
   let param_elim = mkAppl (elim, trm_app.pms) in
   let p = lift_motive env evd c.l npms param_elim trm_app.p in
-  debug_term env p "p";
   let p_elim = mkAppl (param_elim, [p]) in
-  debug_term env p_elim "p_elim";
   let cs = lift_cases env evd c p p_elim trm_app.cs in
-  debug_terms env cs "cs";
   let final_args = lift_elim_args env evd c.l npms trm_app.final_args in
   apply_eliminator {trm_app with elim; p; cs; final_args}
 
