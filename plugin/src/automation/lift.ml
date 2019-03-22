@@ -33,6 +33,11 @@ type lift_config =
     cache : temporary_cache
   }
 
+(* --- Index/deindex functions --- *)
+
+let index l = insert_index l.off
+let deindex l = remove_index l.off
+    
 (* --- Recovering types from ornaments --- *)
 
 (*
@@ -189,33 +194,34 @@ let initialize_lift_config env evd l typs =
 (* --- Lifting the induction principle --- *)
 
 (*
- * This implements LIFT-ELIM. The one discrepency here is that,
- * as described in Section 5.2, Coq doesn't have primitive eliminators.
- * Because of this, we can't simply recursively lift the type we eliminate over;
- * we need to get the arguments to the induction principle by hand.
- * This is what the additional LIFT-ELIM-ARGS rule does.
+ * This implements the rules for lifting the eliminator.
+ * The rules here look a bit different because of de Bruijn indices,
+ * some optimizations, and non-primitive eliminators.
  *)
 
 (*
- * LIFT-ELIM-ARGS
+ * In LIFT-ELIM, this is what gets a or the projection of b
+ * The one difference is that there are extra arguments because of
+ * non-primitve eliminators, and also parameters
  *)
-let lift_elim_args env evd l off args =
+let lift_elim_args env evd l npms args =
   let arg = map_backward last_arg l (last args) in
   let typ_args = non_index_typ_args l.off env evd arg in
   let lifted_arg = mkAppl (lift_to l, snoc arg typ_args) in
   let value_i = List.length args - 1 in
+  let l = { l with off = l.off - npms } in (* we no longer have parameters *)
   if l.is_fwd then
     let lifted_arg_sig = on_type dest_sigT env evd lifted_arg in
-    let index = project_index lifted_arg_sig lifted_arg in
+    let i_b = project_index lifted_arg_sig lifted_arg in
     let value = project_value lifted_arg_sig lifted_arg in
-    insert_index off index (reindex value_i value args)
+    index l i_b (reindex value_i value args)
   else
-    remove_index off (reindex value_i lifted_arg args)
+    deindex l (reindex value_i lifted_arg args)
 
 (*
- * PROMOTE-MOTIVE and FORGET-MOTIVE
+ * MOTIVE
  *)
-let lift_motive env evd l off parameterized_elim motive =
+let lift_motive env evd l npms parameterized_elim motive =
   let parameterized_elim_type = reduce_type env evd parameterized_elim in
   let (_, to_motive_typ, _) = destProd parameterized_elim_type in
   let env_to_motive = zoom_env zoom_product_type env to_motive_typ in
@@ -224,17 +230,18 @@ let lift_motive env evd l off parameterized_elim motive =
   let args = mk_n_rels off2 in
   let lifted_arg = pack_lift env_to_motive evd (flip_dir l) (last args) in
   let value_i = off2 - 1 in
+  let l = { l with off = l.off - npms } in (* no parameters here *)
   if l.is_fwd then
     (* PROMOTE-MOTIVE *)
-    let args = remove_index off (reindex value_i lifted_arg args) in
+    let args = deindex l (reindex value_i lifted_arg args) in
     let motive_app = reduce_term env_to_motive (mkAppl (motive, args)) in
     reconstruct_lambda_n env_to_motive motive_app (nb_rel env)
   else
     (* FORGET-MOTIVE *)
     let lifted_arg_sig = on_type dest_sigT env_to_motive evd lifted_arg in
-    let index = project_index lifted_arg_sig lifted_arg in
+    let i_b = project_index lifted_arg_sig lifted_arg in
     let value = project_value lifted_arg_sig lifted_arg in
-    let args = insert_index off index (reindex value_i value args) in
+    let args = index l i_b (reindex value_i value args) in
     let motive_app = reduce_term env_to_motive (mkAppl (motive, args)) in
     reconstruct_lambda_n env_to_motive motive_app (nb_rel env)
 
@@ -334,13 +341,13 @@ let lift_cases env evd l (from_typ, to_typ) p p_elim cs =
 let lift_elim env evd l trm_app =
   let (a_t, b_t, _) = typs_from_orn l env evd in
   let (from_typ, to_typ) = map_backward reverse l (a_t, b_t) in
-  let off = l.off - (List.length trm_app.pms) in
+  let npms = List.length trm_app.pms in
   let elim = type_eliminator env (fst (destInd to_typ)) in
   let param_elim = mkAppl (elim, trm_app.pms) in
-  let p = lift_motive env evd l off param_elim trm_app.p in
+  let p = lift_motive env evd l npms param_elim trm_app.p in
   let p_elim = mkAppl (param_elim, [p]) in
   let cs = lift_cases env evd l (from_typ, to_typ) p p_elim trm_app.cs in
-  let final_args = lift_elim_args env evd l off trm_app.final_args in
+  let final_args = lift_elim_args env evd l npms trm_app.final_args in
   apply_eliminator {trm_app with elim; p; cs; final_args}
 
 (* --- Core algorithm --- *)
