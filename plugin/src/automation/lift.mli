@@ -35,4 +35,4 @@ val do_lift_ind :
   string ->
   lifting ->
   inductive ->
-  inductive
+  inductive (* lifted type and number of constructors for caching *)

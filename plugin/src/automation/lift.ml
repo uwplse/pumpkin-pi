@@ -563,8 +563,7 @@ let declare_inductive_liftings ind ind' ncons =
   List.iter2
     declare_lifted
     (List.init ncons (fun i -> Globnames.ConstructRef (ind, i + 1)))
-    (List.init ncons (fun i -> Globnames.ConstructRef (ind', i + 1)));
-  List.iter (define_lifted_eliminator ind ind') [Sorts.InType; Sorts.InProp]
+    (List.init ncons (fun i -> Globnames.ConstructRef (ind', i + 1)))
 
 (*
  * Lift the inductive type using sigma-packing.
@@ -588,5 +587,6 @@ let do_lift_ind env evm typename suffix lift ind =
   let ind' =
     declare_inductive typename consnames is_template univs nparam arity' constypes'
   in
+  List.iter (define_lifted_eliminator ind ind') [Sorts.InType; Sorts.InProp];
   declare_inductive_liftings ind ind' (List.length constypes);
   ind'
