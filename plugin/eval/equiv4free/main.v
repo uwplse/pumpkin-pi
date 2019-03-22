@@ -51,31 +51,32 @@ Module CaseStudy (Elem : Comparable).
 
   Hint Extern 0 (?t ≈ ?t) => reflexivity : typeclass_instances.
 
-  Definition Decidable_eq_elem : forall (x y : Elem.t), (x = y) + (x <> y).
+  Definition Decidable_eq_elem : DecidableEq Elem.t.
   Proof.
-    intros. pose proof (Elem.eqb_dec x y) as H. destruct (Elem.eqb x y); auto.
+    constructor. intros x y. pose proof (Elem.eqb_dec x y) as H. destruct (Elem.eqb x y); auto.
   Defined.
 
-  Instance elem_Hset : HSet Elem.t := Hedberg Elem.t Decidable_eq_elem.
+  Instance elem_Hset : HSet Elem.t := @Hedberg Elem.t Decidable_eq_elem.
   Instance UR_elem : UR Elem.t Elem.t := UR_gen Elem.t.
   Instance FP_elem : Elem.t ⋈ Elem.t := URType_Refl_decidable Elem.t Decidable_eq_elem.
   Instance Transportable_elem (P : Elem.t -> Type) : Transportable P :=
-    Transportable_decidable P Decidable_eq_elem.
+    @Transportable_decidable _ P Decidable_eq_elem.
 
-  Definition Decidable_eq_list_elem : forall (xs ys : list Elem.t), (xs = ys) + (xs <> ys).
+  Definition Decidable_eq_list_elem : DecidableEq (list Elem.t).
   Proof.
-    induction xs as [|x xs IH]; cbn; intros [|y ys].
+    constructor. induction a as [|x xs IH]; cbn; intros [|y ys].
     - left. reflexivity.
     - right. inversion 1.
     - right. inversion 1.
     - specialize (IH ys). destruct IH as [E|E].
-      + rewrite <- E. clear E. destruct (Decidable_eq_elem x y) as [E|E].
+      + rewrite <- E. clear E. pose proof Decidable_eq_elem. destruct H.  
+        destruct (dec_paths x y) as [E|E].
         * rewrite <- E. clear E. left. reflexivity.
         * right. inversion 1. destruct (E H1).
       + right. inversion 1. destruct (E H2).
   Defined.
 
-  Instance list_elem_Hset : HSet (list Elem.t) := Hedberg (list Elem.t) Decidable_eq_list_elem.
+  Instance list_elem_Hset : HSet (list Elem.t) := @Hedberg (list Elem.t) Decidable_eq_list_elem.
 
   Lemma UR_list_refl {A} (xs : list A) : UR_list (eq A) xs xs.
   Proof. induction xs; econstructor; [reflexivity|assumption]. Defined.
@@ -141,20 +142,20 @@ Module CaseStudy (Elem : Comparable).
     | Branch (val : Elem.t) (left right : tree)
     | Leaf (val : Elem.t).
 
-    Definition Decidable_eq_tree : forall (x y : tree), (x = y) + (x <> y).
+    Definition Decidable_eq_tree :  DecidableEq tree.
     Proof.
-      Local Ltac discr := let E := fresh in right; intro E; inversion E; auto; discriminate E.
+      constructor. Local Ltac discr := let E := fresh in right; intro E; inversion E; auto; discriminate E.
       Local Ltac recur H x := specialize (H x); destruct H as [H|H]; [rewrite <- H|]; try discr.
       intro x. induction x as [x_v x_l IH_l x_r IH_r|x_v]; intros [y_v y_l y_r|y_v];
-      try discr; pose (Decidable_eq_elem x_v) as H_v; recur H_v y_v;
+      try discr; pose Decidable_eq_elem as H_v; destruct H_v; pose (dec_paths x_v) as H_v'; recur H_v' y_v;
       try recur IH_l y_l; try recur IH_r y_r; left; reflexivity.
     Defined.
 
-    Instance tree_Hset : HSet tree := Hedberg tree Decidable_eq_tree.
+    Instance tree_Hset : HSet tree := @Hedberg tree Decidable_eq_tree.
     Instance UR_tree : UR tree tree := UR_gen tree.
     Instance FP_tree : tree ⋈ tree := URType_Refl_decidable tree Decidable_eq_tree.
     Instance Transportable_tree (P: tree -> Type) : Transportable P :=
-      Transportable_decidable P Decidable_eq_tree.
+      @Transportable_decidable _ P Decidable_eq_tree.
 
       Local Coercion Leaf : Elem.t >-> tree.
 
@@ -339,7 +340,7 @@ Module CaseStudy (Elem : Comparable).
       cbn. split; try tc. cbn. intros n n' E. apply can_eq in E; try tc.
       rewrite <- E. esplit; try apply Canonical_eq_gen.
       esplit. cbn. intros t t'. unfold univalent_transport.
-      rewrite Equiv_tree_id. cbn. tc.
+      rewrite Equiv_tree_id. cbn. eapply Equiv_id.
     Defined.
 
     Fixpoint orn_size_index (t : Base.tree) : nat :=
@@ -518,7 +519,7 @@ Module CaseStudy (Elem : Comparable).
       cbn. intros lo lo' E_lo hi hi' E_hi. split; try tc. cbn. intros ord ord' E_ord.
       apply can_eq in E_lo; try tc. apply can_eq in E_hi; try tc. apply can_eq in E_ord; try tc.
       rewrite <- E_lo, <- E_hi, <- E_ord. esplit; try apply Canonical_eq_gen.
-      econstructor. cbn. intros t t'. unfold univalent_transport. rewrite Equiv_bst_id. cbn. tc.
+      econstructor. cbn. intros t t'. unfold univalent_transport. rewrite Equiv_bst_id. cbn. eapply Equiv_id.
     Defined.
 
     Fixpoint orn_order (t : Base.tree) : {lo:Elem.t & {hi:Elem.t & {ord:bool & Ordered.bst lo hi ord}}} :=
@@ -654,7 +655,7 @@ Module CaseStudy (Elem : Comparable).
       apply can_eq in E_ord; try tc. apply can_eq in E_h; try tc. apply can_eq in E_bal; try tc.
       rewrite <- E_lo, <- E_hi, <- E_ord, <- E_h, <- E_bal. esplit; try apply Canonical_eq_gen.
       econstructor. cbn. intros t t'. unfold univalent_transport.
-      rewrite Equiv_avl_id. cbn. tc.
+      rewrite Equiv_avl_id. cbn. eapply Equiv_id.
     Defined.
 
     Fixpoint orn_balance {lo hi ord} (t : Ordered.bst lo hi ord) : {h:nat & {bal:bool & avl lo hi ord h bal}} :=
