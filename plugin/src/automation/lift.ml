@@ -21,13 +21,14 @@ open Printing
 (* --- Internal lifting configuration --- *)
 
 (*
- * Lifting configuration, along with a cache for constants encountered
- * as the algorithm traverses, and cache for the constructor rules
- * that refolding determines
+ * Lifting configuration, along with the types A and B, 
+ * a cache for constants encountered as the algorithm traverses,
+ * and a cache for the constructor rules that refolding determines
  *)
 type lift_config =
   {
     l : lifting;
+    typs : types * types;
     constr_rules : types array;
     cache : temporary_cache
   }
@@ -50,8 +51,9 @@ let typs_from_orn l env evd =
  * Determine whether a type is the type we are ornamenting from
  * That is, A when we are promoting, and B when we are forgetting
  *)
-let is_from l env evd (a_typ, b_typ) typ =
-  if l.is_fwd then
+let is_from c env evd typ =
+  let (a_typ, b_typ) = c.typs in
+  if c.l.is_fwd then
     is_or_applies a_typ typ
   else
     if is_or_applies sigT typ then
@@ -62,25 +64,17 @@ let is_from l env evd (a_typ, b_typ) typ =
 (* 
  * Determine whether a term has the type we are ornamenting from
  *)
-let type_is_from l env evd (a_typ, b_typ) trm =
-  let typ = reduce_nf env (infer_type env evd trm) in
-  is_from l env evd (a_typ, b_typ) typ
-
-(*
- * Filter the arguments to only the ones that have the type we are
- * promoting/forgetting from.
- *)
-let filter_from l env evd (a_typ, b_typ) args =
-  List.filter (type_is_from l env evd (a_typ, b_typ)) args
+let type_is_from c env evd trm =
+  is_from c env evd (reduce_nf env (infer_type env evd trm))
 
 (* Premises for LIFT-CONSTR *)
-let is_packed_constr l env evd (from_type, to_type) trm =
-  let right_type = type_is_from l env evd (from_type, to_type) in
+let is_packed_constr c env evd trm =
+  let right_type = type_is_from c env evd in
   match kind trm with
   | Construct _  when right_type trm ->
      true
   | App (f, args) ->
-     if l.is_fwd then
+     if c.l.is_fwd then
        isConstruct f && right_type trm
      else
        if equal existT f && right_type trm then
@@ -92,9 +86,9 @@ let is_packed_constr l env evd (from_type, to_type) trm =
      false
 
 (* Premises for LIFT-PACKED *)
-let is_packed l env evd (from_type, to_type) trm =
-  let right_type = type_is_from l env evd (from_type, to_type) in
-  if l.is_fwd then
+let is_packed c env evd trm =
+  let right_type = type_is_from c env evd in
+  if c.l.is_fwd then
     isRel trm && right_type trm
   else
     match kind trm with
@@ -104,27 +98,28 @@ let is_packed l env evd (from_type, to_type) trm =
        false
 
 (* Premises for LIFT-PROJ *)
-let is_proj l env evd (from_type, to_type) trm =
-  let right_type = type_is_from l env evd (from_type, to_type) in
+let is_proj c env evd trm =
+  let right_type = type_is_from c env evd in
   match kind trm with
   | App _ ->
      let f = first_fun trm in
      let args = unfold_args trm in
-     if l.is_fwd then
-       equal l.orn.indexer f && right_type (last args)
+     if c.l.is_fwd then
+       equal c.l.orn.indexer f && right_type (last args)
      else
        (equal projT1 f || equal projT2 f) && right_type (last args)
   | _ ->
      false
 
 (* Premises for LIFT-ELIM *)
-let is_eliminator l env evd (from_type, to_type) trm =
+let is_eliminator c env evd trm =
+  let (a_typ, b_typ) = c.typs in
   match kind trm with
   | App (f, args) when isConst f ->
      let maybe_ind = inductive_of_elim env (destConst f) in
      if Option.has_some maybe_ind then
        let ind = Option.get maybe_ind in
-       equal (mkInd (ind, 0)) (directional l from_type to_type)
+       equal (mkInd (ind, 0)) (directional c.l a_typ b_typ)
      else
        false
   | _ ->
@@ -133,22 +128,24 @@ let is_eliminator l env evd (from_type, to_type) trm =
 (* --- Configuring the constructor liftings --- *)
 
 (*
- * For packing constructor aguments: Pack, but only if it's to_typ
+ * For packing constructor aguments: Pack, but only if it's B
  *)
-let pack_to_typ env evd l (from_typ, to_typ) unpacked =
-  if on_type (is_or_applies to_typ) env evd unpacked then
-    pack env evd l.off unpacked
+let pack_to_typ env evd c unpacked =
+  let (_, b_typ) = c.typs in
+  if on_type (is_or_applies b_typ) env evd unpacked then
+    pack env evd c.l.off unpacked
   else
     unpacked
 
 (*
  * NORMALIZE (the result of this is cached)
  *)
-let lift_constr env evd l (a_typ, b_typ) trm =
+let lift_constr env evd c trm =
+  let l = c.l in
   let args = unfold_args (map_backward last_arg l trm) in
-  let pack_args = List.map (pack_to_typ env evd l (a_typ, b_typ)) in
+  let pack_args = List.map (pack_to_typ env evd c) in
   let packed_args = map_backward pack_args l args in
-  let rec_args = filter_from l env evd (a_typ, b_typ) packed_args in
+  let rec_args =  List.filter (type_is_from c env evd) packed_args in
   let app = lift env evd l trm in
   if List.length rec_args = 0 then
     (* base case - don't bother refolding *)
@@ -160,32 +157,34 @@ let lift_constr env evd l (a_typ, b_typ) trm =
 (*
  * Wrapper around NORMALIZE
  *)
-let initialize_constr_rule env evd l (a_typ, b_typ) constr =
+let initialize_constr_rule env evd c constr =
   let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd constr) in
   let c_body = reduce_term env_c_b c_body in
-  let to_refold = map_backward (pack env_c_b evd l.off) l c_body in
-  let refolded = lift_constr env_c_b evd l (a_typ, b_typ) to_refold in
+  let to_refold = map_backward (pack env_c_b evd c.l.off) c.l c_body in
+  let refolded = lift_constr env_c_b evd c to_refold in
   reconstruct_lambda_n env_c_b refolded (nb_rel env)
 
 (*
  * Run NORMALIZE for all constructors, so we can cache the result
  *)
-let initialize_constr_rules env evd l (a_typ, b_typ) =
-  let ((i, i_index), u) = destInd (directional l a_typ b_typ) in
+let initialize_constr_rules env evd c =
+  let (a_typ, b_typ) = c.typs in
+  let ((i, i_index), u) = destInd (directional c.l a_typ b_typ) in
   let mutind_body = lookup_mind i env in
   let ind_bodies = mutind_body.mind_packets in
   let ind_body = ind_bodies.(i_index) in
   Array.mapi
     (fun c_index _ ->
       let constr = mkConstructU (((i, i_index), c_index + 1), u) in
-      initialize_constr_rule env evd l (a_typ, b_typ) constr)
+      initialize_constr_rule env evd c constr)
     ind_body.mind_consnames
 
 (* Initialize the lift_config *)
-let initialize_lift_config env evd l (from_typ, to_typ) =
-  let constr_rules = initialize_constr_rules env evd l (from_typ, to_typ) in
+let initialize_lift_config env evd l typs =
   let cache = initialize_local_cache () in
-  { l ; constr_rules ; cache }
+  let c = { l ; typs ; constr_rules = Array.make 0 (mkRel 1) ; cache } in
+  let constr_rules = initialize_constr_rules env evd c in
+  { c with constr_rules }
 
 (* --- Lifting the induction principle --- *)
 
@@ -350,9 +349,10 @@ let lift_elim env evd l trm_app =
  * Core lifting algorithm.
  * A few extra rules to deal with real Coq terms as opposed to CIC.
  *)
-let lift_core env evd c (a_typ, b_typ) index_type trm =
+let lift_core env evd c index_type trm =
   let l = c.l in
-  let rec lift_rec en ib_typ tr = (* ib_typ recurses to shift *)
+  let (a_typ, b_typ) = c.typs in
+  let rec lift_rec en ib_typ tr = (* ib_typ recurses to shift args *)
     let lifted_opt = search_lifted_term en tr in
     if Option.has_some lifted_opt then
       (* GLOBAL CACHING *)
@@ -360,7 +360,7 @@ let lift_core env evd c (a_typ, b_typ) index_type trm =
     else if is_locally_cached c.cache tr then
       (* LOCAL CACHING *)
       lookup_local_cache c.cache tr
-    else if is_from l en evd (a_typ, b_typ) tr then
+    else if is_from c en evd tr then
       (* EQUIVALENCE *)
       if l.is_fwd then
         let is = List.map (lift_rec en ib_typ) (unfold_args tr) in
@@ -374,7 +374,7 @@ let lift_core env evd c (a_typ, b_typ) index_type trm =
         let packed = dummy_index en (dest_sigT tr).packer in
         let t_args = remove_index l.off (unfold_args packed) in
         mkAppl (a_typ, t_args)
-    else if is_packed_constr l en evd (a_typ, b_typ) tr then
+    else if is_packed_constr c en evd tr then
       (* LIFT-CONSTR *)
       (* The extra logic here is an optimization *)
       (* It also deals with the fact that we are lazy about eta *)
@@ -399,7 +399,7 @@ let lift_core env evd c (a_typ, b_typ) index_type trm =
             (mkApp (f', args'')))
         (List.length args > 0)
         (reduce_term en (mkAppl (lifted_constr, args)))
-    else if is_packed l en evd (a_typ, b_typ) tr then
+    else if is_packed c en evd tr then
       (* LIFT-PACK *)
       if l.is_fwd then
         (* repack variables, since projections aren't primitive *)
@@ -411,7 +411,7 @@ let lift_core env evd c (a_typ, b_typ) index_type trm =
         pack_existT { index_type = ib_typ; packer; index; unpacked }
       else
         lift_rec en index_type (dest_existT tr).unpacked
-    else if is_proj l en evd (a_typ, b_typ) tr then
+    else if is_proj c en evd tr then
       (* COHERENCE *)
       let arg = last_arg tr in
       let arg' = lift_rec en index_type arg in
@@ -422,7 +422,7 @@ let lift_core env evd c (a_typ, b_typ) index_type trm =
         mkAppl (l.orn.indexer, snoc arg' (non_index_typ_args l.off en evd arg))
       else
         arg'
-    else if is_eliminator l en evd (a_typ, b_typ) tr then
+    else if is_eliminator c en evd tr then
       (* LIFT-ELIM *)
       let tr_elim = deconstruct_eliminator en evd tr in
       let npms = List.length tr_elim.pms in
@@ -530,7 +530,7 @@ let lift_core env evd c (a_typ, b_typ) index_type trm =
 let do_lift_term env evd (l : lifting) trm =
   let (a_t, b_t, i_b_t) = typs_from_orn l env evd in
   let c = initialize_lift_config env evd l (a_t, b_t) in
-  lift_core env evd c (a_t, b_t) i_b_t trm
+  lift_core env evd c i_b_t trm
 
 (*
  * Run the core lifting algorithm on a definition
