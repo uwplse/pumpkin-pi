@@ -65,6 +65,10 @@ on large data both for DEVOID and for UP.
 
 #### Reproducing the Paper Case Study
 
+The particular commit for EFF used for the results in the paper is [this commit](https://github.com/CoqHott/univalent_parametricity/tree/02383400c2711a1de1581e62e0a463759211d4df). Results are not guaranteed to
+be the same for different commits of EFF. Similarly, on different architectures, the numbers may be slightly different; the
+orders of magnitude should be comparable.
+
 Enter the `eval` directory:
 
 ``
