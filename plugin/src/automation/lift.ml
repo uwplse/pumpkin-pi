@@ -274,7 +274,7 @@ let promote_case_args env evd c args =
            (* ARG *)
            n :: lift_args tl i_b
     | _ ->
-       (* CONCLUSION *)
+       (* CONCL in inductive case *)
        []
   in lift_args args (mkRel 0)
 
@@ -304,7 +304,7 @@ let forget_case_args env_c_b env evd c args =
            (* ARG *)
            n :: lift_args tl (i_b, proj_i_b)
     | _ ->
-       (* CONCLUSION *)
+       (* CONCL in inductive case *)
        []
   in lift_args args (mkRel 0, mkRel 0)
 
@@ -318,32 +318,32 @@ let lift_case_args env_c_b env evd c args =
   in List.rev (lifter env evd c (List.rev args))
 
 (*
- * PROMOTE-CASE and FORGET-CASE
+ * CASE
  *)
 let lift_case env evd c p c_elim constr =
-  let (from_typ, to_typ) = map_backward reverse c.l c.typs in (* TODO rename etc *)
+  let (a_typ, b_typ) = c.typs in
+  let to_typ = directional c.l b_typ a_typ in
   let c_eta = expand_eta env evd constr in
   let c_elim_type = reduce_type env evd c_elim in
   let (_, to_c_typ, _) = destProd c_elim_type in
   let nihs = num_ihs env to_typ to_c_typ in
   if nihs = 0 then
-    (* CONCL in base case *)
-    constr (* base case, don't bother *)
+    (* base case *)
+    constr
   else
+    (* inductive case---need to get the arguments *)
     let env_c = zoom_env zoom_product_type env to_c_typ in
-    let off2 = offset2 env_c env in (* TODO rename *)
-    let c_eta = shift_by off2 c_eta in
+    let nargs = offset2 env_c env in
+    let c_eta = shift_by nargs c_eta in
     let (env_c_b, c_body) = zoom_lambda_term env_c c_eta in
     let (c_f, c_args) = destApp c_body in
-    let split_i = if c.l.is_fwd then off2 - nihs else off2 + nihs in
+    let split_i = if c.l.is_fwd then nargs - nihs else nargs + nihs in
     let (c_args, b_args) = take_split split_i (Array.to_list c_args) in
     let c_args = unshift_all_by (List.length b_args) c_args in
-    let lift_args = lift_case_args env_c_b env_c evd c in
-    let c_to_args = lift_args c_args in
-    let c_to_f = unshift_by (offset2 env_c_b env_c) c_f in
-    let c_to_body = reduce_term env_c (mkAppl (c_to_f, c_to_args)) in
-    (* CONCL in inductive case *)
-    reconstruct_lambda_n env_c c_to_body (nb_rel env)
+    let args = lift_case_args env_c_b env_c evd c c_args in
+    let f = unshift_by (offset2 env_c_b env_c) c_f in
+    let body = reduce_term env_c (mkAppl (f, args)) in
+    reconstruct_lambda_n env_c body (nb_rel env)
 
 (* Lift cases *)
 let lift_cases env evd c p p_elim cs =
