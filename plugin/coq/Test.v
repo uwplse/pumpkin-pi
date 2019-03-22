@@ -47,46 +47,6 @@ Proof.
   intros. apply orn_list_vector_inv. exists n. apply v.
 Qed.
 
-(*
- * An example of showing it's an equiv (it's pretty obvious that coh. holds from
- * test_orn_index)
- * 
- * TODO move this stuff
- *)
-Lemma eq_cons:
-  forall T t l1 l2,
-    l1 = l2 ->
-    @cons T t l1 = @cons T t l2.
-Proof.
-  intros. subst. auto.
-Qed.
-
-Theorem section:
-  forall (A : Type) (l : list A),
-    orn_list_vector_inv A (orn_list_vector A l) = l.
-Proof.
-  intros. induction l.
-  - reflexivity.
-  - apply eq_cons. apply IHl.
-Qed.
-
-Definition coherence := test_orn_index.
-
-Lift list vector in eq_cons as eq_sigT_cons'.
-
-(* TODO can get via unpack *)
-Definition eq_sigT_cons T t n1 v1 n2 v2 :=
-  eq_sigT_cons' T t (existT _ n1 v1) (existT _ n2 v2).
-
-Theorem retraction:
-  forall (A : Type) (v : sigT (vector A)),
-    orn_list_vector A (orn_list_vector_inv A v) = v.
-Proof.
-  intros. induction v; induction p.
-  - reflexivity.
-  - apply eq_sigT_cons. apply IHp.
-Qed.  
-
 (* --- Test auto-generated ornament name --- *)
 
 Find ornament list vector.
