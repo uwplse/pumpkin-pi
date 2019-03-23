@@ -1,3 +1,11 @@
+## Known Issues
+
+Please see our GitHub [issues](https://github.com/uwplse/ornamental-search/issues) before reporting a bug
+(though please do report any bugs not listed there). The most significant bug for user experience right now
+is that the plugin currently fails with asynchronous processing in CoqIDE. So if you would like to use the 
+plugin in CoqIDE, either turn off asynchronous processing, or step through your file one command at a time.
+Otherwise, you will likely get a `Not_found` error.
+
 ## Dependencies
 
 The only dependency to use the plugin is Coq 8.8.
@@ -17,7 +25,7 @@ make && make install
 
 ### Case Study Dependencies
 
-Run the following to make the Univalent Parametricity framework:
+Run the following to make the Equivalences for Free! univalent parametricity framework:
 
 ```
 cd <path-to-univalent-parametricity>
@@ -29,10 +37,8 @@ Datamash should install in a straightforward way from a package manager using th
 ## Understanding the Code
 
 The top-level is in `ornamental.ml4`, which outsources to `frontend.ml`. From there, the two major functionalities
-are the search algorithm in `automation/search` and the lifting algorithm in `automation/lift`. A description
-of these implementations can be found in Sections 5.1.1 and 5.1.2 of the paper; the relevant theory behind these is in
-Sections 3.2, 4.1, and Appendix A.2. Please ping me if you have any questions, or create an issue so that I can
-patch up the code to better correspond to the paper.
+are the search algorithm in `automation/search` and the lifting algorithm in `automation/lift`. Please ping me if you have any questions, 
+or create an issue so that I can patch up the code to better correspond to the paper.
 
 ## Running
 
@@ -44,24 +50,28 @@ The test script runs all tests:
 ./test.sh
 ```
 
+### Examples
+
+The example from the paper are in the `example` directory. It is best to step through these one by one.
+
 ### Case Study Code
 
-We only ssupport the case study scripts on Linux right now.
+We only support the case study scripts on Linux right now.
 
 There are two ways to run the case study, in two different scripts.
-The reason for the two different versions is that the univalent parametricity framework (hereon UP) has different
+The reason for the two different versions is that the Equivalences for Free! univalent parametricity framework (hereon EFF) has different
 Coq dependencies, so the base functions perform differently. 
-The first way uses the same exact input datatypes for both DEVOID and UP,
-copying and pasting in the lifted functions DEVOID produces to run on the dependencies of UP;
+The first way uses the same exact input datatypes for both DEVOID and EFF,
+copying and pasting in the lifted functions DEVOID produces to run on the dependencies of EFF;
 This is the version that the paper uses, as the results it produces are the easiest to understand,
 since there are not different base numbers for each tool; all terms are normalized with the same
 set of dependencies.
 The second way does all of the lifting from scratch with
-the base datatypes in both the DEVOID code and UP;
+the base datatypes in both the DEVOID code and EFF;
 these results are more difficult to interpret, and is not the version in the paper.
 
 Each of these scripts takes a while, as it runs each function ten times each
-on large data both for DEVOID and for UP.
+on large data both for DEVOID and for EFF.
 
 #### Reproducing the Paper Case Study
 
@@ -84,9 +94,9 @@ Run the following script:
 ./together.sh
 ```
 
-Then check the `together` folder for the median runtimes (Figures 13 and 15) as well as the size of reduced functions.
+Then check the `together` folder for the median runtimes as well as the size of reduced functions.
 This also does a sanity check to make sure both versions of the code produce the same output.
-It does not yet try to reduce the proof that timed out with UP after an hour (it reduces it with DEVOID, but not with UP),
+It does not yet try to reduce the proof that timed out with EFF after an hour (it reduces it with DEVOID, but not with EFF),
 otherwise the case study would take ten hours to run. To run this just once, enter the `equiv4free` directory:
 
 ``
@@ -96,10 +106,10 @@ cd equiv4free
 In that directory, uncomment the following line in `main.v`:
 
 ```
-(*Redirect "../out/normalized/pre_permutes-sizedUP" Eval compute in pre_permutes'.*)
+(*Redirect "../out/normalized/pre_permutes-sizedEFF" Eval compute in pre_permutes'.*)
 ```
 
-Then run the following script, which runs the UP code just once with a timeout:
+Then run the following script, which runs the EFF code just once with a timeout:
 
 ```
 ./prepermutes.sh
