@@ -28,17 +28,15 @@ Check Vector.map.
 Preprocess List.map as list_map'.
 Find ornament list vector as ltv.
 Lift list vector in list_map' as map_p.
-(* TODO use unpack *)
-Definition map_u {T1} {T2} (f : T1 -> T2) {n : nat} (v : vector T1 n) :=
-  projT2 (map_p T1 T2 f (existT _ n v)). 
+Unpack map_p as map_u.
 
 (* User-friendly version *)
 Program Definition map {T1} {T2} (f : T1 -> T2) {n : nat} (v : vector T1 n) : vector T2 n :=
-  map_u f v.
+  map_u T1 T2 f n v.
 Next Obligation.
   induction v.
   - auto.
-  - simpl. f_equal. auto. (* TODO why don't we need the methodology here? *)
+  - simpl. f_equal. auto.
 Defined.
 
 (* We can show it's the same as Coq's map *)
