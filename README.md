@@ -1,10 +1,15 @@
-## Known Issues
+DEVOID is a plugin for automatic discovery of and lifting across 
+algebraic ornaments in Coq. Basically, when you have two types
+A and B, where B is A indexed by some new type that is determined
+by a fold over A, DEVOID can search for the fold and functions
+that relate A and B, and then lift functions and proofs between types.
+The produced functions and proofs are usually about as fast as the origial.
+See the examples for more detail. 
 
-Please see our GitHub [issues](https://github.com/uwplse/ornamental-search/issues) before reporting a bug
-(though please do report any bugs not listed there). The most significant bug for user experience right now
-is that the plugin currently fails with asynchronous processing in CoqIDE. So if you would like to use the 
-plugin in CoqIDE, either turn off asynchronous processing, or step through your file one command at a time.
-Otherwise, you will likely get a `Not_found` error.
+Note that DEVOID makes some additional assumptions about the syntax of your types for now,
+in particular that both types have the same number of contructors in the same order,
+and that there is one new hypothesis for each new index of each inductive hypothesis in B. 
+These restrictons are mostly for search. We hope to loosen them eventually.
 
 ## Dependencies
 
@@ -34,13 +39,31 @@ make && make install
 
 Datamash should install in a straightforward way from a package manager using the link above.
 
-## Understanding the Code
-
-The top-level is in `ornamental.ml4`, which outsources to `frontend.ml`. From there, the two major functionalities
-are the search algorithm in `automation/search` and the lifting algorithm in `automation/lift`. Please ping me if you have any questions, 
-or create an issue so that I can patch up the code to better correspond to the paper.
-
 ## Running
+
+For a complete overview of how to use the tool, see `coq/examples/Example.v`. At a high level,
+there are two main commands:
+
+`Find ornament A B as A_to_B.`: Search for the relation that describes the algebraic ornament
+between A and B, and return three functions if successful: `A_to_B`, `A_to_B_inv`, and `A_to_B_index`.
+`A_to_B` and `A_to_B_inv` form a specific equivalence, with `A_to_B_index` describing the fold over `A`.
+See `coq/examples/Search.v` for an example of this on lists and vectors.
+
+`Lift A B in f as g.`: Lift a function along the discovered relation. See `coq/examples/Lift.v` for a few examples
+of how this works.
+
+There are two additional commands: `Preprocess` to preprocess terms for lifting,
+and `Unpack` to give you back types that are a little bit better than the automatically
+generated types. There is a methodology outlined in `coq/examples/Example.v` for recovering
+even more useful types.
+
+### Known Issues
+
+Please see our GitHub [issues](https://github.com/uwplse/ornamental-search/issues) before reporting a bug
+(though please do report any bugs not listed there). The most significant bug for user experience right now
+is that the plugin currently fails with asynchronous processing in CoqIDE. So if you would like to use the 
+plugin in CoqIDE, either turn off asynchronous processing, or step through your file one command at a time.
+Otherwise, you will likely get a `Not_found` error.
 
 ### Tests
 
@@ -52,7 +75,7 @@ The test script runs all tests:
 
 ### Examples
 
-The example from the paper are in the `example` directory. It is best to step through these one by one.
+The example from the paper are in the `coq/example` directory. It is best to step through these one by one.
 
 ### Case Study Code
 
@@ -130,7 +153,11 @@ lifting the datatypes separately from scratch. To see that they do, run the seco
 
 Then check the `separate` folder for the results.
 
+## Understanding the Code
 
+The top-level is in `ornamental.ml4`, which outsources to `frontend.ml`. From there, the two major functionalities
+are the search algorithm in `automation/search` and the lifting algorithm in `automation/lift`. Please ping me if you have any questions, 
+or create an issue so that I can patch up the code to better correspond to the paper.
 
 
 
