@@ -38,8 +38,7 @@ let offset_and_ib env_pms a b =
 (* --- Finding the indexer --- *)
 
 (*
- * As described in the paragraph "Searching for the Indexer" in Section
- * 5.1.1, once the algorithm has the index offset and type, it then
+ * Once the algorithm has the index offset and type, it then
  * searches for the indexer function. It does this by
  * traversing the types of the eliminators in parallel and forming
  * the function as it goes, substituting in the appropriate motive.
