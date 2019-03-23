@@ -381,7 +381,7 @@ let lift_elim env evd c trm_app =
 let lift_core env evd c ib_typ trm =
   let l = c.l in
   let (a_typ, b_typ) = c.typs in
-  let rec lift_rec en ib_typ tr = (* TODO implementation bug w/ dependent IB *)
+  let rec lift_rec en ib_typ tr =
     let lifted_opt = search_lifted_term en tr in
     if Option.has_some lifted_opt then
       (* GLOBAL CACHING *)
