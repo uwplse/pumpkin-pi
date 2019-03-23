@@ -1,6 +1,5 @@
 (*
  * Searching for ornamental promotions between inductive types.
- * This implements the automation from 5.1.1.
  * Some of the useful dependencies can be found in the differencing component.
  *)
 

@@ -1,5 +1,5 @@
 (*
- * Core lifting algorithm from Section 5.1.2
+ * Core lifting algorithm
  *)
 
 open Names

@@ -40,7 +40,7 @@ let pack_lift env evd l arg =
 (* --- Refolding --- *)
 
 (* 
- * As explained in Section 5.1.2, the implementation uses a refolding
+ * The implementation uses a refolding
  * algorithm to determine the constructor lifting rules, so that
  * they do not need to depend on ordering information. 
  *)
