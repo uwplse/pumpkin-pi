@@ -1,3 +1,16 @@
+## What This Is
+
+This is a plugin for automatic discovery of and lifting across 
+algebraic ornaments in Coq. Basically, when you have two types
+A and B, where B is A indexed by some new type that is determined
+by a fold over A, DEVOID can search for the fold and functions
+that relate A and B, and then lift functions and proofs between types.
+see the examples for more detail. Also note that DEVOID makes some
+additional assumptions about the syntax of your types for now,
+in particular that there is one new hypothesis for each
+new index of each inductive hypothesis in B. We hope to loosen
+these eventually. This is mostly for search.
+
 ## Known Issues
 
 Please see our GitHub [issues](https://github.com/uwplse/ornamental-search/issues) before reporting a bug
