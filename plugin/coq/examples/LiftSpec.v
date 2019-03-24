@@ -48,7 +48,7 @@ Ltac refold := rewrite promote_pres_cons.
  * With that in mind, the proof is pretty simple:
  *)
 Example lift_pres_zip:
-  forall {T} (l1 : list T) (l2 : list T),
+  forall {T1} {T2} (l1 : list T1) (l2 : list T2),
      promote (zip l1 l2) = 
      zipV_p (promote l1) (promote l2).
 Proof. 
