@@ -184,7 +184,7 @@ Lemma zip_with_is_zipV_uf :
 Proof.
   intros. unfold zip_withV_uf, zipV_uf, zipV.
   pose proof (eq_sigT_snd (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2))).
-  simpl in *. rewrite <- H, zip_with_is_zipV_uf_aux. 
+  simpl in *. rewrite <- H. rewrite zip_with_is_zipV_uf_aux. 
   apply eq_trans_rew_distr.
 Defined.
 
