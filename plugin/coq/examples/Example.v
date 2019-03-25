@@ -193,11 +193,9 @@ Defined.
 (*
  * Note: For this particular example, interestingly, doing these by hand 
  * without DEVOID, it's possible to construct functions such that the proof 
- * of zip_with_is_zipV_uf goes through by reflexivity. However, constructing 
- * those functions is not so straightforward. So there are tradeoffs involved here.
- * On the other hand, for examples like app_nil_r (see ../TestLift.v), there
- * is not even an analogue of the proof over vectors that does not use
- * dependent equality or some equivalent formulation.
+ * of zip_with_is_zipV_uf goes through by reflexivity. However, these
+ * are not the analogues of the functions included in the hs_to_coq module
+ * (note that the proof using reflexivity does not work for them either).
  *)
 
 (* Client code can then call our functions and proofs, for example: *)
