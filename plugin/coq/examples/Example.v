@@ -102,38 +102,57 @@ Eval compute in (zipV (consV 0 2 (nilV nat)) (consV 0 1 (nilV nat))).
  * However, this type isn't actually what we want. The user-friendly
  * versions of the functions are simple to recover. 
  *
- * First, we will prove the indexer is what we want assuming an equality
- * n1 = n2. This will follow by induction over each argument,
- * and the rest will be straightforward: Substitute in the equality,
- * at which point the base case will hold by definition, and
- * the inductive case will follow by f_equal and the inductive hypothesis.
+ * First, we will prove the indexer is what we want. To do this, we can
+ * simply prove this over the indexer of the original list functions,
+ * and then use DEVOID to lift and unpack those proofs.
+ *
+ * So here we are saying that if two lists have the same length,
+ * then the result of zip over those lists has the length of the first list,
+ * and same for zip_with. The length function here, ltv_index, is automatically
+ * generated when we first run Find Ornament.
+ *
+ * The intuition is that while list T is equivalent to sigT (vector T),
+ * for any n, { l : list T | length l = n } is equivalent to vector T n.
+ * Thus, to get functions with the index we really want, as opposed to
+ * the automatically generated index, we have to show that length l = n
+ * for the n that we want. This will lift to a proof that shows the projection
+ * is the n that we want. This methodology will work for any indexer;
+ * essentially it leaves the ``interesting part'' (showing the length
+ * is some desirable result) to the user.
  *)
-Lemma zipV_uf_aux:
-  forall {a} {b} {n1} (v1 : vector a n1) {n2} (v2 : vector b n2),
-    n1 = n2 ->
-    projT1 (zipV_p a b (existT _ n1 v1) (existT _ n2 v2)) = n1.
+Lemma zip_index':
+  forall {a} {b} (l1 : list a) (l2 : list b),
+    ltv_index _ l1 = ltv_index _ l2 ->
+    ltv_index _ (hs_to_coq.zip a b l1 l2) = ltv_index _ l1.
 Proof.
-  induction v1, v2; intros; inversion H.
-  - auto.
-  - simpl. f_equal. apply IHv1. auto.
+  induction l1, l2; intros; auto; inversion H.
+  simpl. f_equal. auto.
 Defined.
 
-Lemma zip_withV_uf_aux:
-  forall {A} {B} {C} f {n1} (v1 : vector A n1) {n2} (v2 : vector B n2) ,
-    n1 = n2 ->
-    projT1 (zip_withV_p A B C f (existT _ n1 v1) (existT _ n2 v2)) = n1.
+Lemma zip_with_index':
+  forall {A} {B} {C} f (l1 : list A) (l2 : list B),
+    ltv_index _ l1 = ltv_index _ l2 ->
+    ltv_index _ (hs_to_coq.zip_with A B C f l1 l2) = ltv_index _ l1.
 Proof.
-  induction v1, v2; intros; inversion H.
-  - auto.
-  - simpl. f_equal. apply IHv1. auto.
+  induction l1, l2; intros; auto; inversion H.
+  simpl. f_equal. auto.
 Defined.
+
+Preprocess zip_index' as zip_index.
+Preprocess zip_with_index' as zip_with_index.
+Lift list vector in @zip_index as zipV_proj_p.
+Lift list vector in @zip_with_index as zip_withV_proj_p.
+Unpack zipV_proj_p as zipV_proj.
+Unpack zip_withV_proj_p as zip_withV_proj.
+Arguments zipV_proj {_} {_} {_} _ {_} _ _.
+Arguments zip_withV_proj {_} {_} {_} _ {_} _ {_} _ _.
 
 (* Our user friendly versions then follow by simple rewriting: *)
 Definition zipV_uf {a} {b} {n} (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
-  rew (zipV_uf_aux v1 v2 eq_refl) in (zipV v1 v2).
+  rew (zipV_proj v1 v2 eq_refl) in (zipV v1 v2).
 
-Definition zip_withV_uf {A} {B} {C} f {n} (v1 : vector A n) (v2 : vector B n) : vector C n :=
-  rew (zip_withV_uf_aux f v1 v2 eq_refl) in (zip_withV f v1 v2).
+Definition zip_withV_uf {A} {B} {C} (f : A -> B -> C) {n} (v1 : vector A n) (v2 : vector B n) : vector C n :=
+  rew (zip_withV_proj f v1 v2 eq_refl) in (zip_withV f v1 v2).
 
 (*
  * For proofs, we have to deal with dependent equality.
@@ -148,10 +167,10 @@ From Coq Require Import EqdepFacts Eqdep_dec Arith.
 
 Lemma zip_with_is_zipV_uf_aux :
   forall  {A} {B} {n} (v1 : vector A n) (v2 : vector B n),
-    zip_withV_uf_aux pair v1 v2 eq_refl =
+    zip_withV_proj pair v1 v2 eq_refl =
     eq_trans
       (eq_sigT_fst (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2)))
-      (zipV_uf_aux v1 v2 eq_refl).
+      (zipV_proj v1 v2 eq_refl).
 Proof.
   auto using (UIP_dec Nat.eq_dec).
 Defined.
