@@ -9,7 +9,7 @@ See the examples for more detail.
 Note that DEVOID makes some additional assumptions about the syntax of your types for now,
 in particular that both types have the same number of contructors in the same order,
 and that there is one new hypothesis for each new index of each inductive hypothesis in B. 
-These restrictons are mostly for search. We hope to loosen them eventually.
+These restrictions are mostly for search. We hope to loosen them eventually.
 
 ## Dependencies
 
