@@ -19,8 +19,11 @@ open Mod_subst
 
 (** Record information of the lifting structure. *)
 let structure : struc_typ =
-  qualid_of_string "Ornamental.Lifted.t" |> Nametab.locate |>
-  destIndRef |> lookup_structure
+  try
+    qualid_of_string "Ornamental.Lifted.t" |> Nametab.locate |>
+      destIndRef |> lookup_structure
+  with Not_found ->
+    failwith "Error loading cache"
 
 (** Constructor of the lifting structure. *)
 let construct_gref = ConstructRef structure.s_CONST
