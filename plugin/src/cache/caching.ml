@@ -18,7 +18,7 @@ open Mod_subst
  *)
 
 (** Record information of the lifting structure. *)
-let structure : struc_typ =
+let structure () : struc_typ =
   try
     qualid_of_string "Ornamental.Lifted.t" |> Nametab.locate |>
       destIndRef |> lookup_structure
@@ -26,10 +26,10 @@ let structure : struc_typ =
     failwith "Error loading cache"
 
 (** Constructor of the lifting structure. *)
-let construct_gref = ConstructRef structure.s_CONST
+let construct_gref () = ConstructRef (structure ()).s_CONST
 
 (** Base-term projection of the lifting structure. *)
-let project_gref = Nametab.locate (qualid_of_string "Ornamental.Lifted.base")
+let project_gref () = Nametab.locate (qualid_of_string "Ornamental.Lifted.base")
 
 (** Build the identifier [X + "_lift"] to use as the name of the lifting instance
     for the definition [base] with name [M_1.M_2...M_n.X]. *)
@@ -42,7 +42,7 @@ let name_lifted (base : global_reference) : Id.t =
 let declare_lifted base_gref lifted_gref =
   let env = Global.env () in
   let evm = Evd.from_env env in
-  let evm, construct_term = EConstr.fresh_global env evm construct_gref in
+  let evm, construct_term = EConstr.fresh_global env evm (construct_gref ()) in
   let evm, base_term = EConstr.fresh_global env evm base_gref in
   let evm, base_type = Typing.type_of env evm base_term in
   let evm, lifted_term = EConstr.fresh_global env evm lifted_gref in
@@ -61,7 +61,7 @@ let declare_lifted base_gref lifted_gref =
     [base_gref]. *)
 let search_lifted env base_gref =
   try
-    let (_, info) = lookup_canonical_conversion (project_gref, Const_cs base_gref) in
+    let (_, info) = lookup_canonical_conversion (project_gref (), Const_cs base_gref) in
     (* Reduce the lifting instance to HNF to extract the target component. *)
     let package = Reduction.whd_all env info.o_DEF in
     let (cons, args) = decompose_appvect package in
