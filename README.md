@@ -3,7 +3,7 @@ algebraic ornaments in Coq. Basically, when you have two types
 A and B, where B is A indexed by some new type that is determined
 by a fold over A, DEVOID can search for the fold and functions
 that relate A and B, and then lift functions and proofs between types.
-The produced functions and proofs are usually about as fast as the origial.
+The produced functions and proofs are usually about as fast as the originals.
 See the examples for more detail. 
 
 Note that DEVOID makes some additional assumptions about the syntax of your types for now,
@@ -57,14 +57,6 @@ and `Unpack` to give you back types that are a little bit better than the automa
 generated types. There is a methodology outlined in `coq/examples/Example.v` for recovering
 even more useful types.
 
-### Known Issues
-
-Please see our GitHub [issues](https://github.com/uwplse/ornamental-search/issues) before reporting a bug
-(though please do report any bugs not listed there). The most significant bug for user experience right now
-is that the plugin currently fails with asynchronous processing in CoqIDE. So if you would like to use the 
-plugin in CoqIDE, either turn off asynchronous processing, or step through your file one command at a time.
-Otherwise, you will likely get a `Not_found` error.
-
 ### Tests
 
 The test script runs all tests:
@@ -95,6 +87,11 @@ these results are more difficult to interpret, and is not the version in the pap
 
 Each of these scripts takes a while, as it runs each function ten times each
 on large data both for DEVOID and for EFF.
+
+### Known Issues
+
+Please see our GitHub [issues](https://github.com/uwplse/ornamental-search/issues) before reporting a bug
+(though please do report any bugs not listed there).
 
 #### Reproducing the Paper Case Study
 
