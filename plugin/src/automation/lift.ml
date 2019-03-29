@@ -394,8 +394,8 @@ let lift_core env evd c ib_typ trm =
       if l.is_fwd then
         let is = List.map (lift_rec en ib_typ) (unfold_args tr) in
         let b_is = mkAppl (b_typ, is) in
-        let ib = mkRel 1 in
-        let abs_ib = reindex_body (reindex_app (index l ib)) in
+        let n = mkRel 1 in
+        let abs_ib = reindex_body (reindex_app (index l n)) in
         let packer = abs_ib (mkLambda (Anonymous, ib_typ, shift b_is)) in
         pack_sigT { index_type = ib_typ; packer }
       else
@@ -420,9 +420,9 @@ let lift_core env evd c ib_typ trm =
             (fun b ->
               (* pack the lifted term *)
               let ex = dest_existT tr' in
-              let ib = lift_rec en ib_typ ex.index in
+              let n = lift_rec en ib_typ ex.index in
               let packer = lift_rec en ib_typ ex.packer in
-              pack_existT { ex with packer; index = ib; unpacked = b })
+              pack_existT { ex with packer; index = n; unpacked = b })
             l
             (mkApp (f', args'')))
         (List.length args > 0)
@@ -433,10 +433,10 @@ let lift_core env evd c ib_typ trm =
         (* repack variables, since projections aren't primitive *)
         let typ = reduce_type en evd tr in
         let lift_typ = dest_sigT (lift_rec en ib_typ typ) in
-        let ib = project_index lift_typ tr in
+        let n = project_index lift_typ tr in
         let b = project_value lift_typ tr in
         let packer = lift_typ.packer in
-        pack_existT { index_type = ib_typ; packer; index = ib; unpacked = b }
+        pack_existT { index_type = ib_typ; packer; index = n; unpacked = b }
       else
         lift_rec en ib_typ (dest_existT tr).unpacked
     else if is_proj c en evd tr then
