@@ -155,6 +155,22 @@ Definition zip_withV_uf {A} {B} {C} (f : A -> B -> C) {n} (v1 : vector A n) (v2 
   rew (zip_withV_proj f v1 v2 eq_refl) in (zip_withV f v1 v2).
 
 (*
+ * TODO WIP: Attempt without UIP (can follow same methodology for UIP though)
+ *)
+
+Lemma zip_with_is_zip_index:
+  forall {A} {B} (l1 : list A) (l2 : list B) (H : ltv_index _ l1 = ltv_index _ l2),
+    rew [fun _ => list (A * B)] (zip_with_index _ _ _ pair l1 l2 H) in hs_to_coq.zip_with A B _ pair l1 l2 =
+    rew [fun _ => list (A * B)] (zip_index _ _ l1 l2 H) in hs_to_coq.zip A B l1 l2.
+Proof.
+  intros. eapply eq_trans. 
+  + apply rew_const.
+  + eapply eq_trans.
+    * apply hs_to_coq.zip_with_is_zip.
+    * apply eq_sym. apply rew_const. 
+Defined.
+
+(*
  * For proofs, we have to deal with dependent equality.
  * This is more challenging. Essentially, we have to relate
  * our other equalities. In the case of nat, the easiest
