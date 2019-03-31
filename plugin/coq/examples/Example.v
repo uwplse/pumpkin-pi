@@ -168,6 +168,24 @@ Proof.
   + eapply eq_trans.
     * apply hs_to_coq.zip_with_is_zip.
     * apply eq_sym. apply rew_const. 
+Defined. 
+
+Lift list vector in @zip_with_is_zip_index as zip_with_is_zipV_proj_p.
+Unpack zip_with_is_zipV_proj_p as zip_with_is_zipV_proj.
+
+Require Import EqdepFacts.
+
+(*
+ * Our theorem then follows:
+ *)
+Lemma zip_with_is_zipV_uf :
+  forall {A} {B} {n} (v1 : vector A n) (v2 : vector B n),
+    zip_withV_uf pair v1 v2 = zipV_uf v1 v2.
+Proof.
+  intros. unfold zip_withV_uf, zipV_uf, zip_withV, zipV, zip_withV_proj, zipV_proj. simpl.
+  (* TODO ?? *)
+  pose proof (eq_sigT_snd (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2))). simpl in H.
+  (* ??? *)
 Defined.
 
 (*
