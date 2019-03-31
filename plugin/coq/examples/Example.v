@@ -173,11 +173,92 @@ Defined.
 Lift list vector in @zip_with_is_zip_index as zip_with_is_zipV_proj_p.
 Unpack zip_with_is_zipV_proj_p as zip_with_is_zipV_proj.
 
+Check zip_with_is_zipV_proj_p.
+
 Require Import EqdepFacts.
+
+(* TODO want: *)
+Lemma rew_proj:
+  forall {A} {B} {n} (v1 : vector A n) (v2 : vector B n)
+    (H1 : projT1 (zip_withV_p A B (A * B) pair (existT _ _ v1) (existT _ _ v2)) = n)
+    (H2 : projT1 (zipV_p A B (existT _ _ v1) (existT _ _ v2)) = n),
+    rew [fun _ : nat => {H0 : nat & vector (A * B) H0}] H1 in
+      (zip_withV_p A B (A * B) pair (existT _ _ v1) (existT _ _ v2)) =
+    rew [fun _ : nat => {H0 : nat & vector (A * B) H0}] H2 in
+      (zipV_p A B (existT _ n v1) (existT _ n v2)) ->
+    rew [vector (A * B)] H1 in
+      (projT2 (zip_withV_p A B (A * B) pair (existT _ _ v1) (existT _ _ v2))) =
+    rew [vector (A * B)] H2 in
+      (projT2 (zipV_p A B (existT _ n v1) (existT _ n v2))).
+Proof.
+  intros. 
+
+Admitted.
+
+(* TODO want: *)(*
+Lemma rew_proj':
+  forall {A} {B} {n} (v1 : vector A n) (v2 : vector B n),
+    rew [fun _ : nat => {H0 : nat & vector (A * B) H0}]
+      (zip_withV_proj_p A B (A * B) pair (existT _ _ v1) (existT _ _ v2) eq_refl) in
+      (zip_withV_p A B (A * B) pair (existT _ _ v1) (existT _ _ v2)) =
+    rew [fun _ : nat => {H0 : nat & vector (A * B) H0}]
+      (zipV_proj_p A B (existT _ _ v1) (existT _ _ v2) eq_refl) in
+      (zipV_p A B (existT _ n v1) (existT _ n v2)) ->
+    rew [vector (A * B)]
+      (zip_withV_proj_p A B (A * B) pair (existT _ _ v1) (existT _ _ v2) eq_refl) in
+      (projT2 (zip_withV_p A B (A * B) pair (existT _ _ v1) (existT _ _ v2))) =
+    rew [vector (A * B)]
+      (zipV_proj_p A B (existT _ _ v1) (existT _ _ v2) eq_refl) in
+      (projT2 (zipV_p A B (existT _ n v1) (existT _ n v2))).
+Proof.
+  intros. simpl in *.
+  
+Admitted.*)
+
+(* TODO eventually want: *)
+Lemma rew_proj'':
+  forall {A} {B} {n} (v1 : vector A n) (v2 : vector B n),
+    rew 
+      (zip_withV_proj_p A B (A * B) pair (existT _ _ v1) (existT _ _ v2) eq_refl) in
+      (projT2 (zip_withV_p A B (A * B) pair (existT _ _ v1) (existT _ _ v2))) =
+    rew 
+      (zipV_proj_p A B (existT _ _ v1) (existT _ _ v2) eq_refl) in
+      (projT2 (zipV_p A B (existT _ n v1) (existT _ n v2))).
+Proof.
+  intros.
+  pose proof (projT2_eq (zip_with_is_zipV_p _ _ (existT _ _ v1) (existT _ _ v2))).
+  pose proof (projT2_eq (eq_sym (zip_with_is_zipV_p _ _ (existT _ _ v1) (existT _ _ v2)))).  
+  simpl in *.
+  rewrite <- H0. rewrite <- H.
+  rewrite <- eq_trans_rew_distr.
+  rewrite <- eq_trans_rew_distr.
+  rewrite <- eq_trans_rew_distr.
+  f_equal.
+  (*
+  eapply eq_trans.
+  - rewrite <- H0. reflexivity.
+  - apply eq_sym. eapply eq_trans.
+    + rewrite <- H. reflexivity.
+    + rewrite <- eq_trans_rew_distr. rewrite <- eq_trans_rew_distr.
+      pose proof (eq_sigT_snd (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2))). simpl in H1.
+
+ (* rew [[eta vector (A * B)]]
+         projT1_eq
+           (eq_sym
+              (zip_with_is_zipV_p A B (existT [eta vector A] n v1)
+                 (existT [eta vector B] n v2))) in
+     projT2 (zipV_p A B (existT [eta vector A] n v1) (existT [eta vector B] n v2)) *)
+  rewrite <- H.
+  rewrite <- H0.
+  f_equal.
+  rewrite <- eq_trans_rew_distr.
+  rewrite <- eq_trans_rew_distr.
+  rewrite <- eq_trans_rew_distr.*)
+Admitted.
 
 (*
  * Our theorem then follows:
- *)
+ *)(*
 Lemma zip_with_is_zipV_uf :
   forall {A} {B} {n} (v1 : vector A n) (v2 : vector B n),
     zip_withV_uf pair v1 v2 = zipV_uf v1 v2.
@@ -185,9 +266,16 @@ Proof.
   intros. unfold zip_withV_uf, zipV_uf, zip_withV, zipV, zip_withV_proj, zipV_proj. simpl.
   (* TODO ?? *)
   pose proof (eq_sigT_snd (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2))). simpl in H.
-  (* ??? *)
-Defined.
+  eapply eq_ex in H.
+  rewrite <- H.
+  rewrite <- eq_trans_rew_distr.
+  simpl.
+  eapply eq_trans.
+  + eapply rew_const with (P := vector (A * B)).  
 
+(* ??? *)
+Defined.
+*)
 (*
  * For proofs, we have to deal with dependent equality.
  * This is more challenging. Essentially, we have to relate
@@ -205,11 +293,22 @@ Lemma zip_with_is_zipV_uf_aux :
   forall  {A} {B} {n} (v1 : vector A n) (v2 : vector B n),
     zip_withV_proj pair v1 v2 eq_refl =
     eq_trans
-      (eq_sigT_fst (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2)))
+      (projT1_eq (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2)))
       (zipV_proj v1 v2 eq_refl).
 Proof.
   auto using (UIP_dec Nat.eq_dec).
 Defined.
+
+(*
+Lemma zip_with_is_zipV_uf_aux :
+  forall  {A} {B} {n} (v1 : vector A n) (v2 : vector B n),
+    zip_withV_proj pair v1 v2 eq_refl =
+    eq_trans
+      (eq_sigT_fst (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2)))
+      (zipV_proj v1 v2 eq_refl).
+Proof.
+  auto using (UIP_dec Nat.eq_dec).
+Defined.*)
 
 (*
  * Our theorem then follows:
@@ -219,7 +318,7 @@ Lemma zip_with_is_zipV_uf :
     zip_withV_uf pair v1 v2 = zipV_uf v1 v2.
 Proof.
   intros. unfold zip_withV_uf, zipV_uf, zipV.
-  pose proof (eq_sigT_snd (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2))).
+  pose proof (projT2_eq (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2))).
   simpl in *. rewrite <- H. rewrite zip_with_is_zipV_uf_aux. 
   apply eq_trans_rew_distr.
 Defined.
