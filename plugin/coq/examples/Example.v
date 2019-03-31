@@ -157,13 +157,16 @@ Definition zip_withV_uf {A} {B} {C} (f : A -> B -> C) {n} (v1 : vector A n) (v2 
 (*
  * For proofs, we have to deal with dependent equality.
  * This is more challenging. Essentially, we have to relate
- * our other equalities. In the case of nat, the easiest
+ * our other equalities. 
+ *
+ * In the case of nat, the easiest
  * way to do this is to use the fact that nats form an hset
  * (credit to Jasper Hugunin). Then, we don't actually need any information
  * about how our auxiliary equalities are formed. Otherwise,
  * the way those equalities are formed will matter (bonus fun problem: 
  * figure out how to do this more generally without UIP, changing only the proj 
- * lemmas if necessary, and submit a PR).
+ * lemmas if necessary, and submit a PR; see
+ * https://github.com/uwplse/ornamental-search/issues/39 for some thoughts).
  *)
 From Coq Require Import EqdepFacts Eqdep_dec Arith.
 
