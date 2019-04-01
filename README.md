@@ -88,11 +88,6 @@ these results are more difficult to interpret, and is not the version in the pap
 Each of these scripts takes a while, as it runs each function ten times each
 on large data both for DEVOID and for EFF.
 
-### Known Issues
-
-Please see our GitHub [issues](https://github.com/uwplse/ornamental-search/issues) before reporting a bug
-(though please do report any bugs not listed there).
-
 #### Reproducing the Paper Case Study
 
 The particular commit for EFF used for the results in the paper is [this commit](https://github.com/CoqHott/univalent_parametricity/tree/02383400c2711a1de1581e62e0a463759211d4df). We have rerun the experiments using 
@@ -149,6 +144,11 @@ lifting the datatypes separately from scratch. To see that they do, run the seco
 ```
 
 Then check the `separate` folder for the results.
+
+### Known Issues
+
+Please see our GitHub [issues](https://github.com/uwplse/ornamental-search/issues) before reporting a bug
+(though please do report any bugs not listed there).
 
 ## Understanding the Code
 
