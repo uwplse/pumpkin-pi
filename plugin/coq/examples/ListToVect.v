@@ -26,6 +26,7 @@ Find ornament list vector as ltv.
  * The functions and proofs that fail to lift below (there should be 31) are due
  * are due to implementation bugs. Most of them are due to a bug has to due with 
  * a combination of lazy eta-expansion and Coq's primitive projections.
+ * See: https://github.com/uwplse/ornamental-search/issues/32
  *)
 
 Module MyVector.
