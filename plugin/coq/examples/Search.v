@@ -14,7 +14,6 @@ Notation nilV := Vector.nil.
 
 (* --- Running search --- *)
 
-(* TODO move this test elsewhere, and test with other types *)
 Set DEVOID search prove coherence.
 
 Find ornament list vector as ltv.
@@ -74,7 +73,7 @@ Theorem coherence:
   forall {T : Type} (l : list T),
     indexer l = projT1 (promote l).
 Proof.
-  reflexivity.
+  exact ltv_coh.
 Qed.
 
 Print coherence.
