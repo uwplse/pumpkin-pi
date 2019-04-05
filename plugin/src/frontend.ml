@@ -57,6 +57,13 @@ let find_ornament n_o d_old d_new =
     let inv_n = with_suffix n "inv" in
     let forget = define_term inv_n evd orn.forget true in
     Printf.printf "Defined forgetful function %s.\n\n" (Id.to_string inv_n);
+    let _ =
+      if is_search_coh () then
+        (* generate a coherence proof *)
+        () (* TODO *)
+      else
+        ()
+    in
     (try
        save_ornament (trm_o, trm_n) (promote, forget)
      with _ ->
