@@ -35,19 +35,29 @@ let is_search_coh () = !opt_search_coh
 
 (* TODO refactor below, comment, fill in *)
 let prove_coherence env evd orn =
-  let l = initialize_lifting env evd orn.promote orn.forget in (* TODO factor out off functionality from this *)
+  let x = true in
+  Printf.printf "%s\n\n" "proving coherence";
+  let off = 1 in (* TODO get actual off *)
+  Printf.printf "%s\n\n" "initialized lifting";
   let env_coh = zoom_env zoom_lambda_term env orn.promote in
   let a = mkRel 1 in
-  let is = non_index_typ_args l.off env evd a in
+  let open Printing in
+  debug_term env_coh a "a";
+  let is = non_index_typ_args off env_coh evd a in
+  Printf.printf "%s\n\n" "got is";
   let b_sig = mkAppl (orn.promote, snoc a is) in
-  let b_sig_typ = reduce_type env evd b_sig in
+  debug_term env_coh b_sig "b_sig";
+  let b_sig_typ = reduce_type env_coh evd b_sig in
+  debug_term env_coh b_sig_typ "b_sig_typ";
   let ib = mkAppl (orn.indexer, snoc a is) in
-  let ib_typ = reduce_type env evd ib in
+  let ib_typ = reduce_type env_coh evd ib in
+  debug_term env_coh ib_typ "ib_typ";
   let packer = (dest_sigT b_sig_typ).packer in
   let proj_ib = project_index { index_type = ib_typ; packer} b_sig in
   (* TODO eq_refl somewhere *)
   let coh = reconstruct_lambda env_coh (mkAppl (eq_refl, [ib_typ; proj_ib])) in
   (* TODO eq somewhere *)
+  debug_term env_coh coh "coh";
   let coh_typ = reconstruct_product env_coh (mkAppl (eq, [ib_typ; ib; proj_ib])) in
   (coh, coh_typ)
                         
@@ -79,6 +89,7 @@ let find_ornament n_o d_old d_new =
     let forget = define_term inv_n evd orn.forget true in
     Printf.printf "Defined forgetful function %s\n\n" (Id.to_string inv_n);
     (if is_search_coh () then
+       (* TODO refresh env *)
        let coh, coh_typ = prove_coherence env evd orn in
        let coh_n = with_suffix n "coh" in
        let coh = define_term ~typ:coh_typ coh_n evd coh true in
