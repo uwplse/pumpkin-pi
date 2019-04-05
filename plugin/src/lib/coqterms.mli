@@ -24,6 +24,8 @@ val existT : types
 val sigT_rect : types
 val projT1 : types
 val projT2 : types
+val eq : types
+val eq_refl : types
 
 (* --- Representations --- *)
 

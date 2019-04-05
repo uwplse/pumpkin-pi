@@ -14,6 +14,9 @@ Notation nilV := Vector.nil.
 
 (* --- Running search --- *)
 
+(* TODO move this test elsewhere, and test with other types *)
+Set DEVOID search prove coherence.
+
 Find ornament list vector as ltv.
 
 (* --- Indexer ---*)
