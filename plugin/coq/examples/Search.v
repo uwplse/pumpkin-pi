@@ -74,6 +74,8 @@ Proof.
   reflexivity.
 Qed.
 
+Print coherence.
+
 (*
  * To prove section and retraction, we need to show that equalities are
  * preserved in the inductive cases. For list this is simple:

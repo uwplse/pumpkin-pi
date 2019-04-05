@@ -13,6 +13,24 @@ open Pp
 open Printer
 open Ltac_plugin
 
+(* --- Options --- *)
+
+(*
+ * Prove the coherence property of the algebraic promotion isomorphism
+ *)
+let opt_search_coh = ref (false)
+let _ = Goptions.declare_bool_option {
+  Goptions.optdepr = false;
+  Goptions.optname = "Generate a proof of coherence in search for DEVOID";
+  Goptions.optkey = ["DEVOID"; "search"; "prove"; "coherence"];
+  Goptions.optread = (fun () -> !opt_search_coh);
+  Goptions.optwrite = (fun b -> opt_search_coh := b);
+}
+
+let is_search_coh () = !opt_search_coh
+
+(* --- Commands --- *)
+
 (*
  * Identify an algebraic ornament between two types
  * Define the components of the corresponding equivalence
