@@ -90,6 +90,7 @@ let find_ornament n_o d_old d_new =
     Printf.printf "Defined forgetful function %s\n\n" (Id.to_string inv_n);
     (if is_search_coh () then
        (* TODO refresh env *)
+       let env = Global.env () in
        let coh, coh_typ = prove_coherence env evd orn in
        let coh_n = with_suffix n "coh" in
        let coh = define_term ~typ:coh_typ coh_n evd coh true in
