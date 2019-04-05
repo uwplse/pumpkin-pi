@@ -36,29 +36,17 @@ let is_search_coh () = !opt_search_coh
 (* TODO refactor below, comment, fill in *)
 (* TODO test on other types besides list/vect in file *)
 let prove_coherence env evd orn =
-  let x = true in
-  Printf.printf "%s\n\n" "proving coherence";
-  Printf.printf "%s\n\n" "initialized lifting";
   let env_coh = zoom_env zoom_lambda_term env orn.promote in
   let a = mkRel 1 in
   let a_typ = reduce_type env_coh evd a in
   let is = unfold_args a_typ in
-  let open Printing in
-  debug_term env_coh a "a";
-  Printf.printf "%s\n\n" "got is";
   let b_sig = mkAppl (orn.promote, snoc a is) in
-  debug_term env_coh b_sig "b_sig";
   let b_sig_typ = reduce_type env_coh evd b_sig in
-  debug_term env_coh b_sig_typ "b_sig_typ";
   let ib = mkAppl (orn.indexer, snoc a is) in
   let ib_typ = reduce_type env_coh evd ib in
-  debug_term env_coh ib_typ "ib_typ";
   let packer = (dest_sigT b_sig_typ).packer in
   let proj_ib = project_index { index_type = ib_typ; packer} b_sig in
-  (* TODO eq_refl somewhere *)
   let coh = reconstruct_lambda env_coh (mkAppl (eq_refl, [ib_typ; proj_ib])) in
-  (* TODO eq somewhere *)
-  debug_term env_coh coh "coh";
   let coh_typ = reconstruct_product env_coh (mkAppl (eq, [ib_typ; ib; proj_ib])) in
   (coh, coh_typ)
                         
