@@ -31,6 +31,23 @@ let is_search_coh () = !opt_search_coh
 
 (* --- Commands --- *)
 
+(* TODO refactor below, comment, fill in *)
+let prove_coherence env evd orn =
+  let env_coh = ... (* TODO *) in
+  let a = ... (* TODO *) in
+  let is = non_index_typ_args l.off env evd a in
+  let b_sig = mkAppl (orn.promote, snoc a is) in
+  let b_sig_typ = reduce_typ env evd b_sig in
+  let ib = mkAppl (orn.indexer, snoc a is) in
+  let ib_typ = reduce_typ env evd ib in
+  let packer = (dest_sigT b_sig_typ).packer in
+  let proj_ib = project_index { index_type = ib_typ; packer } in
+  (* TODO eq_refl somewhere *)
+  let coh = reconstruct_lambda env_coh (mkAppl (eq_refl, [ib_typ; proj_ib])) in
+  (* TODO eq somewhere *)
+  let coh_typ = reconstruct_prod env_coh (mkAppl (eq, [ib_typ; ib; proj_ib])) in
+  (coh, coh_typ)
+                        
 (*
  * Identify an algebraic ornament between two types
  * Define the components of the corresponding equivalence
@@ -51,19 +68,21 @@ let find_ornament n_o d_old d_new =
     let idx_n = with_suffix n "index" in
     let orn = search_orn_inductive env evd idx_n trm_o trm_n in
     ignore (define_term idx_n evd orn.indexer true);
-    Printf.printf "Defined indexing function %s.\n\n" (Id.to_string idx_n);
+    Feedback.msg_notice (str "Defined indexer " ++ (Id.to_string idx_n));
     let promote = define_term n evd orn.promote true in
-    Printf.printf "Defined promotion %s.\n\n" (Id.to_string n);
+    Feedback.msg_notice (str "Defined promotion " ++ (Id.to_string n));
     let inv_n = with_suffix n "inv" in
     let forget = define_term inv_n evd orn.forget true in
-    Printf.printf "Defined forgetful function %s.\n\n" (Id.to_string inv_n);
-    let _ =
-      if is_search_coh () then
-        (* generate a coherence proof *)
-        () (* TODO *)
-      else
-        ()
-    in
+    Feedback.msg_notice
+      (str "Defined forgetful function " ++ (Id.to_string inv_n));
+    (if is_search_coh () then
+       let coh, coh_typ = prove_coherence env evd orn in
+       let coh_n = with_suffix n "coh" in
+       let coh = define_term ~typ:coh_typ coh_n evd coh true in
+       Feedback.msg_notice
+         (str "Defined coherence proof " ++ (Id.to_string coh_n))
+     else
+       ());
     (try
        save_ornament (trm_o, trm_n) (promote, forget)
      with _ ->
