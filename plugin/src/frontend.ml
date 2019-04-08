@@ -14,6 +14,7 @@ open Printer
 open Ltac_plugin
 open Zooming (* TODO remove when you move coh functionality *)
 open Indexing (* TODO same *)
+open Environ (* TODO same *)
 
 (* --- Options --- *)
 
@@ -66,9 +67,18 @@ let prove_coherence env evd orn =
 (* TODO refactor below, comment, fill in *)
 (* TODO test on other types besides list/vect in file *)
 let prove_section env evd orn =
-  let env_coh = zoom_env zoom_lambda_term env orn.promote in
-  (* TODO *)
-  ()
+  let env_sec = zoom_env zoom_lambda_term env orn.promote in
+  let a = mkRel 1 in
+  let a_typ = reduce_type env_sec evd a in
+  let ((i, i_index), u) = destInd (first_fun a_typ) in
+  let mutind_body = lookup_mind i env in
+  let ind_bodies = mutind_body.mind_packets in
+  let ind_body = ind_bodies.(i_index) in
+  let constrs =
+    Array.mapi
+      (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
+      ind_body.mind_consnames
+  in () (* TODO *)
                         
 (*
  * Identify an algebraic ornament between two types
