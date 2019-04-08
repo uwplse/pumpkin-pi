@@ -62,6 +62,13 @@ let prove_coherence env evd orn =
   let coh = reconstruct_lambda env_coh (mkAppl (eq_refl, [ib_typ; proj_ib])) in
   let coh_typ = reconstruct_product env_coh (mkAppl (eq, [ib_typ; ib; proj_ib])) in
   (coh, coh_typ)
+
+(* TODO refactor below, comment, fill in *)
+(* TODO test on other types besides list/vect in file *)
+let prove_section env evd orn =
+  let env_coh = zoom_env zoom_lambda_term env orn.promote in
+  (* TODO *)
+  ()
                         
 (*
  * Identify an algebraic ornament between two types
@@ -90,13 +97,18 @@ let find_ornament n_o d_old d_new =
     let inv_n = with_suffix n "inv" in
     let forget = define_term inv_n evd orn.forget true in
     Printf.printf "Defined forgetful function %s\n\n" (Id.to_string inv_n);
-    (if is_search_coh () then
-       (* TODO refresh env *)
+    (if is_search_coh () then (* TODO move these out, too *)
        let env = Global.env () in
        let coh, coh_typ = prove_coherence env evd orn in
        let coh_n = with_suffix n "coh" in
        let coh = define_term ~typ:coh_typ coh_n evd coh true in
        Printf.printf "Defined coherence proof %s\n\n" (Id.to_string coh_n)
+     else
+       ());
+    (if is_search_equiv () then
+       let env = Global.env () in
+       (* TODO fill in, and also do retraction *)
+       prove_section env evd orn
      else
        ());
     (try
