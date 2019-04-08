@@ -14,7 +14,7 @@ Notation nilV := Vector.nil.
 
 (* --- Running search --- *)
 
-Set DEVOID search prove coherence.
+Set DEVOID search prove coherence. (* TODO test w/ other types too *)
 
 Find ornament list vector as ltv.
 
@@ -76,8 +76,6 @@ Proof.
   exact ltv_coh.
 Qed.
 
-Print coherence.
-
 (*
  * To prove section and retraction, we need to show that equalities are
  * preserved in the inductive cases. For list this is simple:
@@ -89,6 +87,8 @@ Lemma eq_cons:
 Proof.
   intros. subst. auto.
 Qed.
+
+Print eq_cons.
 
 (*
  * Luckily, we have a tool that can give us the version over vectors :)
