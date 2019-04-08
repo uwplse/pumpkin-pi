@@ -17,6 +17,7 @@ open Indexing (* TODO same *)
 open Environ (* TODO same *)
 open Hypotheses (* TODO same *)
 open Printing (* TODO same *)
+open Debruijn (* TODO same *)
 
 (* --- Options --- *)
 
@@ -83,8 +84,8 @@ let prove_section env evd orn =
         let c = mkConstructU (((i, i_index), c_index + 1), u) in
         let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
         let c_body = reduce_term env_c_b c_body in
-        let args = unfold_args c_body in
-        let recs = List.filter (fun arg -> is_or_applies a_typ (reduce_type env_c_b evd arg)) args in
+        let arg_typs = List.map (reduce_type env_c_b evd) (unfold_args c_body) in
+        let recs = List.filter (is_or_applies a_typ) arg_typs in
         (env_c_b, c_body, recs))
       ind_body.mind_consnames
   in
@@ -94,9 +95,14 @@ let prove_section env evd orn =
         if List.length recs = 0 then
           None
         else
-          let x = 0 in
-          debug_terms env_c_b recs "recs";
-          None (* TODO *))
+          let env_lemma, recs =
+            List.fold_right (* TODO terrible sin against all of codekind *)
+              (fun r (e, r_s) ->
+                let e_r = push_local (Anonymous, r) e in
+                (e_r, shift r_s))
+              recs
+              (env_c_b, List.hd recs)
+          in debug_env env_lemma "env_lemma"; None (* TODO *))
       cs
   in () (* TODO *)
                         
