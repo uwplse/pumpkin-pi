@@ -123,8 +123,8 @@ let prove_section env evd orn =
                 let h_eq_rel = destRel h_eq in
                 let (_, _, h_eq_typ) = CRD.to_tuple @@ lookup_rel h_eq_rel env_lemma in
                 let typ :: rec1 :: rec2 :: _ = unfold_args h_eq_typ in
-                (* TOOD after rec1, the eq function *)
-                (shift (shift h_eq), mkAppl (eq_ind, [shift typ; shift rec1; shift (shift b); shift rec2; h_eq])))
+                let eq_ind_rel = mkLambda (Anonymous, shift typ, mkAppl (eq, [shift (shift typ) (* TODO; TODO *)])) in
+                (shift (shift h_eq), mkAppl (eq_ind, [shift typ; shift rec1; eq_ind_rel; shift (shift b); shift rec2; h_eq])))
               recs
               (mkRel 1, refl)
           in reconstruct_lambda env_lemma body)
