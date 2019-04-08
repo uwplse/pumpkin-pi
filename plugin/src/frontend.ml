@@ -31,6 +31,20 @@ let _ = Goptions.declare_bool_option {
 
 let is_search_coh () = !opt_search_coh
 
+(*
+ * Prove section and retraction
+ *)
+let opt_search_equiv = ref (false)
+let _ = Goptions.declare_bool_option {
+  Goptions.optdepr = false;
+  Goptions.optname = "Generate proof of equivalence in search for DEVOID";
+  Goptions.optkey = ["DEVOID"; "search"; "prove"; "equivalence"];
+  Goptions.optread = (fun () -> !opt_search_equiv);
+  Goptions.optwrite = (fun b -> opt_search_equiv := b);
+}
+
+let is_search_equiv () = !opt_search_equiv
+
 (* --- Commands --- *)
 
 (* TODO refactor below, comment, fill in *)
