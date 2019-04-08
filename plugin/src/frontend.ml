@@ -15,6 +15,8 @@ open Ltac_plugin
 open Zooming (* TODO remove when you move coh functionality *)
 open Indexing (* TODO same *)
 open Environ (* TODO same *)
+open Hypotheses (* TODO same *)
+open Printing (* TODO same *)
 
 (* --- Options --- *)
 
@@ -65,19 +67,37 @@ let prove_coherence env evd orn =
   (coh, coh_typ)
 
 (* TODO refactor below, comment, fill in *)
+(* TODO clean up too *)
 (* TODO test on other types besides list/vect in file *)
 let prove_section env evd orn =
   let env_sec = zoom_env zoom_lambda_term env orn.promote in
   let a = mkRel 1 in
-  let a_typ = reduce_type env_sec evd a in
-  let ((i, i_index), u) = destInd (first_fun a_typ) in
+  let a_typ = first_fun (reduce_type env_sec evd a) in
+  let ((i, i_index), u) = destInd a_typ in
   let mutind_body = lookup_mind i env in
   let ind_bodies = mutind_body.mind_packets in
   let ind_body = ind_bodies.(i_index) in
-  let constrs =
+  let cs =
     Array.mapi
-      (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
+      (fun c_index _ ->
+        let c = mkConstructU (((i, i_index), c_index + 1), u) in
+        let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
+        let c_body = reduce_term env_c_b c_body in
+        let args = unfold_args c_body in
+        let recs = List.filter (fun arg -> is_or_applies a_typ (reduce_type env_c_b evd arg)) args in
+        (env_c_b, c_body, recs))
       ind_body.mind_consnames
+  in
+  let eq_lemmas =
+    Array.map
+      (fun (env_c_b, c_body, recs) ->
+        if List.length recs = 0 then
+          None
+        else
+          let x = 0 in
+          debug_terms env_c_b recs "recs";
+          None (* TODO *))
+      cs
   in () (* TODO *)
                         
 (*
