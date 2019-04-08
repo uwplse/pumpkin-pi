@@ -84,8 +84,8 @@ let prove_section env evd orn =
         let c = mkConstructU (((i, i_index), c_index + 1), u) in
         let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
         let c_body = reduce_term env_c_b c_body in
-        let arg_typs = List.map (reduce_type env_c_b evd) (unfold_args c_body) in
-        let recs = List.filter (is_or_applies a_typ) arg_typs in
+        let args = unfold_args c_body in
+        let recs = List.filter (fun a -> is_or_applies a_typ (reduce_type env_c_b evd a)) args in
         (env_c_b, c_body, recs))
       ind_body.mind_consnames
   in
@@ -95,13 +95,16 @@ let prove_section env evd orn =
         if List.length recs = 0 then
           None
         else
-          let env_lemma, recs =
+          let env_lemma, _, _ =
             List.fold_right (* TODO terrible sin against all of codekind *)
-              (fun r (e, r_s) ->
-                let e_r = push_local (Anonymous, r) e in
-                (e_r, shift r_s))
+              (fun _ (e, r, r_t) ->
+                let e_r = push_local (Anonymous, r_t) e in
+                let r = shift r in
+                let r_t = shift r_t in
+                let e_eq = push_local (Anonymous, mkAppl (eq, [r_t; r; mkRel 1])) e_r in
+                (e_eq, shift r, shift r_t))
               recs
-              (env_c_b, List.hd recs)
+              (env_c_b, List.hd recs, reduce_type env_c_b evd (List.hd recs))
           in debug_env env_lemma "env_lemma"; None (* TODO *))
       cs
   in () (* TODO *)
