@@ -57,6 +57,10 @@ let eq : types =
 let eq_refl : types =
   mkConstruct (fst (destInd eq), 1)
 
+(* Eliminator for quality *)
+let eq_ind : types =
+  mkConst (Constant.make2 coq_init_logic (Label.make "eq_ind"))
+
 (* --- Representations --- *)
 
 (** Construct the external expression for a definition. *)

@@ -110,6 +110,8 @@ Proof.
   - apply eq_cons. apply IHl.
 Qed.
 
+Print section.
+
 Theorem retraction:
   forall {T : Type} (v : sigT (fun n => vector T n)),
     promote (forget v) = v.

@@ -26,6 +26,7 @@ val projT1 : types
 val projT2 : types
 val eq : types
 val eq_refl : types
+val eq_ind : types
 
 (* --- Representations --- *)
 

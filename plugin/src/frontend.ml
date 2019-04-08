@@ -93,7 +93,9 @@ let prove_section env evd orn =
     Array.map
       (fun (env_c_b, c_body, recs) ->
         if List.length recs = 0 then
-          None
+          (* TODO consolidate fold *)
+          let body = mkAppl (eq_refl, [(*TODO*)]) in
+          reconstruct_lambda env_c_b body
         else
           let env_lemma, _, _ =
             List.fold_right (* TODO terrible sin against all of codekind *)
@@ -101,13 +103,22 @@ let prove_section env evd orn =
                 let e_r = push_local (Anonymous, r_t) e in
                 let r = shift r in
                 let r_t = shift r_t in
-                let e_eq = push_local (Anonymous, mkAppl (eq, [r_t; r; mkRel 1])) e_r in
+                let e_eq = push_local (Anonymous, mkAppl (eq, [r_t; mkRel 1; r])) e_r in
                 (e_eq, shift r, shift r_t))
               recs
               (env_c_b, List.hd recs, reduce_type env_c_b evd (List.hd recs))
-          in debug_env env_lemma "env_lemma"; None (* TODO *))
+          in
+          debug_env env_lemma "env_lemma";
+          let (_, body) =
+            List.fold_right
+              (fun _ (h_eq, b) ->
+                (shift (shift h_eq), mkAppl (eq_ind, [(*TODO;*) b; h_eq])))
+              recs
+              (mkRel 1, mkAppl (eq_refl, [(*TODO*)]))
+          in reconstruct_lambda env_c_b body)
+      (* TODO what happens for trees when there are multiple IHs? What does the body look like? *)
       cs
-  in () (* TODO *)
+  in debug_terms env (Array.to_list eq_lemmas) "eq_lemmas"; () (* TODO *)
                         
 (*
  * Identify an algebraic ornament between two types
