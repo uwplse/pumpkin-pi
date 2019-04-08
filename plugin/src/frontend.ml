@@ -92,11 +92,11 @@ let prove_section env evd orn =
   let eq_lemmas =
     Array.map
       (fun (env_c_b, c_body, recs) ->
+        let c_body_typ = reduce_type env_c_b evd c_body in
+        let refl = mkAppl (eq_refl, [c_body_typ; c_body]) in
         if List.length recs = 0 then
-          let c_body_typ = reduce_type env_c_b evd c_body in
           (* TODO consolidate fold *)
-          let body = mkAppl (eq_refl, [c_body_typ; c_body]) in
-          reconstruct_lambda env_c_b body
+          reconstruct_lambda env_c_b refl
         else
           let env_lemma, _, _ =
             List.fold_right (* TODO terrible sin against all of codekind *)
@@ -113,10 +113,10 @@ let prove_section env evd orn =
           let (_, body) =
             List.fold_right
               (fun _ (h_eq, b) ->
-                (shift (shift h_eq), mkAppl (eq_ind, [(*TODO;*) b; h_eq])))
+                (shift (shift h_eq), mkAppl (eq_ind, [(*TODO;*) shift (shift b); h_eq])))
               recs
-              (mkRel 1, mkAppl (eq_refl, [(*TODO*)]))
-          in reconstruct_lambda env_c_b body)
+              (mkRel 1, refl)
+          in reconstruct_lambda env_lemma body)
       (* TODO what happens for trees when there are multiple IHs? What does the body look like? *)
       cs
   in debug_terms env (Array.to_list eq_lemmas) "eq_lemmas"; () (* TODO *)
