@@ -93,8 +93,9 @@ let prove_section env evd orn =
     Array.map
       (fun (env_c_b, c_body, recs) ->
         if List.length recs = 0 then
+          let c_body_typ = reduce_type env_c_b evd c_body in
           (* TODO consolidate fold *)
-          let body = mkAppl (eq_refl, [(*TODO*)]) in
+          let body = mkAppl (eq_refl, [c_body_typ; c_body]) in
           reconstruct_lambda env_c_b body
         else
           let env_lemma, _, _ =
