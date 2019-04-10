@@ -150,7 +150,8 @@ let prove_section promote_n forget_n env evd orn =
                    (mkAppl
                       (make_constant promote_n, (* TODO can be global env *)
                       (snoc (mkRel 1) typ_args)))
-                   typ_args))
+                   typ_args));
+              mkRel 1
              ]))
          npm)
   in
