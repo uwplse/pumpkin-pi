@@ -132,9 +132,12 @@ let prove_section promote_n forget_n env evd orn =
   (* compose eq lemmas now *)
   let elim = type_eliminator env_sec (i, i_index) in
   let npm = mutind_body.mind_nparams in
-  let (env_pms, elim_typ) = zoom_n_prod env_sec npm (infer_type env evd elim) in
+  (* TODO what about env_sec? *)
+  let (_, elim_typ) = zoom_n_prod env_sec npm (infer_type env evd elim) in
+  let env_pms = env_sec in (* TODO *)
+  debug_env env_pms "env_pms";
   let nargs = new_rels env_pms npm in
-  let eq_typ = reduce_type env_pms evd (mkRel (1 + npm)) in (* TODO prob redundant *)
+  let eq_typ = reduce_type env_pms evd (mkRel 1) in (* TODO prob redundant *)
   let typ_args = unfold_args eq_typ in
   let p =
     shift_by
