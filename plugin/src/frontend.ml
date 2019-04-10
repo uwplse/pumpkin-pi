@@ -18,6 +18,7 @@ open Environ (* TODO same *)
 open Hypotheses (* TODO same *)
 open Printing (* TODO same *)
 open Debruijn (* TODO same *)
+open Hofs (* TODO same *)
 
 (* --- Options --- *)
 
@@ -110,7 +111,7 @@ let prove_section env evd orn =
               (env_c_b, List.hd recs, reduce_type env_c_b evd (List.hd recs))
           in
           debug_env env_lemma "env_lemma";
-          let (_, body) =
+          let (_, body, _) =
             List.fold_right
               (* @eq_ind_r (list T) l2
   (fun l3 : list T =>
@@ -119,14 +120,17 @@ let prove_section env evd orn =
   (@eq_refl (list T) (@Datatypes.cons T t l2)) l1
   H*)
               
-              (fun _ (h_eq, b) ->
+              (fun _ (h_eq, b, inner) ->
                 let h_eq_rel = destRel h_eq in
                 let (_, _, h_eq_typ) = CRD.to_tuple @@ lookup_rel h_eq_rel env_lemma in
                 let typ :: rec1 :: rec2 :: _ = unfold_args h_eq_typ in
-                let eq_ind_rel = mkLambda (Anonymous, shift typ, mkAppl (eq, [shift (shift typ) (* TODO; TODO *)])) in
-                (shift (shift h_eq), mkAppl (eq_ind, [shift typ; shift rec1; eq_ind_rel; shift (shift b); shift rec2; h_eq])))
+                let inner = shift (shift inner) in
+                let abs_inner = all_eq_substs (shift (shift rec2), mkRel 1) (shift inner) in
+                let new_inner = all_eq_substs (shift (shift rec2), shift (shift rec1)) (shift inner) in
+                let eq_ind_rel = mkLambda (Anonymous, shift typ, mkAppl (eq, [shift (shift typ); abs_inner; shift inner])) in
+                (shift (shift h_eq), mkAppl (eq_ind, [shift typ; shift rec1; eq_ind_rel; shift (shift b); shift rec2; h_eq]), new_inner))
               recs
-              (mkRel 1, refl)
+              (mkRel 1, refl, c_body)
           in reconstruct_lambda env_lemma body)
       (* TODO what happens for trees when there are multiple IHs? What does the body look like? *)
       cs
