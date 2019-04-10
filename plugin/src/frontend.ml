@@ -133,17 +133,14 @@ let prove_section promote_n forget_n env evd orn =
   let elim = type_eliminator env_sec (i, i_index) in
   let npm = mutind_body.mind_nparams in
   (* TODO what about env_sec? *)
-  let (_, elim_typ) = zoom_n_prod env_sec npm (infer_type env evd elim) in
-  let env_pms = env_sec in (* TODO *)
-  debug_env env_pms "env_pms";
-  let nargs = new_rels env_pms npm in
-  let eq_typ = reduce_type env_pms evd (mkRel 1) in (* TODO prob redundant *)
+  let eq_typ = reduce_type env_sec evd (mkRel 1) in (* TODO prob redundant *)
   let typ_args = unfold_args eq_typ in
+  let nargs = new_rels env_sec npm in
   let p =
     shift_by
       nargs (* TODO why? what is this exactly? same in search *)
       (reconstruct_lambda_n
-         env_pms
+         env_sec
          (mkAppl
             (eq,
              [eq_typ;
@@ -157,29 +154,38 @@ let prove_section promote_n forget_n env evd orn =
              ]))
          npm)
   in
+  let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
   let (n, p_t, b) = destProd elim_typ in
-  let env_p = push_local (n, p) env_pms in
+  let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all_by nargs (mk_n_rels npm) in (* TODO why nargs? *)
   let section_case c_i c =
-    let rec case e p_rel p c =
+    let rec case e recs pms p_rel p c =
       debug_term e c "c";
       match kind c with
       | App (_, _) ->
          (* conclusion: apply eq lemma and beta-reduce *)
-         let pms_and_args = List.append pms (unfold_args c) in
+         let pms_and_args = List.append pms recs in
+         let eq_lemma = eq_lemmas.(c_i) in
+         debug_term e eq_lemma "eq_lemma";
+         debug_terms e pms_and_args "pms_and_args";
          reduce_term e (mkAppl (eq_lemmas.(c_i), pms_and_args))
       | Prod (n, t, b) ->
-         let case_b = case (push_local (n, t) e) (shift p_rel) (shift p) in
+         let case_b = case (push_local (n, t) e) (snoc (mkRel 1) (shift_all recs)) (shift_all pms) (shift p_rel) (shift p) in
+         debug_env e "e";
+         debug_term e t "t";
+         debug_term e p_rel "p_rel";
          if applies p_rel t then
            (* IH *)
-           mkLambda (n, mkAppl (p, unfold_args t), case_b b)
+           let x = 0 in
+           debug_term e p "p";
+           mkLambda (n, reduce_term e (mkAppl (p, unfold_args t)), case_b b)
          else
            (* Product *)
            mkLambda (n, t, case_b b)
       | _ ->
          failwith "unexpected case"
     in
-    case env_p (mkRel 1) p c
+    case env_p [] pms (mkRel 1) p c
   in
   let cs = List.mapi section_case (take_except nargs (factor_product b)) in
   let app =
@@ -191,7 +197,7 @@ let prove_section promote_n forget_n env evd orn =
            cs;
            final_args = mk_n_rels nargs;
          }
-  in debug_term env_pms app "app"; reconstruct_lambda env_pms app
+  in debug_term env_sec app "app"; reconstruct_lambda env_sec app
                         
 (*
  * Identify an algebraic ornament between two types
