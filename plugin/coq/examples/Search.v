@@ -114,10 +114,20 @@ Theorem section:
 Proof.
   intros. induction l.
   - reflexivity.
-  - apply eq_cons. apply IHl.
+  - apply (eq_cons a (forget (promote l)) l). apply IHl.
 Qed.
 
 Print section.
+
+(* section = 
+section = 
+fun (T : Type) (l : list T) =>
+@list_ind T (fun l0 : list T => @eq (list T) (ltv_inv T (ltv T l0)) l0)
+  (@eq_refl (list T) (@Datatypes.nil T))
+  (fun (a : T) (l0 : list T) (IHl : @eq (list T) (ltv_inv T (ltv T l0)) l0) =>
+   @eq_cons T a (ltv_inv T (ltv T l0)) l0 IHl) l
+     : forall (T : Type) (l : list T), @eq (list T) (ltv_inv T (ltv T l)) l
+*)
 
 Theorem retraction:
   forall {T : Type} (v : sigT (fun n => vector T n)),
