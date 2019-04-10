@@ -111,7 +111,6 @@ let prove_section promote_n forget_n env evd orn =
               recs
               (env_c_b, List.hd recs, reduce_type env_c_b evd (List.hd recs))
           in
-          debug_env env_lemma "env_lemma";
           let (_, body, _) =
             List.fold_right
               (fun _ (h_eq, b, inner) ->
@@ -166,9 +165,6 @@ let prove_section promote_n forget_n env evd orn =
          (* conclusion: apply eq lemma and beta-reduce *)
          let pms_and_args = List.append pms args in
          let eq_lemma = eq_lemmas.(c_i) in
-         debug_env e "e";
-         debug_term e eq_lemma "eq_lemma";
-         debug_terms e pms_and_args "pms_and_args";
          reduce_term e (mkAppl (eq_lemmas.(c_i), pms_and_args))
       | Prod (n, t, b) ->
          let case_b = case (push_local (n, t) e) (shift_all pms) (shift p_rel) (shift p) in
@@ -197,7 +193,7 @@ let prove_section promote_n forget_n env evd orn =
            cs;
            final_args = mk_n_rels nargs;
          }
-  in debug_term env_sec app "app"; reconstruct_lambda env_sec app
+  in reconstruct_lambda env_sec app
                         
 (*
  * Identify an algebraic ornament between two types
