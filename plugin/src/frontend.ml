@@ -176,7 +176,7 @@ let prove_section promote_n forget_n env evd orn =
            (* IH *)
            let t' = reduce_term e (mkAppl (p, unfold_args t)) in
            (* TODO build args in reverse order w cons; reverse later *)
-           let a :: sec_a :: _ = unfold_args t' in (* TODO wrap eq to get each arg like we do for sigT and so on; same for eq_refl and eq_ind *)
+           let _ :: sec_a :: a :: _ = unfold_args t' in (* TODO wrap eq to get each arg like we do for sigT and so on; same for eq_refl and eq_ind *)
            let args_b = snoc (mkRel 1) (shift_all (snoc a (snoc sec_a (List.tl (List.rev args))))) in
            mkLambda (n, t', case_b args_b b)
          else
