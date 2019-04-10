@@ -78,6 +78,18 @@ Proof.
 Qed.
 
 (*
+ * With these lemmas, we get section and retraction very formulaically:
+ *)
+Theorem section:
+  forall {T : Type} (l : list T),
+    forget (promote l) = l.
+Proof.
+  exact ltv_section.
+Qed.
+
+(* --- not yet automated --- *)
+
+(*
  * To prove section and retraction, we need to show that equalities are
  * preserved in the inductive cases. For list this is simple:
  *)
@@ -89,31 +101,12 @@ Proof.
   intros. rewrite <- H. auto.
 Qed.
 
-Print eq_cons.
-
-(* fun (T : Type) (t : T) (l1 l2 : list T) (H : l1 = l2) =>
-     eq_ind (list T) l1 
-       (fun (l3 : list T) => cons T t l1 = cons T t l3) 
-       (eq_refl (list T) (cons T t l1)) l2 H
-
-*)
-
 (*
  * Luckily, we have a tool that can give us the version over vectors :)
  *)
 Lift list vector in @eq_cons as eq_sigT_cons_p.
 Definition eq_sigT_cons {T} t n1 v1 n2 v2 := (* partial unpack *)
   eq_sigT_cons_p T t (existT _ n1 v1) (existT _ n2 v2).
-
-(*
- * With these lemmas, we get section and retraction very formulaically:
- *)
-Theorem section:
-  forall {T : Type} (l : list T),
-    forget (promote l) = l.
-Proof.
-  exact ltv_section.
-Qed.
 
 Theorem retraction:
   forall {T : Type} (v : sigT (fun n => vector T n)),
