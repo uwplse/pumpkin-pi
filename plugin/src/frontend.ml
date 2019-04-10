@@ -19,7 +19,8 @@ open Hypotheses (* TODO same *)
 open Printing (* TODO same *)
 open Debruijn (* TODO same *)
 open Hofs (* TODO same *)
-
+open Factoring (* TODO same *)
+       
 (* --- Options --- *)
 
 (*
@@ -127,7 +128,58 @@ let prove_section env evd orn =
           in reconstruct_lambda env_lemma body)
       (* TODO what happens for trees when there are multiple IHs? What does the body look like? *)
       cs
-  in debug_terms env (Array.to_list eq_lemmas) "eq_lemmas"; () (* TODO *)
+  in
+  (* compose eq lemmas now *)
+  let elim = type_eliminator env_sec (i, i_index) in
+  let npm = mutind_body.mind_nparams in
+  let nargs = new_rels env_sec npm in
+  let eq_typ = reduce_type env_sec evd (mkRel 1) in (* TODO prob redundant *)
+  let typ_args = unfold_args eq_typ in
+  let p =
+    shift_by
+      nargs (* TODO why? what is this exactly? same in search *)
+      (reconstruct_lambda_n
+         env_sec
+         (mkAppl
+            (eq,
+             [eq_typ;
+              mkAppl (orn.forget, snoc (mkAppl (orn.promote, snoc (mkRel 1) typ_args)) typ_args)]))
+         npm)
+  in
+  let (n, p_t, b) = destProd (reduce_type env_sec evd elim) in
+  let env_p = push_local (n, p) env_sec in
+  let pms = shift_all_by nargs (mk_n_rels npm) in (* TODO why nargs? *)
+  let section_case c_i c =
+    let rec case e p_rel p c =
+      match kind c with
+      | App (_, _) ->
+         (* conclusion: apply eq lemma and beta-reduce *)
+         let pms_and_args = List.append pms (unfold_args c) in
+         reduce_term e (mkAppl (eq_lemmas.(c_i), pms_and_args))
+      | Prod (n, t, b) ->
+         let case_b = case (push_local (n, t) e) (shift p_rel) (shift p) in
+         if applies p_rel t then
+           (* IH *)
+           mkLambda (n, mkAppl (p, unfold_args t), case_b b)
+         else
+           (* Product *)
+           mkLambda (n, t, case_b b)
+      | _ ->
+         failwith "unexpected case"
+    in
+    case env_p (mkRel 1) p c
+  in
+  let cs = List.mapi section_case (take_except nargs (factor_product b)) in
+  let app =
+       apply_eliminator
+         {
+           elim;
+           pms;
+           p;
+           cs;
+           final_args = mk_n_rels nargs;
+         }
+  in debug_term env_sec app "app"; reconstruct_lambda env_sec app
                         
 (*
  * Identify an algebraic ornament between two types
@@ -160,14 +212,17 @@ let find_ornament n_o d_old d_new =
        let env = Global.env () in
        let coh, coh_typ = prove_coherence env evd orn in
        let coh_n = with_suffix n "coh" in
-       let coh = define_term ~typ:coh_typ coh_n evd coh true in
+       let _ = define_term ~typ:coh_typ coh_n evd coh true in
        Printf.printf "Defined coherence proof %s\n\n" (Id.to_string coh_n)
      else
        ());
     (if is_search_equiv () then
        let env = Global.env () in
-       (* TODO fill in, and also do retraction *)
-       prove_section env evd orn
+       let section = prove_section env evd orn in
+       let sec_n = with_suffix n "section" in
+       let _ = define_term sec_n evd section true in
+       Printf.printf "Defined section proof %s\n\n" (Id.to_string sec_n)
+       (* TODO also do retraction *)
      else
        ());
     (try
