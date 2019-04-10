@@ -72,7 +72,7 @@ let prove_coherence env evd orn =
 (* TODO refactor below, comment, fill in *)
 (* TODO clean up too *)
 (* TODO test on other types besides list/vect in file *)
-let prove_section env evd orn =
+let prove_section promote_n forget_n env evd orn =
   let env_sec = zoom_env zoom_lambda_term env orn.promote in
   let a = mkRel 1 in
   let a_typ = first_fun (reduce_type env_sec evd a) in
@@ -132,25 +132,34 @@ let prove_section env evd orn =
   (* compose eq lemmas now *)
   let elim = type_eliminator env_sec (i, i_index) in
   let npm = mutind_body.mind_nparams in
-  let nargs = new_rels env_sec npm in
-  let eq_typ = reduce_type env_sec evd (mkRel 1) in (* TODO prob redundant *)
+  let (env_pms, elim_typ) = zoom_n_prod env_sec npm (infer_type env evd elim) in
+  let nargs = new_rels env_pms npm in
+  let eq_typ = reduce_type env_pms evd (mkRel (1 + npm)) in (* TODO prob redundant *)
   let typ_args = unfold_args eq_typ in
   let p =
     shift_by
       nargs (* TODO why? what is this exactly? same in search *)
       (reconstruct_lambda_n
-         env_sec
+         env_pms
          (mkAppl
             (eq,
              [eq_typ;
-              mkAppl (orn.forget, snoc (mkAppl (orn.promote, snoc (mkRel 1) typ_args)) typ_args)]))
+              mkAppl
+                (make_constant forget_n, (* TODO can be global env *)
+                (snoc
+                   (mkAppl
+                      (make_constant promote_n, (* TODO can be global env *)
+                      (snoc (mkRel 1) typ_args)))
+                   typ_args))
+             ]))
          npm)
   in
-  let (n, p_t, b) = destProd (reduce_type env_sec evd elim) in
-  let env_p = push_local (n, p) env_sec in
+  let (n, p_t, b) = destProd elim_typ in
+  let env_p = push_local (n, p) env_pms in
   let pms = shift_all_by nargs (mk_n_rels npm) in (* TODO why nargs? *)
   let section_case c_i c =
     let rec case e p_rel p c =
+      debug_term e c "c";
       match kind c with
       | App (_, _) ->
          (* conclusion: apply eq lemma and beta-reduce *)
@@ -179,7 +188,7 @@ let prove_section env evd orn =
            cs;
            final_args = mk_n_rels nargs;
          }
-  in debug_term env_sec app "app"; reconstruct_lambda env_sec app
+  in debug_term env_pms app "app"; reconstruct_lambda env_pms app
                         
 (*
  * Identify an algebraic ornament between two types
@@ -218,7 +227,8 @@ let find_ornament n_o d_old d_new =
        ());
     (if is_search_equiv () then
        let env = Global.env () in
-       let section = prove_section env evd orn in
+       (* TODO can we use promote/forget above instead of names? *)
+       let section = prove_section n inv_n env evd orn in
        let sec_n = with_suffix n "section" in
        let _ = define_term sec_n evd section true in
        Printf.printf "Defined section proof %s\n\n" (Id.to_string sec_n)
