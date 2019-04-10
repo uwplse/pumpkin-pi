@@ -86,10 +86,17 @@ Lemma eq_cons:
     l1 = l2 ->
     cons t l1 = cons t l2.
 Proof.
-  intros. subst. auto.
+  intros. rewrite <- H. auto.
 Qed.
 
 Print eq_cons.
+
+(* fun (T : Type) (t : T) (l1 l2 : list T) (H : l1 = l2) =>
+     eq_ind (list T) l1 
+       (fun (l3 : list T) => cons T t l1 = cons T t l3) 
+       (eq_refl (list T) (cons T t l1)) l2 H
+
+*)
 
 (*
  * Luckily, we have a tool that can give us the version over vectors :)

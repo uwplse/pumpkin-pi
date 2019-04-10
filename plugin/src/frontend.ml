@@ -105,7 +105,7 @@ let prove_section env evd orn =
                 let e_r = push_local (Anonymous, r_t) e in
                 let r = shift r in
                 let r_t = shift r_t in
-                let e_eq = push_local (Anonymous, mkAppl (eq, [r_t; mkRel 1; r])) e_r in
+                let e_eq = push_local (Anonymous, mkAppl (eq, [r_t; r; mkRel 1])) e_r in
                 (e_eq, shift r, shift r_t))
               recs
               (env_c_b, List.hd recs, reduce_type env_c_b evd (List.hd recs))
@@ -113,21 +113,14 @@ let prove_section env evd orn =
           debug_env env_lemma "env_lemma";
           let (_, body, _) =
             List.fold_right
-              (* @eq_ind_r (list T) l2
-  (fun l3 : list T =>
-   @eq (list T) (@Datatypes.cons T t l3)
-     (@Datatypes.cons T t l2))
-  (@eq_refl (list T) (@Datatypes.cons T t l2)) l1
-  H*)
-              
               (fun _ (h_eq, b, inner) ->
                 let h_eq_rel = destRel h_eq in
                 let (_, _, h_eq_typ) = CRD.to_tuple @@ lookup_rel h_eq_rel env_lemma in
                 let typ :: rec1 :: rec2 :: _ = unfold_args h_eq_typ in
                 let inner = shift (shift inner) in
-                let abs_inner = all_eq_substs (shift (shift rec2), mkRel 1) (shift inner) in
-                let new_inner = all_eq_substs (shift (shift rec2), shift (shift rec1)) (shift inner) in
-                let eq_ind_rel = mkLambda (Anonymous, shift typ, mkAppl (eq, [shift (shift typ); abs_inner; shift inner])) in
+                let abs_inner = all_eq_substs (shift (shift rec1), mkRel 1) (shift inner) in
+                let new_inner = all_eq_substs (shift (shift rec1), shift (shift rec2)) (shift inner) in
+                let eq_ind_rel = mkLambda (Anonymous, shift typ, mkAppl (eq, [shift (shift typ); shift inner; abs_inner])) in
                 (shift (shift h_eq), mkAppl (eq_ind, [shift typ; shift rec1; eq_ind_rel; shift (shift b); shift rec2; h_eq]), new_inner))
               recs
               (mkRel 1, refl, c_body)
