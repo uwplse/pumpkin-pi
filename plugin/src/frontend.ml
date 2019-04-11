@@ -125,6 +125,26 @@ let section_eq_lemmas env evd a_typ =
       in reconstruct_lambda env_lemma body)
     ((lookup_mind i env).mind_packets.(i_index)).mind_consnames
 
+(* TODO refactor, clean, etc *)
+let section_motive env evd a at_type promote forget npm =
+  let typ_args = unfold_args at_type in
+  shift_by
+    (new_rels env npm) 
+    (reconstruct_lambda_n
+       env
+       (apply_eq
+          {
+            at_type;
+            trm1 =
+              mkAppl
+                (forget,
+                 (snoc
+                    (mkAppl (promote, snoc a typ_args))
+                    typ_args));
+            trm2 = a;
+       })
+       npm)
+
 (* TODO refactor below, comment, fill in *)
 (* TODO clean up too *)
 (* TODO test on other types besides list/vect in file *)
@@ -137,28 +157,8 @@ let prove_section promote_n forget_n env evd orn =
   let mutind_body = lookup_mind i env in
   let elim = type_eliminator env_sec (i, i_index) in
   let npm = mutind_body.mind_nparams in
-  let typ_args = unfold_args at_type in
   let nargs = new_rels env_sec npm in
-  let p =
-    shift_by
-      nargs (* TODO why? what is this exactly? same in search *)
-      (reconstruct_lambda_n
-         env_sec
-         (apply_eq
-            {
-              at_type;
-              trm1 =
-                mkAppl
-                  (make_constant forget_n, (* TODO can be global env *)
-                   (snoc
-                      (mkAppl
-                         (make_constant promote_n, (* TODO can be global env *)
-                          (snoc (mkRel 1) typ_args)))
-                      typ_args));
-              trm2 = mkRel 1
-            })
-         npm)
-  in
+  let p = section_motive env_sec evd a at_type (make_constant promote_n) (make_constant forget_n) npm in
   let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
   let (n, p_t, b) = destProd elim_typ in
   let env_p = push_local (n, p_t) env_pms in
