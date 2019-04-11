@@ -134,30 +134,30 @@ let prove_section promote_n forget_n env evd orn =
   let a_typ = first_fun (reduce_type env_sec evd a) in
   let ((i, i_index), u) = destInd a_typ in
   let mutind_body = lookup_mind i env in
-  (* compose eq lemmas now *)
   let elim = type_eliminator env_sec (i, i_index) in
   let npm = mutind_body.mind_nparams in
   (* TODO what about env_sec? *)
-  let eq_typ = reduce_type env_sec evd (mkRel 1) in (* TODO prob redundant *)
-  let typ_args = unfold_args eq_typ in
+  let at_type = reduce_type env_sec evd (mkRel 1) in (* TODO prob redundant *)
+  let typ_args = unfold_args at_type in
   let nargs = new_rels env_sec npm in
   let p =
     shift_by
       nargs (* TODO why? what is this exactly? same in search *)
       (reconstruct_lambda_n
          env_sec
-         (mkAppl
-            (eq,
-             [eq_typ;
-              mkAppl
-                (make_constant forget_n, (* TODO can be global env *)
-                (snoc
-                   (mkAppl
-                      (make_constant promote_n, (* TODO can be global env *)
-                      (snoc (mkRel 1) typ_args)))
-                   typ_args));
-              mkRel 1
-             ]))
+         (apply_eq
+            {
+              at_type;
+              trm1 =
+                mkAppl
+                  (make_constant forget_n, (* TODO can be global env *)
+                   (snoc
+                      (mkAppl
+                         (make_constant promote_n, (* TODO can be global env *)
+                          (snoc (mkRel 1) typ_args)))
+                      typ_args));
+              trm2 = mkRel 1
+            })
          npm)
   in
   let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
