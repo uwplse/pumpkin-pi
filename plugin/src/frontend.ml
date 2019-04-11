@@ -138,7 +138,7 @@ let section_case env pms p eq_lemma c =
     match kind c with
       | App (_, _) ->
          (* conclusion: apply eq lemma and beta-reduce *)
-         reduce_term e (mkAppl (eq_lemma, List.append pms args))
+         reduce_term e (mkAppl (eq_lemma, List.append pms (List.rev args)))
       | Prod (n, t, b) ->
          let case_b = case (push_local (n, t) e) (shift_all pms) (shift p_rel) (shift p) in
          if applies p_rel t then
@@ -148,11 +148,11 @@ let section_case env pms p eq_lemma c =
            let app = dest_eq t' in
            let a' = app.trm1 in
            let a = app.trm2 in
-           let args_b = snoc (mkRel 1) (shift_all (snoc a (snoc a' (List.tl (List.rev args))))) in
+           let args_b = mkRel 1 :: shift_all (a :: a' :: (List.tl args)) in
            mkLambda (n, t', case_b args_b b)
          else
            (* Product *)
-           mkLambda (n, t, case_b (snoc (mkRel 1) (shift_all args)) b)
+           mkLambda (n, t, case_b (mkRel 1 :: shift_all args) b)
       | _ ->
          failwith "unexpected case"
     in case env pms (mkRel 1) p [] c
