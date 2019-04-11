@@ -75,7 +75,7 @@ let prove_coherence env evd orn =
  *)
 let get_rec_args typ env_c_b evd c_body =
   List.filter (on_type (is_or_applies typ) env_c_b evd) (unfold_args c_body)
-
+              
 (*
  * TODO move, explain
  *)
@@ -87,7 +87,7 @@ let section_eq_lemmas env evd a_typ =
       let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
       let c_body = reduce_term env_c_b c_body in
       let c_body_typ = reduce_type env_c_b evd c_body in
-      let refl = mkAppl (eq_refl, [c_body_typ; c_body]) in
+      let refl = apply_eq_refl { typ = c_body_typ; trm = c_body } in
       let recs = get_rec_args a_typ env_c_b evd c_body in
       let env_lemma, off =
         List.fold_right
@@ -123,7 +123,6 @@ let section_eq_lemmas env evd a_typ =
           recs
           (shift_by off refl, mkRel 1, shift_by off c_body)
       in reconstruct_lambda env_lemma body)
-    (* TODO what happens for trees when there are multiple IHs? What does the body look like? *)
     ((lookup_mind i env).mind_packets.(i_index)).mind_consnames
 
 (* TODO refactor below, comment, fill in *)

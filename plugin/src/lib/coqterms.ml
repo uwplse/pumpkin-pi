@@ -239,10 +239,35 @@ type eq_ind_app =
  *)
 let apply_eq_ind (app : eq_ind_app) : types =
   mkAppl (eq_ind, [app.at_type; app.trm1; app.p; app.b; app.trm2; app.h])
-      
+
+(* 
+ * Deconstruct an eq_ind
+ *)
 let dest_eq_ind (trm : types) : eq_ind_app =
   let [at_type; trm1; p; b; trm2; h] = unfold_args trm in
   { at_type; trm1; p; b; trm2; h }
+
+(*
+ * An application of eq_refl
+ *)
+type eq_refl_app =
+  {
+    typ : types;
+    trm : types;
+  }
+
+(*
+ * Apply an eq_refl
+ *)
+let apply_eq_refl (app : eq_refl_app) : types =
+  mkAppl (eq_refl, [app.typ; app.trm])
+
+(* 
+ * Deconstruct an eq_refl
+ *)
+let dest_eq_refl (trm : types) : eq_refl_app =
+  let [typ; trm] = unfold_args trm in
+  { typ; trm }
 
 (*
  * An application of existT

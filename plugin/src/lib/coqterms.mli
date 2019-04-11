@@ -128,7 +128,20 @@ type eq_ind_app =
 val apply_eq_ind : eq_ind_app -> types
 val dest_eq_ind : types -> eq_ind_app
                                 
+(*
+ * An application of eq_refl
+ *)
+type eq_refl_app =
+  {
+    typ : types;
+    trm : types;
+  }
 
+(*
+ * Convert between a term and an eq_refl
+ *)
+val apply_eq_refl : eq_refl_app -> types
+val dest_eq_refl : types -> eq_refl_app
                                 
 (*
  * An application of existT
