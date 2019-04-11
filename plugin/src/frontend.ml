@@ -124,8 +124,6 @@ let prove_section promote_n forget_n env evd orn =
   let a_typ = first_fun (reduce_type env_sec evd a) in
   let ((i, i_index), u) = destInd a_typ in
   let mutind_body = lookup_mind i env in
-  let ind_bodies = mutind_body.mind_packets in
-  let ind_body = ind_bodies.(i_index) in
   (* compose eq lemmas now *)
   let elim = type_eliminator env_sec (i, i_index) in
   let npm = mutind_body.mind_nparams in
