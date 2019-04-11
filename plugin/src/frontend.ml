@@ -69,20 +69,26 @@ let prove_coherence env evd orn =
   let coh_typ = reconstruct_product env_coh (mkAppl (eq, [ib_typ; ib; proj_ib])) in
   (coh, coh_typ)
 
+(*
+ * TODO move, explain, refactor common w/ refolding in search/lifting
+ * mention c_body is the reduced body of a constructor, and env_c_b is the env
+ *)
+let get_rec_args typ env_c_b evd c_body =
+  List.filter (on_type (is_or_applies typ) env_c_b evd) (unfold_args c_body)
+
+(*
+ * TODO move, explain
+ *)
 let section_eq_lemmas env evd a_typ =
   let ((i, i_index), u) = destInd a_typ in
-  let mutind_body = lookup_mind i env in
-  let ind_bodies = mutind_body.mind_packets in
-  let ind_body = ind_bodies.(i_index) in
   Array.mapi
     (fun c_index _ ->
       let c = mkConstructU (((i, i_index), c_index + 1), u) in
       let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
       let c_body = reduce_term env_c_b c_body in
-      let args = unfold_args c_body in
-      let recs = List.filter (fun a -> is_or_applies a_typ (reduce_type env_c_b evd a)) args in
       let c_body_typ = reduce_type env_c_b evd c_body in
       let refl = mkAppl (eq_refl, [c_body_typ; c_body]) in
+      let recs = get_rec_args a_typ env_c_b evd c_body in
       if List.length recs = 0 then
         (* TODO consolidate fold *)
         reconstruct_lambda env_c_b refl
@@ -113,7 +119,7 @@ let section_eq_lemmas env evd a_typ =
             (mkRel 1, refl, c_body)
         in reconstruct_lambda env_lemma body)
     (* TODO what happens for trees when there are multiple IHs? What does the body look like? *)
-    ind_body.mind_consnames
+    ((lookup_mind i env).mind_packets.(i_index)).mind_consnames
 
 (* TODO refactor below, comment, fill in *)
 (* TODO clean up too *)
