@@ -132,6 +132,30 @@ let section_motive env evd a at_type promote forget npm =
   let p_b = apply_eq { at_type; trm1 = a'; trm2 = a } in
   shift_by (new_rels env npm) (reconstruct_lambda_n env p_b npm)
 
+(* TODO refactor, clean, etc *)
+let section_case env pms p eq_lemma c =
+  let rec case e pms p_rel p args c =
+    match kind c with
+      | App (_, _) ->
+         (* conclusion: apply eq lemma and beta-reduce *)
+         let pms_and_args = List.append pms args in
+         reduce_term e (mkAppl (eq_lemma, pms_and_args))
+      | Prod (n, t, b) ->
+         let case_b = case (push_local (n, t) e) (shift_all pms) (shift p_rel) (shift p) in
+         if applies p_rel t then
+           (* IH *)
+           let t' = reduce_term e (mkAppl (p, unfold_args t)) in
+           (* TODO build args in reverse order w cons; reverse later *)
+           let _ :: sec_a :: a :: _ = unfold_args t' in (* TODO wrap eq to get each arg like we do for sigT and so on; same for eq_refl and eq_ind *)
+           let args_b = snoc (mkRel 1) (shift_all (snoc a (snoc sec_a (List.tl (List.rev args))))) in
+           mkLambda (n, t', case_b args_b b)
+         else
+           (* Product *)
+           mkLambda (n, t, case_b (snoc (mkRel 1) (shift_all args)) b)
+      | _ ->
+         failwith "unexpected case"
+    in case env pms (mkRel 1) p [] c
+
 (* TODO refactor below, comment, fill in *)
 (* TODO clean up too *)
 (* TODO test on other types besides list/vect in file *)
@@ -151,32 +175,7 @@ let prove_section promote_n forget_n env evd orn =
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all_by nargs (mk_n_rels npm) in (* TODO why nargs? *)
   let eq_lemmas = section_eq_lemmas env evd a_typ in
-  let section_case c_i c =
-    let rec case e pms p_rel p args c =
-      match kind c with
-      | App (_, _) ->
-         (* conclusion: apply eq lemma and beta-reduce *)
-         let pms_and_args = List.append pms args in
-         let eq_lemma = eq_lemmas.(c_i) in
-         reduce_term e (mkAppl (eq_lemmas.(c_i), pms_and_args))
-      | Prod (n, t, b) ->
-         let case_b = case (push_local (n, t) e) (shift_all pms) (shift p_rel) (shift p) in
-         if applies p_rel t then
-           (* IH *)
-           let t' = reduce_term e (mkAppl (p, unfold_args t)) in
-           (* TODO build args in reverse order w cons; reverse later *)
-           let _ :: sec_a :: a :: _ = unfold_args t' in (* TODO wrap eq to get each arg like we do for sigT and so on; same for eq_refl and eq_ind *)
-           let args_b = snoc (mkRel 1) (shift_all (snoc a (snoc sec_a (List.tl (List.rev args))))) in
-           mkLambda (n, t', case_b args_b b)
-         else
-           (* Product *)
-           mkLambda (n, t, case_b (snoc (mkRel 1) (shift_all args)) b)
-      | _ ->
-         failwith "unexpected case"
-    in
-    case env_p pms (mkRel 1) p [] c
-  in
-  let cs = List.mapi section_case (take_except nargs (factor_product b)) in
+  let cs = List.mapi (fun j c -> section_case env_p pms p eq_lemmas.(j) c) (take_except nargs (factor_product b)) in
   let app =
        apply_eliminator
          {
