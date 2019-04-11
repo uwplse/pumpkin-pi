@@ -131,13 +131,12 @@ let section_eq_lemmas env evd a_typ =
 let prove_section promote_n forget_n env evd orn =
   let env_sec = zoom_env zoom_lambda_term env orn.promote in
   let a = mkRel 1 in
-  let a_typ = first_fun (reduce_type env_sec evd a) in
+  let at_type = reduce_type env_sec evd a in
+  let a_typ = first_fun at_type in
   let ((i, i_index), u) = destInd a_typ in
   let mutind_body = lookup_mind i env in
   let elim = type_eliminator env_sec (i, i_index) in
   let npm = mutind_body.mind_nparams in
-  (* TODO what about env_sec? *)
-  let at_type = reduce_type env_sec evd (mkRel 1) in (* TODO prob redundant *)
   let typ_args = unfold_args at_type in
   let nargs = new_rels env_sec npm in
   let p =
