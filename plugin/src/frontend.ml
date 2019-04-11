@@ -138,16 +138,17 @@ let section_case env pms p eq_lemma c =
     match kind c with
       | App (_, _) ->
          (* conclusion: apply eq lemma and beta-reduce *)
-         let pms_and_args = List.append pms args in
-         reduce_term e (mkAppl (eq_lemma, pms_and_args))
+         reduce_term e (mkAppl (eq_lemma, List.append pms args))
       | Prod (n, t, b) ->
          let case_b = case (push_local (n, t) e) (shift_all pms) (shift p_rel) (shift p) in
          if applies p_rel t then
            (* IH *)
            let t' = reduce_term e (mkAppl (p, unfold_args t)) in
            (* TODO build args in reverse order w cons; reverse later *)
-           let _ :: sec_a :: a :: _ = unfold_args t' in (* TODO wrap eq to get each arg like we do for sigT and so on; same for eq_refl and eq_ind *)
-           let args_b = snoc (mkRel 1) (shift_all (snoc a (snoc sec_a (List.tl (List.rev args))))) in
+           let app = dest_eq t' in
+           let a' = app.trm1 in
+           let a = app.trm2 in
+           let args_b = snoc (mkRel 1) (shift_all (snoc a (snoc a' (List.tl (List.rev args))))) in
            mkLambda (n, t', case_b args_b b)
          else
            (* Product *)
