@@ -94,6 +94,22 @@ val prod_to_lambda : types -> types
 val lambda_to_prod : types -> types
 
 (*
+ * An application of eq
+ *)
+type eq_app =
+  {
+    at_type : types;
+    trm1 : types;
+    trm2 : types;
+  }
+
+(*
+ * Convert between a term and an eq_app
+ *)
+val apply_eq : eq_app -> types
+val dest_eq : types -> eq_app
+                                
+(*
  * An application of existT
  *)
 type existT_app =

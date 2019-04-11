@@ -92,15 +92,17 @@ let section_eq_lemmas env evd a_typ =
       let env_lemma, _ =
         List.fold_right
           (fun r (e, off) ->
-            let r_t = reduce_type e evd (shift_by off r) in
-            let e_r = push_local (Anonymous, r_t) e in
-            let r = shift r in
-            let r_t = shift r_t in
-            let r_eq = mkAppl (eq, [r_t; r; shift_by off (mkRel 1)]) in
+            let r1 = shift_by off r in (* original rec arg *)
+            let r_t = reduce_type e evd r in (* rec arg type *)
+            let e_r = push_local (Anonymous, r_t) e in (* e with new rec arg *)
+            let r1 = shift r in (* shifted original rec arg *)
+            let r2 = mkRel 1 in (* new rec arg *)
+            let r_t  = shift r_t in (* new rec arg type *)
+            let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
             (push_local (Anonymous, r_eq) e_r, off + 2))
           recs
           (env_c_b, 0)
-      in
+      in debug_env env_lemma "env_lemma";
       let (body, _, _) =
         List.fold_right
           (fun _ (b, h_eq, inner) ->
@@ -108,7 +110,7 @@ let section_eq_lemmas env evd a_typ =
             let (_, _, h_eq_typ) = CRD.to_tuple @@ lookup_rel h_eq_rel env_lemma in
             (* TODO ASAP move eq for both appl and this *)
             let typ :: rec1 :: rec2 :: _ = unfold_args h_eq_typ in
-            let inner = shift (shift inner) in
+            let inner = shift_by 2 inner in (* nested equality proof *)
             let abs_inner = all_eq_substs (shift (shift rec1), mkRel 1) (shift inner) in
             let new_inner = all_eq_substs (shift (shift rec1), shift (shift rec2)) (shift inner) in
             let eq_ind_rel = mkLambda (Anonymous, shift typ, mkAppl (eq, [shift (shift typ); shift inner; abs_inner])) in

@@ -199,6 +199,29 @@ let rec lambda_to_prod trm =
      trm
 
 (*
+ * An application of eq
+ *)
+type eq_app =
+  {
+    at_type : types;
+    trm1 : types;
+    trm2 : types;
+  }
+
+(*
+ * Make an eq type
+ *)
+let apply_eq (app : eq_app) : types =
+  mkAppl (eq, [app.at_type; app.trm1; app.trm2])
+
+(*
+ * Deconstruct an eq type
+ *)
+let dest_eq (trm : types) : eq_app =
+  let [at_type; trm1; trm2] = unfold_args trm in
+  { at_type; trm1; trm2 }
+
+(*
  * An application of existT
  *)
 type existT_app =
