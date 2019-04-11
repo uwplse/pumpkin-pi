@@ -144,7 +144,6 @@ let section_case env pms p eq_lemma c =
          if applies p_rel t then
            (* IH *)
            let t' = reduce_term e (mkAppl (p, unfold_args t)) in
-           (* TODO build args in reverse order w cons; reverse later *)
            let app = dest_eq t' in
            let a' = app.trm1 in
            let a = app.trm2 in
