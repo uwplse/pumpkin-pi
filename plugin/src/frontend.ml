@@ -89,7 +89,7 @@ let section_eq_lemmas env evd a_typ =
       let c_body_typ = reduce_type env_c_b evd c_body in
       let refl = mkAppl (eq_refl, [c_body_typ; c_body]) in
       let recs = get_rec_args a_typ env_c_b evd c_body in
-      let env_lemma, _ =
+      let env_lemma, off =
         List.fold_right
           (fun r (e, off) ->
             let r1 = shift_by off r in (* original rec arg *)
@@ -105,20 +105,19 @@ let section_eq_lemmas env evd a_typ =
       in
       let (body, _, _) =
         List.fold_right
-          (fun _ (b, h_eq, inner) ->
+          (fun _ (b, h_eq, c_app) ->
             let h_eq_r = destRel h_eq in
             let (_, _, h_eq_t) = CRD.to_tuple @@ lookup_rel h_eq_r env_lemma in
             let app = dest_eq (shift h_eq_t) in
             let typ = app.at_type in
             let r1 = app.trm1 in
             let r2 = app.trm2 in
-            let inner = shift_by 2 inner in (* nested equality proof *)
-            let abs_inner = all_eq_substs (shift r1, mkRel 1) (shift inner) in
-            let new_inner = all_eq_substs (shift r1, shift r2) (shift inner) in
-            let eq_ind_rel = mkLambda (Anonymous, typ, mkAppl (eq, [shift typ; shift inner; abs_inner])) in
+            let abs_inner = all_eq_substs (shift r1, mkRel 1) (shift c_app) in
+            let new_inner = all_eq_substs (shift r1, shift r2) (shift c_app) in
+            let eq_ind_rel = mkLambda (Anonymous, typ, mkAppl (eq, [shift typ; shift c_app; abs_inner])) in
             (mkAppl (eq_ind, [typ; r1; eq_ind_rel; shift (shift b); r2; h_eq]), shift (shift h_eq), new_inner))
           recs
-          (refl, mkRel 1, c_body)
+          (refl, mkRel 1, shift_by off c_body)
       in reconstruct_lambda env_lemma body)
     (* TODO what happens for trees when there are multiple IHs? What does the body look like? *)
     ((lookup_mind i env).mind_packets.(i_index)).mind_consnames

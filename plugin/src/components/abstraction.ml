@@ -7,6 +7,7 @@ open Debruijn
 open Coqterms
 open Indexing
 open Names
+open Hofs
 
 (*
  * Given an application and the index of the argument, abstract by the argument
