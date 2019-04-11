@@ -128,22 +128,9 @@ let section_eq_lemmas env evd a_typ =
 (* TODO refactor, clean, etc *)
 let section_motive env evd a at_type promote forget npm =
   let typ_args = unfold_args at_type in
-  shift_by
-    (new_rels env npm) 
-    (reconstruct_lambda_n
-       env
-       (apply_eq
-          {
-            at_type;
-            trm1 =
-              mkAppl
-                (forget,
-                 (snoc
-                    (mkAppl (promote, snoc a typ_args))
-                    typ_args));
-            trm2 = a;
-       })
-       npm)
+  let a' = mkAppl (forget, snoc (mkAppl (promote, snoc a typ_args)) typ_args) in
+  let p_b = apply_eq { at_type; trm1 = a'; trm2 = a } in
+  shift_by (new_rels env npm) (reconstruct_lambda_n env p_b npm)
 
 (* TODO refactor below, comment, fill in *)
 (* TODO clean up too *)
