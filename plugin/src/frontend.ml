@@ -96,25 +96,26 @@ let section_eq_lemmas env evd a_typ =
             let e_r = push_local (Anonymous, r_t) e in
             let r = shift r in
             let r_t = shift r_t in
-            let r_eq = mkAppl (eq, [r_t; r; mkRel 1]) in
+            let r_eq = mkAppl (eq, [r_t; r; shift_by off (mkRel 1)]) in
             (push_local (Anonymous, r_eq) e_r, off + 2))
           recs
           (env_c_b, 0)
       in
-       let (_, body, _) =
-          List.fold_right
-            (fun _ (h_eq, b, inner) ->
-              let h_eq_rel = destRel h_eq in
-              let (_, _, h_eq_typ) = CRD.to_tuple @@ lookup_rel h_eq_rel env_lemma in
-              let typ :: rec1 :: rec2 :: _ = unfold_args h_eq_typ in
-              let inner = shift (shift inner) in
-              let abs_inner = all_eq_substs (shift (shift rec1), mkRel 1) (shift inner) in
-              let new_inner = all_eq_substs (shift (shift rec1), shift (shift rec2)) (shift inner) in
-              let eq_ind_rel = mkLambda (Anonymous, shift typ, mkAppl (eq, [shift (shift typ); shift inner; abs_inner])) in
-              (shift (shift h_eq), mkAppl (eq_ind, [shift typ; shift rec1; eq_ind_rel; shift (shift b); shift rec2; h_eq]), new_inner))
-            recs
-            (mkRel 1, refl, c_body)
-       in reconstruct_lambda env_lemma body)x
+      let (body, _, _) =
+        List.fold_right
+          (fun _ (b, h_eq, inner) ->
+            let h_eq_rel = destRel h_eq in
+            let (_, _, h_eq_typ) = CRD.to_tuple @@ lookup_rel h_eq_rel env_lemma in
+            (* TODO ASAP move eq for both appl and this *)
+            let typ :: rec1 :: rec2 :: _ = unfold_args h_eq_typ in
+            let inner = shift (shift inner) in
+            let abs_inner = all_eq_substs (shift (shift rec1), mkRel 1) (shift inner) in
+            let new_inner = all_eq_substs (shift (shift rec1), shift (shift rec2)) (shift inner) in
+            let eq_ind_rel = mkLambda (Anonymous, shift typ, mkAppl (eq, [shift (shift typ); shift inner; abs_inner])) in
+            (mkAppl (eq_ind, [shift typ; shift rec1; eq_ind_rel; shift (shift b); shift rec2; h_eq]), shift (shift h_eq), new_inner))
+          recs
+          (refl, mkRel 1, c_body)
+      in reconstruct_lambda env_lemma body)
     (* TODO what happens for trees when there are multiple IHs? What does the body look like? *)
     ((lookup_mind i env).mind_packets.(i_index)).mind_consnames
 
