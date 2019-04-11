@@ -101,11 +101,7 @@ let section_eq_lemmas env evd a_typ =
           recs
           (env_c_b, 0)
       in
-      if List.length recs = 0 then
-        (* TODO consolidate fold *)
-        reconstruct_lambda env_lemma refl
-      else
-        let (_, body, _) =
+       let (_, body, _) =
           List.fold_right
             (fun _ (h_eq, b, inner) ->
               let h_eq_rel = destRel h_eq in
@@ -118,7 +114,7 @@ let section_eq_lemmas env evd a_typ =
               (shift (shift h_eq), mkAppl (eq_ind, [shift typ; shift rec1; eq_ind_rel; shift (shift b); shift rec2; h_eq]), new_inner))
             recs
             (mkRel 1, refl, c_body)
-        in reconstruct_lambda env_lemma body)
+       in reconstruct_lambda env_lemma body)x
     (* TODO what happens for trees when there are multiple IHs? What does the body look like? *)
     ((lookup_mind i env).mind_packets.(i_index)).mind_consnames
 
