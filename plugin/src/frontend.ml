@@ -112,12 +112,15 @@ let section_eq_lemmas env evd a_typ =
             let typ = app.at_type in
             let r1 = app.trm1 in
             let r2 = app.trm2 in
-            let abs_inner = all_eq_substs (shift r1, mkRel 1) (shift c_app) in
-            let new_inner = all_eq_substs (shift r1, shift r2) (shift c_app) in
-            let eq_ind_rel = mkLambda (Anonymous, typ, mkAppl (eq, [shift typ; shift c_app; abs_inner])) in
-            (mkAppl (eq_ind, [typ; r1; eq_ind_rel; shift (shift b); r2; h_eq]), shift (shift h_eq), new_inner))
+            let typ_b = shift typ in
+            let c_app_b = shift c_app in
+            let abs_c_app = all_eq_substs (shift r1, mkRel 1) c_app_b in
+            let p_b = { at_type = typ_b; trm1 = c_app_b; trm2 = abs_c_app } in
+            let p = mkLambda (Anonymous, typ, apply_eq p_b) in
+            let c_app_trans = all_eq_substs (mkRel 1, shift r2) abs_c_app in
+            (mkAppl (eq_ind, [typ; r1; p; b; r2; h_eq]), shift_by 2 h_eq, c_app_trans))
           recs
-          (refl, mkRel 1, shift_by off c_body)
+          (shift_by off refl, mkRel 1, shift_by off c_body)
       in reconstruct_lambda env_lemma body)
     (* TODO what happens for trees when there are multiple IHs? What does the body look like? *)
     ((lookup_mind i env).mind_packets.(i_index)).mind_consnames
