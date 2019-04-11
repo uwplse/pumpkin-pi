@@ -69,6 +69,52 @@ let prove_coherence env evd orn =
   let coh_typ = reconstruct_product env_coh (mkAppl (eq, [ib_typ; ib; proj_ib])) in
   (coh, coh_typ)
 
+let section_eq_lemmas env evd a_typ =
+  let ((i, i_index), u) = destInd a_typ in
+  let mutind_body = lookup_mind i env in
+  let ind_bodies = mutind_body.mind_packets in
+  let ind_body = ind_bodies.(i_index) in
+  Array.mapi
+    (fun c_index _ ->
+      let c = mkConstructU (((i, i_index), c_index + 1), u) in
+      let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
+      let c_body = reduce_term env_c_b c_body in
+      let args = unfold_args c_body in
+      let recs = List.filter (fun a -> is_or_applies a_typ (reduce_type env_c_b evd a)) args in
+      let c_body_typ = reduce_type env_c_b evd c_body in
+      let refl = mkAppl (eq_refl, [c_body_typ; c_body]) in
+      if List.length recs = 0 then
+        (* TODO consolidate fold *)
+        reconstruct_lambda env_c_b refl
+      else
+        let env_lemma, _, _ =
+          List.fold_right (* TODO terrible sin against all of codekind *)
+            (fun _ (e, r, r_t) ->
+              let e_r = push_local (Anonymous, r_t) e in
+              let r = shift r in
+              let r_t = shift r_t in
+              let e_eq = push_local (Anonymous, mkAppl (eq, [r_t; r; mkRel 1])) e_r in
+              (e_eq, shift r, shift r_t))
+            recs
+            (env_c_b, List.hd recs, reduce_type env_c_b evd (List.hd recs))
+        in
+        let (_, body, _) =
+          List.fold_right
+            (fun _ (h_eq, b, inner) ->
+              let h_eq_rel = destRel h_eq in
+              let (_, _, h_eq_typ) = CRD.to_tuple @@ lookup_rel h_eq_rel env_lemma in
+              let typ :: rec1 :: rec2 :: _ = unfold_args h_eq_typ in
+              let inner = shift (shift inner) in
+              let abs_inner = all_eq_substs (shift (shift rec1), mkRel 1) (shift inner) in
+              let new_inner = all_eq_substs (shift (shift rec1), shift (shift rec2)) (shift inner) in
+              let eq_ind_rel = mkLambda (Anonymous, shift typ, mkAppl (eq, [shift (shift typ); shift inner; abs_inner])) in
+              (shift (shift h_eq), mkAppl (eq_ind, [shift typ; shift rec1; eq_ind_rel; shift (shift b); shift rec2; h_eq]), new_inner))
+            recs
+            (mkRel 1, refl, c_body)
+        in reconstruct_lambda env_lemma body)
+    (* TODO what happens for trees when there are multiple IHs? What does the body look like? *)
+    ind_body.mind_consnames
+
 (* TODO refactor below, comment, fill in *)
 (* TODO clean up too *)
 (* TODO test on other types besides list/vect in file *)
@@ -80,54 +126,6 @@ let prove_section promote_n forget_n env evd orn =
   let mutind_body = lookup_mind i env in
   let ind_bodies = mutind_body.mind_packets in
   let ind_body = ind_bodies.(i_index) in
-  let cs =
-    Array.mapi
-      (fun c_index _ ->
-        let c = mkConstructU (((i, i_index), c_index + 1), u) in
-        let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
-        let c_body = reduce_term env_c_b c_body in
-        let args = unfold_args c_body in
-        let recs = List.filter (fun a -> is_or_applies a_typ (reduce_type env_c_b evd a)) args in
-        (env_c_b, c_body, recs))
-      ind_body.mind_consnames
-  in
-  let eq_lemmas =
-    Array.map
-      (fun (env_c_b, c_body, recs) ->
-        let c_body_typ = reduce_type env_c_b evd c_body in
-        let refl = mkAppl (eq_refl, [c_body_typ; c_body]) in
-        if List.length recs = 0 then
-          (* TODO consolidate fold *)
-          reconstruct_lambda env_c_b refl
-        else
-          let env_lemma, _, _ =
-            List.fold_right (* TODO terrible sin against all of codekind *)
-              (fun _ (e, r, r_t) ->
-                let e_r = push_local (Anonymous, r_t) e in
-                let r = shift r in
-                let r_t = shift r_t in
-                let e_eq = push_local (Anonymous, mkAppl (eq, [r_t; r; mkRel 1])) e_r in
-                (e_eq, shift r, shift r_t))
-              recs
-              (env_c_b, List.hd recs, reduce_type env_c_b evd (List.hd recs))
-          in
-          let (_, body, _) =
-            List.fold_right
-              (fun _ (h_eq, b, inner) ->
-                let h_eq_rel = destRel h_eq in
-                let (_, _, h_eq_typ) = CRD.to_tuple @@ lookup_rel h_eq_rel env_lemma in
-                let typ :: rec1 :: rec2 :: _ = unfold_args h_eq_typ in
-                let inner = shift (shift inner) in
-                let abs_inner = all_eq_substs (shift (shift rec1), mkRel 1) (shift inner) in
-                let new_inner = all_eq_substs (shift (shift rec1), shift (shift rec2)) (shift inner) in
-                let eq_ind_rel = mkLambda (Anonymous, shift typ, mkAppl (eq, [shift (shift typ); shift inner; abs_inner])) in
-                (shift (shift h_eq), mkAppl (eq_ind, [shift typ; shift rec1; eq_ind_rel; shift (shift b); shift rec2; h_eq]), new_inner))
-              recs
-              (mkRel 1, refl, c_body)
-          in reconstruct_lambda env_lemma body)
-      (* TODO what happens for trees when there are multiple IHs? What does the body look like? *)
-      cs
-  in
   (* compose eq lemmas now *)
   let elim = type_eliminator env_sec (i, i_index) in
   let npm = mutind_body.mind_nparams in
@@ -158,6 +156,7 @@ let prove_section promote_n forget_n env evd orn =
   let (n, p_t, b) = destProd elim_typ in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all_by nargs (mk_n_rels npm) in (* TODO why nargs? *)
+  let eq_lemmas = section_eq_lemmas env evd a_typ in
   let section_case c_i c =
     let rec case e pms p_rel p args c =
       match kind c with
