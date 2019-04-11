@@ -220,6 +220,29 @@ let apply_eq (app : eq_app) : types =
 let dest_eq (trm : types) : eq_app =
   let [at_type; trm1; trm2] = unfold_args trm in
   { at_type; trm1; trm2 }
+    
+(*
+ * An application of eq_ind
+ *)
+type eq_ind_app =
+  {
+    at_type : types;
+    p : types;
+    trm1 : types;
+    trm2 : types;
+    h : types;
+    b : types;
+  }
+
+(*
+ * Apply an eq_ind
+ *)
+let apply_eq_ind (app : eq_ind_app) : types =
+  mkAppl (eq_ind, [app.at_type; app.trm1; app.p; app.b; app.trm2; app.h])
+      
+let dest_eq_ind (trm : types) : eq_ind_app =
+  let [at_type; trm1; p; b; trm2; h] = unfold_args trm in
+  { at_type; trm1; p; b; trm2; h }
 
 (*
  * An application of existT

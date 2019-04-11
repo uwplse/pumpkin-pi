@@ -105,20 +105,21 @@ let section_eq_lemmas env evd a_typ =
       in
       let (body, _, _) =
         List.fold_right
-          (fun _ (b, h_eq, c_app) ->
-            let h_eq_r = destRel h_eq in
+          (fun _ (b, h, c_app) ->
+            let h_eq_r = destRel h in
             let (_, _, h_eq_t) = CRD.to_tuple @@ lookup_rel h_eq_r env_lemma in
             let app = dest_eq (shift h_eq_t) in
-            let typ = app.at_type in
+            let at_type = app.at_type in
             let r1 = app.trm1 in
             let r2 = app.trm2 in
-            let typ_b = shift typ in
+            let typ_b = shift at_type in
             let c_app_b = shift c_app in
             let abs_c_app = all_eq_substs (shift r1, mkRel 1) c_app_b in
             let p_b = { at_type = typ_b; trm1 = c_app_b; trm2 = abs_c_app } in
-            let p = mkLambda (Anonymous, typ, apply_eq p_b) in
+            let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
             let c_app_trans = all_eq_substs (mkRel 1, shift r2) abs_c_app in
-            (mkAppl (eq_ind, [typ; r1; p; b; r2; h_eq]), shift_by 2 h_eq, c_app_trans))
+            let eq_proof = {at_type; p; trm1 = r1; trm2 = r2; h; b} in
+            (apply_eq_ind eq_proof, shift_by 2 h, c_app_trans))
           recs
           (shift_by off refl, mkRel 1, shift_by off c_body)
       in reconstruct_lambda env_lemma body)
