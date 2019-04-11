@@ -89,21 +89,22 @@ let section_eq_lemmas env evd a_typ =
       let c_body_typ = reduce_type env_c_b evd c_body in
       let refl = mkAppl (eq_refl, [c_body_typ; c_body]) in
       let recs = get_rec_args a_typ env_c_b evd c_body in
+      let env_lemma, _ =
+        List.fold_right
+          (fun r (e, off) ->
+            let r_t = reduce_type e evd (shift_by off r) in
+            let e_r = push_local (Anonymous, r_t) e in
+            let r = shift r in
+            let r_t = shift r_t in
+            let r_eq = mkAppl (eq, [r_t; r; mkRel 1]) in
+            (push_local (Anonymous, r_eq) e_r, off + 2))
+          recs
+          (env_c_b, 0)
+      in
       if List.length recs = 0 then
         (* TODO consolidate fold *)
-        reconstruct_lambda env_c_b refl
+        reconstruct_lambda env_lemma refl
       else
-        let env_lemma, _, _ =
-          List.fold_right (* TODO terrible sin against all of codekind *)
-            (fun _ (e, r, r_t) ->
-              let e_r = push_local (Anonymous, r_t) e in
-              let r = shift r in
-              let r_t = shift r_t in
-              let e_eq = push_local (Anonymous, mkAppl (eq, [r_t; r; mkRel 1])) e_r in
-              (e_eq, shift r, shift r_t))
-            recs
-            (env_c_b, List.hd recs, reduce_type env_c_b evd (List.hd recs))
-        in
         let (_, body, _) =
           List.fold_right
             (fun _ (h_eq, b, inner) ->
