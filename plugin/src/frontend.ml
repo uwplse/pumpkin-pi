@@ -106,9 +106,13 @@ let section_eq_lemmas env evd a_typ =
       let (body, _, _) =
         List.fold_right
           (fun _ (b, h_eq, c_app) ->
+            debug_term env_lemma c_app "c_app";
+            debug_term env_lemma h_eq "h_eq";
             let h_eq_r = destRel h_eq in
             let (_, _, h_eq_t) = CRD.to_tuple @@ lookup_rel h_eq_r env_lemma in
-            let app = dest_eq (shift h_eq_t) in
+            debug_term env_lemma (shift_by h_eq_r h_eq_t) "h_eq_t";
+            (* TODO h_eq args in wrong order (wanna unshfit), shows up as eq_sym problem over bin tree *)
+            let app = dest_eq (shift_by h_eq_r h_eq_t) in
             let at_type = app.at_type in
             let r2 = app.trm1 in
             let r1 = app.trm2 in
@@ -117,7 +121,7 @@ let section_eq_lemmas env evd a_typ =
             let abs_c_app = all_eq_substs (shift r1, mkRel 1) c_app_b in
             let p_b = { at_type = typ_b; trm1 = c_app_b; trm2 = abs_c_app } in
             let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
-            let c_app_trans = all_eq_substs (mkRel 1, shift r2) abs_c_app in
+            let c_app_trans = all_eq_substs (r1, r2) c_app in
             let h = mkAppl (eq_sym, [at_type; r2; r1; h_eq]) in
             let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h; b} in
             let eq_proof = apply_eq_ind eq_proof_app in
@@ -125,7 +129,7 @@ let section_eq_lemmas env evd a_typ =
             (eq_proof_sym, shift_by 2 h_eq, c_app_trans))
           recs
           (shift_by off refl, mkRel 1, shift_by off c_body)
-      in reconstruct_lambda env_lemma body)
+      in debug_term env_lemma body "body"; reconstruct_lambda env_lemma body)
     ((lookup_mind i env).mind_packets.(i_index)).mind_consnames
 
 (* TODO refactor, clean, etc *)
