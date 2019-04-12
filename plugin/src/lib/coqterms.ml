@@ -61,6 +61,10 @@ let eq_refl : types =
 let eq_ind : types =
   mkConst (Constant.make2 coq_init_logic (Label.make "eq_ind"))
 
+(* Symmetry *)
+let eq_sym : types =
+  mkConst (Constant.make2 coq_init_logic (Label.make "eq_sym"))
+
 (* --- Representations --- *)
 
 (** Construct the external expression for a definition. *)

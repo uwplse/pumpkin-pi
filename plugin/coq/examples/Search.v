@@ -15,7 +15,7 @@ Notation nilV := Vector.nil.
 (* --- Running search --- *)
 
 Set DEVOID search prove coherence. (* TODO test w/ other types too [tree, dep] *)
-Set DEVOID search prove equivalence. (* TODO test w/ other types too [tree, dep ] *)
+Set DEVOID search prove equivalence. (* TODO test w/ other types too [tree, dep]; use in case study code *)
 
 Find ornament list vector as ltv.
 
@@ -95,10 +95,10 @@ Qed.
  *)
 Lemma eq_cons:
   forall {T : Type} (t : T) (l1 : list T) (l2 : list T),
-    l1 = l2 ->
+    l2 = l1 ->
     cons t l1 = cons t l2.
 Proof.
-  intros. rewrite <- H. auto.
+  intros. rewrite <- (eq_sym H). auto.
 Qed.
 
 (*
@@ -114,7 +114,7 @@ Theorem retraction:
 Proof.
   intros. induction v; induction p.
   - reflexivity.
-  - apply eq_sigT_cons. apply IHp.
+  - apply eq_sym. apply eq_sigT_cons. apply IHp.
 Qed.  
 
 

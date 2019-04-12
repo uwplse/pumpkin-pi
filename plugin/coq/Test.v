@@ -1,6 +1,9 @@
 Require Import List.
 Require Import Ornamental.Ornaments.
 
+Set DEVOID search prove coherence.
+Set DEVOID search prove equivalence.
+
 (*--- Lists and Vectors ---*)
 
 Inductive vector (A : Type) : nat -> Type :=
@@ -30,7 +33,7 @@ Theorem test_orn_index:
   forall (A : Type) (l : list A),
     projT1 (orn_list_vector A l) = orn_list_vector_index A l.
 Proof.
-  intros. reflexivity.
+  exact orn_list_vector_coh.
 Qed.
 
 Theorem test_orn_inv:
@@ -69,7 +72,7 @@ Theorem test_orn_index_auto:
   forall (A : Type) (l : list A),
     projT1 (list_to_vector A l) = list_to_vector_index A l.
 Proof.
-  intros. reflexivity.
+  exact list_to_vector_coh.
 Qed.
 
 Theorem test_orn_inv_auto:
@@ -141,7 +144,7 @@ Theorem test_orn_index_flector:
   forall (l : flist),
   projT1 (orn_flist_flector l) = orn_flist_flector_index l.
 Proof.
-  intros. reflexivity.
+  exact orn_flist_flector_coh.
 Qed.
 
 Theorem test_orn_inv_flector:

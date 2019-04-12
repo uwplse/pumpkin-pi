@@ -98,28 +98,31 @@ let section_eq_lemmas env evd a_typ =
             let r1 = shift r in (* shifted original rec arg *)
             let r2 = mkRel 1 in (* new rec arg *)
             let r_t  = shift r_t in (* new rec arg type *)
-            let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
+            let r_eq = apply_eq {at_type = r_t; trm1 = r2; trm2 = r1} in
             (push_local (Anonymous, r_eq) e_r, off + 2))
           recs
           (env_c_b, 0)
       in
       let (body, _, _) =
         List.fold_right
-          (fun _ (b, h, c_app) ->
-            let h_eq_r = destRel h in
+          (fun _ (b, h_eq, c_app) ->
+            let h_eq_r = destRel h_eq in
             let (_, _, h_eq_t) = CRD.to_tuple @@ lookup_rel h_eq_r env_lemma in
             let app = dest_eq (shift h_eq_t) in
             let at_type = app.at_type in
-            let r1 = app.trm1 in
-            let r2 = app.trm2 in
+            let r2 = app.trm1 in
+            let r1 = app.trm2 in
             let typ_b = shift at_type in
             let c_app_b = shift c_app in
             let abs_c_app = all_eq_substs (shift r1, mkRel 1) c_app_b in
             let p_b = { at_type = typ_b; trm1 = c_app_b; trm2 = abs_c_app } in
             let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
             let c_app_trans = all_eq_substs (mkRel 1, shift r2) abs_c_app in
-            let eq_proof = {at_type; p; trm1 = r1; trm2 = r2; h; b} in
-            (apply_eq_ind eq_proof, shift_by 2 h, c_app_trans))
+            let h = mkAppl (eq_sym, [at_type; r2; r1; h_eq]) in
+            let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h; b} in
+            let eq_proof = apply_eq_ind eq_proof_app in
+            let eq_proof_sym = mkAppl (eq_sym, [at_type; c_app; all_eq_substs (r1, r2) c_app; eq_proof]) in
+            (eq_proof_sym, shift_by 2 h_eq, c_app_trans))
           recs
           (shift_by off refl, mkRel 1, shift_by off c_body)
       in reconstruct_lambda env_lemma body)
@@ -134,11 +137,12 @@ let section_motive env evd a at_type promote forget npm =
 
 (* TODO refactor, clean, etc *)
 let section_case env pms p eq_lemma c =
-  let rec case e pms p_rel p args c =
+  let rec case e pms p_rel p args lemma_args c =
     match kind c with
       | App (_, _) ->
          (* conclusion: apply eq lemma and beta-reduce *)
-         reduce_term e (mkAppl (eq_lemma, List.append pms (List.rev args)))
+         let all_args = List.append (List.rev args) (List.rev lemma_args) in
+         reduce_term e (mkAppl (eq_lemma, List.append pms all_args))
       | Prod (n, t, b) ->
          let case_b = case (push_local (n, t) e) (shift_all pms) (shift p_rel) (shift p) in
          if applies p_rel t then
@@ -146,15 +150,15 @@ let section_case env pms p eq_lemma c =
            let t' = reduce_term e (mkAppl (p, unfold_args t)) in
            let app = dest_eq t' in
            let a' = app.trm1 in
-           let a = app.trm2 in
-           let args_b = mkRel 1 :: shift_all (a :: a' :: (List.tl args)) in
-           mkLambda (n, t', case_b args_b b)
+           let lemma_args_b = mkRel 1 :: shift_all (a' :: lemma_args) in
+           mkLambda (n, t', case_b (shift_all args) lemma_args_b b)
          else
            (* Product *)
-           mkLambda (n, t, case_b (mkRel 1 :: shift_all args) b)
+           let args_b = mkRel 1 :: shift_all args in
+           mkLambda (n, t, case_b args_b (shift_all lemma_args) b)
       | _ ->
          failwith "unexpected case"
-    in case env pms (mkRel 1) p [] c
+    in case env pms (mkRel 1) p [] [] c
 
 (* TODO refactor below, comment, fill in *)
 (* TODO clean up too *)
