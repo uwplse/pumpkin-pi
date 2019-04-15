@@ -180,7 +180,45 @@ let prove_section promote_n forget_n env evd orn =
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
   let eq_lemmas = section_eq_lemmas env evd a_typ in
+  (* TODO refactor out of section and retraction *)
   let cs = List.mapi (fun j c -> section_case env_p pms (unshift_by (nargs - 1) p) eq_lemmas.(j) c) (take_except nargs (factor_product b)) in
+  let app =
+       apply_eliminator
+         {
+           elim;
+           pms = shift_all_by (nargs - 1) pms; (* TODO why *)
+           p;
+           cs = shift_all_by (nargs - 1) cs;
+           final_args = mk_n_rels nargs;
+         }
+  in
+  let eq_typ = dest_eq (reduce_type env_sec evd app) in
+  let t1 = eq_typ.trm1 in
+  let t2 = eq_typ.trm2 in
+  reconstruct_lambda env_sec (mkAppl (eq_sym, [at_type; t1; t2; app]))
+
+(* TODO refactor common w/ section, or call lift *)
+(* TODO refactor below, comment, fill in *)
+(* TODO clean up too *)
+(* TODO test on other types besides list/vect in file *)
+let prove_retraction promote_n forget_n env evd orn =
+  let env_sec = zoom_env zoom_lambda_term env orn.forget in
+  let b = mkRel 1 in
+  let at_type = reduce_type env_sec evd b in
+  let b_typ = first_fun (last_arg at_type) in
+  let ((i, i_index), u) = destInd b_typ in
+  let mutind_body = lookup_mind i env in
+  let elim = type_eliminator env_sec (i, i_index) in
+  let npm = mutind_body.mind_nparams in
+  let nargs = new_rels env_sec npm in
+  let p = retraction_motive env_sec evd b at_type (make_constant promote_n) (make_constant forget_n) npm in
+  let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
+  let (n, p_t, b) = destProd elim_typ in
+  let env_p = push_local (n, p_t) env_pms in
+  let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
+  let eq_lemmas = retraction_eq_lemmas env evd b_typ in
+  (* TODO refactor out of section and retraction *)
+  let cs = List.mapi (fun j c -> retraction_case env_p pms (unshift_by (nargs - 1) p) eq_lemmas.(j) c) (take_except nargs (factor_product b)) in
   let app =
        apply_eliminator
          {
