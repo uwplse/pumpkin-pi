@@ -105,20 +105,19 @@ let section_eq_lemmas env evd a_typ =
       in
       let refl = shift_by off refl in
       let c_body = shift_by off c_body in
+      let c_body_type = reduce_type env_lemma evd c_body in
       let (body, _, _) =
         List.fold_right
           (fun _ (b, h_eq, c_app) ->
-            (* TODO version w/o eq_sym (or just use eq_ind_r) *)
             let h_eq_r = destRel h_eq in
             let (_, _, h_eq_t) = CRD.to_tuple @@ lookup_rel h_eq_r env_lemma in
-            (* TODO h_eq args in wrong order (wanna unshfit), shows up as eq_sym problem over bin tree *)
             let app = dest_eq (shift_by h_eq_r h_eq_t) in
             let at_type = app.at_type in
             let r1 = app.trm1 in
             let r2 = app.trm2 in
-            let typ_b = shift at_type in
             let abs_c_app = all_eq_substs (shift r1, mkRel 1) (shift c_app) in
             let c_body_b = shift c_body in
+            let typ_b = shift c_body_type in
             let p_b = { at_type = typ_b; trm1 = c_body_b; trm2 = abs_c_app } in
             let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
             let c_app_trans = all_eq_substs (r1, r2) c_app in
@@ -181,6 +180,7 @@ let prove_section promote_n forget_n env evd orn =
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all_by nargs (mk_n_rels npm) in (* TODO why nargs? *)
   let eq_lemmas = section_eq_lemmas env evd a_typ in
+  debug_terms env (Array.to_list eq_lemmas) "eq_lemmas";
   let cs = List.mapi (fun j c -> section_case env_p pms p eq_lemmas.(j) c) (take_except nargs (factor_product b)) in
   let app =
        apply_eliminator

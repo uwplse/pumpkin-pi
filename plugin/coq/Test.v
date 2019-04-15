@@ -492,6 +492,27 @@ Inductive doublevector (A : Type) : nat -> nat -> Type :=
 Definition packed_doublevector (A : Type) (m : nat) :=
   sigT (A := nat) (fun n : nat => doublevector A n m).
 
+Print vector.
+
+Lemma consV_eq:
+  forall (A : Type) (n : nat) (a : A) (v1 : vector A n) (v2 : vector A n) (H : v1 = v2),
+    consV A n a v1 = consV A n a v2.
+Proof.
+  intros. rewrite <- H. reflexivity.
+Qed.
+
+Print consV_eq.
+
+(*
+fun (A : Type) (n : nat) (a : A) (v1 v2 : vector A n) (H : @eq (vector A n) v1 v2) =>
+@eq_ind (vector A n) v1 (fun v3 : vector A n => @eq (vector A (S n)) (consV A n a v1) (consV A n a v3))
+  (@eq_refl (vector A (S n)) (consV A n a v1)) v2 H
+
+fun (A : Type) (n : nat) (a : A) (v1 v2 : vector A n) (H : @eq (vector A n) v1 v2) =>
+@eq_ind (vector A n) v1 (fun v3 : vector A n => @eq (vector A (S n)) (consV A n a v1) (consV A n a v3)) 
+  (@eq_refl (vector A (S n)) (consV A n a v1)) v2 H
+*)
+
 Find ornament vector doublevector as orn_vector_doublevector.
 
 Definition vector_double_size (A : Type) (n : nat) (v : vector A n) :=
