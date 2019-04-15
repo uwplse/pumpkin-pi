@@ -513,6 +513,7 @@ fun (A : Type) (n : nat) (a : A) (v1 v2 : vector A n) (H : @eq (vector A n) v1 v
   (@eq_refl (vector A (S n)) (consV A n a v1)) v2 H
 *)
 
+(*Unset DEVOID search prove equivalence.*) (* TODO *)
 Find ornament vector doublevector as orn_vector_doublevector.
 
 Definition vector_double_size (A : Type) (n : nat) (v : vector A n) :=
