@@ -178,14 +178,15 @@ let prove_section promote_n forget_n env evd orn =
   let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
   let (n, p_t, b) = destProd elim_typ in
   let env_p = push_local (n, p_t) env_pms in
-  let pms = shift_all (mk_n_rels npm) in (* TODO why 1? *)
+  let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
   let eq_lemmas = section_eq_lemmas env evd a_typ in
   let cs = List.mapi (fun j c -> section_case env_p pms (unshift_by (nargs - 1) p) eq_lemmas.(j) c) (take_except nargs (factor_product b)) in
+  debug_terms env_sec pms "pms";
   let app =
        apply_eliminator
          {
            elim;
-           pms;
+           pms = shift_all_by (nargs - 1) pms; (* TODO why *)
            p;
            cs = shift_all_by (nargs - 1) cs;
            final_args = mk_n_rels nargs;
