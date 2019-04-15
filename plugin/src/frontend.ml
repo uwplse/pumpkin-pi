@@ -89,28 +89,29 @@ let section_eq_lemmas env evd a_typ =
       let c_body_typ = reduce_type env_c_b evd c_body in
       let refl = apply_eq_refl { typ = c_body_typ; trm = c_body } in
       let recs = get_rec_args a_typ env_c_b evd c_body in
+      debug_terms env_c_b recs "recs";
       let env_lemma, off =
-        List.fold_right
-          (fun r (e, off) ->
+        List.fold_left
+          (fun (e, off) r ->
             let r1 = shift_by off r in (* original rec arg *)
-            let r_t = reduce_type e evd r in (* rec arg type *)
+            debug_env e "e";
+            debug_term e r1 "r1";
+            let r_t = reduce_type e evd r1 in (* rec arg type *)
             let e_r = push_local (Anonymous, r_t) e in (* e with new rec arg *)
-            let r1 = shift r in (* shifted original rec arg *)
+            let r1 = shift r1 in (* shifted original rec arg *)
             let r2 = mkRel 1 in (* new rec arg *)
             let r_t  = shift r_t in (* new rec arg type *)
             let r_eq = apply_eq {at_type = r_t; trm1 = r2; trm2 = r1} in
             (push_local (Anonymous, r_eq) e_r, off + 2))
-          recs
           (env_c_b, 0)
+          recs
       in
       let (body, _, _) =
         List.fold_right
           (fun _ (b, h_eq, c_app) ->
-            debug_term env_lemma c_app "c_app";
-            debug_term env_lemma h_eq "h_eq";
+            (* TODO version w/o eq_sym (or just use eq_ind_r) *)
             let h_eq_r = destRel h_eq in
             let (_, _, h_eq_t) = CRD.to_tuple @@ lookup_rel h_eq_r env_lemma in
-            debug_term env_lemma (shift_by h_eq_r h_eq_t) "h_eq_t";
             (* TODO h_eq args in wrong order (wanna unshfit), shows up as eq_sym problem over bin tree *)
             let app = dest_eq (shift_by h_eq_r h_eq_t) in
             let at_type = app.at_type in
@@ -125,11 +126,17 @@ let section_eq_lemmas env evd a_typ =
             let h = mkAppl (eq_sym, [at_type; r2; r1; h_eq]) in
             let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h; b} in
             let eq_proof = apply_eq_ind eq_proof_app in
-            let eq_proof_sym = mkAppl (eq_sym, [at_type; c_app; all_eq_substs (r1, r2) c_app; eq_proof]) in
-            (eq_proof_sym, shift_by 2 h_eq, c_app_trans))
+            (eq_proof, shift_by 2 h_eq, c_app_trans))
           recs
           (shift_by off refl, mkRel 1, shift_by off c_body)
-      in debug_term env_lemma body "body"; reconstruct_lambda env_lemma body)
+      in
+      let body_typ = dest_eq (reduce_type env_lemma evd body) in
+      let at_type = body_typ.at_type in
+      let a1 = body_typ.trm1 in
+      let a2 = body_typ.trm2 in
+      let body_sym = mkAppl (eq_sym, [at_type; a1; a2; body]) in
+      debug_term env_lemma body_sym "body_sym";
+      reconstruct_lambda env_lemma body_sym)
     ((lookup_mind i env).mind_packets.(i_index)).mind_consnames
 
 (* TODO refactor, clean, etc *)
@@ -146,7 +153,7 @@ let section_case env pms p eq_lemma c =
       | App (_, _) ->
          (* conclusion: apply eq lemma and beta-reduce *)
          let all_args = List.append (List.rev args) (List.rev lemma_args) in
-         reduce_term e (mkAppl (eq_lemma, List.append pms all_args))
+         mkAppl (eq_lemma, List.append pms all_args)
       | Prod (n, t, b) ->
          let case_b = case (push_local (n, t) e) (shift_all pms) (shift p_rel) (shift p) in
          if applies p_rel t then
@@ -183,6 +190,7 @@ let prove_section promote_n forget_n env evd orn =
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all_by nargs (mk_n_rels npm) in (* TODO why nargs? *)
   let eq_lemmas = section_eq_lemmas env evd a_typ in
+  debug_terms env (Array.to_list eq_lemmas) "eq_lemmas";
   let cs = List.mapi (fun j c -> section_case env_p pms p eq_lemmas.(j) c) (take_except nargs (factor_product b)) in
   let app =
        apply_eliminator
