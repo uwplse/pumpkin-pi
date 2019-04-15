@@ -511,6 +511,13 @@ fun (A : Type) (n : nat) (a : A) (v1 v2 : vector A n) (H : @eq (vector A n) v1 v
 fun (A : Type) (n : nat) (a : A) (v1 v2 : vector A n) (H : @eq (vector A n) v1 v2) =>
 @eq_ind (vector A n) v1 (fun v3 : vector A n => @eq (vector A (S n)) (consV A n a v1) (consV A n a v3)) 
   (@eq_refl (vector A (S n)) (consV A n a v1)) v2 H
+
+vector_rect
+  A 
+  (fun (n : nat) (v : vector A n) => @eq (vector A n) v (forget A n (promote A n v)))
+  ((fun (A : Type) => @eq_refl (vector A O) (nilV A)) A) 
+  (fun (n : nat) . (λ (a : (n [Rel 3])) . (λ (v : (vector (n [Rel 4]) (n [Rel 2]))) . (λ (_ : (eq (vector (n [Rel 5]) (n [Rel 3])) (v [Rel 1]) (Test.orn_vector_doublevector_inv (n [Rel 5]) (n [Rel 3]) (Test.orn_vector_doublevector (n [Rel 5]) (n [Rel 3]) (v [Rel 1]))))) . ((λ (A : Type Test.1) . (λ (n : nat) . (λ (_ : (A [Rel 2])) . (λ (_ : (vector (A [Rel 3]) (n [Rel 2]))) . (λ (_ : (vector (A [Rel 4]) (n [Rel 3]))) . (λ (_ : (eq (vector (A [Rel 5]) (n [Rel 4])) (_ [Rel 2]) (_ [Rel 1]))) . (Coq.Init.Logic.eq_ind (vector (A [Rel 6]) (n [Rel 5])) (_ [Rel 3]) (λ (_ : (vector (A [Rel 6]) (n [Rel 5]))) . (eq (vector (A [Rel 7]) (S (n [Rel 6]))) (consV (A [Rel 7]) (n [Rel 6]) (_ [Rel 5]) (_ [Rel 4])) (consV (A [Rel 7]) (n [Rel 6]) (_ [Rel 5]) (_ [Rel 1])))) (eq_refl (vector (A [Rel 6]) (S (n [Rel 5]))) (consV (A [Rel 6]) (n [Rel 5]) (_ [Rel 4]) (_ [Rel 3]))) (_ [Rel 2]) (_ [Rel 1])))))))) (A [Rel 7]) (n [Rel 4]) (a [Rel 3]) (v [Rel 2]) (Test.orn_vector_doublevector_inv (n [Rel 6]) (n [Rel 4]) (Test.orn_vector_doublevector (n [Rel 6]) (n [Rel 4]) (v [Rel 2]))) (_ [Rel 1])))))) (n [Rel 2]) (v [Rel 1]))
+
 *)
 
 (*Unset DEVOID search prove equivalence.*) (* TODO *)

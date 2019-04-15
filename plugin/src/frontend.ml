@@ -178,9 +178,8 @@ let prove_section promote_n forget_n env evd orn =
   let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
   let (n, p_t, b) = destProd elim_typ in
   let env_p = push_local (n, p_t) env_pms in
-  let pms = shift_all_by nargs (mk_n_rels npm) in (* TODO why nargs? *)
+  let pms = shift_all (mk_n_rels npm) in (* TODO why 1? *)
   let eq_lemmas = section_eq_lemmas env evd a_typ in
-  debug_terms env (Array.to_list eq_lemmas) "eq_lemmas";
   let cs = List.mapi (fun j c -> section_case env_p pms (unshift_by (nargs - 1) p) eq_lemmas.(j) c) (take_except nargs (factor_product b)) in
   let app =
        apply_eliminator
@@ -188,7 +187,7 @@ let prove_section promote_n forget_n env evd orn =
            elim;
            pms;
            p;
-           cs;
+           cs = shift_all_by (nargs - 1) cs;
            final_args = mk_n_rels nargs;
          }
   in
