@@ -89,23 +89,22 @@ let section_eq_lemmas env evd a_typ =
       let c_body_typ = reduce_type env_c_b evd c_body in
       let refl = apply_eq_refl { typ = c_body_typ; trm = c_body } in
       let recs = get_rec_args a_typ env_c_b evd c_body in
-      debug_terms env_c_b recs "recs";
       let env_lemma, off =
         List.fold_left
           (fun (e, off) r ->
             let r1 = shift_by off r in (* original rec arg *)
-            debug_env e "e";
-            debug_term e r1 "r1";
             let r_t = reduce_type e evd r1 in (* rec arg type *)
             let e_r = push_local (Anonymous, r_t) e in (* e with new rec arg *)
             let r1 = shift r1 in (* shifted original rec arg *)
             let r2 = mkRel 1 in (* new rec arg *)
             let r_t  = shift r_t in (* new rec arg type *)
-            let r_eq = apply_eq {at_type = r_t; trm1 = r2; trm2 = r1} in
+            let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
             (push_local (Anonymous, r_eq) e_r, off + 2))
           (env_c_b, 0)
           recs
       in
+      let refl = shift_by off refl in
+      let c_body = shift_by off c_body in
       let (body, _, _) =
         List.fold_right
           (fun _ (b, h_eq, c_app) ->
@@ -115,35 +114,27 @@ let section_eq_lemmas env evd a_typ =
             (* TODO h_eq args in wrong order (wanna unshfit), shows up as eq_sym problem over bin tree *)
             let app = dest_eq (shift_by h_eq_r h_eq_t) in
             let at_type = app.at_type in
-            let r2 = app.trm1 in
-            let r1 = app.trm2 in
+            let r1 = app.trm1 in
+            let r2 = app.trm2 in
             let typ_b = shift at_type in
-            let c_app_b = shift c_app in
-            let abs_c_app = all_eq_substs (shift r1, mkRel 1) c_app_b in
-            let p_b = { at_type = typ_b; trm1 = c_app_b; trm2 = abs_c_app } in
+            let abs_c_app = all_eq_substs (shift r1, mkRel 1) (shift c_app) in
+            let c_body_b = shift c_body in
+            let p_b = { at_type = typ_b; trm1 = c_body_b; trm2 = abs_c_app } in
             let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
             let c_app_trans = all_eq_substs (r1, r2) c_app in
-            let h = mkAppl (eq_sym, [at_type; r2; r1; h_eq]) in
-            let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h; b} in
+            let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h = h_eq; b} in
             let eq_proof = apply_eq_ind eq_proof_app in
             (eq_proof, shift_by 2 h_eq, c_app_trans))
           recs
-          (shift_by off refl, mkRel 1, shift_by off c_body)
-      in
-      let body_typ = dest_eq (reduce_type env_lemma evd body) in
-      let at_type = body_typ.at_type in
-      let a1 = body_typ.trm1 in
-      let a2 = body_typ.trm2 in
-      let body_sym = mkAppl (eq_sym, [at_type; a1; a2; body]) in
-      debug_term env_lemma body_sym "body_sym";
-      reconstruct_lambda env_lemma body_sym)
+          (refl, mkRel 1, c_body)
+      in reconstruct_lambda env_lemma body)
     ((lookup_mind i env).mind_packets.(i_index)).mind_consnames
 
 (* TODO refactor, clean, etc *)
 let section_motive env evd a at_type promote forget npm =
   let typ_args = unfold_args at_type in
   let a' = mkAppl (forget, snoc (mkAppl (promote, snoc a typ_args)) typ_args) in
-  let p_b = apply_eq { at_type; trm1 = a'; trm2 = a } in
+  let p_b = apply_eq { at_type; trm1 = a; trm2 = a' } in
   shift_by (new_rels env npm) (reconstruct_lambda_n env p_b npm)
 
 (* TODO refactor, clean, etc *)
@@ -160,7 +151,7 @@ let section_case env pms p eq_lemma c =
            (* IH *)
            let t' = reduce_term e (mkAppl (p, unfold_args t)) in
            let app = dest_eq t' in
-           let a' = app.trm1 in
+           let a' = app.trm2 in
            let lemma_args_b = mkRel 1 :: shift_all (a' :: lemma_args) in
            mkLambda (n, t', case_b (shift_all args) lemma_args_b b)
          else
@@ -190,7 +181,6 @@ let prove_section promote_n forget_n env evd orn =
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all_by nargs (mk_n_rels npm) in (* TODO why nargs? *)
   let eq_lemmas = section_eq_lemmas env evd a_typ in
-  debug_terms env (Array.to_list eq_lemmas) "eq_lemmas";
   let cs = List.mapi (fun j c -> section_case env_p pms p eq_lemmas.(j) c) (take_except nargs (factor_product b)) in
   let app =
        apply_eliminator
@@ -201,7 +191,11 @@ let prove_section promote_n forget_n env evd orn =
            cs;
            final_args = mk_n_rels nargs;
          }
-  in reconstruct_lambda env_sec app
+  in
+  let eq_typ = dest_eq (reduce_type env_sec evd app) in
+  let t1 = eq_typ.trm1 in
+  let t2 = eq_typ.trm2 in
+  reconstruct_lambda env_sec (mkAppl (eq_sym, [at_type; t1; t2; app]))
                         
 (*
  * Identify an algebraic ornament between two types

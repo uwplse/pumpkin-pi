@@ -1,8 +1,8 @@
 Require Import List.
 Require Import Ornamental.Ornaments.
 
-Set DEVOID search prove coherence.
-(*Set DEVOID search prove equivalence. TODO *)
+Set DEVOID search prove coherence. (* TODO use for tests *)
+Set DEVOID search prove equivalence. (* TODO use for tests *)
 
 (*--- Lists and Vectors ---*)
 
@@ -13,46 +13,7 @@ Inductive vector (A : Type) : nat -> Type :=
 Definition packed_vector (T : Type) :=
   sigT (fun (n : nat) => vector T n).
 
-(* TODO temporary, to debug bug in section proof generation *)
-Lemma eq_cons :
-  forall (A : Type) (a : A) (l1 : list A) (l2 : list A) (H : l2 = l1), 
-    cons a l2 = cons a l1.
-Proof.
-  intros. apply eq_sym. rewrite <- H. auto.
-Qed.
-
-Print eq_cons.
-
-(*
-
-fun (A : Type) (a : A) (l1 l2 : list A) (H : @eq (list A) l2 l1) =>
-@eq_ind (list A) l2 (fun l3 : list A => @eq (list A) (@cons A a l2) (@cons A a l3))
-  (@eq_refl (list A) (@cons A a l2)) l1 H
-
-fun (A : Type) (a : A) (l1 l2 : list A) (H : @eq (list A) l2 l1) =>
-@eq_ind (list A) l2 (fun l3 : list A => @eq (list A) (@cons A a l2) (@cons A a l3)) 
-  (@eq_refl (list A) (@cons A a (l [Rel 3]))) (l [Rel 3]) (_ [Rel 1])))))))
-
-
- *)
-
 Find ornament list vector as orn_list_vector.
-
-Lemma section:
-  forall A l, 
-    orn_list_vector_inv A (orn_list_vector A l) = l.
-Proof.
-  intros. induction l.
-  - reflexivity.
-  - apply eq_cons. apply IHl.
-Qed.
-
-Print section.
-
-
-Set DEVOID search prove equivalence. (* TODO remove *)
-
-Find ornament list vector as orn_list_vector2.
 
 Theorem test_index:
   forall (A : Type) (l : list A),
@@ -296,33 +257,6 @@ Inductive bintreeV (A : Type) : nat -> Type :=
 
 Definition packed_bintreeV (T : Type) :=
   sigT (A := nat) (fun (n : nat) => bintreeV T n).
-
-(* TODO temporary, to debug bug in section proof generation *)
-Lemma eq_node :
-  forall (A : Type) (l1 : bintree A) (a : A) (r1 : bintree A) 
-         (l2 : bintree A) (Hl : l2 = l1) (r2 : bintree A) (Hr : r2 = r1),
-    node A l1 a r1 = node A l2 a r2.
-Proof. 
-  intros. rewrite <- (eq_sym Hl). rewrite <- (eq_sym Hr). auto.
-Qed.
-
-Print eq_node.
-
-(*
-
-fun (A : Type) (l1 : bintree A) (a : A) (r1 l2 : bintree A) (Hl : @eq (bintree A) l2 l1) 
-  (r2 : bintree A) (Hr : @eq (bintree A) r2 r1) =>
-@eq_ind (bintree A) l1 (fun l3 : bintree A => @eq (bintree A) (node A l1 a r1) (node A l3 a r2))
-  (@eq_ind (bintree A) r1 (fun r3 : bintree A => @eq (bintree A) (node A l1 a r1) (node A l1 a r3))
-     (@eq_refl (bintree A) (node A l1 a r1)) r2 (@eq_sym (bintree A) r2 r1 Hr)) l2
-  (@eq_sym (bintree A) l2 l1 Hl)
-
-
-fun (A : Type) (l1 : bintree A) (a : A) (r1 l2 : bintree A) (Hl : @eq (bintree A) l2 l1) 
-  (r2: bintree A) (Hr : @eq (bintree A) r2 r1) =>
-(Coq.Init.Logic.eq_sym (bintree (A [Rel 8])) (node (A [Rel 8]) (_ [Rel 7]) (_ [Rel 6]) (_ [Rel 2])) (node (A [Rel 8]) (_ [Rel 4]) (_ [Rel 6]) (_ [Rel 2])) (Coq.Init.Logic.eq_ind (bintree (A [Rel 8])) (_ [Rel 7]) (λ (_ : (bintree (A [Rel 8]))) . (eq (bintree (A [Rel 9])) (node (A [Rel 9]) (_ [Rel 8]) (_ [Rel 7]) (_ [Rel 3])) (node (A [Rel 9]) (_ [Rel 1]) (_ [Rel 7]) (_ [Rel 3])))) (Coq.Init.Logic.eq_sym (bintree (A [Rel 8])) (node (A [Rel 8]) (_ [Rel 7]) (_ [Rel 6]) (_ [Rel 5])) (node (A [Rel 8]) (_ [Rel 7]) (_ [Rel 6]) (_ [Rel 2])) (Coq.Init.Logic.eq_ind (bintree (A [Rel 8])) (_ [Rel 5]) (λ (_ : (bintree (A [Rel 8]))) . (eq (bintree (A [Rel 9])) (node (A [Rel 9]) (_ [Rel 8]) (_ [Rel 7]) (_ [Rel 6])) (node (A [Rel 9]) (_ [Rel 8]) (_ [Rel 7]) (_ [Rel 1])))) (eq_refl (bintree (A [Rel 8])) (node (A [Rel 8]) (_ [Rel 7]) (_ [Rel 6]) (_ [Rel 5]))) (_ [Rel 2]) (Coq.Init.Logic.eq_sym (bintree (A [Rel 8])) (_ [Rel 2]) (_ [Rel 5]) (_ [Rel 1])))) (_ [Rel 4]) (Coq.Init.Logic.eq_sym (bintree (A [Rel 8])) (_ [Rel 4]) (_ [Rel 7]) (_ [Rel 3]))))))))))))
-
- *)
 
 Find ornament bintree bintreeV as orn_bintree_bintreeV.
 
