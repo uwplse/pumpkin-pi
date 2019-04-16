@@ -186,11 +186,18 @@ let section_eq_lemmas env evd a_typ =
     
 (* TODO move out shifting? *)
 (* TODO refactor, clean, etc *)
+(* TODO remove at_type or pass different arg for this *)
 let retraction_motive env evd b at_type promote forget npm =
   let typ_args = unfold_args at_type in
   let b' = mkAppl (promote, snoc (mkAppl (forget, snoc b typ_args)) typ_args) in
-  let p_b = apply_eq { at_type; trm1 = b; trm2 = b' } in
-  shift_by (new_rels env npm) (reconstruct_lambda_n env p_b npm)
+  let b_typ = reduce_type env evd b in (* TODO redundant *)
+  let b_sig = dest_sigT b_typ in (* TOOD redundant *)
+  let p_b = apply_eq { at_type = b_typ; trm1 = b; trm2 = b' } in
+  let i_b_t = b_sig.index_type in
+  let env_i_b = push_local (Anonymous, i_b_t) (pop_rel_context 1 env) in
+  let b_u = reduce_term env_i_b (mkAppl (b_sig.packer, [mkRel 1])) in
+  let env_u = push_local (Anonymous, b_u) env_i_b in
+  shift_by (new_rels env npm) (reconstruct_lambda_n env_u p_b npm)
 
 (* TODO move out shifting? *)
 (* TODO refactor, clean, etc *)
@@ -291,18 +298,20 @@ let prove_section promote_n forget_n env evd orn =
 (* TODO clean up too *)
 (* TODO test on other types besides list/vect in file *)
 let prove_retraction promote_n forget_n env evd orn =
+  (* TODO should be env_retract *)
   let env_sec = zoom_env zoom_lambda_term env orn.forget in
   let b = mkRel 1 in
-  let at_type = reduce_type env_sec evd b in
-  let b_typ = first_fun (snd (zoom_lambda_term env_sec (last_arg at_type))) in
+  let at_type_packed = reduce_type env_sec evd b in
+  let at_type = snd (zoom_lambda_term env_sec (last_arg at_type_packed)) in
+  let b_typ = first_fun at_type in
   let ((i, i_index), u) = destInd b_typ in
   let mutind_body = lookup_mind i env in
   let elim = type_eliminator env_sec (i, i_index) in
-  debug_term env elim "elim";
   let npm = mutind_body.mind_nparams in
   let nargs = new_rels env_sec npm in
   let p = retraction_motive env_sec evd b at_type (make_constant promote_n) (make_constant forget_n) npm in
   let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
+  debug_term env_sec p "p";
   let (n, p_t, b) = destProd elim_typ in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
