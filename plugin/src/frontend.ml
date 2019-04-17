@@ -80,7 +80,8 @@ let get_rec_args typ env_c_b evd c_body =
 (*
  * TODO move, explain
  *)
-let eq_lemmas env evd typ =
+let eq_lemmas env evd typ is_fwd =
+  (* TODO retraction direction: pack *)
   let ((i, i_index), u) = destInd typ in
   Array.mapi
     (fun c_index _ ->
@@ -227,7 +228,7 @@ let prove_section promote_n forget_n env evd orn =
   let (n, p_t, b) = destProd elim_typ in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
-  let lemmas = eq_lemmas env evd a_typ in
+  let lemmas = eq_lemmas env evd a_typ true in
   let cs = List.mapi (fun j c -> section_case env_p pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except nargs (factor_product b)) in
   let app =
        apply_eliminator
@@ -265,7 +266,7 @@ let prove_retraction promote_n forget_n env evd orn =
   let (n, p_t, b) = destProd elim_typ in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
-  let lemmas = eq_lemmas env evd b_typ in
+  let lemmas = eq_lemmas env evd b_typ false in
   let cs = List.mapi (fun j c -> retraction_case env_p pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except nargs (factor_product b)) in
   let app =
        apply_eliminator
