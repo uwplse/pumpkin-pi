@@ -20,6 +20,7 @@ open Printing (* TODO same *)
 open Debruijn (* TODO same *)
 open Hofs (* TODO same *)
 open Factoring (* TODO same *)
+open Specialization (* TODO same *)
        
 (* --- Options --- *)
 
@@ -184,23 +185,29 @@ let section_eq_lemmas env evd a_typ =
       in reconstruct_lambda env_lemma body)
     ((lookup_mind i env).mind_packets.(i_index)).mind_consnames
     
-(* TODO move out shifting? *)
+(* TODO move out shifting? why there *)
+(* TODO refactor packing w/ pack in specialization *)
 (* TODO refactor, clean, etc *)
 (* TODO remove at_type or pass different arg for this *)
 let retraction_motive env evd b at_type promote forget npm =
-  let typ_args = unfold_args at_type in
-  let b' = mkAppl (promote, snoc (mkAppl (forget, snoc b typ_args)) typ_args) in
+  (* TODO b_typ args incorrect *)
   let b_typ = reduce_type env evd b in (* TODO redundant *)
   let b_sig = dest_sigT b_typ in (* TOOD redundant *)
-  let p_b = apply_eq { at_type = b_typ; trm1 = b; trm2 = b' } in
   let i_b_t = b_sig.index_type in
   let env_i_b = push_local (Anonymous, i_b_t) (pop_rel_context 1 env) in
   let b_u = reduce_term env_i_b (mkAppl (b_sig.packer, [mkRel 1])) in
   let env_u = push_local (Anonymous, b_u) env_i_b in
-  shift_by (new_rels env npm) (reconstruct_lambda_n env_u p_b npm)
+  let typ_args = shift_all (unfold_args at_type) in (* TODO refactor this stuff, common w lift config *)
+  let typ_args_idx = List.mapi (fun i t -> (i, t)) typ_args in
+  let (off, _) = List.find (fun (_, t) -> contains_term (mkRel 2) t) typ_args_idx in
+  let b_ex = pack env_u evd off b in
+  let b_ex' = mkAppl (promote, snoc (mkAppl (forget, snoc b_ex typ_args)) typ_args) in
+  let p_b = apply_eq { at_type = shift b_typ; trm1 = b_ex; trm2 = b_ex' } in
+  reconstruct_lambda_n env_u p_b npm
 
-(* TODO move out shifting? *)
+(* TODO move out shifting? why there *)
 (* TODO refactor, clean, etc *)
+(* TODO is a just always mkRel 1? *)
 let section_motive env evd a at_type promote forget npm =
   let typ_args = unfold_args at_type in
   let a' = mkAppl (forget, snoc (mkAppl (promote, snoc a typ_args)) typ_args) in
