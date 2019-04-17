@@ -186,7 +186,7 @@ let section_eq_lemmas env evd a_typ =
     ((lookup_mind i env).mind_packets.(i_index)).mind_consnames
     
 (* TODO move out shifting? why there *)
-(* TODO refactor packing w/ pack in specialization *)
+(* TODO refactor packing w/ pack in specialization, or w/ lift pack *)
 (* TODO refactor, clean, etc *)
 (* TODO remove at_type or pass different arg for this *)
 let retraction_motive env evd b at_type promote forget npm =
@@ -195,14 +195,14 @@ let retraction_motive env evd b at_type promote forget npm =
   let b_sig = dest_sigT b_typ in (* TOOD redundant *)
   let i_b_t = b_sig.index_type in
   let env_i_b = push_local (Anonymous, i_b_t) (pop_rel_context 1 env) in
-  let b_u = reduce_term env_i_b (mkAppl (b_sig.packer, [mkRel 1])) in
+  let b_u = reduce_term env_i_b (mkAppl (shift b_sig.packer, [mkRel 1])) in
   let env_u = push_local (Anonymous, b_u) env_i_b in
   let typ_args = shift_all (unfold_args at_type) in (* TODO refactor this stuff, common w lift config *)
   let typ_args_idx = List.mapi (fun i t -> (i, t)) typ_args in
   let (off, _) = List.find (fun (_, t) -> contains_term (mkRel 2) t) typ_args_idx in
   let b_ex = pack env_u evd off b in
   let b_ex' = mkAppl (promote, snoc (mkAppl (forget, snoc b_ex typ_args)) typ_args) in
-  let p_b = apply_eq { at_type = shift b_typ; trm1 = b_ex; trm2 = b_ex' } in
+  let p_b = apply_eq { at_type = shift_by 2 b_typ; trm1 = b_ex; trm2 = b_ex' } in
   reconstruct_lambda_n env_u p_b npm
 
 (* TODO move out shifting? why there *)
@@ -318,7 +318,6 @@ let prove_retraction promote_n forget_n env evd orn =
   let nargs = new_rels env_sec npm in
   let p = retraction_motive env_sec evd b at_type (make_constant promote_n) (make_constant forget_n) npm in
   let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
-  debug_term env_sec p "p";
   let (n, p_t, b) = destProd elim_typ in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
