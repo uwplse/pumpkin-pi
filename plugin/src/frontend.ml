@@ -79,11 +79,9 @@ let get_rec_args typ env_c_b evd c_body =
               
 (*
  * TODO move, explain
- * TODO need to pack etc
- * TODO could also use lifting instead
  *)
-let retraction_eq_lemmas env evd b_typ =
-  let ((i, i_index), u) = destInd b_typ in
+let eq_lemmas env evd typ =
+  let ((i, i_index), u) = destInd typ in
   Array.mapi
     (fun c_index _ ->
       let c = mkConstructU (((i, i_index), c_index + 1), u) in
@@ -91,60 +89,7 @@ let retraction_eq_lemmas env evd b_typ =
       let c_body = reduce_term env_c_b c_body in
       let c_body_typ = reduce_type env_c_b evd c_body in
       let refl = apply_eq_refl { typ = c_body_typ; trm = c_body } in
-      let recs = get_rec_args b_typ env_c_b evd c_body in
-      let env_lemma, off =
-        List.fold_left
-          (fun (e, off) r ->
-            let r1 = shift_by off r in (* original rec arg *)
-            let r_t = reduce_type e evd r1 in (* rec arg type *)
-            let e_r = push_local (Anonymous, r_t) e in (* e with new rec arg *)
-            let r1 = shift r1 in (* shifted original rec arg *)
-            let r2 = mkRel 1 in (* new rec arg *)
-            let r_t  = shift r_t in (* new rec arg type *)
-            let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
-            (push_local (Anonymous, r_eq) e_r, off + 2))
-          (env_c_b, 0)
-          recs
-      in
-      let refl = shift_by off refl in
-      let c_body = shift_by off c_body in
-      let c_body_type = reduce_type env_lemma evd c_body in
-      let (body, _, _) =
-        List.fold_right
-          (fun _ (b, h_eq, c_app) ->
-            let h_eq_r = destRel h_eq in
-            let (_, _, h_eq_t) = CRD.to_tuple @@ lookup_rel h_eq_r env_lemma in
-            let app = dest_eq (shift_by h_eq_r h_eq_t) in
-            let at_type = app.at_type in
-            let r1 = app.trm1 in
-            let r2 = app.trm2 in
-            let abs_c_app = all_eq_substs (shift r1, mkRel 1) (shift c_app) in
-            let c_body_b = shift c_body in
-            let typ_b = shift c_body_type in
-            let p_b = { at_type = typ_b; trm1 = c_body_b; trm2 = abs_c_app } in
-            let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
-            let c_app_trans = all_eq_substs (r1, r2) c_app in
-            let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h = h_eq; b} in
-            let eq_proof = apply_eq_ind eq_proof_app in
-            (eq_proof, shift_by 2 h_eq, c_app_trans))
-          recs
-          (refl, mkRel 1, c_body)
-      in reconstruct_lambda env_lemma body)
-    ((lookup_mind i env).mind_packets.(i_index)).mind_consnames
-              
-(*
- * TODO move, explain
- *)
-let section_eq_lemmas env evd a_typ =
-  let ((i, i_index), u) = destInd a_typ in
-  Array.mapi
-    (fun c_index _ ->
-      let c = mkConstructU (((i, i_index), c_index + 1), u) in
-      let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
-      let c_body = reduce_term env_c_b c_body in
-      let c_body_typ = reduce_type env_c_b evd c_body in
-      let refl = apply_eq_refl { typ = c_body_typ; trm = c_body } in
-      let recs = get_rec_args a_typ env_c_b evd c_body in
+      let recs = get_rec_args typ env_c_b evd c_body in
       let env_lemma, off =
         List.fold_left
           (fun (e, off) r ->
@@ -282,9 +227,8 @@ let prove_section promote_n forget_n env evd orn =
   let (n, p_t, b) = destProd elim_typ in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
-  let eq_lemmas = section_eq_lemmas env evd a_typ in
-  (* TODO refactor out of section and retraction *)
-  let cs = List.mapi (fun j c -> section_case env_p pms (unshift_by (nargs - 1) p) eq_lemmas.(j) c) (take_except nargs (factor_product b)) in
+  let lemmas = eq_lemmas env evd a_typ in
+  let cs = List.mapi (fun j c -> section_case env_p pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except nargs (factor_product b)) in
   let app =
        apply_eliminator
          {
@@ -321,9 +265,8 @@ let prove_retraction promote_n forget_n env evd orn =
   let (n, p_t, b) = destProd elim_typ in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
-  let eq_lemmas = retraction_eq_lemmas env evd b_typ in
-  (* TODO refactor out of section and retraction *)
-  let cs = List.mapi (fun j c -> retraction_case env_p pms (unshift_by (nargs - 1) p) eq_lemmas.(j) c) (take_except nargs (factor_product b)) in
+  let lemmas = eq_lemmas env evd b_typ in
+  let cs = List.mapi (fun j c -> retraction_case env_p pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except nargs (factor_product b)) in
   let app =
        apply_eliminator
          {

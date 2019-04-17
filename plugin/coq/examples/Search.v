@@ -117,5 +117,24 @@ Proof.
   - apply eq_sym. apply eq_sigT_cons. apply IHp.
 Qed.  
 
+(* alt. *)
 
+Lemma eq_consV:
+  forall {T : Type} (t : T) (n : nat) (v1: vector T n) (v2 : vector T n) (H : v1 = v2),
+    consV n t v1 = consV n t v2.
+Proof.
+  intros. rewrite <- H. auto.
+Qed.
 
+Print eq_consV.
+
+(*
+fun (T : Type) (t0 : T) (n : nat) (v1 v2 : vector T n) (H : v1 = v2) =>
+@eq_ind (t T n) v1 (fun v3 : t T n => @eq (t T (S n)) (Vector.cons T t0 n v1) (Vector.cons T t0 n v3))
+  (@eq_refl (t T (S n)) (Vector.cons T t0 n v1)) v2 H
+
+fun (T : Type) (t0 : T) (n : nat) (v1 v2 : vector T n) (H : v1 = v2) => 
+@eq_ind (t T n) v1 (fun v3 : t T n => @eq (t T (S n)) (Vector.cons T t0 n v1) (Vector.cons T t0 n v3)) 
+  (@eq_refl (t T (S n)) (Vector.cons T t0 n v1)) v2 H
+
+*)
