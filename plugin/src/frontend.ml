@@ -307,7 +307,15 @@ let prove_retraction promote_n forget_n env evd l =
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
   let lemmas = eq_lemmas env evd b_typ l in
   let cs = List.mapi (fun j c -> retraction_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except (nargs + 1) (factor_product b)) in
-  debug_terms env_sec cs "cs";
+  let final_args =
+    let args = mk_n_rels nargs in
+    let b_sig = last args in
+    let b_sig_typ = on_type dest_sigT env_sec evd b_sig in
+    let i_b = project_index b_sig_typ b_sig in
+    let b = project_value b_sig_typ b_sig in
+    insert_index (l.off - npm) i_b (reindex (nargs - 1) b args)
+  in
+  debug_terms env_sec final_args "final_args";
   let app =
        apply_eliminator
          {
@@ -315,7 +323,7 @@ let prove_retraction promote_n forget_n env evd l =
            pms = shift_all_by (nargs - 1) pms; (* TODO why *)
            p;
            cs = shift_all_by (nargs - 1) cs;
-           final_args = mk_n_rels nargs;
+           final_args;
          }
   in
   let eq_typ = dest_eq (reduce_type env_sec evd app) in
