@@ -112,29 +112,44 @@ Print eq_sigT_cons_p.
 
 (*
 
-fun (T : Type) (t0 : T) (l1 l2 : @sigT nat (fun H : nat => t T H))
-  (H : @eq (@sigT nat (fun H : nat => t T H))
-         (@existT nat (fun H : nat => t T H) (@projT1 nat (fun H : nat => t T H) l1)
-            (@projT2 nat (fun H : nat => t T H) l1))
-         (@existT nat (fun H : nat => t T H) (@projT1 nat (fun H : nat => t T H) l2)
-            (@projT2 nat (fun H : nat => t T H) l2))) =>
-@eq_ind (@sigT nat (fun H0 : nat => t T H0))
-  (@existT nat (fun H0 : nat => t T H0) (@projT1 nat (fun H0 : nat => t T H0) l1)
-     (@projT2 nat (fun H0 : nat => t T H0) l1))
+fun (T : Type) (t0 : T) (n1 : nat) (v1 : vector T n1) (n2 : nat) (v2 : vector T n2)
+  (H : @eq (@sigT nat (fun H : nat => t T H)) 
+           (@existT nat (fun H : nat => t T H) n1 v1)
+           (@existT nat (fun H : nat => t T H) n2 v2) =>
+@eq_ind 
+  (@sigT nat (fun H0 : nat => t T H0))
+  (@existT nat (fun H0 : nat => t T H0) n1 v1)
   (fun l3 : @sigT nat (fun H0 : nat => t T H0) =>
-   @eq (@sigT nat (fun H0 : nat => t T H0))
-     (@existT nat (fun H0 : nat => VectorDef.t T H0) (S (@projT1 nat (fun H0 : nat => t T H0) l1))
-        (VectorDef.cons T t0 (@projT1 nat (fun H0 : nat => t T H0) l1)
-           (@projT2 nat (fun H0 : nat => t T H0) l1)))
-     (@existT nat (fun H0 : nat => VectorDef.t T H0) (S (@projT1 nat (fun H0 : nat => t T H0) l3))
-        (VectorDef.cons T t0 (@projT1 nat (fun H0 : nat => t T H0) l3)
-           (@projT2 nat (fun H0 : nat => t T H0) l3))))
-  (@eq_refl (@sigT nat (fun H0 : nat => t T H0))
-     (@existT nat (fun H0 : nat => VectorDef.t T H0) (S (@projT1 nat (fun H0 : nat => t T H0) l1))
-        (VectorDef.cons T t0 (@projT1 nat (fun H0 : nat => t T H0) l1)
-           (@projT2 nat (fun H0 : nat => t T H0) l1))))
-  (@existT nat (fun H0 : nat => t T H0) (@projT1 nat (fun H0 : nat => t T H0) l2)
-     (@projT2 nat (fun H0 : nat => t T H0) l2)) H
+     @eq 
+       (@sigT nat (fun H0 : nat => t T H0))
+       (@existT nat 
+          (fun H0 : nat => VectorDef.t T H0) 
+          (S n1)
+          (VectorDef.cons T t0 n1 v1))
+       (@existT nat 
+          (fun H0 : nat => VectorDef.t T H0) 
+          (S (@projT1 nat (fun H0 : nat => t T H0) l3))
+          (VectorDef.cons T t0 (@projT1 nat (fun H0 : nat => t T H0) l3) (@projT2 nat (fun H0 : nat => t T H0) l3))))
+  (@eq_refl 
+     (@sigT nat (fun H0 : nat => t T H0))
+     (@existT nat 
+        (fun H0 : nat => VectorDef.t T H0)
+        (S n)
+        (VectorDef.cons T t0 n1 v1)))
+  (@existT nat (fun H0 : nat => t T H0) n2 v2) 
+  H
+
+fun (T : Type) (t0 : T) (n1 : nat) (v1 : vector T n1) (n2 : nat) (v2 : vector T n2) 
+  (H : @eq (@sigT nat (fun H : nat => t T H)) 
+           (@existT nat (fun H : nat => t T H) n1 v1)
+           (@existT nat (fun H : nat => t T H) n2 v2)) => 
+@eq_ind 
+  (@sigT nat (fun H0 : nat => t T H0)) 
+  (@existT nat (fun H0 : nat => t T H0) n1 v1) 
+  (fun (l3 : @sigT nat (fun H0 : nat => t T H0) =>
+    @eq  
+      (t (A [Rel 8]) 
+      (S (n [Rel 6]))) (cons (A [Rel 8]) (h [Rel 7]) (n [Rel 6]) (_ [Rel 5])) (cons (A [Rel 8]) (h [Rel 7]) (n [Rel 6]) (_ [Rel 5])))) (eq_refl (t (A [Rel 7]) (S (n [Rel 5]))) (cons (A [Rel 7]) (h [Rel 6]) (n [Rel 5]) (_ [Rel 4]))) (existT nat (λ (_ : nat) . (t (A [Rel 8]) (_ [Rel 1]))) (_ [Rel 3]) (_ [Rel 2])) (_ [Rel 1])))))))))
 
  *)
 

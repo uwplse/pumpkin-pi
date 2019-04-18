@@ -121,14 +121,11 @@ let eq_lemmas env evd typ l =
       let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
       let c_body = reduce_term env_c_b c_body in
       let recs = get_rec_args typ env_c_b evd c_body in
-      debug_terms env_c_b recs "recs";
       let env_lemma = eq_lemmas_env env_c_b evd recs l in
-      debug_env env_lemma "env_lemma";
       let nargs = new_rels2 env_lemma env_c_b in
-      let c_body = shift_by nargs c_body in
+      let c_body = map_backward (pack env_lemma evd l.off) l (shift_by nargs c_body) in
       let c_body_type = reduce_type env_lemma evd c_body in
       let refl = apply_eq_refl { typ = c_body_type; trm = c_body } in
-      debug_term env_lemma refl "refl";
       let (body, _, _) =
         List.fold_right
           (fun _ (b, h_eq, c_app) ->
@@ -287,6 +284,7 @@ let prove_retraction promote_n forget_n env evd l =
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
   let lemmas = eq_lemmas env evd b_typ l in
+  debug_terms env_p (Array.to_list lemmas) "eq lemmas";
   let cs = List.mapi (fun j c -> retraction_case env_p pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except nargs (factor_product b)) in
   let app =
        apply_eliminator
