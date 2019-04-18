@@ -307,14 +307,12 @@ let prove_retraction promote_n forget_n env evd l =
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
   let lemmas = eq_lemmas env evd b_typ l in
   let cs = List.mapi (fun j c -> retraction_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except (nargs + 1) (factor_product b)) in
-  let final_args =
-    let args = mk_n_rels nargs in
-    let b_sig = last args in
-    let b_sig_typ = on_type dest_sigT env_sec evd b_sig in
-    let i_b = project_index b_sig_typ b_sig in
-    let b = project_value b_sig_typ b_sig in
-    insert_index (l.off - npm) i_b (reindex (nargs - 1) b args)
-  in
+  let args = mk_n_rels nargs in
+  let b_sig = last args in
+  let b_sig_typ = on_type dest_sigT env_sec evd b_sig in
+  let i_b = project_index b_sig_typ b_sig in
+  let b = project_value b_sig_typ b_sig in
+  let final_args = insert_index (l.off - npm) i_b (reindex (nargs - 1) b args) in
   let app =
        apply_eliminator
          {
@@ -324,12 +322,25 @@ let prove_retraction promote_n forget_n env evd l =
            cs = shift_all_by (nargs - 1) cs;
            final_args;
          }
-  in
+  in (* TODO use eta_sigT where relevant *)
   let eq_typ = dest_eq (reduce_type env_sec evd app) in
   let t1 = eq_typ.trm1 in
   let t2 = eq_typ.trm2 in
   let at_type = reduce_type env_sec evd t1 in (* TODO why can't just reuse *)
-  reconstruct_lambda env_sec (mkAppl (eq_sym, [at_type; t1; t2; app]))
+  let sym_app = mkAppl (eq_sym, [at_type; t1; t2; app]) in
+  let to_elim = dest_sigT at_type in
+  let t1_ex = dest_existT t1 in
+  let trm2 = last_arg (t1_ex.unpacked) in
+  let trm1 = all_eq_substs (t1, trm2) t2 in
+  (* TODO why all the shifting here *)
+  let packed_type = shift (reconstruct_lambda_n env_sec (apply_eq {at_type; trm1; trm2}) (nb_rel env_sec - 1)) in
+  let ib_typ = (dest_sigT (shift at_type)).index_type in
+  let b_typ = mkAppl ((dest_sigT (shift at_type)).packer, [mkRel 1]) in
+  let sym_app_b = all_eq_substs (shift_by 2 i_b, mkRel 2) (all_eq_substs (shift_by 2 b, mkRel 1) (shift_by 2 sym_app)) in
+  let unpacked = mkLambda (Anonymous, ib_typ, (mkLambda (Anonymous, b_typ, sym_app_b))) in (* TODO build by env instead *)
+  let arg = mkRel 1 in
+  let elim_app = elim_sigT { to_elim; packed_type; unpacked; arg } in
+  reconstruct_lambda env_sec elim_app
                         
 (*
  * Identify an algebraic ornament between two types

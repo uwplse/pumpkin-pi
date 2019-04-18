@@ -91,7 +91,7 @@ Theorem retraction: (* TODO build eta into the actual algorithm*)
   forall {T : Type} (v : sigT (fun n => vector T n)),
     promote (forget v) = v.
 Proof.
-  intros. pose proof (ltv_retraction T v). induction v. apply H.
+  intros. induction v. apply (ltv_retraction T (existT _ x p)).
 Qed.
 
 Print retraction.  
