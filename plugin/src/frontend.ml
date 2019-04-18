@@ -135,15 +135,36 @@ let eq_lemmas env evd typ l =
             let at_type = app.at_type in
             let r1 = app.trm1 in
             let r2 = app.trm2 in
-            let abs_c_app = all_eq_substs (shift r1, mkRel 1) (shift c_app) in
-            let c_body_b = shift c_body in
-            let typ_b = shift c_body_type in
-            let p_b = { at_type = typ_b; trm1 = c_body_b; trm2 = abs_c_app } in
-            let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
-            let c_app_trans = all_eq_substs (r1, r2) c_app in
-            let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h = h_eq; b} in
-            let eq_proof = apply_eq_ind eq_proof_app in
-            (eq_proof, shift_by 2 h_eq, c_app_trans))
+            if l.is_fwd then (* TODO consolidate *)
+              let abs_c_app = all_eq_substs (shift r1, mkRel 1) (shift c_app) in
+              let c_body_b = shift c_body in
+              let typ_b = shift c_body_type in
+              let p_b = { at_type = typ_b; trm1 = c_body_b; trm2 = abs_c_app } in
+              let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
+              let c_app_trans = all_eq_substs (r1, r2) c_app in
+              let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h = h_eq; b} in
+              let eq_proof = apply_eq_ind eq_proof_app in
+              (eq_proof, shift_by 2 h_eq, c_app_trans)
+            else
+              let r1_ex = dest_existT r1 in
+              let r2_ex = dest_existT r2 in
+              let r1_u = r1_ex.unpacked in
+              let r2_u = r2_ex.unpacked in
+              let r1_ib = r1_ex.index in
+              let r2_ib = r2_ex.index in
+              let b_sig_typ = dest_sigT (shift at_type) in
+              let ib = project_index b_sig_typ (mkRel 1) in
+              let bv = project_value b_sig_typ (mkRel 1) in
+              let abs_c_app = all_eq_substs (shift r1_ib, ib) (all_eq_substs (shift r1_u, bv) (shift c_app)) in
+              let c_body_b = shift c_body in
+              let typ_b = shift c_body_type in
+              let p_b = { at_type = typ_b; trm1 = c_body_b; trm2 = abs_c_app } in
+              let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
+              let c_app_trans = all_eq_substs (r1_ib, r2_ib) (all_eq_substs (r1_u, r2_u) c_app) in
+              let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h = h_eq; b} in
+              let eq_proof = apply_eq_ind eq_proof_app in
+              (eq_proof, shift_by 2 h_eq, c_app_trans)
+          )
           recs
           (refl, mkRel 1, c_body)
       in reconstruct_lambda env_lemma body)
