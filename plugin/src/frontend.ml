@@ -211,10 +211,10 @@ let retraction_case env evd pms p eq_lemma c =
            let t' = reduce_term e (mkAppl (p, unfold_args t)) in
            let app = dest_eq t' in
            let b' = app.trm2 in
-           debug_term e b' "b'";
            let b_sig_t' = dest_sigT (reduce_type e evd b') in
            let ib' = project_index b_sig_t' b' in
-           let lemma_args_b = mkRel 1 :: shift_all (b' :: ib' :: lemma_args) in
+           let bv' = project_value b_sig_t' b' in
+           let lemma_args_b = mkRel 1 :: shift_all (bv' :: ib' :: lemma_args) in
            mkLambda (n, t', case_b (shift_all args) lemma_args_b b)
          else
            (* Product *)
