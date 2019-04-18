@@ -175,7 +175,6 @@ let eq_lemmas env evd typ l =
 (* TODO refactor, clean, etc *)
 (* TODO remove at_type or pass different arg for this *)
 let retraction_motive env evd b at_type promote forget npm l =
-  (* TODO b_typ args incorrect *)
   let b_typ = reduce_type env evd b in (* TODO redundant *)
   let b_sig = dest_sigT b_typ in (* TOOD redundant *)
   let i_b_t = b_sig.index_type in
@@ -198,7 +197,7 @@ let section_motive env evd a at_type promote forget npm =
   shift_by (new_rels env npm) (reconstruct_lambda_n env p_b npm)
 
 (* TODO refactor, clean, etc *)
-let retraction_case env pms p eq_lemma c =
+let retraction_case env evd pms p eq_lemma c =
   let rec case e pms p_rel p args lemma_args c =
     match kind c with
       | App (_, _) ->
@@ -211,8 +210,11 @@ let retraction_case env pms p eq_lemma c =
            (* IH *)
            let t' = reduce_term e (mkAppl (p, unfold_args t)) in
            let app = dest_eq t' in
-           let a' = app.trm2 in
-           let lemma_args_b = mkRel 1 :: shift_all (a' :: lemma_args) in
+           let b' = app.trm2 in
+           debug_term e b' "b'";
+           let b_sig_t' = dest_sigT (reduce_type e evd b') in
+           let ib' = project_index b_sig_t' b' in
+           let lemma_args_b = mkRel 1 :: shift_all (b' :: ib' :: lemma_args) in
            mkLambda (n, t', case_b (shift_all args) lemma_args_b b)
          else
            (* Product *)
@@ -299,13 +301,13 @@ let prove_retraction promote_n forget_n env evd l =
   let npm = mutind_body.mind_nparams in
   let nargs = new_rels env_sec npm in
   let p = retraction_motive env_sec evd b at_type (make_constant promote_n) (make_constant forget_n) npm l in
-  debug_term env_sec p "p";
   let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
   let (n, p_t, b) = destProd elim_typ in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
   let lemmas = eq_lemmas env evd b_typ l in
-  let cs = List.mapi (fun j c -> retraction_case env_p pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except nargs (factor_product b)) in
+  let cs = List.mapi (fun j c -> retraction_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except (nargs + 1) (factor_product b)) in
+  debug_terms env_sec cs "cs";
   let app =
        apply_eliminator
          {

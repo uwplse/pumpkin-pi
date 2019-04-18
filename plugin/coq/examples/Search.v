@@ -119,3 +119,10 @@ Qed.
 
 Print retraction.
 
+(*
+
+fun (h : T) (n : nat) (p0 : VectorDef.t T n) (IHp : @eq (@sigT nat (fun H : nat => t T H)) (@existT nat (fun n0 : nat => t T n0) n p0)
+                    (ltv T (ltv_inv T (@existT nat (fun n0 : nat => t T n0) n p0)))) =>
+(Coq.Init.Logic.eq_ind (sigT nat (λ (_ : nat) . (t (A [Rel 7]) (_ [Rel 1])))) (existT nat (λ (_ : nat) . (t (A [Rel 7]) (_ [Rel 1]))) (n [Rel 3]) (t [Rel 2])) (λ (_ : (sigT nat (λ (_ : nat) . (t (A [Rel 7]) (_ [Rel 1]))))) . (eq (sigT nat (λ (_ : nat) . (t (A [Rel 8]) (_ [Rel 1])))) (existT nat (λ (_ : nat) . (t (A [Rel 8]) (_ [Rel 1]))) (S (n [Rel 4])) (cons (A [Rel 7]) (h [Rel 5]) (n [Rel 4]) (t [Rel 3]))) (existT nat (λ (_ : nat) . (t (A [Rel 8]) (_ [Rel 1]))) (S (Coq.Init.Specif.projT1 nat (λ (_ : nat) . (t (A [Rel 8]) (_ [Rel 1]))) (_ [Rel 1]))) (cons (A [Rel 7]) (h [Rel 5]) (Coq.Init.Specif.projT1 nat (λ (_ : nat) . (t (A [Rel 8]) (_ [Rel 1]))) (_ [Rel 1])) (Coq.Init.Specif.projT2 nat (λ (_ : nat) . (t (A [Rel 8]) (_ [Rel 1]))) (_ [Rel 1])))))) (eq_refl (sigT nat (λ (_ : nat) . (t (A [Rel 7]) (_ [Rel 1])))) (existT nat (λ (_ : nat) . (t (A [Rel 7]) (_ [Rel 1]))) (S (n [Rel 3])) (cons (A [Rel 6]) (h [Rel 4]) (n [Rel 3]) (t [Rel 2])))) (existT nat (λ (_ : nat) . (t (A [Rel 7]) (_ [Rel 1]))) (Coq.Init.Specif.projT1 nat (λ (_ : nat) . (t (A [Rel 7]) (_ [Rel 1]))) (Search.ltv (A [Rel 6]) (Search.ltv_inv (A [Rel 6]) (existT nat (λ (_ : nat) . (t (A [Rel 7]) (_ [Rel 1]))) (n [Rel 3]) (t [Rel 2]))))) (Search.ltv (A [Rel 6]) (Search.ltv_inv (A [Rel 6]) (existT nat (λ (_ : nat) . (t (A [Rel 7]) (_ [Rel 1]))) (n [Rel 3]) (t [Rel 2]))))) (_ [Rel 1]))))))
+
+ *)
