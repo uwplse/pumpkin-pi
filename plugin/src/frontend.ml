@@ -107,14 +107,12 @@ let eq_lemmas env evd typ is_fwd =
       let c = mkConstructU (((i, i_index), c_index + 1), u) in
       let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
       let c_body = reduce_term env_c_b c_body in
-      let c_body_typ = reduce_type env_c_b evd c_body in
-      let refl = apply_eq_refl { typ = c_body_typ; trm = c_body } in
       let recs = get_rec_args typ env_c_b evd c_body in
       let env_lemma = eq_lemmas_env env_c_b evd recs is_fwd in
       let nargs = new_rels2 env_lemma env_c_b in
-      let refl = shift_by nargs refl in
       let c_body = shift_by nargs c_body in
       let c_body_type = reduce_type env_lemma evd c_body in
+      let refl = apply_eq_refl { typ = c_body_type; trm = c_body } in
       let (body, _, _) =
         List.fold_right
           (fun _ (b, h_eq, c_app) ->
