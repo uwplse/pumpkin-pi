@@ -87,11 +87,10 @@ Proof.
   exact ltv_section.
 Qed.
 
-Theorem retraction: (* TODO build eta into the actual algorithm*)
+Theorem retraction:
   forall {T : Type} (v : sigT (fun n => vector T n)),
     promote (forget v) = v.
 Proof.
-  intros. induction v. apply (ltv_retraction T (existT _ x p)).
+  exact ltv_retraction.
 Qed.
 
-Print retraction.  
