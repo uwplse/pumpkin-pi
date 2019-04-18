@@ -85,13 +85,26 @@ let eq_lemmas_env env evd recs l =
     (List.fold_left
        (fun (e, nargs) r ->
          let r1 = shift_by nargs r in (* original rec arg *)
-         let r_t = map_backward (pack e evd l.off) l (reduce_type e evd r1) in
-         let e_r = push_local (Anonymous, r_t) e in (* e with new rec arg *)
-         let r1 = shift r1 in (* shifted original rec arg *)
-         let r2 = mkRel 1 in (* new rec arg *)
-         let r_t  = shift r_t in (* new rec arg type *)
-         let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
-         (push_local (Anonymous, r_eq) e_r, nargs + 2))
+         let r_t = reduce_type e evd r1 in (* rec arg type *)
+         if l.is_fwd then (* TODO consolidate whatever is opossible *)
+           let e_r = push_local (Anonymous, r_t) e in (* push new rec arg *)
+           let r1 = shift r1 in (* shifted original rec arg *)
+           let r2 = mkRel 1 in (* new rec arg *)
+           let r_t  = shift r_t in (* new rec arg type *)
+           let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
+           (push_local (Anonymous, r_eq) e_r, nargs + 2)
+         else
+           let ib = get_arg l.off r_t in (* rec arg index *)
+           let ib_t = reduce_type e evd ib in (* rec arg index type *)
+           let e_ib = push_local (Anonymous, ib_t) e in (* push new index *)
+           let ib2 = mkRel 1 in (* new index *)
+           let r2_t = reindex_app (reindex l.off ib2) (shift r_t) in (* new rec arg type *)
+           let e_r = push_local (Anonymous, r2_t) e_ib in (* push new rec arg *)
+           let r1_p = pack e_r evd l.off (shift_by 2 r1) in (* packed rec arg *)
+           let r2_p = pack e_r evd l.off (mkRel 1) in (* packed new rec arg *)
+           let r_p_t = reduce_type e_r evd r1_p in (* packed rec arg type *)
+           let r_eq = apply_eq {at_type = r_p_t; trm1 = r1_p; trm2 = r2_p} in
+           (push_local (Anonymous, r_eq) e_r, nargs + 3))
        (env, 0)
        recs)
   
@@ -108,11 +121,14 @@ let eq_lemmas env evd typ l =
       let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
       let c_body = reduce_term env_c_b c_body in
       let recs = get_rec_args typ env_c_b evd c_body in
+      debug_terms env_c_b recs "recs";
       let env_lemma = eq_lemmas_env env_c_b evd recs l in
+      debug_env env_lemma "env_lemma";
       let nargs = new_rels2 env_lemma env_c_b in
       let c_body = shift_by nargs c_body in
       let c_body_type = reduce_type env_lemma evd c_body in
       let refl = apply_eq_refl { typ = c_body_type; trm = c_body } in
+      debug_term env_lemma refl "refl";
       let (body, _, _) =
         List.fold_right
           (fun _ (b, h_eq, c_app) ->
