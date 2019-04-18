@@ -80,12 +80,12 @@ let get_rec_args typ env_c_b evd c_body =
 (*
  * TODO move, explain
  *)
-let eq_lemmas_env env evd recs is_fwd = 
+let eq_lemmas_env env evd recs l =
   fst
     (List.fold_left
        (fun (e, nargs) r ->
          let r1 = shift_by nargs r in (* original rec arg *)
-         let r_t = reduce_type e evd r1 in (* rec arg type *)
+         let r_t = map_backward (pack e evd l.off) l (reduce_type e evd r1) in
          let e_r = push_local (Anonymous, r_t) e in (* e with new rec arg *)
          let r1 = shift r1 in (* shifted original rec arg *)
          let r2 = mkRel 1 in (* new rec arg *)
@@ -99,7 +99,7 @@ let eq_lemmas_env env evd recs is_fwd =
 (*
  * TODO move, explain
  *)
-let eq_lemmas env evd typ is_fwd =
+let eq_lemmas env evd typ l =
   (* TODO retraction direction: pack *)
   let ((i, i_index), u) = destInd typ in
   Array.mapi
@@ -108,7 +108,7 @@ let eq_lemmas env evd typ is_fwd =
       let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
       let c_body = reduce_term env_c_b c_body in
       let recs = get_rec_args typ env_c_b evd c_body in
-      let env_lemma = eq_lemmas_env env_c_b evd recs is_fwd in
+      let env_lemma = eq_lemmas_env env_c_b evd recs l in
       let nargs = new_rels2 env_lemma env_c_b in
       let c_body = shift_by nargs c_body in
       let c_body_type = reduce_type env_lemma evd c_body in
@@ -140,7 +140,7 @@ let eq_lemmas env evd typ is_fwd =
 (* TODO refactor packing w/ pack in specialization, or w/ lift pack *)
 (* TODO refactor, clean, etc *)
 (* TODO remove at_type or pass different arg for this *)
-let retraction_motive env evd b at_type promote forget npm =
+let retraction_motive env evd b at_type promote forget npm l =
   (* TODO b_typ args incorrect *)
   let b_typ = reduce_type env evd b in (* TODO redundant *)
   let b_sig = dest_sigT b_typ in (* TOOD redundant *)
@@ -149,8 +149,7 @@ let retraction_motive env evd b at_type promote forget npm =
   let b_u = reduce_term env_i_b (mkAppl (shift b_sig.packer, [mkRel 1])) in
   let env_u = push_local (Anonymous, b_u) env_i_b in
   let typ_args = shift_all (unfold_args at_type) in (* TODO refactor this stuff, common w lift config *)
-  let typ_args_idx = List.mapi (fun i t -> (i, t)) typ_args in
-  let (off, _) = List.find (fun (_, t) -> contains_term (mkRel 2) t) typ_args_idx in
+  let off = l.off in
   let b_ex = pack env_u evd off b in
   let b_ex' = mkAppl (promote, snoc (mkAppl (forget, snoc b_ex typ_args)) typ_args) in
   let p_b = apply_eq { at_type = shift_by 2 b_typ; trm1 = b_ex; trm2 = b_ex' } in
@@ -218,8 +217,8 @@ let section_case env pms p eq_lemma c =
 (* TODO refactor below, comment, fill in *)
 (* TODO clean up too *)
 (* TODO test on other types besides list/vect in file *)
-let prove_section promote_n forget_n env evd orn =
-  let env_sec = zoom_env zoom_lambda_term env orn.promote in
+let prove_section promote_n forget_n env evd l =
+  let env_sec = zoom_env zoom_lambda_term env l.orn.promote in
   let a = mkRel 1 in
   let at_type = reduce_type env_sec evd a in
   let a_typ = first_fun at_type in
@@ -233,7 +232,7 @@ let prove_section promote_n forget_n env evd orn =
   let (n, p_t, b) = destProd elim_typ in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
-  let lemmas = eq_lemmas env evd a_typ true in
+  let lemmas = eq_lemmas env evd a_typ l in
   let cs = List.mapi (fun j c -> section_case env_p pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except nargs (factor_product b)) in
   let app =
        apply_eliminator
@@ -254,9 +253,9 @@ let prove_section promote_n forget_n env evd orn =
 (* TODO refactor below, comment, fill in *)
 (* TODO clean up too *)
 (* TODO test on other types besides list/vect in file *)
-let prove_retraction promote_n forget_n env evd orn =
+let prove_retraction promote_n forget_n env evd l =
   (* TODO should be env_retract *)
-  let env_sec = zoom_env zoom_lambda_term env orn.forget in
+  let env_sec = zoom_env zoom_lambda_term env l.orn.forget in
   let b = mkRel 1 in
   let at_type_packed = reduce_type env_sec evd b in
   let at_type = snd (zoom_lambda_term env_sec (last_arg at_type_packed)) in
@@ -266,12 +265,12 @@ let prove_retraction promote_n forget_n env evd orn =
   let elim = type_eliminator env_sec (i, i_index) in
   let npm = mutind_body.mind_nparams in
   let nargs = new_rels env_sec npm in
-  let p = retraction_motive env_sec evd b at_type (make_constant promote_n) (make_constant forget_n) npm in
+  let p = retraction_motive env_sec evd b at_type (make_constant promote_n) (make_constant forget_n) npm l in
   let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
   let (n, p_t, b) = destProd elim_typ in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
-  let lemmas = eq_lemmas env evd b_typ false in
+  let lemmas = eq_lemmas env evd b_typ l in
   let cs = List.mapi (fun j c -> retraction_case env_p pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except nargs (factor_product b)) in
   let app =
        apply_eliminator
@@ -325,12 +324,13 @@ let find_ornament n_o d_old d_new =
        ());
     (if is_search_equiv () then
        let env = Global.env () in
+       let l = initialize_lifting env evd orn.promote orn.forget in
        (* TODO can we use promote/forget above instead of names? *)
-       let section = prove_section n inv_n env evd orn in
+       let section = prove_section n inv_n env evd l in
        let sec_n = with_suffix n "section" in
        let _ = define_term sec_n evd section true in
        Printf.printf "Defined section proof %s\n\n" (Id.to_string sec_n);
-       let retraction = prove_retraction n inv_n env evd orn in
+       let retraction = prove_retraction n inv_n env evd (flip_dir l) in
        let rec_n = with_suffix n "retraction" in
        let _ = define_term rec_n evd retraction true in
        Printf.printf "Defined retraction proof %s\n\n" (Id.to_string rec_n)
