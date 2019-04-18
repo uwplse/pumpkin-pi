@@ -112,8 +112,10 @@ Theorem retraction:
   forall {T : Type} (v : sigT (fun n => vector T n)),
     promote (forget v) = v.
 Proof.
-  intros. induction v; induction p.
+  intros. symmetry. induction v; induction p.
   - reflexivity.
   - apply eq_sigT_cons. apply IHp.
 Qed.  
+
+Print retraction.
 

@@ -182,9 +182,8 @@ let retraction_motive env evd b at_type promote forget npm l =
   let env_i_b = push_local (Anonymous, i_b_t) (pop_rel_context 1 env) in
   let b_u = reduce_term env_i_b (mkAppl (shift b_sig.packer, [mkRel 1])) in
   let env_u = push_local (Anonymous, b_u) env_i_b in
-  let typ_args = shift_all (unfold_args at_type) in (* TODO refactor this stuff, common w lift config *)
-  let off = l.off in
-  let b_ex = pack env_u evd off b in
+  let typ_args = remove_index l.off (shift_all (unfold_args at_type)) in (* TODO refactor this stuff, common w lift config *)
+  let b_ex = pack env_u evd l.off b in
   let b_ex' = mkAppl (promote, snoc (mkAppl (forget, snoc b_ex typ_args)) typ_args) in
   let p_b = apply_eq { at_type = shift_by 2 b_typ; trm1 = b_ex; trm2 = b_ex' } in
   reconstruct_lambda_n env_u p_b npm
@@ -300,12 +299,12 @@ let prove_retraction promote_n forget_n env evd l =
   let npm = mutind_body.mind_nparams in
   let nargs = new_rels env_sec npm in
   let p = retraction_motive env_sec evd b at_type (make_constant promote_n) (make_constant forget_n) npm l in
+  debug_term env_sec p "p";
   let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
   let (n, p_t, b) = destProd elim_typ in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
   let lemmas = eq_lemmas env evd b_typ l in
-  debug_terms env_p (Array.to_list lemmas) "eq lemmas";
   let cs = List.mapi (fun j c -> retraction_case env_p pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except nargs (factor_product b)) in
   let app =
        apply_eliminator
