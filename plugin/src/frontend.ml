@@ -76,7 +76,26 @@ let prove_coherence env evd orn =
  *)
 let get_rec_args typ env_c_b evd c_body =
   List.filter (on_type (is_or_applies typ) env_c_b evd) (unfold_args c_body)
-              
+
+(*
+ * TODO move, explain
+ *)
+let eq_lemmas_env env evd recs is_fwd = 
+  fst
+    (List.fold_left
+       (fun (e, nargs) r ->
+         let r1 = shift_by nargs r in (* original rec arg *)
+         let r_t = reduce_type e evd r1 in (* rec arg type *)
+         let e_r = push_local (Anonymous, r_t) e in (* e with new rec arg *)
+         let r1 = shift r1 in (* shifted original rec arg *)
+         let r2 = mkRel 1 in (* new rec arg *)
+         let r_t  = shift r_t in (* new rec arg type *)
+         let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
+         (push_local (Anonymous, r_eq) e_r, nargs + 2))
+       (env, 0)
+       recs)
+  
+  
 (*
  * TODO move, explain
  *)
@@ -91,22 +110,10 @@ let eq_lemmas env evd typ is_fwd =
       let c_body_typ = reduce_type env_c_b evd c_body in
       let refl = apply_eq_refl { typ = c_body_typ; trm = c_body } in
       let recs = get_rec_args typ env_c_b evd c_body in
-      let env_lemma, off =
-        List.fold_left
-          (fun (e, off) r ->
-            let r1 = shift_by off r in (* original rec arg *)
-            let r_t = reduce_type e evd r1 in (* rec arg type *)
-            let e_r = push_local (Anonymous, r_t) e in (* e with new rec arg *)
-            let r1 = shift r1 in (* shifted original rec arg *)
-            let r2 = mkRel 1 in (* new rec arg *)
-            let r_t  = shift r_t in (* new rec arg type *)
-            let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
-            (push_local (Anonymous, r_eq) e_r, off + 2))
-          (env_c_b, 0)
-          recs
-      in
-      let refl = shift_by off refl in
-      let c_body = shift_by off c_body in
+      let env_lemma = eq_lemmas_env env_c_b evd recs is_fwd in
+      let nargs = new_rels2 env_lemma env_c_b in
+      let refl = shift_by nargs refl in
+      let c_body = shift_by nargs c_body in
       let c_body_type = reduce_type env_lemma evd c_body in
       let (body, _, _) =
         List.fold_right

@@ -108,6 +108,36 @@ Lift list vector in @eq_cons as eq_sigT_cons_p.
 Definition eq_sigT_cons {T} t n1 v1 n2 v2 := (* partial unpack *)
   eq_sigT_cons_p T t (existT _ n1 v1) (existT _ n2 v2).
 
+Print eq_sigT_cons_p.
+
+(*
+
+fun (T : Type) (t0 : T) (l1 l2 : @sigT nat (fun H : nat => t T H))
+  (H : @eq (@sigT nat (fun H : nat => t T H))
+         (@existT nat (fun H : nat => t T H) (@projT1 nat (fun H : nat => t T H) l1)
+            (@projT2 nat (fun H : nat => t T H) l1))
+         (@existT nat (fun H : nat => t T H) (@projT1 nat (fun H : nat => t T H) l2)
+            (@projT2 nat (fun H : nat => t T H) l2))) =>
+@eq_ind (@sigT nat (fun H0 : nat => t T H0))
+  (@existT nat (fun H0 : nat => t T H0) (@projT1 nat (fun H0 : nat => t T H0) l1)
+     (@projT2 nat (fun H0 : nat => t T H0) l1))
+  (fun l3 : @sigT nat (fun H0 : nat => t T H0) =>
+   @eq (@sigT nat (fun H0 : nat => t T H0))
+     (@existT nat (fun H0 : nat => VectorDef.t T H0) (S (@projT1 nat (fun H0 : nat => t T H0) l1))
+        (VectorDef.cons T t0 (@projT1 nat (fun H0 : nat => t T H0) l1)
+           (@projT2 nat (fun H0 : nat => t T H0) l1)))
+     (@existT nat (fun H0 : nat => VectorDef.t T H0) (S (@projT1 nat (fun H0 : nat => t T H0) l3))
+        (VectorDef.cons T t0 (@projT1 nat (fun H0 : nat => t T H0) l3)
+           (@projT2 nat (fun H0 : nat => t T H0) l3))))
+  (@eq_refl (@sigT nat (fun H0 : nat => t T H0))
+     (@existT nat (fun H0 : nat => VectorDef.t T H0) (S (@projT1 nat (fun H0 : nat => t T H0) l1))
+        (VectorDef.cons T t0 (@projT1 nat (fun H0 : nat => t T H0) l1)
+           (@projT2 nat (fun H0 : nat => t T H0) l1))))
+  (@existT nat (fun H0 : nat => t T H0) (@projT1 nat (fun H0 : nat => t T H0) l2)
+     (@projT2 nat (fun H0 : nat => t T H0) l2)) H
+
+ *)
+
 Theorem retraction:
   forall {T : Type} (v : sigT (fun n => vector T n)),
     promote (forget v) = v.
