@@ -315,7 +315,6 @@ let prove_retraction promote_n forget_n env evd l =
     let b = project_value b_sig_typ b_sig in
     insert_index (l.off - npm) i_b (reindex (nargs - 1) b args)
   in
-  debug_terms env_sec final_args "final_args";
   let app =
        apply_eliminator
          {
@@ -329,6 +328,7 @@ let prove_retraction promote_n forget_n env evd l =
   let eq_typ = dest_eq (reduce_type env_sec evd app) in
   let t1 = eq_typ.trm1 in
   let t2 = eq_typ.trm2 in
+  let at_type = reduce_type env_sec evd t1 in (* TODO why can't just reuse *)
   reconstruct_lambda env_sec (mkAppl (eq_sym, [at_type; t1; t2; app]))
                         
 (*
