@@ -168,29 +168,28 @@ let eq_lemmas env evd typ l =
           (refl, mkRel 1, c_body)
       in reconstruct_lambda env_lemma body)
     ((lookup_mind i env).mind_packets.(i_index)).mind_consnames
-    
+
 (* TODO move out shifting? why there *)
 (* TODO refactor packing w/ pack in specialization, or w/ lift pack *)
 (* TODO refactor, clean, etc *)
 (* TODO remove at_type or pass different arg for this *)
-let retraction_motive env evd b at_type promote forget npm l =
-  let b_typ = reduce_type env evd b in (* TODO redundant *)
-  let b_sig = dest_sigT b_typ in (* TOOD redundant *)
-  let i_b_t = b_sig.index_type in
-  let env_i_b = push_local (Anonymous, i_b_t) (pop_rel_context 1 env) in
-  let b_u = reduce_term env_i_b (mkAppl (b_sig.packer, [mkRel 1])) in
-  let env_u = push_local (Anonymous, b_u) env_i_b in
-  let typ_args = remove_index l.off (unfold_args at_type) in (* TODO refactor this stuff, common w lift config *)
+let retraction_motive env evd at_type_packed promote forget npm l =
+  let b = mkRel 1 in
+  let env_u = env in (* TODO remove later; part of a refactor *)
+  let b_typ = reduce_type env_u evd b in
+  let typ_args = remove_index l.off (unfold_args b_typ) in (* TODO refactor this stuff, common w lift config *)
   let b_ex = pack env_u evd l.off b in
   let b_ex' = mkAppl (promote, snoc (mkAppl (forget, snoc b_ex typ_args)) typ_args) in
   let at_type = reduce_type env_u evd b_ex in (* TODO more redundancy *)
   let p_b = apply_eq { at_type; trm1 = b_ex; trm2 = b_ex' } in
-  shift_by (new_rels env npm) (reconstruct_lambda_n env_u p_b npm)
+  shift_by (new_rels env npm - 1) (reconstruct_lambda_n env_u p_b npm)
 
+(* TODO test w third new index to doublevector *)
 (* TODO move out shifting? why there *)
 (* TODO refactor, clean, etc *)
 (* TODO is a just always mkRel 1? *)
-let section_motive env evd a at_type promote forget npm =
+let section_motive env evd at_type promote forget npm =
+  let a = mkRel 1 in
   let typ_args = unfold_args at_type in
   let a' = mkAppl (forget, snoc (mkAppl (promote, snoc a typ_args)) typ_args) in
   let p_b = apply_eq { at_type; trm1 = a; trm2 = a' } in
@@ -203,25 +202,17 @@ let retraction_case env evd pms p eq_lemma c =
       | App (_, _) ->
          (* conclusion: apply eq lemma and beta-reduce *)
          let all_args = List.append (List.rev args) (List.rev lemma_args) in
-         debug_terms e pms "pms";
-         debug_terms e all_args "all_args";
          reduce_term e (mkAppl (eq_lemma, List.append pms all_args))
       | Prod (n, t, b) ->
          let case_b = case (push_local (n, t) e) (shift_all pms) (shift p_rel) (shift p) in
          if applies p_rel t then
            (* IH *)
            let t' = reduce_term e (mkAppl (p, unfold_args t)) in
-           debug_term e t "t";
-           debug_term e t' "t'";
            let app = dest_eq t' in
            let b' = app.trm2 in
-           debug_term e b' "b'";
-           debug_term e (reduce_type e evd b') "b_sig_t'";
            let b_sig_t' = dest_sigT (reduce_type e evd b') in
            let ib' = project_index b_sig_t' b' in
-           debug_term e ib' "ib'";
            let bv' = project_value b_sig_t' b' in
-           debug_term e bv' "bv'";
            let lemma_args_b = mkRel 1 :: shift_all (bv' :: ib' :: lemma_args) in
            mkLambda (n, t', case_b (shift_all args) lemma_args_b b)
          else
@@ -273,7 +264,7 @@ let prove_section promote_n forget_n env evd l =
   let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
   let (n, p_t, b) = destProd elim_typ in
   let env_motive = zoom_env zoom_product_type env_pms p_t in
-  let p = section_motive env_motive evd a at_type (make_constant promote_n) (make_constant forget_n) npm in
+  let p = section_motive env_motive evd at_type (make_constant promote_n) (make_constant forget_n) npm in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
   let lemmas = eq_lemmas env evd a_typ l in
@@ -312,16 +303,11 @@ let prove_retraction promote_n forget_n env evd l =
   let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
   let (n, p_t, b) = destProd elim_typ in
   let env_motive = zoom_env zoom_product_type env_pms p_t in
-  let p = retraction_motive env_sec evd b at_type (make_constant promote_n) (make_constant forget_n) npm l in
+  let p = retraction_motive env_motive evd at_type_packed (make_constant promote_n) (make_constant forget_n) npm l in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
   let lemmas = eq_lemmas env evd b_typ l in
-  debug_term env_sec p "p";
-  debug_env env_sec "env_sec";
-  debug_term env_p (unshift_by (nargs - 1) p) "p unshifted in env_p";
-  debug_env env_p "env_p";
   let cs = List.mapi (fun j c -> retraction_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except (nargs + 1) (factor_product b)) in
-  debug_terms env_sec cs "cs";
   let args = mk_n_rels nargs in
   let b_sig = last args in
   let b_sig_typ = on_type dest_sigT env_sec evd b_sig in
