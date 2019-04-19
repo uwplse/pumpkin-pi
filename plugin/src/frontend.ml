@@ -335,7 +335,7 @@ let prove_retraction promote_n forget_n env evd l =
   let trm1 = all_eq_substs (t1, trm2) t2 in
   (* TODO why all the shifting here *)
   let packed_type = shift (reconstruct_lambda_n env_sec (apply_eq {at_type; trm1; trm2}) (nb_rel env_sec - 1)) in
-  let ib_typ = (dest_sigT (shift at_type)).index_type in
+  let ib_typ = (dest_sigT at_type).index_type in
   let b_typ = mkAppl ((dest_sigT (shift at_type)).packer, [mkRel 1]) in
   let sym_app_b = all_eq_substs (shift_by 2 i_b, mkRel 2) (all_eq_substs (shift_by 2 b, mkRel 1) (shift_by 2 sym_app)) in
   let unpacked = mkLambda (Anonymous, ib_typ, (mkLambda (Anonymous, b_typ, sym_app_b))) in (* TODO build by env instead *)
