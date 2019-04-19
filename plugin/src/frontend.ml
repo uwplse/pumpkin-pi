@@ -108,7 +108,6 @@ let eq_lemmas_env env evd recs l =
        (env, 0)
        recs)
   
-  
 (*
  * TODO move, explain
  *)
@@ -163,7 +162,7 @@ let eq_lemmas env evd typ l =
               let c_app_trans = all_eq_substs (r1_ib, r2_ib) (all_eq_substs (r1_u, r2_u) c_app) in
               let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h = h_eq; b} in
               let eq_proof = apply_eq_ind eq_proof_app in
-              (eq_proof, shift_by 2 h_eq, c_app_trans)
+              (eq_proof, shift_by 3 h_eq, c_app_trans)
           )
           recs
           (refl, mkRel 1, c_body)

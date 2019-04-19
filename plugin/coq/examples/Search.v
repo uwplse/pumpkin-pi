@@ -93,4 +93,3 @@ Theorem retraction:
 Proof.
   exact ltv_retraction.
 Qed.
-
