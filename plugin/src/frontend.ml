@@ -184,7 +184,7 @@ let retraction_motive env evd b at_type promote forget npm l =
   let b_ex = pack env_u evd l.off b in
   let b_ex' = mkAppl (promote, snoc (mkAppl (forget, snoc b_ex typ_args)) typ_args) in
   let p_b = apply_eq { at_type = shift_by 2 b_typ; trm1 = b_ex; trm2 = b_ex' } in
-  reconstruct_lambda_n env_u p_b npm
+  shift_by (new_rels env npm - 1) (reconstruct_lambda_n env_u p_b npm)
 
 (* TODO move out shifting? why there *)
 (* TODO refactor, clean, etc *)
@@ -202,17 +202,24 @@ let retraction_case env evd pms p eq_lemma c =
       | App (_, _) ->
          (* conclusion: apply eq lemma and beta-reduce *)
          let all_args = List.append (List.rev args) (List.rev lemma_args) in
+         debug_terms e pms "pms";
+         debug_terms e all_args "all_args";
          reduce_term e (mkAppl (eq_lemma, List.append pms all_args))
       | Prod (n, t, b) ->
          let case_b = case (push_local (n, t) e) (shift_all pms) (shift p_rel) (shift p) in
          if applies p_rel t then
            (* IH *)
            let t' = reduce_term e (mkAppl (p, unfold_args t)) in
+           debug_term e t "t";
+           debug_term e t' "t'";
            let app = dest_eq t' in
            let b' = app.trm2 in
+           debug_term e b' "b'";
            let b_sig_t' = dest_sigT (reduce_type e evd b') in
            let ib' = project_index b_sig_t' b' in
+           debug_term e ib' "ib'";
            let bv' = project_value b_sig_t' b' in
+           debug_term e bv' "bv'";
            let lemma_args_b = mkRel 1 :: shift_all (bv' :: ib' :: lemma_args) in
            mkLambda (n, t', case_b (shift_all args) lemma_args_b b)
          else
@@ -305,7 +312,12 @@ let prove_retraction promote_n forget_n env evd l =
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
   let lemmas = eq_lemmas env evd b_typ l in
+  debug_term env_sec p "p";
+  debug_env env_sec "env_sec";
+  debug_term env_p (unshift_by (nargs - 1) p) "p unshifted in env_p";
+  debug_env env_p "env_p";
   let cs = List.mapi (fun j c -> retraction_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except (nargs + 1) (factor_product b)) in
+  debug_terms env_sec cs "cs";
   let args = mk_n_rels nargs in
   let b_sig = last args in
   let b_sig_typ = on_type dest_sigT env_sec evd b_sig in
