@@ -178,13 +178,15 @@ let retraction_motive env evd b at_type promote forget npm l =
   let b_sig = dest_sigT b_typ in (* TOOD redundant *)
   let i_b_t = b_sig.index_type in
   let env_i_b = push_local (Anonymous, i_b_t) (pop_rel_context 1 env) in
-  let b_u = reduce_term env_i_b (mkAppl (shift b_sig.packer, [mkRel 1])) in
+  debug_env env_i_b "env_i_b";
+  let b_u = reduce_term env_i_b (mkAppl (b_sig.packer, [mkRel 1])) in
+  debug_term env_i_b b_u "b_u";
   let env_u = push_local (Anonymous, b_u) env_i_b in
-  let typ_args = remove_index l.off (shift_all (unfold_args at_type)) in (* TODO refactor this stuff, common w lift config *)
+  let typ_args = remove_index l.off (unfold_args at_type) in (* TODO refactor this stuff, common w lift config *)
   let b_ex = pack env_u evd l.off b in
   let b_ex' = mkAppl (promote, snoc (mkAppl (forget, snoc b_ex typ_args)) typ_args) in
-  let p_b = apply_eq { at_type = shift_by 2 b_typ; trm1 = b_ex; trm2 = b_ex' } in
-  shift_by (new_rels env npm - 1) (reconstruct_lambda_n env_u p_b npm)
+  let p_b = apply_eq { at_type = shift b_typ; trm1 = b_ex; trm2 = b_ex' } in
+  shift_by (new_rels env npm) (reconstruct_lambda_n env_u p_b npm)
 
 (* TODO move out shifting? why there *)
 (* TODO refactor, clean, etc *)
