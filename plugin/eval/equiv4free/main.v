@@ -1020,15 +1020,27 @@ sigT_rect
 
    Check orn_order_trans_inv.
 
+Check _orn_order_retraction.
+
     Instance IsEquiv_orn_order : IsEquiv orn_order_trans.
     Proof.
-      eapply isequiv_adjointify with (g := orn_order_trans_inv).
-      - intros t. induction t as [v l IH_l r IH_r|v]; cbn.
-        + rewrite IH_l, IH_r. reflexivity.
-        + reflexivity.
-      - intros [lo [hi [ord t]]]. cbn. induction t as [ord_l ord_r lo_l lo_r hi_l hi_r v l IH_l r IH_r|v]; cbn.
-        + rewrite IH_l, IH_r. reflexivity.
-        + reflexivity.
+      eapply isequiv_adjointify with (g := orn_order_trans_inv); unfold orn_order_trans_inv, orn_order_trans.
+      - admit.
+      - intros.
+        rewrite __orn_order_retraction.
+        remember (orn_order_inv x .1 (x .2) .1 (x .2) .2).
+        remember (_orn_order_inv x .1 ((x .2) .1; _b)).
+        remember (_orn_order (x .1; __b) .1 (x .1; __b) .2).
+        induction x; simpl in *.
+        rewrite Heq__b in Heqs. 
+        rewrite _orn_order_retraction in Heqs.
+        rewrite Heqs.
+        simpl.
+        rewrite Heq_b.
+        simpl.
+        rewrite orn_order_retraction. 
+        induction p. 
+        reflexivity.
     Defined.
 
     Instance Equiv_orn_order : Base.tree ≃ {lo:Elem.t & {hi:Elem.t & {ord:bool & bst lo hi ord}}} :=
