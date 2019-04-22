@@ -573,6 +573,20 @@ sigT_rect (fun t0 : {H : nat & tree H} => orn_size (orn_size_inv t0) = t0)
 
   Module Ordered.
 
+    Inductive __bst : Elem.t -> Type :=
+    | __Branch (min_l min_r : Elem.t)
+               (val : Elem.t)
+               (left : __bst min_l) (right : __bst min_r)
+      : __bst min_l
+    | __Leaf (val : Elem.t) : __bst val.
+
+    Inductive _bst : Elem.t -> Elem.t -> Type :=
+    | _Branch (min_l min_r : Elem.t) (max_l max_r : Elem.t)
+              (val : Elem.t)
+              (left : _bst min_l max_l) (right : _bst min_r max_r)
+      : _bst min_l max_r
+    | _Leaf (val : Elem.t) : _bst val val.
+
     Definition inv (ord_l ord_r : bool) (max_l val min_r : Elem.t) : bool :=
       ord_l && ord_r && Elem.ltb max_l val && Elem.ltb val min_r.
 
@@ -613,28 +627,402 @@ sigT_rect (fun t0 : {H : nat & tree H} => orn_size (orn_size_inv t0) = t0)
       econstructor. cbn. intros t t'. unfold univalent_transport. rewrite Equiv_bst_id. cbn. eapply Equiv_id.
     Defined.
 
-    Fixpoint orn_order (t : Base.tree) : {lo:Elem.t & {hi:Elem.t & {ord:bool & Ordered.bst lo hi ord}}} :=
-      match t with
-      | Base.Branch v l r =>
-        (_; (_; (_; Branch _ _ _ _ _ _ v (orn_order l).2.2.2 (orn_order r).2.2.2)))
-      | Base.Leaf v =>
-        (_; (_; (_; Leaf v)))
-      end.
+   (* --- Begin automatically generated terms from DEVOID --- *)
+   (* TODO paste in automatically *)
 
-    Fixpoint orn_order_inv' {lo hi ord} (t : bst lo hi ord) : Base.tree :=
-      match t with
-      | Branch _ _ _ _ _ _ v l r =>
-        Base.Branch v (orn_order_inv' l) (orn_order_inv' r)
-      | Leaf v =>
-        Base.Leaf v
-      end.
+   Definition __orn_order_index :=
+fun t : Base.tree =>
+Base.tree_rect (fun _ : Base.tree => Elem.t)
+  (fun (_ : Elem.t) (left : Base.tree)
+     (H : (fun _ : Base.tree => Elem.t) left) (right : Base.tree)
+     (_ : (fun _ : Base.tree => Elem.t) right) => H)
+  (fun val : Elem.t => val) t.
 
-    Definition orn_order_inv (T : {lo:Elem.t & {hi:Elem.t & {ord:bool & bst lo hi ord}}}) : Base.tree :=
-      orn_order_inv' T.2.2.2.
+  Definition __orn_order :=
+fun t : Base.tree =>
+existT (fun H : Elem.t => __bst H) (__orn_order_index t)
+  (Base.tree_rect (fun t0 : Base.tree => __bst (__orn_order_index t0))
+     (fun (val : Elem.t) (left : Base.tree)
+        (H : (fun (_ : Elem.t) (t1 : Base.tree) =>
+              __bst (__orn_order_index t1)) (__orn_order_index left) left)
+        (right : Base.tree)
+        (H0 : (fun (_ : Elem.t) (t1 : Base.tree) =>
+               __bst (__orn_order_index t1)) (__orn_order_index right) right)
+      => __Branch (__orn_order_index left) (__orn_order_index right) val H H0)
+     (fun val : Elem.t => __Leaf val) t).
 
-    Instance IsEquiv_orn_order : IsEquiv orn_order.
+  Definition __orn_order_inv := 
+fun __b : {H : Elem.t & __bst H} =>
+__bst_rect (fun (t : Elem.t) (_ : __bst t) => Base.tree)
+  (fun (min_l min_r val : Elem.t) (_ : __bst min_l) 
+     (H : Base.tree) (_ : __bst min_r) (H0 : Base.tree) =>
+   Base.Branch val H H0) (fun val : Elem.t => Base.Leaf val) 
+  __b .1 __b .2.
+
+  Definition __orn_order_section := 
+fun t : Base.tree =>
+eq_sym
+  (Base.tree_rect
+     (fun t0 : Base.tree => t0 = __orn_order_inv (__orn_order t0))
+     (fun (val : Elem.t) (left : Base.tree)
+        (H : left = __orn_order_inv (__orn_order left)) 
+        (right : Base.tree)
+        (H0 : right = __orn_order_inv (__orn_order right)) =>
+      eq_ind left
+        (fun H1 : Base.tree =>
+         Base.Branch val left right =
+         Base.Branch val H1 (__orn_order_inv (__orn_order right)))
+        (eq_ind right
+           (fun H1 : Base.tree =>
+            Base.Branch val left right = Base.Branch val left H1) eq_refl
+           (__orn_order_inv (__orn_order right)) H0)
+        (__orn_order_inv (__orn_order left)) H) (fun val : Elem.t => eq_refl)
+     t).
+
+  Definition __orn_order_retraction := 
+fun __b : {H : Elem.t & __bst H} =>
+sigT_rect
+  (fun __b0 : {H : Elem.t & __bst H} =>
+   __orn_order (__orn_order_inv __b0) = __b0)
+  (fun (H : Elem.t) (H0 : (fun H0 : Elem.t => __bst H0) H) =>
+   eq_sym
+     (__bst_rect
+        (fun (t : Elem.t) (__b0 : __bst t) =>
+         existT (fun H1 : Elem.t => __bst H1) t __b0 =
+         __orn_order
+           (__orn_order_inv (existT (fun H1 : Elem.t => __bst H1) t __b0)))
+        (fun (min_l min_r val : Elem.t) (left : __bst min_l)
+           (H1 : existT (fun H1 : Elem.t => __bst H1) min_l left =
+                 __orn_order
+                   (__orn_order_inv
+                      (existT (fun H1 : Elem.t => __bst H1) min_l left)))
+           (right : __bst min_r)
+           (H2 : existT (fun H2 : Elem.t => __bst H2) min_r right =
+                 __orn_order
+                   (__orn_order_inv
+                      (existT (fun H2 : Elem.t => __bst H2) min_r right))) =>
+         eq_ind (existT (fun H3 : Elem.t => __bst H3) min_l left)
+           (fun H3 : {H3 : Elem.t & __bst H3} =>
+            existT (fun H4 : Elem.t => __bst H4) min_l
+              (__Branch min_l min_r val left right) =
+            existT (fun H4 : Elem.t => __bst H4) H3 .1
+              (__Branch H3 .1
+                 (__orn_order
+                    (__orn_order_inv
+                       (existT (fun H4 : Elem.t => __bst H4) min_r right)))
+                 .1 val H3 .2
+                 (__orn_order
+                    (__orn_order_inv
+                       (existT (fun H4 : Elem.t => __bst H4) min_r right)))
+                 .2))
+           (eq_ind (existT (fun H3 : Elem.t => __bst H3) min_r right)
+              (fun H3 : {H3 : Elem.t & __bst H3} =>
+               existT (fun H4 : Elem.t => __bst H4) min_l
+                 (__Branch min_l min_r val left right) =
+               existT (fun H4 : Elem.t => __bst H4) min_l
+                 (__Branch min_l H3 .1 val left H3 .2)) eq_refl
+              (existT (fun H3 : Elem.t => __bst H3)
+                 (__orn_order
+                    (__orn_order_inv
+                       (existT (fun H3 : Elem.t => __bst H3) min_r right)))
+                 .1
+                 (__orn_order
+                    (__orn_order_inv
+                       (existT (fun H3 : Elem.t => __bst H3) min_r right)))
+                 .2) H2)
+           (existT (fun H3 : Elem.t => __bst H3)
+              (__orn_order
+                 (__orn_order_inv
+                    (existT (fun H3 : Elem.t => __bst H3) min_l left))) .1
+              (__orn_order
+                 (__orn_order_inv
+                    (existT (fun H3 : Elem.t => __bst H3) min_l left))) .2)
+           H1) (fun val : Elem.t => eq_refl) H H0)) __b.
+
+  Definition _orn_order_index := 
+fun (t : Elem.t) (__b : __bst t) =>
+__bst_rect (fun (t0 : Elem.t) (_ : __bst t0) => Elem.t)
+  (fun (min_l min_r _ : Elem.t) (left : __bst min_l)
+     (_ : (fun (t0 : Elem.t) (_ : __bst t0) => Elem.t) min_l left)
+     (right : __bst min_r)
+     (H : (fun (t0 : Elem.t) (_ : __bst t0) => Elem.t) min_r right) => H)
+  (fun val : Elem.t => val) t __b.
+
+  Definition _orn_order := 
+fun (t : Elem.t) (__b : __bst t) =>
+existT (fun H : Elem.t => _bst t H) (_orn_order_index t __b)
+  (__bst_rect
+     (fun (t0 : Elem.t) (__b0 : __bst t0) =>
+      _bst t0 (_orn_order_index t0 __b0))
+     (fun (min_l min_r val : Elem.t) (left : __bst min_l)
+        (H : (fun (t0 _ : Elem.t) (__b0 : __bst t0) =>
+              _bst t0 (_orn_order_index t0 __b0)) min_l
+               (_orn_order_index min_l left) left) 
+        (right : __bst min_r)
+        (H0 : (fun (t0 _ : Elem.t) (__b0 : __bst t0) =>
+               _bst t0 (_orn_order_index t0 __b0)) min_r
+                (_orn_order_index min_r right) right) =>
+      _Branch min_l min_r (_orn_order_index min_l left)
+        (_orn_order_index min_r right) val H H0)
+     (fun val : Elem.t => _Leaf val) t __b).
+
+Definition _orn_order_inv := 
+fun (t : Elem.t) (_b : {H : Elem.t & _bst t H}) =>
+_bst_rect (fun (t0 t1 : Elem.t) (_ : _bst t0 t1) => __bst t0)
+  (fun (min_l min_r max_l max_r val : Elem.t) (_ : _bst min_l max_l)
+     (H : __bst min_l) (_ : _bst min_r max_r) (H0 : __bst min_r) =>
+   __Branch min_l min_r val H H0) (fun val : Elem.t => __Leaf val) t 
+  _b .1 _b .2.
+
+Definition _orn_order_section := 
+fun (t : Elem.t) (__b : __bst t) =>
+eq_sym
+  (__bst_rect
+     (fun (t0 : Elem.t) (__b0 : __bst t0) =>
+      __b0 = _orn_order_inv t0 (_orn_order t0 __b0))
+     (fun (min_l min_r val : Elem.t) (left : __bst min_l)
+        (H : left = _orn_order_inv min_l (_orn_order min_l left))
+        (right : __bst min_r)
+        (H0 : right = _orn_order_inv min_r (_orn_order min_r right)) =>
+      eq_ind left
+        (fun H1 : __bst min_l =>
+         __Branch min_l min_r val left right =
+         __Branch min_l min_r val H1
+           (_orn_order_inv min_r (_orn_order min_r right)))
+        (eq_ind right
+           (fun H1 : __bst min_r =>
+            __Branch min_l min_r val left right =
+            __Branch min_l min_r val left H1) eq_refl
+           (_orn_order_inv min_r (_orn_order min_r right)) H0)
+        (_orn_order_inv min_l (_orn_order min_l left)) H)
+     (fun val : Elem.t => eq_refl) t __b).
+
+Definition _orn_order_retraction := 
+fun (t : Elem.t) (_b : {H : Elem.t & _bst t H}) =>
+sigT_rect
+  (fun _b0 : {H : Elem.t & _bst t H} =>
+   _orn_order t (_orn_order_inv t _b0) = _b0)
+  (fun (H : Elem.t) (H0 : (fun H0 : Elem.t => _bst t H0) H) =>
+   eq_sym
+     (_bst_rect
+        (fun (t0 t1 : Elem.t) (_b0 : _bst t0 t1) =>
+         existT (fun H1 : Elem.t => _bst t0 H1) t1 _b0 =
+         _orn_order t0
+           (_orn_order_inv t0 (existT (fun H1 : Elem.t => _bst t0 H1) t1 _b0)))
+        (fun (min_l min_r max_l max_r val : Elem.t) 
+           (left : _bst min_l max_l)
+           (H1 : existT (fun H1 : Elem.t => _bst min_l H1) max_l left =
+                 _orn_order min_l
+                   (_orn_order_inv min_l
+                      (existT (fun H1 : Elem.t => _bst min_l H1) max_l left)))
+           (right : _bst min_r max_r)
+           (H2 : existT (fun H2 : Elem.t => _bst min_r H2) max_r right =
+                 _orn_order min_r
+                   (_orn_order_inv min_r
+                      (existT (fun H2 : Elem.t => _bst min_r H2) max_r right)))
+         =>
+         eq_ind (existT (fun H3 : Elem.t => _bst min_l H3) max_l left)
+           (fun H3 : {H3 : Elem.t & _bst min_l H3} =>
+            existT (fun H4 : Elem.t => _bst min_l H4) max_r
+              (_Branch min_l min_r max_l max_r val left right) =
+            existT (fun H4 : Elem.t => _bst min_l H4)
+              (_orn_order min_r
+                 (_orn_order_inv min_r
+                    (existT (fun H4 : Elem.t => _bst min_r H4) max_r right)))
+              .1
+              (_Branch min_l min_r H3 .1
+                 (_orn_order min_r
+                    (_orn_order_inv min_r
+                       (existT (fun H4 : Elem.t => _bst min_r H4) max_r right)))
+                 .1 val H3 .2
+                 (_orn_order min_r
+                    (_orn_order_inv min_r
+                       (existT (fun H4 : Elem.t => _bst min_r H4) max_r right)))
+                 .2))
+           (eq_ind (existT (fun H3 : Elem.t => _bst min_r H3) max_r right)
+              (fun H3 : {H3 : Elem.t & _bst min_r H3} =>
+               existT (fun H4 : Elem.t => _bst min_l H4) max_r
+                 (_Branch min_l min_r max_l max_r val left right) =
+               existT (fun H4 : Elem.t => _bst min_l H4) 
+                 H3 .1 (_Branch min_l min_r max_l H3 .1 val left H3 .2))
+              eq_refl
+              (existT (fun H3 : Elem.t => _bst min_r H3)
+                 (_orn_order min_r
+                    (_orn_order_inv min_r
+                       (existT (fun H3 : Elem.t => _bst min_r H3) max_r right)))
+                 .1
+                 (_orn_order min_r
+                    (_orn_order_inv min_r
+                       (existT (fun H3 : Elem.t => _bst min_r H3) max_r right)))
+                 .2) H2)
+           (existT (fun H3 : Elem.t => _bst min_l H3)
+              (_orn_order min_l
+                 (_orn_order_inv min_l
+                    (existT (fun H3 : Elem.t => _bst min_l H3) max_l left)))
+              .1
+              (_orn_order min_l
+                 (_orn_order_inv min_l
+                    (existT (fun H3 : Elem.t => _bst min_l H3) max_l left)))
+              .2) H1) (fun val : Elem.t => eq_refl) t H H0)) _b.
+
+Definition orn_order_index := 
+fun (t t0 : Elem.t) (_b : _bst t t0) =>
+_bst_rect (fun (t1 t2 : Elem.t) (_ : _bst t1 t2) => bool)
+  (fun (min_l min_r max_l max_r val : Elem.t) (left : _bst min_l max_l)
+     (H : (fun (t1 t2 : Elem.t) (_ : _bst t1 t2) => bool) min_l max_l left)
+     (right : _bst min_r max_r)
+     (H0 : (fun (t1 t2 : Elem.t) (_ : _bst t1 t2) => bool) min_r max_r right)
+   => inv H H0 max_l val min_r) (fun _ : Elem.t => true) t t0 _b.
+
+Definition orn_order := 
+fun (t t0 : Elem.t) (_b : _bst t t0) =>
+existT (fun H : bool => bst t t0 H) (orn_order_index t t0 _b)
+  (_bst_rect
+     (fun (t1 t2 : Elem.t) (_b0 : _bst t1 t2) =>
+      bst t1 t2 (orn_order_index t1 t2 _b0))
+     (fun (min_l min_r max_l max_r val : Elem.t) (left : _bst min_l max_l)
+        (H : (fun (t1 t2 : Elem.t) (_ : bool) (_b0 : _bst t1 t2) =>
+              bst t1 t2 (orn_order_index t1 t2 _b0)) min_l max_l
+               (orn_order_index min_l max_l left) left)
+        (right : _bst min_r max_r)
+        (H0 : (fun (t1 t2 : Elem.t) (_ : bool) (_b0 : _bst t1 t2) =>
+               bst t1 t2 (orn_order_index t1 t2 _b0)) min_r max_r
+                (orn_order_index min_r max_r right) right) =>
+      Branch (orn_order_index min_l max_l left)
+        (orn_order_index min_r max_r right) min_l min_r max_l max_r val H H0)
+     (fun val : Elem.t => Leaf val) t t0 _b).
+
+Definition orn_order_inv := 
+fun (t t0 : Elem.t) (b : {H : bool & bst t t0 H}) =>
+bst_rect (fun (t1 t2 : Elem.t) (b0 : bool) (_ : bst t1 t2 b0) => _bst t1 t2)
+  (fun (ord_l ord_r : bool) (min_l min_r max_l max_r val : Elem.t)
+     (_ : bst min_l max_l ord_l) (H : _bst min_l max_l)
+     (_ : bst min_r max_r ord_r) (H0 : _bst min_r max_r) =>
+   _Branch min_l min_r max_l max_r val H H0) (fun val : Elem.t => _Leaf val)
+  t t0 b .1 b .2.
+
+Definition orn_order_section := 
+fun (t t0 : Elem.t) (_b : _bst t t0) =>
+eq_sym
+  (_bst_rect
+     (fun (t1 t2 : Elem.t) (_b0 : _bst t1 t2) =>
+      _b0 = orn_order_inv t1 t2 (orn_order t1 t2 _b0))
+     (fun (min_l min_r max_l max_r val : Elem.t) (left : _bst min_l max_l)
+        (H : left = orn_order_inv min_l max_l (orn_order min_l max_l left))
+        (right : _bst min_r max_r)
+        (H0 : right = orn_order_inv min_r max_r (orn_order min_r max_r right))
+      =>
+      eq_ind left
+        (fun H1 : _bst min_l max_l =>
+         _Branch min_l min_r max_l max_r val left right =
+         _Branch min_l min_r max_l max_r val H1
+           (orn_order_inv min_r max_r (orn_order min_r max_r right)))
+        (eq_ind right
+           (fun H1 : _bst min_r max_r =>
+            _Branch min_l min_r max_l max_r val left right =
+            _Branch min_l min_r max_l max_r val left H1) eq_refl
+           (orn_order_inv min_r max_r (orn_order min_r max_r right)) H0)
+        (orn_order_inv min_l max_l (orn_order min_l max_l left)) H)
+     (fun val : Elem.t => eq_refl) t t0 _b).
+
+Definition orn_order_retraction := 
+fun (t t0 : Elem.t) (b : {H : bool & bst t t0 H}) =>
+sigT_rect
+  (fun b0 : {H : bool & bst t t0 H} =>
+   orn_order t t0 (orn_order_inv t t0 b0) = b0)
+  (fun (H : bool) (H0 : (fun H0 : bool => bst t t0 H0) H) =>
+   eq_sym
+     (bst_rect
+        (fun (t1 t2 : Elem.t) (b0 : bool) (b1 : bst t1 t2 b0) =>
+         existT (fun H1 : bool => bst t1 t2 H1) b0 b1 =
+         orn_order t1 t2
+           (orn_order_inv t1 t2
+              (existT (fun H1 : bool => bst t1 t2 H1) b0 b1)))
+        (fun (ord_l ord_r : bool) (min_l min_r max_l max_r val : Elem.t)
+           (left : bst min_l max_l ord_l)
+           (H1 : existT (fun H1 : bool => bst min_l max_l H1) ord_l left =
+                 orn_order min_l max_l
+                   (orn_order_inv min_l max_l
+                      (existT (fun H1 : bool => bst min_l max_l H1) ord_l
+                         left))) (right : bst min_r max_r ord_r)
+           (H2 : existT (fun H2 : bool => bst min_r max_r H2) ord_r right =
+                 orn_order min_r max_r
+                   (orn_order_inv min_r max_r
+                      (existT (fun H2 : bool => bst min_r max_r H2) ord_r
+                         right))) =>
+         eq_ind (existT (fun H3 : bool => bst min_l max_l H3) ord_l left)
+           (fun H3 : {H3 : bool & bst min_l max_l H3} =>
+            existT (fun H4 : bool => bst min_l max_r H4)
+              (inv ord_l ord_r max_l val min_r)
+              (Branch ord_l ord_r min_l min_r max_l max_r val left right) =
+            existT (fun H4 : bool => bst min_l max_r H4)
+              (inv H3 .1
+                 (orn_order min_r max_r
+                    (orn_order_inv min_r max_r
+                       (existT (fun H4 : bool => bst min_r max_r H4) ord_r
+                          right))) .1 max_l val min_r)
+              (Branch H3 .1
+                 (orn_order min_r max_r
+                    (orn_order_inv min_r max_r
+                       (existT (fun H4 : bool => bst min_r max_r H4) ord_r
+                          right))) .1 min_l min_r max_l max_r val 
+                 H3 .2
+                 (orn_order min_r max_r
+                    (orn_order_inv min_r max_r
+                       (existT (fun H4 : bool => bst min_r max_r H4) ord_r
+                          right))) .2))
+           (eq_ind (existT (fun H3 : bool => bst min_r max_r H3) ord_r right)
+              (fun H3 : {H3 : bool & bst min_r max_r H3} =>
+               existT (fun H4 : bool => bst min_l max_r H4)
+                 (inv ord_l ord_r max_l val min_r)
+                 (Branch ord_l ord_r min_l min_r max_l max_r val left right) =
+               existT (fun H4 : bool => bst min_l max_r H4)
+                 (inv ord_l H3 .1 max_l val min_r)
+                 (Branch ord_l H3 .1 min_l min_r max_l max_r val left H3 .2))
+              eq_refl
+              (existT (fun H3 : bool => bst min_r max_r H3)
+                 (orn_order min_r max_r
+                    (orn_order_inv min_r max_r
+                       (existT (fun H3 : bool => bst min_r max_r H3) ord_r
+                          right))) .1
+                 (orn_order min_r max_r
+                    (orn_order_inv min_r max_r
+                       (existT (fun H3 : bool => bst min_r max_r H3) ord_r
+                          right))) .2) H2)
+           (existT (fun H3 : bool => bst min_l max_l H3)
+              (orn_order min_l max_l
+                 (orn_order_inv min_l max_l
+                    (existT (fun H3 : bool => bst min_l max_l H3) ord_l left)))
+              .1
+              (orn_order min_l max_l
+                 (orn_order_inv min_l max_l
+                    (existT (fun H3 : bool => bst min_l max_l H3) ord_l left)))
+              .2) H1) (fun val : Elem.t => eq_refl) t t0 H H0)) b.
+
+   (* --- End automatically generated terms from DEVOID --- *)
+
+    Definition orn_order_trans (t : Base.tree) : {lo:Elem.t & {hi:Elem.t & {ord:bool & Ordered.bst lo hi ord}}} :=
+      let t' := __orn_order t in      
+      let lo := projT1 t' in
+      let t'' := _orn_order lo (projT2 t') in
+      let hi := projT1 t'' in
+      existT _ lo (existT _ hi (orn_order lo hi (projT2 t''))).
+
+    Definition orn_order_trans_inv (t'' : {lo:Elem.t & {hi:Elem.t & {ord:bool & bst lo hi ord}}}) :=
+      let lo := projT1 t'' in
+      let t' := projT2 t'' in
+      let hi := projT1 t' in
+      let t := projT2 t' in
+      __orn_order_inv 
+        (existT _ lo 
+          (_orn_order_inv lo 
+            (existT _ hi (orn_order_inv lo hi t)))).
+
+   Check orn_order_trans_inv.
+
+    Instance IsEquiv_orn_order : IsEquiv orn_order_trans.
     Proof.
-      eapply isequiv_adjointify with (g := orn_order_inv); unfold orn_order_inv; cbn.
+      eapply isequiv_adjointify with (g := orn_order_trans_inv).
       - intros t. induction t as [v l IH_l r IH_r|v]; cbn.
         + rewrite IH_l, IH_r. reflexivity.
         + reflexivity.

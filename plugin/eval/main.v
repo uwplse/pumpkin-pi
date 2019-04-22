@@ -14,8 +14,6 @@ Notation "x <= y" := (Nat.leb x y) (at level 70, y at next level, no associativi
 Notation "p '.1'" := (projT1 p) (at level 3, left associativity).
 Notation "p '.2'" := (projT2 p) (at level 3, left associativity).
 
-
-Check sigT_rect.
 Definition is_true (b : bool) : Prop := b = true.
 Coercion is_true : bool >-> Sortclass.
 
@@ -224,9 +222,6 @@ Module CaseStudy (Elem : Comparable).
     | Leaf (val : Elem.t) : tree (S O).
 
     Find ornament Base.tree tree as orn_size.
-    Check eq_ind.
-    Print orn_size_section.
-    Print orn_size_retraction.
 
     Lift Base.tree tree in Base.preorder as preorder'.
     Unpack preorder' as preorder.
@@ -308,9 +303,24 @@ Module CaseStudy (Elem : Comparable).
       : bst min_l max_r (inv ord_l ord_r max_l val min_r)
     | Leaf (val : Elem.t) : bst val val true.
 
-    Find ornament Base.tree __bst.
-    Find ornament __bst _bst.
-    Find ornament _bst bst.
+    Find ornament Base.tree __bst as __orn_order.
+    Find ornament __bst _bst as _orn_order.
+    Find ornament _bst bst as orn_order.
+    Print __orn_order_index.
+    Print __orn_order.
+    Print __orn_order_inv.
+    Print __orn_order_section.
+    Print __orn_order_retraction.
+    Print _orn_order_index.
+    Print _orn_order.
+    Print _orn_order_inv.
+    Print _orn_order_section.
+    Print _orn_order_retraction.
+    Print orn_order_index.
+    Print orn_order.
+    Print orn_order_inv.
+    Print orn_order_section.
+    Print orn_order_retraction.
 
     Lift Base.tree __bst in Base.preorder as __preorder'.
     Unpack __preorder' as __preorder.
