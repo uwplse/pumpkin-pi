@@ -517,7 +517,8 @@ sigT_rect (fun t0 : {H : nat & tree H} => orn_size (orn_size_inv t0) = t0)
     Lemma FP_preorder : Base.preorder ≈ preorder'.
     Proof.
       intros t t' U. cbn in U. rewrite <- U. unfold preorder'. generalize Base.preorder.
-      intros f. cbn. rewrite list_rect_eta, orn_size_coh. eapply UR_list_refl.
+      intros f. cbn. rewrite list_rect_eta. pose proof orn_size_coh. compute in H. compute. rewrite H. 
+      eapply UR_list_refl.
     Defined.
 
     Hint Extern 0 (Base.preorder ?t ≈ preorder' ?t') => unshelve refine (FP_preorder t t' _); intros :  typeclass_instances.
@@ -525,7 +526,8 @@ sigT_rect (fun t0 : {H : nat & tree H} => orn_size (orn_size_inv t0) = t0)
     Lemma FP_inorder : Base.inorder ≈ inorder'.
     Proof.
       intros t t' U. cbn in U. rewrite <- U. unfold inorder'. generalize Base.inorder.
-      intros f. cbn. rewrite list_rect_eta, orn_size_coh. eapply UR_list_refl.
+      intros f. cbn. rewrite list_rect_eta. pose proof orn_size_coh. compute in H. compute. rewrite H. 
+      eapply UR_list_refl.
     Defined.
 
     Hint Extern 0 (Base.inorder ?t ≈ inorder' ?t') => unshelve refine (FP_inorder t t' _); intros :  typeclass_instances.
@@ -533,7 +535,8 @@ sigT_rect (fun t0 : {H : nat & tree H} => orn_size (orn_size_inv t0) = t0)
     Lemma FP_postorder : Base.postorder ≈ postorder'.
     Proof.
       intros t t' U. cbn in U. rewrite <- U. unfold postorder'. generalize Base.postorder.
-      intros f. cbn. rewrite list_rect_eta, orn_size_coh. eapply UR_list_refl.
+      intros f. cbn. rewrite list_rect_eta. pose proof orn_size_coh. compute in H. compute. rewrite H. 
+      eapply UR_list_refl.
     Defined.
 
     Hint Extern 0 (Base.postorder ?t ≈ postorder' ?t') => unshelve refine (FP_postorder t t' _); intros :  typeclass_instances.
