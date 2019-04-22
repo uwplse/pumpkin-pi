@@ -3,6 +3,9 @@ Require Import PeanoNat Nat List Sorting.Permutation.
 Require Import lemmas cast.
 Import ListNotations.
 
+(* Generate equivalences for EFF! *)
+Set DEVOID search prove equivalence.
+
 Open Scope bool_scope.
 
 Infix "==" := Nat.eqb (at level 70, no associativity) : nat_scope.
@@ -11,6 +14,8 @@ Notation "x <= y" := (Nat.leb x y) (at level 70, y at next level, no associativi
 Notation "p '.1'" := (projT1 p) (at level 3, left associativity).
 Notation "p '.2'" := (projT2 p) (at level 3, left associativity).
 
+
+Check sigT_rect.
 Definition is_true (b : bool) : Prop := b = true.
 Coercion is_true : bool >-> Sortclass.
 
@@ -218,7 +223,10 @@ Module CaseStudy (Elem : Comparable).
       : tree (S (n_l + n_r))
     | Leaf (val : Elem.t) : tree (S O).
 
-    Find ornament Base.tree tree.
+    Find ornament Base.tree tree as orn_size.
+    Check eq_ind.
+    Print orn_size_section.
+    Print orn_size_retraction.
 
     Lift Base.tree tree in Base.preorder as preorder'.
     Unpack preorder' as preorder.

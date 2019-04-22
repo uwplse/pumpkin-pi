@@ -2,7 +2,7 @@ Require Import List.
 Require Import Ornamental.Ornaments.
 
 Set DEVOID search prove coherence. (* TODO use for tests *)
-Set DEVOID search prove equivalence. (* TODO use for tests *)
+Set DEVOID search prove equivalence. (* TODO use for tests, all other files *)
 (* TODO port case studies etc too *)
 
 (*--- Lists and Vectors ---*)

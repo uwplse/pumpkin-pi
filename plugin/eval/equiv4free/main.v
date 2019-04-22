@@ -1,6 +1,8 @@
 From UnivalentParametricity Require Import HoTT UR URTactics FP Record MoreInductive.
 Require Import PeanoNat list perm lemmas.
 
+(* TODO run these to make sure results the same still *)
+
 Set Universe Polymorphism.
 
 Open Scope bool_scope.
@@ -16,6 +18,12 @@ Coercion logic_eq_is_eq : Logic.eq >-> eq.
 Hint Extern 4 => repeat (match goal with H : Logic.eq _ _ |- _ => apply logic_eq_is_eq in H end).
 
 Notation "'typeof' x" := (let A := _ in let _ : A := x in A) (at level 100).
+
+Definition eq_ind {A : Type} (x : A) (P : A -> Type) (H : P x) (y : A) (Heq : x = y) :=
+  eq_rect A x (fun (a : A) (H0 : x = a) => P a) H y Heq. (* for compatibility *)
+
+Definition sigT_rect {A : Type} {P : A -> Type} (P0 : {x : A & P x} -> Set) (H : forall (x : A) (p : P x), P0 (x; p)) :=
+  sigT_rect A P P0 H. (* for compatibility *)
 
 Add Printing Let sigT. (* for consistency *)
 
@@ -345,41 +353,117 @@ Module CaseStudy (Elem : Comparable).
       rewrite Equiv_tree_id. cbn. eapply Equiv_id.
     Defined.
 
-    Fixpoint orn_size_index (t : Base.tree) : nat :=
-      match t with
-      | Base.Branch _ l r => S (orn_size_index l + orn_size_index r)
-      | Base.Leaf _ => 1
-      end.
+    (* --- Begin automatically generated terms from DEVOID --- *)
+    (* TODO copy these in automatically *)
 
-    Fixpoint orn_size (t : Base.tree) : {n:nat & tree n} :=
-      match t with
-      | Base.Branch v l r =>
-        let L := orn_size l in
-        let R := orn_size r in
-        (_; (Branch L.1 R.1 v L.2 R.2))
-      | Base.Leaf v => (_; Leaf v)
-      end.
+    Definition orn_size_index := 
+fun t : Base.tree =>
+Base.tree_rect (fun _ : Base.tree => nat)
+  (fun (_ : Elem.t) (left : Base.tree) (H : (fun _ : Base.tree => nat) left)
+     (right : Base.tree) (H0 : (fun _ : Base.tree => nat) right) =>
+   S (H + H0)) (fun _ : Elem.t => 1) t.
 
-    Fixpoint orn_size_inv' (n : nat) (t : tree n) : Base.tree :=
-      match t with
-      | Branch n_l n_r v l r =>
-        Base.Branch v (orn_size_inv' n_l l) (orn_size_inv' n_r r)
-      | Leaf v =>
-        Base.Leaf v
-      end.
+   Definition orn_size := 
+fun t : Base.tree =>
+existT (fun H : nat => tree H) (orn_size_index t)
+  (Base.tree_rect (fun t0 : Base.tree => tree (orn_size_index t0))
+     (fun (val : Elem.t) (left : Base.tree)
+        (H : (fun (_ : nat) (t0 : Base.tree) => tree (orn_size_index t0))
+               (orn_size_index left) left) (right : Base.tree)
+        (H0 : (fun (_ : nat) (t0 : Base.tree) => tree (orn_size_index t0))
+                (orn_size_index right) right) =>
+      Branch (orn_size_index left) (orn_size_index right) val H H0)
+     (fun val : Elem.t => Leaf val) t).
 
-    Definition orn_size_inv (T : {n:nat & tree n}) : Base.tree :=
-      orn_size_inv' T.1 T.2.
+   Definition orn_size_inv := 
+fun t : {H : nat & tree H} =>
+tree_rect (fun (n : nat) (_ : tree n) => Base.tree)
+  (fun (n_l n_r : nat) (val : Elem.t) (_ : tree n_l) 
+     (H : Base.tree) (_ : tree n_r) (H0 : Base.tree) => 
+   Base.Branch val H H0) (fun val : Elem.t => Base.Leaf val) 
+  t .1 t .2.
+
+  Definition orn_size_section := 
+fun t : Base.tree =>
+eq_sym
+  (Base.tree_rect (fun t0 : Base.tree => t0 = orn_size_inv (orn_size t0))
+     (fun (val : Elem.t) (left : Base.tree)
+        (H : left = orn_size_inv (orn_size left)) 
+        (right : Base.tree) (H0 : right = orn_size_inv (orn_size right)) =>
+      eq_ind left
+        (fun H1 : Base.tree =>
+          Base.Branch val left right =
+          Base.Branch val H1 (orn_size_inv (orn_size right)))
+        (eq_ind right
+           (fun H1 : Base.tree =>
+            Base.Branch val left right = Base.Branch val left H1) eq_refl
+           (orn_size_inv (orn_size right)) H0) (orn_size_inv (orn_size left))
+        H) (fun val : Elem.t => eq_refl) t).
+
+Definition orn_size_retraction := 
+fun t : {H : nat & tree H} =>
+sigT_rect (fun t0 : {H : nat & tree H} => orn_size (orn_size_inv t0) = t0)
+  (fun (H : nat) (H0 : (fun H0 : nat => tree H0) H) =>
+   eq_sym
+     (tree_rect
+        (fun (n : nat) (t0 : tree n) =>
+         existT (fun H1 : nat => tree H1) n t0 =
+         orn_size (orn_size_inv (existT (fun H1 : nat => tree H1) n t0)))
+        (fun (n_l n_r : nat) (val : Elem.t) (left : tree n_l)
+           (H1 : existT (fun H1 : nat => tree H1) n_l left =
+                 orn_size
+                   (orn_size_inv (existT (fun H1 : nat => tree H1) n_l left)))
+           (right : tree n_r)
+           (H2 : existT (fun H2 : nat => tree H2) n_r right =
+                 orn_size
+                   (orn_size_inv (existT (fun H2 : nat => tree H2) n_r right)))
+         =>
+         eq_ind (existT (fun H3 : nat => tree H3) n_l left)
+           (fun H3 : {H3 : nat & tree H3} =>
+            existT (fun H4 : nat => tree H4) (S (n_l + n_r))
+              (Branch n_l n_r val left right) =
+            existT (fun H4 : nat => tree H4)
+              (S
+                 (H3 .1 +
+                  (orn_size
+                     (orn_size_inv
+                        (existT (fun H4 : nat => tree H4) n_r right))) .1))
+              (Branch H3 .1
+                 (orn_size
+                    (orn_size_inv
+                       (existT (fun H4 : nat => tree H4) n_r right))) .1 val
+                 H3 .2
+                 (orn_size
+                    (orn_size_inv
+                       (existT (fun H4 : nat => tree H4) n_r right))) .2))
+           (eq_ind (existT (fun H3 : nat => tree H3) n_r right)
+              (fun H3 : {H3 : nat & tree H3} =>
+               existT (fun H4 : nat => tree H4) (S (n_l + n_r))
+                 (Branch n_l n_r val left right) =
+               existT (fun H4 : nat => tree H4) (S (n_l + H3 .1))
+                 (Branch n_l H3 .1 val left H3 .2)) eq_refl
+              (existT (fun H3 : nat => tree H3)
+                 (orn_size
+                    (orn_size_inv
+                       (existT (fun H3 : nat => tree H3) n_r right))) .1
+                 (orn_size
+                    (orn_size_inv
+                       (existT (fun H3 : nat => tree H3) n_r right))) .2) H2)
+           (existT (fun H3 : nat => tree H3)
+              (orn_size
+                 (orn_size_inv (existT (fun H3 : nat => tree H3) n_l left)))
+              .1
+              (orn_size
+                 (orn_size_inv (existT (fun H3 : nat => tree H3) n_l left)))
+              .2) H1) (fun val : Elem.t => eq_refl) H H0)) t.
+
+    (* --- End automatically generated terms from DEVOID --- *)
 
     Instance IsEquiv_orn_size : IsEquiv orn_size.
     Proof.
-      eapply isequiv_adjointify with (g := orn_size_inv); unfold orn_size_inv.
-      - intros t. induction t as [v l IH_l r IH_r|v]; cbn.
-        + rewrite IH_l, IH_r. reflexivity.
-        + reflexivity.
-      - intros [h t]. cbn. induction t as [n_l n_r v l IH_l r IH_r|v]; cbn.
-        + rewrite IH_l, IH_r. reflexivity.
-        + reflexivity.
+      eapply isequiv_adjointify with (g := orn_size_inv).
+      - apply orn_size_section.
+      - apply orn_size_retraction.
     Defined.
 
     Instance Equiv_orn_size : Base.tree ≃ {n:nat & tree n} :=
