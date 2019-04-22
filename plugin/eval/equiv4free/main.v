@@ -1026,13 +1026,12 @@ sigT_rect
       - rewrite __orn_order_retraction.
         remember (_orn_order_inv x .1 ((x .2) .1; (orn_order_inv x .1 (x .2) .1 (x .2) .2))).
         remember (_orn_order (x .1; __b) .1 (x .1; __b) .2).
-        induction x; simpl in *.
         rewrite Heq__b in Heqs. 
-        rewrite _orn_order_retraction in Heqs.
+        destruct x. simpl in Heqs.
         rewrite Heqs.
-        simpl.
+        rewrite _orn_order_retraction.
+        destruct s0. simpl. 
         rewrite orn_order_retraction. 
-        induction p. 
         reflexivity.
     Admitted.
 
