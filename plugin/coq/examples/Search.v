@@ -14,8 +14,8 @@ Notation nilV := Vector.nil.
 
 (* --- Running search --- *)
 
-Set DEVOID search prove coherence. (* TODO test w/ other types too [tree, dep] *)
-Set DEVOID search prove equivalence. (* TODO test w/ other types too [tree, dep]; use in case study code *)
+Set DEVOID search prove coherence.
+Set DEVOID search prove equivalence.
 
 Find ornament list vector as ltv.
 
@@ -66,6 +66,18 @@ Print ltv_inv.
 Notation forget l := (ltv_inv _ l).
 
 (* --- Correctness --- *)
+
+(*
+ * Since we set the "prove coherence" and "prove equivalence" options,
+ * DEVOID generated coherence, section, and retraction proofs. Here I 
+ * simply restate them and show that the generated terms are correct.
+ * These automatically generated proofs show that the components DEVOID
+ * found form the ornamental promotion isomorphism between lists and vectors.
+ *
+ * Coherence follows by construction, while section and retraction each
+ * follow by induction, where each case is a fold over rewrites by each
+ * recursive argument, ending with reflexivity.
+ *)
 
 (*
  * Coherence follows by construction:
