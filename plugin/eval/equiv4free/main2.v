@@ -2,7 +2,6 @@ From UnivalentParametricity Require Import HoTT UR URTactics FP Record MoreInduc
 Require Import PeanoNat list perm lemmas.
 
 (* TODO run these to make sure results the same still *)
-(* TODO copy old version to a file; include both *)
 
 Set Universe Polymorphism.
 
