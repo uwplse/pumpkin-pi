@@ -166,6 +166,7 @@ Module CaseStudy (Elem : Comparable).
     Instance Transportable_tree (P: tree -> Type) : Transportable P :=
       @Transportable_decidable _ P Decidable_eq_tree.
 
+    (* --- Test trees --- *)
       Local Coercion Leaf : Elem.t >-> tree.
 
       (* 21 nodes, to be exact *)
@@ -238,23 +239,33 @@ Module CaseStudy (Elem : Comparable).
         (fun x => [x])
         t.
 
-   (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
-    Redirect "../out/treeEFF20" Time Eval vm_compute in tree20.
-    Redirect "../out/treeEFF40" Time Eval vm_compute in tree40.
-    Redirect "../out/treeEFF60" Time Eval vm_compute in tree60.
-    Redirect "../out/treeEFF80" Time Eval vm_compute in tree80.
-    Redirect "../out/treeEFF100" Time Eval vm_compute in tree100.
-    Redirect "../out/treeEFF2000" Time Eval vm_compute in tree2000.
-    Redirect "../out/treeEFF4000" Time Eval vm_compute in tree4000.
-    Redirect "../out/treeEFF6000" Time Eval vm_compute in tree6000.
-    Redirect "../out/treeEFF8000" Time Eval vm_compute in tree8000.
-    Redirect "../out/treeEFF10000" Time Eval vm_compute in tree10000.
+    (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
+    Redirect "out/treeEFF20" Time Eval vm_compute in tree20.
+    Redirect "out/treeEFF40" Time Eval vm_compute in tree40.
+    Redirect "out/treeEFF60" Time Eval vm_compute in tree60.
+    Redirect "out/treeEFF80" Time Eval vm_compute in tree80.
+    Redirect "out/treeEFF100" Time Eval vm_compute in tree100.
+    Redirect "out/treeEFF200" Time Eval vm_compute in tree200.
+    Redirect "out/treeEFF400" Time Eval vm_compute in tree400.
+    Redirect "out/treeEFF600" Time Eval vm_compute in tree600.
+    Redirect "out/treeEFF800" Time Eval vm_compute in tree800.
+    Redirect "out/treeEFF1000" Time Eval vm_compute in tree1000.
+    Redirect "out/treeEFF2000" Time Eval vm_compute in tree2000.
+    Redirect "out/treeEFF4000" Time Eval vm_compute in tree4000.
+    Redirect "out/treeEFF6000" Time Eval vm_compute in tree6000.
+    Redirect "out/treeEFF8000" Time Eval vm_compute in tree8000.
+    Redirect "out/treeEFF10000" Time Eval vm_compute in tree10000.
 
     Redirect "../out/preorder/baseEFF20" Time Eval vm_compute in (preorder tree20).
     Redirect "../out/preorder/baseEFF40" Time Eval vm_compute in (preorder tree40).
     Redirect "../out/preorder/baseEFF60" Time Eval vm_compute in (preorder tree60).
     Redirect "../out/preorder/baseEFF80" Time Eval vm_compute in (preorder tree80).
     Redirect "../out/preorder/baseEFF100" Time Eval vm_compute in (preorder tree100).
+    Redirect "../out/preorder/baseEFF200" Time Eval vm_compute in (preorder tree200).
+    Redirect "../out/preorder/baseEFF400" Time Eval vm_compute in (preorder tree400).
+    Redirect "../out/preorder/baseEFF600" Time Eval vm_compute in (preorder tree600).
+    Redirect "../out/preorder/baseEFF800" Time Eval vm_compute in (preorder tree800).
+    Redirect "../out/preorder/baseEFF1000" Time Eval vm_compute in (preorder tree1000).
     Redirect "../out/preorder/baseEFF2000" Time Eval vm_compute in (preorder tree2000).
     Redirect "../out/preorder/baseEFF4000" Time Eval vm_compute in (preorder tree4000).
     Redirect "../out/preorder/baseEFF6000" Time Eval vm_compute in (preorder tree6000).
@@ -273,6 +284,11 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/inorder/baseEFF60" Time Eval vm_compute in (inorder tree60).
     Redirect "../out/inorder/baseEFF80" Time Eval vm_compute in (inorder tree80).
     Redirect "../out/inorder/baseEFF100" Time Eval vm_compute in (inorder tree100).
+    Redirect "../out/inorder/baseEFF200" Time Eval vm_compute in (inorder tree200).
+    Redirect "../out/inorder/baseEFF400" Time Eval vm_compute in (inorder tree400).
+    Redirect "../out/inorder/baseEFF600" Time Eval vm_compute in (inorder tree600).
+    Redirect "../out/inorder/baseEFF800" Time Eval vm_compute in (inorder tree800).
+    Redirect "../out/inorder/baseEFF1000" Time Eval vm_compute in (inorder tree1000).
     Redirect "../out/inorder/baseEFF2000" Time Eval vm_compute in (inorder tree2000).
     Redirect "../out/inorder/baseEFF4000" Time Eval vm_compute in (inorder tree4000).
     Redirect "../out/inorder/baseEFF6000" Time Eval vm_compute in (inorder tree6000).
@@ -291,6 +307,11 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/postorder/baseEFF60" Time Eval vm_compute in (postorder tree60).
     Redirect "../out/postorder/baseEFF80" Time Eval vm_compute in (postorder tree80).
     Redirect "../out/postorder/baseEFF100" Time Eval vm_compute in (postorder tree100).
+    Redirect "../out/postorder/baseEFF200" Time Eval vm_compute in (postorder tree200).
+    Redirect "../out/postorder/baseEFF400" Time Eval vm_compute in (postorder tree400).
+    Redirect "../out/postorder/baseEFF600" Time Eval vm_compute in (postorder tree600).
+    Redirect "../out/postorder/baseEFF800" Time Eval vm_compute in (postorder tree800).
+    Redirect "../out/postorder/baseEFF1000" Time Eval vm_compute in (postorder tree1000).
     Redirect "../out/postorder/baseEFF2000" Time Eval vm_compute in (postorder tree2000).
     Redirect "../out/postorder/baseEFF4000" Time Eval vm_compute in (postorder tree4000).
     Redirect "../out/postorder/baseEFF6000" Time Eval vm_compute in (postorder tree6000).
@@ -1062,8 +1083,9 @@ sigT_rect
       - apply Canonical_eq_gen.
     Defined.
 
-    Definition __tree20 : {lo : Elem.t & __bst lo} := ↑ Base.tree20.
-    Definition _tree20 : {lo : Elem.t & {hi : Elem.t & _bst lo hi}} := ↑ __tree20.
+    (* TODO lift trees fully and then project all (here and elsewhere) *)
+    Definition __tree20 := ↑ Base.tree20.
+    Definition _tree20 := ↑ (__tree20. .2).
     Definition tree20 := (↑ (_tree20 .2)).2.
     Definition __tree40 := ↑ Base.tree40.
     Definition _tree40 := ↑ (__tree40 .2).
@@ -1077,21 +1099,21 @@ sigT_rect
     Definition __tree100 := ↑ Base.tree100.
     Definition _tree100 := ↑ (__tree100 .2).
     Definition tree100 := (↑ (_tree100 .2)).2.
-    Definition __tree2000 := ↑ Base.tree2000.
-    Definition _tree2000 := ↑ (__tree2000 .2).
-    Definition tree2000 := (↑ (_tree2000 .2)).2.
-    Definition __tree4000 := ↑ Base.tree4000.
-    Definition _tree4000 := ↑ (__tree4000 .2).
-    Definition tree4000 := (↑ (_tree4000 .2)).2.
-    Definition __tree6000 := ↑ Base.tree6000.
-    Definition _tree6000 := ↑ (__tree6000 .2).
-    Definition tree6000 := (↑ (_tree6000 .2)).2.
-    (*Definition __tree8000 := ↑ Base.tree8000. TODO if no timeout
-    Definition _tree8000 := ↑ (__tree8000 .2).
-    Definition tree8000 := (↑ (_tree8000 .2)).2.
-    Definition __tree10000 := ↑ Base.tree10000.
-    Definition _tree10000 := ↑ (__tree10000 .2).
-    Definition tree10000 := (↑ (_tree10000 .2)).2.*)
+    Definition __tree200 := ↑ Base.tree200.
+    Definition _tree200 := ↑ (__tree200. .2).
+    Definition tree200 := (↑ (_tree200 .2)).2.
+    Definition __tree400 := ↑ Base.tree400.
+    Definition _tree400 := ↑ (__tree400 .2).
+    Definition tree400 := (↑ (_tree400 .2)).2.
+    Definition __tree600 := ↑ Base.tree600.
+    Definition _tree600 := ↑ (__tree600 .2).
+    Definition tree600 := (↑ (_tree600 .2)).2.
+    Definition __tree800 := ↑ Base.tree800.
+    Definition _tree800 := ↑ (__tree800 .2).
+    Definition tree800 := (↑ (_tree800 .2)).2.
+    Definition __tree1000 := ↑ Base.tree1000.
+    Definition _tree1000 := ↑ (__tree1000 .2).
+    Definition tree1000 := (↑ (_tree1000 .2)).2.
 
     (* For consistency, follow the same process *)
     Definition __preorder'  : {lo:Elem.t & __bst lo} -> list Elem.t := ↑ Base.preorder.
@@ -1133,11 +1155,11 @@ sigT_rect
     Redirect "../out/treeEFF60" Time Eval vm_compute in tree60.
     Redirect "../out/treeEFF80" Time Eval vm_compute in tree80.
     Redirect "../out/treeEFF100" Time Eval vm_compute in tree100.
-    Redirect "../out/treeEFF2000" Time Eval vm_compute in tree2000.
-    Redirect "../out/treeEFF4000" Time Eval vm_compute in tree4000.
-    Redirect "../out/treeEFF6000" Time Eval vm_compute in tree6000.
-    (*Redirect "../out/treeEFF8000" Time Eval vm_compute in tree8000. TODO if no timeout
-    Redirect "../out/treeEFF10000" Time Eval vm_compute in tree10000.*)
+    Redirect "../out/treeEFF200" Time Eval vm_compute in tree200.
+    Redirect "../out/treeEFF400" Time Eval vm_compute in tree400.
+    Redirect "../out/treeEFF600" Time Eval vm_compute in tree600.
+    Redirect "../out/treeEFF800" Time Eval vm_compute in tree800.
+    Redirect "../out/treeEFF1000" Time Eval vm_compute in tree1000.
 
     (* --- Base search data --- *)
     Redirect "../out/search/baseEFF20" Time Eval vm_compute in (search tree20 Elem.x).
@@ -1145,11 +1167,11 @@ sigT_rect
     Redirect "../out/search/baseEFF60" Time Eval vm_compute in (search tree60 Elem.x).
     Redirect "../out/search/baseEFF80" Time Eval vm_compute in (search tree80 Elem.x).
     Redirect "../out/search/baseEFF100" Time Eval vm_compute in (search tree100 Elem.x).
-    Redirect "../out/search/baseEFF2000" Time Eval vm_compute in (search tree2000 Elem.x).
-    Redirect "../out/search/baseEFF4000" Time Eval vm_compute in (search tree4000 Elem.x).
-    Redirect "../out/search/baseEFF6000" Time Eval vm_compute in (search tree6000 Elem.x).
-    (*Redirect "../out/search/baseEFF8000" Time Eval vm_compute in (search tree8000 Elem.x). TODO if no timeout
-    Redirect "../out/search/baseEFF10000" Time Eval vm_compute in (search tree10000 Elem.x).*)
+    Redirect "../out/search/baseEFF200" Time Eval vm_compute in (search tree200 Elem.x).
+    Redirect "../out/search/baseEFF400" Time Eval vm_compute in (search tree400 Elem.x).
+    Redirect "../out/search/baseEFF600" Time Eval vm_compute in (search tree600 Elem.x).
+    Redirect "../out/search/baseEFF800" Time Eval vm_compute in (search tree800 Elem.x).
+    Redirect "../out/search/baseEFF1000" Time Eval vm_compute in (search tree1000 Elem.x).
 
 
   End Ordered.
@@ -1607,26 +1629,27 @@ sigT_rect
       - apply Canonical_eq_gen.
     Defined.
 
-    Definition _tree20 := ↑ Ordered.tree20.2.
+    (* TODO lift then project here too *)
+    Definition _tree20 := ↑ Ordered.tree20.
     Definition tree20 := ↑ _tree20.2.
-    Definition _tree40 := ↑ Ordered.tree40.2.
+    Definition _tree40 := ↑ Ordered.tree40.
     Definition tree40 := ↑ _tree40.2.
-    Definition _tree60 := ↑ Ordered.tree60.2.
+    Definition _tree60 := ↑ Ordered.tree60.
     Definition tree60 := ↑ _tree60.2.
-    Definition _tree80 := ↑ Ordered.tree80.2.
+    Definition _tree80 := ↑ Ordered.tree80.
     Definition tree80 := ↑ _tree80.2.
-    Definition _tree100 := ↑ Ordered.tree100.2.
+    Definition _tree100 := ↑ Ordered.tree100.
     Definition tree100 := ↑ _tree100.2.
-    Definition _tree2000 := ↑ Ordered.tree2000.2.
-    Definition tree2000 := ↑ _tree2000.2.
-    Definition _tree4000 := ↑ Ordered.tree4000.2.
-    Definition tree4000 := ↑ _tree4000.2.
-    Definition _tree6000 := ↑ Ordered.tree6000.2.
-    Definition tree6000 := ↑ _tree6000.2.
-    Definition _tree8000 := ↑ Ordered.tree8000.2.
-    Definition tree8000 := ↑ _tree8000.2.
-    Definition _tree10000 := ↑ Ordered.tree10000.2.
-    Definition tree10000 := ↑ _tree10000.2.    
+    Definition _tree200 := ↑ Ordered.tree200.
+    Definition tree200 := ↑ _tree200.2.
+    Definition _tree400 := ↑ Ordered.tree400.
+    Definition tree400 := ↑ _tree400.2.
+    Definition _tree600 := ↑ Ordered.tree600.
+    Definition tree600 := ↑ _tree600.2.
+    Definition _tree800 := ↑ Ordered.tree800.
+    Definition tree800 := ↑ _tree800.2.
+    Definition _tree1000 := ↑ Ordered.tree1000.
+    Definition tree1000 := ↑ _tree1000.2.  
 
     Definition _preorder' lo hi ord : {n : nat & _avl lo hi ord n} -> list Elem.t :=
       ↑ (@Ordered.preorder lo hi ord).
@@ -1640,11 +1663,11 @@ sigT_rect
     Redirect "../out/preorder/avlEFF60" Time Eval vm_compute in (preorder' tree60).
     Redirect "../out/preorder/avlEFF80" Time Eval vm_compute in (preorder' tree80).
     Redirect "../out/preorder/avlEFF100" Time Eval vm_compute in (preorder' tree100).
-    Redirect "../out/preorder/avlEFF2000" Time Eval vm_compute in (preorder' tree2000).
-    Redirect "../out/preorder/avlEFF4000" Time Eval vm_compute in (preorder' tree4000).
-    Redirect "../out/preorder/avlEFF6000" Time Eval vm_compute in (preorder' tree6000).
-    (*Redirect "../out/preorder/avlEFF8000" Time Eval vm_compute in (preorder' tree8000). TODO if no timeout
-    Redirect "../out/preorder/avlEFF10000" Time Eval vm_compute in (preorder' tree10000).*)
+    Redirect "../out/preorder/avlEFF200" Time Eval vm_compute in (preorder' tree200).
+    Redirect "../out/preorder/avlEFF400" Time Eval vm_compute in (preorder' tree400).
+    Redirect "../out/preorder/avlEFF600" Time Eval vm_compute in (preorder' tree600).
+    Redirect "../out/preorder/avlEFF800" Time Eval vm_compute in (preorder' tree800).
+    Redirect "../out/preorder/avlEFF1000" Time Eval vm_compute in (preorder' tree1000).
 
     (* 105 LoC in normal form *)
     Definition inorder' {lo hi ord} : avl_sig lo hi ord -> list Elem.t :=
@@ -1655,11 +1678,11 @@ sigT_rect
     Redirect "../out/inorder/avlEFF60" Time Eval vm_compute in (inorder' tree60).
     Redirect "../out/inorder/avlEFF80" Time Eval vm_compute in (inorder' tree80).
     Redirect "../out/inorder/avlEFF100" Time Eval vm_compute in (inorder' tree100).
-    Redirect "../out/inorder/avlEFF2000" Time Eval vm_compute in (inorder' tree2000).
-    Redirect "../out/inorder/avlEFF4000" Time Eval vm_compute in (inorder' tree4000).
-    Redirect "../out/inorder/avlEFF6000" Time Eval vm_compute in (inorder' tree6000).
-    (*Redirect "../out/inorder/avlEFF8000" Time Eval vm_compute in (inorder' tree8000). TODO if no timeout
-    Redirect "../out/inorder/avlEFF10000" Time Eval vm_compute in (inorder' tree10000).*)
+    Redirect "../out/inorder/avlEFF200" Time Eval vm_compute in (inorder' tree200).
+    Redirect "../out/inorder/avlEFF400" Time Eval vm_compute in (inorder' tree400).
+    Redirect "../out/inorder/avlEFF600" Time Eval vm_compute in (inorder' tree600).
+    Redirect "../out/inorder/avlEFF800" Time Eval vm_compute in (inorder' tree800).
+    Redirect "../out/inorder/avlEFF1000" Time Eval vm_compute in (inorder' tree1000).
 
     (* 112 LoC in normal form *)
     Definition postorder' {lo hi ord} : avl_sig lo hi ord -> list Elem.t :=
@@ -1670,11 +1693,11 @@ sigT_rect
     Redirect "../out/postorder/avlEFF60" Time Eval vm_compute in (postorder' tree60).
     Redirect "../out/postorder/avlEFF80" Time Eval vm_compute in (postorder' tree80).
     Redirect "../out/postorder/avlEFF100" Time Eval vm_compute in (postorder' tree100).
-    Redirect "../out/postorder/avlEFF2000" Time Eval vm_compute in (postorder' tree2000).
-    Redirect "../out/postorder/avlEFF4000" Time Eval vm_compute in (postorder' tree4000).
-    Redirect "../out/postorder/avlEFF6000" Time Eval vm_compute in (postorder' tree6000).
-    (*Redirect "../out/postorder/avlEFF8000" Time Eval vm_compute in (postorder' tree8000). TODO if no timeout
-    Redirect "../out/postorder/avlEFF10000" Time Eval vm_compute in (postorder' tree10000).*)
+    Redirect "../out/postorder/avlEFF200" Time Eval vm_compute in (postorder' tree200).
+    Redirect "../out/postorder/avlEFF400" Time Eval vm_compute in (postorder' tree400).
+    Redirect "../out/postorder/avlEFF600" Time Eval vm_compute in (postorder' tree600).
+    Redirect "../out/postorder/avlEFF800" Time Eval vm_compute in (postorder' tree800).
+    Redirect "../out/postorder/avlEFF1000" Time Eval vm_compute in (postorder' tree1000).
 
     (* 105 LoC in normal form *)
     Definition search' {lo hi ord} : {h:nat & {bal:bool & avl lo hi ord h bal}} -> Elem.t -> bool :=
@@ -1686,11 +1709,11 @@ sigT_rect
     Redirect "../out/search/avlEFF60" Time Eval vm_compute in (search' tree60 Elem.x).
     Redirect "../out/search/avlEFF80" Time Eval vm_compute in (search' tree80 Elem.x).
     Redirect "../out/search/avlEFF100" Time Eval vm_compute in (search' tree100 Elem.x).
-    Redirect "../out/search/avlEFF2000" Time Eval vm_compute in (search' tree2000 Elem.x).
-    Redirect "../out/search/avlEFF4000" Time Eval vm_compute in (search' tree4000 Elem.x).
-    Redirect "../out/search/avlEFF6000" Time Eval vm_compute in (search' tree6000 Elem.x).
-    (*Redirect "../out/search/avlEFF8000" Time Eval vm_compute in (search' tree8000 Elem.x). TODO if no timeout
-    Redirect "../out/search/avlEFF10000" Time Eval vm_compute in (search' tree10000 Elem.x).*)
+    Redirect "../out/search/avlEFF200" Time Eval vm_compute in (search' tree200 Elem.x).
+    Redirect "../out/search/avlEFF400" Time Eval vm_compute in (search' tree400 Elem.x).
+    Redirect "../out/search/avlEFF600" Time Eval vm_compute in (search' tree600 Elem.x).
+    Redirect "../out/search/avlEFF800" Time Eval vm_compute in (search' tree800 Elem.x).
+    Redirect "../out/search/avlEFF1000" Time Eval vm_compute in (search' tree1000 Elem.x).
 
     (* --- Normalized term sizes --- *)
     Redirect "../out/normalized/preorder-avlEFF" Eval compute in preorder'.
@@ -1710,10 +1733,10 @@ sigT_rect
       (* TIME-SMALL preorder-avl *)
       (* TIME-SMALL search-avl *)
 
-      (* TIME-BIG inorder-avl *)
-      (* TIME-BIG postorder-avl *)
-      (* TIME-BIG preorder-avl *)
-      (* TIME-BIG search-avl *)
+      (* TIME-MEDIUM inorder-avl *)
+      (* TIME-MEDIUM postorder-avl *)
+      (* TIME-MEDIUM preorder-avl *)
+      (* TIME-MEDIUM search-avl *)
 
       (* NORMALIZE inorder-avl *)
       (* NORMALIZE postorder-avl *)
