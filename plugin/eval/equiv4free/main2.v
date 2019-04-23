@@ -215,15 +215,9 @@ Module CaseStudy (Elem : Comparable).
       Definition tree2000 :=
         Branch Elem.y (Branch Elem.z tree200 tree800) tree1000.
 
-      Definition tree3000 :=
-        Branch Elem.y tree2000 tree1000.
-
       (* 4203 nodes, to be exact *)
       Definition tree4000 :=
         Branch Elem.x tree2000 tree2000.
-
-      Definition tree5000 :=
-        Branch Elem.z tree3000 tree2000.
 
       (* 6305 nodes, to be exact *)
       Definition tree6000 :=
@@ -257,9 +251,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/treeEFF800" Time Eval vm_compute in tree800.
     Redirect "out/treeEFF1000" Time Eval vm_compute in tree1000.
     Redirect "out/treeEFF2000" Time Eval vm_compute in tree2000.
-    Redirect "out/treeEFF3000" Time Eval vm_compute in tree3000.
     Redirect "out/treeEFF4000" Time Eval vm_compute in tree4000.
-    Redirect "out/treeEFF5000" Time Eval vm_compute in tree5000.
     Redirect "out/treeEFF6000" Time Eval vm_compute in tree6000.
     Redirect "out/treeEFF8000" Time Eval vm_compute in tree8000.
     Redirect "out/treeEFF10000" Time Eval vm_compute in tree10000.
@@ -1091,7 +1083,6 @@ sigT_rect
       - apply Canonical_eq_gen.
     Defined.
 
-    (* TODO lift trees fully and then project all (here and elsewhere) *)
     Definition __tree20 := ↑ Base.tree20.
     Definition _tree20 := ↑ (__tree20. .2).
     Definition tree20 := (↑ (_tree20 .2)).2.
@@ -1637,7 +1628,6 @@ sigT_rect
       - apply Canonical_eq_gen.
     Defined.
 
-    (* TODO lift then project here too *)
     Definition _tree20 := ↑ Ordered.tree20.
     Definition tree20 := ↑ _tree20.2.
     Definition _tree40 := ↑ Ordered.tree40.

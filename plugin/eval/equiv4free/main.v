@@ -1083,7 +1083,6 @@ sigT_rect
       - apply Canonical_eq_gen.
     Defined.
 
-    (* TODO lift trees fully and then project all (here and elsewhere) *)
     Definition __tree20 := ↑ Base.tree20.
     Definition _tree20 := ↑ (__tree20. .2).
     Definition tree20 := (↑ (_tree20 .2)).2.
@@ -1629,7 +1628,6 @@ sigT_rect
       - apply Canonical_eq_gen.
     Defined.
 
-    (* TODO lift then project here too *)
     Definition _tree20 := ↑ Ordered.tree20.
     Definition tree20 := ↑ _tree20.2.
     Definition _tree40 := ↑ Ordered.tree40.

@@ -366,46 +366,72 @@ Module CaseStudy (Elem : Comparable).
         min max ord tree.
 
      (* --- Lifted inputs --- *)
-     Lift Base.tree __bst in Base.tree20 as __tree20.
-     Lift __bst _bst in __tree20 as _tree20.
+     (* Small *)
+     Lift Base.tree __bst in Base.tree20 as __tree20'.
+     Unpack __tree20' as __tree20.
+     Lift __bst _bst in __tree20 as _tree20'.
+     Unpack _tree20' as _tree20.
      Lift _bst bst in _tree20 as tree20'.
-     Definition tree20 := projT2 (projT2 (projT2 tree20')).
-     Lift Base.tree __bst in Base.tree40 as __tree40.
-     Lift __bst _bst in __tree40 as _tree40.
+     Unpack tree20' as tree20.
+     Lift Base.tree __bst in Base.tree40 as __tree40'.
+     Unpack __tree40' as __tree40.
+     Lift __bst _bst in __tree40 as _tree40'.
+     Unpack _tree40' as _tree40.
      Lift _bst bst in _tree40 as tree40'.
-     Definition tree40 := projT2 (projT2 (projT2 tree40')).
-     Lift Base.tree __bst in Base.tree60 as __tree60.
-     Lift __bst _bst in __tree60 as _tree60.
+     Unpack tree40' as tree40.
+     Lift Base.tree __bst in Base.tree60 as __tree60'.
+     Unpack __tree60' as __tree60.
+     Lift __bst _bst in __tree60 as _tree60'.
+     Unpack _tree60' as _tree60.
      Lift _bst bst in _tree60 as tree60'.
-     Definition tree60 := projT2 (projT2 (projT2 tree60')).
-     Lift Base.tree __bst in Base.tree80 as __tree80.
-     Lift __bst _bst in __tree80 as _tree80.
+     Unpack tree60' as tree60.
+     Lift Base.tree __bst in Base.tree80 as __tree80'.
+     Unpack __tree80' as __tree80.
+     Lift __bst _bst in __tree80 as _tree80'.
+     Unpack _tree80' as _tree80.
      Lift _bst bst in _tree80 as tree80'.
-     Definition tree80 := projT2 (projT2 (projT2 tree80')).
-     Lift Base.tree __bst in Base.tree100 as __tree100.
-     Lift __bst _bst in __tree100 as _tree100.
+     Unpack tree80' as tree80.
+     Lift Base.tree __bst in Base.tree100 as __tree100'.
+     Unpack __tree100' as __tree100.
+     Lift __bst _bst in __tree100 as _tree100'.
+     Unpack _tree100' as _tree100.
      Lift _bst bst in _tree100 as tree100'.
-     Definition tree100 := projT2 (projT2 (projT2 tree100')).
-     Lift Base.tree __bst in Base.tree200 as __tree200.
-     Lift __bst _bst in __tree200 as _tree200.
+     Unpack tree100' as tree100.
+
+     (* Medium *)
+     Lift Base.tree __bst in Base.tree200 as __tree200'.
+     Unpack __tree200' as __tree200.
+     Lift __bst _bst in __tree200 as _tree200'.
+     Unpack _tree200' as _tree200.
      Lift _bst bst in _tree200 as tree200'.
-     Definition tree200 := projT2 (projT2 (projT2 tree200')).
-     Lift Base.tree __bst in Base.tree400 as __tree400.
-     Lift __bst _bst in __tree400 as _tree400.
+     Unpack tree200' as tree200.
+     Lift Base.tree __bst in Base.tree400 as __tree400'.
+     Unpack __tree400' as __tree400.
+     Lift __bst _bst in __tree400 as _tree400'.
+     Unpack _tree400' as _tree400.
      Lift _bst bst in _tree400 as tree400'.
-     Definition tree400 := projT2 (projT2 (projT2 tree400')).
-     Lift Base.tree __bst in Base.tree600 as __tree600.
-     Lift __bst _bst in __tree600 as _tree600.
+     Unpack tree400' as tree400.
+     Lift Base.tree __bst in Base.tree600 as __tree600'.
+     Unpack __tree600' as __tree600.
+     Lift __bst _bst in __tree600 as _tree600'.
+     Unpack _tree600' as _tree600.
+     Print _tree600'.
+     Print _tree600. (* TODO next line hangs *)
      Lift _bst bst in _tree600 as tree600'.
-     Definition tree600 := projT2 (projT2 (projT2 tree600')).
-     Lift Base.tree __bst in Base.tree800 as __tree800.
-     Lift __bst _bst in __tree800 as _tree800.
+     Print _tree600'.
+     Unpack tree600' as tree600.
+     Lift Base.tree __bst in Base.tree800 as __tree800'.
+     Unpack __tree800' as __tree800.
+     Lift __bst _bst in __tree800 as _tree800'.
+     Unpack _tree800' as _tree800.
      Lift _bst bst in _tree800 as tree800'.
-     Definition tree800 := projT2 (projT2 (projT2 tree800')).
-     Lift Base.tree __bst in Base.tree1000 as __tree1000.
-     Lift __bst _bst in __tree1000 as _tree1000.
+     Unpack tree800' as tree800.
+     Lift Base.tree __bst in Base.tree1000 as __tree1000'.
+     Unpack __tree1000' as __tree1000.
+     Lift __bst _bst in __tree1000 as _tree1000'.
+     Unpack _tree1000' as _tree1000.
      Lift _bst bst in _tree1000 as tree1000'.
-     Definition tree1000 := projT2 (projT2 (projT2 tree1000')).
+     Unpack tree1000' as tree1000.
 
     (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
     Redirect "out/tree20" Time Eval vm_compute in tree20.
@@ -477,36 +503,53 @@ Module CaseStudy (Elem : Comparable).
     Arguments search {_ _ _ _ _} _ _.
 
     (* --- Lifted inputs --- *)
+    (* Small: *)
     Lift Ordered.bst _avl in Ordered.tree20 as _tree20'.
-    Lift _avl avl in _tree20' as tree20'.
-    Definition tree20 := projT2 (projT2 tree20').
+    Unpack _tree20' as _tree20.
+    Lift _avl avl in _tree20 as tree20'.
+    Unpack tree20' as tree20.
+    Print tree20.
     Lift Ordered.bst _avl in Ordered.tree40 as _tree40'.
-    Lift _avl avl in _tree40' as tree40'.
-    Definition tree40 := projT2 (projT2 tree40').
+    Unpack _tree40' as _tree40.
+    Lift _avl avl in _tree40 as tree40'.
+    Unpack tree40' as tree40.
     Lift Ordered.bst _avl in Ordered.tree60 as _tree60'.
-    Lift _avl avl in _tree60' as tree60'.
-    Definition tree60 := projT2 (projT2 tree60').
+    Unpack _tree60' as _tree60.
+    Lift _avl avl in _tree60 as tree60'.
+    Unpack tree60' as tree60.
     Lift Ordered.bst _avl in Ordered.tree80 as _tree80'.
-    Lift _avl avl in _tree80' as tree80'.
-    Definition tree80 := projT2 (projT2 tree80').
+    Unpack _tree80' as _tree80.
+    Lift _avl avl in _tree80 as tree80'.
+    Unpack tree80' as tree80.
     Lift Ordered.bst _avl in Ordered.tree100 as _tree100'.
-    Lift _avl avl in _tree100' as tree100'.
-    Definition tree100 := projT2 (projT2 tree100').
+    Unpack _tree100' as _tree100.
+    Lift _avl avl in _tree100 as tree100'.
+    Unpack tree100' as tree100.
+
+    (* Medium: *)
     Lift Ordered.bst _avl in Ordered.tree200 as _tree200'.
-    Lift _avl avl in _tree200' as tree200'.
-    Definition tree200 := projT2 (projT2 tree200').
+    Unpack _tree200' as _tree200.
+    Lift _avl avl in _tree200 as tree200'.
+    Unpack tree200' as tree200.
+    Print tree200.
     Lift Ordered.bst _avl in Ordered.tree400 as _tree400'.
-    Lift _avl avl in _tree400' as tree400'.
-    Definition tree400 := projT2 (projT2 tree400').
+    Unpack _tree400' as _tree400.
+    Lift _avl avl in _tree400 as tree400'.
+    Unpack tree400' as tree400.
+    Print tree400.
     Lift Ordered.bst _avl in Ordered.tree600 as _tree600'.
-    Lift _avl avl in _tree600' as tree600'.
-    Definition tree600 := projT2 (projT2 tree600').
+    Unpack _tree600' as _tree600.
+    Lift _avl avl in _tree600 as tree600'.
+    Unpack tree600' as tree600.
     Lift Ordered.bst _avl in Ordered.tree800 as _tree800'.
-    Lift _avl avl in _tree800' as tree800'.
-    Definition tree800 := projT2 (projT2 tree800').
+    Unpack _tree800' as _tree800.
+    Lift _avl avl in _tree800 as tree800'.
+    Unpack tree800' as tree800.
+    Print tree800.
     Lift Ordered.bst _avl in Ordered.tree1000 as _tree1000'.
-    Lift _avl avl in _tree1000' as tree1000'.
-    Definition tree1000 := projT2 (projT2 tree1000').
+    Unpack _tree1000' as _tree1000.
+    Lift _avl avl in _tree1000 as tree1000'.
+    Unpack tree1000' as tree1000.
 
     (* --- AVL data --- *)
     Redirect "out/preorder/avl20" Time Eval vm_compute in (preorder' _ _ _ _ tree20).
