@@ -14,7 +14,7 @@ Notation "x <= y" := (Nat.leb x y) (at level 70, y at next level, no associativi
 Notation "p '.1'" := (projT1 p) (at level 3, left associativity).
 Notation "p '.2'" := (projT2 p) (at level 3, left associativity).
 
-Definition is_true (b : bool) : Prop := b = true.
+Definition is_true (b : bool) : Prop := b = true. 
 Coercion is_true : bool >-> Sortclass.
 
 Module Type Comparable.
@@ -306,21 +306,6 @@ Module CaseStudy (Elem : Comparable).
     Find ornament Base.tree __bst as __orn_order.
     Find ornament __bst _bst as _orn_order.
     Find ornament _bst bst as orn_order.
-    Print __orn_order_index.
-    Print __orn_order.
-    Print __orn_order_inv.
-    Print __orn_order_section.
-    Print __orn_order_retraction.
-    Print _orn_order_index.
-    Print _orn_order.
-    Print _orn_order_inv.
-    Print _orn_order_section.
-    Print _orn_order_retraction.
-    Print orn_order_index.
-    Print orn_order.
-    Print orn_order_inv.
-    Print orn_order_section.
-    Print orn_order_retraction.
 
     Lift Base.tree __bst in Base.preorder as __preorder'.
     Unpack __preorder' as __preorder.
@@ -413,8 +398,8 @@ Module CaseStudy (Elem : Comparable).
       : avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r) (S (Nat.max h_l h_r)) (inv bal_l bal_r h_l h_r)
     | Leaf (val : Elem.t) : avl val val true O true.
 
-    Find ornament Ordered.bst _avl.
-    Find ornament _avl avl.
+    Find ornament Ordered.bst _avl as _orn_balance.
+    Find ornament _avl avl as orn_balance.
 
     Lift Ordered.bst _avl in Ordered.preorder as _preorder'.
     Unpack _preorder' as _preorder.

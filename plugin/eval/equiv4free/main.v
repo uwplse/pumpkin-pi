@@ -1039,9 +1039,7 @@ sigT_rect
         destruct x as [lo [hi ord]]. simpl.
         rewrite orn_order_retraction. 
         reflexivity.
-    Admitted.
-
-   Print IsEquiv_orn_order.
+    Defined.
 
     Instance Equiv_orn_order : Base.tree ≃ {lo:Elem.t & {hi:Elem.t & {ord:bool & bst lo hi ord}}} :=
       BuildEquiv _ _ _ IsEquiv_orn_order.
@@ -1049,7 +1047,7 @@ sigT_rect
     Instance UR_orn_order : Base.tree ⋈ {lo:Elem.t & {hi:Elem.t & {ord:bool & bst lo hi ord}}}.
     Proof.
       cbn. unshelve esplit.
-      - econstructor. intros t t'. exact (orn_order t = t').
+      - econstructor. intros t t'. exact (orn_order_trans t = t').
       - econstructor. intros t t'. cbn.
         apply (@isequiv_ap _ _ Equiv_orn_order).
       - apply Canonical_eq_gen.
@@ -1103,6 +1101,13 @@ sigT_rect
 
   Module Balanced.
 
+    Inductive _avl : Elem.t -> Elem.t -> bool -> nat -> Type :=
+    | _Branch (h_l h_r : nat) (ord_l ord_r : bool) (min_l min_r : Elem.t) (max_l max_r : Elem.t)
+              (val : Elem.t)
+              (left : _avl min_l max_l ord_l h_l) (right : _avl min_r max_r ord_r h_r)
+      : _avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r) (S (Nat.max h_l h_r))
+    | _Leaf (val : Elem.t) : _avl val val true O.
+
     Definition inv (bal_l bal_r : bool) (h_l h_r : nat) : bool :=
       bal_l && bal_r && (h_l - h_r <= 1) && (h_r - h_l <= 1).
 
@@ -1149,34 +1154,381 @@ sigT_rect
       rewrite Equiv_avl_id. cbn. eapply Equiv_id.
     Defined.
 
-    Fixpoint orn_balance {lo hi ord} (t : Ordered.bst lo hi ord) : {h:nat & {bal:bool & avl lo hi ord h bal}} :=
-      match t with
-      | Ordered.Branch _ _ _ _ _ _ v l r =>
-        (_; (_; Branch _ _ _ _ _ _ _ _ _ _ v (orn_balance l).2.2 (orn_balance r).2.2))
-      | Ordered.Leaf v =>
-        (_; (_; Leaf v))
-      end.
+    (* --- Begin automatically generated terms from DEVOID --- *)
+    (* TODO copy in automatically *)
 
-    Fixpoint orn_balance_inv' {lo hi ord h bal} (t : avl lo hi ord h bal) : Ordered.bst lo hi ord :=
-      match t with
-      | Branch _ _ _ _ _ _ _ _ _ _ v l r =>
-        Ordered.Branch _ _ _ _ _ _ v (orn_balance_inv' l) (orn_balance_inv' r)
-      | Leaf v =>
-        Ordered.Leaf v
-      end.
+Definition _orn_balance_index := 
+fun (t t0 : Elem.t) (b : bool) (b0 : Ordered.bst t t0 b) =>
+Ordered.bst_rect
+  (fun (t1 t2 : Elem.t) (b1 : bool) (_ : Ordered.bst t1 t2 b1) => nat)
+  (fun (ord_l ord_r : bool) (min_l min_r max_l max_r _ : Elem.t)
+     (left : Ordered.bst min_l max_l ord_l)
+     (H : (fun (t1 t2 : Elem.t) (b1 : bool) (_ : Ordered.bst t1 t2 b1) => nat)
+            min_l max_l ord_l left) (right : Ordered.bst min_r max_r ord_r)
+     (H0 : (fun (t1 t2 : Elem.t) (b1 : bool) (_ : Ordered.bst t1 t2 b1) =>
+            nat) min_r max_r ord_r right) => S (Nat.max H H0))
+  (fun _ : Elem.t => 0) t t0 b b0.
 
-    Definition orn_balance_inv {lo hi ord} (T : {h:nat & {bal:bool & avl lo hi ord h bal}}) : Ordered.bst lo hi ord :=
-      orn_balance_inv' T.2.2.
+Definition _orn_balance := 
+fun (t t0 : Elem.t) (b : bool) (b0 : Ordered.bst t t0 b) =>
+existT (fun H : nat => _avl t t0 b H) (_orn_balance_index t t0 b b0)
+  (Ordered.bst_rect
+     (fun (t1 t2 : Elem.t) (b1 : bool) (b2 : Ordered.bst t1 t2 b1) =>
+      _avl t1 t2 b1 (_orn_balance_index t1 t2 b1 b2))
+     (fun (ord_l ord_r : bool) (min_l min_r max_l max_r val : Elem.t)
+        (left : Ordered.bst min_l max_l ord_l)
+        (H : (fun (t1 t2 : Elem.t) (b1 : bool) (_ : nat)
+                (b2 : Ordered.bst t1 t2 b1) =>
+              _avl t1 t2 b1 (_orn_balance_index t1 t2 b1 b2)) min_l max_l
+               ord_l (_orn_balance_index min_l max_l ord_l left) left)
+        (right : Ordered.bst min_r max_r ord_r)
+        (H0 : (fun (t1 t2 : Elem.t) (b1 : bool) (_ : nat)
+                 (b2 : Ordered.bst t1 t2 b1) =>
+               _avl t1 t2 b1 (_orn_balance_index t1 t2 b1 b2)) min_r max_r
+                ord_r (_orn_balance_index min_r max_r ord_r right) right) =>
+      _Branch (_orn_balance_index min_l max_l ord_l left)
+        (_orn_balance_index min_r max_r ord_r right) ord_l ord_r min_l min_r
+        max_l max_r val H H0) (fun val : Elem.t => _Leaf val) t t0 b b0).
 
-    Instance IsEquiv_orn_balance (lo hi : Elem.t) (ord : bool) : IsEquiv (@orn_balance lo hi ord).
+Definition _orn_balance_inv := 
+fun (t t0 : Elem.t) (b : bool) (_a : {H : nat & _avl t t0 b H}) =>
+_avl_rect
+  (fun (t1 t2 : Elem.t) (b0 : bool) (n : nat) (_ : _avl t1 t2 b0 n) =>
+   Ordered.bst t1 t2 b0)
+  (fun (h_l h_r : nat) (ord_l ord_r : bool)
+     (min_l min_r max_l max_r val : Elem.t) (_ : _avl min_l max_l ord_l h_l)
+     (H : Ordered.bst min_l max_l ord_l) (_ : _avl min_r max_r ord_r h_r)
+     (H0 : Ordered.bst min_r max_r ord_r) =>
+   Ordered.Branch ord_l ord_r min_l min_r max_l max_r val H H0)
+  (fun val : Elem.t => Ordered.Leaf val) t t0 b _a .1 
+  _a .2.
+
+Definition _orn_balance_section := 
+fun (t t0 : Elem.t) (b : bool) (b0 : Ordered.bst t t0 b) =>
+eq_sym
+  (Ordered.bst_rect
+     (fun (t1 t2 : Elem.t) (b1 : bool) (b2 : Ordered.bst t1 t2 b1) =>
+      b2 = _orn_balance_inv t1 t2 b1 (_orn_balance t1 t2 b1 b2))
+     (fun (ord_l ord_r : bool) (min_l min_r max_l max_r val : Elem.t)
+        (left : Ordered.bst min_l max_l ord_l)
+        (H : left =
+             _orn_balance_inv min_l max_l ord_l
+               (_orn_balance min_l max_l ord_l left))
+        (right : Ordered.bst min_r max_r ord_r)
+        (H0 : right =
+              _orn_balance_inv min_r max_r ord_r
+                (_orn_balance min_r max_r ord_r right)) =>
+      eq_ind left
+        (fun H1 : Ordered.bst min_l max_l ord_l =>
+         Ordered.Branch ord_l ord_r min_l min_r max_l max_r val left right =
+         Ordered.Branch ord_l ord_r min_l min_r max_l max_r val H1
+           (_orn_balance_inv min_r max_r ord_r
+              (_orn_balance min_r max_r ord_r right)))
+        (eq_ind right
+           (fun H1 : Ordered.bst min_r max_r ord_r =>
+            Ordered.Branch ord_l ord_r min_l min_r max_l max_r val left right =
+            Ordered.Branch ord_l ord_r min_l min_r max_l max_r val left H1)
+           eq_refl
+           (_orn_balance_inv min_r max_r ord_r
+              (_orn_balance min_r max_r ord_r right)) H0)
+        (_orn_balance_inv min_l max_l ord_l
+           (_orn_balance min_l max_l ord_l left)) H)
+     (fun val : Elem.t => eq_refl) t t0 b b0).
+
+Definition _orn_balance_retraction := 
+fun (t t0 : Elem.t) (b : bool) (_a : {H : nat & _avl t t0 b H}) =>
+sigT_rect
+  (fun _a0 : {H : nat & _avl t t0 b H} =>
+   _orn_balance t t0 b (_orn_balance_inv t t0 b _a0) = _a0)
+  (fun (H : nat) (H0 : (fun H0 : nat => _avl t t0 b H0) H) =>
+   eq_sym
+     (_avl_rect
+        (fun (t1 t2 : Elem.t) (b0 : bool) (n : nat) (_a0 : _avl t1 t2 b0 n)
+         =>
+         existT (fun H1 : nat => _avl t1 t2 b0 H1) n _a0 =
+         _orn_balance t1 t2 b0
+           (_orn_balance_inv t1 t2 b0
+              (existT (fun H1 : nat => _avl t1 t2 b0 H1) n _a0)))
+        (fun (h_l h_r : nat) (ord_l ord_r : bool)
+           (min_l min_r max_l max_r val : Elem.t)
+           (left : _avl min_l max_l ord_l h_l)
+           (H1 : existT (fun H1 : nat => _avl min_l max_l ord_l H1) h_l left =
+                 _orn_balance min_l max_l ord_l
+                   (_orn_balance_inv min_l max_l ord_l
+                      (existT (fun H1 : nat => _avl min_l max_l ord_l H1) h_l
+                         left))) (right : _avl min_r max_r ord_r h_r)
+           (H2 : existT (fun H2 : nat => _avl min_r max_r ord_r H2) h_r right =
+                 _orn_balance min_r max_r ord_r
+                   (_orn_balance_inv min_r max_r ord_r
+                      (existT (fun H2 : nat => _avl min_r max_r ord_r H2) h_r
+                         right))) =>
+         eq_ind (existT (fun H3 : nat => _avl min_l max_l ord_l H3) h_l left)
+           (fun H3 : {H3 : nat & _avl min_l max_l ord_l H3} =>
+            existT
+              (fun H4 : nat =>
+               _avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r) H4)
+              (S (Nat.max h_l h_r))
+              (_Branch h_l h_r ord_l ord_r min_l min_r max_l max_r val left
+                 right) =
+            existT
+              (fun H4 : nat =>
+               _avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r) H4)
+              (S
+                 (Nat.max H3 .1
+                    (_orn_balance min_r max_r ord_r
+                       (_orn_balance_inv min_r max_r ord_r
+                          (existT (fun H4 : nat => _avl min_r max_r ord_r H4)
+                             h_r right))) .1))
+              (_Branch H3 .1
+                 (_orn_balance min_r max_r ord_r
+                    (_orn_balance_inv min_r max_r ord_r
+                       (existT (fun H4 : nat => _avl min_r max_r ord_r H4)
+                          h_r right))) .1 ord_l ord_r min_l min_r max_l max_r
+                 val H3 .2
+                 (_orn_balance min_r max_r ord_r
+                    (_orn_balance_inv min_r max_r ord_r
+                       (existT (fun H4 : nat => _avl min_r max_r ord_r H4)
+                          h_r right))) .2))
+           (eq_ind
+              (existT (fun H3 : nat => _avl min_r max_r ord_r H3) h_r right)
+              (fun H3 : {H3 : nat & _avl min_r max_r ord_r H3} =>
+               existT
+                 (fun H4 : nat =>
+                  _avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r)
+                    H4) (S (Nat.max h_l h_r))
+                 (_Branch h_l h_r ord_l ord_r min_l min_r max_l max_r val
+                    left right) =
+               existT
+                 (fun H4 : nat =>
+                  _avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r)
+                    H4) (S (Nat.max h_l H3 .1))
+                 (_Branch h_l H3 .1 ord_l ord_r min_l min_r max_l max_r val
+                    left H3 .2)) eq_refl
+              (existT (fun H3 : nat => _avl min_r max_r ord_r H3)
+                 (_orn_balance min_r max_r ord_r
+                    (_orn_balance_inv min_r max_r ord_r
+                       (existT (fun H3 : nat => _avl min_r max_r ord_r H3)
+                          h_r right))) .1
+                 (_orn_balance min_r max_r ord_r
+                    (_orn_balance_inv min_r max_r ord_r
+                       (existT (fun H3 : nat => _avl min_r max_r ord_r H3)
+                          h_r right))) .2) H2)
+           (existT (fun H3 : nat => _avl min_l max_l ord_l H3)
+              (_orn_balance min_l max_l ord_l
+                 (_orn_balance_inv min_l max_l ord_l
+                    (existT (fun H3 : nat => _avl min_l max_l ord_l H3) h_l
+                       left))) .1
+              (_orn_balance min_l max_l ord_l
+                 (_orn_balance_inv min_l max_l ord_l
+                    (existT (fun H3 : nat => _avl min_l max_l ord_l H3) h_l
+                       left))) .2) H1) (fun val : Elem.t => eq_refl) t t0 b H
+        H0)) _a.
+
+Definition orn_balance_index := 
+fun (t t0 : Elem.t) (b : bool) (n : nat) (_a : _avl t t0 b n) =>
+_avl_rect
+  (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat) (_ : _avl t1 t2 b0 n0) => bool)
+  (fun (h_l h_r : nat) (ord_l ord_r : bool)
+     (min_l min_r max_l max_r _ : Elem.t) (left : _avl min_l max_l ord_l h_l)
+     (H : (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat) (_ : _avl t1 t2 b0 n0)
+           => bool) min_l max_l ord_l h_l left)
+     (right : _avl min_r max_r ord_r h_r)
+     (H0 : (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat)
+              (_ : _avl t1 t2 b0 n0) => bool) min_r max_r ord_r h_r right) =>
+   inv H H0 h_l h_r) (fun _ : Elem.t => true) t t0 b n _a.
+
+Definition orn_balance := 
+fun (t t0 : Elem.t) (b : bool) (n : nat) (_a : _avl t t0 b n) =>
+existT (fun H : bool => avl t t0 b n H) (orn_balance_index t t0 b n _a)
+  (_avl_rect
+     (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat) (_a0 : _avl t1 t2 b0 n0) =>
+      avl t1 t2 b0 n0 (orn_balance_index t1 t2 b0 n0 _a0))
+     (fun (h_l h_r : nat) (ord_l ord_r : bool)
+        (min_l min_r max_l max_r val : Elem.t)
+        (left : _avl min_l max_l ord_l h_l)
+        (H : (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat) 
+                (_ : bool) (_a0 : _avl t1 t2 b0 n0) =>
+              avl t1 t2 b0 n0 (orn_balance_index t1 t2 b0 n0 _a0)) min_l
+               max_l ord_l h_l (orn_balance_index min_l max_l ord_l h_l left)
+               left) (right : _avl min_r max_r ord_r h_r)
+        (H0 : (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat) 
+                 (_ : bool) (_a0 : _avl t1 t2 b0 n0) =>
+               avl t1 t2 b0 n0 (orn_balance_index t1 t2 b0 n0 _a0)) min_r
+                max_r ord_r h_r
+                (orn_balance_index min_r max_r ord_r h_r right) right) =>
+      Branch (orn_balance_index min_l max_l ord_l h_l left)
+        (orn_balance_index min_r max_r ord_r h_r right) h_l h_r ord_l ord_r
+        min_l min_r max_l max_r val H H0) (fun val : Elem.t => Leaf val) t t0
+     b n _a).
+
+Definition orn_balance_inv := 
+fun (t t0 : Elem.t) (b : bool) (n : nat) (a : {H : bool & avl t t0 b n H}) =>
+avl_rect
+  (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat) (b1 : bool)
+     (_ : avl t1 t2 b0 n0 b1) => _avl t1 t2 b0 n0)
+  (fun (bal_l bal_r : bool) (h_l h_r : nat) (ord_l ord_r : bool)
+     (min_l min_r max_l max_r val : Elem.t)
+     (_ : avl min_l max_l ord_l h_l bal_l) (H : _avl min_l max_l ord_l h_l)
+     (_ : avl min_r max_r ord_r h_r bal_r) (H0 : _avl min_r max_r ord_r h_r)
+   => _Branch h_l h_r ord_l ord_r min_l min_r max_l max_r val H H0)
+  (fun val : Elem.t => _Leaf val) t t0 b n a .1 a .2.
+
+Definition orn_balance_section := 
+fun (t t0 : Elem.t) (b : bool) (n : nat) (_a : _avl t t0 b n) =>
+eq_sym
+  (_avl_rect
+     (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat) (_a0 : _avl t1 t2 b0 n0) =>
+      _a0 = orn_balance_inv t1 t2 b0 n0 (orn_balance t1 t2 b0 n0 _a0))
+     (fun (h_l h_r : nat) (ord_l ord_r : bool)
+        (min_l min_r max_l max_r val : Elem.t)
+        (left : _avl min_l max_l ord_l h_l)
+        (H : left =
+             orn_balance_inv min_l max_l ord_l h_l
+               (orn_balance min_l max_l ord_l h_l left))
+        (right : _avl min_r max_r ord_r h_r)
+        (H0 : right =
+              orn_balance_inv min_r max_r ord_r h_r
+                (orn_balance min_r max_r ord_r h_r right)) =>
+      eq_ind left
+        (fun H1 : _avl min_l max_l ord_l h_l =>
+         _Branch h_l h_r ord_l ord_r min_l min_r max_l max_r val left right =
+         _Branch h_l h_r ord_l ord_r min_l min_r max_l max_r val H1
+           (orn_balance_inv min_r max_r ord_r h_r
+              (orn_balance min_r max_r ord_r h_r right)))
+        (eq_ind right
+           (fun H1 : _avl min_r max_r ord_r h_r =>
+            _Branch h_l h_r ord_l ord_r min_l min_r max_l max_r val left
+              right =
+            _Branch h_l h_r ord_l ord_r min_l min_r max_l max_r val left H1)
+           eq_refl
+           (orn_balance_inv min_r max_r ord_r h_r
+              (orn_balance min_r max_r ord_r h_r right)) H0)
+        (orn_balance_inv min_l max_l ord_l h_l
+           (orn_balance min_l max_l ord_l h_l left)) H)
+     (fun val : Elem.t => eq_refl) t t0 b n _a).
+
+Definition orn_balance_retraction := 
+fun (t t0 : Elem.t) (b : bool) (n : nat) (a : {H : bool & avl t t0 b n H}) =>
+sigT_rect
+  (fun a0 : {H : bool & avl t t0 b n H} =>
+   orn_balance t t0 b n (orn_balance_inv t t0 b n a0) = a0)
+  (fun (H : bool) (H0 : (fun H0 : bool => avl t t0 b n H0) H) =>
+   eq_sym
+     (avl_rect
+        (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat) 
+           (b1 : bool) (a0 : avl t1 t2 b0 n0 b1) =>
+         existT (fun H1 : bool => avl t1 t2 b0 n0 H1) b1 a0 =
+         orn_balance t1 t2 b0 n0
+           (orn_balance_inv t1 t2 b0 n0
+              (existT (fun H1 : bool => avl t1 t2 b0 n0 H1) b1 a0)))
+        (fun (bal_l bal_r : bool) (h_l h_r : nat) 
+           (ord_l ord_r : bool) (min_l min_r max_l max_r val : Elem.t)
+           (left : avl min_l max_l ord_l h_l bal_l)
+           (H1 : existT (fun H1 : bool => avl min_l max_l ord_l h_l H1) bal_l
+                   left =
+                 orn_balance min_l max_l ord_l h_l
+                   (orn_balance_inv min_l max_l ord_l h_l
+                      (existT (fun H1 : bool => avl min_l max_l ord_l h_l H1)
+                         bal_l left)))
+           (right : avl min_r max_r ord_r h_r bal_r)
+           (H2 : existT (fun H2 : bool => avl min_r max_r ord_r h_r H2) bal_r
+                   right =
+                 orn_balance min_r max_r ord_r h_r
+                   (orn_balance_inv min_r max_r ord_r h_r
+                      (existT (fun H2 : bool => avl min_r max_r ord_r h_r H2)
+                         bal_r right))) =>
+         eq_ind
+           (existT (fun H3 : bool => avl min_l max_l ord_l h_l H3) bal_l left)
+           (fun H3 : {H3 : bool & avl min_l max_l ord_l h_l H3} =>
+            existT
+              (fun H4 : bool =>
+               avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r)
+                 (S (Nat.max h_l h_r)) H4) (inv bal_l bal_r h_l h_r)
+              (Branch bal_l bal_r h_l h_r ord_l ord_r min_l min_r max_l max_r
+                 val left right) =
+            existT
+              (fun H4 : bool =>
+               avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r)
+                 (S (Nat.max h_l h_r)) H4)
+              (inv H3 .1
+                 (orn_balance min_r max_r ord_r h_r
+                    (orn_balance_inv min_r max_r ord_r h_r
+                       (existT
+                          (fun H4 : bool => avl min_r max_r ord_r h_r H4)
+                          bal_r right))) .1 h_l h_r)
+              (Branch H3 .1
+                 (orn_balance min_r max_r ord_r h_r
+                    (orn_balance_inv min_r max_r ord_r h_r
+                       (existT
+                          (fun H4 : bool => avl min_r max_r ord_r h_r H4)
+                          bal_r right))) .1 h_l h_r ord_l ord_r min_l min_r
+                 max_l max_r val H3 .2
+                 (orn_balance min_r max_r ord_r h_r
+                    (orn_balance_inv min_r max_r ord_r h_r
+                       (existT
+                          (fun H4 : bool => avl min_r max_r ord_r h_r H4)
+                          bal_r right))) .2))
+           (eq_ind
+              (existT (fun H3 : bool => avl min_r max_r ord_r h_r H3) bal_r
+                 right)
+              (fun H3 : {H3 : bool & avl min_r max_r ord_r h_r H3} =>
+               existT
+                 (fun H4 : bool =>
+                  avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r)
+                    (S (Nat.max h_l h_r)) H4) (inv bal_l bal_r h_l h_r)
+                 (Branch bal_l bal_r h_l h_r ord_l ord_r min_l min_r max_l
+                    max_r val left right) =
+               existT
+                 (fun H4 : bool =>
+                  avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r)
+                    (S (Nat.max h_l h_r)) H4) (inv bal_l H3 .1 h_l h_r)
+                 (Branch bal_l H3 .1 h_l h_r ord_l ord_r min_l min_r max_l
+                    max_r val left H3 .2)) eq_refl
+              (existT (fun H3 : bool => avl min_r max_r ord_r h_r H3)
+                 (orn_balance min_r max_r ord_r h_r
+                    (orn_balance_inv min_r max_r ord_r h_r
+                       (existT
+                          (fun H3 : bool => avl min_r max_r ord_r h_r H3)
+                          bal_r right))) .1
+                 (orn_balance min_r max_r ord_r h_r
+                    (orn_balance_inv min_r max_r ord_r h_r
+                       (existT
+                          (fun H3 : bool => avl min_r max_r ord_r h_r H3)
+                          bal_r right))) .2) H2)
+           (existT (fun H3 : bool => avl min_l max_l ord_l h_l H3)
+              (orn_balance min_l max_l ord_l h_l
+                 (orn_balance_inv min_l max_l ord_l h_l
+                    (existT (fun H3 : bool => avl min_l max_l ord_l h_l H3)
+                       bal_l left))) .1
+              (orn_balance min_l max_l ord_l h_l
+                 (orn_balance_inv min_l max_l ord_l h_l
+                    (existT (fun H3 : bool => avl min_l max_l ord_l h_l H3)
+                       bal_l left))) .2) H1) (fun val : Elem.t => eq_refl) t
+        t0 b n H H0)) a.
+
+    (* --- End automatically generated terms from DEVOID --- *)
+
+    Definition orn_balance_trans {lo hi ord} (t : Ordered.bst lo hi ord) : {h:nat & {bal:bool & avl lo hi ord h bal}} :=
+      let t' := _orn_balance _ _ _ t in      
+      let h := projT1 t' in
+      existT _ h (orn_balance _ _ _ h (projT2 t')).
+
+    Definition orn_balance_trans_inv {lo hi ord} (t' : {h:nat & {bal:bool & avl lo hi ord h bal}}) : Ordered.bst lo hi ord :=
+      let h := projT1 t' in
+      let t := projT2 t' in
+      _orn_balance_inv _ _ _ (existT _ h (orn_balance_inv _ _ _ h t)).
+
+    Instance IsEquiv_orn_balance (lo hi : Elem.t) (ord : bool) : IsEquiv (@orn_balance_trans lo hi ord).
     Proof.
-      eapply isequiv_adjointify with (g := orn_balance_inv); unfold orn_balance_inv; cbn.
-      - intros t. induction t as [ord_l ord_r lo_l lo_r hi_l hi_r v l IH_l r IH_r|v]; cbn.
-        + rewrite IH_l, IH_r. reflexivity.
-        + reflexivity.
-      - intros [h [bal t]]. cbn. induction t as [bal_l bal_r h_l h_r ord_l ord_r lo_l lo_r hi_l hi_r v l IH_l r IH_r|v]; cbn.
-        + rewrite IH_l, IH_r. reflexivity.
-        + reflexivity.
+      eapply isequiv_adjointify with (g := orn_balance_trans_inv);
+      unfold orn_balance_trans_inv, orn_balance_trans; intros.
+      - remember (_orn_balance lo hi ord x). destruct s.
+        simpl in *.
+        rewrite orn_balance_section. rewrite Heqs.
+        rewrite _orn_balance_section. reflexivity.
+      - rewrite _orn_balance_retraction. 
+        destruct x. simpl.
+        rewrite orn_balance_retraction. reflexivity.
     Defined.
 
     Instance Equiv_orn_balance (lo hi : Elem.t) (ord : bool) :
@@ -1187,7 +1539,7 @@ sigT_rect
       Ordered.bst lo hi ord ⋈ {h:nat & {bal:bool & avl lo hi ord h bal}}.
     Proof.
       cbn. unshelve esplit.
-      - econstructor. intros t t'. exact (orn_balance t = t').
+      - econstructor. intros t t'. exact (orn_balance_trans t = t').
       - econstructor. intros t t'. cbn.
         apply (@isequiv_ap _ _ (Equiv_orn_balance lo hi ord)).
       - apply Canonical_eq_gen.
