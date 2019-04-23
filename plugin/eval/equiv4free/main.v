@@ -1022,15 +1022,21 @@ sigT_rect
     Proof.
       eapply isequiv_adjointify with (g := orn_order_trans_inv); 
       unfold orn_order_trans_inv, orn_order_trans; intros.
-      - admit.
+      - remember (__orn_order x). destruct s. 
+        remember (_orn_order (x0; __b) .1 (x0; __b) .2). destruct s.
+        simpl in *.
+        rewrite orn_order_section. rewrite Heqs0. 
+        rewrite _orn_order_section. rewrite Heqs.
+        rewrite __orn_order_section. reflexivity.
       - rewrite __orn_order_retraction.
-        remember (_orn_order_inv x .1 ((x .2) .1; (orn_order_inv x .1 (x .2) .1 (x .2) .2))).
-        remember (_orn_order (x .1; __b) .1 (x .1; __b) .2).
-        rewrite Heq__b in Heqs. 
-        destruct x. simpl in Heqs.
+        remember
+        (_orn_order
+          (x .1; _orn_order_inv x .1 ((x .2) .1; orn_order_inv x .1 (x .2) .1 (x .2) .2)) .1
+          (x .1; _orn_order_inv x .1 ((x .2) .1; orn_order_inv x .1 (x .2) .1 (x .2) .2)) .2).
+        simpl in Heqs.
         rewrite Heqs.
         rewrite _orn_order_retraction.
-        destruct s0. simpl. 
+        destruct x as [lo [hi ord]]. simpl.
         rewrite orn_order_retraction. 
         reflexivity.
     Admitted.
