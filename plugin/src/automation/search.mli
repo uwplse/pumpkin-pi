@@ -20,3 +20,10 @@ val search_orn_inductive :
   types -> (* old inductive type *)
   types -> (* new inductive type *)
   promotion (* ornamental promotion *)
+
+(*
+ * Prove coherence with the components search finds
+ * Return the coherence proof term and its type
+ *)
+val prove_coherence : env -> evar_map -> promotion -> (types * types)
+
