@@ -553,23 +553,26 @@ let prove_coherence env evd orn =
 let eq_lemmas_env env evd recs l =
   List.fold_left
     (fun e r ->
-      let r1 = shift_by (new_rels2 e env) r in (* original rec arg *)
-      let r_t = reduce_type e evd r1 in (* rec arg type *)
-      let e_ib = (* push index in backwards direction *)
+      let r1 = shift_by (new_rels2 e env) r in
+      let r_t = reduce_type e evd r1 in
+      let push_ib =
         map_backward
           (fun e ->
             push_local (Anonymous, reduce_type e evd (get_arg l.off r_t)) e)
           l
-          e
       in
+      (* push index in backwards direction *)
+      let e_ib = push_ib e in 
       let adj_back = map_backward (reindex_app (reindex l.off (mkRel 1))) l in
       let r_t = adj_back (shift_by (new_rels2 e_ib e) r_t) in
-      let e_r = push_local (Anonymous, r_t) e_ib in (* push new rec arg *)
+      (* push new rec arg *)
+      let e_r = push_local (Anonymous, r_t) e_ib in
       let pack_back = map_backward (pack e_r evd l.off) l in
       let r1 = pack_back (shift_by (new_rels2 e_r e) r1) in
       let r2 = pack_back (mkRel 1) in
-      let r1_t = reduce_type e_r evd r1 in
-      let r_eq = apply_eq {at_type = r1_t; trm1 = r1; trm2 = r2} in
+      let r_t = reduce_type e_r evd r1 in
+      let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
+      (* push equality *)
       push_local (Anonymous, r_eq) e_r)
     env
     recs
