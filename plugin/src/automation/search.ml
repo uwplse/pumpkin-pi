@@ -662,14 +662,15 @@ let equiv_motive env evd promote forget npm l =
  * TODO explain and clean arguments
  *)
 let equiv_case env evd pms p eq_lemma c l =
-  let rec case e pms p_rel p args lemma_args c =
+  let rec case e depth p_rel p args lemma_args c =
     match kind c with
       | App (_, _) ->
          (* conclusion: apply eq lemma and beta-reduce *)
+         let pms = shift_all_by depth pms in
          let all_args = List.rev_append args (List.rev lemma_args) in
          reduce_term e (mkAppl (eq_lemma, List.append pms all_args))
       | Prod (n, t, b) ->
-         let case_b = case (push_local (n, t) e) (shift_all pms) (shift p_rel) (shift p) in
+         let case_b = case (push_local (n, t) e) (shift_i depth) (shift p_rel) (shift p) in
          if applies p_rel t then
            (* IH *)
            if l.is_fwd then (* TODO consolidate *)
@@ -693,7 +694,7 @@ let equiv_case env evd pms p eq_lemma c l =
            mkLambda (n, t, case_b args_b (shift_all lemma_args) b)
       | _ ->
          failwith "unexpected case"
-    in case env pms (mkRel 1) p [] [] c
+    in case env 0 (mkRel 1) p [] [] c
  
 (* TODO refactor below, comment, fill in *)
 (* TODO clean up too *)
