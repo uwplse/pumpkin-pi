@@ -562,26 +562,15 @@ let eq_lemmas_env env evd recs l =
           l
           e
       in
-      let r_t_ib = (* adjust and reindex arg type in backwards direction *)
-        map_backward
-          (fun r_t ->
-            reindex_app (reindex l.off (mkRel 1)) (shift r_t))
-          l
-          r_t
-      in
-      let e_r = push_local (Anonymous, r_t_ib) e_ib in (* push new rec arg *)
-      let r1 = shift_by (new_rels2 e_r e) r1 in (* adjusted old rec arg *)
-      let r2 = mkRel 1 in (* new rec arg *)
-      if l.is_fwd then (* TODO more consolidate *)
-        let r1_t = reduce_type e_r evd r1 in (* adjusted rec arg type *)
-        let r_eq = apply_eq {at_type = r1_t; trm1 = r1; trm2 = r2} in
-        push_local (Anonymous, r_eq) e_r
-      else
-        let r1_p = pack e_r evd l.off r1 in (* packed rec arg *)
-        let r2_p = pack e_r evd l.off r2 in (* packed new rec arg *)
-        let r_p_t = reduce_type e_r evd r1_p in (* packed rec arg type *)
-        let r_eq = apply_eq {at_type = r_p_t; trm1 = r1_p; trm2 = r2_p} in
-        push_local (Anonymous, r_eq) e_r)
+      let adj_back = map_backward (reindex_app (reindex l.off (mkRel 1))) l in
+      let r_t = adj_back (shift_by (new_rels2 e_ib e) r_t) in
+      let e_r = push_local (Anonymous, r_t) e_ib in (* push new rec arg *)
+      let pack_back = map_backward (pack e_r evd l.off) l in
+      let r1 = pack_back (shift_by (new_rels2 e_r e) r1) in
+      let r2 = pack_back (mkRel 1) in
+      let r1_t = reduce_type e_r evd r1 in
+      let r_eq = apply_eq {at_type = r1_t; trm1 = r1; trm2 = r2} in
+      push_local (Anonymous, r_eq) e_r)
     env
     recs
   
