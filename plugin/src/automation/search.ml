@@ -675,14 +675,16 @@ let equiv_case env evd pms p eq_lemma c l =
            let p = shift_by depth p in
            let ih_t = reduce_term e (mkAppl (p, unfold_args t)) in
            let trm = (dest_eq ih_t).trm2 in
-           if l.is_fwd then (* TODO consolidate *)
-             let lemma_args_b = mkRel 1 :: shift_all (trm :: lemma_args) in
-             mkLambda (n, ih_t, case_b (shift_all args) lemma_args_b b)
-           else
-             let sig_typ = dest_sigT (reduce_type e evd trm) in
-             let (ib, u) = projections sig_typ trm in
-             let lemma_args_b = mkRel 1 :: shift_all (u :: ib :: lemma_args) in
-             mkLambda (n, ih_t, case_b (shift_all args) lemma_args_b b)
+           let lemma_args_b =
+             map_directional
+               (fun args ->
+                 mkRel 1 :: shift_all (trm :: args))
+               (fun args ->
+                 let (ib, u) = projections (on_type dest_sigT e evd trm) trm in
+                 mkRel 1 :: shift_all (u :: ib :: args))
+               l
+               lemma_args
+           in mkLambda (n, ih_t, case_b (shift_all args) lemma_args_b b)
          else
            (* Product *)
            let args_b = mkRel 1 :: shift_all args in
