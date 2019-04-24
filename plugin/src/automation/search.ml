@@ -713,9 +713,8 @@ let equiv_cases env evd pms p lemmas l elim_typ =
 let equiv_proof env evd l =
   let to_body = lookup_definition env (lift_to l) in
   let env_to = zoom_env zoom_lambda_term env to_body in
+  let at_type = zoom_if_sig_app (reduce_type env_to evd (mkRel 1)) in
   if l.is_fwd then (* TODO consolidate *)
-    let a = mkRel 1 in
-    let at_type = reduce_type env_to evd a in
     let a_typ = first_fun at_type in
     let ((i, i_index), u) = destInd a_typ in
     let mutind_body = lookup_mind i env in
@@ -745,10 +744,6 @@ let equiv_proof env evd l =
     let t2 = eq_typ.trm2 in
     reconstruct_lambda env_to (mkAppl (eq_sym, [at_type; t1; t2; app]))
   else
-    (* TODO should be env_retract *)
-    let b = mkRel 1 in
-    let at_type_packed = reduce_type env_to evd b in
-    let at_type = snd (zoom_lambda_term env_to (last_arg at_type_packed)) in
     let b_typ = first_fun at_type in
     let ((i, i_index), u) = destInd b_typ in
     let mutind_body = lookup_mind i env in
