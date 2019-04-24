@@ -746,34 +746,38 @@ let equiv_proof env evd l =
     else
       let b_sig = last args in
       let b_sig_typ = on_type dest_sigT env_to evd b_sig in
-      let (i_b, u) = projections b_sig_typ b_sig in
-      let final_args = insert_index (l.off - npm) i_b (reindex (nargs - 1) u args) in
+      let ib_typ = b_sig_typ.index_type in
+      let env_ib = push_local (Anonymous, ib_typ) env_to in
+      let b_typ = mkAppl (shift b_sig_typ.packer, [mkRel 1]) in
+      let env_b = push_local (Anonymous, b_typ) env_ib in
+      let i_b = mkRel 2 in
+      let b = mkRel 1 in
       let eq_proof =
+        let pms = shift_all_by 2 pms in
+        let p = shift_by 2 p in
+        let cs = shift_all_by 2 cs in
+        let args = insert_index (l.off - npm) i_b (reindex (nargs - 1) b (shift_all_by 2 args)) in
         apply_eliminator
           {
             elim;
             pms = shift_all_by (nargs - 1) pms;
             p = shift_by (nargs - 1) p;
             cs = shift_all_by (nargs - 1) cs;
-            final_args;
+            final_args = args;
           }
       in
-      let eq_typ_eta = dest_eq (reduce_type env_to evd eq_proof) in
+      let eq_typ_eta = dest_eq (reduce_type env_b evd eq_proof) in
       let sym_app = apply_eq_sym { eq_typ = eq_typ_eta; eq_proof } in
-      let to_elim = dest_sigT eq_typ_eta.at_type in
-      let eq_typ =
-        let trm2 = last_arg ((dest_existT eq_typ_eta.trm1).unpacked) in
-        let trm1 = all_eq_substs (eq_typ_eta.trm1, trm2) eq_typ_eta.trm2 in
-        apply_eq {eq_typ_eta with trm1; trm2}
+      let to_elim = b_sig_typ in
+      let packed_type =
+        let eq_typ_eta = dest_eq (unshift_by 2 (apply_eq eq_typ_eta)) in
+        let trm2 = mkRel 1 in
+        let trm1 = all_eq_substs (eq_typ_eta.trm1, trm2) (eq_typ_eta.trm2) in
+        let eq_typ = apply_eq {eq_typ_eta with trm1; trm2} in
+        (* TODO why all the shifting here *)
+        shift (reconstruct_lambda_n env_to eq_typ (nb_rel env_to - 1))
       in
-      (* TODO why all the shifting here *)
-      let packed_type = shift (reconstruct_lambda_n env_to eq_typ (nb_rel env_to - 1)) in
-      let ib_typ = to_elim.index_type in
-      let env_ib = push_local (Anonymous, ib_typ) env_to in
-      let b_typ = mkAppl (shift to_elim.packer, [mkRel 1]) in
-      let env_b = push_local (Anonymous, b_typ) env_ib in
-      let sym_app_b = all_eq_substs (shift_by 2 i_b, mkRel 2) (all_eq_substs (shift_by 2 u, mkRel 1) (shift_by 2 sym_app)) in
-      let unpacked = reconstruct_lambda_n env_b sym_app_b (nb_rel env_to) in
+      let unpacked = reconstruct_lambda_n env_b sym_app (nb_rel env_to) in
       let arg = mkRel 1 in
       elim_sigT { to_elim; packed_type; unpacked; arg }
   in reconstruct_lambda env_to app_b
