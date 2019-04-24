@@ -15,6 +15,8 @@ open Ltac_plugin
        
 (* --- Options --- *)
 
+(* TODO move options *)
+
 (*
  * Prove the coherence property of the algebraic promotion isomorphism
  *)

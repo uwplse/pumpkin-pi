@@ -510,8 +510,12 @@ let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
   | _ ->
      failwith "this kind of change is not yet supported"
 
-             
-(* --- Coherence proof --- *) 
+(* --- Coherence proof --- *)
+
+(*
+ * TODO consider moving everything from here except top-level
+ * into another file
+ *)
 
 (* 
  * Prove coherence with the components search finds
@@ -643,7 +647,7 @@ let eq_lemmas env evd typ l =
 (*
  * Construct the motive for section/retraction
  *)
-let section_retraction_motive env evd promote forget npm l =
+let equiv_motive env evd promote forget npm l =
   let trm1 = map_backward (pack env evd l.off) l (mkRel 1) in
   let at_type = reduce_type env evd trm1 in
   let typ_args = non_index_args l.off env at_type in
@@ -653,9 +657,11 @@ let section_retraction_motive env evd promote forget npm l =
   let nargs = new_rels env npm in
   shift_by (directional l nargs (nargs - 1)) (reconstruct_lambda_n env p_b npm)
 
-(* TODO left off here *)
-(* TODO refactor, clean, etc *)
-let retraction_case env evd pms p eq_lemma c =
+(*
+ * Get a case of the proof of section/retraction
+ * TODO explain and clean arguments
+ *)
+let equiv_case env evd pms p eq_lemma c l =
   let rec case e pms p_rel p args lemma_args c =
     match kind c with
       | App (_, _) ->
@@ -666,14 +672,21 @@ let retraction_case env evd pms p eq_lemma c =
          let case_b = case (push_local (n, t) e) (shift_all pms) (shift p_rel) (shift p) in
          if applies p_rel t then
            (* IH *)
-           let t' = reduce_term e (mkAppl (p, unfold_args t)) in
-           let app = dest_eq t' in
-           let b' = app.trm2 in
-           let b_sig_t' = dest_sigT (reduce_type e evd b') in
-           let ib' = project_index b_sig_t' b' in
-           let bv' = project_value b_sig_t' b' in
-           let lemma_args_b = mkRel 1 :: shift_all (bv' :: ib' :: lemma_args) in
-           mkLambda (n, t', case_b (shift_all args) lemma_args_b b)
+           if l.is_fwd then (* TODO consolidate *)
+             let t' = reduce_term e (mkAppl (p, unfold_args t)) in
+             let app = dest_eq t' in
+             let a' = app.trm2 in
+             let lemma_args_b = mkRel 1 :: shift_all (a' :: lemma_args) in
+             mkLambda (n, t', case_b (shift_all args) lemma_args_b b)
+           else
+             let t' = reduce_term e (mkAppl (p, unfold_args t)) in
+             let app = dest_eq t' in
+             let b' = app.trm2 in
+             let b_sig_t' = dest_sigT (reduce_type e evd b') in
+             let ib' = project_index b_sig_t' b' in
+             let bv' = project_value b_sig_t' b' in
+             let lemma_args_b = mkRel 1 :: shift_all (bv' :: ib' :: lemma_args) in
+             mkLambda (n, t', case_b (shift_all args) lemma_args_b b)
          else
            (* Product *)
            let args_b = mkRel 1 :: shift_all args in
@@ -681,32 +694,7 @@ let retraction_case env evd pms p eq_lemma c =
       | _ ->
          failwith "unexpected case"
     in case env pms (mkRel 1) p [] [] c
-           
-(* TODO refactor, clean, etc *)
-let section_case env pms p eq_lemma c =
-  let rec case e pms p_rel p args lemma_args c =
-    match kind c with
-      | App (_, _) ->
-         (* conclusion: apply eq lemma and beta-reduce *)
-         let all_args = List.append (List.rev args) (List.rev lemma_args) in
-         reduce_term e (mkAppl (eq_lemma, List.append pms all_args))
-      | Prod (n, t, b) ->
-         let case_b = case (push_local (n, t) e) (shift_all pms) (shift p_rel) (shift p) in
-         if applies p_rel t then
-           (* IH *)
-           let t' = reduce_term e (mkAppl (p, unfold_args t)) in
-           let app = dest_eq t' in
-           let a' = app.trm2 in
-           let lemma_args_b = mkRel 1 :: shift_all (a' :: lemma_args) in
-           mkLambda (n, t', case_b (shift_all args) lemma_args_b b)
-         else
-           (* Product *)
-           let args_b = mkRel 1 :: shift_all args in
-           mkLambda (n, t, case_b args_b (shift_all lemma_args) b)
-      | _ ->
-         failwith "unexpected case"
-    in case env pms (mkRel 1) p [] [] c
-
+ 
 (* TODO refactor below, comment, fill in *)
 (* TODO clean up too *)
 let prove_section promote_n forget_n env evd l =
@@ -722,11 +710,11 @@ let prove_section promote_n forget_n env evd l =
   let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
   let (n, p_t, b) = destProd elim_typ in
   let env_motive = zoom_env zoom_product_type env_pms p_t in
-  let p = section_retraction_motive env_motive evd (make_constant promote_n) (make_constant forget_n) npm l in
+  let p = equiv_motive env_motive evd (make_constant promote_n) (make_constant forget_n) npm l in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
   let lemmas = eq_lemmas env evd a_typ l in
-  let cs = List.mapi (fun j c -> section_case env_p pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except nargs (factor_product b)) in
+  let cs = List.mapi (fun j c -> equiv_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) c l) (take_except nargs (factor_product b)) in
   let app =
        apply_eliminator
          {
@@ -760,11 +748,11 @@ let prove_retraction promote_n forget_n env evd l =
   let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
   let (n, p_t, b) = destProd elim_typ in
   let env_motive = zoom_env zoom_product_type env_pms p_t in
-  let p = section_retraction_motive env_motive evd (make_constant promote_n) (make_constant forget_n) npm l in
+  let p = equiv_motive env_motive evd (make_constant promote_n) (make_constant forget_n) npm l in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
   let lemmas = eq_lemmas env evd b_typ l in
-  let cs = List.mapi (fun j c -> retraction_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except (nargs + 1) (factor_product b)) in
+  let cs = List.mapi (fun j c -> equiv_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) c l) (take_except (nargs + 1) (factor_product b)) in
   let args = mk_n_rels nargs in
   let b_sig = last args in
   let b_sig_typ = on_type dest_sigT env_sec evd b_sig in
