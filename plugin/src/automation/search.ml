@@ -536,39 +536,47 @@ let prove_coherence env evd orn =
 (* --- Equivalence proofs --- *)
 
 (*
+ * The proofs of both section and retraction apply lemmas
+ * that show that equalities are preserved in inductive cases.
+ * These lemmas are folds over substitutions of recursive arguments, 
+ * with refl as identity.
  *
+ * To construct these proofs, we first construct the lemmas, then 
+ * specialize them to the appropriate arguments.
  *)
               
 (*
- * Form the environment
+ * Form the environment with the appropriate hypotheses for the equality lemmas.
+ * Take as arguments the original environment, an evar_map, the recursive
+ * arguments for the particular case, and a lift config.
  *)
 let eq_lemmas_env env evd recs l =
-  fst
-    (List.fold_left
-       (fun (e, nargs) r ->
-         let r1 = shift_by nargs r in (* original rec arg *)
-         let r_t = reduce_type e evd r1 in (* rec arg type *)
-         if l.is_fwd then (* TODO consolidate whatever is opossible *)
-           let e_r = push_local (Anonymous, r_t) e in (* push new rec arg *)
-           let r1 = shift r1 in (* shifted original rec arg *)
-           let r2 = mkRel 1 in (* new rec arg *)
-           let r_t  = shift r_t in (* new rec arg type *)
-           let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
-           (push_local (Anonymous, r_eq) e_r, nargs + 2)
-         else
-           let ib = get_arg l.off r_t in (* rec arg index *)
-           let ib_t = reduce_type e evd ib in (* rec arg index type *)
-           let e_ib = push_local (Anonymous, ib_t) e in (* push new index *)
-           let ib2 = mkRel 1 in (* new index *)
-           let r2_t = reindex_app (reindex l.off ib2) (shift r_t) in (* new rec arg type *)
-           let e_r = push_local (Anonymous, r2_t) e_ib in (* push new rec arg *)
-           let r1_p = pack e_r evd l.off (shift_by 2 r1) in (* packed rec arg *)
-           let r2_p = pack e_r evd l.off (mkRel 1) in (* packed new rec arg *)
-           let r_p_t = reduce_type e_r evd r1_p in (* packed rec arg type *)
-           let r_eq = apply_eq {at_type = r_p_t; trm1 = r1_p; trm2 = r2_p} in
-           (push_local (Anonymous, r_eq) e_r, nargs + 3))
-       (env, 0)
-       recs)
+  List.fold_left
+    (fun e r ->
+      let nargs = new_rels2 e env in (* number of new args *)
+      let r1 = shift_by nargs r in (* original rec arg *)
+      let r_t = reduce_type e evd r1 in (* rec arg type *)
+      if l.is_fwd then (* TODO consolidate whatever is opossible *)
+        let e_r = push_local (Anonymous, r_t) e in (* push new rec arg *)
+        let r1 = shift r1 in (* shifted original rec arg *)
+        let r2 = mkRel 1 in (* new rec arg *)
+        let r_t  = shift r_t in (* new rec arg type *)
+        let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
+        push_local (Anonymous, r_eq) e_r
+      else
+        let ib = get_arg l.off r_t in (* rec arg index *)
+        let ib_t = reduce_type e evd ib in (* rec arg index type *)
+        let e_ib = push_local (Anonymous, ib_t) e in (* push new index *)
+        let ib2 = mkRel 1 in (* new index *)
+        let r2_t = reindex_app (reindex l.off ib2) (shift r_t) in (* new rec arg type *)
+        let e_r = push_local (Anonymous, r2_t) e_ib in (* push new rec arg *)
+        let r1_p = pack e_r evd l.off (shift_by 2 r1) in (* packed rec arg *)
+        let r2_p = pack e_r evd l.off (mkRel 1) in (* packed new rec arg *)
+        let r_p_t = reduce_type e_r evd r1_p in (* packed rec arg type *)
+        let r_eq = apply_eq {at_type = r_p_t; trm1 = r1_p; trm2 = r2_p} in
+        push_local (Anonymous, r_eq) e_r)
+    env
+    recs
   
 (*
  * TODO move, explain
