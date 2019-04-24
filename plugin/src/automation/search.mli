@@ -27,3 +27,14 @@ val search_orn_inductive :
  *)
 val prove_coherence : env -> evar_map -> promotion -> (types * types)
 
+(*
+ * TODO explain
+ * TODO clean inputs
+ *)
+val prove_section : Id.t -> Id.t -> env -> evar_map -> lifting -> types
+
+(*
+ * TODO explain
+ * TODO clean inputs
+ *)
+val prove_retraction : Id.t -> Id.t -> env -> evar_map -> lifting -> types

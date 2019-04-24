@@ -18,6 +18,8 @@ open Lifting
 open Declarations
 open Util
 open Differencing
+open Hypotheses (* TODO same *)
+open Specialization (* TODO same *)
 
 (* --- Finding the new index --- *)
 
@@ -513,6 +515,7 @@ let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
 (* 
  * Prove coherence with the components search finds
  * Return the coherence proof term and its type
+ * TODO clean
  *)
 let prove_coherence env evd orn =
   let env_coh = zoom_env zoom_lambda_term env orn.promote in
@@ -528,3 +531,276 @@ let prove_coherence env evd orn =
   let coh_typ = reconstruct_product env_coh (mkAppl (eq, [ib_typ; ib; proj_ib])) in
   (coh, coh_typ)
 
+
+(*
+ * TODO move, explain, refactor common w/ refolding in search/lifting
+ * mention c_body is the reduced body of a constructor, and env_c_b is the env
+ *)
+let get_rec_args typ env_c_b evd c_body =
+  List.filter (on_type (is_or_applies typ) env_c_b evd) (unfold_args c_body)
+
+(*
+ * TODO move, explain
+ *)
+let eq_lemmas_env env evd recs l =
+  fst
+    (List.fold_left
+       (fun (e, nargs) r ->
+         let r1 = shift_by nargs r in (* original rec arg *)
+         let r_t = reduce_type e evd r1 in (* rec arg type *)
+         if l.is_fwd then (* TODO consolidate whatever is opossible *)
+           let e_r = push_local (Anonymous, r_t) e in (* push new rec arg *)
+           let r1 = shift r1 in (* shifted original rec arg *)
+           let r2 = mkRel 1 in (* new rec arg *)
+           let r_t  = shift r_t in (* new rec arg type *)
+           let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
+           (push_local (Anonymous, r_eq) e_r, nargs + 2)
+         else
+           let ib = get_arg l.off r_t in (* rec arg index *)
+           let ib_t = reduce_type e evd ib in (* rec arg index type *)
+           let e_ib = push_local (Anonymous, ib_t) e in (* push new index *)
+           let ib2 = mkRel 1 in (* new index *)
+           let r2_t = reindex_app (reindex l.off ib2) (shift r_t) in (* new rec arg type *)
+           let e_r = push_local (Anonymous, r2_t) e_ib in (* push new rec arg *)
+           let r1_p = pack e_r evd l.off (shift_by 2 r1) in (* packed rec arg *)
+           let r2_p = pack e_r evd l.off (mkRel 1) in (* packed new rec arg *)
+           let r_p_t = reduce_type e_r evd r1_p in (* packed rec arg type *)
+           let r_eq = apply_eq {at_type = r_p_t; trm1 = r1_p; trm2 = r2_p} in
+           (push_local (Anonymous, r_eq) e_r, nargs + 3))
+       (env, 0)
+       recs)
+  
+(*
+ * TODO move, explain
+ *)
+let eq_lemmas env evd typ l =
+  (* TODO retraction direction: pack *)
+  let ((i, i_index), u) = destInd typ in
+  Array.mapi
+    (fun c_index _ ->
+      let c = mkConstructU (((i, i_index), c_index + 1), u) in
+      let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
+      let c_body = reduce_term env_c_b c_body in
+      let recs = get_rec_args typ env_c_b evd c_body in
+      let env_lemma = eq_lemmas_env env_c_b evd recs l in
+      let nargs = new_rels2 env_lemma env_c_b in
+      let c_body = map_backward (pack env_lemma evd l.off) l (shift_by nargs c_body) in
+      let c_body_type = reduce_type env_lemma evd c_body in
+      let refl = apply_eq_refl { typ = c_body_type; trm = c_body } in
+      let (body, _, _) =
+        List.fold_right
+          (fun _ (b, h_eq, c_app) ->
+            let h_eq_r = destRel h_eq in
+            let (_, _, h_eq_t) = CRD.to_tuple @@ lookup_rel h_eq_r env_lemma in
+            let app = dest_eq (shift_by h_eq_r h_eq_t) in
+            let at_type = app.at_type in
+            let r1 = app.trm1 in
+            let r2 = app.trm2 in
+            if l.is_fwd then (* TODO consolidate *)
+              let abs_c_app = all_eq_substs (shift r1, mkRel 1) (shift c_app) in
+              let c_body_b = shift c_body in
+              let typ_b = shift c_body_type in
+              let p_b = { at_type = typ_b; trm1 = c_body_b; trm2 = abs_c_app } in
+              let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
+              let c_app_trans = all_eq_substs (r1, r2) c_app in
+              let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h = h_eq; b} in
+              let eq_proof = apply_eq_ind eq_proof_app in
+              (eq_proof, shift_by 2 h_eq, c_app_trans)
+            else
+              let r1_ex = dest_existT r1 in
+              let r2_ex = dest_existT r2 in
+              let r1_u = r1_ex.unpacked in
+              let r2_u = r2_ex.unpacked in
+              let r1_ib = r1_ex.index in
+              let r2_ib = r2_ex.index in
+              let b_sig_typ = dest_sigT (shift at_type) in
+              let ib = project_index b_sig_typ (mkRel 1) in
+              let bv = project_value b_sig_typ (mkRel 1) in
+              let abs_c_app = all_eq_substs (shift r1_ib, ib) (all_eq_substs (shift r1_u, bv) (shift c_app)) in
+              let c_body_b = shift c_body in
+              let typ_b = shift c_body_type in
+              let p_b = { at_type = typ_b; trm1 = c_body_b; trm2 = abs_c_app } in
+              let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
+              let c_app_trans = all_eq_substs (r1_ib, r2_ib) (all_eq_substs (r1_u, r2_u) c_app) in
+              let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h = h_eq; b} in
+              let eq_proof = apply_eq_ind eq_proof_app in
+              (eq_proof, shift_by 3 h_eq, c_app_trans)
+          )
+          recs
+          (refl, mkRel 1, c_body)
+      in reconstruct_lambda env_lemma body)
+    ((lookup_mind i env).mind_packets.(i_index)).mind_consnames
+
+(* TODO move out shifting? why there *)
+(* TODO refactor packing w/ pack in specialization, or w/ lift pack *)
+(* TODO refactor, clean, etc *)
+(* TODO remove at_type or pass different arg for this *)
+let retraction_motive env evd at_type_packed promote forget npm l =
+  let b = mkRel 1 in
+  let env_u = env in (* TODO remove later; part of a refactor *)
+  let b_typ = reduce_type env_u evd b in
+  let typ_args = remove_index l.off (unfold_args b_typ) in (* TODO refactor this stuff, common w lift config *)
+  let b_ex = pack env_u evd l.off b in
+  let b_ex' = mkAppl (promote, snoc (mkAppl (forget, snoc b_ex typ_args)) typ_args) in
+  let at_type = reduce_type env_u evd b_ex in (* TODO more redundancy *)
+  let p_b = apply_eq { at_type; trm1 = b_ex; trm2 = b_ex' } in
+  shift_by (new_rels env npm - 1) (reconstruct_lambda_n env_u p_b npm)
+
+(* TODO test w third new index to doublevector *)
+(* TODO move out shifting? why there *)
+(* TODO refactor, clean, etc *)
+(* TODO is a just always mkRel 1? *)
+let section_motive env evd at_type promote forget npm =
+  let a = mkRel 1 in
+  let typ_args = unfold_args at_type in
+  let a' = mkAppl (forget, snoc (mkAppl (promote, snoc a typ_args)) typ_args) in
+  let p_b = apply_eq { at_type; trm1 = a; trm2 = a' } in
+  shift_by (new_rels env npm) (reconstruct_lambda_n env p_b npm)
+
+(* TODO refactor, clean, etc *)
+let retraction_case env evd pms p eq_lemma c =
+  let rec case e pms p_rel p args lemma_args c =
+    match kind c with
+      | App (_, _) ->
+         (* conclusion: apply eq lemma and beta-reduce *)
+         let all_args = List.append (List.rev args) (List.rev lemma_args) in
+         reduce_term e (mkAppl (eq_lemma, List.append pms all_args))
+      | Prod (n, t, b) ->
+         let case_b = case (push_local (n, t) e) (shift_all pms) (shift p_rel) (shift p) in
+         if applies p_rel t then
+           (* IH *)
+           let t' = reduce_term e (mkAppl (p, unfold_args t)) in
+           let app = dest_eq t' in
+           let b' = app.trm2 in
+           let b_sig_t' = dest_sigT (reduce_type e evd b') in
+           let ib' = project_index b_sig_t' b' in
+           let bv' = project_value b_sig_t' b' in
+           let lemma_args_b = mkRel 1 :: shift_all (bv' :: ib' :: lemma_args) in
+           mkLambda (n, t', case_b (shift_all args) lemma_args_b b)
+         else
+           (* Product *)
+           let args_b = mkRel 1 :: shift_all args in
+           mkLambda (n, t, case_b args_b (shift_all lemma_args) b)
+      | _ ->
+         failwith "unexpected case"
+    in case env pms (mkRel 1) p [] [] c
+           
+(* TODO refactor, clean, etc *)
+let section_case env pms p eq_lemma c =
+  let rec case e pms p_rel p args lemma_args c =
+    match kind c with
+      | App (_, _) ->
+         (* conclusion: apply eq lemma and beta-reduce *)
+         let all_args = List.append (List.rev args) (List.rev lemma_args) in
+         reduce_term e (mkAppl (eq_lemma, List.append pms all_args))
+      | Prod (n, t, b) ->
+         let case_b = case (push_local (n, t) e) (shift_all pms) (shift p_rel) (shift p) in
+         if applies p_rel t then
+           (* IH *)
+           let t' = reduce_term e (mkAppl (p, unfold_args t)) in
+           let app = dest_eq t' in
+           let a' = app.trm2 in
+           let lemma_args_b = mkRel 1 :: shift_all (a' :: lemma_args) in
+           mkLambda (n, t', case_b (shift_all args) lemma_args_b b)
+         else
+           (* Product *)
+           let args_b = mkRel 1 :: shift_all args in
+           mkLambda (n, t, case_b args_b (shift_all lemma_args) b)
+      | _ ->
+         failwith "unexpected case"
+    in case env pms (mkRel 1) p [] [] c
+
+(* TODO refactor below, comment, fill in *)
+(* TODO clean up too *)
+(* TODO test on other types besides list/vect in file *)
+let prove_section promote_n forget_n env evd l =
+  let env_sec = zoom_env zoom_lambda_term env l.orn.promote in
+  let a = mkRel 1 in
+  let at_type = reduce_type env_sec evd a in
+  let a_typ = first_fun at_type in
+  let ((i, i_index), u) = destInd a_typ in
+  let mutind_body = lookup_mind i env in
+  let elim = type_eliminator env_sec (i, i_index) in
+  let npm = mutind_body.mind_nparams in
+  let nargs = new_rels env_sec npm in
+  let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
+  let (n, p_t, b) = destProd elim_typ in
+  let env_motive = zoom_env zoom_product_type env_pms p_t in
+  let p = section_motive env_motive evd at_type (make_constant promote_n) (make_constant forget_n) npm in
+  let env_p = push_local (n, p_t) env_pms in
+  let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
+  let lemmas = eq_lemmas env evd a_typ l in
+  let cs = List.mapi (fun j c -> section_case env_p pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except nargs (factor_product b)) in
+  let app =
+       apply_eliminator
+         {
+           elim;
+           pms = shift_all_by (nargs - 1) pms; (* TODO why *)
+           p;
+           cs = shift_all_by (nargs - 1) cs;
+           final_args = mk_n_rels nargs;
+         }
+  in
+  let eq_typ = dest_eq (reduce_type env_sec evd app) in
+  let t1 = eq_typ.trm1 in
+  let t2 = eq_typ.trm2 in
+  reconstruct_lambda env_sec (mkAppl (eq_sym, [at_type; t1; t2; app]))
+
+(* TODO refactor common w/ section, or call lift *)
+(* TODO refactor below, comment, fill in *)
+(* TODO clean up too *)
+(* TODO test on other types besides list/vect in file *)
+let prove_retraction promote_n forget_n env evd l =
+  (* TODO should be env_retract *)
+  let env_sec = zoom_env zoom_lambda_term env l.orn.forget in
+  let b = mkRel 1 in
+  let at_type_packed = reduce_type env_sec evd b in
+  let at_type = snd (zoom_lambda_term env_sec (last_arg at_type_packed)) in
+  let b_typ = first_fun at_type in
+  let ((i, i_index), u) = destInd b_typ in
+  let mutind_body = lookup_mind i env in
+  let elim = type_eliminator env_sec (i, i_index) in
+  let npm = mutind_body.mind_nparams in
+  let nargs = new_rels env_sec npm in
+  let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
+  let (n, p_t, b) = destProd elim_typ in
+  let env_motive = zoom_env zoom_product_type env_pms p_t in
+  let p = retraction_motive env_motive evd at_type_packed (make_constant promote_n) (make_constant forget_n) npm l in
+  let env_p = push_local (n, p_t) env_pms in
+  let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
+  let lemmas = eq_lemmas env evd b_typ l in
+  let cs = List.mapi (fun j c -> retraction_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) c) (take_except (nargs + 1) (factor_product b)) in
+  let args = mk_n_rels nargs in
+  let b_sig = last args in
+  let b_sig_typ = on_type dest_sigT env_sec evd b_sig in
+  let i_b = project_index b_sig_typ b_sig in
+  let b = project_value b_sig_typ b_sig in
+  let final_args = insert_index (l.off - npm) i_b (reindex (nargs - 1) b args) in
+  let app =
+       apply_eliminator
+         {
+           elim;
+           pms = shift_all_by (nargs - 1) pms; (* TODO why *)
+           p;
+           cs = shift_all_by (nargs - 1) cs;
+           final_args;
+         }
+  in (* TODO use eta_sigT where relevant *)
+  let eq_typ = dest_eq (reduce_type env_sec evd app) in
+  let t1 = eq_typ.trm1 in
+  let t2 = eq_typ.trm2 in
+  let at_type = reduce_type env_sec evd t1 in (* TODO why can't just reuse *)
+  let sym_app = mkAppl (eq_sym, [at_type; t1; t2; app]) in
+  let to_elim = dest_sigT at_type in
+  let t1_ex = dest_existT t1 in
+  let trm2 = last_arg (t1_ex.unpacked) in
+  let trm1 = all_eq_substs (t1, trm2) t2 in
+  (* TODO why all the shifting here *)
+  let packed_type = shift (reconstruct_lambda_n env_sec (apply_eq {at_type; trm1; trm2}) (nb_rel env_sec - 1)) in
+  let ib_typ = (dest_sigT at_type).index_type in
+  let b_typ = mkAppl ((dest_sigT (shift at_type)).packer, [mkRel 1]) in
+  let sym_app_b = all_eq_substs (shift_by 2 i_b, mkRel 2) (all_eq_substs (shift_by 2 b, mkRel 1) (shift_by 2 sym_app)) in
+  let unpacked = mkLambda (Anonymous, ib_typ, (mkLambda (Anonymous, b_typ, sym_app_b))) in (* TODO build by env instead *)
+  let arg = mkRel 1 in
+  let elim_app = elim_sigT { to_elim; packed_type; unpacked; arg } in
+  reconstruct_lambda env_sec elim_app
