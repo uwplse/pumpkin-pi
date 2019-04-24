@@ -208,6 +208,11 @@ val project_index : sigT_app -> types -> types
  *)
 val project_value : sigT_app -> types -> types
 
+(*
+ * Both projections in an (index, value) tuple
+ *)
+val projections : sigT_app -> types -> (types * types)
+
 (* --- Inductive types and their eliminators --- *)
 
 (*

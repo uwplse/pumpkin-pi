@@ -395,8 +395,7 @@ let pack_hypothesis env evd idx b unpacked =
   let (env_packed, packer, unpacked) = adjusted in
   let arg = mkRel 1 in
   let arg_typ = on_type dest_sigT env_packed evd arg in
-  let index = project_index arg_typ arg in
-  let value = project_value arg_typ arg in
+  let (index, value) = projections arg_typ arg in
   (env_packed, reduce_term env_packed (mkAppl (unpacked, [index; value])))
 
 (*
@@ -625,8 +624,7 @@ let eq_lemmas env evd typ l =
                 let r1_ib = r1_ex.index in
                 let r2_ib = r2_ex.index in
                 let b_sig_typ = dest_sigT (shift at_type) in
-                let ib = project_index b_sig_typ (mkRel 1) in
-                let u = project_value b_sig_typ (mkRel 1) in
+                let (ib, u) = projections b_sig_typ (mkRel 1) in
                 let abs_c_app_u = all_eq_substs (shift r1_u, u) c_app_b in
                 let abs_c_app = all_eq_substs (shift r1_ib, ib) abs_c_app_u in
                 let c_app_trans_u = all_eq_substs (r1_u, r2_u) c_app in
@@ -662,7 +660,7 @@ let equiv_motive env evd promote forget npm l =
  * TODO explain and clean arguments
  *)
 let equiv_case env evd pms p eq_lemma c l =
-  let rec case e depth p_rel p args lemma_args c =
+  let rec case e depth args lemma_args c =
     match kind c with
       | App (_, _) ->
          (* conclusion: apply eq lemma and beta-reduce *)
@@ -670,31 +668,28 @@ let equiv_case env evd pms p eq_lemma c l =
          let all_args = List.rev_append args (List.rev lemma_args) in
          reduce_term e (mkAppl (eq_lemma, List.append pms all_args))
       | Prod (n, t, b) ->
-         let case_b = case (push_local (n, t) e) (shift_i depth) (shift p_rel) (shift p) in
+         let case_b = case (push_local (n, t) e) (shift_i depth) in
+         let p_rel = mkRel (depth + 1) in
          if applies p_rel t then
            (* IH *)
+           let p = shift_by depth p in
+           let ih_t = reduce_term e (mkAppl (p, unfold_args t)) in
+           let trm = (dest_eq ih_t).trm2 in
            if l.is_fwd then (* TODO consolidate *)
-             let t' = reduce_term e (mkAppl (p, unfold_args t)) in
-             let app = dest_eq t' in
-             let a' = app.trm2 in
-             let lemma_args_b = mkRel 1 :: shift_all (a' :: lemma_args) in
-             mkLambda (n, t', case_b (shift_all args) lemma_args_b b)
+             let lemma_args_b = mkRel 1 :: shift_all (trm :: lemma_args) in
+             mkLambda (n, ih_t, case_b (shift_all args) lemma_args_b b)
            else
-             let t' = reduce_term e (mkAppl (p, unfold_args t)) in
-             let app = dest_eq t' in
-             let b' = app.trm2 in
-             let b_sig_t' = dest_sigT (reduce_type e evd b') in
-             let ib' = project_index b_sig_t' b' in
-             let bv' = project_value b_sig_t' b' in
-             let lemma_args_b = mkRel 1 :: shift_all (bv' :: ib' :: lemma_args) in
-             mkLambda (n, t', case_b (shift_all args) lemma_args_b b)
+             let sig_typ = dest_sigT (reduce_type e evd trm) in
+             let (ib, u) = projections sig_typ trm in
+             let lemma_args_b = mkRel 1 :: shift_all (u :: ib :: lemma_args) in
+             mkLambda (n, ih_t, case_b (shift_all args) lemma_args_b b)
          else
            (* Product *)
            let args_b = mkRel 1 :: shift_all args in
            mkLambda (n, t, case_b args_b (shift_all lemma_args) b)
       | _ ->
          failwith "unexpected case"
-    in case env 0 (mkRel 1) p [] [] c
+    in case env 0 [] [] c
  
 (* TODO refactor below, comment, fill in *)
 (* TODO clean up too *)
@@ -757,9 +752,8 @@ let prove_retraction promote_n forget_n env evd l =
   let args = mk_n_rels nargs in
   let b_sig = last args in
   let b_sig_typ = on_type dest_sigT env_sec evd b_sig in
-  let i_b = project_index b_sig_typ b_sig in
-  let b = project_value b_sig_typ b_sig in
-  let final_args = insert_index (l.off - npm) i_b (reindex (nargs - 1) b args) in
+  let (i_b, u) = projections b_sig_typ b_sig in
+  let final_args = insert_index (l.off - npm) i_b (reindex (nargs - 1) u args) in
   let app =
        apply_eliminator
          {
@@ -783,7 +777,7 @@ let prove_retraction promote_n forget_n env evd l =
   let packed_type = shift (reconstruct_lambda_n env_sec (apply_eq {at_type; trm1; trm2}) (nb_rel env_sec - 1)) in
   let ib_typ = (dest_sigT at_type).index_type in
   let b_typ = mkAppl ((dest_sigT (shift at_type)).packer, [mkRel 1]) in
-  let sym_app_b = all_eq_substs (shift_by 2 i_b, mkRel 2) (all_eq_substs (shift_by 2 b, mkRel 1) (shift_by 2 sym_app)) in
+  let sym_app_b = all_eq_substs (shift_by 2 i_b, mkRel 2) (all_eq_substs (shift_by 2 u, mkRel 1) (shift_by 2 sym_app)) in
   let unpacked = mkLambda (Anonymous, ib_typ, (mkLambda (Anonymous, b_typ, sym_app_b))) in (* TODO build by env instead *)
   let arg = mkRel 1 in
   let elim_app = elim_sigT { to_elim; packed_type; unpacked; arg } in

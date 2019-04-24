@@ -371,6 +371,12 @@ let project_index (app : sigT_app) trm =
 let project_value (app : sigT_app) trm =
   mkAppl (projT2, [app.index_type; app.packer; trm])
 
+(*
+ * Both projections of a sigma type
+ *)
+let projections (app : sigT_app) trm =
+  (project_index app trm, project_value app trm)
+
 (* --- Convertibility, reduction, and types --- *)
 
 (* Infer the type of trm in env *)
