@@ -715,21 +715,6 @@ let equiv_proof env evd l =
   let to_body = lookup_definition env (lift_to l) in
   let env_to = zoom_env zoom_lambda_term env to_body in
   let typ_app = reduce_type env_to evd (mkRel 1) in
-  let typ = first_fun (zoom_if_sig_app typ_app) in
-  let ((i, i_index), _) = destInd typ in
-  let mutind_body = lookup_mind i env in
-  let elim = type_eliminator env_to (i, i_index) in
-  let npm = mutind_body.mind_nparams in
-  let nargs = new_rels env_to npm in
-  let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
-  let (n, p_t, b) = destProd elim_typ in
-  let p = equiv_motive env_pms evd p_t l in
-  let env_p = push_local (n, p_t) env_pms in
-  let p = shift p in
-  let pms = shift_all (mk_n_rels npm) in
-  let lemmas = eq_lemmas env evd typ l in
-  let cs = equiv_cases env_p evd pms p lemmas l b in
-  let final_args = mk_n_rels nargs in
   let env_eq_proof =
     map_backward
       (fun env ->
@@ -742,7 +727,20 @@ let equiv_proof env evd l =
       env_to
   in
   let eq_proof =
-    let nunpacked = new_rels2 env_eq_proof env_to in
+    let typ = first_fun (zoom_if_sig_app typ_app) in
+    let ((i, i_index), _) = destInd typ in
+    let elim = type_eliminator env_to (i, i_index) in
+    let npm = (lookup_mind i env).mind_nparams in
+    let nargs = new_rels env_to npm in
+    let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
+    let (n, p_t, b) = destProd elim_typ in
+    let p = equiv_motive env_pms evd p_t l in
+    let env_p = push_local (n, p_t) env_pms in
+    let p = shift p in
+    let pms = shift_all (mk_n_rels npm) in
+    let cs = equiv_cases env_p evd pms p (eq_lemmas env evd typ l) l b in
+    let final_args = mk_n_rels nargs in
+    let nunpacked = new_rels2 env_eq_proof env_to in (* directional l 0 2 *)
     apply_eliminator
       {
         elim;
@@ -751,33 +749,27 @@ let equiv_proof env evd l =
         cs = shift_all_by nunpacked (shift_all_by (nargs - 1) cs);
         final_args =
           map_backward
-            (fun xs ->
-              let i_b = mkRel 2 in
-              let b = mkRel 1 in
-              reindex nargs b (insert_index (l.off - npm) i_b xs))
+            (fun xs -> (* apply directly to the unpacked arguments *)
+              reindex nargs (mkRel 1) (insert_index (l.off - npm) (mkRel 2) xs))
             l
             (shift_all_by nunpacked final_args)
       }
   in
   let eq_typ = on_type dest_eq env_eq_proof evd eq_proof in
   let sym_app = apply_eq_sym { eq_typ; eq_proof } in
-  let app_b =
-    map_backward
+  reconstruct_lambda
+    env_to
+    (map_backward
       (fun unpacked ->
-        let packed_type =
-          let env_pack = push_local (Anonymous, typ_app) env_to in
-          let trm2_eta = unshift eq_typ.trm1 in
-          let trm1_eta = unshift eq_typ.trm2 in
-          let trm2 = mkRel 1 in
-          let trm1 = all_eq_substs (trm2_eta, trm2) trm1_eta in
-          let at_type = shift typ_app in
-          reconstruct_lambda_n env_pack (apply_eq {at_type; trm1; trm2}) (nb_rel env_to)
-        in
-        let arg = mkRel 1 in
-        elim_sigT { to_elim = dest_sigT typ_app; packed_type; unpacked; arg })
+        let env_p = push_local (Anonymous, typ_app) env_to in
+        let trm1 = unshift (all_eq_substs (eq_typ.trm1, mkRel 2) eq_typ.trm2) in
+        let at_type = shift typ_app in
+        let p_b = apply_eq { at_type; trm1; trm2 = mkRel 1 } in
+        let p = reconstruct_lambda_n env_p p_b (nb_rel env_to) in
+        let to_elim = dest_sigT typ_app in
+        elim_sigT { to_elim; packed_type = p; unpacked; arg = mkRel 1 })
       l
-      (reconstruct_lambda_n env_eq_proof sym_app (nb_rel env_to))
-  in reconstruct_lambda env_to app_b
+      (reconstruct_lambda_n env_eq_proof sym_app (nb_rel env_to)))
 
 (*
  * TODO explain
