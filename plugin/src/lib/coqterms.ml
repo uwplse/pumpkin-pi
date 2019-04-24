@@ -224,6 +224,30 @@ let apply_eq (app : eq_app) : types =
 let dest_eq (trm : types) : eq_app =
   let [at_type; trm1; trm2] = unfold_args trm in
   { at_type; trm1; trm2 }
+
+(*
+ * An application of eq_sym
+ *)
+type eq_sym_app =
+  {
+    eq_typ : eq_app;
+    eq_proof : types;
+  }
+
+(*
+ * Make an eq type
+ *)
+let apply_eq_sym (app : eq_sym_app) : types =
+  let eq_typ = app.eq_typ in
+  mkAppl (eq_sym, [eq_typ.at_type; eq_typ.trm1; eq_typ.trm2; app.eq_proof])
+
+(*
+ * Deconstruct an eq type
+ *)
+let dest_eq_sym (trm : types) : eq_sym_app =
+  let [at_type; trm1; trm2; eq_proof] = unfold_args trm in
+  let eq_typ = { at_type; trm1; trm2 } in
+  { eq_typ; eq_proof }
     
 (*
  * An application of eq_ind

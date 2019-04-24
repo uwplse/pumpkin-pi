@@ -111,6 +111,21 @@ val apply_eq : eq_app -> types
 val dest_eq : types -> eq_app
 
 (*
+ * An application of eq_sym
+ *)
+type eq_sym_app =
+  {
+    eq_typ : eq_app;
+    eq_proof : types;
+  }
+
+(*
+ * Convert between a term and an eq_sym_app
+ *)
+val apply_eq_sym : eq_sym_app -> types
+val dest_eq_sym : types -> eq_sym_app
+
+(*
  * An application of eq_ind
  *)
 type eq_ind_app =
