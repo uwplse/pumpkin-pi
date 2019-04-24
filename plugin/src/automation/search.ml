@@ -646,17 +646,15 @@ let eq_lemmas env evd typ l =
 (*
  * Construct the motive for section/retraction
  *)
-let equiv_motive env evd npm elim_typ l =
-  let (env_pms, elim_typ_b) = zoom_n_prod env npm elim_typ in
-  let (_, p_t, _) = destProd elim_typ_b in
-  let env_motive = zoom_env zoom_product_type env_pms p_t in
+let equiv_motive env evd p_t l =
+  let env_motive = zoom_env zoom_product_type env p_t in
   let trm1 = map_backward (pack env_motive evd l.off) l (mkRel 1) in
   let at_type = reduce_type env_motive evd trm1 in
   let typ_args = non_index_args l.off env_motive at_type in
   let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
   let trm2 = mkAppl (lift_back l, snoc trm1_lifted typ_args) in
   let p_b = apply_eq { at_type; trm1; trm2 } in
-  reconstruct_lambda_n env_motive p_b npm
+  reconstruct_lambda_n env_motive p_b (nb_rel env)
 
 (*
  * Get a case of the proof of section/retraction
@@ -704,14 +702,10 @@ let equiv_case env evd pms p eq_lemma l c =
  * TODO clean args
  * TODO explain args
  *)
-let equiv_cases env evd typ npm pms nargs p elim_typ l =
-  let lemmas = eq_lemmas env evd typ l in
-  let (env_pms, elim_typ_b) = zoom_n_prod env npm elim_typ in
-  let (n, p_t, b) = destProd elim_typ_b in
-  let env_p = push_local (n, p_t) env_pms in
+let equiv_cases env evd lemmas typ npm pms nargs p b l =
+  let p = shift p in
   List.mapi
-    (fun j -> (* TODO move/explain shifting *)
-      equiv_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) l)
+    (fun j -> equiv_case env evd pms p lemmas.(j) l)
     (take_except (directional l nargs (nargs + 1)) (factor_product b))
 (*
  * Prove section/retraction
@@ -728,16 +722,19 @@ let equiv_proof env evd l =
     let elim = type_eliminator env_to (i, i_index) in
     let npm = mutind_body.mind_nparams in
     let nargs = new_rels env_to npm in
-    let elim_typ = infer_type env evd elim in
-    let p = shift_by nargs (equiv_motive env evd npm elim_typ l) in
+    let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
+    let (n, p_t, b) = destProd elim_typ in
+    let p = equiv_motive env_pms evd p_t l in
+    let env_p = push_local (n, p_t) env_pms in
     let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
-    let cs = equiv_cases env evd a_typ npm pms nargs p elim_typ l in
+    let lemmas = eq_lemmas env evd a_typ l in
+    let cs = equiv_cases env_p evd lemmas a_typ npm pms nargs p b l in
     let app =
       apply_eliminator
         {
           elim;
           pms = shift_all_by (nargs - 1) pms; (* TODO why *)
-          p;
+          p = shift_by nargs p; (* TODO why nargs vs. nargs - 1 *)
           cs = shift_all_by (nargs - 1) cs;
           final_args = mk_n_rels nargs;
         }
@@ -757,10 +754,13 @@ let equiv_proof env evd l =
     let elim = type_eliminator env_to (i, i_index) in
     let npm = mutind_body.mind_nparams in
     let nargs = new_rels env_to npm in
-    let elim_typ = infer_type env evd elim in
-    let p = shift_by nargs (equiv_motive env evd npm elim_typ l) in
+    let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
+    let (n, p_t, b) = destProd elim_typ in
+    let p = equiv_motive env_pms evd p_t l in
+    let env_p = push_local (n, p_t) env_pms in
     let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
-    let cs = equiv_cases env evd b_typ npm pms nargs p elim_typ l in
+    let lemmas = eq_lemmas env evd b_typ l in
+    let cs = equiv_cases env_p evd lemmas b_typ npm pms nargs p b l in
     let args = mk_n_rels nargs in
     let b_sig = last args in
     let b_sig_typ = on_type dest_sigT env_to evd b_sig in
@@ -771,7 +771,7 @@ let equiv_proof env evd l =
         {
           elim;
           pms = shift_all_by (nargs - 1) pms; (* TODO why *)
-          p;
+          p = shift_by nargs p; (* TODO why nargs vs. nargs - 1 *)
           cs = shift_all_by (nargs - 1) cs;
           final_args;
         }
