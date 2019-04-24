@@ -699,14 +699,14 @@ let equiv_case env evd pms p eq_lemma l c =
 
 (*
  * Get the cases of the proof of section/retraction
- * TODO clean args
- * TODO explain args
+ * Take as arguments the environment with the motive type pushed,
+ * an evar_map, the parameters, the motive, the equality lemmas,
+ * the lifting, and the type of the eliminator body after the motive
  *)
-let equiv_cases env evd lemmas typ npm pms nargs p b l =
-  let p = shift p in
+let equiv_cases env evd pms p lemmas l elim_typ =
   List.mapi
     (fun j -> equiv_case env evd pms p lemmas.(j) l)
-    (take_except (directional l nargs (nargs + 1)) (factor_product b))
+    (take (Array.length lemmas) (factor_product elim_typ))
 (*
  * Prove section/retraction
  *)
@@ -726,15 +726,16 @@ let equiv_proof env evd l =
     let (n, p_t, b) = destProd elim_typ in
     let p = equiv_motive env_pms evd p_t l in
     let env_p = push_local (n, p_t) env_pms in
-    let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
+    let p = shift p in
+    let pms = shift_all (mk_n_rels npm) in
     let lemmas = eq_lemmas env evd a_typ l in
-    let cs = equiv_cases env_p evd lemmas a_typ npm pms nargs p b l in
+    let cs = equiv_cases env_p evd pms p lemmas l b in
     let app =
       apply_eliminator
         {
           elim;
-          pms = shift_all_by (nargs - 1) pms; (* TODO why *)
-          p = shift_by nargs p; (* TODO why nargs vs. nargs - 1 *)
+          pms = shift_all_by (nargs - 1) pms;
+          p = shift_by (nargs - 1) p;
           cs = shift_all_by (nargs - 1) cs;
           final_args = mk_n_rels nargs;
         }
@@ -758,9 +759,10 @@ let equiv_proof env evd l =
     let (n, p_t, b) = destProd elim_typ in
     let p = equiv_motive env_pms evd p_t l in
     let env_p = push_local (n, p_t) env_pms in
-    let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
+    let pms = shift_all (mk_n_rels npm) in
+    let p = shift p in
     let lemmas = eq_lemmas env evd b_typ l in
-    let cs = equiv_cases env_p evd lemmas b_typ npm pms nargs p b l in
+    let cs = equiv_cases env_p evd pms p lemmas l b in
     let args = mk_n_rels nargs in
     let b_sig = last args in
     let b_sig_typ = on_type dest_sigT env_to evd b_sig in
@@ -770,8 +772,8 @@ let equiv_proof env evd l =
       apply_eliminator
         {
           elim;
-          pms = shift_all_by (nargs - 1) pms; (* TODO why *)
-          p = shift_by nargs p; (* TODO why nargs vs. nargs - 1 *)
+          pms = shift_all_by (nargs - 1) pms;
+          p = shift_by (nargs - 1) p;
           cs = shift_all_by (nargs - 1) cs;
           final_args;
         }
