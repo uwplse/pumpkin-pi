@@ -647,8 +647,8 @@ let eq_lemmas env evd typ l =
 let retraction_motive env evd promote forget npm l =
   let b = mkRel 1 in
   let b_typ = reduce_type env evd b in
-  let typ_args = remove_index l.off (unfold_args b_typ) in (* TODO refactor this stuff, common w lift config *)
   let b_ex = pack env evd l.off b in
+  let typ_args = non_index_typ_args l.off env evd b_ex in
   let b_ex' = mkAppl (promote, snoc (mkAppl (forget, snoc b_ex typ_args)) typ_args) in
   let at_type = reduce_type env evd b_ex in (* TODO more redundancy *)
   let p_b = apply_eq { at_type; trm1 = b_ex; trm2 = b_ex' } in
