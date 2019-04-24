@@ -646,18 +646,14 @@ let eq_lemmas env evd typ l =
 let section_retraction_motive env evd promote forget npm l =
   let trm1 = map_backward (pack env evd l.off) l (mkRel 1) in
   let at_type = reduce_type env evd trm1 in
-  let typ_args =
-    if l.is_fwd then
-      unfold_args at_type
-    else
-      non_index_typ_args l.off env evd trm1
-  in
+  let typ_args = non_index_args l.off env at_type in
   let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
   let trm2 = mkAppl (lift_back l, snoc trm1_lifted typ_args) in
   let p_b = apply_eq { at_type; trm1; trm2 } in
   let nargs = new_rels env npm in
   shift_by (directional l nargs (nargs - 1)) (reconstruct_lambda_n env p_b npm)
 
+(* TODO left off here *)
 (* TODO refactor, clean, etc *)
 let retraction_case env evd pms p eq_lemma c =
   let rec case e pms p_rel p args lemma_args c =
