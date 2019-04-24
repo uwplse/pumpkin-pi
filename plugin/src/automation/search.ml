@@ -758,16 +758,18 @@ let equiv_proof env evd l =
             final_args;
           }
       in
-      let eq_typ = dest_eq (reduce_type env_to evd eq_proof ) in
-      let sym_app = apply_eq_sym { eq_typ; eq_proof } in
-      let to_elim = dest_sigT eq_typ.at_type in
-      let t1_ex = dest_existT eq_typ.trm1 in
-      let trm2 = last_arg (t1_ex.unpacked) in
-      let trm1 = all_eq_substs (eq_typ.trm1, trm2) eq_typ.trm2 in
+      let eq_typ_eta = dest_eq (reduce_type env_to evd eq_proof) in
+      let sym_app = apply_eq_sym { eq_typ = eq_typ_eta; eq_proof } in
+      let to_elim = dest_sigT eq_typ_eta.at_type in
+      let eq_typ =
+        let trm2 = last_arg ((dest_existT eq_typ_eta.trm1).unpacked) in
+        let trm1 = all_eq_substs (eq_typ_eta.trm1, trm2) eq_typ_eta.trm2 in
+        apply_eq {eq_typ_eta with trm1; trm2}
+      in
       (* TODO why all the shifting here *)
-      let packed_type = shift (reconstruct_lambda_n env_to (apply_eq {eq_typ with trm1; trm2}) (nb_rel env_to - 1)) in
-      let ib_typ = (dest_sigT eq_typ.at_type).index_type in
-      let b_typ = mkAppl ((dest_sigT (shift eq_typ.at_type)).packer, [mkRel 1]) in
+      let packed_type = shift (reconstruct_lambda_n env_to eq_typ (nb_rel env_to - 1)) in
+      let ib_typ = (dest_sigT eq_typ_eta.at_type).index_type in
+      let b_typ = mkAppl ((dest_sigT (shift eq_typ_eta.at_type)).packer, [mkRel 1]) in
       let sym_app_b = all_eq_substs (shift_by 2 i_b, mkRel 2) (all_eq_substs (shift_by 2 u, mkRel 1) (shift_by 2 sym_app)) in
       let unpacked = mkLambda (Anonymous, ib_typ, (mkLambda (Anonymous, b_typ, sym_app_b))) in (* TODO build by env instead *)
       let arg = mkRel 1 in
