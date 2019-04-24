@@ -644,23 +644,23 @@ let eq_lemmas env evd typ l =
 (* TODO refactor packing w/ pack in specialization, or w/ lift pack *)
 (* TODO refactor, clean, etc *)
 (* TODO remove at_type or pass different arg for this *)
-let retraction_motive env evd at_type_packed promote forget npm l =
+let retraction_motive env evd promote forget npm l =
   let b = mkRel 1 in
-  let env_u = env in (* TODO remove later; part of a refactor *)
-  let b_typ = reduce_type env_u evd b in
+  let b_typ = reduce_type env evd b in
   let typ_args = remove_index l.off (unfold_args b_typ) in (* TODO refactor this stuff, common w lift config *)
-  let b_ex = pack env_u evd l.off b in
+  let b_ex = pack env evd l.off b in
   let b_ex' = mkAppl (promote, snoc (mkAppl (forget, snoc b_ex typ_args)) typ_args) in
-  let at_type = reduce_type env_u evd b_ex in (* TODO more redundancy *)
+  let at_type = reduce_type env evd b_ex in (* TODO more redundancy *)
   let p_b = apply_eq { at_type; trm1 = b_ex; trm2 = b_ex' } in
-  shift_by (new_rels env npm - 1) (reconstruct_lambda_n env_u p_b npm)
+  shift_by (new_rels env npm - 1) (reconstruct_lambda_n env p_b npm)
 
 (* TODO test w third new index to doublevector *)
 (* TODO move out shifting? why there *)
 (* TODO refactor, clean, etc *)
 (* TODO is a just always mkRel 1? *)
-let section_motive env evd at_type promote forget npm =
+let section_motive env evd promote forget npm =
   let a = mkRel 1 in
+  let at_type = reduce_type env evd a in
   let typ_args = unfold_args at_type in
   let a' = mkAppl (forget, snoc (mkAppl (promote, snoc a typ_args)) typ_args) in
   let p_b = apply_eq { at_type; trm1 = a; trm2 = a' } in
@@ -736,7 +736,7 @@ let prove_section promote_n forget_n env evd l =
   let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
   let (n, p_t, b) = destProd elim_typ in
   let env_motive = zoom_env zoom_product_type env_pms p_t in
-  let p = section_motive env_motive evd at_type (make_constant promote_n) (make_constant forget_n) npm in
+  let p = section_motive env_motive evd (make_constant promote_n) (make_constant forget_n) npm in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
   let lemmas = eq_lemmas env evd a_typ l in
@@ -774,7 +774,7 @@ let prove_retraction promote_n forget_n env evd l =
   let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
   let (n, p_t, b) = destProd elim_typ in
   let env_motive = zoom_env zoom_product_type env_pms p_t in
-  let p = retraction_motive env_motive evd at_type_packed (make_constant promote_n) (make_constant forget_n) npm l in
+  let p = retraction_motive env_motive evd (make_constant promote_n) (make_constant forget_n) npm l in
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
   let lemmas = eq_lemmas env evd b_typ l in
