@@ -369,7 +369,7 @@ Module CaseStudy (Elem : Comparable).
      (* Small *)
      Lift Base.tree __bst in Base.tree20 as __tree20'.
      Unpack __tree20' as __tree20.
-     Lift __bst _bst in __tree20 as _tree20'.
+     Lift __bst _bst in __tree20 as _tree20'. 
      Unpack _tree20' as _tree20.
      Lift _bst bst in _tree20 as tree20'.
      Unpack tree20' as tree20.
