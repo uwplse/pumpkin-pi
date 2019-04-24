@@ -656,9 +656,7 @@ let equiv_motive env evd npm elim_typ l =
   let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
   let trm2 = mkAppl (lift_back l, snoc trm1_lifted typ_args) in
   let p_b = apply_eq { at_type; trm1; trm2 } in
-  let nargs = new_rels env_motive npm in
-  let motive = reconstruct_lambda_n env_motive p_b npm in
-  shift_by (directional l nargs (nargs - 1)) motive (* TODO move shifting *)
+  reconstruct_lambda_n env_motive p_b npm
 
 (*
  * Get a case of the proof of section/retraction
@@ -731,7 +729,7 @@ let equiv_proof env evd l =
     let npm = mutind_body.mind_nparams in
     let nargs = new_rels env_to npm in
     let elim_typ = infer_type env evd elim in
-    let p = equiv_motive env evd npm elim_typ l in
+    let p = shift_by nargs (equiv_motive env evd npm elim_typ l) in
     let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
     let cs = equiv_cases env evd a_typ npm pms nargs p elim_typ l in
     let app =
@@ -760,7 +758,7 @@ let equiv_proof env evd l =
     let npm = mutind_body.mind_nparams in
     let nargs = new_rels env_to npm in
     let elim_typ = infer_type env evd elim in
-    let p = equiv_motive env evd npm elim_typ l in
+    let p = shift_by nargs (equiv_motive env evd npm elim_typ l) in
     let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
     let cs = equiv_cases env evd b_typ npm pms nargs p elim_typ l in
     let args = mk_n_rels nargs in
