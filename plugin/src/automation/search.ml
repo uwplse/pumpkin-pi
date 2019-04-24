@@ -709,26 +709,26 @@ let equiv_cases env evd pms p lemmas l elim_typ =
     (take (Array.length lemmas) (factor_product elim_typ))
 (*
  * Prove section/retraction
+ * TODO clean
  *)
 let equiv_proof env evd l =
   let to_body = lookup_definition env (lift_to l) in
   let env_to = zoom_env zoom_lambda_term env to_body in
-  let at_type = zoom_if_sig_app (reduce_type env_to evd (mkRel 1)) in
+  let typ = first_fun (zoom_if_sig_app (reduce_type env_to evd (mkRel 1))) in
+  let ((i, i_index), u) = destInd typ in
+  let mutind_body = lookup_mind i env in
+  let elim = type_eliminator env_to (i, i_index) in
+  let npm = mutind_body.mind_nparams in
+  let nargs = new_rels env_to npm in
+  let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
+  let (n, p_t, b) = destProd elim_typ in
+  let p = equiv_motive env_pms evd p_t l in
+  let env_p = push_local (n, p_t) env_pms in
+  let p = shift p in
+  let pms = shift_all (mk_n_rels npm) in
+  let lemmas = eq_lemmas env evd typ l in
+  let cs = equiv_cases env_p evd pms p lemmas l b in
   if l.is_fwd then (* TODO consolidate *)
-    let a_typ = first_fun at_type in
-    let ((i, i_index), u) = destInd a_typ in
-    let mutind_body = lookup_mind i env in
-    let elim = type_eliminator env_to (i, i_index) in
-    let npm = mutind_body.mind_nparams in
-    let nargs = new_rels env_to npm in
-    let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
-    let (n, p_t, b) = destProd elim_typ in
-    let p = equiv_motive env_pms evd p_t l in
-    let env_p = push_local (n, p_t) env_pms in
-    let p = shift p in
-    let pms = shift_all (mk_n_rels npm) in
-    let lemmas = eq_lemmas env evd a_typ l in
-    let cs = equiv_cases env_p evd pms p lemmas l b in
     let app =
       apply_eliminator
         {
@@ -742,22 +742,9 @@ let equiv_proof env evd l =
     let eq_typ = dest_eq (reduce_type env_to evd app) in
     let t1 = eq_typ.trm1 in
     let t2 = eq_typ.trm2 in
+    let at_type = reduce_type env_to evd t1 in
     reconstruct_lambda env_to (mkAppl (eq_sym, [at_type; t1; t2; app]))
   else
-    let b_typ = first_fun at_type in
-    let ((i, i_index), u) = destInd b_typ in
-    let mutind_body = lookup_mind i env in
-    let elim = type_eliminator env_to (i, i_index) in
-    let npm = mutind_body.mind_nparams in
-    let nargs = new_rels env_to npm in
-    let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
-    let (n, p_t, b) = destProd elim_typ in
-    let p = equiv_motive env_pms evd p_t l in
-    let env_p = push_local (n, p_t) env_pms in
-    let pms = shift_all (mk_n_rels npm) in
-    let p = shift p in
-    let lemmas = eq_lemmas env evd b_typ l in
-    let cs = equiv_cases env_p evd pms p lemmas l b in
     let args = mk_n_rels nargs in
     let b_sig = last args in
     let b_sig_typ = on_type dest_sigT env_to evd b_sig in
