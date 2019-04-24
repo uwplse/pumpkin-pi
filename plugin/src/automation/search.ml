@@ -511,13 +511,6 @@ let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
      failwith "this kind of change is not yet supported"
 
 (* --- Coherence & equivalence proofs --- *)
-              
-(*
- * TODO move, explain, refactor common w/ refolding in search/lifting
- * mention c_body is the reduced body of a constructor, and env_c_b is the env
- *)
-let get_rec_args typ env_c_b evd c_body =
-  List.filter (on_type (is_or_applies typ) env_c_b evd) (unfold_args c_body)
 
 (*
  * TODO move, explain
@@ -561,7 +554,8 @@ let eq_lemmas env evd typ l =
       let c = mkConstructU (((i, i_index), c_index + 1), u) in
       let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
       let c_body = reduce_term env_c_b c_body in
-      let recs = get_rec_args typ env_c_b evd c_body in
+      let c_args = unfold_args c_body in
+      let recs = List.filter (on_type (is_or_applies typ) env_c_b evd) c_args in
       let env_lemma = eq_lemmas_env env_c_b evd recs l in
       let nargs = new_rels2 env_lemma env_c_b in
       let c_body = map_backward (pack env_lemma evd l.off) l (shift_by nargs c_body) in
