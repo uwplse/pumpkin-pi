@@ -652,7 +652,8 @@ let section_retraction_motive env evd promote forget npm l =
     else
       non_index_typ_args l.off env evd trm1
   in
-  let trm2 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm1 typ_args)) typ_args) in
+  let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
+  let trm2 = mkAppl (lift_back l, snoc trm1_lifted typ_args) in
   let p_b = apply_eq { at_type; trm1; trm2 } in
   let nargs = new_rels env npm in
   shift_by (directional l nargs (nargs - 1)) (reconstruct_lambda_n env p_b npm)
