@@ -86,11 +86,10 @@ let find_ornament n_o d_old d_new =
        let env = Global.env () in
        let l = initialize_lifting env evd orn.promote orn.forget in
        (* TODO can we use promote/forget above instead of names? *)
-       let section = prove_section n inv_n env evd l in
+       let (section, retraction) = prove_equivalence n inv_n env evd l in
        let sec_n = with_suffix n "section" in
        let _ = define_term sec_n evd section true in
        Printf.printf "Defined section proof %s\n\n" (Id.to_string sec_n);
-       let retraction = prove_retraction n inv_n env evd (flip_dir l) in
        let rec_n = with_suffix n "retraction" in
        let _ = define_term rec_n evd retraction true in
        Printf.printf "Defined retraction proof %s\n\n" (Id.to_string rec_n)

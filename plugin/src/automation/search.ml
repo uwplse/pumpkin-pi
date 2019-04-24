@@ -695,95 +695,99 @@ let equiv_case env evd pms p eq_lemma c l =
       | _ ->
          failwith "unexpected case"
     in case env 0 [] [] c
- 
-(* TODO refactor below, comment, fill in *)
-(* TODO clean up too *)
-let prove_section promote_n forget_n env evd l =
-  let env_sec = zoom_env zoom_lambda_term env l.orn.promote in
-  let a = mkRel 1 in
-  let at_type = reduce_type env_sec evd a in
-  let a_typ = first_fun at_type in
-  let ((i, i_index), u) = destInd a_typ in
-  let mutind_body = lookup_mind i env in
-  let elim = type_eliminator env_sec (i, i_index) in
-  let npm = mutind_body.mind_nparams in
-  let nargs = new_rels env_sec npm in
-  let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
-  let (n, p_t, b) = destProd elim_typ in
-  let env_motive = zoom_env zoom_product_type env_pms p_t in
-  let p = equiv_motive env_motive evd (make_constant promote_n) (make_constant forget_n) npm l in
-  let env_p = push_local (n, p_t) env_pms in
-  let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
-  let lemmas = eq_lemmas env evd a_typ l in
-  let cs = List.mapi (fun j c -> equiv_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) c l) (take_except nargs (factor_product b)) in
-  let app =
-       apply_eliminator
-         {
-           elim;
-           pms = shift_all_by (nargs - 1) pms; (* TODO why *)
-           p;
-           cs = shift_all_by (nargs - 1) cs;
-           final_args = mk_n_rels nargs;
-         }
-  in
-  let eq_typ = dest_eq (reduce_type env_sec evd app) in
-  let t1 = eq_typ.trm1 in
-  let t2 = eq_typ.trm2 in
-  reconstruct_lambda env_sec (mkAppl (eq_sym, [at_type; t1; t2; app]))
 
-(* TODO refactor common w/ section, or call lift *)
-(* TODO refactor below, comment, fill in *)
-(* TODO clean up too *)
-let prove_retraction promote_n forget_n env evd l =
-  (* TODO should be env_retract *)
-  let env_sec = zoom_env zoom_lambda_term env l.orn.forget in
-  let b = mkRel 1 in
-  let at_type_packed = reduce_type env_sec evd b in
-  let at_type = snd (zoom_lambda_term env_sec (last_arg at_type_packed)) in
-  let b_typ = first_fun at_type in
-  let ((i, i_index), u) = destInd b_typ in
-  let mutind_body = lookup_mind i env in
-  let elim = type_eliminator env_sec (i, i_index) in
-  let npm = mutind_body.mind_nparams in
-  let nargs = new_rels env_sec npm in
-  let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
-  let (n, p_t, b) = destProd elim_typ in
-  let env_motive = zoom_env zoom_product_type env_pms p_t in
-  let p = equiv_motive env_motive evd (make_constant promote_n) (make_constant forget_n) npm l in
-  let env_p = push_local (n, p_t) env_pms in
-  let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
-  let lemmas = eq_lemmas env evd b_typ l in
-  let cs = List.mapi (fun j c -> equiv_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) c l) (take_except (nargs + 1) (factor_product b)) in
-  let args = mk_n_rels nargs in
-  let b_sig = last args in
-  let b_sig_typ = on_type dest_sigT env_sec evd b_sig in
-  let (i_b, u) = projections b_sig_typ b_sig in
-  let final_args = insert_index (l.off - npm) i_b (reindex (nargs - 1) u args) in
-  let app =
-       apply_eliminator
-         {
-           elim;
-           pms = shift_all_by (nargs - 1) pms; (* TODO why *)
-           p;
-           cs = shift_all_by (nargs - 1) cs;
-           final_args;
-         }
-  in (* TODO use eta_sigT where relevant *)
-  let eq_typ = dest_eq (reduce_type env_sec evd app) in
-  let t1 = eq_typ.trm1 in
-  let t2 = eq_typ.trm2 in
-  let at_type = reduce_type env_sec evd t1 in (* TODO why can't just reuse *)
-  let sym_app = mkAppl (eq_sym, [at_type; t1; t2; app]) in
-  let to_elim = dest_sigT at_type in
-  let t1_ex = dest_existT t1 in
-  let trm2 = last_arg (t1_ex.unpacked) in
-  let trm1 = all_eq_substs (t1, trm2) t2 in
-  (* TODO why all the shifting here *)
-  let packed_type = shift (reconstruct_lambda_n env_sec (apply_eq {at_type; trm1; trm2}) (nb_rel env_sec - 1)) in
-  let ib_typ = (dest_sigT at_type).index_type in
-  let b_typ = mkAppl ((dest_sigT (shift at_type)).packer, [mkRel 1]) in
-  let sym_app_b = all_eq_substs (shift_by 2 i_b, mkRel 2) (all_eq_substs (shift_by 2 u, mkRel 1) (shift_by 2 sym_app)) in
-  let unpacked = mkLambda (Anonymous, ib_typ, (mkLambda (Anonymous, b_typ, sym_app_b))) in (* TODO build by env instead *)
-  let arg = mkRel 1 in
-  let elim_app = elim_sigT { to_elim; packed_type; unpacked; arg } in
-  reconstruct_lambda env_sec elim_app
+(*
+ * Prove section/retraction
+ *)
+let equiv_proof promote_n forget_n env evd l =
+  if l.is_fwd then (* TODO consolidate *)
+    let env_sec = zoom_env zoom_lambda_term env l.orn.promote in
+    let a = mkRel 1 in
+    let at_type = reduce_type env_sec evd a in
+    let a_typ = first_fun at_type in
+    let ((i, i_index), u) = destInd a_typ in
+    let mutind_body = lookup_mind i env in
+    let elim = type_eliminator env_sec (i, i_index) in
+    let npm = mutind_body.mind_nparams in
+    let nargs = new_rels env_sec npm in
+    let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
+    let (n, p_t, b) = destProd elim_typ in
+    let env_motive = zoom_env zoom_product_type env_pms p_t in
+    let p = equiv_motive env_motive evd (make_constant promote_n) (make_constant forget_n) npm l in
+    let env_p = push_local (n, p_t) env_pms in
+    let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
+    let lemmas = eq_lemmas env evd a_typ l in
+    let cs = List.mapi (fun j c -> equiv_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) c l) (take_except nargs (factor_product b)) in
+    let app =
+      apply_eliminator
+        {
+          elim;
+          pms = shift_all_by (nargs - 1) pms; (* TODO why *)
+          p;
+          cs = shift_all_by (nargs - 1) cs;
+          final_args = mk_n_rels nargs;
+        }
+    in
+    let eq_typ = dest_eq (reduce_type env_sec evd app) in
+    let t1 = eq_typ.trm1 in
+    let t2 = eq_typ.trm2 in
+    reconstruct_lambda env_sec (mkAppl (eq_sym, [at_type; t1; t2; app]))
+  else
+    (* TODO should be env_retract *)
+    let env_sec = zoom_env zoom_lambda_term env l.orn.forget in
+    let b = mkRel 1 in
+    let at_type_packed = reduce_type env_sec evd b in
+    let at_type = snd (zoom_lambda_term env_sec (last_arg at_type_packed)) in
+    let b_typ = first_fun at_type in
+    let ((i, i_index), u) = destInd b_typ in
+    let mutind_body = lookup_mind i env in
+    let elim = type_eliminator env_sec (i, i_index) in
+    let npm = mutind_body.mind_nparams in
+    let nargs = new_rels env_sec npm in
+    let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
+    let (n, p_t, b) = destProd elim_typ in
+    let env_motive = zoom_env zoom_product_type env_pms p_t in
+    let p = equiv_motive env_motive evd (make_constant promote_n) (make_constant forget_n) npm l in
+    let env_p = push_local (n, p_t) env_pms in
+    let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
+    let lemmas = eq_lemmas env evd b_typ l in
+    let cs = List.mapi (fun j c -> equiv_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) c l) (take_except (nargs + 1) (factor_product b)) in
+    let args = mk_n_rels nargs in
+    let b_sig = last args in
+    let b_sig_typ = on_type dest_sigT env_sec evd b_sig in
+    let (i_b, u) = projections b_sig_typ b_sig in
+    let final_args = insert_index (l.off - npm) i_b (reindex (nargs - 1) u args) in
+    let app =
+      apply_eliminator
+        {
+          elim;
+          pms = shift_all_by (nargs - 1) pms; (* TODO why *)
+          p;
+          cs = shift_all_by (nargs - 1) cs;
+          final_args;
+        }
+    in (* TODO use eta_sigT where relevant *)
+    let eq_typ = dest_eq (reduce_type env_sec evd app) in
+    let t1 = eq_typ.trm1 in
+    let t2 = eq_typ.trm2 in
+    let at_type = reduce_type env_sec evd t1 in (* TODO why can't just reuse *)
+    let sym_app = mkAppl (eq_sym, [at_type; t1; t2; app]) in
+    let to_elim = dest_sigT at_type in
+    let t1_ex = dest_existT t1 in
+    let trm2 = last_arg (t1_ex.unpacked) in
+    let trm1 = all_eq_substs (t1, trm2) t2 in
+    (* TODO why all the shifting here *)
+    let packed_type = shift (reconstruct_lambda_n env_sec (apply_eq {at_type; trm1; trm2}) (nb_rel env_sec - 1)) in
+    let ib_typ = (dest_sigT at_type).index_type in
+    let b_typ = mkAppl ((dest_sigT (shift at_type)).packer, [mkRel 1]) in
+    let sym_app_b = all_eq_substs (shift_by 2 i_b, mkRel 2) (all_eq_substs (shift_by 2 u, mkRel 1) (shift_by 2 sym_app)) in
+    let unpacked = mkLambda (Anonymous, ib_typ, (mkLambda (Anonymous, b_typ, sym_app_b))) in (* TODO build by env instead *)
+    let arg = mkRel 1 in
+    let elim_app = elim_sigT { to_elim; packed_type; unpacked; arg } in
+    reconstruct_lambda env_sec elim_app
+
+(*
+ * TODO explain
+ *)
+let prove_equivalence promote_n forget_n env evd l =
+  twice_directional (equiv_proof promote_n forget_n env evd) l
