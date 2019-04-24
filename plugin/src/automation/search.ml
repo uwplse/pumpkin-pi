@@ -768,9 +768,9 @@ let equiv_proof env evd l =
       in
       (* TODO why all the shifting here *)
       let packed_type = shift (reconstruct_lambda_n env_to eq_typ (nb_rel env_to - 1)) in
-      let ib_typ = (dest_sigT eq_typ_eta.at_type).index_type in
+      let ib_typ = to_elim.index_type in
       let env_ib = push_local (Anonymous, ib_typ) env_to in
-      let b_typ = mkAppl ((dest_sigT (shift eq_typ_eta.at_type)).packer, [mkRel 1]) in
+      let b_typ = mkAppl (shift to_elim.packer, [mkRel 1]) in
       let env_b = push_local (Anonymous, b_typ) env_ib in
       let sym_app_b = all_eq_substs (shift_by 2 i_b, mkRel 2) (all_eq_substs (shift_by 2 u, mkRel 1) (shift_by 2 sym_app)) in
       let unpacked = reconstruct_lambda_n env_b sym_app_b (nb_rel env_to) in
