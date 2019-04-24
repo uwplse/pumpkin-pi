@@ -657,38 +657,42 @@ let equiv_motive env evd promote forget npm l =
 
 (*
  * Get a case of the proof of section/retraction
- * TODO explain and clean arguments
+ * Take as arguments an environment, an evar_map, the parameters,
+ * the motive of the section/retraction proof, the equality lemma for the case,
+ * the type of the eliminator corresponding to the case, and a lifting config.
+ *
+ * The inner function works by tracking a list of regular hypotheses
+ * and new arguments for the equality lemma, then applying them in the body.
  *)
 let equiv_case env evd pms p eq_lemma c l =
-  let rec case e depth args lemma_args c =
+  let eq_lemma = mkAppl (eq_lemma, pms) in (* curry eq_lemma with pms *)
+  let rec case e depth hypos args c =
     match kind c with
       | App (_, _) ->
          (* conclusion: apply eq lemma and beta-reduce *)
-         let pms = shift_all_by depth pms in
-         let all_args = List.rev_append args (List.rev lemma_args) in
-         reduce_term e (mkAppl (eq_lemma, List.append pms all_args))
+         let all_args = List.rev_append hypos (List.rev args) in
+         reduce_term e (mkAppl (shift_by depth eq_lemma, all_args))
       | Prod (n, t, b) ->
          let case_b = case (push_local (n, t) e) (shift_i depth) in
-         let p_rel = mkRel (depth + 1) in
+         let p_rel = shift_by depth (mkRel 1) in
+         let h = mkRel 1 in
          if applies p_rel t then
            (* IH *)
            let p = shift_by depth p in
-           let ih_t = reduce_term e (mkAppl (p, unfold_args t)) in
-           let trm = (dest_eq ih_t).trm2 in
-           let lemma_args_b =
+           let t = reduce_term e (mkAppl (p, unfold_args t)) in
+           let trm = (dest_eq t).trm2 in
+           let args =
              map_directional
-               (fun xs ->
-                 mkRel 1 :: shift trm :: xs)
+               (fun xs -> trm :: xs)
                (fun xs ->
                  let (ib, u) = projections (on_type dest_sigT e evd trm) trm in
-                 mkRel 1 :: shift u :: shift ib :: xs)
+                 u :: ib :: xs)
                l
-               (shift_all lemma_args)
-           in mkLambda (n, ih_t, case_b (shift_all args) lemma_args_b b)
+               args
+           in mkLambda (n, t, case_b (shift_all hypos) (h :: shift_all args) b)
          else
            (* Product *)
-           let args_b = mkRel 1 :: shift_all args in
-           mkLambda (n, t, case_b args_b (shift_all lemma_args) b)
+           mkLambda (n, t, case_b (h :: shift_all hypos) (shift_all args) b)
       | _ ->
          failwith "unexpected case"
     in case env 0 [] [] c
