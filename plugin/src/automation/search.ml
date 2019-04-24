@@ -20,6 +20,7 @@ open Util
 open Differencing
 open Hypotheses (* TODO same *)
 open Specialization (* TODO same *)
+open Printing (* TODO temporary *)
 
 (* --- Finding the new index --- *)
 
@@ -645,15 +646,19 @@ let eq_lemmas env evd typ l =
 (*
  * Construct the motive for section/retraction
  *)
-let equiv_motive env evd promote forget npm l =
-  let trm1 = map_backward (pack env evd l.off) l (mkRel 1) in
-  let at_type = reduce_type env evd trm1 in
-  let typ_args = non_index_args l.off env at_type in
+let equiv_motive env evd npm elim_typ l =
+  let (env_pms, elim_typ_b) = zoom_n_prod env npm elim_typ in
+  let (_, p_t, _) = destProd elim_typ_b in
+  let env_motive = zoom_env zoom_product_type env_pms p_t in
+  let trm1 = map_backward (pack env_motive evd l.off) l (mkRel 1) in
+  let at_type = reduce_type env_motive evd trm1 in
+  let typ_args = non_index_args l.off env_motive at_type in
   let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
   let trm2 = mkAppl (lift_back l, snoc trm1_lifted typ_args) in
   let p_b = apply_eq { at_type; trm1; trm2 } in
-  let nargs = new_rels env npm in
-  shift_by (directional l nargs (nargs - 1)) (reconstruct_lambda_n env p_b npm)
+  let nargs = new_rels env_motive npm in
+  let motive = reconstruct_lambda_n env_motive p_b npm in
+  shift_by (directional l nargs (nargs - 1)) motive (* TODO move shifting *)
 
 (*
  * Get a case of the proof of section/retraction
@@ -664,7 +669,7 @@ let equiv_motive env evd promote forget npm l =
  * The inner function works by tracking a list of regular hypotheses
  * and new arguments for the equality lemma, then applying them in the body.
  *)
-let equiv_case env evd pms p eq_lemma c l =
+let equiv_case env evd pms p eq_lemma l c =
   let eq_lemma = mkAppl (eq_lemma, pms) in (* curry eq_lemma with pms *)
   let rec case e depth hypos args c =
     match kind c with
@@ -694,8 +699,22 @@ let equiv_case env evd pms p eq_lemma c l =
            mkLambda (n, t, case_b (h :: shift_all hypos) (shift_all args) b)
       | _ ->
          failwith "unexpected case"
-    in case env 0 [] [] c
+  in case env 0 [] [] c
 
+(*
+ * Get the cases of the proof of section/retraction
+ * TODO clean args
+ * TODO explain args
+ *)
+let equiv_cases env evd typ npm pms nargs p elim_typ l =
+  let lemmas = eq_lemmas env evd typ l in
+  let (env_pms, elim_typ_b) = zoom_n_prod env npm elim_typ in
+  let (n, p_t, b) = destProd elim_typ_b in
+  let env_p = push_local (n, p_t) env_pms in
+  List.mapi
+    (fun j -> (* TODO move/explain shifting *)
+      equiv_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) l)
+    (take_except (directional l nargs (nargs + 1)) (factor_product b))
 (*
  * Prove section/retraction
  *)
@@ -711,14 +730,10 @@ let equiv_proof env evd l =
     let elim = type_eliminator env_to (i, i_index) in
     let npm = mutind_body.mind_nparams in
     let nargs = new_rels env_to npm in
-    let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
-    let (n, p_t, b) = destProd elim_typ in
-    let env_motive = zoom_env zoom_product_type env_pms p_t in
-    let p = equiv_motive env_motive evd l.orn.promote l.orn.forget npm l in
-    let env_p = push_local (n, p_t) env_pms in
+    let elim_typ = infer_type env evd elim in
+    let p = equiv_motive env evd npm elim_typ l in
     let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
-    let lemmas = eq_lemmas env evd a_typ l in
-    let cs = List.mapi (fun j c -> equiv_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) c l) (take_except nargs (factor_product b)) in
+    let cs = equiv_cases env evd a_typ npm pms nargs p elim_typ l in
     let app =
       apply_eliminator
         {
@@ -744,14 +759,10 @@ let equiv_proof env evd l =
     let elim = type_eliminator env_to (i, i_index) in
     let npm = mutind_body.mind_nparams in
     let nargs = new_rels env_to npm in
-    let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
-    let (n, p_t, b) = destProd elim_typ in
-    let env_motive = zoom_env zoom_product_type env_pms p_t in
-    let p = equiv_motive env_motive evd l.orn.promote l.orn.forget npm l in
-    let env_p = push_local (n, p_t) env_pms in
+    let elim_typ = infer_type env evd elim in
+    let p = equiv_motive env evd npm elim_typ l in
     let pms = shift_all (mk_n_rels npm) in (* TODO why shift *)
-    let lemmas = eq_lemmas env evd b_typ l in
-    let cs = List.mapi (fun j c -> equiv_case env_p evd pms (unshift_by (nargs - 1) p) lemmas.(j) c l) (take_except (nargs + 1) (factor_product b)) in
+    let cs = equiv_cases env evd b_typ npm pms nargs p elim_typ l in
     let args = mk_n_rels nargs in
     let b_sig = last args in
     let b_sig_typ = on_type dest_sigT env_to evd b_sig in
