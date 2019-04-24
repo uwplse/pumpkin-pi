@@ -678,8 +678,7 @@ let equiv_case env evd pms p eq_lemma c l =
          let h = mkRel 1 in
          if applies p_rel t then
            (* IH *)
-           let p = shift_by depth p in
-           let t = reduce_term e (mkAppl (p, unfold_args t)) in
+           let t = reduce_term e (mkAppl (shift_by depth p, unfold_args t)) in
            let trm = (dest_eq t).trm2 in
            let args =
              map_directional
