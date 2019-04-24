@@ -578,10 +578,11 @@ let eq_lemmas_env env evd recs l =
     recs
   
 (*
- * TODO move, explain
+ * Determine the equality lemmas for each case of an inductive type
+ * Take as arguments an environment, an evar_map, the inductive type,
+ * and a lift config.
  *)
 let eq_lemmas env evd typ l =
-  (* TODO retraction direction: pack *)
   let ((i, i_index), u) = destInd typ in
   Array.mapi
     (fun c_index _ ->
@@ -591,10 +592,12 @@ let eq_lemmas env evd typ l =
       let c_args = unfold_args c_body in
       let recs = List.filter (on_type (is_or_applies typ) env_c_b evd) c_args in
       let env_lemma = eq_lemmas_env env_c_b evd recs l in
-      let nargs = new_rels2 env_lemma env_c_b in
-      let c_body = map_backward (pack env_lemma evd l.off) l (shift_by nargs c_body) in
+      let pack_back = map_backward (pack env_lemma evd l.off) l in
+      let c_body = pack_back (shift_by (new_rels2 env_lemma env_c_b) c_body) in
       let c_body_type = reduce_type env_lemma evd c_body in
+      (* reflexivity proof: the identity case *)
       let refl = apply_eq_refl { typ = c_body_type; trm = c_body } in
+      (* fold to recursively substitute each recursive argument *)
       let (body, _, _) =
         List.fold_right
           (fun _ (b, h_eq, c_app) ->
@@ -604,34 +607,34 @@ let eq_lemmas env evd typ l =
             let at_type = app.at_type in
             let r1 = app.trm1 in
             let r2 = app.trm2 in
+            let c_body_b = shift c_body in
+            let typ_b = shift c_body_type in
+            let c_app_b = shift c_app in
+            let (abs_c_app, c_app_trans) =
+              if l.is_fwd then
+                let abs_c_app = all_eq_substs (shift r1, mkRel 1) c_app_b in
+                let c_app_trans = all_eq_substs (r1, r2) c_app in
+                (abs_c_app, c_app_trans)
+              else
+                let (r1_ex, r2_ex) = map_tuple dest_existT (r1, r2) in
+                let r1_u = r1_ex.unpacked in
+                let r2_u = r2_ex.unpacked in
+                let r1_ib = r1_ex.index in
+                let r2_ib = r2_ex.index in
+                let b_sig_typ = dest_sigT (shift at_type) in
+                let ib = project_index b_sig_typ (mkRel 1) in
+                let u = project_value b_sig_typ (mkRel 1) in
+                let abs_c_app = all_eq_substs (shift r1_ib, ib) (all_eq_substs (shift r1_u, u) c_app_b) in
+                let c_app_trans = all_eq_substs (r1_ib, r2_ib) (all_eq_substs (r1_u, r2_u) c_app) in
+                (abs_c_app, c_app_trans)
+            in
+            let p_b = { at_type = typ_b; trm1 = c_body_b; trm2 = abs_c_app } in
+            let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
+            let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h = h_eq; b} in
+            let eq_proof = apply_eq_ind eq_proof_app in
             if l.is_fwd then (* TODO consolidate *)
-              let abs_c_app = all_eq_substs (shift r1, mkRel 1) (shift c_app) in
-              let c_body_b = shift c_body in
-              let typ_b = shift c_body_type in
-              let p_b = { at_type = typ_b; trm1 = c_body_b; trm2 = abs_c_app } in
-              let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
-              let c_app_trans = all_eq_substs (r1, r2) c_app in
-              let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h = h_eq; b} in
-              let eq_proof = apply_eq_ind eq_proof_app in
               (eq_proof, shift_by 2 h_eq, c_app_trans)
             else
-              let r1_ex = dest_existT r1 in
-              let r2_ex = dest_existT r2 in
-              let r1_u = r1_ex.unpacked in
-              let r2_u = r2_ex.unpacked in
-              let r1_ib = r1_ex.index in
-              let r2_ib = r2_ex.index in
-              let b_sig_typ = dest_sigT (shift at_type) in
-              let ib = project_index b_sig_typ (mkRel 1) in
-              let bv = project_value b_sig_typ (mkRel 1) in
-              let abs_c_app = all_eq_substs (shift r1_ib, ib) (all_eq_substs (shift r1_u, bv) (shift c_app)) in
-              let c_body_b = shift c_body in
-              let typ_b = shift c_body_type in
-              let p_b = { at_type = typ_b; trm1 = c_body_b; trm2 = abs_c_app } in
-              let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
-              let c_app_trans = all_eq_substs (r1_ib, r2_ib) (all_eq_substs (r1_u, r2_u) c_app) in
-              let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h = h_eq; b} in
-              let eq_proof = apply_eq_ind eq_proof_app in
               (eq_proof, shift_by 3 h_eq, c_app_trans)
           )
           recs
