@@ -84,9 +84,10 @@ let find_ornament n_o d_old d_new =
        ());
     (if is_search_equiv () then
        let env = Global.env () in
-       let l = initialize_lifting env evd orn.promote orn.forget in
-       (* TODO can we use promote/forget above instead of names? *)
-       let (section, retraction) = prove_equivalence n inv_n env evd l in
+       let (promote, forget) = map_tuple make_constant (n, inv_n) in
+       let l = initialize_lifting env evd promote forget in
+       (* TODO rename lift config or something? *)
+       let (section, retraction) = prove_equivalence env evd l in
        let sec_n = with_suffix n "section" in
        let _ = define_term sec_n evd section true in
        Printf.printf "Defined section proof %s\n\n" (Id.to_string sec_n);

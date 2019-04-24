@@ -36,4 +36,4 @@ val prove_coherence : env -> evar_map -> promotion -> (types * types)
  * TODO clean inputs
  * Return section and retraction (TODO wrap in something)
  *)
-val prove_equivalence : Id.t -> Id.t -> env -> evar_map -> lifting -> (types * types)
+val prove_equivalence : env -> evar_map -> lifting -> (types * types)
