@@ -600,15 +600,14 @@ let eq_lemmas env evd typ l =
       (* fold to recursively substitute each recursive argument *)
       let (body, _, _) =
         List.fold_right
-          (fun _ (b, h_eq, c_app) ->
-            let h_eq_r = destRel h_eq in
-            let (_, _, h_eq_t) = CRD.to_tuple @@ lookup_rel h_eq_r env_lemma in
-            let app = dest_eq (shift_by h_eq_r h_eq_t) in
+          (fun _ (b, h, c_app) ->
+            let h_r = destRel h in
+            let (_, _, h_t) = CRD.to_tuple @@ lookup_rel h_r env_lemma in
+            let app = dest_eq (shift_by h_r h_t) in
             let at_type = app.at_type in
             let r1 = app.trm1 in
             let r2 = app.trm2 in
             let c_body_b = shift c_body in
-            let typ_b = shift c_body_type in
             let c_app_b = shift c_app in
             let (abs_c_app, c_app_trans) =
               if l.is_fwd then
@@ -624,19 +623,18 @@ let eq_lemmas env evd typ l =
                 let b_sig_typ = dest_sigT (shift at_type) in
                 let ib = project_index b_sig_typ (mkRel 1) in
                 let u = project_value b_sig_typ (mkRel 1) in
-                let abs_c_app = all_eq_substs (shift r1_ib, ib) (all_eq_substs (shift r1_u, u) c_app_b) in
-                let c_app_trans = all_eq_substs (r1_ib, r2_ib) (all_eq_substs (r1_u, r2_u) c_app) in
+                let abs_c_app_u = all_eq_substs (shift r1_u, u) c_app_b in
+                let abs_c_app = all_eq_substs (shift r1_ib, ib) abs_c_app_u in
+                let c_app_trans_u = all_eq_substs (r1_u, r2_u) c_app in
+                let c_app_trans = all_eq_substs (r1_ib, r2_ib) c_app_trans_u in
                 (abs_c_app, c_app_trans)
             in
+            let typ_b = shift c_body_type in
             let p_b = { at_type = typ_b; trm1 = c_body_b; trm2 = abs_c_app } in
             let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
-            let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h = h_eq; b} in
+            let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h; b} in
             let eq_proof = apply_eq_ind eq_proof_app in
-            if l.is_fwd then (* TODO consolidate *)
-              (eq_proof, shift_by 2 h_eq, c_app_trans)
-            else
-              (eq_proof, shift_by 3 h_eq, c_app_trans)
-          )
+            (eq_proof, shift_by (directional l 2 3) h, c_app_trans))
           recs
           (refl, mkRel 1, c_body)
       in reconstruct_lambda env_lemma body)
