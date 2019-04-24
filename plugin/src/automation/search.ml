@@ -666,7 +666,7 @@ let equiv_case env evd pms p eq_lemma c l =
     match kind c with
       | App (_, _) ->
          (* conclusion: apply eq lemma and beta-reduce *)
-         let all_args = List.append (List.rev args) (List.rev lemma_args) in
+         let all_args = List.rev_append args (List.rev lemma_args) in
          reduce_term e (mkAppl (eq_lemma, List.append pms all_args))
       | Prod (n, t, b) ->
          let case_b = case (push_local (n, t) e) (shift_all pms) (shift p_rel) (shift p) in

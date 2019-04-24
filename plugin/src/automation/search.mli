@@ -8,6 +8,8 @@ open Evd
 open Names
 open Lifting
 
+(* --- Top-level search --- *)
+
 (* 
  * Search two inductive types for an ornamental promotion between them
  * Automatically infer the kind of change
@@ -20,6 +22,8 @@ val search_orn_inductive :
   types -> (* old inductive type *)
   types -> (* new inductive type *)
   promotion (* ornamental promotion *)
+
+(* --- Automatically generated proofs about promotions search discovers --- *)
 
 (*
  * Prove coherence with the components search finds
