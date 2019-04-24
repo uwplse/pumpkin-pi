@@ -510,28 +510,8 @@ let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
   | _ ->
      failwith "this kind of change is not yet supported"
 
-(* --- Coherence & equivalence proofs --- *) 
-
-(* 
- * Prove coherence with the components search finds
- * Return the coherence proof term and its type
- * TODO clean
- *)
-let prove_coherence env evd orn =
-  let env_coh = zoom_env zoom_lambda_term env orn.promote in
-  let a = mkRel 1 in
-  let is = on_type unfold_args env_coh evd a in
-  let b_sig = mkAppl (orn.promote, snoc a is) in
-  let b_sig_typ = reduce_type env_coh evd b_sig in
-  let ib = mkAppl (orn.indexer, snoc a is) in
-  let ib_typ = reduce_type env_coh evd ib in
-  let packer = (dest_sigT b_sig_typ).packer in
-  let proj_ib = project_index { index_type = ib_typ; packer} b_sig in
-  let coh = reconstruct_lambda env_coh (mkAppl (eq_refl, [ib_typ; proj_ib])) in
-  let coh_typ = reconstruct_product env_coh (mkAppl (eq, [ib_typ; ib; proj_ib])) in
-  (coh, coh_typ)
-
-
+(* --- Coherence & equivalence proofs --- *)
+              
 (*
  * TODO move, explain, refactor common w/ refolding in search/lifting
  * mention c_body is the reduced body of a constructor, and env_c_b is the env
@@ -710,9 +690,30 @@ let section_case env pms p eq_lemma c =
          failwith "unexpected case"
     in case env pms (mkRel 1) p [] [] c
 
+              
+(* --- Top-level coherence & equivalence proofs --- *) 
+
+(* 
+ * Prove coherence with the components search finds
+ * Return the coherence proof term and its type
+ * TODO clean
+ *)
+let prove_coherence env evd orn =
+  let env_coh = zoom_env zoom_lambda_term env orn.promote in
+  let a = mkRel 1 in
+  let is = on_type unfold_args env_coh evd a in
+  let b_sig = mkAppl (orn.promote, snoc a is) in
+  let b_sig_typ = reduce_type env_coh evd b_sig in
+  let ib = mkAppl (orn.indexer, snoc a is) in
+  let ib_typ = reduce_type env_coh evd ib in
+  let packer = (dest_sigT b_sig_typ).packer in
+  let proj_ib = project_index { index_type = ib_typ; packer} b_sig in
+  let coh = reconstruct_lambda env_coh (mkAppl (eq_refl, [ib_typ; proj_ib])) in
+  let coh_typ = reconstruct_product env_coh (mkAppl (eq, [ib_typ; ib; proj_ib])) in
+  (coh, coh_typ)
+
 (* TODO refactor below, comment, fill in *)
 (* TODO clean up too *)
-(* TODO test on other types besides list/vect in file *)
 let prove_section promote_n forget_n env evd l =
   let env_sec = zoom_env zoom_lambda_term env l.orn.promote in
   let a = mkRel 1 in
@@ -749,7 +750,6 @@ let prove_section promote_n forget_n env evd l =
 (* TODO refactor common w/ section, or call lift *)
 (* TODO refactor below, comment, fill in *)
 (* TODO clean up too *)
-(* TODO test on other types besides list/vect in file *)
 let prove_retraction promote_n forget_n env evd l =
   (* TODO should be env_retract *)
   let env_sec = zoom_env zoom_lambda_term env l.orn.forget in
