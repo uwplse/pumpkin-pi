@@ -677,13 +677,13 @@ let equiv_case env evd pms p eq_lemma c l =
            let trm = (dest_eq ih_t).trm2 in
            let lemma_args_b =
              map_directional
-               (fun args ->
-                 mkRel 1 :: shift_all (trm :: args))
-               (fun args ->
+               (fun xs ->
+                 mkRel 1 :: shift trm :: xs)
+               (fun xs ->
                  let (ib, u) = projections (on_type dest_sigT e evd trm) trm in
-                 mkRel 1 :: shift_all (u :: ib :: args))
+                 mkRel 1 :: shift u :: shift ib :: xs)
                l
-               lemma_args
+               (shift_all lemma_args)
            in mkLambda (n, ih_t, case_b (shift_all args) lemma_args_b b)
          else
            (* Product *)
