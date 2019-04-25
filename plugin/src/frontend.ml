@@ -11,10 +11,9 @@ open Unpack
 open Utilities
 open Pp
 open Printer
-open Ltac_plugin
 open Coherence
 open Equivalence
-open Options (* TODO clean *)
+open Options
 
 (* --- Commands --- *)
                         
