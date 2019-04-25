@@ -55,6 +55,8 @@ src/automation/desugar.mli
 src/automation/unpack.ml
 src/automation/unpack.mli
 
+src/options.ml
+src/options.mli
 src/frontend.ml
 src/frontend.mli
 src/ornamental.ml4
