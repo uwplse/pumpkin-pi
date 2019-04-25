@@ -393,8 +393,7 @@ let pack_hypothesis env evd idx b unpacked =
   let (env_packed, packer, unpacked) = adjusted in
   let arg = mkRel 1 in
   let arg_typ = on_type dest_sigT env_packed evd arg in
-  let index = project_index arg_typ arg in
-  let value = project_value arg_typ arg in
+  let (index, value) = projections arg_typ arg in
   (env_packed, reduce_term env_packed (mkAppl (unpacked, [index; value])))
 
 (*

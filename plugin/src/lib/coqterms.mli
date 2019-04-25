@@ -24,6 +24,10 @@ val existT : types
 val sigT_rect : types
 val projT1 : types
 val projT2 : types
+val eq : types
+val eq_refl : types
+val eq_ind : types
+val eq_sym : types
 
 (* --- Representations --- *)
 
@@ -91,6 +95,71 @@ val prod_to_lambda : types -> types
 val lambda_to_prod : types -> types
 
 (*
+ * An application of eq
+ *)
+type eq_app =
+  {
+    at_type : types;
+    trm1 : types;
+    trm2 : types;
+  }
+
+(*
+ * Convert between a term and an eq_app
+ *)
+val apply_eq : eq_app -> types
+val dest_eq : types -> eq_app
+
+(*
+ * An application of eq_sym
+ *)
+type eq_sym_app =
+  {
+    eq_typ : eq_app;
+    eq_proof : types;
+  }
+
+(*
+ * Convert between a term and an eq_sym_app
+ *)
+val apply_eq_sym : eq_sym_app -> types
+val dest_eq_sym : types -> eq_sym_app
+
+(*
+ * An application of eq_ind
+ *)
+type eq_ind_app =
+  {
+    at_type : types;
+    p : types;
+    trm1 : types;
+    trm2 : types;
+    h : types;
+    b : types;
+  }
+
+(*
+ * Convert between a term and an eq_app
+ *)
+val apply_eq_ind : eq_ind_app -> types
+val dest_eq_ind : types -> eq_ind_app
+                                
+(*
+ * An application of eq_refl
+ *)
+type eq_refl_app =
+  {
+    typ : types;
+    trm : types;
+  }
+
+(*
+ * Convert between a term and an eq_refl
+ *)
+val apply_eq_refl : eq_refl_app -> types
+val dest_eq_refl : types -> eq_refl_app
+                                
+(*
  * An application of existT
  *)
 type existT_app =
@@ -153,6 +222,11 @@ val project_index : sigT_app -> types -> types
  * Right projection of a sigma type given a sigma type and term of that type
  *)
 val project_value : sigT_app -> types -> types
+
+(*
+ * Both projections in an (index, value) tuple
+ *)
+val projections : sigT_app -> types -> (types * types)
 
 (* --- Inductive types and their eliminators --- *)
 

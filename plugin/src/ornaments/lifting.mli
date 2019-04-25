@@ -73,3 +73,9 @@ val ind_of_promotion_type : types -> (types * types)
  * Flip the direction of a lifting
  *)
 val flip_dir : lifting -> lifting
+
+(*
+ * Apply a function twice, once in each direction.
+ * Compose the result into a tuple.
+ *)
+val twice_directional : (lifting -> 'a) -> lifting -> ('a * 'a)

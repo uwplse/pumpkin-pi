@@ -1,6 +1,9 @@
 Require Import List.
 Require Import Ornamental.Ornaments.
 
+Set DEVOID search prove coherence.
+Set DEVOID search prove equivalence.
+
 (*--- Lists and Vectors ---*)
 
 Inductive vector (A : Type) : nat -> Type :=
@@ -30,7 +33,7 @@ Theorem test_orn_index:
   forall (A : Type) (l : list A),
     projT1 (orn_list_vector A l) = orn_list_vector_index A l.
 Proof.
-  intros. reflexivity.
+  exact orn_list_vector_coh.
 Qed.
 
 Theorem test_orn_inv:
@@ -45,6 +48,20 @@ Theorem test_orn_inv_unpack:
     list A.
 Proof.
   intros. apply orn_list_vector_inv. exists n. apply v.
+Qed.
+
+Theorem test_section:
+  forall (A : Type) (l : list A),
+    orn_list_vector_inv A (orn_list_vector A l) = l.
+Proof.
+  exact orn_list_vector_section.
+Qed.
+
+Theorem test_retraction:
+  forall (A : Type) (v : packed_vector A),
+    orn_list_vector A (orn_list_vector_inv A v) = v.
+Proof.
+  exact orn_list_vector_retraction.
 Qed.
 
 (* --- Test auto-generated ornament name --- *)
@@ -69,7 +86,7 @@ Theorem test_orn_index_auto:
   forall (A : Type) (l : list A),
     projT1 (list_to_vector A l) = list_to_vector_index A l.
 Proof.
-  intros. reflexivity.
+  exact list_to_vector_coh.
 Qed.
 
 Theorem test_orn_inv_auto:
@@ -84,6 +101,20 @@ Theorem test_orn_inv_unpack_auto:
     list A.
 Proof.
   intros. apply list_to_vector_inv. exists n. apply v.
+Qed.
+
+Theorem test_section_auto:
+  forall (A : Type) (l : list A),
+    list_to_vector_inv A (list_to_vector A l) = l.
+Proof.
+  exact list_to_vector_section.
+Qed.
+
+Theorem test_retraction_auto:
+  forall (A : Type) (v : packed_vector A),
+    list_to_vector A (list_to_vector_inv A v) = v.
+Proof.
+  exact list_to_vector_retraction.
 Qed.
 
 (* --- Lists and "flectors" --- *)
@@ -139,9 +170,9 @@ Qed.
 
 Theorem test_orn_index_flector:
   forall (l : flist),
-  projT1 (orn_flist_flector l) = orn_flist_flector_index l.
+    projT1 (orn_flist_flector l) = orn_flist_flector_index l.
 Proof.
-  intros. reflexivity.
+  exact orn_flist_flector_coh.
 Qed.
 
 Theorem test_orn_inv_flector:
@@ -156,6 +187,20 @@ Theorem test_orn_inv_unpack_flector:
     flist.
 Proof.
   intros. apply orn_flist_flector_inv. exists n. apply v.
+Qed.
+
+Theorem test_section_flector:
+  forall (l : flist),
+    orn_flist_flector_inv (orn_flist_flector l) = l.
+Proof.
+  exact orn_flist_flector_section.
+Qed.
+
+Theorem test_retraction_flector:
+  forall (v : sigT flector),
+    orn_flist_flector (orn_flist_flector_inv v) = v.
+Proof.
+  exact orn_flist_flector_retraction.
 Qed.
 
 End Flector.
@@ -220,7 +265,7 @@ Theorem test_orn_index_2:
   forall (A : Type) (l : rev_list A),
     projT1 (orn_rev_list_rev_vector A l) = orn_rev_list_rev_vector_index A l.
 Proof.
-  intros. reflexivity.
+  exact orn_rev_list_rev_vector_coh.
 Qed.
 
 Theorem test_orn_inv_2:
@@ -235,6 +280,20 @@ Theorem test_orn_inv_unpack_2:
     rev_list A.
 Proof.
   intros. apply orn_rev_list_rev_vector_inv. exists n. apply v.
+Qed.
+
+Theorem test_section_2:
+  forall (A : Type) (l : rev_list A),
+    orn_rev_list_rev_vector_inv A (orn_rev_list_rev_vector A l) = l.
+Proof.
+  exact orn_rev_list_rev_vector_section.
+Qed.
+
+Theorem test_retraction_2:
+  forall (A : Type) (l : packed_rev_vector A),
+    orn_rev_list_rev_vector A (orn_rev_list_rev_vector_inv A l) = l.
+Proof.
+  exact orn_rev_list_rev_vector_retraction.
 Qed.
 
 (* --- Binary Trees and Indexed Binary Trees --- *)
@@ -284,7 +343,7 @@ Theorem test_orn_index_3:
   forall (A : Type) (tr : bintree A),
     projT1 (orn_bintree_bintreeV A tr) = orn_bintree_bintreeV_index A tr.
 Proof.
-  intros. reflexivity.
+  exact orn_bintree_bintreeV_coh.
 Qed.
 
 Theorem test_orn_inv_3:
@@ -301,6 +360,19 @@ Proof.
   intros. apply orn_bintree_bintreeV_inv. exists n. apply tr.
 Qed.
 
+Theorem test_section_3:
+  forall (A : Type) (tr : bintree A),
+    orn_bintree_bintreeV_inv A (orn_bintree_bintreeV A tr) = tr.
+Proof.
+  exact orn_bintree_bintreeV_section.
+Qed.
+
+Theorem test_retraction_3:
+  forall (A : Type) (tr : packed_bintreeV A),
+    orn_bintree_bintreeV A (orn_bintree_bintreeV_inv A tr) = tr.
+Proof.
+  exact orn_bintree_bintreeV_retraction.
+Qed.
 
 (* --- Lists of values of two types (making sure parameter logic works) --- *)
 
@@ -345,7 +417,7 @@ Theorem test_orn_index_4:
   forall (A : Type) (B : Type) (l : list2 A B),
     projT1 (orn_list2_vector2 A B l) = orn_list2_vector2_index A B l.
 Proof.
-  intros. reflexivity.
+  exact orn_list2_vector2_coh.
 Qed.
 
 Theorem test_orn_inv_4:
@@ -360,6 +432,20 @@ Theorem test_orn_inv_unpack_4:
     list2 A B.
 Proof.
   intros. apply orn_list2_vector2_inv. exists n. apply l.
+Qed.
+
+Theorem test_section_4:
+  forall (A : Type) (B : Type) (l : list2 A B),
+    orn_list2_vector2_inv A B (orn_list2_vector2 A B l) = l.
+Proof.
+  exact orn_list2_vector2_section.
+Qed.
+
+Theorem test_retraction_4:
+  forall (A : Type) (B : Type) (l : packed_vector2 A B),
+    orn_list2_vector2 A B (orn_list2_vector2_inv A B l) = l.
+Proof.
+  exact orn_list2_vector2_retraction.
 Qed.
 
 (* --- Adding a nat index to a nat list --- *)
@@ -403,7 +489,7 @@ Theorem test_orn_index_5:
   forall (l : nat_list),
     projT1 (orn_natlist_natvector l) = orn_natlist_natvector_index l.
 Proof.
-  intros. reflexivity.
+  exact orn_natlist_natvector_coh.
 Qed.
 
 Theorem test_orn_inv_5:
@@ -418,6 +504,20 @@ Theorem test_orn_inv_unpack_5:
     nat_list.
 Proof.
   intros. apply orn_natlist_natvector_inv. exists n. apply v.
+Qed.
+
+Theorem test_section_5:
+  forall (l : nat_list),
+    orn_natlist_natvector_inv (orn_natlist_natvector l) = l.
+Proof.
+  exact orn_natlist_natvector_section.
+Qed.
+
+Theorem test_retraction_5:
+  forall (v : packed_nat_vector),
+    orn_natlist_natvector (orn_natlist_natvector_inv v) = v.
+Proof.
+  exact orn_natlist_natvector_retraction.
 Qed.
 
 (* --- BintreeV with nats in reverse order --- *)
@@ -461,7 +561,7 @@ Theorem test_orn_index_6:
   forall (A : Type) (tr : bintree A),
     projT1 (orn_bintree_bintreeV_rev A tr) = orn_bintree_bintreeV_rev_index A tr.
 Proof.
-  intros. reflexivity.
+  exact orn_bintree_bintreeV_rev_coh.
 Qed.
 
 Theorem test_orn_inv_6:
@@ -476,6 +576,20 @@ Theorem test_orn_inv_unpack_6:
     bintree A.
 Proof.
   intros. apply orn_bintree_bintreeV_rev_inv. exists n. apply tr.
+Qed.
+
+Theorem test_section_6:
+  forall (A : Type) (tr : bintree A),
+    orn_bintree_bintreeV_rev_inv A (orn_bintree_bintreeV_rev A tr) = tr.
+Proof.
+  exact orn_bintree_bintreeV_rev_section.
+Qed.
+
+Theorem test_retraction_6:
+  forall (A : Type) (tr : packed_bintreeV_rev A),
+    orn_bintree_bintreeV_rev A (orn_bintree_bintreeV_rev_inv A tr) = tr.
+Proof.
+  exact orn_bintree_bintreeV_rev_retraction.
 Qed.
 
 (* --- Adding an index whose type that matches an already existing index --- *)
@@ -519,7 +633,7 @@ Theorem test_orn_index_7:
   forall (A : Type) (n : nat) (v : vector A n),
     projT1 (orn_vector_doublevector A n v) = orn_vector_doublevector_index A n v.
 Proof.
-  intros. reflexivity.
+  exact orn_vector_doublevector_coh.
 Qed.
 
 Theorem test_orn_inv_7:
@@ -534,6 +648,20 @@ Theorem test_orn_inv_unpack_7:
     vector A m.
 Proof.
   intros. apply orn_vector_doublevector_inv. exists n. apply d.
+Qed.
+
+Theorem test_section_7:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector_inv A n (orn_vector_doublevector A n v) = v.
+Proof.
+  exact orn_vector_doublevector_section.
+Qed.
+
+Theorem test_retraction_7:
+  forall (A : Type) (n : nat) (v : packed_doublevector A n),
+    orn_vector_doublevector A n (orn_vector_doublevector_inv A n v) = v.
+Proof.
+  exact orn_vector_doublevector_retraction.
 Qed.
 
 (* --- Same as above, but switch the position we change --- *)
@@ -567,7 +695,7 @@ Theorem test_orn_index_8:
   forall (A : Type) (n : nat) (v : vector A n),
     projT1 (orn_vector_doublevector2 A n v) = orn_vector_doublevector2_index A n v.
 Proof.
-  intros. reflexivity.
+  exact orn_vector_doublevector2_coh.
 Qed.
 
 Theorem test_orn_inv_8:
@@ -582,6 +710,20 @@ Theorem test_orn_inv_unpack_8:
     vector A n.
 Proof.
   intros. apply orn_vector_doublevector2_inv. exists m. apply d.
+Qed.
+
+Theorem test_section_8:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector2_inv A n (orn_vector_doublevector2 A n v) = v.
+Proof.
+  exact orn_vector_doublevector2_section.
+Qed.
+
+Theorem test_retraction_8:
+  forall (A : Type) (n : nat) (v : packed_doublevector2 A n),
+    orn_vector_doublevector2 A n (orn_vector_doublevector2_inv A n v) = v.
+Proof.
+  exact orn_vector_doublevector2_retraction.
 Qed.
 
 (* --- Same as above, but with an identical index --- *)
@@ -625,7 +767,7 @@ Theorem test_orn_index_9:
   forall (A : Type) (n : nat) (v : vector A n),
     projT1 (orn_vector_doublevector3 A n v) = orn_vector_doublevector3_index A n v.
 Proof.
-  intros. reflexivity.
+  exact orn_vector_doublevector3_coh.
 Qed.
 
 Theorem test_orn_inv_9:
@@ -640,6 +782,20 @@ Theorem test_orn_inv_unpack_9:
     vector A n.
 Proof.
   intros. apply orn_vector_doublevector3_inv. exists m. apply d.
+Qed.
+
+Theorem test_section_9:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector3_inv A n (orn_vector_doublevector3 A n v) = v.
+Proof.
+  exact orn_vector_doublevector3_section.
+Qed.
+
+Theorem test_retraction_9:
+  forall (A : Type) (n : nat) (v : packed_doublevector3 A n),
+    orn_vector_doublevector3 A n (orn_vector_doublevector3_inv A n v) = v.
+Proof.
+  exact orn_vector_doublevector3_retraction.
 Qed.
 
 (* --- What if we change a base case index? --- *)
@@ -683,7 +839,7 @@ Theorem test_orn_index_10:
   forall (A : Type) (n : nat) (v : vector A n),
     projT1 (orn_vector_doublevector4 A n v) = orn_vector_doublevector4_index A n v.
 Proof.
-  intros. reflexivity.
+  exact orn_vector_doublevector4_coh.
 Qed.
 
 Theorem test_orn_inv_10:
@@ -698,6 +854,20 @@ Theorem test_orn_inv_unpack_10:
     vector A m.
 Proof.
   intros. apply orn_vector_doublevector4_inv. exists n. apply d.
+Qed.
+
+Theorem test_section_10:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector4_inv A n (orn_vector_doublevector4 A n v) = v.
+Proof.
+  exact orn_vector_doublevector4_section.
+Qed.
+
+Theorem test_retraction_10:
+  forall (A : Type) (n : nat) (v : packed_doublevector4 A n),
+    orn_vector_doublevector4 A n (orn_vector_doublevector4_inv A n v) = v.
+Proof.
+  exact orn_vector_doublevector4_retraction.
 Qed.
 
 (* --- Indices that are computed from existing hypotheses --- *)
@@ -740,7 +910,7 @@ Theorem test_orn_index_11:
   forall (nl : nat_list),
     projT1 (orn_natlist_hdnatlist nl) = orn_natlist_hdnatlist_index nl.
 Proof.
-  intros. reflexivity.
+  exact orn_natlist_hdnatlist_coh.
 Qed.
 
 Theorem test_orn_inv_11:
@@ -755,6 +925,20 @@ Theorem test_orn_inv_unpack_11:
     nat_list.
 Proof.
   intros. apply orn_natlist_hdnatlist_inv. exists h. apply hnl.
+Qed.
+
+Theorem test_section_11:
+  forall (nl : nat_list),
+    orn_natlist_hdnatlist_inv (orn_natlist_hdnatlist nl) = nl.
+Proof.
+  exact orn_natlist_hdnatlist_section.
+Qed.
+
+Theorem test_retraction_11:
+  forall (nl : packed_hd_nat_list),
+    orn_natlist_hdnatlist (orn_natlist_hdnatlist_inv nl) = nl.
+Proof.
+  exact orn_natlist_hdnatlist_retraction.
 Qed.
 
 (* --- Indices that depend on parameters --- *)
@@ -789,7 +973,7 @@ Theorem test_orn_index_12:
   forall (A : Type) (l : list A),
     projT1 (orn_list_hdlist A l) = orn_list_hdlist_index A l.
 Proof.
-  intros. reflexivity.
+  exact orn_list_hdlist_coh.
 Qed.
 
 Theorem test_orn_inv_12:
@@ -804,6 +988,20 @@ Theorem test_orn_inv_unpack_12:
     list A.
 Proof.
   intros. apply orn_list_hdlist_inv. exists ao. apply hl.
+Qed.
+
+Theorem test_section_12:
+  forall (A : Type) (l : list A),
+    orn_list_hdlist_inv A (orn_list_hdlist A l) = l.
+Proof.
+  exact orn_list_hdlist_section.
+Qed.
+
+Theorem test_retraction_12:
+  forall (A : Type) (l : packed_hd_list A),
+    orn_list_hdlist A (orn_list_hdlist_inv A l) = l.
+Proof.
+  exact orn_list_hdlist_retraction.
 Qed.
 
 (* --- Indices that depend on prior indices --- *)
@@ -852,7 +1050,7 @@ Theorem test_orn_index_13:
   forall (A : Type) (l : list_alt A),
     projT1 (orn_listalt_hdlistalt A l) = orn_listalt_hdlistalt_index A l.
 Proof.
-  intros. reflexivity.
+  exact orn_listalt_hdlistalt_coh.
 Qed.
 
 Theorem test_orn_inv_13:
@@ -867,6 +1065,20 @@ Theorem test_orn_inv_unpack_13:
     list_alt A.
 Proof.
   intros. apply orn_listalt_hdlistalt_inv. exists ao. apply l.
+Qed.
+
+Theorem test_section_13:
+  forall (A : Type) (l : list_alt A),
+    orn_listalt_hdlistalt_inv A (orn_listalt_hdlistalt A l) = l.
+Proof.
+  exact orn_listalt_hdlistalt_section.
+Qed.
+
+Theorem test_reraction_13:
+  forall (A : Type) (l : packed_hd_list_alt A),
+    orn_listalt_hdlistalt A (orn_listalt_hdlistalt_inv A l) = l.
+Proof.
+  exact orn_listalt_hdlistalt_retraction.
 Qed.
 
 (* --- Indexing by the old type, but without making it fin-like --- *)
@@ -906,7 +1118,7 @@ Theorem test_orn_index_14:
   forall (n : nat),
     projT1 (orn_nat_natnat n) = orn_nat_natnat_index n.
 Proof.
-  intros. reflexivity.
+  exact orn_nat_natnat_coh.
 Qed.
 
 Theorem test_orn_inv_14:
@@ -921,6 +1133,20 @@ Theorem test_orn_inv_unpack_14:
     nat.
 Proof.
   intros. apply orn_nat_natnat_inv. exists n. apply nn.
+Qed.
+
+Theorem test_section_14:
+  forall (n : nat),
+    orn_nat_natnat_inv (orn_nat_natnat n) = n.
+Proof.
+  exact orn_nat_natnat_section.
+Qed.
+
+Theorem test_retraction_14:
+  forall (n : packed_nat_nat),
+    orn_nat_natnat (orn_nat_natnat_inv n) = n.
+Proof.
+  exact orn_nat_natnat_retraction.
 Qed.
 
 (* --- Regression of bug in more complicated index identification algorithm --- *)
@@ -958,7 +1184,7 @@ Theorem test_orn_index_15:
   forall (A : Type) (n : nat) (v : vector A n),
     projT1 (orn_vector_doublevector5 A n v) = orn_vector_doublevector5_index A n v.
 Proof.
-  intros. auto.
+  exact orn_vector_doublevector5_coh.
 Qed.
 
 Theorem test_orn_inv_15:
@@ -973,6 +1199,20 @@ Theorem test_orn_inv_unpack_15:
     vector A n.
 Proof.
   intros. apply orn_vector_doublevector5_inv. exists m. apply d.
+Qed.
+
+Theorem test_section_15:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector5_inv A n (orn_vector_doublevector5 A n v) = v.
+Proof.
+  exact orn_vector_doublevector5_section.
+Qed.
+
+Theorem test_retraction_15:
+  forall (A : Type) (n : nat) (v : packed_doublevector5 A n),
+    orn_vector_doublevector5 A n (orn_vector_doublevector5_inv A n v) = v.
+Proof.
+  exact orn_vector_doublevector5_retraction.
 Qed.
 
 (* --- More regression --- *)
@@ -1036,7 +1276,7 @@ Theorem test_orn_index_16:
   forall (n m : nat) (b : _bst n m),
     projT1 (_bst_to_bst n m b) = _bst_to_bst_index n m b.
 Proof.
-  intros. auto.
+  exact _bst_to_bst_coh.
 Qed.
 
 Theorem test_orn_inv_16:
@@ -1051,6 +1291,20 @@ Theorem test_orn_inv_unpack_16:
     _bst n m.
 Proof.
   intros n m p b. apply _bst_to_bst_inv. exists p. apply b.
+Qed.
+
+Theorem test_section_16:
+  forall (n m : nat) (b : _bst n m),
+    _bst_to_bst_inv n m (_bst_to_bst n m b) = b.
+Proof.
+  exact _bst_to_bst_section.
+Qed.
+
+Theorem test_retraction_16:
+  forall (n m : nat) (b : packed_bst n m),
+    _bst_to_bst n m (_bst_to_bst_inv n m b) = b.
+Proof.
+  exact _bst_to_bst_retraction.
 Qed.
 
 (* --- Make sure moving the hypotheses around works too --- *)
@@ -1085,7 +1339,7 @@ Theorem test_orn_index_17:
   forall (n m : nat) (b : _bst n m),
     projT1 (_bst_to_bst2 n m b) = _bst_to_bst2_index n m b.
 Proof.
-  intros. auto.
+  exact _bst_to_bst2_coh.
 Qed.
 
 Theorem test_orn_inv_17:
@@ -1100,6 +1354,20 @@ Theorem test_orn_inv_unpack_17:
     _bst n m.
 Proof.
   intros n m p b. apply _bst_to_bst2_inv. exists p. apply b.
+Qed.
+
+Theorem test_section_17:
+  forall (n m : nat) (b : _bst n m),
+    _bst_to_bst2_inv n m (_bst_to_bst2 n m b) = b.
+Proof.
+  exact _bst_to_bst2_section.
+Qed.
+
+Theorem test_retraction_17:
+  forall (n m : nat) (b : packed_bst2 n m),
+    _bst_to_bst2 n m (_bst_to_bst2_inv n m b) = b.
+Proof.
+  exact _bst_to_bst2_retraction.
 Qed.
 
 (* --- Test moving around the index location --- *)
@@ -1134,7 +1402,7 @@ Theorem test_orn_index_18:
   forall (n m : nat) (b : _bst n m),
     projT1 (_bst_to_bst3 n m b) = _bst_to_bst3_index n m b.
 Proof.
-  intros. auto.
+  exact _bst_to_bst3_coh.
 Qed.
 
 Theorem test_orn_inv_18:
@@ -1149,6 +1417,20 @@ Theorem test_orn_inv_unpack_18:
     _bst n m.
 Proof.
   intros n m p b. apply _bst_to_bst3_inv. exists p. apply b.
+Qed.
+
+Theorem test_section_18:
+  forall (n m : nat) (b : _bst n m),
+    _bst_to_bst3_inv n m (_bst_to_bst3 n m b) = b.
+Proof.
+  exact _bst_to_bst3_section.
+Qed.
+
+Theorem test_retraction_18:
+  forall (n m : nat) (b : packed_bst3 n m),
+    _bst_to_bst3 n m (_bst_to_bst3_inv n m b) = b.
+Proof.
+  exact _bst_to_bst3_retraction.
 Qed.
 
 (* --- Binary trees with changed hypothesis order --- *)
@@ -1187,7 +1469,7 @@ Theorem test_orn_index_19:
   forall (A : Type) (tr : bintree A),
     projT1 (orn_bintree_bintreeV2 A tr) = orn_bintree_bintreeV2_index A tr.
 Proof.
-  intros. auto.
+  exact orn_bintree_bintreeV2_coh.
 Qed.
 
 Theorem test_orn_inv_19:
@@ -1204,6 +1486,20 @@ Proof.
   intros. apply orn_bintree_bintreeV2_inv. exists n. apply tr.
 Qed.
 
+Theorem test_section_19:
+  forall (A : Type) (tr : bintree A),
+    orn_bintree_bintreeV2_inv A (orn_bintree_bintreeV2 A tr) = tr.
+Proof.
+  exact orn_bintree_bintreeV2_section.
+Qed.
+
+Theorem test_retraction_19:
+  forall (A : Type) (tr : packed_bintreeV2 A),
+    orn_bintree_bintreeV2 A (orn_bintree_bintreeV2_inv A tr) = tr.
+Proof.
+  exact orn_bintree_bintreeV2_retraction.
+Qed.
+
 (* (* --- TODO Index already existed in the old constructor, but wasn't used --- *) *)
 
 (* (* --- TODO Index already existed in the old constructor, but was used differently --- *) *)
@@ -1212,4 +1508,3 @@ Qed.
 
 (* (* --- TODO examples from notebook etc --- *) *)
 
-(* (* --- TODO write a test script --- *) *)

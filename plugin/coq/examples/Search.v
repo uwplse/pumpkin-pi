@@ -14,6 +14,9 @@ Notation nilV := Vector.nil.
 
 (* --- Running search --- *)
 
+Set DEVOID search prove coherence.
+Set DEVOID search prove equivalence.
+
 Find ornament list vector as ltv.
 
 (* --- Indexer ---*)
@@ -65,33 +68,26 @@ Notation forget l := (ltv_inv _ l).
 (* --- Correctness --- *)
 
 (*
+ * Since we set the "prove coherence" and "prove equivalence" options,
+ * DEVOID generated coherence, section, and retraction proofs. Here I 
+ * simply restate them and show that the generated terms are correct.
+ * These automatically generated proofs show that the components DEVOID
+ * found form the ornamental promotion isomorphism between lists and vectors.
+ *
+ * Coherence follows by construction, while section and retraction each
+ * follow by induction, where each case is a fold over rewrites by each
+ * recursive argument, ending with reflexivity.
+ *)
+
+(*
  * Coherence follows by construction:
  *)
 Theorem coherence:
   forall {T : Type} (l : list T),
     indexer l = projT1 (promote l).
 Proof.
-  reflexivity.
+  exact ltv_coh.
 Qed.
-
-(*
- * To prove section and retraction, we need to show that equalities are
- * preserved in the inductive cases. For list this is simple:
- *)
-Lemma eq_cons:
-  forall {T : Type} (t : T) (l1 : list T) (l2 : list T),
-    l1 = l2 ->
-    cons t l1 = cons t l2.
-Proof.
-  intros. subst. auto.
-Qed.
-
-(*
- * Luckily, we have a tool that can give us the version over vectors :)
- *)
-Lift list vector in @eq_cons as eq_sigT_cons_p.
-Definition eq_sigT_cons {T} t n1 v1 n2 v2 := (* partial unpack *)
-  eq_sigT_cons_p T t (existT _ n1 v1) (existT _ n2 v2).
 
 (*
  * With these lemmas, we get section and retraction very formulaically:
@@ -100,19 +96,12 @@ Theorem section:
   forall {T : Type} (l : list T),
     forget (promote l) = l.
 Proof.
-  intros. induction l.
-  - reflexivity.
-  - apply eq_cons. apply IHl.
+  exact ltv_section.
 Qed.
 
 Theorem retraction:
   forall {T : Type} (v : sigT (fun n => vector T n)),
     promote (forget v) = v.
 Proof.
-  intros. induction v; induction p.
-  - reflexivity.
-  - apply eq_sigT_cons. apply IHp.
-Qed.  
-
-
-
+  exact ltv_retraction.
+Qed.

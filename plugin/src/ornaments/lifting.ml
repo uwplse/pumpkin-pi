@@ -121,3 +121,9 @@ let initialize_lifting env evd c_orn c_orn_inv =
  * Flip the direction of a lifting
  *)
 let flip_dir l = { l with is_fwd = (not l.is_fwd) }
+
+(*
+ * Apply a function twice, once in each direction.
+ * Compose the result into a tuple.
+ *)
+let twice_directional f l = map_tuple f (l, flip_dir l)
