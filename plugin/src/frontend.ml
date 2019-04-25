@@ -12,6 +12,7 @@ open Utilities
 open Pp
 open Printer
 open Ltac_plugin
+open Coherence
        
 (* --- Options --- *)
 
