@@ -16,7 +16,22 @@ open Equivalence
 open Options
 
 (* --- Commands --- *)
-                        
+
+(*
+ * If the option is enabled, then prove coherence after find_ornament is called.
+ * Otherwise, do nothing.
+ *)
+let maybe_prove_coherence n orn : unit =
+  if is_search_coh () then
+    let env = Global.env () in
+    let evd = Evd.from_env env in
+    let coh, coh_typ = prove_coherence env evd orn in
+    let coh_n = with_suffix n "coh" in
+    let _ = define_term ~typ:coh_typ coh_n evd coh true in
+    Printf.printf "Defined coherence proof %s\n\n" (Id.to_string coh_n)
+  else
+    ()
+       
 (*
  * Identify an algebraic ornament between two types
  * Define the components of the corresponding equivalence
@@ -37,21 +52,13 @@ let find_ornament n_o d_old d_new =
     let idx_n = with_suffix n "index" in
     let orn = search_orn_inductive env evd idx_n trm_o trm_n in
     ignore (define_term idx_n evd orn.indexer true);
-    (* TODO move all of these into msg_notice *)
     Printf.printf "Defined indexer %s\n\n" (Id.to_string idx_n);
     let promote = define_term n evd orn.promote true in
     Printf.printf "Defined promotion %s\n\n" (Id.to_string n);
     let inv_n = with_suffix n "inv" in
     let forget = define_term inv_n evd orn.forget true in
     Printf.printf "Defined forgetful function %s\n\n" (Id.to_string inv_n);
-    (if is_search_coh () then (* TODO move these out, too *)
-       let env = Global.env () in
-       let coh, coh_typ = prove_coherence env evd orn in
-       let coh_n = with_suffix n "coh" in
-       let _ = define_term ~typ:coh_typ coh_n evd coh true in
-       Printf.printf "Defined coherence proof %s\n\n" (Id.to_string coh_n)
-     else
-       ());
+    maybe_prove_coherence n orn;
     (if is_search_equiv () then
        let env = Global.env () in
        let (promote, forget) = map_tuple make_constant (n, inv_n) in
