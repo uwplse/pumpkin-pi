@@ -13,6 +13,7 @@ open Pp
 open Printer
 open Ltac_plugin
 open Coherence
+open Equivalence
        
 (* --- Options --- *)
 

@@ -23,11 +23,3 @@ val search_orn_inductive :
   types -> (* new inductive type *)
   promotion (* ornamental promotion *)
 
-(* --- Automatically generated proofs about promotions search discovers --- *)
-
-(*
- * Prove section and retraction
- * Return the section term and the retraction term
- * (Don't return the types, since Coq can infer them without issue)
- *)
-val prove_equivalence : env -> evar_map -> lifting -> (types * types)

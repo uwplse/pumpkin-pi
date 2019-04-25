@@ -44,6 +44,8 @@ src/automation/search.ml
 src/automation/search.mli
 src/automation/coherence.ml
 src/automation/coherence.mli
+src/automation/equivalence.ml
+src/automation/equivalence.mli
 src/automation/eta.ml
 src/automation/eta.mli
 src/automation/lift.ml
