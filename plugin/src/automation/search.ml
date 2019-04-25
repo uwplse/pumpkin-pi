@@ -709,7 +709,6 @@ let equiv_cases env evd pms p lemmas l elim_typ =
     (take (Array.length lemmas) (factor_product elim_typ))
 (*
  * Prove section/retraction
- * TODO clean
  *)
 let equiv_proof env evd l =
   let to_body = lookup_definition env (lift_to l) in
@@ -731,18 +730,18 @@ let equiv_proof env evd l =
       l
       env_to
   in
+  let elim = type_eliminator env_to (i, i_index) in
+  let (env_pms, elim_typ_p) = zoom_n_prod env npm (infer_type env evd elim) in
+  let (n, p_t, elim_typ) = destProd elim_typ_p in
+  let env_p = push_local (n, p_t) env_pms in
+  let p = shift (equiv_motive env_pms evd p_t l) in
+  let pms = shift_all (mk_n_rels npm) in
+  let cs = equiv_cases env_p evd pms p lemmas l elim_typ in
+  let args = shift_all_by (new_rels2 env_eq_proof env_to) (mk_n_rels nargs) in
+  let index_back = map_backward (insert_index (l.off - npm) (mkRel 2)) l in
+  let reindex_back = map_backward (reindex nargs (mkRel 1)) l in
+  let depth = new_rels2 env_eq_proof env_p in
   let eq_proof =
-    let elim = type_eliminator env_to (i, i_index) in
-    let (env_pms, elim_typ_p) = zoom_n_prod env npm (infer_type env evd elim) in
-    let (n, p_t, elim_typ) = destProd elim_typ_p in
-    let env_p = push_local (n, p_t) env_pms in
-    let p = shift (equiv_motive env_pms evd p_t l) in
-    let pms = shift_all (mk_n_rels npm) in
-    let cs = equiv_cases env_p evd pms p lemmas l elim_typ in
-    let args = shift_all_by (new_rels2 env_eq_proof env_to) (mk_n_rels nargs) in
-    let index_back = map_backward (insert_index (l.off - npm) (mkRel 2)) l in
-    let reindex_back = map_backward (reindex nargs (mkRel 1)) l in
-    let depth = new_rels2 env_eq_proof env_p in
     apply_eliminator
       {
         elim;
@@ -751,13 +750,12 @@ let equiv_proof env evd l =
         cs = shift_all_by depth cs;
         final_args = reindex_back (index_back args);
       }
-  in
+  in 
   let eq_typ = on_type dest_eq env_eq_proof evd eq_proof in
   let sym_app = apply_eq_sym { eq_typ; eq_proof } in
-  reconstruct_lambda
-    env_to
-    (map_backward
-      (fun unpacked ->
+  let equiv_b =
+    map_backward
+      (fun unpacked -> (* eliminate sigT for retraction *)
         let env_p = push_local (Anonymous, typ_app) env_to in
         let trm1 = unshift (all_eq_substs (eq_typ.trm1, mkRel 2) eq_typ.trm2) in
         let at_type = shift typ_app in
@@ -766,9 +764,10 @@ let equiv_proof env evd l =
         let to_elim = dest_sigT typ_app in
         elim_sigT { to_elim; packed_type = p; unpacked; arg = mkRel 1 })
       l
-      (reconstruct_lambda_n env_eq_proof sym_app (nb_rel env_to)))
+      (reconstruct_lambda_n env_eq_proof sym_app (nb_rel env_to))
+  in reconstruct_lambda env_to equiv_b
 
 (*
- * TODO explain
+ * Prove section and retraction
  *)
 let prove_equivalence env evd = twice_directional (equiv_proof env evd)
