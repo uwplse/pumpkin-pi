@@ -715,7 +715,12 @@ let equiv_proof env evd l =
   let to_body = lookup_definition env (lift_to l) in
   let env_to = zoom_env zoom_lambda_term env to_body in
   let typ_app = reduce_type env_to evd (mkRel 1) in
-  let env_eq_proof =
+  let typ = first_fun (zoom_if_sig_app typ_app) in
+  let ((i, i_index), _) = destInd typ in
+  let npm = (lookup_mind i env).mind_nparams in
+  let nargs = new_rels env_to npm in
+  let lemmas = eq_lemmas env evd typ l in (* equality lemmas *)
+  let env_eq_proof = (* unpack env_to for retraction *)
     map_backward
       (fun env ->
         let b_sig_typ = dest_sigT typ_app in
@@ -727,18 +732,16 @@ let equiv_proof env evd l =
       env_to
   in
   let eq_proof =
-    let typ = first_fun (zoom_if_sig_app typ_app) in
-    let lemmas = eq_lemmas env evd typ l in
-    let ((i, i_index), _) = destInd typ in
     let elim = type_eliminator env_to (i, i_index) in
-    let npm = (lookup_mind i env).mind_nparams in
-    let nargs = new_rels env_to npm in
-    let (env_pms, elim_typ) = zoom_n_prod env npm (infer_type env evd elim) in
-    let (n, p_t, elim_typ_b) = destProd elim_typ in
+    let (env_pms, elim_typ_p) = zoom_n_prod env npm (infer_type env evd elim) in
+    let (n, p_t, elim_typ) = destProd elim_typ_p in
     let env_p = push_local (n, p_t) env_pms in
     let p = shift (equiv_motive env_pms evd p_t l) in
     let pms = shift_all (mk_n_rels npm) in
-    let cs = equiv_cases env_p evd pms p lemmas l elim_typ_b in
+    let cs = equiv_cases env_p evd pms p lemmas l elim_typ in
+    let args = shift_all_by (new_rels2 env_eq_proof env_to) (mk_n_rels nargs) in
+    let index_back = map_backward (insert_index (l.off - npm) (mkRel 2)) l in
+    let reindex_back = map_backward (reindex nargs (mkRel 1)) l in
     let depth = new_rels2 env_eq_proof env_p in
     apply_eliminator
       {
@@ -746,12 +749,7 @@ let equiv_proof env evd l =
         pms = shift_all_by depth pms;
         p = shift_by depth p;
         cs = shift_all_by depth cs;
-        final_args =
-          map_backward
-            (fun xs -> (* apply directly to the unpacked arguments *)
-              reindex nargs (mkRel 1) (insert_index (l.off - npm) (mkRel 2) xs))
-            l
-            (shift_all_by (new_rels2 env_eq_proof env_to) (mk_n_rels nargs))
+        final_args = reindex_back (index_back args);
       }
   in
   let eq_typ = on_type dest_eq env_eq_proof evd eq_proof in
