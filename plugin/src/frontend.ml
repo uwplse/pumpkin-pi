@@ -72,12 +72,12 @@ let find_ornament n_o d_old d_new =
     let idx_n = with_suffix n "index" in
     let orn = search_orn_inductive env evd idx_n trm_o trm_n in
     ignore (define_term idx_n evd orn.indexer true);
-    Printf.printf "Defined indexer %s\n\n" (Id.to_string idx_n);
+    Printf.printf "Defined indexing function %s.\n\n" (Id.to_string idx_n);
     let promote = define_term n evd orn.promote true in
-    Printf.printf "Defined promotion %s\n\n" (Id.to_string n);
+    Printf.printf "Defined promotion %s.\n\n" (Id.to_string n);
     let inv_n = with_suffix n "inv" in
     let forget = define_term inv_n evd orn.forget true in
-    Printf.printf "Defined forgetful function %s\n\n" (Id.to_string inv_n);
+    Printf.printf "Defined forgetful function %s.\n\n" (Id.to_string inv_n);
     maybe_prove_coherence n orn;
     maybe_prove_equivalence n inv_n;
     (try
