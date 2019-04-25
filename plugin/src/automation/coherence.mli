@@ -5,8 +5,6 @@ open Evd
 
 (* --- Automatically generated coherence proof --- *)
 
-(* TODO move option here *)
-
 (*
  * Prove coherence with the components search finds
  * Return the coherence proof term and its type
