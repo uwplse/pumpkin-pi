@@ -79,9 +79,6 @@ Notation forget l := (ltv_inv _ l).
  * recursive argument, ending with reflexivity.
  *)
 
-(*
- * Coherence follows by construction:
- *)
 Theorem coherence:
   forall {T : Type} (l : list T),
     indexer l = projT1 (promote l).
@@ -89,9 +86,6 @@ Proof.
   exact ltv_coh.
 Qed.
 
-(*
- * With these lemmas, we get section and retraction very formulaically:
- *)
 Theorem section:
   forall {T : Type} (l : list T),
     forget (promote l) = l.
