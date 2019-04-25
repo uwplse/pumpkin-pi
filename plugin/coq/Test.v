@@ -1,9 +1,8 @@
 Require Import List.
 Require Import Ornamental.Ornaments.
 
-Set DEVOID search prove coherence. (* TODO use for tests *)
-Set DEVOID search prove equivalence. (* TODO use for tests, all other files *)
-(* TODO port case studies etc too *)
+Set DEVOID search prove coherence.
+Set DEVOID search prove equivalence.
 
 (*--- Lists and Vectors ---*)
 
@@ -143,7 +142,7 @@ Qed.
 
 Theorem test_orn_index_flector:
   forall (l : flist),
-  projT1 (orn_flist_flector l) = orn_flist_flector_index l.
+    projT1 (orn_flist_flector l) = orn_flist_flector_index l.
 Proof.
   exact orn_flist_flector_coh.
 Qed.
@@ -224,7 +223,7 @@ Theorem test_orn_index_2:
   forall (A : Type) (l : rev_list A),
     projT1 (orn_rev_list_rev_vector A l) = orn_rev_list_rev_vector_index A l.
 Proof.
-  intros. reflexivity.
+  exact orn_rev_list_rev_vector_coh.
 Qed.
 
 Theorem test_orn_inv_2:
@@ -288,7 +287,7 @@ Theorem test_orn_index_3:
   forall (A : Type) (tr : bintree A),
     projT1 (orn_bintree_bintreeV A tr) = orn_bintree_bintreeV_index A tr.
 Proof.
-  intros. reflexivity.
+  exact orn_bintree_bintreeV_coh.
 Qed.
 
 Theorem test_orn_inv_3:
@@ -349,7 +348,7 @@ Theorem test_orn_index_4:
   forall (A : Type) (B : Type) (l : list2 A B),
     projT1 (orn_list2_vector2 A B l) = orn_list2_vector2_index A B l.
 Proof.
-  intros. reflexivity.
+  exact orn_list2_vector2_coh.
 Qed.
 
 Theorem test_orn_inv_4:
@@ -407,7 +406,7 @@ Theorem test_orn_index_5:
   forall (l : nat_list),
     projT1 (orn_natlist_natvector l) = orn_natlist_natvector_index l.
 Proof.
-  intros. reflexivity.
+  exact orn_natlist_natvector_coh.
 Qed.
 
 Theorem test_orn_inv_5:
@@ -465,7 +464,7 @@ Theorem test_orn_index_6:
   forall (A : Type) (tr : bintree A),
     projT1 (orn_bintree_bintreeV_rev A tr) = orn_bintree_bintreeV_rev_index A tr.
 Proof.
-  intros. reflexivity.
+  exact orn_bintree_bintreeV_rev_coh.
 Qed.
 
 Theorem test_orn_inv_6:
@@ -523,7 +522,7 @@ Theorem test_orn_index_7:
   forall (A : Type) (n : nat) (v : vector A n),
     projT1 (orn_vector_doublevector A n v) = orn_vector_doublevector_index A n v.
 Proof.
-  intros. reflexivity.
+  exact orn_vector_doublevector_coh.
 Qed.
 
 Theorem test_orn_inv_7:
@@ -571,7 +570,7 @@ Theorem test_orn_index_8:
   forall (A : Type) (n : nat) (v : vector A n),
     projT1 (orn_vector_doublevector2 A n v) = orn_vector_doublevector2_index A n v.
 Proof.
-  intros. reflexivity.
+  exact orn_vector_doublevector2_coh.
 Qed.
 
 Theorem test_orn_inv_8:
@@ -629,7 +628,7 @@ Theorem test_orn_index_9:
   forall (A : Type) (n : nat) (v : vector A n),
     projT1 (orn_vector_doublevector3 A n v) = orn_vector_doublevector3_index A n v.
 Proof.
-  intros. reflexivity.
+  exact orn_vector_doublevector3_coh.
 Qed.
 
 Theorem test_orn_inv_9:
@@ -687,7 +686,7 @@ Theorem test_orn_index_10:
   forall (A : Type) (n : nat) (v : vector A n),
     projT1 (orn_vector_doublevector4 A n v) = orn_vector_doublevector4_index A n v.
 Proof.
-  intros. reflexivity.
+  exact orn_vector_doublevector4_coh.
 Qed.
 
 Theorem test_orn_inv_10:
@@ -744,7 +743,7 @@ Theorem test_orn_index_11:
   forall (nl : nat_list),
     projT1 (orn_natlist_hdnatlist nl) = orn_natlist_hdnatlist_index nl.
 Proof.
-  intros. reflexivity.
+  exact orn_natlist_hdnatlist_coh.
 Qed.
 
 Theorem test_orn_inv_11:
@@ -793,7 +792,7 @@ Theorem test_orn_index_12:
   forall (A : Type) (l : list A),
     projT1 (orn_list_hdlist A l) = orn_list_hdlist_index A l.
 Proof.
-  intros. reflexivity.
+  exact orn_list_hdlist_coh.
 Qed.
 
 Theorem test_orn_inv_12:
@@ -856,7 +855,7 @@ Theorem test_orn_index_13:
   forall (A : Type) (l : list_alt A),
     projT1 (orn_listalt_hdlistalt A l) = orn_listalt_hdlistalt_index A l.
 Proof.
-  intros. reflexivity.
+  exact orn_listalt_hdlistalt_coh.
 Qed.
 
 Theorem test_orn_inv_13:
@@ -910,7 +909,7 @@ Theorem test_orn_index_14:
   forall (n : nat),
     projT1 (orn_nat_natnat n) = orn_nat_natnat_index n.
 Proof.
-  intros. reflexivity.
+  exact orn_nat_natnat_coh.
 Qed.
 
 Theorem test_orn_inv_14:
@@ -962,7 +961,7 @@ Theorem test_orn_index_15:
   forall (A : Type) (n : nat) (v : vector A n),
     projT1 (orn_vector_doublevector5 A n v) = orn_vector_doublevector5_index A n v.
 Proof.
-  intros. auto.
+  exact orn_vector_doublevector5_coh.
 Qed.
 
 Theorem test_orn_inv_15:
@@ -1040,7 +1039,7 @@ Theorem test_orn_index_16:
   forall (n m : nat) (b : _bst n m),
     projT1 (_bst_to_bst n m b) = _bst_to_bst_index n m b.
 Proof.
-  intros. auto.
+  exact _bst_to_bst_coh.
 Qed.
 
 Theorem test_orn_inv_16:
@@ -1089,7 +1088,7 @@ Theorem test_orn_index_17:
   forall (n m : nat) (b : _bst n m),
     projT1 (_bst_to_bst2 n m b) = _bst_to_bst2_index n m b.
 Proof.
-  intros. auto.
+  exact _bst_to_bst2_coh.
 Qed.
 
 Theorem test_orn_inv_17:
@@ -1138,7 +1137,7 @@ Theorem test_orn_index_18:
   forall (n m : nat) (b : _bst n m),
     projT1 (_bst_to_bst3 n m b) = _bst_to_bst3_index n m b.
 Proof.
-  intros. auto.
+  exact _bst_to_bst3_coh.
 Qed.
 
 Theorem test_orn_inv_18:
@@ -1191,7 +1190,7 @@ Theorem test_orn_index_19:
   forall (A : Type) (tr : bintree A),
     projT1 (orn_bintree_bintreeV2 A tr) = orn_bintree_bintreeV2_index A tr.
 Proof.
-  intros. auto.
+  exact orn_bintree_bintreeV2_coh.
 Qed.
 
 Theorem test_orn_inv_19:
