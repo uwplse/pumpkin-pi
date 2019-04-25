@@ -31,6 +31,26 @@ let maybe_prove_coherence n orn : unit =
     Printf.printf "Defined coherence proof %s\n\n" (Id.to_string coh_n)
   else
     ()
+      
+(*
+ * If the option is enabled, then prove section and retraction after find_ornament is called.
+ * Otherwise, do nothing.
+ *)
+let maybe_prove_equivalence n inv_n : unit =
+  if is_search_equiv () then
+    let env = Global.env () in
+    let evd = Evd.from_env env in
+    let (promote, forget) = map_tuple make_constant (n, inv_n) in
+    let l = initialize_lifting env evd promote forget in
+    let (section, retraction) = prove_equivalence env evd l in
+    let sec_n = with_suffix n "section" in
+    let _ = define_term sec_n evd section true in
+    Printf.printf "Defined section proof %s\n\n" (Id.to_string sec_n);
+    let rec_n = with_suffix n "retraction" in
+    let _ = define_term rec_n evd retraction true in
+    Printf.printf "Defined retraction proof %s\n\n" (Id.to_string rec_n)
+  else
+    ()
        
 (*
  * Identify an algebraic ornament between two types
@@ -59,20 +79,7 @@ let find_ornament n_o d_old d_new =
     let forget = define_term inv_n evd orn.forget true in
     Printf.printf "Defined forgetful function %s\n\n" (Id.to_string inv_n);
     maybe_prove_coherence n orn;
-    (if is_search_equiv () then
-       let env = Global.env () in
-       let (promote, forget) = map_tuple make_constant (n, inv_n) in
-       let l = initialize_lifting env evd promote forget in
-       (* TODO rename lift config or something? *)
-       let (section, retraction) = prove_equivalence env evd l in
-       let sec_n = with_suffix n "section" in
-       let _ = define_term sec_n evd section true in
-       Printf.printf "Defined section proof %s\n\n" (Id.to_string sec_n);
-       let rec_n = with_suffix n "retraction" in
-       let _ = define_term rec_n evd retraction true in
-       Printf.printf "Defined retraction proof %s\n\n" (Id.to_string rec_n)
-     else
-       ());
+    maybe_prove_equivalence n inv_n;
     (try
        save_ornament (trm_o, trm_n) (promote, forget)
      with _ ->
