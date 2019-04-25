@@ -3,11 +3,6 @@ Require Import PeanoNat Nat List Sorting.Permutation.
 Require Import lemmas cast.
 Import ListNotations.
 
-(* TODO clean, save old version somewhere, have scripts to run each *)
-
-(* Generate equivalences for EFF! *)
-Set DEVOID search prove equivalence.
-
 Open Scope bool_scope.
 
 Infix "==" := Nat.eqb (at level 70, no associativity) : nat_scope.
@@ -16,7 +11,7 @@ Notation "x <= y" := (Nat.leb x y) (at level 70, y at next level, no associativi
 Notation "p '.1'" := (projT1 p) (at level 3, left associativity).
 Notation "p '.2'" := (projT2 p) (at level 3, left associativity).
 
-Definition is_true (b : bool) : Prop := b = true. 
+Definition is_true (b : bool) : Prop := b = true.
 Coercion is_true : bool >-> Sortclass.
 
 Module Type Comparable.
@@ -154,7 +149,7 @@ Module CaseStudy (Elem : Comparable).
       Definition tree6000 :=
         Branch Elem.z tree2000 tree4000.
 
-      (* 8407 nodes, to be exact *)
+(*       (* 8407 nodes, to be exact *) *)
       Definition tree8000 :=
         Branch Elem.z tree4000 tree4000.
 
@@ -163,16 +158,11 @@ Module CaseStudy (Elem : Comparable).
         Branch Elem.z tree2000 tree8000.
 
     (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
-    Redirect "out/tree20" Time Eval vm_compute in tree20. (* TODO remove if unused *)
+    Redirect "out/tree20" Time Eval vm_compute in tree20.
     Redirect "out/tree40" Time Eval vm_compute in tree40.
     Redirect "out/tree60" Time Eval vm_compute in tree60.
     Redirect "out/tree80" Time Eval vm_compute in tree80.
     Redirect "out/tree100" Time Eval vm_compute in tree100.
- (* Redirect "out/tree200" Time Eval vm_compute in tree200. TODO if we fix constant bug
-    Redirect "out/tree400" Time Eval vm_compute in tree400.
-    Redirect "out/tree600" Time Eval vm_compute in tree600.
-    Redirect "out/tree800" Time Eval vm_compute in tree800.*)
-    Redirect "out/tree1000" Time Eval vm_compute in tree1000.
     Redirect "out/tree2000" Time Eval vm_compute in tree2000.
     Redirect "out/tree4000" Time Eval vm_compute in tree4000.
     Redirect "out/tree6000" Time Eval vm_compute in tree6000.
@@ -215,26 +205,6 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/postorder/base60" Time Eval vm_compute in (postorder tree60).
     Redirect "out/postorder/base80" Time Eval vm_compute in (postorder tree80).
     Redirect "out/postorder/base100" Time Eval vm_compute in (postorder tree100).
-
-(* TODO if we fix constant bug
-    Redirect "out/preorder/base200" Time Eval vm_compute in (preorder tree200).
-    Redirect "out/preorder/base400" Time Eval vm_compute in (preorder tree400).
-    Redirect "out/preorder/base600" Time Eval vm_compute in (preorder tree600).
-    Redirect "out/preorder/base800" Time Eval vm_compute in (preorder tree800).
-    Redirect "out/preorder/base1000" Time Eval vm_compute in (preorder tree1000).
-
-    Redirect "out/inorder/base200" Time Eval vm_compute in (inorder tree200).
-    Redirect "out/inorder/base400" Time Eval vm_compute in (inorder tree400).
-    Redirect "out/inorder/base600" Time Eval vm_compute in (inorder tree600).
-    Redirect "out/inorder/base800" Time Eval vm_compute in (inorder tree800).
-    Redirect "out/inorder/base1000" Time Eval vm_compute in (inorder tree1000).
-
-    Redirect "out/postorder/base200" Time Eval vm_compute in (postorder tree200).
-    Redirect "out/postorder/base400" Time Eval vm_compute in (postorder tree400).
-    Redirect "out/postorder/base600" Time Eval vm_compute in (postorder tree600).
-    Redirect "out/postorder/base800" Time Eval vm_compute in (postorder tree800).
-    Redirect "out/postorder/base1000" Time Eval vm_compute in (postorder tree1000).
-*)
   End Base.
 
   (* --- Single iteration: from binary trees to sized binary trees --- *)
@@ -248,7 +218,7 @@ Module CaseStudy (Elem : Comparable).
       : tree (S (n_l + n_r))
     | Leaf (val : Elem.t) : tree (S O).
 
-    Find ornament Base.tree tree as orn_size.
+    Find ornament Base.tree tree.
 
     Lift Base.tree tree in Base.preorder as preorder'.
     Unpack preorder' as preorder.
@@ -330,9 +300,9 @@ Module CaseStudy (Elem : Comparable).
       : bst min_l max_r (inv ord_l ord_r max_l val min_r)
     | Leaf (val : Elem.t) : bst val val true.
 
-    Find ornament Base.tree __bst as __orn_order.
-    Find ornament __bst _bst as _orn_order.
-    Find ornament _bst bst as orn_order.
+    Find ornament Base.tree __bst.
+    Find ornament __bst _bst.
+    Find ornament _bst bst.
 
     Lift Base.tree __bst in Base.preorder as __preorder'.
     Unpack __preorder' as __preorder.
@@ -368,74 +338,26 @@ Module CaseStudy (Elem : Comparable).
         min max ord tree.
 
      (* --- Lifted inputs --- *)
-     (* Small *)
-     Lift Base.tree __bst in Base.tree20 as __tree20'.
-     Unpack __tree20' as __tree20.
-     Lift __bst _bst in __tree20 as _tree20'. 
-     Unpack _tree20' as _tree20.
+     Lift Base.tree __bst in Base.tree20 as __tree20.
+     Lift __bst _bst in __tree20 as _tree20.
      Lift _bst bst in _tree20 as tree20'.
-     Unpack tree20' as tree20.
-     Lift Base.tree __bst in Base.tree40 as __tree40'.
-     Unpack __tree40' as __tree40.
-     Lift __bst _bst in __tree40 as _tree40'.
-     Unpack _tree40' as _tree40.
+     Definition tree20 := projT2 (projT2 (projT2 tree20')).
+     Lift Base.tree __bst in Base.tree40 as __tree40.
+     Lift __bst _bst in __tree40 as _tree40.
      Lift _bst bst in _tree40 as tree40'.
-     Unpack tree40' as tree40.
-     Lift Base.tree __bst in Base.tree60 as __tree60'.
-     Unpack __tree60' as __tree60.
-     Lift __bst _bst in __tree60 as _tree60'.
-     Unpack _tree60' as _tree60.
+     Definition tree40 := projT2 (projT2 (projT2 tree40')).
+     Lift Base.tree __bst in Base.tree60 as __tree60.
+     Lift __bst _bst in __tree60 as _tree60.
      Lift _bst bst in _tree60 as tree60'.
-     Unpack tree60' as tree60.
-     Lift Base.tree __bst in Base.tree80 as __tree80'.
-     Unpack __tree80' as __tree80.
-     Lift __bst _bst in __tree80 as _tree80'.
-     Unpack _tree80' as _tree80.
+     Definition tree60 := projT2 (projT2 (projT2 tree60')).
+     Lift Base.tree __bst in Base.tree80 as __tree80.
+     Lift __bst _bst in __tree80 as _tree80.
      Lift _bst bst in _tree80 as tree80'.
-     Unpack tree80' as tree80.
-     Lift Base.tree __bst in Base.tree100 as __tree100'.
-     Unpack __tree100' as __tree100.
-     Lift __bst _bst in __tree100 as _tree100'.
-     Unpack _tree100' as _tree100.
+     Definition tree80 := projT2 (projT2 (projT2 tree80')).
+     Lift Base.tree __bst in Base.tree100 as __tree100.
+     Lift __bst _bst in __tree100 as _tree100.
      Lift _bst bst in _tree100 as tree100'.
-     Unpack tree100' as tree100.
-
-     (* Medium *)
-(* TODO if we fix constant bug
-     Lift Base.tree __bst in Base.tree200 as __tree200'.
-     Unpack __tree200' as __tree200.
-     Lift __bst _bst in __tree200 as _tree200'.
-     Unpack _tree200' as _tree200.
-     Lift _bst bst in _tree200 as tree200'.
-     Unpack tree200' as tree200.
-     Lift Base.tree __bst in Base.tree400 as __tree400'.
-     Unpack __tree400' as __tree400.
-     Lift __bst _bst in __tree400 as _tree400'.
-     Unpack _tree400' as _tree400.
-     Lift _bst bst in _tree400 as tree400'.
-     Unpack tree400' as tree400.
-     Lift Base.tree __bst in Base.tree600 as __tree600'.
-     Unpack __tree600' as __tree600.
-     Lift __bst _bst in __tree600 as _tree600'.
-     Unpack _tree600' as _tree600.
-     Print _tree600'.
-     Print _tree600. (* TODO next line hangs *)
-     Lift _bst bst in _tree600 as tree600'.
-     Print _tree600'.
-     Unpack tree600' as tree600.
-     Lift Base.tree __bst in Base.tree800 as __tree800'.
-     Unpack __tree800' as __tree800.
-     Lift __bst _bst in __tree800 as _tree800'.
-     Unpack _tree800' as _tree800.
-     Lift _bst bst in _tree800 as tree800'.
-     Unpack tree800' as tree800.
-     Lift Base.tree __bst in Base.tree1000 as __tree1000'.
-     Unpack __tree1000' as __tree1000.
-     Lift __bst _bst in __tree1000 as _tree1000'.
-     Unpack _tree1000' as _tree1000.
-     Lift _bst bst in _tree1000 as tree1000'.
-     Unpack tree1000' as tree1000.
-*)
+     Definition tree100 := projT2 (projT2 (projT2 tree100')).
 
     (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
     Redirect "out/tree20" Time Eval vm_compute in tree20.
@@ -443,13 +365,6 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/tree60" Time Eval vm_compute in tree60.
     Redirect "out/tree80" Time Eval vm_compute in tree80.
     Redirect "out/tree100" Time Eval vm_compute in tree100.
-(*
-    Redirect "out/tree200" Time Eval vm_compute in tree200.
-    Redirect "out/tree400" Time Eval vm_compute in tree400.
-    Redirect "out/tree600" Time Eval vm_compute in tree600.
-    Redirect "out/tree800" Time Eval vm_compute in tree800.
-    Redirect "out/tree1000" Time Eval vm_compute in tree1000.
-*)
 
     (* --- Base search data --- *)
     Redirect "out/search/base20" Time Eval vm_compute in (search tree20 Elem.x).
@@ -457,13 +372,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/search/base60" Time Eval vm_compute in (search tree60 Elem.x).
     Redirect "out/search/base80" Time Eval vm_compute in (search tree80 Elem.x).
     Redirect "out/search/base100" Time Eval vm_compute in (search tree100 Elem.x).
-(*
-    Redirect "out/search/base200" Time Eval vm_compute in (search tree200 Elem.x).
-    Redirect "out/search/base400" Time Eval vm_compute in (search tree400 Elem.x).
-    Redirect "out/search/base600" Time Eval vm_compute in (search tree600 Elem.x).
-    Redirect "out/search/base800" Time Eval vm_compute in (search tree800 Elem.x).
-    Redirect "out/search/base1000" Time Eval vm_compute in (search tree1000 Elem.x).
-*)
+
   End Ordered.
 
   Module Balanced.
@@ -486,8 +395,8 @@ Module CaseStudy (Elem : Comparable).
       : avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r) (S (Nat.max h_l h_r)) (inv bal_l bal_r h_l h_r)
     | Leaf (val : Elem.t) : avl val val true O true.
 
-    Find ornament Ordered.bst _avl as _orn_balance.
-    Find ornament _avl avl as orn_balance.
+    Find ornament Ordered.bst _avl.
+    Find ornament _avl avl.
 
     Lift Ordered.bst _avl in Ordered.preorder as _preorder'.
     Unpack _preorder' as _preorder.
@@ -511,49 +420,21 @@ Module CaseStudy (Elem : Comparable).
     Arguments search {_ _ _ _ _} _ _.
 
     (* --- Lifted inputs --- *)
-    (* Small: *)
     Lift Ordered.bst _avl in Ordered.tree20 as _tree20'.
-    Unpack _tree20' as _tree20.
+    Definition _tree20 := projT2 _tree20'.
     Lift _avl avl in _tree20 as tree20.
     Lift Ordered.bst _avl in Ordered.tree40 as _tree40'.
-    Unpack _tree40' as _tree40.
+    Definition _tree40 := projT2 _tree40'.
     Lift _avl avl in _tree40 as tree40.
     Lift Ordered.bst _avl in Ordered.tree60 as _tree60'.
-    Unpack _tree60' as _tree60.
+    Definition _tree60 := projT2 _tree60'.
     Lift _avl avl in _tree60 as tree60.
     Lift Ordered.bst _avl in Ordered.tree80 as _tree80'.
-    Unpack _tree80' as _tree80.
+    Definition _tree80 := projT2 _tree80'.
     Lift _avl avl in _tree80 as tree80.
     Lift Ordered.bst _avl in Ordered.tree100 as _tree100'.
-    Unpack _tree100' as _tree100.
+    Definition _tree100 := projT2 _tree100'.
     Lift _avl avl in _tree100 as tree100.
-
-    (* Medium: *)
-(* TODO if we fix constant bug
-    Lift Ordered.bst _avl in Ordered.tree200 as _tree200'.
-    Unpack _tree200' as _tree200.
-    Lift _avl avl in _tree200 as tree200'.
-    Unpack tree200' as tree200.
-    Print tree200.
-    Lift Ordered.bst _avl in Ordered.tree400 as _tree400'.
-    Unpack _tree400' as _tree400.
-    Lift _avl avl in _tree400 as tree400'.
-    Unpack tree400' as tree400.
-    Print tree400.
-    Lift Ordered.bst _avl in Ordered.tree600 as _tree600'.
-    Unpack _tree600' as _tree600.
-    Lift _avl avl in _tree600 as tree600'.
-    Unpack tree600' as tree600.
-    Lift Ordered.bst _avl in Ordered.tree800 as _tree800'.
-    Unpack _tree800' as _tree800.
-    Lift _avl avl in _tree800 as tree800'.
-    Unpack tree800' as tree800.
-    Print tree800.
-    Lift Ordered.bst _avl in Ordered.tree1000 as _tree1000'.
-    Unpack _tree1000' as _tree1000.
-    Lift _avl avl in _tree1000 as tree1000'.
-    Unpack tree1000' as tree1000.
-*)
 
     (* --- AVL data --- *)
     Redirect "out/preorder/avl20" Time Eval vm_compute in (preorder' _ _ _ _ tree20).
@@ -561,44 +442,24 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/preorder/avl60" Time Eval vm_compute in (preorder' _ _ _ _ tree60).
     Redirect "out/preorder/avl80" Time Eval vm_compute in (preorder' _ _ _ _ tree80).
     Redirect "out/preorder/avl100" Time Eval vm_compute in (preorder' _ _ _ _ tree100).
-(*    Redirect "out/preorder/avl200" Time Eval vm_compute in (preorder' _ _ _ _ tree200). TODO if we fix constant bug
-    Redirect "out/preorder/avl400" Time Eval vm_compute in (preorder' _ _ _ _ tree400).
-    Redirect "out/preorder/avl600" Time Eval vm_compute in (preorder' _ _ _ _ tree600).
-    Redirect "out/preorder/avl800" Time Eval vm_compute in (preorder' _ _ _ _ tree800).
-    Redirect "out/preorder/avl1000" Time Eval vm_compute in (preorder' _ _ _ _ tree1000).*)
 
     Redirect "out/inorder/avl20" Time Eval vm_compute in (inorder' _ _ _ _ tree20).
     Redirect "out/inorder/avl40" Time Eval vm_compute in (inorder' _ _ _ _ tree40).
     Redirect "out/inorder/avl60" Time Eval vm_compute in (inorder' _ _ _ _ tree60).
     Redirect "out/inorder/avl80" Time Eval vm_compute in (inorder' _ _ _ _ tree80).
     Redirect "out/inorder/avl100" Time Eval vm_compute in (inorder' _ _ _ _ tree100).
-(*    Redirect "out/inorder/avl200" Time Eval vm_compute in (inorder' _ _ _ _ tree200). TODO if we fix constant bug
-    Redirect "out/inorder/avl400" Time Eval vm_compute in (inorder' _ _ _ _ tree400).
-    Redirect "out/inorder/avl600" Time Eval vm_compute in (inorder' _ _ _ _ tree600).
-    Redirect "out/inorder/avl800" Time Eval vm_compute in (inorder' _ _ _ _ tree800).
-    Redirect "out/inorder/avl1000" Time Eval vm_compute in (inorder' _ _ _ _ tree1000).*)
 
     Redirect "out/postorder/avl20" Time Eval vm_compute in (postorder' _ _ _ _ tree20).
     Redirect "out/postorder/avl40" Time Eval vm_compute in (postorder' _ _ _ _ tree40).
     Redirect "out/postorder/avl60" Time Eval vm_compute in (postorder' _ _ _ _ tree60).
     Redirect "out/postorder/avl80" Time Eval vm_compute in (postorder' _ _ _ _ tree80).
     Redirect "out/postorder/avl100" Time Eval vm_compute in (postorder' _ _ _ _ tree100).
-(*    Redirect "out/postorder/avl200" Time Eval vm_compute in (postorder' _ _ _ _ tree200). TODO if we fix constant bug
-    Redirect "out/postorder/avl400" Time Eval vm_compute in (postorder' _ _ _ _ tree400).
-    Redirect "out/postorder/avl600" Time Eval vm_compute in (postorder' _ _ _ _ tree600).
-    Redirect "out/postorder/avl800" Time Eval vm_compute in (postorder' _ _ _ _ tree800).
-    Redirect "out/postorder/avl1000" Time Eval vm_compute in (postorder' _ _ _ _ tree1000). *)
 
     Redirect "out/search/avl20" Time Eval vm_compute in (search' _ _ _ _ tree20 Elem.x).
     Redirect "out/search/avl40" Time Eval vm_compute in (search' _ _ _ _ tree40 Elem.x).
     Redirect "out/search/avl60" Time Eval vm_compute in (search' _ _ _ _ tree60 Elem.x).
     Redirect "out/search/avl80" Time Eval vm_compute in (search' _ _ _ _ tree80 Elem.x).
     Redirect "out/search/avl100" Time Eval vm_compute in (search' _ _ _ _ tree100 Elem.x).
-(*    Redirect "out/search/avl200" Time Eval vm_compute in (search' _ _ _ _ tree20 Elem.x). TODO if we fix constant bug
-    Redirect "out/search/avl400" Time Eval vm_compute in (search' _ _ _ _ tree40 Elem.x).
-    Redirect "out/search/avl600" Time Eval vm_compute in (search' _ _ _ _ tree60 Elem.x).
-    Redirect "out/search/avl800" Time Eval vm_compute in (search' _ _ _ _ tree80 Elem.x).
-    Redirect "out/search/avl1000" Time Eval vm_compute in (search' _ _ _ _ tree100 Elem.x).*)
 
     (* --- Normalized term sizes --- *)
     Redirect "out/normalized/preorder-avl" Eval compute in preorder'.
