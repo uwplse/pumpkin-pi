@@ -20,7 +20,6 @@ open Util
 open Differencing
 open Hypotheses (* TODO same *)
 open Specialization (* TODO same *)
-open Printing (* TODO temporary *)
 
 (* --- Finding the new index --- *)
 
@@ -511,11 +510,6 @@ let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
      failwith "this kind of change is not yet supported"
 
 (* --- Coherence proof --- *)
-
-(*
- * TODO consider moving everything from here except top-level
- * into another file
- *)
 
 (* 
  * Prove coherence with the components search finds
