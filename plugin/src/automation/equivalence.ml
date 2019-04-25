@@ -1,4 +1,3 @@
-open Names (* TODO clean *)
 open Constr
 open Environ
 open Coqterms
@@ -8,13 +7,9 @@ open Indexing
 open Hofs
 open Factoring
 open Zooming
-open Abstraction
 open Lifting
-open Declarations
-open Util
-open Differencing
-open Hypotheses (* TODO same *)
-open Specialization (* TODO same *)
+open Hypotheses
+open Specialization
 
 (* --- Automatically generated equivalence proofs about search components --- *)
 
