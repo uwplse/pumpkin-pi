@@ -1,9 +1,6 @@
 From UnivalentParametricity Require Import HoTT UR URTactics FP Record MoreInductive.
 Require Import PeanoNat list perm lemmas.
 
-(* TODO run these to make sure results the same still *)
-(* TODO copy old version to a file; include both *)
-
 Set Universe Polymorphism.
 
 Open Scope bool_scope.
@@ -245,10 +242,6 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/treeEFF60" Time Eval vm_compute in tree60.
     Redirect "../out/treeEFF80" Time Eval vm_compute in tree80.
     Redirect "../out/treeEFF100" Time Eval vm_compute in tree100.
-(*    Redirect "out/treeEFF200" Time Eval vm_compute in tree200. TODO if we fix constant bug
-    Redirect "out/treeEFF400" Time Eval vm_compute in tree400.
-    Redirect "out/treeEFF600" Time Eval vm_compute in tree600.
-    Redirect "out/treeEFF800" Time Eval vm_compute in tree800.*)
     Redirect "../out/treeEFF1000" Time Eval vm_compute in tree1000.
     Redirect "../out/treeEFF2000" Time Eval vm_compute in tree2000.
     Redirect "../out/treeEFF4000" Time Eval vm_compute in tree4000.
@@ -261,11 +254,6 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/preorder/baseEFF60" Time Eval vm_compute in (preorder tree60).
     Redirect "../out/preorder/baseEFF80" Time Eval vm_compute in (preorder tree80).
     Redirect "../out/preorder/baseEFF100" Time Eval vm_compute in (preorder tree100).
-(*    Redirect "../out/preorder/baseEFF200" Time Eval vm_compute in (preorder tree200).
-    Redirect "../out/preorder/baseEFF400" Time Eval vm_compute in (preorder tree400).
-    Redirect "../out/preorder/baseEFF600" Time Eval vm_compute in (preorder tree600).
-    Redirect "../out/preorder/baseEFF800" Time Eval vm_compute in (preorder tree800).
-    Redirect "../out/preorder/baseEFF1000" Time Eval vm_compute in (preorder tree1000).*)
     Redirect "../out/preorder/baseEFF2000" Time Eval vm_compute in (preorder tree2000).
     Redirect "../out/preorder/baseEFF4000" Time Eval vm_compute in (preorder tree4000).
     Redirect "../out/preorder/baseEFF6000" Time Eval vm_compute in (preorder tree6000).
@@ -284,11 +272,6 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/inorder/baseEFF60" Time Eval vm_compute in (inorder tree60).
     Redirect "../out/inorder/baseEFF80" Time Eval vm_compute in (inorder tree80).
     Redirect "../out/inorder/baseEFF100" Time Eval vm_compute in (inorder tree100).
-(*    Redirect "../out/inorder/baseEFF200" Time Eval vm_compute in (inorder tree200).TODO if we fix constant bug
-    Redirect "../out/inorder/baseEFF400" Time Eval vm_compute in (inorder tree400).
-    Redirect "../out/inorder/baseEFF600" Time Eval vm_compute in (inorder tree600).
-    Redirect "../out/inorder/baseEFF800" Time Eval vm_compute in (inorder tree800).
-    Redirect "../out/inorder/baseEFF1000" Time Eval vm_compute in (inorder tree1000).*)
     Redirect "../out/inorder/baseEFF2000" Time Eval vm_compute in (inorder tree2000).
     Redirect "../out/inorder/baseEFF4000" Time Eval vm_compute in (inorder tree4000).
     Redirect "../out/inorder/baseEFF6000" Time Eval vm_compute in (inorder tree6000).
@@ -307,11 +290,6 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/postorder/baseEFF60" Time Eval vm_compute in (postorder tree60).
     Redirect "../out/postorder/baseEFF80" Time Eval vm_compute in (postorder tree80).
     Redirect "../out/postorder/baseEFF100" Time Eval vm_compute in (postorder tree100).
-(*   Redirect "../out/postorder/baseEFF200" Time Eval vm_compute in (postorder tree200).TODO if we fix constant bug
-    Redirect "../out/postorder/baseEFF400" Time Eval vm_compute in (postorder tree400).
-    Redirect "../out/postorder/baseEFF600" Time Eval vm_compute in (postorder tree600).
-    Redirect "../out/postorder/baseEFF800" Time Eval vm_compute in (postorder tree800).
-    Redirect "../out/postorder/baseEFF1000" Time Eval vm_compute in (postorder tree1000).*)
     Redirect "../out/postorder/baseEFF2000" Time Eval vm_compute in (postorder tree2000).
     Redirect "../out/postorder/baseEFF4000" Time Eval vm_compute in (postorder tree4000).
     Redirect "../out/postorder/baseEFF6000" Time Eval vm_compute in (postorder tree6000).
@@ -1098,21 +1076,6 @@ sigT_rect
     Definition __tree100 := ↑ Base.tree100.
     Definition _tree100 := ↑ (__tree100 .2).
     Definition tree100 := (↑ (_tree100 .2)).2.
-(*    Definition __tree200 := ↑ Base.tree200. TODO if we fix constant bug
-    Definition _tree200 := ↑ (__tree200. .2).
-    Definition tree200 := (↑ (_tree200 .2)).2.
-    Definition __tree400 := ↑ Base.tree400.
-    Definition _tree400 := ↑ (__tree400 .2).
-    Definition tree400 := (↑ (_tree400 .2)).2.
-    Definition __tree600 := ↑ Base.tree600.
-    Definition _tree600 := ↑ (__tree600 .2).
-    Definition tree600 := (↑ (_tree600 .2)).2.
-    Definition __tree800 := ↑ Base.tree800.
-    Definition _tree800 := ↑ (__tree800 .2).
-    Definition tree800 := (↑ (_tree800 .2)).2.
-    Definition __tree1000 := ↑ Base.tree1000.
-    Definition _tree1000 := ↑ (__tree1000 .2).
-    Definition tree1000 := (↑ (_tree1000 .2)).2.*)
 
     (* For consistency, follow the same process *)
     Definition __preorder'  : {lo:Elem.t & __bst lo} -> list Elem.t := ↑ Base.preorder.
@@ -1154,11 +1117,6 @@ sigT_rect
     Redirect "../out/treeEFF60" Time Eval vm_compute in tree60.
     Redirect "../out/treeEFF80" Time Eval vm_compute in tree80.
     Redirect "../out/treeEFF100" Time Eval vm_compute in tree100.
-(*    Redirect "../out/treeEFF200" Time Eval vm_compute in tree200.TODO if we fix constant bug
-    Redirect "../out/treeEFF400" Time Eval vm_compute in tree400.
-    Redirect "../out/treeEFF600" Time Eval vm_compute in tree600.
-    Redirect "../out/treeEFF800" Time Eval vm_compute in tree800.
-    Redirect "../out/treeEFF1000" Time Eval vm_compute in tree1000.*)
 
     (* --- Base search data --- *)
     Redirect "../out/search/baseEFF20" Time Eval vm_compute in (search tree20 Elem.x).
@@ -1166,11 +1124,6 @@ sigT_rect
     Redirect "../out/search/baseEFF60" Time Eval vm_compute in (search tree60 Elem.x).
     Redirect "../out/search/baseEFF80" Time Eval vm_compute in (search tree80 Elem.x).
     Redirect "../out/search/baseEFF100" Time Eval vm_compute in (search tree100 Elem.x).
-(*    Redirect "../out/search/baseEFF200" Time Eval vm_compute in (search tree200 Elem.x). TODO if we fix constant bug
-    Redirect "../out/search/baseEFF400" Time Eval vm_compute in (search tree400 Elem.x).
-    Redirect "../out/search/baseEFF600" Time Eval vm_compute in (search tree600 Elem.x).
-    Redirect "../out/search/baseEFF800" Time Eval vm_compute in (search tree800 Elem.x).
-    Redirect "../out/search/baseEFF1000" Time Eval vm_compute in (search tree1000 Elem.x).*)
 
 
   End Ordered.
@@ -1638,16 +1591,6 @@ sigT_rect
     Definition tree80 := ↑ _tree80.2.
     Definition _tree100 := ↑ Ordered.tree100.
     Definition tree100 := ↑ _tree100.2.
-(*    Definition _tree200 := ↑ Ordered.tree200.
-    Definition tree200 := ↑ _tree200.2.
-    Definition _tree400 := ↑ Ordered.tree400.
-    Definition tree400 := ↑ _tree400.2.
-    Definition _tree600 := ↑ Ordered.tree600.
-    Definition tree600 := ↑ _tree600.2.
-    Definition _tree800 := ↑ Ordered.tree800.
-    Definition tree800 := ↑ _tree800.2.
-    Definition _tree1000 := ↑ Ordered.tree1000.
-    Definition tree1000 := ↑ _tree1000.2. *)
 
     Definition _preorder' lo hi ord : {n : nat & _avl lo hi ord n} -> list Elem.t :=
       ↑ (@Ordered.preorder lo hi ord).
@@ -1661,12 +1604,6 @@ sigT_rect
     Redirect "../out/preorder/avlEFF60" Time Eval vm_compute in (preorder' tree60).
     Redirect "../out/preorder/avlEFF80" Time Eval vm_compute in (preorder' tree80).
     Redirect "../out/preorder/avlEFF100" Time Eval vm_compute in (preorder' tree100).
-(*    Redirect "../out/preorder/avlEFF200" Time Eval vm_compute in (preorder' tree200).TODO if we fix constant bug
-    Redirect "../out/preorder/avlEFF400" Time Eval vm_compute in (preorder' tree400).
-    Redirect "../out/preorder/avlEFF600" Time Eval vm_compute in (preorder' tree600).
-    Redirect "../out/preorder/avlEFF800" Time Eval vm_compute in (preorder' tree800).
-    Redirect "../out/preorder/avlEFF1000" Time Eval vm_compute in (preorder' tree1000).*)
-
     (* 105 LoC in normal form *)
     Definition _inorder' lo hi ord : {n : nat & _avl lo hi ord n} -> list Elem.t :=
       ↑ (@Ordered.inorder lo hi ord).
@@ -1679,11 +1616,6 @@ sigT_rect
     Redirect "../out/inorder/avlEFF60" Time Eval vm_compute in (inorder' tree60).
     Redirect "../out/inorder/avlEFF80" Time Eval vm_compute in (inorder' tree80).
     Redirect "../out/inorder/avlEFF100" Time Eval vm_compute in (inorder' tree100).
-(*   Redirect "../out/inorder/avlEFF200" Time Eval vm_compute in (inorder' tree200).TODO if we fix constant bug
-    Redirect "../out/inorder/avlEFF400" Time Eval vm_compute in (inorder' tree400).
-    Redirect "../out/inorder/avlEFF600" Time Eval vm_compute in (inorder' tree600).
-    Redirect "../out/inorder/avlEFF800" Time Eval vm_compute in (inorder' tree800).
-    Redirect "../out/inorder/avlEFF1000" Time Eval vm_compute in (inorder' tree1000).*)
 
     (* 112 LoC in normal form *)
     Definition _postorder' lo hi ord : {n : nat & _avl lo hi ord n} -> list Elem.t :=
@@ -1697,11 +1629,6 @@ sigT_rect
     Redirect "../out/postorder/avlEFF60" Time Eval vm_compute in (postorder' tree60).
     Redirect "../out/postorder/avlEFF80" Time Eval vm_compute in (postorder' tree80).
     Redirect "../out/postorder/avlEFF100" Time Eval vm_compute in (postorder' tree100).
-(*    Redirect "../out/postorder/avlEFF200" Time Eval vm_compute in (postorder' tree200).TODO if we fix constant bug
-    Redirect "../out/postorder/avlEFF400" Time Eval vm_compute in (postorder' tree400).
-    Redirect "../out/postorder/avlEFF600" Time Eval vm_compute in (postorder' tree600).
-    Redirect "../out/postorder/avlEFF800" Time Eval vm_compute in (postorder' tree800).
-    Redirect "../out/postorder/avlEFF1000" Time Eval vm_compute in (postorder' tree1000).*)
 
     (* 105 LoC in normal form *)
     Definition _search' lo hi ord : {n : nat & _avl lo hi ord n} -> Elem.t -> bool :=
@@ -1715,11 +1642,6 @@ sigT_rect
     Redirect "../out/search/avlEFF60" Time Eval vm_compute in (search' tree60 Elem.x).
     Redirect "../out/search/avlEFF80" Time Eval vm_compute in (search' tree80 Elem.x).
     Redirect "../out/search/avlEFF100" Time Eval vm_compute in (search' tree100 Elem.x).
-(*   Redirect "../out/search/avlEFF200" Time Eval vm_compute in (search' tree200 Elem.x).TODO if we fix constant bug
-    Redirect "../out/search/avlEFF400" Time Eval vm_compute in (search' tree400 Elem.x).
-    Redirect "../out/search/avlEFF600" Time Eval vm_compute in (search' tree600 Elem.x).
-    Redirect "../out/search/avlEFF800" Time Eval vm_compute in (search' tree800 Elem.x).
-    Redirect "../out/search/avlEFF1000" Time Eval vm_compute in (search' tree1000 Elem.x).*)
 
     (* --- Normalized term sizes --- *)
     Redirect "../out/normalized/preorder-avlEFF" Eval compute in preorder'.
