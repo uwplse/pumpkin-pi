@@ -224,6 +224,13 @@ Module CaseStudy (Elem : Comparable).
 
     Find ornament Base.tree tree as orn_size.
 
+    (* --- Generated equivalences --- *)
+    Redirect "out/equivalences/orn_size_index" Print orn_size_index.
+    Redirect "out/equivalences/orn_size" Print orn_size.
+    Redirect "out/equivalences/orn_size_inv" Print orn_size_inv.
+    Redirect "out/equivalences/orn_size_section" Print orn_size_section.
+    Redirect "out/equivalences/orn_size_retraction" Print orn_size_retraction.
+
     Lift Base.tree tree in Base.preorder as preorder'.
     Unpack preorder' as preorder.
 
@@ -307,6 +314,23 @@ Module CaseStudy (Elem : Comparable).
     Find ornament Base.tree __bst as __orn_order.
     Find ornament __bst _bst as _orn_order.
     Find ornament _bst bst as orn_order.
+
+    (* --- Generated equivalences --- *)
+    Redirect "out/equivalences/__orn_order_index" Print __orn_order_index.
+    Redirect "out/equivalences/__orn_order" Print __orn_order.
+    Redirect "out/equivalences/__orn_order_inv" Print __orn_order_inv.
+    Redirect "out/equivalences/__orn_order_section" Print __orn_order_section.
+    Redirect "out/equivalences/__orn_order_retraction" Print __orn_order_retraction.
+    Redirect "out/equivalences/_orn_order_index" Print _orn_order_index.
+    Redirect "out/equivalences/_orn_order" Print _orn_order.
+    Redirect "out/equivalences/_orn_order_inv" Print _orn_order_inv.
+    Redirect "out/equivalences/_orn_order_section" Print _orn_order_section.
+    Redirect "out/equivalences/_orn_order_retraction" Print _orn_order_retraction.
+    Redirect "out/equivalences/orn_order_index" Print orn_order_index.
+    Redirect "out/equivalences/orn_order" Print orn_order.
+    Redirect "out/equivalences/orn_order_inv" Print orn_order_inv.
+    Redirect "out/equivalences/orn_order_section" Print orn_order_section.
+    Redirect "out/equivalences/orn_order_retraction" Print orn_order_retraction.
 
     Lift Base.tree __bst in Base.preorder as __preorder'.
     Unpack __preorder' as __preorder.
@@ -411,6 +435,18 @@ Module CaseStudy (Elem : Comparable).
 
     Find ornament Ordered.bst _avl as _orn_balance.
     Find ornament _avl avl as orn_balance.
+
+    (* --- Generated equivalences --- *)
+    Redirect "out/equivalences/_orn_balance_index" Print _orn_balance_index.
+    Redirect "out/equivalences/_orn_balance" Print _orn_balance.
+    Redirect "out/equivalences/_orn_balance_inv" Print _orn_balance_inv.
+    Redirect "out/equivalences/_orn_balance_section" Print _orn_balance_section.
+    Redirect "out/equivalences/_orn_balance_retraction" Print _orn_balance_retraction.
+    Redirect "out/equivalences/orn_balance_index" Print orn_balance_index.
+    Redirect "out/equivalences/orn_balance" Print orn_balance.
+    Redirect "out/equivalences/orn_balance_inv" Print orn_balance_inv.
+    Redirect "out/equivalences/orn_balance_section" Print orn_balance_section.
+    Redirect "out/equivalences/orn_balance_retraction" Print orn_balance_retraction.
 
     Lift Ordered.bst _avl in Ordered.preorder as _preorder'.
     Unpack _preorder' as _preorder.

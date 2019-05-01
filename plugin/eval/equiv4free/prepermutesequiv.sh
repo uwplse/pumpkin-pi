@@ -22,5 +22,5 @@ mkdir ../out/normalized
 make clean
 
 echo "grab a coffee or a book; this will take an hour once you've uncommented the right line"
-timeout 1h `time make separate`
+timeout 1h `time make separateequiv`
 

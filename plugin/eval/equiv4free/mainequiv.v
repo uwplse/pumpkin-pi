@@ -237,28 +237,28 @@ Module CaseStudy (Elem : Comparable).
         t.
 
     (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
-    Redirect "../out/treeEFF20" Time Eval vm_compute in tree20.
-    Redirect "../out/treeEFF40" Time Eval vm_compute in tree40.
-    Redirect "../out/treeEFF60" Time Eval vm_compute in tree60.
-    Redirect "../out/treeEFF80" Time Eval vm_compute in tree80.
-    Redirect "../out/treeEFF100" Time Eval vm_compute in tree100.
-    Redirect "../out/treeEFF1000" Time Eval vm_compute in tree1000.
-    Redirect "../out/treeEFF2000" Time Eval vm_compute in tree2000.
-    Redirect "../out/treeEFF4000" Time Eval vm_compute in tree4000.
-    Redirect "../out/treeEFF6000" Time Eval vm_compute in tree6000.
-    Redirect "../out/treeEFF8000" Time Eval vm_compute in tree8000.
-    Redirect "../out/treeEFF10000" Time Eval vm_compute in tree10000.
+    Redirect "../out/treeEFF20equiv" Time Eval vm_compute in tree20.
+    Redirect "../out/treeEFF40equiv" Time Eval vm_compute in tree40.
+    Redirect "../out/treeEFF60equiv" Time Eval vm_compute in tree60.
+    Redirect "../out/treeEFF80equiv" Time Eval vm_compute in tree80.
+    Redirect "../out/treeEFF100equiv" Time Eval vm_compute in tree100.
+    Redirect "../out/treeEFF1000equiv" Time Eval vm_compute in tree1000.
+    Redirect "../out/treeEFF2000equiv" Time Eval vm_compute in tree2000.
+    Redirect "../out/treeEFF4000equiv" Time Eval vm_compute in tree4000.
+    Redirect "../out/treeEFF6000equiv" Time Eval vm_compute in tree6000.
+    Redirect "../out/treeEFF8000equiv" Time Eval vm_compute in tree8000.
+    Redirect "../out/treeEFF10000equiv" Time Eval vm_compute in tree10000.
 
-    Redirect "../out/preorder/baseEFF20" Time Eval vm_compute in (preorder tree20).
-    Redirect "../out/preorder/baseEFF40" Time Eval vm_compute in (preorder tree40).
-    Redirect "../out/preorder/baseEFF60" Time Eval vm_compute in (preorder tree60).
-    Redirect "../out/preorder/baseEFF80" Time Eval vm_compute in (preorder tree80).
-    Redirect "../out/preorder/baseEFF100" Time Eval vm_compute in (preorder tree100).
-    Redirect "../out/preorder/baseEFF2000" Time Eval vm_compute in (preorder tree2000).
-    Redirect "../out/preorder/baseEFF4000" Time Eval vm_compute in (preorder tree4000).
-    Redirect "../out/preorder/baseEFF6000" Time Eval vm_compute in (preorder tree6000).
-    Redirect "../out/preorder/baseEFF8000" Time Eval vm_compute in (preorder tree8000).
-    Redirect "../out/preorder/baseEFF10000" Time Eval vm_compute in (preorder tree10000).
+    Redirect "../out/preorder/baseEFF20equiv" Time Eval vm_compute in (preorder tree20).
+    Redirect "../out/preorder/baseEFF40equiv" Time Eval vm_compute in (preorder tree40).
+    Redirect "../out/preorder/baseEFF60equiv" Time Eval vm_compute in (preorder tree60).
+    Redirect "../out/preorder/baseEFF80equiv" Time Eval vm_compute in (preorder tree80).
+    Redirect "../out/preorder/baseEFF100equiv" Time Eval vm_compute in (preorder tree100).
+    Redirect "../out/preorder/baseEFF2000equiv" Time Eval vm_compute in (preorder tree2000).
+    Redirect "../out/preorder/baseEFF4000equiv" Time Eval vm_compute in (preorder tree4000).
+    Redirect "../out/preorder/baseEFF6000equiv" Time Eval vm_compute in (preorder tree6000).
+    Redirect "../out/preorder/baseEFF8000equiv" Time Eval vm_compute in (preorder tree8000).
+    Redirect "../out/preorder/baseEFF10000equiv" Time Eval vm_compute in (preorder tree10000).
 
     (* 12 LoC in normal form *)
     Definition inorder (t : tree) : list Elem.t :=
@@ -267,16 +267,16 @@ Module CaseStudy (Elem : Comparable).
         (fun x _ ys _ zs => ys ++ [x] ++ zs)
         (fun x => [x])
         t.
-    Redirect "../out/inorder/baseEFF20" Time Eval vm_compute in (inorder tree20).
-    Redirect "../out/inorder/baseEFF40" Time Eval vm_compute in (inorder tree40).
-    Redirect "../out/inorder/baseEFF60" Time Eval vm_compute in (inorder tree60).
-    Redirect "../out/inorder/baseEFF80" Time Eval vm_compute in (inorder tree80).
-    Redirect "../out/inorder/baseEFF100" Time Eval vm_compute in (inorder tree100).
-    Redirect "../out/inorder/baseEFF2000" Time Eval vm_compute in (inorder tree2000).
-    Redirect "../out/inorder/baseEFF4000" Time Eval vm_compute in (inorder tree4000).
-    Redirect "../out/inorder/baseEFF6000" Time Eval vm_compute in (inorder tree6000).
-    Redirect "../out/inorder/baseEFF8000" Time Eval vm_compute in (inorder tree8000).
-    Redirect "../out/inorder/baseEFF10000" Time Eval vm_compute in (inorder tree10000).
+    Redirect "../out/inorder/baseEFF20equiv" Time Eval vm_compute in (inorder tree20).
+    Redirect "../out/inorder/baseEFF40equiv" Time Eval vm_compute in (inorder tree40).
+    Redirect "../out/inorder/baseEFF60equiv" Time Eval vm_compute in (inorder tree60).
+    Redirect "../out/inorder/baseEFF80equiv" Time Eval vm_compute in (inorder tree80).
+    Redirect "../out/inorder/baseEFF100equiv" Time Eval vm_compute in (inorder tree100).
+    Redirect "../out/inorder/baseEFF2000equiv" Time Eval vm_compute in (inorder tree2000).
+    Redirect "../out/inorder/baseEFF4000equiv" Time Eval vm_compute in (inorder tree4000).
+    Redirect "../out/inorder/baseEFF6000equiv" Time Eval vm_compute in (inorder tree6000).
+    Redirect "../out/inorder/baseEFF8000equiv" Time Eval vm_compute in (inorder tree8000).
+    Redirect "../out/inorder/baseEFF10000equiv" Time Eval vm_compute in (inorder tree10000).
 
     (* 12 LoC in normal form *)
     Definition postorder (t : tree) : list Elem.t :=
@@ -285,16 +285,16 @@ Module CaseStudy (Elem : Comparable).
         (fun x _ ys _ zs => ys ++ zs ++ [x])
         (fun x => [x])
         t.
-    Redirect "../out/postorder/baseEFF20" Time Eval vm_compute in (postorder tree20).
-    Redirect "../out/postorder/baseEFF40" Time Eval vm_compute in (postorder tree40).
-    Redirect "../out/postorder/baseEFF60" Time Eval vm_compute in (postorder tree60).
-    Redirect "../out/postorder/baseEFF80" Time Eval vm_compute in (postorder tree80).
-    Redirect "../out/postorder/baseEFF100" Time Eval vm_compute in (postorder tree100).
-    Redirect "../out/postorder/baseEFF2000" Time Eval vm_compute in (postorder tree2000).
-    Redirect "../out/postorder/baseEFF4000" Time Eval vm_compute in (postorder tree4000).
-    Redirect "../out/postorder/baseEFF6000" Time Eval vm_compute in (postorder tree6000).
-    Redirect "../out/postorder/baseEFF8000" Time Eval vm_compute in (postorder tree8000).
-    Redirect "../out/postorder/baseEFF10000" Time Eval vm_compute in (postorder tree10000).
+    Redirect "../out/postorder/baseEFF20equiv" Time Eval vm_compute in (postorder tree20).
+    Redirect "../out/postorder/baseEFF40equiv" Time Eval vm_compute in (postorder tree40).
+    Redirect "../out/postorder/baseEFF60equiv" Time Eval vm_compute in (postorder tree60).
+    Redirect "../out/postorder/baseEFF80equiv" Time Eval vm_compute in (postorder tree80).
+    Redirect "../out/postorder/baseEFF100equiv" Time Eval vm_compute in (postorder tree100).
+    Redirect "../out/postorder/baseEFF2000equiv" Time Eval vm_compute in (postorder tree2000).
+    Redirect "../out/postorder/baseEFF4000equiv" Time Eval vm_compute in (postorder tree4000).
+    Redirect "../out/postorder/baseEFF6000equiv" Time Eval vm_compute in (postorder tree6000).
+    Redirect "../out/postorder/baseEFF8000equiv" Time Eval vm_compute in (postorder tree8000).
+    Redirect "../out/postorder/baseEFF10000equiv" Time Eval vm_compute in (postorder tree10000).
 
     Lemma pre_permutes : forall t : tree,
         permutes (preorder t) (inorder t).
@@ -353,111 +353,15 @@ Module CaseStudy (Elem : Comparable).
       rewrite Equiv_tree_id. cbn. eapply Equiv_id.
     Defined.
 
-    (* --- Begin automatically generated terms from DEVOID --- *)
-    (* TODO copy these in automatically *)
+    (* --- Begin auto-generated equivalences from DEVOID --- *)
 
-    Definition orn_size_index := 
-fun t : Base.tree =>
-Base.tree_rect (fun _ : Base.tree => nat)
-  (fun (_ : Elem.t) (left : Base.tree) (H : (fun _ : Base.tree => nat) left)
-     (right : Base.tree) (H0 : (fun _ : Base.tree => nat) right) =>
-   S (H + H0)) (fun _ : Elem.t => 1) t.
-
-   Definition orn_size := 
-fun t : Base.tree =>
-existT (fun H : nat => tree H) (orn_size_index t)
-  (Base.tree_rect (fun t0 : Base.tree => tree (orn_size_index t0))
-     (fun (val : Elem.t) (left : Base.tree)
-        (H : (fun (_ : nat) (t0 : Base.tree) => tree (orn_size_index t0))
-               (orn_size_index left) left) (right : Base.tree)
-        (H0 : (fun (_ : nat) (t0 : Base.tree) => tree (orn_size_index t0))
-                (orn_size_index right) right) =>
-      Branch (orn_size_index left) (orn_size_index right) val H H0)
-     (fun val : Elem.t => Leaf val) t).
-
-   Definition orn_size_inv := 
-fun t : {H : nat & tree H} =>
-tree_rect (fun (n : nat) (_ : tree n) => Base.tree)
-  (fun (n_l n_r : nat) (val : Elem.t) (_ : tree n_l) 
-     (H : Base.tree) (_ : tree n_r) (H0 : Base.tree) => 
-   Base.Branch val H H0) (fun val : Elem.t => Base.Leaf val) 
-  t .1 t .2.
-
-  Definition orn_size_section := 
-fun t : Base.tree =>
-eq_sym
-  (Base.tree_rect (fun t0 : Base.tree => t0 = orn_size_inv (orn_size t0))
-     (fun (val : Elem.t) (left : Base.tree)
-        (H : left = orn_size_inv (orn_size left)) 
-        (right : Base.tree) (H0 : right = orn_size_inv (orn_size right)) =>
-      eq_ind left
-        (fun H1 : Base.tree =>
-          Base.Branch val left right =
-          Base.Branch val H1 (orn_size_inv (orn_size right)))
-        (eq_ind right
-           (fun H1 : Base.tree =>
-            Base.Branch val left right = Base.Branch val left H1) eq_refl
-           (orn_size_inv (orn_size right)) H0) (orn_size_inv (orn_size left))
-        H) (fun val : Elem.t => eq_refl) t).
-
-Definition orn_size_retraction := 
-fun t : {H : nat & tree H} =>
-sigT_rect (fun t0 : {H : nat & tree H} => orn_size (orn_size_inv t0) = t0)
-  (fun (H : nat) (H0 : (fun H0 : nat => tree H0) H) =>
-   eq_sym
-     (tree_rect
-        (fun (n : nat) (t0 : tree n) =>
-         existT (fun H1 : nat => tree H1) n t0 =
-         orn_size (orn_size_inv (existT (fun H1 : nat => tree H1) n t0)))
-        (fun (n_l n_r : nat) (val : Elem.t) (left : tree n_l)
-           (H1 : existT (fun H1 : nat => tree H1) n_l left =
-                 orn_size
-                   (orn_size_inv (existT (fun H1 : nat => tree H1) n_l left)))
-           (right : tree n_r)
-           (H2 : existT (fun H2 : nat => tree H2) n_r right =
-                 orn_size
-                   (orn_size_inv (existT (fun H2 : nat => tree H2) n_r right)))
-         =>
-         eq_ind (existT (fun H3 : nat => tree H3) n_l left)
-           (fun H3 : {H3 : nat & tree H3} =>
-            existT (fun H4 : nat => tree H4) (S (n_l + n_r))
-              (Branch n_l n_r val left right) =
-            existT (fun H4 : nat => tree H4)
-              (S
-                 (H3 .1 +
-                  (orn_size
-                     (orn_size_inv
-                        (existT (fun H4 : nat => tree H4) n_r right))) .1))
-              (Branch H3 .1
-                 (orn_size
-                    (orn_size_inv
-                       (existT (fun H4 : nat => tree H4) n_r right))) .1 val
-                 H3 .2
-                 (orn_size
-                    (orn_size_inv
-                       (existT (fun H4 : nat => tree H4) n_r right))) .2))
-           (eq_ind (existT (fun H3 : nat => tree H3) n_r right)
-              (fun H3 : {H3 : nat & tree H3} =>
-               existT (fun H4 : nat => tree H4) (S (n_l + n_r))
-                 (Branch n_l n_r val left right) =
-               existT (fun H4 : nat => tree H4) (S (n_l + H3 .1))
-                 (Branch n_l H3 .1 val left H3 .2)) eq_refl
-              (existT (fun H3 : nat => tree H3)
-                 (orn_size
-                    (orn_size_inv
-                       (existT (fun H3 : nat => tree H3) n_r right))) .1
-                 (orn_size
-                    (orn_size_inv
-                       (existT (fun H3 : nat => tree H3) n_r right))) .2) H2)
-           (existT (fun H3 : nat => tree H3)
-              (orn_size
-                 (orn_size_inv (existT (fun H3 : nat => tree H3) n_l left)))
-              .1
-              (orn_size
-                 (orn_size_inv (existT (fun H3 : nat => tree H3) n_l left)))
-              .2) H1) (fun val : Elem.t => eq_refl) H H0)) t.
-
-    (* --- End automatically generated terms from DEVOID --- *)
+    (* EQUIV orn_size_index *)
+    (* EQUIV orn_size *)
+    (* EQUIV orn_size_inv *)
+    (* EQUIV orn_size_section *)
+    (* EQUIV orn_size_retraction *)
+ 
+    (* --- End auto-generated equivalences from DEVOID --- *)
 
     Instance IsEquiv_orn_size : IsEquiv orn_size.
     Proof.
@@ -490,29 +394,29 @@ sigT_rect (fun t0 : {H : nat & tree H} => orn_size (orn_size_inv t0) = t0)
     (* 38 LoC in normal form *)
     Definition preorder' : {n:nat & tree n} -> list Elem.t := ↑ Base.preorder.
     Definition preorder n t := preorder' (existT _ n t).
-    Redirect "../out/preorder/sizedEFF2000" Time Eval vm_compute in (preorder' tree2000).
-    Redirect "../out/preorder/sizedEFF4000" Time Eval vm_compute in (preorder' tree4000).
-    Redirect "../out/preorder/sizedEFF6000" Time Eval vm_compute in (preorder' tree6000).
-    Redirect "../out/preorder/sizedEFF8000" Time Eval vm_compute in (preorder' tree8000).
-    Redirect "../out/preorder/sizedEFF10000" Time Eval vm_compute in (preorder' tree10000).
+    Redirect "../out/preorder/sizedEFF2000equiv" Time Eval vm_compute in (preorder' tree2000).
+    Redirect "../out/preorder/sizedEFF4000equiv" Time Eval vm_compute in (preorder' tree4000).
+    Redirect "../out/preorder/sizedEFF6000equiv" Time Eval vm_compute in (preorder' tree6000).
+    Redirect "../out/preorder/sizedEFF8000equiv" Time Eval vm_compute in (preorder' tree8000).
+    Redirect "../out/preorder/sizedEFF10000equiv" Time Eval vm_compute in (preorder' tree10000).
 
     (* 37 LoC in normal form *)
     Definition inorder' : {n:nat & tree n} -> list Elem.t := ↑ Base.inorder.
     Definition inorder n t := inorder' (existT _ n t).
-    Redirect "../out/inorder/sizedEFF2000" Time Eval vm_compute in (inorder' tree2000).
-    Redirect "../out/inorder/sizedEFF4000" Time Eval vm_compute in (inorder' tree4000).
-    Redirect "../out/inorder/sizedEFF6000" Time Eval vm_compute in (inorder' tree6000).
-    Redirect "../out/inorder/sizedEFF8000" Time Eval vm_compute in (inorder' tree8000).
-    Redirect "../out/inorder/sizedEFF10000" Time Eval vm_compute in (inorder' tree10000).
+    Redirect "../out/inorder/sizedEFF2000equiv" Time Eval vm_compute in (inorder' tree2000).
+    Redirect "../out/inorder/sizedEFF4000equiv" Time Eval vm_compute in (inorder' tree4000).
+    Redirect "../out/inorder/sizedEFF6000equiv" Time Eval vm_compute in (inorder' tree6000).
+    Redirect "../out/inorder/sizedEFF8000equiv" Time Eval vm_compute in (inorder' tree8000).
+    Redirect "../out/inorder/sizedEFF10000equiv" Time Eval vm_compute in (inorder' tree10000).
 
     (* 43 LoC in normal form *)
     Definition postorder' : {n:nat & tree n} -> list Elem.t := ↑ Base.postorder.
     Definition postorder n t := postorder' (existT _ n t).
-    Redirect "../out/postorder/sizedEFF2000" Time Eval vm_compute in (postorder' tree2000).
-    Redirect "../out/postorder/sizedEFF4000" Time Eval vm_compute in (postorder' tree4000).
-    Redirect "../out/postorder/sizedEFF6000" Time Eval vm_compute in (postorder' tree6000).
-    Redirect "../out/postorder/sizedEFF8000" Time Eval vm_compute in (postorder' tree8000).
-    Redirect "../out/postorder/sizedEFF10000" Time Eval vm_compute in (postorder' tree10000).
+    Redirect "../out/postorder/sizedEFF2000equiv" Time Eval vm_compute in (postorder' tree2000).
+    Redirect "../out/postorder/sizedEFF4000equiv" Time Eval vm_compute in (postorder' tree4000).
+    Redirect "../out/postorder/sizedEFF6000equiv" Time Eval vm_compute in (postorder' tree6000).
+    Redirect "../out/postorder/sizedEFF8000equiv" Time Eval vm_compute in (postorder' tree8000).
+    Redirect "../out/postorder/sizedEFF10000equiv" Time Eval vm_compute in (postorder' tree10000).
 
     Lemma FP_preorder : Base.preorder ≈ preorder'.
     Proof.
@@ -545,10 +449,10 @@ sigT_rect (fun t0 : {H : nat & tree H} => orn_size (orn_size_inv t0) = t0)
       ↑ Base.pre_permutes.
 
     (* --- Normalized term sizes --- *)
-    Redirect "../out/normalized/preorder-sizedEFF" Eval compute in preorder'.
-    Redirect "../out/normalized/postorder-sizedEFF" Eval compute in postorder'.
-    Redirect "../out/normalized/inorder-sizedEFF" Eval compute in inorder'.
-    (* Redirect "../out/normalized/pre_permutes-sizedEFF" Eval compute in pre_permutes'. *)
+    Redirect "../out/normalized/preorder-sizedEFFequiv" Eval compute in preorder'.
+    Redirect "../out/normalized/postorder-sizedEFFequiv" Eval compute in postorder'.
+    Redirect "../out/normalized/inorder-sizedEFFequiv" Eval compute in inorder'.
+    (* Redirect "../out/normalized/pre_permutes-sizedEFFequiv" Eval compute in pre_permutes'. *)
 
     (* Auto-generated definitions go here in together case study *)
     Module Comparison.
@@ -627,379 +531,25 @@ sigT_rect (fun t0 : {H : nat & tree H} => orn_size (orn_size_inv t0) = t0)
       econstructor. cbn. intros t t'. unfold univalent_transport. rewrite Equiv_bst_id. cbn. eapply Equiv_id.
     Defined.
 
-   (* --- Begin automatically generated terms from DEVOID --- *)
-   (* TODO paste in automatically *)
+    (* --- Begin auto-generated equivalences from DEVOID --- *)
 
-   Definition __orn_order_index :=
-fun t : Base.tree =>
-Base.tree_rect (fun _ : Base.tree => Elem.t)
-  (fun (_ : Elem.t) (left : Base.tree)
-     (H : (fun _ : Base.tree => Elem.t) left) (right : Base.tree)
-     (_ : (fun _ : Base.tree => Elem.t) right) => H)
-  (fun val : Elem.t => val) t.
-
-  Definition __orn_order :=
-fun t : Base.tree =>
-existT (fun H : Elem.t => __bst H) (__orn_order_index t)
-  (Base.tree_rect (fun t0 : Base.tree => __bst (__orn_order_index t0))
-     (fun (val : Elem.t) (left : Base.tree)
-        (H : (fun (_ : Elem.t) (t1 : Base.tree) =>
-              __bst (__orn_order_index t1)) (__orn_order_index left) left)
-        (right : Base.tree)
-        (H0 : (fun (_ : Elem.t) (t1 : Base.tree) =>
-               __bst (__orn_order_index t1)) (__orn_order_index right) right)
-      => __Branch (__orn_order_index left) (__orn_order_index right) val H H0)
-     (fun val : Elem.t => __Leaf val) t).
-
-  Definition __orn_order_inv := 
-fun __b : {H : Elem.t & __bst H} =>
-__bst_rect (fun (t : Elem.t) (_ : __bst t) => Base.tree)
-  (fun (min_l min_r val : Elem.t) (_ : __bst min_l) 
-     (H : Base.tree) (_ : __bst min_r) (H0 : Base.tree) =>
-   Base.Branch val H H0) (fun val : Elem.t => Base.Leaf val) 
-  __b .1 __b .2.
-
-  Definition __orn_order_section := 
-fun t : Base.tree =>
-eq_sym
-  (Base.tree_rect
-     (fun t0 : Base.tree => t0 = __orn_order_inv (__orn_order t0))
-     (fun (val : Elem.t) (left : Base.tree)
-        (H : left = __orn_order_inv (__orn_order left)) 
-        (right : Base.tree)
-        (H0 : right = __orn_order_inv (__orn_order right)) =>
-      eq_ind left
-        (fun H1 : Base.tree =>
-         Base.Branch val left right =
-         Base.Branch val H1 (__orn_order_inv (__orn_order right)))
-        (eq_ind right
-           (fun H1 : Base.tree =>
-            Base.Branch val left right = Base.Branch val left H1) eq_refl
-           (__orn_order_inv (__orn_order right)) H0)
-        (__orn_order_inv (__orn_order left)) H) (fun val : Elem.t => eq_refl)
-     t).
-
-  Definition __orn_order_retraction := 
-fun __b : {H : Elem.t & __bst H} =>
-sigT_rect
-  (fun __b0 : {H : Elem.t & __bst H} =>
-   __orn_order (__orn_order_inv __b0) = __b0)
-  (fun (H : Elem.t) (H0 : (fun H0 : Elem.t => __bst H0) H) =>
-   eq_sym
-     (__bst_rect
-        (fun (t : Elem.t) (__b0 : __bst t) =>
-         existT (fun H1 : Elem.t => __bst H1) t __b0 =
-         __orn_order
-           (__orn_order_inv (existT (fun H1 : Elem.t => __bst H1) t __b0)))
-        (fun (min_l min_r val : Elem.t) (left : __bst min_l)
-           (H1 : existT (fun H1 : Elem.t => __bst H1) min_l left =
-                 __orn_order
-                   (__orn_order_inv
-                      (existT (fun H1 : Elem.t => __bst H1) min_l left)))
-           (right : __bst min_r)
-           (H2 : existT (fun H2 : Elem.t => __bst H2) min_r right =
-                 __orn_order
-                   (__orn_order_inv
-                      (existT (fun H2 : Elem.t => __bst H2) min_r right))) =>
-         eq_ind (existT (fun H3 : Elem.t => __bst H3) min_l left)
-           (fun H3 : {H3 : Elem.t & __bst H3} =>
-            existT (fun H4 : Elem.t => __bst H4) min_l
-              (__Branch min_l min_r val left right) =
-            existT (fun H4 : Elem.t => __bst H4) H3 .1
-              (__Branch H3 .1
-                 (__orn_order
-                    (__orn_order_inv
-                       (existT (fun H4 : Elem.t => __bst H4) min_r right)))
-                 .1 val H3 .2
-                 (__orn_order
-                    (__orn_order_inv
-                       (existT (fun H4 : Elem.t => __bst H4) min_r right)))
-                 .2))
-           (eq_ind (existT (fun H3 : Elem.t => __bst H3) min_r right)
-              (fun H3 : {H3 : Elem.t & __bst H3} =>
-               existT (fun H4 : Elem.t => __bst H4) min_l
-                 (__Branch min_l min_r val left right) =
-               existT (fun H4 : Elem.t => __bst H4) min_l
-                 (__Branch min_l H3 .1 val left H3 .2)) eq_refl
-              (existT (fun H3 : Elem.t => __bst H3)
-                 (__orn_order
-                    (__orn_order_inv
-                       (existT (fun H3 : Elem.t => __bst H3) min_r right)))
-                 .1
-                 (__orn_order
-                    (__orn_order_inv
-                       (existT (fun H3 : Elem.t => __bst H3) min_r right)))
-                 .2) H2)
-           (existT (fun H3 : Elem.t => __bst H3)
-              (__orn_order
-                 (__orn_order_inv
-                    (existT (fun H3 : Elem.t => __bst H3) min_l left))) .1
-              (__orn_order
-                 (__orn_order_inv
-                    (existT (fun H3 : Elem.t => __bst H3) min_l left))) .2)
-           H1) (fun val : Elem.t => eq_refl) H H0)) __b.
-
-  Definition _orn_order_index := 
-fun (t : Elem.t) (__b : __bst t) =>
-__bst_rect (fun (t0 : Elem.t) (_ : __bst t0) => Elem.t)
-  (fun (min_l min_r _ : Elem.t) (left : __bst min_l)
-     (_ : (fun (t0 : Elem.t) (_ : __bst t0) => Elem.t) min_l left)
-     (right : __bst min_r)
-     (H : (fun (t0 : Elem.t) (_ : __bst t0) => Elem.t) min_r right) => H)
-  (fun val : Elem.t => val) t __b.
-
-  Definition _orn_order := 
-fun (t : Elem.t) (__b : __bst t) =>
-existT (fun H : Elem.t => _bst t H) (_orn_order_index t __b)
-  (__bst_rect
-     (fun (t0 : Elem.t) (__b0 : __bst t0) =>
-      _bst t0 (_orn_order_index t0 __b0))
-     (fun (min_l min_r val : Elem.t) (left : __bst min_l)
-        (H : (fun (t0 _ : Elem.t) (__b0 : __bst t0) =>
-              _bst t0 (_orn_order_index t0 __b0)) min_l
-               (_orn_order_index min_l left) left) 
-        (right : __bst min_r)
-        (H0 : (fun (t0 _ : Elem.t) (__b0 : __bst t0) =>
-               _bst t0 (_orn_order_index t0 __b0)) min_r
-                (_orn_order_index min_r right) right) =>
-      _Branch min_l min_r (_orn_order_index min_l left)
-        (_orn_order_index min_r right) val H H0)
-     (fun val : Elem.t => _Leaf val) t __b).
-
-Definition _orn_order_inv := 
-fun (t : Elem.t) (_b : {H : Elem.t & _bst t H}) =>
-_bst_rect (fun (t0 t1 : Elem.t) (_ : _bst t0 t1) => __bst t0)
-  (fun (min_l min_r max_l max_r val : Elem.t) (_ : _bst min_l max_l)
-     (H : __bst min_l) (_ : _bst min_r max_r) (H0 : __bst min_r) =>
-   __Branch min_l min_r val H H0) (fun val : Elem.t => __Leaf val) t 
-  _b .1 _b .2.
-
-Definition _orn_order_section := 
-fun (t : Elem.t) (__b : __bst t) =>
-eq_sym
-  (__bst_rect
-     (fun (t0 : Elem.t) (__b0 : __bst t0) =>
-      __b0 = _orn_order_inv t0 (_orn_order t0 __b0))
-     (fun (min_l min_r val : Elem.t) (left : __bst min_l)
-        (H : left = _orn_order_inv min_l (_orn_order min_l left))
-        (right : __bst min_r)
-        (H0 : right = _orn_order_inv min_r (_orn_order min_r right)) =>
-      eq_ind left
-        (fun H1 : __bst min_l =>
-         __Branch min_l min_r val left right =
-         __Branch min_l min_r val H1
-           (_orn_order_inv min_r (_orn_order min_r right)))
-        (eq_ind right
-           (fun H1 : __bst min_r =>
-            __Branch min_l min_r val left right =
-            __Branch min_l min_r val left H1) eq_refl
-           (_orn_order_inv min_r (_orn_order min_r right)) H0)
-        (_orn_order_inv min_l (_orn_order min_l left)) H)
-     (fun val : Elem.t => eq_refl) t __b).
-
-Definition _orn_order_retraction := 
-fun (t : Elem.t) (_b : {H : Elem.t & _bst t H}) =>
-sigT_rect
-  (fun _b0 : {H : Elem.t & _bst t H} =>
-   _orn_order t (_orn_order_inv t _b0) = _b0)
-  (fun (H : Elem.t) (H0 : (fun H0 : Elem.t => _bst t H0) H) =>
-   eq_sym
-     (_bst_rect
-        (fun (t0 t1 : Elem.t) (_b0 : _bst t0 t1) =>
-         existT (fun H1 : Elem.t => _bst t0 H1) t1 _b0 =
-         _orn_order t0
-           (_orn_order_inv t0 (existT (fun H1 : Elem.t => _bst t0 H1) t1 _b0)))
-        (fun (min_l min_r max_l max_r val : Elem.t) 
-           (left : _bst min_l max_l)
-           (H1 : existT (fun H1 : Elem.t => _bst min_l H1) max_l left =
-                 _orn_order min_l
-                   (_orn_order_inv min_l
-                      (existT (fun H1 : Elem.t => _bst min_l H1) max_l left)))
-           (right : _bst min_r max_r)
-           (H2 : existT (fun H2 : Elem.t => _bst min_r H2) max_r right =
-                 _orn_order min_r
-                   (_orn_order_inv min_r
-                      (existT (fun H2 : Elem.t => _bst min_r H2) max_r right)))
-         =>
-         eq_ind (existT (fun H3 : Elem.t => _bst min_l H3) max_l left)
-           (fun H3 : {H3 : Elem.t & _bst min_l H3} =>
-            existT (fun H4 : Elem.t => _bst min_l H4) max_r
-              (_Branch min_l min_r max_l max_r val left right) =
-            existT (fun H4 : Elem.t => _bst min_l H4)
-              (_orn_order min_r
-                 (_orn_order_inv min_r
-                    (existT (fun H4 : Elem.t => _bst min_r H4) max_r right)))
-              .1
-              (_Branch min_l min_r H3 .1
-                 (_orn_order min_r
-                    (_orn_order_inv min_r
-                       (existT (fun H4 : Elem.t => _bst min_r H4) max_r right)))
-                 .1 val H3 .2
-                 (_orn_order min_r
-                    (_orn_order_inv min_r
-                       (existT (fun H4 : Elem.t => _bst min_r H4) max_r right)))
-                 .2))
-           (eq_ind (existT (fun H3 : Elem.t => _bst min_r H3) max_r right)
-              (fun H3 : {H3 : Elem.t & _bst min_r H3} =>
-               existT (fun H4 : Elem.t => _bst min_l H4) max_r
-                 (_Branch min_l min_r max_l max_r val left right) =
-               existT (fun H4 : Elem.t => _bst min_l H4) 
-                 H3 .1 (_Branch min_l min_r max_l H3 .1 val left H3 .2))
-              eq_refl
-              (existT (fun H3 : Elem.t => _bst min_r H3)
-                 (_orn_order min_r
-                    (_orn_order_inv min_r
-                       (existT (fun H3 : Elem.t => _bst min_r H3) max_r right)))
-                 .1
-                 (_orn_order min_r
-                    (_orn_order_inv min_r
-                       (existT (fun H3 : Elem.t => _bst min_r H3) max_r right)))
-                 .2) H2)
-           (existT (fun H3 : Elem.t => _bst min_l H3)
-              (_orn_order min_l
-                 (_orn_order_inv min_l
-                    (existT (fun H3 : Elem.t => _bst min_l H3) max_l left)))
-              .1
-              (_orn_order min_l
-                 (_orn_order_inv min_l
-                    (existT (fun H3 : Elem.t => _bst min_l H3) max_l left)))
-              .2) H1) (fun val : Elem.t => eq_refl) t H H0)) _b.
-
-Definition orn_order_index := 
-fun (t t0 : Elem.t) (_b : _bst t t0) =>
-_bst_rect (fun (t1 t2 : Elem.t) (_ : _bst t1 t2) => bool)
-  (fun (min_l min_r max_l max_r val : Elem.t) (left : _bst min_l max_l)
-     (H : (fun (t1 t2 : Elem.t) (_ : _bst t1 t2) => bool) min_l max_l left)
-     (right : _bst min_r max_r)
-     (H0 : (fun (t1 t2 : Elem.t) (_ : _bst t1 t2) => bool) min_r max_r right)
-   => inv H H0 max_l val min_r) (fun _ : Elem.t => true) t t0 _b.
-
-Definition orn_order := 
-fun (t t0 : Elem.t) (_b : _bst t t0) =>
-existT (fun H : bool => bst t t0 H) (orn_order_index t t0 _b)
-  (_bst_rect
-     (fun (t1 t2 : Elem.t) (_b0 : _bst t1 t2) =>
-      bst t1 t2 (orn_order_index t1 t2 _b0))
-     (fun (min_l min_r max_l max_r val : Elem.t) (left : _bst min_l max_l)
-        (H : (fun (t1 t2 : Elem.t) (_ : bool) (_b0 : _bst t1 t2) =>
-              bst t1 t2 (orn_order_index t1 t2 _b0)) min_l max_l
-               (orn_order_index min_l max_l left) left)
-        (right : _bst min_r max_r)
-        (H0 : (fun (t1 t2 : Elem.t) (_ : bool) (_b0 : _bst t1 t2) =>
-               bst t1 t2 (orn_order_index t1 t2 _b0)) min_r max_r
-                (orn_order_index min_r max_r right) right) =>
-      Branch (orn_order_index min_l max_l left)
-        (orn_order_index min_r max_r right) min_l min_r max_l max_r val H H0)
-     (fun val : Elem.t => Leaf val) t t0 _b).
-
-Definition orn_order_inv := 
-fun (t t0 : Elem.t) (b : {H : bool & bst t t0 H}) =>
-bst_rect (fun (t1 t2 : Elem.t) (b0 : bool) (_ : bst t1 t2 b0) => _bst t1 t2)
-  (fun (ord_l ord_r : bool) (min_l min_r max_l max_r val : Elem.t)
-     (_ : bst min_l max_l ord_l) (H : _bst min_l max_l)
-     (_ : bst min_r max_r ord_r) (H0 : _bst min_r max_r) =>
-   _Branch min_l min_r max_l max_r val H H0) (fun val : Elem.t => _Leaf val)
-  t t0 b .1 b .2.
-
-Definition orn_order_section := 
-fun (t t0 : Elem.t) (_b : _bst t t0) =>
-eq_sym
-  (_bst_rect
-     (fun (t1 t2 : Elem.t) (_b0 : _bst t1 t2) =>
-      _b0 = orn_order_inv t1 t2 (orn_order t1 t2 _b0))
-     (fun (min_l min_r max_l max_r val : Elem.t) (left : _bst min_l max_l)
-        (H : left = orn_order_inv min_l max_l (orn_order min_l max_l left))
-        (right : _bst min_r max_r)
-        (H0 : right = orn_order_inv min_r max_r (orn_order min_r max_r right))
-      =>
-      eq_ind left
-        (fun H1 : _bst min_l max_l =>
-         _Branch min_l min_r max_l max_r val left right =
-         _Branch min_l min_r max_l max_r val H1
-           (orn_order_inv min_r max_r (orn_order min_r max_r right)))
-        (eq_ind right
-           (fun H1 : _bst min_r max_r =>
-            _Branch min_l min_r max_l max_r val left right =
-            _Branch min_l min_r max_l max_r val left H1) eq_refl
-           (orn_order_inv min_r max_r (orn_order min_r max_r right)) H0)
-        (orn_order_inv min_l max_l (orn_order min_l max_l left)) H)
-     (fun val : Elem.t => eq_refl) t t0 _b).
-
-Definition orn_order_retraction := 
-fun (t t0 : Elem.t) (b : {H : bool & bst t t0 H}) =>
-sigT_rect
-  (fun b0 : {H : bool & bst t t0 H} =>
-   orn_order t t0 (orn_order_inv t t0 b0) = b0)
-  (fun (H : bool) (H0 : (fun H0 : bool => bst t t0 H0) H) =>
-   eq_sym
-     (bst_rect
-        (fun (t1 t2 : Elem.t) (b0 : bool) (b1 : bst t1 t2 b0) =>
-         existT (fun H1 : bool => bst t1 t2 H1) b0 b1 =
-         orn_order t1 t2
-           (orn_order_inv t1 t2
-              (existT (fun H1 : bool => bst t1 t2 H1) b0 b1)))
-        (fun (ord_l ord_r : bool) (min_l min_r max_l max_r val : Elem.t)
-           (left : bst min_l max_l ord_l)
-           (H1 : existT (fun H1 : bool => bst min_l max_l H1) ord_l left =
-                 orn_order min_l max_l
-                   (orn_order_inv min_l max_l
-                      (existT (fun H1 : bool => bst min_l max_l H1) ord_l
-                         left))) (right : bst min_r max_r ord_r)
-           (H2 : existT (fun H2 : bool => bst min_r max_r H2) ord_r right =
-                 orn_order min_r max_r
-                   (orn_order_inv min_r max_r
-                      (existT (fun H2 : bool => bst min_r max_r H2) ord_r
-                         right))) =>
-         eq_ind (existT (fun H3 : bool => bst min_l max_l H3) ord_l left)
-           (fun H3 : {H3 : bool & bst min_l max_l H3} =>
-            existT (fun H4 : bool => bst min_l max_r H4)
-              (inv ord_l ord_r max_l val min_r)
-              (Branch ord_l ord_r min_l min_r max_l max_r val left right) =
-            existT (fun H4 : bool => bst min_l max_r H4)
-              (inv H3 .1
-                 (orn_order min_r max_r
-                    (orn_order_inv min_r max_r
-                       (existT (fun H4 : bool => bst min_r max_r H4) ord_r
-                          right))) .1 max_l val min_r)
-              (Branch H3 .1
-                 (orn_order min_r max_r
-                    (orn_order_inv min_r max_r
-                       (existT (fun H4 : bool => bst min_r max_r H4) ord_r
-                          right))) .1 min_l min_r max_l max_r val 
-                 H3 .2
-                 (orn_order min_r max_r
-                    (orn_order_inv min_r max_r
-                       (existT (fun H4 : bool => bst min_r max_r H4) ord_r
-                          right))) .2))
-           (eq_ind (existT (fun H3 : bool => bst min_r max_r H3) ord_r right)
-              (fun H3 : {H3 : bool & bst min_r max_r H3} =>
-               existT (fun H4 : bool => bst min_l max_r H4)
-                 (inv ord_l ord_r max_l val min_r)
-                 (Branch ord_l ord_r min_l min_r max_l max_r val left right) =
-               existT (fun H4 : bool => bst min_l max_r H4)
-                 (inv ord_l H3 .1 max_l val min_r)
-                 (Branch ord_l H3 .1 min_l min_r max_l max_r val left H3 .2))
-              eq_refl
-              (existT (fun H3 : bool => bst min_r max_r H3)
-                 (orn_order min_r max_r
-                    (orn_order_inv min_r max_r
-                       (existT (fun H3 : bool => bst min_r max_r H3) ord_r
-                          right))) .1
-                 (orn_order min_r max_r
-                    (orn_order_inv min_r max_r
-                       (existT (fun H3 : bool => bst min_r max_r H3) ord_r
-                          right))) .2) H2)
-           (existT (fun H3 : bool => bst min_l max_l H3)
-              (orn_order min_l max_l
-                 (orn_order_inv min_l max_l
-                    (existT (fun H3 : bool => bst min_l max_l H3) ord_l left)))
-              .1
-              (orn_order min_l max_l
-                 (orn_order_inv min_l max_l
-                    (existT (fun H3 : bool => bst min_l max_l H3) ord_l left)))
-              .2) H1) (fun val : Elem.t => eq_refl) t t0 H H0)) b.
-
-   (* --- End automatically generated terms from DEVOID --- *)
+    (* EQUIV __orn_order_index *)
+    (* EQUIV __orn_order *)
+    (* EQUIV __orn_order_inv *)
+    (* EQUIV __orn_order_section *)
+    (* EQUIV __orn_order_retraction *)
+    (* EQUIV _orn_order_index *)
+    (* EQUIV _orn_order *)
+    (* EQUIV _orn_order_inv *)
+    (* EQUIV _orn_order_section *)
+    (* EQUIV _orn_order_retraction *)
+    (* EQUIV orn_order_index *)
+    (* EQUIV orn_order *)
+    (* EQUIV orn_order_inv *)
+    (* EQUIV orn_order_section *)
+    (* EQUIV orn_order_retraction *)
+ 
+    (* --- End auto-generated equivalences from DEVOID --- *)
  
    Instance IsEquiv___orn_order : IsEquiv __orn_order.
     Proof.
@@ -1112,18 +662,18 @@ sigT_rect
         min max ord tree.
 
     (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
-    Redirect "../out/treeEFF20" Time Eval vm_compute in tree20.
-    Redirect "../out/treeEFF40" Time Eval vm_compute in tree40.
-    Redirect "../out/treeEFF60" Time Eval vm_compute in tree60.
-    Redirect "../out/treeEFF80" Time Eval vm_compute in tree80.
-    Redirect "../out/treeEFF100" Time Eval vm_compute in tree100.
+    Redirect "../out/treeEFF20equiv" Time Eval vm_compute in tree20.
+    Redirect "../out/treeEFF40equiv" Time Eval vm_compute in tree40.
+    Redirect "../out/treeEFF60equiv" Time Eval vm_compute in tree60.
+    Redirect "../out/treeEFF80equiv" Time Eval vm_compute in tree80.
+    Redirect "../out/treeEFF100equiv" Time Eval vm_compute in tree100.
 
     (* --- Base search data --- *)
-    Redirect "../out/search/baseEFF20" Time Eval vm_compute in (search tree20 Elem.x).
-    Redirect "../out/search/baseEFF40" Time Eval vm_compute in (search tree40 Elem.x).
-    Redirect "../out/search/baseEFF60" Time Eval vm_compute in (search tree60 Elem.x).
-    Redirect "../out/search/baseEFF80" Time Eval vm_compute in (search tree80 Elem.x).
-    Redirect "../out/search/baseEFF100" Time Eval vm_compute in (search tree100 Elem.x).
+    Redirect "../out/search/baseEFF20equiv" Time Eval vm_compute in (search tree20 Elem.x).
+    Redirect "../out/search/baseEFF40equiv" Time Eval vm_compute in (search tree40 Elem.x).
+    Redirect "../out/search/baseEFF60equiv" Time Eval vm_compute in (search tree60 Elem.x).
+    Redirect "../out/search/baseEFF80equiv" Time Eval vm_compute in (search tree80 Elem.x).
+    Redirect "../out/search/baseEFF100equiv" Time Eval vm_compute in (search tree100 Elem.x).
 
 
   End Ordered.
@@ -1183,359 +733,20 @@ sigT_rect
       rewrite Equiv_avl_id. cbn. eapply Equiv_id.
     Defined.
 
-    (* --- Begin automatically generated terms from DEVOID --- *)
-    (* TODO copy in automatically *)
+    (* --- Begin auto-generated equivalences from DEVOID --- *)
 
-Definition _orn_balance_index := 
-fun (t t0 : Elem.t) (b : bool) (b0 : Ordered.bst t t0 b) =>
-Ordered.bst_rect
-  (fun (t1 t2 : Elem.t) (b1 : bool) (_ : Ordered.bst t1 t2 b1) => nat)
-  (fun (ord_l ord_r : bool) (min_l min_r max_l max_r _ : Elem.t)
-     (left : Ordered.bst min_l max_l ord_l)
-     (H : (fun (t1 t2 : Elem.t) (b1 : bool) (_ : Ordered.bst t1 t2 b1) => nat)
-            min_l max_l ord_l left) (right : Ordered.bst min_r max_r ord_r)
-     (H0 : (fun (t1 t2 : Elem.t) (b1 : bool) (_ : Ordered.bst t1 t2 b1) =>
-            nat) min_r max_r ord_r right) => S (Nat.max H H0))
-  (fun _ : Elem.t => 0) t t0 b b0.
-
-Definition _orn_balance := 
-fun (t t0 : Elem.t) (b : bool) (b0 : Ordered.bst t t0 b) =>
-existT (fun H : nat => _avl t t0 b H) (_orn_balance_index t t0 b b0)
-  (Ordered.bst_rect
-     (fun (t1 t2 : Elem.t) (b1 : bool) (b2 : Ordered.bst t1 t2 b1) =>
-      _avl t1 t2 b1 (_orn_balance_index t1 t2 b1 b2))
-     (fun (ord_l ord_r : bool) (min_l min_r max_l max_r val : Elem.t)
-        (left : Ordered.bst min_l max_l ord_l)
-        (H : (fun (t1 t2 : Elem.t) (b1 : bool) (_ : nat)
-                (b2 : Ordered.bst t1 t2 b1) =>
-              _avl t1 t2 b1 (_orn_balance_index t1 t2 b1 b2)) min_l max_l
-               ord_l (_orn_balance_index min_l max_l ord_l left) left)
-        (right : Ordered.bst min_r max_r ord_r)
-        (H0 : (fun (t1 t2 : Elem.t) (b1 : bool) (_ : nat)
-                 (b2 : Ordered.bst t1 t2 b1) =>
-               _avl t1 t2 b1 (_orn_balance_index t1 t2 b1 b2)) min_r max_r
-                ord_r (_orn_balance_index min_r max_r ord_r right) right) =>
-      _Branch (_orn_balance_index min_l max_l ord_l left)
-        (_orn_balance_index min_r max_r ord_r right) ord_l ord_r min_l min_r
-        max_l max_r val H H0) (fun val : Elem.t => _Leaf val) t t0 b b0).
-
-Definition _orn_balance_inv := 
-fun (t t0 : Elem.t) (b : bool) (_a : {H : nat & _avl t t0 b H}) =>
-_avl_rect
-  (fun (t1 t2 : Elem.t) (b0 : bool) (n : nat) (_ : _avl t1 t2 b0 n) =>
-   Ordered.bst t1 t2 b0)
-  (fun (h_l h_r : nat) (ord_l ord_r : bool)
-     (min_l min_r max_l max_r val : Elem.t) (_ : _avl min_l max_l ord_l h_l)
-     (H : Ordered.bst min_l max_l ord_l) (_ : _avl min_r max_r ord_r h_r)
-     (H0 : Ordered.bst min_r max_r ord_r) =>
-   Ordered.Branch ord_l ord_r min_l min_r max_l max_r val H H0)
-  (fun val : Elem.t => Ordered.Leaf val) t t0 b _a .1 
-  _a .2.
-
-Definition _orn_balance_section := 
-fun (t t0 : Elem.t) (b : bool) (b0 : Ordered.bst t t0 b) =>
-eq_sym
-  (Ordered.bst_rect
-     (fun (t1 t2 : Elem.t) (b1 : bool) (b2 : Ordered.bst t1 t2 b1) =>
-      b2 = _orn_balance_inv t1 t2 b1 (_orn_balance t1 t2 b1 b2))
-     (fun (ord_l ord_r : bool) (min_l min_r max_l max_r val : Elem.t)
-        (left : Ordered.bst min_l max_l ord_l)
-        (H : left =
-             _orn_balance_inv min_l max_l ord_l
-               (_orn_balance min_l max_l ord_l left))
-        (right : Ordered.bst min_r max_r ord_r)
-        (H0 : right =
-              _orn_balance_inv min_r max_r ord_r
-                (_orn_balance min_r max_r ord_r right)) =>
-      eq_ind left
-        (fun H1 : Ordered.bst min_l max_l ord_l =>
-         Ordered.Branch ord_l ord_r min_l min_r max_l max_r val left right =
-         Ordered.Branch ord_l ord_r min_l min_r max_l max_r val H1
-           (_orn_balance_inv min_r max_r ord_r
-              (_orn_balance min_r max_r ord_r right)))
-        (eq_ind right
-           (fun H1 : Ordered.bst min_r max_r ord_r =>
-            Ordered.Branch ord_l ord_r min_l min_r max_l max_r val left right =
-            Ordered.Branch ord_l ord_r min_l min_r max_l max_r val left H1)
-           eq_refl
-           (_orn_balance_inv min_r max_r ord_r
-              (_orn_balance min_r max_r ord_r right)) H0)
-        (_orn_balance_inv min_l max_l ord_l
-           (_orn_balance min_l max_l ord_l left)) H)
-     (fun val : Elem.t => eq_refl) t t0 b b0).
-
-Definition _orn_balance_retraction := 
-fun (t t0 : Elem.t) (b : bool) (_a : {H : nat & _avl t t0 b H}) =>
-sigT_rect
-  (fun _a0 : {H : nat & _avl t t0 b H} =>
-   _orn_balance t t0 b (_orn_balance_inv t t0 b _a0) = _a0)
-  (fun (H : nat) (H0 : (fun H0 : nat => _avl t t0 b H0) H) =>
-   eq_sym
-     (_avl_rect
-        (fun (t1 t2 : Elem.t) (b0 : bool) (n : nat) (_a0 : _avl t1 t2 b0 n)
-         =>
-         existT (fun H1 : nat => _avl t1 t2 b0 H1) n _a0 =
-         _orn_balance t1 t2 b0
-           (_orn_balance_inv t1 t2 b0
-              (existT (fun H1 : nat => _avl t1 t2 b0 H1) n _a0)))
-        (fun (h_l h_r : nat) (ord_l ord_r : bool)
-           (min_l min_r max_l max_r val : Elem.t)
-           (left : _avl min_l max_l ord_l h_l)
-           (H1 : existT (fun H1 : nat => _avl min_l max_l ord_l H1) h_l left =
-                 _orn_balance min_l max_l ord_l
-                   (_orn_balance_inv min_l max_l ord_l
-                      (existT (fun H1 : nat => _avl min_l max_l ord_l H1) h_l
-                         left))) (right : _avl min_r max_r ord_r h_r)
-           (H2 : existT (fun H2 : nat => _avl min_r max_r ord_r H2) h_r right =
-                 _orn_balance min_r max_r ord_r
-                   (_orn_balance_inv min_r max_r ord_r
-                      (existT (fun H2 : nat => _avl min_r max_r ord_r H2) h_r
-                         right))) =>
-         eq_ind (existT (fun H3 : nat => _avl min_l max_l ord_l H3) h_l left)
-           (fun H3 : {H3 : nat & _avl min_l max_l ord_l H3} =>
-            existT
-              (fun H4 : nat =>
-               _avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r) H4)
-              (S (Nat.max h_l h_r))
-              (_Branch h_l h_r ord_l ord_r min_l min_r max_l max_r val left
-                 right) =
-            existT
-              (fun H4 : nat =>
-               _avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r) H4)
-              (S
-                 (Nat.max H3 .1
-                    (_orn_balance min_r max_r ord_r
-                       (_orn_balance_inv min_r max_r ord_r
-                          (existT (fun H4 : nat => _avl min_r max_r ord_r H4)
-                             h_r right))) .1))
-              (_Branch H3 .1
-                 (_orn_balance min_r max_r ord_r
-                    (_orn_balance_inv min_r max_r ord_r
-                       (existT (fun H4 : nat => _avl min_r max_r ord_r H4)
-                          h_r right))) .1 ord_l ord_r min_l min_r max_l max_r
-                 val H3 .2
-                 (_orn_balance min_r max_r ord_r
-                    (_orn_balance_inv min_r max_r ord_r
-                       (existT (fun H4 : nat => _avl min_r max_r ord_r H4)
-                          h_r right))) .2))
-           (eq_ind
-              (existT (fun H3 : nat => _avl min_r max_r ord_r H3) h_r right)
-              (fun H3 : {H3 : nat & _avl min_r max_r ord_r H3} =>
-               existT
-                 (fun H4 : nat =>
-                  _avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r)
-                    H4) (S (Nat.max h_l h_r))
-                 (_Branch h_l h_r ord_l ord_r min_l min_r max_l max_r val
-                    left right) =
-               existT
-                 (fun H4 : nat =>
-                  _avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r)
-                    H4) (S (Nat.max h_l H3 .1))
-                 (_Branch h_l H3 .1 ord_l ord_r min_l min_r max_l max_r val
-                    left H3 .2)) eq_refl
-              (existT (fun H3 : nat => _avl min_r max_r ord_r H3)
-                 (_orn_balance min_r max_r ord_r
-                    (_orn_balance_inv min_r max_r ord_r
-                       (existT (fun H3 : nat => _avl min_r max_r ord_r H3)
-                          h_r right))) .1
-                 (_orn_balance min_r max_r ord_r
-                    (_orn_balance_inv min_r max_r ord_r
-                       (existT (fun H3 : nat => _avl min_r max_r ord_r H3)
-                          h_r right))) .2) H2)
-           (existT (fun H3 : nat => _avl min_l max_l ord_l H3)
-              (_orn_balance min_l max_l ord_l
-                 (_orn_balance_inv min_l max_l ord_l
-                    (existT (fun H3 : nat => _avl min_l max_l ord_l H3) h_l
-                       left))) .1
-              (_orn_balance min_l max_l ord_l
-                 (_orn_balance_inv min_l max_l ord_l
-                    (existT (fun H3 : nat => _avl min_l max_l ord_l H3) h_l
-                       left))) .2) H1) (fun val : Elem.t => eq_refl) t t0 b H
-        H0)) _a.
-
-Definition orn_balance_index := 
-fun (t t0 : Elem.t) (b : bool) (n : nat) (_a : _avl t t0 b n) =>
-_avl_rect
-  (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat) (_ : _avl t1 t2 b0 n0) => bool)
-  (fun (h_l h_r : nat) (ord_l ord_r : bool)
-     (min_l min_r max_l max_r _ : Elem.t) (left : _avl min_l max_l ord_l h_l)
-     (H : (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat) (_ : _avl t1 t2 b0 n0)
-           => bool) min_l max_l ord_l h_l left)
-     (right : _avl min_r max_r ord_r h_r)
-     (H0 : (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat)
-              (_ : _avl t1 t2 b0 n0) => bool) min_r max_r ord_r h_r right) =>
-   inv H H0 h_l h_r) (fun _ : Elem.t => true) t t0 b n _a.
-
-Definition orn_balance := 
-fun (t t0 : Elem.t) (b : bool) (n : nat) (_a : _avl t t0 b n) =>
-existT (fun H : bool => avl t t0 b n H) (orn_balance_index t t0 b n _a)
-  (_avl_rect
-     (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat) (_a0 : _avl t1 t2 b0 n0) =>
-      avl t1 t2 b0 n0 (orn_balance_index t1 t2 b0 n0 _a0))
-     (fun (h_l h_r : nat) (ord_l ord_r : bool)
-        (min_l min_r max_l max_r val : Elem.t)
-        (left : _avl min_l max_l ord_l h_l)
-        (H : (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat) 
-                (_ : bool) (_a0 : _avl t1 t2 b0 n0) =>
-              avl t1 t2 b0 n0 (orn_balance_index t1 t2 b0 n0 _a0)) min_l
-               max_l ord_l h_l (orn_balance_index min_l max_l ord_l h_l left)
-               left) (right : _avl min_r max_r ord_r h_r)
-        (H0 : (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat) 
-                 (_ : bool) (_a0 : _avl t1 t2 b0 n0) =>
-               avl t1 t2 b0 n0 (orn_balance_index t1 t2 b0 n0 _a0)) min_r
-                max_r ord_r h_r
-                (orn_balance_index min_r max_r ord_r h_r right) right) =>
-      Branch (orn_balance_index min_l max_l ord_l h_l left)
-        (orn_balance_index min_r max_r ord_r h_r right) h_l h_r ord_l ord_r
-        min_l min_r max_l max_r val H H0) (fun val : Elem.t => Leaf val) t t0
-     b n _a).
-
-Definition orn_balance_inv := 
-fun (t t0 : Elem.t) (b : bool) (n : nat) (a : {H : bool & avl t t0 b n H}) =>
-avl_rect
-  (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat) (b1 : bool)
-     (_ : avl t1 t2 b0 n0 b1) => _avl t1 t2 b0 n0)
-  (fun (bal_l bal_r : bool) (h_l h_r : nat) (ord_l ord_r : bool)
-     (min_l min_r max_l max_r val : Elem.t)
-     (_ : avl min_l max_l ord_l h_l bal_l) (H : _avl min_l max_l ord_l h_l)
-     (_ : avl min_r max_r ord_r h_r bal_r) (H0 : _avl min_r max_r ord_r h_r)
-   => _Branch h_l h_r ord_l ord_r min_l min_r max_l max_r val H H0)
-  (fun val : Elem.t => _Leaf val) t t0 b n a .1 a .2.
-
-Definition orn_balance_section := 
-fun (t t0 : Elem.t) (b : bool) (n : nat) (_a : _avl t t0 b n) =>
-eq_sym
-  (_avl_rect
-     (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat) (_a0 : _avl t1 t2 b0 n0) =>
-      _a0 = orn_balance_inv t1 t2 b0 n0 (orn_balance t1 t2 b0 n0 _a0))
-     (fun (h_l h_r : nat) (ord_l ord_r : bool)
-        (min_l min_r max_l max_r val : Elem.t)
-        (left : _avl min_l max_l ord_l h_l)
-        (H : left =
-             orn_balance_inv min_l max_l ord_l h_l
-               (orn_balance min_l max_l ord_l h_l left))
-        (right : _avl min_r max_r ord_r h_r)
-        (H0 : right =
-              orn_balance_inv min_r max_r ord_r h_r
-                (orn_balance min_r max_r ord_r h_r right)) =>
-      eq_ind left
-        (fun H1 : _avl min_l max_l ord_l h_l =>
-         _Branch h_l h_r ord_l ord_r min_l min_r max_l max_r val left right =
-         _Branch h_l h_r ord_l ord_r min_l min_r max_l max_r val H1
-           (orn_balance_inv min_r max_r ord_r h_r
-              (orn_balance min_r max_r ord_r h_r right)))
-        (eq_ind right
-           (fun H1 : _avl min_r max_r ord_r h_r =>
-            _Branch h_l h_r ord_l ord_r min_l min_r max_l max_r val left
-              right =
-            _Branch h_l h_r ord_l ord_r min_l min_r max_l max_r val left H1)
-           eq_refl
-           (orn_balance_inv min_r max_r ord_r h_r
-              (orn_balance min_r max_r ord_r h_r right)) H0)
-        (orn_balance_inv min_l max_l ord_l h_l
-           (orn_balance min_l max_l ord_l h_l left)) H)
-     (fun val : Elem.t => eq_refl) t t0 b n _a).
-
-Definition orn_balance_retraction := 
-fun (t t0 : Elem.t) (b : bool) (n : nat) (a : {H : bool & avl t t0 b n H}) =>
-sigT_rect
-  (fun a0 : {H : bool & avl t t0 b n H} =>
-   orn_balance t t0 b n (orn_balance_inv t t0 b n a0) = a0)
-  (fun (H : bool) (H0 : (fun H0 : bool => avl t t0 b n H0) H) =>
-   eq_sym
-     (avl_rect
-        (fun (t1 t2 : Elem.t) (b0 : bool) (n0 : nat) 
-           (b1 : bool) (a0 : avl t1 t2 b0 n0 b1) =>
-         existT (fun H1 : bool => avl t1 t2 b0 n0 H1) b1 a0 =
-         orn_balance t1 t2 b0 n0
-           (orn_balance_inv t1 t2 b0 n0
-              (existT (fun H1 : bool => avl t1 t2 b0 n0 H1) b1 a0)))
-        (fun (bal_l bal_r : bool) (h_l h_r : nat) 
-           (ord_l ord_r : bool) (min_l min_r max_l max_r val : Elem.t)
-           (left : avl min_l max_l ord_l h_l bal_l)
-           (H1 : existT (fun H1 : bool => avl min_l max_l ord_l h_l H1) bal_l
-                   left =
-                 orn_balance min_l max_l ord_l h_l
-                   (orn_balance_inv min_l max_l ord_l h_l
-                      (existT (fun H1 : bool => avl min_l max_l ord_l h_l H1)
-                         bal_l left)))
-           (right : avl min_r max_r ord_r h_r bal_r)
-           (H2 : existT (fun H2 : bool => avl min_r max_r ord_r h_r H2) bal_r
-                   right =
-                 orn_balance min_r max_r ord_r h_r
-                   (orn_balance_inv min_r max_r ord_r h_r
-                      (existT (fun H2 : bool => avl min_r max_r ord_r h_r H2)
-                         bal_r right))) =>
-         eq_ind
-           (existT (fun H3 : bool => avl min_l max_l ord_l h_l H3) bal_l left)
-           (fun H3 : {H3 : bool & avl min_l max_l ord_l h_l H3} =>
-            existT
-              (fun H4 : bool =>
-               avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r)
-                 (S (Nat.max h_l h_r)) H4) (inv bal_l bal_r h_l h_r)
-              (Branch bal_l bal_r h_l h_r ord_l ord_r min_l min_r max_l max_r
-                 val left right) =
-            existT
-              (fun H4 : bool =>
-               avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r)
-                 (S (Nat.max h_l h_r)) H4)
-              (inv H3 .1
-                 (orn_balance min_r max_r ord_r h_r
-                    (orn_balance_inv min_r max_r ord_r h_r
-                       (existT
-                          (fun H4 : bool => avl min_r max_r ord_r h_r H4)
-                          bal_r right))) .1 h_l h_r)
-              (Branch H3 .1
-                 (orn_balance min_r max_r ord_r h_r
-                    (orn_balance_inv min_r max_r ord_r h_r
-                       (existT
-                          (fun H4 : bool => avl min_r max_r ord_r h_r H4)
-                          bal_r right))) .1 h_l h_r ord_l ord_r min_l min_r
-                 max_l max_r val H3 .2
-                 (orn_balance min_r max_r ord_r h_r
-                    (orn_balance_inv min_r max_r ord_r h_r
-                       (existT
-                          (fun H4 : bool => avl min_r max_r ord_r h_r H4)
-                          bal_r right))) .2))
-           (eq_ind
-              (existT (fun H3 : bool => avl min_r max_r ord_r h_r H3) bal_r
-                 right)
-              (fun H3 : {H3 : bool & avl min_r max_r ord_r h_r H3} =>
-               existT
-                 (fun H4 : bool =>
-                  avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r)
-                    (S (Nat.max h_l h_r)) H4) (inv bal_l bal_r h_l h_r)
-                 (Branch bal_l bal_r h_l h_r ord_l ord_r min_l min_r max_l
-                    max_r val left right) =
-               existT
-                 (fun H4 : bool =>
-                  avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r)
-                    (S (Nat.max h_l h_r)) H4) (inv bal_l H3 .1 h_l h_r)
-                 (Branch bal_l H3 .1 h_l h_r ord_l ord_r min_l min_r max_l
-                    max_r val left H3 .2)) eq_refl
-              (existT (fun H3 : bool => avl min_r max_r ord_r h_r H3)
-                 (orn_balance min_r max_r ord_r h_r
-                    (orn_balance_inv min_r max_r ord_r h_r
-                       (existT
-                          (fun H3 : bool => avl min_r max_r ord_r h_r H3)
-                          bal_r right))) .1
-                 (orn_balance min_r max_r ord_r h_r
-                    (orn_balance_inv min_r max_r ord_r h_r
-                       (existT
-                          (fun H3 : bool => avl min_r max_r ord_r h_r H3)
-                          bal_r right))) .2) H2)
-           (existT (fun H3 : bool => avl min_l max_l ord_l h_l H3)
-              (orn_balance min_l max_l ord_l h_l
-                 (orn_balance_inv min_l max_l ord_l h_l
-                    (existT (fun H3 : bool => avl min_l max_l ord_l h_l H3)
-                       bal_l left))) .1
-              (orn_balance min_l max_l ord_l h_l
-                 (orn_balance_inv min_l max_l ord_l h_l
-                    (existT (fun H3 : bool => avl min_l max_l ord_l h_l H3)
-                       bal_l left))) .2) H1) (fun val : Elem.t => eq_refl) t
-        t0 b n H H0)) a.
-
-    (* --- End automatically generated terms from DEVOID --- *)
+    (* EQUIV _orn_balance_index *)
+    (* EQUIV _orn_balance *)
+    (* EQUIV _orn_balance_inv *)
+    (* EQUIV _orn_balance_section *)
+    (* EQUIV _orn_balance_retraction *)
+    (* EQUIV orn_balance_index *)
+    (* EQUIV orn_balance *)
+    (* EQUIV orn_balance_inv *)
+    (* EQUIV orn_balance_section *)
+    (* EQUIV orn_balance_retraction *)
+ 
+    (* --- End auto-generated equivalences from DEVOID --- *)
 
     Instance IsEquiv__orn_balance (lo hi : Elem.t) (ord : bool) : IsEquiv (_orn_balance lo hi ord).
     Proof.
@@ -1599,11 +810,11 @@ sigT_rect
       ↑ (_preorder lo hi ord n).
     Definition preorder {lo hi ord n bal} t := @preorder' lo hi ord n (bal; t).
 
-    Redirect "../out/preorder/avlEFF20" Time Eval vm_compute in (preorder' tree20).
-    Redirect "../out/preorder/avlEFF40" Time Eval vm_compute in (preorder' tree40).
-    Redirect "../out/preorder/avlEFF60" Time Eval vm_compute in (preorder' tree60).
-    Redirect "../out/preorder/avlEFF80" Time Eval vm_compute in (preorder' tree80).
-    Redirect "../out/preorder/avlEFF100" Time Eval vm_compute in (preorder' tree100).
+    Redirect "../out/preorder/avlEFF20equiv" Time Eval vm_compute in (preorder' tree20).
+    Redirect "../out/preorder/avlEFF40equiv" Time Eval vm_compute in (preorder' tree40).
+    Redirect "../out/preorder/avlEFF60equiv" Time Eval vm_compute in (preorder' tree60).
+    Redirect "../out/preorder/avlEFF80equiv" Time Eval vm_compute in (preorder' tree80).
+    Redirect "../out/preorder/avlEFF100equiv" Time Eval vm_compute in (preorder' tree100).
     (* 105 LoC in normal form *)
     Definition _inorder' lo hi ord : {n : nat & _avl lo hi ord n} -> list Elem.t :=
       ↑ (@Ordered.inorder lo hi ord).
@@ -1611,11 +822,11 @@ sigT_rect
     Definition inorder' {lo hi ord n} : {bal : bool & avl lo hi ord n bal} -> list Elem.t := 
       ↑ (_inorder lo hi ord n).
     Definition inorder {lo hi ord n bal} t := @inorder' lo hi ord n (bal; t).
-    Redirect "../out/inorder/avlEFF20" Time Eval vm_compute in (inorder' tree20).
-    Redirect "../out/inorder/avlEFF40" Time Eval vm_compute in (inorder' tree40).
-    Redirect "../out/inorder/avlEFF60" Time Eval vm_compute in (inorder' tree60).
-    Redirect "../out/inorder/avlEFF80" Time Eval vm_compute in (inorder' tree80).
-    Redirect "../out/inorder/avlEFF100" Time Eval vm_compute in (inorder' tree100).
+    Redirect "../out/inorder/avlEFF20equiv" Time Eval vm_compute in (inorder' tree20).
+    Redirect "../out/inorder/avlEFF40equiv" Time Eval vm_compute in (inorder' tree40).
+    Redirect "../out/inorder/avlEFF60equiv" Time Eval vm_compute in (inorder' tree60).
+    Redirect "../out/inorder/avlEFF80equiv" Time Eval vm_compute in (inorder' tree80).
+    Redirect "../out/inorder/avlEFF100equiv" Time Eval vm_compute in (inorder' tree100).
 
     (* 112 LoC in normal form *)
     Definition _postorder' lo hi ord : {n : nat & _avl lo hi ord n} -> list Elem.t :=
@@ -1624,11 +835,11 @@ sigT_rect
     Definition postorder' {lo hi ord n} : {bal : bool & avl lo hi ord n bal} -> list Elem.t := 
       ↑ (_postorder lo hi ord n).
     Definition postorder {lo hi ord n bal} t := @postorder' lo hi ord n (bal; t).
-    Redirect "../out/postorder/avlEFF20" Time Eval vm_compute in (postorder' tree20).
-    Redirect "../out/postorder/avlEFF40" Time Eval vm_compute in (postorder' tree40).
-    Redirect "../out/postorder/avlEFF60" Time Eval vm_compute in (postorder' tree60).
-    Redirect "../out/postorder/avlEFF80" Time Eval vm_compute in (postorder' tree80).
-    Redirect "../out/postorder/avlEFF100" Time Eval vm_compute in (postorder' tree100).
+    Redirect "../out/postorder/avlEFF20equiv" Time Eval vm_compute in (postorder' tree20).
+    Redirect "../out/postorder/avlEFF40equiv" Time Eval vm_compute in (postorder' tree40).
+    Redirect "../out/postorder/avlEFF60equiv" Time Eval vm_compute in (postorder' tree60).
+    Redirect "../out/postorder/avlEFF80equiv" Time Eval vm_compute in (postorder' tree80).
+    Redirect "../out/postorder/avlEFF100equiv" Time Eval vm_compute in (postorder' tree100).
 
     (* 105 LoC in normal form *)
     Definition _search' lo hi ord : {n : nat & _avl lo hi ord n} -> Elem.t -> bool :=
@@ -1637,17 +848,17 @@ sigT_rect
     Definition search' {lo hi ord n} : {bal : bool & avl lo hi ord n bal} -> Elem.t -> bool := 
       ↑ (_search lo hi ord n).
     Definition search {lo hi ord n bal} t x := @search' lo hi ord n (bal; t) x.
-    Redirect "../out/search/avlEFF20" Time Eval vm_compute in (search' tree20 Elem.x).
-    Redirect "../out/search/avlEFF40" Time Eval vm_compute in (search' tree40 Elem.x).
-    Redirect "../out/search/avlEFF60" Time Eval vm_compute in (search' tree60 Elem.x).
-    Redirect "../out/search/avlEFF80" Time Eval vm_compute in (search' tree80 Elem.x).
-    Redirect "../out/search/avlEFF100" Time Eval vm_compute in (search' tree100 Elem.x).
+    Redirect "../out/search/avlEFF20equiv" Time Eval vm_compute in (search' tree20 Elem.x).
+    Redirect "../out/search/avlEFF40equiv" Time Eval vm_compute in (search' tree40 Elem.x).
+    Redirect "../out/search/avlEFF60equiv" Time Eval vm_compute in (search' tree60 Elem.x).
+    Redirect "../out/search/avlEFF80equiv" Time Eval vm_compute in (search' tree80 Elem.x).
+    Redirect "../out/search/avlEFF100equiv" Time Eval vm_compute in (search' tree100 Elem.x).
 
     (* --- Normalized term sizes --- *)
-    Redirect "../out/normalized/preorder-avlEFF" Eval compute in preorder'.
-    Redirect "../out/normalized/postorder-avlEFF" Eval compute in postorder'.
-    Redirect "../out/normalized/inorder-avlEFF" Eval compute in inorder'.
-    Redirect "../out/normalized/search-avlEFF" Eval compute in search'.
+    Redirect "../out/normalized/preorder-avlEFFequiv" Eval compute in preorder'.
+    Redirect "../out/normalized/postorder-avlEFFequiv" Eval compute in postorder'.
+    Redirect "../out/normalized/inorder-avlEFFequiv" Eval compute in inorder'.
+    Redirect "../out/normalized/search-avlEFFequiv" Eval compute in search'.
 
     (* Auto-generated definitions go here in together case study *)
     Module Comparison.

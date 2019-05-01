@@ -25,11 +25,19 @@ else
   :
 fi
 
+if [ -e equiv4free/main2.v ]
+then
+  rm equiv4free/main2.v
+else
+  :
+fi
+
 mkdir out
 mkdir out/inorder
 mkdir out/postorder
 mkdir out/preorder
 mkdir out/search
+mkdir out/equivalences
 mkdir out/normalized
 mkdir together
 mkdir together/inorder

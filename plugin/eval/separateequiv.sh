@@ -14,9 +14,16 @@ else
   :
 fi
 
-if [ -e separate ]
+if [ -e separateequiv ]
 then
-  rm -r separate
+  rm -r separateequiv
+else
+  :
+fi
+
+if [ -e equiv4free/mainequiv2.v ]
+then
+  rm equiv4free/mainequiv2.v
 else
   :
 fi
@@ -28,11 +35,12 @@ mkdir out/preorder
 mkdir out/search
 mkdir out/equivalences
 mkdir out/normalized
-mkdir separate
-mkdir separate/inorder
-mkdir separate/postorder
-mkdir separate/preorder
-mkdir separate/search
+mkdir separateequiv
+mkdir separateequiv/inorder
+mkdir separateequiv/postorder
+mkdir separateequiv/preorder
+mkdir separateequiv/search
+cp equiv4free/mainequiv.v equiv4free/mainequiv2.v
 
 # Run ten iterations of comparison
 for i in {1..10}
@@ -43,10 +51,29 @@ do
   make clean
   make
 
+  # Copy the produced equivalences into the EFF code
+  for f in $(find out/equivalences/*.out); do
+    name=$(basename "${f%.*}")
+    line=$(grep -n "     : forall" $f | cut -d : -f 1)
+    head -n $(($line-1)) $f > out/equivalences/$name-notyp.out
+    dirname=$(echo $name | cut -d '-' -f 1)
+    suffix=$(echo $name | cut -d '-' -f 2)
+    defname=$dirname"'"
+    sed -i "s/$defname =/Definition $defname :=/" out/equivalences/$name-notyp.out
+    echo "." >> out/equivalences/$name-notyp.out
+    term=$(cat out/equivalences/$name-notyp.out)
+
+    # https://stackoverflow.com/questions/29613304/is-it-possible-to-escape-regex-metacharacters-reliably-with-sed
+    IFS= read -d '' -r < <(sed -e ':a' -e '$!{N;ba' -e '}' -e 's/[&/\]/\\&/g; s/\n/\\&/g' <<<"$term")
+    term=${REPLY%$'\n'}
+  
+    sed -i "s/(\* EQUIV $name \*)/$term/" equiv4free/mainequiv2.v
+  done
+
   # Remake Univalent Parametricity case study code
   cd equiv4free
   make clean
-  make separate
+  make equiv
   cd ..
 
   # Add the computation times to the aggregate files
@@ -57,16 +84,16 @@ do
     then
       :
     else
-      tail -n 2 $f | grep -o -e '[0-9.]* secs' | sed -f times.sed >> separate/$dirname/$name.out
+      tail -n 2 $f | grep -o -e '[0-9.]* secs' | sed -f times.sed >> separateequiv/$dirname/$name.out
     fi
   done
 done
 
 # Add the distribution data
-for f in $(find separate/*/*.out); do
+for f in $(find separateequiv/*/*.out); do
   name=$(dirname "${f%.*}" | cut -d / -f 2)"-"$(basename "${f%.*}")
   data=$(datamash median 1 < $f)
-  echo "$name : $data" >> separate/medians.out
+  echo "$name : $data" >> separateequiv/medians.out
 done
 
 # Measure normalized term size
@@ -75,10 +102,10 @@ for f in $(find out/normalized/*.out); do
   line=$(grep -n "     : forall" $f | cut -d : -f 1)
   head -n $(($line-1)) $f > out/normalized/$name-notyp.out
   loc=$(coqwc -s out/normalized/$name-notyp.out)
-  echo $loc >> separate/sizes.out
+  echo $loc >> separateequiv/sizes.out
 done
-sed -i "s/out\/normalized\///" separate/sizes.out
-sed -i "s/-notyp.out//" separate/sizes.out
+sed -i "s/out\/normalized\///" separateequiv/sizes.out
+sed -i "s/-notyp.out//" separateequiv/sizes.out
 
 # Clean temporary files
 rm -r out

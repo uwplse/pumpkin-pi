@@ -15,3 +15,10 @@ clean:
 
 together: main2.v lemmas.vo perm.vo list.vo
 	coqc main2.v
+
+equiv: mainequiv2.v lemmas.vo perm.vo list.vo
+	coqc mainequiv2.v
+
+separate: main.v lemmas.vo perm.vo list.vo
+	coqc main.v
+
