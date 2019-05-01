@@ -168,7 +168,7 @@ for f in $(find out/*/*EFF*.out); do
   then
     :
   else
-    g=$(echo $f | sed -e "s/EFF//")
+    g=$(echo $f | sed -e "s/EFFequiv//")
     echo "Sanity checking $f and $g."
     if [ "$(cat $f)" == "$(cat $g)" ]
     then
