@@ -166,7 +166,6 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/tree60" Time Eval vm_compute in tree60.
     Redirect "out/tree80" Time Eval vm_compute in tree80.
     Redirect "out/tree100" Time Eval vm_compute in tree100.
-    Redirect "out/tree1000" Time Eval vm_compute in tree1000.
     Redirect "out/tree2000" Time Eval vm_compute in tree2000.
     Redirect "out/tree4000" Time Eval vm_compute in tree4000.
     Redirect "out/tree6000" Time Eval vm_compute in tree6000.
