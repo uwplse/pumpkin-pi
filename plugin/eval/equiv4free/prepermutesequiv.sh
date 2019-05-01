@@ -38,7 +38,7 @@ for f in $(find out/equivalences/*.out); do
   head -n $(($line-1)) $f > out/equivalences/$name-notyp.out
   dirname=$(echo $name | cut -d '-' -f 1)
   suffix=$(echo $name | cut -d '-' -f 2)
-  defname=$dirname"'"
+  defname=$dirname
   sed -i "s/$defname =/Definition $defname :=/" out/equivalences/$name-notyp.out
   echo "." >> out/equivalences/$name-notyp.out
   term=$(cat out/equivalences/$name-notyp.out)
