@@ -21,10 +21,13 @@ open Options
  * If the option is enabled, then prove coherence after find_ornament is called.
  * Otherwise, do nothing.
  *)
-let maybe_prove_coherence n orn : unit =
+let maybe_prove_coherence n inv_n idx_n : unit =
   if is_search_coh () then
     let env = Global.env () in
     let evd = Evd.from_env env in
+    let (promote, forget) = map_tuple make_constant (n, inv_n) in
+    let indexer = make_constant idx_n in
+    let orn = { indexer; promote; forget } in
     let coh, coh_typ = prove_coherence env evd orn in
     let coh_n = with_suffix n "coh" in
     let _ = define_term ~typ:coh_typ coh_n evd coh true in
@@ -78,7 +81,7 @@ let find_ornament n_o d_old d_new =
     let inv_n = with_suffix n "inv" in
     let forget = define_term inv_n evd orn.forget true in
     Printf.printf "Defined forgetful function %s.\n\n" (Id.to_string inv_n);
-    maybe_prove_coherence n orn;
+    maybe_prove_coherence n inv_n idx_n;
     maybe_prove_equivalence n inv_n;
     (try
        save_ornament (trm_o, trm_n) (promote, forget)

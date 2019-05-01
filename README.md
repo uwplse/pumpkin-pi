@@ -46,7 +46,9 @@ there are two main commands:
 
 `Find ornament A B as A_to_B.`: Search for the relation that describes the algebraic ornament
 between A and B, and return three functions if successful: `A_to_B`, `A_to_B_inv`, and `A_to_B_index`.
-`A_to_B` and `A_to_B_inv` form a specific equivalence, with `A_to_B_index` describing the fold over `A`.
+`A_to_B` and `A_to_B_inv` form a specific equivalence, with `A_to_B_index` describing the fold over `A`;
+if the `DEVOID search prove coherence` and `DEVOID search prove equivalence` options are set,
+DEVOID additionally produces proofs `A_to_B_coh`, `A_to_B_section`, and `A_to_B_retraction` that show this is true.
 See `coq/examples/Search.v` for an example of this on lists and vectors.
 
 `Lift A B in f as g.`: Lift a function along the discovered relation. See `coq/examples/Lift.v` for a few examples
@@ -87,11 +89,6 @@ these results are more difficult to interpret, and is not the version in the pap
 
 Each of these scripts takes a while, as it runs each function ten times each
 on large data both for DEVOID and for EFF.
-
-### Known Issues
-
-Please see our GitHub [issues](https://github.com/uwplse/ornamental-search/issues) before reporting a bug
-(though please do report any bugs not listed there).
 
 #### Reproducing the Paper Case Study
 
@@ -149,6 +146,11 @@ lifting the datatypes separately from scratch. To see that they do, run the seco
 ```
 
 Then check the `separate` folder for the results.
+
+### Known Issues
+
+Please see our GitHub [issues](https://github.com/uwplse/ornamental-search/issues) before reporting a bug
+(though please do report any bugs not listed there).
 
 ## Understanding the Code
 
