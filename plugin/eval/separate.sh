@@ -53,7 +53,7 @@ do
   for f in $(find out/*/*.out); do
     name=$(basename "${f%.*}")
     dirname=$(dirname "${f%.*}" | cut -d / -f 2)
-    if [ $dirname == "normalized" ]
+    if [ $dirname == "normalized" ] || [ $dirname == "equivalences" ]
     then
       :
     else
