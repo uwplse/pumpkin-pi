@@ -1571,6 +1571,74 @@ Proof.
   exact __bst_to__bst_retraction.
 Qed.
 
+(* --- One more step of compositional lifting --- *)
+
+Inductive nt : Type :=
+| ntBranch (val : nat) (left : nt) (right : nt) : nt
+| ntLeaf (val : nat) : nt.
+
+Find ornament nt __bst.
+
+Definition nt_minl (b : nt) : nat :=
+  nt_rect 
+    (fun (_ : nt) => nat)
+    (fun (val : nat) (l : nt) (IHl : nat) (r : nt) (IHr : nat) =>
+      IHl) 
+    (fun val : nat => val) 
+    b.
+
+Definition packed___bst :=
+  sigT (A := nat) (fun (n : nat) => __bst n).
+
+Theorem test_index_21:
+  forall (b : nt),
+    nt_to___bst_index b = nt_minl b.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_21:
+  forall (b : nt),
+    packed___bst.
+Proof.
+  exact nt_to___bst.
+Qed.
+
+Theorem test_orn_index_21:
+  forall (b : nt),
+    projT1 (nt_to___bst b) = nt_to___bst_index b.
+Proof.
+  exact nt_to___bst_coh.
+Qed.
+
+Theorem test_orn_inv_21:
+  forall (b : packed___bst),
+    nt.
+Proof.
+  exact nt_to___bst_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_21:
+  forall (n : nat) (b : __bst n),
+    nt.
+Proof.
+  intros n b. apply nt_to___bst_inv. exists n. apply b.
+Qed.
+
+Theorem test_section_21:
+  forall (b : nt),
+    nt_to___bst_inv (nt_to___bst b) = b.
+Proof.
+  exact nt_to___bst_section.
+Qed.
+
+Theorem test_retraction_21:
+  forall (b : packed___bst),
+    nt_to___bst (nt_to___bst_inv b) = b.
+Proof.
+  exact nt_to___bst_retraction.
+Qed.
+
 (* (* --- TODO Index already existed in the old constructor, but wasn't used --- *) *)
 
 (* (* --- TODO Index already existed in the old constructor, but was used differently --- *) *)
