@@ -109,4 +109,4 @@ fi
 
 echo "Now trying lifting large constants with a timeout."
 
-timeout 5m `time coqc coq/TestLarge.v`
+timeout 300 `time coqc coq/TestLarge.v`
