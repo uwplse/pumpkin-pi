@@ -23,9 +23,9 @@ fi
 
 if coqc coq/Preprocess.v
 then
-    desugared=true
+  desugared=true
 else
-    :
+  :
 fi
 
 if coqc coq/PreprocessModule.v
@@ -106,3 +106,7 @@ else
   fi
   echo "See Coq error message."
 fi
+
+echo "Now trying lifting large constants with a timeout."
+
+timeout 5m `time coqc coq/TestLarge.v`
