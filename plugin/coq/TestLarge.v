@@ -85,7 +85,111 @@ Definition nt8000 :=
 Definition nt10000 :=
   ntBranch 2 nt2000 nt8000.
 
-(* --- Lift --- *)
+(* --- Lift, lift, lift, unpack, unpack, unpack --- *)
+
+Module all_at_once.
+
+Lift nt __bst in nt20 as __bst20.
+Lift nt __bst in nt40 as __bst40.
+Lift nt __bst in nt60 as __bst60.
+Lift nt __bst in nt80 as __bst80.
+Lift nt __bst in nt100 as __bst100.
+Lift nt __bst in nt200 as __bst200.
+Lift nt __bst in nt400 as __bst400.
+Lift nt __bst in nt600 as __bst600.
+Lift nt __bst in nt800 as __bst800.
+Lift nt __bst in nt1000 as __bst1000.
+Lift nt __bst in nt2000 as __bst2000.
+Lift nt __bst in nt4000 as __bst4000.
+Lift nt __bst in nt6000 as __bst6000.
+Lift nt __bst in nt8000 as __bst8000.
+Lift nt __bst in nt10000 as __bst10000.
+
+Lift __bst _bst in __bst20 as _bst20.
+Lift __bst _bst in __bst40 as _bst40.
+Lift __bst _bst in __bst60 as _bst60.
+Lift __bst _bst in __bst80 as _bst80.
+Lift __bst _bst in __bst100 as _bst100.
+Lift __bst _bst in __bst200 as _bst200.
+Lift __bst _bst in __bst400 as _bst400.
+Lift __bst _bst in __bst600 as _bst600.
+Lift __bst _bst in __bst800 as _bst800.
+Lift __bst _bst in __bst1000 as _bst1000.
+Lift __bst _bst in __bst2000 as _bst2000.
+Lift __bst _bst in __bst4000 as _bst4000.
+Lift __bst _bst in __bst6000 as _bst6000.
+Lift __bst _bst in __bst8000 as _bst8000.
+Lift __bst _bst in __bst10000 as _bst10000.
+
+Lift _bst bst in _bst20 as bst20'''.
+Lift _bst bst in _bst40 as bst40'''.
+Lift _bst bst in _bst60 as bst60'''.
+Lift _bst bst in _bst80 as bst80'''.
+Lift _bst bst in _bst100 as bst100'''.
+Lift _bst bst in _bst200 as bst200'''.
+Lift _bst bst in _bst400 as bst400'''.
+Lift _bst bst in _bst600 as bst600'''.
+Lift _bst bst in _bst800 as bst800'''.
+Lift _bst bst in _bst1000 as bst1000'''.
+Lift _bst bst in _bst2000 as bst2000'''.
+Lift _bst bst in _bst4000 as bst4000'''.
+Lift _bst bst in _bst6000 as bst6000'''.
+Lift _bst bst in _bst8000 as bst8000'''.
+Lift _bst bst in _bst10000 as bst10000'''.
+
+Unpack bst20''' as bst20''.
+Unpack bst40''' as bst40''.
+Unpack bst60''' as bst60''.
+Unpack bst80''' as bst80''.
+Unpack bst100''' as bst100''.
+Unpack bst200''' as bst200''.
+Unpack bst400''' as bst400''.
+Unpack bst600''' as bst600''.
+Unpack bst800''' as bst800''.
+Unpack bst1000''' as bst1000''.
+Unpack bst2000''' as bst2000''.
+Unpack bst4000''' as bst4000''.
+Unpack bst6000''' as bst6000''.
+Unpack bst8000''' as bst8000''.
+Unpack bst10000''' as bst10000''.
+
+Unpack bst20'' as bst20'.
+Unpack bst40'' as bst40'.
+Unpack bst60'' as bst60'.
+Unpack bst80'' as bst80'.
+Unpack bst100'' as bst100'.
+Unpack bst200'' as bst200'.
+Unpack bst400'' as bst400'.
+Unpack bst600'' as bst600'.
+Unpack bst800'' as bst800'.
+Unpack bst1000'' as bst1000'.
+Unpack bst2000'' as bst2000'.
+Unpack bst4000'' as bst4000'.
+Unpack bst6000'' as bst6000'.
+Unpack bst8000'' as bst8000'.
+Unpack bst10000'' as bst10000'.
+
+Unpack bst20' as bst20.
+Unpack bst40' as bst40.
+Unpack bst60' as bst60.
+Unpack bst80' as bst80.
+Unpack bst100' as bst100.
+Unpack bst200' as bst200.
+Unpack bst400' as bst400.
+Unpack bst600' as bst600.
+Unpack bst800' as bst800.
+Unpack bst1000' as bst1000.
+Unpack bst2000' as bst2000.
+Unpack bst4000' as bst4000.
+Unpack bst6000' as bst6000.
+Unpack bst8000' as bst8000.
+Unpack bst10000' as bst10000.
+
+End all_at_once.
+
+(* --- Lift, unpack, lift, unpack, lift, unpack -- *)
+
+Module one_at_a_time.
 
 Lift nt __bst in nt20 as __bst20'.
 Lift nt __bst in nt40 as __bst40'.
@@ -103,8 +207,6 @@ Lift nt __bst in nt6000 as __bst6000'.
 Lift nt __bst in nt8000 as __bst8000'.
 Lift nt __bst in nt10000 as __bst10000'.
 
-(* --- Unpack --- *)
-
 Unpack __bst20' as __bst20.
 Unpack __bst40' as __bst40.
 Unpack __bst60' as __bst60.
@@ -120,8 +222,6 @@ Unpack __bst4000' as __bst4000.
 Unpack __bst6000' as __bst6000.
 Unpack __bst8000' as __bst8000.
 Unpack __bst10000' as __bst10000.
-
-(* --- Lift --- *)
 
 Lift __bst _bst in __bst20 as _bst20'.
 Lift __bst _bst in __bst40 as _bst40'.
@@ -139,8 +239,6 @@ Lift __bst _bst in __bst6000 as _bst6000'.
 Lift __bst _bst in __bst8000 as _bst8000'.
 Lift __bst _bst in __bst10000 as _bst10000'.
 
-(* --- Unpack --- *)
-
 Unpack _bst20' as _bst20.
 Unpack _bst40' as _bst40.
 Unpack _bst60' as _bst60.
@@ -156,8 +254,6 @@ Unpack _bst4000' as _bst4000.
 Unpack _bst6000' as _bst6000.
 Unpack _bst8000' as _bst8000.
 Unpack _bst10000' as _bst10000.
-
-(* --- Lift --- *)
 
 Lift _bst bst in _bst20 as bst20'.
 Lift _bst bst in _bst40 as bst40'.
@@ -175,4 +271,4 @@ Lift _bst bst in _bst6000 as bst6000'.
 Lift _bst bst in _bst8000 as bst8000'.
 Lift _bst bst in _bst10000 as bst10000'.
 
-
+End one_at_a_time.

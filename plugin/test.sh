@@ -107,6 +107,5 @@ else
   echo "See Coq error message."
 fi
 
-echo "Now trying lifting large constants with a timeout."
-
-timeout 300 `time coqc coq/TestLarge.v`
+echo "Now trying lifting large constants. If this takes too long, give up and fail. Aim for under a minute. Timeout command for some reason doesn't work."
+time coqc coq/TestLarge.v

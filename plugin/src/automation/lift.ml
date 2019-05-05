@@ -116,6 +116,13 @@ let is_proj c env evd trm =
   | _ ->
      false
 
+(* Premises for optimization for projections of existentials in LIFT-APP *)
+let optimize_proj env f args args' =
+  let (arg, arg') = map_tuple last (args, args') in
+  let projects = equal projT1 f || equal projT2 f in
+  let is_ex = is_or_applies existT arg' in
+  projects && is_ex
+
 (* Premises for LIFT-ELIM *)
 let is_eliminator c env evd trm =
   let (a_typ, b_typ) = c.typs in
@@ -474,10 +481,11 @@ let lift_core env evd c ib_typ trm =
            lift_rec en ib_typ (last_arg tr)
          else
            (* APP *)
-           let args' = List.map (lift_rec en ib_typ) (Array.to_list args) in
-           let arg' = last args' in
-           if (is_or_applies projT1 tr || is_or_applies projT2 tr) && is_or_applies existT arg' then
-             (* optimize projections of existentials, which are common *)
+           let args = Array.to_list args in
+           let args' = List.map (lift_rec en ib_typ) args in
+           if optimize_proj en f args args' then
+             (* optimize projections of certain common existentials *)
+             let arg' = lift_rec en ib_typ (last args) in
              let ex' = dest_existT arg' in
              if equal projT1 f then
                ex'.index
