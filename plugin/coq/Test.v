@@ -1500,6 +1500,77 @@ Proof.
   exact orn_bintree_bintreeV2_retraction.
 Qed.
 
+(* --- An earlier type for the _bst example above, for compositional lifting --- *)
+
+Inductive __bst : nat -> Type :=
+| __Branch (min_l min_r : nat) (val : nat)
+          (left : __bst min_l) (right : __bst min_r)
+      : __bst min_l
+| __Leaf (val : nat) : __bst val.
+
+Find ornament __bst _bst.
+
+Definition __bst_maxr (n : nat) (b : __bst n) : nat :=
+  __bst_rect 
+    (fun (n0 : nat) (_ : __bst n0) => nat)
+    (fun (min_l min_r : nat) (val : nat) (l : __bst min_l) (IHl : nat) (r : __bst min_r) (IHr : nat) =>
+      IHr) 
+    (fun val : nat => val) 
+    n
+    b.
+
+Definition packed__bst (n : nat) :=
+  sigT (A := nat) (fun (m : nat) => _bst n m).
+
+Theorem test_index_20:
+  forall (n : nat) (b : __bst n),
+    __bst_to__bst_index n b = __bst_maxr n b.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Theorem test_orn_20:
+  forall (n : nat) (b : __bst n),
+    packed__bst n.
+Proof.
+  exact __bst_to__bst.
+Qed.
+
+Theorem test_orn_index_20:
+  forall (n : nat) (b : __bst n),
+    projT1 (__bst_to__bst n b) = __bst_to__bst_index n b.
+Proof.
+  exact __bst_to__bst_coh.
+Qed.
+
+Theorem test_orn_inv_20:
+  forall (n : nat) (b : packed__bst n),
+    __bst n.
+Proof.
+  exact __bst_to__bst_inv.
+Qed.
+
+Theorem test_orn_inv_unpack_20:
+  forall (n m : nat) (b : _bst n m),
+    __bst n.
+Proof.
+  intros n m b. apply __bst_to__bst_inv. exists m. apply b.
+Qed.
+
+Theorem test_section_20:
+  forall (n : nat) (b : __bst n),
+    __bst_to__bst_inv n (__bst_to__bst n b) = b.
+Proof.
+  exact __bst_to__bst_section.
+Qed.
+
+Theorem test_retraction_20:
+  forall (n : nat) (b : packed__bst n),
+    __bst_to__bst n (__bst_to__bst_inv n b) = b.
+Proof.
+  exact __bst_to__bst_retraction.
+Qed.
+
 (* (* --- TODO Index already existed in the old constructor, but wasn't used --- *) *)
 
 (* (* --- TODO Index already existed in the old constructor, but was used differently --- *) *)
