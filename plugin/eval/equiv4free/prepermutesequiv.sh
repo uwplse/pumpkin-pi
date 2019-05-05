@@ -25,6 +25,7 @@ mkdir ../out/preorder
 mkdir ../out/search
 mkdir ../out/equivalences
 mkdir ../out/normalized
+cp mainequiv.v mainequiv2.v
 
 # Remake DEVOID case study code exactly once, to print terms
 cd ..
@@ -54,6 +55,15 @@ done
 cd equiv4free
 make clean
 
-echo "grab a coffee or a book; this will take an hour once you've uncommented the right line"
+echo "grab a coffee or a book; this will take an hour on the right architecture once you've uncommented the right line"
 timeout 1h `time make equiv`
+
+# Measure normalized term size
+for f in $(find ../out/normalized/pre_permutes-sizedEFFequiv.out); do
+  name=$(basename "${f%.*}")
+  line=$(grep -n "     : forall" $f | cut -d : -f 1)
+  head -n $(($line-1)) $f > ../out/normalized/$name-notyp.out
+  coqwc -s ../out/normalized/$name-notyp.out
+done
+
 

@@ -452,7 +452,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/normalized/preorder-sizedEFFequiv" Eval compute in preorder'.
     Redirect "../out/normalized/postorder-sizedEFFequiv" Eval compute in postorder'.
     Redirect "../out/normalized/inorder-sizedEFFequiv" Eval compute in inorder'.
-    (* Redirect "../out/normalized/pre_permutes-sizedEFFequiv" Eval compute in pre_permutes'. *)
+    (*Redirect "../out/normalized/pre_permutes-sizedEFFequiv" Eval compute in pre_permutes'.*)
 
     (* Auto-generated definitions go here in together case study *)
     Module Comparison.
