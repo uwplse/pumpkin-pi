@@ -366,35 +366,35 @@ Module CaseStudy (Elem : Comparable).
 
      (* --- Lifted inputs --- *)
      (* Small *)
-     Lift Base.tree __bst in Base.tree20 as __tree20'.
-     Unpack __tree20' as __tree20.
-     Lift __bst _bst in __tree20 as _tree20'. 
-     Unpack _tree20' as _tree20.
-     Lift _bst bst in _tree20 as tree20'.
+     Lift Base.tree __bst in Base.tree20 as __tree20.
+     Lift __bst _bst in __tree20 as _tree20. 
+     Lift _bst bst in _tree20 as tree20'''.
+     Unpack tree20''' as tree20''.
+     Unpack tree20'' as tree20'.
      Unpack tree20' as tree20.
-     Lift Base.tree __bst in Base.tree40 as __tree40'.
-     Unpack __tree40' as __tree40.
-     Lift __bst _bst in __tree40 as _tree40'.
-     Unpack _tree40' as _tree40.
-     Lift _bst bst in _tree40 as tree40'.
+     Lift Base.tree __bst in Base.tree40 as __tree40.
+     Lift __bst _bst in __tree40 as _tree40. 
+     Lift _bst bst in _tree40 as tree40'''.
+     Unpack tree40''' as tree40''.
+     Unpack tree40'' as tree40'.
      Unpack tree40' as tree40.
-     Lift Base.tree __bst in Base.tree60 as __tree60'.
-     Unpack __tree60' as __tree60.
-     Lift __bst _bst in __tree60 as _tree60'.
-     Unpack _tree60' as _tree60.
-     Lift _bst bst in _tree60 as tree60'.
+     Lift Base.tree __bst in Base.tree60 as __tree60.
+     Lift __bst _bst in __tree60 as _tree60. 
+     Lift _bst bst in _tree60 as tree60'''.
+     Unpack tree60''' as tree60''.
+     Unpack tree60'' as tree60'.
      Unpack tree60' as tree60.
-     Lift Base.tree __bst in Base.tree80 as __tree80'.
-     Unpack __tree80' as __tree80.
-     Lift __bst _bst in __tree80 as _tree80'.
-     Unpack _tree80' as _tree80.
-     Lift _bst bst in _tree80 as tree80'.
+     Lift Base.tree __bst in Base.tree80 as __tree80.
+     Lift __bst _bst in __tree80 as _tree80. 
+     Lift _bst bst in _tree80 as tree80'''.
+     Unpack tree80''' as tree80''.
+     Unpack tree80'' as tree80'.
      Unpack tree80' as tree80.
-     Lift Base.tree __bst in Base.tree100 as __tree100'.
-     Unpack __tree100' as __tree100.
-     Lift __bst _bst in __tree100 as _tree100'.
-     Unpack _tree100' as _tree100.
-     Lift _bst bst in _tree100 as tree100'.
+     Lift Base.tree __bst in Base.tree100 as __tree100.
+     Lift __bst _bst in __tree100 as _tree100. 
+     Lift _bst bst in _tree100 as tree100'''.
+     Unpack tree100''' as tree100''.
+     Unpack tree100'' as tree100'.
      Unpack tree100' as tree100.
 
     (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
@@ -470,21 +470,36 @@ Module CaseStudy (Elem : Comparable).
 
     (* --- Lifted inputs --- *)
     (* Small: *)
-    Lift Ordered.bst _avl in Ordered.tree20 as _tree20'.
-    Unpack _tree20' as _tree20.
-    Lift _avl avl in _tree20 as tree20.
-    Lift Ordered.bst _avl in Ordered.tree40 as _tree40'.
-    Unpack _tree40' as _tree40.
-    Lift _avl avl in _tree40 as tree40.
-    Lift Ordered.bst _avl in Ordered.tree60 as _tree60'.
-    Unpack _tree60' as _tree60.
-    Lift _avl avl in _tree60 as tree60.
-    Lift Ordered.bst _avl in Ordered.tree80 as _tree80'.
-    Unpack _tree80' as _tree80.
-    Lift _avl avl in _tree80 as tree80.
-    Lift Ordered.bst _avl in Ordered.tree100 as _tree100'.
-    Unpack _tree100' as _tree100.
-    Lift _avl avl in _tree100 as tree100.
+    Lift Ordered.bst _avl in Ordered.tree20''' as _tree20.
+    Lift _avl avl in _tree20 as tree20''''.
+    Unpack tree20'''' as tree20'''.
+    Unpack tree20''' as tree20''.
+    Unpack tree20'' as tree20'.
+    Unpack tree20' as tree20.
+    Lift Ordered.bst _avl in Ordered.tree40 as _tree40.
+    Lift _avl avl in _tree40 as tree40''''.
+    Unpack tree40'''' as tree40'''.
+    Unpack tree40''' as tree40''.
+    Unpack tree40'' as tree40'.
+    Unpack tree40' as tree40.
+    Lift Ordered.bst _avl in Ordered.tree60 as _tree60.
+    Lift _avl avl in _tree60 as tree60''''.
+    Unpack tree60'''' as tree60'''.
+    Unpack tree60''' as tree60''.
+    Unpack tree60'' as tree60'.
+    Unpack tree60' as tree60.
+    Lift Ordered.bst _avl in Ordered.tree80 as _tree80.
+    Lift _avl avl in _tree80 as tree80''''.
+    Unpack tree80'''' as tree80'''.
+    Unpack tree80''' as tree80''.
+    Unpack tree80'' as tree80'.
+    Unpack tree80' as tree80.
+    Lift Ordered.bst _avl in Ordered.tree100 as _tree100.
+    Lift _avl avl in _tree100 as tree100''''.
+    Unpack tree100'''' as tree100'''.
+    Unpack tree100''' as tree100''.
+    Unpack tree100'' as tree100'.
+    Unpack tree100' as tree100.
 
     (* --- AVL data --- *)
     Redirect "out/preorder/avl20" Time Eval vm_compute in (preorder' _ _ _ _ tree20).
