@@ -476,25 +476,25 @@ Module CaseStudy (Elem : Comparable).
     Unpack tree20''' as tree20''.
     Unpack tree20'' as tree20'.
     Unpack tree20' as tree20.
-    Lift Ordered.bst _avl in Ordered.tree40 as _tree40.
+    Lift Ordered.bst _avl in Ordered.tree40''' as _tree40.
     Lift _avl avl in _tree40 as tree40''''.
     Unpack tree40'''' as tree40'''.
     Unpack tree40''' as tree40''.
     Unpack tree40'' as tree40'.
     Unpack tree40' as tree40.
-    Lift Ordered.bst _avl in Ordered.tree60 as _tree60.
+    Lift Ordered.bst _avl in Ordered.tree60''' as _tree60.
     Lift _avl avl in _tree60 as tree60''''.
     Unpack tree60'''' as tree60'''.
     Unpack tree60''' as tree60''.
     Unpack tree60'' as tree60'.
     Unpack tree60' as tree60.
-    Lift Ordered.bst _avl in Ordered.tree80 as _tree80.
+    Lift Ordered.bst _avl in Ordered.tree80''' as _tree80.
     Lift _avl avl in _tree80 as tree80''''.
     Unpack tree80'''' as tree80'''.
     Unpack tree80''' as tree80''.
     Unpack tree80'' as tree80'.
     Unpack tree80' as tree80.
-    Lift Ordered.bst _avl in Ordered.tree100 as _tree100.
+    Lift Ordered.bst _avl in Ordered.tree100''' as _tree100.
     Lift _avl avl in _tree100 as tree100''''.
     Unpack tree100'''' as tree100'''.
     Unpack tree100''' as tree100''.
