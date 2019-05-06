@@ -6,6 +6,8 @@ Require Import Test.
  * This file tests compositional lifting and unpacking
  * of large constants, making sure that the lifting process
  * is not slow as a result of poor interplay of existing optimizations.
+ *
+ * See: https://github.com/uwplse/ornamental-search/issues/44
  *)
 
 (* --- Original constants --- *)
