@@ -152,6 +152,10 @@ Then check the `separate` folder for the results.
 Please see our GitHub [issues](https://github.com/uwplse/ornamental-search/issues) before reporting a bug
 (though please do report any bugs not listed there).
 
+One outstanding issue (an unimplemented optimization) has consequences for how we lift and unpack large
+constants compositionally. For now, for large constants, you should prefer lifting several times and then unpacking
+the result several times over iteratively lifting and unpacking. See [this issue](https://github.com/uwplse/ornamental-search/issues/44).
+
 ## Understanding the Code
 
 The top-level is in `ornamental.ml4`, which outsources to `frontend.ml`. From there, the two major functionalities
