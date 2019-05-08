@@ -7,7 +7,7 @@ Import ListNotations.
 Set DEVOID search prove equivalence.
 
 (* Set a timeout for Coq commands *)
-Set Default Timeout 60.
+Set Default Timeout 100.
 
 Open Scope bool_scope.
 

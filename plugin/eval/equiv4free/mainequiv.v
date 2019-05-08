@@ -26,7 +26,7 @@ Definition sigT_rect {A : Type} {P : A -> Type} (P0 : {x : A & P x} -> Set) (H :
 Add Printing Let sigT. (* for consistency *)
 
 (* Set a timeout for Coq commands *)
-Set Default Timeout 60.
+Set Default Timeout 100.
 
 Module Type Comparable.
 
