@@ -685,17 +685,16 @@ Module CaseStudy (Elem : Comparable).
 
     Notation avl_sig := (fun lo hi ord => {h:nat & {bal:bool & avl lo hi ord h bal}}) (only parsing).
 
-    Definition tree1 := (↑ Ordered.tree1.2.2.2).2.
-    Definition tree10 := (↑ Ordered.tree10.2.2.2).2.
-    Definition tree100 := (↑ Ordered.tree100.2.2.2).2.
-    Definition tree1000 := (↑ Ordered.tree1000.2.2.2).2.
-    Definition tree10000 := (↑ Ordered.tree10000.2.2.2).2.
+    Definition tree1 := (↑ Ordered.tree1.2.2.2).
+    Definition tree10 := (↑ Ordered.tree10.2.2.2).
+    Definition tree100 := (↑ Ordered.tree100.2.2.2).
+    Definition tree1000 := (↑ Ordered.tree1000.2.2.2).
+    Definition tree10000 := (↑ Ordered.tree10000.2.2.2).
 
     (* 106 LoC in normal form *)
-    Definition preorder'' {lo hi ord} : avl_sig lo hi ord -> list Elem.t :=
+    Definition preorder' {lo hi ord} : avl_sig lo hi ord -> list Elem.t :=
       ↑ (@Ordered.preorder lo hi ord).
-    Definition preorder' {lo hi ord h} t := @preorder'' lo hi ord (h; t).
-    Definition preorder {lo hi ord h bal} t := @preorder' lo hi ord h (bal; t).
+    Definition preorder {lo hi ord h bal} t := @preorder' lo hi ord (h (bal; t)).
     Redirect "../out/preorder/avlEFF1" Time Eval vm_compute in (preorder' tree1).
     Redirect "../out/preorder/avlEFF10" Time Eval vm_compute in (preorder' tree10).
     Redirect "../out/preorder/avlEFF100" Time Eval vm_compute in (preorder' tree100).
@@ -704,10 +703,9 @@ Module CaseStudy (Elem : Comparable).
     Fail Redirect "../out/preorder/avlEFF10000" Time Eval vm_compute in (preorder' tree10000).
 
     (* 105 LoC in normal form *)
-    Definition inorder'' {lo hi ord} : avl_sig lo hi ord -> list Elem.t :=
+    Definition inorder' {lo hi ord} : avl_sig lo hi ord -> list Elem.t :=
       ↑ (@Ordered.inorder lo hi ord).
-    Definition inorder' {lo hi ord h} t := @inorder'' lo hi ord (h; t).
-    Definition inorder {lo hi ord h bal} t := @inorder' lo hi ord h (bal; t).
+    Definition inorder {lo hi ord h bal} t := @inorder' lo hi ord (h; (bal; t)).
     Redirect "../out/inorder/avlEFF1" Time Eval vm_compute in (inorder' tree1).
     Redirect "../out/inorder/avlEFF10" Time Eval vm_compute in (inorder' tree10).
     Redirect "../out/inorder/avlEFF100" Time Eval vm_compute in (inorder' tree100).
@@ -716,10 +714,9 @@ Module CaseStudy (Elem : Comparable).
     Fail Redirect "../out/inorder/avlEFF10000" Time Eval vm_compute in (inorder' tree10000).
 
     (* 112 LoC in normal form *)
-    Definition postorder'' {lo hi ord} : avl_sig lo hi ord -> list Elem.t :=
+    Definition postorder' {lo hi ord} : avl_sig lo hi ord -> list Elem.t :=
       ↑ (@Ordered.postorder lo hi ord).
-    Definition postorder' {lo hi ord h} t := @postorder'' lo hi ord (h; t).
-    Definition postorder {lo hi ord h bal} t := @postorder' lo hi ord h (bal; t).
+    Definition postorder {lo hi ord h bal} t := @postorder' lo hi ord (h; (bal; t)).
     Redirect "../out/postorder/avlEFF1" Time Eval vm_compute in (postorder' tree1).
     Redirect "../out/postorder/avlEFF10" Time Eval vm_compute in (postorder' tree10).
     Redirect "../out/postorder/avlEFF100" Time Eval vm_compute in (postorder' tree100).
@@ -728,11 +725,10 @@ Module CaseStudy (Elem : Comparable).
     Fail Redirect "../out/postorder/avlEFF10000" Time Eval vm_compute in (postorder' tree10000).
 
     (* 105 LoC in normal form *)
-    Definition search'' {lo hi ord} : {h:nat & {bal:bool & avl lo hi ord h bal}} -> Elem.t -> bool :=
+    Definition search' {lo hi ord} : {h:nat & {bal:bool & avl lo hi ord h bal}} -> Elem.t -> bool :=
       ↑ (@Ordered.search lo hi ord).
-    Definition search' {lo hi ord h} t := @search'' lo hi ord (h; t).
     Definition search {lo hi ord h bal} (t : avl lo hi ord h bal) (x : Elem.t) : bool :=
-      @search' lo hi ord h (bal; t) x.
+      @search' lo hi ord (h; (bal; t)) x.
     Redirect "../out/search/avlEFF1" Time Eval vm_compute in (search' tree1 Elem.x).
     Redirect "../out/search/avlEFF10" Time Eval vm_compute in (search' tree10 Elem.x).
     Redirect "../out/search/avlEFF100" Time Eval vm_compute in (search' tree100 Elem.x).
