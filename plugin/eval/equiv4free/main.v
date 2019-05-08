@@ -694,7 +694,7 @@ Module CaseStudy (Elem : Comparable).
     (* 106 LoC in normal form *)
     Definition preorder' {lo hi ord} : avl_sig lo hi ord -> list Elem.t :=
       ↑ (@Ordered.preorder lo hi ord).
-    Definition preorder {lo hi ord h bal} t := @preorder' lo hi ord (h (bal; t)).
+    Definition preorder {lo hi ord h bal} t := @preorder' lo hi ord (h; (bal; t)).
     Redirect "../out/preorder/avlEFF1" Time Eval vm_compute in (preorder' tree1).
     Redirect "../out/preorder/avlEFF10" Time Eval vm_compute in (preorder' tree10).
     Redirect "../out/preorder/avlEFF100" Time Eval vm_compute in (preorder' tree100).
