@@ -472,6 +472,60 @@ Module CaseStudy (Elem : Comparable).
     Unpack tree10000' as tree10000.
 
     (* --- Print the inputs for control purposes for EFF code --- *)
+    Redirect "out/inputs/tree1'''-bst" Print tree1'''.
+    Redirect "out/inputs/tree10'''-bst" Print tree10'''.
+    Redirect "out/inputs/tree20'''-bst" Print tree20'''.
+    Redirect "out/inputs/tree40'''-bst" Print tree40'''.
+    Redirect "out/inputs/tree60'''-bst" Print tree60'''.
+    Redirect "out/inputs/tree80'''-bst" Print tree80'''.
+    Redirect "out/inputs/tree100'''-bst" Print tree100'''.
+    Redirect "out/inputs/tree200'''-bst" Print tree200'''.
+    Redirect "out/inputs/tree400'''-bst" Print tree400'''.
+    Redirect "out/inputs/tree600'''-bst" Print tree600'''.
+    Redirect "out/inputs/tree800'''-bst" Print tree800'''.
+    Redirect "out/inputs/tree1000'''-bst" Print tree1000'''.
+    Redirect "out/inputs/tree2000'''-bst" Print tree2000'''.
+    Redirect "out/inputs/tree4000'''-bst" Print tree4000'''.
+    Redirect "out/inputs/tree6000'''-bst" Print tree6000'''.
+    Redirect "out/inputs/tree8000'''-bst" Print tree8000'''.
+    Redirect "out/inputs/tree10000'''-bst" Print tree10000'''.
+
+    Redirect "out/inputs/tree1''-bst" Print tree1''.
+    Redirect "out/inputs/tree10''-bst" Print tree10''.
+    Redirect "out/inputs/tree20''-bst" Print tree20''.
+    Redirect "out/inputs/tree40''-bst" Print tree40''.
+    Redirect "out/inputs/tree60''-bst" Print tree60''.
+    Redirect "out/inputs/tree80''-bst" Print tree80''.
+    Redirect "out/inputs/tree100''-bst" Print tree100''.
+    Redirect "out/inputs/tree200''-bst" Print tree200''.
+    Redirect "out/inputs/tree400''-bst" Print tree400''.
+    Redirect "out/inputs/tree600''-bst" Print tree600''.
+    Redirect "out/inputs/tree800''-bst" Print tree800''.
+    Redirect "out/inputs/tree1000''-bst" Print tree1000''.
+    Redirect "out/inputs/tree2000''-bst" Print tree2000''.
+    Redirect "out/inputs/tree4000''-bst" Print tree4000''.
+    Redirect "out/inputs/tree6000''-bst" Print tree6000''.
+    Redirect "out/inputs/tree8000''-bst" Print tree8000''.
+    Redirect "out/inputs/tree10000''-bst" Print tree10000''.
+
+    Redirect "out/inputs/tree1'-bst" Print tree1'.
+    Redirect "out/inputs/tree10'-bst" Print tree10'.
+    Redirect "out/inputs/tree20'-bst" Print tree20'.
+    Redirect "out/inputs/tree40'-bst" Print tree40'.
+    Redirect "out/inputs/tree60'-bst" Print tree60'.
+    Redirect "out/inputs/tree80'-bst" Print tree80'.
+    Redirect "out/inputs/tree100'-bst" Print tree100'.
+    Redirect "out/inputs/tree200'-bst" Print tree200'.
+    Redirect "out/inputs/tree400'-bst" Print tree400'.
+    Redirect "out/inputs/tree600'-bst" Print tree600'.
+    Redirect "out/inputs/tree800'-bst" Print tree800'.
+    Redirect "out/inputs/tree1000'-bst" Print tree1000'.
+    Redirect "out/inputs/tree2000'-bst" Print tree2000'.
+    Redirect "out/inputs/tree4000'-bst" Print tree4000'.
+    Redirect "out/inputs/tree6000'-bst" Print tree6000'.
+    Redirect "out/inputs/tree8000'-bst" Print tree8000'.
+    Redirect "out/inputs/tree10000'-bst" Print tree10000'.
+
     Redirect "out/inputs/tree1-bst" Print tree1.
     Redirect "out/inputs/tree10-bst" Print tree10.
     Redirect "out/inputs/tree20-bst" Print tree20.
@@ -614,6 +668,78 @@ Module CaseStudy (Elem : Comparable).
     Unpack tree10000' as tree10000.
 
     (* --- Print the inputs for control purposes for EFF code --- *)
+    Redirect "out/inputs/tree1''''-avl" Print tree1''''.
+    Redirect "out/inputs/tree10''''-avl" Print tree10''''.
+    Redirect "out/inputs/tree20''''-avl" Print tree20''''.
+    Redirect "out/inputs/tree40''''-avl" Print tree40''''.
+    Redirect "out/inputs/tree60''''-avl" Print tree60''''.
+    Redirect "out/inputs/tree80''''-avl" Print tree80''''.
+    Redirect "out/inputs/tree100''''-avl" Print tree100''''.
+    Redirect "out/inputs/tree200''''-avl" Print tree200''''.
+    Redirect "out/inputs/tree400''''-avl" Print tree400''''.
+    Redirect "out/inputs/tree600''''-avl" Print tree600''''.
+    Redirect "out/inputs/tree800''''-avl" Print tree800''''.
+    Redirect "out/inputs/tree1000''''-avl" Print tree1000''''.
+    Redirect "out/inputs/tree2000''''-avl" Print tree2000''''.
+    Redirect "out/inputs/tree4000''''-avl" Print tree4000''''.
+    Redirect "out/inputs/tree6000''''-avl" Print tree6000''''.
+    Redirect "out/inputs/tree8000''''-avl" Print tree8000''''.
+    Redirect "out/inputs/tree10000''''-avl" Print tree10000''''.
+
+    Redirect "out/inputs/tree1'''-avl" Print tree1'''.
+    Redirect "out/inputs/tree10'''-avl" Print tree10'''.
+    Redirect "out/inputs/tree20'''-avl" Print tree20'''.
+    Redirect "out/inputs/tree40'''-avl" Print tree40'''.
+    Redirect "out/inputs/tree60'''-avl" Print tree60'''.
+    Redirect "out/inputs/tree80'''-avl" Print tree80'''.
+    Redirect "out/inputs/tree100'''-avl" Print tree100'''.
+    Redirect "out/inputs/tree200'''-avl" Print tree200'''.
+    Redirect "out/inputs/tree400'''-avl" Print tree400'''.
+    Redirect "out/inputs/tree600'''-avl" Print tree600'''.
+    Redirect "out/inputs/tree800'''-avl" Print tree800'''.
+    Redirect "out/inputs/tree1000'''-avl" Print tree1000'''.
+    Redirect "out/inputs/tree2000'''-avl" Print tree2000'''.
+    Redirect "out/inputs/tree4000'''-avl" Print tree4000'''.
+    Redirect "out/inputs/tree6000'''-avl" Print tree6000'''.
+    Redirect "out/inputs/tree8000'''-avl" Print tree8000'''.
+    Redirect "out/inputs/tree10000'''-avl" Print tree10000'''.
+
+    Redirect "out/inputs/tree1''-avl" Print tree1''.
+    Redirect "out/inputs/tree10''-avl" Print tree10''.
+    Redirect "out/inputs/tree20''-avl" Print tree20''.
+    Redirect "out/inputs/tree40''-avl" Print tree40''.
+    Redirect "out/inputs/tree60''-avl" Print tree60''.
+    Redirect "out/inputs/tree80''-avl" Print tree80''.
+    Redirect "out/inputs/tree100''-avl" Print tree100''.
+    Redirect "out/inputs/tree200''-avl" Print tree200''.
+    Redirect "out/inputs/tree400''-avl" Print tree400''.
+    Redirect "out/inputs/tree600''-avl" Print tree600''.
+    Redirect "out/inputs/tree800''-avl" Print tree800''.
+    Redirect "out/inputs/tree1000''-avl" Print tree1000''.
+    Redirect "out/inputs/tree2000''-avl" Print tree2000''.
+    Redirect "out/inputs/tree4000''-avl" Print tree4000''.
+    Redirect "out/inputs/tree6000''-avl" Print tree6000''.
+    Redirect "out/inputs/tree8000''-avl" Print tree8000''.
+    Redirect "out/inputs/tree10000''-avl" Print tree10000''.
+
+    Redirect "out/inputs/tree1'-avl" Print tree1'.
+    Redirect "out/inputs/tree10'-avl" Print tree10'.
+    Redirect "out/inputs/tree20'-avl" Print tree20'.
+    Redirect "out/inputs/tree40'-avl" Print tree40'.
+    Redirect "out/inputs/tree60'-avl" Print tree60'.
+    Redirect "out/inputs/tree80'-avl" Print tree80'.
+    Redirect "out/inputs/tree100'-avl" Print tree100'.
+    Redirect "out/inputs/tree200'-avl" Print tree200'.
+    Redirect "out/inputs/tree400'-avl" Print tree400'.
+    Redirect "out/inputs/tree600'-avl" Print tree600'.
+    Redirect "out/inputs/tree800'-avl" Print tree800'.
+    Redirect "out/inputs/tree1000'-avl" Print tree1000'.
+    Redirect "out/inputs/tree2000'-avl" Print tree2000'.
+    Redirect "out/inputs/tree4000'-avl" Print tree4000'.
+    Redirect "out/inputs/tree6000'-avl" Print tree6000'.
+    Redirect "out/inputs/tree8000'-avl" Print tree8000'.
+    Redirect "out/inputs/tree10000'-avl" Print tree10000'.
+
     Redirect "out/inputs/tree1-avl" Print tree1.
     Redirect "out/inputs/tree10-avl" Print tree10.
     Redirect "out/inputs/tree20-avl" Print tree20.
