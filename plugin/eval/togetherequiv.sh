@@ -78,7 +78,7 @@ done
 # Copy the produced inputs into the EFF code
 for f in $(find out/inputs/*.out); do
   name=$(basename "${f%.*}")
-  line=$(grep -n "     : forall" $f | cut -d : -f 1)
+  line=$(grep -n "     :" $f | cut -d : -f 1)
   head -n $(($line-1)) $f > out/inputs/$name-notyp.out
   dirname=$(echo $name | cut -d '-' -f 1)
   suffix=$(echo $name | cut -d '-' -f 2)
