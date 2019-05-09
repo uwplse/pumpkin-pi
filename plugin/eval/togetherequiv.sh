@@ -37,6 +37,7 @@ mkdir out/inorder
 mkdir out/postorder
 mkdir out/preorder
 mkdir out/search
+mkdir out/inputs
 mkdir out/equivalences
 mkdir out/normalized
 mkdir togetherequiv
@@ -73,6 +74,26 @@ for f in $(find out/equivalences/*.out); do
   
   sed -i "s/(\* EQUIV $name \*)/$term/" equiv4free/mainequiv2.v
 done
+
+# Copy the produced inputs into the EFF code
+for f in $(find out/inputs/*.out); do
+  name=$(basename "${f%.*}")
+  line=$(grep -n "     : forall" $f | cut -d : -f 1)
+  head -n $(($line-1)) $f > out/inputs/$name-notyp.out
+  dirname=$(echo $name | cut -d '-' -f 1)
+  suffix=$(echo $name | cut -d '-' -f 2)
+  defname=$dirname
+  sed -i "s/$defname =/Definition $defname :=/" out/inputs/$name-notyp.out
+  echo "." >> out/inputs/$name-notyp.out
+  term=$(cat out/inputs/$name-notyp.out)
+
+  # https://stackoverflow.com/questions/29613304/is-it-possible-to-escape-regex-metacharacters-reliably-with-sed
+  IFS= read -d '' -r < <(sed -e ':a' -e '$!{N;ba' -e '}' -e 's/[&/\]/\\&/g; s/\n/\\&/g' <<<"$term")
+  term=${REPLY%$'\n'}
+  
+  sed -i "s/(\* INPUT $name \*)/$term/" equiv4free/mainequiv2.v
+done
+
 
 # Copy the produced terms into the EFF code, to run everything together
 for f in $(find out/normalized/*.out); do

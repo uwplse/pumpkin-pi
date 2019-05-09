@@ -591,8 +591,9 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/bstEFF1" Time Eval vm_compute in tree1.
     Redirect "../out/bstEFF10" Time Eval vm_compute in tree10.
     Redirect "../out/bstEFF100" Time Eval vm_compute in tree100.
-    Redirect "../out/bstEFF1000" Time Eval vm_compute in tree1000.
-    Redirect "../out/bstEFF10000" Time Eval vm_compute in tree10000.
+    (* These time out on our architecture; remove the Fail if they don't on yours: *)
+    Fail Redirect "../out/bstEFF1000" Time Eval vm_compute in tree1000.
+    Fail Redirect "../out/bstEFF10000" Time Eval vm_compute in tree10000.
 
     (* --- Base search data --- *)
     Redirect "../out/search/baseEFF1" Time Eval vm_compute in (search tree1.2.2.2 Elem.x).

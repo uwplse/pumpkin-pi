@@ -167,83 +167,34 @@ Module CaseStudy (Elem : Comparable).
       @Transportable_decidable _ P Decidable_eq_tree.
 
     (* --- Test trees --- *)
-      Local Coercion Leaf : Elem.t >-> tree.
+    Local Coercion Leaf : Elem.t >-> tree.
 
-      (* 1 node *)
-      Definition tree1 :=
-        Leaf Elem.y.
+    (* --- Begin inputs --- *)
 
-      (* 11 nodes, to be exact *)
-      Definition tree10 :=
-        Branch Elem.y (Branch Elem.z (Branch Elem.x Elem.y Elem.z) (Branch Elem.x Elem.y Elem.z)) (Branch Elem.x Elem.y Elem.z).
+    (*
+     * We import these from DEVOID, that way we can measure the performance difference of
+     * only the lifted functions, controlling for the performance of lifted inputs (which is
+     * slower in EFF) without clouding the results.
+     *)
+    (* INPUT tree1-base *)
+    (* INPUT tree10-base *)
+    (* INPUT tree20-base *)
+    (* INPUT tree40-base *)
+    (* INPUT tree60-base *)
+    (* INPUT tree80-base *)
+    (* INPUT tree100-base *)
+    (* INPUT tree200-base *)
+    (* INPUT tree400-base *)
+    (* INPUT tree600-base *)
+    (* INPUT tree800-base *)
+    (* INPUT tree1000-base *)
+    (* INPUT tree2000-base *)
+    (* INPUT tree4000-base *)
+    (* INPUT tree6000-base *)
+    (* INPUT tree8000-base *)
+    (* INPUT tree10000-base *)
 
-      (* 21 nodes, to be exact *)
-      Definition tree20 :=
-        Branch Elem.x tree10
-           (Branch Elem.z (Branch Elem.x Elem.y Elem.z) (Branch Elem.x Elem.y (Branch Elem.x Elem.y Elem.z))).
-
-      (* 43 nodes, to be exact *)
-      Definition tree40 :=
-        Branch Elem.z tree20 tree20.
-
-      (* 65 nodes, to be exact *)
-      Definition tree60 :=
-        Branch Elem.y tree20 tree40.
-
-      (* 87 nodes, to be exact *)
-      Definition tree80 :=
-        Branch Elem.x tree40 tree40.
-
-      (* 109 nodes, to be exact *)
-      Definition tree100 :=
-        Branch Elem.y tree40 tree60.
-
-      (* 219 nodes, to be exact *)
-      Definition tree200 :=
-        Branch Elem.x tree100 tree100.
-
-      (* 439 nodes, to be exact *)
-      Definition tree400 :=
-        Branch Elem.y tree200 tree200.
-
-      (* 659 nodes, to be exact *)
-      Definition tree600 :=
-        Branch Elem.x tree200 tree400.
-
-      (* 879 nodes, to be exact *)
-      Definition tree800 :=
-        Branch Elem.z tree200 tree600.
-
-      (* 1099 nodes, to be exact *)
-      Definition tree1000 :=
-        Branch Elem.x tree400 tree600.
-
-      (* 2101 nodes, to be exact *)
-      Definition tree2000 :=
-        Branch Elem.y (Branch Elem.z tree200 tree800) tree1000.
-
-      (* 4203 nodes, to be exact *)
-      Definition tree4000 :=
-        Branch Elem.x tree2000 tree2000.
-
-      (* 6305 nodes, to be exact *)
-      Definition tree6000 :=
-        Branch Elem.z tree2000 tree4000.
-
-      (* 8407 nodes, to be exact *)
-      Definition tree8000 :=
-        Branch Elem.z tree4000 tree4000.
-
-      (* 10509 nodes, to be exact *)
-      Definition tree10000 :=
-        Branch Elem.z tree2000 tree8000.
-
-    (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
-    Redirect "../out/treeEFF1equiv" Time Eval vm_compute in tree1.
-    Redirect "../out/treeEFF10equiv" Time Eval vm_compute in tree10.
-    Redirect "../out/treeEFF100equiv" Time Eval vm_compute in tree100.
-    Redirect "../out/treeEFF1000equiv" Time Eval vm_compute in tree1000.
-    Redirect "../out/treeEFF10000equiv" Time Eval vm_compute in tree10000.
+    (* --- End inputs --- *)
 
     (* 13 LoC in normal form *)
     Definition preorder (t : tree) : list Elem.t :=
@@ -373,11 +324,32 @@ Module CaseStudy (Elem : Comparable).
 
     Definition orn_size_coh t : orn_size_inv (orn_size t) = t := e_sect orn_size t.
 
-    Definition tree1 := ↑ Base.tree1.
-    Definition tree10 := ↑ Base.tree10.
-    Definition tree100 := ↑ Base.tree100.
-    Definition tree1000 := ↑ Base.tree1000.
-    Definition tree10000 := ↑ Base.tree10000.
+    (* --- Begin automatically generated lifted inputs from DEVOID --- *)
+
+    (*
+     * We import these from DEVOID, that way we can measure the performance difference of
+     * only the lifted functions, controlling for the performance of lifted inputs (which is
+     * slower in EFF) without clouding the results.
+     *)
+    (* INPUT tree1-sized *)
+    (* INPUT tree10-sized *)
+    (* INPUT tree20-sized *)
+    (* INPUT tree40-sized *)
+    (* INPUT tree60-sized *)
+    (* INPUT tree80-sized *)
+    (* INPUT tree100-sized *)
+    (* INPUT tree200-sized *)
+    (* INPUT tree400-sized *)
+    (* INPUT tree600-sized *)
+    (* INPUT tree800-sized *)
+    (* INPUT tree1000-sized *)
+    (* INPUT tree2000-sized *)
+    (* INPUT tree4000-sized *)
+    (* INPUT tree6000-sized *)
+    (* INPUT tree8000-sized *)
+    (* INPUT tree10000-sized *)
+
+    (* --- End automatically generated lifted inputs from DEVOID --- *)
 
     (* 38 LoC in normal form *)
     Definition preorder' : {n:nat & tree n} -> list Elem.t := ↑ Base.preorder.
@@ -599,21 +571,32 @@ Module CaseStudy (Elem : Comparable).
       - apply Canonical_eq_gen.
     Defined.
 
-    Definition __tree1 := ↑ Base.tree1.
-    Definition _tree1 := ↑ (__tree1 .2).
-    Definition tree1 := (↑ (_tree1 .2)).2.
-    Definition __tree10 := ↑ Base.tree10.
-    Definition _tree10 := ↑ (__tree10 .2).
-    Definition tree10 := (↑ (_tree10 .2)).2.
-    Definition __tree100 := ↑ Base.tree100.
-    Definition _tree100 := ↑ (__tree100 .2).
-    Definition tree100 := (↑ (_tree100 .2)).2.
-    Definition __tree1000 := ↑ Base.tree1000.
-    Definition _tree1000 := ↑ (__tree1000 .2).
-    Definition tree1000 := (↑ (_tree1000 .2)).2.
-    Definition __tree10000 := ↑ Base.tree10000.
-    Definition _tree10000 := ↑ (__tree10000 .2).
-    Definition tree10000 := (↑ (_tree10000 .2)).2.
+    (* --- Begin automatically generated lifted inputs from DEVOID --- *)
+
+    (*
+     * We import these from DEVOID, that way we can measure the performance difference of
+     * only the lifted functions, controlling for the performance of lifted inputs (which is
+     * slower in EFF) without clouding the results.
+     *)
+    (* INPUT tree1-bst *)
+    (* INPUT tree10-bst *)
+    (* INPUT tree20-bst *)
+    (* INPUT tree40-bst *)
+    (* INPUT tree60-bst *)
+    (* INPUT tree80-bst *)
+    (* INPUT tree100-bst *)
+    (* INPUT tree200-bst *)
+    (* INPUT tree400-bst *)
+    (* INPUT tree600-bst *)
+    (* INPUT tree800-bst *)
+    (* INPUT tree1000-bst *)
+    (* INPUT tree2000-bst *)
+    (* INPUT tree4000-bst *)
+    (* INPUT tree6000-bst *)
+    (* INPUT tree8000-bst *)
+    (* INPUT tree10000-bst *)
+
+    (* --- End automatically generated lifted inputs from DEVOID --- *)
 
     (* For consistency, follow the same process *)
     Definition __preorder'  : {lo:Elem.t & __bst lo} -> list Elem.t := ↑ Base.preorder.
@@ -648,13 +631,6 @@ Module CaseStudy (Elem : Comparable).
            (Elem.leb min_r val' ==> IH_right))
         (fun val => Elem.eqb val' val)
         min max ord tree.
-
-    (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
-    Redirect "../out/bstEFF1equiv" Time Eval vm_compute in tree1.
-    Redirect "../out/bstEFF10equiv" Time Eval vm_compute in tree10.
-    Redirect "../out/bstEFF100equiv" Time Eval vm_compute in tree100.
-    Redirect "../out/bstEFF1000equiv" Time Eval vm_compute in tree1000.
-    Redirect "../out/bstEFF10000equiv" Time Eval vm_compute in tree10000.
 
     (* --- Base search data --- *)
     Redirect "../out/search/baseEFF1equiv" Time Eval vm_compute in (search tree1 Elem.x).
@@ -780,16 +756,32 @@ Module CaseStudy (Elem : Comparable).
       - apply Canonical_eq_gen.
     Defined.
 
-    Definition _tree1 := ↑ Ordered.tree1.
-    Definition tree1 := ↑ _tree1.2.
-    Definition _tree10 := ↑ Ordered.tree10.
-    Definition tree10 := ↑ _tree10.2.
-    Definition _tree100 := ↑ Ordered.tree100.
-    Definition tree100 := ↑ _tree100.2.
-    Definition _tree1000 := ↑ Ordered.tree1000.
-    Definition tree1000 := ↑ _tree1000.2.
-    Definition _tree10000 := ↑ Ordered.tree10000.
-    Definition tree10000 := ↑ _tree10000.2.
+    (* --- Begin automatically generated lifted inputs from DEVOID --- *)
+
+    (*
+     * We import these from DEVOID, that way we can measure the performance difference of
+     * only the lifted functions, controlling for the performance of lifted inputs (which is
+     * slower in EFF) without clouding the results.
+     *)
+    (* INPUT tree1-avl *)
+    (* INPUT tree10-avl *)
+    (* INPUT tree20-avl *)
+    (* INPUT tree40-avl *)
+    (* INPUT tree60-avl *)
+    (* INPUT tree80-avl *)
+    (* INPUT tree100-avl *)
+    (* INPUT tree200-avl *)
+    (* INPUT tree400-avl *)
+    (* INPUT tree600-avl *)
+    (* INPUT tree800-avl *)
+    (* INPUT tree1000-avl *)
+    (* INPUT tree2000-avl *)
+    (* INPUT tree4000-avl *)
+    (* INPUT tree6000-avl *)
+    (* INPUT tree8000-avl *)
+    (* INPUT tree10000-avl *)
+
+    (* --- End automatically generated lifted inputs from DEVOID --- *)
 
     Definition _preorder' lo hi ord : {n : nat & _avl lo hi ord n} -> list Elem.t :=
       ↑ (@Ordered.preorder lo hi ord).
