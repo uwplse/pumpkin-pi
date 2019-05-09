@@ -238,6 +238,13 @@ Module CaseStudy (Elem : Comparable).
       Definition tree10000 :=
         Branch Elem.z tree2000 tree8000.
 
+    (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
+    Redirect "../out/treeEFF1equiv" Time Eval vm_compute in tree1.
+    Redirect "../out/treeEFF10equiv" Time Eval vm_compute in tree10.
+    Redirect "../out/treeEFF100equiv" Time Eval vm_compute in tree100.
+    Redirect "../out/treeEFF1000equiv" Time Eval vm_compute in tree1000.
+    Redirect "../out/treeEFF10000equiv" Time Eval vm_compute in tree10000.
+
     (* 13 LoC in normal form *)
     Definition preorder (t : tree) : list Elem.t :=
       tree_rect
@@ -641,6 +648,13 @@ Module CaseStudy (Elem : Comparable).
            (Elem.leb min_r val' ==> IH_right))
         (fun val => Elem.eqb val' val)
         min max ord tree.
+
+    (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
+    Redirect "../out/bstEFF1equiv" Time Eval vm_compute in tree1.
+    Redirect "../out/bstEFF10equiv" Time Eval vm_compute in tree10.
+    Redirect "../out/bstEFF100equiv" Time Eval vm_compute in tree100.
+    Redirect "../out/bstEFF1000equiv" Time Eval vm_compute in tree1000.
+    Redirect "../out/bstEFF10000equiv" Time Eval vm_compute in tree10000.
 
     (* --- Base search data --- *)
     Redirect "../out/search/baseEFF1equiv" Time Eval vm_compute in (search tree1 Elem.x).

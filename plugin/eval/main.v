@@ -170,6 +170,13 @@ Module CaseStudy (Elem : Comparable).
       Definition tree10000 :=
         Branch Elem.z tree2000 tree8000.
 
+    (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
+    Redirect "out/tree1" Time Eval vm_compute in tree1.
+    Redirect "out/tree10" Time Eval vm_compute in tree10.
+    Redirect "out/tree100" Time Eval vm_compute in tree100.
+    Redirect "out/tree1000" Time Eval vm_compute in tree1000.
+    Redirect "out/tree10000" Time Eval vm_compute in tree10000.
+
     (* --- Base data --- *)
     Redirect "out/preorder/base1" Time Eval vm_compute in (preorder tree1).
     Redirect "out/preorder/base10" Time Eval vm_compute in (preorder tree10).
@@ -432,6 +439,13 @@ Module CaseStudy (Elem : Comparable).
     Unpack tree10000''' as tree10000''.
     Unpack tree10000'' as tree10000'.
     Unpack tree10000' as tree10000.
+
+    (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
+    Redirect "out/bst1" Time Eval vm_compute in tree1.
+    Redirect "out/bst10" Time Eval vm_compute in tree10.
+    Redirect "out/bst100" Time Eval vm_compute in tree100.
+    Redirect "out/bst1000" Time Eval vm_compute in tree1000.
+    Redirect "out/bst10000" Time Eval vm_compute in tree10000.
 
     (* --- Base search data --- *)
     Redirect "out/search/base1" Time Eval vm_compute in (search tree1 Elem.x).
