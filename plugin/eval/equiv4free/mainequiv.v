@@ -193,6 +193,11 @@ Module CaseStudy (Elem : Comparable).
     (* INPUT tree6000-base *)
     (* INPUT tree8000-base *)
     (* INPUT tree10000-base *)
+    (* INPUT tree20000-base *)
+    (* INPUT tree40000-base *)
+    (* INPUT tree60000-base *)
+    (* INPUT tree80000-base *)
+    (* INPUT tree100000-base *)
 
     (* --- End inputs --- *)
 
@@ -208,6 +213,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/preorder/baseEFF100equiv" Time Eval vm_compute in (preorder tree100).
     Redirect "../out/preorder/baseEFF1000equiv" Time Eval vm_compute in (preorder tree1000).
     Redirect "../out/preorder/baseEFF10000equiv" Time Eval vm_compute in (preorder tree10000).
+    Redirect "../out/preorder/baseEFF100000equiv" Time Eval vm_compute in (preorder tree100000).
 
     (* 12 LoC in normal form *)
     Definition inorder (t : tree) : list Elem.t :=
@@ -221,6 +227,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/inorder/baseEFF100equiv" Time Eval vm_compute in (inorder tree100).
     Redirect "../out/inorder/baseEFF1000equiv" Time Eval vm_compute in (inorder tree1000).
     Redirect "../out/inorder/baseEFF10000equiv" Time Eval vm_compute in (inorder tree10000).
+    Redirect "../out/inorder/baseEFF100000equiv" Time Eval vm_compute in (inorder tree100000).
 
     (* 12 LoC in normal form *)
     Definition postorder (t : tree) : list Elem.t :=
@@ -234,6 +241,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/postorder/baseEFF100equiv" Time Eval vm_compute in (postorder tree100).
     Redirect "../out/postorder/baseEFF1000equiv" Time Eval vm_compute in (postorder tree1000).
     Redirect "../out/postorder/baseEFF10000equiv" Time Eval vm_compute in (postorder tree10000).
+    Redirect "../out/postorder/baseEFF100000equiv" Time Eval vm_compute in (postorder tree100000).
 
     Lemma pre_permutes : forall t : tree,
         permutes (preorder t) (inorder t).
@@ -348,6 +356,11 @@ Module CaseStudy (Elem : Comparable).
     (* INPUT tree6000-sized *)
     (* INPUT tree8000-sized *)
     (* INPUT tree10000-sized *)
+    (* INPUT tree20000-sized *)
+    (* INPUT tree40000-sized *)
+    (* INPUT tree60000-sized *)
+    (* INPUT tree80000-sized *)
+    (* INPUT tree100000-sized *)
 
     (* --- End automatically generated lifted inputs from DEVOID --- *)
 
@@ -359,6 +372,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/preorder/sizedEFF100equiv" Time Eval vm_compute in (preorder' tree100).
     Redirect "../out/preorder/sizedEFF1000equiv" Time Eval vm_compute in (preorder' tree1000).
     Redirect "../out/preorder/sizedEFF10000equiv" Time Eval vm_compute in (preorder' tree10000).
+    Redirect "../out/preorder/sizedEFF100000equiv" Time Eval vm_compute in (preorder' tree100000).
 
     (* 37 LoC in normal form *)
     Definition inorder' : {n:nat & tree n} -> list Elem.t := ↑ Base.inorder.
@@ -368,6 +382,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/inorder/sizedEFF100equiv" Time Eval vm_compute in (inorder' tree100).
     Redirect "../out/inorder/sizedEFF1000equiv" Time Eval vm_compute in (inorder' tree1000).
     Redirect "../out/inorder/sizedEFF10000equiv" Time Eval vm_compute in (inorder' tree10000).
+    Redirect "../out/inorder/sizedEFF100000equiv" Time Eval vm_compute in (inorder' tree100000).
 
     (* 43 LoC in normal form *)
     Definition postorder' : {n:nat & tree n} -> list Elem.t := ↑ Base.postorder.
@@ -377,6 +392,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/postorder/sizedEFF100equiv" Time Eval vm_compute in (postorder' tree100).
     Redirect "../out/postorder/sizedEFF1000equiv" Time Eval vm_compute in (postorder' tree1000).
     Redirect "../out/postorder/sizedEFF10000equiv" Time Eval vm_compute in (postorder' tree10000).
+    Redirect "../out/postorder/sizedEFF100000equiv" Time Eval vm_compute in (postorder' tree100000).
 
     Lemma FP_preorder : Base.preorder ≈ preorder'.
     Proof.
@@ -595,24 +611,32 @@ Module CaseStudy (Elem : Comparable).
     (* INPUT tree6000'''-bst *)
     (* INPUT tree8000'''-bst *)
     (* INPUT tree10000'''-bst *)
+    (* INPUT tree20000'''-bst *)
+    (* INPUT tree40000'''-bst *)
+    (* INPUT tree60000'''-bst *)
+    (* INPUT tree80000'''-bst *)
+    (* INPUT tree100000'''-bst *)
 
     (* INPUT tree1''-bst *)
     (* INPUT tree10''-bst *)
     (* INPUT tree100''-bst *)
     (* INPUT tree1000''-bst *)
     (* INPUT tree10000''-bst *)
+    (* INPUT tree100000''-bst *)
 
     (* INPUT tree1'-bst *)
     (* INPUT tree10'-bst *)
     (* INPUT tree100'-bst *)
     (* INPUT tree1000'-bst *)
     (* INPUT tree10000'-bst *)
+    (* INPUT tree100000'-bst *)
 
     (* INPUT tree1-bst *)
     (* INPUT tree10-bst *)
     (* INPUT tree100-bst *)
     (* INPUT tree1000-bst *)
     (* INPUT tree10000-bst *)
+    (* INPUT tree100000-bst *)
 
     (* --- End automatically generated lifted inputs from DEVOID --- *)
 
@@ -656,7 +680,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/search/baseEFF100equiv" Time Eval vm_compute in (search tree100 Elem.x).
     Redirect "../out/search/baseEFF1000equiv" Time Eval vm_compute in (search tree1000 Elem.x).
     Redirect "../out/search/baseEFF10000equiv" Time Eval vm_compute in (search tree10000 Elem.x).
-
+    Redirect "../out/search/baseEFF100000equiv" Time Eval vm_compute in (search tree100000 Elem.x).
 
   End Ordered.
 
@@ -798,30 +822,39 @@ Module CaseStudy (Elem : Comparable).
     (* INPUT tree6000''''-avl *)
     (* INPUT tree8000''''-avl *)
     (* INPUT tree10000''''-avl *)
+    (* INPUT tree20000''''-avl *)
+    (* INPUT tree40000''''-avl *)
+    (* INPUT tree60000''''-avl *)
+    (* INPUT tree80000''''-avl *)
+    (* INPUT tree100000''''-avl *)
 
     (* INPUT tree1'''-avl *)
     (* INPUT tree10'''-avl *)
     (* INPUT tree100'''-avl *)
     (* INPUT tree1000'''-avl *)
     (* INPUT tree10000'''-avl *)
+    (* INPUT tree100000'''-avl *)
 
     (* INPUT tree1''-avl *)
     (* INPUT tree10''-avl *)
     (* INPUT tree100''-avl *)
     (* INPUT tree1000''-avl *)
     (* INPUT tree10000''-avl *)
+    (* INPUT tree100000''-avl *)
 
     (* INPUT tree1'-avl *)
     (* INPUT tree10'-avl *)
     (* INPUT tree100'-avl *)
     (* INPUT tree1000'-avl *)
     (* INPUT tree10000'-avl *)
+    (* INPUT tree100000'-avl *)
 
     (* INPUT tree1-avl *)
     (* INPUT tree10-avl *)
     (* INPUT tree100-avl *)
     (* INPUT tree1000-avl *)
     (* INPUT tree10000-avl *)
+    (* INPUT tree100000-avl *)
 
     (* --- End automatically generated lifted inputs from DEVOID --- *)
 
@@ -836,6 +869,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/preorder/avlEFF100equiv" Time Eval vm_compute in (preorder' tree100).
     Redirect "../out/preorder/avlEFF1000equiv" Time Eval vm_compute in (preorder' tree1000).
     Redirect "../out/preorder/avlEFF10000equiv" Time Eval vm_compute in (preorder' tree10000).
+    Redirect "../out/preorder/avlEFF100000equiv" Time Eval vm_compute in (preorder' tree100000).
 
    (* 105 LoC in normal form *)
     Definition _inorder' lo hi ord : {n : nat & _avl lo hi ord n} -> list Elem.t :=
@@ -849,6 +883,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/inorder/avlEFF100equiv" Time Eval vm_compute in (inorder' tree100).
     Redirect "../out/inorder/avlEFF1000equiv" Time Eval vm_compute in (inorder' tree1000).
     Redirect "../out/inorder/avlEFF10000equiv" Time Eval vm_compute in (inorder' tree10000).
+    Redirect "../out/inorder/avlEFF100000equiv" Time Eval vm_compute in (inorder' tree100000).
 
     (* 112 LoC in normal form *)
     Definition _postorder' lo hi ord : {n : nat & _avl lo hi ord n} -> list Elem.t :=
@@ -862,6 +897,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/postorder/avlEFF100equiv" Time Eval vm_compute in (postorder' tree100).
     Redirect "../out/postorder/avlEFF1000equiv" Time Eval vm_compute in (postorder' tree1000).
     Redirect "../out/postorder/avlEFF10000equiv" Time Eval vm_compute in (postorder' tree10000).
+    Redirect "../out/postorder/avlEFF100000equiv" Time Eval vm_compute in (postorder' tree100000).
 
     (* 105 LoC in normal form *)
     Definition _search' lo hi ord : {n : nat & _avl lo hi ord n} -> Elem.t -> bool :=
@@ -875,6 +911,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/search/avlEFF100equiv" Time Eval vm_compute in (search' tree100 Elem.x).
     Redirect "../out/search/avlEFF1000equiv" Time Eval vm_compute in (search' tree1000 Elem.x).
     Redirect "../out/search/avlEFF10000equiv" Time Eval vm_compute in (search' tree10000 Elem.x).
+    Redirect "../out/search/avlEFF100000equiv" Time Eval vm_compute in (search' tree100000 Elem.x).
 
     (* --- Normalized term sizes --- *)
     Redirect "../out/normalized/preorder-avlEFFequiv" Eval compute in preorder'.

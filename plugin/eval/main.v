@@ -170,6 +170,21 @@ Module CaseStudy (Elem : Comparable).
       Definition tree10000 :=
         Branch Elem.z tree2000 tree8000.
 
+      Definition tree20000 :=
+        Branch Elem.y (Branch Elem.z tree2000 tree8000) tree10000.
+
+      Definition tree40000 :=
+        Branch Elem.x tree20000 tree20000.
+
+      Definition tree60000 :=
+        Branch Elem.z tree20000 tree40000.
+
+      Definition tree80000 :=
+        Branch Elem.z tree40000 tree40000.
+
+      Definition tree100000 :=
+        Branch Elem.z tree20000 tree80000.
+
     (* --- Print the inputs for control purposes for EFF code --- *)
     Redirect "out/inputs/tree1-base" Print tree1.
     Redirect "out/inputs/tree10-base" Print tree10.
@@ -188,6 +203,11 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/inputs/tree6000-base" Print tree6000.
     Redirect "out/inputs/tree8000-base" Print tree8000.
     Redirect "out/inputs/tree10000-base" Print tree10000.
+    Redirect "out/inputs/tree20000-base" Print tree20000.
+    Redirect "out/inputs/tree40000-base" Print tree40000.
+    Redirect "out/inputs/tree60000-base" Print tree60000.
+    Redirect "out/inputs/tree80000-base" Print tree80000.
+    Redirect "out/inputs/tree100000-base" Print tree100000.
 
     (* --- Base data --- *)
     Redirect "out/preorder/base1" Time Eval vm_compute in (preorder tree1).
@@ -195,18 +215,21 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/preorder/base100" Time Eval vm_compute in (preorder tree100).
     Redirect "out/preorder/base1000" Time Eval vm_compute in (preorder tree1000).
     Redirect "out/preorder/base10000" Time Eval vm_compute in (preorder tree10000).
+    Redirect "out/preorder/base100000" Time Eval vm_compute in (preorder tree10000).
 
     Redirect "out/inorder/base1" Time Eval vm_compute in (inorder tree1).
     Redirect "out/inorder/base10" Time Eval vm_compute in (inorder tree10).
     Redirect "out/inorder/base100" Time Eval vm_compute in (inorder tree100).
     Redirect "out/inorder/base1000" Time Eval vm_compute in (inorder tree1000).
     Redirect "out/inorder/base10000" Time Eval vm_compute in (inorder tree10000).
+    Redirect "out/inorder/base100000" Time Eval vm_compute in (inorder tree100000).
 
     Redirect "out/postorder/base1" Time Eval vm_compute in (postorder tree1).
     Redirect "out/postorder/base10" Time Eval vm_compute in (postorder tree10).
     Redirect "out/postorder/base100" Time Eval vm_compute in (postorder tree100).
     Redirect "out/postorder/base1000" Time Eval vm_compute in (postorder tree1000).
     Redirect "out/postorder/base10000" Time Eval vm_compute in (postorder tree10000).
+    Redirect "out/postorder/base100000" Time Eval vm_compute in (postorder tree100000).
   End Base.
 
   (* --- Single iteration: from binary trees to sized binary trees --- *)
@@ -270,6 +293,11 @@ Module CaseStudy (Elem : Comparable).
     Lift Base.tree tree in Base.tree6000 as tree6000.
     Lift Base.tree tree in Base.tree8000 as tree8000.
     Lift Base.tree tree in Base.tree10000 as tree10000.
+    Lift Base.tree tree in Base.tree20000 as tree20000.
+    Lift Base.tree tree in Base.tree40000 as tree40000.
+    Lift Base.tree tree in Base.tree60000 as tree60000.
+    Lift Base.tree tree in Base.tree80000 as tree80000.
+    Lift Base.tree tree in Base.tree100000 as tree100000.
 
     (* --- Print the inputs for control purposes for EFF code --- *)
     Redirect "out/inputs/tree1-sized" Print tree1.
@@ -289,6 +317,11 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/inputs/tree6000-sized" Print tree6000.
     Redirect "out/inputs/tree8000-sized" Print tree8000.
     Redirect "out/inputs/tree10000-sized" Print tree10000.
+    Redirect "out/inputs/tree20000-sized" Print tree20000.
+    Redirect "out/inputs/tree40000-sized" Print tree40000.
+    Redirect "out/inputs/tree60000-sized" Print tree60000.
+    Redirect "out/inputs/tree80000-sized" Print tree80000.
+    Redirect "out/inputs/tree100000-sized" Print tree100000.
 
     (* --- Sized data --- *)
     Redirect "out/preorder/sized1" Time Eval vm_compute in (preorder' tree1).
@@ -296,18 +329,21 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/preorder/sized100" Time Eval vm_compute in (preorder' tree100).
     Redirect "out/preorder/sized1000" Time Eval vm_compute in (preorder' tree1000).
     Redirect "out/preorder/sized10000" Time Eval vm_compute in (preorder' tree10000).
+    Redirect "out/preorder/sized100000" Time Eval vm_compute in (preorder' tree100000).
 
     Redirect "out/inorder/sized1" Time Eval vm_compute in (inorder' tree1).
     Redirect "out/inorder/sized10" Time Eval vm_compute in (inorder' tree10).
     Redirect "out/inorder/sized100" Time Eval vm_compute in (inorder' tree100).
     Redirect "out/inorder/sized1000" Time Eval vm_compute in (inorder' tree1000).
     Redirect "out/inorder/sized10000" Time Eval vm_compute in (inorder' tree10000).
+    Redirect "out/inorder/sized100000" Time Eval vm_compute in (inorder' tree100000).
 
     Redirect "out/postorder/sized1" Time Eval vm_compute in (postorder' tree1).
     Redirect "out/postorder/sized10" Time Eval vm_compute in (postorder' tree10).
     Redirect "out/postorder/sized100" Time Eval vm_compute in (postorder' tree100).
     Redirect "out/postorder/sized1000" Time Eval vm_compute in (postorder' tree1000).
     Redirect "out/postorder/sized10000" Time Eval vm_compute in (postorder' tree10000).
+    Redirect "out/postorder/sized100000" Time Eval vm_compute in (postorder' tree100000).
 
     (* --- Normalized term sizes --- *)
     Redirect "out/normalized/preorder-sized" Eval compute in preorder'.
@@ -413,10 +449,15 @@ Module CaseStudy (Elem : Comparable).
     Lift Base.tree __bst in Base.tree800 as __tree800.
     Lift Base.tree __bst in Base.tree1000 as __tree1000.
     Lift Base.tree __bst in Base.tree2000 as __tree2000.
-    Lift Base.tree __bst in Base.tree400 as __tree4000.
-    Lift Base.tree __bst in Base.tree600 as __tree6000.
-    Lift Base.tree __bst in Base.tree800 as __tree8000.
+    Lift Base.tree __bst in Base.tree4000 as __tree4000.
+    Lift Base.tree __bst in Base.tree6000 as __tree6000.
+    Lift Base.tree __bst in Base.tree8000 as __tree8000.
     Lift Base.tree __bst in Base.tree10000 as __tree10000.
+    Lift Base.tree __bst in Base.tree20000 as __tree20000.
+    Lift Base.tree __bst in Base.tree40000 as __tree40000.
+    Lift Base.tree __bst in Base.tree60000 as __tree60000.
+    Lift Base.tree __bst in Base.tree80000 as __tree80000.
+    Lift Base.tree __bst in Base.tree100000 as __tree100000.
 
     Lift __bst _bst in __tree1 as _tree1. 
     Lift __bst _bst in __tree10 as _tree10. 
@@ -434,7 +475,12 @@ Module CaseStudy (Elem : Comparable).
     Lift __bst _bst in __tree4000 as _tree4000. 
     Lift __bst _bst in __tree6000 as _tree6000. 
     Lift __bst _bst in __tree8000 as _tree8000. 
-    Lift __bst _bst in __tree10000 as _tree10000. 
+    Lift __bst _bst in __tree10000 as _tree10000.
+    Lift __bst _bst in __tree20000 as _tree20000. 
+    Lift __bst _bst in __tree40000 as _tree40000. 
+    Lift __bst _bst in __tree60000 as _tree60000. 
+    Lift __bst _bst in __tree80000 as _tree80000. 
+    Lift __bst _bst in __tree100000 as _tree100000. 
 
     Lift _bst bst in _tree1 as tree1'''.
     Lift _bst bst in _tree10 as tree10'''.
@@ -453,6 +499,11 @@ Module CaseStudy (Elem : Comparable).
     Lift _bst bst in _tree6000 as tree6000'''.
     Lift _bst bst in _tree8000 as tree8000'''.
     Lift _bst bst in _tree10000 as tree10000'''.
+    Lift _bst bst in _tree20000 as tree20000'''.
+    Lift _bst bst in _tree40000 as tree40000'''.
+    Lift _bst bst in _tree60000 as tree60000'''.
+    Lift _bst bst in _tree80000 as tree80000'''.
+    Lift _bst bst in _tree100000 as tree100000'''.
 
     (* --- Unpacked lifted inputs --- *)
     Unpack tree1''' as tree1''.
@@ -470,6 +521,9 @@ Module CaseStudy (Elem : Comparable).
     Unpack tree10000''' as tree10000''.
     Unpack tree10000'' as tree10000'.
     Unpack tree10000' as tree10000.
+    Unpack tree100000''' as tree100000''.
+    Unpack tree100000'' as tree100000'.
+    Unpack tree100000' as tree100000.
 
     (* --- Print the inputs for control purposes for EFF code --- *)
     Redirect "out/inputs/tree1'''-bst" Print tree1'''.
@@ -489,24 +543,32 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/inputs/tree6000'''-bst" Print tree6000'''.
     Redirect "out/inputs/tree8000'''-bst" Print tree8000'''.
     Redirect "out/inputs/tree10000'''-bst" Print tree10000'''.
+    Redirect "out/inputs/tree20000'''-bst" Print tree20000'''.
+    Redirect "out/inputs/tree40000'''-bst" Print tree40000'''.
+    Redirect "out/inputs/tree60000'''-bst" Print tree60000'''.
+    Redirect "out/inputs/tree80000'''-bst" Print tree80000'''.
+    Redirect "out/inputs/tree100000'''-bst" Print tree100000'''.
 
     Redirect "out/inputs/tree1''-bst" Print tree1''.
     Redirect "out/inputs/tree10''-bst" Print tree10''.
     Redirect "out/inputs/tree100''-bst" Print tree100''.
     Redirect "out/inputs/tree1000''-bst" Print tree1000''.
     Redirect "out/inputs/tree10000''-bst" Print tree10000''.
+    Redirect "out/inputs/tree100000''-bst" Print tree100000''.
 
     Redirect "out/inputs/tree1'-bst" Print tree1'.
     Redirect "out/inputs/tree10'-bst" Print tree10'.
     Redirect "out/inputs/tree100'-bst" Print tree100'.
     Redirect "out/inputs/tree1000'-bst" Print tree1000'.
     Redirect "out/inputs/tree10000'-bst" Print tree10000'.
+    Redirect "out/inputs/tree100000'-bst" Print tree100000'.
 
     Redirect "out/inputs/tree1-bst" Print tree1.
     Redirect "out/inputs/tree10-bst" Print tree10.
     Redirect "out/inputs/tree100-bst" Print tree100.
     Redirect "out/inputs/tree1000-bst" Print tree1000.
     Redirect "out/inputs/tree10000-bst" Print tree10000.
+    Redirect "out/inputs/tree100000-bst" Print tree100000.
 
     (* --- Base search data --- *)
     Redirect "out/search/base1" Time Eval vm_compute in (search tree1 Elem.x).
@@ -514,6 +576,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/search/base100" Time Eval vm_compute in (search tree100 Elem.x).
     Redirect "out/search/base1000" Time Eval vm_compute in (search tree1000 Elem.x).
     Redirect "out/search/base10000" Time Eval vm_compute in (search tree10000 Elem.x).
+    Redirect "out/search/base100000" Time Eval vm_compute in (search tree100000 Elem.x).
   End Ordered.
 
   Module Balanced.
@@ -590,6 +653,11 @@ Module CaseStudy (Elem : Comparable).
     Lift Ordered.bst _avl in Ordered.tree6000''' as _tree6000.
     Lift Ordered.bst _avl in Ordered.tree8000''' as _tree8000.
     Lift Ordered.bst _avl in Ordered.tree10000''' as _tree10000.
+    Lift Ordered.bst _avl in Ordered.tree20000''' as _tree20000.
+    Lift Ordered.bst _avl in Ordered.tree40000''' as _tree40000.
+    Lift Ordered.bst _avl in Ordered.tree60000''' as _tree60000.
+    Lift Ordered.bst _avl in Ordered.tree80000''' as _tree80000.
+    Lift Ordered.bst _avl in Ordered.tree100000''' as _tree100000.
 
     Lift _avl avl in _tree1 as tree1''''.
     Lift _avl avl in _tree10 as tree10''''.
@@ -608,6 +676,11 @@ Module CaseStudy (Elem : Comparable).
     Lift _avl avl in _tree6000 as tree6000''''.
     Lift _avl avl in _tree8000 as tree8000''''.
     Lift _avl avl in _tree10000 as tree10000''''.
+    Lift _avl avl in _tree20000 as tree20000''''.
+    Lift _avl avl in _tree40000 as tree40000''''.
+    Lift _avl avl in _tree60000 as tree60000''''.
+    Lift _avl avl in _tree80000 as tree80000''''.
+    Lift _avl avl in _tree100000 as tree100000''''.
 
     (* --- Unpacked inputs --- *)
     Unpack tree1'''' as tree1'''.
@@ -630,6 +703,10 @@ Module CaseStudy (Elem : Comparable).
     Unpack tree10000''' as tree10000''.
     Unpack tree10000'' as tree10000'.
     Unpack tree10000' as tree10000.
+    Unpack tree100000'''' as tree100000'''.
+    Unpack tree100000''' as tree100000''.
+    Unpack tree100000'' as tree100000'.
+    Unpack tree100000' as tree100000.
 
     (* --- Print the inputs for control purposes for EFF code --- *)
     Redirect "out/inputs/tree1''''-avl" Print tree1''''.
@@ -649,30 +726,39 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/inputs/tree6000''''-avl" Print tree6000''''.
     Redirect "out/inputs/tree8000''''-avl" Print tree8000''''.
     Redirect "out/inputs/tree10000''''-avl" Print tree10000''''.
+    Redirect "out/inputs/tree20000''''-avl" Print tree20000''''.
+    Redirect "out/inputs/tree40000''''-avl" Print tree40000''''.
+    Redirect "out/inputs/tree60000''''-avl" Print tree60000''''.
+    Redirect "out/inputs/tree80000''''-avl" Print tree80000''''.
+    Redirect "out/inputs/tree100000''''-avl" Print tree100000''''.
 
     Redirect "out/inputs/tree1'''-avl" Print tree1'''.
     Redirect "out/inputs/tree10'''-avl" Print tree10'''.
     Redirect "out/inputs/tree100'''-avl" Print tree100'''.
     Redirect "out/inputs/tree1000'''-avl" Print tree1000'''.
     Redirect "out/inputs/tree10000'''-avl" Print tree10000'''.
+    Redirect "out/inputs/tree100000'''-avl" Print tree100000'''.
 
     Redirect "out/inputs/tree1''-avl" Print tree1''.
     Redirect "out/inputs/tree10''-avl" Print tree10''.
     Redirect "out/inputs/tree100''-avl" Print tree100''.
     Redirect "out/inputs/tree1000''-avl" Print tree1000''.
     Redirect "out/inputs/tree10000''-avl" Print tree10000''.
+    Redirect "out/inputs/tree100000''-avl" Print tree100000''.
 
     Redirect "out/inputs/tree1'-avl" Print tree1'.
     Redirect "out/inputs/tree10'-avl" Print tree10'.
     Redirect "out/inputs/tree100'-avl" Print tree100'.
     Redirect "out/inputs/tree1000'-avl" Print tree1000'.
     Redirect "out/inputs/tree10000'-avl" Print tree10000'.
+    Redirect "out/inputs/tree100000'-avl" Print tree100000'.
 
     Redirect "out/inputs/tree1-avl" Print tree1.
     Redirect "out/inputs/tree10-avl" Print tree10.
     Redirect "out/inputs/tree100-avl" Print tree100.
     Redirect "out/inputs/tree1000-avl" Print tree1000.
     Redirect "out/inputs/tree10000-avl" Print tree10000.
+    Redirect "out/inputs/tree100000-avl" Print tree100000.
 
     (* --- AVL data --- *)
     Redirect "out/preorder/avl1" Time Eval vm_compute in (preorder' _ _ _ _ tree1).
@@ -680,24 +766,28 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/preorder/avl100" Time Eval vm_compute in (preorder' _ _ _ _ tree100).
     Redirect "out/preorder/avl1000" Time Eval vm_compute in (preorder' _ _ _ _ tree1000).
     Redirect "out/preorder/avl10000" Time Eval vm_compute in (preorder' _ _ _ _ tree10000).
+    Redirect "out/preorder/avl100000" Time Eval vm_compute in (preorder' _ _ _ _ tree100000).
 
     Redirect "out/inorder/avl1" Time Eval vm_compute in (inorder' _ _ _ _ tree1).
     Redirect "out/inorder/avl10" Time Eval vm_compute in (inorder' _ _ _ _ tree10).
     Redirect "out/inorder/avl100" Time Eval vm_compute in (inorder' _ _ _ _ tree100).
     Redirect "out/inorder/avl1000" Time Eval vm_compute in (inorder' _ _ _ _ tree1000).
     Redirect "out/inorder/avl10000" Time Eval vm_compute in (inorder' _ _ _ _ tree10000).
+    Redirect "out/inorder/avl100000" Time Eval vm_compute in (inorder' _ _ _ _ tree100000).
 
     Redirect "out/postorder/avl1" Time Eval vm_compute in (postorder' _ _ _ _ tree1).
     Redirect "out/postorder/avl10" Time Eval vm_compute in (postorder' _ _ _ _ tree10).
     Redirect "out/postorder/avl100" Time Eval vm_compute in (postorder' _ _ _ _ tree100).
     Redirect "out/postorder/avl1000" Time Eval vm_compute in (postorder' _ _ _ _ tree1000).
     Redirect "out/postorder/avl10000" Time Eval vm_compute in (postorder' _ _ _ _ tree10000).
+    Redirect "out/postorder/avl100000" Time Eval vm_compute in (postorder' _ _ _ _ tree100000).
 
     Redirect "out/search/avl1" Time Eval vm_compute in (search' _ _ _ _ tree1 Elem.x).
     Redirect "out/search/avl10" Time Eval vm_compute in (search' _ _ _ _ tree10 Elem.x).
     Redirect "out/search/avl100" Time Eval vm_compute in (search' _ _ _ _ tree100 Elem.x).
     Redirect "out/search/avl1000" Time Eval vm_compute in (search' _ _ _ _ tree1000 Elem.x).
     Redirect "out/search/avl10000" Time Eval vm_compute in (search' _ _ _ _ tree10000 Elem.x).
+    Redirect "out/search/avl100000" Time Eval vm_compute in (search' _ _ _ _ tree100000 Elem.x).
 
     (* --- Normalized term sizes --- *)
     Redirect "out/normalized/preorder-avl" Eval compute in preorder'.
