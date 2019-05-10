@@ -911,7 +911,7 @@ Module CaseStudy (Elem : Comparable).
     Redirect "../out/search/avlEFF100equiv" Time Eval vm_compute in (search' tree100 Elem.x).
     Redirect "../out/search/avlEFF1000equiv" Time Eval vm_compute in (search' tree1000 Elem.x).
     Redirect "../out/search/avlEFF10000equiv" Time Eval vm_compute in (search' tree10000 Elem.x).
-    (* timeout *) Fail Redirect "../out/search/avlEFF100000equiv" Time Eval vm_compute in (search' tree100000 Elem.x).
+    Redirect "../out/search/avlEFF100000equiv" Time Eval vm_compute in (search' tree100000 Elem.x).
 
     (* --- Normalized term sizes --- *)
     Redirect "../out/normalized/preorder-avlEFFequiv" Eval compute in preorder'.
