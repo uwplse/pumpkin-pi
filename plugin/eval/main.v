@@ -174,16 +174,16 @@ Module CaseStudy (Elem : Comparable).
         Branch Elem.y (Branch Elem.z tree2000 tree8000) tree10000.
 
       Definition tree40000 :=
-        Branch Elem.x tree20000 tree20000.
+        Branch Elem.z tree20000 tree20000.
 
       Definition tree60000 :=
-        Branch Elem.z tree20000 tree40000.
+        Branch Elem.z tree40000 tree20000.
 
       Definition tree80000 :=
-        Branch Elem.z tree40000 tree40000.
+        Branch Elem.y tree40000 tree40000.
 
       Definition tree100000 :=
-        Branch Elem.z tree20000 tree80000.
+        Branch Elem.z tree80000 tree20000.
 
     (* --- Print the inputs for control purposes for EFF code --- *)
     Redirect "out/inputs/tree1-base" Print tree1.
