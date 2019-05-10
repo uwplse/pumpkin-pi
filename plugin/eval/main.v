@@ -210,26 +210,27 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/inputs/tree100000-base" Print tree100000.
 
     (* --- Base data --- *)
+    (* TODO delete these anyways; don't need in together case study *)
     Redirect "out/preorder/base1" Time Eval vm_compute in (preorder tree1).
     Redirect "out/preorder/base10" Time Eval vm_compute in (preorder tree10).
     Redirect "out/preorder/base100" Time Eval vm_compute in (preorder tree100).
     Redirect "out/preorder/base1000" Time Eval vm_compute in (preorder tree1000).
     Redirect "out/preorder/base10000" Time Eval vm_compute in (preorder tree10000).
-    Redirect "out/preorder/base100000" Time Eval vm_compute in (preorder tree10000).
+    (* stack overflow *) Fail Redirect "out/preorder/base100000" Time Eval vm_compute in (preorder tree100000).
 
     Redirect "out/inorder/base1" Time Eval vm_compute in (inorder tree1).
     Redirect "out/inorder/base10" Time Eval vm_compute in (inorder tree10).
     Redirect "out/inorder/base100" Time Eval vm_compute in (inorder tree100).
     Redirect "out/inorder/base1000" Time Eval vm_compute in (inorder tree1000).
     Redirect "out/inorder/base10000" Time Eval vm_compute in (inorder tree10000).
-    Redirect "out/inorder/base100000" Time Eval vm_compute in (inorder tree100000).
+    (* stack overflow *) Fail Redirect "out/inorder/base100000" Time Eval vm_compute in (inorder tree100000).
 
     Redirect "out/postorder/base1" Time Eval vm_compute in (postorder tree1).
     Redirect "out/postorder/base10" Time Eval vm_compute in (postorder tree10).
     Redirect "out/postorder/base100" Time Eval vm_compute in (postorder tree100).
     Redirect "out/postorder/base1000" Time Eval vm_compute in (postorder tree1000).
     Redirect "out/postorder/base10000" Time Eval vm_compute in (postorder tree10000).
-    Redirect "out/postorder/base100000" Time Eval vm_compute in (postorder tree100000).
+    (* stack overflow *) Fail Redirect "out/postorder/base100000" Time Eval vm_compute in (postorder tree100000).
   End Base.
 
   (* --- Single iteration: from binary trees to sized binary trees --- *)
@@ -329,21 +330,21 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/preorder/sized100" Time Eval vm_compute in (preorder' tree100).
     Redirect "out/preorder/sized1000" Time Eval vm_compute in (preorder' tree1000).
     Redirect "out/preorder/sized10000" Time Eval vm_compute in (preorder' tree10000).
-    Redirect "out/preorder/sized100000" Time Eval vm_compute in (preorder' tree100000).
+    (* stack overflow *) Fail Redirect "out/preorder/sized100000" Time Eval vm_compute in (preorder' tree100000).
 
     Redirect "out/inorder/sized1" Time Eval vm_compute in (inorder' tree1).
     Redirect "out/inorder/sized10" Time Eval vm_compute in (inorder' tree10).
     Redirect "out/inorder/sized100" Time Eval vm_compute in (inorder' tree100).
     Redirect "out/inorder/sized1000" Time Eval vm_compute in (inorder' tree1000).
     Redirect "out/inorder/sized10000" Time Eval vm_compute in (inorder' tree10000).
-    Redirect "out/inorder/sized100000" Time Eval vm_compute in (inorder' tree100000).
+    (* stack overflow *) Fail Redirect "out/inorder/sized100000" Time Eval vm_compute in (inorder' tree100000).
 
     Redirect "out/postorder/sized1" Time Eval vm_compute in (postorder' tree1).
     Redirect "out/postorder/sized10" Time Eval vm_compute in (postorder' tree10).
     Redirect "out/postorder/sized100" Time Eval vm_compute in (postorder' tree100).
     Redirect "out/postorder/sized1000" Time Eval vm_compute in (postorder' tree1000).
     Redirect "out/postorder/sized10000" Time Eval vm_compute in (postorder' tree10000).
-    Redirect "out/postorder/sized100000" Time Eval vm_compute in (postorder' tree100000).
+    (* stack overflow *) Fail Redirect "out/postorder/sized100000" Time Eval vm_compute in (postorder' tree100000).
 
     (* --- Normalized term sizes --- *)
     Redirect "out/normalized/preorder-sized" Eval compute in preorder'.
@@ -766,21 +767,21 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/preorder/avl100" Time Eval vm_compute in (preorder' _ _ _ _ tree100).
     Redirect "out/preorder/avl1000" Time Eval vm_compute in (preorder' _ _ _ _ tree1000).
     Redirect "out/preorder/avl10000" Time Eval vm_compute in (preorder' _ _ _ _ tree10000).
-    Redirect "out/preorder/avl100000" Time Eval vm_compute in (preorder' _ _ _ _ tree100000).
+    (* stack overflow *) Fail Redirect "out/preorder/avl100000" Time Eval vm_compute in (preorder' _ _ _ _ tree100000).
 
     Redirect "out/inorder/avl1" Time Eval vm_compute in (inorder' _ _ _ _ tree1).
     Redirect "out/inorder/avl10" Time Eval vm_compute in (inorder' _ _ _ _ tree10).
     Redirect "out/inorder/avl100" Time Eval vm_compute in (inorder' _ _ _ _ tree100).
     Redirect "out/inorder/avl1000" Time Eval vm_compute in (inorder' _ _ _ _ tree1000).
     Redirect "out/inorder/avl10000" Time Eval vm_compute in (inorder' _ _ _ _ tree10000).
-    Redirect "out/inorder/avl100000" Time Eval vm_compute in (inorder' _ _ _ _ tree100000).
+    (* stack overflow *) Fail Redirect "out/inorder/avl100000" Time Eval vm_compute in (inorder' _ _ _ _ tree100000).
 
     Redirect "out/postorder/avl1" Time Eval vm_compute in (postorder' _ _ _ _ tree1).
     Redirect "out/postorder/avl10" Time Eval vm_compute in (postorder' _ _ _ _ tree10).
     Redirect "out/postorder/avl100" Time Eval vm_compute in (postorder' _ _ _ _ tree100).
     Redirect "out/postorder/avl1000" Time Eval vm_compute in (postorder' _ _ _ _ tree1000).
     Redirect "out/postorder/avl10000" Time Eval vm_compute in (postorder' _ _ _ _ tree10000).
-    Redirect "out/postorder/avl100000" Time Eval vm_compute in (postorder' _ _ _ _ tree100000).
+    (* stack overflow *) Fail Redirect "out/postorder/avl100000" Time Eval vm_compute in (postorder' _ _ _ _ tree100000).
 
     Redirect "out/search/avl1" Time Eval vm_compute in (search' _ _ _ _ tree1 Elem.x).
     Redirect "out/search/avl10" Time Eval vm_compute in (search' _ _ _ _ tree10 Elem.x).
