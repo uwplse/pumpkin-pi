@@ -19,6 +19,7 @@ else
 fi
 
 mkdir ../out
+mkdir ../out/inputs
 mkdir ../out/inorder
 mkdir ../out/postorder
 mkdir ../out/preorder
