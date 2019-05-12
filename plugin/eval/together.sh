@@ -11,9 +11,9 @@ else
   :
 fi
 
-if [ -e together ]
+if [ -e results ]
 then
-  rm -r together
+  rm -r results
 else
   :
 fi
@@ -37,13 +37,14 @@ mkdir out/inorder
 mkdir out/postorder
 mkdir out/preorder
 mkdir out/search
+mkdir out/inputs
 mkdir out/equivalences
 mkdir out/normalized
-mkdir together
-mkdir together/inorder
-mkdir together/postorder
-mkdir together/preorder
-mkdir together/search
+mkdir results
+mkdir results/inorder
+mkdir results/postorder
+mkdir results/preorder
+mkdir results/search
 cp main.v main2.v
 cp equiv4free/main.v equiv4free/main2.v
 
@@ -53,6 +54,45 @@ sed -i "s/Eval compute in/Print/" main2.v
 # Remake DEVOID case study code exactly once, to print terms
 make clean
 make together
+
+# Copy the produced equivalences into the EFF code
+for f in $(find out/equivalences/*.out); do
+  name=$(basename "${f%.*}")
+  line=$(grep -n "     : forall" $f | cut -d : -f 1)
+  head -n $(($line-1)) $f > out/equivalences/$name-notyp.out
+  dirname=$(echo $name | cut -d '-' -f 1)
+  suffix=$(echo $name | cut -d '-' -f 2)
+  defname=$dirname
+  sed -i "s/$defname =/Definition $defname :=/" out/equivalences/$name-notyp.out
+  echo "." >> out/equivalences/$name-notyp.out
+  term=$(cat out/equivalences/$name-notyp.out)
+
+  # https://stackoverflow.com/questions/29613304/is-it-possible-to-escape-regex-metacharacters-reliably-with-sed
+  IFS= read -d '' -r < <(sed -e ':a' -e '$!{N;ba' -e '}' -e 's/[&/\]/\\&/g; s/\n/\\&/g' <<<"$term")
+  term=${REPLY%$'\n'}
+  
+  sed -i "s/(\* EQUIV $name \*)/$term/" equiv4free/main2.v
+done
+
+# Copy the produced inputs into the EFF code
+for f in $(find out/inputs/*.out); do
+  name=$(basename "${f%.*}")
+  line=$(grep -n "     :" $f | cut -d : -f 1)
+  head -n $(($line-1)) $f > out/inputs/$name-notyp.out
+  dirname=$(echo $name | cut -d '-' -f 1)
+  suffix=$(echo $name | cut -d '-' -f 2)
+  defname=$dirname
+  sed -i "s/$defname =/Definition $defname :=/" out/inputs/$name-notyp.out
+  echo "." >> out/inputs/$name-notyp.out
+  term=$(cat out/inputs/$name-notyp.out)
+
+  # https://stackoverflow.com/questions/29613304/is-it-possible-to-escape-regex-metacharacters-reliably-with-sed
+  IFS= read -d '' -r < <(sed -e ':a' -e '$!{N;ba' -e '}' -e 's/[&/\]/\\&/g; s/\n/\\&/g' <<<"$term")
+  term=${REPLY%$'\n'}
+  
+  sed -i "s/(\* INPUT $name \*)/$term/" equiv4free/main2.v
+done
+
 
 # Copy the produced terms into the EFF code, to run everything together
 for f in $(find out/normalized/*.out); do
@@ -72,12 +112,12 @@ for f in $(find out/normalized/*.out); do
   
   sed -i "s/(\* DEF $name \*)/$term/" equiv4free/main2.v
   sed -i "s/(\* NORMALIZE $name \*)/Redirect \"..\/out\/normalized\/$name\" Eval compute in $defname./" equiv4free/main2.v
-
-  sed -i "s/(\* TIME-SEARCH $name \*)/Redirect \"..\/out\/$dirname\/${suffix}1\" Time Eval vm_compute in ($defname _ _ _ _ tree1.2 Elem.x).\n\tRedirect \"..\/out\/$dirname\/${suffix}10\" Time Eval vm_compute in ($defname _ _ _ _ tree10.2 Elem.x).\n\tRedirect \"..\/out\/$dirname\/${suffix}100\" Time Eval vm_compute in ($defname _ _ _ _ tree100.2 Elem.x).\n\tFail Redirect \"..\/out\/$dirname\/${suffix}1000\" Time Eval vm_compute in ($defname _ _ _ _ tree1000.2 Elem.x).\n\tFail Redirect \"..\/out\/$dirname\/${suffix}10000\" Time Eval vm_compute in ($defname _ _ _ _ tree10000.2 Elem.x)./" equiv4free/main2.v
+ 
+  sed -i "s/(\* TIME-SEARCH $name \*)/Redirect \"..\/out\/$dirname\/${suffix}1\" Time Eval vm_compute in ($defname _ _ _ _ tree1 Elem.x).\n\tRedirect \"..\/out\/$dirname\/${suffix}10\" Time Eval vm_compute in ($defname _ _ _ _ tree10 Elem.x).\n\tRedirect \"..\/out\/$dirname\/${suffix}100\" Time Eval vm_compute in ($defname _ _ _ _ tree100 Elem.x).\n\tRedirect \"..\/out\/$dirname\/${suffix}1000\" Time Eval vm_compute in ($defname _ _ _ _ tree1000 Elem.x).\n\tRedirect \"..\/out\/$dirname\/${suffix}10000\" Time Eval vm_compute in ($defname _ _ _ _ tree10000 Elem.x).\n\tRedirect \"..\/out\/$dirname\/${suffix}100000\" Time Eval vm_compute in ($defname _ _ _ _ tree100000 Elem.x)./" equiv4free/main2.v
   
-  sed -i "s/(\* TIME-AVL $name \*)/Redirect \"..\/out\/$dirname\/${suffix}1\" Time Eval vm_compute in ($defname _ _ _ _ tree1.2).\n\tRedirect \"..\/out\/$dirname\/${suffix}10\" Time Eval vm_compute in ($defname _ _ _ _ tree10.2).\n\tRedirect \"..\/out\/$dirname\/${suffix}100\" Time Eval vm_compute in ($defname _ _ _ _ tree100.2).\n\tFail Redirect \"..\/out\/$dirname\/${suffix}1000\" Time Eval vm_compute in ($defname _ _ _ _ tree1000.2).\n\tFail Redirect \"..\/out\/$dirname\/${suffix}10000\" Time Eval vm_compute in ($defname _ _ _ _ tree10000.2)./" equiv4free/main2.v
+  sed -i "s/(\* TIME-AVL $name \*)/Redirect \"..\/out\/$dirname\/${suffix}1\" Time Eval vm_compute in ($defname _ _ _ _ tree1).\n\tRedirect \"..\/out\/$dirname\/${suffix}10\" Time Eval vm_compute in ($defname _ _ _ _ tree10).\n\tRedirect \"..\/out\/$dirname\/${suffix}100\" Time Eval vm_compute in ($defname _ _ _ _ tree100).\n\tRedirect \"..\/out\/$dirname\/${suffix}1000\" Time Eval vm_compute in ($defname _ _ _ _ tree1000).\n\tRedirect \"..\/out\/$dirname\/${suffix}10000\" Time Eval vm_compute in ($defname _ _ _ _ tree10000).\n\tRedirect \"..\/out\/$dirname\/${suffix}100000\" Time Eval vm_compute in ($defname _ _ _ _ tree100000)./" equiv4free/main2.v
   
-  sed -i "s/(\* TIME-SIZED $name \*)/Redirect \"..\/out\/$dirname\/${suffix}1\" Time Eval vm_compute in ($defname tree1).\n\tRedirect \"..\/out\/$dirname\/${suffix}10\" Time Eval vm_compute in ($defname tree10).\n\tRedirect \"..\/out\/$dirname\/${suffix}100\" Time Eval vm_compute in ($defname tree100).\n\tRedirect \"..\/out\/$dirname\/${suffix}1000\" Time Eval vm_compute in ($defname tree1000).\n\tRedirect \"..\/out\/$dirname\/${suffix}10000\" Time Eval vm_compute in ($defname tree10000)./" equiv4free/main2.v
+  sed -i "s/(\* TIME-SIZED $name \*)/Redirect \"..\/out\/$dirname\/${suffix}1\" Time Eval vm_compute in ($defname tree1).\n\tRedirect \"..\/out\/$dirname\/${suffix}10\" Time Eval vm_compute in ($defname tree10).\n\tRedirect \"..\/out\/$dirname\/${suffix}100\" Time Eval vm_compute in ($defname tree100).\n\tRedirect \"..\/out\/$dirname\/${suffix}1000\" Time Eval vm_compute in ($defname tree1000).\n\tRedirect \"..\/out\/$dirname\/${suffix}10000\" Time Eval vm_compute in ($defname tree10000).\n\tRedirect \"..\/out\/$dirname\/${suffix}100000\" Time Eval vm_compute in ($defname tree100000)./" equiv4free/main2.v
 done
 
 # Clean outputted directories
@@ -97,7 +137,7 @@ do
   # Remake Univalent Parametricity case study code
   cd equiv4free
   make clean
-  make together
+  make equiv
   cd ..
 
   # Add the computation times to the aggregate files
@@ -108,16 +148,16 @@ do
     then
       :
     else
-      tail -n 2 $f | grep -o -e '[0-9.]* secs' | sed -f times.sed >> together/$dirname/$name.out
+      tail -n 2 $f | grep -o -e '[0-9.]* secs' | sed -f times.sed >> results/$dirname/$name.out
     fi
   done
 done
 
 # Add the distribution data
-for f in $(find together/*/*.out); do
+for f in $(find results/*/*.out); do
   name=$(dirname "${f%.*}" | cut -d / -f 2)"-"$(basename "${f%.*}")
   data=$(datamash median 1 < $f)
-  echo "$name : $data" >> together/medians.out
+  echo "$name : $data" >> results/medians.out
 done
 
 # Measure normalized term size
@@ -126,12 +166,12 @@ for f in $(find out/normalized/*.out); do
   line=$(grep -n "     : forall" $f | cut -d : -f 1)
   head -n $(($line-1)) $f > out/normalized/$name-notyp.out
   loc=$(coqwc -s out/normalized/$name-notyp.out)
-  echo $loc >> together/sizes.out
+  echo $loc >> results/sizes.out
 done
 
 # Format term size data
-sed -i "s/out\/normalized\///" together/sizes.out
-sed -i "s/-notyp.out//" together/sizes.out
+sed -i "s/out\/normalized\///" results/sizes.out
+sed -i "s/-notyp.out//" results/sizes.out
 
 # Preprocess for sanity checks
 rm -r out/normalized
@@ -146,7 +186,7 @@ for f in $(find out/*/*EFF*.out); do
   then
     :
   else
-    g=$(echo $f | sed -e "s/EFF//")
+    g=$(echo $f | sed -e "s/EFFequiv//")
     echo "Sanity checking $f and $g."
     if [ "$(cat $f)" == "$(cat $g)" ]
     then

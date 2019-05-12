@@ -1,6 +1,3 @@
-main.vo: main.v lemmas.vo perm.vo list.vo
-	coqc main.v
-
 lemmas.vo: lemmas.v perm.vo list.vo
 	coqc lemmas.v
 
@@ -13,12 +10,6 @@ list.vo: list.v
 clean:
 	rm -f *.vo *.glob
 
-together: main2.v lemmas.vo perm.vo list.vo
+equiv: main2.v lemmas.vo perm.vo list.vo
 	coqc main2.v
-
-equiv: mainequiv2.v lemmas.vo perm.vo list.vo
-	coqc mainequiv2.v
-
-separate: main.v lemmas.vo perm.vo list.vo
-	coqc main.v
 
