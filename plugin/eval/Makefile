@@ -12,3 +12,5 @@ clean:
 
 together: main2.v lemmas.vo cast.vo
 	coqc main2.v
+
+

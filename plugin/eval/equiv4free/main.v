@@ -17,6 +17,12 @@ Hint Extern 4 => repeat (match goal with H : Logic.eq _ _ |- _ => apply logic_eq
 
 Notation "'typeof' x" := (let A := _ in let _ : A := x in A) (at level 100).
 
+Definition eq_ind {A : Type} (x : A) (P : A -> Type) (H : P x) (y : A) (Heq : x = y) :=
+  eq_rect A x (fun (a : A) (H0 : x = a) => P a) H y Heq. (* for compatibility *)
+
+Definition sigT_rect {A : Type} {P : A -> Type} (P0 : {x : A & P x} -> Set) (H : forall (x : A) (p : P x), P0 (x; p)) :=
+  sigT_rect A P P0 H. (* for compatibility *)
+
 Add Printing Let sigT. (* for consistency *)
 
 Module Type Comparable.
@@ -157,69 +163,40 @@ Module CaseStudy (Elem : Comparable).
     Instance Transportable_tree (P: tree -> Type) : Transportable P :=
       @Transportable_decidable _ P Decidable_eq_tree.
 
-      Local Coercion Leaf : Elem.t >-> tree.
+    (* --- Test trees --- *)
+    Local Coercion Leaf : Elem.t >-> tree.
 
-      (* 21 nodes, to be exact *)
-      Definition tree20 :=
-        Branch Elem.x
-               (Branch Elem.y (Branch Elem.z (Branch Elem.x Elem.y Elem.z) (Branch Elem.x Elem.y Elem.z)) (Branch Elem.x Elem.y Elem.z))
-               (Branch Elem.z (Branch Elem.x Elem.y Elem.z) (Branch Elem.x Elem.y (Branch Elem.x Elem.y Elem.z))).
+    (* --- Begin inputs --- *)
 
-      (* 43 nodes, to be exact *)
-      Definition tree40 :=
-        Branch Elem.z tree20 tree20.
+    (*
+     * We import these from DEVOID, that way we can measure the performance difference of
+     * only the lifted functions, controlling for the performance of lifted inputs (which is
+     * slower in EFF) without clouding the results.
+     *)
+    (* INPUT tree1-base *)
+    (* INPUT tree10-base *)
+    (* INPUT tree20-base *)
+    (* INPUT tree40-base *)
+    (* INPUT tree60-base *)
+    (* INPUT tree80-base *)
+    (* INPUT tree100-base *)
+    (* INPUT tree200-base *)
+    (* INPUT tree400-base *)
+    (* INPUT tree600-base *)
+    (* INPUT tree800-base *)
+    (* INPUT tree1000-base *)
+    (* INPUT tree2000-base *)
+    (* INPUT tree4000-base *)
+    (* INPUT tree6000-base *)
+    (* INPUT tree8000-base *)
+    (* INPUT tree10000-base *)
+    (* INPUT tree20000-base *)
+    (* INPUT tree40000-base *)
+    (* INPUT tree60000-base *)
+    (* INPUT tree80000-base *)
+    (* INPUT tree100000-base *)
 
-      (* 65 nodes, to be exact *)
-      Definition tree60 :=
-        Branch Elem.y tree20 tree40.
-
-      (* 87 nodes, to be exact *)
-      Definition tree80 :=
-        Branch Elem.x tree40 tree40.
-
-      (* 109 nodes, to be exact *)
-      Definition tree100 :=
-        Branch Elem.y tree40 tree60.
-
-      (* 219 nodes, to be exact *)
-      Definition tree200 :=
-        Branch Elem.x tree100 tree100.
-
-      (* 439 nodes, to be exact *)
-      Definition tree400 :=
-        Branch Elem.y tree200 tree200.
-
-      (* 659 nodes, to be exact *)
-      Definition tree600 :=
-        Branch Elem.x tree200 tree400.
-
-      (* 879 nodes, to be exact *)
-      Definition tree800 :=
-        Branch Elem.z tree200 tree600.
-
-      (* 1099 nodes, to be exact *)
-      Definition tree1000 :=
-        Branch Elem.x tree400 tree600.
-
-      (* 2101 nodes, to be exact *)
-      Definition tree2000 :=
-        Branch Elem.y (Branch Elem.z tree200 tree800) tree1000.
-
-      (* 4203 nodes, to be exact *)
-      Definition tree4000 :=
-        Branch Elem.x tree2000 tree2000.
-
-      (* 6305 nodes, to be exact *)
-      Definition tree6000 :=
-        Branch Elem.z tree2000 tree4000.
-
-      (* 8407 nodes, to be exact *)
-      Definition tree8000 :=
-        Branch Elem.z tree4000 tree4000.
-
-      (* 10509 nodes, to be exact *)
-      Definition tree10000 :=
-        Branch Elem.z tree2000 tree8000.
+    (* --- End inputs --- *)
 
     (* 13 LoC in normal form *)
     Definition preorder (t : tree) : list Elem.t :=
@@ -228,29 +205,12 @@ Module CaseStudy (Elem : Comparable).
         (fun x _ ys _ zs => [x] ++ ys ++ zs)
         (fun x => [x])
         t.
-
-   (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
-    Redirect "../out/treeEFF20" Time Eval vm_compute in tree20.
-    Redirect "../out/treeEFF40" Time Eval vm_compute in tree40.
-    Redirect "../out/treeEFF60" Time Eval vm_compute in tree60.
-    Redirect "../out/treeEFF80" Time Eval vm_compute in tree80.
-    Redirect "../out/treeEFF100" Time Eval vm_compute in tree100.
-    Redirect "../out/treeEFF2000" Time Eval vm_compute in tree2000.
-    Redirect "../out/treeEFF4000" Time Eval vm_compute in tree4000.
-    Redirect "../out/treeEFF6000" Time Eval vm_compute in tree6000.
-    Redirect "../out/treeEFF8000" Time Eval vm_compute in tree8000.
-    Redirect "../out/treeEFF10000" Time Eval vm_compute in tree10000.
-
-    Redirect "../out/preorder/baseEFF20" Time Eval vm_compute in (preorder tree20).
-    Redirect "../out/preorder/baseEFF40" Time Eval vm_compute in (preorder tree40).
-    Redirect "../out/preorder/baseEFF60" Time Eval vm_compute in (preorder tree60).
-    Redirect "../out/preorder/baseEFF80" Time Eval vm_compute in (preorder tree80).
-    Redirect "../out/preorder/baseEFF100" Time Eval vm_compute in (preorder tree100).
-    Redirect "../out/preorder/baseEFF2000" Time Eval vm_compute in (preorder tree2000).
-    Redirect "../out/preorder/baseEFF4000" Time Eval vm_compute in (preorder tree4000).
-    Redirect "../out/preorder/baseEFF6000" Time Eval vm_compute in (preorder tree6000).
-    Redirect "../out/preorder/baseEFF8000" Time Eval vm_compute in (preorder tree8000).
-    Redirect "../out/preorder/baseEFF10000" Time Eval vm_compute in (preorder tree10000).
+    Redirect "../out/preorder/baseEFF1equiv" Time Eval vm_compute in (preorder tree1).
+    Redirect "../out/preorder/baseEFF10equiv" Time Eval vm_compute in (preorder tree10).
+    Redirect "../out/preorder/baseEFF100equiv" Time Eval vm_compute in (preorder tree100).
+    Redirect "../out/preorder/baseEFF1000equiv" Time Eval vm_compute in (preorder tree1000).
+    Redirect "../out/preorder/baseEFF10000equiv" Time Eval vm_compute in (preorder tree10000).
+    Redirect "../out/preorder/baseEFF100000equiv" Time Eval vm_compute in (preorder tree100000).
 
     (* 12 LoC in normal form *)
     Definition inorder (t : tree) : list Elem.t :=
@@ -259,16 +219,12 @@ Module CaseStudy (Elem : Comparable).
         (fun x _ ys _ zs => ys ++ [x] ++ zs)
         (fun x => [x])
         t.
-    Redirect "../out/inorder/baseEFF20" Time Eval vm_compute in (inorder tree20).
-    Redirect "../out/inorder/baseEFF40" Time Eval vm_compute in (inorder tree40).
-    Redirect "../out/inorder/baseEFF60" Time Eval vm_compute in (inorder tree60).
-    Redirect "../out/inorder/baseEFF80" Time Eval vm_compute in (inorder tree80).
-    Redirect "../out/inorder/baseEFF100" Time Eval vm_compute in (inorder tree100).
-    Redirect "../out/inorder/baseEFF2000" Time Eval vm_compute in (inorder tree2000).
-    Redirect "../out/inorder/baseEFF4000" Time Eval vm_compute in (inorder tree4000).
-    Redirect "../out/inorder/baseEFF6000" Time Eval vm_compute in (inorder tree6000).
-    Redirect "../out/inorder/baseEFF8000" Time Eval vm_compute in (inorder tree8000).
-    Redirect "../out/inorder/baseEFF10000" Time Eval vm_compute in (inorder tree10000).
+    Redirect "../out/inorder/baseEFF1equiv" Time Eval vm_compute in (inorder tree1).
+    Redirect "../out/inorder/baseEFF10equiv" Time Eval vm_compute in (inorder tree10).
+    Redirect "../out/inorder/baseEFF100equiv" Time Eval vm_compute in (inorder tree100).
+    Redirect "../out/inorder/baseEFF1000equiv" Time Eval vm_compute in (inorder tree1000).
+    Redirect "../out/inorder/baseEFF10000equiv" Time Eval vm_compute in (inorder tree10000).
+    Redirect "../out/inorder/baseEFF100000equiv" Time Eval vm_compute in (inorder tree100000).
 
     (* 12 LoC in normal form *)
     Definition postorder (t : tree) : list Elem.t :=
@@ -277,16 +233,12 @@ Module CaseStudy (Elem : Comparable).
         (fun x _ ys _ zs => ys ++ zs ++ [x])
         (fun x => [x])
         t.
-    Redirect "../out/postorder/baseEFF20" Time Eval vm_compute in (postorder tree20).
-    Redirect "../out/postorder/baseEFF40" Time Eval vm_compute in (postorder tree40).
-    Redirect "../out/postorder/baseEFF60" Time Eval vm_compute in (postorder tree60).
-    Redirect "../out/postorder/baseEFF80" Time Eval vm_compute in (postorder tree80).
-    Redirect "../out/postorder/baseEFF100" Time Eval vm_compute in (postorder tree100).
-    Redirect "../out/postorder/baseEFF2000" Time Eval vm_compute in (postorder tree2000).
-    Redirect "../out/postorder/baseEFF4000" Time Eval vm_compute in (postorder tree4000).
-    Redirect "../out/postorder/baseEFF6000" Time Eval vm_compute in (postorder tree6000).
-    Redirect "../out/postorder/baseEFF8000" Time Eval vm_compute in (postorder tree8000).
-    Redirect "../out/postorder/baseEFF10000" Time Eval vm_compute in (postorder tree10000).
+    Redirect "../out/postorder/baseEFF1equiv" Time Eval vm_compute in (postorder tree1).
+    Redirect "../out/postorder/baseEFF10equiv" Time Eval vm_compute in (postorder tree10).
+    Redirect "../out/postorder/baseEFF100equiv" Time Eval vm_compute in (postorder tree100).
+    Redirect "../out/postorder/baseEFF1000equiv" Time Eval vm_compute in (postorder tree1000).
+    Redirect "../out/postorder/baseEFF10000equiv" Time Eval vm_compute in (postorder tree10000).
+    Redirect "../out/postorder/baseEFF100000equiv" Time Eval vm_compute in (postorder tree100000).
 
     Lemma pre_permutes : forall t : tree,
         permutes (preorder t) (inorder t).
@@ -345,41 +297,21 @@ Module CaseStudy (Elem : Comparable).
       rewrite Equiv_tree_id. cbn. eapply Equiv_id.
     Defined.
 
-    Fixpoint orn_size_index (t : Base.tree) : nat :=
-      match t with
-      | Base.Branch _ l r => S (orn_size_index l + orn_size_index r)
-      | Base.Leaf _ => 1
-      end.
+    (* --- Begin auto-generated equivalences from DEVOID --- *)
 
-    Fixpoint orn_size (t : Base.tree) : {n:nat & tree n} :=
-      match t with
-      | Base.Branch v l r =>
-        let L := orn_size l in
-        let R := orn_size r in
-        (_; (Branch L.1 R.1 v L.2 R.2))
-      | Base.Leaf v => (_; Leaf v)
-      end.
-
-    Fixpoint orn_size_inv' (n : nat) (t : tree n) : Base.tree :=
-      match t with
-      | Branch n_l n_r v l r =>
-        Base.Branch v (orn_size_inv' n_l l) (orn_size_inv' n_r r)
-      | Leaf v =>
-        Base.Leaf v
-      end.
-
-    Definition orn_size_inv (T : {n:nat & tree n}) : Base.tree :=
-      orn_size_inv' T.1 T.2.
+    (* EQUIV orn_size_index *)
+    (* EQUIV orn_size *)
+    (* EQUIV orn_size_inv *)
+    (* EQUIV orn_size_section *)
+    (* EQUIV orn_size_retraction *)
+ 
+    (* --- End auto-generated equivalences from DEVOID --- *)
 
     Instance IsEquiv_orn_size : IsEquiv orn_size.
     Proof.
-      eapply isequiv_adjointify with (g := orn_size_inv); unfold orn_size_inv.
-      - intros t. induction t as [v l IH_l r IH_r|v]; cbn.
-        + rewrite IH_l, IH_r. reflexivity.
-        + reflexivity.
-      - intros [h t]. cbn. induction t as [n_l n_r v l IH_l r IH_r|v]; cbn.
-        + rewrite IH_l, IH_r. reflexivity.
-        + reflexivity.
+      eapply isequiv_adjointify with (g := orn_size_inv).
+      - apply orn_size_section.
+      - apply orn_size_retraction.
     Defined.
 
     Instance Equiv_orn_size : Base.tree ≃ {n:nat & tree n} :=
@@ -397,43 +329,73 @@ Module CaseStudy (Elem : Comparable).
 
     Definition orn_size_coh t : orn_size_inv (orn_size t) = t := e_sect orn_size t.
 
-    Definition tree2000 := ↑ Base.tree2000.
-    Definition tree4000 := ↑ Base.tree4000.
-    Definition tree6000 := ↑ Base.tree6000.
-    Definition tree8000 := ↑ Base.tree8000.
-    Definition tree10000 := ↑ Base.tree10000.
+    (* --- Begin automatically generated lifted inputs from DEVOID --- *)
+
+    (*
+     * We import these from DEVOID, that way we can measure the performance difference of
+     * only the lifted functions, controlling for the performance of lifted inputs (which is
+     * slower in EFF) without clouding the results.
+     *)
+    (* INPUT tree1-sized *)
+    (* INPUT tree10-sized *)
+    (* INPUT tree20-sized *)
+    (* INPUT tree40-sized *)
+    (* INPUT tree60-sized *)
+    (* INPUT tree80-sized *)
+    (* INPUT tree100-sized *)
+    (* INPUT tree200-sized *)
+    (* INPUT tree400-sized *)
+    (* INPUT tree600-sized *)
+    (* INPUT tree800-sized *)
+    (* INPUT tree1000-sized *)
+    (* INPUT tree2000-sized *)
+    (* INPUT tree4000-sized *)
+    (* INPUT tree6000-sized *)
+    (* INPUT tree8000-sized *)
+    (* INPUT tree10000-sized *)
+    (* INPUT tree20000-sized *)
+    (* INPUT tree40000-sized *)
+    (* INPUT tree60000-sized *)
+    (* INPUT tree80000-sized *)
+    (* INPUT tree100000-sized *)
+
+    (* --- End automatically generated lifted inputs from DEVOID --- *)
 
     (* 38 LoC in normal form *)
     Definition preorder' : {n:nat & tree n} -> list Elem.t := ↑ Base.preorder.
     Definition preorder n t := preorder' (existT _ n t).
-    Redirect "../out/preorder/sizedEFF2000" Time Eval vm_compute in (preorder' tree2000).
-    Redirect "../out/preorder/sizedEFF4000" Time Eval vm_compute in (preorder' tree4000).
-    Redirect "../out/preorder/sizedEFF6000" Time Eval vm_compute in (preorder' tree6000).
-    Redirect "../out/preorder/sizedEFF8000" Time Eval vm_compute in (preorder' tree8000).
-    Redirect "../out/preorder/sizedEFF10000" Time Eval vm_compute in (preorder' tree10000).
+    Redirect "../out/preorder/sizedEFF1equiv" Time Eval vm_compute in (preorder' tree1).
+    Redirect "../out/preorder/sizedEFF10equiv" Time Eval vm_compute in (preorder' tree10).
+    Redirect "../out/preorder/sizedEFF100equiv" Time Eval vm_compute in (preorder' tree100).
+    Redirect "../out/preorder/sizedEFF1000equiv" Time Eval vm_compute in (preorder' tree1000).
+    Redirect "../out/preorder/sizedEFF10000equiv" Time Eval vm_compute in (preorder' tree10000).
+    Redirect "../out/preorder/sizedEFF100000equiv" Time Eval vm_compute in (preorder' tree100000).
 
     (* 37 LoC in normal form *)
     Definition inorder' : {n:nat & tree n} -> list Elem.t := ↑ Base.inorder.
     Definition inorder n t := inorder' (existT _ n t).
-    Redirect "../out/inorder/sizedEFF2000" Time Eval vm_compute in (inorder' tree2000).
-    Redirect "../out/inorder/sizedEFF4000" Time Eval vm_compute in (inorder' tree4000).
-    Redirect "../out/inorder/sizedEFF6000" Time Eval vm_compute in (inorder' tree6000).
-    Redirect "../out/inorder/sizedEFF8000" Time Eval vm_compute in (inorder' tree8000).
-    Redirect "../out/inorder/sizedEFF10000" Time Eval vm_compute in (inorder' tree10000).
+    Redirect "../out/inorder/sizedEFF1equiv" Time Eval vm_compute in (inorder' tree1).
+    Redirect "../out/inorder/sizedEFF10equiv" Time Eval vm_compute in (inorder' tree10).
+    Redirect "../out/inorder/sizedEFF100equiv" Time Eval vm_compute in (inorder' tree100).
+    Redirect "../out/inorder/sizedEFF1000equiv" Time Eval vm_compute in (inorder' tree1000).
+    Redirect "../out/inorder/sizedEFF10000equiv" Time Eval vm_compute in (inorder' tree10000).
+    Redirect "../out/inorder/sizedEFF100000equiv" Time Eval vm_compute in (inorder' tree100000).
 
     (* 43 LoC in normal form *)
     Definition postorder' : {n:nat & tree n} -> list Elem.t := ↑ Base.postorder.
     Definition postorder n t := postorder' (existT _ n t).
-    Redirect "../out/postorder/sizedEFF2000" Time Eval vm_compute in (postorder' tree2000).
-    Redirect "../out/postorder/sizedEFF4000" Time Eval vm_compute in (postorder' tree4000).
-    Redirect "../out/postorder/sizedEFF6000" Time Eval vm_compute in (postorder' tree6000).
-    Redirect "../out/postorder/sizedEFF8000" Time Eval vm_compute in (postorder' tree8000).
-    Redirect "../out/postorder/sizedEFF10000" Time Eval vm_compute in (postorder' tree10000).
+    Redirect "../out/postorder/sizedEFF1equiv" Time Eval vm_compute in (postorder' tree1).
+    Redirect "../out/postorder/sizedEFF10equiv" Time Eval vm_compute in (postorder' tree10).
+    Redirect "../out/postorder/sizedEFF100equiv" Time Eval vm_compute in (postorder' tree100).
+    Redirect "../out/postorder/sizedEFF1000equiv" Time Eval vm_compute in (postorder' tree1000).
+    Redirect "../out/postorder/sizedEFF10000equiv" Time Eval vm_compute in (postorder' tree10000).
+    Redirect "../out/postorder/sizedEFF100000equiv" Time Eval vm_compute in (postorder' tree100000).
 
     Lemma FP_preorder : Base.preorder ≈ preorder'.
     Proof.
       intros t t' U. cbn in U. rewrite <- U. unfold preorder'. generalize Base.preorder.
-      intros f. cbn. rewrite list_rect_eta, orn_size_coh. eapply UR_list_refl.
+      intros f. cbn. rewrite list_rect_eta. pose proof orn_size_coh. compute in H. compute. rewrite H. 
+      eapply UR_list_refl.
     Defined.
 
     Hint Extern 0 (Base.preorder ?t ≈ preorder' ?t') => unshelve refine (FP_preorder t t' _); intros :  typeclass_instances.
@@ -441,7 +403,8 @@ Module CaseStudy (Elem : Comparable).
     Lemma FP_inorder : Base.inorder ≈ inorder'.
     Proof.
       intros t t' U. cbn in U. rewrite <- U. unfold inorder'. generalize Base.inorder.
-      intros f. cbn. rewrite list_rect_eta, orn_size_coh. eapply UR_list_refl.
+      intros f. cbn. rewrite list_rect_eta. pose proof orn_size_coh. compute in H. compute. rewrite H. 
+      eapply UR_list_refl.
     Defined.
 
     Hint Extern 0 (Base.inorder ?t ≈ inorder' ?t') => unshelve refine (FP_inorder t t' _); intros :  typeclass_instances.
@@ -449,7 +412,8 @@ Module CaseStudy (Elem : Comparable).
     Lemma FP_postorder : Base.postorder ≈ postorder'.
     Proof.
       intros t t' U. cbn in U. rewrite <- U. unfold postorder'. generalize Base.postorder.
-      intros f. cbn. rewrite list_rect_eta, orn_size_coh. eapply UR_list_refl.
+      intros f. cbn. rewrite list_rect_eta. pose proof orn_size_coh. compute in H. compute. rewrite H. 
+      eapply UR_list_refl.
     Defined.
 
     Hint Extern 0 (Base.postorder ?t ≈ postorder' ?t') => unshelve refine (FP_postorder t t' _); intros :  typeclass_instances.
@@ -458,10 +422,10 @@ Module CaseStudy (Elem : Comparable).
       ↑ Base.pre_permutes.
 
     (* --- Normalized term sizes --- *)
-    Redirect "../out/normalized/preorder-sizedEFF" Eval compute in preorder'.
-    Redirect "../out/normalized/postorder-sizedEFF" Eval compute in postorder'.
-    Redirect "../out/normalized/inorder-sizedEFF" Eval compute in inorder'.
-    (* Redirect "../out/normalized/pre_permutes-sizedEFF" Eval compute in pre_permutes'. *)
+    Redirect "../out/normalized/preorder-sizedEFFequiv" Eval compute in preorder'.
+    Redirect "../out/normalized/postorder-sizedEFFequiv" Eval compute in postorder'.
+    Redirect "../out/normalized/inorder-sizedEFFequiv" Eval compute in inorder'.
+    (* Redirect "../out/normalized/pre_permutes-sizedEFFequiv" Eval compute in pre_permutes'. *)
 
     (* Auto-generated definitions go here in together case study *)
     Module Comparison.
@@ -470,9 +434,9 @@ Module CaseStudy (Elem : Comparable).
       (* DEF preorder-sized *)
       (* DEF pre_permutes-sized *)
 
-      (* TIME-BIG inorder-sized *)
-      (* TIME-BIG postorder-sized *)
-      (* TIME-BIG preorder-sized *)
+      (* TIME-SIZED inorder-sized *)
+      (* TIME-SIZED postorder-sized *)
+      (* TIME-SIZED preorder-sized *)
 
       (* NORMALIZE inorder-sized *)
       (* NORMALIZE postorder-sized *)
@@ -485,6 +449,20 @@ Module CaseStudy (Elem : Comparable).
   (* --- Multiple iterations: from binary trees to binary search trees to AVL trees --- *)
 
   Module Ordered.
+
+    Inductive __bst : Elem.t -> Type :=
+    | __Branch (min_l min_r : Elem.t)
+               (val : Elem.t)
+               (left : __bst min_l) (right : __bst min_r)
+      : __bst min_l
+    | __Leaf (val : Elem.t) : __bst val.
+
+    Inductive _bst : Elem.t -> Elem.t -> Type :=
+    | _Branch (min_l min_r : Elem.t) (max_l max_r : Elem.t)
+              (val : Elem.t)
+              (left : _bst min_l max_l) (right : _bst min_r max_r)
+      : _bst min_l max_r
+    | _Leaf (val : Elem.t) : _bst val val.
 
     Definition inv (ord_l ord_r : bool) (max_l val min_r : Elem.t) : bool :=
       ord_l && ord_r && Elem.ltb max_l val && Elem.ltb val min_r.
@@ -526,65 +504,160 @@ Module CaseStudy (Elem : Comparable).
       econstructor. cbn. intros t t'. unfold univalent_transport. rewrite Equiv_bst_id. cbn. eapply Equiv_id.
     Defined.
 
-    Fixpoint orn_order (t : Base.tree) : {lo:Elem.t & {hi:Elem.t & {ord:bool & Ordered.bst lo hi ord}}} :=
-      match t with
-      | Base.Branch v l r =>
-        (_; (_; (_; Branch _ _ _ _ _ _ v (orn_order l).2.2.2 (orn_order r).2.2.2)))
-      | Base.Leaf v =>
-        (_; (_; (_; Leaf v)))
-      end.
+    (* --- Begin auto-generated equivalences from DEVOID --- *)
 
-    Fixpoint orn_order_inv' {lo hi ord} (t : bst lo hi ord) : Base.tree :=
-      match t with
-      | Branch _ _ _ _ _ _ v l r =>
-        Base.Branch v (orn_order_inv' l) (orn_order_inv' r)
-      | Leaf v =>
-        Base.Leaf v
-      end.
-
-    Definition orn_order_inv (T : {lo:Elem.t & {hi:Elem.t & {ord:bool & bst lo hi ord}}}) : Base.tree :=
-      orn_order_inv' T.2.2.2.
-
-    Instance IsEquiv_orn_order : IsEquiv orn_order.
+    (* EQUIV __orn_order_index *)
+    (* EQUIV __orn_order *)
+    (* EQUIV __orn_order_inv *)
+    (* EQUIV __orn_order_section *)
+    (* EQUIV __orn_order_retraction *)
+    (* EQUIV _orn_order_index *)
+    (* EQUIV _orn_order *)
+    (* EQUIV _orn_order_inv *)
+    (* EQUIV _orn_order_section *)
+    (* EQUIV _orn_order_retraction *)
+    (* EQUIV orn_order_index *)
+    (* EQUIV orn_order *)
+    (* EQUIV orn_order_inv *)
+    (* EQUIV orn_order_section *)
+    (* EQUIV orn_order_retraction *)
+ 
+    (* --- End auto-generated equivalences from DEVOID --- *)
+ 
+   Instance IsEquiv___orn_order : IsEquiv __orn_order.
     Proof.
-      eapply isequiv_adjointify with (g := orn_order_inv); unfold orn_order_inv; cbn.
-      - intros t. induction t as [v l IH_l r IH_r|v]; cbn.
-        + rewrite IH_l, IH_r. reflexivity.
-        + reflexivity.
-      - intros [lo [hi [ord t]]]. cbn. induction t as [ord_l ord_r lo_l lo_r hi_l hi_r v l IH_l r IH_r|v]; cbn.
-        + rewrite IH_l, IH_r. reflexivity.
-        + reflexivity.
+      intros. eapply isequiv_adjointify with (g := __orn_order_inv).
+      - apply __orn_order_section.
+      - apply __orn_order_retraction.
     Defined.
 
-    Instance Equiv_orn_order : Base.tree ≃ {lo:Elem.t & {hi:Elem.t & {ord:bool & bst lo hi ord}}} :=
-      BuildEquiv _ _ _ IsEquiv_orn_order.
+    Instance IsEquiv__orn_order : forall t, IsEquiv (_orn_order t).
+    Proof.
+      intros. eapply isequiv_adjointify with (g := _orn_order_inv t).
+      - apply _orn_order_section.
+      - apply _orn_order_retraction.
+    Defined. 
 
-    Instance UR_orn_order : Base.tree ⋈ {lo:Elem.t & {hi:Elem.t & {ord:bool & bst lo hi ord}}}.
+    Instance IsEquiv_orn_order : forall t t0, IsEquiv (orn_order t t0).
+    Proof.
+      intros. eapply isequiv_adjointify with (g := orn_order_inv t t0).
+      - apply orn_order_section.
+      - apply orn_order_retraction.
+    Defined. 
+
+    Instance Equiv___orn_order : Base.tree ≃ {lo:Elem.t & __bst lo} :=
+      BuildEquiv _ _ _ IsEquiv___orn_order.
+
+    Instance Equiv__orn_order : forall (lo : Elem.t), __bst lo ≃ {hi:Elem.t & _bst lo hi} :=
+      fun lo => BuildEquiv _ _ _ (IsEquiv__orn_order lo).
+
+    Instance Equiv_orn_order : forall (lo hi : Elem.t), _bst lo hi ≃ {ord : bool & bst lo hi ord} :=
+      fun lo hi => BuildEquiv _ _ _ (IsEquiv_orn_order lo hi).
+
+    Instance UR___orn_order : Base.tree ⋈ {lo:Elem.t & __bst lo}.
     Proof.
       cbn. unshelve esplit.
-      - econstructor. intros t t'. exact (orn_order t = t').
+      - econstructor. intros t t'. exact (__orn_order t = t').
       - econstructor. intros t t'. cbn.
-        apply (@isequiv_ap _ _ Equiv_orn_order).
+        apply (@isequiv_ap _ _ Equiv___orn_order).
       - apply Canonical_eq_gen.
       - apply Canonical_eq_gen.
     Defined.
 
-    Notation bst_sig := {lo:Elem.t & {hi:Elem.t & {ord:bool & bst lo hi ord}}} (only parsing).
+    Instance UR__orn_order : forall (lo : Elem.t), __bst lo ⋈ {hi:Elem.t & _bst lo hi}.
+    Proof.
+      cbn. unshelve esplit.
+      - econstructor. intros t t'. exact (_orn_order lo t = t').
+      - econstructor. intros t t'. cbn.
+        apply (@isequiv_ap _ _ (Equiv__orn_order lo)).
+      - apply Canonical_eq_gen.
+      - apply Canonical_eq_gen.
+    Defined.
 
-    Definition tree20 := ↑ Base.tree20.
-    Definition tree40 := ↑ Base.tree40.
-    Definition tree60 := ↑ Base.tree60.
-    Definition tree80 := ↑ Base.tree80.
-    Definition tree100 := ↑ Base.tree100.
+    Instance UR_orn_order : forall (lo hi : Elem.t), _bst lo hi ⋈ {ord:bool & bst lo hi ord}.
+    Proof.
+      cbn. unshelve esplit.
+      - econstructor. intros t t'. exact (orn_order lo hi t = t').
+      - econstructor. intros t t'. cbn.
+        apply (@isequiv_ap _ _ (Equiv_orn_order lo hi)).
+      - apply Canonical_eq_gen.
+      - apply Canonical_eq_gen.
+    Defined.
 
-    Definition preorder' : bst_sig -> list Elem.t := ↑ Base.preorder.
-    Definition preorder {lo hi ord} t := preorder' (lo; (hi; (ord; t))).
+    (* --- Begin automatically generated lifted inputs from DEVOID --- *)
 
-    Definition inorder' : bst_sig -> list Elem.t := ↑ Base.inorder.
-    Definition inorder {lo hi ord} t := inorder' (lo; (hi; (ord; t))).
+    (*
+     * We import these from DEVOID, that way we can measure the performance difference of
+     * only the lifted functions, controlling for the performance of lifted inputs (which is
+     * slower in EFF) without clouding the results.
+     *)
+    (* INPUT tree1'''-bst *)
+    (* INPUT tree10'''-bst *)
+    (* INPUT tree20'''-bst *)
+    (* INPUT tree40'''-bst *)
+    (* INPUT tree60'''-bst *)
+    (* INPUT tree80'''-bst *)
+    (* INPUT tree100'''-bst *)
+    (* INPUT tree200'''-bst *)
+    (* INPUT tree400'''-bst *)
+    (* INPUT tree600'''-bst *)
+    (* INPUT tree800'''-bst *)
+    (* INPUT tree1000'''-bst *)
+    (* INPUT tree2000'''-bst *)
+    (* INPUT tree4000'''-bst *)
+    (* INPUT tree6000'''-bst *)
+    (* INPUT tree8000'''-bst *)
+    (* INPUT tree10000'''-bst *)
+    (* INPUT tree20000'''-bst *)
+    (* INPUT tree40000'''-bst *)
+    (* INPUT tree60000'''-bst *)
+    (* INPUT tree80000'''-bst *)
+    (* INPUT tree100000'''-bst *)
 
-    Definition postorder' : bst_sig -> list Elem.t := ↑ Base.postorder.
-    Definition postorder {lo hi ord} t := postorder' (lo; (hi; (ord; t))).
+    (* INPUT tree1''-bst *)
+    (* INPUT tree10''-bst *)
+    (* INPUT tree100''-bst *)
+    (* INPUT tree1000''-bst *)
+    (* INPUT tree10000''-bst *)
+    (* INPUT tree100000''-bst *)
+
+    (* INPUT tree1'-bst *)
+    (* INPUT tree10'-bst *)
+    (* INPUT tree100'-bst *)
+    (* INPUT tree1000'-bst *)
+    (* INPUT tree10000'-bst *)
+    (* INPUT tree100000'-bst *)
+
+    (* INPUT tree1-bst *)
+    (* INPUT tree10-bst *)
+    (* INPUT tree100-bst *)
+    (* INPUT tree1000-bst *)
+    (* INPUT tree10000-bst *)
+    (* INPUT tree100000-bst *)
+
+    (* --- End automatically generated lifted inputs from DEVOID --- *)
+
+    (* For consistency, follow the same process *)
+    Definition __preorder'  : {lo:Elem.t & __bst lo} -> list Elem.t := ↑ Base.preorder.
+    Definition __preorder lo t := __preorder' (lo; t).
+    Definition _preorder' lo : {hi:Elem.t & _bst lo hi} -> list Elem.t := ↑ (__preorder lo).
+    Definition _preorder lo hi t := _preorder' lo (hi; t).
+    Definition preorder' lo hi : {ord : bool & bst lo hi ord} -> list Elem.t := ↑ (_preorder lo hi).
+    Definition preorder {lo hi ord} t := preorder' lo hi (ord; t).
+
+    Definition __inorder'  : {lo:Elem.t & __bst lo} -> list Elem.t := ↑ Base.inorder.
+    Definition __inorder lo t := __inorder' (lo; t).
+    Definition _inorder' lo : {hi:Elem.t & _bst lo hi} -> list Elem.t := ↑ (__inorder lo).
+    Definition _inorder lo hi t := _inorder' lo (hi; t).
+    Definition inorder' lo hi : {ord : bool & bst lo hi ord} -> list Elem.t := ↑ (_inorder lo hi).
+    Definition inorder {lo hi ord} t := inorder' lo hi (ord; t).
+
+    Definition __postorder'  : {lo:Elem.t & __bst lo} -> list Elem.t := ↑ Base.postorder.
+    Definition __postorder lo t := __postorder' (lo; t).
+    Definition _postorder' lo : {hi:Elem.t & _bst lo hi} -> list Elem.t := ↑ (__postorder lo).
+    Definition _postorder lo hi t := _postorder' lo (hi; t).
+    Definition postorder' lo hi : {ord : bool & bst lo hi ord} -> list Elem.t := ↑ (_postorder lo hi).
+    Definition postorder {lo hi ord} t := postorder' lo hi (ord; t).
 
     Definition search {min max ord} (tree : bst min max ord) (val' : Elem.t) : bool :=
       bst_rect
@@ -598,23 +671,24 @@ Module CaseStudy (Elem : Comparable).
         (fun val => Elem.eqb val' val)
         min max ord tree.
 
-    (* --- Let Coq warm up on each tree, so that base numbers aren't slower than they should be --- *)
-    Redirect "../out/treeEFF20" Time Eval vm_compute in tree20.
-    Redirect "../out/treeEFF40" Time Eval vm_compute in tree40.
-    Redirect "../out/treeEFF60" Time Eval vm_compute in tree60.
-    Redirect "../out/treeEFF80" Time Eval vm_compute in tree80.
-    Redirect "../out/treeEFF100" Time Eval vm_compute in tree100.
-
     (* --- Base search data --- *)
-    Redirect "../out/search/baseEFF20" Time Eval vm_compute in (search tree20.2.2.2 Elem.x).
-    Redirect "../out/search/baseEFF40" Time Eval vm_compute in (search tree40.2.2.2 Elem.x).
-    Redirect "../out/search/baseEFF60" Time Eval vm_compute in (search tree60.2.2.2 Elem.x).
-    Redirect "../out/search/baseEFF80" Time Eval vm_compute in (search tree80.2.2.2 Elem.x).
-    Redirect "../out/search/baseEFF100" Time Eval vm_compute in (search tree100.2.2.2 Elem.x).
+    Redirect "../out/search/baseEFF1equiv" Time Eval vm_compute in (search tree1 Elem.x).
+    Redirect "../out/search/baseEFF10equiv" Time Eval vm_compute in (search tree10 Elem.x).
+    Redirect "../out/search/baseEFF100equiv" Time Eval vm_compute in (search tree100 Elem.x).
+    Redirect "../out/search/baseEFF1000equiv" Time Eval vm_compute in (search tree1000 Elem.x).
+    Redirect "../out/search/baseEFF10000equiv" Time Eval vm_compute in (search tree10000 Elem.x).
+    Redirect "../out/search/baseEFF100000equiv" Time Eval vm_compute in (search tree100000 Elem.x).
 
   End Ordered.
 
   Module Balanced.
+
+    Inductive _avl : Elem.t -> Elem.t -> bool -> nat -> Type :=
+    | _Branch (h_l h_r : nat) (ord_l ord_r : bool) (min_l min_r : Elem.t) (max_l max_r : Elem.t)
+              (val : Elem.t)
+              (left : _avl min_l max_l ord_l h_l) (right : _avl min_r max_r ord_r h_r)
+      : _avl min_l max_r (Ordered.inv ord_l ord_r max_l val min_r) (S (Nat.max h_l h_r))
+    | _Leaf (val : Elem.t) : _avl val val true O.
 
     Definition inv (bal_l bal_r : bool) (h_l h_r : nat) : bool :=
       bal_l && bal_r && (h_l - h_r <= 1) && (h_r - h_l <= 1).
@@ -662,105 +736,185 @@ Module CaseStudy (Elem : Comparable).
       rewrite Equiv_avl_id. cbn. eapply Equiv_id.
     Defined.
 
-    Fixpoint orn_balance {lo hi ord} (t : Ordered.bst lo hi ord) : {h:nat & {bal:bool & avl lo hi ord h bal}} :=
-      match t with
-      | Ordered.Branch _ _ _ _ _ _ v l r =>
-        (_; (_; Branch _ _ _ _ _ _ _ _ _ _ v (orn_balance l).2.2 (orn_balance r).2.2))
-      | Ordered.Leaf v =>
-        (_; (_; Leaf v))
-      end.
+    (* --- Begin auto-generated equivalences from DEVOID --- *)
 
-    Fixpoint orn_balance_inv' {lo hi ord h bal} (t : avl lo hi ord h bal) : Ordered.bst lo hi ord :=
-      match t with
-      | Branch _ _ _ _ _ _ _ _ _ _ v l r =>
-        Ordered.Branch _ _ _ _ _ _ v (orn_balance_inv' l) (orn_balance_inv' r)
-      | Leaf v =>
-        Ordered.Leaf v
-      end.
+    (* EQUIV _orn_balance_index *)
+    (* EQUIV _orn_balance *)
+    (* EQUIV _orn_balance_inv *)
+    (* EQUIV _orn_balance_section *)
+    (* EQUIV _orn_balance_retraction *)
+    (* EQUIV orn_balance_index *)
+    (* EQUIV orn_balance *)
+    (* EQUIV orn_balance_inv *)
+    (* EQUIV orn_balance_section *)
+    (* EQUIV orn_balance_retraction *)
+ 
+    (* --- End auto-generated equivalences from DEVOID --- *)
 
-    Definition orn_balance_inv {lo hi ord} (T : {h:nat & {bal:bool & avl lo hi ord h bal}}) : Ordered.bst lo hi ord :=
-      orn_balance_inv' T.2.2.
-
-    Instance IsEquiv_orn_balance (lo hi : Elem.t) (ord : bool) : IsEquiv (@orn_balance lo hi ord).
+    Instance IsEquiv__orn_balance (lo hi : Elem.t) (ord : bool) : IsEquiv (_orn_balance lo hi ord).
     Proof.
-      eapply isequiv_adjointify with (g := orn_balance_inv); unfold orn_balance_inv; cbn.
-      - intros t. induction t as [ord_l ord_r lo_l lo_r hi_l hi_r v l IH_l r IH_r|v]; cbn.
-        + rewrite IH_l, IH_r. reflexivity.
-        + reflexivity.
-      - intros [h [bal t]]. cbn. induction t as [bal_l bal_r h_l h_r ord_l ord_r lo_l lo_r hi_l hi_r v l IH_l r IH_r|v]; cbn.
-        + rewrite IH_l, IH_r. reflexivity.
-        + reflexivity.
+      eapply isequiv_adjointify with (g := _orn_balance_inv lo hi ord).
+      - apply _orn_balance_section.
+      - apply _orn_balance_retraction.
     Defined.
 
-    Instance Equiv_orn_balance (lo hi : Elem.t) (ord : bool) :
-      Ordered.bst lo hi ord ≃ {h:nat & {bal:bool & avl lo hi ord h bal}} :=
-      BuildEquiv _ _ _ (IsEquiv_orn_balance lo hi ord).
+   Instance IsEquiv_orn_balance (lo hi : Elem.t) (ord : bool) (n : nat) : IsEquiv (orn_balance lo hi ord n).
+    Proof.
+      eapply isequiv_adjointify with (g := orn_balance_inv lo hi ord n).
+      - apply orn_balance_section.
+      - apply orn_balance_retraction.
+    Defined.
 
-    Instance UR_orn_balance (lo hi : Elem.t) (ord : bool) :
-      Ordered.bst lo hi ord ⋈ {h:nat & {bal:bool & avl lo hi ord h bal}}.
+    Instance Equiv__orn_balance (lo hi : Elem.t) (ord : bool) :
+      Ordered.bst lo hi ord ≃ {n : nat & _avl lo hi ord n} :=
+      BuildEquiv _ _ _ (IsEquiv__orn_balance lo hi ord).
+
+    Instance Equiv_orn_balance (lo hi : Elem.t) (ord : bool) (n : nat) :
+      _avl lo hi ord n ≃ {bal : bool & avl lo hi ord n bal} :=
+      BuildEquiv _ _ _ (IsEquiv_orn_balance lo hi ord n).
+
+    Instance UR__orn_balance (lo hi : Elem.t) (ord : bool) :
+      Ordered.bst lo hi ord ⋈ {n : nat & _avl lo hi ord n}.
     Proof.
       cbn. unshelve esplit.
-      - econstructor. intros t t'. exact (orn_balance t = t').
+      - econstructor. intros t t'. exact (_orn_balance lo hi ord t = t').
       - econstructor. intros t t'. cbn.
-        apply (@isequiv_ap _ _ (Equiv_orn_balance lo hi ord)).
+        apply (@isequiv_ap _ _ (Equiv__orn_balance lo hi ord)).
       - apply Canonical_eq_gen.
       - apply Canonical_eq_gen.
     Defined.
 
-    Notation avl_sig := (fun lo hi ord => {h:nat & {bal:bool & avl lo hi ord h bal}}) (only parsing).
+    Instance UR_orn_balance (lo hi : Elem.t) (ord : bool) (n : nat) :
+      _avl lo hi ord n ⋈ {bal : bool & avl lo hi ord n bal}.
+    Proof.
+      cbn. unshelve esplit.
+      - econstructor. intros t t'. exact (orn_balance lo hi ord n t = t').
+      - econstructor. intros t t'. cbn.
+        apply (@isequiv_ap _ _ (Equiv_orn_balance lo hi ord n)).
+      - apply Canonical_eq_gen.
+      - apply Canonical_eq_gen.
+    Defined.
 
-    Definition tree20 := ↑ Ordered.tree20.2.2.2.
-    Definition tree40 := ↑ Ordered.tree40.2.2.2.
-    Definition tree60 := ↑ Ordered.tree60.2.2.2.
-    Definition tree80 := ↑ Ordered.tree80.2.2.2.
-    Definition tree100 := ↑ Ordered.tree100.2.2.2.
+    (* --- Begin automatically generated lifted inputs from DEVOID --- *)
 
-    (* 106 LoC in normal form *)
-    Definition preorder' {lo hi ord} : avl_sig lo hi ord -> list Elem.t :=
+    (*
+     * We import these from DEVOID, that way we can measure the performance difference of
+     * only the lifted functions, controlling for the performance of lifted inputs (which is
+     * slower in EFF) without clouding the results.
+     *)
+    (* INPUT tree1''''-avl *)
+    (* INPUT tree10''''-avl *)
+    (* INPUT tree20''''-avl *)
+    (* INPUT tree40''''-avl *)
+    (* INPUT tree60''''-avl *)
+    (* INPUT tree80''''-avl *)
+    (* INPUT tree100''''-avl *)
+    (* INPUT tree200''''-avl *)
+    (* INPUT tree400''''-avl *)
+    (* INPUT tree600''''-avl *)
+    (* INPUT tree800''''-avl *)
+    (* INPUT tree1000''''-avl *)
+    (* INPUT tree2000''''-avl *)
+    (* INPUT tree4000''''-avl *)
+    (* INPUT tree6000''''-avl *)
+    (* INPUT tree8000''''-avl *)
+    (* INPUT tree10000''''-avl *)
+    (* INPUT tree20000''''-avl *)
+    (* INPUT tree40000''''-avl *)
+    (* INPUT tree60000''''-avl *)
+    (* INPUT tree80000''''-avl *)
+    (* INPUT tree100000''''-avl *)
+
+    (* INPUT tree1'''-avl *)
+    (* INPUT tree10'''-avl *)
+    (* INPUT tree100'''-avl *)
+    (* INPUT tree1000'''-avl *)
+    (* INPUT tree10000'''-avl *)
+    (* INPUT tree100000'''-avl *)
+
+    (* INPUT tree1''-avl *)
+    (* INPUT tree10''-avl *)
+    (* INPUT tree100''-avl *)
+    (* INPUT tree1000''-avl *)
+    (* INPUT tree10000''-avl *)
+    (* INPUT tree100000''-avl *)
+
+    (* INPUT tree1'-avl *)
+    (* INPUT tree10'-avl *)
+    (* INPUT tree100'-avl *)
+    (* INPUT tree1000'-avl *)
+    (* INPUT tree10000'-avl *)
+    (* INPUT tree100000'-avl *)
+
+    (* INPUT tree1-avl *)
+    (* INPUT tree10-avl *)
+    (* INPUT tree100-avl *)
+    (* INPUT tree1000-avl *)
+    (* INPUT tree10000-avl *)
+    (* INPUT tree100000-avl *)
+
+    (* --- End automatically generated lifted inputs from DEVOID --- *)
+
+    Definition _preorder' lo hi ord : {n : nat & _avl lo hi ord n} -> list Elem.t :=
       ↑ (@Ordered.preorder lo hi ord).
-    Definition preorder {lo hi ord h bal} t := @preorder' lo hi ord (h; (bal; t)).
-    Redirect "../out/preorder/avlEFF20" Time Eval vm_compute in (preorder' tree20).
-    Redirect "../out/preorder/avlEFF40" Time Eval vm_compute in (preorder' tree40).
-    Redirect "../out/preorder/avlEFF60" Time Eval vm_compute in (preorder' tree60).
-    Redirect "../out/preorder/avlEFF80" Time Eval vm_compute in (preorder' tree80).
-    Redirect "../out/preorder/avlEFF100" Time Eval vm_compute in (preorder' tree100).
+    Definition _preorder lo hi ord n t := _preorder' lo hi ord (n; t).
+    Definition preorder' {lo hi ord n} : {bal : bool & avl lo hi ord n bal} -> list Elem.t := 
+      ↑ (_preorder lo hi ord n).
+    Definition preorder {lo hi ord n bal} t := @preorder' lo hi ord n (bal; t).
+    Redirect "../out/preorder/avlEFF1equiv" Time Eval vm_compute in (preorder' tree1).
+    Redirect "../out/preorder/avlEFF10equiv" Time Eval vm_compute in (preorder' tree10).
+    Redirect "../out/preorder/avlEFF100equiv" Time Eval vm_compute in (preorder' tree100).
+    Redirect "../out/preorder/avlEFF1000equiv" Time Eval vm_compute in (preorder' tree1000).
+    Redirect "../out/preorder/avlEFF10000equiv" Time Eval vm_compute in (preorder' tree10000).
+    Redirect "../out/preorder/avlEFF100000equiv" Time Eval vm_compute in (preorder' tree100000).
 
-    (* 105 LoC in normal form *)
-    Definition inorder' {lo hi ord} : avl_sig lo hi ord -> list Elem.t :=
+   (* 105 LoC in normal form *)
+    Definition _inorder' lo hi ord : {n : nat & _avl lo hi ord n} -> list Elem.t :=
       ↑ (@Ordered.inorder lo hi ord).
-    Definition inorder {lo hi ord h bal} t := @inorder' lo hi ord (h; (bal; t)).
-    Redirect "../out/inorder/avlEFF20" Time Eval vm_compute in (inorder' tree20).
-    Redirect "../out/inorder/avlEFF40" Time Eval vm_compute in (inorder' tree40).
-    Redirect "../out/inorder/avlEFF60" Time Eval vm_compute in (inorder' tree60).
-    Redirect "../out/inorder/avlEFF80" Time Eval vm_compute in (inorder' tree80).
-    Redirect "../out/inorder/avlEFF100" Time Eval vm_compute in (inorder' tree100).
+    Definition _inorder lo hi ord n t := _inorder' lo hi ord (n; t).
+    Definition inorder' {lo hi ord n} : {bal : bool & avl lo hi ord n bal} -> list Elem.t := 
+      ↑ (_inorder lo hi ord n).
+    Definition inorder {lo hi ord n bal} t := @inorder' lo hi ord n (bal; t).
+    Redirect "../out/inorder/avlEFF1equiv" Time Eval vm_compute in (inorder' tree1).
+    Redirect "../out/inorder/avlEFF10equiv" Time Eval vm_compute in (inorder' tree10).
+    Redirect "../out/inorder/avlEFF100equiv" Time Eval vm_compute in (inorder' tree100).
+    Redirect "../out/inorder/avlEFF1000equiv" Time Eval vm_compute in (inorder' tree1000).
+    Redirect "../out/inorder/avlEFF10000equiv" Time Eval vm_compute in (inorder' tree10000).
+    Redirect "../out/inorder/avlEFF100000equiv" Time Eval vm_compute in (inorder' tree100000).
 
     (* 112 LoC in normal form *)
-    Definition postorder' {lo hi ord} : avl_sig lo hi ord -> list Elem.t :=
+    Definition _postorder' lo hi ord : {n : nat & _avl lo hi ord n} -> list Elem.t :=
       ↑ (@Ordered.postorder lo hi ord).
-    Definition postorder {lo hi ord h bal} t := @postorder' lo hi ord (h; (bal; t)).
-    Redirect "../out/postorder/avlEFF20" Time Eval vm_compute in (postorder' tree20).
-    Redirect "../out/postorder/avlEFF40" Time Eval vm_compute in (postorder' tree40).
-    Redirect "../out/postorder/avlEFF60" Time Eval vm_compute in (postorder' tree60).
-    Redirect "../out/postorder/avlEFF80" Time Eval vm_compute in (postorder' tree80).
-    Redirect "../out/postorder/avlEFF100" Time Eval vm_compute in (postorder' tree100).
+    Definition _postorder lo hi ord n t := _postorder' lo hi ord (n; t).
+    Definition postorder' {lo hi ord n} : {bal : bool & avl lo hi ord n bal} -> list Elem.t := 
+      ↑ (_postorder lo hi ord n).
+    Definition postorder {lo hi ord n bal} t := @postorder' lo hi ord n (bal; t).
+    Redirect "../out/postorder/avlEFF1equiv" Time Eval vm_compute in (postorder' tree1).
+    Redirect "../out/postorder/avlEFF10equiv" Time Eval vm_compute in (postorder' tree10).
+    Redirect "../out/postorder/avlEFF100equiv" Time Eval vm_compute in (postorder' tree100).
+    Redirect "../out/postorder/avlEFF1000equiv" Time Eval vm_compute in (postorder' tree1000).
+    Redirect "../out/postorder/avlEFF10000equiv" Time Eval vm_compute in (postorder' tree10000).
+    Redirect "../out/postorder/avlEFF100000equiv" Time Eval vm_compute in (postorder' tree100000).
 
     (* 105 LoC in normal form *)
-    Definition search' {lo hi ord} : {h:nat & {bal:bool & avl lo hi ord h bal}} -> Elem.t -> bool :=
+    Definition _search' lo hi ord : {n : nat & _avl lo hi ord n} -> Elem.t -> bool :=
       ↑ (@Ordered.search lo hi ord).
-    Definition search {lo hi ord h bal} (t : avl lo hi ord h bal) (x : Elem.t) : bool :=
-      @search' lo hi ord (h; (bal; t)) x.
-    Redirect "../out/search/avlEFF20" Time Eval vm_compute in (search' tree20 Elem.x).
-    Redirect "../out/search/avlEFF40" Time Eval vm_compute in (search' tree40 Elem.x).
-    Redirect "../out/search/avlEFF60" Time Eval vm_compute in (search' tree60 Elem.x).
-    Redirect "../out/search/avlEFF80" Time Eval vm_compute in (search' tree80 Elem.x).
-    Redirect "../out/search/avlEFF100" Time Eval vm_compute in (search' tree100 Elem.x).
+    Definition _search lo hi ord n t x := _search' lo hi ord (n; t) x.
+    Definition search' {lo hi ord n} : {bal : bool & avl lo hi ord n bal} -> Elem.t -> bool := 
+      ↑ (_search lo hi ord n).
+    Definition search {lo hi ord n bal} t x := @search' lo hi ord n (bal; t) x.
+    Redirect "../out/search/avlEFF1equiv" Time Eval vm_compute in (search' tree1 Elem.x).
+    Redirect "../out/search/avlEFF10equiv" Time Eval vm_compute in (search' tree10 Elem.x).
+    Redirect "../out/search/avlEFF100equiv" Time Eval vm_compute in (search' tree100 Elem.x).
+    Redirect "../out/search/avlEFF1000equiv" Time Eval vm_compute in (search' tree1000 Elem.x).
+    Redirect "../out/search/avlEFF10000equiv" Time Eval vm_compute in (search' tree10000 Elem.x).
+    Redirect "../out/search/avlEFF100000equiv" Time Eval vm_compute in (search' tree100000 Elem.x).
 
     (* --- Normalized term sizes --- *)
-    Redirect "../out/normalized/preorder-avlEFF" Eval compute in preorder'.
-    Redirect "../out/normalized/postorder-avlEFF" Eval compute in postorder'.
-    Redirect "../out/normalized/inorder-avlEFF" Eval compute in inorder'.
-    Redirect "../out/normalized/search-avlEFF" Eval compute in search'.
+    Redirect "../out/normalized/preorder-avlEFFequiv" Eval compute in preorder'.
+    Redirect "../out/normalized/postorder-avlEFFequiv" Eval compute in postorder'.
+    Redirect "../out/normalized/inorder-avlEFFequiv" Eval compute in inorder'.
+    Redirect "../out/normalized/search-avlEFFequiv" Eval compute in search'.
 
     (* Auto-generated definitions go here in together case study *)
     Module Comparison.
@@ -769,10 +923,10 @@ Module CaseStudy (Elem : Comparable).
       (* DEF preorder-avl *)
       (* DEF search-avl *)
 
-      (* TIME-SMALL inorder-avl *)
-      (* TIME-SMALL postorder-avl *)
-      (* TIME-SMALL preorder-avl *)
-      (* TIME-SMALL search-avl *)
+      (* TIME-AVL inorder-avl *)
+      (* TIME-AVL postorder-avl *)
+      (* TIME-AVL preorder-avl *)
+      (* TIME-SEARCH search-avl *)
 
       (* NORMALIZE inorder-avl *)
       (* NORMALIZE postorder-avl *)
