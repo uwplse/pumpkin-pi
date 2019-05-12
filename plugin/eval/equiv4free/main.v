@@ -19,9 +19,6 @@ Notation "'typeof' x" := (let A := _ in let _ : A := x in A) (at level 100).
 
 Add Printing Let sigT. (* for consistency *)
 
-(* Set a timeout for Coq commands *)
-Set Default Timeout 100.
-
 Module Type Comparable.
 
   Parameter t : Set.

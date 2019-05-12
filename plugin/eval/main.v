@@ -6,9 +6,6 @@ Import ListNotations.
 (* Generate equivalences for use with EFF, and to ensure search is correct. *)
 Set DEVOID search prove equivalence.
 
-(* Set a timeout for Coq commands *)
-Set Default Timeout 100.
-
 Open Scope bool_scope.
 
 Infix "==" := Nat.eqb (at level 70, no associativity) : nat_scope.

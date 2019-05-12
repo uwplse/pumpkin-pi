@@ -75,7 +75,7 @@ done
 cd equiv4free
 make clean
 
-echo "grab a coffee or a book; this will take an hour on the right architecture once you've uncommented the right line"
+echo "grab a coffee or a book; this will take a bit once you've uncommented the right line"
 timeout 1h `time make equiv`
 
 # Measure normalized term size
