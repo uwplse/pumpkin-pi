@@ -105,6 +105,12 @@ Enter the `eval` directory:
 cd eval
 ``
 
+Increase your stack size:
+
+``
+ulimit -s unlimited
+``
+
 Run the following script:
 
 ```
