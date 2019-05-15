@@ -75,19 +75,13 @@ The example from the paper are in the `coq/example` directory. It is best to ste
 
 We only support the case study scripts on Linux right now.
 
-There are two ways to run the case study, in two different scripts.
-The reason for the two different versions is that the Equivalences for Free! univalent parametricity framework (hereon EFF) has different
-Coq dependencies, so the base functions perform differently. 
-The first way uses the same exact input datatypes for both DEVOID and EFF,
-copying and pasting in the lifted functions DEVOID produces to run on the dependencies of EFF;
-This is the version that the paper uses, as the results it produces are the easiest to understand,
-since there are not different base numbers for each tool; all terms are normalized with the same
-set of dependencies.
-The second way does all of the lifting from scratch with
-the base datatypes in both the DEVOID code and EFF;
-these results are more difficult to interpret, and is not the version in the paper.
+The case study uses the same exact input datatypes for both DEVOID and EFF,
+copying and pasting in the inputs, lifted functions, and equivalences DEVOID produces to run on the dependencies of EFF.
+The reasons for copying the inputs are that the Equivalences for Free! univalent parametricity framework (hereon EFF) has different
+Coq dependencies, so the base functions perform differently. In addition, lifting constants with EFF additionally slows down 
+performance, and we would like to control for only the performance of lifted functions, which is easiest to understand.
 
-Each of these scripts takes a while, as it runs each function ten times each
+The script takes a while, as it runs each function ten times each
 on large data both for DEVOID and for EFF.
 
 #### Reproducing the Paper Case Study
@@ -119,8 +113,9 @@ Run the following script:
 
 Then check the `together` folder for the median runtimes as well as the size of reduced functions.
 This also does a sanity check to make sure both versions of the code produce the same output.
-It does not yet try to reduce the proof that timed out with EFF after an hour (it reduces it with DEVOID, but not with EFF),
-otherwise the case study would take ten hours to run. To run this just once, enter the `equiv4free` directory:
+It does not yet try to reduce the proof of `pre_permutes` using EFF,
+otherwise the case study would take a very long time to run.
+To run this just once, enter the `equiv4free` directory:
 
 ``
 cd equiv4free
@@ -129,34 +124,25 @@ cd equiv4free
 In that directory, uncomment the following line in `main.v`:
 
 ```
-(*Redirect "../out/normalized/pre_permutes-sizedEFF" Eval compute in pre_permutes'.*)
+(*Redirect "../out/normalized/pre_permutes-sizedEFFequiv" Eval compute in pre_permutes'.*)
 ```
 
-Then run the following script, which runs the EFF code just once with a timeout:
+Then run the following script, which runs the EFF code just once:
 
 ```
 ./prepermutes.sh
 ```
 
-The timeout is an hour, so grab a coffee or read a book or something. It should timeout,
-or finish normalizing very close to the timeout limit (if so, the script will record how long it took).
-If your computer does not have a lot of memory, you may run out of memory first.
-
-#### Using Different Datatypes
-
-This is not in the paper, but you might be curious for the sake of validity whether the same benefits apply
-lifting the datatypes separately from scratch. To see that they do, run the second version, run the following script:
-
-```
-./separate.sh
-```
-
-Then check the `separate` folder for the results.
+This should take a while (how long depends on your architecture) and produce a very large term.
 
 ### Known Issues
 
 Please see our GitHub [issues](https://github.com/uwplse/ornamental-search/issues) before reporting a bug
 (though please do report any bugs not listed there).
+
+One outstanding issue (an unimplemented optimization) has consequences for how we lift and unpack large
+constants compositionally. For now, for large constants, you should prefer lifting several times and then unpacking
+the result several times over iteratively lifting and unpacking. See [this issue](https://github.com/uwplse/ornamental-search/issues/44).
 
 ## Understanding the Code
 
