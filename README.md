@@ -102,7 +102,7 @@ cd eval
 Increase your stack size:
 
 ``
-ulimit -s unlimited
+ulimit -s 100000
 ``
 
 Run the following script:
