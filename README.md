@@ -1,3 +1,8 @@
+Note: DEVOID will eventually merge with [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH), and will likely
+move into that repository. 
+
+# DEVOID
+
 DEVOID is a plugin for automatic discovery of and lifting across 
 algebraic ornaments in Coq. Basically, when you have two types
 A and B, where B is A indexed by some new type that is determined
