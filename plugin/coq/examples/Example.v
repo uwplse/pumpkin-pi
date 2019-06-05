@@ -1,8 +1,7 @@
 (*
- * Section 2 Example
+ * BEGIN DEVOID DEMO, PART 1
  *)
-
-Add LoadPath "coq/examples".
+Add LoadPath "coq/examples". (* <-- sorry for doing this, I know it's bad *)
 Require Import Vector.
 Require Import List.
 Require Import Ornamental.Ornaments.
@@ -10,6 +9,9 @@ Require Import Ornamental.Ornaments.
 From Coq Require Import ssreflect ssrbool ssrfun.
 
 Import EqNotations.
+
+Check list_rect.
+Check Vector.t_rect.
 
 (* syntax to match paper *)
 Notation vector := Vector.t.
@@ -49,25 +51,124 @@ End hs_to_coq'.
 
 (* --- Preprocess --- *)
 
+(*
+ * DEVOID assumes eliminators rather than fixpoints, so we run
+ * a preprocessing step to convert fixpoints to eliminators.
+ *)
 Preprocess Module hs_to_coq' as hs_to_coq.
 
 (* --- Search --- *)
 
+(*
+ * This is the functionality I want to highlight today in the demo.
+ * I'll explain how this works later.
+ *
+ * A type equivalence is a pair of functions f and g that are mutual inverses.
+ * By default, DEVOID finds only the fold (like length), f, and g, since that's
+ * all that our lift command actually needs. However, we can also generate
+ * the equivalence proofs by turning on this option:
+ *)
+Set DEVOID search prove equivalence.
+
+(*
+ * This option produces a proof that relates the fold to f and g:
+ *)
+Set DEVOID search prove coherence.
+
+(*
+ * Cool. Now we can search for the equivalence just by passing "list" and "vector"
+ * to the Find ornament command. 
+ *)
 Find ornament list vector as ltv.
 
 (*
- * This gives us these functions:
+ * This gives us the length function:
+ *)
+Print ltv_index.
+
+(*
+ * Note that this computes the length:
+ *)
+Example indexer_is_length:
+  forall {T : Type} (l : list T),
+    ltv_index _ l = length l.
+Proof.
+  reflexivity.
+Qed.
+
+(*
+ * It also gives us f and g (here ltv and ltv_inv) which take us back and 
+ * forth across the equivalence.
+ *
+ * The function ltv : list T -> sigT (vector T) explicitly applies the indexer:
  *)
 Print ltv.
+
+(*
+ * The function ltv_inv : sigT (vector T) -> list T just eliminates over
+ * the projections:
+ *)
 Print ltv_inv.
 
 (* 
- * As mentioned in the paper, these form an equivalence.
- * We will omit the proof for now, and show it when we demonstrate search.
+ * This is enough for DEVOID to lift functions and proofs, but since it's
+ * cool and lets us plug into other frameworks like Equivalences for Free!,
+ * and since it proves correctness in each instance, let's show you
+ * the automatically generated proofs, too. 
+ *
+ * First, note the types are what we want:
+ *)
+Theorem coherence:
+  forall {T : Type} (l : list T),
+    ltv_index _ l = projT1 (ltv _ l).
+Proof.
+  exact ltv_coh.
+Qed.
+
+Theorem section:
+  forall {T : Type} (l : list T),
+    ltv_inv _ (ltv _ l) = l.
+Proof.
+  exact ltv_section.
+Qed.
+
+Theorem retraction:
+  forall {T : Type} (v : sigT (fun n => vector T n)),
+    ltv _ (ltv_inv _ v) = v.
+Proof.
+  exact ltv_retraction.
+Qed.
+
+(*
+ * Since we're all nerds here, let's look at the proof terms that DEVOID generated.
+ *
+ * Cherence is really trivial:
+ *)
+
+Print ltv_coh.
+
+(*
+ * Section and retraction are more interesting, but still very easy to automate:
+ *)
+Print ltv_section.
+Print ltv_retraction.
+(*
+ * Basically, these just say that equalities are preserved in the inductive case.
+ * So the base case is eq_refl, and the inductive case is a fold over eq_ind
+ * to substitute each IH with eq_refl as the identity.
  *)
 
 (* --- Lift --- *)
 
+(*
+ * This is not what I want to focus on today, but another cute thing here
+ * is that once you have f, g, and the indexer, you can run the Lift command
+ * to port functions and proofs. And since this is a really nice class of
+ * equivalences, you can actually directly lift the eliminator, so you don't
+ * have to go back and forth between lists and vectors. 
+ *
+ * Here we lift our functions and proofs:
+ *)
 Lift list vector in hs_to_coq.zip as zipV_p.
 Lift list vector in hs_to_coq.zip_with as zip_withV_p.
 Lift list vector in hs_to_coq.zip_with_is_zip as zip_with_is_zipV_p.
@@ -77,8 +178,28 @@ Check zipV_p.
 Check zip_withV_p.
 Check zip_with_is_zipV_p.
 
+(*
+ * END DEVOID DEMO, PART 1
+ *)
+
 (* --- Unpack --- *)
 
+(*
+ * Demo ends here, but from here on out, we have some machinery and a 
+ * methodology for obtaining nicer types. I'm not going to run through 
+ * this today, but there are still a lot of really interesting questions 
+ * left w.r.t. how to automate as much as possible user-friendly types 
+ * without depending on properties of the particular index.
+ *
+ * Or maybe it's not even easy to automate in a reasonable
+ * way directly, and I want to extend Search and Lift to support the other
+ * form of the equivalence directly; see 
+ * http://github.com/uwplse/ornamental-search/issues/42.
+ *
+ * Anyways, if you play with this on your own, the Unpack command
+ * just does the really obvious thing, and still doesn't give you great
+ * types:
+ *)
 Unpack zipV_p as zipV.
 Unpack zip_withV_p as zip_withV.
 Unpack zip_with_is_zipV_p as zip_with_is_zipV.
@@ -95,7 +216,14 @@ Check zip_with_is_zipV.
 
 (* --- Interface --- *)
 
-(* For any two vectors of the same length, we get a vector of the same length *)
+(*
+ * And then this part is the place where we still have a lot of open and
+ * interesting questions.
+ *
+ * As a programmer, we might want to restrict our zip functions to take
+ * only vectors of the same length. Note that for any two vectors of the 
+ * same length, we get a vector of the same length: 
+ *)
 Eval compute in (zipV (consV 0 2 (nilV nat)) (consV 0 1 (nilV nat))).
 
 (*
@@ -157,7 +285,11 @@ Definition zip_withV_uf {A} {B} {C} (f : A -> B -> C) {n} (v1 : vector A n) (v2 
 (*
  * For proofs, we have to deal with dependent equality.
  * This is more challenging. Essentially, we have to relate
- * our other equalities. 
+ * our other equalities. What I think is cute about this is that it captures,
+ * in my opinion, the essence of what is actually hard about dependent types:
+ * at some point, no matter what you do, you are reasoning about equalities of
+ * equalities (though you may be able to make those all refl by construction if
+ * you're lucky). 
  *
  * In the case of nat, the easiest
  * way to do this is to use the fact that nats form an hset
