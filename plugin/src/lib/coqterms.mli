@@ -534,18 +534,19 @@ val map_rec_args :
   types array ->
   evar_map * 'b array
 
-val map_rec_env_fix :
-  (env -> evar_map -> 'a -> evar_map * 'b) ->
-  name array ->
-  types array ->
-  ('a -> 'a) ->
+val map_rec_fix_args :
+  (env -> evar_map -> 'a -> types -> evar_map * 'b) ->
   env ->
   evar_map ->
   'a ->
-  evar_map * 'b
+  ('a -> 'a) ->
+  name array ->
+  types array ->
+  types array ->
+  evar_map * 'b array
 
 val map_term_env :
-  (env -> evar_map -> 'a -> types -> types) ->
+  (env -> evar_map -> 'a -> types -> evar_map * types) ->
   ('a -> 'a) ->
   env ->
   evar_map ->
@@ -554,11 +555,11 @@ val map_term_env :
   evar_map * types
 
 val map_term :
-  ('a -> types -> types) ->
+  ('a -> types -> evar_map * types) ->
   ('a -> 'a) ->
   'a ->
   types ->
-  types
+  evar_map * types
 
 (* --- Names --- *)
 

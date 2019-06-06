@@ -940,21 +940,27 @@ let declare_inductive typename consnames template univs nparam arity constypes =
 (*
  * Recurse on a mapping function for arguments
  *)
-let map_rec_args map_rec env (sigma : evar_map) a (ts : types array) =
-  CArray.smartfoldmap
-    (fun sigma t -> map_rec env sigma a t)
+let map_rec_args (map_rec : env -> evar_map -> 'a -> types -> evar_map * 'b) (env : env) (sigma : evar_map) (a : 'a) (ts : types array) : evar_map * 'b array =
+  CArray.fold_left_map
+    (fun (sigma : evar_map) (t : types) -> map_rec env sigma a t)
     sigma
     ts
 
 (*
  * Recurse on a mapping function with an environment for a fixpoint
  *)
-let map_rec_env_fix map_rec ns ts d env sigma a : evar_map * 'b  =
+let map_rec_env_fix (map_rec : env -> evar_map -> 'a -> types -> evar_map * 'b) (ns : name array) (ts : types array) (d : 'a -> 'a) (env : env) (sigma : evar_map) (a : 'a) (t : types) : evar_map * 'b =
   let fix_bindings = bindings_for_fix ns ts in
   let env_fix = push_rel_context fix_bindings env in
   let n = List.length fix_bindings in
-  let d_n = List.fold_left (fun a' _ -> d a') a (range 0 n) in
-  map_rec env_fix sigma a d_n
+  let a_n = List.fold_left (fun a' _ -> d a') a (range 0 n) in
+  map_rec env_fix sigma a_n t
+
+(*
+ * Recurse on the arguments for a fixpoint
+ *)
+let map_rec_fix_args (map_rec : env -> evar_map -> 'a -> types -> evar_map * 'b) (env : env) (sigma : evar_map) (a : 'a) (d : 'a -> 'a) (ns : name array) (ts : types array) (ds : types array) : evar_map * 'b array =
+  map_rec_args (map_rec_env_fix map_rec ns ts d) env sigma a ds
 
 (*
  * Map a function over a term in an environment
@@ -993,11 +999,11 @@ let rec map_term_env f d env sigma (a : 'a) (trm : types) : evar_map * types =
      sigma, mkCase (ci, ct', m', bs')
   | Fix ((is, i), (ns, ts, ds)) ->
      let sigma, ts' = map_rec_args map_rec env sigma a ts in
-     let sigma, ds' = map_rec_args (map_rec_env_fix map_rec ns ts) env sigma a ds in
+     let sigma, ds' = map_rec_fix_args map_rec env sigma a d ns ts ds in
      sigma, mkFix ((is, i), (ns, ts', ds'))
   | CoFix (i, (ns, ts, ds)) ->
      let sigma, ts' = map_rec_args map_rec env sigma a ts in
-     let sigma, ds' = map_rec_args (map_rec_env_fix map_rec ns ts) env sigma a ds in
+     let sigma, ds' = map_rec_fix_args map_rec env sigma a d ns ts ds in
      sigma, mkCoFix (i, (ns, ts', ds'))
   | Proj (pr, c) ->
      let sigma, c' = map_rec env sigma a c in
@@ -1010,8 +1016,8 @@ let rec map_term_env f d env sigma (a : 'a) (trm : types) : evar_map * types =
  * Update the argument of type 'a using the a supplied update function
  * Return a new term
  *)
-let map_term f d (a : 'a) (trm : types) : types =
-  map_term_env (fun _ a t -> f a t) d empty_env a trm
+let map_term f d (a : 'a) (trm : types) : evar_map * types =
+  map_term_env (fun _ _ a t -> f a t) d empty_env Evd.empty a trm
 
 (* --- Names --- *)
 
