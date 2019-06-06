@@ -555,11 +555,11 @@ val map_term_env :
   evar_map * types
 
 val map_term :
-  ('a -> types -> evar_map * types) ->
+  ('a -> types -> types) ->
   ('a -> 'a) ->
   'a ->
   types ->
-  evar_map * types
+  types
 
 (* --- Names --- *)
 

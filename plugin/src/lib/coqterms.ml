@@ -1016,8 +1016,8 @@ let rec map_term_env f d env sigma (a : 'a) (trm : types) : evar_map * types =
  * Update the argument of type 'a using the a supplied update function
  * Return a new term
  *)
-let map_term f d (a : 'a) (trm : types) : evar_map * types =
-  map_term_env (fun _ _ a t -> f a t) d empty_env Evd.empty a trm
+let map_term f d (a : 'a) (trm : types) : types =
+  snd (map_term_env (fun _ _ a t -> Evd.empty, f a t) d empty_env Evd.empty a trm)
 
 (* --- Names --- *)
 
