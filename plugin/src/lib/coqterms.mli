@@ -503,7 +503,7 @@ val e_new_global : evar_map ref -> global_reference -> constr
 (*
  * Convertibility, ignoring universe constraints
  *)
-val convertible : env -> types -> types -> bool
+val convertible : env -> evar_map -> types -> types -> evar_map * bool
 
 (*
  * Reduction
@@ -526,22 +526,32 @@ val on_type : (types -> 'a) -> env -> evar_map -> types -> 'a
 
 (* --- Basic mapping --- *)
 
-val map_rec_env_fix :
-  (env -> 'a -> 'b) ->
-  ('a -> 'a) ->
+val map_rec_args :
+  (env -> evar_map -> 'a -> types -> evar_map * 'b) ->
   env ->
+  evar_map ->
   'a ->
+  types array ->
+  evar_map * 'b array
+
+val map_rec_env_fix :
+  (env -> evar_map -> 'a -> evar_map * 'b) ->
   name array ->
   types array ->
-  'b
-
-val map_term_env :
-  (env -> 'a -> types -> types) ->
   ('a -> 'a) ->
   env ->
+  evar_map ->
+  'a ->
+  evar_map * 'b
+
+val map_term_env :
+  (env -> evar_map -> 'a -> types -> types) ->
+  ('a -> 'a) ->
+  env ->
+  evar_map ->
   'a ->
   types ->
-  types
+  evar_map * types
 
 val map_term :
   ('a -> types -> types) ->

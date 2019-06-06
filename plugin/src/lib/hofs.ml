@@ -15,51 +15,51 @@ open Coqterms
  * Update the argument of type 'a using the a supplied update function
  * Return a new term
  *)
-let rec map_term_env_if p f d (env : env) (a : 'a) (trm : types) : types =
+let rec map_term_env_if p f d env sigma (a : 'a) (trm : types) : evar_map * types =
   let map_rec = map_term_env_if p f d in
-  if p env a trm then
-    f env a trm
+  if p env sigma a trm then
+    f env sigma a trm
   else
     match kind trm with
     | Cast (c, k, t) ->
-       let c' = map_rec env a c in
-       let t' = map_rec env a t in
-       mkCast (c', k, t')
+       let sigma, c' = map_rec env sigma a c in
+       let sigma, t' = map_rec env sigma a t in
+       sigma, mkCast (c', k, t')
     | Prod (n, t, b) ->
-       let t' = map_rec env a t in
-       let b' = map_rec (push_local (n, t') env) (d a) b in
-       mkProd (n, t', b')
+       let sigma, t' = map_rec env sigma a t in
+       let sigma, b' = map_rec (push_local (n, t') env) sigma (d a) b in
+       sigma, mkProd (n, t', b')
     | Lambda (n, t, b) ->
-       let t' = map_rec env a t in
-       let b' = map_rec (push_local (n, t') env) (d a) b in
-       mkLambda (n, t', b')
+       let sigma, t' = map_rec env sigma a t in
+       let sigma, b' = map_rec (push_local (n, t') env) (d a) b in
+       sigma, mkLambda (n, t', b')
     | LetIn (n, trm, typ, e) ->
-       let trm' = map_rec env a trm in
-       let typ' = map_rec env a typ in
-       let e' = map_rec (push_let_in (n, e, typ') env) (d a) e in
-       mkLetIn (n, trm', typ', e')
+       let sigma, trm' = map_rec env sigma a trm in
+       let sigma, typ' = map_rec env sigma a typ in
+       let sigma, e' = map_rec (push_let_in (n, e, typ') env) (d a) e in
+       sigma, mkLetIn (n, trm', typ', e')
     | App (fu, args) ->
-       let fu' = map_rec env a fu in
-       let args' = Array.map (map_rec env a) args in
-       mkApp (fu', args')
+       let sigma, fu' = map_rec env sigma a fu in
+       let sigma, args' = map_rec_args map_rec env sigma a args in
+       sigma, mkApp (fu', args')
     | Case (ci, ct, m, bs) ->
-       let ct' = map_rec env a ct in
-       let m' = map_rec env a m in
-       let bs' = Array.map (map_rec env a) bs in
-       mkCase (ci, ct', m', bs')
+       let sigma, ct' = map_rec env sigma a ct in
+       let sigma, m' = map_rec env sigma a m in
+       let sigma, bs' = map_rec_args map_rec env sigma a bs in
+       sigma, mkCase (ci, ct', m', bs')
     | Fix ((is, i), (ns, ts, ds)) ->
-       let ts' = Array.map (map_rec env a) ts in
-       let ds' = Array.map (map_rec_env_fix map_rec d env a ns ts) ds in
-       mkFix ((is, i), (ns, ts', ds'))
+       let sigma, ts' = map_rec_args map_rec env sigma a ts in
+       let sigma, ds' = map_rec_args (map_rec_env_fix map_rec d env sigma a ns ts) env sigma a ds in
+       sigma, mkFix ((is, i), (ns, ts', ds'))
     | CoFix (i, (ns, ts, ds)) ->
-       let ts' = Array.map (map_rec env a) ts in
-       let ds' = Array.map (map_rec_env_fix map_rec d env a ns ts) ds in
-       mkCoFix (i, (ns, ts', ds'))
+       let sigma, ts' = map_rec_args map_rec env sigma a ts in
+       let sigma, ds' = map_rec_args (map_rec_env_fix map_rec d env sigma a ns ts) env sigma a ds in
+       sigma, mkCoFix (i, (ns, ts', ds'))
     | Proj (pr, c) ->
-       let c' = map_rec env a c in
-       mkProj (pr, c')
+       let sigma, c' = map_rec env sigma a c in
+       sigma, mkProj (pr, c')
     | _ ->
-       trm
+       sigma, trm
 
 (*
  * Like map_term_env_if, but just return true if the proposition is satisfied,
@@ -300,18 +300,19 @@ let all_const_subterms p d a t =
 (* --- Substitution --- *)
 
 (* Map a substitution over a term *)
-let all_substs p env (src, dst) trm : types =
+let all_substs p env sigma (src, dst) trm : types =
   map_term_env_if
-    (fun en (s, _) t -> p en s t)
-    (fun _ (_, d) _ -> d)
+    (fun en si (s, _) t -> p en si s t)
+    (fun _ _ (_, d) _ -> d)
     (fun (s, d) -> (shift s, shift d))
     env
+    sigma
     (src, dst)
     trm
 
 (* In env, substitute all subterms of trm that are convertible to src with dst *)
 let all_conv_substs =
-  all_substs convertible
+  all_substs (fun en tr convertible
 
 (* Same, but equal *)
 let all_eq_substs =
