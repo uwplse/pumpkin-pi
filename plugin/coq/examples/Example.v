@@ -53,6 +53,9 @@ Preprocess Module hs_to_coq' as hs_to_coq.
 
 (* --- Search --- *)
 
+Set DEVOID search prove coherence.
+Set DEVOID search prove equivalence.
+
 Find ornament list vector as ltv.
 
 (*
@@ -92,6 +95,47 @@ Arguments zip_with_is_zipV {_ _} {_} _ {_} _.
 Check zipV.
 Check zip_withV.
 Check zip_with_is_zipV.
+
+(* --- Experimental step, for now --- *)
+
+Print ltv_coh.
+
+Definition ltv_u (A : Type) (n : nat) (ll : { l : list A & ltv_index A l = n}) : vector A n :=
+  eq_rect
+    (ltv_index _ (projT1 ll))
+    (vector A)
+    (eq_rect
+      (projT1 (ltv _ (projT1 ll))) 
+      (vector A)
+      (projT2 (ltv _ (projT1 ll)))
+      (ltv_index _ (projT1 ll))
+      (ltv_coh _ (projT1 ll))) 
+    n
+    (projT2 ll). (* ltv_index A l = n *)
+
+Definition ltv_inv_u (A : Type) (n : nat) (v : vector A n) : { l : list A & ltv_index A l = n} :=
+  existT 
+    (fun (l : list A) => ltv_index _ l = n)
+    (ltv_inv _ (existT _ n v)) 
+    (eq_rect
+      (projT1 (ltv A (ltv_inv A (existT _ n v))))
+      (fun n0 : nat => n0 = n)
+      (eq_rect
+        (existT _ n v)
+        (fun s : sigT (vector A) => projT1 s = n)
+        (eq_refl (projT1 (existT _ n v)))
+        (ltv A (ltv_inv A (existT _ n v)))
+        (eq_sym (ltv_retraction _ (existT _ n v))))
+      (ltv_index _ (ltv_inv _ (existT _ n v)))
+      (ltv_coh _ (ltv_inv _ (existT _ n v)))).
+
+(*
+ * I think we don't need that ltv_index _ l = n is equal to eq_refl, but rather
+ * that it lifts along the equivalence to eq_refl.
+ *)
+
+Eval compute in (fun A (l : list A) => projT1 (ltv _ l)).
+Print ltv.
 
 (* --- Interface --- *)
 
