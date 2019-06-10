@@ -53,6 +53,8 @@ Preprocess Module hs_to_coq' as hs_to_coq.
 
 (* --- Search --- *)
 
+Set DEVOID search prove equivalence. (* prove ltv and ltv_inv form an equivalence *)
+
 Find ornament list vector as ltv.
 
 (*
@@ -63,7 +65,8 @@ Print ltv_inv.
 
 (* 
  * As mentioned in the paper, these form an equivalence.
- * We will omit the proof for now, and show it when we demonstrate search.
+ * This is proven automatically by the prove equivalence option.
+ * See Search.v for a detailed walkthrough of the output.
  *)
 
 (* --- Lift --- *)
