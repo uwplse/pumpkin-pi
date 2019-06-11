@@ -53,7 +53,12 @@ Preprocess Module hs_to_coq' as hs_to_coq.
 
 (* --- Search --- *)
 
-Set DEVOID search prove equivalence. (* prove ltv and ltv_inv form an equivalence *)
+(*
+ * You can omit these lines if you'd like, since Lift does not need them,
+ * but enabling these options shows that Find ornament behaves correctly:
+ *)
+Set DEVOID search prove coherence.
+Set DEVOID search prove equivalence.
 
 Find ornament list vector as ltv.
 
