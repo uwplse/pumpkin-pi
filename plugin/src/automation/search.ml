@@ -491,7 +491,8 @@ let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
      let (npm_o, npm_n) = map_tuple (fun m -> m.mind_nparams) (m_o, m_n) in
      if not (npm_o = npm_n) then
        (* new parameter *)
-       failwith "new parameters are not yet supported"
+       CErrors.user_err
+         (Pp.str "new parameters are not supported; request on Github issues if interested")
      else
        let npm = npm_o in
        let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
@@ -503,6 +504,8 @@ let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
          let (a, b) = map_if reverse (arity_n <= arity_o) (o, n) in
          search_algebraic env evd npm indexer_id a b
        else
-         failwith "this kind of change is not yet supported"
+         CErrors.user_err
+           (Pp.str "this kind of change is not yet supported; request on Github issues if interested")
   | _ ->
-     failwith "this kind of change is not yet supported"
+     CErrors.user_err
+       (Pp.str "this kind of change is not yet supported; request on Github issues if interested")
