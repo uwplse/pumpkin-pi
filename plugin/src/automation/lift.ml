@@ -485,7 +485,24 @@ let lift_core env evd c ib_typ trm =
                ex'.unpacked
            else
              let f' = lift_rec en ib_typ f in
-             mkAppl (f', args')
+             let typ = reduce_type en evd tr in
+             map_if
+               (fun t ->
+                 (* TODO should probably move this when we construct function itself; we'll see. also, define one "repack" function somewhere *)
+                 (* we must repack because of non-primitive projections *)
+                 let t_typ = lift_rec en ib_typ typ in
+                 let lift_typ = dest_sigT (shift t_typ) in
+                 let n = project_index lift_typ (mkRel 1) in
+                 let b = project_value lift_typ (mkRel 1) in
+                 let packer = lift_typ.packer in
+                 let e = pack_existT { index_type = ib_typ; packer; index = n; unpacked = b } in
+                 debug_term en t "t";
+                 let l = mkLetIn (Anonymous, t, t_typ, e) in
+                 debug_term en l "l";
+                 l
+               )
+               (c.l.is_fwd && is_from c env evd typ)
+               (mkAppl (f', args'))
       | Cast (ca, k, t) ->
          (* CAST *)
          let ca' = lift_rec en ib_typ ca in

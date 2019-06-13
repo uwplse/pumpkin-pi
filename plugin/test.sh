@@ -57,7 +57,10 @@ mkdir out/postorder
 mkdir out/preorder
 mkdir out/search
 mkdir out/normalized
+mkdir out/inputs
+mkdir out/equivalences
 make clean
+ulimit -s 100000
 if make
 then
   liftedcase=true

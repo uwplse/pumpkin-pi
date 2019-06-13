@@ -23,10 +23,15 @@ Find ornament list vector as ltv.
  * Whole-module lifting doesn't exist yet, so for now we have to do this
  * one function and proof at a time.
  *
- * The functions and proofs that fail to lift below (there should be 31) are due
+ * The functions and proofs that fail to lift below (there should be 4) are due
  * are due to implementation bugs. Most of them are due to a bug has to due with 
  * a combination of lazy eta-expansion and Coq's primitive projections.
  * See: https://github.com/uwplse/ornamental-search/issues/32
+ * TODO update once fixed
+ * TODO note to rerun case study for new #s once fixed (or see if sizes the same etc.)
+ * TODO and if reruning case study and #s do change, might as well do what reviewer said
+ * TODO investigate remaining 4
+ * TODO test to see if we broke anything else also
  *)
 
 Module MyVector.
@@ -79,17 +84,19 @@ Module MyVector.
  
   Lift list vector in List'.app_nil_end as .. _p.
 
-  Fail Lift list vector in List'.app_assoc as .. _p. 
+  Lift list vector in List'.app as .. _test.
 
-  Fail Lift list vector in List'.app_assoc_reverse as .. _p.
+  Lift list vector in List'.app_assoc as .. _p. 
+
+  Lift list vector in List'.app_assoc_reverse as .. _p.
 
   Lift list vector in List'.app_comm_cons as .. _p. 
 
   Lift list vector in List'.app_eq_nil as .. _p. 
 
-  Fail Lift list vector in List'.app_eq_unit as .. _p.
+  Lift list vector in List'.app_eq_unit as .. _p.
 
-  Fail Lift list vector in List'.app_inj_tail as .. _p. 
+  Lift list vector in List'.app_inj_tail as .. _p. 
  
   Lift list vector in List'.app_length as .. _p. 
 
@@ -99,9 +106,9 @@ Module MyVector.
 
   Lift list vector in List'.in_app_iff as .. _p. 
 
-  Fail Lift list vector in List'.app_inv_head as .. _p. 
+  Lift list vector in List'.app_inv_head as .. _p. 
 
-  Fail Lift list vector in List'.app_inv_tail as .. _p.  
+  Lift list vector in List'.app_inv_tail as .. _p.  
 
   Lift list vector in List'.nth as .. _p. 
 
@@ -157,7 +164,7 @@ Module MyVector.
 
   Lift list vector in List'.exists_last as .. _p. 
 
-  Fail Lift list vector in List'.removelast_app as .. _p. 
+  Lift list vector in List'.removelast_app as .. _p. 
 
   Lift list vector in List'.count_occ as .. _p. 
 
@@ -175,11 +182,11 @@ Module MyVector.
 
   Lift list vector in List'.rev as .. _p. 
 
-  Fail Lift list vector in List'.rev_app_distr as .. _p. 
+  Lift list vector in List'.rev_app_distr as .. _p. 
 
-  Fail Lift list vector in List'.rev_unit as .. _p. 
+  Lift list vector in List'.rev_unit as .. _p. 
 
-  Fail Lift list vector in List'.rev_involutive as .. _p. 
+  Lift list vector in List'.rev_involutive as .. _p. 
 
   Lift list vector in List'.in_rev as .. _p. 
 
@@ -191,13 +198,13 @@ Module MyVector.
 
   Lift list vector in List'.rev' as .. _p.
 
-  Fail Lift list vector in List'.rev_append_rev as .. _p. 
+  Lift list vector in List'.rev_append_rev as .. _p. 
 
-  Fail Lift list vector in List'.rev_alt as .. _p. 
+  Lift list vector in List'.rev_alt as .. _p. 
 
   Lift list vector in List'.rev_list_ind as .. _p.
 
-  Fail Lift list vector in List'.rev_ind as .. _p.
+  Lift list vector in List'.rev_ind as .. _p.
 
   Lift list vector in List'.concat as .. _p.
 
@@ -223,9 +230,9 @@ Module MyVector.
 
   Lift list vector in List'.map_nth_error as .. _p.
 
-  Fail Lift list vector in List'.map_app as .. _p.
+  Lift list vector in List'.map_app as .. _p.
 
-  Fail Lift list vector in List'.map_rev as .. _p.
+  Lift list vector in List'.map_rev as .. _p.
 
   Lift list vector in List'.map_eq_nil as .. _p.
 
@@ -233,9 +240,9 @@ Module MyVector.
 
   Lift list vector in List'.flat_map as .. _p.
 
-  Fail Lift list vector in List'.in_flat_map as .. _p.
+  Lift list vector in List'.in_flat_map as .. _p.
 
-  Fail Lift list vector in List'.flat_map_concat_map as .. _p.
+  Lift list vector in List'.flat_map_concat_map as .. _p.
 
   Fail Lift list vector in List'.concat_map as .. _p.
 
@@ -279,7 +286,7 @@ Module MyVector.
 
   Lift list vector in List'.filter as .. _p.
 
-  Fail Lift list vector in List'.filter_In as .. _p.
+  Lift list vector in List'.filter_In as .. _p.
 
   Lift list vector in List'.find as .. _p.
 
@@ -329,11 +336,11 @@ Module MyVector.
 
   Lift list vector in List'.in_prod_aux as .. _p.
 
-  Fail Lift list vector in List'.in_prod as .. _p.
+  Lift list vector in List'.in_prod as .. _p.
 
-  Fail Lift list vector in List'.in_prod_iff as .. _p.
+  Lift list vector in List'.in_prod_iff as .. _p.
 
-  Fail Lift list vector in List'.prod_length as .. _p.
+  Lift list vector in List'.prod_length as .. _p.
 
   Lift list vector in List'.lel as .. _p.
 
@@ -381,21 +388,21 @@ Module MyVector.
 
   Lift list vector in List'.firstn_length_le as .. _p.
 
-  Fail Lift list vector in List'.firstn_app as .. _p.
+  Lift list vector in List'.firstn_app as .. _p.
 
-  Fail Lift list vector in List'.firstn_app_2 as .. _p.
+  Lift list vector in List'.firstn_app_2 as .. _p.
 
-  Fail Lift list vector in List'.firstn_firstn as .. _p.
+  Lift list vector in List'.firstn_firstn as .. _p.
 
   Lift list vector in List'.skipn as .. _p.
 
-  Fail Lift list vector in List'.firstn_skipn as .. _p.
+  Lift list vector in List'.firstn_skipn as .. _p.
 
   Lift list vector in List'.firstn_length as .. _p.
 
-  Fail Lift list vector in List'.removelast_firstn as .. _p.
+  Lift list vector in List'.removelast_firstn as .. _p.
 
-  Fail Lift list vector in List'.firstn_removelast as .. _p.
+  Lift list vector in List'.firstn_removelast as .. _p.
 
   (* ... you get the point. Some implementation bugs to work out
     (the next inductive type, Add, would fail because of a bug in lifting
