@@ -171,10 +171,7 @@ Definition zip_withV_uf {A} {B} {C} (f : A -> B -> C) {n} (v1 : vector A n) (v2 
  * way to do this is to use the fact that nats form an hset
  * (credit to Jasper Hugunin). Then, we don't actually need any information
  * about how our auxiliary equalities are formed. Otherwise,
- * the way those equalities are formed will matter (bonus fun problem: 
- * figure out how to do this more generally without UIP, changing only the proj 
- * lemmas if necessary, and submit a PR; see
- * https://github.com/uwplse/ornamental-search/issues/39 for some thoughts).
+ * the way those equalities are formed will matter.
  *)
 From Coq Require Import EqdepFacts Eqdep_dec Arith.
 
@@ -187,6 +184,17 @@ Lemma zip_with_is_zipV_uf_aux :
 Proof.
   auto using (UIP_dec Nat.eq_dec).
 Defined.
+(*
+ * NOTE ON UIP: In general, we should be able to avoid using UIP over the index
+ * by proving adjunction explicitly and then using that along with coherence
+ * to show that we do not duplicate equalities (credit to Jason Gross).
+ * This holds for all algebraic ornaments, not just those for which UIP holds
+ * on the index type.
+ * 
+ * See https://github.com/uwplse/ornamental-search/issues/39 for the latest thoughts
+ * on this, and please check the latest version of this file in master to see
+ * if we have implemented this if you are reading this in a release.
+ *)
 
 (*
  * Our theorem then follows:
