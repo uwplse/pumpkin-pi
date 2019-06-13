@@ -19,11 +19,10 @@ src/lib/hofs.ml
 src/lib/hofs.mli
 src/lib/indexing.ml
 src/lib/indexing.mli
-src/lib/hypotheses.ml
-src/lib/hypotheses.mli
-
 src/lib/printing.ml
 src/lib/printing.mli
+src/lib/hypotheses.ml
+src/lib/hypotheses.mli
 
 src/ornaments/lifting.ml
 src/ornaments/lifting.mli
