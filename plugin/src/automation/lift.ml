@@ -478,7 +478,7 @@ let lift_core env evd c ib_typ trm =
              let arg' = last args' in
              if (is_or_applies projT1 tr || is_or_applies projT2 tr) then
                (* optimize projections of existentials, which are common *)
-               let arg'' = reduce_term en arg' in (* TODO *)
+               let arg'' = reduce_term en arg' in
                if is_or_applies existT arg'' then
                  let ex' = dest_existT arg'' in
                  if equal projT1 f then
@@ -487,9 +487,7 @@ let lift_core env evd c ib_typ trm =
                    ex'.unpacked, false
                else
                  let f' = lift_rec en ib_typ f in
-                 (* TODO avoid always normalizing below: *)
-                 let lifted = mkAppl (f', args') in
-                 lifted, l.is_fwd && not (is_or_applies existT (reduce_nf en lifted))
+                 mkAppl (f', args'), false
              else
                let f' = lift_rec en ib_typ f in
                (* TODO avoid always normalizing below: *)
@@ -567,7 +565,6 @@ let lift_core env evd c ib_typ trm =
       (let typ = reduce_nf en (infer_type en evd tr) in (* TODO can we avoid checking always? *)
        map_if
          (fun t ->
-           (* TODO should probably move this when we construct function itself; we'll see. also, define one "repack" function somewhere *)
            (* we must repack because of non-primitive projections *)
            let t_typ = lift_rec en ib_typ typ in
            let lift_typ = dest_sigT (shift t_typ) in
