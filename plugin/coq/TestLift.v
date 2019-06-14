@@ -179,7 +179,9 @@ Definition append (A : Type) (l1 : list A) (l2 : list A) :=
       a :: IH)
     l1.
 
-Definition append_vect (A : Type) (pv1 : sigT (vector A)) (pv2 : sigT (vector A)) :=
+
+
+Definition append_vect_inner (A : Type) (pv1 : sigT (vector A)) (pv2 : sigT (vector A)) :=
   vector_rect
     A
     (fun (n0 : nat) (v0 : vector A n0) => sigT (fun (n : nat) => vector A n))
@@ -192,6 +194,9 @@ Definition append_vect (A : Type) (pv1 : sigT (vector A)) (pv2 : sigT (vector A)
     (projT1 pv1)
     (projT2 pv1).
 
+Definition append_vect (A : Type) (pv1 : sigT (vector A)) (pv2 : sigT (vector A)) :=
+  existT _ (projT1 (append_vect_inner A pv1 pv2)) (projT2 (append_vect_inner A pv1 pv2)).
+
 Lift list vector in append as append_vect_lifted.
 
 Theorem test_append_vect:
@@ -201,6 +206,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
+Lift vector list in append_vect_inner as append_lifted_inner.
 Lift vector list in append_vect as append_lifted.
 
 Theorem test_append :
@@ -220,7 +226,7 @@ Definition appendF (l1 : natFlector.flist) (l2 : natFlector.flist) :=
       natFlector.consF a IH)
     l1.
 
-Definition append_vectF (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector) :=
+Definition append_vectF_inner (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector) :=
   natFlector.flector_rect
     (fun (n0 : nat) (v0 : natFlector.flector n0) => sigT natFlector.flector)
     (existT natFlector.flector (projT1 pv2) (projT2 pv2))
@@ -231,6 +237,9 @@ Definition append_vectF (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.f
         (natFlector.consFV (projT1 IH) a (projT2 IH)))
     (projT1 pv1)
     (projT2 pv1).
+
+Definition append_vectF (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector) :=
+  existT _ (projT1 (append_vectF_inner pv1 pv2)) (projT2 (append_vectF_inner pv1 pv2)).
 
 Lift orn_flist_flector_nat orn_flist_flector_nat_inv in appendF as append_vectF_lifted.
 
@@ -261,7 +270,7 @@ Definition tl (A : Type) (l : list A) :=
       l0)
     l.
 
-Definition tl_vect (A : Type) (pv : packed_vector A) :=
+Definition tl_vect_inner (A : Type) (pv : packed_vector A) :=
   vector_rect
     A
     (fun (n0 : nat) (v0 : vector A n0) => sigT (fun (n : nat) => vector A n))
@@ -270,6 +279,9 @@ Definition tl_vect (A : Type) (pv : packed_vector A) :=
       existT (vector A) n0 v0)
     (projT1 pv)
     (projT2 pv).
+
+Definition tl_vect (A : Type) (pv : packed_vector A) :=
+  existT _ (projT1 (tl_vect_inner A pv)) (projT2 (tl_vect_inner A pv)).
 
 Lift list vector in tl as tl_vect_lifted.
 

@@ -446,7 +446,7 @@ let lift_core env evd c ib_typ trm =
         if l.is_fwd then
           tr, true
         else
-          lift_rec en ib_typ (dest_existT tr).unpacked, false (* TODO do we still need? try to remove and retest *)
+          lift_rec en ib_typ (dest_existT tr).unpacked, false
       else if is_proj c en evd tr then
         (* COHERENCE *)
         if l.is_fwd then

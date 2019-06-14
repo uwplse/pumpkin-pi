@@ -23,16 +23,8 @@ Find ornament list vector as ltv.
  * Whole-module lifting doesn't exist yet, so for now we have to do this
  * one function and proof at a time.
  *
- * The functions and proofs that fail to lift below (there should be 4) are due
- * are due to implementation bugs. Most of them are due to a bug has to due with 
- * a combination of lazy eta-expansion and Coq's primitive projections.
+ * There are still two proofs that fail to lift below, due to implementation bugs.
  * See: https://github.com/uwplse/ornamental-search/issues/32
- * TODO update once fixed
- * TODO note to rerun case study for new #s once fixed (or see if sizes the same etc.)
- * TODO and if reruning case study and #s do change, might as well do what reviewer said
- * TODO investigate remaining 2
- * TODO also checked produced types in example
- * TODO test to see if we broke anything else also
  *)
 
 Module MyVector.
@@ -298,8 +290,7 @@ Module MyVector.
   Lift list vector in List'.partition_cons1 as .. _p.
 
   Lift list vector in List'.partition_cons2 as .. _p.
-
-  Print List'.partition_length. 
+ 
   Fail Lift list vector in List'.partition_length as .. _p.
 
   Lift list vector in List'.partition_inv_nil  as .. _p.

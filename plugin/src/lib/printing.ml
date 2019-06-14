@@ -84,9 +84,9 @@ let rec term_as_string (env : env) (trm : types) =
      Printf.sprintf
        "(let (%s : %s) := %s in %s)"
        (name_as_string n)
-       (term_as_string env trm)
        (term_as_string env typ)
-       (term_as_string (push_let_in (n, e, typ) env) e)
+       (term_as_string env trm)
+       (term_as_string (push_let_in (n, trm, typ) env) e)
   | App (f, xs) ->
      Printf.sprintf
        "(%s %s)"
