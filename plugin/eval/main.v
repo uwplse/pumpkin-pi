@@ -206,8 +206,6 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/inputs/tree80000-base" Print tree80000.
     Redirect "out/inputs/tree100000-base" Print tree100000.
 
-Eval vm_compute in let foo := long_computation in tt
-
     (* --- Base data --- *)
     (* TODO delete these anyways; don't need in together case study *)
     Redirect "out/preorder/base1" Time Eval vm_compute in (let foo := preorder tree1 in tt).
