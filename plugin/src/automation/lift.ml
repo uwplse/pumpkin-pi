@@ -562,18 +562,20 @@ let lift_core env evd c ib_typ trm =
            tr, false
     in
     map_if
-      (let typ = reduce_nf en (infer_type en evd tr) in (* TODO can we avoid checking always? *)
-       map_if
-         (fun t ->
-           (* we must repack because of non-primitive projections *)
-           let t_typ = lift_rec en ib_typ typ in
-           let lift_typ = dest_sigT (shift t_typ) in
-           let n = project_index lift_typ (mkRel 1) in
-           let b = project_value lift_typ (mkRel 1) in
-           let packer = lift_typ.packer in
-           let e = pack_existT { index_type = ib_typ; packer; index = n; unpacked = b } in
-           mkLetIn (Anonymous, t, t_typ, e))
-         (is_from c en evd typ))
+      (fun lifted ->
+        let typ = reduce_nf en (infer_type en evd tr) in (* TODO can we avoid checking always? *)
+        map_if
+          (fun t ->
+            (* we must repack because of non-primitive projections *)
+            let t_typ = lift_rec en ib_typ typ in
+            let lift_typ = dest_sigT (shift t_typ) in
+            let n = project_index lift_typ (mkRel 1) in
+            let b = project_value lift_typ (mkRel 1) in
+            let packer = lift_typ.packer in
+            let e = pack_existT { index_type = ib_typ; packer; index = n; unpacked = b } in
+            mkLetIn (Anonymous, t, t_typ, e))
+          (is_from c en evd typ)
+          lifted)
       try_repack
       lifted
   in lift_rec env ib_typ trm
