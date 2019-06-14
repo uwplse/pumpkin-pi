@@ -382,14 +382,14 @@ let lift_core env evd c ib_typ trm =
   let l = c.l in
   let (a_typ, b_typ) = c.typs in
   let rec lift_rec en ib_typ tr =
-    let lifted =
+    let lifted, try_repack =
       let lifted_opt = search_lifted_term en tr in
       if Option.has_some lifted_opt then
         (* GLOBAL CACHING *)
-        Option.get lifted_opt
+        Option.get lifted_opt, false
       else if is_locally_cached c.cache tr then
         (* LOCAL CACHING *)
-        lookup_local_cache c.cache tr
+        lookup_local_cache c.cache tr, false
       else if is_from c en evd tr then
         (* EQUIVALENCE *)
         if l.is_fwd then
@@ -398,11 +398,11 @@ let lift_core env evd c ib_typ trm =
           let n = mkRel 1 in
           let abs_ib = reindex_body (reindex_app (index l n)) in
           let packer = abs_ib (mkLambda (Anonymous, ib_typ, shift b_is)) in
-          pack_sigT { index_type = ib_typ; packer }
+          pack_sigT { index_type = ib_typ; packer }, false
         else
           let packed = dummy_index en (dest_sigT tr).packer in
           let is = deindex l (unfold_args packed) in
-          mkAppl (a_typ, is)
+          mkAppl (a_typ, is), false
       else if is_packed_constr c en evd tr then
         (* LIFT-CONSTR *)
         (* The extra logic here is an optimization *)
@@ -413,53 +413,47 @@ let lift_core env evd c ib_typ trm =
         let (((_, _), i), _) = destConstruct constr in
         let lifted_constr = c.constr_rules.(i - 1) in
         map_if
-          (fun tr' ->
+          (fun (tr', _) ->
             let lifted_inner = map_forward last_arg l tr' in
             let (f', args') = destApp lifted_inner in
             let args'' = Array.map (lift_rec en ib_typ) args' in
             map_forward
-              (fun b ->
+              (fun (b, _) ->
                 (* pack the lifted term *)
                 let ex = dest_existT tr' in
                 let n = lift_rec en ib_typ ex.index in
                 let packer = lift_rec en ib_typ ex.packer in
-                pack_existT { ex with packer; index = n; unpacked = b })
+                pack_existT { ex with packer; index = n; unpacked = b }, false)
               l
-              (mkApp (f', args'')))
+              (mkApp (f', args''), false))
           (List.length args > 0)
-          (reduce_term en (mkAppl (lifted_constr, args)))
-      else if is_packed c en evd tr then (* TODO do we still need? *)
+          (reduce_term en (mkAppl (lifted_constr, args)), false)
+      else if is_packed c en evd tr then
         (* LIFT-PACK (extra rule for non-primitive projections) *)
         if l.is_fwd then
-          (* repack variables, since projections aren't primitive *)
-          let typ = reduce_type en evd tr in
-          let lift_typ = dest_sigT (lift_rec en ib_typ typ) in
-          let n = project_index lift_typ tr in
-          let b = project_value lift_typ tr in
-          let packer = lift_typ.packer in
-          pack_existT { index_type = ib_typ; packer; index = n; unpacked = b }
+          tr, true
         else
-          lift_rec en ib_typ (dest_existT tr).unpacked
+          lift_rec en ib_typ (dest_existT tr).unpacked, false (* TODO do we still need? try to remove and retest *)
       else if is_proj c en evd tr then
         (* COHERENCE *)
         if l.is_fwd then
           let a = last_arg tr in
           let b_sig = lift_rec en ib_typ a in
           let b_sig_typ = dest_sigT (lift_rec en ib_typ (reduce_type en evd a)) in
-          project_index b_sig_typ b_sig
+          project_index b_sig_typ b_sig, false
         else
           let b_sig = last_arg tr in
           let a = lift_rec en ib_typ b_sig in
           if equal projT1 (first_fun tr) then
-            mkAppl (l.orn.indexer, snoc a (non_index_typ_args l.off en evd b_sig))
+            mkAppl (l.orn.indexer, snoc a (non_index_typ_args l.off en evd b_sig)), false
           else
-            a
+            a, false
       else if is_eliminator c en evd tr then
         (* LIFT-ELIM *)
         let tr_eta = expand_eta en evd tr in
         if arity tr_eta > arity tr then
           (* lazy eta expansion; recurse *)
-          lift_rec en ib_typ tr_eta
+          lift_rec en ib_typ tr_eta, false
         else
           let tr_elim = deconstruct_eliminator en evd tr in
           let npms = List.length tr_elim.pms in
@@ -468,81 +462,90 @@ let lift_core env evd c ib_typ trm =
           let tr' = lift_elim en evd c { tr_elim with final_args } in
           let tr'' = lift_rec en ib_typ tr' in
           let post_args' = List.map (lift_rec en ib_typ) post_args in
-          mkAppl (tr'', post_args')
+          mkAppl (tr'', post_args'), l.is_fwd
       else
         match kind tr with
         | App (f, args) ->
            if equal (lift_back l) f then
              (* SECTION/RETRACTION *)
-             last_arg tr
+             last_arg tr, false
            else if equal (lift_to l) f then
              (* INTERNALIZE *)
-             lift_rec en ib_typ (last_arg tr)
+             lift_rec en ib_typ (last_arg tr), false
            else
              (* APP *)
              let args' = List.map (lift_rec en ib_typ) (Array.to_list args) in
              let arg' = last args' in
-             if (is_or_applies projT1 tr || is_or_applies projT2 tr) && is_or_applies existT arg' then
+             if (is_or_applies projT1 tr || is_or_applies projT2 tr) then
                (* optimize projections of existentials, which are common *)
-               let ex' = dest_existT arg' in
-               if equal projT1 f then
-                 ex'.index
+               let arg'' = reduce_term en arg' in (* TODO *)
+               if is_or_applies existT arg'' then
+                 let ex' = dest_existT arg'' in
+                 if equal projT1 f then
+                   ex'.index, false
+                 else
+                   ex'.unpacked, false
                else
-                 ex'.unpacked
+                 let f' = lift_rec en ib_typ f in
+                 (* TODO avoid always normalizing below: *)
+                 let lifted = mkAppl (f', args') in
+                 lifted, l.is_fwd && not (is_or_applies existT (reduce_nf en lifted))
              else
                let f' = lift_rec en ib_typ f in
-               mkAppl (f', args')
+               (* TODO avoid always normalizing below: *)
+               let lifted = mkAppl (f', args') in
+               lifted, l.is_fwd && not (is_or_applies existT (reduce_nf en lifted))
         | Cast (ca, k, t) ->
            (* CAST *)
            let ca' = lift_rec en ib_typ ca in
            let t' = lift_rec en ib_typ t in
-           mkCast (ca', k, t')
+           mkCast (ca', k, t'), false
         | Prod (n, t, b) ->
            (* PROD *)
            let t' = lift_rec en ib_typ t in
            let en_b = push_local (n, t) en in
            let b' = lift_rec en_b (shift ib_typ) b in
-           mkProd (n, t', b')
+           mkProd (n, t', b'), false
         | Lambda (n, t, b) ->
            (* LAMBDA *)
            let t' = lift_rec en ib_typ t in
            let en_b = push_local (n, t) en in
            let b' = lift_rec en_b (shift ib_typ) b in
-           mkLambda (n, t', b')
+           mkLambda (n, t', b'), false
         | LetIn (n, trm, typ, e) ->
            (* LETIN *)
            let trm' = lift_rec en ib_typ trm in
            let typ' = lift_rec en ib_typ typ in
            let en_e = push_let_in (n, trm, typ) en in
            let e' = lift_rec en_e (shift ib_typ) e in
-           mkLetIn (n, trm', typ', e')
+           mkLetIn (n, trm', typ', e'), false
         | Case (ci, ct, m, bs) ->
            (* CASE (will not work if this destructs over A; preprocess first) *)
            let ct' = lift_rec en ib_typ ct in
            let m' = lift_rec en ib_typ m in
            let bs' = Array.map (lift_rec en ib_typ) bs in
-           mkCase (ci, ct', m', bs')
+           mkCase (ci, ct', m', bs'), false
         | Fix ((is, i), (ns, ts, ds)) ->
            (* FIX (will not work if this destructs over A; preprocess first) *)
            let ts' = Array.map (lift_rec en ib_typ) ts in
            let ds' = Array.map (map_rec_env_fix lift_rec shift en ib_typ ns ts) ds in
-           mkFix ((is, i), (ns, ts', ds'))
+           mkFix ((is, i), (ns, ts', ds')), false
         | CoFix (i, (ns, ts, ds)) ->
            (* COFIX (will not work if this destructs over A; preprocess first) *)
            let ts' = Array.map (lift_rec en ib_typ) ts in
            let ds' = Array.map (map_rec_env_fix lift_rec shift en ib_typ ns ts) ds in
-           mkCoFix (i, (ns, ts', ds'))
+           mkCoFix (i, (ns, ts', ds')), false
         | Proj (pr, co) ->
            (* PROJ *)
            let co' = lift_rec en ib_typ co in
-           mkProj (pr, co')
+           mkProj (pr, co'), false
         | Construct (((i, i_index), _), u) ->
            let ind = mkInd (i, i_index) in
            if equal ind (directional l a_typ b_typ) then
              (* lazy eta expansion *)
-             lift_rec en ib_typ (expand_eta en evd tr)
+             lift_rec en ib_typ (expand_eta en evd tr), false
            else
-             tr
+             tr, false
         | Const (co, u) ->
            let lifted =
              (try
@@ -556,9 +559,9 @@ let lift_core env evd c ib_typ trm =
               with _ ->
                 (* AXIOM *)
                 tr)
-           in cache_local c.cache tr lifted; lifted
+           in cache_local c.cache tr lifted; lifted, false
         | _ ->
-           tr
+           tr, false
     in
     map_if
       (let typ = reduce_nf en (infer_type en evd tr) in (* TODO can we avoid checking always? *)
@@ -573,8 +576,8 @@ let lift_core env evd c ib_typ trm =
            let packer = lift_typ.packer in
            let e = pack_existT { index_type = ib_typ; packer; index = n; unpacked = b } in
            mkLetIn (Anonymous, t, t_typ, e))
-         (is_from c env evd typ))
-      (c.l.is_fwd && not (is_or_applies existT (reduce_nf en lifted))) (* TODO avoid always normalizing, also *)
+         (is_from c en evd typ))
+      try_repack
       lifted
   in lift_rec env ib_typ trm
 
