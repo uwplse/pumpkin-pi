@@ -60,7 +60,7 @@ mkdir out/normalized
 mkdir out/inputs
 mkdir out/equivalences
 make clean
-ulimit -s 100000
+ulimit -s 100000	
 if make
 then
   liftedcase=true

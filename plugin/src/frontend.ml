@@ -96,8 +96,6 @@ let find_ornament n_o d_old d_new =
  *)
 let lift_definition_by_ornament env evd n l c_old =
   let lifted = do_lift_defn env evd l c_old in
-  (*let open Printing in
-  debug_term env lifted "lifted";*)
   ignore (define_term n evd lifted true);
   try
     let old_gref = global_of_constr c_old in

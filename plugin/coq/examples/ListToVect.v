@@ -30,7 +30,7 @@ Find ornament list vector as ltv.
  * TODO update once fixed
  * TODO note to rerun case study for new #s once fixed (or see if sizes the same etc.)
  * TODO and if reruning case study and #s do change, might as well do what reviewer said
- * TODO investigate remaining 4
+ * TODO investigate remaining 2
  * TODO also checked produced types in example
  * TODO test to see if we broke anything else also
  *)
@@ -211,7 +211,7 @@ Module MyVector.
 
   Lift list vector in List'.concat_cons as .. _p.
 
-  Fail Lift list vector in List'.concat_app as .. _p. 
+  Lift list vector in List'.concat_app as .. _p. 
 
   Lift list vector in List'.list_eq_dec as .. _p.
 
@@ -243,7 +243,7 @@ Module MyVector.
 
   Lift list vector in List'.flat_map_concat_map as .. _p.
 
-  Fail Lift list vector in List'.concat_map as .. _p.
+  Lift list vector in List'.concat_map as .. _p.
 
   Lift list vector in List'.map_id as .. _p.
 
@@ -299,6 +299,7 @@ Module MyVector.
 
   Lift list vector in List'.partition_cons2 as .. _p.
 
+  Print List'.partition_length. 
   Fail Lift list vector in List'.partition_length as .. _p.
 
   Lift list vector in List'.partition_inv_nil  as .. _p.

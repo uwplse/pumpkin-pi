@@ -371,6 +371,19 @@ let lift_elim env evd c trm_app =
   let final_args = lift_elim_args env evd c.l npms trm_app.final_args in
   apply_eliminator {trm_app with elim; p; cs; final_args}
 
+(*
+ * REPACK
+ *
+ * This is to deal with non-primitive projections
+ *)
+let repack env evd ib_typ lifted typ =
+  let lift_typ = dest_sigT (shift typ) in
+  let n = project_index lift_typ (mkRel 1) in
+  let b = project_value lift_typ (mkRel 1) in
+  let packer = lift_typ.packer in
+  let e = pack_existT {index_type = ib_typ; packer; index = n; unpacked = b} in
+  mkLetIn (Anonymous, lifted, typ, e)
+    
 (* --- Core algorithm --- *)
 
 (*
@@ -468,7 +481,7 @@ let lift_core env evd c ib_typ trm =
         | App (f, args) ->
            if equal (lift_back l) f then
              (* SECTION/RETRACTION *)
-             last_arg tr, false
+             lift_rec en ib_typ (last_arg tr), false
            else if equal (lift_to l) f then
              (* INTERNALIZE *)
              lift_rec en ib_typ (last_arg tr), false
@@ -560,20 +573,14 @@ let lift_core env evd c ib_typ trm =
         | _ ->
            tr, false
     in
+    (* sometimes we must repack because of non-primitive projections *)
     map_if
-      (fun lifted -> (* TODO move this *)
+      (fun lifted ->
         let typ = reduce_nf en (infer_type en evd tr) in
+        let is_from_typ = is_from c en evd typ in
         map_if
-          (fun t ->
-            (* we must repack because of non-primitive projections *)
-            let t_typ = lift_rec en ib_typ typ in
-            let lift_typ = dest_sigT (shift t_typ) in
-            let n = project_index lift_typ (mkRel 1) in
-            let b = project_value lift_typ (mkRel 1) in
-            let packer = lift_typ.packer in
-            let e = pack_existT { index_type = ib_typ; packer; index = n; unpacked = b } in
-            mkLetIn (Anonymous, t, t_typ, e))
-          (is_from c en evd typ && not (is_or_applies existT (reduce_nf en lifted)))
+          (fun t -> repack en evd ib_typ t (lift_rec en ib_typ typ))
+          (is_from_typ && not (is_or_applies existT (reduce_nf en lifted)))
           lifted)
       (try_repack)
       lifted
