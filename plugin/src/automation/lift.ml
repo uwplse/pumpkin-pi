@@ -490,8 +490,7 @@ let lift_core env evd c ib_typ trm =
                  mkAppl (f', args'), false
              else
                let f' = lift_rec en ib_typ f in
-               (* TODO avoid always normalizing below: *)
-               mkAppl (f', args'), l.is_fwd && not (is_locally_cached c.cache f)
+               mkAppl (f', args'), l.is_fwd && not (is_locally_cached c.cache f || Option.has_some (search_lifted_term en f))
         | Cast (ca, k, t) ->
            (* CAST *)
            let ca' = lift_rec en ib_typ ca in
