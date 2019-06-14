@@ -1,8 +1,6 @@
 #!/bin/bash
 
-# Once you have uncommented the extremely costly normalization in main.v, this script
-# verifies the claim that it timed out in an hour trying to normalize it.
-# Go grab a coffee or something.
+# Once you have uncommented the extremely costly normalization in main.v, this script normalizes it.
 
 if [ -e ../out ]
 then
