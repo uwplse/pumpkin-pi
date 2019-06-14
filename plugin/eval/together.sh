@@ -113,11 +113,11 @@ for f in $(find out/normalized/*.out); do
   sed -i "s/(\* DEF $name \*)/$term/" equiv4free/main2.v
   sed -i "s/(\* NORMALIZE $name \*)/Redirect \"..\/out\/normalized\/$name\" Eval compute in $defname./" equiv4free/main2.v
  
-  sed -i "s/(\* TIME-SEARCH $name \*)/Redirect \"..\/out\/$dirname\/${suffix}1\" Time Eval vm_compute in ($defname _ _ _ _ tree1 Elem.x).\n\tRedirect \"..\/out\/$dirname\/${suffix}10\" Time Eval vm_compute in ($defname _ _ _ _ tree10 Elem.x).\n\tRedirect \"..\/out\/$dirname\/${suffix}100\" Time Eval vm_compute in ($defname _ _ _ _ tree100 Elem.x).\n\tRedirect \"..\/out\/$dirname\/${suffix}1000\" Time Eval vm_compute in ($defname _ _ _ _ tree1000 Elem.x).\n\tRedirect \"..\/out\/$dirname\/${suffix}10000\" Time Eval vm_compute in ($defname _ _ _ _ tree10000 Elem.x).\n\tRedirect \"..\/out\/$dirname\/${suffix}100000\" Time Eval vm_compute in ($defname _ _ _ _ tree100000 Elem.x)./" equiv4free/main2.v
+  sed -i "s/(\* TIME-SEARCH $name \*)/Redirect \"..\/out\/$dirname\/${suffix}1\" Time Eval vm_compute in (let foo := $defname _ _ _ _ tree1 Elem.x in (hide foo) ).\n\tRedirect \"..\/out\/$dirname\/${suffix}10\" Time Eval vm_compute in (let foo := $defname _ _ _ _ tree10 Elem.x in (hide foo) ).\n\tRedirect \"..\/out\/$dirname\/${suffix}100\" Time Eval vm_compute in (let foo := $defname _ _ _ _ tree100 Elem.x in (hide foo) ).\n\tRedirect \"..\/out\/$dirname\/${suffix}1000\" Time Eval vm_compute in (let foo := $defname _ _ _ _ tree1000 Elem.x in (hide foo) ).\n\tRedirect \"..\/out\/$dirname\/${suffix}10000\" Time Eval vm_compute in (let foo := $defname _ _ _ _ tree10000 Elem.x in (hide foo) ).\n\tRedirect \"..\/out\/$dirname\/${suffix}100000\" Time Eval vm_compute in (let foo := $defname _ _ _ _ tree100000 Elem.x in (hide foo) )./" equiv4free/main2.v
   
-  sed -i "s/(\* TIME-AVL $name \*)/Redirect \"..\/out\/$dirname\/${suffix}1\" Time Eval vm_compute in ($defname _ _ _ _ tree1).\n\tRedirect \"..\/out\/$dirname\/${suffix}10\" Time Eval vm_compute in ($defname _ _ _ _ tree10).\n\tRedirect \"..\/out\/$dirname\/${suffix}100\" Time Eval vm_compute in ($defname _ _ _ _ tree100).\n\tRedirect \"..\/out\/$dirname\/${suffix}1000\" Time Eval vm_compute in ($defname _ _ _ _ tree1000).\n\tRedirect \"..\/out\/$dirname\/${suffix}10000\" Time Eval vm_compute in ($defname _ _ _ _ tree10000).\n\tRedirect \"..\/out\/$dirname\/${suffix}100000\" Time Eval vm_compute in ($defname _ _ _ _ tree100000)./" equiv4free/main2.v
+  sed -i "s/(\* TIME-AVL $name \*)/Redirect \"..\/out\/$dirname\/${suffix}1\" Time Eval vm_compute in (let foo := $defname _ _ _ _ tree1 in (hide foo)).\n\tRedirect \"..\/out\/$dirname\/${suffix}10\" Time Eval vm_compute in (let foo := $defname _ _ _ _ tree10 in (hide foo)).\n\tRedirect \"..\/out\/$dirname\/${suffix}100\" Time Eval vm_compute in (let foo := $defname _ _ _ _ tree100 in (hide foo)).\n\tRedirect \"..\/out\/$dirname\/${suffix}1000\" Time Eval vm_compute in (let foo := $defname _ _ _ _ tree1000 in (hide foo)).\n\tRedirect \"..\/out\/$dirname\/${suffix}10000\" Time Eval vm_compute in (let foo := $defname _ _ _ _ tree10000 in (hide foo)).\n\tRedirect \"..\/out\/$dirname\/${suffix}100000\" Time Eval vm_compute in (let foo := $defname _ _ _ _ tree100000 in (hide foo))./" equiv4free/main2.v
   
-  sed -i "s/(\* TIME-SIZED $name \*)/Redirect \"..\/out\/$dirname\/${suffix}1\" Time Eval vm_compute in ($defname tree1).\n\tRedirect \"..\/out\/$dirname\/${suffix}10\" Time Eval vm_compute in ($defname tree10).\n\tRedirect \"..\/out\/$dirname\/${suffix}100\" Time Eval vm_compute in ($defname tree100).\n\tRedirect \"..\/out\/$dirname\/${suffix}1000\" Time Eval vm_compute in ($defname tree1000).\n\tRedirect \"..\/out\/$dirname\/${suffix}10000\" Time Eval vm_compute in ($defname tree10000).\n\tRedirect \"..\/out\/$dirname\/${suffix}100000\" Time Eval vm_compute in ($defname tree100000)./" equiv4free/main2.v
+  sed -i "s/(\* TIME-SIZED $name \*)/Redirect \"..\/out\/$dirname\/${suffix}1\" Time Eval vm_compute in (let foo := $defname tree1 in (hide foo)).\n\tRedirect \"..\/out\/$dirname\/${suffix}10\" Time Eval vm_compute in (let foo := $defname tree10 in (hide foo)).\n\tRedirect \"..\/out\/$dirname\/${suffix}100\" Time Eval vm_compute in (let foo := $defname tree100 in (hide foo)).\n\tRedirect \"..\/out\/$dirname\/${suffix}1000\" Time Eval vm_compute in (let foo := $defname tree1000 in (hide foo)).\n\tRedirect \"..\/out\/$dirname\/${suffix}10000\" Time Eval vm_compute in (let foo := $defname tree10000 in (hide foo)).\n\tRedirect \"..\/out\/$dirname\/${suffix}100000\" Time Eval vm_compute in (let foo := $defname tree100000 in (hide foo))./" equiv4free/main2.v
 done
 
 # Clean outputted directories
@@ -172,31 +172,6 @@ done
 # Format term size data
 sed -i "s/out\/normalized\///" results/sizes.out
 sed -i "s/-notyp.out//" results/sizes.out
-
-# Preprocess for sanity checks
-rm -r out/normalized
-for f in $(find out/*/*.out); do
-  tail -n 2 $f > $f
-done
-
-# Run sanity checks
-for f in $(find out/*/*EFF*.out); do
-  name=$(basename "${f%.*}")
-  if [[ $name =~ ^base.* ]]
-  then
-    :
-  else
-    g=$(echo $f | sed -e "s/EFFequiv//")
-    echo "Sanity checking $f and $g."
-    if [ "$(cat $f)" == "$(cat $g)" ]
-    then
-      :
-    else
-      echo "Sanity check failed. $f and $g are different." 1>&2
-      exit 1
-    fi
-  fi
-done
 
 # Clean temporary files
 rm -r out
