@@ -31,6 +31,7 @@ Find ornament list vector as ltv.
  * TODO note to rerun case study for new #s once fixed (or see if sizes the same etc.)
  * TODO and if reruning case study and #s do change, might as well do what reviewer said
  * TODO investigate remaining 4
+ * TODO also checked produced types in example
  * TODO test to see if we broke anything else also
  *)
 
@@ -83,8 +84,6 @@ Module MyVector.
   Lift list vector in List'.app_nil_r as .. _p.
  
   Lift list vector in List'.app_nil_end as .. _p.
-
-  Lift list vector in List'.app as .. _test.
 
   Lift list vector in List'.app_assoc as .. _p. 
 

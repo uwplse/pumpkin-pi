@@ -76,12 +76,14 @@ Print ltv_inv.
 
 (* --- Lift --- *)
 
+Print hs_to_coq.zip.
 Lift list vector in hs_to_coq.zip as zipV_p.
+Print zipV_p.
 Lift list vector in hs_to_coq.zip_with as zip_withV_p.
 Lift list vector in hs_to_coq.zip_with_is_zip as zip_with_is_zipV_p.
 
 (* Here are our lifted types: *)
-Check zipV_p.
+Check zipV_p. (* TODO!!! fix eta bug here, so we get the stuff here and not in type sig *)
 Check zip_withV_p.
 Check zip_with_is_zipV_p.
 
