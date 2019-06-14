@@ -490,7 +490,8 @@ let lift_core env evd c ib_typ trm =
                  mkAppl (f', args'), false
              else
                let f' = lift_rec en ib_typ f in
-               mkAppl (f', args'), l.is_fwd && not (is_locally_cached c.cache f || Option.has_some (search_lifted_term en f))
+               let lifted = mkAppl (f', args') in
+               lifted, l.is_fwd
         | Cast (ca, k, t) ->
            (* CAST *)
            let ca' = lift_rec en ib_typ ca in
@@ -560,8 +561,8 @@ let lift_core env evd c ib_typ trm =
            tr, false
     in
     map_if
-      (fun lifted ->
-        let typ = reduce_nf en (infer_type en evd tr) in (* TODO can we avoid checking always? *)
+      (fun lifted -> (* TODO move this *)
+        let typ = reduce_nf en (infer_type en evd tr) in
         map_if
           (fun t ->
             (* we must repack because of non-primitive projections *)
@@ -572,9 +573,9 @@ let lift_core env evd c ib_typ trm =
             let packer = lift_typ.packer in
             let e = pack_existT { index_type = ib_typ; packer; index = n; unpacked = b } in
             mkLetIn (Anonymous, t, t_typ, e))
-          (is_from c en evd typ)
+          (is_from c en evd typ && not (is_or_applies existT (reduce_nf en lifted)))
           lifted)
-      try_repack
+      (try_repack)
       lifted
   in lift_rec env ib_typ trm
 
