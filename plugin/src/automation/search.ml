@@ -307,7 +307,7 @@ let promote_forget_case env off is_fwd p o n : types =
            (* PROMOTE-PROD / FORGET-PROD *)
            mkLambda (n_o, t_o, sub_b (shift_subs subs) e_b o n)
     | _ ->
-       failwith "unexpected case substituting index"
+       CErrors.user_err unsupported_change_error
   in sub p (mkRel 1) [] env o n
 
 (*
