@@ -511,6 +511,7 @@ val convertible : env -> types -> types -> bool
 val reduce_term : env -> types -> types (* betaiotazeta *)
 val delta : env -> types -> types (* delta *)
 val reduce_nf : env -> types ->  types (* nf_all *)
+val whd : env -> evar_map -> types -> types (* whd_all *)
 val reduce_type : env -> evar_map -> types -> types (* betaiotazeta on types *)
 val chain_reduce : (* sequencing *)
   (env -> types -> types) ->

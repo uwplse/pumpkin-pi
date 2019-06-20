@@ -39,10 +39,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Definition consV' (A : Type) (a : A) (pv : sigT (vector A)) :=
-  existT (vector A) (S (projT1 pv)) (consV A (projT1 pv) a (projT2 pv)).
-
-Lift vector list in consV' as consV'_c.
+Lift vector list in cons'_c as consV'_c.
 Theorem testConsV:
   forall A a l,
     consV'_c A a l = @cons A a l.
@@ -79,7 +76,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Lift vector list in hd_vect as hd_lifted.
+Lift vector list in hd_vect_lifted as hd_lifted.
 
 Theorem test_hd:
   forall (A : Type) (default : A) (l : list A),
@@ -117,7 +114,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Lift orn_flist_flector_nat_inv orn_flist_flector_nat in hd_vectF as hdF_lifted.
+Lift orn_flist_flector_nat_inv orn_flist_flector_nat in hd_vectF_lifted as hdF_lifted.
 
 Theorem test_hdF:
   forall (default : nat) (l : natFlector.flist),
@@ -155,7 +152,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Lift vector list in hd_vect_error as hd_error_lifted.
+Lift vector list in hd_vect_error_lifted as hd_error_lifted.
 
 Theorem test_hd_error:
   forall (A : Type) (l : list A),
@@ -178,8 +175,6 @@ Definition append (A : Type) (l1 : list A) (l2 : list A) :=
     (fun (a : A) (_ : list A) (IH : list A) =>
       a :: IH)
     l1.
-
-
 
 Definition append_vect_inner (A : Type) (pv1 : sigT (vector A)) (pv2 : sigT (vector A)) :=
   vector_rect
@@ -206,8 +201,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Lift vector list in append_vect_inner as append_lifted_inner.
-Lift vector list in append_vect as append_lifted.
+Lift vector list in append_vect_lifted as append_lifted.
 
 Theorem test_append :
   forall (A : Type) (l1 : list A) (l2 : list A),

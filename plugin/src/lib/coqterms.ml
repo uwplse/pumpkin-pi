@@ -447,6 +447,12 @@ let delta (env : env) (trm : types) =
     Evd.empty
     (Reductionops.whd_delta env Evd.empty (EConstr.of_constr trm))
 
+(* Weak head reduction *)
+let whd (env : env) (sigma : evar_map) (trm : types) : types =
+  EConstr.to_constr
+    sigma
+    (Reductionops.whd_all env sigma (EConstr.of_constr trm))
+
 (*
  * There's a part of the env that has opacity info,
  * so if you want to make some things opaque, can add them

@@ -524,11 +524,15 @@ let lift_core env evd c ib_typ trm =
            mkLambda (n, t', b'), false
         | LetIn (n, trm, typ, e) ->
            (* LETIN *)
-           let trm' = lift_rec en ib_typ trm in
-           let typ' = lift_rec en ib_typ typ in
-           let en_e = push_let_in (n, trm, typ) en in
-           let e' = lift_rec en_e (shift ib_typ) e in
-           mkLetIn (n, trm', typ', e'), false
+           if l.is_fwd then
+             let trm' = lift_rec en ib_typ trm in
+             let typ' = lift_rec en ib_typ typ in
+             let en_e = push_let_in (n, trm, typ) en in
+             let e' = lift_rec en_e (shift ib_typ) e in
+             mkLetIn (n, trm', typ', e'), false
+           else
+             (* Needed for #58 we implement #42 *)
+             lift_rec en ib_typ (whd en evd tr), false
         | Case (ci, ct, m, bs) ->
            (* CASE (will not work if this destructs over A; preprocess first) *)
            let ct' = lift_rec en ib_typ ct in
@@ -592,7 +596,7 @@ let lift_core env evd c ib_typ trm =
 let do_lift_term env evd (l : lifting) trm =
   let (a_t, b_t, i_b_t) = typs_from_orn l env evd in
   let c = initialize_lift_config env evd l (a_t, b_t) in
-  lift_core env evd c i_b_t trm
+  lift_core env evd c i_b_t (trm )
 
 (*
  * Run the core lifting algorithm on a definition
