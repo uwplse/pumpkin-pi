@@ -1,95 +1,218 @@
-Note: DEVOID will eventually merge with [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH), and will likely
-move into that repository. 
+This is DEVOID, a plugin for automatic discovery of and lifting across 
+algebraic ornaments in Coq. It is the artifact for the ITP paper [Ornaments for Proof Reuse in Coq](http://tlringer.github.io/pdf/ornpaper.pdf).
+Please cite this paper when referring to DEVOID. A version of DEVOID that corresponds to the
+ITP camera-ready can be found in [this release](http://github.com/uwplse/ornamental-search/releases/tag/itp+equiv).
 
-# DEVOID
-
-DEVOID is a plugin for automatic discovery of and lifting across 
-algebraic ornaments in Coq. Basically, when you have two types
-A and B, where B is A indexed by some new type that is determined
-by a fold over A, DEVOID can search for the fold and functions
+Basically, when you have two types
+A (like `list`) and B (like `vector`), where B is A indexed by some new type (like `nat`) that is determined
+by a fold over A (like `length`), DEVOID can search for the fold and functions
 that relate A and B, and then lift functions and proofs between types.
-The produced functions and proofs are usually about as fast as the originals.
-See the examples for more detail. 
+The lifted functions and proofs are usually about as fast as the originals.
+See the paper and the examples for more detail.
 
-Note that DEVOID makes some additional assumptions about the syntax of your types for now,
-in particular that both types have the same number of contructors in the same order,
-and that there is one new hypothesis for each new index of each inductive hypothesis in B. 
-These restrictions are mostly for search. We hope to loosen them eventually.
+DEVOID will eventually be a part of [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH).
+The top-level functionality will likely move into that repository. This repository will likely still contain
+some libraries and DEVOID-specific functionality. Please stay tuned.
 
-## Dependencies
+# Getting Started with DEVOID
 
-The only dependency to use the plugin is Coq 8.8.
+This section of the README is a getting started guide for users.
+Please report any issues you encounter to GitHub issues, and please feel free to reach out with questions.
 
-To run the case study code, you also need the following:
-* The Equivalences for Free! [univalent parametricity framework](https://github.com/CoqHott/univalent_parametricity)
-* [Datamash](https://www.gnu.org/software/datamash/)
+## Building DEVOID
 
-## Building
-
-### Plugin
+The only dependency to use DEVOID is Coq 8.8. To build DEVOID, run these commands:
 
 ```
 coq_makefile -f _CoqProject -o Makefile
 make && make install
 ```
 
-### Case Study Dependencies
+## Using DEVOID
 
-Run the following to make the Equivalences for Free! univalent parametricity framework:
+For a complete overview of how to use the tool, see [Example.v](/plugin/coq/examples/Example.v).
+For those interested, more details can be found in Sections 2, 3, 4, and 5 of the paper.
+
+### Overview
+
+At a high level, there are two main commands: `Find ornament` to search for ornaments,
+and `Lift` to lift along those ornaments. `Find ornament` supports two additional options
+to increase user confidence and to make the functions that it generates more useful.
+
+In addition, there are two commands that help make DEVOID more useful: `Preprocess`
+for pattern matching and fixpoint support, and `Unpack` to help recover more user-friendly types.
+There is also work in progress on a general methodology (which will hopefully be automated in
+the future) to get even more user-friendly types.
+
+#### Search
+
+See [Example.v](coq/examples/Search.v) for an example of search.
+
+##### Command
 
 ```
-cd <path-to-univalent-parametricity>
+Find ornament A B as A_to_B.
+```
+
+This command searches for the relation that describes the algebraic ornament
+between A and B.
+
+##### Outputs 
+
+`Find ornament` returns three functions if successful: 
+
+1. `A_to_B`,
+2. `A_to_B_inv`, and 
+3. `A_to_B_index`.
+
+`A_to_B` and `A_to_B_inv` form a specific equivalence, with `A_to_B_index` describing the fold over `A`.
+
+##### Options for Correctness
+
+`Find ornament` supports two options. 
+By default, these options are disabled.
+Together, setting these two options tells `Find ornament` to prove that its outputs are correct.
+
+```
+Set DEVOID search prove coherence.
+```
+
+This option tells `Find ornament` to additionally generate a proof `A_to_B_coh` that shows that
+`A_to_B_index` computes the left projection of applying `A_to_B`.
+
+```
+Set DEVOID search prove equivalence.
+```
+
+This option tells `Find ornament` to generate proofs `A_to_B_section` and `A_to_B_retraction` that
+prove that `A_to_B` and `A_to_B_inv` form an equivalence.
+
+#### Lift
+
+See [Example.v](/plugin/coq/examples/Example.v) for an example of lifting.
+
+##### Command
+
+```
+`Lift A B in f as g.`
+``` 
+
+This command lifts a function or proof `f` along the discovered relation. You must call
+`Find ornament` on `A` and `B` before calling this command.
+
+##### Outputs
+
+`Lift` produces a function `g` which is the analogue of `f`.
+
+#### Additional Functionality
+
+This functionality is demonstrated in [Example.v](/plugin/coq/examples/Example.v).
+
+##### Preprocess
+
+The `Lift` command does not support pattern matching and fixpoints directly.
+To lift a function `f'` that uses pattern matching and (certain) fixpoints, run:
+
+```
+Preprocess f' as f.
+```
+
+Then, run:
+
+```
+Lift A B in f as g.
+```
+
+You can also run `Preprocess` on an entire module; see [ListToVect.v](/plugin/coq/examples/ListToVect.v)
+for an example of this.
+
+##### Unpack
+
+To recover a slightly more user-friendly type for a lifted term `g`, run:
+
+```
+Unpack g as g_u.
+```
+
+##### User-Friendly Types
+
+The type after `Unpack` still may not be very user-friendly.
+[Example.v](/plugin/coq/examples/Example.v) describes how to recover
+even more user-friendly types for lifted terms.
+
+For the status of a general methodology for this,
+see [GitHub issue #39](http://github.com/uwplse/ornamental-search/issues/39).
+
+### Assumptions
+
+DEVOID makes some assumptions about your terms and types for now (described in Section 3 of the paper).
+[Assumptions.v](/plugin/coq/examples/Assumptions.v) describes these assumptions in more detail
+and gives examples of unsupported terms and types.
+
+These assumptions are mostly to simplify search. We hope to loosen them eventually.
+If any are an immediate inconvenience to you, then please cut a GitHub issue with an example
+you would like to see supported so that we can prioritize accordingly.
+
+### Known Issues
+
+Please see our GitHub [issues](https://github.com/uwplse/ornamental-search/issues) before reporting a bug
+(though please do report any bugs not listed there).
+
+One outstanding issue (an unimplemented optimization) has consequences for how we lift and unpack large
+constants compositionally. For now, for large constants, you should prefer lifting several times and then unpacking
+the result several times over iteratively lifting and unpacking. See [this issue](https://github.com/uwplse/ornamental-search/issues/44).
+
+# Examples
+
+This part of the README explains the examples and how they correspond to the paper.
+You may find these useful as a user, as a reader, or as a developer.
+
+## Paper Examples
+
+The example from the paper are in the [examples](/plugin/coq/examples) directory.
+Here is an overview of the examples, in order of relevance to the paper:
+
+* [Intro.v](/plugin/coq/examples/Intro.v): Examples from Section 1 of the paper
+* [Example.v](/plugin/coq/examples/Example.v): Motivating example from Section 2 of the paper
+* [Assumptions.v](/plugin/coq/examples/Assumptions.v): Assumptions from Section 3 of the paper
+* [LiftSpec.v](/plugin/coq/examples/LiftSpec.v): Intuition for lifting from Section 3 of the paper
+* [Search.v](/plugin/coq/examples/Search.v): Search examples from Section 4 of the paper
+* [Lift.v](/plugin/coq/examples/Lift.v): Lifting examples from Section 4 of the paper
+* [ListToVect.v](/plugin/coq/examples/ListToVect.v): Example of preprocessing a module from Section 5 of the paper
+* [Projections.v](/plugin/coq/examples/Projections.v): Evidence for non-primitive projection claims from Section 5 of the paper
+
+## Other Examples
+
+The [coq](/plugin/coq) directory has more examples.
+These examples are regression tests, and so are not guaranteed to be useful
+to users. However, if you would like more examples, you may look there as well.
+
+The [eval](/plugin/eval) directory has examples from the case study from Section 6 of the paper.
+They may be a bit hard to read since there is some scripting going on.
+They may still be interesting to you whether or not you want to actually run the case study.
+
+# Case Study
+
+This section of the README describes how to reproduce the case study from Section 4 of the paper.
+The case study is in the [eval](/plugin/eval) directory.
+We support the case study scripts on only Linux right now.
+
+## Building the Case Study Code
+
+To run the case study code, you need the following additional dependencies:
+* The Equivalences for Free! [univalent parametricity framework](https://github.com/CoqHott/univalent_parametricity) (hereon EFF)
+* [Datamash](https://www.gnu.org/software/datamash/)
+
+Run the following to make EFF
+
+```
+cd <path-to-EFF>
 make && make install
 ```
 
 Datamash should install in a straightforward way from a package manager using the link above.
 
-## Running
-
-For a complete overview of how to use the tool, see `coq/examples/Example.v`. At a high level,
-there are two main commands:
-
-`Find ornament A B as A_to_B.`: Search for the relation that describes the algebraic ornament
-between A and B, and return three functions if successful: `A_to_B`, `A_to_B_inv`, and `A_to_B_index`.
-`A_to_B` and `A_to_B_inv` form a specific equivalence, with `A_to_B_index` describing the fold over `A`;
-if the `DEVOID search prove coherence` and `DEVOID search prove equivalence` options are set,
-DEVOID additionally produces proofs `A_to_B_coh`, `A_to_B_section`, and `A_to_B_retraction` that show this is true.
-See `coq/examples/Search.v` for an example of this on lists and vectors.
-
-`Lift A B in f as g.`: Lift a function along the discovered relation. See `coq/examples/Lift.v` for a few examples
-of how this works.
-
-There are two additional commands: `Preprocess` to preprocess terms for lifting,
-and `Unpack` to give you back types that are a little bit better than the automatically
-generated types. There is a methodology outlined in `coq/examples/Example.v` for recovering
-even more useful types.
-
-### Tests
-
-The test script runs all tests:
-
-```
-./test.sh
-```
-
-### Examples
-
-The example from the paper are in the `coq/example` directory. It is best to step through these one by one.
-
-### Case Study Code
-
-We only support the case study scripts on Linux right now.
-
-The case study uses the same exact input datatypes for both DEVOID and EFF,
-copying and pasting in the inputs, lifted functions, and equivalences DEVOID produces to run on the dependencies of EFF.
-The reasons for copying the inputs are that the Equivalences for Free! univalent parametricity framework (hereon EFF) has different
-Coq dependencies, so the base functions perform differently. In addition, lifting constants with EFF additionally slows down 
-performance, and we would like to control for only the performance of lifted functions, which is easiest to understand.
-
-The script takes a while, as it runs each function ten times each
-on large data both for DEVOID and for EFF.
-
-#### Reproducing the Paper Case Study
+## Reproducing the Paper Case Study
 
 The particular commit for EFF used for the results in the paper is [this commit](https://github.com/CoqHott/univalent_parametricity/tree/02383400c2711a1de1581e62e0a463759211d4df). We have rerun the experiments using 
 [this commit](https://github.com/CoqHott/univalent_parametricity/tree/993ec06760953331c588b47ba4ad423f7d2c0c46), 
@@ -98,17 +221,17 @@ be the same for different commits of EFF, especially later ones which may includ
 at the time of writing. Similarly, on different architectures, the numbers may be slightly different; the orders of 
 magnitude should be comparable.
 
-Enter the `eval` directory:
+Enter the [eval](/plugin/eval) directory:
 
-``
+```
 cd eval
-``
+```
 
 Increase your stack size:
 
-``
+```
 ulimit -s 100000
-``
+```
 
 Run the following script:
 
@@ -116,17 +239,19 @@ Run the following script:
 ./together.sh
 ```
 
-Then check the `together` folder for the median runtimes as well as the size of reduced functions.
+The script takes a while, as it runs each function ten times each
+on large data both for DEVOID and for EFF.
+When it is done, check the `results` folder for the median runtimes as well as the size of reduced functions.
 This also does a sanity check to make sure both versions of the code produce the same output.
 It does not yet try to reduce the proof of `pre_permutes` using EFF,
 otherwise the case study would take a very long time to run.
-To run this just once, enter the `equiv4free` directory:
+To run this just once, enter the [equiv4free](/plugin/eval/equiv4free) directory:
 
-``
+```
 cd equiv4free
-``
+```
 
-In that directory, uncomment the following line in `main.v`:
+In that directory, uncomment the following line in [main.v](/plugin/eval/equiv4free/main.v):
 
 ```
 (*Redirect "../out/normalized/pre_permutes-sizedEFFequiv" Eval compute in pre_permutes'.*)
@@ -140,22 +265,147 @@ Then run the following script, which runs the EFF code just once:
 
 This should take a while (how long depends on your architecture) and produce a very large term.
 
-### Known Issues
+## Understanding the Case Study Code
 
-Please see our GitHub [issues](https://github.com/uwplse/ornamental-search/issues) before reporting a bug
-(though please do report any bugs not listed there).
+The code for the case study is in the [eval](/plugin/eval) folder.
+The case study uses the same exact input datatypes for both DEVOID and EFF,
+copying and pasting in the inputs, lifted functions, and equivalences DEVOID produces to run on the dependencies of EFF.
+The reasons for copying the inputs are that EFF has different
+Coq dependencies, so the base functions perform differently. In addition, lifting constants with EFF additionally slows down 
+performance, and we would like to control for only the performance of lifted functions, which is easiest to understand.
 
-One outstanding issue (an unimplemented optimization) has consequences for how we lift and unpack large
-constants compositionally. For now, for large constants, you should prefer lifting several times and then unpacking
-the result several times over iteratively lifting and unpacking. See [this issue](https://github.com/uwplse/ornamental-search/issues/44).
+There is one other thing worth understanding about the case study code.
+We used to use this command to measure the performance of `foo`:
+
+```
+Eval vm_compute in foo.
+```
+
+An ITP reviewer noted that this includes the amount of time to print `foo`. This is a lot of
+overhead that clouds the usefulness of the data. The reviewer suggested writing:
+
+```
+Eval vm_compute in (let _ := foo in tt).
+```
+
+Unfortunately, Coq seems to be a bit too smart for that; it doesn't actually bother computing `foo`
+if you do that. Instead, we now write:
+
+```
+Eval vm_compute in (List.tl [foo]).
+```
+
+This forces Coq to compute `foo`, but ultimately prints `[]`, thereby not adding printing time.
+It does add the time to run `List.tl`, but this overhead is very minimal on a list of a single element
+(much more minimal than the overhead of printing).
+
+# Implementation and Development
+
+Transparency is very important to me and my coauthors. My goal is not just to produce a useful a tool,
+but also to demonstrate ideas that other people can use in their tools.
+
+Some information for transparency is in the paper:
+Section 4 discusses the core algorithms that DEVOID implements, and
+section 5 discusses a sample of implementation challenges.
+
+This part of the README is here to complement that. It describes the structure of the code a bit. It should also help if you are interested in contributing
+to DEVOID, or if you are interested in using some of the libraries from DEVOID in your code.
 
 ## Understanding the Code
 
-The top-level is in `ornamental.ml4`, which outsources to `frontend.ml`. From there, the two major functionalities
-are the search algorithm in `automation/search` and the lifting algorithm in `automation/lift`. Please ping me if you have any questions, 
-or create an issue so that I can patch up the code to better correspond to the paper.
+This is an outline of the structure of the code. Please cut an issue if you are confused about anything here.
+Please also feel free to ask if you are confused about anything that the code does.
 
+* [LICENSE](/LICENSE): License
+* [plugin](/plugin): Main directory for the plugin
+  - [coq](/plugin/coq): Tests and paper examples
+    - [examples](/plugin/coq/examples): Paper examples (see paper examples section of this document for details)
+      - [Intro.v](/plugin/coq/examples/Intro.v)
+      - [Example.v](/plugin/coq/examples/Example.v)
+      - [Assumptions.v](/plugin/coq/examples/Assumptions.v)
+      - [LiftSpec.v](/plugin/coq/examples/LiftSpec.v)
+      - [Search.v](/plugin/coq/examples/Search.v)
+      - [Lift.v](/plugin/coq/examples/Lift.v)
+      - [ListToVect.v](/plugin/coq/examples/ListToVect.v)
+      - [Projections.v](/plugin/coq/examples/Projections.v)
+    - [Indtype.v](/plugin/coq/Indtype.v): Lifting tests for inductive relations
+    - [Preprocess.v](/plugin/coq/Preprocess.v): Tests for preprocessing
+    - [PreprocessModule.v](/plugin/coq/PreprocessModule.v): Tests for whole-module preprocessing
+    - [ShouldFail.v](/plugin/coq/ShouldFail.v): Tests that should currently fail
+    - [Test.v](/plugin/coq/Test.v): Tests for search
+    - [TestLift.v](/plugin/coq/TestLift.v): Tests for lifting
+  - [eval](/plugin/eval): Case study code and dependencies
+    - [equiv4free](/plugin/eval/equiv4free): EFF case study code and depedencies
+      - [Makefile](/plugin/eval/equiv4free/Makefile)
+      - [cast.v](/plugin/eval/equiv4free/cast.v)
+      - [lemmas.v](/plugin/eval/equiv4free/lemmas.v)
+      - [list.v](/plugin/eval/equiv4free/list.v)
+      - [main.v](/plugin/eval/equiv4free): Main EFF case study code
+      - [perm.v](/plugin/eval/equiv4free)
+      - [prepermutes.sh](/plugin/eval/equiv4free/prepermutes.sh): Script to normalize `pre_permutes`
+    - [Makefile](/plugin/eval/Makefile)
+    - [cast.v](/plugin/eval/cast.v)
+    - [lemmas.v](/plugin/eval/lemmas.v)
+    - [main.v](/plugin/eval/main.v): Main DEVOID case study code
+    - [times.sed](/plugin/eval/times.sed): Script to format times
+    - [together.sh](/plugin/eval/together.sh): Main case study script
+  - [src](/plugin/src): Source directory
+    - [automation](/plugin/src/automation): Automation directory
+      - [coherence.ml](/plugin/src/automation/coherence.ml) and [coherence.mli](/plugin/src/automation/coherence.mli): **Proving coherence**
+      - [desugar.ml](/plugin/src/automation/desugar.ml) and [desugar.mli](/plugin/src/automation/desugar.mli): **Preprocessing terms**
+      - [equivalence.ml](/plugin/src/automation/equivalence.ml) and [equivalence.mli](/plugin/src/automation/equivalence.mli): **Proving section and retraction**
+      - [eta.ml](/plugin/src/automation/eta.ml) and [eta.mli](/plugin/src/automation/eta.mli): Automation for non-primitive projections
+      - [lift.ml](/plugin/src/automation/lift.ml) and [lift.mli](/plugin/src/automation/lift.mli): **Lifting terms**
+      - [search.ml](/plugin/src/automation/search.ml) and [search.mli](/plugin/src/automation/search.mli): **Searching for ornaments**
+      - [unpack.ml](/plugin/src/automation/unpack.ml) and [unpack.mli](/plugin/src/automation/unpack.mli): Converting the unpacking tactic to a command
+    - [cache](/plugin/src/cache): Caching ornaments and lifted terms
+      - [caching.ml](/plugin/src/cache/caching.ml) and [caching.mli](/plugin/src/cache/caching.mli)
+    - [components](/plugin/src/components): Components in the style of [PUMPKIN PATCH](http://tlringer.github.io/pdf/pumpkinpaper.pdf)
+      - [abstraction.ml](/plugin/src/components/abstraction.ml) and [abstraction.mli](/plugin/src/components/abstraction.mli): 
+      - [differencing.ml](differencing.ml) and [differencing.mli](/plugin/src/components/differencing.mli): 
+      - [factoring.ml](/plugin/src/components/factoring.ml) and [factoring.mli](/plugin/src/components/factoring.mli): 
+      - [specialization.ml](/plugin/src/components/specialization.ml) and [specialization.mli](/plugin/src/components/specialization.mli): 
+    - [lib](/plugin/src/lib): Useful utilities
+      - [coqterms.ml](/plugin/src/lib/coqterms.ml) and [coqterms.mli](/plugin/src/lib/coqterms.mli): Coq term management
+      - [debruijn.ml](/plugin/src/lib/debruijn.ml) and [debruijn.mli](/plugin/src/lib/debruijn.mli): De Bruijn index management 
+      - [hofs.ml](/plugin/src/lib/hofs.ml) and [hofs.mli](/plugin/src/lib/hofs.mli): Higher-order functions for powerful Coq term manipulation
+      - [hypotheses.ml](/plugin/src/lib/hypotheses.ml) and [hypotheses.mli](/plugin/src/lib/hypotheses.mli): Hypothesis management
+      - [indexing.ml](/plugin/src/lib/indexing.ml) and [indexing.mli](/plugin/src/lib/indexing.mli): Inductive type index management
+      - [printing.ml](/plugin/src/lib/printing.ml) and [printing.mli](/plugin/src/lib/printing.mli): Very detailed term printing functions
+      - [utilities.ml](/plugin/src/lib/utilities.ml) and [utilities.mli](/plugin/src/lib/utilities.mli): Basic utilities
+      - [zooming.ml](/plugin/src/lib/zooming.ml) and [zooming.mli](/plugin/src/lib/zooming.mli): Higher-order functions for contextual Coq term management
+    - [ornaments](/plugin/src/ornaments): Internal representations and configuration
+      - [lifting.ml](/plugin/src/ornaments/lifting.ml) and [lifting.mli](/plugin/src/ornaments/lifting.mli)
+    - [frontend.ml](/plugin/src/frontend.ml) and [frontend.mli](/plugin/src/frontend.mli): Main functionality for commands
+    - [options.ml](/plugin/src/options.ml) and [options.mli](/plugin/src/options.mli): Definitions of and access to options
+    - [ornamental.ml4](/plugin/src/ornamental.ml4): **Top-level source file**
+    - [ornaments.mlpack](/plugin/src/ornaments.mlpack)
+  - [theories](/plugin/theories): DEVOID theories
+    - [Lifted.v](/plugin/theories/Lifted.v): Canonical structure to cache lifted terms
+    - [Ornaments.v](/plugin/theories/Ornaments.v): Loader theory for DEVOID
+    - [Unpack.v](/plugin/theories/Unpack.v): **Unpacking terms** (Ltac tactic)
+* [.gitignore](/.gitignore)
+* [README.md](/README.md)
 
+## Regression Testing
 
+The test script in the [plugin](/plugin) directory runs all of the regression tests:
 
+```
+./test.sh
+```
+
+After making a change to DEVOID, you should always run this. You should
+also run the case study scripts to check performance.
+
+## Licensing and Attribution
+
+DEVOID is MIT licensed, since I have a very strong preference for the MIT license and
+since I believe I do not need to use Coq's LGPL when writing language plugins.
+This interpretation might be wrong, though, so I suppose you should tread lightly.
+If you are an expert in licensing, definitely let me know if this is wrong.
+
+Regardless, I would like DEVOID to be used freely by anyone for any purpose.
+All I ask for is attribution, especially in any papers that you publish that use DEVOID
+or any of its code. Please cite the ITP paper when referring to DEVOID in those papers.
 
