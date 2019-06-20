@@ -19,6 +19,20 @@ open Declarations
 open Util
 open Differencing
 
+(* --- Error messages for the user --- *)
+       
+let unsupported_change_error =
+  Pp.str
+    "change not yet supported; request on GitHub issues if interested"
+
+let new_parameter_error =
+  Pp.str
+    "new parameters not yet supported; request on GitHub issues if interested"
+
+let new_constructor_error =
+  Pp.str
+    "new constructors not yet supported; request on GitHub issues if interested"
+    
 (* --- Finding the new index --- *)
 
 (* 
@@ -491,21 +505,24 @@ let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
      let (npm_o, npm_n) = map_tuple (fun m -> m.mind_nparams) (m_o, m_n) in
      if not (npm_o = npm_n) then
        (* new parameter *)
-       CErrors.user_err
-         (Pp.str "new parameters are not supported; request on Github issues if interested")
+       CErrors.user_err new_parameter_error
      else
-       let npm = npm_o in
-       let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
-       let (arity_o, arity_n) = map_tuple arity (typ_o, typ_n) in
-       if not (arity_o = arity_n) then
-         (* new index *)
-         let o = (trm_o, arity_o) in
-         let n = (trm_n, arity_n) in
-         let (a, b) = map_if reverse (arity_n <= arity_o) (o, n) in
-         search_algebraic env evd npm indexer_id a b
+       let (bs_o, bs_n) = map_tuple (fun m -> m.mind_packets) (m_o, m_n) in
+       let (b_o, b_n) = map_tuple (fun bs -> Array.get bs 0) (bs_o, bs_n) in
+       let (cs_o, cs_n) = map_tuple (fun m -> m.mind_consnames) (b_o, b_n) in
+       if not (Array.length cs_o = Array.length cs_n) then
+         CErrors.user_err new_constructor_error
        else
-         CErrors.user_err
-           (Pp.str "this kind of change is not yet supported; request on Github issues if interested")
+         let npm = npm_o in
+         let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
+         let (arity_o, arity_n) = map_tuple arity (typ_o, typ_n) in
+         if not (arity_o = arity_n) then
+           (* new index *)
+           let o = (trm_o, arity_o) in
+           let n = (trm_n, arity_n) in
+           let (a, b) = map_if reverse (arity_n <= arity_o) (o, n) in
+           search_algebraic env evd npm indexer_id a b
+         else
+           CErrors.user_err unsupported_change_error
   | _ ->
-     CErrors.user_err
-       (Pp.str "this kind of change is not yet supported; request on Github issues if interested")
+     CErrors.user_err unsupported_change_error
