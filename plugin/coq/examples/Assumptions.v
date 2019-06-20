@@ -14,28 +14,42 @@ Require Import List.
 (* --- Same number of constructors --- *)
 
 (*
- * We require that B has the same number of constructors in
- * the same order as A. We cannot, for example,
- * find this ornament:
+ * We require that B has the same number of constructors as A. 
+ * We cannot, for example, find this ornament:
  *)
 
 Inductive vector3 (T : Type) : nat -> Type :=
 | nilV3 : vector3 T 0
-| nilV3' : vector3 T 0
-| consV3 : forall (n : nat), T -> vector3 T n -> vector3 T (S n).
+| consV30 : T -> vector3 T 1
+| consV3S : forall (n : nat), T -> vector3 T (S n) -> vector3 T (S (S n)).
 
 Fail Find ornament list vector3 as ltv3.
 
+(*
+ * This is not fundamental to the original definition of ornaments.
+ * The definition of "same inductive structure" can in fact capture types
+ * with different numbers of constructors. 
+ *
+ * This example isn't minimal; there are other reasons we can't support it yet.
+ * But the reason we don't support different numbers of constructors is that
+ * it requires search to understand that both consV30 and consV3S corespond to
+ * the cons case of a list. That is, that we can combine them to get consV.
+ *
+ * This is absolutely possible, it is just not done yet.
+ *)
+
 (* --- Same order of constructors --- *)
 
-Definition vector_flip (T : Type) : nat -> Type :=
-| consV : forall (n : nat), T -> vector_flip T n -> vector_flip T (S n)
-- 
-
-
- * This restriction exists to simplify
- * search. S
+(*
+ * We require that B has constructors in the same order as A.
+ * We cannot, for example, find this ornament:
  *)
+
+Inductive vector_flip (T : Type) : nat -> Type :=
+| consVflip : forall (n : nat), T -> vector_flip T n -> vector_flip T (S n)
+| nilVflip : vector_flip T 0.
+
+Fail Find ornament list vector_flip as ltv_flip.
 
 (* 
 B has the same number of constructors in the same order as A ,

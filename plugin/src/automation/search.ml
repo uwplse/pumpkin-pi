@@ -129,7 +129,7 @@ let index_case env off p a b : types =
            (* INDEX-PROD *)
            mkLambda (n_a, t_a, diff_b (shift_subs subs) e_b a b)
     | _ ->
-       failwith "unexpected case"
+       CErrors.user_err unsupported_change_error
   in diff_case p (mkRel 1) [] env a b
 
 (* Get the cases for the indexer *)
