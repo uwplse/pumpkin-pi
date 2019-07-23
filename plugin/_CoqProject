@@ -1,3 +1,5 @@
+-I src/coq-plugin-lib/src/utilities
+-I src/coq-plugin-lib/src/coq
 -I src/lib
 -I src/ornaments
 -I src/cache
@@ -6,21 +8,24 @@
 -I src
 -R theories Ornamental
 
-src/lib/utilities.ml
-src/lib/utilities.mli
+src/coq-plugin-lib/src/utilities/utilities.ml
+src/coq-plugin-lib/src/utilities/utilities.mli
 
-src/lib/coqterms.ml
-src/lib/coqterms.mli
-src/lib/debruijn.ml
-src/lib/debruijn.mli
-src/lib/zooming.ml
-src/lib/zooming.mli
-src/lib/hofs.ml
-src/lib/hofs.mli
+src/coq-plugin-lib/src/coq/coqterms.ml
+src/coq-plugin-lib/src/coq/coqterms.mli
+src/coq-plugin-lib/src/coq/debruijn.ml
+src/coq-plugin-lib/src/coq/debruijn.mli
+src/coq-plugin-lib/src/coq/zooming.ml
+src/coq-plugin-lib/src/coq/zooming.mli
+src/coq-plugin-lib/src/coq/hofs.ml
+src/coq-plugin-lib/src/coq/hofs.mli
+src/coq-plugin-lib/src/coq/substitution.ml
+src/coq-plugin-lib/src/coq/substitution.mli
+src/coq-plugin-lib/src/coq/printing.ml
+src/coq-plugin-lib/src/coq/printing.mli
+
 src/lib/indexing.ml
 src/lib/indexing.mli
-src/lib/printing.ml
-src/lib/printing.mli
 src/lib/hypotheses.ml
 src/lib/hypotheses.mli
 

@@ -4,6 +4,7 @@ Coqterms
 Debruijn
 Zooming
 Hofs
+Substitution
 Indexing
 Printing
 Hypotheses

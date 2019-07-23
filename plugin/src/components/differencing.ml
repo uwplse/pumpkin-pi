@@ -17,7 +17,7 @@ let same_type env evd o n =
   let (env_o, t_o) = o in
   let (env_n, t_n) = n in
   try
-    convertible env (infer_type env_o evd t_o) (infer_type env_n evd t_n)
+    convertible env Evd.empty (infer_type env_o evd t_o) (infer_type env_n evd t_n)
   with _ ->
     false
 
@@ -45,7 +45,7 @@ let apply_old_new (o : types * types) (n : types * types) : bool =
 (* Check if two terms are the same modulo a change of an inductive type *)
 let same_mod_change env o n =
   let (t_o, t_n) = map_tuple snd (o, n) in
-  apply_old_new o n || convertible env t_o t_n
+  apply_old_new o n || convertible env Evd.empty t_o t_n
 
 (* Check if two terms are the same modulo an indexing of an inductive type *)
 let same_mod_indexing env p_index o n =
@@ -140,7 +140,7 @@ let new_index_type env elim_t_o elim_t_n =
   let rec candidates e p_o p_n =
     match map_tuple kind (p_o, p_n) with
     | (Prod (n_o, t_o, b_o), Prod (_, t_n, b_n)) ->
-       if isProd b_o && convertible e t_o t_n then
+       if isProd b_o && convertible e Evd.empty t_o t_n then
          let e_b = push_local (n_o, t_o) e in
          let same = candidates e_b b_o b_n in
          let different = (0, t_n) in
@@ -163,11 +163,11 @@ let diff_context_simple env decls_o decls_n =
       let type_n = Rel.Declaration.get_type decl_n in
       let env_b = push_rel decl_n env in
       let pos_b = pos + 1 in
-      if convertible env type_o type_n then
+      if convertible env Evd.empty type_o type_n then
         let diff_b = scan env_b pos_b diff (decls_o_b, decls_n_b) in
         if Option.has_some diff_b && Option.get diff_b = pos_b then
           let type_i = nth_type pos_b in
-          if not (convertible env_b (shift type_o) type_i) then
+          if not (convertible env_b Evd.empty (shift type_o) type_i) then
             diff_b
           else
             None (* ambiguous, can't use this heuristic *)
