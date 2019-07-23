@@ -1019,6 +1019,11 @@ let map_term f d (a : 'a) (trm : types) : types =
 
 (* --- Names --- *)
 
+(* Look up the name referenced by a term and append a suffix to it. *)
+let suffix_term_name term suffix =
+  let base = Nametab.basename_of_global (Globnames.global_of_constr term) in
+  Nameops.add_suffix base (Names.Id.to_string suffix)
+
 (* Add a suffix to a name identifier *)
 let with_suffix id suffix =
   let prefix = Id.to_string id in

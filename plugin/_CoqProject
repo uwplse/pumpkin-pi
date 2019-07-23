@@ -1,3 +1,4 @@
+-I src/coq-plugin-lib/src/utilities
 -I src/lib
 -I src/ornaments
 -I src/cache
@@ -6,8 +7,8 @@
 -I src
 -R theories Ornamental
 
-src/lib/utilities.ml
-src/lib/utilities.mli
+src/coq-plugin-lib/src/utilities/utilities.ml
+src/coq-plugin-lib/src/utilities/utilities.mli
 
 src/lib/coqterms.ml
 src/lib/coqterms.mli

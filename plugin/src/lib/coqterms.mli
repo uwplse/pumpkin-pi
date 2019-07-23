@@ -553,6 +553,9 @@ val map_term :
 
 (* --- Names --- *)
 
+(* Look up the name referenced by a term and append a suffix to it. *)
+val suffix_term_name : constr -> Names.Id.t -> Names.Id.t
+
 (*
  * Add a string suffix to a name identifier
  *)

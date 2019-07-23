@@ -14,6 +14,7 @@ open Printer
 open Coherence
 open Equivalence
 open Options
+open Coqterms
 
 (* --- Commands --- *)
 
