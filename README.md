@@ -21,11 +21,12 @@ Please report any issues you encounter to GitHub issues, and please feel free to
 
 ## Building DEVOID
 
-The only dependency to use DEVOID is Coq 8.8. To build DEVOID, run these commands:
+The only dependency you need to use DEVOID is Coq 8.8. DEVOID depends on a Coq plugin library which is included
+as a submodule automatically in the build script. To build DEVOID, run these commands:
 
 ```
-coq_makefile -f _CoqProject -o Makefile
-make && make install
+cd plugin
+./build.sh
 ```
 
 ## Using DEVOID
