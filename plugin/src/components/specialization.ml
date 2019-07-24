@@ -4,6 +4,7 @@
 
 open Lifting
 open Hofs
+open Substitution
 open Coqterms
 open Utilities
 open Indexing
@@ -83,7 +84,7 @@ let rec all_recursive_constants env trm =
 let fold_back_constants env f trm =
   List.fold_left
     (fun red lifted ->
-      all_conv_substs env (lifted, lifted) red)
+      all_conv_substs env Evd.empty (lifted, lifted) red)
     (f (reduce_nf env trm))
     (all_recursive_constants env trm)
          

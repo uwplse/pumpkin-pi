@@ -11,6 +11,7 @@ open Utilities
 open Debruijn
 open Indexing
 open Hofs
+open Substitution
 open Factoring
 open Zooming
 open Abstraction
