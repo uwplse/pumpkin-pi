@@ -1,6 +1,5 @@
 -I src/coq-plugin-lib/src/utilities
 -I src/coq-plugin-lib/src/coq
--I src/lib
 -I src/ornaments
 -I src/cache
 -I src/components
@@ -53,8 +52,6 @@ src/automation/eta.ml
 src/automation/eta.mli
 src/automation/lift.ml
 src/automation/lift.mli
-src/automation/desugar.ml
-src/automation/desugar.mli
 src/automation/unpack.ml
 src/automation/unpack.mli
 
