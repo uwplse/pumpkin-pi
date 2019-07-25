@@ -1,8 +1,6 @@
 #!/bin/bash
 
 lifted=false
-desugared=false
-desugaredmod=false
 liftedind=false
 liftedcase=false
 
@@ -17,20 +15,6 @@ fi
 if coqc coq/TestLift.v
 then
   lifted=true
-else
-  :
-fi
-
-if coqc coq/Preprocess.v
-then
-    desugared=true
-else
-    :
-fi
-
-if coqc coq/PreprocessModule.v
-then
-  desugaredmod=true
 else
   :
 fi
@@ -82,18 +66,6 @@ else
     echo "lifting"
   else
     :
-  fi
-  if [ !$desugared = true ]
-  then
-    echo "desugaring fix/match expressions"
-  else
-    :
-  fi
-  if [ !$desugaredmod = true ]
-  then
-      echo "desugaring fix/match expressions throughout a whole module"
-  else
-      :
   fi
   if [ !$liftedind = true ]
   then

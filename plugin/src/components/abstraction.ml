@@ -4,10 +4,11 @@
 
 open Constr
 open Debruijn
-open Coqterms
 open Indexing
 open Names
-
+open Apputils
+open Reducers
+       
 (*
  * Given an application and the index of the argument, abstract by the argument
  *)

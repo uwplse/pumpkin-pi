@@ -22,16 +22,6 @@ VERNAC COMMAND EXTEND LiftOrnament CLASSIFIED AS SIDEFF
   [ lift_by_ornament ~suffix:true n d_orn d_orn_inv d_old ]
 END
 
-(* Desugar any/all fix/match subterms into eliminator applications *)
-VERNAC COMMAND EXTEND TranslateMatch CLASSIFIED AS SIDEFF
-| [ "Preprocess" reference(const_ref) "as" ident(id) ] ->
-  [ do_desugar_constant id const_ref ]
-| [ "Preprocess" "Module" reference(mod_ref) "as" ident(id) ] ->
-  [ do_desugar_module id mod_ref ]
-| [ "Preprocess" "Module" reference(mod_ref) "as" ident(id) "{" "include" ne_reference_list_sep(incl_refs, ",") "}" ] ->
-  [ do_desugar_module ~incl:incl_refs id mod_ref ]
-END
-
 (* Register the Ltac script for sigma unpacking *)
 VERNAC COMMAND EXTEND UnpackSigma CLASSIFIED AS SIDEFF
 | [ "Unpack" reference(const_ref) "as" ident(id) ] ->

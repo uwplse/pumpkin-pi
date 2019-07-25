@@ -1,9 +1,13 @@
 open Constr
 open Environ
-open Coqterms
 open Utilities
 open Zooming
 open Lifting
+open Typehofs
+open Envutils
+open Apputils
+open Equtils
+open Sigmautils
 
 (* --- Automatically generated coherence proof --- *)
 

@@ -1,13 +1,35 @@
 Utilities
 
-Coqterms
-Debruijn
-Zooming
+Apputils
+Constutils
+Funutils
+
+Defutils
+Nameutils
+
+Inference
+Convertibility
+
+Equtils
+Sigmautils
+Idutils
+
+Envutils
+Contextutils
+
 Hofs
+Debruijn
+Hofimpls
 Substitution
-Indexing
-Printing
+Reducers
+Typehofs
+Zooming
 Hypotheses
+
+Indexing
+Indutils
+
+Printing
 
 Lifting
 

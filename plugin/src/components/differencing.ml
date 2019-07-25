@@ -4,11 +4,14 @@
 
 open Constr
 open Environ
-open Coqterms
 open Utilities
 open Debruijn
 open Context
 open Util
+open Convertibility
+open Inference
+open Apputils
+open Envutils
 
 (* --- Differencing terms --- *)
 

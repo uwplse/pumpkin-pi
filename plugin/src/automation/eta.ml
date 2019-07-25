@@ -10,8 +10,11 @@ open Constr
 open Constrexpr
 open Constrexpr_ops
 open Constrextern
-
-open Coqterms
+open Contextutils
+open Apputils
+open Sigmautils
+open Nameutils
+open Envutils
 
 (*
  * Apply Coq's name-freshening policy (i.e., increment subscript if necessary)

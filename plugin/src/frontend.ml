@@ -1,12 +1,10 @@
 open Constr
 open Names
 open Globnames
-open Coqterms
 open Lifting
 open Caching
 open Search
 open Lift
-open Desugar
 open Unpack
 open Utilities
 open Pp
@@ -14,7 +12,11 @@ open Printer
 open Coherence
 open Equivalence
 open Options
-open Coqterms
+open Typehofs
+open Constutils
+open Nameutils
+open Defutils
+open Envutils
 
 (* --- Commands --- *)
 
@@ -63,8 +65,10 @@ let maybe_prove_equivalence n inv_n : unit =
  *)
 let find_ornament n_o d_old d_new =
   let (evd, env) = Pfedit.get_current_context () in
-  let trm_o = unwrap_definition env (intern env evd d_old) in
-  let trm_n = unwrap_definition env (intern env evd d_new) in
+  let evd, def_o = intern env evd d_old in
+  let evd, def_n = intern env evd d_new in
+  let trm_o = unwrap_definition env def_o in
+  let trm_n = unwrap_definition env def_n in
   match map_tuple kind (trm_o, trm_n) with
   | Ind ((m_o, _), _), Ind ((m_n, _), _) ->
     let (_, _, lab_o) = KerName.repr (MutInd.canonical m_o) in
@@ -122,9 +126,9 @@ let lift_inductive_by_ornament env evm n s l c_old =
  *)
 let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
   let (evd, env) = Pfedit.get_current_context () in
-  let c_orn = intern env evd d_orn in
-  let c_orn_inv = intern env evd d_orn_inv in
-  let c_old = intern env evd d_old in
+  let evd, c_orn = intern env evd d_orn in
+  let evd, c_orn_inv = intern env evd d_orn_inv in
+  let evd, c_old = intern env evd d_old in
   let n_new = if suffix then suffix_term_name c_old n else n in
   let s = if suffix then Id.to_string n else "_" ^ Id.to_string n in
   let us = map_tuple (unwrap_definition env) (c_orn, c_orn_inv) in
@@ -141,44 +145,6 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
       lift_definition_by_ornament env evd n_new l c_old
   else
     lift_definition_by_ornament env evd n_new l c_old
-
-(*
- * Translate each fix or match subterm into an equivalent application of an
- * eliminator, defining the new term with the given name.
- *
- * Mutual fix or cofix subterms are not supported.
- *)
-let do_desugar_constant ident const_ref =
-  ignore
-    begin
-      qualid_of_reference const_ref |> Nametab.locate_constant |>
-      Global.lookup_constant |> transform_constant ident desugar_constr
-    end
-
-(*
- * Translate fix and match expressions into eliminations, as in
- * do_desugar_constant, compositionally throughout a whole module.
- *
- * The optional argument is a list of constants outside the module to include
- * in the translated module as if they were components in the input module.
- *)
-let do_desugar_module ?(incl=[]) ident mod_ref =
-  let open Util in
-  let consts = List.map (qualid_of_reference %> Nametab.locate_constant) incl in
-  let include_constant subst const =
-    let ident = Label.to_id (Constant.label const) in
-    let tr_constr env evm = subst_globals subst %> desugar_constr env evm in
-    let const' =
-      Global.lookup_constant const |> transform_constant ident tr_constr
-    in
-    Globmap.add (ConstRef const) (ConstRef const') subst
-  in
-  let init () = List.fold_left include_constant Globmap.empty consts in
-  ignore
-    begin
-      qualid_of_reference mod_ref |> Nametab.locate_module |>
-      Global.lookup_module |> transform_module_structure ~init ident desugar_constr
-    end
 
 (*
  * Unpack sigma types in the functional signature of a constant.

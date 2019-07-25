@@ -1,6 +1,5 @@
 open Constr
 open Environ
-open Coqterms
 open Utilities
 open Debruijn
 open Indexing
@@ -11,6 +10,15 @@ open Zooming
 open Lifting
 open Hypotheses
 open Specialization
+open Inference
+open Typehofs
+open Indutils
+open Envutils
+open Reducers
+open Apputils
+open Equtils
+open Contextutils
+open Sigmautils
 
 (* --- Automatically generated equivalence proofs about search components --- *)
 
@@ -67,7 +75,7 @@ let eq_lemmas env evd typ l =
     (fun c_index _ ->
       let c = mkConstructU (((i, i_index), c_index + 1), u) in
       let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
-      let c_body = reduce_term env_c_b c_body in
+      let c_body = reduce_term env_c_b Evd.empty c_body in
       let c_args = unfold_args c_body in
       let recs = List.filter (on_type (is_or_applies typ) env_c_b evd) c_args in
       let env_lemma = eq_lemmas_env env_c_b evd recs l in
@@ -147,14 +155,14 @@ let equiv_case env evd pms p eq_lemma l c =
       | App (_, _) ->
          (* conclusion: apply eq lemma and beta-reduce *)
          let all_args = List.rev_append hypos (List.rev args) in
-         reduce_term e (mkAppl (shift_by depth eq_lemma, all_args))
+         reduce_term e Evd.empty (mkAppl (shift_by depth eq_lemma, all_args))
       | Prod (n, t, b) ->
          let case_b = case (push_local (n, t) e) (shift_i depth) in
          let p_rel = shift_by depth (mkRel 1) in
          let h = mkRel 1 in
          if applies p_rel t then
            (* IH *)
-           let t = reduce_term e (mkAppl (shift_by depth p, unfold_args t)) in
+           let t = reduce_term e Evd.empty (mkAppl (shift_by depth p, unfold_args t)) in
            let trm = (dest_eq t).trm2 in
            let args =
              map_directional

@@ -4,11 +4,14 @@
 
 open Utilities
 open Constr
-open Coqterms
-open Zooming
-open Hofs
 open Evd
 open Environ
+open Apputils
+open Sigmautils
+open Typehofs
+open Zooming
+open Envutils
+open Hofimpls
 
 (* --- Datatypes --- *)
 
