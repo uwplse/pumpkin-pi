@@ -4,6 +4,10 @@ Coqterms
 Debruijn
 Zooming
 Hofs
+Termdiffutils
+Typeutils
+Typediffutils
+Indutils
 Substitution
 Indexing
 Printing

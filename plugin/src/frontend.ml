@@ -14,6 +14,7 @@ open Coherence
 open Equivalence
 open Options
 open Coqterms
+open Typeutils
 
 (* --- Commands --- *)
 

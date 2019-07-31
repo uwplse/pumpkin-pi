@@ -11,6 +11,8 @@ open Zooming
 open Lifting
 open Hypotheses
 open Specialization
+open Typeutils
+open Indutils
 
 (* --- Automatically generated equivalence proofs about search components --- *)
 

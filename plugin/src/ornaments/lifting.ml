@@ -9,6 +9,7 @@ open Zooming
 open Hofs
 open Evd
 open Environ
+open Typeutils
 
 (* --- Datatypes --- *)
 

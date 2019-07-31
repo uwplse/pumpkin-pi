@@ -19,6 +19,9 @@ open Lifting
 open Declarations
 open Util
 open Differencing
+open Termdiffutils
+open Indutils
+open Typeutils
 
 (* --- Error messages for the user --- *)
        

@@ -4,6 +4,7 @@ open Coqterms
 open Utilities
 open Zooming
 open Lifting
+open Typeutils
 
 (* --- Automatically generated coherence proof --- *)
 

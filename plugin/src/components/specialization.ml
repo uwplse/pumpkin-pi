@@ -10,6 +10,7 @@ open Utilities
 open Indexing
 open Abstraction
 open Constr
+open Typeutils
 
 (* --- Packing--- *)
 
