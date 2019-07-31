@@ -4,9 +4,10 @@ Coqterms
 Debruijn
 Zooming
 Hofs
-Termdiffutils
+Inference
+Convertibility
 Typeutils
-Typediffutils
+Diffutils
 Indutils
 Substitution
 Indexing

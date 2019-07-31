@@ -9,8 +9,9 @@ open Utilities
 open Debruijn
 open Context
 open Util
-open Termdiffutils
-open Typeutils
+open Convertibility
+open Inference
+open Diffutils
 
 (* --- Differencing terms --- *)
 

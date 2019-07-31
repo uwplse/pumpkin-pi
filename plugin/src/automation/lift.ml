@@ -17,6 +17,7 @@ open Caching
 open Declarations
 open Specialization
 open Printing
+open Inference
 open Typeutils
 open Indutils
 

@@ -19,7 +19,8 @@ open Lifting
 open Declarations
 open Util
 open Differencing
-open Termdiffutils
+open Inference
+open Diffutils
 open Indutils
 open Typeutils
 

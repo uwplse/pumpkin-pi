@@ -11,6 +11,7 @@ open Zooming
 open Lifting
 open Hypotheses
 open Specialization
+open Inference
 open Typeutils
 open Indutils
 
