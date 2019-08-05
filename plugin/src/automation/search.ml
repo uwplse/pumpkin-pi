@@ -6,7 +6,6 @@
 open Names
 open Constr
 open Environ
-open Coqterms
 open Utilities
 open Debruijn
 open Indexing
@@ -20,9 +19,15 @@ open Declarations
 open Util
 open Differencing
 open Inference
-open Diffutils
 open Indutils
-open Typeutils
+open Typehofs
+open Funutils
+open Apputils
+open Envutils
+open Contextutils
+open Sigmautils
+open Reducers
+open Constutils
 
 (* --- Error messages for the user --- *)
        
@@ -375,7 +380,7 @@ let pack_hypothesis_type env ib_typ packer (id, unpacked_typ) : env =
  * Apply the packer to the index
  *)
 let apply_packer env packer arg =
-  reduce_term env (mkAppl (packer, [arg]))
+  reduce_term env Evd.empty (mkAppl (packer, [arg]))
 
 (*
  * Remove the index from the environment, and adjust terms appropriately
@@ -413,7 +418,7 @@ let pack_hypothesis env evd idx b unpacked =
   let arg = mkRel 1 in
   let arg_typ = on_type dest_sigT env_packed evd arg in
   let (index, value) = projections arg_typ arg in
-  (env_packed, reduce_term env_packed (mkAppl (unpacked, [index; value])))
+  (env_packed, reduce_term env_packed Evd.empty (mkAppl (unpacked, [index; value])))
 
 (*
  * This packs an ornamental promotion to/from an indexed type like Vector A n,

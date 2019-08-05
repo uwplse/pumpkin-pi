@@ -5,13 +5,16 @@
 open Lifting
 open Hofs
 open Substitution
-open Coqterms
 open Utilities
 open Indexing
 open Abstraction
 open Constr
 open Inference
-open Typeutils
+open Typehofs
+open Reducers
+open Apputils
+open Sigmautils
+open Envutils
 
 (* --- Packing--- *)
 
@@ -87,7 +90,7 @@ let fold_back_constants env f trm =
   List.fold_left
     (fun red lifted ->
       all_conv_substs env Evd.empty (lifted, lifted) red)
-    (f (reduce_nf env trm))
+    (f (reduce_nf env Evd.empty trm))
     (all_recursive_constants env trm)
          
 (*
@@ -97,7 +100,7 @@ let fold_back_constants env f trm =
 let refold_packed l evd orn env arg app_red =
   let typ_args = non_index_typ_args l.off env evd arg in
   let orn_app = mkAppl (orn, snoc arg typ_args) in
-  let orn_app_red = reduce_nf env orn_app in
+  let orn_app_red = reduce_nf env Evd.empty orn_app in
   let app_red_ex = dest_existT app_red in
   let orn_app_red_ex = dest_existT orn_app_red in
   let abstract = abstract_arg env evd l.off in
@@ -118,7 +121,7 @@ let refold_packed l evd orn env arg app_red =
 let refold_projected l evd orn env arg app_red =
   let typ_args = non_index_typ_args l.off env evd arg in
   let orn_app = mkAppl (orn, snoc arg typ_args) in
-  let orn_app_red = reduce_nf env orn_app in
+  let orn_app_red = reduce_nf env Evd.empty orn_app in
   all_eq_substs (orn_app_red, lift env evd l arg) app_red
 
 (*

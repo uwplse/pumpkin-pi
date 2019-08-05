@@ -1,7 +1,6 @@
 open Constr
 open Names
 open Globnames
-open Coqterms
 open Lifting
 open Caching
 open Search
@@ -13,8 +12,11 @@ open Printer
 open Coherence
 open Equivalence
 open Options
-open Coqterms
-open Typeutils
+open Typehofs
+open Constutils
+open Nameutils
+open Defutils
+open Envutils
 
 (* --- Commands --- *)
 

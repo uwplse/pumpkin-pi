@@ -1,5 +1,4 @@
 open Constr
-open Coqterms
 open Names
 open Recordops
 open Libnames
@@ -9,6 +8,7 @@ open Utilities
 open Libobject
 open Lib
 open Mod_subst
+open Defutils
 
 (* --- Database of liftings for higher lifting --- *)
 
@@ -52,10 +52,7 @@ let declare_lifted base_gref lifted_gref =
       (construct_term, [|base_type; lifted_type; base_term; lifted_term|])
   in
   let n = name_lifted base_gref in
-  let hook = Lemmas.mk_hook (fun _ x -> declare_canonical_structure x; x) in
-  let k = (Global, Flags.is_universe_polymorphism (), CanonicalStructure) in
-  let udecl = Univdecls.default_univ_decl in
-  ignore (edeclare n k ~opaque:false evm udecl packed_term None [] hook true)
+  ignore (define_canonical n evm (EConstr.to_constr evm packed_term) true) (* TODO extra conv. *) 
 
 (** Retrieve the canonical lifting, as a term, for the global reference
     [base_gref]. *)
