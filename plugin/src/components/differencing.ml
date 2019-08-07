@@ -19,8 +19,10 @@ open Envutils
 let same_type env evd o n =
   let (env_o, t_o) = o in
   let (env_n, t_n) = n in
+  let evd, typ_o = infer_type env_o evd t_o in
+  let evd, typ_n = infer_type env_o evd t_n in
   try
-    convertible env Evd.empty (infer_type env_o evd t_o) (infer_type env_n evd t_n)
+    convertible env Evd.empty typ_o typ_n (* TODO fix later *)
   with _ ->
     false
 

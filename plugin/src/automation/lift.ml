@@ -94,7 +94,8 @@ let is_from c env evd typ =
  * Determine whether a term has the type we are ornamenting from
  *)
 let type_is_from c env evd trm =
-  is_from c env evd (reduce_nf env Evd.empty (infer_type env evd trm))
+  let evd, typ = infer_type env evd trm in
+  is_from c env evd (reduce_nf env Evd.empty typ)
 
 (* Premises for LIFT-CONSTR *)
 let is_packed_constr c env evd trm =
@@ -604,7 +605,8 @@ let lift_core env evd c ib_typ trm =
     (* sometimes we must repack because of non-primitive projections *)
     map_if
       (fun lifted ->
-        let typ = reduce_nf en Evd.empty (infer_type en evd tr) in
+        let evd, typ = infer_type en evd tr in
+        let typ = reduce_nf en Evd.empty typ in
         let is_from_typ = is_from c en evd typ in
         map_if
           (fun t -> repack en evd ib_typ t (lift_rec en ib_typ typ))
