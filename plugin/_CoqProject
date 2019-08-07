@@ -36,8 +36,6 @@ src/coq-plugin-lib/src/coq/logicutils/typesandequality/inference.mli
 src/coq-plugin-lib/src/coq/logicutils/typesandequality/inference.ml
 src/coq-plugin-lib/src/coq/logicutils/typesandequality/convertibility.mli
 src/coq-plugin-lib/src/coq/logicutils/typesandequality/convertibility.ml
-src/coq-plugin-lib/src/coq/logicutils/typesandequality/checking.mli
-src/coq-plugin-lib/src/coq/logicutils/typesandequality/checking.ml
 
 src/coq-plugin-lib/src/coq/constants/equtils.mli
 src/coq-plugin-lib/src/coq/constants/equtils.ml
@@ -67,16 +65,11 @@ src/coq-plugin-lib/src/coq/logicutils/hofs/zooming.mli
 src/coq-plugin-lib/src/coq/logicutils/hofs/zooming.ml
 src/coq-plugin-lib/src/coq/logicutils/hofs/hypotheses.mli
 src/coq-plugin-lib/src/coq/logicutils/hofs/hypotheses.ml
-src/coq-plugin-lib/src/coq/logicutils/hofs/filters.mli
-src/coq-plugin-lib/src/coq/logicutils/hofs/filters.ml
 
 src/coq-plugin-lib/src/coq/logicutils/inductive/indexing.mli
 src/coq-plugin-lib/src/coq/logicutils/inductive/indexing.ml
 src/coq-plugin-lib/src/coq/logicutils/inductive/indutils.mli
 src/coq-plugin-lib/src/coq/logicutils/inductive/indutils.ml
-
-src/coq-plugin-lib/src/coq/logicutils/transformation/transform.mli
-src/coq-plugin-lib/src/coq/logicutils/transformation/transform.ml
 
 src/coq-plugin-lib/src/coq/devutils/printing.mli
 src/coq-plugin-lib/src/coq/devutils/printing.ml
