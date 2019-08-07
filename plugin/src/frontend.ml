@@ -65,8 +65,10 @@ let maybe_prove_equivalence n inv_n : unit =
  *)
 let find_ornament n_o d_old d_new =
   let (evd, env) = Pfedit.get_current_context () in
-  let trm_o = unwrap_definition env (intern env evd d_old) in
-  let trm_n = unwrap_definition env (intern env evd d_new) in
+  let evd, def_o = intern env evd d_old in
+  let evd, def_n = intern env evd d_new in
+  let trm_o = unwrap_definition env def_o in
+  let trm_n = unwrap_definition env def_n in
   match map_tuple kind (trm_o, trm_n) with
   | Ind ((m_o, _), _), Ind ((m_n, _), _) ->
     let (_, _, lab_o) = KerName.repr (MutInd.canonical m_o) in
@@ -124,9 +126,9 @@ let lift_inductive_by_ornament env evm n s l c_old =
  *)
 let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
   let (evd, env) = Pfedit.get_current_context () in
-  let c_orn = intern env evd d_orn in
-  let c_orn_inv = intern env evd d_orn_inv in
-  let c_old = intern env evd d_old in
+  let evd, c_orn = intern env evd d_orn in
+  let evd, c_orn_inv = intern env evd d_orn_inv in
+  let evd, c_old = intern env evd d_old in
   let n_new = if suffix then suffix_term_name c_old n else n in
   let s = if suffix then Id.to_string n else "_" ^ Id.to_string n in
   let us = map_tuple (unwrap_definition env) (c_orn, c_orn_inv) in
