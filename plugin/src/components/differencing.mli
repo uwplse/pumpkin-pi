@@ -15,7 +15,8 @@ val same_type : env -> evar_map -> (env * types) -> (env * types) -> bool
 (* --- Differencing inductive types --- *)
 
 (* Check if two terms are the same modulo an indexing of an inductive type *)
-val same_mod_indexing : env -> types -> (types * types) -> (types * types) -> bool
+val same_mod_indexing :
+  env -> evar_map -> types -> (types * types) -> (types * types) -> bool
 
 (* --- Differencing for new indices --- *)
        
@@ -23,6 +24,7 @@ val same_mod_indexing : env -> types -> (types * types) -> (types * types) -> bo
  * Given an environment and two eliminators, find the new index location
  * and type using the algorithm that handles ambiguity. 
  * Leave offsets to the client.
+ * TODO evar_map
  *)
 val new_index_type : env -> types -> types -> int * types
 
@@ -32,5 +34,5 @@ val new_index_type : env -> types -> types -> int * types
  * doesn't handle ambiguity.
  * Leave offsets to the client.
  *)
-val new_index_type_simple : env -> inductive -> inductive -> (int * types) option
+val new_index_type_simple : env -> evar_map -> inductive -> inductive -> (int * types) option
 

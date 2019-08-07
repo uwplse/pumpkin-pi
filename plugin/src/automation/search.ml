@@ -50,9 +50,9 @@ let new_constructor_error =
  *)
 
 (* Find the new index offset and type *)
-let offset_and_ib env_pms a b =
+let offset_and_ib env_pms sigma a b =
   let (a_t, b_t) = map_tuple fst (map_tuple destInd (fst a, fst b)) in
-  let idx_op = new_index_type_simple env_pms a_t b_t in
+  let idx_op = new_index_type_simple env_pms sigma a_t b_t in
   if Option.has_some idx_op then
     Option.get idx_op
   else
@@ -85,12 +85,12 @@ let offset_and_ib env_pms a b =
  * in those situations, and otherwise just look for obvious indices by
  * comparing hypotheses.
  *)
-let optimized_is_new env off p a b =
+let optimized_is_new env sigma off p a b =
   let (a_t, elim_a) = a in
   let (b_t, elim_b) = b in
   let (_, t_a, b_a) = destProd elim_a in
   let (_, t_b, b_b) = destProd elim_b in
-  let optimize_types = not (same_mod_indexing env p (a_t, t_a) (b_t, t_b)) in
+  let optimize_types = not (same_mod_indexing env sigma p (a_t, t_a) (b_t, t_b)) in
   let optimize_arity = (arity b_a = arity b_b) in
   if optimize_types then
     true
@@ -111,7 +111,7 @@ let optimized_is_new env off p a b =
  * though the terms we are looking at here are type signatures of
  * induction principles, and so should be very predictable.
  *)
-let index_case env off p a b : types =
+let index_case env sigma off p a b : types =
   let rec diff_case p p_a_b subs e a b =
     let (a_t, c_a) = a in
     let (b_t, c_b) = b in
@@ -121,7 +121,7 @@ let index_case env off p a b : types =
        List.fold_right all_eq_substs subs (get_arg off c_b)
     | (Prod (n_a, t_a, b_a), Prod (n_b, t_b, b_b)) ->
        let diff_b = diff_case (shift p) (shift p_a_b) in
-       if optimized_is_new e off p_a_b a b then
+       if optimized_is_new e sigma off p_a_b a b then
          (* INDEX-HYPOTHESIS *)
          let a = map_tuple shift a in
          let b = (shift b_t, b_b) in
@@ -143,7 +143,7 @@ let index_case env off p a b : types =
   in diff_case p (mkRel 1) [] env a b
 
 (* Get the cases for the indexer *)
-let indexer_cases env off p nargs a b : types list =
+let indexer_cases env sigma off p nargs a b : types list =
   let (a_t, elim_t_a) = a in
   let (b_t, elim_t_b) = b in
   match map_tuple kind (elim_t_a, elim_t_b) with
@@ -153,7 +153,7 @@ let indexer_cases env off p nargs a b : types list =
        (fun c_a c_b ->
          shift_by
            (nargs - 1)
-           (index_case env_p_a off p (a_t, c_a) (b_t, c_b)))
+           (index_case env_p_a sigma off p (a_t, c_a) (b_t, c_b)))
        (take_except nargs (factor_product b_a))
        (take_except (nargs + 1) (factor_product b_b))
   | _ ->
@@ -166,7 +166,7 @@ let index_motive idx npm env_a =
   reconstruct_lambda_n env_a ib_t npm
 
 (* Search for an indexing function *)
-let find_indexer env_pms idx elim_a a b : types =
+let find_indexer env_pms sigma idx elim_a a b : types =
   let (a_t, elim_t_a) = a in
   let (b_t, elim_t_b) = b in
   let npm = nb_rel env_pms in
@@ -182,7 +182,7 @@ let find_indexer env_pms idx elim_a a b : types =
            elim = elim_a;
            pms = shift_all_by nargs (mk_n_rels npm);
            p = shift_by nargs p;
-           cs = indexer_cases env_pms off (shift p) nargs a b;
+           cs = indexer_cases env_pms sigma off (shift p) nargs a b;
            final_args = mk_n_rels nargs;
          }
      in reconstruct_lambda env_a app
@@ -284,7 +284,7 @@ let promote_forget_motive off env t arity npm indexer_opt =
 (*
  * Substitute indexes and IHs in a case of promote or forget 
  *)
-let promote_forget_case env off is_fwd p o n : types =
+let promote_forget_case env sigma off is_fwd p o n : types =
   let directional a b = if is_fwd then a else b in
   let rec sub p p_a_b subs e o n =
     let (ind_o, c_o) = o in
@@ -295,7 +295,7 @@ let promote_forget_case env off is_fwd p o n : types =
        List.fold_right all_eq_substs subs (last_arg c_n)
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        let sub_b = sub (shift p) (shift p_a_b) in
-       if optimized_is_new e off p_a_b (directional o n) (directional n o) then
+       if optimized_is_new e sigma off p_a_b (directional o n) (directional n o) then
          (* PROMOTE-HYPOTHESIS and FORGET-HYPOTHESIS *)
          let o = (shift ind_o, directional (shift c_o) b_o) in
          let n = (shift ind_n, directional b_n (shift c_n)) in
@@ -331,7 +331,7 @@ let promote_forget_case env off is_fwd p o n : types =
  * abstracting the indexed type to take an indexing function, then
  * deriving the result through specialization.
  *)
-let promote_forget_cases env off is_fwd orn_p nargs o n : types list =
+let promote_forget_cases env sigma off is_fwd orn_p nargs o n : types list =
   let directional a b = if is_fwd then a else b in
   let (o_t, elim_o_t) = o in
   let (n_t, elim_n_t) = n in
@@ -344,7 +344,7 @@ let promote_forget_cases env off is_fwd orn_p nargs o n : types list =
     (fun c_o c_n ->
       shift_by
         (directional (nargs - 1) (nargs - 2))
-        (promote_forget_case env off is_fwd p (o_t, c_o) (n_t, c_n)))
+        (promote_forget_case env sigma off is_fwd p (o_t, c_o) (n_t, c_n)))
     (take_except nargs (factor_product b_o))
     (take_except (directional (nargs + 1) (nargs - 1)) (factor_product b_n))
 
@@ -463,7 +463,7 @@ let find_promote_or_forget env_pms evd idx indexer_n o n is_fwd =
         cs =
           List.map
             adj
-            (promote_forget_cases env_pms off is_fwd (adj (shift p)) nargs o n);
+            (promote_forget_cases env_pms evd off is_fwd (adj (shift p)) nargs o n);
         final_args = mk_n_rels nargs;
       }
   in
@@ -495,8 +495,8 @@ let search_algebraic env evd npm indexer_n a b =
   let ((_, (env_pms, el_a_typ)), (_, (_, el_b_typ))) = map_tuple zoom_elim_typ elims in
   let a = (a_typ, el_a_typ) in
   let b = (b_typ, el_b_typ) in
-  let idx = offset_and_ib env_pms a b in (* idx = (off, I_B) *)
-  let indexer = find_indexer env_pms idx (fst elims) a b in
+  let idx = offset_and_ib env_pms evd a b in (* idx = (off, I_B) *)
+  let indexer = find_indexer env_pms evd idx (fst elims) a b in
   let a = (a_typ, arity_a, fst elims, el_a_typ) in
   let b = (b_typ, arity_b, snd elims, el_b_typ) in
   let (promote, forget) = find_promote_forget env_pms evd idx indexer_n a b in

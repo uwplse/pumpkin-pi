@@ -48,14 +48,14 @@ let apply_old_new (o : types * types) (n : types * types) : bool =
   is_or_applies trm_o trm_o' && is_or_applies trm_n trm_n'
 
 (* Check if two terms are the same modulo a change of an inductive type *)
-let same_mod_change env o n =
+let same_mod_change env sigma o n =
   let (t_o, t_n) = map_tuple snd (o, n) in
-  apply_old_new o n || convertible env Evd.empty t_o t_n
+  apply_old_new o n || convertible env sigma t_o t_n
 
 (* Check if two terms are the same modulo an indexing of an inductive type *)
-let same_mod_indexing env p_index o n =
+let same_mod_indexing env sigma p_index o n =
   let (t_o, t_n) = map_tuple snd (o, n) in
-  are_or_apply p_index t_o t_n || same_mod_change env o n
+  are_or_apply p_index t_o t_n || same_mod_change env sigma o n
 
 (* --- Finding the New Index --- *)
 
@@ -159,7 +159,7 @@ let new_index_type env elim_t_o elim_t_n =
 (*
  * This is Nate's simple search heuristic that works when there is no ambiguity
  *)
-let diff_context_simple env decls_o decls_n =
+let diff_context_simple env sigma decls_o decls_n =
   let nth_type n = Rel.Declaration.get_type (List.nth decls_n n) in
   let rec scan env pos diff (decls_o, decls_n) : int option =
     match (decls_o, decls_n) with
@@ -168,11 +168,11 @@ let diff_context_simple env decls_o decls_n =
       let type_n = Rel.Declaration.get_type decl_n in
       let env_b = push_rel decl_n env in
       let pos_b = pos + 1 in
-      if convertible env Evd.empty type_o type_n then
+      if convertible env sigma type_o type_n then
         let diff_b = scan env_b pos_b diff (decls_o_b, decls_n_b) in
         if Option.has_some diff_b && Option.get diff_b = pos_b then
           let type_i = nth_type pos_b in
-          if not (convertible env_b Evd.empty (shift type_o) type_i) then
+          if not (convertible env_b sigma (shift type_o) type_i) then
             diff_b
           else
             None (* ambiguous, can't use this heuristic *)
@@ -199,7 +199,7 @@ let diff_context_simple env decls_o decls_n =
 (*
  * Top-level index finder for Nate's heuristic
  *)
-let new_index_type_simple env ind_o ind_n =
+let new_index_type_simple env sigma ind_o ind_n =
   (* Applying each parameter increments the index for the next one. *)
   let npars = nb_rel env in
   let pars = List.make npars (mkRel npars) in
@@ -209,7 +209,7 @@ let new_index_type_simple env ind_o ind_n =
   let indf_n = Inductiveops.make_ind_family (pind_n, pars) in
   let (idcs_o, _) = Inductiveops.get_arity env indf_o in
   let (idcs_n, _) = Inductiveops.get_arity env indf_n in
-  diff_context_simple env (List.rev idcs_o) (List.rev idcs_n)
+  diff_context_simple env sigma (List.rev idcs_o) (List.rev idcs_n)
 
 
 
