@@ -488,8 +488,11 @@ let search_algebraic env evd npm indexer_n a b =
   let (b_typ, arity_b) = b in
   let lookup_elim typ = type_eliminator env (fst (destInd typ)) in
   let elims = map_tuple lookup_elim (a_typ, b_typ) in
-  let zoom_elim_typ el = zoom_n_prod env npm (infer_type env evd el) in
-  let ((env_pms, el_a_typ), (_, el_b_typ)) = map_tuple zoom_elim_typ elims in
+  let zoom_elim_typ el =
+    let evd, el_typ = infer_type env evd el in
+    evd, zoom_n_prod env npm el_typ
+  in (* TODO evar maps *)
+  let ((_, (env_pms, el_a_typ)), (_, (_, el_b_typ))) = map_tuple zoom_elim_typ elims in
   let a = (a_typ, el_a_typ) in
   let b = (b_typ, el_b_typ) in
   let idx = offset_and_ib env_pms a b in (* idx = (off, I_B) *)

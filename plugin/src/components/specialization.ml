@@ -24,7 +24,7 @@ open Envutils
 let pack env evd off unpacked =
   let typ = reduce_type env evd unpacked in
   let index = get_arg off typ in
-  let index_type = infer_type env evd index in
+  let evd, index_type = infer_type env evd index in
   let packer = abstract_arg env evd off typ in
   pack_existT {index_type; packer; index; unpacked}        
 

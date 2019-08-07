@@ -214,7 +214,8 @@ let equiv_proof env evd l =
       env_to
   in
   let elim = type_eliminator env_to (i, i_index) in
-  let (env_pms, elim_typ_p) = zoom_n_prod env npm (infer_type env evd elim) in
+  let evd, elim_typ = infer_type env evd elim in
+  let (env_pms, elim_typ_p) = zoom_n_prod env npm elim_typ in
   let (n, p_t, elim_typ) = destProd elim_typ_p in
   let env_p = push_local (n, p_t) env_pms in
   let p = shift (equiv_motive env_pms evd p_t l) in
