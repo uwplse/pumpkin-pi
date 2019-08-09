@@ -86,7 +86,7 @@ let direction (env : env) (evd : evar_map) (trm : types) : bool =
       else
         let (from_args, to_args) = map_tuple unfold_args (from_ind, to_ind) in
         wrapped (map_tuple last (from_args, to_args))
-  in wrapped (on_type ind_of_promotion_type env evd trm)
+  in wrapped (on_red_type_default (fun _ _ -> ind_of_promotion_type) env evd trm)
 
 (* --- Initialization --- *)
 
@@ -102,7 +102,7 @@ let unpack_promotion env promotion =
  *)
 let initialize_promotion env evd promote forget =
   let promote_unpacked = unpack_promotion env (unwrap_definition env promote) in
-  let to_ind = snd (on_type ind_of_promotion_type env evd promote_unpacked) in
+  let to_ind = snd (on_red_type_default (fun _ _ -> ind_of_promotion_type) env evd promote_unpacked) in
   let to_args = unfold_args to_ind in
   let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
   let (off, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in

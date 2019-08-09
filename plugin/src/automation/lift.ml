@@ -68,7 +68,7 @@ let deindex l = remove_index l.off
  * Get the types A, B, and IB from the ornament
  *)
 let typs_from_orn l env evd =
-  let (a_i_t, b_i_t) = on_type ind_of_promotion_type env evd l.orn.promote in
+  let (a_i_t, b_i_t) = on_red_type_default (fun _ _ -> ind_of_promotion_type) env evd l.orn.promote in
   let a_t = first_fun a_i_t in
   let b_t = zoom_sig b_i_t in
   let i_b_t = (dest_sigT b_i_t).index_type in
@@ -162,7 +162,7 @@ let is_eliminator c env evd trm =
  *)
 let pack_to_typ env evd c unpacked =
   let (_, b_typ) = c.typs in
-  if on_type (is_or_applies b_typ) env evd unpacked then
+  if on_red_type_default (fun _ _ -> is_or_applies b_typ) env evd unpacked then
     pack env evd c.l.off unpacked
   else
     unpacked
@@ -238,7 +238,7 @@ let lift_elim_args env evd l npms args =
   if l.is_fwd then
     (* project and index *)
     let b_sig = lifted_arg in
-    let b_sig_typ = on_type dest_sigT env evd b_sig in
+    let b_sig_typ = on_red_type_default (fun _ _ -> dest_sigT) env evd b_sig in
     let i_b = project_index b_sig_typ b_sig in
     let b = project_value b_sig_typ b_sig in
     index l i_b (reindex value_off b args)
@@ -251,7 +251,7 @@ let lift_elim_args env evd l npms args =
  * MOTIVE
  *)
 let lift_motive env evd l npms parameterized_elim p =
-  let parameterized_elim_type = reduce_type env evd parameterized_elim in
+  let evd, parameterized_elim_type = reduce_type env evd parameterized_elim in
   let (_, p_to_typ, _) = destProd parameterized_elim_type in
   let env_p_to = zoom_env zoom_product_type env p_to_typ in
   let nargs = new_rels2 env_p_to env in
@@ -269,7 +269,7 @@ let lift_motive env evd l npms parameterized_elim p =
   else
     (* promote a to packed b, project, and index *)
     let b_sig = lifted_arg in
-    let b_sig_typ = on_type dest_sigT env_p_to evd b_sig in
+    let b_sig_typ = on_red_type_default (fun _ _ -> dest_sigT) env_p_to evd b_sig in
     let i_b = project_index b_sig_typ b_sig in
     let b = project_value b_sig_typ b_sig in
     let args = index l i_b (reindex value_off b args) in
@@ -290,7 +290,7 @@ let promote_case_args env evd c args =
          (* DROP-INDEX *)
          shift n :: (lift_args (shift_all tl) i_b)
        else
-         let t = reduce_type env evd n in
+         let evd, t = reduce_type env evd n in
          if is_or_applies b_typ t then
            (* FORGET-ARG *)
            let a = pack_lift env evd (flip_dir c.l) n in
@@ -317,11 +317,11 @@ let forget_case_args env_c_b env evd c args =
          (* ADD-INDEX *)
          proj_i_b :: (lift_args (unshift_all tl) (i_b, proj_i_b))
        else
-         let t = reduce_type env_c_b evd n in
+         let evd, t = reduce_type env_c_b evd n in
          if is_or_applies b_typ t then
            (* PROMOTE-ARG *)
            let b_sig =  pack_lift env evd (flip_dir c.l) n in
-           let b_sig_typ = on_type dest_sigT env evd b_sig in
+           let b_sig_typ = on_red_type_default (fun _ _ -> dest_sigT) env evd b_sig in
            let proj_b = project_value b_sig_typ b_sig in
            let proj_i_b = project_index b_sig_typ b_sig in
            proj_b :: lift_args tl (get_arg c.l.off t, proj_i_b)
@@ -349,7 +349,7 @@ let lift_case env evd c p c_elim constr =
   let (a_typ, b_typ) = c.typs in
   let to_typ = directional c.l b_typ a_typ in
   let c_eta = expand_eta env evd constr in
-  let c_elim_type = reduce_type env evd c_elim in
+  let evd, c_elim_type = reduce_type env evd c_elim in
   let (_, to_c_typ, _) = destProd c_elim_type in
   let nihs = num_ihs env to_typ to_c_typ in
   if nihs = 0 then
@@ -477,7 +477,8 @@ let lift_core env evd c ib_typ trm =
         if l.is_fwd then
           let a = last_arg tr in
           let b_sig = lift_rec en ib_typ a in
-          let b_sig_typ = dest_sigT (lift_rec en ib_typ (reduce_type en evd a)) in
+          let evd, a_typ = reduce_type en evd a in
+          let b_sig_typ = dest_sigT (lift_rec en ib_typ a_typ) in
           project_index b_sig_typ b_sig, false
         else
           let b_sig = last_arg tr in

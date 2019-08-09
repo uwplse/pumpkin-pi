@@ -41,11 +41,11 @@ let eq_lemmas_env env evd recs l =
   List.fold_left
     (fun e r ->
       let r1 = shift_by (new_rels2 e env) r in
-      let r_t = reduce_type e evd r1 in
+      let evd, r_t = reduce_type e evd r1 in
       let push_ib =
         map_backward
           (fun e ->
-            push_local (Anonymous, reduce_type e evd (get_arg l.off r_t)) e)
+            push_local (Anonymous, snd (reduce_type e evd (get_arg l.off r_t))) e)
           l
       in
       (* push index in backwards direction *)
@@ -57,7 +57,7 @@ let eq_lemmas_env env evd recs l =
       let pack_back = map_backward (pack e_r evd l.off) l in
       let r1 = pack_back (shift_by (new_rels2 e_r e) r1) in
       let r2 = pack_back (mkRel 1) in
-      let r_t = reduce_type e_r evd r1 in
+      let evd, r_t = reduce_type e_r evd r1 in
       let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
       (* push equality *)
       push_local (Anonymous, r_eq) e_r)
@@ -77,11 +77,11 @@ let eq_lemmas env evd typ l =
       let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
       let c_body = reduce_term env_c_b Evd.empty c_body in
       let c_args = unfold_args c_body in
-      let recs = List.filter (on_type (is_or_applies typ) env_c_b evd) c_args in
+      let recs = List.filter (on_red_type_default (fun _ _ -> is_or_applies typ) env_c_b evd) c_args in
       let env_lemma = eq_lemmas_env env_c_b evd recs l in
       let pack_back = map_backward (pack env_lemma evd l.off) l in
       let c_body = pack_back (shift_by (new_rels2 env_lemma env_c_b) c_body) in
-      let c_body_type = reduce_type env_lemma evd c_body in
+      let evd, c_body_type = reduce_type env_lemma evd c_body in
       (* reflexivity proof: the identity case *)
       let refl = apply_eq_refl { typ = c_body_type; trm = c_body } in
       (* fold to recursively substitute each recursive argument *)
@@ -132,8 +132,8 @@ let eq_lemmas env evd typ l =
 let equiv_motive env evd p_t l =
   let env_motive = zoom_env zoom_product_type env p_t in
   let trm1 = map_backward (pack env_motive evd l.off) l (mkRel 1) in
-  let at_type = reduce_type env_motive evd trm1 in
-  let typ_args = non_index_args l.off env_motive at_type in
+  let evd, at_type = reduce_type env_motive evd trm1 in
+  let typ_args = non_index_args l.off env_motive evd at_type in
   let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
   let trm2 = mkAppl (lift_back l, snoc trm1_lifted typ_args) in
   let p_b = apply_eq { at_type; trm1; trm2 } in
@@ -168,7 +168,7 @@ let equiv_case env evd pms p eq_lemma l c =
              map_directional
                (fun xs -> trm :: xs)
                (fun xs ->
-                 let (ib, u) = projections (on_type dest_sigT e evd trm) trm in
+                 let (ib, u) = projections (on_red_type_default (fun _ _ -> dest_sigT) e evd trm) trm in
                  u :: ib :: xs)
                l
                args
@@ -196,7 +196,7 @@ let equiv_cases env evd pms p lemmas l elim_typ =
 let equiv_proof env evd l =
   let to_body = lookup_definition env (lift_to l) in
   let env_to = zoom_env zoom_lambda_term env to_body in
-  let typ_app = reduce_type env_to evd (mkRel 1) in
+  let evd, typ_app = reduce_type env_to evd (mkRel 1) in
   let typ = first_fun (zoom_if_sig_app typ_app) in
   let ((i, i_index), _) = destInd typ in
   let npm = (lookup_mind i env).mind_nparams in
@@ -235,7 +235,7 @@ let equiv_proof env evd l =
         final_args = reindex_back (index_back args);
       }
   in 
-  let eq_typ = on_type dest_eq env_eq_proof evd eq_proof in
+  let eq_typ = on_red_type_default (fun _ _ -> dest_eq) env_eq_proof evd eq_proof in
   let sym_app = apply_eq_sym { eq_typ; eq_proof } in
   let equiv_b =
     map_backward

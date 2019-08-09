@@ -416,7 +416,7 @@ let pack_hypothesis env evd idx b unpacked =
   let adjusted = adjust_to_elim env_push ib_rel packer unpacked in
   let (env_packed, packer, unpacked) = adjusted in
   let arg = mkRel 1 in
-  let arg_typ = on_type dest_sigT env_packed evd arg in
+  let arg_typ = on_red_type_default (fun _ _ -> dest_sigT) env_packed evd arg in
   let (index, value) = projections arg_typ arg in
   (env_packed, reduce_term env_packed Evd.empty (mkAppl (unpacked, [index; value])))
 

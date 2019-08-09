@@ -137,8 +137,8 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
   let (c_from, c_to) = if are_inds then lookup us else (c_orn, c_orn_inv) in
   let l = initialize_lifting env evd c_from c_to in
   let u_old = unwrap_definition env c_old in
-  if isInd u_old then
-    let from_typ = fst (on_type ind_of_promotion_type env evd l.orn.promote) in
+  if isInd u_old then (* TODO for all of these red, do we need red? *)
+    let from_typ = fst (on_red_type_default (fun _ _ -> ind_of_promotion_type) env evd l.orn.promote) in
     if not (equal u_old from_typ) then
       lift_inductive_by_ornament env evd n_new s l c_old
     else
