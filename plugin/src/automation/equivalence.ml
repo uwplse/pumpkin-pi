@@ -74,7 +74,8 @@ let eq_lemmas env evd typ l =
   Array.mapi
     (fun c_index _ ->
       let c = mkConstructU (((i, i_index), c_index + 1), u) in
-      let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd c) in
+      let evd, c_exp = expand_eta env evd c in
+      let (env_c_b, c_body) = zoom_lambda_term env c_exp in
       let c_body = reduce_term env_c_b Evd.empty c_body in
       let c_args = unfold_args c_body in
       let recs = List.filter (on_red_type_default (fun _ _ -> is_or_applies typ) env_c_b evd) c_args in

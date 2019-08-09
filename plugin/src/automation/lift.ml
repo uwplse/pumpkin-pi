@@ -86,7 +86,7 @@ let is_from c env evd typ =
     is_or_applies a_typ typ
   else
     if is_or_applies sigT typ then
-      equal b_typ (first_fun (dummy_index env (dest_sigT typ).packer))
+      equal b_typ (first_fun (dummy_index env evd (dest_sigT typ).packer))
     else
       false
 
@@ -188,7 +188,8 @@ let lift_constr env evd c trm =
  * Wrapper around NORMALIZE
  *)
 let initialize_constr_rule env evd c constr =
-  let (env_c_b, c_body) = zoom_lambda_term env (expand_eta env evd constr) in
+  let evd, constr_exp = expand_eta env evd constr in
+  let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
   let c_body = reduce_term env_c_b Evd.empty c_body in
   let to_refold = map_backward (pack env_c_b evd c.l.off) c.l c_body in
   let refolded = lift_constr env_c_b evd c to_refold in
@@ -348,10 +349,10 @@ let lift_case_args env_c_b env evd c args =
 let lift_case env evd c p c_elim constr =
   let (a_typ, b_typ) = c.typs in
   let to_typ = directional c.l b_typ a_typ in
-  let c_eta = expand_eta env evd constr in
+  let evd, c_eta = expand_eta env evd constr in
   let evd, c_elim_type = reduce_type env evd c_elim in
   let (_, to_c_typ, _) = destProd c_elim_type in
-  let nihs = num_ihs env to_typ to_c_typ in
+  let nihs = num_ihs env evd to_typ to_c_typ in
   if nihs = 0 then
     (* base case *)
     constr
@@ -438,7 +439,7 @@ let lift_core env evd c ib_typ trm =
           let packer = abs_ib (mkLambda (Anonymous, ib_typ, shift b_is)) in
           pack_sigT { index_type = ib_typ; packer }, false
         else
-          let packed = dummy_index en (dest_sigT tr).packer in
+          let packed = dummy_index en evd (dest_sigT tr).packer in
           let is = deindex l (unfold_args packed) in
           mkAppl (a_typ, is), false
       else if is_packed_constr c en evd tr then
@@ -489,14 +490,15 @@ let lift_core env evd c ib_typ trm =
             a, false
       else if is_eliminator c en evd tr then
         (* LIFT-ELIM *)
-        let tr_eta = expand_eta en evd tr in
+        let evd, tr_eta = expand_eta en evd tr in
         if arity tr_eta > arity tr then
           (* lazy eta expansion; recurse *)
           lift_rec en ib_typ tr_eta, false
         else
-          let tr_elim = deconstruct_eliminator en evd tr in
+          let evd, tr_elim = deconstruct_eliminator en evd tr in
           let npms = List.length tr_elim.pms in
-          let value_i = arity (expand_eta env evd a_typ) - npms in
+          let evd, a_typ_eta = expand_eta env evd a_typ in
+          let value_i = arity a_typ_eta - npms in
           let (final_args, post_args) = take_split (value_i + 1) tr_elim.final_args in
           let tr' = lift_elim en evd c { tr_elim with final_args } in
           let tr'' = lift_rec en ib_typ tr' in
@@ -583,7 +585,8 @@ let lift_core env evd c ib_typ trm =
            let ind = mkInd (i, i_index) in
            if equal ind (directional l a_typ b_typ) then
              (* lazy eta expansion *)
-             lift_rec en ib_typ (expand_eta en evd tr), false
+             let evd, tr_eta = expand_eta en evd tr in
+             lift_rec en ib_typ tr_eta, false
            else
              tr, false
         | Const (co, u) ->
