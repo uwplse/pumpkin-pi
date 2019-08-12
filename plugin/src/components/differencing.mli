@@ -9,7 +9,7 @@ open Names
 
 (* --- Differencing terms --- *)
 
-(* Check if two terms have the same type, ignoring universe inconsinstency *)
+(* Check if two terms have the same type under some set of constraints *)
 val same_type : env -> evar_map -> (env * types) -> (env * types) -> bool
 
 (* --- Differencing inductive types --- *)
@@ -24,9 +24,8 @@ val same_mod_indexing :
  * Given an environment and two eliminators, find the new index location
  * and type using the algorithm that handles ambiguity. 
  * Leave offsets to the client.
- * TODO evar_map
  *)
-val new_index_type : env -> types -> types -> int * types
+val new_index_type : env -> evar_map -> types -> types -> int * types
 
 (*
  * Given an environment and two inductive types, 
