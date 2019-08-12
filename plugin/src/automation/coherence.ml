@@ -8,6 +8,7 @@ open Envutils
 open Apputils
 open Equtils
 open Sigmautils
+open Envutils
 
 (* --- Automatically generated coherence proof --- *)
 
@@ -15,13 +16,13 @@ open Sigmautils
  * Prove coherence with the components search finds
  * Return the coherence proof term and its type
  *)
-let prove_coherence env evd orn =
+let prove_coherence env sigma orn =
   let promote = lookup_definition env orn.promote in
   let env_coh = zoom_env zoom_lambda_term env promote in
   let a = mkRel 1 in
-  let is = on_red_type_default (fun _ _ -> unfold_args) env_coh evd a in
+  let is = on_red_type_default (ignore_env unfold_args) env_coh sigma a in
   let b_sig = mkAppl (orn.promote, snoc a is) in
-  let b_sig_typ = on_red_type_default (fun _ _ -> dest_sigT) env_coh evd b_sig in
+  let b_sig_typ = on_red_type_default (ignore_env dest_sigT) env_coh sigma b_sig in
   let ib = mkAppl (orn.indexer, snoc a is) in
   let ib_typ = b_sig_typ.index_type in
   let proj_ib = project_index b_sig_typ b_sig in
