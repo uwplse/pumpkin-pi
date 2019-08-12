@@ -57,7 +57,7 @@ let offset_and_ib env_pms sigma a b =
     Option.get idx_op
   else
     let (elim_t_a, elim_t_b) = map_tuple snd (a, b) in
-    new_index_type env_pms elim_t_a elim_t_b
+    new_index_type env_pms sigma elim_t_a elim_t_b
 
 (* --- Finding the indexer --- *)
 

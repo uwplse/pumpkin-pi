@@ -15,29 +15,13 @@ open Envutils
 
 (* --- Differencing terms --- *)
 
-(* Check if two terms have the same type, ignoring universe inconsinstency *)
-let same_type env evd o n =
+(* Check if two terms have the same type (TODO move to lib) (TODO why so many envs?) *)
+let same_type env sigma o n =
   let (env_o, t_o) = o in
   let (env_n, t_n) = n in
-  let evd, typ_o = infer_type env_o evd t_o in
-  let evd, typ_n = infer_type env_o evd t_n in
-  try
-    convertible env Evd.empty typ_o typ_n (* TODO fix later *)
-  with _ ->
-    false
-
-(*
- * Returns true if two applications contain have a different
- * argument at index i.
- *
- * For now, this uses precise equality, but we can loosen this
- * to convertibility if desirable.
- *)
-let diff_arg i trm_o trm_n =
-  try
-    not (equal (get_arg i trm_o) (get_arg i trm_n))
-  with _ ->
-    true
+  let sigma, typ_o = infer_type env_o sigma t_o in
+  let sigma, typ_n = infer_type env_o sigma t_n in
+  convertible env sigma typ_o typ_n
 
 (* --- Differencing inductive types --- *)
 
@@ -76,7 +60,7 @@ let diff_motive_apps trm_o trm_n =
     match map_tuple kind (trm_o, trm_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        if applies p t_o && not (applies p t_n) then
-         diff (off + 1) (shift p) (shift trm_o) b_n
+         diff (shift_i off) (shift p) (shift trm_o) b_n
        else
 	 List.append (diff off p t_o t_n) (diff off (shift p) b_o b_n)
     | (App (_, _), App (_, _)) when applies p trm_o && applies p trm_n ->
@@ -139,13 +123,13 @@ let is_new_index i b_o b_n =
  * are revealing. There are some examples of ambiguity in Test.v;
  * these should never break, and if they do, it means the code is incorrect.
  *)
-let new_index_type env elim_t_o elim_t_n =
+let new_index_type env sigma elim_t_o elim_t_n =
   let (_, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
   let rec candidates e p_o p_n =
     match map_tuple kind (p_o, p_n) with
     | (Prod (n_o, t_o, b_o), Prod (_, t_n, b_n)) ->
-       if isProd b_o && convertible e Evd.empty t_o t_n then
+       if isProd b_o && convertible e sigma t_o t_n then
          let e_b = push_local (n_o, t_o) e in
          let same = candidates e_b b_o b_n in
          let different = (0, t_n) in
