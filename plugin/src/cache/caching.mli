@@ -1,6 +1,7 @@
 open Globnames
 open Environ
 open Constr
+open Evd
 
 (* --- Database for higher lifting --- *)
 
@@ -12,13 +13,13 @@ val declare_lifted : global_reference -> global_reference -> unit
 (*
  * Search the database for a lifting, returning the reduced version if it exists
  *)
-val search_lifted : env -> global_reference -> global_reference option
+val search_lifted : env -> evar_map -> global_reference -> global_reference option
 
 (*
  * Search the database for a lifting using terms, returning the reduced version
  * if it exists
  *)
-val search_lifted_term : env -> types -> types option
+val search_lifted_term : env -> evar_map -> types -> types option
 
 (* --- Temporary cache of constants --- *)
 
