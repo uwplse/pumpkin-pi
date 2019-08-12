@@ -162,10 +162,10 @@ let is_eliminator c env evd trm =
  *)
 let pack_to_typ env evd c unpacked =
   let (_, b_typ) = c.typs in
-  if on_red_type_default (fun _ _ -> is_or_applies b_typ) env evd unpacked then
+  if on_red_type_default (ignore_env (is_or_applies b_typ)) env evd unpacked then
     pack env evd c.l.off unpacked
   else
-    unpacked
+    evd, unpacked
 
 (*
  * NORMALIZE (the result of this is cached)
@@ -173,13 +173,13 @@ let pack_to_typ env evd c unpacked =
 let lift_constr env evd c trm =
   let l = c.l in
   let args = unfold_args (map_backward last_arg l trm) in
-  let pack_args = List.map (pack_to_typ env evd c) in
+  let pack_args = List.map (fun t -> snd (pack_to_typ env evd c t)) in (* TODO evar_maps *)
   let packed_args = map_backward pack_args l args in
   let rec_args =  List.filter (type_is_from c env evd) packed_args in
   let app = lift env evd l trm in
   if List.length rec_args = 0 then
     (* base case - don't bother refolding *)
-    reduce_nf env Evd.empty app
+    evd, reduce_nf env evd app
   else
     (* inductive case - refold *)
     refold l env evd (lift_to l) app rec_args
@@ -191,8 +191,8 @@ let initialize_constr_rule env evd c constr =
   let evd, constr_exp = expand_eta env evd constr in
   let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
   let c_body = reduce_term env_c_b Evd.empty c_body in
-  let to_refold = map_backward (pack env_c_b evd c.l.off) c.l c_body in
-  let refolded = lift_constr env_c_b evd c to_refold in
+  let evd, to_refold = map_backward (fun (evd, t) -> pack env_c_b evd c.l.off t) c.l (evd, c_body) in
+  let evd, refolded = lift_constr env_c_b evd c to_refold in
   reconstruct_lambda_n env_c_b refolded (nb_rel env)
 
 (*
@@ -258,7 +258,7 @@ let lift_motive env evd l npms parameterized_elim p =
   let nargs = new_rels2 env_p_to env in
   let p = shift_by nargs p in
   let args = mk_n_rels nargs in
-  let lifted_arg = pack_lift env_p_to evd (flip_dir l) (last args) in
+  let evd, lifted_arg = pack_lift env_p_to evd (flip_dir l) (last args) in
   let value_off = nargs - 1 in
   let l = { l with off = l.off - npms } in (* no parameters here *)
   if l.is_fwd then
@@ -270,7 +270,7 @@ let lift_motive env evd l npms parameterized_elim p =
   else
     (* promote a to packed b, project, and index *)
     let b_sig = lifted_arg in
-    let b_sig_typ = on_red_type_default (fun _ _ -> dest_sigT) env_p_to evd b_sig in
+    let b_sig_typ = on_red_type_default (ignore_env dest_sigT) env_p_to evd b_sig in
     let i_b = project_index b_sig_typ b_sig in
     let b = project_value b_sig_typ b_sig in
     let args = index l i_b (reindex value_off b args) in
@@ -294,7 +294,7 @@ let promote_case_args env evd c args =
          let evd, t = reduce_type env evd n in
          if is_or_applies b_typ t then
            (* FORGET-ARG *)
-           let a = pack_lift env evd (flip_dir c.l) n in
+           let evd, a = pack_lift env evd (flip_dir c.l) n in
            a :: lift_args tl (get_arg c.l.off t)
          else
            (* ARG *)
@@ -321,7 +321,7 @@ let forget_case_args env_c_b env evd c args =
          let evd, t = reduce_type env_c_b evd n in
          if is_or_applies b_typ t then
            (* PROMOTE-ARG *)
-           let b_sig =  pack_lift env evd (flip_dir c.l) n in
+           let evd, b_sig =  pack_lift env evd (flip_dir c.l) n in
            let b_sig_typ = on_red_type_default (fun _ _ -> dest_sigT) env evd b_sig in
            let proj_b = project_value b_sig_typ b_sig in
            let proj_i_b = project_index b_sig_typ b_sig in
