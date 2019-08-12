@@ -69,6 +69,9 @@ let rec ind_of_promotion_type (typ : types) : types * types =
   | _ ->
      failwith "not an ornamental promotion/forgetful function type"
 
+let ind_of_promotion env sigma trm =
+  on_red_type_default (ignore_env ind_of_promotion_type) env sigma trm
+
 (* --- Utilities for initialization --- *)
 
 (*
@@ -76,7 +79,7 @@ let rec ind_of_promotion_type (typ : types) : types * types =
  * That is, if trm is a promotion or a forgetful function
  * True if forwards, false if backwards
  *)
-let direction (env : env) (evd : evar_map) (trm : types) : bool =
+let direction (env : env) (sigma : evar_map) (trm : types) : bool =
   let rec wrapped (from_ind, to_ind) =
     if not (applies sigT from_ind) then
       true
@@ -86,7 +89,7 @@ let direction (env : env) (evd : evar_map) (trm : types) : bool =
       else
         let (from_args, to_args) = map_tuple unfold_args (from_ind, to_ind) in
         wrapped (map_tuple last (from_args, to_args))
-  in wrapped (on_red_type_default (fun _ _ -> ind_of_promotion_type) env evd trm)
+  in wrapped (ind_of_promotion env sigma trm)
 
 (* --- Initialization --- *)
 
@@ -95,14 +98,14 @@ let direction (env : env) (evd : evar_map) (trm : types) : bool =
  *)
 let unpack_promotion env promotion =
   let (env_promotion, body) = zoom_lambda_term env promotion in
-  reconstruct_lambda env_promotion (last (unfold_args body))
+  reconstruct_lambda env_promotion (last_arg body)
     
 (*
  * Initialize a promotion
  *)
-let initialize_promotion env evd promote forget =
+let initialize_promotion env sigma promote forget =
   let promote_unpacked = unpack_promotion env (unwrap_definition env promote) in
-  let to_ind = snd (on_red_type_default (fun _ _ -> ind_of_promotion_type) env evd promote_unpacked) in
+  let to_ind = snd (ind_of_promotion env sigma promote_unpacked) in
   let to_args = unfold_args to_ind in
   let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
   let (off, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
@@ -112,10 +115,10 @@ let initialize_promotion env evd promote forget =
 (*
  * Initialize a lifting
  *)
-let initialize_lifting env evd c_orn c_orn_inv =
-  let is_fwd = direction env evd c_orn in
+let initialize_lifting env sigma c_orn c_orn_inv =
+  let is_fwd = direction env sigma c_orn in
   let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
-  let (off, orn) = initialize_promotion env evd promote forget in
+  let (off, orn) = initialize_promotion env sigma promote forget in
   { orn ; is_fwd ; off }
                                 
 (* --- Directionality --- *)
