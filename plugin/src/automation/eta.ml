@@ -17,6 +17,10 @@ open Nameutils
 open Envutils
 
 (*
+ * TODO move some of this into lib
+ *)
+
+(*
  * Apply Coq's name-freshening policy (i.e., increment subscript if necessary)
  * and insert freshened name into the set of used identifiers. Also deanonymize
  * the name, using Coq's standard default name (modulo freshening).
@@ -99,7 +103,7 @@ let eta_extern_pattern idset npar head ctxt =
  * expression to serve as the lifting of the corresponding eliminator of the
  * base type.
  *)
-let rec eta_extern env evm idset term =
+let rec eta_extern env sigma idset term =
   (* The environment is synchronized with the current position in the *original*
      term *with* variables freshened, and the identifier set accumulates all
      names used for local variables in context (i.e., equal to [rel_context env
@@ -107,7 +111,7 @@ let rec eta_extern env evm idset term =
      Note how the environment and identifier set are always kept in agreement.
 
      The evar map stays constant throughout the whole function call. *)
-  let raw_extern = EConstr.of_constr %> extern_constr ~lax:true false env evm in
+  let raw_extern = EConstr.of_constr %> extern_constr ~lax:true false env sigma in
   (* Flags to extern_constr are important:
      1. Be temporarily lax w.r.t. well-typedness due to changing term context.
      2. Forbid variable renaming, because subterms are externalized separately. *)
@@ -130,37 +134,37 @@ let rec eta_extern env evm idset term =
       raw_extern term
   | Cast (term, _, typ) ->
     mkCastC
-      (eta_extern env evm idset term,
-       CastConv (eta_extern env evm idset typ))
+      (eta_extern env sigma idset term,
+       CastConv (eta_extern env sigma idset typ))
   | Prod (name, typ, body) ->
     let name, idset' = freshen_name idset name in
     mkProdC
       ([CAst.make name],
        Default Explicit, (* normal binder *)
-       eta_extern env evm idset typ,
-       eta_extern (push_local (name, typ) env) evm idset' body)
+       eta_extern env sigma idset typ,
+       eta_extern (push_local (name, typ) env) sigma idset' body)
   | Lambda (name, typ, body) ->
     let name, idset' = freshen_name idset name in
     mkLambdaC
       ([CAst.make name],
        Default Explicit, (* normal binder *)
-       eta_extern env evm idset typ,
-       eta_extern (push_local (name, typ) env) evm idset' body)
+       eta_extern env sigma idset typ,
+       eta_extern (push_local (name, typ) env) sigma idset' body)
   | LetIn (name, term, typ, body) ->
     let name, idset' = freshen_name idset name in
     mkLetInC
       (CAst.make name,
-       eta_extern env evm idset term,
-       Some (eta_extern env evm idset typ),
-       eta_extern (push_let_in (name, term, typ) env) evm idset' body)
+       eta_extern env sigma idset term,
+       Some (eta_extern env sigma idset typ),
+       eta_extern (push_let_in (name, term, typ) env) sigma idset' body)
   | App (head, args) ->
     if is_or_applies existT head then
       (* Job done if [term] ~ `existT ...` *)
       raw_extern term
     else
       mkAppC
-        (eta_extern env evm idset head,
-         Array.map_to_list (eta_extern env evm idset) args)
+        (eta_extern env sigma idset head,
+         Array.map_to_list (eta_extern env sigma idset) args)
   | Const _ | Ind _ | Construct _ ->
     let gref = global_of_constr term in
     (* Careful to emit `@symbol` (w/o implicit arguments) instead of `symbol` *)
@@ -198,12 +202,12 @@ let rec eta_extern env evm idset term =
         (fun i ((ctxt, idset), body) ->
            CAst.make
              ([[eta_extern_pattern idset npar (ConstructRef (ind, i + 1)) ctxt]],
-              eta_extern (push_rel_context ctxt env) evm idset body))
+              eta_extern (push_rel_context ctxt env) sigma idset body))
     in
     CCases
       (info.ci_pp_info.style,
-       Some (eta_extern (push_rel_context ret_ctxt env) evm ret_idset ret_type),
-       [(eta_extern env evm idset discr,
+       Some (eta_extern (push_rel_context ret_ctxt env) sigma ret_idset ret_type),
+       [(eta_extern env sigma idset discr,
          Some (CAst.make (rel_name rec_decl)),
          Some (eta_extern_pattern idset npar (IndRef ind) idx_ctxt))],
        Array.to_list branches) |>
@@ -229,9 +233,9 @@ let rec eta_extern env evm idset term =
       (CAst.make fix_id,
        [(CAst.make fix_id,
          (ident_of_name (rel_name rec_decl) |> Option.map CAst.make, CStructRec),
-         eta_extern_context env evm idset dom_ctxt,
-         eta_extern (push_rel_context dom_ctxt env) evm idset cod_type,
-         eta_extern (push_rel_context fix_ctxt env) evm fix_idset fix_body)]) |>
+         eta_extern_context env sigma idset dom_ctxt,
+         eta_extern (push_rel_context dom_ctxt env) sigma idset cod_type,
+         eta_extern (push_rel_context fix_ctxt env) sigma fix_idset fix_body)]) |>
     CAst.make
   | CoFix (0, ([|Name fix_id|], [|fun_type|], [|fun_body|])) ->
     (* Implemented by direct analogy with case for fixed-points. *)
@@ -245,9 +249,9 @@ let rec eta_extern env evm idset term =
     CCoFix
       (CAst.make fix_id,
        [(CAst.make fix_id,
-         eta_extern_context env evm idset dom_ctxt,
-         eta_extern (push_rel_context dom_ctxt env) evm idset cod_type,
-         eta_extern (push_rel_context fix_ctxt env) evm fix_idset fix_body)]) |>
+         eta_extern_context env sigma idset dom_ctxt,
+         eta_extern (push_rel_context dom_ctxt env) sigma idset cod_type,
+         eta_extern (push_rel_context fix_ctxt env) sigma fix_idset fix_body)]) |>
     CAst.make
   | Sort sort ->
     (* Delete existing universe constraints so that Coq will infer fresh,
@@ -262,13 +266,13 @@ let rec eta_extern env evm idset term =
   | Fix _ -> failwith "eta_extern: Mutual fixed points unsupported"
   | CoFix _ -> failwith "eta_extern: Mutual co-fixed points unsupported"
   | Meta _ | Evar _ -> failwith "eta_extern: Metavars and evars unsupported"
-and eta_extern_context env evm idset ctxt =
+and eta_extern_context env sigma idset ctxt =
   (* Build a [local_binder_expr list] for a freshened rel context [ctxt]
      well-typed in [env]. Types and locally defined terms are recursively eta-
      externalized in a properly synchronized environment but with the same given
      identifier set. *)
   let binder_of_decl env decl =
-    let decl = Termops.map_rel_decl (eta_extern env evm idset) decl in
+    let decl = Termops.map_rel_decl (eta_extern env sigma idset) decl in
     let lname = CAst.make (rel_name decl) in
     match rel_value decl with
     | None -> CLocalAssum ([lname], Default Explicit, rel_type decl)
