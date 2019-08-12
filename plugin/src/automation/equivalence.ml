@@ -54,9 +54,9 @@ let eq_lemmas_env env evd recs l =
       let r_t = adj_back (shift_by (new_rels2 e_ib e) r_t) in
       (* push new rec arg *)
       let e_r = push_local (Anonymous, r_t) e_ib in
-      let pack_back = map_backward (pack e_r evd l.off) l in
-      let r1 = pack_back (shift_by (new_rels2 e_r e) r1) in
-      let r2 = pack_back (mkRel 1) in
+      let pack_back = map_backward (fun (evd, t) -> pack e_r evd l.off t) l in
+      let evd, r1 = pack_back (evd, shift_by (new_rels2 e_r e) r1) in
+      let evd, r2 = pack_back (evd, mkRel 1) in
       let evd, r_t = reduce_type e_r evd r1 in
       let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
       (* push equality *)
@@ -80,8 +80,8 @@ let eq_lemmas env evd typ l =
       let c_args = unfold_args c_body in
       let recs = List.filter (on_red_type_default (fun _ _ -> is_or_applies typ) env_c_b evd) c_args in
       let env_lemma = eq_lemmas_env env_c_b evd recs l in
-      let pack_back = map_backward (pack env_lemma evd l.off) l in
-      let c_body = pack_back (shift_by (new_rels2 env_lemma env_c_b) c_body) in
+      let pack_back = map_backward (fun (evd, t) -> pack env_lemma evd l.off t) l in
+      let evd, c_body = pack_back (evd, shift_by (new_rels2 env_lemma env_c_b) c_body) in
       let evd, c_body_type = reduce_type env_lemma evd c_body in
       (* reflexivity proof: the identity case *)
       let refl = apply_eq_refl { typ = c_body_type; trm = c_body } in
@@ -132,7 +132,7 @@ let eq_lemmas env evd typ l =
  *)
 let equiv_motive env evd p_t l =
   let env_motive = zoom_env zoom_product_type env p_t in
-  let trm1 = map_backward (pack env_motive evd l.off) l (mkRel 1) in
+  let evd, trm1 = map_backward (fun (evd, t) -> pack env_motive evd l.off t) l (evd, mkRel 1) in
   let evd, at_type = reduce_type env_motive evd trm1 in
   let typ_args = non_index_args l.off env_motive evd at_type in
   let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
