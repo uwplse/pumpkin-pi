@@ -364,7 +364,7 @@ let pack_conclusion f_indexer env evd idx b unpacked =
   let (b_typ, arity) = b in
   let off = arity - 1 in
   let index_type = shift_by off (snd idx) in
-  let packer = make_packer env evd b_typ (mk_n_rels off) idx true in
+  let evd, packer = make_packer env evd b_typ (mk_n_rels off) idx true in
   let index = mkAppl (f_indexer, mk_n_rels arity) in
   (env, pack_existT {index_type; packer; index; unpacked})
 
@@ -409,7 +409,7 @@ let pack_hypothesis env evd idx b unpacked =
   let (off, ib_typ) = (fst idx, shift (snd idx)) in
   let (b_typ, _) = b in
   let (id, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
-  let packer = make_packer env evd b_typ (unfold_args unpacked_typ) idx false in
+  let evd, packer = make_packer env evd b_typ (unfold_args unpacked_typ) idx false in
   let env_push = pack_hypothesis_type env ib_typ packer (id, unpacked_typ) in
   let ib_rel = new_rels (pop_rel_context 1 env) off in
   let unpacked = pack_unpacked env_push packer ib_typ ib_rel unpacked in

@@ -25,7 +25,7 @@ let pack env evd off unpacked =
   let evd, typ = reduce_type env evd unpacked in
   let index = get_arg off typ in
   let evd, index_type = infer_type env evd index in
-  let packer = abstract_arg env evd off typ in
+  let evd, packer = abstract_arg env evd off typ in
   pack_existT {index_type; packer; index; unpacked}        
 
 (* --- Lifting --- *)
@@ -104,7 +104,7 @@ let refold_packed l evd orn env arg app_red =
   let app_red_ex = dest_existT app_red in
   let orn_app_red_ex = dest_existT orn_app_red in
   let abstract env evd = abstract_arg env evd l.off in
-  let packer = on_red_type_default abstract env evd orn_app_red_ex.unpacked in
+  let evd, packer = on_red_type_default abstract env evd orn_app_red_ex.unpacked in
   let index_type = app_red_ex.index_type in
   let arg_sigT = { index_type ; packer } in
   let arg_indexer = project_index arg_sigT (lift env evd l arg) in
