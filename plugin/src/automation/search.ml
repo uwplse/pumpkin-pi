@@ -351,22 +351,22 @@ let promote_forget_cases env sigma off is_fwd orn_p nargs o n : types list =
 (*
  * Make a packer function for existT/sigT
  *)
-let make_packer env evd b_typ args (off, ib_typ) is_fwd =
+let make_packer env sigma b_typ args (off, ib_typ) is_fwd =
   let sub_index = if is_fwd then insert_index else reindex in
   let packed_args = sub_index off (mkRel 1) (shift_all args) in
   let env_abs = push_local (Anonymous, ib_typ) env in
-  abstract_arg env_abs evd off (mkAppl (b_typ, packed_args))
+  abstract_arg env_abs sigma off (mkAppl (b_typ, packed_args))
 
 (*
  * Pack the conclusion of an ornamental promotion
  *)
-let pack_conclusion f_indexer env evd idx b unpacked =
+let pack_conclusion f_indexer env sigma idx b unpacked =
   let (b_typ, arity) = b in
   let off = arity - 1 in
   let index_type = shift_by off (snd idx) in
-  let evd, packer = make_packer env evd b_typ (mk_n_rels off) idx true in
+  let sigma, packer = make_packer env sigma b_typ (mk_n_rels off) idx true in
   let index = mkAppl (f_indexer, mk_n_rels arity) in
-  (env, pack_existT {index_type; packer; index; unpacked})
+  env, sigma, pack_existT {index_type; packer; index; unpacked}
 
 (*
  * Pack the hypothesis type into a sigT, and update the environment
@@ -379,8 +379,8 @@ let pack_hypothesis_type env ib_typ packer (id, unpacked_typ) : env =
 (*
  * Apply the packer to the index
  *)
-let apply_packer env packer arg =
-  reduce_term env Evd.empty (mkAppl (packer, [arg]))
+let apply_packer env sigma packer arg =
+  reduce_term env sigma (mkAppl (packer, [arg]))
 
 (*
  * Remove the index from the environment, and adjust terms appropriately
@@ -393,32 +393,32 @@ let adjust_to_elim env ib_rel packer packed =
 (*
  * Pack the unpacked term to eliminate using the new hypothesis
  *)
-let pack_unpacked env packer ib_typ ib_rel unpacked =
+let pack_unpacked env sigma packer ib_typ ib_rel unpacked =
   let sub_typ = all_eq_substs (mkRel (4 - ib_rel), mkRel 1) in
   let sub_index = all_eq_substs (mkRel (ib_rel + 3), mkRel 2) in
   let adjust trm = shift_local ib_rel 1 (shift trm) in
   let typ_body = sub_index (sub_typ (adjust unpacked)) in
-  let packer_indexed = apply_packer env (shift packer) (mkRel 1) in
+  let packer_indexed = apply_packer env sigma (shift packer) (mkRel 1) in
   let index_body = mkLambda (Anonymous, packer_indexed, typ_body) in
   mkLambda (Anonymous, shift ib_typ, index_body)
 
 (*
  * Pack the hypothesis of an ornamental forgetful function
  *)
-let pack_hypothesis env evd idx b unpacked =
+let pack_hypothesis env sigma idx b unpacked =
   let (off, ib_typ) = (fst idx, shift (snd idx)) in
   let (b_typ, _) = b in
   let (id, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
-  let evd, packer = make_packer env evd b_typ (unfold_args unpacked_typ) idx false in
+  let sigma, packer = make_packer env sigma b_typ (unfold_args unpacked_typ) idx false in
   let env_push = pack_hypothesis_type env ib_typ packer (id, unpacked_typ) in
   let ib_rel = new_rels (pop_rel_context 1 env) off in
-  let unpacked = pack_unpacked env_push packer ib_typ ib_rel unpacked in
+  let unpacked = pack_unpacked env_push sigma packer ib_typ ib_rel unpacked in
   let adjusted = adjust_to_elim env_push ib_rel packer unpacked in
   let (env_packed, packer, unpacked) = adjusted in
   let arg = mkRel 1 in
-  let arg_typ = on_red_type_default (fun _ _ -> dest_sigT) env_packed evd arg in
+  let arg_typ = on_red_type_default (ignore_env dest_sigT) env_packed sigma arg in
   let (index, value) = projections arg_typ arg in
-  (env_packed, reduce_term env_packed Evd.empty (mkAppl (unpacked, [index; value])))
+  env_packed, sigma, reduce_term env_packed sigma (mkAppl (unpacked, [index; value]))
 
 (*
  * This packs an ornamental promotion to/from an indexed type like Vector A n,
@@ -435,7 +435,7 @@ let pack_orn f_indexer is_fwd =
   if is_fwd then pack_conclusion f_indexer else pack_hypothesis
 
 (* Search for the promotion or forgetful function *)
-let find_promote_or_forget env_pms evd idx indexer_n o n is_fwd =
+let find_promote_or_forget env_pms sigma idx indexer_n o n is_fwd =
   let directional x y = if is_fwd then x else y in
   let (o_typ, arity_o, elim, elim_o_typ) = o in
   let (n_typ, arity_n, _, elim_n_typ) = n in
@@ -463,7 +463,7 @@ let find_promote_or_forget env_pms evd idx indexer_n o n is_fwd =
         cs =
           List.map
             adj
-            (promote_forget_cases env_pms evd off is_fwd (adj (shift p)) nargs o n);
+            (promote_forget_cases env_pms sigma off is_fwd (adj (shift p)) nargs o n);
         final_args = mk_n_rels nargs;
       }
   in
@@ -471,35 +471,32 @@ let find_promote_or_forget env_pms evd idx indexer_n o n is_fwd =
   let n = (n_typ, arity_n) in
   let idx = (npm + off, idx_t) in
   let b = directional n o in
-  let packed = pack_orn f_indexer is_fwd env_p_o evd idx b unpacked in
-  reconstruct_lambda (fst packed) (snd packed)
+  let (env_packed, sigma, packed) = pack_orn f_indexer is_fwd env_p_o sigma idx b unpacked in (* TODO is it OK not to return sigma here? *)
+  reconstruct_lambda env_packed packed
 
 (* Find promote and forget, using a directional flag for abstraction *)
-let find_promote_forget env_pms evd idx indexer_n a b =
-  twice (find_promote_or_forget env_pms evd idx indexer_n) a b
+let find_promote_forget env_pms sigma idx indexer_n a b =
+  twice (find_promote_or_forget env_pms sigma idx indexer_n) a b
 
 (* --- Algebraic ornaments --- *)
               
 (*
  * Search two inductive types for an algebraic ornament between them
  *)
-let search_algebraic env evd npm indexer_n a b =
+let search_algebraic env sigma npm indexer_n a b =
   let (a_typ, arity_a) = a in
   let (b_typ, arity_b) = b in
   let lookup_elim typ = type_eliminator env (fst (destInd typ)) in
-  let elims = map_tuple lookup_elim (a_typ, b_typ) in
-  let zoom_elim_typ el =
-    let evd, el_typ = infer_type env evd el in
-    evd, zoom_n_prod env npm el_typ
-  in (* TODO evar maps *)
-  let ((_, (env_pms, el_a_typ)), (_, (_, el_b_typ))) = map_tuple zoom_elim_typ elims in
+  let (el_a, el_b) = map_tuple lookup_elim (a_typ, b_typ) in
+  let sigma, (env_pms, el_a_typ) = on_type (fun env sigma t -> sigma, zoom_n_prod env npm t) env sigma el_a in
+  let sigma, (_, el_b_typ) = on_type (fun env sigma t -> sigma, zoom_n_prod env npm t) env sigma el_b in
   let a = (a_typ, el_a_typ) in
   let b = (b_typ, el_b_typ) in
-  let idx = offset_and_ib env_pms evd a b in (* idx = (off, I_B) *)
-  let indexer = find_indexer env_pms evd idx (fst elims) a b in
-  let a = (a_typ, arity_a, fst elims, el_a_typ) in
-  let b = (b_typ, arity_b, snd elims, el_b_typ) in
-  let (promote, forget) = find_promote_forget env_pms evd idx indexer_n a b in
+  let idx = offset_and_ib env_pms sigma a b in (* idx = (off, I_B) *)
+  let indexer = find_indexer env_pms sigma idx el_a a b in
+  let a = (a_typ, arity_a, el_a, el_a_typ) in
+  let b = (b_typ, arity_b, el_b, el_b_typ) in
+  let (promote, forget) = find_promote_forget env_pms sigma idx indexer_n a b in
   { indexer; promote; forget }
 
 (* --- Top-level search --- *)
@@ -509,7 +506,7 @@ let search_algebraic env evd npm indexer_n a b =
  * This is more general to handle eventual extension with other 
  * kinds of ornaments.
  *)
-let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
+let search_orn_inductive env sigma indexer_id trm_o trm_n : promotion =
   match map_tuple kind (trm_o, trm_n) with
   | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->
      let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
@@ -534,7 +531,7 @@ let search_orn_inductive env evd indexer_id trm_o trm_n : promotion =
            let o = (trm_o, arity_o) in
            let n = (trm_n, arity_n) in
            let (a, b) = map_if reverse (arity_n <= arity_o) (o, n) in
-           search_algebraic env evd npm indexer_id a b
+           search_algebraic env sigma npm indexer_id a b
          else
            CErrors.user_err unsupported_change_error
   | _ ->
