@@ -422,7 +422,7 @@ let lift_core env evd c ib_typ trm =
   let (a_typ, b_typ) = c.typs in
   let rec lift_rec en ib_typ tr =
     let lifted, try_repack =
-      let lifted_opt = search_lifted_term en tr in
+      let lifted_opt = search_lifted_term en evd tr in
       if Option.has_some lifted_opt then
         (* GLOBAL CACHING *)
         Option.get lifted_opt, false
