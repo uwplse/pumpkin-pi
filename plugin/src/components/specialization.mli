@@ -17,7 +17,7 @@ val pack : env -> evar_map -> int -> types -> evar_map * types
 (*
  * Apply promote/forget (forwards/backwards) to a term
  *)
-val lift : env -> evar_map -> lifting -> types -> types
+val lift : env -> evar_map -> lifting -> types -> evar_map * types
               
 (*
  * Pack arguments and lift

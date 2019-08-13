@@ -380,7 +380,7 @@ let pack_hypothesis_type env ib_typ packer (id, unpacked_typ) : env =
  * Apply the packer to the index
  *)
 let apply_packer env sigma packer arg =
-  reduce_term env sigma (mkAppl (packer, [arg]))
+  reduce_stateless reduce_term env sigma (mkAppl (packer, [arg]))
 
 (*
  * Remove the index from the environment, and adjust terms appropriately
@@ -418,7 +418,7 @@ let pack_hypothesis env sigma idx b unpacked =
   let arg = mkRel 1 in
   let arg_typ = on_red_type_default (ignore_env dest_sigT) env_packed sigma arg in
   let (index, value) = projections arg_typ arg in
-  env_packed, sigma, reduce_term env_packed sigma (mkAppl (unpacked, [index; value]))
+  env_packed, sigma, reduce_stateless reduce_term env_packed sigma (mkAppl (unpacked, [index; value]))
 
 (*
  * This packs an ornamental promotion to/from an indexed type like Vector A n,
