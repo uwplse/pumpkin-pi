@@ -94,12 +94,11 @@ let is_from c env sigma typ =
  * Determine whether a term has the type we are ornamenting from
  *)
 let type_is_from c env sigma trm =
-  let sigma, typ = infer_type env sigma trm in
-  is_from c env sigma (reduce_nf env sigma typ)
+  on_red_type reduce_nf (is_from c) env sigma trm
 
 (* Premises for LIFT-CONSTR *)
-let is_packed_constr c env evd trm =
-  let right_type = type_is_from c env evd in
+let is_packed_constr c env sigma trm =
+  let right_type = type_is_from c env sigma in
   match kind trm with
   | Construct _  when right_type trm ->
      true
@@ -116,8 +115,8 @@ let is_packed_constr c env evd trm =
      false
 
 (* Premises for LIFT-PACKED *)
-let is_packed c env evd trm =
-  let right_type = type_is_from c env evd in
+let is_packed c env sigma trm =
+  let right_type = type_is_from c env sigma in
   if c.l.is_fwd then
     isRel trm && right_type trm
   else
@@ -128,8 +127,8 @@ let is_packed c env evd trm =
        false
 
 (* Premises for LIFT-PROJ *)
-let is_proj c env evd trm =
-  let right_type = type_is_from c env evd in
+let is_proj c env sigma trm =
+  let right_type = type_is_from c env sigma in
   match kind trm with
   | App _ ->
      let f = first_fun trm in
@@ -142,7 +141,7 @@ let is_proj c env evd trm =
      false
 
 (* Premises for LIFT-ELIM *)
-let is_eliminator c env evd trm =
+let is_eliminator c env trm =
   let (a_typ, b_typ) = c.typs in
   match kind trm with
   | App (f, args) when isConst f ->
@@ -488,7 +487,7 @@ let lift_core env evd c ib_typ trm =
             mkAppl (l.orn.indexer, snoc a (non_index_typ_args l.off en evd b_sig)), false
           else
             a, false
-      else if is_eliminator c en evd tr then
+      else if is_eliminator c en tr then
         (* LIFT-ELIM *)
         let evd, tr_eta = expand_eta en evd tr in
         if arity tr_eta > arity tr then
