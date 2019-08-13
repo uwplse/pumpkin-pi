@@ -26,6 +26,7 @@ open Envutils
 open Funutils
 open Contextutils
 open Constutils
+open Evd
 
 (* --- TODO for refactor, for now --- *)
 
@@ -157,31 +158,42 @@ let is_eliminator c env trm =
 (* --- Configuring the constructor liftings --- *)
 
 (*
+ * TODO move to lib, explain, check if this is actually the right thing to do
+ *)
+let map_with_sigma sigma (f : 'a -> evar_map * 'b) (l : 'a list) : evar_map * 'b list  =
+  List.fold_right
+    (fun a (sigma, bs) ->
+      let sigma, b = f a in
+      sigma, b :: bs)
+    l
+    (sigma, [])
+       
+(*
  * For packing constructor aguments: Pack, but only if it's B
  *)
-let pack_to_typ env evd c unpacked =
+let pack_to_typ env sigma c unpacked =
   let (_, b_typ) = c.typs in
-  if on_red_type_default (ignore_env (is_or_applies b_typ)) env evd unpacked then
-    pack env evd c.l.off unpacked
+  if on_red_type_default (ignore_env (is_or_applies b_typ)) env sigma unpacked then
+    pack env sigma c.l.off unpacked
   else
-    evd, unpacked
+    sigma, unpacked
 
 (*
  * NORMALIZE (the result of this is cached)
  *)
-let lift_constr env evd c trm =
+let lift_constr env sigma c trm =
   let l = c.l in
   let args = unfold_args (map_backward last_arg l trm) in
-  let pack_args = List.map (fun t -> snd (pack_to_typ env evd c t)) in (* TODO evar_maps *)
-  let packed_args = map_backward pack_args l args in
-  let rec_args =  List.filter (type_is_from c env evd) packed_args in
-  let app = lift env evd l trm in
+  let pack_args (sigma, args) = map_with_sigma sigma (pack_to_typ env sigma c) args in
+  let sigma, packed_args = map_backward pack_args l (sigma, args) in
+  let rec_args = List.filter (type_is_from c env sigma) packed_args in
+  let app = lift env sigma l trm in
   if List.length rec_args = 0 then
     (* base case - don't bother refolding *)
-    evd, reduce_nf env evd app
+    sigma, reduce_nf env sigma app
   else
     (* inductive case - refold *)
-    refold l env evd (lift_to l) app rec_args
+    refold l env sigma (lift_to l) app rec_args
 
 (*
  * Wrapper around NORMALIZE
