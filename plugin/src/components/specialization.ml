@@ -34,8 +34,8 @@ let pack env sigma off unpacked =
  * Lift
  *)
 let lift env sigma l trm =
-  let typ_args = non_index_typ_args l.off env sigma trm in
-  mkAppl (lift_to l, snoc trm typ_args)
+  let sigma, typ_args = non_index_typ_args l.off env sigma trm in
+  sigma, mkAppl (lift_to l, snoc trm typ_args)
               
 (*
  * Pack arguments and lift
@@ -46,7 +46,7 @@ let pack_lift env sigma l arg =
       (fun (sigma, t) -> pack env sigma l.off t)
       l
       (sigma, arg)
-  in sigma, lift env sigma l arg
+  in lift env sigma l arg
        
 (* --- Refolding --- *)
 
@@ -90,12 +90,14 @@ let rec all_recursive_constants env trm =
  * Fold back constants after applying a function to the normalized form
  * Makes the produced lifted constructors dramatically nicer and faster
  * when they refer to functions
+ *
+ * TODO should make sure this is still working OK
  *)
 let fold_back_constants env sigma f trm =
   List.fold_left
     (fun (sigma, red) lifted ->
-      sigma, all_conv_substs env sigma (lifted, lifted) red)
-    (f (sigma, reduce_nf env sigma trm))
+      all_conv_substs env sigma (lifted, lifted) red)
+    (f (reduce_nf env sigma trm))
     (all_recursive_constants env trm)
          
 (*
@@ -106,17 +108,17 @@ let fold_back_constants env sigma f trm =
  * just refolding; is this correct? If so, can get rid of some when efficient
  *)
 let refold_packed l orn env arg (sigma, app_red) =
-  let typ_args = non_index_typ_args l.off env sigma arg in
+  let sigma, typ_args = non_index_typ_args l.off env sigma arg in
   let orn_app = mkAppl (orn, snoc arg typ_args) in
-  let orn_app_red = reduce_nf env sigma orn_app in
+  let orn_app_red = reduce_stateless reduce_nf env sigma orn_app in
   let app_red_ex = dest_existT app_red in
   let orn_app_red_ex = dest_existT orn_app_red in
   let abstract env sigma = abstract_arg env sigma l.off in
   let sigma, packer = on_red_type_default abstract env sigma orn_app_red_ex.unpacked in
   let index_type = app_red_ex.index_type in
   let arg_sigT = { index_type ; packer } in
-  let arg_indexer = project_index arg_sigT (lift env sigma l arg) in
-  let arg_value = project_value arg_sigT (lift env sigma l arg) in
+  let sigma, arg_indexer = Util.on_snd (project_index arg_sigT) (lift env sigma l arg) in
+  let sigma, arg_value = Util.on_snd (project_value arg_sigT) (lift env sigma l arg) in
   let refold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
   let refold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
   let refolded = refold_index (refold_value app_red_ex.unpacked) in
@@ -127,10 +129,11 @@ let refold_packed l orn env arg (sigma, app_red) =
  * when the ornament application eliminates over the projections.
  *)
 let refold_projected l orn env arg (sigma, app_red) =
-  let typ_args = non_index_typ_args l.off env sigma arg in
+  let sigma, typ_args = non_index_typ_args l.off env sigma arg in
   let orn_app = mkAppl (orn, snoc arg typ_args) in
-  let orn_app_red = reduce_nf env sigma orn_app in
-  sigma, all_eq_substs (orn_app_red, lift env sigma l arg) app_red
+  let orn_app_red = reduce_stateless reduce_nf env sigma orn_app in
+  let sigma, lifted = lift env sigma l arg in
+  sigma, all_eq_substs (orn_app_red, lifted) app_red
 
 (*
  * Top-level refolding

@@ -61,7 +61,7 @@ let search_lifted env sigma base_gref =
   try
     let (_, info) = lookup_canonical_conversion (project_gref (), Const_cs base_gref) in
     (* Reduce the lifting instance to HNF to extract the target component. *)
-    let package = whd env sigma info.o_DEF in
+    let package = reduce_stateless whd env sigma info.o_DEF in
     let (cons, args) = decompose_appvect package in
     Some (args.(3))
   with _ ->

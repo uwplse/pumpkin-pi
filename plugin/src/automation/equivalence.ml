@@ -78,7 +78,7 @@ let eq_lemmas env sigma typ l =
       let c = mkConstructU (((i, i_index), c_index + 1), u) in
       let sigma, c_exp = expand_eta env sigma c in
       let (env_c_b, c_body) = zoom_lambda_term env c_exp in
-      let c_body = reduce_term env_c_b sigma c_body in
+      let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
       let c_args = unfold_args c_body in
       let recs = List.filter (on_red_type_default (ignore_env (is_or_applies typ)) env_c_b sigma) c_args in
       let sigma, env_lemma = eq_lemmas_env env_c_b sigma recs l in
@@ -158,14 +158,14 @@ let equiv_case env sigma pms p eq_lemma l c =
       | App (_, _) ->
          (* conclusion: apply eq lemma and beta-reduce *)
          let all_args = List.rev_append hypos (List.rev args) in
-         reduce_term e sigma (mkAppl (shift_by depth eq_lemma, all_args))
+         reduce_stateless reduce_term e sigma (mkAppl (shift_by depth eq_lemma, all_args))
       | Prod (n, t, b) ->
          let case_b = case (push_local (n, t) e) (shift_i depth) in
          let p_rel = shift_by depth (mkRel 1) in
          let h = mkRel 1 in
          if applies p_rel t then
            (* IH *)
-           let t = reduce_term e sigma (mkAppl (shift_by depth p, unfold_args t)) in
+           let t = reduce_stateless reduce_term e sigma (mkAppl (shift_by depth p, unfold_args t)) in
            let trm = (dest_eq t).trm2 in
            let args =
              map_directional
