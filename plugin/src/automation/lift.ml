@@ -80,22 +80,22 @@ let typs_from_orn l env sigma =
  * Determine whether a type is the type we are ornamenting from
  * That is, A when we are promoting, and B when we are forgetting
  *)
-let is_from c env evd typ =
+let is_from c env sigma typ =
   let (a_typ, b_typ) = c.typs in
   if c.l.is_fwd then
     is_or_applies a_typ typ
   else
     if is_or_applies sigT typ then
-      equal b_typ (first_fun (dummy_index env evd (dest_sigT typ).packer))
+      equal b_typ (first_fun (dummy_index env sigma (dest_sigT typ).packer))
     else
       false
 
 (* 
  * Determine whether a term has the type we are ornamenting from
  *)
-let type_is_from c env evd trm =
-  let evd, typ = infer_type env evd trm in
-  is_from c env evd (reduce_nf env Evd.empty typ)
+let type_is_from c env sigma trm =
+  let sigma, typ = infer_type env sigma trm in
+  is_from c env sigma (reduce_nf env sigma typ)
 
 (* Premises for LIFT-CONSTR *)
 let is_packed_constr c env evd trm =
