@@ -167,6 +167,20 @@ let map_with_sigma sigma (f : 'a -> evar_map * 'b) (l : 'a list) : evar_map * 'b
       sigma, b :: bs)
     l
     (sigma, [])
+
+(*
+ * TODO move to lib, explain, check if this is actually the right thing to do
+ * TODO array and list versions
+ *)
+let map_fold_sigma sigma (f : evar_map -> 'a -> evar_map * 'b) (l : 'a array) : evar_map * 'b array  =
+  let sigma, l =
+    Array.fold_right
+      (fun a (sigma, bs) ->
+        let sigma, b = f sigma a in
+        sigma, b :: bs)
+      l
+      (sigma, [])
+  in sigma, Array.of_list l
        
 (*
  * For packing constructor aguments: Pack, but only if it's B
@@ -198,35 +212,36 @@ let lift_constr env sigma c trm =
 (*
  * Wrapper around NORMALIZE
  *)
-let initialize_constr_rule env evd c constr =
-  let evd, constr_exp = expand_eta env evd constr in
+let initialize_constr_rule c env sigma constr =
+  let sigma, constr_exp = expand_eta env sigma constr in
   let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
-  let c_body = reduce_term env_c_b Evd.empty c_body in
-  let evd, to_refold = map_backward (fun (evd, t) -> pack env_c_b evd c.l.off t) c.l (evd, c_body) in
-  let evd, refolded = lift_constr env_c_b evd c to_refold in
-  reconstruct_lambda_n env_c_b refolded (nb_rel env)
+  let c_body = reduce_term env_c_b sigma c_body in
+  let sigma, to_refold = map_backward (fun (evd, t) -> pack env_c_b evd c.l.off t) c.l (sigma, c_body) in
+  let sigma, refolded = lift_constr env_c_b sigma c to_refold in
+  sigma, reconstruct_lambda_n env_c_b refolded (nb_rel env)
 
 (*
  * Run NORMALIZE for all constructors, so we can cache the result
  *)
-let initialize_constr_rules env evd c =
+let initialize_constr_rules env sigma c =
   let (a_typ, b_typ) = c.typs in
   let ((i, i_index), u) = destInd (directional c.l a_typ b_typ) in
   let mutind_body = lookup_mind i env in
   let ind_bodies = mutind_body.mind_packets in
   let ind_body = ind_bodies.(i_index) in
-  Array.mapi
-    (fun c_index _ ->
-      let constr = mkConstructU (((i, i_index), c_index + 1), u) in
-      initialize_constr_rule env evd c constr)
-    ind_body.mind_consnames
+  map_fold_sigma
+    sigma
+    (initialize_constr_rule c env)
+    (Array.mapi
+       (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
+       ind_body.mind_consnames)
 
 (* Initialize the lift_config *)
-let initialize_lift_config env evd l typs =
+let initialize_lift_config env sigma l typs =
   let cache = initialize_local_cache () in
   let c = { l ; typs ; constr_rules = Array.make 0 (mkRel 1) ; cache } in
-  let constr_rules = initialize_constr_rules env evd c in
-  { c with constr_rules }
+  let sigma, constr_rules = initialize_constr_rules env sigma c in
+  { c with constr_rules } (* TODO ret sigma *)
 
 (* --- Lifting the induction principle --- *)
 
