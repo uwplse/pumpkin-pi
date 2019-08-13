@@ -90,11 +90,13 @@ let rec all_recursive_constants env trm =
  * Fold back constants after applying a function to the normalized form
  * Makes the produced lifted constructors dramatically nicer and faster
  * when they refer to functions
+ *
+ * TODO should make sure this is still working OK
  *)
 let fold_back_constants env sigma f trm =
   List.fold_left
     (fun (sigma, red) lifted ->
-      sigma, all_conv_substs env sigma (lifted, lifted) red)
+      all_conv_substs env sigma (lifted, lifted) red)
     (f (sigma, reduce_nf env sigma trm))
     (all_recursive_constants env trm)
          
