@@ -96,37 +96,55 @@ let is_from c env sigma typ =
  * Determine whether a term has the type we are ornamenting from
  *)
 let type_is_from c env sigma trm =
-  on_red_type reduce_nf (is_from c) env sigma trm
+  on_red_type
+    reduce_nf
+    (fun env sigma trm -> sigma, is_from c env sigma trm)
+    env
+    sigma
+    trm
 
 (* Premises for LIFT-CONSTR *)
 let is_packed_constr c env sigma trm =
   let right_type = type_is_from c env sigma in
   match kind trm with
-  | Construct _  when right_type trm ->
-     true
+  | Construct _  ->
+     right_type trm
   | App (f, args) ->
      if c.l.is_fwd then
-       isConstruct f && right_type trm
-     else
-       if equal existT f && right_type trm then
-         let last_arg = last (Array.to_list args) in
-         isApp last_arg && isConstruct (first_fun last_arg)
+       if isConstruct f then
+         right_type trm
        else
-         false
+         sigma, false
+     else
+       if equal existT f then
+         let sigma, is_right_type = right_type trm in
+         if is_right_type then
+           let last_arg = last (Array.to_list args) in
+           sigma, isApp last_arg && isConstruct (first_fun last_arg)
+         else
+           sigma, false
+       else
+         sigma, false
   | _ ->
-     false
+     sigma, false
 
 (* Premises for LIFT-PACKED *)
 let is_packed c env sigma trm =
   let right_type = type_is_from c env sigma in
   if c.l.is_fwd then
-    isRel trm && right_type trm
+    if isRel trm then
+      right_type trm
+    else
+      sigma, false
   else
     match kind trm with
     | App (f, args) ->
-       equal existT f && right_type trm
+       if equal existT f then
+         right_type trm
+       else
+         sigma, false
     | _ ->
-       false
+       sigma, false
 
 (* Premises for LIFT-PROJ *)
 let is_proj c env sigma trm =
@@ -136,11 +154,17 @@ let is_proj c env sigma trm =
      let f = first_fun trm in
      let args = unfold_args trm in
      if c.l.is_fwd then
-       equal c.l.orn.indexer f && right_type (last args)
+       if equal c.l.orn.indexer f then
+         right_type (last args)
+       else
+         sigma, false
      else
-       (equal projT1 f || equal projT2 f) && right_type (last args)
+       if (equal projT1 f || equal projT2 f) then
+         right_type (last args)
+       else
+         sigma, false
   | _ ->
-     false
+     sigma, false
 
 (* Premises for LIFT-ELIM *)
 let is_eliminator c env trm =
@@ -176,7 +200,7 @@ let lift_constr env sigma c trm =
   let args = unfold_args (map_backward last_arg l trm) in
   let pack_args (sigma, args) = map_fold_state sigma (fun sigma arg -> pack_to_typ env sigma c arg) args in
   let sigma, packed_args = map_backward pack_args l (sigma, args) in
-  let rec_args = List.filter (type_is_from c env sigma) packed_args in
+  let sigma, rec_args = filter_state sigma (type_is_from c env) packed_args in
   let sigma, app = lift env sigma l trm in
   if List.length rec_args = 0 then
     (* base case - don't bother refolding *)
@@ -232,109 +256,119 @@ let initialize_lift_config env sigma l typs =
  * The one difference is that there are extra arguments because of
  * non-primitve eliminators, and also parameters
  *)
-let lift_elim_args env evd l npms args =
+let lift_elim_args env sigma l npms args =
   let arg = map_backward last_arg l (last args) in
-  let sigma, typ_args = non_index_typ_args l.off env evd arg in
+  let sigma, typ_args = non_index_typ_args l.off env sigma arg in
   let lifted_arg = mkAppl (lift_to l, snoc arg typ_args) in
   let value_off = List.length args - 1 in
   let l = { l with off = l.off - npms } in (* we no longer have parameters *)
   if l.is_fwd then
     (* project and index *)
     let b_sig = lifted_arg in
-    let b_sig_typ = on_red_type_default (fun _ _ -> dest_sigT) env evd b_sig in
+    let b_sig_typ = on_red_type_default (ignore_env dest_sigT) env sigma b_sig in
     let i_b = project_index b_sig_typ b_sig in
     let b = project_value b_sig_typ b_sig in
-    index l i_b (reindex value_off b args)
+    sigma, index l i_b (reindex value_off b args)
   else
     (* don't project and deindex *)
     let a = lifted_arg in
-    deindex l (reindex value_off a args)
+    sigma, deindex l (reindex value_off a args)
 
 (*
  * MOTIVE
  *)
-let lift_motive env evd l npms parameterized_elim p =
-  let evd, parameterized_elim_type = reduce_type env evd parameterized_elim in
+let lift_motive env sigma l npms parameterized_elim p =
+  let sigma, parameterized_elim_type = reduce_type env sigma parameterized_elim in
   let (_, p_to_typ, _) = destProd parameterized_elim_type in
   let env_p_to = zoom_env zoom_product_type env p_to_typ in
   let nargs = new_rels2 env_p_to env in
   let p = shift_by nargs p in
   let args = mk_n_rels nargs in
-  let evd, lifted_arg = pack_lift env_p_to evd (flip_dir l) (last args) in
+  let sigma, lifted_arg = pack_lift env_p_to sigma (flip_dir l) (last args) in
   let value_off = nargs - 1 in
   let l = { l with off = l.off - npms } in (* no parameters here *)
   if l.is_fwd then
     (* forget packed b to a, don't project, and deindex *)
     let a = lifted_arg in
     let args = deindex l (reindex value_off a args) in
-    let p_app = reduce_stateless reduce_term env_p_to Evd.empty (mkAppl (p, args)) in
-    reconstruct_lambda_n env_p_to p_app (nb_rel env)
+    let p_app = reduce_stateless reduce_term env_p_to sigma (mkAppl (p, args)) in
+    sigma, reconstruct_lambda_n env_p_to p_app (nb_rel env)
   else
     (* promote a to packed b, project, and index *)
     let b_sig = lifted_arg in
-    let b_sig_typ = on_red_type_default (ignore_env dest_sigT) env_p_to evd b_sig in
+    let b_sig_typ = on_red_type_default (ignore_env dest_sigT) env_p_to sigma b_sig in
     let i_b = project_index b_sig_typ b_sig in
     let b = project_value b_sig_typ b_sig in
     let args = index l i_b (reindex value_off b args) in
-    let p_app = reduce_stateless reduce_term env_p_to Evd.empty (mkAppl (p, args)) in
-    reconstruct_lambda_n env_p_to p_app (nb_rel env)
+    let p_app = reduce_stateless reduce_term env_p_to sigma (mkAppl (p, args)) in
+    sigma, reconstruct_lambda_n env_p_to p_app (nb_rel env)
 
 (*
  * The argument rules for lifting eliminator cases in the promotion direction.
  * Note that since we save arguments and reduce at the end, this looks a bit
  * different, and the call to new is no longer necessary.
  *)
-let promote_case_args env evd c args =
+let promote_case_args env sigma c args =
   let (_, b_typ) = c.typs in
-  let rec lift_args args i_b =
+  let rec lift_args sigma args i_b =
     match args with
     | n :: tl ->
        if equal n i_b then
          (* DROP-INDEX *)
-         shift n :: (lift_args (shift_all tl) i_b)
+         Util.on_snd
+           (fun tl -> shift n :: tl)
+           (lift_args sigma (shift_all tl) i_b)
        else
-         let evd, t = reduce_type env evd n in
+         let sigma, t = reduce_type env sigma n in
          if is_or_applies b_typ t then
            (* FORGET-ARG *)
-           let evd, a = pack_lift env evd (flip_dir c.l) n in
-           a :: lift_args tl (get_arg c.l.off t)
+           let sigma, a = pack_lift env sigma (flip_dir c.l) n in
+           Util.on_snd
+             (fun tl -> a :: tl)
+             (lift_args sigma tl (get_arg c.l.off t))
          else
            (* ARG *)
-           n :: lift_args tl i_b
+           Util.on_snd (fun tl -> n :: tl) (lift_args sigma tl i_b)
     | _ ->
        (* CONCL in inductive case *)
-       []
-  in lift_args args (mkRel 0)
+       sigma, []
+  in lift_args sigma args (mkRel 0)
 
 (*
  * The argument rules for lifting eliminator cases in the forgetful direction.
  * Note that since we save arguments and reduce at the end, this looks a bit
  * different, and the call to new is no longer necessary.
  *)
-let forget_case_args env_c_b env evd c args =
+let forget_case_args env_c_b env sigma c args =
   let (_, b_typ) = c.typs in
-  let rec lift_args args (i_b, proj_i_b) =
+  let rec lift_args sigma args (i_b, proj_i_b) =
     match args with
     | n :: tl ->
        if equal n i_b then
          (* ADD-INDEX *)
-         proj_i_b :: (lift_args (unshift_all tl) (i_b, proj_i_b))
+         Util.on_snd
+           (fun tl -> proj_i_b :: tl)
+           (lift_args sigma (unshift_all tl) (i_b, proj_i_b))
        else
-         let evd, t = reduce_type env_c_b evd n in
+         let sigma, t = reduce_type env_c_b sigma n in
          if is_or_applies b_typ t then
            (* PROMOTE-ARG *)
-           let evd, b_sig =  pack_lift env evd (flip_dir c.l) n in
-           let b_sig_typ = on_red_type_default (fun _ _ -> dest_sigT) env evd b_sig in
+           let sigma, b_sig =  pack_lift env sigma (flip_dir c.l) n in
+           let b_sig_typ = on_red_type_default (ignore_env dest_sigT) env sigma b_sig in
            let proj_b = project_value b_sig_typ b_sig in
            let proj_i_b = project_index b_sig_typ b_sig in
-           proj_b :: lift_args tl (get_arg c.l.off t, proj_i_b)
+           Util.on_snd
+             (fun tl -> proj_b :: tl)
+             (lift_args sigma tl (get_arg c.l.off t, proj_i_b))
          else
            (* ARG *)
-           n :: lift_args tl (i_b, proj_i_b)
+           Util.on_snd
+             (fun tl -> n :: tl)
+             (lift_args sigma tl (i_b, proj_i_b))
     | _ ->
        (* CONCL in inductive case *)
-       []
-  in lift_args args (mkRel 0, mkRel 0)
+       sigma, []
+  in lift_args sigma args (mkRel 0, mkRel 0)
 
 (* Common wrapper function for both directions *)
 let lift_case_args env_c_b env evd c args =
@@ -343,7 +377,7 @@ let lift_case_args env_c_b env evd c args =
       promote_case_args
     else
       forget_case_args env_c_b
-  in List.rev (lifter env evd c (List.rev args))
+  in List.rev (snd (lifter env evd c (List.rev args))) (* TODO sigma *)
 
 (*
  * CASE
@@ -387,24 +421,24 @@ let lift_cases env evd c p p_elim cs =
 (*
  * LIFT-ELIM steps before recursing into the rest of the algorithm
  *)
-let lift_elim env evd c trm_app =
+let lift_elim env sigma c trm_app =
   let (a_t, b_t) = c.typs in
   let to_typ = directional c.l b_t a_t in
   let npms = List.length trm_app.pms in
   let elim = type_eliminator env (fst (destInd to_typ)) in
   let param_elim = mkAppl (elim, trm_app.pms) in
-  let p = lift_motive env evd c.l npms param_elim trm_app.p in
+  let sigma, p = lift_motive env sigma c.l npms param_elim trm_app.p in
   let p_elim = mkAppl (param_elim, [p]) in
-  let cs = lift_cases env evd c p p_elim trm_app.cs in
-  let final_args = lift_elim_args env evd c.l npms trm_app.final_args in
-  apply_eliminator {trm_app with elim; p; cs; final_args}
+  let cs = lift_cases env sigma c p p_elim trm_app.cs in
+  let sigma, final_args = lift_elim_args env sigma c.l npms trm_app.final_args in
+  sigma, apply_eliminator {trm_app with elim; p; cs; final_args}
 
 (*
  * REPACK
  *
  * This is to deal with non-primitive projections
  *)
-let repack env evd ib_typ lifted typ =
+let repack env ib_typ lifted typ =
   let lift_typ = dest_sigT (shift typ) in
   let n = project_index lift_typ (mkRel 1) in
   let b = project_value lift_typ (mkRel 1) in
@@ -444,7 +478,7 @@ let lift_core env evd c ib_typ trm =
           let packed = dummy_index en evd (dest_sigT tr).packer in
           let is = deindex l (unfold_args packed) in
           mkAppl (a_typ, is), false
-      else if is_packed_constr c en evd tr then
+      else if snd (is_packed_constr c en evd tr) then (* TODO sigma *)
         (* LIFT-CONSTR *)
         (* The extra logic here is an optimization *)
         (* It also deals with the fact that we are lazy about eta *)
@@ -469,13 +503,13 @@ let lift_core env evd c ib_typ trm =
               (mkApp (f', args''), false))
           (List.length args > 0)
           (reduce_stateless reduce_term en Evd.empty (mkAppl (lifted_constr, args)), false)
-      else if is_packed c en evd tr then
+      else if snd (is_packed c en evd tr) then (* TODO sigma *)
         (* LIFT-PACK (extra rule for non-primitive projections) *)
         if l.is_fwd then
           tr, true
         else
           lift_rec en ib_typ (dest_existT tr).unpacked, false
-      else if is_proj c en evd tr then
+      else if snd (is_proj c en evd tr) then (* TODO sigma *)
         (* COHERENCE *)
         if l.is_fwd then
           let a = last_arg tr in
@@ -503,7 +537,7 @@ let lift_core env evd c ib_typ trm =
           let evd, a_typ_eta = expand_eta env evd a_typ in
           let value_i = arity a_typ_eta - npms in
           let (final_args, post_args) = take_split (value_i + 1) tr_elim.final_args in
-          let tr' = lift_elim en evd c { tr_elim with final_args } in
+          let evd, tr' = lift_elim en evd c { tr_elim with final_args } in
           let tr'' = lift_rec en ib_typ tr' in
           let post_args' = List.map (lift_rec en ib_typ) post_args in
           mkAppl (tr'', post_args'), l.is_fwd
@@ -616,7 +650,7 @@ let lift_core env evd c ib_typ trm =
         let typ = reduce_stateless reduce_nf en Evd.empty typ in
         let is_from_typ = is_from c en evd typ in
         map_if
-          (fun t -> repack en evd ib_typ t (lift_rec en ib_typ typ))
+          (fun t -> repack en ib_typ t (lift_rec en ib_typ typ))
           (is_from_typ && not (is_or_applies existT (reduce_stateless reduce_nf en Evd.empty lifted)))
           lifted)
       (try_repack)

@@ -19,6 +19,7 @@ open Apputils
 open Equtils
 open Contextutils
 open Sigmautils
+open Stateutils
 
 (* --- Automatically generated equivalence proofs about search components --- *)
 
@@ -44,12 +45,14 @@ let eq_lemmas_env env sigma recs l =
       let sigma, r_t = reduce_type e sigma r1 in
       let push_ib =
         map_backward
-          (fun e ->
-            push_local (Anonymous, snd (reduce_type e sigma (get_arg l.off r_t))) e)
+          (fun (sigma, e) ->
+            Util.on_snd
+              (fun t -> push_local (Anonymous, t) e)
+              (reduce_type e sigma (get_arg l.off r_t)))
           l
       in
       (* push index in backwards direction *)
-      let e_ib = push_ib e in 
+      let sigma, e_ib = push_ib (sigma, e) in 
       let adj_back = map_backward (reindex_app (reindex l.off (mkRel 1))) l in
       let r_t = adj_back (shift_by (new_rels2 e_ib e) r_t) in
       (* push new rec arg *)
@@ -68,13 +71,12 @@ let eq_lemmas_env env sigma recs l =
  * Determine the equality lemmas for each case of an inductive type
  * Take as arguments an environment, an evar_map, the inductive type,
  * and a lift config.
- *
- * TODO OK to ignore sigma in return?
  *)
 let eq_lemmas env sigma typ l =
   let ((i, i_index), u) = destInd typ in
-  Array.mapi
-    (fun c_index _ ->
+  map_fold_state_array
+    sigma
+    (fun sigma c_index ->
       let c = mkConstructU (((i, i_index), c_index + 1), u) in
       let sigma, c_exp = expand_eta env sigma c in
       let (env_c_b, c_body) = zoom_lambda_term env c_exp in
@@ -126,8 +128,10 @@ let eq_lemmas env sigma typ l =
             (eq_proof, shift_by (directional l 2 3) h, c_app_trans))
           recs
           (refl, mkRel 1, c_body)
-      in reconstruct_lambda env_lemma body)
-    ((lookup_mind i env).mind_packets.(i_index)).mind_consnames
+      in sigma, reconstruct_lambda env_lemma body)
+    (Array.mapi
+       (fun i _ -> i)
+       ((lookup_mind i env).mind_packets.(i_index)).mind_consnames)
 
 (*
  * Construct the motive for section/retraction
@@ -204,7 +208,7 @@ let equiv_proof env sigma l =
   let ((i, i_index), _) = destInd typ in
   let npm = (lookup_mind i env).mind_nparams in
   let nargs = new_rels env_to npm in
-  let lemmas = eq_lemmas env sigma typ l in (* equality lemmas *)
+  let sigma, lemmas = eq_lemmas env sigma typ l in (* equality lemmas *)
   let env_eq_proof = (* unpack env_to for retraction *)
     map_backward
       (fun env ->
