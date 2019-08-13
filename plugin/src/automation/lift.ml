@@ -67,8 +67,8 @@ let deindex l = remove_index l.off
 (*
  * Get the types A, B, and IB from the ornament
  *)
-let typs_from_orn l env evd =
-  let (a_i_t, b_i_t) = on_red_type_default (fun _ _ -> ind_of_promotion_type) env evd l.orn.promote in
+let typs_from_orn l env sigma =
+  let (a_i_t, b_i_t) = on_red_type_default (ignore_env ind_of_promotion_type) env sigma l.orn.promote in
   let a_t = first_fun a_i_t in
   let b_t = zoom_sig b_i_t in
   let i_b_t = (dest_sigT b_i_t).index_type in
