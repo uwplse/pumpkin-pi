@@ -156,31 +156,6 @@ let is_eliminator c env trm =
      false
 
 (* --- Configuring the constructor liftings --- *)
-
-(*
- * TODO move to lib, explain, check if this is actually the right thing to do
- *)
-let map_with_sigma sigma (f : 'a -> evar_map * 'b) (l : 'a list) : evar_map * 'b list  =
-  List.fold_right
-    (fun a (sigma, bs) ->
-      let sigma, b = f a in
-      sigma, b :: bs)
-    l
-    (sigma, [])
-
-(*
- * TODO move to lib, explain, check if this is actually the right thing to do
- * TODO array and list versions
- *)
-let map_fold_sigma sigma (f : evar_map -> 'a -> evar_map * 'b) (l : 'a array) : evar_map * 'b array  =
-  let sigma, l =
-    Array.fold_right
-      (fun a (sigma, bs) ->
-        let sigma, b = f sigma a in
-        sigma, b :: bs)
-      l
-      (sigma, [])
-  in sigma, Array.of_list l
        
 (*
  * For packing constructor aguments: Pack, but only if it's B
