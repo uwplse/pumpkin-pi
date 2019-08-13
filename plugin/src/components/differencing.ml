@@ -21,7 +21,7 @@ let same_type env sigma o n =
   let (env_n, t_n) = n in
   let sigma, typ_o = infer_type env_o sigma t_o in
   let sigma, typ_n = infer_type env_o sigma t_n in
-  convertible env sigma typ_o typ_n
+  snd (convertible env sigma typ_o typ_n) (* TODO evar_map *)
 
 (* --- Differencing inductive types --- *)
 
@@ -34,7 +34,7 @@ let apply_old_new (o : types * types) (n : types * types) : bool =
 (* Check if two terms are the same modulo a change of an inductive type *)
 let same_mod_change env sigma o n =
   let (t_o, t_n) = map_tuple snd (o, n) in
-  apply_old_new o n || convertible env sigma t_o t_n
+  apply_old_new o n || snd (convertible env sigma t_o t_n) (* TODO evar_map *)
 
 (* Check if two terms are the same modulo an indexing of an inductive type *)
 let same_mod_indexing env sigma p_index o n =
@@ -129,7 +129,7 @@ let new_index_type env sigma elim_t_o elim_t_n =
   let rec candidates e p_o p_n =
     match map_tuple kind (p_o, p_n) with
     | (Prod (n_o, t_o, b_o), Prod (_, t_n, b_n)) ->
-       if isProd b_o && convertible e sigma t_o t_n then
+       if isProd b_o && snd (convertible e sigma t_o t_n) then (* TODO evar_map *)
          let e_b = push_local (n_o, t_o) e in
          let same = candidates e_b b_o b_n in
          let different = (0, t_n) in
@@ -152,11 +152,11 @@ let diff_context_simple env sigma decls_o decls_n =
       let type_n = Rel.Declaration.get_type decl_n in
       let env_b = push_rel decl_n env in
       let pos_b = pos + 1 in
-      if convertible env sigma type_o type_n then
+      if snd (convertible env sigma type_o type_n) then (* TODO evar_map *)
         let diff_b = scan env_b pos_b diff (decls_o_b, decls_n_b) in
         if Option.has_some diff_b && Option.get diff_b = pos_b then
           let type_i = nth_type pos_b in
-          if not (convertible env_b sigma (shift type_o) type_i) then
+          if not (snd (convertible env_b sigma (shift type_o) type_i)) then (* TODO evar_map *)
             diff_b
           else
             None (* ambiguous, can't use this heuristic *)
