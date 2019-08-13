@@ -27,6 +27,7 @@ open Funutils
 open Contextutils
 open Constutils
 open Evd
+open Stateutils
 
 (* --- TODO for refactor, for now --- *)
 
@@ -173,7 +174,7 @@ let pack_to_typ env sigma c unpacked =
 let lift_constr env sigma c trm =
   let l = c.l in
   let args = unfold_args (map_backward last_arg l trm) in
-  let pack_args (sigma, args) = map_with_sigma sigma (pack_to_typ env sigma c) args in
+  let pack_args (sigma, args) = map_fold_state sigma (fun sigma arg -> pack_to_typ env sigma c arg) args in
   let sigma, packed_args = map_backward pack_args l (sigma, args) in
   let rec_args = List.filter (type_is_from c env sigma) packed_args in
   let app = lift env sigma l trm in
@@ -204,7 +205,7 @@ let initialize_constr_rules env sigma c =
   let mutind_body = lookup_mind i env in
   let ind_bodies = mutind_body.mind_packets in
   let ind_body = ind_bodies.(i_index) in
-  map_fold_sigma
+  map_fold_state_array
     sigma
     (initialize_constr_rule c env)
     (Array.mapi
