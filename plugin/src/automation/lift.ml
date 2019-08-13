@@ -241,7 +241,7 @@ let initialize_lift_config env sigma l typs =
   let cache = initialize_local_cache () in
   let c = { l ; typs ; constr_rules = Array.make 0 (mkRel 1) ; cache } in
   let sigma, constr_rules = initialize_constr_rules env sigma c in
-  { c with constr_rules } (* TODO ret sigma *)
+  sigma, { c with constr_rules }
 
 (* --- Lifting the induction principle --- *)
 
@@ -651,7 +651,7 @@ let lift_core env evd c ib_typ trm =
  *)
 let do_lift_term env evd (l : lifting) trm =
   let (a_t, b_t, i_b_t) = typs_from_orn l env evd in
-  let c = initialize_lift_config env evd l (a_t, b_t) in
+  let evd, c = initialize_lift_config env evd l (a_t, b_t) in
   lift_core env evd c i_b_t (trm )
 
 (*
