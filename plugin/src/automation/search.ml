@@ -90,9 +90,13 @@ let optimized_is_new env sigma off p a b =
   let (b_t, elim_b) = b in
   let (_, t_a, b_a) = destProd elim_a in
   let (_, t_b, b_b) = destProd elim_b in
-  let optimize_types = not (same_mod_indexing env sigma p (a_t, t_a) (b_t, t_b)) in
+  let sigma, optimize_types =
+    Util.on_snd
+      (fun b -> not b)
+      (same_mod_indexing env sigma p (a_t, t_a) (b_t, t_b))
+  in
   let optimize_arity = (arity b_a = arity b_b) in
-  if optimize_types then
+  if optimize_types then (* TODO ret sigma *)
     true
   else if optimize_arity then
     false
@@ -492,10 +496,10 @@ let search_algebraic env sigma npm indexer_n a b =
   let sigma, (_, el_b_typ) = on_type (fun env sigma t -> sigma, zoom_n_prod env npm t) env sigma el_b in
   let a = (a_typ, el_a_typ) in
   let b = (b_typ, el_b_typ) in
-  let idx = offset_and_ib env_pms sigma a b in (* idx = (off, I_B) *)
+  let sigma, idx = offset_and_ib env_pms sigma a b in (* idx = (off, I_B) *)
   let indexer = find_indexer env_pms sigma idx el_a a b in
   let a = (a_typ, arity_a, el_a, el_a_typ) in
-  let b = (b_typ, arity_b, el_b, el_b_typ) in
+  let b = (b_typ, arity_b, el_b, el_b_typ) in (* TODO ret sigma *)
   let (promote, forget) = find_promote_forget env_pms sigma idx indexer_n a b in
   { indexer; promote; forget }
 
