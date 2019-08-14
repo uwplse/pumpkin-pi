@@ -277,31 +277,31 @@ let lift_elim_args env sigma l npms args =
 (*
  * MOTIVE
  *)
-let lift_motive env evd l npms parameterized_elim p =
-  let evd, parameterized_elim_type = reduce_type env evd parameterized_elim in
+let lift_motive env sigma l npms parameterized_elim p =
+  let sigma, parameterized_elim_type = reduce_type env sigma parameterized_elim in
   let (_, p_to_typ, _) = destProd parameterized_elim_type in
   let env_p_to = zoom_env zoom_product_type env p_to_typ in
   let nargs = new_rels2 env_p_to env in
   let p = shift_by nargs p in
   let args = mk_n_rels nargs in
-  let evd, lifted_arg = pack_lift env_p_to evd (flip_dir l) (last args) in
+  let sigma, lifted_arg = pack_lift env_p_to sigma (flip_dir l) (last args) in
   let value_off = nargs - 1 in
   let l = { l with off = l.off - npms } in (* no parameters here *)
   if l.is_fwd then
     (* forget packed b to a, don't project, and deindex *)
     let a = lifted_arg in
     let args = deindex l (reindex value_off a args) in
-    let p_app = reduce_stateless reduce_term env_p_to Evd.empty (mkAppl (p, args)) in
-    reconstruct_lambda_n env_p_to p_app (nb_rel env)
+    let p_app = reduce_stateless reduce_term env_p_to sigma (mkAppl (p, args)) in
+    sigma, reconstruct_lambda_n env_p_to p_app (nb_rel env)
   else
     (* promote a to packed b, project, and index *)
     let b_sig = lifted_arg in
-    let b_sig_typ = on_red_type_default (ignore_env dest_sigT) env_p_to evd b_sig in
+    let b_sig_typ = on_red_type_default (ignore_env dest_sigT) env_p_to sigma b_sig in
     let i_b = project_index b_sig_typ b_sig in
     let b = project_value b_sig_typ b_sig in
     let args = index l i_b (reindex value_off b args) in
-    let p_app = reduce_stateless reduce_term env_p_to Evd.empty (mkAppl (p, args)) in
-    reconstruct_lambda_n env_p_to p_app (nb_rel env)
+    let p_app = reduce_stateless reduce_term env_p_to sigma (mkAppl (p, args)) in
+    sigma, reconstruct_lambda_n env_p_to p_app (nb_rel env)
 
 (*
  * The argument rules for lifting eliminator cases in the promotion direction.
@@ -417,7 +417,7 @@ let lift_elim env sigma c trm_app =
   let npms = List.length trm_app.pms in
   let elim = type_eliminator env (fst (destInd to_typ)) in
   let param_elim = mkAppl (elim, trm_app.pms) in
-  let p = lift_motive env sigma c.l npms param_elim trm_app.p in
+  let sigma, p = lift_motive env sigma c.l npms param_elim trm_app.p in
   let p_elim = mkAppl (param_elim, [p]) in
   let cs = lift_cases env sigma c p p_elim trm_app.cs in
   let sigma, final_args = lift_elim_args env sigma c.l npms trm_app.final_args in
