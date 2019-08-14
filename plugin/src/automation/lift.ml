@@ -308,57 +308,67 @@ let lift_motive env sigma l npms parameterized_elim p =
  * Note that since we save arguments and reduce at the end, this looks a bit
  * different, and the call to new is no longer necessary.
  *)
-let promote_case_args env evd c args =
+let promote_case_args env sigma c args =
   let (_, b_typ) = c.typs in
-  let rec lift_args args i_b =
+  let rec lift_args sigma args i_b =
     match args with
     | n :: tl ->
        if equal n i_b then
          (* DROP-INDEX *)
-         shift n :: (lift_args (shift_all tl) i_b)
+         Util.on_snd
+           (fun tl -> shift n :: tl)
+           (lift_args sigma (shift_all tl) i_b)
        else
-         let evd, t = reduce_type env evd n in
+         let sigma, t = reduce_type env sigma n in
          if is_or_applies b_typ t then
            (* FORGET-ARG *)
-           let evd, a = pack_lift env evd (flip_dir c.l) n in
-           a :: lift_args tl (get_arg c.l.off t)
+           let sigma, a = pack_lift env sigma (flip_dir c.l) n in
+           Util.on_snd
+             (fun tl -> shift a :: tl)
+             (lift_args sigma tl (get_arg c.l.off t))
          else
            (* ARG *)
-           n :: lift_args tl i_b
+           Util.on_snd (fun tl -> n :: tl) (lift_args sigma tl i_b)
     | _ ->
        (* CONCL in inductive case *)
-       []
-  in lift_args args (mkRel 0)
+       sigma, []
+  in lift_args sigma args (mkRel 0)
 
 (*
  * The argument rules for lifting eliminator cases in the forgetful direction.
  * Note that since we save arguments and reduce at the end, this looks a bit
  * different, and the call to new is no longer necessary.
  *)
-let forget_case_args env_c_b env evd c args =
+let forget_case_args env_c_b env sigma c args =
   let (_, b_typ) = c.typs in
-  let rec lift_args args (i_b, proj_i_b) =
+  let rec lift_args sigma args (i_b, proj_i_b) =
     match args with
     | n :: tl ->
        if equal n i_b then
          (* ADD-INDEX *)
-         proj_i_b :: (lift_args (unshift_all tl) (i_b, proj_i_b))
+         Util.on_snd
+           (fun tl -> proj_i_b :: tl)
+           (lift_args sigma (unshift_all tl) (i_b, proj_i_b))
        else
-         let evd, t = reduce_type env_c_b evd n in
+         let sigma, t = reduce_type env_c_b sigma n in
          if is_or_applies b_typ t then
            (* PROMOTE-ARG *)
-           let evd, b_sig =  pack_lift env evd (flip_dir c.l) n in
-           let b_sig_typ = on_red_type_default (fun _ _ -> dest_sigT) env evd b_sig in
+           let sigma, b_sig =  pack_lift env sigma (flip_dir c.l) n in
+           let b_sig_typ = on_red_type_default (ignore_env dest_sigT) env sigma b_sig in
            let proj_b = project_value b_sig_typ b_sig in
            let proj_i_b = project_index b_sig_typ b_sig in
-           proj_b :: lift_args tl (get_arg c.l.off t, proj_i_b)
+           Util.on_snd
+             (fun tl -> proj_b :: tl)
+             (lift_args sigma tl (get_arg c.l.off t, proj_i_b))
          else
            (* ARG *)
-           n :: lift_args tl (i_b, proj_i_b)
+           Util.on_snd
+             (fun tl -> n :: tl)
+             (lift_args sigma tl (i_b, proj_i_b))
     | _ ->
        (* CONCL in inductive case *)
-       []
-  in lift_args args (mkRel 0, mkRel 0)
+       sigma, []
+  in lift_args sigma args (mkRel 0, mkRel 0)
 
 (* Common wrapper function for both directions *)
 let lift_case_args env_c_b env evd c args =
@@ -367,7 +377,7 @@ let lift_case_args env_c_b env evd c args =
       promote_case_args
     else
       forget_case_args env_c_b
-  in List.rev (lifter env evd c (List.rev args))
+  in List.rev (snd (lifter env evd c (List.rev args))) (* TODO sigma *)
 
 (*
  * CASE
