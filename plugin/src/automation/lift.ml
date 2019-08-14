@@ -470,6 +470,8 @@ let repack env ib_typ lifted typ =
 let lift_core env sigma c ib_typ trm =
   let l = c.l in
   let (a_typ, b_typ) = c.typs in
+  let sigma, a_typ_eta = expand_eta env sigma a_typ in
+  let a_arity = arity a_typ_eta in
   let rec lift_rec en sigma ib_typ tr : evar_map * types =
     let (sigma, lifted), try_repack =
       let lifted_opt = search_lifted_term en sigma tr in
@@ -554,8 +556,7 @@ let lift_core env sigma c ib_typ trm =
               else
                 let sigma, tr_elim = deconstruct_eliminator en sigma tr in
                 let npms = List.length tr_elim.pms in
-                let sigma, a_typ_eta = expand_eta env sigma a_typ in
-                let value_i = arity a_typ_eta - npms in
+                let value_i = a_arity - npms in
                 let (final_args, post_args) = take_split (value_i + 1) tr_elim.final_args in
                 let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } in
                 let sigma, tr'' = lift_rec en sigma ib_typ tr' in
@@ -628,12 +629,12 @@ let lift_core env sigma c ib_typ trm =
               | Fix ((is, i), (ns, ts, ds)) ->
                  (* FIX (will not work if this destructs over A; preprocess first) *)
                  let sigma, ts' = map_rec_args lift_rec en sigma ib_typ ts in
-                 let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec shift en sigma a ns ts trm) env sigma ib_typ ds in
+                 let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec shift en sigma a ns ts trm) en sigma ib_typ ds in
                  (sigma, mkFix ((is, i), (ns, ts', ds'))), false
               | CoFix (i, (ns, ts, ds)) ->
                  (* COFIX (will not work if this destructs over A; preprocess first) *)
                  let sigma, ts' = map_rec_args lift_rec en sigma ib_typ ts in
-                 let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec shift en sigma a ns ts trm) env sigma ib_typ ds in
+                 let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec shift en sigma a ns ts trm) en sigma ib_typ ds in
                  (sigma, mkCoFix (i, (ns, ts', ds'))), false
               | Proj (pr, co) ->
                  (* PROJ *)
