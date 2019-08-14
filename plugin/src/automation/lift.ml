@@ -510,7 +510,7 @@ let lift_core env sigma c ib_typ trm =
                 l
                 (mkApp (f', args''), false))
             (List.length args > 0)
-            (reduce_stateless reduce_term en Evd.empty (mkAppl (lifted_constr, args)), false)
+            (reduce_stateless reduce_term en sigma (mkAppl (lifted_constr, args)), false)
         else
           let sigma, run_lift_pack = is_packed c en sigma tr in
           if run_lift_pack then
@@ -568,7 +568,7 @@ let lift_core env sigma c ib_typ trm =
                    let arg' = last args' in
                    if (is_or_applies projT1 tr || is_or_applies projT2 tr) then
                      (* optimize projections of existentials, which are common *)
-                     let arg'' = reduce_stateless reduce_term en Evd.empty arg' in
+                     let arg'' = reduce_stateless reduce_term en sigma arg' in
                      if is_or_applies existT arg'' then
                        let ex' = dest_existT arg'' in
                        if equal projT1 f then
@@ -647,7 +647,7 @@ let lift_core env sigma c ib_typ trm =
                       if equal def try_lifted then
                         tr
                       else
-                        reduce_stateless reduce_term en Evd.empty try_lifted
+                        reduce_stateless reduce_term en sigma try_lifted
                     with _ ->
                       (* AXIOM *)
                       tr)
@@ -659,11 +659,11 @@ let lift_core env sigma c ib_typ trm =
     map_if
       (fun lifted ->
         let sigma, typ = infer_type en sigma tr in
-        let typ = reduce_stateless reduce_nf en Evd.empty typ in
+        let typ = reduce_stateless reduce_nf en sigma typ in
         let is_from_typ = is_from c en sigma typ in
         map_if
           (fun t -> repack en ib_typ t (lift_rec en sigma ib_typ typ))
-          (is_from_typ && not (is_or_applies existT (reduce_stateless reduce_nf en Evd.empty lifted)))
+          (is_from_typ && not (is_or_applies existT (reduce_stateless reduce_nf en sigma lifted)))
           lifted)
       (try_repack)
       lifted
@@ -675,7 +675,7 @@ let lift_core env sigma c ib_typ trm =
 let do_lift_term env evd (l : lifting) trm =
   let (a_t, b_t, i_b_t) = typs_from_orn l env evd in
   let evd, c = initialize_lift_config env evd l (a_t, b_t) in
-  lift_core env evd c i_b_t (trm )
+  lift_core env evd c i_b_t trm
 
 (*
  * Run the core lifting algorithm on a definition
