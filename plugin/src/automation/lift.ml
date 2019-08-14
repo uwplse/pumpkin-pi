@@ -342,11 +342,6 @@ let promote_case_args env sigma c args =
  * The argument rules for lifting eliminator cases in the forgetful direction.
  * Note that since we save arguments and reduce at the end, this looks a bit
  * different, and the call to new is no longer necessary.
- *
- * TODO Evar_maps here are threaded in reverse order; unsure if this may
- * cause problems for this particular use case. The same holds for
- * promote_case_args. We should investigate and consider a way around this
- * if needed. 
  *)
 let forget_case_args env_c_b env sigma c args =
   let (_, b_typ) = c.typs in
@@ -419,13 +414,13 @@ let lift_case env sigma c p c_elim constr =
 (* Lift cases *)
 let lift_cases env sigma c p p_elim cs =
   snd
-    (List.fold_right
-       (fun constr (p_elim, (sigma, cs)) ->
+    (List.fold_left
+       (fun (p_elim, (sigma, cs)) constr ->
          let sigma, constr = lift_case env sigma c p p_elim constr in
          let p_elim = mkAppl (p_elim, [constr]) in
-         (p_elim, (sigma, constr :: cs)))
-       cs
-       (p_elim, (sigma, [])))
+         (p_elim, (sigma, snoc constr cs)))
+       (p_elim, (sigma, []))
+       cs)
 
 (*
  * LIFT-ELIM steps before recursing into the rest of the algorithm
