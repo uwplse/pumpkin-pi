@@ -518,7 +518,7 @@ let lift_core env sigma c ib_typ trm =
                 l
                 ((sigma, mkApp (f', args'')), false))
             (List.length args > 0)
-            ((sigma, reduce_stateless reduce_term en sigma (mkAppl (lifted_constr, args))), false)
+            (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
         else
           let sigma, run_lift_pack = is_packed c en sigma tr in
           if run_lift_pack then
@@ -733,8 +733,8 @@ let do_lift_ind env evm typename suffix lift ind =
   let env, univs, arity, constypes = open_inductive ~global:true env mind_specif in
   let evm = Evd.update_sigma_env evm env in
   let nparam = mind_body.mind_nparams_rec in
-  let sigma, arity' = do_lift_term env evm lift arity in
-  let sigma, constypes' = map_fold_state evm (fun evm trm -> do_lift_term env evm lift trm) constypes in
+  let _, arity' = do_lift_term env evm lift arity in (* TODO sigma *)
+  let constypes' = List.map (fun trm -> snd (do_lift_term env evm lift trm)) constypes in (* TODO sigma *)
   let consnames =
     Array.map_to_list (fun id -> Nameops.add_suffix id suffix) ind_body.mind_consnames
   in
