@@ -342,6 +342,11 @@ let promote_case_args env sigma c args =
  * The argument rules for lifting eliminator cases in the forgetful direction.
  * Note that since we save arguments and reduce at the end, this looks a bit
  * different, and the call to new is no longer necessary.
+ *
+ * TODO Evar_maps here are threaded in reverse order; unsure if this may
+ * cause problems for this particular use case. The same holds for
+ * promote_case_args. We should investigate and consider a way around this
+ * if needed. 
  *)
 let forget_case_args env_c_b env sigma c args =
   let (_, b_typ) = c.typs in
@@ -375,13 +380,13 @@ let forget_case_args env_c_b env sigma c args =
   in lift_args sigma args (mkRel 0, mkRel 0)
 
 (* Common wrapper function for both directions *)
-let lift_case_args env_c_b env evd c args =
+let lift_case_args env_c_b env sigma c args =
   let lifter =
     if c.l.is_fwd then
       promote_case_args
     else
       forget_case_args env_c_b
-  in List.rev (snd (lifter env evd c (List.rev args))) (* TODO sigma *)
+  in Util.on_snd List.rev (lifter env sigma c (List.rev args))
 
 (*
  * CASE
@@ -406,7 +411,7 @@ let lift_case env evd c p c_elim constr =
     let split_i = if c.l.is_fwd then nargs - nihs else nargs + nihs in
     let (c_args, b_args) = take_split split_i (Array.to_list c_args) in
     let c_args = unshift_all_by (List.length b_args) c_args in
-    let args = lift_case_args env_c_b env_c evd c c_args in
+    let evd, args = lift_case_args env_c_b env_c evd c c_args in
     let f = unshift_by (new_rels2 env_c_b env_c) c_f in
     let body = reduce_stateless reduce_term env_c Evd.empty (mkAppl (f, args)) in
     reconstruct_lambda_n env_c body (nb_rel env)
