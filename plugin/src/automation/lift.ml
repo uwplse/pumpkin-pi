@@ -417,15 +417,15 @@ let lift_case env sigma c p c_elim constr =
     sigma, reconstruct_lambda_n env_c body (nb_rel env)
 
 (* Lift cases *)
-let lift_cases env evd c p p_elim cs =
+let lift_cases env sigma c p p_elim cs =
   snd
-    (List.fold_left
-       (fun (p_elim, cs) constr ->
-         let evd, constr = lift_case env evd c p p_elim constr in
+    (List.fold_right
+       (fun constr (p_elim, (sigma, cs)) ->
+         let sigma, constr = lift_case env sigma c p p_elim constr in
          let p_elim = mkAppl (p_elim, [constr]) in
-         (p_elim, snoc constr cs))
-       (p_elim, [])
-       cs)
+         (p_elim, (sigma, constr :: cs)))
+       cs
+       (p_elim, (sigma, [])))
 
 (*
  * LIFT-ELIM steps before recursing into the rest of the algorithm
@@ -438,7 +438,7 @@ let lift_elim env sigma c trm_app =
   let param_elim = mkAppl (elim, trm_app.pms) in
   let sigma, p = lift_motive env sigma c.l npms param_elim trm_app.p in
   let p_elim = mkAppl (param_elim, [p]) in
-  let cs = lift_cases env sigma c p p_elim trm_app.cs in
+  let sigma, cs = lift_cases env sigma c p p_elim trm_app.cs in
   let sigma, final_args = lift_elim_args env sigma c.l npms trm_app.final_args in
   sigma, apply_eliminator {trm_app with elim; p; cs; final_args}
 
