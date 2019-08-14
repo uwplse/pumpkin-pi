@@ -46,7 +46,7 @@ let map_rec_env_fix map_rec d env a (ns : Name.t array) (ts : types array) =
 
 (* --- Convenient shorthand --- *)
 
-let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
+let dest_sigT_type = on_type (ignore_env dest_sigT)
 
 (* --- Internal lifting configuration --- *)
 
