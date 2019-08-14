@@ -44,6 +44,10 @@ let map_rec_env_fix map_rec d env a (ns : Name.t array) (ts : types array) =
        
 (* --- End TODO --- *)
 
+(* --- Convenient shorthand --- *)
+
+let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
+
 (* --- Internal lifting configuration --- *)
 
 (*
@@ -265,7 +269,7 @@ let lift_elim_args env sigma l npms args =
   if l.is_fwd then
     (* project and index *)
     let b_sig = lifted_arg in
-    let b_sig_typ = on_red_type_default (ignore_env dest_sigT) env sigma b_sig in
+    let b_sig_typ = dest_sigT_type env sigma b_sig in
     let i_b = project_index b_sig_typ b_sig in
     let b = project_value b_sig_typ b_sig in
     sigma, index l i_b (reindex value_off b args)
@@ -296,7 +300,7 @@ let lift_motive env sigma l npms parameterized_elim p =
   else
     (* promote a to packed b, project, and index *)
     let b_sig = lifted_arg in
-    let b_sig_typ = on_red_type_default (ignore_env dest_sigT) env_p_to sigma b_sig in
+    let b_sig_typ = dest_sigT_type env_p_to sigma b_sig in
     let i_b = project_index b_sig_typ b_sig in
     let b = project_value b_sig_typ b_sig in
     let args = index l i_b (reindex value_off b args) in
@@ -354,7 +358,7 @@ let forget_case_args env_c_b env sigma c args =
          if is_or_applies b_typ t then
            (* PROMOTE-ARG *)
            let sigma, b_sig =  pack_lift env sigma (flip_dir c.l) n in
-           let b_sig_typ = on_red_type_default (ignore_env dest_sigT) env sigma b_sig in
+           let b_sig_typ = dest_sigT_type env sigma b_sig in
            let proj_b = project_value b_sig_typ b_sig in
            let proj_i_b = project_index b_sig_typ b_sig in
            Util.on_snd
