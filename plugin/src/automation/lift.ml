@@ -466,10 +466,13 @@ let repack env ib_typ lifted typ =
  * including caching.
  *
  * TODO try to use map_term_env_if
+ * TODO proper sigma handling (8/14/19) caused a major slowdown in lifting performance. Investigate at some point and fix
  *)
 let lift_core env sigma c ib_typ trm =
   let l = c.l in
   let (a_typ, b_typ) = c.typs in
+  let sigma, a_typ_eta = expand_eta env sigma a_typ in
+  let a_arity = arity a_typ_eta in
   let rec lift_rec en sigma ib_typ tr : evar_map * types =
     let (sigma, lifted), try_repack =
       let lifted_opt = search_lifted_term en sigma tr in
@@ -518,7 +521,7 @@ let lift_core env sigma c ib_typ trm =
                 l
                 ((sigma, mkApp (f', args'')), false))
             (List.length args > 0)
-            ((sigma, reduce_stateless reduce_term en sigma (mkAppl (lifted_constr, args))), false)
+            (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
         else
           let sigma, run_lift_pack = is_packed c en sigma tr in
           if run_lift_pack then
@@ -554,8 +557,7 @@ let lift_core env sigma c ib_typ trm =
               else
                 let sigma, tr_elim = deconstruct_eliminator en sigma tr in
                 let npms = List.length tr_elim.pms in
-                let sigma, a_typ_eta = expand_eta env sigma a_typ in
-                let value_i = arity a_typ_eta - npms in
+                let value_i = a_arity - npms in
                 let (final_args, post_args) = take_split (value_i + 1) tr_elim.final_args in
                 let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } in
                 let sigma, tr'' = lift_rec en sigma ib_typ tr' in
@@ -572,9 +574,9 @@ let lift_core env sigma c ib_typ trm =
                    lift_rec en sigma ib_typ (last_arg tr), false
                  else
                    (* APP *)
+                   let sigma, args' = map_rec_args lift_rec en sigma ib_typ args in
                    if (is_or_applies projT1 tr || is_or_applies projT2 tr) then
                      (* optimize projections of existentials, which are common *)
-                     let sigma, args' = map_rec_args lift_rec en sigma ib_typ args in
                      let arg' = last (Array.to_list args') in
                      let arg'' = reduce_stateless reduce_term en sigma arg' in
                      if is_or_applies existT arg'' then
@@ -584,12 +586,10 @@ let lift_core env sigma c ib_typ trm =
                        else
                          (sigma, ex'.unpacked), false
                      else
-                       (* TODO possible universe bug w/ sigma in f after sigma in args *)
                        let sigma, f' = lift_rec en sigma ib_typ f in
                        (sigma, mkApp (f', args')), false
                    else
                      let sigma, f' = lift_rec en sigma ib_typ f in
-                     let sigma, args' = map_rec_args lift_rec en sigma ib_typ args in
                      (sigma, mkApp (f', args')), l.is_fwd
               | Cast (ca, k, t) ->
                  (* CAST *)
@@ -628,12 +628,12 @@ let lift_core env sigma c ib_typ trm =
               | Fix ((is, i), (ns, ts, ds)) ->
                  (* FIX (will not work if this destructs over A; preprocess first) *)
                  let sigma, ts' = map_rec_args lift_rec en sigma ib_typ ts in
-                 let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec shift en sigma a ns ts trm) env sigma ib_typ ds in
+                 let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec shift en sigma a ns ts trm) en sigma ib_typ ds in
                  (sigma, mkFix ((is, i), (ns, ts', ds'))), false
               | CoFix (i, (ns, ts, ds)) ->
                  (* COFIX (will not work if this destructs over A; preprocess first) *)
                  let sigma, ts' = map_rec_args lift_rec en sigma ib_typ ts in
-                 let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec shift en sigma a ns ts trm) env sigma ib_typ ds in
+                 let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec shift en sigma a ns ts trm) en sigma ib_typ ds in
                  (sigma, mkCoFix (i, (ns, ts', ds'))), false
               | Proj (pr, co) ->
                  (* PROJ *)
@@ -726,15 +726,16 @@ let declare_inductive_liftings ind ind' ncons =
  * This algorithm assumes that type parameters are left constant and will lift
  * every binding and every term of the base type to the sigma-packed ornamented
  * type. (IND and CONSTR via caching)
+ * TODO OK to ignore sigma?
  *)
-let do_lift_ind env evm typename suffix lift ind =
+let do_lift_ind env sigma typename suffix lift ind =
   let (mind_body, ind_body) as mind_specif = Inductive.lookup_mind_specif env ind in
   check_inductive_supported mind_body;
   let env, univs, arity, constypes = open_inductive ~global:true env mind_specif in
-  let evm = Evd.update_sigma_env evm env in
+  let evm = Evd.update_sigma_env sigma env in
   let nparam = mind_body.mind_nparams_rec in
   let sigma, arity' = do_lift_term env evm lift arity in
-  let sigma, constypes' = map_fold_state evm (fun evm trm -> do_lift_term env evm lift trm) constypes in
+  let sigma, constypes' = map_fold_state sigma (fun sigma trm -> do_lift_term env sigma lift trm) constypes in
   let consnames =
     Array.map_to_list (fun id -> Nameops.add_suffix id suffix) ind_body.mind_consnames
   in
