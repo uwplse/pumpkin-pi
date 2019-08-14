@@ -324,7 +324,7 @@ let promote_case_args env sigma c args =
            (* FORGET-ARG *)
            let sigma, a = pack_lift env sigma (flip_dir c.l) n in
            Util.on_snd
-             (fun tl -> shift a :: tl)
+             (fun tl -> a :: tl)
              (lift_args sigma tl (get_arg c.l.off t))
          else
            (* ARG *)
