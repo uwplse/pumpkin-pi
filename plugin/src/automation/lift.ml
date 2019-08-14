@@ -573,9 +573,9 @@ let lift_core env sigma c ib_typ trm =
                    lift_rec en sigma ib_typ (last_arg tr), false
                  else
                    (* APP *)
+                   let sigma, args' = map_rec_args lift_rec en sigma ib_typ args in
                    if (is_or_applies projT1 tr || is_or_applies projT2 tr) then
                      (* optimize projections of existentials, which are common *)
-                     let sigma, args' = map_rec_args lift_rec en sigma ib_typ args in
                      let arg' = last (Array.to_list args') in
                      let arg'' = reduce_stateless reduce_term en sigma arg' in
                      if is_or_applies existT arg'' then
@@ -585,12 +585,10 @@ let lift_core env sigma c ib_typ trm =
                        else
                          (sigma, ex'.unpacked), false
                      else
-                       (* TODO possible universe bug w/ sigma in f after sigma in args *)
                        let sigma, f' = lift_rec en sigma ib_typ f in
                        (sigma, mkApp (f', args')), false
                    else
                      let sigma, f' = lift_rec en sigma ib_typ f in
-                     let sigma, args' = map_rec_args lift_rec en sigma ib_typ args in
                      (sigma, mkApp (f', args')), l.is_fwd
               | Cast (ca, k, t) ->
                  (* CAST *)
