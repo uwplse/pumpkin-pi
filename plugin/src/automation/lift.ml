@@ -391,16 +391,16 @@ let lift_case_args env_c_b env sigma c args =
 (*
  * CASE
  *)
-let lift_case env evd c p c_elim constr =
+let lift_case env sigma c p c_elim constr =
   let (a_typ, b_typ) = c.typs in
   let to_typ = directional c.l b_typ a_typ in
-  let evd, c_eta = expand_eta env evd constr in
-  let evd, c_elim_type = reduce_type env evd c_elim in
+  let sigma, c_eta = expand_eta env sigma constr in
+  let sigma, c_elim_type = reduce_type env sigma c_elim in
   let (_, to_c_typ, _) = destProd c_elim_type in
-  let nihs = num_ihs env evd to_typ to_c_typ in
+  let nihs = num_ihs env sigma to_typ to_c_typ in
   if nihs = 0 then
     (* base case *)
-    constr
+    sigma, constr
   else
     (* inductive case---need to get the arguments *)
     let env_c = zoom_env zoom_product_type env to_c_typ in
@@ -411,17 +411,17 @@ let lift_case env evd c p c_elim constr =
     let split_i = if c.l.is_fwd then nargs - nihs else nargs + nihs in
     let (c_args, b_args) = take_split split_i (Array.to_list c_args) in
     let c_args = unshift_all_by (List.length b_args) c_args in
-    let evd, args = lift_case_args env_c_b env_c evd c c_args in
+    let sigma, args = lift_case_args env_c_b env_c sigma c c_args in
     let f = unshift_by (new_rels2 env_c_b env_c) c_f in
-    let body = reduce_stateless reduce_term env_c Evd.empty (mkAppl (f, args)) in
-    reconstruct_lambda_n env_c body (nb_rel env)
+    let body = reduce_stateless reduce_term env_c sigma (mkAppl (f, args)) in
+    sigma, reconstruct_lambda_n env_c body (nb_rel env)
 
 (* Lift cases *)
 let lift_cases env evd c p p_elim cs =
   snd
     (List.fold_left
        (fun (p_elim, cs) constr ->
-         let constr = lift_case env evd c p p_elim constr in
+         let evd, constr = lift_case env evd c p p_elim constr in
          let p_elim = mkAppl (p_elim, [constr]) in
          (p_elim, snoc constr cs))
        (p_elim, [])
