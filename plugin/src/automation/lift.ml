@@ -256,23 +256,23 @@ let initialize_lift_config env sigma l typs =
  * The one difference is that there are extra arguments because of
  * non-primitve eliminators, and also parameters
  *)
-let lift_elim_args env evd l npms args =
+let lift_elim_args env sigma l npms args =
   let arg = map_backward last_arg l (last args) in
-  let sigma, typ_args = non_index_typ_args l.off env evd arg in
+  let sigma, typ_args = non_index_typ_args l.off env sigma arg in
   let lifted_arg = mkAppl (lift_to l, snoc arg typ_args) in
   let value_off = List.length args - 1 in
   let l = { l with off = l.off - npms } in (* we no longer have parameters *)
   if l.is_fwd then
     (* project and index *)
     let b_sig = lifted_arg in
-    let b_sig_typ = on_red_type_default (fun _ _ -> dest_sigT) env evd b_sig in
+    let b_sig_typ = on_red_type_default (ignore_env dest_sigT) env sigma b_sig in
     let i_b = project_index b_sig_typ b_sig in
     let b = project_value b_sig_typ b_sig in
-    index l i_b (reindex value_off b args)
+    sigma, index l i_b (reindex value_off b args)
   else
     (* don't project and deindex *)
     let a = lifted_arg in
-    deindex l (reindex value_off a args)
+    sigma, deindex l (reindex value_off a args)
 
 (*
  * MOTIVE
@@ -411,24 +411,24 @@ let lift_cases env evd c p p_elim cs =
 (*
  * LIFT-ELIM steps before recursing into the rest of the algorithm
  *)
-let lift_elim env evd c trm_app =
+let lift_elim env sigma c trm_app =
   let (a_t, b_t) = c.typs in
   let to_typ = directional c.l b_t a_t in
   let npms = List.length trm_app.pms in
   let elim = type_eliminator env (fst (destInd to_typ)) in
   let param_elim = mkAppl (elim, trm_app.pms) in
-  let p = lift_motive env evd c.l npms param_elim trm_app.p in
+  let p = lift_motive env sigma c.l npms param_elim trm_app.p in
   let p_elim = mkAppl (param_elim, [p]) in
-  let cs = lift_cases env evd c p p_elim trm_app.cs in
-  let final_args = lift_elim_args env evd c.l npms trm_app.final_args in
-  apply_eliminator {trm_app with elim; p; cs; final_args}
+  let cs = lift_cases env sigma c p p_elim trm_app.cs in
+  let sigma, final_args = lift_elim_args env sigma c.l npms trm_app.final_args in
+  sigma, apply_eliminator {trm_app with elim; p; cs; final_args}
 
 (*
  * REPACK
  *
  * This is to deal with non-primitive projections
  *)
-let repack env evd ib_typ lifted typ =
+let repack env ib_typ lifted typ =
   let lift_typ = dest_sigT (shift typ) in
   let n = project_index lift_typ (mkRel 1) in
   let b = project_value lift_typ (mkRel 1) in
@@ -527,7 +527,7 @@ let lift_core env evd c ib_typ trm =
           let evd, a_typ_eta = expand_eta env evd a_typ in
           let value_i = arity a_typ_eta - npms in
           let (final_args, post_args) = take_split (value_i + 1) tr_elim.final_args in
-          let tr' = lift_elim en evd c { tr_elim with final_args } in
+          let evd, tr' = lift_elim en evd c { tr_elim with final_args } in
           let tr'' = lift_rec en ib_typ tr' in
           let post_args' = List.map (lift_rec en ib_typ) post_args in
           mkAppl (tr'', post_args'), l.is_fwd
@@ -640,7 +640,7 @@ let lift_core env evd c ib_typ trm =
         let typ = reduce_stateless reduce_nf en Evd.empty typ in
         let is_from_typ = is_from c en evd typ in
         map_if
-          (fun t -> repack en evd ib_typ t (lift_rec en ib_typ typ))
+          (fun t -> repack en ib_typ t (lift_rec en ib_typ typ))
           (is_from_typ && not (is_or_applies existT (reduce_stateless reduce_nf en Evd.empty lifted)))
           lifted)
       (try_repack)
