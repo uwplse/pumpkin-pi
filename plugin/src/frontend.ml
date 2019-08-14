@@ -100,7 +100,7 @@ let find_ornament n_o d_old d_new =
  * definition and declaring it as a lifting of the original definition.
  *)
 let lift_definition_by_ornament env evd n l c_old =
-  let lifted = do_lift_defn env evd l c_old in
+  let _, lifted = do_lift_defn env evd l c_old in (* TODO sigma *)
   ignore (define_term n evd lifted true);
   try
     let old_gref = global_of_constr c_old in
