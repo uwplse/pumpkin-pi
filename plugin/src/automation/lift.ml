@@ -96,37 +96,55 @@ let is_from c env sigma typ =
  * Determine whether a term has the type we are ornamenting from
  *)
 let type_is_from c env sigma trm =
-  on_red_type reduce_nf (is_from c) env sigma trm
+  on_red_type
+    reduce_nf
+    (fun env sigma trm -> sigma, is_from c env sigma trm)
+    env
+    sigma
+    trm
 
 (* Premises for LIFT-CONSTR *)
 let is_packed_constr c env sigma trm =
   let right_type = type_is_from c env sigma in
   match kind trm with
-  | Construct _  when right_type trm ->
-     true
+  | Construct _  ->
+     right_type trm
   | App (f, args) ->
      if c.l.is_fwd then
-       isConstruct f && right_type trm
-     else
-       if equal existT f && right_type trm then
-         let last_arg = last (Array.to_list args) in
-         isApp last_arg && isConstruct (first_fun last_arg)
+       if isConstruct f then
+         right_type trm
        else
-         false
+         sigma, false
+     else
+       if equal existT f then
+         let sigma, is_right_type = right_type trm in
+         if is_right_type then
+           let last_arg = last (Array.to_list args) in
+           sigma, isApp last_arg && isConstruct (first_fun last_arg)
+         else
+           sigma, false
+       else
+         sigma, false
   | _ ->
-     false
+     sigma, false
 
 (* Premises for LIFT-PACKED *)
 let is_packed c env sigma trm =
   let right_type = type_is_from c env sigma in
   if c.l.is_fwd then
-    isRel trm && right_type trm
+    if isRel trm then
+      right_type trm
+    else
+      sigma, false
   else
     match kind trm with
     | App (f, args) ->
-       equal existT f && right_type trm
+       if equal existT f then
+         right_type trm
+       else
+         sigma, false
     | _ ->
-       false
+       sigma, false
 
 (* Premises for LIFT-PROJ *)
 let is_proj c env sigma trm =
@@ -136,11 +154,17 @@ let is_proj c env sigma trm =
      let f = first_fun trm in
      let args = unfold_args trm in
      if c.l.is_fwd then
-       equal c.l.orn.indexer f && right_type (last args)
+       if equal c.l.orn.indexer f then
+         right_type (last args)
+       else
+         sigma, false
      else
-       (equal projT1 f || equal projT2 f) && right_type (last args)
+       if (equal projT1 f || equal projT2 f) then
+         right_type (last args)
+       else
+         sigma, false
   | _ ->
-     false
+     sigma, false
 
 (* Premises for LIFT-ELIM *)
 let is_eliminator c env trm =
@@ -176,7 +200,7 @@ let lift_constr env sigma c trm =
   let args = unfold_args (map_backward last_arg l trm) in
   let pack_args (sigma, args) = map_fold_state sigma (fun sigma arg -> pack_to_typ env sigma c arg) args in
   let sigma, packed_args = map_backward pack_args l (sigma, args) in
-  let rec_args = List.filter (type_is_from c env sigma) packed_args in
+  let sigma, rec_args = filter_state sigma (type_is_from c env) packed_args in
   let sigma, app = lift env sigma l trm in
   if List.length rec_args = 0 then
     (* base case - don't bother refolding *)
@@ -444,7 +468,7 @@ let lift_core env evd c ib_typ trm =
           let packed = dummy_index en evd (dest_sigT tr).packer in
           let is = deindex l (unfold_args packed) in
           mkAppl (a_typ, is), false
-      else if is_packed_constr c en evd tr then
+      else if snd (is_packed_constr c en evd tr) then (* TODO sigma *)
         (* LIFT-CONSTR *)
         (* The extra logic here is an optimization *)
         (* It also deals with the fact that we are lazy about eta *)
@@ -469,13 +493,13 @@ let lift_core env evd c ib_typ trm =
               (mkApp (f', args''), false))
           (List.length args > 0)
           (reduce_stateless reduce_term en Evd.empty (mkAppl (lifted_constr, args)), false)
-      else if is_packed c en evd tr then
+      else if snd (is_packed c en evd tr) then (* TODO sigma *)
         (* LIFT-PACK (extra rule for non-primitive projections) *)
         if l.is_fwd then
           tr, true
         else
           lift_rec en ib_typ (dest_existT tr).unpacked, false
-      else if is_proj c en evd tr then
+      else if snd (is_proj c en evd tr) then (* TODO sigma *)
         (* COHERENCE *)
         if l.is_fwd then
           let a = last_arg tr in
