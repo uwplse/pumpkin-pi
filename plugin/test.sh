@@ -70,13 +70,6 @@ cd ..
 
 echo "Running ITP paper examples."
 
-if coqc coq/examples/Assumptions.v
-then
-  assumptions=true
-else
-  :
-fi
-
 if coqc coq/examples/Intro.v
 then
   intro=true
@@ -101,6 +94,13 @@ fi
 if coqc coq/examples/Search.v
 then
   search=true
+else
+  :
+fi
+
+if coqc coq/examples/Assumptions.v
+then
+  assumptions=true
 else
   :
 fi
