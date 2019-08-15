@@ -22,7 +22,7 @@ open Envutils
  * Pack inside of a sigT type
  *)
 let pack env sigma off unpacked =
-  let sigma, typ = reduce_type env sigma unpacked in
+  let sigma, typ = Util.on_snd (EConstr.to_constr sigma) (reduce_type env sigma (EConstr.of_constr unpacked)) in
   let index = get_arg off typ in
   let sigma, index_type = infer_type env sigma index in
   let sigma, packer = abstract_arg env sigma off typ in
@@ -97,7 +97,7 @@ let fold_back_constants env sigma f trm =
   List.fold_left
     (fun (sigma, red) lifted ->
       all_conv_substs env sigma (lifted, lifted) red)
-    (f (reduce_nf env sigma trm))
+    (f (Util.on_snd (EConstr.to_constr sigma) (reduce_nf env sigma (EConstr.of_constr trm))))
     (all_recursive_constants env trm)
          
 (*
@@ -110,11 +110,11 @@ let fold_back_constants env sigma f trm =
 let refold_packed l orn env arg (sigma, app_red) =
   let sigma, typ_args = non_index_typ_args l.off env sigma arg in
   let orn_app = mkAppl (orn, snoc arg typ_args) in
-  let orn_app_red = reduce_stateless reduce_nf env sigma orn_app in
+  let orn_app_red = EConstr.to_constr sigma (reduce_stateless reduce_nf env sigma (EConstr.of_constr orn_app)) in
   let app_red_ex = dest_existT app_red in
   let orn_app_red_ex = dest_existT orn_app_red in
   let abstract env sigma = abstract_arg env sigma l.off in
-  let sigma, packer = on_red_type_default abstract env sigma orn_app_red_ex.unpacked in
+  let sigma, packer = on_red_type_default (fun env sigma trm -> abstract env sigma (EConstr.to_constr sigma trm)) env sigma (EConstr.of_constr orn_app_red_ex.unpacked) in
   let index_type = app_red_ex.index_type in
   let arg_sigT = { index_type ; packer } in
   let sigma, arg_indexer = Util.on_snd (project_index arg_sigT) (lift env sigma l arg) in
@@ -131,7 +131,7 @@ let refold_packed l orn env arg (sigma, app_red) =
 let refold_projected l orn env arg (sigma, app_red) =
   let sigma, typ_args = non_index_typ_args l.off env sigma arg in
   let orn_app = mkAppl (orn, snoc arg typ_args) in
-  let orn_app_red = reduce_stateless reduce_nf env sigma orn_app in
+  let orn_app_red = EConstr.to_constr sigma (reduce_stateless reduce_nf env sigma (EConstr.of_constr orn_app)) in
   let sigma, lifted = lift env sigma l arg in
   sigma, all_eq_substs (orn_app_red, lifted) app_red
 

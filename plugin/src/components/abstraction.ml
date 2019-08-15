@@ -14,7 +14,7 @@ open Reducers
  *)
 let abstract_arg env sigma i typ =
   let arg = get_arg i typ in
-  let sigma, arg_typ = reduce_type env sigma arg in
+  let sigma, arg_typ = Util.on_snd (EConstr.to_constr sigma) (reduce_type env sigma (EConstr.of_constr arg)) in
   let args = reindex i (mkRel 1) (shift_all (unfold_args typ)) in
   sigma, mkLambda (Anonymous, arg_typ, mkAppl (first_fun typ, args))
 

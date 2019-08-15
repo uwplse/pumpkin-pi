@@ -1,4 +1,4 @@
-open Constr
+open EConstr
 open Names
 open Recordops
 open Libnames
@@ -61,8 +61,8 @@ let search_lifted env sigma base_gref =
   try
     let (_, info) = lookup_canonical_conversion (project_gref (), Const_cs base_gref) in
     (* Reduce the lifting instance to HNF to extract the target component. *)
-    let package = reduce_stateless whd env sigma info.o_DEF in
-    let (cons, args) = decompose_appvect package in
+    let package = reduce_stateless whd env sigma (EConstr.of_constr info.o_DEF) in
+    let (cons, args) = Constr.decompose_appvect (EConstr.to_constr sigma package) in
     Some (args.(3))
   with _ ->
     None
@@ -70,7 +70,7 @@ let search_lifted env sigma base_gref =
 (** Retrieve the canonical lifting, as a term, for the definition [base]. *)
 let search_lifted_term env sigma base_term =
   try
-    global_of_constr base_term |> search_lifted env sigma
+    global_of_constr (EConstr.to_constr sigma base_term) |> search_lifted env sigma |> Option.map EConstr.of_constr
   with Not_found -> None
 
 (** Retrieve the canonical lifting, as a global reference, for the global
@@ -103,8 +103,8 @@ let initialize_local_cache () =
 (*
  * Check whether a constant is in the local cache
  *)
-let is_locally_cached c trm =
-  match kind trm with
+let is_locally_cached sigma c trm =
+  match kind sigma trm with
   | Const (co, u) ->
      Hashtbl.mem c (Constant.canonical co)
   | _ ->
@@ -113,8 +113,8 @@ let is_locally_cached c trm =
 (*
  * Lookup a value in the local cache
  *)
-let lookup_local_cache c trm =
-  match kind trm with
+let lookup_local_cache sigma c trm =
+  match kind sigma trm with
   | Const (co, u) ->
      Hashtbl.find c (Constant.canonical co)
   | _ ->
@@ -123,8 +123,8 @@ let lookup_local_cache c trm =
 (*
  * Add a value to the local cache
  *)
-let cache_local c trm lifted =
-  match kind trm with
+let cache_local sigma c trm lifted =
+  match kind sigma trm with
   | Const (co, u) ->
      Hashtbl.add c (Constant.canonical co) lifted
   | _ ->
@@ -174,8 +174,8 @@ let inOrns : orn_obj -> obj  =
 (*
  * Check if an ornament is cached
  *)
-let has_ornament typs =
-  match map_tuple kind typs with
+let has_ornament sigma typs =
+  match map_tuple (kind sigma) typs with
   | (Ind ((m_o, _), _), Ind ((m_n, _), _)) ->
      let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
      let contains = OrnamentsCache.mem orn_cache in
@@ -186,11 +186,11 @@ let has_ornament typs =
 (*
  * Lookup an ornament
  *)
-let lookup_ornament typs =
-  if not (has_ornament typs) then
+let lookup_ornament sigma typs =
+  if not (has_ornament sigma typs) then
     failwith "cannot find ornament; please supply ornamental promotion yourself"
   else
-    let (((m_o, _), _), ((m_n, _), _)) = map_tuple destInd typs in
+    let (((m_o, _), _), ((m_n, _), _)) = map_tuple (destInd sigma) typs in
     let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
     let lookup = OrnamentsCache.find orn_cache in
     (lookup (kn_o, kn_n), lookup (kn_n, kn_o))
@@ -198,8 +198,8 @@ let lookup_ornament typs =
 (*
  * Add an ornament to the ornament cache
  *)
-let save_ornament typs (orn, orn_inv) =
-  match map_tuple kind typs with
+let save_ornament sigma typs (orn, orn_inv) =
+  match map_tuple (kind sigma) typs with
   | (Ind ((m_o, _), _), Ind ((m_n, _), _)) ->
      let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
      let orn_obj = inOrns ((kn_o, kn_n), orn) in

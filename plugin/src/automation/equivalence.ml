@@ -42,13 +42,13 @@ let eq_lemmas_env env sigma recs l =
   List.fold_left
     (fun (sigma, e) r ->
       let r1 = shift_by (new_rels2 e env) r in
-      let sigma, r_t = reduce_type e sigma r1 in
+      let sigma, r_t = Util.on_snd (EConstr.to_constr sigma) (reduce_type e sigma (EConstr.of_constr r1)) in
       let push_ib =
         map_backward
           (fun (sigma, e) ->
             Util.on_snd
-              (fun t -> push_local (Anonymous, t) e)
-              (reduce_type e sigma (get_arg l.off r_t)))
+              (fun t -> push_local (Anonymous, (EConstr.to_constr sigma t)) e)
+              (reduce_type e sigma (EConstr.of_constr (get_arg l.off r_t))))
           l
       in
       (* push index in backwards direction *)
@@ -60,7 +60,7 @@ let eq_lemmas_env env sigma recs l =
       let pack_back = map_backward (fun (sigma, t) -> pack e_r sigma l.off t) l in
       let sigma, r1 = pack_back (sigma, shift_by (new_rels2 e_r e) r1) in
       let sigma, r2 = pack_back (sigma, mkRel 1) in
-      let sigma, r_t = reduce_type e_r sigma r1 in
+      let sigma, r_t = Util.on_snd (EConstr.to_constr sigma) (reduce_type e_r sigma (EConstr.of_constr r1)) in
       let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
       (* push equality *)
       sigma, push_local (Anonymous, r_eq) e_r)
@@ -78,15 +78,15 @@ let eq_lemmas env sigma typ l =
     sigma
     (fun sigma c_index ->
       let c = mkConstructU (((i, i_index), c_index + 1), u) in
-      let sigma, c_exp = expand_eta env sigma c in
-      let (env_c_b, c_body) = zoom_lambda_term env c_exp in
-      let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
-      let c_args = unfold_args c_body in
-      let recs = List.filter (on_red_type_default (ignore_env (is_or_applies typ)) env_c_b sigma) c_args in
-      let sigma, env_lemma = eq_lemmas_env env_c_b sigma recs l in
+      let sigma, c_exp = expand_eta env sigma (EConstr.of_constr c) in
+      let (env_c_b, c_body) = zoom_lambda_term env (EConstr.to_constr sigma c_exp) in
+      let c_body = EConstr.to_constr sigma (reduce_stateless reduce_term env_c_b sigma (EConstr.of_constr c_body)) in
+      let c_args = List.map EConstr.of_constr (unfold_args c_body) in
+      let recs = List.filter (on_red_type_default (fun _ sigma trm -> (is_or_applies typ) (EConstr.to_constr sigma trm)) env_c_b sigma) c_args in
+      let sigma, env_lemma = eq_lemmas_env env_c_b sigma (List.map (EConstr.to_constr sigma) recs) l in
       let pack_back = map_backward (fun (sigma, t) -> pack env_lemma sigma l.off t) l in
       let sigma, c_body = pack_back (sigma, shift_by (new_rels2 env_lemma env_c_b) c_body) in
-      let sigma, c_body_type = reduce_type env_lemma sigma c_body in
+      let sigma, c_body_type = Util.on_snd (EConstr.to_constr sigma) (reduce_type env_lemma sigma (EConstr.of_constr c_body)) in
       (* reflexivity proof: the identity case *)
       let refl = apply_eq_refl { typ = c_body_type; trm = c_body } in
       (* fold to recursively substitute each recursive argument *)
@@ -139,7 +139,7 @@ let eq_lemmas env sigma typ l =
 let equiv_motive env sigma p_t l =
   let env_motive = zoom_env zoom_product_type env p_t in
   let sigma, trm1 = map_backward (fun (sigma, t) -> pack env_motive sigma l.off t) l (sigma, mkRel 1) in
-  let sigma, at_type = reduce_type env_motive sigma trm1 in
+  let sigma, at_type = Util.on_snd (EConstr.to_constr sigma) (reduce_type env_motive sigma (EConstr.of_constr trm1)) in
   let typ_args = non_index_args l.off env_motive sigma at_type in
   let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
   let trm2 = mkAppl (lift_back l, snoc trm1_lifted typ_args) in
@@ -162,20 +162,20 @@ let equiv_case env sigma pms p eq_lemma l c =
       | App (_, _) ->
          (* conclusion: apply eq lemma and beta-reduce *)
          let all_args = List.rev_append hypos (List.rev args) in
-         reduce_stateless reduce_term e sigma (mkAppl (shift_by depth eq_lemma, all_args))
+         EConstr.to_constr sigma (reduce_stateless reduce_term e sigma (EConstr.of_constr (mkAppl (shift_by depth eq_lemma, all_args))))
       | Prod (n, t, b) ->
          let case_b = case (push_local (n, t) e) (shift_i depth) in
          let p_rel = shift_by depth (mkRel 1) in
          let h = mkRel 1 in
          if applies p_rel t then
            (* IH *)
-           let t = reduce_stateless reduce_term e sigma (mkAppl (shift_by depth p, unfold_args t)) in
+           let t = EConstr.to_constr sigma (reduce_stateless reduce_term e sigma (EConstr.of_constr (mkAppl (shift_by depth p, unfold_args t)))) in
            let trm = (dest_eq t).trm2 in
            let args =
              map_directional
                (fun xs -> trm :: xs)
                (fun xs ->
-                 let (ib, u) = projections (on_red_type_default (ignore_env dest_sigT) e sigma trm) trm in
+                 let (ib, u) = projections (on_red_type_default (fun _ sigma trm -> dest_sigT (EConstr.to_constr sigma trm)) e sigma (EConstr.of_constr trm)) trm in
                  u :: ib :: xs)
                l
                args
@@ -203,7 +203,7 @@ let equiv_cases env sigma pms p lemmas l elim_typ =
 let equiv_proof env sigma l =
   let to_body = lookup_definition env (lift_to l) in
   let env_to = zoom_env zoom_lambda_term env to_body in
-  let sigma, typ_app = reduce_type env_to sigma (mkRel 1) in
+  let sigma, typ_app = Util.on_snd (EConstr.to_constr sigma) (reduce_type env_to sigma (EConstr.of_constr (mkRel 1))) in
   let typ = first_fun (zoom_if_sig_app typ_app) in
   let ((i, i_index), _) = destInd typ in
   let npm = (lookup_mind i env).mind_nparams in
@@ -242,7 +242,7 @@ let equiv_proof env sigma l =
         final_args = reindex_back (index_back args);
       }
   in 
-  let eq_typ = on_red_type_default (ignore_env dest_eq) env_eq_proof sigma eq_proof in
+  let eq_typ = on_red_type_default (fun _ sigma trm -> dest_eq (EConstr.to_constr sigma trm)) env_eq_proof sigma (EConstr.of_constr eq_proof) in
   let sym_app = apply_eq_sym { eq_typ; eq_proof } in
   let equiv_b =
     map_backward

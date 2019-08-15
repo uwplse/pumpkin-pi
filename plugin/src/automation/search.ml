@@ -394,7 +394,7 @@ let pack_hypothesis_type env ib_typ packer (id, unpacked_typ) : env =
  * Apply the packer to the index
  *)
 let apply_packer env sigma packer arg =
-  reduce_stateless reduce_term env sigma (mkAppl (packer, [arg]))
+  EConstr.to_constr sigma (reduce_stateless reduce_term env sigma (EConstr.of_constr (mkAppl (packer, [arg]))))
 
 (*
  * Remove the index from the environment, and adjust terms appropriately
@@ -430,9 +430,9 @@ let pack_hypothesis env sigma idx b unpacked =
   let adjusted = adjust_to_elim env_push ib_rel packer unpacked in
   let (env_packed, packer, unpacked) = adjusted in
   let arg = mkRel 1 in
-  let arg_typ = on_red_type_default (ignore_env dest_sigT) env_packed sigma arg in
+  let arg_typ = on_red_type_default (fun _ sigma t -> dest_sigT (EConstr.to_constr sigma t)) env_packed sigma (EConstr.of_constr arg) in
   let (index, value) = projections arg_typ arg in
-  env_packed, sigma, reduce_stateless reduce_term env_packed sigma (mkAppl (unpacked, [index; value]))
+  env_packed, sigma, EConstr.to_constr sigma (reduce_stateless reduce_term env_packed sigma (EConstr.of_constr (mkAppl (unpacked, [index; value]))))
 
 (*
  * This packs an ornamental promotion to/from an indexed type like Vector A n,
@@ -500,8 +500,8 @@ let search_algebraic env sigma npm indexer_n a b =
   let (b_typ, arity_b) = b in
   let lookup_elim typ = type_eliminator env (fst (destInd typ)) in
   let (el_a, el_b) = map_tuple lookup_elim (a_typ, b_typ) in
-  let sigma, (env_pms, el_a_typ) = on_type (fun env sigma t -> sigma, zoom_n_prod env npm t) env sigma el_a in
-  let sigma, (_, el_b_typ) = on_type (fun env sigma t -> sigma, zoom_n_prod env npm t) env sigma el_b in
+  let sigma, (env_pms, el_a_typ) = on_type (fun env sigma t -> sigma, zoom_n_prod env npm (EConstr.to_constr sigma t)) env sigma (EConstr.of_constr el_a) in
+  let sigma, (_, el_b_typ) = on_type (fun env sigma t -> sigma, zoom_n_prod env npm (EConstr.to_constr sigma t)) env sigma (EConstr.of_constr el_b) in
   let a = (a_typ, el_a_typ) in
   let b = (b_typ, el_b_typ) in
   let sigma, idx = offset_and_ib env_pms sigma a b in (* idx = (off, I_B) *)

@@ -70,7 +70,7 @@ let rec ind_of_promotion_type (typ : types) : types * types =
      failwith "not an ornamental promotion/forgetful function type"
 
 let ind_of_promotion env sigma trm =
-  on_red_type_default (ignore_env ind_of_promotion_type) env sigma trm
+  on_red_type_default (fun env sigma typ ->ind_of_promotion_type (EConstr.to_constr sigma typ)) env sigma (EConstr.of_constr trm)
 
 (* --- Utilities for initialization --- *)
 
