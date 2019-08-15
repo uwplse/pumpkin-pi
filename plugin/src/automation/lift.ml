@@ -667,12 +667,16 @@ let lift_core env sigma c ib_typ trm =
     (* sometimes we must repack because of non-primitive projections *)
     map_if
       (fun (sigma, lifted) ->
-        let sigma, typ = infer_type en sigma tr in
-        let typ = reduce_stateless reduce_nf en sigma typ in
-        let is_from_typ = is_from c en sigma typ in
+	(* TODO is the use of sigma_typ versus sigma correct here?
+	   Threading sigma_typ through when recursing at the term level as well
+	   causes a 3x slowdown in the lifting code. Is it necessary,
+	   or is this enough? *)
+        let sigma_typ, typ = infer_type en sigma tr in
+        let typ = reduce_stateless reduce_nf en sigma_typ typ in
+        let is_from_typ = is_from c en sigma_typ typ in
         map_if
           (fun (sigma, t) ->
-            Util.on_snd (repack en ib_typ t) (lift_rec en sigma ib_typ typ))
+            Util.on_snd (repack en ib_typ t) (lift_rec en sigma_typ ib_typ typ))
           (is_from_typ && not (is_or_applies existT (reduce_stateless reduce_nf en sigma lifted)))
           (sigma, lifted))
       try_repack
