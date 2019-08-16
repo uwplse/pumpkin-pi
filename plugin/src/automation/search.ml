@@ -156,14 +156,14 @@ let indexer_cases env sigma off p nargs a b : evar_map * types list =
   match map_tuple kind (elim_t_a, elim_t_b) with
   | (Prod (n_a, p_a_t, b_a), Prod (_, _, b_b)) ->
      let env_p_a = push_local (n_a, p_a_t) env in
-     map2_fold_state
-       sigma
-       (fun sigma c_a c_b ->
+     map2_state
+       (fun c_a c_b sigma ->
          Util.on_snd
            (shift_by (nargs - 1))
            (index_case env_p_a sigma off p (a_t, c_a) (b_t, c_b)))
        (take_except nargs (factor_product b_a))
        (take_except (nargs + 1) (factor_product b_b))
+       sigma
   | _ ->
      failwith "not eliminators"
 
@@ -353,14 +353,14 @@ let promote_forget_cases env sigma off is_fwd orn_p nargs o n : evar_map * types
   let env_p_o = push_local (n_o, p_o_t) env in
   let adjust p = shift (stretch_motive off env (o_t, p) (n_t, p_n_t)) in
   let p = map_if adjust is_fwd (unshift orn_p) in
-  map2_fold_state
-    sigma
-    (fun sigma c_o c_n ->
+  map2_state
+    (fun c_o c_n sigma ->
       Util.on_snd
         (shift_by (directional (nargs - 1) (nargs - 2)))
         (promote_forget_case env sigma off is_fwd p (o_t, c_o) (n_t, c_n)))
     (take_except nargs (factor_product b_o))
     (take_except (directional (nargs + 1) (nargs - 1)) (factor_product b_n))
+    sigma
 
 (*
  * Make a packer function for existT/sigT

@@ -74,9 +74,8 @@ let eq_lemmas_env env sigma recs l =
  *)
 let eq_lemmas env sigma typ l =
   let ((i, i_index), u) = destInd typ in
-  map_fold_state_array
-    sigma
-    (fun sigma c_index ->
+  map_state_array
+    (fun c_index sigma ->
       let c = mkConstructU (((i, i_index), c_index + 1), u) in
       let sigma, c_exp = expand_eta env sigma c in
       let (env_c_b, c_body) = zoom_lambda_term env c_exp in
@@ -132,6 +131,7 @@ let eq_lemmas env sigma typ l =
     (Array.mapi
        (fun i _ -> i)
        ((lookup_mind i env).mind_packets.(i_index)).mind_consnames)
+    sigma
 
 (*
  * Construct the motive for section/retraction

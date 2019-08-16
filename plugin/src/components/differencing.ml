@@ -14,6 +14,11 @@ open Apputils
 open Envutils
 open Evd
 
+(*
+ * TODO here and elsewhere: use monad stuff to make sure you thread state
+ * correctly with conditionals and so on
+ *)
+
 (* --- Differencing terms --- *)
 
 (* Check if two terms have the same type (TODO move to lib) (TODO why so many envs?) *)

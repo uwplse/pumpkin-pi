@@ -48,7 +48,7 @@ let map_rec_env_fix map_rec d env sigma a (ns : Name.t array) (ts : types array)
  * TODO expose in lib
  *)
 let map_rec_args map_rec env sigma a args =
-  map_fold_state_array sigma (fun sigma tr -> map_rec env sigma a tr) args
+  map_state_array (fun tr sigma -> map_rec env sigma a tr) args sigma
        
 (* --- End TODO --- *)
 
@@ -210,9 +210,9 @@ let pack_to_typ env sigma c unpacked =
 let lift_constr env sigma c trm =
   let l = c.l in
   let args = unfold_args (map_backward last_arg l trm) in
-  let pack_args (sigma, args) = map_fold_state sigma (fun sigma arg -> pack_to_typ env sigma c arg) args in
+  let pack_args (sigma, args) = map_state (fun arg sigma -> pack_to_typ env sigma c arg) args sigma in
   let sigma, packed_args = map_backward pack_args l (sigma, args) in
-  let sigma, rec_args = filter_state sigma (type_is_from c env) packed_args in
+  let sigma, rec_args = filter_state (fun tr sigma -> type_is_from c env sigma tr) packed_args sigma in
   let sigma, app = lift env sigma l trm in
   if List.length rec_args = 0 then
     (* base case - don't bother refolding *)
@@ -224,7 +224,7 @@ let lift_constr env sigma c trm =
 (*
  * Wrapper around NORMALIZE
  *)
-let initialize_constr_rule c env sigma constr =
+let initialize_constr_rule c env constr sigma =
   let sigma, constr_exp = expand_eta env sigma constr in
   let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
   let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
@@ -241,12 +241,12 @@ let initialize_constr_rules env sigma c =
   let mutind_body = lookup_mind i env in
   let ind_bodies = mutind_body.mind_packets in
   let ind_body = ind_bodies.(i_index) in
-  map_fold_state_array
-    sigma
+  map_state_array
     (initialize_constr_rule c env)
     (Array.mapi
        (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
        ind_body.mind_consnames)
+    sigma
 
 (* Initialize the lift_config *)
 let initialize_lift_config env sigma l typs =
@@ -736,10 +736,10 @@ let do_lift_ind env sigma typename suffix lift ind =
   let (mind_body, ind_body) as mind_specif = Inductive.lookup_mind_specif env ind in
   check_inductive_supported mind_body;
   let env, univs, arity, constypes = open_inductive ~global:true env mind_specif in
-  let evm = Evd.update_sigma_env sigma env in
+  let sigma = Evd.update_sigma_env sigma env in
   let nparam = mind_body.mind_nparams_rec in
-  let sigma, arity' = do_lift_term env evm lift arity in
-  let sigma, constypes' = map_fold_state sigma (fun sigma trm -> do_lift_term env sigma lift trm) constypes in
+  let sigma, arity' = do_lift_term env sigma lift arity in
+  let sigma, constypes' = map_state (fun trm sigma -> do_lift_term env sigma lift trm) constypes sigma in
   let consnames =
     Array.map_to_list (fun id -> Nameops.add_suffix id suffix) ind_body.mind_consnames
   in
