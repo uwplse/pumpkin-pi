@@ -68,7 +68,7 @@ Find ornament list vector as ltv.
 Print ltv.
 Print ltv_inv.
 
-(* 
+(*
  * As mentioned in the paper, these form an equivalence.
  * This is proven automatically by the prove equivalence option.
  * See Search.v for a detailed walkthrough of the output.
@@ -108,7 +108,7 @@ Eval compute in (zipV (consV 0 2 (nilV nat)) (consV 0 1 (nilV nat))).
 
 (*
  * However, this type isn't actually what we want. The user-friendly
- * versions of the functions are simple to recover. 
+ * versions of the functions are simple to recover.
  *
  * First, we will prove the indexer is what we want. To do this, we can
  * simply prove this over the indexer of the original list functions,
@@ -165,7 +165,7 @@ Definition zip_withV_uf {A} {B} {C} (f : A -> B -> C) {n} (v1 : vector A n) (v2 
 (*
  * For proofs, we have to deal with dependent equality.
  * This is more challenging. Essentially, we have to relate
- * our other equalities. 
+ * our other equalities.
  *
  * In the case of nat, the easiest
  * way to do this is to use the fact that nats form an hset
@@ -190,7 +190,7 @@ Defined.
  * to show that we do not duplicate equalities (credit to Jason Gross).
  * This holds for all algebraic ornaments, not just those for which UIP holds
  * on the index type.
- * 
+ *
  * See https://github.com/uwplse/ornamental-search/issues/39 for the latest thoughts
  * on this, and please check the latest version of this file in master to see
  * if we have implemented this if you are reading this in a release.
@@ -205,13 +205,13 @@ Lemma zip_with_is_zipV_uf :
 Proof.
   intros. unfold zip_withV_uf, zipV_uf, zipV.
   pose proof (eq_sigT_snd (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2))).
-  simpl in *. rewrite <- H. rewrite zip_with_is_zipV_uf_aux. 
+  simpl in *. rewrite <- H. rewrite zip_with_is_zipV_uf_aux.
   apply eq_trans_rew_distr.
 Defined.
 
 (*
- * Note: For this particular example, interestingly, doing these by hand 
- * without DEVOID, it's possible to construct functions such that the proof 
+ * Note: For this particular example, interestingly, doing these by hand
+ * without DEVOID, it's possible to construct functions such that the proof
  * of zip_with_is_zipV_uf goes through by reflexivity. However, these
  * are not the analogues of the functions included in the hs_to_coq module
  * (note that the proof using reflexivity does not work for them either).
@@ -222,3 +222,38 @@ Defined.
 Definition BVand' {n : nat} (v1 : vector bool n) (v2 : vector bool n) : vector bool n :=
   zip_withV_uf andb v1 v2.
 
+
+(* Type of adjunction for ltv. *)
+Check (forall A x, ltv_retraction A (ltv A x) = f_equal (ltv A) (ltv_section A x)).
+
+Lemma ltv_adjunction : forall A x, ltv_retraction A (ltv A x) = f_equal (ltv A) (ltv_section A x).
+Proof.
+  intros A x. induction x.
+  - simpl. reflexivity.
+  - change (ltv A (a :: x)) with (existT _ (S (projT1 (ltv A x))) (consV (projT1 (ltv A x)) a (projT2 (ltv A x)))).
+  (*  change (projT1 (ltv A x)) with (ltv_index A x).*)
+    Print ltv_section.
+    assert (ltv_section A (a :: x) = eq_sym (eq_ind x (fun H0 => a :: x = a :: H0) (erefl (a :: x)) (ltv_inv A (ltv A x)) (eq_sym (ltv_section A x)))).
+    + unfold ltv_section. f_equal. simpl. f_equal.
+      rewrite eq_sym_involutive.
+      auto.
+    + rewrite H.
+      Print ltv_retraction.
+      assert (ltv_retraction A (existT _ (S (ltv_index A x)) (consV (ltv_index A x) a (projT2 (ltv A x)))) =
+              sigT_rect (fun (H : sigT (vector A)) => ltv A (ltv_inv A (existT _ _ (consV (projT1 H) a (projT2 H)))) = existT _ _ (consV (projT1 H) a (projT2 H))) (fun (n : nat) (v : vector A n) => eq_sym (eq_ind _ (fun v1 => existT (vector A) (S n) (consV n a v) = existT _ (S (projT1 v1)) (consV (projT1 v1) a (projT2 v1))) (erefl (existT _ (S (projT1 (existT _ n v))) (consV n a v))) (existT _ (projT1 (ltv A (ltv_inv A (existT _ n v)))) (projT2 (ltv A (ltv_inv A (existT _ n v))))) (eq_sym (ltv_retraction A (existT _ n v))))) (existT _ (projT1 (ltv A x)) (projT2 (ltv A x)))).
+      * assert (ltv A x = existT _ (projT1 (ltv A x)) (projT2 (ltv A x))).
+        ** auto.
+        ** rewrite H0.
+           ciompute.
+      * rewrite H0.  destruct (ltv A x). rewrite ltv_coh.
+
+        change (projT1 (ltv A (ltv_inv A (existT (vector A) n)))) simpl. unfold ltv_retraction in IHx. rewrite IHx.
+        compute in *. rewrite IHx. iauto.
+
+        assert (ltv A x = existT _ (projT1 (ltv A x)) (projT2 (ltv A x))).
+        ** auto.
+        ** rewrite <- H1.
+        assert (ltv_retraction A (ltv A x) = ltv_retraction A
+
+        remember (ltv A x) as v.
+      * unfold f_equal in *.
