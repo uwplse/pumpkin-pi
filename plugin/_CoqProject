@@ -61,6 +61,7 @@ src/frontend.mli
 src/ornamental.ml4
 src/ornaments.mlpack
 
+theories/Adjoint.v
 theories/Unpack.v
 theories/Lifted.v
 theories/Ornaments.v
