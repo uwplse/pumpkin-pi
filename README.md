@@ -10,9 +10,9 @@ that relate A and B, and then lift functions and proofs between types.
 The lifted functions and proofs are usually about as fast as the originals.
 See the paper and the examples for more detail.
 
-DEVOID will eventually be a part of [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH).
-The top-level functionality will likely move into that repository. This repository will likely still contain
-some libraries and DEVOID-specific functionality. Please stay tuned.
+DEVOID is a part of the [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH) 
+proof repair plugin suite, and is included as a dependency of PUMPKIN PATCH
+starting with release 0.1.
 
 # Getting Started with DEVOID
 
@@ -21,8 +21,11 @@ Please report any issues you encounter to GitHub issues, and please feel free to
 
 ## Building DEVOID
 
-The only dependency you need to use DEVOID is Coq 8.8. DEVOID depends on a Coq plugin library which is included
-as a submodule automatically in the build script. To build DEVOID, run these commands:
+The only dependency you need to install yourself in order to use DEVOID is Coq 8.8. 
+DEVOID also depends on a
+[Coq plugin library](https://github.com/uwplse/coq-plugin-lib) which is included
+as a submodule automatically in the build script,
+and on the [fix-to-elim](https://github.com/uwplse/fix-to-elim) plugin, which is also included. To build DEVOID, run these commands:
 
 ```
 cd plugin
@@ -41,7 +44,8 @@ and `Lift` to lift along those ornaments. `Find ornament` supports two additiona
 to increase user confidence and to make the functions that it generates more useful.
 
 In addition, there are two commands that help make DEVOID more useful: `Preprocess`
-for pattern matching and fixpoint support, and `Unpack` to help recover more user-friendly types.
+for pattern matching and fixpoint support, and `Unpack` to help recover more user-friendly types. The `Preprocess` command comes from our plugin
+[fix-to-elim](https://github.com/uwplse/coq-plugin-lib).
 There is also work in progress on a general methodology (which will hopefully be automated in
 the future) to get even more user-friendly types.
 
@@ -204,7 +208,7 @@ To run the case study code, you need the following additional dependencies:
 * The Equivalences for Free! [univalent parametricity framework](https://github.com/CoqHott/univalent_parametricity) (hereon EFF)
 * [Datamash](https://www.gnu.org/software/datamash/)
 
-Run the following to make EFF
+Run the following to make EFF:
 
 ```
 cd <path-to-EFF>
@@ -319,6 +323,8 @@ Please also feel free to ask if you are confused about anything that the code do
 
 * [LICENSE](/LICENSE): License
 * [plugin](/plugin): Main directory for the plugin
+  - [build.sh](/plugin/coq/build.sh): Build script
+  - [test.sh](/plugin/coq/test.sh): Test script
   - [coq](/plugin/coq): Tests and paper examples
     - [examples](/plugin/coq/examples): Paper examples (see paper examples section of this document for details)
       - [Intro.v](/plugin/coq/examples/Intro.v)
@@ -330,8 +336,6 @@ Please also feel free to ask if you are confused about anything that the code do
       - [ListToVect.v](/plugin/coq/examples/ListToVect.v)
       - [Projections.v](/plugin/coq/examples/Projections.v)
     - [Indtype.v](/plugin/coq/Indtype.v): Lifting tests for inductive relations
-    - [Preprocess.v](/plugin/coq/Preprocess.v): Tests for preprocessing
-    - [PreprocessModule.v](/plugin/coq/PreprocessModule.v): Tests for whole-module preprocessing
     - [ShouldFail.v](/plugin/coq/ShouldFail.v): Tests that should currently fail
     - [Test.v](/plugin/coq/Test.v): Tests for search
     - [TestLift.v](/plugin/coq/TestLift.v): Tests for lifting
@@ -350,10 +354,12 @@ Please also feel free to ask if you are confused about anything that the code do
     - [main.v](/plugin/eval/main.v): Main DEVOID case study code
     - [times.sed](/plugin/eval/times.sed): Script to format times
     - [together.sh](/plugin/eval/together.sh): Main case study script
+  - [deps](/plugin/deps): Depedencies
+    - [fix-to-elim](/plugin/src/fix-to-elim): **Preprocessing** with the [fix-to-elim](https://github.com/uwplse/coq-plugin-lib) plugin
   - [src](/plugin/src): Source directory
+    - [coq-plugin-lib](/plugin/src/coq-plugin-lib): [Coq plugin library](https://github.com/uwplse/coq-plugin-lib)
     - [automation](/plugin/src/automation): Automation directory
       - [coherence.ml](/plugin/src/automation/coherence.ml) and [coherence.mli](/plugin/src/automation/coherence.mli): **Proving coherence**
-      - [desugar.ml](/plugin/src/automation/desugar.ml) and [desugar.mli](/plugin/src/automation/desugar.mli): **Preprocessing terms**
       - [equivalence.ml](/plugin/src/automation/equivalence.ml) and [equivalence.mli](/plugin/src/automation/equivalence.mli): **Proving section and retraction**
       - [eta.ml](/plugin/src/automation/eta.ml) and [eta.mli](/plugin/src/automation/eta.mli): Automation for non-primitive projections
       - [lift.ml](/plugin/src/automation/lift.ml) and [lift.mli](/plugin/src/automation/lift.mli): **Lifting terms**
@@ -366,15 +372,6 @@ Please also feel free to ask if you are confused about anything that the code do
       - [differencing.ml](differencing.ml) and [differencing.mli](/plugin/src/components/differencing.mli): 
       - [factoring.ml](/plugin/src/components/factoring.ml) and [factoring.mli](/plugin/src/components/factoring.mli): 
       - [specialization.ml](/plugin/src/components/specialization.ml) and [specialization.mli](/plugin/src/components/specialization.mli): 
-    - [lib](/plugin/src/lib): Useful utilities
-      - [coqterms.ml](/plugin/src/lib/coqterms.ml) and [coqterms.mli](/plugin/src/lib/coqterms.mli): Coq term management
-      - [debruijn.ml](/plugin/src/lib/debruijn.ml) and [debruijn.mli](/plugin/src/lib/debruijn.mli): De Bruijn index management 
-      - [hofs.ml](/plugin/src/lib/hofs.ml) and [hofs.mli](/plugin/src/lib/hofs.mli): Higher-order functions for powerful Coq term manipulation
-      - [hypotheses.ml](/plugin/src/lib/hypotheses.ml) and [hypotheses.mli](/plugin/src/lib/hypotheses.mli): Hypothesis management
-      - [indexing.ml](/plugin/src/lib/indexing.ml) and [indexing.mli](/plugin/src/lib/indexing.mli): Inductive type index management
-      - [printing.ml](/plugin/src/lib/printing.ml) and [printing.mli](/plugin/src/lib/printing.mli): Very detailed term printing functions
-      - [utilities.ml](/plugin/src/lib/utilities.ml) and [utilities.mli](/plugin/src/lib/utilities.mli): Basic utilities
-      - [zooming.ml](/plugin/src/lib/zooming.ml) and [zooming.mli](/plugin/src/lib/zooming.mli): Higher-order functions for contextual Coq term management
     - [ornaments](/plugin/src/ornaments): Internal representations and configuration
       - [lifting.ml](/plugin/src/ornaments/lifting.ml) and [lifting.mli](/plugin/src/ornaments/lifting.mli)
     - [frontend.ml](/plugin/src/frontend.ml) and [frontend.mli](/plugin/src/frontend.mli): Main functionality for commands
