@@ -1,9 +1,6 @@
 open Util
 open Names
 open Libnames
-open Univ
-open Context
-open CErrors
 open Ltac_plugin
 
 let tactic_script =

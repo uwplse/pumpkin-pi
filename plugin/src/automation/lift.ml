@@ -15,7 +15,6 @@ open Names
 open Caching
 open Declarations
 open Specialization
-open Printing
 open Inference
 open Typehofs
 open Indutils
@@ -24,33 +23,9 @@ open Sigmautils
 open Reducers
 open Envutils
 open Funutils
-open Contextutils
 open Constutils
-open Evd
 open Stateutils
-
-(* --- TODO for refactor, for now --- *)
-
-(*
- * Recurse on a mapping function with an environment for a fixpoint
- * TODO expose in lib
- *)
-let map_rec_env_fix map_rec d env sigma a (ns : Name.t array) (ts : types array) =
-  let fix_bindings = bindings_for_fix ns ts in
-  let env_fix = push_rel_context fix_bindings env in
-  let n = List.length fix_bindings in
-  let d_n = List.fold_left (fun a' _ -> d a') a (range 0 n) in
-  map_rec env_fix sigma d_n
-
-(*
- * Map recursively on an array of arguments, threading the state through
- * the result
- * TODO expose in lib
- *)
-let map_rec_args map_rec env sigma a args =
-  map_state_array (fun tr sigma -> map_rec env sigma a tr) args sigma
-       
-(* --- End TODO --- *)
+open Hofs
 
 (* --- Convenient shorthand --- *)
 
@@ -200,7 +175,7 @@ let is_eliminator c env trm =
 let pack_to_typ env sigma c unpacked =
   let (_, b_typ) = c.typs in
   if on_red_type_default (ignore_env (is_or_applies b_typ)) env sigma unpacked then
-    pack env sigma c.l.off unpacked
+    pack env c.l.off unpacked sigma
   else
     sigma, unpacked
 
@@ -213,13 +188,13 @@ let lift_constr env sigma c trm =
   let pack_args (sigma, args) = map_state (fun arg sigma -> pack_to_typ env sigma c arg) args sigma in
   let sigma, packed_args = map_backward pack_args l (sigma, args) in
   let sigma, rec_args = filter_state (fun tr sigma -> type_is_from c env sigma tr) packed_args sigma in
-  let sigma, app = lift env sigma l trm in
+  let sigma, app = lift env l trm sigma in
   if List.length rec_args = 0 then
     (* base case - don't bother refolding *)
     reduce_nf env sigma app
   else
     (* inductive case - refold *)
-    refold l env sigma (lift_to l) app rec_args
+    refold l env (lift_to l) app rec_args sigma
 
 (*
  * Wrapper around NORMALIZE
@@ -228,7 +203,7 @@ let initialize_constr_rule c env constr sigma =
   let sigma, constr_exp = expand_eta env sigma constr in
   let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
   let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
-  let sigma, to_refold = map_backward (fun (evd, t) -> pack env_c_b evd c.l.off t) c.l (sigma, c_body) in
+  let sigma, to_refold = map_backward (fun (sigma, t) -> pack env_c_b c.l.off t sigma) c.l (sigma, c_body) in
   let sigma, refolded = lift_constr env_c_b sigma c to_refold in
   sigma, reconstruct_lambda_n env_c_b refolded (nb_rel env)
 
@@ -296,7 +271,7 @@ let lift_motive env sigma l npms parameterized_elim p =
   let nargs = new_rels2 env_p_to env in
   let p = shift_by nargs p in
   let args = mk_n_rels nargs in
-  let sigma, lifted_arg = pack_lift env_p_to sigma (flip_dir l) (last args) in
+  let sigma, lifted_arg = pack_lift env_p_to (flip_dir l) (last args) sigma in
   let value_off = nargs - 1 in
   let l = { l with off = l.off - npms } in (* no parameters here *)
   if l.is_fwd then
@@ -334,7 +309,7 @@ let promote_case_args env sigma c args =
          let sigma, t = reduce_type env sigma n in
          if is_or_applies b_typ t then
            (* FORGET-ARG *)
-           let sigma, a = pack_lift env sigma (flip_dir c.l) n in
+           let sigma, a = pack_lift env (flip_dir c.l) n sigma in
            Util.on_snd
              (fun tl -> a :: tl)
              (lift_args sigma tl (get_arg c.l.off t))
@@ -365,7 +340,7 @@ let forget_case_args env_c_b env sigma c args =
          let sigma, t = reduce_type env_c_b sigma n in
          if is_or_applies b_typ t then
            (* PROMOTE-ARG *)
-           let sigma, b_sig =  pack_lift env sigma (flip_dir c.l) n in
+           let sigma, b_sig =  pack_lift env (flip_dir c.l) n sigma in
            let b_sig_typ = dest_sigT_type env sigma b_sig in
            let proj_b = project_value b_sig_typ b_sig in
            let proj_i_b = project_index b_sig_typ b_sig in
@@ -420,15 +395,16 @@ let lift_case env sigma c p c_elim constr =
     sigma, reconstruct_lambda_n env_c body (nb_rel env)
 
 (* Lift cases *)
-let lift_cases env sigma c p p_elim cs =
-  snd
-    (List.fold_left
-       (fun (p_elim, (sigma, cs)) constr ->
+let lift_cases env c p p_elim cs =
+  bind
+    (fold_left_state
+       (fun (p_elim, cs) constr sigma ->
          let sigma, constr = lift_case env sigma c p p_elim constr in
          let p_elim = mkAppl (p_elim, [constr]) in
-         (p_elim, (sigma, snoc constr cs)))
-       (p_elim, (sigma, []))
+         sigma, (p_elim, snoc constr cs))
+       (p_elim, [])
        cs)
+    (fun (_, cs) -> ret cs)
 
 (*
  * LIFT-ELIM steps before recursing into the rest of the algorithm
@@ -441,7 +417,7 @@ let lift_elim env sigma c trm_app =
   let param_elim = mkAppl (elim, trm_app.pms) in
   let sigma, p = lift_motive env sigma c.l npms param_elim trm_app.p in
   let p_elim = mkAppl (param_elim, [p]) in
-  let sigma, cs = lift_cases env sigma c p p_elim trm_app.cs in
+  let sigma, cs = lift_cases env c p p_elim trm_app.cs sigma in
   let sigma, final_args = lift_elim_args env sigma c.l npms trm_app.final_args in
   sigma, apply_eliminator {trm_app with elim; p; cs; final_args}
 
@@ -464,16 +440,13 @@ let repack env ib_typ lifted typ =
  * Core lifting algorithm.
  * A few extra rules to deal with real Coq terms as opposed to CIC,
  * including caching.
- *
- * TODO try to use map_term_env_if
- * TODO proper sigma handling (8/14/19) caused a major slowdown in lifting performance. Investigate at some point and fix
  *)
 let lift_core env sigma c ib_typ trm =
   let l = c.l in
   let (a_typ, b_typ) = c.typs in
   let sigma, a_typ_eta = expand_eta env sigma a_typ in
   let a_arity = arity a_typ_eta in
-  let rec lift_rec en sigma ib_typ tr : evar_map * types =
+  let rec lift_rec en sigma ib_typ tr : types state =
     let (sigma, lifted), try_repack =
       let lifted_opt = search_lifted_term en sigma tr in
       if Option.has_some lifted_opt then
@@ -667,10 +640,6 @@ let lift_core env sigma c ib_typ trm =
     (* sometimes we must repack because of non-primitive projections *)
     map_if
       (fun (sigma, lifted) ->
-	(* TODO is the use of sigma_typ versus sigma correct here?
-	   Threading sigma_typ through when recursing at the term level as well
-	   causes a 3x slowdown in the lifting code. Is it necessary,
-	   or is this enough? *)
         let sigma_typ, typ = infer_type en sigma tr in
         let typ = reduce_stateless reduce_nf en sigma_typ typ in
         let is_from_typ = is_from c en sigma_typ typ in
@@ -730,7 +699,6 @@ let declare_inductive_liftings ind ind' ncons =
  * This algorithm assumes that type parameters are left constant and will lift
  * every binding and every term of the base type to the sigma-packed ornamented
  * type. (IND and CONSTR via caching)
- * TODO OK to ignore sigma?
  *)
 let do_lift_ind env sigma typename suffix lift ind =
   let (mind_body, ind_body) as mind_specif = Inductive.lookup_mind_specif env ind in

@@ -2,7 +2,6 @@ open Constr
 open Names
 open Recordops
 open Libnames
-open Decl_kinds
 open Globnames
 open Utilities
 open Libobject
@@ -53,7 +52,7 @@ let declare_lifted base_gref lifted_gref =
       (construct_term, [|base_type; lifted_type; base_term; lifted_term|])
   in
   let n = name_lifted base_gref in
-  ignore (define_canonical n sigma (EConstr.to_constr sigma packed_term) true) (* TODO extra conv. *) 
+  ignore (define_canonical n sigma (EConstr.to_constr sigma packed_term) true)
 
 (** Retrieve the canonical lifting, as a term, for the global reference
     [base_gref]. *)

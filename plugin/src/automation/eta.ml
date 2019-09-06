@@ -17,10 +17,6 @@ open Nameutils
 open Envutils
 
 (*
- * TODO move some of this into lib
- *)
-
-(*
  * Apply Coq's name-freshening policy (i.e., increment subscript if necessary)
  * and insert freshened name into the set of used identifiers. Also deanonymize
  * the name, using Coq's standard default name (modulo freshening).

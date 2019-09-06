@@ -21,7 +21,7 @@ open Evd
 
 (* --- Differencing terms --- *)
 
-(* Check if two terms have the same type (TODO move to lib) (TODO why so many envs?) *)
+(* Check if two terms have the same type *)
 let same_type env sigma o n =
   let (env_o, t_o) = o in
   let (env_n, t_n) = n in

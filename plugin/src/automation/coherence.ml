@@ -1,5 +1,4 @@
 open Constr
-open Environ
 open Utilities
 open Zooming
 open Lifting
@@ -8,7 +7,6 @@ open Envutils
 open Apputils
 open Equtils
 open Sigmautils
-open Envutils
 
 (* --- Automatically generated coherence proof --- *)
 

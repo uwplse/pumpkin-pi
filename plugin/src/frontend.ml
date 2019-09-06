@@ -78,7 +78,7 @@ let find_ornament n_o d_old d_new =
     let auto_n = with_suffix (with_suffix name_o "to") name_n in
     let n = Option.default auto_n n_o in
     let idx_n = with_suffix n "index" in
-    let orn = search_orn_inductive env sigma idx_n trm_o trm_n in
+    let sigma, orn = search_orn_inductive env sigma idx_n trm_o trm_n in
     ignore (define_term idx_n sigma orn.indexer true);
     Printf.printf "Defined indexing function %s.\n\n" (Id.to_string idx_n);
     let promote = define_term n sigma orn.promote true in
@@ -137,7 +137,7 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
   let (c_from, c_to) = if are_inds then lookup us else (c_orn, c_orn_inv) in
   let l = initialize_lifting env sigma c_from c_to in
   let u_old = unwrap_definition env c_old in
-  if isInd u_old then (* TODO for all of these red, do we need red? *)
+  if isInd u_old then
     let from_typ = fst (on_red_type_default (fun _ _ -> ind_of_promotion_type) env sigma l.orn.promote) in
     if not (equal u_old from_typ) then
       lift_inductive_by_ornament env sigma n_new s l c_old

@@ -3,7 +3,6 @@ open Environ
 open Utilities
 open Debruijn
 open Indexing
-open Hofs
 open Substitution
 open Factoring
 open Zooming
@@ -20,6 +19,8 @@ open Equtils
 open Contextutils
 open Sigmautils
 open Stateutils
+open Names
+open Declarations
 
 (* --- Automatically generated equivalence proofs about search components --- *)
 
@@ -38,9 +39,9 @@ open Stateutils
  * Take as arguments the original environment, an evar_map, the recursive
  * arguments for the particular case, and a lift config.
  *)
-let eq_lemmas_env env sigma recs l =
-  List.fold_left
-    (fun (sigma, e) r ->
+let eq_lemmas_env env recs l =
+  fold_left_state
+    (fun e r sigma ->
       let r1 = shift_by (new_rels2 e env) r in
       let sigma, r_t = reduce_type e sigma r1 in
       let push_ib =
@@ -57,14 +58,14 @@ let eq_lemmas_env env sigma recs l =
       let r_t = adj_back (shift_by (new_rels2 e_ib e) r_t) in
       (* push new rec arg *)
       let e_r = push_local (Anonymous, r_t) e_ib in
-      let pack_back = map_backward (fun (sigma, t) -> pack e_r sigma l.off t) l in
+      let pack_back = map_backward (fun (sigma, t) -> pack e_r l.off t sigma) l in
       let sigma, r1 = pack_back (sigma, shift_by (new_rels2 e_r e) r1) in
       let sigma, r2 = pack_back (sigma, mkRel 1) in
       let sigma, r_t = reduce_type e_r sigma r1 in
       let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
       (* push equality *)
       sigma, push_local (Anonymous, r_eq) e_r)
-    (sigma, env)
+    env
     recs
   
 (*
@@ -82,8 +83,8 @@ let eq_lemmas env sigma typ l =
       let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
       let c_args = unfold_args c_body in
       let recs = List.filter (on_red_type_default (ignore_env (is_or_applies typ)) env_c_b sigma) c_args in
-      let sigma, env_lemma = eq_lemmas_env env_c_b sigma recs l in
-      let pack_back = map_backward (fun (sigma, t) -> pack env_lemma sigma l.off t) l in
+      let sigma, env_lemma = eq_lemmas_env env_c_b recs l sigma in
+      let pack_back = map_backward (fun (sigma, t) -> pack env_lemma l.off t sigma) l in
       let sigma, c_body = pack_back (sigma, shift_by (new_rels2 env_lemma env_c_b) c_body) in
       let sigma, c_body_type = reduce_type env_lemma sigma c_body in
       (* reflexivity proof: the identity case *)
@@ -138,7 +139,7 @@ let eq_lemmas env sigma typ l =
  *)
 let equiv_motive env sigma p_t l =
   let env_motive = zoom_env zoom_product_type env p_t in
-  let sigma, trm1 = map_backward (fun (sigma, t) -> pack env_motive sigma l.off t) l (sigma, mkRel 1) in
+  let sigma, trm1 = map_backward (fun (sigma, t) -> pack env_motive l.off t sigma) l (sigma, mkRel 1) in
   let sigma, at_type = reduce_type env_motive sigma trm1 in
   let typ_args = non_index_args l.off env_motive sigma at_type in
   let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
@@ -256,9 +257,10 @@ let equiv_proof env sigma l =
         elim_sigT { to_elim; packed_type = p; unpacked; arg = mkRel 1 })
       l
       (reconstruct_lambda_n env_eq_proof sym_app (nb_rel env_to))
-  in reconstruct_lambda env_to equiv_b (* TODO OK to ignore sigma? *)
+  in reconstruct_lambda env_to equiv_b
 
 (*
  * Prove section and retraction
  *)
-let prove_equivalence env sigma = twice_directional (equiv_proof env sigma)
+let prove_equivalence env sigma =
+  twice_directional (equiv_proof env sigma)

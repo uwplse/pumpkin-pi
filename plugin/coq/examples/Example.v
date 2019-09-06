@@ -68,8 +68,6 @@ Find ornament list vector as ltv.
 Print ltv.
 Print ltv_inv.
 
-Print ltv_section.
-
 (* 
  * As mentioned in the paper, these form an equivalence.
  * This is proven automatically by the prove equivalence option.
