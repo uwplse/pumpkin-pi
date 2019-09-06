@@ -1,3 +1,4 @@
+Require Ornamental.Adjoint.
 Require Ornamental.Unpack.
 Require Ornamental.Lifted.
 
