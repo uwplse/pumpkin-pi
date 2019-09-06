@@ -74,6 +74,11 @@ Print ltv_inv.
  * See Search.v for a detailed walkthrough of the output.
  *)
 
+Check ltv_section.
+Check ltv_retraction.
+Check ltv_adjunction.
+Definition ltv_adjunction' : forall A x, ltv_retraction A (ltv A x) = f_equal (ltv A) (ltv_section A x) := ltv_adjunction.
+
 (* --- Lift --- *)
 
 Lift list vector in hs_to_coq.zip as zipV_p.
@@ -225,13 +230,13 @@ Definition BVand' {n : nat} (v1 : vector bool n) (v2 : vector bool n) : vector b
 
 Lemma refold_section:
   forall T t l,
-    ltv_section T (t :: l) = 
-    eq_sym 
-      (eq_ind 
-        l 
-        (fun l0 => t :: l = t :: l0) 
-        (erefl (t :: l)) 
-        (ltv_inv T (ltv T l)) 
+    ltv_section T (t :: l) =
+    eq_sym
+      (eq_ind
+        l
+        (fun l0 => t :: l = t :: l0)
+        (erefl (t :: l))
+        (ltv_inv T (ltv T l))
         (eq_sym (ltv_section T l))).
 Proof.
   intros. unfold ltv_section. rewrite eq_sym_involutive. f_equal.
@@ -239,44 +244,15 @@ Qed.
 
 Lemma refold_retraction:
   forall A a x,
-    ltv_retraction A (existT _ (S (ltv_index A x)) (consV (ltv_index A x) a (projT2 (ltv A x)))) =
-    sigT_rect 
-      (fun (H : sigT (vector A)) => ltv A (ltv_inv A (existT _ _ (consV (projT1 H) a (projT2 H)))) = existT _ _ (consV (projT1 H) a (projT2 H))) 
-      (fun (n : nat) (v : vector A n) => eq_sym (eq_ind _ (fun v1 => existT (vector A) (S n) (consV n a v) = existT _ (S (projT1 v1)) (consV (projT1 v1) a (projT2 v1))) 
-        (erefl (existT _ (S (projT1 (existT _ n v))) (consV n a v))) 
-        (existT _ (projT1 (ltv A (ltv_inv A (existT _ n v)))) 
-        (projT2 (ltv A (ltv_inv A (existT _ n v))))) 
-        (eq_sym (ltv_retraction A (existT _ n v))))) 
+    ltv_retraction0 A (existT _ (S (ltv_index A x)) (consV (ltv_index A x) a (projT2 (ltv A x)))) =
+    sigT_rect
+      (fun (H : sigT (vector A)) => ltv A (ltv_inv A (existT _ _ (consV (projT1 H) a (projT2 H)))) = existT _ _ (consV (projT1 H) a (projT2 H)))
+      (fun (n : nat) (v : vector A n) => eq_sym (eq_ind _ (fun v1 => existT (vector A) (S n) (consV n a v) = existT _ (S (projT1 v1)) (consV (projT1 v1) a (projT2 v1)))
+        (erefl (existT _ (S (projT1 (existT _ n v))) (consV n a v)))
+        (existT _ (projT1 (ltv A (ltv_inv A (existT _ n v))))
+        (projT2 (ltv A (ltv_inv A (existT _ n v)))))
+        (eq_sym (ltv_retraction0 A (existT _ n v)))))
       (ltv A x).
 Proof.
-  intros. unfold ltv_retraction. simpl. rewrite eq_sym_involutive. f_equal.
+  intros. unfold ltv_retraction0. simpl. rewrite eq_sym_involutive. f_equal.
 Qed.
-
-Check eq_ind.
-
-Lemma ltv_adjunction : 
-  forall A x, 
-    ltv_retraction A (ltv A x) = 
-    f_equal (ltv A) (ltv_section A x).
-Proof.
-  intros A x. induction x.
-  - auto.
-  - rewrite refold_section. rewrite refold_retraction.
-    change (ltv A (a :: x)) with 
-           (existT _ 
-             (S (projT1 (ltv A x))) 
-             (consV (projT1 (ltv A x)) a (projT2 (ltv A x)))).
-    change (ltv A x) with (existT _ (projT1 (ltv A x)) (projT2 (ltv A x))).
-    change (projT1 (ltv A x)) with (ltv_index A x) in *.
-    unfold sigT_rect.
-    rewrite IHx.
-    rewrite <- eq_sym_map_distr.
-    f_equal.
-    rewrite eq_sym_map_distr.
-    change (projT1 (ltv A (ltv_inv A (existT [eta vector A] (ltv_index A x) (projT2 (ltv A x))))))
-      with (ltv_index A (ltv_inv A (existT [eta vector A] (ltv_index A x) (projT2 (ltv A x))))).
-    change (projT1 (existT [eta vector A] (ltv_index A x) (projT2 (ltv A x))))
-     with (ltv_index A x).
-Abort.
-
-
