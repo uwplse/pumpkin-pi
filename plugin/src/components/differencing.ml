@@ -13,11 +13,7 @@ open Inference
 open Apputils
 open Envutils
 open Evd
-
-(*
- * TODO here and elsewhere: use monad stuff to make sure you thread state
- * correctly with conditionals and so on
- *)
+open Stateutils
 
 (* --- Differencing terms --- *)
 
@@ -142,14 +138,16 @@ let new_index_type env sigma elim_t_o elim_t_n =
     match map_tuple kind (p_o, p_n) with
     | (Prod (n_o, t_o, b_o), Prod (_, t_n, b_n)) ->
        if isProd b_o then
-         let sigma, conv = convertible e sigma t_o t_n in
-         if conv then
-           let e_b = push_local (n_o, t_o) e in
-           let sigma, same = candidates e_b sigma b_o b_n in
-           let diff = (0, t_n) in
-           sigma, diff :: (List.map (fun (i, i_t) -> (shift_i i, i_t)) same)
-         else
-           sigma, [(0, t_n)]
+         branch_state
+           (fun (t_o, t_n) sigma -> convertible e sigma t_o t_n)
+           (fun (t_o, t_n) sigma ->
+             let e_b = push_local (n_o, t_o) e in
+             let sigma, same = candidates e_b sigma b_o b_n in
+             let diff = (0, t_n) in
+             sigma, diff :: (List.map (fun (i, i_t) -> (shift_i i, i_t)) same))
+           (fun (t_o, t_n) sigma -> sigma, [(0, t_n)])
+           (t_o, t_n)
+           sigma
        else
          sigma, [(0, t_n)]
     | _ ->
@@ -164,38 +162,43 @@ let new_index_type env sigma elim_t_o elim_t_n =
  *)
 let diff_context_simple env sigma decls_o decls_n =
   let nth_type n = Rel.Declaration.get_type (List.nth decls_n n) in
-  let rec scan env sigma pos diff (decls_o, decls_n) : (evar_map * int) option =
+  let rec scan env pos diff (decls_o, decls_n) sigma : (int option) state =
     match (decls_o, decls_n) with
     | (decl_o :: decls_o_b), (decl_n :: decls_n_b) ->
       let type_o = Rel.Declaration.get_type decl_o in
       let type_n = Rel.Declaration.get_type decl_n in
       let env_b = push_rel decl_n env in
       let pos_b = pos + 1 in
-      let sigma, conv = convertible env sigma type_o type_n in
-      if conv then
-        let diff_b = scan env_b sigma pos_b diff (decls_o_b, decls_n_b) in
-        if Option.has_some diff_b && snd (Option.get diff_b) = pos_b then
-          let type_i = nth_type pos_b in
-          let sigma, conv = convertible env_b sigma (shift type_o) type_i in
-          if not conv then
-            diff_b
+      branch_state
+        (fun (type_o, type_n) sigma -> convertible env sigma type_o type_n)
+        (fun (type_o, type_n) sigma ->
+          let sigma_b, diff_b = scan env_b pos_b diff (decls_o_b, decls_n_b) sigma in
+          if Option.has_some diff_b && Option.get diff_b = pos_b then
+            let type_i = nth_type pos_b in
+            branch_state
+              (not_state
+                 (fun (type_o, type_i) sigma_b ->
+                   convertible env_b sigma_b (shift type_o) type_i))
+              (fun _  -> ret diff_b)
+              (fun _ -> ret None) (* ambiguous, can't use this heuristic *)
+              (type_o, type_i)
+              sigma_b
           else
-            None (* ambiguous, can't use this heuristic *)
-        else
-          diff_b
-      else
-        scan env_b sigma pos_b (Some pos) (decls_o, decls_n_b) (* this index is new *)
+            sigma, diff_b)
+        (fun _ -> scan env_b pos_b (Some pos) (decls_o, decls_n_b))
+        (type_o, type_n)
+        sigma
     | [], (decl_n :: decls_n_b) ->
        if List.length decls_n_b > 0 then
          failwith "Please add just one new index at a time."
        else
-         Some (sigma, pos) (* the last index is new *)
+         sigma, Some pos (* the last index is new *)
     | _ ->
        failwith "No new indices. Try switching directions."
   in
-  let diff_pos = scan env sigma 0 None (decls_o, decls_n) in
+  let sigma, diff_pos = scan env 0 None (decls_o, decls_n) sigma in
   if Option.has_some diff_pos then
-    let sigma, pos = Option.get diff_pos in
+    let pos = Option.get diff_pos in
     let typ = nth_type pos in
     Some (sigma, (pos, typ))
   else
