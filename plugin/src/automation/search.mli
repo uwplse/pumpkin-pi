@@ -7,6 +7,7 @@ open Environ
 open Evd
 open Names
 open Lifting
+open Stateutils
 
 (* --- Top-level search --- *)
 
@@ -21,5 +22,5 @@ val search_orn_inductive :
   Id.t -> (* name to assign the indexer function *)
   types -> (* old inductive type *)
   types -> (* new inductive type *)
-  promotion (* ornamental promotion *)
+  promotion state (* ornamental promotion *)
 

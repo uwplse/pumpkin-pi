@@ -1,14 +1,14 @@
 open Constr
-open Coqterms
 open Names
 open Recordops
 open Libnames
-open Decl_kinds
 open Globnames
 open Utilities
 open Libobject
 open Lib
 open Mod_subst
+open Defutils
+open Reducers
 
 (* --- Database of liftings for higher lifting --- *)
 
@@ -41,45 +41,42 @@ let name_lifted (base : global_reference) : Id.t =
     lifted global reference [lifted_gref]. *)
 let declare_lifted base_gref lifted_gref =
   let env = Global.env () in
-  let evm = Evd.from_env env in
-  let evm, construct_term = EConstr.fresh_global env evm (construct_gref ()) in
-  let evm, base_term = EConstr.fresh_global env evm base_gref in
-  let evm, base_type = Typing.type_of env evm base_term in
-  let evm, lifted_term = EConstr.fresh_global env evm lifted_gref in
-  let evm, lifted_type = Typing.type_of env evm lifted_term in
+  let sigma = Evd.from_env env in
+  let sigma, construct_term = EConstr.fresh_global env sigma (construct_gref ()) in
+  let sigma, base_term = EConstr.fresh_global env sigma base_gref in
+  let sigma, base_type = Typing.type_of env sigma base_term in
+  let sigma, lifted_term = EConstr.fresh_global env sigma lifted_gref in
+  let sigma, lifted_type = Typing.type_of env sigma lifted_term in
   let packed_term =
     EConstr.mkApp
       (construct_term, [|base_type; lifted_type; base_term; lifted_term|])
   in
   let n = name_lifted base_gref in
-  let hook = Lemmas.mk_hook (fun _ x -> declare_canonical_structure x; x) in
-  let k = (Global, Flags.is_universe_polymorphism (), CanonicalStructure) in
-  let udecl = Univdecls.default_univ_decl in
-  ignore (edeclare n k ~opaque:false evm udecl packed_term None [] hook true)
+  ignore (define_canonical n sigma (EConstr.to_constr sigma packed_term) true)
 
 (** Retrieve the canonical lifting, as a term, for the global reference
     [base_gref]. *)
-let search_lifted env base_gref =
+let search_lifted env sigma base_gref =
   try
     let (_, info) = lookup_canonical_conversion (project_gref (), Const_cs base_gref) in
     (* Reduce the lifting instance to HNF to extract the target component. *)
-    let package = Reduction.whd_all env info.o_DEF in
+    let package = reduce_stateless whd env sigma info.o_DEF in
     let (cons, args) = decompose_appvect package in
     Some (args.(3))
   with _ ->
     None
 
 (** Retrieve the canonical lifting, as a term, for the definition [base]. *)
-let search_lifted_term env base_term =
+let search_lifted_term env sigma base_term =
   try
-    global_of_constr base_term |> search_lifted env
+    global_of_constr base_term |> search_lifted env sigma
   with Not_found -> None
 
 (** Retrieve the canonical lifting, as a global reference, for the global
     reference [base_gref]. *)
-let search_lifted env base_gref =
+let search_lifted env sigma base_gref =
   try
-    search_lifted env base_gref |> Option.map global_of_constr
+    search_lifted env sigma base_gref |> Option.map global_of_constr
   with Not_found ->
     (* A canonical lifting should always relate constant to constant,
        inductive to inductive, etc., so both components should always be

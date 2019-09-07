@@ -7,6 +7,7 @@ open Constr
 open Environ
 open Evd
 open Lifting
+open Stateutils
 
 (*
  * Lift a term along an ornament
@@ -16,7 +17,7 @@ val do_lift_term :
   evar_map ->
   lifting -> (* lifting configuration *)
   types -> (* unlifted term *)
-  types (* lifted term *)
+  types state (* lifted term *)
 
 (*
  * Lift a constant along an ornament
@@ -26,7 +27,7 @@ val do_lift_defn :
   evar_map ->
   lifting -> (* lifting configuration *)
   types -> (* unlifted constant (defined function) *)
-  types (* lifted function *)
+  types state (* lifted function *)
 
 val do_lift_ind :
   env ->

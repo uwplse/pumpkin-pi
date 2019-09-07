@@ -4,3 +4,4 @@ Require Ornamental.Lifted.
 Declare ML Module "ornaments".
 
 Export Ornamental.Unpack.Lemmas.
+Require Export Fixtranslation.Fixtoelim.

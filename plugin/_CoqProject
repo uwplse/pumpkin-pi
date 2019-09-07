@@ -1,4 +1,15 @@
--I src/lib
+-I src/coq-plugin-lib/src/utilities
+-I src/coq-plugin-lib/src/coq
+-I src/coq-plugin-lib/src/coq/termutils
+-I src/coq-plugin-lib/src/coq/constants
+-I src/coq-plugin-lib/src/coq/logicutils
+-I src/coq-plugin-lib/src/coq/logicutils/contexts
+-I src/coq-plugin-lib/src/coq/logicutils/typesandequality
+-I src/coq-plugin-lib/src/coq/logicutils/hofs
+-I src/coq-plugin-lib/src/coq/logicutils/inductive
+-I src/coq-plugin-lib/src/coq/logicutils/transformation
+-I src/coq-plugin-lib/src/coq/devutils
+-I src/coq-plugin-lib/src/coq/representationutils
 -I src/ornaments
 -I src/cache
 -I src/components
@@ -6,23 +17,66 @@
 -I src
 -R theories Ornamental
 
-src/lib/utilities.ml
-src/lib/utilities.mli
+src/coq-plugin-lib/src/utilities/utilities.ml
+src/coq-plugin-lib/src/utilities/utilities.mli
 
-src/lib/coqterms.ml
-src/lib/coqterms.mli
-src/lib/debruijn.ml
-src/lib/debruijn.mli
-src/lib/zooming.ml
-src/lib/zooming.mli
-src/lib/hofs.ml
-src/lib/hofs.mli
-src/lib/indexing.ml
-src/lib/indexing.mli
-src/lib/printing.ml
-src/lib/printing.mli
-src/lib/hypotheses.ml
-src/lib/hypotheses.mli
+src/coq-plugin-lib/src/coq/termutils/apputils.mli
+src/coq-plugin-lib/src/coq/termutils/apputils.ml
+src/coq-plugin-lib/src/coq/termutils/constutils.mli
+src/coq-plugin-lib/src/coq/termutils/constutils.ml
+src/coq-plugin-lib/src/coq/termutils/funutils.mli
+src/coq-plugin-lib/src/coq/termutils/funutils.ml
+
+src/coq-plugin-lib/src/coq/representationutils/defutils.mli
+src/coq-plugin-lib/src/coq/representationutils/defutils.ml
+src/coq-plugin-lib/src/coq/representationutils/nameutils.mli
+src/coq-plugin-lib/src/coq/representationutils/nameutils.ml
+
+src/coq-plugin-lib/src/coq/logicutils/typesandequality/inference.mli
+src/coq-plugin-lib/src/coq/logicutils/typesandequality/inference.ml
+src/coq-plugin-lib/src/coq/logicutils/typesandequality/convertibility.mli
+src/coq-plugin-lib/src/coq/logicutils/typesandequality/convertibility.ml
+src/coq-plugin-lib/src/coq/logicutils/typesandequality/checking.mli
+src/coq-plugin-lib/src/coq/logicutils/typesandequality/checking.ml
+
+src/coq-plugin-lib/src/coq/constants/equtils.mli
+src/coq-plugin-lib/src/coq/constants/equtils.ml
+src/coq-plugin-lib/src/coq/constants/sigmautils.mli
+src/coq-plugin-lib/src/coq/constants/sigmautils.ml
+src/coq-plugin-lib/src/coq/constants/idutils.mli
+src/coq-plugin-lib/src/coq/constants/idutils.ml
+
+src/coq-plugin-lib/src/coq/logicutils/contexts/stateutils.mli
+src/coq-plugin-lib/src/coq/logicutils/contexts/stateutils.ml
+src/coq-plugin-lib/src/coq/logicutils/contexts/envutils.mli
+src/coq-plugin-lib/src/coq/logicutils/contexts/envutils.ml
+src/coq-plugin-lib/src/coq/logicutils/contexts/contextutils.mli
+src/coq-plugin-lib/src/coq/logicutils/contexts/contextutils.ml
+
+src/coq-plugin-lib/src/coq/logicutils/hofs/hofs.mli
+src/coq-plugin-lib/src/coq/logicutils/hofs/hofs.ml
+src/coq-plugin-lib/src/coq/logicutils/hofs/hofimpls.mli
+src/coq-plugin-lib/src/coq/logicutils/hofs/hofimpls.ml
+src/coq-plugin-lib/src/coq/logicutils/hofs/debruijn.mli
+src/coq-plugin-lib/src/coq/logicutils/hofs/debruijn.ml
+src/coq-plugin-lib/src/coq/logicutils/hofs/substitution.mli
+src/coq-plugin-lib/src/coq/logicutils/hofs/substitution.ml
+src/coq-plugin-lib/src/coq/logicutils/hofs/reducers.mli
+src/coq-plugin-lib/src/coq/logicutils/hofs/reducers.ml
+src/coq-plugin-lib/src/coq/logicutils/hofs/typehofs.mli
+src/coq-plugin-lib/src/coq/logicutils/hofs/typehofs.ml
+src/coq-plugin-lib/src/coq/logicutils/hofs/zooming.mli
+src/coq-plugin-lib/src/coq/logicutils/hofs/zooming.ml
+src/coq-plugin-lib/src/coq/logicutils/hofs/hypotheses.mli
+src/coq-plugin-lib/src/coq/logicutils/hofs/hypotheses.ml
+
+src/coq-plugin-lib/src/coq/logicutils/inductive/indexing.mli
+src/coq-plugin-lib/src/coq/logicutils/inductive/indexing.ml
+src/coq-plugin-lib/src/coq/logicutils/inductive/indutils.mli
+src/coq-plugin-lib/src/coq/logicutils/inductive/indutils.ml
+
+src/coq-plugin-lib/src/coq/devutils/printing.mli
+src/coq-plugin-lib/src/coq/devutils/printing.ml
 
 src/ornaments/lifting.ml
 src/ornaments/lifting.mli
@@ -49,8 +103,6 @@ src/automation/eta.ml
 src/automation/eta.mli
 src/automation/lift.ml
 src/automation/lift.mli
-src/automation/desugar.ml
-src/automation/desugar.mli
 src/automation/unpack.ml
 src/automation/unpack.mli
 

@@ -4,35 +4,26 @@
 
 open Constr
 open Environ
-open Coqterms
 open Utilities
 open Debruijn
 open Context
 open Util
+open Convertibility
+open Inference
+open Apputils
+open Envutils
+open Evd
+open Stateutils
 
 (* --- Differencing terms --- *)
 
-(* Check if two terms have the same type, ignoring universe inconsinstency *)
-let same_type env evd o n =
+(* Check if two terms have the same type *)
+let same_type env sigma o n =
   let (env_o, t_o) = o in
   let (env_n, t_n) = n in
-  try
-    convertible env (infer_type env_o evd t_o) (infer_type env_n evd t_n)
-  with _ ->
-    false
-
-(*
- * Returns true if two applications contain have a different
- * argument at index i.
- *
- * For now, this uses precise equality, but we can loosen this
- * to convertibility if desirable.
- *)
-let diff_arg i trm_o trm_n =
-  try
-    not (equal (get_arg i trm_o) (get_arg i trm_n))
-  with _ ->
-    true
+  let sigma, typ_o = infer_type env_o sigma t_o in
+  let sigma, typ_n = infer_type env_o sigma t_n in
+  convertible env sigma typ_o typ_n
 
 (* --- Differencing inductive types --- *)
 
@@ -43,14 +34,20 @@ let apply_old_new (o : types * types) (n : types * types) : bool =
   is_or_applies trm_o trm_o' && is_or_applies trm_n trm_n'
 
 (* Check if two terms are the same modulo a change of an inductive type *)
-let same_mod_change env o n =
+let same_mod_change env sigma o n =
   let (t_o, t_n) = map_tuple snd (o, n) in
-  apply_old_new o n || convertible env t_o t_n
+  if apply_old_new o n then
+    sigma, true
+  else
+    convertible env sigma t_o t_n
 
 (* Check if two terms are the same modulo an indexing of an inductive type *)
-let same_mod_indexing env p_index o n =
+let same_mod_indexing env sigma p_index o n =
   let (t_o, t_n) = map_tuple snd (o, n) in
-  are_or_apply p_index t_o t_n || same_mod_change env o n
+  if are_or_apply p_index t_o t_n then
+    sigma,  true
+  else
+    same_mod_change env sigma o n
 
 (* --- Finding the New Index --- *)
 
@@ -71,7 +68,7 @@ let diff_motive_apps trm_o trm_n =
     match map_tuple kind (trm_o, trm_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        if applies p t_o && not (applies p t_n) then
-         diff (off + 1) (shift p) (shift trm_o) b_n
+         diff (shift_i off) (shift p) (shift trm_o) b_n
        else
 	 List.append (diff off p t_o t_n) (diff off (shift p) b_o b_n)
     | (App (_, _), App (_, _)) when applies p trm_o && applies p trm_n ->
@@ -134,67 +131,83 @@ let is_new_index i b_o b_n =
  * are revealing. There are some examples of ambiguity in Test.v;
  * these should never break, and if they do, it means the code is incorrect.
  *)
-let new_index_type env elim_t_o elim_t_n =
+let new_index_type env sigma elim_t_o elim_t_n =
   let (_, p_o, b_o) = destProd elim_t_o in
   let (_, p_n, b_n) = destProd elim_t_n in
-  let rec candidates e p_o p_n =
+  let rec candidates e sigma p_o p_n =
     match map_tuple kind (p_o, p_n) with
     | (Prod (n_o, t_o, b_o), Prod (_, t_n, b_n)) ->
-       if isProd b_o && convertible e t_o t_n then
-         let e_b = push_local (n_o, t_o) e in
-         let same = candidates e_b b_o b_n in
-         let different = (0, t_n) in
-         different :: (List.map (fun (i, i_t) -> (shift_i i, i_t)) same)
+       if isProd b_o then
+         branch_state
+           (fun (t_o, t_n) sigma -> convertible e sigma t_o t_n)
+           (fun (t_o, t_n) sigma ->
+             let e_b = push_local (n_o, t_o) e in
+             let sigma, same = candidates e_b sigma b_o b_n in
+             let diff = (0, t_n) in
+             sigma, diff :: (List.map (fun (i, i_t) -> (shift_i i, i_t)) same))
+           (fun (t_o, t_n) sigma -> sigma, [(0, t_n)])
+           (t_o, t_n)
+           sigma
        else
-         [(0, t_n)]
+         sigma, [(0, t_n)]
     | _ ->
        failwith "could not find indexer motive"
-  in List.find (fun (i, _) -> is_new_index i b_o b_n) (candidates env p_o p_n)
+  in
+  Util.on_snd
+    (List.find (fun (i, _) -> is_new_index i b_o b_n))
+    (candidates env sigma p_o p_n)
                
 (*
  * This is Nate's simple search heuristic that works when there is no ambiguity
  *)
-let diff_context_simple env decls_o decls_n =
+let diff_context_simple env sigma decls_o decls_n =
   let nth_type n = Rel.Declaration.get_type (List.nth decls_n n) in
-  let rec scan env pos diff (decls_o, decls_n) : int option =
+  let rec scan env pos diff (decls_o, decls_n) sigma : (int option) state =
     match (decls_o, decls_n) with
     | (decl_o :: decls_o_b), (decl_n :: decls_n_b) ->
       let type_o = Rel.Declaration.get_type decl_o in
       let type_n = Rel.Declaration.get_type decl_n in
       let env_b = push_rel decl_n env in
       let pos_b = pos + 1 in
-      if convertible env type_o type_n then
-        let diff_b = scan env_b pos_b diff (decls_o_b, decls_n_b) in
-        if Option.has_some diff_b && Option.get diff_b = pos_b then
-          let type_i = nth_type pos_b in
-          if not (convertible env_b (shift type_o) type_i) then
-            diff_b
+      branch_state
+        (fun (type_o, type_n) sigma -> convertible env sigma type_o type_n)
+        (fun (type_o, type_n) sigma ->
+          let sigma_b, diff_b = scan env_b pos_b diff (decls_o_b, decls_n_b) sigma in
+          if Option.has_some diff_b && Option.get diff_b = pos_b then
+            let type_i = nth_type pos_b in
+            branch_state
+              (not_state
+                 (fun (type_o, type_i) sigma_b ->
+                   convertible env_b sigma_b (shift type_o) type_i))
+              (fun _  -> ret diff_b)
+              (fun _ -> ret None) (* ambiguous, can't use this heuristic *)
+              (type_o, type_i)
+              sigma_b
           else
-            None (* ambiguous, can't use this heuristic *)
-        else
-          diff_b
-      else
-        scan env_b pos_b (Some pos) (decls_o, decls_n_b) (* this index is new *)
+            sigma, diff_b)
+        (fun _ -> scan env_b pos_b (Some pos) (decls_o, decls_n_b))
+        (type_o, type_n)
+        sigma
     | [], (decl_n :: decls_n_b) ->
        if List.length decls_n_b > 0 then
          failwith "Please add just one new index at a time."
        else
-         Some pos (* the last index is new *)
+         sigma, Some pos (* the last index is new *)
     | _ ->
        failwith "No new indices. Try switching directions."
   in
-  let diff_pos = scan env 0 None (decls_o, decls_n) in
+  let sigma, diff_pos = scan env 0 None (decls_o, decls_n) sigma in
   if Option.has_some diff_pos then
     let pos = Option.get diff_pos in
     let typ = nth_type pos in
-    Some (pos, typ)
+    Some (sigma, (pos, typ))
   else
     None
                
 (*
  * Top-level index finder for Nate's heuristic
  *)
-let new_index_type_simple env ind_o ind_n =
+let new_index_type_simple env sigma ind_o ind_n =
   (* Applying each parameter increments the index for the next one. *)
   let npars = nb_rel env in
   let pars = List.make npars (mkRel npars) in
@@ -204,7 +217,7 @@ let new_index_type_simple env ind_o ind_n =
   let indf_n = Inductiveops.make_ind_family (pind_n, pars) in
   let (idcs_o, _) = Inductiveops.get_arity env indf_o in
   let (idcs_n, _) = Inductiveops.get_arity env indf_n in
-  diff_context_simple env (List.rev idcs_o) (List.rev idcs_n)
+  diff_context_simple env sigma (List.rev idcs_o) (List.rev idcs_n)
 
 
 

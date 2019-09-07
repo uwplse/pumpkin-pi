@@ -4,38 +4,50 @@
 
 open Lifting
 open Hofs
-open Coqterms
+open Substitution
 open Utilities
 open Indexing
 open Abstraction
 open Constr
+open Inference
+open Typehofs
+open Reducers
+open Apputils
+open Sigmautils
+open Envutils
+open Stateutils
 
 (* --- Packing--- *)
 
 (*
  * Pack inside of a sigT type
  *)
-let pack env evd off unpacked =
-  let typ = reduce_type env evd unpacked in
+let pack env off unpacked sigma =
+  let sigma, typ = reduce_type env sigma unpacked in
   let index = get_arg off typ in
-  let index_type = infer_type env evd index in
-  let packer = abstract_arg env evd off typ in
-  pack_existT {index_type; packer; index; unpacked}        
+  let sigma, index_type = infer_type env sigma index in
+  let sigma, packer = abstract_arg env sigma off typ in
+  sigma, pack_existT {index_type; packer; index; unpacked}        
 
 (* --- Lifting --- *)
 
 (*
  * Lift
  *)
-let lift env evd l trm =
-  let typ_args = non_index_typ_args l.off env evd trm in
-  mkAppl (lift_to l, snoc trm typ_args)
+let lift env l trm sigma =
+  let sigma, typ_args = non_index_typ_args l.off env sigma trm in
+  sigma, mkAppl (lift_to l, snoc trm typ_args)
               
 (*
  * Pack arguments and lift
  *)
-let pack_lift env evd l arg =
-  lift env evd l (map_backward (pack env evd l.off) l arg)
+let pack_lift env l arg sigma =
+  let sigma, arg =
+    map_backward
+      (fun (sigma, t) -> pack env l.off t sigma)
+      l
+      (sigma, arg)
+  in lift env l arg sigma
        
 (* --- Refolding --- *)
 
@@ -81,50 +93,54 @@ let rec all_recursive_constants env trm =
  * when they refer to functions
  *)
 let fold_back_constants env f trm =
-  List.fold_left
-    (fun red lifted ->
-      all_conv_substs env (lifted, lifted) red)
-    (f (reduce_nf env trm))
-    (all_recursive_constants env trm)
-         
+  bind
+    (bind (fun sigma -> reduce_nf env sigma trm) f)
+    (fun x ->
+      fold_left_state
+        (fun red lifted sigma ->
+          all_conv_substs env sigma (lifted, lifted) red)
+        x
+        (all_recursive_constants env trm))
+    
 (*
  * Refolding an applied ornament in the forward direction, 
  * when the ornament application produces an existT term.
  *)
-let refold_packed l evd orn env arg app_red =
-  let typ_args = non_index_typ_args l.off env evd arg in
+let refold_packed l orn env arg app_red sigma =
+  let sigma, typ_args = non_index_typ_args l.off env sigma arg in
   let orn_app = mkAppl (orn, snoc arg typ_args) in
-  let orn_app_red = reduce_nf env orn_app in
+  let orn_app_red = reduce_stateless reduce_nf env sigma orn_app in
   let app_red_ex = dest_existT app_red in
   let orn_app_red_ex = dest_existT orn_app_red in
-  let abstract = abstract_arg env evd l.off in
-  let packer = on_type abstract env evd orn_app_red_ex.unpacked in
+  let abstract env sigma = abstract_arg env sigma l.off in
+  let sigma, packer = on_red_type_default abstract env sigma orn_app_red_ex.unpacked in
   let index_type = app_red_ex.index_type in
   let arg_sigT = { index_type ; packer } in
-  let arg_indexer = project_index arg_sigT (lift env evd l arg) in
-  let arg_value = project_value arg_sigT (lift env evd l arg) in
+  let sigma, arg_indexer = Util.on_snd (project_index arg_sigT) (lift env l arg sigma) in
+  let sigma, arg_value = Util.on_snd (project_value arg_sigT) (lift env l arg sigma) in
   let refold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
   let refold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
   let refolded = refold_index (refold_value app_red_ex.unpacked) in
-  pack env evd l.off refolded
+  pack env l.off refolded sigma
        
 (*
  * Refolding an applied ornament in the backwards direction,
  * when the ornament application eliminates over the projections.
  *)
-let refold_projected l evd orn env arg app_red =
-  let typ_args = non_index_typ_args l.off env evd arg in
+let refold_projected l orn env arg app_red sigma =
+  let sigma, typ_args = non_index_typ_args l.off env sigma arg in
   let orn_app = mkAppl (orn, snoc arg typ_args) in
-  let orn_app_red = reduce_nf env orn_app in
-  all_eq_substs (orn_app_red, lift env evd l arg) app_red
+  let orn_app_red = reduce_stateless reduce_nf env sigma orn_app in
+  let sigma, lifted = lift env l arg sigma in
+  sigma, all_eq_substs (orn_app_red, lifted) app_red
 
 (*
  * Top-level refolding
  *)
-let refold l env evd orn trm args =
+let refold l env orn trm args sigma =
   let refolder = if l.is_fwd then refold_packed else refold_projected in
-  let refold_all = List.fold_right (refolder l evd orn env) args in
-  fold_back_constants env refold_all trm
+  let refold_all = fold_right_state (refolder l orn env) args in
+  fold_back_constants env refold_all trm sigma
 
 
 
