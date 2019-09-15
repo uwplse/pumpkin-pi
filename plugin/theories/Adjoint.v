@@ -1,4 +1,8 @@
-(** Credit to Jasper Hugunin (jashug) for this module. *)
+(** Credit to Jasper Hugunin (jashug) for this module.
+ *
+ * MIT license, (c) Jasper Hugunin
+ * Link: https://github.com/jashug/IWTypes/blob/master/Adjointification.v
+ *)
 
 (* Turn a pair of inverses into an adjoint equivalence *)
 (* Proof follows the HoTT book *)
