@@ -284,6 +284,10 @@ let quantify_pre_adjunction env evd { orn; sect; retr0 } =
 
 (*
  * Augment the initial retraction proof in order to prove adjunction.
+ *
+ * The generic proof of adjunction from the HoTT book relies critically on this
+ * step; wrapping the proof term for retraction in a clever way (formalized in
+ * `fg_id'`) makes a later equality of equality proofs true definitionally.
  *)
 let adjointify_retraction env evd pre_adj =
   let (evd, adjointifier) =
@@ -294,9 +298,6 @@ let adjointify_retraction env evd pre_adj =
 
 (*
  * Prove adjunction.
- *
- * TODO: Return a companion type expressed in terms of the augmented retraction
- * proof.
  *)
 let prove_adjunction env evd pre_adj =
   let (evd, adjunctifier) =

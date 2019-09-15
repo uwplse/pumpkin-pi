@@ -21,13 +21,14 @@ type pre_adjoint = {
 
 (*
  * Augment the initial retraction proof in order to prove adjunction.
+ *
+ * The generic proof of adjunction from the HoTT book relies critically on this
+ * step; wrapping the proof term for retraction in a clever way (formalized in
+ * `fg_id'`) makes a later equality of equality proofs true definitionally.
  *)
 val adjointify_retraction : env -> evar_map -> pre_adjoint -> evar_map * constr
 
 (*
  * Prove adjunction.
- *
- * TODO: Return a companion type expressed in terms of the augmented retraction
- * proof.
  *)
 val prove_adjunction : env -> evar_map -> pre_adjoint -> evar_map * constr
