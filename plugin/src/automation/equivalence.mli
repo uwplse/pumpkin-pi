@@ -3,6 +3,7 @@ open Names
 open Environ
 open Evd
 open Lifting
+open Stateutils
 
 (* --- Automatically generated equivalence proofs about search components --- *)
 
@@ -26,9 +27,9 @@ type pre_adjoint = {
  * step; wrapping the proof term for retraction in a clever way (formalized in
  * `fg_id'`) makes a later equality of equality proofs true definitionally.
  *)
-val adjointify_retraction : env -> evar_map -> pre_adjoint -> evar_map * constr
+val adjointify_retraction : env -> pre_adjoint -> evar_map -> constr state
 
 (*
  * Prove adjunction.
  *)
-val prove_adjunction : env -> evar_map -> pre_adjoint -> evar_map * constr
+val prove_adjunction : env -> pre_adjoint -> evar_map -> constr state

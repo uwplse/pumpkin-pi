@@ -68,12 +68,12 @@ let maybe_prove_equivalence n inv_n : unit =
     let pre_adj = { orn = l; sect; retr0 } in
     let _ =
       let sigma, env = refresh_env () in
-      let (sigma, retraction_adj) = adjointify_retraction env sigma pre_adj in
+      let (sigma, retraction_adj) = adjointify_retraction env pre_adj sigma in
       define_proof "retraction_adjoint" sigma retraction_adj ~adjective:"adjoint retraction"
     in
     let _ =
       let sigma, env = refresh_env () in
-      let (sigma, adjunction) = prove_adjunction env sigma pre_adj in
+      let (sigma, adjunction) = prove_adjunction env pre_adj sigma in
       define_proof "adjunction" sigma adjunction
     in ()
   else

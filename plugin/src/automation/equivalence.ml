@@ -271,8 +271,10 @@ let prove_equivalence env sigma =
 
 let lookup_constant = Libnames.qualid_of_string %> Nametab.locate_constant
 
-let fresh_constant env sigma const =
-  Evd.fresh_constant_instance env sigma const |> Util.on_snd mkConstU
+let fresh_constant env const =
+  bind
+    (fun sigma -> Evd.fresh_constant_instance env sigma const)
+    (fun c -> ret (mkConstU c))
 
 type pre_adjoint = {
   orn : lifting;
@@ -285,23 +287,37 @@ type pre_adjoint = {
  * all the type-quantified values (i.e., type parameters/indices) into a new
  * local context before giving back an argument list for the adjunction lemmas.
  *)
-let quantify_pre_adjunction env sigma { orn; sect; retr0 } =
+let quantify_pre_adjunction env { orn; sect; retr0 } =
   let apply_to xs f = mkApp (f, xs) in
-  let sigma, sect = fresh_constant env sigma sect in
-  let sigma, retr0 = fresh_constant env sigma retr0 in
-  let equiv, inv = lift_to orn, lift_back orn in
-  let domain, codomain =
-    destConst equiv |> Environ.constant_type_in env |>
-    Reduction.nf_betaiota env |> Term.decompose_prod_assum
-  in
-  let ctxt = List.tl domain in
-  let left_typ = List.hd domain |> rel_type in
-  let right_typ = Vars.lift (-1) codomain in
-  let args = Context.Rel.to_extended_vect mkRel 0 ctxt in
-  let adj_types = [|left_typ; right_typ|] in
-  let adj_terms = Array.map (apply_to args) [|equiv; inv; sect; retr0|] in
-  sigma, ctxt, Array.append adj_types adj_terms
+  bind
+    (map_tuple_state (fresh_constant env) (sect, retr0))
+    (fun (sect, retr0) ->
+      let equiv, inv = lift_to orn, lift_back orn in
+      let domain, codomain =
+        destConst equiv |> Environ.constant_type_in env |>
+          Reduction.nf_betaiota env |> Term.decompose_prod_assum
+      in
+      let ctxt = List.tl domain in
+      let left_typ = List.hd domain |> rel_type in
+      let right_typ = Vars.lift (-1) codomain in
+      let args = Context.Rel.to_extended_vect mkRel 0 ctxt in
+      let adj_types = [|left_typ; right_typ|] in
+      let adj_terms = Array.map (apply_to args) [|equiv; inv; sect; retr0|] in
+      ret (ctxt, Array.append adj_types adj_terms))
 
+(*
+ * Apply the above to a constant
+ *)
+let quantify_pre_adjunction_const env pre_adj c =
+  bind
+    (fresh_constant env c)
+    (fun adjointifier ->
+      bind
+        (quantify_pre_adjunction env pre_adj)
+        (fun (ctxt, pre_adjunct) ->
+          ret (recompose_lam_assum ctxt (mkApp (adjointifier, pre_adjunct)))))
+
+    
 (*
  * Augment the initial retraction proof in order to prove adjunction.
  *
@@ -309,20 +325,14 @@ let quantify_pre_adjunction env sigma { orn; sect; retr0 } =
  * step; wrapping the proof term for retraction in a clever way (formalized in
  * `fg_id'`) makes a later equality of equality proofs true definitionally.
  *)
-let adjointify_retraction env sigma pre_adj =
-  let (sigma, adjointifier) =
-    lookup_constant "Ornamental.Adjoint.fg_id'" |> fresh_constant env sigma
-  in
-  let sigma, ctxt, pre_adjunct = quantify_pre_adjunction env sigma pre_adj in
-  sigma, recompose_lam_assum ctxt (mkApp (adjointifier, pre_adjunct))
+let adjointify_retraction env pre_adj =
+  let c = lookup_constant "Ornamental.Adjoint.fg_id'" in
+  quantify_pre_adjunction_const env pre_adj c
 
 (*
  * Prove adjunction.
  *)
-let prove_adjunction env sigma pre_adj =
-  let (sigma, adjunctifier) =
-    lookup_constant "Ornamental.Adjoint.f_adjoint" |> fresh_constant env sigma
-  in
-  let sigma, ctxt, pre_adjunct = quantify_pre_adjunction env sigma pre_adj in
-  sigma, recompose_lam_assum ctxt (mkApp (adjunctifier, pre_adjunct))
+let prove_adjunction env pre_adj =
+  let c = lookup_constant "Ornamental.Adjoint.f_adjoint" in
+  quantify_pre_adjunction_const env pre_adj c
 
