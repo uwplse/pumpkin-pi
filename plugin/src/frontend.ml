@@ -53,7 +53,7 @@ let maybe_prove_equivalence n inv_n : unit =
     let l = initialize_lifting env evd promote forget in
     let (section, retraction) = prove_equivalence env evd l in
     let sect = define_proof "section" evd section in
-    let retr0 = define_proof "retraction0" evd retraction ~adjective:"pre-retraction" in
+    let retr0 = define_proof "retraction" evd retraction in
     (* This definition refers to section and retraction by name, so we grab a
      * refreshed global environment; otherwise, they would appear undefined.
      *
@@ -64,7 +64,7 @@ let maybe_prove_equivalence n inv_n : unit =
       let env = Global.env () in
       let evd = Evd.from_env env in
       let (evd, retraction) = adjointify_retraction env evd pre_adjoint in
-      define_proof "retraction" evd retraction
+      define_proof "retraction_adjoint" evd retraction ~adjective:"adjoint retraction"
     in
     (* As above, grab a refreshed global environment (with evar_map) so that all
      * the preceding constants are defined.

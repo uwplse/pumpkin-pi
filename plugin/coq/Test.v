@@ -66,7 +66,7 @@ Qed.
 
 Theorem test_adjunction:
   forall (A : Type) (l : list A),
-    orn_list_vector_retraction A (orn_list_vector A l) =
+    orn_list_vector_retraction_adjoint A (orn_list_vector A l) =
     f_equal (orn_list_vector A) (orn_list_vector_section A l).
 Proof.
   exact orn_list_vector_adjunction.
@@ -127,7 +127,7 @@ Qed.
 
 Theorem test_adjunction_auto:
   forall (A : Type) (l : list A),
-    list_to_vector_retraction A (list_to_vector A l) =
+    list_to_vector_retraction_adjoint A (list_to_vector A l) =
     f_equal (list_to_vector A) (list_to_vector_section A l).
 Proof.
   exact list_to_vector_adjunction.
@@ -314,7 +314,7 @@ Qed.
 
 Theorem test_adjunction_2:
   forall (A : Type) (l : rev_list A),
-    orn_rev_list_rev_vector_retraction A (orn_rev_list_rev_vector A l) =
+    orn_rev_list_rev_vector_retraction_adjoint A (orn_rev_list_rev_vector A l) =
     f_equal (orn_rev_list_rev_vector A) (orn_rev_list_rev_vector_section A l).
 Proof.
   exact orn_rev_list_rev_vector_adjunction.
@@ -400,7 +400,7 @@ Qed.
 
 Theorem test_adjunction_3:
   forall (A : Type) (tr : bintree A),
-    orn_bintree_bintreeV_retraction A (orn_bintree_bintreeV A tr) =
+    orn_bintree_bintreeV_retraction_adjoint A (orn_bintree_bintreeV A tr) =
     f_equal (orn_bintree_bintreeV A) (orn_bintree_bintreeV_section A tr).
 Proof.
   exact orn_bintree_bintreeV_adjunction.
@@ -482,7 +482,7 @@ Qed.
 
 Theorem test_adjunction_4:
   forall (A B : Type) (l : list2 A B),
-    orn_list2_vector2_retraction A B (orn_list2_vector2 A B l) =
+    orn_list2_vector2_retraction_adjoint A B (orn_list2_vector2 A B l) =
     f_equal (orn_list2_vector2 A B) (orn_list2_vector2_section A B l).
 Proof.
   exact orn_list2_vector2_adjunction.
@@ -562,7 +562,7 @@ Qed.
 
 Theorem test_adjunction_5:
   forall (l : nat_list),
-    orn_natlist_natvector_retraction (orn_natlist_natvector l) =
+    orn_natlist_natvector_retraction_adjoint (orn_natlist_natvector l) =
     f_equal orn_natlist_natvector (orn_natlist_natvector_section l).
 Proof.
   exact orn_natlist_natvector_adjunction.
@@ -642,7 +642,7 @@ Qed.
 
 Theorem test_adjunction_6:
   forall (A : Type) (tr : bintree A),
-    orn_bintree_bintreeV_rev_retraction A (orn_bintree_bintreeV_rev A tr) =
+    orn_bintree_bintreeV_rev_retraction_adjoint A (orn_bintree_bintreeV_rev A tr) =
     f_equal (orn_bintree_bintreeV_rev A) (orn_bintree_bintreeV_rev_section A tr).
 Proof.
   exact orn_bintree_bintreeV_rev_adjunction.
@@ -722,7 +722,7 @@ Qed.
 
 Theorem test_adjunction_7:
   forall (A : Type) (n : nat) (v : vector A n),
-    orn_vector_doublevector_retraction A n (orn_vector_doublevector A n v) =
+    orn_vector_doublevector_retraction_adjoint A n (orn_vector_doublevector A n v) =
     f_equal (orn_vector_doublevector A n) (orn_vector_doublevector_section A n v).
 Proof.
   exact orn_vector_doublevector_adjunction.
@@ -792,7 +792,7 @@ Qed.
 
 Theorem test_adjunction_8:
   forall (A : Type) (n : nat) (v : vector A n),
-    orn_vector_doublevector2_retraction A n (orn_vector_doublevector2 A n v) =
+    orn_vector_doublevector2_retraction_adjoint A n (orn_vector_doublevector2 A n v) =
     f_equal (orn_vector_doublevector2 A n) (orn_vector_doublevector2_section A n v).
 Proof.
   exact orn_vector_doublevector2_adjunction.
@@ -872,7 +872,7 @@ Qed.
 
 Theorem test_adjunction_9:
   forall (A : Type) (n : nat) (v : vector A n),
-    orn_vector_doublevector3_retraction A n (orn_vector_doublevector3 A n v) =
+    orn_vector_doublevector3_retraction_adjoint A n (orn_vector_doublevector3 A n v) =
     f_equal (orn_vector_doublevector3 A n) (orn_vector_doublevector3_section A n v).
 Proof.
   exact orn_vector_doublevector3_adjunction.
@@ -953,7 +953,7 @@ Qed.
 
 Theorem test_adjunction_10:
   forall (A : Type) (n : nat) (v : vector A n),
-    orn_vector_doublevector4_retraction A n (orn_vector_doublevector4 A n v) =
+    orn_vector_doublevector4_retraction_adjoint A n (orn_vector_doublevector4 A n v) =
     f_equal (orn_vector_doublevector4 A n) (orn_vector_doublevector4_section A n v).
 Proof.
   exact orn_vector_doublevector4_adjunction.
@@ -1032,7 +1032,7 @@ Qed.
 
 Theorem test_adjunction_11:
   forall (nl : nat_list),
-    orn_natlist_hdnatlist_retraction (orn_natlist_hdnatlist nl) =
+    orn_natlist_hdnatlist_retraction_adjoint (orn_natlist_hdnatlist nl) =
     f_equal orn_natlist_hdnatlist (orn_natlist_hdnatlist_section nl).
 Proof.
   exact orn_natlist_hdnatlist_adjunction.
@@ -1103,7 +1103,7 @@ Qed.
 
 Theorem test_adjunction_12:
   forall (A : Type) (l : list A),
-    orn_list_hdlist_retraction A (orn_list_hdlist A l) =
+    orn_list_hdlist_retraction_adjoint A (orn_list_hdlist A l) =
     f_equal (orn_list_hdlist A) (orn_list_hdlist_section A l).
 Proof.
   exact orn_list_hdlist_adjunction.
@@ -1188,7 +1188,7 @@ Qed.
 
 Theorem test_adjunction_13:
   forall (A : Type) (l : list_alt A),
-    orn_listalt_hdlistalt_retraction A (orn_listalt_hdlistalt A l) =
+    orn_listalt_hdlistalt_retraction_adjoint A (orn_listalt_hdlistalt A l) =
     f_equal (orn_listalt_hdlistalt A) (orn_listalt_hdlistalt_section A l).
 Proof.
   exact orn_listalt_hdlistalt_adjunction.
@@ -1264,7 +1264,7 @@ Qed.
 
 Theorem test_adjunction_14:
   forall (n : nat),
-    orn_nat_natnat_retraction (orn_nat_natnat n) =
+    orn_nat_natnat_retraction_adjoint (orn_nat_natnat n) =
     f_equal orn_nat_natnat (orn_nat_natnat_section n).
 Proof.
   exact orn_nat_natnat_adjunction.
@@ -1338,7 +1338,7 @@ Qed.
 
 Theorem test_adjunction_15:
   forall (A : Type) (n : nat) (v : vector A n),
-    orn_vector_doublevector5_retraction A n (orn_vector_doublevector5 A n v) =
+    orn_vector_doublevector5_retraction_adjoint A n (orn_vector_doublevector5 A n v) =
     f_equal (orn_vector_doublevector5 A n) (orn_vector_doublevector5_section A n v).
 Proof.
   exact orn_vector_doublevector5_adjunction.
@@ -1438,7 +1438,7 @@ Qed.
 
 Theorem test_adjunction_16:
   forall (n m : nat) (b : _bst n m),
-    _bst_to_bst_retraction n m (_bst_to_bst n m b) =
+    _bst_to_bst_retraction_adjoint n m (_bst_to_bst n m b) =
     f_equal (_bst_to_bst n m) (_bst_to_bst_section n m b).
 Proof.
   exact _bst_to_bst_adjunction.
@@ -1509,7 +1509,7 @@ Qed.
 
 Theorem test_adjunction_17:
   forall (n m : nat) (b : _bst n m),
-    _bst_to_bst2_retraction n m (_bst_to_bst2 n m b) =
+    _bst_to_bst2_retraction_adjoint n m (_bst_to_bst2 n m b) =
     f_equal (_bst_to_bst2 n m) (_bst_to_bst2_section n m b).
 Proof.
   exact _bst_to_bst2_adjunction.
@@ -1580,7 +1580,7 @@ Qed.
 
 Theorem test_adjunction_18:
   forall (n m : nat) (b : _bst n m),
-    _bst_to_bst3_retraction n m (_bst_to_bst3 n m b) =
+    _bst_to_bst3_retraction_adjoint n m (_bst_to_bst3 n m b) =
     f_equal (_bst_to_bst3 n m) (_bst_to_bst3_section n m b).
 Proof.
   exact _bst_to_bst3_adjunction.
@@ -1655,7 +1655,7 @@ Qed.
 
 Theorem test_adjunction_19:
   forall (A : Type) (tr : bintree A),
-    orn_bintree_bintreeV2_retraction A (orn_bintree_bintreeV2 A tr) =
+    orn_bintree_bintreeV2_retraction_adjoint A (orn_bintree_bintreeV2 A tr) =
     f_equal (orn_bintree_bintreeV2 A) (orn_bintree_bintreeV2_section A tr).
 Proof.
   exact orn_bintree_bintreeV2_adjunction.

@@ -100,10 +100,9 @@ Proof.
   exact ltv_retraction.
 Qed.
 
-  Check ltv_adjunction.
 Theorem adjunction:
   forall {T : Type} (l : list T),
-    ltv_retraction T (ltv T l) = f_equal (ltv T) (ltv_section T l).
+    ltv_retraction_adjoint T (ltv T l) = f_equal (ltv T) (ltv_section T l).
 Proof.
   exact ltv_adjunction.
 Qed.
