@@ -74,11 +74,6 @@ Print ltv_inv.
  * See Search.v for a detailed walkthrough of the output.
  *)
 
-(*
- * State adjunction with a slightly nicer type.
- *)
-Definition ltv_adjunction' : forall A x, ltv_retraction A (ltv A x) = f_equal (ltv A) (ltv_section A x) := ltv_adjunction.
-
 (* --- Lift --- *)
 
 Lift list vector in hs_to_coq.zip as zipV_p.
