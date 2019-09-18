@@ -26,7 +26,7 @@ Find ornament list vector as ltv.
  *)
 Print ltv_index.
 
-(* 
+(*
  * Let's call this the indexer:
  *)
 Notation indexer l := (ltv_index _ l).
@@ -48,7 +48,7 @@ Qed.
  *)
 Print ltv.
 
-(* 
+(*
  * Let's call this promote:
  *)
 Notation promote l := (ltv _ l).
@@ -60,7 +60,7 @@ Notation promote l := (ltv _ l).
  *)
 Print ltv_inv.
 
-(* 
+(*
  * Let's call this forget
  *)
 Notation forget l := (ltv_inv _ l).
@@ -69,7 +69,7 @@ Notation forget l := (ltv_inv _ l).
 
 (*
  * Since we set the "prove coherence" and "prove equivalence" options,
- * DEVOID generated coherence, section, and retraction proofs. Here I 
+ * DEVOID generated coherence, section, and retraction proofs. Here I
  * simply restate them and show that the generated terms are correct.
  * These automatically generated proofs show that the components DEVOID
  * found form the ornamental promotion isomorphism between lists and vectors.
@@ -98,4 +98,11 @@ Theorem retraction:
     promote (forget v) = v.
 Proof.
   exact ltv_retraction.
+Qed.
+
+Theorem adjunction:
+  forall {T : Type} (l : list T),
+    ltv_retraction_adjoint T (ltv T l) = f_equal (ltv T) (ltv_section T l).
+Proof.
+  exact ltv_adjunction.
 Qed.

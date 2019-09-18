@@ -64,6 +64,14 @@ Proof.
   exact orn_list_vector_retraction.
 Qed.
 
+Theorem test_adjunction:
+  forall (A : Type) (l : list A),
+    orn_list_vector_retraction_adjoint A (orn_list_vector A l) =
+    f_equal (orn_list_vector A) (orn_list_vector_section A l).
+Proof.
+  exact orn_list_vector_adjunction.
+Qed.
+
 (* --- Test auto-generated ornament name --- *)
 
 Find ornament list vector.
@@ -115,6 +123,14 @@ Theorem test_retraction_auto:
     list_to_vector A (list_to_vector_inv A v) = v.
 Proof.
   exact list_to_vector_retraction.
+Qed.
+
+Theorem test_adjunction_auto:
+  forall (A : Type) (l : list A),
+    list_to_vector_retraction_adjoint A (list_to_vector A l) =
+    f_equal (list_to_vector A) (list_to_vector_section A l).
+Proof.
+  exact list_to_vector_adjunction.
 Qed.
 
 (* --- Lists and "flectors" --- *)
@@ -296,6 +312,14 @@ Proof.
   exact orn_rev_list_rev_vector_retraction.
 Qed.
 
+Theorem test_adjunction_2:
+  forall (A : Type) (l : rev_list A),
+    orn_rev_list_rev_vector_retraction_adjoint A (orn_rev_list_rev_vector A l) =
+    f_equal (orn_rev_list_rev_vector A) (orn_rev_list_rev_vector_section A l).
+Proof.
+  exact orn_rev_list_rev_vector_adjunction.
+Qed.
+
 (* --- Binary Trees and Indexed Binary Trees --- *)
 
 Inductive bintree (A : Type) : Type :=
@@ -374,6 +398,14 @@ Proof.
   exact orn_bintree_bintreeV_retraction.
 Qed.
 
+Theorem test_adjunction_3:
+  forall (A : Type) (tr : bintree A),
+    orn_bintree_bintreeV_retraction_adjoint A (orn_bintree_bintreeV A tr) =
+    f_equal (orn_bintree_bintreeV A) (orn_bintree_bintreeV_section A tr).
+Proof.
+  exact orn_bintree_bintreeV_adjunction.
+Qed.
+
 (* --- Lists of values of two types (making sure parameter logic works) --- *)
 
 Inductive list2 (A : Type) (B : Type) : Type :=
@@ -448,6 +480,14 @@ Proof.
   exact orn_list2_vector2_retraction.
 Qed.
 
+Theorem test_adjunction_4:
+  forall (A B : Type) (l : list2 A B),
+    orn_list2_vector2_retraction_adjoint A B (orn_list2_vector2 A B l) =
+    f_equal (orn_list2_vector2 A B) (orn_list2_vector2_section A B l).
+Proof.
+  exact orn_list2_vector2_adjunction.
+Qed.
+
 (* --- Adding a nat index to a nat list --- *)
 
 Inductive nat_list : Type :=
@@ -518,6 +558,14 @@ Theorem test_retraction_5:
     orn_natlist_natvector (orn_natlist_natvector_inv v) = v.
 Proof.
   exact orn_natlist_natvector_retraction.
+Qed.
+
+Theorem test_adjunction_5:
+  forall (l : nat_list),
+    orn_natlist_natvector_retraction_adjoint (orn_natlist_natvector l) =
+    f_equal orn_natlist_natvector (orn_natlist_natvector_section l).
+Proof.
+  exact orn_natlist_natvector_adjunction.
 Qed.
 
 (* --- BintreeV with nats in reverse order --- *)
@@ -592,6 +640,14 @@ Proof.
   exact orn_bintree_bintreeV_rev_retraction.
 Qed.
 
+Theorem test_adjunction_6:
+  forall (A : Type) (tr : bintree A),
+    orn_bintree_bintreeV_rev_retraction_adjoint A (orn_bintree_bintreeV_rev A tr) =
+    f_equal (orn_bintree_bintreeV_rev A) (orn_bintree_bintreeV_rev_section A tr).
+Proof.
+  exact orn_bintree_bintreeV_rev_adjunction.
+Qed.
+
 (* --- Adding an index whose type that matches an already existing index --- *)
 
 Inductive doublevector (A : Type) : nat -> nat -> Type :=
@@ -664,6 +720,14 @@ Proof.
   exact orn_vector_doublevector_retraction.
 Qed.
 
+Theorem test_adjunction_7:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector_retraction_adjoint A n (orn_vector_doublevector A n v) =
+    f_equal (orn_vector_doublevector A n) (orn_vector_doublevector_section A n v).
+Proof.
+  exact orn_vector_doublevector_adjunction.
+Qed.
+
 (* --- Same as above, but switch the position we change --- *)
 
 Inductive doublevector2 (A : Type) : nat -> nat -> Type :=
@@ -724,6 +788,14 @@ Theorem test_retraction_8:
     orn_vector_doublevector2 A n (orn_vector_doublevector2_inv A n v) = v.
 Proof.
   exact orn_vector_doublevector2_retraction.
+Qed.
+
+Theorem test_adjunction_8:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector2_retraction_adjoint A n (orn_vector_doublevector2 A n v) =
+    f_equal (orn_vector_doublevector2 A n) (orn_vector_doublevector2_section A n v).
+Proof.
+  exact orn_vector_doublevector2_adjunction.
 Qed.
 
 (* --- Same as above, but with an identical index --- *)
@@ -798,6 +870,15 @@ Proof.
   exact orn_vector_doublevector3_retraction.
 Qed.
 
+Theorem test_adjunction_9:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector3_retraction_adjoint A n (orn_vector_doublevector3 A n v) =
+    f_equal (orn_vector_doublevector3 A n) (orn_vector_doublevector3_section A n v).
+Proof.
+  exact orn_vector_doublevector3_adjunction.
+Qed.
+
+
 (* --- What if we change a base case index? --- *)
 
 Inductive doublevector4 (A : Type) : nat -> nat -> Type :=
@@ -868,6 +949,14 @@ Theorem test_retraction_10:
     orn_vector_doublevector4 A n (orn_vector_doublevector4_inv A n v) = v.
 Proof.
   exact orn_vector_doublevector4_retraction.
+Qed.
+
+Theorem test_adjunction_10:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector4_retraction_adjoint A n (orn_vector_doublevector4 A n v) =
+    f_equal (orn_vector_doublevector4 A n) (orn_vector_doublevector4_section A n v).
+Proof.
+  exact orn_vector_doublevector4_adjunction.
 Qed.
 
 (* --- Indices that are computed from existing hypotheses --- *)
@@ -941,6 +1030,14 @@ Proof.
   exact orn_natlist_hdnatlist_retraction.
 Qed.
 
+Theorem test_adjunction_11:
+  forall (nl : nat_list),
+    orn_natlist_hdnatlist_retraction_adjoint (orn_natlist_hdnatlist nl) =
+    f_equal orn_natlist_hdnatlist (orn_natlist_hdnatlist_section nl).
+Proof.
+  exact orn_natlist_hdnatlist_adjunction.
+Qed.
+
 (* --- Indices that depend on parameters --- *)
 
 Inductive hd_list (A : Type) : option A -> Type :=
@@ -1002,6 +1099,14 @@ Theorem test_retraction_12:
     orn_list_hdlist A (orn_list_hdlist_inv A l) = l.
 Proof.
   exact orn_list_hdlist_retraction.
+Qed.
+
+Theorem test_adjunction_12:
+  forall (A : Type) (l : list A),
+    orn_list_hdlist_retraction_adjoint A (orn_list_hdlist A l) =
+    f_equal (orn_list_hdlist A) (orn_list_hdlist_section A l).
+Proof.
+  exact orn_list_hdlist_adjunction.
 Qed.
 
 (* --- Indices that depend on prior indices --- *)
@@ -1081,6 +1186,14 @@ Proof.
   exact orn_listalt_hdlistalt_retraction.
 Qed.
 
+Theorem test_adjunction_13:
+  forall (A : Type) (l : list_alt A),
+    orn_listalt_hdlistalt_retraction_adjoint A (orn_listalt_hdlistalt A l) =
+    f_equal (orn_listalt_hdlistalt A) (orn_listalt_hdlistalt_section A l).
+Proof.
+  exact orn_listalt_hdlistalt_adjunction.
+Qed.
+
 (* --- Indexing by the old type, but without making it fin-like --- *)
 
 Inductive nat_nat : nat -> Type :=
@@ -1149,8 +1262,16 @@ Proof.
   exact orn_nat_natnat_retraction.
 Qed.
 
+Theorem test_adjunction_14:
+  forall (n : nat),
+    orn_nat_natnat_retraction_adjoint (orn_nat_natnat n) =
+    f_equal orn_nat_natnat (orn_nat_natnat_section n).
+Proof.
+  exact orn_nat_natnat_adjunction.
+Qed.
+
 (* --- Regression of bug in more complicated index identification algorithm --- *)
-  
+
 (*
  * Minimal test case
  *)
@@ -1215,10 +1336,18 @@ Proof.
   exact orn_vector_doublevector5_retraction.
 Qed.
 
+Theorem test_adjunction_15:
+  forall (A : Type) (n : nat) (v : vector A n),
+    orn_vector_doublevector5_retraction_adjoint A n (orn_vector_doublevector5 A n v) =
+    f_equal (orn_vector_doublevector5 A n) (orn_vector_doublevector5_section A n v).
+Proof.
+  exact orn_vector_doublevector5_adjunction.
+Qed.
+
 (* --- More regression --- *)
 
 (*
- * From case study, made ambiguous so the more complex algorithm runs, 
+ * From case study, made ambiguous so the more complex algorithm runs,
  * and then simplified
  *)
 
@@ -1229,8 +1358,8 @@ Inductive _bst : nat -> nat -> Type :=
 | _Leaf (val : nat) : _bst val val.
 
 Definition inv (ord_l ord_r : nat) (max_l val min_r : nat) : nat :=
-  ord_l * 
-  ord_r * 
+  ord_l *
+  ord_r *
   (if Nat.ltb max_l val then 1 else 0) *
   (if Nat.ltb val min_r then 1 else 0).
 
@@ -1244,15 +1373,15 @@ Inductive bst : nat -> nat -> nat -> Type :=
 Find ornament _bst bst.
 
 Definition is_bst (n m : nat) (b : _bst n m) : nat :=
-  _bst_rect 
+  _bst_rect
     (fun _ _ _  => nat)
-    (fun (min_l min_r max_l max_r val : nat) 
+    (fun (min_l min_r max_l max_r val : nat)
          (left : _bst min_l max_l) (IHl : nat)
          (right : _bst min_r max_r) (IHr : nat) =>
-      inv IHl IHr max_l val min_r) 
-    (fun _ : nat => 1) 
+      inv IHl IHr max_l val min_r)
+    (fun _ : nat => 1)
     n
-    m 
+    m
     b.
 
 Definition packed_bst (n m : nat) :=
@@ -1305,6 +1434,14 @@ Theorem test_retraction_16:
     _bst_to_bst n m (_bst_to_bst_inv n m b) = b.
 Proof.
   exact _bst_to_bst_retraction.
+Qed.
+
+Theorem test_adjunction_16:
+  forall (n m : nat) (b : _bst n m),
+    _bst_to_bst_retraction_adjoint n m (_bst_to_bst n m b) =
+    f_equal (_bst_to_bst n m) (_bst_to_bst_section n m b).
+Proof.
+  exact _bst_to_bst_adjunction.
 Qed.
 
 (* --- Make sure moving the hypotheses around works too --- *)
@@ -1370,13 +1507,21 @@ Proof.
   exact _bst_to_bst2_retraction.
 Qed.
 
+Theorem test_adjunction_17:
+  forall (n m : nat) (b : _bst n m),
+    _bst_to_bst2_retraction_adjoint n m (_bst_to_bst2 n m b) =
+    f_equal (_bst_to_bst2 n m) (_bst_to_bst2_section n m b).
+Proof.
+  exact _bst_to_bst2_adjunction.
+Qed.
+
 (* --- Test moving around the index location --- *)
 
 Inductive bst3 : nat -> nat -> nat -> Type :=
 | Branch3 (ord_l : nat) (min_l min_r : nat) (max_l max_r : nat)
          (val : nat)
          (left : bst3 min_l ord_l max_l) (ord_r : nat) (right : bst3 min_r ord_r max_r)
-      : bst3 min_l (inv ord_l ord_r max_l val min_r) max_r 
+      : bst3 min_l (inv ord_l ord_r max_l val min_r) max_r
 | Leaf3 (val : nat) : bst3 val 1 val.
 
 Find ornament _bst bst3.
@@ -1433,17 +1578,25 @@ Proof.
   exact _bst_to_bst3_retraction.
 Qed.
 
+Theorem test_adjunction_18:
+  forall (n m : nat) (b : _bst n m),
+    _bst_to_bst3_retraction_adjoint n m (_bst_to_bst3 n m b) =
+    f_equal (_bst_to_bst3 n m) (_bst_to_bst3_section n m b).
+Proof.
+  exact _bst_to_bst3_adjunction.
+Qed.
+
 (* --- Binary trees with changed hypothesis order --- *)
 
 Inductive bintreeV2 (A : Type) : nat -> Type :=
 | leafV2:
     bintreeV2 A 0
 | nodeV2 :
-    forall (n : nat), 
-      bintreeV2 A n -> 
-      A -> 
-      forall (m : nat), 
-        bintreeV2 A m -> 
+    forall (n : nat),
+      bintreeV2 A n ->
+      A ->
+      forall (m : nat),
+        bintreeV2 A m ->
         bintreeV2 A (S (n + m)).
 
 Definition packed_bintreeV2 (T : Type) :=
@@ -1458,7 +1611,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Theorem test_orn_19: 
+Theorem test_orn_19:
   forall (A : Type) (tr : bintree A),
     packed_bintreeV2 A.
 Proof.
@@ -1500,6 +1653,14 @@ Proof.
   exact orn_bintree_bintreeV2_retraction.
 Qed.
 
+Theorem test_adjunction_19:
+  forall (A : Type) (tr : bintree A),
+    orn_bintree_bintreeV2_retraction_adjoint A (orn_bintree_bintreeV2 A tr) =
+    f_equal (orn_bintree_bintreeV2 A) (orn_bintree_bintreeV2_section A tr).
+Proof.
+  exact orn_bintree_bintreeV2_adjunction.
+Qed.
+
 (* (* --- TODO Index already existed in the old constructor, but wasn't used --- *) *)
 
 (* (* --- TODO Index already existed in the old constructor, but was used differently --- *) *)
@@ -1507,4 +1668,3 @@ Qed.
 (* (* --- TODO weirder indexes --- *) *)
 
 (* (* --- TODO examples from notebook etc --- *) *)
-

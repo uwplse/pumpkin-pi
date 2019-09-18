@@ -17,17 +17,26 @@ open Constutils
 open Nameutils
 open Defutils
 open Envutils
+open Stateutils
+open Environ
 
 (* --- Commands --- *)
 
+(*
+ * Refresh an environment and get the corresponding state after defining
+ * a term
+ *)
+let refresh_env () : env state =
+  let env = Global.env () in
+  Evd.from_env env, env
+       
 (*
  * If the option is enabled, then prove coherence after find_ornament is called.
  * Otherwise, do nothing.
  *)
 let maybe_prove_coherence n inv_n idx_n : unit =
   if is_search_coh () then
-    let env = Global.env () in
-    let sigma = Evd.from_env env in
+    let sigma, env = refresh_env () in
     let (promote, forget) = map_tuple make_constant (n, inv_n) in
     let indexer = make_constant idx_n in
     let orn = { indexer; promote; forget } in
@@ -37,27 +46,39 @@ let maybe_prove_coherence n inv_n idx_n : unit =
     Printf.printf "Defined coherence proof %s\n\n" (Id.to_string coh_n)
   else
     ()
-      
+
 (*
- * If the option is enabled, then prove section and retraction after find_ornament is called.
- * Otherwise, do nothing.
+ * If the option is enabled, then prove section, retraction, and adjunction after
+ * find_ornament is called. Otherwise, do nothing.
  *)
 let maybe_prove_equivalence n inv_n : unit =
+  let define_proof suffix ?(adjective=suffix) evd term =
+    let ident = with_suffix n suffix in
+    let const = define_term ident evd term true |> destConstRef in
+    Printf.printf "Defined %s proof %s\n\n" adjective (Id.to_string ident);
+    const
+  in
   if is_search_equiv () then
-    let env = Global.env () in
-    let sigma = Evd.from_env env in
+    let sigma, env = refresh_env () in
     let (promote, forget) = map_tuple make_constant (n, inv_n) in
     let l = initialize_lifting env sigma promote forget in
     let (section, retraction) = prove_equivalence env sigma l in
-    let sec_n = with_suffix n "section" in
-    let _ = define_term sec_n sigma section true in
-    Printf.printf "Defined section proof %s\n\n" (Id.to_string sec_n);
-    let rec_n = with_suffix n "retraction" in
-    let _ = define_term rec_n sigma retraction true in
-    Printf.printf "Defined retraction proof %s\n\n" (Id.to_string rec_n)
+    let sect = define_proof "section" sigma section in
+    let retr0 = define_proof "retraction" sigma retraction in
+    let pre_adj = { orn = l; sect; retr0 } in
+    let _ =
+      let sigma, env = refresh_env () in
+      let (sigma, retraction_adj) = adjointify_retraction env sigma pre_adj in
+      define_proof "retraction_adjoint" sigma retraction_adj ~adjective:"adjoint retraction"
+    in
+    let _ =
+      let sigma, env = refresh_env () in
+      let (sigma, adjunction) = prove_adjunction env sigma pre_adj in
+      define_proof "adjunction" sigma adjunction
+    in ()
   else
     ()
-       
+
 (*
  * Identify an algebraic ornament between two types
  * Define the components of the corresponding equivalence

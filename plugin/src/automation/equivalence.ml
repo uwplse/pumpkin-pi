@@ -1,4 +1,6 @@
+open Util
 open Constr
+open Names
 open Environ
 open Utilities
 open Debruijn
@@ -27,13 +29,13 @@ open Declarations
 (*
  * The proofs of both section and retraction apply lemmas
  * that show that equalities are preserved in inductive cases.
- * These lemmas are folds over substitutions of recursive arguments, 
+ * These lemmas are folds over substitutions of recursive arguments,
  * with refl as identity.
  *
- * To construct these proofs, we first construct the lemmas, then 
+ * To construct these proofs, we first construct the lemmas, then
  * specialize them to the appropriate arguments.
  *)
-              
+
 (*
  * Form the environment with the appropriate hypotheses for the equality lemmas.
  * Take as arguments the original environment, an evar_map, the recursive
@@ -53,7 +55,7 @@ let eq_lemmas_env env recs l =
           l
       in
       (* push index in backwards direction *)
-      let sigma, e_ib = push_ib (sigma, e) in 
+      let sigma, e_ib = push_ib (sigma, e) in
       let adj_back = map_backward (reindex_app (reindex l.off (mkRel 1))) l in
       let r_t = adj_back (shift_by (new_rels2 e_ib e) r_t) in
       (* push new rec arg *)
@@ -67,7 +69,7 @@ let eq_lemmas_env env recs l =
       sigma, push_local (Anonymous, r_eq) e_r)
     env
     recs
-  
+
 (*
  * Determine the equality lemmas for each case of an inductive type
  * Take as arguments an environment, an evar_map, the inductive type,
@@ -242,7 +244,7 @@ let equiv_proof env sigma l =
         cs = shift_all_by depth cs;
         final_args = reindex_back (index_back args);
       }
-  in 
+  in
   let eq_typ = on_red_type_default (ignore_env dest_eq) env_eq_proof sigma eq_proof in
   let sym_app = apply_eq_sym { eq_typ; eq_proof } in
   let equiv_b =
@@ -264,3 +266,63 @@ let equiv_proof env sigma l =
  *)
 let prove_equivalence env sigma =
   twice_directional (equiv_proof env sigma)
+
+(* --- Automatically generated adjunction proof --- *)
+
+let lookup_constant = Libnames.qualid_of_string %> Nametab.locate_constant
+
+let fresh_constant env sigma const =
+  Evd.fresh_constant_instance env sigma const |> Util.on_snd mkConstU
+
+type pre_adjoint = {
+  orn : lifting;
+  sect : Names.Constant.t;
+  retr0 : Names.Constant.t
+}
+
+(*
+ * Prepare quantification for an almost-adjoint equivalence, by pulling out
+ * all the type-quantified values (i.e., type parameters/indices) into a new
+ * local context before giving back an argument list for the adjunction lemmas.
+ *)
+let quantify_pre_adjunction env sigma { orn; sect; retr0 } =
+  let apply_to xs f = mkApp (f, xs) in
+  let sigma, sect = fresh_constant env sigma sect in
+  let sigma, retr0 = fresh_constant env sigma retr0 in
+  let equiv, inv = lift_to orn, lift_back orn in
+  let domain, codomain =
+    destConst equiv |> Environ.constant_type_in env |>
+    Reduction.nf_betaiota env |> Term.decompose_prod_assum
+  in
+  let ctxt = List.tl domain in
+  let left_typ = List.hd domain |> rel_type in
+  let right_typ = Vars.lift (-1) codomain in
+  let args = Context.Rel.to_extended_vect mkRel 0 ctxt in
+  let adj_types = [|left_typ; right_typ|] in
+  let adj_terms = Array.map (apply_to args) [|equiv; inv; sect; retr0|] in
+  sigma, ctxt, Array.append adj_types adj_terms
+
+(*
+ * Augment the initial retraction proof in order to prove adjunction.
+ *
+ * The generic proof of adjunction from the HoTT book relies critically on this
+ * step; wrapping the proof term for retraction in a clever way (formalized in
+ * `fg_id'`) makes a later equality of equality proofs true definitionally.
+ *)
+let adjointify_retraction env sigma pre_adj =
+  let (sigma, adjointifier) =
+    lookup_constant "Ornamental.Adjoint.fg_id'" |> fresh_constant env sigma
+  in
+  let sigma, ctxt, pre_adjunct = quantify_pre_adjunction env sigma pre_adj in
+  sigma, recompose_lam_assum ctxt (mkApp (adjointifier, pre_adjunct))
+
+(*
+ * Prove adjunction.
+ *)
+let prove_adjunction env sigma pre_adj =
+  let (sigma, adjunctifier) =
+    lookup_constant "Ornamental.Adjoint.f_adjoint" |> fresh_constant env sigma
+  in
+  let sigma, ctxt, pre_adjunct = quantify_pre_adjunction env sigma pre_adj in
+  sigma, recompose_lam_assum ctxt (mkApp (adjunctifier, pre_adjunct))
+
