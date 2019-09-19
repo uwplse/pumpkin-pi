@@ -185,15 +185,7 @@ Proof.
   auto using (UIP_dec Nat.eq_dec).
 Defined.
 (*
- * NOTE ON UIP: In general, we should be able to avoid using UIP over the index
- * by proving adjunction explicitly and then using that along with coherence
- * to show that we do not duplicate equalities (credit to Jason Gross).
- * This holds for all algebraic ornaments, not just those for which UIP holds
- * on the index type.
- *
- * See https://github.com/uwplse/ornamental-search/issues/39 for the latest thoughts
- * on this, and please check the latest version of this file in master to see
- * if we have implemented this if you are reading this in a release.
+ * See NOTE ON UIP at the bottom for an important note about how to avoid using UIP.
  *)
 
 (*
@@ -221,3 +213,70 @@ Defined.
 
 Definition BVand' {n : nat} (v1 : vector bool n) (v2 : vector bool n) : vector bool n :=
   zip_withV_uf andb v1 v2.
+
+(* --- NOTE ON UIP --- *)
+
+(*
+ * In general, we should be able to avoid using UIP over the index
+ * by proving adjunction explicitly and then using that along with coherence
+ * to show that we do not duplicate equalities (credit to Jason Gross).
+ * This holds for all algebraic ornaments, not just those for which UIP holds
+ * on the index type.
+ *
+ * See https://github.com/uwplse/ornamental-search/issues/39 for the latest thoughts
+ * on this, and please check the latest version of this file in master to see
+ * if we have implemented this if you are reading this in a release.
+ *
+ * The key is to derive the unpacked equivalence from the packed one.
+ * We don't yet automate this, but we should be able to.
+ * First we define our functions:
+ *)
+Definition ltv_u (A : Type) (n : nat) (ll : { l : list A & ltv_index A l = n}) : vector A n :=
+  rew (projT2 ll) in
+    rew (ltv_coh _ (projT1 ll)) in
+      projT2 (ltv _ (projT1 ll)).
+
+Lift list vector in ltv_coh as ltv_cohV.
+
+(* Should be able to clean this: *)
+Definition ltv_inv_u (A : Type) (n : nat) (v : vector A n) : { l : list A & ltv_index A l = n} :=
+  existT _
+    (ltv_inv _ (existT _ n v))
+    (rew [fun n0 => n0 = n] (ltv_coh _ (ltv_inv _ (existT _ n v))) in
+      rew [fun s => projT1 s = n] (eq_sym (ltv_retraction _ (existT _ n v))) in
+        ltv_cohV _ (existT _ n v)).
+
+(*
+ * Then we define section and retraction.
+ * Credit for these initial versions goes to Jason Gross; should clean them.
+ *)
+Lemma ltv_section_u : forall A n v, ltv_u A n (ltv_inv_u A n v) = v.
+Proof.
+  cbv [ltv_u ltv_inv_u].
+  cbn [projT1 projT2].
+  intros.
+  set (p := ltv_retraction _ _).
+  set (q := ltv_coh _ _).
+  clearbody p q.
+  cbv beta in *.
+  generalize dependent (ltv A (ltv_inv A (existT [eta vector A] n v))).
+  intros [x y] p q.
+  cbn [projT1 projT2] in *.
+  subst x.
+  inversion_sigma.
+  repeat match goal with H : _ = ?v |- _ => is_var v; destruct H end.
+  reflexivity.
+Qed.
+
+(* TODO: *)
+Lemma ltv_retraction_u : forall A n v, ltv_inv_u A n (ltv_u A n v) = v.
+Proof.
+  intros A n [l H]; apply eq_sigT_uncurried; subst n.
+  cbv [ltv_u ltv_inv_u ltv_coh].
+  cbn [projT1 projT2 eq_rect].
+  change (existT [eta vector A] (ltv_index A l) (projT2 (ltv A l))) with (ltv A l).
+  exists (ltv_section _ _).
+  rewrite <- ltv_adjunction.
+  destruct (ltv_section A l).
+  reflexivity.
+Qed.
