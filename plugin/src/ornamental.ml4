@@ -1,4 +1,4 @@
-DECLARE PLUGIN "ornamental"
+DECLARE PLUGIN "ornaments"
 
 open Stdarg
 open Frontend
