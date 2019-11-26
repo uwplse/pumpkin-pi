@@ -99,7 +99,7 @@ let find_ornament n_o d_old d_new =
     let auto_n = with_suffix (with_suffix name_o "to") name_n in
     let n = Option.default auto_n n_o in
     let idx_n = with_suffix n "index" in
-    let sigma, orn = search_orn_inductive env sigma idx_n trm_o trm_n in
+    let sigma, orn = search_orn env sigma idx_n trm_o trm_n in
     ignore (define_term idx_n sigma orn.indexer true);
     Printf.printf "Defined indexing function %s.\n\n" (Id.to_string idx_n);
     let promote = define_term n sigma orn.promote true in

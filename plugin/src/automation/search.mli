@@ -12,15 +12,15 @@ open Stateutils
 (* --- Top-level search --- *)
 
 (* 
- * Search two inductive types for an ornamental promotion between them
+ * Search two types for an ornamental promotion between them
  * Automatically infer the kind of change
  * Automatically infer the new index
  *)
-val search_orn_inductive :
+val search_orn :
   env ->
   evar_map ->
   Id.t -> (* name to assign the indexer function *)
-  types -> (* old inductive type *)
-  types -> (* new inductive type *)
+  types -> (* old type *)
+  types -> (* new type *)
   promotion state (* ornamental promotion *)
 

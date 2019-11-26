@@ -536,11 +536,11 @@ let search_algebraic env sigma npm indexer_n a b =
 (* --- Top-level search --- *)
 
 (*
- * Search two inductive types for an ornament between them.
+ * Search two types for an ornament between them.
  * This is more general to handle eventual extension with other 
  * kinds of ornaments.
  *)
-let search_orn_inductive env sigma indexer_id trm_o trm_n =
+let search_orn env sigma indexer_id trm_o trm_n =
   match map_tuple kind (trm_o, trm_n) with
   | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->
      let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
