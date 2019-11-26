@@ -181,3 +181,14 @@ let do_unpack_constant ident const_ref =
     unpack_constant env sigma
   in
   ignore (define_term ident !sigma term true)
+
+(*
+ * Lift from a record to a product within a definition or proof
+ * WIP: Implementing, whole module version, coherence proofs
+ *)
+let do_lift_record_to_product n def_o def_n def : unit =
+  let (sigma, env) = Pfedit.get_current_context () in
+  let sigma, product = intern env sigma def_o in
+  let sigma, record = intern env sigma def_n in
+  let sigma, trm = intern env sigma def in
+  Feedback.msg_warning (str "Not yet implemented")

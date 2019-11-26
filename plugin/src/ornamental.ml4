@@ -29,3 +29,9 @@ VERNAC COMMAND EXTEND UnpackSigma CLASSIFIED AS SIDEFF
 (* | [ "Unpack" "Module" reference(mod_ref) "as" ident(id) ] ->
  *   [ do_unpack_module id mod_ref ] *)
 END
+
+(* Lift from records to products *)
+VERNAC COMMAND EXTEND RecordToProduct CLASSIFIED AS SIDEFF
+| [ "Lift" "Record" constr(def_o) constr(def_n) "in" constr(def) "as" ident(n) ] ->
+  [ do_lift_record_to_product n def_o def_n def ]
+END

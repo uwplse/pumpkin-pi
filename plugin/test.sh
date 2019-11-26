@@ -10,6 +10,7 @@ liftspec=false
 search=false
 lift=false
 listtovect=false
+records=false
 
 echo "Testing Find ornament."
 
@@ -33,6 +34,15 @@ fi
 if coqc coq/Indtype.v
 then
   liftedind=true
+else
+  :
+fi
+
+echo "Testing Lift Record."
+
+if coqc coq/minimal_records.v
+then
+  records=true
 else
   :
 fi
@@ -122,7 +132,7 @@ fi
 if [ $lifted = true ] && [ $liftedind = true ] && [ $liftedcase = true ] && 
    [ $assumptions = true ] && [ $intro = true ] && [ $example = true ] &&
    [ $liftspec = true ] && [ $search = true ] && [ $lift = true ] &&
-   [ $listtovect = true ]
+   [ $listtovect = true ] && [ $records = true ]
 then
   echo "SUCCESS: All tests passed."
 
@@ -139,6 +149,12 @@ else
   if [ !$liftedind = true ]
   then
     echo "lifting inductive predicates"
+  else
+    :
+  fi
+  if [ !$records = true ]
+  then
+    echo "lifting records to products"
   else
     :
   fi
