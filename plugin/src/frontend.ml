@@ -155,7 +155,19 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
   let us = map_tuple (unwrap_definition env) (c_orn, c_orn_inv) in
   let are_inds = isInd (fst us) && isInd (snd us) in
   let lookup os = map_tuple Universes.constr_of_global (lookup_ornament os) in
-  let (c_from, c_to) = if are_inds then lookup us else (c_orn, c_orn_inv) in
+  let ((c_from, c_to), refresh) =
+    if are_inds then
+      try
+        lookup us, false
+      with _ ->
+        (* Search for ornament if the user never ran Find Ornament *)
+        Feedback.msg_notice (str "Searching for ornament first");
+        find_ornament None d_orn d_orn_inv;
+        lookup us, true
+    else
+      (c_orn, c_orn_inv), false
+  in
+  let sigma, env = if refresh then refresh_env () else sigma, env in
   let l = initialize_lifting env sigma c_from c_to in
   let u_old = unwrap_definition env c_old in
   if isInd u_old then

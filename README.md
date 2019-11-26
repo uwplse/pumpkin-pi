@@ -42,6 +42,8 @@ For those interested, more details can be found in Sections 2, 3, 4, and 5 of th
 At a high level, there are two main commands: `Find ornament` to search for ornaments,
 and `Lift` to lift along those ornaments. `Find ornament` supports two additional options
 to increase user confidence and to make the functions that it generates more useful.
+If you skip running the `Find ornament` command and just run `Lift`,
+then DEVOID will run `Find ornament` for you automatically first.
 
 In addition, there are two commands that help make DEVOID more useful: `Preprocess`
 for pattern matching and fixpoint support, and `Unpack` to help recover more user-friendly types. The `Preprocess` command comes from our plugin
@@ -102,8 +104,11 @@ See [Example.v](/plugin/coq/examples/Example.v) for an example of lifting.
 `Lift A B in f as g.`
 ``` 
 
-This command lifts a function or proof `f` along the discovered relation. You must call
-`Find ornament` on `A` and `B` before calling this command.
+This command lifts a function or proof `f` along the discovered relation.
+DEVOID must be able to find an ornament between `A` and `B` for this
+command to work. If you have already called `Find ornament` on `A` and `B`,
+it will use the discovered ornament; otherwise, it will search for an
+ornament first.
 
 ##### Outputs
 

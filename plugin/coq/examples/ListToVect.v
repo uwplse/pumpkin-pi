@@ -13,15 +13,13 @@ Notation vector := Vector.t.
 
 Preprocess Module List as List' {include length, app}.
 
-(* --- Search --- *)
-
-Find ornament list vector as ltv.
-
-(* --- Lift --- *)
+(* --- Search & Lift --- *)
 
 (*
  * Whole-module lifting doesn't exist yet, so for now we have to do this
  * one function and proof at a time.
+ *
+ * We use automatic search here rather than calling Find Ornament ourselves.
  *
  * There are still two proofs that fail to lift below, due to implementation bugs.
  * See: https://github.com/uwplse/ornamental-search/issues/32

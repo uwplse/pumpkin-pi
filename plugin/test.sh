@@ -2,6 +2,7 @@
 
 lifted=false
 liftedind=false
+findlift=false
 liftedcase=false
 assumptions=false
 intro=false
@@ -34,6 +35,15 @@ fi
 if coqc coq/Indtype.v
 then
   liftedind=true
+else
+  :
+fi
+
+echo "Testing Lift with implicit Find Ornament."
+
+if coqc coq/TestFindLift.v
+then
+  findlift=true
 else
   :
 fi
@@ -129,10 +139,10 @@ else
   :
 fi
 
-if [ $lifted = true ] && [ $liftedind = true ] && [ $liftedcase = true ] && 
-   [ $assumptions = true ] && [ $intro = true ] && [ $example = true ] &&
-   [ $liftspec = true ] && [ $search = true ] && [ $lift = true ] &&
-   [ $listtovect = true ] && [ $records = true ]
+if [ $lifted = true ] && [ $liftedind = true ] && [ $findlift = true ] &&    
+   [ $liftedcase = true ] && [ $assumptions = true ] && [ $intro = true ] &&
+   [ $example = true ] && [ $liftspec = true ] && [ $search = true ] && 
+   [ $lift = true ] && [ $listtovect = true ] && [ $records = true ]
 then
   echo "SUCCESS: All tests passed."
 
@@ -143,6 +153,12 @@ else
   if [ !$lifted = true ]
   then
     echo "lifting"
+  else
+    :
+  fi
+  if [ !$findlift = true ]
+  then
+    echo "lifting with implicit Find Ornament"
   else
     :
   fi

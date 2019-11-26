@@ -60,6 +60,11 @@ Preprocess Module hs_to_coq' as hs_to_coq.
 Set DEVOID search prove coherence.
 Set DEVOID search prove equivalence.
 
+(*
+ * You can also omit this line if you want. Lift will run it automatically the first
+ * time. The advantage of running it yourself is that you can name the resulting
+ * functions yourself.
+ *)
 Find ornament list vector as ltv.
 
 (*
