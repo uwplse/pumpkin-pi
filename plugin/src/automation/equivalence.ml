@@ -285,17 +285,17 @@ let equiv_proof_curry_record env sigma l =
     let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
     let sigma, c_body_type = reduce_type env_c_b sigma c_body in
     let refl = apply_eq_refl { typ = c_body_type; trm = c_body } in
-    let cs = [shift (reconstruct_lambda env_c_b refl)] in
+    let cs = [shift (reconstruct_lambda_n env_c_b refl npm)] in
     let elim = type_eliminator env_to (i, i_index) in
     let at_type = shift typ_app in
     let trm2 = mkRel 1 in
-    let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm2 (shift_all pms))) (shift_all pms)) in
+    let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm2 (shift_all_by 2 pms))) (shift_all_by 2 pms)) in
     let p = mkLambda (Anonymous, typ_app, apply_eq { at_type; trm1; trm2 }) in
     let eq_proof =
       apply_eliminator
         {
           elim;
-          pms = shift_all_by 1 pms;
+          pms = shift_all pms;
           p;
           cs;
           final_args = [mkRel 1];

@@ -100,83 +100,6 @@ Set DEVOID search prove equivalence.
 Find ornament handwritten_input generated_input. (* TODO can omit once lift works *)
 (*Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.*)
 
-Print handwritten_input_curry.
-
-Lemma section:
-  forall h,
-    handwritten_input_curry_inv (handwritten_input_curry h) = h.
-Proof.
-  intros. induction h using handwritten_input_rect. reflexivity.
-Qed.
-
-Print section.
-
-(* 
-fun h : handwritten_input =>
-handwritten_input_rect
-  (fun h0 : handwritten_input =>
-   @eq handwritten_input (handwritten_input_curry_inv (handwritten_input_curry h0))
-     h0)
-  (fun (firstBool0 : bool) (numberI0 : nat) (secondBool0 : bool) =>
-   @eq_refl handwritten_input (MkInput firstBool0 numberI0 secondBool0)) h
-     : forall h : handwritten_input,
-       @eq handwritten_input
-         (handwritten_input_curry_inv (handwritten_input_curry h)) h
-
-fun h : handwritten_input =>
-handwritten_input_rect 
-   (fun h0 : handwritten_input => 
-    @eq handwritten_input (handwritten_input_curry_inv (handwritten_input_curry h0))
-      h0) 
-   (fun (firstBool0 : bool) . (λ (numberI0 : nat) . (λ (secondBool0 : bool)  =>
-     @eq_refl handwritten_input (MkInput firstBool0 numberI0 secondBool0)) h
-*)
-
-Lemma retraction:
-  forall g,
-    handwritten_input_curry (handwritten_input_curry_inv g) = g.
-Proof.
-  intros. induction g. induction b. reflexivity.
-Qed.
-
-Print retraction.
-
-(*
-fun g : prod bool (prod nat bool) =>
-@prod_ind bool (prod nat bool)
-  (fun g0 : prod bool (prod nat bool) =>
-   @eq (prod bool (prod nat bool))
-     (handwritten_input_curry (handwritten_input_curry_inv g0)) g0)
-  (fun (a : bool) (b : prod nat bool) =>
-   @prod_ind nat bool
-     (fun b0 : prod nat bool =>
-      @eq (prod bool (prod nat bool))
-        (handwritten_input_curry
-           (handwritten_input_curry_inv (@pair bool (prod nat bool) a b0)))
-        (@pair bool (prod nat bool) a b0))
-     (fun (a0 : nat) (b0 : bool) =>
-      @eq_refl (prod bool (prod nat bool))
-        (@pair bool (prod nat bool) a (@pair nat bool a0 b0))) b) g
-
-fun g : prod bool (prod nat bool)) => 
-@prod_rect bool (prod nat bool) 
-  (fun g0 : prod bool (prod nat bool) => 
-   @eq (prod bool (prod nat bool))
-     (handwritten_input_curry (handwritten_input_curry_inv g0)) g0) 
-  (fun (a : bool) (b : prod nat bool) => 
-     @prod_rect nat bool 
-       (fun b0 : prod nat bool => 
-        @eq (prod bool (prod nat bool)) 
-          (handwritten_input_curry
-              (handwritten_input_curry_inv (@pair bool (prod nat bool) a b0))) 
-          (@pair bool (prod nat bool) a b0)) 
-      (fun (a0 : nat) (b0 : bool) => 
-       @eq_refl (prod bool (prod nat bool)) 
-         (@pair bool (prod nat bool) a (@pair nat bool a0 b0))))) (pair bool (prod nat bool) (_ [Rel 2]) (_ [Rel 1]))))) (_ [Rel 1])))
-
-
-*)
-
 Definition generated_input_param_test (T1 T2 T3 : Type) := (prod T1 (prod T2 T3)).
 
 Record handwritten_input_param_test (T1 T2 T3 : Type) := MkInputT
@@ -194,6 +117,20 @@ Scheme Induction for handwritten_input_param_test Sort Type.
 (* TODO set options to prove equiv: Set DEVOID search prove equivalence. Then get working. Then try w/ params. Then clean. Then do lift, same process.*)
 Find ornament handwritten_input_param_test generated_input_param_test. (* TODO can omit once lift works *)
 (*Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.*)
+
+(*
+fun (T1 T2 T3 : Type) (h : handwritten_input_param_test T1 T2 T3) =>
+  handwritten_input_param_test_rect 
+   T1
+   T2
+   T3
+   (fun (h : handwritten_input_param_test T1 T2 T3) =>
+     @eq 
+      (handwritten_input_param_test T1 T2 T3) 
+      (handwritten_input_param_test_curry_inv T1 T2 T3 (handwritten_input_param_test_curry T1 T2 T3 h)) 
+      h) 
+   (fun (T1 T2 T3 : Type) (firstT : (T1 [Rel 3])) . (λ (secondT : (T2 [Rel 3])) . (λ (thirdT : (T3 [Rel 3])) . (eq_refl (handwritten_input_param_test (T1 [Rel 6]) (T2 [Rel 5]) (T3 [Rel 4])) (MkInputT (T1 [Rel 6]) (T2 [Rel 5]) (T3 [Rel 4]) (firstT [Rel 3]) (secondT [Rel 2]) (thirdT [Rel 1]))))))))) (_ [Rel 1]))))))
+*)
 
 (* TODO test: failure cases, dependent parameters, eta expanded or not expanded variations, 2 fields, 4 fields, taking prod directly, etc *)
 (* TODO check test results *)
