@@ -1,4 +1,4 @@
-Require Import Patcher.Patch.
+Require Import Ornamental.Ornaments.
 
 Definition generated_input := (prod bool (prod nat bool)).
 
@@ -92,7 +92,8 @@ Proof.
 Qed.
 
 (* The most basic test: When this works, should just give us fst *)
-Lift Record handwritten_input generated_input in firstBool as lifted_firstBool.
+Fail Find ornament handwritten_input generated_input. (* TODO can omit once lift works *)
+Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.
 
 Lemma firstBool_spec (g : generated_input) :
   generated_firstBool g = firstBool (g2h_input g).

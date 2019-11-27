@@ -141,7 +141,7 @@ let is_proj c env sigma trm =
      let f = first_fun trm in
      let args = unfold_args trm in
      if c.l.is_fwd then
-       if equal c.l.orn.indexer f then
+       if equal (Option.get c.l.orn.indexer) f then
          right_type (last args)
        else
          sigma, false
@@ -518,7 +518,7 @@ let lift_core env sigma c ib_typ trm =
                 let sigma, a = lift_rec en sigma ib_typ b_sig in
                 if equal projT1 (first_fun tr) then
                   let sigma, args = non_index_typ_args l.off en sigma b_sig in
-                  (sigma, mkAppl (l.orn.indexer, snoc a args)), false
+                  (sigma, mkAppl (Option.get l.orn.indexer, snoc a args)), false
                 else
                   (sigma, a), false
             else if is_eliminator c en tr then

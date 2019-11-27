@@ -35,10 +35,10 @@ let refresh_env () : env state =
  * Otherwise, do nothing.
  *)
 let maybe_prove_coherence n inv_n idx_n : unit =
-  if is_search_coh () then
+  if is_search_coh () && Option.has_some idx_n then
     let sigma, env = refresh_env () in
     let (promote, forget) = map_tuple make_constant (n, inv_n) in
-    let indexer = make_constant idx_n in
+    let indexer = Some (make_constant (Option.get idx_n)) in
     let orn = { indexer; promote; forget } in
     let coh, coh_typ = prove_coherence env sigma orn in
     let coh_n = with_suffix n "coh" in
@@ -90,31 +90,51 @@ let find_ornament n_o d_old d_new =
   let sigma, def_n = intern env sigma d_new in
   let trm_o = unwrap_definition env def_o in
   let trm_n = unwrap_definition env def_n in
-  match map_tuple kind (trm_o, trm_n) with
-  | Ind ((m_o, _), _), Ind ((m_n, _), _) ->
-    let (_, _, lab_o) = KerName.repr (MutInd.canonical m_o) in
-    let (_, _, lab_n) = KerName.repr (MutInd.canonical m_n) in
-    let name_o = Label.to_id lab_o in
-    let name_n = Label.to_string lab_n in
-    let auto_n = with_suffix (with_suffix name_o "to") name_n in
-    let n = Option.default auto_n n_o in
-    let idx_n = with_suffix n "index" in
-    let sigma, orn = search_orn env sigma idx_n trm_o trm_n in
-    ignore (define_term idx_n sigma orn.indexer true);
-    Printf.printf "Defined indexing function %s.\n\n" (Id.to_string idx_n);
+  let n, inv_n, idx_n =
+    match map_tuple kind (trm_o, trm_n) with
+    | Ind ((m_o, _), _), Ind ((m_n, _), _) ->
+       let (_, _, lab_o) = KerName.repr (MutInd.canonical m_o) in
+       let (_, _, lab_n) = KerName.repr (MutInd.canonical m_n) in
+       let name_o = Label.to_id lab_o in
+       let name_n = Label.to_string lab_n in
+       let auto_n = with_suffix (with_suffix name_o "to") name_n in
+       let n = Option.default auto_n n_o in
+       let idx_n = with_suffix n "index" in
+       let inv_n = with_suffix n "inv" in
+       n, inv_n, Some idx_n
+    |_ ->
+      if isInd trm_o || isInd trm_n then
+        let ind, non_ind = if isInd trm_o then (trm_o, trm_n) else (trm_n, trm_o) in
+        let ((m, _), _) = destInd ind in
+        let (_, _, lab) = KerName.repr (MutInd.canonical m) in
+        let name = Label.to_id lab in
+        let auto_n = with_suffix name "curry" in
+        let n = Option.default auto_n n_o in
+        let inv_n = with_suffix n "inv" in
+        n, inv_n, None
+      else      
+        CErrors.user_err (str "Change not yet supported")
+  in
+  let sigma, orn = search_orn env sigma idx_n trm_o trm_n in
+  (if Option.has_some idx_n && Option.has_some orn.indexer then
+     let idx_n = Option.get idx_n in
+     let indexer = Option.get orn.indexer in
+     let _ = define_term idx_n sigma indexer true in
+     Feedback.msg_notice (str (Printf.sprintf "Defined indexing function %s." (Id.to_string idx_n)))
+   else
+     ());
     let promote = define_term n sigma orn.promote true in
-    Printf.printf "Defined promotion %s.\n\n" (Id.to_string n);
+    Feedback.msg_notice (str (Printf.sprintf "Defined promotion %s." (Id.to_string n)));
     let inv_n = with_suffix n "inv" in
     let forget = define_term inv_n sigma orn.forget true in
-    Printf.printf "Defined forgetful function %s.\n\n" (Id.to_string inv_n);
+    Feedback.msg_notice (str (Printf.sprintf "Defined forgetful function %s." (Id.to_string inv_n)));
     maybe_prove_coherence n inv_n idx_n;
     maybe_prove_equivalence n inv_n;
     (try
        save_ornament (trm_o, trm_n) (promote, forget)
      with _ ->
-       Printf.printf "WARNING: Failed to cache ornamental promotion.")
-  |_ ->
-    failwith "Only inductive types are supported"
+       Feedback.msg_warning (str "Failed to cache ornamental promotion."))
+
 
 (*
  * Lift a definition according to a lifting configuration, defining the lifted
@@ -193,14 +213,3 @@ let do_unpack_constant ident const_ref =
     unpack_constant env sigma
   in
   ignore (define_term ident !sigma term true)
-
-(*
- * Lift from a record to a product within a definition or proof
- * WIP: Implementing, whole module version, coherence proofs
- *)
-let do_lift_record_to_product n def_o def_n def : unit =
-  let (sigma, env) = Pfedit.get_current_context () in
-  let sigma, product = intern env sigma def_o in
-  let sigma, record = intern env sigma def_n in
-  let sigma, trm = intern env sigma def in
-  Feedback.msg_warning (str "Not yet implemented")

@@ -16,12 +16,12 @@ open Hofimpls
 (* --- Datatypes --- *)
 
 (*
- * An ornamental promotion is an indexing function, a function
+ * An ornamental promotion is an optional indexing function, a function
  * from T1 -> T2, and a function from T2 -> T1.
  *)
 type promotion =
   {
-    indexer : types;
+    indexer : types option;
     promote : types;
     forget : types;
   }
@@ -109,7 +109,7 @@ let initialize_promotion env sigma promote forget =
   let to_args = unfold_args to_ind in
   let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
   let (off, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
-  let indexer = first_fun index in
+  let indexer = Some (first_fun index) in
   (off, { indexer; promote; forget } )
 
 (*

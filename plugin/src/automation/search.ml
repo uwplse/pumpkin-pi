@@ -29,6 +29,7 @@ open Sigmautils
 open Reducers
 open Constutils
 open Stateutils
+open Apputils
 
 (* --- Error messages for the user --- *)
        
@@ -528,19 +529,24 @@ let search_algebraic env sigma npm indexer_n a b =
   let b = (b_typ, el_b_typ) in
   let sigma, idx = offset_and_ib env_pms a b sigma in (* idx = (off, I_B) *)
   let sigma, indexer = find_indexer env_pms idx el_a a b sigma in
+  let indexer = Some indexer in
   let a = (a_typ, arity_a, el_a, el_a_typ) in
   let b = (b_typ, arity_b, el_b, el_b_typ) in
   let sigma, (promote, forget) = find_promote_forget env_pms idx indexer_n a b sigma in
   sigma, { indexer; promote; forget }
 
+let search_curry_record env sigma a b =
+  failwith "WIP"
+  (* TODO reconstruct lambda at end *)
+
 (* --- Top-level search --- *)
 
 (*
- * Search two types for an ornament between them.
+ * Search two inductive types for an ornament between them.
  * This is more general to handle eventual extension with other 
  * kinds of ornaments.
  *)
-let search_orn env sigma indexer_id trm_o trm_n =
+let search_orn_inductive env sigma indexer_id_opt trm_o trm_n =
   match map_tuple kind (trm_o, trm_n) with
   | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->
      let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
@@ -560,13 +566,59 @@ let search_orn env sigma indexer_id trm_o trm_n =
          let npm = npm_o in
          let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
          let (arity_o, arity_n) = map_tuple arity (typ_o, typ_n) in
-         if not (arity_o = arity_n) then
+         if Option.has_some indexer_id_opt && not (arity_o = arity_n) then
            (* new index *)
            let o = (trm_o, arity_o) in
            let n = (trm_n, arity_n) in
            let (a, b) = map_if reverse (arity_n <= arity_o) (o, n) in
-           search_algebraic env sigma npm indexer_id a b
+           search_algebraic env sigma npm (Option.get indexer_id_opt) a b
          else
-           CErrors.user_err unsupported_change_error
+           CErrors.user_err unsupported_change_error             
+  | _ ->
+     failwith "Called search_orn_inductive on non-inductive types!"
+
+(*
+ * Search two types for an ornament between them, where one type
+ * is an inductive type and the other is something else (like an application
+ * of an inductive type). This is more general to handle eventual extensions
+ * with other kinds of ornaments.
+ *)
+let search_orn_one_noninductive env sigma trm_o trm_n =
+  let ind, non_ind = if isInd trm_o then (trm_o, trm_n) else (trm_n, trm_o) in
+  let ((i, _), _) = destInd ind in
+  let m = lookup_mind i env in
+  check_inductive_supported m;
+  let sigma, non_ind = reduce_term env sigma non_ind in
+  let env, non_ind = zoom_lambda_term env non_ind in
+  match kind non_ind with
+  | App _ ->
+     let f = unwrap_definition env (first_fun non_ind) in
+     if equal f Produtils.prod then
+       let npm = m.mind_nparams in
+       let bs = m.mind_packets in
+       let b = Array.get bs 0 in
+       let ncs = Array.length b.mind_consnames in
+       if npm = nb_rel env && ncs = 1 then
+         (* Curry a record into an application of prod *)
+         search_curry_record env sigma ind non_ind
+       else
+         CErrors.user_err unsupported_change_error
+     else
+       CErrors.user_err unsupported_change_error
   | _ ->
      CErrors.user_err unsupported_change_error
+              
+(*
+ * Search two types for an ornament between them.
+ * This is more general to handle eventual extension with other 
+ * kinds of ornaments.
+ *)
+let search_orn env sigma indexer_id_opt trm_o trm_n =
+  if isInd trm_o && isInd trm_n && Option.has_some indexer_id_opt then
+    (* Ornament between two inductive types *)
+    search_orn_inductive env sigma indexer_id_opt trm_o trm_n
+  else if isInd trm_o || isInd trm_n then
+    (* Ornament between an inductive type and something else *)
+    search_orn_one_noninductive env sigma trm_o trm_n
+  else
+    CErrors.user_err unsupported_change_error

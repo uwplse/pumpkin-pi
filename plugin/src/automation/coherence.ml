@@ -21,7 +21,7 @@ let prove_coherence env sigma orn =
   let is = on_red_type_default (ignore_env unfold_args) env_coh sigma a in
   let b_sig = mkAppl (orn.promote, snoc a is) in
   let b_sig_typ = on_red_type_default (ignore_env dest_sigT) env_coh sigma b_sig in
-  let ib = mkAppl (orn.indexer, snoc a is) in
+  let ib = mkAppl (Option.get orn.indexer, snoc a is) in
   let ib_typ = b_sig_typ.index_type in
   let proj_ib = project_index b_sig_typ b_sig in
   let refl = apply_eq_refl { typ = ib_typ; trm = proj_ib } in

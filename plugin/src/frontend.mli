@@ -23,12 +23,3 @@ val lift_by_ornament : ?suffix:bool -> Id.t -> constr_expr -> constr_expr -> con
  *)
 val do_unpack_constant : Id.t -> Libnames.reference -> unit
 
-(*
- * Lift from a record to a product within a definition or proof
- *)
-val do_lift_record_to_product :
-  Id.t -> (* name of new definition *)
-  constr_expr -> (* record *)
-  constr_expr -> (* product version of record *)
-  constr_expr -> (* term to lift *)
-  unit

@@ -9,12 +9,12 @@ open Evd
 (* --- Datatypes --- *)
 
 (*
- * An ornamental promotion is an indexing function, a function
+ * An ornamental promotion is an optional indexing function, a function
  * from T1 -> T2, and a function from T2 -> T1.
  *)
 type promotion =
   {
-    indexer : types;
+    indexer : types option;
     promote : types;
     forget : types;
   }

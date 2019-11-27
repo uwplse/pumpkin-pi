@@ -19,7 +19,7 @@ open Stateutils
 val search_orn :
   env ->
   evar_map ->
-  Id.t -> (* name to assign the indexer function *)
+  Id.t option -> (* name to assign the indexer function, if relevant *)
   types -> (* old type *)
   types -> (* new type *)
   promotion state (* ornamental promotion *)
