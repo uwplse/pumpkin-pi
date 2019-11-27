@@ -9,6 +9,8 @@ open Lib
 open Mod_subst
 open Defutils
 open Reducers
+open Environ
+open Declarations
 
 (* --- Database of liftings for higher lifting --- *)
 
@@ -171,39 +173,54 @@ let inOrns : orn_obj -> obj  =
     subst_function = sub_ornament }
 
 (*
+ * Get the canonical name of the type for caching
+ *)
+let canonical typ =
+  match kind typ with
+  | Ind ((m, _), _) ->
+     MutInd.canonical m
+  | Const (c, _) ->
+     Constant.canonical c
+  | Construct (((i, i_n), n), _) ->
+     let m = lookup_mind i (Global.env ()) in
+     let m_kn = MutInd.canonical i in
+     let mp, dp, _ = KerName.repr m_kn in
+     let c_name = m.mind_packets.(i_n).mind_consnames.(n) in
+     KerName.make mp dp (Label.of_id c_name)
+  | _ ->
+     Feedback.msg_warning (Pp.str "Can't get canonical name for caching! Please report a bug!");
+     failwith "bad call to canonical"
+                 
+(*
  * Check if an ornament is cached
  *)
 let has_ornament typs =
-  match map_tuple kind typs with
-  | (Ind ((m_o, _), _), Ind ((m_n, _), _)) ->
-     let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
-     let contains = OrnamentsCache.mem orn_cache in
-     contains (kn_o, kn_n) && contains (kn_n, kn_o)
-  | _ ->
-     false
+  try
+    let canonicals = map_tuple canonical typs in
+    let contains = OrnamentsCache.mem orn_cache in
+    contains canonicals && contains (reverse canonicals)
+  with _ ->
+    false
 
 (*
  * Lookup an ornament
  *)
 let lookup_ornament typs =
   if not (has_ornament typs) then
-    failwith "cannot find ornament; please supply ornamental promotion yourself"
+    CErrors.user_err (Pp.str "cannot find ornament; please supply ornamental promotion yourself")
   else
-    let (((m_o, _), _), ((m_n, _), _)) = map_tuple destInd typs in
-    let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
+    let canonicals = map_tuple canonical typs in
     let lookup = OrnamentsCache.find orn_cache in
-    (lookup (kn_o, kn_n), lookup (kn_n, kn_o))
+    (lookup canonicals, lookup (reverse canonicals))
 
 (*
  * Add an ornament to the ornament cache
  *)
 let save_ornament typs (orn, orn_inv) =
-  match map_tuple kind typs with
-  | (Ind ((m_o, _), _), Ind ((m_n, _), _)) ->
-     let (kn_o, kn_n) = map_tuple MutInd.canonical (m_o, m_n) in
-     let orn_obj = inOrns ((kn_o, kn_n), orn) in
-     let orn_inv_obj = inOrns ((kn_n, kn_o), orn_inv) in
-     add_anonymous_leaf orn_obj;
-     add_anonymous_leaf orn_inv_obj
-  | _ ->
-     failwith "can't cache a non-inductive type"
+  let canonicals = map_tuple canonical typs in
+  let orn_obj = inOrns (canonicals, orn) in
+  let orn_inv_obj = inOrns (canonicals, orn_inv) in
+  add_anonymous_leaf orn_obj;
+  add_anonymous_leaf orn_inv_obj
+ 
+

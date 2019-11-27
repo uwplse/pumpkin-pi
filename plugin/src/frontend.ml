@@ -131,6 +131,8 @@ let find_ornament n_o d_old d_new =
     maybe_prove_coherence n inv_n idx_n;
     maybe_prove_equivalence n inv_n;
     (try
+       let trm_o = if isInd trm_o then trm_o else def_o in
+       let trm_n = if isInd trm_n then trm_n else def_n in
        save_ornament (trm_o, trm_n) (promote, forget)
      with _ ->
        Feedback.msg_warning (str "Failed to cache ornamental promotion."))
