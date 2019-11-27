@@ -9,6 +9,31 @@ Record handwritten_input := MkInput
   secondBool : bool;
 }.
 
+Scheme Induction for handwritten_input Sort Set.
+Scheme Induction for handwritten_input Sort Prop.
+Scheme Induction for handwritten_input Sort Type.
+
+Program Definition htg_input : handwritten_input -> generated_input.
+Proof.
+  intros. induction H. constructor.
+  - apply firstBool0.
+  - constructor.
+    + apply numberI0. 
+    + apply secondBool0.
+Qed.
+
+Preprocess htg_input as htg_input'.
+Print htg_input'.
+
+Program Definition gth_input : generated_input -> handwritten_input.
+Proof.
+  intros. constructor.
+  - apply (fst H).
+  - apply (fst (snd H)).
+  - apply (snd (snd H)).
+Qed.
+Print gth_input.
+
 Definition generated_output := (prod nat bool).
 
 Record handwritten_output := MkOutput
@@ -92,7 +117,8 @@ Proof.
 Qed.
 
 (* The most basic test: When this works, should just give us fst *)
-Fail Find ornament handwritten_input generated_input. (* TODO can omit once lift works *)
+(* TODO set options to prove equiv. *)
+Find ornament handwritten_input generated_input. (* TODO can omit once lift works *)
 Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.
 
 Lemma firstBool_spec (g : generated_input) :

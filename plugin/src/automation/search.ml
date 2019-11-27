@@ -535,9 +535,70 @@ let search_algebraic env sigma npm indexer_n a b =
   let sigma, (promote, forget) = find_promote_forget env_pms idx indexer_n a b sigma in
   sigma, { indexer; promote; forget }
 
-let search_curry_record env sigma a b =
-  failwith "WIP"
-  (* TODO reconstruct lambda at end *)
+(* --- Records and products --- *)
+
+(*
+ * TODO comment, clean
+ * TODO appropriate error message for indices, which shouldn't exist
+ * TODO check/fix w/ params that are used
+ *)
+let search_curry_record env_pms sigma a b =
+  let sigma, promote =
+    let npm = nb_rel env_pms in
+    let elim = type_eliminator env_pms a in
+    let sigma, (_, elim_typ) = on_type (fun env sigma t -> sigma, zoom_n_prod env npm t) (Global.env ()) sigma elim in
+    let (p_n, _, elim_body) = destProd elim_typ in
+    let p = mkLambda (Anonymous, mkInd a, shift b) in (* TODO can't handle params yet *)
+    let env_p = push_local (p_n, p) env_pms in
+    let env_arg = push_local (Anonymous, mkInd a) env_pms in
+    let (_, c_typ, _) = destProd elim_body in
+    let env_c, _ = zoom_product_type env_p c_typ in
+    let rec make_c n sigma =
+      let open Produtils in
+      let trm1 = mkRel n in
+      if n = 1 then
+        sigma, trm1
+      else
+        let sigma, trm2 = make_c (n - 1) sigma in
+        let sigma, typ1 = infer_type env_c sigma trm1 in
+        let sigma, typ2 = infer_type env_c sigma trm2 in
+        sigma, apply_pair { typ1; typ2; trm1; trm2 }
+    in
+    let sigma, c = make_c (new_rels2 env_c env_p) sigma in
+    let cs = [reconstruct_lambda_n env_c c (nb_rel env_p)] in
+    let app =
+      apply_eliminator
+        {
+          elim = elim;
+          pms = shift_all (mk_n_rels npm);
+          p = shift p;
+          cs = cs;
+          final_args = mk_n_rels 1;
+        }
+    in sigma, reconstruct_lambda env_arg app
+  in
+  let sigma, forget =
+    let npm = nb_rel env_pms in
+    let env_arg = push_local (Anonymous, b) env_pms in
+    let pms = shift_all (mk_n_rels npm) in
+    let c = mkAppl (mkConstruct (a, 1), pms) in
+    let rec make_args n arg sigma =
+      let open Produtils in
+      let sigma, arg_typ = infer_type env_arg sigma arg in
+      let prod_app = dest_prod arg_typ in
+      if n = 2 then
+        sigma, [prod_fst prod_app arg; prod_snd prod_app arg]
+      else
+        let sigma, args = make_args (n - 1) (prod_snd prod_app arg) sigma in
+        sigma, List.append [prod_fst prod_app arg] args
+    in
+    let sigma, c_typ = reduce_type env_arg sigma c in
+    let sigma, args = make_args (arity c_typ) (mkRel 1) sigma in
+    let app = mkAppl (c, args) in
+    sigma, reconstruct_lambda env_arg app
+  in
+  let indexer = None in
+  sigma, { promote; forget; indexer }
 
 (* --- Top-level search --- *)
 
@@ -596,11 +657,10 @@ let search_orn_one_noninductive env sigma trm_o trm_n =
      if equal f Produtils.prod then
        let npm = m.mind_nparams in
        let bs = m.mind_packets in
-       let b = Array.get bs 0 in
-       let ncs = Array.length b.mind_consnames in
+       let ncs = Array.length (Array.get bs 0).mind_consnames in
        if npm = nb_rel env && ncs = 1 then
          (* Curry a record into an application of prod *)
-         search_curry_record env sigma ind non_ind
+         search_curry_record env sigma (fst (destInd ind)) non_ind
        else
          CErrors.user_err unsupported_change_error
      else
