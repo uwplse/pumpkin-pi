@@ -96,9 +96,28 @@ Proof.
 Qed.
 
 (* The most basic test: When this works, should just give us fst *)
-(* TODO set options to prove equiv. *)
+(* TODO set options to prove equiv: Set DEVOID search prove equivalence. Then get working. Then try w/ params. Then clean. Then do lift, same process.*)
 Find ornament handwritten_input generated_input. (* TODO can omit once lift works *)
-Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.
+(*Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.*)
+
+Definition generated_input_param_test (T : Type) := (prod T (prod nat bool)).
+
+Record handwritten_input_param_test (T : Type) := MkInputT
+{
+  firstT  : T;
+  numberIT    : nat;
+  secondBoolT : bool;
+}.
+
+Scheme Induction for handwritten_input_param_test Sort Set.
+Scheme Induction for handwritten_input_param_test Sort Prop.
+Scheme Induction for handwritten_input_param_test Sort Type.
+
+(* The most basic test: When this works, should just give us fst *)
+(* TODO set options to prove equiv: Set DEVOID search prove equivalence. Then get working. Then try w/ params. Then clean. Then do lift, same process.*)
+Find ornament handwritten_input_param_test generated_input_param_test. (* TODO can omit once lift works *)
+(*Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.*)
+
 
 Lemma firstBool_spec (g : generated_input) :
   generated_firstBool g = firstBool (g2h_input g).

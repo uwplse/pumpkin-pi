@@ -539,18 +539,27 @@ let search_algebraic env sigma npm indexer_n a b =
 
 (*
  * TODO comment, clean
+ * TODO break into two files above top-level search function:
+ * algebraic and curry
+ *)
+
+(*
  * TODO appropriate error message for indices, which shouldn't exist
  * TODO check/fix w/ params that are used
+ * TODO get proof generation working
+ * TODO then lifting
  *)
 let search_curry_record env_pms sigma a b =
   let sigma, promote =
     let npm = nb_rel env_pms in
     let elim = type_eliminator env_pms a in
+    let pms = mk_n_rels npm in
+    let a = mkAppl (mkInd a, pms) in
     let sigma, (_, elim_typ) = on_type (fun env sigma t -> sigma, zoom_n_prod env npm t) (Global.env ()) sigma elim in
     let (p_n, _, elim_body) = destProd elim_typ in
-    let p = mkLambda (Anonymous, mkInd a, shift b) in (* TODO can't handle params yet *)
+    let p = mkLambda (Anonymous, a, shift b) in
     let env_p = push_local (p_n, p) env_pms in
-    let env_arg = push_local (Anonymous, mkInd a) env_pms in
+    let env_arg = push_local (Anonymous, a) env_pms in
     let (_, c_typ, _) = destProd elim_body in
     let env_c, _ = zoom_product_type env_p c_typ in
     let rec make_c n sigma =

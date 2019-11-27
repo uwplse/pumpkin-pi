@@ -123,20 +123,19 @@ let find_ornament n_o d_old d_new =
      Feedback.msg_notice (str (Printf.sprintf "Defined indexing function %s." (Id.to_string idx_n)))
    else
      ());
-    let promote = define_term n sigma orn.promote true in
-    Feedback.msg_notice (str (Printf.sprintf "Defined promotion %s." (Id.to_string n)));
-    let inv_n = with_suffix n "inv" in
-    let forget = define_term inv_n sigma orn.forget true in
-    Feedback.msg_notice (str (Printf.sprintf "Defined forgetful function %s." (Id.to_string inv_n)));
-    maybe_prove_coherence n inv_n idx_n;
-    maybe_prove_equivalence n inv_n;
-    (try
-       let trm_o = if isInd trm_o then trm_o else def_o in
-       let trm_n = if isInd trm_n then trm_n else def_n in
-       save_ornament (trm_o, trm_n) (promote, forget)
-     with _ ->
-       Feedback.msg_warning (str "Failed to cache ornamental promotion."))
-
+  let promote = define_term n sigma orn.promote true in
+  Feedback.msg_notice (str (Printf.sprintf "Defined promotion %s." (Id.to_string n)));
+  let inv_n = with_suffix n "inv" in
+  let forget = define_term inv_n sigma orn.forget true in
+  Feedback.msg_notice (str (Printf.sprintf "Defined forgetful function %s." (Id.to_string inv_n)));
+  maybe_prove_coherence n inv_n idx_n;
+  maybe_prove_equivalence n inv_n;
+  (try
+     let trm_o = if isInd trm_o then trm_o else def_o in
+     let trm_n = if isInd trm_n then trm_n else def_n in
+     save_ornament (trm_o, trm_n) (promote, forget)
+   with _ ->
+     Feedback.msg_warning (str "Failed to cache ornamental promotion."))  
 
 (*
  * Lift a definition according to a lifting configuration, defining the lifted
