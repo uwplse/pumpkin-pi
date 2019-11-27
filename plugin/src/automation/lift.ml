@@ -48,8 +48,8 @@ type lift_config =
 
 (* --- Index/deindex functions --- *)
 
-let index l = insert_index l.off
-let deindex l = remove_index l.off
+let index l = insert_index (Option.get l.off)
+let deindex l = remove_index (Option.get l.off)
 
 (* --- Recovering types from ornaments --- *)
 
@@ -175,7 +175,7 @@ let is_eliminator c env trm =
 let pack_to_typ env sigma c unpacked =
   let (_, b_typ) = c.typs in
   if on_red_type_default (ignore_env (is_or_applies b_typ)) env sigma unpacked then
-    pack env c.l.off unpacked sigma
+    pack env (Option.get c.l.off) unpacked sigma
   else
     sigma, unpacked
 
@@ -203,7 +203,7 @@ let initialize_constr_rule c env constr sigma =
   let sigma, constr_exp = expand_eta env sigma constr in
   let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
   let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
-  let sigma, to_refold = map_backward (fun (sigma, t) -> pack env_c_b c.l.off t sigma) c.l (sigma, c_body) in
+  let sigma, to_refold = map_backward (fun (sigma, t) -> pack env_c_b (Option.get c.l.off) t sigma) c.l (sigma, c_body) in
   let sigma, refolded = lift_constr env_c_b sigma c to_refold in
   sigma, reconstruct_lambda_n env_c_b refolded (nb_rel env)
 
@@ -245,10 +245,10 @@ let initialize_lift_config env sigma l typs =
  *)
 let lift_elim_args env sigma l npms args =
   let arg = map_backward last_arg l (last args) in
-  let sigma, typ_args = non_index_typ_args l.off env sigma arg in
+  let sigma, typ_args = non_index_typ_args (Option.get l.off) env sigma arg in
   let lifted_arg = mkAppl (lift_to l, snoc arg typ_args) in
   let value_off = List.length args - 1 in
-  let l = { l with off = l.off - npms } in (* we no longer have parameters *)
+  let l = { l with off = Some (Option.get l.off - npms) } in (* we no longer have parameters *)
   if l.is_fwd then
     (* project and index *)
     let b_sig = lifted_arg in
@@ -273,7 +273,7 @@ let lift_motive env sigma l npms parameterized_elim p =
   let args = mk_n_rels nargs in
   let sigma, lifted_arg = pack_lift env_p_to (flip_dir l) (last args) sigma in
   let value_off = nargs - 1 in
-  let l = { l with off = l.off - npms } in (* no parameters here *)
+  let l = { l with off = Some (Option.get l.off - npms) } in (* no parameters here *)
   if l.is_fwd then
     (* forget packed b to a, don't project, and deindex *)
     let a = lifted_arg in
@@ -312,7 +312,7 @@ let promote_case_args env sigma c args =
            let sigma, a = pack_lift env (flip_dir c.l) n sigma in
            Util.on_snd
              (fun tl -> a :: tl)
-             (lift_args sigma tl (get_arg c.l.off t))
+             (lift_args sigma tl (get_arg (Option.get c.l.off) t))
          else
            (* ARG *)
            Util.on_snd (fun tl -> n :: tl) (lift_args sigma tl i_b)
@@ -346,7 +346,7 @@ let forget_case_args env_c_b env sigma c args =
            let proj_i_b = project_index b_sig_typ b_sig in
            Util.on_snd
              (fun tl -> proj_b :: tl)
-             (lift_args sigma tl (get_arg c.l.off t, proj_i_b))
+             (lift_args sigma tl (get_arg (Option.get c.l.off) t, proj_i_b))
          else
            (* ARG *)
            Util.on_snd
@@ -517,7 +517,7 @@ let lift_core env sigma c ib_typ trm =
                 let b_sig = last_arg tr in
                 let sigma, a = lift_rec en sigma ib_typ b_sig in
                 if equal projT1 (first_fun tr) then
-                  let sigma, args = non_index_typ_args l.off en sigma b_sig in
+                  let sigma, args = non_index_typ_args (Option.get l.off) en sigma b_sig in
                   (sigma, mkAppl (Option.get l.orn.indexer, snoc a args)), false
                 else
                   (sigma, a), false

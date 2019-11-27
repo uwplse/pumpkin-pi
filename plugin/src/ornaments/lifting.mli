@@ -21,15 +21,15 @@ type promotion =
 
 (*
  * A lifting is an ornamental promotion between types, a direction,
- * and the offset of the index. This is a convenience configuration for
- * lifting functions and proofs, which wraps the promotion with extra
- * useful information.
+ * and the offset of the index if applicable. This is a convenience 
+ * configuration for lifting functions and proofs, which wraps the promotion
+ * with extra useful information.
  *)
 type lifting =
   {
     orn : promotion;
     is_fwd : bool;
-    off : int;
+    off : int option;
   }
 
 (* --- Initialization --- *)
@@ -40,8 +40,9 @@ type lifting =
  * 2) an evar_map
  * 3) promote if promoting, or forget if forgetting
  * 4) forget if promoting, or promote if forgetting
+ * 5) boolean for marking algebraic ornaments vs. curry record (TODO move to change config)
  *)
-val initialize_lifting : env -> evar_map -> types -> types -> lifting
+val initialize_lifting : env -> evar_map -> types -> types -> bool -> lifting
 
 (* --- Control structures --- *)
     

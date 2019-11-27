@@ -541,6 +541,8 @@ let search_algebraic env sigma npm indexer_n a b =
  * TODO comment, clean
  * TODO break into two files above top-level search function:
  * algebraic and curry
+ * TODO better error messages for failure cases, e.g. when don't match order or when number of
+ * fields doesn't match or only one field
  *)
 
 (*
@@ -549,12 +551,12 @@ let search_algebraic env sigma npm indexer_n a b =
  * TODO get proof generation working
  * TODO then lifting
  *)
-let search_curry_record env_pms sigma a b =
+let search_curry_record env_pms sigma a_ind b =
+  let npm = nb_rel env_pms in
+  let pms = mk_n_rels npm in
+  let a = mkAppl (mkInd a_ind, pms) in
   let sigma, promote =
-    let npm = nb_rel env_pms in
-    let elim = type_eliminator env_pms a in
-    let pms = mk_n_rels npm in
-    let a = mkAppl (mkInd a, pms) in
+    let elim = type_eliminator env_pms a_ind in
     let sigma, (_, elim_typ) = on_type (fun env sigma t -> sigma, zoom_n_prod env npm t) (Global.env ()) sigma elim in
     let (p_n, _, elim_body) = destProd elim_typ in
     let p = mkLambda (Anonymous, a, shift b) in
@@ -579,7 +581,7 @@ let search_curry_record env_pms sigma a b =
       apply_eliminator
         {
           elim = elim;
-          pms = shift_all (mk_n_rels npm);
+          pms = shift_all pms;
           p = shift p;
           cs = cs;
           final_args = mk_n_rels 1;
@@ -587,10 +589,8 @@ let search_curry_record env_pms sigma a b =
     in sigma, reconstruct_lambda env_arg app
   in
   let sigma, forget =
-    let npm = nb_rel env_pms in
     let env_arg = push_local (Anonymous, b) env_pms in
-    let pms = shift_all (mk_n_rels npm) in
-    let c = mkAppl (mkConstruct (a, 1), pms) in
+    let c = mkAppl (mkConstruct (a_ind, 1), shift_all pms) in
     let rec make_args n arg sigma =
       let open Produtils in
       let sigma, arg_typ = infer_type env_arg sigma arg in

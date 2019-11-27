@@ -36,7 +36,7 @@ type lifting =
   {
     orn : promotion;
     is_fwd : bool;
-    off : int;
+    off : int option;
   }
 
 (* --- Control structures --- *)
@@ -69,6 +69,7 @@ let rec ind_of_promotion_type (typ : types) : types * types =
   | _ ->
      failwith "not an ornamental promotion/forgetful function type"
 
+(* TODO rename before merging, now *)
 let ind_of_promotion env sigma trm =
   on_red_type_default (ignore_env ind_of_promotion_type) env sigma trm
 
@@ -78,8 +79,10 @@ let ind_of_promotion env sigma trm =
  * Determine if the direction is forwards or backwards
  * That is, if trm is a promotion or a forgetful function
  * True if forwards, false if backwards
+ *
+ * TODO move is_alg to a config somewhere
  *)
-let direction (env : env) (sigma : evar_map) (trm : types) : bool =
+let direction (env : env) (sigma : evar_map) (trm : types) is_alg : bool =
   let rec wrapped (from_ind, to_ind) =
     if not (applies sigT from_ind) then
       true
@@ -89,7 +92,14 @@ let direction (env : env) (sigma : evar_map) (trm : types) : bool =
       else
         let (from_args, to_args) = map_tuple unfold_args (from_ind, to_ind) in
         wrapped (map_tuple last (from_args, to_args))
-  in wrapped (ind_of_promotion env sigma trm)
+  in
+  let (from_typ, to_typ) = ind_of_promotion env sigma trm in
+  if is_alg then
+    (* algebraic ornament *)
+    wrapped (from_typ, to_typ)
+  else
+    (* curry record *)
+    not (equal Produtils.prod (first_fun from_typ))
 
 (* --- Initialization --- *)
 
@@ -108,15 +118,19 @@ let initialize_promotion env sigma promote forget =
   let to_ind = snd (ind_of_promotion env sigma promote_unpacked) in
   let to_args = unfold_args to_ind in
   let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
-  let (off, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
-  let indexer = Some (first_fun index) in
-  (off, { indexer; promote; forget } )
+  let off, indexer =
+    try
+      let (off, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
+      Some off, Some (first_fun index)
+    with _ ->
+      None, None
+  in (off, { indexer; promote; forget } )
 
 (*
  * Initialize a lifting
  *)
-let initialize_lifting env sigma c_orn c_orn_inv =
-  let is_fwd = direction env sigma c_orn in
+let initialize_lifting env sigma c_orn c_orn_inv is_alg =
+  let is_fwd = direction env sigma c_orn is_alg in
   let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
   let (off, orn) = initialize_promotion env sigma promote forget in
   { orn ; is_fwd ; off }
