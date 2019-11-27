@@ -100,13 +100,13 @@ Qed.
 Find ornament handwritten_input generated_input. (* TODO can omit once lift works *)
 (*Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.*)
 
-Definition generated_input_param_test (T : Type) := (prod T (prod nat bool)).
+Definition generated_input_param_test (T1 T2 T3 : Type) := (prod T1 (prod T2 T3)).
 
-Record handwritten_input_param_test (T : Type) := MkInputT
+Record handwritten_input_param_test (T1 T2 T3 : Type) := MkInputT
 {
-  firstT  : T;
-  numberIT    : nat;
-  secondBoolT : bool;
+  firstT  : T1;
+  secondT    : T2;
+  thirdT : T3;
 }.
 
 Scheme Induction for handwritten_input_param_test Sort Set.
@@ -117,7 +117,6 @@ Scheme Induction for handwritten_input_param_test Sort Type.
 (* TODO set options to prove equiv: Set DEVOID search prove equivalence. Then get working. Then try w/ params. Then clean. Then do lift, same process.*)
 Find ornament handwritten_input_param_test generated_input_param_test. (* TODO can omit once lift works *)
 (*Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.*)
-
 
 Lemma firstBool_spec (g : generated_input) :
   generated_firstBool g = firstBool (g2h_input g).
