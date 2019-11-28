@@ -118,20 +118,6 @@ Scheme Induction for handwritten_input_param_test Sort Type.
 Find ornament handwritten_input_param_test generated_input_param_test. (* TODO can omit once lift works *)
 (*Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.*)
 
-(*
-fun (T1 T2 T3 : Type) (h : handwritten_input_param_test T1 T2 T3) =>
-  handwritten_input_param_test_rect 
-   T1
-   T2
-   T3
-   (fun (h : handwritten_input_param_test T1 T2 T3) =>
-     @eq 
-      (handwritten_input_param_test T1 T2 T3) 
-      (handwritten_input_param_test_curry_inv T1 T2 T3 (handwritten_input_param_test_curry T1 T2 T3 h)) 
-      h) 
-   (fun (T1 T2 T3 : Type) (firstT : (T1 [Rel 3])) . (λ (secondT : (T2 [Rel 3])) . (λ (thirdT : (T3 [Rel 3])) . (eq_refl (handwritten_input_param_test (T1 [Rel 6]) (T2 [Rel 5]) (T3 [Rel 4])) (MkInputT (T1 [Rel 6]) (T2 [Rel 5]) (T3 [Rel 4]) (firstT [Rel 3]) (secondT [Rel 2]) (thirdT [Rel 1]))))))))) (_ [Rel 1]))))))
-*)
-
 (* TODO test: failure cases, dependent parameters, eta expanded or not expanded variations, 2 fields, 4 fields, taking prod directly, etc *)
 (* TODO check test results *)
 (* TODO integrate into below *)

@@ -300,18 +300,14 @@ let equiv_proof_curry_record env sigma l =
           cs;
           final_args = [mkRel 1];
         }
-    in
-    let equiv = reconstruct_lambda env_to eq_proof in
-    let open Printing in
-    debug_term env equiv "section";
-    equiv
+    in reconstruct_lambda env_to eq_proof
   else
     let open Produtils in
     let to_elim = dest_prod typ_app in
-    let at_type = shift_by 2 typ_app in
+    let at_type = shift typ_app in
     let trm2 = mkRel 1 in
-    let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm2 (shift_all pms))) (shift_all pms)) in
-    let p = mkLambda (Anonymous, shift typ_app, apply_eq { at_type; trm1; trm2 }) in
+    let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm2 (shift_all_by 2 pms))) (shift_all_by 2 pms)) in
+    let p = mkLambda (Anonymous, typ_app, apply_eq { at_type; trm1; trm2 }) in
     let rec build_proof pms at_type to_elim arg =
       let typ1 = to_elim.typ1 in
       let typ2 = to_elim.typ2 in
@@ -322,11 +318,12 @@ let equiv_proof_curry_record env sigma l =
       let at_type = shift_by 2 at_type in
       let trm1 = mkRel 2 in
       let trm2 = mkRel 1 in
-      let arg_sub = apply_pair { typ1; typ2; trm1; trm2 } in
-      let arg = all_eq_substs (mkRel 2, arg_sub) arg in 
       if equal prod (first_fun typ2) then
+        (* TODO clean/unify arg/arg_sub logic ... *)
+        let arg_sub = apply_pair { typ1 = shift typ1; typ2 = shift typ2; trm1; trm2 } in
+        let arg = all_eq_substs (mkRel 2, arg_sub) arg in 
         let trm2 = all_eq_substs (mkRel 2, mkRel 3) arg in (* TODO why? *)
-        let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm2 pms)) pms) in
+        let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm2 (shift_all_by 2 pms))) (shift_all_by 2 pms)) in
         let p = mkLambda (Anonymous, typ2, apply_eq { at_type; trm1; trm2 }) in
         let to_elim = dest_prod typ2 in
         (* TODO shift before rec? clean etc... make all offsets very clear... *)
@@ -334,6 +331,8 @@ let equiv_proof_curry_record env sigma l =
         let arg = mkRel 1 in
         reconstruct_lambda env_proof (elim_prod { to_elim; p; proof; arg })
       else
+        let arg_sub = apply_pair { typ1; typ2; trm1; trm2 } in
+        let arg = all_eq_substs (mkRel 2, arg_sub) arg in 
         let trm = arg in
         let arg_pair = dest_pair arg in
         let typ1 = arg_pair.typ1 in
@@ -341,13 +340,10 @@ let equiv_proof_curry_record env sigma l =
         let typ = apply_prod { typ1; typ2 } in
         reconstruct_lambda env_proof (apply_eq_refl { typ; trm })
     in
-    let proof = build_proof (shift_all pms) at_type to_elim (mkRel 2) in
+    let proof = build_proof (shift_all_by 2 pms) at_type to_elim (mkRel 2) in
     let arg = mkRel 1 in
     let equiv_b = elim_prod { to_elim; p; proof; arg } in
-    let equiv = reconstruct_lambda env_to equiv_b in
-    let open Printing in
-    debug_term env equiv "retraction";
-    equiv
+    reconstruct_lambda env_to equiv_b
                         
 (*
  * Prove section/retraction
