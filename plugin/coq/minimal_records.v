@@ -21,6 +21,10 @@ Record handwritten_output := MkOutput
   andBools : bool;
 }.
 
+Scheme Induction for handwritten_output Sort Set.
+Scheme Induction for handwritten_output Sort Prop.
+Scheme Induction for handwritten_output Sort Type.
+
 Definition generated_firstBool (r : (prod bool (prod nat bool))) : bool :=
   (fst r).
 
@@ -97,8 +101,26 @@ Qed.
 
 (* The most basic test: When this works, should just give us fst *)
 Set DEVOID search prove equivalence.
-Find ornament handwritten_input generated_input. (* TODO can omit once lift works *)
+Find ornament handwritten_input generated_input.
+Find ornament handwritten_output generated_output.
+ (* TODO can omit once lift works *)
 (*Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.*)
+
+Record handwritten_input_4 := MkInput4
+{
+  field1  : bool;
+  field2    : nat;
+  field3 : bool;
+  field4 : nat; 
+}.
+
+Definition generated_input_4 := (prod bool (prod nat (prod bool nat))).
+
+Scheme Induction for handwritten_input_4 Sort Set.
+Scheme Induction for handwritten_input_4 Sort Prop.
+Scheme Induction for handwritten_input_4 Sort Type.
+
+Find ornament handwritten_input_4 generated_input_4.
 
 Definition generated_input_param_test (T1 T2 T3 : Type) := (prod T1 (prod T2 T3)).
 
