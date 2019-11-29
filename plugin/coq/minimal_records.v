@@ -103,8 +103,7 @@ Qed.
 Set DEVOID search prove equivalence.
 Find ornament handwritten_input generated_input.
 Find ornament handwritten_output generated_output.
- (* TODO can omit once lift works *)
-(*Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.*)
+Lift handwritten_input generated_input in firstBool as lifted_firstBool.
 
 Record handwritten_input_4 := MkInput4
 {

@@ -12,6 +12,11 @@ open Typehofs
 open Zooming
 open Envutils
 open Hofimpls
+open Caching
+open Universes
+open Names
+open Funutils
+open Inference
 
 (* --- Datatypes --- *)
 
@@ -69,7 +74,9 @@ let rec ind_of_promotion_type (typ : types) : types * types =
   | _ ->
      failwith "not an ornamental promotion/forgetful function type"
 
-(* TODO rename before merging, now *)
+(* 
+ * TODO rename before merging, now
+ *)
 let ind_of_promotion env sigma trm =
   on_red_type_default (ignore_env ind_of_promotion_type) env sigma trm
 
@@ -82,7 +89,28 @@ let ind_of_promotion env sigma trm =
  *
  * TODO move is_alg to a config somewhere
  *)
-let direction (env : env) (sigma : evar_map) (trm : types) is_alg : bool =
+let direction_cached env sigma from_typ to_typ is_alg : bool =
+  if is_alg then
+    (* algebraic ornament *)
+    let ((i_o, ii_o), _) = destInd from_typ in
+    let ((i_n, ii_n), _) = destInd to_typ in
+    let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
+    let arity_o = arity (type_of_inductive env ii_o m_o) in
+    let arity_n = arity (type_of_inductive env ii_n m_n) in
+    arity_n > arity_o
+  else
+    (* curry record *)
+    not (equal Produtils.prod (first_fun from_typ))
+
+(*
+ * Determine if the direction is forwards or backwards
+ * That is, if trm is a promotion or a forgetful function
+ * True if forwards, false if backwards
+ *
+ * TODO move is_alg to a config somewhere
+ * TODO redundant comment, code, etc.
+ *)
+let direction_user_supplied env sigma trm is_alg : bool =
   let rec wrapped (from_ind, to_ind) =
     if not (applies sigT from_ind) then
       true
@@ -93,14 +121,14 @@ let direction (env : env) (sigma : evar_map) (trm : types) is_alg : bool =
         let (from_args, to_args) = map_tuple unfold_args (from_ind, to_ind) in
         wrapped (map_tuple last (from_args, to_args))
   in
-  let (from_typ, to_typ) = ind_of_promotion env sigma trm in
+  let from_typ_app, to_typ_app = ind_of_promotion env sigma trm in
   if is_alg then
     (* algebraic ornament *)
-    wrapped (from_typ, to_typ)
+    wrapped (from_typ_app, to_typ_app)
   else
     (* curry record *)
-    not (equal Produtils.prod (first_fun from_typ))
-
+    not (equal Produtils.prod (first_fun from_typ_app))
+        
 (* --- Initialization --- *)
 
 (* 
@@ -129,9 +157,20 @@ let initialize_promotion env sigma promote forget =
 (*
  * Initialize a lifting
  *)
-let initialize_lifting env sigma c_orn c_orn_inv is_alg =
-  let is_fwd = direction env sigma c_orn is_alg in
-  let (promote, forget) = map_if reverse (not is_fwd) (c_orn, c_orn_inv) in
+let initialize_lifting env sigma o n is_alg =
+  let orn_not_supplied = isInd o || isInd n in
+  let is_fwd, (promote, forget) =
+    if orn_not_supplied then
+      (* Cached ornament *)
+      let is_fwd = direction_cached env sigma o n is_alg in
+      let orns = map_tuple constr_of_global (lookup_ornament (o, n)) in
+      is_fwd, orns
+    else
+      (* User-supplied ornament *)
+      let is_fwd = direction_user_supplied env sigma o is_alg in
+      let orns = map_if reverse (not is_fwd) (o, n) in
+      is_fwd, orns
+  in
   let (off, orn) = initialize_promotion env sigma promote forget in
   { orn ; is_fwd ; off }
                                 

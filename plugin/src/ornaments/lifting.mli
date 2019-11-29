@@ -38,8 +38,8 @@ type lifting =
  * Initialize a lifting, given (in order):
  * 1) an environment
  * 2) an evar_map
- * 3) promote if promoting, or forget if forgetting
- * 4) forget if promoting, or promote if forgetting
+ * 3) the old type or user-supplied ornament function
+ * 4) the new type or user-supplied ornament function
  * 5) boolean for marking algebraic ornaments vs. curry record (TODO move to change config)
  *)
 val initialize_lifting : env -> evar_map -> types -> types -> bool -> lifting

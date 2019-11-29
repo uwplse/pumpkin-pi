@@ -156,13 +156,15 @@ let orn_cache = OrnamentsCache.create 100
 (*
  * Wrapping the table for persistence
  *)
-type orn_obj = (KerName.t * KerName.t) * global_reference
+type orn_obj = (KerName.t * KerName.t) * (global_reference * global_reference)
 
-let cache_ornament (_, (typs, orn)) =
-  OrnamentsCache.add orn_cache typs orn
+let cache_ornament (_, (typs, orns)) =
+  OrnamentsCache.add orn_cache typs orns
 
-let sub_ornament (subst, (typs, orn)) =
-  (map_tuple (subst_kn subst) typs, subst_global_reference subst orn)
+let sub_ornament (subst, (typs, orns)) =
+  let typs = map_tuple (subst_kn subst) typs in
+  let orns = map_tuple (subst_global_reference subst) orns in
+  typs, orns
 
 let inOrns : orn_obj -> obj  =
   declare_object { (default_object "ORNAMENTS") with
@@ -174,6 +176,7 @@ let inOrns : orn_obj -> obj  =
 
 (*
  * Get the canonical name of the type for caching
+ * TODO move, see if in stdlib
  *)
 let canonical typ =
   match kind typ with
@@ -198,7 +201,7 @@ let has_ornament typs =
   try
     let canonicals = map_tuple canonical typs in
     let contains = OrnamentsCache.mem orn_cache in
-    contains canonicals && contains (reverse canonicals)
+    contains canonicals
   with _ ->
     false
 
@@ -206,21 +209,20 @@ let has_ornament typs =
  * Lookup an ornament
  *)
 let lookup_ornament typs =
+  let typs = if has_ornament typs then typs else reverse typs in
   if not (has_ornament typs) then
     CErrors.user_err (Pp.str "cannot find ornament; please supply ornamental promotion yourself")
   else
     let canonicals = map_tuple canonical typs in
     let lookup = OrnamentsCache.find orn_cache in
-    (lookup canonicals, lookup (reverse canonicals))
+    lookup canonicals
 
 (*
  * Add an ornament to the ornament cache
  *)
 let save_ornament typs (orn, orn_inv) =
   let canonicals = map_tuple canonical typs in
-  let orn_obj = inOrns (canonicals, orn) in
-  let orn_inv_obj = inOrns (canonicals, orn_inv) in
-  add_anonymous_leaf orn_obj;
-  add_anonymous_leaf orn_inv_obj
+  let orn_obj = inOrns (canonicals, (orn, orn_inv)) in
+  add_anonymous_leaf orn_obj
  
 

@@ -43,7 +43,7 @@ let maybe_prove_coherence n inv_n idx_n : unit =
     let coh, coh_typ = prove_coherence env sigma orn in
     let coh_n = with_suffix n "coh" in
     let _ = define_term ~typ:coh_typ coh_n sigma coh true in
-    Printf.printf "Defined coherence proof %s\n\n" (Id.to_string coh_n)
+    Feedback.msg_notice (Pp.str (Printf.sprintf "Defined coherence proof %s" (Id.to_string coh_n)))
   else
     ()
 
@@ -55,7 +55,7 @@ let maybe_prove_equivalence n inv_n is_alg : unit =
   let define_proof suffix ?(adjective=suffix) evd term =
     let ident = with_suffix n suffix in
     let const = define_term ident evd term true |> destConstRef in
-    Printf.printf "Defined %s proof %s\n\n" adjective (Id.to_string ident);
+    Feedback.msg_notice (Pp.str (Printf.sprintf "Defined %s proof %s" adjective (Id.to_string ident)));
     const
   in
   if is_search_equiv () then
@@ -149,7 +149,7 @@ let lift_definition_by_ornament env sigma n l c_old =
     let new_gref = ConstRef (Lib.make_kn n |> Constant.make1) in
     declare_lifted old_gref new_gref;
   with _ ->
-    Printf.printf "WARNING: Failed to cache lifting."
+    Feedback.msg_warning (Pp.str "Failed to cache lifting.")
 
 (*
  * Lift an inductive type according to a lifting configuration, defining the
@@ -161,7 +161,7 @@ let lift_inductive_by_ornament env sigma n s l c_old =
   let ind' = do_lift_ind env sigma n s l ind in
   let env' = Global.env () in
   Feedback.msg_notice (str "Defined lifted inductive type " ++ pr_inductive env' ind')
-
+                      
 (*
  * Lift the supplied definition or inductive type along the supplied ornament
  * Define the lifted version
@@ -173,23 +173,27 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
   let sigma, c_old = intern env sigma d_old in
   let n_new = if suffix then suffix_term_name c_old n else n in
   let s = if suffix then Id.to_string n else "_" ^ Id.to_string n in
-  let us = map_tuple (unwrap_definition env) (c_orn, c_orn_inv) in
-  let are_inds = isInd (fst us) && isInd (snd us) in
-  let lookup os = map_tuple Universes.constr_of_global (lookup_ornament os) in
-  let ((c_from, c_to), refresh) =
-    if are_inds then
-      try
-        lookup us, false
-      with _ ->
-        (* Search for ornament if the user never ran Find Ornament *)
-        Feedback.msg_notice (str "Searching for ornament first");
-        find_ornament None d_orn d_orn_inv;
-        lookup us, true
+  let u_o, u_n = map_tuple (unwrap_definition env) (c_orn, c_orn_inv) in
+  let orn_not_supplied = isInd u_o || isInd u_n in
+  let (o, n) = (* TODO explain/move... deals with different args & curry vs. normal & caching *)
+    (* TODO def logic won't always be good here, really want to delta until _almost_ the end but then stop, for curry thtat is *)
+    if orn_not_supplied then
+      let u_o = if isInd u_o then u_o else c_orn in
+      let u_n = if isInd u_n then u_n else c_orn_inv in
+      u_o, u_n
     else
-      (c_orn, c_orn_inv), false
+      c_orn, c_orn_inv
   in
-  let sigma, env = if refresh then refresh_env () else sigma, env in
-  let l = initialize_lifting env sigma c_from c_to true in (* TODO handle curry *)
+  let sigma, env =
+    if orn_not_supplied && not (has_ornament (o, n)) then
+      (* Search for ornament if the user never ran Find ornament *)
+      let _ = Feedback.msg_notice (str "Searching for ornament first") in
+      let _ = find_ornament None d_orn d_orn_inv in
+      refresh_env ()
+    else
+      sigma, env
+  in
+  let l = initialize_lifting env sigma o n true in (* TODO handle curry *)
   let u_old = unwrap_definition env c_old in
   if isInd u_old then
     let from_typ = fst (on_red_type_default (fun _ _ -> ind_of_promotion_type) env sigma l.orn.promote) in
