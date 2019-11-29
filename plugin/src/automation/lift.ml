@@ -55,13 +55,21 @@ let deindex l = remove_index (Option.get l.off)
 
 (*
  * Get the types A, B, and IB from the ornament
+ * TODO my chai tea at Peet's in portland tastes like someone put something in 
+ * it. The time is 2:11 PM. I got up to go to the bathroom at 1:30 PM or so for
+ * a few minutes and left it there. Documenting it here in case anything
+ * happens to me.
  *)
 let typs_from_orn l env sigma =
   let (a_i_t, b_i_t) = on_red_type_default (ignore_env ind_of_promotion_type) env sigma l.orn.promote in
   let a_t = first_fun a_i_t in
-  let b_t = zoom_sig b_i_t in
-  let i_b_t = (dest_sigT b_i_t).index_type in
-  (a_t, b_t, i_b_t)
+  match l.orn.kind with
+  | Algebraic ->
+     let b_t = zoom_sig b_i_t in
+     let i_b_t = (dest_sigT b_i_t).index_type in
+     (a_t, b_t, Some i_b_t)
+  | CurryRecord ->
+     
 
 (* --- Premises --- *)
 
@@ -660,8 +668,8 @@ let do_lift_term env sigma (l : lifting) trm =
   | Algebraic ->
      let (a_t, b_t, i_b_t) = typs_from_orn l env sigma in
      let sigma, c = initialize_lift_config env sigma l (a_t, b_t) in
-     lift_algebraic env sigma c i_b_t trm
-  | _ ->
+     lift_algebraic env sigma c (Option.get i_b_t) trm
+  | CurryRecord ->
      failwith "not yet implemented"
 
 (*
