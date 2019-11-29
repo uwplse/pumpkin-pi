@@ -43,7 +43,7 @@ let maybe_prove_coherence n inv_n idx_n : unit =
     let coh, coh_typ = prove_coherence env sigma orn in
     let coh_n = with_suffix n "coh" in
     let _ = define_term ~typ:coh_typ coh_n sigma coh true in
-    Printf.printf "Defined coherence proof %s\n\n" (Id.to_string coh_n)
+    Feedback.msg_notice (Pp.str (Printf.sprintf "Defined coherence proof %s" (Id.to_string coh_n)))
   else
     ()
 
@@ -55,7 +55,7 @@ let maybe_prove_equivalence n inv_n is_alg : unit =
   let define_proof suffix ?(adjective=suffix) evd term =
     let ident = with_suffix n suffix in
     let const = define_term ident evd term true |> destConstRef in
-    Printf.printf "Defined %s proof %s\n\n" adjective (Id.to_string ident);
+    Feedback.msg_notice (Pp.str (Printf.sprintf "Defined %s proof %s" adjective (Id.to_string ident)));
     const
   in
   if is_search_equiv () then
@@ -149,7 +149,7 @@ let lift_definition_by_ornament env sigma n l c_old =
     let new_gref = ConstRef (Lib.make_kn n |> Constant.make1) in
     declare_lifted old_gref new_gref;
   with _ ->
-    Printf.printf "WARNING: Failed to cache lifting."
+    Feedback.msg_warning (Pp.str "Failed to cache lifting.")
 
 (*
  * Lift an inductive type according to a lifting configuration, defining the
@@ -174,11 +174,22 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
   let n_new = if suffix then suffix_term_name c_old n else n in
   let s = if suffix then Id.to_string n else "_" ^ Id.to_string n in
   let us = map_tuple (unwrap_definition env) (c_orn, c_orn_inv) in
-  let are_inds = isInd (fst us) && isInd (snd us) in
   let lookup os = map_tuple Universes.constr_of_global (lookup_ornament os) in
   let ((c_from, c_to), refresh) =
-    if are_inds then
-      try
+    if isInd (fst us) && isInd (snd us) then
+      try (* TODO clean/refactor some of this *)
+        lookup us, false
+      with _ ->
+        (* Search for ornament if the user never ran Find Ornament *)
+        Feedback.msg_notice (str "Searching for ornament first");
+        find_ornament None d_orn d_orn_inv;
+        lookup us, true
+    else if isInd (fst us) || isInd (snd us) then
+      let u_o, u_n = us in (* TODO def logic won't always be good here, really want to delta until _almost_ the end but then stop *)
+      let u_o = if isInd u_o then u_o else c_orn in
+      let u_n = if isInd u_n then u_n else c_orn_inv in
+      let us = (u_o, u_n) in
+      try (* TODO clean/refactor some of this *)
         lookup us, false
       with _ ->
         (* Search for ornament if the user never ran Find Ornament *)

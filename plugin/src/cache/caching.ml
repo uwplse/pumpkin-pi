@@ -219,7 +219,7 @@ let lookup_ornament typs =
 let save_ornament typs (orn, orn_inv) =
   let canonicals = map_tuple canonical typs in
   let orn_obj = inOrns (canonicals, orn) in
-  let orn_inv_obj = inOrns (canonicals, orn_inv) in
+  let orn_inv_obj = inOrns (reverse canonicals, orn_inv) in
   add_anonymous_leaf orn_obj;
   add_anonymous_leaf orn_inv_obj
  
