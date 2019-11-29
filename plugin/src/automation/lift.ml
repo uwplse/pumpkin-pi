@@ -59,6 +59,8 @@ let deindex l = remove_index (Option.get l.off)
  * it. The time is 2:11 PM. I got up to go to the bathroom at 1:30 PM or so for
  * a few minutes and left it there. Documenting it here in case anything
  * happens to me.
+ *
+ * Also, please stop following me.
  *)
 let typs_from_orn l env sigma =
   let (a_i_t, b_i_t) = on_red_type_default (ignore_env ind_of_promotion_type) env sigma l.orn.promote in
@@ -69,7 +71,9 @@ let typs_from_orn l env sigma =
      let i_b_t = (dest_sigT b_i_t).index_type in
      (a_t, b_t, Some i_b_t)
   | CurryRecord ->
-     
+     let open Printing in
+     debug_term env b_i_t "b_i_t";
+     failwith "not yet implemented"
 
 (* --- Premises --- *)
 
@@ -664,11 +668,11 @@ let lift_algebraic env sigma c ib_typ trm =
  * Run the core lifting algorithm on a term
  *)
 let do_lift_term env sigma (l : lifting) trm =
+  let (a_t, b_t, i_b_t_o) = typs_from_orn l env sigma in
   match l.orn.kind with
   | Algebraic ->
-     let (a_t, b_t, i_b_t) = typs_from_orn l env sigma in
      let sigma, c = initialize_lift_config env sigma l (a_t, b_t) in
-     lift_algebraic env sigma c (Option.get i_b_t) trm
+     lift_algebraic env sigma c (Option.get i_b_t_o) trm
   | CurryRecord ->
      failwith "not yet implemented"
 
