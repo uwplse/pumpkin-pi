@@ -34,12 +34,12 @@ let refresh_env () : env state =
  * If the option is enabled, then prove coherence after find_ornament is called.
  * Otherwise, do nothing.
  *)
-let maybe_prove_coherence n inv_n idx_n : unit =
+let maybe_prove_coherence n inv_n idx_n kind : unit =
   if is_search_coh () && Option.has_some idx_n then
     let sigma, env = refresh_env () in
     let (promote, forget) = map_tuple make_constant (n, inv_n) in
     let indexer = Some (make_constant (Option.get idx_n)) in
-    let orn = { indexer; promote; forget } in
+    let orn = { indexer; promote; forget; kind } in
     let coh, coh_typ = prove_coherence env sigma orn in
     let coh_n = with_suffix n "coh" in
     let _ = define_term ~typ:coh_typ coh_n sigma coh true in
@@ -116,25 +116,25 @@ let find_ornament n_o d_old d_new =
         CErrors.user_err (str "Change not yet supported")
   in
   let sigma, orn = search_orn env sigma idx_n trm_o trm_n in
-  (if Option.has_some idx_n && Option.has_some orn.indexer then
-     let idx_n = Option.get idx_n in
-     let indexer = Option.get orn.indexer in
-     let _ = define_term idx_n sigma indexer true in
-     Feedback.msg_notice (str (Printf.sprintf "Defined indexing function %s." (Id.to_string idx_n)))
-   else
-     ());
+  (match orn.kind with
+   | Algebraic ->
+      let idx_n = Option.get idx_n in
+      let indexer = Option.get orn.indexer in
+      let _ = define_term idx_n sigma indexer true in
+      Feedback.msg_notice (str (Printf.sprintf "Defined indexing function %s." (Id.to_string idx_n)))
+   | _ ->
+      ());
   let promote = define_term n sigma orn.promote true in
   Feedback.msg_notice (str (Printf.sprintf "Defined promotion %s." (Id.to_string n)));
   let inv_n = with_suffix n "inv" in
   let forget = define_term inv_n sigma orn.forget true in
   Feedback.msg_notice (str (Printf.sprintf "Defined forgetful function %s." (Id.to_string inv_n)));
-  maybe_prove_coherence n inv_n idx_n;
+  maybe_prove_coherence n inv_n idx_n orn.kind;
   maybe_prove_equivalence n inv_n;
   (try
      let trm_o = if isInd trm_o then trm_o else def_o in
      let trm_n = if isInd trm_n then trm_n else def_n in
-     let k = if Option.has_some idx_n then Algebraic else CurryRecord in
-     save_ornament (trm_o, trm_n) (promote, forget, k)
+     save_ornament (trm_o, trm_n) (promote, forget, orn.kind)
    with _ ->
      Feedback.msg_warning (str "Failed to cache ornamental promotion."))  
 

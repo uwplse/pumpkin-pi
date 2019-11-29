@@ -150,73 +150,73 @@ then
   echo "Case study code took $caseelapsed seconds."
 else
   echo "ERROR: The following tests failed:"
-  if [ !$lifted = true ]
+  if [ $lifted = false ]
   then
     echo "lifting"
   else
     :
   fi
-  if [ !$findlift = true ]
+  if [ $findlift = false ]
   then
     echo "lifting with implicit Find Ornament"
   else
     :
   fi
-  if [ !$liftedind = true ]
+  if [ $liftedind = false ]
   then
     echo "lifting inductive predicates"
   else
     :
   fi
-  if [ !$records = true ]
+  if [ $records = false ]
   then
     echo "lifting records to products"
   else
     :
   fi
-  if [ !$liftedcase = true ]
+  if [ $liftedcase = false ]
   then
     echo "case study code"
   else
     :
   fi
-  if [ !$assumptions = true ]
+  if [ $assumptions = false ]
   then
     echo "Assumptions.v from ITP examples"
   else
     :
   fi
-  if [ !$intro = true ]
+  if [ $intro = false ]
   then
     echo "Intro.v from ITP examples"
   else
     :
   fi
-  if [ !$example = true ]
+  if [ $example = false ]
   then
     echo "Example.v from ITP examples"
   else
     :
   fi
-  if [ !$liftspec = true ]
+  if [ $liftspec = false ]
   then
     echo "LiftSpec.v from ITP examples"
   else
     :
   fi
-  if [ !$search = true ]
+  if [ $search = false ]
   then
     echo "Search.v from ITP examples"
   else
     :
   fi
-  if [ !$lift = true ]
+  if [ $lift = false ]
   then
     echo "Lift.v from ITP examples"
   else
     :
   fi
-  if [ !$listtovect = true ]
+  if [ $listtovect = false ]
   then
     echo "ListToVect.v from ITP examples"
   else

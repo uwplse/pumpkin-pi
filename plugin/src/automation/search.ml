@@ -30,6 +30,7 @@ open Reducers
 open Constutils
 open Stateutils
 open Apputils
+open Caching
 
 (* --- Error messages for the user --- *)
        
@@ -533,7 +534,7 @@ let search_algebraic env sigma npm indexer_n a b =
   let a = (a_typ, arity_a, el_a, el_a_typ) in
   let b = (b_typ, arity_b, el_b, el_b_typ) in
   let sigma, (promote, forget) = find_promote_forget env_pms idx indexer_n a b sigma in
-  sigma, { indexer; promote; forget }
+  sigma, { indexer; promote; forget; kind = Algebraic }
 
 (* --- Records and products --- *)
 
@@ -607,7 +608,7 @@ let search_curry_record env_pms sigma a_ind b =
     sigma, reconstruct_lambda env_arg app
   in
   let indexer = None in
-  sigma, { promote; forget; indexer }
+  sigma, { promote; forget; indexer; kind = CurryRecord }
 
 (* --- Top-level search --- *)
 

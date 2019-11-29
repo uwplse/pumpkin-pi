@@ -437,11 +437,11 @@ let repack env ib_typ lifted typ =
 (* --- Core algorithm --- *)
 
 (*
- * Core lifting algorithm.
+ * Core lifting algorithm for algebraic ornaments.
  * A few extra rules to deal with real Coq terms as opposed to CIC,
  * including caching.
  *)
-let lift_core env sigma c ib_typ trm =
+let lift_algebraic env sigma c ib_typ trm =
   let l = c.l in
   let (a_typ, b_typ) = c.typs in
   let sigma, a_typ_eta = expand_eta env sigma a_typ in
@@ -655,17 +655,21 @@ let lift_core env sigma c ib_typ trm =
 (*
  * Run the core lifting algorithm on a term
  *)
-let do_lift_term env evd (l : lifting) trm =
-  let (a_t, b_t, i_b_t) = typs_from_orn l env evd in
-  let evd, c = initialize_lift_config env evd l (a_t, b_t) in
-  lift_core env evd c i_b_t trm
+let do_lift_term env sigma (l : lifting) trm =
+  match l.orn.kind with
+  | Algebraic ->
+     let (a_t, b_t, i_b_t) = typs_from_orn l env sigma in
+     let sigma, c = initialize_lift_config env sigma l (a_t, b_t) in
+     lift_algebraic env sigma c i_b_t trm
+  | _ ->
+     failwith "not yet implemented"
 
 (*
  * Run the core lifting algorithm on a definition
  *)
-let do_lift_defn env evd (l : lifting) def =
+let do_lift_defn env sigma (l : lifting) def =
   let trm = unwrap_definition env def in
-  do_lift_term env evd l trm
+  do_lift_term env sigma l trm
 
 (************************************************************************)
 (*                           Inductive types                            *)

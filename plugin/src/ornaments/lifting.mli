@@ -5,6 +5,7 @@
 open Constr
 open Environ
 open Evd
+open Caching
 
 (* --- Datatypes --- *)
 
@@ -17,6 +18,7 @@ type promotion =
     indexer : types option;
     promote : types;
     forget : types;
+    kind : kind_of_orn;
   }
 
 (*

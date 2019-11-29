@@ -155,6 +155,7 @@ let orn_cache = OrnamentsCache.create 100
 
 (*
  * The kind of ornament that is stored
+ * TODO move this out since also used in lifting
  *)
 type kind_of_orn = Algebraic | CurryRecord
 

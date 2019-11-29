@@ -29,6 +29,7 @@ type promotion =
     indexer : types option;
     promote : types;
     forget : types;
+    kind : kind_of_orn;
   }
 
 (*
@@ -36,6 +37,9 @@ type promotion =
  * and the offset of the index. This is a convenience configuration for
  * lifting functions and proofs, which wraps the promotion with extra
  * useful information.
+ *
+ * TODO can consolidate off and indexer with kind, but a bit hard b.c. of
+ * caching
  *)
 type lifting =
   {
@@ -87,7 +91,7 @@ let ind_of_promotion env sigma trm =
  * That is, if trm is a promotion or a forgetful function
  * True if forwards, false if backwards
  *)
-let direction_cached env sigma from_typ to_typ k : bool =
+let direction_cached env from_typ to_typ k : bool =
   match k with
   | Algebraic ->
      let ((i_o, ii_o), _) = destInd from_typ in
@@ -100,20 +104,30 @@ let direction_cached env sigma from_typ to_typ k : bool =
      not (equal Produtils.prod (first_fun from_typ))
 
 (*
- * Determine if the direction is forwards or backwards
- * That is, if trm is a promotion or a forgetful function
- * True if forwards, false if backwards
+ * For an uncached ornament, get the kind
  *
  * TODO move is_alg to a config somewhere. Logic here is redundant
  * and also not exactly the same as other places that determine is_alg.
  * What we really want is to cache the user-supplied ornament, I think,
  * and then look it up. Or, remove support for passing orn directly,
  * and add a command to provide/cache your own (probably better) that replaces
- * whatever is last in the cache.
+ * whatever is last in the cache. And is_alg should be determined exactly
+ * once, maybe in differencing, like kind_of_change in PUMPKIN PATCH.
+ *)
+let get_kind_of_ornament (from_typ_app, to_typ_app) =
+  if applies sigT from_typ_app || applies sigT to_typ_app then
+    Algebraic
+  else
+    CurryRecord
+
+(*
+ * Determine if the direction is forwards or backwards
+ * That is, if trm is a promotion or a forgetful function
+ * True if forwards, false if backwards
  *
  * TODO redundant comment, code, etc.
  *)
-let direction_user_supplied env sigma trm : bool =
+let direction_user_supplied (from_typ_app, to_typ_app) k : bool =
   let rec wrapped (from_ind, to_ind) =
     if not (applies sigT from_ind) then
       true
@@ -124,14 +138,12 @@ let direction_user_supplied env sigma trm : bool =
         let (from_args, to_args) = map_tuple unfold_args (from_ind, to_ind) in
         wrapped (map_tuple last (from_args, to_args))
   in
-  let from_typ_app, to_typ_app = ind_of_promotion env sigma trm in
-  if applies sigT from_typ_app || applies sigT to_typ_app then
-    (* algebraic ornament *)
-    wrapped (from_typ_app, to_typ_app)
-  else
-    (* curry record *)
-    not (equal Produtils.prod (first_fun from_typ_app))
-        
+  match k with
+  | Algebraic ->
+     wrapped (from_typ_app, to_typ_app)
+  | _ ->
+     not (equal Produtils.prod (first_fun from_typ_app))
+
 (* --- Initialization --- *)
 
 (* 
@@ -144,38 +156,43 @@ let unpack_promotion env promotion =
 (*
  * Initialize a promotion
  *)
-let initialize_promotion env sigma promote forget =
-  let promote_unpacked = unpack_promotion env (unwrap_definition env promote) in
-  let to_ind = snd (ind_of_promotion env sigma promote_unpacked) in
-  let to_args = unfold_args to_ind in
-  let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
-  let off, indexer =
-    try
-      let (off, index) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
-      Some off, Some (first_fun index)
-    with _ ->
-      None, None
-  in (off, { indexer; promote; forget } )
+let initialize_promotion env sigma promote forget kind =
+    match kind with
+    | Algebraic ->
+       let promote_unpacked = unpack_promotion env (unwrap_definition env promote) in
+       let to_ind = snd (ind_of_promotion env sigma promote_unpacked) in
+       let to_args = unfold_args to_ind in
+       let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
+       let (o, i) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
+       let off = Some o in
+       let indexer = Some (first_fun i) in
+       (off, { indexer; promote; forget; kind })
+    | _ ->
+       let off = None in
+       let indexer = None in
+       (off, { indexer; promote; forget; kind } )
 
 (*
  * Initialize a lifting
  *)
 let initialize_lifting env sigma o n =
   let orn_not_supplied = isInd o || isInd n in
-  let is_fwd, (promote, forget) =
+  let is_fwd, (promote, forget), kind =
     if orn_not_supplied then
       (* Cached ornament *)
       let (orn_o, orn_n, k) = lookup_ornament (o, n) in
-      let is_fwd = direction_cached env sigma o n k in
+      let is_fwd = direction_cached env o n k in
       let orns = map_tuple constr_of_global (orn_o, orn_n) in
-      is_fwd, orns
+      is_fwd, orns, k
     else
       (* User-supplied ornament *)
-      let is_fwd = direction_user_supplied env sigma o in
+      let typ_apps = ind_of_promotion env sigma o in
+      let k = get_kind_of_ornament typ_apps in
+      let is_fwd = direction_user_supplied typ_apps k in
       let orns = map_if reverse (not is_fwd) (o, n) in
-      is_fwd, orns
+      is_fwd, orns, k
   in
-  let (off, orn) = initialize_promotion env sigma promote forget in
+  let (off, orn) = initialize_promotion env sigma promote forget kind in
   { orn ; is_fwd ; off }
                                 
 (* --- Directionality --- *)
