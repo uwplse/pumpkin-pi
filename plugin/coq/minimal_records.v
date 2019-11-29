@@ -102,6 +102,10 @@ Qed.
 (* The most basic test: When this works, should just give us fst *)
 Set DEVOID search prove equivalence.
 Find ornament handwritten_input generated_input.
+
+Print handwritten_input_curry.
+Print handwritten_input_curry_inv.
+
 Find ornament handwritten_output generated_output.
 Lift handwritten_input generated_input in firstBool as lifted_firstBool.
 

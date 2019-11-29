@@ -303,8 +303,10 @@ let equiv_proof_curry_record env sigma l =
     in reconstruct_lambda env_to eq_proof
   else
     let open Produtils in
-    let to_elim = dest_prod typ_app in
     let at_type = shift typ_app in
+    let typ_app = unwrap_definition env_to typ_app in
+    let sigma, typ_app = reduce_term env_to sigma typ_app in
+    let to_elim = dest_prod typ_app in
     let trm2 = mkRel 1 in
     let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm2 (shift_all_by 2 pms))) (shift_all_by 2 pms)) in
     let p = mkLambda (Anonymous, typ_app, apply_eq { at_type; trm1; trm2 }) in

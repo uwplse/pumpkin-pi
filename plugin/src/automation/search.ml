@@ -556,6 +556,7 @@ let search_curry_record env_pms sigma a_ind b =
   let npm = nb_rel env_pms in
   let pms = mk_n_rels npm in
   let a = mkAppl (mkInd a_ind, pms) in
+  let b = mkAppl (b, pms) in
   let sigma, promote =
     let elim = type_eliminator env_pms a_ind in
     let sigma, (_, elim_typ) = on_type (fun env sigma t -> sigma, zoom_n_prod env npm t) (Global.env ()) sigma elim in
@@ -595,6 +596,8 @@ let search_curry_record env_pms sigma a_ind b =
     let rec make_args n arg sigma =
       let open Produtils in
       let sigma, arg_typ = infer_type env_arg sigma arg in
+      let arg_typ = unwrap_definition env_arg arg_typ in
+      let sigma, arg_type = reduce_term env_arg sigma arg_typ in
       let prod_app = dest_prod arg_typ in
       if n = 2 then
         sigma, [prod_fst prod_app arg; prod_snd prod_app arg]
@@ -659,11 +662,12 @@ let search_orn_one_noninductive env sigma trm_o trm_n =
   let ((i, _), _) = destInd ind in
   let m = lookup_mind i env in
   check_inductive_supported m;
-  let sigma, non_ind = reduce_term env sigma non_ind in
-  let env, non_ind = zoom_lambda_term env non_ind in
-  match kind non_ind with
+  let non_ind_inner = unwrap_definition env non_ind in
+  let sigma, non_ind_inner = reduce_term env sigma non_ind_inner in
+  let env, non_ind_inner = zoom_lambda_term env non_ind_inner in
+  match kind non_ind_inner with
   | App _ ->
-     let f = unwrap_definition env (first_fun non_ind) in
+     let f = unwrap_definition env (first_fun non_ind_inner) in
      if equal f Produtils.prod then
        let npm = m.mind_nparams in
        let bs = m.mind_packets in

@@ -90,6 +90,8 @@ let find_ornament n_o d_old d_new =
   let sigma, def_n = intern env sigma d_new in
   let trm_o = unwrap_definition env def_o in
   let trm_n = unwrap_definition env def_n in
+  let trm_o = if isInd trm_o then trm_o else def_o in (* TODO explain *)
+  let trm_n = if isInd trm_n then trm_n else def_n in (* TODO explain *)
   let n, inv_n, idx_n =
     match map_tuple kind (trm_o, trm_n) with
     | Ind ((m_o, _), _), Ind ((m_n, _), _) ->
@@ -104,6 +106,7 @@ let find_ornament n_o d_old d_new =
        n, inv_n, Some idx_n
     |_ ->
       if isInd trm_o || isInd trm_n then
+        (* TODO imperfect logic on delta *)
         let ind, non_ind = if isInd trm_o then (trm_o, trm_n) else (trm_n, trm_o) in
         let ((m, _), _) = destInd ind in
         let (_, _, lab) = KerName.repr (MutInd.canonical m) in
