@@ -48,6 +48,11 @@ val cache_local : temporary_cache -> types -> types -> unit
 (* --- Database of ornaments --- *)
 
 (*
+ * The kind of ornament that is stored
+ *)
+type kind_of_orn = Algebraic | CurryRecord
+
+(*
  * Check if an ornament between two types exists
  *)
 val has_ornament : (types * types) -> bool
@@ -55,12 +60,14 @@ val has_ornament : (types * types) -> bool
 (*
  * Lookup an ornament between two types
  * Arguments: typ1, typ2
- * Order of return values: typ1_to_typ2, typ2_to_typ1
+ * Order of return values: typ1_to_typ2, typ2_to_typ1, kind of ornament
  *)
-val lookup_ornament : (types * types) -> (global_reference * global_reference)
+val lookup_ornament :
+  (types * types) -> (global_reference * global_reference * kind_of_orn)
 
 (*
  * Store an ornament between two types, given the function and its inverse
  * Order of arguments: typ1, typ2, typ1_to_typ2, typ2_to_typ1
  *)
-val save_ornament : (types * types) -> (global_reference * global_reference) -> unit
+val save_ornament :
+  (types * types) -> (global_reference * global_reference * kind_of_orn) -> unit

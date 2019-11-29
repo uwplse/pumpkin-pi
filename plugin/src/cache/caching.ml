@@ -154,24 +154,48 @@ module OrnamentsCache =
 let orn_cache = OrnamentsCache.create 100
 
 (*
+ * The kind of ornament that is stored
+ *)
+type kind_of_orn = Algebraic | CurryRecord
+
+(*
+ * The kind of ornament is saved as an int, so this interprets it
+ *)
+let int_to_kind (i : int) =
+  if i = 0 then
+    Algebraic
+  else if i = 1 then
+    CurryRecord
+  else
+    failwith "Unsupported kind of ornament passed to interpret_kind in caching"
+
+let kind_to_int (k : kind_of_orn) =
+  match k with
+  | Algebraic ->
+     0
+  | CurryRecord ->
+     1
+             
+(*
  * Wrapping the table for persistence
  *)
-type orn_obj = (KerName.t * KerName.t) * (global_reference * global_reference)
+type orn_obj =
+  (KerName.t * KerName.t) * (global_reference * global_reference * int)
 
-let cache_ornament (_, (typs, orns)) =
-  OrnamentsCache.add orn_cache typs orns
+let cache_ornament (_, (typs, orns_and_kind)) =
+  OrnamentsCache.add orn_cache typs orns_and_kind
 
-let sub_ornament (subst, (typs, orns)) =
+let sub_ornament (subst, (typs, (orn_o, orn_n, kind))) =
   let typs = map_tuple (subst_kn subst) typs in
-  let orns = map_tuple (subst_global_reference subst) orns in
-  typs, orns
+  let orn_o, orn_n = map_tuple (subst_global_reference subst) (orn_o, orn_n) in
+  typs, (orn_o, orn_n, kind)
 
-let inOrns : orn_obj -> obj  =
+let inOrns : orn_obj -> obj =
   declare_object { (default_object "ORNAMENTS") with
     cache_function = cache_ornament;
     load_function = (fun _ -> cache_ornament);
     open_function = (fun _ -> cache_ornament);
-    classify_function = (fun (typs, orn) -> Substitute (typs, orn));
+    classify_function = (fun orn_obj -> Substitute orn_obj);
     subst_function = sub_ornament }
 
 (*
@@ -215,14 +239,15 @@ let lookup_ornament typs =
   else
     let canonicals = map_tuple canonical typs in
     let lookup = OrnamentsCache.find orn_cache in
-    lookup canonicals
+    let (orn, orn_inv, i) = lookup canonicals in
+    (orn, orn_inv, int_to_kind i)
 
 (*
  * Add an ornament to the ornament cache
  *)
-let save_ornament typs (orn, orn_inv) =
+let save_ornament typs (orn, orn_inv, kind) =
   let canonicals = map_tuple canonical typs in
-  let orn_obj = inOrns (canonicals, (orn, orn_inv)) in
+  let orn_obj = inOrns (canonicals, (orn, orn_inv, kind_to_int kind)) in
   add_anonymous_leaf orn_obj
  
 

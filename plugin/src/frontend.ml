@@ -51,7 +51,7 @@ let maybe_prove_coherence n inv_n idx_n : unit =
  * If the option is enabled, then prove section, retraction, and adjunction after
  * find_ornament is called. Otherwise, do nothing.
  *)
-let maybe_prove_equivalence n inv_n is_alg : unit =
+let maybe_prove_equivalence n inv_n : unit =
   let define_proof suffix ?(adjective=suffix) evd term =
     let ident = with_suffix n suffix in
     let const = define_term ident evd term true |> destConstRef in
@@ -61,7 +61,7 @@ let maybe_prove_equivalence n inv_n is_alg : unit =
   if is_search_equiv () then
     let sigma, env = refresh_env () in
     let (promote, forget) = map_tuple make_constant (n, inv_n) in
-    let l = initialize_lifting env sigma promote forget is_alg in
+    let l = initialize_lifting env sigma promote forget in
     let (section, retraction) = prove_equivalence env sigma l in
     let sect = define_proof "section" sigma section in
     let retr0 = define_proof "retraction" sigma retraction in
@@ -129,11 +129,12 @@ let find_ornament n_o d_old d_new =
   let forget = define_term inv_n sigma orn.forget true in
   Feedback.msg_notice (str (Printf.sprintf "Defined forgetful function %s." (Id.to_string inv_n)));
   maybe_prove_coherence n inv_n idx_n;
-  maybe_prove_equivalence n inv_n (Option.has_some idx_n);
+  maybe_prove_equivalence n inv_n;
   (try
      let trm_o = if isInd trm_o then trm_o else def_o in
      let trm_n = if isInd trm_n then trm_n else def_n in
-     save_ornament (trm_o, trm_n) (promote, forget)
+     let k = if Option.has_some idx_n then Algebraic else CurryRecord in
+     save_ornament (trm_o, trm_n) (promote, forget, k)
    with _ ->
      Feedback.msg_warning (str "Failed to cache ornamental promotion."))  
 
@@ -193,7 +194,7 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
     else
       sigma, env
   in
-  let l = initialize_lifting env sigma o n true in (* TODO handle curry *)
+  let l = initialize_lifting env sigma o n in
   let u_old = unwrap_definition env c_old in
   if isInd u_old then
     let from_typ = fst (on_red_type_default (fun _ _ -> ind_of_promotion_type) env sigma l.orn.promote) in

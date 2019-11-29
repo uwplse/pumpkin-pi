@@ -86,31 +86,34 @@ let ind_of_promotion env sigma trm =
  * Determine if the direction is forwards or backwards
  * That is, if trm is a promotion or a forgetful function
  * True if forwards, false if backwards
- *
- * TODO move is_alg to a config somewhere
  *)
-let direction_cached env sigma from_typ to_typ is_alg : bool =
-  if is_alg then
-    (* algebraic ornament *)
-    let ((i_o, ii_o), _) = destInd from_typ in
-    let ((i_n, ii_n), _) = destInd to_typ in
-    let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
-    let arity_o = arity (type_of_inductive env ii_o m_o) in
-    let arity_n = arity (type_of_inductive env ii_n m_n) in
-    arity_n > arity_o
-  else
-    (* curry record *)
-    not (equal Produtils.prod (first_fun from_typ))
+let direction_cached env sigma from_typ to_typ k : bool =
+  match k with
+  | Algebraic ->
+     let ((i_o, ii_o), _) = destInd from_typ in
+     let ((i_n, ii_n), _) = destInd to_typ in
+     let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
+     let arity_o = arity (type_of_inductive env ii_o m_o) in
+     let arity_n = arity (type_of_inductive env ii_n m_n) in
+     arity_n > arity_o
+  | CurryRecord ->
+     not (equal Produtils.prod (first_fun from_typ))
 
 (*
  * Determine if the direction is forwards or backwards
  * That is, if trm is a promotion or a forgetful function
  * True if forwards, false if backwards
  *
- * TODO move is_alg to a config somewhere
+ * TODO move is_alg to a config somewhere. Logic here is redundant
+ * and also not exactly the same as other places that determine is_alg.
+ * What we really want is to cache the user-supplied ornament, I think,
+ * and then look it up. Or, remove support for passing orn directly,
+ * and add a command to provide/cache your own (probably better) that replaces
+ * whatever is last in the cache.
+ *
  * TODO redundant comment, code, etc.
  *)
-let direction_user_supplied env sigma trm is_alg : bool =
+let direction_user_supplied env sigma trm : bool =
   let rec wrapped (from_ind, to_ind) =
     if not (applies sigT from_ind) then
       true
@@ -122,7 +125,7 @@ let direction_user_supplied env sigma trm is_alg : bool =
         wrapped (map_tuple last (from_args, to_args))
   in
   let from_typ_app, to_typ_app = ind_of_promotion env sigma trm in
-  if is_alg then
+  if applies sigT from_typ_app || applies sigT to_typ_app then
     (* algebraic ornament *)
     wrapped (from_typ_app, to_typ_app)
   else
@@ -157,17 +160,18 @@ let initialize_promotion env sigma promote forget =
 (*
  * Initialize a lifting
  *)
-let initialize_lifting env sigma o n is_alg =
+let initialize_lifting env sigma o n =
   let orn_not_supplied = isInd o || isInd n in
   let is_fwd, (promote, forget) =
     if orn_not_supplied then
       (* Cached ornament *)
-      let is_fwd = direction_cached env sigma o n is_alg in
-      let orns = map_tuple constr_of_global (lookup_ornament (o, n)) in
+      let (orn_o, orn_n, k) = lookup_ornament (o, n) in
+      let is_fwd = direction_cached env sigma o n k in
+      let orns = map_tuple constr_of_global (orn_o, orn_n) in
       is_fwd, orns
     else
       (* User-supplied ornament *)
-      let is_fwd = direction_user_supplied env sigma o is_alg in
+      let is_fwd = direction_user_supplied env sigma o in
       let orns = map_if reverse (not is_fwd) (o, n) in
       is_fwd, orns
   in

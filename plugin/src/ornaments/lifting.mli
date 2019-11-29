@@ -40,9 +40,8 @@ type lifting =
  * 2) an evar_map
  * 3) the old type or user-supplied ornament function
  * 4) the new type or user-supplied ornament function
- * 5) boolean for marking algebraic ornaments vs. curry record (TODO move to change config)
  *)
-val initialize_lifting : env -> evar_map -> types -> types -> bool -> lifting
+val initialize_lifting : env -> evar_map -> types -> types -> lifting
 
 (* --- Control structures --- *)
     
