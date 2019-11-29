@@ -16,6 +16,7 @@ open Apputils
 open Sigmautils
 open Envutils
 open Stateutils
+open Caching
 
 (* --- Packing--- *)
 
@@ -35,8 +36,18 @@ let pack env off unpacked sigma =
  * Lift
  *)
 let lift env l trm sigma =
-  let sigma, typ_args = non_index_typ_args (Option.get l.off) env sigma trm in
-  sigma, mkAppl (lift_to l, snoc trm typ_args)
+  let sigma, typ_args =
+    match l.orn.kind with
+    | Algebraic ->
+       non_index_typ_args (Option.get l.off) env sigma trm
+    | CurryRecord ->
+       on_red_type
+         reduce_nf
+         (fun env sigma typ -> sigma, unfold_args typ)
+         env
+         sigma
+         trm
+  in sigma, mkAppl (lift_to l, snoc trm typ_args)
               
 (*
  * Pack arguments and lift

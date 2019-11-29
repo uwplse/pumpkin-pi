@@ -108,6 +108,9 @@ Print handwritten_input_curry_inv.
 
 Find ornament handwritten_output generated_output.
 Lift handwritten_input generated_input in firstBool as lifted_firstBool.
+Lift generated_input handwritten_input in lifted_firstBool as lifted_lifted_firstBool.
+
+(* TODO test equality *)
 
 Record handwritten_input_4 := MkInput4
 {
