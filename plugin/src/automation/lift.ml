@@ -91,9 +91,9 @@ let is_from c env sigma typ =
        else
          false
     | CurryRecord ->
+       (* TODO handle parameters! *)
        let b_typ_delta = unwrap_definition env b_typ in
-       let typ_args = unfold_args typ in
-       equal typ (reduce_stateless reduce_term env sigma (mkAppl (b_typ_delta, typ_args)))
+       equal typ b_typ_delta
 
 (* 
  * Determine whether a term has the type we are ornamenting from
@@ -108,26 +108,40 @@ let type_is_from c env sigma trm =
 
 (* Premises for LIFT-CONSTR *)
 let is_packed_constr c env sigma trm =
-  let right_type = type_is_from c env sigma in
+  let right_type trm sigma = type_is_from c env sigma trm in
   match kind trm with
   | Construct _  ->
-     right_type trm
+     right_type trm sigma
   | App (f, args) ->
      if c.l.is_fwd then
        if isConstruct f then
-         right_type trm
+         right_type trm sigma
        else
          sigma, false
      else
-       if equal existT f then
-         let sigma, is_right_type = right_type trm in
-         if is_right_type then
-           let last_arg = last (Array.to_list args) in
-           sigma, isApp last_arg && isConstruct (first_fun last_arg)
-         else
-           sigma, false
-       else
-         sigma, false
+       (match c.l.orn.kind with
+        | Algebraic ->
+           if equal existT f then
+             branch_state
+               right_type
+               (fun _ ->
+                 let last_arg = last (Array.to_list args) in
+                 ret (isApp last_arg && isConstruct (first_fun last_arg)))
+               (fun _ -> ret false)
+               trm
+               sigma
+           else
+             sigma, false
+        | CurryRecord ->
+           if equal Produtils.pair f then
+             branch_state
+               right_type
+               (fun _ -> ret true)
+               (fun _ -> ret false)
+               trm
+               sigma
+           else
+             sigma, false)
   | _ ->
      sigma, false
 
@@ -228,25 +242,51 @@ let initialize_constr_rule c env constr sigma =
   let sigma, constr_exp = expand_eta env sigma constr in
   let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
   let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
-  let sigma, to_refold = map_backward (fun (sigma, t) -> pack env_c_b (Option.get c.l.off) t sigma) c.l (sigma, c_body) in
-  let sigma, refolded = lift_constr env_c_b sigma c to_refold in
-  sigma, reconstruct_lambda_n env_c_b refolded (nb_rel env)
+  let sigma, to_lift =
+    if c.l.is_fwd then
+      sigma, c_body
+    else
+      match c.l.orn.kind with
+      | Algebraic ->
+         pack env_c_b (Option.get c.l.off) c_body sigma
+      | CurryRecord ->
+         sigma, c_body
+  in
+  let sigma, lifted =
+    match c.l.orn.kind with
+    | Algebraic ->
+       lift_constr env_c_b sigma c to_lift
+    | CurryRecord ->
+       if c.l.is_fwd then
+         lift_constr env_c_b sigma c to_lift
+       else
+         (* We searched backwards, so we just use that (TODO explain/clean) *)
+         sigma, to_lift
+  in sigma, reconstruct_lambda_n env_c_b lifted (nb_rel env)
 
 (*
  * Run NORMALIZE for all constructors, so we can cache the result
  *)
 let initialize_constr_rules env sigma c =
   let (a_typ, b_typ) = c.typs in
-  let ((i, i_index), u) = destInd (directional c.l a_typ b_typ) in
-  let mutind_body = lookup_mind i env in
-  let ind_bodies = mutind_body.mind_packets in
-  let ind_body = ind_bodies.(i_index) in
-  map_state_array
-    (initialize_constr_rule c env)
-    (Array.mapi
-       (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
-       ind_body.mind_consnames)
-    sigma
+  match c.l.orn.kind with
+  | Algebraic ->
+    let ((i, i_index), u) = destInd (directional c.l a_typ b_typ) in
+    let mutind_body = lookup_mind i env in
+    let ind_bodies = mutind_body.mind_packets in
+    let ind_body = ind_bodies.(i_index) in
+    map_state_array
+      (initialize_constr_rule c env)
+      (Array.mapi
+         (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
+         ind_body.mind_consnames)
+      sigma
+  | CurryRecord ->
+     let ((i, i_index), u) = destInd a_typ in
+     let constr = mkConstructU (((i, i_index), 1), u) in
+     let sigma, c_rule = initialize_constr_rule c env constr sigma in
+     sigma, Array.make 1 c_rule
+    
 
 (* Initialize the lift_config *)
 let initialize_lift_config env sigma l typs =
@@ -732,17 +772,33 @@ let lift_curry_record env sigma c trm =
           (* LIFT-CONSTR *)
           (* The extra logic here is an optimization *)
           (* It also deals with the fact that we are lazy about eta *)
-          let constr = first_fun tr in
-          let args = unfold_args tr in
-          let (((_, _), i), _) = destConstruct constr in
-          let lifted_constr = c.constr_rules.(i - 1) in
-          map_if
-            (fun ((sigma, tr'), _) ->
-              let (f', args') = destApp tr' in
-              let sigma, args'' = map_rec_args lift_rec en sigma () args' in
-              ((sigma, mkApp (f', args'')), false))
-            (List.length args > 0)
-            (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
+          if l.is_fwd then
+            let constr = first_fun tr in
+            let args = unfold_args tr in
+            let (((_, _), i), _) = destConstruct constr in
+            let lifted_constr = c.constr_rules.(i - 1) in
+            map_if
+              (fun ((sigma, tr'), _) ->
+                let (f', args') = destApp tr' in
+                let sigma, args'' = map_rec_args lift_rec en sigma () args' in
+                ((sigma, mkApp (f', args'')), false))
+              (List.length args > 0)
+              (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
+          else
+            let lifted_constr = c.constr_rules.(0) in
+            let open Produtils in
+            let p = dest_pair tr in
+            let rec build_args p =
+              let sigma, trm1 = lift_rec en sigma () p.trm1 in
+              if applies pair p.trm2 then
+                trm1 :: build_args (dest_pair p.trm2)
+              else
+                let sigma, trm2 = lift_rec en sigma () p.trm2 in
+                [trm1; trm2]
+            in
+            let args = build_args p in
+            (* TODO handle parameters! *)
+            ((sigma, mkAppl (lifted_constr, args)), false)
         else
           let sigma, run_lift_pack = is_packed c en sigma tr in
           if run_lift_pack then

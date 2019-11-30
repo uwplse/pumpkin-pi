@@ -101,7 +101,7 @@ let direction_cached env from_typ to_typ k : bool =
      let arity_n = arity (type_of_inductive env ii_n m_n) in
      arity_n > arity_o
   | CurryRecord ->
-     not (equal Produtils.prod (first_fun from_typ))
+     isInd from_typ
 
 (*
  * For an uncached ornament, get the kind
