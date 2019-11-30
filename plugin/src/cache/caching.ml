@@ -218,23 +218,32 @@ let canonical typ =
   | _ ->
      Feedback.msg_warning (Pp.str "Can't get canonical name for caching! Please report a bug!");
      failwith "bad call to canonical"
-                 
+
 (*
- * Check if an ornament is cached
+ * Precise version
  *)
-let has_ornament typs =
+let has_ornament_exact typs =
   try
     let canonicals = map_tuple canonical typs in
     let contains = OrnamentsCache.mem orn_cache in
     contains canonicals
   with _ ->
     false
+              
+(*
+ * Check if an ornament is cached
+ *)
+let has_ornament typs =
+  if has_ornament_exact typs then
+    true
+  else
+    has_ornament_exact (reverse typs)
 
 (*
  * Lookup an ornament
  *)
 let lookup_ornament typs =
-  let typs = if has_ornament typs then typs else reverse typs in
+  let typs = if has_ornament_exact typs then typs else reverse typs in
   if not (has_ornament typs) then
     CErrors.user_err (Pp.str "cannot find ornament; please supply ornamental promotion yourself")
   else

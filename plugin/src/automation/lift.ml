@@ -84,10 +84,16 @@ let is_from c env sigma typ =
   if c.l.is_fwd then
     is_or_applies a_typ typ
   else
-    if is_or_applies sigT typ then
-      equal b_typ (first_fun (dummy_index env sigma (dest_sigT typ).packer))
-    else
-      false
+    match c.l.orn.kind with
+    | Algebraic ->
+       if is_or_applies sigT typ then
+         equal b_typ (first_fun (dummy_index env sigma (dest_sigT typ).packer))
+       else
+         false
+    | CurryRecord ->
+       let b_typ_delta = unwrap_definition env b_typ in
+       let typ_args = unfold_args typ in
+       equal typ (reduce_stateless reduce_term env sigma (mkAppl (b_typ_delta, typ_args)))
 
 (* 
  * Determine whether a term has the type we are ornamenting from
@@ -150,16 +156,20 @@ let is_proj c env sigma trm =
   | App _ ->
      let f = first_fun trm in
      let args = unfold_args trm in
-     if c.l.is_fwd then
-       if equal (Option.get c.l.orn.indexer) f then
-         right_type (last args)
-       else
-         sigma, false
-     else
-       if (equal projT1 f || equal projT2 f) then
-         right_type (last args)
-       else
-         sigma, false
+     (match c.l.orn.kind with
+      | Algebraic ->
+         if c.l.is_fwd then
+           if equal (Option.get c.l.orn.indexer) f then
+             right_type (last args)
+           else
+             sigma, false
+         else
+           if (equal projT1 f || equal projT2 f) then
+             right_type (last args)
+           else
+             sigma, false
+      | CurryRecord ->
+         sigma, false (* TODO *))
   | _ ->
      sigma, false
 
@@ -689,6 +699,8 @@ let lift_algebraic env sigma c ib_typ trm =
  *
  * TODO consolidate common code, move CurryRecord and Algebraic into different
  * files or something
+ *
+ * TODO clean, also
  *)
 let lift_curry_record env sigma c trm =
   let l = c.l in
@@ -728,15 +740,7 @@ let lift_curry_record env sigma c trm =
             (fun ((sigma, tr'), _) ->
               let (f', args') = destApp tr' in
               let sigma, args'' = map_rec_args lift_rec en sigma () args' in
-              map_forward
-                (fun ((sigma, b), _) ->
-                  (* pack the lifted term *)
-                  let ex = dest_existT tr' in
-                  let sigma, n = lift_rec en sigma () ex.index in
-                  let sigma, packer = lift_rec en sigma () ex.packer in
-                  (sigma, pack_existT { ex with packer; index = n; unpacked = b }), false)
-                l
-                ((sigma, mkApp (f', args'')), false))
+              ((sigma, mkApp (f', args'')), false))
             (List.length args > 0)
             (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
         else
@@ -749,23 +753,7 @@ let lift_curry_record env sigma c trm =
               lift_rec en sigma () (dest_existT tr).unpacked, false
           else
             let sigma, run_coherence = is_proj c en sigma tr in
-            if run_coherence then
-              (* COHERENCE *)
-              if l.is_fwd then
-                let a = last_arg tr in
-                let sigma, b_sig = lift_rec en sigma () a in
-                let sigma, a_typ = reduce_type en sigma a in
-                let sigma, b_sig_typ = Util.on_snd dest_sigT (lift_rec en sigma () a_typ) in
-                (sigma, project_index b_sig_typ b_sig), false
-              else
-                let b_sig = last_arg tr in
-                let sigma, a = lift_rec en sigma () b_sig in
-                if equal projT1 (first_fun tr) then
-                  let sigma, args = non_index_typ_args (Option.get l.off) en sigma b_sig in
-                  (sigma, mkAppl (Option.get l.orn.indexer, snoc a args)), false
-                else
-                  (sigma, a), false
-            else if is_eliminator c en tr then
+            if is_eliminator c en tr then
               (* LIFT-ELIM *)
               let sigma, tr_eta = expand_eta en sigma tr in
               if arity tr_eta > arity tr then
@@ -792,16 +780,17 @@ let lift_curry_record env sigma c trm =
                  else
                    (* APP *)
                    let sigma, args' = map_rec_args lift_rec en sigma () args in
-                   if (is_or_applies projT1 tr || is_or_applies projT2 tr) then
-                     (* optimize projections of existentials, which are common *)
+                   let open Produtils in
+                   if (is_or_applies fst tr || is_or_applies snd tr) then
+                     (* optimize projections of pairs, which are common *)
                      let arg' = last (Array.to_list args') in
                      let arg'' = reduce_stateless reduce_term en sigma arg' in
-                     if is_or_applies existT arg'' then
-                       let ex' = dest_existT arg'' in
-                       if equal projT1 f then
-                         (sigma, ex'.index), false
+                     if is_or_applies pair arg'' then
+                       let p = dest_pair arg'' in
+                       if equal fst f then
+                         (sigma, p.trm1), false
                        else
-                         (sigma, ex'.unpacked), false
+                         (sigma, p.trm2), false
                      else
                        let sigma, f' = lift_rec en sigma () f in
                        (sigma, mkApp (f', args')), false
@@ -834,7 +823,7 @@ let lift_curry_record env sigma c trm =
                    let sigma, e' = lift_rec en_e sigma () e in
                    (sigma, mkLetIn (n, trm', typ', e')), false
                  else
-                   (* Needed for #58 we implement #42 *)
+                   (* Needed for #58 we implement #42 *) (* TODO what? Also whya re these different by direction for sigma? *)
                    lift_rec en sigma () (reduce_stateless whd en sigma tr), false
               | Case (ci, ct, m, bs) ->
                  (* CASE (will not work if this destructs over A; preprocess first) *)
@@ -890,7 +879,7 @@ let lift_curry_record env sigma c trm =
         map_if
           (fun (sigma, t) ->
             Util.on_snd (repack_prod en t) (lift_rec en sigma_typ () typ))
-          (is_from_typ && not (is_or_applies existT (reduce_stateless reduce_nf en sigma lifted)))
+          (is_from_typ && not (is_or_applies Produtils.pair (reduce_stateless reduce_nf en sigma lifted)))
           (sigma, lifted))
       try_repack
       (sigma, lifted)

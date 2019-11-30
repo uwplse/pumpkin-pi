@@ -99,17 +99,25 @@ Proof.
   reflexivity.
 Qed.
 
-(* The most basic test: When this works, should just give us fst *)
+(* The most basic test: When this works, should just give us pair *)
 Set DEVOID search prove equivalence.
 Find ornament handwritten_input generated_input.
+Definition mkInput_to_lift b1 n b2 := MkInput b1 n b2.
+Lift handwritten_input generated_input in mkInput_to_lift as lifted_mkInput.
 
-Print handwritten_input_curry.
-Print handwritten_input_curry_inv.
+Print lifted_mkInput.
 
-Find ornament handwritten_output generated_output.
-Lift handwritten_input generated_input in firstBool as lifted_firstBool.
+Lift generated_input handwritten_input in lifted_mkInput as lifted_lifted_mkInput.
+
+Print lifted_lifted_mkInput.
+
+(* Now test that hypotheses map to projections *)
+Preprocess firstBool as firstBool'.
+Lift handwritten_input generated_input in firstBool' as lifted_firstBool.
 Lift generated_input handwritten_input in lifted_firstBool as lifted_lifted_firstBool.
 
+
+Find ornament handwritten_output generated_output.
 (* TODO test equality *)
 
 Record handwritten_input_4 := MkInput4
