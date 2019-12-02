@@ -113,7 +113,29 @@ Print lifted_lifted_mkInput.
 
 (* Now test that hypotheses map to projections *)
 Preprocess firstBool as firstBool'.
+Preprocess fst as fst'.
+Print fst'.
+(* fst' = 
+fun (A B : Type) (p : A * B) =>
+prod_rect (fun _ : A * B => A) (fun (a : A) (_ : B) => a) p *)
+Print firstBool'.
+(*
+
+  fun h : handwritten_input =>  
+handwritten_input_rec 
+  (fun _ : handwritten_input => bool)
+  (fun (firstBool : bool) (_ : nat) (_ : bool) => firstBool) 
+  h
+
+  fun h : generated_input =>
+prod_rect 
+  (fun _ : generated_input => bool)
+  (fun (firstBool : bool) (_ : prod nat bool) => firstBool) (fun (firstBool : bool) (_ : prod nat bool) => a) (snd h) *)
+
+(* (prod bool (prod nat bool)) *)
+Print fst.
 Lift handwritten_input generated_input in firstBool' as lifted_firstBool.
+Print lifted_firstBool.
 Lift generated_input handwritten_input in lifted_firstBool as lifted_lifted_firstBool.
 
 
@@ -174,6 +196,7 @@ Find ornament handwritten_input_param_test generated_input_param_test. (* TODO c
 (* TODO test: failure cases, dependent parameters, eta expanded or not expanded variations, 2 fields, 4 fields, taking prod directly, etc *)
 (* TODO check test results *)
 (* TODO integrate into below *)
+(* TODO lift tests for all of the other things here w/ params *)
 
 Definition generated_input_param_test2 (T1 T2 T3 T4 : Type) := (prod T1 (prod T2 (prod T3 T4))).
 

@@ -54,10 +54,14 @@ let lift env l trm sigma =
  *)
 let pack_lift env l arg sigma =
   let sigma, arg =
-    map_backward
-      (fun (sigma, t) -> pack env (Option.get l.off) t sigma)
-      l
-      (sigma, arg)
+    match l.orn.kind with
+    | Algebraic ->
+       map_backward
+         (fun (sigma, t) -> pack env (Option.get l.off) t sigma)
+         l
+         (sigma, arg)
+    | CurryRecord ->
+       sigma, arg (* TODO *)
   in lift env l arg sigma
        
 (* --- Refolding --- *)
