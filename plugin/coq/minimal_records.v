@@ -119,13 +119,15 @@ Print fst'.
 fun (A B : Type) (p : A * B) =>
 prod_rect (fun _ : A * B => A) (fun (a : A) (_ : B) => a) p *)
 Print firstBool'.
-(*
+(*  
 
   fun h : handwritten_input =>  
 handwritten_input_rec 
   (fun _ : handwritten_input => bool)
   (fun (firstBool : bool) (_ : nat) (_ : bool) => firstBool) 
   h
+
+  ((fun (firstBool : bool) (_ : prod nat bool) => firstBool) firstBool (pair ....))
 
   fun h : generated_input =>
 prod_rect 
@@ -138,6 +140,9 @@ Lift handwritten_input generated_input in firstBool' as lifted_firstBool.
 Print lifted_firstBool.
 Lift generated_input handwritten_input in lifted_firstBool as lifted_lifted_firstBool.
 
+Print lifted_lifted_firstBool.
+
+(* TODO lift type too before defining term so we get back better type sig. always when lifting *)
 
 Find ornament handwritten_output generated_output.
 (* TODO test equality *)
