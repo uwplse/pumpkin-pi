@@ -31,6 +31,19 @@ Definition handwritten_op (r : handwritten_input) : handwritten_output :=
     andBools := firstBool r && secondBool r;
   |}.
 
+Theorem handwritten_and_spec_true_true
+  (r : handwritten_input)
+  (F : firstBool  r = true)
+  (S : secondBool r = true)
+  : andBools (handwritten_op r) = true.
+Proof.
+  destruct r as [f n s].
+  unfold handwritten_op.
+  simpl in *.
+  apply andb_true_intro.
+  intuition.
+Qed.
+
 End Handwritten.
 
 Preprocess Module Handwritten as Handwritten'.
@@ -107,48 +120,11 @@ Print generated_op.
 Lift Handwritten'.handwritten_input generated_input in Handwritten'.handwritten_op as generated_op'.
 Lift Handwritten'.handwritten_output generated_output in generated_op' as generated_op''.
 
-Print generated_op'.
+(* TODO!! does opposite order work? why not if it breaks still? *)
 
-Print lifted_numberI.
+Print Handwritten'.handwritten_and_spec_true_true.
+Lift Handwritten'.handwritten_input generated_input in Handwritten'.handwritten_and_spec_true_true as handwritten_and_spec_true_true'.
 
-(* generated_op' = 
-fun r : generated_input =>
-Handwritten'.MkOutput (lifted_numberI r)
-  (lifted_firstBool r && lifted_secondBool r)
-     : generated_input -> Handwritten'.handwritten_output *)
-
-
-
-(* 
-Definition generated_op (r : (prod bool (prod nat bool))) : (prod nat bool) :=
-  (pair
-    (generated_numberI r)
-    (andb
-      (generated_firstBool  r)
-      (generated_secondBool r)
-    )
-  ). *)
-Lift Handwritten'.handwritten_output generated_output in generated_op' as generated_op''.
-
-(* TODO why opposite order above doesn't work??? *)
-
-Print generated_op'.
-Lift handwritten_output generated_output in generated_op' as generated_op''.
-(* TODO why doesn't it find the ornament when you omit Find Ornament here? *)
-Print generated_op'.
-
-Theorem handwritten_and_spec_true_true
-  (r : handwritten_input)
-  (F : firstBool'  r = true)
-  (S : secondBool' r = true)
-  : andBools (handwritten_op r) = true.
-Proof.
-  destruct r as [f n s].
-  unfold handwritten_op.
-  simpl in *.
-  apply andb_true_intro.
-  intuition.
-Qed.
 
 Theorem generated_and_spec_true_true
   (r : generated_input)
@@ -165,32 +141,6 @@ Qed.
 
 
 
-
-Theorem handwritten_and_spec_true_true
-  (r : handwritten_input)
-  (F : firstBool  r = true)
-  (S : secondBool r = true)
-  : andBools (handwritten_op r) = true.
-Proof.
-  destruct r as [f n s].
-  unfold handwritten_op.
-  simpl in *.
-  apply andb_true_intro.
-  intuition.
-Qed.
-
-Theorem generated_and_spec_true_true
-  (r : generated_input)
-  (F : generated_firstBool  r = true)
-  (S : generated_secondBool r = true)
-  : generated_andBools (generated_op r) = true.
-Proof.
-  destruct r as [f [n s]].
-  unfold generated_op.
-  simpl in *.
-  apply andb_true_intro.
-  intuition.
-Qed.
 
 Record handwritten_input_4 := MkInput4
 {
