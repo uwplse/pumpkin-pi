@@ -91,11 +91,7 @@ End Generated.
 Preprocess Module Handwritten as Handwritten'.
 
 (* 
- * Now you can lift. Because of caching bug, you should lift everything along
- * this ornament before you find and lift along the next one!
- * I hope to fix that bug soon.
- *
- * There's no need to unpack for this relation.
+ * Now you can lift. Here we do inputs:
  *)
 Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.firstBool as lifted_firstBool.
 Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.numberI as lifted_numberI.
@@ -104,7 +100,7 @@ Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.ha
 Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.handwritten_and_spec_true_true as handwritten_and_spec_true_true'.
 
 (*
- * Now you can lift output too (Find ornament runs automatically):
+ * Then outputs:
  *)
 Lift Handwritten'.handwritten_output Generated.generated_output in Handwritten'.numberO as lifted_numberO.
 Lift Handwritten'.handwritten_output Generated.generated_output in Handwritten'.andBools as lifted_andBools.
@@ -137,9 +133,8 @@ Qed.
 
 (* TODO roundtrip tests for above *)
 (* TODO fix auto find ornament *)
-(* TODO fix caching bug *)
 
-
+(*
 Record handwritten_input_4 := MkInput4
 {
   field1  : bool;
@@ -235,3 +230,4 @@ Scheme Induction for handwritten_input_param_test3 Sort Type.
 (* TODO set options to prove equiv: Set DEVOID search prove equivalence. Then get working. Then try w/ params. Then clean. Then do lift, same process.*)
 Find ornament handwritten_input_param_test3 generated_input_param_test3. (* TODO can omit once lift works *)
 (*Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.*)
+*)
