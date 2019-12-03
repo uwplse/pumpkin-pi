@@ -876,8 +876,6 @@ let lift_curry_record env sigma c trm =
               (fun ((sigma, tr'), _) ->
                 let (f', args') = destApp tr' in
                 let sigma, args'' = map_rec_args lift_rec en sigma () args' in
-                let open Printing in
-                debug_terms en (Array.to_list args'') "args''";
                 ((sigma, mkApp (f', args'')), false))
               (List.length args > 0)
               (reduce_term en sigma (mkAppl (lifted_constr, args)), false)

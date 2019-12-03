@@ -43,7 +43,14 @@ let lift env l trm sigma =
     | CurryRecord ->
        on_red_type
          reduce_nf
-         (fun env sigma typ -> sigma, unfold_args typ)
+         (fun env sigma typ ->
+           let args =
+             map_backward
+               (fun args ->
+                 [] (* TODO params ? *))
+               l
+               (unfold_args typ)
+           in sigma, args)
          env
          sigma
          trm
