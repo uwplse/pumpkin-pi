@@ -19,6 +19,7 @@ open Defutils
 open Envutils
 open Stateutils
 open Environ
+open Inference
 
 (* --- Commands --- *)
 
@@ -148,7 +149,15 @@ let find_ornament n_o d_old d_new =
  *)
 let lift_definition_by_ornament env sigma n l c_old =
   let sigma, lifted = do_lift_defn env sigma l c_old in
-  ignore (define_term n sigma lifted true);
+  ignore
+    (if is_lift_type () then
+       (* Lift the type as well *)
+       let sigma, typ = infer_type env sigma c_old in
+       let sigma, lifted_typ = do_lift_defn env sigma l typ in
+       define_term n sigma lifted true ~typ:lifted_typ
+     else
+       (* Let Coq infer the type *)
+       define_term n sigma lifted true);
   try
     let c_new = mkConst (Constant.make1 (Lib.make_kn n)) in
     save_lifting (l.orn.promote, l.orn.forget, c_old) c_new

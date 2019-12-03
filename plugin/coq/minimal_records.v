@@ -1,5 +1,6 @@
 Require Import Ornamental.Ornaments.
-Set DEVOID search prove equivalence.
+Set DEVOID search prove equivalence. (* <-- Correctness proofs for search *)
+Set DEVOID lift type. (* <-- Prettier types than the ones Coq infers *)
 
 (*
  * Talia: Let's start by moving all of the handwritten types into module.
@@ -131,8 +132,10 @@ Qed.
  * TODO everything below is for Talia: Later testing and so on.
  *)
 
+(* TODO split below into different files; in above, show workflow that is reasonable *)
 (* TODO roundtrip tests for above *)
-(* TODO fix auto find ornament *)
+(* TODO document all new functionality *)
+(* TODO remove extra imports and functions that aren't used now *)
 
 (*
 Record handwritten_input_4 := MkInput4
