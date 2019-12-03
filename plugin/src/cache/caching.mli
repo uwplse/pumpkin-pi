@@ -6,20 +6,18 @@ open Evd
 (* --- Database for higher lifting --- *)
 
 (*
- * Register a lifting to the database
+ * Lookup a lifting along an ornament
+ * Arguments: promote, forget, trm
+ *
+ * Return None if the lifting does not exist or is not in the current environment
  *)
-val declare_lifted : global_reference -> global_reference -> unit
+val lookup_lifting : (constr * constr * constr) -> constr option
 
 (*
- * Search the database for a lifting, returning the reduced version if it exists
+ * Store a lifting along an ornament
+ * Order of arguments: promote, forget, trm, lifted_trm
  *)
-val search_lifted : env -> evar_map -> global_reference -> global_reference option
-
-(*
- * Search the database for a lifting using terms, returning the reduced version
- * if it exists
- *)
-val search_lifted_term : env -> evar_map -> types -> types option
+val save_lifting : (constr * constr * constr) -> constr -> unit
 
 (* --- Temporary cache of constants --- *)
 
@@ -53,23 +51,15 @@ val cache_local : temporary_cache -> types -> types -> unit
 type kind_of_orn = Algebraic | CurryRecord
 
 (*
- * Check if an ornament between two types exists
- *
- * Note that this does not guarantee that the ornament is in the current
- * environment. Lookup_ornament will make sure that the ornament is in
- * the global environment, and fail if it is not.
- *)
-val has_ornament : (types * types) -> bool
-
-(*
  * Lookup an ornament between two types
  * Arguments: typ1, typ2
  * Order of return values: typ1_to_typ2, typ2_to_typ1, kind of ornament
  *
- * Fail if the ornament does not exist or is not in the current environment
+ * Return None if the ornament does not exist or is not in the current
+ * environment
  *)
 val lookup_ornament :
-  (types * types) -> (constr * constr * kind_of_orn)
+  (types * types) -> (constr * constr * kind_of_orn) option
 
 (*
  * Store an ornament between two types, given the function and its inverse

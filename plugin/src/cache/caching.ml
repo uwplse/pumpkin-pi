@@ -16,75 +16,90 @@ open Names
 (* --- Database of liftings for higher lifting --- *)
 
 (*
- * This code is by Nate Yazdani, ported into this plugin
- * and renamed for consistency
+ * This is a persistent cache for liftings
  *)
 
-(** Record information of the lifting structure. *)
-let structure () : struc_typ =
+(* The persistent storage is backed by a normal hashtable *)
+module LiftingsCache =
+  Hashtbl.Make
+    (struct
+      type t = (global_reference * global_reference * global_reference)
+      let equal =
+        (fun (o, n, t) (o', n', t') ->
+          eq_gr o o' && eq_gr n n' && eq_gr t t')
+      let hash =
+        (fun (o, n, t) ->
+          Hashset.Combine.combine
+            (Hashset.Combine.combine
+               (ExtRefOrdered.hash (TrueGlobal o))
+               (ExtRefOrdered.hash (TrueGlobal n)))
+            (ExtRefOrdered.hash (TrueGlobal t)))
+    end)
+
+(* Initialize the lifting cache *)
+let lift_cache = LiftingsCache.create 100
+             
+(*
+ * Wrapping the table for persistence
+ *)
+type lift_obj =
+  (global_reference * global_reference * global_reference) * global_reference
+
+let cache_lifting (_, (orns_and_trm, lifted_trm)) =
+  LiftingsCache.add lift_cache orns_and_trm lifted_trm
+
+let sub_lifting (subst, ((orn_o, orn_n, trm), lifted_trm)) =
+  let orn_o, orn_n = map_tuple (subst_global_reference subst) (orn_o, orn_n) in
+  let trm = subst_global_reference subst trm in
+  let lifted_trm = subst_global_reference subst lifted_trm in
+  (orn_o, orn_n, trm), lifted_trm
+
+let inLifts : lift_obj -> obj =
+  declare_object { (default_object "LIFTINGS") with
+    cache_function = cache_lifting;
+    load_function = (fun _ -> cache_lifting);
+    open_function = (fun _ -> cache_lifting);
+    classify_function = (fun orn_obj -> Substitute orn_obj);
+    subst_function = sub_lifting }
+              
+(*
+ * Check if there is a lifting along an ornament for a given term
+ *)
+let has_lifting (orn_o, orn_n, trm) =
   try
-    qualid_of_string "Ornamental.Lifted.t" |> Nametab.locate |>
-      destIndRef |> lookup_structure
-  with Not_found ->
-    failwith "Error loading cache"
-
-(** Constructor of the lifting structure. *)
-let construct_gref () = ConstructRef (structure ()).s_CONST
-
-(** Base-term projection of the lifting structure. *)
-let project_gref () = Nametab.locate (qualid_of_string "Ornamental.Lifted.base")
-
-(** Build the identifier [X + "_lift"] to use as the name of the lifting instance
-    for the definition [base] with name [M_1.M_2...M_n.X]. *)
-let name_lifted (base : global_reference) : Id.t =
-  let name = Nametab.basename_of_global base in
-  Id.of_string (String.concat "_" [Id.to_string name; "lift"])
-
-(** Register a canonical lifting for the global reference [base_gref] given its
-    lifted global reference [lifted_gref]. *)
-let declare_lifted base_gref lifted_gref =
-  let env = Global.env () in
-  let sigma = Evd.from_env env in
-  let sigma, construct_term = EConstr.fresh_global env sigma (construct_gref ()) in
-  let sigma, base_term = EConstr.fresh_global env sigma base_gref in
-  let sigma, base_type = Typing.type_of env sigma base_term in
-  let sigma, lifted_term = EConstr.fresh_global env sigma lifted_gref in
-  let sigma, lifted_type = Typing.type_of env sigma lifted_term in
-  let packed_term =
-    EConstr.mkApp
-      (construct_term, [|base_type; lifted_type; base_term; lifted_term|])
-  in
-  let n = name_lifted base_gref in
-  ignore (define_canonical n sigma (EConstr.to_constr sigma packed_term) true)
-
-(** Retrieve the canonical lifting, as a term, for the global reference
-    [base_gref]. *)
-let search_lifted env sigma base_gref =
-  try
-    let (_, info) = lookup_canonical_conversion (project_gref (), Const_cs base_gref) in
-    (* Reduce the lifting instance to HNF to extract the target component. *)
-    let package = reduce_stateless whd env sigma info.o_DEF in
-    let (cons, args) = decompose_appvect package in
-    Some (args.(3))
+    let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
+    let trm = global_of_constr trm in
+    LiftingsCache.mem lift_cache (orn_o, orn_n, trm)
   with _ ->
+    false
+
+(*
+ * Lookup a lifting
+ *)
+let lookup_lifting (orn_o, orn_n, trm) =
+  if not (has_lifting (orn_o, orn_n, trm)) then
     None
+  else
+    let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
+    let trm = global_of_constr trm in
+    let lifted_trm = LiftingsCache.find lift_cache (orn_o, orn_n, trm) in
+    try
+      Some (Universes.constr_of_global lifted_trm)
+    with _ ->
+      None
 
-(** Retrieve the canonical lifting, as a term, for the definition [base]. *)
-let search_lifted_term env sigma base_term =
+(*
+ * Add a lifting to the lifting cache
+ *)
+let save_lifting (orn_o, orn_n, trm) lifted_trm =
   try
-    global_of_constr base_term |> search_lifted env sigma
-  with Not_found -> None
-
-(** Retrieve the canonical lifting, as a global reference, for the global
-    reference [base_gref]. *)
-let search_lifted env sigma base_gref =
-  try
-    search_lifted env sigma base_gref |> Option.map global_of_constr
-  with Not_found ->
-    (* A canonical lifting should always relate constant to constant,
-       inductive to inductive, etc., so both components should always be
-       representable as global references. *)
-    CErrors.user_err (Pp.str "Found illegal canonical lifting.\n")
+    let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
+    let trm = global_of_constr trm in
+    let lifted_trm = global_of_constr lifted_trm in
+    let lift_obj = inLifts ((orn_o, orn_n, trm), lifted_trm) in
+    add_anonymous_leaf lift_obj
+  with _ ->
+    Feedback.msg_warning (Pp.str "Failed to cache lifting")
 
 (* --- Temporary cache of constants --- *)
 
@@ -135,7 +150,7 @@ let cache_local c trm lifted =
 (* --- Ornaments cache --- *)
 
 (*
- * This is a persistent cache for ornaments given the old and new kernames.
+ * This is a persistent cache for ornaments
  *)
 
 (* The persistent storage is backed by a normal hashtable *)
@@ -227,16 +242,15 @@ let has_ornament typs =
 let lookup_ornament typs =
   let typs = if has_ornament_exact typs then typs else reverse typs in
   if not (has_ornament typs) then
-    CErrors.user_err (Pp.str "Cannot find ornament; please supply ornamental promotion yourself")
+    None
   else
     let globals = map_tuple global_of_constr typs in
     let (orn, orn_inv, i) = OrnamentsCache.find orn_cache globals in
     try
       let orn, orn_inv = map_tuple Universes.constr_of_global (orn, orn_inv) in
-      (orn, orn_inv, int_to_kind i)
+      Some (orn, orn_inv, int_to_kind i)
     with _ ->
-      failwith "Ornament is not in the current environment; please report a bug"
-
+      None
 (*
  * Add an ornament to the ornament cache
  *)

@@ -150,9 +150,8 @@ let lift_definition_by_ornament env sigma n l c_old =
   let sigma, lifted = do_lift_defn env sigma l c_old in
   ignore (define_term n sigma lifted true);
   try
-    let old_gref = global_of_constr c_old in
-    let new_gref = ConstRef (Lib.make_kn n |> Constant.make1) in
-    declare_lifted old_gref new_gref;
+    let c_new = mkConst (Constant.make1 (Lib.make_kn n)) in
+    save_lifting (l.orn.promote, l.orn.forget, c_old) c_new
   with _ ->
     Feedback.msg_warning (Pp.str "Failed to cache lifting.")
 
@@ -163,7 +162,7 @@ let lift_definition_by_ornament env sigma n l c_old =
  *)
 let lift_inductive_by_ornament env sigma n s l c_old =
   let ind, _ = destInd c_old in
-  let ind' = do_lift_ind env sigma n s l ind in
+  let ind' = do_lift_ind env sigma l n s ind in
   let env' = Global.env () in
   Feedback.msg_notice (str "Defined lifted inductive type " ++ pr_inductive env' ind')
                       
@@ -191,21 +190,15 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
   in
   let sigma, env =
     if orn_not_supplied then
-      if not (has_ornament (o, n)) then
+      let orn_opt = lookup_ornament (o, n) in
+      if not (Option.has_some orn_opt) then
         (* The user never ran Find ornament *)
         let _ = Feedback.msg_notice (str "Searching for ornament first") in
         let _ = find_ornament None d_orn d_orn_inv in
         refresh_env ()
       else
-        try
-          (* The ornament is cached *)
-          let _ = lookup_ornament (o, n) in
-          sigma, env
-        with _ ->
-          (* The user stepped above the lift command that found the ornament *)
-          let _ = Feedback.msg_notice (str "Searching for ornament again") in
-          let _ = find_ornament None d_orn d_orn_inv in
-          refresh_env ()
+        (* The ornament is cached *)
+        sigma, env
     else
       (* The ornament is provided *)
       sigma, env

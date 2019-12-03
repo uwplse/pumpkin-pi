@@ -32,8 +32,8 @@ val do_lift_defn :
 val do_lift_ind :
   env ->
   evar_map ->
+  lifting -> (* lifting configuration *)
   Id.t ->
   string ->
-  lifting ->
   inductive ->
   inductive (* lifted type and number of constructors for caching *)

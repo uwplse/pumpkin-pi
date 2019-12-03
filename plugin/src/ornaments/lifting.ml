@@ -180,7 +180,12 @@ let initialize_lifting env sigma o n =
   let is_fwd, (promote, forget), kind =
     if orn_not_supplied then
       (* Cached ornament *)
-      let (orn_o, orn_n, k) = lookup_ornament (o, n) in
+      let (orn_o, orn_n, k) =
+        try
+          Option.get (lookup_ornament (o, n))
+        with _ ->
+          failwith "Cannot find cached ornament! Please report a bug in DEVOID"
+      in
       let is_fwd = direction_cached env o n k in
       is_fwd, (orn_o, orn_n), k
     else

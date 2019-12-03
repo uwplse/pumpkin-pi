@@ -627,7 +627,7 @@ let lift_algebraic env sigma c ib_typ trm =
   let a_arity = arity a_typ_eta in
   let rec lift_rec en sigma ib_typ tr : types state =
     let (sigma, lifted), try_repack =
-      let lifted_opt = search_lifted_term en sigma tr in
+      let lifted_opt = lookup_lifting (l.orn.promote, l.orn.forget, tr) in
       if Option.has_some lifted_opt then
         (* GLOBAL CACHING *)
         (sigma, Option.get lifted_opt), false
@@ -848,7 +848,7 @@ let lift_curry_record env sigma c trm =
   let a_arity = arity a_typ_eta in
   let rec lift_rec en sigma _ tr : types state =
     let (sigma, lifted), try_repack =
-      let lifted_opt = search_lifted_term en sigma tr in
+      let lifted_opt = lookup_lifting (l.orn.promote, l.orn.forget, tr) in
       if Option.has_some lifted_opt then
         (* GLOBAL CACHING *)
         (sigma, Option.get lifted_opt), false
@@ -1075,7 +1075,7 @@ let do_lift_defn env sigma (l : lifting) def =
 (*                           Inductive types                            *)
 (************************************************************************)
 
-let define_lifted_eliminator ?(suffix="_sigT") ind0 ind sort =
+let define_lifted_eliminator ?(suffix="_sigT") l ind0 ind sort =
   let env = Global.env () in
   let ident =
     let ind_name = (Inductive.lookup_mind_specif env ind |> snd).mind_typename in
@@ -1087,15 +1087,26 @@ let define_lifted_eliminator ?(suffix="_sigT") ind0 ind sort =
   let env, term = open_constant env (Globnames.destConstRef elim) in
   let expr = Eta.eta_extern env (Evd.from_env env) Id.Set.empty term in
   ComDefinition.do_definition
-    ~program_mode:false ident (Decl_kinds.Global, false, Decl_kinds.Scheme)
-    None [] None expr None (Lemmas.mk_hook (fun _ -> declare_lifted elim0))
+    ~program_mode:false
+    ident
+    (Decl_kinds.Global, false, Decl_kinds.Scheme)
+    None
+    []
+    None
+    expr
+    None
+    (Lemmas.mk_hook
+       (fun _ lifted ->
+         let elim0 = Universes.constr_of_global elim0 in
+         let lifted = Universes.constr_of_global lifted in
+         save_lifting (l.orn.promote, l.orn.forget, elim0) lifted))
 
-let declare_inductive_liftings ind ind' ncons =
-  declare_lifted (Globnames.IndRef ind) (Globnames.IndRef ind');
+let declare_inductive_liftings l ind ind' ncons =
+  save_lifting (l.orn.promote, l.orn.forget, mkInd ind) (mkInd ind');
   List.iter2
-    declare_lifted
-    (List.init ncons (fun i -> Globnames.ConstructRef (ind, i + 1)))
-    (List.init ncons (fun i -> Globnames.ConstructRef (ind', i + 1)))
+    (fun o n -> save_lifting (l.orn.promote, l.orn.forget, o) n)
+    (List.init ncons (fun i -> mkConstruct (ind, i + 1)))
+    (List.init ncons (fun i -> mkConstruct (ind', i + 1)))
 
 (*
  * Lift the inductive type using sigma-packing.
@@ -1104,14 +1115,14 @@ let declare_inductive_liftings ind ind' ncons =
  * every binding and every term of the base type to the sigma-packed ornamented
  * type. (IND and CONSTR via caching)
  *)
-let do_lift_ind env sigma typename suffix lift ind =
+let do_lift_ind env sigma l typename suffix ind =
   let (mind_body, ind_body) as mind_specif = Inductive.lookup_mind_specif env ind in
   check_inductive_supported mind_body;
   let env, univs, arity, constypes = open_inductive ~global:true env mind_specif in
   let sigma = Evd.update_sigma_env sigma env in
   let nparam = mind_body.mind_nparams_rec in
-  let sigma, arity' = do_lift_term env sigma lift arity in
-  let sigma, constypes' = map_state (fun trm sigma -> do_lift_term env sigma lift trm) constypes sigma in
+  let sigma, arity' = do_lift_term env sigma l arity in
+  let sigma, constypes' = map_state (fun trm sigma -> do_lift_term env sigma l trm) constypes sigma in
   let consnames =
     Array.map_to_list (fun id -> Nameops.add_suffix id suffix) ind_body.mind_consnames
   in
@@ -1119,6 +1130,6 @@ let do_lift_ind env sigma typename suffix lift ind =
   let ind' =
     declare_inductive typename consnames is_template univs nparam arity' constypes'
   in
-  List.iter (define_lifted_eliminator ind ind') [Sorts.InType; Sorts.InProp];
-  declare_inductive_liftings ind ind' (List.length constypes);
+  List.iter (define_lifted_eliminator l ind ind') [Sorts.InType; Sorts.InProp];
+  declare_inductive_liftings l ind ind' (List.length constypes);
   ind'
