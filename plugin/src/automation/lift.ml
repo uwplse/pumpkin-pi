@@ -490,10 +490,13 @@ let lift_case env c p c_elim constr sigma =
      let nargs = new_rels2 env_c env in
      let c_eta = shift_by nargs c_eta in
      let (env_c_b, c_body) = zoom_lambda_term env_c c_eta in
-     let (c_f, c_args) = destApp c_body in
+     let (c_f, _) = destApp c_body in
+     let open Printing in
+     let args = mk_n_rels nargs in
      let open Produtils in
      let sigma, args = (* TODO make a function *)
        if c.l.is_fwd then
+         let c_args, b_args = take_split 2 args in
          let rec build arg sigma =
            let sigma, arg_typ = reduce_type env_c sigma arg in
            if equal (first_fun arg_typ) prod then
@@ -505,9 +508,10 @@ let lift_case env c p c_elim constr sigma =
            else
              sigma, [arg]
          in
-         let sigma, args_tl = build (mkRel 1) sigma in
-         sigma, mkRel 2 :: args_tl
+         let sigma, args_tl = build (List.hd (List.tl c_args)) sigma in
+         sigma, List.append (List.hd c_args :: args_tl) b_args
        else
+         (* TODO split the way we did above; test *)
          let rec build args sigma =
            match args with
            | trm1 :: (h :: tl) ->
@@ -520,7 +524,6 @@ let lift_case env c p c_elim constr sigma =
            | _ ->
               failwith "bad arguments passed to build; please report bug"
          in
-         let args = mk_n_rels nargs in
          let sigma, arg_pair = build (List.tl args) sigma in
          sigma, [List.hd args; arg_pair]
      in
@@ -879,29 +882,6 @@ let lift_curry_record env sigma c trm =
                 ((sigma, mkApp (f', args'')), false))
               (List.length args > 0)
               (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
-
-              (* TODO old version *)
-              (*   let inner = map_backward last_arg l tr in
-          let constr = first_fun inner in
-          let args = unfold_args inner in
-          let (((_, _), i), _) = destConstruct constr in
-          let lifted_constr = c.constr_rules.(i - 1) in
-          map_if
-            (fun ((sigma, tr'), _) ->
-              let lifted_inner = map_forward last_arg l tr' in
-              let (f', args') = destApp lifted_inner in
-              let sigma, args'' = map_rec_args lift_rec en sigma ib_typ args' in
-              map_forward
-                (fun ((sigma, b), _) ->
-                  (* pack the lifted term *)
-                  let ex = dest_existT tr' in
-                  let sigma, n = lift_rec en sigma ib_typ ex.index in
-                  let sigma, packer = lift_rec en sigma ib_typ ex.packer in
-                  (sigma, pack_existT { ex with packer; index = n; unpacked = b }), false)
-                l
-                ((sigma, mkApp (f', args'')), false))
-            (List.length args > 0)
-            (reduce_term en sigma (mkAppl (lifted_constr, args)), false) *)
           else
             let lifted_constr = c.constr_rules.(0) in
             let open Produtils in
@@ -951,7 +931,10 @@ let lift_curry_record env sigma c trm =
                     (List.hd final_args)
                     sigma
                 in
+                let open Printing in
+                debug_term en tr' "lifted elim";
                 let sigma, tr'' = lift_rec en sigma () tr' in
+                debug_term en tr'' "lifted lifted elim";
                 let sigma, post_args' = map_rec_args lift_rec en sigma () (Array.of_list post_args) in
                 (sigma, mkApp (tr'', post_args')), l.is_fwd
             else

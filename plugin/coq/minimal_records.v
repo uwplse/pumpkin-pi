@@ -79,9 +79,10 @@ Lift Handwritten'.handwritten_input generated_input in mkInput_to_lift as lifted
 
 Print lifted_mkInput.
 
+(* TODO do elsewhere for test b.c. breaks caching:
 Lift generated_input Handwritten'.handwritten_input in lifted_mkInput as lifted_lifted_mkInput.
 
-Print lifted_lifted_mkInput.
+Print lifted_lifted_mkInput.*)
 
 Lift Handwritten'.handwritten_input generated_input in Handwritten'.firstBool as lifted_firstBool.
 (* TODO do elsewhere for test b.c. breaks caching:
@@ -102,6 +103,13 @@ Print lifted_secondBool.
 Lift generated_input Handwritten'.handwritten_input in lifted_secondBool as lifted_lifted_secondBool.
 Print lifted_lifted_secondBool.*)
 
+(* TODO!!! Breaks if you have lifted lifted_numberI and so on, b.c. of caching. Bad! Fix caching! *)
+(* TODO similarly, you need to lift all inputs first, then all outputs. Kind of silly, but it's a caching bug. Sorry!! *)
+Lift Handwritten'.handwritten_input generated_input in Handwritten'.handwritten_op as generated_op'.
+Print generated_op'.
+Lift Handwritten'.handwritten_input generated_input in Handwritten'.handwritten_and_spec_true_true as handwritten_and_spec_true_true'.
+
+
 Find ornament Handwritten'.handwritten_output generated_output.
 
 (* TODO why not found otherwise? *)
@@ -116,15 +124,18 @@ Lift Handwritten'.handwritten_output generated_output in Handwritten'.andBools a
 Print Handwritten'.handwritten_op.
 Print generated_op.
 
-(* TODO!!! Breaks if you have lifted lifted_numberI and so on, b.c. of caching. Bad! Fix caching! *)
-Lift Handwritten'.handwritten_input generated_input in Handwritten'.handwritten_op as generated_op'.
+Print lifted_andBools.
 Lift Handwritten'.handwritten_output generated_output in generated_op' as generated_op''.
+
+Lift Handwritten'.handwritten_output generated_output in handwritten_and_spec_true_true' as generated_and_spec_true_true'.
+
+Check generated_and_spec_true_true'.
+
+
 
 (* TODO!! does opposite order work? why not if it breaks still? *)
 
 Print Handwritten'.handwritten_and_spec_true_true.
-Lift Handwritten'.handwritten_input generated_input in Handwritten'.handwritten_and_spec_true_true as handwritten_and_spec_true_true'.
-
 
 Theorem generated_and_spec_true_true
   (r : generated_input)
@@ -132,11 +143,8 @@ Theorem generated_and_spec_true_true
   (S : generated_secondBool r = true)
   : generated_andBools (generated_op r) = true.
 Proof.
-  destruct r as [f [n s]].
-  unfold generated_op.
-  simpl in *.
-  apply andb_true_intro.
-  intuition.
+  induction r. (* <-- NOTE: You will need this because you used Preprocess *)
+  apply generated_and_spec_true_true'; auto.
 Qed.
 
 
