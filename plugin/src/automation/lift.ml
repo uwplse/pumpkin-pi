@@ -876,9 +876,34 @@ let lift_curry_record env sigma c trm =
               (fun ((sigma, tr'), _) ->
                 let (f', args') = destApp tr' in
                 let sigma, args'' = map_rec_args lift_rec en sigma () args' in
+                let open Printing in
+                debug_terms en (Array.to_list args'') "args''";
                 ((sigma, mkApp (f', args'')), false))
               (List.length args > 0)
               (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
+
+              (* TODO old version *)
+              (*   let inner = map_backward last_arg l tr in
+          let constr = first_fun inner in
+          let args = unfold_args inner in
+          let (((_, _), i), _) = destConstruct constr in
+          let lifted_constr = c.constr_rules.(i - 1) in
+          map_if
+            (fun ((sigma, tr'), _) ->
+              let lifted_inner = map_forward last_arg l tr' in
+              let (f', args') = destApp lifted_inner in
+              let sigma, args'' = map_rec_args lift_rec en sigma ib_typ args' in
+              map_forward
+                (fun ((sigma, b), _) ->
+                  (* pack the lifted term *)
+                  let ex = dest_existT tr' in
+                  let sigma, n = lift_rec en sigma ib_typ ex.index in
+                  let sigma, packer = lift_rec en sigma ib_typ ex.packer in
+                  (sigma, pack_existT { ex with packer; index = n; unpacked = b }), false)
+                l
+                ((sigma, mkApp (f', args'')), false))
+            (List.length args > 0)
+            (reduce_term en sigma (mkAppl (lifted_constr, args)), false) *)
           else
             let lifted_constr = c.constr_rules.(0) in
             let open Produtils in

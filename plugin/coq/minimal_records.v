@@ -2,6 +2,8 @@ Require Import Ornamental.Ornaments.
 
 Definition generated_input := (prod bool (prod nat bool)).
 
+Module Handwritten.
+
 Record handwritten_input := MkInput
 {
   firstBool  : bool;
@@ -13,8 +15,6 @@ Scheme Induction for handwritten_input Sort Set.
 Scheme Induction for handwritten_input Sort Prop.
 Scheme Induction for handwritten_input Sort Type.
 
-Definition generated_output := (prod nat bool).
-
 Record handwritten_output := MkOutput
 {
   numberO  : nat;
@@ -24,6 +24,18 @@ Record handwritten_output := MkOutput
 Scheme Induction for handwritten_output Sort Set.
 Scheme Induction for handwritten_output Sort Prop.
 Scheme Induction for handwritten_output Sort Type.
+
+Definition handwritten_op (r : handwritten_input) : handwritten_output :=
+  {|
+    numberO  := numberI r;
+    andBools := firstBool r && secondBool r;
+  |}.
+
+End Handwritten.
+
+Preprocess Module Handwritten as Handwritten'.
+
+Definition generated_output := (prod nat bool).
 
 Definition generated_firstBool (r : (prod bool (prod nat bool))) : bool :=
   (fst r).
@@ -46,11 +58,113 @@ Definition generated_op (r : (prod bool (prod nat bool))) : (prod nat bool) :=
     )
   ).
 
-Definition handwritten_op (r : handwritten_input) : handwritten_output :=
-  {|
-    numberO  := numberI r;
-    andBools := firstBool r && secondBool r;
-  |}.
+(* The most basic test: When this works, should just give us pair *)
+Set DEVOID search prove equivalence.
+Find ornament Handwritten'.handwritten_input generated_input.
+Definition mkInput_to_lift b1 n b2 := Handwritten'.MkInput b1 n b2.
+Lift Handwritten'.handwritten_input generated_input in mkInput_to_lift as lifted_mkInput.
+
+Print lifted_mkInput.
+
+Lift generated_input Handwritten'.handwritten_input in lifted_mkInput as lifted_lifted_mkInput.
+
+Print lifted_lifted_mkInput.
+
+Lift Handwritten'.handwritten_input generated_input in Handwritten'.firstBool as lifted_firstBool.
+(* TODO do elsewhere for test b.c. breaks caching:
+Print lifted_firstBool.
+Lift generated_input Handwritten'.handwritten_input in lifted_firstBool as lifted_lifted_firstBool.*)
+
+(* TODO lift type too before defining term so we get back better type sig. always when lifting *)
+
+Lift Handwritten'.handwritten_input generated_input in Handwritten'.numberI as lifted_numberI.
+Print lifted_numberI.
+(* TODO do elsewhere for test b.c. breaks caching:
+Lift generated_input Handwritten'.handwritten_input in lifted_numberI as lifted_lifted_numberI.
+Print lifted_lifted_numberI.*)
+
+Lift Handwritten'.handwritten_input generated_input in Handwritten'.secondBool as lifted_secondBool.
+Print lifted_secondBool.
+(* TODO do elsewhere for test b.c. breaks caching:
+Lift generated_input Handwritten'.handwritten_input in lifted_secondBool as lifted_lifted_secondBool.
+Print lifted_lifted_secondBool.*)
+
+Find ornament Handwritten'.handwritten_output generated_output.
+
+(* TODO why not found otherwise? *)
+Definition mkOutput_to_lift n b := Handwritten'.MkOutput n b.
+Lift Handwritten'.handwritten_output generated_output in mkOutput_to_lift as lifted_MkOutput'.
+
+Lift Handwritten'.handwritten_output generated_output in Handwritten'.numberO as lifted_numberO.
+Lift Handwritten'.handwritten_output generated_output in Handwritten'.andBools as lifted_andBools.
+
+(* TODO test equality *)
+
+Print Handwritten'.handwritten_op.
+Print generated_op.
+
+(* TODO!!! Breaks if you have lifted lifted_numberI and so on, b.c. of caching. Bad! Fix caching! *)
+Lift Handwritten'.handwritten_input generated_input in Handwritten'.handwritten_op as generated_op'.
+Lift Handwritten'.handwritten_output generated_output in generated_op' as generated_op''.
+
+Print generated_op'.
+
+Print lifted_numberI.
+
+(* generated_op' = 
+fun r : generated_input =>
+Handwritten'.MkOutput (lifted_numberI r)
+  (lifted_firstBool r && lifted_secondBool r)
+     : generated_input -> Handwritten'.handwritten_output *)
+
+
+
+(* 
+Definition generated_op (r : (prod bool (prod nat bool))) : (prod nat bool) :=
+  (pair
+    (generated_numberI r)
+    (andb
+      (generated_firstBool  r)
+      (generated_secondBool r)
+    )
+  ). *)
+Lift Handwritten'.handwritten_output generated_output in generated_op' as generated_op''.
+
+(* TODO why opposite order above doesn't work??? *)
+
+Print generated_op'.
+Lift handwritten_output generated_output in generated_op' as generated_op''.
+(* TODO why doesn't it find the ornament when you omit Find Ornament here? *)
+Print generated_op'.
+
+Theorem handwritten_and_spec_true_true
+  (r : handwritten_input)
+  (F : firstBool'  r = true)
+  (S : secondBool' r = true)
+  : andBools (handwritten_op r) = true.
+Proof.
+  destruct r as [f n s].
+  unfold handwritten_op.
+  simpl in *.
+  apply andb_true_intro.
+  intuition.
+Qed.
+
+Theorem generated_and_spec_true_true
+  (r : generated_input)
+  (F : generated_firstBool  r = true)
+  (S : generated_secondBool r = true)
+  : generated_andBools (generated_op r) = true.
+Proof.
+  destruct r as [f [n s]].
+  unfold generated_op.
+  simpl in *.
+  apply andb_true_intro.
+  intuition.
+Qed.
+
+
+
 
 Theorem handwritten_and_spec_true_true
   (r : handwritten_input)
@@ -77,75 +191,6 @@ Proof.
   apply andb_true_intro.
   intuition.
 Qed.
-
-Definition g2h_input (r : generated_input) : handwritten_input :=
-  let '(f, (n, s)) := r in
-  {| firstBool := f; numberI := n; secondBool := s |}.
-
-Definition g2h_output (r : generated_output) : handwritten_output :=
-  let '(n, b) := r in
-  {| numberO := n; andBools := b |}.
-
-Definition h2g_input (r : handwritten_input) : generated_input :=
-  (pair (firstBool r) (pair (numberI r) (secondBool r))).
-
-Definition h2g_output (r : handwritten_output) : generated_output :=
-  (pair (numberO r) (andBools r)).
-
-Lemma h2g2h_output_spec (h : handwritten_output) : g2h_output (h2g_output h) = h.
-Proof.
-  destruct h.
-  compute.
-  reflexivity.
-Qed.
-
-(* The most basic test: When this works, should just give us pair *)
-Set DEVOID search prove equivalence.
-Find ornament handwritten_input generated_input.
-Definition mkInput_to_lift b1 n b2 := MkInput b1 n b2.
-Lift handwritten_input generated_input in mkInput_to_lift as lifted_mkInput.
-
-Print lifted_mkInput.
-
-Lift generated_input handwritten_input in lifted_mkInput as lifted_lifted_mkInput.
-
-Print lifted_lifted_mkInput.
-
-(* Now test that hypotheses map to projections *)
-Preprocess firstBool as firstBool'.
-Preprocess fst as fst'.
-Print fst'.
-(* fst' = 
-fun (A B : Type) (p : A * B) =>
-prod_rect (fun _ : A * B => A) (fun (a : A) (_ : B) => a) p *)
-Print firstBool'.
-(*  
-
-  fun h : handwritten_input =>  
-handwritten_input_rec 
-  (fun _ : handwritten_input => bool)
-  (fun (firstBool : bool) (_ : nat) (_ : bool) => firstBool) 
-  h
-
-  ((fun (firstBool : bool) (_ : prod nat bool) => firstBool) firstBool (pair ....))
-
-  fun h : generated_input =>
-prod_rect 
-  (fun _ : generated_input => bool)
-  (fun (firstBool : bool) (_ : prod nat bool) => firstBool) (fun (firstBool : bool) (_ : prod nat bool) => a) (snd h) *)
-
-(* (prod bool (prod nat bool)) *)
-Print fst.
-Lift handwritten_input generated_input in firstBool' as lifted_firstBool.
-Print lifted_firstBool.
-Lift generated_input handwritten_input in lifted_firstBool as lifted_lifted_firstBool.
-
-Print lifted_lifted_firstBool.
-
-(* TODO lift type too before defining term so we get back better type sig. always when lifting *)
-
-Find ornament handwritten_output generated_output.
-(* TODO test equality *)
 
 Record handwritten_input_4 := MkInput4
 {
