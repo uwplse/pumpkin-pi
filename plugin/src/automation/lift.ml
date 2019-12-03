@@ -931,10 +931,7 @@ let lift_curry_record env sigma c trm =
                     (List.hd final_args)
                     sigma
                 in
-                let open Printing in
-                debug_term en tr' "lifted elim";
                 let sigma, tr'' = lift_rec en sigma () tr' in
-                debug_term en tr'' "lifted lifted elim";
                 let sigma, post_args' = map_rec_args lift_rec en sigma () (Array.of_list post_args) in
                 (sigma, mkApp (tr'', post_args')), l.is_fwd
             else
