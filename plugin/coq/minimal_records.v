@@ -203,6 +203,7 @@ Find ornament handwritten_input_param_test generated_input_param_test. (* TODO c
 (* TODO check test results *)
 (* TODO integrate into below *)
 (* TODO lift tests for all of the other things here w/ params *)
+(* TODO be better about the names you choose for the lifted types above *)
 
 Definition generated_input_param_test2 (T1 T2 T3 T4 : Type) := (prod T1 (prod T2 (prod T3 T4))).
 
