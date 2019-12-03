@@ -11,6 +11,7 @@ open Defutils
 open Reducers
 open Environ
 open Declarations
+open Names
 
 (* --- Database of liftings for higher lifting --- *)
 
@@ -141,13 +142,15 @@ let cache_local c trm lifted =
 module OrnamentsCache =
   Hashtbl.Make
     (struct
-      type t = (KerName.t * KerName.t)
+      type t = (global_reference * global_reference)
       let equal =
         (fun (o, n) (o', n') ->
-          KerName.equal o o' && KerName.equal n n')
+          eq_gr o o' && eq_gr n n')
       let hash =
         (fun (o, n) ->
-          Hashset.Combine.combine (KerName.hash o) (KerName.hash n))
+          Hashset.Combine.combine
+            (ExtRefOrdered.hash (TrueGlobal o))
+            (ExtRefOrdered.hash (TrueGlobal n)))
     end)
 
 (* Initialize the ornament cache *)
@@ -181,13 +184,13 @@ let kind_to_int (k : kind_of_orn) =
  * Wrapping the table for persistence
  *)
 type orn_obj =
-  (KerName.t * KerName.t) * (global_reference * global_reference * int)
+  (global_reference * global_reference) * (global_reference * global_reference * int)
 
 let cache_ornament (_, (typs, orns_and_kind)) =
   OrnamentsCache.add orn_cache typs orns_and_kind
 
 let sub_ornament (subst, (typs, (orn_o, orn_n, kind))) =
-  let typs = map_tuple (subst_kn subst) typs in
+  let typs = map_tuple (subst_global_reference subst) typs in
   let orn_o, orn_n = map_tuple (subst_global_reference subst) (orn_o, orn_n) in
   typs, (orn_o, orn_n, kind)
 
@@ -200,33 +203,12 @@ let inOrns : orn_obj -> obj =
     subst_function = sub_ornament }
 
 (*
- * Get the canonical name of the type for caching
- * TODO move, see if in stdlib
- *)
-let canonical typ =
-  match kind typ with
-  | Ind ((m, _), _) ->
-     MutInd.canonical m
-  | Const (c, _) ->
-     Constant.canonical c
-  | Construct (((i, i_n), n), _) ->
-     let m = lookup_mind i (Global.env ()) in
-     let m_kn = MutInd.canonical i in
-     let mp, dp, _ = KerName.repr m_kn in
-     let c_name = m.mind_packets.(i_n).mind_consnames.(n) in
-     KerName.make mp dp (Label.of_id c_name)
-  | _ ->
-     Feedback.msg_warning (Pp.str "Can't get canonical name for caching! Please report a bug!");
-     failwith "bad call to canonical"
-
-(*
  * Precise version
  *)
 let has_ornament_exact typs =
   try
-    let canonicals = map_tuple canonical typs in
-    let contains = OrnamentsCache.mem orn_cache in
-    contains canonicals
+    let globals = map_tuple global_of_constr typs in
+    OrnamentsCache.mem orn_cache globals
   with _ ->
     false
               
@@ -245,19 +227,26 @@ let has_ornament typs =
 let lookup_ornament typs =
   let typs = if has_ornament_exact typs then typs else reverse typs in
   if not (has_ornament typs) then
-    CErrors.user_err (Pp.str "cannot find ornament; please supply ornamental promotion yourself")
+    CErrors.user_err (Pp.str "Cannot find ornament; please supply ornamental promotion yourself")
   else
-    let canonicals = map_tuple canonical typs in
-    let lookup = OrnamentsCache.find orn_cache in
-    let (orn, orn_inv, i) = lookup canonicals in
-    (orn, orn_inv, int_to_kind i)
+    let globals = map_tuple global_of_constr typs in
+    let (orn, orn_inv, i) = OrnamentsCache.find orn_cache globals in
+    try
+      let orn, orn_inv = map_tuple Universes.constr_of_global (orn, orn_inv) in
+      (orn, orn_inv, int_to_kind i)
+    with _ ->
+      failwith "Ornament is not in the current environment; please report a bug"
 
 (*
  * Add an ornament to the ornament cache
  *)
 let save_ornament typs (orn, orn_inv, kind) =
-  let canonicals = map_tuple canonical typs in
-  let orn_obj = inOrns (canonicals, (orn, orn_inv, kind_to_int kind)) in
-  add_anonymous_leaf orn_obj
+  try
+    let globals = map_tuple global_of_constr typs in
+    let orn, orn_inv = map_tuple global_of_constr (orn, orn_inv) in
+    let orn_obj = inOrns (globals, (orn, orn_inv, kind_to_int kind)) in
+    add_anonymous_leaf orn_obj
+  with _ ->
+    Feedback.msg_warning (Pp.str "Failed to cache ornament")
  
 

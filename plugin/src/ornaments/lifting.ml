@@ -182,8 +182,7 @@ let initialize_lifting env sigma o n =
       (* Cached ornament *)
       let (orn_o, orn_n, k) = lookup_ornament (o, n) in
       let is_fwd = direction_cached env o n k in
-      let orns = map_tuple constr_of_global (orn_o, orn_n) in
-      is_fwd, orns, k
+      is_fwd, (orn_o, orn_n), k
     else
       (* User-supplied ornament *)
       let typ_apps = ind_of_promotion env sigma o in

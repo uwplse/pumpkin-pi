@@ -137,6 +137,7 @@ let find_ornament n_o d_old d_new =
   (try
      let trm_o = if isInd trm_o then trm_o else def_o in
      let trm_n = if isInd trm_n then trm_n else def_n in
+     let promote, forget = map_tuple Universes.constr_of_global (promote, forget) in
      save_ornament (trm_o, trm_n) (promote, forget, orn.kind)
    with _ ->
      Feedback.msg_warning (str "Failed to cache ornamental promotion."))  
@@ -189,12 +190,24 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
       c_orn, c_orn_inv
   in
   let sigma, env =
-    if orn_not_supplied && not (has_ornament (o, n)) then
-      (* Search for ornament if the user never ran Find ornament *)
-      let _ = Feedback.msg_notice (str "Searching for ornament first") in
-      let _ = find_ornament None d_orn d_orn_inv in
-      refresh_env ()
+    if orn_not_supplied then
+      if not (has_ornament (o, n)) then
+        (* The user never ran Find ornament *)
+        let _ = Feedback.msg_notice (str "Searching for ornament first") in
+        let _ = find_ornament None d_orn d_orn_inv in
+        refresh_env ()
+      else
+        try
+          (* The ornament is cached *)
+          let _ = lookup_ornament (o, n) in
+          sigma, env
+        with _ ->
+          (* The user stepped above the lift command that found the ornament *)
+          let _ = Feedback.msg_notice (str "Searching for ornament again") in
+          let _ = find_ornament None d_orn d_orn_inv in
+          refresh_env ()
     else
+      (* The ornament is provided *)
       sigma, env
   in
   let l = initialize_lifting env sigma o n in

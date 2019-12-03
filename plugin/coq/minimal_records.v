@@ -90,9 +90,6 @@ End Generated.
 (* Let's Preprocess Handwritten for lifting. *)
 Preprocess Module Handwritten as Handwritten'.
 
-(* The code that automatically runs Find Ornament first is still finnicky, so better to run it: *)
-Find ornament Handwritten'.handwritten_input Generated.generated_input.
-
 (* 
  * Now you can lift. Because of caching bug, you should lift everything along
  * this ornament before you find and lift along the next one!
@@ -107,12 +104,7 @@ Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.ha
 Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.handwritten_and_spec_true_true as handwritten_and_spec_true_true'.
 
 (*
- * Now let's handle outputs. Find ornament again:
- *)
-Find ornament Handwritten'.handwritten_output Generated.generated_output.
-
-(*
- * Then lift:
+ * Now you can lift output too (Find ornament runs automatically):
  *)
 Lift Handwritten'.handwritten_output Generated.generated_output in Handwritten'.numberO as lifted_numberO.
 Lift Handwritten'.handwritten_output Generated.generated_output in Handwritten'.andBools as lifted_andBools.

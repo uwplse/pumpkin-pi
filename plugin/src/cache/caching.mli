@@ -54,6 +54,10 @@ type kind_of_orn = Algebraic | CurryRecord
 
 (*
  * Check if an ornament between two types exists
+ *
+ * Note that this does not guarantee that the ornament is in the current
+ * environment. Lookup_ornament will make sure that the ornament is in
+ * the global environment, and fail if it is not.
  *)
 val has_ornament : (types * types) -> bool
 
@@ -61,13 +65,15 @@ val has_ornament : (types * types) -> bool
  * Lookup an ornament between two types
  * Arguments: typ1, typ2
  * Order of return values: typ1_to_typ2, typ2_to_typ1, kind of ornament
+ *
+ * Fail if the ornament does not exist or is not in the current environment
  *)
 val lookup_ornament :
-  (types * types) -> (global_reference * global_reference * kind_of_orn)
+  (types * types) -> (constr * constr * kind_of_orn)
 
 (*
  * Store an ornament between two types, given the function and its inverse
  * Order of arguments: typ1, typ2, typ1_to_typ2, typ2_to_typ1
  *)
 val save_ornament :
-  (types * types) -> (global_reference * global_reference * kind_of_orn) -> unit
+  (types * types) -> (constr * constr * kind_of_orn) -> unit
