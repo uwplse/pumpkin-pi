@@ -1,7 +1,10 @@
 Require Import Ornamental.Ornaments.
+Set DEVOID search prove equivalence.
 
-Definition generated_input := (prod bool (prod nat bool)).
-
+(*
+ * Talia: Let's start by moving all of the handwritten types into module.
+ * This way, we can Preprocess them all at once before lifting.
+ *)
 Module Handwritten.
 
 Record handwritten_input := MkInput
@@ -11,6 +14,9 @@ Record handwritten_input := MkInput
   secondBool : bool;
 }.
 
+(*
+ * For Preprocess to work, you need to have these:
+ *)
 Scheme Induction for handwritten_input Sort Set.
 Scheme Induction for handwritten_input Sort Prop.
 Scheme Induction for handwritten_input Sort Type.
@@ -21,6 +27,9 @@ Record handwritten_output := MkOutput
   andBools : bool;
 }.
 
+(*
+ * For Preprocess to work, you need to have these:
+ *)
 Scheme Induction for handwritten_output Sort Set.
 Scheme Induction for handwritten_output Sort Prop.
 Scheme Induction for handwritten_output Sort Type.
@@ -46,7 +55,12 @@ Qed.
 
 End Handwritten.
 
-Preprocess Module Handwritten as Handwritten'.
+(*
+ * Just for clarity, let's stick all of the generated types in a module too.
+ *)
+Module Generated.
+
+Definition generated_input := (prod bool (prod nat bool)).
 
 Definition generated_output := (prod nat bool).
 
@@ -71,83 +85,67 @@ Definition generated_op (r : (prod bool (prod nat bool))) : (prod nat bool) :=
     )
   ).
 
-(* The most basic test: When this works, should just give us pair *)
-Set DEVOID search prove equivalence.
-Find ornament Handwritten'.handwritten_input generated_input.
-Definition mkInput_to_lift b1 n b2 := Handwritten'.MkInput b1 n b2.
-Lift Handwritten'.handwritten_input generated_input in mkInput_to_lift as lifted_mkInput.
+End Generated.
 
-Print lifted_mkInput.
+(* Let's Preprocess Handwritten for lifting. *)
+Preprocess Module Handwritten as Handwritten'.
 
-(* TODO do elsewhere for test b.c. breaks caching:
-Lift generated_input Handwritten'.handwritten_input in lifted_mkInput as lifted_lifted_mkInput.
+(* The code that automatically runs Find Ornament first is still finnicky, so better to run it: *)
+Find ornament Handwritten'.handwritten_input Generated.generated_input.
 
-Print lifted_lifted_mkInput.*)
+(* 
+ * Now you can lift. Because of caching bug, you should lift everything along
+ * this ornament before you find and lift along the next one!
+ * I hope to fix that bug soon.
+ *
+ * There's no need to unpack for this relation.
+ *)
+Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.firstBool as lifted_firstBool.
+Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.numberI as lifted_numberI.
+Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.secondBool as lifted_secondBool.
+Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.handwritten_op as generated_op'.
+Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.handwritten_and_spec_true_true as handwritten_and_spec_true_true'.
 
-Lift Handwritten'.handwritten_input generated_input in Handwritten'.firstBool as lifted_firstBool.
-(* TODO do elsewhere for test b.c. breaks caching:
-Print lifted_firstBool.
-Lift generated_input Handwritten'.handwritten_input in lifted_firstBool as lifted_lifted_firstBool.*)
+(*
+ * Now let's handle outputs. Find ornament again:
+ *)
+Find ornament Handwritten'.handwritten_output Generated.generated_output.
 
-(* TODO lift type too before defining term so we get back better type sig. always when lifting *)
+(*
+ * Then lift:
+ *)
+Lift Handwritten'.handwritten_output Generated.generated_output in Handwritten'.numberO as lifted_numberO.
+Lift Handwritten'.handwritten_output Generated.generated_output in Handwritten'.andBools as lifted_andBools.
+Lift Handwritten'.handwritten_output Generated.generated_output in generated_op' as generated_op''.
+Lift Handwritten'.handwritten_output Generated.generated_output in handwritten_and_spec_true_true' as generated_and_spec_true_true'.
 
-Lift Handwritten'.handwritten_input generated_input in Handwritten'.numberI as lifted_numberI.
-Print lifted_numberI.
-(* TODO do elsewhere for test b.c. breaks caching:
-Lift generated_input Handwritten'.handwritten_input in lifted_numberI as lifted_lifted_numberI.
-Print lifted_lifted_numberI.*)
-
-Lift Handwritten'.handwritten_input generated_input in Handwritten'.secondBool as lifted_secondBool.
-Print lifted_secondBool.
-(* TODO do elsewhere for test b.c. breaks caching:
-Lift generated_input Handwritten'.handwritten_input in lifted_secondBool as lifted_lifted_secondBool.
-Print lifted_lifted_secondBool.*)
-
-(* TODO!!! Breaks if you have lifted lifted_numberI and so on, b.c. of caching. Bad! Fix caching! *)
-(* TODO similarly, you need to lift all inputs first, then all outputs. Kind of silly, but it's a caching bug. Sorry!! *)
-Lift Handwritten'.handwritten_input generated_input in Handwritten'.handwritten_op as generated_op'.
-Print generated_op'.
-Lift Handwritten'.handwritten_input generated_input in Handwritten'.handwritten_and_spec_true_true as handwritten_and_spec_true_true'.
-
-
-Find ornament Handwritten'.handwritten_output generated_output.
-
-(* TODO why not found otherwise? *)
-Definition mkOutput_to_lift n b := Handwritten'.MkOutput n b.
-Lift Handwritten'.handwritten_output generated_output in mkOutput_to_lift as lifted_MkOutput'.
-
-Lift Handwritten'.handwritten_output generated_output in Handwritten'.numberO as lifted_numberO.
-Lift Handwritten'.handwritten_output generated_output in Handwritten'.andBools as lifted_andBools.
-
-(* TODO test equality *)
-
-Print Handwritten'.handwritten_op.
-Print generated_op.
-
-Print lifted_andBools.
-Lift Handwritten'.handwritten_output generated_output in generated_op' as generated_op''.
-
-Lift Handwritten'.handwritten_output generated_output in handwritten_and_spec_true_true' as generated_and_spec_true_true'.
-
-Check generated_and_spec_true_true'.
-
-
-
-(* TODO!! does opposite order work? why not if it breaks still? *)
-
-Print Handwritten'.handwritten_and_spec_true_true.
-
+(*
+ * Now we get our proof over generated types with just one catch: We need to call
+ * induction first, since we have something defined over Preprocessed types
+ * (induction principles) and we want something defined over the original types
+ * (pattern matching and so on).
+ *)
 Theorem generated_and_spec_true_true
-  (r : generated_input)
-  (F : generated_firstBool  r = true)
-  (S : generated_secondBool r = true)
-  : generated_andBools (generated_op r) = true.
+  (r : Generated.generated_input)
+  (F : Generated.generated_firstBool  r = true)
+  (S : Generated.generated_secondBool r = true)
+  : Generated.generated_andBools (Generated.generated_op r) = true.
 Proof.
   induction r. (* <-- NOTE: You will need this because you used Preprocess *)
   apply generated_and_spec_true_true'; auto.
 Qed.
 
+(* We are done! *)
 
+(* -----------------------------------------------------------------------------*)
+
+(*
+ * TODO everything below is for Talia: Later testing and so on.
+ *)
+
+(* TODO roundtrip tests for above *)
+(* TODO fix auto find ornament *)
+(* TODO fix caching bug *)
 
 
 Record handwritten_input_4 := MkInput4
