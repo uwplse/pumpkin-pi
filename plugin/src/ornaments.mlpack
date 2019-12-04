@@ -32,6 +32,8 @@ Hypotheses
 Indexing
 Indutils
 
+Transform
+
 Printing
 
 Caching
@@ -43,12 +45,12 @@ Abstraction
 Specialization
 Differencing
 
+Desugar
 Search
 Coherence
 Equivalence
 Eta
 Lift
-Desugar
 Unpack
 
 Options

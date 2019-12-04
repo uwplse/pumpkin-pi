@@ -13,7 +13,7 @@ val find_ornament : Id.t option -> constr_expr -> constr_expr -> unit
  * Lift the supplied function along the supplied ornament
  * Define the lifted version
  *)
-val lift_by_ornament : ?suffix:bool -> Id.t -> constr_expr -> constr_expr -> constr_expr -> unit
+val lift_by_ornament : ?suffix:bool -> ?ignores:constr_expr list -> Id.t -> constr_expr -> constr_expr -> constr_expr -> unit
 
 (*
  * Unpack sigma types in the functional signature of a constant.

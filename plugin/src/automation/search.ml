@@ -31,6 +31,7 @@ open Constutils
 open Stateutils
 open Apputils
 open Caching
+open Desugar
 
 (* --- Error messages for the user --- *)
        
@@ -611,6 +612,7 @@ let search_curry_record env_pms sigma a_ind b =
     sigma, reconstruct_lambda env_arg app
   in
   let indexer = None in
+  let sigma, forget = desugar_constr env_pms sigma forget in
   sigma, { promote; forget; indexer; kind = CurryRecord }
 
 (* --- Top-level search --- *)

@@ -147,20 +147,21 @@ let find_ornament n_o d_old d_new =
  * Lift a definition according to a lifting configuration, defining the lifted
  * definition and declaring it as a lifting of the original definition.
  *)
-let lift_definition_by_ornament env sigma n l c_old =
-  let sigma, lifted = do_lift_defn env sigma l c_old in
+let lift_definition_by_ornament env sigma n l c_old ignores =
+  let sigma, lifted = do_lift_defn env sigma l c_old ignores in
   ignore
     (if is_lift_type () then
        (* Lift the type as well *)
        let sigma, typ = infer_type env sigma c_old in
-       let sigma, lifted_typ = do_lift_defn env sigma l typ in
+       let sigma, lifted_typ = do_lift_defn env sigma l typ ignores in
        define_term n sigma lifted true ~typ:lifted_typ
      else
        (* Let Coq infer the type *)
        define_term n sigma lifted true);
   try
     let c_new = mkConst (Constant.make1 (Lib.make_kn n)) in
-    save_lifting (l.orn.promote, l.orn.forget, c_old) c_new
+    save_lifting (l.orn.promote, l.orn.forget, c_old) c_new;
+    save_lifting (l.orn.promote, l.orn.forget, c_new) c_old
   with _ ->
     Feedback.msg_warning (Pp.str "Failed to cache lifting.")
 
@@ -169,9 +170,9 @@ let lift_definition_by_ornament env sigma n l c_old =
  * new lifted version and declaring type-to-type, constructor-to-constructor,
  * and eliminator-to-eliminator liftings.
  *)
-let lift_inductive_by_ornament env sigma n s l c_old =
+let lift_inductive_by_ornament env sigma n s l c_old ignores =
   let ind, _ = destInd c_old in
-  let ind' = do_lift_ind env sigma l n s ind in
+  let ind' = do_lift_ind env sigma l n s ind ignores in
   let env' = Global.env () in
   Feedback.msg_notice (str "Defined lifted inductive type " ++ pr_inductive env' ind')
                       
@@ -179,8 +180,9 @@ let lift_inductive_by_ornament env sigma n s l c_old =
  * Lift the supplied definition or inductive type along the supplied ornament
  * Define the lifted version
  *)
-let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
+let lift_by_ornament ?(suffix=false) ?(ignores=[]) n d_orn d_orn_inv d_old =
   let (sigma, env) = Pfedit.get_current_context () in
+  let sigma, ignores = map_state (fun t sigma -> intern env sigma t) ignores sigma in
   let sigma, c_orn = intern env sigma d_orn in
   let sigma, c_orn_inv = intern env sigma d_orn_inv in
   let sigma, c_old = intern env sigma d_old in
@@ -217,11 +219,11 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
   if isInd u_old then
     let from_typ = fst (on_red_type_default (fun _ _ -> ind_of_promotion_type) env sigma l.orn.promote) in
     if not (equal u_old from_typ) then
-      lift_inductive_by_ornament env sigma n_new s l c_old
+      lift_inductive_by_ornament env sigma n_new s l c_old ignores
     else
-      lift_definition_by_ornament env sigma n_new l c_old
+      lift_definition_by_ornament env sigma n_new l c_old ignores
   else
-    lift_definition_by_ornament env sigma n_new l c_old
+    lift_definition_by_ornament env sigma n_new l c_old ignores
 
 (*
  * Unpack sigma types in the functional signature of a constant.

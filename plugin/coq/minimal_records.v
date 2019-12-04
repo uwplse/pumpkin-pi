@@ -3,61 +3,11 @@ Set DEVOID search prove equivalence. (* <-- Correctness proofs for search *)
 Set DEVOID lift type. (* <-- Prettier types than the ones Coq infers *)
 
 (*
- * Talia: Let's start by moving all of the handwritten types into module.
- * This way, we can Preprocess them all at once before lifting.
+ * This is an example for lifting between nested tuples and records.
  *)
-Module Handwritten.
-
-Record handwritten_input := MkInput
-{
-  firstBool  : bool;
-  numberI    : nat;
-  secondBool : bool;
-}.
 
 (*
- * For Preprocess to work, you need to have these:
- *)
-Scheme Induction for handwritten_input Sort Set.
-Scheme Induction for handwritten_input Sort Prop.
-Scheme Induction for handwritten_input Sort Type.
-
-Record handwritten_output := MkOutput
-{
-  numberO  : nat;
-  andBools : bool;
-}.
-
-(*
- * For Preprocess to work, you need to have these:
- *)
-Scheme Induction for handwritten_output Sort Set.
-Scheme Induction for handwritten_output Sort Prop.
-Scheme Induction for handwritten_output Sort Type.
-
-Definition handwritten_op (r : handwritten_input) : handwritten_output :=
-  {|
-    numberO  := numberI r;
-    andBools := firstBool r && secondBool r;
-  |}.
-
-Theorem handwritten_and_spec_true_true
-  (r : handwritten_input)
-  (F : firstBool  r = true)
-  (S : secondBool r = true)
-  : andBools (handwritten_op r) = true.
-Proof.
-  destruct r as [f n s].
-  unfold handwritten_op.
-  simpl in *.
-  apply andb_true_intro.
-  intuition.
-Qed.
-
-End Handwritten.
-
-(*
- * Just for clarity, let's stick all of the generated types in a module too.
+ * In this example, we have some generated code that uses nested tuples:
  *)
 Module Generated.
 
@@ -74,6 +24,9 @@ Definition generated_numberI (r : (prod bool (prod nat bool))) : nat :=
 Definition generated_secondBool (r : (prod bool (prod nat bool))) : bool :=
   (snd (snd r)).
 
+Definition generated_numberO (r : (prod nat bool)) : nat :=
+  (fst r).
+
 Definition generated_andBools (r : (prod nat bool)) : bool :=
   (snd r).
 
@@ -88,8 +41,114 @@ Definition generated_op (r : (prod bool (prod nat bool))) : (prod nat bool) :=
 
 End Generated.
 
-(* Let's Preprocess Handwritten for lifting. *)
+(*
+ * We want to write proofs over the record versions of these, which
+ * are easier to read about. We start by defining the record versions
+ * of generated_input and generated_output ourselves:
+ *)
+Module Handwritten.
+
+Record handwritten_input := MkInput
+{
+  firstBool  : bool;
+  numberI    : nat;
+  secondBool : bool;
+}.
+
+Record handwritten_output := MkOutput
+{
+  numberO  : nat;
+  andBools : bool;
+}.
+
+(*
+ * To be able to lift back from these types, we'll need to
+ * Preprocess this module, and to be able to do that, we'll need
+ * to tell Coq to generate induction principles for these records:
+ *)
+Scheme Induction for handwritten_input Sort Set.
+Scheme Induction for handwritten_input Sort Prop.
+Scheme Induction for handwritten_input Sort Type.
+
+Scheme Induction for handwritten_output Sort Set.
+Scheme Induction for handwritten_output Sort Prop.
+Scheme Induction for handwritten_output Sort Type.
+
+End Handwritten.
+
+(*
+ * Now we Preprocess in both directions, since we'll lift in
+ * both directions.
+ *
+ * Note we must tell Preprocess about any constants not in
+ * our module, here fst and snd:
+ *)
+Preprocess Module Generated as Generated' {include fst, snd, andb}.
 Preprocess Module Handwritten as Handwritten'.
+
+(*
+ * You can lift to handwritten_op all at once if you'd like, but you get prettier
+ * (though equal) results if you lift the projections first, here for inputs:
+ *)
+Lift Generated'.generated_input Handwritten'.handwritten_input in Generated'.generated_firstBool as firstBool.
+Lift Generated'.generated_input Handwritten'.handwritten_input in Generated'.generated_numberI as numberI.
+Lift Generated'.generated_input Handwritten'.handwritten_input in Generated'.generated_secondBool as secondBool.
+(*
+ * then for outputs:
+ *)
+Lift Generated'.generated_output Handwritten'.handwritten_output in Generated'.generated_numberO as numberO.
+Lift Generated'.generated_output Handwritten'.handwritten_output in Generated'.generated_andBools as andBools.
+
+(*
+ * Now lifting to handwritten_op uses the cached results:
+ *)
+Lift Generated'.generated_input Handwritten'.handwritten_input in Generated'.generated_op as handwritten_op_1.
+Lift Generated'.generated_output Handwritten'.handwritten_output in handwritten_op_1 as handwritten_op {opaque firstBool numberI secondBool}.
+(*
+ * Note that to get prettier results here, we told to treat certain constants as opaque.
+ * Otherwise, it would have opportunistically lifted everything.
+ * Use this feature at your own risk (DEVOID might fail to lift if you use it badly).
+ *)
+
+(*
+ * OK, now that we're in the handwritten world, we can write our proofs over
+ * these nicer types:
+ *)
+Module HandwrittenProofs.
+
+Theorem handwritten_and_spec_true_true
+  (r : Handwritten'.handwritten_input)
+  (F : firstBool  r = true)
+  (S : secondBool r = true)
+  : andBools (handwritten_op r) = true.
+Proof.
+  destruct r as [f n s].
+  unfold handwritten_op.
+  simpl in *.
+  apply andb_true_intro.
+  intuition.
+Qed.
+
+End HandwrittenProofs.
+
+(*
+ * Let's Preprocess this proof for lifting:
+ *)
+Preprocess Module HandwrittenProofs as HandwrittenProofs' {include andb_true_intro}.
+
+Print HandwrittenProofs'.handwritten_and_spec_true_true.
+
+(*
+ * Then lift it back to our nested pair types.
+ * I think this is order sensitive if we want something that looks nice, since we
+ * lifted generated_op in one order so the cache will only understand that if we lift
+ * in the opposite order.
+ *)
+Lift Handwritten'.handwritten_output Generated'.generated_output in HandwrittenProofs'.handwritten_and_spec_true_true as generated_and_spec_true_true_1 {opaque firstBool numberI secondBool}.
+Print generated_and_spec_true_true_1.
+Lift Handwritten'.handwritten_input Generated'.generated_input in generated_and_spec_true_true_1 as generated_and_spec_true_true'.
+
+(*
 
 (* 
  * Now you can lift. Here we do inputs:
@@ -98,7 +157,6 @@ Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.fi
 Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.numberI as lifted_numberI.
 Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.secondBool as lifted_secondBool.
 Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.handwritten_op as generated_op'.
-Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.handwritten_and_spec_true_true as handwritten_and_spec_true_true'.
 
 (*
  * Then outputs:
@@ -125,112 +183,3 @@ Proof.
 Qed.
 
 (* We are done! *)
-
-(* -----------------------------------------------------------------------------*)
-
-(*
- * TODO everything below is for Talia: Later testing and so on.
- *)
-
-(* TODO split below into different files; in above, show workflow that is reasonable *)
-(* TODO roundtrip tests for above *)
-(* TODO document all new functionality *)
-(* TODO remove extra imports and functions that aren't used now *)
-
-(*
-Record handwritten_input_4 := MkInput4
-{
-  field1  : bool;
-  field2    : nat;
-  field3 : bool;
-  field4 : nat; 
-}.
-
-Definition generated_input_4 := (prod bool (prod nat (prod bool nat))).
-
-Scheme Induction for handwritten_input_4 Sort Set.
-Scheme Induction for handwritten_input_4 Sort Prop.
-Scheme Induction for handwritten_input_4 Sort Type.
-
-Find ornament handwritten_input_4 generated_input_4.
-
-Record handwritten_input_5 := MkInput5
-{
-  field1'  : bool;
-  field2'    : nat;
-  field3' : bool;
-  field4' : nat;
-  field5' : bool; 
-}.
-
-Definition generated_input_5 := (prod bool (prod nat (prod bool (prod nat bool)))).
-
-Scheme Induction for handwritten_input_5 Sort Set.
-Scheme Induction for handwritten_input_5 Sort Prop.
-Scheme Induction for handwritten_input_5 Sort Type.
-
-Find ornament handwritten_input_5 generated_input_5.
-
-Definition generated_input_param_test (T1 T2 T3 : Type) := (prod T1 (prod T2 T3)).
-
-Record handwritten_input_param_test (T1 T2 T3 : Type) := MkInputT
-{
-  firstT : T1;
-  secondT : T2;
-  thirdT : T3;
-}.
-
-Scheme Induction for handwritten_input_param_test Sort Set.
-Scheme Induction for handwritten_input_param_test Sort Prop.
-Scheme Induction for handwritten_input_param_test Sort Type.
-
-(* The most basic test: When this works, should just give us fst *)
-(* TODO set options to prove equiv: Set DEVOID search prove equivalence. Then get working. Then try w/ params. Then clean. Then do lift, same process.*)
-Find ornament handwritten_input_param_test generated_input_param_test. (* TODO can omit once lift works *)
-(*Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.*)
-
-(* TODO test: failure cases, dependent parameters, eta expanded or not expanded variations, 2 fields, 4 fields, taking prod directly, etc *)
-(* TODO check test results *)
-(* TODO integrate into below *)
-(* TODO lift tests for all of the other things here w/ params *)
-(* TODO be better about the names you choose for the lifted types above *)
-
-Definition generated_input_param_test2 (T1 T2 T3 T4 : Type) := (prod T1 (prod T2 (prod T3 T4))).
-
-Record handwritten_input_param_test2 (T1 T2 T3 T4 : Type) := MkInputT2
-{
-  firstT' : T1;
-  secondT' : T2;
-  thirdT' : T3;
-  fourthT' : T4;
-}.
-
-Scheme Induction for handwritten_input_param_test2 Sort Set.
-Scheme Induction for handwritten_input_param_test2 Sort Prop.
-Scheme Induction for handwritten_input_param_test2 Sort Type.
-
-(* The most basic test: When this works, should just give us fst *)
-(* TODO set options to prove equiv: Set DEVOID search prove equivalence. Then get working. Then try w/ params. Then clean. Then do lift, same process.*)
-Find ornament handwritten_input_param_test2 generated_input_param_test2. (* TODO can omit once lift works *)
-(*Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.*)
-
-Record handwritten_input_param_test3 (T : Type) (t : T) (F : T -> Prop) := mkInput3
-{
-  firstT'' : F t;
-  secondT'' : T;
-  thirdT'' : exists t', t <> t' -> F t';
-}.
-
-Definition generated_input_param_test3 (T : Type) (t : T) (F : T -> Prop) :=
-  (prod (F t) (prod T (exists t', t <> t' -> F t'))).
-
-
-Scheme Induction for handwritten_input_param_test3 Sort Set.
-Scheme Induction for handwritten_input_param_test3 Sort Prop.
-Scheme Induction for handwritten_input_param_test3 Sort Type.
-
-(* The most basic test: When this works, should just give us fst *)
-(* TODO set options to prove equiv: Set DEVOID search prove equivalence. Then get working. Then try w/ params. Then clean. Then do lift, same process.*)
-Find ornament handwritten_input_param_test3 generated_input_param_test3. (* TODO can omit once lift works *)
-(*Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.*)
-*)
