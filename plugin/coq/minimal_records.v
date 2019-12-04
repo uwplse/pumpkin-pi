@@ -107,6 +107,7 @@ Lift Generated'.generated_output Handwritten'.handwritten_output in handwritten_
 (*
  * Note that to get prettier results here, we told to treat certain constants as opaque.
  * Otherwise, it would have opportunistically lifted everything.
+ * You can also use this to speed up lifting.
  * Use this feature at your own risk (DEVOID might fail to lift if you use it badly).
  *)
 
@@ -141,30 +142,11 @@ Print HandwrittenProofs'.handwritten_and_spec_true_true.
 (*
  * Then lift it back to our nested pair types.
  * I think this is order sensitive if we want something that looks nice, since we
- * lifted generated_op in one order so the cache will only understand that if we lift
- * in the opposite order.
+ * lifted generated_op in one order so we only have nice cached intermediate constants if we go
+ * in the opposite order. But it will work regardless of which direction you do.
  *)
 Lift Handwritten'.handwritten_output Generated'.generated_output in HandwrittenProofs'.handwritten_and_spec_true_true as generated_and_spec_true_true_1 {opaque firstBool numberI secondBool}.
-Print generated_and_spec_true_true_1.
-Lift Handwritten'.handwritten_input Generated'.generated_input in generated_and_spec_true_true_1 as generated_and_spec_true_true'.
-
-(*
-
-(* 
- * Now you can lift. Here we do inputs:
- *)
-Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.firstBool as lifted_firstBool.
-Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.numberI as lifted_numberI.
-Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.secondBool as lifted_secondBool.
-Lift Handwritten'.handwritten_input Generated.generated_input in Handwritten'.handwritten_op as generated_op'.
-
-(*
- * Then outputs:
- *)
-Lift Handwritten'.handwritten_output Generated.generated_output in Handwritten'.numberO as lifted_numberO.
-Lift Handwritten'.handwritten_output Generated.generated_output in Handwritten'.andBools as lifted_andBools.
-Lift Handwritten'.handwritten_output Generated.generated_output in generated_op' as generated_op''.
-Lift Handwritten'.handwritten_output Generated.generated_output in handwritten_and_spec_true_true' as generated_and_spec_true_true'.
+Lift Handwritten'.handwritten_input Generated'.generated_input in generated_and_spec_true_true_1 as generated_and_spec_true_true' {opaque prod_rect}.
 
 (*
  * Now we get our proof over generated types with just one catch: We need to call

@@ -935,13 +935,15 @@ let lift_curry_record env sigma c trm =
               let (final_args, post_args) = take_split (value_i + 1) tr_elim.final_args in
               (* TODO different in a few ways from algebraic, unify/explain *)
               let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } in
-              lift_rec en sigma () (mkAppl (tr', post_args)), l.is_fwd
+              let sigma, tr'' = lift_rec en sigma () tr' in
+              let sigma, post_args' = map_rec_args lift_rec en sigma () (Array.of_list post_args) in
+              (sigma, mkApp(tr'', post_args')), l.is_fwd
             else
               match kind tr with
               | App (f, args) ->
                  if equal (lift_back l) f then
                    (* SECTION/RETRACTION *)
-                   lift_rec en sigma () (last_arg tr), false
+                   (lift_rec en sigma () (last_arg tr)), false
                  else if equal (lift_to l) f then
                    (* INTERNALIZE *)
                    lift_rec en sigma () (last_arg tr), false
