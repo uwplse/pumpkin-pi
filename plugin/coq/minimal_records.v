@@ -137,8 +137,6 @@ End HandwrittenProofs.
  *)
 Preprocess Module HandwrittenProofs as HandwrittenProofs' {include andb_true_intro}.
 
-Print HandwrittenProofs'.handwritten_and_spec_true_true.
-
 (*
  * Then lift it back to our nested pair types.
  * I think this is order sensitive if we want something that looks nice, since we
