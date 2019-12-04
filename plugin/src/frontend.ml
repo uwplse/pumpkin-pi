@@ -182,7 +182,7 @@ let lift_inductive_by_ornament env sigma n s l c_old ignores =
  *)
 let lift_by_ornament ?(suffix=false) ?(ignores=[]) n d_orn d_orn_inv d_old =
   let (sigma, env) = Pfedit.get_current_context () in
-  let sigma, ignores = map_state (fun t sigma -> intern env sigma t) ignores sigma in
+  let ignores = List.map (fun i -> mkConst (Nametab.locate_constant (qualid_of_reference i))) ignores in
   let sigma, c_orn = intern env sigma d_orn in
   let sigma, c_orn_inv = intern env sigma d_orn_inv in
   let sigma, c_old = intern env sigma d_old in
