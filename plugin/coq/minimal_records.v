@@ -145,8 +145,8 @@ Print HandwrittenProofs'.handwritten_and_spec_true_true.
  * lifted generated_op in one order so we only have nice cached intermediate constants if we go
  * in the opposite order. But it will work regardless of which direction you do.
  *)
-Lift Handwritten'.handwritten_output Generated'.generated_output in HandwrittenProofs'.handwritten_and_spec_true_true as generated_and_spec_true_true_1 {opaque firstBool numberI secondBool}.
-Lift Handwritten'.handwritten_input Generated'.generated_input in generated_and_spec_true_true_1 as generated_and_spec_true_true' {opaque prod_rect}.
+Lift Handwritten'.handwritten_output Generated'.generated_output in HandwrittenProofs'.handwritten_and_spec_true_true as generated_and_spec_true_true_1.
+Lift Handwritten'.handwritten_input Generated'.generated_input in generated_and_spec_true_true_1 as generated_and_spec_true_true'.
 
 (*
  * Now we get our proof over generated types with just one catch: We need to call
