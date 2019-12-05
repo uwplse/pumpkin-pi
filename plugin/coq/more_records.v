@@ -268,99 +268,135 @@ Lift Generated4'.input Handwritten4'.input in Generated4'.field3 as field3.
 Lift Generated4'.input Handwritten4'.input in Generated4'.field4 as field4.
 Lift Generated4'.output Handwritten4'.output in Generated4'.field2and4 as field2and4.
 Lift Generated4'.output Handwritten4'.output in Generated4'.field1and3 as field1and3.
-Lift Generated4'.input Handwritten4'.input in Generated4'.op as op_1 { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
-Lift Generated4'.output Handwritten4'.output in op_1 as op.
-Lift Generated4'.output Handwritten4'.output in Generated4'.and_spec_true_true as and_spec_true_true_1 { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
-Lift Generated4'.input Handwritten4'.input in and_spec_true_true_1 as and_spec_true_true { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
-Lift Generated4'.output Handwritten4'.output in Generated4'.plus_spec_O_l as plus_spec_O_l_1 { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
-Lift Generated4'.input Handwritten4'.input in plus_spec_O_l_1 as plus_spec_O_l { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
-Lift Generated4'.output Handwritten4'.output  in Generated4'.plus_spec_O_r as plus_spec_O_l_r { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
-Lift Generated4'.input Handwritten4'.input in plus_spec_O_l_r as plus_spec_O_r { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
+Lift Generated4'.output Handwritten4'.output in Generated4'.op as op_1 { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
+Lift Generated4'.input Handwritten4'.input in op_1 as op { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
+Lift Generated4'.output Handwritten4'.output in Generated4'.and_spec_true_true as and_spec_true_true_1 { opaque Generated4'.Coq_Init_Datatypes_andb_true_intro }.
+Lift Generated4'.input Handwritten4'.input in and_spec_true_true_1 as and_spec_true_true { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Datatypes_andb_true_intro }.
+Lift Generated4'.output Handwritten4'.output in Generated4'.plus_spec_O_l as plus_spec_O_l_1 { opaque Generated4'.Coq_Init_Logic_eq_ind_r }.
+Lift Generated4'.input Handwritten4'.input in plus_spec_O_l_1 as plus_spec_O_l { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Logic_eq_ind_r }.
+Lift Generated4'.output Handwritten4'.output  in Generated4'.plus_spec_O_r as plus_spec_O_l_r { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Peano_plus_n_O Generated4'.Coq_Init_Logic_eq_sym Generated4'.Coq_Init_Logic_eq_ind_r }.
+Lift Generated4'.input Handwritten4'.input in plus_spec_O_l_r as plus_spec_O_r { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Peano_plus_n_O Generated4'.Coq_Init_Logic_eq_sym Generated4'.Coq_Init_Logic_eq_ind_r }.
 
-Print and_spec_true_true.
+(* Note that Handwritten4.input and Handwritten4'.input are equivalent, but not equal because
+   of how Coq's equality works (will not prove). *)
 
 Lemma testMkInput:
-  MkInput = Generated4.MkInput.
+  MkInput = Handwritten4'.MkInput.
 Proof.
   auto.
 Qed. 
 
 Lemma testMkOutput:
-  MkOutput = Generated4.MkOutput.
+  MkOutput = Handwritten4'.MkOutput.
 Proof.
   auto.
 Qed. 
 
 Lemma testField1:
-  field1 = Generated4.field1.
+  field1 = Handwritten4'.field1.
 Proof.
   auto.
 Qed. 
 
 Lemma testField2:
-  forall i, field2 i = Generated4.field2 i.
+  forall i, field2 i = Handwritten4'.field2 i.
 Proof.
   intros. induction i. auto.
 Qed. 
 
 Lemma testField3:
-  forall i, field3 i = Generated4.field3 i.
+  forall i, field3 i = Handwritten4'.field3 i.
 Proof.
   intros. induction i. auto.
 Qed. 
 
 Lemma testField4:
-  forall i, field4 i = Generated4.field4 i.
+  forall i, field4 i = Handwritten4'.field4 i.
 Proof.
   intros. induction i. auto.
 Qed. 
 
 Lemma testField2and4:
-  field2and4 = Generated4.field2and4.
+  field2and4 = Handwritten4'.field2and4.
 Proof.
   auto.
 Qed. 
 
 Lemma testField1and3:
-  field1and3 = Generated4.field1and3.
+  field1and3 = Handwritten4'.field1and3.
 Proof.
   auto.
 Qed. 
 
 Lemma testOp:
-  forall r, op r = Generated4.op r.
+  forall r, op r = Handwritten4'.op r.
 Proof.
   intros. induction r. auto.
 Qed.
 
-Lemma testAndSpecTrueTrue:
-  forall r : Generated4.input,
-    Generated4.field1 r = true ->
-    Generated4.field3 r = true ->
-    Generated4.field1and3 (Generated4.op r) = true.
+Lemma testAndSpecTrueTrue':
+  forall r : Handwritten4'.input,
+    Handwritten4'.field1 r = true ->
+    Handwritten4'.field3 r = true ->
+    Handwritten4'.field1and3 (Handwritten4'.op r) = true.
 Proof.
   intros. induction r. apply and_spec_true_true; auto.
 Qed.
 
-Lemma testPlusSpecOl:
-  forall r : Generated4.input,
-    Generated4.field2 r = 0 ->
-    Generated4.field2and4 (Generated4.op r) = Generated4.field4 r.
+Lemma testAndSpecTrueTrue:
+  forall r : Handwritten4.input,
+    Handwritten4.field1 r = true ->
+    Handwritten4.field3 r = true ->
+    Handwritten4.field1and3 (Handwritten4.op r) = true.
+Proof.
+  intros. induction r. 
+  pose proof (testAndSpecTrueTrue' (Handwritten4'.MkInput field5 field6 field7 field8)).
+  auto.
+Qed.
+
+Lemma testPlusSpecOl':
+  forall r : Handwritten4'.input,
+    Handwritten4'.field2 r = 0 ->
+    Handwritten4'.field2and4 (Handwritten4'.op r) = Handwritten4'.field4 r.
 Proof.
   intros. induction r. rewrite <- testOp. apply plus_spec_O_l; auto.
 Qed.
 
-Lemma testPlusSpecOr:
-  forall r : Generated4.input,
-    Generated4.field4 r = 0 ->
-    Generated4.field2and4 (Generated4.op r) = Generated4.field2 r.
+Lemma testPlusSpecOl:
+  forall r : Handwritten4.input,
+    Handwritten4.field2 r = 0 ->
+    Handwritten4.field2and4 (Handwritten4.op r) = Handwritten4.field4 r.
+Proof.
+  intros. induction r.
+  pose proof (testPlusSpecOl' (Handwritten4'.MkInput field5 field6 field7 field8)).
+  auto.
+Qed.
+
+Lemma testPlusSpecOr':
+  forall r : Handwritten4'.input,
+    Handwritten4'.field4 r = 0 ->
+    Handwritten4'.field2and4 (Handwritten4'.op r) = Handwritten4'.field2 r.
 Proof.
   intros. induction r. rewrite <- testOp. apply plus_spec_O_r; auto.
+Qed.
+
+Lemma testPlusSpecOr:
+  forall r : Handwritten4.input,
+    Handwritten4.field4 r = 0 ->
+    Handwritten4.field2and4 (Handwritten4.op r) = Handwritten4.field2 r.
+Proof.
+  intros. induction r.
+  pose proof (testPlusSpecOr' (Handwritten4'.MkInput field5 field6 field7 field8)).
+  auto.
 Qed.
 
 End LiftedGenerated4.
 
 (* --- Test a record with parameters --- *)
+
+(*
+ * TODO WIP from here out
+ *)
 
 Module HandwrittenParams.
 
