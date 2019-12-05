@@ -1,4 +1,5 @@
 Require Import Ornamental.Ornaments.
+
 Set DEVOID search prove equivalence. (* <-- Correctness proofs for search *)
 Set DEVOID lift type. (* <-- Prettier types than the ones Coq infers *)
 
