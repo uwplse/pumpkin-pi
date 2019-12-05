@@ -149,6 +149,8 @@ let find_ornament n_o d_old d_new =
  *)
 let lift_definition_by_ornament env sigma n l c_old ignores =
   let sigma, lifted = do_lift_defn env sigma l c_old ignores in
+  let open Printing in
+  debug_term env lifted "lifted";
   ignore
     (if is_lift_type () then
        (* Lift the type as well *)

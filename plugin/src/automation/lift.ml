@@ -809,12 +809,15 @@ let lift_algebraic env sigma c ib_typ trm =
                    let sigma, lifted =
                      (try
                         (* CONST *)
-                        let def = lookup_definition en tr in
-                        let sigma, try_lifted = lift_rec en sigma ib_typ def in
-                        if equal def try_lifted then
+                        if Option.has_some (inductive_of_elim en (co, u)) then
                           sigma, tr
                         else
-                          reduce_term en sigma try_lifted
+                          let def = lookup_definition en tr in
+                          let sigma, try_lifted = lift_rec en sigma ib_typ def in
+                          if equal def try_lifted then
+                            sigma, tr
+                          else
+                            reduce_term en sigma try_lifted
                       with _ ->
                         (* AXIOM *)
                         sigma, tr)
@@ -944,6 +947,8 @@ let lift_curry_record env sigma c trm =
                  else
                    (* APP *)
                    let sigma, f' = lift_rec en sigma () f in
+                   Printing.debug_term en f "f";
+                   Printing.debug_term en f' "f'";
                    if (not l.is_fwd) && Array.length args > 0 && equal f f' && (not (is_locally_cached c.opaques f)) && ((not (isConst f)) || (not (Option.has_some (inductive_of_elim en (destConst f))))) then 
                      (* TODO do we need same extension to rule for lift algebraic? Can we disable w option? More complete this way, but can produce ugly terms. I think we only need this here because the type we are looking for in the backward direction is prod instantiating to something specific, though may also be true for sigma types in algebraic  *)
                      (* TODO explain *)
@@ -1022,12 +1027,15 @@ let lift_curry_record env sigma c trm =
                  let sigma, lifted =
                    (try
                       (* CONST *)
-                      let def = lookup_definition en tr in
-                      let sigma, try_lifted = lift_rec en sigma () def in
-                      if equal def try_lifted then
+                      if Option.has_some (inductive_of_elim en (co, u)) then
                         sigma, tr
                       else
-                        sigma, try_lifted
+                        let def = lookup_definition en tr in
+                        let sigma, try_lifted = lift_rec en sigma () def in
+                        if equal def try_lifted then
+                          sigma, tr
+                        else
+                          sigma, try_lifted
                     with _ ->
                       (* AXIOM *)
                       sigma, tr)

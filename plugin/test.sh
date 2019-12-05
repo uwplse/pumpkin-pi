@@ -12,7 +12,7 @@ search=false
 lift=false
 listtovect=false
 records=false
-more_records=false
+morerecords=false
 
 echo "Testing Find ornament."
 
@@ -60,7 +60,7 @@ fi
 
 if coqc coq/more_records.v
 then
-  more_records=true
+  morerecords=true
 else
   :
 fi
