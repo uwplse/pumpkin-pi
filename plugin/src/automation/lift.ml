@@ -921,7 +921,7 @@ let lift_curry_record env sigma c trm =
             in
             let sigma, args = build_args p sigma in
             (* TODO handle parameters! *)
-            ((sigma, mkAppl (lifted_constr, args)), false)
+            reduce_term en sigma (mkAppl (lifted_constr, args)), false
         else
           (* TODO handle opaque in algebraic too *)
           (*let sigma, run_lift_pack = is_packed c en sigma tr in
