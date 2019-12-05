@@ -901,15 +901,25 @@ let lift_curry_record env sigma c trm =
           else
             let lifted_constr = c.constr_rules.(0) in
             let p = dest_pair tr in
-            let rec build_args p =
+            let rec build_args p sigma = (* TODO clean, move to optimization *)
               let sigma, trm1 = lift_rec en sigma () p.Produtils.trm1 in
               if applies pair p.Produtils.trm2 then
-                trm1 :: build_args (dest_pair p.Produtils.trm2)
+                let sigma, trm2s = build_args (dest_pair p.Produtils.trm2) sigma in
+                sigma, trm1 :: trm2s
               else
-                let sigma, trm2 = lift_rec en sigma () p.Produtils.trm2 in
-                [trm1; trm2]
+                let sigma_typ, typ2 = reduce_type en sigma p.Produtils.trm2 in
+                if applies prod typ2 then (* TODO should just be able to use number instead of type-checking every time *)
+                  let prod_app = dest_prod typ2 in
+                  let typ1 = prod_app.Produtils.typ1 in
+                  let typ2 = prod_app.Produtils.typ2 in
+                  let trm2_pair = Produtils.{ typ1; typ2; trm1 = prod_fst_elim prod_app p.Produtils.trm2; trm2 = prod_snd_elim prod_app p.Produtils.trm2 } in
+                  let sigma, trm2s = build_args trm2_pair sigma in
+                  sigma, trm1 :: trm2s
+                else
+                  let sigma, trm2 = lift_rec en sigma () p.Produtils.trm2 in
+                  sigma, [trm1; trm2]
             in
-            let args = build_args p in
+            let sigma, args = build_args p sigma in
             (* TODO handle parameters! *)
             ((sigma, mkAppl (lifted_constr, args)), false)
         else
