@@ -84,7 +84,7 @@ End Handwritten.
  * Note we must tell Preprocess about any constants not in
  * our module, here fst and snd:
  *)
-Preprocess Module Generated as Generated' {include fst, snd, andb}.
+Preprocess Module Generated as Generated'.
 Preprocess Module Handwritten as Handwritten'.
 
 (*
@@ -136,7 +136,7 @@ End HandwrittenProofs.
 (*
  * Let's Preprocess this proof for lifting:
  *)
-Preprocess Module HandwrittenProofs as HandwrittenProofs' {include andb_true_intro}.
+Preprocess Module HandwrittenProofs as HandwrittenProofs'.
 
 (*
  * Then lift it back to our nested pair types.
