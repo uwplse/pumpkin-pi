@@ -95,55 +95,92 @@ End GeneratedParams.
 Find ornament HandwrittenParams.input GeneratedParams.input as input_params_curry.
 (* TODO test lifting for above *)
 (* TODO test output *)
-(*
 
-(* The most basic test: When this works, should just give us fst *)
-(* TODO set options to prove equiv: Set DEVOID search prove equivalence. Then get working. Then try w/ params. Then clean. Then do lift, same process.*)
-Find ornament handwritten_input_param_test generated_input_param_test. (* TODO can omit once lift works *)
-(*Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.*)
+(* --- Test a larger record with parameters --- *)
 
-(* TODO test: failure cases, dependent parameters, eta expanded or not expanded variations, 2 fields, 4 fields, taking prod directly, etc *)
-(* TODO check test results *)
-(* TODO integrate into below *)
-(* TODO lift tests for all of the other things here w/ params *)
-(* TODO be better about the names you choose for the lifted types above *)
+Module HandwrittenParams4.
 
-Definition generated_input_param_test2 (T1 T2 T3 T4 : Type) := (prod T1 (prod T2 (prod T3 T4))).
-
-Record handwritten_input_param_test2 (T1 T2 T3 T4 : Type) := MkInputT2
+Record input (T1 T2 T3 T4 : Type) := MkInput
 {
-  firstT' : T1;
-  secondT' : T2;
-  thirdT' : T3;
-  fourthT' : T4;
+  first : T1;
+  second : T2;
+  third : T3;
+  fourth : T4;
 }.
 
-Scheme Induction for handwritten_input_param_test2 Sort Set.
-Scheme Induction for handwritten_input_param_test2 Sort Prop.
-Scheme Induction for handwritten_input_param_test2 Sort Type.
+Scheme Induction for input Sort Set.
+Scheme Induction for input Sort Prop.
+Scheme Induction for input Sort Type.
 
-(* The most basic test: When this works, should just give us fst *)
-(* TODO set options to prove equiv: Set DEVOID search prove equivalence. Then get working. Then try w/ params. Then clean. Then do lift, same process.*)
-Find ornament handwritten_input_param_test2 generated_input_param_test2. (* TODO can omit once lift works *)
-(*Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.*)
+End HandwrittenParams4.
 
-Record handwritten_input_param_test3 (T : Type) (t : T) (F : T -> Prop) := mkInput3
+Module GeneratedParams4.
+
+Definition input (T1 T2 T3 T4 : Type) := (prod T1 (prod T2 (prod T3 T4))).
+
+End GeneratedParams4.
+
+Find ornament HandwrittenParams4.input GeneratedParams4.input as input_params4_curry.
+(* TODO test lifting for above *)
+(* TODO test output *)
+
+(* -- Test swapped params --- *)
+
+Module HandwrittenParams4Swapped.
+
+Record input (T1 T2 T3 T4 : Type) := MkInput
 {
-  firstT'' : F t;
-  secondT'' : T;
-  thirdT'' : exists t', t <> t' -> F t';
+  first : T1;
+  second : T2;
+  third : T4;
+  fourth : T3;
 }.
 
-Definition generated_input_param_test3 (T : Type) (t : T) (F : T -> Prop) :=
+Scheme Induction for input Sort Set.
+Scheme Induction for input Sort Prop.
+Scheme Induction for input Sort Type.
+
+End HandwrittenParams4Swapped.
+
+Module GeneratedParams4Swapped.
+
+Definition input (T1 T2 T3 T4 : Type) := (prod T1 (prod T2 (prod T4 T3))).
+
+End GeneratedParams4Swapped.
+
+Find ornament HandwrittenParams4Swapped.input GeneratedParams4Swapped.input as input_params4_swapped_curry.
+(* TODO test lifting for above *)
+(* TODO test output *)
+
+(* --- Test fancier parameters --- *)
+
+Module HandwrittenParamsFancy.
+
+Record input (T : Type) (t : T) (F : T -> Prop) := MkInput
+{
+  first  : F t;
+  second : T;
+  third : exists t', t <> t' -> F t';
+}.
+
+Scheme Induction for input Sort Set.
+Scheme Induction for input Sort Prop.
+Scheme Induction for input Sort Type.
+
+End HandwrittenParamsFancy.
+
+Module GeneratedParamsFancy.
+
+Definition input (T : Type) (t : T) (F : T -> Prop) :=
   (prod (F t) (prod T (exists t', t <> t' -> F t'))).
 
+End GeneratedParamsFancy.
 
-Scheme Induction for handwritten_input_param_test3 Sort Set.
-Scheme Induction for handwritten_input_param_test3 Sort Prop.
-Scheme Induction for handwritten_input_param_test3 Sort Type.
+Find ornament HandwrittenParamsFancy.input GeneratedParamsFancy.input as input_params_fancy_curry.
+(* TODO test lifting for above *)
+(* TODO test output *)
 
-(* The most basic test: When this works, should just give us fst *)
-(* TODO set options to prove equiv: Set DEVOID search prove equivalence. Then get working. Then try w/ params. Then clean. Then do lift, same process.*)
-Find ornament handwritten_input_param_test3 generated_input_param_test3. (* TODO can omit once lift works *)
-(*Fail Lift handwritten_input generated_input in firstBool as lifted_firstBool.*)
-*)
+(* --- Things left: --- *)
+
+(* TODO test: failure cases, eta expanded or not expanded variations, taking prod directly, etc *)
+(* TODO check test results *)
