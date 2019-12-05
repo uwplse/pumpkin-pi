@@ -15,7 +15,6 @@
 -I src/components
 -I src/automation
 -I src
--I deps/fix-to-elim/plugin/src/automation
 -R theories Ornamental
 
 src/coq-plugin-lib/src/utilities/utilities.ml
@@ -99,8 +98,8 @@ src/components/specialization.mli
 src/components/differencing.ml
 src/components/differencing.mli
 
-deps/fix-to-elim/plugin/src/automation/desugar.ml
-deps/fix-to-elim/plugin/src/automation/desugar.mli
+src/automation/desugarprod.ml
+src/automation/desugarprod.mli
 src/automation/search.ml
 src/automation/search.mli
 src/automation/coherence.ml
@@ -123,4 +122,5 @@ src/ornaments.mlpack
 
 theories/Adjoint.v
 theories/Unpack.v
+theories/Prod.v
 theories/Ornaments.v

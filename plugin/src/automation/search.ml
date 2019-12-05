@@ -31,7 +31,7 @@ open Constutils
 open Stateutils
 open Apputils
 open Caching
-open Desugar
+open Desugarprod
 
 (* --- Error messages for the user --- *)
        
@@ -568,7 +568,6 @@ let search_curry_record env_pms sigma a_ind b =
     let (_, c_typ, _) = destProd elim_body in
     let env_c, _ = zoom_product_type env_p c_typ in
     let rec make_c n sigma =
-      let open Produtils in
       let trm1 = mkRel n in
       if n = 1 then
         sigma, trm1
@@ -595,7 +594,6 @@ let search_curry_record env_pms sigma a_ind b =
     let env_arg = push_local (Anonymous, b) env_pms in
     let c = mkAppl (mkConstruct (a_ind, 1), shift_all pms) in
     let rec make_args n arg sigma =
-      let open Produtils in
       let sigma, arg_typ = reduce_type env_arg sigma arg in
       let sigma, arg_typ =
         if equal (first_fun arg_typ) prod then
@@ -607,10 +605,10 @@ let search_curry_record env_pms sigma a_ind b =
       in
       let prod_app = dest_prod arg_typ in
       if n = 2 then
-        sigma, [prod_fst prod_app arg; prod_snd prod_app arg]
+        sigma, [prod_fst_elim prod_app arg; prod_snd_elim prod_app arg]
       else
-        let sigma, args = make_args (n - 1) (prod_snd prod_app arg) sigma in
-        sigma, List.append [prod_fst prod_app arg] args
+        let sigma, args = make_args (n - 1) (prod_snd_elim prod_app arg) sigma in
+        sigma, List.append [prod_fst_elim prod_app arg] args
     in
     let sigma, c_typ = reduce_type env_arg sigma c in
     let sigma, args = make_args (arity c_typ) (mkRel 1) sigma in
@@ -618,7 +616,6 @@ let search_curry_record env_pms sigma a_ind b =
     sigma, reconstruct_lambda env_arg app
   in
   let indexer = None in
-  let sigma, forget = desugar_constr env_pms sigma forget in
   sigma, { promote; forget; indexer; kind = CurryRecord }
 
 (* --- Top-level search --- *)
@@ -676,7 +673,7 @@ let search_orn_one_noninductive env sigma trm_o trm_n =
   match kind non_ind_inner with
   | App _ ->
      let f = unwrap_definition env (first_fun non_ind_inner) in
-     if equal f Produtils.prod then
+     if equal f prod then
        let npm = m.mind_nparams in
        let bs = m.mind_packets in
        let ncs = Array.length (Array.get bs 0).mind_consnames in

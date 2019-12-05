@@ -26,7 +26,7 @@ open Funutils
 open Constutils
 open Stateutils
 open Hofs
-open Desugar
+open Desugarprod
 
 (* --- Convenient shorthand --- *)
 
@@ -129,7 +129,7 @@ let is_packed_constr c env sigma trm =
            else
              sigma, false
         | CurryRecord ->
-           if equal Produtils.pair f then
+           if equal pair f then
              branch_state
                right_type
                (fun _ -> ret true)
@@ -159,7 +159,7 @@ let is_packed c env sigma trm =
            else
              sigma, false
         | CurryRecord ->
-           if equal Produtils.fst f then
+           if equal (fst_elim ()) f then
              right_type trm
            else
              sigma, false)
@@ -196,7 +196,7 @@ let is_eliminator c env trm sigma =
   let (a_typ, b_typ) = c.typs in
   let b_typ =
     if (not c.l.is_fwd) && c.l.orn.kind = CurryRecord then
-      Produtils.prod
+      prod
     else
       b_typ
   in
@@ -499,7 +499,6 @@ let lift_case env c p c_elim constr sigma =
      let (env_c_b, c_body) = zoom_lambda_term env_c c_eta in
      let (c_f, _) = destApp c_body in
      let args = mk_n_rels nargs in
-     let open Produtils in
      let sigma, args = (* TODO make a function *)
        if c.l.is_fwd then
          let c_args, b_args = take_split 2 args in
@@ -507,8 +506,8 @@ let lift_case env c p c_elim constr sigma =
            let sigma, arg_typ = reduce_type env_c sigma arg in
            if equal (first_fun arg_typ) prod then
              let arg_typ_prod = dest_prod arg_typ in
-             let arg_fst = prod_fst arg_typ_prod arg in
-             let arg_snd = prod_snd arg_typ_prod arg in
+             let arg_fst = prod_fst_elim arg_typ_prod arg in
+             let arg_snd = prod_snd_elim arg_typ_prod arg in
              let sigma, args_tl = build arg_snd sigma in
              sigma, arg_fst :: args_tl
            else
@@ -524,7 +523,7 @@ let lift_case env c p c_elim constr sigma =
               let sigma, typ1 = infer_type env_c sigma trm1 in
               let sigma, trm2 = build (h :: tl) sigma in
               let sigma, typ2 = infer_type env_c sigma trm2 in
-              sigma, apply_pair { typ1; typ2; trm1; trm2 }
+              sigma, apply_pair Produtils.{ typ1; typ2; trm1; trm2 }
            | h :: tl ->
               sigma, h
            | _ ->
@@ -535,8 +534,7 @@ let lift_case env c p c_elim constr sigma =
      in
      let f = unshift_by (new_rels2 env_c_b env_c) c_f in
      let body = reduce_stateless reduce_term env_c sigma (mkAppl (f, args)) in
-     let sigma, preprocessed = desugar_constr env_c sigma body in
-     sigma, reconstruct_lambda_n env_c preprocessed (nb_rel env)
+     sigma, reconstruct_lambda_n env_c body (nb_rel env)
 
 (* Lift cases *)
 let lift_cases env c p p_elim cs =
@@ -568,18 +566,17 @@ let lift_elim env sigma c trm_app =
      sigma, apply_eliminator { trm_app with elim; p; cs; final_args }
   | CurryRecord ->
      if c.l.is_fwd then
-       let open Produtils in
        let to_typ_f = unwrap_definition env to_typ in
        let to_typ_app = mkAppl (to_typ_f, trm_app.pms) in
        let sigma, to_typ_prod = reduce_term env sigma to_typ_app in
        let to_elim = dest_prod to_typ_prod in
-       let param_elim = mkAppl (prod_rect, [to_elim.typ1; to_elim.typ2]) in
+       let param_elim = mkAppl (prod_rect, [to_elim.Produtils.typ1; to_elim.Produtils.typ2]) in
        let sigma, p = lift_motive env sigma c.l npms param_elim trm_app.p in
        let p_elim = mkAppl (param_elim, [p]) in
        let sigma, proof = lift_case env c p p_elim (List.hd trm_app.cs) sigma in
        let sigma, args = lift_elim_args env sigma c.l npms trm_app.final_args in
        let arg = List.hd args in
-       sigma, elim_prod { to_elim; p; proof; arg }
+       sigma, elim_prod Produtils.{ to_elim; p; proof; arg }
      else
        (* TODO handle pms? *)
        let elim = type_eliminator env (fst (destInd to_typ)) in
@@ -610,13 +607,11 @@ let repack env ib_typ lifted typ =
  * This is to deal with non-primitive projections
  *)
 let repack_prod env lifted typ =
-  let open Produtils in
   let lift_typ = dest_prod (shift typ) in
-  let typ1 = lift_typ.typ1 in
-  let typ2 = lift_typ.typ2 in
-  let trm1 = prod_fst lift_typ (mkRel 1) in
-  let trm2 = prod_snd lift_typ (mkRel 1) in
-  let p = apply_pair { typ1; typ2; trm1; trm2 } in
+  let typ1 = lift_typ.Produtils.typ1 in
+  let typ2 = lift_typ.Produtils.typ2 in
+  let (trm1, trm2) = prod_projections_elim lift_typ (mkRel 1) in
+  let p = apply_pair Produtils.{ typ1; typ2; trm1; trm2 } in
   mkLetIn (Anonymous, lifted, typ, p)
     
 (* --- Core algorithm --- *)
@@ -898,14 +893,13 @@ let lift_curry_record env sigma c trm =
               (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
           else
             let lifted_constr = c.constr_rules.(0) in
-            let open Produtils in
             let p = dest_pair tr in
             let rec build_args p =
-              let sigma, trm1 = lift_rec en sigma () p.trm1 in
-              if applies pair p.trm2 then
-                trm1 :: build_args (dest_pair p.trm2)
+              let sigma, trm1 = lift_rec en sigma () p.Produtils.trm1 in
+              if applies pair p.Produtils.trm2 then
+                trm1 :: build_args (dest_pair p.Produtils.trm2)
               else
-                let sigma, trm2 = lift_rec en sigma () p.trm2 in
+                let sigma, trm2 = lift_rec en sigma () p.Produtils.trm2 in
                 [trm1; trm2]
             in
             let args = build_args p in
@@ -949,7 +943,6 @@ let lift_curry_record env sigma c trm =
                    lift_rec en sigma () (last_arg tr), false
                  else
                    (* APP *)
-                   let open Produtils in
                    let sigma, f' = lift_rec en sigma () f in
                    if (not l.is_fwd) && Array.length args > 0 && equal f f' && (not (is_locally_cached c.opaques f)) && ((not (isConst f)) || (not (Option.has_some (inductive_of_elim en (destConst f))))) then 
                      (* TODO do we need same extension to rule for lift algebraic? Can we disable w option? More complete this way, but can produce ugly terms. I think we only need this here because the type we are looking for in the backward direction is prod instantiating to something specific, though may also be true for sigma types in algebraic  *)
@@ -1053,9 +1046,8 @@ let lift_curry_record env sigma c trm =
         map_if
           (fun (_, t) ->
             let sigma, lifted_typ = lift_rec en sigma_typ () typ in
-            let repacked = repack_prod en t lifted_typ in
-            desugar_constr en sigma repacked)
-          (is_from_typ && not (is_or_applies Produtils.pair (reduce_stateless reduce_nf en sigma lifted)))
+            sigma, repack_prod en t lifted_typ)
+          (is_from_typ && not (is_or_applies pair (reduce_stateless reduce_nf en sigma lifted)))
           (sigma, lifted))
       try_repack
       (sigma, lifted)

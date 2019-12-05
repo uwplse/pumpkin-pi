@@ -23,6 +23,7 @@ open Sigmautils
 open Stateutils
 open Names
 open Declarations
+open Desugarprod
 
 (* --- Automatically generated equivalence proofs about search components --- *)
 
@@ -302,7 +303,6 @@ let equiv_proof_curry_record env sigma l =
         }
     in reconstruct_lambda env_to eq_proof
   else
-    let open Produtils in
     let at_type = shift typ_app in
     (* v TODO common functionality w/ search, move somewhere common *)
     let sigma, typ_app = reduce_term env_to sigma typ_app in
@@ -316,8 +316,8 @@ let equiv_proof_curry_record env sigma l =
     let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm2 (shift_all_by 2 pms))) (shift_all_by 2 pms)) in
     let p = mkLambda (Anonymous, typ_app, apply_eq { at_type; trm1; trm2 }) in
     let rec build_proof pms at_type to_elim arg =
-      let typ1 = to_elim.typ1 in
-      let typ2 = to_elim.typ2 in
+      let typ1 = to_elim.Produtils.typ1 in
+      let typ2 = to_elim.Produtils.typ2 in
       let env_typ1 = push_local (Anonymous, typ1) env in
       let env_proof = push_local (Anonymous, shift typ2) env_typ1 in
       let typ1 = shift_by 2 typ1 in
@@ -327,34 +327,34 @@ let equiv_proof_curry_record env sigma l =
         (* TODO clean/unify arg/arg_sub logic ... *)
         let trm1 = mkRel 3 in
         let trm2 = mkRel 1 in
-        let arg_sub = apply_pair { typ1 = shift typ1; typ2 = shift typ2; trm1; trm2 } in
+        let arg_sub = apply_pair Produtils.{ typ1 = shift typ1; typ2 = shift typ2; trm1; trm2 } in
         let trm2 = all_eq_substs (mkRel 4, arg_sub) (shift_by 3 arg) in
         let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm2 (shift_all_by 2 pms))) (shift_all_by 2 pms)) in
         let p = mkLambda (Anonymous, typ2, apply_eq { at_type; trm1; trm2 }) in
         let to_elim = dest_prod typ2 in
         let trm1 = mkRel 2 in
         let trm2 = mkRel 1 in
-        let arg_sub = apply_pair { typ1; typ2; trm1; trm2 } in
+        let arg_sub = apply_pair Produtils.{ typ1; typ2; trm1; trm2 } in
         let arg = all_eq_substs (mkRel 3, arg_sub) (shift_by 2 arg) in
         (* TODO shift before rec? clean etc... make all offsets very clear... *)
         let proof = build_proof (shift_all_by 2 pms) at_type to_elim arg in
         let arg = mkRel 1 in
-        reconstruct_lambda env_proof (elim_prod { to_elim; p; proof; arg })
+        reconstruct_lambda env_proof (elim_prod Produtils.{ to_elim; p; proof; arg })
       else
         let trm1 = mkRel 2 in
         let trm2 = mkRel 1 in
-        let arg_sub = apply_pair { typ1; typ2; trm1; trm2 } in
+        let arg_sub = apply_pair Produtils.{ typ1; typ2; trm1; trm2 } in
         let arg = all_eq_substs (mkRel 3, arg_sub) (shift_by 2 arg) in 
         let trm = arg in
         let arg_pair = dest_pair arg in
-        let typ1 = arg_pair.typ1 in
-        let typ2 = arg_pair.typ2 in
-        let typ = apply_prod { typ1; typ2 } in
+        let typ1 = arg_pair.Produtils.typ1 in
+        let typ2 = arg_pair.Produtils.typ2 in
+        let typ = apply_prod Produtils.{ typ1; typ2 } in
         reconstruct_lambda env_proof (apply_eq_refl { typ; trm })
     in
     let proof = build_proof (shift_all_by 2 pms) at_type to_elim (mkRel 1) in
     let arg = mkRel 1 in
-    let equiv_b = elim_prod { to_elim; p; proof; arg } in
+    let equiv_b = elim_prod Produtils.{ to_elim; p; proof; arg } in
     reconstruct_lambda env_to equiv_b
 
 (*
