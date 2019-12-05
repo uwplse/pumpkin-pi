@@ -262,9 +262,6 @@ Module LiftedGenerated4.
 
 Lift Generated4'.input Handwritten4'.input in Generated4'.MkInput as MkInput.
 Lift Generated4'.output Handwritten4'.output in Generated4'.MkOutput as MkOutput.
-
-Print Generated4'.field1.
-
 Lift Generated4'.input Handwritten4'.input in Generated4'.field1 as field1.
 Lift Generated4'.input Handwritten4'.input in Generated4'.field2 as field2.
 Lift Generated4'.input Handwritten4'.input in Generated4'.field3 as field3.

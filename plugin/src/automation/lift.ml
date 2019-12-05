@@ -516,7 +516,12 @@ let lift_case env c p c_elim constr sigma =
          let sigma, args_tl = build (List.hd (List.tl c_args)) sigma in
          sigma, List.append (List.hd c_args :: args_tl) b_args
        else
-         (* TODO split the way we did above; test *)
+         let _ = Printing.debug_term env_c to_typ "to_typ" in
+         let ((i, i_n), _) = destInd to_typ in
+         let c = mkConstruct ((i, i_n), 1) in
+         let sigma, c_typ = reduce_type env_c sigma c in
+         let nargs = arity c_typ in
+         let c_args, b_args = take_split nargs args in
          let rec build args sigma =
            match args with
            | trm1 :: (h :: tl) ->
@@ -529,8 +534,8 @@ let lift_case env c p c_elim constr sigma =
            | _ ->
               failwith "bad arguments passed to build; please report bug"
          in
-         let sigma, arg_pair = build (List.tl args) sigma in
-         sigma, [List.hd args; arg_pair]
+         let sigma, arg_pair = build (List.tl c_args) sigma in
+         sigma, List.append [List.hd c_args; arg_pair] b_args
      in
      let f = unshift_by (new_rels2 env_c_b env_c) c_f in
      let body = reduce_stateless reduce_term env_c sigma (mkAppl (f, args)) in
