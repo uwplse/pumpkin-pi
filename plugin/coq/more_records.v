@@ -258,35 +258,6 @@ Qed.
 
 End LiftedHandwritten4.
 
-(* --- Test a record with 5 fields --- *)
-
-Module Handwritten5.
-
-Record input := MkInput
-{
-  field1  : bool;
-  field2    : nat;
-  field3 : bool;
-  field4 : nat;
-  field5 : bool; 
-}.
-
-Scheme Induction for input Sort Set.
-Scheme Induction for input Sort Prop.
-Scheme Induction for input Sort Type.
-
-End Handwritten5.
-
-Module Generated5.
-
-Definition input := (prod bool (prod nat (prod bool (prod nat bool)))).
-
-End Generated5.
-
-Find ornament Handwritten5.input Generated5.input as input5_curry.
-(* TODO test lifting for above *)
-(* TODO test output *)
-
 (* --- Test a record with parameters --- *)
 
 Module HandwrittenParams.
