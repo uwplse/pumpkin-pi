@@ -178,69 +178,83 @@ Lift Handwritten4'.input Generated4'.input in Handwritten4'.plus_spec_O_r as plu
 Lift Handwritten4'.output Generated4'.output in plus_spec_O_l_r as plus_spec_O_r.
 
 Lemma testMkInput:
-  MkInput = Generated4'.MkInput.
+  MkInput = Generated4.MkInput.
 Proof.
   auto.
 Qed. 
 
 Lemma testMkOutput:
-  MkOutput = Generated4'.MkOutput.
+  MkOutput = Generated4.MkOutput.
 Proof.
   auto.
 Qed. 
 
 Lemma testField1:
-  field1 = Generated4'.field1.
+  field1 = Generated4.field1.
 Proof.
   auto.
 Qed. 
 
 Lemma testField2:
-  field2 = Generated4'.field2.
+  forall i, field2 i = Generated4.field2 i.
 Proof.
-  unfold field2. unfold Generated4'.field2.
-  auto.
+  intros. induction i. auto.
 Qed. 
 
 Lemma testField3:
-  field3 = Generated4'.field3.
+  forall i, field3 i = Generated4.field3 i.
 Proof.
-  auto.
+  intros. induction i. auto.
 Qed. 
 
 Lemma testField4:
-  field4 = Generated4'.field4.
+  forall i, field4 i = Generated4.field4 i.
 Proof.
-  auto.
+  intros. induction i. auto.
 Qed. 
 
 Lemma testField2and4:
-  field2and4 = Generated4'.field2and4.
+  field2and4 = Generated4.field2and4.
 Proof.
   auto.
 Qed. 
 
 Lemma testField1and3:
-  field1and3 = Generated4'.field1and3.
+  field1and3 = Generated4.field1and3.
 Proof.
   auto.
 Qed. 
 
-Lift Handwritten4'.input Generated4'.input in Handwritten4'.field1 as field1.
-Lift Handwritten4'.input Generated4'.input in Handwritten4'.field2 as field2.
-Lift Handwritten4'.input Generated4'.input in Handwritten4'.field3 as field3.
-Lift Handwritten4'.input Generated4'.input in Handwritten4'.field4 as field4.
-Lift Handwritten4'.output Generated4'.output in Handwritten4'.field2and4 as field2and4.
-Lift Handwritten4'.output Generated4'.output in Handwritten4'.field1and3 as field1and3.
-Lift Handwritten4'.input Generated4'.input in Handwritten4'.op as op_1.
-Lift Handwritten4'.output Generated4'.output in op_1 as op.
-Lift Handwritten4'.input Generated4'.input in Handwritten4'.and_spec_true_true as and_spec_true_true_1.
-Lift Handwritten4'.output Generated4'.output in and_spec_true_true_1 as and_spec_true_true.
-Lift Handwritten4'.input Generated4'.input in Handwritten4'.plus_spec_O_l as plus_spec_O_l_1.
-Lift Handwritten4'.output Generated4'.output in plus_spec_O_l_1 as plus_spec_O_l.
-Lift Handwritten4'.input Generated4'.input in Handwritten4'.plus_spec_O_r as plus_spec_O_l_r.
-Lift Handwritten4'.output Generated4'.output in plus_spec_O_l_r as plus_spec_O_r.
+Lemma testOp:
+  forall r, op r = Generated4.op r.
+Proof.
+  intros. induction r. auto.
+Qed.
 
+Lemma testAndSpecTrueTrue:
+  forall r : Generated4.input,
+    Generated4.field1 r = true ->
+    Generated4.field3 r = true ->
+    Generated4.field1and3 (Generated4.op r) = true.
+Proof.
+  intros. induction r. apply and_spec_true_true; auto.
+Qed.
+
+Lemma testPlusSpecOl:
+  forall r : Generated4.input,
+    Generated4.field2 r = 0 ->
+    Generated4.field2and4 (Generated4.op r) = Generated4.field4 r.
+Proof.
+  intros. induction r. rewrite <- testOp. apply plus_spec_O_l; auto.
+Qed.
+
+Lemma testPlusSpecOr:
+  forall r : Generated4.input,
+    Generated4.field4 r = 0 ->
+    Generated4.field2and4 (Generated4.op r) = Generated4.field2 r.
+Proof.
+  intros. induction r. rewrite <- testOp. apply plus_spec_O_r; auto.
+Qed.
 
 End LiftedHandwritten4.
 
