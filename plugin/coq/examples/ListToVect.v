@@ -11,7 +11,19 @@ Notation vector := Vector.t.
 
 (* --- Preprocess --- *)
 
-Preprocess Module List as List' {include length, app}.
+Preprocess Module List as List' { opaque (* ignore these: *)
+  (* dependent elimination only: *)
+  RelationClasses.StrictOrder_Transitive
+  RelationClasses.StrictOrder_Irreflexive
+  RelationClasses.Equivalence_Symmetric
+  RelationClasses.Equivalence_Transitive
+  RelationClasses.PER_Symmetric
+  RelationClasses.PER_Transitive
+  RelationClasses.Equivalence_Reflexive
+  (* proofs about these match over the above opaque terms, and would fail: *)
+  Nat.add
+  Nat.sub
+}.  
 
 (* --- Search & Lift --- *)
 
@@ -27,9 +39,9 @@ Preprocess Module List as List' {include length, app}.
 
 Module MyVector.
 
-  Lift list vector in List'.length as .. _p.
+  Lift list vector in List'.Coq_Init_Datatypes_length as .. _p.
   
-  Lift list vector in List'.app as .. _p.
+  Lift list vector in List'.Coq_Init_Datatypes_app as .. _p.
 
   Lift list vector in List'.hd as .. _p.
 
