@@ -149,8 +149,6 @@ let find_ornament n_o d_old d_new =
  *)
 let lift_definition_by_ornament env sigma n l c_old ignores =
   let sigma, lifted = do_lift_defn env sigma l c_old ignores in
-  let open Printing in
-  debug_term env lifted "lifted";
   ignore
     (if is_lift_type () then
        (* Lift the type as well *)
@@ -162,8 +160,8 @@ let lift_definition_by_ornament env sigma n l c_old ignores =
        define_term n sigma lifted true);
   try
     let c_new = mkConst (Constant.make1 (Lib.make_kn n)) in
-    save_lifting (l.orn.promote, l.orn.forget, c_old) c_new;
-    save_lifting (l.orn.promote, l.orn.forget, c_new) c_old
+    save_lifting (lift_to l, lift_back l, c_old) c_new;
+    save_lifting (lift_back l, lift_to l, c_new) c_old
   with _ ->
     Feedback.msg_warning (Pp.str "Failed to cache lifting.")
 

@@ -7,7 +7,7 @@ open Evd
 
 (*
  * Lookup a lifting along an ornament
- * Arguments: promote, forget, trm
+ * Arguments: lift_to, lift_back, trm
  *
  * Return None if the lifting does not exist or is not in the current environment
  *)
@@ -15,7 +15,7 @@ val lookup_lifting : (constr * constr * constr) -> constr option
 
 (*
  * Store a lifting along an ornament
- * Order of arguments: promote, forget, trm, lifted_trm
+ * Order of arguments: lift_to, lift_back, trm, lifted_trm
  *)
 val save_lifting : (constr * constr * constr) -> constr -> unit
 

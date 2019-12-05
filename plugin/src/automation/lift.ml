@@ -97,7 +97,8 @@ let is_from c env sigma typ =
 let type_is_from c env sigma trm =
   on_red_type
     reduce_nf
-    (fun env sigma trm -> sigma, is_from c env sigma trm)
+    (fun env sigma typ ->
+      sigma, is_from c env sigma typ)
     env
     sigma
     trm
@@ -208,9 +209,10 @@ let is_eliminator c env trm sigma =
        let is_elim = equal (mkInd (ind, 0)) (directional c.l a_typ b_typ) in
        if (not c.l.is_fwd) && c.l.orn.kind = CurryRecord then
          let sigma, trm = expand_eta env sigma trm in
-         let sigma, trm_elim = deconstruct_eliminator env sigma trm in
-         let (final_args, post_args) = take_split 2 trm_elim.final_args in
-         let sigma, is_from = type_is_from c env sigma (List.hd final_args) in
+         let env_elim, trm = zoom_lambda_term env trm in
+         let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm in
+         let (final_args, post_args) = take_split 1 trm_elim.final_args in
+         let sigma, is_from = type_is_from c env_elim sigma (List.hd final_args) in
          sigma, is_elim && is_from
        else
          sigma, is_elim
@@ -632,7 +634,7 @@ let lift_algebraic env sigma c ib_typ trm =
   let a_arity = arity a_typ_eta in
   let rec lift_rec en sigma ib_typ tr : types state =
     let (sigma, lifted), try_repack =
-      let lifted_opt = lookup_lifting (l.orn.promote, l.orn.forget, tr) in
+      let lifted_opt = lookup_lifting (lift_to l, lift_back l, tr) in
       if Option.has_some lifted_opt then
         (* GLOBAL CACHING *)
         (sigma, Option.get lifted_opt), false
@@ -859,7 +861,7 @@ let lift_curry_record env sigma c trm =
   let (a_typ, b_typ) = c.typs in
   let rec lift_rec en sigma _ tr : types state =
     let (sigma, lifted), try_repack =
-      let lifted_opt = lookup_lifting (l.orn.promote, l.orn.forget, tr) in
+      let lifted_opt = lookup_lifting (lift_to l, lift_back l, tr) in
       if Option.has_some lifted_opt then
         (* GLOBAL CACHING *)
         (sigma, Option.get lifted_opt), false
@@ -940,7 +942,7 @@ let lift_curry_record env sigma c trm =
               | App (f, args) ->
                  if equal (lift_back l) f then
                    (* SECTION/RETRACTION *)
-                   (lift_rec en sigma () (last_arg tr)), false
+                   lift_rec en sigma () (last_arg tr), false
                  else if equal (lift_to l) f then
                    (* INTERNALIZE *)
                    lift_rec en sigma () (last_arg tr), false
@@ -1106,14 +1108,16 @@ let define_lifted_eliminator ?(suffix="_sigT") l ind0 ind sort =
        (fun _ lifted ->
          let elim0 = Universes.constr_of_global elim0 in
          let lifted = Universes.constr_of_global lifted in
-         save_lifting (l.orn.promote, l.orn.forget, elim0) lifted;
-         save_lifting (l.orn.promote, l.orn.forget, lifted) elim0))
+         save_lifting (lift_to l, lift_back l, elim0) lifted;
+         save_lifting (lift_back l, lift_to l, lifted) elim0))
 
 let declare_inductive_liftings l ind ind' ncons =
-  save_lifting (l.orn.promote, l.orn.forget, mkInd ind) (mkInd ind');
-  save_lifting (l.orn.promote, l.orn.forget, mkInd ind') (mkInd ind);
+  save_lifting (lift_to l, lift_back l, mkInd ind) (mkInd ind');
+  save_lifting (lift_back l, lift_to l, mkInd ind') (mkInd ind);
   List.iter2
-    (fun o n -> save_lifting (l.orn.promote, l.orn.forget, o) n)
+    (fun o n ->
+      save_lifting (lift_to l, lift_back l, o) n;
+      save_lifting (lift_back l, lift_to l, n) o)
     (List.init ncons (fun i -> mkConstruct (ind, i + 1)))
     (List.init ncons (fun i -> mkConstruct (ind', i + 1)))
 
