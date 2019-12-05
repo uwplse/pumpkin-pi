@@ -596,9 +596,15 @@ let search_curry_record env_pms sigma a_ind b =
     let c = mkAppl (mkConstruct (a_ind, 1), shift_all pms) in
     let rec make_args n arg sigma =
       let open Produtils in
-      let sigma, arg_typ = infer_type env_arg sigma arg in
-      let arg_typ = unwrap_definition env_arg arg_typ in
-      let sigma, arg_type = reduce_term env_arg sigma arg_typ in
+      let sigma, arg_typ = reduce_type env_arg sigma arg in
+      let sigma, arg_typ =
+        if equal (first_fun arg_typ) prod then
+          sigma, arg_typ
+        else
+          let f = unwrap_definition env_arg (first_fun arg_typ) in
+          let pms = unfold_args arg_typ in
+          reduce_term env_arg sigma (mkAppl (f, pms))
+      in
       let prod_app = dest_prod arg_typ in
       if n = 2 then
         sigma, [prod_fst prod_app arg; prod_snd prod_app arg]

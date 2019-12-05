@@ -12,6 +12,7 @@ search=false
 lift=false
 listtovect=false
 records=false
+more_records=false
 
 echo "Testing Find ornament."
 
@@ -53,6 +54,13 @@ echo "Testing Lift Record."
 if coqc coq/minimal_records.v
 then
   records=true
+else
+  :
+fi
+
+if coqc coq/more_records.v
+then
+  more_records=true
 else
   :
 fi
@@ -142,7 +150,8 @@ fi
 if [ $lifted = true ] && [ $liftedind = true ] && [ $findlift = true ] &&    
    [ $liftedcase = true ] && [ $assumptions = true ] && [ $intro = true ] &&
    [ $example = true ] && [ $liftspec = true ] && [ $search = true ] && 
-   [ $lift = true ] && [ $listtovect = true ] && [ $records = true ]
+   [ $lift = true ] && [ $listtovect = true ] && [ $records = true ] &&
+   [ $morerecords = true ]
 then
   echo "SUCCESS: All tests passed."
 
@@ -170,7 +179,13 @@ else
   fi
   if [ $records = false ]
   then
-    echo "lifting records to products"
+    echo "lifting records to products: minimal test"
+  else
+    :
+  fi
+  if [ $morerecords = false ]
+  then
+    echo "lifting records to products: fancier test"
   else
     :
   fi

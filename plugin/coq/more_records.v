@@ -1,21 +1,22 @@
+Require Import Ornamental.Ornaments.
+
+Set DEVOID search prove equivalence. (* <-- Correctness proofs for search *)
+Set DEVOID lift type. (* <-- Prettier types than the ones Coq infers *)
+
 (*
  * This file includes more about records, including
  * tests that the curry record functionality works correctly,
  * rather than the simple walkthrough from minimal_records.v.
  *)
 
-
-(*
- * TODO everything below is for Talia: Later testing and so on.
- *)
-
-(* TODO split below into different files; in above, show workflow that is reasonable *)
-(* TODO roundtrip tests for above *)
 (* TODO document all new functionality *)
 (* TODO remove extra imports and functions that aren't used now *)
 
-(*
-Record handwritten_input_4 := MkInput4
+(* --- Test a record with 4 fields --- *)
+
+Module Handwritten4.
+
+Record input := MkInput
 {
   field1  : bool;
   field2    : nat;
@@ -23,43 +24,78 @@ Record handwritten_input_4 := MkInput4
   field4 : nat; 
 }.
 
-Definition generated_input_4 := (prod bool (prod nat (prod bool nat))).
+Scheme Induction for input Sort Set.
+Scheme Induction for input Sort Prop.
+Scheme Induction for input Sort Type.
 
-Scheme Induction for handwritten_input_4 Sort Set.
-Scheme Induction for handwritten_input_4 Sort Prop.
-Scheme Induction for handwritten_input_4 Sort Type.
+End Handwritten4.
 
-Find ornament handwritten_input_4 generated_input_4.
+Module Generated4.
 
-Record handwritten_input_5 := MkInput5
+Definition input := (prod bool (prod nat (prod bool nat))).
+
+End Generated4.
+
+Find ornament Handwritten4.input Generated4.input as input4_curry.
+(* TODO test lifting for above *)
+(* TODO test output *)
+
+(* --- Test a record with 5 fields --- *)
+
+Module Handwritten5.
+
+Record input := MkInput
 {
-  field1'  : bool;
-  field2'    : nat;
-  field3' : bool;
-  field4' : nat;
-  field5' : bool; 
+  field1  : bool;
+  field2    : nat;
+  field3 : bool;
+  field4 : nat;
+  field5 : bool; 
 }.
 
-Definition generated_input_5 := (prod bool (prod nat (prod bool (prod nat bool)))).
+Scheme Induction for input Sort Set.
+Scheme Induction for input Sort Prop.
+Scheme Induction for input Sort Type.
 
-Scheme Induction for handwritten_input_5 Sort Set.
-Scheme Induction for handwritten_input_5 Sort Prop.
-Scheme Induction for handwritten_input_5 Sort Type.
+End Handwritten5.
 
-Find ornament handwritten_input_5 generated_input_5.
+Module Generated5.
 
-Definition generated_input_param_test (T1 T2 T3 : Type) := (prod T1 (prod T2 T3)).
+Definition input := (prod bool (prod nat (prod bool (prod nat bool)))).
 
-Record handwritten_input_param_test (T1 T2 T3 : Type) := MkInputT
+End Generated5.
+
+Find ornament Handwritten5.input Generated5.input as input5_curry.
+(* TODO test lifting for above *)
+(* TODO test output *)
+
+(* --- Test a record with parameters --- *)
+
+Module HandwrittenParams.
+
+Record input (T1 T2 T3 : Type) := MkInput
 {
-  firstT : T1;
-  secondT : T2;
-  thirdT : T3;
+  first : T1;
+  second : T2;
+  third : T3;
 }.
 
-Scheme Induction for handwritten_input_param_test Sort Set.
-Scheme Induction for handwritten_input_param_test Sort Prop.
-Scheme Induction for handwritten_input_param_test Sort Type.
+Scheme Induction for input Sort Set.
+Scheme Induction for input Sort Prop.
+Scheme Induction for input Sort Type.
+
+End HandwrittenParams.
+
+Module GeneratedParams.
+
+Definition input (T1 T2 T3 : Type) := (prod T1 (prod T2 T3)).
+
+End GeneratedParams.
+
+Find ornament HandwrittenParams.input GeneratedParams.input as input_params_curry.
+(* TODO test lifting for above *)
+(* TODO test output *)
+(*
 
 (* The most basic test: When this works, should just give us fst *)
 (* TODO set options to prove equiv: Set DEVOID search prove equivalence. Then get working. Then try w/ params. Then clean. Then do lift, same process.*)
