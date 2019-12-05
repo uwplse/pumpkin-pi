@@ -516,7 +516,6 @@ let lift_case env c p c_elim constr sigma =
          let sigma, args_tl = build (List.hd (List.tl c_args)) sigma in
          sigma, List.append (List.hd c_args :: args_tl) b_args
        else
-         let _ = Printing.debug_term env_c to_typ "to_typ" in
          let ((i, i_n), _) = destInd to_typ in
          let c = mkConstruct ((i, i_n), 1) in
          let sigma, c_typ = reduce_type env_c sigma c in
@@ -858,8 +857,6 @@ let lift_algebraic env sigma c ib_typ trm =
 let lift_curry_record env sigma c trm =
   let l = c.l in
   let (a_typ, b_typ) = c.typs in
-  let sigma, a_typ_eta = expand_eta env sigma a_typ in
-  let a_arity = arity a_typ_eta in
   let rec lift_rec en sigma _ tr : types state =
     let (sigma, lifted), try_repack =
       let lifted_opt = lookup_lifting (l.orn.promote, l.orn.forget, tr) in
@@ -932,9 +929,7 @@ let lift_curry_record env sigma c trm =
               lift_rec en sigma () tr_eta, false
             else
               let sigma, tr_elim = deconstruct_eliminator en sigma tr in
-              let npms = List.length tr_elim.pms in
-              let value_i = a_arity - npms in
-              let (final_args, post_args) = take_split (value_i + 1) tr_elim.final_args in
+              let (final_args, post_args) = take_split 1 tr_elim.final_args in
               (* TODO different in a few ways from algebraic, unify/explain *)
               let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } in
               let sigma, tr'' = lift_rec en sigma () tr' in
@@ -952,13 +947,11 @@ let lift_curry_record env sigma c trm =
                  else
                    (* APP *)
                    let sigma, f' = lift_rec en sigma () f in
-                   Printing.debug_term en f "f";
-                   Printing.debug_term en f' "f'";
                    if (not l.is_fwd) && Array.length args > 0 && equal f f' && (not (is_locally_cached c.opaques f)) && ((not (isConst f)) || (not (Option.has_some (inductive_of_elim en (destConst f))))) then 
                      (* TODO do we need same extension to rule for lift algebraic? Can we disable w option? More complete this way, but can produce ugly terms. I think we only need this here because the type we are looking for in the backward direction is prod instantiating to something specific, though may also be true for sigma types in algebraic  *)
                      (* TODO explain *)
-                     let f_delta = unwrap_definition env f in
-                     let sigma, app' = reduce_term env sigma (mkApp (f_delta, args)) in
+                     let f_delta = unwrap_definition en f in
+                     let sigma, app' = reduce_term en sigma (mkApp (f_delta, args)) in
                      if equal tr app' then
                        let sigma, args' = map_rec_args lift_rec en sigma () args in
                        (sigma, mkApp (f', args')), l.is_fwd
