@@ -116,7 +116,7 @@ Lift Generated'.output Handwritten'.output in op_1 as op {opaque firstBool numbe
  * notations, you get something well-typed but utterly useless to look at, with
  * a type you don't even want. So for now when one type definition you lift along
  * is a subterm of another type definition you lift along, you will need to start
- * with the bigger one and then tell DEVOID to treat the lifted constructors as opaque.
+ * with the bigger one and then tell DEVOID to treat the lifted projections as opaque.
  * Really interesting WIP on handling this better without so much work for the user.
  *)
 
