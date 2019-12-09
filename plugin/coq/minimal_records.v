@@ -12,31 +12,31 @@ Set DEVOID lift type. (* <-- Prettier types than the ones Coq infers *)
  *)
 Module Generated.
 
-Definition generated_input := (prod bool (prod nat bool)).
+Definition input := (prod bool (prod nat bool)).
 
-Definition generated_output := (prod nat bool).
+Definition output := (prod nat bool).
 
-Definition generated_firstBool (r : (prod bool (prod nat bool))) : bool :=
+Definition firstBool (r : (prod bool (prod nat bool))) : bool :=
   (fst r).
 
-Definition generated_numberI (r : (prod bool (prod nat bool))) : nat :=
+Definition numberI (r : (prod bool (prod nat bool))) : nat :=
   (fst (snd r)).
 
-Definition generated_secondBool (r : (prod bool (prod nat bool))) : bool :=
+Definition secondBool (r : (prod bool (prod nat bool))) : bool :=
   (snd (snd r)).
 
-Definition generated_numberO (r : (prod nat bool)) : nat :=
+Definition numberO (r : (prod nat bool)) : nat :=
   (fst r).
 
-Definition generated_andBools (r : (prod nat bool)) : bool :=
+Definition andBools (r : (prod nat bool)) : bool :=
   (snd r).
 
-Definition generated_op (r : (prod bool (prod nat bool))) : (prod nat bool) :=
+Definition op (r : (prod bool (prod nat bool))) : (prod nat bool) :=
   (pair
-    (generated_numberI r)
+    (numberI r)
     (andb
-      (generated_firstBool  r)
-      (generated_secondBool r)
+      (firstBool  r)
+      (secondBool r)
     )
   ).
 
@@ -45,18 +45,18 @@ End Generated.
 (*
  * We want to write proofs over the record versions of these, which
  * are easier to read about. We start by defining the record versions
- * of generated_input and generated_output ourselves:
+ * of input and output ourselves:
  *)
 Module Handwritten.
 
-Record handwritten_input := MkInput
+Record input := MkInput
 {
   firstBool  : bool;
   numberI    : nat;
   secondBool : bool;
 }.
 
-Record handwritten_output := MkOutput
+Record output := MkOutput
 {
   numberO  : nat;
   andBools : bool;
@@ -67,13 +67,13 @@ Record handwritten_output := MkOutput
  * Preprocess this module, and to be able to do that, we'll need
  * to tell Coq to generate induction principles for these records:
  *)
-Scheme Induction for handwritten_input Sort Set.
-Scheme Induction for handwritten_input Sort Prop.
-Scheme Induction for handwritten_input Sort Type.
+Scheme Induction for input Sort Set.
+Scheme Induction for input Sort Prop.
+Scheme Induction for input Sort Type.
 
-Scheme Induction for handwritten_output Sort Set.
-Scheme Induction for handwritten_output Sort Prop.
-Scheme Induction for handwritten_output Sort Type.
+Scheme Induction for output Sort Set.
+Scheme Induction for output Sort Prop.
+Scheme Induction for output Sort Type.
 
 End Handwritten.
 
@@ -88,23 +88,23 @@ Preprocess Module Generated as Generated'.
 Preprocess Module Handwritten as Handwritten'.
 
 (*
- * You can lift to handwritten_op all at once if you'd like, but you get prettier
+ * You can lift to op all at once if you'd like, but you get prettier
  * (though equal) results if you lift the projections first, here for inputs:
  *)
-Lift Generated'.generated_input Handwritten'.handwritten_input in Generated'.generated_firstBool as firstBool.
-Lift Generated'.generated_input Handwritten'.handwritten_input in Generated'.generated_numberI as numberI.
-Lift Generated'.generated_input Handwritten'.handwritten_input in Generated'.generated_secondBool as secondBool.
+Lift Generated'.input Handwritten'.input in Generated'.firstBool as firstBool.
+Lift Generated'.input Handwritten'.input in Generated'.numberI as numberI.
+Lift Generated'.input Handwritten'.input in Generated'.secondBool as secondBool.
 (*
  * then for outputs:
  *)
-Lift Generated'.generated_output Handwritten'.handwritten_output in Generated'.generated_numberO as numberO.
-Lift Generated'.generated_output Handwritten'.handwritten_output in Generated'.generated_andBools as andBools.
+Lift Generated'.output Handwritten'.output in Generated'.numberO as numberO.
+Lift Generated'.output Handwritten'.output in Generated'.andBools as andBools.
 
 (*
- * Now lifting to handwritten_op uses the cached results:
+ * Now lifting to op uses the cached results:
  *)
-Lift Generated'.generated_input Handwritten'.handwritten_input in Generated'.generated_op as handwritten_op_1.
-Lift Generated'.generated_output Handwritten'.handwritten_output in handwritten_op_1 as handwritten_op {opaque firstBool numberI secondBool}.
+Lift Generated'.input Handwritten'.input in Generated'.op as op_1.
+Lift Generated'.output Handwritten'.output in op_1 as op {opaque firstBool numberI secondBool}.
 (*
  * Note that to get prettier results here, we told to treat certain constants as opaque.
  * Otherwise, it would have opportunistically lifted everything.
@@ -118,14 +118,14 @@ Lift Generated'.generated_output Handwritten'.handwritten_output in handwritten_
  *)
 Module HandwrittenProofs.
 
-Theorem handwritten_and_spec_true_true
-  (r : Handwritten'.handwritten_input)
+Theorem and_spec_true_true
+  (r : Handwritten'.input)
   (F : firstBool  r = true)
   (S : secondBool r = true)
-  : andBools (handwritten_op r) = true.
+  : andBools (op r) = true.
 Proof.
   destruct r as [f n s].
-  unfold handwritten_op.
+  unfold op.
   simpl in *.
   apply andb_true_intro.
   intuition.
@@ -141,11 +141,11 @@ Preprocess Module HandwrittenProofs as HandwrittenProofs'.
 (*
  * Then lift it back to our nested pair types.
  * I think this is order sensitive if we want something that looks nice, since we
- * lifted generated_op in one order so we only have nice cached intermediate constants if we go
+ * lifted op in one order so we only have nice cached intermediate constants if we go
  * in the opposite order. But it will work regardless of which direction you do.
  *)
-Lift Handwritten'.handwritten_output Generated'.generated_output in HandwrittenProofs'.handwritten_and_spec_true_true as generated_and_spec_true_true_1.
-Lift Handwritten'.handwritten_input Generated'.generated_input in generated_and_spec_true_true_1 as generated_and_spec_true_true'.
+Lift Handwritten'.output Generated'.output in HandwrittenProofs'.and_spec_true_true as and_spec_true_true_1.
+Lift Handwritten'.input Generated'.input in and_spec_true_true_1 as and_spec_true_true'.
 
 (*
  * Now we get our proof over generated types with just one catch: We need to call
@@ -153,14 +153,14 @@ Lift Handwritten'.handwritten_input Generated'.generated_input in generated_and_
  * (induction principles) and we want something defined over the original types
  * (pattern matching and so on).
  *)
-Theorem generated_and_spec_true_true
-  (r : Generated.generated_input)
-  (F : Generated.generated_firstBool  r = true)
-  (S : Generated.generated_secondBool r = true)
-  : Generated.generated_andBools (Generated.generated_op r) = true.
+Theorem and_spec_true_true
+  (r : Generated.input)
+  (F : Generated.firstBool  r = true)
+  (S : Generated.secondBool r = true)
+  : Generated.andBools (Generated.op r) = true.
 Proof.
   induction r. (* <-- NOTE: You will need this because you used Preprocess *)
-  apply generated_and_spec_true_true'; auto.
+  apply and_spec_true_true'; auto.
 Qed.
 
 (* We are done! *)
