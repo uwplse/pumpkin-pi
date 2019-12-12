@@ -89,6 +89,9 @@ src/cache/caching.mli
 src/ornaments/lifting.ml
 src/ornaments/lifting.mli
 
+src/automation/desugarprod.ml
+src/automation/desugarprod.mli
+
 src/components/factoring.ml	
 src/components/factoring.mli
 src/components/abstraction.ml
@@ -98,8 +101,6 @@ src/components/specialization.mli
 src/components/differencing.ml
 src/components/differencing.mli
 
-src/automation/desugarprod.ml
-src/automation/desugarprod.mli
 src/automation/search.ml
 src/automation/search.mli
 src/automation/coherence.ml

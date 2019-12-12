@@ -332,8 +332,6 @@ let initialize_lift_config env sigma l typs ignores =
  * non-primitve eliminators, and also parameters
  *)
 let lift_elim_args env sigma l npms args =
-  (*let sigma, typ_args = non_index_typ_args (Option.get l.off) env sigma arg in
-  let lifted_arg = mkAppl (lift_to l, snoc arg typ_args) in*)
   match l.orn.kind with
   | Algebraic ->
      let arg = map_backward last_arg l (last args) in

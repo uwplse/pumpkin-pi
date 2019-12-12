@@ -17,6 +17,12 @@ open Sigmautils
 open Envutils
 open Stateutils
 open Caching
+open Desugarprod
+open Funutils
+open Zooming
+open Hypotheses
+open Debruijn
+open Environ
 
 (* --- Packing--- *)
 
@@ -36,6 +42,7 @@ let pack env off unpacked sigma =
  * Lift
  *)
 let lift env l trm sigma =
+  let f = lift_to l in
   let sigma, typ_args =
     match l.orn.kind with
     | Algebraic ->
@@ -44,17 +51,43 @@ let lift env l trm sigma =
        on_red_type
          reduce_nf
          (fun env sigma typ ->
-           let args =
-             map_backward
-               (fun args ->
-                 [] (* TODO params ? *))
-               l
-               (unfold_args typ)
-           in sigma, args)
+           if l.is_fwd then
+             sigma, unfold_args typ
+           else
+             (* v TODO common functionality w/ search, move somewhere common *)
+             (* TODO explain the reason we need this *)
+             (* TODO try to work around by substituting with constant version earlier so as to avoid this *)
+             let f = unwrap_definition env f in
+             let env_f, f_bod = zoom_lambda_term env f in
+             let sigma, typ_app = reduce_type env_f sigma (mkRel 1) in
+             let typ_app_f = unwrap_definition env_f (first_fun typ_app) in
+             let typ_app_args = unfold_args typ_app in
+             let typ_app_red = mkAppl (typ_app_f, typ_app_args) in
+             let sigma, typ_app_red = reduce_term env sigma typ_app_red in
+             let rec prod_args typ =
+               if is_or_applies prod typ then
+                 let typ_prod = dest_prod typ in
+                 let typ1 = typ_prod.Produtils.typ1 in
+                 let typ2 = typ_prod.Produtils.typ2 in
+                 typ1 :: prod_args typ2
+               else
+                 [typ]
+             in
+             let abs_args = prod_args typ_app_red in
+             let conc_args = prod_args (shift_by (new_rels2 env_f env) typ) in
+             let subbed = (* TODO move some of this ... *) (* TODO may fail sometimes, do better? try to make it fail ... *)
+               List.fold_right2
+                 (fun abs conc -> all_eq_substs (abs, conc))
+                 abs_args
+                 conc_args
+                 typ_app
+             in
+             let subbed = unshift_by (new_rels2 env_f env) subbed in
+             sigma, unfold_args subbed)
          env
          sigma
          trm
-  in sigma, mkAppl (lift_to l, snoc trm typ_args)
+  in sigma, mkAppl (f, snoc trm typ_args)
               
 (*
  * Pack arguments and lift
@@ -68,7 +101,7 @@ let pack_lift env l arg sigma =
          l
          (sigma, arg)
     | CurryRecord ->
-       sigma, arg (* TODO *)
+       sigma, arg
   in lift env l arg sigma
        
 (* --- Refolding --- *)

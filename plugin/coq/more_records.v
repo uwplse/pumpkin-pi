@@ -549,109 +549,107 @@ End GeneratedParams.
 Preprocess Module HandwrittenParams as HandwrittenParams' { opaque Nat.add }.
 Preprocess Module GeneratedParams as GeneratedParams' { opaque Nat.add }.
 
-(* TODO WIP *)
-
 Module LiftedHandwrittenParams.
 
 Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.MkInput as MkInput.
-Lift Handwritten4'.output Generated4'.output in Handwritten4'.MkOutput as MkOutput.
-Lift Handwritten4'.input Generated4'.input in Handwritten4'.field1 as field1.
-Lift Handwritten4'.input Generated4'.input in Handwritten4'.field2 as field2.
-Lift Handwritten4'.input Generated4'.input in Handwritten4'.field3 as field3.
-Lift Handwritten4'.input Generated4'.input in Handwritten4'.field4 as field4.
-Lift Handwritten4'.output Generated4'.output in Handwritten4'.field2and4 as field2and4.
-Lift Handwritten4'.output Generated4'.output in Handwritten4'.field1and3 as field1and3.
-Lift Handwritten4'.input Generated4'.input in Handwritten4'.op as op_1.
-Lift Handwritten4'.output Generated4'.output in op_1 as op.
-Lift Handwritten4'.input Generated4'.input in Handwritten4'.and_spec_true_true as and_spec_true_true_1.
-Lift Handwritten4'.output Generated4'.output in and_spec_true_true_1 as and_spec_true_true.
-Lift Handwritten4'.input Generated4'.input in Handwritten4'.plus_spec_O_l as plus_spec_O_l_1.
-Lift Handwritten4'.output Generated4'.output in plus_spec_O_l_1 as plus_spec_O_l.
-Lift Handwritten4'.input Generated4'.input in Handwritten4'.plus_spec_O_r as plus_spec_O_l_r.
-Lift Handwritten4'.output Generated4'.output in plus_spec_O_l_r as plus_spec_O_r.
+Lift HandwrittenParams'.output GeneratedParams'.output in HandwrittenParams'.MkOutput as MkOutput.
+Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.field1 as field1.
+Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.field2 as field2.
+Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.field3 as field3.
+Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.field4 as field4.
+Lift HandwrittenParams'.output GeneratedParams'.output in HandwrittenParams'.field2and4 as field2and4.
+Lift HandwrittenParams'.output GeneratedParams'.output in HandwrittenParams'.field1and3 as field1and3.
+Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.op as op_1.
+Lift HandwrittenParams'.output GeneratedParams'.output in op_1 as op.
+Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.and_spec_true_true as and_spec_true_true_1.
+Lift HandwrittenParams'.output GeneratedParams'.output in and_spec_true_true_1 as and_spec_true_true.
+Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.plus_spec_O_l as plus_spec_O_l_1.
+Lift HandwrittenParams'.output GeneratedParams'.output in plus_spec_O_l_1 as plus_spec_O_l.
+Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.plus_spec_O_r as plus_spec_O_l_r.
+Lift HandwrittenParams'.output GeneratedParams'.output in plus_spec_O_l_r as plus_spec_O_r.
 
 Lemma testMkInput:
-  MkInput = Generated4.MkInput.
+  MkInput = GeneratedParams.MkInput.
 Proof.
   auto.
 Qed. 
 
 Lemma testMkOutput:
-  MkOutput = Generated4.MkOutput.
+  MkOutput = GeneratedParams.MkOutput.
 Proof.
   auto.
 Qed. 
 
 Lemma testField1:
-  field1 = Generated4.field1.
+  field1 = GeneratedParams.field1.
 Proof.
   auto.
 Qed. 
 
 Lemma testField2:
-  forall i, field2 i = Generated4.field2 i.
+  forall i, field2 i = GeneratedParams.field2 i.
 Proof.
   intros. induction i. auto.
 Qed. 
 
 Lemma testField3:
-  forall i, field3 i = Generated4.field3 i.
+  forall i, field3 i = GeneratedParams.field3 i.
 Proof.
   intros. induction i. auto.
 Qed. 
 
 Lemma testField4:
-  forall i, field4 i = Generated4.field4 i.
+  forall i, field4 i = GeneratedParams.field4 i.
 Proof.
   intros. induction i. auto.
 Qed. 
 
 Lemma testField2and4:
-  field2and4 = Generated4.field2and4.
+  field2and4 = GeneratedParams.field2and4.
 Proof.
   auto.
 Qed. 
 
 Lemma testField1and3:
-  field1and3 = Generated4.field1and3.
+  field1and3 = GeneratedParams.field1and3.
 Proof.
   auto.
 Qed. 
 
 Lemma testOp:
-  forall r, op r = Generated4.op r.
+  forall r, op r = GeneratedParams.op r.
 Proof.
   intros. induction r. auto.
 Qed.
 
 Lemma testAndSpecTrueTrue:
-  forall r : Generated4.input,
-    Generated4.field1 r = true ->
-    Generated4.field3 r = true ->
-    Generated4.field1and3 (Generated4.op r) = true.
+  forall r : GeneratedParams.input,
+    GeneratedParams.field1 r = true ->
+    GeneratedParams.field3 r = true ->
+    GeneratedParams.field1and3 (GeneratedParams.op r) = true.
 Proof.
   intros. induction r. apply and_spec_true_true; auto.
 Qed.
 
 Lemma testPlusSpecOl:
-  forall r : Generated4.input,
-    Generated4.field2 r = 0 ->
-    Generated4.field2and4 (Generated4.op r) = Generated4.field4 r.
+  forall r : GeneratedParams.input,
+    GeneratedParams.field2 r = 0 ->
+    GeneratedParams.field2and4 (GeneratedParams.op r) = GeneratedParams.field4 r.
 Proof.
   intros. induction r. rewrite <- testOp. apply plus_spec_O_l; auto.
 Qed.
 
 Lemma testPlusSpecOr:
-  forall r : Generated4.input,
-    Generated4.field4 r = 0 ->
-    Generated4.field2and4 (Generated4.op r) = Generated4.field2 r.
+  forall r : GeneratedParams.input,
+    GeneratedParams.field4 r = 0 ->
+    GeneratedParams.field2and4 (GeneratedParams.op r) = GeneratedParams.field2 r.
 Proof.
   intros. induction r. rewrite <- testOp. apply plus_spec_O_r; auto.
 Qed.
 
-End LiftedHandwritten4.
+End LiftedHandwrittenParams.
 
-Module LiftedGenerated4.
+Module LiftedGeneratedParams.
 
 Lift Generated4'.input Handwritten4'.input in Generated4'.MkInput as MkInput.
 Lift Generated4'.output Handwritten4'.output in Generated4'.MkOutput as MkOutput.
