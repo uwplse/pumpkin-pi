@@ -473,7 +473,7 @@ Definition input (T1 T2 T3 T4 : Type) := (prod T1 (prod T2 (prod T3 T4))).
 Definition output (T1 T2 : Type) := (prod T1 T2).
 
 Definition MkInput (T1 T2 T3 T4 : Type) (t1 : T1) (t2 : T2) (t3 : T3) (t4 : T4) :=
-  pair t1 (pair t1 (pair t3 t4)).
+  pair t1 (pair t2 (pair t3 t4)).
 
 Definition MkOutput (T1 T2 : Type) (t1 : T1) (t2 : T2) :=
   pair t1 t2.
@@ -569,7 +569,8 @@ Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.plus_
 Lift HandwrittenParams'.output GeneratedParams'.output in plus_spec_O_l_r as plus_spec_O_r.
 
 Lemma testMkInput:
-  MkInput = GeneratedParams.MkInput.
+  forall (T1 T2 T3 T4 : Type),
+    MkInput = GeneratedParams.MkInput.
 Proof.
   auto.
 Qed. 
@@ -587,22 +588,25 @@ Proof.
 Qed. 
 
 Lemma testField2:
-  forall i, field2 i = GeneratedParams.field2 i.
+  forall T1 T2 T3 T4 i,
+    field2 T1 T2 T3 T4 i = GeneratedParams.field2 T1 T2 T3 T4 i.
 Proof.
   intros. induction i. auto.
 Qed. 
 
 Lemma testField3:
-  forall i, field3 i = GeneratedParams.field3 i.
+  forall T1 T2 T3 T4 i,
+    field3 T1 T2 T3 T4 i = GeneratedParams.field3 T1 T2 T3 T4 i.
 Proof.
   intros. induction i. auto.
-Qed. 
+Qed.
 
 Lemma testField4:
-  forall i, field4 i = GeneratedParams.field4 i.
+  forall T1 T2 T3 T4 i,
+    field4 T1 T2 T3 T4 i = GeneratedParams.field4 T1 T2 T3 T4 i.
 Proof.
   intros. induction i. auto.
-Qed. 
+Qed.
 
 Lemma testField2and4:
   field2and4 = GeneratedParams.field2and4.
@@ -617,59 +621,63 @@ Proof.
 Qed. 
 
 Lemma testOp:
-  forall r, op r = GeneratedParams.op r.
+  forall T1 T2 T3 T4 T5 T6 g f r,
+    op T1 T2 T3 T4 T5 T6 g f r = GeneratedParams.op g f r.
 Proof.
   intros. induction r. auto.
 Qed.
 
 Lemma testAndSpecTrueTrue:
-  forall r : GeneratedParams.input,
-    GeneratedParams.field1 r = true ->
-    GeneratedParams.field3 r = true ->
-    GeneratedParams.field1and3 (GeneratedParams.op r) = true.
+  forall (T1 T2 T3 : Type) (f : T1 -> T2 -> T3) (r : GeneratedParams.input bool T1 bool T2),
+    GeneratedParams.field1 _ _ _ _ r = true ->
+    GeneratedParams.field3 _ _ _ _ r = true ->
+    GeneratedParams.field1and3 _ _ (GeneratedParams.op f andb r) = true.
 Proof.
-  intros. induction r. apply and_spec_true_true; auto.
+  intros. induction r. induction b. induction b.
+  apply (and_spec_true_true T1 T2 T3 f); auto.
 Qed.
 
+Check plus_spec_O_l.
+
 Lemma testPlusSpecOl:
-  forall r : GeneratedParams.input,
-    GeneratedParams.field2 r = 0 ->
-    GeneratedParams.field2and4 (GeneratedParams.op r) = GeneratedParams.field4 r.
+  forall (T1 T2 T3 : Type) (g : T1 -> T2 -> T3) (r : GeneratedParams.input T1 nat T2 nat),
+    GeneratedParams.field2 _ _ _ _ r = 0 ->
+    GeneratedParams.field2and4 _ _ (GeneratedParams.op Nat.add g r) = GeneratedParams.field4 _ _ _ _ r.
 Proof.
-  intros. induction r. rewrite <- testOp. apply plus_spec_O_l; auto.
+  intros. induction r. induction b. induction b.
+  rewrite <- testOp. apply plus_spec_O_l; auto.
 Qed.
 
 Lemma testPlusSpecOr:
-  forall r : GeneratedParams.input,
-    GeneratedParams.field4 r = 0 ->
-    GeneratedParams.field2and4 (GeneratedParams.op r) = GeneratedParams.field2 r.
+  forall (T1 T2 T3 : Type) (g : T1 -> T2 -> T3) (r : GeneratedParams.input T1 nat T2 nat),
+    GeneratedParams.field4 _ _ _ _ r = 0 ->
+    GeneratedParams.field2and4 _ _ (GeneratedParams.op Nat.add g r) = GeneratedParams.field2 _ _ _ _ r.
 Proof.
-  intros. induction r. rewrite <- testOp. apply plus_spec_O_r; auto.
+  intros. induction r. induction b. induction b.
+  rewrite <- testOp. apply plus_spec_O_r; auto.
 Qed.
 
 End LiftedHandwrittenParams.
 
 Module LiftedGeneratedParams.
 
-Lift Generated4'.input Handwritten4'.input in Generated4'.MkInput as MkInput.
-Lift Generated4'.output Handwritten4'.output in Generated4'.MkOutput as MkOutput.
-Lift Generated4'.input Handwritten4'.input in Generated4'.field1 as field1.
-Lift Generated4'.input Handwritten4'.input in Generated4'.field2 as field2.
-Lift Generated4'.input Handwritten4'.input in Generated4'.field3 as field3.
-Lift Generated4'.input Handwritten4'.input in Generated4'.field4 as field4.
-Lift Generated4'.output Handwritten4'.output in Generated4'.field2and4 as field2and4.
-Lift Generated4'.output Handwritten4'.output in Generated4'.field1and3 as field1and3.
-Lift Generated4'.output Handwritten4'.output in Generated4'.op as op_1 { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
-Lift Generated4'.input Handwritten4'.input in op_1 as op { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
-Lift Generated4'.output Handwritten4'.output in Generated4'.and_spec_true_true as and_spec_true_true_1 { opaque Generated4'.Coq_Init_Datatypes_andb_true_intro }.
-Lift Generated4'.input Handwritten4'.input in and_spec_true_true_1 as and_spec_true_true { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Datatypes_andb_true_intro }.
-Lift Generated4'.output Handwritten4'.output in Generated4'.plus_spec_O_l as plus_spec_O_l_1 { opaque Generated4'.Coq_Init_Logic_eq_ind_r }.
-Lift Generated4'.input Handwritten4'.input in plus_spec_O_l_1 as plus_spec_O_l { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Logic_eq_ind_r }.
-Lift Generated4'.output Handwritten4'.output  in Generated4'.plus_spec_O_r as plus_spec_O_l_r { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Peano_plus_n_O Generated4'.Coq_Init_Logic_eq_sym Generated4'.Coq_Init_Logic_eq_ind_r }.
-Lift Generated4'.input Handwritten4'.input in plus_spec_O_l_r as plus_spec_O_r { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Peano_plus_n_O Generated4'.Coq_Init_Logic_eq_sym Generated4'.Coq_Init_Logic_eq_ind_r }.
-
-(* Note that Handwritten4.input and Handwritten4'.input are equivalent, but not equal because
-   of how Coq's equality works (will not prove). *)
+Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.MkInput as MkInput.
+Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.MkOutput as MkOutput.
+(* TODO left off here *)
+Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field1 as field1.
+Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field2 as field2.
+Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field3 as field3.
+Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field4 as field4.
+Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.field2and4 as field2and4.
+Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.field1and3 as field1and3.
+Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.op as op_1 { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb }.
+Lift GeneratedParams'.input HandwrittenParams'.input in op_1 as op { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb }.
+Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.and_spec_true_true as and_spec_true_true_1 { opaque GeneratedParams'.Coq_Init_Datatypes_andb_true_intro }.
+Lift GeneratedParams'.input HandwrittenParams'.input in and_spec_true_true_1 as and_spec_true_true { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Datatypes_andb_true_intro }.
+Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.plus_spec_O_l as plus_spec_O_l_1 { opaque GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
+Lift GeneratedParams'.input HandwrittenParams'.input in plus_spec_O_l_1 as plus_spec_O_l { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
+Lift GeneratedParams'.output HandwrittenParams'.output  in GeneratedParams'.plus_spec_O_r as plus_spec_O_l_r { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Peano_plus_n_O GeneratedParams'.Coq_Init_Logic_eq_sym GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
+Lift GeneratedParams'.input HandwrittenParams'.input in plus_spec_O_l_r as plus_spec_O_r { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Peano_plus_n_O GeneratedParams'.Coq_Init_Logic_eq_sym GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
 
 Lemma testMkInput:
   MkInput = Handwritten4'.MkInput.
