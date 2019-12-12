@@ -313,7 +313,7 @@ let is_eliminator c env trm sigma =
          let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm in
          let (final_args, post_args) = take_split 1 trm_elim.final_args in
          let sigma, is_from = type_is_from c env_elim sigma (List.hd final_args) in
-         sigma, Option.has_some is_from (* TODO ret? Then what ret in other cases? *) (* TODO test eta here *)
+         sigma, Option.has_some is_from (* TODO ret? Then what ret in other cases? *) (* TODO test eta here *) (* TODO test dependent motive here *)
        else
          sigma, is_elim
      else
@@ -658,9 +658,9 @@ let lift_cases env c p p_elim cs =
 let lift_elim env sigma c trm_app =
   let (a_t, b_t) = c.typs in
   let to_typ = directional c.l b_t a_t in
-  let npms = List.length trm_app.pms in
   match c.l.orn.kind with
   | Algebraic ->
+     let npms = List.length trm_app.pms in
      let elim = type_eliminator env (fst (destInd to_typ)) in
      let param_elim = mkAppl (elim, trm_app.pms) in
      let sigma, p = lift_motive env sigma c.l npms param_elim trm_app.p in
@@ -670,6 +670,7 @@ let lift_elim env sigma c trm_app =
      sigma, apply_eliminator { trm_app with elim; p; cs; final_args }
   | CurryRecord ->
      if c.l.is_fwd then
+       let npms = List.length trm_app.pms in
        let to_typ_f = unwrap_definition env to_typ in
        let to_typ_app = mkAppl (to_typ_f, trm_app.pms) in
        let sigma, to_typ_prod = reduce_term env sigma to_typ_app in
@@ -682,14 +683,15 @@ let lift_elim env sigma c trm_app =
        let arg = List.hd args in
        sigma, elim_prod Produtils.{ to_elim; p; proof; arg }
      else
-       (* TODO handle pms? *)
        let elim = type_eliminator env (fst (destInd to_typ)) in
-       let param_elim = elim in
+       let to_elim = List.hd (fst (take_split 1 trm_app.final_args)) in
+       let sigma, pms = Util.on_snd Option.get (type_is_from c env sigma to_elim) in (* TODO redundant *)
+       let npms = List.length pms in
+       let param_elim = mkAppl (elim, pms) in
        let sigma, p = lift_motive env sigma c.l npms param_elim trm_app.p in
        let p_elim = mkAppl (param_elim, [p]) in
        let sigma, cs = lift_cases env c p p_elim trm_app.cs sigma in
        let sigma, final_args = lift_elim_args env sigma c.l npms trm_app.final_args in
-       let pms = [] in
        sigma, apply_eliminator { elim; pms; p; cs; final_args }
 
 (*

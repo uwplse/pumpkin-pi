@@ -652,7 +652,6 @@ Scheme Induction for Coq.Classes.CRelationClasses.StrictOrder Sort Type.
 
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.MkInput as MkInput.
 Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.MkOutput as MkOutput.
-Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field1 as field1.
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field2 as field2.
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field3 as field3.
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field4 as field4.
