@@ -2,6 +2,8 @@ Require Import Ornamental.Ornaments.
 
 Set DEVOID search prove equivalence. (* <-- Correctness proofs for search *)
 Set DEVOID lift type. (* <-- Prettier types than the ones Coq infers *)
+Set Nonrecursive Elimination Schemes. (* <--- Preprocess needs induction principles for records *)
+
 
 (*
  * This is an example for lifting between nested tuples and records.
@@ -61,19 +63,6 @@ Record output := MkOutput
   numberO  : nat;
   andBools : bool;
 }.
-
-(*
- * To be able to lift back from these types, we'll need to
- * Preprocess this module, and to be able to do that, we'll need
- * to tell Coq to generate induction principles for these records:
- *)
-Scheme Induction for input Sort Set.
-Scheme Induction for input Sort Prop.
-Scheme Induction for input Sort Type.
-
-Scheme Induction for output Sort Set.
-Scheme Induction for output Sort Prop.
-Scheme Induction for output Sort Type.
 
 End Handwritten.
 

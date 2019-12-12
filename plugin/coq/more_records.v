@@ -2,6 +2,7 @@ Require Import Ornamental.Ornaments.
 
 Set DEVOID search prove equivalence. (* <-- Correctness proofs for search *)
 Set DEVOID lift type. (* <-- Prettier types than the ones Coq infers *)
+Set Nonrecursive Elimination Schemes. (* <--- Preprocess needs induction principles for records *)
 
 (*
  * This file includes more about records, including
@@ -30,14 +31,6 @@ Record output := MkOutput
   field2and4  : nat;
   field1and3 : bool;
 }.
-
-Scheme Induction for input Sort Set.
-Scheme Induction for input Sort Prop.
-Scheme Induction for input Sort Type.
-
-Scheme Induction for output Sort Set.
-Scheme Induction for output Sort Prop.
-Scheme Induction for output Sort Type.
 
 Definition op (r : input) :=
   MkOutput
@@ -410,14 +403,6 @@ Record output (T1 T2 : Type) := MkOutput
   field1and3 : T2;
 }.
 
-Scheme Induction for input Sort Set.
-Scheme Induction for input Sort Prop.
-Scheme Induction for input Sort Type.
-
-Scheme Induction for output Sort Set.
-Scheme Induction for output Sort Prop.
-Scheme Induction for output Sort Type.
-
 Definition op {T1 T2 T3 T4 T5 T6 : Type} (f : T2 -> T4 -> T5) (g : T1 -> T3 -> T6) (r : input T1 T2 T3 T4) :=
   MkOutput _ _
     (f (field2 _ _ _ _ r) (field4 _ _ _ _ r))
@@ -637,8 +622,6 @@ Proof.
   apply (and_spec_true_true T1 T2 T3 f); auto.
 Qed.
 
-Check plus_spec_O_l.
-
 Lemma testPlusSpecOl:
   forall (T1 T2 T3 : Type) (g : T1 -> T2 -> T3) (r : GeneratedParams.input T1 nat T2 nat),
     GeneratedParams.field2 _ _ _ _ r = 0 ->
@@ -664,6 +647,8 @@ Module LiftedGeneratedParams.
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.MkInput as MkInput.
 Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.MkOutput as MkOutput.
 (* TODO left off here *)
+Print GeneratedParams'.field1.
+
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field1 as field1.
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field2 as field2.
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field3 as field3.
