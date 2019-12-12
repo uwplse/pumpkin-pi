@@ -105,9 +105,10 @@ let is_from c env sigma typ =
        (* TODO explain the reason we need this *)
        (* TODO really should be able to reuse unification somehow... *)
        (* TODO try to work around by substituting with constant version earlier so as to avoid this *)
+       let sigma, a_typ_typ = reduce_type env sigma a_typ in
        if not (isApp typ || isConst typ) then
          sigma, None
-       else if arity b_typ = 0 then
+       else if arity a_typ_typ = 0 then
          if equal (unwrap_definition env b_typ) (unwrap_definition env typ) then
            sigma, Some []
          else
@@ -300,13 +301,13 @@ let is_eliminator c env trm sigma =
      if Option.has_some maybe_ind then
        let ind = Option.get maybe_ind in
        let is_elim = equal (mkInd (ind, 0)) (directional c.l a_typ b_typ) in
-       if (not c.l.is_fwd) && c.l.orn.kind = CurryRecord then
+       if (not c.l.is_fwd) && c.l.orn.kind = CurryRecord && is_elim then
          let sigma, trm = expand_eta env sigma trm in
          let env_elim, trm = zoom_lambda_term env trm in
          let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm in
          let (final_args, post_args) = take_split 1 trm_elim.final_args in
          let sigma, is_from = type_is_from c env_elim sigma (List.hd final_args) in
-         sigma, is_elim && Option.has_some is_from (* TODO ret? Then what ret in other cases? *)
+         sigma, Option.has_some is_from (* TODO ret? Then what ret in other cases? *) (* TODO test eta here *)
        else
          sigma, is_elim
      else
@@ -973,27 +974,27 @@ let lift_curry_record env sigma c trm =
             (sigma, mkApp (b_typ, pms)), false
           else
             (sigma, mkApp (a_typ, pms)), false
-      else
-        let sigma, i_and_args_o = is_packed_constr c en sigma tr in
-        if Option.has_some i_and_args_o then
-          (* LIFT-CONSTR *)
-          (* The extra logic here is an optimization *)
-          (* It also deals with the fact that we are lazy about eta *)
-          (* TODO need to test w/ eta, run_lift_constr probably doesn't run here ? *)
-          (* TODO if simpler than algebraic, why? *)
-          let (i, args) = Option.get i_and_args_o in
-          let lifted_constr = c.constr_rules.(i - 1) in
-          map_if
-            (fun ((sigma, tr'), _) ->
-              let (f', args') = destApp tr' in
-              let sigma, args'' = map_rec_args lift_rec en sigma () args' in
-              ((sigma, mkApp (f', args'')), false))
-            (List.length args > 0)
-            (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
         else
-          (* TODO handle opaque in algebraic too *)
-          (* TODO needed? *)
-          (*let sigma, run_lift_pack = is_packed c en sigma tr in
+          let sigma, i_and_args_o = is_packed_constr c en sigma tr in
+          if Option.has_some i_and_args_o then
+            (* LIFT-CONSTR *)
+            (* The extra logic here is an optimization *)
+            (* It also deals with the fact that we are lazy about eta *)
+            (* TODO need to test w/ eta, run_lift_constr probably doesn't run here ? *)
+            (* TODO if simpler than algebraic, why? *)
+            let (i, args) = Option.get i_and_args_o in
+            let lifted_constr = c.constr_rules.(i - 1) in
+            map_if
+              (fun ((sigma, tr'), _) ->
+                let (f', args') = destApp tr' in
+                let sigma, args'' = map_rec_args lift_rec en sigma () args' in
+                ((sigma, mkApp (f', args'')), false))
+              (List.length args > 0)
+              (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
+          else
+            (* TODO handle opaque in algebraic too *)
+            (* TODO needed? *)
+            (*let sigma, run_lift_pack = is_packed c en sigma tr in
           if run_lift_pack then (* TODO do we need this rule? when does it show up for lift_algebraic? can we replicate? *)
             (* LIFT-PACK (extra rule for non-primitive projections) *)
             if l.is_fwd then
@@ -1001,21 +1002,21 @@ let lift_curry_record env sigma c trm =
             else
               lift_rec en sigma () (dest_existT tr).unpacked, false
           else*)
-          let sigma, is_elim = is_eliminator c en tr sigma in
-          if is_elim then
-            (* LIFT-ELIM *)
-            let sigma, tr_eta = expand_eta en sigma tr in
-            if arity tr_eta > arity tr then
-              (* lazy eta expansion; recurse *)
-              lift_rec en sigma () tr_eta, false
-            else
-              let sigma, tr_elim = deconstruct_eliminator en sigma tr in
-              let (final_args, post_args) = take_split 1 tr_elim.final_args in
-              (* TODO different in a few ways from algebraic, unify/explain *)
-              let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } in
-              let sigma, tr'' = lift_rec en sigma () tr' in
-              let sigma, post_args' = map_rec_args lift_rec en sigma () (Array.of_list post_args) in
-              (sigma, mkApp(tr'', post_args')), l.is_fwd
+            let sigma, is_elim = is_eliminator c en tr sigma in
+            if is_elim then
+              (* LIFT-ELIM *)
+              let sigma, tr_eta = expand_eta en sigma tr in
+              if arity tr_eta > arity tr then
+                (* lazy eta expansion; recurse *)
+                lift_rec en sigma () tr_eta, false
+              else
+                let sigma, tr_elim = deconstruct_eliminator en sigma tr in
+                let (final_args, post_args) = take_split 1 tr_elim.final_args in
+                (* TODO different in a few ways from algebraic, unify/explain *)
+                let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } in
+                let sigma, tr'' = lift_rec en sigma () tr' in
+                let sigma, post_args' = map_rec_args lift_rec en sigma () (Array.of_list post_args) in
+                (sigma, mkApp(tr'', post_args')), l.is_fwd
             else
               match kind tr with
               | App (f, args) ->

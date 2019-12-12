@@ -646,9 +646,6 @@ Module LiftedGeneratedParams.
 
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.MkInput as MkInput.
 Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.MkOutput as MkOutput.
-(* TODO left off here *)
-Print GeneratedParams'.field1.
-
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field1 as field1.
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field2 as field2.
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field3 as field3.
