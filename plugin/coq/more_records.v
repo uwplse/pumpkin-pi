@@ -865,5 +865,5 @@ Find ornament HandwrittenParamsFancy.input GeneratedParamsFancy.input as input_p
 
 (* --- Things left: --- *)
 
-(* TODO test: failure cases, eta expanded or not expanded variations, taking prod directly, etc *)
+(* TODO test: failure cases, eta expanded or not expanded variations (e.g. try not eta expanded constr with parameters, like (prod nat) ), taking prod directly, etc *)
 (* TODO check test results *)

@@ -27,6 +27,8 @@ open Constutils
 open Stateutils
 open Hofs
 open Desugarprod
+open Substitution
+open Convertibility
 
 (* --- Convenient shorthand --- *)
 
@@ -75,80 +77,171 @@ let typs_from_orn l env sigma =
 (*
  * Determine whether a type is the type we are ornamenting from
  * That is, A when we are promoting, and B when we are forgetting
+ *
+ * TODO it's more like e_is_from with pms/indices
  *)
 let is_from c env sigma typ =
   let (a_typ, b_typ) = c.typs in
   if c.l.is_fwd then
-    is_or_applies a_typ typ
+    if is_or_applies a_typ typ then
+      sigma, Some (unfold_args typ)
+    else
+      sigma, None
   else
     match c.l.orn.kind with
     | Algebraic ->
        if is_or_applies sigT typ then
-         equal b_typ (first_fun (dummy_index env sigma (dest_sigT typ).packer))
+         let packed = dummy_index env sigma (dest_sigT typ).packer in
+         if equal b_typ (first_fun packed) then
+           sigma, Some (unfold_args packed)
+         else
+           sigma, None
        else
-         false
+         sigma, None
     | CurryRecord ->
-       (* TODO handle parameters! *)
-       let b_typ_delta = unwrap_definition env b_typ in
-       equal typ b_typ_delta
+       (* TODO optimize, don't do unless you need to *)
+       (* TODO have this function return useful metadata, like the arguments, for all of these cases. for now let's just be slow *)
+       (* v TODO common functionality w/ specialization, move somewhere common *)
+       (* TODO explain the reason we need this *)
+       (* TODO really should be able to reuse unification somehow... *)
+       (* TODO try to work around by substituting with constant version earlier so as to avoid this *)
+       if not (isApp typ || isConst typ) then
+         sigma, None
+       else if arity b_typ = 0 then
+         if equal (unwrap_definition env b_typ) (unwrap_definition env typ) then
+           sigma, Some []
+         else
+           sigma, None
+       else
+         let typ_f = unwrap_definition env (first_fun typ) in
+         let typ_args = unfold_args typ in
+         let typ_red = mkAppl (typ_f, typ_args) in
+         let sigma, typ_red = reduce_term env sigma typ_red in (* TODO ret sigma *)
+         if not (is_or_applies prod typ_red) then
+           sigma, None
+         else
+           let typ_app_f = unwrap_definition env (first_fun b_typ) in
+           let typ_app_args = unfold_args b_typ in
+           let typ_app_red = mkAppl (typ_app_f, typ_app_args) in
+           let sigma, typ_app_red = reduce_term env sigma typ_app_red in
+           let rec prod_args typ =
+             if is_or_applies prod typ then
+               let typ_prod = dest_prod typ in
+               let typ1 = typ_prod.Produtils.typ1 in
+               let typ2 = typ_prod.Produtils.typ2 in
+               typ1 :: prod_args typ2
+             else
+               [typ]
+           in
+           let abs_args = prod_args typ_app_red in
+           let conc_args = prod_args typ_red in
+           if not (List.length abs_args = List.length conc_args) then
+             sigma, None
+           else
+             let subbed = (* TODO move some of this ... *) (* TODO may fail sometimes, do better? try to make it fail ... *)
+               List.fold_right2
+                 (fun abs conc -> all_eq_substs (abs, conc))
+                 abs_args
+                 conc_args
+                 b_typ
+             in
+             let sigma, conv = convertible env sigma subbed typ in
+             sigma, Some (unfold_args subbed)
 
 (* 
  * Determine whether a term has the type we are ornamenting from
  *)
-let type_is_from c env sigma trm =
-  on_red_type
-    reduce_nf
-    (fun env sigma typ ->
-      sigma, is_from c env sigma typ)
-    env
-    sigma
-    trm
+let type_is_from c = on_red_type reduce_nf (is_from c)
 
-(* Premises for LIFT-CONSTR *)
+(* Premises for LIFT-CONSTR *) (* TODO clean *)
 let is_packed_constr c env sigma trm =
   let right_type trm sigma = type_is_from c env sigma trm in
   match kind trm with
-  | Construct _  ->
-     right_type trm sigma
+  | Construct (((_, _), i), _)  ->
+     let sigma, typ_args_o = right_type trm sigma in
+     if Option.has_some typ_args_o then
+       sigma, Some (i, [])
+     else
+       sigma, None
   | App (f, args) ->
      if c.l.is_fwd then
-       if isConstruct f then
-         right_type trm sigma
-       else
-         sigma, false
+       (match kind f with
+        | Construct (((_, _), i), _) ->
+           let sigma, typ_args_o = right_type trm sigma in
+           if Option.has_some typ_args_o then
+             sigma, Some (i, unfold_args trm)
+           else
+             sigma, None
+        | _ ->
+           sigma, None)
      else
        (match c.l.orn.kind with
         | Algebraic ->
            if equal existT f then
-             branch_state
-               right_type
-               (fun _ ->
-                 let last_arg = last (Array.to_list args) in
-                 ret (isApp last_arg && isConstruct (first_fun last_arg)))
-               (fun _ -> ret false)
-               trm
-               sigma
+             let sigma_right, args_opt = right_type trm sigma in
+             if Option.has_some args_opt then
+               (* TODO what does this exist for? *)
+               (* TODO do we want to send back the typ args too? *)
+               let last_arg = last (Array.to_list args) in
+               if isApp last_arg then
+                 (match kind (first_fun last_arg) with
+                  | Construct (((_, _), i), _) ->
+                     sigma_right, Some (i, unfold_args last_arg)
+                  | _ ->
+                     sigma, None)
+               else
+                 sigma, None
+             else
+               sigma, None
            else
-             sigma, false
+             sigma, None
         | CurryRecord ->
            if equal pair f then
-             branch_state
-               right_type
-               (fun _ -> ret true)
-               (fun _ -> ret false)
-               trm
-               sigma
+             let sigma_right, args_opt = right_type trm sigma in
+             if Option.has_some args_opt then
+               let sigma = sigma_right in
+               let p = dest_pair trm in
+               let (a_typ, _) = c.typs in
+               let c = mkConstruct (fst (destInd a_typ), 1) in
+               let sigma, c_typ = reduce_type env sigma c in
+               let c_arity = arity c_typ in
+               let rec build_args p sigma n = (* TODO clean, move to optimization *)
+                 let trm1 = p.Produtils.trm1 in
+                 if n <= 1 then
+                   let trm2 = p.Produtils.trm2 in
+                   sigma, [trm1; trm2]
+                 else
+                   if applies pair p.Produtils.trm2 then
+                     let sigma, trm2s = build_args (dest_pair p.Produtils.trm2) sigma (n - 1) in
+                     sigma, trm1 :: trm2s
+                   else
+                     let sigma_typ, typ2 = reduce_type env sigma p.Produtils.trm2 in
+                     if applies prod typ2 then (* TODO should just be able to use number instead of type-checking every time *)
+                       let prod_app = dest_prod typ2 in
+                       let typ1 = prod_app.Produtils.typ1 in
+                       let typ2 = prod_app.Produtils.typ2 in
+                       let trm2_pair = Produtils.{ typ1; typ2; trm1 = prod_fst_elim prod_app p.Produtils.trm2; trm2 = prod_snd_elim prod_app p.Produtils.trm2 } in
+                       let sigma, trm2s = build_args trm2_pair sigma (n - 1) in
+                       sigma, trm1 :: trm2s
+                     else
+                       let trm2 = p.Produtils.trm2 in
+                       sigma, [trm1; trm2]
+               in
+               let sigma, args = build_args p sigma c_arity in
+               sigma, Some (1, args)
+             else
+               sigma, None
            else
-             sigma, false)
+             sigma, None)
   | _ ->
-     sigma, false
+     sigma, None
 
 (* Premises for LIFT-PACKED *)
 let is_packed c env sigma trm =
   let right_type = type_is_from c env sigma in
   if c.l.is_fwd then
     if isRel trm then
-      right_type trm
+      Util.on_snd Option.has_some (right_type trm)
     else
       sigma, false
   else
@@ -157,12 +250,12 @@ let is_packed c env sigma trm =
        (match c.l.orn.kind with
         | Algebraic ->
            if equal existT f then
-             right_type trm
+             Util.on_snd Option.has_some (right_type trm)
            else
              sigma, false
         | CurryRecord ->
-           if equal (fst_elim ()) f then
-             right_type trm
+           if equal pair f then
+             Util.on_snd Option.has_some (right_type trm)
            else
              sigma, false)
     | _ ->
@@ -177,21 +270,20 @@ let is_proj c env sigma trm =
      let args = unfold_args trm in
      (match c.l.orn.kind with
       | Algebraic ->
-         if c.l.is_fwd then
-           if equal (Option.get c.l.orn.indexer) f then
-             right_type (last args)
+         if (c.l.is_fwd && equal (Option.get c.l.orn.indexer) f) ||
+            ((not c.l.is_fwd) && (equal projT1 f || equal projT2 f)) then
+           let last_arg = last args in
+           let sigma_right, typ_args = right_type last_arg in
+           if Option.has_some typ_args then
+             sigma_right, Some last_arg
            else
-             sigma, false
+             sigma, None
          else
-           (* Special support for projT1/projT2 even when not preprocessed (TODO really should just do what we do for pairs here, and handle correctly and test) *)
-           if (equal projT1 f || equal projT2 f) then
-             right_type (last args)
-           else
-             sigma, false
+           sigma, None
       | CurryRecord ->
-         sigma, false)
+         sigma, None)
   | _ ->
-     sigma, false
+     sigma, None
 
 (* Premises for LIFT-ELIM *)
 let is_eliminator c env trm sigma =
@@ -214,7 +306,7 @@ let is_eliminator c env trm sigma =
          let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm in
          let (final_args, post_args) = take_split 1 trm_elim.final_args in
          let sigma, is_from = type_is_from c env_elim sigma (List.hd final_args) in
-         sigma, is_elim && is_from
+         sigma, is_elim && Option.has_some is_from (* TODO ret? Then what ret in other cases? *)
        else
          sigma, is_elim
      else
@@ -245,7 +337,7 @@ let lift_constr env sigma c trm =
   let sigma, app = lift env l trm sigma in
   match l.orn.kind with
   | Algebraic ->
-     let sigma, rec_args = filter_state (fun tr sigma -> type_is_from c env sigma tr) packed_args sigma in
+     let sigma, rec_args = filter_state (fun tr sigma -> let sigma, o = type_is_from c env sigma tr in sigma, Option.has_some o) packed_args sigma in (* TODO use result? *)
      if List.length rec_args = 0 then
        (* base case - don't bother refolding *)
        reduce_nf env sigma app
@@ -625,6 +717,8 @@ let repack_prod env lifted typ =
  * Core lifting algorithm for algebraic ornaments.
  * A few extra rules to deal with real Coq terms as opposed to CIC,
  * including caching.
+ *
+ * TODO clean after changing, split up a lot
  *)
 let lift_algebraic env sigma c ib_typ trm =
   let l = c.l in
@@ -643,199 +737,198 @@ let lift_algebraic env sigma c ib_typ trm =
       else if is_locally_cached c.opaques tr then
         (* OPAQUE CONSTANTS *)
         (sigma, tr), false
-      else if is_from c en sigma tr then
-        (* EQUIVALENCE *)
-        if l.is_fwd then
-          let sigma, is = map_rec_args lift_rec en sigma ib_typ (Array.of_list (unfold_args tr)) in
-          let b_is = mkApp (b_typ, is) in
-          let n = mkRel 1 in
-          let abs_ib = reindex_body (reindex_app (index l n)) in
-          let packer = abs_ib (mkLambda (Anonymous, ib_typ, shift b_is)) in
-          (sigma, pack_sigT { index_type = ib_typ; packer }), false
-        else
-          let packed = dummy_index en sigma (dest_sigT tr).packer in
-          let is = deindex l (unfold_args packed) in
-          (sigma, mkAppl (a_typ, is)), false
       else
-        let sigma, run_lift_constr = is_packed_constr c en sigma tr in
-        if run_lift_constr then
-          (* LIFT-CONSTR *)
-          (* The extra logic here is an optimization *)
-          (* It also deals with the fact that we are lazy about eta *)
-          let inner = map_backward last_arg l tr in
-          let constr = first_fun inner in
-          let args = unfold_args inner in
-          let (((_, _), i), _) = destConstruct constr in
-          let lifted_constr = c.constr_rules.(i - 1) in
-          map_if
-            (fun ((sigma, tr'), _) ->
-              let lifted_inner = map_forward last_arg l tr' in
-              let (f', args') = destApp lifted_inner in
-              let sigma, args'' = map_rec_args lift_rec en sigma ib_typ args' in
-              map_forward
-                (fun ((sigma, b), _) ->
-                  (* pack the lifted term *)
-                  let ex = dest_existT tr' in
-                  let sigma, n = lift_rec en sigma ib_typ ex.index in
-                  let sigma, packer = lift_rec en sigma ib_typ ex.packer in
-                  (sigma, pack_existT { ex with packer; index = n; unpacked = b }), false)
-                l
-                ((sigma, mkApp (f', args'')), false))
-            (List.length args > 0)
-            (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
-        else
-          let sigma, run_lift_pack = is_packed c en sigma tr in
-          if run_lift_pack then
-            (* LIFT-PACK (extra rule for non-primitive projections) *)
-            if l.is_fwd then
-              (sigma, tr), true
-            else
-              lift_rec en sigma ib_typ (dest_existT tr).unpacked, false
+        let sigma, is_o = is_from c en sigma tr in
+        if Option.has_some is_o then
+          (* EQUIVALENCE *)
+          let is = Option.get is_o in
+          if l.is_fwd then
+            let sigma, is = map_rec_args lift_rec en sigma ib_typ (Array.of_list is) in
+            let b_is = mkApp (b_typ, is) in
+            let n = mkRel 1 in
+            let abs_ib = reindex_body (reindex_app (index l n)) in
+            let packer = abs_ib (mkLambda (Anonymous, ib_typ, shift b_is)) in
+            (sigma, pack_sigT { index_type = ib_typ; packer }), false
           else
-            let sigma, run_coherence = is_proj c en sigma tr in
-            if run_coherence then
-              (* COHERENCE *)
+            let is = deindex l is in
+            (sigma, mkAppl (a_typ, is)), false
+        else
+          let sigma, i_and_args_o = is_packed_constr c en sigma tr in
+          if Option.has_some i_and_args_o then
+            (* LIFT-CONSTR *)
+            (* The extra logic here is an optimization *)
+            (* It also deals with the fact that we are lazy about eta *)
+            let i, args = Option.get i_and_args_o in
+            let lifted_constr = c.constr_rules.(i - 1) in
+            map_if
+              (fun ((sigma, tr'), _) ->
+                let lifted_inner = map_forward last_arg l tr' in
+                let (f', args') = destApp lifted_inner in
+                let sigma, args'' = map_rec_args lift_rec en sigma ib_typ args' in
+                map_forward
+                  (fun ((sigma, b), _) ->
+                    (* pack the lifted term *)
+                    let ex = dest_existT tr' in
+                    let sigma, n = lift_rec en sigma ib_typ ex.index in
+                    let sigma, packer = lift_rec en sigma ib_typ ex.packer in
+                    (sigma, pack_existT { ex with packer; index = n; unpacked = b }), false)
+                  l
+                  ((sigma, mkApp (f', args'')), false))
+              (List.length args > 0)
+              (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
+          else
+            let sigma, run_lift_pack = is_packed c en sigma tr in
+            if run_lift_pack then
+              (* LIFT-PACK (extra rule for non-primitive projections) *)
               if l.is_fwd then
-                let a = last_arg tr in
-                let sigma, b_sig = lift_rec en sigma ib_typ a in
-                let sigma, a_typ = reduce_type en sigma a in
-                let sigma, b_sig_typ = Util.on_snd dest_sigT (lift_rec en sigma ib_typ a_typ) in
-                (sigma, project_index b_sig_typ b_sig), false
+                (sigma, tr), true
               else
-                let b_sig = last_arg tr in
-                let sigma, a = lift_rec en sigma ib_typ b_sig in
-                if equal projT1 (first_fun tr) then
-                  let sigma, args = non_index_typ_args (Option.get l.off) en sigma b_sig in
-                  (sigma, mkAppl (Option.get l.orn.indexer, snoc a args)), false
-                else
-                  (sigma, a), false
+                lift_rec en sigma ib_typ (dest_existT tr).unpacked, false
             else
-              let _, is_elim = is_eliminator c en tr sigma in (* sigma never changes here *)
-              if is_elim then
-                (* LIFT-ELIM *)
-                let sigma, tr_eta = expand_eta en sigma tr in
-                if arity tr_eta > arity tr then
-                  (* lazy eta expansion; recurse *)
-                  lift_rec en sigma ib_typ tr_eta, false
+              let sigma, to_proj_o = is_proj c en sigma tr in
+              if Option.has_some to_proj_o then
+                (* COHERENCE *)
+                if l.is_fwd then
+                  let a = Option.get to_proj_o in
+                  let sigma, b_sig = lift_rec en sigma ib_typ a in
+                  let sigma, a_typ = reduce_type en sigma a in
+                  let sigma, b_sig_typ = Util.on_snd dest_sigT (lift_rec en sigma ib_typ a_typ) in
+                  (sigma, project_index b_sig_typ b_sig), false
                 else
-                  let sigma, tr_elim = deconstruct_eliminator en sigma tr in
-                  let npms = List.length tr_elim.pms in
-                  let value_i = a_arity - npms in
-                  let (final_args, post_args) = take_split (value_i + 1) tr_elim.final_args in
-                  let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } in
-                  let sigma, tr'' = lift_rec en sigma ib_typ tr' in
-                  let sigma, post_args' = map_rec_args lift_rec en sigma ib_typ (Array.of_list post_args) in
-                  (sigma, mkApp (tr'', post_args')), l.is_fwd
+                  let b_sig = Option.get to_proj_o in
+                  let sigma, a = lift_rec en sigma ib_typ b_sig in
+                  if equal projT1 (first_fun tr) then
+                    let sigma, args = non_index_typ_args (Option.get l.off) en sigma b_sig in
+                    (sigma, mkAppl (Option.get l.orn.indexer, snoc a args)), false
+                  else
+                    (sigma, a), false
               else
-                match kind tr with
-                | App (f, args) ->
-                   if equal (lift_back l) f then
-                     (* SECTION/RETRACTION *)
-                     lift_rec en sigma ib_typ (last_arg tr), false
-                   else if equal (lift_to l) f then
-                     (* INTERNALIZE *)
-                     lift_rec en sigma ib_typ (last_arg tr), false
-                   else
-                     (* APP *)
-                     let sigma, args' = map_rec_args lift_rec en sigma ib_typ args in
-                     if (is_or_applies projT1 tr || is_or_applies projT2 tr) then
-                       (* optimize projections of existentials, which are common *)
-                       let arg' = last (Array.to_list args') in
-                       let arg'' = reduce_stateless reduce_term en sigma arg' in
-                       if is_or_applies existT arg'' then
-                         let ex' = dest_existT arg'' in
-                         if equal projT1 f then
-                           (sigma, ex'.index), false
+                let _, is_elim = is_eliminator c en tr sigma in (* sigma never changes here *)
+                if is_elim then
+                  (* LIFT-ELIM *)
+                  let sigma, tr_eta = expand_eta en sigma tr in
+                  if arity tr_eta > arity tr then
+                    (* lazy eta expansion; recurse *)
+                    lift_rec en sigma ib_typ tr_eta, false
+                  else
+                    let sigma, tr_elim = deconstruct_eliminator en sigma tr in
+                    let npms = List.length tr_elim.pms in
+                    let value_i = a_arity - npms in
+                    let (final_args, post_args) = take_split (value_i + 1) tr_elim.final_args in
+                    let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } in
+                    let sigma, tr'' = lift_rec en sigma ib_typ tr' in
+                    let sigma, post_args' = map_rec_args lift_rec en sigma ib_typ (Array.of_list post_args) in
+                    (sigma, mkApp (tr'', post_args')), l.is_fwd
+                else
+                  match kind tr with
+                  | App (f, args) ->
+                     if equal (lift_back l) f then
+                       (* SECTION/RETRACTION *)
+                       lift_rec en sigma ib_typ (last_arg tr), false
+                     else if equal (lift_to l) f then
+                       (* INTERNALIZE *)
+                       lift_rec en sigma ib_typ (last_arg tr), false
+                     else
+                       (* APP *)
+                       let sigma, args' = map_rec_args lift_rec en sigma ib_typ args in
+                       if (is_or_applies projT1 tr || is_or_applies projT2 tr) then
+                         (* optimize projections of existentials, which are common *)
+                         let arg' = last (Array.to_list args') in
+                         let arg'' = reduce_stateless reduce_term en sigma arg' in
+                         if is_or_applies existT arg'' then
+                           let ex' = dest_existT arg'' in
+                           if equal projT1 f then
+                             (sigma, ex'.index), false
+                           else
+                             (sigma, ex'.unpacked), false
                          else
-                           (sigma, ex'.unpacked), false
+                           let sigma, f' = lift_rec en sigma ib_typ f in
+                           (sigma, mkApp (f', args')), false
                        else
                          let sigma, f' = lift_rec en sigma ib_typ f in
-                         (sigma, mkApp (f', args')), false
+                         (sigma, mkApp (f', args')), l.is_fwd
+                  | Cast (ca, k, t) ->
+                     (* CAST *)
+                     let sigma, ca' = lift_rec en sigma ib_typ ca in
+                     let sigma, t' = lift_rec en sigma ib_typ t in
+                     (sigma, mkCast (ca', k, t')), false
+                  | Prod (n, t, b) ->
+                     (* PROD *)
+                     let sigma, t' = lift_rec en sigma ib_typ t in
+                     let en_b = push_local (n, t) en in
+                     let sigma, b' = lift_rec en_b sigma (shift ib_typ) b in
+                     (sigma, mkProd (n, t', b')), false
+                  | Lambda (n, t, b) ->
+                     (* LAMBDA *)
+                     let sigma, t' = lift_rec en sigma ib_typ t in
+                     let en_b = push_local (n, t) en in
+                     let sigma, b' = lift_rec en_b sigma (shift ib_typ) b in
+                     (sigma, mkLambda (n, t', b')), false
+                  | LetIn (n, trm, typ, e) ->
+                     (* LETIN *)
+                     if l.is_fwd then
+                       let sigma, trm' = lift_rec en sigma ib_typ trm in
+                       let sigma, typ' = lift_rec en sigma ib_typ typ in
+                       let en_e = push_let_in (n, trm, typ) en in
+                       let sigma, e' = lift_rec en_e sigma (shift ib_typ) e in
+                       (sigma, mkLetIn (n, trm', typ', e')), false
                      else
-                       let sigma, f' = lift_rec en sigma ib_typ f in
-                       (sigma, mkApp (f', args')), l.is_fwd
-                | Cast (ca, k, t) ->
-                   (* CAST *)
-                   let sigma, ca' = lift_rec en sigma ib_typ ca in
-                   let sigma, t' = lift_rec en sigma ib_typ t in
-                   (sigma, mkCast (ca', k, t')), false
-                | Prod (n, t, b) ->
-                   (* PROD *)
-                   let sigma, t' = lift_rec en sigma ib_typ t in
-                   let en_b = push_local (n, t) en in
-                   let sigma, b' = lift_rec en_b sigma (shift ib_typ) b in
-                   (sigma, mkProd (n, t', b')), false
-                | Lambda (n, t, b) ->
-                   (* LAMBDA *)
-                   let sigma, t' = lift_rec en sigma ib_typ t in
-                   let en_b = push_local (n, t) en in
-                   let sigma, b' = lift_rec en_b sigma (shift ib_typ) b in
-                   (sigma, mkLambda (n, t', b')), false
-                | LetIn (n, trm, typ, e) ->
-                   (* LETIN *)
-                   if l.is_fwd then
-                     let sigma, trm' = lift_rec en sigma ib_typ trm in
-                     let sigma, typ' = lift_rec en sigma ib_typ typ in
-                     let en_e = push_let_in (n, trm, typ) en in
-                     let sigma, e' = lift_rec en_e sigma (shift ib_typ) e in
-                     (sigma, mkLetIn (n, trm', typ', e')), false
-                   else
-                     (* Needed for #58 we implement #42 *)
-                     lift_rec en sigma ib_typ (reduce_stateless whd en sigma tr), false
-                | Case (ci, ct, m, bs) ->
-                   (* CASE (will not work if this destructs over A; preprocess first) *)
-                   let sigma, ct' = lift_rec en sigma ib_typ ct in
-                   let sigma, m' = lift_rec en sigma ib_typ m in
-                   let sigma, bs' = map_rec_args lift_rec en sigma ib_typ bs in
-                   (sigma, mkCase (ci, ct', m', bs')), false
-                | Fix ((is, i), (ns, ts, ds)) ->
-                   (* FIX (will not work if this destructs over A; preprocess first) *)
-                   let sigma, ts' = map_rec_args lift_rec en sigma ib_typ ts in
-                   let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec shift en sigma a ns ts trm) en sigma ib_typ ds in
-                   (sigma, mkFix ((is, i), (ns, ts', ds'))), false
-                | CoFix (i, (ns, ts, ds)) ->
-                   (* COFIX (will not work if this destructs over A; preprocess first) *)
-                   let sigma, ts' = map_rec_args lift_rec en sigma ib_typ ts in
-                   let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec shift en sigma a ns ts trm) en sigma ib_typ ds in
-                   (sigma, mkCoFix (i, (ns, ts', ds'))), false
-                | Proj (pr, co) ->
-                   (* PROJ *)
-                   let sigma, co' = lift_rec en sigma ib_typ co in
-                   (sigma, mkProj (pr, co')), false
-                | Construct (((i, i_index), _), u) ->
-                   let ind = mkInd (i, i_index) in
-                   if equal ind (directional l a_typ b_typ) then
-                     (* lazy eta expansion *)
-                     let sigma, tr_eta = expand_eta en sigma tr in
-                     lift_rec en sigma ib_typ tr_eta, false
-                   else
-                     (sigma, tr), false
-                | Const (co, u) ->
-                   let sigma, lifted =
-                     (try
-                        (* CONST *)
-                        if Option.has_some (inductive_of_elim en (co, u)) then
-                          sigma, tr
-                        else
-                          let def = lookup_definition en tr in
-                          let sigma, try_lifted = lift_rec en sigma ib_typ def in
-                          if equal def try_lifted then
+                       (* Needed for #58 we implement #42 *)
+                       lift_rec en sigma ib_typ (reduce_stateless whd en sigma tr), false
+                  | Case (ci, ct, m, bs) ->
+                     (* CASE (will not work if this destructs over A; preprocess first) *)
+                     let sigma, ct' = lift_rec en sigma ib_typ ct in
+                     let sigma, m' = lift_rec en sigma ib_typ m in
+                     let sigma, bs' = map_rec_args lift_rec en sigma ib_typ bs in
+                     (sigma, mkCase (ci, ct', m', bs')), false
+                  | Fix ((is, i), (ns, ts, ds)) ->
+                     (* FIX (will not work if this destructs over A; preprocess first) *)
+                     let sigma, ts' = map_rec_args lift_rec en sigma ib_typ ts in
+                     let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec shift en sigma a ns ts trm) en sigma ib_typ ds in
+                     (sigma, mkFix ((is, i), (ns, ts', ds'))), false
+                  | CoFix (i, (ns, ts, ds)) ->
+                     (* COFIX (will not work if this destructs over A; preprocess first) *)
+                     let sigma, ts' = map_rec_args lift_rec en sigma ib_typ ts in
+                     let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec shift en sigma a ns ts trm) en sigma ib_typ ds in
+                     (sigma, mkCoFix (i, (ns, ts', ds'))), false
+                  | Proj (pr, co) ->
+                     (* PROJ *)
+                     let sigma, co' = lift_rec en sigma ib_typ co in
+                     (sigma, mkProj (pr, co')), false
+                  | Construct (((i, i_index), _), u) ->
+                     let ind = mkInd (i, i_index) in
+                     if equal ind (directional l a_typ b_typ) then
+                       (* lazy eta expansion *)
+                       let sigma, tr_eta = expand_eta en sigma tr in
+                       lift_rec en sigma ib_typ tr_eta, false
+                     else
+                       (sigma, tr), false
+                  | Const (co, u) ->
+                     let sigma, lifted =
+                       (try
+                          (* CONST *)
+                          if Option.has_some (inductive_of_elim en (co, u)) then
                             sigma, tr
                           else
-                            reduce_term en sigma try_lifted
-                      with _ ->
-                        (* AXIOM *)
-                        sigma, tr)
-                   in cache_local c.cache tr lifted; (sigma, lifted), false
-                | _ ->
-                   (sigma, tr), false
+                            let def = lookup_definition en tr in
+                            let sigma, try_lifted = lift_rec en sigma ib_typ def in
+                            if equal def try_lifted then
+                              sigma, tr
+                            else
+                              reduce_term en sigma try_lifted
+                        with _ ->
+                          (* AXIOM *)
+                          sigma, tr)
+                     in cache_local c.cache tr lifted; (sigma, lifted), false
+                  | _ ->
+                     (sigma, tr), false
     in
     (* sometimes we must repack because of non-primitive projections *)
     map_if
       (fun (sigma, lifted) ->
         let sigma_typ, typ = infer_type en sigma tr in
         let typ = reduce_stateless reduce_nf en sigma_typ typ in
-        let is_from_typ = is_from c en sigma_typ typ in
+        let sigma_typ, is_from_typ = Util.on_snd Option.has_some (is_from c en sigma_typ typ) in
         map_if
           (fun (sigma, t) ->
             Util.on_snd (repack en ib_typ t) (lift_rec en sigma_typ ib_typ typ))
@@ -870,59 +963,36 @@ let lift_curry_record env sigma c trm =
       else if is_locally_cached c.opaques tr then
         (* OPAQUE CONSTANTS *)
         (sigma, tr), false
-      else if is_from c en sigma tr then
-        (* EQUIVALENCE *)
-        let pms = Array.of_list (unfold_args tr) in
-        let sigma, pms = map_rec_args lift_rec en sigma () pms in
-        (* TODO handle pms *)
-        if l.is_fwd then
-          (sigma, mkApp (b_typ, pms)), false
-        else
-          (sigma, a_typ), false
       else
-        let sigma, run_lift_constr = is_packed_constr c en sigma tr in
-        if run_lift_constr then
+        let sigma, pms_o = is_from c en sigma tr in
+        if Option.has_some pms_o then
+          (* EQUIVALENCE *)
+          let pms = Array.of_list (Option.get pms_o) in
+          let sigma, pms = map_rec_args lift_rec en sigma () pms in
+          if l.is_fwd then
+            (sigma, mkApp (b_typ, pms)), false
+          else
+            (sigma, mkApp (a_typ, pms)), false
+      else
+        let sigma, i_and_args_o = is_packed_constr c en sigma tr in
+        if Option.has_some i_and_args_o then
           (* LIFT-CONSTR *)
           (* The extra logic here is an optimization *)
           (* It also deals with the fact that we are lazy about eta *)
-          if l.is_fwd then
-            let constr = first_fun tr in
-            let args = unfold_args tr in
-            let (((_, _), i), _) = destConstruct constr in
-            let lifted_constr = c.constr_rules.(i - 1) in
-            map_if
-              (fun ((sigma, tr'), _) ->
-                let (f', args') = destApp tr' in
-                let sigma, args'' = map_rec_args lift_rec en sigma () args' in
-                ((sigma, mkApp (f', args'')), false))
-              (List.length args > 0)
-              (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
-          else
-            let lifted_constr = c.constr_rules.(0) in
-            let p = dest_pair tr in
-            let rec build_args p sigma = (* TODO clean, move to optimization *)
-              let sigma, trm1 = lift_rec en sigma () p.Produtils.trm1 in
-              if applies pair p.Produtils.trm2 then
-                let sigma, trm2s = build_args (dest_pair p.Produtils.trm2) sigma in
-                sigma, trm1 :: trm2s
-              else
-                let sigma_typ, typ2 = reduce_type en sigma p.Produtils.trm2 in
-                if applies prod typ2 then (* TODO should just be able to use number instead of type-checking every time *)
-                  let prod_app = dest_prod typ2 in
-                  let typ1 = prod_app.Produtils.typ1 in
-                  let typ2 = prod_app.Produtils.typ2 in
-                  let trm2_pair = Produtils.{ typ1; typ2; trm1 = prod_fst_elim prod_app p.Produtils.trm2; trm2 = prod_snd_elim prod_app p.Produtils.trm2 } in
-                  let sigma, trm2s = build_args trm2_pair sigma in
-                  sigma, trm1 :: trm2s
-                else
-                  let sigma, trm2 = lift_rec en sigma () p.Produtils.trm2 in
-                  sigma, [trm1; trm2]
-            in
-            let sigma, args = build_args p sigma in
-            (* TODO handle parameters! *)
-            reduce_term en sigma (mkAppl (lifted_constr, args)), false
+          (* TODO need to test w/ eta, run_lift_constr probably doesn't run here ? *)
+          (* TODO if simpler than algebraic, why? *)
+          let (i, args) = Option.get i_and_args_o in
+          let lifted_constr = c.constr_rules.(i - 1) in
+          map_if
+            (fun ((sigma, tr'), _) ->
+              let (f', args') = destApp tr' in
+              let sigma, args'' = map_rec_args lift_rec en sigma () args' in
+              ((sigma, mkApp (f', args'')), false))
+            (List.length args > 0)
+            (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
         else
           (* TODO handle opaque in algebraic too *)
+          (* TODO needed? *)
           (*let sigma, run_lift_pack = is_packed c en sigma tr in
           if run_lift_pack then (* TODO do we need this rule? when does it show up for lift_algebraic? can we replicate? *)
             (* LIFT-PACK (extra rule for non-primitive projections) *)
@@ -1059,7 +1129,7 @@ let lift_curry_record env sigma c trm =
       (fun (sigma, lifted) ->
         let sigma_typ, typ = infer_type en sigma tr in
         let typ = reduce_stateless reduce_nf en sigma_typ typ in
-        let is_from_typ = is_from c en sigma_typ typ in
+        let sigma_typ, is_from_typ = Util.on_snd Option.has_some (is_from c en sigma_typ typ) in
         map_if
           (fun (_, t) ->
             let sigma, lifted_typ = lift_rec en sigma_typ () typ in
