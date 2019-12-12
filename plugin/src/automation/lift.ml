@@ -117,12 +117,16 @@ let is_from c env sigma typ =
          let typ_f = unwrap_definition env (first_fun typ) in
          let typ_args = unfold_args typ in
          let typ_red = mkAppl (typ_f, typ_args) in
-         let sigma, typ_red = reduce_term env sigma typ_red in (* TODO ret sigma *)
+         let sigma, typ_red = reduce_term env sigma typ_red in
          if not (is_or_applies prod typ_red) then
            sigma, None
          else
-           let typ_app_f = unwrap_definition env (first_fun b_typ) in
-           let typ_app_args = unfold_args b_typ in
+           let f = lift_to c.l in
+           let f = unwrap_definition env f in
+           let env_f, f_bod = zoom_lambda_term env f in
+           let sigma, typ_app = reduce_type env_f sigma (mkRel 1) in
+           let typ_app_f = unwrap_definition env_f (first_fun typ_app) in
+           let typ_app_args = unfold_args typ_app in
            let typ_app_red = mkAppl (typ_app_f, typ_app_args) in
            let sigma, typ_app_red = reduce_term env sigma typ_app_red in
            let rec prod_args typ =
@@ -135,7 +139,7 @@ let is_from c env sigma typ =
                [typ]
            in
            let abs_args = prod_args typ_app_red in
-           let conc_args = prod_args typ_red in
+           let conc_args = prod_args (shift_by (new_rels2 env_f env) typ_red) in
            if not (List.length abs_args = List.length conc_args) then
              sigma, None
            else
@@ -144,8 +148,9 @@ let is_from c env sigma typ =
                  (fun abs conc -> all_eq_substs (abs, conc))
                  abs_args
                  conc_args
-                 b_typ
+                 (mkAppl (b_typ, typ_app_args))
              in
+             let subbed = unshift_by (new_rels2 env_f env) subbed in
              let sigma, conv = convertible env sigma subbed typ in
              sigma, Some (unfold_args subbed)
 
@@ -178,7 +183,7 @@ let is_packed_constr c env sigma trm =
      else
        (match c.l.orn.kind with
         | Algebraic ->
-           if equal existT f then
+           if equal existT f then (* TODO why here is f OK, but in other case we need first_fun? eta? *)
              let sigma_right, args_opt = right_type trm sigma in
              if Option.has_some args_opt then
                (* TODO what does this exist for? *)
@@ -197,9 +202,9 @@ let is_packed_constr c env sigma trm =
            else
              sigma, None
         | CurryRecord ->
-           if equal pair f then
-             let sigma_right, args_opt = right_type trm sigma in
-             if Option.has_some args_opt then
+           if equal pair (first_fun trm) then
+             let sigma_right, pms_opt = right_type trm sigma in
+             if Option.has_some pms_opt then
                let sigma = sigma_right in
                let p = dest_pair trm in
                let (a_typ, _) = c.typs in
@@ -228,8 +233,9 @@ let is_packed_constr c env sigma trm =
                        let trm2 = p.Produtils.trm2 in
                        sigma, [trm1; trm2]
                in
+               let pms = Option.get pms_opt in
                let sigma, args = build_args p sigma c_arity in
-               sigma, Some (1, args)
+               sigma, Some (1, List.append pms args)
              else
                sigma, None
            else

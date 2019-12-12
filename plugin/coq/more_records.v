@@ -642,7 +642,13 @@ Qed.
 
 End LiftedHandwrittenParams.
 
-Module LiftedGeneratedParams.
+Module LiftedGeneratedParams. 
+
+From Coq Require Import ZArith.BinInt.
+
+Scheme Induction for Coq.Classes.CRelationClasses.StrictOrder Sort Prop.
+Scheme Induction for Coq.Classes.CRelationClasses.StrictOrder Sort Set.
+Scheme Induction for Coq.Classes.CRelationClasses.StrictOrder Sort Type.
 
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.MkInput as MkInput.
 Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.MkOutput as MkOutput.
@@ -661,14 +667,19 @@ Lift GeneratedParams'.input HandwrittenParams'.input in plus_spec_O_l_1 as plus_
 Lift GeneratedParams'.output HandwrittenParams'.output  in GeneratedParams'.plus_spec_O_r as plus_spec_O_l_r { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Peano_plus_n_O GeneratedParams'.Coq_Init_Logic_eq_sym GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
 Lift GeneratedParams'.input HandwrittenParams'.input in plus_spec_O_l_r as plus_spec_O_r { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Peano_plus_n_O GeneratedParams'.Coq_Init_Logic_eq_sym GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
 
+Print MkInput.
+Print GeneratedParams'.MkInput.
+
+(* TODO slow, make much faster! find out where bottleneck is *)
+
 Lemma testMkInput:
-  MkInput = Handwritten4'.MkInput.
+  MkInput = HandwrittenParams'.MkInput.
 Proof.
   auto.
 Qed. 
 
 Lemma testMkOutput:
-  MkOutput = Handwritten4'.MkOutput.
+  MkOutput = HandwrittenParams'.MkOutput.
 Proof.
   auto.
 Qed. 
