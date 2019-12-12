@@ -67,7 +67,8 @@ let typs_from_orn l env sigma =
      let i_b_t = (dest_sigT b_i_t).index_type in
      (a_t, b_t, Some i_b_t)
   | CurryRecord ->
-     (a_t, b_i_t, None)
+     let b_t = first_fun b_i_t in
+     (a_t, b_t, None)
 
 (* --- Premises --- *)
 

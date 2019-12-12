@@ -394,31 +394,396 @@ End LiftedGenerated4.
 
 (* --- Test a record with parameters --- *)
 
-(*
- * TODO WIP from here out
- *)
-
 Module HandwrittenParams.
 
-Record input (T1 T2 T3 : Type) := MkInput
+Record input (T1 T2 T3 T4 : Type) := MkInput
 {
-  first : T1;
-  second : T2;
-  third : T3;
+  field1 : T1;
+  field2 : T2;
+  field3 : T3;
+  field4 : T4;
+}.
+
+Record output (T1 T2 : Type) := MkOutput
+{
+  field2and4  : T1;
+  field1and3 : T2;
 }.
 
 Scheme Induction for input Sort Set.
 Scheme Induction for input Sort Prop.
 Scheme Induction for input Sort Type.
 
+Scheme Induction for output Sort Set.
+Scheme Induction for output Sort Prop.
+Scheme Induction for output Sort Type.
+
+Definition op {T1 T2 T3 T4 T5 T6 : Type} (f : T2 -> T4 -> T5) (g : T1 -> T3 -> T6) (r : input T1 T2 T3 T4) :=
+  MkOutput _ _
+    (f (field2 _ _ _ _ r) (field4 _ _ _ _ r))
+    (g (field1 _ _ _ _ r) (field3 _ _ _ _ r)).
+
+Theorem and_spec_true_true :
+  forall {T1 T2 T3 : Type} (f : T1 -> T2 -> T3) 
+  (r : input bool T1 bool T2)
+  (F : field1 _ _ _ _ r = true)
+  (S : field3 _ _ _ _ r = true),
+  field1and3 _ _ (op f andb r) = true.
+Proof.
+  intros.
+  destruct r as [f' n s].
+  unfold op.
+  simpl in *.
+  apply andb_true_intro.
+  intuition.
+Qed.
+
+Theorem plus_spec_O_l:
+  forall {T1 T2 T3 : Type} (g : T1 -> T2 -> T3) 
+  (r : input T1 nat T2 nat) 
+  (F : field2 _ _ _ _ r = O),
+  field2and4 _ _ (op plus g r) = field4 _ _ _ _ r.
+Proof.
+  intros.
+  destruct r as [f n s].
+  unfold op.
+  simpl in *.
+  subst. reflexivity.
+Qed.
+
+Theorem plus_spec_O_r:
+  forall {T1 T2 T3 : Type} (g : T1 -> T2 -> T3) 
+  (r : input T1 nat T2 nat) 
+  (F : field4 _ _ _ _ r = O),
+  field2and4 _ _ (op plus g r) = field2 _ _ _ _ r.
+Proof.
+  intros.
+  destruct r as [f n s].
+  unfold op.
+  simpl in *.
+  subst. auto.
+Qed.
+
 End HandwrittenParams.
 
 Module GeneratedParams.
 
-Definition input (T1 T2 T3 : Type) := (prod T1 (prod T2 T3)).
+Definition input (T1 T2 T3 T4 : Type) := (prod T1 (prod T2 (prod T3 T4))).
+
+Definition output (T1 T2 : Type) := (prod T1 T2).
+
+Definition MkInput (T1 T2 T3 T4 : Type) (t1 : T1) (t2 : T2) (t3 : T3) (t4 : T4) :=
+  pair t1 (pair t1 (pair t3 t4)).
+
+Definition MkOutput (T1 T2 : Type) (t1 : T1) (t2 : T2) :=
+  pair t1 t2.
+
+Definition field1 (T1 T2 T3 T4 : Type) (r : input T1 T2 T3 T4) : T1 :=
+  (fst r).
+
+Definition field2 (T1 T2 T3 T4 : Type) (r : input T1 T2 T3 T4) : T2 :=
+  (fst (snd r)).
+
+Definition field3 (T1 T2 T3 T4 : Type) (r : input T1 T2 T3 T4) : T3 :=
+  (fst (snd (snd r))).
+
+Definition field4 (T1 T2 T3 T4 : Type) (r : input T1 T2 T3 T4) : T4 :=
+  (snd (snd (snd r))).
+
+Definition field2and4 (T1 T2 : Type) (r : output T1 T2) : T1 :=
+  (fst r).
+
+Definition field1and3 (T1 T2 : Type) (r : output T1 T2) : T2 :=
+  (snd r).
+
+Definition op {T1 T2 T3 T4 T5 T6 : Type} (f : T2 -> T4 -> T5) (g : T1 -> T3 -> T6) (r : input T1 T2 T3 T4) : output T5 T6 :=
+  (pair
+    (f (field2 _ _ _ _ r) (field4 _ _ _ _ r))
+    (g (field1 _ _ _ _ r) (field3 _ _ _ _ r))).
+
+Theorem and_spec_true_true:
+  forall {T1 T2 T3 : Type} (f : T1 -> T2 -> T3) 
+  (r : input bool T1 bool T2)
+  (F : field1 _ _ _ _ r = true)
+  (S : field3 _ _ _ _ r = true),
+  field1and3 _ _ (op f andb r) = true.
+Proof.
+  intros.
+  destruct r. repeat destruct p. 
+  unfold op.
+  simpl in *.
+  apply andb_true_intro.
+  intuition.
+Qed.
+
+Theorem plus_spec_O_l:
+  forall {T1 T2 T3 : Type} (g : T1 -> T2 -> T3) 
+  (r : input T1 nat T2 nat) 
+  (F : field2 _ _ _ _ r = O),
+  field2and4 _ _ (op plus g r) = field4 _ _ _ _ r.
+Proof.
+  intros.
+  destruct r. repeat destruct p.
+  unfold op.
+  simpl in *.
+  rewrite F.
+  reflexivity.
+Qed.
+
+Theorem plus_spec_O_r:
+  forall {T1 T2 T3 : Type} (g : T1 -> T2 -> T3) 
+  (r : input T1 nat T2 nat) 
+  (F : field4 _ _ _ _ r = O),
+  field2and4 _ _ (op plus g r) = field2 _ _ _ _ r.
+Proof.
+  intros.
+  destruct r. repeat destruct p.
+  unfold op.
+  simpl in *.
+  rewrite F.
+  auto.
+Qed.
 
 End GeneratedParams.
 
+Preprocess Module HandwrittenParams as HandwrittenParams' { opaque Nat.add }.
+Preprocess Module GeneratedParams as GeneratedParams' { opaque Nat.add }.
+
+(* TODO WIP *)
+
+Module LiftedHandwrittenParams.
+
+Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.MkInput as MkInput.
+Lift Handwritten4'.output Generated4'.output in Handwritten4'.MkOutput as MkOutput.
+Lift Handwritten4'.input Generated4'.input in Handwritten4'.field1 as field1.
+Lift Handwritten4'.input Generated4'.input in Handwritten4'.field2 as field2.
+Lift Handwritten4'.input Generated4'.input in Handwritten4'.field3 as field3.
+Lift Handwritten4'.input Generated4'.input in Handwritten4'.field4 as field4.
+Lift Handwritten4'.output Generated4'.output in Handwritten4'.field2and4 as field2and4.
+Lift Handwritten4'.output Generated4'.output in Handwritten4'.field1and3 as field1and3.
+Lift Handwritten4'.input Generated4'.input in Handwritten4'.op as op_1.
+Lift Handwritten4'.output Generated4'.output in op_1 as op.
+Lift Handwritten4'.input Generated4'.input in Handwritten4'.and_spec_true_true as and_spec_true_true_1.
+Lift Handwritten4'.output Generated4'.output in and_spec_true_true_1 as and_spec_true_true.
+Lift Handwritten4'.input Generated4'.input in Handwritten4'.plus_spec_O_l as plus_spec_O_l_1.
+Lift Handwritten4'.output Generated4'.output in plus_spec_O_l_1 as plus_spec_O_l.
+Lift Handwritten4'.input Generated4'.input in Handwritten4'.plus_spec_O_r as plus_spec_O_l_r.
+Lift Handwritten4'.output Generated4'.output in plus_spec_O_l_r as plus_spec_O_r.
+
+Lemma testMkInput:
+  MkInput = Generated4.MkInput.
+Proof.
+  auto.
+Qed. 
+
+Lemma testMkOutput:
+  MkOutput = Generated4.MkOutput.
+Proof.
+  auto.
+Qed. 
+
+Lemma testField1:
+  field1 = Generated4.field1.
+Proof.
+  auto.
+Qed. 
+
+Lemma testField2:
+  forall i, field2 i = Generated4.field2 i.
+Proof.
+  intros. induction i. auto.
+Qed. 
+
+Lemma testField3:
+  forall i, field3 i = Generated4.field3 i.
+Proof.
+  intros. induction i. auto.
+Qed. 
+
+Lemma testField4:
+  forall i, field4 i = Generated4.field4 i.
+Proof.
+  intros. induction i. auto.
+Qed. 
+
+Lemma testField2and4:
+  field2and4 = Generated4.field2and4.
+Proof.
+  auto.
+Qed. 
+
+Lemma testField1and3:
+  field1and3 = Generated4.field1and3.
+Proof.
+  auto.
+Qed. 
+
+Lemma testOp:
+  forall r, op r = Generated4.op r.
+Proof.
+  intros. induction r. auto.
+Qed.
+
+Lemma testAndSpecTrueTrue:
+  forall r : Generated4.input,
+    Generated4.field1 r = true ->
+    Generated4.field3 r = true ->
+    Generated4.field1and3 (Generated4.op r) = true.
+Proof.
+  intros. induction r. apply and_spec_true_true; auto.
+Qed.
+
+Lemma testPlusSpecOl:
+  forall r : Generated4.input,
+    Generated4.field2 r = 0 ->
+    Generated4.field2and4 (Generated4.op r) = Generated4.field4 r.
+Proof.
+  intros. induction r. rewrite <- testOp. apply plus_spec_O_l; auto.
+Qed.
+
+Lemma testPlusSpecOr:
+  forall r : Generated4.input,
+    Generated4.field4 r = 0 ->
+    Generated4.field2and4 (Generated4.op r) = Generated4.field2 r.
+Proof.
+  intros. induction r. rewrite <- testOp. apply plus_spec_O_r; auto.
+Qed.
+
+End LiftedHandwritten4.
+
+Module LiftedGenerated4.
+
+Lift Generated4'.input Handwritten4'.input in Generated4'.MkInput as MkInput.
+Lift Generated4'.output Handwritten4'.output in Generated4'.MkOutput as MkOutput.
+Lift Generated4'.input Handwritten4'.input in Generated4'.field1 as field1.
+Lift Generated4'.input Handwritten4'.input in Generated4'.field2 as field2.
+Lift Generated4'.input Handwritten4'.input in Generated4'.field3 as field3.
+Lift Generated4'.input Handwritten4'.input in Generated4'.field4 as field4.
+Lift Generated4'.output Handwritten4'.output in Generated4'.field2and4 as field2and4.
+Lift Generated4'.output Handwritten4'.output in Generated4'.field1and3 as field1and3.
+Lift Generated4'.output Handwritten4'.output in Generated4'.op as op_1 { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
+Lift Generated4'.input Handwritten4'.input in op_1 as op { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
+Lift Generated4'.output Handwritten4'.output in Generated4'.and_spec_true_true as and_spec_true_true_1 { opaque Generated4'.Coq_Init_Datatypes_andb_true_intro }.
+Lift Generated4'.input Handwritten4'.input in and_spec_true_true_1 as and_spec_true_true { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Datatypes_andb_true_intro }.
+Lift Generated4'.output Handwritten4'.output in Generated4'.plus_spec_O_l as plus_spec_O_l_1 { opaque Generated4'.Coq_Init_Logic_eq_ind_r }.
+Lift Generated4'.input Handwritten4'.input in plus_spec_O_l_1 as plus_spec_O_l { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Logic_eq_ind_r }.
+Lift Generated4'.output Handwritten4'.output  in Generated4'.plus_spec_O_r as plus_spec_O_l_r { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Peano_plus_n_O Generated4'.Coq_Init_Logic_eq_sym Generated4'.Coq_Init_Logic_eq_ind_r }.
+Lift Generated4'.input Handwritten4'.input in plus_spec_O_l_r as plus_spec_O_r { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Peano_plus_n_O Generated4'.Coq_Init_Logic_eq_sym Generated4'.Coq_Init_Logic_eq_ind_r }.
+
+(* Note that Handwritten4.input and Handwritten4'.input are equivalent, but not equal because
+   of how Coq's equality works (will not prove). *)
+
+Lemma testMkInput:
+  MkInput = Handwritten4'.MkInput.
+Proof.
+  auto.
+Qed. 
+
+Lemma testMkOutput:
+  MkOutput = Handwritten4'.MkOutput.
+Proof.
+  auto.
+Qed. 
+
+Lemma testField1:
+  field1 = Handwritten4'.field1.
+Proof.
+  auto.
+Qed. 
+
+Lemma testField2:
+  forall i, field2 i = Handwritten4'.field2 i.
+Proof.
+  intros. induction i. auto.
+Qed. 
+
+Lemma testField3:
+  forall i, field3 i = Handwritten4'.field3 i.
+Proof.
+  intros. induction i. auto.
+Qed. 
+
+Lemma testField4:
+  forall i, field4 i = Handwritten4'.field4 i.
+Proof.
+  intros. induction i. auto.
+Qed. 
+
+Lemma testField2and4:
+  field2and4 = Handwritten4'.field2and4.
+Proof.
+  auto.
+Qed. 
+
+Lemma testField1and3:
+  field1and3 = Handwritten4'.field1and3.
+Proof.
+  auto.
+Qed. 
+
+Lemma testOp:
+  forall r, op r = Handwritten4'.op r.
+Proof.
+  intros. induction r. auto.
+Qed.
+
+Lemma testAndSpecTrueTrue':
+  forall r : Handwritten4'.input,
+    Handwritten4'.field1 r = true ->
+    Handwritten4'.field3 r = true ->
+    Handwritten4'.field1and3 (Handwritten4'.op r) = true.
+Proof.
+  intros. induction r. apply and_spec_true_true; auto.
+Qed.
+
+Lemma testAndSpecTrueTrue:
+  forall r : Handwritten4.input,
+    Handwritten4.field1 r = true ->
+    Handwritten4.field3 r = true ->
+    Handwritten4.field1and3 (Handwritten4.op r) = true.
+Proof.
+  intros. induction r. 
+  pose proof (testAndSpecTrueTrue' (Handwritten4'.MkInput field5 field6 field7 field8)).
+  auto.
+Qed.
+
+Lemma testPlusSpecOl':
+  forall r : Handwritten4'.input,
+    Handwritten4'.field2 r = 0 ->
+    Handwritten4'.field2and4 (Handwritten4'.op r) = Handwritten4'.field4 r.
+Proof.
+  intros. induction r. rewrite <- testOp. apply plus_spec_O_l; auto.
+Qed.
+
+Lemma testPlusSpecOl:
+  forall r : Handwritten4.input,
+    Handwritten4.field2 r = 0 ->
+    Handwritten4.field2and4 (Handwritten4.op r) = Handwritten4.field4 r.
+Proof.
+  intros. induction r.
+  pose proof (testPlusSpecOl' (Handwritten4'.MkInput field5 field6 field7 field8)).
+  auto.
+Qed.
+
+Lemma testPlusSpecOr':
+  forall r : Handwritten4'.input,
+    Handwritten4'.field4 r = 0 ->
+    Handwritten4'.field2and4 (Handwritten4'.op r) = Handwritten4'.field2 r.
+Proof.
+  intros. induction r. rewrite <- testOp. apply plus_spec_O_r; auto.
+Qed.
+
+Lemma testPlusSpecOr:
+  forall r : Handwritten4.input,
+    Handwritten4.field4 r = 0 ->
+    Handwritten4.field2and4 (Handwritten4.op r) = Handwritten4.field2 r.
+Proof.
+  intros. induction r.
+  pose proof (testPlusSpecOr' (Handwritten4'.MkInput field5 field6 field7 field8)).
+  auto.
+Qed.
+
+End LiftedGenerated4.
 Find ornament HandwrittenParams.input GeneratedParams.input as input_params_curry.
 (* TODO test lifting for above *)
 (* TODO test output *)
