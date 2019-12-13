@@ -109,7 +109,7 @@ let save_lifting (orn_o, orn_n, trm) lifted_trm =
  * Otherwise, we would clog the cache with many constants.
  *)
 
-type temporary_cache = (KerName.t, types) Hashtbl.t
+type temporary_cache = (global_reference, types) Hashtbl.t
 
 (*
  * Initialize the local cache
@@ -121,31 +121,31 @@ let initialize_local_cache () =
  * Check whether a constant is in the local cache
  *)
 let is_locally_cached c trm =
-  match kind trm with
-  | Const (co, u) ->
-     Hashtbl.mem c (Constant.canonical co)
-  | _ ->
-     false
+  try
+    let gr = global_of_constr trm in
+    Hashtbl.mem c gr
+  with _ ->
+    false
 
 (*
  * Lookup a value in the local cache
  *)
 let lookup_local_cache c trm =
-  match kind trm with
-  | Const (co, u) ->
-     Hashtbl.find c (Constant.canonical co)
-  | _ ->
-     failwith "not cached"
+  try
+    let gr = global_of_constr trm in
+    Hashtbl.find c gr
+  with _ ->
+    failwith "not cached"
 
 (*
  * Add a value to the local cache
  *)
 let cache_local c trm lifted =
-  match kind trm with
-  | Const (co, u) ->
-     Hashtbl.add c (Constant.canonical co) lifted
-  | _ ->
-     failwith "can't cache a non-constant"
+  try
+    let gr = global_of_constr trm in
+    Hashtbl.add c gr lifted
+  with _ ->
+    Feedback.msg_warning (Pp.str "can't cache term")
 
 (* --- Ornaments cache --- *)
 

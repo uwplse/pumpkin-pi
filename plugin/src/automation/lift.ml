@@ -89,8 +89,8 @@ let is_from c env sigma typ =
       sigma, None
   else
     match c.l.orn.kind with
-    | Algebraic ->
-       if is_or_applies sigT typ then
+    | Algebraic -> (* TODO explain the opaque thing *)
+       if is_or_applies sigT typ && not (is_locally_cached c.opaques sigT) then
          let packed = dummy_index env sigma (dest_sigT typ).packer in
          if equal b_typ (first_fun packed) then
            sigma, Some (unfold_args packed)
@@ -113,7 +113,7 @@ let is_from c env sigma typ =
            sigma, Some []
          else
            sigma, None
-       else
+       else if not (is_locally_cached c.opaques (first_fun typ)) then
          let typ_f = unwrap_definition env (first_fun typ) in
          let typ_args = unfold_args typ in
          let typ_red = mkAppl (typ_f, typ_args) in
@@ -129,17 +129,20 @@ let is_from c env sigma typ =
            let typ_app_args = unfold_args typ_app in
            let typ_app_red = mkAppl (typ_app_f, typ_app_args) in
            let sigma, typ_app_red = reduce_term env sigma typ_app_red in
-           let rec prod_args typ =
-             if is_or_applies prod typ then
-               let typ_prod = dest_prod typ in
-               let typ1 = typ_prod.Produtils.typ1 in
-               let typ2 = typ_prod.Produtils.typ2 in
-               typ1 :: prod_args typ2
-             else
+           let rec prod_args typ n =
+             if n = 1 then
                [typ]
+             else
+               if is_or_applies prod typ then
+                 let typ_prod = dest_prod typ in
+                 let typ1 = typ_prod.Produtils.typ1 in
+                 let typ2 = typ_prod.Produtils.typ2 in
+                 typ1 :: prod_args typ2 (n - 1)
+               else
+                 [typ]
            in
-           let abs_args = prod_args typ_app_red in
-           let conc_args = prod_args (shift_by (new_rels2 env_f env) typ_red) in
+           let abs_args = prod_args typ_app_red 0 in
+           let conc_args = prod_args (shift_by (new_rels2 env_f env) typ_red) (List.length abs_args) in
            if not (List.length abs_args = List.length conc_args) then
              sigma, None
            else
@@ -151,8 +154,12 @@ let is_from c env sigma typ =
                  (mkAppl (b_typ, typ_app_args))
              in
              let subbed = unshift_by (new_rels2 env_f env) subbed in
+             let open Printing in
+             debug_term env subbed "subbed";
              let sigma, conv = convertible env sigma subbed typ in
              sigma, Some (unfold_args subbed)
+       else
+         sigma, None
 
 (* 
  * Determine whether a term has the type we are ornamenting from
@@ -170,7 +177,9 @@ let is_packed_constr c env sigma trm =
      else
        sigma, None
   | App (f, args) ->
-     if c.l.is_fwd then
+     if is_locally_cached c.opaques (first_fun f) then
+       sigma, None
+     else if c.l.is_fwd then
        (match kind f with
         | Construct (((_, _), i), _) ->
            let sigma, typ_args_o = right_type trm sigma in
@@ -213,7 +222,7 @@ let is_packed_constr c env sigma trm =
                let c_arity = arity c_typ in
                let rec build_args p sigma n = (* TODO clean, move to optimization *)
                  let trm1 = p.Produtils.trm1 in
-                 if n <= 1 then
+                 if n <= 2 then
                    let trm2 = p.Produtils.trm2 in
                    sigma, [trm1; trm2]
                  else
@@ -234,7 +243,9 @@ let is_packed_constr c env sigma trm =
                        sigma, [trm1; trm2]
                in
                let pms = Option.get pms_opt in
-               let sigma, args = build_args p sigma c_arity in
+               let sigma, args = build_args p sigma (c_arity - List.length pms) in
+               let open Printing in
+               debug_terms env args "args w/o pms";
                sigma, Some (1, List.append pms args)
              else
                sigma, None
@@ -984,14 +995,18 @@ let lift_curry_record env sigma c trm =
           else
             (sigma, mkApp (a_typ, pms)), false
         else
+          let open Printing in
+          debug_term en tr "checking if packed constr";
           let sigma, i_and_args_o = is_packed_constr c en sigma tr in
           if Option.has_some i_and_args_o then
+            let _ = Printf.printf "%s\n\n" "it is!" in
             (* LIFT-CONSTR *)
             (* The extra logic here is an optimization *)
             (* It also deals with the fact that we are lazy about eta *)
             (* TODO need to test w/ eta, run_lift_constr probably doesn't run here ? *)
             (* TODO if simpler than algebraic, why? *)
             let (i, args) = Option.get i_and_args_o in
+            debug_terms en args "args";
             let lifted_constr = c.constr_rules.(i - 1) in
             map_if
               (fun ((sigma, tr'), _) ->
@@ -1022,15 +1037,9 @@ let lift_curry_record env sigma c trm =
                 let sigma, tr_elim = deconstruct_eliminator en sigma tr in
                 let (final_args, post_args) = take_split 1 tr_elim.final_args in
                 (* TODO different in a few ways from algebraic, unify/explain *)
-                let open Printing in
-                debug_term en tr "tr";
                 let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } in
-                debug_term en tr' "tr'";
                 let sigma, tr'' = lift_rec en sigma () tr' in
-                debug_term en tr'' "tr''";
-                debug_terms en post_args "post_args";
                 let sigma, post_args' = map_rec_args lift_rec en sigma () (Array.of_list post_args) in
-                debug_terms en (Array.to_list post_args') "post_args'";
                 (sigma, mkApp(tr'', post_args')), l.is_fwd
             else
               match kind tr with
@@ -1224,20 +1233,26 @@ let declare_inductive_liftings l ind ind' ncons =
  * type. (IND and CONSTR via caching)
  *)
 let do_lift_ind env sigma l typename suffix ind ignores =
+  let (a_t, b_t, i_b_t_o) = typs_from_orn l env sigma in
+  let sigma, c = initialize_lift_config env sigma l (a_t, b_t) ignores in
   let (mind_body, ind_body) as mind_specif = Inductive.lookup_mind_specif env ind in
-  check_inductive_supported mind_body;
-  let env, univs, arity, constypes = open_inductive ~global:true env mind_specif in
-  let sigma = Evd.update_sigma_env sigma env in
-  let nparam = mind_body.mind_nparams_rec in
-  let sigma, arity' = do_lift_term env sigma l arity ignores in
-  let sigma, constypes' = map_state (fun trm sigma -> do_lift_term env sigma l trm ignores) constypes sigma in
-  let consnames =
-    Array.map_to_list (fun id -> Nameops.add_suffix id suffix) ind_body.mind_consnames
-  in
-  let is_template = is_ind_body_template ind_body in
-  let ind' =
-    declare_inductive typename consnames is_template univs nparam arity' constypes'
-  in
-  List.iter (define_lifted_eliminator l ind ind') [Sorts.InType; Sorts.InProp];
-  declare_inductive_liftings l ind ind' (List.length constypes);
-  ind'
+  if is_locally_cached c.opaques (mkInd ind) then
+    let _ = Feedback.msg_warning (Pp.str "Ignoring inductive type") in
+    ind
+  else
+    let _ = check_inductive_supported mind_body in
+    let env, univs, arity, constypes = open_inductive ~global:true env mind_specif in
+    let sigma = Evd.update_sigma_env sigma env in
+    let nparam = mind_body.mind_nparams_rec in
+    let sigma, arity' = do_lift_term env sigma l arity ignores in
+    let sigma, constypes' = map_state (fun trm sigma -> do_lift_term env sigma l trm ignores) constypes sigma in
+    let consnames =
+      Array.map_to_list (fun id -> Nameops.add_suffix id suffix) ind_body.mind_consnames
+    in
+    let is_template = is_ind_body_template ind_body in
+    let ind' =
+      declare_inductive typename consnames is_template univs nparam arity' constypes'
+    in
+    List.iter (define_lifted_eliminator l ind ind') [Sorts.InType; Sorts.InProp];
+    declare_inductive_liftings l ind ind' (List.length constypes);
+    ind'

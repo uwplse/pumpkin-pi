@@ -265,7 +265,7 @@ Lift Generated4'.output Handwritten4'.output in Generated4'.op as op_1 { opaque 
 Lift Generated4'.input Handwritten4'.input in op_1 as op { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
 Lift Generated4'.output Handwritten4'.output in Generated4'.and_spec_true_true as and_spec_true_true_1 { opaque Generated4'.Coq_Init_Datatypes_andb_true_intro }.
 Lift Generated4'.input Handwritten4'.input in and_spec_true_true_1 as and_spec_true_true { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Datatypes_andb_true_intro }.
-Lift Generated4'.output Handwritten4'.output in Generated4'.plus_spec_O_l as plus_spec_O_l_1 { opaque Generated4'.Coq_Init_Logic_eq_ind_r }.
+Lift Generated4'.output Handwritten4'.output in Generated4'.plus_spec_O_l as plus_spec_O_l_1.
 Lift Generated4'.input Handwritten4'.input in plus_spec_O_l_1 as plus_spec_O_l { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Logic_eq_ind_r }.
 Lift Generated4'.output Handwritten4'.output  in Generated4'.plus_spec_O_r as plus_spec_O_l_r { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Peano_plus_n_O Generated4'.Coq_Init_Logic_eq_sym Generated4'.Coq_Init_Logic_eq_ind_r }.
 Lift Generated4'.input Handwritten4'.input in plus_spec_O_l_r as plus_spec_O_r { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Peano_plus_n_O Generated4'.Coq_Init_Logic_eq_sym Generated4'.Coq_Init_Logic_eq_ind_r }.
@@ -652,26 +652,37 @@ Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field3 
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field4 as field4.
 Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.field2and4 as field2and4.
 Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.field1and3 as field1and3.
-
-Print field1.
-Print field2.
-Print field3.
-Print field4.
-Print field1and3.
-Print field2and4.
-Print GeneratedParams'.op.
-(* TODO rev order below breaks. possible to make it not break? it's the rewrite problem *)
-Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.op as op_1 { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb }.
-Lift GeneratedParams'.output HandwrittenParams'.output in op_1 as op { opaque Nat.add field1 field2 field3 field4 }.
-Print op.
+Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.op as op_1.
+Lift GeneratedParams'.output HandwrittenParams'.output in op_1 as op
+  { opaque 
+     Nat.add GeneratedParams'.Coq_Init_Datatypes_andb 
+     field1 field2 field3 field4
+  }.
 Print GeneratedParams'.and_spec_true_true.
-Print HandwrittenParams'.and_spec_true_true.
-Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.and_spec_true_true as and_spec_true_true_1 { opaque GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Datatypes_andb_true_intro }.
-Lift GeneratedParams'.output HandwrittenParams'.output in and_spec_true_true_1 as and_spec_true_true { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Datatypes_andb_true_intro field1 field2 field3 field4 }.
-Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.plus_spec_O_l as plus_spec_O_l_1 { opaque GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
-Lift GeneratedParams'.output HandwrittenParams'.output in plus_spec_O_l_1 as plus_spec_O_l { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
-Lift GeneratedParams'.input HandwrittenParams'.input  in GeneratedParams'.plus_spec_O_r as plus_spec_O_l_r { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Peano_plus_n_O GeneratedParams'.Coq_Init_Logic_eq_sym GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
-Lift GeneratedParams'.output HandwrittenParams'.output in plus_spec_O_l_r as plus_spec_O_r { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Peano_plus_n_O GeneratedParams'.Coq_Init_Logic_eq_sym GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
+
+(* Rest seems to be impossible currently due to the "we need egraphs" problem! *)
+(* must hack w/ opaques in terrible way (note won't always do what you want...): *)
+
+Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.and_spec_true_true as and_spec_true_true_1 {
+  opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb
+  GeneratedParams'.Coq_Init_Datatypes_andb_true_intro
+  GeneratedParams'.field1and3  }.
+Print and_spec_true_true_1.
+(*
+ * Note how setting pair and prod as opaque is not a general workaround.
+ * only helps us here because we don't see any outputs explicitly as pairs.
+ * The real problem here is that the pairs in our proof are actually
+ * projections of HandwrittenParams'.inputs, but they also unify with
+ * output. Lifting doesn't preserve equality of inductive types (nothing does),
+ * so the choice we make early on matters.
+ *)
+Lift GeneratedParams'.output HandwrittenParams'.output in and_spec_true_true_1 as and_spec_true_true {
+  opaque GeneratedParams'.Coq_Init_Datatypes_andb_true_intro }.
+Print and_spec_true_true.
+Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.plus_spec_O_l as plus_spec_O_l_1.
+Lift GeneratedParams'.input HandwrittenParams'.input in plus_spec_O_l_1 as plus_spec_O_l { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
+Lift GeneratedParams'.output HandwrittenParams'.output  in GeneratedParams'.plus_spec_O_r as plus_spec_O_l_r { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Peano_plus_n_O GeneratedParams'.Coq_Init_Logic_eq_sym GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
+Lift GeneratedParams'.input HandwrittenParams'.input in plus_spec_O_l_r as plus_spec_O_r { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Peano_plus_n_O GeneratedParams'.Coq_Init_Logic_eq_sym GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
 
 Print MkInput.
 Print GeneratedParams'.MkInput.
@@ -679,7 +690,7 @@ Print GeneratedParams'.MkInput.
 (* TODO slow, make much faster! find out where bottleneck is *)
 
 Lemma testMkInput:
-  MkInput = HandwrittenParams'.MkInput.
+  MkInput = HandwrittenParams'.MkInput. 
 Proof.
   auto.
 Qed. 
