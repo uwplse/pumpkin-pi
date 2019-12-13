@@ -154,8 +154,6 @@ let is_from c env sigma typ =
                  (mkAppl (b_typ, typ_app_args))
              in
              let subbed = unshift_by (new_rels2 env_f env) subbed in
-             let open Printing in
-             debug_term env subbed "subbed";
              let sigma, conv = convertible env sigma subbed typ in
              sigma, Some (unfold_args subbed)
        else
@@ -244,8 +242,6 @@ let is_packed_constr c env sigma trm =
                in
                let pms = Option.get pms_opt in
                let sigma, args = build_args p sigma (c_arity - List.length pms) in
-               let open Printing in
-               debug_terms env args "args w/o pms";
                sigma, Some (1, List.append pms args)
              else
                sigma, None
@@ -995,18 +991,14 @@ let lift_curry_record env sigma c trm =
           else
             (sigma, mkApp (a_typ, pms)), false
         else
-          let open Printing in
-          debug_term en tr "checking if packed constr";
           let sigma, i_and_args_o = is_packed_constr c en sigma tr in
           if Option.has_some i_and_args_o then
-            let _ = Printf.printf "%s\n\n" "it is!" in
             (* LIFT-CONSTR *)
             (* The extra logic here is an optimization *)
             (* It also deals with the fact that we are lazy about eta *)
             (* TODO need to test w/ eta, run_lift_constr probably doesn't run here ? *)
             (* TODO if simpler than algebraic, why? *)
             let (i, args) = Option.get i_and_args_o in
-            debug_terms en args "args";
             let lifted_constr = c.constr_rules.(i - 1) in
             map_if
               (fun ((sigma, tr'), _) ->

@@ -658,39 +658,44 @@ Lift GeneratedParams'.output HandwrittenParams'.output in op_1 as op
      Nat.add GeneratedParams'.Coq_Init_Datatypes_andb 
      field1 field2 field3 field4
   }.
-Print GeneratedParams'.and_spec_true_true.
 
-(* Rest seems to be impossible currently due to the "we need egraphs" problem! *)
-(* must hack w/ opaques in terrible way (note won't always do what you want...): *)
-
+(* It is much better to start with the bigger constant, here input. Might even need to sometimes,
+   since you are basically playing egraph here. *)
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.and_spec_true_true as and_spec_true_true_1 {
   opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb
   GeneratedParams'.Coq_Init_Datatypes_andb_true_intro
-  GeneratedParams'.field1and3  }.
-Print and_spec_true_true_1.
-(*
- * Note how setting pair and prod as opaque is not a general workaround.
- * only helps us here because we don't see any outputs explicitly as pairs.
- * The real problem here is that the pairs in our proof are actually
- * projections of HandwrittenParams'.inputs, but they also unify with
- * output. Lifting doesn't preserve equality of inductive types (nothing does),
- * so the choice we make early on matters.
- *)
+  GeneratedParams'.field1and3 GeneratedParams'.field2and4 }.
 Lift GeneratedParams'.output HandwrittenParams'.output in and_spec_true_true_1 as and_spec_true_true {
-  opaque GeneratedParams'.Coq_Init_Datatypes_andb_true_intro }.
-Print and_spec_true_true.
-Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.plus_spec_O_l as plus_spec_O_l_1.
-Lift GeneratedParams'.input HandwrittenParams'.input in plus_spec_O_l_1 as plus_spec_O_l { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
-Lift GeneratedParams'.output HandwrittenParams'.output  in GeneratedParams'.plus_spec_O_r as plus_spec_O_l_r { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Peano_plus_n_O GeneratedParams'.Coq_Init_Logic_eq_sym GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
-Lift GeneratedParams'.input HandwrittenParams'.input in plus_spec_O_l_r as plus_spec_O_r { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Peano_plus_n_O GeneratedParams'.Coq_Init_Logic_eq_sym GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
+  opaque GeneratedParams'.Coq_Init_Datatypes_andb_true_intro
+  field1 field2 field3 field4 MkInput }.
 
-Print MkInput.
-Print GeneratedParams'.MkInput.
+Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.plus_spec_O_l as plus_spec_O_l_1
+  { opaque
+     Nat.add GeneratedParams'.Coq_Init_Datatypes_andb
+     GeneratedParams'.Coq_Init_Datatypes_andb_true_intro
+     GeneratedParams'.field1and3 GeneratedParams'.field2and4 }.
+Lift GeneratedParams'.output HandwrittenParams'.output in plus_spec_O_l_1 as plus_spec_O_l 
+  { opaque 
+     Nat.add GeneratedParams'.Coq_Init_Datatypes_andb
+     GeneratedParams'.Coq_Init_Logic_eq_ind_r
+     field1 field2 field3 field4 MkInput }.
 
-(* TODO slow, make much faster! find out where bottleneck is *)
+Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.plus_spec_O_r as plus_spec_O_l_r
+  { opaque
+     Nat.add GeneratedParams'.Coq_Init_Datatypes_andb
+     GeneratedParams'.Coq_Init_Datatypes_andb_true_intro
+     GeneratedParams'.field1and3 GeneratedParams'.field2and4 }.
+Lift GeneratedParams'.output HandwrittenParams'.output in plus_spec_O_l_r as plus_spec_O_r 
+  { opaque 
+     Nat.add GeneratedParams'.Coq_Init_Datatypes_andb 
+     GeneratedParams'.Coq_Init_Peano_plus_n_O 
+     GeneratedParams'.Coq_Init_Logic_eq_sym 
+     GeneratedParams'.Coq_Init_Logic_eq_ind_r
+     field1 field2 field3 field4 }.
 
 Lemma testMkInput:
-  MkInput = HandwrittenParams'.MkInput. 
+  forall (T1 T2 T3 T4 : Type),
+    MkInput = HandwrittenParams'.MkInput.
 Proof.
   auto.
 Qed. 
@@ -702,163 +707,80 @@ Proof.
 Qed. 
 
 Lemma testField1:
-  field1 = Handwritten4'.field1.
+  field1 = HandwrittenParams'.field1.
 Proof.
   auto.
 Qed. 
 
 Lemma testField2:
-  forall i, field2 i = Handwritten4'.field2 i.
+  forall T1 T2 T3 T4 i,
+    field2 T1 T2 T3 T4 i = HandwrittenParams'.field2 T1 T2 T3 T4 i.
 Proof.
   intros. induction i. auto.
 Qed. 
 
 Lemma testField3:
-  forall i, field3 i = Handwritten4'.field3 i.
+  forall T1 T2 T3 T4 i,
+    field3 T1 T2 T3 T4 i = HandwrittenParams'.field3 T1 T2 T3 T4 i.
 Proof.
   intros. induction i. auto.
-Qed. 
+Qed.
 
 Lemma testField4:
-  forall i, field4 i = Handwritten4'.field4 i.
+  forall T1 T2 T3 T4 i,
+    field4 T1 T2 T3 T4 i = HandwrittenParams'.field4 T1 T2 T3 T4 i.
 Proof.
   intros. induction i. auto.
-Qed. 
+Qed.
 
 Lemma testField2and4:
-  field2and4 = Handwritten4'.field2and4.
+  field2and4 = HandwrittenParams'.field2and4.
 Proof.
   auto.
 Qed. 
 
 Lemma testField1and3:
-  field1and3 = Handwritten4'.field1and3.
+  field1and3 = HandwrittenParams'.field1and3.
 Proof.
   auto.
 Qed. 
 
 Lemma testOp:
-  forall r, op r = Handwritten4'.op r.
+  forall T1 T2 T3 T4 T5 T6 g f r,
+    op T1 T2 T3 T4 T5 T6 g f r = HandwrittenParams'.op _ _ _ _ _ _ g f r.
 Proof.
   intros. induction r. auto.
 Qed.
 
-Lemma testAndSpecTrueTrue':
-  forall r : Handwritten4'.input,
-    Handwritten4'.field1 r = true ->
-    Handwritten4'.field3 r = true ->
-    Handwritten4'.field1and3 (Handwritten4'.op r) = true.
-Proof.
-  intros. induction r. apply and_spec_true_true; auto.
-Qed.
-
 Lemma testAndSpecTrueTrue:
-  forall r : Handwritten4.input,
-    Handwritten4.field1 r = true ->
-    Handwritten4.field3 r = true ->
-    Handwritten4.field1and3 (Handwritten4.op r) = true.
+  forall (T1 T2 T3 : Type) (f : T1 -> T2 -> T3) (r : HandwrittenParams'.input bool T1 bool T2),
+    HandwrittenParams'.field1 _ _ _ _ r = true ->
+    HandwrittenParams'.field3 _ _ _ _ r = true ->
+    HandwrittenParams'.field1and3 _ _ (HandwrittenParams'.op _ _ _ _ _ _ f andb r) = true.
 Proof.
-  intros. induction r. 
-  pose proof (testAndSpecTrueTrue' (Handwritten4'.MkInput field5 field6 field7 field8)).
-  auto.
-Qed.
-
-Lemma testPlusSpecOl':
-  forall r : Handwritten4'.input,
-    Handwritten4'.field2 r = 0 ->
-    Handwritten4'.field2and4 (Handwritten4'.op r) = Handwritten4'.field4 r.
-Proof.
-  intros. induction r. rewrite <- testOp. apply plus_spec_O_l; auto.
+  intros. induction r.
+  apply (and_spec_true_true T1 T2 T3 f); auto.
 Qed.
 
 Lemma testPlusSpecOl:
-  forall r : Handwritten4.input,
-    Handwritten4.field2 r = 0 ->
-    Handwritten4.field2and4 (Handwritten4.op r) = Handwritten4.field4 r.
+  forall (T1 T2 T3 : Type) (g : T1 -> T2 -> T3) (r : HandwrittenParams'.input T1 nat T2 nat),
+    HandwrittenParams'.field2 _ _ _ _ r = 0 ->
+    HandwrittenParams'.field2and4 _ _ (HandwrittenParams'.op _ _ _ _ _ _ Nat.add g r) = HandwrittenParams'.field4 _ _ _ _ r.
 Proof.
   intros. induction r.
-  pose proof (testPlusSpecOl' (Handwritten4'.MkInput field5 field6 field7 field8)).
-  auto.
-Qed.
-
-Lemma testPlusSpecOr':
-  forall r : Handwritten4'.input,
-    Handwritten4'.field4 r = 0 ->
-    Handwritten4'.field2and4 (Handwritten4'.op r) = Handwritten4'.field2 r.
-Proof.
-  intros. induction r. rewrite <- testOp. apply plus_spec_O_r; auto.
+  rewrite <- testOp. apply plus_spec_O_l; auto.
 Qed.
 
 Lemma testPlusSpecOr:
-  forall r : Handwritten4.input,
-    Handwritten4.field4 r = 0 ->
-    Handwritten4.field2and4 (Handwritten4.op r) = Handwritten4.field2 r.
+  forall (T1 T2 T3 : Type) (g : T1 -> T2 -> T3) (r : HandwrittenParams'.input T1 nat T2 nat),
+    HandwrittenParams'.field4 _ _ _ _ r = 0 ->
+    HandwrittenParams'.field2and4 _ _ (HandwrittenParams'.op _ _ _ _ _ _ Nat.add g r) = HandwrittenParams'.field2 _ _ _ _ r.
 Proof.
   intros. induction r.
-  pose proof (testPlusSpecOr' (Handwritten4'.MkInput field5 field6 field7 field8)).
-  auto.
+  rewrite <- testOp. apply plus_spec_O_r; auto.
 Qed.
 
-End LiftedGenerated4.
-Find ornament HandwrittenParams.input GeneratedParams.input as input_params_curry.
-(* TODO test lifting for above *)
-(* TODO test output *)
-
-(* --- Test a larger record with parameters --- *)
-
-Module HandwrittenParams4.
-
-Record input (T1 T2 T3 T4 : Type) := MkInput
-{
-  first : T1;
-  second : T2;
-  third : T3;
-  fourth : T4;
-}.
-
-Scheme Induction for input Sort Set.
-Scheme Induction for input Sort Prop.
-Scheme Induction for input Sort Type.
-
-End HandwrittenParams4.
-
-Module GeneratedParams4.
-
-Definition input (T1 T2 T3 T4 : Type) := (prod T1 (prod T2 (prod T3 T4))).
-
-End GeneratedParams4.
-
-Find ornament HandwrittenParams4.input GeneratedParams4.input as input_params4_curry.
-(* TODO test lifting for above *)
-(* TODO test output *)
-
-(* -- Test swapped params --- *)
-
-Module HandwrittenParams4Swapped.
-
-Record input (T1 T2 T3 T4 : Type) := MkInput
-{
-  first : T1;
-  second : T2;
-  third : T4;
-  fourth : T3;
-}.
-
-Scheme Induction for input Sort Set.
-Scheme Induction for input Sort Prop.
-Scheme Induction for input Sort Type.
-
-End HandwrittenParams4Swapped.
-
-Module GeneratedParams4Swapped.
-
-Definition input (T1 T2 T3 T4 : Type) := (prod T1 (prod T2 (prod T4 T3))).
-
-End GeneratedParams4Swapped.
-
-Find ornament HandwrittenParams4Swapped.input GeneratedParams4Swapped.input as input_params4_swapped_curry.
-(* TODO test lifting for above *)
-(* TODO test output *)
+End LiftedGeneratedParams.
 
 (* --- Test fancier parameters --- *)
 

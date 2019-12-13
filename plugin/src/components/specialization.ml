@@ -86,7 +86,6 @@ let lift env l trm sigma =
                  typ_app
              in
              let subbed = unshift_by (new_rels2 env_f env) subbed in
-             let open Printing in debug_term env subbed "subbed";
              sigma, unfold_args subbed)
          env
          sigma
