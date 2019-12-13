@@ -644,27 +644,34 @@ End LiftedHandwrittenParams.
 
 Module LiftedGeneratedParams. 
 
-From Coq Require Import ZArith.BinInt.
-
-Scheme Induction for Coq.Classes.CRelationClasses.StrictOrder Sort Prop.
-Scheme Induction for Coq.Classes.CRelationClasses.StrictOrder Sort Set.
-Scheme Induction for Coq.Classes.CRelationClasses.StrictOrder Sort Type.
-
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.MkInput as MkInput.
 Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.MkOutput as MkOutput.
+Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field1 as field1.
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field2 as field2.
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field3 as field3.
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.field4 as field4.
 Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.field2and4 as field2and4.
 Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.field1and3 as field1and3.
-Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.op as op_1 { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb }.
-Lift GeneratedParams'.input HandwrittenParams'.input in op_1 as op { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb }.
-Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.and_spec_true_true as and_spec_true_true_1 { opaque GeneratedParams'.Coq_Init_Datatypes_andb_true_intro }.
-Lift GeneratedParams'.input HandwrittenParams'.input in and_spec_true_true_1 as and_spec_true_true { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Datatypes_andb_true_intro }.
-Lift GeneratedParams'.output HandwrittenParams'.output in GeneratedParams'.plus_spec_O_l as plus_spec_O_l_1 { opaque GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
-Lift GeneratedParams'.input HandwrittenParams'.input in plus_spec_O_l_1 as plus_spec_O_l { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
-Lift GeneratedParams'.output HandwrittenParams'.output  in GeneratedParams'.plus_spec_O_r as plus_spec_O_l_r { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Peano_plus_n_O GeneratedParams'.Coq_Init_Logic_eq_sym GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
-Lift GeneratedParams'.input HandwrittenParams'.input in plus_spec_O_l_r as plus_spec_O_r { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Peano_plus_n_O GeneratedParams'.Coq_Init_Logic_eq_sym GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
+
+Print field1.
+Print field2.
+Print field3.
+Print field4.
+Print field1and3.
+Print field2and4.
+Print GeneratedParams'.op.
+(* TODO rev order below breaks. possible to make it not break? it's the rewrite problem *)
+Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.op as op_1 { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb }.
+Lift GeneratedParams'.output HandwrittenParams'.output in op_1 as op { opaque Nat.add field1 field2 field3 field4 }.
+Print op.
+Print GeneratedParams'.and_spec_true_true.
+Print HandwrittenParams'.and_spec_true_true.
+Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.and_spec_true_true as and_spec_true_true_1 { opaque GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Datatypes_andb_true_intro }.
+Lift GeneratedParams'.output HandwrittenParams'.output in and_spec_true_true_1 as and_spec_true_true { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Datatypes_andb_true_intro field1 field2 field3 field4 }.
+Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.plus_spec_O_l as plus_spec_O_l_1 { opaque GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
+Lift GeneratedParams'.output HandwrittenParams'.output in plus_spec_O_l_1 as plus_spec_O_l { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
+Lift GeneratedParams'.input HandwrittenParams'.input  in GeneratedParams'.plus_spec_O_r as plus_spec_O_l_r { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Peano_plus_n_O GeneratedParams'.Coq_Init_Logic_eq_sym GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
+Lift GeneratedParams'.output HandwrittenParams'.output in plus_spec_O_l_r as plus_spec_O_r { opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb GeneratedParams'.Coq_Init_Peano_plus_n_O GeneratedParams'.Coq_Init_Logic_eq_sym GeneratedParams'.Coq_Init_Logic_eq_ind_r }.
 
 Print MkInput.
 Print GeneratedParams'.MkInput.

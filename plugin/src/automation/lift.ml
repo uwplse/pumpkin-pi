@@ -619,8 +619,9 @@ let lift_case env c p c_elim constr sigma =
          let ((i, i_n), _) = destInd to_typ in
          let c = mkConstruct ((i, i_n), 1) in
          let sigma, c_typ = reduce_type env_c sigma c in
+         let pms = all_but_last (unfold_args c_elim) in
          let nargs = arity c_typ in
-         let c_args, b_args = take_split nargs args in
+         let c_args, b_args = take_split (nargs - List.length pms) args in
          let rec build args sigma =
            match args with
            | trm1 :: (h :: tl) ->
@@ -1021,9 +1022,15 @@ let lift_curry_record env sigma c trm =
                 let sigma, tr_elim = deconstruct_eliminator en sigma tr in
                 let (final_args, post_args) = take_split 1 tr_elim.final_args in
                 (* TODO different in a few ways from algebraic, unify/explain *)
+                let open Printing in
+                debug_term en tr "tr";
                 let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } in
+                debug_term en tr' "tr'";
                 let sigma, tr'' = lift_rec en sigma () tr' in
+                debug_term en tr'' "tr''";
+                debug_terms en post_args "post_args";
                 let sigma, post_args' = map_rec_args lift_rec en sigma () (Array.of_list post_args) in
+                debug_terms en (Array.to_list post_args') "post_args'";
                 (sigma, mkApp(tr'', post_args')), l.is_fwd
             else
               match kind tr with
