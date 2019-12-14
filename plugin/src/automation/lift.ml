@@ -109,10 +109,12 @@ let is_from c env sigma typ =
        if not (isApp typ || isConst typ) then
          sigma, None
        else if arity a_typ_typ = 0 then
-         if equal (unwrap_definition env b_typ) (unwrap_definition env typ) then
-           sigma, Some []
-         else
-           sigma, None
+         branch_state
+           (fun typ sigma -> convertible env sigma b_typ typ)
+           (fun _ -> ret (Some []))
+           (fun _ -> ret None)
+           typ
+           sigma
        else if not (is_locally_cached c.opaques (first_fun typ)) then
          let typ_f = unwrap_definition env (first_fun typ) in
          let typ_args = unfold_args typ in
