@@ -69,9 +69,6 @@ End Handwritten.
 (*
  * Now we Preprocess in both directions, since we'll lift in
  * both directions.
- *
- * Note we must tell Preprocess about any constants not in
- * our module, here fst and snd:
  *)
 Preprocess Module Generated as Generated'.
 Preprocess Module Handwritten as Handwritten'.
