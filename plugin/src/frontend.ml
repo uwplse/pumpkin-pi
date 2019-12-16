@@ -44,7 +44,7 @@ let maybe_prove_coherence n inv_n idx_n kind : unit =
     let coh, coh_typ = prove_coherence env sigma orn in
     let coh_n = with_suffix n "coh" in
     let _ = define_term ~typ:coh_typ coh_n sigma coh true in
-    Feedback.msg_notice (Pp.str (Printf.sprintf "Defined coherence proof %s" (Id.to_string coh_n)))
+    Feedback.msg_info (Pp.str (Printf.sprintf "Defined coherence proof %s" (Id.to_string coh_n)))
   else
     ()
 
@@ -56,7 +56,7 @@ let maybe_prove_equivalence n inv_n : unit =
   let define_proof suffix ?(adjective=suffix) evd term =
     let ident = with_suffix n suffix in
     let const = define_term ident evd term true |> destConstRef in
-    Feedback.msg_notice (Pp.str (Printf.sprintf "Defined %s proof %s" adjective (Id.to_string ident)));
+    Feedback.msg_info (Pp.str (Printf.sprintf "Defined %s proof %s" adjective (Id.to_string ident)));
     const
   in
   if is_search_equiv () then
@@ -125,14 +125,14 @@ let find_ornament n_o d_old d_new =
       let idx_n = Option.get idx_n in
       let indexer = Option.get orn.indexer in
       let _ = define_term idx_n sigma indexer true in
-      Feedback.msg_notice (str (Printf.sprintf "Defined indexing function %s." (Id.to_string idx_n)))
+      Feedback.msg_info (str (Printf.sprintf "Defined indexing function %s." (Id.to_string idx_n)))
    | _ ->
       ());
   let promote = define_term n sigma orn.promote true in
-  Feedback.msg_notice (str (Printf.sprintf "Defined promotion %s." (Id.to_string n)));
+  Feedback.msg_info (str (Printf.sprintf "Defined promotion %s." (Id.to_string n)));
   let inv_n = with_suffix n "inv" in
   let forget = define_term inv_n sigma orn.forget true in
-  Feedback.msg_notice (str (Printf.sprintf "Defined forgetful function %s." (Id.to_string inv_n)));
+  Feedback.msg_info (str (Printf.sprintf "Defined forgetful function %s." (Id.to_string inv_n)));
   maybe_prove_coherence n inv_n idx_n orn.kind;
   maybe_prove_equivalence n inv_n;
   (try
@@ -174,7 +174,7 @@ let lift_inductive_by_ornament env sigma n s l c_old ignores =
   let ind, _ = destInd c_old in
   let ind' = do_lift_ind env sigma l n s ind ignores in
   let env' = Global.env () in
-  Feedback.msg_notice (str "Defined lifted inductive type " ++ pr_inductive env' ind')
+  Feedback.msg_info (str "Defined lifted inductive type " ++ pr_inductive env' ind')
                       
 (*
  * Lift the supplied definition or inductive type along the supplied ornament
@@ -219,7 +219,7 @@ let lift_by_ornament ?(suffix=false) ?(ignores=[]) n d_orn d_orn_inv d_old =
       let orn_opt = lookup_ornament (o, n) in
       if not (Option.has_some orn_opt) then
         (* The user never ran Find ornament *)
-        let _ = Feedback.msg_notice (str "Searching for ornament first") in
+        let _ = Feedback.msg_info (str "Searching for ornament first") in
         let _ = find_ornament None d_orn d_orn_inv in
         refresh_env ()
       else
