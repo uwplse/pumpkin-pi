@@ -4,7 +4,6 @@ Set DEVOID search prove equivalence. (* <-- Correctness proofs for search *)
 Set DEVOID lift type. (* <-- Prettier types than the ones Coq infers *)
 Set Nonrecursive Elimination Schemes. (* <--- Preprocess needs induction principles for records *)
 
-
 (*
  * This is an example for lifting between nested tuples and records.
  *)
