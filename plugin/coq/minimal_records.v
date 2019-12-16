@@ -130,7 +130,15 @@ End HandwrittenProofs.
 (*
  * Let's Preprocess this proof for lifting:
  *)
-Preprocess Module HandwrittenProofs as HandwrittenProofs'.
+Preprocess Module HandwrittenProofs as HandwrittenProofs'
+  { opaque (* TODO constr rules break if you don't do this, so this is bad and should fix ASAP *)
+      firstBool
+      secondBool
+      andBools
+      op
+  }.
+
+Print HandwrittenProofs'.and_spec_true_true.
 
 (*
  * Then lift it back to our nested pair types.
