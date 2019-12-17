@@ -261,9 +261,9 @@ Lift Generated4'.input Handwritten4'.input in Generated4'.field3 as field3.
 Lift Generated4'.input Handwritten4'.input in Generated4'.field4 as field4.
 Lift Generated4'.output Handwritten4'.output in Generated4'.field2and4 as field2and4.
 Lift Generated4'.output Handwritten4'.output in Generated4'.field1and3 as field1and3.
-Lift Generated4'.output Handwritten4'.output in Generated4'.op as op_1 { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
+Lift Generated4'.output Handwritten4'.output in Generated4'.op as .._1 { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
 Lift Generated4'.input Handwritten4'.input in op_1 as op { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
-Lift Generated4'.output Handwritten4'.output in Generated4'.and_spec_true_true as and_spec_true_true_1 { opaque Generated4'.Coq_Init_Datatypes_andb_true_intro }.
+Lift Generated4'.output Handwritten4'.output in Generated4'.and_spec_true_true as .._1 { opaque Generated4'.Coq_Init_Datatypes_andb_true_intro }.
 Lift Generated4'.input Handwritten4'.input in and_spec_true_true_1 as and_spec_true_true { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Datatypes_andb_true_intro }.
 Lift Generated4'.output Handwritten4'.output in Generated4'.plus_spec_O_l as plus_spec_O_l_1.
 Lift Generated4'.input Handwritten4'.input in plus_spec_O_l_1 as plus_spec_O_l { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Logic_eq_ind_r }.

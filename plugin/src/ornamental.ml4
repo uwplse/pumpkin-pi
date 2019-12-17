@@ -22,6 +22,8 @@ VERNAC COMMAND EXTEND LiftOrnament CLASSIFIED AS SIDEFF
   [ lift_by_ornament ~ignores:ignores n d_orn d_orn_inv d_old ]
 | [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ".." ident(n)] ->
   [ lift_by_ornament ~suffix:true n d_orn d_orn_inv d_old ]
+| [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ".." ident(n) "{" "opaque" ne_reference_list(ignores) "}" ] ->
+  [ lift_by_ornament ~ignores:ignores ~suffix:true n d_orn d_orn_inv d_old ]
 END
 
 (* Register the Ltac script for sigma unpacking *)
