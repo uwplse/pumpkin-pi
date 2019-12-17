@@ -726,7 +726,7 @@ let repack env ib_typ lifted typ =
   let b = project_value lift_typ (mkRel 1) in
   let packer = lift_typ.packer in
   let e = pack_existT {index_type = ib_typ; packer; index = n; unpacked = b} in
-  mkLetIn (Anonymous, lifted, typ, e)
+  mkLetIn (Anonymous, lifted, typ, e) (* TODO maybe reduce, and same for alg. *)
 
 (*
  * REPACK, but over prod instead of sigma
@@ -1195,12 +1195,7 @@ let do_lift_term env sigma (l : lifting) trm ignores =
  * Run the core lifting algorithm on a definition
  *)
 let do_lift_defn env sigma (l : lifting) def =
-  let trm =
-    try
-      lookup_definition env def
-    with _ ->
-      def
-  in do_lift_term env sigma l trm
+  do_lift_term env sigma l def
 
 (************************************************************************)
 (*                           Inductive types                            *)

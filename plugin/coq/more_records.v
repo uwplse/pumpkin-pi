@@ -630,7 +630,8 @@ Lemma testPlusSpecOl:
     GeneratedParams.field2and4 _ _ (GeneratedParams.op Nat.add g r) = GeneratedParams.field4 _ _ _ _ r.
 Proof.
   intros. induction r. induction b. induction b.
-  rewrite <- testOp. apply plus_spec_O_l; auto.
+  rewrite <- testOp. apply (plus_spec_O_l T1 T2 T3 g). auto.
+  
 Qed.
 
 Lemma testPlusSpecOr:
@@ -639,7 +640,7 @@ Lemma testPlusSpecOr:
     GeneratedParams.field2and4 _ _ (GeneratedParams.op Nat.add g r) = GeneratedParams.field2 _ _ _ _ r.
 Proof.
   intros. induction r. induction b. induction b.
-  rewrite <- testOp. apply plus_spec_O_r; auto.
+  rewrite <- testOp. apply (plus_spec_O_r T1 T2 T3 g); auto.
 Qed.
 
 End LiftedHandwrittenParams.
