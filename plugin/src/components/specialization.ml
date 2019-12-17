@@ -34,7 +34,31 @@ let pack env off unpacked sigma =
   let index = get_arg off typ in
   let sigma, index_type = infer_type env sigma index in
   let sigma, packer = abstract_arg env sigma off typ in
-  sigma, pack_existT {index_type; packer; index; unpacked}        
+  sigma, pack_existT {index_type; packer; index; unpacked}
+
+(*
+ * Pack inside of a prod type
+ * TODO redundant w/ lifting
+ *)
+let pack_prod env unpacked sigma =
+  let sigma, typ = infer_type env sigma unpacked in
+  let rec pack_prod_rec unpacked typ =
+    if is_or_applies prod typ then
+      let typ_prod = dest_prod typ in
+      let typ1 = typ_prod.Produtils.typ1 in
+      let typ2 = typ_prod.Produtils.typ2 in
+      let trm1 = prod_fst_elim typ_prod unpacked in
+      let trm2 = prod_snd_elim typ_prod unpacked in
+      let trm2 = pack_prod_rec trm2 typ2 in
+      apply_pair Produtils.{typ1; typ2; trm1; trm2}
+    else
+      unpacked
+  in
+  let typ_f = unwrap_definition env (first_fun typ) in
+  let typ_args = unfold_args typ in
+  let typ_red = mkAppl (typ_f, typ_args) in
+  let sigma, typ_red = reduce_term env sigma typ_red in
+  sigma, pack_prod_rec unpacked typ_red
 
 (* --- Lifting --- *)
 
@@ -104,7 +128,10 @@ let pack_lift env l arg sigma =
          l
          (sigma, arg)
     | CurryRecord ->
-       sigma, arg
+       map_backward
+         (fun (sigma, t) -> pack_prod env t sigma)
+         l
+         (sigma, arg)
   in lift env l arg sigma
        
 (* --- Refolding --- *)

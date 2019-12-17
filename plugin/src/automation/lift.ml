@@ -33,6 +33,13 @@ open Convertibility
 (* --- Convenient shorthand --- *)
 
 let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
+let dest_prod_type env sigma trm =
+  let sigma, typ = reduce_type env sigma trm in
+  let typ_f = unwrap_definition env (first_fun typ) in
+  let typ_args = unfold_args typ in
+  let typ_red = mkAppl (typ_f, typ_args) in
+  let sigma, typ_red = reduce_term env sigma typ_red in
+  ignore_env dest_prod env sigma typ_red
 
 (* --- Internal lifting configuration --- *)
 
@@ -708,8 +715,11 @@ let lift_elim env sigma c trm_app =
  * REPACK
  *
  * This is to deal with non-primitive projections
+ *
+ * TODO redundant w pack
  *)
 let repack env ib_typ lifted typ =
+  (* TODO probably need to reduce this, too? *)
   let lift_typ = dest_sigT (shift typ) in
   let n = project_index lift_typ (mkRel 1) in
   let b = project_value lift_typ (mkRel 1) in
@@ -721,14 +731,21 @@ let repack env ib_typ lifted typ =
  * REPACK, but over prod instead of sigma
  *
  * This is to deal with non-primitive projections
+ *
+ * TODO redundant w pack_prod
  *)
 let repack_prod env lifted typ =
-  let lift_typ = dest_prod (shift typ) in
-  let typ1 = lift_typ.Produtils.typ1 in
-  let typ2 = lift_typ.Produtils.typ2 in
-  let (trm1, trm2) = prod_projections_elim lift_typ (mkRel 1) in
-  let p = apply_pair Produtils.{ typ1; typ2; trm1; trm2 } in
-  mkLetIn (Anonymous, lifted, typ, p)
+  let rec repack_prod_rec trm typ =
+    if is_or_applies prod typ then
+      let typ_prod = dest_prod typ in
+      let typ1 = typ_prod.Produtils.typ1 in
+      let typ2 = typ_prod.Produtils.typ2 in
+      let (trm1, trm2) = prod_projections_elim typ_prod trm in
+      let trm2 = repack_prod_rec trm2 typ2 in
+      apply_pair Produtils.{ typ1; typ2; trm1; trm2 }
+    else
+      trm
+  in mkLetIn (Anonymous, lifted, typ, (repack_prod_rec (mkRel 1) (shift typ)))
     
 (* --- Core algorithm --- *)
 
@@ -965,6 +982,8 @@ let lift_algebraic env sigma c ib_typ trm =
  * TODO consolidate common code, move CurryRecord and Algebraic into different
  * files or something
  *
+ * TODO unification when relevant rather than hand-inferring
+ *
  * TODO clean, also
  *)
 let lift_curry_record env sigma c trm =
@@ -1012,14 +1031,11 @@ let lift_curry_record env sigma c trm =
           else
             (* TODO handle opaque in algebraic too *)
             (* TODO needed? *)
-            (*let sigma, run_lift_pack = is_packed c en sigma tr in
-          if run_lift_pack then (* TODO do we need this rule? when does it show up for lift_algebraic? can we replicate? *)
+            let sigma, run_lift_pack = is_packed c en sigma tr in
+            if run_lift_pack && l.is_fwd then (* TODO do we need this rule? when does it show up for lift_algebraic? can we replicate? *)
             (* LIFT-PACK (extra rule for non-primitive projections) *)
-            if l.is_fwd then
-              (sigma, tr), true
+              (sigma, tr), true (* TODO bwd case? *)
             else
-              lift_rec en sigma () (dest_existT tr).unpacked, false
-          else*)
             let sigma, is_elim = is_eliminator c en tr sigma in
             if is_elim then
               (* LIFT-ELIM *)
@@ -1142,7 +1158,6 @@ let lift_curry_record env sigma c trm =
                  (sigma, tr), false
     in
     (* sometimes we must repack because of non-primitive projections *)
-    (* TODO do we need here? try repro with algebraic and then lift analogous function *)
     (* TODO branch_state here and in algebraic *)
     map_if
       (fun (sigma, lifted) ->
@@ -1152,7 +1167,11 @@ let lift_curry_record env sigma c trm =
         map_if
           (fun (_, t) ->
             let sigma, lifted_typ = lift_rec en sigma_typ () typ in
-            sigma, repack_prod en t lifted_typ)
+            let typ_f = unwrap_definition env (first_fun lifted_typ) in
+            let typ_args = unfold_args lifted_typ in
+            let typ_red = mkAppl (typ_f, typ_args) in
+            let sigma, typ_red = reduce_term env sigma typ_red in
+            sigma, repack_prod en t typ_red)
           (is_from_typ && not (is_or_applies pair (reduce_stateless reduce_nf en sigma lifted)))
           (sigma, lifted))
       try_repack
