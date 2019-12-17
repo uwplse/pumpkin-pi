@@ -175,34 +175,13 @@ let lift_inductive_by_ornament env sigma n s l c_old ignores =
   let ind' = do_lift_ind env sigma l n s ind ignores in
   let env' = Global.env () in
   Feedback.msg_info (str "Defined lifted inductive type " ++ pr_inductive env' ind')
-                      
+
 (*
- * Lift the supplied definition or inductive type along the supplied ornament
- * Define the lifted version
+ * Common configuration for several commands
  *)
-let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old =
-  let (sigma, env) = Pfedit.get_current_context () in
-  let opaques =
-    List.map
-      (fun i ->
-        let qid = qualid_of_reference i in
-        let gr = Nametab.locate qid in
-        match gr with
-        | VarRef v ->
-           mkVar v
-        | ConstRef c ->
-           mkConst c
-        | IndRef ind ->
-           mkInd ind
-        | ConstructRef c ->
-           mkConstruct c)
-      opaques
-  in
+let init_lift env d_orn d_orn_inv sigma =
   let sigma, c_orn = intern env sigma d_orn in
   let sigma, c_orn_inv = intern env sigma d_orn_inv in
-  let sigma, c_old = intern env sigma d_old in
-  let n_new = if suffix then suffix_term_name c_old n else n in
-  let s = if suffix then Id.to_string n else "_" ^ Id.to_string n in
   let u_o, u_n = map_tuple (unwrap_definition env) (c_orn, c_orn_inv) in
   let orn_not_supplied = isInd u_o || isInd u_n in
   let (o, n) = (* TODO explain/move... deals with different args & curry vs. normal & caching *)
@@ -230,6 +209,34 @@ let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old =
       sigma, env
   in
   let l = initialize_lifting env sigma o n in
+  sigma, (env, l)
+
+(*
+ * Lift the supplied definition or inductive type along the supplied ornament
+ * Define the lifted version
+ *)
+let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old =
+  let (sigma, env) = Pfedit.get_current_context () in
+  let opaques =
+    List.map
+      (fun i ->
+        let qid = qualid_of_reference i in
+        let gr = Nametab.locate qid in
+        match gr with
+        | VarRef v ->
+           mkVar v
+        | ConstRef c ->
+           mkConst c
+        | IndRef ind ->
+           mkInd ind
+        | ConstructRef c ->
+           mkConstruct c)
+      opaques
+  in
+  let sigma, c_old = intern env sigma d_old in
+  let n_new = if suffix then suffix_term_name c_old n else n in
+  let s = if suffix then Id.to_string n else "_" ^ Id.to_string n in
+  let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in 
   let u_old = unwrap_definition env c_old in
   if isInd u_old then
     let from_typ = fst (on_red_type_default (fun _ _ -> ind_of_promotion_type) env sigma l.orn.promote) in
@@ -252,17 +259,41 @@ let add_global_opaques opaques =
 let remove_global_opaques opaques =
   ()
 
+(* TODO use the same thing as preprocess_errors, move to lib *)
+let err_opaque_not_constant qid =
+  Pp.seq
+    [Pp.str "The identifier ";
+     Libnames.pr_qualid qid;
+     Pp.str " that was passed to the { opaque ... } option is not a constant,";
+     Pp.str " or does not exist."]
+    
 (*
  * Add terms to the globally opaque lifting cache at a particular ornament
  *)
 let add_lifting_opaques d_orn d_orn_inv opaques =
-  ()
+  let (sigma, env) = Pfedit.get_current_context () in
+  let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in
+  List.iter
+    (fun r ->
+      let qid = qualid_of_reference r in
+      Feedback.msg_info
+        (Pp.seq [Pp.str "Adding opaque lifting "; Libnames.pr_qualid qid]);
+      try
+        let c = mkConst (Nametab.locate_constant qid) in
+        save_opaque (lift_to l, lift_back l, c);
+        save_opaque (lift_back l, lift_to l, c)
+      with
+      | Not_found ->
+         CErrors.user_err
+           ~hdr:"add_lifting_opaques"
+           (err_opaque_not_constant qid))
+    opaques
 
 (*
  * Remove terms from the globally opaque lifting cache at a particular ornament
  *)
 let remove_lifting_opaques d_orn d_orn_inv opaques =
-  ()
+  () (* unsure how to do this *)
 
 (*
  * Unpack sigma types in the functional signature of a constant.

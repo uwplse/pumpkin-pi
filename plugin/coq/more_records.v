@@ -10,7 +10,6 @@ Set Nonrecursive Elimination Schemes. (* <--- Preprocess needs induction princip
  * rather than the simple walkthrough from minimal_records.v.
  *)
 
-(* TODO document all new functionality *)
 (* TODO remove extra imports and functions that aren't used now *)
 (* TODO note somewhere: Can you find patch between left and right? Then use as a unified example w/ PUMPKIN PATCH? *)
 
@@ -148,8 +147,11 @@ Qed.
 
 End Generated4.
 
-Preprocess Module Handwritten4 as Handwritten4' { opaque Nat.add }.
-Preprocess Module Generated4 as Generated4' { opaque Nat.add }.
+Preprocess Module Handwritten4 as Handwritten4' { opaque Nat.add andb eq_ind_r eq_ind plus_n_O eq_sym  andb_true_intro }.
+Preprocess Module Generated4 as Generated4' { opaque Nat.add andb eq_ind_r eq_ind plus_n_O eq_sym andb_true_intro }.
+
+Configure Lift Handwritten4'.input Generated4'.input { opaque Nat.add andb eq_ind_r eq_ind plus_n_O eq_sym andb_true_intro Generated4'.output Generated4'.MkOutput }.
+Configure Lift Handwritten4'.output Generated4'.output { opaque Nat.add andb eq_ind_r eq_ind plus_n_O eq_sym andb_true_intro Generated4'.input Generated4'.MkInput }.
 
 Module LiftedHandwritten4.
 
@@ -261,14 +263,14 @@ Lift Generated4'.input Handwritten4'.input in Generated4'.field3 as field3.
 Lift Generated4'.input Handwritten4'.input in Generated4'.field4 as field4.
 Lift Generated4'.output Handwritten4'.output in Generated4'.field2and4 as field2and4.
 Lift Generated4'.output Handwritten4'.output in Generated4'.field1and3 as field1and3.
-Lift Generated4'.output Handwritten4'.output in Generated4'.op as .._1 { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
-Lift Generated4'.input Handwritten4'.input in op_1 as op { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb }.
-Lift Generated4'.output Handwritten4'.output in Generated4'.and_spec_true_true as .._1 { opaque Generated4'.Coq_Init_Datatypes_andb_true_intro }.
-Lift Generated4'.input Handwritten4'.input in and_spec_true_true_1 as and_spec_true_true { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Datatypes_andb_true_intro }.
+Lift Generated4'.output Handwritten4'.output in Generated4'.op as .._1.
+Lift Generated4'.input Handwritten4'.input in op_1 as op.
+Lift Generated4'.output Handwritten4'.output in Generated4'.and_spec_true_true as .._1.
+Lift Generated4'.input Handwritten4'.input in and_spec_true_true_1 as and_spec_true_true.
 Lift Generated4'.output Handwritten4'.output in Generated4'.plus_spec_O_l as plus_spec_O_l_1.
-Lift Generated4'.input Handwritten4'.input in plus_spec_O_l_1 as plus_spec_O_l { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Logic_eq_ind_r }.
-Lift Generated4'.output Handwritten4'.output  in Generated4'.plus_spec_O_r as plus_spec_O_l_r { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Peano_plus_n_O Generated4'.Coq_Init_Logic_eq_sym Generated4'.Coq_Init_Logic_eq_ind_r }.
-Lift Generated4'.input Handwritten4'.input in plus_spec_O_l_r as plus_spec_O_r { opaque Nat.add Generated4'.Coq_Init_Datatypes_andb Generated4'.Coq_Init_Peano_plus_n_O Generated4'.Coq_Init_Logic_eq_sym Generated4'.Coq_Init_Logic_eq_ind_r }.
+Lift Generated4'.input Handwritten4'.input in plus_spec_O_l_1 as plus_spec_O_l.
+Lift Generated4'.output Handwritten4'.output  in Generated4'.plus_spec_O_r as plus_spec_O_l_r.
+Lift Generated4'.input Handwritten4'.input in plus_spec_O_l_r as plus_spec_O_r.
 
 (* Note that Handwritten4.input and Handwritten4'.input are equivalent, but not equal because
    of how Coq's equality works (will not prove). *)

@@ -78,6 +78,15 @@ let smart_cache c trm lifted =
     (* Save the lifted term locally *)
     cache_local c.cache trm lifted
 
+(*
+ * Check opaqueness using either local or global cache
+ *)
+let is_opaque c trm =
+  if is_locally_cached c.opaques trm then
+    true
+  else
+    lookup_opaque (lift_to c.l, lift_back c.l, trm)
+
 (* --- Index/deindex functions --- *)
 
 let index l = insert_index (Option.get l.off)
@@ -118,7 +127,7 @@ let is_from c env sigma typ =
   else
     match c.l.orn.kind with
     | Algebraic -> (* TODO explain the opaque thing *)
-       if is_or_applies sigT typ && not (is_locally_cached c.opaques sigT) then
+       if is_or_applies sigT typ && not (is_opaque c sigT) then
          let packed = dummy_index env sigma (dest_sigT typ).packer in
          if equal b_typ (first_fun packed) then
            sigma, Some (unfold_args packed)
@@ -143,7 +152,7 @@ let is_from c env sigma typ =
            (fun _ -> ret None)
            typ
            sigma
-       else if not (is_locally_cached c.opaques (first_fun typ)) then
+       else if not (is_opaque c (first_fun typ)) then
          let typ_f = unwrap_definition env (first_fun typ) in
          let typ_args = unfold_args typ in
          let typ_red = mkAppl (typ_f, typ_args) in
@@ -205,7 +214,7 @@ let is_packed_constr c env sigma trm =
      else
        sigma, None
   | App (f, args) ->
-     if is_locally_cached c.opaques (first_fun f) then
+     if is_opaque c (first_fun f) then
        sigma, None
      else if c.l.is_fwd then
        (match kind f with
@@ -792,7 +801,7 @@ let lift_algebraic env sigma c ib_typ trm =
       else if is_locally_cached c.cache tr then
         (* LOCAL CACHING *)
         (sigma, lookup_local_cache c.cache tr), false
-      else if is_locally_cached c.opaques tr then
+      else if is_opaque c tr then
         (* OPAQUE CONSTANTS *)
         (sigma, tr), false
       else
@@ -1020,7 +1029,7 @@ let lift_curry_record env sigma c trm =
       else if is_locally_cached c.cache tr then
         (* LOCAL CACHING *)
         (sigma, lookup_local_cache c.cache tr), false
-      else if is_locally_cached c.opaques tr then
+      else if is_opaque c tr then
         (* OPAQUE CONSTANTS *)
         (sigma, tr), false
       else
@@ -1084,7 +1093,7 @@ let lift_curry_record env sigma c trm =
                  else
                    (* APP *)
                    let sigma, f' = lift_rec en sigma () f in
-                   if (not l.is_fwd) && Array.length args > 0 && equal f f' && (not (is_locally_cached c.opaques f)) && ((not (isConst f)) || (not (Option.has_some (inductive_of_elim en (destConst f))))) then 
+                   if (not l.is_fwd) && Array.length args > 0 && equal f f' && (not (is_opaque c f)) && ((not (isConst f)) || (not (Option.has_some (inductive_of_elim en (destConst f))))) then 
                      (* TODO do we need same extension to rule for lift algebraic? Can we disable w option? More complete this way, but can produce ugly terms. I think we only need this here because the type we are looking for in the backward direction is prod instantiating to something specific, though may also be true for sigma types in algebraic  *)
                      (* TODO explain *)
                      let f_delta = unwrap_definition en f in
@@ -1269,7 +1278,7 @@ let do_lift_ind env sigma l typename suffix ind ignores =
   let (a_t, b_t, i_b_t_o) = typs_from_orn l env sigma in
   let sigma, c = initialize_lift_config env sigma l (a_t, b_t) ignores in
   let (mind_body, ind_body) as mind_specif = Inductive.lookup_mind_specif env ind in
-  if is_locally_cached c.opaques (mkInd ind) then
+  if is_opaque c (mkInd ind) then
     let _ = Feedback.msg_warning (Pp.str "Ignoring inductive type") in
     ind
   else

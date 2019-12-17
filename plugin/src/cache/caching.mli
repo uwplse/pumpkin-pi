@@ -19,6 +19,21 @@ val lookup_lifting : (constr * constr * constr) -> constr option
  *)
 val save_lifting : (constr * constr * constr) -> constr -> unit
 
+(* --- Database for global opaque liftings --- *)
+
+(*
+ * Lookup if a lifting is globally opaque
+ * Arguments: lift_to, lift_back, trm
+ *)
+val lookup_opaque : (constr * constr * constr) -> bool
+
+(*
+ * Store an opaque lifting
+ * Also saves it as a lifting
+ * Order of arguments: lift_to, lift_back, trm
+ *)
+val save_opaque : (constr * constr * constr) -> unit
+                                                             
 (* --- Temporary cache of constants --- *)
 
 type temporary_cache

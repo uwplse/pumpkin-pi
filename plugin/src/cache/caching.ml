@@ -101,6 +101,81 @@ let save_lifting (orn_o, orn_n, trm) lifted_trm =
   with _ ->
     Feedback.msg_warning (Pp.str "Failed to cache lifting")
 
+(* --- Opaque liftings --- *)
+
+(* The persistent storage is backed by a normal hashtable *)
+module OpaqueLiftingsCache =
+  Hashtbl.Make
+    (struct
+      type t = (global_reference * global_reference * global_reference)
+      let equal =
+        (fun (o, n, t) (o', n', t') ->
+          eq_gr o o' && eq_gr n n' && eq_gr t t')
+      let hash =
+        (fun (o, n, t) ->
+          Hashset.Combine.combine
+            (Hashset.Combine.combine
+               (ExtRefOrdered.hash (TrueGlobal o))
+               (ExtRefOrdered.hash (TrueGlobal n)))
+            (ExtRefOrdered.hash (TrueGlobal t)))
+    end)
+
+(* Initialize the lifting cache *)
+let opaque_lift_cache = OpaqueLiftingsCache.create 100
+
+(*
+ * Wrapping the table for persistence
+ *)
+type opaque_lift_obj =
+  (global_reference * global_reference * global_reference) * bool
+
+let cache_opaque_lifting (_, (orns_and_trm, is_opaque)) =
+  OpaqueLiftingsCache.add opaque_lift_cache orns_and_trm is_opaque
+
+let sub_opaque_lifting (subst, ((orn_o, orn_n, trm), is_opaque)) =
+  let orn_o, orn_n = map_tuple (subst_global_reference subst) (orn_o, orn_n) in
+  let trm = subst_global_reference subst trm in
+  (orn_o, orn_n, trm), is_opaque
+
+let inOpaqueLifts : opaque_lift_obj -> obj =
+  declare_object { (default_object "OPAQUE_LIFTINGS") with
+    cache_function = cache_opaque_lifting;
+    load_function = (fun _ -> cache_opaque_lifting);
+    open_function = (fun _ -> cache_opaque_lifting);
+    classify_function = (fun opaque_obj -> Substitute opaque_obj);
+    subst_function = sub_opaque_lifting }
+              
+(*
+ * Check if there is a lifting along an ornament for a given term
+ *)
+let has_opaque_lifting (orn_o, orn_n, trm) =
+  try
+    let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
+    let trm = global_of_constr trm in
+    OpaqueLiftingsCache.mem opaque_lift_cache (orn_o, orn_n, trm)
+  with _ ->
+    false
+
+(*
+ * Lookup a lifting
+ *)
+let lookup_opaque (orn_o, orn_n, trm) =
+  has_opaque_lifting (orn_o, orn_n, trm)
+
+(*
+ * Add a lifting to the lifting cache
+ *)
+let save_opaque (orn_o, orn_n, trm) =
+  try
+    let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
+    let trm = global_of_constr trm in
+    let opaque_lift_obj = inOpaqueLifts ((orn_o, orn_n, trm), true) in
+    let lift_obj = inLifts ((orn_o, orn_n, trm), trm) in
+    add_anonymous_leaf opaque_lift_obj;
+    add_anonymous_leaf lift_obj
+  with _ ->
+    Feedback.msg_warning (Pp.str "Failed to cache opaque lifting")
+                         
 (* --- Temporary cache of constants --- *)
 
 (*
