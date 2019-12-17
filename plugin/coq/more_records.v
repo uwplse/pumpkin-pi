@@ -536,6 +536,8 @@ Preprocess Module GeneratedParams as GeneratedParams' { opaque Nat.add }.
 
 Module LiftedHandwrittenParams.
 
+Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.input_rect as input_rect'.
+Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.output_rect as output_rect'.
 Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.MkInput as MkInput.
 Lift HandwrittenParams'.output GeneratedParams'.output in HandwrittenParams'.MkOutput as MkOutput.
 Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.field1 as field1.
@@ -782,7 +784,7 @@ Qed.
 
 End LiftedGeneratedParams.
 
-(* --- Test fancier parameters --- *)
+(* --- Test fancier parameters --- x*)
 
 Module HandwrittenParamsFancy.
 
@@ -792,10 +794,6 @@ Record input (T : Type) (t : T) (F : T -> Prop) := MkInput
   second : T;
   third : exists t', t <> t' -> F t';
 }.
-
-Scheme Induction for input Sort Set.
-Scheme Induction for input Sort Prop.
-Scheme Induction for input Sort Type.
 
 End HandwrittenParamsFancy.
 
@@ -814,3 +812,4 @@ Find ornament HandwrittenParamsFancy.input GeneratedParamsFancy.input as input_p
 
 (* TODO test: failure cases, eta expanded or not expanded variations (e.g. try not eta expanded constr with parameters, like (prod nat) ), taking prod directly, etc *)
 (* TODO check test results *)
+  

@@ -317,9 +317,10 @@ let is_eliminator c env trm sigma =
     else
       b_typ
   in
-  match kind trm with
-  | App (f, args) when isConst f ->
-     let maybe_ind = inductive_of_elim env (destConst f) in
+  let f = first_fun trm in
+  match kind f with
+  | Const (k, u) ->
+     let maybe_ind = inductive_of_elim env (k, u) in
      if Option.has_some maybe_ind then
        let ind = Option.get maybe_ind in
        let is_elim = equal (mkInd (ind, 0)) (directional c.l a_typ b_typ) in
@@ -1194,8 +1195,12 @@ let do_lift_term env sigma (l : lifting) trm ignores =
  * Run the core lifting algorithm on a definition
  *)
 let do_lift_defn env sigma (l : lifting) def =
-  let trm = unwrap_definition env def in
-  do_lift_term env sigma l trm
+  let trm =
+    try
+      lookup_definition env def
+    with _ ->
+      def
+  in do_lift_term env sigma l trm
 
 (************************************************************************)
 (*                           Inductive types                            *)
