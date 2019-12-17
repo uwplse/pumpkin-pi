@@ -57,6 +57,27 @@ type lift_config =
     opaques : temporary_cache
   }
 
+(*
+ * Configurable caching of constants
+ *
+ * Note: The smart global cache works fine if we assume we always lift every
+ * occurrence of the type. But once we allow for more configurable lifting,
+ * for example with type-guided search, we will need a smarter smart cache
+ * to still get this optimization.
+ *)
+let smart_cache c trm lifted =
+  let l = c.l in
+  if equal trm lifted then
+    (* Save the fact that it does not change at all *)
+    if Options.is_smart_cache () && not (is_locally_cached c.opaques trm) then
+      let _ = save_lifting (lift_to l, lift_back l, trm) trm in
+      save_lifting (lift_back l, lift_to l, trm) trm
+    else
+      cache_local c.cache trm trm
+  else
+    (* Save the lifted term locally *)
+    cache_local c.cache trm lifted
+
 (* --- Index/deindex functions --- *)
 
 let index l = insert_index (Option.get l.off)
@@ -956,7 +977,7 @@ let lift_algebraic env sigma c ib_typ trm =
                         with _ ->
                           (* AXIOM *)
                           sigma, tr)
-                     in cache_local c.cache tr lifted; (sigma, lifted), false
+                     in smart_cache c tr lifted; (sigma, lifted), false
                   | _ ->
                      (sigma, tr), false
     in
@@ -1031,7 +1052,6 @@ let lift_curry_record env sigma c trm =
               (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
           else
             (* TODO handle opaque in algebraic too *)
-            (* TODO needed? *)
             let sigma, run_lift_pack = is_packed c en sigma tr in
             if run_lift_pack && l.is_fwd then (* TODO do we need this rule? when does it show up for lift_algebraic? can we replicate? *)
             (* LIFT-PACK (extra rule for non-primitive projections) *)
@@ -1154,7 +1174,7 @@ let lift_curry_record env sigma c trm =
                     with _ ->
                       (* AXIOM *)
                       sigma, tr)
-                 in cache_local c.cache tr lifted; (sigma, lifted), false
+                 in smart_cache c tr lifted; (sigma, lifted), false
               | _ ->
                  (sigma, tr), false
     in

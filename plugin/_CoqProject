@@ -101,6 +101,9 @@ src/components/specialization.mli
 src/components/differencing.ml
 src/components/differencing.mli
 
+src/options.ml
+src/options.mli
+
 src/automation/search.ml
 src/automation/search.mli
 src/automation/coherence.ml
@@ -114,8 +117,6 @@ src/automation/lift.mli
 src/automation/unpack.ml
 src/automation/unpack.mli
 
-src/options.ml
-src/options.mli
 src/frontend.ml
 src/frontend.mli
 src/ornamental.ml4

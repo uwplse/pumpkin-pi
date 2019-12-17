@@ -47,6 +47,8 @@ Abstraction
 Specialization
 Differencing
 
+Options
+
 Search
 Coherence
 Equivalence
@@ -54,6 +56,5 @@ Eta
 Lift
 Unpack
 
-Options
 Frontend
 Ornamental

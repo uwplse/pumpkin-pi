@@ -13,6 +13,8 @@ lift=false
 listtovect=false
 records=false
 morerecords=false
+smartcache=false
+nosmartcache=false
 
 echo "Testing Find ornament."
 
@@ -61,6 +63,28 @@ fi
 if coqc coq/more_records.v
 then
   morerecords=true
+else
+  :
+fi
+
+echo "Testing Smart Cache."
+
+nosmartcachestart=$SECONDS
+if coqc coq/NoSmartCache.v
+then
+  nosmartcacheend=$SECONDS
+  nosmartcache=true
+else
+  :
+fi
+
+rm coq/NoSmartCache.vo
+
+smartcachestart=$SECONDS
+if coqc coq/SmartCache.v
+then
+  smartcacheend=$SECONDS
+  smartcache=true
 else
   :
 fi
@@ -151,12 +175,17 @@ if [ $lifted = true ] && [ $liftedind = true ] && [ $findlift = true ] &&
    [ $liftedcase = true ] && [ $assumptions = true ] && [ $intro = true ] &&
    [ $example = true ] && [ $liftspec = true ] && [ $search = true ] && 
    [ $lift = true ] && [ $listtovect = true ] && [ $records = true ] &&
-   [ $morerecords = true ]
+   [ $morerecords = true ] && [ $nosmartcache = true ] && [ $smartcache = true ]
 then
   echo "SUCCESS: All tests passed."
 
   caseelapsed=($caseend - $casestart) 
   echo "Case study code took $caseelapsed seconds."
+
+  nosmartcacheelapsed=($nosmartcacheend - $nosmartcachestart)
+  smartcacheelapsed=($smartcacheend - $smartcachestart)
+  smartcachesaved=($smartcacheelapsed - $nosmartcacheelapsed)
+  echo "Smart cache saved $smartcachesaved seconds."
 else
   echo "ERROR: The following tests failed:"
   if [ $lifted = false ]
@@ -186,6 +215,18 @@ else
   if [ $morerecords = false ]
   then
     echo "lifting records to products: fancier test"
+  else
+    :
+  fi
+  if [ $smartcache = false ]
+  then
+    echo "set smart cache test"
+  else
+    :
+  fi
+  if [ $nosmartcache = false ]
+  then
+    echo "unset smart cache test"
   else
     :
   fi
