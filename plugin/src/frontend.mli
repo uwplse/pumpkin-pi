@@ -13,7 +13,7 @@ val find_ornament : Id.t option -> constr_expr -> constr_expr -> unit
  * Lift the supplied function along the supplied ornament
  * Define the lifted version
  *)
-val lift_by_ornament : ?suffix:bool -> ?ignores:Libnames.reference list -> Id.t -> constr_expr -> constr_expr -> constr_expr -> unit
+val lift_by_ornament : ?suffix:bool -> ?opaques:Libnames.reference list -> Id.t -> constr_expr -> constr_expr -> constr_expr -> unit
 
 (*
  * Unpack sigma types in the functional signature of a constant.
@@ -23,3 +23,17 @@ val lift_by_ornament : ?suffix:bool -> ?ignores:Libnames.reference list -> Id.t 
  *)
 val do_unpack_constant : Id.t -> Libnames.reference -> unit
 
+(*
+ * Add terms to or remove terms from the globally opaque lifting cache
+ *)
+val add_global_opaques : Libnames.reference list -> unit
+val remove_global_opaques : Libnames.reference list -> unit
+
+(*
+ * Add terms to or remove terms from the globally opaque lifting cache
+ * at a particular ornament
+ *)
+val add_lifting_opaques :
+  constr_expr -> constr_expr -> Libnames.reference list -> unit
+val remove_lifting_opaques :
+  constr_expr -> constr_expr ->  Libnames.reference list -> unit

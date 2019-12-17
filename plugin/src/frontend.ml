@@ -180,9 +180,9 @@ let lift_inductive_by_ornament env sigma n s l c_old ignores =
  * Lift the supplied definition or inductive type along the supplied ornament
  * Define the lifted version
  *)
-let lift_by_ornament ?(suffix=false) ?(ignores=[]) n d_orn d_orn_inv d_old =
+let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old =
   let (sigma, env) = Pfedit.get_current_context () in
-  let ignores =
+  let opaques =
     List.map
       (fun i ->
         let qid = qualid_of_reference i in
@@ -196,7 +196,7 @@ let lift_by_ornament ?(suffix=false) ?(ignores=[]) n d_orn d_orn_inv d_old =
            mkInd ind
         | ConstructRef c ->
            mkConstruct c)
-      ignores
+      opaques
   in
   let sigma, c_orn = intern env sigma d_orn in
   let sigma, c_orn_inv = intern env sigma d_orn_inv in
@@ -234,11 +234,35 @@ let lift_by_ornament ?(suffix=false) ?(ignores=[]) n d_orn d_orn_inv d_old =
   if isInd u_old then
     let from_typ = fst (on_red_type_default (fun _ _ -> ind_of_promotion_type) env sigma l.orn.promote) in
     if not (equal u_old from_typ) then
-      lift_inductive_by_ornament env sigma n_new s l c_old ignores
+      lift_inductive_by_ornament env sigma n_new s l c_old opaques
     else
-      lift_definition_by_ornament env sigma n_new l c_old ignores
+      lift_definition_by_ornament env sigma n_new l c_old opaques
   else
-    lift_definition_by_ornament env sigma n_new l c_old ignores
+    lift_definition_by_ornament env sigma n_new l c_old opaques
+
+(*
+ * Add terms to the globally opaque lifting cache
+ *)
+let add_global_opaques opaques =
+  ()
+
+(*
+ * Remove terms from the globally opaque lifting cache
+ *)
+let remove_global_opaques opaques =
+  ()
+
+(*
+ * Add terms to the globally opaque lifting cache at a particular ornament
+ *)
+let add_lifting_opaques d_orn d_orn_inv opaques =
+  ()
+
+(*
+ * Remove terms from the globally opaque lifting cache at a particular ornament
+ *)
+let remove_lifting_opaques d_orn d_orn_inv opaques =
+  ()
 
 (*
  * Unpack sigma types in the functional signature of a constant.

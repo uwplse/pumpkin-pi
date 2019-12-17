@@ -18,12 +18,24 @@ END
 VERNAC COMMAND EXTEND LiftOrnament CLASSIFIED AS SIDEFF
 | [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
   [ lift_by_ornament n d_orn d_orn_inv d_old ]
-| [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n) "{" "opaque" ne_reference_list(ignores) "}" ] ->
-  [ lift_by_ornament ~ignores:ignores n d_orn d_orn_inv d_old ]
+| [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n) "{" "opaque" ne_reference_list(opaques) "}" ] ->
+  [ lift_by_ornament ~opaques:opaques n d_orn d_orn_inv d_old ]
 | [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ".." ident(n)] ->
   [ lift_by_ornament ~suffix:true n d_orn d_orn_inv d_old ]
-| [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ".." ident(n) "{" "opaque" ne_reference_list(ignores) "}" ] ->
-  [ lift_by_ornament ~ignores:ignores ~suffix:true n d_orn d_orn_inv d_old ]
+| [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ".." ident(n) "{" "opaque" ne_reference_list(opaques) "}" ] ->
+  [ lift_by_ornament ~opaques:opaques ~suffix:true n d_orn d_orn_inv d_old ]
+END
+
+(* Configure lifting with some additional information *)
+VERNAC COMMAND EXTEND ConfigureLift CLASSIFIED AS SIDEFF
+| [ "Configure" "Lift" "{" "opaque" ne_reference_list(opaques) "}" ] ->
+  [ add_global_opaques opaques ]
+| [ "Configure" "Lift" constr(d_orn) constr(d_orn_inv) "{" "opaque" ne_reference_list(opaques) "}" ] ->
+  [ add_lifting_opaques d_orn d_orn_inv opaques ]
+| [ "Configure" "Lift" "{" "~" "opaque" ne_reference_list(opaques) "}" ] ->
+  [ remove_global_opaques opaques ]
+| [ "Configure" "Lift" constr(d_orn) constr(d_orn_inv) "{" "~" "opaque" ne_reference_list(opaques) "}"] ->
+  [ remove_lifting_opaques d_orn d_orn_inv opaques ]
 END
 
 (* Register the Ltac script for sigma unpacking *)
@@ -33,4 +45,3 @@ VERNAC COMMAND EXTEND UnpackSigma CLASSIFIED AS SIDEFF
 (* | [ "Unpack" "Module" reference(mod_ref) "as" ident(id) ] ->
  *   [ do_unpack_module id mod_ref ] *)
 END
-
