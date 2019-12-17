@@ -67,23 +67,20 @@ else
   :
 fi
 
-echo "Testing Smart Cache."
+echo "Testing smart cache."
+echo "First, without the smart cache:"
 
-nosmartcachestart=$SECONDS
 if coqc coq/NoSmartCache.v
 then
-  nosmartcacheend=$SECONDS
   nosmartcache=true
 else
   :
 fi
 
-rm coq/NoSmartCache.vo
+echo "Now, with the smart cache:"
 
-smartcachestart=$SECONDS
 if coqc coq/SmartCache.v
 then
-  smartcacheend=$SECONDS
   smartcache=true
 else
   :
@@ -181,11 +178,6 @@ then
 
   caseelapsed=($caseend - $casestart) 
   echo "Case study code took $caseelapsed seconds."
-
-  nosmartcacheelapsed=($nosmartcacheend - $nosmartcachestart)
-  smartcacheelapsed=($smartcacheend - $smartcachestart)
-  smartcachesaved=($smartcacheelapsed - $nosmartcacheelapsed)
-  echo "Smart cache saved $smartcachesaved seconds."
 else
   echo "ERROR: The following tests failed:"
   if [ $lifted = false ]
