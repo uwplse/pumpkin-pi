@@ -251,13 +251,13 @@ let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old =
  * Add terms to the globally opaque lifting cache
  *)
 let add_global_opaques opaques =
-  ()
+  CErrors.user_err (Pp.str "Not yet implemented")
 
 (*
  * Remove terms from the globally opaque lifting cache
  *)
 let remove_global_opaques opaques =
-  ()
+  CErrors.user_err (Pp.str "Not yet implemented")
 
 (* TODO use the same thing as preprocess_errors, move to lib *)
 let err_opaque_not_constant qid =
