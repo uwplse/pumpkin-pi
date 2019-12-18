@@ -58,6 +58,15 @@ type lift_config =
   }
 
 (*
+ * Check opaqueness using either local or global cache
+ *)
+let is_opaque c trm =
+  if is_locally_cached c.opaques trm then
+    true
+  else
+    lookup_opaque (lift_to c.l, lift_back c.l, trm)
+    
+(*
  * Configurable caching of constants
  *
  * Note: The smart global cache works fine if we assume we always lift every
@@ -69,7 +78,7 @@ let smart_cache c trm lifted =
   let l = c.l in
   if equal trm lifted then
     (* Save the fact that it does not change at all *)
-    if Options.is_smart_cache () && not (is_locally_cached c.opaques trm) then
+    if Options.is_smart_cache () && not (is_opaque c trm) then
       let _ = save_lifting (lift_to l, lift_back l, trm) trm in
       save_lifting (lift_back l, lift_to l, trm) trm
     else
@@ -77,15 +86,6 @@ let smart_cache c trm lifted =
   else
     (* Save the lifted term locally *)
     cache_local c.cache trm lifted
-
-(*
- * Check opaqueness using either local or global cache
- *)
-let is_opaque c trm =
-  if is_locally_cached c.opaques trm then
-    true
-  else
-    lookup_opaque (lift_to c.l, lift_back c.l, trm)
 
 (* --- Index/deindex functions --- *)
 
