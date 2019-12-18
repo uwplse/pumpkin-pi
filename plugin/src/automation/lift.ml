@@ -79,8 +79,7 @@ let smart_cache c trm lifted =
   if equal trm lifted then
     (* Save the fact that it does not change at all *)
     if Options.is_smart_cache () && not (is_opaque c trm) then
-      let _ = save_lifting (lift_to l, lift_back l, trm) trm in
-      save_lifting (lift_back l, lift_to l, trm) trm
+      save_lifting (lift_to l, lift_back l, trm) trm
     else
       cache_local c.cache trm trm
   else
