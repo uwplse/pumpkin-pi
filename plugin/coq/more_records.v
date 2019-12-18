@@ -538,6 +538,9 @@ Preprocess Module GeneratedParams as GeneratedParams' { opaque Nat.add }.
 
 Module LiftedHandwrittenParams.
 
+Configure Lift HandwrittenParams'.input GeneratedParams'.input { opaque HandwrittenParams'.input_rect }.
+Fail Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.input_rect as input_rect'.
+Configure Lift HandwrittenParams'.input  GeneratedParams'.input { ~opaque HandwrittenParams'.input_rect }.
 Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.input_rect as input_rect'.
 Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.output_rect as output_rect'.
 Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.MkInput as MkInput.

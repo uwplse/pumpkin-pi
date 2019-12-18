@@ -33,6 +33,13 @@ val lookup_opaque : (constr * constr * constr) -> bool
  * Order of arguments: lift_to, lift_back, trm
  *)
 val save_opaque : (constr * constr * constr) -> unit
+
+(*
+ * Remove an opaque lifting
+ * Also removes it from liftings
+ * Order of arguments: lift_to, lift_back, trm
+ *)
+val remove_opaque : (constr * constr * constr) -> unit
                                                              
 (* --- Temporary cache of constants --- *)
 

@@ -43,7 +43,8 @@ let lift_cache = LiftingsCache.create 100
  * Wrapping the table for persistence
  *)
 type lift_obj =
-  (global_reference * global_reference * global_reference) * global_reference
+  (global_reference * global_reference * global_reference) *
+  (global_reference option)
 
 let cache_lifting (_, (orns_and_trm, lifted_trm)) =
   LiftingsCache.add lift_cache orns_and_trm lifted_trm
@@ -51,8 +52,12 @@ let cache_lifting (_, (orns_and_trm, lifted_trm)) =
 let sub_lifting (subst, ((orn_o, orn_n, trm), lifted_trm)) =
   let orn_o, orn_n = map_tuple (subst_global_reference subst) (orn_o, orn_n) in
   let trm = subst_global_reference subst trm in
-  let lifted_trm = subst_global_reference subst lifted_trm in
-  (orn_o, orn_n, trm), lifted_trm
+  let lifted_trm =
+    if Option.has_some lifted_trm then
+      Some (subst_global_reference subst (Option.get lifted_trm))
+    else
+      None
+  in (orn_o, orn_n, trm), lifted_trm
 
 let inLifts : lift_obj -> obj =
   declare_object { (default_object "LIFTINGS") with
@@ -65,7 +70,7 @@ let inLifts : lift_obj -> obj =
 (*
  * Check if there is a lifting along an ornament for a given term
  *)
-let has_lifting (orn_o, orn_n, trm) =
+let has_lifting_opt (orn_o, orn_n, trm) =
   try
     let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
     let trm = global_of_constr trm in
@@ -77,14 +82,14 @@ let has_lifting (orn_o, orn_n, trm) =
  * Lookup a lifting
  *)
 let lookup_lifting (orn_o, orn_n, trm) =
-  if not (has_lifting (orn_o, orn_n, trm)) then
+  if not (has_lifting_opt (orn_o, orn_n, trm)) then
     None
   else
     let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
     let trm = global_of_constr trm in
     let lifted_trm = LiftingsCache.find lift_cache (orn_o, orn_n, trm) in
     try
-      Some (Universes.constr_of_global lifted_trm)
+      Some (Universes.constr_of_global (Option.get lifted_trm))
     with _ ->
       None
 
@@ -96,7 +101,7 @@ let save_lifting (orn_o, orn_n, trm) lifted_trm =
     let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
     let trm = global_of_constr trm in
     let lifted_trm = global_of_constr lifted_trm in
-    let lift_obj = inLifts ((orn_o, orn_n, trm), lifted_trm) in
+    let lift_obj = inLifts ((orn_o, orn_n, trm), Some lifted_trm) in
     add_anonymous_leaf lift_obj
   with _ ->
     Feedback.msg_warning (Pp.str "Failed to cache lifting")
@@ -148,7 +153,7 @@ let inOpaqueLifts : opaque_lift_obj -> obj =
 (*
  * Check if there is a lifting along an ornament for a given term
  *)
-let has_opaque_lifting (orn_o, orn_n, trm) =
+let has_opaque_lifting_bool (orn_o, orn_n, trm) =
   try
     let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
     let trm = global_of_constr trm in
@@ -157,20 +162,39 @@ let has_opaque_lifting (orn_o, orn_n, trm) =
     false
 
 (*
- * Lookup a lifting
+ * Lookup an opaque lifting
  *)
 let lookup_opaque (orn_o, orn_n, trm) =
-  has_opaque_lifting (orn_o, orn_n, trm)
+  if has_opaque_lifting_bool (orn_o, orn_n, trm) then
+    let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
+    let trm = global_of_constr trm in
+    OpaqueLiftingsCache.find opaque_lift_cache (orn_o, orn_n, trm)
+  else
+    false
 
 (*
- * Add a lifting to the lifting cache
+ * Add an opaque lifting to the opaque lifting cache
  *)
 let save_opaque (orn_o, orn_n, trm) =
   try
     let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
     let trm = global_of_constr trm in
     let opaque_lift_obj = inOpaqueLifts ((orn_o, orn_n, trm), true) in
-    let lift_obj = inLifts ((orn_o, orn_n, trm), trm) in
+    let lift_obj = inLifts ((orn_o, orn_n, trm), Some trm) in
+    add_anonymous_leaf opaque_lift_obj;
+    add_anonymous_leaf lift_obj
+  with _ ->
+    Feedback.msg_warning (Pp.str "Failed to cache opaque lifting")
+
+(*
+ * Remove an opaque lifting from the opaque lifting cache
+ *)
+let remove_opaque (orn_o, orn_n, trm) =
+  try
+    let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
+    let trm = global_of_constr trm in
+    let opaque_lift_obj = inOpaqueLifts ((orn_o, orn_n, trm), false) in
+    let lift_obj = inLifts ((orn_o, orn_n, trm), None) in
     add_anonymous_leaf opaque_lift_obj;
     add_anonymous_leaf lift_obj
   with _ ->

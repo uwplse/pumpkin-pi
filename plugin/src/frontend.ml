@@ -293,7 +293,23 @@ let add_lifting_opaques d_orn d_orn_inv opaques =
  * Remove terms from the globally opaque lifting cache at a particular ornament
  *)
 let remove_lifting_opaques d_orn d_orn_inv opaques =
-  () (* unsure how to do this *)
+  let (sigma, env) = Pfedit.get_current_context () in
+  let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in
+  List.iter
+    (fun r ->
+      let qid = qualid_of_reference r in
+      Feedback.msg_info
+        (Pp.seq [Pp.str "Removing opaque lifting "; Libnames.pr_qualid qid]);
+      try
+        let c = mkConst (Nametab.locate_constant qid) in
+        remove_opaque (lift_to l, lift_back l, c);
+        remove_opaque (lift_back l, lift_to l, c)
+      with
+      | Not_found ->
+         CErrors.user_err
+           ~hdr:"remove_lifting_opaques"
+           (err_opaque_not_constant qid))
+    opaques
 
 (*
  * Unpack sigma types in the functional signature of a constant.
