@@ -1102,11 +1102,17 @@ let lift_curry_record env sigma c trm =
                        (sigma, mkApp (f', args')), l.is_fwd
                      else
                        let sigma, lifted_red = lift_rec en sigma () app' in
+                       let sigma, args' = map_rec_args lift_rec en sigma () args in
                        if equal lifted_red app' then
-                         let sigma, args' = map_rec_args lift_rec en sigma () args in
                          (sigma, mkApp (f', args')), l.is_fwd
                        else
-                         (sigma, lifted_red), l.is_fwd
+                         (* TODO explain: refold as in prod_rect example *)
+                         let f_delta' = unwrap_definition en f' in
+                         let sigma, app'' = reduce_term en sigma (mkApp (f_delta', args')) in
+                         if equal lifted_red app'' then
+                           (sigma, mkApp (f', args')), l.is_fwd
+                         else
+                           (sigma, lifted_red), l.is_fwd
                    else
                      let sigma, args' = map_rec_args lift_rec en sigma () args in 
                      (sigma, mkApp (f', args')), l.is_fwd

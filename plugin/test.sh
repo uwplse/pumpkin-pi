@@ -15,6 +15,7 @@ records=false
 morerecords=false
 smartcache=false
 nosmartcache=false
+prodrect=false
 
 echo "Testing Find ornament."
 
@@ -63,6 +64,13 @@ fi
 if coqc coq/more_records.v
 then
   morerecords=true
+else
+  :
+fi
+
+if coqc coq/prod_rect.v
+then
+  prodrect=true
 else
   :
 fi
@@ -172,7 +180,7 @@ if [ $lifted = true ] && [ $liftedind = true ] && [ $findlift = true ] &&
    [ $liftedcase = true ] && [ $assumptions = true ] && [ $intro = true ] &&
    [ $example = true ] && [ $liftspec = true ] && [ $search = true ] && 
    [ $lift = true ] && [ $listtovect = true ] && [ $records = true ] &&
-   [ $morerecords = true ] && [ $nosmartcache = true ] && [ $smartcache = true ]
+   [ $morerecords = true ] && [ $nosmartcache = true ] && [ $smartcache = true ] && [ $prodrect = true ]
 then
   echo "SUCCESS: All tests passed."
 
@@ -207,6 +215,12 @@ else
   if [ $morerecords = false ]
   then
     echo "lifting records to products: fancier test"
+  else
+    :
+  fi
+  if [ $prodrect = false ]
+  then
+    echo "lifting records to products: folding projections"
   else
     :
   fi
