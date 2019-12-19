@@ -104,6 +104,8 @@ Proof.
   reflexivity.
 Qed.
 
+Require Import Patcher.Patch.
+
 (* TODO not done yet: 
 Definition f' (h : H_PP.H) (c : C_PP.C)
   : bool

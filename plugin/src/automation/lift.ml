@@ -53,6 +53,7 @@ type lift_config =
     l : lifting;
     typs : types * types;
     constr_rules : types array;
+    proj_rules : types array;
     cache : temporary_cache;
     opaques : temporary_cache
   }
@@ -327,7 +328,7 @@ let is_proj c env sigma trm =
            let last_arg = last args in
            let sigma_right, typ_args = right_type last_arg in
            if Option.has_some typ_args then
-             sigma_right, Some last_arg
+             sigma_right, Some (last_arg, 0) (* TODO *)
            else
              sigma, None
          else
@@ -452,16 +453,23 @@ let initialize_constr_rules env sigma c =
      let constr = mkConstructU (((i, i_index), 1), u) in
      let sigma, c_rule = initialize_constr_rule c env constr sigma in
      sigma, Array.make 1 c_rule
-    
+
+(* 
+ * Initialize the rules for lifting projections
+ *)
+let initialize_proj_rules env sigma c =
+  sigma, Array.make 0 (mkRel 1) (* TODO implement *)
+  
 
 (* Initialize the lift_config *)
 let initialize_lift_config env sigma l typs ignores =
   let cache = initialize_local_cache () in
   let opaques = initialize_local_cache () in
   List.iter (fun opaque -> cache_local opaques opaque opaque) ignores;
-  let c = { l ; typs ; constr_rules = Array.make 0 (mkRel 1) ; cache ; opaques } in
+  let c = { l ; typs ; constr_rules = Array.make 0 (mkRel 1) ; proj_rules = Array.make 0 (mkRel 1); cache ; opaques } in
   let sigma, constr_rules = initialize_constr_rules env sigma c in
-  sigma, { c with constr_rules }
+  let sigma, proj_rules = initialize_proj_rules env sigma c in
+  sigma, { c with constr_rules; proj_rules }
 
 (* --- Lifting the induction principle --- *)
 
@@ -852,16 +860,16 @@ let lift_algebraic env sigma c ib_typ trm =
                 lift_rec en sigma ib_typ (dest_existT tr).unpacked, false
             else
               let sigma, to_proj_o = is_proj c en sigma tr in
-              if Option.has_some to_proj_o then
+              if Option.has_some to_proj_o then (* TODO use proj rules and indexes! and then optimize after *)
                 (* COHERENCE *)
                 if l.is_fwd then
-                  let a = Option.get to_proj_o in
+                  let a, _ = Option.get to_proj_o in
                   let sigma, b_sig = lift_rec en sigma ib_typ a in
                   let sigma, a_typ = reduce_type en sigma a in
                   let sigma, b_sig_typ = Util.on_snd dest_sigT (lift_rec en sigma ib_typ a_typ) in
                   (sigma, project_index b_sig_typ b_sig), false
                 else
-                  let b_sig = Option.get to_proj_o in
+                  let b_sig, _ = Option.get to_proj_o in
                   let sigma, a = lift_rec en sigma ib_typ b_sig in
                   if equal projT1 (first_fun tr) then
                     let sigma, args = non_index_typ_args (Option.get l.off) en sigma b_sig in
@@ -898,7 +906,7 @@ let lift_algebraic env sigma c ib_typ trm =
                        (* APP *)
                        let sigma, args' = map_rec_args lift_rec en sigma ib_typ args in
                        if (is_or_applies projT1 tr || is_or_applies projT2 tr) then
-                         (* optimize projections of existentials, which are common *)
+                         (* optimize projections of existentials, which are common (TODO do we need this for curry_record?) *)
                          let arg' = last (Array.to_list args') in
                          let arg'' = reduce_stateless reduce_term en sigma arg' in
                          if is_or_applies existT arg'' then
@@ -1060,11 +1068,25 @@ let lift_curry_record env sigma c trm =
               (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
           else
             (* TODO handle opaque in algebraic too *)
+            (* TODO for run_lift_pack both here and in algebraic: do we need always, or just when passed to an eliminator? *)
+            (* TODO for cleanliness, sep. out premise detection from if/else code structure here and in algebraic, then match over the detected premise *)
             let sigma, run_lift_pack = is_packed c en sigma tr in
-            if run_lift_pack && l.is_fwd then (* TODO do we need this rule? when does it show up for lift_algebraic? can we replicate? *)
+            if run_lift_pack && l.is_fwd then
             (* LIFT-PACK (extra rule for non-primitive projections) *)
-              (sigma, tr), true (* TODO bwd case? *)
+              (sigma, tr), true (* TODO bwd case? also, is this even right for bwd case of algebraic? *)
             else
+              let sigma, to_proj_o = is_proj c en sigma tr in
+              if Option.has_some to_proj_o then
+                (* COHERENCE *)
+                if l.is_fwd then (* prob first step to generalizing to any equiv. at some point is making the fwd and bwd cases here depend only on equivalence and configuration *) (* TODO note this is to make things pretty, otherwise would handle fine w/ eliminator *)
+                  let a, i = Option.get to_proj_o in
+                  let lifted_proj = c.proj_rules.(i) in
+                  (sigma, mkApp (lifted_proj, Array.make 1 a)), false
+                else
+                  let b, i = Option.get to_proj_o in
+                  let lifted_proj = c.proj_rules.(i) in
+                  (sigma, mkApp (lifted_proj, Array.make 1 b)), false
+              else
             let sigma, is_elim = is_eliminator c en tr sigma in
             if is_elim then
               (* LIFT-ELIM *)
