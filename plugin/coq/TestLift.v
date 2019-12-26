@@ -47,6 +47,48 @@ Proof.
   intros. reflexivity.
 Qed.
 
+(* --- Simple projection tests ---- *)
+
+(* TODO test w/ equal functions too *)
+
+Lift list vector in orn_list_vector_index as ltv_indexer_lifted.
+Print ltv_indexer_lifted.
+Fail.
+Theorem testNil:
+  forall A, nil'_c A = existT (vector A) 0 (nilV A).
+Proof.
+  intros. reflexivity.
+Qed.
+
+Definition nilV' (A : Type) :=
+  existT (vector A) 0 (nilV A).
+
+Lift vector list in nilV' as nilV'_c.
+Theorem testNilV:
+  forall A, nilV'_c A = @nil A.
+Proof.
+  intros. reflexivity.
+Qed.
+
+Definition cons' := @cons.
+
+Lift list vector in cons' as cons'_c.
+Theorem testCons:
+  forall A a pv,
+    cons'_c A a pv =
+    existT (vector A) (S (projT1 pv)) (consV A (projT1 pv) a (projT2 pv)).
+Proof.
+  intros. reflexivity.
+Qed.
+
+Lift vector list in cons'_c as consV'_c.
+Theorem testConsV:
+  forall A a l,
+    consV'_c A a l = @cons A a l.
+Proof.
+  intros. reflexivity.
+Qed.
+
 (* --- Simple functions --- *)
 
 Definition hd (A : Type) (default : A) (l : list A) :=

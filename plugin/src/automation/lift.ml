@@ -316,24 +316,46 @@ let is_packed c env sigma trm =
 
 (* Premises for LIFT-PROJ *)
 let is_proj c env sigma trm =
-  let right_type = type_is_from c env sigma in
+  let right_type = type_is_from c env in
+  (* TODO eta stuff so indexer matches, but so does proj *)
   match kind trm with
-  | App _ ->
+  | App _ | Const _ ->
      let f = first_fun trm in
      let args = unfold_args trm in
      (match c.l.orn.kind with
       | Algebraic ->
-         if (c.l.is_fwd && equal (Option.get c.l.orn.indexer) f) ||
-            ((not c.l.is_fwd) && (equal projT1 f || equal projT2 f)) then
-           let last_arg = last args in
-           let sigma_right, typ_args = right_type last_arg in
-           if Option.has_some typ_args then
-             let i = if equal projT2 f then 1 else 0 in
-             sigma_right, Some (last_arg, i) (* TODO *)
-           else
-             sigma, None
-         else
-           sigma, None
+         branch_state
+           (fun f sigma ->
+             let open Printing in
+             debug_term env f "f";
+             debug_term env (Option.get c.l.orn.indexer) "indexer";
+             if c.l.is_fwd then
+               convertible env sigma (Option.get c.l.orn.indexer) f
+             else
+               convertible env sigma projT1 f)
+           (fun f sigma ->
+             branch_state
+               (fun sigma a -> Util.on_snd Option.has_some (right_type a sigma))
+               (fun a -> ret (Some (a, 0)))
+               (fun _ -> ret None)
+               (last args)
+               sigma) (* TODO refactor common stuff w/ below *)
+           (branch_state
+              (fun f sigma ->
+                if c.l.is_fwd then
+                  sigma, false
+                else
+                  convertible env sigma projT2 f)
+              (fun f sigma ->
+                branch_state
+                  (fun sigma a -> Util.on_snd Option.has_some (right_type a sigma))
+                  (fun a -> ret (Some (a, 1)))
+                  (fun _ -> ret None)
+                  (last args)
+                  sigma)
+              (fun _ -> ret None))
+           f
+           sigma
       | CurryRecord ->
          sigma, None) (* TODO *)
   | _ ->
@@ -886,8 +908,15 @@ let lift_algebraic env sigma c ib_typ trm =
                 let sigma, args = non_index_typ_args (Option.get l.off) en sigma to_proj in
                 let p = c.proj_rules.(i) in
                 let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in (* TODO make aux function for the snoc/non_index_typ_args thing *)
+                let open Printing in
+                debug_term en tr "tr";
+                Printf.printf "%s\n\n" "is proj";
+                debug_term en projected "projected";
                 lift_rec en sigma ib_typ projected, false
               else
+                let open Printing in
+                debug_term en tr "tr";
+                Printf.printf "%s\n\n" "is not proj";
                 let _, is_elim = is_eliminator c en tr sigma in (* sigma never changes here *)
                 if is_elim then
                   (* LIFT-ELIM *)
