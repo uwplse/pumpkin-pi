@@ -328,13 +328,14 @@ let is_proj c env sigma trm =
            let last_arg = last args in
            let sigma_right, typ_args = right_type last_arg in
            if Option.has_some typ_args then
-             sigma_right, Some (last_arg, 0) (* TODO *)
+             let i = if equal projT2 f then 1 else 0 in
+             sigma_right, Some (last_arg, i) (* TODO *)
            else
              sigma, None
          else
            sigma, None
       | CurryRecord ->
-         sigma, None)
+         sigma, None) (* TODO *)
   | _ ->
      sigma, None
 
@@ -456,9 +457,28 @@ let initialize_constr_rules env sigma c =
 
 (* 
  * Initialize the rules for lifting projections
+ * This is COHERENCE, but cached
  *)
 let initialize_proj_rules env sigma c =
-  sigma, Array.make 0 (mkRel 1) (* TODO implement *)
+  let l = c.l in
+  let lift_f = unwrap_definition env (lift_to c.l) in
+  let env_proj = zoom_env zoom_lambda_term env lift_f in
+  match l.orn.kind with
+  | Algebraic ->
+     let t = mkRel 1 in
+     let sigma, lift_t = lift env_proj l t sigma in
+     if l.is_fwd then (* indexer -> projT1 *)
+       let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj sigma lift_t) in
+       let p1 = reconstruct_lambda env_proj (project_index b_sig_typ lift_t) in
+       sigma, Array.make 1 p1
+     else (* projT1 -> indexer, projT2 -> id *)
+       let indexer = Option.get l.orn.indexer in
+       let args = shift_all (mk_n_rels (nb_rel env_proj - 1)) in
+       let p1 = reconstruct_lambda env_proj (mkAppl (indexer, snoc lift_t args)) in
+       let p2 = reconstruct_lambda env_proj lift_t in
+       sigma, Array.of_list [p1; p2]
+  | CurryRecord ->
+     sigma, Array.make 0 (mkRel 1) (* TODO implement *)
   
 
 (* Initialize the lift_config *)
@@ -862,20 +882,11 @@ let lift_algebraic env sigma c ib_typ trm =
               let sigma, to_proj_o = is_proj c en sigma tr in
               if Option.has_some to_proj_o then (* TODO use proj rules and indexes! and then optimize after *)
                 (* COHERENCE *)
-                if l.is_fwd then
-                  let a, _ = Option.get to_proj_o in
-                  let sigma, b_sig = lift_rec en sigma ib_typ a in
-                  let sigma, a_typ = reduce_type en sigma a in
-                  let sigma, b_sig_typ = Util.on_snd dest_sigT (lift_rec en sigma ib_typ a_typ) in
-                  (sigma, project_index b_sig_typ b_sig), false
-                else
-                  let b_sig, _ = Option.get to_proj_o in
-                  let sigma, a = lift_rec en sigma ib_typ b_sig in
-                  if equal projT1 (first_fun tr) then
-                    let sigma, args = non_index_typ_args (Option.get l.off) en sigma b_sig in
-                    (sigma, mkAppl (Option.get l.orn.indexer, snoc a args)), false
-                  else
-                    (sigma, a), false
+                let to_proj, i = Option.get to_proj_o in
+                let sigma, args = non_index_typ_args (Option.get l.off) en sigma to_proj in
+                let p = c.proj_rules.(i) in
+                let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in (* TODO make aux function for the snoc/non_index_typ_args thing *)
+                lift_rec en sigma ib_typ projected, false
               else
                 let _, is_elim = is_eliminator c en tr sigma in (* sigma never changes here *)
                 if is_elim then
@@ -1075,17 +1086,15 @@ let lift_curry_record env sigma c trm =
             (* LIFT-PACK (extra rule for non-primitive projections) *)
               (sigma, tr), true (* TODO bwd case? also, is this even right for bwd case of algebraic? *)
             else
-              let sigma, to_proj_o = is_proj c en sigma tr in
+              let sigma, to_proj_o = is_proj c en sigma tr in (* TODO prob combine check w. is_elim though for efficiency. or match thing will help I guess *)
               if Option.has_some to_proj_o then
                 (* COHERENCE *)
-                if l.is_fwd then (* prob first step to generalizing to any equiv. at some point is making the fwd and bwd cases here depend only on equivalence and configuration *) (* TODO note this is to make things pretty, otherwise would handle fine w/ eliminator *)
-                  let a, i = Option.get to_proj_o in
-                  let lifted_proj = c.proj_rules.(i) in
-                  (sigma, mkApp (lifted_proj, Array.make 1 a)), false
-                else
-                  let b, i = Option.get to_proj_o in
-                  let lifted_proj = c.proj_rules.(i) in
-                  (sigma, mkApp (lifted_proj, Array.make 1 b)), false
+                (* prob first step to generalizing to any equiv. at some point is making the fwd and bwd cases here depend only on equivalence and configuration *) (* TODO note this is to make things pretty, otherwise would handle fine w/ eliminator *)
+                let to_proj, i = Option.get to_proj_o in
+                let sigma, args = non_index_typ_args (Option.get l.off) en sigma to_proj in
+                let p = c.proj_rules.(i) in
+                let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in (* TODO make aux function for the snoc/non_index_typ_args thing *)
+                lift_rec en sigma () projected, false
               else
             let sigma, is_elim = is_eliminator c en tr sigma in
             if is_elim then
