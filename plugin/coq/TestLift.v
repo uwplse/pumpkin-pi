@@ -49,42 +49,32 @@ Qed.
 
 (* --- Simple projection tests ---- *)
 
-(* TODO test w/ equal functions too *)
-
 Lift list vector in orn_list_vector_index as ltv_indexer_lifted.
-Print ltv_indexer_lifted.
-Fail.
-Theorem testNil:
-  forall A, nil'_c A = existT (vector A) 0 (nilV A).
+
+Theorem testProj:
+  forall A pv, ltv_indexer_lifted A pv = projT1 pv.
 Proof.
   intros. reflexivity.
 Qed.
 
-Definition nilV' (A : Type) :=
-  existT (vector A) 0 (nilV A).
+Definition proj_index (A : Type) (pv : sigT (vector A)) :=
+  projT1 pv.
 
-Lift vector list in nilV' as nilV'_c.
-Theorem testNilV:
-  forall A, nilV'_c A = @nil A.
+Lift vector list in proj_index as proj_index_lifted.
+
+Theorem testIndex:
+  forall A l, proj_index_lifted A l = orn_list_vector_index A l.
 Proof.
   intros. reflexivity.
 Qed.
 
-Definition cons' := @cons.
+Definition proj_val (A : Type) (pv : sigT (vector A)) :=
+  projT2 pv.
 
-Lift list vector in cons' as cons'_c.
-Theorem testCons:
-  forall A a pv,
-    cons'_c A a pv =
-    existT (vector A) (S (projT1 pv)) (consV A (projT1 pv) a (projT2 pv)).
-Proof.
-  intros. reflexivity.
-Qed.
+Lift vector list in proj_val as proj_val_lifted.
 
-Lift vector list in cons'_c as consV'_c.
-Theorem testConsV:
-  forall A a l,
-    consV'_c A a l = @cons A a l.
+Theorem testVal:
+  forall A l, proj_val_lifted A l = l.
 Proof.
   intros. reflexivity.
 Qed.
