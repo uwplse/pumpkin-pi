@@ -41,6 +41,12 @@ let dest_prod_type env sigma trm =
   let sigma, typ_red = reduce_term env sigma typ_red in
   ignore_env dest_prod env sigma typ_red
 
+let convertible env sigma t1 t2 =
+  if equal t1 t2 then
+    sigma, true
+  else
+    convertible env sigma t1 t2
+
 (* --- Internal lifting configuration --- *)
 
 (*
@@ -321,21 +327,21 @@ let is_proj c env sigma trm =
   match kind trm with
   | App _ | Const _ ->
      let f = first_fun trm in
-     let sigma, trm = expand_eta env sigma trm in
-     let env_b, b = zoom_lambda_term env trm in
-     let args = unfold_args b in
-     if List.length args = 0 then
-       sigma, None
-     else
-       (match c.l.orn.kind with
-        | Algebraic ->
-           branch_state
-             (fun f sigma ->
-               if c.l.is_fwd then
-                 convertible env sigma (Option.get c.l.orn.indexer) f
-               else
-                 convertible env sigma projT1 f)
-             (fun f sigma ->
+     (match c.l.orn.kind with
+      | Algebraic ->
+         branch_state
+           (fun f sigma ->
+             if c.l.is_fwd then
+               convertible env sigma (Option.get c.l.orn.indexer) f
+             else
+               convertible env sigma projT1 f)
+           (fun f sigma ->
+             let sigma, trm = expand_eta env sigma trm in
+             let env_b, b = zoom_lambda_term env trm in
+             let args = unfold_args b in
+             if List.length args = 0 then
+               sigma, None
+             else
                branch_state
                  (fun sigma a -> Util.on_snd Option.has_some (right_type env_b a sigma))
                  (fun a -> ret (Some (a, 0)))
@@ -349,12 +355,18 @@ let is_proj c env sigma trm =
                   else
                     convertible env sigma projT2 f)
                 (fun f sigma ->
-                  branch_state
-                    (fun sigma a -> Util.on_snd Option.has_some (right_type env_b a sigma))
-                    (fun a -> ret (Some (a, 1)))
-                    (fun _ -> ret None)
-                    (last args)
-                    sigma)
+                  let sigma, trm = expand_eta env sigma trm in
+                  let env_b, b = zoom_lambda_term env trm in
+                  let args = unfold_args b in
+                  if List.length args = 0 then
+                    sigma, None
+                  else
+                    branch_state
+                      (fun sigma a -> Util.on_snd Option.has_some (right_type env_b a sigma))
+                      (fun a -> ret (Some (a, 1)))
+                      (fun _ -> ret None)
+                      (last args)
+                      sigma)
                 (fun _ -> ret None))
              f
              sigma
