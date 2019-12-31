@@ -35,8 +35,13 @@ Module H.
 End H.
 
 Preprocess Module H as H_PP.
+Print H_PP.b.
+
+Print H.b.
 
 Lift SN_PP.h H_PP.H in H_PP.get_h_b as getHB.
+Print getHB.
+Print SN_PP.f.
 Lift SN_PP.h H_PP.H in SN_PP.f as f_PP { opaque andb }.
 
 Definition f_PP_expected (h : H_PP.H) (c : nat * (nat * (bool * (H_PP.H * nat)))) : bool :=

@@ -320,10 +320,9 @@ let is_packed c env sigma trm =
     | _ ->
        sigma, false
 
-(* Premises for LIFT-PROJ *)
+(* Premises for LIFT-PROJ (TODO clean lots) *)
 let is_proj c env sigma trm =
   let right_type = type_is_from c in
-  (* TODO eta stuff so indexer matches, but so does proj *)
   match kind trm with
   | App _ | Const _ ->
      let f = first_fun trm in
@@ -370,8 +369,8 @@ let is_proj c env sigma trm =
                 (fun _ -> ret None))
              f
              sigma
-        | CurryRecord ->
-           sigma, None) (* TODO *)
+      | CurryRecord ->
+         sigma, None) (* TODO *)
   | _ ->
      sigma, None
 
@@ -499,10 +498,10 @@ let initialize_proj_rules env sigma c =
   let l = c.l in
   let lift_f = unwrap_definition env (lift_to c.l) in
   let env_proj = zoom_env zoom_lambda_term env lift_f in
+  let t = mkRel 1 in
+  let sigma, lift_t = lift env_proj l t sigma in
   match l.orn.kind with
   | Algebraic ->
-     let t = mkRel 1 in
-     let sigma, lift_t = lift env_proj l t sigma in
      if l.is_fwd then (* indexer -> projT1 *)
        let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj sigma lift_t) in
        let p1 = reconstruct_lambda env_proj (project_index b_sig_typ lift_t) in
@@ -514,7 +513,34 @@ let initialize_proj_rules env sigma c =
        let p2 = reconstruct_lambda env_proj lift_t in
        sigma, Array.of_list [p1; p2]
   | CurryRecord ->
-     sigma, Array.make 0 (mkRel 1) (* TODO implement *)
+     if l.is_fwd then (* accessors -> projections *)
+       let rec build arg sigma = (* TODO merge w/ common build in lift_case, or get projections and use those there *)
+         let sigma, arg_typ = reduce_type env_proj sigma arg in
+         if equal (first_fun arg_typ) prod then
+           let arg_typ_prod = dest_prod arg_typ in
+           let arg_fst = prod_fst_elim arg_typ_prod arg in
+           let arg_snd = prod_snd_elim arg_typ_prod arg in
+           let sigma, args_tl = build arg_snd sigma in
+           sigma, arg_fst :: args_tl
+         else
+           sigma, [arg]
+       in
+       let sigma, p_bodies = build lift_t sigma in
+       map_state_array (fun p -> ret (reconstruct_lambda env_proj p)) (Array.of_list p_bodies) sigma
+     else (* projections -> accessors *)
+       let (a_typ, _) = c.typs in
+       let ((i, i_index), u) = destInd a_typ in
+       try
+         let p_opts = Recordops.lookup_projections (i, i_index) in
+         (* !!! TODO for this to work, will need preprocess to register lifted projections *) 
+         map_state_array
+           (fun p_opt -> ret (mkConst (Option.get p_opt)))
+           (Array.of_list p_opts)
+           sigma
+       with _ ->
+         Feedback.msg_warning
+           (Pp.str "Can't find record accessors; skipping an optimization");
+         sigma, Array.make 0 t
   
 
 (* Initialize the lift_config *)
