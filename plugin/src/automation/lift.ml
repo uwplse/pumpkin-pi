@@ -322,8 +322,6 @@ let is_packed c env sigma trm =
 
 (* Auxiliary function for premise for LIFT-PROJ *)
 let check_is_proj c env trm proj_is =
-  let open Printing in
-  debug_term env trm "trm";
   let right_type = type_is_from c in
   match kind trm with
   | App _ | Const _ ->
@@ -331,11 +329,9 @@ let check_is_proj c env trm proj_is =
      let rec check_is_proj_i i proj_is =
        match proj_is with
        | proj_i :: tl ->
-          debug_term env proj_i "proj_i";
           branch_state
             (convertible env proj_i)
             (fun _ sigma ->
-              let _ = Printf.printf "%s\n" "convertible" in
               let sigma, trm = expand_eta env sigma trm in
               let env_b, b = zoom_lambda_term env trm in
               let args = unfold_args b in
@@ -343,10 +339,8 @@ let check_is_proj c env trm proj_is =
                 sigma, None
               else
                 let a = last args in
-                debug_term env a "a";
                 let sigma_right, typ_args_o = right_type env_b sigma a in
                 if Option.has_some typ_args_o then
-                  let _ = Printf.printf "%s\n" "right type" in
                   ret (Some (a, i, Option.get typ_args_o)) sigma_right
                 else
                   ret None sigma)
@@ -360,8 +354,6 @@ let check_is_proj c env trm proj_is =
 
 (* Premises for LIFT-PROJ *)
 let is_proj c env trm =
-  let open Printing in
-  debug_term env trm "checking trm";
   if Array.length c.proj_rules = 0 then
     ret None
   else
@@ -531,14 +523,13 @@ let initialize_proj_rules env sigma c =
   | CurryRecord ->
      if l.is_fwd then (* accessors -> projections *)
        let rec build arg sigma = (* TODO merge w/ common build in lift_case, or get projections and use those there *)
-         let sigma, arg_typ = reduce_type env_proj sigma arg in
-         if equal (first_fun arg_typ) prod then
-           let arg_typ_prod = dest_prod arg_typ in
+         try
+           let arg_typ_prod = dest_prod_type env_proj sigma arg in
            let arg_fst = prod_fst_elim arg_typ_prod arg in
            let arg_snd = prod_snd_elim arg_typ_prod arg in
            let sigma, args_tl = build arg_snd sigma in
            sigma, arg_fst :: args_tl
-         else
+         with _ ->
            sigma, [arg]
        in
        let sigma, p_bodies = build lift_t sigma in
@@ -901,8 +892,6 @@ let lift_algebraic env sigma c ib_typ trm =
   let sigma, a_typ_eta = expand_eta env sigma a_typ in
   let a_arity = arity a_typ_eta in
   let rec lift_rec en sigma ib_typ tr : types state =
-    let open Printing in
-    debug_term en tr "tr";
     let (sigma, lifted), try_repack =
       let lifted_opt = lookup_lifting (lift_to l, lift_back l, tr) in
       if Option.has_some lifted_opt then
