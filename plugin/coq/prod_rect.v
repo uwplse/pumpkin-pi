@@ -32,24 +32,52 @@ Module H.
 
   Definition get_h_b (h : SN.h) : bool := fst h.
 
+  Definition get_h_n (h : SN.h) : nat := snd h.
+
 End H.
 
 Preprocess Module H as H_PP.
 
 Lift H_PP.H SN_PP.h in H_PP.b as get_h_b.
 Lift SN_PP.h H_PP.H in H_PP.get_h_b as getHB.
-Print getHB.
-(* TODO test ^ *)
 
-Print SN_PP.f.
+Definition get_h_b_expected (h : SN_PP.h) :=
+  Prod.fst _ _ h.
+
+Lemma test_get_h_b:
+  get_h_b = get_h_b_expected.
+Proof.
+  reflexivity.
+Qed.
+
+Lemma testGetHB:
+  getHB = H_PP.b.
+Proof.
+  reflexivity.
+Qed.
+
+Lift H_PP.H SN_PP.h in H_PP.n as get_h_n.
+Lift SN_PP.h H_PP.H in H_PP.get_h_n as getHN.
+
+Definition get_h_n_expected (h : SN_PP.h) :=
+  Prod.snd _ _ h.
+
+Lemma test_get_h_n:
+  get_h_n = get_h_n_expected.
+Proof.
+  reflexivity.
+Qed.
+
+Lemma testGetHN:
+  getHN = H_PP.n.
+Proof.
+  reflexivity.
+Qed.
+
 Lift SN_PP.h H_PP.H in SN_PP.f as f_PP { opaque andb }.
-Print f_PP.
 
 Definition f_PP_expected (h : H_PP.H) (c : nat * (nat * (bool * (H_PP.H * nat)))) : bool :=
- H_PP.H_rect
-    (fun _ : H_PP.H => bool)
-    (fun (b : bool) (_ : nat) => b)
-    h 
+ H_PP.b h 
  &&
  SN_PP.Coq_Init_Datatypes_fst bool (H_PP.H * nat)
    (SN_PP.Coq_Init_Datatypes_snd nat (bool * (H_PP.H * nat))
@@ -60,14 +88,6 @@ Lemma test_f_PP:
 Proof.
   reflexivity.
 Qed.
-
-(*
-Also wanted:
-
-- [H_PP.H_rect (fun _ : H_PP.H => bool) (fun (b : bool) (_ : nat) => b) h] is replaced with
-   the lifted accessor [getHB]. (TODO not done yet)
-
- *)
 
 Module C.
 
@@ -93,26 +113,13 @@ Lift SN_PP.h H_PP.H in C_PP.get_c_b as getCB0.
 Lift c_PP C_PP.C in getCB0 as getCB.
 
 Lift SN_PP.h H_PP.H in SN_PP.f as f0 { opaque andb }.
-
 Lift c_PP C_PP.C in f0 as f { opaque andb }.
 
 Definition f_expected (h : H_PP.H) (c : C_PP.C) : bool :=
-(H_PP.H_rect (fun _ : H_PP.H => bool) (fun (b : bool) (_ : nat) => b) h &&
- SN_PP.Coq_Init_Datatypes_fst bool (H_PP.H * nat)
-   (SN_PP.Coq_Init_Datatypes_snd nat (bool * (H_PP.H * nat))
-      (C_PP.C_rect (fun _ : C_PP.C => (nat * (bool * (H_PP.H * nat)))%type)
-         (fun (_ n2 : nat) (b : bool) (h0 : H_PP.H) (n3 : nat) =>
-          (n2, (b, (h0, n3)))) c))).
+  (H_PP.b h && C_PP.b c)%bool.
 
 Lemma test_f :
   f = f_expected.
 Proof.
   reflexivity.
 Qed.
-
-Require Import Patcher.Patch.
-
-(* TODO not done yet: 
-Definition f' (h : H_PP.H) (c : C_PP.C)
-  : bool
-  := (getHB h && getCB c)%bool. *)

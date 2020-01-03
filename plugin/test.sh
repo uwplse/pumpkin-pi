@@ -115,10 +115,10 @@ mkdir out/inputs
 mkdir out/equivalences
 make clean
 ulimit -s 100000
-casestart=$SECONDS	
+casestart=$SECONDS
 if make
 then
-  caseend=$SECONDS
+  caseend=$SECONDS # TODO this is not correct
   liftedcase=true
 else
   :

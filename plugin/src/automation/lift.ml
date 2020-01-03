@@ -136,7 +136,7 @@ let is_from c env sigma typ =
        if is_or_applies sigT typ && not (is_opaque c sigT) then
          let packed = dummy_index env sigma (dest_sigT typ).packer in
          if equal b_typ (first_fun packed) then
-           sigma, Some (non_index_args (Option.get c.l.off) env sigma typ)
+           sigma, Some (deindex c.l (unfold_args packed))
          else
            sigma, None
        else
@@ -329,21 +329,51 @@ let check_is_proj c env trm proj_is =
      let rec check_is_proj_i i proj_is =
        match proj_is with
        | proj_i :: tl ->
+          let env_proj_b, proj_b = zoom_lambda_term env proj_i in
+          let proj_i_f = first_fun proj_b in
           branch_state
-            (convertible env proj_i)
+            (convertible env proj_i_f)
             (fun _ sigma ->
               let sigma, trm = expand_eta env sigma trm in
               let env_b, b = zoom_lambda_term env trm in
               let args = unfold_args b in
               if List.length args = 0 then
-                sigma, None
+                check_is_proj_i (i + 1) tl sigma
               else
-                let a = last args in
-                let sigma_right, typ_args_o = right_type env_b sigma a in
-                if Option.has_some typ_args_o then
-                  ret (Some (a, i, Option.get typ_args_o)) sigma_right
+                if c.l.orn.kind = CurryRecord && not c.l.is_fwd then
+                  (* TODO hacky; clean/refactor common *)
+                  let rec get_arg j args =
+                    let a = last args in
+                    if j = 0 then
+                      a
+                    else
+                      get_arg (j - 1) (unfold_args a)
+                  in
+                  let j = if i = List.length proj_is then i - 1 else i in
+                  (* ^ TODO why not length - 1? confused ... *)
+                  try
+                    let a = get_arg j args in
+                    let sigma_right, typ_args_o = right_type env_b sigma a in
+                    if Option.has_some typ_args_o then
+                      let typ_args = Option.get typ_args_o in
+                      let p_app = mkAppl (proj_i, snoc a typ_args) in
+                      branch_state (* TODO check w/ pms *)
+                        (convertible env_b p_app)
+                        (fun _ -> ret (Some (a, i, Option.get typ_args_o)))
+                        (fun _ -> check_is_proj_i (i + 1) tl)
+                        b
+                        sigma
+                    else
+                      check_is_proj_i (i + 1) tl sigma       
+                  with _ ->
+                    check_is_proj_i (i + 1) tl sigma
                 else
-                  ret None sigma)
+                  let a = last args in
+                  let sigma_right, typ_args_o = right_type env_b sigma a in
+                  if Option.has_some typ_args_o then
+                    ret (Some (a, i, Option.get typ_args_o)) sigma_right
+                  else
+                    check_is_proj_i (i + 1) tl sigma)
             (fun _ -> check_is_proj_i (i + 1) tl)
             f
        | _ ->
@@ -380,7 +410,30 @@ let is_proj c env trm =
              (Pp.str "Can't find record accessors; skipping an optimization");
            ret None
        else
-         ret None (* TODO implement, not as easy *)
+         let lift_f = unwrap_definition env (lift_to c.l) in
+         let env_proj = zoom_env zoom_lambda_term env lift_f in
+         let rec build arg sigma = (* TODO merge w/ common build elsewhere *)
+           try
+             let arg_typ_prod = dest_prod_type env_proj sigma arg in
+             let arg_fst = prod_fst_elim arg_typ_prod arg in
+             let arg_snd = prod_snd_elim arg_typ_prod arg in
+             let sigma, args_tl = build arg_snd sigma in
+             sigma, arg_fst :: args_tl
+           with _ ->
+             sigma, [arg]
+         in
+         bind
+           (build (mkRel 1))
+           (fun p_bodies ->
+             let ps =
+               List.map
+                 (fun p -> reconstruct_lambda_n env_proj p (nb_rel env))
+                 p_bodies
+             in
+             if not (Array.length c.proj_rules = List.length ps) then
+               ret None
+             else
+               check_is_proj c env trm ps)
 
 (* Premises for LIFT-ELIM *)
 let is_eliminator c env trm sigma =
@@ -504,7 +557,7 @@ let initialize_constr_rules env sigma c =
  *)
 let initialize_proj_rules env sigma c =
   let l = c.l in
-  let lift_f = unwrap_definition env (lift_to c.l) in
+  let lift_f = unwrap_definition env (lift_to l) in
   let env_proj = zoom_env zoom_lambda_term env lift_f in
   let t = mkRel 1 in
   let sigma, lift_t = lift env_proj l t sigma in
@@ -993,7 +1046,7 @@ let lift_algebraic env sigma c ib_typ trm =
                        (* APP *)
                        let sigma, args' = map_rec_args lift_rec en sigma ib_typ args in
                        if (is_or_applies projT1 tr || is_or_applies projT2 tr) then
-                         (* optimize projections of existentials, which are common (TODO do we need this for curry_record?) *)
+                         (* optimize projections of existentials, which are common *)
                          let arg' = last (Array.to_list args') in
                          let arg'' = reduce_stateless reduce_term en sigma arg' in
                          if is_or_applies existT arg'' then
@@ -1203,6 +1256,22 @@ let lift_curry_record env sigma c trm =
                    lift_rec en sigma () (last_arg tr), false
                  else
                    (* APP *)
+                   (* optimize projections of pairs, which are common *)
+                   (* TODO move out common code w/ algebraic, move into a similar precondition liek is_proj *)
+                   if l.is_fwd && ((is_or_applies (Desugarprod.fst_elim ()) tr || is_or_applies (Desugarprod.snd_elim ()) tr)) then
+                     let sigma, args' = map_rec_args lift_rec en sigma () args in
+                     let arg' = last (Array.to_list args') in
+                     let arg'' = reduce_stateless reduce_term en sigma arg' in
+                     if is_or_applies pair arg'' then
+                       let p' = dest_pair arg'' in
+                       if equal (Desugarprod.fst_elim ()) f then
+                         (sigma, p'.Produtils.trm1), false
+                       else
+                         (sigma, p'.Produtils.trm2), false
+                     else
+                       let sigma, f' = lift_rec en sigma () f in
+                       (sigma, mkApp (f', args')), false
+                   else
                    let sigma, f' = lift_rec en sigma () f in
                    if (not l.is_fwd) && Array.length args > 0 && equal f f' && (not (is_opaque c f)) && ((not (isConst f)) || (not (Option.has_some (inductive_of_elim en (destConst f))))) then 
                      (* TODO do we need same extension to rule for lift algebraic? Can we disable w option? More complete this way, but can produce ugly terms. I think we only need this here because the type we are looking for in the backward direction is prod instantiating to something specific, though may also be true for sigma types in algebraic  *)
