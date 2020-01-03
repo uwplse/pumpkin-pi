@@ -136,7 +136,7 @@ let is_from c env sigma typ =
        if is_or_applies sigT typ && not (is_opaque c sigT) then
          let packed = dummy_index env sigma (dest_sigT typ).packer in
          if equal b_typ (first_fun packed) then
-           sigma, Some (unfold_args packed)
+           sigma, Some (non_index_args (Option.get c.l.off) env sigma typ)
          else
            sigma, None
        else
@@ -322,29 +322,34 @@ let is_packed c env sigma trm =
 
 (* Auxiliary function for premise for LIFT-PROJ *)
 let check_is_proj c env trm proj_is =
- let right_type = type_is_from c in
+  let open Printing in
+  debug_term env trm "trm";
+  let right_type = type_is_from c in
   match kind trm with
   | App _ | Const _ ->
      let f = first_fun trm in
      let rec check_is_proj_i i proj_is =
        match proj_is with
        | proj_i :: tl ->
+          debug_term env proj_i "proj_i";
           branch_state
             (convertible env proj_i)
             (fun _ sigma ->
+              let _ = Printf.printf "%s\n" "convertible" in
               let sigma, trm = expand_eta env sigma trm in
               let env_b, b = zoom_lambda_term env trm in
               let args = unfold_args b in
               if List.length args = 0 then
                 sigma, None
               else
-                branch_state
-                  (fun sigma a ->
-                    Util.on_snd Option.has_some (right_type env_b a sigma))
-                  (fun a -> ret (Some (a, i)))
-                  (fun _ -> ret None)
-                  (last args)
-                  sigma)
+                let a = last args in
+                debug_term env a "a";
+                let sigma_right, typ_args_o = right_type env_b sigma a in
+                if Option.has_some typ_args_o then
+                  let _ = Printf.printf "%s\n" "right type" in
+                  ret (Some (a, i, Option.get typ_args_o)) sigma_right
+                else
+                  ret None sigma)
             (fun _ -> check_is_proj_i (i + 1) tl)
             f
        | _ ->
@@ -355,14 +360,35 @@ let check_is_proj c env trm proj_is =
 
 (* Premises for LIFT-PROJ *)
 let is_proj c env trm =
-  match c.l.orn.kind with
-  | Algebraic -> 
-     if c.l.is_fwd then
-       check_is_proj c env trm [Option.get c.l.orn.indexer]
-     else
-       check_is_proj c env trm [projT1; projT2]
-  | CurryRecord ->
-     ret None (* TODO *)
+  let open Printing in
+  debug_term env trm "checking trm";
+  if Array.length c.proj_rules = 0 then
+    ret None
+  else
+    match c.l.orn.kind with
+    | Algebraic -> 
+       if c.l.is_fwd then
+         check_is_proj c env trm [Option.get c.l.orn.indexer]
+       else
+         check_is_proj c env trm [projT1; projT2]
+    | CurryRecord ->
+       if c.l.is_fwd then
+         try
+           (* TODO unify w/ stuff in initialize_proj_rules *)
+           let (a_typ, _) = c.typs in
+           let ((i, i_index), u) = destInd a_typ in
+           let p_opts = Recordops.lookup_projections (i, i_index) in
+           let ps = List.map (fun p_opt -> mkConst (Option.get p_opt)) p_opts in
+           if not (Array.length c.proj_rules = List.length ps) then
+             ret None
+           else
+             check_is_proj c env trm ps
+         with _ ->
+           Feedback.msg_warning
+             (Pp.str "Can't find record accessors; skipping an optimization");
+           ret None
+       else
+         ret None (* TODO implement, not as easy *)
 
 (* Premises for LIFT-ELIM *)
 let is_eliminator c env trm sigma =
@@ -523,8 +549,12 @@ let initialize_proj_rules env sigma c =
        try
          let p_opts = Recordops.lookup_projections (i, i_index) in
          map_state_array
-           (fun p_opt -> ret (mkConst (Option.get p_opt)))
-           (Array.of_list p_opts)
+           (fun p ->
+             let f = mkConst p in
+             let args = shift_all (mk_n_rels (nb_rel env_proj - 1)) in
+             let app = mkAppl (f, snoc lift_t args) in
+             ret (reconstruct_lambda env_proj app))
+           (Array.of_list (List.map Option.get p_opts))
            sigma
        with _ ->
          Feedback.msg_warning
@@ -871,6 +901,8 @@ let lift_algebraic env sigma c ib_typ trm =
   let sigma, a_typ_eta = expand_eta env sigma a_typ in
   let a_arity = arity a_typ_eta in
   let rec lift_rec en sigma ib_typ tr : types state =
+    let open Printing in
+    debug_term en tr "tr";
     let (sigma, lifted), try_repack =
       let lifted_opt = lookup_lifting (lift_to l, lift_back l, tr) in
       if Option.has_some lifted_opt then
@@ -895,7 +927,6 @@ let lift_algebraic env sigma c ib_typ trm =
             let packer = abs_ib (mkLambda (Anonymous, ib_typ, shift b_is)) in
             (sigma, pack_sigT { index_type = ib_typ; packer }), false
           else
-            let is = deindex l is in
             (sigma, mkAppl (a_typ, is)), false
         else
           let sigma, i_and_args_o = is_packed_constr c en sigma tr in
@@ -939,8 +970,7 @@ let lift_algebraic env sigma c ib_typ trm =
                     (* TODO move to a common place *)
                     lift_rec en sigma ib_typ tr_eta, false
                   else
-                    let to_proj, i = Option.get to_proj_o in
-                    let sigma, args = non_index_typ_args (Option.get l.off) en sigma to_proj in
+                    let to_proj, i, args = Option.get to_proj_o in
                     let p = c.proj_rules.(i) in
                     let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in (* TODO make aux function for the snoc/non_index_typ_args thing *)
                     lift_rec en sigma ib_typ projected, false
@@ -1146,12 +1176,17 @@ let lift_curry_record env sigma c trm =
               let sigma, to_proj_o = is_proj c en tr sigma in (* TODO prob combine check w. is_elim though for efficiency. or match thing will help I guess *)
               if Option.has_some to_proj_o then
                 (* COHERENCE *)
-                (* prob first step to generalizing to any equiv. at some point is making the fwd and bwd cases here depend only on equivalence and configuration *) (* TODO note this is to make things pretty, otherwise would handle fine w/ eliminator *)
-                let to_proj, i = Option.get to_proj_o in
-                let sigma, args = non_index_typ_args (Option.get l.off) en sigma to_proj in
-                let p = c.proj_rules.(i) in
-                let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in (* TODO make aux function for the snoc/non_index_typ_args thing *)
-                lift_rec en sigma () projected, false
+                (* TODO note this is to make things pretty, otherwise would handle fine w/ eliminator *)
+                let sigma, tr_eta = expand_eta en sigma tr in
+                if arity tr_eta > arity tr then
+                  (* lazy eta expansion; recurse *)
+                  (* TODO move to a common place *)
+                  lift_rec en sigma () tr_eta, false
+                else
+                  let to_proj, i, args = Option.get to_proj_o in
+                  let p = c.proj_rules.(i) in
+                  let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in
+                  lift_rec en sigma () projected, false
               else
             let sigma, is_elim = is_eliminator c en tr sigma in
             if is_elim then
@@ -1167,7 +1202,7 @@ let lift_curry_record env sigma c trm =
                 let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } in
                 let sigma, tr'' = lift_rec en sigma () tr' in
                 let sigma, post_args' = map_rec_args lift_rec en sigma () (Array.of_list post_args) in
-                (sigma, mkApp(tr'', post_args')), l.is_fwd
+                (sigma, mkApp (tr'', post_args')), l.is_fwd
             else
               match kind tr with
               | App (f, args) ->

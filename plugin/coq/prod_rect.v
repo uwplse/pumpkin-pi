@@ -39,10 +39,22 @@ Print H_PP.b.
 
 Print H.b.
 
+Lift H_PP.H SN_PP.h in H_PP.b as get_h_b.
+Print H_PP.b.
+Print get_h_b.
+Fail.
+
 Lift SN_PP.h H_PP.H in H_PP.get_h_b as getHB.
 Print getHB.
+
+
 Print SN_PP.f.
 Lift SN_PP.h H_PP.H in SN_PP.f as f_PP { opaque andb }.
+Lift H_PP.H SN_PP.h in f_PP as f' { opaque andb }.
+Lift 
+Print f'.
+
+Lift H_PP.H 
 
 Definition f_PP_expected (h : H_PP.H) (c : nat * (nat * (bool * (H_PP.H * nat)))) : bool :=
  H_PP.H_rect
