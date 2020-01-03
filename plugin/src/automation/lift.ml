@@ -320,13 +320,13 @@ let is_packed c env sigma trm =
     | _ ->
        sigma, false
 
-(* Premises for LIFT-PROJ (TODO clean lots) *)
-let is_proj c env sigma trm =
-  let right_type = type_is_from c in
+(* Auxiliary function for premise for LIFT-PROJ *)
+let check_is_proj c env trm proj_is =
+ let right_type = type_is_from c in
   match kind trm with
   | App _ | Const _ ->
      let f = first_fun trm in
-     let rec is_proj_i_inner i proj_is sigma = (* TODO explain, maybe generalize/move *)
+     let rec check_is_proj_i i proj_is =
        match proj_is with
        | proj_i :: tl ->
           branch_state
@@ -339,28 +339,30 @@ let is_proj c env sigma trm =
                 sigma, None
               else
                 branch_state
-                  (fun sigma a -> Util.on_snd Option.has_some (right_type env_b a sigma))
+                  (fun sigma a ->
+                    Util.on_snd Option.has_some (right_type env_b a sigma))
                   (fun a -> ret (Some (a, i)))
                   (fun _ -> ret None)
                   (last args)
                   sigma)
-            (fun _ -> is_proj_i_inner (i + 1) tl)
+            (fun _ -> check_is_proj_i (i + 1) tl)
             f
-            sigma
        | _ ->
-          sigma, None
-     in
-     let is_proj_i = is_proj_i_inner 0 in
-     (match c.l.orn.kind with
-      | Algebraic -> 
-         if c.l.is_fwd then
-           is_proj_i [Option.get c.l.orn.indexer] sigma
-         else
-           is_proj_i [projT1; projT2] sigma
-      | CurryRecord ->
-         sigma, None) (* TODO *)
+          ret None
+     in check_is_proj_i 0 proj_is
   | _ ->
-     sigma, None
+     ret None
+
+(* Premises for LIFT-PROJ *)
+let is_proj c env trm =
+  match c.l.orn.kind with
+  | Algebraic -> 
+     if c.l.is_fwd then
+       check_is_proj c env trm [Option.get c.l.orn.indexer]
+     else
+       check_is_proj c env trm [projT1; projT2]
+  | CurryRecord ->
+     ret None (* TODO *)
 
 (* Premises for LIFT-ELIM *)
 let is_eliminator c env trm sigma =
@@ -928,7 +930,7 @@ let lift_algebraic env sigma c ib_typ trm =
               else
                 lift_rec en sigma ib_typ (dest_existT tr).unpacked, false
             else
-              let sigma, to_proj_o = is_proj c en sigma tr in
+              let sigma, to_proj_o = is_proj c en tr sigma in
               if Option.has_some to_proj_o then (* TODO optimize after *)
                 (* COHERENCE *)
                  let sigma, tr_eta = expand_eta en sigma tr in
@@ -1141,7 +1143,7 @@ let lift_curry_record env sigma c trm =
             (* LIFT-PACK (extra rule for non-primitive projections) *)
               (sigma, tr), true (* TODO bwd case? also, is this even right for bwd case of algebraic? *)
             else
-              let sigma, to_proj_o = is_proj c en sigma tr in (* TODO prob combine check w. is_elim though for efficiency. or match thing will help I guess *)
+              let sigma, to_proj_o = is_proj c en tr sigma in (* TODO prob combine check w. is_elim though for efficiency. or match thing will help I guess *)
               if Option.has_some to_proj_o then
                 (* COHERENCE *)
                 (* prob first step to generalizing to any equiv. at some point is making the fwd and bwd cases here depend only on equivalence and configuration *) (* TODO note this is to make things pretty, otherwise would handle fine w/ eliminator *)
