@@ -41,7 +41,7 @@ let dest_prod_type env sigma trm =
   let sigma, typ_red = reduce_term env sigma typ_red in
   ignore_env dest_prod env sigma typ_red
 
-let convertible env sigma t1 t2 =
+let convertible env t1 t2 sigma =
   if equal t1 t2 then
     sigma, true
   else
@@ -153,7 +153,7 @@ let is_from c env sigma typ =
          sigma, None
        else if arity a_typ_typ = 0 then
          branch_state
-           (fun typ sigma -> convertible env sigma b_typ typ)
+           (convertible env b_typ)
            (fun _ -> ret (Some []))
            (fun _ -> ret None)
            typ
@@ -199,7 +199,7 @@ let is_from c env sigma typ =
                  (mkAppl (b_typ, typ_app_args))
              in
              let subbed = unshift_by (new_rels2 env_f env) subbed in
-             let sigma, conv = convertible env sigma subbed typ in
+             let sigma, conv = convertible env subbed typ sigma in
              sigma, Some (unfold_args subbed)
        else
          sigma, None
@@ -326,49 +326,37 @@ let is_proj c env sigma trm =
   match kind trm with
   | App _ | Const _ ->
      let f = first_fun trm in
+     let rec is_proj_i_inner i proj_is sigma = (* TODO explain, maybe generalize/move *)
+       match proj_is with
+       | proj_i :: tl ->
+          branch_state
+            (convertible env proj_i)
+            (fun _ sigma ->
+              let sigma, trm = expand_eta env sigma trm in
+              let env_b, b = zoom_lambda_term env trm in
+              let args = unfold_args b in
+              if List.length args = 0 then
+                sigma, None
+              else
+                branch_state
+                  (fun sigma a -> Util.on_snd Option.has_some (right_type env_b a sigma))
+                  (fun a -> ret (Some (a, i)))
+                  (fun _ -> ret None)
+                  (last args)
+                  sigma)
+            (fun _ -> is_proj_i_inner (i + 1) tl)
+            f
+            sigma
+       | _ ->
+          sigma, None
+     in
+     let is_proj_i = is_proj_i_inner 0 in
      (match c.l.orn.kind with
-      | Algebraic ->
-         branch_state
-           (fun f sigma ->
-             if c.l.is_fwd then
-               convertible env sigma (Option.get c.l.orn.indexer) f
-             else
-               convertible env sigma projT1 f)
-           (fun f sigma ->
-             let sigma, trm = expand_eta env sigma trm in
-             let env_b, b = zoom_lambda_term env trm in
-             let args = unfold_args b in
-             if List.length args = 0 then
-               sigma, None
-             else
-               branch_state
-                 (fun sigma a -> Util.on_snd Option.has_some (right_type env_b a sigma))
-                 (fun a -> ret (Some (a, 0)))
-                 (fun _ -> ret None)
-                 (last args)
-                 sigma) (* TODO refactor common stuff w/ below *)
-             (branch_state
-                (fun f sigma ->
-                  if c.l.is_fwd then
-                    sigma, false
-                  else
-                    convertible env sigma projT2 f)
-                (fun f sigma ->
-                  let sigma, trm = expand_eta env sigma trm in
-                  let env_b, b = zoom_lambda_term env trm in
-                  let args = unfold_args b in
-                  if List.length args = 0 then
-                    sigma, None
-                  else
-                    branch_state
-                      (fun sigma a -> Util.on_snd Option.has_some (right_type env_b a sigma))
-                      (fun a -> ret (Some (a, 1)))
-                      (fun _ -> ret None)
-                      (last args)
-                      sigma)
-                (fun _ -> ret None))
-             f
-             sigma
+      | Algebraic -> 
+         if c.l.is_fwd then
+           is_proj_i [Option.get c.l.orn.indexer] sigma
+         else
+           is_proj_i [projT1; projT2] sigma
       | CurryRecord ->
          sigma, None) (* TODO *)
   | _ ->
@@ -532,7 +520,6 @@ let initialize_proj_rules env sigma c =
        let ((i, i_index), u) = destInd a_typ in
        try
          let p_opts = Recordops.lookup_projections (i, i_index) in
-         (* !!! TODO for this to work, will need preprocess to register lifted projections *) 
          map_state_array
            (fun p_opt -> ret (mkConst (Option.get p_opt)))
            (Array.of_list p_opts)
