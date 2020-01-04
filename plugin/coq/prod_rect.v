@@ -47,13 +47,21 @@ Definition get_h_b_expected (h : SN_PP.h) :=
 Lemma test_get_h_b:
   get_h_b = get_h_b_expected.
 Proof.
-  reflexivity.
+  unfold get_h_b, get_h_b_expected.
+  match goal with
+  | |- ?x = ?x => reflexivity
+  | _ => idtac
+  end.
 Qed.
 
 Lemma testGetHB:
-  getHB = H_PP.b.
+  getHB = fun h => H_PP.b h.
 Proof.
-  reflexivity.
+  unfold getHB.
+  match goal with
+  | |- ?x = ?x => reflexivity
+  | _ => idtac
+  end.
 Qed.
 
 Lift H_PP.H SN_PP.h in H_PP.n as get_h_n.
@@ -65,16 +73,25 @@ Definition get_h_n_expected (h : SN_PP.h) :=
 Lemma test_get_h_n:
   get_h_n = get_h_n_expected.
 Proof.
-  reflexivity.
+  unfold get_h_n, get_h_n_expected.
+  match goal with
+  | |- ?x = ?x => reflexivity
+  | _ => idtac
+  end.
 Qed.
 
 Lemma testGetHN:
-  getHN = H_PP.n.
+  getHN = fun (h : H_PP.H) => H_PP.n h.
 Proof.
-  reflexivity.
+  unfold getHN. 
+  match goal with
+  | |- ?x = ?x => reflexivity
+  | _ => idtac
+  end.
 Qed.
 
 Lift SN_PP.h H_PP.H in SN_PP.f as f_PP { opaque andb }.
+Print f_PP.
 
 Definition f_PP_expected (h : H_PP.H) (c : nat * (nat * (bool * (H_PP.H * nat)))) : bool :=
  H_PP.b h 
@@ -86,7 +103,11 @@ Definition f_PP_expected (h : H_PP.H) (c : nat * (nat * (bool * (H_PP.H * nat)))
 Lemma test_f_PP:
   f_PP = f_PP_expected.
 Proof.
-  reflexivity.
+  unfold f_PP, f_PP_expected.
+  match goal with
+  | |- ?x = ?x => reflexivity
+  | _ => idtac
+  end.
 Qed.
 
 Module C.
@@ -121,5 +142,9 @@ Definition f_expected (h : H_PP.H) (c : C_PP.C) : bool :=
 Lemma test_f :
   f = f_expected.
 Proof.
-  reflexivity.
+  unfold f, f_expected.
+  match goal with
+  | |- ?x = ?x => reflexivity
+  | _ => idtac
+  end.
 Qed.
