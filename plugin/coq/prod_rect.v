@@ -91,7 +91,6 @@ Proof.
 Qed.
 
 Lift SN_PP.h H_PP.H in SN_PP.f as f_PP { opaque andb }.
-Print f_PP.
 
 Definition f_PP_expected (h : H_PP.H) (c : nat * (nat * (bool * (H_PP.H * nat)))) : bool :=
  H_PP.b h 
