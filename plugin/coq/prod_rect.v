@@ -6,7 +6,10 @@ Set Nonrecursive Elimination Schemes.
 
 (*
  * This code is a minimized example from @ptival, which I use as a regression test
- * to make sure projections aren't expanded and left as applications of prod_rect.
+ * to make sure projections aren't expanded and left as applications of prod_rect,
+ * and that projections/accessors lift to accessors/projections.
+ *
+ * The proofs here are purposely brittle, since they should break if the terms are not _exactly_ syntactically equal.
  *)
 
 Module SN.
