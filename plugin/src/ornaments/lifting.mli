@@ -15,7 +15,6 @@ open Caching
  *)
 type promotion =
   {
-    indexer : types option;
     promote : types;
     forget : types;
     kind : kind_of_orn;

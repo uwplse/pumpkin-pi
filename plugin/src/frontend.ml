@@ -39,8 +39,7 @@ let maybe_prove_coherence n inv_n idx_n kind : unit =
   if is_search_coh () && Option.has_some idx_n then
     let sigma, env = refresh_env () in
     let (promote, forget) = map_tuple make_constant (n, inv_n) in
-    let indexer = Some (make_constant (Option.get idx_n)) in
-    let orn = { indexer; promote; forget; kind } in
+    let orn = { promote; forget; kind } in
     let coh, coh_typ = prove_coherence env sigma orn in
     let coh_n = with_suffix n "coh" in
     let _ = define_term ~typ:coh_typ coh_n sigma coh true in
@@ -120,14 +119,16 @@ let find_ornament n_o d_old d_new =
         CErrors.user_err (str "Change not yet supported")
   in
   let sigma, orn = search_orn env sigma idx_n trm_o trm_n in
-  (match orn.kind with
-   | Algebraic ->
-      let idx_n = Option.get idx_n in
-      let indexer = Option.get orn.indexer in
-      let _ = define_term idx_n sigma indexer true in
-      Feedback.msg_info (str (Printf.sprintf "Defined indexing function %s." (Id.to_string idx_n)))
-   | _ ->
-      ());
+  let orn =
+    match orn.kind with
+    | Algebraic indexer ->
+       let idx_n = Option.get idx_n in
+       let indexer = define_term idx_n sigma indexer true in
+       Feedback.msg_info (str (Printf.sprintf "Defined indexing function %s." (Id.to_string idx_n)));
+       { orn with kind = Algebraic (Universes.constr_of_global indexer) }
+    | _ ->
+       orn
+  in
   let promote = define_term n sigma orn.promote true in
   Feedback.msg_info (str (Printf.sprintf "Defined promotion %s." (Id.to_string n)));
   let inv_n = with_suffix n "inv" in

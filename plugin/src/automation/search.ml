@@ -531,11 +531,10 @@ let search_algebraic env sigma npm indexer_n a b =
   let b = (b_typ, el_b_typ) in
   let sigma, idx = offset_and_ib env_pms a b sigma in (* idx = (off, I_B) *)
   let sigma, indexer = find_indexer env_pms idx el_a a b sigma in
-  let indexer = Some indexer in
   let a = (a_typ, arity_a, el_a, el_a_typ) in
   let b = (b_typ, arity_b, el_b, el_b_typ) in
   let sigma, (promote, forget) = find_promote_forget env_pms idx indexer_n a b sigma in
-  sigma, { indexer; promote; forget; kind = Algebraic }
+  sigma, { promote; forget; kind = Algebraic indexer }
 
 (* --- Records and products --- *)
 
@@ -575,7 +574,7 @@ let search_curry_record env_pms sigma a_ind b =
         let sigma, trm2 = make_c (n - 1) sigma in
         let sigma, typ1 = infer_type env_c sigma trm1 in
         let sigma, typ2 = infer_type env_c sigma trm2 in
-        sigma, apply_pair { typ1; typ2; trm1; trm2 }
+        sigma, apply_pair Produtils.{ typ1; typ2; trm1; trm2 }
     in
     let sigma, c = make_c (new_rels2 env_c env_p) sigma in
     let cs = [reconstruct_lambda_n env_c c (nb_rel env_p)] in
@@ -615,8 +614,7 @@ let search_curry_record env_pms sigma a_ind b =
     let app = mkAppl (c, args) in
     sigma, reconstruct_lambda env_arg app
   in
-  let indexer = None in
-  sigma, { promote; forget; indexer; kind = CurryRecord }
+  sigma, { promote; forget; kind = CurryRecord }
 
 (* --- Top-level search --- *)
 

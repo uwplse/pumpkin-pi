@@ -107,7 +107,7 @@ let typs_from_orn l env sigma =
   let (a_i_t, b_i_t) = on_red_type_default (ignore_env ind_of_promotion_type) env sigma l.orn.promote in
   let a_t = first_fun a_i_t in
   match l.orn.kind with
-  | Algebraic ->
+  | Algebraic _ ->
      let b_t = zoom_sig b_i_t in
      let i_b_t = (dest_sigT b_i_t).index_type in
      (a_t, b_t, Some i_b_t)
@@ -132,7 +132,7 @@ let is_from c env sigma typ =
       sigma, None
   else
     match c.l.orn.kind with
-    | Algebraic -> (* TODO explain the opaque thing *)
+    | Algebraic _ -> (* TODO explain the opaque thing *)
        if is_or_applies sigT typ && not (is_opaque c sigT) then
          let packed = dummy_index env sigma (dest_sigT typ).packer in
          if equal b_typ (first_fun packed) then
@@ -234,7 +234,7 @@ let is_packed_constr c env sigma trm =
            sigma, None)
      else
        (match c.l.orn.kind with
-        | Algebraic ->
+        | Algebraic _ ->
            if equal existT f then (* TODO why here is f OK, but in other case we need first_fun? eta? *)
              let sigma_right, args_opt = right_type trm sigma in
              if Option.has_some args_opt then
@@ -307,7 +307,7 @@ let is_packed c env sigma trm =
     match kind trm with
     | App (f, args) ->
        (match c.l.orn.kind with
-        | Algebraic ->
+        | Algebraic _ ->
            if equal existT f then
              Util.on_snd Option.has_some (right_type trm)
            else
@@ -388,9 +388,9 @@ let is_proj c env trm =
     ret None
   else
     match c.l.orn.kind with
-    | Algebraic -> 
+    | Algebraic indexer -> 
        if c.l.is_fwd then
-         check_is_proj c env trm [Option.get c.l.orn.indexer]
+         check_is_proj c env trm [indexer]
        else
          check_is_proj c env trm [projT1; projT2]
     | CurryRecord ->
@@ -487,7 +487,7 @@ let lift_constr env sigma c trm =
   let sigma, packed_args = map_backward pack_args l (sigma, args) in
   let sigma, app = lift env l trm sigma in
   match l.orn.kind with
-  | Algebraic ->
+  | Algebraic _ ->
      let sigma, rec_args = filter_state (fun tr sigma -> let sigma, o = type_is_from c env sigma tr in sigma, Option.has_some o) packed_args sigma in (* TODO use result? *)
      if List.length rec_args = 0 then
        (* base case - don't bother refolding *)
@@ -511,14 +511,14 @@ let initialize_constr_rule c env constr sigma =
       sigma, c_body
     else
       match c.l.orn.kind with
-      | Algebraic ->
+      | Algebraic _ ->
          pack env_c_b (Option.get c.l.off) c_body sigma
       | CurryRecord ->
          sigma, c_body
   in
   let sigma, lifted =
     match c.l.orn.kind with
-    | Algebraic ->
+    | Algebraic _ ->
        lift_constr env_c_b sigma c to_lift
     | CurryRecord ->
        if c.l.is_fwd then
@@ -534,7 +534,7 @@ let initialize_constr_rule c env constr sigma =
 let initialize_constr_rules env sigma c =
   let (a_typ, b_typ) = c.typs in
   match c.l.orn.kind with
-  | Algebraic ->
+  | Algebraic _ ->
     let ((i, i_index), u) = destInd (directional c.l a_typ b_typ) in
     let mutind_body = lookup_mind i env in
     let ind_bodies = mutind_body.mind_packets in
@@ -562,13 +562,12 @@ let initialize_proj_rules env sigma c =
   let t = mkRel 1 in
   let sigma, lift_t = lift env_proj l t sigma in
   match l.orn.kind with
-  | Algebraic ->
+  | Algebraic indexer ->
      if l.is_fwd then (* indexer -> projT1 *)
        let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj sigma lift_t) in
        let p1 = reconstruct_lambda env_proj (project_index b_sig_typ lift_t) in
        sigma, Array.make 1 p1
      else (* projT1 -> indexer, projT2 -> id *)
-       let indexer = Option.get l.orn.indexer in
        let args = shift_all (mk_n_rels (nb_rel env_proj - 1)) in
        let p1 = reconstruct_lambda env_proj (mkAppl (indexer, snoc lift_t args)) in
        let p2 = reconstruct_lambda env_proj lift_t in
@@ -631,7 +630,7 @@ let initialize_lift_config env sigma l typs ignores =
  *)
 let lift_elim_args env sigma l npms args =
   match l.orn.kind with
-  | Algebraic ->
+  | Algebraic _ ->
      let arg = map_backward last_arg l (last args) in
      let sigma, lifted_arg = lift env l arg sigma in
      let value_off = List.length args - 1 in
@@ -665,7 +664,7 @@ let lift_motive env sigma l npms parameterized_elim p =
   let sigma, lifted_arg = pack_lift env_p_to (flip_dir l) (last args) sigma in
   let args =
     match l.orn.kind with
-    | Algebraic ->
+    | Algebraic _ ->
        let value_off = nargs - 1 in
        let l = { l with off = Some (Option.get l.off - npms) } in (* no parameters here *)
        if l.is_fwd then
@@ -771,7 +770,7 @@ let lift_case env c p c_elim constr sigma =
   let sigma, c_elim_type = reduce_type env sigma c_elim in
   let (_, to_c_typ, _) = destProd c_elim_type in
   match c.l.orn.kind with
-  | Algebraic ->
+  | Algebraic _ ->
      let nihs = num_ihs env sigma to_typ to_c_typ in
      if nihs = 0 then
        (* base case *)
@@ -859,7 +858,7 @@ let lift_elim env sigma c trm_app =
   let (a_t, b_t) = c.typs in
   let to_typ = directional c.l b_t a_t in
   match c.l.orn.kind with
-  | Algebraic ->
+  | Algebraic _ ->
      let npms = List.length trm_app.pms in
      let elim = type_eliminator env (fst (destInd to_typ)) in
      let param_elim = mkAppl (elim, trm_app.pms) in
@@ -1401,7 +1400,7 @@ let do_lift_term env sigma (l : lifting) trm ignores =
   let (a_t, b_t, i_b_t_o) = typs_from_orn l env sigma in
   let sigma, c = initialize_lift_config env sigma l (a_t, b_t) ignores in
   match l.orn.kind with
-  | Algebraic ->
+  | Algebraic _ ->
      lift_algebraic env sigma c (Option.get i_b_t_o) trm
   | CurryRecord ->
      lift_curry_record env sigma c trm

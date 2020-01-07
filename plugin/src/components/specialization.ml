@@ -69,7 +69,7 @@ let lift env l trm sigma =
   let f = lift_to l in
   let sigma, typ_args =
     match l.orn.kind with
-    | Algebraic ->
+    | Algebraic _ ->
        non_index_typ_args (Option.get l.off) env sigma trm
     | CurryRecord ->
        on_red_type
@@ -122,7 +122,7 @@ let lift env l trm sigma =
 let pack_lift env l arg sigma =
   let sigma, arg =
     match l.orn.kind with
-    | Algebraic ->
+    | Algebraic _ ->
        map_backward
          (fun (sigma, t) -> pack env (Option.get l.off) t sigma)
          l

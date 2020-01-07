@@ -359,16 +359,13 @@ let equiv_proof_curry_record env sigma l =
 
 (*
  * Prove section/retraction
- * TODO instead of checking the indexer and so on, set a configuration option
- * saying what kind of ornament we are dealing with at the beginning
  *)
 let equiv_proof env sigma l =
-  if Option.has_some l.orn.indexer then
-    (* Algebraic ornament *)
-    equiv_proof_algebraic env sigma l
-  else
-    (* Curry record *)
-    equiv_proof_curry_record env sigma l
+  match l.orn.kind with
+  | Caching.Algebraic indexer ->
+     equiv_proof_algebraic env sigma l
+  | Caching.CurryRecord ->
+     equiv_proof_curry_record env sigma l
                         
 (*
  * Prove section and retraction

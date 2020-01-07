@@ -70,7 +70,7 @@ val cache_local : temporary_cache -> types -> types -> unit
 (*
  * The kind of ornament that is stored
  *)
-type kind_of_orn = Algebraic | CurryRecord
+type kind_of_orn = Algebraic of constr | CurryRecord
 
 (*
  * Lookup an ornament between two types

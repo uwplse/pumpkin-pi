@@ -245,13 +245,13 @@ let cache_local c trm lifted =
     Hashtbl.add c gr lifted
   with _ ->
     Feedback.msg_warning (Pp.str "can't cache term")
-
+                         
 (* --- Ornaments cache --- *)
 
 (*
  * This is a persistent cache for ornaments
  *)
-
+  
 (* The persistent storage is backed by a normal hashtable *)
 module OrnamentsCache =
   Hashtbl.Make
@@ -270,18 +270,21 @@ module OrnamentsCache =
 (* Initialize the ornament cache *)
 let orn_cache = OrnamentsCache.create 100
 
+(* Initialize the private cache of indexers for algebraic ornamnets *)
+let indexer_cache = OrnamentsCache.create 100
+                                      
 (*
  * The kind of ornament that is stored
  * TODO move this out since also used in lifting
  *)
-type kind_of_orn = Algebraic | CurryRecord
+type kind_of_orn = Algebraic of constr | CurryRecord
 
 (*
  * The kind of ornament is saved as an int, so this interprets it
  *)
-let int_to_kind (i : int) =
-  if i = 0 then
-    Algebraic
+let int_to_kind (i : int) (indexer : constr option) =
+  if i = 0 && Option.has_some indexer then
+    Algebraic (Option.get indexer)
   else if i = 1 then
     CurryRecord
   else
@@ -289,7 +292,7 @@ let int_to_kind (i : int) =
 
 let kind_to_int (k : kind_of_orn) =
   match k with
-  | Algebraic ->
+  | Algebraic _ ->
      0
   | CurryRecord ->
      1
@@ -300,13 +303,24 @@ let kind_to_int (k : kind_of_orn) =
 type orn_obj =
   (global_reference * global_reference) * (global_reference * global_reference * int)
 
+type indexer_obj =
+  (global_reference * global_reference) * global_reference
+
 let cache_ornament (_, (typs, orns_and_kind)) =
   OrnamentsCache.add orn_cache typs orns_and_kind
+
+let cache_indexer (_, (typs, indexer)) =
+  OrnamentsCache.add indexer_cache typs indexer
 
 let sub_ornament (subst, (typs, (orn_o, orn_n, kind))) =
   let typs = map_tuple (subst_global_reference subst) typs in
   let orn_o, orn_n = map_tuple (subst_global_reference subst) (orn_o, orn_n) in
   typs, (orn_o, orn_n, kind)
+
+let sub_indexer (subst, (typs, indexer)) =
+  let typs = map_tuple (subst_global_reference subst) typs in
+  let indexer = subst_global_reference subst indexer in
+  typs, indexer
 
 let inOrns : orn_obj -> obj =
   declare_object { (default_object "ORNAMENTS") with
@@ -316,6 +330,14 @@ let inOrns : orn_obj -> obj =
     classify_function = (fun orn_obj -> Substitute orn_obj);
     subst_function = sub_ornament }
 
+let inIndexers : indexer_obj -> obj =
+  declare_object { (default_object "INDEXERS") with
+    cache_function = cache_indexer;
+    load_function = (fun _ -> cache_indexer);
+    open_function = (fun _ -> cache_indexer);
+    classify_function = (fun ind_obj -> Substitute ind_obj);
+    subst_function = sub_indexer }
+                 
 (*
  * Precise version
  *)
@@ -347,7 +369,12 @@ let lookup_ornament typs =
     let (orn, orn_inv, i) = OrnamentsCache.find orn_cache globals in
     try
       let orn, orn_inv = map_tuple Universes.constr_of_global (orn, orn_inv) in
-      Some (orn, orn_inv, int_to_kind i)
+      if i = 0 then
+        let indexer = OrnamentsCache.find indexer_cache globals in
+        let indexer_c = Universes.constr_of_global indexer in 
+        Some (orn, orn_inv, int_to_kind i (Some indexer_c))
+      else
+        Some (orn, orn_inv, int_to_kind i None)
     with _ ->
       None
 (*
@@ -358,7 +385,14 @@ let save_ornament typs (orn, orn_inv, kind) =
     let globals = map_tuple global_of_constr typs in
     let orn, orn_inv = map_tuple global_of_constr (orn, orn_inv) in
     let orn_obj = inOrns (globals, (orn, orn_inv, kind_to_int kind)) in
-    add_anonymous_leaf orn_obj
+    add_anonymous_leaf orn_obj;
+    match kind with
+    | Algebraic indexer ->
+       let indexer = global_of_constr indexer in
+       let ind_obj = inIndexers (globals, indexer) in
+       add_anonymous_leaf ind_obj
+    | CurryRecord ->
+       ()
   with _ ->
     Feedback.msg_warning (Pp.str "Failed to cache ornament")
  
