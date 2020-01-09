@@ -1,8 +1,6 @@
 (*
  * These are the produtils from the library, but extended to automatically
  * also preprocess rather than produce terms with match statements
- *
- * TODO move me out of automation before merging
  *)
 
 open Constr

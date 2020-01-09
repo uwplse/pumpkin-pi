@@ -13,6 +13,7 @@
 -I src/ornaments
 -I src/cache
 -I src/components
+-I src/lib
 -I src/automation
 -I src
 -R theories Ornamental
@@ -92,8 +93,8 @@ src/cache/caching.mli
 src/ornaments/lifting.ml
 src/ornaments/lifting.mli
 
-src/automation/desugarprod.ml
-src/automation/desugarprod.mli
+src/lib/desugarprod.ml
+src/lib/desugarprod.mli
 
 src/components/factoring.ml	
 src/components/factoring.mli
