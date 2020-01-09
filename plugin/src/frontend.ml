@@ -35,17 +35,21 @@ let refresh_env () : env state =
  * If the option is enabled, then prove coherence after find_ornament is called.
  * Otherwise, do nothing.
  *)
-let maybe_prove_coherence n inv_n idx_n kind : unit =
-  if is_search_coh () && Option.has_some idx_n then
-    let sigma, env = refresh_env () in
-    let (promote, forget) = map_tuple make_constant (n, inv_n) in
-    let orn = { promote; forget; kind } in
-    let coh, coh_typ = prove_coherence env sigma orn in
-    let coh_n = with_suffix n "coh" in
-    let _ = define_term ~typ:coh_typ coh_n sigma coh true in
-    Feedback.msg_info (Pp.str (Printf.sprintf "Defined coherence proof %s" (Id.to_string coh_n)))
-  else
-    ()
+let maybe_prove_coherence n inv_n kind : unit =
+  match kind with
+  | Algebraic _ ->
+     if is_search_coh () then
+       let sigma, env = refresh_env () in
+       let (promote, forget) = map_tuple make_constant (n, inv_n) in
+       let orn = { promote; forget; kind } in
+       let coh, coh_typ = prove_coherence env sigma orn in
+       let coh_n = with_suffix n "coh" in
+       let _ = define_term ~typ:coh_typ coh_n sigma coh true in
+       Feedback.msg_info (Pp.str (Printf.sprintf "Defined coherence proof %s" (Id.to_string coh_n)))
+     else
+       ()
+  | _ ->
+     ()
 
 (*
  * If the option is enabled, then prove section, retraction, and adjunction after
@@ -134,7 +138,7 @@ let find_ornament n_o d_old d_new =
   let inv_n = with_suffix n "inv" in
   let forget = define_term inv_n sigma orn.forget true in
   Feedback.msg_info (str (Printf.sprintf "Defined forgetful function %s." (Id.to_string inv_n)));
-  maybe_prove_coherence n inv_n idx_n orn.kind;
+  maybe_prove_coherence n inv_n orn.kind;
   maybe_prove_equivalence n inv_n;
   (try
      let trm_o = if isInd trm_o then trm_o else def_o in

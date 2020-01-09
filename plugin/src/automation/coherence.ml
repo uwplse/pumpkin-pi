@@ -32,4 +32,5 @@ let prove_coherence env sigma orn =
      let coh_typ = reconstruct_product env_coh refl_typ in
      (coh, coh_typ)
   | _ ->
-     raise Not_found (* TODO better *)
+     CErrors.user_err
+       (Pp.str "Coherence proofs supported for only algebraic ornaments. Please report an error if you see this message.")
