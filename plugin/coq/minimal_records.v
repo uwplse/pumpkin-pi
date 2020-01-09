@@ -88,11 +88,10 @@ Lift Generated'.output Handwritten'.output in Generated'.andBools as andBools.
 (*
  * Now lifting to op uses the cached results:
  *)
-Lift Generated'.input Handwritten'.input in Generated'.op as op_1 { opaque Generated'.Coq_Init_Datatypes_andb }.
+Lift Generated'.input Handwritten'.input in Generated'.op as op_1.
 Lift Generated'.output Handwritten'.output in op_1 as op {opaque firstBool numberI secondBool}.
 (*
  * Note that to get prettier results here, we told to treat certain constants as opaque.
- * (TODO why is opacity of andb not inferred and used automatically?)
  * Otherwise, it would have opportunistically lifted everything.
  * You can also use this to speed up lifting.
  * Use this feature at your own risk (DEVOID might fail to lift if you use it badly).
