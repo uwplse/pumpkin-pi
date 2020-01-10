@@ -21,16 +21,14 @@ type promotion =
   }
 
 (*
- * A lifting is an ornamental promotion between types, a direction,
- * and the offset of the index if applicable. This is a convenience 
- * configuration for lifting functions and proofs, which wraps the promotion
- * with extra useful information.
+ * A lifting is an ornamental promotion between types and a direction,
+ * This is a convenience configuration for lifting functions and proofs,
+ * which wraps the promotion with extra useful information.
  *)
 type lifting =
   {
     orn : promotion;
     is_fwd : bool;
-    off : int option;
   }
 
 (* --- Initialization --- *)

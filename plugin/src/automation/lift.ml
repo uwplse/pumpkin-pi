@@ -95,8 +95,19 @@ let smart_cache c trm lifted =
 
 (* --- Index/deindex functions --- *)
 
-let index l = insert_index (Option.get l.off)
-let deindex l = remove_index (Option.get l.off)
+let index l =
+  match l.orn.kind with
+  | Algebraic (_, off) ->
+     insert_index off
+  | _ ->
+     failwith "Wrong kind of ornament"
+
+let deindex l =
+  match l.orn.kind with
+  | Algebraic (_, off) ->
+     remove_index off
+  | _ ->
+     failwith "Wrong kind of ornament"
 
 (* --- Recovering types from ornaments --- *)
 
@@ -388,7 +399,7 @@ let is_proj c env trm =
     ret None
   else
     match c.l.orn.kind with
-    | Algebraic indexer -> 
+    | Algebraic (indexer, _) ->
        if c.l.is_fwd then
          check_is_proj c env trm [indexer]
        else
@@ -473,7 +484,11 @@ let is_eliminator c env trm sigma =
 let pack_to_typ env sigma c unpacked =
   let (_, b_typ) = c.typs in
   if on_red_type_default (ignore_env (is_or_applies b_typ)) env sigma unpacked then
-    pack env (Option.get c.l.off) unpacked sigma
+    match c.l.orn.kind with
+    | Algebraic (_, off) ->
+       pack env off unpacked sigma
+    | _ ->
+       failwith "Wrong kind of ornament"
   else
     sigma, unpacked
 
@@ -511,8 +526,8 @@ let initialize_constr_rule c env constr sigma =
       sigma, c_body
     else
       match c.l.orn.kind with
-      | Algebraic _ ->
-         pack env_c_b (Option.get c.l.off) c_body sigma
+      | Algebraic (_, off) ->
+         pack env_c_b off c_body sigma
       | CurryRecord ->
          sigma, c_body
   in
@@ -562,7 +577,7 @@ let initialize_proj_rules env sigma c =
   let t = mkRel 1 in
   let sigma, lift_t = lift env_proj l t sigma in
   match l.orn.kind with
-  | Algebraic indexer ->
+  | Algebraic (indexer, _) ->
      if l.is_fwd then (* indexer -> projT1 *)
        let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj sigma lift_t) in
        let p1 = reconstruct_lambda env_proj (project_index b_sig_typ lift_t) in
@@ -630,11 +645,12 @@ let initialize_lift_config env sigma l typs ignores =
  *)
 let lift_elim_args env sigma l npms args =
   match l.orn.kind with
-  | Algebraic _ ->
+  | Algebraic (indexer, off) ->
      let arg = map_backward last_arg l (last args) in
      let sigma, lifted_arg = lift env l arg sigma in
      let value_off = List.length args - 1 in
-     let l = { l with off = Some (Option.get l.off - npms) } in (* we no longer have parameters *)
+     let orn = { l.orn with kind = Algebraic (indexer, off - npms) } in
+     let l = { l with orn } in (* no parameters here *)
      if l.is_fwd then
        (* project and index *)
        let b_sig = lifted_arg in
@@ -664,9 +680,10 @@ let lift_motive env sigma l npms parameterized_elim p =
   let sigma, lifted_arg = pack_lift env_p_to (flip_dir l) (last args) sigma in
   let args =
     match l.orn.kind with
-    | Algebraic _ ->
+    | Algebraic (indexer, off) ->
        let value_off = nargs - 1 in
-       let l = { l with off = Some (Option.get l.off - npms) } in (* no parameters here *)
+       let orn = { l.orn with kind = Algebraic (indexer, off - npms) } in
+       let l = { l with orn } in (* no parameters here *)
        if l.is_fwd then
          (* forget packed b to a, don't project, and deindex *)
          let a = lifted_arg in
@@ -703,10 +720,14 @@ let promote_case_args env sigma c args =
          let sigma, t = reduce_type env sigma n in
          if is_or_applies b_typ t then
            (* FORGET-ARG *)
-           let sigma, a = pack_lift env (flip_dir c.l) n sigma in
-           Util.on_snd
-             (fun tl -> a :: tl)
-             (lift_args sigma tl (get_arg (Option.get c.l.off) t))
+           match c.l.orn.kind with
+           | Algebraic (_, off) ->
+              let sigma, a = pack_lift env (flip_dir c.l) n sigma in
+              Util.on_snd
+                (fun tl -> a :: tl)
+                (lift_args sigma tl (get_arg off t))
+           | _ ->
+              failwith "Wrong kind of ornament"
          else
            (* ARG *)
            Util.on_snd (fun tl -> n :: tl) (lift_args sigma tl i_b)
@@ -734,13 +755,17 @@ let forget_case_args env_c_b env sigma c args =
          let sigma, t = reduce_type env_c_b sigma n in
          if is_or_applies b_typ t then
            (* PROMOTE-ARG *)
-           let sigma, b_sig =  pack_lift env (flip_dir c.l) n sigma in
-           let b_sig_typ = dest_sigT_type env sigma b_sig in
-           let proj_b = project_value b_sig_typ b_sig in
-           let proj_i_b = project_index b_sig_typ b_sig in
-           Util.on_snd
-             (fun tl -> proj_b :: tl)
-             (lift_args sigma tl (get_arg (Option.get c.l.off) t, proj_i_b))
+           match c.l.orn.kind with
+           | Algebraic (_, off) ->
+              let sigma, b_sig =  pack_lift env (flip_dir c.l) n sigma in
+              let b_sig_typ = dest_sigT_type env sigma b_sig in
+              let proj_b = project_value b_sig_typ b_sig in
+              let proj_i_b = project_index b_sig_typ b_sig in
+              Util.on_snd
+                (fun tl -> proj_b :: tl)
+                (lift_args sigma tl (get_arg off t, proj_i_b))
+           | _ ->
+              failwith "Wrong kind of ornament"
          else
            (* ARG *)
            Util.on_snd

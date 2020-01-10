@@ -125,11 +125,11 @@ let find_ornament n_o d_old d_new =
   let sigma, orn = search_orn env sigma idx_n trm_o trm_n in
   let orn =
     match orn.kind with
-    | Algebraic indexer ->
+    | Algebraic (indexer, off) ->
        let idx_n = Option.get idx_n in
        let indexer = define_term idx_n sigma indexer true in
        Feedback.msg_info (str (Printf.sprintf "Defined indexing function %s." (Id.to_string idx_n)));
-       { orn with kind = Algebraic (Universes.constr_of_global indexer) }
+       { orn with kind = Algebraic (Universes.constr_of_global indexer, off) }
     | _ ->
        orn
   in

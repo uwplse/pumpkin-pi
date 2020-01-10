@@ -277,14 +277,15 @@ let indexer_cache = OrnamentsCache.create 100
  * The kind of ornament that is stored
  * TODO move this out since also used in lifting
  *)
-type kind_of_orn = Algebraic of constr | CurryRecord
+type kind_of_orn = Algebraic of constr * int | CurryRecord
 
 (*
  * The kind of ornament is saved as an int, so this interprets it
  *)
-let int_to_kind (i : int) (indexer : constr option) =
-  if i = 0 && Option.has_some indexer then
-    Algebraic (Option.get indexer)
+let int_to_kind (i : int) (indexer_and_off : (constr * int) option) =
+  if i = 0 && Option.has_some indexer_and_off then
+    let indexer, off = Option.get indexer_and_off in
+    Algebraic (indexer, off)
   else if i = 1 then
     CurryRecord
   else
@@ -304,23 +305,23 @@ type orn_obj =
   (global_reference * global_reference) * (global_reference * global_reference * int)
 
 type indexer_obj =
-  (global_reference * global_reference) * global_reference
+  (global_reference * global_reference) * (global_reference * int)
 
 let cache_ornament (_, (typs, orns_and_kind)) =
   OrnamentsCache.add orn_cache typs orns_and_kind
 
-let cache_indexer (_, (typs, indexer)) =
-  OrnamentsCache.add indexer_cache typs indexer
+let cache_indexer (_, (typs, indexer_and_off)) =
+  OrnamentsCache.add indexer_cache typs indexer_and_off
 
 let sub_ornament (subst, (typs, (orn_o, orn_n, kind))) =
   let typs = map_tuple (subst_global_reference subst) typs in
   let orn_o, orn_n = map_tuple (subst_global_reference subst) (orn_o, orn_n) in
   typs, (orn_o, orn_n, kind)
 
-let sub_indexer (subst, (typs, indexer)) =
+let sub_indexer (subst, (typs, (indexer, off))) =
   let typs = map_tuple (subst_global_reference subst) typs in
   let indexer = subst_global_reference subst indexer in
-  typs, indexer
+  typs, (indexer, off)
 
 let inOrns : orn_obj -> obj =
   declare_object { (default_object "ORNAMENTS") with
@@ -370,9 +371,9 @@ let lookup_ornament typs =
     try
       let orn, orn_inv = map_tuple Universes.constr_of_global (orn, orn_inv) in
       if i = 0 then
-        let indexer = OrnamentsCache.find indexer_cache globals in
-        let indexer_c = Universes.constr_of_global indexer in 
-        Some (orn, orn_inv, int_to_kind i (Some indexer_c))
+        let (indexer, off) = OrnamentsCache.find indexer_cache globals in
+        let indexer = Universes.constr_of_global indexer in 
+        Some (orn, orn_inv, int_to_kind i (Some (indexer, off)))
       else
         Some (orn, orn_inv, int_to_kind i None)
     with _ ->
@@ -387,9 +388,9 @@ let save_ornament typs (orn, orn_inv, kind) =
     let orn_obj = inOrns (globals, (orn, orn_inv, kind_to_int kind)) in
     add_anonymous_leaf orn_obj;
     match kind with
-    | Algebraic indexer ->
+    | Algebraic (indexer, off) ->
        let indexer = global_of_constr indexer in
-       let ind_obj = inIndexers (globals, indexer) in
+       let ind_obj = inIndexers (globals, (indexer, off)) in
        add_anonymous_leaf ind_obj
     | CurryRecord ->
        ()

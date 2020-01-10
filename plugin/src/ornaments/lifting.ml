@@ -32,19 +32,14 @@ type promotion =
   }
 
 (*
- * A lifting is an ornamental promotion between types, a direction,
- * and the offset of the index. This is a convenience configuration for
- * lifting functions and proofs, which wraps the promotion with extra
- * useful information.
- *
- * TODO can consolidate off and indexer with kind, but a bit hard b.c. of
- * caching
+ * A lifting is an ornamental promotion between types and a direction,
+ * This is a convenience configuration for lifting functions and proofs,
+ * which wraps the promotion with extra useful information.
  *)
 type lifting =
   {
     orn : promotion;
     is_fwd : bool;
-    off : int option;
   }
 
 (* --- Control structures --- *)
@@ -140,31 +135,14 @@ let get_kind_of_ornament env (o, n) sigma =
     let to_ind = snd (ind_of_promotion env sigma promote_unpacked) in
     let to_args = unfold_args to_ind in
     let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
-    let (_, i) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
+    let (o, i) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
     let indexer = first_fun i in
-    is_fwd, Algebraic indexer
+    is_fwd, Algebraic (indexer, o)
   else
     let is_fwd = not (equal Produtils.prod (first_fun from_typ_app)) in
     is_fwd, CurryRecord
 
 (* --- Initialization --- *)
-    
-(*
- * Initialize a promotion
- *)
-let initialize_promotion env sigma promote forget kind =
-    match kind with
-    | Algebraic _ ->
-       let promote_unpacked = unpack_promotion env (unwrap_definition env promote) in
-       let to_ind = snd (ind_of_promotion env sigma promote_unpacked) in
-       let to_args = unfold_args to_ind in
-       let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
-       let (o, i) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
-       let off = Some o in
-       (off, { promote; forget; kind })
-    | _ ->
-       let off = None in
-       (off, { promote; forget; kind } )
 
 (*
  * Initialize a lifting
@@ -188,8 +166,8 @@ let initialize_lifting env sigma o n =
       let orns = map_if reverse (not is_fwd) (o, n) in
       is_fwd, orns, k
   in
-  let (off, orn) = initialize_promotion env sigma promote forget kind in
-  { orn ; is_fwd ; off }
+  let orn = { promote; forget; kind } in
+  { orn ; is_fwd }
                                 
 (* --- Directionality --- *)
        

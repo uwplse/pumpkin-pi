@@ -16,7 +16,7 @@ open Sigmautils
  *)
 let prove_coherence env sigma orn =
   match orn.kind with
-  | Caching.Algebraic indexer ->
+  | Caching.Algebraic (indexer, off) ->
      let promote = lookup_definition env orn.promote in
      let env_coh = zoom_env zoom_lambda_term env promote in
      let a = mkRel 1 in
@@ -32,5 +32,4 @@ let prove_coherence env sigma orn =
      let coh_typ = reconstruct_product env_coh refl_typ in
      (coh, coh_typ)
   | _ ->
-     CErrors.user_err
-       (Pp.str "Coherence proofs supported for only algebraic ornaments. Please report an error if you see this message.")
+     failwith "Wrong kind of ornament"

@@ -42,7 +42,7 @@ open Desugarprod
  * Take as arguments the original environment, an evar_map, the recursive
  * arguments for the particular case, and a lift config.
  *)
-let eq_lemmas_env env recs l =
+let eq_lemmas_env env recs l off =
   fold_left_state
     (fun e r sigma ->
       let r1 = shift_by (new_rels2 e env) r in
@@ -52,16 +52,16 @@ let eq_lemmas_env env recs l =
           (fun (sigma, e) ->
             Util.on_snd
               (fun t -> push_local (Anonymous, t) e)
-              (reduce_type e sigma (get_arg (Option.get l.off) r_t)))
+              (reduce_type e sigma (get_arg off r_t)))
           l
       in
       (* push index in backwards direction *)
       let sigma, e_ib = push_ib (sigma, e) in
-      let adj_back = map_backward (reindex_app (reindex (Option.get l.off) (mkRel 1))) l in
+      let adj_back = map_backward (reindex_app (reindex off (mkRel 1))) l in
       let r_t = adj_back (shift_by (new_rels2 e_ib e) r_t) in
       (* push new rec arg *)
       let e_r = push_local (Anonymous, r_t) e_ib in
-      let pack_back = map_backward (fun (sigma, t) -> pack e_r (Option.get l.off) t sigma) l in
+      let pack_back = map_backward (fun (sigma, t) -> pack e_r off t sigma) l in
       let sigma, r1 = pack_back (sigma, shift_by (new_rels2 e_r e) r1) in
       let sigma, r2 = pack_back (sigma, mkRel 1) in
       let sigma, r_t = reduce_type e_r sigma r1 in
@@ -75,7 +75,7 @@ let eq_lemmas_env env recs l =
  * Determine the equality lemmas for each case of an inductive type for an
  * algebraic ornament.
  *)
-let eq_lemmas_algebraic env sigma typ l =
+let eq_lemmas_algebraic env sigma typ l off =
   let ((i, i_index), u) = destInd typ in
   map_state_array
     (fun c_index sigma ->
@@ -85,8 +85,8 @@ let eq_lemmas_algebraic env sigma typ l =
       let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
       let c_args = unfold_args c_body in
       let recs = List.filter (on_red_type_default (ignore_env (is_or_applies typ)) env_c_b sigma) c_args in
-      let sigma, env_lemma = eq_lemmas_env env_c_b recs l sigma in
-      let pack_back = map_backward (fun (sigma, t) -> pack env_lemma (Option.get l.off) t sigma) l in
+      let sigma, env_lemma = eq_lemmas_env env_c_b recs l off sigma in
+      let pack_back = map_backward (fun (sigma, t) -> pack env_lemma off t sigma) l in
       let sigma, c_body = pack_back (sigma, shift_by (new_rels2 env_lemma env_c_b) c_body) in
       let sigma, c_body_type = reduce_type env_lemma sigma c_body in
       (* reflexivity proof: the identity case *)
@@ -139,11 +139,11 @@ let eq_lemmas_algebraic env sigma typ l =
 (*
  * Construct the motive for section/retraction
  *)
-let equiv_motive env sigma p_t l =
+let equiv_motive env sigma p_t l off =
   let env_motive = zoom_env zoom_product_type env p_t in
-  let sigma, trm1 = map_backward (fun (sigma, t) -> pack env_motive (Option.get l.off) t sigma) l (sigma, mkRel 1) in
+  let sigma, trm1 = map_backward (fun (sigma, t) -> pack env_motive off t sigma) l (sigma, mkRel 1) in
   let sigma, at_type = reduce_type env_motive sigma trm1 in
-  let typ_args = non_index_args (Option.get l.off) env_motive sigma at_type in
+  let typ_args = non_index_args off env_motive sigma at_type in
   let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
   let trm2 = mkAppl (lift_back l, snoc trm1_lifted typ_args) in
   let p_b = apply_eq { at_type; trm1; trm2 } in
@@ -204,7 +204,7 @@ let equiv_cases env sigma pms p lemmas l elim_typ =
 (*
  * Prove section/retraction for an algebraic ornament
  *)
-let equiv_proof_algebraic env sigma l =
+let equiv_proof_algebraic env sigma l off =
   let to_body = lookup_definition env (lift_to l) in
   let env_to = zoom_env zoom_lambda_term env to_body in
   let sigma, typ_app = reduce_type env_to sigma (mkRel 1) in
@@ -212,7 +212,7 @@ let equiv_proof_algebraic env sigma l =
   let ((i, i_index), _) = destInd typ in
   let npm = (lookup_mind i env).mind_nparams in
   let nargs = new_rels env_to npm in
-  let sigma, lemmas = eq_lemmas_algebraic env sigma typ l in (* equality lemmas *)
+  let sigma, lemmas = eq_lemmas_algebraic env sigma typ l off in (* equality lemmas *)
   let env_eq_proof = (* unpack env_to for retraction *)
     map_backward
       (fun env ->
@@ -229,11 +229,11 @@ let equiv_proof_algebraic env sigma l =
   let (env_pms, elim_typ_p) = zoom_n_prod env npm elim_typ in
   let (n, p_t, elim_typ) = destProd elim_typ_p in
   let env_p = push_local (n, p_t) env_pms in
-  let sigma, p = Util.on_snd shift (equiv_motive env_pms sigma p_t l) in
+  let sigma, p = Util.on_snd shift (equiv_motive env_pms sigma p_t l off) in
   let pms = shift_all (mk_n_rels npm) in
   let cs = equiv_cases env_p sigma pms p lemmas l elim_typ in
   let args = shift_all_by (new_rels2 env_eq_proof env_to) (mk_n_rels nargs) in
-  let index_back = map_backward (insert_index (Option.get l.off - npm) (mkRel 2)) l in
+  let index_back = map_backward (insert_index (off - npm) (mkRel 2)) l in
   let reindex_back = map_backward (reindex nargs (mkRel 1)) l in
   let depth = new_rels2 env_eq_proof env_p in
   let eq_proof =
@@ -362,8 +362,8 @@ let equiv_proof_curry_record env sigma l =
  *)
 let equiv_proof env sigma l =
   match l.orn.kind with
-  | Caching.Algebraic indexer ->
-     equiv_proof_algebraic env sigma l
+  | Caching.Algebraic (indexer, off) ->
+     equiv_proof_algebraic env sigma l off
   | Caching.CurryRecord ->
      equiv_proof_curry_record env sigma l
                         

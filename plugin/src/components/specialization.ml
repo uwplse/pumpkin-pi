@@ -69,8 +69,8 @@ let lift env l trm sigma =
   let f = lift_to l in
   let sigma, typ_args =
     match l.orn.kind with
-    | Algebraic _ ->
-       non_index_typ_args (Option.get l.off) env sigma trm
+    | Algebraic (_, off) ->
+       non_index_typ_args off env sigma trm
     | CurryRecord ->
        on_red_type
          reduce_nf
@@ -122,9 +122,9 @@ let lift env l trm sigma =
 let pack_lift env l arg sigma =
   let sigma, arg =
     match l.orn.kind with
-    | Algebraic _ ->
+    | Algebraic (_, off) ->
        map_backward
-         (fun (sigma, t) -> pack env (Option.get l.off) t sigma)
+         (fun (sigma, t) -> pack env off t sigma)
          l
          (sigma, arg)
     | CurryRecord ->
@@ -192,32 +192,40 @@ let fold_back_constants env f trm =
  * when the ornament application produces an existT term.
  *)
 let refold_packed l orn env arg app_red sigma =
-  let sigma, typ_args = non_index_typ_args (Option.get l.off) env sigma arg in
-  let orn_app = mkAppl (orn, snoc arg typ_args) in
-  let orn_app_red = reduce_stateless reduce_nf env sigma orn_app in
-  let app_red_ex = dest_existT app_red in
-  let orn_app_red_ex = dest_existT orn_app_red in
-  let abstract env sigma = abstract_arg env sigma (Option.get l.off) in
-  let sigma, packer = on_red_type_default abstract env sigma orn_app_red_ex.unpacked in
-  let index_type = app_red_ex.index_type in
-  let arg_sigT = { index_type ; packer } in
-  let sigma, arg_indexer = Util.on_snd (project_index arg_sigT) (lift env l arg sigma) in
-  let sigma, arg_value = Util.on_snd (project_value arg_sigT) (lift env l arg sigma) in
-  let refold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
-  let refold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
-  let refolded = refold_index (refold_value app_red_ex.unpacked) in
-  pack env (Option.get l.off) refolded sigma
+  match l.orn.kind with
+  | Algebraic (_, off) ->
+     let sigma, typ_args = non_index_typ_args off env sigma arg in
+     let orn_app = mkAppl (orn, snoc arg typ_args) in
+     let orn_app_red = reduce_stateless reduce_nf env sigma orn_app in
+     let app_red_ex = dest_existT app_red in
+     let orn_app_red_ex = dest_existT orn_app_red in
+     let abstract env sigma = abstract_arg env sigma off in
+     let sigma, packer = on_red_type_default abstract env sigma orn_app_red_ex.unpacked in
+     let index_type = app_red_ex.index_type in
+     let arg_sigT = { index_type ; packer } in
+     let sigma, arg_indexer = Util.on_snd (project_index arg_sigT) (lift env l arg sigma) in
+     let sigma, arg_value = Util.on_snd (project_value arg_sigT) (lift env l arg sigma) in
+     let refold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
+     let refold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
+     let refolded = refold_index (refold_value app_red_ex.unpacked) in
+     pack env off refolded sigma
+  | _ ->
+     failwith "Wrong kind of ornament" (* TODO raise an error whenever this happens in the code, then catch at top level and report to the user *)
        
 (*
  * Refolding an applied ornament in the backwards direction,
  * when the ornament application eliminates over the projections.
  *)
 let refold_projected l orn env arg app_red sigma =
-  let sigma, typ_args = non_index_typ_args (Option.get l.off) env sigma arg in
-  let orn_app = mkAppl (orn, snoc arg typ_args) in
-  let orn_app_red = reduce_stateless reduce_nf env sigma orn_app in
-  let sigma, lifted = lift env l arg sigma in
-  sigma, all_eq_substs (orn_app_red, lifted) app_red
+  match l.orn.kind with
+  | Algebraic (_, off) ->
+     let sigma, typ_args = non_index_typ_args off env sigma arg in
+     let orn_app = mkAppl (orn, snoc arg typ_args) in
+     let orn_app_red = reduce_stateless reduce_nf env sigma orn_app in
+     let sigma, lifted = lift env l arg sigma in
+     sigma, all_eq_substs (orn_app_red, lifted) app_red
+  | _ ->
+     failwith "Wrong kind of ornament"
 
 (*
  * Top-level refolding
