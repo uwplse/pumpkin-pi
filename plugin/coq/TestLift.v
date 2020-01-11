@@ -2,6 +2,7 @@ Add LoadPath "coq".
 Require Import List.
 Require Import Ornamental.Ornaments.
 Require Import Test.
+Require Import Infrastructure.
 
 (*
  * Test lifting directly
@@ -54,7 +55,7 @@ Lift list vector in orn_list_vector_index as ltv_indexer_lifted.
 Theorem testProj:
   forall A pv, ltv_indexer_lifted A pv = projT1 pv.
 Proof.
-  intros. reflexivity.
+  intros. unfold ltv_indexer_lifted. test_exact_equality.
 Qed.
 
 Definition proj_index (A : Type) (pv : sigT (vector A)) :=
@@ -63,9 +64,9 @@ Definition proj_index (A : Type) (pv : sigT (vector A)) :=
 Lift vector list in proj_index as proj_index_lifted.
 
 Theorem testIndex:
-  forall A l, proj_index_lifted A l = orn_list_vector_index A l.
+  forall A l, proj_index_lifted A l = list_to_vector_index A l.
 Proof.
-  intros. reflexivity.
+  intros. unfold proj_index_lifted. test_exact_equality.
 Qed.
 
 Definition proj_val (A : Type) (pv : sigT (vector A)) :=
@@ -76,7 +77,7 @@ Lift vector list in proj_val as proj_val_lifted.
 Theorem testVal:
   forall A l, proj_val_lifted A l = l.
 Proof.
-  intros. reflexivity.
+  intros. unfold proj_val_lifted. test_exact_equality.
 Qed.
 
 (* --- Simple functions --- *)
