@@ -12,71 +12,71 @@ Set Nonrecursive Elimination Schemes.
  * The proofs here are purposely brittle, since they should break if the terms are not _exactly_ syntactically equal.
  *)
 
-Module SN.
+Module Pairs.
 
-  Definition h : Type := (bool * nat).
+  Definition profile : Type := (bool * nat).
 
-  Definition c : Type := (nat * (nat * (bool * ((bool * nat) * nat)))).
+  Definition page : Type := (nat * (nat * (bool * ((bool * nat) * nat)))).
 
-  Definition f (h : h) (c : c) : bool :=
-    andb (fst h) (fst (snd (snd c))).
+  Definition visible (pr : profile) (pa : page) : bool :=
+    andb (fst pr) (fst (snd (snd pa))).
 
-End SN.
+End Pairs.
 
-Preprocess Module SN as SN_PP { opaque andb }.
+Preprocess Module Pairs as Pairs_PP { opaque andb }.
 
-Module H.
+Module Records.
 
-  Record H :=
+  Record Profile :=
     {
-      b : bool;
-      n : nat;
+      public : bool;
+      age : nat;
     }.
 
-  Definition get_h_b (h : SN.h) : bool := fst h.
+  Definition is_public (pr : Pairs.profile) : bool := fst pr.
 
-  Definition get_h_n (h : SN.h) : nat := snd h.
+  Definition get_age (pr : Pairs.profile) : nat := snd pr.
 
-End H.
+End Records.
 
-Preprocess Module H as H_PP.
+Preprocess Module Records as Records_PP.
 
-Lift H_PP.H SN_PP.h in H_PP.b as get_h_b.
-Lift SN_PP.h H_PP.H in H_PP.get_h_b as getHB.
+Lift Records_PP.Profile Pairs_PP.profile in Records_PP.public as is_public.
+Lift Pairs_PP.profile Records_PP.Profile in Records_PP.is_public as public.
 
-Definition get_h_b_expected (h : SN_PP.h) :=
+Definition is_public_expected (h : Pairs_PP.profile) :=
   Prod.fst _ _ h.
 
-Lemma test_get_h_b:
-  get_h_b = get_h_b_expected.
+Lemma test_is_public:
+  is_public = is_public_expected.
 Proof.
-  unfold get_h_b, get_h_b_expected.
+  unfold is_public, is_public_expected.
   match goal with
   | |- ?x = ?x => reflexivity
   | _ => idtac
   end.
 Qed.
 
-Lemma testGetHB:
-  getHB = fun h => H_PP.b h.
+Lemma test_public:
+  public = fun h => Records_PP.public h.
 Proof.
-  unfold getHB.
+  unfold public.
   match goal with
   | |- ?x = ?x => reflexivity
   | _ => idtac
   end.
 Qed.
 
-Lift H_PP.H SN_PP.h in H_PP.n as get_h_n.
-Lift SN_PP.h H_PP.H in H_PP.get_h_n as getHN.
+Lift Records_PP.Profile Pairs_PP.profile in Records_PP.age as get_age.
+Lift Pairs_PP.profile Records_PP.Profile in Records_PP.get_age as age.
 
-Definition get_h_n_expected (h : SN_PP.h) :=
+Definition get_age_expected (h : Pairs_PP.profile) :=
   Prod.snd _ _ h.
 
 Lemma test_get_h_n:
-  get_h_n = get_h_n_expected.
+  get_age = get_age_expected.
 Proof.
-  unfold get_h_n, get_h_n_expected.
+  unfold get_age, get_age_expected.
   match goal with
   | |- ?x = ?x => reflexivity
   | _ => idtac
@@ -84,67 +84,67 @@ Proof.
 Qed.
 
 Lemma testGetHN:
-  getHN = fun (h : H_PP.H) => H_PP.n h.
+  age = fun (h : Records_PP.Profile) => Records_PP.age h.
 Proof.
-  unfold getHN. 
+  unfold age. 
   match goal with
   | |- ?x = ?x => reflexivity
   | _ => idtac
   end.
 Qed.
 
-Lift SN_PP.h H_PP.H in SN_PP.f as f_PP { opaque andb }.
+Lift Pairs_PP.profile Records_PP.Profile in Pairs_PP.visible as visible_PP { opaque andb }.
 
-Definition f_PP_expected (h : H_PP.H) (c : nat * (nat * (bool * (H_PP.H * nat)))) : bool :=
- H_PP.b h 
+Definition visible_PP_expected (pr : Records_PP.Profile) (pa : nat * (nat * (bool * (Records_PP.Profile * nat)))) : bool :=
+ Records_PP.public pr 
  &&
- SN_PP.Coq_Init_Datatypes_fst bool (H_PP.H * nat)
-   (SN_PP.Coq_Init_Datatypes_snd nat (bool * (H_PP.H * nat))
-      (SN_PP.Coq_Init_Datatypes_snd nat (nat * (bool * (H_PP.H * nat))) c)).
+ Pairs_PP.Coq_Init_Datatypes_fst bool (Records_PP.Profile * nat)
+   (Pairs_PP.Coq_Init_Datatypes_snd nat (bool * (Records_PP.Profile * nat))
+      (Pairs_PP.Coq_Init_Datatypes_snd nat (nat * (bool * (Records_PP.Profile * nat))) pa)).
 
-Lemma test_f_PP:
-  f_PP = f_PP_expected.
+Lemma test_visible_PP:
+  visible_PP = visible_PP_expected.
 Proof.
-  unfold f_PP, f_PP_expected.
+  unfold visible_PP, visible_PP_expected.
   match goal with
   | |- ?x = ?x => reflexivity
   | _ => idtac
   end.
 Qed.
 
-Module C.
+Module MoreRecords.
 
-  Record C :=
+  Record Page :=
     {
-      n1 : nat;
-      n2 : nat;
-      b  : bool;
-      h  : H_PP.H;
-      n3 : nat;
+      friends : nat;
+      groups : nat;
+      active  : bool;
+      profile  : Records_PP.Profile;
+      photos : nat;
     }.
 
   (* We'd like to wrap the ugly access into this: *)
-  Definition get_c_b (c : SN.c) : bool := fst (snd (snd c)).
+  Definition is_active (pa : Pairs.page) : bool := fst (snd (snd pa)).
 
-End C.
+End MoreRecords.
 
-Preprocess Module C as C_PP.
+Preprocess Module MoreRecords as MoreRecords_PP.
 
-Lift SN_PP.h H_PP.H in SN_PP.c as c_PP.
+Lift Pairs_PP.profile Records_PP.Profile in Pairs_PP.page as page_PP.
 
-Lift SN_PP.h H_PP.H in C_PP.get_c_b as getCB0.
-Lift c_PP C_PP.C in getCB0 as getCB.
+Lift Pairs_PP.profile Records_PP.Profile in MoreRecords_PP.is_active as active0.
+Lift page_PP MoreRecords_PP.Page in active0 as active.
 
-Lift SN_PP.h H_PP.H in SN_PP.f as f0 { opaque andb }.
-Lift c_PP C_PP.C in f0 as f { opaque andb }.
+Lift Pairs_PP.profile Records_PP.Profile in Pairs_PP.visible as visible0 { opaque andb }.
+Lift page_PP MoreRecords_PP.Page in visible0 as visible { opaque andb }.
 
-Definition f_expected (h : H_PP.H) (c : C_PP.C) : bool :=
-  (H_PP.b h && C_PP.b c)%bool.
+Definition visible_expected (pr : Records_PP.Profile) (pa : MoreRecords_PP.Page) : bool :=
+  (Records_PP.public pr && MoreRecords_PP.active pa)%bool.
 
-Lemma test_f :
-  f = f_expected.
+Lemma test_visible :
+  visible = visible_expected.
 Proof.
-  unfold f, f_expected.
+  unfold visible, visible_expected.
   match goal with
   | |- ?x = ?x => reflexivity
   | _ => idtac
