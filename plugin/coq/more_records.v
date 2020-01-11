@@ -790,30 +790,6 @@ Qed.
 
 End LiftedGeneratedParams.
 
-(* --- Test fancier parameters --- x*)
-
-Module HandwrittenParamsFancy.
-
-Record input (T : Type) (t : T) (F : T -> Prop) := MkInput
-{
-  first  : F t;
-  second : T;
-  third : exists t', t <> t' -> F t';
-}.
-
-End HandwrittenParamsFancy.
-
-Module GeneratedParamsFancy.
-
-Definition input (T : Type) (t : T) (F : T -> Prop) :=
-  (prod (F t) (prod T (exists t', t <> t' -> F t'))).
-
-End GeneratedParamsFancy.
-
-Find ornament HandwrittenParamsFancy.input GeneratedParamsFancy.input as input_params_fancy_curry.
-(* TODO test lifting for above *)
-(* TODO test output *)
-
 (* --- Things left: --- *)
 
 (* TODO test: failure cases, eta expanded or not expanded variations (e.g. try not eta expanded constr with parameters, like (prod nat) ), taking prod directly, etc *)
