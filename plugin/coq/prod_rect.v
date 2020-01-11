@@ -1,4 +1,5 @@
 From Ornamental Require Import Ornaments.
+Require Import Infrastructure.
 
 Set DEVOID search prove equivalence.
 Set DEVOID lift type.
@@ -51,20 +52,14 @@ Lemma test_is_public:
   is_public = is_public_expected.
 Proof.
   unfold is_public, is_public_expected.
-  match goal with
-  | |- ?x = ?x => reflexivity
-  | _ => idtac
-  end.
+  test_exact_equality.
 Qed.
 
 Lemma test_public:
   public = fun h => Records_PP.public h.
 Proof.
   unfold public.
-  match goal with
-  | |- ?x = ?x => reflexivity
-  | _ => idtac
-  end.
+  test_exact_equality.
 Qed.
 
 Lift Records_PP.Profile Pairs_PP.profile in Records_PP.age as get_age.
@@ -77,20 +72,14 @@ Lemma test_get_h_n:
   get_age = get_age_expected.
 Proof.
   unfold get_age, get_age_expected.
-  match goal with
-  | |- ?x = ?x => reflexivity
-  | _ => idtac
-  end.
+  test_exact_equality.
 Qed.
 
 Lemma testGetHN:
   age = fun (h : Records_PP.Profile) => Records_PP.age h.
 Proof.
   unfold age. 
-  match goal with
-  | |- ?x = ?x => reflexivity
-  | _ => idtac
-  end.
+  test_exact_equality.
 Qed.
 
 Lift Pairs_PP.profile Records_PP.Profile in Pairs_PP.visible as visible_PP { opaque andb }.
@@ -106,10 +95,7 @@ Lemma test_visible_PP:
   visible_PP = visible_PP_expected.
 Proof.
   unfold visible_PP, visible_PP_expected.
-  match goal with
-  | |- ?x = ?x => reflexivity
-  | _ => idtac
-  end.
+  test_exact_equality.
 Qed.
 
 Module MoreRecords.
@@ -145,8 +131,5 @@ Lemma test_visible :
   visible = visible_expected.
 Proof.
   unfold visible, visible_expected.
-  match goal with
-  | |- ?x = ?x => reflexivity
-  | _ => idtac
-  end.
+  test_exact_equality.
 Qed.

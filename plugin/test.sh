@@ -17,6 +17,8 @@ smartcache=false
 nosmartcache=false
 prodrect=false
 
+coqc coq/Infrastructure.v
+
 echo "Testing Find ornament."
 
 if coqc coq/Test.v
