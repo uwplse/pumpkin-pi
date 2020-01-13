@@ -70,12 +70,16 @@ else
   :
 fi
 
-if coqc coq/prod_rect.v
+cd coq
+
+if coqc prod_rect.v
 then
   prodrect=true
 else
   :
 fi
+
+cd ..
 
 echo "Testing smart cache."
 echo "First, without the smart cache:"
