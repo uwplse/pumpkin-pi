@@ -32,21 +32,8 @@ open Stateutils
 open Apputils
 open Caching
 open Desugarprod
+open Ornerrors 
 
-(* --- Error messages for the user --- *)
-       
-let unsupported_change_error =
-  Pp.str
-    "change not yet supported; request on GitHub issues if interested"
-
-let new_parameter_error =
-  Pp.str
-    "new parameters not yet supported; request on GitHub issues if interested"
-
-let new_constructor_error =
-  Pp.str
-    "new constructors not yet supported; request on GitHub issues if interested"
-    
 (* --- Finding the new index --- *)
 
 (* 
@@ -157,7 +144,11 @@ let index_case env sigma off p a b : types state =
                (fun b -> ret (mkLambda (n_a, t_a, b))))
          b
     | _ ->
-       CErrors.user_err unsupported_change_error
+       user_err
+         "index_case"
+         err_unsupported_change
+         [try_supported]
+         [cool_feature; mistake]
   in diff_case p (mkRel 1) [] env a b sigma
 
 (* Get the cases for the indexer *)
@@ -345,7 +336,11 @@ let promote_forget_case env sigma off is_fwd p o n : types state =
                (fun b -> ret (mkLambda (n_o, t_o, b))))
          (o, n)
     | _ ->
-       CErrors.user_err unsupported_change_error
+       user_err
+         "promote_forget_case"
+         err_unsupported_change
+         [try_supported]
+         [cool_feature; mistake]
   in sub p (mkRel 1) [] env o n sigma
 
 (*
@@ -632,13 +627,21 @@ let search_orn_inductive env sigma indexer_id_opt trm_o trm_n =
      let (npm_o, npm_n) = map_tuple (fun m -> m.mind_nparams) (m_o, m_n) in
      if not (npm_o = npm_n) then
        (* new parameter *)
-       CErrors.user_err new_parameter_error
+       user_err
+         "search_orn_inductive"
+         err_new_parameter
+         [try_supported]
+         [cool_feature; mistake]
      else
        let (bs_o, bs_n) = map_tuple (fun m -> m.mind_packets) (m_o, m_n) in
        let (b_o, b_n) = map_tuple (fun bs -> Array.get bs 0) (bs_o, bs_n) in
        let (cs_o, cs_n) = map_tuple (fun m -> m.mind_consnames) (b_o, b_n) in
        if not (Array.length cs_o = Array.length cs_n) then
-         CErrors.user_err new_constructor_error
+         user_err
+           "search_orn_inductive"
+           err_new_constructor
+           [try_supported]
+           [cool_feature; mistake]
        else
          let npm = npm_o in
          let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
@@ -650,7 +653,11 @@ let search_orn_inductive env sigma indexer_id_opt trm_o trm_n =
            let (a, b) = map_if reverse (arity_n <= arity_o) (o, n) in
            search_algebraic env sigma npm (Option.get indexer_id_opt) a b
          else
-           CErrors.user_err unsupported_change_error             
+           user_err
+             "search_orn_inductive"
+             err_unsupported_change
+             [try_supported]
+             [cool_feature; problematic; mistake]           
   | _ ->
      failwith "Called search_orn_inductive on non-inductive types!"
 
@@ -679,11 +686,23 @@ let search_orn_one_noninductive env sigma trm_o trm_n =
          (* Curry a record into an application of prod *)
          search_curry_record env sigma (fst (destInd ind)) non_ind
        else
-         CErrors.user_err unsupported_change_error
+         user_err
+           "search_orn_one_noninductive"
+           err_unsupported_change
+           [try_supported]
+           [cool_feature; mistake]
      else
-       CErrors.user_err unsupported_change_error
+       user_err
+         "search_orn_one_noninductive"
+         err_unsupported_change
+         [try_supported]
+         [cool_feature; mistake]
   | _ ->
-     CErrors.user_err unsupported_change_error
+     user_err
+       "search_orn_one_noninductive"
+       err_unsupported_change
+       [try_supported]
+       [cool_feature; mistake]
               
 (*
  * Search two types for an ornament between them.
@@ -698,4 +717,8 @@ let search_orn env sigma indexer_id_opt trm_o trm_n =
     (* Ornament between an inductive type and something else *)
     search_orn_one_noninductive env sigma trm_o trm_n
   else
-    CErrors.user_err unsupported_change_error
+    user_err
+      "search_orn"
+      err_unsupported_change
+      [try_supported]
+      [cool_feature; mistake]

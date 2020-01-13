@@ -87,14 +87,16 @@ src/coq-plugin-lib/src/coq/devutils/printing.ml
 deps/fix-to-elim/plugin/src/usability/preprocess_errors.mli
 deps/fix-to-elim/plugin/src/usability/preprocess_errors.ml
 
+src/lib/desugarprod.ml
+src/lib/desugarprod.mli
+src/lib/ornerrors.ml
+src/lib/ornerrors.mli
+
 src/cache/caching.ml
 src/cache/caching.mli
 
 src/ornaments/lifting.ml
 src/ornaments/lifting.mli
-
-src/lib/desugarprod.ml
-src/lib/desugarprod.mli
 
 src/components/factoring.ml	
 src/components/factoring.mli
