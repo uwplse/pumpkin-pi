@@ -3,15 +3,21 @@ open Environ
 open Evd
 
 (*
- * Error messages
+ * Errors and error messages
  *)
+
+(* --- Exceptions --- *)
+
+exception NotEliminators
+exception NotInductive
+exception NotAlgebraic
 
 (* --- Error descriptions --- *)
 
 val err_unsupported_change : Pp.t
 val err_new_parameter : Pp.t
 val err_new_constructor : Pp.t
-val err_unexpected_change : String.t -> String.t -> Pp.t
+val err_unexpected_change : String.t -> Pp.t
 val err_type : env -> evar_map -> Pretype_errors.pretype_error -> Pp.t
 val err_opaque_not_constant : Libnames.qualid -> Pp.t
 

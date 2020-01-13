@@ -7,7 +7,8 @@ open Envutils
 open Apputils
 open Equtils
 open Sigmautils
-
+open Ornerrors
+       
 (* --- Automatically generated coherence proof --- *)
 
 (* 
@@ -32,4 +33,4 @@ let prove_coherence env sigma orn =
      let coh_typ = reconstruct_product env_coh refl_typ in
      (coh, coh_typ)
   | _ ->
-     failwith "Wrong kind of ornament"
+     raise NotAlgebraic

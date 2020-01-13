@@ -4,8 +4,14 @@ open Names
 open Himsg
 
 (* 
- * Error messages
+ * Errors and error messages
  *)
+
+(* --- Exceptions --- *)
+
+exception NotEliminators
+exception NotInductive
+exception NotAlgebraic
 
 (* --- Error descriptions --- *)
 
@@ -15,12 +21,10 @@ let err_new_parameter = Pp.str "New parameters not yet supported."
 
 let err_new_constructor = Pp.str "New constructors not yet supported."
 
-let err_unexpected_change actual_kind expected_kind =
+let err_unexpected_change expected_kind =
   Pp.seq
     [Pp.str "DEVOID expected an ";
      Pp.str expected_kind;
-     Pp.str " but it got an ";
-     Pp.str actual_kind;
      Pp.str "."]
 
 let err_opaque_not_constant qid =

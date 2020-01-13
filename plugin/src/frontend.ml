@@ -154,12 +154,19 @@ let find_ornament n_o d_old d_new =
      save_ornament (trm_o, trm_n) (promote, forget, orn.kind)
    with _ ->
      Feedback.msg_warning (str "Failed to cache ornamental promotion."));
-  with PretypeError (env, sigma, err) ->
+  with
+  | PretypeError (env, sigma, err) ->
     user_err
       "find_ornament"
       (err_type env sigma err)
       [try_supported]
       [problematic]
+  | NotAlgebraic ->
+     user_err
+       "find_ornament"
+       (err_unexpected_change "algebraic ornament")
+       [try_supported]
+       [problematic]
 
 (*
  * Lift a definition according to a lifting configuration, defining the lifted
@@ -183,12 +190,19 @@ let lift_definition_by_ornament env sigma n l c_old ignores =
       save_lifting (lift_back l, lift_to l, c_new) c_old
     with _ ->
       Feedback.msg_warning (Pp.str "Failed to cache lifting.")
-  with PretypeError (env, sigma, err) ->
-    user_err
-      "lift_definition_by_ornament"
-      (err_type env sigma err)
-      [try_supported]
-      [problematic]
+  with
+  | PretypeError (env, sigma, err) ->
+     user_err
+       "lift_definition_by_ornament"
+       (err_type env sigma err)
+       [try_supported]
+       [problematic]
+  | NotAlgebraic ->
+     user_err
+       "lift_definition_by_ornament"
+       (err_unexpected_change "algebraic ornament")
+       [try_supported]
+       [problematic]
 
 (*
  * Lift an inductive type according to a lifting configuration, defining the
@@ -196,10 +210,24 @@ let lift_definition_by_ornament env sigma n l c_old ignores =
  * and eliminator-to-eliminator liftings.
  *)
 let lift_inductive_by_ornament env sigma n s l c_old ignores =
-  let ind, _ = destInd c_old in
-  let ind' = do_lift_ind env sigma l n s ind ignores in
-  let env' = Global.env () in
-  Feedback.msg_info (str "Defined lifted inductive type " ++ pr_inductive env' ind')
+  try
+    let ind, _ = destInd c_old in
+    let ind' = do_lift_ind env sigma l n s ind ignores in
+    let env' = Global.env () in
+    Feedback.msg_info (str "Defined lifted inductive type " ++ pr_inductive env' ind')
+  with
+      | PretypeError (env, sigma, err) ->
+     user_err
+       "lift_inductive_by_ornament"
+       (err_type env sigma err)
+       [try_supported]
+       [problematic]
+  | NotAlgebraic ->
+     user_err
+       "lift_inductive_by_ornament"
+       (err_unexpected_change "algebraic ornament")
+       [try_supported]
+       [problematic]
 
 (*
  * Common configuration for several commands

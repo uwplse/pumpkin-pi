@@ -166,7 +166,7 @@ let indexer_cases env off p nargs a b =
        (take_except nargs (factor_product b_a))
        (take_except (nargs + 1) (factor_product b_b))
   | _ ->
-     failwith "not eliminators"
+     raise NotEliminators
 
 (* Find the motive for the indexer (INDEX-MOTIVE) *)
 let index_motive idx npm env_a =
@@ -198,7 +198,7 @@ let find_indexer env_pms idx elim_a a b =
              }
          in ret (reconstruct_lambda env_a app))
   | _ ->
-     failwith "not an eliminator"
+     raise NotEliminators
 
 (* --- Finding promote and forget --- *)
 
@@ -659,7 +659,7 @@ let search_orn_inductive env sigma indexer_id_opt trm_o trm_n =
              [try_supported]
              [cool_feature; problematic; mistake]           
   | _ ->
-     failwith "Called search_orn_inductive on non-inductive types!"
+     raise NotInductive
 
 (*
  * Search two types for an ornament between them, where one type

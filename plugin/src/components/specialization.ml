@@ -23,6 +23,7 @@ open Zooming
 open Hypotheses
 open Debruijn
 open Environ
+open Ornerrors
 
 (* --- Packing--- *)
 
@@ -210,7 +211,7 @@ let refold_packed l orn env arg app_red sigma =
      let refolded = refold_index (refold_value app_red_ex.unpacked) in
      pack env off refolded sigma
   | _ ->
-     failwith "Wrong kind of ornament" (* TODO raise an error whenever this happens in the code, then catch at top level and report to the user *)
+     raise NotAlgebraic
        
 (*
  * Refolding an applied ornament in the backwards direction,
@@ -225,7 +226,7 @@ let refold_projected l orn env arg app_red sigma =
      let sigma, lifted = lift env l arg sigma in
      sigma, all_eq_substs (orn_app_red, lifted) app_red
   | _ ->
-     failwith "Wrong kind of ornament"
+     raise NotAlgebraic
 
 (*
  * Top-level refolding

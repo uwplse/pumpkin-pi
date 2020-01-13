@@ -29,6 +29,7 @@ open Hofs
 open Desugarprod
 open Substitution
 open Convertibility
+open Ornerrors
 
 (* --- Convenient shorthand --- *)
 
@@ -100,14 +101,14 @@ let index l =
   | Algebraic (_, off) ->
      insert_index off
   | _ ->
-     failwith "Wrong kind of ornament"
+     raise NotAlgebraic
 
 let deindex l =
   match l.orn.kind with
   | Algebraic (_, off) ->
      remove_index off
   | _ ->
-     failwith "Wrong kind of ornament"
+     raise NotAlgebraic
 
 (* --- Recovering types from ornaments --- *)
 
@@ -488,7 +489,7 @@ let pack_to_typ env sigma c unpacked =
     | Algebraic (_, off) ->
        pack env off unpacked sigma
     | _ ->
-       failwith "Wrong kind of ornament"
+       raise NotAlgebraic
   else
     sigma, unpacked
 
@@ -727,7 +728,7 @@ let promote_case_args env sigma c args =
                 (fun tl -> a :: tl)
                 (lift_args sigma tl (get_arg off t))
            | _ ->
-              failwith "Wrong kind of ornament"
+              raise NotAlgebraic
          else
            (* ARG *)
            Util.on_snd (fun tl -> n :: tl) (lift_args sigma tl i_b)
@@ -765,7 +766,7 @@ let forget_case_args env_c_b env sigma c args =
                 (fun tl -> proj_b :: tl)
                 (lift_args sigma tl (get_arg off t, proj_i_b))
            | _ ->
-              failwith "Wrong kind of ornament"
+              raise NotAlgebraic
          else
            (* ARG *)
            Util.on_snd
