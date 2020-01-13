@@ -21,6 +21,7 @@ open Stateutils
 open Environ
 open Inference
 open Ornerrors
+open Pretype_errors
 
 (* --- Commands --- *)
 
@@ -90,68 +91,75 @@ let maybe_prove_equivalence n inv_n : unit =
  * (Don't prove section and retraction)
  *)
 let find_ornament n_o d_old d_new =
-  let (sigma, env) = Pfedit.get_current_context () in
-  let sigma, def_o = intern env sigma d_old in
-  let sigma, def_n = intern env sigma d_new in
-  let trm_o = unwrap_definition env def_o in
-  let trm_n = unwrap_definition env def_n in
-  let trm_o = if isInd trm_o then trm_o else def_o in (* TODO explain *)
-  let trm_n = if isInd trm_n then trm_n else def_n in (* TODO explain *)
-  let n, inv_n, idx_n =
-    match map_tuple kind (trm_o, trm_n) with
-    | Ind ((m_o, _), _), Ind ((m_n, _), _) ->
-       let (_, _, lab_o) = KerName.repr (MutInd.canonical m_o) in
-       let (_, _, lab_n) = KerName.repr (MutInd.canonical m_n) in
-       let name_o = Label.to_id lab_o in
-       let name_n = Label.to_string lab_n in
-       let auto_n = with_suffix (with_suffix name_o "to") name_n in
-       let n = Option.default auto_n n_o in
-       let idx_n = with_suffix n "index" in
-       let inv_n = with_suffix n "inv" in
-       n, inv_n, Some idx_n
-    |_ ->
-      if isInd trm_o || isInd trm_n then
-        (* TODO imperfect logic on delta *)
-        let ind, non_ind = if isInd trm_o then (trm_o, trm_n) else (trm_n, trm_o) in
-        let ((m, _), _) = destInd ind in
-        let (_, _, lab) = KerName.repr (MutInd.canonical m) in
-        let name = Label.to_id lab in
-        let auto_n = with_suffix name "curry" in
-        let n = Option.default auto_n n_o in
-        let inv_n = with_suffix n "inv" in
-        n, inv_n, None
-      else      
-        user_err
-          "find_ornament"
-          err_unsupported_change
-          [try_supported]
-          [cool_feature; mistake]
-  in
-  let sigma, orn = search_orn env sigma idx_n trm_o trm_n in
-  let orn =
-    match orn.kind with
-    | Algebraic (indexer, off) ->
-       let idx_n = Option.get idx_n in
-       let indexer = define_term idx_n sigma indexer true in
-       Feedback.msg_info (str (Printf.sprintf "Defined indexing function %s." (Id.to_string idx_n)));
-       { orn with kind = Algebraic (Universes.constr_of_global indexer, off) }
-    | _ ->
-       orn
-  in
-  let promote = define_term n sigma orn.promote true in
-  Feedback.msg_info (str (Printf.sprintf "Defined promotion %s." (Id.to_string n)));
-  let inv_n = with_suffix n "inv" in
-  let forget = define_term inv_n sigma orn.forget true in
-  Feedback.msg_info (str (Printf.sprintf "Defined forgetful function %s." (Id.to_string inv_n)));
-  maybe_prove_coherence n inv_n orn.kind;
-  maybe_prove_equivalence n inv_n;
+  try
+    let (sigma, env) = Pfedit.get_current_context () in
+    let sigma, def_o = intern env sigma d_old in
+    let sigma, def_n = intern env sigma d_new in
+    let trm_o = unwrap_definition env def_o in
+    let trm_n = unwrap_definition env def_n in
+    let trm_o = if isInd trm_o then trm_o else def_o in (* TODO explain *)
+    let trm_n = if isInd trm_n then trm_n else def_n in (* TODO explain *)
+    let n, inv_n, idx_n =
+      match map_tuple kind (trm_o, trm_n) with
+      | Ind ((m_o, _), _), Ind ((m_n, _), _) ->
+         let (_, _, lab_o) = KerName.repr (MutInd.canonical m_o) in
+         let (_, _, lab_n) = KerName.repr (MutInd.canonical m_n) in
+         let name_o = Label.to_id lab_o in
+         let name_n = Label.to_string lab_n in
+         let auto_n = with_suffix (with_suffix name_o "to") name_n in
+         let n = Option.default auto_n n_o in
+         let idx_n = with_suffix n "index" in
+         let inv_n = with_suffix n "inv" in
+         n, inv_n, Some idx_n
+      |_ ->
+        if isInd trm_o || isInd trm_n then
+          (* TODO imperfect logic on delta *)
+          let ind, non_ind = if isInd trm_o then (trm_o, trm_n) else (trm_n, trm_o) in
+          let ((m, _), _) = destInd ind in
+          let (_, _, lab) = KerName.repr (MutInd.canonical m) in
+          let name = Label.to_id lab in
+          let auto_n = with_suffix name "curry" in
+          let n = Option.default auto_n n_o in
+          let inv_n = with_suffix n "inv" in
+          n, inv_n, None
+        else      
+          user_err
+            "find_ornament"
+            err_unsupported_change
+            [try_supported]
+            [cool_feature; mistake]
+    in
+    let sigma, orn = search_orn env sigma idx_n trm_o trm_n in
+    let orn =
+      match orn.kind with
+      | Algebraic (indexer, off) ->
+         let idx_n = Option.get idx_n in
+         let indexer = define_term idx_n sigma indexer true in
+         Feedback.msg_info (str (Printf.sprintf "Defined indexing function %s." (Id.to_string idx_n)));
+         { orn with kind = Algebraic (Universes.constr_of_global indexer, off) }
+      | _ ->
+         orn
+    in
+    let promote = define_term n sigma orn.promote true in
+    Feedback.msg_info (str (Printf.sprintf "Defined promotion %s." (Id.to_string n)));
+    let inv_n = with_suffix n "inv" in
+    let forget = define_term inv_n sigma orn.forget true in
+    Feedback.msg_info (str (Printf.sprintf "Defined forgetful function %s." (Id.to_string inv_n)));
+    maybe_prove_coherence n inv_n orn.kind;
+    maybe_prove_equivalence n inv_n;
   (try
      let trm_o = if isInd trm_o then trm_o else def_o in
      let trm_n = if isInd trm_n then trm_n else def_n in
      let promote, forget = map_tuple Universes.constr_of_global (promote, forget) in
      save_ornament (trm_o, trm_n) (promote, forget, orn.kind)
    with _ ->
-     Feedback.msg_warning (str "Failed to cache ornamental promotion."))  
+     Feedback.msg_warning (str "Failed to cache ornamental promotion."));
+  with PretypeError (env, sigma, err) ->
+    user_err
+      "find_ornament"
+      (err_type env sigma err)
+      [try_supported]
+      [problematic]
 
 (*
  * Lift a definition according to a lifting configuration, defining the lifted
@@ -159,21 +167,28 @@ let find_ornament n_o d_old d_new =
  *)
 let lift_definition_by_ornament env sigma n l c_old ignores =
   let sigma, lifted = do_lift_defn env sigma l c_old ignores in
-  ignore
-    (if is_lift_type () then
-       (* Lift the type as well *)
-       let sigma, typ = infer_type env sigma c_old in
-       let sigma, lifted_typ = do_lift_defn env sigma l typ ignores in
-       define_term n sigma lifted true ~typ:lifted_typ
-     else
-       (* Let Coq infer the type *)
-       define_term n sigma lifted true);
   try
-    let c_new = mkConst (Constant.make1 (Lib.make_kn n)) in
-    save_lifting (lift_to l, lift_back l, c_old) c_new;
-    save_lifting (lift_back l, lift_to l, c_new) c_old
-  with _ ->
-    Feedback.msg_warning (Pp.str "Failed to cache lifting.")
+    ignore
+      (if is_lift_type () then
+         (* Lift the type as well *)
+         let sigma, typ = infer_type env sigma c_old in
+         let sigma, lifted_typ = do_lift_defn env sigma l typ ignores in
+         define_term n sigma lifted true ~typ:lifted_typ
+       else
+         (* Let Coq infer the type *)
+         define_term n sigma lifted true);
+    try
+      let c_new = mkConst (Constant.make1 (Lib.make_kn n)) in
+      save_lifting (lift_to l, lift_back l, c_old) c_new;
+      save_lifting (lift_back l, lift_to l, c_new) c_old
+    with _ ->
+      Feedback.msg_warning (Pp.str "Failed to cache lifting.")
+  with PretypeError (env, sigma, err) ->
+    user_err
+      "lift_definition_by_ornament"
+      (err_type env sigma err)
+      [try_supported]
+      [problematic]
 
 (*
  * Lift an inductive type according to a lifting configuration, defining the

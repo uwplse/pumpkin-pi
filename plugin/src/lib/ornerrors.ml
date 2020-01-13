@@ -32,15 +32,16 @@ let err_opaque_not_constant qid =
 
 let err_type env sigma err =
   Pp.seq
-    [Pp.str "Lift tried to produce a term that is not well-typed. ";
+    [Pp.str "DEVOID tried to produce a term that is not well-typed. ";
      Pp.str "Coq gave us this scary looking error:\n";
      Pp.fnl ();
      explain_pretype_error env sigma err;
      Pp.fnl ();
      Pp.fnl ();
-     Pp.str "This is often due to one of two issues:\n";
-     Pp.str "1. the term refers to an earlier term that is opaque, or\n";
-     Pp.str "2. you need to generate a different induction principle."]
+     Pp.str "This is often due to one of three issues:\n";
+     Pp.str "1. during lifting, the term refers to an earlier term that is opaque, or\n";
+     Pp.str "2. during lifting, the term contains match statements that are not preprocessed.";
+     Pp.str "3. during search or lifting, a type or term is not supported, but we do not correctly detect this."]
 
 (* --- Possible workaround suggestions --- *)
 
