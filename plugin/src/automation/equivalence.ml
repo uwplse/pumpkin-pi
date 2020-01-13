@@ -267,9 +267,6 @@ let equiv_proof_algebraic env sigma l off =
  * TODO move into two files like you do with search, or really,
  * probably want two module implementations given the way this is
  * structured
- *
- * TODO probably broken w/ params, more than three constructors, etc.
- * test and fix
  *)
 let equiv_proof_curry_record env sigma l =
   let to_body = lookup_definition env (lift_to l) in
