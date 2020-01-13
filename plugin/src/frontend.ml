@@ -20,6 +20,7 @@ open Envutils
 open Stateutils
 open Environ
 open Inference
+open Ornerrors
 
 (* --- Commands --- *)
 
@@ -120,7 +121,11 @@ let find_ornament n_o d_old d_new =
         let inv_n = with_suffix n "inv" in
         n, inv_n, None
       else      
-        CErrors.user_err (str "Change not yet supported")
+        user_err
+          "find_ornament"
+          err_unsupported_change
+          [try_supported]
+          [cool_feature; mistake]
   in
   let sigma, orn = search_orn env sigma idx_n trm_o trm_n in
   let orn =
@@ -251,26 +256,6 @@ let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old =
       lift_definition_by_ornament env sigma n_new l c_old opaques
   else
     lift_definition_by_ornament env sigma n_new l c_old opaques
-
-(*
- * Add terms to the globally opaque lifting cache
- *)
-let add_global_opaques opaques =
-  CErrors.user_err (Pp.str "Not yet implemented")
-
-(*
- * Remove terms from the globally opaque lifting cache
- *)
-let remove_global_opaques opaques =
-  CErrors.user_err (Pp.str "Not yet implemented")
-
-(* TODO use the same thing as preprocess_errors, move to lib *)
-let err_opaque_not_constant qid =
-  Pp.seq
-    [Pp.str "The identifier ";
-     Libnames.pr_qualid qid;
-     Pp.str " that was passed to the { opaque ... } option is not a constant,";
-     Pp.str " or does not exist."]
     
 (*
  * Add terms to the globally opaque lifting cache at a particular ornament
@@ -289,9 +274,11 @@ let add_lifting_opaques d_orn d_orn_inv opaques =
         save_opaque (lift_back l, lift_to l, c)
       with
       | Not_found ->
-         CErrors.user_err
-           ~hdr:"add_lifting_opaques"
-           (err_opaque_not_constant qid))
+         user_err
+           "add_lifting_opaques"
+           (err_opaque_not_constant qid)
+           [try_check_typos; try_fully_qualify]
+           [problematic; mistake])
     opaques
 
 (*
@@ -311,9 +298,11 @@ let remove_lifting_opaques d_orn d_orn_inv opaques =
         remove_opaque (lift_back l, lift_to l, c)
       with
       | Not_found ->
-         CErrors.user_err
-           ~hdr:"remove_lifting_opaques"
-           (err_opaque_not_constant qid))
+         user_err
+           "remove_lifting_opaques"
+           (err_opaque_not_constant qid)
+           [try_check_typos; try_fully_qualify]
+           [problematic; mistake])
     opaques
 
 (*

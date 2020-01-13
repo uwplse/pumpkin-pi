@@ -28,12 +28,8 @@ END
 
 (* Configure lifting with some additional information *)
 VERNAC COMMAND EXTEND ConfigureLift CLASSIFIED AS SIDEFF
-| [ "Configure" "Lift" "{" "opaque" ne_reference_list(opaques) "}" ] ->
-  [ add_global_opaques opaques ]
 | [ "Configure" "Lift" constr(d_orn) constr(d_orn_inv) "{" "opaque" ne_reference_list(opaques) "}" ] ->
   [ add_lifting_opaques d_orn d_orn_inv opaques ]
-| [ "Configure" "Lift" "{" "~" "opaque" ne_reference_list(opaques) "}" ] ->
-  [ remove_global_opaques opaques ]
 | [ "Configure" "Lift" constr(d_orn) constr(d_orn_inv) "{" "~" "opaque" ne_reference_list(opaques) "}"] ->
   [ remove_lifting_opaques d_orn d_orn_inv opaques ]
 END

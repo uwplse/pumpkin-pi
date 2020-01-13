@@ -25,12 +25,6 @@ val do_unpack_constant : Id.t -> Libnames.reference -> unit
 
 (*
  * Add terms to or remove terms from the globally opaque lifting cache
- *)
-val add_global_opaques : Libnames.reference list -> unit
-val remove_global_opaques : Libnames.reference list -> unit
-
-(*
- * Add terms to or remove terms from the globally opaque lifting cache
  * at a particular ornament
  *)
 val add_lifting_opaques :
