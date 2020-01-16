@@ -90,6 +90,7 @@ Lift Generated'.output Handwritten'.output in Generated'.andBools as andBools.
  *)
 Lift Generated'.input Handwritten'.input in Generated'.op as op_1.
 Lift Generated'.output Handwritten'.output in op_1 as op {opaque firstBool numberI secondBool}.
+
 (*
  * Note that to get prettier results here, we told to treat certain constants as opaque.
  * Otherwise, it would have opportunistically lifted everything.

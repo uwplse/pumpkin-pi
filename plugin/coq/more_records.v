@@ -11,7 +11,6 @@ Set Nonrecursive Elimination Schemes. (* <--- Preprocess needs induction princip
  *)
 
 (* TODO remove extra imports and functions that aren't used now *)
-(* TODO note somewhere: Can you find patch between left and right? Then use as a unified example w/ PUMPKIN PATCH? *)
 
 (* --- Test a record with 4 fields --- *)
 
