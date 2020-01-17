@@ -280,7 +280,6 @@ let equiv_proof_algebraic env sigma l off =
 
 (*
  * Get the body of the section/retraction proof for curry record
- * TODO env and env_to both needed?
  * TODO clean more
  *)
 let equiv_proof_body_curry_record env_to sigma p pms l =
