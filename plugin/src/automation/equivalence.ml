@@ -335,8 +335,8 @@ let equiv_proof_body_curry_record env_to sigma p pms l =
           }
         in
         let trm2 = all_eq_substs (mkRel 4, arg_sub) (shift_by 3 arg) in
-        let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm2 pms)) pms) in
-        let p = mkLambda (Anonymous, typ2, apply_eq { at_type; trm1; trm2 }) in
+        let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm2 (shift_all pms))) (shift_all pms)) in
+        let p = mkLambda (Anonymous, typ2, apply_eq { at_type = shift at_type; trm1; trm2 }) in
         let to_elim = dest_prod typ2 in
         let arg_sub =
           apply_pair
@@ -364,7 +364,7 @@ let equiv_proof_body_curry_record env_to sigma p pms l =
         reconstruct_lambda_n env_proof (apply_eq_refl { typ; trm }) (nb_rel env_to)
     in
     let to_elim = dest_prod typ_app in
-    let cs = [build_proof (shift_all pms) (shift typ_app) to_elim (mkRel 1)] in
+    let cs = [build_proof pms typ_app to_elim (mkRel 1)] in
     let arg = mkRel 1 in
     elim_prod Produtils.{ to_elim; p; proof = List.hd cs; arg }
   
