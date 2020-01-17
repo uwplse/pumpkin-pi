@@ -46,10 +46,10 @@ let equiv_motive env_motive sigma pms l =
        sigma, apply_eq { at_type; trm1; trm2 }
     | Caching.CurryRecord ->
        let trm2 = mkRel 1 in
-       let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm2 (shift_all pms))) (shift_all pms)) in
+       let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm2 pms)) pms) in
        let sigma, at_type = reduce_type env_motive sigma trm2 in
        sigma, apply_eq { at_type; trm1; trm2 }
-  in sigma, reconstruct_lambda_n env_motive p_b (List.length pms)
+  in sigma, shift (reconstruct_lambda_n env_motive p_b (List.length pms))
 
 (* --- Algebraic ornaments  --- *)
 
@@ -244,7 +244,7 @@ let equiv_proof_algebraic env sigma l off =
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in
   let env_motive = zoom_env zoom_product_type env_pms p_t in
-  let sigma, p = Util.on_snd shift (equiv_motive env_motive sigma pms l) in
+  let sigma, p = equiv_motive env_motive sigma pms l in
   let cs = equiv_cases_algebraic env_p sigma pms p lemmas l elim_typ in
   let args = shift_all_by (new_rels2 env_eq_proof env_to) (mk_n_rels nargs) in
   let index_back = map_backward (insert_index (off - npm) (mkRel 2)) l in
@@ -369,20 +369,20 @@ let equiv_proof_curry_record env sigma l =
   let env_to = zoom_env zoom_lambda_term env to_body in
   let npm = nb_rel env_to - 1 in
   let pms = shift_all (mk_n_rels npm) in
-  let sigma, typ_app = reduce_type env_to sigma (mkRel 1) in
   let sigma, typ_app =
     map_backward
       (fun (sigma, typ_app) ->
         let f = unwrap_definition env_to (first_fun typ_app) in
         reduce_term env_to sigma (mkAppl (f, unfold_args typ_app)))
       l
-      (sigma, typ_app)
+      (reduce_type env_to sigma (mkRel 1))
   in
-  let env_motive = push_local (Anonymous, typ_app) (pop_rel_context 1 env_to) in
-  let sigma, p = equiv_motive env_motive sigma pms l in
+  let sigma, p = equiv_motive env_to sigma pms l in
   let equiv_b = equiv_proof_body_curry_record env env_to sigma p pms typ_app l in
   reconstruct_lambda env_to equiv_b
 
+(* --- Top-level equivalence proof generation --- *)
+                     
 (*
  * Prove section/retraction
  *)
