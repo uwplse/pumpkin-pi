@@ -283,17 +283,25 @@ let equiv_proof_algebraic env sigma l off =
  * TODO env and env_to both needed?
  * TODO clean more
  *)
-let equiv_proof_body_curry_record env env_to sigma p pms typ_app l =
+let equiv_proof_body_curry_record env_to sigma p pms l =
+  let sigma, typ_app =
+    map_backward
+      (fun (sigma, typ_app) ->
+        let f = unwrap_definition env_to (first_fun typ_app) in
+        reduce_term env_to sigma (mkAppl (f, unfold_args typ_app)))
+      l
+      (reduce_type env_to sigma (mkRel 1))
+  in
   if l.is_fwd then
     let ((i, i_index), u) = destInd (first_fun typ_app) in
     let cs =
       let c = mkConstructU (((i, i_index), 1), u) in
-      let sigma, c_exp = expand_eta env sigma c in
-      let (env_c_b, c_body) = zoom_lambda_term env c_exp in
+      let sigma, c_exp = expand_eta env_to sigma c in
+      let (env_c_b, c_body) = zoom_lambda_term env_to c_exp in
       let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
       let sigma, c_body_type = reduce_type env_c_b sigma c_body in
       let refl = apply_eq_refl { typ = c_body_type; trm = c_body } in
-      [shift (reconstruct_lambda_n env_c_b refl (List.length pms))]
+      [shift (reconstruct_lambda_n env_c_b refl (nb_rel env_to + (List.length pms)))]
     in
     let elim = type_eliminator env_to (i, i_index) in
     apply_eliminator
@@ -311,7 +319,7 @@ let equiv_proof_body_curry_record env env_to sigma p pms typ_app l =
       let env_proof =
         push_local
           (Anonymous, shift typ2)
-          (push_local (Anonymous, typ1) env)
+          (push_local (Anonymous, typ1) env_to)
       in
       let typ1 = shift_by 2 typ1 in
       let typ2 = shift_by 2 typ2 in
@@ -343,7 +351,7 @@ let equiv_proof_body_curry_record env env_to sigma p pms typ_app l =
         let arg = all_eq_substs (mkRel 3, arg_sub) (shift_by 2 arg) in
         let proof = build_proof pms at_type to_elim arg in
         let arg = mkRel 1 in
-        reconstruct_lambda env_proof (elim_prod Produtils.{ to_elim; p; proof; arg })
+        reconstruct_lambda_n env_proof (elim_prod Produtils.{ to_elim; p; proof; arg }) (nb_rel env_to)
       else
         let trm1 = mkRel 2 in
         let trm2 = mkRel 1 in
@@ -354,7 +362,7 @@ let equiv_proof_body_curry_record env env_to sigma p pms typ_app l =
         let typ1 = arg_pair.Produtils.typ1 in
         let typ2 = arg_pair.Produtils.typ2 in
         let typ = apply_prod Produtils.{ typ1; typ2 } in
-        reconstruct_lambda env_proof (apply_eq_refl { typ; trm })
+        reconstruct_lambda_n env_proof (apply_eq_refl { typ; trm }) (nb_rel env_to)
     in
     let to_elim = dest_prod typ_app in
     let cs = [build_proof (shift_all pms) (shift typ_app) to_elim (mkRel 1)] in
@@ -369,16 +377,8 @@ let equiv_proof_curry_record env sigma l =
   let env_to = zoom_env zoom_lambda_term env to_body in
   let npm = nb_rel env_to - 1 in
   let pms = shift_all (mk_n_rels npm) in
-  let sigma, typ_app =
-    map_backward
-      (fun (sigma, typ_app) ->
-        let f = unwrap_definition env_to (first_fun typ_app) in
-        reduce_term env_to sigma (mkAppl (f, unfold_args typ_app)))
-      l
-      (reduce_type env_to sigma (mkRel 1))
-  in
   let sigma, p = equiv_motive env_to sigma pms l in
-  let equiv_b = equiv_proof_body_curry_record env env_to sigma p pms typ_app l in
+  let equiv_b = equiv_proof_body_curry_record env_to sigma p pms l in
   reconstruct_lambda env_to equiv_b
 
 (* --- Top-level equivalence proof generation --- *)
