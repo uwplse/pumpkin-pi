@@ -16,6 +16,7 @@ open Typehofs
 open Constutils
 open Nameutils
 open Defutils
+open Modutils
 open Envutils
 open Stateutils
 open Environ
@@ -29,7 +30,11 @@ open Environ
 let refresh_env () : env state =
   let env = Global.env () in
   Evd.from_env env, env
-       
+
+let pr_global_as_constr gref =
+  let sigma, env = refresh_env () in
+  pr_constr_env env sigma (Universes.constr_of_global gref)
+
 (*
  * If the option is enabled, then prove coherence after find_ornament is called.
  * Otherwise, do nothing.
@@ -178,6 +183,28 @@ let lift_by_ornament ?(suffix=false) n d_orn d_orn_inv d_old =
       lift_definition_by_ornament env sigma n_new l c_old
   else
     lift_definition_by_ornament env sigma n_new l c_old
+
+(*
+  * Lift each module element (constant and inductive definitions) along the given
+  * ornament, defining a new module with all the transformed module elements.
+  *)
+let lift_module_by_ornament ident d_orn d_orn_inv mod_ref =
+  let mod_body =
+    qualid_of_reference mod_ref |> Nametab.locate_module |> Global.lookup_module
+  in
+  let lift_global gref =
+    let ident = Nametab.basename_of_global gref in
+    try
+      lift_by_ornament ident d_orn d_orn_inv (expr_of_global gref)
+    with _ ->
+      Feedback.msg_warning (str "Failed to lift " ++ pr_global_as_constr gref)
+  in
+  let _ =
+    declare_module_structure
+      ident
+      (fun () -> iter_module_structure_by_glob lift_global mod_body)
+  in
+  Feedback.msg_notice (str "Defined lifted module " ++ Id.print ident)
 
 (*
  * Unpack sigma types in the functional signature of a constant.
