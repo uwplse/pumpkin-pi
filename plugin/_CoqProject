@@ -106,6 +106,9 @@ src/automation/lift.mli
 src/automation/unpack.ml
 src/automation/unpack.mli
 
+src/modutils.ml
+src/modutils.mli
+
 src/options.ml
 src/options.mli
 src/frontend.ml
