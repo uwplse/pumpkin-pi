@@ -280,16 +280,20 @@ let equiv_proof_algebraic env sigma l off =
 
 (*
  * Get the body of the section/retraction proof for curry record
- * TODO clean more
+ *
+ * In the forward case, this eliminates over the inductive type.
+ * In the backward case, this recursively eliminates over product types,
+ * until there are no more nested pairs to eliminate.
  *)
 let equiv_proof_body_curry_record env_to sigma p pms l =
+  let arg = mkRel 1 in
   let sigma, typ_app =
     map_backward
       (fun (sigma, typ_app) ->
         let f = unwrap_definition env_to (first_fun typ_app) in
         reduce_term env_to sigma (mkAppl (f, unfold_args typ_app)))
       l
-      (reduce_type env_to sigma (mkRel 1))
+      (reduce_type env_to sigma arg)
   in
   if l.is_fwd then
     let ((i, i_index), u) = destInd (first_fun typ_app) in
@@ -309,64 +313,38 @@ let equiv_proof_body_curry_record env_to sigma p pms l =
         pms;
         p;
         cs;
-        final_args = [mkRel 1];
+        final_args = [arg];
       }
   else
-    let rec build_proof pms at_type to_elim arg =
-      let typ1 = to_elim.Produtils.typ1 in
-      let typ2 = to_elim.Produtils.typ2 in
-      let env_proof =
-        push_local
-          (Anonymous, shift typ2)
-          (push_local (Anonymous, typ1) env_to)
-      in
-      let typ1 = shift_by 2 typ1 in
-      let typ2 = shift_by 2 typ2 in
+    let open Produtils in
+    let rec build_proof env pms at_type to_elim arg =
+      let (typ1, typ2) as typs = (to_elim.typ1, to_elim.typ2) in
+      let env_proof = push_local (Anonymous, shift typ2) (push_local (Anonymous, typ1) env) in
+      let (typ1, typ2) as typs = map_tuple (shift_by 2) typs in
       let at_type = shift_by 2 at_type in
       let pms = shift_all_by 2 pms in
-      if equal prod (first_fun typ2) then
-        let arg_sub =
-          apply_pair
-            Produtils.{
-              typ1 = shift typ1;
-              typ2 = shift typ2;
-              trm1 = mkRel 3;
-              trm2 = mkRel 1
-          }
-        in
-        let trm2 = all_eq_substs (mkRel 4, arg_sub) (shift_by 3 arg) in
-        let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm2 (shift_all pms))) (shift_all pms)) in
-        let p = mkLambda (Anonymous, typ2, apply_eq { at_type = shift at_type; trm1; trm2 }) in
-        let to_elim = dest_prod typ2 in
-        let arg_sub =
-          apply_pair
-            Produtils.{
-              typ1;
-              typ2;
-              trm1 = mkRel 2;
-              trm2 = mkRel 1
-          }
-        in
-        let arg = all_eq_substs (mkRel 3, arg_sub) (shift_by 2 arg) in
-        let proof = build_proof pms at_type to_elim arg in
-        let arg = mkRel 1 in
-        reconstruct_lambda_n env_proof (elim_prod Produtils.{ to_elim; p; proof; arg }) (nb_rel env_to)
-      else
-        let trm1 = mkRel 2 in
-        let trm2 = mkRel 1 in
-        let arg_sub = apply_pair Produtils.{ typ1; typ2; trm1; trm2 } in
-        let arg = all_eq_substs (mkRel 3, arg_sub) (shift_by 2 arg) in 
-        let trm = arg in
-        let arg_pair = dest_pair arg in
-        let typ1 = arg_pair.Produtils.typ1 in
-        let typ2 = arg_pair.Produtils.typ2 in
-        let typ = apply_prod Produtils.{ typ1; typ2 } in
-        reconstruct_lambda_n env_proof (apply_eq_refl { typ; trm }) (nb_rel env_to)
+      let curr = mkRel 1 in
+      let arg = all_eq_substs (mkRel 3, apply_pair { typ1; typ2; trm1 = mkRel 2; trm2 = curr }) (shift_by 2 arg) in
+      let proof_body =
+        if equal prod (first_fun typ2) then
+          let to_elim = dest_prod typ2 in
+          let p =
+            let pms = shift_all pms in
+            let arg_abs = all_eq_substs (shift curr, curr) (shift arg) in
+            let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc arg_abs pms)) pms) in
+            mkLambda (Anonymous, typ2, apply_eq { at_type = shift at_type; trm1; trm2 = arg_abs })
+          in
+          let proof = build_proof env_proof pms at_type to_elim arg in
+          elim_prod { to_elim; p; proof; arg = curr }
+        else
+          let arg_pair = dest_pair arg in
+          let typ = apply_prod { typ1 = arg_pair.typ1; typ2 = arg_pair.typ2 } in
+          apply_eq_refl { typ; trm = arg }
+      in reconstruct_lambda_n env_proof proof_body (nb_rel env)
     in
     let to_elim = dest_prod typ_app in
-    let cs = [build_proof pms typ_app to_elim (mkRel 1)] in
-    let arg = mkRel 1 in
-    elim_prod Produtils.{ to_elim; p; proof = List.hd cs; arg }
+    let proof = build_proof env_to pms typ_app to_elim arg in
+    elim_prod { to_elim; p; proof; arg }
   
 (*
  * Prove section/retraction for curry record
