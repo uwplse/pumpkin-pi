@@ -274,6 +274,8 @@ let remove_rel (i : int) (env : env) : env =
       (List.rev (List.tl (List.rev popped)))
   in List.fold_right push_local push env_pop
 
+(* --- Algebraic ornaments --- *)
+
 (*
  * Find the motive that the ornamental promotion or forgetful function proves
  * for an indexing function (PROMOTE-MOTIVE and FORGET-MOTIVE)
@@ -295,7 +297,7 @@ let promote_forget_motive off env t arity npm indexer_opt =
 (*
  * Substitute indexes and IHs in a case of promote or forget 
  *)
-let promote_forget_case env sigma off is_fwd p o n : types state =
+let promote_forget_case_algebraic env sigma off is_fwd p o n : types state =
   let directional a b = if is_fwd then a else b in
   let rec sub p p_a_b subs e o n =
     let (ind_o, c_o) = o in
@@ -337,7 +339,7 @@ let promote_forget_case env sigma off is_fwd p o n : types state =
          (o, n)
     | _ ->
        user_err
-         "promote_forget_case"
+         "promote_forget_case_algebraic"
          err_unsupported_change
          [try_supported]
          [cool_feature; mistake]
@@ -354,7 +356,7 @@ let promote_forget_case env sigma off is_fwd p o n : types state =
  * abstracting the indexed type to take an indexing function, then
  * deriving the result through specialization.
  *)
-let promote_forget_cases env off is_fwd orn_p nargs o n =
+let promote_forget_cases_algebraic env off is_fwd orn_p nargs o n =
   let directional a b = if is_fwd then a else b in
   let (o_t, elim_o_t) = o in
   let (n_t, elim_n_t) = n in
@@ -366,7 +368,7 @@ let promote_forget_cases env off is_fwd orn_p nargs o n =
     (fun c_o c_n sigma ->
       Util.on_snd
         (shift_by (directional (nargs - 1) (nargs - 2)))
-        (promote_forget_case env sigma off is_fwd p (o_t, c_o) (n_t, c_n)))
+        (promote_forget_case_algebraic env sigma off is_fwd p (o_t, c_o) (n_t, c_n)))
     (take_except nargs (factor_product b_o))
     (take_except (directional (nargs + 1) (nargs - 1)) (factor_product b_n))
 
@@ -459,7 +461,7 @@ let pack_orn f_indexer is_fwd =
   if is_fwd then pack_conclusion f_indexer else pack_hypothesis
 
 (* Search for the promotion or forgetful function *)
-let find_promote_or_forget env_pms idx indexer_n o n is_fwd =
+let find_promote_or_forget_algebraic env_pms idx indexer_n o n is_fwd =
   let directional x y = if is_fwd then x else y in
   let (o_typ, arity_o, elim, elim_o_typ) = o in
   let (n_typ, arity_n, _, elim_n_typ) = n in
@@ -479,12 +481,12 @@ let find_promote_or_forget env_pms idx indexer_n o n is_fwd =
   let p = promote_forget_motive off env_p_o typ arity npm f_indexer_opt in
   let adj = directional identity shift in
   bind
-    (promote_forget_cases env_pms off is_fwd (adj (shift p)) nargs o n)
+    (promote_forget_cases_algebraic env_pms off is_fwd (adj (shift p)) nargs o n)
     (fun cs ->
       let unpacked =
         apply_eliminator
           {
-            elim = elim;
+            elim;
             pms = shift_all_by nargs (mk_n_rels npm);
             p = shift_by nargs p;
             cs = List.map adj cs;
@@ -501,16 +503,14 @@ let find_promote_or_forget env_pms idx indexer_n o n is_fwd =
           ret (reconstruct_lambda env_packed packed)))
 
 (* Find promote and forget, using a directional flag for abstraction *)
-let find_promote_forget env_pms idx indexer_n a b =
+let find_promote_forget_algebraic env_pms idx indexer_n a b =
   bind
-    (find_promote_or_forget env_pms idx indexer_n a b true)
+    (find_promote_or_forget_algebraic env_pms idx indexer_n a b true)
     (fun f ->
       bind
-        (find_promote_or_forget env_pms idx indexer_n b a false)
+        (find_promote_or_forget_algebraic env_pms idx indexer_n b a false)
         (fun g ->
           ret (f, g)))
-
-(* --- Algebraic ornaments --- *)
               
 (*
  * Search two inductive types for an algebraic ornament between them
@@ -528,65 +528,59 @@ let search_algebraic env sigma npm indexer_n a b =
   let sigma, indexer = find_indexer env_pms idx el_a a b sigma in
   let a = (a_typ, arity_a, el_a, el_a_typ) in
   let b = (b_typ, arity_b, el_b, el_b_typ) in
-  let sigma, (promote, forget) = find_promote_forget env_pms idx indexer_n a b sigma in
+  let sigma, (promote, forget) = find_promote_forget_algebraic env_pms idx indexer_n a b sigma in
   sigma, { promote; forget; kind = Algebraic (indexer, fst idx + npm) }
 
 (* --- Records and products --- *)
 
 (*
- * TODO comment, clean
- * TODO break into two files above top-level search function:
- * algebraic and curry
+ * TODO comment all, clean all
+ * TODO refactor common code between this and algebraic
  * TODO better error messages for failure cases, e.g. when don't match order or when number of
  * fields doesn't match or only one field
- *)
-
-(*
- * TODO appropriate error message for indices, which shouldn't exist
- * TODO check/fix w/ params that are used
- * TODO get proof generation working
- * TODO then lifting
- *)
-let search_curry_record env_pms sigma a_ind b =
+ *) 
+           
+let find_promote_or_forget_curry_record env_pms a b is_fwd sigma =
   let npm = nb_rel env_pms in
   let pms = mk_n_rels npm in
-  let a = mkAppl (mkInd a_ind, pms) in
-  let b = mkAppl (b, pms) in
-  let sigma, promote =
-    let elim = type_eliminator env_pms a_ind in
-    let sigma, (_, elim_typ) = on_type (fun env sigma t -> sigma, zoom_n_prod env npm t) (Global.env ()) sigma elim in
+  let a_pms = mkAppl (a, pms) in
+  let b_pms = mkAppl (b, pms) in
+  if is_fwd then
+    let lookup_elim typ = type_eliminator env_pms (fst (destInd typ)) in
+    let elim = lookup_elim a in
+    let sigma, (_, elim_typ) = on_type (fun env sigma t -> sigma, zoom_n_prod env npm t) (Global.env ()) sigma elim in (* TODO global why *)
     let (p_n, _, elim_body) = destProd elim_typ in
-    let p = mkLambda (Anonymous, a, shift b) in
-    let env_p = push_local (p_n, p) env_pms in
-    let env_arg = push_local (Anonymous, a) env_pms in
-    let (_, c_typ, _) = destProd elim_body in
-    let env_c, _ = zoom_product_type env_p c_typ in
-    let rec make_c n sigma =
-      let trm1 = mkRel n in
-      if n = 1 then
-        sigma, trm1
-      else
-        let sigma, trm2 = make_c (n - 1) sigma in
-        let sigma, typ1 = infer_type env_c sigma trm1 in
-        let sigma, typ2 = infer_type env_c sigma trm2 in
-        sigma, apply_pair Produtils.{ typ1; typ2; trm1; trm2 }
+    let env_arg = push_local (Anonymous, a_pms) env_pms in
+    let p = mkLambda (Anonymous, a_pms, shift b_pms) in
+    let sigma, cs =
+      let (_, c_typ, _) = destProd elim_body in
+      let env_c, _ = zoom_product_type env_arg c_typ in
+      let rec make_c n sigma =
+        let trm1 = mkRel n in
+        if n = 1 then
+          sigma, trm1
+        else
+          let sigma, trm2 = make_c (n - 1) sigma in
+          let sigma, typ1 = infer_type env_c sigma trm1 in
+          let sigma, typ2 = infer_type env_c sigma trm2 in
+          sigma, apply_pair Produtils.{ typ1; typ2; trm1; trm2 }
+      in
+      let sigma, c = make_c (new_rels2 env_c env_arg) sigma in
+      sigma, [reconstruct_lambda_n env_c c (nb_rel env_arg)]
     in
-    let sigma, c = make_c (new_rels2 env_c env_p) sigma in
-    let cs = [reconstruct_lambda_n env_c c (nb_rel env_p)] in
     let app =
       apply_eliminator
         {
-          elim = elim;
+          elim;
           pms = shift_all pms;
           p = shift p;
           cs = cs;
           final_args = mk_n_rels 1;
         }
     in sigma, reconstruct_lambda env_arg app
-  in
-  let sigma, forget =
-    let env_arg = push_local (Anonymous, b) env_pms in
-    let c = mkAppl (mkConstruct (a_ind, 1), shift_all pms) in
+  else
+    let env_arg = push_local (Anonymous, b_pms) env_pms in
+    let c = mkAppl (mkConstruct (fst (destInd a), 1), shift_all pms) in
     let rec make_args n arg sigma =
       let sigma, arg_typ = reduce_type env_arg sigma arg in
       let sigma, arg_typ =
@@ -608,7 +602,24 @@ let search_curry_record env_pms sigma a_ind b =
     let sigma, args = make_args (arity c_typ) (mkRel 1) sigma in
     let app = mkAppl (c, args) in
     sigma, reconstruct_lambda env_arg app
-  in
+
+(*
+ * TODO comment
+ *)
+let find_promote_forget_curry_record env_pms a b =
+  bind
+    (find_promote_or_forget_curry_record env_pms a b true)
+    (fun f ->
+      bind
+        (find_promote_or_forget_curry_record env_pms a b false)
+        (fun g ->
+          ret (f, g)))
+
+(*
+ * TODO comment
+ *)
+let search_curry_record env_pms sigma a b =
+  let sigma, (promote, forget) = find_promote_forget_curry_record env_pms a b sigma in
   sigma, { promote; forget; kind = CurryRecord }
 
 (* --- Top-level search --- *)
@@ -684,7 +695,7 @@ let search_orn_one_noninductive env sigma trm_o trm_n =
        let ncs = Array.length (Array.get bs 0).mind_consnames in
        if npm = nb_rel env && ncs = 1 then
          (* Curry a record into an application of prod *)
-         search_curry_record env sigma (fst (destInd ind)) non_ind
+         search_curry_record env sigma ind non_ind
        else
          user_err
            "search_orn_one_noninductive"
