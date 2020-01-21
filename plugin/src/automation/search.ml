@@ -541,20 +541,21 @@ let search_algebraic env sigma npm indexer_n a b =
  *) 
            
 let find_promote_or_forget_curry_record env_pms a b is_fwd sigma =
+  let directional x y = if is_fwd then x else y in
   let npm = nb_rel env_pms in
   let pms = mk_n_rels npm in
   let a_pms = mkAppl (a, pms) in
   let b_pms = mkAppl (b, pms) in
+  let env_arg = push_local (Anonymous, directional a_pms b_pms) env_pms in
+  let pms = shift_all pms in
+  let a_pms, b_pms = map_tuple shift (a_pms, b_pms) in
+  let c_a = mkAppl (mkConstruct (fst (destInd a), 1), pms) in
+  let sigma, c_a_typ = reduce_type env_arg sigma c_a in
   if is_fwd then
-    let lookup_elim typ = type_eliminator env_pms (fst (destInd typ)) in
-    let elim = lookup_elim a in
-    let sigma, (_, elim_typ) = on_type (fun env sigma t -> sigma, zoom_n_prod env npm t) (Global.env ()) sigma elim in (* TODO global why *)
-    let (p_n, _, elim_body) = destProd elim_typ in
-    let env_arg = push_local (Anonymous, a_pms) env_pms in
+    let elim = type_eliminator env_pms (fst (destInd a)) in
     let p = mkLambda (Anonymous, a_pms, shift b_pms) in
     let sigma, cs =
-      let (_, c_typ, _) = destProd elim_body in
-      let env_c, _ = zoom_product_type env_arg c_typ in
+      let env_c = zoom_env zoom_product_type env_arg c_a_typ in
       let rec make_c n sigma =
         let trm1 = mkRel n in
         if n = 1 then
@@ -572,18 +573,16 @@ let find_promote_or_forget_curry_record env_pms a b is_fwd sigma =
       apply_eliminator
         {
           elim;
-          pms = shift_all pms;
-          p = shift p;
+          pms;
+          p;
           cs = cs;
           final_args = mk_n_rels 1;
         }
     in sigma, reconstruct_lambda env_arg app
   else
-    let env_arg = push_local (Anonymous, b_pms) env_pms in
-    let c = mkAppl (mkConstruct (fst (destInd a), 1), shift_all pms) in
     let rec make_args n arg sigma =
-      let sigma, arg_typ = reduce_type env_arg sigma arg in
       let sigma, arg_typ =
+        let sigma, arg_typ = reduce_type env_arg sigma arg in
         if equal (first_fun arg_typ) prod then
           sigma, arg_typ
         else
@@ -598,10 +597,8 @@ let find_promote_or_forget_curry_record env_pms a b is_fwd sigma =
         let sigma, args = make_args (n - 1) (prod_snd_elim prod_app arg) sigma in
         sigma, List.append [prod_fst_elim prod_app arg] args
     in
-    let sigma, c_typ = reduce_type env_arg sigma c in
-    let sigma, args = make_args (arity c_typ) (mkRel 1) sigma in
-    let app = mkAppl (c, args) in
-    sigma, reconstruct_lambda env_arg app
+    let sigma, args = make_args (arity c_a_typ) (mkRel 1) sigma in
+    sigma, reconstruct_lambda env_arg (mkAppl (c_a, args))
 
 (*
  * TODO comment
