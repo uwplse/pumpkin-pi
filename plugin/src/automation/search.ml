@@ -551,54 +551,48 @@ let find_promote_or_forget_curry_record env_pms a b is_fwd sigma =
   let a_pms, b_pms = map_tuple shift (a_pms, b_pms) in
   let c_a = mkAppl (mkConstruct (fst (destInd a), 1), pms) in
   let sigma, c_a_typ = reduce_type env_arg sigma c_a in
-  if is_fwd then
-    let elim = type_eliminator env_pms (fst (destInd a)) in
-    let p = mkLambda (Anonymous, a_pms, shift b_pms) in
-    let sigma, cs =
-      let env_c = zoom_env zoom_product_type env_arg c_a_typ in
-      let rec make_c n sigma =
-        let trm1 = mkRel n in
-        if n = 1 then
-          sigma, trm1
-        else
-          let sigma, trm2 = make_c (n - 1) sigma in
-          let sigma, typ1 = infer_type env_c sigma trm1 in
-          let sigma, typ2 = infer_type env_c sigma trm2 in
-          sigma, apply_pair Produtils.{ typ1; typ2; trm1; trm2 }
+  let sigma, body =
+    if is_fwd then
+      let elim = type_eliminator env_pms (fst (destInd a)) in
+      let p = mkLambda (Anonymous, a_pms, shift b_pms) in
+      let sigma, cs =
+        let env_c = zoom_env zoom_product_type env_arg c_a_typ in
+        let rec make_c n sigma =
+          let trm1 = mkRel n in
+          if n = 1 then
+            sigma, trm1
+          else
+            let sigma, trm2 = make_c (n - 1) sigma in
+            let sigma, typ1 = infer_type env_c sigma trm1 in
+            let sigma, typ2 = infer_type env_c sigma trm2 in
+            sigma, apply_pair Produtils.{ typ1; typ2; trm1; trm2 }
+        in
+        let sigma, c = make_c (new_rels2 env_c env_arg) sigma in
+        sigma, [reconstruct_lambda_n env_c c (nb_rel env_arg)]
       in
-      let sigma, c = make_c (new_rels2 env_c env_arg) sigma in
-      sigma, [reconstruct_lambda_n env_c c (nb_rel env_arg)]
-    in
-    let app =
-      apply_eliminator
-        {
-          elim;
-          pms;
-          p;
-          cs = cs;
-          final_args = mk_n_rels 1;
-        }
-    in sigma, reconstruct_lambda env_arg app
-  else
-    let rec make_args n arg sigma =
-      let sigma, arg_typ =
-        let sigma, arg_typ = reduce_type env_arg sigma arg in
-        if equal (first_fun arg_typ) prod then
-          sigma, arg_typ
+      let final_args = mk_n_rels 1 in
+      sigma, apply_eliminator { elim; pms; p; cs; final_args }
+    else
+      let rec make_args n arg sigma =
+        let sigma, arg_typ =
+          let sigma, arg_typ = reduce_type env_arg sigma arg in
+          if equal (first_fun arg_typ) prod then
+            sigma, arg_typ
+          else
+            let f = unwrap_definition env_arg (first_fun arg_typ) in
+            let pms = unfold_args arg_typ in
+            reduce_term env_arg sigma (mkAppl (f, pms))
+        in
+        let prod_app = dest_prod arg_typ in
+        if n = 2 then
+          sigma, [prod_fst_elim prod_app arg; prod_snd_elim prod_app arg]
         else
-          let f = unwrap_definition env_arg (first_fun arg_typ) in
-          let pms = unfold_args arg_typ in
-          reduce_term env_arg sigma (mkAppl (f, pms))
+          let sigma, args = make_args (n - 1) (prod_snd_elim prod_app arg) sigma in
+          sigma, List.append [prod_fst_elim prod_app arg] args
       in
-      let prod_app = dest_prod arg_typ in
-      if n = 2 then
-        sigma, [prod_fst_elim prod_app arg; prod_snd_elim prod_app arg]
-      else
-        let sigma, args = make_args (n - 1) (prod_snd_elim prod_app arg) sigma in
-        sigma, List.append [prod_fst_elim prod_app arg] args
-    in
-    let sigma, args = make_args (arity c_a_typ) (mkRel 1) sigma in
-    sigma, reconstruct_lambda env_arg (mkAppl (c_a, args))
+      let sigma, args = make_args (arity c_a_typ) (mkRel 1) sigma in
+      sigma, mkAppl (c_a, args)
+  in sigma, reconstruct_lambda env_arg body
 
 (*
  * TODO comment
