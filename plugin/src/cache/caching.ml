@@ -12,6 +12,7 @@ open Reducers
 open Environ
 open Declarations
 open Names
+open Promotion
 
 (* --- Database of liftings for higher lifting --- *)
 
@@ -256,12 +257,6 @@ let orn_cache = OrnamentsCache.create 100
 (* Initialize the private cache of indexers for algebraic ornamnets *)
 let indexer_cache = OrnamentsCache.create 100
                                       
-(*
- * The kind of ornament that is stored
- * TODO move this out since also used in lifting
- *)
-type kind_of_orn = Algebraic of constr * int | CurryRecord
-
 (*
  * The kind of ornament is saved as an int, so this interprets it
  *)

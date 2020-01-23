@@ -17,19 +17,9 @@ open Universes
 open Names
 open Funutils
 open Inference
+open Promotion
 
 (* --- Datatypes --- *)
-
-(*
- * An ornamental promotion is an optional indexing function, a function
- * from T1 -> T2, and a function from T2 -> T1.
- *)
-type promotion =
-  {
-    promote : types;
-    forget : types;
-    kind : kind_of_orn;
-  }
 
 (*
  * A lifting is an ornamental promotion between types and a direction,

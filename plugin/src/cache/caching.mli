@@ -2,6 +2,7 @@ open Globnames
 open Environ
 open Constr
 open Evd
+open Promotion
 
 (* --- Database for higher lifting --- *)
 
@@ -66,11 +67,6 @@ val lookup_local_cache : temporary_cache -> types -> types
 val cache_local : temporary_cache -> types -> types -> unit
 
 (* --- Database of ornaments --- *)
-
-(*
- * The kind of ornament that is stored
- *)
-type kind_of_orn = Algebraic of constr * int | CurryRecord
 
 (*
  * Lookup an ornament between two types

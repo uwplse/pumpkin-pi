@@ -24,6 +24,7 @@ open Stateutils
 open Names
 open Declarations
 open Desugarprod
+open Promotion
 
 (*
  * Automatically generated equivalence proofs
@@ -37,14 +38,14 @@ open Desugarprod
 let equiv_motive env_motive sigma pms l =
   let sigma, p_b =
     match l.orn.kind with
-    | Caching.Algebraic (_, off) ->
+    | Algebraic (_, off) ->
        let sigma, trm1 = map_backward (fun (sigma, t) -> pack env_motive off t sigma) l (sigma, mkRel 1) in
        let sigma, at_type = reduce_type env_motive sigma trm1 in
        let typ_args = non_index_args off env_motive sigma at_type in
        let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
        let trm2 = mkAppl (lift_back l, snoc trm1_lifted typ_args) in
        sigma, apply_eq { at_type; trm1; trm2 }
-    | Caching.CurryRecord ->
+    | CurryRecord ->
        let trm2 = mkRel 1 in
        let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm2 pms)) pms) in
        let sigma, at_type = reduce_type env_motive sigma trm2 in
@@ -365,9 +366,9 @@ let equiv_proof_curry_record env sigma l =
  *)
 let equiv_proof env sigma l =
   match l.orn.kind with
-  | Caching.Algebraic (indexer, off) ->
+  | Algebraic (indexer, off) ->
      equiv_proof_algebraic env sigma l off
-  | Caching.CurryRecord ->
+  | CurryRecord ->
      equiv_proof_curry_record env sigma l
                         
 (*

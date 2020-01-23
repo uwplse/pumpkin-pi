@@ -92,6 +92,9 @@ src/lib/desugarprod.mli
 src/lib/ornerrors.ml
 src/lib/ornerrors.mli
 
+src/ornaments/promotion.ml
+src/ornaments/promotion.mli
+
 src/cache/caching.ml
 src/cache/caching.mli
 

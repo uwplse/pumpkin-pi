@@ -22,6 +22,7 @@ open Environ
 open Inference
 open Ornerrors
 open Pretype_errors
+open Promotion
 
 (* --- Commands --- *)
 

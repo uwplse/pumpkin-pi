@@ -1,7 +1,7 @@
 open Constr
 open Utilities
 open Zooming
-open Lifting
+open Promotion
 open Typehofs
 open Envutils
 open Apputils
@@ -17,7 +17,7 @@ open Ornerrors
  *)
 let prove_coherence env sigma orn =
   match orn.kind with
-  | Caching.Algebraic (indexer, off) ->
+  | Algebraic (indexer, off) ->
      let promote = lookup_definition env orn.promote in
      let env_coh = zoom_env zoom_lambda_term env promote in
      let a = mkRel 1 in

@@ -14,7 +14,7 @@ open Substitution
 open Factoring
 open Zooming
 open Abstraction
-open Lifting
+open Promotion
 open Declarations
 open Util
 open Differencing
@@ -30,7 +30,6 @@ open Reducers
 open Constutils
 open Stateutils
 open Apputils
-open Caching
 open Desugarprod
 open Ornerrors 
 

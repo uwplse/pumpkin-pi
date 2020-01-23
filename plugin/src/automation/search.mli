@@ -6,7 +6,7 @@ open Constr
 open Environ
 open Evd
 open Names
-open Lifting
+open Promotion
 open Stateutils
 
 (* --- Top-level search --- *)
