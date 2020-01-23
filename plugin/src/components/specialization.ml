@@ -16,7 +16,6 @@ open Apputils
 open Sigmautils
 open Envutils
 open Stateutils
-open Caching
 open Desugarprod
 open Funutils
 open Zooming
@@ -24,6 +23,7 @@ open Hypotheses
 open Debruijn
 open Environ
 open Ornerrors
+open Promotion
 
 (* --- Packing--- *)
 
@@ -40,20 +40,19 @@ let pack env off unpacked sigma =
 (*
  * Pack inside of a prod type
  * TODO redundant w/ lifting
+ * TODO write a fold_prod somewhere
  *)
 let pack_prod env unpacked sigma =
   let sigma, typ = infer_type env sigma unpacked in
-  let rec pack_prod_rec unpacked typ =
+  let rec pack_prod_rec trm typ =
     if is_or_applies prod typ then
       let typ_prod = dest_prod typ in
-      let typ1 = typ_prod.Produtils.typ1 in
-      let typ2 = typ_prod.Produtils.typ2 in
-      let trm1 = prod_fst_elim typ_prod unpacked in
-      let trm2 = prod_snd_elim typ_prod unpacked in
+      let (typ1, typ2) = prod_typs typ_prod in
+      let (trm1, trm2) = prod_projections_elim typ_prod trm in
       let trm2 = pack_prod_rec trm2 typ2 in
       apply_pair Produtils.{typ1; typ2; trm1; trm2}
     else
-      unpacked
+      trm
   in
   let typ_f = unwrap_definition env (first_fun typ) in
   let typ_args = unfold_args typ in

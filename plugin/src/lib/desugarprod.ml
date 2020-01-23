@@ -52,3 +52,8 @@ let prod_snd_elim (app : prod_app) trm =
  *)
 let prod_projections_elim (app : prod_app) trm =
   (prod_fst_elim app trm, prod_snd_elim app trm)
+
+(* --- Extra utilities --- *)
+
+let prod_typs (p : prod_app) =
+  p.typ1, p.typ2

@@ -923,8 +923,6 @@ let lift_elim env sigma c trm_app =
  * REPACK
  *
  * This is to deal with non-primitive projections
- *
- * TODO redundant w pack
  *)
 let repack env ib_typ lifted typ =
   (* TODO probably need to reduce this, too? *)
@@ -939,15 +937,12 @@ let repack env ib_typ lifted typ =
  * REPACK, but over prod instead of sigma
  *
  * This is to deal with non-primitive projections
- *
- * TODO redundant w pack_prod
  *)
 let repack_prod env lifted typ =
   let rec repack_prod_rec trm typ =
     if is_or_applies prod typ then
       let typ_prod = dest_prod typ in
-      let typ1 = typ_prod.Produtils.typ1 in
-      let typ2 = typ_prod.Produtils.typ2 in
+      let (typ1, typ2) = prod_typs typ_prod in
       let (trm1, trm2) = prod_projections_elim typ_prod trm in
       let trm2 = repack_prod_rec trm2 typ2 in
       apply_pair Produtils.{ typ1; typ2; trm1; trm2 }

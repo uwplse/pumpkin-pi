@@ -40,3 +40,6 @@ val prod_fst_elim : prod_app -> constr -> constr
 val prod_snd_elim : prod_app -> constr -> constr
 val prod_projections_elim : prod_app -> constr -> constr * constr
 
+(* --- Extra utilities --- *)
+
+val prod_typs : prod_app -> (types * types)
