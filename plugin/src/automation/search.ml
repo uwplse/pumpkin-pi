@@ -534,12 +534,10 @@ let search_algebraic env sigma npm indexer_n a b =
 (* --- Records and products --- *)
 
 (*
- * TODO comment all, clean all
- * TODO refactor common code between this and algebraic
- * TODO better error messages for failure cases, e.g. when don't match order or when number of
- * fields doesn't match or only one field
- *) 
-           
+ * Search for promote/forget for curry record.
+ * For promote, eliminate the record and recursively construct a product.
+ * For forget, recursively eliminate the product and construct a record.
+ *)            
 let find_promote_or_forget_curry_record env_pms a b is_fwd sigma =
   let directional x y = if is_fwd then x else y in
   let npm = nb_rel env_pms in
@@ -598,7 +596,7 @@ let find_promote_or_forget_curry_record env_pms a b is_fwd sigma =
   in sigma, reconstruct_lambda env_arg body
 
 (*
- * TODO comment
+ * Find both promote and forget for curry_record
  *)
 let find_promote_forget_curry_record env_pms a b =
   bind
@@ -610,7 +608,7 @@ let find_promote_forget_curry_record env_pms a b =
           ret (f, g)))
 
 (*
- * TODO comment
+ * Search for the components of the equivalence for curry_record
  *)
 let search_curry_record env_pms sigma a b =
   let sigma, (promote, forget) = find_promote_forget_curry_record env_pms a b sigma in
