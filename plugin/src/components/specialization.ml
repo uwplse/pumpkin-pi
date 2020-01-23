@@ -66,7 +66,7 @@ let lift env l trm sigma =
            if l.is_fwd then
              sigma, unfold_args typ
            else
-             (* v TODO common functionality w/ search, move somewhere common *)
+             (* v TODO common functionality w/ lift, move somewhere common *)
              (* TODO explain the reason we need this *)
              (* TODO try to work around by substituting with constant version earlier so as to avoid this *)
              let f = unwrap_definition env f in

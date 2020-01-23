@@ -198,8 +198,8 @@ let is_from c env sigma typ =
                else
                  [typ]
            in
-           let abs_args = prod_args typ_app_red 0 in
-           let conc_args = prod_args (shift_by (new_rels2 env_f env) typ_red) (List.length abs_args) in
+           let abs_args = prod_typs_rec typ_app_red in
+           let conc_args = prod_args (shift_by (new_rels2 env_f env) typ_red) (List.length abs_args) in (* TODO means keepign around ugly function, but fails w/o *)
            if not (List.length abs_args = List.length conc_args) then
              sigma, None
            else
