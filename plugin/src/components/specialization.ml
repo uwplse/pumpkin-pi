@@ -39,26 +39,14 @@ let pack env off unpacked sigma =
 
 (*
  * Pack inside of a prod type
- * TODO redundant w/ lifting
- * TODO write a fold_prod somewhere
  *)
 let pack_prod env unpacked sigma =
   let sigma, typ = infer_type env sigma unpacked in
-  let rec pack_prod_rec trm typ =
-    if is_or_applies prod typ then
-      let typ_prod = dest_prod typ in
-      let (typ1, typ2) = prod_typs typ_prod in
-      let (trm1, trm2) = prod_projections_elim typ_prod trm in
-      let trm2 = pack_prod_rec trm2 typ2 in
-      apply_pair Produtils.{typ1; typ2; trm1; trm2}
-    else
-      trm
-  in
   let typ_f = unwrap_definition env (first_fun typ) in
   let typ_args = unfold_args typ in
   let typ_red = mkAppl (typ_f, typ_args) in
   let sigma, typ_red = reduce_term env sigma typ_red in
-  sigma, pack_prod_rec unpacked typ_red
+  sigma, eta_prod_rec unpacked typ_red
 
 (* --- Lifting --- *)
 

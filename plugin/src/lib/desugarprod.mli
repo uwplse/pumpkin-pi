@@ -43,3 +43,4 @@ val prod_projections_elim : prod_app -> constr -> constr * constr
 (* --- Extra utilities --- *)
 
 val prod_typs : prod_app -> (types * types)
+val eta_prod_rec : constr -> types -> constr
