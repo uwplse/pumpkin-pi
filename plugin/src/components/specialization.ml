@@ -76,20 +76,8 @@ let lift env l trm sigma =
              let typ_app_args = unfold_args typ_app in
              let typ_app_red = mkAppl (typ_app_f, typ_app_args) in
              let sigma, typ_app_red = reduce_term env sigma typ_app_red in
-             let rec prod_args typ n =
-               if n = 1 then
-                 [typ]
-               else
-                 if is_or_applies prod typ then
-                   let typ_prod = dest_prod typ in
-                   let typ1 = typ_prod.Produtils.typ1 in
-                   let typ2 = typ_prod.Produtils.typ2 in
-                   typ1 :: prod_args typ2 (n - 1)
-                 else
-                   [typ]
-             in
-             let abs_args = prod_args typ_app_red 0 in
-             let conc_args = prod_args (shift_by (new_rels2 env_f env) typ) (List.length abs_args) in
+             let abs_args = prod_typs_rec typ_app_red in
+             let conc_args = prod_typs_rec (shift_by (new_rels2 env_f env) typ) in
              let subbed = (* TODO move some of this ... *) (* TODO may fail sometimes, do better? try to make it fail ... *)
                List.fold_right2
                  (fun abs conc -> all_eq_substs (abs, conc))

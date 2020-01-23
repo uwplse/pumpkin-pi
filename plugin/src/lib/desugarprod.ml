@@ -58,6 +58,16 @@ let prod_projections_elim (app : prod_app) trm =
 let prod_typs (p : prod_app) =
   p.typ1, p.typ2
 
+let prod_typs_rec typ =
+  let rec prod_args typ =
+    if is_or_applies prod typ then
+      let typ_prod = dest_prod typ in
+      let (typ1, typ2) = prod_typs typ_prod in
+      typ1 :: prod_args typ2
+    else
+      [typ]
+  in prod_args typ
+            
 let eta_prod_rec trm typ =
   let rec eta trm typ =
     if is_or_applies prod typ then
