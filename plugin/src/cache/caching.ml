@@ -108,7 +108,7 @@ let save_lifting (orn_o, orn_n, trm) lifted_trm =
 
 (* --- Opaque liftings --- *)
 
-(* Initialize the lifting cache *)
+(* Initialize the opaque lifting cache *)
 let opaque_lift_cache = LiftingsCache.create 100
 
 (*
@@ -134,7 +134,7 @@ let inOpaqueLifts : opaque_lift_obj -> obj =
     subst_function = sub_opaque_lifting }
               
 (*
- * Check if there is a lifting along an ornament for a given term
+ * Check if there is an opaque lifting along an ornament for a given term
  *)
 let has_opaque_lifting_bool (orn_o, orn_n, trm) =
   try
