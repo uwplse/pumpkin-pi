@@ -670,9 +670,6 @@ let do_lift_defn env evd (l : lifting) def =
 (*                           Inductive types                            *)
 (************************************************************************)
 
-let with_suffix n s =
-  Nameops.(Name.map (fun id -> add_suffix id s) n)
-
 let eta_guard_eliminator (mind_body, ind_body) elim_term elim_type =
   let nparam = mind_body.mind_nparams in
   let nindex = ind_body.mind_nrealargs in
@@ -711,7 +708,8 @@ let eta_guard_eliminator (mind_body, ind_body) elim_term elim_type =
         in
         let { index_type; packer } = dest_sigT domain in
         let packed_type = Reduction.beta_app (Vars.lift 1 packer) (mkRel 1) in
-        let name_1, name_2 = with_suffix name "_1", with_suffix name "_2" in
+        let name_1 = Nameops.(Name.map (fun id -> add_suffix id "_1") name) in
+        let name_2 = Nameops.(Name.map (fun id -> add_suffix id "_2") name) in
         mkApp
           (sigT_rect,
            [|index_type; packer;
