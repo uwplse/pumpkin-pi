@@ -25,90 +25,45 @@ open Environ
 open Ornerrors
 open Promotion
 
+(* --- Specialization --- *)
+
+let specialize_using reduce env f args sigma =
+  reduce env sigma (mkAppl (f, args))
+
+let specialize = specialize_using reduce_term
+
+let specialize_delta_f env f args sigma =
+  let f = unwrap_definition env f in
+  specialize env f args sigma
+                                  
 (* --- Packing--- *)
 
 (*
- * Pack inside of a sigT type
+ * Pack inside of a sigT or prod type
  *)
-let pack env off unpacked sigma =
-  let sigma, typ = reduce_type env sigma unpacked in
-  let index = get_arg off typ in
-  let sigma, index_type = infer_type env sigma index in
-  let sigma, packer = abstract_arg env sigma off typ in
-  sigma, pack_existT {index_type; packer; index; unpacked}
-
-(*
- * Pack inside of a prod type
- *)
-let pack_prod env unpacked sigma =
-  let sigma, typ = infer_type env sigma unpacked in
-  let typ_f = unwrap_definition env (first_fun typ) in
-  let typ_args = unfold_args typ in
-  let typ_red = mkAppl (typ_f, typ_args) in
-  let sigma, typ_red = reduce_term env sigma typ_red in
-  sigma, eta_prod_rec unpacked typ_red
+let pack env l unpacked sigma =
+  match l.orn.kind with
+  | Algebraic (_, off) ->
+     let sigma, typ = reduce_type env sigma unpacked in
+     let index = get_arg off typ in
+     let sigma, index_type = infer_type env sigma index in
+     let sigma, packer = abstract_arg env sigma off typ in
+     sigma, pack_existT {index_type; packer; index; unpacked}
+  | CurryRecord ->
+     let sigma, typ = infer_type env sigma unpacked in
+     let typ_f = unwrap_definition env (first_fun typ) in
+     let typ_args = unfold_args typ in
+     let sigma, typ_red = specialize env typ_f typ_args sigma in
+     sigma, eta_prod_rec unpacked typ_red
 
 (* --- Lifting --- *)
 
 (*
  * Lift
  *)
-let lift env l trm sigma =
+let lift env l trm typ_args sigma =
   let f = lift_to l in
-  let sigma, typ_args =
-    match l.orn.kind with
-    | Algebraic (_, off) ->
-       non_index_typ_args off env sigma trm
-    | CurryRecord ->
-       on_red_type
-         reduce_nf
-         (fun env sigma typ ->
-           if l.is_fwd then
-             sigma, unfold_args typ
-           else
-             (* v TODO common functionality w/ lift, move somewhere common *)
-             (* TODO explain the reason we need this *)
-             (* TODO try to work around by substituting with constant version earlier so as to avoid this *)
-             let f = unwrap_definition env f in
-             let env_f, f_bod = zoom_lambda_term env f in
-             let sigma, typ_app = reduce_type env_f sigma (mkRel 1) in
-             let typ_app_f = unwrap_definition env_f (first_fun typ_app) in
-             let typ_app_args = unfold_args typ_app in
-             let typ_app_red = mkAppl (typ_app_f, typ_app_args) in
-             let sigma, typ_app_red = reduce_term env sigma typ_app_red in
-             let abs_args = prod_typs_rec typ_app_red in
-             let conc_args = prod_typs_rec (shift_by (new_rels2 env_f env) typ) in
-             let subbed = (* TODO move some of this ... *) (* TODO may fail sometimes, do better? try to make it fail ... *)
-               List.fold_right2
-                 (fun abs conc -> all_eq_substs (abs, conc))
-                 abs_args
-                 conc_args
-                 typ_app
-             in
-             let subbed = unshift_by (new_rels2 env_f env) subbed in
-             sigma, unfold_args subbed)
-         env
-         sigma
-         trm
-  in sigma, mkAppl (f, snoc trm typ_args)
-              
-(*
- * Pack arguments and lift
- *)
-let pack_lift env l arg sigma =
-  let sigma, arg =
-    match l.orn.kind with
-    | Algebraic (_, off) ->
-       map_backward
-         (fun (sigma, t) -> pack env off t sigma)
-         l
-         (sigma, arg)
-    | CurryRecord ->
-       map_backward
-         (fun (sigma, t) -> pack_prod env t sigma)
-         l
-         (sigma, arg)
-  in lift env l arg sigma
+  sigma, mkAppl (f, snoc trm typ_args)
        
 (* --- Refolding --- *)
 
@@ -171,20 +126,20 @@ let refold_packed l orn env arg app_red sigma =
   match l.orn.kind with
   | Algebraic (_, off) ->
      let sigma, typ_args = non_index_typ_args off env sigma arg in
-     let orn_app = mkAppl (orn, snoc arg typ_args) in
-     let orn_app_red = reduce_stateless reduce_nf env sigma orn_app in
+     let sigma, orn_app_red = specialize_using reduce_nf env orn (snoc arg typ_args) sigma in
      let app_red_ex = dest_existT app_red in
      let orn_app_red_ex = dest_existT orn_app_red in
      let abstract env sigma = abstract_arg env sigma off in
      let sigma, packer = on_red_type_default abstract env sigma orn_app_red_ex.unpacked in
      let index_type = app_red_ex.index_type in
      let arg_sigT = { index_type ; packer } in
-     let sigma, arg_indexer = Util.on_snd (project_index arg_sigT) (lift env l arg sigma) in
-     let sigma, arg_value = Util.on_snd (project_value arg_sigT) (lift env l arg sigma) in
+     let sigma, typ_args = non_index_typ_args off env sigma arg in
+     let sigma, arg_indexer = Util.on_snd (project_index arg_sigT) (lift env l arg typ_args sigma) in
+     let sigma, arg_value = Util.on_snd (project_value arg_sigT) (lift env l arg typ_args sigma) in
      let refold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
      let refold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
      let refolded = refold_index (refold_value app_red_ex.unpacked) in
-     pack env off refolded sigma
+     pack env l refolded sigma
   | _ ->
      raise NotAlgebraic
        
@@ -196,9 +151,8 @@ let refold_projected l orn env arg app_red sigma =
   match l.orn.kind with
   | Algebraic (_, off) ->
      let sigma, typ_args = non_index_typ_args off env sigma arg in
-     let orn_app = mkAppl (orn, snoc arg typ_args) in
-     let orn_app_red = reduce_stateless reduce_nf env sigma orn_app in
-     let sigma, lifted = lift env l arg sigma in
+     let sigma, orn_app_red = specialize_using reduce_nf env orn (snoc arg typ_args) sigma in
+     let sigma, lifted = lift env l arg typ_args sigma in
      sigma, all_eq_substs (orn_app_red, lifted) app_red
   | _ ->
      raise NotAlgebraic

@@ -30,6 +30,7 @@ open Desugarprod
 open Substitution
 open Convertibility
 open Ornerrors
+open Promotion
 
 (* --- Convenient shorthand --- *)
 
@@ -135,7 +136,7 @@ let typs_from_orn l env sigma =
  *
  * TODO it's more like e_is_from with pms/indices
  *)
-let is_from c env sigma typ =
+let is_from conv c env sigma typ =
   let (a_typ, b_typ) = c.typs in
   if c.l.is_fwd then
     if is_or_applies a_typ typ then
@@ -165,7 +166,7 @@ let is_from c env sigma typ =
          sigma, None
        else if arity a_typ_typ = 0 then
          branch_state
-           (convertible env b_typ)
+           (conv env b_typ)
            (fun _ -> ret (Some []))
            (fun _ -> ret None)
            typ
@@ -180,26 +181,12 @@ let is_from c env sigma typ =
          else
            let f = lift_to c.l in
            let f = unwrap_definition env f in
+           let f_arity = arity f in
            let env_f, f_bod = zoom_lambda_term env f in
            let sigma, typ_app = reduce_type env_f sigma (mkRel 1) in
-           let typ_app_f = unwrap_definition env_f (first_fun typ_app) in
-           let typ_app_args = unfold_args typ_app in
-           let typ_app_red = mkAppl (typ_app_f, typ_app_args) in
-           let sigma, typ_app_red = reduce_term env sigma typ_app_red in
-           let rec prod_args typ n =
-             if n = 1 then
-               [typ]
-             else
-               if is_or_applies prod typ then
-                 let typ_prod = dest_prod typ in
-                 let typ1 = typ_prod.Produtils.typ1 in
-                 let typ2 = typ_prod.Produtils.typ2 in
-                 typ1 :: prod_args typ2 (n - 1)
-               else
-                 [typ]
-           in
+           let sigma, typ_app_red = specialize_delta_f env_f (first_fun typ_app) (unfold_args typ_app) sigma in
            let abs_args = prod_typs_rec typ_app_red in
-           let conc_args = prod_args (shift_by (new_rels2 env_f env) typ_red) (List.length abs_args) in (* TODO means keepign around ugly function, but fails w/o *)
+           let conc_args = prod_typs_rec_n (shift_by f_arity typ_red) (List.length abs_args) in
            if not (List.length abs_args = List.length conc_args) then
              sigma, None
            else
@@ -208,10 +195,10 @@ let is_from c env sigma typ =
                  (fun abs conc -> all_eq_substs (abs, conc))
                  abs_args
                  conc_args
-                 (mkAppl (b_typ, typ_app_args))
+                 typ_app
              in
-             let subbed = unshift_by (new_rels2 env_f env) subbed in
-             let sigma, conv = convertible env subbed typ sigma in
+             let subbed = unshift_by f_arity subbed in
+             let sigma, conv = conv env subbed typ sigma in
              sigma, Some (unfold_args subbed)
        else
          sigma, None
@@ -219,11 +206,11 @@ let is_from c env sigma typ =
 (* 
  * Determine whether a term has the type we are ornamenting from
  *)
-let type_is_from c = on_red_type reduce_nf (is_from c)
+let type_is_from conv c = on_red_type reduce_nf (is_from conv c)
 
 (* Premises for LIFT-CONSTR *) (* TODO clean *)
 let is_packed_constr c env sigma trm =
-  let right_type trm sigma = type_is_from c env sigma trm in
+  let right_type trm sigma = type_is_from convertible c env sigma trm in
   match kind trm with
   | Construct (((_, _), i), _)  ->
      let sigma, typ_args_o = right_type trm sigma in
@@ -309,7 +296,7 @@ let is_packed_constr c env sigma trm =
 
 (* Premises for LIFT-PACKED *)
 let is_packed c env sigma trm =
-  let right_type = type_is_from c env sigma in
+  let right_type = type_is_from convertible c env sigma in
   if c.l.is_fwd then
     if isRel trm then
       Util.on_snd Option.has_some (right_type trm)
@@ -334,7 +321,7 @@ let is_packed c env sigma trm =
 
 (* Auxiliary function for premise for LIFT-PROJ *)
 let check_is_proj c env trm proj_is =
-  let right_type = type_is_from c in
+  let right_type = type_is_from convertible c in
   match kind trm with
   | App _ | Const _ ->
      let f = first_fun trm in
@@ -371,7 +358,7 @@ let check_is_proj c env trm proj_is =
                       let p_app = mkAppl (proj_i, snoc a typ_args) in
                       branch_state (* TODO check w/ pms *)
                         (convertible env_b p_app)
-                        (fun _ -> ret (Some (a, i, Option.get typ_args_o)))
+                        (fun _ -> ret (Some (a, i, typ_args)))
                         (fun _ -> check_is_proj_i (i + 1) tl)
                         b
                         sigma
@@ -468,7 +455,7 @@ let is_eliminator c env trm sigma =
          let env_elim, trm = zoom_lambda_term env trm in
          let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm in
          let (final_args, post_args) = take_split 1 trm_elim.final_args in
-         let sigma, is_from = type_is_from c env_elim sigma (List.hd final_args) in
+         let sigma, is_from = type_is_from convertible c env_elim sigma (List.hd final_args) in
          sigma, Option.has_some is_from (* TODO ret? Then what ret in other cases? *) (* TODO test eta here *) (* TODO test dependent motive here *)
        else
          sigma, is_elim
@@ -487,7 +474,7 @@ let pack_to_typ env sigma c unpacked =
   if on_red_type_default (ignore_env (is_or_applies b_typ)) env sigma unpacked then
     match c.l.orn.kind with
     | Algebraic (_, off) ->
-       pack env off unpacked sigma
+       pack env c.l unpacked sigma
     | _ ->
        raise NotAlgebraic
   else
@@ -501,10 +488,12 @@ let lift_constr env sigma c trm =
   let args = unfold_args (map_backward last_arg l trm) in
   let pack_args (sigma, args) = map_state (fun arg sigma -> pack_to_typ env sigma c arg) args sigma in
   let sigma, packed_args = map_backward pack_args l (sigma, args) in
-  let sigma, app = lift env l trm sigma in
+  let sigma, typ_args_o = type_is_from (fun _ _ _ -> ret true) c env sigma trm in
+  let typ_args = Option.get typ_args_o in
+  let sigma, app = lift env l trm typ_args sigma in
   match l.orn.kind with
   | Algebraic _ ->
-     let sigma, rec_args = filter_state (fun tr sigma -> let sigma, o = type_is_from c env sigma tr in sigma, Option.has_some o) packed_args sigma in (* TODO use result? *)
+     let sigma, rec_args = filter_state (fun tr sigma -> let sigma, o = type_is_from convertible c env sigma tr in sigma, Option.has_some o) packed_args sigma in (* TODO use result? *)
      if List.length rec_args = 0 then
        (* base case - don't bother refolding *)
        reduce_nf env sigma app
@@ -528,7 +517,7 @@ let initialize_constr_rule c env constr sigma =
     else
       match c.l.orn.kind with
       | Algebraic (_, off) ->
-         pack env_c_b off c_body sigma
+         pack env_c_b c.l c_body sigma
       | CurryRecord ->
          sigma, c_body
   in
@@ -576,7 +565,9 @@ let initialize_proj_rules env sigma c =
   let lift_f = unwrap_definition env (lift_to l) in
   let env_proj = zoom_env zoom_lambda_term env lift_f in
   let t = mkRel 1 in
-  let sigma, lift_t = lift env_proj l t sigma in
+  let sigma, typ_args_o = type_is_from (fun _ _ _ -> ret true) c env_proj sigma t in (* TODO refactor these *)
+  let typ_args = Option.get typ_args_o in
+  let sigma, lift_t = lift env_proj l t typ_args sigma in
   match l.orn.kind with
   | Algebraic (indexer, _) ->
      if l.is_fwd then (* indexer -> projT1 *)
@@ -644,11 +635,13 @@ let initialize_lift_config env sigma l typs ignores =
  * The one difference is that there are extra arguments because of
  * non-primitve eliminators, and also parameters
  *)
-let lift_elim_args env sigma l npms args =
+let lift_elim_args env sigma c npms args =
+  let l = c.l in
   match l.orn.kind with
   | Algebraic (indexer, off) ->
      let arg = map_backward last_arg l (last args) in
-     let sigma, lifted_arg = lift env l arg sigma in
+     let sigma, typ_args = non_index_typ_args off env sigma arg in
+     let sigma, lifted_arg = lift env l arg typ_args sigma in
      let value_off = List.length args - 1 in
      let orn = { l.orn with kind = Algebraic (indexer, off - npms) } in
      let l = { l with orn } in (* no parameters here *)
@@ -665,20 +658,31 @@ let lift_elim_args env sigma l npms args =
        sigma, deindex l (reindex value_off a args)
   | CurryRecord ->
      let arg = last args in
-     let sigma, lifted_arg = lift env l arg sigma in
+     let sigma, typ_args_o = type_is_from (fun _ _ _ -> ret true) c env sigma arg in
+     let typ_args = Option.get typ_args_o in
+     let sigma, lifted_arg = lift env l arg typ_args sigma in
      sigma, [lifted_arg]
 
 (*
  * MOTIVE
  *)
-let lift_motive env sigma l npms parameterized_elim p =
+let lift_motive env sigma c npms parameterized_elim p =
+  let l = c.l in
   let sigma, parameterized_elim_type = reduce_type env sigma parameterized_elim in
   let (_, p_to_typ, _) = destProd parameterized_elim_type in
   let env_p_to = zoom_env zoom_product_type env p_to_typ in
   let nargs = new_rels2 env_p_to env in
   let p = shift_by nargs p in
   let args = mk_n_rels nargs in
-  let sigma, lifted_arg = pack_lift env_p_to (flip_dir l) (last args) sigma in
+  let sigma, arg =
+    map_backward
+      (fun (sigma, t) -> pack env_p_to (flip_dir l) t sigma)
+      (flip_dir l)
+      (sigma, last args)
+  in
+  let sigma, typ_args_o = type_is_from (fun _ _ _ -> ret true) { c with l = flip_dir l } env_p_to sigma arg in
+  let typ_args = Option.get typ_args_o in
+  let sigma, lifted_arg = lift env_p_to (flip_dir l) arg typ_args sigma in
   let args =
     match l.orn.kind with
     | Algebraic (indexer, off) ->
@@ -723,7 +727,15 @@ let promote_case_args env sigma c args =
            (* FORGET-ARG *)
            match c.l.orn.kind with
            | Algebraic (_, off) ->
-              let sigma, a = pack_lift env (flip_dir c.l) n sigma in
+              let sigma, n =
+                map_backward
+                  (fun (sigma, t) -> pack env (flip_dir c.l) t sigma)
+                  (flip_dir c.l)
+                  (sigma, n)
+              in 
+              let sigma, typ_args_o = type_is_from (fun _ _ _ -> ret true) { c with l = flip_dir c.l } env sigma n in
+              let typ_args = Option.get typ_args_o in
+              let sigma, a = lift env (flip_dir c.l) n typ_args sigma in
               Util.on_snd
                 (fun tl -> a :: tl)
                 (lift_args sigma tl (get_arg off t))
@@ -758,7 +770,15 @@ let forget_case_args env_c_b env sigma c args =
            (* PROMOTE-ARG *)
            match c.l.orn.kind with
            | Algebraic (_, off) ->
-              let sigma, b_sig =  pack_lift env (flip_dir c.l) n sigma in
+              let sigma, n =
+                map_backward
+                  (fun (sigma, t) -> pack env (flip_dir c.l) t sigma)
+                  (flip_dir c.l)
+                  (sigma, n)
+              in 
+              let sigma, typ_args_o = type_is_from (fun _ _ _ -> ret true) { c with l = flip_dir c.l } env sigma n in
+              let typ_args = Option.get typ_args_o in
+              let sigma, b_sig = lift env (flip_dir c.l) n typ_args sigma in
               let b_sig_typ = dest_sigT_type env sigma b_sig in
               let proj_b = project_value b_sig_typ b_sig in
               let proj_i_b = project_index b_sig_typ b_sig in
@@ -888,10 +908,10 @@ let lift_elim env sigma c trm_app =
      let npms = List.length trm_app.pms in
      let elim = type_eliminator env (fst (destInd to_typ)) in
      let param_elim = mkAppl (elim, trm_app.pms) in
-     let sigma, p = lift_motive env sigma c.l npms param_elim trm_app.p in
+     let sigma, p = lift_motive env sigma c npms param_elim trm_app.p in
      let p_elim = mkAppl (param_elim, [p]) in
      let sigma, cs = lift_cases env c p p_elim trm_app.cs sigma in
-     let sigma, final_args = lift_elim_args env sigma c.l npms trm_app.final_args in
+     let sigma, final_args = lift_elim_args env sigma c npms trm_app.final_args in
      sigma, apply_eliminator { trm_app with elim; p; cs; final_args }
   | CurryRecord ->
      if c.l.is_fwd then
@@ -901,22 +921,22 @@ let lift_elim env sigma c trm_app =
        let sigma, to_typ_prod = reduce_term env sigma to_typ_app in
        let to_elim = dest_prod to_typ_prod in
        let param_elim = mkAppl (prod_rect, [to_elim.Produtils.typ1; to_elim.Produtils.typ2]) in
-       let sigma, p = lift_motive env sigma c.l npms param_elim trm_app.p in
+       let sigma, p = lift_motive env sigma c npms param_elim trm_app.p in
        let p_elim = mkAppl (param_elim, [p]) in
        let sigma, proof = lift_case env c p p_elim (List.hd trm_app.cs) sigma in
-       let sigma, args = lift_elim_args env sigma c.l npms trm_app.final_args in
+       let sigma, args = lift_elim_args env sigma c npms trm_app.final_args in
        let arg = List.hd args in
        sigma, elim_prod Produtils.{ to_elim; p; proof; arg }
      else
        let elim = type_eliminator env (fst (destInd to_typ)) in
        let to_elim = List.hd (fst (take_split 1 trm_app.final_args)) in
-       let sigma, pms = Util.on_snd Option.get (type_is_from c env sigma to_elim) in (* TODO redundant *)
+       let sigma, pms = Util.on_snd Option.get (type_is_from convertible c env sigma to_elim) in (* TODO redundant *)
        let npms = List.length pms in
        let param_elim = mkAppl (elim, pms) in
-       let sigma, p = lift_motive env sigma c.l npms param_elim trm_app.p in
+       let sigma, p = lift_motive env sigma c npms param_elim trm_app.p in
        let p_elim = mkAppl (param_elim, [p]) in
        let sigma, cs = lift_cases env c p p_elim trm_app.cs sigma in
-       let sigma, final_args = lift_elim_args env sigma c.l npms trm_app.final_args in
+       let sigma, final_args = lift_elim_args env sigma c npms trm_app.final_args in
        sigma, apply_eliminator { elim; pms; p; cs; final_args }
 
 (*
@@ -968,7 +988,7 @@ let lift_algebraic env sigma c ib_typ trm =
         (* OPAQUE CONSTANTS *)
         (sigma, tr), false
       else
-        let sigma, is_o = is_from c en sigma tr in
+        let sigma, is_o = is_from convertible c en sigma tr in
         if Option.has_some is_o then
           (* EQUIVALENCE *)
           let is = Option.get is_o in
@@ -1153,7 +1173,7 @@ let lift_algebraic env sigma c ib_typ trm =
       (fun (sigma, lifted) ->
         let sigma_typ, typ = infer_type en sigma tr in
         let typ = reduce_stateless reduce_nf en sigma_typ typ in
-        let sigma_typ, is_from_typ = Util.on_snd Option.has_some (is_from c en sigma_typ typ) in
+        let sigma_typ, is_from_typ = Util.on_snd Option.has_some (is_from convertible c en sigma_typ typ) in
         map_if
           (fun (sigma, t) ->
             Util.on_snd (repack en ib_typ t) (lift_rec en sigma_typ ib_typ typ))
@@ -1191,7 +1211,7 @@ let lift_curry_record env sigma c trm =
         (* OPAQUE CONSTANTS *)
         (sigma, tr), false
       else
-        let sigma, pms_o = is_from c en sigma tr in
+        let sigma, pms_o = is_from convertible c en sigma tr in
         if Option.has_some pms_o then
           (* EQUIVALENCE *)
           let pms = Array.of_list (Option.get pms_o) in
@@ -1390,7 +1410,7 @@ let lift_curry_record env sigma c trm =
       (fun (sigma, lifted) ->
         let sigma_typ, typ = infer_type en sigma tr in
         let typ = reduce_stateless reduce_nf en sigma_typ typ in
-        let sigma_typ, is_from_typ = Util.on_snd Option.has_some (is_from c en sigma_typ typ) in
+        let sigma_typ, is_from_typ = Util.on_snd Option.has_some (is_from convertible c en sigma_typ typ) in
         map_if
           (fun (_, t) ->
             let sigma, lifted_typ = lift_rec en sigma_typ () typ in

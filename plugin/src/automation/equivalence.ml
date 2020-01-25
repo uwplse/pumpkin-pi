@@ -39,7 +39,7 @@ let equiv_motive env_motive sigma pms l =
   let sigma, p_b =
     match l.orn.kind with
     | Algebraic (_, off) ->
-       let sigma, trm1 = map_backward (fun (sigma, t) -> pack env_motive off t sigma) l (sigma, mkRel 1) in
+       let sigma, trm1 = map_backward (fun (sigma, t) -> pack env_motive l t sigma) l (sigma, mkRel 1) in
        let sigma, at_type = reduce_type env_motive sigma trm1 in
        let typ_args = non_index_args off env_motive sigma at_type in
        let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
@@ -88,7 +88,7 @@ let eq_lemmas_env_algebraic env recs l off =
       let r_t = adj_back (shift_by (new_rels2 e_ib e) r_t) in
       (* push new rec arg *)
       let e_r = push_local (Anonymous, r_t) e_ib in
-      let pack_back = map_backward (fun (sigma, t) -> pack e_r off t sigma) l in
+      let pack_back = map_backward (fun (sigma, t) -> pack e_r l t sigma) l in
       let sigma, r1 = pack_back (sigma, shift_by (new_rels2 e_r e) r1) in
       let sigma, r2 = pack_back (sigma, mkRel 1) in
       let sigma, r_t = reduce_type e_r sigma r1 in
@@ -113,7 +113,7 @@ let eq_lemmas_algebraic env sigma typ l off =
       let c_args = unfold_args c_body in
       let recs = List.filter (on_red_type_default (ignore_env (is_or_applies typ)) env_c_b sigma) c_args in
       let sigma, env_lemma = eq_lemmas_env_algebraic env_c_b recs l off sigma in
-      let pack_back = map_backward (fun (sigma, t) -> pack env_lemma off t sigma) l in
+      let pack_back = map_backward (fun (sigma, t) -> pack env_lemma l t sigma) l in
       let sigma, c_body = pack_back (sigma, shift_by (new_rels2 env_lemma env_c_b) c_body) in
       let sigma, c_body_type = reduce_type env_lemma sigma c_body in
       (* reflexivity proof: the identity case *)

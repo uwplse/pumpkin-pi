@@ -55,9 +55,15 @@ let prod_projections_elim (app : prod_app) trm =
 
 (* --- Extra utilities --- *)
 
+(*
+ * Both types of a prod
+ *)
 let prod_typs (p : prod_app) =
   p.typ1, p.typ2
 
+(*
+ * All types of a nested prod
+ *)
 let prod_typs_rec typ =
   let rec prod_args typ =
     if is_or_applies prod typ then
@@ -67,7 +73,26 @@ let prod_typs_rec typ =
     else
       [typ]
   in prod_args typ
-            
+
+(*
+ * n types of a nested prod
+ *)
+let prod_typs_rec_n typ n =
+  let rec prod_args typ n =
+    if n <= 1 then
+      [typ]
+    else
+      if is_or_applies prod typ then
+        let typ_prod = dest_prod typ in
+        let (typ1, typ2) = prod_typs typ_prod in
+        typ1 :: prod_args typ2 (n - 1)
+      else
+        [typ]
+  in prod_args typ n
+
+(*
+ * Eta expansion of a nested prod
+ *)
 let eta_prod_rec trm typ =
   let rec eta trm typ =
     if is_or_applies prod typ then
@@ -78,5 +103,4 @@ let eta_prod_rec trm typ =
       apply_pair {typ1; typ2; trm1; trm2}
     else
       trm
-  in eta trm typ
-                                             
+  in eta trm typ                         

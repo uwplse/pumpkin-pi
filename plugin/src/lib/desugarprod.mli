@@ -44,4 +44,5 @@ val prod_projections_elim : prod_app -> constr -> constr * constr
 
 val prod_typs : prod_app -> (types * types)
 val prod_typs_rec : types -> types list
+val prod_typs_rec_n : types -> int -> types list
 val eta_prod_rec : constr -> types -> constr
