@@ -50,11 +50,11 @@ val map_backward : ('a -> 'a) -> lifting -> 'a -> 'a
 (* --- Information retrieval --- *)
 
 (* 
- * Given the type of an ornamental promotion function, get the inductive types
+ * Given the type of an ornamental promotion function, get the types
  * that the function maps between, including all of their arguments.
  * It is up to the client to adjust the offsets appropriately.
  *)
-val ind_of_promotion_type : types -> (types * types)
+val promotion_type_to_types : types -> (types * types)
 
 (* --- Directionality --- *)
        

@@ -280,7 +280,7 @@ let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old =
   let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in 
   let u_old = unwrap_definition env c_old in
   if isInd u_old then
-    let from_typ = fst (on_red_type_default (fun _ _ -> ind_of_promotion_type) env sigma l.orn.promote) in
+    let from_typ = fst (on_red_type_default (fun _ _ -> promotion_type_to_types) env sigma l.orn.promote) in
     if not (equal u_old from_typ) then
       lift_inductive_by_ornament env sigma n_new s l c_old opaque_terms
     else

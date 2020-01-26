@@ -117,7 +117,7 @@ let deindex l =
  * Get the types A, B, and IB from the ornament
  *)
 let typs_from_orn l env sigma =
-  let (a_i_t, b_i_t) = on_red_type_default (ignore_env ind_of_promotion_type) env sigma l.orn.promote in
+  let (a_i_t, b_i_t) = on_red_type_default (ignore_env promotion_type_to_types) env sigma l.orn.promote in
   let a_t = first_fun a_i_t in
   match l.orn.kind with
   | Algebraic _ ->

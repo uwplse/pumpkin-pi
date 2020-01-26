@@ -50,23 +50,23 @@ let map_backward f l x = map_if f (not l.is_fwd) x
 (* --- Information retrieval --- *)
 
 (* 
- * Given the type of an ornamental promotion function, get the inductive types
+ * Given the type of an ornamental promotion function, get the types
  * that the function maps between, including all of their arguments 
  *)
-let rec ind_of_promotion_type (typ : types) : types * types =
+let rec promotion_type_to_types (typ : types) : types * types =
   match kind typ with
   | Prod (n, t, b) when isProd b ->
-     ind_of_promotion_type b
+     promotion_type_to_types b
   | Prod (n, t, b) ->
      (t, b)
   | _ ->
      failwith "not an ornamental promotion/forgetful function type"
 
 (* 
- * TODO rename before merging, now
+ * Same, but at the term level
  *)
-let ind_of_promotion env sigma trm =
-  on_red_type_default (ignore_env ind_of_promotion_type) env sigma trm
+let promotion_term_to_types env sigma trm =
+  on_red_type_default (ignore_env promotion_type_to_types) env sigma trm
 
 (* --- Utilities for initialization --- *)
 
@@ -87,17 +87,6 @@ let direction_cached env from_typ to_typ k : bool =
   | CurryRecord ->
      isInd from_typ
 
-(* TODO comment/move *)
-let rec wrapped (from_ind, to_ind) =
-  if not (applies sigT from_ind) then
-    true
-  else
-    if not (applies sigT to_ind) then
-      false
-    else
-      let (from_args, to_args) = map_tuple unfold_args (from_ind, to_ind) in
-      wrapped (map_tuple last (from_args, to_args))
-
 (* 
  * Unpack a promotion
  *)
@@ -106,30 +95,47 @@ let unpack_promotion env promotion =
   reconstruct_lambda env_promotion (last_arg body)
 
 (*
+ * Get the direction for an uncached ornament.
+ * For now, we use a boolean for is_algebraic, but in the long run, we should
+ * take a kind here. This is a bit tricky since we need the direction right
+ * now in order to construct the kind. The best move in the long run is
+ * probably to the user supply equivalences in a separate command that
+ * caches them instead of directly to the command (TODO try this before merging)
+ *)
+let get_direction (from_typ_app, to_typ_app) is_algebraic =
+  if is_algebraic then
+    (* Algebraic ornament *)
+    let rec get_direction_algebraic (from_ind, to_ind) =
+      if not (applies sigT from_ind) then
+        true
+      else
+        if not (applies sigT to_ind) then
+          false
+        else
+          let (from_args, to_args) = map_tuple unfold_args (from_ind, to_ind) in
+          get_direction_algebraic (map_tuple last (from_args, to_args))
+    in get_direction_algebraic (from_typ_app, to_typ_app)
+  else
+    (* Curry record *)
+    not (equal Produtils.prod (first_fun from_typ_app))
+
+(*
  * For an uncached ornament, get the kind and its direction
- *
- * TODO move is_alg to a config somewhere. Logic here is redundant
- * and also not exactly the same as other places that determine is_alg.
- * What we really want is to cache the user-supplied ornament, I think,
- * and then look it up. Or, remove support for passing orn directly,
- * and add a command to provide/cache your own (probably better) that replaces
- * whatever is last in the cache. And is_alg should be determined exactly
- * once, maybe in differencing, like kind_of_change in PUMPKIN PATCH.
  *)
 let get_kind_of_ornament env (o, n) sigma =
-  let (from_typ_app, to_typ_app) = ind_of_promotion env sigma o in
-  if applies sigT from_typ_app || applies sigT to_typ_app then
-    let is_fwd = wrapped (from_typ_app, to_typ_app) in
+  let (from_typ_app, to_typ_app) = promotion_term_to_types env sigma o in
+  let is_algebraic = applies sigT from_typ_app || applies sigT to_typ_app in
+  let is_fwd = get_direction (from_typ_app, to_typ_app) is_algebraic in
+  if is_algebraic then
     let (promote, _) = map_if reverse (not is_fwd) (o, n) in
     let promote_unpacked = unpack_promotion env (unwrap_definition env promote) in
-    let to_ind = snd (ind_of_promotion env sigma promote_unpacked) in
+    let to_ind = snd (promotion_term_to_types env sigma promote_unpacked) in
     let to_args = unfold_args to_ind in
     let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
     let (o, i) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
     let indexer = first_fun i in
     is_fwd, Algebraic (indexer, o)
   else
-    let is_fwd = not (equal Produtils.prod (first_fun from_typ_app)) in
     is_fwd, CurryRecord
 
 (* --- Initialization --- *)
