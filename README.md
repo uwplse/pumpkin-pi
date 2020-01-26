@@ -22,6 +22,7 @@ Before merging this branch, document:
 * Curry record
 * New examples
 * New files
+* Save ornament (and removed support for passing directly)
 
 # Getting Started with DEVOID
 

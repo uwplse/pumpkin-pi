@@ -8,8 +8,8 @@ open Constr
 type kind_of_orn = Algebraic of constr * int | CurryRecord
 
 (*
- * An ornamental promotion is an optional indexing function, a function
- * from T1 -> T2, and a function from T2 -> T1.
+ * An ornamental promotion is a function from T1 -> T2,
+ * a function from T2 -> T1, and a kind of ornament.
  *)
 type promotion =
   {
