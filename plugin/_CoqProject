@@ -87,6 +87,8 @@ src/coq-plugin-lib/src/coq/devutils/printing.ml
 deps/fix-to-elim/plugin/src/usability/preprocess_errors.mli
 deps/fix-to-elim/plugin/src/usability/preprocess_errors.ml
 
+src/lib/deltautils.ml
+src/lib/deltautils.mli
 src/lib/desugarprod.ml
 src/lib/desugarprod.mli
 src/lib/ornerrors.ml

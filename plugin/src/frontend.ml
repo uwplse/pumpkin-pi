@@ -23,8 +23,9 @@ open Inference
 open Ornerrors
 open Pretype_errors
 open Promotion
+open Deltautils
 
-(* --- Commands --- *)
+(* --- Utilities --- *)
 
 (*
  * Refresh an environment and get the corresponding state after defining
@@ -33,7 +34,15 @@ open Promotion
 let refresh_env () : env state =
   let env = Global.env () in
   Evd.from_env env, env
-       
+
+let define_print ?typ n trm sigma =
+  let def = define_term ?typ n sigma trm true in
+  Feedback.msg_info
+    (str (Printf.sprintf "DEVOID generated %s" (Id.to_string n)));
+  def
+                      
+(* --- Commands --- *)
+
 (*
  * If the option is enabled, then prove coherence after find_ornament is called.
  * Otherwise, do nothing.
@@ -47,8 +56,7 @@ let maybe_prove_coherence n inv_n kind : unit =
        let orn = { promote; forget; kind } in
        let coh, coh_typ = prove_coherence env sigma orn in
        let coh_n = with_suffix n "coh" in
-       let _ = define_term ~typ:coh_typ coh_n sigma coh true in
-       Feedback.msg_info (Pp.str (Printf.sprintf "Defined coherence proof %s" (Id.to_string coh_n)))
+       ignore (define_print ~typ:coh_typ coh_n coh sigma)
      else
        ()
   | _ ->
@@ -59,11 +67,9 @@ let maybe_prove_coherence n inv_n kind : unit =
  * find_ornament is called. Otherwise, do nothing.
  *)
 let maybe_prove_equivalence n inv_n : unit =
-  let define_proof suffix ?(adjective=suffix) evd term =
+  let define_proof suffix ?(adjective=suffix) sigma term =
     let ident = with_suffix n suffix in
-    let const = define_term ident evd term true |> destConstRef in
-    Feedback.msg_info (Pp.str (Printf.sprintf "Defined %s proof %s" adjective (Id.to_string ident)));
-    const
+    define_print ident term sigma |> destConstRef
   in
   if is_search_equiv () then
     let sigma, env = refresh_env () in
@@ -87,22 +93,20 @@ let maybe_prove_equivalence n inv_n : unit =
     ()
 
 (*
- * Identify an algebraic ornament between two types
+ * Identify an ornament between two types
  * Define the components of the corresponding equivalence
- * (Don't prove section and retraction)
+ * If the appropriate option is set, prove these components form an equivalence
  *)
 let find_ornament n_o d_old d_new =
   try
     let (sigma, env) = Pfedit.get_current_context () in
     let sigma, def_o = intern env sigma d_old in
     let sigma, def_n = intern env sigma d_new in
-    let trm_o = unwrap_definition env def_o in
-    let trm_n = unwrap_definition env def_n in
-    let trm_o = if isInd trm_o then trm_o else def_o in (* TODO explain *)
-    let trm_n = if isInd trm_n then trm_n else def_n in (* TODO explain *)
-    let n, inv_n, idx_n =
+    let trm_o, trm_n = map_tuple (try_delta_inductive env) (def_o, def_n) in
+    let n, idx_n =
       match map_tuple kind (trm_o, trm_n) with
       | Ind ((m_o, _), _), Ind ((m_n, _), _) ->
+         (* Algebraic ornament *)
          let (_, _, lab_o) = KerName.repr (MutInd.canonical m_o) in
          let (_, _, lab_n) = KerName.repr (MutInd.canonical m_n) in
          let name_o = Label.to_id lab_o in
@@ -110,19 +114,17 @@ let find_ornament n_o d_old d_new =
          let auto_n = with_suffix (with_suffix name_o "to") name_n in
          let n = Option.default auto_n n_o in
          let idx_n = with_suffix n "index" in
-         let inv_n = with_suffix n "inv" in
-         n, inv_n, Some idx_n
+         n, Some idx_n
       |_ ->
         if isInd trm_o || isInd trm_n then
-          (* TODO imperfect logic on delta *)
-          let ind, non_ind = if isInd trm_o then (trm_o, trm_n) else (trm_n, trm_o) in
+          (* Curry record *)
+          let ind = if isInd trm_o then trm_o else trm_n in
           let ((m, _), _) = destInd ind in
           let (_, _, lab) = KerName.repr (MutInd.canonical m) in
           let name = Label.to_id lab in
           let auto_n = with_suffix name "curry" in
           let n = Option.default auto_n n_o in
-          let inv_n = with_suffix n "inv" in
-          n, inv_n, None
+          n, None
         else      
           user_err
             "find_ornament"
@@ -134,27 +136,22 @@ let find_ornament n_o d_old d_new =
     let orn =
       match orn.kind with
       | Algebraic (indexer, off) ->
-         let idx_n = Option.get idx_n in
-         let indexer = define_term idx_n sigma indexer true in
-         Feedback.msg_info (str (Printf.sprintf "Defined indexing function %s." (Id.to_string idx_n)));
+         (* Substitute the defined indexer constant for the raw term *)
+         let indexer = define_print (Option.get idx_n) indexer sigma in
          { orn with kind = Algebraic (Universes.constr_of_global indexer, off) }
       | _ ->
          orn
     in
-    let promote = define_term n sigma orn.promote true in
-    Feedback.msg_info (str (Printf.sprintf "Defined promotion %s." (Id.to_string n)));
+    let promote = define_print n orn.promote sigma in
     let inv_n = with_suffix n "inv" in
-    let forget = define_term inv_n sigma orn.forget true in
-    Feedback.msg_info (str (Printf.sprintf "Defined forgetful function %s." (Id.to_string inv_n)));
+    let forget = define_print inv_n orn.forget sigma in
     maybe_prove_coherence n inv_n orn.kind;
     maybe_prove_equivalence n inv_n;
-  (try
-     let trm_o = if isInd trm_o then trm_o else def_o in
-     let trm_n = if isInd trm_n then trm_n else def_n in
-     let promote, forget = map_tuple Universes.constr_of_global (promote, forget) in
-     save_ornament (trm_o, trm_n) (promote, forget, orn.kind)
-   with _ ->
-     Feedback.msg_warning (str "Failed to cache ornamental promotion."));
+    (try
+       let promote, forget = map_tuple Universes.constr_of_global (promote, forget) in
+       save_ornament (trm_o, trm_n) (promote, forget, orn.kind)
+     with _ ->
+       Feedback.msg_warning (str "Failed to cache ornamental promotion."));
   with
   | PretypeError (env, sigma, err) ->
     user_err
@@ -181,10 +178,10 @@ let lift_definition_by_ornament env sigma n l c_old ignores =
          (* Lift the type as well *)
          let sigma, typ = infer_type env sigma c_old in
          let sigma, lifted_typ = do_lift_defn env sigma l typ ignores in
-         define_term n sigma lifted true ~typ:lifted_typ
+         define_print ~typ:lifted_typ n lifted sigma 
        else
          (* Let Coq infer the type *)
-         define_term n sigma lifted true);
+         define_print n lifted sigma);
     try
       let c_new = mkConst (Constant.make1 (Lib.make_kn n)) in
       save_lifting (lift_to l, lift_back l, c_old) c_new;
@@ -215,7 +212,7 @@ let lift_inductive_by_ornament env sigma n s l c_old ignores =
     let ind, _ = destInd c_old in
     let ind' = do_lift_ind env sigma l n s ind ignores in
     let env' = Global.env () in
-    Feedback.msg_info (str "Defined lifted inductive type " ++ pr_inductive env' ind')
+    Feedback.msg_info (str "DEVOID generated " ++ pr_inductive env' ind')
   with
       | PretypeError (env, sigma, err) ->
      user_err
@@ -236,17 +233,9 @@ let lift_inductive_by_ornament env sigma n s l c_old ignores =
 let init_lift env d_orn d_orn_inv sigma =
   let sigma, c_orn = intern env sigma d_orn in
   let sigma, c_orn_inv = intern env sigma d_orn_inv in
-  let u_o, u_n = map_tuple (unwrap_definition env) (c_orn, c_orn_inv) in
+  let u_o, u_n = map_tuple (try_delta_inductive env) (c_orn, c_orn_inv) in
   let orn_not_supplied = isInd u_o || isInd u_n in
-  let (o, n) = (* TODO explain/move... deals with different args & curry vs. normal & caching *)
-    (* TODO def logic won't always be good here, really want to delta until _almost_ the end but then stop, for curry thtat is *)
-    if orn_not_supplied then
-      let u_o = if isInd u_o then u_o else c_orn in
-      let u_n = if isInd u_n then u_n else c_orn_inv in
-      u_o, u_n
-    else
-      c_orn, c_orn_inv
-  in
+  let (o, n) = if orn_not_supplied then (u_o, u_n) else (c_orn, c_orn_inv) in
   let sigma, env =
     if orn_not_supplied then
       let orn_opt = lookup_ornament (o, n) in
@@ -271,12 +260,10 @@ let init_lift env d_orn d_orn_inv sigma =
  *)
 let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old =
   let (sigma, env) = Pfedit.get_current_context () in
-  let opaques =
+  let opaque_terms =
     List.map
-      (fun i ->
-        let qid = qualid_of_reference i in
-        let gr = Nametab.locate qid in
-        match gr with
+      (fun r ->
+        match Nametab.locate (qualid_of_reference r) with
         | VarRef v ->
            mkVar v
         | ConstRef c ->
@@ -295,11 +282,11 @@ let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old =
   if isInd u_old then
     let from_typ = fst (on_red_type_default (fun _ _ -> ind_of_promotion_type) env sigma l.orn.promote) in
     if not (equal u_old from_typ) then
-      lift_inductive_by_ornament env sigma n_new s l c_old opaques
+      lift_inductive_by_ornament env sigma n_new s l c_old opaque_terms
     else
-      lift_definition_by_ornament env sigma n_new l c_old opaques
+      lift_definition_by_ornament env sigma n_new l c_old opaque_terms
   else
-    lift_definition_by_ornament env sigma n_new l c_old opaques
+    lift_definition_by_ornament env sigma n_new l c_old opaque_terms
     
 (*
  * Add terms to the globally opaque lifting cache at a particular ornament
@@ -316,13 +303,12 @@ let add_lifting_opaques d_orn d_orn_inv opaques =
         let c = mkConst (Nametab.locate_constant qid) in
         save_opaque (lift_to l, lift_back l, c);
         save_opaque (lift_back l, lift_to l, c)
-      with
-      | Not_found ->
-         user_err
-           "add_lifting_opaques"
-           (err_opaque_not_constant qid)
-           [try_check_typos; try_fully_qualify]
-           [problematic; mistake])
+      with Not_found ->
+        user_err
+          "add_lifting_opaques"
+          (err_opaque_not_constant qid)
+          [try_check_typos; try_fully_qualify]
+          [problematic; mistake])
     opaques
 
 (*
@@ -340,13 +326,12 @@ let remove_lifting_opaques d_orn d_orn_inv opaques =
         let c = mkConst (Nametab.locate_constant qid) in
         remove_opaque (lift_to l, lift_back l, c);
         remove_opaque (lift_back l, lift_to l, c)
-      with
-      | Not_found ->
-         user_err
-           "remove_lifting_opaques"
-           (err_opaque_not_constant qid)
-           [try_check_typos; try_fully_qualify]
-           [problematic; mistake])
+      with Not_found ->
+        user_err
+          "remove_lifting_opaques"
+          (err_opaque_not_constant qid)
+          [try_check_typos; try_fully_qualify]
+          [problematic; mistake])
     opaques
 
 (*
@@ -361,5 +346,4 @@ let do_unpack_constant ident const_ref =
   let term =
     qualid_of_reference const_ref |> Nametab.locate_constant |>
     unpack_constant env sigma
-  in
-  ignore (define_term ident !sigma term true)
+  in ignore (define_print ident term !sigma)
