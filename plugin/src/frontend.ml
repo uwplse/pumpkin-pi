@@ -129,7 +129,7 @@ let find_ornament n_o d_old d_new =
           user_err
             "find_ornament"
             err_unsupported_change
-            [try_supported]
+            [try_supported; try_provide]
             [cool_feature; mistake]
     in
     let sigma, orn = search_orn env sigma idx_n trm_o trm_n in
@@ -151,20 +151,40 @@ let find_ornament n_o d_old d_new =
        let promote, forget = map_tuple Universes.constr_of_global (promote, forget) in
        save_ornament (trm_o, trm_n) (promote, forget, orn.kind)
      with _ ->
-       Feedback.msg_warning (str "Failed to cache ornamental promotion."));
+       Feedback.msg_warning err_save_ornament);
   with
   | PretypeError (env, sigma, err) ->
     user_err
       "find_ornament"
       (err_type env sigma err)
-      [try_supported]
+      [try_supported; try_provide]
       [problematic]
   | NotAlgebraic ->
      user_err
        "find_ornament"
        (err_unexpected_change "algebraic ornament")
-       [try_supported]
+       [try_supported; try_provide]
        [problematic]
+
+(*
+ * Save a user-provided ornament
+ *)
+let save_ornament d_old d_new d_orn d_orn_inv =
+  let (sigma, env) = Pfedit.get_current_context () in
+  let sigma, promote = intern env sigma d_orn in
+  let sigma, forget = intern env sigma d_orn_inv in
+  let sigma, def_o = intern env sigma d_old in
+  let sigma, def_n = intern env sigma d_new in
+  let trm_o, trm_n = map_tuple (try_delta_inductive env) (def_o, def_n) in
+  try
+    let l = initialize_lifting env sigma promote forget in
+    save_ornament (trm_o, trm_n) (promote, forget, l.orn.kind)
+  with _ ->
+    user_err
+      "save_ornament"
+      err_save_ornament
+      [try_supported; try_provide]
+      [problematic]
 
 (*
  * Lift a definition according to a lifting configuration, defining the lifted
@@ -214,7 +234,7 @@ let lift_inductive_by_ornament env sigma n s l c_old ignores =
     let env' = Global.env () in
     Feedback.msg_info (str "DEVOID generated " ++ pr_inductive env' ind')
   with
-      | PretypeError (env, sigma, err) ->
+  | PretypeError (env, sigma, err) ->
      user_err
        "lift_inductive_by_ornament"
        (err_type env sigma err)
@@ -233,22 +253,16 @@ let lift_inductive_by_ornament env sigma n s l c_old ignores =
 let init_lift env d_orn d_orn_inv sigma =
   let sigma, c_orn = intern env sigma d_orn in
   let sigma, c_orn_inv = intern env sigma d_orn_inv in
-  let u_o, u_n = map_tuple (try_delta_inductive env) (c_orn, c_orn_inv) in
-  let orn_not_supplied = isInd u_o || isInd u_n in
-  let (o, n) = if orn_not_supplied then (u_o, u_n) else (c_orn, c_orn_inv) in
+  let (o, n) = map_tuple (try_delta_inductive env) (c_orn, c_orn_inv) in
   let sigma, env =
-    if orn_not_supplied then
-      let orn_opt = lookup_ornament (o, n) in
-      if not (Option.has_some orn_opt) then
-        (* The user never ran Find ornament *)
-        let _ = Feedback.msg_info (str "Searching for ornament first") in
-        let _ = find_ornament None d_orn d_orn_inv in
-        refresh_env ()
-      else
-        (* The ornament is cached *)
-        sigma, env
+    let orn_opt = lookup_ornament (o, n) in
+    if not (Option.has_some orn_opt) then
+      (* The user never ran Find ornament *)
+      let _ = Feedback.msg_info (str "Searching for ornament first") in
+      let _ = find_ornament None d_orn d_orn_inv in
+      refresh_env ()
     else
-      (* The ornament is provided *)
+      (* The ornament is cached *)
       sigma, env
   in
   let l = initialize_lifting env sigma o n in

@@ -6,12 +6,18 @@ open Ltac_plugin
 open Tacinterp
 open Tacarg
 
-(* Identify an ornament given two inductive types *)
+(* Identify an ornament given two types *)
 VERNAC COMMAND EXTEND FindOrnament CLASSIFIED AS SIDEFF
 | [ "Find" "ornament" constr(d_old) constr(d_new) "as" ident(n) ] ->
   [ find_ornament (Some n) d_old d_new ]
 | [ "Find" "ornament" constr(d_old) constr(d_new) ] ->
   [ find_ornament None d_old d_new ]
+END
+
+(* Save a user-supplied ornament between two types *)
+VERNAC COMMAND EXTEND SaveOrnament CLASSIFIED AS SIDEFF
+| [ "Save" "ornament" constr(d_old) constr(d_new) "{" "promote" "=" constr(d_orn) ";" "forget" "=" constr(d_orn_inv) "}" ] ->
+  [ save_ornament d_old d_new d_orn d_orn_inv ]
 END
 
 (* Lift a function along an ornament *)

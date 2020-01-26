@@ -17,6 +17,7 @@ exception NotAlgebraic
 val err_unsupported_change : Pp.t
 val err_new_parameter : Pp.t
 val err_new_constructor : Pp.t
+val err_save_ornament : Pp.t
 val err_unexpected_change : String.t -> Pp.t
 val err_type : env -> evar_map -> Pretype_errors.pretype_error -> Pp.t
 val err_opaque_not_constant : Libnames.qualid -> Pp.t
@@ -29,6 +30,7 @@ val try_preprocess : Pp.t
 val try_check_typos : Pp.t
 val try_fully_qualify : Pp.t
 val try_supported : Pp.t
+val try_provide : Pp.t
 
 (* --- Reasons to cut an issue --- *)
 

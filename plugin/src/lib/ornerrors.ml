@@ -21,6 +21,8 @@ let err_new_parameter = Pp.str "New parameters not yet supported."
 
 let err_new_constructor = Pp.str "New constructors not yet supported."
 
+let err_save_ornament = Pp.str "Failed to save ornament."
+
 let err_unexpected_change expected_kind =
   Pp.seq
     [Pp.str "DEVOID expected an ";
@@ -49,13 +51,14 @@ let err_type env sigma err =
 
 (* --- Possible workaround suggestions --- *)
 
-let try_opaque = Pp.str "skipping subterms using the { opaque ... } option"
+let try_opaque = Pp.str "skipping subterms using the `{ opaque ... }` option"
 let try_not_opaque = Pp.str "unsetting some subterms that are set as opaque"
 let try_preprocess = Pp.str "preprocessing the definition first"
 let try_check_typos = Pp.str "checking for typos"
 let try_fully_qualify = Pp.str "fully qualifying the identifier"
 let try_supported = Pp.str "using similar, supported types"
-
+let try_provide = Pp.str "providing your own ornament using `Save ornament`"
+            
 let workaround suggestions =
   Pp.seq
     [Pp.str "To get around this, consider ";

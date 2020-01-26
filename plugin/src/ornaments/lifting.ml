@@ -98,9 +98,7 @@ let unpack_promotion env promotion =
  * Get the direction for an uncached ornament.
  * For now, we use a boolean for is_algebraic, but in the long run, we should
  * take a kind here. This is a bit tricky since we need the direction right
- * now in order to construct the kind. The best move in the long run is
- * probably to the user supply equivalences in a separate command that
- * caches them instead of directly to the command (TODO try this before merging)
+ * now in order to construct the kind.
  *)
 let get_direction (from_typ_app, to_typ_app) is_algebraic =
   if is_algebraic then

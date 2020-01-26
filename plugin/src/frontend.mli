@@ -5,12 +5,18 @@ open Ltac_plugin
 (*
  * Identify an algebraic ornament between two types
  * Define the components of the corresponding equivalence
- * (Don't prove section and retraction)
+ * If the appropriate option is set, prove that these form an equivalence
  *)
-val find_ornament : Id.t option -> constr_expr -> constr_expr -> unit
+val find_ornament : Id.t option -> constr_expr -> constr_expr -> unit          
 
 (*
- * Lift the supplied function along the supplied ornament
+ * Save a user-supplied ornament between two types
+ *)
+val save_ornament :
+  constr_expr -> constr_expr -> constr_expr -> constr_expr -> unit
+                                                                   
+(*
+ * Lift the supplied function along an ornament between the supplied types
  * Define the lifted version
  *)
 val lift_by_ornament : ?suffix:bool -> ?opaques:Libnames.reference list -> Id.t -> constr_expr -> constr_expr -> constr_expr -> unit
