@@ -944,22 +944,53 @@ let lift_elim env sigma c trm_app =
  *
  * This is to deal with non-primitive projections
  *)
-let repack env ib_typ lifted typ =
-  (* TODO probably need to reduce this, too? *)
-  let lift_typ = dest_sigT (shift typ) in
-  let n = project_index lift_typ (mkRel 1) in
-  let b = project_value lift_typ (mkRel 1) in
-  let packer = lift_typ.packer in
-  let e = pack_existT {index_type = ib_typ; packer; index = n; unpacked = b} in
-  mkLetIn (Anonymous, lifted, typ, e) (* TODO maybe reduce, and same for alg. *)
+let repack c env lifted typ sigma =
+  match c.l.orn.kind with
+  | Algebraic (_, (ib_typ, _)) ->
+     let lift_typ = dest_sigT (shift typ) in
+     let n = project_index lift_typ (mkRel 1) in
+     let b = project_value lift_typ (mkRel 1) in
+     let packer = lift_typ.packer in
+     let e = pack_existT {index_type = ib_typ; packer; index = n; unpacked = b} in
+     sigma, mkLetIn (Anonymous, lifted, typ, e)
+  | CurryRecord ->
+     let f = first_fun typ in
+     let args = unfold_args typ in
+     let sigma, typ_red = specialize_delta_f env f args sigma in
+     sigma, mkLetIn (Anonymous, lifted, typ, (eta_prod_rec (mkRel 1) (shift typ_red)))
 
 (*
- * REPACK, but over prod instead of sigma
+ * Sometimes we must repack because of non-primitive projections.
+ * For sigma types, we pack into an existential, and for products, we pack
+ * into a pair. It remains to be seen how this generalizes to other types.
  *
- * This is to deal with non-primitive projections
+ * We are strategic about when we repack in order to avoid slowing down
+ * the code too much and producing ugly terms.
  *)
-let repack_prod env lifted typ =
-  mkLetIn (Anonymous, lifted, typ, (eta_prod_rec (mkRel 1) (shift typ)))
+let maybe_repack lift_rec c env trm lifted try_repack sigma =
+  if try_repack then
+    let sigma_typ, typ = infer_type env sigma trm in
+    let typ = reduce_stateless reduce_nf env sigma_typ typ in
+    let sigma_typ, is_from_typ = Util.on_snd Option.has_some (is_from convertible c env sigma_typ typ) in
+    if is_from_typ then
+      let lifted_red = reduce_stateless reduce_nf env sigma lifted in
+      let optimize_ignore_repack =
+        (* Don't bother repacking when the result would reduce *)
+        match c.l.orn.kind with
+        | Algebraic (_, _) ->
+           is_or_applies existT lifted_red
+        | CurryRecord ->
+           is_or_applies pair lifted_red
+      in
+      if not optimize_ignore_repack then
+        let sigma, lifted_typ = lift_rec env sigma_typ c typ in
+        repack c env lifted lifted_typ sigma
+      else
+        sigma, lifted
+    else
+      sigma, lifted
+  else
+    sigma, lifted
     
 (* --- Core algorithm --- *)
 
@@ -974,7 +1005,7 @@ let zoom_c c =
      { c with l }
   | _ ->
      c
-          
+       
 (*
  * Core lifting algorithm for algebraic ornaments.
  * A few extra rules to deal with real Coq terms as opposed to CIC,
@@ -991,9 +1022,7 @@ let lift_core env sigma c trm =
   let (a_typ, b_typ) = c.typs in
   let sigma, a_typ_eta = expand_eta env sigma a_typ in
   let a_arity = arity a_typ_eta in
-  let rec lift_rec en sigma c tr : types state = (* TODO remove unit arg after cleaning *)
-    match c.l.orn.kind with
-    | Algebraic (indexer, (ib_typ, off)) ->
+  let rec lift_rec en sigma c tr : types state =
     let (sigma, lifted), try_repack =
       let lifted_opt = lookup_lifting (lift_to l, lift_back l, tr) in
       if Option.has_some lifted_opt then
@@ -1006,45 +1035,60 @@ let lift_core env sigma c trm =
         (* OPAQUE CONSTANTS *)
         (sigma, tr), false
       else
-        let sigma, is_o = is_from convertible c en sigma tr in
-        if Option.has_some is_o then
+        let sigma, args_o = is_from convertible c en sigma tr in
+        if Option.has_some args_o then
           (* EQUIVALENCE *)
-          let is = Option.get is_o in
+          let args = Array.of_list (Option.get args_o) in
+          let sigma, lifted_args = map_rec_args lift_rec en sigma c args in
           if l.is_fwd then
-            let sigma, is = map_rec_args lift_rec en sigma c (Array.of_list is) in
-            let b_is = mkApp (b_typ, is) in
-            let n = mkRel 1 in
-            let abs_ib = reindex_body (reindex_app (index l n)) in
-            let packer = abs_ib (mkLambda (Anonymous, ib_typ, shift b_is)) in
-            (sigma, pack_sigT { index_type = ib_typ; packer }), false
+            match l.orn.kind with
+            | Algebraic (_, (ib_typ, _)) ->
+               let b_is = mkApp (b_typ, lifted_args) in
+               let n = mkRel 1 in
+               let abs_ib = reindex_body (reindex_app (index l n)) in
+               let packer = abs_ib (mkLambda (Anonymous, ib_typ, shift b_is)) in
+               (sigma, pack_sigT { index_type = ib_typ; packer }), false
+            | CurryRecord ->
+               (sigma, mkApp (b_typ, lifted_args)), false
           else
-            (sigma, mkAppl (a_typ, is)), false
+            (sigma, mkApp (a_typ, lifted_args)), false
         else
           let sigma, i_and_args_o = is_packed_constr c en sigma tr in
+          (* LIFT-CONSTR *)
+          (* The extra logic here is an optimization *)
+          (* It also deals with the fact that we are lazy about eta *)
           if Option.has_some i_and_args_o then
-            (* LIFT-CONSTR *)
-            (* The extra logic here is an optimization *)
-            (* It also deals with the fact that we are lazy about eta *)
             let i, args = Option.get i_and_args_o in
             let lifted_constr = c.constr_rules.(i - 1) in
-            map_if
-              (fun ((sigma, tr'), _) ->
-                let lifted_inner = map_forward last_arg l tr' in
-                let (f', args') = destApp lifted_inner in
-                let sigma, args'' = map_rec_args lift_rec en sigma c args' in
-                map_forward
-                  (fun ((sigma, b), _) ->
-                    (* pack the lifted term *)
-                    let ex = dest_existT tr' in
-                    let sigma, n = lift_rec en sigma c ex.index in
-                    let sigma, packer = lift_rec en sigma c ex.packer in
-                    (sigma, pack_existT { ex with packer; index = n; unpacked = b }), false)
-                  l
-                  ((sigma, mkApp (f', args'')), false))
-              (List.length args > 0)
-              (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
+            let sigma, constr_app = reduce_term en sigma (mkAppl (lifted_constr, args)) in
+            if List.length args > 0 then
+              match c.l.orn.kind with
+              | Algebraic (_, _) ->
+                 let lifted_inner = map_forward last_arg l constr_app in
+                 let (f', args') = destApp lifted_inner in
+                 let sigma, args'' = map_rec_args lift_rec en sigma c args' in
+                 map_forward
+                   (fun ((sigma, b), _) ->
+                     (* pack the lifted term *)
+                     let ex = dest_existT constr_app in
+                     let sigma, n = lift_rec en sigma c ex.index in
+                     let sigma, packer = lift_rec en sigma c ex.packer in
+                     (sigma, pack_existT { ex with packer; index = n; unpacked = b }), false)
+                   l
+                   ((sigma, mkApp (f', args'')), false)
+              | CurryRecord ->
+                 (* TODO need to test w/ eta, run_lift_constr probably doesn't run here ? *)
+                 (* TODO if simpler than algebraic, why? Can we get away with just this for algebraic, too? *)
+                 let (f', args') = destApp constr_app in
+                 let sigma, args'' = map_rec_args lift_rec en sigma c args' in
+                 ((sigma, mkApp (f', args'')), false)
+            else
+              ((sigma, constr_app), false)
           else
             let sigma, run_lift_pack = is_packed c en sigma tr in
+          match c.l.orn.kind with
+        | Algebraic (indexer, (ib_typ, off)) ->
+        (
             if run_lift_pack then
               (* LIFT-PACK (extra rule for non-primitive projections) *)
               if l.is_fwd then
@@ -1184,65 +1228,11 @@ let lift_core env sigma c trm =
                           sigma, tr)
                      in smart_cache c tr lifted; (sigma, lifted), false
                   | _ ->
-                     (sigma, tr), false
-    in
-    (* sometimes we must repack because of non-primitive projections *)
-    map_if
-      (fun (sigma, lifted) ->
-        let sigma_typ, typ = infer_type en sigma tr in
-        let typ = reduce_stateless reduce_nf en sigma_typ typ in
-        let sigma_typ, is_from_typ = Util.on_snd Option.has_some (is_from convertible c en sigma_typ typ) in
-        map_if
-          (fun (sigma, t) ->
-            Util.on_snd (repack en ib_typ t) (lift_rec en sigma_typ c typ))
-          (is_from_typ && not (is_or_applies existT (reduce_stateless reduce_nf en sigma lifted)))
-          (sigma, lifted))
-      try_repack
-      (sigma, lifted)
+                     (sigma, tr), false)
     | CurryRecord ->
-       let (sigma, lifted), try_repack =
-      let lifted_opt = lookup_lifting (lift_to l, lift_back l, tr) in
-      if Option.has_some lifted_opt then
-        (* GLOBAL CACHING *)
-        (sigma, Option.get lifted_opt), false
-      else if is_locally_cached c.cache tr then
-        (* LOCAL CACHING *)
-        (sigma, lookup_local_cache c.cache tr), false
-      else if is_opaque c tr then
-        (* OPAQUE CONSTANTS *)
-        (sigma, tr), false
-      else
-        let sigma, pms_o = is_from convertible c en sigma tr in
-        if Option.has_some pms_o then
-          (* EQUIVALENCE *)
-          let pms = Array.of_list (Option.get pms_o) in
-          let sigma, pms = map_rec_args lift_rec en sigma c pms in
-          if l.is_fwd then
-            (sigma, mkApp (b_typ, pms)), false
-          else
-            (sigma, mkApp (a_typ, pms)), false
-        else
-          let sigma, i_and_args_o = is_packed_constr c en sigma tr in
-          if Option.has_some i_and_args_o then
-            (* LIFT-CONSTR *)
-            (* The extra logic here is an optimization *)
-            (* It also deals with the fact that we are lazy about eta *)
-            (* TODO need to test w/ eta, run_lift_constr probably doesn't run here ? *)
-            (* TODO if simpler than algebraic, why? *)
-            let (i, args) = Option.get i_and_args_o in
-            let lifted_constr = c.constr_rules.(i - 1) in
-            map_if
-              (fun ((sigma, tr'), _) ->
-                let (f', args') = destApp tr' in
-                let sigma, args'' = map_rec_args lift_rec en sigma c args' in
-                ((sigma, mkApp (f', args'')), false))
-              (List.length args > 0)
-              (reduce_term en sigma (mkAppl (lifted_constr, args)), false)
-          else
             (* TODO handle opaque in algebraic too *)
             (* TODO for run_lift_pack both here and in algebraic: do we need always, or just when passed to an eliminator? *)
             (* TODO for cleanliness, sep. out premise detection from if/else code structure here and in algebraic, then match over the detected premise *)
-            let sigma, run_lift_pack = is_packed c en sigma tr in
             if run_lift_pack && l.is_fwd then
             (* LIFT-PACK (extra rule for non-primitive projections) *)
               (sigma, tr), true (* TODO bwd case? also, is this even right for bwd case of algebraic? *)
@@ -1404,26 +1394,7 @@ let lift_core env sigma c trm =
                  in smart_cache c tr lifted; (sigma, lifted), false
               | _ ->
                  (sigma, tr), false
-    in
-    (* sometimes we must repack because of non-primitive projections *)
-    (* TODO branch_state here and in algebraic *)
-    map_if
-      (fun (sigma, lifted) ->
-        let sigma_typ, typ = infer_type en sigma tr in
-        let typ = reduce_stateless reduce_nf en sigma_typ typ in
-        let sigma_typ, is_from_typ = Util.on_snd Option.has_some (is_from convertible c en sigma_typ typ) in
-        map_if
-          (fun (_, t) ->
-            let sigma, lifted_typ = lift_rec en sigma_typ c typ in
-            let typ_f = unwrap_definition env (first_fun lifted_typ) in
-            let typ_args = unfold_args lifted_typ in
-            let typ_red = mkAppl (typ_f, typ_args) in
-            let sigma, typ_red = reduce_term env sigma typ_red in
-            sigma, repack_prod en t typ_red)
-          (is_from_typ && not (is_or_applies pair (reduce_stateless reduce_nf en sigma lifted)))
-          (sigma, lifted))
-      try_repack
-      (sigma, lifted)
+       in maybe_repack lift_rec c en tr lifted try_repack sigma 
   in lift_rec env sigma c trm
               
 (*
