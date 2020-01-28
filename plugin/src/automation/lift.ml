@@ -1091,28 +1091,22 @@ let lift_core env sigma c trm =
             let lifted_constr = c.constr_rules.(i - 1) in
             let sigma, constr_app = reduce_term en sigma (mkAppl (lifted_constr, args)) in
             if List.length args > 0 then
-              match c.l.orn.kind with
-              | Algebraic (_, _) ->
-                 let lifted_inner = map_forward last_arg l constr_app in
-                 let (f', args') = destApp lifted_inner in
-                 let sigma, args'' = map_rec_args lift_rec en sigma c args' in
-                 map_forward
-                   (fun ((sigma, b), _) ->
-                     (* pack the lifted term *)
-                     let ex = dest_existT constr_app in
-                     let sigma, n = lift_rec en sigma c ex.index in
-                     let sigma, packer = lift_rec en sigma c ex.packer in
-                     (sigma, pack_existT { ex with packer; index = n; unpacked = b }), false)
-                   l
-                   ((sigma, mkApp (f', args'')), false)
-              | CurryRecord ->
-                 (* TODO need to test w/ eta, run_lift_constr probably doesn't run here ? *)
-                 (* TODO if simpler than algebraic, why? Can we get away with just this for algebraic, too? (looks like it slows down the code by 20 seconds if we do) *)
-                 let (f', args') = destApp constr_app in
-                 let sigma, args'' = map_rec_args lift_rec en sigma c args' in
-                 ((sigma, mkApp (f', args'')), false)
+              if c.l.orn.kind = CurryRecord || not c.l.is_fwd then
+                let (f', args') = destApp constr_app in
+                let sigma, args'' = map_rec_args lift_rec en sigma c args' in
+                (sigma, mkApp (f', args'')), false
+              else
+                (* Pack the lifted term: big optimization (TODO can we get for curry_record too?) *)
+                let lifted_inner = last_arg constr_app in
+                let (f', args') = destApp lifted_inner in
+                let sigma, args'' = map_rec_args lift_rec en sigma c args' in
+                let b = mkApp (f', args'') in
+                let ex = dest_existT constr_app in
+                let sigma, n = lift_rec en sigma c ex.index in
+                let sigma, packer = lift_rec en sigma c ex.packer in
+                (sigma, pack_existT { ex with packer; index = n; unpacked = b }), false
             else
-              ((sigma, constr_app), false)
+              (sigma, constr_app), false
           else
             let sigma, run_lift_pack = is_packed c en sigma tr in
             if run_lift_pack then
