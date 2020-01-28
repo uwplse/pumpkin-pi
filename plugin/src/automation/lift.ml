@@ -1147,7 +1147,6 @@ let lift_core env sigma c trm =
                 let to_proj, i, args, tr_eta = Option.get to_proj_o in
                 if arity tr_eta > arity tr then
                   (* lazy eta expansion; recurse *)
-                  (* TODO move to a common place *)
                   lift_rec en sigma c tr_eta, false
                 else
                   let p = c.proj_rules.(i) in
@@ -1207,25 +1206,24 @@ let lift_core env sigma c trm =
                        else
                          let sigma, f' = lift_rec en sigma c f in
                          if (not l.is_fwd) && Array.length args > 0 && equal f f' && (not (is_opaque c f)) && ((not (isConst f)) || (not (Option.has_some (inductive_of_elim en (destConst f))))) then 
-                             (* TODO can we disable w option? More complete this way, but can produce ugly terms. I think we only need this here because the type we are looking for in the backward direction is prod instantiating to something specific; unsure if ever comes up for algebraic  *)
-                           (* TODO explain *)
+                           (* needed for completeness *)
                            let f_delta = unwrap_definition en f in
                            let sigma, app' = reduce_term en sigma (mkApp (f_delta, args)) in
                            let sigma, args' = map_rec_args lift_rec en sigma c args in
                            if equal tr app' then
-                             (sigma, mkApp (f', args')), l.is_fwd
+                             (sigma, mkApp (f', args')), false
                            else
                              let sigma, lifted_red = lift_rec en sigma c app' in
                              if equal lifted_red app' then
-                               (sigma, mkApp (f', args')), l.is_fwd
+                               (sigma, mkApp (f', args')), false
                              else
                                (* TODO explain: refold as in prod_rect example *)
                                let f_delta' = unwrap_definition en f' in
                                let sigma, app'' = reduce_term en sigma (mkApp (f_delta', args')) in
                                if equal lifted_red app'' then
-                                 (sigma, mkApp (f', args')), l.is_fwd
+                                 (sigma, mkApp (f', args')), false
                                else
-                                 (sigma, lifted_red), l.is_fwd
+                                 (sigma, lifted_red), false
                          else
                            let sigma, args' = map_rec_args lift_rec en sigma c args in 
                            (sigma, mkApp (f', args')), l.is_fwd
@@ -1279,7 +1277,6 @@ let lift_core env sigma c trm =
                      (sigma, mkProj (pr, co')), false
                   | Construct (((i, i_index), _), u) ->
                      let ind = mkInd (i, i_index) in
-                     (* TODO is this right for curryrecord or will it miss some constructors? *)
                      if equal ind (directional l a_typ b_typ) then
                        (* lazy eta expansion *)
                        let sigma, tr_eta = expand_eta en sigma tr in
