@@ -1091,20 +1091,30 @@ let lift_core env sigma c trm =
             let lifted_constr = c.constr_rules.(i - 1) in
             let sigma, constr_app = reduce_term en sigma (mkAppl (lifted_constr, args)) in
             if List.length args > 0 then
-              if c.l.orn.kind = CurryRecord || not c.l.is_fwd then
+              if not c.l.is_fwd then
                 let (f', args') = destApp constr_app in
                 let sigma, args'' = map_rec_args lift_rec en sigma c args' in
                 (sigma, mkApp (f', args'')), false
               else
-                (* Pack the lifted term: big optimization (TODO can we get for curry_record too?) *)
-                let lifted_inner = last_arg constr_app in
-                let (f', args') = destApp lifted_inner in
-                let sigma, args'' = map_rec_args lift_rec en sigma c args' in
-                let b = mkApp (f', args'') in
-                let ex = dest_existT constr_app in
-                let sigma, n = lift_rec en sigma c ex.index in
-                let sigma, packer = lift_rec en sigma c ex.packer in
-                (sigma, pack_existT { ex with packer; index = n; unpacked = b }), false
+                (* optimization that skips some subterms *)
+                match l.orn.kind with
+                | Algebraic (_, _) ->
+                   let lifted_inner = last_arg constr_app in
+                   let (f', args') = destApp lifted_inner in
+                   let sigma, args'' = map_rec_args lift_rec en sigma c args' in
+                   let b = mkApp (f', args'') in
+                   let ex = dest_existT constr_app in
+                   let sigma, n = lift_rec en sigma c ex.index in
+                   let sigma, packer = lift_rec en sigma c ex.packer in
+                   (sigma, pack_existT { ex with packer; index = n; unpacked = b }), false
+                | CurryRecord ->
+                   let open Produtils in
+                   let pair = dest_pair constr_app in
+                   let sigma, typ1 = lift_rec en sigma c pair.typ1 in
+                   let sigma, typ2 = lift_rec en sigma c pair.typ2 in
+                   let sigma, trm1 = lift_rec en sigma c pair.trm1 in
+                   let sigma, trm2 = lift_rec en sigma c pair.trm2 in
+                   (sigma, apply_pair {typ1; typ2; trm1; trm2}), false
             else
               (sigma, constr_app), false
           else
