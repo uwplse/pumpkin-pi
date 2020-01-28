@@ -297,11 +297,12 @@ let is_packed_constr c env sigma trm =
   | _ ->
      sigma, None
 
-(* Premises for LIFT-PACKED *)
-let is_packed c env sigma trm =
+(* Premises for LIFT-PACK *)
+let is_pack c env sigma trm =
   let right_type = type_is_from convertible c env sigma in
   if c.l.is_fwd then
     if isRel trm then
+      (* pack *)
       Util.on_snd Option.has_some (right_type trm)
     else
       sigma, false
@@ -311,13 +312,14 @@ let is_packed c env sigma trm =
        (match kind trm with
         | App (f, args) ->
            if equal existT f then
+             (* unpack *)
              Util.on_snd Option.has_some (right_type trm)
            else
              sigma, false
         | _ ->
            sigma, false)
     | CurryRecord ->
-       (* TODO why? What is correct behavior here? How should lift behave? *)
+       (* taken care of by constructor rule *)
        sigma, false
 
 (* Auxiliary function for premise for LIFT-PROJ *)
@@ -1118,19 +1120,15 @@ let lift_core env sigma c trm =
             else
               (sigma, constr_app), false
           else
-            let sigma, run_lift_pack = is_packed c en sigma tr in
+            let sigma, run_lift_pack = is_pack c en sigma tr in
             if run_lift_pack then
               (* LIFT-PACK (extra rule for non-primitive projections) *)
-              match c.l.orn.kind with
-              | Algebraic (_, _) ->
-                 if l.is_fwd then
-                   (sigma, tr), true
-                 else
-                   lift_rec en sigma c (dest_existT tr).unpacked, false
-              | CurryRecord ->
-                 (* TODO for run_lift_pack both here and in algebraic: do we need always, or just when passed to an eliminator? *)
-                 (* TODO for cleanliness, sep. out premise detection from if/else code structure here and in algebraic, then match over the detected premise *)
-                 (sigma, tr), true (* TODO bwd case? also, is this even right for bwd case of algebraic? *)
+              if l.is_fwd then
+                (* pack *)
+                (sigma, tr), true
+              else
+                (* unpack (when not covered by constructor rule) *)
+                lift_rec en sigma c (dest_existT tr).unpacked, false
             else
               let sigma, to_proj_o = is_proj c en tr sigma in
               if Option.has_some to_proj_o then (* TODO optimize after *)
