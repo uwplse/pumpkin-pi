@@ -1107,7 +1107,7 @@ let lift_core env sigma c trm =
                    ((sigma, mkApp (f', args'')), false)
               | CurryRecord ->
                  (* TODO need to test w/ eta, run_lift_constr probably doesn't run here ? *)
-                 (* TODO if simpler than algebraic, why? Can we get away with just this for algebraic, too? *)
+                 (* TODO if simpler than algebraic, why? Can we get away with just this for algebraic, too? (looks like it slows down the code by 20 seconds if we do) *)
                  let (f', args') = destApp constr_app in
                  let sigma, args'' = map_rec_args lift_rec en sigma c args' in
                  ((sigma, mkApp (f', args'')), false)
