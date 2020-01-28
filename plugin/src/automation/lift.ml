@@ -336,8 +336,8 @@ let check_is_proj c env trm proj_is =
           branch_state
             (convertible env proj_i_f)
             (fun _ sigma ->
-              let sigma, trm = expand_eta env sigma trm in
-              let env_b, b = zoom_lambda_term env trm in
+              let sigma, trm_eta = expand_eta env sigma trm in
+              let env_b, b = zoom_lambda_term env trm_eta in
               let args = unfold_args b in
               if List.length args = 0 then
                 check_is_proj_i (i + 1) tl sigma
@@ -361,7 +361,7 @@ let check_is_proj c env trm proj_is =
                       let p_app = mkAppl (proj_i, snoc a typ_args) in
                       branch_state (* TODO check w/ pms *)
                         (convertible env_b p_app)
-                        (fun _ -> ret (Some (a, i, typ_args)))
+                        (fun _ -> ret (Some (a, i, typ_args, trm_eta)))
                         (fun _ -> check_is_proj_i (i + 1) tl)
                         b
                         sigma
@@ -373,7 +373,7 @@ let check_is_proj c env trm proj_is =
                   let a = last args in
                   let sigma_right, typ_args_o = right_type env_b sigma a in
                   if Option.has_some typ_args_o then
-                    ret (Some (a, i, Option.get typ_args_o)) sigma_right
+                    ret (Some (a, i, Option.get typ_args_o, trm_eta)) sigma_right
                   else
                     check_is_proj_i (i + 1) tl sigma)
             (fun _ -> check_is_proj_i (i + 1) tl)
@@ -1144,13 +1144,12 @@ let lift_core env sigma c trm =
               let sigma, to_proj_o = is_proj c en tr sigma in
               if Option.has_some to_proj_o then
                 (* COHERENCE *)
-                let sigma, tr_eta = expand_eta en sigma tr in
+                let to_proj, i, args, tr_eta = Option.get to_proj_o in
                 if arity tr_eta > arity tr then
                   (* lazy eta expansion; recurse *)
                   (* TODO move to a common place *)
                   lift_rec en sigma c tr_eta, false
                 else
-                  let to_proj, i, args = Option.get to_proj_o in
                   let p = c.proj_rules.(i) in
                   let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in
                   lift_rec en sigma c projected, false
