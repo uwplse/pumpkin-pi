@@ -31,6 +31,7 @@ open Substitution
 open Convertibility
 open Ornerrors
 open Promotion
+open Evd
 
 (* --- Convenient shorthand --- *)
 
@@ -52,9 +53,10 @@ let convertible env t1 t2 sigma =
 (* --- Internal lifting configuration --- *)
 
 (*
- * Lifting configuration, along with the types A and B, 
+ * Lifting configuration, along with the types A and B,
+ * rules for constructors and projections that are configurable by equivalence,
  * a cache for constants encountered as the algorithm traverses,
- * and a cache for the constructor rules that refolding determines
+ * and a cache for the constructor rules that refolding determines.
  *)
 type lift_config =
   {
@@ -62,6 +64,7 @@ type lift_config =
     typs : types * types;
     constr_rules : types array;
     proj_rules : types array;
+    optimize_proj_packed_rules : (constr * (lift_config -> env -> constr -> constr array -> (lift_config, constr) transformer_with_env -> evar_map -> types state)) list; (* TODO clean type *)
     cache : temporary_cache;
     opaques : temporary_cache
   }
@@ -610,15 +613,43 @@ let initialize_proj_rules env sigma c =
          sigma, Array.make 0 t
   
 
+(* TODO comment/explain: we can sometimes be smarter than coq's reduction
+  TODO unify some infrastructure with proj rules and is_proj? *)
+(* TODO clean up a lot, especially recursive lifting here which is gross, and performance benefits are marginal if any *)
+let initialize_optimize_proj_packed_rules c =
+  (* TODO comment/move/clean/etc *)
+  let common_proj_rule is_packed project c env f args lift_rec sigma =
+    let sigma, args' = map_rec_args lift_rec env sigma c args in
+    let arg' = last (Array.to_list args') in
+    let arg'' = reduce_stateless reduce_term env sigma arg' in
+    if is_packed arg'' then
+      (sigma, project arg'')
+    else
+      let sigma, f' = lift_rec env sigma c f in
+      (sigma, mkApp (f', args'))
+  in (* TODO refactor/clean/make proper map *)
+  match c.l.orn.kind with
+  | Algebraic (_, _) ->
+     let proj_rule = common_proj_rule (is_or_applies existT) in
+     let proj1_rule = proj_rule (fun a -> (dest_existT a).index) in
+     let proj2_rule = proj_rule (fun a -> (dest_existT a).unpacked) in
+     [(projT1, proj1_rule); (projT2, proj2_rule)]
+  | CurryRecord ->
+     let proj_rule = common_proj_rule (is_or_applies pair) in
+     let proj1_rule = proj_rule (fun a -> (dest_pair a).Produtils.trm1) in
+     let proj2_rule = proj_rule (fun a -> (dest_pair a).Produtils.trm2) in
+     [(Desugarprod.fst_elim (), proj1_rule); (Desugarprod.snd_elim (), proj2_rule)]
+                           
 (* Initialize the lift_config *)
 let initialize_lift_config env sigma l typs ignores =
   let cache = initialize_local_cache () in
   let opaques = initialize_local_cache () in
   List.iter (fun opaque -> cache_local opaques opaque opaque) ignores;
-  let c = { l ; typs ; constr_rules = Array.make 0 (mkRel 1) ; proj_rules = Array.make 0 (mkRel 1); cache ; opaques } in
+  let c = { l ; typs ; constr_rules = Array.make 0 (mkRel 1) ; proj_rules = Array.make 0 (mkRel 1); optimize_proj_packed_rules = []; cache ; opaques } in
   let sigma, constr_rules = initialize_constr_rules env sigma c in
   let sigma, proj_rules = initialize_proj_rules env sigma c in
-  sigma, { c with constr_rules; proj_rules }
+  let optimize_proj_packed_rules = initialize_optimize_proj_packed_rules c in
+  sigma, { c with constr_rules; proj_rules; optimize_proj_packed_rules }
 
 (* --- Lifting the induction principle --- *)
 
@@ -1144,37 +1175,7 @@ let lift_core env sigma c trm =
                        lift_rec en sigma c (last_arg tr), false
                      else
                        (* APP *)
-                       (* TODO comment/move/clean/etc *)
-                       let common_proj_rule is_packed project args =
-                         let sigma, args' = map_rec_args lift_rec en sigma c args in
-                         let arg' = last (Array.to_list args') in
-                         let arg'' = reduce_stateless reduce_term en sigma arg' in
-                         if is_packed arg'' then
-                           (sigma, project arg''), false
-                         else
-                           let sigma, f' = lift_rec en sigma c f in
-                           (sigma, mkApp (f', args')), false
-                       in
-                       let proj_packed_map = (* TODO refactor/clean/make proper map *)
-                         match l.orn.kind with
-                         | Algebraic (_, _) -> (* TODO refactor/clean common *)
-                            let proj_rule = common_proj_rule (is_or_applies existT) in
-                            let proj1_rule =
-                              proj_rule (fun a -> (dest_existT a).index)
-                            in
-                            let proj2_rule =
-                              proj_rule (fun a -> (dest_existT a).unpacked)
-                            in [(projT1, proj1_rule); (projT2, proj2_rule)]
-                         | CurryRecord ->
-                            let proj_rule = common_proj_rule (is_or_applies pair) in
-                            let proj1_rule =
-                              proj_rule (fun a -> (dest_pair a).Produtils.trm1)
-                            in
-                            let proj2_rule =
-                              proj_rule (fun a -> (dest_pair a).Produtils.trm2)
-                            in
-                            [(Desugarprod.fst_elim (), proj1_rule); (Desugarprod.snd_elim (), proj2_rule)]
-                       in
+                       let proj_packed_map = c.optimize_proj_packed_rules in
                        let optimize_proj_packed_o = (* TODO refactor/clean *)
                          (if l.is_fwd then
                            try
@@ -1191,7 +1192,7 @@ let lift_core env sigma c trm =
                          (* optimize simplifying projections of packed terms, which are common *)
                          let i = Option.get optimize_proj_packed_o in
                          let (_, proj_i_rule) = List.nth proj_packed_map i in
-                         proj_i_rule args
+                         proj_i_rule c en f args lift_rec sigma, false
                        else
                          let sigma, f' = lift_rec en sigma c f in
                          if (not l.is_fwd) && Array.length args > 0 && equal f f' && (not (is_opaque c f)) && ((not (isConst f)) || (not (Option.has_some (inductive_of_elim en (destConst f))))) then 
@@ -1199,12 +1200,11 @@ let lift_core env sigma c trm =
                            (* TODO explain *)
                            let f_delta = unwrap_definition en f in
                            let sigma, app' = reduce_term en sigma (mkApp (f_delta, args)) in
+                           let sigma, args' = map_rec_args lift_rec en sigma c args in
                            if equal tr app' then
-                             let sigma, args' = map_rec_args lift_rec en sigma c args in
                              (sigma, mkApp (f', args')), l.is_fwd
                            else
                              let sigma, lifted_red = lift_rec en sigma c app' in
-                             let sigma, args' = map_rec_args lift_rec en sigma c args in
                              if equal lifted_red app' then
                                (sigma, mkApp (f', args')), l.is_fwd
                              else
