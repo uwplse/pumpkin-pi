@@ -437,7 +437,12 @@ let is_proj c env trm =
              else
                check_is_proj c env trm ps)
 
-(* Premises for LIFT-ELIM *)
+(*
+ * Premises for LIFT-ELIM
+ * For optimization, if true, return the eta-expanded term
+ *
+ * TODO clean
+ *)
 let is_eliminator c env trm sigma =
   let (a_typ, b_typ) = c.typs in
   let b_typ =
@@ -453,19 +458,25 @@ let is_eliminator c env trm sigma =
      if Option.has_some maybe_ind then
        let ind = Option.get maybe_ind in
        let is_elim = equal (mkInd (ind, 0)) (directional c.l a_typ b_typ) in
-       if (not c.l.is_fwd) && c.l.orn.kind = CurryRecord && is_elim then
-         let sigma, trm = expand_eta env sigma trm in
-         let env_elim, trm = zoom_lambda_term env trm in
-         let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm in
-         let (final_args, post_args) = take_split 1 trm_elim.final_args in
-         let sigma, is_from = type_is_from convertible c env_elim sigma (List.hd final_args) in
-         sigma, Option.has_some is_from (* TODO ret? Then what ret in other cases? *) (* TODO test eta here *) (* TODO test dependent motive here *)
+       if is_elim then
+         let sigma, trm_eta = expand_eta env sigma trm in
+         if (not c.l.is_fwd) && c.l.orn.kind = CurryRecord then
+           let env_elim, trm_b = zoom_lambda_term env trm_eta in
+           let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm_b in
+           let (final_args, post_args) = take_split 1 trm_elim.final_args in
+           let sigma, is_from = type_is_from convertible c env_elim sigma (List.hd final_args) in
+           if Option.has_some is_from then
+             sigma, Some trm_eta
+           else
+             sigma, None
+         else
+           sigma, Some trm_eta
        else
-         sigma, is_elim
+         sigma, None
      else
-       sigma, false
+       sigma, None
   | _ ->
-     sigma, false
+     sigma, None
 
 (* --- Configuring the constructor liftings --- *)
        
@@ -1131,7 +1142,7 @@ let lift_core env sigma c trm =
                 lift_rec en sigma c (dest_existT tr).unpacked, false
             else
               let sigma, to_proj_o = is_proj c en tr sigma in
-              if Option.has_some to_proj_o then (* TODO optimize after *)
+              if Option.has_some to_proj_o then
                 (* COHERENCE *)
                 let sigma, tr_eta = expand_eta en sigma tr in
                 if arity tr_eta > arity tr then
@@ -1139,21 +1150,20 @@ let lift_core env sigma c trm =
                   (* TODO move to a common place *)
                   lift_rec en sigma c tr_eta, false
                 else
-                  (* TODO note this is to make things pretty, otherwise would handle fine w/ eliminator *)
                   let to_proj, i, args = Option.get to_proj_o in
                   let p = c.proj_rules.(i) in
-                  let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in (* TODO make aux function for the snoc/non_index_typ_args thing *)
+                  let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in
                   lift_rec en sigma c projected, false
               else
-                let sigma, is_elim = is_eliminator c en tr sigma in
-                if is_elim then
+                let sigma, is_elim_o = is_eliminator c en tr sigma in
+                if Option.has_some is_elim_o then
                   (* LIFT-ELIM *)
-                  let sigma, tr_eta = expand_eta en sigma tr in
+                  let tr_eta = Option.get is_elim_o in
                   if arity tr_eta > arity tr then
                     (* lazy eta expansion; recurse *)
                     lift_rec en sigma c tr_eta, false
                   else
-                    let sigma, tr_elim = deconstruct_eliminator en sigma tr in
+                    let sigma, tr_elim = deconstruct_eliminator en sigma tr_eta in
                     let nargs = (* TODO unify/clean/explain *)
                       match c.l.orn.kind with
                       | Algebraic (_, _) ->
