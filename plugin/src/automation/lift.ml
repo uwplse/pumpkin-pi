@@ -1053,10 +1053,11 @@ type lift_optimization =
 | GlobalCaching of constr
 | LocalCaching of constr
 | OpaqueConstant
-| SimplifyProjectPacked of ((lift_config, constr) Hofs.transformer_with_env -> evar_map -> constr state)
+| SimplifyProjectPacked of int * (constr * constr array)
 | LazyEta of constr
 | AppLazyDelta of constr * constr array
 | ConstLazyDelta of Names.Constant.t Univ.puniverses
+| SmartLiftConstr of constr * constr list
 
 (* TODO move/refactor/explain each/top comment/finish/simplify/move more optimizations up/clean/be consistent about how these recurse *)
 type lift_rule =
@@ -1089,7 +1090,13 @@ let determine_lift_rule c env trm sigma =
       let sigma, i_and_args_o = is_packed_constr c env sigma trm in
       if Option.has_some i_and_args_o then
         let i, args = Option.get i_and_args_o in
-        sigma, LiftConstr (c.constr_rules.(i - 1), args)
+        if List.length args > 0 then
+          if not c.l.is_fwd then
+            sigma, LiftConstr (c.constr_rules.(i - 1), args)
+          else
+            sigma, Optimization (SmartLiftConstr (c.constr_rules.(i - 1), args))
+        else
+          sigma, LiftConstr (c.constr_rules.(i - 1), args)
       else
         let sigma, run_lift_pack = is_pack c env sigma trm in
         if run_lift_pack then
@@ -1136,9 +1143,7 @@ let determine_lift_rule c env trm sigma =
                    if Option.has_some optimize_proj_packed_o then
                      (* optimize simplifying projections of packed terms, which are common (TODO move comment) *)
                      let i = Option.get optimize_proj_packed_o in
-                     let (_, proj_i_rule) = List.nth proj_packed_map i in
-                     let project = proj_i_rule c env f args in
-                     sigma, Optimization (SimplifyProjectPacked project)
+                     sigma, Optimization (SimplifyProjectPacked (i, (f, args)))
                    else
                      sigma, Optimization (AppLazyDelta (f, args))
               | Construct (((i, i_index), _), u) ->
@@ -1154,6 +1159,12 @@ let determine_lift_rule c env trm sigma =
               | _ ->
                  sigma, CIC
 
+(* TODO explain, move, etc *)
+let lift_simplify_project_packed c env i f args lift_rec sigma =
+  let proj_packed_map = c.optimize_proj_packed_rules in
+  let (_, proj_i_rule) = List.nth proj_packed_map i in
+  proj_i_rule c env f args lift_rec sigma
+                          
 (* TODO explain, move, etc *)
 let lift_app_lazy_delta c env f args lift_rec sigma =
   let sigma, f' = lift_rec env sigma c f in
@@ -1201,6 +1212,30 @@ let lift_const_lazy_delta c env (co, u) lift_rec sigma =
        sigma, trm)
   in smart_cache c trm lifted; (sigma, lifted)
 
+(* TODO explain, move, etc *)
+(* The extra logic here is an optimization *)
+(* It also deals with the fact that we are lazy about eta *)
+let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
+  let sigma, constr_app = reduce_term env sigma (mkAppl (lifted_constr, args)) in
+  match c.l.orn.kind with
+  | Algebraic (_, _) ->
+     let lifted_inner = last_arg constr_app in
+     let (f', args') = destApp lifted_inner in
+     let sigma, args'' = map_rec_args lift_rec env sigma c args' in
+     let b = mkApp (f', args'') in
+     let ex = dest_existT constr_app in
+     let sigma, n = lift_rec env sigma c ex.index in
+     let sigma, packer = lift_rec env sigma c ex.packer in
+     (sigma, pack_existT { ex with packer; index = n; unpacked = b })
+  | CurryRecord ->
+     let open Produtils in
+     let pair = dest_pair constr_app in
+     let sigma, typ1 = lift_rec env sigma c pair.typ1 in
+     let sigma, typ2 = lift_rec env sigma c pair.typ2 in
+     let sigma, trm1 = lift_rec env sigma c pair.trm1 in
+     let sigma, trm2 = lift_rec env sigma c pair.trm2 in
+     (sigma, apply_pair {typ1; typ2; trm1; trm2})
+    
 (*
  * Core lifting algorithm for algebraic ornaments.
  * A few extra rules to deal with real Coq terms as opposed to CIC,
@@ -1220,6 +1255,17 @@ let lift_core env sigma c trm =
   let rec lift_rec en sigma c tr : types state =
     let sigma, lift_rule = determine_lift_rule c en tr sigma in
     match lift_rule with
+    | Optimization (GlobalCaching lifted) | Optimization (LocalCaching lifted) ->
+       sigma, lifted
+    | Optimization OpaqueConstant ->
+       sigma, tr
+    | Optimization (LazyEta tr_eta) ->
+       lift_rec en sigma c tr_eta
+    | Section | Retraction | Internalize ->
+       lift_rec en sigma c (last_arg tr)
+    | Coherence (to_proj, p, args) ->
+       let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in
+       lift_rec en sigma c projected
     | Equivalence args ->
        let sigma, lifted_args = map_rec_args lift_rec en sigma c (Array.of_list args) in
        if l.is_fwd then
@@ -1235,49 +1281,27 @@ let lift_core env sigma c trm =
             (sigma, mkApp (b_typ, lifted_args))
        else
          (sigma, mkApp (a_typ, lifted_args))
+    | Optimization (SmartLiftConstr (lifted_constr, args)) ->
+       lift_smart_lift_constr c en lifted_constr args lift_rec sigma
     | LiftConstr (lifted_constr, args) ->
-       (* The extra logic here is an optimization *)
-       (* It also deals with the fact that we are lazy about eta *)
        let sigma, constr_app = reduce_term en sigma (mkAppl (lifted_constr, args)) in
        if List.length args > 0 then
-         if not c.l.is_fwd then
-           let (f', args') = destApp constr_app in
-           let sigma, args'' = map_rec_args lift_rec en sigma c args' in
-           (sigma, mkApp (f', args''))
-         else
-           (* optimization that skips some subterms (TODO clean) *)
-           match l.orn.kind with
-           | Algebraic (_, _) ->
-              let lifted_inner = last_arg constr_app in
-              let (f', args') = destApp lifted_inner in
-              let sigma, args'' = map_rec_args lift_rec en sigma c args' in
-              let b = mkApp (f', args'') in
-              let ex = dest_existT constr_app in
-              let sigma, n = lift_rec en sigma c ex.index in
-              let sigma, packer = lift_rec en sigma c ex.packer in
-              (sigma, pack_existT { ex with packer; index = n; unpacked = b })
-           | CurryRecord ->
-              let open Produtils in
-              let pair = dest_pair constr_app in
-              let sigma, typ1 = lift_rec en sigma c pair.typ1 in
-              let sigma, typ2 = lift_rec en sigma c pair.typ2 in
-              let sigma, trm1 = lift_rec en sigma c pair.trm1 in
-              let sigma, trm2 = lift_rec en sigma c pair.trm2 in
-              (sigma, apply_pair {typ1; typ2; trm1; trm2})
+         let (f', args') = destApp constr_app in
+         let sigma, args'' = map_rec_args lift_rec en sigma c args' in
+         sigma, mkApp (f', args'')
        else
-         (sigma, constr_app)
+         sigma, constr_app
     | LiftPack ->
        if l.is_fwd then
          (* pack *)
-         maybe_repack lift_rec c en tr tr true sigma (* TODO simplify args later *)
+         maybe_repack lift_rec c en tr tr true sigma
        else
          (* unpack (when not covered by constructor rule) *)
          lift_rec en sigma c (dest_existT tr).unpacked
-    | Coherence (to_proj, p, args) ->
-       let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in
-       lift_rec en sigma c projected
+    | Optimization (SimplifyProjectPacked (i, (f, args))) ->
+       lift_simplify_project_packed c en i f args lift_rec sigma
     | LiftElim tr_elim ->
-       let nargs = (* TODO unify/clean/explain *)
+       let nargs =
          match c.l.orn.kind with
          | Algebraic (_, _) ->
             a_arity - (List.length tr_elim.pms) + 1
@@ -1289,16 +1313,6 @@ let lift_core env sigma c trm =
        let sigma, tr'' = lift_rec en sigma c tr' in
        let sigma, post_args' = map_rec_args lift_rec en sigma c (Array.of_list post_args) in
        maybe_repack lift_rec c en tr (mkApp (tr'', post_args')) l.is_fwd sigma
-    | Section | Retraction | Internalize ->
-       lift_rec en sigma c (last_arg tr)
-    | Optimization (GlobalCaching lifted) | Optimization (LocalCaching lifted) ->
-       sigma, lifted
-    | Optimization OpaqueConstant ->
-       sigma, tr
-    | Optimization (SimplifyProjectPacked project) ->
-       project lift_rec sigma
-    | Optimization (LazyEta tr_eta) ->
-       lift_rec en sigma c tr_eta
     | Optimization (AppLazyDelta (f, args)) ->
        lift_app_lazy_delta c en f args lift_rec sigma
     | Optimization (ConstLazyDelta (co, u)) ->
@@ -1353,9 +1367,6 @@ let lift_core env sigma c trm =
            (* PROJ *)
            let sigma, co' = lift_rec en sigma c co in
            (sigma, mkProj (pr, co'))
-        | Construct (((i, i_index), _), u) ->
-           (* CONSTRUCT (does not recursively lift inductive type; must be done seperately) *)
-           (sigma, tr)
         | _ ->
            (sigma, tr))
   in lift_rec env sigma c trm
