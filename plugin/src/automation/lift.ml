@@ -51,7 +51,7 @@ let convertible env t1 t2 sigma =
     convertible env sigma t1 t2
 
 (* --- Internal lifting configuration --- *)
-
+                
 (*
  * Lifting configuration, along with the types A and B,
  * rules for constructors and projections that are configurable by equivalence,
@@ -1048,29 +1048,42 @@ let zoom_c c =
   | _ ->
      c
 
-(* TODO move/refactor/explain each/top comment/finish *)
-type lift_rule =
+(* TODO move/refactor/explain each/top comment/finish/add more *)
+type lift_beautification =
+| AppNoDelta of constr * constr array
+  
+(* TODO move/refactor/explain each/top comment/finish/add more *)
+type lift_optimization =
 | GlobalCaching of constr
 | LocalCaching of constr
 | OpaqueConstant
+| SimplifyProjectPacked of ((lift_config, constr) transformer_with_env -> types state) (* TODO clean a lot *)                    
+| LazyEta of constr
+
+(* TODO move/refactor/explain each/top comment/finish/simplify/move more optimizations up *)
+type lift_rule =
 | Equivalence of constr list
 | LiftConstr of constr * constr list
 | LiftPack
 | Coherence of types * constr * constr list
-| LazyEta of constr
 | LiftElim of elim_app
-| Other
+| Section
+| Retraction
+| Internalize
+| Optimization of lift_optimization
+| Beautification of lift_beautification
+| CIC
 
 (* TODO move/refactor/explain/finish *)
 let determine_lift_rule c env trm sigma =
   let l = c.l in
   let lifted_opt = lookup_lifting (lift_to l, lift_back l, trm) in
   if Option.has_some lifted_opt then
-    sigma, GlobalCaching (Option.get lifted_opt)
+    sigma, Optimization (GlobalCaching (Option.get lifted_opt))
   else if is_locally_cached c.cache trm then
-    sigma, LocalCaching (lookup_local_cache c.cache trm)
+    sigma, Optimization (LocalCaching (lookup_local_cache c.cache trm))
   else if is_opaque c trm then
-    sigma, OpaqueConstant
+    sigma, Optimization OpaqueConstant
   else
     let sigma, args_o = is_from convertible c env sigma trm in
     if Option.has_some args_o then
@@ -1089,7 +1102,7 @@ let determine_lift_rule c env trm sigma =
           if Option.has_some to_proj_o then
             let to_proj, i, args, trm_eta = Option.get to_proj_o in
             if arity trm_eta > arity trm then
-              sigma, LazyEta trm_eta
+              sigma, Optimization (LazyEta trm_eta)
             else
               let p = c.proj_rules.(i) in
               sigma, Coherence (to_proj, p, args)
@@ -1098,12 +1111,53 @@ let determine_lift_rule c env trm sigma =
             if Option.has_some is_elim_o then
               let trm_eta = Option.get is_elim_o in
               if arity trm_eta > arity trm then
-                sigma, LazyEta trm_eta
+                sigma, Optimization (LazyEta trm_eta)
               else
                 let sigma, trm_elim = deconstruct_eliminator env sigma trm in
                 sigma, LiftElim trm_elim
             else
-              sigma, Other
+              match kind trm with
+              | App (f, args) ->
+                 if equal (lift_back l) f then
+                   sigma, if l.is_fwd then Retraction else Section
+                 else if equal (lift_to l) f then
+                   sigma, Internalize
+                 else
+                   let proj_packed_map = c.optimize_proj_packed_rules in
+                   let optimize_proj_packed_o = (* TODO refactor/clean *)
+                     (if l.is_fwd then
+                        try
+                          Some
+                            (find_off
+                               proj_packed_map
+                               (fun (proj, _) -> is_or_applies proj trm))
+                        with _ ->
+                          None
+                      else
+                        None)
+                   in
+                   if Option.has_some optimize_proj_packed_o then
+                     (* optimize simplifying projections of packed terms, which are common (TODO move comment) *)
+                     let i = Option.get optimize_proj_packed_o in
+                     let (_, proj_i_rule) = List.nth proj_packed_map i in
+                     let proj_i_rule lift_rec =
+                       proj_i_rule c env f args lift_rec sigma
+                     in
+                     sigma, Optimization (SimplifyProjectPacked proj_i_rule)
+                   else
+                     if l.is_fwd || Array.length args = 0 || is_opaque c f then (* TODO move/clean preconditions here *)
+                       sigma, Beautification (AppNoDelta (f, args))
+                     else
+                       (match kind f with
+                        | Const (c, u) ->
+                           if Option.has_some (inductive_of_elim env (c, u)) then
+                             sigma, Beautification (AppNoDelta (f, args))
+                           else
+                             sigma, CIC
+                        | _ ->
+                           sigma, CIC)
+              | _ ->
+                 sigma, CIC
        
 (*
  * Core lifting algorithm for algebraic ornaments.
@@ -1124,12 +1178,6 @@ let lift_core env sigma c trm =
   let rec lift_rec en sigma c tr : types state =
     let sigma, lift_rule = determine_lift_rule c en tr sigma in
     match lift_rule with
-    | GlobalCaching lifted | LocalCaching lifted ->
-       sigma, lifted
-    | OpaqueConstant ->
-       sigma, tr
-    | LazyEta tr_eta ->
-       lift_rec en sigma c tr_eta
     | Equivalence args ->
        let sigma, lifted_args = map_rec_args lift_rec en sigma c (Array.of_list args) in
        if l.is_fwd then
@@ -1199,59 +1247,48 @@ let lift_core env sigma c trm =
        let sigma, tr'' = lift_rec en sigma c tr' in
        let sigma, post_args' = map_rec_args lift_rec en sigma c (Array.of_list post_args) in
        maybe_repack lift_rec c en tr (mkApp (tr'', post_args')) l.is_fwd sigma
-    | _ ->
+    | Section | Retraction | Internalize ->
+       lift_rec en sigma c (last_arg tr)
+    | Optimization (GlobalCaching lifted) | Optimization (LocalCaching lifted) ->
+       sigma, lifted
+    | Optimization OpaqueConstant ->
+       sigma, tr
+    | Optimization (LazyEta tr_eta) ->
+       lift_rec en sigma c tr_eta
+    | Optimization (SimplifyProjectPacked proj_i_rule) ->
+       proj_i_rule lift_rec
+    | Beautification (AppNoDelta (f, args)) ->
+       let sigma, f' = lift_rec en sigma c f in
+       let sigma, args' = map_rec_args lift_rec en sigma c args in 
+       maybe_repack lift_rec c en tr (mkApp (f', args')) l.is_fwd sigma
+    | CIC ->
        (match kind tr with
         | App (f, args) ->
-           if equal (lift_back l) f then
-             (* SECTION/RETRACTION *)
-             lift_rec en sigma c (last_arg tr)
-           else if equal (lift_to l) f then
-             (* INTERNALIZE *)
-             lift_rec en sigma c (last_arg tr)
-           else
-             (* APP *)
-             let proj_packed_map = c.optimize_proj_packed_rules in
-             let optimize_proj_packed_o = (* TODO refactor/clean *)
-               (if l.is_fwd then
-                  try
-                    Some
-                      (find_off
-                         proj_packed_map
-                         (fun (proj, _) -> is_or_applies proj tr))
-                  with _ ->
-                    None
-                else
-                  None)
-             in
-             if Option.has_some optimize_proj_packed_o then
-               (* optimize simplifying projections of packed terms, which are common *)
-               let i = Option.get optimize_proj_packed_o in
-               let (_, proj_i_rule) = List.nth proj_packed_map i in
-               proj_i_rule c en f args lift_rec sigma
+           (* APP *)
+           let sigma, f' = lift_rec en sigma c f in
+           if equal f f' then 
+             (* needed for completeness *)
+             let f_delta = unwrap_definition en f in
+             let sigma, app' = reduce_term en sigma (mkApp (f_delta, args)) in
+             let sigma, args' = map_rec_args lift_rec en sigma c args in
+             if equal tr app' then
+               (sigma, mkApp (f', args'))
              else
-               let sigma, f' = lift_rec en sigma c f in
-               if (not l.is_fwd) && Array.length args > 0 && equal f f' && (not (is_opaque c f)) && ((not (isConst f)) || (not (Option.has_some (inductive_of_elim en (destConst f))))) then 
-                 (* needed for completeness *)
-                 let f_delta = unwrap_definition en f in
-                 let sigma, app' = reduce_term en sigma (mkApp (f_delta, args)) in
-                 let sigma, args' = map_rec_args lift_rec en sigma c args in
-                 if equal tr app' then
+               let sigma, lifted_red = lift_rec en sigma c app' in
+               if equal lifted_red app' then
+                 (sigma, mkApp (f', args'))
+               else
+                 (* TODO explain: refold as in prod_rect example *)
+                 let f_delta' = unwrap_definition en f' in
+                 let sigma, app'' = reduce_term en sigma (mkApp (f_delta', args')) in
+                 if equal lifted_red app'' then
                    (sigma, mkApp (f', args'))
                  else
-                   let sigma, lifted_red = lift_rec en sigma c app' in
-                   if equal lifted_red app' then
-                     (sigma, mkApp (f', args'))
-                   else
-                     (* TODO explain: refold as in prod_rect example *)
-                     let f_delta' = unwrap_definition en f' in
-                     let sigma, app'' = reduce_term en sigma (mkApp (f_delta', args')) in
-                     if equal lifted_red app'' then
-                       (sigma, mkApp (f', args'))
-                     else
-                       (sigma, lifted_red)
-               else
-                 let sigma, args' = map_rec_args lift_rec en sigma c args in
-                 maybe_repack lift_rec c en tr (mkApp (f', args')) l.is_fwd sigma
+                   let sigma, args' = map_rec_args lift_rec en sigma c args in
+                   sigma, lifted_red
+           else
+             let sigma, args' = map_rec_args lift_rec en sigma c args in 
+             maybe_repack lift_rec c en tr (mkApp (f', args')) l.is_fwd sigma
         | Cast (ca, k, t) ->
            (* CAST *)
            let sigma, ca' = lift_rec en sigma c ca in
@@ -1265,10 +1302,10 @@ let lift_core env sigma c trm =
            (sigma, mkProd (n, t', b'))
         | Lambda (n, t, b) ->
            (* LAMBDA *)
-             let sigma, t' = lift_rec en sigma c t in
-             let en_b = push_local (n, t) en in
-             let sigma, b' = lift_rec en_b sigma (zoom_c c) b in
-             (sigma, mkLambda (n, t', b'))
+           let sigma, t' = lift_rec en sigma c t in
+           let en_b = push_local (n, t) en in
+           let sigma, b' = lift_rec en_b sigma (zoom_c c) b in
+           (sigma, mkLambda (n, t', b'))
         | LetIn (n, trm, typ, e) ->
            (* LETIN *)
            if l.is_fwd then
