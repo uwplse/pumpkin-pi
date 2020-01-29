@@ -1244,11 +1244,11 @@ let lift_core env sigma c trm =
                    else
                      (* TODO explain: refold as in prod_rect example *)
                      let f_delta' = unwrap_definition en f' in
-                       let sigma, app'' = reduce_term en sigma (mkApp (f_delta', args')) in
-                       if equal lifted_red app'' then
-                         (sigma, mkApp (f', args'))
-                       else
-                         (sigma, lifted_red)
+                     let sigma, app'' = reduce_term en sigma (mkApp (f_delta', args')) in
+                     if equal lifted_red app'' then
+                       (sigma, mkApp (f', args'))
+                     else
+                       (sigma, lifted_red)
                else
                  let sigma, args' = map_rec_args lift_rec en sigma c args in
                  maybe_repack lift_rec c en tr (mkApp (f', args')) l.is_fwd sigma
