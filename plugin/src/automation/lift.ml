@@ -120,12 +120,14 @@ let deindex l =
  * Get the types A, B, and IB from the ornament
  *)
 let typs_from_orn l env sigma =
-  let (a_i_t, b_i_t) = on_red_type_default (ignore_env promotion_type_to_types) env sigma l.orn.promote in
+  let sigma, promote_typ = reduce_type env sigma l.orn.promote in
+  let (a_i_t, b_i_t) = promotion_type_to_types promote_typ in
   let a_t = first_fun a_i_t in
   match l.orn.kind with
   | Algebraic _ ->
-     let b_t = zoom_sig b_i_t in
-     let i_b_t = (dest_sigT b_i_t).index_type in
+     let env_pms = pop_rel_context 1 (zoom_env zoom_product_type env promote_typ) in
+     let b_t = reconstruct_lambda env_pms (unshift b_i_t) in
+     let i_b_t = (dest_sigT b_i_t).index_type in (* TODO deprecate/remove later *)
      (a_t, b_t, Some i_b_t)
   | CurryRecord ->
      let b_t = first_fun b_i_t in
@@ -151,7 +153,8 @@ let is_from conv c env sigma typ =
     | Algebraic _ -> (* TODO explain the opaque thing *)
        if is_or_applies sigT typ && not (is_opaque c sigT) then
          let packed = dummy_index env sigma (dest_sigT typ).packer in
-         if equal b_typ (first_fun packed) then
+         let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
+         if equal (first_fun b_typ_packed) (first_fun packed) then
            sigma, Some (deindex c.l (unfold_args packed))
          else
            sigma, None
@@ -448,8 +451,11 @@ let is_eliminator c env trm sigma =
   let b_typ =
     if (not c.l.is_fwd) && c.l.orn.kind = CurryRecord then
       prod
-    else
+    else if c.l.orn.kind = CurryRecord then
       b_typ
+    else
+      let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
+      first_fun b_typ_packed
   in
   let f = first_fun trm in
   match kind f with
@@ -485,7 +491,15 @@ let is_eliminator c env trm sigma =
  *)
 let pack_to_typ env sigma c unpacked =
   let (_, b_typ) = c.typs in
-  if on_red_type_default (ignore_env (is_or_applies b_typ)) env sigma unpacked then
+  let b_typ_inner =
+    match c.l.orn.kind with
+    | Algebraic _ ->
+       let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
+       first_fun b_typ_packed
+    | _ ->
+       b_typ
+  in
+  if on_red_type_default (ignore_env (is_or_applies b_typ_inner)) env sigma unpacked then
     match c.l.orn.kind with
     | Algebraic (_, off) ->
        pack env c.l unpacked sigma
@@ -554,16 +568,18 @@ let initialize_constr_rules env sigma c =
   let (a_typ, b_typ) = c.typs in
   match c.l.orn.kind with
   | Algebraic _ ->
-    let ((i, i_index), u) = destInd (directional c.l a_typ b_typ) in
-    let mutind_body = lookup_mind i env in
-    let ind_bodies = mutind_body.mind_packets in
-    let ind_body = ind_bodies.(i_index) in
-    map_state_array
-      (initialize_constr_rule c env)
-      (Array.mapi
-         (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
-         ind_body.mind_consnames)
-      sigma
+     let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
+     let b_typ_inner = first_fun b_typ_packed in
+     let ((i, i_index), u) = destInd (directional c.l a_typ b_typ_inner) in
+     let mutind_body = lookup_mind i env in
+     let ind_bodies = mutind_body.mind_packets in
+     let ind_body = ind_bodies.(i_index) in
+     map_state_array
+       (initialize_constr_rule c env)
+       (Array.mapi
+          (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
+          ind_body.mind_consnames)
+       sigma
   | CurryRecord ->
      let ((i, i_index), u) = destInd a_typ in
      let constr = mkConstructU (((i, i_index), 1), u) in
@@ -755,6 +771,8 @@ let lift_motive env sigma c npms parameterized_elim p =
  *)
 let promote_case_args env sigma c args =
   let (_, b_typ) = c.typs in
+  let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
+  let b_typ_inner = first_fun b_typ_packed in
   let rec lift_args sigma args i_b =
     match args with
     | n :: tl ->
@@ -765,7 +783,7 @@ let promote_case_args env sigma c args =
            (lift_args sigma (shift_all tl) i_b)
        else
          let sigma, t = reduce_type env sigma n in
-         if is_or_applies b_typ t then
+         if is_or_applies b_typ_inner t then
            (* FORGET-ARG *)
            match c.l.orn.kind with
            | Algebraic (_, (_, off)) ->
@@ -798,6 +816,8 @@ let promote_case_args env sigma c args =
  *)
 let forget_case_args env_c_b env sigma c args =
   let (_, b_typ) = c.typs in
+  let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
+  let b_typ_inner = first_fun b_typ_packed in
   let rec lift_args sigma args (i_b, proj_i_b) =
     match args with
     | n :: tl ->
@@ -808,7 +828,7 @@ let forget_case_args env_c_b env sigma c args =
            (lift_args sigma (unshift_all tl) (i_b, proj_i_b))
        else
          let sigma, t = reduce_type env_c_b sigma n in
-         if is_or_applies b_typ t then
+         if is_or_applies b_typ_inner t then
            (* PROMOTE-ARG *)
            match c.l.orn.kind with
            | Algebraic (_, (_, off)) ->
@@ -853,6 +873,14 @@ let lift_case_args env_c_b env sigma c args =
  *)
 let lift_case env c p c_elim constr sigma =
   let (a_typ, b_typ) = c.typs in
+  let b_typ = (* TODO clean/consolidate/stop *)
+    match c.l.orn.kind with
+    | Algebraic _ ->
+       let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
+       first_fun b_typ_packed
+    | _ ->
+       b_typ
+  in
   let to_typ = directional c.l b_typ a_typ in
   let sigma, c_eta = expand_eta env sigma constr in
   let sigma, c_elim_type = reduce_type env sigma c_elim in
@@ -944,6 +972,14 @@ let lift_cases env c p p_elim cs =
  *)
 let lift_elim env sigma c trm_app =
   let (a_t, b_t) = c.typs in
+  let b_t =
+    match c.l.orn.kind with
+    | Algebraic _ ->
+       let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_t)).packer in
+       first_fun b_typ_packed
+    | _ ->
+       b_t
+  in
   let to_typ = directional c.l b_t a_t in
   match c.l.orn.kind with
   | Algebraic _ ->
@@ -1044,7 +1080,8 @@ let zoom_c c =
   | Algebraic (indexer, (ib_typ, off)) ->
      let orn = { c.l.orn with kind = Algebraic (indexer, (shift ib_typ, off)) } in
      let l = { c.l with orn } in
-     { c with l }
+     let typs = map_tuple shift c.typs in
+     { c with l; typs }
   | _ ->
      c
 
@@ -1149,6 +1186,14 @@ let determine_lift_rule c env trm sigma =
               | Construct (((i, i_index), _), u) ->
                  let ind = mkInd (i, i_index) in
                  let (a_typ, b_typ) = c.typs in
+                 let b_typ =
+                   match c.l.orn.kind with
+                   | Algebraic _ ->
+                      let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
+                      first_fun b_typ_packed
+                   | _ ->
+                      b_typ
+                 in
                  if equal ind (directional l a_typ b_typ) then
                    let sigma, trm_eta = expand_eta env sigma trm in
                    sigma, Optimization (LazyEta trm_eta)
@@ -1249,7 +1294,7 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
  *)
 let lift_core env sigma c trm =
   let l = c.l in
-  let (a_typ, b_typ) = c.typs in
+  let (a_typ, _) = c.typs in
   let sigma, a_typ_eta = expand_eta env sigma a_typ in
   let a_arity = arity a_typ_eta in
   let rec lift_rec en sigma c tr : types state =
@@ -1267,18 +1312,10 @@ let lift_core env sigma c trm =
        let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in
        lift_rec en sigma c projected
     | Equivalence args ->
+       let (_, b_typ) = c.typs in
        let sigma, lifted_args = map_rec_args lift_rec en sigma c (Array.of_list args) in
        if l.is_fwd then
-         match l.orn.kind with
-         | Algebraic (_, (ib_typ, _)) ->
-            (* TODO really B typ should be lambda to sig typ; special casing is a sign here that we have it wrong *)
-            let b_is = mkApp (b_typ, lifted_args) in
-            let n = mkRel 1 in
-            let abs_ib = reindex_body (reindex_app (index l n)) in
-            let packer = abs_ib (mkLambda (Anonymous, ib_typ, shift b_is)) in
-            (sigma, pack_sigT { index_type = ib_typ; packer })
-         | CurryRecord ->
-            (sigma, mkApp (b_typ, lifted_args))
+         reduce_term en sigma (mkApp (b_typ, lifted_args))
        else
          (sigma, mkApp (a_typ, lifted_args))
     | Optimization (SmartLiftConstr (lifted_constr, args)) ->
