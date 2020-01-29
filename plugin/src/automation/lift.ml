@@ -1250,8 +1250,8 @@ let lift_core env sigma c trm =
                        else
                          (sigma, lifted_red)
                else
-                 let sigma, args' = map_rec_args lift_rec en sigma c args in 
-                 (sigma, mkApp (f', args'))
+                 let sigma, args' = map_rec_args lift_rec en sigma c args in
+                 maybe_repack lift_rec c en tr (mkApp (f', args')) l.is_fwd sigma
         | Cast (ca, k, t) ->
            (* CAST *)
            let sigma, ca' = lift_rec en sigma c ca in
