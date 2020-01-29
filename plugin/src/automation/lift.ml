@@ -1200,135 +1200,133 @@ let lift_core env sigma c trm =
        let sigma, post_args' = map_rec_args lift_rec en sigma c (Array.of_list post_args) in
        maybe_repack lift_rec c en tr (mkApp (tr'', post_args')) l.is_fwd sigma
     | _ ->
-       (let (sigma, lifted), try_repack =
-            match kind tr with
-            | App (f, args) ->
-               if equal (lift_back l) f then
-                 (* SECTION/RETRACTION *)
-                 lift_rec en sigma c (last_arg tr), false
-               else if equal (lift_to l) f then
-                 (* INTERNALIZE *)
-                 lift_rec en sigma c (last_arg tr), false
-               else
-                 (* APP *)
-                 let proj_packed_map = c.optimize_proj_packed_rules in
-                 let optimize_proj_packed_o = (* TODO refactor/clean *)
-                   (if l.is_fwd then
-                      try
-                             Some
-                               (find_off
-                                  proj_packed_map
-                                  (fun (proj, _) -> is_or_applies proj tr))
-                      with _ ->
-                        None
-                    else
-                      None)
-                 in
-                 if Option.has_some optimize_proj_packed_o then
-                   (* optimize simplifying projections of packed terms, which are common *)
-                   let i = Option.get optimize_proj_packed_o in
-                   let (_, proj_i_rule) = List.nth proj_packed_map i in
-                         proj_i_rule c en f args lift_rec sigma, false
-                 else
-                   let sigma, f' = lift_rec en sigma c f in
-                   if (not l.is_fwd) && Array.length args > 0 && equal f f' && (not (is_opaque c f)) && ((not (isConst f)) || (not (Option.has_some (inductive_of_elim en (destConst f))))) then 
-                     (* needed for completeness *)
-                     let f_delta = unwrap_definition en f in
-                     let sigma, app' = reduce_term en sigma (mkApp (f_delta, args)) in
-                     let sigma, args' = map_rec_args lift_rec en sigma c args in
-                     if equal tr app' then
-                       (sigma, mkApp (f', args')), false
-                     else
-                       let sigma, lifted_red = lift_rec en sigma c app' in
-                       if equal lifted_red app' then
-                         (sigma, mkApp (f', args')), false
-                       else
-                         (* TODO explain: refold as in prod_rect example *)
-                         let f_delta' = unwrap_definition en f' in
-                         let sigma, app'' = reduce_term en sigma (mkApp (f_delta', args')) in
-                         if equal lifted_red app'' then
-                           (sigma, mkApp (f', args')), false
-                         else
-                           (sigma, lifted_red), false
-                   else
-                     let sigma, args' = map_rec_args lift_rec en sigma c args in 
-                     (sigma, mkApp (f', args')), l.is_fwd
-            | Cast (ca, k, t) ->
-               (* CAST *)
-               let sigma, ca' = lift_rec en sigma c ca in
-               let sigma, t' = lift_rec en sigma c t in
-               (sigma, mkCast (ca', k, t')), false
-            | Prod (n, t, b) ->
-               (* PROD *)
-               let sigma, t' = lift_rec en sigma c t in
-               let en_b = push_local (n, t) en in
-               let sigma, b' = lift_rec en_b sigma (zoom_c c) b in
-               (sigma, mkProd (n, t', b')), false
-            | Lambda (n, t, b) ->
-               (* LAMBDA *)
-               let sigma, t' = lift_rec en sigma c t in
-               let en_b = push_local (n, t) en in
-               let sigma, b' = lift_rec en_b sigma (zoom_c c) b in
-               (sigma, mkLambda (n, t', b')), false
-            | LetIn (n, trm, typ, e) ->
-               (* LETIN *)
-               if l.is_fwd then
-                 let sigma, trm' = lift_rec en sigma c trm in
-                 let sigma, typ' = lift_rec en sigma c typ in
-                 let en_e = push_let_in (n, trm, typ) en in
-                 let sigma, e' = lift_rec en_e sigma (zoom_c c) e in
-                 (sigma, mkLetIn (n, trm', typ', e')), false
-               else
-                 (* Needed for #58 we implement #42 *) (* TODO what? Also why are these different by direction? *)
-                 lift_rec en sigma c (reduce_stateless whd en sigma tr), false
-            | Case (ci, ct, m, bs) ->
-               (* CASE (will not work if this destructs over A; preprocess first) *)
-               let sigma, ct' = lift_rec en sigma c ct in
-               let sigma, m' = lift_rec en sigma c m in
-               let sigma, bs' = map_rec_args lift_rec en sigma c bs in
-               (sigma, mkCase (ci, ct', m', bs')), false
-            | Fix ((is, i), (ns, ts, ds)) ->
-               (* FIX (will not work if this destructs over A; preprocess first) *)
-               let sigma, ts' = map_rec_args lift_rec en sigma c ts in
-               let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec zoom_c en sigma a ns ts trm) en sigma c ds in
-               (sigma, mkFix ((is, i), (ns, ts', ds'))), false
-            | CoFix (i, (ns, ts, ds)) ->
-               (* COFIX (will not work if this destructs over A; preprocess first) *)
-               let sigma, ts' = map_rec_args lift_rec en sigma c ts in
-               let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec zoom_c en sigma a ns ts trm) en sigma c ds in
-               (sigma, mkCoFix (i, (ns, ts', ds'))), false
-            | Proj (pr, co) ->
-               (* PROJ *)
-               let sigma, co' = lift_rec en sigma c co in
-               (sigma, mkProj (pr, co')), false
-            | Construct (((i, i_index), _), u) ->
-               let ind = mkInd (i, i_index) in
-               if equal ind (directional l a_typ b_typ) then
-                 (* lazy eta expansion *)
-                 let sigma, tr_eta = expand_eta en sigma tr in
-                 lift_rec en sigma c tr_eta, false
-               else
-                 (sigma, tr), false
-            | Const (co, u) ->
-               let sigma, lifted =
-                 (try
-                    (* CONST *)
-                    if Option.has_some (inductive_of_elim en (co, u)) then
-                      sigma, tr
-                    else
-                      let def = lookup_definition en tr in
-                      let sigma, try_lifted = lift_rec en sigma c def in
-                      if equal def try_lifted then
-                        sigma, tr
-                      else
-                        reduce_term en sigma try_lifted
+       (match kind tr with
+        | App (f, args) ->
+           if equal (lift_back l) f then
+             (* SECTION/RETRACTION *)
+             lift_rec en sigma c (last_arg tr)
+           else if equal (lift_to l) f then
+             (* INTERNALIZE *)
+             lift_rec en sigma c (last_arg tr)
+           else
+             (* APP *)
+             let proj_packed_map = c.optimize_proj_packed_rules in
+             let optimize_proj_packed_o = (* TODO refactor/clean *)
+               (if l.is_fwd then
+                  try
+                    Some
+                      (find_off
+                         proj_packed_map
+                         (fun (proj, _) -> is_or_applies proj tr))
                   with _ ->
-                    (* AXIOM *)
-                    sigma, tr)
-               in smart_cache c tr lifted; (sigma, lifted), false
-            | _ ->
-               (sigma, tr), false
-        in maybe_repack lift_rec c en tr lifted try_repack sigma)
+                    None
+                else
+                  None)
+             in
+             if Option.has_some optimize_proj_packed_o then
+               (* optimize simplifying projections of packed terms, which are common *)
+               let i = Option.get optimize_proj_packed_o in
+               let (_, proj_i_rule) = List.nth proj_packed_map i in
+               proj_i_rule c en f args lift_rec sigma
+             else
+               let sigma, f' = lift_rec en sigma c f in
+               if (not l.is_fwd) && Array.length args > 0 && equal f f' && (not (is_opaque c f)) && ((not (isConst f)) || (not (Option.has_some (inductive_of_elim en (destConst f))))) then 
+                 (* needed for completeness *)
+                 let f_delta = unwrap_definition en f in
+                 let sigma, app' = reduce_term en sigma (mkApp (f_delta, args)) in
+                 let sigma, args' = map_rec_args lift_rec en sigma c args in
+                 if equal tr app' then
+                   (sigma, mkApp (f', args'))
+                 else
+                   let sigma, lifted_red = lift_rec en sigma c app' in
+                   if equal lifted_red app' then
+                     (sigma, mkApp (f', args'))
+                   else
+                     (* TODO explain: refold as in prod_rect example *)
+                     let f_delta' = unwrap_definition en f' in
+                       let sigma, app'' = reduce_term en sigma (mkApp (f_delta', args')) in
+                       if equal lifted_red app'' then
+                         (sigma, mkApp (f', args'))
+                       else
+                         (sigma, lifted_red)
+               else
+                 let sigma, args' = map_rec_args lift_rec en sigma c args in 
+                 (sigma, mkApp (f', args'))
+        | Cast (ca, k, t) ->
+           (* CAST *)
+           let sigma, ca' = lift_rec en sigma c ca in
+           let sigma, t' = lift_rec en sigma c t in
+           (sigma, mkCast (ca', k, t'))
+        | Prod (n, t, b) ->
+           (* PROD *)
+           let sigma, t' = lift_rec en sigma c t in
+           let en_b = push_local (n, t) en in
+           let sigma, b' = lift_rec en_b sigma (zoom_c c) b in
+           (sigma, mkProd (n, t', b'))
+        | Lambda (n, t, b) ->
+           (* LAMBDA *)
+             let sigma, t' = lift_rec en sigma c t in
+             let en_b = push_local (n, t) en in
+             let sigma, b' = lift_rec en_b sigma (zoom_c c) b in
+             (sigma, mkLambda (n, t', b'))
+        | LetIn (n, trm, typ, e) ->
+           (* LETIN *)
+           if l.is_fwd then
+             let sigma, trm' = lift_rec en sigma c trm in
+             let sigma, typ' = lift_rec en sigma c typ in
+             let en_e = push_let_in (n, trm, typ) en in
+             let sigma, e' = lift_rec en_e sigma (zoom_c c) e in
+             (sigma, mkLetIn (n, trm', typ', e'))
+           else
+             (* Needed for #58 we implement #42 *) (* TODO what? Also why are these different by direction? *)
+             lift_rec en sigma c (reduce_stateless whd en sigma tr)
+        | Case (ci, ct, m, bs) ->
+           (* CASE (will not work if this destructs over A; preprocess first) *)
+           let sigma, ct' = lift_rec en sigma c ct in
+             let sigma, m' = lift_rec en sigma c m in
+             let sigma, bs' = map_rec_args lift_rec en sigma c bs in
+             (sigma, mkCase (ci, ct', m', bs'))
+        | Fix ((is, i), (ns, ts, ds)) ->
+           (* FIX (will not work if this destructs over A; preprocess first) *)
+           let sigma, ts' = map_rec_args lift_rec en sigma c ts in
+           let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec zoom_c en sigma a ns ts trm) en sigma c ds in
+           (sigma, mkFix ((is, i), (ns, ts', ds')))
+        | CoFix (i, (ns, ts, ds)) ->
+           (* COFIX (will not work if this destructs over A; preprocess first) *)
+           let sigma, ts' = map_rec_args lift_rec en sigma c ts in
+           let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec zoom_c en sigma a ns ts trm) en sigma c ds in
+           (sigma, mkCoFix (i, (ns, ts', ds')))
+        | Proj (pr, co) ->
+           (* PROJ *)
+           let sigma, co' = lift_rec en sigma c co in
+           (sigma, mkProj (pr, co'))
+        | Construct (((i, i_index), _), u) ->
+           let ind = mkInd (i, i_index) in
+           if equal ind (directional l a_typ b_typ) then
+             (* lazy eta expansion *)
+             let sigma, tr_eta = expand_eta en sigma tr in
+             lift_rec en sigma c tr_eta
+           else
+             (sigma, tr)
+        | Const (co, u) ->
+           let sigma, lifted =
+             (try
+                (* CONST *)
+                if Option.has_some (inductive_of_elim en (co, u)) then
+                  sigma, tr
+                else
+                  let def = lookup_definition en tr in
+                  let sigma, try_lifted = lift_rec en sigma c def in
+                  if equal def try_lifted then
+                    sigma, tr
+                  else
+                    reduce_term en sigma try_lifted
+              with _ ->
+                (* AXIOM *)
+                sigma, tr)
+           in smart_cache c tr lifted; (sigma, lifted)
+        | _ ->
+           (sigma, tr))
   in lift_rec env sigma c trm
               
 (*
