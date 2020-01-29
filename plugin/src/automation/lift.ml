@@ -1048,19 +1048,17 @@ let zoom_c c =
   | _ ->
      c
 
-(* TODO move/refactor/explain each/top comment/finish/add more *)
-type lift_beautification =
-| AppNoDelta of constr * constr array
-  
-(* TODO move/refactor/explain each/top comment/finish/add more *)
+(* TODO move/refactor/explain each/top comment/finish/add more/clean/be consistent about how these recurse *)
 type lift_optimization =
 | GlobalCaching of constr
 | LocalCaching of constr
 | OpaqueConstant
-| SimplifyProjectPacked of ((lift_config, constr) transformer_with_env -> types state) (* TODO clean a lot *)                    
+| SimplifyProjectPacked of ((lift_config, constr) Hofs.transformer_with_env -> evar_map -> constr state)
 | LazyEta of constr
+| AppLazyDelta of constr * constr array
+| ConstLazyDelta of Names.Constant.t Univ.puniverses
 
-(* TODO move/refactor/explain each/top comment/finish/simplify/move more optimizations up *)
+(* TODO move/refactor/explain each/top comment/finish/simplify/move more optimizations up/clean/be consistent about how these recurse *)
 type lift_rule =
 | Equivalence of constr list
 | LiftConstr of constr * constr list
@@ -1071,7 +1069,6 @@ type lift_rule =
 | Retraction
 | Internalize
 | Optimization of lift_optimization
-| Beautification of lift_beautification
 | CIC
 
 (* TODO move/refactor/explain/finish *)
@@ -1140,25 +1137,70 @@ let determine_lift_rule c env trm sigma =
                      (* optimize simplifying projections of packed terms, which are common (TODO move comment) *)
                      let i = Option.get optimize_proj_packed_o in
                      let (_, proj_i_rule) = List.nth proj_packed_map i in
-                     let proj_i_rule lift_rec =
-                       proj_i_rule c env f args lift_rec sigma
-                     in
-                     sigma, Optimization (SimplifyProjectPacked proj_i_rule)
+                     let project = proj_i_rule c env f args in
+                     sigma, Optimization (SimplifyProjectPacked project)
                    else
-                     if l.is_fwd || Array.length args = 0 || is_opaque c f then (* TODO move/clean preconditions here *)
-                       sigma, Beautification (AppNoDelta (f, args))
-                     else
-                       (match kind f with
-                        | Const (c, u) ->
-                           if Option.has_some (inductive_of_elim env (c, u)) then
-                             sigma, Beautification (AppNoDelta (f, args))
-                           else
-                             sigma, CIC
-                        | _ ->
-                           sigma, CIC)
+                     sigma, Optimization (AppLazyDelta (f, args))
+              | Construct (((i, i_index), _), u) ->
+                 let ind = mkInd (i, i_index) in
+                 let (a_typ, b_typ) = c.typs in
+                 if equal ind (directional l a_typ b_typ) then
+                   let sigma, trm_eta = expand_eta env sigma trm in
+                   sigma, Optimization (LazyEta trm_eta)
+                 else
+                   sigma, CIC
+              | Const (co, u) ->
+                 sigma, Optimization (ConstLazyDelta (co, u))
               | _ ->
                  sigma, CIC
-       
+
+(* TODO explain, move, etc *)
+let lift_app_lazy_delta c env f args lift_rec sigma =
+  let sigma, f' = lift_rec env sigma c f in
+  let sigma, args' = map_rec_args lift_rec env sigma c args in
+  if (not (equal f f')) || c.l.is_fwd || Array.length args = 0 || is_opaque c f then (* TODO move/clean preconditions here *)
+    maybe_repack lift_rec c env (mkApp (f, args)) (mkApp (f', args')) c.l.is_fwd sigma
+  else
+    (match kind f with
+     | Const (c, u) when Option.has_some (inductive_of_elim env (c, u)) ->
+        sigma, mkApp (f', args')
+     | _ ->
+        if not (equal f f') then
+          sigma, mkApp (f', args')
+        else
+          let sigma, app' = specialize_delta_f env f (Array.to_list args) sigma in
+          if equal (mkApp (f, args)) app' then
+            sigma, mkApp (f', args')
+          else
+            let sigma, lifted_red = lift_rec env sigma c app' in
+            if equal lifted_red app' then
+              sigma, mkApp (f', args')
+            else
+              let sigma, app'' = specialize_delta_f env f' (Array.to_list args') sigma in
+              if equal lifted_red app'' then
+                sigma, mkApp (f', args')
+              else
+                sigma, lifted_red)
+
+(* TODO explain, move, etc *)
+let lift_const_lazy_delta c env (co, u) lift_rec sigma =
+  let trm = mkConstU (co, u) in
+  let sigma, lifted =
+    (try
+       if Option.has_some (inductive_of_elim env (co, u)) then
+         sigma, trm
+       else
+         let def = lookup_definition env (mkConstU (co, u)) in
+         let sigma, try_lifted = lift_rec env sigma c def in
+         if equal def try_lifted then
+           sigma, trm
+         else
+           reduce_term env sigma try_lifted
+     with _ ->
+       (* axiom *)
+       sigma, trm)
+  in smart_cache c trm lifted; (sigma, lifted)
+
 (*
  * Core lifting algorithm for algebraic ornaments.
  * A few extra rules to deal with real Coq terms as opposed to CIC,
@@ -1253,42 +1295,16 @@ let lift_core env sigma c trm =
        sigma, lifted
     | Optimization OpaqueConstant ->
        sigma, tr
+    | Optimization (SimplifyProjectPacked project) ->
+       project lift_rec sigma
     | Optimization (LazyEta tr_eta) ->
        lift_rec en sigma c tr_eta
-    | Optimization (SimplifyProjectPacked proj_i_rule) ->
-       proj_i_rule lift_rec
-    | Beautification (AppNoDelta (f, args)) ->
-       let sigma, f' = lift_rec en sigma c f in
-       let sigma, args' = map_rec_args lift_rec en sigma c args in 
-       maybe_repack lift_rec c en tr (mkApp (f', args')) l.is_fwd sigma
+    | Optimization (AppLazyDelta (f, args)) ->
+       lift_app_lazy_delta c en f args lift_rec sigma
+    | Optimization (ConstLazyDelta (co, u)) ->
+       lift_const_lazy_delta c en (co, u) lift_rec sigma
     | CIC ->
        (match kind tr with
-        | App (f, args) ->
-           (* APP *)
-           let sigma, f' = lift_rec en sigma c f in
-           if equal f f' then 
-             (* needed for completeness *)
-             let f_delta = unwrap_definition en f in
-             let sigma, app' = reduce_term en sigma (mkApp (f_delta, args)) in
-             let sigma, args' = map_rec_args lift_rec en sigma c args in
-             if equal tr app' then
-               (sigma, mkApp (f', args'))
-             else
-               let sigma, lifted_red = lift_rec en sigma c app' in
-               if equal lifted_red app' then
-                 (sigma, mkApp (f', args'))
-               else
-                 (* TODO explain: refold as in prod_rect example *)
-                 let f_delta' = unwrap_definition en f' in
-                 let sigma, app'' = reduce_term en sigma (mkApp (f_delta', args')) in
-                 if equal lifted_red app'' then
-                   (sigma, mkApp (f', args'))
-                 else
-                   let sigma, args' = map_rec_args lift_rec en sigma c args in
-                   sigma, lifted_red
-           else
-             let sigma, args' = map_rec_args lift_rec en sigma c args in 
-             maybe_repack lift_rec c en tr (mkApp (f', args')) l.is_fwd sigma
         | Cast (ca, k, t) ->
            (* CAST *)
            let sigma, ca' = lift_rec en sigma c ca in
@@ -1315,14 +1331,14 @@ let lift_core env sigma c trm =
              let sigma, e' = lift_rec en_e sigma (zoom_c c) e in
              (sigma, mkLetIn (n, trm', typ', e'))
            else
-             (* Needed for #58 we implement #42 *) (* TODO what? Also why are these different by direction? *)
+             (* Needed for #58 until we implement #42 *)
              lift_rec en sigma c (reduce_stateless whd en sigma tr)
         | Case (ci, ct, m, bs) ->
            (* CASE (will not work if this destructs over A; preprocess first) *)
            let sigma, ct' = lift_rec en sigma c ct in
-             let sigma, m' = lift_rec en sigma c m in
-             let sigma, bs' = map_rec_args lift_rec en sigma c bs in
-             (sigma, mkCase (ci, ct', m', bs'))
+           let sigma, m' = lift_rec en sigma c m in
+           let sigma, bs' = map_rec_args lift_rec en sigma c bs in
+           (sigma, mkCase (ci, ct', m', bs'))
         | Fix ((is, i), (ns, ts, ds)) ->
            (* FIX (will not work if this destructs over A; preprocess first) *)
            let sigma, ts' = map_rec_args lift_rec en sigma c ts in
@@ -1338,30 +1354,8 @@ let lift_core env sigma c trm =
            let sigma, co' = lift_rec en sigma c co in
            (sigma, mkProj (pr, co'))
         | Construct (((i, i_index), _), u) ->
-           let ind = mkInd (i, i_index) in
-           if equal ind (directional l a_typ b_typ) then
-             (* lazy eta expansion *)
-             let sigma, tr_eta = expand_eta en sigma tr in
-             lift_rec en sigma c tr_eta
-           else
-             (sigma, tr)
-        | Const (co, u) ->
-           let sigma, lifted =
-             (try
-                (* CONST *)
-                if Option.has_some (inductive_of_elim en (co, u)) then
-                  sigma, tr
-                else
-                  let def = lookup_definition en tr in
-                  let sigma, try_lifted = lift_rec en sigma c def in
-                  if equal def try_lifted then
-                    sigma, tr
-                  else
-                    reduce_term en sigma try_lifted
-              with _ ->
-                (* AXIOM *)
-                sigma, tr)
-           in smart_cache c tr lifted; (sigma, lifted)
+           (* CONSTRUCT (does not recursively lift inductive type; must be done seperately) *)
+           (sigma, tr)
         | _ ->
            (sigma, tr))
   in lift_rec env sigma c trm
