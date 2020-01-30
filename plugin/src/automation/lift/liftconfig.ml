@@ -38,7 +38,7 @@ type lift_config =
     typs : types * types;
     constr_rules : types array;
     proj_rules : types array;
-    optimize_proj_packed_rules : (constr * (lift_config -> env -> constr -> constr array -> (lift_config, constr) transformer_with_env -> evar_map -> types state)) list; (* TODO clean type *)
+    optimize_proj_packed_rules : (constr * (env -> constr -> constr array -> evar_map -> constr state)) list; (* TODO clean type *)
     cache : temporary_cache;
     opaques : temporary_cache
   }

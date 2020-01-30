@@ -235,19 +235,18 @@ let initialize_proj_rules env sigma c =
 
 (* TODO comment/explain: we can sometimes be smarter than coq's reduction
   TODO unify some infrastructure with proj rules and is_proj? *)
-(* TODO clean up a lot, especially recursive lifting here which is gross, and performance benefits are marginal if any *)
+(* TODO clean up a lot *)
+(* TODO note this takes in lifted f, args and then decides what to do *)
 let initialize_optimize_proj_packed_rules c =
   (* TODO comment/move/clean/etc *)
-  let common_proj_rule is_packed project c env f args lift_rec sigma =
-    let sigma, args' = map_rec_args lift_rec env sigma c args in
+  let common_proj_rule is_packed project env f' args' sigma =
     let arg' = last (Array.to_list args') in
     let arg'' = reduce_stateless reduce_term env sigma arg' in
     if is_packed arg'' then
       (sigma, project arg'')
     else
-      let sigma, f' = lift_rec env sigma c f in
       (sigma, mkApp (f', args'))
-  in (* TODO refactor/clean/make proper map *)
+  in
   match c.l.orn.kind with
   | Algebraic (_, _) ->
      let proj_rule = common_proj_rule (is_or_applies existT) in
@@ -676,7 +675,9 @@ let zoom_c c =
 let lift_simplify_project_packed c env i f args lift_rec sigma =
   let proj_packed_map = c.optimize_proj_packed_rules in
   let (_, proj_i_rule) = List.nth proj_packed_map i in
-  proj_i_rule c env f args lift_rec sigma
+  let sigma, f' = lift_rec env sigma c f in
+  let sigma, args' = map_rec_args lift_rec env sigma c args in
+  proj_i_rule env f' args' sigma
                           
 (* TODO explain, move, etc *)
 let lift_app_lazy_delta c env f args lift_rec sigma =
