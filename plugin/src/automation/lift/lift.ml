@@ -33,6 +33,11 @@ open Ornerrors
 open Promotion
 open Evd
 
+(*
+ * TODO unification when relevant
+ * TODO continue cleaning
+ *)
+
 (* --- Convenient shorthand --- *)
 
 let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
@@ -1285,12 +1290,6 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
  * Core lifting algorithm for algebraic ornaments.
  * A few extra rules to deal with real Coq terms as opposed to CIC,
  * including caching.
- *
- * TODO clean after changing, split up a lot
- *
- * TODO unification when relevant rather than hand-inferring
- *
- * TODO dependent i_b_typ shifting
  *)
 let lift_core env sigma c trm =
   let l = c.l in

@@ -15,6 +15,7 @@
 -I src/components
 -I src/lib
 -I src/automation
+-I src/automation/lift
 -I src
 -R theories Ornamental
 
@@ -123,8 +124,8 @@ src/automation/equivalence.ml
 src/automation/equivalence.mli
 src/automation/eta.ml
 src/automation/eta.mli
-src/automation/lift.ml
-src/automation/lift.mli
+src/automation/lift/lift.ml
+src/automation/lift/lift.mli
 src/automation/unpack.ml
 src/automation/unpack.mli
 
