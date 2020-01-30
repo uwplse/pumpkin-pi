@@ -124,10 +124,15 @@ src/automation/equivalence.ml
 src/automation/equivalence.mli
 src/automation/eta.ml
 src/automation/eta.mli
-src/automation/lift/lift.ml
-src/automation/lift/lift.mli
 src/automation/unpack.ml
 src/automation/unpack.mli
+
+src/automation/lift/liftconfig.ml
+src/automation/lift/liftconfig.mli
+src/automation/lift/liftrules.ml
+src/automation/lift/liftrules.mli
+src/automation/lift/lift.ml
+src/automation/lift/lift.mli
 
 src/frontend.ml
 src/frontend.mli

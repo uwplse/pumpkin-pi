@@ -68,3 +68,13 @@ val flip_dir : lifting -> lifting
  * Compose the result into a tuple.
  *)
 val twice_directional : (lifting -> 'a) -> lifting -> ('a * 'a)
+
+(* --- Indexing for algebraic ornaments --- *)
+
+(*
+ * Insert/remove the index at the appropriate offset.
+ * Raise NotAlgebraic if not an algebraic ornament.
+ *)                                                    
+val index : lifting -> constr -> constr list -> constr list
+val deindex : lifting -> constr list -> constr list
+

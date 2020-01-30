@@ -18,6 +18,8 @@ open Names
 open Funutils
 open Inference
 open Promotion
+open Indexing
+open Ornerrors
 
 (* --- Datatypes --- *)
 
@@ -177,3 +179,19 @@ let flip_dir l = { l with is_fwd = (not l.is_fwd) }
  * Compose the result into a tuple.
  *)
 let twice_directional f l = map_tuple f (l, flip_dir l)
+
+(* --- Indexing for algebraic ornaments --- *)
+
+let index l =
+  match l.orn.kind with
+  | Algebraic (_, (_, off)) ->
+     insert_index off
+  | _ ->
+     raise NotAlgebraic
+
+let deindex l =
+  match l.orn.kind with
+  | Algebraic (_, (_, off)) ->
+     remove_index off
+  | _ ->
+     raise NotAlgebraic

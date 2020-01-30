@@ -32,13 +32,15 @@ open Convertibility
 open Ornerrors
 open Promotion
 open Evd
+open Liftconfig
+open Liftrules
 
 (*
  * TODO unification when relevant
  * TODO continue cleaning
  *)
 
-(* --- Convenient shorthand --- *)
+(* --- Convenient shorthand (TODO move/comment/remove duplicates) --- *)
 
 let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
 let dest_prod_type env sigma trm =
@@ -49,75 +51,12 @@ let dest_prod_type env sigma trm =
   let sigma, typ_red = reduce_term env sigma typ_red in
   ignore_env dest_prod env sigma typ_red
 
+(* TODO move/comment *)
 let convertible env t1 t2 sigma =
   if equal t1 t2 then
     sigma, true
   else
     convertible env sigma t1 t2
-
-(* --- Internal lifting configuration --- *)
-                
-(*
- * Lifting configuration, along with the types A and B,
- * rules for constructors and projections that are configurable by equivalence,
- * a cache for constants encountered as the algorithm traverses,
- * and a cache for the constructor rules that refolding determines.
- *)
-type lift_config =
-  {
-    l : lifting;
-    typs : types * types;
-    constr_rules : types array;
-    proj_rules : types array;
-    optimize_proj_packed_rules : (constr * (lift_config -> env -> constr -> constr array -> (lift_config, constr) transformer_with_env -> evar_map -> types state)) list; (* TODO clean type *)
-    cache : temporary_cache;
-    opaques : temporary_cache
-  }
-
-(*
- * Check opaqueness using either local or global cache
- *)
-let is_opaque c trm =
-  if is_locally_cached c.opaques trm then
-    true
-  else
-    lookup_opaque (lift_to c.l, lift_back c.l, trm)
-    
-(*
- * Configurable caching of constants
- *
- * Note: The smart global cache works fine if we assume we always lift every
- * occurrence of the type. But once we allow for more configurable lifting,
- * for example with type-guided search, we will need a smarter smart cache
- * to still get this optimization.
- *)
-let smart_cache c trm lifted =
-  let l = c.l in
-  if equal trm lifted then
-    (* Save the fact that it does not change at all *)
-    if Options.is_smart_cache () && not (is_opaque c trm) then
-      save_lifting (lift_to l, lift_back l, trm) trm
-    else
-      cache_local c.cache trm trm
-  else
-    (* Save the lifted term locally *)
-    cache_local c.cache trm lifted
-
-(* --- Index/deindex functions --- *)
-
-let index l =
-  match l.orn.kind with
-  | Algebraic (_, (_, off)) ->
-     insert_index off
-  | _ ->
-     raise NotAlgebraic
-
-let deindex l =
-  match l.orn.kind with
-  | Algebraic (_, (_, off)) ->
-     remove_index off
-  | _ ->
-     raise NotAlgebraic
 
 (* --- Recovering types from ornaments --- *)
 
@@ -137,357 +76,6 @@ let typs_from_orn l env sigma =
   | CurryRecord ->
      let b_t = first_fun b_i_t in
      (a_t, b_t, None)
-
-(* --- Premises --- *)
-
-(*
- * Determine whether a type is the type we are ornamenting from
- * That is, A when we are promoting, and B when we are forgetting
- *
- * TODO it's more like e_is_from with pms/indices
- *)
-let is_from conv c env sigma typ =
-  let (a_typ, b_typ) = c.typs in
-  if c.l.is_fwd then
-    if is_or_applies a_typ typ then
-      sigma, Some (unfold_args typ)
-    else
-      sigma, None
-  else
-    match c.l.orn.kind with
-    | Algebraic _ -> (* TODO explain the opaque thing *)
-       if is_or_applies sigT typ && not (is_opaque c sigT) then
-         let packed = dummy_index env sigma (dest_sigT typ).packer in
-         let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
-         if equal (first_fun b_typ_packed) (first_fun packed) then
-           sigma, Some (deindex c.l (unfold_args packed))
-         else
-           sigma, None
-       else
-         sigma, None
-    | CurryRecord ->
-       (* TODO optimize, don't do unless you need to *)
-       (* TODO have this function return useful metadata, like the arguments, for all of these cases. for now let's just be slow *)
-       (* v TODO common functionality w/ specialization, move somewhere common *)
-       (* TODO explain the reason we need this *)
-       (* TODO really should be able to reuse unification somehow... *)
-       (* TODO try to work around by substituting with constant version earlier so as to avoid this *)
-       let sigma, a_typ_typ = reduce_type env sigma a_typ in
-       if not (isApp typ || isConst typ) then
-         sigma, None
-       else if arity a_typ_typ = 0 then
-         branch_state
-           (conv env b_typ)
-           (fun _ -> ret (Some []))
-           (fun _ -> ret None)
-           typ
-           sigma
-       else if not (is_opaque c (first_fun typ)) then
-         let typ_f = unwrap_definition env (first_fun typ) in
-         let typ_args = unfold_args typ in
-         let typ_red = mkAppl (typ_f, typ_args) in
-         let sigma, typ_red = reduce_term env sigma typ_red in
-         if not (is_or_applies prod typ_red) then
-           sigma, None
-         else
-           let f = lift_to c.l in
-           let f = unwrap_definition env f in
-           let f_arity = arity f in
-           let env_f, f_bod = zoom_lambda_term env f in
-           let sigma, typ_app = reduce_type env_f sigma (mkRel 1) in
-           let sigma, typ_app_red = specialize_delta_f env_f (first_fun typ_app) (unfold_args typ_app) sigma in
-           let abs_args = prod_typs_rec typ_app_red in
-           let conc_args = prod_typs_rec_n (shift_by f_arity typ_red) (List.length abs_args) in
-           if not (List.length abs_args = List.length conc_args) then
-             sigma, None
-           else
-             let subbed = (* TODO move some of this ... *) (* TODO may fail sometimes, do better? try to make it fail ... *)
-               List.fold_right2
-                 (fun abs conc -> all_eq_substs (abs, conc))
-                 abs_args
-                 conc_args
-                 typ_app
-             in
-             let subbed = unshift_by f_arity subbed in
-             let sigma, conv = conv env subbed typ sigma in
-             sigma, Some (unfold_args subbed)
-       else
-         sigma, None
-
-(* 
- * Determine whether a term has the type we are ornamenting from
- *)
-let type_is_from conv c = on_red_type reduce_nf (is_from conv c)
-
-(* Premises for LIFT-CONSTR *) (* TODO clean *)
-let is_packed_constr c env sigma trm =
-  let right_type trm sigma = type_is_from convertible c env sigma trm in
-  match kind trm with
-  | Construct (((_, _), i), _)  ->
-     let sigma, typ_args_o = right_type trm sigma in
-     if Option.has_some typ_args_o then
-       sigma, Some (i, [])
-     else
-       sigma, None
-  | App (f, args) ->
-     if is_opaque c (first_fun f) then
-       sigma, None
-     else if c.l.is_fwd then
-       (match kind f with
-        | Construct (((_, _), i), _) ->
-           let sigma, typ_args_o = right_type trm sigma in
-           if Option.has_some typ_args_o then
-             sigma, Some (i, unfold_args trm)
-           else
-             sigma, None
-        | _ ->
-           sigma, None)
-     else
-       (match c.l.orn.kind with
-        | Algebraic _ ->
-           if equal existT f then (* TODO why here is f OK, but in other case we need first_fun? eta? *)
-             let sigma_right, args_opt = right_type trm sigma in
-             if Option.has_some args_opt then
-               (* TODO what does this exist for? *)
-               (* TODO do we want to send back the typ args too? *)
-               let last_arg = last (Array.to_list args) in
-               if isApp last_arg then
-                 (match kind (first_fun last_arg) with
-                  | Construct (((_, _), i), _) ->
-                     sigma_right, Some (i, unfold_args last_arg)
-                  | _ ->
-                     sigma, None)
-               else
-                 sigma, None
-             else
-               sigma, None
-           else
-             sigma, None
-        | CurryRecord ->
-           if equal pair (first_fun trm) then
-             let sigma_right, pms_opt = right_type trm sigma in
-             if Option.has_some pms_opt then
-               let sigma = sigma_right in
-               let p = dest_pair trm in
-               let (a_typ, _) = c.typs in
-               let c = mkConstruct (fst (destInd a_typ), 1) in
-               let sigma, c_typ = reduce_type env sigma c in
-               let c_arity = arity c_typ in
-               let rec build_args p sigma n = (* TODO clean, move to optimization *)
-                 let trm1 = p.Produtils.trm1 in
-                 if n <= 2 then
-                   let trm2 = p.Produtils.trm2 in
-                   sigma, [trm1; trm2]
-                 else
-                   if applies pair p.Produtils.trm2 then
-                     let sigma, trm2s = build_args (dest_pair p.Produtils.trm2) sigma (n - 1) in
-                     sigma, trm1 :: trm2s
-                   else
-                     let sigma_typ, typ2 = reduce_type env sigma p.Produtils.trm2 in
-                     if applies prod typ2 then (* TODO should just be able to use number instead of type-checking every time *)
-                       let prod_app = dest_prod typ2 in
-                       let typ1 = prod_app.Produtils.typ1 in
-                       let typ2 = prod_app.Produtils.typ2 in
-                       let trm2_pair = Produtils.{ typ1; typ2; trm1 = prod_fst_elim prod_app p.Produtils.trm2; trm2 = prod_snd_elim prod_app p.Produtils.trm2 } in
-                       let sigma, trm2s = build_args trm2_pair sigma (n - 1) in
-                       sigma, trm1 :: trm2s
-                     else
-                       let trm2 = p.Produtils.trm2 in
-                       sigma, [trm1; trm2]
-               in
-               let pms = Option.get pms_opt in
-               let sigma, args = build_args p sigma (c_arity - List.length pms) in
-               sigma, Some (1, List.append pms args)
-             else
-               sigma, None
-           else
-             sigma, None)
-  | _ ->
-     sigma, None
-
-(* Premises for LIFT-PACK *)
-let is_pack c env sigma trm =
-  let right_type = type_is_from convertible c env sigma in
-  if c.l.is_fwd then
-    if isRel trm then
-      (* pack *)
-      Util.on_snd Option.has_some (right_type trm)
-    else
-      sigma, false
-  else
-    match c.l.orn.kind with
-    | Algebraic (_, _) ->
-       (match kind trm with
-        | App (f, args) ->
-           if equal existT f then
-             (* unpack *)
-             Util.on_snd Option.has_some (right_type trm)
-           else
-             sigma, false
-        | _ ->
-           sigma, false)
-    | CurryRecord ->
-       (* taken care of by constructor rule *)
-       sigma, false
-
-(* Auxiliary function for premise for LIFT-PROJ *)
-let check_is_proj c env trm proj_is =
-  let right_type = type_is_from convertible c in
-  match kind trm with
-  | App _ | Const _ ->
-     let f = first_fun trm in
-     let rec check_is_proj_i i proj_is =
-       match proj_is with
-       | proj_i :: tl ->
-          let env_proj_b, proj_b = zoom_lambda_term env proj_i in
-          let proj_i_f = first_fun proj_b in
-          branch_state
-            (convertible env proj_i_f)
-            (fun _ sigma ->
-              let sigma, trm_eta = expand_eta env sigma trm in
-              let env_b, b = zoom_lambda_term env trm_eta in
-              let args = unfold_args b in
-              if List.length args = 0 then
-                check_is_proj_i (i + 1) tl sigma
-              else
-                if c.l.orn.kind = CurryRecord && not c.l.is_fwd then
-                  (* TODO hacky; clean/refactor common *)
-                  let rec get_arg j args =
-                    let a = last args in
-                    if j = 0 then
-                      a
-                    else
-                      get_arg (j - 1) (unfold_args a)
-                  in
-                  let j = if i = List.length proj_is then i - 1 else i in
-                  (* ^ TODO why not length - 1? confused ... *)
-                  try
-                    let a = get_arg j args in
-                    let sigma_right, typ_args_o = right_type env_b sigma a in
-                    if Option.has_some typ_args_o then
-                      let typ_args = Option.get typ_args_o in
-                      let p_app = mkAppl (proj_i, snoc a typ_args) in
-                      branch_state (* TODO check w/ pms *)
-                        (convertible env_b p_app)
-                        (fun _ -> ret (Some (a, i, typ_args, trm_eta)))
-                        (fun _ -> check_is_proj_i (i + 1) tl)
-                        b
-                        sigma
-                    else
-                      check_is_proj_i (i + 1) tl sigma       
-                  with _ ->
-                    check_is_proj_i (i + 1) tl sigma
-                else
-                  let a = last args in
-                  let sigma_right, typ_args_o = right_type env_b sigma a in
-                  if Option.has_some typ_args_o then
-                    ret (Some (a, i, Option.get typ_args_o, trm_eta)) sigma_right
-                  else
-                    check_is_proj_i (i + 1) tl sigma)
-            (fun _ -> check_is_proj_i (i + 1) tl)
-            f
-       | _ ->
-          ret None
-     in check_is_proj_i 0 proj_is
-  | _ ->
-     ret None
-
-(* Premises for LIFT-PROJ *)
-let is_proj c env trm =
-  if Array.length c.proj_rules = 0 then
-    ret None
-  else
-    match c.l.orn.kind with
-    | Algebraic (indexer, _) ->
-       if c.l.is_fwd then
-         check_is_proj c env trm [indexer]
-       else
-         check_is_proj c env trm [projT1; projT2]
-    | CurryRecord ->
-       if c.l.is_fwd then
-         try
-           (* TODO unify w/ stuff in initialize_proj_rules *)
-           let (a_typ, _) = c.typs in
-           let ((i, i_index), u) = destInd a_typ in
-           let p_opts = Recordops.lookup_projections (i, i_index) in
-           let ps = List.map (fun p_opt -> mkConst (Option.get p_opt)) p_opts in
-           if not (Array.length c.proj_rules = List.length ps) then
-             ret None
-           else
-             check_is_proj c env trm ps
-         with _ ->
-           Feedback.msg_warning
-             (Pp.str "Can't find record accessors; skipping an optimization");
-           ret None
-       else
-         let lift_f = unwrap_definition env (lift_to c.l) in
-         let env_proj = zoom_env zoom_lambda_term env lift_f in
-         let rec build arg sigma = (* TODO merge w/ common build elsewhere *)
-           try
-             let arg_typ_prod = dest_prod_type env_proj sigma arg in
-             let arg_fst = prod_fst_elim arg_typ_prod arg in
-             let arg_snd = prod_snd_elim arg_typ_prod arg in
-             let sigma, args_tl = build arg_snd sigma in
-             sigma, arg_fst :: args_tl
-           with _ ->
-             sigma, [arg]
-         in
-         bind
-           (build (mkRel 1))
-           (fun p_bodies ->
-             let ps =
-               List.map
-                 (fun p -> reconstruct_lambda_n env_proj p (nb_rel env))
-                 p_bodies
-             in
-             if not (Array.length c.proj_rules = List.length ps) then
-               ret None
-             else
-               check_is_proj c env trm ps)
-
-(*
- * Premises for LIFT-ELIM
- * For optimization, if true, return the eta-expanded term
- *
- * TODO clean
- *)
-let is_eliminator c env trm sigma =
-  let (a_typ, b_typ) = c.typs in
-  let b_typ =
-    if (not c.l.is_fwd) && c.l.orn.kind = CurryRecord then
-      prod
-    else if c.l.orn.kind = CurryRecord then
-      b_typ
-    else
-      let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
-      first_fun b_typ_packed
-  in
-  let f = first_fun trm in
-  match kind f with
-  | Const (k, u) ->
-     let maybe_ind = inductive_of_elim env (k, u) in
-     if Option.has_some maybe_ind then
-       let ind = Option.get maybe_ind in
-       let is_elim = equal (mkInd (ind, 0)) (directional c.l a_typ b_typ) in
-       if is_elim then
-         let sigma, trm_eta = expand_eta env sigma trm in
-         if (not c.l.is_fwd) && c.l.orn.kind = CurryRecord then
-           let env_elim, trm_b = zoom_lambda_term env trm_eta in
-           let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm_b in
-           let (final_args, post_args) = take_split 1 trm_elim.final_args in
-           let sigma, is_from = type_is_from convertible c env_elim sigma (List.hd final_args) in
-           if Option.has_some is_from then
-             sigma, Some trm_eta
-           else
-             sigma, None
-         else
-           sigma, Some trm_eta
-       else
-         sigma, None
-     else
-       sigma, None
-  | _ ->
-     sigma, None
 
 (* --- Configuring the constructor liftings --- *)
        
@@ -521,12 +109,11 @@ let lift_constr env sigma c trm =
   let args = unfold_args (map_backward last_arg l trm) in
   let pack_args (sigma, args) = map_state (fun arg sigma -> pack_to_typ env sigma c arg) args sigma in
   let sigma, packed_args = map_backward pack_args l (sigma, args) in
-  let sigma, typ_args_o = type_is_from (fun _ _ _ -> ret true) c env sigma trm in
-  let typ_args = Option.get typ_args_o in
+  let sigma, typ_args = type_from_args c env trm sigma in
   let sigma, app = lift env l trm typ_args sigma in
   match l.orn.kind with
   | Algebraic _ ->
-     let sigma, rec_args = filter_state (fun tr sigma -> let sigma, o = type_is_from convertible c env sigma tr in sigma, Option.has_some o) packed_args sigma in (* TODO use result? *)
+     let sigma, rec_args = filter_state (fun tr sigma -> let sigma, o = type_is_from c env tr sigma in sigma, Option.has_some o) packed_args sigma in (* TODO use result? *)
      if List.length rec_args = 0 then
        (* base case - don't bother refolding *)
        reduce_nf env sigma app
@@ -600,8 +187,7 @@ let initialize_proj_rules env sigma c =
   let lift_f = unwrap_definition env (lift_to l) in
   let env_proj = zoom_env zoom_lambda_term env lift_f in
   let t = mkRel 1 in
-  let sigma, typ_args_o = type_is_from (fun _ _ _ -> ret true) c env_proj sigma t in (* TODO refactor these *)
-  let typ_args = Option.get typ_args_o in
+  let sigma, typ_args = type_from_args c env_proj t sigma in
   let sigma, lift_t = lift env_proj l t typ_args sigma in
   match l.orn.kind with
   | Algebraic (indexer, _) ->
@@ -721,8 +307,7 @@ let lift_elim_args env sigma c npms args =
        sigma, deindex l (reindex value_off a args)
   | CurryRecord ->
      let arg = last args in
-     let sigma, typ_args_o = type_is_from (fun _ _ _ -> ret true) c env sigma arg in
-     let typ_args = Option.get typ_args_o in
+     let sigma, typ_args = type_from_args c env arg sigma in
      let sigma, lifted_arg = lift env l arg typ_args sigma in
      sigma, [lifted_arg]
 
@@ -743,8 +328,7 @@ let lift_motive env sigma c npms parameterized_elim p =
       (flip_dir l)
       (sigma, last args)
   in
-  let sigma, typ_args_o = type_is_from (fun _ _ _ -> ret true) { c with l = flip_dir l } env_p_to sigma arg in
-  let typ_args = Option.get typ_args_o in
+  let sigma, typ_args = type_from_args { c with l = flip_dir l } env_p_to arg sigma in
   let sigma, lifted_arg = lift env_p_to (flip_dir l) arg typ_args sigma in
   let args =
     match l.orn.kind with
@@ -798,8 +382,7 @@ let promote_case_args env sigma c args =
                   (flip_dir c.l)
                   (sigma, n)
               in 
-              let sigma, typ_args_o = type_is_from (fun _ _ _ -> ret true) { c with l = flip_dir c.l } env sigma n in
-              let typ_args = Option.get typ_args_o in
+              let sigma, typ_args = type_from_args { c with l = flip_dir c.l } env n sigma in
               let sigma, a = lift env (flip_dir c.l) n typ_args sigma in
               Util.on_snd
                 (fun tl -> a :: tl)
@@ -843,8 +426,7 @@ let forget_case_args env_c_b env sigma c args =
                   (flip_dir c.l)
                   (sigma, n)
               in 
-              let sigma, typ_args_o = type_is_from (fun _ _ _ -> ret true) { c with l = flip_dir c.l } env sigma n in
-              let typ_args = Option.get typ_args_o in
+              let sigma, typ_args = type_from_args { c with l = flip_dir c.l } env n sigma in
               let sigma, b_sig = lift env (flip_dir c.l) n typ_args sigma in
               let b_sig_typ = dest_sigT_type env sigma b_sig in
               let proj_b = project_value b_sig_typ b_sig in
@@ -1013,7 +595,7 @@ let lift_elim env sigma c trm_app =
      else
        let elim = type_eliminator env (fst (destInd to_typ)) in
        let to_elim = List.hd (fst (take_split 1 trm_app.final_args)) in
-       let sigma, pms = Util.on_snd Option.get (type_is_from convertible c env sigma to_elim) in (* TODO redundant *)
+       let sigma, pms = Util.on_snd Option.get (type_is_from c env to_elim sigma) in (* TODO redundant *)
        let npms = List.length pms in
        let param_elim = mkAppl (elim, pms) in
        let sigma, p = lift_motive env sigma c npms param_elim trm_app.p in
@@ -1054,7 +636,7 @@ let maybe_repack lift_rec c env trm lifted try_repack sigma =
   if try_repack then
     let sigma_typ, typ = infer_type env sigma trm in
     let typ = reduce_stateless reduce_nf env sigma_typ typ in
-    let sigma_typ, is_from_typ = Util.on_snd Option.has_some (is_from convertible c env sigma_typ typ) in
+    let sigma_typ, is_from_typ = Util.on_snd Option.has_some (is_from c env typ sigma_typ) in
     if is_from_typ then
       let lifted_red = reduce_stateless reduce_nf env sigma lifted in
       let optimize_ignore_repack =
@@ -1089,125 +671,6 @@ let zoom_c c =
      { c with l; typs }
   | _ ->
      c
-
-(* TODO move/refactor/explain each/top comment/finish/add more/clean/be consistent about how these recurse *)
-type lift_optimization =
-| GlobalCaching of constr
-| LocalCaching of constr
-| OpaqueConstant
-| SimplifyProjectPacked of int * (constr * constr array)
-| LazyEta of constr
-| AppLazyDelta of constr * constr array
-| ConstLazyDelta of Names.Constant.t Univ.puniverses
-| SmartLiftConstr of constr * constr list
-
-(* TODO move/refactor/explain each/top comment/finish/simplify/move more optimizations up/clean/be consistent about how these recurse *)
-type lift_rule =
-| Equivalence of constr list
-| LiftConstr of constr * constr list
-| LiftPack
-| Coherence of types * constr * constr list
-| LiftElim of elim_app
-| Section
-| Retraction
-| Internalize
-| Optimization of lift_optimization
-| CIC
-
-(* TODO move/refactor/explain/finish *)
-let determine_lift_rule c env trm sigma =
-  let l = c.l in
-  let lifted_opt = lookup_lifting (lift_to l, lift_back l, trm) in
-  if Option.has_some lifted_opt then
-    sigma, Optimization (GlobalCaching (Option.get lifted_opt))
-  else if is_locally_cached c.cache trm then
-    sigma, Optimization (LocalCaching (lookup_local_cache c.cache trm))
-  else if is_opaque c trm then
-    sigma, Optimization OpaqueConstant
-  else
-    let sigma, args_o = is_from convertible c env sigma trm in
-    if Option.has_some args_o then
-      sigma, Equivalence (Option.get args_o)
-    else
-      let sigma, i_and_args_o = is_packed_constr c env sigma trm in
-      if Option.has_some i_and_args_o then
-        let i, args = Option.get i_and_args_o in
-        if List.length args > 0 then
-          if not c.l.is_fwd then
-            sigma, LiftConstr (c.constr_rules.(i - 1), args)
-          else
-            sigma, Optimization (SmartLiftConstr (c.constr_rules.(i - 1), args))
-        else
-          sigma, LiftConstr (c.constr_rules.(i - 1), args)
-      else
-        let sigma, run_lift_pack = is_pack c env sigma trm in
-        if run_lift_pack then
-          sigma, LiftPack
-        else
-          let sigma, to_proj_o = is_proj c env trm sigma in
-          if Option.has_some to_proj_o then
-            let to_proj, i, args, trm_eta = Option.get to_proj_o in
-            if arity trm_eta > arity trm then
-              sigma, Optimization (LazyEta trm_eta)
-            else
-              let p = c.proj_rules.(i) in
-              sigma, Coherence (to_proj, p, args)
-          else
-            let sigma, is_elim_o = is_eliminator c env trm sigma in
-            if Option.has_some is_elim_o then
-              let trm_eta = Option.get is_elim_o in
-              if arity trm_eta > arity trm then
-                sigma, Optimization (LazyEta trm_eta)
-              else
-                let sigma, trm_elim = deconstruct_eliminator env sigma trm in
-                sigma, LiftElim trm_elim
-            else
-              match kind trm with
-              | App (f, args) ->
-                 if equal (lift_back l) f then
-                   sigma, if l.is_fwd then Retraction else Section
-                 else if equal (lift_to l) f then
-                   sigma, Internalize
-                 else
-                   let proj_packed_map = c.optimize_proj_packed_rules in
-                   let optimize_proj_packed_o = (* TODO refactor/clean *)
-                     (if l.is_fwd then
-                        try
-                          Some
-                            (find_off
-                               proj_packed_map
-                               (fun (proj, _) -> is_or_applies proj trm))
-                        with _ ->
-                          None
-                      else
-                        None)
-                   in
-                   if Option.has_some optimize_proj_packed_o then
-                     (* optimize simplifying projections of packed terms, which are common (TODO move comment) *)
-                     let i = Option.get optimize_proj_packed_o in
-                     sigma, Optimization (SimplifyProjectPacked (i, (f, args)))
-                   else
-                     sigma, Optimization (AppLazyDelta (f, args))
-              | Construct (((i, i_index), _), u) ->
-                 let ind = mkInd (i, i_index) in
-                 let (a_typ, b_typ) = c.typs in
-                 let b_typ =
-                   match c.l.orn.kind with
-                   | Algebraic _ ->
-                      let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
-                      first_fun b_typ_packed
-                   | _ ->
-                      b_typ
-                 in
-                 if equal ind (directional l a_typ b_typ) then
-                   let sigma, trm_eta = expand_eta env sigma trm in
-                   sigma, Optimization (LazyEta trm_eta)
-                 else
-                   sigma, CIC
-              | Const (co, u) ->
-                 sigma, Optimization (ConstLazyDelta (co, u))
-              | _ ->
-                 sigma, CIC
 
 (* TODO explain, move, etc *)
 let lift_simplify_project_packed c env i f args lift_rec sigma =
