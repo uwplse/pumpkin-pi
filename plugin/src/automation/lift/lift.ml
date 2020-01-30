@@ -1392,12 +1392,12 @@ let lift_core env sigma c trm =
         | Fix ((is, i), (ns, ts, ds)) ->
            (* FIX (will not work if this destructs over A; preprocess first) *)
            let sigma, ts' = map_rec_args lift_rec en sigma c ts in
-           let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec zoom_c en sigma a ns ts trm) en sigma c ds in
+           let sigma, ds' = map_rec_args (fun en sigma a trm -> map_rec_env_fix lift_rec zoom_c en sigma a ns ts trm) en sigma c ds in
            (sigma, mkFix ((is, i), (ns, ts', ds')))
         | CoFix (i, (ns, ts, ds)) ->
            (* COFIX (will not work if this destructs over A; preprocess first) *)
            let sigma, ts' = map_rec_args lift_rec en sigma c ts in
-           let sigma, ds' = map_rec_args (fun env sigma a trm -> map_rec_env_fix lift_rec zoom_c en sigma a ns ts trm) en sigma c ds in
+           let sigma, ds' = map_rec_args (fun en sigma a trm -> map_rec_env_fix lift_rec zoom_c en sigma a ns ts trm) en sigma c ds in
            (sigma, mkCoFix (i, (ns, ts', ds')))
         | Proj (pr, co) ->
            (* PROJ *)
