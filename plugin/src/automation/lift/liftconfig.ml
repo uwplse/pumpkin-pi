@@ -35,17 +35,6 @@ open Desugarprod
  * may live here as well.
  *)
 
-(* --- Convenient shorthand (TODO move/comment/remove duplicates) --- *)
-
-let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
-
-(* TODO move/comment *)
-let convertible env t1 t2 sigma =
-  if equal t1 t2 then
-    sigma, true
-  else
-    convertible env sigma t1 t2
-
 (* --- Datatype --- *)
        
 (*
@@ -191,7 +180,13 @@ let is_from_with_conv conv c env typ sigma =
 (*
  * Actually check is_from
  *)
-let is_from = is_from_with_conv convertible
+let is_from =
+  is_from_with_conv
+    (fun env t1 t2 sigma ->
+      if equal t1 t2 then
+        sigma, true
+      else
+        convertible env sigma t1 t2)
 
 (*
  * Just get all of the unfolded arguments, skipping the check
