@@ -238,33 +238,22 @@ let initialize_proj_rules env sigma c =
 (* TODO clean up a lot *)
 (* TODO note this takes in lifted f, args and then decides what to do *)
 let initialize_optimize_proj_packed_rules c =
-  (* TODO comment/move/clean/etc *)
-  let common_proj_rule is_packed project env f' args' sigma =
-    let arg' = last (Array.to_list args') in
-    let arg'' = reduce_stateless reduce_term env sigma arg' in
-    if is_packed arg'' then
-      (sigma, project arg'')
-    else
-      (sigma, mkApp (f', args'))
-  in
   match c.l.orn.kind with
   | Algebraic (_, _) ->
-     let proj_rule = common_proj_rule (is_or_applies existT) in
-     let proj1_rule = proj_rule (fun a -> (dest_existT a).index) in
-     let proj2_rule = proj_rule (fun a -> (dest_existT a).unpacked) in
-     [(projT1, proj1_rule); (projT2, proj2_rule)]
+     let proj1_rule = (fun a -> (dest_existT a).index) in
+     let proj2_rule = (fun a -> (dest_existT a).unpacked) in
+     is_or_applies existT, [(projT1, proj1_rule); (projT2, proj2_rule)]
   | CurryRecord ->
-     let proj_rule = common_proj_rule (is_or_applies pair) in
-     let proj1_rule = proj_rule (fun a -> (dest_pair a).Produtils.trm1) in
-     let proj2_rule = proj_rule (fun a -> (dest_pair a).Produtils.trm2) in
-     [(Desugarprod.fst_elim (), proj1_rule); (Desugarprod.snd_elim (), proj2_rule)]
+     let proj1_rule = (fun a -> (dest_pair a).Produtils.trm1) in
+     let proj2_rule = (fun a -> (dest_pair a).Produtils.trm2) in
+     is_or_applies pair, [(Desugarprod.fst_elim (), proj1_rule); (Desugarprod.snd_elim (), proj2_rule)]
                            
 (* Initialize the lift_config *)
 let initialize_lift_config env sigma l typs ignores =
   let cache = initialize_local_cache () in
   let opaques = initialize_local_cache () in
   List.iter (fun opaque -> cache_local opaques opaque opaque) ignores;
-  let c = { l ; typs ; constr_rules = Array.make 0 (mkRel 1) ; proj_rules = Array.make 0 (mkRel 1); optimize_proj_packed_rules = []; cache ; opaques } in
+  let c = { l ; typs ; constr_rules = Array.make 0 (mkRel 1) ; proj_rules = Array.make 0 (mkRel 1); optimize_proj_packed_rules = ((fun _ -> false), []); cache ; opaques } in
   let sigma, constr_rules = initialize_constr_rules env sigma c in
   let sigma, proj_rules = initialize_proj_rules env sigma c in
   let optimize_proj_packed_rules = initialize_optimize_proj_packed_rules c in
@@ -670,14 +659,19 @@ let zoom_c c =
      { c with l; typs }
   | _ ->
      c
-
+       
 (* TODO explain, move, etc *)
 let lift_simplify_project_packed c env i f args lift_rec sigma =
-  let proj_packed_map = c.optimize_proj_packed_rules in
+  let is_packed, proj_packed_map = c.optimize_proj_packed_rules in
   let (_, proj_i_rule) = List.nth proj_packed_map i in
-  let sigma, f' = lift_rec env sigma c f in
   let sigma, args' = map_rec_args lift_rec env sigma c args in
-  proj_i_rule env f' args' sigma
+  let arg' = last (Array.to_list args') in
+  let arg'' = reduce_stateless reduce_term env sigma arg' in
+  if is_packed arg'' then
+    (sigma, proj_i_rule arg'')
+  else
+    let sigma, f' = lift_rec env sigma c f in
+    (sigma, mkApp (f', args'))
                           
 (* TODO explain, move, etc *)
 let lift_app_lazy_delta c env f args lift_rec sigma =

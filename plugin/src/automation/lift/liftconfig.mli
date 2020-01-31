@@ -17,6 +17,9 @@ open Caching
  * rules for constructors and projections that are configurable by equivalence,
  * a cache for constants encountered as the algorithm traverses,
  * and a cache for the constructor rules that refolding determines.
+ *
+ * TODO hide type, and use accessor functions so you can do stuff like is_packed
+ * without seeing the gross type of optimize_proj_packed_rules
  *)
 type lift_config =
   {
@@ -24,7 +27,8 @@ type lift_config =
     typs : types * types;
     constr_rules : types array;
     proj_rules : types array;
-    optimize_proj_packed_rules : (constr * (env -> constr -> constr array -> evar_map -> constr state)) list; (* TODO clean type *)
+    optimize_proj_packed_rules :
+      (constr -> bool) * ((constr * (constr -> constr)) list);
     cache : temporary_cache;
     opaques : temporary_cache
   }

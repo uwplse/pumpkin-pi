@@ -390,7 +390,7 @@ let determine_lift_rule c env trm sigma =
                  else if equal (lift_to l) f then
                    sigma, Internalize
                  else
-                   let proj_packed_map = c.optimize_proj_packed_rules in
+                   let _, proj_packed_map = c.optimize_proj_packed_rules in
                    let optimize_proj_packed_o = (* TODO refactor/clean *)
                      (if l.is_fwd then
                         try
