@@ -670,74 +670,6 @@ let do_lift_defn env evd (l : lifting) def =
 (*                           Inductive types                            *)
 (************************************************************************)
 
-let eta_guard_eliminator (mind_body, ind_body) elim_term elim_type =
-  let nparam = mind_body.mind_nparams in
-  let nindex = ind_body.mind_nrealargs in
-  let ncons = Array.length ind_body.mind_consnames in
-  let eta_expand_indices index_ctxt =
-    List.map_i
-      (fun k (_, typ) ->
-         let typ = Vars.lift k typ in
-         if applies sigT typ then eta_sigT (mkRel k) typ else mkRel k)
-      1
-      index_ctxt
-  in
-  let eta_expand_arity typ =
-    let index_ctxt, body = Term.decompose_prod_n nindex typ in
-    let indices = eta_expand_indices index_ctxt in
-    Vars.liftn nindex (nindex + 1) body |> Vars.substl indices |>
-    Term.compose_prod index_ctxt
-  in
-  let rec eta_guard_motive i typ =
-    if i == nindex then
-      let motive = mkRel (nindex + nindex + ncons + 1) in
-      let indices = Termops.rel_vect 0 nindex in
-      mkApp (motive, indices)
-    else
-      let name, domain, codomain = destProd typ in
-      let body = eta_guard_motive (i + 1) codomain in
-      if applies sigT domain then
-        let body =
-          let domain = Vars.lift 2 domain in
-          let { index_type; packer } = dest_sigT domain in
-          mkLetIn
-            (name,
-             mkApp (existT, [|index_type; packer; mkRel 2; mkRel 1|]),
-             domain,
-             Vars.liftn 2 2 body)
-        in
-        let { index_type; packer } = dest_sigT domain in
-        let packed_type = Reduction.beta_app (Vars.lift 1 packer) (mkRel 1) in
-        let name_1 = Nameops.(Name.map (fun id -> add_suffix id "_1") name) in
-        let name_2 = Nameops.(Name.map (fun id -> add_suffix id "_2") name) in
-        mkApp
-          (sigT_rect,
-           [|index_type; packer;
-             mkLambda (name, domain, codomain);
-             mkLambda (name_1, index_type,
-                       mkLambda (name_2, packed_type, body))|])
-      else
-        mkLambda (name, domain, body)
-  in
-  let param_ctxt, typ = Term.decompose_prod_n nparam elim_type in
-  let motive_name, motive_type, typ = destProd typ in
-  let recur_ctxt, typ = Term.decompose_prod_n ncons typ in
-  let index_ctxt, typ = Term.decompose_prod_n nindex (eta_expand_arity typ) in
-  let context =
-    let motive_decl = (motive_name, eta_expand_arity motive_type) in
-    List.concat [index_ctxt; recur_ctxt; [motive_decl]; param_ctxt]
-  in
-  let arguments =
-    let k = nindex + ncons + 1 in
-    let params = Termops.rel_vect k nparam in
-    let motive = eta_guard_motive 0 (Vars.lift k motive_type) in
-    let recurs = Termops.rel_vect nindex ncons in
-    let indices = eta_expand_indices index_ctxt |> Array.rev_of_list in
-    Array.concat [params; [|motive|]; recurs; indices]
-  in
-  Term.compose_lam context (mkApp (elim_term, arguments)),
-  Term.compose_prod context typ
-
 let define_lifted_eliminator ?(suffix="_sigT") ind0 ind sort =
   if not (Sorts.family_equal Sorts.InSet sort) then
     let env = Global.env () in
@@ -754,7 +686,7 @@ let define_lifted_eliminator ?(suffix="_sigT") ind0 ind sort =
       let sigma, typ = Typing.type_of env sigma term in
       let typ = Reductionops.nf_betaiotazeta env sigma typ in
       let term, typ = EConstr.(to_constr sigma term, to_constr sigma typ) in
-      sigma, eta_guard_eliminator mind_specif term typ
+      sigma, Depelim.eta_guard_eliminator mind_specif term typ
     in
     Defutils.define_term ~typ:eta_type ident sigma eta_term true |>
     declare_lifted elim0

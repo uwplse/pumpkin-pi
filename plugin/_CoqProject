@@ -99,6 +99,8 @@ src/automation/coherence.ml
 src/automation/coherence.mli
 src/automation/equivalence.ml
 src/automation/equivalence.mli
+src/automation/depelim.ml
+src/automation/depelim.mli
 src/automation/lift.ml
 src/automation/lift.mli
 src/automation/unpack.ml
