@@ -17,23 +17,16 @@ open Caching
  * rules for constructors and projections that are configurable by equivalence,
  * a cache for constants encountered as the algorithm traverses,
  * and a cache for the constructor rules that refolding determines.
- *
- * TODO hide type, and use accessor functions so you can do stuff like is_packed
- * without seeing the gross type of optimize_proj_packed_rules
  *)
-type lift_config =
-  {
-    l : lifting;
-    typs : types * types;
-    constr_rules : types array;
-    proj_rules : types array;
-    optimize_proj_packed_rules :
-      (constr -> bool) * ((constr * (constr -> constr)) list);
-    cache : temporary_cache;
-    opaques : temporary_cache
-  }
-    
-(* --- Auxiliary functions about configuration --- *)
+type lift_config
+
+(* --- Recover or set the lifting --- *)
+
+val get_lifting : lift_config -> lifting
+
+val set_lifting : lift_config -> lifting -> lift_config
+
+(* --- Caching --- *)
 
 (*
  * Check opaqueness using either local or global cache
@@ -44,6 +37,10 @@ val is_opaque : lift_config -> constr -> bool
  * Configurable caching of constants
  *)
 val smart_cache : lift_config -> constr -> constr -> unit
+
+(* --- Questions about types A and B --- *)
+
+val get_types : lift_config -> types * types
 
 (*
  * Determine if the supplied type is the type we are lifting from

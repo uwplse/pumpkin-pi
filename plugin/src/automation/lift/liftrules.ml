@@ -67,6 +67,7 @@ type lift_rule =
 
 (* Premises for LIFT-CONSTR *) (* TODO clean *)
 let is_packed_constr c env sigma trm =
+  let l = get_lifting c in
   let right_type trm sigma = type_is_from c env trm sigma in
   match kind trm with
   | Construct (((_, _), i), _)  ->
@@ -78,7 +79,7 @@ let is_packed_constr c env sigma trm =
   | App (f, args) ->
      if is_opaque c (first_fun f) then
        sigma, None
-     else if c.l.is_fwd then
+     else if l.is_fwd then
        (match kind f with
         | Construct (((_, _), i), _) ->
            let sigma, typ_args_o = right_type trm sigma in
@@ -89,7 +90,7 @@ let is_packed_constr c env sigma trm =
         | _ ->
            sigma, None)
      else
-       (match c.l.orn.kind with
+       (match l.orn.kind with
         | Algebraic _ ->
            if equal existT f then (* TODO why here is f OK, but in other case we need first_fun? eta? *)
              let sigma_right, args_opt = right_type trm sigma in
@@ -115,7 +116,7 @@ let is_packed_constr c env sigma trm =
              if Option.has_some pms_opt then
                let sigma = sigma_right in
                let p = dest_pair trm in
-               let (a_typ, _) = c.typs in
+               let (a_typ, _) = get_types c in
                let c = mkConstruct (fst (destInd a_typ), 1) in
                let sigma, c_typ = reduce_type env sigma c in
                let c_arity = arity c_typ in
@@ -153,15 +154,16 @@ let is_packed_constr c env sigma trm =
 
 (* Premises for LIFT-PACK (TODO would returning args help optimize here?) *)
 let is_pack c env sigma trm =
+  let l = get_lifting c in
   let right_type trm = type_is_from c env trm sigma in
-  if c.l.is_fwd then
+  if l.is_fwd then
     if isRel trm then
       (* pack *)
       Util.on_snd Option.has_some (right_type trm)
     else
       sigma, false
   else
-    match c.l.orn.kind with
+    match l.orn.kind with
     | Algebraic (_, _) ->
        (match kind trm with
         | App (f, args) ->
@@ -178,6 +180,7 @@ let is_pack c env sigma trm =
 
 (* Auxiliary function for premise for LIFT-PROJ *)
 let check_is_proj c env trm proj_is =
+  let l = get_lifting c in
   let right_type = type_is_from c in
   match kind trm with
   | App _ | Const _ ->
@@ -196,7 +199,7 @@ let check_is_proj c env trm proj_is =
               if List.length args = 0 then
                 check_is_proj_i (i + 1) tl sigma
               else
-                if c.l.orn.kind = CurryRecord && not c.l.is_fwd then
+                if l.orn.kind = CurryRecord && not l.is_fwd then
                   (* TODO hacky; clean/refactor common *)
                   let rec get_arg j args =
                     let a = last args in
@@ -240,20 +243,21 @@ let check_is_proj c env trm proj_is =
 
 (* Premises for LIFT-PROJ *)
 let is_proj c env trm =
+  let l = get_lifting c in
   if Array.length c.proj_rules = 0 then
     ret None
   else
-    match c.l.orn.kind with
+    match l.orn.kind with
     | Algebraic (indexer, _) ->
-       if c.l.is_fwd then
+       if l.is_fwd then
          check_is_proj c env trm [indexer]
        else
          check_is_proj c env trm [projT1; projT2]
     | CurryRecord ->
-       if c.l.is_fwd then
+       if l.is_fwd then
          try
            (* TODO unify w/ stuff in initialize_proj_rules *)
-           let (a_typ, _) = c.typs in
+           let (a_typ, _) = get_types c in
            let ((i, i_index), u) = destInd a_typ in
            let p_opts = Recordops.lookup_projections (i, i_index) in
            let ps = List.map (fun p_opt -> mkConst (Option.get p_opt)) p_opts in
@@ -298,11 +302,12 @@ let is_proj c env trm =
  * TODO clean
  *)
 let is_eliminator c env trm sigma =
+  let l = get_lifting c in
   let (a_typ, b_typ) = c.typs in
   let b_typ =
-    if (not c.l.is_fwd) && c.l.orn.kind = CurryRecord then
+    if (not l.is_fwd) && l.orn.kind = CurryRecord then
       prod
-    else if c.l.orn.kind = CurryRecord then
+    else if l.orn.kind = CurryRecord then
       b_typ
     else
       let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
@@ -314,10 +319,10 @@ let is_eliminator c env trm sigma =
      let maybe_ind = inductive_of_elim env (k, u) in
      if Option.has_some maybe_ind then
        let ind = Option.get maybe_ind in
-       let is_elim = equal (mkInd (ind, 0)) (directional c.l a_typ b_typ) in
+       let is_elim = equal (mkInd (ind, 0)) (directional l a_typ b_typ) in
        if is_elim then
          let sigma, trm_eta = expand_eta env sigma trm in
-         if (not c.l.is_fwd) && c.l.orn.kind = CurryRecord then
+         if (not l.is_fwd) && l.orn.kind = CurryRecord then
            let env_elim, trm_b = zoom_lambda_term env trm_eta in
            let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm_b in
            let (final_args, post_args) = take_split 1 trm_elim.final_args in
@@ -337,7 +342,7 @@ let is_eliminator c env trm sigma =
 
 (* TODO move/refactor/explain/finish *)
 let determine_lift_rule c env trm sigma =
-  let l = c.l in
+  let l = get_lifting c in
   let lifted_opt = lookup_lifting (lift_to l, lift_back l, trm) in
   if Option.has_some lifted_opt then
     sigma, Optimization (GlobalCaching (Option.get lifted_opt))
@@ -354,7 +359,7 @@ let determine_lift_rule c env trm sigma =
       if Option.has_some i_and_args_o then
         let i, args = Option.get i_and_args_o in
         if List.length args > 0 then
-          if not c.l.is_fwd then
+          if not l.is_fwd then
             sigma, LiftConstr (c.constr_rules.(i - 1), args)
           else
             sigma, Optimization (SmartLiftConstr (c.constr_rules.(i - 1), args))
@@ -413,7 +418,7 @@ let determine_lift_rule c env trm sigma =
                  let ind = mkInd (i, i_index) in
                  let (a_typ, b_typ) = c.typs in
                  let b_typ =
-                   match c.l.orn.kind with
+                   match l.orn.kind with
                    | Algebraic _ ->
                       let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
                       first_fun b_typ_packed

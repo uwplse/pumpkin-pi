@@ -44,7 +44,12 @@ type lift_config =
     opaques : temporary_cache
   }
 
-(* --- Auxiliary functions about configuration --- *)
+(* --- Recover or set the lifting --- *)
+
+let get_lifting c = c.l
+let set_lifting c l = { c with l }
+    
+(* --- Caching --- *)
 
 (*
  * Check opaqueness using either local or global cache
@@ -75,6 +80,10 @@ let smart_cache c trm lifted =
     (* Save the lifted term locally *)
     cache_local c.cache trm lifted
 
+(* --- Questions about types A and B --- *)
+
+let get_types c = c.typs
+                
 (*
  * Determine whether a type is the type we are ornamenting from
  * That is, A when we are promoting, and B when we are forgetting
