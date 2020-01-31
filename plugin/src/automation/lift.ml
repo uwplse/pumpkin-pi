@@ -671,6 +671,7 @@ let do_lift_defn env evd (l : lifting) def =
 (************************************************************************)
 
 let define_lifted_eliminator ?(suffix="_sigT") ind0 ind sort =
+  (* Do not lift eliminator into sort `Set` -- unnecessary and error-prone *)
   if not (Sorts.family_equal Sorts.InSet sort) then
     let env = Global.env () in
     let (_, ind_body) as mind_specif = Inductive.lookup_mind_specif env ind in
