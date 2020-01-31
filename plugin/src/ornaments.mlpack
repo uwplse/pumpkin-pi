@@ -31,6 +31,8 @@ Hypotheses
 Indexing
 Indutils
 
+Modutils
+
 Printing
 
 Lifting
@@ -49,8 +51,6 @@ Depelim
 Lift
 Desugar
 Unpack
-
-Modutils
 
 Options
 Frontend

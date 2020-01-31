@@ -9,6 +9,7 @@ open Unpack
 open Utilities
 open Pp
 open Printer
+open Printing
 open Coherence
 open Equivalence
 open Options
@@ -30,10 +31,6 @@ open Environ
 let refresh_env () : env state =
   let env = Global.env () in
   Evd.from_env env, env
-
-let pr_global_as_constr gref =
-  let sigma, env = refresh_env () in
-  pr_constr_env env sigma (Universes.constr_of_global gref)
 
 let notify_defined description gref =
   Feedback.msg_notice (str ("Defined " ^ description ^ " ") ++ pr_global_as_constr gref)
@@ -204,7 +201,7 @@ let lift_module_by_ornament ident d_orn d_orn_inv mod_ref =
   let _ =
     declare_module_structure
       ident
-      (fun () -> iter_module_structure_by_glob lift_global mod_body)
+      (fun _ -> iter_module_structure_by_glob lift_global mod_body)
   in
   Feedback.msg_notice (str "Defined lifted module " ++ Id.print ident)
 
