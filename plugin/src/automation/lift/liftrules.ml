@@ -214,7 +214,7 @@ let check_is_proj c env trm proj_is =
                         (fun _ -> ret (Some (a, i, typ_args, trm_eta)))
                         (fun _ -> check_is_proj_i (i + 1) tl)
                         b
-                        sigma
+                        sigma_right
                     else
                       check_is_proj_i (i + 1) tl sigma       
                   with _ ->
@@ -255,7 +255,7 @@ let is_eliminator c env trm sigma =
     if (not l.is_fwd) && l.orn.kind = CurryRecord then
       prod
     else if l.orn.kind = CurryRecord then
-      b_typ
+      zoom_term zoom_lambda_term env b_typ
     else
       let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
       first_fun b_typ_packed
@@ -359,7 +359,7 @@ let determine_lift_rule c env trm sigma =
                       let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
                       first_fun b_typ_packed
                    | _ ->
-                      b_typ
+                      zoom_term zoom_lambda_term env b_typ
                  in
                  if equal ind (directional l a_typ b_typ) then
                    let sigma, trm_eta = expand_eta env sigma trm in
