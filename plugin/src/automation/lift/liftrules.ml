@@ -46,7 +46,7 @@ type lift_optimization =
 | GlobalCaching of constr
 | LocalCaching of constr
 | OpaqueConstant
-| SimplifyProjectPacked of int * (constr * constr array)
+| SimplifyProjectPacked of reducer * (constr * constr array)
 | LazyEta of constr
 | AppLazyDelta of constr * constr array
 | ConstLazyDelta of Names.Constant.t Univ.puniverses
@@ -243,57 +243,11 @@ let check_is_proj c env trm proj_is =
 
 (* Premises for LIFT-PROJ *)
 let is_proj c env trm =
-  let l = get_lifting c in
-  if Array.length c.proj_rules = 0 then
+  let proj_rules = get_proj_map c in
+  if List.length proj_rules = 0 then
     ret None
   else
-    match l.orn.kind with
-    | Algebraic (indexer, _) ->
-       if l.is_fwd then
-         check_is_proj c env trm [indexer]
-       else
-         check_is_proj c env trm [projT1; projT2]
-    | CurryRecord ->
-       if l.is_fwd then
-         try
-           (* TODO unify w/ stuff in initialize_proj_rules *)
-           let (a_typ, _) = get_types c in
-           let ((i, i_index), u) = destInd a_typ in
-           let p_opts = Recordops.lookup_projections (i, i_index) in
-           let ps = List.map (fun p_opt -> mkConst (Option.get p_opt)) p_opts in
-           if not (Array.length c.proj_rules = List.length ps) then
-             ret None
-           else
-             check_is_proj c env trm ps
-         with _ ->
-           Feedback.msg_warning
-             (Pp.str "Can't find record accessors; skipping an optimization");
-           ret None
-       else
-         let lift_f = unwrap_definition env (lift_to c.l) in
-         let env_proj = zoom_env zoom_lambda_term env lift_f in
-         let rec build arg sigma = (* TODO merge w/ common build elsewhere *)
-           try
-             let arg_typ_prod = dest_prod_type env_proj sigma arg in
-             let arg_fst = prod_fst_elim arg_typ_prod arg in
-             let arg_snd = prod_snd_elim arg_typ_prod arg in
-             let sigma, args_tl = build arg_snd sigma in
-             sigma, arg_fst :: args_tl
-           with _ ->
-             sigma, [arg]
-         in
-         bind
-           (build (mkRel 1))
-           (fun p_bodies ->
-             let ps =
-               List.map
-                 (fun p -> reconstruct_lambda_n env_proj p (nb_rel env))
-                 p_bodies
-             in
-             if not (Array.length c.proj_rules = List.length ps) then
-               ret None
-             else
-               check_is_proj c env trm ps)
+    check_is_proj c env trm (List.map fst proj_rules)
 
 (*
  * Premises for LIFT-ELIM
@@ -303,7 +257,7 @@ let is_proj c env trm =
  *)
 let is_eliminator c env trm sigma =
   let l = get_lifting c in
-  let (a_typ, b_typ) = c.typs in
+  let (a_typ, b_typ) = get_types c in
   let b_typ =
     if (not l.is_fwd) && l.orn.kind = CurryRecord then
       prod
@@ -346,8 +300,8 @@ let determine_lift_rule c env trm sigma =
   let lifted_opt = lookup_lifting (lift_to l, lift_back l, trm) in
   if Option.has_some lifted_opt then
     sigma, Optimization (GlobalCaching (Option.get lifted_opt))
-  else if is_locally_cached c.cache trm then
-    sigma, Optimization (LocalCaching (lookup_local_cache c.cache trm))
+  else if is_cached c trm then
+    sigma, Optimization (LocalCaching (lookup_cache c trm))
   else if is_opaque c trm then
     sigma, Optimization OpaqueConstant
   else
@@ -358,13 +312,14 @@ let determine_lift_rule c env trm sigma =
       let sigma, i_and_args_o = is_packed_constr c env sigma trm in
       if Option.has_some i_and_args_o then
         let i, args = Option.get i_and_args_o in
+        let lifted_constr = (get_lifted_constrs c).(i - 1) in
         if List.length args > 0 then
           if not l.is_fwd then
-            sigma, LiftConstr (c.constr_rules.(i - 1), args)
+            sigma, LiftConstr (lifted_constr, args)
           else
-            sigma, Optimization (SmartLiftConstr (c.constr_rules.(i - 1), args))
+            sigma, Optimization (SmartLiftConstr (lifted_constr, args))
         else
-          sigma, LiftConstr (c.constr_rules.(i - 1), args)
+          sigma, LiftConstr (lifted_constr, args)
       else
         let sigma, run_lift_pack = is_pack c env sigma trm in
         if run_lift_pack then
@@ -376,7 +331,7 @@ let determine_lift_rule c env trm sigma =
             if arity trm_eta > arity trm then
               sigma, Optimization (LazyEta trm_eta)
             else
-              let p = c.proj_rules.(i) in
+              let (_, p) = List.nth (get_proj_map c) i in
               sigma, Coherence (to_proj, p, args)
           else
             let sigma, is_elim_o = is_eliminator c env trm sigma in
@@ -395,28 +350,16 @@ let determine_lift_rule c env trm sigma =
                  else if equal (lift_to l) f then
                    sigma, Internalize
                  else
-                   let _, proj_packed_map = c.optimize_proj_packed_rules in
-                   let optimize_proj_packed_o = (* TODO refactor/clean *)
-                     (if l.is_fwd then
-                        try
-                          Some
-                            (find_off
-                               proj_packed_map
-                               (fun (proj, _) -> is_or_applies proj trm))
-                        with _ ->
-                          None
-                      else
-                        None)
-                   in
-                   if Option.has_some optimize_proj_packed_o then
+                   let how_reduce_o = can_reduce_now c trm in
+                   if Option.has_some how_reduce_o then
                      (* optimize simplifying projections of packed terms, which are common (TODO move comment) *)
-                     let i = Option.get optimize_proj_packed_o in
-                     sigma, Optimization (SimplifyProjectPacked (i, (f, args)))
+                     let how_reduce = Option.get how_reduce_o in
+                     sigma, Optimization (SimplifyProjectPacked (how_reduce, (f, args)))
                    else
                      sigma, Optimization (AppLazyDelta (f, args))
               | Construct (((i, i_index), _), u) ->
                  let ind = mkInd (i, i_index) in
-                 let (a_typ, b_typ) = c.typs in
+                 let (a_typ, b_typ) = get_types c in
                  let b_typ =
                    match l.orn.kind with
                    | Algebraic _ ->

@@ -4,6 +4,7 @@ open Environ
 open Evd
 open Indutils
 open Stateutils
+open Reducers
       
 (* TODO top-level comment, clean, etc *)
 
@@ -12,7 +13,7 @@ type lift_optimization =
 | GlobalCaching of constr
 | LocalCaching of constr
 | OpaqueConstant
-| SimplifyProjectPacked of int * (constr * constr array)
+| SimplifyProjectPacked of reducer * (constr * constr array)
 | LazyEta of constr
 | AppLazyDelta of constr * constr array
 | ConstLazyDelta of Names.Constant.t Univ.puniverses

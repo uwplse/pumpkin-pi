@@ -5,6 +5,7 @@ open Hofs
 open Evd
 open Stateutils
 open Caching
+open Reducers
 
 (*
  * Lifting configuration
@@ -20,11 +21,19 @@ open Caching
  *)
 type lift_config
 
+(* --- Initialization --- *)
+
+val initialize_lift_config :
+  env ->
+  lifting ->
+  (types * types) -> (* A, B *)
+  constr list -> (* opaques *)
+  evar_map ->
+  lift_config state
+
 (* --- Recover or set the lifting --- *)
 
 val get_lifting : lift_config -> lifting
-
-val set_lifting : lift_config -> lifting -> lift_config
 
 (* --- Caching --- *)
 
@@ -37,6 +46,16 @@ val is_opaque : lift_config -> constr -> bool
  * Configurable caching of constants
  *)
 val smart_cache : lift_config -> constr -> constr -> unit
+
+(*
+ * Check if something is in the local cache
+ *)
+val is_cached : lift_config -> constr -> bool
+
+(*
+ * Lookup something from the local cache
+ *)
+val lookup_cache : lift_config -> constr -> constr
 
 (* --- Questions about types A and B --- *)
 
@@ -66,4 +85,39 @@ val type_is_from :
  *)
 val type_from_args :
   lift_config -> env -> constr -> evar_map -> (constr list) state
+                                                            
+(*
+ * Get the map of projections of the types for the lifting
+ *)
+val get_proj_map :
+  lift_config -> (constr * constr) list
 
+(*
+ * Get the cached lifted constructors of A (which construct B)
+ *)
+val get_lifted_constrs :
+  lift_config -> constr array
+
+(* --- Smart simplification --- *)
+
+(*
+ * Return true if a term is packed
+ *)
+val is_packed : lift_config -> constr -> bool
+
+(*
+ * Determine if we can be smarter than Coq and simplify earlier
+ * If yes, return how
+ * Otherwise, return None
+ *)
+val can_reduce_now :
+  lift_config -> constr -> reducer option
+
+(* --- Modifying the configuration --- *)
+
+(*
+ * NOTE: Reverse does not currently reverse the projection or constructor
+ * rules. It just changes the lifting direction. TODO fix
+ *)
+val reverse : lift_config -> lift_config
+val zoom : lift_config -> lift_config
