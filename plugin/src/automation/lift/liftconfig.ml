@@ -26,19 +26,18 @@ open Utilities
 open Desugarprod
 
 (*
- * Lifting configuration
+ * Lifting configuration: Includes the lifting, types, and cached rules
+ * for optimizations, as well as interfaces to ask questions about
+ * the configuration and some initialization code.
+ *
+ * This is where lifting constructors and projections live, since those
+ * are configured ahead of time. Eventually, the bulk of lifting eliminators
+ * may live here as well.
  *)
 
 (* --- Convenient shorthand (TODO move/comment/remove duplicates) --- *)
 
 let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
-let dest_prod_type env sigma trm =
-  let sigma, typ = reduce_type env sigma trm in
-  let typ_f = unwrap_definition env (first_fun typ) in
-  let typ_args = unfold_args typ in
-  let typ_red = mkAppl (typ_f, typ_args) in
-  let sigma, typ_red = reduce_term env sigma typ_red in
-  ignore_env dest_prod env sigma typ_red
 
 (* TODO move/comment *)
 let convertible env t1 t2 sigma =
@@ -395,7 +394,7 @@ let initialize_proj_rules env sigma c =
      if l.is_fwd then (* accessors -> projections *)
        let rec build arg sigma = (* TODO merge w/ common build in lift_case, or get projections and use those there *)
          try
-           let arg_typ_prod = dest_prod_type env_proj sigma arg in
+           let sigma, arg_typ_prod = dest_prod_type env_proj arg sigma in
            let arg_fst = prod_fst_elim arg_typ_prod arg in
            let arg_snd = prod_snd_elim arg_typ_prod arg in
            let sigma, args_tl = build arg_snd sigma in
@@ -438,7 +437,7 @@ let initialize_proj_rules env sigma c =
          let env_proj = zoom_env zoom_lambda_term env lift_f in
          let rec build arg sigma = (* TODO merge w/ common build elsewhere *)
            try
-             let arg_typ_prod = dest_prod_type env_proj sigma arg in
+             let sigma, arg_typ_prod = dest_prod_type env_proj arg sigma in
              let arg_fst = prod_fst_elim arg_typ_prod arg in
              let arg_snd = prod_snd_elim arg_typ_prod arg in
              let sigma, args_tl = build arg_snd sigma in

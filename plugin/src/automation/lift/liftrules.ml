@@ -22,13 +22,6 @@ open Indexing
 (* --- Convenient shorthand (TODO move/comment) --- *)
 
 let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
-let dest_prod_type env sigma trm =
-  let sigma, typ = reduce_type env sigma trm in
-  let typ_f = unwrap_definition env (first_fun typ) in
-  let typ_args = unfold_args typ in
-  let typ_red = mkAppl (typ_f, typ_args) in
-  let sigma, typ_red = reduce_term env sigma typ_red in
-  ignore_env dest_prod env sigma typ_red
 
 (* TODO move/comment *)
 let convertible env t1 t2 sigma =

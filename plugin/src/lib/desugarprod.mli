@@ -5,6 +5,9 @@
 
 open Constr
 open Produtils
+open Environ
+open Evd
+open Stateutils
 
 (* --- Constants --- *)
 
@@ -46,3 +49,4 @@ val prod_typs : prod_app -> (types * types)
 val prod_typs_rec : types -> types list
 val prod_typs_rec_n : types -> int -> types list
 val eta_prod_rec : constr -> types -> constr
+val dest_prod_type : env -> constr -> evar_map -> prod_app state

@@ -9,6 +9,7 @@ open Apputils
 open Nametab
 open Libnames
 open Produtils
+open Reducers
 
 (* --- Constants --- *)
 
@@ -104,3 +105,14 @@ let eta_prod_rec trm typ =
     else
       trm
   in eta trm typ                         
+
+(*
+ * Like dest_prod, but over the term's type
+ *)
+let dest_prod_type env trm sigma =
+  let sigma, typ = reduce_type env sigma trm in
+  let typ_f = unwrap_definition env (first_fun typ) in
+  let typ_args = unfold_args typ in
+  let typ_red = mkAppl (typ_f, typ_args) in
+  let sigma, typ_red = reduce_term env sigma typ_red in
+  sigma, dest_prod typ_red

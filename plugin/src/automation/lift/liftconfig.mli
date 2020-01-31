@@ -8,7 +8,13 @@ open Caching
 open Reducers
 
 (*
- * Lifting configuration
+ * Lifting configuration: Includes the lifting, types, and cached rules
+ * for optimizations, as well as interfaces to ask questions about
+ * the configuration and some initialization code.
+ *
+ * This is where lifting constructors and projections live, since those
+ * are configured ahead of time. Eventually, the bulk of lifting eliminators
+ * may live here as well.
  *)
 
 (* --- Datatype --- *)
