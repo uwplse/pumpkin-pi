@@ -59,7 +59,7 @@ type lift_config =
     l : lifting;
     typs : types * types;
     constr_rules : types array;
-    proj_rules : (constr * constr) list;
+    proj_rules : (constr * constr) list * (constr * constr) list;
     optimize_proj_packed_rules :
       (constr -> bool) * ((constr * (constr -> constr)) list);
     cache : temporary_cache;
@@ -228,7 +228,7 @@ let type_from_args c env trm sigma =
 (*
  * Get the map of projections for the type
  *)
-let get_proj_map c = c.proj_rules
+let get_proj_map c = fst c.proj_rules
 
 (*
  * Get the cached lifted constructors of A (which construct B)
@@ -264,6 +264,21 @@ let can_reduce_now c trm =
     Some (fun _ sigma trm -> sigma, reduce trm)
   else
     None
+    
+(* --- Modifying the configuration --- *)
+
+let reverse c =
+  { c with l = flip_dir c.l; proj_rules = reverse c.proj_rules }
+
+let zoom c =
+  match c.l.orn.kind with
+  | Algebraic (indexer, (ib_typ, off)) ->
+     let orn = { c.l.orn with kind = Algebraic (indexer, (shift ib_typ, off)) } in
+     let l = { c.l with orn } in
+     let typs = map_tuple shift c.typs in
+     { c with l; typs }
+  | _ ->
+     c
 
 (* --- Initialization --- *)
 
@@ -460,22 +475,11 @@ let initialize_lift_config env l typs ignores sigma =
   let cache = initialize_local_cache () in
   let opaques = initialize_local_cache () in
   List.iter (fun opaque -> cache_local opaques opaque opaque) ignores;
-  let c = { l ; typs ; constr_rules = Array.make 0 (mkRel 1) ; proj_rules = []; optimize_proj_packed_rules = ((fun _ -> false), []); cache ; opaques } in
+  let c = { l ; typs ; constr_rules = Array.make 0 (mkRel 1) ; proj_rules = [], []; optimize_proj_packed_rules = ((fun _ -> false), []); cache ; opaques } in
   let sigma, constr_rules = initialize_constr_rules env sigma c in
-  let sigma, proj_rules = initialize_proj_rules env sigma c in
+  let sigma, fwd_proj_rules = initialize_proj_rules env sigma c in
+  let sigma, bwd_proj_rules = initialize_proj_rules env sigma (reverse c) in
+  let proj_rules = fwd_proj_rules, bwd_proj_rules in
   let optimize_proj_packed_rules = initialize_optimize_proj_packed_rules c in
   sigma, { c with constr_rules; proj_rules; optimize_proj_packed_rules }
-    
-(* --- Modifying the configuration --- *)
 
-let reverse c = { c with l = flip_dir c.l }
-
-let zoom c =
-  match c.l.orn.kind with
-  | Algebraic (indexer, (ib_typ, off)) ->
-     let orn = { c.l.orn with kind = Algebraic (indexer, (shift ib_typ, off)) } in
-     let l = { c.l with orn } in
-     let typs = map_tuple shift c.typs in
-     { c with l; typs }
-  | _ ->
-     c
