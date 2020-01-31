@@ -32,9 +32,6 @@ let refresh_env () : env state =
   let env = Global.env () in
   Evd.from_env env, env
 
-let notify_defined description gref =
-  Feedback.msg_notice (str ("Defined " ^ description ^ " ") ++ pr_global_as_constr gref)
-
 (*
  * If the option is enabled, then prove coherence after find_ornament is called.
  * Otherwise, do nothing.
@@ -47,8 +44,8 @@ let maybe_prove_coherence n inv_n idx_n : unit =
     let orn = { indexer; promote; forget } in
     let coh, coh_typ = prove_coherence env sigma orn in
     let coh_n = with_suffix n "coh" in
-    let gref = define_term ~typ:coh_typ coh_n sigma coh true in
-    notify_defined "coherence proof" gref
+    let _ = define_term ~typ:coh_typ coh_n sigma coh true in
+    Printf.printf "Defined coherence proof %s\n\n" (Id.to_string coh_n)
   else
     ()
 
@@ -59,9 +56,9 @@ let maybe_prove_coherence n inv_n idx_n : unit =
 let maybe_prove_equivalence n inv_n : unit =
   let define_proof suffix ?(adjective=suffix) evd term =
     let ident = with_suffix n suffix in
-    let gref = define_term ident evd term true in
-    notify_defined (adjective ^ " proof") gref;
-    destConstRef gref
+    let const = define_term ident evd term true |> destConstRef in
+    Printf.printf "Defined %s proof %s\n\n" adjective (Id.to_string ident);
+    const
   in
   if is_search_equiv () then
     let sigma, env = refresh_env () in
@@ -105,21 +102,21 @@ let find_ornament n_o d_old d_new =
     let n = Option.default auto_n n_o in
     let idx_n = with_suffix n "index" in
     let sigma, orn = search_orn env sigma idx_n trm_o trm_n in
-    let index = define_term idx_n sigma orn.indexer true in
-    notify_defined "indexing function" index;
+    ignore (define_term idx_n sigma orn.indexer true);
+    Printf.printf "Defined indexing function %s.\n\n" (Id.to_string idx_n);
     let promote = define_term n sigma orn.promote true in
-    notify_defined "promotion function" promote;
+    Printf.printf "Defined promotion %s.\n\n" (Id.to_string n);
     let inv_n = with_suffix n "inv" in
     let forget = define_term inv_n sigma orn.forget true in
-    notify_defined "forgetful function" forget;
+    Printf.printf "Defined forgetful function %s.\n\n" (Id.to_string inv_n);
     maybe_prove_coherence n inv_n idx_n;
     maybe_prove_equivalence n inv_n;
     (try
        save_ornament (trm_o, trm_n) (promote, forget)
      with _ ->
-       Feedback.msg_warning (str "Could not cache ornamental promotion"))
+       Printf.printf "WARNING: Failed to cache ornamental promotion.")
   |_ ->
-    CErrors.user_err (str "Only inductive types are supported")
+    failwith "Only inductive types are supported"
 
 (*
  * Lift a definition according to a lifting configuration, defining the lifted
@@ -133,7 +130,7 @@ let lift_definition_by_ornament env sigma n l c_old =
     let new_gref = ConstRef (Lib.make_kn n |> Constant.make1) in
     declare_lifted old_gref new_gref;
   with _ ->
-    Feedback.msg_warning (str "Could not cache lifting of " ++ pr_constr_env env sigma c_old)
+    Printf.printf "WARNING: Failed to cache lifting."
 
 (*
  * Lift an inductive type according to a lifting configuration, defining the
@@ -143,7 +140,8 @@ let lift_definition_by_ornament env sigma n l c_old =
 let lift_inductive_by_ornament env sigma n s l c_old =
   let ind, _ = destInd c_old in
   let ind' = do_lift_ind env sigma n s l ind in
-  notify_defined "lifted inductive type" (IndRef ind')
+  let env' = Global.env () in
+  Feedback.msg_notice (str "Defined lifted inductive type " ++ pr_inductive env' ind')
 
 (*
  * Lift the supplied definition or inductive type along the supplied ornament
