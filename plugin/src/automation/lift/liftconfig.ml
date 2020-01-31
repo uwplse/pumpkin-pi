@@ -391,73 +391,54 @@ let initialize_proj_rules env sigma c =
        let p2 = reconstruct_lambda env_proj lift_t in
        sigma, [(projT1, p1); (projT2, p2)]
   | CurryRecord ->
-     if l.is_fwd then (* accessors -> projections *)
-       let rec build arg sigma = (* TODO merge w/ common build in lift_case, or get projections and use those there *)
-         try
-           let sigma, arg_typ_prod = dest_prod_type env_proj arg sigma in
-           let arg_fst = prod_fst_elim arg_typ_prod arg in
-           let arg_snd = prod_snd_elim arg_typ_prod arg in
-           let sigma, args_tl = build arg_snd sigma in
-           sigma, arg_fst :: args_tl
-         with _ ->
-           sigma, [arg]
-       in
-       let sigma, p_bodies = build lift_t sigma in
-       let sigma, ps_to = map_state (fun p -> ret (reconstruct_lambda env_proj p)) p_bodies sigma in
+     (* accessors <-> projections *)
+     let rec build arg sigma = (* TODO merge w/ common build in lift_case, or get projections and use those there *)
+       try
+         let sigma, arg_typ_prod = dest_prod_type env_proj arg sigma in
+         let arg_fst = prod_fst_elim arg_typ_prod arg in
+         let arg_snd = prod_snd_elim arg_typ_prod arg in
+         let sigma, args_tl = build arg_snd sigma in
+         sigma, arg_fst :: args_tl
+       with _ ->
+         sigma, [arg]
+     in
+     let accessors =
        let (a_typ, _) = get_types c in
        let ((i, i_index), u) = destInd a_typ in
+       let accessor_opts = Recordops.lookup_projections (i, i_index) in
        try
-         let p_opts = Recordops.lookup_projections (i, i_index) in
-         let ps = List.map (fun p_opt -> mkConst (Option.get p_opt)) p_opts in
-         map2_state
-           (fun p1 p2 -> ret (p1, p2))
-           ps
-           ps_to
-           sigma
+         List.map (fun a_o -> mkConst (Option.get a_o)) accessor_opts
        with _ ->
-         Feedback.msg_warning
-           (Pp.str "Can't find record accessors; skipping an optimization");
-         sigma, []
-     else (* projections -> accessors *)
-       let (a_typ, _) = get_types c in (* TODO reconcile common code *)
-       let ((i, i_index), u) = destInd a_typ in
-       try
-         let p_opts = Recordops.lookup_projections (i, i_index) in
-         let sigma, ps_to =
+         []
+     in
+     let sigma, (ps, ps_to) =
+       if l.is_fwd then (* accessors -> projections *)
+         let sigma, lifted_projections =
+           let sigma, p_bodies = build lift_t sigma in
+           map_state (fun p -> ret (reconstruct_lambda env_proj p)) p_bodies sigma
+         in sigma, (accessors, lifted_projections)
+       else (* projections -> accessors *)
+         let sigma, lifted_accessors =
            map_state
-             (fun p ->
-               let f = mkConst p in
+             (fun a ->
                let args = shift_all (mk_n_rels (nb_rel env_proj - 1)) in
-               let app = mkAppl (f, snoc lift_t args) in
+               let app = mkAppl (a, snoc lift_t args) in
                ret (reconstruct_lambda env_proj app))
-             (List.map Option.get p_opts)
+             accessors
              sigma
          in
-         let lift_f = unwrap_definition env (lift_to c.l) in
-         let env_proj = zoom_env zoom_lambda_term env lift_f in
-         let rec build arg sigma = (* TODO merge w/ common build elsewhere *)
-           try
-             let sigma, arg_typ_prod = dest_prod_type env_proj arg sigma in
-             let arg_fst = prod_fst_elim arg_typ_prod arg in
-             let arg_snd = prod_snd_elim arg_typ_prod arg in
-             let sigma, args_tl = build arg_snd sigma in
-             sigma, arg_fst :: args_tl
-           with _ ->
-             sigma, [arg]
-         in
-         let sigma, ps =
-         bind
-           (build (mkRel 1))
-           (fun p_bodies ->
-             ret (List.map
-               (fun p -> reconstruct_lambda_n env_proj p (nb_rel env))
-               p_bodies))
-           sigma
-         in map2_state (fun p1 p2 -> ret (p1, p2)) ps ps_to sigma
-       with _ ->
+         let sigma, projections =
+           let sigma, p_bodies = build (mkRel 1) sigma in
+           map_state (fun p -> ret (reconstruct_lambda env_proj p)) p_bodies sigma
+         in sigma, (projections, lifted_accessors)
+     in
+     if List.length ps = List.length ps_to then
+       map2_state (fun p1 p2 -> ret (p1, p2)) ps ps_to sigma
+     else
+       let _ =
          Feedback.msg_warning
-           (Pp.str "Can't find record accessors; skipping an optimization");
-         sigma, []
+           (Pp.str "Can't find record accessors; skipping an optimization")
+       in sigma, []
 
 (* TODO comment/explain: we can sometimes be smarter than coq's reduction
   TODO unify some infrastructure with proj rules and is_proj? *)
