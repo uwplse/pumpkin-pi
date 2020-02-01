@@ -49,4 +49,5 @@ val prod_typs : prod_app -> (types * types)
 val prod_typs_rec : types -> types list
 val prod_typs_rec_n : types -> int -> types list
 val eta_prod_rec : constr -> types -> constr
+val prod_projections_rec : env -> constr -> evar_map -> (constr list) state
 val dest_prod_type : env -> constr -> evar_map -> prod_app state

@@ -207,11 +207,10 @@ let is_packed c = fst (c.optimize_proj_packed_rules)
  *)
 let can_reduce_now c trm =
   let _, proj_packed_map = c.optimize_proj_packed_rules in
-  let optimize_proj_packed_o = (* TODO refactor/clean *)
+  let optimize_proj_packed_o =
     if (get_lifting c).is_fwd then
       try
-        Some
-          (List.find (fun (pr, _) -> is_or_applies pr trm) proj_packed_map)
+        Some (List.find (fun (pr, _) -> is_or_applies pr trm) proj_packed_map)
       with _ ->
         None
     else
@@ -280,7 +279,7 @@ let lift_constr env sigma c trm =
   let sigma, app = lift env l trm typ_args sigma in
   match l.orn.kind with
   | Algebraic _ ->
-     let sigma, rec_args = filter_state (fun tr sigma -> let sigma, o = type_is_from c env tr sigma in sigma, Option.has_some o) packed_args sigma in (* TODO use result? *)
+     let sigma, rec_args = filter_state (fun tr sigma -> let sigma, o = type_is_from c env tr sigma in sigma, Option.has_some o) packed_args sigma in
      if List.length rec_args = 0 then
        (* base case - don't bother refolding *)
        reduce_nf env sigma app
@@ -317,7 +316,6 @@ let initialize_constr_rule c env constr sigma =
        if l.is_fwd then
          lift_constr env_c_b sigma c to_lift
        else
-         (* We searched backwards, so we just use that (TODO explain/clean) *)
          sigma, to_lift
   in sigma, reconstruct_lambda_n env_c_b lifted (nb_rel env)
 
@@ -370,16 +368,6 @@ let initialize_proj_rules env sigma c =
        sigma, [(projT1, p1); (projT2, p2)]
   | CurryRecord ->
      (* accessors <-> projections *)
-     let rec build arg sigma = (* TODO merge w/ common build in lift_case, or get projections and use those there *)
-       try
-         let sigma, arg_typ_prod = dest_prod_type env_proj arg sigma in
-         let arg_fst = prod_fst_elim arg_typ_prod arg in
-         let arg_snd = prod_snd_elim arg_typ_prod arg in
-         let sigma, args_tl = build arg_snd sigma in
-         sigma, arg_fst :: args_tl
-       with _ ->
-         sigma, [arg]
-     in
      let accessors =
        let (a_typ, _) = get_types c in
        let ((i, i_index), u) = destInd a_typ in
@@ -392,7 +380,7 @@ let initialize_proj_rules env sigma c =
      let sigma, (ps, ps_to) =
        if l.is_fwd then (* accessors -> projections *)
          let sigma, lifted_projections =
-           let sigma, p_bodies = build lift_t sigma in
+           let sigma, p_bodies = prod_projections_rec env_proj lift_t sigma in
            map_state (fun p -> ret (reconstruct_lambda env_proj p)) p_bodies sigma
          in sigma, (accessors, lifted_projections)
        else (* projections -> accessors *)
@@ -406,7 +394,7 @@ let initialize_proj_rules env sigma c =
              sigma
          in
          let sigma, projections =
-           let sigma, p_bodies = build (mkRel 1) sigma in
+           let sigma, p_bodies = prod_projections_rec env_proj (mkRel 1) sigma in
            map_state (fun p -> ret (reconstruct_lambda env_proj p)) p_bodies sigma
          in sigma, (projections, lifted_accessors)
      in
@@ -418,10 +406,10 @@ let initialize_proj_rules env sigma c =
            (Pp.str "Can't find record accessors; skipping an optimization")
        in sigma, []
 
-(* TODO comment/explain: we can sometimes be smarter than coq's reduction
-  TODO unify some infrastructure with proj rules and is_proj? *)
-(* TODO clean up a lot *)
-(* TODO note this takes in lifted f, args and then decides what to do *)
+(*
+ * Sometimes we can do better than Coq's reduction and simplify eagerly.
+ * In particular, this happens when we have projections of packed terms.
+ *)
 let initialize_optimize_proj_packed_rules c =
   match (get_lifting c).orn.kind with
   | Algebraic (_, _) ->

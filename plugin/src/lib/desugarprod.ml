@@ -104,7 +104,7 @@ let eta_prod_rec trm typ =
       apply_pair {typ1; typ2; trm1; trm2}
     else
       trm
-  in eta trm typ                         
+  in eta trm typ
 
 (*
  * Like dest_prod, but over the term's type
@@ -116,3 +116,17 @@ let dest_prod_type env trm sigma =
   let typ_red = mkAppl (typ_f, typ_args) in
   let sigma, typ_red = reduce_term env sigma typ_red in
   sigma, dest_prod typ_red
+
+(*
+ * Recursively project a nested product 
+ *)
+let prod_projections_rec env trm sigma =
+  let rec proj trm sigma =
+    try
+      let sigma, typ_prod = dest_prod_type env trm sigma in
+      let trm_fst, trm_snd = prod_projections_elim typ_prod trm in
+      let sigma, proj_tl = proj trm_snd sigma in
+      sigma, trm_fst :: proj_tl
+    with _ ->
+      sigma, [trm]
+  in proj trm sigma
