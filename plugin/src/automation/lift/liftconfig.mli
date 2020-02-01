@@ -18,13 +18,7 @@ open Reducers
  *)
 
 (* --- Datatype --- *)
-       
-(*
- * Lifting configuration, along with the types A and B,
- * rules for constructors and projections that are configurable by equivalence,
- * a cache for constants encountered as the algorithm traverses,
- * and a cache for the constructor rules that refolding determines.
- *)
+
 type lift_config
 
 (* --- Initialization --- *)
