@@ -201,7 +201,7 @@ let lift_module_by_ornament ident d_orn d_orn_inv mod_ref =
       ident
       (fun _ -> iter_module_structure_by_glob lift_global mod_body)
   in
-  Feedback.msg_notice (str "Defined lifted module " ++ Id.print ident)
+  Feedback.msg_info (str "Defined lifted module " ++ Id.print ident)
 
 (*
  * Unpack sigma types in the functional signature of a constant.
