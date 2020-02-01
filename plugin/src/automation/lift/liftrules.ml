@@ -171,7 +171,7 @@ let is_pack c env sigma trm =
        (* taken care of by constructor rule *)
        sigma, false
 
-(* Auxiliary function for premise for LIFT-PROJ *)
+(* Auxiliary function for premise for LIFT-PROJ (TODO clean/use unification where possible) *)
 let check_is_proj c env trm proj_is =
   let l = get_lifting c in
   let right_type = type_is_from c in
