@@ -25,6 +25,8 @@ open Declarations
 open Utilities
 open Desugarprod
 open Inference
+open Evarutil
+open Evarconv
 
 (*
  * Lifting configuration: Includes the lifting, types, and cached rules
@@ -48,7 +50,7 @@ type lift_config =
   {
     l : lifting;
     typs : types * types;
-    constr_rules : types array;
+    constr_rules : types array * types array;
     proj_rules : (constr * constr) list * (constr * constr) list;
     optimize_proj_packed_rules :
       (constr -> bool) * ((constr * (constr -> constr)) list);
@@ -104,33 +106,49 @@ let lookup_cache c trm = lookup_local_cache c.cache trm
 (* --- Questions about types A and B --- *)
 
 let get_types c = c.typs
-                
+
+(*
+ * Optimization for is_from: things to try rather than trying unification,
+ * if our type is in a format that is very easy to reason about without
+ * unification.
+ *)
+let optimize_is_from c env typ =
+  let (a_typ, _) = c.typs in
+  if c.l.is_fwd then
+    (* We don't need unification here *)
+    if is_or_applies a_typ typ then
+      Some (unfold_args typ)
+    else
+      None
+  else
+    (* Defer to unification *)
+    None
+    
 (*
  * Determine whether a type is the type we are ornamenting from
  * That is, A when we are promoting, and B when we are forgetting
  * Return the arguments to the type if so
  *)
 let is_from c env typ sigma =
-  let (a_typ, b_typ) = c.typs in
-  if c.l.is_fwd then
-    if is_or_applies a_typ typ then
-      sigma, Some (unfold_args typ)
-    else
-      sigma, None
+  let args_o = optimize_is_from c env typ in
+  if Option.has_some args_o then
+    sigma, args_o
   else
-    let nargs = arity b_typ in
+    let (a_typ, b_typ) = c.typs in
+    let goal_typ = if c.l.is_fwd then a_typ else b_typ in
+    let nargs = arity goal_typ in
     (try
        let sigma, eargs =
          map_state
-           (fun r sigma ->
-             let sigma, (earg_typ, _) = Evarutil.new_type_evar env sigma Evd.univ_flexible in
-             let sigma, earg = Evarutil.new_evar env sigma earg_typ in
+           (fun _ sigma ->
+             let sigma, (earg_typ, _) = new_type_evar env sigma univ_flexible in
+             let sigma, earg = new_evar env sigma earg_typ in
              sigma, EConstr.to_constr sigma earg)
-           (List.rev (mk_n_rels nargs))
+           (mk_n_rels nargs)
            sigma
        in
-       let sigma, b_app = reduce_term env sigma (mkAppl (b_typ, eargs)) in
-       let sigma = Evarconv.the_conv_x env (EConstr.of_constr typ) (EConstr.of_constr b_app) sigma in
+       let sigma, b_app = reduce_term env sigma (mkAppl (goal_typ, eargs)) in
+       let sigma = the_conv_x env (EConstr.of_constr typ) (EConstr.of_constr b_app) sigma in
        sigma, Some eargs
      with _ ->
        sigma, None)
@@ -173,7 +191,7 @@ let get_proj_map c = fst c.proj_rules
 (*
  * Get the cached lifted constructors of A (which construct B)
  *)
-let get_lifted_constrs c = c.constr_rules
+let get_lifted_constrs c = fst c.constr_rules
 
 (* --- Smart simplification --- *)
 
@@ -208,7 +226,12 @@ let can_reduce_now c trm =
 (* --- Modifying the configuration --- *)
 
 let reverse c =
-  { c with l = flip_dir c.l; proj_rules = reverse c.proj_rules }
+  {
+    c with
+    l = flip_dir c.l;
+    proj_rules = reverse c.proj_rules;
+    constr_rules = reverse c.constr_rules
+  }
 
 let zoom c =
   match c.l.orn.kind with
@@ -415,8 +438,10 @@ let initialize_lift_config env l typs ignores sigma =
   let cache = initialize_local_cache () in
   let opaques = initialize_local_cache () in
   List.iter (fun opaque -> cache_local opaques opaque opaque) ignores;
-  let c = { l ; typs ; constr_rules = Array.make 0 (mkRel 1) ; proj_rules = [], []; optimize_proj_packed_rules = ((fun _ -> false), []); cache ; opaques } in
-  let sigma, constr_rules = initialize_constr_rules env sigma c in
+  let c = { l ; typs ; constr_rules = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1) ; proj_rules = [], []; optimize_proj_packed_rules = ((fun _ -> false), []); cache ; opaques } in
+  let sigma, fwd_constr_rules = initialize_constr_rules env sigma c in
+  let sigma, bwd_constr_rules = initialize_constr_rules env sigma (reverse c) in
+  let constr_rules = fwd_constr_rules, bwd_constr_rules in
   let sigma, fwd_proj_rules = initialize_proj_rules env sigma c in
   let sigma, bwd_proj_rules = initialize_proj_rules env sigma (reverse c) in
   let proj_rules = fwd_proj_rules, bwd_proj_rules in

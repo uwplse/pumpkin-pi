@@ -121,10 +121,5 @@ val can_reduce_now :
 
 (* --- Modifying the configuration --- *)
 
-(*
- * NOTE: Reverse does not currently reverse the constructor rules or the
- * simplification rules. It just changes the lifting direction and projection
- * rules. TODO fix
- *)
 val reverse : lift_config -> lift_config
 val zoom : lift_config -> lift_config
