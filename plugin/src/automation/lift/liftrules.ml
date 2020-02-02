@@ -138,7 +138,7 @@ type lift_rule =
 
 (* --- Premises --- *)
 
-(* Premises for LIFT-CONSTR *) (* TODO clean *)
+(* Premises for LIFT-CONSTR *)
 let is_packed_constr c env sigma trm =
   let l = get_lifting c in
   let right_type trm sigma = type_is_from c env trm sigma in
@@ -150,9 +150,7 @@ let is_packed_constr c env sigma trm =
      else
        sigma, None
   | App (f, args) ->
-     if is_opaque c (first_fun f) then
-       sigma, None
-     else if l.is_fwd then
+     if l.is_fwd then
        (match kind f with
         | Construct (((_, _), i), _) ->
            let sigma, typ_args_o = right_type trm sigma in
@@ -163,13 +161,12 @@ let is_packed_constr c env sigma trm =
         | _ ->
            sigma, None)
      else
-       (match l.orn.kind with
-        | Algebraic _ ->
-           if equal existT f then (* TODO why here is f OK, but in other case we need first_fun? eta? *)
-             let sigma_right, args_opt = right_type trm sigma in
-             if Option.has_some args_opt then
-               (* TODO what does this exist for? *)
-               (* TODO do we want to send back the typ args too? *)
+       if is_packed c trm then (* only bother checking if it's packed *)
+         let sigma_right, args_opt = right_type trm sigma in
+         if Option.has_some args_opt then
+           (match l.orn.kind with
+            | Algebraic _ ->
+               (* TODO use optimize_proj_packed rules here? *)
                let last_arg = last (Array.to_list args) in
                if isApp last_arg then
                  (match kind (first_fun last_arg) with
@@ -179,49 +176,34 @@ let is_packed_constr c env sigma trm =
                      sigma, None)
                else
                  sigma, None
-             else
-               sigma, None
-           else
-             sigma, None
         | CurryRecord ->
-           if equal pair (first_fun trm) then
-             let sigma_right, pms_opt = right_type trm sigma in
-             if Option.has_some pms_opt then
-               let sigma = sigma_right in
-               let p = dest_pair trm in
-               let (a_typ, _) = get_types c in
-               let c = mkConstruct (fst (destInd a_typ), 1) in
-               let sigma, c_typ = reduce_type env sigma c in
-               let c_arity = arity c_typ in
-               let rec build_args p sigma n = (* TODO clean, move to optimization *)
-                 let trm1 = p.Produtils.trm1 in
-                 if n <= 2 then
-                   let trm2 = p.Produtils.trm2 in
-                   sigma, [trm1; trm2]
-                 else
-                   if applies pair p.Produtils.trm2 then
-                     let sigma, trm2s = build_args (dest_pair p.Produtils.trm2) sigma (n - 1) in
-                     sigma, trm1 :: trm2s
-                   else
-                     let sigma_typ, typ2 = reduce_type env sigma p.Produtils.trm2 in
-                     if applies prod typ2 then (* TODO should just be able to use number instead of type-checking every time *)
-                       let prod_app = dest_prod typ2 in
-                       let typ1 = prod_app.Produtils.typ1 in
-                       let typ2 = prod_app.Produtils.typ2 in
-                       let trm2_pair = Produtils.{ typ1; typ2; trm1 = prod_fst_elim prod_app p.Produtils.trm2; trm2 = prod_snd_elim prod_app p.Produtils.trm2 } in
-                       let sigma, trm2s = build_args trm2_pair sigma (n - 1) in
-                       sigma, trm1 :: trm2s
-                     else
-                       let trm2 = p.Produtils.trm2 in
-                       sigma, [trm1; trm2]
-               in
-               let pms = Option.get pms_opt in
-               let sigma, args = build_args p sigma (c_arity - List.length pms) in
-               sigma, Some (1, List.append pms args)
+           let sigma = sigma_right in
+           let (a_typ, _) = get_types c in
+           let c = mkConstruct (fst (destInd a_typ), 1) in
+           let sigma, c_typ = reduce_type env sigma c in
+           let c_arity = arity c_typ in
+           let rec build_args trm sigma n = (* TODO clean, move to optimization *)
+             let p = dest_pair trm in
+             let (trm1, trm2) = p.Produtils.trm1, p.Produtils.trm2 in
+             if n <= 2 then
+               sigma, [trm1; trm2]
              else
-               sigma, None
-           else
-             sigma, None)
+               if applies pair trm2 then
+                 let sigma, trm2s = build_args trm2 sigma (n - 1) in
+                 sigma, trm1 :: trm2s
+               else
+                 let typ2 = p.Produtils.typ2 in
+                 let trm2_eta = eta_prod trm2 typ2 in
+                 let sigma, trm2s = build_args trm2_eta sigma (n - 1) in
+                 sigma, trm1 :: trm2s
+           in
+           let pms = Option.get args_opt in
+           let sigma, args = build_args trm sigma (c_arity - List.length pms) in
+           sigma, Some (1, List.append pms args))
+         else
+           sigma, None
+       else
+         sigma, None
   | _ ->
      sigma, None
 

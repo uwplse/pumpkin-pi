@@ -92,6 +92,15 @@ let prod_typs_rec_n typ n =
   in prod_args typ n
 
 (*
+ * Eta expansion of a prod
+ *)
+let eta_prod trm typ =
+  let typ_prod = dest_prod typ in
+  let (typ1, typ2) = prod_typs typ_prod in
+  let (trm1, trm2) = prod_projections_elim typ_prod trm in
+  apply_pair {typ1; typ2; trm1; trm2}
+
+(*
  * Eta expansion of a nested prod
  *)
 let eta_prod_rec trm typ =
