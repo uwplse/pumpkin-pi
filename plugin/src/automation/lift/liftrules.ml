@@ -19,6 +19,8 @@ open Typehofs
 open Environ
 open Indexing
 
+(* TODO top-level comment *)
+
 (* --- Convenient shorthand (TODO move/comment) --- *)
 
 let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
@@ -30,11 +32,50 @@ let convertible env t1 t2 sigma =
   else
     convertible env sigma t1 t2
 
-(* --- Actual stuff (TODO real comment) --- *)
-       
-(* TODO top-level comment, clean, etc *)
+(* --- Datatypes --- *)
 
-(* TODO move/refactor/explain each/top comment/finish/add more/clean/be consistent about how these recurse *)
+(*
+ * When an optimization may be possible, we return one of these.
+ * Sometimes, we need more information to determine if the optimization is
+ * definitely possible. This just makes it very explicit in the code what
+ * is an attempt at an optimization, as opposed to what is needed for
+ * correctness only.
+ *
+ * Optimizations:
+ * 1. GlobalCaching: When the constant is in the global lifting cache,
+ *    we just return the cached lifted term.
+ *
+ * 2. LocalCaching: When a term is in the local lifting cache,
+ *    we just return the cached lifted term.
+ *
+ * 3. OpaqueConstant: When a user uses the opaque option for DEVOID for a given
+ *    constant, we do not delta-reduce that constant.
+ *    Note that this is different from Coq's notion of "opaque"; we may
+ *    delta-reduce constants marked as opaque to the rest of Coq, and we may
+ *    consider a constant opaque when Coq does not. It depends only on the
+ *    user setting this particular option for DEVOID.
+ *
+ * 4. SimplifyProjectPacked: When we see projections of packed terms
+ *    (for example, projT1 (existT ...)), we reduce eagerly rather than
+ *    wait for Coq to reduce, since we can be smarter than Coq for this
+ *    case. This simplifies very large lifted constants significantly.
+ *
+ * 5. LazyEta: We eta expand lazily, only when needed for correctness.
+ *    The optimization is really this rule _not always_ fiting; this rule
+ *    fires when we determine it is actually time to eta expand a term.
+ *
+ * 6. AppLazyDelta: This optimization skips delta-reduction for some
+ *    function applications. This also includes the normal function
+ *    application rule, since determining whether or not this optimization
+ *    is possible requires "looking ahead" at some lifted subterms.
+ *
+ * 7. ConstLazyDelta: This optimization skips delta-reduction for some
+ *    contants. It is similar to AppLazyDelta.
+ *
+ * 8. SmartLiftConstr: For certain equivalences, we can configure a faster
+ *    version of LiftConstr. This rule fires when we've determined a faster
+ *    version to run in its place.
+ *)
 type lift_optimization =
 | GlobalCaching of constr
 | LocalCaching of constr
@@ -57,6 +98,8 @@ type lift_rule =
 | Internalize
 | Optimization of lift_optimization
 | CIC
+
+(* --- Premises --- *)
 
 (* Premises for LIFT-CONSTR *) (* TODO clean *)
 let is_packed_constr c env sigma trm =

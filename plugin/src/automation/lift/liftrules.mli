@@ -8,7 +8,17 @@ open Reducers
       
 (* TODO top-level comment, clean, etc *)
 
-(* TODO move/refactor/explain each/top comment/finish/add more/clean/be consistent about how these recurse *)
+(* --- Datatypes --- *)
+
+(*
+ * When an optimization may be possible, we return one of these.
+ * Sometimes, we need more information to determine if the optimization is
+ * definitely possible. This just makes it very explicit in the code what
+ * is an attempt at an optimization, as opposed to what is needed for
+ * correctness only.
+ *
+ * See the implementation for an explanation of each of these.
+ *)
 type lift_optimization =
 | GlobalCaching of constr
 | LocalCaching of constr
