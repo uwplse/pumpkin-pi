@@ -138,7 +138,7 @@ type lift_rule =
 
 (* --- Premises --- *)
 
-(* Premises for LIFT-CONSTR *)
+(* Premises for LIFT-CONSTR *) (* TODO try using unification, then see if we gain any optimization by not using it; if we do, make clear in the code what is happening *)
 let is_packed_constr c env sigma trm =
   let l = get_lifting c in
   let right_type trm sigma = type_is_from c env trm sigma in
