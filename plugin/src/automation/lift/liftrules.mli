@@ -29,18 +29,24 @@ type lift_optimization =
 | ConstLazyDelta of Names.Constant.t Univ.puniverses
 | SmartLiftConstr of constr * constr list
 
-(* TODO move/refactor/explain each/top comment/finish/simplify/move more optimizations up/clean/be consistent about how these recurse *)
+(*
+ * We compile Gallina to a language that matches our premises for the rules
+ * in our lifting algorithm. Each of these rules carries more information
+ * that is essentially cached for efficiency.
+ *
+ * See the implementation for an explanation of each of these.
+ *)
 type lift_rule =
 | Equivalence of constr list
 | LiftConstr of constr * constr list
 | LiftPack
-| Coherence of types * constr * constr list
+| Coherence of constr * constr * constr list
 | LiftElim of elim_app
 | Section
 | Retraction
 | Internalize
 | Optimization of lift_optimization
-| CIC
+| CIC of (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
 
 (* TODO comment etc *)
 val determine_lift_rule :

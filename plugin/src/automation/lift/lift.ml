@@ -610,8 +610,8 @@ let lift_core env c trm sigma =
        lift_app_lazy_delta c en f args lift_rec sigma
     | Optimization (ConstLazyDelta (co, u)) ->
        lift_const_lazy_delta c en (co, u) lift_rec sigma
-    | CIC ->
-       (match kind tr with
+    | CIC k ->
+       (match k with
         | Cast (ca, k, t) ->
            (* CAST *)
            let sigma, ca' = lift_rec en sigma c ca in

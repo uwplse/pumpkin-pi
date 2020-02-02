@@ -43,10 +43,12 @@ let convertible env t1 t2 sigma =
  *
  * Optimizations:
  * 1. GlobalCaching: When the constant is in the global lifting cache,
- *    we just return the cached lifted term.
+ *    we just return the cached lifted term. This carries the cached
+ *    lifted term.
  *
  * 2. LocalCaching: When a term is in the local lifting cache,
- *    we just return the cached lifted term.
+ *    we just return the cached lifted term. This carries the cached
+ *    lifted term.
  *
  * 3. OpaqueConstant: When a user uses the opaque option for DEVOID for a given
  *    constant, we do not delta-reduce that constant.
@@ -59,22 +61,27 @@ let convertible env t1 t2 sigma =
  *    (for example, projT1 (existT ...)), we reduce eagerly rather than
  *    wait for Coq to reduce, since we can be smarter than Coq for this
  *    case. This simplifies very large lifted constants significantly.
+ *    This carries a reducer that explains how to project, and a function
+ *    and argument pair that corresponds to the application term broken up.
  *
  * 5. LazyEta: We eta expand lazily, only when needed for correctness.
  *    The optimization is really this rule _not always_ fiting; this rule
  *    fires when we determine it is actually time to eta expand a term.
+ *    This carries the eta-expanded term.
  *
  * 6. AppLazyDelta: This optimization skips delta-reduction for some
  *    function applications. This also includes the normal function
  *    application rule, since determining whether or not this optimization
  *    is possible requires "looking ahead" at some lifted subterms.
+ *    This carries the function and argument pair.
  *
  * 7. ConstLazyDelta: This optimization skips delta-reduction for some
- *    contants. It is similar to AppLazyDelta.
+ *    contants. It is similar to AppLazyDelta. This carries the constant.
  *
  * 8. SmartLiftConstr: For certain equivalences, we can configure a faster
  *    version of LiftConstr. This rule fires when we've determined a faster
- *    version to run in its place.
+ *    version to run in its place. This carries the cached lifted constructor
+ *    and the arguments.
  *)
 type lift_optimization =
 | GlobalCaching of constr
@@ -86,18 +93,48 @@ type lift_optimization =
 | ConstLazyDelta of Names.Constant.t Univ.puniverses
 | SmartLiftConstr of constr * constr list
 
-(* TODO move/refactor/explain each/top comment/finish/simplify/move more optimizations up/clean/be consistent about how these recurse *)
+(*
+ * We compile Gallina to a language that matches our premises for the rules
+ * in our lifting algorithm.
+ *
+ * 1. EQUIVALENCE runs when the term we are lifting is one of the types in
+ *    the type equivalence we are lifting across. This carries the arguments
+ *    to the lifted type.
+ *
+ * 2. LIFT-CONSTR runs when we lift constructors of the type in the equivalence.
+ *    This carries the lifted constructor and the arguments.
+ *
+ * 3. COHERENCE runs when we lift projections of the type in the equivalence.
+ *    This carries the term we are projecting, the lifted projection, and the
+ *    arguments.
+ *
+ * 4. LIFT-ELIM runs when we lift applications of eliminators of the type
+ *    in the equivalence. This carries the application of the eliminator.
+ *
+ * 5. SECTION runs when section applies.
+ *
+ * 6. RETRACTION runs when retraction applies.
+ *
+ * 7. INTERNALIZE runs when it is necessary to get rid of some application
+ *    of the equivalence temporarily introduced by LIFT-CONSTR or LIFT-ELIM
+ *    for the sake of creating intermediate terms that type check.
+ *
+ * 8. OPTIMIZATION runs when some optimization applies.
+ *
+ * 9. CIC runs when no optimization applies and none of the other rules
+ *    apply. It returns the kind of the Gallina term.
+ *)
 type lift_rule =
 | Equivalence of constr list
 | LiftConstr of constr * constr list
 | LiftPack
-| Coherence of types * constr * constr list
+| Coherence of constr * constr * constr list
 | LiftElim of elim_app
 | Section
 | Retraction
 | Internalize
 | Optimization of lift_optimization
-| CIC
+| CIC of (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
 
 (* --- Premises --- *)
 
@@ -408,8 +445,8 @@ let determine_lift_rule c env trm sigma =
                    let sigma, trm_eta = expand_eta env sigma trm in
                    sigma, Optimization (LazyEta trm_eta)
                  else
-                   sigma, CIC
+                   sigma, CIC (kind trm)
               | Const (co, u) ->
                  sigma, Optimization (ConstLazyDelta (co, u))
               | _ ->
-                 sigma, CIC
+                 sigma, CIC (kind trm)
