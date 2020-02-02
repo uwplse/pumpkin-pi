@@ -89,15 +89,9 @@ Lift Generated'.output Handwritten'.output in Generated'.andBools as andBools.
  * Now lifting to op uses the cached results:
  *)
 Lift Generated'.input Handwritten'.input in Generated'.op as op_1.
-Lift Generated'.output Handwritten'.output in op_1 as op {opaque firstBool numberI secondBool}.
-
+Lift Generated'.output Handwritten'.output in op_1 as op.
 (*
- * Note that to get prettier results here, we told to treat certain constants as opaque.
- * Otherwise, it would have opportunistically lifted everything.
- * You can also use this to speed up lifting.
- * Use this feature at your own risk (DEVOID might fail to lift if you use it badly).
- *
- * For example, the above would actually not work (with the opaque notations kept in, but instantiated to Generated')
+ * The above would actually not work (with the opaque notations kept in, but instantiated to Generated')
  * if you lift in the opposite order. If you lift in the opposite order without any
  * notations, you get something well-typed but utterly useless to look at, with
  * a type you don't even want. So for now when one type definition you lift along
@@ -155,5 +149,7 @@ Proof.
   induction r. (* <-- NOTE: You will need this because you used Preprocess *)
   apply and_spec_true_true'; auto.
 Qed.
+
+Check and_spec_true_true.
 
 (* We are done! *)
