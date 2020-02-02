@@ -222,6 +222,7 @@ let is_pack c env sigma trm =
 let check_is_proj c env trm proj_is =
   let l = get_lifting c in
   let right_type = type_is_from c in
+  let num_projs = List.length proj_is in
   match kind trm with
   | App _ | Const _ ->
      let f = first_fun trm in
@@ -248,8 +249,7 @@ let check_is_proj c env trm proj_is =
                     else
                       get_arg (j - 1) (unfold_args a)
                   in
-                  let j = if i = List.length proj_is then i - 1 else i in
-                  (* ^ TODO why not length - 1? confused ... *)
+                  let j = if i = num_projs - 1 then i - 1 else i in
                   try
                     let a = get_arg j args in
                     let sigma_right, typ_args_o = right_type env_b a sigma in
