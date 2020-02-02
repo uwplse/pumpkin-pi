@@ -139,3 +139,22 @@ let prod_projections_rec env trm sigma =
     with _ ->
       sigma, [trm]
   in proj trm sigma
+
+(*
+ * Project all of the terms out of a pair, eta expanding each one
+ * Stop when there are n left
+ *)
+let rec pair_projections_eta_rec_n trm n =
+  let rec proj trm n =
+    let p = dest_pair trm in
+    let (trm1, trm2) = p.Produtils.trm1, p.Produtils.trm2 in
+    if n <= 2 then
+      [trm1; trm2]
+    else
+      if applies pair trm2 then
+        trm1 :: proj trm2 (n - 1)
+      else
+        let typ2 = p.Produtils.typ2 in
+        let trm2_eta = eta_prod trm2 typ2 in
+        trm1 :: proj trm2_eta (n - 1)
+  in proj trm n

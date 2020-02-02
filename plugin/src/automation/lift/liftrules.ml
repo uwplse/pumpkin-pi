@@ -182,23 +182,8 @@ let is_packed_constr c env sigma trm =
            let c = mkConstruct (fst (destInd a_typ), 1) in
            let sigma, c_typ = reduce_type env sigma c in
            let c_arity = arity c_typ in
-           let rec build_args trm sigma n = (* TODO clean, move to optimization *)
-             let p = dest_pair trm in
-             let (trm1, trm2) = p.Produtils.trm1, p.Produtils.trm2 in
-             if n <= 2 then
-               sigma, [trm1; trm2]
-             else
-               if applies pair trm2 then
-                 let sigma, trm2s = build_args trm2 sigma (n - 1) in
-                 sigma, trm1 :: trm2s
-               else
-                 let typ2 = p.Produtils.typ2 in
-                 let trm2_eta = eta_prod trm2 typ2 in
-                 let sigma, trm2s = build_args trm2_eta sigma (n - 1) in
-                 sigma, trm1 :: trm2s
-           in
            let pms = Option.get args_opt in
-           let sigma, args = build_args trm sigma (c_arity - List.length pms) in
+           let args = pair_projections_eta_rec_n trm (c_arity - List.length pms) in
            sigma, Some (1, List.append pms args))
          else
            sigma, None

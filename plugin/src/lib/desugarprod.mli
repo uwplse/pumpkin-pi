@@ -51,4 +51,5 @@ val prod_typs_rec_n : types -> int -> types list
 val eta_prod : constr -> types -> constr
 val eta_prod_rec : constr -> types -> constr
 val prod_projections_rec : env -> constr -> evar_map -> (constr list) state
+val pair_projections_eta_rec_n : constr -> int -> constr list
 val dest_prod_type : env -> constr -> evar_map -> prod_app state
