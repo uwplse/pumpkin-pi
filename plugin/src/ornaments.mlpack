@@ -31,6 +31,8 @@ Hypotheses
 Indexing
 Indutils
 
+Modutils
+
 Printing
 
 Lifting
@@ -45,7 +47,7 @@ Differencing
 Search
 Coherence
 Equivalence
-Eta
+Depelim
 Lift
 Desugar
 Unpack

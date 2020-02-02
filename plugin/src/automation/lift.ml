@@ -23,7 +23,6 @@ open Sigmautils
 open Reducers
 open Envutils
 open Funutils
-open Constutils
 open Stateutils
 open Hofs
 
@@ -34,7 +33,7 @@ let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
 (* --- Internal lifting configuration --- *)
 
 (*
- * Lifting configuration, along with the types A and B, 
+ * Lifting configuration, along with the types A and B,
  * a cache for constants encountered as the algorithm traverses,
  * and a cache for the constructor rules that refolding determines
  *)
@@ -79,7 +78,7 @@ let is_from c env sigma typ =
     else
       false
 
-(* 
+(*
  * Determine whether a term has the type we are ornamenting from
  *)
 let type_is_from c env sigma trm =
@@ -168,7 +167,7 @@ let is_eliminator c env trm =
      false
 
 (* --- Configuring the constructor liftings --- *)
-       
+
 (*
  * For packing constructor aguments: Pack, but only if it's B
  *)
@@ -433,7 +432,7 @@ let repack env ib_typ lifted typ =
   let packer = lift_typ.packer in
   let e = pack_existT {index_type = ib_typ; packer; index = n; unpacked = b} in
   mkLetIn (Anonymous, lifted, typ, e)
-    
+
 (* --- Core algorithm --- *)
 
 (*
@@ -672,19 +671,26 @@ let do_lift_defn env evd (l : lifting) def =
 (************************************************************************)
 
 let define_lifted_eliminator ?(suffix="_sigT") ind0 ind sort =
-  let env = Global.env () in
-  let ident =
-    let ind_name = (Inductive.lookup_mind_specif env ind |> snd).mind_typename in
-    let raw_ident = Indrec.make_elimination_ident ind_name sort in
-    Nameops.add_suffix raw_ident suffix
-  in
-  let elim0 = Indrec.lookup_eliminator ind0 sort in
-  let elim = Indrec.lookup_eliminator ind sort in
-  let env, term = open_constant env (Globnames.destConstRef elim) in
-  let expr = Eta.eta_extern env (Evd.from_env env) Id.Set.empty term in
-  ComDefinition.do_definition
-    ~program_mode:false ident (Decl_kinds.Global, false, Decl_kinds.Scheme)
-    None [] None expr None (Lemmas.mk_hook (fun _ -> declare_lifted elim0))
+  (* Do not lift eliminator into sort `Set` -- unnecessary and error-prone *)
+  if not (Sorts.family_equal Sorts.InSet sort) then
+    let env = Global.env () in
+    let (_, ind_body) as mind_specif = Inductive.lookup_mind_specif env ind in
+    let ident =
+      let ind_name = ind_body.mind_typename in
+      let raw_ident = Indrec.make_elimination_ident ind_name sort in
+      Nameops.add_suffix raw_ident suffix
+    in
+    let elim0 = Indrec.lookup_eliminator ind0 sort in
+    let elim = Indrec.lookup_eliminator ind sort in
+    let sigma, (eta_term, eta_type) =
+      let sigma, term = Evarutil.new_global (Evd.from_env env) elim in
+      let sigma, typ = Typing.type_of env sigma term in
+      let typ = Reductionops.nf_betaiotazeta env sigma typ in
+      let term, typ = EConstr.(to_constr sigma term, to_constr sigma typ) in
+      sigma, Depelim.eta_guard_eliminator mind_specif term typ
+    in
+    Defutils.define_term ~typ:eta_type ident sigma eta_term true |>
+    declare_lifted elim0
 
 let declare_inductive_liftings ind ind' ncons =
   declare_lifted (Globnames.IndRef ind) (Globnames.IndRef ind');
@@ -715,6 +721,6 @@ let do_lift_ind env sigma typename suffix lift ind =
   let ind' =
     declare_inductive typename consnames is_template univs nparam arity' constypes'
   in
-  List.iter (define_lifted_eliminator ind ind') [Sorts.InType; Sorts.InProp];
+  List.iter (define_lifted_eliminator ind ind') ind_body.mind_kelim;
   declare_inductive_liftings ind ind' (List.length constypes);
   ind'

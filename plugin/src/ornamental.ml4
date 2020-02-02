@@ -20,6 +20,8 @@ VERNAC COMMAND EXTEND LiftOrnament CLASSIFIED AS SIDEFF
   [ lift_by_ornament n d_orn d_orn_inv d_old ]
 | [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ".." ident(n)] ->
   [ lift_by_ornament ~suffix:true n d_orn d_orn_inv d_old ]
+| [ "Lift" "Module" constr(d_orn) constr(d_orn_inv) "in" reference(mod_ref) "as" ident(id) ] ->
+  [ lift_module_by_ornament id d_orn d_orn_inv mod_ref ]
 END
 
 (* Register the Ltac script for sigma unpacking *)
