@@ -51,9 +51,7 @@ let pack env l unpacked sigma =
      sigma, pack_existT {index_type; packer; index; unpacked}
   | CurryRecord ->
      let sigma, typ = infer_type env sigma unpacked in
-     let typ_f = unwrap_definition env (first_fun typ) in
-     let typ_args = unfold_args typ in
-     let sigma, typ_red = specialize env typ_f typ_args sigma in
+     let sigma, typ_red = specialize_delta_f env (first_fun typ) (unfold_args typ) sigma in
      sigma, eta_prod_rec unpacked typ_red
 
 (* --- Lifting --- *)

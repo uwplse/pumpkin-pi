@@ -93,7 +93,13 @@ val get_proj_map :
   lift_config -> (constr * constr) list
 
 (*
- * Get the cached lifted constructors of A (which construct B)
+ * Get the cached unlifted constructors
+ *)
+val get_constrs :
+  lift_config -> constr array
+      
+(*
+ * Get the cached lifted constructors
  *)
 val get_lifted_constrs :
   lift_config -> constr array
