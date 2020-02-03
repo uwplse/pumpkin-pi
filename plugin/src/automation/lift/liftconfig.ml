@@ -247,7 +247,7 @@ let zoom c =
 (*
  * For packing constructor aguments: Pack, but only if it's B
  *)
-let pack_to_typ env sigma c unpacked =
+let pack_to_typ c env unpacked sigma =
   let (_, b_typ) = c.typs in
   let l = c.l in
   let b_typ_inner =
@@ -272,13 +272,13 @@ let pack_to_typ env sigma c unpacked =
  *)
 let lift_constr env sigma c trm =
   let l = c.l in
-  let args = unfold_args (map_backward last_arg l trm) in
-  let pack_args (sigma, args) = map_state (fun arg sigma -> pack_to_typ env sigma c arg) args sigma in
-  let sigma, packed_args = map_backward pack_args l (sigma, args) in
   let sigma, typ_args = type_from_args c env trm sigma in
   let sigma, app = lift env l trm typ_args sigma in
   match l.orn.kind with
   | Algebraic _ ->
+     let pack_args (sigma, args) = map_state (pack_to_typ c env) args sigma in
+     let args = unfold_args (map_backward last_arg l trm) in
+     let sigma, packed_args = map_backward pack_args l (sigma, args) in
      let sigma, rec_args = filter_state (fun tr sigma -> let sigma, o = type_is_from c env tr sigma in sigma, Option.has_some o) packed_args sigma in
      if List.length rec_args = 0 then
        (* base case - don't bother refolding *)
@@ -298,25 +298,16 @@ let initialize_constr_rule c env constr sigma =
   let sigma, constr_exp = expand_eta env sigma constr in
   let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
   let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
-  let sigma, to_lift =
+  let sigma, lifted =
     if l.is_fwd then
-      sigma, c_body
+      lift_constr env_c_b sigma c c_body
     else
       match l.orn.kind with
-      | Algebraic (_, off) ->
-         pack env_c_b l c_body sigma
+      | Algebraic _ ->
+         let sigma, packed = pack env_c_b l c_body sigma in
+         lift_constr env_c_b sigma c packed
       | CurryRecord ->
          sigma, c_body
-  in
-  let sigma, lifted =
-    match l.orn.kind with
-    | Algebraic _ ->
-       lift_constr env_c_b sigma c to_lift
-    | CurryRecord ->
-       if l.is_fwd then
-         lift_constr env_c_b sigma c to_lift
-       else
-         sigma, to_lift
   in sigma, reconstruct_lambda_n env_c_b lifted (nb_rel env)
 
 (*
