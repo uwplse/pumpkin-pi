@@ -298,7 +298,7 @@ let initialize_constr_rule c env constr sigma =
   let sigma, constr_exp = expand_eta env sigma constr in
   let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
   let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
-  let sigma, lifted =
+  let sigma, lifted_body =
     if l.is_fwd then
       lift_constr env_c_b sigma c c_body
     else
@@ -308,32 +308,52 @@ let initialize_constr_rule c env constr sigma =
          lift_constr env_c_b sigma c packed
       | CurryRecord ->
          sigma, c_body
-  in sigma, reconstruct_lambda_n env_c_b lifted (nb_rel env)
+  in sigma, reconstruct_lambda_n env_c_b lifted_body (nb_rel env)
 
 (*
- * Run NORMALIZE for all constructors, so we can cache the result
+ * Get the packed constructors for each type
  *)
-let initialize_constr_rules env sigma c =
+let get_packed_constrs c env sigma =
   let (a_typ, b_typ) = get_types c in
-  match c.l.orn.kind with
-  | Algebraic _ ->
-     let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
-     let b_typ_inner = first_fun b_typ_packed in
-     let ((i, i_index), u) = destInd (directional c.l a_typ b_typ_inner) in
+  let a_constrs =
+    let ((i, i_index), u) = destInd a_typ in
      let mutind_body = lookup_mind i env in
      let ind_bodies = mutind_body.mind_packets in
      let ind_body = ind_bodies.(i_index) in
-     map_state_array
-       (initialize_constr_rule c env)
-       (Array.mapi
-          (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
-          ind_body.mind_consnames)
-       sigma
-  | CurryRecord ->
-     let ((i, i_index), u) = destInd a_typ in
-     let constr = mkConstructU (((i, i_index), 1), u) in
-     let sigma, c_rule = initialize_constr_rule c env constr sigma in
-     sigma, Array.make 1 c_rule
+     Array.mapi
+       (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
+       ind_body.mind_consnames
+  in
+  let b_constrs = Array.make 0 (mkRel 1) (* TODO *) in
+  sigma, (a_constrs, b_constrs)
+  
+(*
+ * Run NORMALIZE for all constructors, so we can cache the result
+ *)
+let initialize_constr_rules c env sigma =
+  let (a_typ, b_typ) = get_types c in
+  let sigma, (a_constrs, b_constrs) = get_packed_constrs c env sigma in
+  if c.l.is_fwd then
+    map_state_array (initialize_constr_rule c env) a_constrs sigma
+  else
+    let ((i,  i_index), u) =
+      match c.l.orn.kind with
+      | Algebraic _ ->
+         let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
+         let b_typ_inner = first_fun b_typ_packed in
+         destInd b_typ_inner
+      | CurryRecord ->
+         destInd a_typ
+    in
+    let mutind_body = lookup_mind i env in
+    let ind_bodies = mutind_body.mind_packets in
+    let ind_body = ind_bodies.(i_index) in
+    map_state_array
+      (initialize_constr_rule c env)
+      (Array.mapi
+         (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
+         ind_body.mind_consnames)
+      sigma
                        
 (* 
  * Initialize the rules for lifting projections
@@ -418,8 +438,8 @@ let initialize_lift_config env l typs ignores sigma =
   let opaques = initialize_local_cache () in
   List.iter (fun opaque -> cache_local opaques opaque opaque) ignores;
   let c = { l ; typs ; constr_rules = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1) ; proj_rules = [], []; optimize_proj_packed_rules = ((fun _ -> false), []); cache ; opaques } in
-  let sigma, fwd_constr_rules = initialize_constr_rules env sigma c in
-  let sigma, bwd_constr_rules = initialize_constr_rules env sigma (reverse c) in
+  let sigma, fwd_constr_rules = initialize_constr_rules c env sigma in
+  let sigma, bwd_constr_rules = initialize_constr_rules c env sigma in
   let constr_rules = fwd_constr_rules, bwd_constr_rules in
   let sigma, fwd_proj_rules = initialize_proj_rules env sigma c in
   let sigma, bwd_proj_rules = initialize_proj_rules env sigma (reverse c) in
