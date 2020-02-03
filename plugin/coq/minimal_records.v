@@ -91,9 +91,7 @@ Lift Generated'.output Handwritten'.output in Generated'.andBools as andBools.
 Lift Generated'.input Handwritten'.input in Generated'.op as op_1.
 Lift Generated'.output Handwritten'.output in op_1 as op.
 (*
- * The above would actually not work (with the opaque notations kept in, but instantiated to Generated')
- * if you lift in the opposite order. If you lift in the opposite order without any
- * notations, you get something well-typed but utterly useless to look at, with
+ * If you lift in the opposite order, you get something well-typed but with
  * a type you don't even want. So for now when one type definition you lift along
  * is a subterm of another type definition you lift along, you will need to start
  * with the bigger one and then tell DEVOID to treat the lifted projections as opaque.
