@@ -40,14 +40,14 @@ open Sigmautils
  * TODO continue cleaning
  *)
 
-(* --- Convenient shorthand (TODO move/comment/remove duplicates) --- *)
+(* --- Convenient shorthand --- *)
 
 let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
 
 (* --- Recovering types from ornaments --- *)
 
 (*
- * Get the types A, B, and IB from the ornament
+ * Get the types A and B from the ornament
  *)
 let typs_from_orn l env sigma =
   let sigma, promote_typ = reduce_type env sigma l.orn.promote in
@@ -57,11 +57,10 @@ let typs_from_orn l env sigma =
   | Algebraic _ ->
      let env_pms = pop_rel_context 1 (zoom_env zoom_product_type env promote_typ) in
      let b_t = reconstruct_lambda env_pms (unshift b_i_t) in
-     let i_b_t = (dest_sigT b_i_t).index_type in (* TODO deprecate/remove later *)
-     sigma, (a_t, b_t, Some i_b_t)
+     sigma, (a_t, b_t)
   | CurryRecord ->
      let sigma, b_t = expand_eta env sigma (first_fun b_i_t) in
-     sigma, (a_t, b_t, None)
+     sigma, (a_t, b_t)
 
 (* --- Lifting the induction principle --- *)
 
@@ -662,7 +661,7 @@ let lift_core env c trm sigma =
  * Run the core lifting algorithm on a term
  *)
 let do_lift_term env sigma (l : lifting) trm opaques =
-  let sigma, (a_t, b_t, i_b_t_o) = typs_from_orn l env sigma in
+  let sigma, (a_t, b_t) = typs_from_orn l env sigma in
   let sigma, c = initialize_lift_config env l (a_t, b_t) opaques sigma in
   lift_core env c trm sigma
 
@@ -721,7 +720,7 @@ let declare_inductive_liftings l ind ind' ncons =
  * type. (IND and CONSTR via caching)
  *)
 let do_lift_ind env sigma l typename suffix ind ignores =
-  let sigma, (a_t, b_t, i_b_t_o) = typs_from_orn l env sigma in
+  let sigma, (a_t, b_t) = typs_from_orn l env sigma in
   let sigma, c = initialize_lift_config env l (a_t, b_t) ignores sigma in
   let (mind_body, ind_body) as mind_specif = Inductive.lookup_mind_specif env ind in
   if is_opaque c (mkInd ind) then
