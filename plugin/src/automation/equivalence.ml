@@ -38,7 +38,7 @@ open Promotion
 let equiv_motive env_motive sigma pms l =
   let sigma, p_b =
     match l.orn.kind with
-    | Algebraic (_, (_, off)) ->
+    | Algebraic (_, off) ->
        let sigma, trm1 = map_backward (fun (sigma, t) -> pack env_motive l t sigma) l (sigma, mkRel 1) in
        let sigma, at_type = reduce_type env_motive sigma trm1 in
        let typ_args = non_index_args off env_motive sigma at_type in
@@ -366,7 +366,7 @@ let equiv_proof_curry_record env sigma l =
  *)
 let equiv_proof env sigma l =
   match l.orn.kind with
-  | Algebraic (indexer, (_, off)) ->
+  | Algebraic (indexer, off) ->
      equiv_proof_algebraic env sigma l off
   | CurryRecord ->
      equiv_proof_curry_record env sigma l

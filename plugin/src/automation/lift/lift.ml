@@ -36,8 +36,7 @@ open Liftrules
 open Sigmautils
 
 (*
- * TODO unification when relevant
- * TODO continue cleaning
+ * The top-level lifting algorithm
  *)
 
 (* --- Convenient shorthand --- *)
@@ -60,12 +59,12 @@ let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
 let lift_elim_args env sigma c npms args =
   let l = get_lifting c in
   match l.orn.kind with
-  | Algebraic (indexer, (ib_typ, off)) ->
+  | Algebraic (indexer, off) ->
      let arg = map_backward last_arg l (last args) in
      let sigma, typ_args = non_index_typ_args off env sigma arg in
      let sigma, lifted_arg = lift env l arg typ_args sigma in
      let value_off = List.length args - 1 in
-     let orn = { l.orn with kind = Algebraic (indexer, (ib_typ, off - npms)) } in (* TODO how to adjust ib_typ? *)
+     let orn = { l.orn with kind = Algebraic (indexer, off - npms) } in
      let l = { l with orn } in (* no parameters here *)
      if l.is_fwd then
        (* project and index *)
@@ -105,9 +104,9 @@ let lift_motive env sigma c npms parameterized_elim p =
   let sigma, lifted_arg = lift env_p_to (flip_dir l) arg typ_args sigma in
   let args =
     match l.orn.kind with
-    | Algebraic (indexer, (ib_typ, off)) ->
+    | Algebraic (indexer, off) ->
        let value_off = nargs - 1 in
-       let orn = { l.orn with kind = Algebraic (indexer, (ib_typ, off - npms)) } in (* TODO how to adjust ib_typ? *)
+       let orn = { l.orn with kind = Algebraic (indexer, off - npms) } in
        let l = { l with orn } in (* no parameters here *)
        if l.is_fwd then
          (* forget packed b to a, don't project, and deindex *)
@@ -149,7 +148,7 @@ let promote_case_args env sigma c args =
          if is_or_applies b_typ_inner t then
            (* FORGET-ARG *)
            match l.orn.kind with
-           | Algebraic (_, (_, off)) ->
+           | Algebraic (_, off) ->
               let sigma, n =
                 map_backward
                   (fun (sigma, t) -> pack env (flip_dir l) t sigma)
@@ -194,7 +193,7 @@ let forget_case_args env_c_b env sigma c args =
          if is_or_applies b_typ_inner t then
            (* PROMOTE-ARG *)
            match l.orn.kind with
-           | Algebraic (_, (_, off)) ->
+           | Algebraic (_, off) ->
               let sigma, n =
                 map_backward
                   (fun (sigma, t) -> pack env (flip_dir l) t sigma)
@@ -386,18 +385,19 @@ let lift_elim env sigma c trm_app =
  *)
 let repack c env lifted typ sigma =
   match (get_lifting c).orn.kind with
-  | Algebraic (_, (ib_typ, _)) ->
+  | Algebraic _ ->
      let lift_typ = dest_sigT (shift typ) in
      let n = project_index lift_typ (mkRel 1) in
      let b = project_value lift_typ (mkRel 1) in
+     let index_type = lift_typ.index_type in
      let packer = lift_typ.packer in
-     let e = pack_existT {index_type = ib_typ; packer; index = n; unpacked = b} in
+     let e = pack_existT {index_type; packer; index = n; unpacked = b} in
      sigma, mkLetIn (Anonymous, lifted, typ, e)
   | CurryRecord ->
      let f = first_fun typ in
      let args = unfold_args typ in
      let sigma, typ_red = specialize_delta_f env f args sigma in
-     sigma, mkLetIn (Anonymous, lifted, typ, (eta_prod_rec (mkRel 1) (shift typ_red)))
+     sigma, mkLetIn (Anonymous, lifted, typ, eta_prod_rec (mkRel 1) (shift typ_red))
 
 (*
  * Sometimes we must repack because of non-primitive projections.

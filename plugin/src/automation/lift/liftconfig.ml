@@ -240,11 +240,9 @@ let reverse c =
 
 let zoom c =
   match c.l.orn.kind with
-  | Algebraic (indexer, (ib_typ, off)) ->
-     let orn = { c.l.orn with kind = Algebraic (indexer, (shift ib_typ, off)) } in
-     let l = { c.l with orn } in
+  | Algebraic (indexer, off) ->
      let typs = map_tuple shift c.typs in
-     { c with l; typs }
+     { c with typs }
   | _ ->
      c
 

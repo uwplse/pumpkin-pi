@@ -263,12 +263,8 @@ let indexer_cache = OrnamentsCache.create 100
  *)
 let int_to_kind (i : int) (indexer_and_off : (constr * int) option) =
   if i = 0 && Option.has_some indexer_and_off then
-    let env = Global.env () in
-    let sigma = Evd.from_env env in
     let indexer, off = Option.get indexer_and_off in
-    let sigma, indexer_type = reduce_type env sigma indexer in 
-    let i_b_t = zoom_term zoom_product_type env indexer_type in
-    Algebraic (indexer, (i_b_t, off))
+    Algebraic (indexer, off)
   else if i = 1 then
     CurryRecord
   else
@@ -371,7 +367,7 @@ let save_ornament typs (orn, orn_inv, kind) =
     let orn_obj = inOrns (globals, (orn, orn_inv, kind_to_int kind)) in
     add_anonymous_leaf orn_obj;
     match kind with
-    | Algebraic (indexer, (_, off)) ->
+    | Algebraic (indexer, off) ->
        let indexer = global_of_constr indexer in
        let ind_obj = inIndexers (globals, (indexer, off)) in
        add_anonymous_leaf ind_obj

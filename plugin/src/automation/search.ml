@@ -528,7 +528,7 @@ let search_algebraic env sigma npm indexer_n a b =
   let a = (a_typ, arity_a, el_a, el_a_typ) in
   let b = (b_typ, arity_b, el_b, el_b_typ) in
   let sigma, (promote, forget) = find_promote_forget_algebraic env_pms idx indexer_n a b sigma in
-  sigma, { promote; forget; kind = Algebraic (indexer, (snd idx, fst idx + npm)) }
+  sigma, { promote; forget; kind = Algebraic (indexer, fst idx + npm) }
 
 (* --- Records and products --- *)
 

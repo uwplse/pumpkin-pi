@@ -43,7 +43,7 @@ let specialize_delta_f env f args sigma =
  *)
 let pack env l unpacked sigma =
   match l.orn.kind with
-  | Algebraic (_, (_, off)) ->
+  | Algebraic (_, off) ->
      let sigma, typ = reduce_type env sigma unpacked in
      let index = get_arg off typ in
      let sigma, index_type = infer_type env sigma index in
@@ -122,7 +122,7 @@ let fold_back_constants env f trm =
  *)
 let refold_packed l orn env arg app_red sigma =
   match l.orn.kind with
-  | Algebraic (_, (_, off)) ->
+  | Algebraic (_, off) ->
      let sigma, typ_args = non_index_typ_args off env sigma arg in
      let sigma, orn_app_red = specialize_using reduce_nf env orn (snoc arg typ_args) sigma in
      let app_red_ex = dest_existT app_red in
@@ -147,7 +147,7 @@ let refold_packed l orn env arg app_red sigma =
  *)
 let refold_projected l orn env arg app_red sigma =
   match l.orn.kind with
-  | Algebraic (_, (_, off)) ->
+  | Algebraic (_, off) ->
      let sigma, typ_args = non_index_typ_args off env sigma arg in
      let sigma, orn_app_red = specialize_using reduce_nf env orn (snoc arg typ_args) sigma in
      let sigma, lifted = lift env l arg typ_args sigma in

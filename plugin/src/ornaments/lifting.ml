@@ -134,9 +134,7 @@ let get_kind_of_ornament env (o, n) sigma =
     let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
     let (o, i) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
     let indexer = first_fun i in
-    let b_i_t = if is_fwd then to_typ_app else from_typ_app in
-    let i_b_t = (dest_sigT b_i_t).index_type in
-    is_fwd, Algebraic (indexer, (i_b_t, o))
+    is_fwd, Algebraic (indexer, o)
   else
     is_fwd, CurryRecord
 
@@ -184,14 +182,14 @@ let twice_directional f l = map_tuple f (l, flip_dir l)
 
 let index l =
   match l.orn.kind with
-  | Algebraic (_, (_, off)) ->
+  | Algebraic (_, off) ->
      insert_index off
   | _ ->
      raise NotAlgebraic
 
 let deindex l =
   match l.orn.kind with
-  | Algebraic (_, (_, off)) ->
+  | Algebraic (_, off) ->
      remove_index off
   | _ ->
      raise NotAlgebraic
