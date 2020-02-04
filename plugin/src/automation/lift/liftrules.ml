@@ -18,6 +18,9 @@ open Envutils
 open Typehofs
 open Environ
 open Indexing
+open Evd
+open Evarutil
+open Evarconv
 
 (* TODO top-level comment *)
 
@@ -141,6 +144,7 @@ type lift_rule =
 (* Premises for LIFT-CONSTR *)
 let is_packed_constr c env sigma trm =
   let l = get_lifting c in
+<<<<<<< Updated upstream
   let constrs = get_constrs c in
   match kind trm with
   | Construct (((_, _), i), _) when i <= Array.length constrs ->
@@ -187,10 +191,88 @@ let is_packed_constr c env sigma trm =
            sigma, Some (0, List.append pms args))
          else
            sigma, None
+=======
+  if is_or_applies (lift_to l) trm || is_or_applies (lift_back l) trm then
+    sigma, None
+  else
+    let constrs = get_constrs c in
+    match kind trm with
+    | Construct (((_, _), i), _) when i <= Array.length constrs  ->
+       if i <= Array.length constrs && equal trm constrs.(i - 1) then
+         sigma, Some (i - 1, [])
+>>>>>>> Stashed changes
        else
          sigma, None
-  | _ ->
-     sigma, None
+    | App (f, args) ->
+       if l.is_fwd then (* TODO similar for bwd CurryRecord, and move to constr_args in config *)
+         let rec is_constr_i i sigma =
+           if i >= Array.length constrs then
+             sigma, None
+           else
+             let args = Array.to_list args in
+             let constr = constrs.(i) in
+             let constr_app = mkAppl (constr, args) in
+             let sigma, constr_red = reduce_term env sigma constr_app in
+             if equal constr_red trm then
+               sigma, Some (i, args)
+             else
+               is_constr_i (i + 1) sigma
+         in is_constr_i 0 sigma
+       else
+         (match l.orn.kind with
+          | Algebraic _ ->
+             let rec is_constr_i i sigma =
+               if i >= Array.length constrs then
+                 sigma, None
+               else
+                 let last_arg = last (Array.to_list args) in
+                 if isApp last_arg then
+                   let args = unfold_args last_arg in
+                   let constr = constrs.(i) in
+                   let constr_app = mkAppl (constr, args) in
+                   let sigma, constr_red = reduce_term env sigma constr_app in
+                   if snd (convertible env constr_red trm sigma) then
+                     let open Printing in
+                     debug_term env trm "trm";
+                     debug_term env constr_red "constr_red";
+                     sigma, Some (i, args)
+                   else
+                     is_constr_i (i + 1) sigma
+                else
+                  is_constr_i (i + 1) sigma
+            in is_constr_i 0 sigma
+         | CurryRecord ->
+            let rec is_constr_i i sigma =
+              if i >= Array.length constrs then
+                sigma, None
+              else
+                let last_arg = last (Array.to_list args) in
+                if isApp last_arg then
+                  let constr = constrs.(i) in
+                  let sigma, args_o =
+                    let sigma_right, pms_o = type_is_from c env trm sigma in
+                    if Option.has_some pms_o then
+                      let pms = Option.get pms_o in
+                      let pair_projs = pair_projections_eta_rec_n trm (arity constr - List.length pms) in
+                      sigma_right, Some (List.append pms pair_projs)
+                    else
+                      sigma, None
+                  in
+                  if Option.has_some args_o then
+                    let args = Option.get args_o in
+                    let constr_app = mkAppl (constr, args) in
+                    let sigma, constr_red = reduce_term env sigma constr_app in
+                    if equal constr_red trm then
+                      sigma, Some (i, args)
+                    else
+                      is_constr_i (i + 1) sigma
+                  else
+                    sigma, None
+                else
+                  sigma, None
+            in is_constr_i 0 sigma)
+    | _ ->
+       sigma, None
 
 (* Premises for LIFT-PACK (TODO would returning args help optimize here?) *)
 let is_pack c env sigma trm =
@@ -379,9 +461,9 @@ let determine_lift_rule c env trm sigma =
               let trm_eta = Option.get is_elim_o in
               if arity trm_eta > arity trm then
                 sigma, Optimization (LazyEta trm_eta)
-              else
-                let sigma, trm_elim = deconstruct_eliminator env sigma trm in
-                sigma, LiftElim trm_elim
+            else
+              let sigma, trm_elim = deconstruct_eliminator env sigma trm in
+              sigma, LiftElim trm_elim
             else
               match kind trm with
               | App (f, args) ->
@@ -392,7 +474,6 @@ let determine_lift_rule c env trm sigma =
                  else
                    let how_reduce_o = can_reduce_now c trm in
                    if Option.has_some how_reduce_o then
-                     (* optimize simplifying projections of packed terms, which are common (TODO move comment) *)
                      let how_reduce = Option.get how_reduce_o in
                      sigma, Optimization (SimplifyProjectPacked (how_reduce, (f, args)))
                    else

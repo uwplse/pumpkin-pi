@@ -256,14 +256,17 @@ let zoom c =
  *)
 let initialize_packed_constrs c env (a_typ, b_typ) sigma =
   let l = c.l in
-  let a_constrs =
+  let sigma, a_constrs =
     let ((i, i_index), u) = destInd a_typ in
     let mutind_body = lookup_mind i env in
     let ind_bodies = mutind_body.mind_packets in
     let ind_body = ind_bodies.(i_index) in
-    Array.mapi
-      (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
-      ind_body.mind_consnames
+    map_state_array
+      (fun constr sigma -> expand_eta env sigma constr)
+      (Array.mapi
+         (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
+         ind_body.mind_consnames)
+      sigma
   in
   let sigma, b_constrs =
     match l.orn.kind with
@@ -288,8 +291,7 @@ let initialize_packed_constrs c env (a_typ, b_typ) sigma =
            sigma
     | CurryRecord ->
        let a_constr = a_constrs.(0) in
-       let sigma, constr_exp = expand_eta env sigma a_constr in
-       let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
+       let (env_c_b, c_body) = zoom_lambda_term env a_constr in
        let l = { l with is_fwd = true } in
        let sigma, typ_args = type_from_args { c with l } env_c_b c_body sigma in
        let sigma, app = lift env_c_b l c_body typ_args sigma in

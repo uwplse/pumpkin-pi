@@ -575,7 +575,8 @@ let lift_core env c trm sigma =
        else
          (sigma, mkApp (a_typ, lifted_args))
     | Optimization (SmartLiftConstr (lifted_constr, args)) ->
-       lift_smart_lift_constr c en lifted_constr args lift_rec sigma
+       let sigma, lifted = lift_smart_lift_constr c en lifted_constr args lift_rec sigma in
+       sigma, lifted
     | LiftConstr (lifted_constr, args) ->
        let sigma, constr_app = reduce_term en sigma (mkAppl (lifted_constr, args)) in
        if List.length args > 0 then
