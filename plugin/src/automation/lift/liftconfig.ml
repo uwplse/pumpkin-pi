@@ -251,6 +251,22 @@ let zoom c =
 (* --- Initialization --- *)
 
 (*
+ * Initialize the types A and B
+ *)
+let initialize_types l env sigma =
+  let sigma, promote_typ = reduce_type env sigma l.orn.promote in
+  let (a_i_t, b_i_t) = promotion_type_to_types promote_typ in
+  let a_t = first_fun a_i_t in
+  match l.orn.kind with
+  | Algebraic _ ->
+     let env_pms = pop_rel_context 1 (zoom_env zoom_product_type env promote_typ) in
+     let b_t = reconstruct_lambda env_pms (unshift b_i_t) in
+     sigma, (a_t, b_t)
+  | CurryRecord ->
+     let sigma, b_t = expand_eta env sigma (first_fun b_i_t) in
+     sigma, (a_t, b_t)
+
+(*
  * Initialize the packed constructors for each type
  *)
 let initialize_packed_constrs c env (a_typ, b_typ) sigma =
@@ -455,7 +471,8 @@ let initialize_optimize_proj_packed_rules c =
      is_or_applies pair, [(Desugarprod.fst_elim (), proj1_rule); (Desugarprod.snd_elim (), proj2_rule)]
                            
 (* Initialize the lift_config *)
-let initialize_lift_config env l typs ignores sigma =
+let initialize_lift_config env l ignores sigma =
+  let sigma, typs = initialize_types l env sigma in
   let cache = initialize_local_cache () in
   let opaques = initialize_local_cache () in
   List.iter (fun opaque -> cache_local opaques opaque opaque) ignores;

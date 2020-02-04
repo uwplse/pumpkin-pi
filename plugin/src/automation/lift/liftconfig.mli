@@ -26,7 +26,6 @@ type lift_config
 val initialize_lift_config :
   env ->
   lifting ->
-  (types * types) -> (* A, B *)
   constr list -> (* opaques *)
   evar_map ->
   lift_config state
