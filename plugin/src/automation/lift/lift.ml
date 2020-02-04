@@ -433,11 +433,11 @@ let repack c env lifted typ sigma =
  * We are strategic about when we repack in order to avoid slowing down
  * the code too much and producing ugly terms.
  *)
-let maybe_repack lift_rec c env trm lifted try_repack sigma =
+let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
   if try_repack then
     let sigma_typ, typ = infer_type env sigma trm in
     let typ = reduce_stateless reduce_nf env sigma_typ typ in
-    let sigma_typ, is_from_typ = Util.on_snd Option.has_some (is_from c env typ sigma_typ) in
+    let sigma_typ, is_from_typ = is_from c env typ sigma in
     if is_from_typ then
       let lifted_red = reduce_stateless reduce_nf env sigma lifted in
       let optimize_ignore_repack =
@@ -477,7 +477,7 @@ let lift_app_lazy_delta c env f args lift_rec sigma =
   let sigma, f' = lift_rec env sigma c f in
   let sigma, args' = map_rec_args lift_rec env sigma c args in
   if (not (equal f f')) || l.is_fwd || Array.length args = 0 || is_opaque c f then (* TODO move/clean preconditions here *)
-    maybe_repack lift_rec c env (mkApp (f, args)) (mkApp (f', args')) l.is_fwd sigma
+    maybe_repack lift_rec c env (mkApp (f, args)) (mkApp (f', args')) (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) l.is_fwd sigma
   else
     (match kind f with
      | Const (c, u) when Option.has_some (inductive_of_elim env (c, u)) ->
@@ -588,7 +588,7 @@ let lift_core env c trm sigma =
     | LiftPack ->
        if l.is_fwd then
          (* pack *)
-         maybe_repack lift_rec c en tr tr true sigma
+         maybe_repack lift_rec c en tr tr (fun _ _ _ -> ret true) true sigma
        else
          (* unpack (when not covered by constructor rule) *)
          lift_rec en sigma c (dest_existT tr).unpacked
@@ -606,7 +606,7 @@ let lift_core env c trm sigma =
        let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } in
        let sigma, tr'' = lift_rec en sigma c tr' in
        let sigma, post_args' = map_rec_args lift_rec en sigma c (Array.of_list post_args) in
-       maybe_repack lift_rec c en tr (mkApp (tr'', post_args')) l.is_fwd sigma
+       maybe_repack lift_rec c en tr (mkApp (tr'', post_args')) (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) l.is_fwd sigma
     | Optimization (AppLazyDelta (f, args)) ->
        lift_app_lazy_delta c en f args lift_rec sigma
     | Optimization (ConstLazyDelta (co, u)) ->

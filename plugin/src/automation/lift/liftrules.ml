@@ -121,7 +121,11 @@ type lift_optimization =
  *
  * 8. OPTIMIZATION runs when some optimization applies.
  *
- * 9. CIC runs when no optimization applies and none of the other rules
+ * 9. LIFT-PACK runs when we must repack for non-primitive projections.
+ *    I hope to understand when we need this at some point; I suspect
+ *    it should be a part of other rules.
+ *
+ * 10. CIC runs when no optimization applies and none of the other rules
  *    apply. It returns the kind of the Gallina term.
  *)
 type lift_rule =
@@ -180,7 +184,7 @@ let is_packed_constr c env sigma trm =
        else
          sigma, None
 
-(* Premises for LIFT-PACK (TODO would returning args help optimize here?) *)
+(* Premises for LIFT-PACK *)
 let is_pack c env sigma trm =
   let l = get_lifting c in
   let right_type trm = type_is_from c env trm sigma in
@@ -193,15 +197,11 @@ let is_pack c env sigma trm =
   else
     match l.orn.kind with
     | Algebraic (_, _) ->
-       (match kind trm with
-        | App (f, args) ->
-           if equal existT f then
-             (* unpack *)
-             Util.on_snd Option.has_some (right_type trm)
-           else
-             sigma, false
-        | _ ->
-           sigma, false)
+       if is_packed c trm then
+         (* unpack *)
+         Util.on_snd Option.has_some (right_type trm)
+       else
+         sigma, false
     | CurryRecord ->
        (* taken care of by constructor rule *)
        sigma, false
@@ -349,8 +349,8 @@ let determine_lift_rule c env trm sigma =
         else
           sigma, LiftConstr (lifted_constr, args)
       else
-        let sigma, run_lift_pack = is_pack c env sigma trm in
-        if run_lift_pack then
+        let sigma, is_pack = is_pack c env sigma trm in
+        if is_pack then
           sigma, LiftPack
         else
           let sigma, to_proj_o = is_proj c env trm sigma in
