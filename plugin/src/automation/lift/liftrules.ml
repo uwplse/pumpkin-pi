@@ -209,19 +209,17 @@ let is_pack c env sigma trm =
        (* taken care of by constructor rule *)
        sigma, false
 
-(* Auxiliary function for premise for LIFT-PROJ (TODO clean/use unification where possible) *)
+(* Auxiliary function for premise for LIFT-PROJ *)
 let check_is_proj c env trm proj_is =
-  let l = get_lifting c in
-  let right_type = type_is_from c in
   match kind trm with
-  | App _ | Const _ ->
+  | App _ | Const _ -> (* this check is an optimization *)
      let f = first_fun trm in
      let rec check_is_proj_i i proj_is =
        match proj_is with
        | proj_i :: tl ->
           let proj_i_f = first_fun (zoom_term zoom_lambda_term env proj_i) in
           branch_state
-            (convertible env proj_i_f)
+            (convertible env proj_i_f) (* this check is an optimization *)
             (fun _ sigma ->
               let sigma, trm_eta = expand_eta env sigma trm in
               let env_b, b = zoom_lambda_term env trm_eta in
@@ -229,29 +227,22 @@ let check_is_proj c env trm proj_is =
               if List.length args = 0 then
                 check_is_proj_i (i + 1) tl sigma
               else
-                if l.orn.kind = CurryRecord then
-                  (try
-                     let sigma, eargs =
-                       map_state
-                         (fun _ sigma ->
-                           let sigma, (earg_typ, _) = new_type_evar env_b sigma univ_flexible in
-                           let sigma, earg = new_evar env_b sigma earg_typ in
-                           sigma, EConstr.to_constr sigma earg)
-                         (mk_n_rels (arity proj_i))
-                         sigma
-                     in
-                     let sigma, proj_app = reduce_term env_b sigma (mkAppl (proj_i, eargs)) in
-                     let sigma = the_conv_x env_b (EConstr.of_constr b) (EConstr.of_constr proj_app) sigma in
-                     sigma, Some (last eargs, i, all_but_last eargs, trm_eta) 
-                   with _ ->
-                     check_is_proj_i (i + 1) tl sigma)
-                else
-                  let a = last args in
-                  let sigma_right, typ_args_o = right_type env_b a sigma in
-                  if Option.has_some typ_args_o then
-                    ret (Some (a, i, Option.get typ_args_o, trm_eta)) sigma_right
-                  else
-                    check_is_proj_i (i + 1) tl sigma)
+                (* attempt unification *)
+                try
+                  let sigma, eargs =
+                    map_state
+                      (fun _ sigma ->
+                        let sigma, (earg_typ, _) = new_type_evar env_b sigma univ_flexible in
+                        let sigma, earg = new_evar env_b sigma earg_typ in
+                        sigma, EConstr.to_constr sigma earg)
+                      (mk_n_rels (arity proj_i))
+                      sigma
+                  in
+                  let sigma, proj_app = reduce_term env_b sigma (mkAppl (proj_i, eargs)) in
+                  let sigma = the_conv_x env_b (EConstr.of_constr b) (EConstr.of_constr proj_app) sigma in
+                  sigma, Some (last eargs, i, all_but_last eargs, trm_eta) 
+                with _ ->
+                  check_is_proj_i (i + 1) tl sigma)
             (fun _ -> check_is_proj_i (i + 1) tl)
             f
        | _ ->

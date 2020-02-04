@@ -389,11 +389,15 @@ let initialize_proj_rules env sigma c =
      if l.is_fwd then (* indexer -> projT1 *)
        let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj sigma lift_t) in
        let p1 = reconstruct_lambda env_proj (project_index b_sig_typ lift_t) in
+       let indexer = reconstruct_lambda env_proj (mkAppl (indexer, mk_n_rels (nb_rel env_proj))) in
        sigma, [(indexer, p1)]
      else (* projT1 -> indexer, projT2 -> id *)
        let args = shift_all (mk_n_rels (nb_rel env_proj - 1)) in
        let p1 = reconstruct_lambda env_proj (mkAppl (indexer, snoc lift_t args)) in
        let p2 = reconstruct_lambda env_proj lift_t in
+       let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj sigma (mkRel 1)) in
+       let projT1 = reconstruct_lambda env_proj (project_index b_sig_typ (mkRel 1)) in
+       let projT2 = reconstruct_lambda env_proj (project_value b_sig_typ (mkRel 1)) in
        sigma, [(projT1, p1); (projT2, p2)]
   | CurryRecord ->
      (* accessors <-> projections *)
