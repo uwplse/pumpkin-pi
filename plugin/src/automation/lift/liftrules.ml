@@ -21,6 +21,7 @@ open Indexing
 open Evd
 open Evarutil
 open Evarconv
+open Specialization
 
 (*
  * This module takes in a Coq term that we are lifting and determines
@@ -112,7 +113,8 @@ type lift_optimization =
  *    arguments.
  *
  * 4. LIFT-ELIM runs when we lift applications of eliminators of the type
- *    in the equivalence. This carries the application of the eliminator.
+ *    in the equivalence. This carries the application of the eliminator,
+ *    as well as the lifted parameters.
  *
  * 5. SECTION runs when section applies.
  *
@@ -136,7 +138,7 @@ type lift_rule =
 | LiftConstr of constr * constr list
 | LiftPack
 | Coherence of constr * constr * constr list
-| LiftElim of elim_app
+| LiftElim of elim_app * constr list
 | Section
 | Retraction
 | Internalize
@@ -262,35 +264,32 @@ let is_proj c env trm =
 (* Premises for LIFT-ELIM *)
 let is_eliminator c env trm sigma =
   let l = get_lifting c in
-  let (a_typ, b_typ) = get_types c in
-  let b_typ =
-    if (not l.is_fwd) && l.orn.kind = CurryRecord then
-      prod
-    else if l.orn.kind = CurryRecord then
-      zoom_term zoom_lambda_term env b_typ
-    else
-      let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
-      first_fun b_typ_packed
-  in
   match kind (first_fun trm) with
   | Const (k, u) ->
      let maybe_ind = inductive_of_elim env (k, u) in
      if Option.has_some maybe_ind then
        let ind = Option.get maybe_ind in
-       let is_elim = equal (mkInd (ind, 0)) (directional l a_typ b_typ) in
+       let is_elim = equal (mkInd (ind, 0)) (get_elim_type c) in
        if is_elim then
          let sigma, trm_eta = expand_eta env sigma trm in
+         let env_elim, trm_b = zoom_lambda_term env trm_eta in
+         let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm_b in
          if (not l.is_fwd) && l.orn.kind = CurryRecord then
-           let env_elim, trm_b = zoom_lambda_term env trm_eta in
-           let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm_b in
            let (final_args, post_args) = take_split 1 trm_elim.final_args in
            let sigma, is_from = type_is_from c env_elim (List.hd final_args) sigma in
            if Option.has_some is_from then
-             sigma, Some trm_eta
+             sigma, Some (env_elim, trm_eta, trm_elim, Option.get is_from)
            else
              sigma, None
          else
-           sigma, Some trm_eta
+           if l.orn.kind = CurryRecord then
+             let typ_f = first_fun (zoom_term zoom_lambda_term env_elim (snd (get_types c))) in
+             let sigma, to_typ_prod = specialize_delta_f env_elim typ_f trm_elim.pms sigma in
+             let to_elim = dest_prod to_typ_prod in
+             let pms = [to_elim.Produtils.typ1; to_elim.Produtils.typ2] in
+             sigma, Some (env_elim, trm_eta, trm_elim, pms)
+           else
+             sigma, Some (env_elim, trm_eta, trm_elim, trm_elim.pms)
        else
          sigma, None
      else
@@ -342,12 +341,11 @@ let determine_lift_rule c env trm sigma =
           else
             let sigma, is_elim_o = is_eliminator c env trm sigma in
             if Option.has_some is_elim_o then
-              let trm_eta = Option.get is_elim_o in
-              if arity trm_eta > arity trm then
+              let env_elim, trm_eta, trm_elim, pms = Option.get is_elim_o in
+              if new_rels2 env_elim env > 0 then
                 sigma, Optimization (LazyEta trm_eta)
               else
-                let sigma, trm_elim = deconstruct_eliminator env sigma trm in
-                sigma, LiftElim trm_elim
+                sigma, LiftElim (trm_elim, pms)
             else
               match kind trm with
               | App (f, args) ->

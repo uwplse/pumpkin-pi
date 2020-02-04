@@ -132,43 +132,46 @@ let lift_motive env sigma c npms parameterized_elim p =
  *)
 let promote_case_args env sigma c args =
   let l = get_lifting c in
-  let (_, b_typ) = get_types c in
-  let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
-  let b_typ_inner = first_fun b_typ_packed in
-  let rec lift_args sigma args i_b =
-    match args with
-    | n :: tl ->
-       if equal n i_b then
-         (* DROP-INDEX *)
-         Util.on_snd
-           (fun tl -> shift n :: tl)
-           (lift_args sigma (shift_all tl) i_b)
-       else
-         let sigma, t = reduce_type env sigma n in
-         if is_or_applies b_typ_inner t then
-           (* FORGET-ARG *)
-           match l.orn.kind with
-           | Algebraic (_, off) ->
-              let sigma, n =
-                map_backward
-                  (fun (sigma, t) -> pack env (flip_dir l) t sigma)
-                  (flip_dir l)
-                  (sigma, n)
-              in 
-              let sigma, typ_args = type_from_args (reverse c) env n sigma in
-              let sigma, a = lift env (flip_dir l) n typ_args sigma in
-              Util.on_snd
-                (fun tl -> a :: tl)
-                (lift_args sigma tl (get_arg off t))
-           | _ ->
-              raise NotAlgebraic
-         else
-           (* ARG *)
-           Util.on_snd (fun tl -> n :: tl) (lift_args sigma tl i_b)
-    | _ ->
-       (* CONCL in inductive case *)
-       sigma, []
-  in lift_args sigma args (mkRel 0)
+  match l.orn.kind with
+  | Algebraic _ ->
+     let (_, b_typ) = get_types c in
+     let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
+     let b_typ_inner = first_fun b_typ_packed in (* TODO refactor that b_typ stuff *)
+     let rec lift_args sigma args i_b =
+       match args with
+       | n :: tl ->
+          if equal n i_b then
+            (* DROP-INDEX *)
+            Util.on_snd
+              (fun tl -> shift n :: tl)
+              (lift_args sigma (shift_all tl) i_b)
+          else
+            let sigma, t = reduce_type env sigma n in
+            if is_or_applies b_typ_inner t then
+              (* FORGET-ARG *)
+              match l.orn.kind with
+              | Algebraic (_, off) ->
+                 let sigma, n =
+                   map_backward
+                     (fun (sigma, t) -> pack env (flip_dir l) t sigma)
+                     (flip_dir l)
+                     (sigma, n)
+                 in 
+                 let sigma, typ_args = type_from_args (reverse c) env n sigma in
+                 let sigma, a = lift env (flip_dir l) n typ_args sigma in
+                 Util.on_snd
+                   (fun tl -> a :: tl)
+                   (lift_args sigma tl (get_arg off t))
+              | _ ->
+                 raise NotAlgebraic
+            else
+              (* ARG *)
+              Util.on_snd (fun tl -> n :: tl) (lift_args sigma tl i_b)
+       | _ ->
+          (* CONCL in inductive case *)
+          sigma, []
+     in lift_args sigma args (mkRel 0)
+  | _ -> raise NotAlgebraic
 
 (*
  * The argument rules for lifting eliminator cases in the forgetful direction.
@@ -332,51 +335,16 @@ let lift_cases env c p p_elim cs =
 (*
  * LIFT-ELIM steps before recursing into the rest of the algorithm
  *)
-let lift_elim env sigma c trm_app =
-  let l = get_lifting c in
-  let (a_t, b_t) = get_types c in
-  let b_t =
-    match l.orn.kind with
-    | Algebraic _ ->
-       let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_t)).packer in
-       first_fun b_typ_packed
-    | _ ->
-       zoom_term zoom_lambda_term env b_t
-  in
-  let to_typ = directional l b_t a_t in
-  match l.orn.kind with
-  | Algebraic _ ->
-     let npms = List.length trm_app.pms in
-     let elim = type_eliminator env (fst (destInd to_typ)) in
-     let param_elim = mkAppl (elim, trm_app.pms) in
-     let sigma, p = lift_motive env sigma c npms param_elim trm_app.p in
-     let p_elim = mkAppl (param_elim, [p]) in
-     let sigma, cs = lift_cases env c p p_elim trm_app.cs sigma in
-     let sigma, final_args = lift_elim_args env sigma c npms trm_app.final_args in
-     sigma, apply_eliminator { trm_app with elim; p; cs; final_args }
-  | CurryRecord ->
-     if l.is_fwd then
-       let npms = List.length trm_app.pms in
-       let sigma, to_typ_prod = specialize_delta_f env (first_fun to_typ) trm_app.pms sigma in
-       let to_elim = dest_prod to_typ_prod in
-       let param_elim = mkAppl (prod_rect, [to_elim.Produtils.typ1; to_elim.Produtils.typ2]) in
-       let sigma, p = lift_motive env sigma c npms param_elim trm_app.p in
-       let p_elim = mkAppl (param_elim, [p]) in
-       let sigma, proof = lift_case env c p p_elim (List.hd trm_app.cs) sigma in
-       let sigma, args = lift_elim_args env sigma c npms trm_app.final_args in
-       let arg = List.hd args in
-       sigma, elim_prod Produtils.{ to_elim; p; proof; arg }
-     else
-       let elim = type_eliminator env (fst (destInd to_typ)) in
-       let to_elim = List.hd (fst (take_split 1 trm_app.final_args)) in
-       let sigma, pms = Util.on_snd Option.get (type_is_from c env to_elim sigma) in (* TODO redundant *)
-       let npms = List.length pms in
-       let param_elim = mkAppl (elim, pms) in
-       let sigma, p = lift_motive env sigma c npms param_elim trm_app.p in
-       let p_elim = mkAppl (param_elim, [p]) in
-       let sigma, cs = lift_cases env c p p_elim trm_app.cs sigma in
-       let sigma, final_args = lift_elim_args env sigma c npms trm_app.final_args in
-       sigma, apply_eliminator { elim; pms; p; cs; final_args }
+let lift_elim env sigma c trm_app pms =
+  let to_typ = get_elim_type (reverse c) in
+  let elim = type_eliminator env (fst (destInd to_typ)) in
+  let npms = List.length pms in
+  let param_elim = mkAppl (elim, pms) in
+  let sigma, p = lift_motive env sigma c npms param_elim trm_app.p in
+  let p_elim = mkAppl (param_elim, [p]) in
+  let sigma, cs = lift_cases env c p p_elim trm_app.cs sigma in
+  let sigma, final_args = lift_elim_args env sigma c npms trm_app.final_args in
+  sigma, apply_eliminator { elim; pms; p; cs; final_args }
 
 (*
  * REPACK
@@ -568,7 +536,7 @@ let lift_core env c trm sigma =
          lift_rec en sigma c (dest_existT tr).unpacked
     | Optimization (SimplifyProjectPacked (reduce, (f, args))) ->
        lift_simplify_project_packed c en reduce f args lift_rec sigma
-    | LiftElim tr_elim ->
+    | LiftElim (tr_elim, lifted_pms) ->
        let nargs =
          match l.orn.kind with
          | Algebraic (_, _) ->
@@ -577,7 +545,7 @@ let lift_core env c trm sigma =
             1
        in
        let (final_args, post_args) = take_split nargs tr_elim.final_args in
-       let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } in
+       let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
        let sigma, tr'' = lift_rec en sigma c tr' in
        let sigma, post_args' = map_rec_args lift_rec en sigma c (Array.of_list post_args) in
        maybe_repack lift_rec c en tr (mkApp (tr'', post_args')) (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) l.is_fwd sigma

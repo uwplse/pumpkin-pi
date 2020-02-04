@@ -61,6 +61,11 @@ val lookup_cache : lift_config -> constr -> constr
 val get_types : lift_config -> types * types
 
 (*
+ * Eliminators
+ *)
+val get_elim_type : lift_config -> types
+
+(*
  * Determine if the supplied type is the type we are lifting from
  * Return the arguments if true
  *)

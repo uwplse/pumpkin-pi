@@ -49,6 +49,7 @@ type lift_config =
   {
     l : lifting;
     typs : types * types;
+    elim_types : types * types;
     packed_constrs : types array * types array;
     constr_rules : types array * types array;
     proj_rules : (constr * constr) list * (constr * constr) list;
@@ -106,6 +107,8 @@ let lookup_cache c trm = lookup_local_cache c.cache trm
 (* --- Questions about types A and B --- *)
 
 let get_types c = c.typs
+
+let get_elim_type c = fst (c.elim_types)
 
 (*
  * Optimization for is_from: things to try rather than trying unification,
@@ -233,6 +236,7 @@ let reverse c =
   {
     c with
     l = flip_dir c.l;
+    elim_types = reverse c.elim_types;
     packed_constrs = reverse c.packed_constrs;
     proj_rules = reverse c.proj_rules;
     constr_rules = reverse c.constr_rules
@@ -265,9 +269,29 @@ let initialize_types l env sigma =
      sigma, (a_t, b_t)
 
 (*
+ * Initialize the type of the eliminator
+ *)
+let initialize_elim_types c env sigma =
+  let l = get_lifting c in
+  let (a_t, b_t) = get_types c in
+  let b_t =
+    match l.orn.kind with
+    | Algebraic _ ->
+       let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_t)).packer in
+       first_fun b_typ_packed
+    | _ ->
+       prod
+  in
+  let fwd_elim_typ = directional l a_t b_t in
+  let bwd_elim_typ = directional l b_t a_t in
+  let elim_types = (fwd_elim_typ, bwd_elim_typ) in
+  sigma, { c with elim_types }
+              
+(*
  * Initialize the packed constructors for each type
  *)
-let initialize_packed_constrs c env (a_typ, b_typ) sigma =
+let initialize_packed_constrs c env sigma =
+  let a_typ, b_typ = c.typs in
   let l = c.l in
   let sigma, a_constrs =
     let ((i, i_index), u) = destInd a_typ in
@@ -478,6 +502,7 @@ let initialize_lift_config env l ignores sigma =
     {
       l;
       typs;
+      elim_types = (mkRel 1, mkRel 1);
       packed_constrs = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
       constr_rules = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
       proj_rules = [], [];
@@ -486,7 +511,8 @@ let initialize_lift_config env l ignores sigma =
       opaques
     }
   in
-  let sigma, c = initialize_packed_constrs c env typs sigma in
+  let sigma, c = initialize_elim_types c env sigma in
+  let sigma, c = initialize_packed_constrs c env sigma in
   let sigma, c = initialize_constr_rules c env sigma in
   let sigma, fwd_proj_rules = initialize_proj_rules env sigma c in
   let sigma, bwd_proj_rules = initialize_proj_rules env sigma (reverse c) in
