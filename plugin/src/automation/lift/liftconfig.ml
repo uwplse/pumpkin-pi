@@ -401,8 +401,9 @@ let initialize_proj_rules env sigma c =
        let (a_typ, _) = get_types c in
        let ((i, i_index), u) = destInd a_typ in
        let accessor_opts = Recordops.lookup_projections (i, i_index) in
+       let args = mk_n_rels (nb_rel env_proj) in
        try
-         List.map (fun a_o -> mkConst (Option.get a_o)) accessor_opts
+         List.map (fun a_o -> reconstruct_lambda env_proj (mkAppl ((mkConst (Option.get a_o)), args))) accessor_opts
        with _ ->
          []
      in
@@ -415,10 +416,10 @@ let initialize_proj_rules env sigma c =
        else (* projections -> accessors *)
          let sigma, lifted_accessors =
            map_state
-             (fun a ->
+             (fun a sigma ->
                let args = shift_all (mk_n_rels (nb_rel env_proj - 1)) in
-               let app = mkAppl (a, snoc lift_t args) in
-               ret (reconstruct_lambda env_proj app))
+               let sigma, app = reduce_term env sigma (mkAppl (a, snoc lift_t args)) in
+               ret (reconstruct_lambda env_proj app) sigma)
              accessors
              sigma
          in

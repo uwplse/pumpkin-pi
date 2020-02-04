@@ -72,6 +72,8 @@ End Handwritten.
 Preprocess Module Generated as Generated'.
 Preprocess Module Handwritten as Handwritten'.
 
+Print Generated'.firstBool.
+
 (*
  * You can lift to op all at once if you'd like, but you get prettier
  * (though equal) results if you lift the projections first, here for inputs:
