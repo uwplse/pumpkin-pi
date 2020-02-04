@@ -6,7 +6,10 @@ open Indutils
 open Stateutils
 open Reducers
       
-(* TODO top-level comment, clean, etc *)
+(*
+ * This module takes in a Coq term that we are lifting and determines
+ * the appropriate lifting rule to run
+ *)
 
 (* --- Datatypes --- *)
 

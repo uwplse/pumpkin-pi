@@ -22,13 +22,13 @@ open Evd
 open Evarutil
 open Evarconv
 
-(* TODO top-level comment *)
+(*
+ * This module takes in a Coq term that we are lifting and determines
+ * the appropriate lifting rule to run
+ *)
 
-(* --- Convenient shorthand (TODO move/comment) --- *)
+(* --- Convenient shorthand --- *)
 
-let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
-
-(* TODO move/comment *)
 let convertible env t1 t2 sigma =
   if equal t1 t2 then
     sigma, true
@@ -259,9 +259,7 @@ let is_proj c env trm =
   else
     check_is_proj c env trm (List.map fst proj_rules)
 
-(*
- * Premises for LIFT-ELIM
- *)
+(* Premises for LIFT-ELIM *)
 let is_eliminator c env trm sigma =
   let l = get_lifting c in
   let (a_typ, b_typ) = get_types c in

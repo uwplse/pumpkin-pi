@@ -44,13 +44,6 @@ open Sigmautils
 
 let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
 
-(* TODO move/comment *)
-let convertible env t1 t2 sigma =
-  if equal t1 t2 then
-    sigma, true
-  else
-    convertible env sigma t1 t2
-
 (* --- Recovering types from ornaments --- *)
 
 (*

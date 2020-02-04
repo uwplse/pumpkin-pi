@@ -18,7 +18,6 @@ open Specialization
 open Debruijn
 open Substitution
 open Typehofs
-open Convertibility
 open Ornerrors
 open Hypotheses
 open Declarations
