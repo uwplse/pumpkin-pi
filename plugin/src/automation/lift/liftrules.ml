@@ -138,24 +138,25 @@ type lift_rule =
 
 (* --- Premises --- *)
 
-(* Premises for LIFT-CONSTR *) (* TODO try using unification, then see if we gain any optimization by not using it; if we do, make clear in the code what is happening *)
+(* Premises for LIFT-CONSTR *)
 let is_packed_constr c env sigma trm =
   let l = get_lifting c in
-  let right_type trm sigma = type_is_from c env trm sigma in
+  let constrs = get_constrs c in
   match kind trm with
-  | Construct (((_, _), i), _)  ->
-     let sigma, typ_args_o = right_type trm sigma in
-     if Option.has_some typ_args_o then
-       sigma, Some (i, [])
+  | Construct (((_, _), i), _) when i <= Array.length constrs ->
+     let constr = constrs.(i - 1) in
+     if equal constr trm then
+       sigma, Some (i - 1, [])
      else
        sigma, None
   | App (f, args) ->
+     let right_type trm sigma = type_is_from c env trm sigma in
      if l.is_fwd then
        (match kind f with
         | Construct (((_, _), i), _) ->
            let sigma, typ_args_o = right_type trm sigma in
            if Option.has_some typ_args_o then
-             sigma, Some (i, unfold_args trm)
+             sigma, Some (i - 1, unfold_args trm)
            else
              sigma, None
         | _ ->
@@ -166,12 +167,11 @@ let is_packed_constr c env sigma trm =
          if Option.has_some args_opt then
            (match l.orn.kind with
             | Algebraic _ ->
-               (* TODO use optimize_proj_packed rules here? *)
                let last_arg = last (Array.to_list args) in
                if isApp last_arg then
                  (match kind (first_fun last_arg) with
                   | Construct (((_, _), i), _) ->
-                     sigma_right, Some (i, unfold_args last_arg)
+                     sigma_right, Some (i - 1, unfold_args last_arg)
                   | _ ->
                      sigma, None)
                else
@@ -184,7 +184,7 @@ let is_packed_constr c env sigma trm =
            let c_arity = arity c_typ in
            let pms = Option.get args_opt in
            let args = pair_projections_eta_rec_n trm (c_arity - List.length pms) in
-           sigma, Some (1, List.append pms args))
+           sigma, Some (0, List.append pms args))
          else
            sigma, None
        else
@@ -352,7 +352,7 @@ let determine_lift_rule c env trm sigma =
       let sigma, i_and_args_o = is_packed_constr c env sigma trm in
       if Option.has_some i_and_args_o then
         let i, args = Option.get i_and_args_o in
-        let lifted_constr = (get_lifted_constrs c).(i - 1) in
+        let lifted_constr = (get_lifted_constrs c).(i) in
         if List.length args > 0 then
           if not l.is_fwd then
             sigma, LiftConstr (lifted_constr, args)
