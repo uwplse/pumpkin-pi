@@ -279,9 +279,6 @@ let is_proj c env trm =
 
 (*
  * Premises for LIFT-ELIM
- * For optimization, if true, return the eta-expanded term
- *
- * TODO clean
  *)
 let is_eliminator c env trm sigma =
   let l = get_lifting c in
@@ -295,8 +292,7 @@ let is_eliminator c env trm sigma =
       let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
       first_fun b_typ_packed
   in
-  let f = first_fun trm in
-  match kind f with
+  match kind (first_fun trm) with
   | Const (k, u) ->
      let maybe_ind = inductive_of_elim env (k, u) in
      if Option.has_some maybe_ind then
@@ -322,7 +318,9 @@ let is_eliminator c env trm sigma =
   | _ ->
      sigma, None
 
-(* TODO move/refactor/explain/finish *)
+(*
+ * Given a term, determine the appropriate lift rule to run
+ *)
 let determine_lift_rule c env trm sigma =
   let l = get_lifting c in
   let lifted_opt = lookup_lifting (lift_to l, lift_back l, trm) in
@@ -380,7 +378,6 @@ let determine_lift_rule c env trm sigma =
                  else
                    let how_reduce_o = can_reduce_now c trm in
                    if Option.has_some how_reduce_o then
-                     (* optimize simplifying projections of packed terms, which are common (TODO move comment) *)
                      let how_reduce = Option.get how_reduce_o in
                      sigma, Optimization (SimplifyProjectPacked (how_reduce, (f, args)))
                    else
