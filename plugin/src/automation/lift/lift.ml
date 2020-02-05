@@ -133,7 +133,7 @@ let lift_motive env sigma c npms parameterized_elim p =
 let promote_case_args env sigma c args =
   let l = get_lifting c in
   match l.orn.kind with
-  | Algebraic _ ->
+  | Algebraic (_, off) ->
      let (_, b_typ) = get_types c in
      let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
      let b_typ_inner = first_fun b_typ_packed in (* TODO refactor that b_typ stuff *)
@@ -149,28 +149,19 @@ let promote_case_args env sigma c args =
             let sigma, t = reduce_type env sigma n in
             if is_or_applies b_typ_inner t then
               (* FORGET-ARG *)
-              match l.orn.kind with
-              | Algebraic (_, off) ->
-                 let sigma, n =
-                   map_backward
-                     (fun (sigma, t) -> pack env (flip_dir l) t sigma)
-                     (flip_dir l)
-                     (sigma, n)
-                 in 
-                 let sigma, typ_args = type_from_args (reverse c) env n sigma in
-                 let sigma, a = lift env (flip_dir l) n typ_args sigma in
-                 Util.on_snd
-                   (fun tl -> a :: tl)
-                   (lift_args sigma tl (get_arg off t))
-              | _ ->
-                 raise NotAlgebraic
+              let sigma, n = pack env (flip_dir l) n sigma in
+              let sigma, typ_args = type_from_args (reverse c) env n sigma in
+              let sigma, a = lift env (flip_dir l) n typ_args sigma in
+              Util.on_snd
+                (fun tl -> a :: tl)
+                (lift_args sigma tl (get_arg off t))
             else
               (* ARG *)
               Util.on_snd (fun tl -> n :: tl) (lift_args sigma tl i_b)
        | _ ->
           (* CONCL in inductive case *)
           sigma, []
-     in lift_args sigma args (mkRel 0)
+     in Util.on_snd List.rev (lift_args sigma (List.rev args) (mkRel 0))
   | _ -> raise NotAlgebraic
 
 (*
@@ -180,29 +171,23 @@ let promote_case_args env sigma c args =
  *)
 let forget_case_args env_c_b env sigma c args =
   let l = get_lifting c in
-  let (_, b_typ) = get_types c in
-  let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
-  let b_typ_inner = first_fun b_typ_packed in
-  let rec lift_args sigma args (i_b, proj_i_b) =
-    match args with
-    | n :: tl ->
-       if equal n i_b then
-         (* ADD-INDEX *)
-         Util.on_snd
-           (fun tl -> proj_i_b :: tl)
-           (lift_args sigma (unshift_all tl) (i_b, proj_i_b))
-       else
-         let sigma, t = reduce_type env_c_b sigma n in
-         if is_or_applies b_typ_inner t then
-           (* PROMOTE-ARG *)
-           match l.orn.kind with
-           | Algebraic (_, off) ->
-              let sigma, n =
-                map_backward
-                  (fun (sigma, t) -> pack env (flip_dir l) t sigma)
-                  (flip_dir l)
-                  (sigma, n)
-              in 
+  match l.orn.kind with
+  | Algebraic (_, off) ->
+     let (_, b_typ) = get_types c in
+     let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
+     let b_typ_inner = first_fun b_typ_packed in
+     let rec lift_args sigma args (i_b, proj_i_b) =
+       match args with
+       | n :: tl ->
+          if equal n i_b then
+            (* ADD-INDEX *)
+            Util.on_snd
+              (fun tl -> proj_i_b :: tl)
+              (lift_args sigma (unshift_all tl) (i_b, proj_i_b))
+          else
+            let sigma, t = reduce_type env_c_b sigma n in
+            if is_or_applies b_typ_inner t then
+              (* PROMOTE-ARG *)
               let sigma, typ_args = type_from_args (reverse c) env n sigma in
               let sigma, b_sig = lift env (flip_dir l) n typ_args sigma in
               let b_sig_typ = dest_sigT_type env sigma b_sig in
@@ -211,114 +196,74 @@ let forget_case_args env_c_b env sigma c args =
               Util.on_snd
                 (fun tl -> proj_b :: tl)
                 (lift_args sigma tl (get_arg off t, proj_i_b))
-           | _ ->
-              raise NotAlgebraic
-         else
-           (* ARG *)
-           Util.on_snd
-             (fun tl -> n :: tl)
-             (lift_args sigma tl (i_b, proj_i_b))
-    | _ ->
-       (* CONCL in inductive case *)
-       sigma, []
-  in lift_args sigma args (mkRel 0, mkRel 0)
+            else
+              (* ARG *)
+              Util.on_snd
+                (fun tl -> n :: tl)
+                (lift_args sigma tl (i_b, proj_i_b))
+       | _ ->
+          (* CONCL in inductive case *)
+          sigma, []
+     in Util.on_snd List.rev (lift_args sigma (List.rev args) (mkRel 0, mkRel 0))
+  | _ ->
+     raise NotAlgebraic
 
-(* Common wrapper function for both directions *)
-let lift_case_args env_c_b env sigma c args =
-  let lifter =
-    if (get_lifting c).is_fwd then
-      promote_case_args
-    else
-      forget_case_args env_c_b
-  in Util.on_snd List.rev (lifter env sigma c (List.rev args))
+(* Common wrapper function for both directions (TODO clean args, move, comment, etc) *)
+let lift_case_args c env_c_b env_c nargs nargs_lifted c_elim sigma =
+  let l = get_lifting c in
+  match l.orn.kind with
+  | Algebraic _ ->
+     let args = mk_n_rels nargs_lifted in
+     if l.is_fwd then
+       promote_case_args env_c sigma c args
+     else
+       forget_case_args env_c_b env_c sigma c args
+  | CurryRecord ->
+     let args = mk_n_rels nargs in
+     if l.is_fwd then
+       let c_args, b_args = take_split 2 args in
+       let sigma, args_tl = prod_projections_rec env_c (List.hd (List.tl c_args)) sigma in
+       sigma, List.append (List.hd c_args :: args_tl) b_args
+     else
+       let pms = all_but_last (unfold_args c_elim) in
+       let c_args, b_args = take_split (nargs_lifted - List.length pms) args in
+       let sigma, arg_pair = pack_pair_rec env_c (List.tl c_args) sigma in
+       sigma, List.append [List.hd c_args; arg_pair] b_args
 
 (*
  * CASE
  *)
 let lift_case env c p c_elim constr sigma =
   let l = get_lifting c in
-  let (a_typ, b_typ) = get_types c in
-  let b_typ = (* TODO clean/consolidate/stop *)
-    match l.orn.kind with
-    | Algebraic _ ->
-       let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
-       first_fun b_typ_packed
-    | _ ->
-       zoom_term zoom_lambda_term env b_typ
-  in
-  let to_typ = directional l b_typ a_typ in
-  let sigma, c_eta = expand_eta env sigma constr in
+  let to_typ = get_elim_type (reverse c) in
   let sigma, c_elim_type = reduce_type env sigma c_elim in
   let (_, to_c_typ, _) = destProd c_elim_type in
-  match l.orn.kind with
-  | Algebraic _ ->
-     let nihs = num_ihs env sigma to_typ to_c_typ in
-     if nihs = 0 then
-       (* base case *)
-       sigma, constr
-     else
-       (* inductive case---need to get the arguments *)
-       let env_c = zoom_env zoom_product_type env to_c_typ in
-       let nargs = new_rels2 env_c env in
-       let c_eta = shift_by nargs c_eta in
-       let (env_c_b, c_body) = zoom_lambda_term env_c c_eta in
-       let (c_f, c_args) = destApp c_body in
-       let split_i = if l.is_fwd then nargs - nihs else nargs + nihs in
-       let (c_args, b_args) = take_split split_i (Array.to_list c_args) in
-       let c_args = unshift_all_by (List.length b_args) c_args in
-       let sigma, args = lift_case_args env_c_b env_c sigma c c_args in
-       let f = unshift_by (new_rels2 env_c_b env_c) c_f in
-       let body = reduce_stateless reduce_term env_c sigma (mkAppl (f, args)) in
-       sigma, reconstruct_lambda_n env_c body (nb_rel env)
-  | CurryRecord ->
-     (* TODO explain *)
-     let env_c = zoom_env zoom_product_type env to_c_typ in
-     let nargs = new_rels2 env_c env in
-     let c_eta = shift_by nargs c_eta in
-     let (env_c_b, c_body) = zoom_lambda_term env_c c_eta in
-     let (c_f, _) = destApp c_body in
-     let args = mk_n_rels nargs in
-     let sigma, args = (* TODO make a function *)
-       if l.is_fwd then
-         let c_args, b_args = take_split 2 args in
-         let rec build arg sigma =
-           let sigma, arg_typ = reduce_type env_c sigma arg in
-           if equal (first_fun arg_typ) prod then
-             let arg_typ_prod = dest_prod arg_typ in
-             let arg_fst = prod_fst_elim arg_typ_prod arg in
-             let arg_snd = prod_snd_elim arg_typ_prod arg in
-             let sigma, args_tl = build arg_snd sigma in
-             sigma, arg_fst :: args_tl
-           else
-             sigma, [arg]
-         in
-         let sigma, args_tl = build (List.hd (List.tl c_args)) sigma in
-         sigma, List.append (List.hd c_args :: args_tl) b_args
-       else
+  let env_c = zoom_env zoom_product_type env to_c_typ in
+  let nargs = new_rels2 env_c env in
+  if nargs = 0 then
+    (* no need to get arguments *)
+    sigma, constr
+  else
+    (* get arguments *)
+    let sigma, c_eta = expand_eta env sigma constr in
+    let c_eta = shift_by nargs c_eta in
+    let (env_c_b, c_body) = zoom_lambda_term env_c c_eta in
+    let (c_f, _) = destApp c_body in
+    let sigma, nargs_lifted =
+      match l.orn.kind with
+      | Algebraic _ ->
+         let nihs = num_ihs env sigma to_typ to_c_typ in
+         sigma, if l.is_fwd then nargs - nihs else nargs + nihs
+      | _ ->
          let ((i, i_n), _) = destInd to_typ in
          let c = mkConstruct ((i, i_n), 1) in
          let sigma, c_typ = reduce_type env_c sigma c in
-         let pms = all_but_last (unfold_args c_elim) in
-         let nargs = arity c_typ in
-         let c_args, b_args = take_split (nargs - List.length pms) args in
-         let rec build args sigma =
-           match args with
-           | trm1 :: (h :: tl) ->
-              let sigma, typ1 = infer_type env_c sigma trm1 in
-              let sigma, trm2 = build (h :: tl) sigma in
-              let sigma, typ2 = infer_type env_c sigma trm2 in
-              sigma, apply_pair Produtils.{ typ1; typ2; trm1; trm2 }
-           | h :: tl ->
-              sigma, h
-           | _ ->
-              failwith "bad arguments passed to build; please report bug"
-         in
-         let sigma, arg_pair = build (List.tl c_args) sigma in
-         sigma, List.append [List.hd c_args; arg_pair] b_args
-     in
-     let f = unshift_by (new_rels2 env_c_b env_c) c_f in
-     let body = reduce_stateless reduce_term env_c sigma (mkAppl (f, args)) in
-     sigma, reconstruct_lambda_n env_c body (nb_rel env)
+         sigma, arity c_typ
+    in
+    let sigma, args = lift_case_args c env_c_b env_c nargs nargs_lifted c_elim sigma in
+    let f = unshift_by (new_rels2 env_c_b env_c) c_f in
+    let body = reduce_stateless reduce_term env_c sigma (mkAppl (f, args)) in
+    sigma, reconstruct_lambda_n env_c body (nb_rel env)
 
 (* Lift cases *)
 let lift_cases env c p p_elim cs =
@@ -334,6 +279,8 @@ let lift_cases env c p p_elim cs =
 
 (*
  * LIFT-ELIM steps before recursing into the rest of the algorithm
+ * This takes the lifted parameters as arguments, since they are computed
+ * when determining whether this rule is a match
  *)
 let lift_elim env sigma c trm_app pms =
   let to_typ = get_elim_type (reverse c) in

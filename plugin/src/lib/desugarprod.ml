@@ -10,6 +10,7 @@ open Nametab
 open Libnames
 open Produtils
 open Reducers
+open Inference
 
 (* --- Constants --- *)
 
@@ -158,3 +159,21 @@ let rec pair_projections_eta_rec_n trm n =
         let trm2_eta = eta_prod trm2 typ2 in
         trm1 :: proj trm2_eta (n - 1)
   in proj trm n
+
+(*
+ * Recursively pack a list of arguments into a pair
+ * Fail if the list is empty
+ *)
+let pack_pair_rec env trms sigma =
+  let rec pack trms sigma =
+    match trms with
+    | trm1 :: (h :: tl) ->
+       let sigma, typ1 = infer_type env sigma trm1 in
+       let sigma, trm2 = pack (h :: tl) sigma in
+       let sigma, typ2 = infer_type env sigma trm2 in
+       sigma, apply_pair Produtils.{ typ1; typ2; trm1; trm2 }
+    | h :: tl ->
+       sigma, h
+    | _ ->
+       failwith "called pack_pair_rec with an empty list"
+  in pack trms sigma

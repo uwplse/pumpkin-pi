@@ -53,3 +53,4 @@ val eta_prod_rec : constr -> types -> constr
 val prod_projections_rec : env -> constr -> evar_map -> (constr list) state
 val pair_projections_eta_rec_n : constr -> int -> constr list
 val dest_prod_type : env -> constr -> evar_map -> prod_app state
+val pack_pair_rec : env -> (*nonempty*) constr list -> evar_map -> constr state
