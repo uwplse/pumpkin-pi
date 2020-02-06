@@ -149,7 +149,7 @@ You can lift an endure module across an ornament all at the same time by running
 this command:
 
 ```
-Lift Module list vector in Foo as Bar.
+Lift Module A B in Foo as Bar.
 ```
 
 This will create a new module `Bar` with all of the liftings from `Foo`.
