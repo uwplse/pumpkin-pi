@@ -6,6 +6,7 @@ cd deps/fix-to-elim/plugin
 ./build.sh
 cd ../../..
 echo "building DEVOID"
-																																																																																																																																																																																																																																																																																																																																																																																																																																														coq_makefile -f _CoqProject -o Makefile
+
+coq_makefile -f _CoqProject -o Makefile
 make clean && make && make install
 
