@@ -143,6 +143,17 @@ Lift A B in f as ..suffix.
 
 This will name the result `f_suffix`.
 
+##### Whole Module Lifting
+
+You can lift an endure module across an ornament all at the same time by running
+this command:
+
+```
+Lift Module list vector in Foo as Bar.
+```
+
+This will create a new module `Bar` with all of the liftings from `Foo`.
+
 ##### Prettier Types
 
 By default, DEVOID lets Coq infer the types of lifted terms. You can 
