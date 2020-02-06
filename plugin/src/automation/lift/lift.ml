@@ -247,7 +247,7 @@ let num_ihs c env to_c_typ sigma =
 (*
  * CASE
  *)
-let lift_case env c npms p c_elim constr sigma =
+let lift_case env c npms c_elim constr sigma =
   let sigma, c_elim_type = reduce_type env sigma c_elim in
   let (_, to_c_typ, _) = destProd c_elim_type in
   let env_c = zoom_env zoom_product_type env to_c_typ in
@@ -268,13 +268,13 @@ let lift_case env c npms p c_elim constr sigma =
     sigma, reconstruct_lambda_n env_c body (nb_rel env)
 
 (* Lift cases *)
-let lift_cases env c npms p p_elim cs =
+let lift_cases env c npms p_elim cs =
   bind
     (fold_left_state
-       (fun (p_elim, cs) constr sigma ->
-         let sigma, constr = lift_case env c npms p p_elim constr sigma in
-         let p_elim = mkAppl (p_elim, [constr]) in
-         sigma, (p_elim, snoc constr cs))
+       (fun (c_elim, cs) constr sigma ->
+         let sigma, constr = lift_case env c npms c_elim constr sigma in
+         let c_elim = mkAppl (c_elim, [constr]) in
+         sigma, (c_elim, snoc constr cs))
        (p_elim, [])
        cs)
     (fun (_, cs) -> ret cs)
@@ -291,7 +291,7 @@ let lift_elim env sigma c trm_app pms =
   let param_elim = mkAppl (elim, pms) in
   let sigma, p = lift_motive env sigma c npms param_elim trm_app.p in
   let p_elim = mkAppl (param_elim, [p]) in
-  let sigma, cs = lift_cases env c npms p p_elim trm_app.cs sigma in
+  let sigma, cs = lift_cases env c npms p_elim trm_app.cs sigma in
   let sigma, final_args = lift_elim_args env sigma c npms trm_app.final_args in
   sigma, apply_eliminator { elim; pms; p; cs; final_args }
 

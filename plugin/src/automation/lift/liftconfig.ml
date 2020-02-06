@@ -51,7 +51,6 @@ type lift_config =
     typs : types * types;
     elim_types : types * types;
     packed_constrs : types array * types array;
-    case_rules : types array * types array;
     constr_rules : types array * types array;
     proj_rules : (constr * constr) list * (constr * constr) list;
     optimize_proj_packed_rules :
@@ -340,14 +339,12 @@ let initialize_packed_constrs c env sigma =
   let fwd_constrs = if l.is_fwd then a_constrs else b_constrs in
   let bwd_constrs = if l.is_fwd then b_constrs else a_constrs in
   sigma, { c with packed_constrs = (fwd_constrs, bwd_constrs) }
-
-
            
 (*
  * For packing constructor aguments: Pack, but only if it's B
  *)
 let pack_to_typ c env unpacked sigma =
-  let (_, b_typ) = c.elim_types in
+  let b_typ = (if c.l.is_fwd then snd else fst) c.elim_types in
   let l = c.l in
   if on_red_type_default (ignore_env (is_or_applies b_typ)) env sigma unpacked then
     match l.orn.kind with
@@ -499,7 +496,6 @@ let initialize_lift_config env l ignores sigma =
       typs;
       elim_types = (mkRel 1, mkRel 1);
       packed_constrs = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
-      case_rules = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
       constr_rules = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
       proj_rules = [], [];
       optimize_proj_packed_rules = ((fun _ -> false), []);
@@ -508,7 +504,6 @@ let initialize_lift_config env l ignores sigma =
     }
   in
   let sigma, c = initialize_elim_types c env sigma in
-  let sigma, c = initialize_case_rules c env sigma in
   let sigma, c = initialize_packed_constrs c env sigma in
   let sigma, c = initialize_constr_rules c env sigma in
   let sigma, fwd_proj_rules = initialize_proj_rules env sigma c in
