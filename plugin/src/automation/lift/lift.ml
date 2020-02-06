@@ -336,10 +336,12 @@ let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
       sigma, lifted
   else
     sigma, lifted
-    
-(* --- Core algorithm --- *)
 
-(* TODO explain, move, etc *)
+(* --- Optimization implementations, besides packing --- *)
+
+(*
+ * When we see a packed projection, simplify early rather than wait for Coq 
+ *)
 let lift_simplify_project_packed c env reduce f args lift_rec sigma =
   let sigma, args' = map_rec_args lift_rec env sigma c args in
   let arg' = last (Array.to_list args') in
@@ -350,7 +352,9 @@ let lift_simplify_project_packed c env reduce f args lift_rec sigma =
     let sigma, f' = lift_rec env sigma c f in
     (sigma, mkApp (f', args'))
                           
-(* TODO explain, move, etc *)
+(*
+ * Lift applications, possibly being lazy about delta if we can get away with it
+ *)
 let lift_app_lazy_delta c env f args lift_rec sigma =
   let l = get_lifting c in
   let sigma, f' = lift_rec env sigma c f in
@@ -358,28 +362,30 @@ let lift_app_lazy_delta c env f args lift_rec sigma =
   if (not (equal f f')) || l.is_fwd || Array.length args = 0 || is_opaque c f then (* TODO move/clean preconditions here *)
     maybe_repack lift_rec c env (mkApp (f, args)) (mkApp (f', args')) (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) l.is_fwd sigma
   else
-    (match kind f with
-     | Const (c, u) when Option.has_some (inductive_of_elim env (c, u)) ->
-        sigma, mkApp (f', args')
-     | _ ->
-        if not (equal f f') then
-          sigma, mkApp (f', args')
-        else
-          let sigma, app' = specialize_delta_f env f (Array.to_list args) sigma in
-          if equal (mkApp (f, args)) app' then
-            sigma, mkApp (f', args')
-          else
-            let sigma, lifted_red = lift_rec env sigma c app' in
-            if equal lifted_red app' then
-              sigma, mkApp (f', args')
-            else
-              let sigma, app'' = specialize_delta_f env f' (Array.to_list args') sigma in
-              if equal lifted_red app'' then
-                sigma, mkApp (f', args')
-              else
-                sigma, lifted_red)
+    match kind f with
+    | Const (c, u) when Option.has_some (inductive_of_elim env (c, u)) ->
+       sigma, mkApp (f', args')
+    | _ ->
+       if not (equal f f') then
+         sigma, mkApp (f', args')
+       else
+         let sigma, app' = specialize_delta_f env f (Array.to_list args) sigma in
+         if equal (mkApp (f, args)) app' then
+           sigma, mkApp (f', args')
+         else
+           let sigma, lifted_red = lift_rec env sigma c app' in
+           if equal lifted_red app' then
+             sigma, mkApp (f', args')
+           else
+             let sigma, app'' = specialize_delta_f env f' (Array.to_list args') sigma in
+             if equal lifted_red app'' then
+               sigma, mkApp (f', args')
+             else
+               sigma, lifted_red
 
-(* TODO explain, move, etc *)
+(*
+ * Lift constants, possibly being lazy about delta if we can get away with it
+ *)
 let lift_const_lazy_delta c env (co, u) lift_rec sigma =
   let trm = mkConstU (co, u) in
   let sigma, lifted =
@@ -398,9 +404,10 @@ let lift_const_lazy_delta c env (co, u) lift_rec sigma =
        sigma, trm)
   in smart_cache c trm lifted; (sigma, lifted)
 
-(* TODO explain, move, etc *)
-(* The extra logic here is an optimization *)
-(* It also deals with the fact that we are lazy about eta *)
+(*
+ * Lift constructors when we can do something faster than lifting all of
+ * the arguments
+ *)
 let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
   let sigma, constr_app = reduce_term env sigma (mkAppl (lifted_constr, args)) in
   match (get_lifting c).orn.kind with
@@ -421,9 +428,11 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
      let sigma, trm1 = lift_rec env sigma c pair.trm1 in
      let sigma, trm2 = lift_rec env sigma c pair.trm2 in
      (sigma, apply_pair {typ1; typ2; trm1; trm2})
+             
+(* --- Core algorithm --- *)
     
 (*
- * Core lifting algorithm for algebraic ornaments.
+ * Core lifting algorithm.
  * A few extra rules to deal with real Coq terms as opposed to CIC,
  * including caching.
  *)
