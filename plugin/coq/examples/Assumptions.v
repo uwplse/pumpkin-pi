@@ -334,7 +334,7 @@ Inductive nat_nat : nat -> Set :=
 Find ornament nat nat_nat as nat_to_nat_nat.
 
 (*
- * The difficult comes from lifting:
+ * The difficult comes from lifting. Some liftings work:
  *)
 Lift nat nat_nat in 0 as OO_p.
 Lift nat nat_nat in (fun (n : nat) => n) as id_nat_nat.
