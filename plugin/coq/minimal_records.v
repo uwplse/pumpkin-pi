@@ -72,33 +72,22 @@ End Handwritten.
 Preprocess Module Generated as Generated'.
 Preprocess Module Handwritten as Handwritten'.
 
-Print Generated'.firstBool.
-
 (*
- * You can lift to op all at once if you'd like, but you get prettier
- * (though equal) results if you lift the projections first, here for inputs:
+ * The easiest way to lift these is to just lift the module twice, first for
+ * input (smaller type) then for output (larger type):
  *)
-Lift Generated'.input Handwritten'.input in Generated'.firstBool as firstBool.
-Lift Generated'.input Handwritten'.input in Generated'.numberI as numberI.
-Lift Generated'.input Handwritten'.input in Generated'.secondBool as secondBool.
+Lift Module Generated'.input Handwritten'.input in Generated' as Temp1.
+Lift Module Generated'.output Handwritten'.output in Temp1 as Handwritten''.
 (*
- * then for outputs:
- *)
-Lift Generated'.output Handwritten'.output in Generated'.numberO as numberO.
-Lift Generated'.output Handwritten'.output in Generated'.andBools as andBools.
-
-(*
- * Now lifting to op uses the cached results:
- *)
-Lift Generated'.input Handwritten'.input in Generated'.op as op_1.
-Lift Generated'.output Handwritten'.output in op_1 as op.
-(*
- * If you lift in the opposite order, you get something well-typed but with
+ * If you lift in the opposite order, for op, you get something well-typed but with
  * a type you don't even want. So for now when one type definition you lift along
  * is a subterm of another type definition you lift along, you will need to start
  * with the bigger one and then tell DEVOID to treat the lifted projections as opaque.
  * Really interesting WIP on handling this better without so much work for the user.
+ *
+ * See: https://taliasplse.wordpress.com/2020/02/02/automating-transport-with-univalent-e-graphs/
  *)
+
 
 (*
  * OK, now that we're in the handwritten world, we can write our proofs over
@@ -108,12 +97,12 @@ Module HandwrittenProofs.
 
 Theorem and_spec_true_true
   (r : Handwritten'.input)
-  (F : firstBool  r = true)
-  (S : secondBool r = true)
-  : andBools (op r) = true.
+  (F : Handwritten''.firstBool  r = true)
+  (S : Handwritten''.secondBool r = true)
+  : Handwritten''.andBools (Handwritten''.op r) = true.
 Proof.
   destruct r as [f n s].
-  unfold op.
+  unfold Handwritten''.op.
   simpl in *.
   apply andb_true_intro.
   intuition.
@@ -124,7 +113,8 @@ End HandwrittenProofs.
 (*
  * Let's Preprocess this proof for lifting:
  *)
-Preprocess Module HandwrittenProofs as HandwrittenProofs'. (* { opaque Handwritten'.input_rect }.*)
+Preprocess Module HandwrittenProofs as HandwrittenProofs'.
+
 (*
  * Then lift it back to our nested pair types.
  * I think this is order sensitive if we want something that looks nice, since we
@@ -149,7 +139,5 @@ Proof.
   induction r. (* <-- NOTE: You will need this because you used Preprocess *)
   apply and_spec_true_true'; auto.
 Qed.
-
-Check and_spec_true_true.
 
 (* We are done! *)
