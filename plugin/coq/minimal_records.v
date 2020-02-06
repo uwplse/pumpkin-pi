@@ -74,7 +74,7 @@ Preprocess Module Handwritten as Handwritten'.
 
 (*
  * The easiest way to lift these is to just lift the module twice, first for
- * input (smaller type) then for output (larger type):
+ * input (bigger type) then for output (smaller type):
  *)
 Lift Module Generated'.input Handwritten'.input in Generated' as Temp1.
 Lift Module Generated'.output Handwritten'.output in Temp1 as Handwritten''.
