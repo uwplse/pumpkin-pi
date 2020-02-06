@@ -51,6 +51,8 @@ type lift_rule =
 | Optimization of lift_optimization
 | CIC of (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
 
-(* TODO comment etc *)
+(*
+ * Determine which lift rule to run
+ *)
 val determine_lift_rule :
   lift_config -> env -> constr -> evar_map -> lift_rule state
