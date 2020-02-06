@@ -209,10 +209,12 @@ let forget_case_args env_c_b env sigma c args =
      raise NotAlgebraic
 
 (* Common wrapper function for both directions (TODO clean args, move, comment, etc) *)
-let lift_case_args c env_c_b env_c nihs npms nargs sigma =
+let lift_case_args c env_c_b env_c to_c_typ npms nargs sigma =
   let l = get_lifting c in
+  let to_typ = get_elim_type (reverse c) in
   match l.orn.kind with
   | Algebraic _ ->
+     let nihs = num_ihs env_c sigma to_typ to_c_typ in
      let nargs_lifted = if l.is_fwd then nargs - nihs else nargs + nihs in
      let args = mk_n_rels nargs_lifted in
      if l.is_fwd then
@@ -226,23 +228,12 @@ let lift_case_args c env_c_b env_c nihs npms nargs sigma =
        let sigma, args_tl = prod_projections_rec env_c (List.hd (List.tl c_args)) sigma in
        sigma, List.append (List.hd c_args :: args_tl) b_args
      else
-       let (ind, _) = destInd (get_elim_type (reverse c)) in
+       let (ind, _) = destInd to_typ in
        let sigma, c_typ = reduce_type env_c sigma (mkConstruct (ind, 1)) in
        let nargs_lifted = arity c_typ in
        let c_args, b_args = take_split (nargs_lifted - npms) args in
        let sigma, arg_pair = pack_pair_rec env_c (List.tl c_args) sigma in
        sigma, List.append [List.hd c_args; arg_pair] b_args
-
-(*
- * TODO comment, move
- *)
-let num_ihs c env to_c_typ sigma =
-  let to_typ = get_elim_type (reverse c) in
-  match (get_lifting c).orn.kind with
-  | Algebraic _ ->
-     num_ihs env sigma to_typ to_c_typ
-  | CurryRecord ->
-     0
 
 (*
  * CASE
@@ -261,8 +252,7 @@ let lift_case env c npms c_elim constr sigma =
     let c_eta = shift_by nargs c_eta in
     let (env_c_b, c_body) = zoom_lambda_term env_c c_eta in
     let (c_f, _) = destApp c_body in
-    let nihs = num_ihs c env to_c_typ sigma in
-    let sigma, args = lift_case_args c env_c_b env_c nihs npms nargs sigma in
+    let sigma, args = lift_case_args c env_c_b env_c (shift_by nargs to_c_typ) npms nargs sigma in
     let f = unshift_by (new_rels2 env_c_b env_c) c_f in
     let body = reduce_stateless reduce_term env_c sigma (mkAppl (f, args)) in
     sigma, reconstruct_lambda_n env_c body (nb_rel env)
