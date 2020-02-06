@@ -1,4 +1,3 @@
-open Ltac_plugin
 
 (* --- Options for DEVOID --- *)
 

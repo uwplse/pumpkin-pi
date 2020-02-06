@@ -17,11 +17,6 @@ open Sigmautils
 open Envutils
 open Stateutils
 open Desugarprod
-open Funutils
-open Zooming
-open Hypotheses
-open Debruijn
-open Environ
 open Ornerrors
 open Promotion
 

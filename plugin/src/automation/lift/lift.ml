@@ -26,11 +26,8 @@ open Constutils
 open Stateutils
 open Hofs
 open Desugarprod
-open Substitution
-open Convertibility
 open Ornerrors
 open Promotion
-open Evd
 open Liftconfig
 open Liftrules
 open Sigmautils

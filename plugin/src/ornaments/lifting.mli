@@ -5,7 +5,6 @@
 open Constr
 open Environ
 open Evd
-open Caching
 open Promotion
 
 (* --- Datatypes --- *)

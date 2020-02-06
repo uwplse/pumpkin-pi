@@ -1,19 +1,9 @@
 open Constr
-open Names
-open Recordops
-open Libnames
 open Globnames
 open Utilities
 open Libobject
 open Lib
-open Mod_subst
-open Defutils
-open Reducers
-open Environ
-open Declarations
-open Names
 open Promotion
-open Zooming
 
 (* --- Database of liftings for higher lifting --- *)
 

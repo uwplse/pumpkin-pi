@@ -10,8 +10,6 @@ Set Nonrecursive Elimination Schemes. (* <--- Preprocess needs induction princip
  * rather than the simple walkthrough from minimal_records.v.
  *)
 
-(* TODO remove extra imports and functions that aren't used now *)
-
 (* --- Test a record with 4 fields --- *)
 
 Module Handwritten4.

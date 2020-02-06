@@ -1,6 +1,5 @@
 open Utilities
 open CErrors
-open Names
 open Himsg
 
 (* 

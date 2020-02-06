@@ -1,6 +1,5 @@
 open Constrexpr
 open Names
-open Ltac_plugin
 
 (*
  * Identify an algebraic ornament between two types

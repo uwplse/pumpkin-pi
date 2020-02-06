@@ -1,7 +1,4 @@
-open Globnames
-open Environ
 open Constr
-open Evd
 open Promotion
 
 (* --- Database for higher lifting --- *)

@@ -21,9 +21,7 @@ open Equtils
 open Contextutils
 open Sigmautils
 open Stateutils
-open Names
 open Declarations
-open Desugarprod
 open Promotion
 
 (*

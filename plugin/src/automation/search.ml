@@ -29,7 +29,6 @@ open Sigmautils
 open Reducers
 open Constutils
 open Stateutils
-open Apputils
 open Desugarprod
 open Ornerrors 
 

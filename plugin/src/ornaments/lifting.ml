@@ -4,7 +4,6 @@
 
 open Utilities
 open Constr
-open Evd
 open Environ
 open Apputils
 open Sigmautils
@@ -13,8 +12,6 @@ open Zooming
 open Envutils
 open Hofimpls
 open Caching
-open Universes
-open Names
 open Funutils
 open Inference
 open Promotion

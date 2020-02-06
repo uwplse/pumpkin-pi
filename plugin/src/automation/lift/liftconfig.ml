@@ -1,7 +1,6 @@
 open Lifting
 open Constr
 open Environ
-open Hofs
 open Evd
 open Stateutils
 open Caching
@@ -13,17 +12,14 @@ open Zooming
 open Reducers
 open Funutils
 open Envutils
-open Desugarprod
 open Specialization
 open Debruijn
-open Substitution
 open Typehofs
 open Ornerrors
 open Hypotheses
 open Declarations
 open Utilities
 open Desugarprod
-open Inference
 open Evarutil
 open Evarconv
 

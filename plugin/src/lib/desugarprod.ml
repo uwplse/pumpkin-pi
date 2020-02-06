@@ -145,7 +145,7 @@ let prod_projections_rec env trm sigma =
  * Project all of the terms out of a pair, eta expanding each one
  * Stop when there are n left
  *)
-let rec pair_projections_eta_rec_n trm n =
+let pair_projections_eta_rec_n trm n =
   let rec proj trm n =
     let p = dest_pair trm in
     let (trm1, trm2) = p.Produtils.trm1, p.Produtils.trm2 in

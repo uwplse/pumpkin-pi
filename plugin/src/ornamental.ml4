@@ -2,9 +2,6 @@ DECLARE PLUGIN "ornamental"
 
 open Stdarg
 open Frontend
-open Ltac_plugin
-open Tacinterp
-open Tacarg
 
 (* Identify an ornament given two types *)
 VERNAC COMMAND EXTEND FindOrnament CLASSIFIED AS SIDEFF

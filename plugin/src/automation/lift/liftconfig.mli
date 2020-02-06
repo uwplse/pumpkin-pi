@@ -1,10 +1,8 @@
 open Lifting
 open Constr
 open Environ
-open Hofs
 open Evd
 open Stateutils
-open Caching
 open Reducers
 
 (*

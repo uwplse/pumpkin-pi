@@ -15,8 +15,6 @@ open Stateutils
 open Convertibility
 open Hypotheses
 open Envutils
-open Typehofs
-open Environ
 open Indexing
 open Evd
 open Evarutil
