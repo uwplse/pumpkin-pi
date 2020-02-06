@@ -34,8 +34,6 @@ Indutils
 
 Modutils
 
-Transform
-
 Printing
 
 Deltautils
@@ -58,7 +56,8 @@ Options
 Search
 Coherence
 Equivalence
-Eta
+Depelim
+Desugar
 Unpack
 
 Liftconfig

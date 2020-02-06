@@ -4,9 +4,9 @@ Require Import List Sorting.Permutation.
 Require Import Test TestLift.
 
 Notation "( x ; y )" := (existT _ x y) (no associativity).
-Notation "p .1" := (projT1 p) (left associativity, at level 8).
-Notation "p .2" := (projT2 p) (left associativity, at level 8).
-Notation "p .&" := (p.1; p.2) (left associativity, at level 6).
+Notation "p .1" := (projT1 p) (left associativity, at level 8, format "p .1").
+Notation "p .2" := (projT2 p) (left associativity, at level 8, format "p .2").
+Notation "p .&" := (p.1; p.2) (left associativity, at level 6, format "p .&").
 
 Notation hdV := hd_vect_lifted.
 Notation tlV := tl_vect_lifted.
