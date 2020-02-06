@@ -359,8 +359,9 @@ let lift_app_lazy_delta c env f args lift_rec sigma =
   let l = get_lifting c in
   let sigma, f' = lift_rec env sigma c f in
   let sigma, args' = map_rec_args lift_rec env sigma c args in
-  if (not (equal f f')) || l.is_fwd || Array.length args = 0 || is_opaque c f then (* TODO move/clean preconditions here *)
-    maybe_repack lift_rec c env (mkApp (f, args)) (mkApp (f', args')) (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) l.is_fwd sigma
+  if (not (equal f f')) || l.is_fwd || Array.length args = 0 || is_opaque c f then
+    let lifted = mkApp (f', args') in
+    maybe_repack lift_rec c env (mkApp (f, args)) lifted (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) l.is_fwd sigma
   else
     match kind f with
     | Const (c, u) when Option.has_some (inductive_of_elim env (c, u)) ->
