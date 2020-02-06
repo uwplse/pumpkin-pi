@@ -17,6 +17,8 @@ smartcache=false
 nosmartcache=false
 prodrect=false
 
+start=$SECONDS
+
 coqc coq/Infrastructure.v
 
 echo "Testing Find ornament."
@@ -121,10 +123,8 @@ mkdir out/inputs
 mkdir out/equivalences
 make clean
 ulimit -s 100000
-casestart=$SECONDS
 if make
 then
-  caseend=$SECONDS # TODO this is not correct
   liftedcase=true
 else
   :
@@ -182,6 +182,8 @@ else
   :
 fi
 
+end=$SECONDS
+
 if [ $lifted = true ] && [ $liftedind = true ] && [ $findlift = true ] &&    
    [ $liftedcase = true ] && [ $assumptions = true ] && [ $intro = true ] &&
    [ $example = true ] && [ $liftspec = true ] && [ $search = true ] && 
@@ -190,8 +192,8 @@ if [ $lifted = true ] && [ $liftedind = true ] && [ $findlift = true ] &&
 then
   echo "SUCCESS: All tests passed."
 
-  caseelapsed=($caseend - $casestart) 
-  echo "Case study code took $caseelapsed seconds."
+  elapsed=($end - $start) 
+  echo "Tests took $elapsed seconds."
 else
   echo "ERROR: The following tests failed:"
   if [ $lifted = false ]
