@@ -1,28 +1,20 @@
 This is DEVOID, a plugin for automatic discovery of and lifting across 
-algebraic ornaments in Coq. It is the artifact for the ITP paper [Ornaments for Proof Reuse in Coq](http://tlringer.github.io/pdf/ornpaper.pdf).
+certain equivalences between types in Coq. It began as the artifact for the ITP paper [Ornaments for Proof Reuse in Coq](http://tlringer.github.io/pdf/ornpaper.pdf), but has since been extended.
 Please cite this paper when referring to DEVOID. A version of DEVOID that corresponds to the
 ITP camera-ready can be found in [this release](http://github.com/uwplse/ornamental-search/releases/tag/itp+equiv).
 
-Basically, when you have two types
-A (like `list`) and B (like `vector`), where B is A indexed by some new type (like `nat`) that is determined
-by a fold over A (like `length`), DEVOID can search for the fold and functions
-that relate A and B, and then lift functions and proofs between types.
-The lifted functions and proofs are usually about as fast as the originals.
-See the paper and the examples for more detail.
+Basically, when you have two types A and B that are related in certain ways, DEVOID can search for
+and prove the relation between those types, then lift functions and proofs between them.
+The following relations are currently supported:
+
+1. **Algebraic Ornaments**: the type B (like `vector`) is the type A (like `list`) indexed by a fold
+over A (like `length`)
+2. **Records and Tuples**: the type A is a nested tuple of the form `x * (y * ...)`, and the type B is
+a record with the same number of fields that have the same types
 
 DEVOID is a part of the [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH) 
 proof repair plugin suite, and is included as a dependency of PUMPKIN PATCH
 starting with release 0.1.
-
-# TODO
-
-Before merging this branch, document:
-* Opaques
-* `..` syntax
-* Curry record
-* New examples
-* New files
-* Save ornament (and removed support for passing directly)
 
 # Getting Started with DEVOID
 
@@ -44,8 +36,8 @@ cd plugin
 
 ## Using DEVOID
 
-For a complete overview of how to use the tool, see [Example.v](/plugin/coq/examples/Example.v).
-For those interested, more details can be found in Sections 2, 3, 4, and 5 of the paper.
+For an overview of how to use the tool, see [Example.v](/plugin/coq/examples/Example.v)
+and [minimal_records.v](/plugin/coq/minimal_records.v).
 
 ### Overview
 
@@ -55,15 +47,16 @@ to increase user confidence and to make the functions that it generates more use
 If you skip running the `Find ornament` command and just run `Lift`,
 then DEVOID will run `Find ornament` for you automatically first.
 
-In addition, there are two commands that help make DEVOID more useful: `Preprocess`
-for pattern matching and fixpoint support, and `Unpack` to help recover more user-friendly types. The `Preprocess` command comes from our plugin
+In addition, there are a few commands that help make DEVOID more useful: `Preprocess`
+for pattern matching and fixpoint support, and `Unpack` to help recover more user-friendly types.
+The `Preprocess` command comes from our plugin
 [fix-to-elim](https://github.com/uwplse/coq-plugin-lib).
 There is also work in progress on a general methodology (which will hopefully be automated in
 the future) to get even more user-friendly types.
 
 #### Search
 
-See [Example.v](coq/examples/Search.v) for an example of search.
+See [Search.v](coq/examples/Search.v) for an example of search.
 
 ##### Command
 
@@ -71,18 +64,19 @@ See [Example.v](coq/examples/Search.v) for an example of search.
 Find ornament A B as A_to_B.
 ```
 
-This command searches for the relation that describes the algebraic ornament
-between A and B.
+This command searches for the relation between A and B.
 
 ##### Outputs 
 
-`Find ornament` returns three functions if successful: 
+For algebraic ornaments, `Find ornament` returns three functions if successful: 
 
 1. `A_to_B`,
 2. `A_to_B_inv`, and 
 3. `A_to_B_index`.
 
 `A_to_B` and `A_to_B_inv` form a specific equivalence, with `A_to_B_index` describing the fold over `A`.
+
+For records and products, `Find ornament` returns only the first two of these.
 
 ##### Options for Correctness
 
@@ -94,7 +88,7 @@ Together, setting these two options tells `Find ornament` to prove that its outp
 Set DEVOID search prove coherence.
 ```
 
-This option tells `Find ornament` to additionally generate a proof `A_to_B_coh` that shows that
+For algebraic ornaments, this option tells `Find ornament` to additionally generate a proof `A_to_B_coh` that shows that
 `A_to_B_index` computes the left projection of applying `A_to_B`.
 
 ```
@@ -104,14 +98,28 @@ Set DEVOID search prove equivalence.
 This option tells `Find ornament` to generate proofs `A_to_B_section` and `A_to_B_retraction` that
 prove that `A_to_B` and `A_to_B_inv` form an equivalence.
 
+##### Using Custom Equivalences
+
+If `Find ornament` fails or you would like to use an existing equivalence, you can run this
+command before lifting:
+
+```
+Save ornament A B { promote = f; forget = g}. 
+```
+
+where `f` and `g` form an equivalence that describes one of the supported relations between `A` and `B`.
+Note that support for this is extremely experimental, and will not yet work if you try this with unsupported
+relations. You can find an example in [TestLift.v](/plugin/coq/TestLift.v).
+
 #### Lift
 
-See [Example.v](/plugin/coq/examples/Example.v) for an example of lifting.
+See [Example.v](/plugin/coq/examples/Example.v) and [minimal_records.v](/plugin/coq/minimal_records.v) for
+examples of lifting.
 
 ##### Command
 
 ```
-`Lift A B in f as g.`
+Lift A B in f as g.
 ``` 
 
 This command lifts a function or proof `f` along the discovered relation.
@@ -123,6 +131,57 @@ ornament first.
 ##### Outputs
 
 `Lift` produces a function `g` which is the analogue of `f`.
+
+##### Alternate Syntax
+
+You can run this with an alternate syntax as well:
+
+
+```
+Lift A B in f as ..suffix.
+``` 
+
+This will name the result `f_suffix`.
+
+##### Prettier Types
+
+By default, DEVOID lets Coq infer the types of lifted terms. You can 
+instead tell DEVOID to lift the types (these are typically prettier)
+if you set the following function:
+
+```
+Set DEVOID lift type.
+```
+
+##### Opaque Terms
+
+If you'd like, you can tell the `Lift` command to treat certain terms as opaque
+when you are positive that lifting them will have no effect:
+
+```
+Lift A B in f as g { opaque constant1 constant2 ... }.
+``` 
+
+This can make lifting faster.
+However, it can also cause unpredictable errors if your assumption is incorrect.
+
+You can also set a term to be globally opaque every time you lift between A and B
+by using the following command:
+
+```
+Configure Lift A B { opaque constant1 constant2 ... }.
+```
+
+You can find an example of this in [more_records.v](/plugin/coq/more_records.v).
+
+##### Caching
+
+DEVOID by default caches all lifted terms it encounters as it goes in order to save time.
+You can disable this if you'd like by running this command:
+
+```
+Unset DEVOID smart cache. 
+```
 
 #### Additional Functionality
 
@@ -168,6 +227,8 @@ see [GitHub issue #39](http://github.com/uwplse/ornamental-search/issues/39).
 DEVOID makes some assumptions about your terms and types for now (described in Section 3 of the paper).
 [Assumptions.v](/plugin/coq/examples/Assumptions.v) describes these assumptions in more detail
 and gives examples of unsupported terms and types.
+Note that the assumptions for records and tuples are not yet documented, since
+support for those types is brand new.
 
 These assumptions are mostly to simplify search. We hope to loosen them eventually.
 If any are an immediate inconvenience to you, then please cut a GitHub issue with an example
@@ -200,6 +261,11 @@ Here is an overview of the examples, in order of relevance to the paper:
 * [Lift.v](/plugin/coq/examples/Lift.v): Lifting examples from Section 4 of the paper
 * [ListToVect.v](/plugin/coq/examples/ListToVect.v): Example of preprocessing a module from Section 5 of the paper
 * [Projections.v](/plugin/coq/examples/Projections.v): Evidence for non-primitive projection claims from Section 5 of the paper
+
+## Tuple and Record Examples
+
+The most useful examples of lifting between tuples and records are in [minimal_records.v](/plugin/coq/minimal_records.v)
+and [more_records.v](/plugin/coq/more_records.v).
 
 ## Other Examples
 
@@ -351,9 +417,15 @@ Please also feel free to ask if you are confused about anything that the code do
       - [ListToVect.v](/plugin/coq/examples/ListToVect.v)
       - [Projections.v](/plugin/coq/examples/Projections.v)
     - [Indtype.v](/plugin/coq/Indtype.v): Lifting tests for inductive relations
+    - [Infrastructure.v](/plugin/coq/Infrastructure.v): Testing infrastructure
     - [ShouldFail.v](/plugin/coq/ShouldFail.v): Tests that should currently fail
-    - [Test.v](/plugin/coq/Test.v): Tests for search
-    - [TestLift.v](/plugin/coq/TestLift.v): Tests for lifting
+    - [Test.v](/plugin/coq/Test.v): Tests for search for algebraic ornaments
+    - [TestLift.v](/plugin/coq/TestLift.v): Tests for lifting across algebraic ornmanets
+    - [minimal_records.v](/plugin/coq/minimal_records.v): Basic tests for products and records
+    - [more_records.v](/plugin/coq/more_records.v): More advanced tests for products and records
+    - [NoSmartCache.v](/plugin/coq/NoSmartCache.v): Disabling the smart cache
+    - [SmartCache.v](/plugin/coq/SmartCache.v): Keeping the smart cache enabled
+    - [prod_rect.v](/plugin/coq/prod_rect.v): Test functionality that produces prettier terms
   - [eval](/plugin/eval): Case study code and dependencies
     - [equiv4free](/plugin/eval/equiv4free): EFF case study code and depedencies
       - [Makefile](/plugin/eval/equiv4free/Makefile)
@@ -373,12 +445,13 @@ Please also feel free to ask if you are confused about anything that the code do
     - [fix-to-elim](/plugin/src/fix-to-elim): **Preprocessing** with the [fix-to-elim](https://github.com/uwplse/coq-plugin-lib) plugin
   - [src](/plugin/src): Source directory
     - [coq-plugin-lib](/plugin/src/coq-plugin-lib): [Coq plugin library](https://github.com/uwplse/coq-plugin-lib)
+    - [lib](/plugin/src/lib): Internal library
     - [automation](/plugin/src/automation): Automation directory
       - [coherence.ml](/plugin/src/automation/coherence.ml) and [coherence.mli](/plugin/src/automation/coherence.mli): **Proving coherence**
       - [equivalence.ml](/plugin/src/automation/equivalence.ml) and [equivalence.mli](/plugin/src/automation/equivalence.mli): **Proving section and retraction**
       - [eta.ml](/plugin/src/automation/eta.ml) and [eta.mli](/plugin/src/automation/eta.mli): Automation for non-primitive projections
-      - [lift.ml](/plugin/src/automation/lift.ml) and [lift.mli](/plugin/src/automation/lift.mli): **Lifting terms**
       - [search.ml](/plugin/src/automation/search.ml) and [search.mli](/plugin/src/automation/search.mli): **Searching for ornaments**
+      - [lift](/plugin/src/automation/lift): **Lifting terms**
       - [unpack.ml](/plugin/src/automation/unpack.ml) and [unpack.mli](/plugin/src/automation/unpack.mli): Converting the unpacking tactic to a command
     - [cache](/plugin/src/cache): Caching ornaments and lifted terms
       - [caching.ml](/plugin/src/cache/caching.ml) and [caching.mli](/plugin/src/cache/caching.mli)
@@ -388,13 +461,13 @@ Please also feel free to ask if you are confused about anything that the code do
       - [factoring.ml](/plugin/src/components/factoring.ml) and [factoring.mli](/plugin/src/components/factoring.mli): 
       - [specialization.ml](/plugin/src/components/specialization.ml) and [specialization.mli](/plugin/src/components/specialization.mli): 
     - [ornaments](/plugin/src/ornaments): Internal representations and configuration
-      - [lifting.ml](/plugin/src/ornaments/lifting.ml) and [lifting.mli](/plugin/src/ornaments/lifting.mli)
     - [frontend.ml](/plugin/src/frontend.ml) and [frontend.mli](/plugin/src/frontend.mli): Main functionality for commands
     - [options.ml](/plugin/src/options.ml) and [options.mli](/plugin/src/options.mli): Definitions of and access to options
     - [ornamental.ml4](/plugin/src/ornamental.ml4): **Top-level source file**
     - [ornaments.mlpack](/plugin/src/ornaments.mlpack)
   - [theories](/plugin/theories): DEVOID theories
-    - [Lifted.v](/plugin/theories/Lifted.v): Canonical structure to cache lifted terms
+    - [Adjoint.v](/plugin/theories/Adjoint.v): Turning equivalences into adjoint equivalences
+    - [Prod.v](/plugin/theories/Prod.v): Preprocessed projections of pairs
     - [Ornaments.v](/plugin/theories/Ornaments.v): Loader theory for DEVOID
     - [Unpack.v](/plugin/theories/Unpack.v): **Unpacking terms** (Ltac tactic)
 * [.gitignore](/.gitignore)
