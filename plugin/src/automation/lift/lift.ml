@@ -209,10 +209,11 @@ let forget_case_args env_c_b env sigma c args =
      raise NotAlgebraic
 
 (* Common wrapper function for both directions (TODO clean args, move, comment, etc) *)
-let lift_case_args c env_c_b env_c nargs nargs_lifted c_elim sigma =
+let lift_case_args c env_c_b env_c nihs npms nargs sigma =
   let l = get_lifting c in
   match l.orn.kind with
   | Algebraic _ ->
+     let nargs_lifted = if l.is_fwd then nargs - nihs else nargs + nihs in
      let args = mk_n_rels nargs_lifted in
      if l.is_fwd then
        promote_case_args env_c sigma c args
@@ -225,17 +226,28 @@ let lift_case_args c env_c_b env_c nargs nargs_lifted c_elim sigma =
        let sigma, args_tl = prod_projections_rec env_c (List.hd (List.tl c_args)) sigma in
        sigma, List.append (List.hd c_args :: args_tl) b_args
      else
-       let pms = all_but_last (unfold_args c_elim) in
-       let c_args, b_args = take_split (nargs_lifted - List.length pms) args in
+       let (ind, _) = destInd (get_elim_type (reverse c)) in
+       let sigma, c_typ = reduce_type env_c sigma (mkConstruct (ind, 1)) in
+       let nargs_lifted = arity c_typ in
+       let c_args, b_args = take_split (nargs_lifted - npms) args in
        let sigma, arg_pair = pack_pair_rec env_c (List.tl c_args) sigma in
        sigma, List.append [List.hd c_args; arg_pair] b_args
 
 (*
+ * TODO comment, move
+ *)
+let num_ihs c env to_c_typ sigma =
+  let to_typ = get_elim_type (reverse c) in
+  match (get_lifting c).orn.kind with
+  | Algebraic _ ->
+     num_ihs env sigma to_typ to_c_typ
+  | CurryRecord ->
+     0
+
+(*
  * CASE
  *)
-let lift_case env c p c_elim constr sigma =
-  let l = get_lifting c in
-  let to_typ = get_elim_type (reverse c) in
+let lift_case env c npms p c_elim constr sigma =
   let sigma, c_elim_type = reduce_type env sigma c_elim in
   let (_, to_c_typ, _) = destProd c_elim_type in
   let env_c = zoom_env zoom_product_type env to_c_typ in
@@ -249,28 +261,18 @@ let lift_case env c p c_elim constr sigma =
     let c_eta = shift_by nargs c_eta in
     let (env_c_b, c_body) = zoom_lambda_term env_c c_eta in
     let (c_f, _) = destApp c_body in
-    let sigma, nargs_lifted =
-      match l.orn.kind with
-      | Algebraic _ ->
-         let nihs = num_ihs env sigma to_typ to_c_typ in
-         sigma, if l.is_fwd then nargs - nihs else nargs + nihs
-      | _ ->
-         let ((i, i_n), _) = destInd to_typ in
-         let c = mkConstruct ((i, i_n), 1) in
-         let sigma, c_typ = reduce_type env_c sigma c in
-         sigma, arity c_typ
-    in
-    let sigma, args = lift_case_args c env_c_b env_c nargs nargs_lifted c_elim sigma in
+    let nihs = num_ihs c env to_c_typ sigma in
+    let sigma, args = lift_case_args c env_c_b env_c nihs npms nargs sigma in
     let f = unshift_by (new_rels2 env_c_b env_c) c_f in
     let body = reduce_stateless reduce_term env_c sigma (mkAppl (f, args)) in
     sigma, reconstruct_lambda_n env_c body (nb_rel env)
 
 (* Lift cases *)
-let lift_cases env c p p_elim cs =
+let lift_cases env c npms p p_elim cs =
   bind
     (fold_left_state
        (fun (p_elim, cs) constr sigma ->
-         let sigma, constr = lift_case env c p p_elim constr sigma in
+         let sigma, constr = lift_case env c npms p p_elim constr sigma in
          let p_elim = mkAppl (p_elim, [constr]) in
          sigma, (p_elim, snoc constr cs))
        (p_elim, [])
@@ -289,7 +291,7 @@ let lift_elim env sigma c trm_app pms =
   let param_elim = mkAppl (elim, pms) in
   let sigma, p = lift_motive env sigma c npms param_elim trm_app.p in
   let p_elim = mkAppl (param_elim, [p]) in
-  let sigma, cs = lift_cases env c p p_elim trm_app.cs sigma in
+  let sigma, cs = lift_cases env c npms p p_elim trm_app.cs sigma in
   let sigma, final_args = lift_elim_args env sigma c npms trm_app.final_args in
   sigma, apply_eliminator { elim; pms; p; cs; final_args }
 
