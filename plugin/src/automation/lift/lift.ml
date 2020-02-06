@@ -134,9 +134,7 @@ let promote_case_args env sigma c args =
   let l = get_lifting c in
   match l.orn.kind with
   | Algebraic (_, off) ->
-     let (_, b_typ) = get_types c in
-     let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
-     let b_typ_inner = first_fun b_typ_packed in (* TODO refactor that b_typ stuff *)
+     let b_typ = get_elim_type (reverse c) in
      let rec lift_args sigma args i_b =
        match args with
        | n :: tl ->
@@ -147,7 +145,7 @@ let promote_case_args env sigma c args =
               (lift_args sigma (shift_all tl) i_b)
           else
             let sigma, t = reduce_type env sigma n in
-            if is_or_applies b_typ_inner t then
+            if is_or_applies b_typ t then
               (* FORGET-ARG *)
               let sigma, n = pack env (flip_dir l) n sigma in
               let sigma, typ_args = type_from_args (reverse c) env n sigma in
@@ -172,10 +170,8 @@ let promote_case_args env sigma c args =
 let forget_case_args env_c_b env sigma c args =
   let l = get_lifting c in
   match l.orn.kind with
-  | Algebraic (_, off) ->
-     let (_, b_typ) = get_types c in
-     let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
-     let b_typ_inner = first_fun b_typ_packed in
+  | Algebraic (_, off)->
+     let b_typ = get_elim_type c in
      let rec lift_args sigma args (i_b, proj_i_b) =
        match args with
        | n :: tl ->
@@ -186,7 +182,7 @@ let forget_case_args env_c_b env sigma c args =
               (lift_args sigma (unshift_all tl) (i_b, proj_i_b))
           else
             let sigma, t = reduce_type env_c_b sigma n in
-            if is_or_applies b_typ_inner t then
+            if is_or_applies b_typ t then
               (* PROMOTE-ARG *)
               let sigma, typ_args = type_from_args (reverse c) env n sigma in
               let sigma, b_sig = lift env (flip_dir l) n typ_args sigma in
@@ -208,7 +204,9 @@ let forget_case_args env_c_b env sigma c args =
   | _ ->
      raise NotAlgebraic
 
-(* Common wrapper function for both directions (TODO clean args, move, comment, etc) *)
+(*
+ * Lift the arguments of a case of an eliminator
+ *)
 let lift_case_args c env_c_b env_c to_c_typ npms nargs sigma =
   let l = get_lifting c in
   let to_typ = get_elim_type (reverse c) in
