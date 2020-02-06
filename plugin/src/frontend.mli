@@ -1,19 +1,24 @@
 open Constrexpr
 open Names
-open Ltac_plugin
 
 (*
  * Identify an algebraic ornament between two types
  * Define the components of the corresponding equivalence
- * (Don't prove section and retraction)
+ * If the appropriate option is set, prove that these form an equivalence
  *)
-val find_ornament : Id.t option -> constr_expr -> constr_expr -> unit
+val find_ornament : Id.t option -> constr_expr -> constr_expr -> unit          
 
 (*
- * Lift the supplied function along the supplied ornament
+ * Save a user-supplied ornament between two types
+ *)
+val save_ornament :
+  constr_expr -> constr_expr -> constr_expr -> constr_expr -> unit
+                                                                   
+(*
+ * Lift the supplied function along an ornament between the supplied types
  * Define the lifted version
  *)
-val lift_by_ornament : ?suffix:bool -> Id.t -> constr_expr -> constr_expr -> constr_expr -> unit
+val lift_by_ornament : ?suffix:bool -> ?opaques:Libnames.reference list -> Id.t -> constr_expr -> constr_expr -> constr_expr -> unit
 
 (*
   * Lift each module element (constant and inductive definitions) along the given
@@ -30,11 +35,10 @@ val lift_module_by_ornament : Id.t -> constr_expr -> constr_expr -> Libnames.ref
 val do_unpack_constant : Id.t -> Libnames.reference -> unit
 
 (*
- * Lift from a record to a product within a definition or proof
+ * Add terms to or remove terms from the globally opaque lifting cache
+ * at a particular ornament
  *)
-val do_lift_record_to_product :
-  Id.t -> (* name of new definition *)
-  constr_expr -> (* record *)
-  constr_expr -> (* product version of record *)
-  constr_expr -> (* term to lift *)
-  unit
+val add_lifting_opaques :
+  constr_expr -> constr_expr -> Libnames.reference list -> unit
+val remove_lifting_opaques :
+  constr_expr -> constr_expr ->  Libnames.reference list -> unit

@@ -13,6 +13,7 @@ Checking
 
 Equtils
 Sigmautils
+Produtils
 Idutils
 
 Stateutils
@@ -35,23 +36,33 @@ Modutils
 
 Printing
 
-Lifting
+Deltautils
+Desugarprod
+Ornerrors
+
+Promotion
 
 Caching
+
+Lifting
 
 Factoring
 Abstraction
 Specialization
 Differencing
 
+Options
+
 Search
 Coherence
 Equivalence
 Depelim
-Lift
 Desugar
 Unpack
 
-Options
+Liftconfig
+Liftrules
+Lift
+
 Frontend
 Ornamental

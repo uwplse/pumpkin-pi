@@ -1,6 +1,6 @@
 Require Ornamental.Adjoint.
 Require Ornamental.Unpack.
-Require Ornamental.Lifted.
+Require Ornamental.Prod.
 
 Declare ML Module "ornaments".
 

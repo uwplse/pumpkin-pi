@@ -10,16 +10,6 @@ open Lifting
 open Stateutils
 
 (*
- * Lift a term along an ornament
- *)
-val do_lift_term :
-  env ->
-  evar_map ->
-  lifting -> (* lifting configuration *)
-  types -> (* unlifted term *)
-  types state (* lifted term *)
-
-(*
  * Lift a constant along an ornament
  *)
 val do_lift_defn :
@@ -27,13 +17,15 @@ val do_lift_defn :
   evar_map ->
   lifting -> (* lifting configuration *)
   types -> (* unlifted constant (defined function) *)
+  constr list -> (* constants to treat as opaque *)
   types state (* lifted function *)
 
 val do_lift_ind :
   env ->
   evar_map ->
+  lifting -> (* lifting configuration *)
   Id.t ->
   string ->
-  lifting ->
   inductive ->
+  constr list -> (* constants to treat as opaque *)
   inductive (* lifted type and number of constructors for caching *)

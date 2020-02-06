@@ -7,23 +7,31 @@ open Environ
 open Evd
 open Lifting
 open Stateutils
+open Reducers
 
 (* --- Packing --- *)
 
-(* Pack the index at the supplied offset *)
-val pack : env -> int -> types -> evar_map -> types state
+(* Pack a term before lifting *)
+val pack : env -> lifting -> types -> evar_map -> types state
+
+(* --- Specialization --- *)
+
+val specialize_using :
+  reducer -> env -> constr -> constr list -> evar_map -> constr state
+
+val specialize :
+  env -> constr -> constr list -> evar_map -> constr state
+
+val specialize_delta_f :
+  env -> constr -> constr list -> evar_map -> constr state
 
 (* --- Applying promote/forget --- *)
 
 (*
  * Apply promote/forget (forwards/backwards) to a term
  *)
-val lift : env -> lifting -> types -> evar_map -> types state
-
-(*
- * Pack arguments and lift
- *)
-val pack_lift : env -> lifting -> types -> evar_map -> types state
+val lift :
+  env -> lifting -> constr -> types list -> evar_map -> constr state
 
 (* --- Refolding --- *)
 

@@ -2,6 +2,7 @@ Add LoadPath "coq".
 Require Import List.
 Require Import Ornamental.Ornaments.
 Require Import Test.
+Require Import Infrastructure.
 
 (*
  * Test lifting directly
@@ -47,6 +48,38 @@ Proof.
   intros. reflexivity.
 Qed.
 
+(* --- Simple projection tests ---- *)
+
+Lift list vector in orn_list_vector_index as ltv_indexer_lifted.
+
+Theorem testProj:
+  forall A pv, ltv_indexer_lifted A pv = projT1 pv.
+Proof.
+  intros. unfold ltv_indexer_lifted. test_exact_equality.
+Qed.
+
+Definition proj_index (A : Type) (pv : sigT (vector A)) :=
+  projT1 pv.
+
+Lift vector list in proj_index as proj_index_lifted.
+
+Theorem testIndex:
+  forall A l, proj_index_lifted A l = list_to_vector_index A l.
+Proof.
+  intros. unfold proj_index_lifted. test_exact_equality.
+Qed.
+
+Definition proj_val (A : Type) (pv : sigT (vector A)) :=
+  projT2 pv.
+
+Lift vector list in proj_val as proj_val_lifted.
+
+Theorem testVal:
+  forall A l, proj_val_lifted A l = l.
+Proof.
+  intros. unfold proj_val_lifted. test_exact_equality.
+Qed.
+
 (* --- Simple functions --- *)
 
 Definition hd (A : Type) (default : A) (l : list A) :=
@@ -86,7 +119,9 @@ Proof.
 Qed.
 
 (* flist/flector version *)
-(* these use the more verbose interface to make sure we still support it *)
+(* these use save ornament to make sure wess support it *)
+
+Save ornament natFlector.flist natFlector.flector { promote = orn_flist_flector_nat; forget = orn_flist_flector_nat_inv}. 
 
 Definition hdF (default : nat) (l : natFlector.flist) :=
   natFlector.flist_rect
@@ -105,7 +140,7 @@ Definition hd_vectF (default : nat) (pv : sigT natFlector.flector) :=
     (projT1 pv)
     (projT2 pv).
 
-Lift orn_flist_flector_nat orn_flist_flector_nat_inv in hdF as hd_vectF_lifted.
+Lift natFlector.flist natFlector.flector in hdF as hd_vectF_lifted.
 
 Theorem test_hd_vectF:
   forall (default : nat) (pv : sigT natFlector.flector),
@@ -114,7 +149,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Lift orn_flist_flector_nat_inv orn_flist_flector_nat in hd_vectF_lifted as hdF_lifted.
+Lift natFlector.flector natFlector.flist in hd_vectF_lifted as hdF_lifted.
 
 Theorem test_hdF:
   forall (default : nat) (l : natFlector.flist),
@@ -235,7 +270,7 @@ Definition append_vectF_inner (pv1 : sigT natFlector.flector) (pv2 : sigT natFle
 Definition append_vectF (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector) :=
   existT _ (projT1 (append_vectF_inner pv1 pv2)) (projT2 (append_vectF_inner pv1 pv2)).
 
-Lift orn_flist_flector_nat orn_flist_flector_nat_inv in appendF as append_vectF_lifted.
+Lift natFlector.flist natFlector.flector in appendF as append_vectF_lifted.
 
 Theorem test_append_vectF:
   forall (pv1 : sigT natFlector.flector) (pv2 : sigT natFlector.flector),
@@ -244,7 +279,7 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Lift orn_flist_flector_nat_inv orn_flist_flector_nat in append_vectF as appendF_lifted.
+Lift natFlector.flector natFlector.flist in append_vectF as appendF_lifted.
 
 Theorem test_appendF :
   forall (l1 : natFlector.flist) (l2 : natFlector.flist),

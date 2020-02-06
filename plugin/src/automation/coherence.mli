@@ -1,6 +1,6 @@
 open Constr
 open Environ
-open Lifting
+open Promotion
 open Evd
 
 (* --- Automatically generated coherence proof --- *)

@@ -14,7 +14,7 @@ open Substitution
 open Factoring
 open Zooming
 open Abstraction
-open Lifting
+open Promotion
 open Declarations
 open Util
 open Differencing
@@ -29,21 +29,9 @@ open Sigmautils
 open Reducers
 open Constutils
 open Stateutils
+open Desugarprod
+open Ornerrors 
 
-(* --- Error messages for the user --- *)
-       
-let unsupported_change_error =
-  Pp.str
-    "change not yet supported; request on GitHub issues if interested"
-
-let new_parameter_error =
-  Pp.str
-    "new parameters not yet supported; request on GitHub issues if interested"
-
-let new_constructor_error =
-  Pp.str
-    "new constructors not yet supported; request on GitHub issues if interested"
-    
 (* --- Finding the new index --- *)
 
 (* 
@@ -154,7 +142,11 @@ let index_case env sigma off p a b : types state =
                (fun b -> ret (mkLambda (n_a, t_a, b))))
          b
     | _ ->
-       CErrors.user_err unsupported_change_error
+       user_err
+         "index_case"
+         err_unsupported_change
+         [try_supported]
+         [cool_feature; mistake]
   in diff_case p (mkRel 1) [] env a b sigma
 
 (* Get the cases for the indexer *)
@@ -172,7 +164,7 @@ let indexer_cases env off p nargs a b =
        (take_except nargs (factor_product b_a))
        (take_except (nargs + 1) (factor_product b_b))
   | _ ->
-     failwith "not eliminators"
+     raise NotEliminators
 
 (* Find the motive for the indexer (INDEX-MOTIVE) *)
 let index_motive idx npm env_a =
@@ -204,7 +196,7 @@ let find_indexer env_pms idx elim_a a b =
              }
          in ret (reconstruct_lambda env_a app))
   | _ ->
-     failwith "not an eliminator"
+     raise NotEliminators
 
 (* --- Finding promote and forget --- *)
 
@@ -280,6 +272,8 @@ let remove_rel (i : int) (env : env) : env =
       (List.rev (List.tl (List.rev popped)))
   in List.fold_right push_local push env_pop
 
+(* --- Algebraic ornaments --- *)
+
 (*
  * Find the motive that the ornamental promotion or forgetful function proves
  * for an indexing function (PROMOTE-MOTIVE and FORGET-MOTIVE)
@@ -301,7 +295,7 @@ let promote_forget_motive off env t arity npm indexer_opt =
 (*
  * Substitute indexes and IHs in a case of promote or forget 
  *)
-let promote_forget_case env sigma off is_fwd p o n : types state =
+let promote_forget_case_algebraic env sigma off is_fwd p o n : types state =
   let directional a b = if is_fwd then a else b in
   let rec sub p p_a_b subs e o n =
     let (ind_o, c_o) = o in
@@ -342,7 +336,11 @@ let promote_forget_case env sigma off is_fwd p o n : types state =
                (fun b -> ret (mkLambda (n_o, t_o, b))))
          (o, n)
     | _ ->
-       CErrors.user_err unsupported_change_error
+       user_err
+         "promote_forget_case_algebraic"
+         err_unsupported_change
+         [try_supported]
+         [cool_feature; mistake]
   in sub p (mkRel 1) [] env o n sigma
 
 (*
@@ -356,7 +354,7 @@ let promote_forget_case env sigma off is_fwd p o n : types state =
  * abstracting the indexed type to take an indexing function, then
  * deriving the result through specialization.
  *)
-let promote_forget_cases env off is_fwd orn_p nargs o n =
+let promote_forget_cases_algebraic env off is_fwd orn_p nargs o n =
   let directional a b = if is_fwd then a else b in
   let (o_t, elim_o_t) = o in
   let (n_t, elim_n_t) = n in
@@ -368,7 +366,7 @@ let promote_forget_cases env off is_fwd orn_p nargs o n =
     (fun c_o c_n sigma ->
       Util.on_snd
         (shift_by (directional (nargs - 1) (nargs - 2)))
-        (promote_forget_case env sigma off is_fwd p (o_t, c_o) (n_t, c_n)))
+        (promote_forget_case_algebraic env sigma off is_fwd p (o_t, c_o) (n_t, c_n)))
     (take_except nargs (factor_product b_o))
     (take_except (directional (nargs + 1) (nargs - 1)) (factor_product b_n))
 
@@ -461,7 +459,7 @@ let pack_orn f_indexer is_fwd =
   if is_fwd then pack_conclusion f_indexer else pack_hypothesis
 
 (* Search for the promotion or forgetful function *)
-let find_promote_or_forget env_pms idx indexer_n o n is_fwd =
+let find_promote_or_forget_algebraic env_pms idx indexer_n o n is_fwd =
   let directional x y = if is_fwd then x else y in
   let (o_typ, arity_o, elim, elim_o_typ) = o in
   let (n_typ, arity_n, _, elim_n_typ) = n in
@@ -481,12 +479,12 @@ let find_promote_or_forget env_pms idx indexer_n o n is_fwd =
   let p = promote_forget_motive off env_p_o typ arity npm f_indexer_opt in
   let adj = directional identity shift in
   bind
-    (promote_forget_cases env_pms off is_fwd (adj (shift p)) nargs o n)
+    (promote_forget_cases_algebraic env_pms off is_fwd (adj (shift p)) nargs o n)
     (fun cs ->
       let unpacked =
         apply_eliminator
           {
-            elim = elim;
+            elim;
             pms = shift_all_by nargs (mk_n_rels npm);
             p = shift_by nargs p;
             cs = List.map adj cs;
@@ -503,16 +501,14 @@ let find_promote_or_forget env_pms idx indexer_n o n is_fwd =
           ret (reconstruct_lambda env_packed packed)))
 
 (* Find promote and forget, using a directional flag for abstraction *)
-let find_promote_forget env_pms idx indexer_n a b =
+let find_promote_forget_algebraic env_pms idx indexer_n a b =
   bind
-    (find_promote_or_forget env_pms idx indexer_n a b true)
+    (find_promote_or_forget_algebraic env_pms idx indexer_n a b true)
     (fun f ->
       bind
-        (find_promote_or_forget env_pms idx indexer_n b a false)
+        (find_promote_or_forget_algebraic env_pms idx indexer_n b a false)
         (fun g ->
           ret (f, g)))
-
-(* --- Algebraic ornaments --- *)
               
 (*
  * Search two inductive types for an algebraic ornament between them
@@ -530,17 +526,100 @@ let search_algebraic env sigma npm indexer_n a b =
   let sigma, indexer = find_indexer env_pms idx el_a a b sigma in
   let a = (a_typ, arity_a, el_a, el_a_typ) in
   let b = (b_typ, arity_b, el_b, el_b_typ) in
-  let sigma, (promote, forget) = find_promote_forget env_pms idx indexer_n a b sigma in
-  sigma, { indexer; promote; forget }
+  let sigma, (promote, forget) = find_promote_forget_algebraic env_pms idx indexer_n a b sigma in
+  sigma, { promote; forget; kind = Algebraic (indexer, fst idx + npm) }
+
+(* --- Records and products --- *)
+
+(*
+ * Search for promote/forget for curry record.
+ * For promote, eliminate the record and recursively construct a product.
+ * For forget, recursively eliminate the product and construct a record.
+ *)            
+let find_promote_or_forget_curry_record env_pms a b is_fwd sigma =
+  let directional x y = if is_fwd then x else y in
+  let npm = nb_rel env_pms in
+  let pms = mk_n_rels npm in
+  let a_pms = mkAppl (a, pms) in
+  let b_pms = mkAppl (b, pms) in
+  let env_arg = push_local (Anonymous, directional a_pms b_pms) env_pms in
+  let pms = shift_all pms in
+  let a_pms, b_pms = map_tuple shift (a_pms, b_pms) in
+  let c_a = mkAppl (mkConstruct (fst (destInd a), 1), pms) in
+  let sigma, c_a_typ = reduce_type env_arg sigma c_a in
+  let num_hyps = arity c_a_typ in
+  let arg = mkRel 1 in
+  let sigma, body =
+    if is_fwd then
+      let elim = type_eliminator env_pms (fst (destInd a)) in
+      let p = mkLambda (Anonymous, a_pms, shift b_pms) in
+      let sigma, cs =
+        let env_c = zoom_env zoom_product_type env_arg c_a_typ in
+        let rec make_c n sigma =
+          let trm1 = mkRel n in
+          if n = 1 then
+            sigma, trm1
+          else
+            let sigma, trm2 = make_c (n - 1) sigma in
+            let sigma, typ1 = infer_type env_c sigma trm1 in
+            let sigma, typ2 = infer_type env_c sigma trm2 in
+            sigma, apply_pair Produtils.{ typ1; typ2; trm1; trm2 }
+        in
+        let sigma, c = make_c num_hyps sigma in
+        sigma, [reconstruct_lambda_n env_c c (nb_rel env_arg)]
+      in
+      let final_args = [arg] in
+      sigma, apply_eliminator { elim; pms; p; cs; final_args }
+    else
+      let rec make_args n arg sigma =
+        let sigma, arg_typ =
+          let sigma, arg_typ = reduce_type env_arg sigma arg in
+          if equal (first_fun arg_typ) prod then
+            sigma, arg_typ
+          else
+            let f = unwrap_definition env_arg (first_fun arg_typ) in
+            let pms = unfold_args arg_typ in
+            reduce_term env_arg sigma (mkAppl (f, pms))
+        in
+        let prod_app = dest_prod arg_typ in
+        let fst_elim, snd_elim = prod_projections_elim prod_app arg in
+        if n = 2 then
+          sigma, [fst_elim; snd_elim]
+        else
+          let sigma, args = make_args (n - 1) snd_elim sigma in
+          sigma, fst_elim :: args
+      in
+      let sigma, args = make_args num_hyps arg sigma in
+      sigma, mkAppl (c_a, args)
+  in sigma, reconstruct_lambda env_arg body
+
+(*
+ * Find both promote and forget for curry_record
+ *)
+let find_promote_forget_curry_record env_pms a b =
+  bind
+    (find_promote_or_forget_curry_record env_pms a b true)
+    (fun f ->
+      bind
+        (find_promote_or_forget_curry_record env_pms a b false)
+        (fun g ->
+          ret (f, g)))
+
+(*
+ * Search for the components of the equivalence for curry_record
+ *)
+let search_curry_record env_pms sigma a b =
+  let sigma, (promote, forget) = find_promote_forget_curry_record env_pms a b sigma in
+  sigma, { promote; forget; kind = CurryRecord }
 
 (* --- Top-level search --- *)
 
 (*
- * Search two types for an ornament between them.
+ * Search two inductive types for an ornament between them.
  * This is more general to handle eventual extension with other 
  * kinds of ornaments.
  *)
-let search_orn env sigma indexer_id trm_o trm_n =
+let search_orn_inductive env sigma indexer_id_opt trm_o trm_n =
   match map_tuple kind (trm_o, trm_n) with
   | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->
      let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
@@ -549,24 +628,98 @@ let search_orn env sigma indexer_id trm_o trm_n =
      let (npm_o, npm_n) = map_tuple (fun m -> m.mind_nparams) (m_o, m_n) in
      if not (npm_o = npm_n) then
        (* new parameter *)
-       CErrors.user_err new_parameter_error
+       user_err
+         "search_orn_inductive"
+         err_new_parameter
+         [try_supported]
+         [cool_feature; mistake]
      else
        let (bs_o, bs_n) = map_tuple (fun m -> m.mind_packets) (m_o, m_n) in
        let (b_o, b_n) = map_tuple (fun bs -> Array.get bs 0) (bs_o, bs_n) in
        let (cs_o, cs_n) = map_tuple (fun m -> m.mind_consnames) (b_o, b_n) in
        if not (Array.length cs_o = Array.length cs_n) then
-         CErrors.user_err new_constructor_error
+         user_err
+           "search_orn_inductive"
+           err_new_constructor
+           [try_supported]
+           [cool_feature; mistake]
        else
          let npm = npm_o in
          let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
          let (arity_o, arity_n) = map_tuple arity (typ_o, typ_n) in
-         if not (arity_o = arity_n) then
+         if Option.has_some indexer_id_opt && not (arity_o = arity_n) then
            (* new index *)
            let o = (trm_o, arity_o) in
            let n = (trm_n, arity_n) in
            let (a, b) = map_if reverse (arity_n <= arity_o) (o, n) in
-           search_algebraic env sigma npm indexer_id a b
+           search_algebraic env sigma npm (Option.get indexer_id_opt) a b
          else
-           CErrors.user_err unsupported_change_error
+           user_err
+             "search_orn_inductive"
+             err_unsupported_change
+             [try_supported]
+             [cool_feature; problematic; mistake]           
   | _ ->
-     CErrors.user_err unsupported_change_error
+     raise NotInductive
+
+(*
+ * Search two types for an ornament between them, where one type
+ * is an inductive type and the other is something else (like an application
+ * of an inductive type). This is more general to handle eventual extensions
+ * with other kinds of ornaments.
+ *)
+let search_orn_one_noninductive env sigma trm_o trm_n =
+  let ind, non_ind = if isInd trm_o then (trm_o, trm_n) else (trm_n, trm_o) in
+  let ((i, _), _) = destInd ind in
+  let m = lookup_mind i env in
+  check_inductive_supported m;
+  let non_ind_inner = unwrap_definition env non_ind in
+  let sigma, non_ind_inner = reduce_term env sigma non_ind_inner in
+  let env, non_ind_inner = zoom_lambda_term env non_ind_inner in
+  match kind non_ind_inner with
+  | App _ ->
+     let f = unwrap_definition env (first_fun non_ind_inner) in
+     if equal f prod then
+       let npm = m.mind_nparams in
+       let bs = m.mind_packets in
+       let ncs = Array.length (Array.get bs 0).mind_consnames in
+       if npm = nb_rel env && ncs = 1 then
+         (* Curry a record into an application of prod *)
+         search_curry_record env sigma ind non_ind
+       else
+         user_err
+           "search_orn_one_noninductive"
+           err_unsupported_change
+           [try_supported]
+           [cool_feature; mistake]
+     else
+       user_err
+         "search_orn_one_noninductive"
+         err_unsupported_change
+         [try_supported]
+         [cool_feature; mistake]
+  | _ ->
+     user_err
+       "search_orn_one_noninductive"
+       err_unsupported_change
+       [try_supported]
+       [cool_feature; mistake]
+              
+(*
+ * Search two types for an ornament between them.
+ * This is more general to handle eventual extension with other 
+ * kinds of ornaments.
+ *)
+let search_orn env sigma indexer_id_opt trm_o trm_n =
+  if isInd trm_o && isInd trm_n && Option.has_some indexer_id_opt then
+    (* Ornament between two inductive types *)
+    search_orn_inductive env sigma indexer_id_opt trm_o trm_n
+  else if isInd trm_o || isInd trm_n then
+    (* Ornament between an inductive type and something else *)
+    search_orn_one_noninductive env sigma trm_o trm_n
+  else
+    user_err
+      "search_orn"
+      err_unsupported_change
+      [try_supported]
+      [cool_feature; mistake]

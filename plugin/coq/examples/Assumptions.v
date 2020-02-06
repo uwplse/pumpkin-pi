@@ -340,9 +340,11 @@ Lift nat nat_nat in 0 as OO_p.
 Lift nat nat_nat in (fun (n : nat) => n) as id_nat_nat.
 
 (*
- * But some do not:
+ * But some do not (because of some kind of compiler bug, I can't demonstrate this infinite loop
+ * since it will actually loop infinitely and not trigger the timeout, thanks to some incorrect compiler
+ * optimization):
  *)
-Fail Timeout 5 Lift nat nat_nat in S as SS_p.
+(*Fail Timeout 5 Lift nat nat_nat in S as SS_p.*)
 
 (*
  * This is because the lifting algorithm is not yet smart enough to stop

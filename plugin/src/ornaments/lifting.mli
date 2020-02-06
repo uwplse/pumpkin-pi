@@ -5,31 +5,19 @@
 open Constr
 open Environ
 open Evd
+open Promotion
 
 (* --- Datatypes --- *)
 
 (*
- * An ornamental promotion is an indexing function, a function
- * from T1 -> T2, and a function from T2 -> T1.
- *)
-type promotion =
-  {
-    indexer : types;
-    promote : types;
-    forget : types;
-  }
-
-(*
- * A lifting is an ornamental promotion between types, a direction,
- * and the offset of the index. This is a convenience configuration for
- * lifting functions and proofs, which wraps the promotion with extra
- * useful information.
+ * A lifting is an ornamental promotion between types and a direction,
+ * This is a convenience configuration for lifting functions and proofs,
+ * which wraps the promotion with extra useful information.
  *)
 type lifting =
   {
     orn : promotion;
     is_fwd : bool;
-    off : int;
   }
 
 (* --- Initialization --- *)
@@ -38,8 +26,8 @@ type lifting =
  * Initialize a lifting, given (in order):
  * 1) an environment
  * 2) an evar_map
- * 3) promote if promoting, or forget if forgetting
- * 4) forget if promoting, or promote if forgetting
+ * 3) the old type or user-supplied ornament function
+ * 4) the new type or user-supplied ornament function
  *)
 val initialize_lifting : env -> evar_map -> types -> types -> lifting
 
@@ -61,11 +49,11 @@ val map_backward : ('a -> 'a) -> lifting -> 'a -> 'a
 (* --- Information retrieval --- *)
 
 (* 
- * Given the type of an ornamental promotion function, get the inductive types
+ * Given the type of an ornamental promotion function, get the types
  * that the function maps between, including all of their arguments.
  * It is up to the client to adjust the offsets appropriately.
  *)
-val ind_of_promotion_type : types -> (types * types)
+val promotion_type_to_types : types -> (types * types)
 
 (* --- Directionality --- *)
        
@@ -79,3 +67,13 @@ val flip_dir : lifting -> lifting
  * Compose the result into a tuple.
  *)
 val twice_directional : (lifting -> 'a) -> lifting -> ('a * 'a)
+
+(* --- Indexing for algebraic ornaments --- *)
+
+(*
+ * Insert/remove the index at the appropriate offset.
+ * Raise NotAlgebraic if not an algebraic ornament.
+ *)                                                    
+val index : lifting -> constr -> constr list -> constr list
+val deindex : lifting -> constr list -> constr list
+

@@ -12,7 +12,6 @@ open Convertibility
 open Inference
 open Apputils
 open Envutils
-open Evd
 open Stateutils
 
 (* --- Differencing terms --- *)

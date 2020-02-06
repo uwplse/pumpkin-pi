@@ -12,6 +12,14 @@ search=false
 lift=false
 listtovect=false
 records=false
+morerecords=false
+smartcache=false
+nosmartcache=false
+prodrect=false
+
+start=$SECONDS
+
+coqc coq/Infrastructure.v
 
 echo "Testing Find ornament."
 
@@ -57,6 +65,43 @@ else
   :
 fi
 
+if coqc coq/more_records.v
+then
+  morerecords=true
+else
+  :
+fi
+
+cd coq
+
+if coqc prod_rect.v
+then
+  prodrect=true
+else
+  :
+fi
+
+cd ..
+
+echo "Testing smart cache."
+echo "First, without the smart cache:"
+
+if coqc coq/NoSmartCache.v
+then
+  nosmartcache=true
+else
+  :
+fi
+
+echo "Now, with the smart cache:"
+
+if coqc coq/SmartCache.v
+then
+  smartcache=true
+else
+  :
+fi
+
 echo "Running case study code."
 
 cd eval
@@ -78,10 +123,8 @@ mkdir out/inputs
 mkdir out/equivalences
 make clean
 ulimit -s 100000
-casestart=$SECONDS	
 if make
 then
-  caseend=$SECONDS
   liftedcase=true
 else
   :
@@ -139,84 +182,111 @@ else
   :
 fi
 
+end=$SECONDS
+
 if [ $lifted = true ] && [ $liftedind = true ] && [ $findlift = true ] &&    
    [ $liftedcase = true ] && [ $assumptions = true ] && [ $intro = true ] &&
    [ $example = true ] && [ $liftspec = true ] && [ $search = true ] && 
-   [ $lift = true ] && [ $listtovect = true ] && [ $records = true ]
+   [ $lift = true ] && [ $listtovect = true ] && [ $records = true ] &&
+   [ $morerecords = true ] && [ $nosmartcache = true ] && [ $smartcache = true ] && [ $prodrect = true ]
 then
   echo "SUCCESS: All tests passed."
 
-  caseelapsed=($caseend - $casestart) 
-  echo "Case study code took $caseelapsed seconds."
+  elapsed=($end - $start) 
+  echo "Tests took $elapsed seconds."
 else
   echo "ERROR: The following tests failed:"
-  if [ !$lifted = true ]
+  if [ $lifted = false ]
   then
     echo "lifting"
   else
     :
   fi
-  if [ !$findlift = true ]
+  if [ $findlift = false ]
   then
     echo "lifting with implicit Find Ornament"
   else
     :
   fi
-  if [ !$liftedind = true ]
+  if [ $liftedind = false ]
   then
     echo "lifting inductive predicates"
   else
     :
   fi
-  if [ !$records = true ]
+  if [ $records = false ]
   then
-    echo "lifting records to products"
+    echo "lifting records to products: minimal test"
   else
     :
   fi
-  if [ !$liftedcase = true ]
+  if [ $morerecords = false ]
+  then
+    echo "lifting records to products: fancier test"
+  else
+    :
+  fi
+  if [ $prodrect = false ]
+  then
+    echo "lifting records to products: folding projections"
+  else
+    :
+  fi
+  if [ $smartcache = false ]
+  then
+    echo "set smart cache test"
+  else
+    :
+  fi
+  if [ $nosmartcache = false ]
+  then
+    echo "unset smart cache test"
+  else
+    :
+  fi
+  if [ $liftedcase = false ]
   then
     echo "case study code"
   else
     :
   fi
-  if [ !$assumptions = true ]
+  if [ $assumptions = false ]
   then
     echo "Assumptions.v from ITP examples"
   else
     :
   fi
-  if [ !$intro = true ]
+  if [ $intro = false ]
   then
     echo "Intro.v from ITP examples"
   else
     :
   fi
-  if [ !$example = true ]
+  if [ $example = false ]
   then
     echo "Example.v from ITP examples"
   else
     :
   fi
-  if [ !$liftspec = true ]
+  if [ $liftspec = false ]
   then
     echo "LiftSpec.v from ITP examples"
   else
     :
   fi
-  if [ !$search = true ]
+  if [ $search = false ]
   then
     echo "Search.v from ITP examples"
   else
     :
   fi
-  if [ !$lift = true ]
+  if [ $lift = false ]
   then
     echo "Lift.v from ITP examples"
   else
     :
   fi
-  if [ !$listtovect = true ]
+  if [ $listtovect = false ]
   then
     echo "ListToVect.v from ITP examples"
   else

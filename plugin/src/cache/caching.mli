@@ -1,26 +1,44 @@
-open Globnames
-open Environ
 open Constr
-open Evd
+open Promotion
 
 (* --- Database for higher lifting --- *)
 
 (*
- * Register a lifting to the database
+ * Lookup a lifting along an ornament
+ * Arguments: lift_to, lift_back, trm
+ *
+ * Return None if the lifting does not exist or is not in the current environment
  *)
-val declare_lifted : global_reference -> global_reference -> unit
+val lookup_lifting : (constr * constr * constr) -> constr option
 
 (*
- * Search the database for a lifting, returning the reduced version if it exists
+ * Store a lifting along an ornament
+ * Order of arguments: lift_to, lift_back, trm, lifted_trm
  *)
-val search_lifted : env -> evar_map -> global_reference -> global_reference option
+val save_lifting : (constr * constr * constr) -> constr -> unit
+
+(* --- Database for global opaque liftings --- *)
 
 (*
- * Search the database for a lifting using terms, returning the reduced version
- * if it exists
+ * Lookup if a lifting is globally opaque
+ * Arguments: lift_to, lift_back, trm
  *)
-val search_lifted_term : env -> evar_map -> types -> types option
+val lookup_opaque : (constr * constr * constr) -> bool
 
+(*
+ * Store an opaque lifting
+ * Also saves it as a lifting
+ * Order of arguments: lift_to, lift_back, trm
+ *)
+val save_opaque : (constr * constr * constr) -> unit
+
+(*
+ * Remove an opaque lifting
+ * Also removes it from liftings
+ * Order of arguments: lift_to, lift_back, trm
+ *)
+val remove_opaque : (constr * constr * constr) -> unit
+                                                             
 (* --- Temporary cache of constants --- *)
 
 type temporary_cache
@@ -48,19 +66,19 @@ val cache_local : temporary_cache -> types -> types -> unit
 (* --- Database of ornaments --- *)
 
 (*
- * Check if an ornament between two types exists
- *)
-val has_ornament : (types * types) -> bool
-
-(*
  * Lookup an ornament between two types
  * Arguments: typ1, typ2
- * Order of return values: typ1_to_typ2, typ2_to_typ1
+ * Order of return values: typ1_to_typ2, typ2_to_typ1, kind of ornament
+ *
+ * Return None if the ornament does not exist or is not in the current
+ * environment
  *)
-val lookup_ornament : (types * types) -> (global_reference * global_reference)
+val lookup_ornament :
+  (types * types) -> (constr * constr * kind_of_orn) option
 
 (*
  * Store an ornament between two types, given the function and its inverse
  * Order of arguments: typ1, typ2, typ1_to_typ2, typ2_to_typ1
  *)
-val save_ornament : (types * types) -> (global_reference * global_reference) -> unit
+val save_ornament :
+  (types * types) -> (constr * constr * kind_of_orn) -> unit
