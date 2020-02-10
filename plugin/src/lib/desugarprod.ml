@@ -96,10 +96,13 @@ let prod_typs_rec_n typ n =
  * Eta expansion of a prod
  *)
 let eta_prod trm typ =
-  let typ_prod = dest_prod typ in
-  let (typ1, typ2) = prod_typs typ_prod in
-  let (trm1, trm2) = prod_projections_elim typ_prod trm in
-  apply_pair {typ1; typ2; trm1; trm2}
+  if is_or_applies prod typ then
+    let typ_prod = dest_prod typ in
+    let (typ1, typ2) = prod_typs typ_prod in
+    let (trm1, trm2) = prod_projections_elim typ_prod trm in
+    apply_pair {typ1; typ2; trm1; trm2}
+  else
+    trm
 
 (*
  * Eta expansion of a nested prod
@@ -125,7 +128,10 @@ let dest_prod_type env trm sigma =
   let typ_args = unfold_args typ in
   let typ_red = mkAppl (typ_f, typ_args) in
   let sigma, typ_red = reduce_term env sigma typ_red in
-  sigma, dest_prod typ_red
+  if is_or_applies prod typ_red then
+    sigma, dest_prod typ_red
+  else
+    failwith "not a product"
 
 (*
  * Recursively project a nested product 
