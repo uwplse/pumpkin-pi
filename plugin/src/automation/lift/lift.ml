@@ -553,6 +553,8 @@ let lift_core env c trm sigma =
            (* PROJ *)
            let sigma, co' = lift_rec en sigma c co in
            (sigma, mkProj (pr, co'))
+        | Construct _ ->
+           smart_cache c tr tr; (sigma, tr)
         | _ ->
            (sigma, tr))
   in lift_rec env sigma c trm
