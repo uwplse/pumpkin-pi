@@ -457,9 +457,15 @@ let lift_core env c trm sigma =
        let (_, b_typ) = get_types c in
        let sigma, lifted_args = map_rec_args lift_rec en sigma c (Array.of_list args) in
        if l.is_fwd then
-         reduce_term en sigma (mkApp (b_typ, lifted_args))
+         if Array.length lifted_args = 0 then
+           sigma, b_typ
+         else
+           reduce_term en sigma (mkApp (b_typ, lifted_args))
        else
-         (sigma, mkApp (a_typ, lifted_args))
+         if Array.length lifted_args = 0 then
+           sigma, a_typ
+         else
+           (sigma, mkApp (a_typ, lifted_args))
     | Optimization (SmartLiftConstr (lifted_constr, args)) ->
        let sigma, lifted = lift_smart_lift_constr c en lifted_constr args lift_rec sigma in
        sigma, lifted
