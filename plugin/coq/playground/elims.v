@@ -266,7 +266,7 @@ Defined.
 
 (*
  * Will want to simplify these, but here's the gist
- * (some help from Jason: https://github.com/uwplse/ornamental-search/issues/39)
+ * (some help from Jason Gross: https://github.com/uwplse/ornamental-search/issues/39)
  *)
 
 Lemma pltv_section:
@@ -286,7 +286,20 @@ Proof.
   - reflexivity.
   - unfold pltv. simpl. generalize dependent (vtl T n v). intros s H.
     induction s. simpl. subst. simpl. reflexivity.
-Qed.
+Defined.
+
+Program Definition plist_rect : (* TODO will do w/ projs instead of sigT_rect at some point *)
+  forall (A : Type) (P : forall n : nat, { l : list A & list_to_t_index A l = n } -> Type),
+    P 0 (existT _ (@nil A) eq_refl) ->
+    (forall (h : A) (n : nat) (t : { l : list A & list_to_t_index A l = n }), P n t -> P (S n) (existT _ (@cons A h (projT1 t)) (f_equal S (projT2 t)))) ->
+    forall (n : nat) (t : { l : list A & list_to_t_index A l = n }), P n t.
+Proof.
+  intros. induction t. revert p. revert n. induction x.
+  - intros. rewrite <- p. apply X. 
+  - intros. simpl. specialize (IHx (list_to_t_index A x) eq_refl).
+    simpl in IHx. rewrite <- p. simpl. specialize (X0 a (list_to_t_index A x) (existT _ x eq_refl) IHx).
+    simpl in X0. apply X0. 
+Defined.
 
 (* --- What about splitting constructors? --- *)
 
