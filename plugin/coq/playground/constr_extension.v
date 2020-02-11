@@ -43,8 +43,6 @@ Proof.
     destruct IHl. simpl. auto.
 Defined.
 
-Print list_list_ext.
-
 Program Definition list_ext_list :
   forall (A : Type), sigT (fun (l : list_ext A) => list_ext_inv A l) -> list A.
 Proof.
@@ -102,6 +100,70 @@ Defined.
  * This version asks you for the extra information needed to get your list proofs
  * to proofs about list_ext (TODO what is this?)
  *)
+
+Inductive list_missing (A : Type) : Type :=
+| missing_nil2 : list_missing A.
+
+Definition list_missing_inv (A : Type) (lo : option (list_missing A)) : Type :=
+  match lo with
+  | Some l => prod (list A) (list_missing A)
+  | None => list A
+  end.
+
+Program Definition list_list_ext' :
+  forall (A : Type), sigT (fun lo => list_missing_inv A lo) -> list_ext A.
+Proof.
+  intros A s. induction s. induction x.
+  - induction p. induction a0.
+    + apply nil_ext2.
+    + apply cons_ext.
+      * apply a0.
+      * apply IHa0. 
+  - induction p.
+    + apply nil_ext.
+    + apply cons_ext.
+      * apply a.
+      * apply IHp.
+Defined.
+
+Program Definition list_ext_list' :
+  forall (A : Type), list_ext A -> sigT (fun lo => list_missing_inv A lo).
+Proof.
+  intros A l. induction l.
+  - exists None. apply nil.
+  - induction IHl. induction x.
+    + exists (Some a0). induction p.
+      simpl. apply pair. apply (cons a a1). apply b.
+    + exists None. apply (cons a p). 
+  - exists (Some (missing_nil2 A)). simpl.
+    apply pair.
+    + apply nil.
+    + apply (missing_nil2 A).
+Defined.
+
+Program Definition list_list_ext_section' :
+  forall (A : Type) lo, list_ext_list' A (list_list_ext' A lo) = lo.
+Proof.
+  intros A lo. induction lo. destruct x.
+  - simpl. induction p. induction a.
+    + simpl. induction b. induction l. reflexivity.
+    + compute. compute in IHa. rewrite IHa. auto.
+  - simpl. induction p.
+    + simpl. auto.
+    + compute. compute in IHp. rewrite IHp. auto.
+Defined.
+
+Program Definition list_list_ext_retraction': 
+  forall (A : Type) l, list_list_ext' A (list_ext_list' A l) = l.
+Proof.
+  intros A l. induction l.
+  - simpl. auto.
+  - simpl. remember (list_ext_list' A l) as l'. induction l'. simpl.
+    induction x.
+    + induction p. simpl. rewrite <- IHl. simpl. auto.
+    + simpl. rewrite <- IHl. simpl. auto.
+  - simpl. auto.
+Defined.
 
 End NoNewInformation.
 
