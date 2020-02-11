@@ -241,6 +241,58 @@ Abort.
 
 (* ^ May not need propositional equality here; try in HoTT *)
 
+(* --- Unpacked equiv --- *)
+
+Definition pltv (T : Type) (n : nat) (pl : { l : list T & list_to_t_index T l = n }) : vector T n :=
+  list_rect
+    (fun l0 : list T => forall n0 : nat, list_to_t_index T l0 = n0 -> vector T n0)
+    (fun (n0 : nat) (H : list_to_t_index T Datatypes.nil = n0) =>
+     eq_rect (list_to_t_index T Datatypes.nil) (fun n1 : nat => vector T n1) 
+       (nilV T) n0 H)
+    (fun (a : T) (l0 : list T)
+       (IHl : forall n0 : nat, list_to_t_index T l0 = n0 -> vector T n0) 
+       (n0 : nat) (H : list_to_t_index T (a :: l0) = n0) =>
+     eq_rect (list_to_t_index T (a :: l0)) (fun n1 : nat => vector T n1)
+       (consV T a
+          (list_to_t_index T l0)
+          (IHl (list_to_t_index T l0) eq_refl)) n0 H)
+  (projT1 pl) 
+  n 
+  (projT2 pl).
+
+Program Definition vtl (T : Type) (n : nat) (v : vector T n) : { l : list T & list_to_t_index T l = n }.
+Proof.
+  induction v.
+  - exists nil. reflexivity.
+  - exists (cons h (projT1 IHv)). simpl. rewrite (projT2 IHv). reflexivity.
+Defined. 
+
+Lemma pltv_section:
+  forall T n pl, vtl T n (pltv T n pl) = pl.
+Proof.
+  induction pl. revert p. revert n. induction x.
+  - intros. rewrite <- p. reflexivity.
+  - intros. simpl. specialize (IHx (list_to_t_index T x) eq_refl).
+    simpl in IHx. rewrite <- p. simpl. unfold pltv in IHx. simpl in IHx. rewrite IHx.
+    simpl. reflexivity.
+Defined.
+
+Lemma coherence:
+  forall T n v, list_to_t_index T (projT1 (vtl T n v)) = n.
+Proof.
+  intros. induction v.
+  - reflexivity.
+  - simpl. rewrite IHv. reflexivity.
+Defined.
+
+Lemma pltv_retraction:
+  forall T n v, pltv T n (vtl T n v) = v.
+Proof.
+  intros T n v. induction v.
+  - reflexivity.
+  - pose proof (coherence T n v). admit.
+Abort.
+
 (* --- What about splitting constructors? --- *)
 
 Inductive list2 (T : Type) :=
