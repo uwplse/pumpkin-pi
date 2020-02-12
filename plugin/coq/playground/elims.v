@@ -277,173 +277,15 @@ Definition vtl (T : Type) (n : nat) (v : vector T n) :=
 Lemma pltv_section:
   forall T n pl, vtl T n (pltv T n pl) = pl.
 Proof.
-  induction pl. revert p. revert n. induction x.
-  - intros. rewrite <- p. reflexivity.
-  - intros. simpl. specialize (IHx (list_to_t_index T x) eq_refl).
-    simpl in IHx. rewrite <- p. simpl. unfold pltv in IHx. simpl in IHx. rewrite IHx.
-    simpl. reflexivity.
+  intros T. assert (forall (l : list T), vtl T (list_to_t_index T l) (pltv T (list_to_t_index T l) (existT _ l eq_refl)) = existT _ l eq_refl).
+  - induction l; intros.
+    + reflexivity.
+    + unfold pltv in IHl. unfold pltv. simpl in *. rewrite IHl. reflexivity.
+  - intros n pl. induction pl. specialize (H x). 
+    unfold pltv. simpl. rewrite <- p. apply H.
 Defined.
 
-Print pltv_section.
-
-Definition eq_rew_dep (A : Type) (x : A) (P : forall a : A, x = a -> Type) 
-  (f : P x eq_refl) (y : A) (e : x = y) :=
-match e as e0 in (_ = y0) return (P y0 e0) with
-| eq_refl => f
-end.
-
-Definition pltv_section_term (T : Type) (n : nat) (pl : {l : list T & list_to_t_index T l = n}) : vtl T n (pltv T n pl) = pl :=
-eq_rect_r _
-  (let x := projT1 pl in
-   let p := projT2 pl in
-   @list_ind 
-     T
-     (fun x0 : list T =>
-       forall n0 p0, vtl T n0 (pltv T n0 (existT _ x0 p0)) = existT _ x0 p0)
-     (fun (n0 : nat) (p0 : list_to_t_index T nil = n0) =>
-        eq_rew_dep
-          nat 
-          (list_to_t_index T nil)
-          (fun n1 p1 =>
-             vtl T n1 (pltv T n1 (existT _ nil p1)) = existT _ nil p1)
-           eq_refl
-           n0
-           p0)
-     (fun (a : T) (x0 : list T)
-        (IHx : forall n0 p0, vtl T n0 (pltv T n0 (existT _ x0 p0)) = existT _ x0 p0)
-        (n0 : nat) (p0 : list_to_t_index T (cons a x0) = n0) =>
-        (eq_rew_dep
-          nat 
-          (list_to_t_index T (cons a x0))
-          (fun n1 p1 =>
-            vtl T n1 (pltv T n1 (existT _ (cons a x0) p1)) =
-            existT _ (cons a x0) p1)
-         (@eq_ind_r
-            (@sigT (list T)
-               (fun l : list T =>
-                @eq nat (list_to_t_index T l) (list_to_t_index T x0)))
-            (@existT (list T)
-               (fun l : list T =>
-                @eq nat (list_to_t_index T l) (list_to_t_index T x0)) x0
-               (@eq_refl nat (list_to_t_index T x0)))
-            (fun
-               s : @sigT (list T)
-                     (fun l : list T =>
-                      @eq nat (list_to_t_index T l) (list_to_t_index T x0)) =>
-             @eq
-               (@sigT (list T)
-                  (fun l : list T =>
-                   @eq nat (list_to_t_index T l) (S (list_to_t_index T x0))))
-               (@existT (list T)
-                  (fun l : list T =>
-                   @eq nat (list_to_t_index T l) (S (list_to_t_index T x0)))
-                  (@Datatypes.cons T a
-                     (@projT1 (list T)
-                        (fun l : list T =>
-                         @eq nat (list_to_t_index T l) (list_to_t_index T x0)) s))
-                  (@eq_ind_r nat (list_to_t_index T x0)
-                     (fun n1 : nat => @eq nat (S n1) (S (list_to_t_index T x0)))
-                     (@eq_refl nat (S (list_to_t_index T x0)))
-                     (list_to_t_index T
-                        (@projT1 (list T)
-                           (fun l : list T =>
-                            @eq nat (list_to_t_index T l) (list_to_t_index T x0))
-                           s))
-                     (@projT2 (list T)
-                        (fun l : list T =>
-                         @eq nat (list_to_t_index T l) (list_to_t_index T x0)) s)))
-               (@existT (list T)
-                  (fun l : list T =>
-                   @eq nat (list_to_t_index T l) (S (list_to_t_index T x0)))
-                  (@Datatypes.cons T a x0)
-                  (@eq_refl nat (S (list_to_t_index T x0)))))
-            (@eq_refl
-               (@sigT (list T)
-                  (fun l : list T =>
-                   @eq nat (list_to_t_index T l) (S (list_to_t_index T x0))))
-               (@existT (list T)
-                  (fun l : list T =>
-                   @eq nat (list_to_t_index T l) (S (list_to_t_index T x0)))
-                  (@Datatypes.cons T a x0)
-                  (@eq_refl nat (S (list_to_t_index T x0))))
-             :
-             @eq
-               (@sigT (list T)
-                  (fun l : list T =>
-                   @eq nat (list_to_t_index T l) (S (list_to_t_index T x0))))
-               (@existT (list T)
-                  (fun l : list T =>
-                   @eq nat (list_to_t_index T l) (S (list_to_t_index T x0)))
-                  (@Datatypes.cons T a
-                     (@projT1 (list T)
-                        (fun l : list T =>
-                         @eq nat (list_to_t_index T l) (list_to_t_index T x0))
-                        (@existT (list T)
-                           (fun l : list T =>
-                            @eq nat (list_to_t_index T l) (list_to_t_index T x0))
-                           x0 (@eq_refl nat (list_to_t_index T x0)))))
-                  (@eq_ind_r nat (list_to_t_index T x0)
-                     (fun n1 : nat => @eq nat (S n1) (S (list_to_t_index T x0)))
-                     (@eq_refl nat (S (list_to_t_index T x0)))
-                     (list_to_t_index T
-                        (@projT1 (list T)
-                           (fun l : list T =>
-                            @eq nat (list_to_t_index T l) (list_to_t_index T x0))
-                           (@existT (list T)
-                              (fun l : list T =>
-                               @eq nat (list_to_t_index T l)
-                                 (list_to_t_index T x0)) x0
-                              (@eq_refl nat (list_to_t_index T x0)))))
-                     (@projT2 (list T)
-                        (fun l : list T =>
-                         @eq nat (list_to_t_index T l) (list_to_t_index T x0))
-                        (@existT (list T)
-                           (fun l : list T =>
-                            @eq nat (list_to_t_index T l) (list_to_t_index T x0))
-                           x0 (@eq_refl nat (list_to_t_index T x0))))))
-               (@existT (list T)
-                  (fun l : list T =>
-                   @eq nat (list_to_t_index T l) (S (list_to_t_index T x0)))
-                  (@Datatypes.cons T a x0)
-                  (@eq_refl nat (S (list_to_t_index T x0)))))
-            (vtl T (list_to_t_index T x0)
-               (@list_rect T (fun l0 : list T => t T (list_to_t_index T l0))
-                  (Vector.nil T)
-                  (fun (a0 : T) (l0 : list T) (IHl : t T (list_to_t_index T l0))
-                   => Vector.cons T a0 (list_to_t_index T l0) IHl) x0)) 
-             (IHx (list_to_t_index T x0) eq_refl)
-          :
-          @eq
-            (@sigT (list T)
-               (fun l : list T =>
-                @eq nat (list_to_t_index T l)
-                  (list_to_t_index T (@Datatypes.cons T a x0))))
-            (vtl T (list_to_t_index T (@Datatypes.cons T a x0))
-               (pltv T (list_to_t_index T (@Datatypes.cons T a x0))
-                  (@existT (list T)
-                     (fun l : list T =>
-                      @eq nat (list_to_t_index T l)
-                        (list_to_t_index T (@Datatypes.cons T a x0)))
-                     (@Datatypes.cons T a x0)
-                     (@eq_refl nat (list_to_t_index T (@Datatypes.cons T a x0))))))
-            (@existT (list T)
-               (fun l : list T =>
-                @eq nat (list_to_t_index T l)
-                  (list_to_t_index T (@Datatypes.cons T a x0)))
-               (@Datatypes.cons T a x0)
-               (@eq_refl nat (list_to_t_index T (@Datatypes.cons T a x0))))) n0
-         p0)
-      :
-      @eq (@sigT (list T) (fun l : list T => @eq nat (list_to_t_index T l) n0))
-        (vtl T n0
-           (pltv T n0
-              (@existT (list T)
-                 (fun l : list T => @eq nat (list_to_t_index T l) n0)
-                 (@Datatypes.cons T a x0) p0)))
-        (@existT (list T) (fun l : list T => @eq nat (list_to_t_index T l) n0)
-           (@Datatypes.cons T a x0) p0)) x n p)
-  (sigT_eta pl).
-
+(* ^ Term is so ugly, which may get in the way of generating; think about what lemmas we need *)
 
 Lemma pltv_retraction:
   forall T n v, pltv T n (vtl T n v) = v.
@@ -454,18 +296,36 @@ Proof.
     induction s. simpl. subst. simpl. reflexivity.
 Defined.
 
-Program Definition plist_rect : (* TODO will do w/ projs instead of sigT_rect at some point *)
+Program Definition plist_rect : (* Give the list proof motive a dummy eq proof at eq_refl *)
   forall (A : Type) (P : forall n : nat, { l : list A & list_to_t_index A l = n } -> Type),
     P 0 (existT _ (@nil A) eq_refl) ->
     (forall (h : A) (n : nat) (t : { l : list A & list_to_t_index A l = n }), P n t -> P (S n) (existT _ (@cons A h (projT1 t)) (f_equal S (projT2 t)))) ->
     forall (n : nat) (t : { l : list A & list_to_t_index A l = n }), P n t.
 Proof.
-  intros. induction t. revert p. revert n. induction x.
-  - intros. rewrite <- p. apply X. 
-  - intros. simpl. specialize (IHx (list_to_t_index A x) eq_refl).
-    simpl in IHx. rewrite <- p. simpl. specialize (X0 a (list_to_t_index A x) (existT _ x eq_refl) IHx).
-    simpl in X0. apply X0. 
+  intros. assert (forall (l : list A), P (list_to_t_index A l) (existT _ l eq_refl)).
+  - induction l. (* Proof about lists and their lengths *)
+    + apply X.
+    + apply (X0 a (list_to_t_index A l) (existT _ l eq_refl) IHl).
+  - induction t. rewrite <- p. apply X1. (* Rewrite to be the nice length *)
 Defined.
+
+Program Definition plist_rect_alt :
+  forall (A : Type) (P : list A -> Type),
+    P nil ->
+    (forall (h : A) (t : list A), P t -> P (cons h t)) ->
+    forall (Q : forall (n : nat), { l : list A & list_to_t_index A l = n } -> Type),
+      (forall (l : list A), P l -> Q (list_to_t_index A l) (existT _ l eq_refl)) ->
+      forall (n : nat) (t : { l : list A & list_to_t_index A l = n }), Q n t.
+Proof.
+  intros A P pnil pcons Q P_to_Q n t. assert (forall (l : list A), P l).
+  - induction l. (* Proof about lists *)
+    + apply pnil.
+    + apply pcons. apply IHl.
+  - induction t. specialize (P_to_Q x (X x)). rewrite <- p. apply P_to_Q.
+    (* Proof about lengths (should simplify though) *)
+Defined.  
+
+(* IDK, need to think more about what the proof about lengths is *)
 
 (* ^ TODO so we can implement that transport, but then the question becomes how to interface
    this and separate proofs over lists and proofs about their lengths, and automatically
