@@ -309,24 +309,88 @@ Proof.
   - induction t. rewrite <- p. apply X1. (* Rewrite to be the nice length *)
 Defined.
 
-Program Definition plist_rect_alt :
+Program Definition plist_easy_rect :
   forall (A : Type) (P : list A -> Type),
     forall (list_proof : forall (l : list A), P l), (* list proof *)
-    forall (Q : nat -> forall (l : list A), P l -> Type),
-      (forall (l : list A) (H : P l), Q (list_to_t_index A l) l H) -> (* length proof *)
-      forall (n : nat) (pl : { l : list A & list_to_t_index A l = n }),
-        Q n (projT1 pl) (list_proof (projT1 pl)). (* packed proof *)
+    forall (n : nat) (Q : nat -> Type),
+      (forall (l : list A) (H : P l), list_proof l = H -> list_to_t_index A l = n -> Q n) -> (* length proof *)
+      forall (pl : { l : list A & list_to_t_index A l = n }),
+        Q n. (* packed proof *)
 Proof.
-  intros A P list_proof Q length_proof n pl.
-  specialize (length_proof (projT1 pl) (list_proof (projT1 pl))).
-  rewrite (projT2 pl) in length_proof.
+  intros A P list_proof n Q length_proof pl.
+  specialize (length_proof (projT1 pl) (list_proof (projT1 pl)) eq_refl (projT2 pl)).
   apply length_proof.
 Defined.
 
-(* ^ TODO see how hard it is to apply this *)
+(*
+ * From Example.v:
+ *)
+Module hs_to_coq'.
 
-(* IDK, need to think more about what the proof about lengths is, try w/ some examples
-   beyond equalities and proofs relating equalities *)
+(* From:
+ * https://github.com/antalsz/hs-to-coq/blob/master/base/GHC/List.v
+ *)
+Definition zip {a} {b} : list a -> list b -> list (a * b)%type :=
+  fix zip arg_0__ arg_1__
+        := match arg_0__, arg_1__ with
+           | nil, _bs => nil
+           | _as, nil => nil
+           | cons a as_, cons b bs => cons (pair a b) (zip as_ bs)
+  end.
+
+(* From:
+ * https://github.com/antalsz/hs-to-coq/blob/master/core-semantics-no-values/semantics.v
+ *)
+Fixpoint zip_with {A} {B} {C} (f : A -> B -> C) (s : list A) (t : list B) : list C :=
+  match s , t with
+    | a :: s' , b :: t' => f a b :: zip_with f s' t'
+    | _       , _       => nil
+  end.
+
+From Coq Require Import ssreflect ssrbool ssrfun.
+Import EqNotations.
+
+Theorem zip_with_is_zip {A} {B} :
+  zip_with (@pair A B) =2 zip.
+Proof. by elim => [|a s IH] [|b t] //=; rewrite IH. Qed.
+
+End hs_to_coq'.
+
+Preprocess Module hs_to_coq' as hs_to_coq.
+
+Lemma zip_index':
+  forall {a} {b} (l1 : list a) (l2 : list b),
+    list_to_t_index _ l1 = list_to_t_index _ l2 ->
+    list_to_t_index _ (hs_to_coq.zip a b l1 l2) = list_to_t_index _ l1.
+Proof.
+  induction l1, l2; intros; auto; inversion H.
+  simpl. f_equal. auto.
+Defined.
+
+Preprocess zip_index' as zip_index.
+
+Program Definition zipV_pl:
+  forall {a} {b} (n : nat),
+    { l1 : list a & list_to_t_index a l1 = n } ->
+    { l2 : list b & list_to_t_index b l2 = n } ->
+    { l3 : list (a * b) & list_to_t_index (a * b) l3 = n }.
+Proof.
+  intros a b n pl1 pl2.
+  eapply plist_easy_rect with
+    (list_proof := fun l1 => hs_to_coq.zip a b l1 (projT1 pl2)). (* list function *)
+  - intros l1 zipped is_zipped zipped_invariant.
+    exists zipped.
+    rewrite <- is_zipped.
+    rewrite <- zipped_invariant.
+    apply (zip_index a b l1 (projT1 pl2)). (* length invariant *)
+    rewrite (projT2 pl2).
+    apply zipped_invariant.
+  - apply pl1.
+Defined.
+
+(*
+ * Not bad, but could be simpler.
+ *)
 
 (* ^ TODO so we can implement that transport, but then the question becomes how to interface
    this and separate proofs over lists and proofs about their lengths, and automatically
