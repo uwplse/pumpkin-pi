@@ -311,21 +311,22 @@ Defined.
 
 Program Definition plist_rect_alt :
   forall (A : Type) (P : list A -> Type),
-    P nil ->
-    (forall (h : A) (t : list A), P t -> P (cons h t)) ->
-    forall (Q : forall (n : nat), { l : list A & list_to_t_index A l = n } -> Type),
-      (forall (l : list A), P l -> Q (list_to_t_index A l) (existT _ l eq_refl)) ->
-      forall (n : nat) (t : { l : list A & list_to_t_index A l = n }), Q n t.
+    forall (list_proof : forall (l : list A), P l), (* list proof *)
+    forall (Q : nat -> forall (l : list A), P l -> Type),
+      (forall (l : list A) (H : P l), Q (list_to_t_index A l) l H) -> (* length proof *)
+      forall (n : nat) (pl : { l : list A & list_to_t_index A l = n }),
+        Q n (projT1 pl) (list_proof (projT1 pl)). (* packed proof *)
 Proof.
-  intros A P pnil pcons Q P_to_Q n t. assert (forall (l : list A), P l).
-  - induction l. (* Proof about lists *)
-    + apply pnil.
-    + apply pcons. apply IHl.
-  - induction t. specialize (P_to_Q x (X x)). rewrite <- p. apply P_to_Q.
-    (* Proof about lengths (should simplify though) *)
-Defined.  
+  intros A P list_proof Q length_proof n pl.
+  specialize (length_proof (projT1 pl) (list_proof (projT1 pl))).
+  rewrite (projT2 pl) in length_proof.
+  apply length_proof.
+Defined.
 
-(* IDK, need to think more about what the proof about lengths is *)
+(* ^ TODO see how hard it is to apply this *)
+
+(* IDK, need to think more about what the proof about lengths is, try w/ some examples
+   beyond equalities and proofs relating equalities *)
 
 (* ^ TODO so we can implement that transport, but then the question becomes how to interface
    this and separate proofs over lists and proofs about their lengths, and automatically
