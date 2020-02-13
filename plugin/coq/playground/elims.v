@@ -310,16 +310,14 @@ Proof.
 Defined.
 
 Program Definition plist_easy_rect :
-  forall (A : Type) (P : list A -> Type),
+  forall (A : Type) (P : list A -> Type) (n : nat) (Q : forall (n : nat) (l : list A), P l -> Type),
     forall (list_proof : forall (l : list A), P l), (* list proof *)
-    forall (n : nat) (Q : nat -> Type),
-      (forall (l : list A) (H : P l), list_proof l = H -> list_to_t_index A l = n -> Q n) -> (* length proof *)
-      forall (pl : { l : list A & list_to_t_index A l = n }),
-        Q n. (* packed proof *)
+    forall (length_proof : forall (l : list A), list_to_t_index A l = n -> Q n l (list_proof l)), (* length proof *)
+    forall (pl : { l : list A & list_to_t_index A l = n }),
+      Q n (projT1 pl) (list_proof (projT1 pl)). (* packed proof *)
 Proof.
-  intros A P list_proof n Q length_proof pl.
-  specialize (length_proof (projT1 pl) (list_proof (projT1 pl)) eq_refl (projT2 pl)).
-  apply length_proof.
+  intros A P n Q list_proof length_proof pl.
+  apply (length_proof (projT1 pl) (projT2 pl)).
 Defined.
 
 (*
@@ -369,22 +367,71 @@ Defined.
 
 Preprocess zip_index' as zip_index.
 
-Program Definition zipV_pl:
-  forall {a} {b} (n : nat),
+Program Definition zip_pl:
+  forall {a} {b} {n : nat},
     { l1 : list a & list_to_t_index a l1 = n } ->
     { l2 : list b & list_to_t_index b l2 = n } ->
     { l3 : list (a * b) & list_to_t_index (a * b) l3 = n }.
 Proof.
-  intros a b n pl1 pl2.
-  eapply plist_easy_rect with
-    (list_proof := fun l1 => hs_to_coq.zip a b l1 (projT1 pl2)). (* list function *)
-  - intros l1 zipped is_zipped zipped_invariant.
-    exists zipped.
-    rewrite <- is_zipped.
+  intros a b n pl1 pl2. pose proof plist_easy_rect as H.
+  specialize (H a (fun l1 => list (a * b)) n).
+  specialize (H (fun (n : nat) (l : list a) (zipped : list (a * b)) => {l3 : list (a * b) & list_to_t_index (a * b) l3 = n})).
+  apply (H (fun l1 => hs_to_coq.zip a b l1 (projT1 pl2))).
+  - intros l1 zipped_invariant. 
+    exists (hs_to_coq.zip a b l1 (projT1 pl2)). (* list function *)
     rewrite <- zipped_invariant.
     apply (zip_index a b l1 (projT1 pl2)). (* length invariant *)
     rewrite (projT2 pl2).
     apply zipped_invariant.
+  - apply pl1.
+Defined.
+
+Lemma zip_with_index':
+  forall {A} {B} {C} f (l1 : list A) (l2 : list B),
+    list_to_t_index _ l1 = list_to_t_index _ l2 ->
+    list_to_t_index _ (hs_to_coq.zip_with A B C f l1 l2) = list_to_t_index _ l1.
+Proof.
+  induction l1, l2; intros; auto; inversion H.
+  simpl. f_equal. auto.
+Defined.
+
+Preprocess zip_with_index' as zip_with_index.
+
+Program Definition zip_with_pl:
+  forall {A} {B} {C} (f : A -> B -> C) {n : nat},
+    { l1 : list A & list_to_t_index A l1 = n } ->
+    { l2 : list B & list_to_t_index B l2 = n } ->
+    { l3 : list C & list_to_t_index C l3 = n }.
+Proof.
+  intros A B C f n pl1 pl2. pose proof plist_easy_rect as H.
+  specialize (H A (fun l1 => list C) n).
+  specialize (H (fun (n : nat) (l : list A) (zipped : list C) => {l3 : list C & list_to_t_index C l3 = n})).
+  apply (H (fun l1 => hs_to_coq.zip_with A B C f l1 (projT1 pl2))).
+  - intros l1 zipped_invariant.
+    exists (hs_to_coq.zip_with A B C f l1 (projT1 pl2)). (* list function *)
+    rewrite <- zipped_invariant.
+    apply (zip_with_index A B C f l1 (projT1 pl2)). (* length invariant *)
+    rewrite (projT2 pl2).
+    apply zipped_invariant.
+  - apply pl1.
+Defined.
+
+From Coq Require Import Eqdep_dec Arith.
+
+Lemma zip_with_is_zip_pl :
+  forall {A} {B} {n} (pl1 : { l1 : list A & list_to_t_index A l1 = n }) (pl2 : { l2 : list B & list_to_t_index B l2 = n }),
+    zip_with_pl pair pl1 pl2 = zip_pl pl1 pl2.
+Proof.
+  intros A B n pl1 pl2. pose proof plist_easy_rect as H.
+  specialize (H A (fun l1 => hs_to_coq.zip_with A B (A * B) pair l1 (projT1 pl2) = hs_to_coq.zip A B l1 (projT1 pl2)) n).
+  specialize (H (fun n l1 H => zip_with_pl pair pl1 pl2 = zip_pl pl1 pl2)).
+  apply (H (fun l1 => hs_to_coq.zip_with_is_zip A B l1 (projT1 pl2))).
+  - intros l1 zip_with_is_zip_invariant. (* v list proof invariant *)
+    unfold zip_with_pl, zip_pl, plist_easy_rect.
+    induction pl1. induction pl2. simpl in *.
+    apply EqdepFacts.eq_sigT_sig_eq.
+    exists (hs_to_coq.zip_with_is_zip A B x x0). (* list proof *)
+    auto using (UIP_dec Nat.eq_dec). (* <- same thing shows up here, need to prove about fold *)
   - apply pl1.
 Defined.
 
