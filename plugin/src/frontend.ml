@@ -172,6 +172,7 @@ let find_ornament n_o d_old d_new =
  * Save a user-provided ornament
  *)
 let save_ornament d_old d_new d_orn d_orn_inv =
+  Feedback.msg_warning (Pp.str "Custom equivalences are experimental. Use at your own risk!");
   let (sigma, env) = Pfedit.get_current_context () in
   let sigma, promote = intern env sigma d_orn in
   let sigma, forget = intern env sigma d_orn_inv in
