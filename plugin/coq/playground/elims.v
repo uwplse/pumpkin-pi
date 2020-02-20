@@ -11,6 +11,9 @@ Set DEVOID search prove coherence.
 Set DEVOID search prove equivalence.
 Set DEVOID lift type.
 
+From Coq Require Import ssreflect ssrbool ssrfun.
+Import EqNotations.
+
 (*
  * Attempt at understanding why lifting eliminators is OK, formally.
  *)
@@ -345,9 +348,6 @@ Fixpoint zip_with {A} {B} {C} (f : A -> B -> C) (s : list A) (t : list B) : list
     | _       , _       => nil
   end.
 
-From Coq Require Import ssreflect ssrbool ssrfun.
-Import EqNotations.
-
 Theorem zip_with_is_zip {A} {B} :
   zip_with (@pair A B) =2 zip.
 Proof. by elim => [|a s IH] [|b t] //=; rewrite IH. Qed.
@@ -417,6 +417,181 @@ Proof.
 Defined.
 
 From Coq Require Import Eqdep_dec Arith.
+
+(*
+ * Aside: Before we do zip_with_is_zip_pl, I want to show you a proof of UIP over 
+ * the index that doesn't rely on UIP holding on the type of the indexer itself.
+ * I will generalize this soon and use it elsewhere, but this should be derivable
+ * for any algebraic ornament. We will need this for zip_with_is_zip_pl (well,
+ * we'll need UIP on the indexer, for which UIP on the type is sufficient, but 
+ * better to have something that works for any algebraic ornament).
+ *)
+
+(*
+ * If we can show this in general, it will help us. But I don't know how to do that:
+ *)
+Lemma coh_refl:
+  forall A (l : list A),
+    list_to_t_coh A l = eq_refl.
+Proof.
+  reflexivity.
+Defined.
+
+Lemma lift_pres_refl:
+  forall A (l : list A) (H : list_to_t_index A l = list_to_t_index A l),
+    H = @eq_refl _ (list_to_t_index A l) ->
+    rew <- (list_to_t_coh A l) in H = @eq_refl _ (projT1 (list_to_t A l)).
+Proof.
+  intros A l H Heq. subst. reflexivity.
+Defined.
+
+Lemma lift_pres_refl_inv:
+  forall A (l : list A) (H : list_to_t_index A l = list_to_t_index A l),
+    rew <- (list_to_t_coh A l) in H = @eq_refl _ (projT1 (list_to_t A l)) ->
+    H = @eq_refl _ (list_to_t_index A l).
+Proof.
+  intros A l H Heq. unfold list_to_t_coh in Heq. simpl in Heq.
+  rewrite <- Heq. reflexivity.
+Defined.
+
+Lemma list_pres_eq:
+  forall A (l1 l2 : list A),
+    l1 = l2 ->
+    list_to_t A l1 = list_to_t A l2.
+Proof.
+  intros A l1 l2 H. subst. reflexivity.
+Defined.
+
+Lemma list_pres_eq_ind:
+  forall A x1 x2, list_to_t_index A x1 = list_to_t_index A x2 -> projT1 (list_to_t A x1) = projT1 (list_to_t A x2).
+Proof.
+  intros. rewrite list_to_t_coh. rewrite H. reflexivity.
+Defined.
+
+Lemma section_coh:
+  forall (A : Type) (n : nat) (l : list A) (H : list_to_t_index A l = n),
+    rew <- [fun l : list A => list_to_t_index A l = n]
+       list_to_t_section A l in H = 
+    rew [fun (l : list A) => list_to_t_index A l = n]
+      (eq_sym (list_to_t_section A l)) in
+      (eq_sym (rew [fun (n : nat) => n = list_to_t_index A l] H in
+      (list_to_t_coh A l))).
+Proof.
+  intros. destruct H. simpl. reflexivity.
+Defined.
+
+Lemma list_pres_eq_unpacked:
+  forall A (n : nat) (pl1 pl2: { l : list A & list_to_t_index A l = n}),
+    projT1 pl1 = projT1 pl2 ->
+    pl1 = pl2.
+Proof.
+  intros. 
+  remember (projT1 pl1) as l1. remember (projT1 pl2) as l2.
+  remember (projT2 pl1) as pf1. remember (projT2 pl2) as pf2.
+  remember (list_to_t A l1) as pv1. remember (list_to_t A l2) as pv2.
+  remember (list_pres_eq A l1 l2 H).
+  remember (list_to_t_section A l1).
+  remember (list_to_t_section A l2).
+  remember (list_to_t_coh A l1).
+  remember (list_to_t_coh A l2).
+  remember (list_to_t_coh A (list_to_t_inv A (list_to_t A l1))).
+  remember (list_to_t_coh A (list_to_t_inv A (list_to_t A l2))).
+  remember (existT _ (list_to_t_inv A (list_to_t A (projT1 pl1))) (rew <- (list_to_t_section A (projT1 pl1)) in pf1)).
+  remember (existT _ (list_to_t_inv A (list_to_t A (projT1 pl2))) (rew <- (list_to_t_section A (projT1 pl2)) in pf2)).
+  destruct pl1, pl2.
+  assert (existT (fun l : list A => list_to_t_index A l = n) x e6 = s).
+  - rewrite Heqs. subst. simpl in *. subst.  
+    simpl. rewrite section_coh. simpl.
+    eapply EqdepFacts.eq_sigT_sig_eq.
+    exists (eq_sym (list_to_t_section A x0)). reflexivity.
+  - assert (existT (fun l : list A => list_to_t_index A l = n) x0 e7 = s0).
+    + rewrite Heqs0. destruct e7. subst. simpl in *. subst. 
+      simpl. rewrite section_coh. simpl.
+      eapply EqdepFacts.eq_sigT_sig_eq.
+      exists (eq_sym (list_to_t_section A x0)). reflexivity.
+    + destruct Heqpf1. destruct Heqpf2.
+      destruct Heql1. destruct Heql2.
+      assert (s = s0).
+      * rewrite Heqs0. rewrite Heqs.  apply EqdepFacts.eq_sigT_sig_eq.
+        exists (eq_trans (eq_trans e0 H) (eq_sym e1)).
+        unfold eq_rect_r.
+        Search eq_trans.
+        rewrite Heqe0. rewrite Heqe1.
+        rewrite eq_trans_rew_distr.
+        rewrite eq_trans_rew_distr. f_equal.
+        destruct pf2. simpl. subst. simpl in *.
+        pose proof (@Adjoint.commute_homotopy_id (list A) (fun l => list_to_t_inv A (list_to_t A l)) (list_to_t_section A) l2 l2).
+        rewrite <- eq_trans_rew_distr. pose proof (H eq_refl).
+
+apply EqdepFacts.eq_sigT_sig_eq.
+      
+      
+     
+
+
+Lemma list_uip_index:
+  forall (T : Type) (n : nat) (p1 p2 : {l : list T & list_to_t_index T l = n}),
+  
+    projT1 p1 = projT1 p2 ->
+    p1 = p2.
+Proof.
+  intros T n p1 p2 H. apply UIP_dec. 
+Defined.
+
+Lemma list_uip_index_refl:
+  forall (T : Type) (l : list T) (s: sigT (fun (n : nat) => list_to_t_index T l = n))
+    (coh : projT1 s = list_to_t_index T l), 
+    rew coh in projT2 s = eq_refl.
+Proof.
+  intros T l s coh. pose proof (list_uip_index T l s (existT _ (list_to_t_index T l) eq_refl)).
+  pose proof (projT2_eq (@eq_refl _ s)).
+  destruct s1. destruct s2. simpl in *. subst.
+  specialize (H0 (existT _ (list_to_t_index T l) eq_refl) (existT _ (list_to_t_index T l) H)).
+  
+  pose proof (H0 eq_refl).
+  apply UIP_dec.
+  intros. destruct x. destruct y. subst.
+  left. reflexivity.
+Defined.
+
+(*
+ * Still figuring out how to get there, but some relevant facts. Let's start
+ * with lists, but not rely on any properties of the natural numbers or of the
+ * particular coherence proof we have.
+ *)
+Lemma indexer_proj_rew: 
+  forall (T : Type) (l : list T) (pv : sigT (vector T)), list_to_t T l = pv -> pv = existT _ (list_to_t_index T l) (projT2 (list_to_t T l)).
+Proof.
+  intros T l pv H.
+  assert (pv = existT _ (projT1 (list_to_t T l)) (projT2 (list_to_t T l))).
+  - rewrite H. rewrite <- sigT_eta. reflexivity.
+  - assert (pv = existT _ (projT1 (list_to_t T (list_to_t_inv T pv))) (projT2 (list_to_t T (list_to_t_inv T pv)))).
+    + eapply eq_trans.
+      * apply H0.
+      * rewrite <- sigT_eta. rewrite <- sigT_eta. rewrite <- H. rewrite list_to_t_section. reflexivity.
+    + rewrite H1 in H0. pose proof (projT2_eq H0). unfold projT1_eq in H2.
+        replace (projT2
+       (existT [eta vector T] (projT1 (list_to_t T (list_to_t_inv T pv)))
+          (projT2 (list_to_t T (list_to_t_inv T pv))))) with (projT2 (list_to_t T (list_to_t_inv T pv)))
+        in H2 by reflexivity.
+       replace (projT2
+       (existT [eta vector T] (projT1 (list_to_t T l)) (projT2 (list_to_t T l))))
+        with (projT2 (list_to_t T l)) in H2 by reflexivity.
+       rewrite H1. eapply eq_sigT.
+       replace (projT2
+  (existT [eta vector T] (projT1 (list_to_t T (list_to_t_inv T pv)))
+     (projT2 (list_to_t T (list_to_t_inv T pv)))))
+       with (projT2 (list_to_t T (list_to_t_inv T pv))) by reflexivity.
+     replace (projT2 (existT [eta vector T] (list_to_t_index T l) (projT2 (list_to_t T l))))
+       with (projT2 (list_to_t T l)) by reflexivity.
+     apply H2.
+Defined.
+(*
+ * ^ I don't know what to show after this. This fact gets us not only that
+ * the first projection is always the indexer like coherence, but also that
+ * we can rewrite by the first equality. Which tells us something I think, but
+ * not sure what.
+ *)
 
 Lemma zip_with_is_zip_pl :
   forall {A} {B} {n} (pl1 : { l1 : list A & list_to_t_index A l1 = n }) (pl2 : { l2 : list B & list_to_t_index B l2 = n }),
