@@ -304,7 +304,29 @@ let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old =
       lift_definition_by_ornament env sigma n_new l c_old opaque_terms
   else
     lift_definition_by_ornament env sigma n_new l c_old opaque_terms
-    
+
+(*
+  * Lift each module element (constant and inductive definitions) along the given
+  * ornament, defining a new module with all the transformed module elements.
+  *)
+let lift_module_by_ornament ?(opaques=[]) ident d_orn d_orn_inv mod_ref =
+  let mod_body =
+    qualid_of_reference mod_ref |> Nametab.locate_module |> Global.lookup_module
+  in
+  let lift_global gref =
+    let ident = Nametab.basename_of_global gref in
+    try
+      lift_by_ornament ~opaques:opaques ident d_orn d_orn_inv (expr_of_global gref)
+    with _ ->
+      Feedback.msg_warning (str "Failed to lift " ++ pr_global_as_constr gref)
+  in
+  let _ =
+    declare_module_structure
+      ident
+      (fun _ -> iter_module_structure_by_glob lift_global mod_body)
+  in
+  Feedback.msg_info (str "Defined lifted module " ++ Id.print ident)
+
 (*
  * Add terms to the globally opaque lifting cache at a particular ornament
  *)
@@ -350,28 +372,6 @@ let remove_lifting_opaques d_orn d_orn_inv opaques =
           [try_check_typos; try_fully_qualify]
           [problematic; mistake])
     opaques
-
-(*
-  * Lift each module element (constant and inductive definitions) along the given
-  * ornament, defining a new module with all the transformed module elements.
-  *)
-let lift_module_by_ornament ident d_orn d_orn_inv mod_ref =
-  let mod_body =
-    qualid_of_reference mod_ref |> Nametab.locate_module |> Global.lookup_module
-  in
-  let lift_global gref =
-    let ident = Nametab.basename_of_global gref in
-    try
-      lift_by_ornament ident d_orn d_orn_inv (expr_of_global gref)
-    with _ ->
-      Feedback.msg_warning (str "Failed to lift " ++ pr_global_as_constr gref)
-  in
-  let _ =
-    declare_module_structure
-      ident
-      (fun _ -> iter_module_structure_by_glob lift_global mod_body)
-  in
-  Feedback.msg_info (str "Defined lifted module " ++ Id.print ident)
 
 (*
  * Unpack sigma types in the functional signature of a constant.

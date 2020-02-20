@@ -24,7 +24,7 @@ val lift_by_ornament : ?suffix:bool -> ?opaques:Libnames.reference list -> Id.t 
   * Lift each module element (constant and inductive definitions) along the given
   * ornament, defining a new module with all the transformed module elements.
   *)
-val lift_module_by_ornament : Id.t -> constr_expr -> constr_expr -> Libnames.reference -> unit
+val lift_module_by_ornament : ?opaques:Libnames.reference list -> Id.t -> constr_expr -> constr_expr -> Libnames.reference -> unit
 
 (*
  * Unpack sigma types in the functional signature of a constant.
