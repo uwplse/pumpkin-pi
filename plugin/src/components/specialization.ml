@@ -19,6 +19,8 @@ open Stateutils
 open Desugarprod
 open Ornerrors
 open Promotion
+open Evarutil
+open Evarconv
 
 (* --- Specialization --- *)
 
@@ -118,21 +120,48 @@ let fold_back_constants env f trm =
 let refold_packed l orn env arg app_red sigma =
   match l.orn.kind with
   | Algebraic (_, off) ->
-     let sigma, typ_args = non_index_typ_args off env sigma arg in
-     let sigma, orn_app_red = specialize_using reduce_nf env orn (snoc arg typ_args) sigma in
+     let sigma, typ_args = non_index_typ_args off env sigma arg in 
+     let sigma, arg_typ = reduce_type env sigma arg in
+     let earg_typ = EConstr.of_constr arg_typ in
+     let sigma, earg = new_evar env sigma earg_typ in
+     let earg = EConstr.to_constr sigma earg in
+     let sigma, orn_app_red = specialize_using reduce_nf env orn (snoc earg typ_args) sigma in
+     let sigma, orn_app_red_conc = specialize_using reduce_nf env orn (snoc arg typ_args) sigma in
      let app_red_ex = dest_existT app_red in
      let orn_app_red_ex = dest_existT orn_app_red in
+     let orn_app_red_conc_ex = dest_existT orn_app_red_conc in
      let abstract env sigma = abstract_arg env sigma off in
      let sigma, packer = on_red_type_default abstract env sigma orn_app_red_ex.unpacked in
      let index_type = app_red_ex.index_type in
      let arg_sigT = { index_type ; packer } in
      let sigma, typ_args = non_index_typ_args off env sigma arg in
-     let sigma, arg_indexer = Util.on_snd (project_index arg_sigT) (lift env l arg typ_args sigma) in
-     let sigma, arg_value = Util.on_snd (project_value arg_sigT) (lift env l arg typ_args sigma) in
-     let refold_index = all_eq_substs (orn_app_red_ex.index, arg_indexer) in
-     let refold_value = all_eq_substs (orn_app_red_ex.unpacked, arg_value) in
-     let refolded = refold_index (refold_value app_red_ex.unpacked) in
-     pack env l refolded sigma
+     let sigma, arg_indexer = Util.on_snd (project_index arg_sigT) (lift env l earg typ_args sigma) in
+     let sigma, arg_indexer_conc = Util.on_snd (project_index arg_sigT) (lift env l arg typ_args sigma) in
+     let sigma, arg_value = Util.on_snd (project_value arg_sigT) (lift env l earg typ_args sigma) in
+     let sigma, arg_value_conc = Util.on_snd (project_value arg_sigT) (lift env l arg typ_args sigma) in
+     let refold_econv (abs_red, abs) trm =
+       map_term_env_if_lazy
+         (fun _ sigma _ t ->
+           sigma, isApp t && not (is_or_applies (first_fun abs) t))
+         (fun env sigma (abs_red, abs) t ->
+           try
+             let sigma = the_conv_x env (EConstr.of_constr t) (EConstr.of_constr abs_red) sigma in
+             sigma, abs
+           with _ ->
+             sigma, t)
+         (map_tuple Debruijn.shift)
+         env
+         sigma
+         (abs_red, abs)
+         trm
+     in
+     let refold_index_fast = all_eq_substs (orn_app_red_conc_ex.index, arg_indexer_conc) in
+     let refold_value_fast = all_eq_substs (orn_app_red_conc_ex.unpacked, arg_value_conc) in
+     let refold_index = refold_econv (orn_app_red_ex.index, arg_indexer) in
+     let refold_value = refold_econv (orn_app_red_ex.unpacked, arg_value) in
+     let sigma, refolded_value = refold_value (refold_value_fast app_red_ex.unpacked) in
+     let sigma, refolded_index = refold_index (refold_index_fast refolded_value) in
+     pack env l refolded_index sigma
   | _ ->
      raise NotAlgebraic
        
