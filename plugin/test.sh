@@ -11,6 +11,7 @@ liftspec=false
 search=false
 lift=false
 listtovect=false
+listtovectcustom=false
 records=false
 morerecords=false
 smartcache=false
@@ -182,12 +183,19 @@ else
   :
 fi
 
+if coqc coq/examples/ListToVectCustom.v
+then
+  listtovectcustom=true
+else
+  :
+fi
+
 end=$SECONDS
 
 if [ $lifted = true ] && [ $liftedind = true ] && [ $findlift = true ] &&    
    [ $liftedcase = true ] && [ $assumptions = true ] && [ $intro = true ] &&
    [ $example = true ] && [ $liftspec = true ] && [ $search = true ] && 
-   [ $lift = true ] && [ $listtovect = true ] && [ $records = true ] &&
+   [ $lift = true ] && [ $listtovect = true ] && [ $listtovectcustom = true ] && [ $records = true ] &&
    [ $morerecords = true ] && [ $nosmartcache = true ] && [ $smartcache = true ] && [ $prodrect = true ]
 then
   echo "SUCCESS: All tests passed."
@@ -289,6 +297,12 @@ else
   if [ $listtovect = false ]
   then
     echo "ListToVect.v from ITP examples"
+  else
+    :
+  fi
+  if [ $listtovectcustom = false ]
+  then
+    echo "ListToVectCustom.v from extended ITP examples"
   else
     :
   fi
