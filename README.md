@@ -111,6 +111,10 @@ where `f` and `g` form an equivalence that describes one of the supported relati
 Note that support for this is extremely experimental, and will not yet work if you try this with unsupported
 relations. You can find an example in [TestLift.v](/plugin/coq/TestLift.v).
 
+You can also use this to substitute in a different equivalence for an existing ornament, but again there
+are some restrictions here on what is possible. See [ListToVectCustom.v](/plugin/coq/examples/ListToVectCustom.v)
+for more information.
+
 #### Lift
 
 See [Example.v](/plugin/coq/examples/Example.v) and [minimal_records.v](/plugin/coq/minimal_records.v) for
@@ -419,14 +423,7 @@ Please also feel free to ask if you are confused about anything that the code do
   - [test.sh](/plugin/coq/test.sh): Test script
   - [coq](/plugin/coq): Tests and paper examples
     - [examples](/plugin/coq/examples): Paper examples (see paper examples section of this document for details)
-      - [Intro.v](/plugin/coq/examples/Intro.v)
-      - [Example.v](/plugin/coq/examples/Example.v)
-      - [Assumptions.v](/plugin/coq/examples/Assumptions.v)
-      - [LiftSpec.v](/plugin/coq/examples/LiftSpec.v)
-      - [Search.v](/plugin/coq/examples/Search.v)
-      - [Lift.v](/plugin/coq/examples/Lift.v)
-      - [ListToVect.v](/plugin/coq/examples/ListToVect.v)
-      - [Projections.v](/plugin/coq/examples/Projections.v)
+    - [playground](/plugin/coq/playground): Preliminary thoughts on useful theory for later extensions to DEVOID
     - [Indtype.v](/plugin/coq/Indtype.v): Lifting tests for inductive relations
     - [Infrastructure.v](/plugin/coq/Infrastructure.v): Testing infrastructure
     - [ShouldFail.v](/plugin/coq/ShouldFail.v): Tests that should currently fail
