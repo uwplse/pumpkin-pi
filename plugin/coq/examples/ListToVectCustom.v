@@ -67,7 +67,8 @@ existT (fun H : nat => vector A H) (length l)
 (*
  * The correctness condition is that these also form an equivalence with the same
  * coherence properties. We don't need to prove this, however. We can just tell
- * DEVOID to use our equivalence. (Use at your own risk!)
+ * DEVOID to use our equivalence. (Use at your own risk! If you pick something that isn't an equivalence,
+ * lifting will fail with confusing type errors.)
  *)
 Save ornament list vector { promote = ltv ; forget = list_to_t_inv }.
 
