@@ -5,7 +5,10 @@ open Constr
 (*
  * The kind of ornament that is stored
  *)
-type kind_of_orn = Algebraic of constr * int | CurryRecord
+type kind_of_orn =
+  | Algebraic of constr * int
+  | CurryRecord
+  | SwapConstruct of int * int
 
 (*
  * An ornamental promotion is a function from T1 -> T2,

@@ -257,6 +257,8 @@ let int_to_kind (i : int) (indexer_and_off : (constr * int) option) =
     Algebraic (indexer, off)
   else if i = 1 then
     CurryRecord
+  else if i = 2 then
+    failwith "not yet implemented"
   else
     failwith "Unsupported kind of ornament passed to interpret_kind in caching"
 
@@ -266,6 +268,8 @@ let kind_to_int (k : kind_of_orn) =
      0
   | CurryRecord ->
      1
+  | SwapConstruct _ ->
+     2
              
 (*
  * Wrapping the table for persistence
@@ -363,6 +367,8 @@ let save_ornament typs (orn, orn_inv, kind) =
        add_anonymous_leaf ind_obj
     | CurryRecord ->
        ()
+    | SwapConstruct _ ->
+       failwith "not yet implemented"
   with _ ->
     Feedback.msg_warning (Pp.str "Failed to cache ornament")
  

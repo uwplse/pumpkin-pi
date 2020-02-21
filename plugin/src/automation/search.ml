@@ -30,7 +30,8 @@ open Reducers
 open Constutils
 open Stateutils
 open Desugarprod
-open Ornerrors 
+open Ornerrors
+open Convertibility
 
 (* --- Finding the new index --- *)
 
@@ -645,6 +646,7 @@ let search_orn_inductive env sigma indexer_id_opt trm_o trm_n =
            [cool_feature; mistake]
        else
          let npm = npm_o in
+         let ncons = Array.length cs_o in
          let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
          let (arity_o, arity_n) = map_tuple arity (typ_o, typ_n) in
          if Option.has_some indexer_id_opt && not (arity_o = arity_n) then
@@ -654,11 +656,49 @@ let search_orn_inductive env sigma indexer_id_opt trm_o trm_n =
            let (a, b) = map_if reverse (arity_n <= arity_o) (o, n) in
            search_algebraic env sigma npm (Option.get indexer_id_opt) a b
          else
-           user_err
-             "search_orn_inductive"
-             err_unsupported_change
-             [try_supported]
-             [cool_feature; problematic; mistake]           
+           (* change in constructor *)
+           let group_cs_by_types cs grouped sigma =
+             fold_left_state
+               (fun grouped c sigma ->
+                 let c_dest = destConstruct c in
+                 let sigma, c_typ = infer_type env sigma c in
+                 let c_typ = all_eq_substs (trm_o, trm_n) c_typ in
+                 try
+                   let sigma, (repr, (matches, typ)) =
+                     find_state
+                       (fun (_, (_, typ)) sigma ->
+                         convertible env sigma c_typ typ)
+                       grouped
+                       sigma
+                   in
+                   let grouped = List.remove_assoc repr grouped in
+                   sigma, (repr, (c_dest :: matches, typ)) :: grouped
+                 with _ ->
+                   sigma, ((c_dest, ([c_dest], c_typ)) :: grouped))
+               grouped
+               cs
+               sigma
+           in
+           let cs_o = List.init ncons (fun i -> mkConstruct ((i_o,ii_o),i+1)) in
+           let cs_n = List.init ncons (fun i -> mkConstruct ((i_n,ii_n),i+1)) in
+           let sigma, grouped_o = group_cs_by_types cs_o [] sigma in
+           let sigma, grouped_n = group_cs_by_types cs_n grouped_o sigma in
+           let is_swapped =
+             List.for_all
+               (fun (repr, (matches_o, _)) ->
+                 let (matches_n, _) = List.assoc repr grouped_n in
+                 List.length matches_n = 2 * List.length matches_o)
+               grouped_o
+           in
+           if is_swapped then
+             (* swapped constructors (including constructor renaming) *)
+             failwith "detected swapped constructors! WIP!"
+           else
+             user_err
+               "search_orn_inductive"
+               err_unsupported_change
+               [try_supported]
+               [cool_feature; problematic; mistake]           
   | _ ->
      raise NotInductive
 
@@ -711,7 +751,7 @@ let search_orn_one_noninductive env sigma trm_o trm_n =
  * kinds of ornaments.
  *)
 let search_orn env sigma indexer_id_opt trm_o trm_n =
-  if isInd trm_o && isInd trm_n && Option.has_some indexer_id_opt then
+  if isInd trm_o && isInd trm_n then
     (* Ornament between two inductive types *)
     search_orn_inductive env sigma indexer_id_opt trm_o trm_n
   else if isInd trm_o || isInd trm_n then
