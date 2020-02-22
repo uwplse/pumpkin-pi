@@ -704,8 +704,8 @@ let search_swap_constructor env npm grouped a b sigma =
       grouped
   in
   if List.exists (fun (_, ((ms_a, _), _)) -> List.length ms_a > 1) swaps then
-    (* Ambiguous; need more information *)
-    failwith "ambiguous swaps are a WIP"
+    (* Ambiguous; need more information *) (* TODO implement *)
+    CErrors.user_err (Pp.str "ambiguous swaps aren't yet implemented")
   else
     (* Unambiguous *)
     let swap_map =
