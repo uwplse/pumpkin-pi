@@ -17,7 +17,7 @@ Inductive list' (T : Type) : Type :=
 | cons' : T -> list' T -> list' T
 | nil' : list' T.
 
-Find ornament list list'.
+Fail Find ornament list list'. (* WIP *)
 
 (* --- An ambiguous swap --- *)
 
@@ -55,6 +55,8 @@ Inductive Term' : Set :=
  * proof mode and ask the user when this happens.
  *)
 
+Fail Find ornament Term Term'. (* WIP *)
+
 (* --- A more ambiguous swap --- *)
 
 (*
@@ -71,6 +73,8 @@ Inductive Term'' : Set :=
   | Times'' : Term'' -> Term'' -> Term''
   | Choose'' : Identifier -> Term'' -> Term''.
 
+Fail Find ornament Term' Term''. (* WIP *)
+
 (* --- Renaming --- *)
 
 (*
@@ -85,3 +89,6 @@ Inductive Term''' : Set :=
   | Plus''' : Term''' -> Term''' -> Term'''
   | Times''' : Term''' -> Term''' -> Term'''
   | Choose''' : Identifier -> Term''' -> Term'''.
+
+Fail Find ornament Term'' Term'''. (* WIP *)
+

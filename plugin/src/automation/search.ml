@@ -613,6 +613,25 @@ let search_curry_record env_pms sigma a b =
   let sigma, (promote, forget) = find_promote_forget_curry_record env_pms a b sigma in
   sigma, { promote; forget; kind = CurryRecord }
 
+(* --- Swapping constructors --- *)
+
+(*
+ * Search for the components of the equivalence for swapping constructors
+ *)
+let search_swap_constructor env npm grouped a b sigma =
+  let swap_maps =
+    List.map
+      (fun (repr, (matches, typ_a)) ->
+        let (matches_a, matches_b) = List.partition (fun ((ind, _), _) -> equal (mkInd ind) a) matches in
+        let typ_b = all_eq_substs (a, b) typ_a in
+        (repr, ((matches_a, matches_b), (typ_a, typ_b))))
+      grouped
+  in
+  if List.exists (fun (_, ((ms, _), _)) -> List.length ms > 1) swap_maps then
+    failwith "ambiguous swaps are a WIP"
+  else
+    failwith "detected swapped constructors! WIP!"
+           
 (* --- Top-level search --- *)
 
 (*
@@ -692,7 +711,7 @@ let search_orn_inductive env sigma indexer_id_opt trm_o trm_n =
            in
            if is_swapped then
              (* swapped constructors (including constructor renaming) *)
-             failwith "detected swapped constructors! WIP!"
+             search_swap_constructor env npm grouped_n trm_o trm_n sigma
            else
              user_err
                "search_orn_inductive"
