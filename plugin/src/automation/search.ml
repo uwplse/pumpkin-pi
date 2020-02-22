@@ -687,8 +687,9 @@ let find_promote_or_forget_swap env npm swap_map a b is_fwd sigma =
 
 let find_promote_forget_swap env npm swaps a b sigma =
   let sigma, promote = find_promote_or_forget_swap env npm swaps a b true sigma in
-  let sigma, forget = find_promote_or_forget_swap env npm swaps a b false sigma in (* TODO return the actual swapped constructors, and allow for more than one swap here *)
-  sigma, { promote ; forget ; kind = SwapConstruct (0, 0) }
+  let sigma, forget = find_promote_or_forget_swap env npm swaps a b false sigma in
+  let swaps_ints = List.map (fun (((_, i), _), ((_, j), _)) -> i, j) swaps in
+  sigma, { promote ; forget ; kind = SwapConstruct swaps_ints }
   
 (*
  * Search for the components of the equivalence for swapping constructors

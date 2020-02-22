@@ -10,6 +10,7 @@ Require Import List.
 Import ListNotations.
 
 Require Import Ornamental.Ornaments.
+(* Set DEVOID search prove equivalence. TODO once this is implemented *)
 
 (* --- Swap the only constructor --- *)
 

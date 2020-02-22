@@ -8,7 +8,7 @@ open Constr
 type kind_of_orn =
   | Algebraic of constr * int
   | CurryRecord
-  | SwapConstruct of int * int
+  | SwapConstruct of (int * int) list
 
 (*
  * An ornamental promotion is a function from T1 -> T2,

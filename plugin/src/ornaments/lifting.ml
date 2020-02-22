@@ -128,7 +128,7 @@ let get_kind_of_ornament env (o, n) sigma =
     if applies sigT from_typ_app || applies sigT to_typ_app then
       Algebraic (mkRel 1, 0)
     else if isInd (first_fun from_typ_app) && isInd (first_fun to_typ_app) then
-      SwapConstruct (0, 0)
+      SwapConstruct []
     else
       CurryRecord
   in
