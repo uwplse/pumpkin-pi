@@ -10,7 +10,7 @@ Require Import List.
 Import ListNotations.
 
 Require Import Ornamental.Ornaments.
-(* Set DEVOID search prove equivalence. TODO once this is implemented *)
+Set DEVOID search prove equivalence.
 
 (* TODO run w/ tests once done *)
 
@@ -24,21 +24,8 @@ Find ornament list list' as swap_list.
 
 Print swap_list.
 Print swap_list_inv.
-
-(* TODO automatically generate *)
-Lemma swap_list_section : forall T l, swap_list_inv T (swap_list T l) = l.
-Proof.
-  intros T l. induction l.
-  - reflexivity.
-  - simpl. rewrite IHl. reflexivity.
-Defined.
-
-Lemma swap_list_retraction : forall T l, swap_list T (swap_list_inv T l) = l.
-Proof.
-  intros T l. induction l.
-  - simpl. rewrite IHl. reflexivity.
-  - reflexivity.
-Defined.
+Print swap_list_section.
+Print swap_list_retraction.
 
 (* --- An ambiguous swap --- *)
 

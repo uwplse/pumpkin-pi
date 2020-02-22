@@ -86,7 +86,7 @@ let direction_cached env from_typ to_typ k : bool =
   | CurryRecord ->
      isInd from_typ
   | SwapConstruct _ ->
-     failwith "not yet implemented"
+     true (* TODO!!! will fail in bwd direction, need to implement something to distinguish directions for this *)
 
 (* 
  * Unpack a promotion
@@ -97,9 +97,6 @@ let unpack_promotion env promotion =
 
 (*
  * Get the direction for an uncached ornament.
- * For now, we use a boolean for is_algebraic, but in the long run, we should
- * take a kind here. This is a bit tricky since we need the direction right
- * now in order to construct the kind.
  *)
 let get_direction (from_typ_app, to_typ_app) orn_kind =
   match orn_kind with
@@ -117,7 +114,7 @@ let get_direction (from_typ_app, to_typ_app) orn_kind =
   | CurryRecord ->
      not (equal Produtils.prod (first_fun from_typ_app))
   | SwapConstruct _ ->
-     failwith "not yet implemented"
+     true
 
 (*
  * For an uncached ornament, get the kind and its direction
@@ -147,7 +144,8 @@ let get_kind_of_ornament env (o, n) sigma =
      let is_fwd = get_direction (from_typ_app, to_typ_app) prelim_kind in
      is_fwd, CurryRecord
   | SwapConstruct _ ->
-     failwith "not yet implemented"
+     (* TODO implement; won't work for save ornament, or for bwd *)
+     true, prelim_kind
 
 (* --- Initialization --- *)
 
