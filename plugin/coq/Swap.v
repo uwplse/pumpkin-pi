@@ -17,7 +17,10 @@ Inductive list' (T : Type) : Type :=
 | cons' : T -> list' T -> list' T
 | nil' : list' T.
 
-Fail Find ornament list list'. (* WIP *)
+Find ornament list list' as swap_list.
+
+Print swap_list.
+Print swap_list_inv.
 
 (* --- An ambiguous swap --- *)
 
@@ -92,3 +95,5 @@ Inductive Term''' : Set :=
 
 Fail Find ornament Term'' Term'''. (* WIP *)
 
+
+(* TODO try w/ dependent indices too *)

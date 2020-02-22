@@ -616,21 +616,102 @@ let search_curry_record env_pms sigma a b =
 (* --- Swapping constructors --- *)
 
 (*
+ * TODO clean before merging
+ *)
+
+let find_promote_or_forget_swap env npm swap_map a b is_fwd sigma =
+  let from_ind = if is_fwd then a else b in
+  let to_ind = if is_fwd then b else a in
+  let swap_map = if is_fwd then swap_map else List.map reverse swap_map in
+  let elim = type_eliminator env (fst (destInd from_ind)) in
+  let sigma, (env_pms, elim_typ) = on_type (fun env sigma t -> sigma, zoom_n_prod env npm t) env sigma elim in
+  let pms = mk_n_rels npm in
+  let (_, p_typ, elim_p_typ) = destProd elim_typ in
+  let env_p_b = zoom_env zoom_product_type env_pms p_typ in
+  let nargs = new_rels2 env_p_b env_pms in
+  let p = reconstruct_lambda_n env_p_b (mkAppl (to_ind, List.append (shift_all_by nargs pms) (mk_n_rels (nargs - 1)))) nargs in
+  let env_p = push_local (Anonymous, p) env_pms in
+  let ncons = List.length swap_map in
+  let cs =
+    List.mapi
+      (fun i c ->
+        let env_c_b, c_b = zoom_product_type env_p c in
+        let (ind, u) = destInd from_ind in
+        let constr_from = ((ind, (i + 1)), u) in
+        let constr_to = List.assoc constr_from swap_map in
+        (* TODO common functionality w/ algebraic *)
+        (* TODO clean a lot *)
+        let hyps =
+          List.mapi
+            (fun j rel ->
+              match rel with
+              | CRD.(LocalAssum (n, t)) ->
+                 j + 1, shift_by (j + 1) t
+              | CRD.(LocalDef (n, e, t)) ->
+                 j + 1, shift_by (j + 1) t)
+            (lookup_all_rels env_c_b)
+        in
+        let p_rel = first_fun c_b in
+        let constr_app = last_arg c_b in
+        let args = unfold_args constr_app in
+        let sigma, args_sub =
+          map_state
+            (fun arg sigma ->
+              try
+                let ih_i, _ =
+                  List.find
+                    (fun (j, h_t) ->
+                      isApp h_t && applies p_rel h_t && equal (last_arg h_t) arg)
+                    hyps
+                in sigma, mkRel ih_i
+              with _ ->
+                sigma, arg)
+            args
+            sigma
+        in
+        let constr_ih = mkAppl (mkConstructU constr_to, args_sub) in
+        let c_p = reconstruct_lambda_n env_c_b constr_ih (nb_rel env_p) in
+        all_eq_substs (mkRel 1, shift_by nargs p) c_p)
+      (take ncons (factor_product elim_p_typ))
+  in
+  let app =
+    apply_eliminator
+      {
+        elim;
+        pms = shift_all_by nargs pms;
+        p = shift_by nargs p;
+        cs;
+        final_args = mk_n_rels nargs;
+      }
+  in sigma, reconstruct_lambda env_p_b app
+
+let find_promote_forget_swap env npm swaps a b sigma =
+  let sigma, promote = find_promote_or_forget_swap env npm swaps a b true sigma in
+  let sigma, forget = find_promote_or_forget_swap env npm swaps a b false sigma in (* TODO return the actual swapped constructors, and allow for more than one swap here *)
+  sigma, { promote ; forget ; kind = SwapConstruct (0, 0) }
+  
+(*
  * Search for the components of the equivalence for swapping constructors
  *)
 let search_swap_constructor env npm grouped a b sigma =
-  let swap_maps =
+  let swaps =
     List.map
-      (fun (repr, (matches, typ_a)) ->
-        let (matches_a, matches_b) = List.partition (fun ((ind, _), _) -> equal (mkInd ind) a) matches in
+      (fun (repr, (ms, typ_a)) ->
+        let (ms_a, ms_b) = List.partition (fun ((i, _), _) -> equal (mkInd i) a) ms in
         let typ_b = all_eq_substs (a, b) typ_a in
-        (repr, ((matches_a, matches_b), (typ_a, typ_b))))
+        (repr, ((ms_a, ms_b), (typ_a, typ_b))))
       grouped
   in
-  if List.exists (fun (_, ((ms, _), _)) -> List.length ms > 1) swap_maps then
+  if List.exists (fun (_, ((ms_a, _), _)) -> List.length ms_a > 1) swaps then
+    (* Ambiguous; need more information *)
     failwith "ambiguous swaps are a WIP"
   else
-    failwith "detected swapped constructors! WIP!"
+    (* Unambiguous *)
+    let swap_map =
+      List.map
+        (fun (_ , ((ms_a, ms_b), _)) -> List.hd ms_a, List.hd ms_b)
+        swaps
+    in find_promote_forget_swap env npm swap_map a b sigma
            
 (* --- Top-level search --- *)
 
