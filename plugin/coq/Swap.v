@@ -12,6 +12,8 @@ Import ListNotations.
 Require Import Ornamental.Ornaments.
 (* Set DEVOID search prove equivalence. TODO once this is implemented *)
 
+(* TODO run w/ tests once done *)
+
 (* --- Swap the only constructor --- *)
 
 Inductive list' (T : Type) : Type :=

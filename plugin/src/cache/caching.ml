@@ -247,18 +247,23 @@ let orn_cache = OrnamentsCache.create 100
 
 (* Initialize the private cache of indexers for algebraic ornamnets *)
 let indexer_cache = OrnamentsCache.create 100
+
+(* Initialize the private cache of swap maps for swap ornamnets *)
+let swap_cache = OrnamentsCache.create 100
                                       
 (*
  * The kind of ornament is saved as an int, so this interprets it
  *)
-let int_to_kind (i : int) (indexer_and_off : (constr * int) option) =
-  if i = 0 && Option.has_some indexer_and_off then
-    let indexer, off = Option.get indexer_and_off in
+let int_to_kind (i : int) globals =
+  if i = 0 then
+    let (indexer, off) = OrnamentsCache.find indexer_cache globals in
+    let indexer = Universes.constr_of_global indexer in
     Algebraic (indexer, off)
   else if i = 1 then
     CurryRecord
   else if i = 2 then
-    failwith "not yet implemented"
+    let swap_map = OrnamentsCache.find swap_cache globals in
+    SwapConstruct swap_map
   else
     failwith "Unsupported kind of ornament passed to interpret_kind in caching"
 
@@ -280,11 +285,17 @@ type orn_obj =
 type indexer_obj =
   (global_reference * global_reference) * (global_reference * int)
 
+type swap_obj =
+  (global_reference * global_reference) * ((int * int) list)
+
 let cache_ornament (_, (typs, orns_and_kind)) =
   OrnamentsCache.add orn_cache typs orns_and_kind
 
 let cache_indexer (_, (typs, indexer_and_off)) =
   OrnamentsCache.add indexer_cache typs indexer_and_off
+
+let cache_swap_map (_, (typs, swap_map)) =
+  OrnamentsCache.add swap_cache typs swap_map
 
 let sub_ornament (subst, (typs, (orn_o, orn_n, kind))) =
   let typs = map_tuple (subst_global_reference subst) typs in
@@ -295,6 +306,10 @@ let sub_indexer (subst, (typs, (indexer, off))) =
   let typs = map_tuple (subst_global_reference subst) typs in
   let indexer = subst_global_reference subst indexer in
   typs, (indexer, off)
+
+let sub_swap_map (subst, (typs, swap_map)) =
+  let typs = map_tuple (subst_global_reference subst) typs in
+  typs, swap_map
 
 let inOrns : orn_obj -> obj =
   declare_object { (default_object "ORNAMENTS") with
@@ -311,7 +326,15 @@ let inIndexers : indexer_obj -> obj =
     open_function = (fun _ -> cache_indexer);
     classify_function = (fun ind_obj -> Substitute ind_obj);
     subst_function = sub_indexer }
-                 
+
+let inSwaps : swap_obj -> obj =
+  declare_object { (default_object "SWAPS") with
+    cache_function = cache_swap_map;
+    load_function = (fun _ -> cache_swap_map);
+    open_function = (fun _ -> cache_swap_map);
+    classify_function = (fun ind_obj -> Substitute ind_obj);
+    subst_function = sub_swap_map }             
+
 (*
  * Precise version
  *)
@@ -343,12 +366,7 @@ let lookup_ornament typs =
     let (orn, orn_inv, i) = OrnamentsCache.find orn_cache globals in
     try
       let orn, orn_inv = map_tuple Universes.constr_of_global (orn, orn_inv) in
-      if i = 0 then
-        let (indexer, off) = OrnamentsCache.find indexer_cache globals in
-        let indexer = Universes.constr_of_global indexer in 
-        Some (orn, orn_inv, int_to_kind i (Some (indexer, off)))
-      else
-        Some (orn, orn_inv, int_to_kind i None)
+      Some (orn, orn_inv, int_to_kind i globals)
     with _ ->
       None
 (*
@@ -367,8 +385,9 @@ let save_ornament typs (orn, orn_inv, kind) =
        add_anonymous_leaf ind_obj
     | CurryRecord ->
        ()
-    | SwapConstruct _ ->
-       failwith "not yet implemented"
+    | SwapConstruct swap_map ->
+       let ind_obj = inSwaps (globals, swap_map) in
+       add_anonymous_leaf ind_obj
   with _ ->
     Feedback.msg_warning (Pp.str "Failed to cache ornament")
  
