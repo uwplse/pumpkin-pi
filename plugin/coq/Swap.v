@@ -52,7 +52,8 @@ Lift list' list in my_lemma as my_lemma_lifted.
 (*
  * This type comes from the REPLICA benchmarks.
  * This is a real user change (though there were other
- * changes at the same time).
+ * changes at the same time). We don't include the user's
+ * admitted theorems.
  *)
 
 Definition Identifier := string.
@@ -66,6 +67,100 @@ Inductive Term : Set :=
   | Times : Term -> Term -> Term
   | Minus : Term -> Term -> Term
   | Choose : Identifier -> Term -> Term.
+
+Module User5Session19.
+
+Definition extendEnv {Value} (env : Identifier -> Value) 
+  (var : Identifier) (newValue : Value) : Identifier -> Value :=
+  fun id => if id_eq_dec id var then newValue else env id.
+
+Record EpsilonLogic :=
+ mkLogic {Value : Type;
+          value_eq_dec : forall v1 v2 : Value, {v1 = v2} + {v1 <> v2};
+          vTrue : Value;
+          vFalse : Value;
+          trueAndFalseDistinct : vTrue <> vFalse;
+          eval : (Identifier -> Value) -> Term -> Value;
+          evalVar : forall env id, eval env (Var id) = env id;
+          evalIntConst :
+           forall env1 env2 i, eval env1 (Int i) = eval env2 (Int i);
+          evalIntInj :
+           forall env i j, i <> j -> eval env (Int i) <> eval env (Int j);
+          evalEqTrue :
+           forall env a b,
+           eval env a = eval env b <-> eval env (Eq a b) = vTrue;
+          evalEqFalse :
+           forall env a b,
+           eval env a <> eval env b <-> eval env (Eq a b) = vFalse;
+          evalPlus :
+           forall env iE jE i j,
+           eval env iE = eval env (Int i) ->
+           eval env jE = eval env (Int j) ->
+           eval env (Plus iE jE) = eval env (Int (i + j));
+          evalMinus :
+           forall env iE jE i j,
+           eval env iE = eval env (Int i) ->
+           eval env jE = eval env (Int j) ->
+           eval env (Minus iE jE) = eval env (Int (i - j));
+          evalTimes :
+           forall env iE jE i j,
+           eval env iE = eval env (Int i) ->
+           eval env jE = eval env (Int j) ->
+           eval env (Times iE jE) = eval env (Int (i * j));
+          evalChoose :
+           forall env x P,
+           (exists value, eval (extendEnv env x value) P = vTrue) ->
+           eval (extendEnv env x (eval env (Choose x P))) P = vTrue;
+          evalChooseDet :
+           forall env x P Q,
+           eval env P = vTrue <-> eval env Q = vTrue ->
+           eval env (Choose x P) = eval env (Choose x Q)}.
+
+Definition isTheorem (L : EpsilonLogic) (t : Term) :=
+  forall env, L.(eval) env t = L.(vTrue).
+
+Fixpoint identity (t : Term) : Term :=
+  match t with
+  | Var x => Var x
+  | Int i => Int i
+  | Eq a b => Eq (identity a) (identity b)
+  | Plus a b => Plus (identity a) (identity b)
+  | Times a b => Times (identity a) (identity b)
+  | Minus a b => Minus (identity a) (identity b)
+  | Choose x P => Choose x (identity P)
+  end.
+
+Theorem eval_eq_true_or_false :
+  forall (L : EpsilonLogic) env (t1 t2 : Term),
+  L.(eval) env (Eq t1 t2) = L.(vTrue) \/ L.(eval) env (Eq t1 t2) = L.(vFalse).
+Proof.
+(intros).
+(destruct (L.(value_eq_dec) (L.(eval) env t1) (L.(eval) env t2)) eqn:E).
+-
+left.
+(apply L.(evalEqTrue)).
+assumption.
+-
+right.
+(apply L.(evalEqFalse)).
+assumption.
+Qed.
+
+Fixpoint free_vars (t : Term) : list Identifier :=
+  match t with
+  | Var x => [x]
+  | Int _ => []
+  | Eq a b => free_vars a ++ free_vars b
+  | Plus a b => free_vars a ++ free_vars b
+  | Times a b => free_vars a ++ free_vars b
+  | Minus a b => free_vars a ++ free_vars b
+  | Choose x P =>
+      filter (fun y => if id_eq_dec x y then false else true) (free_vars P)
+  end.
+
+End User5Session19.
+
+Preprocess Module User5Session19 as User5Session19_pre.
 
 Inductive Term' : Set :=
   | Var' : Identifier -> Term'
@@ -86,6 +181,11 @@ Inductive Term' : Set :=
 Fail Find ornament Term Term'. (* for now, we tell the user to pick one via an error *)
 Find ornament Term Term' { mapping 0 }. (* we pick one this way *)
 
+(*
+ * We can now lift everything:
+ *)
+Lift Module Term Term' in User5Session19_pre as User5Session19'.
+
 (* --- A more ambiguous swap --- *)
 
 (*
@@ -104,6 +204,8 @@ Inductive Term'' : Set :=
 
 Find ornament Term' Term'' { mapping 3 }.
 
+Lift Module Term' Term'' in User5Session19' as User5Session19''.
+
 (* --- Note that we can do several swaps at once --- *)
 
 Inductive Term''' : Set :=
@@ -117,22 +219,28 @@ Inductive Term''' : Set :=
 
 Find ornament Term Term''' { mapping 3 }.
 
+Lift Module Term Term''' in User5Session19_pre as User5Session19'''.
+
 (* --- Renaming --- *)
 
 (*
- * Note from the above that renaming constructors is just the identity swap.
+ * Note that renaming constructors is just the identity swap.
  *)
 
-Inductive Term'''' : Set :=
-  | Var'''' : Identifier -> Term''''
-  | Eq'''' : Term'''' -> Term'''' -> Term''''
-  | Num'''' : Z -> Term''''
-  | Minus'''' : Term'''' -> Term'''' -> Term''''
-  | Plus'''' : Term'''' -> Term'''' -> Term''''
-  | Times'''' : Term'''' -> Term'''' -> Term''''
-  | Choose'''' : Identifier -> Term'''' -> Term''''.
+Inductive Expr : Set :=
+  | Name : Identifier -> Expr
+  | Equal : Expr -> Expr -> Expr
+  | Number : Z -> Expr
+  | Subtract : Expr -> Expr -> Expr
+  | Add : Expr -> Expr -> Expr
+  | Multiply : Expr -> Expr -> Expr
+  | Choice : Identifier -> Expr -> Expr.
 
-Find ornament Term''' Term'''' { mapping 0 }.
+Find ornament Term''' Expr { mapping 0 }.
+
+Lift Module Term''' Expr in User5Session19''' as CustomRenaming.
+
+Print CustomRenaming.
 
 (* --- Large and ambiguous --- *)
 
