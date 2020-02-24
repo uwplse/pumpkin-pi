@@ -26,6 +26,7 @@ open Ornerrors
 open Pretype_errors
 open Promotion
 open Deltautils
+open Funutils
 
 (* --- Utilities --- *)
 
@@ -107,16 +108,24 @@ let find_ornament n_o d_old d_new swap_i_o =
     let trm_o, trm_n = map_tuple (try_delta_inductive env) (def_o, def_n) in
     let n, idx_n =
       match map_tuple kind (trm_o, trm_n) with
-      | Ind ((m_o, _), _), Ind ((m_n, _), _) ->
-         (* Algebraic ornament *)
-         let (_, _, lab_o) = KerName.repr (MutInd.canonical m_o) in
-         let (_, _, lab_n) = KerName.repr (MutInd.canonical m_n) in
+      | Ind ((i_o, ii_o), _), Ind ((i_n, ii_n), _) ->
+         (* Algebraic ornament or swap constructor *)
+         let (_, _, lab_o) = KerName.repr (MutInd.canonical i_o) in
+         let (_, _, lab_n) = KerName.repr (MutInd.canonical i_n) in
          let name_o = Label.to_id lab_o in
          let name_n = Label.to_string lab_n in
          let auto_n = with_suffix (with_suffix name_o "to") name_n in
          let n = Option.default auto_n n_o in
-         let idx_n = with_suffix n "index" in
-         n, Some idx_n
+         let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
+         let arity_o = arity (type_of_inductive env ii_o m_o) in
+         let arity_n = arity (type_of_inductive env ii_n m_n) in
+         if arity_o = arity_n then
+           (* Swap constructor *)
+           n, None
+         else
+           (* Algebraic ornament *)
+           let idx_n = with_suffix n "index" in
+           n, Some idx_n
       |_ ->
         if isInd trm_o || isInd trm_n then
           (* Curry record *)
@@ -262,7 +271,7 @@ let init_lift env d_orn d_orn_inv sigma =
     if not (Option.has_some orn_opt) then
       (* The user never ran Find ornament *)
       let _ = Feedback.msg_info (str "Searching for ornament first") in
-      let _ = find_ornament None d_orn d_orn_inv in
+      let _ = find_ornament None d_orn d_orn_inv None in
       refresh_env ()
     else
       (* The ornament is cached *)
