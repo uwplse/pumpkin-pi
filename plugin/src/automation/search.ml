@@ -758,7 +758,7 @@ let prompt_swap_ambiguous env swap_maps sigma =
         Pp.fnl ();
         Pp.str "Please choose the mapping you'd like to use. ";
         Pp.str "Then, pass that to DEVOID by calling `Find ornament` again. ";
-        Pp.str "For example: `Find ornament old new { mapping 0 }."])
+        Pp.str "For example: `Find ornament old new { mapping 0 }.`"])
 
 (*
  * Search for the components of the equivalence for swapping constructors

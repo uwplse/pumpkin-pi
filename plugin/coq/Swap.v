@@ -13,6 +13,8 @@ Require Import Ornamental.Ornaments.
 Set DEVOID search prove equivalence.
 
 (* TODO run w/ tests once done *)
+(* TODO lift *)
+(* TODO try w/ dependent indices too *)
 
 (* --- Swap the only constructor --- *)
 
@@ -21,11 +23,6 @@ Inductive list' (T : Type) : Type :=
 | nil' : list' T.
 
 Find ornament list list' as swap_list.
-
-Check swap_list.
-Check swap_list_inv.
-Check swap_list_section.
-Check swap_list_retraction.
 
 (* --- An ambiguous swap --- *)
 
@@ -82,7 +79,22 @@ Inductive Term'' : Set :=
   | Times'' : Term'' -> Term'' -> Term''
   | Choose'' : Identifier -> Term'' -> Term''.
 
-Fail Find ornament Term' Term''. (* WIP *)
+Fail Find ornament Term' Term''.
+Find ornament Term' Term'' { mapping 3 }.
+
+(* --- Note that we can do several at once --- *)
+
+Inductive Term''' : Set :=
+  | Var''' : Identifier -> Term'''
+  | Eq''' : Term''' -> Term''' -> Term'''
+  | Int''' : Z -> Term'''
+  | Minus''' : Term''' -> Term''' -> Term'''
+  | Plus''' : Term''' -> Term''' -> Term'''
+  | Times''' : Term''' -> Term''' -> Term'''
+  | Choose''' : Identifier -> Term''' -> Term'''.
+
+Fail Find ornament Term Term'''.
+Find ornament Term Term''' { mapping 3 }.
 
 (* --- Renaming --- *)
 
@@ -90,16 +102,14 @@ Fail Find ornament Term' Term''. (* WIP *)
  * Note from the above that renaming constructors is just the identity swap.
  *)
 
-Inductive Term''' : Set :=
-  | Var''' : Identifier -> Term'''
-  | Eq''' : Term''' -> Term''' -> Term'''
-  | Num''' : Z -> Term'''
-  | Minus''' : Term''' -> Term''' -> Term'''
-  | Plus''' : Term''' -> Term''' -> Term'''
-  | Times''' : Term''' -> Term''' -> Term'''
-  | Choose''' : Identifier -> Term''' -> Term'''.
+Inductive Term'''' : Set :=
+  | Var'''' : Identifier -> Term''''
+  | Eq'''' : Term'''' -> Term'''' -> Term''''
+  | Num'''' : Z -> Term''''
+  | Minus'''' : Term'''' -> Term'''' -> Term''''
+  | Plus'''' : Term'''' -> Term'''' -> Term''''
+  | Times'''' : Term'''' -> Term'''' -> Term''''
+  | Choose'''' : Identifier -> Term'''' -> Term''''.
 
-Fail Find ornament Term'' Term'''. (* WIP *)
-
-
-(* TODO try w/ dependent indices too *)
+Fail Find ornament Term''' Term''''.
+Find ornament Term''' Term'''' { mapping 0 }.
