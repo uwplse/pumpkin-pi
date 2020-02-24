@@ -76,7 +76,7 @@ let maybe_prove_equivalence n inv_n : unit =
   if is_search_equiv () then
     let sigma, env = refresh_env () in
     let (promote, forget) = map_tuple make_constant (n, inv_n) in
-    let l = initialize_lifting env sigma promote forget in
+    let sigma, l = initialize_lifting env sigma promote forget in
     let (section, retraction) = prove_equivalence env sigma l in
     let sect = define_proof "section" sigma section in
     let retr0 = define_proof "retraction" sigma retraction in
@@ -180,7 +180,7 @@ let save_ornament d_old d_new d_orn d_orn_inv =
   let sigma, def_n = intern env sigma d_new in
   let trm_o, trm_n = map_tuple (try_delta_inductive env) (def_o, def_n) in
   try
-    let l = initialize_lifting env sigma promote forget in
+    let sigma, l = initialize_lifting env sigma promote forget in
     save_ornament (trm_o, trm_n) (promote, forget, l.orn.kind)
   with _ ->
     user_err
@@ -195,6 +195,8 @@ let save_ornament d_old d_new d_orn d_orn_inv =
  *)
 let lift_definition_by_ornament env sigma n l c_old ignores =
   let sigma, lifted = do_lift_defn env sigma l c_old ignores in
+  let open Printing in
+  debug_term env lifted "lifted";
   try
     ignore
       (if is_lift_type () then
@@ -268,7 +270,7 @@ let init_lift env d_orn d_orn_inv sigma =
       (* The ornament is cached *)
       sigma, env
   in
-  let l = initialize_lifting env sigma o n in
+  let sigma, l = initialize_lifting env sigma o n in
   sigma, (env, l)
 
 (*

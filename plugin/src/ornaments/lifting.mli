@@ -6,6 +6,7 @@ open Constr
 open Environ
 open Evd
 open Promotion
+open Stateutils
 
 (* --- Datatypes --- *)
 
@@ -29,7 +30,7 @@ type lifting =
  * 3) the old type or user-supplied ornament function
  * 4) the new type or user-supplied ornament function
  *)
-val initialize_lifting : env -> evar_map -> types -> types -> lifting
+val initialize_lifting : env -> evar_map -> types -> types -> lifting state
 
 (* --- Control structures --- *)
     

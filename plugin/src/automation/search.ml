@@ -692,7 +692,9 @@ let find_promote_forget_swap env npm swaps a b sigma =
   sigma, { promote ; forget ; kind = SwapConstruct swaps_ints }
 
 (*
- * TODO clean etc
+ * TODO clean etc (before merging, have a better heuristic for enumerating
+ * in order starting with one swap, then two, etc. and limiting the number.
+ * probably simple recursion rather than folds.)
  *)
 let rec get_likely_swap_maps swaps : ((pconstructor * pconstructor) list) list =
   match swaps with
@@ -801,7 +803,6 @@ let search_swap_constructor env npm grouped a b swap_i_o sigma =
     if List.length ambiguous > 0 then
       (* Ambiguous; need more information *)
       let swap_maps = take 50 (get_likely_swap_maps swaps) in
-      Printf.printf "swap_maps: %d\n" (List.length swap_maps);
       if Option.has_some swap_i_o then
         let swap_i = Option.get swap_i_o in
         List.nth swap_maps swap_i

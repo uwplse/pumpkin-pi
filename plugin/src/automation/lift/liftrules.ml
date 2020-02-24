@@ -173,6 +173,8 @@ let is_packed_constr c env sigma trm =
     match l.orn.kind with
     | Algebraic _ ->
        is_packed_inductive_constr (is_packed c) last_arg trm
+    | SwapConstruct _ ->
+       is_packed_inductive_constr (fun _ -> true) id trm
     | CurryRecord ->
        if is_packed c trm then
           let sigma_right, args_opt = type_is_from c env trm sigma in
@@ -205,6 +207,9 @@ let is_pack c env sigma trm =
          Util.on_snd Option.has_some (right_type trm)
        else
          sigma, false
+    | SwapConstruct _ ->
+       (* no packing *)
+       sigma, false
     | CurryRecord ->
        (* taken care of by constructor rule *)
        sigma, false
@@ -320,7 +325,11 @@ let determine_lift_rule c env trm sigma =
           if not l.is_fwd then
             sigma, LiftConstr (lifted_constr, args)
           else
-            sigma, Optimization (SmartLiftConstr (lifted_constr, args))
+            match l.orn.kind with
+            | SwapConstruct _ ->
+               sigma, LiftConstr (lifted_constr, args)
+            | _ ->
+               sigma, Optimization (SmartLiftConstr (lifted_constr, args))
         else
           sigma, LiftConstr (lifted_constr, args)
       else

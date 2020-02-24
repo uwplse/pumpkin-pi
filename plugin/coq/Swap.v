@@ -5,7 +5,6 @@
 Require Import List.
 Require Import String.
 Require Import ZArith.
-Require Import List.
 
 Import ListNotations.
 
@@ -23,6 +22,14 @@ Inductive list' (T : Type) : Type :=
 | nil' : list' T.
 
 Find ornament list list' as swap_list.
+
+Definition my_nil (T : Type) := @nil T.
+
+Lift list list' in my_nil as nil_lifted.
+Preprocess app as app_pre.
+Lift list list' in app_pre as app'.
+
+(* TODO lifting, both directions (need proper direction indicator impl) *)
 
 (* --- An ambiguous swap --- *)
 

@@ -17,6 +17,7 @@ open Inference
 open Promotion
 open Indexing
 open Ornerrors
+open Stateutils
 
 (* --- Datatypes --- *)
 
@@ -74,7 +75,7 @@ let promotion_term_to_types env sigma trm =
  * That is, if trm is a promotion or a forgetful function
  * True if forwards, false if backwards
  *)
-let direction_cached env from_typ to_typ k : bool =
+let direction_cached env from_typ to_typ k sigma : bool state =
   match k with
   | Algebraic _ ->
      let ((i_o, ii_o), _) = destInd from_typ in
@@ -82,11 +83,17 @@ let direction_cached env from_typ to_typ k : bool =
      let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
      let arity_o = arity (type_of_inductive env ii_o m_o) in
      let arity_n = arity (type_of_inductive env ii_n m_n) in
-     arity_n > arity_o
+     sigma, arity_n > arity_o
   | CurryRecord ->
-     isInd from_typ
+     sigma, isInd from_typ
   | SwapConstruct _ ->
-     true (* TODO!!! will fail in bwd direction, need to implement something to distinguish directions for this *)
+     (* TODO inefficient, plus happens several times, though should be generic *)
+     let orn_o = lookup_ornament (from_typ, to_typ) in
+     let (promote, _, _) = Option.get orn_o in
+     let promote = unwrap_definition env promote in
+     let promote_env = zoom_env zoom_lambda_term env promote in
+     let sigma, promote_typ = infer_type promote_env sigma (mkRel 1) in
+     sigma, is_or_applies from_typ promote_typ
 
 (* 
  * Unpack a promotion
@@ -144,7 +151,7 @@ let get_kind_of_ornament env (o, n) sigma =
      let is_fwd = get_direction (from_typ_app, to_typ_app) prelim_kind in
      is_fwd, CurryRecord
   | SwapConstruct _ ->
-     (* TODO implement; won't work for save ornament, or for bwd *)
+     (* TODO implement; won't work for save ornament, or for bwd (or will it? first call is true for SwapConstruct. I guess the thing is we need the swap map!!) *)
      true, prelim_kind
 
 (* --- Initialization --- *)
@@ -154,7 +161,7 @@ let get_kind_of_ornament env (o, n) sigma =
  *)
 let initialize_lifting env sigma o n =
   let orn_not_supplied = isInd o || isInd n in
-  let is_fwd, (promote, forget), kind =
+  let sigma, is_fwd, (promote, forget), kind =
     if orn_not_supplied then
       (* Cached ornament *)
       let (orn_o, orn_n, k) =
@@ -163,16 +170,16 @@ let initialize_lifting env sigma o n =
         with _ ->
           failwith "Cannot find cached ornament! Please report a bug in DEVOID"
       in
-      let is_fwd = direction_cached env o n k in
-      is_fwd, (orn_o, orn_n), k
+      let sigma, is_fwd = direction_cached env o n k sigma in
+      sigma, is_fwd, (orn_o, orn_n), k
     else
       (* User-supplied ornament *)
       let is_fwd, k = get_kind_of_ornament env (o, n) sigma in
       let orns = map_if reverse (not is_fwd) (o, n) in
-      is_fwd, orns, k
+      sigma, is_fwd, orns, k
   in
   let orn = { promote; forget; kind } in
-  { orn ; is_fwd }
+  sigma, { orn ; is_fwd }
                                 
 (* --- Directionality --- *)
        
