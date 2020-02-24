@@ -79,10 +79,9 @@ Inductive Term'' : Set :=
   | Times'' : Term'' -> Term'' -> Term''
   | Choose'' : Identifier -> Term'' -> Term''.
 
-Fail Find ornament Term' Term''.
 Find ornament Term' Term'' { mapping 3 }.
 
-(* --- Note that we can do several at once --- *)
+(* --- Note that we can do several swaps at once --- *)
 
 Inductive Term''' : Set :=
   | Var''' : Identifier -> Term'''
@@ -93,7 +92,6 @@ Inductive Term''' : Set :=
   | Times''' : Term''' -> Term''' -> Term'''
   | Choose''' : Identifier -> Term''' -> Term'''.
 
-Fail Find ornament Term Term'''.
 Find ornament Term Term''' { mapping 3 }.
 
 (* --- Renaming --- *)
@@ -111,5 +109,82 @@ Inductive Term'''' : Set :=
   | Times'''' : Term'''' -> Term'''' -> Term''''
   | Choose'''' : Identifier -> Term'''' -> Term''''.
 
-Fail Find ornament Term''' Term''''.
 Find ornament Term''' Term'''' { mapping 0 }.
+
+(* --- Large and ambiguous --- *)
+
+(*
+ * TODO explain
+ * TODO then implement w/ "Save ornament" to try to prove section/retraction 
+ *)
+
+Inductive Enum : Set :=
+| e1 : Enum
+| e2 : Enum
+| e3 : Enum
+| e4 : Enum
+| e5 : Enum
+| e6 : Enum
+| e7 : Enum
+| e8 : Enum
+| e9 : Enum
+| e10 : Enum
+| e11 : Enum
+| e12 : Enum
+| e13 : Enum
+| e14 : Enum
+| e15 : Enum
+| e16 : Enum
+| e17 : Enum
+| e18 : Enum
+| e19 : Enum
+| e20 : Enum
+| e21 : Enum
+| e22 : Enum
+| e23 : Enum
+| e24 : Enum
+| e25 : Enum
+| e26 : Enum
+| e27 : Enum
+| e28 : Enum
+| e29 : Enum
+| e30 : Enum.
+
+Inductive Enum' : Set :=
+| e1' : Enum'
+| e2' : Enum'
+| e3' : Enum'
+| e4' : Enum'
+| e5' : Enum'
+| e6' : Enum'
+| e7' : Enum'
+| e8' : Enum'
+| e9' : Enum'
+| e10' : Enum'
+| e11' : Enum'
+| e12' : Enum'
+| e13' : Enum'
+| e14' : Enum'
+| e15' : Enum'
+| e16' : Enum'
+| e17' : Enum'
+| e18' : Enum'
+| e19' : Enum'
+| e20' : Enum'
+| e21' : Enum'
+| e22' : Enum'
+| e23' : Enum'
+| e24' : Enum'
+| e25' : Enum'
+| e26' : Enum'
+| e27' : Enum'
+| e28' : Enum'
+| e29' : Enum'
+| e30' : Enum'.
+
+Find ornament Enum Enum' { mapping 0 }.
+
+
+
+
+
