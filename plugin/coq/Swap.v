@@ -10,11 +10,10 @@ Import ListNotations.
 
 Require Import Ornamental.Ornaments.
 Set DEVOID search prove equivalence.
+Set DEVOID lift type.
 
 (* TODO run w/ tests once done *)
-(* TODO lift *)
 (* TODO try w/ dependent indices too *)
-(* TODO test bwd *)
 
 (* --- Swap the only constructor --- *)
 
@@ -22,35 +21,31 @@ Inductive list' (T : Type) : Type :=
 | cons' : T -> list' T -> list' T
 | nil' : list' T.
 
-Find ornament list list' as swap_list.
+Preprocess Module List as List_pre { opaque (* ignore these: *)
+  (* dependent elimination only: *)
+  RelationClasses.StrictOrder_Transitive
+  RelationClasses.StrictOrder_Irreflexive
+  RelationClasses.Equivalence_Symmetric
+  RelationClasses.Equivalence_Transitive
+  RelationClasses.PER_Symmetric
+  RelationClasses.PER_Transitive
+  RelationClasses.Equivalence_Reflexive
+  (* proofs about these match over the above opaque terms, and would fail: *)
+  Nat.add
+  Nat.sub
+}.
+Lift Module list list' in List_pre as List'.
 
-Definition my_nil (T : Type) := @nil T.
-
-Lift list list' in my_nil as nil_lifted.
-
-Lemma test_nil:
-  nil_lifted = nil'.
+Lemma my_lemma:
+  forall (T : Type) (l : list' T),
+    List'.Coq_Init_Datatypes_app T l (nil' T) = List'.Coq_Init_Datatypes_app T (nil' T) l.
 Proof.
-  reflexivity.
-Qed.
+  intros T l. induction l.
+  - simpl. simpl in IHl. rewrite IHl. reflexivity.
+  - reflexivity.
+Defined.
 
-Definition my_cons (T : Type) (t : T) (l : list T) := @cons T t l.
-
-Lift list list' in my_cons as cons_lifted.
-
-Lemma test_cons:
-  cons_lifted = cons'.
-Proof.
-  reflexivity.
-Qed.
-
-Preprocess app as app_pre.
-Lift list list' in app_pre as app'.
-
-Print app_pre.
-Print app'.
-
-(* TODO lifting, both directions (need proper direction indicator impl) *)
+Lift list' list in my_lemma as my_lemma_lifted.
 
 (* --- An ambiguous swap --- *)
 
