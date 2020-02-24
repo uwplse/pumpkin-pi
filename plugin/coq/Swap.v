@@ -14,6 +14,7 @@ Set DEVOID search prove equivalence.
 (* TODO run w/ tests once done *)
 (* TODO lift *)
 (* TODO try w/ dependent indices too *)
+(* TODO test bwd *)
 
 (* --- Swap the only constructor --- *)
 
@@ -26,8 +27,28 @@ Find ornament list list' as swap_list.
 Definition my_nil (T : Type) := @nil T.
 
 Lift list list' in my_nil as nil_lifted.
+
+Lemma test_nil:
+  nil_lifted = nil'.
+Proof.
+  reflexivity.
+Qed.
+
+Definition my_cons (T : Type) (t : T) (l : list T) := @cons T t l.
+
+Lift list list' in my_cons as cons_lifted.
+
+Lemma test_cons:
+  cons_lifted = cons'.
+Proof.
+  reflexivity.
+Qed.
+
 Preprocess app as app_pre.
 Lift list list' in app_pre as app'.
+
+Print app_pre.
+Print app'.
 
 (* TODO lifting, both directions (need proper direction indicator impl) *)
 

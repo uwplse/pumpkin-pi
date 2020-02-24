@@ -116,7 +116,10 @@ let lift_motive env sigma c npms parameterized_elim p =
          let i_b = project_index b_sig_typ b_sig in
          let b = project_value b_sig_typ b_sig in
          index l i_b (reindex value_off b args)
-    | SwapConstruct _ | CurryRecord ->
+    | SwapConstruct _ ->
+       let value_off = nargs - 1 in
+       reindex value_off lifted_arg args
+    | CurryRecord ->
        [lifted_arg]
   in
   let p_app = reduce_stateless reduce_term env_p_to sigma (mkAppl (p, args)) in
@@ -246,13 +249,20 @@ let lift_case_args c env_c_b env_c to_c_typ npms nargs sigma =
   let l = get_lifting c in
   let to_typ = get_elim_type (reverse c) in
   match l.orn.kind with
-  | Algebraic _ | SwapConstruct _ ->
+  | Algebraic _ ->
      let nihs = num_ihs env_c sigma to_typ to_c_typ in
      let nargs_lifted = if l.is_fwd then nargs - nihs else nargs + nihs in
      let args = mk_n_rels nargs_lifted in
      if l.is_fwd then
        promote_case_args env_c sigma c args
      else
+       forget_case_args env_c_b env_c sigma c args
+  | SwapConstruct _ ->
+     let args = mk_n_rels nargs in
+     if l.is_fwd then
+       promote_case_args env_c sigma c args
+     else
+       (* TODO should be same by dir *)
        forget_case_args env_c_b env_c sigma c args
   | CurryRecord ->
      let args = mk_n_rels nargs in
@@ -293,6 +303,18 @@ let lift_case env c npms c_elim constr sigma =
 (* Lift cases *)
 (* TODO somehow need to swap when we have SwapConstr here *)
 let lift_cases env c npms p_elim cs =
+  let cs =
+    match (get_lifting c).orn.kind with
+    | SwapConstruct swaps ->
+       (* swap the order before eliminating *)
+       let cs_arr = Array.of_list cs in
+       List.map
+         (fun i -> cs_arr.(List.assoc i swaps - 1))
+         (range 1 (List.length cs + 1))
+    | _ ->
+       (* leave the order alone *)
+       cs
+  in
   bind
     (fold_left_state
        (fun (c_elim, cs) constr sigma ->
@@ -534,10 +556,8 @@ let lift_core env c trm sigma =
     | LiftElim (tr_elim, lifted_pms) ->
        let nargs =
          match l.orn.kind with
-         | Algebraic (_, _) ->
+         | Algebraic _ | SwapConstruct _ ->
             a_arity - (List.length tr_elim.pms) + 1
-         | SwapConstruct _ ->
-            a_arity - (List.length tr_elim.pms)
          | CurryRecord ->
             1
        in
