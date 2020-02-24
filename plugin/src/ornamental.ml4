@@ -6,9 +6,13 @@ open Frontend
 (* Identify an ornament given two types *)
 VERNAC COMMAND EXTEND FindOrnament CLASSIFIED AS SIDEFF
 | [ "Find" "ornament" constr(d_old) constr(d_new) "as" ident(n) ] ->
-  [ find_ornament (Some n) d_old d_new ]
+  [ find_ornament (Some n) d_old d_new None ]
+| [ "Find" "ornament" constr(d_old) constr(d_new) "as" ident(n) "{" "mapping" int(i) "}" ] ->
+  [ find_ornament (Some n) d_old d_new (Some i) ]
 | [ "Find" "ornament" constr(d_old) constr(d_new) ] ->
-  [ find_ornament None d_old d_new ]
+  [ find_ornament None d_old d_new None ]
+| [ "Find" "ornament" constr(d_old) constr(d_new) "{" "mapping" int(i) "}" ] ->
+  [ find_ornament None d_old d_new (Some i) ]
 END
 
 (* Save a user-supplied ornament between two types *)

@@ -6,7 +6,7 @@ open Names
  * Define the components of the corresponding equivalence
  * If the appropriate option is set, prove that these form an equivalence
  *)
-val find_ornament : Id.t option -> constr_expr -> constr_expr -> unit          
+val find_ornament : Id.t option -> constr_expr -> constr_expr -> int option -> unit          
 
 (*
  * Save a user-supplied ornament between two types

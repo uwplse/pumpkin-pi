@@ -20,6 +20,7 @@ val search_orn :
   env ->
   evar_map ->
   Id.t option -> (* name to assign the indexer function, if relevant *)
+  int option -> (* TODO move me *)
   types -> (* old type *)
   types -> (* new type *)
   promotion state (* ornamental promotion *)

@@ -99,7 +99,7 @@ let maybe_prove_equivalence n inv_n : unit =
  * Define the components of the corresponding equivalence
  * If the appropriate option is set, prove these components form an equivalence
  *)
-let find_ornament n_o d_old d_new =
+let find_ornament n_o d_old d_new swap_i_o =
   try
     let (sigma, env) = Pfedit.get_current_context () in
     let sigma, def_o = intern env sigma d_old in
@@ -134,7 +134,7 @@ let find_ornament n_o d_old d_new =
             [try_supported; try_provide]
             [cool_feature; mistake]
     in
-    let sigma, orn = search_orn env sigma idx_n trm_o trm_n in
+    let sigma, orn = search_orn env sigma idx_n swap_i_o trm_o trm_n in
     let orn =
       match orn.kind with
       | Algebraic (indexer, off) ->

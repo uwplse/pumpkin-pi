@@ -629,7 +629,7 @@ let find_promote_or_forget_swap env npm swap_map a b is_fwd sigma =
   let (_, p_typ, elim_p_typ) = destProd elim_typ in
   let env_p_b = zoom_env zoom_product_type env_pms p_typ in
   let nargs = new_rels2 env_p_b env_pms in
-  let p = reconstruct_lambda_n env_p_b (mkAppl (to_ind, List.append (shift_all_by nargs pms) (mk_n_rels (nargs - 1)))) nargs in
+  let p = reconstruct_lambda_n env_p_b (mkAppl (to_ind, List.append (shift_all_by nargs pms) (mk_n_rels (nargs - 1)))) (nb_rel env_pms) in
   let env_p = push_local (Anonymous, p) env_pms in
   let ncons = List.length swap_map in
   let cs =
@@ -690,11 +690,80 @@ let find_promote_forget_swap env npm swaps a b sigma =
   let sigma, forget = find_promote_or_forget_swap env npm swaps a b false sigma in
   let swaps_ints = List.map (fun (((_, i), _), ((_, j), _)) -> i, j) swaps in
   sigma, { promote ; forget ; kind = SwapConstruct swaps_ints }
-  
+
+(*
+ * TODO clean etc
+ *)
+let rec get_all_swap_maps swaps : ((pconstructor * pconstructor) list) list =
+  match swaps with
+  | (_, ((ms_a, ms_b), _)) :: tl ->
+     let swaps =
+       List.rev
+         (List.fold_left
+            (fun swaps c_a ->
+              let hds = List.map (fun c_b -> (c_a, c_b)) ms_b in
+              if List.length swaps = 0 then
+                List.map (fun (c_a, c_b) -> [(c_a, c_b)]) hds
+              else
+                flat_map
+                  (fun (c_a, c_b) ->
+                    let swaps_no_c_b =
+                      List.filter (List.for_all (fun (_, c_b') -> not (equal (mkConstructU c_b) (mkConstructU c_b')))) swaps in
+                    List.map (fun l -> (c_a, c_b) :: l) swaps_no_c_b)
+                  hds)
+            []
+            ms_a)
+     in
+     let swap_maps = get_all_swap_maps tl in
+     if List.length swap_maps = 0 then
+       swaps
+     else
+       flat_map
+         (fun swap_map -> List.map (List.append swap_map) swaps)
+         swap_maps
+  | _ ->
+     []
+           
+(*
+ * TODO at some point, port to using Lemmas.add_lemma or something similar.
+ * For now, just require the user to tell us which one via config.
+ * Also could just have a `Configure Search` or `Configure Find ornament`
+ * or somethign like that, or could have an option. Whatever is best
+ * engineering + user experience together.
+ *
+ * TODO also clean lots obvs
+ *)
+let prompt_swap_ambiguous env swap_maps sigma =
+  let print_swap_map i swap_map =
+    Pp.seq
+      [Pp.int i;
+       Pp.str ") ";
+       (Pp.prlist_with_sep
+          (fun _ -> Pp.str ", ")
+          (fun (c_o, c_n) ->
+            Pp.prlist_with_sep
+              (fun _ -> Pp.str " <-> ")
+              (Printer.pr_constr_env env sigma)
+              [mkConstructU c_o; mkConstructU c_n])
+          swap_map);
+      Pp.fnl ()]
+  in
+  CErrors.user_err
+    (Pp.seq
+       [Pp.str "DEVOID found ";
+        Pp.int (List.length swap_maps);
+        Pp.str " possible mappings for constructors:";
+        Pp.fnl ();
+        Pp.seq (List.mapi print_swap_map swap_maps);
+        Pp.fnl ();
+        Pp.str "Please choose the mapping you'd like to use. ";
+        Pp.str "Then, pass that to DEVOID by calling `Find ornament` again. ";
+        Pp.str "For example: `Find ornament old new { mapping 0 }."])
+
 (*
  * Search for the components of the equivalence for swapping constructors
  *)
-let search_swap_constructor env npm grouped a b sigma =
+let search_swap_constructor env npm grouped a b swap_i_o sigma =
   let swaps =
     List.map
       (fun (repr, (ms, typ_a)) ->
@@ -703,16 +772,21 @@ let search_swap_constructor env npm grouped a b sigma =
         (repr, ((ms_a, ms_b), (typ_a, typ_b))))
       grouped
   in
-  if List.exists (fun (_, ((ms_a, _), _)) -> List.length ms_a > 1) swaps then
-    (* Ambiguous; need more information *) (* TODO implement *)
-    CErrors.user_err (Pp.str "ambiguous swaps aren't yet implemented")
-  else
-    (* Unambiguous *)
-    let swap_map =
+  let swap_map =
+    if List.exists (fun (_, ((ms_a, _), _)) -> List.length ms_a > 1) swaps then
+      (* Ambiguous; need more information *)
+      let swap_maps = get_all_swap_maps swaps in
+      if Option.has_some swap_i_o then
+        let swap_i = Option.get swap_i_o in
+        List.nth swap_maps swap_i
+      else
+        prompt_swap_ambiguous env swap_maps sigma
+    else
+      (* Unambiguous *)
       List.map
         (fun (_ , ((ms_a, ms_b), _)) -> List.hd ms_a, List.hd ms_b)
         swaps
-    in find_promote_forget_swap env npm swap_map a b sigma
+  in find_promote_forget_swap env npm swap_map a b sigma
            
 (* --- Top-level search --- *)
 
@@ -720,8 +794,10 @@ let search_swap_constructor env npm grouped a b sigma =
  * Search two inductive types for an ornament between them.
  * This is more general to handle eventual extension with other 
  * kinds of ornaments.
+ *
+ * TODO move swap_i_o, indexer_id_opt, etc to some kind of configuration for Find ornament
  *)
-let search_orn_inductive env sigma indexer_id_opt trm_o trm_n =
+let search_orn_inductive env sigma indexer_id_opt swap_i_o trm_o trm_n =
   match map_tuple kind (trm_o, trm_n) with
   | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->
      let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
@@ -793,7 +869,7 @@ let search_orn_inductive env sigma indexer_id_opt trm_o trm_n =
            in
            if is_swapped then
              (* swapped constructors (including constructor renaming) *)
-             search_swap_constructor env npm grouped_n trm_o trm_n sigma
+             search_swap_constructor env npm grouped_n trm_o trm_n swap_i_o sigma
            else
              user_err
                "search_orn_inductive"
@@ -851,10 +927,10 @@ let search_orn_one_noninductive env sigma trm_o trm_n =
  * This is more general to handle eventual extension with other 
  * kinds of ornaments.
  *)
-let search_orn env sigma indexer_id_opt trm_o trm_n =
+let search_orn env sigma indexer_id_opt swap_i_o trm_o trm_n =
   if isInd trm_o && isInd trm_n then
     (* Ornament between two inductive types *)
-    search_orn_inductive env sigma indexer_id_opt trm_o trm_n
+    search_orn_inductive env sigma indexer_id_opt swap_i_o trm_o trm_n
   else if isInd trm_o || isInd trm_n then
     (* Ornament between an inductive type and something else *)
     search_orn_one_noninductive env sigma trm_o trm_n

@@ -22,10 +22,10 @@ Inductive list' (T : Type) : Type :=
 
 Find ornament list list' as swap_list.
 
-Print swap_list.
-Print swap_list_inv.
-Print swap_list_section.
-Print swap_list_retraction.
+Check swap_list.
+Check swap_list_inv.
+Check swap_list_section.
+Check swap_list_retraction.
 
 (* --- An ambiguous swap --- *)
 
@@ -63,7 +63,8 @@ Inductive Term' : Set :=
  * proof mode and ask the user when this happens.
  *)
 
-Fail Find ornament Term Term'. (* WIP *)
+Fail Find ornament Term Term'. (* for now, we tell the user to pick one via an error *)
+Find ornament Term Term' { mapping 0 }. (* we pick one this way *)
 
 (* --- A more ambiguous swap --- *)
 
