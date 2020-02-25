@@ -75,25 +75,11 @@ let promotion_term_to_types env sigma trm =
  * That is, if trm is a promotion or a forgetful function
  * True if forwards, false if backwards
  *)
-let direction_cached env from_typ to_typ k sigma : bool state =
-  match k with
-  | Algebraic _ ->
-     let ((i_o, ii_o), _) = destInd from_typ in
-     let ((i_n, ii_n), _) = destInd to_typ in
-     let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
-     let arity_o = arity (type_of_inductive env ii_o m_o) in
-     let arity_n = arity (type_of_inductive env ii_n m_n) in
-     sigma, arity_n > arity_o
-  | CurryRecord ->
-     sigma, isInd from_typ
-  | SwapConstruct _ ->
-     (* TODO inefficient, plus happens several times, though should be generic *)
-     let orn_o = lookup_ornament (from_typ, to_typ) in
-     let (promote, _, _) = Option.get orn_o in
-     let promote = unwrap_definition env promote in
-     let promote_env = zoom_env zoom_lambda_term env promote in
-     let sigma, promote_typ = infer_type promote_env sigma (mkRel 1) in
-     sigma, is_or_applies from_typ promote_typ
+let direction_cached env from_typ promote k sigma : bool state =
+  let promote = unwrap_definition env promote in
+  let promote_env = zoom_env zoom_lambda_term env promote in
+  let sigma, promote_typ = infer_type promote_env sigma (mkRel 1) in
+  sigma, is_or_applies from_typ promote_typ
 
 (* 
  * Unpack a promotion
@@ -170,7 +156,7 @@ let initialize_lifting env sigma o n =
         with _ ->
           failwith "Cannot find cached ornament! Please report a bug in DEVOID"
       in
-      let sigma, is_fwd = direction_cached env o n k sigma in
+      let sigma, is_fwd = direction_cached env o orn_o k sigma in
       sigma, is_fwd, (orn_o, orn_n), k
     else
       (* User-supplied ornament *)

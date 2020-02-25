@@ -240,8 +240,6 @@ Find ornament Term''' Expr { mapping 0 }.
 
 Lift Module Term''' Expr in User5Session19''' as CustomRenaming.
 
-Print CustomRenaming.
-
 (* --- Large and ambiguous --- *)
 
 (*
