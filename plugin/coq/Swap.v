@@ -313,7 +313,115 @@ Inductive Enum' : Set :=
 
 Find ornament Enum Enum' { mapping 0 }.
 
+Definition is_e10 (e : Enum) :=
+match e with
+| e10 => True
+| _ => False
+end.
 
+Preprocess is_e10 as is_e10_pre.
+Lift Enum Enum' in is_e10_pre as is_e10'.
 
+Lemma e10'_is_e10':
+  is_e10' e10'.
+Proof.
+  reflexivity.
+Defined.
 
+(* --- Custom mapping --- *)
+
+(*
+ * If the mapping we want doesn't show up in the top 50 candidates, we can
+ * supply our own using "Save ornament". For now, we need to give both functions,
+ * and it doesn't prove anything for us; later, should be able to automatically
+ * invert the function and prove section/retraction (TODO).
+ *)
+
+Program Definition Enum_Enum' : Enum -> Enum'.
+Proof.
+  intros e. induction e.
+  - apply e30'.
+  - apply e29'.
+  - apply e28'.
+  - apply e27'.
+  - apply e26'.
+  - apply e25'.
+  - apply e24'.
+  - apply e23'.
+  - apply e22'.
+  - apply e21'.
+  - apply e20'.
+  - apply e19'.
+  - apply e18'.
+  - apply e17'.
+  - apply e16'.
+  - apply e15'.
+  - apply e14'.
+  - apply e13'.
+  - apply e12'.
+  - apply e11'.
+  - apply e10'.
+  - apply e9'.
+  - apply e8'.
+  - apply e7'.
+  - apply e6'.
+  - apply e5'.
+  - apply e4'.
+  - apply e3'.
+  - apply e2'.
+  - apply e1'.
+Defined.
+
+(* Hopefully won't need this at some point *)
+Program Definition Enum'_Enum : Enum' -> Enum.
+Proof.
+  intros e. induction e.
+  - apply e30.
+  - apply e29.
+  - apply e28.
+  - apply e27.
+  - apply e26.
+  - apply e25.
+  - apply e24.
+  - apply e23.
+  - apply e22.
+  - apply e21.
+  - apply e20.
+  - apply e19.
+  - apply e18.
+  - apply e17.
+  - apply e16.
+  - apply e15.
+  - apply e14.
+  - apply e13.
+  - apply e12.
+  - apply e11.
+  - apply e10.
+  - apply e9.
+  - apply e8.
+  - apply e7.
+  - apply e6.
+  - apply e5.
+  - apply e4.
+  - apply e3.
+  - apply e2.
+  - apply e1.
+Defined.
+
+Save ornament Enum Enum' { promote = Enum_Enum'; forget = Enum'_Enum }.
+
+Definition is_e3 (e : Enum) :=
+match e with
+| e3 => True
+| _ => False
+end.
+
+Preprocess is_e3 as is_e3_pre.
+Lift Enum Enum' in is_e3_pre as is_e28'.
+
+Lemma e28'_is_e28':
+  is_e28' e28'.
+Proof.
+  reflexivity.
+Defined.
 
