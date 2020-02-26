@@ -829,7 +829,7 @@ let search_swap_constructor env npm grouped swap_i_o promote_o forget_o a b sigm
     if Option.has_some trm_o_o then
       (* Infer swap map from promotion function *)
       let f = Option.get trm_o_o in
-      let ((i_o, ii_o), u_o) = destInd a in
+      let ((i_o, ii_o), u_o) = destInd (if Option.has_some promote_o then a else b) in
       let m_o = lookup_mind i_o env in
       let b_o = m_o.mind_packets.(0) in
       let cs_o = b_o.mind_consnames in
