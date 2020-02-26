@@ -2,6 +2,7 @@
  * Datatypes for promotions and lifting
  *)
 
+open Declarations
 open Utilities
 open Constr
 open Environ
@@ -18,6 +19,8 @@ open Promotion
 open Indexing
 open Ornerrors
 open Stateutils
+open Reducers
+open Debruijn
 
 (* --- Datatypes --- *)
 
@@ -132,13 +135,36 @@ let get_kind_of_ornament env (o, n) sigma =
      let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
      let (o, i) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
      let indexer = first_fun i in
-     is_fwd, Algebraic (indexer, o)
+     sigma, (is_fwd, Algebraic (indexer, o))
   | CurryRecord ->
      let is_fwd = get_direction (from_typ_app, to_typ_app) prelim_kind in
-     is_fwd, CurryRecord
+     sigma, (is_fwd, CurryRecord)
   | SwapConstruct _ ->
-     (* TODO implement; won't work for save ornament, or for bwd (or will it? first call is true for SwapConstruct. I guess the thing is we need the swap map!!) *)
-     true, prelim_kind
+     let promote = o in
+     let sigma, promote_type = reduce_type env sigma promote in
+     let env_promote = zoom_env zoom_product_type env promote_type in
+     let typ_args = unfold_args from_typ_app in
+     let ((i_o, ii_o), u_o) = destInd (first_fun from_typ_app) in
+     let m_o = lookup_mind i_o env in
+     let b_o = m_o.mind_packets.(0) in
+     let cs_o = b_o.mind_consnames in
+     let ncons = Array.length cs_o in
+     let sigma, swap_map =
+       map_state
+         (fun i sigma ->
+           let c_o = mkConstructU (((i_o, ii_o), i), u_o) in
+           let sigma, c_o_typ = reduce_type env sigma c_o in
+           let env_c_o = zoom_env zoom_product_type env c_o_typ in
+           let nargs = new_rels2 env_c_o env_promote in
+           let c_o_args = mk_n_rels nargs in
+           let c_o_app = mkAppl (c_o, c_o_args) in
+           let typ_args = shift_all_by nargs typ_args in
+           let sigma, c_o_lifted = reduce_nf env sigma (mkAppl (promote, snoc c_o_app typ_args)) in
+           let ((_, j), _) = destConstruct (first_fun c_o_lifted) in
+           sigma, (i, j))
+         (range 1 (ncons + 1))
+         sigma
+     in sigma, (true, SwapConstruct swap_map)
 
 (* --- Initialization --- *)
 
@@ -147,7 +173,7 @@ let get_kind_of_ornament env (o, n) sigma =
  *)
 let initialize_lifting env sigma o n =
   let orn_not_supplied = isInd o || isInd n in
-  let sigma, is_fwd, (promote, forget), kind =
+  let sigma, (is_fwd, (promote, forget), kind) =
     if orn_not_supplied then
       (* Cached ornament *)
       let (orn_o, orn_n, k) =
@@ -157,12 +183,12 @@ let initialize_lifting env sigma o n =
           failwith "Cannot find cached ornament! Please report a bug in DEVOID"
       in
       let sigma, is_fwd = direction_cached env o orn_o k sigma in
-      sigma, is_fwd, (orn_o, orn_n), k
+      sigma, (is_fwd, (orn_o, orn_n), k)
     else
       (* User-supplied ornament *)
-      let is_fwd, k = get_kind_of_ornament env (o, n) sigma in
+      let sigma, (is_fwd, k) = get_kind_of_ornament env (o, n) sigma in
       let orns = map_if reverse (not is_fwd) (o, n) in
-      sigma, is_fwd, orns, k
+      sigma, (is_fwd, orns, k)
   in
   let orn = { promote; forget; kind } in
   sigma, { orn ; is_fwd }
