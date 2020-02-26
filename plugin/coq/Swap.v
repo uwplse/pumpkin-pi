@@ -202,7 +202,7 @@ Inductive Term'' : Set :=
   | Times'' : Term'' -> Term'' -> Term''
   | Choose'' : Identifier -> Term'' -> Term''.
 
-Find ornament Term' Term'' { mapping 3 }.
+Find ornament Term' Term'' { mapping 8 }.
 
 Lift Module Term' Term'' in User5Session19' as User5Session19''.
 
@@ -217,7 +217,7 @@ Inductive Term''' : Set :=
   | Times''' : Term''' -> Term''' -> Term'''
   | Choose''' : Identifier -> Term''' -> Term'''.
 
-Find ornament Term Term''' { mapping 3 }.
+Find ornament Term Term''' { mapping 8 }.
 
 Lift Module Term Term''' in User5Session19_pre as User5Session19'''.
 

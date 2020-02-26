@@ -691,46 +691,58 @@ let find_promote_forget_swap env npm swaps a b sigma =
   let swaps_ints = List.map (fun (((_, i), _), ((_, j), _)) -> i, j) swaps in
   sigma, { promote ; forget ; kind = SwapConstruct swaps_ints }
 
+let rec zero_one_swaps l =
+  match l with
+  | [] ->
+     []
+  | h :: [] ->
+     [[h]]
+  | h :: tl ->
+     let h_perms =
+       List.mapi
+         (fun i _ ->
+           let tl1, tl2 = split_at (i + 1) tl in
+           let h2 = last tl1 in
+           List.append (h2 :: all_but_last tl1) (h :: tl2))
+         tl
+     in List.append (List.map (fun l -> h :: l) (zero_one_swaps tl)) h_perms
+
+let same cs cs' =
+  List.for_all2 (fun c c' -> equal (mkConstructU c) (mkConstructU c')) cs cs'
+             
 (*
- * TODO clean etc (before merging, have a better heuristic for enumerating
- * in order starting with one swap, then two, etc. and limiting the number.
- * probably simple recursion rather than folds.)
+ * TODO clean, explain
+ * note that the enumeration order here means the alg is deliberately
+ * not most efficient for small lists, but this is to let us
+ * return a reasonable top 50 for large lists
  *)
-let rec get_likely_swap_maps swaps : ((pconstructor * pconstructor) list) list =
+let rec get_likely_swap_maps n swaps : ((pconstructor * pconstructor) list) list =
   match swaps with
   | (_, ((ms_a, ms_b), _)) :: tl ->
-     let swaps =
-       List.fold_left
-         (fun swaps (i, c_a) ->
-           (* In principle, we could show all of them, but this could be bad *)
-           let hds = take (i + 4) (List.map (fun c_b -> (c_a, c_b)) ms_b) in
-           let _, hds = take_split (max 0 (i - 3)) hds in
-           let hds_early, hds_mid_to_late = take_split 3 hds in
-           let hds_mid, hds_late = take_split 3 hds_mid_to_late in
-           let hds = List.append hds_mid (List.append (List.rev hds_early) (List.rev hds_late)) in
-           if List.length swaps = 0 then
-             List.map (fun (c_a, c_b) -> [(c_a, c_b)]) hds
-           else
-             take
-               200
-               (flat_map
-                  (fun (c_a, c_b) ->
-                    let swaps_no_c_b =
-                      List.filter (List.for_all (fun (_, c_b') -> not (equal (mkConstructU c_b) (mkConstructU c_b')))) swaps
-                    in List.map (fun l -> (c_a, c_b) :: l) swaps_no_c_b)
-                  hds))
-         []
-         (List.mapi (fun i m -> (i, m)) ms_a)
+     let swap_maps = get_likely_swap_maps n tl in
+     let rec cs_swap_maps fuel acc ms_b_swaps =
+       let swaps = List.map (List.combine ms_a) ms_b_swaps in
+       if List.length swaps > n then
+         take n swaps
+       else if fuel = 0 then
+         take n swaps
+       else
+         let ms_b_swaps = List.filter (fun ms_b_swaps' -> List.for_all (fun ms_b_swaps -> not (same ms_b_swaps ms_b_swaps')) acc) (flat_map zero_one_swaps ms_b_swaps) in
+         let ms_b_swaps = unique same ms_b_swaps in
+         take n (List.append swaps (cs_swap_maps (fuel - 1) (List.append acc ms_b_swaps) ms_b_swaps))
      in
-     let swap_maps = get_likely_swap_maps tl in
+     let swaps = cs_swap_maps (List.length ms_b - 1) [ms_b] [ms_b] in
      if List.length swap_maps = 0 then
-       swaps
+       take n swaps
      else
-       flat_map
-         (fun swap_map -> List.map (List.append swap_map) swaps)
-         swap_maps
+       let swap_maps =
+         flat_map
+           (fun swap_map -> List.map (List.append swap_map) swaps)
+           swap_maps
+       in take n swap_maps
   | _ ->
      []
+
            
 (*
  * TODO at some point, port to using Lemmas.add_lemma or something similar.
@@ -795,14 +807,14 @@ let search_swap_constructor env npm grouped a b swap_i_o sigma =
       (fun (repr, (ms, typ_a)) ->
         let (ms_a, ms_b) = List.partition (fun ((i, _), _) -> equal (mkInd i) a) ms in
         let typ_b = all_eq_substs (a, b) typ_a in
-        (repr, ((ms_a, ms_b), (typ_a, typ_b))))
+        (repr, ((List.rev ms_a, List.rev ms_b), (typ_a, typ_b))))
       grouped
   in
   let swap_map =
     let ambiguous = List.filter (fun (_, ((ms_a, _), _)) -> List.length ms_a > 1) swaps in
     if List.length ambiguous > 0 then
       (* Ambiguous; need more information *)
-      let swap_maps = take 50 (get_likely_swap_maps swaps) in
+      let swap_maps = get_likely_swap_maps 50 swaps in
       if Option.has_some swap_i_o then
         let swap_i = Option.get swap_i_o in
         List.nth swap_maps swap_i
