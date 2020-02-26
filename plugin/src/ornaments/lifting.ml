@@ -142,8 +142,6 @@ let get_kind_of_ornament env (o, n) sigma =
   | SwapConstruct _ ->
      let promote = o in
      let sigma, promote_type = reduce_type env sigma promote in
-     let env_promote = zoom_env zoom_product_type env promote_type in
-     let typ_args = unfold_args from_typ_app in
      let ((i_o, ii_o), u_o) = destInd (first_fun from_typ_app) in
      let m_o = lookup_mind i_o env in
      let b_o = m_o.mind_packets.(0) in
@@ -154,12 +152,12 @@ let get_kind_of_ornament env (o, n) sigma =
          (fun i sigma ->
            let c_o = mkConstructU (((i_o, ii_o), i), u_o) in
            let sigma, c_o_typ = reduce_type env sigma c_o in
-           let env_c_o = zoom_env zoom_product_type env c_o_typ in
-           let nargs = new_rels2 env_c_o env_promote in
+           let env_c_o, c_o_typ = zoom_product_type env c_o_typ in
+           let nargs = new_rels2 env_c_o env in
            let c_o_args = mk_n_rels nargs in
            let c_o_app = mkAppl (c_o, c_o_args) in
-           let typ_args = shift_all_by nargs typ_args in
-           let sigma, c_o_lifted = reduce_nf env sigma (mkAppl (promote, snoc c_o_app typ_args)) in
+           let typ_args = unfold_args c_o_typ in
+           let sigma, c_o_lifted = reduce_nf env_c_o sigma (mkAppl (promote, snoc c_o_app typ_args)) in
            let ((_, j), _) = destConstruct (first_fun c_o_lifted) in
            sigma, (i, j))
          (range 1 (ncons + 1))
