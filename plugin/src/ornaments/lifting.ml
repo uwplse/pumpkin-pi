@@ -186,7 +186,7 @@ let initialize_lifting_cached env sigma o n =
 (*
  * Initialize a lifting for a user-provided ornament
  * TODO take an option and try to automatically invert if not there;
- * fail gracefully. 
+ * fail gracefully.
  *)
 let initialize_lifting_provided env sigma o n_o =
   let sigma, (is_fwd, (promote, forget), kind) =

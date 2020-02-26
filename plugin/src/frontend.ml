@@ -179,7 +179,6 @@ let find_ornament n_o d_old d_new swap_i_o =
 
 (*
  * Save a user-provided ornament
- * TODO prove equivalence if option is set
  *)
 let save_ornament d_old d_new d_orn d_orn_inv_o =
   Feedback.msg_warning (Pp.str "Custom equivalences are experimental. Use at your own risk!");
@@ -196,8 +195,25 @@ let save_ornament d_old d_new d_orn d_orn_inv_o =
   let sigma, def_n = intern env sigma d_new in
   let trm_o, trm_n = map_tuple (try_delta_inductive env) (def_o, def_n) in
   try
+    (* TODO better error messaging for each thing that can go wrong *)
     let sigma, l = initialize_lifting_provided env sigma promote forget_o in
-    let forget = l.orn.forget in
+    let (c, _) = destConst promote in
+    let (_, _, lab) = KerName.repr (Constant.canonical c) in
+    let n = Label.to_id lab in
+    let forget, inv_n =
+      if Option.has_some forget_o then
+        let forget = Option.get forget_o in (* TODO consolidate functions here *)
+        let (c, _) = destConst forget in
+        let (_, _, lab) = KerName.repr (Constant.canonical c) in
+        let inv_n = Label.to_id lab in
+        forget, inv_n
+      else
+        let inv_n = with_suffix n "inv" in
+        let forget = Universes.constr_of_global (define_print inv_n l.orn.forget sigma) in
+        forget, inv_n
+    in
+    maybe_prove_coherence n inv_n l.orn.kind;
+    maybe_prove_equivalence n inv_n;
     save_ornament (trm_o, trm_n) (promote, forget, l.orn.kind)
   with _ ->
     user_err
