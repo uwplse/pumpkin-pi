@@ -14,6 +14,7 @@ Set DEVOID lift type.
 
 (* TODO test outcomes (if #changes, will break, whereas now won't change) *)
 (* TODO try w/ dependent indices too *)
+(* TODO clean & make tutorial-like *)
 
 (* --- Swap the only constructor --- *)
 
@@ -372,7 +373,44 @@ Proof.
   - apply e1'.
 Defined.
 
-(* Hopefully won't need this at some point *)
+(*
+ * DEVOID can automatically infer the opposite direction
+ *)
+Save ornament Enum Enum' { promote = Enum_Enum' }.
+
+Definition is_e3 (e : Enum) :=
+match e with
+| e3 => True
+| _ => False
+end.
+
+Preprocess is_e3 as is_e3_pre.
+Lift Enum Enum' in is_e3_pre as is_e28'.
+
+Lemma e28'_is_e28':
+  is_e28' e28'.
+Proof.
+  reflexivity.
+Defined.
+
+Definition is_e3' (e : Enum') :=
+match e with
+| e3' => True
+| _ => False
+end.
+
+Preprocess is_e3' as is_e3'_pre.
+Lift Enum' Enum in is_e3'_pre as is_e28.
+
+Lemma e28_is_e28:
+  is_e28 e28.
+Proof.
+  reflexivity.
+Defined.
+
+(*
+ * Likewise, we can just provide forget (could also do both):
+ *)
 Program Definition Enum'_Enum : Enum' -> Enum.
 Proof.
   intros e. induction e.
@@ -408,20 +446,36 @@ Proof.
   - apply e1.
 Defined.
 
-Save ornament Enum Enum' { promote = Enum_Enum'; forget = Enum'_Enum }.
+Save ornament Enum Enum' { forget = Enum'_Enum }.
 
-Definition is_e3 (e : Enum) :=
+Definition is_e2' (e : Enum') :=
 match e with
-| e3 => True
+| e2' => True
 | _ => False
 end.
 
-Preprocess is_e3 as is_e3_pre.
-Lift Enum Enum' in is_e3_pre as is_e28'.
+Preprocess is_e2' as is_e2'_pre.
+Lift Enum' Enum in is_e2'_pre as is_e29.
 
-Lemma e28'_is_e28':
-  is_e28' e28'.
+Lemma e29_is_e29:
+  is_e29 e29.
 Proof.
   reflexivity.
 Defined.
+
+Definition is_e2 (e : Enum) :=
+match e with
+| e2 => True
+| _ => False
+end.
+
+Preprocess is_e2 as is_e2_pre.
+Lift Enum Enum' in is_e2_pre as is_e29'.
+
+Lemma e29'_is_e29':
+  is_e29' e29'.
+Proof.
+  reflexivity.
+Defined.
+
 
