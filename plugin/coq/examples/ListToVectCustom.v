@@ -7,6 +7,8 @@ Require Import List.
 
 Require Import Ornamental.Ornaments.
 
+Set DEVOID search prove equivalence.
+
 Notation vector := Vector.t.
 Notation vnil := Vector.nil.
 Notation vcons := Vector.cons.
