@@ -501,20 +501,27 @@ let find_promote_or_forget_algebraic env_pms idx indexer_n o n is_fwd =
         (fun (env_packed, packed) ->
           ret (reconstruct_lambda env_packed packed)))
 
-(* Find promote and forget, using a directional flag for abstraction *)
-let find_promote_forget_algebraic env_pms idx indexer_n a b =
-  bind
-    (find_promote_or_forget_algebraic env_pms idx indexer_n a b true)
-    (fun f ->
-      bind
-        (find_promote_or_forget_algebraic env_pms idx indexer_n b a false)
-        (fun g ->
-          ret (f, g)))
+(* Find promote and forget, using a directional flag for abstraction
+ * TODO test, clean/consolidate new code
+ *)
+let find_promote_forget_algebraic env_pms idx indexer_n promote_o forget_o a b sigma =
+  let sigma, promote =
+    if Option.has_some promote_o then
+      sigma, Option.get promote_o
+    else
+      find_promote_or_forget_algebraic env_pms idx indexer_n a b true sigma
+  in
+  let sigma, forget =
+    if Option.has_some forget_o then
+      sigma, Option.get forget_o
+    else
+      find_promote_or_forget_algebraic env_pms idx indexer_n b a false sigma
+  in sigma, (promote, forget)
               
 (*
  * Search two inductive types for an algebraic ornament between them
  *)
-let search_algebraic env sigma npm indexer_n a b =
+let search_algebraic env sigma npm indexer_n promote_o forget_o a b =
   let (a_typ, arity_a) = a in
   let (b_typ, arity_b) = b in
   let lookup_elim typ = type_eliminator env (fst (destInd typ)) in
@@ -527,7 +534,7 @@ let search_algebraic env sigma npm indexer_n a b =
   let sigma, indexer = find_indexer env_pms idx el_a a b sigma in
   let a = (a_typ, arity_a, el_a, el_a_typ) in
   let b = (b_typ, arity_b, el_b, el_b_typ) in
-  let sigma, (promote, forget) = find_promote_forget_algebraic env_pms idx indexer_n a b sigma in
+  let sigma, (promote, forget) = find_promote_forget_algebraic env_pms idx indexer_n promote_o forget_o a b sigma in
   sigma, { promote; forget; kind = Algebraic (indexer, fst idx + npm) }
 
 (* --- Records and products --- *)
@@ -596,21 +603,27 @@ let find_promote_or_forget_curry_record env_pms a b is_fwd sigma =
 
 (*
  * Find both promote and forget for curry_record
+ * TODO test, clean new option code
  *)
-let find_promote_forget_curry_record env_pms a b =
-  bind
-    (find_promote_or_forget_curry_record env_pms a b true)
-    (fun f ->
-      bind
-        (find_promote_or_forget_curry_record env_pms a b false)
-        (fun g ->
-          ret (f, g)))
+let find_promote_forget_curry_record env_pms promote_o forget_o a b sigma =
+  let sigma, promote =
+    if Option.has_some promote_o then
+      sigma, Option.get promote_o
+    else
+      find_promote_or_forget_curry_record env_pms a b true sigma
+  in
+  let sigma, forget =
+    if Option.has_some forget_o then
+      sigma, Option.get forget_o
+    else
+      find_promote_or_forget_curry_record env_pms a b false sigma
+  in sigma, (promote, forget)
 
 (*
  * Search for the components of the equivalence for curry_record
  *)
-let search_curry_record env_pms sigma a b =
-  let sigma, (promote, forget) = find_promote_forget_curry_record env_pms a b sigma in
+let search_curry_record env_pms sigma promote_o forget_o a b =
+  let sigma, (promote, forget) = find_promote_forget_curry_record env_pms promote_o forget_o a b sigma in
   sigma, { promote; forget; kind = CurryRecord }
 
 (* --- Swapping constructors --- *)
@@ -685,9 +698,19 @@ let find_promote_or_forget_swap env npm swap_map a b is_fwd sigma =
       }
   in sigma, reconstruct_lambda env_p_b app
 
-let find_promote_forget_swap env npm swaps a b sigma =
-  let sigma, promote = find_promote_or_forget_swap env npm swaps a b true sigma in
-  let sigma, forget = find_promote_or_forget_swap env npm swaps a b false sigma in
+let find_promote_forget_swap env npm swaps promote_o forget_o a b sigma =
+  let sigma, promote =
+    if Option.has_some promote_o then
+      sigma, Option.get promote_o
+    else
+      find_promote_or_forget_swap env npm swaps a b true sigma
+  in
+  let sigma, forget =
+    if Option.has_some forget_o then
+      sigma, Option.get forget_o
+    else
+      find_promote_or_forget_swap env npm swaps a b false sigma
+  in
   let swaps_ints = List.map (fun (((_, i), _), ((_, j), _)) -> i, j) swaps in
   sigma, { promote ; forget ; kind = SwapConstruct swaps_ints }
 
@@ -743,7 +766,6 @@ let rec get_likely_swap_maps n swaps : ((pconstructor * pconstructor) list) list
   | _ ->
      []
 
-           
 (*
  * TODO at some point, port to using Lemmas.add_lemma or something similar.
  * For now, just require the user to tell us which one via config.
@@ -796,37 +818,70 @@ let prompt_swap_ambiguous env swap_maps ambiguous sigma =
         Pp.str "For example: `Find ornament old new { mapping 0 }`. ";
         Pp.str "If the mapping you want is not in the 50 shown, ";
         Pp.str "please pass the mapping to `Save ornament` instead."])
-(* ^ TODO make it so they can just pass `f`, and get `Save ornament` working regardless of whether you go that route *)
 
 (*
  * Search for the components of the equivalence for swapping constructors
  *)
-let search_swap_constructor env npm grouped a b swap_i_o sigma =
-  let swaps =
-    List.map
-      (fun (repr, (ms, typ_a)) ->
-        let (ms_a, ms_b) = List.partition (fun ((i, _), _) -> equal (mkInd i) a) ms in
-        let typ_b = all_eq_substs (a, b) typ_a in
-        (repr, ((List.rev ms_a, List.rev ms_b), (typ_a, typ_b))))
-      grouped
-  in
-  let swap_map =
-    let ambiguous = List.filter (fun (_, ((ms_a, _), _)) -> List.length ms_a > 1) swaps in
-    if List.length ambiguous > 0 then
-      (* Ambiguous; need more information *)
-      let swap_maps = get_likely_swap_maps 50 swaps in
-      if Option.has_some swap_i_o then
-        let swap_i = Option.get swap_i_o in
-        List.nth swap_maps swap_i
-      else
-        prompt_swap_ambiguous env swap_maps ambiguous sigma
+let search_swap_constructor env npm grouped swap_i_o promote_o forget_o a b sigma =
+  (* TODO refactor common w/ lifting (get_kind_of_ornament) *)
+  let trm_o_o = if Option.has_some promote_o then promote_o else forget_o in
+  let sigma, swap_map =
+    if Option.has_some trm_o_o then
+      (* Infer swap map from promotion function *)
+      let f = Option.get trm_o_o in
+      let ((i_o, ii_o), u_o) = destInd a in
+      let m_o = lookup_mind i_o env in
+      let b_o = m_o.mind_packets.(0) in
+      let cs_o = b_o.mind_consnames in
+      let ncons = Array.length cs_o in
+      let sigma, swap_map =
+        map_state
+          (fun i sigma ->
+            let c_o = mkConstructU (((i_o, ii_o), i), u_o) in
+            let sigma, c_o_typ = reduce_type env sigma c_o in
+            let env_c_o, c_o_typ = zoom_product_type env c_o_typ in
+            let nargs = new_rels2 env_c_o env in
+            let c_o_args = mk_n_rels nargs in
+            let c_o_app = mkAppl (c_o, c_o_args) in
+            let typ_args = unfold_args c_o_typ in
+            let sigma, c_o_lifted = reduce_nf env_c_o sigma (mkAppl (f, snoc c_o_app typ_args)) in
+            let swap = ((((i_o, ii_o), i), u_o), destConstruct (first_fun c_o_lifted)) in
+            if Option.has_some promote_o then
+              sigma, swap
+            else
+              sigma, reverse swap)
+          (range 1 (ncons + 1))
+          sigma
+      in sigma, swap_map
     else
-      (* Unambiguous *)
-      List.map
-        (fun (_ , ((ms_a, ms_b), _)) -> List.hd ms_a, List.hd ms_b)
-        swaps
-  in find_promote_forget_swap env npm swap_map a b sigma
-           
+      (* Determine swap map *)
+      let swaps =
+        List.map
+          (fun (repr, (ms, typ_a)) ->
+            let (ms_a, ms_b) = List.partition (fun ((i, _), _) -> equal (mkInd i) a) ms in
+            let typ_b = all_eq_substs (a, b) typ_a in
+            (repr, ((List.rev ms_a, List.rev ms_b), (typ_a, typ_b))))
+          grouped
+      in
+      let ambiguous = List.filter (fun (_, ((ms_a, _), _)) -> List.length ms_a > 1) swaps in
+      if List.length ambiguous > 0 then
+        (* Ambiguous; need more information *)
+        let swap_maps = get_likely_swap_maps 50 swaps in
+        if Option.has_some swap_i_o then
+          (* The user gave us this information already *)
+          let swap_i = Option.get swap_i_o in
+          sigma, List.nth swap_maps swap_i
+        else
+          (* We ask the user to give us that information *)
+          sigma, prompt_swap_ambiguous env swap_maps ambiguous sigma
+      else
+        (* Unambiguous *)
+        map_state
+          (fun (_ , ((ms_a, ms_b), _)) -> ret (List.hd ms_a, List.hd ms_b))
+          swaps
+          sigma
+  in find_promote_forget_swap env npm swap_map promote_o forget_o a b sigma
+
 (* --- Top-level search --- *)
 
 (*
@@ -834,10 +889,13 @@ let search_swap_constructor env npm grouped a b swap_i_o sigma =
  * This is more general to handle eventual extension with other 
  * kinds of ornaments.
  *
- * TODO move swap_i_o, indexer_id_opt, etc to some kind of configuration for Find ornament
+ * TODO move swap_i_o, indexer_id_opt, etc to some kind of configuration for Find ornament. Or, infer swap_map seperately before you get to search, for example
+ * in differencing, and make it possible to pass one there.
+ *
+ * TODO somehow move "forget_only" to invert
  *)
-let search_orn_inductive env sigma indexer_id_opt swap_i_o trm_o trm_n =
-  match map_tuple kind (trm_o, trm_n) with
+let search_orn_inductive env sigma indexer_id_opt swap_i_o typ_o typ_n promote_o forget_o =
+  match map_tuple kind (typ_o, typ_n) with
   | (Ind ((i_o, ii_o), u_o), Ind ((i_n, ii_n), u_n)) ->
      let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
      check_inductive_supported m_o;
@@ -863,14 +921,14 @@ let search_orn_inductive env sigma indexer_id_opt swap_i_o trm_o trm_n =
        else
          let npm = npm_o in
          let ncons = Array.length cs_o in
-         let (typ_o, typ_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
-         let (arity_o, arity_n) = map_tuple arity (typ_o, typ_n) in
+         let (sort_o, sort_n) = map_tuple (type_of_inductive env 0) (m_o, m_n) in
+         let (arity_o, arity_n) = map_tuple arity (sort_o, sort_n) in
          if Option.has_some indexer_id_opt && not (arity_o = arity_n) then
            (* new index *)
-           let o = (trm_o, arity_o) in
-           let n = (trm_n, arity_n) in
+           let o = (typ_o, arity_o) in
+           let n = (typ_n, arity_n) in
            let (a, b) = map_if reverse (arity_n <= arity_o) (o, n) in
-           search_algebraic env sigma npm (Option.get indexer_id_opt) a b
+           search_algebraic env sigma npm (Option.get indexer_id_opt) promote_o forget_o a b
          else
            (* change in constructor *)
            let group_cs_by_types cs grouped sigma =
@@ -878,7 +936,7 @@ let search_orn_inductive env sigma indexer_id_opt swap_i_o trm_o trm_n =
                (fun grouped c sigma ->
                  let c_dest = destConstruct c in
                  let sigma, c_typ = infer_type env sigma c in
-                 let c_typ = all_eq_substs (trm_o, trm_n) c_typ in
+                 let c_typ = all_eq_substs (typ_o, typ_n) c_typ in
                  try
                    let sigma, (repr, (matches, typ)) =
                      find_state
@@ -908,7 +966,7 @@ let search_orn_inductive env sigma indexer_id_opt swap_i_o trm_o trm_n =
            in
            if is_swapped then
              (* swapped constructors (including constructor renaming) *)
-             search_swap_constructor env npm grouped_n trm_o trm_n swap_i_o sigma
+             search_swap_constructor env npm grouped_n swap_i_o promote_o forget_o typ_o typ_n sigma
            else
              user_err
                "search_orn_inductive"
@@ -924,8 +982,8 @@ let search_orn_inductive env sigma indexer_id_opt swap_i_o trm_o trm_n =
  * of an inductive type). This is more general to handle eventual extensions
  * with other kinds of ornaments.
  *)
-let search_orn_one_noninductive env sigma trm_o trm_n =
-  let ind, non_ind = if isInd trm_o then (trm_o, trm_n) else (trm_n, trm_o) in
+let search_orn_one_noninductive env sigma typ_o typ_n promote_o forget_o =
+  let ind, non_ind = if isInd typ_o then (typ_o, typ_n) else (typ_n, typ_o) in
   let ((i, _), _) = destInd ind in
   let m = lookup_mind i env in
   check_inductive_supported m;
@@ -941,7 +999,7 @@ let search_orn_one_noninductive env sigma trm_o trm_n =
        let ncs = Array.length (Array.get bs 0).mind_consnames in
        if npm = nb_rel env && ncs = 1 then
          (* Curry a record into an application of prod *)
-         search_curry_record env sigma ind non_ind
+         search_curry_record env sigma promote_o forget_o ind non_ind
        else
          user_err
            "search_orn_one_noninductive"
@@ -960,22 +1018,38 @@ let search_orn_one_noninductive env sigma trm_o trm_n =
        err_unsupported_change
        [try_supported]
        [cool_feature; mistake]
-              
+
 (*
- * Search two types for an ornament between them.
- * This is more general to handle eventual extension with other 
- * kinds of ornaments.
+ * Common code for search and inversion
  *)
-let search_orn env sigma indexer_id_opt swap_i_o trm_o trm_n =
-  if isInd trm_o && isInd trm_n then
+let search_common env sigma indexer_id_opt swap_i_o typ_o typ_n promote_o forget_o =
+  if isInd typ_o && isInd typ_n then
     (* Ornament between two inductive types *)
-    search_orn_inductive env sigma indexer_id_opt swap_i_o trm_o trm_n
-  else if isInd trm_o || isInd trm_n then
+    search_orn_inductive env sigma indexer_id_opt swap_i_o typ_o typ_n promote_o forget_o
+  else if isInd typ_o || isInd typ_n then
     (* Ornament between an inductive type and something else *)
-    search_orn_one_noninductive env sigma trm_o trm_n
+    search_orn_one_noninductive env sigma typ_o typ_n promote_o forget_o
   else
     user_err
-      "search_orn"
+      "search_common"
       err_unsupported_change
       [try_supported]
       [cool_feature; mistake]
+       
+(*
+ * Search for an ornament between two types.
+ *)
+let search_orn env sigma indexer_id_opt swap_i_o typ_o typ_n =
+  search_common env sigma indexer_id_opt swap_i_o typ_o typ_n None None
+
+(*
+ * Try to invert a single component of an ornament between two types.
+ * TODO move partially to inversion
+ *)
+let invert_orn env sigma indexer_id_opt swap_i_o typ_o typ_n promote_o forget_o =
+  if Option.has_some promote_o && Option.has_some forget_o then
+    failwith "Only one of promote and forget should be present in invert_orn"
+  else if not (Option.has_some promote_o) && not (Option.has_some forget_o) then
+    failwith "Exactly one of promote and forget should be present in invert_orn"
+  else
+    search_common env sigma indexer_id_opt swap_i_o typ_o typ_n promote_o forget_o

@@ -12,9 +12,7 @@ open Stateutils
 (* --- Top-level search --- *)
 
 (* 
- * Search two types for an ornamental promotion between them
- * Automatically infer the kind of change
- * Automatically infer the new index
+ * Search for an ornamental promotion between two types
  *)
 val search_orn :
   env ->
@@ -25,3 +23,19 @@ val search_orn :
   types -> (* new type *)
   promotion state (* ornamental promotion *)
 
+(* 
+ * Try to invert a single component of an ornamental promotion isomorphism
+ * (Like search, but only in one direction)
+ *
+ * Exactly one of promote and forget must be present, otherwise this fails
+ *)
+val invert_orn :
+  env ->
+  evar_map ->
+  Id.t option -> (* name to assign the indexer function, if relevant *)
+  int option -> (* TODO move me *)
+  types -> (* old type *)
+  types -> (* new type *)
+  constr option -> (* optional promotion function *)
+  constr option -> (* optional forgetful function *)
+  promotion state (* ornamental promotion *)

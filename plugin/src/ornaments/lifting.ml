@@ -185,12 +185,9 @@ let initialize_lifting_cached env sigma o n =
 
 (*
  * Initialize a lifting for a user-provided ornament
- * TODO take an option and try to automatically invert if not there;
- * fail gracefully.
  *)
-let initialize_lifting_provided env sigma o n_o =
+let initialize_lifting_provided env sigma o n =
   let sigma, (is_fwd, (promote, forget), kind) =
-    let n = Option.get n_o in
     let sigma, (is_fwd, k) = get_kind_of_ornament env (o, n) sigma in
     let orns = map_if reverse (not is_fwd) (o, n) in
     sigma, (is_fwd, orns, k)

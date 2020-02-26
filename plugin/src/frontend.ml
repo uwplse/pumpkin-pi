@@ -77,7 +77,7 @@ let maybe_prove_equivalence n inv_n : unit =
   if is_search_equiv () then
     let sigma, env = refresh_env () in
     let (promote, forget) = map_tuple make_constant (n, inv_n) in
-    let sigma, l = initialize_lifting_provided env sigma promote (Some forget) in
+    let sigma, l = initialize_lifting_provided env sigma promote forget in
     let (section, retraction) = prove_equivalence env sigma l in
     let sect = define_proof "section" sigma section in
     let retr0 = define_proof "retraction" sigma retraction in
@@ -96,13 +96,10 @@ let maybe_prove_equivalence n inv_n : unit =
     ()
 
 (*
- * Identify an ornament between two types
- * Define the components of the corresponding equivalence
- * If the appropriate option is set, prove these components form an equivalence
+ * TODO comment, clean, common code, etc
  *)
-let find_ornament n_o d_old d_new swap_i_o =
+let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
   try
-    let (sigma, env) = Pfedit.get_current_context () in
     let sigma, def_o = intern env sigma d_old in
     let sigma, def_n = intern env sigma d_new in
     let trm_o, trm_n = map_tuple (try_delta_inductive env) (def_o, def_n) in
@@ -138,89 +135,111 @@ let find_ornament n_o d_old d_new swap_i_o =
           n, None
         else      
           user_err
-            "find_ornament"
+            "find_ornament_common"
             err_unsupported_change
             [try_supported; try_provide]
             [cool_feature; mistake]
     in
-    let sigma, orn = search_orn env sigma idx_n swap_i_o trm_o trm_n in
+    let sigma, orn =
+      if not (Option.has_some promote_o || Option.has_some forget_o) then
+        (* Find ornament *)
+        let _ = Feedback.msg_info (Pp.str "Searching for ornament") in
+        search_orn env sigma idx_n swap_i_o trm_o trm_n
+      else if (Option.has_some promote_o && Option.has_some forget_o) then
+        (* Save ornament *)
+        let _ = Feedback.msg_info (Pp.str "Saving ornament") in
+        let promote = Option.get promote_o in
+        let forget = Option.get forget_o in
+        let sigma, l = initialize_lifting_provided env sigma promote forget in
+        sigma, l.orn
+      else
+        (* Save ornament with automatic inversion *)
+        let _ = Feedback.msg_info (Pp.str "Automatically inverting function") in
+        invert_orn env sigma idx_n swap_i_o trm_o trm_n promote_o forget_o
+    in
     let orn =
       match orn.kind with
-      | Algebraic (indexer, off) ->
+      | Algebraic (indexer, off) when not (isConst indexer) ->
          (* Substitute the defined indexer constant for the raw term *)
          let indexer = define_print (Option.get idx_n) indexer sigma in
          { orn with kind = Algebraic (Universes.constr_of_global indexer, off) }
       | _ ->
          orn
     in
-    let promote = define_print n orn.promote sigma in
-    let inv_n = with_suffix n "inv" in
-    let forget = define_print inv_n orn.forget sigma in
+    let promote =
+      if Option.has_some promote_o then
+        Option.get promote_o
+      else
+        Universes.constr_of_global (define_print n orn.promote sigma)
+    in
+    let inv_n, forget =
+      if Option.has_some forget_o then
+        let forget = Option.get forget_o in
+        let (c, _) = destConst forget in
+        let (_, _, lab) = KerName.repr (Constant.canonical c) in
+        Label.to_id lab, forget
+      else
+        let inv_n = with_suffix n "inv" in
+        inv_n, Universes.constr_of_global (define_print inv_n orn.forget sigma)
+    in
     maybe_prove_coherence n inv_n orn.kind;
     maybe_prove_equivalence n inv_n;
     (try
-       let promote, forget = map_tuple Universes.constr_of_global (promote, forget) in
        save_ornament (trm_o, trm_n) (promote, forget, orn.kind)
      with _ ->
        Feedback.msg_warning err_save_ornament);
   with
   | PretypeError (env, sigma, err) ->
     user_err
-      "find_ornament"
+      "find_ornament_common"
       (err_type env sigma err)
       [try_supported; try_provide]
       [problematic]
   | NotAlgebraic ->
      user_err
-       "find_ornament"
+       "find_ornament_common"
        (err_unexpected_change "algebraic ornament")
        [try_supported; try_provide]
        [problematic]
 
 (*
+ * Identify an ornament between two types
+ * Define the components of the corresponding equivalence
+ * If the appropriate option is set, prove these components form an equivalence
+ *)
+let find_ornament n_o d_old d_new swap_i_o =
+  let (sigma, env) = Pfedit.get_current_context () in
+  find_ornament_common env n_o d_old d_new swap_i_o None None sigma
+
+(*
  * Save a user-provided ornament
  *)
-let save_ornament d_old d_new d_orn d_orn_inv_o =
+let save_ornament d_old d_new d_orn_o d_orn_inv_o =
   Feedback.msg_warning (Pp.str "Custom equivalences are experimental. Use at your own risk!");
   let (sigma, env) = Pfedit.get_current_context () in
-  let sigma, promote = intern env sigma d_orn in
-  let sigma, forget_o =
-    if Option.has_some d_orn_inv_o then
-      let sigma, forget = intern env sigma (Option.get d_orn_inv_o) in
-      sigma, Some forget
-    else
-      sigma, None
-  in
-  let sigma, def_o = intern env sigma d_old in
-  let sigma, def_n = intern env sigma d_new in
-  let trm_o, trm_n = map_tuple (try_delta_inductive env) (def_o, def_n) in
-  try
-    (* TODO better error messaging for each thing that can go wrong *)
-    let sigma, l = initialize_lifting_provided env sigma promote forget_o in
-    let (c, _) = destConst promote in
-    let (_, _, lab) = KerName.repr (Constant.canonical c) in
-    let n = Label.to_id lab in
-    let forget, inv_n =
-      if Option.has_some forget_o then
-        let forget = Option.get forget_o in (* TODO consolidate functions here *)
-        let (c, _) = destConst forget in
-        let (_, _, lab) = KerName.repr (Constant.canonical c) in
-        let inv_n = Label.to_id lab in
-        forget, inv_n
+  if not (Option.has_some d_orn_o || Option.has_some d_orn_inv_o) then
+    CErrors.user_err (str "Please provide a promotion or forgetful function") (* TODO better error message using utils *)
+  else
+    let maybe_intern def_o sigma =
+      if Option.has_some def_o then
+        let sigma, trm = intern env sigma (Option.get def_o) in
+        sigma, Some trm
       else
-        let inv_n = with_suffix n "inv" in
-        let forget = Universes.constr_of_global (define_print inv_n l.orn.forget sigma) in
-        forget, inv_n
+        sigma, None
     in
-    maybe_prove_coherence n inv_n l.orn.kind;
-    maybe_prove_equivalence n inv_n;
-    save_ornament (trm_o, trm_n) (promote, forget, l.orn.kind)
-  with _ ->
-    user_err
-      "save_ornament"
-      err_save_ornament
-      [try_supported; try_provide]
-      [problematic]
+    let get_base_name trm_o =
+      let (c, _) = destConst (Option.get trm_o) in
+      let (_, _, lab) = KerName.repr (Constant.canonical c) in
+      Label.to_id lab
+    in
+    let sigma, promote_o = maybe_intern d_orn_o sigma in
+    let sigma, forget_o = maybe_intern d_orn_inv_o sigma in
+    let n =
+      if Option.has_some promote_o then
+        get_base_name promote_o
+      else
+        with_suffix (get_base_name forget_o) "inv"
+    in find_ornament_common env (Some n) d_old d_new None promote_o forget_o sigma
 
 (*
  * Lift a definition according to a lifting configuration, defining the lifted
@@ -294,7 +313,6 @@ let init_lift env d_orn d_orn_inv sigma =
     let orn_opt = lookup_ornament (o, n) in
     if not (Option.has_some orn_opt) then
       (* The user never ran Find ornament *)
-      let _ = Feedback.msg_info (str "Searching for ornament first") in
       let _ = find_ornament None d_orn d_orn_inv None in
       refresh_env ()
     else

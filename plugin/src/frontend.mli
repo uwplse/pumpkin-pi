@@ -10,9 +10,11 @@ val find_ornament : Id.t option -> constr_expr -> constr_expr -> int option -> u
 
 (*
  * Save a user-supplied ornament between two types
+ * If only one of two function is supplied, automatically invert
+ * If the appropriate option is set, prove that these form an equivalence
  *)
 val save_ornament :
-  constr_expr -> constr_expr -> constr_expr -> constr_expr option -> unit
+  constr_expr -> constr_expr -> constr_expr option -> constr_expr option -> unit
                                                                    
 (*
  * Lift the supplied function along an ornament between the supplied types

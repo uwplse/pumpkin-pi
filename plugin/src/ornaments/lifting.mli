@@ -38,12 +38,10 @@ val initialize_lifting_cached :
  * 1) an environment
  * 2) an evar_map
  * 3) the old user-supplied ornament function
- * 4) optionally, the new user-supplied ornament function
- *
- * TODO update comment once takes an option
+ * 4) the new user-supplied ornament function
  *)
 val initialize_lifting_provided :
-  env -> evar_map -> types -> types option -> lifting state
+  env -> evar_map -> types -> types -> lifting state
 
 (* --- Control structures --- *)
     
