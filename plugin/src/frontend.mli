@@ -12,7 +12,7 @@ val find_ornament : Id.t option -> constr_expr -> constr_expr -> int option -> u
  * Save a user-supplied ornament between two types
  *)
 val save_ornament :
-  constr_expr -> constr_expr -> constr_expr -> constr_expr -> unit
+  constr_expr -> constr_expr -> constr_expr -> constr_expr option -> unit
                                                                    
 (*
  * Lift the supplied function along an ornament between the supplied types

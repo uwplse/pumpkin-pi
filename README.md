@@ -16,6 +16,8 @@ DEVOID is a part of the [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH)
 proof repair plugin suite, and is included as a dependency of PUMPKIN PATCH
 starting with release 0.1.
 
+TODO before merging, update w/ all of the swap stuff (find ornament, ambiguity, save ornament, lifting, examples)
+
 # Getting Started with DEVOID
 
 This section of the README is a getting started guide for users.

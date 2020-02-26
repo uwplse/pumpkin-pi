@@ -12,7 +12,7 @@ Require Import Ornamental.Ornaments.
 Set DEVOID search prove equivalence.
 Set DEVOID lift type.
 
-(* TODO run w/ tests once done *)
+(* TODO test outcomes (if #changes, will break, whereas now won't change) *)
 (* TODO try w/ dependent indices too *)
 
 (* --- Swap the only constructor --- *)

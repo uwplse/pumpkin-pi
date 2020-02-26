@@ -77,7 +77,7 @@ let maybe_prove_equivalence n inv_n : unit =
   if is_search_equiv () then
     let sigma, env = refresh_env () in
     let (promote, forget) = map_tuple make_constant (n, inv_n) in
-    let sigma, l = initialize_lifting env sigma promote forget in
+    let sigma, l = initialize_lifting_provided env sigma promote forget in
     let (section, retraction) = prove_equivalence env sigma l in
     let sect = define_proof "section" sigma section in
     let retr0 = define_proof "retraction" sigma retraction in
@@ -180,8 +180,9 @@ let find_ornament n_o d_old d_new swap_i_o =
 (*
  * Save a user-provided ornament
  *)
-let save_ornament d_old d_new d_orn d_orn_inv =
+let save_ornament d_old d_new d_orn d_orn_inv_o =
   Feedback.msg_warning (Pp.str "Custom equivalences are experimental. Use at your own risk!");
+  let d_orn_inv = Option.get d_orn_inv_o in (* TODO implement None case *)
   let (sigma, env) = Pfedit.get_current_context () in
   let sigma, promote = intern env sigma d_orn in
   let sigma, forget = intern env sigma d_orn_inv in
@@ -189,7 +190,7 @@ let save_ornament d_old d_new d_orn d_orn_inv =
   let sigma, def_n = intern env sigma d_new in
   let trm_o, trm_n = map_tuple (try_delta_inductive env) (def_o, def_n) in
   try
-    let sigma, l = initialize_lifting env sigma promote forget in
+    let sigma, l = initialize_lifting_provided env sigma promote forget in
     save_ornament (trm_o, trm_n) (promote, forget, l.orn.kind)
   with _ ->
     user_err
@@ -277,7 +278,7 @@ let init_lift env d_orn d_orn_inv sigma =
       (* The ornament is cached *)
       sigma, env
   in
-  let sigma, l = initialize_lifting env sigma o n in
+  let sigma, l = initialize_lifting_cached env sigma o n in
   sigma, (env, l)
 
 (*

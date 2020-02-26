@@ -167,30 +167,37 @@ let get_kind_of_ornament env (o, n) sigma =
 (* --- Initialization --- *)
 
 (*
- * Initialize a lifting
+ * Initialize a lifting for a cached ornament
  *)
-let initialize_lifting env sigma o n =
-  let orn_not_supplied = isInd o || isInd n in
+let initialize_lifting_cached env sigma o n =
   let sigma, (is_fwd, (promote, forget), kind) =
-    if orn_not_supplied then
-      (* Cached ornament *)
-      let (orn_o, orn_n, k) =
-        try
-          Option.get (lookup_ornament (o, n))
-        with _ ->
-          failwith "Cannot find cached ornament! Please report a bug in DEVOID"
-      in
-      let sigma, is_fwd = direction_cached env o orn_o k sigma in
-      sigma, (is_fwd, (orn_o, orn_n), k)
-    else
-      (* User-supplied ornament *)
-      let sigma, (is_fwd, k) = get_kind_of_ornament env (o, n) sigma in
-      let orns = map_if reverse (not is_fwd) (o, n) in
-      sigma, (is_fwd, orns, k)
+    let (promote, forget, k) =
+      try
+        Option.get (lookup_ornament (o, n))
+      with _ ->
+        failwith "Cannot find cached ornament! Please report a bug in DEVOID"
+    in
+    let sigma, is_fwd = direction_cached env o promote k sigma in
+    sigma, (is_fwd, (promote, forget), k)
   in
   let orn = { promote; forget; kind } in
   sigma, { orn ; is_fwd }
-                                
+
+(*
+ * Initialize a lifting for a user-provided ornament
+ * TODO take an option and try to automatically invert if not there;
+ * fail gracefully. 
+ * TODO auto equiv proof if option set
+ *)
+let initialize_lifting_provided env sigma o n =
+  let sigma, (is_fwd, (promote, forget), kind) =
+    let sigma, (is_fwd, k) = get_kind_of_ornament env (o, n) sigma in
+    let orns = map_if reverse (not is_fwd) (o, n) in
+    sigma, (is_fwd, orns, k)
+  in
+  let orn = { promote; forget; kind } in
+  sigma, { orn ; is_fwd }
+
 (* --- Directionality --- *)
        
 (* 

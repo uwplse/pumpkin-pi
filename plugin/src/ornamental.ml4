@@ -18,7 +18,9 @@ END
 (* Save a user-supplied ornament between two types *)
 VERNAC COMMAND EXTEND SaveOrnament CLASSIFIED AS SIDEFF
 | [ "Save" "ornament" constr(d_old) constr(d_new) "{" "promote" "=" constr(d_orn) ";" "forget" "=" constr(d_orn_inv) "}" ] ->
-  [ save_ornament d_old d_new d_orn d_orn_inv ]
+  [ save_ornament d_old d_new d_orn (Some d_orn_inv) ]
+| [ "Save" "ornament" constr(d_old) constr(d_new) "{" "promote" "=" constr(d_orn) "}" ] ->
+  [ save_ornament d_old d_new d_orn None ]
 END
 
 (* Lift a function along an ornament *)

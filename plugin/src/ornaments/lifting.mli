@@ -24,13 +24,26 @@ type lifting =
 (* --- Initialization --- *)
 
 (*
- * Initialize a lifting, given (in order):
+ * Initialize a lifting for a cached ornament, given (in order):
  * 1) an environment
  * 2) an evar_map
- * 3) the old type or user-supplied ornament function
- * 4) the new type or user-supplied ornament function
+ * 3) the old type
+ * 4) the new type
  *)
-val initialize_lifting : env -> evar_map -> types -> types -> lifting state
+val initialize_lifting_cached :
+  env -> evar_map -> types -> types -> lifting state
+
+(*
+ * Initialize a lifting for a user-supplied ornament, given (in order):
+ * 1) an environment
+ * 2) an evar_map
+ * 3) the old user-supplied ornament function
+ * 4) the new user-supplied ornament function
+ *
+ * TODO update comment once takes an option
+ *)
+val initialize_lifting_provided :
+  env -> evar_map -> types -> types -> lifting state
 
 (* --- Control structures --- *)
     
