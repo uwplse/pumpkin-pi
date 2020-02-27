@@ -8,7 +8,7 @@ open Evd
 open Names
 open Promotion
 open Stateutils
-       
+
 (* --- Top-level search --- *)
 
 (* 
@@ -18,7 +18,7 @@ val search_orn :
   env ->
   evar_map ->
   Id.t option -> (* name to assign the indexer function, if relevant *)
-  int option -> (* TODO move me *)
+  int option -> (* offset of swap map, if relevant *)
   types -> (* old type *)
   types -> (* new type *)
   promotion state (* ornamental promotion *)
@@ -33,7 +33,7 @@ val invert_orn :
   env ->
   evar_map ->
   Id.t option -> (* name to assign the indexer function, if relevant *)
-  int option -> (* TODO move me *)
+  int option -> (* offset of swap map, if relevant *)
   types -> (* old type *)
   types -> (* new type *)
   constr option -> (* optional promotion function *)
