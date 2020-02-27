@@ -23,6 +23,7 @@ open Sigmautils
 open Stateutils
 open Declarations
 open Promotion
+open Ornerrors
 
 (*
  * Automatically generated equivalence proofs
@@ -55,51 +56,70 @@ let equiv_motive env_motive pms l is_packed sigma =
   let p_b = apply_eq { at_type; trm1; trm2 } in
   sigma, shift (reconstruct_lambda_n env_motive p_b (List.length pms))
 
+(*
+ * The proofs of both section and retraction for algebraic ornaments
+ * and constructor swapping apply lemmas  that show that equalities are
+ * preserved in inductive cases. These lemmas are folds over substitutions of
+ * recursive arguments, with refl as identity.
+ *
+ * The first step to constructing these is to construct the environment
+ * with the appropriate hypotheses for these lemmas:
+ *)
+let eq_lemmas_env env recs l =
+  match l.orn.kind with
+  | Algebraic (_, off) ->
+     (* TODO consolidate *)
+     fold_left_state
+       (fun e r sigma ->
+         let r1 = shift_by (new_rels2 e env) r in
+         let sigma, r_t = reduce_type e sigma r1 in
+         let push_ib =
+           map_backward
+             (fun (sigma, e) ->
+               Util.on_snd
+                 (fun t -> push_local (Anonymous, t) e)
+                 (reduce_type e sigma (get_arg off r_t)))
+             l
+         in
+         (* push index in backwards direction *)
+         let sigma, e_ib = push_ib (sigma, e) in
+         let adj_back = map_backward (reindex_app (reindex off (mkRel 1))) l in
+         let r_t = adj_back (shift_by (new_rels2 e_ib e) r_t) in
+         (* push new rec arg *)
+         let e_r = push_local (Anonymous, r_t) e_ib in
+         let pack_back = map_backward (fun (sigma, t) -> pack e_r l t sigma) l in
+         let sigma, r1 = pack_back (sigma, shift_by (new_rels2 e_r e) r1) in
+         let sigma, r2 = pack_back (sigma, mkRel 1) in
+         let sigma, r_t = reduce_type e_r sigma r1 in
+         let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
+         (* push equality *)
+         sigma, push_local (Anonymous, r_eq) e_r)
+       env
+       recs
+  | SwapConstruct _ ->
+     fold_left_state
+       (fun e r sigma ->
+         let r1 = shift_by (new_rels2 e env) r in
+         let sigma, r_t = reduce_type e sigma r1 in
+         (* push new rec arg *)
+         let e_r = push_local (Anonymous, r_t) e in
+         let sigma, r1 = sigma, shift_by (new_rels2 e_r e) r1 in
+         let sigma, r2 = sigma, mkRel 1 in
+         let sigma, r_t = reduce_type e_r sigma r1 in
+         let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
+         (* push equality *)
+         sigma, push_local (Anonymous, r_eq) e_r)
+       env
+       recs
+  | _ ->
+     raise NotAlgebraic (* TODO better error message here  *)
+               
 (* --- Algebraic ornaments  --- *)
 
 (*
- * The proofs of both section and retraction apply lemmas
- * that show that equalities are preserved in inductive cases.
- * These lemmas are folds over substitutions of recursive arguments,
- * with refl as identity.
- *
  * To construct these proofs, we first construct the lemmas, then
  * specialize them to the appropriate arguments.
  *)
-
-(*
- * Form the environment with the appropriate hypotheses for the equality lemmas.
- * Take as arguments the original environment, an evar_map, the recursive
- * arguments for the particular case, and a lift config.
- *)
-let eq_lemmas_env_algebraic env recs l off =
-  fold_left_state
-    (fun e r sigma ->
-      let r1 = shift_by (new_rels2 e env) r in
-      let sigma, r_t = reduce_type e sigma r1 in
-      let push_ib =
-        map_backward
-          (fun (sigma, e) ->
-            Util.on_snd
-              (fun t -> push_local (Anonymous, t) e)
-              (reduce_type e sigma (get_arg off r_t)))
-          l
-      in
-      (* push index in backwards direction *)
-      let sigma, e_ib = push_ib (sigma, e) in
-      let adj_back = map_backward (reindex_app (reindex off (mkRel 1))) l in
-      let r_t = adj_back (shift_by (new_rels2 e_ib e) r_t) in
-      (* push new rec arg *)
-      let e_r = push_local (Anonymous, r_t) e_ib in
-      let pack_back = map_backward (fun (sigma, t) -> pack e_r l t sigma) l in
-      let sigma, r1 = pack_back (sigma, shift_by (new_rels2 e_r e) r1) in
-      let sigma, r2 = pack_back (sigma, mkRel 1) in
-      let sigma, r_t = reduce_type e_r sigma r1 in
-      let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
-      (* push equality *)
-      sigma, push_local (Anonymous, r_eq) e_r)
-    env
-    recs
 
 (*
  * Determine the equality lemmas for each case of an inductive type for an
@@ -115,7 +135,7 @@ let eq_lemmas_algebraic env sigma typ l off =
       let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
       let c_args = unfold_args c_body in
       let recs = List.filter (on_red_type_default (ignore_env (is_or_applies typ)) env_c_b sigma) c_args in
-      let sigma, env_lemma = eq_lemmas_env_algebraic env_c_b recs l off sigma in
+      let sigma, env_lemma = eq_lemmas_env env_c_b recs l sigma in
       let pack_back = map_backward (fun (sigma, t) -> pack env_lemma l t sigma) l in
       let sigma, c_body = pack_back (sigma, shift_by (new_rels2 env_lemma env_c_b) c_body) in
       let sigma, c_body_type = reduce_type env_lemma sigma c_body in
@@ -376,27 +396,6 @@ let equiv_proof_curry_record env sigma l =
  *)
 
 (*
- * Form the environment with the appropriate hypotheses for the equality lemmas.
- * Take as arguments the original environment, an evar_map, the recursive
- * arguments for the particular case, and a lift config.
- *)
-let eq_lemmas_env_swap_construct env recs l =
-  fold_left_state
-    (fun e r sigma ->
-      let r1 = shift_by (new_rels2 e env) r in
-      let sigma, r_t = reduce_type e sigma r1 in
-      (* push new rec arg *)
-      let e_r = push_local (Anonymous, r_t) e in
-      let sigma, r1 = sigma, shift_by (new_rels2 e_r e) r1 in
-      let sigma, r2 = sigma, mkRel 1 in
-      let sigma, r_t = reduce_type e_r sigma r1 in
-      let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
-      (* push equality *)
-      sigma, push_local (Anonymous, r_eq) e_r)
-    env
-    recs
-
-(*
  * Determine the equality lemmas for each case of an inductive type for an
  * algebraic ornament.
  *)
@@ -410,7 +409,7 @@ let eq_lemmas_swap_construct env sigma typ l =
       let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
       let c_args = unfold_args c_body in
       let recs = List.filter (on_red_type_default (ignore_env (is_or_applies typ)) env_c_b sigma) c_args in
-      let sigma, env_lemma = eq_lemmas_env_swap_construct env_c_b recs l sigma in
+      let sigma, env_lemma = eq_lemmas_env env_c_b recs l sigma in
       let c_body = shift_by (new_rels2 env_lemma env_c_b) c_body in
       let sigma, c_body_type = reduce_type env_lemma sigma c_body in
       (* reflexivity proof: the identity case *)
