@@ -65,67 +65,29 @@ let equiv_motive env_motive pms l is_packed sigma =
  * The first step to constructing these is to construct the environment
  * with the appropriate hypotheses for these lemmas:
  *)
-let eq_lemmas_env env recs l =
-  match l.orn.kind with
-  | Algebraic (_, off) ->
-     (* TODO consolidate *)
-     fold_left_state
-       (fun e r sigma ->
-         let r1 = shift_by (new_rels2 e env) r in
-         let sigma, r_t = reduce_type e sigma r1 in
-         let push_ib =
-           map_backward
-             (fun (sigma, e) ->
-               Util.on_snd
-                 (fun t -> push_local (Anonymous, t) e)
-                 (reduce_type e sigma (get_arg off r_t)))
-             l
-         in
-         (* push index in backwards direction *)
-         let sigma, e_ib = push_ib (sigma, e) in
-         let adj_back = map_backward (reindex_app (reindex off (mkRel 1))) l in
-         let r_t = adj_back (shift_by (new_rels2 e_ib e) r_t) in
-         (* push new rec arg *)
-         let e_r = push_local (Anonymous, r_t) e_ib in
-         let pack_back = map_backward (fun (sigma, t) -> pack e_r l t sigma) l in
-         let sigma, r1 = pack_back (sigma, shift_by (new_rels2 e_r e) r1) in
-         let sigma, r2 = pack_back (sigma, mkRel 1) in
-         let sigma, r_t = reduce_type e_r sigma r1 in
-         let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
-         (* push equality *)
-         sigma, push_local (Anonymous, r_eq) e_r)
-       env
-       recs
-  | SwapConstruct _ ->
-     fold_left_state
-       (fun e r sigma ->
-         let r1 = shift_by (new_rels2 e env) r in
-         let sigma, r_t = reduce_type e sigma r1 in
-         (* push new rec arg *)
-         let e_r = push_local (Anonymous, r_t) e in
-         let sigma, r1 = sigma, shift_by (new_rels2 e_r e) r1 in
-         let sigma, r2 = sigma, mkRel 1 in
-         let sigma, r_t = reduce_type e_r sigma r1 in
-         let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
-         (* push equality *)
-         sigma, push_local (Anonymous, r_eq) e_r)
-       env
-       recs
-  | _ ->
-     raise NotAlgebraic (* TODO better error message here  *)
-               
-(* --- Algebraic ornaments  --- *)
+let eq_lemmas_env env recs l pack_typ pack_trm =
+  fold_left_state
+    (fun e r sigma ->
+      let r1 = shift_by (new_rels2 e env) r in
+      let sigma, r_t = reduce_type e sigma r1 in
+      (* if applicable, pack the type *)
+      let sigma, (e_ib, r_t) = pack_typ e r_t sigma in
+      (* push new rec arg *)
+      let e_r = push_local (Anonymous, r_t) e_ib in
+      (* get the (possibly packed) equality type *)
+      let sigma, r1 = pack_trm e_r (shift_by (new_rels2 e_r e) r1) sigma in
+      let sigma, r2 = pack_trm e_r (mkRel 1) sigma in
+      let sigma, r_t = reduce_type e_r sigma r1 in
+      let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
+      (* push the equality *)
+      sigma, push_local (Anonymous, r_eq) e_r)
+    env
+    recs
 
 (*
- * To construct these proofs, we first construct the lemmas, then
- * specialize them to the appropriate arguments.
+ * Then, we prove the equality lemmas:
  *)
-
-(*
- * Determine the equality lemmas for each case of an inductive type for an
- * algebraic ornament.
- *)
-let eq_lemmas_algebraic env sigma typ l off =
+let eq_lemmas env typ l pack_typ pack_trm nindices abstract_c_app sub_c_app_trans sigma =
   let ((i, i_index), u) = destInd typ in
   map_state_array
     (fun c_index sigma ->
@@ -135,16 +97,15 @@ let eq_lemmas_algebraic env sigma typ l off =
       let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
       let c_args = unfold_args c_body in
       let recs = List.filter (on_red_type_default (ignore_env (is_or_applies typ)) env_c_b sigma) c_args in
-      let sigma, env_lemma = eq_lemmas_env env_c_b recs l sigma in
-      let pack_back = map_backward (fun (sigma, t) -> pack env_lemma l t sigma) l in
-      let sigma, c_body = pack_back (sigma, shift_by (new_rels2 env_lemma env_c_b) c_body) in
+      let sigma, env_lemma = eq_lemmas_env env_c_b recs l pack_typ pack_trm sigma in
+      let sigma, c_body = pack_trm env_lemma (shift_by (new_rels2 env_lemma env_c_b) c_body) sigma in
       let sigma, c_body_type = reduce_type env_lemma sigma c_body in
       (* reflexivity proof: the identity case *)
       let refl = apply_eq_refl { typ = c_body_type; trm = c_body } in
-      (* fold to recursively substitute each recursive argument *)
       let (body, _, _) =
         List.fold_right
           (fun _ (b, h, c_app) ->
+            (* fold to recursively substitute each recursive argument *)
             let h_r = destRel h in
             let (_, _, h_t) = CRD.to_tuple @@ lookup_rel h_r env_lemma in
             let app = dest_eq (shift_by h_r h_t) in
@@ -153,31 +114,14 @@ let eq_lemmas_algebraic env sigma typ l off =
             let r2 = app.trm2 in
             let c_body_b = shift c_body in
             let c_app_b = shift c_app in
-            let (abs_c_app, c_app_trans) =
-              if l.is_fwd then
-                let abs_c_app = all_eq_substs (shift r1, mkRel 1) c_app_b in
-                let c_app_trans = all_eq_substs (r1, r2) c_app in
-                (abs_c_app, c_app_trans)
-              else
-                let (r1_ex, r2_ex) = map_tuple dest_existT (r1, r2) in
-                let r1_u = r1_ex.unpacked in
-                let r2_u = r2_ex.unpacked in
-                let r1_ib = r1_ex.index in
-                let r2_ib = r2_ex.index in
-                let b_sig_typ = dest_sigT (shift at_type) in
-                let (ib, u) = projections b_sig_typ (mkRel 1) in
-                let abs_c_app_u = all_eq_substs (shift r1_u, u) c_app_b in
-                let abs_c_app = all_eq_substs (shift r1_ib, ib) abs_c_app_u in
-                let c_app_trans_u = all_eq_substs (r1_u, r2_u) c_app in
-                let c_app_trans = all_eq_substs (r1_ib, r2_ib) c_app_trans_u in
-                (abs_c_app, c_app_trans)
-            in
+            let abs_c_app = abstract_c_app (r1, r2) at_type c_app_b in
+            let c_app_trans = sub_c_app_trans (r1, r2) c_app in
             let typ_b = shift c_body_type in
             let p_b = { at_type = typ_b; trm1 = c_body_b; trm2 = abs_c_app } in
             let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
             let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h; b} in
             let eq_proof = apply_eq_ind eq_proof_app in
-            (eq_proof, shift_by (directional l 2 3) h, c_app_trans))
+            (eq_proof, shift_by (2 + nindices) h, c_app_trans))
           recs
           (refl, mkRel 1, c_body)
       in sigma, reconstruct_lambda env_lemma body)
@@ -195,7 +139,7 @@ let eq_lemmas_algebraic env sigma typ l off =
  * The inner function works by tracking a list of regular hypotheses
  * and new arguments for the equality lemma, then applying them in the body.
  *)
-let equiv_case_algebraic env sigma pms p eq_lemma l c =
+let equiv_case env pms p eq_lemma l c dest_term sigma =
   let eq_lemma = mkAppl (eq_lemma, pms) in (* curry eq_lemma with pms *)
   let rec case e depth hypos args c =
     match kind c with
@@ -211,15 +155,8 @@ let equiv_case_algebraic env sigma pms p eq_lemma l c =
          (* IH *)
          let t = reduce_stateless reduce_term e sigma (mkAppl (shift_by depth p, unfold_args t)) in
          let trm = (dest_eq t).trm2 in
-         let args =
-           map_directional
-             (fun xs -> trm :: xs)
-             (fun xs ->
-               let (ib, u) = projections (on_red_type_default (ignore_env dest_sigT) e sigma trm) trm in
-               u :: ib :: xs)
-             l
-             args
-         in mkLambda (n, t, case_b (shift_all hypos) (h :: shift_all args) b)
+         let args = List.rev_append (dest_term e trm sigma) args in
+         mkLambda (n, t, case_b (shift_all hypos) (h :: shift_all args) b)
        else
          (* Product *)
          mkLambda (n, t, case_b (h :: shift_all hypos) (shift_all args) b)
@@ -233,15 +170,16 @@ let equiv_case_algebraic env sigma pms p eq_lemma l c =
  * an evar_map, the parameters, the motive, the equality lemmas,
  * the lifting, and the type of the eliminator body after the motive
  *)
-let equiv_cases_algebraic env sigma pms p lemmas l elim_typ =
+let equiv_cases equiv_case env pms p lemmas l elim_typ sigma =
   List.mapi
-    (fun j -> equiv_case_algebraic env sigma pms p lemmas.(j) l)
+    (fun j c -> equiv_case env pms p lemmas.(j) l c sigma)
     (take (Array.length lemmas) (factor_product elim_typ))
 
 (*
- * Prove section/retraction for an algebraic ornament
+ * Prove section/retraction for either algebraic ornaments or
+ * swapping/renaming constructors
  *)
-let equiv_proof_algebraic env sigma l off =
+let equiv_proof eq_lemmas equiv_case is_packed unpack_env index_args unpack_eq_proof env l sigma =
   let to_body = lookup_definition env (lift_to l) in
   let env_to = zoom_env zoom_lambda_term env to_body in
   let sigma, typ_app = reduce_type env_to sigma (mkRel 1) in
@@ -249,18 +187,8 @@ let equiv_proof_algebraic env sigma l off =
   let ((i, i_index), _) = destInd typ in
   let npm = (lookup_mind i env).mind_nparams in
   let nargs = new_rels env_to npm in
-  let sigma, lemmas = eq_lemmas_algebraic env sigma typ l off in (* equality lemmas *)
-  let env_eq_proof = (* unpack env_to for retraction *)
-    map_backward
-      (fun env ->
-        let b_sig_typ = dest_sigT typ_app in
-        let ib_typ = b_sig_typ.index_type in
-        let env_ib = push_local (Anonymous, ib_typ) env_to in
-        let b_typ = mkAppl (shift b_sig_typ.packer, [mkRel 1]) in
-        push_local (Anonymous, b_typ) env_ib)
-      l
-      env_to
-  in
+  let sigma, lemmas = eq_lemmas env typ l sigma in (* equality lemmas *)
+  let env_eq_proof = unpack_env env_to typ_app in
   let elim = type_eliminator env_to (i, i_index) in
   let sigma, elim_typ = infer_type env sigma elim in
   let (env_pms, elim_typ_p) = zoom_n_prod env npm elim_typ in
@@ -268,11 +196,10 @@ let equiv_proof_algebraic env sigma l off =
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in
   let env_motive = zoom_env zoom_product_type env_pms p_t in
-  let sigma, p = equiv_motive env_motive pms l (not l.is_fwd) sigma in
-  let cs = equiv_cases_algebraic env_p sigma pms p lemmas l elim_typ in
+  let sigma, p = equiv_motive env_motive pms l is_packed sigma in
+  let cs = equiv_cases equiv_case env_p pms p lemmas l elim_typ sigma in
   let args = shift_all_by (new_rels2 env_eq_proof env_to) (mk_n_rels nargs) in
-  let index_back = map_backward (insert_index (off - npm) (mkRel 2)) l in
-  let reindex_back = map_backward (reindex nargs (mkRel 1)) l in
+  let final_args = index_args npm args in
   let depth = new_rels2 env_eq_proof env_p in
   let eq_proof =
     apply_eliminator
@@ -281,27 +208,181 @@ let equiv_proof_algebraic env sigma l off =
         pms = shift_all_by depth pms;
         p = shift_by depth p;
         cs = shift_all_by depth cs;
-        final_args = reindex_back (index_back args);
+        final_args;
       }
   in
   let eq_typ = on_red_type_default (ignore_env dest_eq) env_eq_proof sigma eq_proof in
-  let eq_proof =
-    map_backward
-      (fun unpacked -> (* eliminate sigT for retraction *)
-        let env_p = push_local (Anonymous, typ_app) env_to in
-        let trm2 = unshift (all_eq_substs (eq_typ.trm1, mkRel 2) eq_typ.trm2) in
-        let at_type = shift typ_app in
-        let p_b = apply_eq { at_type; trm1 = mkRel 1; trm2 } in
-        let p = reconstruct_lambda_n env_p p_b (nb_rel env_to) in
-        let to_elim = dest_sigT typ_app in
-        elim_sigT { to_elim; packed_type = p; unpacked; arg = mkRel 1 })
-      l
-      (reconstruct_lambda_n env_eq_proof eq_proof (nb_rel env_to))
-  in
-  let eq_typ = on_red_type_default (ignore_env dest_eq) env_to sigma eq_proof in
-  let equiv_b = apply_eq_sym { eq_typ; eq_proof } in
+  let packed = reconstruct_lambda_n env_eq_proof eq_proof (nb_rel env_to) in
+  let eq_proof_unpacked = unpack_eq_proof env_to typ_app eq_typ packed in
+  let eq_typ = on_red_type_default (ignore_env dest_eq) env_to sigma eq_proof_unpacked in
+  let equiv_b = apply_eq_sym { eq_typ; eq_proof = eq_proof_unpacked } in
   reconstruct_lambda env_to equiv_b
 
+(* --- Algebraic ornaments  --- *)
+
+(*
+ * To construct these proofs, we first construct the lemmas, then
+ * specialize them to the appropriate arguments.
+ *
+ * We construct the lemmas by calling the generic method, with some
+ * special HOFs for packing indices in the backward case.
+ *)
+let eq_lemmas_algebraic env typ l =
+  match l.orn.kind with
+  | Algebraic (_, off) ->
+     if l.is_fwd then
+       eq_lemmas
+         env
+         typ
+         l
+         (fun env typ -> ret (env, typ)) (* no packing types *)
+         (fun _ trm -> ret trm) (* no packing terms *)
+         0 (* no indices *)
+         (fun (r1, r2) _ -> all_eq_substs (shift r1, mkRel 1)) (* no packing *)
+         all_eq_substs (* basic substitution *)
+     else
+       eq_lemmas
+         env
+         typ
+         l
+         (fun env typ sigma ->
+           (* push index for packing in backward direction *)
+           let sigma, env_ib =
+             Util.on_snd
+               (fun t -> push_local (Anonymous, t) env)
+               (reduce_type env sigma (get_arg off typ))
+           in sigma, (env_ib, reindex_app (reindex off (mkRel 1)) (shift typ)))
+         (fun env -> pack env l) (* pack terms *)
+         1 (* one index *)
+         (fun (r1, r2) at_type c_app_b ->
+           (* abstract both indices and values *)
+           let (r1_ex, r2_ex) = map_tuple dest_existT (r1, r2) in
+           let r1_u = r1_ex.unpacked in
+           let r1_ib = r1_ex.index in
+           let b_sig_typ = dest_sigT (shift at_type) in
+           let (ib, u) = projections b_sig_typ (mkRel 1) in
+           let abs_c_app_u = all_eq_substs (shift r1_u, u) c_app_b in
+           all_eq_substs (shift r1_ib, ib) abs_c_app_u)
+         (fun (r1, r2) c_app ->
+           (* substitute both indices and values *)
+           let (r1_ex, r2_ex) = map_tuple dest_existT (r1, r2) in
+           let r1_u = r1_ex.unpacked in
+           let r2_u = r2_ex.unpacked in
+           let r1_ib = r1_ex.index in
+           let r2_ib = r2_ex.index in
+           let c_app_trans_u = all_eq_substs (r1_u, r2_u) c_app in
+           all_eq_substs (r1_ib, r2_ib) c_app_trans_u)
+  | _ ->
+     raise NotAlgebraic
+        
+(*
+ * Get a case of the proof of section/retraction
+ * Take as arguments an environment, an evar_map, the parameters,
+ * the motive of the section/retraction proof, the equality lemma for the case,
+ * the type of the eliminator corresponding to the case, and a lifting config.
+ *
+ * The inner function works by tracking a list of regular hypotheses
+ * and new arguments for the equality lemma, then applying them in the body.
+ *)
+let equiv_case_algebraic env pms p eq_lemma l c =
+  equiv_case
+    env
+    pms
+    p
+    eq_lemma
+    l
+    c
+    (fun env trm sigma ->
+      if l.is_fwd then
+        (* nothing to project *)
+        [trm]
+      else
+        (* project index and value *)
+        let (ib, u) = projections (on_red_type_default (ignore_env dest_sigT) env sigma trm) trm in
+        [ib; u])
+
+(*
+ * Prove section/retraction for an algebraic ornament
+ *)
+let equiv_proof_algebraic env l =
+  match l.orn.kind with
+  | Algebraic (_, off) ->
+     if l.is_fwd then
+       equiv_proof
+         eq_lemmas_algebraic
+         equiv_case_algebraic
+         false
+         (fun env _ -> env)
+         (fun _ args -> args)
+         (fun _ _ _ eq_proof -> eq_proof)
+         env
+         l
+     else
+       equiv_proof
+         eq_lemmas_algebraic
+         equiv_case_algebraic
+         true (* new index for retraction *)
+         (fun env typ_app ->
+           (* unpack env for retraction *)
+           let b_sig_typ = dest_sigT typ_app in
+           let ib_typ = b_sig_typ.index_type in
+           let env_ib = push_local (Anonymous, ib_typ) env in
+           let b_typ = mkAppl (shift b_sig_typ.packer, [mkRel 1]) in
+           push_local (Anonymous, b_typ) env_ib)
+         (fun npm args ->
+           (* reindex the args for retraction *)
+           let index_back = insert_index (off - npm) (mkRel 2) in
+           let reindex_back = reindex (List.length args) (mkRel 1) in
+           reindex_back (index_back args))
+         (fun env typ_app eq_typ eq_proof ->
+           let env_p = push_local (Anonymous, typ_app) env in
+           let trm2 = unshift (all_eq_substs (eq_typ.trm1, mkRel 2) eq_typ.trm2) in
+           let at_type = shift typ_app in
+           let p_b = apply_eq { at_type; trm1 = mkRel 1; trm2 } in
+           let p = reconstruct_lambda_n env_p p_b (nb_rel env) in
+           let to_elim = dest_sigT typ_app in
+           elim_sigT { to_elim; packed_type = p; unpacked = eq_proof; arg = mkRel 1 })
+         env
+         l
+  | _ ->
+     raise NotAlgebraic
+
+(* --- Swap Constructor --- *)
+
+(*
+ * This looks very similar to algebraic, except that it swaps constructors
+ * in the appropriate places, and has no packing/unpacking since the number
+ * of indices does not change. First we get the equality lemmas:
+ *)
+let eq_lemmas_swap env typ l =
+  eq_lemmas
+    env
+    typ
+    l
+    (fun env typ -> ret (env, typ)) (* no packing types *)
+    (fun _ trm -> ret trm) (* no packing terms *)
+    0 (* no indices *)
+    (fun (r1, r2) _ -> all_eq_substs (shift r1, mkRel 1)) (* no packing *)
+    all_eq_substs (* basic substitution *)
+
+(*
+ * Get a case of section/retraction
+ *)
+let equiv_case_swap env pms p eq_lemma l c =
+  equiv_case env pms p eq_lemma l c (fun _ trm _ -> [trm])
+
+(*
+ * Prove section/retraction for swapping constructors
+ *)
+let equiv_proof_swap =
+  equiv_proof
+    eq_lemmas_swap
+    equiv_case_swap
+    false
+    (fun env _ -> env)
+    (fun _ args -> args)
+    (fun _ _ _ eq_proof -> eq_proof)
+                     
 (* --- Curry record --- *)
 
 (*
@@ -310,6 +391,9 @@ let equiv_proof_algebraic env sigma l off =
  * In the forward case, this eliminates over the inductive type.
  * In the backward case, this recursively eliminates over product types,
  * until there are no more nested pairs to eliminate.
+ *
+ * This looks different from algebraic ornaments and swapping constructors,
+ * mostly due to the need to recursively eliminate over products.
  *)
 let equiv_proof_body_curry_record env_to sigma p pms l =
   let arg = mkRel 1 in
@@ -375,7 +459,7 @@ let equiv_proof_body_curry_record env_to sigma p pms l =
 (*
  * Prove section/retraction for curry record
  *)
-let equiv_proof_curry_record env sigma l =
+let equiv_proof_curry_record env l sigma =
   let to_body = lookup_definition env (lift_to l) in
   let env_to = zoom_env zoom_lambda_term env to_body in
   let npm = nb_rel env_to - 1 in
@@ -385,165 +469,26 @@ let equiv_proof_curry_record env sigma l =
   let eq_typ = on_red_type_default (ignore_env dest_eq) env_to sigma eq_proof in
   let equiv_b = apply_eq_sym { eq_typ; eq_proof } in
   reconstruct_lambda env_to equiv_b
-
-(* --- Swap Constructor --- *)
-
-(* TODO clean before merging, refactor common code w/ aglebraic. this was done by copying and pasting the algebraic ornament proof procedure code, so there is a _lot_ of common code *)
-
-(*
- * This looks very similar to algebraic, except that it swaps constructors
- * in the appropriate places.
- *)
-
-(*
- * Determine the equality lemmas for each case of an inductive type for an
- * algebraic ornament.
- *)
-let eq_lemmas_swap_construct env sigma typ l =
-  let ((i, i_index), u) = destInd typ in
-  map_state_array
-    (fun c_index sigma ->
-      let c = mkConstructU (((i, i_index), c_index + 1), u) in
-      let sigma, c_exp = expand_eta env sigma c in
-      let (env_c_b, c_body) = zoom_lambda_term env c_exp in
-      let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
-      let c_args = unfold_args c_body in
-      let recs = List.filter (on_red_type_default (ignore_env (is_or_applies typ)) env_c_b sigma) c_args in
-      let sigma, env_lemma = eq_lemmas_env env_c_b recs l sigma in
-      let c_body = shift_by (new_rels2 env_lemma env_c_b) c_body in
-      let sigma, c_body_type = reduce_type env_lemma sigma c_body in
-      (* reflexivity proof: the identity case *)
-      let refl = apply_eq_refl { typ = c_body_type; trm = c_body } in
-      (* fold to recursively substitute each recursive argument *)
-      let (body, _, _) =
-        List.fold_right
-          (fun _ (b, h, c_app) ->
-            let h_r = destRel h in
-            let (_, _, h_t) = CRD.to_tuple @@ lookup_rel h_r env_lemma in
-            let app = dest_eq (shift_by h_r h_t) in
-            let at_type = app.at_type in
-            let r1 = app.trm1 in
-            let r2 = app.trm2 in
-            let c_body_b = shift c_body in
-            let c_app_b = shift c_app in
-            let abs_c_app = all_eq_substs (shift r1, mkRel 1) c_app_b in
-            let c_app_trans = all_eq_substs (r1, r2) c_app in
-            let typ_b = shift c_body_type in
-            let p_b = { at_type = typ_b; trm1 = c_body_b; trm2 = abs_c_app } in
-            let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
-            let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h; b} in
-            let eq_proof = apply_eq_ind eq_proof_app in
-            (eq_proof, shift_by 2 h, c_app_trans))
-          recs
-          (refl, mkRel 1, c_body)
-      in sigma, reconstruct_lambda env_lemma body)
-    (Array.mapi
-       (fun i _ -> i)
-       ((lookup_mind i env).mind_packets.(i_index)).mind_consnames)
-    sigma
-
-(*
- * Get a case of the proof of section/retraction
- * Take as arguments an environment, an evar_map, the parameters,
- * the motive of the section/retraction proof, the equality lemma for the case,
- * the type of the eliminator corresponding to the case, and a lifting config.
- *
- * The inner function works by tracking a list of regular hypotheses
- * and new arguments for the equality lemma, then applying them in the body.
- *)
-let equiv_case_swap_construct env sigma pms p eq_lemma l c =
-  let eq_lemma = mkAppl (eq_lemma, pms) in (* curry eq_lemma with pms *)
-  let rec case e depth hypos args c =
-    match kind c with
-    | App (_, _) ->
-       (* conclusion: apply eq lemma and beta-reduce *)
-       let all_args = List.rev_append hypos (List.rev args) in
-       reduce_stateless reduce_term e sigma (mkAppl (shift_by depth eq_lemma, all_args))
-    | Prod (n, t, b) ->
-       let case_b = case (push_local (n, t) e) (shift_i depth) in
-       let p_rel = shift_by depth (mkRel 1) in
-       let h = mkRel 1 in
-       if applies p_rel t then
-         (* IH *)
-         let t = reduce_stateless reduce_term e sigma (mkAppl (shift_by depth p, unfold_args t)) in
-         let trm = (dest_eq t).trm2 in
-         let args = trm :: args in
-         mkLambda (n, t, case_b (shift_all hypos) (h :: shift_all args) b)
-       else
-         (* Product *)
-         mkLambda (n, t, case_b (h :: shift_all hypos) (shift_all args) b)
-    | _ ->
-       failwith "unexpected case"
-  in case env 0 [] [] c
-
-(*
- * Get the cases of the proof of section/retraction
- * Take as arguments the environment with the motive type pushed,
- * an evar_map, the parameters, the motive, the equality lemmas,
- * the lifting, and the type of the eliminator body after the motive
- *)
-let equiv_cases_swap_construct env sigma pms p lemmas l elim_typ =
-  List.mapi
-    (fun j -> equiv_case_swap_construct env sigma pms p lemmas.(j) l)
-    (take (Array.length lemmas) (factor_product elim_typ))
-
-(*
- * Prove section/retraction for an algebraic ornament
- *)
-let equiv_proof_swap_construct env sigma l =
-  let to_body = lookup_definition env (lift_to l) in
-  let env_to = zoom_env zoom_lambda_term env to_body in
-  let sigma, typ_app = reduce_type env_to sigma (mkRel 1) in
-  let typ = first_fun (zoom_if_sig_app typ_app) in
-  let ((i, i_index), _) = destInd typ in
-  let npm = (lookup_mind i env).mind_nparams in
-  let nargs = new_rels env_to npm in
-  let sigma, lemmas = eq_lemmas_swap_construct env sigma typ l in (* equality lemmas *)
-  let env_eq_proof = env_to in
-  let elim = type_eliminator env_to (i, i_index) in
-  let sigma, elim_typ = infer_type env sigma elim in
-  let (env_pms, elim_typ_p) = zoom_n_prod env npm elim_typ in
-  let (n, p_t, elim_typ) = destProd elim_typ_p in
-  let env_p = push_local (n, p_t) env_pms in
-  let pms = shift_all (mk_n_rels npm) in
-  let env_motive = zoom_env zoom_product_type env_pms p_t in
-  let sigma, p = equiv_motive env_motive pms l false sigma in
-  let cs = equiv_cases_swap_construct env_p sigma pms p lemmas l elim_typ in
-  let args = mk_n_rels nargs in
-  let depth = new_rels2 env_eq_proof env_p in
-  let eq_proof =
-    apply_eliminator
-      {
-        elim;
-        pms = shift_all_by depth pms;
-        p = shift_by depth p;
-        cs = shift_all_by depth cs;
-        final_args = args;
-      }
-  in
-  let eq_typ = on_red_type_default (ignore_env dest_eq) env_eq_proof sigma eq_proof in
-  let equiv_b = apply_eq_sym { eq_typ; eq_proof } in
-  reconstruct_lambda env_to equiv_b
                      
 (* --- Top-level equivalence proof generation --- *)
                      
 (*
  * Prove section/retraction
  *)
-let equiv_proof env sigma l =
+let prove_section_or_retraction env sigma l =
   match l.orn.kind with
   | Algebraic (indexer, off) ->
-     equiv_proof_algebraic env sigma l off
+     equiv_proof_algebraic env l sigma
   | CurryRecord ->
-     equiv_proof_curry_record env sigma l
+     equiv_proof_curry_record env l sigma
   | SwapConstruct _ ->
-     equiv_proof_swap_construct env sigma l
+     equiv_proof_swap env l sigma
                         
 (*
  * Prove section and retraction
  *)
 let prove_equivalence env sigma =
-  twice_directional (equiv_proof env sigma)
+  twice_directional (prove_section_or_retraction env sigma)
 
 (* --- Automatically generated adjunction proof --- *)
 
