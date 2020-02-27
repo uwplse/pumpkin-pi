@@ -33,29 +33,27 @@ open Promotion
 (*
  * Construct the motive for section/retraction
  *)
-let equiv_motive env_motive sigma pms l =
-  let sigma, p_b =
+let equiv_motive env_motive pms l is_packed sigma =
+  let sigma, trm1 =
+    if is_packed then
+      pack env_motive l (mkRel 1) sigma
+    else
+      sigma, mkRel 1
+  in
+  let sigma, at_type = reduce_type env_motive sigma trm1 in
+  let typ_args =
     match l.orn.kind with
     | Algebraic (_, off) ->
-       let sigma, trm1 = map_backward (fun (sigma, t) -> pack env_motive l t sigma) l (sigma, mkRel 1) in
-       let sigma, at_type = reduce_type env_motive sigma trm1 in
-       let typ_args = non_index_args off env_motive sigma at_type in
-       let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
-       let trm2 = mkAppl (lift_back l, snoc trm1_lifted typ_args) in
-       sigma, apply_eq { at_type; trm1; trm2 }
+       non_index_args off env_motive sigma at_type
     | CurryRecord ->
-       let trm2 = mkRel 1 in
-       let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc trm2 pms)) pms) in
-       let sigma, at_type = reduce_type env_motive sigma trm2 in
-       sigma, apply_eq { at_type; trm1; trm2 }
+       pms
     | SwapConstruct _ ->
-       let trm1 = mkRel 1 in
-       let sigma, at_type = reduce_type env_motive sigma trm1 in
-       let typ_args = unfold_args at_type in
-       let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
-       let trm2 = mkAppl (lift_back l, snoc trm1_lifted typ_args) in
-       sigma, apply_eq { at_type; trm1; trm2 }
-  in sigma, shift (reconstruct_lambda_n env_motive p_b (List.length pms))
+       unfold_args at_type
+  in
+  let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
+  let trm2 = mkAppl (lift_back l, snoc trm1_lifted typ_args) in
+  let p_b = apply_eq { at_type; trm1; trm2 } in
+  sigma, shift (reconstruct_lambda_n env_motive p_b (List.length pms))
 
 (* --- Algebraic ornaments  --- *)
 
@@ -250,7 +248,7 @@ let equiv_proof_algebraic env sigma l off =
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in
   let env_motive = zoom_env zoom_product_type env_pms p_t in
-  let sigma, p = equiv_motive env_motive sigma pms l in
+  let sigma, p = equiv_motive env_motive pms l (not l.is_fwd) sigma in
   let cs = equiv_cases_algebraic env_p sigma pms p lemmas l elim_typ in
   let args = shift_all_by (new_rels2 env_eq_proof env_to) (mk_n_rels nargs) in
   let index_back = map_backward (insert_index (off - npm) (mkRel 2)) l in
@@ -267,20 +265,23 @@ let equiv_proof_algebraic env sigma l off =
       }
   in
   let eq_typ = on_red_type_default (ignore_env dest_eq) env_eq_proof sigma eq_proof in
-  let sym_app = apply_eq_sym { eq_typ; eq_proof } in
-  let equiv_b =
+  let eq_proof =
     map_backward
       (fun unpacked -> (* eliminate sigT for retraction *)
         let env_p = push_local (Anonymous, typ_app) env_to in
-        let trm1 = unshift (all_eq_substs (eq_typ.trm1, mkRel 2) eq_typ.trm2) in
+        let trm2 = unshift (all_eq_substs (eq_typ.trm1, mkRel 2) eq_typ.trm2) in
         let at_type = shift typ_app in
-        let p_b = apply_eq { at_type; trm1; trm2 = mkRel 1 } in
+        let p_b = apply_eq { at_type; trm1 = mkRel 1; trm2 } in
         let p = reconstruct_lambda_n env_p p_b (nb_rel env_to) in
+        (* ^ TODO use equiv_motive *)
         let to_elim = dest_sigT typ_app in
         elim_sigT { to_elim; packed_type = p; unpacked; arg = mkRel 1 })
       l
-      (reconstruct_lambda_n env_eq_proof sym_app (nb_rel env_to))
-  in reconstruct_lambda env_to equiv_b
+      (reconstruct_lambda_n env_eq_proof eq_proof (nb_rel env_to))
+  in
+  let eq_typ = on_red_type_default (ignore_env dest_eq) env_to sigma eq_proof in
+  let equiv_b = apply_eq_sym { eq_typ; eq_proof } in
+  reconstruct_lambda env_to equiv_b
 
 (* --- Curry record --- *)
 
@@ -334,11 +335,11 @@ let equiv_proof_body_curry_record env_to sigma p pms l =
       let proof_body =
         if equal prod (first_fun typ2) then
           let to_elim = dest_prod typ2 in
-          let p =
+          let p = (* TODO can we use equiv_motive? *)
             let pms = shift_all pms in
             let arg_abs = all_eq_substs (shift curr, curr) (shift arg) in
-            let trm1 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc arg_abs pms)) pms) in
-            mkLambda (Anonymous, typ2, apply_eq { at_type = shift at_type; trm1; trm2 = arg_abs })
+            let trm2 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc arg_abs pms)) pms) in
+            mkLambda (Anonymous, typ2, apply_eq { at_type = shift at_type; trm1 = arg_abs; trm2 })
           in
           let proof = build_proof env_proof pms at_type to_elim arg in
           elim_prod { to_elim; p; proof; arg = curr }
@@ -360,8 +361,10 @@ let equiv_proof_curry_record env sigma l =
   let env_to = zoom_env zoom_lambda_term env to_body in
   let npm = nb_rel env_to - 1 in
   let pms = shift_all (mk_n_rels npm) in
-  let sigma, p = equiv_motive env_to sigma pms l in
-  let equiv_b = equiv_proof_body_curry_record env_to sigma p pms l in
+  let sigma, p = equiv_motive env_to pms l false sigma in
+  let eq_proof = equiv_proof_body_curry_record env_to sigma p pms l in
+  let eq_typ = on_red_type_default (ignore_env dest_eq) env_to sigma eq_proof in
+  let equiv_b = apply_eq_sym { eq_typ; eq_proof } in
   reconstruct_lambda env_to equiv_b
 
 (* --- Swap Constructor --- *)
@@ -506,7 +509,7 @@ let equiv_proof_swap_construct env sigma l =
   let env_p = push_local (n, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in
   let env_motive = zoom_env zoom_product_type env_pms p_t in
-  let sigma, p = equiv_motive env_motive sigma pms l in
+  let sigma, p = equiv_motive env_motive pms l false sigma in
   let cs = equiv_cases_swap_construct env_p sigma pms p lemmas l elim_typ in
   let args = mk_n_rels nargs in
   let depth = new_rels2 env_eq_proof env_p in
