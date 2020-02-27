@@ -273,7 +273,6 @@ let equiv_proof_algebraic env sigma l off =
         let at_type = shift typ_app in
         let p_b = apply_eq { at_type; trm1 = mkRel 1; trm2 } in
         let p = reconstruct_lambda_n env_p p_b (nb_rel env_to) in
-        (* ^ TODO use equiv_motive *)
         let to_elim = dest_sigT typ_app in
         elim_sigT { to_elim; packed_type = p; unpacked; arg = mkRel 1 })
       l
@@ -335,7 +334,7 @@ let equiv_proof_body_curry_record env_to sigma p pms l =
       let proof_body =
         if equal prod (first_fun typ2) then
           let to_elim = dest_prod typ2 in
-          let p = (* TODO can we use equiv_motive? *)
+          let p =
             let pms = shift_all pms in
             let arg_abs = all_eq_substs (shift curr, curr) (shift arg) in
             let trm2 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc arg_abs pms)) pms) in
