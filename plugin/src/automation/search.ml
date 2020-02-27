@@ -1027,13 +1027,17 @@ let search_common env sigma indexer_id_opt swap_i_o typ_o typ_n promote_o forget
        
 (*
  * Search for an ornament between two types.
+ *
+ * Eventually, we should move the optional arguments to some configuration.
  *)
 let search_orn env sigma indexer_id_opt swap_i_o typ_o typ_n =
   search_common env sigma indexer_id_opt swap_i_o typ_o typ_n None None
 
 (*
  * Try to invert a single component of an ornament between two types.
- * TODO move partially to inversion
+ *
+ * Eventually, we should move the optoinal arguments to some configuration,
+ * and we should move this to the inversion component at least partially.
  *)
 let invert_orn env sigma indexer_id_opt swap_i_o typ_o typ_n promote_o forget_o =
   if Option.has_some promote_o && Option.has_some forget_o then
