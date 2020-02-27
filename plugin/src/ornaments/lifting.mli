@@ -20,7 +20,7 @@ type lifting =
     orn : promotion;
     is_fwd : bool;
   }
-
+    
 (* --- Initialization --- *)
 
 (*
@@ -41,7 +41,7 @@ val initialize_lifting_cached :
  * 4) the new user-supplied ornament function
  *)
 val initialize_lifting_provided :
-  env -> evar_map -> types -> types -> lifting state
+  env -> evar_map -> constr -> constr -> lifting state
 
 (* --- Control structures --- *)
     

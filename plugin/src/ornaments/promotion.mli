@@ -1,4 +1,7 @@
 open Constr
+open Environ
+open Evd
+open Stateutils
 
 (* --- Ornamental promotions --- *)
 
@@ -20,3 +23,17 @@ type promotion =
     forget : types;
     kind : kind_of_orn;
   }
+
+(* --- Useful function for finding swaps from promotion function --- *)
+
+(*
+ * This assumes exactly one of promote or forget is present
+ *)
+val swap_map_of_promote_or_forget :
+  env ->
+  types -> (* a *)
+  types -> (* b *)
+  constr option -> (* promote, if present *)
+  constr option -> (* forget, if present *)
+  evar_map ->
+  ((pconstructor * pconstructor) list) state

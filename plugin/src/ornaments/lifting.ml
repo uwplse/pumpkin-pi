@@ -21,6 +21,8 @@ open Ornerrors
 open Stateutils
 open Reducers
 open Debruijn
+open Search
+open Promotion
 
 (* --- Datatypes --- *)
 
@@ -140,28 +142,13 @@ let get_kind_of_ornament env (o, n) sigma =
      let is_fwd = get_direction (from_typ_app, to_typ_app) prelim_kind in
      sigma, (is_fwd, CurryRecord)
   | SwapConstruct _ ->
-     let promote = o in
-     let sigma, promote_type = reduce_type env sigma promote in
-     let ((i_o, ii_o), u_o) = destInd (first_fun from_typ_app) in
-     let m_o = lookup_mind i_o env in
-     let b_o = m_o.mind_packets.(0) in
-     let cs_o = b_o.mind_consnames in
-     let ncons = Array.length cs_o in
-     let sigma, swap_map =
-       map_state
-         (fun i sigma ->
-           let c_o = mkConstructU (((i_o, ii_o), i), u_o) in
-           let sigma, c_o_typ = reduce_type env sigma c_o in
-           let env_c_o, c_o_typ = zoom_product_type env c_o_typ in
-           let nargs = new_rels2 env_c_o env in
-           let c_o_args = mk_n_rels nargs in
-           let c_o_app = mkAppl (c_o, c_o_args) in
-           let typ_args = unfold_args c_o_typ in
-           let sigma, c_o_lifted = reduce_nf env_c_o sigma (mkAppl (promote, snoc c_o_app typ_args)) in
-           let ((_, j), _) = destConstruct (first_fun c_o_lifted) in
-           sigma, (i, j))
-         (range 1 (ncons + 1))
-         sigma
+     let a = first_fun from_typ_app in
+     let b = first_fun to_typ_app in
+     let sigma, swap_map_cs = swap_map_of_promote_or_forget env a b (Some o) None sigma in
+     let swap_map =
+       List.map
+         (fun (((_, i), _), (((_, j), _))) -> i, j)
+         swap_map_cs
      in sigma, (true, SwapConstruct swap_map)
 
 (* --- Initialization --- *)
