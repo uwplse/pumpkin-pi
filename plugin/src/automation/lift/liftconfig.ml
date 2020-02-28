@@ -373,7 +373,6 @@ let pack_to_typ c env unpacked sigma =
              
 (*
  * NORMALIZE (the result of this is cached)
- * TODO refactor common etc
  *)
 let lift_constr env sigma c trm =
   let l = c.l in
