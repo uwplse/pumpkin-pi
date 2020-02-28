@@ -96,7 +96,7 @@ let maybe_prove_equivalence n inv_n : unit =
     ()
 
 (*
- * TODO comment, clean, common code, etc
+ * Common function for find_ornament and save_ornament
  *)
 let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
   try
@@ -218,7 +218,7 @@ let save_ornament d_old d_new d_orn_o d_orn_inv_o =
   Feedback.msg_warning (Pp.str "Custom equivalences are experimental. Use at your own risk!");
   let (sigma, env) = Pfedit.get_current_context () in
   if not (Option.has_some d_orn_o || Option.has_some d_orn_inv_o) then
-    CErrors.user_err (str "Please provide a promotion or forgetful function") (* TODO better error message using utils *)
+    CErrors.user_err (str "Please provide a promotion or forgetful function")
   else
     let maybe_intern def_o sigma =
       if Option.has_some def_o then
