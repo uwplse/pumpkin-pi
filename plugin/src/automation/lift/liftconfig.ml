@@ -292,7 +292,22 @@ let initialize_elim_types c env sigma =
   let bwd_elim_typ = directional l b_t a_t in
   let elim_types = (fwd_elim_typ, bwd_elim_typ) in
   sigma, { c with elim_types }
-              
+
+(*
+ * Utility function: Map over the constructors of a type 
+ *)
+let map_constrs f env typ sigma =
+  let ((i, i_index), u) = destInd typ in
+  let mutind_body = lookup_mind i env in
+  let ind_bodies = mutind_body.mind_packets in
+  let ind_body = ind_bodies.(i_index) in
+  map_state_array
+    (f env)
+    (Array.mapi
+       (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
+       ind_body.mind_consnames)
+    sigma
+  
 (*
  * Initialize the packed constructors for each type
  *)
@@ -300,15 +315,10 @@ let initialize_packed_constrs c env sigma =
   let a_typ, b_typ = c.typs in
   let l = c.l in
   let sigma, a_constrs =
-    let ((i, i_index), u) = destInd a_typ in
-    let mutind_body = lookup_mind i env in
-    let ind_bodies = mutind_body.mind_packets in
-    let ind_body = ind_bodies.(i_index) in
-    map_state_array
-      (fun constr sigma -> expand_eta env sigma constr)
-      (Array.mapi
-         (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
-         ind_body.mind_consnames)
+    map_constrs
+      (fun env constr sigma -> expand_eta env sigma constr)
+      env
+      a_typ
       sigma
   in
   let sigma, b_constrs =
@@ -316,32 +326,21 @@ let initialize_packed_constrs c env sigma =
     | Algebraic _ ->
        let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
        let b_typ_inner = first_fun b_typ_packed in
-       let ((i, i_index), u) = destInd b_typ_inner in
-       let mutind_body = lookup_mind i env in
-       let ind_bodies = mutind_body.mind_packets in
-       let ind_body = ind_bodies.(i_index) in
-       map_state_array
-         (fun constr sigma ->
+       map_constrs
+         (fun env constr sigma ->
            let sigma, constr_exp = expand_eta env sigma constr in
            let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
            let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
            let sigma, packed = pack env_c_b l c_body sigma in
            sigma, reconstruct_lambda_n env_c_b packed (nb_rel env))
-           (Array.mapi
-              (fun c_index _ ->
-                mkConstructU (((i, i_index), c_index + 1), u))
-              ind_body.mind_consnames)
-           sigma
-    | SwapConstruct swaps ->
-       let ((i, i_index), u) = destInd b_typ in
-       let mutind_body = lookup_mind i env in
-       let ind_bodies = mutind_body.mind_packets in
-       let ind_body = ind_bodies.(i_index) in
-       map_state_array
-         (fun constr sigma -> expand_eta env sigma constr)
-         (Array.mapi
-            (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
-            ind_body.mind_consnames)
+         env
+         b_typ_inner
+         sigma
+    | SwapConstruct _ ->
+       map_constrs
+         (fun env constr sigma -> expand_eta env sigma constr)
+         env
+         b_typ
          sigma
     | CurryRecord ->
        let a_constr = a_constrs.(0) in

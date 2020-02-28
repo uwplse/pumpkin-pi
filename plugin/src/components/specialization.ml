@@ -114,23 +114,39 @@ let fold_back_constants env f trm =
           all_conv_substs env sigma (lifted, lifted) red)
         x
         (all_recursive_constants env trm))
+
+(* Common refolding function with unification *)
+let refold_econv env (abs_red, abs) trm sigma =
+  map_term_env_if_lazy
+    (fun _ sigma _ t ->
+      sigma, isApp t && not (is_or_applies (first_fun abs) t))
+    (fun env sigma (abs_red, abs) t ->
+      try
+        let sigma = the_conv_x env (EConstr.of_constr t) (EConstr.of_constr abs_red) sigma in
+        sigma, abs
+      with _ ->
+        sigma, t)
+    (map_tuple Debruijn.shift)
+    env
+    sigma
+    (abs_red, abs)
+    trm
     
 (*
- * Refolding an applied ornament in the forward direction, 
- * when the ornament application produces an existT term.
- *
- * TODO update comment, rename, refactor common code
+ * Refolding an applied ornament in the forward direction
  *)
-let refold_packed l orn env arg app_red sigma =
+let refold_fwd l orn env arg app_red sigma =
+  let sigma, arg_typ = reduce_type env sigma arg in
+  let typ_args = unfold_args arg_typ in
+  let earg_typ = EConstr.of_constr arg_typ in
+  let sigma, earg = new_evar env sigma earg_typ in
+  let earg = EConstr.to_constr sigma earg in
+  let sigma, orn_app_red = specialize_using reduce_nf env orn (snoc earg typ_args) sigma in
+  let sigma, orn_app_red_conc = specialize_using reduce_nf env orn (snoc arg typ_args) sigma in
+  let sigma, arg_lift = lift env l earg typ_args sigma in
+  let sigma, arg_lift_conc = lift env l arg typ_args sigma in
   match l.orn.kind with
   | Algebraic (_, off) ->
-     let sigma, typ_args = non_index_typ_args off env sigma arg in 
-     let sigma, arg_typ = reduce_type env sigma arg in
-     let earg_typ = EConstr.of_constr arg_typ in
-     let sigma, earg = new_evar env sigma earg_typ in
-     let earg = EConstr.to_constr sigma earg in
-     let sigma, orn_app_red = specialize_using reduce_nf env orn (snoc earg typ_args) sigma in
-     let sigma, orn_app_red_conc = specialize_using reduce_nf env orn (snoc arg typ_args) sigma in
      let app_red_ex = dest_existT app_red in
      let orn_app_red_ex = dest_existT orn_app_red in
      let orn_app_red_conc_ex = dest_existT orn_app_red_conc in
@@ -138,140 +154,50 @@ let refold_packed l orn env arg app_red sigma =
      let sigma, packer = on_red_type_default abstract env sigma orn_app_red_ex.unpacked in
      let index_type = app_red_ex.index_type in
      let arg_sigT = { index_type ; packer } in
-     let sigma, typ_args = non_index_typ_args off env sigma arg in
-     let sigma, arg_indexer = Util.on_snd (project_index arg_sigT) (lift env l earg typ_args sigma) in
-     let sigma, arg_indexer_conc = Util.on_snd (project_index arg_sigT) (lift env l arg typ_args sigma) in
-     let sigma, arg_value = Util.on_snd (project_value arg_sigT) (lift env l earg typ_args sigma) in
-     let sigma, arg_value_conc = Util.on_snd (project_value arg_sigT) (lift env l arg typ_args sigma) in
-     let refold_econv (abs_red, abs) trm =
-       map_term_env_if_lazy
-         (fun _ sigma _ t ->
-           sigma, isApp t && not (is_or_applies (first_fun abs) t))
-         (fun env sigma (abs_red, abs) t ->
-           try
-             let sigma = the_conv_x env (EConstr.of_constr t) (EConstr.of_constr abs_red) sigma in
-             sigma, abs
-           with _ ->
-             sigma, t)
-         (map_tuple Debruijn.shift)
-         env
-         sigma
-         (abs_red, abs)
-         trm
-     in
+     let arg_indexer = project_index arg_sigT arg_lift in
+     let arg_indexer_conc = project_index arg_sigT arg_lift_conc in
+     let arg_value = project_value arg_sigT arg_lift in
+     let arg_value_conc = project_value arg_sigT arg_lift_conc in
      let refold_index_fast = all_eq_substs (orn_app_red_conc_ex.index, arg_indexer_conc) in
      let refold_value_fast = all_eq_substs (orn_app_red_conc_ex.unpacked, arg_value_conc) in
-     let refold_index = refold_econv (orn_app_red_ex.index, arg_indexer) in
-     let refold_value = refold_econv (orn_app_red_ex.unpacked, arg_value) in
-     let sigma, refolded_value = refold_value (refold_value_fast app_red_ex.unpacked) in
-     let sigma, refolded_index = refold_index (refold_index_fast refolded_value) in
+     let refold_index = refold_econv env (orn_app_red_ex.index, arg_indexer) in
+     let refold_value = refold_econv env (orn_app_red_ex.unpacked, arg_value) in
+     let sigma, refolded_value = refold_value (refold_value_fast app_red_ex.unpacked) sigma in
+     let sigma, refolded_index = refold_index (refold_index_fast refolded_value)sigma in
      pack env l refolded_index sigma
-  | SwapConstruct _ ->
-     let sigma, arg_typ = reduce_type env sigma arg in
-     let typ_args = unfold_args arg_typ in
-     let earg_typ = EConstr.of_constr arg_typ in
-     let sigma, earg = new_evar env sigma earg_typ in
-     let earg = EConstr.to_constr sigma earg in
-     let sigma, orn_app_red = specialize_using reduce_nf env orn (snoc earg typ_args) sigma in
-     let sigma, orn_app_red_conc = specialize_using reduce_nf env orn (snoc arg typ_args) sigma in
-     let sigma, arg_value = lift env l earg typ_args sigma in
-     let sigma, arg_value_conc = lift env l arg typ_args sigma in
-     let refold_econv (abs_red, abs) trm =
-       map_term_env_if_lazy
-         (fun _ sigma _ t ->
-           sigma, isApp t && not (is_or_applies (first_fun abs) t))
-         (fun env sigma (abs_red, abs) t ->
-           try
-             let sigma = the_conv_x env (EConstr.of_constr t) (EConstr.of_constr abs_red) sigma in
-             sigma, abs
-           with _ ->
-             sigma, t)
-         (map_tuple Debruijn.shift)
-         env
-         sigma
-         (abs_red, abs)
-         trm
-     in
-     let refold_value_fast = all_eq_substs (orn_app_red_conc, arg_value_conc) in
-     let refold_value = refold_econv (orn_app_red, arg_value) in
-     refold_value (refold_value_fast app_red)
   | _ ->
-     raise NotAlgebraic (* TODO better error *)
+     let refold_value_fast = all_eq_substs (orn_app_red_conc, arg_lift_conc) in
+     let refold_value = refold_econv env (orn_app_red, arg_lift) in
+     refold_value (refold_value_fast app_red) sigma
        
 (*
- * Refolding an applied ornament in the backwards direction,
- * when the ornament application eliminates over the projections.
- *
- * TODO update comment, rename, refactor common code
+ * Refolding an applied ornament in the backwards direction
  *)
-let refold_projected l orn env arg app_red sigma =
-  match l.orn.kind with
-  | Algebraic (_, off) ->
-     let sigma, typ_args = non_index_typ_args off env sigma arg in
-     let sigma, arg_typ = reduce_type env sigma arg in
-     let earg_typ = EConstr.of_constr arg_typ in
-     let sigma, earg = new_evar env sigma earg_typ in
-     let earg = EConstr.to_constr sigma earg in
-     let sigma, orn_app_red = specialize_using reduce_nf env orn (snoc earg typ_args) sigma in
-     let sigma, orn_app_red_conc = specialize_using reduce_nf env orn (snoc arg typ_args) sigma in
-     let sigma, arg_value = lift env l earg typ_args sigma in
-     let sigma, arg_value_conc = lift env l arg typ_args sigma in
-     let refold_econv (abs_red, abs) trm =
-       map_term_env_if_lazy
-         (fun _ sigma _ t ->
-           sigma, isApp t && not (is_or_applies (first_fun abs) t))
-         (fun env sigma (abs_red, abs) t ->
-           try
-             let sigma = the_conv_x env (EConstr.of_constr t) (EConstr.of_constr abs_red) sigma in
-             sigma, abs
-           with _ ->
-             sigma, t)
-         (map_tuple Debruijn.shift)
-         env
-         sigma
-         (abs_red, abs)
-         trm
-     in
-     let refold_value_fast = all_eq_substs (orn_app_red_conc, arg_value_conc) in
-     let refold_value = refold_econv (orn_app_red, arg_value) in
-     refold_value (refold_value_fast app_red)
-  | SwapConstruct _ ->
-     let sigma, arg_typ = reduce_type env sigma arg in
-     let typ_args = unfold_args arg_typ in
-     let earg_typ = EConstr.of_constr arg_typ in
-     let sigma, earg = new_evar env sigma earg_typ in
-     let earg = EConstr.to_constr sigma earg in
-     let sigma, orn_app_red = specialize_using reduce_nf env orn (snoc earg typ_args) sigma in
-     let sigma, orn_app_red_conc = specialize_using reduce_nf env orn (snoc arg typ_args) sigma in
-     let sigma, arg_value = lift env l earg typ_args sigma in
-     let sigma, arg_value_conc = lift env l arg typ_args sigma in
-     let refold_econv (abs_red, abs) trm =
-       map_term_env_if_lazy
-         (fun _ sigma _ t ->
-           sigma, isApp t && not (is_or_applies (first_fun abs) t))
-         (fun env sigma (abs_red, abs) t ->
-           try
-             let sigma = the_conv_x env (EConstr.of_constr t) (EConstr.of_constr abs_red) sigma in
-             sigma, abs
-           with _ ->
-             sigma, t)
-         (map_tuple Debruijn.shift)
-         env
-         sigma
-         (abs_red, abs)
-         trm
-     in
-     let refold_value_fast = all_eq_substs (orn_app_red_conc, arg_value_conc) in
-     let refold_value = refold_econv (orn_app_red, arg_value) in
-     refold_value (refold_value_fast app_red)
-  | _ ->
-     raise NotAlgebraic (* TODO better error *)
+let refold_bwd l orn env arg app_red sigma =
+  let sigma, arg_typ = reduce_type env sigma arg in
+  let earg_typ = EConstr.of_constr arg_typ in
+  let sigma, earg = new_evar env sigma earg_typ in
+  let earg = EConstr.to_constr sigma earg in
+  let sigma, typ_args =
+    match l.orn.kind with
+    | Algebraic (_, off) ->
+       non_index_typ_args off env sigma arg
+    | _ ->
+       sigma, unfold_args arg_typ
+  in
+  let sigma, orn_app_red = specialize_using reduce_nf env orn (snoc earg typ_args) sigma in
+  let sigma, orn_app_red_conc = specialize_using reduce_nf env orn (snoc arg typ_args) sigma in
+  let sigma, arg_value = lift env l earg typ_args sigma in
+  let sigma, arg_value_conc = lift env l arg typ_args sigma in
+  let refold_value_fast = all_eq_substs (orn_app_red_conc, arg_value_conc) in
+  let refold_value = refold_econv env (orn_app_red, arg_value) in
+  refold_value (refold_value_fast app_red) sigma
 
 (*
  * Top-level refolding
  *)
 let refold l env orn trm args sigma =
-  let refolder = if l.is_fwd then refold_packed else refold_projected in
+  let refolder = if l.is_fwd then refold_fwd else refold_bwd in
   let refold_all = fold_right_state (refolder l orn env) args in
   fold_back_constants env refold_all trm sigma
 
