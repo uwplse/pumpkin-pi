@@ -3,7 +3,7 @@ certain equivalences between types in Coq. It began as the artifact for the ITP 
 Please cite this paper when referring to DEVOID. A version of DEVOID that corresponds to the
 ITP camera-ready can be found in [this release](http://github.com/uwplse/ornamental-search/releases/tag/itp+equiv).
 
-Basically, when you have two types A and B that are related in certain ways, DEVOID can search for
+Given two types A and B that are related in certain ways, DEVOID can search for
 and prove the relation between those types, then lift functions and proofs between them.
 The following relations are currently supported:
 
@@ -11,12 +11,12 @@ The following relations are currently supported:
 over A (like `length`)
 2. **Records and Tuples**: the type A is a nested tuple of the form `x * (y * ...)`, and the type B is
 a record with the same number of fields that have the same types
+3. **Swapping and Renaming Constructors**: the types A and B are two inductive types that are equal up to
+swapping constructor order and renaming constructors
 
 DEVOID is a part of the [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH) 
 proof repair plugin suite, and is included as a dependency of PUMPKIN PATCH
 starting with release 0.1.
-
-TODO before merging, update w/ all of the swap stuff (find ornament, ambiguity, save ornament, lifting, examples)
 
 # Getting Started with DEVOID
 
@@ -78,7 +78,7 @@ For algebraic ornaments, `Find ornament` returns three functions if successful:
 
 `A_to_B` and `A_to_B_inv` form a specific equivalence, with `A_to_B_index` describing the fold over `A`.
 
-For records and products, `Find ornament` returns only the first two of these.
+For other kinds of ornaments, `Find ornament` returns only the first two of these.
 
 ##### Options for Correctness
 
@@ -117,10 +117,29 @@ You can also use this to substitute in a different equivalence for an existing o
 are some restrictions here on what is possible. See [ListToVectCustom.v](/plugin/coq/examples/ListToVectCustom.v)
 for more information.
 
+You can also skip one of promote or forget, provide just one, and let DEVOID find the other, for example:
+
+```
+Save ornament A B { promote = f }.
+```
+
+This is especially useful when there are many possible equivalences and you'd like to use a particular one,
+but let DEVOID figure out the rest. See [Swap.v](/plugin/coq/Swap.v) for examples of this.
+
+##### Ambiguity 
+
+Sometimes, DEVOID finds multiple possible equivalences. With swapping constructors in particular, there can
+be an exponential number of possible equivalences.
+
+In the case of ambiguity, DEVOID presents up to the first 50 possible
+options for the user (in a smart order), presents this as an error, and gives instructions for the user to
+provide more information to `Find ornament` in the next iteration. If the equivalence you want is not in the
+first 50 candidates, please use `Save ornament`. See [Swap.v](/plugin/coq/Swap.v) for examples of both of these.
+
 #### Lift
 
-See [Example.v](/plugin/coq/examples/Example.v) and [minimal_records.v](/plugin/coq/minimal_records.v) for
-examples of lifting.
+See [Example.v](/plugin/coq/examples/Example.v), [minimal_records.v](/plugin/coq/minimal_records.v),
+and [Swap.v](/plugin/coq/Swap.v) for examples of lifting.
 
 ##### Command
 
@@ -283,6 +302,10 @@ Here is an overview of the examples, in order of relevance to the paper:
 
 The most useful examples of lifting between tuples and records are in [minimal_records.v](/plugin/coq/minimal_records.v)
 and [more_records.v](/plugin/coq/more_records.v).
+
+## Swapping and Renaming Constructors Examples
+
+The most useful examples of swapping and renaming constructors are in [Swap.v](/plugin/coq/Swap.v).
 
 ## Other Examples
 
