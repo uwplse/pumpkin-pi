@@ -424,16 +424,6 @@ Proof.
   - apply e23.
   - apply e22.
   - apply e21.
-  - apply e20.
-  - apply e19.
-  - apply e18.
-  - apply e17.
-  - apply e16.
-  - apply e15.
-  - apply e14.
-  - apply e13.
-  - apply e12.
-  - apply e11.
   - apply e10.
   - apply e9.
   - apply e8.
@@ -444,6 +434,16 @@ Proof.
   - apply e3.
   - apply e2.
   - apply e1.
+  - apply e20.
+  - apply e19.
+  - apply e18.
+  - apply e17.
+  - apply e16.
+  - apply e15.
+  - apply e14.
+  - apply e13.
+  - apply e12.
+  - apply e11.
 Defined.
 
 Save ornament Enum Enum' { forget = Enum'_Enum }.
@@ -470,10 +470,10 @@ match e with
 end.
 
 Preprocess is_e2 as is_e2_pre.
-Lift Enum Enum' in is_e2_pre as is_e29'.
+Lift Enum Enum' in is_e2_pre as is_e19'.
 
-Lemma e29'_is_e29':
-  is_e29' e29'.
+Lemma e19'_is_e19':
+  is_e19' e19'.
 Proof.
   reflexivity.
 Defined.
