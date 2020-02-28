@@ -758,9 +758,6 @@ let find_promote_forget_swap env npm swaps promote_o forget_o a b sigma =
       forget_o
       sigma
   in
-  let open Printing in
-  debug_term env promote "promote";
-  debug_term env forget "forget";
   let swaps_ints = List.map (fun (((_, i), _), ((_, j), _)) -> i, j) swaps in
   sigma, { promote ; forget ; kind = SwapConstruct swaps_ints }
            
