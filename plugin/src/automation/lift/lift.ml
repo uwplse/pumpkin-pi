@@ -74,7 +74,13 @@ let lift_elim_args env sigma c npms args =
        (* don't project and deindex *)
        let a = lifted_arg in
        sigma, deindex l (reindex value_off a args)
-  | SwapConstruct _ | CurryRecord ->
+  | SwapConstruct _ ->
+     let arg = last args in
+     let sigma, typ_args = type_from_args c env arg sigma in
+     let sigma, lifted_arg = lift env l arg typ_args sigma in
+     let value_off = List.length args - 1 in
+     sigma, reindex value_off lifted_arg args
+  | CurryRecord ->
      let arg = last args in
      let sigma, typ_args = type_from_args c env arg sigma in
      let sigma, lifted_arg = lift env l arg typ_args sigma in
@@ -132,9 +138,9 @@ let lift_motive env sigma c npms parameterized_elim p =
  *)
 let promote_case_args env sigma c args =
   let l = get_lifting c in
+  let b_typ = get_elim_type (reverse c) in
   match l.orn.kind with
   | Algebraic (_, off) ->
-     let b_typ = get_elim_type (reverse c) in
      let rec lift_args sigma args i_b =
        match args with
        | n :: tl ->
@@ -160,15 +166,13 @@ let promote_case_args env sigma c args =
           (* CONCL in inductive case *)
           sigma, []
      in Util.on_snd List.rev (lift_args sigma (List.rev args) (mkRel 0))
-  | SwapConstruct _ ->
-     (* TODO refactor common code throughout lifting before merging *)
-     let b_typ = get_elim_type (reverse c) in
+  | _ ->
      let rec lift_args sigma args =
        match args with
        | n :: tl ->
           let sigma, t = reduce_type env sigma n in
           if is_or_applies b_typ t then
-            (* TODO *)
+            (* FORGET-ARG *)
             let sigma, typ_args = type_from_args (reverse c) env n sigma in
             let sigma, a = lift env (flip_dir l) n typ_args sigma in
             Util.on_snd (fun tl -> a :: tl) (lift_args sigma tl)
@@ -179,7 +183,6 @@ let promote_case_args env sigma c args =
           (* CONCL in inductive case *)
           sigma, []
      in Util.on_snd List.rev (lift_args sigma (List.rev args))
-  | _ -> raise NotAlgebraic (* TODO better error here *)
 
 (*
  * The argument rules for lifting eliminator cases in the forgetful direction.
@@ -220,27 +223,8 @@ let forget_case_args env_c_b env sigma c args =
           (* CONCL in inductive case *)
           sigma, []
      in Util.on_snd List.rev (lift_args sigma (List.rev args) (mkRel 0, mkRel 0))
-  | SwapConstruct _ ->
-     (* TODO refactor common code throughout lifting before merging *)
-     let a_typ = get_elim_type (reverse c) in
-     let rec lift_args sigma args =
-       match args with
-       | n :: tl ->
-          let sigma, t = reduce_type env sigma n in
-          if is_or_applies a_typ t then
-            (* TODO *)
-            let sigma, typ_args = type_from_args (reverse c) env n sigma in
-            let sigma, a = lift env (flip_dir l) n typ_args sigma in
-            Util.on_snd (fun tl -> a :: tl) (lift_args sigma tl)
-          else
-            (* ARG *)
-            Util.on_snd (fun tl -> n :: tl) (lift_args sigma tl)
-       | _ ->
-          (* CONCL in inductive case *)
-          sigma, []
-     in Util.on_snd List.rev (lift_args sigma (List.rev args))
   | _ ->
-     raise NotAlgebraic (* TODO better error *)
+     promote_case_args env sigma (reverse c) args
 
 (*
  * Lift the arguments of a case of an eliminator
@@ -262,7 +246,6 @@ let lift_case_args c env_c_b env_c to_c_typ npms nargs sigma =
      if l.is_fwd then
        promote_case_args env_c sigma c args
      else
-       (* TODO should be same by dir *)
        forget_case_args env_c_b env_c sigma c args
   | CurryRecord ->
      let args = mk_n_rels nargs in
@@ -491,7 +474,7 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
      let sigma, trm2 = lift_rec env sigma c pair.trm2 in
      (sigma, apply_pair {typ1; typ2; trm1; trm2})
   | _ ->
-     raise NotAlgebraic (* TODO better error here *)
+     raise NotAlgebraic
      
              
 (* --- Core algorithm --- *)
