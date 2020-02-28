@@ -112,6 +112,7 @@ let get_direction (from_typ_app, to_typ_app) orn_kind =
   | CurryRecord ->
      not (equal Produtils.prod (first_fun from_typ_app))
   | SwapConstruct _ ->
+     (* just set forward to be the initial direction *)
      true
 
 (*
@@ -151,6 +152,27 @@ let get_kind_of_ornament env (o, n) sigma =
          swap_map_cs
      in sigma, (true, SwapConstruct swap_map)
 
+(* --- Directionality --- *)
+       
+(* 
+ * Flip the direction of a lifting
+ *)
+let flip_dir l =
+  let is_fwd = not l.is_fwd in
+  let orn =
+    match l.orn.kind with
+    | SwapConstruct swaps ->
+       { l.orn with kind = SwapConstruct (List.map reverse swaps) }
+    | _ ->
+       l.orn
+  in { orn; is_fwd }
+
+(*
+ * Apply a function twice, once in each direction.
+ * Compose the result into a tuple.
+ *)
+let twice_directional f l = map_tuple f (l, flip_dir l)
+
 (* --- Initialization --- *)
 
 (*
@@ -168,7 +190,11 @@ let initialize_lifting_cached env sigma o n =
     sigma, (is_fwd, (promote, forget), k)
   in
   let orn = { promote; forget; kind } in
-  sigma, { orn ; is_fwd }
+  let lifting = { orn ; is_fwd = true } in
+  if is_fwd then
+    sigma, lifting
+  else
+    sigma, flip_dir lifting
 
 (*
  * Initialize a lifting for a user-provided ornament
@@ -181,19 +207,6 @@ let initialize_lifting_provided env sigma o n =
   in
   let orn = { promote; forget; kind } in
   sigma, { orn ; is_fwd }
-
-(* --- Directionality --- *)
-       
-(* 
- * Flip the direction of a lifting
- *)
-let flip_dir l = { l with is_fwd = (not l.is_fwd) }
-
-(*
- * Apply a function twice, once in each direction.
- * Compose the result into a tuple.
- *)
-let twice_directional f l = map_tuple f (l, flip_dir l)
 
 (* --- Indexing for algebraic ornaments --- *)
 

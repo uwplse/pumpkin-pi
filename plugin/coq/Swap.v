@@ -351,16 +351,6 @@ Proof.
   - apply e23'.
   - apply e22'.
   - apply e21'.
-  - apply e20'.
-  - apply e19'.
-  - apply e18'.
-  - apply e17'.
-  - apply e16'.
-  - apply e15'.
-  - apply e14'.
-  - apply e13'.
-  - apply e12'.
-  - apply e11'.
   - apply e10'.
   - apply e9'.
   - apply e8'.
@@ -371,6 +361,16 @@ Proof.
   - apply e3'.
   - apply e2'.
   - apply e1'.
+  - apply e20'.
+  - apply e19'.
+  - apply e18'.
+  - apply e17'.
+  - apply e16'.
+  - apply e15'.
+  - apply e14'.
+  - apply e13'.
+  - apply e12'.
+  - apply e11'.
 Defined.
 
 (*
@@ -400,10 +400,10 @@ match e with
 end.
 
 Preprocess is_e3' as is_e3'_pre.
-Lift Enum' Enum in is_e3'_pre as is_e28.
+Lift Enum' Enum in is_e3'_pre as is_e18.
 
-Lemma e28_is_e28:
-  is_e28 e28.
+Lemma e18_is_e18:
+  is_e18 e18.
 Proof.
   reflexivity.
 Defined.

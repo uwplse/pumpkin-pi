@@ -52,8 +52,5 @@ let swap_map_of_promote_or_forget env a b promote_o forget_o =
       let typ_args = unfold_args c_o_typ in
       let sigma, c_o_lifted = reduce_nf env_c_o sigma (mkAppl (f, snoc c_o_app typ_args)) in
       let swap = ((((i_o, ii_o), i), u_o), destConstruct (first_fun c_o_lifted)) in
-      if Option.has_some promote_o then
-        sigma, swap
-      else
-        sigma, reverse swap)
+      sigma, swap)
     (range 1 (ncons + 1))  

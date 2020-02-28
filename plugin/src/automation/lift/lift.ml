@@ -301,10 +301,9 @@ let lift_case env c npms c_elim constr sigma =
     sigma, reconstruct_lambda_n env_c body (nb_rel env)
 
 (* Lift cases *)
-(* TODO somehow need to swap when we have SwapConstr here *)
 let lift_cases env c npms p_elim cs =
   let cs =
-    match (get_lifting c).orn.kind with
+    match (get_lifting (reverse c)).orn.kind with
     | SwapConstruct swaps ->
        (* swap the order before eliminating *)
        let cs_arr = Array.of_list cs in
