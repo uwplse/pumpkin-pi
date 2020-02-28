@@ -672,7 +672,7 @@ let prompt_swap_ambiguous env swap_maps ambiguous sigma =
  * Find the motive for promote or forget for swapping constructors
  *)
 let find_motive_swap env_motive typ nargs pms =
-  let typ_args = List.append (shift_all_by nargs pms) (mk_n_rels (nargs - 1)) in
+  let typ_args = List.append (shift_all_by nargs pms) (shift_all (mk_n_rels (nargs - 1))) in
   let p_b = mkAppl (typ, typ_args) in
   reconstruct_lambda_n env_motive p_b (List.length pms)
 
@@ -684,7 +684,7 @@ let find_cases_swap env p elim_p_typ swap_map o nargs sigma =
   let ncons = List.length swap_map in
   List.mapi
     (fun i c ->
-      let env_c_b, c_b = zoom_product_type env_p c in
+      let env_c_b, c_b = zoom_product_type env_p (shift_by (nargs - 1) c) in
       let (ind, u) = destInd o in
       let constr_from = ((ind, (i + 1)), u) in
       let constr_to = List.assoc constr_from swap_map in
@@ -718,7 +718,7 @@ let find_cases_swap env p elim_p_typ swap_map o nargs sigma =
       in
       let constr_ih = mkAppl (mkConstructU constr_to, args_sub) in
       let c_p = reconstruct_lambda_n env_c_b constr_ih (nb_rel env_p) in
-      all_eq_substs (mkRel 1, shift_by nargs p) c_p)
+      all_eq_substs (mkRel nargs, shift_by nargs p) c_p)
     (take ncons (factor_product elim_p_typ))
         
 (*
@@ -758,6 +758,9 @@ let find_promote_forget_swap env npm swaps promote_o forget_o a b sigma =
       forget_o
       sigma
   in
+  let open Printing in
+  debug_term env promote "promote";
+  debug_term env forget "forget";
   let swaps_ints = List.map (fun (((_, i), _), ((_, j), _)) -> i, j) swaps in
   sigma, { promote ; forget ; kind = SwapConstruct swaps_ints }
            

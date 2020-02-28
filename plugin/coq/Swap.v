@@ -1,10 +1,12 @@
 (*
- * Tests for swapping/moving constructors
+ * DEVOID supports swapping and renaming constructors!
+ * Here are some examples.
  *)
 
 Require Import List.
 Require Import String.
 Require Import ZArith.
+Require Import Vector.
 
 Import ListNotations.
 
@@ -12,16 +14,17 @@ Require Import Ornamental.Ornaments.
 Set DEVOID search prove equivalence.
 Set DEVOID lift type.
 
-(* TODO test outcomes (if #changes, will break, whereas now won't change) *)
-(* TODO try w/ dependent indices too *)
-(* TODO clean & make tutorial-like *)
-
 (* --- Swap the only constructor --- *)
 
+(*
+ * Here we simply flip the constructors of list and then
+ * lift the entire list module:
+ *)
 Inductive list' (T : Type) : Type :=
 | cons' : T -> list' T -> list' T
 | nil' : list' T.
 
+(* Preprocess for lifting: *)
 Preprocess Module List as List_pre { opaque (* ignore these: *)
   (* dependent elimination only: *)
   RelationClasses.StrictOrder_Transitive
@@ -35,8 +38,11 @@ Preprocess Module List as List_pre { opaque (* ignore these: *)
   Nat.add
   Nat.sub
 }.
+
+(* Lift the whole list module: *)
 Lift Module list list' in List_pre as List'.
 
+(* A small test in the opposite direction that doesn't rely on caching: *)
 Lemma my_lemma:
   forall (T : Type) (l : list' T),
     List'.Coq_Init_Datatypes_app T l (nil' T) = List'.Coq_Init_Datatypes_app T (nil' T) l.
@@ -47,6 +53,39 @@ Proof.
 Defined.
 
 Lift list' list in my_lemma as my_lemma_lifted.
+
+(* --- Composing with algebraic ornaments --- *)
+
+(*
+ * We can compose this with an algebraic ornament:
+ *)
+Inductive vector' (T : Type) : nat -> Type :=
+| consV' : T -> forall (n : nat), vector' T n -> vector' T (S n)
+| nilV' : vector' T 0.
+
+Lift list' vector' in List'.Coq_Init_Datatypes_app as appV'.
+Lift list' vector' in my_lemma as my_lemmaV'.
+
+Lift vector' Vector.t in appV' as appV.
+Lift vector' Vector.t in my_lemmaV' as my_lemmaV.
+
+(*
+ * Note that these commute:
+ *)
+Lift list Vector.t in List_pre.Coq_Init_Datatypes_app as appV2.
+Lift list Vector.t in my_lemma_lifted as my_lemmaV2.
+
+Lemma test_app_commutes:
+  appV = appV2.
+Proof.
+  reflexivity.
+Qed.
+
+Lemma test_my_lemma_commutes:
+  my_lemmaV = my_lemmaV2.
+Proof.
+  reflexivity.
+Qed.
 
 (* --- An ambiguous swap --- *)
 
@@ -187,6 +226,16 @@ Find ornament Term Term' { mapping 0 }. (* we pick one this way *)
  *)
 Lift Module Term Term' in User5Session19_pre as User5Session19'.
 
+Lemma test_eval_eq_true_or_false:
+  forall (L : User5Session19'.EpsilonLogic)
+         env
+         (t1 t2 : Term'),
+       User5Session19'.eval L env (Eq' t1 t2) = User5Session19'.vTrue L \/
+       User5Session19'.eval L env (Eq' t1 t2) = User5Session19'.vFalse L.
+Proof.
+  exact User5Session19'.eval_eq_true_or_false.
+Qed.
+
 (* --- A more ambiguous swap --- *)
 
 (*
@@ -207,7 +256,22 @@ Find ornament Term' Term'' { mapping 8 }.
 
 Lift Module Term' Term'' in User5Session19' as User5Session19''.
 
+Lemma test_eval_eq_true_or_false_2:
+  forall (L : User5Session19''.EpsilonLogic)
+         env
+         (t1 t2 : Term''),
+       User5Session19''.eval L env (Eq'' t1 t2) = User5Session19''.vTrue L \/
+       User5Session19''.eval L env (Eq'' t1 t2) = User5Session19''.vFalse L.
+Proof.
+  exact User5Session19''.eval_eq_true_or_false.
+Qed.
+
 (* --- Note that we can do several swaps at once --- *)
+
+(*
+ * This just skips an intermediate step and lifts from Term' directly to Term'',
+ * though we redefine it as Term''' to break caching.
+ *)
 
 Inductive Term''' : Set :=
   | Var''' : Identifier -> Term'''
@@ -221,6 +285,16 @@ Inductive Term''' : Set :=
 Find ornament Term Term''' { mapping 8 }.
 
 Lift Module Term Term''' in User5Session19_pre as User5Session19'''.
+
+Lemma test_eval_eq_true_or_false_3:
+  forall (L : User5Session19'''.EpsilonLogic)
+         env
+         (t1 t2 : Term'''),
+       User5Session19'''.eval L env (Eq''' t1 t2) = User5Session19'''.vTrue L \/
+       User5Session19'''.eval L env (Eq''' t1 t2) = User5Session19'''.vFalse L.
+Proof.
+  exact User5Session19'''.eval_eq_true_or_false.
+Qed.
 
 (* --- Renaming --- *)
 
@@ -241,11 +315,21 @@ Find ornament Term''' Expr { mapping 0 }.
 
 Lift Module Term''' Expr in User5Session19''' as CustomRenaming.
 
+Lemma test_eval_equal_true_or_false:
+  forall (L : CustomRenaming.EpsilonLogic)
+         env
+         (e1 e2 : Expr),
+       CustomRenaming.eval L env (Equal e1 e2) = CustomRenaming.vTrue L \/
+       CustomRenaming.eval L env (Equal e1 e2) = CustomRenaming.vFalse L.
+Proof.
+  exact CustomRenaming.eval_eq_true_or_false.
+Qed.
+
 (* --- Large and ambiguous --- *)
 
 (*
- * TODO explain
- * TODO then implement w/ "Save ornament" to try to prove section/retraction 
+ * Here there are so many possible swaps that it makes no sense
+ * to show all of them. We show 50. The first one is renaming:
  *)
 
 Inductive Enum : Set :=
@@ -333,9 +417,9 @@ Defined.
 
 (*
  * If the mapping we want doesn't show up in the top 50 candidates, we can
- * supply our own using "Save ornament". For now, we need to give both functions,
- * and it doesn't prove anything for us; later, should be able to automatically
- * invert the function and prove section/retraction (TODO).
+ * supply our own using "Save ornament". We only need to provide "Save ornament"
+ * with one of two directions. It can find the other for us and prove
+ * the equivalence!
  *)
 
 Program Definition Enum_Enum' : Enum -> Enum'.
@@ -373,9 +457,6 @@ Proof.
   - apply e11'.
 Defined.
 
-(*
- * DEVOID can automatically infer the opposite direction
- *)
 Save ornament Enum Enum' { promote = Enum_Enum' }.
 
 Definition is_e3 (e : Enum) :=
@@ -409,73 +490,14 @@ Proof.
 Defined.
 
 (*
- * Likewise, we can just provide forget (could also do both):
+ * We could just as well have provided forget.
+ *
+ * Do note that if you change the equivalence when you run
+ * "Save ornament", this will not clear cached lifted terms,
+ * which may give you confusing results later if you lift using
+ * two different equivalences between the same types at different
+ * points in your code that depend on one another. If this is a
+ * problem for you, let us know and we can make it possible to
+ * clear the lifting cache.
  *)
-Program Definition Enum'_Enum : Enum' -> Enum.
-Proof.
-  intros e. induction e.
-  - apply e30.
-  - apply e29.
-  - apply e28.
-  - apply e27.
-  - apply e26.
-  - apply e25.
-  - apply e24.
-  - apply e23.
-  - apply e22.
-  - apply e21.
-  - apply e10.
-  - apply e9.
-  - apply e8.
-  - apply e7.
-  - apply e6.
-  - apply e5.
-  - apply e4.
-  - apply e3.
-  - apply e2.
-  - apply e1.
-  - apply e20.
-  - apply e19.
-  - apply e18.
-  - apply e17.
-  - apply e16.
-  - apply e15.
-  - apply e14.
-  - apply e13.
-  - apply e12.
-  - apply e11.
-Defined.
-
-Save ornament Enum Enum' { forget = Enum'_Enum }.
-
-Definition is_e2' (e : Enum') :=
-match e with
-| e2' => True
-| _ => False
-end.
-
-Preprocess is_e2' as is_e2'_pre.
-Lift Enum' Enum in is_e2'_pre as is_e29.
-
-Lemma e29_is_e29:
-  is_e29 e29.
-Proof.
-  reflexivity.
-Defined.
-
-Definition is_e2 (e : Enum) :=
-match e with
-| e2 => True
-| _ => False
-end.
-
-Preprocess is_e2 as is_e2_pre.
-Lift Enum Enum' in is_e2_pre as is_e19'.
-
-Lemma e19'_is_e19':
-  is_e19' e19'.
-Proof.
-  reflexivity.
-Defined.
-
 
