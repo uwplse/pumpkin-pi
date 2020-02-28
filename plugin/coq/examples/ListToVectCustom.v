@@ -7,6 +7,8 @@ Require Import List.
 
 Require Import Ornamental.Ornaments.
 
+Set DEVOID search prove equivalence.
+
 Notation vector := Vector.t.
 Notation vnil := Vector.nil.
 Notation vcons := Vector.cons.
@@ -70,7 +72,7 @@ existT (fun H : nat => vector A H) (length l)
  * DEVOID to use our equivalence. (Use at your own risk! If you pick something that isn't an equivalence,
  * lifting will fail with confusing type errors.)
  *)
-Save ornament list vector { promote = ltv ; forget = list_to_t_inv }.
+Save ornament list vector { promote = ltv }.
 
 (*
  * The cute thing is that we can now lift all of these using the length function:

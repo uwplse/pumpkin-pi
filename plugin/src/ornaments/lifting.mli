@@ -6,6 +6,7 @@ open Constr
 open Environ
 open Evd
 open Promotion
+open Stateutils
 
 (* --- Datatypes --- *)
 
@@ -19,17 +20,28 @@ type lifting =
     orn : promotion;
     is_fwd : bool;
   }
-
+    
 (* --- Initialization --- *)
 
 (*
- * Initialize a lifting, given (in order):
+ * Initialize a lifting for a cached ornament, given (in order):
  * 1) an environment
  * 2) an evar_map
- * 3) the old type or user-supplied ornament function
- * 4) the new type or user-supplied ornament function
+ * 3) the old type
+ * 4) the new type
  *)
-val initialize_lifting : env -> evar_map -> types -> types -> lifting
+val initialize_lifting_cached :
+  env -> evar_map -> types -> types -> lifting state
+
+(*
+ * Initialize a lifting for a user-supplied ornament, given (in order):
+ * 1) an environment
+ * 2) an evar_map
+ * 3) the old user-supplied ornament function
+ * 4) the new user-supplied ornament function
+ *)
+val initialize_lifting_provided :
+  env -> evar_map -> constr -> constr -> lifting state
 
 (* --- Control structures --- *)
     

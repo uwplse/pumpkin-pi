@@ -1,5 +1,6 @@
 open Environ
 open Evd
+open Constr
 
 (*
  * Errors and error messages
@@ -20,6 +21,8 @@ val err_save_ornament : Pp.t
 val err_unexpected_change : String.t -> Pp.t
 val err_type : env -> evar_map -> Pretype_errors.pretype_error -> Pp.t
 val err_opaque_not_constant : Libnames.qualid -> Pp.t
+val err_ambiguous_swap :
+  env -> string -> ((pconstructor * pconstructor) list) list -> evar_map -> Pp.t
 
 (* --- Possible workaround suggestions --- *)
 

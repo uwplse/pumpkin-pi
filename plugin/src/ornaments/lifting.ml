@@ -2,6 +2,7 @@
  * Datatypes for promotions and lifting
  *)
 
+open Declarations
 open Utilities
 open Constr
 open Environ
@@ -17,6 +18,11 @@ open Inference
 open Promotion
 open Indexing
 open Ornerrors
+open Stateutils
+open Reducers
+open Debruijn
+open Search
+open Promotion
 
 (* --- Datatypes --- *)
 
@@ -74,19 +80,11 @@ let promotion_term_to_types env sigma trm =
  * That is, if trm is a promotion or a forgetful function
  * True if forwards, false if backwards
  *)
-let direction_cached env from_typ to_typ k : bool =
-  match k with
-  | Algebraic _ ->
-     let ((i_o, ii_o), _) = destInd from_typ in
-     let ((i_n, ii_n), _) = destInd to_typ in
-     let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
-     let arity_o = arity (type_of_inductive env ii_o m_o) in
-     let arity_n = arity (type_of_inductive env ii_n m_n) in
-     arity_n > arity_o
-  | CurryRecord ->
-     isInd from_typ
-  | SwapConstruct _ ->
-     failwith "not yet implemented"
+let direction_cached env from_typ promote k sigma : bool state =
+  let promote = unwrap_definition env promote in
+  let promote_env = zoom_env zoom_lambda_term env promote in
+  let sigma, promote_typ = infer_type promote_env sigma (mkRel 1) in
+  sigma, is_or_applies from_typ promote_typ
 
 (* 
  * Unpack a promotion
@@ -97,9 +95,6 @@ let unpack_promotion env promotion =
 
 (*
  * Get the direction for an uncached ornament.
- * For now, we use a boolean for is_algebraic, but in the long run, we should
- * take a kind here. This is a bit tricky since we need the direction right
- * now in order to construct the kind.
  *)
 let get_direction (from_typ_app, to_typ_app) orn_kind =
   match orn_kind with
@@ -117,7 +112,8 @@ let get_direction (from_typ_app, to_typ_app) orn_kind =
   | CurryRecord ->
      not (equal Produtils.prod (first_fun from_typ_app))
   | SwapConstruct _ ->
-     failwith "not yet implemented"
+     (* just set forward to be the initial direction *)
+     true
 
 (*
  * For an uncached ornament, get the kind and its direction
@@ -128,7 +124,7 @@ let get_kind_of_ornament env (o, n) sigma =
     if applies sigT from_typ_app || applies sigT to_typ_app then
       Algebraic (mkRel 1, 0)
     else if isInd (first_fun from_typ_app) && isInd (first_fun to_typ_app) then
-      SwapConstruct (0, 0)
+      SwapConstruct []
     else
       CurryRecord
   in
@@ -142,52 +138,75 @@ let get_kind_of_ornament env (o, n) sigma =
      let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
      let (o, i) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
      let indexer = first_fun i in
-     is_fwd, Algebraic (indexer, o)
+     sigma, (is_fwd, Algebraic (indexer, o))
   | CurryRecord ->
      let is_fwd = get_direction (from_typ_app, to_typ_app) prelim_kind in
-     is_fwd, CurryRecord
+     sigma, (is_fwd, CurryRecord)
   | SwapConstruct _ ->
-     failwith "not yet implemented"
+     let a = first_fun from_typ_app in
+     let b = first_fun to_typ_app in
+     let sigma, swap_map_cs = swap_map_of_promote_or_forget env a b (Some o) None sigma in
+     let swap_map =
+       List.map
+         (fun (((_, i), _), (((_, j), _))) -> i, j)
+         swap_map_cs
+     in sigma, (true, SwapConstruct swap_map)
 
-(* --- Initialization --- *)
-
-(*
- * Initialize a lifting
- *)
-let initialize_lifting env sigma o n =
-  let orn_not_supplied = isInd o || isInd n in
-  let is_fwd, (promote, forget), kind =
-    if orn_not_supplied then
-      (* Cached ornament *)
-      let (orn_o, orn_n, k) =
-        try
-          Option.get (lookup_ornament (o, n))
-        with _ ->
-          failwith "Cannot find cached ornament! Please report a bug in DEVOID"
-      in
-      let is_fwd = direction_cached env o n k in
-      is_fwd, (orn_o, orn_n), k
-    else
-      (* User-supplied ornament *)
-      let is_fwd, k = get_kind_of_ornament env (o, n) sigma in
-      let orns = map_if reverse (not is_fwd) (o, n) in
-      is_fwd, orns, k
-  in
-  let orn = { promote; forget; kind } in
-  { orn ; is_fwd }
-                                
 (* --- Directionality --- *)
        
 (* 
  * Flip the direction of a lifting
  *)
-let flip_dir l = { l with is_fwd = (not l.is_fwd) }
+let flip_dir l =
+  let is_fwd = not l.is_fwd in
+  let orn =
+    match l.orn.kind with
+    | SwapConstruct swaps ->
+       { l.orn with kind = SwapConstruct (List.map reverse swaps) }
+    | _ ->
+       l.orn
+  in { orn; is_fwd }
 
 (*
  * Apply a function twice, once in each direction.
  * Compose the result into a tuple.
  *)
 let twice_directional f l = map_tuple f (l, flip_dir l)
+
+(* --- Initialization --- *)
+
+(*
+ * Initialize a lifting for a cached ornament
+ *)
+let initialize_lifting_cached env sigma o n =
+  let sigma, (is_fwd, (promote, forget), kind) =
+    let (promote, forget, k) =
+      try
+        Option.get (lookup_ornament (o, n))
+      with _ ->
+        failwith "Cannot find cached ornament! Please report a bug in DEVOID"
+    in
+    let sigma, is_fwd = direction_cached env o promote k sigma in
+    sigma, (is_fwd, (promote, forget), k)
+  in
+  let orn = { promote; forget; kind } in
+  let lifting = { orn ; is_fwd = true } in
+  if is_fwd then
+    sigma, lifting
+  else
+    sigma, flip_dir lifting
+
+(*
+ * Initialize a lifting for a user-provided ornament
+ *)
+let initialize_lifting_provided env sigma o n =
+  let sigma, (is_fwd, (promote, forget), kind) =
+    let sigma, (is_fwd, k) = get_kind_of_ornament env (o, n) sigma in
+    let orns = map_if reverse (not is_fwd) (o, n) in
+    sigma, (is_fwd, orns, k)
+  in
+  let orn = { promote; forget; kind } in
+  sigma, { orn ; is_fwd }
 
 (* --- Indexing for algebraic ornaments --- *)
 

@@ -74,6 +74,12 @@ let lift_elim_args env sigma c npms args =
        (* don't project and deindex *)
        let a = lifted_arg in
        sigma, deindex l (reindex value_off a args)
+  | SwapConstruct _ ->
+     let arg = last args in
+     let sigma, typ_args = type_from_args c env arg sigma in
+     let sigma, lifted_arg = lift env l arg typ_args sigma in
+     let value_off = List.length args - 1 in
+     sigma, reindex value_off lifted_arg args
   | CurryRecord ->
      let arg = last args in
      let sigma, typ_args = type_from_args c env arg sigma in
@@ -116,6 +122,9 @@ let lift_motive env sigma c npms parameterized_elim p =
          let i_b = project_index b_sig_typ b_sig in
          let b = project_value b_sig_typ b_sig in
          index l i_b (reindex value_off b args)
+    | SwapConstruct _ ->
+       let value_off = nargs - 1 in
+       reindex value_off lifted_arg args
     | CurryRecord ->
        [lifted_arg]
   in
@@ -129,9 +138,9 @@ let lift_motive env sigma c npms parameterized_elim p =
  *)
 let promote_case_args env sigma c args =
   let l = get_lifting c in
+  let b_typ = get_elim_type (reverse c) in
   match l.orn.kind with
   | Algebraic (_, off) ->
-     let b_typ = get_elim_type (reverse c) in
      let rec lift_args sigma args i_b =
        match args with
        | n :: tl ->
@@ -157,7 +166,23 @@ let promote_case_args env sigma c args =
           (* CONCL in inductive case *)
           sigma, []
      in Util.on_snd List.rev (lift_args sigma (List.rev args) (mkRel 0))
-  | _ -> raise NotAlgebraic
+  | _ ->
+     let rec lift_args sigma args =
+       match args with
+       | n :: tl ->
+          let sigma, t = reduce_type env sigma n in
+          if is_or_applies b_typ t then
+            (* FORGET-ARG *)
+            let sigma, typ_args = type_from_args (reverse c) env n sigma in
+            let sigma, a = lift env (flip_dir l) n typ_args sigma in
+            Util.on_snd (fun tl -> a :: tl) (lift_args sigma tl)
+          else
+            (* ARG *)
+            Util.on_snd (fun tl -> n :: tl) (lift_args sigma tl)
+       | _ ->
+          (* CONCL in inductive case *)
+          sigma, []
+     in Util.on_snd List.rev (lift_args sigma (List.rev args))
 
 (*
  * The argument rules for lifting eliminator cases in the forgetful direction.
@@ -199,7 +224,7 @@ let forget_case_args env_c_b env sigma c args =
           sigma, []
      in Util.on_snd List.rev (lift_args sigma (List.rev args) (mkRel 0, mkRel 0))
   | _ ->
-     raise NotAlgebraic
+     promote_case_args env sigma (reverse c) args
 
 (*
  * Lift the arguments of a case of an eliminator
@@ -212,6 +237,12 @@ let lift_case_args c env_c_b env_c to_c_typ npms nargs sigma =
      let nihs = num_ihs env_c sigma to_typ to_c_typ in
      let nargs_lifted = if l.is_fwd then nargs - nihs else nargs + nihs in
      let args = mk_n_rels nargs_lifted in
+     if l.is_fwd then
+       promote_case_args env_c sigma c args
+     else
+       forget_case_args env_c_b env_c sigma c args
+  | SwapConstruct _ ->
+     let args = mk_n_rels nargs in
      if l.is_fwd then
        promote_case_args env_c sigma c args
      else
@@ -254,6 +285,18 @@ let lift_case env c npms c_elim constr sigma =
 
 (* Lift cases *)
 let lift_cases env c npms p_elim cs =
+  let cs =
+    match (get_lifting (reverse c)).orn.kind with
+    | SwapConstruct swaps ->
+       (* swap the order before eliminating *)
+       let cs_arr = Array.of_list cs in
+       List.map
+         (fun i -> cs_arr.(List.assoc i swaps - 1))
+         (range 1 (List.length cs + 1))
+    | _ ->
+       (* leave the order alone *)
+       cs
+  in
   bind
     (fold_left_state
        (fun (c_elim, cs) constr sigma ->
@@ -300,6 +343,8 @@ let repack c env lifted typ sigma =
      let args = unfold_args typ in
      let sigma, typ_red = specialize_delta_f env f args sigma in
      sigma, mkLetIn (Anonymous, lifted, typ, eta_prod_rec (mkRel 1) (shift typ_red))
+  | SwapConstruct _ ->
+     sigma, lifted
 
 (*
  * Sometimes we must repack because of non-primitive projections.
@@ -323,6 +368,8 @@ let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
            is_or_applies existT lifted_red
         | CurryRecord ->
            is_or_applies pair lifted_red
+        | SwapConstruct _ ->
+           true
       in
       if not optimize_ignore_repack then
         let sigma, lifted_typ = lift_rec env sigma_typ c typ in
@@ -426,6 +473,9 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
      let sigma, trm1 = lift_rec env sigma c pair.trm1 in
      let sigma, trm2 = lift_rec env sigma c pair.trm2 in
      (sigma, apply_pair {typ1; typ2; trm1; trm2})
+  | _ ->
+     raise NotAlgebraic
+     
              
 (* --- Core algorithm --- *)
     
@@ -488,7 +538,7 @@ let lift_core env c trm sigma =
     | LiftElim (tr_elim, lifted_pms) ->
        let nargs =
          match l.orn.kind with
-         | Algebraic (_, _) ->
+         | Algebraic _ | SwapConstruct _ ->
             a_arity - (List.length tr_elim.pms) + 1
          | CurryRecord ->
             1

@@ -1,6 +1,7 @@
 open Utilities
 open CErrors
 open Himsg
+open Constr
 
 (* 
  * Errors and error messages
@@ -48,6 +49,36 @@ let err_type env sigma err =
      Pp.str "2. during lifting, the term contains match statements that are not preprocessed.";
      Pp.str "3. during search or lifting, a type or term is not supported, but we do not correctly detect this."]
 
+let err_ambiguous_swap env num_solutions swap_maps sigma =
+  let print_swap_map i swap_map =
+    Pp.seq
+      [Pp.int i;
+       Pp.str ") ";
+       (Pp.prlist_with_sep
+          (fun _ -> Pp.str ", ")
+          (fun (c_o, c_n) ->
+            Pp.prlist_with_sep
+              (fun _ -> Pp.str " <-> ")
+              (Printer.pr_constr_env env sigma)
+              [mkConstructU c_o; mkConstructU c_n])
+          swap_map);
+       Pp.fnl ()]
+  in
+  Pp.seq
+    [Pp.str "DEVOID found ";
+     Pp.str num_solutions;
+     Pp.str " possible mappings for constructors. ";
+     Pp.str "Showing up to the first 50:";
+     Pp.fnl ();
+     Pp.seq (List.mapi print_swap_map swap_maps);
+     Pp.fnl ();
+     Pp.str "Please choose the mapping you'd like to use. ";
+     Pp.str "Then, pass that to DEVOID by calling `Find ornament` again. ";
+     Pp.str "For example: `Find ornament old new { mapping 0 }`. ";
+     Pp.str "If the mapping you want is not in the 50 shown, ";
+     Pp.str "please pass the mapping to `Save ornament` instead."]
+
+  
 (* --- Possible workaround suggestions --- *)
 
 let try_opaque = Pp.str "skipping subterms using the `{ opaque ... }` option"

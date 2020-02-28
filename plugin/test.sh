@@ -17,6 +17,7 @@ morerecords=false
 smartcache=false
 nosmartcache=false
 prodrect=false
+swap=false
 
 start=$SECONDS
 
@@ -83,6 +84,13 @@ else
 fi
 
 cd ..
+
+if coqc coq/Swap.v
+then
+  swap=true
+else
+  :
+fi
 
 echo "Testing smart cache."
 echo "First, without the smart cache:"
@@ -196,7 +204,8 @@ if [ $lifted = true ] && [ $liftedind = true ] && [ $findlift = true ] &&
    [ $liftedcase = true ] && [ $assumptions = true ] && [ $intro = true ] &&
    [ $example = true ] && [ $liftspec = true ] && [ $search = true ] && 
    [ $lift = true ] && [ $listtovect = true ] && [ $listtovectcustom = true ] && [ $records = true ] &&
-   [ $morerecords = true ] && [ $nosmartcache = true ] && [ $smartcache = true ] && [ $prodrect = true ]
+   [ $morerecords = true ] && [ $nosmartcache = true ] && [ $smartcache = true ] && [ $prodrect = true ] &&
+   [ $swap = true ]
 then
   echo "SUCCESS: All tests passed."
 
@@ -237,6 +246,12 @@ else
   if [ $prodrect = false ]
   then
     echo "lifting records to products: folding projections"
+  else
+    :
+  fi
+  if [ $swap = false ]
+  then
+    echo "tests for swapping and renaming constructors"
   else
     :
   fi

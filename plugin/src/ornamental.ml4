@@ -6,15 +6,23 @@ open Frontend
 (* Identify an ornament given two types *)
 VERNAC COMMAND EXTEND FindOrnament CLASSIFIED AS SIDEFF
 | [ "Find" "ornament" constr(d_old) constr(d_new) "as" ident(n) ] ->
-  [ find_ornament (Some n) d_old d_new ]
+  [ find_ornament (Some n) d_old d_new None ]
+| [ "Find" "ornament" constr(d_old) constr(d_new) "as" ident(n) "{" "mapping" int(i) "}" ] ->
+  [ find_ornament (Some n) d_old d_new (Some i) ]
 | [ "Find" "ornament" constr(d_old) constr(d_new) ] ->
-  [ find_ornament None d_old d_new ]
+  [ find_ornament None d_old d_new None ]
+| [ "Find" "ornament" constr(d_old) constr(d_new) "{" "mapping" int(i) "}" ] ->
+  [ find_ornament None d_old d_new (Some i) ]
 END
 
 (* Save a user-supplied ornament between two types *)
 VERNAC COMMAND EXTEND SaveOrnament CLASSIFIED AS SIDEFF
 | [ "Save" "ornament" constr(d_old) constr(d_new) "{" "promote" "=" constr(d_orn) ";" "forget" "=" constr(d_orn_inv) "}" ] ->
-  [ save_ornament d_old d_new d_orn d_orn_inv ]
+  [ save_ornament d_old d_new (Some d_orn) (Some d_orn_inv) ]
+| [ "Save" "ornament" constr(d_old) constr(d_new) "{" "promote" "=" constr(d_orn) "}" ] ->
+  [ save_ornament d_old d_new (Some d_orn) None ]
+| [ "Save" "ornament" constr(d_old) constr(d_new) "{" "forget" "=" constr(d_orn_inv) "}" ] ->
+  [ save_ornament d_old d_new None (Some d_orn_inv) ]
 END
 
 (* Lift a function along an ornament *)
@@ -45,6 +53,4 @@ END
 VERNAC COMMAND EXTEND UnpackSigma CLASSIFIED AS SIDEFF
 | [ "Unpack" reference(const_ref) "as" ident(id) ] ->
   [ do_unpack_constant id const_ref ]
-(* | [ "Unpack" "Module" reference(mod_ref) "as" ident(id) ] ->
- *   [ do_unpack_module id mod_ref ] *)
 END
