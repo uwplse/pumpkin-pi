@@ -356,6 +356,34 @@ End hs_to_coq'.
 
 Preprocess Module hs_to_coq' as hs_to_coq.
 
+Check and_rect.
+
+Module Elims.
+
+(*
+ * Attempt to find a good eliminator.
+ * This is tricky because dependent rewriting breaks things when we lift later.
+ *)
+Theorem packed_list_rect_eta:
+  forall (A : Type) (n : nat) (P : { l : list A & list_to_t_index A l = n } -> Type),
+    (forall (l : list A) (H : list_to_t_index A l = n), P (existT _ l H)) ->
+    forall pl, P (existT _ (projT1 pl) (projT2 pl)).
+Proof.
+  intros A n P pf pl. apply (pf (projT1 pl) (projT2 pl)).
+Defined.
+
+Theorem packed_list_rect:
+  forall (A : Type) (n : nat) (P : { l : list A & list_to_t_index A l = n } -> Type),
+    (forall (l : list A) (H : list_to_t_index A l = n), P (existT _ l H)) ->
+    forall pl, P pl.
+Proof.
+  intros A n P pf pl. induction pl. apply (packed_list_rect_eta A n P pf (existT _ x p)).
+Defined.
+
+End Elims.
+
+Preprocess Module Elims as Elims' { opaque list_to_t_index sigT_rect }.
+
 Lemma zip_index':
   forall {a} {b} (l1 : list a) (l2 : list b),
     list_to_t_index _ l1 = list_to_t_index _ l2 ->
@@ -365,7 +393,17 @@ Proof.
   simpl. f_equal. auto.
 Defined.
 
+Lemma zip_index_n':
+  forall {a} {b} (n : nat) (l1 : list a) (l2 : list b),
+    list_to_t_index _ l1 = n ->
+    list_to_t_index _ l2 = n ->
+    list_to_t_index _ (hs_to_coq.zip a b l1 l2) = n.
+Proof.
+  intros. rewrite <- H. apply zip_index'. eapply eq_trans; eauto. 
+Defined.
+
 Preprocess zip_index' as zip_index.
+Preprocess zip_index_n' as zip_index_n.
 
 Program Definition zip_pl:
   forall {a} {b} {n : nat},
@@ -373,17 +411,13 @@ Program Definition zip_pl:
     { l2 : list b & list_to_t_index b l2 = n } ->
     { l3 : list (a * b) & list_to_t_index (a * b) l3 = n }.
 Proof.
-  intros a b n pl1 pl2. pose proof plist_easy_rect as H.
-  specialize (H a (fun l1 => list (a * b)) n).
-  specialize (H (fun (n : nat) (l : list a) (zipped : list (a * b)) => {l3 : list (a * b) & list_to_t_index (a * b) l3 = n})).
-  apply (H (fun l1 => hs_to_coq.zip a b l1 (projT1 pl2))).
-  - intros l1 zipped_invariant. 
-    exists (hs_to_coq.zip a b l1 (projT1 pl2)). (* list function *)
-    rewrite <- zipped_invariant.
-    apply (zip_index a b l1 (projT1 pl2)). (* length invariant *)
-    rewrite (projT2 pl2).
-    apply zipped_invariant.
-  - apply pl1.
+  intros a b n pl1. apply Elims'.packed_list_rect with (A := a) (n := n).
+  - intros l H pl2. 
+    (* list function: *)
+    exists (hs_to_coq.zip a b l (projT1 pl2)). 
+    (* length invariant: *)
+    apply zip_index_n; auto. apply (projT2 pl2).
+  - apply pl1. 
 Defined.
 
 Lemma zip_with_index':
@@ -395,7 +429,17 @@ Proof.
   simpl. f_equal. auto.
 Defined.
 
+Lemma zip_with_index_n':
+  forall {A} {B} {C} f (n : nat) (l1 : list A) (l2 : list B),
+    list_to_t_index _ l1 = n ->
+    list_to_t_index _ l2 = n ->
+    list_to_t_index _ (hs_to_coq.zip_with A B C f l1 l2) = n.
+Proof.
+  intros. rewrite <- H. apply zip_with_index'. eapply eq_trans; eauto.
+Defined.
+
 Preprocess zip_with_index' as zip_with_index.
+Preprocess zip_with_index_n' as zip_with_index_n.
 
 Program Definition zip_with_pl:
   forall {A} {B} {C} (f : A -> B -> C) {n : nat},
@@ -403,16 +447,12 @@ Program Definition zip_with_pl:
     { l2 : list B & list_to_t_index B l2 = n } ->
     { l3 : list C & list_to_t_index C l3 = n }.
 Proof.
-  intros A B C f n pl1 pl2. pose proof plist_easy_rect as H.
-  specialize (H A (fun l1 => list C) n).
-  specialize (H (fun (n : nat) (l : list A) (zipped : list C) => {l3 : list C & list_to_t_index C l3 = n})).
-  apply (H (fun l1 => hs_to_coq.zip_with A B C f l1 (projT1 pl2))).
-  - intros l1 zipped_invariant.
-    exists (hs_to_coq.zip_with A B C f l1 (projT1 pl2)). (* list function *)
-    rewrite <- zipped_invariant.
-    apply (zip_with_index A B C f l1 (projT1 pl2)). (* length invariant *)
-    rewrite (projT2 pl2).
-    apply zipped_invariant.
+  intros A B C f n pl1. apply Elims'.packed_list_rect with (A := A) (n := n).
+  - intros l H pl2.
+    (* list function: *)
+    exists (hs_to_coq.zip_with A B C f l (projT1 pl2)).
+    (* length invariant: *)
+    apply zip_with_index_n; auto. apply (projT2 pl2).
   - apply pl1.
 Defined.
 
@@ -422,18 +462,108 @@ Lemma zip_with_is_zip_pl :
   forall {A} {B} {n} (pl1 : { l1 : list A & list_to_t_index A l1 = n }) (pl2 : { l2 : list B & list_to_t_index B l2 = n }),
     zip_with_pl pair pl1 pl2 = zip_pl pl1 pl2.
 Proof.
-  intros A B n pl1 pl2. pose proof plist_easy_rect as H.
-  specialize (H A (fun l1 => hs_to_coq.zip_with A B (A * B) pair l1 (projT1 pl2) = hs_to_coq.zip A B l1 (projT1 pl2)) n).
-  specialize (H (fun n l1 H => zip_with_pl pair pl1 pl2 = zip_pl pl1 pl2)).
-  apply (H (fun l1 => hs_to_coq.zip_with_is_zip A B l1 (projT1 pl2))).
-  - intros l1 zip_with_is_zip_invariant. (* v list proof invariant *)
-    unfold zip_with_pl, zip_pl, plist_easy_rect.
-    induction pl1. induction pl2. simpl in *.
-    apply EqdepFacts.eq_sigT_sig_eq.
-    exists (hs_to_coq.zip_with_is_zip A B x x0). (* list proof *)
-    auto using (UIP_dec Nat.eq_dec). (* <- same thing shows up here, need to prove about fold *)
-  - apply pl1.
+  intros A B n pl1. 
+  apply Elims'.packed_list_rect with (A := A) (n := n) (P := fun (pl1 : {l1 : list A & list_to_t_index A l1 = n}) => forall pl2 : {l2 : list B & list_to_t_index B l2 = n}, zip_with_pl pair pl1 pl2 = zip_pl pl1 pl2). 
+  intros l  H pl2.
+  (* list proof: *)
+  apply EqdepFacts.eq_sigT_sig_eq.
+  exists (hs_to_coq.zip_with_is_zip A B l (projT1 pl2)).
+  (* length invariant: *)
+  apply (UIP_dec Nat.eq_dec). (* <-- Still not relational UIP, but can deal with later *)
 Defined.
+
+(* We can lift from that to sigT vect: *)
+
+Print Elims'.packed_list_rect_eta.
+Lift list vector in Elims'.packed_list_rect_eta as packed_vector_rect_eta.
+Check packed_vector_rect_eta.
+Print Elims'.packed_list_rect.
+
+Definition foo (A : Type) (n : nat) (P : {l : list A & list_to_t_index A l = n} -> Type) (pl0 : {l : list A & list_to_t_index A l = n}) := 
+  P pl0.
+
+Print foo.
+
+Lift list vector in foo as bar.
+Print bar.
+
+(*
+: forall (A : Type) (n : nat) (P : {l : {H : nat & vector A H} & projT1 l = n} -> Type),
+    (forall (l : {H : nat & vector A H}) (H : projT1 l = n),
+       P (existT _ (existT _ (projT1 l) (projT2 l)) H)) ->
+       forall pl,
+         P (existT _ (existT _ (projT1 (projT1 pl)) (projT2 (projT1 pl))) (projT2 pl)).
+*)
+
+(* 
+  (fun pl0 : {l : list A & list_to_t_index A l = n} => P pl0) *)
+(* TODO what is broken here? What do we need? Something with eta... *)
+Definition packed_vector_rect :=
+fun (A : Type) (n : nat) (P : {l : {H : nat & vector A H} & projT1 l = n} -> Type)
+    pf (pl: {l : {H : nat & vector A H} & projT1 l = n}) =>
+ @sigT_rect
+   {H : nat & vector A H} (* A *)
+   (fun l : {H : nat & vector A H} => projT1 l = n) (* Q *)
+   (fun pl : {l : {H : nat & vector A H} & projT1 l = n} => P (existT _ (existT _ (projT1 (projT1 pl)) (projT2 (projT1 pl))) (projT2 pl))) (* P0 *)
+   (fun (x : {H : nat & vector A H}) (p : projT1 x = n) =>
+     packed_vector_rect_eta (* want: P0 (existT Q x p) <=> P (existT Q x p)*)
+       A (* have: P (existT _ (existT _ (projT1 x) (projT2 x)) p) *)
+       n 
+       P 
+       pf
+       (existT _ (existT _ (projT1 x) (projT2 x)) p)) 
+   pl.
+
+Check Elims'.packed_list_rect.
+Check packed_vector_rect.
+
+Print packed_vector_rect_eta.
+
+
+Definition packed_vector_rect_eta' := 
+fun (A : Type) (n : nat)
+  (P : {l : {H : nat & vector A H} & projT1 l = n} -> Type)
+  (pf : forall (l : {H : nat & vector A H}) (H : projT1 l = n),
+          P (existT _ l H))
+  (pl : {l : {H : nat & vector A H} & projT1 l = n}) =>
+  pf (projT1 pl) (projT2 pl).
+
+Definition packed_vector_rect' :=
+fun (A : Type) (n : nat) (P : {l : {H : nat & vector A H} & projT1 l = n} -> Type)
+    pf (pl: {l : {H : nat & vector A H} & projT1 l = n}) =>
+ @sigT_rect
+   {H : nat & vector A H} (* A *)
+   (fun l : {H : nat & vector A H} => projT1 l = n) (* Q *)
+   (fun pl : {l : {H : nat & vector A H} & projT1 l = n} => P pl) (* P0 *)
+   (fun (x : {H : nat & vector A H}) (p : projT1 x = n) =>
+     packed_vector_rect_eta' (* want: P0 (existT Q x p) <=> P (existT Q x p)*)
+       A (* have: P (existT _ (existT _ (projT1 x) (projT2 x)) p) *)
+       n 
+       P 
+       pf
+       (existT _ x p)) 
+   pl.
+
+
+Definition packed_vector_rect :=
+fun (A : Type) (n : nat) (P : {l : {H : nat & vector A H} & projT1 l = n} -> Type)
+    pf (pl: {{H : nat & vector A H} & projT1 l = n}) =>
+ @sigT_rect {H : nat & vector A H} (fun l : {H : nat & vector A H} => projT1 l = n)
+ (fun pl : {l : {H : nat & vector A H} & projT1 l = n} => P pl)
+ (fun (x : {H : nat & vector A H}) (p : projT1 x = n) =>
+  packed_vector_rect_eta A n P pf
+    (existT (fun l : {H : nat & vector A H} => projT1 l = n)
+       (existT (fun H : nat => vector A H) (projT1 x) (projT2 x)) p)) pl.
+
+
+
+Lift list vector in Elims'.packed_list_rect as packed_vector_rect.
+Check packed_vector_rect_eta.
+Print Elims'.packed_list_rect.
+
+Lift list vector in Elims'.packed_list_rect as packed_vector_rect.
+(* TODO probably missing some repacking somehow ^ *)
+Lift list vector in zip_with_is_zip_pl as zip_with_is_zip_pv { opaque Nat.eq_dec UIP_dec EqdepFacts.eq_sigT_sig_eq }.
 
 (*
  * Not bad, but could be simpler.

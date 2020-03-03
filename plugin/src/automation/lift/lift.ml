@@ -529,7 +529,7 @@ let lift_core env c trm sigma =
     | LiftPack ->
        if l.is_fwd then
          (* pack *)
-         maybe_repack lift_rec c en tr tr (fun _ _ _ -> ret true) true sigma
+         maybe_repack lift_rec c en tr tr (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) true sigma
        else
          (* unpack (when not covered by constructor rule) *)
          lift_rec en sigma c (dest_existT tr).unpacked

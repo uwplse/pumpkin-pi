@@ -20,6 +20,8 @@ open Evd
 open Evarutil
 open Evarconv
 open Specialization
+open Inference
+open Hofs
 
 (*
  * This module takes in a Coq term that we are lifting and determines
@@ -189,14 +191,36 @@ let is_packed_constr c env sigma trm =
        else
          sigma, None
 
-(* Premises for LIFT-PACK *)
-let is_pack c env sigma trm =
+(*
+ * Premises for LIFT-PACK
+ *)
+let rec is_pack c env sigma trm =
   let l = get_lifting c in
   let right_type trm = type_is_from c env trm sigma in
   if l.is_fwd then
     if isRel trm then
-      (* pack *)
-      Util.on_snd Option.has_some (right_type trm)
+      let sigma_right, right = Util.on_snd Option.has_some (right_type trm) in
+      if right then
+        (* pack *)
+        sigma_right, true
+      else
+        (* recursively eliminate and pack *)
+        (* TODO split to different rule for efficiency; return is_from and so onfor optimization *)
+        let sigma, typ = reduce_type env sigma trm in
+        if isApp typ then
+          let f = first_fun typ in
+          if isInd f then
+            exists_subterm_env
+              (fun env sigma _ trm -> is_pack c env sigma trm)
+              id
+              env
+              sigma
+              ()
+              typ
+          else
+            sigma, false
+        else
+          sigma, false
     else
       sigma, false
   else
