@@ -130,13 +130,16 @@ type lift_optimization =
  *    I hope to understand when we need this at some point; I suspect
  *    it should be a part of other rules.
  *
- * 10. CIC runs when no optimization applies and none of the other rules
+ * 10. DEP-ELIM is like LIFT-PACK, but eliminates over inductive types.
+ *
+ * 11. CIC runs when no optimization applies and none of the other rules
  *    apply. It returns the kind of the Gallina term.
  *)
 type lift_rule =
 | Equivalence of constr list
 | LiftConstr of constr * constr list
 | LiftPack
+| DepElim
 | Coherence of constr * constr * constr list
 | LiftElim of elim_app * constr list
 | Section
@@ -252,48 +255,13 @@ let is_packed_constr c env sigma trm =
 (*
  * Premises for LIFT-PACK
  *)
-let rec is_pack c env sigma trm =
+let is_pack c env sigma trm =
   let l = get_lifting c in
   let right_type trm = type_is_from c env trm sigma in
   if l.is_fwd then
     if isRel trm then
-      let sigma, right = Util.on_snd Option.has_some (right_type trm) in
-      if right then
-        (* pack *)
-        sigma, true
-      else
-        (* recursively eliminate and pack *)
-        (* TODO split to different rule for efficiency; return is_from and so onfor optimization *)
-        let sigma, typ = reduce_type env sigma trm in
-        if isApp typ then
-          let f = first_fun typ in
-          if isInd f then
-            let open Printing in
-            let sigma, ex =
-              exists_subterm_env_ignoring
-                (fun env sigma _ trm ->
-                  let sigma, i_and_args_o = is_packed_constr c env sigma trm in
-                  if Option.has_some i_and_args_o then
-                    sigma, true
-                  else
-                    sigma, false)
-                (fun env sigma u trm ->
-                  if isRel trm then
-                    let sigma, pack = is_pack c env sigma trm in
-                    (if pack then debug_term env trm "pack" else ());
-                    sigma, pack
-                  else
-                    sigma, false)
-                id
-                env
-                sigma
-                ()
-                typ
-            in (if ex then (debug_term env trm "ex trm"; debug_term env typ "ex typ"; debug_env env "env";) else ()); sigma, ex
-          else
-            sigma, false
-        else
-          sigma, false
+      (* pack *)
+      Util.on_snd Option.has_some (right_type trm)
     else
       sigma, false
   else
@@ -310,6 +278,47 @@ let rec is_pack c env sigma trm =
     | CurryRecord ->
        (* taken care of by constructor rule *)
        sigma, false
+
+(*
+ * Premises for DEP-ELIM
+ *)
+let is_dep_elim c env sigma trm =
+  let l = get_lifting c in
+  if l.is_fwd then
+    (* recursively eliminate and pack *)
+    (* TODO return is_from and so on for optimization *)
+    let sigma, typ = reduce_type env sigma trm in
+    if isApp typ then
+      let f = first_fun typ in
+      if isInd f then
+        let open Printing in
+        let sigma, ex = (* TODO can we simplify at all? *)
+          exists_subterm_env_ignoring
+            (fun env sigma _ trm ->
+              let sigma, i_and_args_o = is_packed_constr c env sigma trm in
+              if Option.has_some i_and_args_o then
+                sigma, true
+              else
+                sigma, false)
+            (fun env sigma u trm ->
+              if isRel trm then
+                let sigma, pack = is_pack c env sigma trm in
+                (if pack then debug_term env trm "pack" else ());
+                sigma, pack
+              else
+                sigma, false)
+            id
+            env
+            sigma
+            ()
+            typ
+        in (if ex then (debug_term env trm "ex trm"; debug_term env typ "ex typ";) else ()); sigma, ex
+      else
+        sigma, false
+    else
+      sigma, false
+  else
+    sigma, false
 
 (* Auxiliary function for premise for LIFT-PROJ *)
 let check_is_proj c env trm proj_is =
@@ -452,6 +461,12 @@ let determine_lift_rule c env trm sigma =
                 sigma, LiftElim (trm_elim, pms)
             else
               match kind trm with
+              | Rel _ ->
+                 let sigma, is_dep_elim = is_dep_elim c env sigma trm in
+                 if is_dep_elim then
+                   sigma, DepElim
+                 else
+                   sigma, CIC (kind trm)
               | App (f, args) ->
                  if equal (lift_back l) f then
                    sigma, if l.is_fwd then Retraction else Section

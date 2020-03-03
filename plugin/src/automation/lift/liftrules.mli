@@ -43,6 +43,7 @@ type lift_rule =
 | Equivalence of constr list
 | LiftConstr of constr * constr list
 | LiftPack
+| DepElim
 | Coherence of constr * constr * constr list
 | LiftElim of elim_app * constr list
 | Section
