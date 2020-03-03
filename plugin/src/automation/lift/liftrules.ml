@@ -147,6 +147,64 @@ type lift_rule =
 
 (* --- Premises --- *)
 
+(* TODO remove *)
+let exists_args map_rec env sigma a args =
+  exists_state (fun tr sigma -> map_rec env sigma a tr) (Array.to_list args) sigma
+                                                   
+(*
+ * TODO move me to lib, explain
+ *)
+let rec exists_subterm_env_ignoring q p d env sigma (a : 'a) (trm : types) : evar_map * bool =
+  let map_rec = exists_subterm_env_ignoring q p d in
+  branch_state
+    (fun trm sigma -> p env sigma a trm)
+    (fun _ -> ret true)
+    (branch_state
+       (fun trm sigma -> q env sigma a trm)
+       (fun _ -> ret false)
+       (fun trm sigma ->
+         match kind trm with
+         | Cast (c, k, t) ->
+            let sigma, c' = map_rec env sigma a c in
+            let sigma, t' = map_rec env sigma a t in
+            sigma, c' || t'
+         | Prod (n, t, b) ->
+            let sigma, t' = map_rec env sigma a t in
+            let sigma, b' = map_rec (push_local (n, t) env) sigma (d a) b in
+            sigma, t' || b'
+         | Lambda (n, t, b) ->
+            let sigma, t' = map_rec env sigma a t in
+            let sigma, b' = map_rec (push_local (n, t) env) sigma (d a) b in
+            sigma, t' || b'
+         | LetIn (n, trm, typ, e) ->
+            let sigma, trm' = map_rec env sigma a trm in
+            let sigma, typ' = map_rec env sigma a typ in
+            let sigma, e' = map_rec (push_let_in (n, e, typ) env) sigma (d a) e in
+            sigma, trm' || typ' || e'
+         | App (fu, args) ->
+            let sigma, fu' = map_rec env sigma a fu in
+            let sigma, args' = exists_args map_rec env sigma a args in
+            sigma, fu' || args'
+         | Case (ci, ct, m, bs) ->
+            let sigma, ct' = map_rec env sigma a ct in
+            let sigma, m' = map_rec env sigma a m in
+            let sigma, bs' = exists_args map_rec env sigma a bs in
+            sigma, ct' || m' || bs'
+         | Fix ((is, i), (ns, ts, ds)) ->
+            let sigma, ts' = exists_args map_rec env sigma a ts in
+            let sigma, ds' = exists_args map_rec env sigma a ds in
+            sigma, ts' || ds'
+         | CoFix (i, (ns, ts, ds)) ->
+            let sigma, ts' = exists_args map_rec env sigma a ts in
+            let sigma, ds' = exists_args map_rec env sigma a ds in
+            sigma, ts' || ds'
+         | Proj (pr, c) ->
+            map_rec env sigma a c
+         | _ ->
+            sigma, false))
+    trm
+    sigma
+
 (* Premises for LIFT-CONSTR *)
 let is_packed_constr c env sigma trm =
   let l = get_lifting c in
@@ -199,10 +257,10 @@ let rec is_pack c env sigma trm =
   let right_type trm = type_is_from c env trm sigma in
   if l.is_fwd then
     if isRel trm then
-      let sigma_right, right = Util.on_snd Option.has_some (right_type trm) in
+      let sigma, right = Util.on_snd Option.has_some (right_type trm) in
       if right then
         (* pack *)
-        sigma_right, true
+        sigma, true
       else
         (* recursively eliminate and pack *)
         (* TODO split to different rule for efficiency; return is_from and so onfor optimization *)
@@ -210,13 +268,28 @@ let rec is_pack c env sigma trm =
         if isApp typ then
           let f = first_fun typ in
           if isInd f then
-            exists_subterm_env
-              (fun env sigma _ trm -> is_pack c env sigma trm)
-              id
-              env
-              sigma
-              ()
-              typ
+            let open Printing in
+            let sigma, ex =
+              exists_subterm_env_ignoring
+                (fun env sigma _ trm ->
+                  let sigma, i_and_args_o = is_packed_constr c env sigma trm in
+                  if Option.has_some i_and_args_o then
+                    sigma, true
+                  else
+                    sigma, false)
+                (fun env sigma u trm ->
+                  if isRel trm then
+                    let sigma, pack = is_pack c env sigma trm in
+                    (if pack then debug_term env trm "pack" else ());
+                    sigma, pack
+                  else
+                    sigma, false)
+                id
+                env
+                sigma
+                ()
+                typ
+            in (if ex then (debug_term env trm "ex trm"; debug_term env typ "ex typ"; debug_env env "env";) else ()); sigma, ex
           else
             sigma, false
         else

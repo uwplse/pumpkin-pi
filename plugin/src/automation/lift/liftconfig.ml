@@ -147,13 +147,15 @@ let is_from c env typ sigma =
            (fun _ sigma ->
              let sigma, (earg_typ, _) = new_type_evar env sigma univ_flexible in
              let sigma, earg = new_evar env sigma earg_typ in
-             sigma, EConstr.to_constr sigma earg)
+             sigma, earg)
            (mk_n_rels nargs)
            sigma
        in
-       let sigma, b_app = reduce_term env sigma (mkAppl (goal_typ, eargs)) in
+       let b_args = List.map (EConstr.to_constr sigma) eargs in
+       let sigma, b_app = reduce_term env sigma (mkAppl (goal_typ, b_args)) in
        let sigma = the_conv_x env (EConstr.of_constr typ) (EConstr.of_constr b_app) sigma in
-       sigma, Some eargs
+       let args = List.map (flush_and_check_evars sigma) eargs in
+       sigma, Some args
      with _ ->
        sigma, None)
 

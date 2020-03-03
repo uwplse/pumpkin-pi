@@ -328,23 +328,35 @@ let lift_elim env sigma c trm_app pms =
  *
  * This is to deal with non-primitive projections
  *)
-let repack c env lifted typ sigma =
-  match (get_lifting c).orn.kind with
-  | Algebraic _ ->
-     let lift_typ = dest_sigT (shift typ) in
-     let n = project_index lift_typ (mkRel 1) in
-     let b = project_value lift_typ (mkRel 1) in
-     let index_type = lift_typ.index_type in
-     let packer = lift_typ.packer in
-     let e = pack_existT {index_type; packer; index = n; unpacked = b} in
-     sigma, mkLetIn (Anonymous, lifted, typ, e)
-  | CurryRecord ->
-     let f = first_fun typ in
-     let args = unfold_args typ in
-     let sigma, typ_red = specialize_delta_f env f args sigma in
-     sigma, mkLetIn (Anonymous, lifted, typ, eta_prod_rec (mkRel 1) (shift typ_red))
-  | SwapConstruct _ ->
-     sigma, lifted
+let rec repack c env lifted typ sigma =
+  let sigma, typ_args = is_from (reverse c) env typ sigma in (* TODO slow/recomputing *)
+  if Option.has_some typ_args then
+    match (get_lifting c).orn.kind with
+    | Algebraic _ ->
+       let lift_typ = dest_sigT (shift typ) in
+       let n = project_index lift_typ (mkRel 1) in
+       let b = project_value lift_typ (mkRel 1) in
+       let index_type = lift_typ.index_type in
+       let packer = lift_typ.packer in
+       let e = pack_existT {index_type; packer; index = n; unpacked = b} in
+       sigma, mkLetIn (Anonymous, lifted, typ, e)
+    | CurryRecord ->
+       let f = first_fun typ in
+       let args = unfold_args typ in
+       let sigma, typ_red = specialize_delta_f env f args sigma in
+       sigma, mkLetIn (Anonymous, lifted, typ, eta_prod_rec (mkRel 1) (shift typ_red))
+    | SwapConstruct _ ->
+       sigma, lifted
+  else
+    if isApp typ then
+      (* TODO eliminate and recurse! *)
+      let open Printing in
+      debug_term env lifted "lifted";
+      debug_term env typ "typ";
+      (* TODO recurse! *)
+      sigma, lifted
+    else
+      sigma, lifted
 
 (*
  * Sometimes we must repack because of non-primitive projections.
@@ -529,7 +541,7 @@ let lift_core env c trm sigma =
     | LiftPack ->
        if l.is_fwd then
          (* pack *)
-         maybe_repack lift_rec c en tr tr (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) true sigma
+         maybe_repack lift_rec c en tr tr (fun _ _ _ -> ret true) true sigma
        else
          (* unpack (when not covered by constructor rule) *)
          lift_rec en sigma c (dest_existT tr).unpacked

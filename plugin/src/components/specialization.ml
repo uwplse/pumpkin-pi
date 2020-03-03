@@ -123,7 +123,7 @@ let refold_econv env (abs_red, abs) trm sigma =
     (fun env sigma (abs_red, abs) t ->
       try
         let sigma = the_conv_x env (EConstr.of_constr t) (EConstr.of_constr abs_red) sigma in
-        sigma, abs
+        sigma, flush_and_check_evars sigma (EConstr.of_constr abs)
       with _ ->
         sigma, t)
     (map_tuple Debruijn.shift)
