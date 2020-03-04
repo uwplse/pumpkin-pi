@@ -531,7 +531,7 @@ Proof.
   intros A a xs xs' E. rewrite E. reflexivity. 
 Defined.
 
-Lift list vector in tl_ok as tlV_ok.
+Lift list vector in tl_ok as tlV_ok.  
 
 Theorem test_tlV_ok: 
   forall (A : Type) (x : A) (xs xs' : sigT (vector A)),

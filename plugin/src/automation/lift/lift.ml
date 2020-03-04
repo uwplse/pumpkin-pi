@@ -547,7 +547,7 @@ let lift_core env c trm sigma =
        let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
        let sigma, tr'' = lift_rec en sigma c tr' in
        let sigma, post_args' = map_rec_args lift_rec en sigma c (Array.of_list post_args) in
-       maybe_repack lift_rec c en tr (mkApp (tr'', post_args')) (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) l.is_fwd sigma
+       sigma, mkApp (tr'', post_args')
     | Optimization (AppLazyDelta (f, args)) ->
        lift_app_lazy_delta c en f args lift_rec sigma
     | Optimization (ConstLazyDelta (co, u)) ->
