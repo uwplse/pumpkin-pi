@@ -202,35 +202,6 @@ let get_constrs c = fst c.packed_constrs
  *)
 let get_lifted_constrs c = fst c.constr_rules
 
-(* --- Smart simplification --- *)
-
-(*
- * Return true if a term is packed
- *)
-let is_packed c = fst (c.optimize_proj_packed_rules)
-
-(*
- * Determine if we can be smarter than Coq and simplify earlier
- * If yes, return how
- * Otherwise, return None
- *)
-let can_reduce_now c trm =
-  let _, proj_packed_map = c.optimize_proj_packed_rules in
-  let optimize_proj_packed_o =
-    if (get_lifting c).is_fwd then
-      try
-        Some (List.find (fun (pr, _) -> is_or_applies pr trm) proj_packed_map)
-      with _ ->
-        None
-    else
-      None
-  in
-  if Option.has_some optimize_proj_packed_o then
-    let _, reduce = Option.get optimize_proj_packed_o in
-    Some (fun _ sigma trm -> sigma, reduce trm)
-  else
-    None
-    
 (* --- Modifying the configuration --- *)
 
 let reverse c =
@@ -250,6 +221,38 @@ let zoom c =
      { c with typs }
   | _ ->
      c
+
+(* --- Smart simplification --- *)
+
+(*
+ * Return true if a term is packed
+ *)
+let is_packed c = fst (c.optimize_proj_packed_rules)
+
+(*
+ * Determine if we can be smarter than Coq and simplify earlier
+ * If yes, return how
+ * Otherwise, return None
+ *)
+let can_reduce_now c trm =
+  let _, proj_packed_map = c.optimize_proj_packed_rules in
+  let optimize_proj_packed_o =
+    if (get_lifting c).is_fwd then
+      try
+        Some
+          (List.find
+             (fun (pr, _) -> is_or_applies pr trm)
+             proj_packed_map)
+      with _ ->
+        None
+    else
+      None
+  in
+  if Option.has_some optimize_proj_packed_o then
+    let _, reduce = Option.get optimize_proj_packed_o in
+    Some (fun _ sigma trm -> sigma, reduce trm)
+  else
+    None
 
 (* --- Initialization --- *)
 

@@ -118,8 +118,7 @@ val is_packed : lift_config -> constr -> bool
  * If yes, return how
  * Otherwise, return None
  *)
-val can_reduce_now :
-  lift_config -> constr -> reducer option
+val can_reduce_now : lift_config -> constr -> reducer option
 
 (* --- Modifying the configuration --- *)
 

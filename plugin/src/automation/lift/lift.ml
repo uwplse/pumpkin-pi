@@ -356,18 +356,24 @@ let repack c env lifted typ sigma =
  *)
 let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
   if try_repack then
-    let sigma_typ, typ = infer_type env sigma trm in
-    let typ = reduce_stateless reduce_nf env sigma_typ typ in
+    let sigma_typ, typ = reduce_type env sigma trm in
     let sigma_typ, is_from_typ = is_from c env typ sigma in
     if is_from_typ then
-      let lifted_red = reduce_stateless reduce_nf env sigma lifted in
       let optimize_ignore_repack =
         (* Don't bother repacking when the result would reduce *)
         match (get_lifting c).orn.kind with
         | Algebraic (_, _) ->
-           is_or_applies existT lifted_red
+           if is_or_applies existT lifted then
+             true
+           else
+             let lifted_red = reduce_stateless reduce_nf env sigma lifted in
+             is_or_applies existT lifted_red
         | CurryRecord ->
-           is_or_applies pair lifted_red
+           if is_or_applies pair lifted then
+             true
+           else
+             let lifted_red = reduce_stateless reduce_nf env sigma lifted in
+             is_or_applies pair lifted_red
         | SwapConstruct _ ->
            true
       in
@@ -391,10 +397,17 @@ let lift_simplify_project_packed c env reduce f args lift_rec sigma =
   let arg' = last (Array.to_list args') in
   let arg'' = reduce_stateless reduce_term env sigma arg' in
   if is_packed c arg'' then
-    reduce env sigma arg''
+    let sigma, arg_red = reduce env sigma arg'' in
+    sigma, arg_red
   else
     let sigma, f' = lift_rec env sigma c f in
-    (sigma, mkApp (f', args'))
+    let lifted = mkApp (f', args') in
+    let lifted_typ = args'.(0) in
+    let sigma, is_from_o = is_from (reverse c) env lifted_typ sigma in
+    if Option.has_some is_from_o then
+      maybe_repack lift_rec c env (mkApp (f, args)) lifted (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) (get_lifting c).is_fwd sigma
+    else
+      sigma, lifted
                           
 (*
  * Lift applications, possibly being lazy about delta if we can get away with it
