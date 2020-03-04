@@ -31,6 +31,7 @@ open Promotion
 open Liftconfig
 open Liftrules
 open Sigmautils
+open Factoring
 
 (*
  * The top-level lifting algorithm
@@ -381,6 +382,65 @@ let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
   else
     sigma, lifted
 
+(*
+ * TODO explain
+ *)
+let lift_dep_elim c env sigma trm typ =
+  let f = first_fun typ in
+  let (ind, _) = destInd f in
+  let mind = lookup_mind (fst ind) env in
+  let oind = mind.mind_packets.(snd ind) in
+  try (* TODO can we reuse/build on existing Depelim code from Nate? *)
+    let elim = type_eliminator env ind in
+    let pms, non_pms =
+      let npm = mind.mind_nparams in
+      take_split npm (unfold_args typ)
+    in
+    let sigma, p =
+      let sigma, ind_typ_pms = reduce_type env sigma (mkAppl (f, pms)) in
+      let env_typ = zoom_env zoom_product_type env ind_typ_pms in
+      let p_b = mkAppl (f, List.append (shift_all_by (arity ind_typ_pms) pms) (mk_n_rels (arity ind_typ_pms))) in
+      let env_p_b = push_local (Anonymous, p_b) env_typ in
+      sigma, reconstruct_lambda_n env_p_b (shift p_b) (nb_rel env)
+    in
+    let sigma, cs =
+      let sigma, elim_p_typ = infer_type env sigma (mkAppl (elim, snoc p pms)) in
+      let ncons = Array.length (oind.mind_consnames) in
+      map_state
+        (fun c sigma ->
+          let env_c_b, c_b = zoom_product_type env c in
+          let c_b = last_arg c_b in
+          sigma, reconstruct_lambda_n env_c_b c_b (nb_rel env))
+        (take ncons (factor_product elim_p_typ))
+        sigma
+    in
+    let open Printing in
+    debug_terms env (List.map (fun c -> snd (reduce_term env sigma c)) cs) "cs";
+    let final_args = snoc trm non_pms in
+    sigma, apply_eliminator { elim; pms; p; cs; final_args }
+    (*in
+    debug_term env elim "elim";
+    map_term_env_if
+      (fun env sigma _ trm ->
+        let open Printing in
+        debug_term env trm "checking trm";
+        let sigma, typ = infer_type env sigma trm in
+        debug_term env typ "checking typ";
+        Util.on_snd Option.has_some (type_is_from (reverse c) env trm sigma))
+      (fun env sigma _ trm ->
+        let open Printing in
+        debug_term env trm "trm";
+        let sigma, typ = infer_type env sigma trm in
+        debug_term env typ "typ";
+        repack c env trm typ sigma)
+      id
+      env
+      sigma
+      ()
+      elim*)
+  with _ ->
+    sigma, trm
+             
 (* --- Optimization implementations, besides packing --- *)
 
 (*
@@ -533,8 +593,23 @@ let lift_core env c trm sigma =
        else
          (* unpack (when not covered by constructor rule) *)
          lift_rec en sigma c (dest_existT tr).unpacked
-    | DepElim ->
-       sigma, tr (* TODO *)
+    | DepElim typ ->
+       (* TODO clean *)
+       let open Printing in
+       debug_term en tr "tr before lifting";
+       debug_term en typ "typ before lifting";
+       let sigma, lifted = lift_dep_elim c en sigma tr typ in
+       debug_term en lifted "lifted";
+       (try
+          let sigma, lifted_app = deconstruct_eliminator env sigma lifted in
+          let cs = Array.of_list lifted_app.cs in
+          let pms = Array.of_list lifted_app.pms in
+          let sigma, pms' = Util.on_snd Array.to_list (map_rec_args lift_rec en sigma c pms) in
+          let sigma, p' = lift_rec en sigma c lifted_app.p in
+          let sigma, cs' = Util.on_snd Array.to_list (map_rec_args lift_rec en sigma c cs) in
+          sigma, apply_eliminator { lifted_app with pms = pms'; p = p'; cs = cs' }
+        with _ ->
+          sigma, tr)
     | Optimization (SimplifyProjectPacked (reduce, (f, args))) ->
        lift_simplify_project_packed c en reduce f args lift_rec sigma
     | LiftElim (tr_elim, lifted_pms) ->

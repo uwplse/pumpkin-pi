@@ -383,6 +383,7 @@ Defined.
 End Elims.
 
 Preprocess Module Elims as Elims' { opaque list_to_t_index sigT_rect }.
+(* TODO get working w/ projT1 and projT2 opaque? *)
 
 Lemma zip_index':
   forall {a} {b} (l1 : list a) (l2 : list b),
@@ -476,6 +477,37 @@ Defined.
 
 Print Elims'.packed_list_rect_eta.
 Lift list vector in Elims'.packed_list_rect_eta as packed_vector_rect_eta.
+
+(*
+Illegal application: 
+The term "sigT_rect" of type
+ "forall (A : Type) (P : A -> Type) (P0 : {x : A & P x} -> Type),
+  (forall (x : A) (p : P x), P0 (existT P x p)) ->
+  forall s : {x : A & P x}, P0 s"
+cannot be applied to the terms
+ "{H : nat & vector A H}" : "Type"
+ "fun l : {H : nat & vector A H} => projT1 l = n"
+   : "{H : nat & vector A H} -> Prop"
+ "fun _ : {l : {H : nat & vector A H} & projT1 l = n} =>
+  {l : {H : nat & vector A H} & projT1 l = n}"
+   : "{l : {H : nat & vector A H} & projT1 l = n} -> Type"
+ "fun (x : {H : nat & vector A H}) (_ : projT1 x = n)
+    (l : {H : nat & vector A H}) => projT1 l = n"
+   : "forall x : {H : nat & vector A H},
+      projT1 x = n -> {H : nat & vector A H} -> Prop"
+ "pl" : "{l : {H : nat & vector A H} & projT1 l = n}"
+The 4th term has type
+ "forall x : {H : nat & vector A H},
+  projT1 x = n -> {H : nat & vector A H} -> Prop"
+which should be coercible to
+ "forall x : {H : nat & vector A H}.
+  projT1 x = n ->
+  {l : {H : nat & vector A H} & projT1 l = n})"
+
+
+cs: (λ (x : (sigT nat (λ (_ : nat) . (t (A [Rel 6]) (_ [Rel 1]))))) . (λ (p : (eq nat (Coq.Init.Specif.projT1 nat (λ (_ : nat) . (t (A [Rel 7]) (_ [Rel 1]))) (x [Rel 1])) (n [Rel 5]))) . (λ (l : (sigT nat (λ (_ : nat) . (t (A [Rel 8]) (_ [Rel 1]))))) . (eq nat (Coq.Init.Specif.projT1 nat (λ (_ : nat) . (t (A [Rel 9]) (_ [Rel 1]))) (l [Rel 1])) (n [Rel 7])))))
+
+*)
 Check packed_vector_rect_eta.
 Print Elims'.packed_list_rect.
 
@@ -486,6 +518,22 @@ Print foo.
 
 Lift list vector in foo as bar.
 Print bar.
+Check sigT_rect.
+
+(* TODO *)
+Definition baz (A : Type) (n : nat) :=
+  @sigT_rect 
+     (@sigT nat (fun (H : nat) => (Vector.t A H)))
+     (fun (l : @sigT nat (fun (H : nat) => (Vector.t A H))) => 
+       @eq nat (@projT1 nat (fun (H : nat) => Vector.t A H) l) n)
+     (fun (l : @sigT (@sigT nat (fun (H : nat) => Vector.t A H)) 
+            (fun (l : (@sigT nat (fun (H : nat) => Vector.t A H))) => 
+              @eq nat (@projT1 nat (fun (H : nat) => (Vector.t A H)) l) n)) =>
+     (@sigT (@sigT nat (fun (H : nat) => Vector.t A H)) 
+            (fun (l : (@sigT nat (fun (H : nat) => Vector.t A H))) => 
+              @eq nat (@projT1 nat (fun (H : nat) => (Vector.t A H)) l) n))).
+
+Check baz.
 
 (*
 : forall (A : Type) (n : nat) (P : {l : {H : nat & vector A H} & projT1 l = n} -> Type),
@@ -498,7 +546,7 @@ Print bar.
 (* 
   (fun pl0 : {l : list A & list_to_t_index A l = n} => P pl0) *)
 (* TODO what is broken here? What do we need? Something with eta... *)
-Definition packed_vector_rect :=
+Definition my_packed_vector_rect :=
 fun (A : Type) (n : nat) (P : {l : {H : nat & vector A H} & projT1 l = n} -> Type)
     pf (pl: {l : {H : nat & vector A H} & projT1 l = n}) =>
  @sigT_rect
@@ -513,11 +561,6 @@ fun (A : Type) (n : nat) (P : {l : {H : nat & vector A H} & projT1 l = n} -> Typ
        pf
        (existT _ (existT _ (projT1 x) (projT2 x)) p)) 
    pl.
-
-Check Elims'.packed_list_rect.
-Check packed_vector_rect.
-
-Print packed_vector_rect_eta.
 
 
 Definition packed_vector_rect_eta' := 
@@ -544,24 +587,68 @@ fun (A : Type) (n : nat) (P : {l : {H : nat & vector A H} & projT1 l = n} -> Typ
        (existT _ x p)) 
    pl.
 
+Definition output (A : Type) (n : nat)
+    (P : {l : {H : nat & vector A H} & projT1 l = n} -> Type)
+    (pf : forall (l : {H : nat & vector A H}) (H : projT1 l = n),
+          P
+            (existT (fun l0 : {H0 : nat & vector A H0} => projT1 l0 = n)
+               (existT (fun H0 : nat => vector A H0) (projT1 l) (projT2 l)) H))
+    (pl : {l : {H : nat & vector A H} & projT1 l = n}) :=
+  sigT_rect
+    (fun pl0 : {l : {H : nat & vector A H} & projT1 l = n} =>
+     P
+       (sigT_rect
+          (fun _ : {l : {H : nat & vector A H} & projT1 l = n} =>
+           {l : {H : nat & vector A H} & projT1 l = n})
+          (fun (x : {H : nat & vector A H})
+             (p : projT1
+                    (existT (fun H : nat => vector A H) (projT1 x) (projT2 x)) =
+                  n) =>
+           existT (fun l : {H : nat & vector A H} => projT1 l = n)
+             (existT (fun H : nat => vector A H) (projT1 x) (projT2 x)) p)
+          pl0))
+    (fun (x : {H : nat & vector A H}) (p : projT1 x = n) =>
+     packed_vector_rect_eta A n P pf
+       (existT (fun l : {H : nat & vector A H} => projT1 l = n)
+          (existT (fun H : nat => vector A H) (projT1 x) (projT2 x)) p))
+    (sigT_rect
+       (fun _ : {l : {H : nat & vector A H} & projT1 l = n} =>
+        {l : {H : nat & vector A H} & projT1 l = n})
+       (fun (x : {H : nat & vector A H})
+          (p : projT1
+                 (existT (fun H : nat => vector A H) (projT1 x) (projT2 x)) =
+               n) =>
+        existT (fun l : {H : nat & vector A H} => projT1 l = n)
+          (existT (fun H : nat => vector A H) (projT1 x) (projT2 x)) p) pl)
+: P
+    (sigT_rect
+       _
+       (fun (x : {H : nat & vector A H}) (p : projT1 x = n) =>
+         existT _ (existT _ (projT1 x) (projT2 x)) p)
+       (sigT_rect
+         _
+         (fun (x : {H : nat & vector A H}) (p : projT1 x = n) =>
+           existT _ (existT _ (projT1 x) (projT2 x)) p)
+         pl)).
 
-Definition packed_vector_rect :=
-fun (A : Type) (n : nat) (P : {l : {H : nat & vector A H} & projT1 l = n} -> Type)
-    pf (pl: {{H : nat & vector A H} & projT1 l = n}) =>
- @sigT_rect {H : nat & vector A H} (fun l : {H : nat & vector A H} => projT1 l = n)
- (fun pl : {l : {H : nat & vector A H} & projT1 l = n} => P pl)
- (fun (x : {H : nat & vector A H}) (p : projT1 x = n) =>
-  packed_vector_rect_eta A n P pf
-    (existT (fun l : {H : nat & vector A H} => projT1 l = n)
-       (existT (fun H : nat => vector A H) (projT1 x) (projT2 x)) p)) pl.
+Check output.
 
-
+(*
+while it is expected to have type
+  P
+    (sigT_rect
+       _
+       (fun (x : {H : nat & vector A H}) (p : projT1 x = n) =>
+          existT _ (existT _ (projT1 x) (projT2 x)) p) 
+        pl).
+*)
 
 Lift list vector in Elims'.packed_list_rect as packed_vector_rect.
 Check packed_vector_rect_eta.
 Print Elims'.packed_list_rect.
+Print packed_vector_rect.
+Fail.
 
-Lift list vector in Elims'.packed_list_rect as packed_vector_rect.
 (* TODO probably missing some repacking somehow ^ *)
 Lift list vector in zip_with_is_zip_pl as zip_with_is_zip_pv { opaque Nat.eq_dec UIP_dec EqdepFacts.eq_sigT_sig_eq }.
 

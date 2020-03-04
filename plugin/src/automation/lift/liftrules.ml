@@ -22,6 +22,7 @@ open Evarconv
 open Specialization
 open Inference
 open Hofs
+open Equtils
 
 (*
  * This module takes in a Coq term that we are lifting and determines
@@ -131,15 +132,16 @@ type lift_optimization =
  *    it should be a part of other rules.
  *
  * 10. DEP-ELIM is like LIFT-PACK, but eliminates over inductive types.
+ *     It returns the type of the term.
  *
  * 11. CIC runs when no optimization applies and none of the other rules
- *    apply. It returns the kind of the Gallina term.
+ *     apply. It returns the kind of the Gallina term.
  *)
 type lift_rule =
 | Equivalence of constr list
 | LiftConstr of constr * constr list
 | LiftPack
-| DepElim
+| DepElim of types
 | Coherence of constr * constr * constr list
 | LiftElim of elim_app * constr list
 | Section
@@ -289,9 +291,21 @@ let is_dep_elim c env sigma trm =
     (* TODO return is_from and so on for optimization *)
     let sigma, typ = reduce_type env sigma trm in
     if isApp typ then
+      let rec unwrap_typ typ = (* TODO move/explain *)
+        if isApp typ then
+          let f = first_fun typ in
+          let f_delta = unwrap_definition env f in
+          let sigma, typ_red = reduce_term env sigma (mkAppl (f_delta, unfold_args typ)) in
+          if equal typ typ_red then
+            typ
+          else
+            unwrap_typ typ_red
+        else
+          typ
+      in
+      let typ = unwrap_typ typ in
       let f = first_fun typ in
-      if isInd f then
-        let open Printing in
+      if isInd f && not (equal f eq) then
         let sigma, ex = (* TODO can we simplify at all? *)
           exists_subterm_env_ignoring
             (fun env sigma _ trm ->
@@ -300,11 +314,9 @@ let is_dep_elim c env sigma trm =
                 sigma, true
               else
                 sigma, false)
-            (fun env sigma u trm ->
+            (fun env sigma _ trm ->
               if isRel trm then
-                let sigma, pack = is_pack c env sigma trm in
-                (if pack then debug_term env trm "pack" else ());
-                sigma, pack
+                is_pack c env sigma trm
               else
                 sigma, false)
             id
@@ -312,13 +324,17 @@ let is_dep_elim c env sigma trm =
             sigma
             ()
             typ
-        in (if ex then (debug_term env trm "ex trm"; debug_term env typ "ex typ";) else ()); sigma, ex
+        in
+        if ex then
+          sigma, Some typ
+        else
+          sigma, None
       else
-        sigma, false
+        sigma, None
     else
-      sigma, false
+      sigma, None
   else
-    sigma, false
+    sigma, None
 
 (* Auxiliary function for premise for LIFT-PROJ *)
 let check_is_proj c env trm proj_is =
@@ -462,9 +478,9 @@ let determine_lift_rule c env trm sigma =
             else
               match kind trm with
               | Rel _ ->
-                 let sigma, is_dep_elim = is_dep_elim c env sigma trm in
-                 if is_dep_elim then
-                   sigma, DepElim
+                 let sigma, is_dep_elim_o = is_dep_elim c env sigma trm in
+                 if Option.has_some is_dep_elim_o then
+                   sigma, DepElim (Option.get is_dep_elim_o)
                  else
                    sigma, CIC (kind trm)
               | App (f, args) ->

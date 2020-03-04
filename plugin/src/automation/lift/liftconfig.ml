@@ -140,7 +140,9 @@ let is_from c env typ sigma =
   else
     let (a_typ, b_typ) = c.typs in
     let goal_typ = if c.l.is_fwd then a_typ else b_typ in
+    let sigma, goal_typ = expand_eta env sigma goal_typ in
     let nargs = arity goal_typ in
+    let sigma, goal_typ = reduce_term env sigma goal_typ in
     (try
        let sigma, eargs =
          map_state
@@ -151,10 +153,9 @@ let is_from c env typ sigma =
            (mk_n_rels nargs)
            sigma
        in
-       let b_args = List.map (EConstr.to_constr sigma) eargs in
-       let sigma, b_app = reduce_term env sigma (mkAppl (goal_typ, b_args)) in
+       let args = List.map (EConstr.to_constr sigma) eargs in
+       let sigma, b_app = reduce_term env sigma (mkAppl (goal_typ, args)) in
        let sigma = the_conv_x env (EConstr.of_constr typ) (EConstr.of_constr b_app) sigma in
-       let args = List.map (flush_and_check_evars sigma) eargs in
        sigma, Some args
      with _ ->
        sigma, None)
