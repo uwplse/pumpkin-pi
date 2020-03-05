@@ -102,45 +102,26 @@ Check zip_with_is_zipV_p.
 
 (* --- Unpack --- *)
 
-Unpack zipV_p as zipV.
-Unpack zip_withV_p as zip_withV.
-Unpack zip_with_is_zipV_p as zip_with_is_zipV.
-
-(* Enable implicit arguments *)
-Arguments zipV {_ _} {_} _ {_} _.
-Arguments zip_withV {_ _ _} _ {_} _ {_} _.
-Arguments zip_with_is_zipV {_ _} {_} _ {_} _.
-
-(* Here are our unpacked types: *)
-Check zipV.
-Check zip_withV.
-Check zip_with_is_zipV.
-
-(* --- Interface --- *)
-
-(* For any two vectors of the same length, we get a vector of the same length *)
-Eval compute in (zipV (consV 0 2 (nilV nat)) (consV 0 1 (nilV nat))).
-
 (*
- * However, this type isn't actually what we want. The user-friendly
- * versions of the functions are simple to recover.
+ * We could use the "Unpack" command as shown in the paper
+ * to get default types over unpacked vectors. In practice,
+ * though, it helps to use a different methodology to unpack
+ * that we've designed since the ITP paper. If you want to use 
+ * the "Unpack" command, check the ITP release of this file for 
+ * an example.
  *
- * First, we will prove the indexer is what we want. To do this, we can
- * simply prove this over the indexer of the original list functions,
- * and then use DEVOID to lift and unpack those proofs.
+ * The intuition for this methodology is that while list T is equivalent to sigT (vector T),
+ * for any n, { l : list T & length l = n } lifts to equivalent
+ * { s : sigT (vector T) & projT1 s = n}, which is equivalent to vector T n.
+ * Thus, we write proofs about { l : list T & length l = n },
+ * lift those from list to vector, and then do a tiny bit of work
+ * to get from { s : sigT (vector T) & projT1 s = n} to vector.
  *
- * So here we are saying that if two lists have the same length,
- * then the result of zip over those lists has the length of the first list,
- * and same for zip_with.
+ * However, writing proofs about { l : list T & length l = n } isn't
+ * in itself straightforward, so we break this up into parts and use
+ * a nice custom eliminator to make this easier. WIP on automating this.
  *
- * The intuition is that while list T is equivalent to sigT (vector T),
- * for any n, { l : list T | length l = n } is equivalent to vector T n.
- * Thus, to get functions with the index we really want, as opposed to
- * the automatically generated index, we have to show that length l = n
- * for the n that we want. This will lift to a proof that shows the projection
- * is the n that we want. This methodology will work for any indexer;
- * essentially it leaves the ``interesting part'' (showing the length
- * is some desirable result) to the user.
+ * Let's start by proving the length invariants:
  *)
 Module hs_to_coq_lengths'.
 
@@ -210,7 +191,8 @@ Defined.
 Lift list vector in packed_list_rect as packed_vector_rect.
 
 (*
- * Then we can write our proofs:
+ * Then we can write our proofs. Now note how everything here
+ * follows a nice and easy formula:
  *)
 Module packed_list.
 
