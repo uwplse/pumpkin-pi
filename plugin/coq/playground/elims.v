@@ -328,7 +328,7 @@ Module hs_to_coq'.
 (* From:
  * https://github.com/antalsz/hs-to-coq/blob/master/base/GHC/List.v
  *)
-Definition zip {a} {b} : list a -> list b -> list (a * b)%type :=
+Definition zip a b : list a -> list b -> list (a * b)%type :=
   fix zip arg_0__ arg_1__
         := match arg_0__, arg_1__ with
            | nil, _bs => nil
@@ -339,22 +339,63 @@ Definition zip {a} {b} : list a -> list b -> list (a * b)%type :=
 (* From:
  * https://github.com/antalsz/hs-to-coq/blob/master/core-semantics-no-values/semantics.v
  *)
-Fixpoint zip_with {A} {B} {C} (f : A -> B -> C) (s : list A) (t : list B) : list C :=
+Fixpoint zip_with A B C (f : A -> B -> C) (s : list A) (t : list B) : list C :=
   match s , t with
-    | a :: s' , b :: t' => f a b :: zip_with f s' t'
+    | a :: s' , b :: t' => f a b :: zip_with A B C f s' t'
     | _       , _       => nil
   end.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 Import EqNotations.
 
-Theorem zip_with_is_zip {A} {B} :
-  zip_with (@pair A B) =2 zip.
+Theorem zip_with_is_zip A B :
+  zip_with A B (A * B) (@pair A B) =2 zip A B.
 Proof. by elim => [|a s IH] [|b t] //=; rewrite IH. Qed.
 
 End hs_to_coq'.
 
 Preprocess Module hs_to_coq' as hs_to_coq.
+
+Module Elims.
+
+(*
+ * Attempt to find a good eliminator.
+ * This is tricky because dependent rewriting breaks things when we lift later.
+ *)
+Theorem packed_list_rect:
+  forall (A : Type) (n : nat) (P : { l : list A & list_to_t_index A l = n } -> Type),
+    (forall (l : list A) (H : list_to_t_index A l = n), P (existT _ l H)) ->
+    forall pl, P (existT _ (projT1 pl) (projT2 pl)).
+Proof.
+  intros A n P pf pl. apply (pf (projT1 pl) (projT2 pl)).
+Defined.
+
+(* 
+ * Lifting below would not work. We need pl to be eta expanded. TODO What is the formal
+ * reason for this? Look like something about dependent types and pattern matching.
+ *)
+
+Theorem packed_list_rect_dep:
+  forall (A : Type) (n : nat) (P : { l : list A & list_to_t_index A l = n } -> Type),
+    (forall (l : list A) (H : list_to_t_index A l = n), P (existT _ l H)) ->
+    forall pl, P pl.
+Proof.
+  intros A n P pf pl. induction pl. apply (packed_list_rect A n P pf (existT _ x p)).
+Defined.
+
+(*
+ * As a consequence, we can't lift terms that use this right now! Worth noting.
+ *)
+
+End Elims.
+
+Preprocess Module Elims as Elims' { opaque list_to_t_index sigT_rect projT1 projT2 }.
+
+Print list_rect.
+Print sigT_rect.
+Print Elims.packed_list_rect_dep.
+
+Module index.
 
 Lemma zip_index':
   forall {a} {b} (l1 : list a) (l2 : list b),
@@ -365,29 +406,17 @@ Proof.
   simpl. f_equal. auto.
 Defined.
 
-Preprocess zip_index' as zip_index.
-
-Program Definition zip_pl:
-  forall {a} {b} {n : nat},
-    { l1 : list a & list_to_t_index a l1 = n } ->
-    { l2 : list b & list_to_t_index b l2 = n } ->
-    { l3 : list (a * b) & list_to_t_index (a * b) l3 = n }.
+Lemma zip_index_n':
+  forall {a} {b} (n : nat) (l1 : list a) (l2 : list b),
+    list_to_t_index _ l1 = n ->
+    list_to_t_index _ l2 = n ->
+    list_to_t_index _ (hs_to_coq.zip a b l1 l2) = n.
 Proof.
-  intros a b n pl1 pl2. pose proof plist_easy_rect as H.
-  specialize (H a (fun l1 => list (a * b)) n).
-  specialize (H (fun (n : nat) (l : list a) (zipped : list (a * b)) => {l3 : list (a * b) & list_to_t_index (a * b) l3 = n})).
-  apply (H (fun l1 => hs_to_coq.zip a b l1 (projT1 pl2))).
-  - intros l1 zipped_invariant. 
-    exists (hs_to_coq.zip a b l1 (projT1 pl2)). (* list function *)
-    rewrite <- zipped_invariant.
-    apply (zip_index a b l1 (projT1 pl2)). (* length invariant *)
-    rewrite (projT2 pl2).
-    apply zipped_invariant.
-  - apply pl1.
+  intros. rewrite <- H. apply zip_index'. eapply eq_trans; eauto. 
 Defined.
 
 Lemma zip_with_index':
-  forall {A} {B} {C} f (l1 : list A) (l2 : list B),
+  forall A B C f (l1 : list A) (l2 : list B),
     list_to_t_index _ l1 = list_to_t_index _ l2 ->
     list_to_t_index _ (hs_to_coq.zip_with A B C f l1 l2) = list_to_t_index _ l1.
 Proof.
@@ -395,53 +424,82 @@ Proof.
   simpl. f_equal. auto.
 Defined.
 
-Preprocess zip_with_index' as zip_with_index.
+Lemma zip_with_index_n':
+  forall A B C f (n : nat) (l1 : list A) (l2 : list B),
+    list_to_t_index _ l1 = n ->
+    list_to_t_index _ l2 = n ->
+    list_to_t_index _ (hs_to_coq.zip_with A B C f l1 l2) = n.
+Proof.
+  intros. rewrite <- H. apply zip_with_index'. eapply eq_trans; eauto.
+Defined.
+
+End index.
+
+Preprocess Module index as index'.
+
+Module PL.
+
+Definition zip_index := index'.zip_index'.
+Definition zip_index_n := index'.zip_index_n'.
+Definition zip_with_index := index'.zip_with_index'.
+Definition zip_with_index_n := index'.zip_with_index_n'.
+
+Program Definition zip_pl:
+  forall a b n,
+    { l1 : list a & list_to_t_index a l1 = n } ->
+    { l2 : list b & list_to_t_index b l2 = n } ->
+    { l3 : list (a * b) & list_to_t_index (a * b) l3 = n }.
+Proof.
+  intros a b n pl1. apply Elims'.packed_list_rect with (A := a) (n := n) (P := fun (pl1 : { l1 : list a & list_to_t_index a l1 = n }) => { l2 : list b & list_to_t_index b l2 = n } -> { l3 : list (a * b) & list_to_t_index (a * b) l3 = n }).
+  - intros l H pl2. 
+    (* list function: *)
+    exists (hs_to_coq.zip a b l (projT1 pl2)). 
+    (* length invariant: *)
+    apply zip_index_n; auto. apply (projT2 pl2).
+  - apply pl1. 
+Defined.
 
 Program Definition zip_with_pl:
-  forall {A} {B} {C} (f : A -> B -> C) {n : nat},
+  forall A B C (f : A -> B -> C) n,
     { l1 : list A & list_to_t_index A l1 = n } ->
     { l2 : list B & list_to_t_index B l2 = n } ->
     { l3 : list C & list_to_t_index C l3 = n }.
 Proof.
-  intros A B C f n pl1 pl2. pose proof plist_easy_rect as H.
-  specialize (H A (fun l1 => list C) n).
-  specialize (H (fun (n : nat) (l : list A) (zipped : list C) => {l3 : list C & list_to_t_index C l3 = n})).
-  apply (H (fun l1 => hs_to_coq.zip_with A B C f l1 (projT1 pl2))).
-  - intros l1 zipped_invariant.
-    exists (hs_to_coq.zip_with A B C f l1 (projT1 pl2)). (* list function *)
-    rewrite <- zipped_invariant.
-    apply (zip_with_index A B C f l1 (projT1 pl2)). (* length invariant *)
-    rewrite (projT2 pl2).
-    apply zipped_invariant.
+  intros A B C f n pl1. apply Elims'.packed_list_rect with (A := A) (n := n) (P := fun (pl1 : {l1 : list A & list_to_t_index A l1 = n}) => {l2 : list B & list_to_t_index B l2 = n} -> {l3 : list C & list_to_t_index C l3 = n}).
+  - intros l H pl2.
+    (* list function: *)
+    exists (hs_to_coq.zip_with A B C f l (projT1 pl2)).
+    (* length invariant: *)
+    apply zip_with_index_n; auto. apply (projT2 pl2).
   - apply pl1.
 Defined.
 
 From Coq Require Import Eqdep_dec Arith.
 
 Lemma zip_with_is_zip_pl :
-  forall {A} {B} {n} (pl1 : { l1 : list A & list_to_t_index A l1 = n }) (pl2 : { l2 : list B & list_to_t_index B l2 = n }),
-    zip_with_pl pair pl1 pl2 = zip_pl pl1 pl2.
+  forall A B n (pl1 : { l1 : list A & list_to_t_index A l1 = n }) (pl2 : { l2 : list B & list_to_t_index B l2 = n }),
+    zip_with_pl A B (A * B) pair n pl1 pl2 = zip_pl A B n pl1 pl2.
 Proof.
-  intros A B n pl1 pl2. pose proof plist_easy_rect as H.
-  specialize (H A (fun l1 => hs_to_coq.zip_with A B (A * B) pair l1 (projT1 pl2) = hs_to_coq.zip A B l1 (projT1 pl2)) n).
-  specialize (H (fun n l1 H => zip_with_pl pair pl1 pl2 = zip_pl pl1 pl2)).
-  apply (H (fun l1 => hs_to_coq.zip_with_is_zip A B l1 (projT1 pl2))).
-  - intros l1 zip_with_is_zip_invariant. (* v list proof invariant *)
-    unfold zip_with_pl, zip_pl, plist_easy_rect.
-    induction pl1. induction pl2. simpl in *.
-    apply EqdepFacts.eq_sigT_sig_eq.
-    exists (hs_to_coq.zip_with_is_zip A B x x0). (* list proof *)
-    auto using (UIP_dec Nat.eq_dec). (* <- same thing shows up here, need to prove about fold *)
-  - apply pl1.
+  intros A B n pl1. 
+  apply Elims'.packed_list_rect with (A := A) (n := n) (P := fun (pl1 : {l1 : list A & list_to_t_index A l1 = n}) => forall pl2 : {l2 : list B & list_to_t_index B l2 = n}, zip_with_pl A B (A * B) pair n pl1 pl2 = zip_pl A B n pl1 pl2). 
+  intros l  H pl2.
+  (* list proof: *)
+  apply EqdepFacts.eq_sigT_sig_eq.
+  exists (hs_to_coq.zip_with_is_zip A B l (projT1 pl2)).
+  (* length invariant: *)
+  apply (UIP_dec Nat.eq_dec). (* <-- Still not relational UIP, but can deal with later *)
 Defined.
 
-(*
- * Not bad, but could be simpler.
- *)
+End PL.
 
-(* ^ TODO so we can implement that transport, but then the question becomes how to interface
-   this and separate proofs over lists and proofs about their lengths, and automatically
-   combine them into this form *)
+(*
+ * Now we can get from that to packed_vector_rect:
+ *)
+Preprocess Module PL as PL' { opaque projT1 projT2 hs_to_coq.zip hs_to_coq.zip_with hs_to_coq.zip_with_is_zip }.
+Lift Module list vector in PL' as PV.
+Print PV.zip_pl. (* <-- TODO!!! some reduction is not done *)
+Print PV.zip_with_pl. (* <-- TODO!!! some reduction is not done *)
+Print PV.zip_with_is_zip_pl. (* <-- TODO!!! some reduction is not done *)
 
 (* --- What about splitting constructors? --- *)
 
