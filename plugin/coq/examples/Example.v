@@ -51,35 +51,14 @@ End hs_to_coq'.
 
 Preprocess Module hs_to_coq' as hs_to_coq { opaque list_ind list_rect eq_ind eq_ind_r eq_sym }.
 
-(* --- Search --- *)
+(* --- Search and Lift --- *)
 
 (*
  * You can omit these lines if you'd like, since Lift does not need them,
- * but enabling these options shows that Find ornament behaves correctly:
+ * but enabling these options shows that search behaves correctly:
  *)
 Set DEVOID search prove coherence.
 Set DEVOID search prove equivalence.
-
-(*
- * You can also omit this line if you want. Lift will run it automatically the first
- * time. The advantage of running it yourself is that you can name the resulting
- * functions yourself.
- *)
-Find ornament list vector as ltv.
-
-(*
- * This gives us these functions:
- *)
-Print ltv.
-Print ltv_inv.
-
-(*
- * As mentioned in the paper, these form an equivalence.
- * This is proven automatically by the prove equivalence option.
- * See Search.v for a detailed walkthrough of the output.
- *)
-
-(* --- Lift --- *)
 
 (*
  * You can omit this as well, but it makes the types look nicer:
@@ -87,7 +66,10 @@ Print ltv_inv.
 Set DEVOID lift type.
 
 (*
- * Since the ITP paper, we now have a "Lift Module" command:
+ * You can run "Find ornament" manually if you'd like (see the ITP
+ * release if interested, or Search.v for a detailed example), but
+ * it also runs automatically nowadays when you lift. So you can
+ * just skip straight to lifting:
  *)
 Lift Module list vector in hs_to_coq as hs_to_coqV_p.
 
