@@ -7,7 +7,7 @@ Require Import Vector.
 Require Import List.
 Require Import Ornamental.Ornaments.
 
-From Coq Require Import ssreflect ssrbool ssrfun.
+From Coq Require Import ssreflect ssrbool ssrfun Arith.
 
 Import EqNotations.
 
@@ -42,14 +42,14 @@ Fixpoint zip_with {A} {B} {C} (f : A -> B -> C) (s : list A) (t : list B) : list
   end.
 
 Theorem zip_with_is_zip {A} {B} :
-  zip_with (@pair A B) =2 zip.
+  forall l1 l2, zip_with (@pair A B) l1 l2 = zip l1 l2.
 Proof. by elim => [|a s IH] [|b t] //=; rewrite IH. Qed.
 
 End hs_to_coq'.
 
 (* --- Preprocess --- *)
 
-Preprocess Module hs_to_coq' as hs_to_coq.
+Preprocess Module hs_to_coq' as hs_to_coq { opaque list_ind list_rect eq_ind eq_ind_r eq_sym }.
 
 (* --- Search --- *)
 
@@ -81,9 +81,19 @@ Print ltv_inv.
 
 (* --- Lift --- *)
 
-Lift list vector in hs_to_coq.zip as zipV_p.
-Lift list vector in hs_to_coq.zip_with as zip_withV_p.
-Lift list vector in hs_to_coq.zip_with_is_zip as zip_with_is_zipV_p.
+(*
+ * You can omit this as well, but it makes the types look nicer:
+ *)
+Set DEVOID lift type.
+
+(*
+ * Since the ITP paper, we now have a "Lift Module" command:
+ *)
+Lift Module list vector in hs_to_coq as hs_to_coqV_p.
+
+Definition zipV_p := hs_to_coqV_p.zip.
+Definition zip_withV_p := hs_to_coqV_p.zip_with.
+Definition zip_with_is_zipV_p := hs_to_coqV_p.zip_with_is_zip.
 
 (* Here are our lifted types: *)
 Check zipV_p.
@@ -121,8 +131,7 @@ Eval compute in (zipV (consV 0 2 (nilV nat)) (consV 0 1 (nilV nat))).
  *
  * So here we are saying that if two lists have the same length,
  * then the result of zip over those lists has the length of the first list,
- * and same for zip_with. The length function here, ltv_index, is automatically
- * generated when we first run Find Ornament.
+ * and same for zip_with.
  *
  * The intuition is that while list T is equivalent to sigT (vector T),
  * for any n, { l : list T | length l = n } is equivalent to vector T n.
@@ -133,89 +142,215 @@ Eval compute in (zipV (consV 0 2 (nilV nat)) (consV 0 1 (nilV nat))).
  * essentially it leaves the ``interesting part'' (showing the length
  * is some desirable result) to the user.
  *)
-Lemma zip_index':
-  forall {a} {b} (l1 : list a) (l2 : list b),
-    ltv_index _ l1 = ltv_index _ l2 ->
-    ltv_index _ (hs_to_coq.zip a b l1 l2) = ltv_index _ l1.
+Module hs_to_coq_lengths'.
+
+Lemma zip_length:
+  forall a b (l1 : list a) (l2 : list b),
+    length l1 = length l2 ->
+    length (hs_to_coq.zip a b l1 l2) = length l1.
 Proof.
   induction l1, l2; intros; auto; inversion H.
   simpl. f_equal. auto.
 Defined.
 
-Lemma zip_with_index':
-  forall {A} {B} {C} f (l1 : list A) (l2 : list B),
-    ltv_index _ l1 = ltv_index _ l2 ->
-    ltv_index _ (hs_to_coq.zip_with A B C f l1 l2) = ltv_index _ l1.
+Lemma zip_length_n:
+  forall a b (n : nat) (l1 : list a) (l2 : list b),
+    length l1 = n ->
+    length l2 = n ->
+    length (hs_to_coq.zip a b l1 l2) = n.
+Proof.
+  intros. rewrite <- H. apply zip_length. eapply eq_trans; eauto. 
+Defined.
+
+Lemma zip_with_length:
+  forall A B C f (l1 : list A) (l2 : list B),
+    length l1 = length l2 ->
+    length (hs_to_coq.zip_with A B C f l1 l2) = length l1.
 Proof.
   induction l1, l2; intros; auto; inversion H.
   simpl. f_equal. auto.
 Defined.
 
-Preprocess zip_index' as zip_index.
-Preprocess zip_with_index' as zip_with_index.
-Lift list vector in @zip_index as zipV_proj_p.
-Lift list vector in @zip_with_index as zip_withV_proj_p.
-Unpack zipV_proj_p as zipV_proj.
-Unpack zip_withV_proj_p as zip_withV_proj.
-Arguments zipV_proj {_} {_} {_} _ {_} _ _.
-Arguments zip_withV_proj {_} {_} {_} _ {_} _ {_} _ _.
-
-(* Our user friendly versions then follow by simple rewriting: *)
-Definition zipV_uf {a} {b} {n} (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
-  rew (zipV_proj v1 v2 eq_refl) in (zipV v1 v2).
-
-Definition zip_withV_uf {A} {B} {C} (f : A -> B -> C) {n} (v1 : vector A n) (v2 : vector B n) : vector C n :=
-  rew (zip_withV_proj f v1 v2 eq_refl) in (zip_withV f v1 v2).
-
-(*
- * For proofs, we have to deal with dependent equality.
- * This is more challenging. Essentially, we have to relate
- * our other equalities.
- *
- * In the case of nat, the easiest
- * way to do this is to use the fact that nats form an hset
- * (credit to Jasper Hugunin). Then, we don't actually need any information
- * about how our auxiliary equalities are formed. Otherwise,
- * the way those equalities are formed will matter.
- *)
-From Coq Require Import EqdepFacts Eqdep_dec Arith.
-
-Lemma zip_with_is_zipV_uf_aux :
-  forall  {A} {B} {n} (v1 : vector A n) (v2 : vector B n),
-    zip_withV_proj pair v1 v2 eq_refl =
-    eq_trans
-      (eq_sigT_fst (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2)))
-      (zipV_proj v1 v2 eq_refl).
+Lemma zip_with_length_n:
+  forall A B C f (n : nat) (l1 : list A) (l2 : list B),
+    length l1 = n ->
+    length l2 = n ->
+    length (hs_to_coq.zip_with A B C f l1 l2) = n.
 Proof.
-  auto using (UIP_dec Nat.eq_dec).
+  intros. rewrite <- H. apply zip_with_length. eapply eq_trans; eauto.
 Defined.
-(*
- * NOTE ON UIP: In general, we should be able to avoid using UIP over the index
- * by proving adjunction explicitly and then using that along with coherence
- * to show that we do not duplicate equalities (credit to Jason Gross).
- * This holds for all algebraic ornaments, not just those for which UIP holds
- * on the index type.
- *
- * See https://github.com/uwplse/ornamental-search/issues/39 for the latest thoughts
- * on this, and please check the latest version of this file in master to see
- * if we have implemented this if you are reading this in a release.
- *)
+
+End hs_to_coq_lengths'.
+
+Preprocess Module hs_to_coq_lengths' as hs_to_coq_lengths.
 
 (*
- * Our theorem then follows:
+ * Once we have the length proofs, we write the proofs
+ * about { l : list T & length l = n }. To do this,
+ * it's useful to have a nice induction principle:
  *)
-Lemma zip_with_is_zipV_uf :
-  forall {A} {B} {n} (v1 : vector A n) (v2 : vector B n),
-    zip_withV_uf pair v1 v2 = zipV_uf v1 v2.
+Theorem packed_list_rect:
+  forall (A : Type) (n : nat) (P : { l : list A & length l = n } -> Type),
+    (forall (l : list A) (H : length l = n), P (existT _ l H)) ->
+    forall pl, P (existT _ (projT1 pl) (projT2 pl)).
 Proof.
-  intros. unfold zip_withV_uf, zipV_uf, zipV.
-  pose proof (eq_sigT_snd (eq_dep_eq_sigT_red _ _ _ _ _ _ (zip_with_is_zipV v1 v2))).
-  simpl in *. rewrite <- H. rewrite zip_with_is_zipV_uf_aux.
-  apply eq_trans_rew_distr.
+  intros A n P pf pl. apply (pf (projT1 pl) (projT2 pl)).
 Defined.
 
 (*
- * Note: For this particular example, interestingly, doing these by hand
+ * NOTE: Right now, lifting doesn't work nicely if you don't
+ * eta-expand pl in the conclusion. So you should not use
+ * sigT_eta, sigT_rect, and so on to get a conclusion of the
+ * form (P pl). I'm working on relaxing this assumption
+ * and understanding more about it.
+ *
+ * For now, just copy and paste that induction principle.
+ * Then you'll see this will lift without issue:
+ *)
+Lift list vector in packed_list_rect as packed_vector_rect.
+
+(*
+ * Then we can write our proofs:
+ *)
+Module packed_list.
+
+Definition zip_length := hs_to_coq_lengths.zip_length_n.
+Definition zip_with_length := hs_to_coq_lengths.zip_with_length_n.
+
+Program Definition zip:
+  forall a b n,
+    { l1 : list a & length l1 = n } ->
+    { l2 : list b & length l2 = n } ->
+    { l3 : list (a * b) & length l3 = n }.
+Proof.
+  intros a b n pl1. apply packed_list_rect with (P := fun (pl1 : { l1 : list a & length l1 = n }) => { l2 : list b & length l2 = n } -> { l3 : list (a * b) & length l3 = n }).
+  - intros l H pl2. 
+    (* list function: *)
+    exists (hs_to_coq.zip a b l (projT1 pl2)). 
+    (* length invariant: *)
+    apply zip_length; auto. apply (projT2 pl2).
+  - apply pl1. 
+Defined.
+
+Program Definition zip_with:
+  forall A B C (f : A -> B -> C) n,
+    { l1 : list A & length l1 = n } ->
+    { l2 : list B & length l2 = n } ->
+    { l3 : list C & length l3 = n }.
+Proof.
+  intros A B C f n pl1. apply packed_list_rect with (P := fun (pl1 : {l1 : list A & length l1 = n}) => {l2 : list B & length l2 = n} -> {l3 : list C & length l3 = n}).
+  - intros l H pl2.
+    (* list function: *)
+    exists (hs_to_coq.zip_with A B C f l (projT1 pl2)).
+    (* length invariant: *)
+    apply zip_with_length; auto. apply (projT2 pl2).
+  - apply pl1.
+Defined.
+
+(*
+ * The length invariant here relates our _proofs_ of the
+ * above length invariants. Ouch! Luckily, for lists,
+ * we can just use UIP, since equality over natural numbers
+ * is decidable:
+ *)
+Lemma zip_with_is_zip :
+  forall A B n (pl1 : { l1 : list A & length l1 = n }) (pl2 : { l2 : list B & length l2 = n }),
+    zip_with A B (A * B) pair n pl1 pl2 = zip A B n pl1 pl2.
+Proof.
+  intros A B n pl1. 
+  apply packed_list_rect with (P := fun (pl1 : {l1 : list A & length l1 = n}) => forall pl2 : {l2 : list B & length l2 = n}, zip_with A B (A * B) pair n pl1 pl2 = zip A B n pl1 pl2). 
+  intros l  H pl2.
+  (* list proof: *)
+  apply EqdepFacts.eq_sigT_sig_eq.
+  exists (hs_to_coq.zip_with_is_zip A B l (projT1 pl2)).
+  (* length invariant: *)
+  apply (Eqdep_dec.UIP_dec Nat.eq_dec).
+Defined.
+(*
+ * NOTE ON UIP: In general, we may be able to avoid using UIP over the index
+ * using adjunction and coherence together to show that we do not duplicate equalities (credit to Jason Gross).
+ * There is also a coq-club thread about this with an alternative approach.
+ * This should hopefully work for any algebraic ornament.
+ * For now, if you do not have UIP on your index, you still run into
+ * the equalities of equalities problem at some point.
+ *
+ * I will update this file when we solve this problem.
+ *)
+
+End packed_list.
+
+(*
+ * Now we can get from that to packed_vector_rect:
+ *)
+Lift Module list vector in packed_list as packed_vector.
+
+Check packed_vector.zip.
+Check packed_vector.zip_with.
+Check packed_vector.zip_with_is_zip.
+
+(*
+ * Finally, we can get from that to unpacked vectors
+ * at the index we want very easily.
+ * For now, we do this part manually.
+ * There is WIP on automating this, and I will update
+ * this file when I do.
+ *)
+Module uf.
+
+Program Definition vector_pv:
+  forall (T : Type) (n : nat) (v : vector T n),
+    { s : sigT (vector T) & projT1 s = n }.
+Proof.
+  intros T n v. exists (existT _ n v). reflexivity.
+Defined.
+
+Program Definition pv_vector:
+  forall (T : Type) (n : nat) (pv : { s : sigT (vector T) & projT1 s = n }),
+    vector T n.
+Proof.
+  intros T n pv. apply (@eq_rect _ (projT1 (projT1 pv)) _  (projT2 (projT1 pv)) n (projT2 pv)).
+Defined.
+
+Program Definition zip:
+  forall {A B : Type} {n : nat},
+    vector A n ->
+    vector B n ->
+    vector (A * B) n.
+Proof.
+  intros A B n v1 v2. apply pv_vector. apply packed_vector.zip.
+  - apply (vector_pv A n v1).
+  - apply (vector_pv B n v2).
+Defined.
+
+Program Definition zip_with:
+  forall {A B C : Type} (f : A -> B -> C) {n : nat},
+    vector A n ->
+    vector B n ->
+    vector C n.
+Proof.
+  intros A B C f n v1 v2. apply pv_vector. apply (packed_vector.zip_with A B).
+  - apply f.
+  - apply (vector_pv A n v1).
+  - apply (vector_pv B n v2).
+Defined.
+
+(*
+ * The advantage of all of this is that our proof is trivial,
+ * whereas over normal vectors it can be painful to separate the
+ * data from the index:
+ *)
+Lemma zip_with_is_zip:
+  forall {A B : Type} (n : nat) (v1 : vector A n) (v2 : vector B n),
+    zip_with (@pair A B) v1 v2 = zip v1 v2.
+Proof.
+  intros A B n v1 v2.
+  pose proof (packed_vector.zip_with_is_zip A B n (vector_pv A n v1) (vector_pv B n v2)).
+  unfold zip_with, zip. f_equal. auto.
+Defined.
+
+End uf.
+(*
+ * NOTE: For this particular example, interestingly, doing these by hand
  * without DEVOID, it's possible to construct functions such that the proof
  * of zip_with_is_zipV_uf goes through by reflexivity. However, these
  * are not the analogues of the functions included in the hs_to_coq module
@@ -223,6 +358,6 @@ Defined.
  *)
 
 (* Client code can then call our functions and proofs, for example: *)
-
 Definition BVand' {n : nat} (v1 : vector bool n) (v2 : vector bool n) : vector bool n :=
-  zip_withV_uf andb v1 v2.
+  uf.zip_with andb v1 v2.
+
