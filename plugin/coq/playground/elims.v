@@ -116,7 +116,7 @@ Definition list_rect_eta_3 (A : Type) (P : sigT (vector A) -> Type)
 
 Lemma refold_cons:
   forall (A : Type) (P : sigT (vector A) -> Type) (l : list A) (a : A),
-    (list_to_t A (cons a l)) = existT (vector A) (S (list_to_t_index A l)) (consV A a (list_to_t_index A l) (projT2 (list_to_t A l))).
+    (list_to_t A (cons a l)) = existT (vector A) (S (length l)) (consV A a (length l) (projT2 (list_to_t A l))).
 Proof.
   reflexivity.
 Qed.
@@ -125,7 +125,7 @@ Definition list_rect_eta_4 (A : Type) (P : sigT (vector A) -> Type)
   (pnil : P (list_to_t A nil))
   (pcons : forall (a : A) (l : list A),
         P (list_to_t A l) ->
-        P (existT (vector A) (S (list_to_t_index A l)) (consV A a (list_to_t_index A l) (projT2 (list_to_t A l)))))
+        P (existT (vector A) (S (length l)) (consV A a (length l) (projT2 (list_to_t A l)))))
   (s : sigT (vector A)) :=
 @list_rect
   A
@@ -243,83 +243,6 @@ Abort.
 
 (* --- Unpacked equiv --- *)
 
-Definition pltv (T : Type) (n : nat) (pl : { l : list T & list_to_t_index T l = n }) : vector T n :=
-  @eq_rect 
-    nat
-    (list_to_t_index T (projT1 pl))
-    (vector T)
-    (list_rect
-      (fun l0 : list T => vector T (list_to_t_index T l0))
-      (nilV T)
-      (fun (a : T) (l0 : list T) (IHl : vector T (list_to_t_index T l0)) => 
-         consV T a (list_to_t_index T l0) IHl)
-      (projT1 pl))
-    n
-    (projT2 pl).  
-
-Definition vtl (T : Type) (n : nat) (v : vector T n) :=
-  VectorDef.t_rect 
-    T
-    (fun (n0 : nat) (_ : vector T n0) => {l : list T & list_to_t_index T l = n0})
-    (existT (fun l : list T => list_to_t_index T l = 0) nil eq_refl)
-    (fun (h : T) (n0 : nat) (_ : vector T n0) (IHv : {l : list T & list_to_t_index T l = n0}) =>
-      existT 
-        (fun l : list T => list_to_t_index T l = S n0) 
-        (h :: projT1 IHv)
-        (eq_ind_r (fun n1 : nat => S n1 = S n0) eq_refl (projT2 IHv)))
-    n
-    v.
-
-(*
- * Will want to simplify these, but here's the gist
- * (some help from Jason Gross: https://github.com/uwplse/ornamental-search/issues/39)
- *)
-Lemma pltv_section:
-  forall T n pl, vtl T n (pltv T n pl) = pl.
-Proof.
-  intros T. assert (forall (l : list T), vtl T (list_to_t_index T l) (pltv T (list_to_t_index T l) (existT _ l eq_refl)) = existT _ l eq_refl).
-  - induction l; intros.
-    + reflexivity.
-    + unfold pltv in IHl. unfold pltv. simpl in *. rewrite IHl. reflexivity.
-  - intros n pl. induction pl. specialize (H x). 
-    unfold pltv. simpl. rewrite <- p. apply H.
-Defined.
-
-(* ^ Term is so ugly, which may get in the way of generating; think about what lemmas we need *)
-
-Lemma pltv_retraction:
-  forall T n v, pltv T n (vtl T n v) = v.
-Proof.
-  induction v.
-  - reflexivity.
-  - unfold pltv. simpl. generalize dependent (vtl T n v). intros s H.
-    induction s. simpl. subst. simpl. reflexivity.
-Defined.
-
-Program Definition plist_rect : (* Give the list proof motive a dummy eq proof at eq_refl *)
-  forall (A : Type) (P : forall n : nat, { l : list A & list_to_t_index A l = n } -> Type),
-    P 0 (existT _ (@nil A) eq_refl) ->
-    (forall (h : A) (n : nat) (t : { l : list A & list_to_t_index A l = n }), P n t -> P (S n) (existT _ (@cons A h (projT1 t)) (f_equal S (projT2 t)))) ->
-    forall (n : nat) (t : { l : list A & list_to_t_index A l = n }), P n t.
-Proof.
-  intros. assert (forall (l : list A), P (list_to_t_index A l) (existT _ l eq_refl)).
-  - induction l. (* Proof about lists and their lengths *)
-    + apply X.
-    + apply (X0 a (list_to_t_index A l) (existT _ l eq_refl) IHl).
-  - induction t. rewrite <- p. apply X1. (* Rewrite to be the nice length *)
-Defined.
-
-Program Definition plist_easy_rect :
-  forall (A : Type) (P : list A -> Type) (n : nat) (Q : forall (n : nat) (l : list A), P l -> Type),
-    forall (list_proof : forall (l : list A), P l), (* list proof *)
-    forall (length_proof : forall (l : list A), list_to_t_index A l = n -> Q n l (list_proof l)), (* length proof *)
-    forall (pl : { l : list A & list_to_t_index A l = n }),
-      Q n (projT1 pl) (list_proof (projT1 pl)). (* packed proof *)
-Proof.
-  intros A P n Q list_proof length_proof pl.
-  apply (length_proof (projT1 pl) (projT2 pl)).
-Defined.
-
 (*
  * From Example.v:
  *)
@@ -356,28 +279,44 @@ End hs_to_coq'.
 
 Preprocess Module hs_to_coq' as hs_to_coq.
 
+(*
+ * Custom equivalence like lin ListToVectCustom.v so we can use the actual length
+ * function:
+ *)
+Definition ltv :=
+fun (A : Type) (l : list A) =>
+existT (fun H : nat => vector A H) (length l)
+  (list_rect (fun l0 : list A => vector A (length l0)) 
+     (Vector.nil A)
+     (fun (a : A) (l0 : list A)
+        (H : (fun (_ : nat) (l1 : list A) => vector A (length l1))
+               (length l0) l0) => Vector.cons A a (length l0) H) l).
+
+Save ornament list vector { promote = ltv }.
+
 Module Elims.
 
 (*
  * Attempt to find a good eliminator.
  * This is tricky because dependent rewriting breaks things when we lift later.
+ * This is a good eliminator to use:
  *)
 Theorem packed_list_rect:
-  forall (A : Type) (n : nat) (P : { l : list A & list_to_t_index A l = n } -> Type),
-    (forall (l : list A) (H : list_to_t_index A l = n), P (existT _ l H)) ->
+  forall (A : Type) (n : nat) (P : { l : list A & length l = n } -> Type),
+    (forall (l : list A) (H : length l = n), P (existT _ l H)) ->
     forall pl, P (existT _ (projT1 pl) (projT2 pl)).
 Proof.
   intros A n P pf pl. apply (pf (projT1 pl) (projT2 pl)).
 Defined.
 
 (* 
- * Lifting below would not work. We need pl to be eta expanded. TODO What is the formal
+ * OTOH, lifting below would not work. We need pl to be eta expanded. TODO What is the formal
  * reason for this? Look like something about dependent types and pattern matching.
  *)
 
 Theorem packed_list_rect_dep:
-  forall (A : Type) (n : nat) (P : { l : list A & list_to_t_index A l = n } -> Type),
-    (forall (l : list A) (H : list_to_t_index A l = n), P (existT _ l H)) ->
+  forall (A : Type) (n : nat) (P : { l : list A & length l = n } -> Type),
+    (forall (l : list A) (H : length l = n), P (existT _ l H)) ->
     forall pl, P pl.
 Proof.
   intros A n P pf pl. induction pl. apply (packed_list_rect A n P pf (existT _ x p)).
@@ -389,7 +328,7 @@ Defined.
 
 End Elims.
 
-Preprocess Module Elims as Elims' { opaque list_to_t_index sigT_rect projT1 projT2 }.
+Preprocess Module Elims as Elims' { opaque length sigT_rect projT1 projT2 }.
 
 Print list_rect.
 Print sigT_rect.
@@ -399,8 +338,8 @@ Module index.
 
 Lemma zip_index':
   forall {a} {b} (l1 : list a) (l2 : list b),
-    list_to_t_index _ l1 = list_to_t_index _ l2 ->
-    list_to_t_index _ (hs_to_coq.zip a b l1 l2) = list_to_t_index _ l1.
+    length l1 = length l2 ->
+    length (hs_to_coq.zip a b l1 l2) = length l1.
 Proof.
   induction l1, l2; intros; auto; inversion H.
   simpl. f_equal. auto.
@@ -408,17 +347,17 @@ Defined.
 
 Lemma zip_index_n':
   forall {a} {b} (n : nat) (l1 : list a) (l2 : list b),
-    list_to_t_index _ l1 = n ->
-    list_to_t_index _ l2 = n ->
-    list_to_t_index _ (hs_to_coq.zip a b l1 l2) = n.
+    length l1 = n ->
+    length l2 = n ->
+    length (hs_to_coq.zip a b l1 l2) = n.
 Proof.
   intros. rewrite <- H. apply zip_index'. eapply eq_trans; eauto. 
 Defined.
 
 Lemma zip_with_index':
   forall A B C f (l1 : list A) (l2 : list B),
-    list_to_t_index _ l1 = list_to_t_index _ l2 ->
-    list_to_t_index _ (hs_to_coq.zip_with A B C f l1 l2) = list_to_t_index _ l1.
+    length l1 = length l2 ->
+    length (hs_to_coq.zip_with A B C f l1 l2) = length l1.
 Proof.
   induction l1, l2; intros; auto; inversion H.
   simpl. f_equal. auto.
@@ -426,9 +365,9 @@ Defined.
 
 Lemma zip_with_index_n':
   forall A B C f (n : nat) (l1 : list A) (l2 : list B),
-    list_to_t_index _ l1 = n ->
-    list_to_t_index _ l2 = n ->
-    list_to_t_index _ (hs_to_coq.zip_with A B C f l1 l2) = n.
+    length l1 = n ->
+    length l2 = n ->
+    length (hs_to_coq.zip_with A B C f l1 l2) = n.
 Proof.
   intros. rewrite <- H. apply zip_with_index'. eapply eq_trans; eauto.
 Defined.
@@ -446,11 +385,11 @@ Definition zip_with_index_n := index'.zip_with_index_n'.
 
 Program Definition zip_pl:
   forall a b n,
-    { l1 : list a & list_to_t_index a l1 = n } ->
-    { l2 : list b & list_to_t_index b l2 = n } ->
-    { l3 : list (a * b) & list_to_t_index (a * b) l3 = n }.
+    { l1 : list a & length l1 = n } ->
+    { l2 : list b & length l2 = n } ->
+    { l3 : list (a * b) & length l3 = n }.
 Proof.
-  intros a b n pl1. apply Elims'.packed_list_rect with (A := a) (n := n) (P := fun (pl1 : { l1 : list a & list_to_t_index a l1 = n }) => { l2 : list b & list_to_t_index b l2 = n } -> { l3 : list (a * b) & list_to_t_index (a * b) l3 = n }).
+  intros a b n pl1. apply Elims'.packed_list_rect with (A := a) (n := n) (P := fun (pl1 : { l1 : list a & length l1 = n }) => { l2 : list b & length l2 = n } -> { l3 : list (a * b) & length l3 = n }).
   - intros l H pl2. 
     (* list function: *)
     exists (hs_to_coq.zip a b l (projT1 pl2)). 
@@ -461,11 +400,11 @@ Defined.
 
 Program Definition zip_with_pl:
   forall A B C (f : A -> B -> C) n,
-    { l1 : list A & list_to_t_index A l1 = n } ->
-    { l2 : list B & list_to_t_index B l2 = n } ->
-    { l3 : list C & list_to_t_index C l3 = n }.
+    { l1 : list A & length l1 = n } ->
+    { l2 : list B & length l2 = n } ->
+    { l3 : list C & length l3 = n }.
 Proof.
-  intros A B C f n pl1. apply Elims'.packed_list_rect with (A := A) (n := n) (P := fun (pl1 : {l1 : list A & list_to_t_index A l1 = n}) => {l2 : list B & list_to_t_index B l2 = n} -> {l3 : list C & list_to_t_index C l3 = n}).
+  intros A B C f n pl1. apply Elims'.packed_list_rect with (A := A) (n := n) (P := fun (pl1 : {l1 : list A & length l1 = n}) => {l2 : list B & length l2 = n} -> {l3 : list C & length l3 = n}).
   - intros l H pl2.
     (* list function: *)
     exists (hs_to_coq.zip_with A B C f l (projT1 pl2)).
@@ -477,11 +416,11 @@ Defined.
 From Coq Require Import Eqdep_dec Arith.
 
 Lemma zip_with_is_zip_pl :
-  forall A B n (pl1 : { l1 : list A & list_to_t_index A l1 = n }) (pl2 : { l2 : list B & list_to_t_index B l2 = n }),
+  forall A B n (pl1 : { l1 : list A & length l1 = n }) (pl2 : { l2 : list B & length l2 = n }),
     zip_with_pl A B (A * B) pair n pl1 pl2 = zip_pl A B n pl1 pl2.
 Proof.
   intros A B n pl1. 
-  apply Elims'.packed_list_rect with (A := A) (n := n) (P := fun (pl1 : {l1 : list A & list_to_t_index A l1 = n}) => forall pl2 : {l2 : list B & list_to_t_index B l2 = n}, zip_with_pl A B (A * B) pair n pl1 pl2 = zip_pl A B n pl1 pl2). 
+  apply Elims'.packed_list_rect with (A := A) (n := n) (P := fun (pl1 : {l1 : list A & length l1 = n}) => forall pl2 : {l2 : list B & length l2 = n}, zip_with_pl A B (A * B) pair n pl1 pl2 = zip_pl A B n pl1 pl2). 
   intros l  H pl2.
   (* list proof: *)
   apply EqdepFacts.eq_sigT_sig_eq.
@@ -500,6 +439,56 @@ Lift Module list vector in PL' as PV.
 Print PV.zip_pl. (* <-- TODO!!! some reduction is not done *)
 Print PV.zip_with_pl. (* <-- TODO!!! some reduction is not done *)
 Print PV.zip_with_is_zip_pl. (* <-- TODO!!! some reduction is not done *)
+
+(* For now, we do this part manually. Later, we'll lift automatically (TODO): *)
+
+Program Definition vector_pv:
+  forall (T : Type) (n : nat) (v : vector T n),
+    { s : sigT (vector T) & projT1 s = n }.
+Proof.
+  intros T n v. exists (existT _ n v). reflexivity.
+Defined.
+
+Program Definition pv_vector:
+  forall (T : Type) (n : nat) (pv : { s : sigT (vector T) & projT1 s = n }),
+    vector T n.
+Proof.
+  intros T n pv. apply (@eq_rect _ (projT1 (projT1 pv)) _  (projT2 (projT1 pv)) n (projT2 pv)).
+Defined.
+
+Program Definition zipV:
+  forall {A B : Type} (n : nat),
+    vector A n ->
+    vector B n ->
+    vector (A * B) n.
+Proof.
+  intros A B n v1 v2. apply pv_vector. apply PV.zip_pl.
+  - apply (vector_pv A n v1).
+  - apply (vector_pv B n v2).
+Defined.
+
+Program Definition zipV_with:
+  forall {A B C : Type} (f : A -> B -> C) (n : nat),
+    vector A n ->
+    vector B n ->
+    vector C n.
+Proof.
+  intros A B C f n v1 v2. apply pv_vector. apply (PV.zip_with_pl A B).
+  - apply f.
+  - apply (vector_pv A n v1).
+  - apply (vector_pv B n v2).
+Defined.
+
+Lemma zip_with_is_zipV:
+  forall {A B : Type} (n : nat) (v1 : vector A n) (v2 : vector B n),
+    zipV_with (@pair A B) n v1 v2 = zipV n v1 v2.
+Proof.
+  intros A B n v1 v2.
+  pose proof (PV.zip_with_is_zip_pl A B n (vector_pv A n v1) (vector_pv B n v2)).
+  unfold zipV_with, zipV. f_equal. auto.
+Defined.
+
+(* TODO what are the ideal induction principles here? *)
 
 (* --- What about splitting constructors? --- *)
 
