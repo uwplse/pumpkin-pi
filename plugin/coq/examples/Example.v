@@ -339,6 +339,8 @@ End uf.
  * (note that the proof using reflexivity does not work for them either).
  *)
 
+(* --- Interface --- *)
+
 (* Client code can then call our functions and proofs, for example: *)
 Definition BVand' {n : nat} (v1 : vector bool n) (v2 : vector bool n) : vector bool n :=
   uf.zip_with andb v1 v2.
