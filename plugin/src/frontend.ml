@@ -54,7 +54,7 @@ let define_print ?typ n trm sigma =
     def
   with Evarutil.Uninstantiated_evar _ ->
     CErrors.user_err (str "DEVOID does not fully support implicit arguments")
-                      
+
 (* --- Commands --- *)
 
 (*
@@ -115,10 +115,9 @@ let maybe_find_smart_elims n inv_n : unit =
     let (promote, forget) = map_tuple make_constant (n, inv_n) in
     let sigma, l = initialize_lifting_provided env sigma promote forget in
     let sigma, elims = find_smart_elims l env sigma in
-    let open Printing in
-    debug_terms env elims "elims";
-    (* TODO name, define, and maybe automatically lift, test inc. with indices in A and custom stuff *)
-    ()
+    List.iter
+      (fun (n, trm, typ) -> ignore (define_print ~typ:typ n trm sigma))
+      elims
   else
     ()
 

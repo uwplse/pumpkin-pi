@@ -3,6 +3,7 @@ open Evd
 open Constr
 open Stateutils
 open Lifting
+open Names
 
 (*
  * If the appropriate option is set, DEVOID generates useful "smart eliminators"
@@ -17,4 +18,4 @@ open Lifting
  * Generate the list of smart eliminators
  *)
 val find_smart_elims :
-  lifting -> env -> evar_map -> (constr list) state
+  lifting -> env -> evar_map -> ((Id.t * constr * types) list) state

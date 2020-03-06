@@ -156,26 +156,21 @@ Preprocess Module hs_to_coq_lengths' as hs_to_coq_lengths.
 (*
  * Once we have the length proofs, we write the proofs
  * about { l : list T & length l = n }. To do this,
- * it's useful to have a nice induction principle:
+ * it's useful to have a nice induction principle,
+ * which DEVOID generated since we set the "smart elims" option
+ * (the name of this will always be the name of your promote function
+ * followed by _rect):
  *)
-Definition packed_list_rect T :=
-  packed_rect (list T) (@length T) id (fun _ _ => id).
-
+Definition packed_list_rect := hs_to_coqV_p.list_to_t_rect.
+Check packed_list_rect.
 (*
- * NOTE: packed_rect is provided by DEVOID. Right now, lifting
- * makes some assumptions about the induction principle that you
- * use here. Try not to run "induction" on terms of type
+ * TECHNICAL NOTE: DEVOID for now makes some assumptions
+ * about the format here. Try not to run "induction" on terms of type
  * { l : list T & length l = n } directly, and instead try to 
  * use this induction principle. I'm working on relaxing this
- * assumption and understanding more about it. But in particular,
- * the extra functions id (lifts to eta expansion for sigma types)
- * and (fun _ _ => id) (lifts to something like coherence) are necessary.
- *
- * For now, just copy and paste that induction principle.
- * I will automatically generate it soon.
- * Then you'll see this will lift without issue:
+ * assumption and understanding more about it. It has to do with
+ * preserving definitional equalities when we lift.
  *)
-Lift list vector in packed_list_rect as packed_vector_rect.
 
 (*
  * Then we can write our proofs. Now note how everything here
@@ -236,7 +231,7 @@ Proof.
   apply (Eqdep_dec.UIP_dec Nat.eq_dec).
 Defined.
 (*
- * NOTE ON UIP: In general, we may be able to avoid using UIP over the index
+ * TECHNICAL NOTE: In general, we may be able to avoid using UIP over the index
  * using adjunction and coherence together to show that we do not duplicate equalities (credit to Jason Gross).
  * There is also a coq-club thread about this with an alternative approach.
  * This should hopefully work for any algebraic ornament.
@@ -318,7 +313,7 @@ Defined.
 
 End uf.
 (*
- * NOTE: For this particular example, interestingly, doing these by hand
+ * TECHNICAL NOTE: For this particular example, interestingly, doing these by hand
  * without DEVOID, it's possible to construct functions such that the proof
  * of zip_with_is_zipV_uf goes through by reflexivity. However, these
  * are not the analogues of the functions included in the hs_to_coq module
