@@ -66,6 +66,12 @@ Set DEVOID search prove equivalence.
 Set DEVOID lift type.
 
 (*
+ * This option tells DEVOID to generate an induction principle that
+ * will be useful later:
+ *)
+Set DEVOID search smart eliminators.
+
+(*
  * You can run "Find ornament" manually if you'd like (see the ITP
  * release if interested, or Search.v for a detailed example), but
  * it also runs automatically nowadays when you lift. So you can

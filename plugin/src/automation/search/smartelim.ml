@@ -1,3 +1,20 @@
+open Lifting
+open Promotion
+open Libnames
+open Constr
+open Nametab
+open Apputils
+open Reducers
+open Zooming
+open Environ
+open Envutils
+open Debruijn
+open Idutils
+open Sigmautils
+open Names
+open Utilities
+open Equtils
+
 (*
  * If the appropriate option is set, DEVOID generates useful "smart eliminators"
  * in addition to the equivalences it discovers. For example, for algebraic
@@ -7,8 +24,48 @@
  * unpacked B.
  *)
 
+(* --- Constants --- *)
+
+let packed_rect () =
+  let n = qualid_of_string "Ornamental.Eliminators.packed_rect" in
+  mkConst (locate_constant n)
+
+(* --- Procedure --- *)
+
 (*
  * Generate the list of smart eliminators
  *)
 let find_smart_elims l env sigma =
-  sigma, []
+  match l.orn.kind with
+  | Algebraic (indexer, _) ->
+     let sigma, promote_typ = reduce_type env sigma (lift_to l) in
+     let env_a, b_typ = zoom_product_type env promote_typ in
+     let sigma, a_typ = reduce_type env_a sigma (mkRel 1) in
+     let env_args = pop_rel_context 1 env_a in
+     let body =
+       let f = packed_rect () in
+       let args =
+         let a_typ = unshift a_typ in
+         let b_typ = unshift b_typ in
+         let i_b_typ = (dest_sigT b_typ).index_type in
+         let a_args = unfold_args a_typ in
+         let indexer_app = mkAppl (indexer, a_args) in
+         let id_app = mkAppl (id_typ, [a_typ]) in
+         let coh_app =
+           let push_anon typ = push_local (Anonymous, typ) in
+           let env_a = push_anon (shift a_typ) (push_anon i_b_typ env_args) in
+           let eq =
+             let a_args = shift_all_by 2 a_args in
+             let at_type = shift_by 2 i_b_typ in
+             let trm1 = mkAppl (indexer, snoc (mkRel 1) a_args) in
+             let trm2 = mkRel 2 in
+             apply_eq { at_type; trm1; trm2 }
+           in 
+           let env_coh = push_anon eq env_a in
+           let body_coh = mkAppl (id_typ, [shift eq]) in
+           reconstruct_lambda_n env_coh body_coh (nb_rel env_args)
+         in [a_typ; i_b_typ; indexer_app; id_app; coh_app]
+       in mkAppl (f, args)
+     in sigma, [reconstruct_lambda env_args body]
+  | _ ->
+     sigma, []
