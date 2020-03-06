@@ -142,4 +142,5 @@ src/ornaments.mlpack
 theories/Adjoint.v
 theories/Unpack.v
 theories/Prod.v
+theories/Eliminators.v
 theories/Ornaments.v

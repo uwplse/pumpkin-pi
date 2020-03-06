@@ -152,22 +152,21 @@ Preprocess Module hs_to_coq_lengths' as hs_to_coq_lengths.
  * about { l : list T & length l = n }. To do this,
  * it's useful to have a nice induction principle:
  *)
-Theorem packed_list_rect:
-  forall (A : Type) (n : nat) (P : { l : list A & length l = n } -> Type),
-    (forall (l : list A) (H : length l = n), P (existT _ l H)) ->
-    forall pl, P (existT _ (projT1 pl) (projT2 pl)).
-Proof.
-  intros A n P pf pl. apply (pf (projT1 pl) (projT2 pl)).
-Defined.
+Definition packed_list_rect T :=
+  packed_rect (list T) (@length T) id (fun _ _ => id).
 
 (*
- * NOTE: Right now, lifting doesn't work nicely if you don't
- * eta-expand pl in the conclusion. So you should not use
- * sigT_eta, sigT_rect, and so on to get a conclusion of the
- * form (P pl). I'm working on relaxing this assumption
- * and understanding more about it.
+ * NOTE: packed_rect is provided by DEVOID. Right now, lifting
+ * makes some assumptions about the induction principle that you
+ * use here. Try not to run "induction" on terms of type
+ * { l : list T & length l = n } directly, and instead try to 
+ * use this induction principle. I'm working on relaxing this
+ * assumption and understanding more about it. But in particular,
+ * the extra functions id (lifts to eta expansion for sigma types)
+ * and (fun _ _ => id) (lifts to something like coherence) are necessary.
  *
  * For now, just copy and paste that induction principle.
+ * I will automatically generate it soon.
  * Then you'll see this will lift without issue:
  *)
 Lift list vector in packed_list_rect as packed_vector_rect.
@@ -240,7 +239,6 @@ Defined.
  *
  * I will update this file when we solve this problem.
  *)
-
 End packed_list.
 
 (*
@@ -250,6 +248,7 @@ Lift Module list vector in packed_list as packed_vector.
 
 Check packed_vector.zip.
 Check packed_vector.zip_with.
+Lift list vector in packed_list.zip_with_is_zip as test.
 Check packed_vector.zip_with_is_zip.
 
 (*
