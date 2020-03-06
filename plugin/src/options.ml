@@ -32,6 +32,21 @@ let _ = Goptions.declare_bool_option {
 let is_search_equiv () = !opt_search_equiv
 
 (*
+ * Generate useful eliminators in addition to the discovered equivalence
+ * (disabled by default)
+ *)
+let opt_smart_elim = ref (false)
+let _ = Goptions.declare_bool_option {
+  Goptions.optdepr = false;
+  Goptions.optname = "Generate useful eliminators for DEVOID";
+  Goptions.optkey = ["DEVOID"; "search"; "smart"; "eliminators"];
+  Goptions.optread = (fun () -> !opt_smart_elim);
+  Goptions.optwrite = (fun b -> opt_smart_elim := b);
+}
+
+let is_smart_elim () = !opt_smart_elim
+
+(*
  * Lift the type as well, rather than using the automatically inferred type
  * (disabled by default)
  *)

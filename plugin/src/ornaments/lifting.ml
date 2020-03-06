@@ -2,10 +2,8 @@
  * Datatypes for promotions and lifting
  *)
 
-open Declarations
 open Utilities
 open Constr
-open Environ
 open Apputils
 open Sigmautils
 open Typehofs
@@ -13,15 +11,10 @@ open Zooming
 open Envutils
 open Hofimpls
 open Caching
-open Funutils
 open Inference
-open Promotion
 open Indexing
 open Ornerrors
 open Stateutils
-open Reducers
-open Debruijn
-open Search
 open Promotion
 
 (* --- Datatypes --- *)

@@ -53,12 +53,12 @@ Differencing
 
 Options
 
+Depelim
+Unpack
+
 Search
 Coherence
 Equivalence
-Depelim
-Desugar
-Unpack
 
 Liftconfig
 Liftrules

@@ -14,7 +14,6 @@ open Substitution
 open Factoring
 open Zooming
 open Abstraction
-open Promotion
 open Declarations
 open Util
 open Differencing

@@ -15,6 +15,7 @@
 -I src/components
 -I src/lib
 -I src/automation
+-I src/automation/search
 -I src/automation/lift
 -I src
 -R theories Ornamental
@@ -116,16 +117,17 @@ src/components/differencing.mli
 src/options.ml
 src/options.mli
 
-src/automation/search.ml
-src/automation/search.mli
-src/automation/coherence.ml
-src/automation/coherence.mli
-src/automation/equivalence.ml
-src/automation/equivalence.mli
 src/automation/depelim.ml
 src/automation/depelim.mli
 src/automation/unpack.ml
 src/automation/unpack.mli
+
+src/automation/search/search.ml
+src/automation/search/search.mli
+src/automation/search/coherence.ml
+src/automation/search/coherence.mli
+src/automation/search/equivalence.ml
+src/automation/search/equivalence.mli
 
 src/automation/lift/liftconfig.ml
 src/automation/lift/liftconfig.mli

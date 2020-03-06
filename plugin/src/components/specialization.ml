@@ -17,7 +17,6 @@ open Sigmautils
 open Envutils
 open Stateutils
 open Desugarprod
-open Ornerrors
 open Promotion
 open Evarutil
 open Evarconv

@@ -15,14 +15,12 @@ open Names
 open Caching
 open Declarations
 open Specialization
-open Inference
 open Typehofs
 open Indutils
 open Apputils
 open Reducers
 open Envutils
 open Funutils
-open Constutils
 open Stateutils
 open Hofs
 open Desugarprod
