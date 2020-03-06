@@ -248,7 +248,6 @@ Lift Module list vector in packed_list as packed_vector.
 
 Check packed_vector.zip.
 Check packed_vector.zip_with.
-Lift list vector in packed_list.zip_with_is_zip as test.
 Check packed_vector.zip_with_is_zip.
 
 (*
