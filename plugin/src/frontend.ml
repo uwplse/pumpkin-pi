@@ -27,6 +27,7 @@ open Pretype_errors
 open Promotion
 open Deltautils
 open Funutils
+open Smartelim
 
 (* --- Utilities --- *)
 
@@ -102,6 +103,19 @@ let maybe_prove_equivalence n inv_n : unit =
       let (sigma, adjunction) = prove_adjunction env pre_adj sigma in
       define_proof "adjunction" sigma adjunction
     in ()
+  else
+    ()
+
+(*
+ * If the option is enabled, generate smart eliminators
+ *)
+let maybe_find_smart_elims n inv_n : unit =
+  if is_smart_elim () then
+    let sigma, env = refresh_env () in
+    let (promote, forget) = map_tuple make_constant (n, inv_n) in
+    let sigma, l = initialize_lifting_provided env sigma promote forget in
+    let sigma, elims = find_smart_elims l env sigma in
+    ()
   else
     ()
 
@@ -194,6 +208,7 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
     in
     maybe_prove_coherence n inv_n orn.kind;
     maybe_prove_equivalence n inv_n;
+    maybe_find_smart_elims n inv_n;
     (try
        save_ornament (trm_o, trm_n) (promote, forget, orn.kind)
      with _ ->

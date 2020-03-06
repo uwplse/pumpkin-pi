@@ -128,6 +128,8 @@ src/automation/search/coherence.ml
 src/automation/search/coherence.mli
 src/automation/search/equivalence.ml
 src/automation/search/equivalence.mli
+src/automation/search/smartelim.ml
+src/automation/search/smartelim.mli
 
 src/automation/lift/liftconfig.ml
 src/automation/lift/liftconfig.mli
