@@ -1,5 +1,9 @@
 (*
- * Section 2 Example
+ * Section 2 Example from the ITP paper.
+ *
+ * NOTE: This has changed a lot since the ITP paper! I have updated this file
+ * to reflect the latest automation. To see the original ITP version,
+ * take a look at the state of this file in the ITP release.
  *)
 
 Add LoadPath "coq/examples".
@@ -72,10 +76,7 @@ Set DEVOID lift type.
 Set DEVOID search smart eliminators.
 
 (*
- * You can run "Find ornament" manually if you'd like (see the ITP
- * release if interested, or Search.v for a detailed example), but
- * it also runs automatically nowadays when you lift. So you can
- * just skip straight to lifting:
+ * We can then lift our entire module (search runs automatically):
  *)
 Lift Module list vector in hs_to_coq as hs_to_coqV_p.
 
@@ -91,12 +92,9 @@ Check zip_with_is_zipV_p.
 (* --- Unpack --- *)
 
 (*
- * We could use the "Unpack" command as shown in the paper
- * to get default types over unpacked vectors. In practice,
- * though, it helps to use a different methodology to unpack
- * that we've designed since the ITP paper. If you want to use 
- * the "Unpack" command, check the ITP release of this file for 
- * an example.
+ * Now we have proofs about sigT (vector T), but we want proofs about
+ * vector T n. So now we can use a methodology to get from lists to
+ * these proofs.
  *
  * The intuition for this methodology is that while list T is equivalent to sigT (vector T),
  * for any n, { l : list T & length l = n } lifts to equivalent
@@ -107,7 +105,7 @@ Check zip_with_is_zipV_p.
  *
  * However, writing proofs about { l : list T & length l = n } isn't
  * in itself straightforward, so we break this up into parts and use
- * a nice custom eliminator to make this easier. WIP on automating this.
+ * a nice custom eliminator to make this easier.
  *
  * Let's start by proving the length invariants:
  *)
