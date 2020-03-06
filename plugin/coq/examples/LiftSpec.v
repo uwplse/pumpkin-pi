@@ -6,7 +6,8 @@ Add LoadPath "coq/examples".
 Require Import Vector.
 Require Import List.
 Require Import Ornamental.Ornaments.
-Require Import Example. (* includes our ornament *)
+Require Import Search. (* <-- includes our ornament *)
+Require Import Example. (* <-- includes our functions  *)
 
 (* syntax to match paper *)
 Notation vector := Vector.t.
