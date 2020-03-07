@@ -241,22 +241,30 @@ Lift A B in f as g.
 You can also run `Preprocess` on an entire module; see [ListToVect.v](/plugin/coq/examples/ListToVect.v)
 for an example of this.
 
-##### Unpack
+##### User-Friendly Types
 
-To recover a slightly more user-friendly type for a lifted term `g`, run:
+When lifting across algebraic ornaments, to recover a slightly more user-friendly type for a lifted term `g`
+with very little extra work, run:
 
 ```
 Unpack g as g_u.
 ```
 
-##### User-Friendly Types
-
 The type after `Unpack` still may not be very user-friendly.
-[Example.v](/plugin/coq/examples/Example.v) describes how to recover
-even more user-friendly types for lifted terms.
+If you would like to put in a little more work to get back types
+that are very user friendly, check out the methodology in
+[Example.v](/plugin/coq/examples/Example.v). The key is to
+set the following option:
 
-For the status of a general methodology for this,
-see [GitHub issue #39](http://github.com/uwplse/ornamental-search/issues/39).
+```
+Set DEVOID search smart eliminators.
+```
+
+This generates a useful induction principle that makes it much easier to get from
+your unlifted type A to B at a particular index, with much nicer type signatures.
+
+There is more work in progress to make this even more automatic than it currently is.
+The file above will be updated as more automation becomes available.
 
 ### Assumptions
 
@@ -278,6 +286,11 @@ Please see our GitHub [issues](https://github.com/uwplse/ornamental-search/issue
 One outstanding issue (an unimplemented optimization) has consequences for how we lift and unpack large
 constants compositionally. For now, for large constants, you should prefer lifting several times and then unpacking
 the result several times over iteratively lifting and unpacking. See [this issue](https://github.com/uwplse/ornamental-search/issues/44).
+
+There are also still some open questions about eta expansion and definitional equality. Practically, from a user's perspective,
+that means that lifting may sometimes fail with mysterious type errors for types that look almost but not quite correct.
+Rest assured, we are working on fixing this, or at the least understanding why it happens well enough to significantly improve
+error messaging and rule out invalid inputs.
 
 # Examples
 
@@ -480,12 +493,10 @@ Please also feel free to ask if you are confused about anything that the code do
     - [coq-plugin-lib](/plugin/src/coq-plugin-lib): [Coq plugin library](https://github.com/uwplse/coq-plugin-lib)
     - [lib](/plugin/src/lib): Internal library
     - [automation](/plugin/src/automation): Automation directory
-      - [coherence.ml](/plugin/src/automation/coherence.ml) and [coherence.mli](/plugin/src/automation/coherence.mli): **Proving coherence**
-      - [equivalence.ml](/plugin/src/automation/equivalence.ml) and [equivalence.mli](/plugin/src/automation/equivalence.mli): **Proving section and retraction**
-      - [eta.ml](/plugin/src/automation/eta.ml) and [eta.mli](/plugin/src/automation/eta.mli): Automation for non-primitive projections
-      - [search.ml](/plugin/src/automation/search.ml) and [search.mli](/plugin/src/automation/search.mli): **Searching for ornaments**
-      - [lift](/plugin/src/automation/lift): **Lifting terms**
+      - [search](/plugin/src/automation/search): **Search**
+      - [lift](/plugin/src/automation/lift): **Lifting**
       - [unpack.ml](/plugin/src/automation/unpack.ml) and [unpack.mli](/plugin/src/automation/unpack.mli): Converting the unpacking tactic to a command
+      - [depelim.ml](/plugin/src/automation/depelim.ml) and [depelim.mli](/plugin/src/automation/depelim.mli): Automation for non-primitive projections
     - [cache](/plugin/src/cache): Caching ornaments and lifted terms
       - [caching.ml](/plugin/src/cache/caching.ml) and [caching.mli](/plugin/src/cache/caching.mli)
     - [components](/plugin/src/components): Components in the style of [PUMPKIN PATCH](http://tlringer.github.io/pdf/pumpkinpaper.pdf)
@@ -501,6 +512,7 @@ Please also feel free to ask if you are confused about anything that the code do
   - [theories](/plugin/theories): DEVOID theories
     - [Adjoint.v](/plugin/theories/Adjoint.v): Turning equivalences into adjoint equivalences
     - [Prod.v](/plugin/theories/Prod.v): Preprocessed projections of pairs
+    - [Eliminators.v](/plugin/theories/Eliminators.v): **Generalized smart eliminators for user-friendly types**
     - [Ornaments.v](/plugin/theories/Ornaments.v): Loader theory for DEVOID
     - [Unpack.v](/plugin/theories/Unpack.v): **Unpacking terms** (Ltac tactic)
 * [.gitignore](/.gitignore)
