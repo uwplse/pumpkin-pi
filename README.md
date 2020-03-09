@@ -239,7 +239,8 @@ Lift A B in f as g.
 ```
 
 You can also run `Preprocess` on an entire module; see [ListToVect.v](/plugin/coq/examples/ListToVect.v)
-for an example of this.
+for an example of this. See the [fix-to-elim](https://github.com/uwplse/coq-plugin-lib) plugin
+for more functionality for `Preprocess`.
 
 ##### User-Friendly Types
 
