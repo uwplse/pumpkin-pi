@@ -20,13 +20,7 @@ Notation vcons := Vector.cons.
 
 Preprocess Module List as List' { opaque (* ignore these: *)
   (* dependent elimination only: *)
-  RelationClasses.StrictOrder_Transitive
-  RelationClasses.StrictOrder_Irreflexive
-  RelationClasses.Equivalence_Symmetric
-  RelationClasses.Equivalence_Transitive
-  RelationClasses.PER_Symmetric
-  RelationClasses.PER_Transitive
-  RelationClasses.Equivalence_Reflexive
+  RelationClasses
   (* proofs about these match over the above opaque terms, and would fail: *)
   Nat.add
   Nat.sub
