@@ -258,20 +258,19 @@ Check packed_vector.zip_with_is_zip.
  *)
 Module uf.
 
-Program Definition vector_pv:
-  forall (T : Type) (n : nat) (v : vector T n),
-    { s : sigT (vector T) & projT1 s = n }.
-Proof.
-  intros T n v. exists (existT _ n v). reflexivity.
-Defined.
+(*
+ * This is provided in theories/Equivalences.v, and will be automatically instantiated
+ * by DEVOID soon. For now, instantiate it yourself:
+ *)
+Definition vector_pv (T : Type) := unpack_generic nat (vector T).
+Definition pv_vector (T : Type) := unpack_generic_inv nat (vector T).
+Definition vector_pv_section (T : Type) := unpack_generic_section nat (vector T).
+Definition vector_pv_retraction (T : Type) := unpack_generic_retraction nat (vector T).
 
-Program Definition pv_vector:
-  forall (T : Type) (n : nat) (pv : { s : sigT (vector T) & projT1 s = n }),
-    vector T n.
-Proof.
-  intros T n pv. apply (@eq_rect _ (projT1 (projT1 pv)) _  (projT2 (projT1 pv)) n (projT2 pv)).
-Defined.
-
+(*
+ * Lifting along this equivalence will soon be automated, but for now apply
+ * the above functions by hand:
+ *)
 Program Definition zip:
   forall {A B : Type} {n : nat},
     vector A n ->
