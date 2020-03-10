@@ -257,9 +257,12 @@ Check packed_vector.zip_with_is_zip.
 Module uf.
 
 (*
- * We first automatically find another ornament:
+ * We first automatically find another ornament
+ * (in order to cache this ornament, DEVOID needs the first argument
+ * to be a constant).
  *)
-Find ornament (fun T n => { s : sigT (vector T) & projT1 s = n}) vector as unpack_vector.
+Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
+Find ornament packed vector as unpack_vector.
 (*
  * Lifting along this equivalence will soon be automated, but for now apply
  * the above functions by hand:

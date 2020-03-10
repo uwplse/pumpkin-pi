@@ -264,6 +264,8 @@ let int_to_kind (i : int) globals =
   else if i = 2 then
     let swap_map = OrnamentsCache.find swap_cache globals in
     SwapConstruct swap_map
+  else if i = 3 then
+    UnpackSigma
   else
     failwith "Unsupported kind of ornament passed to interpret_kind in caching"
 
@@ -275,6 +277,8 @@ let kind_to_int (k : kind_of_orn) =
      1
   | SwapConstruct _ ->
      2
+  | UnpackSigma ->
+     3
              
 (*
  * Wrapping the table for persistence
@@ -383,12 +387,16 @@ let save_ornament typs (orn, orn_inv, kind) =
        let indexer = global_of_constr indexer in
        let ind_obj = inIndexers (globals, (indexer, off)) in
        add_anonymous_leaf ind_obj
-    | CurryRecord ->
-       ()
     | SwapConstruct swap_map ->
        let ind_obj = inSwaps (globals, swap_map) in
        add_anonymous_leaf ind_obj
+    | CurryRecord | UnpackSigma ->
+       ()
   with _ ->
-    Feedback.msg_warning (Pp.str "Failed to cache ornament")
+    Feedback.msg_warning
+      (Pp.seq
+         [Pp.str "Failed to cache ornament. ";
+          Pp.str "Please try definining your types as constants, ";
+          Pp.str "and passing those constants to `Find ornament` instead."])
  
 
