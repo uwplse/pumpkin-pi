@@ -17,6 +17,7 @@ type kind_of_orn =
   | Algebraic of constr * int
   | CurryRecord
   | SwapConstruct of (int * int) list
+  | UnpackSigma
 
 (*
  * An ornamental promotion is a function from T1 -> T2,

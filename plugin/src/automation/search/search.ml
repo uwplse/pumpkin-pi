@@ -878,8 +878,12 @@ let search_curry_record env_pms sigma promote_o forget_o a b =
 
 (* --- Unpack sigma --- *)
 
-let search_unpack env_pms sigma promote_o forget_o b_sig_eq b =
+let find_promote_forget_unpack env_pms promote_o forget_o b_sig_eq b sigma =
   failwith "WIP"
+           
+let search_unpack env_pms promote_o forget_o b_sig_eq b sigma =
+  let sigma, (promote, forget) = find_promote_forget_unpack env_pms promote_o forget_o b_sig_eq b sigma in
+  sigma, { promote; forget; kind = UnpackSigma }
            
 (* --- Top-level search --- *)
 
@@ -1032,7 +1036,7 @@ let search_orn_one_noninductive env sigma typ_o typ_n promote_o forget_o =
        in
        if is_unpack then
          (* Unpack { s : sigT B & projT1 s = i_b} to (B i_b) *)
-         search_unpack env sigma promote_o forget_o ind non_ind
+         search_unpack env promote_o forget_o ind non_ind sigma
        else
          err_unsupported ()
      else
