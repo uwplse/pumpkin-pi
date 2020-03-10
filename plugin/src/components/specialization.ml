@@ -20,6 +20,8 @@ open Desugarprod
 open Promotion
 open Evarutil
 open Evarconv
+open Zooming
+open Equtils
 
 (* --- Specialization --- *)
 
@@ -52,6 +54,19 @@ let pack env l unpacked sigma =
   | SwapConstruct _ ->
      sigma, unpacked
 
+(* --- Unpacking for unpack ornaments --- *)
+
+let unpack_typ_args env_args b_sig_eq sigma =
+  let eq_sig = dest_sigT b_sig_eq in
+  let b_sig = dest_sigT eq_sig.index_type in
+  let i_b_typ = b_sig.index_type in
+  let b = b_sig.packer in
+  let sigma, i_b =
+    let env_eq_typ, eq_typ = zoom_lambda_term env_args eq_sig.packer in
+    let sigma, eq_typ = reduce_nf env_eq_typ sigma eq_typ in
+    sigma, Debruijn.unshift (dest_eq eq_typ).trm2
+  in sigma, [i_b_typ; b; i_b]
+              
 (* --- Lifting --- *)
 
 (*

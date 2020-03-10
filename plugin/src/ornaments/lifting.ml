@@ -16,6 +16,8 @@ open Indexing
 open Ornerrors
 open Stateutils
 open Promotion
+open Reducers
+open Equtils
 
 (* --- Datatypes --- *)
 
@@ -107,19 +109,28 @@ let get_direction (from_typ_app, to_typ_app) orn_kind =
   | SwapConstruct _ ->
      (* just set forward to be the initial direction *)
      true
+  | UnpackSigma ->
+     equal sigT (first_fun from_typ_app)
 
 (*
  * For an uncached ornament, get the kind and its direction
  *)
 let get_kind_of_ornament env (o, n) sigma =
   let (from_typ_app, to_typ_app) = promotion_term_to_types env sigma o in
-  let prelim_kind =
+  let sigma, prelim_kind =
     if applies sigT from_typ_app || applies sigT to_typ_app then
-      Algebraic (mkRel 1, 0)
+      let s = if applies sigT from_typ_app then from_typ_app else to_typ_app in
+      let packer = (dest_sigT s).packer in
+      let env_b, packer_b = zoom_lambda_term env packer in
+      let sigma, packer_b = reduce_nf env_b sigma packer_b in
+      if is_or_applies eq packer_b then
+        sigma, UnpackSigma
+      else
+      sigma, Algebraic (mkRel 1, 0)
     else if isInd (first_fun from_typ_app) && isInd (first_fun to_typ_app) then
-      SwapConstruct []
+      sigma, SwapConstruct []
     else
-      CurryRecord
+      sigma, CurryRecord
   in
   match prelim_kind with
   | Algebraic _ ->
@@ -132,9 +143,6 @@ let get_kind_of_ornament env (o, n) sigma =
      let (o, i) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
      let indexer = first_fun i in
      sigma, (is_fwd, Algebraic (indexer, o))
-  | CurryRecord ->
-     let is_fwd = get_direction (from_typ_app, to_typ_app) prelim_kind in
-     sigma, (is_fwd, CurryRecord)
   | SwapConstruct _ ->
      let a = first_fun from_typ_app in
      let b = first_fun to_typ_app in
@@ -144,6 +152,9 @@ let get_kind_of_ornament env (o, n) sigma =
          (fun (((_, i), _), (((_, j), _))) -> i, j)
          swap_map_cs
      in sigma, (true, SwapConstruct swap_map)
+  | UnpackSigma | CurryRecord ->
+     let is_fwd = get_direction (from_typ_app, to_typ_app) prelim_kind in
+     sigma, (is_fwd, prelim_kind)
 
 (* --- Directionality --- *)
        

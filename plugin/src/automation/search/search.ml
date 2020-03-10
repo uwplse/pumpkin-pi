@@ -32,7 +32,11 @@ open Desugarprod
 open Ornerrors
 open Convertibility
 open Promotion
-
+open Equtils
+open Libnames
+open Nametab
+open Specialization
+       
 (* --- Common code --- *)
        
 (*
@@ -875,6 +879,60 @@ let search_curry_record env_pms sigma promote_o forget_o a b =
   let sigma, (promote, forget) = find_promote_forget_curry_record env_pms promote_o forget_o a b sigma in
   sigma, { promote; forget; kind = CurryRecord }
 
+(* --- Unpack sigma --- *)
+
+(*
+ * This searches for the equivalence between two types
+ * { s : sigT B & projT1 s = i_b } and B i_b, for particular I_B : Type
+ * and B : I_B -> Type.
+ *
+ * The search algorithm here is very simple: It just instantiates
+ * generic equivalences already defined in Ornamental.Equivalences to
+ * particular types. The reason this is so easy relative to the others
+ * is that it needs not introspect on the structure of any inductive
+ * types. Thus, it is possible to prove this generally within the theory,
+ * then instantiate it.
+ *)
+
+(*
+ * Constant for generic promote
+ *)
+let unpack_generic () =
+  let n = qualid_of_string "Ornamental.Equivalences.unpack_generic" in
+  mkConst (locate_constant n)
+
+(*
+ * Constant for generic forget
+ *)
+let unpack_generic_inv () =
+  let n = qualid_of_string "Ornamental.Equivalences.unpack_generic_inv" in
+  mkConst (locate_constant n)
+
+(*
+ * Search for promote or forget (instantiate the above generic constants)
+ *)
+let find_promote_or_forget_unpack env_args b_sig_eq is_fwd sigma =
+  let directional x y = if is_fwd then x else y in
+  let f = (directional unpack_generic unpack_generic_inv) () in
+  let sigma, args = unpack_typ_args env_args b_sig_eq sigma in
+  sigma, reconstruct_lambda env_args (mkAppl (f, args))
+
+(*
+ * Search for promote and forget
+ *)
+let find_promote_forget_unpack env_args promote_o forget_o b_sig_eq =
+  find_promote_forget
+    (find_promote_or_forget_unpack env_args b_sig_eq)
+    promote_o
+    forget_o
+
+(*
+ * Search for the equivalence
+ *)
+let search_unpack env_args promote_o forget_o b_sig_eq sigma =
+  let sigma, (promote, forget) = find_promote_forget_unpack env_args promote_o forget_o b_sig_eq sigma in
+  sigma, { promote; forget; kind = UnpackSigma }
+           
 (* --- Top-level search --- *)
 
 (*
@@ -978,6 +1036,13 @@ let search_orn_one_noninductive env sigma typ_o typ_n promote_o forget_o =
   let non_ind_inner = unwrap_definition env non_ind in
   let sigma, non_ind_inner = reduce_term env sigma non_ind_inner in
   let env, non_ind_inner = zoom_lambda_term env non_ind_inner in
+  let err_unsupported () =
+    user_err
+      "search_orn_one_noninductive"
+      err_unsupported_change
+      [try_supported]
+      [cool_feature; mistake]
+  in
   match kind non_ind_inner with
   | App _ ->
      let f = unwrap_definition env (first_fun non_ind_inner) in
@@ -989,23 +1054,46 @@ let search_orn_one_noninductive env sigma typ_o typ_n promote_o forget_o =
          (* Curry a record into an application of prod *)
          search_curry_record env sigma promote_o forget_o ind non_ind
        else
-         user_err
-           "search_orn_one_noninductive"
-           err_unsupported_change
-           [try_supported]
-           [cool_feature; mistake]
+         err_unsupported ()
+     else if equal f sigT then
+       let sigma, is_unpack =
+         try
+           let sigma, expected =
+             let eq_sig = dest_sigT non_ind_inner in
+             let b_sig = dest_sigT eq_sig.index_type in
+             let sigma, b_sig_expected =
+               let sigma, packer =
+                 let env_i_b, packer_b = zoom_lambda_term env b_sig.packer in
+                 let sigma, packer_b = reduce_nf env_i_b sigma packer_b in
+                 let packer_ind = mkAppl (ind, unfold_args packer_b) in
+                 sigma, reconstruct_lambda_n env_i_b packer_ind (nb_rel env)
+               in sigma, pack_sigT { index_type = b_sig.index_type; packer }
+             in
+             let sigma, packer =
+               let env_sig_b, b_eq = zoom_lambda_term env eq_sig.packer in
+               let sigma, b_eq = reduce_nf env_sig_b sigma b_eq in
+               let sigma, eq =
+                 let trm1 =
+                   let typ = dest_sigT (shift b_sig_expected) in
+                   project_index typ (mkRel 1)
+                 in
+                 let trm2 = (dest_eq b_eq).trm2 in
+                 sigma, apply_eq { at_type = b_sig.index_type; trm1; trm2 }
+               in sigma, reconstruct_lambda_n env_sig_b eq (nb_rel env)
+             in sigma, pack_sigT { index_type = b_sig_expected; packer }
+           in convertible env sigma non_ind_inner expected
+         with _ ->
+           sigma, false
+       in
+       if is_unpack then
+         (* Unpack { s : sigT B & projT1 s = i_b} to (B i_b) *)
+         search_unpack env promote_o forget_o non_ind_inner sigma
+       else
+         err_unsupported ()
      else
-       user_err
-         "search_orn_one_noninductive"
-         err_unsupported_change
-         [try_supported]
-         [cool_feature; mistake]
+       err_unsupported ()
   | _ ->
-     user_err
-       "search_orn_one_noninductive"
-       err_unsupported_change
-       [try_supported]
-       [cool_feature; mistake]
+     err_unsupported ()
 
 (*
  * Common code for search and inversion

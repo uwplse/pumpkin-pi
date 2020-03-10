@@ -8,11 +8,16 @@ open Evd
 open Lifting
 open Stateutils
 open Reducers
+open Sigmautils
 
 (* --- Packing --- *)
 
 (* Pack a term before lifting *)
 val pack : env -> lifting -> types -> evar_map -> types state
+
+(* --- Unpacking for unpack ornaments --- *)
+
+val unpack_typ_args : env -> constr -> evar_map -> (constr list) state
 
 (* --- Specialization --- *)
 
