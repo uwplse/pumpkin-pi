@@ -15,6 +15,7 @@ exception NotAlgebraic
 (* --- Error descriptions --- *)
 
 val err_unsupported_change : Pp.t
+val err_name_inference : Pp.t
 val err_new_parameter : Pp.t
 val err_new_constructor : Pp.t
 val err_save_ornament : Pp.t
@@ -26,6 +27,7 @@ val err_ambiguous_swap :
 
 (* --- Possible workaround suggestions --- *)
 
+val try_name : Pp.t
 val try_opaque : Pp.t
 val try_not_opaque : Pp.t
 val try_preprocess : Pp.t

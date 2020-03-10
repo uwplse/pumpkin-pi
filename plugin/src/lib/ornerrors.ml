@@ -17,6 +17,9 @@ exception NotAlgebraic
 
 let err_unsupported_change = Pp.str "Change not yet supported."
 
+let err_name_inference =
+  Pp.str "Could not automatically determine name for new ornament."
+
 let err_new_parameter = Pp.str "New parameters not yet supported."
 
 let err_new_constructor = Pp.str "New constructors not yet supported."
@@ -81,6 +84,7 @@ let err_ambiguous_swap env num_solutions swap_maps sigma =
   
 (* --- Possible workaround suggestions --- *)
 
+let try_name = Pp.str "passing a name explicitly to `Find ornament`"
 let try_opaque = Pp.str "skipping subterms using the `{ opaque ... }` option"
 let try_not_opaque = Pp.str "unsetting some subterms that are set as opaque"
 let try_preprocess = Pp.str "preprocessing the definition first"

@@ -125,6 +125,60 @@ let maybe_find_smart_elims n inv_n : unit =
     ()
 
 (*
+ * Try to automatically infer a name when not supplied for find_ornament_common
+ *)
+let infer_name_for_ornament env trm_o trm_n n_o =
+  match map_tuple kind (trm_o, trm_n) with
+  | Ind ((i_o, ii_o), _), Ind ((i_n, ii_n), _) ->
+     (* Algebraic ornament or swap constructor *)
+     let (_, _, lab_o) = KerName.repr (MutInd.canonical i_o) in
+     let (_, _, lab_n) = KerName.repr (MutInd.canonical i_n) in
+     let name_o = Label.to_id lab_o in
+     let name_n = Label.to_string lab_n in
+     let auto_n = with_suffix (with_suffix name_o "to") name_n in
+     let n = Option.default auto_n n_o in
+     let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
+     let arity_o = arity (type_of_inductive env ii_o m_o) in
+     let arity_n = arity (type_of_inductive env ii_n m_n) in
+     if arity_o = arity_n then
+       (* Swap constructor *)
+       n, None
+     else
+       (* Algebraic ornament *)
+       let idx_n = with_suffix n "index" in
+       n, Some idx_n
+  |_ ->
+    (* Unpack sigma or curry record *)
+    if Option.has_some n_o then
+      (* name provided *)
+      Option.get n_o, None
+    else
+      (* name not provided *)
+      if isInd trm_o || isInd trm_n then
+        let ind, nind = if isInd trm_o then trm_o, trm_n else trm_n, trm_o in
+        let ((m, _), _) = destInd ind in
+        let (_, _, lab) = KerName.repr (MutInd.canonical m) in
+        let name = Label.to_id lab in
+        let auto_n =
+          let nind_delta = unwrap_definition env nind in
+          let nind_body = zoom_term zoom_lambda_term env nind_delta in
+          if is_or_applies sigT nind_body then
+            (* Unpack sigma *)
+            with_suffix name "unpack"
+          else
+            (* Curry record *)
+            with_suffix name "curry"
+        in
+        let n = Option.default auto_n n_o in
+        n, None
+      else      
+        user_err
+          "infer_name_for_ornament"
+          err_name_inference
+          [try_name; try_provide]
+          [problematic; mistake]
+      
+(*
  * Common function for find_ornament and save_ornament
  *)
 let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
@@ -132,53 +186,7 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
     let sigma, def_o = intern env sigma d_old in
     let sigma, def_n = intern env sigma d_new in
     let trm_o, trm_n = map_tuple (try_delta_inductive env) (def_o, def_n) in
-    let n, idx_n =
-      match map_tuple kind (trm_o, trm_n) with
-      | Ind ((i_o, ii_o), _), Ind ((i_n, ii_n), _) ->
-         (* Algebraic ornament or swap constructor *)
-         let (_, _, lab_o) = KerName.repr (MutInd.canonical i_o) in
-         let (_, _, lab_n) = KerName.repr (MutInd.canonical i_n) in
-         let name_o = Label.to_id lab_o in
-         let name_n = Label.to_string lab_n in
-         let auto_n = with_suffix (with_suffix name_o "to") name_n in
-         let n = Option.default auto_n n_o in
-         let (m_o, m_n) = map_tuple (fun i -> lookup_mind i env) (i_o, i_n) in
-         let arity_o = arity (type_of_inductive env ii_o m_o) in
-         let arity_n = arity (type_of_inductive env ii_n m_n) in
-         if arity_o = arity_n then
-           (* Swap constructor *)
-           n, None
-         else
-           (* Algebraic ornament *)
-           let idx_n = with_suffix n "index" in
-           n, Some idx_n
-      |_ ->
-        if isInd trm_o || isInd trm_n then
-          (* Unpack sigma or curry record *)
-          let ind, nind = if isInd trm_o then trm_o, trm_n else trm_n, trm_o in
-          let ((m, _), _) = destInd ind in
-          let (_, _, lab) = KerName.repr (MutInd.canonical m) in
-          let name = Label.to_id lab in
-          let auto_n =
-            let nind_delta = unwrap_definition env nind in
-            let nind_body = zoom_term zoom_lambda_term env nind_delta in
-            if is_or_applies sigT nind_body then
-              (* Unpack sigma *)
-              (* TODO assumes inductive type for one of two, but can be fun...*)
-              with_suffix name "unpack"
-            else
-              (* Curry record *)
-              with_suffix name "curry"
-          in
-          let n = Option.default auto_n n_o in
-          n, None
-        else      
-          user_err
-            "find_ornament_common"
-            err_unsupported_change
-            [try_supported; try_provide]
-            [cool_feature; mistake]
-    in
+    let n, idx_n = infer_name_for_ornament env trm_o trm_n n_o in 
     let sigma, orn =
       if not (Option.has_some promote_o || Option.has_some forget_o) then
         (* Find ornament *)

@@ -1041,27 +1041,30 @@ let search_orn_one_noninductive env sigma typ_o typ_n promote_o forget_o =
      else if equal f sigT then
        let sigma, is_unpack =
          try
-           (* TODO clean, explain *)
-           let eq_sig = dest_sigT non_ind_inner in
-           let b_sig = dest_sigT eq_sig.index_type in
-           let index_type =
-             let env_i_b, packer_b = zoom_lambda_term env b_sig.packer in
-             let sigma, packer_b = reduce_nf env_i_b sigma packer_b in
-             let packer_args = unfold_args packer_b in
-             let packer_ind = mkAppl (ind, packer_args) in
-             let packer = reconstruct_lambda_n env_i_b packer_ind (nb_rel env) in
-             pack_sigT { index_type = b_sig.index_type; packer }
-           in
-           let eq_packed =
-             let env_sig_b, b_eq = zoom_lambda_term env eq_sig.packer in
-             let sigma, b_eq = reduce_nf env_sig_b sigma b_eq in
-             let trm2 = (dest_eq b_eq).trm2 in
-             let at_type = b_sig.index_type in
-             let trm1 = project_index (dest_sigT (shift index_type)) (mkRel 1) in
-             let eq = apply_eq { at_type; trm1; trm2 } in
-             let packer = reconstruct_lambda_n env_sig_b eq (nb_rel env) in
-             pack_sigT { index_type; packer }
-           in convertible env sigma non_ind_inner eq_packed
+           let sigma, expected =
+             let eq_sig = dest_sigT non_ind_inner in
+             let b_sig = dest_sigT eq_sig.index_type in
+             let sigma, b_sig_expected =
+               let sigma, packer =
+                 let env_i_b, packer_b = zoom_lambda_term env b_sig.packer in
+                 let sigma, packer_b = reduce_nf env_i_b sigma packer_b in
+                 let packer_ind = mkAppl (ind, unfold_args packer_b) in
+                 sigma, reconstruct_lambda_n env_i_b packer_ind (nb_rel env)
+               in sigma, pack_sigT { index_type = b_sig.index_type; packer }
+             in
+             let sigma, packer =
+               let env_sig_b, b_eq = zoom_lambda_term env eq_sig.packer in
+               let sigma, b_eq = reduce_nf env_sig_b sigma b_eq in
+               let sigma, eq =
+                 let trm1 =
+                   let typ = dest_sigT (shift b_sig_expected) in
+                   project_index typ (mkRel 1)
+                 in
+                 let trm2 = (dest_eq b_eq).trm2 in
+                 sigma, apply_eq { at_type = b_sig.index_type; trm1; trm2 }
+               in sigma, reconstruct_lambda_n env_sig_b eq (nb_rel env)
+             in sigma, pack_sigT { index_type = b_sig_expected; packer }
+           in convertible env sigma non_ind_inner expected
          with _ ->
            sigma, false
        in
