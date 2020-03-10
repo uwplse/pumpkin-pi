@@ -898,7 +898,12 @@ let find_promote_or_forget_unpack env_args b_sig_eq is_fwd sigma =
   let b_sig = dest_sigT eq_sig.index_type in
   let i_b_typ = b_sig.index_type in
   let b = b_sig.packer in
-  let args = [i_b_typ; b] in
+  let eq_sig_packer = eq_sig.packer in
+  let env_eq_typ, eq_typ = zoom_lambda_term env_args eq_sig_packer in
+  let sigma, eq_typ = reduce_nf env_eq_typ sigma eq_typ in
+  let eq = dest_eq eq_typ in
+  let i_b = unshift eq.trm2 in
+  let args = [i_b_typ; b; i_b] in
   sigma, reconstruct_lambda env_args (mkAppl (f, args))
            
 let find_promote_forget_unpack env_args promote_o forget_o b_sig_eq =

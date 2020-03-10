@@ -24,6 +24,8 @@ open Stateutils
 open Declarations
 open Promotion
 open Ornerrors
+open Libnames
+open Nametab
 
 (*
  * Automatically generated equivalence proofs
@@ -50,6 +52,8 @@ let equiv_motive env_motive pms l is_packed sigma =
        pms
     | SwapConstruct _ ->
        unfold_args at_type
+    | _ ->
+       failwith "not supported" (* TODO better error *)
   in
   let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
   let trm2 = mkAppl (lift_back l, snoc trm1_lifted typ_args) in
@@ -469,7 +473,45 @@ let equiv_proof_curry_record env l sigma =
   let eq_typ = on_red_type_default (ignore_env dest_eq) env_to sigma eq_proof in
   let equiv_b = apply_eq_sym { eq_typ; eq_proof } in
   reconstruct_lambda env_to equiv_b
-                     
+
+(* --- Equivalence proofs for unpack sigma --- *)
+
+(*
+ * TODO comment, clean, etc
+ *)
+
+let unpack_section () =
+  let n = qualid_of_string "Ornamental.Equivalences.unpack_generic_section" in
+  mkConst (locate_constant n)
+
+let unpack_retraction () =
+  let n = qualid_of_string "Ornamental.Equivalences.unpack_generic_retraction" in
+  mkConst (locate_constant n)
+
+(*
+ * Prove section/retraction for unpack
+ *)
+let equiv_proof_unpack env l sigma =
+  let directional x y = if l.is_fwd then x else y in
+  let f = (directional unpack_section unpack_retraction) () in
+  let sigma, (env_args, args) =
+    (* TODO refactor common w/ search *)
+    let sigma, forget_typ = reduce_type env sigma l.orn.forget in
+    let env_b_sig_eq, b_sig_eq = zoom_product_type env forget_typ in
+    let eq_sig = dest_sigT b_sig_eq in
+    let b_sig = dest_sigT (eq_sig.index_type) in
+    let i_b_typ = b_sig.index_type in
+    let b_typ = b_sig.packer in
+    let eq_sig_packer = eq_sig.packer in
+    let env_eq_typ, eq_typ = zoom_lambda_term env_b_sig_eq eq_sig_packer in
+    let sigma, eq_typ = reduce_nf env_eq_typ sigma eq_typ in
+    let eq = dest_eq eq_typ in
+    let i_b = unshift eq.trm2 in
+    let args = unshift_all [i_b_typ; b_typ; i_b] in
+    let env_args = pop_rel_context 1 env_b_sig_eq in
+    sigma, (env_args, args)
+  in reconstruct_lambda env_args (mkAppl (f, args))
+
 (* --- Top-level equivalence proof generation --- *)
                      
 (*
@@ -483,6 +525,8 @@ let prove_section_or_retraction env sigma l =
      equiv_proof_curry_record env l sigma
   | SwapConstruct _ ->
      equiv_proof_swap env l sigma
+  | UnpackSigma ->
+     equiv_proof_unpack env l sigma
                         
 (*
  * Prove section and retraction

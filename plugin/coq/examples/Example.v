@@ -252,23 +252,14 @@ Check packed_vector.zip_with_is_zip.
 (*
  * Finally, we can get from that to unpacked vectors
  * at the index we want very easily.
- * For now, we do this part manually.
- * There is WIP on automating this, and I will update
- * this file when I do.
+ * There is WIP on automating this.
  *)
 Module uf.
 
 (*
- * This is provided in theories/Equivalences.v, and will be automatically instantiated
- * by DEVOID soon. For now, instantiate it yourself:
+ * We first automatically find another ornament:
  *)
 Find ornament (fun T n => { s : sigT (vector T) & projT1 s = n}) vector as unpack_vector.
-
-Definition vector_pv (T : Type) := unpack_generic nat (vector T).
-Definition pv_vector (T : Type) := unpack_generic_inv nat (vector T).
-Definition vector_pv_section (T : Type) := unpack_generic_section nat (vector T).
-Definition vector_pv_retraction (T : Type) := unpack_generic_retraction nat (vector T).
-
 (*
  * Lifting along this equivalence will soon be automated, but for now apply
  * the above functions by hand:
@@ -279,9 +270,9 @@ Program Definition zip:
     vector B n ->
     vector (A * B) n.
 Proof.
-  intros A B n v1 v2. apply pv_vector. apply packed_vector.zip.
-  - apply (vector_pv A n v1).
-  - apply (vector_pv B n v2).
+  intros A B n v1 v2. apply unpack_vector. apply packed_vector.zip.
+  - apply (unpack_vector_inv A n v1).
+  - apply (unpack_vector_inv B n v2).
 Defined.
 
 Program Definition zip_with:
@@ -290,10 +281,10 @@ Program Definition zip_with:
     vector B n ->
     vector C n.
 Proof.
-  intros A B C f n v1 v2. apply pv_vector. apply (packed_vector.zip_with A B).
+  intros A B C f n v1 v2. apply unpack_vector. apply (packed_vector.zip_with A B).
   - apply f.
-  - apply (vector_pv A n v1).
-  - apply (vector_pv B n v2).
+  - apply (unpack_vector_inv A n v1).
+  - apply (unpack_vector_inv B n v2).
 Defined.
 
 (*
@@ -306,7 +297,7 @@ Lemma zip_with_is_zip:
     zip_with (@pair A B) v1 v2 = zip v1 v2.
 Proof.
   intros A B n v1 v2.
-  pose proof (packed_vector.zip_with_is_zip A B n (vector_pv A n v1) (vector_pv B n v2)).
+  pose proof (packed_vector.zip_with_is_zip A B n (unpack_vector_inv A n v1) (unpack_vector_inv B n v2)).
   unfold zip_with, zip. f_equal. auto.
 Defined.
 
