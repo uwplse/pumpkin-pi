@@ -28,6 +28,9 @@ open Promotion
 open Deltautils
 open Funutils
 open Smartelim
+open Zooming
+open Apputils
+open Sigmautils
 
 (* --- Utilities --- *)
 
@@ -151,12 +154,22 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
            n, Some idx_n
       |_ ->
         if isInd trm_o || isInd trm_n then
-          (* Curry record *)
-          let ind = if isInd trm_o then trm_o else trm_n in
+          (* Unpack sigma or curry record *)
+          let ind, nind = if isInd trm_o then trm_o, trm_n else trm_n, trm_o in
           let ((m, _), _) = destInd ind in
           let (_, _, lab) = KerName.repr (MutInd.canonical m) in
           let name = Label.to_id lab in
-          let auto_n = with_suffix name "curry" in
+          let auto_n =
+            let nind_delta = unwrap_definition env nind in
+            let nind_body = zoom_term zoom_lambda_term env nind_delta in
+            if is_or_applies sigT nind_body then
+              (* Unpack sigma *)
+              (* TODO assumes inductive type for one of two, but can be fun...*)
+              with_suffix name "unpack"
+            else
+              (* Curry record *)
+              with_suffix name "curry"
+          in
           let n = Option.default auto_n n_o in
           n, None
         else      

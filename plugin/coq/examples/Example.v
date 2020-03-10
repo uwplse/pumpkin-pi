@@ -262,6 +262,8 @@ Module uf.
  * This is provided in theories/Equivalences.v, and will be automatically instantiated
  * by DEVOID soon. For now, instantiate it yourself:
  *)
+Find ornament (fun T n => { s : sigT (vector T) & projT1 s = n}) vector as unpack_vector.
+
 Definition vector_pv (T : Type) := unpack_generic nat (vector T).
 Definition pv_vector (T : Type) := unpack_generic_inv nat (vector T).
 Definition vector_pv_section (T : Type) := unpack_generic_section nat (vector T).

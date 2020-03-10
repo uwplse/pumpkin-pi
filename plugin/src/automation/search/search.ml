@@ -32,6 +32,7 @@ open Desugarprod
 open Ornerrors
 open Convertibility
 open Promotion
+open Equtils
 
 (* --- Common code --- *)
        
@@ -875,6 +876,11 @@ let search_curry_record env_pms sigma promote_o forget_o a b =
   let sigma, (promote, forget) = find_promote_forget_curry_record env_pms promote_o forget_o a b sigma in
   sigma, { promote; forget; kind = CurryRecord }
 
+(* --- Unpack sigma --- *)
+
+let search_unpack env_pms sigma promote_o forget_o b_sig_eq b =
+  failwith "WIP"
+           
 (* --- Top-level search --- *)
 
 (*
@@ -978,6 +984,13 @@ let search_orn_one_noninductive env sigma typ_o typ_n promote_o forget_o =
   let non_ind_inner = unwrap_definition env non_ind in
   let sigma, non_ind_inner = reduce_term env sigma non_ind_inner in
   let env, non_ind_inner = zoom_lambda_term env non_ind_inner in
+  let err_unsupported () =
+    user_err
+      "search_orn_one_noninductive"
+      err_unsupported_change
+      [try_supported]
+      [cool_feature; mistake]
+  in
   match kind non_ind_inner with
   | App _ ->
      let f = unwrap_definition env (first_fun non_ind_inner) in
@@ -989,23 +1002,43 @@ let search_orn_one_noninductive env sigma typ_o typ_n promote_o forget_o =
          (* Curry a record into an application of prod *)
          search_curry_record env sigma promote_o forget_o ind non_ind
        else
-         user_err
-           "search_orn_one_noninductive"
-           err_unsupported_change
-           [try_supported]
-           [cool_feature; mistake]
+         err_unsupported ()
+     else if equal f sigT then
+       let sigma, is_unpack =
+         try
+           (* TODO clean, explain *)
+           let eq_sig = dest_sigT non_ind_inner in
+           let b_sig = dest_sigT eq_sig.index_type in
+           let index_type =
+             let env_i_b, packer_b = zoom_lambda_term env b_sig.packer in
+             let sigma, packer_b = reduce_nf env_i_b sigma packer_b in
+             let packer_args = unfold_args packer_b in
+             let packer_ind = mkAppl (ind, packer_args) in
+             let packer = reconstruct_lambda_n env_i_b packer_ind (nb_rel env) in
+             pack_sigT { index_type = b_sig.index_type; packer }
+           in
+           let eq_packed =
+             let env_sig_b, b_eq = zoom_lambda_term env eq_sig.packer in
+             let sigma, b_eq = reduce_nf env_sig_b sigma b_eq in
+             let trm2 = (dest_eq b_eq).trm2 in
+             let at_type = b_sig.index_type in
+             let trm1 = project_index (dest_sigT (shift index_type)) (mkRel 1) in
+             let eq = apply_eq { at_type; trm1; trm2 } in
+             let packer = reconstruct_lambda_n env_sig_b eq (nb_rel env) in
+             pack_sigT { index_type; packer }
+           in convertible env sigma non_ind_inner eq_packed
+         with _ ->
+           sigma, false
+       in
+       if is_unpack then
+         (* Unpack { s : sigT B & projT1 s = i_b} to (B i_b) *)
+         search_unpack env sigma promote_o forget_o ind non_ind
+       else
+         err_unsupported ()
      else
-       user_err
-         "search_orn_one_noninductive"
-         err_unsupported_change
-         [try_supported]
-         [cool_feature; mistake]
+       err_unsupported ()
   | _ ->
-     user_err
-       "search_orn_one_noninductive"
-       err_unsupported_change
-       [try_supported]
-       [cool_feature; mistake]
+     err_unsupported ()
 
 (*
  * Common code for search and inversion
