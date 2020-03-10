@@ -33,7 +33,9 @@ open Ornerrors
 open Convertibility
 open Promotion
 open Equtils
-
+open Libnames
+open Nametab
+       
 (* --- Common code --- *)
        
 (*
@@ -878,11 +880,35 @@ let search_curry_record env_pms sigma promote_o forget_o a b =
 
 (* --- Unpack sigma --- *)
 
-let find_promote_forget_unpack env_pms promote_o forget_o b_sig_eq b sigma =
-  failwith "WIP"
+(* TODO comment, clean, etc *)
+(* TODO test etc *)
+
+let unpack_generic () =
+  let n = qualid_of_string "Ornamental.Equivalences.unpack_generic" in
+  mkConst (locate_constant n)
+
+let unpack_generic_inv () =
+  let n = qualid_of_string "Ornamental.Equivalences.unpack_generic_inv" in
+  mkConst (locate_constant n)
+
+let find_promote_or_forget_unpack env_args b_sig_eq is_fwd sigma =
+  let directional x y = if is_fwd then x else y in
+  let f = (directional unpack_generic unpack_generic_inv) () in
+  let eq_sig = dest_sigT b_sig_eq in
+  let b_sig = dest_sigT eq_sig.index_type in
+  let i_b_typ = b_sig.index_type in
+  let b = b_sig.packer in
+  let args = [i_b_typ; b] in
+  sigma, reconstruct_lambda env_args (mkAppl (f, args))
            
-let search_unpack env_pms promote_o forget_o b_sig_eq b sigma =
-  let sigma, (promote, forget) = find_promote_forget_unpack env_pms promote_o forget_o b_sig_eq b sigma in
+let find_promote_forget_unpack env_args promote_o forget_o b_sig_eq =
+  find_promote_forget
+    (find_promote_or_forget_unpack env_args b_sig_eq)
+    promote_o
+    forget_o
+           
+let search_unpack env_args promote_o forget_o b_sig_eq sigma =
+  let sigma, (promote, forget) = find_promote_forget_unpack env_args promote_o forget_o b_sig_eq sigma in
   sigma, { promote; forget; kind = UnpackSigma }
            
 (* --- Top-level search --- *)
@@ -1036,7 +1062,7 @@ let search_orn_one_noninductive env sigma typ_o typ_n promote_o forget_o =
        in
        if is_unpack then
          (* Unpack { s : sigT B & projT1 s = i_b} to (B i_b) *)
-         search_unpack env promote_o forget_o ind non_ind sigma
+         search_unpack env promote_o forget_o non_ind_inner sigma
        else
          err_unsupported ()
      else
