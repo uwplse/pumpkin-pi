@@ -35,6 +35,7 @@ open Promotion
 open Equtils
 open Libnames
 open Nametab
+open Specialization
        
 (* --- Common code --- *)
        
@@ -880,38 +881,54 @@ let search_curry_record env_pms sigma promote_o forget_o a b =
 
 (* --- Unpack sigma --- *)
 
-(* TODO comment, clean, etc *)
-(* TODO test etc *)
+(*
+ * This searches for the equivalence between two types
+ * { s : sigT B & projT1 s = i_b } and B i_b, for particular I_B : Type
+ * and B : I_B -> Type.
+ *
+ * The search algorithm here is very simple: It just instantiates
+ * generic equivalences already defined in Ornamental.Equivalences to
+ * particular types. The reason this is so easy relative to the others
+ * is that it needs not introspect on the structure of any inductive
+ * types. Thus, it is possible to prove this generally within the theory,
+ * then instantiate it.
+ *)
 
+(*
+ * Constant for generic promote
+ *)
 let unpack_generic () =
   let n = qualid_of_string "Ornamental.Equivalences.unpack_generic" in
   mkConst (locate_constant n)
 
+(*
+ * Constant for generic forget
+ *)
 let unpack_generic_inv () =
   let n = qualid_of_string "Ornamental.Equivalences.unpack_generic_inv" in
   mkConst (locate_constant n)
 
+(*
+ * Search for promote or forget (instantiate the above generic constants)
+ *)
 let find_promote_or_forget_unpack env_args b_sig_eq is_fwd sigma =
   let directional x y = if is_fwd then x else y in
   let f = (directional unpack_generic unpack_generic_inv) () in
-  let eq_sig = dest_sigT b_sig_eq in
-  let b_sig = dest_sigT eq_sig.index_type in
-  let i_b_typ = b_sig.index_type in
-  let b = b_sig.packer in
-  let eq_sig_packer = eq_sig.packer in
-  let env_eq_typ, eq_typ = zoom_lambda_term env_args eq_sig_packer in
-  let sigma, eq_typ = reduce_nf env_eq_typ sigma eq_typ in
-  let eq = dest_eq eq_typ in
-  let i_b = unshift eq.trm2 in
-  let args = [i_b_typ; b; i_b] in
+  let sigma, args = unpack_typ_args env_args b_sig_eq sigma in
   sigma, reconstruct_lambda env_args (mkAppl (f, args))
-           
+
+(*
+ * Search for promote and forget
+ *)
 let find_promote_forget_unpack env_args promote_o forget_o b_sig_eq =
   find_promote_forget
     (find_promote_or_forget_unpack env_args b_sig_eq)
     promote_o
     forget_o
-           
+
+(*
+ * Search for the equivalence
+ *)
 let search_unpack env_args promote_o forget_o b_sig_eq sigma =
   let sigma, (promote, forget) = find_promote_forget_unpack env_args promote_o forget_o b_sig_eq sigma in
   sigma, { promote; forget; kind = UnpackSigma }
