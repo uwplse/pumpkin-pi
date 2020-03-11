@@ -53,7 +53,7 @@ End hs_to_coq'.
 
 (* --- Preprocess --- *)
 
-Preprocess Module hs_to_coq' as hs_to_coq { opaque list_ind list_rect eq_ind eq_ind_r eq_sym }.
+Preprocess Module hs_to_coq' as hs_to_coq { opaque list_ind list_rect Coq.Init.Logic }.
 
 (* --- Search and Lift --- *)
 
@@ -149,7 +149,7 @@ Defined.
 
 End hs_to_coq_lengths'.
 
-Preprocess Module hs_to_coq_lengths' as hs_to_coq_lengths { opaque hs_to_coq }.
+Preprocess Module hs_to_coq_lengths' as hs_to_coq_lengths { opaque hs_to_coq.zip hs_to_coq.zip_with list_ind list_rect Coq.Init.Logic }.
 
 (*
  * Once we have the length proofs, we write the proofs
@@ -457,6 +457,126 @@ Definition unpacked_zip_handwritten_7 (a b : Type) (n : nat) (v1 : vector a n) (
       (existT _ n v1)
       (existT _ n v2)
       (erefl n))
+    in 
+    (projT2
+       (hs_to_coqV_p.zip a b
+         (existT _ n v1)
+         (existT _ n v2))).
+
+Print hs_to_coq_projT1s.zip_length.
+Definition unpacked_zip_handwritten_8 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
+   rew 
+    (VectorDef.t_rect a
+       (fun (n : nat) (t0 : vector a n) =>
+          forall l3 : {H0 : nat & vector b H0}, n = projT1 l3 ->
+          projT1 (hs_to_coqV_p.zip a b (existT _ n t0) (existT _ (projT1 l3) (projT2 l3))) = n)
+       (fun l3 : {H0 : nat & vector b H0} =>
+          VectorDef.t_rect b
+            (fun (n : nat) (t0 : vector b n) =>
+              0 = n ->
+              projT1 (hs_to_coqV_p.zip a b (existT _ 0 (nilV a)) (existT _ n t0)) = 0)
+             id
+             (fun (_ : b) (n : nat) (t0 : vector b n)
+                  (_ : 0 = n ->
+                       projT1 (hs_to_coqV_p.zip a b (existT _ 0 (nilV a))(existT _ n t0)) = 0) 
+                  (_ : 0 = S n) => erefl 0)
+              (projT1 l3) 
+              (projT2 l3))
+       (fun (h : a) (n : nat) (t0 : vector a n)
+          (H0 : forall l3 : {H0 : nat & vector b H0},
+                n = projT1 l3 ->
+                projT1
+                  (hs_to_coqV_p.zip a b (existT _ n t0)
+                     (existT _ (projT1 l3) (projT2 l3))) = n)
+          (l3 : {H1 : nat & vector b H1}) =>
+            VectorDef.t_rect b
+             (fun (n0 : nat) (t1 : vector b n0) =>
+                S n = n0 ->
+                projT1 (hs_to_coqV_p.zip a b (existT _ (S n) (consV n h t0)) (existT _ n0 t1)) =  S n)
+                (eq_sym
+                      (y:=projT1
+                            (hs_to_coqV_p.zip a b
+                               (existT _ (S n) (consV n h t0))
+                               (existT _ 0 (nilV b)))))
+               (fun (_ : b) (n0 : nat) (t1 : vector b n0)
+                  (_ : S n = n0 ->
+                       projT1
+                         (hs_to_coqV_p.zip a b
+                            (existT _ (S n) (consV n h t0))
+                            (existT _ n0 t1)) = 
+                       S n) (H2 : S n = S n0) =>
+                eq_trans
+                  (f_equal
+                     (@^~ (projT1
+                             (hs_to_coqV_p.zip a b (existT _ n t0)
+                                (existT _ n0 t1)))) 
+                     (erefl S))
+                  (f_equal S
+                     (eq_ind_r (eq^~ n) (erefl n)
+                        (H0 (existT _ n0 t1)
+                           (@eq_add_S n n0 H2)))))
+               (projT1 l3) (projT2 l3)) n 
+       v1 
+       (existT _ n v2)
+       (erefl n))
+    in 
+    (projT2
+       (hs_to_coqV_p.zip a b
+         (existT _ n v1)
+         (existT _ n v2))).
+
+(* Unpack more *)
+Definition unpacked_zip_handwritten_9 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
+   rew 
+    (VectorDef.t_rect a
+       (fun (n : nat) (t0 : vector a n) =>
+          forall (n0 : nat) (v3 : vector b n0), n = n0 -> (* <-- unpack premise here *)
+          projT1 (hs_to_coqV_p.zip a b (existT _ n t0) (existT _ n0 v3)) = n)
+       (fun (n0 : nat) (v3 : vector b n0) =>
+          VectorDef.t_rect b
+            (fun (n : nat) (t0 : vector b n) =>
+              0 = n -> 0 = 0)
+             id
+             (fun (_ : b) (n : nat) (t0 : vector b n) (_ : 0 = n -> 0 = 0) (_ : 0 = S n) =>
+               erefl 0)
+            n0 
+            v3)
+       (fun (h : a) (n : nat) (t0 : vector a n)
+          (H0 : forall (n0 : nat) (v3 : vector b n0),
+                n = n0 ->
+                projT1 (hs_to_coqV_p.zip a b (existT _ n t0) (existT _ n0 v3)) = n)
+          (n0 : nat) (v3 : vector b n0) =>
+            VectorDef.t_rect b
+             (fun (n0 : nat) (t1 : vector b n0) =>
+                S n = n0 ->
+                projT1 (hs_to_coqV_p.zip a b (existT _ (S n) (consV n h t0)) (existT _ n0 t1)) =  S n)
+                (eq_sym
+                      (y:=projT1
+                            (hs_to_coqV_p.zip a b
+                               (existT _ (S n) (consV n h t0))
+                               (existT _ 0 (nilV b)))))
+               (fun (_ : b) (n0 : nat) (t1 : vector b n0)
+                  (_ : S n = n0 ->
+                       projT1
+                         (hs_to_coqV_p.zip a b
+                            (existT _ (S n) (consV n h t0))
+                            (existT _ n0 t1)) = 
+                       S n) (H2 : S n = S n0) =>
+                eq_trans
+                  (f_equal
+                     (@^~ (projT1
+                             (hs_to_coqV_p.zip a b (existT _ n t0)
+                                (existT _ n0 t1)))) 
+                     (erefl S))
+                  (f_equal S
+                     (eq_ind_r (eq^~ n) (erefl n)
+                        (H0 n0 t1
+                           (@eq_add_S n n0 H2)))))
+               n0 v3) n 
+       v1 
+       n
+       v2
+       (erefl n))
     in 
     (projT2
        (hs_to_coqV_p.zip a b
