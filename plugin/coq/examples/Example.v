@@ -1,5 +1,5 @@
 (*
- * Section 2 Example from the ITP paper.
+ * Section 2 Example from the ITP 2019 paper.
  *
  * NOTE: This has changed a lot since the ITP paper! I have updated this file
  * to reflect the latest automation. To see the original ITP version,
@@ -263,6 +263,950 @@ Module uf.
  *)
 Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 Find ornament packed vector as unpack_vector.
+
+Print packed_vector.zip.
+
+(*
+ packed_vector.zip = 
+fun (a b : Type) (n : nat) =>
+[eta packed_rect {H : nat & vector a H} [eta projT1 (P:=_)]
+       Datatypes.id
+       (fun (H : nat) (H0 : {H0 : nat & vector a H0}) => Datatypes.id) n
+       (fun _ : {l1 : {H : nat & vector a H} & projT1 l1 = n} =>
+        {l2 : {H : nat & vector b H} & projT1 l2 = n} ->
+        {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n})
+       (fun (l : {H : nat & vector a H}) (H : projT1 l = n)
+          (pl2 : {l2 : {H0 : nat & vector b H0} & projT1 l2 = n}) =>
+        existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
+          (existT _
+             (projT1
+                (hs_to_coqV_p.zip a b
+                   (existT _ (projT1 l) (projT2 l))
+                   (existT _ (projT1 (projT1 pl2))
+                      (projT2 (projT1 pl2)))))
+             (projT2
+                (hs_to_coqV_p.zip a b
+                   (existT _ (projT1 l) (projT2 l))
+                   (existT _ (projT1 (projT1 pl2))
+                      (projT2 (projT1 pl2))))))
+          (packed_vector.zip_length a b n
+             (existT _ (projT1 l) (projT2 l))
+             (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))
+             H (projT2 pl2)))]
+     : forall (a b : Type) (n : nat),
+       {l1 : {H : nat & vector a H} & projT1 l1 = n} ->
+       {l2 : {H : nat & vector b H} & projT1 l2 = n} ->
+       {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n}
+*)
+
+(* forget arg: *)
+Definition unpacked_zip_handwritten_1 (a b : Type) (n : nat) (v1 : vector a n) (v2 : {l2 : {H : nat & vector b H} & projT1 l2 = n}) : {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n} :=
+  packed_rect
+    {H : nat & vector a H}
+    (fun s => projT1 s)
+    Datatypes.id
+    (fun (H : nat) (H0 : {H0 : nat & vector a H0}) => Datatypes.id) n
+       (fun _ : {l1 : {H : nat & vector a H} & projT1 l1 = n} =>
+        {l2 : {H : nat & vector b H} & projT1 l2 = n} ->
+        {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n})
+       (fun (l : {H : nat & vector a H}) (H : projT1 l = n)
+          (pl2 : {l2 : {H0 : nat & vector b H0} & projT1 l2 = n}) =>
+        existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
+          (existT _
+             (projT1
+                (hs_to_coqV_p.zip a b
+                   (existT _ (projT1 l) (projT2 l))
+                   (existT _ (projT1 (projT1 pl2))
+                      (projT2 (projT1 pl2)))))
+             (projT2
+                (hs_to_coqV_p.zip a b
+                   (existT _ (projT1 l) (projT2 l))
+                   (existT _ (projT1 (projT1 pl2))
+                      (projT2 (projT1 pl2))))))
+          (packed_vector.zip_length a b n
+             (existT _ (projT1 l) (projT2 l))
+             (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))
+             H (projT2 pl2))) 
+   (unpack_vector_inv a n v1) (* <-- forget *)
+   v2.
+
+Print packed_rect.
+
+(* reduce function *)
+Definition unpacked_zip_handwritten_2 (a b : Type) (n : nat) (v1 : vector a n) (v2 : {l2 : {H : nat & vector b H} & projT1 l2 = n}) : {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n} :=
+       ((fun (l : {H : nat & vector a H}) (H : projT1 l = n)
+          (pl2 : {l2 : {H0 : nat & vector b H0} & projT1 l2 = n}) =>
+        existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
+          (existT _
+             (projT1
+                (hs_to_coqV_p.zip a b
+                   (existT _ (projT1 l) (projT2 l))
+                   (existT _ (projT1 (projT1 pl2))
+                      (projT2 (projT1 pl2)))))
+             (projT2
+                (hs_to_coqV_p.zip a b
+                   (existT _ (projT1 l) (projT2 l))
+                   (existT _ (projT1 (projT1 pl2))
+                      (projT2 (projT1 pl2))))))
+          (packed_vector.zip_length a b n
+             (existT _ (projT1 l) (projT2 l))
+             (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))
+             H (projT2 pl2))) (projT1 (unpack_vector_inv a n v1)) (projT2 (unpack_vector_inv a n v1)))
+   v2.
+
+(* lift v2 *)
+Definition unpacked_zip_handwritten_3 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n} :=
+   existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
+       (existT _
+             (projT1
+                (hs_to_coqV_p.zip a b
+                   (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
+                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
+                      (projT2 (projT1 (unpack_vector_inv b n v2))))))
+             (projT2
+                (hs_to_coqV_p.zip a b
+                   (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
+                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
+                      (projT2 (projT1 (unpack_vector_inv b n v2)))))))
+       (packed_vector.zip_length a b n
+          (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
+          (existT _ (projT1 (projT1 (unpack_vector_inv b n v2))) (projT2 (projT1 (unpack_vector_inv b n v2))))
+          (projT2 (unpack_vector_inv a n v1)) (projT2 (unpack_vector_inv b n v2))).
+
+(* lift result *)
+Definition unpacked_zip_handwritten_4 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
+   unpack_vector (a * b) n
+   (existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
+       (existT _
+             (projT1
+                (hs_to_coqV_p.zip a b
+                   (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
+                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
+                      (projT2 (projT1 (unpack_vector_inv b n v2))))))
+             (projT2
+                (hs_to_coqV_p.zip a b
+                   (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
+                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
+                      (projT2 (projT1 (unpack_vector_inv b n v2)))))))
+       (packed_vector.zip_length a b n
+          (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
+          (existT _ (projT1 (projT1 (unpack_vector_inv b n v2))) (projT2 (projT1 (unpack_vector_inv b n v2))))
+          (projT2 (unpack_vector_inv a n v1)) (projT2 (unpack_vector_inv b n v2)))). 
+
+(* reduce *)
+Print unpack_generic.    
+Definition unpacked_zip_handwritten_5 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
+   rew 
+   (projT2 
+   (existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
+       (existT _
+             (projT1
+                (hs_to_coqV_p.zip a b
+                   (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
+                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
+                      (projT2 (projT1 (unpack_vector_inv b n v2))))))
+             (projT2
+                (hs_to_coqV_p.zip a b
+                   (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
+                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
+                      (projT2 (projT1 (unpack_vector_inv b n v2)))))))
+       (packed_vector.zip_length a b n
+          (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
+          (existT _ (projT1 (projT1 (unpack_vector_inv b n v2))) (projT2 (projT1 (unpack_vector_inv b n v2))))
+          (projT2 (unpack_vector_inv a n v1)) (projT2 (unpack_vector_inv b n v2)))))
+    in 
+    (projT2 (projT1 (existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
+       (existT _
+             (projT1
+                (hs_to_coqV_p.zip a b
+                   (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
+                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
+                      (projT2 (projT1 (unpack_vector_inv b n v2))))))
+             (projT2
+                (hs_to_coqV_p.zip a b
+                   (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
+                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
+                      (projT2 (projT1 (unpack_vector_inv b n v2)))))))
+       (packed_vector.zip_length a b n
+          (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
+          (existT _ (projT1 (projT1 (unpack_vector_inv b n v2))) (projT2 (projT1 (unpack_vector_inv b n v2))))
+          (projT2 (unpack_vector_inv a n v1)) (projT2 (unpack_vector_inv b n v2)))))). 
+
+Print unpack_generic_inv.
+
+(* reduce projections to see if a pattern emerges *)
+Definition unpacked_zip_handwritten_6 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
+   rew 
+    (packed_vector.zip_length a b n
+       (existT _ n v1)
+       (existT _ n v2)
+       (erefl n)
+       (erefl n))
+    in 
+    (projT2
+       (hs_to_coqV_p.zip a b
+         (existT _ n v1)
+         (existT _ n v2))).
+
+(* Continue down this line. Want to see if can simplify nicely. *)
+Print packed_vector.zip_length.
+Definition unpacked_zip_handwritten_7 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
+   rew 
+    (let l1 := (existT _ n v1) in let l2 := (existT _ n v2)
+     in let H := erefl n in let H0 := erefl n in
+hs_to_coq_lengths.Coq_Init_Logic_eq_ind nat (projT1 l1)
+  [eta eq
+         (projT1
+            (VectorDef.t_rect a
+               (fun (n1 : nat) (_ : vector a n1) =>
+                {H1 : nat & vector b H1} -> {H1 : nat & vector (a * b) H1})
+               (fun _ : {H1 : nat & vector b H1} =>
+                existT _ 0 (nilV (a * b)))
+               (fun (h : a) (n1 : nat) (_ : vector a n1)
+                  (H1 : {H1 : nat & vector b H1} ->
+                        {H1 : nat & vector (a * b) H1})
+                  (arg_1__ : {H2 : nat & vector b H2}) =>
+                existT _
+                  (projT1
+                     (VectorDef.t_rect b
+                        (fun (n2 : nat) (_ : vector b n2) =>
+                         {H2 : nat & vector (a * b) H2})
+                        (existT _ 0 (nilV (a * b)))
+                        (fun (h0 : b) (n2 : nat) (t1 : vector b n2)
+                           (_ : {H2 : nat & vector (a * b) H2}) =>
+                         existT _
+                           (S (projT1 (H1 (existT _ n2 t1))))
+                           (consV
+                              (projT1 (H1 (existT _ n2 t1)))
+                              (h, h0)
+                              (projT2 (H1 (existT _ n2 t1)))))
+                        (projT1 arg_1__)
+                        (projT2 arg_1__)))
+                  (projT2
+                     (VectorDef.t_rect b
+                        (fun (n2 : nat) (_ : vector b n2) =>
+                         {H2 : nat & vector (a * b) H2})
+                        (existT _ 0 (nilV (a * b)))
+                        (fun (h0 : b) (n2 : nat) (t1 : vector b n2)
+                           (_ : {H2 : nat & vector (a * b) H2}) =>
+                         existT _
+                           (S (projT1 (H1 (existT _ n2 t1))))
+                           (consV
+                              (projT1 (H1 (existT _ n2 t1)))
+                              (h, h0)
+                              (projT2 (H1 (existT _ n2 t1)))))
+                        (projT1 arg_1__)
+                        (projT2 arg_1__))))
+               (projT1 l1)
+               (projT2 l1)
+               (existT _ (projT1 l2) (projT2 l2))))]
+  (VectorDef.t_rect a
+     (fun (n0 : nat) (t0 : vector a n0) =>
+      forall l3 : {H1 : nat & vector b H1},
+      n0 = projT1 l3 ->
+      projT1
+        (VectorDef.t_rect a
+           (fun (n1 : nat) (_ : vector a n1) =>
+            {H1 : nat & vector b H1} -> {H1 : nat & vector (a * b) H1})
+           (fun _ : {H1 : nat & vector b H1} =>
+            existT _ 0 (nilV (a * b)))
+           (fun (h : a) (n1 : nat) (_ : vector a n1)
+              (H1 : {H1 : nat & vector b H1} -> {H1 : nat & vector (a * b) H1})
+              (arg_1__ : {H2 : nat & vector b H2}) =>
+            existT _
+              (projT1
+                 (VectorDef.t_rect b
+                    (fun (n2 : nat) (_ : vector b n2) =>
+                     {H2 : nat & vector (a * b) H2})
+                    (existT _ 0 (nilV (a * b)))
+                    (fun (h0 : b) (n2 : nat) (t2 : vector b n2)
+                       (_ : {H2 : nat & vector (a * b) H2}) =>
+                     existT _
+                       (S (projT1 (H1 (existT _ n2 t2))))
+                       (consV
+                         (projT1 (H1 (existT _ n2 t2)))
+                         (h, h0)
+                         (projT2 (H1 (existT _ n2 t2)))))
+                    (projT1 arg_1__)
+                    (projT2 arg_1__)))
+              (projT2
+                 (VectorDef.t_rect b
+                    (fun (n2 : nat) (_ : vector b n2) =>
+                     {H2 : nat & vector (a * b) H2})
+                    (existT _ 0 (nilV (a * b)))
+                    (fun (h0 : b) (n2 : nat) (t2 : vector b n2)
+                       (_ : {H2 : nat & vector (a * b) H2}) =>
+                     existT _
+                       (S (projT1 (H1 (existT _ n2 t2))))
+                       (consV
+                         (projT1 (H1 (existT _ n2 t2)))
+                         (h, h0)
+                         (projT2 (H1 (existT _ n2 t2)))))
+                    (projT1 arg_1__)
+                    (projT2 arg_1__))))
+           n0
+           t0
+           (existT _ (projT1 l3) (projT2 l3))) = n0)
+     (fun l3 : {H1 : nat & vector b H1} =>
+      [eta VectorDef.t_rect b
+             (fun (n0 : nat) (t0 : vector b n0) =>
+              0 = n0 ->
+              projT1
+                (VectorDef.t_rect a
+                   (fun (n1 : nat) (_ : vector a n1) =>
+                    {H2 : nat & vector b H2} -> {H2 : nat & vector (a * b) H2})
+                   (fun _ : {H2 : nat & vector b H2} =>
+                    existT _ 0 (nilV (a * b)))
+                   (fun (h : a) (n1 : nat) (_ : vector a n1)
+                      (H2 : {H2 : nat & vector b H2} ->
+                            {H2 : nat & vector (a * b) H2})
+                      (arg_1__ : {H3 : nat & vector b H3}) =>
+                    existT _
+                      (projT1
+                         (VectorDef.t_rect b
+                            (fun (n2 : nat) (_ : vector b n2) =>
+                             {H3 : nat & vector (a * b) H3})
+                            (existT _ 0 (nilV (a * b)))
+                            (fun (h0 : b) (n2 : nat) 
+                               (t2 : vector b n2)
+                               (_ : {H3 : nat & vector (a * b) H3}) =>
+                             existT _
+                               (S (projT1 (H2 (existT _ n2 t2))))
+                               (consV
+                                  (projT1 (H2 (existT _ n2 t2)))
+                                  (h, h0)
+                                  (projT2 (H2 (existT _ n2 t2)))))
+                            (projT1 arg_1__)
+                            (projT2 arg_1__)))
+                      (projT2
+                         (VectorDef.t_rect b
+                            (fun (n2 : nat) (_ : vector b n2) =>
+                             {H3 : nat & vector (a * b) H3})
+                            (existT _ 0 (nilV (a * b)))
+                            (fun (h0 : b) (n2 : nat) 
+                               (t2 : vector b n2)
+                               (_ : {H3 : nat & vector (a * b) H3}) =>
+                             existT _
+                               (S (projT1 (H2 (existT _ n2 t2))))
+                               (consV
+                                  (projT1 (H2 (existT _ n2 t2)))
+                                  (h, h0)
+                                  (projT2 (H2 (existT _ n2 t2)))))
+                            (projT1 arg_1__)
+                            (projT2 arg_1__))))
+                   0
+                   (nilV a)
+                   (existT _ n0 t0)) = 0) id
+             (fun (_ : b) (n0 : nat) (t0 : vector b n0)
+                (_ : 0 = n0 ->
+                     projT1
+                       (VectorDef.t_rect a
+                          (fun (n1 : nat) (_ : vector a n1) =>
+                           {H2 : nat & vector b H2} ->
+                           {H2 : nat & vector (a * b) H2})
+                          (fun _ : {H2 : nat & vector b H2} =>
+                           existT _ 0 (nilV (a * b)))
+                          (fun (h0 : a) (n1 : nat) (_ : vector a n1)
+                             (H2 : {H2 : nat & vector b H2} ->
+                                   {H2 : nat & vector (a * b) H2})
+                             (arg_1__ : {H3 : nat & vector b H3}) =>
+                           existT _
+                             (projT1
+                                (VectorDef.t_rect b
+                                   (fun (n2 : nat) (_ : vector b n2) =>
+                                    {H3 : nat & vector (a * b) H3})
+                                   (existT _ 0 (nilV (a * b)))
+                                   (fun (h1 : b) (n2 : nat) 
+                                      (t2 : vector b n2)
+                                      (_ : {H3 : nat & vector (a * b) H3}) =>
+                                    existT _
+                                      (S (projT1 (H2 (existT _ n2 t2))))
+                                      (consV
+                                         (projT1 (H2 (existT _ n2 t2)))
+                                         (h0, h1)
+                                         (projT2 (H2 (existT _ n2 t2)))))
+                                   (projT1 arg_1__)
+                                   (projT2 arg_1__)))
+                             (projT2 (VectorDef.t_rect b
+                                   (fun (n2 : nat) (_ : vector b n2) =>
+                                    {H3 : nat & vector (a * b) H3})
+                                   (existT _ 0 (nilV (a * b)))
+                                   (fun (h1 : b) (n2 : nat) 
+                                      (t2 : vector b n2)
+                                      (_ : {H3 : nat & vector (a * b) H3}) =>
+                                    existT _
+                                      (S (projT1 (H2 (existT _ n2 t2))))
+                                      (consV
+                                         (projT1 (H2 (existT _ n2 t2)))
+                                         (h0, h1)
+                                         (projT2 (H2 (existT _ n2 t2)))))
+                                   (projT1 arg_1__)
+                                   (projT2 arg_1__))))
+                          0
+                          (nilV a)
+                          (existT _ n0 t0)) = 0) 
+                (_ : 0 = S n0) => erefl 0) (projT1 l3) 
+             (projT2 l3)])
+     (fun (h : a) (n0 : nat) (t0 : vector a n0)
+        (H1 : forall l3 : {H1 : nat & vector b H1},
+              n0 = projT1 l3 ->
+              projT1
+                (VectorDef.t_rect a
+                   (fun (n1 : nat) (_ : vector a n1) =>
+                    {H1 : nat & vector b H1} -> {H1 : nat & vector (a * b) H1})
+                   (fun _ : {H1 : nat & vector b H1} =>
+                    existT _ 0 (nilV (a * b)))
+                   (fun (h0 : a) (n1 : nat) (_ : vector a n1)
+                      (H1 : {H1 : nat & vector b H1} ->
+                            {H1 : nat & vector (a * b) H1})
+                      (arg_1__ : {H2 : nat & vector b H2}) =>
+                    existT _
+                      (projT1
+                         (VectorDef.t_rect b
+                            (fun (n2 : nat) (_ : vector b n2) =>
+                             {H2 : nat & vector (a * b) H2})
+                            (existT _ 0 (nilV (a * b)))
+                            (fun (h1 : b) (n2 : nat) 
+                               (t2 : vector b n2)
+                               (_ : {H2 : nat & vector (a * b) H2}) =>
+                             existT _
+                               (S (projT1 (H1 (existT _ n2 t2))))
+                               (consV
+                                  (projT1 (H1 (existT _ n2 t2)))
+                                  (h0, h1)
+                                  (projT2 (H1 (existT _ n2 t2)))))
+                            (projT1 arg_1__)
+                            (projT2 arg_1__)))
+                      (projT2
+                         (VectorDef.t_rect b
+                            (fun (n2 : nat) (_ : vector b n2) =>
+                             {H2 : nat & vector (a * b) H2})
+                            (existT _ 0 (nilV (a * b)))
+                            (fun (h1 : b) (n2 : nat) 
+                               (t2 : vector b n2)
+                               (_ : {H2 : nat & vector (a * b) H2}) =>
+                             existT _
+                               (S (projT1 (H1 (existT _ n2 t2))))
+                               (consV
+                                  (projT1 (H1 (existT _ n2 t2)))
+                                  (h0, h1)
+                                  (projT2 (H1 (existT _ n2 t2)))))
+                            (projT1 arg_1__)
+                            (projT2 arg_1__))))
+                   n0
+                   t0
+                   (existT _ (projT1 l3) (projT2 l3))) = n0)
+        (l3 : {H2 : nat & vector b H2}) =>
+      [eta VectorDef.t_rect b
+             (fun (n1 : nat) (t1 : vector b n1) =>
+              S n0 = n1 ->
+              projT1
+                (VectorDef.t_rect a
+                   (fun (n2 : nat) (_ : vector a n2) =>
+                    {H3 : nat & vector b H3} -> {H3 : nat & vector (a * b) H3})
+                   (fun _ : {H3 : nat & vector b H3} =>
+                    existT _ 0 (nilV (a * b)))
+                   (fun (h0 : a) (n2 : nat) (_ : vector a n2)
+                      (H3 : {H3 : nat & vector b H3} ->
+                            {H3 : nat & vector (a * b) H3})
+                      (arg_1__ : {H4 : nat & vector b H4}) =>
+                    existT _
+                      (projT1
+                         (VectorDef.t_rect b
+                            (fun (n3 : nat) (_ : vector b n3) =>
+                             {H4 : nat & vector (a * b) H4})
+                            (existT _ 0 (nilV (a * b)))
+                            (fun (h1 : b) (n3 : nat) 
+                               (t3 : vector b n3)
+                               (_ : {H4 : nat & vector (a * b) H4}) =>
+                             existT _
+                               (S (projT1 (H3 (existT _ n3 t3))))
+                               (consV
+                                  (projT1 (H3 (existT _ n3 t3)))
+                                  (h0, h1)
+                                  (projT2 (H3 (existT _ n3 t3)))))
+                            (projT1 arg_1__)
+                            (projT2 arg_1__)))
+                      (projT2
+                         (VectorDef.t_rect b
+                            (fun (n3 : nat) (_ : vector b n3) =>
+                             {H4 : nat & vector (a * b) H4})
+                            (existT _ 0 (nilV (a * b)))
+                            (fun (h1 : b) (n3 : nat) 
+                               (t3 : vector b n3)
+                               (_ : {H4 : nat & vector (a * b) H4}) =>
+                             existT _
+                               (S (projT1 (H3 (existT _ n3 t3))))
+                               (consV
+                                  (projT1 (H3 (existT _ n3 t3)))
+                                  (h0, h1)
+                                  (projT2 (H3 (existT _ n3 t3)))))
+                            (projT1 arg_1__)
+                            (projT2 arg_1__))))
+                   (S n0)
+                   (consV n0 h t0)
+                   (existT _ n1 t1)) = S n0)
+             [eta hs_to_coq_lengths.Coq_Init_Logic_eq_sym nat
+                    (S n0)
+                    (projT1
+                       (VectorDef.t_rect a
+                          (fun (n1 : nat) (_ : vector a n1) =>
+                           {H4 : nat & vector b H4} ->
+                           {H4 : nat & vector (a * b) H4})
+                          (fun _ : {H4 : nat & vector b H4} =>
+                           existT _ 0 (nilV (a * b)))
+                          (fun (h0 : a) (n1 : nat) (_ : vector a n1)
+                             (H4 : {H4 : nat & vector b H4} ->
+                                   {H4 : nat & vector (a * b) H4})
+                             (arg_1__ : {H5 : nat & vector b H5}) =>
+                           existT _
+                             (projT1
+                                (VectorDef.t_rect b
+                                   (fun (n2 : nat) (_ : vector b n2) =>
+                                    {H5 : nat & vector (a * b) H5})
+                                   (existT _ 0 (nilV (a * b)))
+                                   (fun (h1 : b) (n2 : nat) 
+                                      (t2 : vector b n2)
+                                      (_ : {H5 : nat & vector (a * b) H5}) =>
+                                    existT _
+                                      (S (projT1 (H4 (existT _ n2 t2))))
+                                      (consV
+                                         (projT1 (H4 (existT _ n2 t2)))
+                                         (h0, h1)
+                                         (projT2 (H4 (existT _ n2 t2)))))
+                                   (projT1 arg_1__)
+                                   (projT2 arg_1__)))
+                             (projT2
+                                (VectorDef.t_rect b
+                                   (fun (n2 : nat) (_ : vector b n2) =>
+                                    {H5 : nat & vector (a * b) H5})
+                                   (existT _ 0 (nilV (a * b)))
+                                   (fun (h1 : b) (n2 : nat) 
+                                      (t2 : vector b n2)
+                                      (_ : {H5 : nat & vector (a * b) H5}) =>
+                                    existT _
+                                      (S (projT1 (H4 (existT _ n2 t2))))
+                                      (consV
+                                         (projT1 (H4 (existT _ n2 t2)))
+                                         (h0, h1)
+                                         (projT2 (H4 (existT _ n2 t2)))))
+                                   (projT1 arg_1__)
+                                   (projT2 arg_1__))))
+                          (S n0)
+                          (consV n0 h t0)
+                          (existT _ 0 (nilV b))))]
+             (fun (h0 : b) (n1 : nat) (t1 : vector b n1)
+                (_ : S n0 = n1 ->
+                     projT1
+                       (VectorDef.t_rect a
+                          (fun (n2 : nat) (_ : vector a n2) =>
+                           {H3 : nat & vector b H3} ->
+                           {H3 : nat & vector (a * b) H3})
+                          (fun _ : {H3 : nat & vector b H3} =>
+                           existT _ 0 (nilV (a * b)))
+                          (fun (h1 : a) (n2 : nat) (_ : vector a n2)
+                             (H3 : {H3 : nat & vector b H3} ->
+                                   {H3 : nat & vector (a * b) H3})
+                             (arg_1__ : {H4 : nat & vector b H4}) =>
+                           existT _
+                             (projT1
+                                (VectorDef.t_rect b
+                                   (fun (n3 : nat) (_ : vector b n3) =>
+                                    {H4 : nat & vector (a * b) H4})
+                                   (existT _ 0 (nilV (a * b)))
+                                   (fun (h2 : b) (n3 : nat) 
+                                      (t3 : vector b n3)
+                                      (_ : {H4 : nat & vector (a * b) H4}) =>
+                                    existT _
+                                      (S (projT1 (H3 (existT _ n3 t3))))
+                                      (consV
+                                         (projT1 (H3 (existT _ n3 t3)))
+                                         (h1, h2)
+                                         (projT2 (H3 (existT _ n3 t3)))))
+                                   (projT1 arg_1__)
+                                   (projT2 arg_1__)))
+                             (projT2
+                                (VectorDef.t_rect b
+                                   (fun (n3 : nat) (_ : vector b n3) =>
+                                    {H4 : nat & vector (a * b) H4})
+                                   (existT _ 0 (nilV (a * b)))
+                                   (fun (h2 : b) (n3 : nat) 
+                                      (t3 : vector b n3)
+                                      (_ : {H4 : nat & vector (a * b) H4}) =>
+                                    existT _
+                                      (S (projT1 (H3 (existT _ n3 t3))))
+                                      (consV
+                                         (projT1 (H3 (existT _ n3 t3)))
+                                         (h1, h2)
+                                         (projT2 (H3 (existT _ n3 t3)))))
+                                   (projT1 arg_1__)
+                                   (projT2 arg_1__))))
+                          (S n0)
+                          (consV n0 h t0)
+                          (existT _ n1 t1)) = S n0) =>
+              (eq_ind (S n0)
+                 (fun y : nat =>
+                  y = S n1 ->
+                  projT1
+                    (VectorDef.t_rect a
+                       (fun (n2 : nat) (_ : vector a n2) =>
+                        {H4 : nat & vector b H4} ->
+                        {H4 : nat & vector (a * b) H4})
+                       (fun _ : {H4 : nat & vector b H4} =>
+                        existT _ 0 (nilV (a * b)))
+                       (fun (h1 : a) (n2 : nat) (_ : vector a n2)
+                          (H4 : {H4 : nat & vector b H4} ->
+                                {H4 : nat & vector (a * b) H4})
+                          (arg_1__ : {H5 : nat & vector b H5}) =>
+                        existT _
+                          (projT1
+                             (VectorDef.t_rect b
+                                (fun (n3 : nat) (_ : vector b n3) =>
+                                 {H5 : nat & vector (a * b) H5})
+                                (existT _ 0 (nilV (a * b)))
+                                (fun (h2 : b) (n3 : nat) 
+                                   (t3 : vector b n3)
+                                   (_ : {H5 : nat & vector (a * b) H5}) =>
+                                 existT _
+                                   (S (projT1 (H4 (existT _ n3 t3))))
+                                   (consV
+                                      (projT1 (H4 (existT _ n3 t3)))
+                                      (h1, h2)
+                                      (projT2 (H4 (existT _ n3 t3)))))
+                                (projT1 arg_1__)
+                                (projT2 arg_1__)))
+                          (projT2
+                             (VectorDef.t_rect b
+                                (fun (n3 : nat) (_ : vector b n3) =>
+                                 {H5 : nat & vector (a * b) H5})
+                                (existT _ 0 (nilV (a * b)))
+                                (fun (h2 : b) (n3 : nat) 
+                                   (t3 : vector b n3)
+                                   (_ : {H5 : nat & vector (a * b) H5}) =>
+                                 existT _
+                                   (S (projT1 (H4 (existT _ n3 t3))))
+                                   (consV
+                                      (projT1 (H4 (existT _ n3 t3)))
+                                      (h1, h2)
+                                      (projT2 (H4 (existT _ n3 t3)))))
+                                (projT1 arg_1__)
+                                (projT2 arg_1__))))
+                       (S n0)
+                       (consV n0 h t0)
+                       (existT _ (S n1) (consV n1 h0 t1))) =
+                  S n0)
+                 (fun H4 : S n0 = S n1 =>
+                  hs_to_coq_lengths.Coq_Init_Logic_eq_ind nat
+                    n0
+                    (fun _ : nat =>
+                     projT1
+                       (VectorDef.t_rect a
+                          (fun (n3 : nat) (_ : vector a n3) =>
+                           {H5 : nat & vector b H5} ->
+                           {H5 : nat & vector (a * b) H5})
+                          (fun _ : {H5 : nat & vector b H5} =>
+                           existT _ 0 (nilV (a * b)))
+                          (fun (h1 : a) (n3 : nat) (_ : vector a n3)
+                             (H5 : {H5 : nat & vector b H5} ->
+                                   {H5 : nat & vector (a * b) H5})
+                             (arg_1__ : {H6 : nat & vector b H6}) =>
+                           existT _
+                             (projT1
+                                (VectorDef.t_rect b
+                                   (fun (n4 : nat) (_ : vector b n4) =>
+                                    {H6 : nat & vector (a * b) H6})
+                                   (existT _ 0 (nilV (a * b)))
+                                   (fun (h2 : b) (n4 : nat) 
+                                      (t3 : vector b n4)
+                                      (_ : {H6 : nat & vector (a * b) H6}) =>
+                                    existT _
+                                      (S (projT1 (H5 (existT _ n4 t3))))
+                                      (consV
+                                         (projT1 (H5 (existT _ n4 t3)))
+                                         (h1, h2)
+                                         (projT2 (H5 (existT _ n4 t3)))))
+                                   (projT1 arg_1__)
+                                   (projT2 arg_1__)))
+                             (projT2
+                                (VectorDef.t_rect b
+                                   (fun (n4 : nat) (_ : vector b n4) =>
+                                    {H6 : nat & vector (a * b) H6})
+                                   (existT _ 0 (nilV (a * b)))
+                                   (fun (h2 : b) (n4 : nat) 
+                                      (t3 : vector b n4)
+                                      (_ : {H6 : nat & vector (a * b) H6}) =>
+                                    existT _
+                                      (S (projT1 (H5 (existT _ n4 t3))))
+                                      (consV
+                                         (projT1 (H5 (existT _ n4 t3)))
+                                         (h1, h2)
+                                         (projT2 (H5 (existT _ n4 t3)))))
+                                   (projT1 arg_1__)
+                                   (projT2 arg_1__))))
+                          (S n0)
+                          (consV n0 h t0)
+                          (existT _ (S n1) (consV n1 h0 t1))) =
+                     S n0)
+                    (hs_to_coq_lengths.Coq_Init_Logic_eq_trans nat
+                       (S
+                          (projT1
+                             (VectorDef.t_rect a
+                                (fun (n2 : nat) (_ : vector a n2) =>
+                                 {H5 : nat & vector b H5} ->
+                                 {H5 : nat & vector (a * b) H5})
+                                (fun _ : {H5 : nat & vector b H5} =>
+                                 existT _ 0 (nilV (a * b)))
+                                (fun (h1 : a) (n2 : nat) 
+                                   (_ : vector a n2)
+                                   (H5 : {H5 : nat & vector b H5} ->
+                                         {H5 : nat & vector (a * b) H5})
+                                   (arg_1__ : {H6 : nat & vector b H6}) =>
+                                 existT _
+                                   (projT1
+                                      (VectorDef.t_rect b
+                                         (fun (n3 : nat) (_ : vector b n3) =>
+                                          {H6 : nat & vector (a * b) H6})
+                                         (existT _ 0 (nilV (a * b)))
+                                         (fun (h2 : b) 
+                                            (n3 : nat) 
+                                            (t3 : vector b n3)
+                                            (_ : {H6 : nat & vector (a * b) H6})
+                                          =>
+                                          existT _
+                                            (S (projT1 (H5 (existT _ n3 t3))))
+                                            (consV
+                                               (projT1 (H5 (existT _ n3 t3)))
+                                               (h1, h2)
+                                               (projT2 (H5 (existT _ n3 t3)))))
+                                         (projT1 arg_1__)
+                                         (projT2 arg_1__)))
+                                   (projT2
+                                      (VectorDef.t_rect b
+                                         (fun (n3 : nat) (_ : vector b n3) =>
+                                          {H6 : nat & vector (a * b) H6})
+                                         (existT _ 0 (nilV (a * b)))
+                                         (fun (h2 : b) 
+                                            (n3 : nat) 
+                                            (t3 : vector b n3)
+                                            (_ : {H6 : nat & vector (a * b) H6})
+                                          =>
+                                          existT _
+                                            (S (projT1 (H5 (existT _ n3 t3))))
+                                            (consV
+                                               (projT1 (H5 (existT _ n3 t3)))
+                                               (h1, h2)
+                                               (projT2 (H5 (existT _ n3 t3)))))
+                                         (projT1 arg_1__)
+                                         (projT2 arg_1__))))
+                                n0
+                                t0
+                                (existT _ n1 t1))))
+                       (S
+                          (projT1
+                             (VectorDef.t_rect a
+                                (fun (n2 : nat) (_ : vector a n2) =>
+                                 {H5 : nat & vector b H5} ->
+                                 {H5 : nat & vector (a * b) H5})
+                                (fun _ : {H5 : nat & vector b H5} =>
+                                 existT _ 0 (nilV (a * b)))
+                                (fun (h1 : a) (n2 : nat) 
+                                   (_ : vector a n2)
+                                   (H5 : {H5 : nat & vector b H5} ->
+                                         {H5 : nat & vector (a * b) H5})
+                                   (arg_1__ : {H6 : nat & vector b H6}) =>
+                                 existT _
+                                   (projT1
+                                      (VectorDef.t_rect b
+                                         (fun (n3 : nat) (_ : vector b n3) =>
+                                          {H6 : nat & vector (a * b) H6})
+                                         (existT _ 0 (nilV (a * b)))
+                                         (fun (h2 : b) 
+                                            (n3 : nat) 
+                                            (t3 : vector b n3)
+                                            (_ : {H6 : nat & vector (a * b) H6})
+                                          =>
+                                          existT _
+                                            (S (projT1 (H5 (existT _ n3 t3))))
+                                            (consV
+                                               (projT1 (H5 (existT _ n3 t3)))
+                                               (h1, h2)
+                                               (projT2 (H5 (existT _ n3 t3)))))
+                                         (projT1 arg_1__)
+                                         (projT2 arg_1__)))
+                                   (projT2
+                                      (VectorDef.t_rect b
+                                         (fun (n3 : nat) (_ : vector b n3) =>
+                                          {H6 : nat & vector (a * b) H6})
+                                         (existT _ 0 (nilV (a * b)))
+                                         (fun (h2 : b) 
+                                            (n3 : nat) 
+                                            (t3 : vector b n3)
+                                            (_ : {H6 : nat & vector (a * b) H6})
+                                          =>
+                                          existT _
+                                            (S (projT1 (H5 (existT _ n3 t3))))
+                                            (consV
+                                               (projT1 (H5 (existT _ n3 t3)))
+                                               (h1, h2)
+                                               (projT2 (H5 (existT _ n3 t3)))))
+                                         (projT1 arg_1__)
+                                         (projT2 arg_1__))))
+                                n0
+                                t0
+                                (existT _ n1 t1))))
+                       (S n0)
+                       (hs_to_coq_lengths.Coq_Init_Logic_f_equal 
+                          (nat -> nat) nat
+                          (@^~ (projT1
+                                  (VectorDef.t_rect a
+                                     (fun (n2 : nat) (_ : vector a n2) =>
+                                      {H5 : nat & vector b H5} ->
+                                      {H5 : nat & vector (a * b) H5})
+                                     (fun _ : {H5 : nat & vector b H5} =>
+                                      existT _ 0 (nilV (a * b)))
+                                     (fun (h1 : a) (n2 : nat) 
+                                        (_ : vector a n2)
+                                        (H5 : {H5 : nat & vector b H5} ->
+                                              {H5 : nat & vector (a * b) H5})
+                                        (arg_1__ : {H6 : nat & vector b H6}) =>
+                                      existT _
+                                        (projT1
+                                           (VectorDef.t_rect b
+                                              (fun (n3 : nat) (_ : vector b n3)
+                                               => {H6 : nat & vector (a * b) H6})
+                                              (existT _ 0  (nilV (a * b)))
+                                              (fun (h2 : b) 
+                                                 (n3 : nat) 
+                                                 (t3 : vector b n3)
+                                                 (_ : 
+                                                  {H6 : nat & 
+                                                  vector (a * b) H6}) =>
+                                               existT _
+                                                 (S (projT1 (H5 (existT _ n3 t3))))
+                                                 (consV
+                                                    (projT1 (H5 (existT _ n3 t3)))
+                                                    (h1, h2)
+                                                    (projT2 (H5 (existT _ n3 t3)))))
+                                              (projT1 arg_1__)
+                                              (projT2 arg_1__)))
+                                        (projT2
+                                           (VectorDef.t_rect b
+                                              (fun (n3 : nat) (_ : vector b n3)
+                                               => {H6 : nat & vector (a * b) H6})
+                                              (existT _ 0  (nilV (a * b)))
+                                              (fun (h2 : b) 
+                                                 (n3 : nat) 
+                                                 (t3 : vector b n3)
+                                                 (_ : 
+                                                  {H6 : nat & 
+                                                  vector (a * b) H6}) =>
+                                               existT _
+                                                 (S (projT1 (H5 (existT _ n3 t3))))
+                                                 (consV
+                                                    (projT1 (H5 (existT _ n3 t3)))
+                                                    (h1, h2)
+                                                    (projT2 (H5 (existT _ n3 t3)))))
+                                              (projT1 arg_1__)
+                                              (projT2 arg_1__))))
+                                     n0
+                                     t0
+                                     (existT _ n1 t1)))) S S
+                          (erefl S))
+                       (hs_to_coq_lengths.Coq_Init_Logic_f_equal nat nat S
+                          (projT1
+                             (VectorDef.t_rect a
+                                (fun (n2 : nat) (_ : vector a n2) =>
+                                 {H5 : nat & vector b H5} ->
+                                 {H5 : nat & vector (a * b) H5})
+                                (fun _ : {H5 : nat & vector b H5} =>
+                                 existT _ 0 (nilV (a * b)))
+                                (fun (h1 : a) (n2 : nat) 
+                                   (_ : vector a n2)
+                                   (H5 : {H5 : nat & vector b H5} ->
+                                         {H5 : nat & vector (a * b) H5})
+                                   (arg_1__ : {H6 : nat & vector b H6}) =>
+                                 existT _
+                                   (projT1
+                                      (VectorDef.t_rect b
+                                         (fun (n3 : nat) (_ : vector b n3) =>
+                                          {H6 : nat & vector (a * b) H6})
+                                         (existT _ 0 (nilV (a * b)))
+                                         (fun (h2 : b) 
+                                                 (n3 : nat) 
+                                                 (t3 : vector b n3)
+                                                 (_ : 
+                                                  {H6 : nat & 
+                                                  vector (a * b) H6}) =>
+                                               existT _
+                                                 (S (projT1 (H5 (existT _ n3 t3))))
+                                                 (consV
+                                                    (projT1 (H5 (existT _ n3 t3)))
+                                                    (h1, h2)
+                                                    (projT2 (H5 (existT _ n3 t3)))))
+                                         (projT1 arg_1__)
+                                         (projT2 arg_1__)))
+                                   (projT2
+                                      (VectorDef.t_rect b
+                                         (fun (n3 : nat) (_ : vector b n3) =>
+                                          {H6 : nat & vector (a * b) H6})
+                                         (existT _ 0 (nilV (a * b)))
+                                         (fun (h2 : b) 
+                                                 (n3 : nat) 
+                                                 (t3 : vector b n3)
+                                                 (_ : 
+                                                  {H6 : nat & 
+                                                  vector (a * b) H6}) =>
+                                               existT _
+                                                 (S (projT1 (H5 (existT _ n3 t3))))
+                                                 (consV
+                                                    (projT1 (H5 (existT _ n3 t3)))
+                                                    (h1, h2)
+                                                    (projT2 (H5 (existT _ n3 t3)))))
+                                         (projT1 arg_1__)
+                                         (projT2 arg_1__))))
+                                n0
+                                t0
+                                (existT _ n1 t1)))
+                          n0
+                          (H1 (existT _ n1 t1)
+                             (hs_to_coq_lengths.Coq_Init_Logic_f_equal nat nat
+                                [eta nat_rec (fun _ : nat => nat)
+                                       (VectorDef.t_rect a
+                                          (fun (n2 : nat) (_ : vector a n2) =>
+                                           nat) 0
+                                          (fun (_ : a) 
+                                             (n2 : nat) 
+                                             (_ : vector a n2) => [eta S])
+                                          n0
+                                          t0)
+                                       (fun n2 _ : nat => n2)]
+                                (S n0) 
+                                (S n1) H4)))) n1
+                    (hs_to_coq_lengths.Coq_Init_Logic_f_equal nat nat
+                       [eta nat_rec (fun _ : nat => nat)
+                              (VectorDef.t_rect a
+                                 (fun (n2 : nat) (_ : vector a n2) => nat) 0
+                                 (fun (_ : a) (n2 : nat) (_ : vector a n2) =>
+                                  [eta S]) n0
+                                 t0)
+                              (fun n2 _ : nat => n2)]
+                       (S n0) 
+                       (S n1) H4)) (S n1))^~ (erefl (S n1))) 
+             (projT1 l3) (projT2 l3)])
+     (projT1 l1)
+     (projT2 l1)
+     (existT _ (projT1 l2) (projT2 l2))
+     (hs_to_coq_lengths.Coq_Init_Logic_eq_trans nat (projT1 l1) n 
+        (projT1 l2) H
+        (hs_to_coq_lengths.Coq_Init_Logic_eq_sym nat (projT1 l2) n H0))) n H)
+   in
+(projT2
+       (hs_to_coqV_p.zip a b
+         (existT _ n v1)
+         (existT _ n v2))).
+
+(* TODO why is simplifying projections of existentials not working anymore? terms are ugly *)
+
 (*
  * Lifting along this equivalence will soon be automated, but for now apply
  * the above functions by hand:
