@@ -477,13 +477,20 @@ let equiv_proof_curry_record env l sigma =
 (* --- Equivalence proofs for unpack sigma --- *)
 
 (*
- * TODO comment, clean, etc
+ * Much like search, this simply instantiates more general equivalences
+ * to specific types
  *)
 
+(*
+ * Generic section proof
+ *)
 let unpack_section () =
   let n = qualid_of_string "Ornamental.Equivalences.unpack_generic_section" in
   mkConst (locate_constant n)
 
+(*
+ * Generic retraction proof
+ *)
 let unpack_retraction () =
   let n = qualid_of_string "Ornamental.Equivalences.unpack_generic_retraction" in
   mkConst (locate_constant n)
