@@ -270,12 +270,12 @@ Find ornament packed vector as unpack_vector.
 Print packed_vector.zip.
 (* forget arg: *)
 Definition unpacked_zip_handwritten_1 (a b : Type) (n : nat) (v1 : vector a n) (v2 : {l2 : {H : nat & vector b H} & projT1 l2 = n}) : {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n} :=
-  packed_rect
-    {H : nat & vector a H}
+  packed_rect {H : nat & vector a H}
     (fun s => projT1 s)
     Datatypes.id
-    (fun (H : nat) (H0 : {H0 : nat & vector a H0}) => Datatypes.id) n
-       (fun _ : {l1 : {H : nat & vector a H} & projT1 l1 = n} =>
+    (fun (H : nat) (H0 : {H0 : nat & vector a H0}) => Datatypes.id)
+    n
+    (fun _ : {l1 : {H : nat & vector a H} & projT1 l1 = n} =>
         {l2 : {H : nat & vector b H} & projT1 l2 = n} ->
         {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n})
        (fun (l : {H : nat & vector a H}) (H : projT1 l = n)
@@ -298,6 +298,26 @@ Definition unpacked_zip_handwritten_1 (a b : Type) (n : nat) (v1 : vector a n) (
              H (projT2 pl2))) 
    (unpack_vector_inv a n v1) (* <-- forget *)
    v2.
+
+(* vs our final handwritten: *)
+Program Definition unpacked_zip_handwritten (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
+VectorDef.t_rect a
+  (fun (n : nat) (_ : vector a n) =>
+   vector b n -> vector (a * b) n) (* Our P above at i_b, at the second projection *)
+  (fun _ : vector b 0 => (nilV (a * b)))
+  (fun (h : a) (n : nat) (_ : vector a n)
+     (H : vector b n -> vector (a * b) n)
+     (arg_1__0 : vector b (S n)) =>
+     (VectorDef.t_rect b (* second projection of zip with zip_length substituted in *)
+           (fun (n0 : nat) (_ : vector b n0) => vector (a * b) _)
+           (nilV (a * b))
+           (fun (h0 : b) (n0 : nat) (t1 : vector b n0)
+              (IH : vector (a * b) n0) =>
+              (consV n0 (h, h0) IH))
+           (S n) arg_1__0)) 
+  n
+  v1
+  v2.
 
 Print packed_rect.
 
