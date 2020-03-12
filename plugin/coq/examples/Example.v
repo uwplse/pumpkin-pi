@@ -268,40 +268,6 @@ Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 Find ornament packed vector as unpack_vector.
 
 Print packed_vector.zip.
-
-(*
- packed_vector.zip = 
-fun (a b : Type) (n : nat) =>
-[eta packed_rect {H : nat & vector a H} [eta projT1 (P:=_)]
-       Datatypes.id
-       (fun (H : nat) (H0 : {H0 : nat & vector a H0}) => Datatypes.id) n
-       (fun _ : {l1 : {H : nat & vector a H} & projT1 l1 = n} =>
-        {l2 : {H : nat & vector b H} & projT1 l2 = n} ->
-        {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n})
-       (fun (l : {H : nat & vector a H}) (H : projT1 l = n)
-          (pl2 : {l2 : {H0 : nat & vector b H0} & projT1 l2 = n}) =>
-        existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
-          (existT _
-             (projT1
-                (hs_to_coqV_p.zip a b
-                   (existT _ (projT1 l) (projT2 l))
-                   (existT _ (projT1 (projT1 pl2))
-                      (projT2 (projT1 pl2)))))
-             (projT2
-                (hs_to_coqV_p.zip a b
-                   (existT _ (projT1 l) (projT2 l))
-                   (existT _ (projT1 (projT1 pl2))
-                      (projT2 (projT1 pl2))))))
-          (packed_vector.zip_length a b n
-             (existT _ (projT1 l) (projT2 l))
-             (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))
-             H (projT2 pl2)))]
-     : forall (a b : Type) (n : nat),
-       {l1 : {H : nat & vector a H} & projT1 l1 = n} ->
-       {l2 : {H : nat & vector b H} & projT1 l2 = n} ->
-       {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n}
-*)
-
 (* forget arg: *)
 Definition unpacked_zip_handwritten_1 (a b : Type) (n : nat) (v1 : vector a n) (v2 : {l2 : {H : nat & vector b H} & projT1 l2 = n}) : {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n} :=
   packed_rect
@@ -466,250 +432,34 @@ Definition unpacked_zip_handwritten_7 (a b : Type) (n : nat) (v1 : vector a n) (
          (existT _ n v2))).
 
 Print hs_to_coq_projT1s.zip_length.
-Definition unpacked_zip_handwritten_8 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
-   rew 
-    (VectorDef.t_rect a
-       (fun (n : nat) (t0 : vector a n) =>
-          forall l3 : {H0 : nat & vector b H0}, n = projT1 l3 ->
-          projT1 (hs_to_coqV_p.zip a b (existT _ n t0) (existT _ (projT1 l3) (projT2 l3))) = n)
-       (fun l3 : {H0 : nat & vector b H0} =>
-          VectorDef.t_rect b
-            (fun (n : nat) (t0 : vector b n) =>
-              0 = n ->
-              projT1 (hs_to_coqV_p.zip a b (existT _ 0 (nilV a)) (existT _ n t0)) = 0)
-             id
-             (fun (_ : b) (n : nat) (t0 : vector b n)
-                  (_ : 0 = n ->
-                       projT1 (hs_to_coqV_p.zip a b (existT _ 0 (nilV a))(existT _ n t0)) = 0) 
-                  (_ : 0 = S n) => erefl 0)
-              (projT1 l3) 
-              (projT2 l3))
-       (fun (h : a) (n : nat) (t0 : vector a n)
-          (H0 : forall l3 : {H0 : nat & vector b H0},
-                n = projT1 l3 ->
-                projT1
-                  (hs_to_coqV_p.zip a b (existT _ n t0)
-                     (existT _ (projT1 l3) (projT2 l3))) = n)
-          (l3 : {H1 : nat & vector b H1}) =>
-            VectorDef.t_rect b
-             (fun (n0 : nat) (t1 : vector b n0) =>
-                S n = n0 ->
-                projT1 (hs_to_coqV_p.zip a b (existT _ (S n) (consV n h t0)) (existT _ n0 t1)) =  S n)
-                (eq_sym
-                      (y:=projT1
-                            (hs_to_coqV_p.zip a b
-                               (existT _ (S n) (consV n h t0))
-                               (existT _ 0 (nilV b)))))
-               (fun (_ : b) (n0 : nat) (t1 : vector b n0)
-                  (_ : S n = n0 ->
-                       projT1
-                         (hs_to_coqV_p.zip a b
-                            (existT _ (S n) (consV n h t0))
-                            (existT _ n0 t1)) = 
-                       S n) (H2 : S n = S n0) =>
-                eq_trans
-                  (f_equal
-                     (@^~ (projT1
-                             (hs_to_coqV_p.zip a b (existT _ n t0)
-                                (existT _ n0 t1)))) 
-                     (erefl S))
-                  (f_equal S
-                     (eq_ind_r (eq^~ n) (erefl n)
-                        (H0 (existT _ n0 t1)
-                           (@eq_add_S n n0 H2)))))
-               (projT1 l3) (projT2 l3)) n 
-       v1 
-       (existT _ n v2)
-       (erefl n))
-    in 
-    (projT2
-       (hs_to_coqV_p.zip a b
-         (existT _ n v1)
-         (existT _ n v2))).
 
-(* Unpack more *)
-Definition unpacked_zip_handwritten_9 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
-   rew 
-    (VectorDef.t_rect a
-       (fun (n : nat) (t0 : vector a n) =>
-          forall (n0 : nat) (v3 : vector b n0), n = n0 -> (* <-- unpack premise here (TODO why can we do this? will this simplify later so we can avoid expanding functions?) *)
-          projT1 (hs_to_coqV_p.zip a b (existT _ n t0) (existT _ n0 v3)) = n)
-       (fun (n0 : nat) (v3 : vector b n0) =>
-          VectorDef.t_rect b
-            (fun (n : nat) (t0 : vector b n) =>
-              0 = n -> 0 = 0)
-             id
-             (fun (_ : b) (n : nat) (t0 : vector b n) (_ : 0 = n -> 0 = 0) (_ : 0 = S n) =>
-               erefl 0)
-            n0 
-            v3)
-       (fun (h : a) (n : nat) (t0 : vector a n)
-          (H0 : forall (n0 : nat) (v3 : vector b n0),
-                n = n0 ->
-                projT1 (hs_to_coqV_p.zip a b (existT _ n t0) (existT _ n0 v3)) = n)
-          (n0 : nat) (v3 : vector b n0) =>
-            VectorDef.t_rect b
-             (fun (n0 : nat) (t1 : vector b n0) =>
-                S n = n0 ->
-                projT1 (hs_to_coqV_p.zip a b (existT _ (S n) (consV n h t0)) (existT _ n0 t1)) =  S n)
-                (eq_sym
-                      (y:=projT1
-                            (hs_to_coqV_p.zip a b
-                               (existT _ (S n) (consV n h t0))
-                               (existT _ 0 (nilV b)))))
-               (fun (_ : b) (n0 : nat) (t1 : vector b n0)
-                  (_ : S n = n0 ->
-                       projT1
-                         (hs_to_coqV_p.zip a b
-                            (existT _ (S n) (consV n h t0))
-                            (existT _ n0 t1)) = 
-                       S n) (H2 : S n = S n0) =>
-                eq_trans
-                  (f_equal
-                     (@^~ (projT1
-                             (hs_to_coqV_p.zip a b (existT _ n t0)
-                                (existT _ n0 t1)))) 
-                     (erefl S))
-                  (f_equal S
-                     (eq_ind_r (eq^~ n) (erefl n)
-                        (H0 n0 t1
-                           (@eq_add_S n n0 H2)))))
-               n0 v3) n 
-       v1 
-       n
-       v2
-       (erefl n))
-    in 
-    (projT2
-       (hs_to_coqV_p.zip a b
-         (existT _ n v1)
-         (existT _ n v2))).
+Unpack hs_to_coq_projT1s.zip_length as zip_length'.
+Print zip_length'.
 
-(* Can we unpack zip? *)
 Print hs_to_coqV_p.zip.
 
-Definition unpacked_zip_handwritten_p_0 (a b : Type) (arg_0__ : {H : nat & vector a H})
-  (arg_1__ : {H : nat & vector b H}) :=
+(* It'd be nice if we could project the 2nd element after inducting, like this: *)
+Program Definition unpacked_zip_handwritten_8 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
 VectorDef.t_rect a
   (fun (n : nat) (_ : vector a n) =>
-   {H : nat & vector b H} -> {H : nat & vector (a * b) H})
-  (fun _ : {H : nat & vector b H} =>
-   existT _ 0 (nilV (a * b)))
+   vector b n -> vector (a * b) n)
+  (fun _ : vector b 0 => (nilV (a * b)))
   (fun (h : a) (n : nat) (_ : vector a n)
-     (H : {H : nat & vector b H} -> {H : nat & vector (a * b) H})
-     (arg_1__0 : {H0 : nat & vector b H0}) =>
-   existT _
-     (projT1
-        (VectorDef.t_rect b
-           (fun (n0 : nat) (_ : vector b n0) =>
-            {H0 : nat & vector (a * b) H0})
-           (existT _ 0 (nilV (a * b)))
+     (H : vector b n -> vector (a * b) n)
+     (arg_1__0 : vector b (S n)) =>
+     (VectorDef.t_rect b
+           (fun (n0 : nat) (_ : vector b n0) => vector (a * b) _)
+           (nilV (a * b))
            (fun (h0 : b) (n0 : nat) (t1 : vector b n0)
-              (_ : {H0 : nat & vector (a * b) H0}) =>
-            existT _
-              (S (projT1 (H (existT _ n0 t1))))
-              (consV (projT1 (H (existT _ n0 t1))) 
-                 (h, h0) (projT2 (H (existT _ n0 t1)))))
-           (projT1 arg_1__0) (projT2 arg_1__0)))
-     (projT2
-        (VectorDef.t_rect b
-           (fun (n0 : nat) (_ : vector b n0) =>
-            {H0 : nat & vector (a * b) H0})
-           (existT _ 0 (nilV (a * b)))
-           (fun (h0 : b) (n0 : nat) (t1 : vector b n0)
-              (_ : {H0 : nat & vector (a * b) H0}) =>
-            existT _
-              (S (projT1 (H (existT _ n0 t1))))
-              (consV (projT1 (H (existT _ n0 t1))) 
-                 (h, h0) (projT2 (H (existT _ n0 t1)))))
-           (projT1 arg_1__0) (projT2 arg_1__0)))) 
-  (projT1 arg_0__) (projT2 arg_0__)
-  (existT _ (projT1 arg_1__) (projT2 arg_1__)).
+              (IH : vector (a * b) n0) =>
+              (consV n0 (h, h0) IH))
+           (S n) arg_1__0)) 
+  n
+  v1
+  v2.
+(* This is the ideal, so we want to see if we can go between these automatically *)
 
-(* Cute thing here is that we can always add an equality (TODO can we automate that?) *)
-Definition unpacked_zip_handwritten_p_1 (a b : Type) (arg_0__ : {s : {H : nat & vector a H} & projT1 s = projT1 s})
-  (arg_1__ : {s : {H : nat & vector b H} & projT1 s = projT1 s}) :=
-VectorDef.t_rect a
-  (fun (n : nat) (_ : vector a n) =>
-   {s: {H : nat & vector b H} & projT1 s = projT1 s} -> {s : {H : nat & vector (a * b) H} & projT1 s = projT1 s})
-  (fun _ : {s : {H : nat & vector b H} & projT1 s = projT1 s} =>
-    existT _ (existT _ 0 (nilV (a * b))) eq_refl)
-  (fun (h : a) (n : nat) (_ : vector a n)
-     (H :{s : {H : nat & vector b H} & projT1 s = projT1 s} -> {s : {H : nat & vector (a * b) H} & projT1 s = projT1 s})
-     (arg_1__0 : {s : {H : nat & vector b H} & projT1 s = projT1 s}) =>
-      VectorDef.t_rect b
-           (fun (n0 : nat) (_ : vector b n0) =>
-            {s : {H0 : nat & vector (a * b) H0} & projT1 s = projT1 s})
-           (existT _ (existT _ 0 (nilV (a * b))) eq_refl)
-           (fun (h0 : b) (n0 : nat) (t1 : vector b n0)
-              (_ : {s : {H0 : nat & vector (a * b) H0} & projT1 s = projT1 s}) =>
-            existT _ (existT _
-              (S (projT1 (projT1 (H (existT _ (existT _ n0 t1) eq_refl)))))
-              (consV (projT1 (projT1 (H (existT _ (existT _ n0 t1) eq_refl)))) 
-                 (h, h0) (projT2 (projT1 (H (existT _ (existT _ n0 t1) eq_refl)))))) eq_refl)
-           (projT1 (projT1 arg_1__0)) (projT2 (projT1 arg_1__0)))
-  (projT1 (projT1 arg_0__)) (projT2 (projT1 arg_0__))
-  (existT _ (existT _ (projT1 (projT1 arg_1__)) (projT2 (projT1 arg_1__))) eq_refl).
-
-(* TODO left off here: use that to lift this to unpacked vectors, then follow similarly
-   for everything. Perhaps generalize by equality? Is that possible? *)
-
-Definition unpacked_zip_handwritten_10 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
-   rew 
-    (VectorDef.t_rect a
-       (fun (n : nat) (t0 : vector a n) =>
-          forall (n0 : nat) (v3 : vector b n0), n = n0 -> (* <-- unpack premise here *)
-          projT1 (hs_to_coqV_p.zip a b (existT _ n t0) (existT _ n0 v3)) = n)
-       (fun (n0 : nat) (v3 : vector b n0) =>
-          VectorDef.t_rect b
-            (fun (n : nat) (t0 : vector b n) =>
-              0 = n -> 0 = 0)
-             id
-             (fun (_ : b) (n : nat) (t0 : vector b n) (_ : 0 = n -> 0 = 0) (_ : 0 = S n) =>
-               erefl 0)
-            n0 
-            v3)
-       (fun (h : a) (n : nat) (t0 : vector a n)
-          (H0 : forall (n0 : nat) (v3 : vector b n0),
-                n = n0 ->
-                projT1 (hs_to_coqV_p.zip a b (existT _ n t0) (existT _ n0 v3)) = n)
-          (n0 : nat) (v3 : vector b n0) =>
-            VectorDef.t_rect b
-             (fun (n0 : nat) (t1 : vector b n0) =>
-                S n = n0 ->
-                projT1 (hs_to_coqV_p.zip a b (existT _ (S n) (consV n h t0)) (existT _ n0 t1)) =  S n)
-                (eq_sym
-                      (y:=projT1
-                            (hs_to_coqV_p.zip a b
-                               (existT _ (S n) (consV n h t0))
-                               (existT _ 0 (nilV b)))))
-               (fun (_ : b) (n0 : nat) (t1 : vector b n0)
-                  (_ : S n = n0 ->
-                       projT1
-                         (hs_to_coqV_p.zip a b
-                            (existT _ (S n) (consV n h t0))
-                            (existT _ n0 t1)) = 
-                       S n) (H2 : S n = S n0) =>
-                eq_trans
-                  (f_equal
-                     (@^~ (projT1
-                             (hs_to_coqV_p.zip a b (existT _ n t0)
-                                (existT _ n0 t1)))) 
-                     (erefl S))
-                  (f_equal S
-                     (eq_ind_r (eq^~ n) (erefl n)
-                        (H0 n0 t1
-                           (@eq_add_S n n0 H2)))))
-               n0 v3) n 
-       v1 
-       n
-       v2
-       (erefl n))
-    in 
-    (projT2
-       (hs_to_coqV_p.zip a b
-         (existT _ n v1)
-         (existT _ n v2))).
+(* TODO is there an induction principle that describes that? check it out *)
 
 (*
  * Lifting along this equivalence will soon be automated, but for now apply
