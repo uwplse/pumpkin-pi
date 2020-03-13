@@ -314,17 +314,10 @@ let determine_lift_rule c env trm sigma =
   else if is_opaque c trm then
     sigma, Optimization OpaqueConstant
   else
-    let open Printing in
-    Printf.printf "%s\n\n" "checking is_from for equivalence rule";
-    debug_term env trm "trm";
     let sigma, args_o = is_from c env trm sigma in
     if Option.has_some args_o then
-      let open Printing in
-      Printf.printf "%s\n\n" "it is";
       sigma, Equivalence (Option.get args_o)
     else
-      let open Printing in
-      Printf.printf "%s\n\n" "it is not!";
       let sigma, i_and_args_o = is_packed_constr c env sigma trm in
       if Option.has_some i_and_args_o then
         let i, args = Option.get i_and_args_o in

@@ -504,10 +504,7 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
 let lift_core env c trm sigma =
   let l = get_lifting c in
   let (a_typ, _) = get_types c in
-  let open Printing in
-  debug_term env a_typ "a_typ";
   let sigma, a_typ_eta = expand_eta env sigma a_typ in
-  debug_term env a_typ_eta "a_typ_eta";
   let a_arity = arity a_typ_eta in
   let rec lift_rec en sigma c tr : types state =
     let sigma, lift_rule = determine_lift_rule c en tr sigma in

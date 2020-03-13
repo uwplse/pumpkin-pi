@@ -284,9 +284,6 @@ let initialize_types l env sigma =
      let env_typs = pop_rel_context 1 env_promote in
      let a_t = reconstruct_lambda env_typs a_i_t in
      let b_t = reconstruct_lambda env_typs (unshift b_i_t) in
-     let open Printing in
-     debug_term env a_t "a_t";
-     debug_term env b_t "b_t";
      sigma, (a_t, b_t)
 
 (*
