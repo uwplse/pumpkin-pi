@@ -578,13 +578,19 @@ VectorDef.t_rect a
 
 (* TODO is there an induction principle that describes that? check it out *)
 Check unpack_vector.
+Print unpack_vector.
+Print unpack_generic.
 Print packed_vector.zip.
 Print hs_to_coq_projT1s.zip_length_n.
 (* TODO get working: *)
 Definition minimal_test (T : Type) (n : nat) := { s : { n : nat & vector T n } & projT1 s = n }.
-Lift packed vector in minimal_test as minimal_test_lifted.
+Lift packed vector in minimal_test as minimal_test_lifted. (* TODO move to tests somewhere *)
+Print minimal_test_lifted.
+Definition minimal_test_2 (T : Type) (n : nat) (pv : { s : { n : nat & vector T n } & projT1 s = n }) := pv.
+Lift packed vector in minimal_test_2 as minimal_test_2_lifted { opaque eq_rect }. (* TODO need to stop this from reducing generally... refold or something *)
+Print minimal_test_2_lifted.
 Fail.
-Lift packed vector in packed_vector.zip as zip { opaque hs_to_coq_projT1s.zip_length_n hs_to_coqV_p.zip hs_to_coq_projT1s.zip_length eq_trans eq_sym eq_ind projT1 projT2 }.
+Lift packed vector in packed_vector.zip as zip { opaque eq_rect hs_to_coq_projT1s.zip_length_n hs_to_coqV_p.zip hs_to_coq_projT1s.zip_length eq_trans eq_sym eq_ind projT1 projT2 }.
 Fail.
 
 (*

@@ -22,6 +22,7 @@ open Utilities
 open Desugarprod
 open Evarutil
 open Evarconv
+open Names
 
 (*
  * Lifting configuration: Includes the lifting, types, and cached rules
@@ -332,11 +333,18 @@ let initialize_packed_constrs c env sigma =
   let a_typ, b_typ = c.typs in
   let l = c.l in
   let sigma, a_constrs =
-    map_constrs
-      (fun env constr sigma -> expand_eta env sigma constr)
-      env
-      a_typ
-      sigma
+    match l.orn.kind with
+    | Algebraic _ | CurryRecord | SwapConstruct _ ->
+       map_constrs
+         (fun env constr sigma -> expand_eta env sigma constr)
+         env
+         a_typ
+         sigma
+    | UnpackSigma ->
+       let env_a_typ = zoom_env zoom_lambda_term env a_typ in
+       let typ_args = mk_n_rels (nb_rel env_a_typ) in
+       let env_a = push_local (Anonymous, mkAppl (a_typ, typ_args)) env_a_typ in
+       sigma, Array.of_list [reconstruct_lambda env_a (mkRel 1)]
   in
   let sigma, b_constrs =
     match l.orn.kind with
@@ -369,7 +377,10 @@ let initialize_packed_constrs c env sigma =
          b_typ
          sigma
     | UnpackSigma ->
-       sigma, Array.of_list []
+       let env_b_typ = zoom_env zoom_lambda_term env b_typ in
+       let typ_args = mk_n_rels (nb_rel env_b_typ) in
+       let env_b = push_local (Anonymous, mkAppl (b_typ, typ_args)) env_b_typ in
+       sigma, Array.of_list [reconstruct_lambda env_b (mkRel 1)]
   in
   let fwd_constrs = if l.is_fwd then a_constrs else b_constrs in
   let bwd_constrs = if l.is_fwd then b_constrs else a_constrs in
@@ -418,7 +429,10 @@ let lift_constr env sigma c trm =
      else
        (* inductive case - refold *)
        refold l env (lift_to l) app rec_args sigma
-  | CurryRecord | UnpackSigma ->
+  | UnpackSigma ->
+    (* While this has no inductive cases, we do refold this (TODO explain, implement) *)
+     sigma, app
+  | CurryRecord ->
      (* no inductive cases, so don't try to refold *)
      reduce_nf env sigma app
      
@@ -427,6 +441,7 @@ let lift_constr env sigma c trm =
  * Wrapper around NORMALIZE
  *)
 let initialize_constr_rule c env constr sigma =
+  let sigma, constr_typ = Inference.infer_type env sigma constr in
   let sigma, constr_exp = expand_eta env sigma constr in
   let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
   let c_body = reduce_stateless reduce_term env_c_b sigma c_body in

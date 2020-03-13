@@ -145,7 +145,7 @@ type lift_rule =
 
 (* --- Premises --- *)
 
-(* Premises for LIFT-CONSTR *)
+(* Premises for LIFT-CONSTR *) (* TODO move to config? *)
 let is_packed_constr c env sigma trm =
   let l = get_lifting c in
   let constrs = get_constrs c in
@@ -167,28 +167,47 @@ let is_packed_constr c env sigma trm =
     else
       sigma, None
   in
-  if isConstruct trm || (isApp trm && l.is_fwd) then
-    is_packed_inductive_constr (fun _ -> true) id trm
-  else
-    match l.orn.kind with
-    | Algebraic _ ->
-       is_packed_inductive_constr (is_packed c) last_arg trm
-    | SwapConstruct _ ->
+  match l.orn.kind with
+  | Algebraic _ ->
+     if isConstruct trm || (isApp trm && l.is_fwd) then
        is_packed_inductive_constr (fun _ -> true) id trm
-    | CurryRecord ->
-       if is_packed c trm then
-          let sigma_right, args_opt = type_is_from c env trm sigma in
-          if Option.has_some args_opt then
-            let sigma = sigma_right in
-            let constr = constrs.(0) in
-            let pms = Option.get args_opt in
-            let args = pair_projections_eta_rec_n trm (arity constr - List.length pms) in
-            sigma, Some (0, List.append pms args)
-          else
-            sigma, None
-       else
-         sigma, None
-    | UnpackSigma ->
+     else
+       is_packed_inductive_constr (is_packed c) last_arg trm
+  | SwapConstruct _ ->
+     is_packed_inductive_constr (fun _ -> true) id trm
+  | CurryRecord ->
+      if isConstruct trm || (isApp trm && l.is_fwd) then
+        is_packed_inductive_constr (fun _ -> true) id trm
+      else if is_packed c trm then
+        let sigma_right, args_opt = type_is_from c env trm sigma in
+        if Option.has_some args_opt then
+          let sigma = sigma_right in
+          let constr = constrs.(0) in
+          let pms = Option.get args_opt in
+          let args = pair_projections_eta_rec_n trm (arity constr - List.length pms) in
+          sigma, Some (0, List.append pms args)
+        else
+          sigma, None
+      else
+        sigma, None
+  | UnpackSigma ->
+     (*
+      * We treat all terms of the relevant type as constructors, since
+      * there is no change in inductive type, so we always want to apply
+      * the promotion function and then reduce.
+      *
+      * TODO should this be handled in repack instead? Consider.
+      * Consider meaning. Comment similarly for eliminators. Return None there.
+      * Unless can think of a good "eliminator" transformation to use.
+      *)
+     let open Printing in
+     debug_term env trm "checking trm";
+     let sigma_right, args_opt = type_is_from c env trm sigma in
+     if Option.has_some args_opt then
+       let open Printing in
+       Printf.printf "%s\n\n" "it's a constr";
+       sigma_right, Some (0, snoc trm (Option.get args_opt))
+     else
        sigma, None
 
 (* Premises for LIFT-PACK *)
@@ -321,9 +340,12 @@ let determine_lift_rule c env trm sigma =
       let sigma, i_and_args_o = is_packed_constr c env sigma trm in
       if Option.has_some i_and_args_o then
         let i, args = Option.get i_and_args_o in
+        let open Printing in
+        debug_terms env args "args";
         let lifted_constr = (get_lifted_constrs c).(i) in
+        debug_term env lifted_constr "lifted_constr";
         if List.length args > 0 then
-          if not l.is_fwd then
+          if not l.is_fwd || l.orn.kind = UnpackSigma then
             sigma, LiftConstr (lifted_constr, args)
           else
             match l.orn.kind with

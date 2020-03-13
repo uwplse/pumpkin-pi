@@ -537,12 +537,14 @@ let lift_core env c trm sigma =
        lift_smart_lift_constr c en lifted_constr args lift_rec sigma
     | LiftConstr (lifted_constr, args) ->
        let sigma, constr_app = reduce_term en sigma (mkAppl (lifted_constr, args)) in
+       let open Printing in
+       debug_term en constr_app "constr_app";
        if List.length args > 0 then
          let (f', args') = destApp constr_app in
          let sigma, args'' = map_rec_args lift_rec en sigma c args' in
          sigma, mkApp (f', args'')
        else
-         sigma, constr_app
+         sigma, constr_app (* TODO ... *)
     | LiftPack ->
        if l.is_fwd then
          (* pack *)
