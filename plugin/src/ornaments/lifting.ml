@@ -76,10 +76,14 @@ let promotion_term_to_types env sigma trm =
  * True if forwards, false if backwards
  *)
 let direction_cached env from_typ promote k sigma : bool state =
-  let promote = unwrap_definition env promote in
-  let promote_env = zoom_env zoom_lambda_term env promote in
-  let sigma, promote_typ = infer_type promote_env sigma (mkRel 1) in
-  sigma, is_or_applies from_typ promote_typ
+  match k with
+  | UnpackSigma ->
+     sigma, true (* TODO!!! *)
+  | _ ->
+     let sigma, promote_typ = reduce_type env sigma promote in
+     let promote_env = zoom_env zoom_product_type env promote_typ in
+     let sigma, promote_typ = infer_type promote_env sigma (mkRel 1) in
+     sigma, is_or_applies from_typ promote_typ
 
 (* 
  * Unpack a promotion
@@ -129,8 +133,9 @@ let get_kind_of_ornament env (o, n) sigma =
       sigma, Algebraic (mkRel 1, 0)
     else if isInd (first_fun from_typ_app) && isInd (first_fun to_typ_app) then
       sigma, SwapConstruct []
-    else
-      sigma, CurryRecord
+    else (*TODO!!! proper impl.*)
+      sigma, UnpackSigma
+               (*sigma, CurryRecord*)
   in
   match prelim_kind with
   | Algebraic _ ->

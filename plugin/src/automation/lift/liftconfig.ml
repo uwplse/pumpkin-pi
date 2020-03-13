@@ -140,6 +140,7 @@ let is_from c env typ sigma =
   else
     let (a_typ, b_typ) = c.typs in
     let goal_typ = if c.l.is_fwd then a_typ else b_typ in
+    (* ^ TODO eta? *)
     let nargs = arity goal_typ in
     (try
        let sigma, eargs =
@@ -180,6 +181,8 @@ let type_is_from c env trm sigma =
  * skipping the check
  *)
 let type_from_args c env trm sigma =
+  let sigma, typ = Inference.infer_type env sigma trm in
+  let sigma, typ = reduce_nf env sigma typ in
   on_red_type
     reduce_nf
     (fun env sigma typ -> from_args c env typ sigma)
@@ -262,17 +265,23 @@ let can_reduce_now c trm =
 let initialize_types l env sigma =
   let sigma, promote_typ = reduce_type env sigma l.orn.promote in
   let (a_i_t, b_i_t) = promotion_type_to_types promote_typ in
-  let a_t = first_fun a_i_t in
   match l.orn.kind with
   | Algebraic _ ->
+     let a_t = first_fun a_i_t in
      let env_pms = pop_rel_context 1 (zoom_env zoom_product_type env promote_typ) in
      let b_t = reconstruct_lambda env_pms (unshift b_i_t) in
      sigma, (a_t, b_t)
   | CurryRecord ->
+     let a_t = first_fun a_i_t in
      let sigma, b_t = expand_eta env sigma (first_fun b_i_t) in
      sigma, (a_t, b_t)
   | SwapConstruct _ ->
+     let a_t = first_fun a_i_t in
      let b_t = first_fun b_i_t in
+     sigma, (a_t, b_t)
+  | UnpackSigma ->
+     let sigma, a_t = expand_eta env sigma (first_fun a_i_t) in
+     let sigma, b_t = expand_eta env sigma (first_fun b_i_t) in
      sigma, (a_t, b_t)
 
 (*
@@ -286,10 +295,10 @@ let initialize_elim_types c env sigma =
     | Algebraic _ ->
        let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_t)).packer in
        first_fun b_typ_packed
-    | SwapConstruct _ ->
-       b_t
-    | _ ->
+    | CurryRecord ->
        prod
+    | _ ->
+       b_t
   in
   let fwd_elim_typ = directional l a_t b_t in
   let bwd_elim_typ = directional l b_t a_t in
@@ -300,16 +309,19 @@ let initialize_elim_types c env sigma =
  * Utility function: Map over the constructors of a type 
  *)
 let map_constrs f env typ sigma =
-  let ((i, i_index), u) = destInd typ in
-  let mutind_body = lookup_mind i env in
-  let ind_bodies = mutind_body.mind_packets in
-  let ind_body = ind_bodies.(i_index) in
-  map_state_array
-    (f env)
-    (Array.mapi
-       (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
-       ind_body.mind_consnames)
-    sigma
+  if isInd typ then
+    let ((i, i_index), u) = destInd typ in
+    let mutind_body = lookup_mind i env in
+    let ind_bodies = mutind_body.mind_packets in
+    let ind_body = ind_bodies.(i_index) in
+    map_state_array
+      (f env)
+      (Array.mapi
+         (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
+         ind_body.mind_consnames)
+      sigma
+  else
+    sigma, Array.of_list []
   
 (*
  * Initialize the packed constructors for each type
@@ -339,12 +351,6 @@ let initialize_packed_constrs c env sigma =
          env
          b_typ_inner
          sigma
-    | SwapConstruct _ ->
-       map_constrs
-         (fun env constr sigma -> expand_eta env sigma constr)
-         env
-         b_typ
-         sigma
     | CurryRecord ->
        let a_constr = a_constrs.(0) in
        let (env_c_b, c_body) = zoom_lambda_term env a_constr in
@@ -354,6 +360,14 @@ let initialize_packed_constrs c env sigma =
        let sigma, app = reduce_nf env sigma app in
        let constr = reconstruct_lambda_n env_c_b app (nb_rel env) in
        sigma, Array.make 1 constr
+    | SwapConstruct _ ->
+       map_constrs
+         (fun env constr sigma -> expand_eta env sigma constr)
+         env
+         b_typ
+         sigma
+    | UnpackSigma ->
+       sigma, Array.of_list []
   in
   let fwd_constrs = if l.is_fwd then a_constrs else b_constrs in
   let bwd_constrs = if l.is_fwd then b_constrs else a_constrs in
@@ -402,9 +416,10 @@ let lift_constr env sigma c trm =
      else
        (* inductive case - refold *)
        refold l env (lift_to l) app rec_args sigma
-  | CurryRecord ->
+  | CurryRecord | UnpackSigma ->
      (* no inductive cases, so don't try to refold *)
      reduce_nf env sigma app
+     
 
 (*
  * Wrapper around NORMALIZE
@@ -436,8 +451,8 @@ let initialize_constr_rules c env sigma =
  *)
 let initialize_proj_rules env sigma c =
   let l = get_lifting c in
-  let lift_f = unwrap_definition env (lift_to l) in
-  let env_proj = zoom_env zoom_lambda_term env lift_f in
+  let sigma, lift_typ = reduce_type env sigma (lift_to l) in
+  let env_proj = zoom_env zoom_product_type env lift_typ in
   let t = mkRel 1 in
   let sigma, typ_args = type_from_args c env_proj t sigma in
   let sigma, lift_t = lift env_proj l t typ_args sigma in
@@ -456,7 +471,7 @@ let initialize_proj_rules env sigma c =
        let projT1 = reconstruct_lambda env_proj (project_index b_sig_typ (mkRel 1)) in
        let projT2 = reconstruct_lambda env_proj (project_value b_sig_typ (mkRel 1)) in
        sigma, [(projT1, p1); (projT2, p2)]
-  | SwapConstruct _ ->
+  | SwapConstruct _ | UnpackSigma ->
      (* no projections *)
      sigma, []
   | CurryRecord ->
@@ -506,7 +521,7 @@ let initialize_proj_rules env sigma c =
  *)
 let initialize_optimize_proj_packed_rules c =
   match (get_lifting c).orn.kind with
-  | Algebraic (_, _) ->
+  | Algebraic (_, _) | UnpackSigma ->
      let proj1_rule = (fun a -> (dest_existT a).index) in
      let proj2_rule = (fun a -> (dest_existT a).unpacked) in
      is_or_applies existT, [(projT1, proj1_rule); (projT2, proj2_rule)]

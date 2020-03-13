@@ -259,6 +259,7 @@ Check packed_vector.zip_with_is_zip.
  *)
 Module uf.
 
+ 
 (*
  * We first automatically find another ornament
  * (in order to cache this ornament, DEVOID needs the first argument
@@ -267,8 +268,108 @@ Module uf.
 Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 Find ornament packed vector as unpack_vector.
 
+Print packed_rect.
+
+Print hs_to_coqV_p.zip.
+
+Check (fun a b n v1 v2 =>(projT2
+       (hs_to_coqV_p.zip a b
+         (existT _ n v1)
+         (existT _ n v2)))).
+
+Check (fun a b n v1 v2 => (packed_vector.zip_length a b n
+       (existT _ n v1)
+       (existT _ n v2)
+       (erefl n)
+       (erefl n))).
+
+(* playing around with useful induction principles for lifting (TODO then take a break and try implementing dumbest stuff w/o elim lifting): *)
+Definition unpack_proof :
+  forall (T : Type) (n : nat) (P : {s : {n : nat & vector T n} & projT1 s = n} -> Type),
+    (forall pv, P pv) ->
+    (forall n0 v H, P (existT _ (existT _ n0 v) H)).
+Proof.
+  intros. apply X.
+Defined.
+
+Definition unpack_proof_refl :
+  forall (T : Type) (n : nat) (P : {s : {n : nat & vector T n} & projT1 s = n} -> Type),
+    (forall pv, P pv) ->
+    (forall v, P (unpack_vector_inv T n v)).
+Proof.
+  intros. apply X.
+Defined.
+
 Print packed_vector.zip.
-(* forget arg: *)
+
+Definition experimental_zip_1 (a b : Type) (n : nat) (v : vector a n) : 
+  {l2 : {H : nat & vector b H} & projT1 l2 = n} ->
+  {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n}
+:=
+  unpack_proof_refl a n _ (packed_vector.zip a b n) v.
+
+Definition experimental_zip_2 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : 
+  {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n}
+:=
+  unpack_proof_refl b n _ (unpack_proof_refl a n _ (packed_vector.zip a b n) v1) v2.
+
+Definition experimental_zip_3 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) :
+  vector (a * b) n
+:=
+  unpack_vector
+    (a * b)
+    n
+    (unpack_proof_refl b n _ (unpack_proof_refl a n _ (packed_vector.zip a b n) v1) v2).
+
+(* This gives us: *)
+
+Definition experimental_zip_3_delta (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) :=
+  rew
+    hs_to_coq_projT1s.zip_length a b (existT _ n v1) (existT _ n v2) (erefl n)
+  in
+    projT2
+      (hs_to_coqV_p.zip a b (existT _ n v1) (existT _ n v2)).
+
+Print packed_vector.zip.
+Print packed_rect.
+Print packed_vector.zip_with_is_zip.
+Print hs_to_coqV_p.zip.
+
+(* Does this form look any nicer? Does it give us an induction principle (unpack_proof_refl?) *)
+(* b.c. I can't think of a way to get rid of unpack_vector without introspecting into vector_rect *)
+(* ^ TODO can we? at all? ever? if so, how? if not, why not? *)
+
+Check sigT.
+(* TODO explain, automate, etc *)
+Check zipV_p.
+Check zip_withV_p.
+Check zip_with_is_zipV_p.
+
+Print hs_to_coqV_p.zip.
+
+Print packed_rect.
+Lemma unpacked_rect_rew_1:
+  forall (T : Type) (n : nat) (v : vector T n)
+         (P : {s : {n0 : nat & vector T n0} & projT1 s = n} -> Type)
+         (pf : forall (s : {n0 : nat & vector T n0}) (H : projT1 s = n), P (existT _ s H)),
+    packed_rect
+      { n0 : nat & vector T n0}
+      (fun s => projT1 s)
+      Datatypes.id
+      (fun (_ : nat) (s : { n : nat & vector T n }) => Datatypes.id)
+      n
+      P
+      pf
+      (unpack_vector_inv T n v)
+   =
+     pf (existT _ n v) eq_refl.
+Proof.
+  reflexivity.
+Defined.
+
+Print unpack_generic_inv.
+
+(* lift v1 *)
 Definition unpacked_zip_handwritten_1 (a b : Type) (n : nat) (v1 : vector a n) (v2 : {l2 : {H : nat & vector b H} & projT1 l2 = n}) : {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n} :=
   packed_rect {H : nat & vector a H}
     (fun s => projT1 s)
@@ -278,7 +379,7 @@ Definition unpacked_zip_handwritten_1 (a b : Type) (n : nat) (v1 : vector a n) (
     (fun _ : {l1 : {H : nat & vector a H} & projT1 l1 = n} =>
         {l2 : {H : nat & vector b H} & projT1 l2 = n} ->
         {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n})
-       (fun (l : {H : nat & vector a H}) (H : projT1 l = n)
+     (fun (l : {H : nat & vector a H}) (H : projT1 l = n)
           (pl2 : {l2 : {H0 : nat & vector b H0} & projT1 l2 = n}) =>
         existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
           (existT _
@@ -299,8 +400,179 @@ Definition unpacked_zip_handwritten_1 (a b : Type) (n : nat) (v1 : vector a n) (
    (unpack_vector_inv a n v1) (* <-- forget *)
    v2.
 
-(* vs our final handwritten: *)
-Program Definition unpacked_zip_handwritten (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
+(* reduce *)
+Definition unpacked_zip_handwritten_2 (a b : Type) (n : nat) (v1 : vector a n) (v2 : {l2 : {H : nat & vector b H} & projT1 l2 = n}) : {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n} :=
+  (fun (l : {H : nat & vector a H}) (H : projT1 l = n)
+          (pl2 : {l2 : {H0 : nat & vector b H0} & projT1 l2 = n}) =>
+        existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
+          (existT _
+             (projT1
+                (hs_to_coqV_p.zip a b
+                   (existT _ (projT1 l) (projT2 l))
+                   (existT _ (projT1 (projT1 pl2))
+                      (projT2 (projT1 pl2)))))
+             (projT2
+                (hs_to_coqV_p.zip a b
+                   (existT _ (projT1 l) (projT2 l))
+                   (existT _ (projT1 (projT1 pl2))
+                      (projT2 (projT1 pl2))))))
+          (packed_vector.zip_length a b n
+             (existT _ (projT1 l) (projT2 l))
+             (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))
+             H (projT2 pl2))) (existT _ n v1) eq_refl v2. 
+
+Lemma unpacked_zip_handwritten_2_OK:
+  unpacked_zip_handwritten_1 = unpacked_zip_handwritten_2.
+Proof.
+  reflexivity. (* unpacked_rect_rew_1 is refl *)
+Defined.
+
+(* beta etc: *)
+Definition unpacked_zip_handwritten_3 (a b : Type) (n : nat) (v1 : vector a n) (v2 : {l2 : {H : nat & vector b H} & projT1 l2 = n}) : {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n} :=
+  (existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
+          (existT _
+             (projT1
+                (hs_to_coqV_p.zip a b
+                   (existT _ n v1)
+                   (existT _ (projT1 (projT1 v2))
+                      (projT2 (projT1 v2)))))
+             (projT2
+                (hs_to_coqV_p.zip a b
+                   (existT _ n v1)
+                   (existT _ (projT1 (projT1 v2))
+                      (projT2 (projT1 v2))))))
+          (packed_vector.zip_length a b n
+             (existT _ n v1)
+             (existT _ (projT1 (projT1 v2)) (projT2 (projT1 v2)))
+             eq_refl (projT2 v2))).
+
+Lemma unpacked_zip_handwritten_3_OK:
+  unpacked_zip_handwritten_2 = unpacked_zip_handwritten_3.
+Proof.
+  reflexivity. (* obviously *)
+Defined.
+
+(* lift v2 *)
+Definition unpacked_zip_handwritten_4 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) :=
+  (existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
+          (existT _
+             (projT1
+                (hs_to_coqV_p.zip a b
+                   (existT _ n v1)
+                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
+                      (projT2 (projT1 (unpack_vector_inv b n v2))))))
+             (projT2
+                (hs_to_coqV_p.zip a b
+                   (existT _ n v1)
+                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
+                      (projT2 (projT1 (unpack_vector_inv b n v2)))))))
+          (packed_vector.zip_length a b n
+             (existT _ n v1)
+             (existT _ (projT1 (projT1 (unpack_vector_inv b n v2))) (projT2 (projT1 (unpack_vector_inv b n v2))))
+             eq_refl (projT2 (unpack_vector_inv b n v2)))).
+
+Lemma unpacked_zip_handwritten_4_OK:
+  forall a b n v1 v2,
+    unpacked_zip_handwritten_3 a b n v1 (unpack_vector_inv b n v2) =
+    unpacked_zip_handwritten_4 a b n v1 v2.
+Proof.
+  reflexivity. (* obviously *)
+Defined.
+
+(* eta *)
+Definition unpacked_zip_handwritten_5 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) :=
+  (existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
+          (existT _
+             (projT1
+                (hs_to_coqV_p.zip a b
+                   (existT _ n v1)
+                   (existT _ n v2)))
+             (projT2
+                (hs_to_coqV_p.zip a b
+                   (existT _ n v1)
+                   (existT _ n v2))))
+          (packed_vector.zip_length a b n
+             (existT _ n v1)
+             (existT _ n v2)
+             eq_refl eq_refl)).
+
+Lemma unpacked_zip_handwritten_5_OK:
+  forall a b n v1 v2,
+    unpacked_zip_handwritten_4 a b n v1 v2 =
+    unpacked_zip_handwritten_5 a b n v1 v2.
+Proof.
+  reflexivity. (* obviously *)
+Defined.
+
+(* unpack *)
+Definition unpacked_zip_handwritten_6 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
+  (unpack_vector (a * b) n
+  (existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
+          (existT _
+             (projT1
+                (hs_to_coqV_p.zip a b
+                   (existT _ n v1)
+                   (existT _ n v2)))
+             (projT2
+                (hs_to_coqV_p.zip a b
+                   (existT _ n v1)
+                   (existT _ n v2))))
+          (packed_vector.zip_length a b n
+             (existT _ n v1)
+             (existT _ n v2)
+             eq_refl eq_refl))).
+
+Lemma unpacked_zip_handwritten_6_OK:
+  forall a b n v1 v2,
+    unpack_vector (a * b) n (unpacked_zip_handwritten_5 a b n v1 v2) =
+    unpacked_zip_handwritten_6 a b n v1 v2.
+Proof.
+  reflexivity. (* obviously *)
+Defined.
+
+Print unpack_generic.
+
+(* reduce *)
+Definition unpacked_zip_handwritten_7 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
+  rew 
+    (packed_vector.zip_length a b n
+      (existT _ n v1)
+      (existT _ n v2)
+      eq_refl eq_refl)
+  in
+    (projT2
+      (hs_to_coqV_p.zip a b
+        (existT _ n v1)
+        (existT _ n v2))).
+
+Lemma unpacked_zip_handwritten_7_OK:
+  forall a b n v1 v2,
+    unpacked_zip_handwritten_6 a b n v1 v2 =
+    unpacked_zip_handwritten_7 a b n v1 v2.
+Proof.
+  reflexivity. (* obviously *)
+Defined.
+
+Print packed_vector.zip_length.
+Print hs_to_coq_projT1s.zip_length_n.
+
+(* reduce *)
+Definition unpacked_zip_handwritten_8 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
+  rew 
+    (hs_to_coq_projT1s.zip_length a b (existT _ n v1) (existT _ n v2) eq_refl)
+  in
+    (projT2 (hs_to_coqV_p.zip a b (existT _ n v1) (existT _ n v2))).
+
+Lemma unpacked_zip_handwritten_8_OK:
+  forall a b n v1 v2,
+    unpacked_zip_handwritten_7 a b n v1 v2 =
+    unpacked_zip_handwritten_8 a b n v1 v2.
+Proof.
+  reflexivity. (* obviously *)
+Defined.
+
+(* no idea how to get to something like this. is it doable automatically? why/why not? TODO: *)
+Program Definition unpacked_zip_ideal (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
 VectorDef.t_rect a
   (fun (n : nat) (_ : vector a n) =>
    vector b n -> vector (a * b) n) (* Our P above at i_b, at the second projection *)
@@ -319,167 +591,12 @@ VectorDef.t_rect a
   v1
   v2.
 
-Print packed_rect.
-
-(* reduce function *)
-Definition unpacked_zip_handwritten_2 (a b : Type) (n : nat) (v1 : vector a n) (v2 : {l2 : {H : nat & vector b H} & projT1 l2 = n}) : {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n} :=
-       ((fun (l : {H : nat & vector a H}) (H : projT1 l = n)
-          (pl2 : {l2 : {H0 : nat & vector b H0} & projT1 l2 = n}) =>
-        existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
-          (existT _
-             (projT1
-                (hs_to_coqV_p.zip a b
-                   (existT _ (projT1 l) (projT2 l))
-                   (existT _ (projT1 (projT1 pl2))
-                      (projT2 (projT1 pl2)))))
-             (projT2
-                (hs_to_coqV_p.zip a b
-                   (existT _ (projT1 l) (projT2 l))
-                   (existT _ (projT1 (projT1 pl2))
-                      (projT2 (projT1 pl2))))))
-          (packed_vector.zip_length a b n
-             (existT _ (projT1 l) (projT2 l))
-             (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))
-             H (projT2 pl2))) (projT1 (unpack_vector_inv a n v1)) (projT2 (unpack_vector_inv a n v1)))
-   v2.
-
-(* lift v2 *)
-Definition unpacked_zip_handwritten_3 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : {l3 : {H : nat & vector (a * b) H} & projT1 l3 = n} :=
-   existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
-       (existT _
-             (projT1
-                (hs_to_coqV_p.zip a b
-                   (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
-                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
-                      (projT2 (projT1 (unpack_vector_inv b n v2))))))
-             (projT2
-                (hs_to_coqV_p.zip a b
-                   (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
-                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
-                      (projT2 (projT1 (unpack_vector_inv b n v2)))))))
-       (packed_vector.zip_length a b n
-          (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
-          (existT _ (projT1 (projT1 (unpack_vector_inv b n v2))) (projT2 (projT1 (unpack_vector_inv b n v2))))
-          (projT2 (unpack_vector_inv a n v1)) (projT2 (unpack_vector_inv b n v2))).
-
-(* lift result *)
-Definition unpacked_zip_handwritten_4 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
-   unpack_vector (a * b) n
-   (existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
-       (existT _
-             (projT1
-                (hs_to_coqV_p.zip a b
-                   (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
-                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
-                      (projT2 (projT1 (unpack_vector_inv b n v2))))))
-             (projT2
-                (hs_to_coqV_p.zip a b
-                   (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
-                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
-                      (projT2 (projT1 (unpack_vector_inv b n v2)))))))
-       (packed_vector.zip_length a b n
-          (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
-          (existT _ (projT1 (projT1 (unpack_vector_inv b n v2))) (projT2 (projT1 (unpack_vector_inv b n v2))))
-          (projT2 (unpack_vector_inv a n v1)) (projT2 (unpack_vector_inv b n v2)))). 
-
-(* reduce *)
-Print unpack_generic.    
-Definition unpacked_zip_handwritten_5 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
-   rew 
-   (projT2 
-   (existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
-       (existT _
-             (projT1
-                (hs_to_coqV_p.zip a b
-                   (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
-                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
-                      (projT2 (projT1 (unpack_vector_inv b n v2))))))
-             (projT2
-                (hs_to_coqV_p.zip a b
-                   (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
-                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
-                      (projT2 (projT1 (unpack_vector_inv b n v2)))))))
-       (packed_vector.zip_length a b n
-          (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
-          (existT _ (projT1 (projT1 (unpack_vector_inv b n v2))) (projT2 (projT1 (unpack_vector_inv b n v2))))
-          (projT2 (unpack_vector_inv a n v1)) (projT2 (unpack_vector_inv b n v2)))))
-    in 
-    (projT2 (projT1 (existT (fun l3 : {H0 : nat & vector (a * b) H0} => projT1 l3 = n)
-       (existT _
-             (projT1
-                (hs_to_coqV_p.zip a b
-                   (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
-                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
-                      (projT2 (projT1 (unpack_vector_inv b n v2))))))
-             (projT2
-                (hs_to_coqV_p.zip a b
-                   (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
-                   (existT _ (projT1 (projT1 (unpack_vector_inv b n v2)))
-                      (projT2 (projT1 (unpack_vector_inv b n v2)))))))
-       (packed_vector.zip_length a b n
-          (existT _ (projT1 (projT1 (unpack_vector_inv a n v1))) (projT2 (projT1 (unpack_vector_inv a n v1))))
-          (existT _ (projT1 (projT1 (unpack_vector_inv b n v2))) (projT2 (projT1 (unpack_vector_inv b n v2))))
-          (projT2 (unpack_vector_inv a n v1)) (projT2 (unpack_vector_inv b n v2)))))). 
-
-Print unpack_generic_inv.
-
-(* reduce projections to see if a pattern emerges *)
-Definition unpacked_zip_handwritten_6 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
-   rew 
-    (packed_vector.zip_length a b n
-       (existT _ n v1)
-       (existT _ n v2)
-       (erefl n)
-       (erefl n))
-    in 
-    (projT2
-       (hs_to_coqV_p.zip a b
-         (existT _ n v1)
-         (existT _ n v2))).
-
-(* Continue down this line. Want to see if can simplify nicely. *)
-Print hs_to_coq_projT1s.zip_length_n.
-Definition unpacked_zip_handwritten_7 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
-   rew 
-    (hs_to_coq_projT1s.zip_length a b 
-      (existT _ n v1)
-      (existT _ n v2)
-      (erefl n))
-    in 
-    (projT2
-       (hs_to_coqV_p.zip a b
-         (existT _ n v1)
-         (existT _ n v2))).
-
-Print hs_to_coq_projT1s.zip_length.
-
-Unpack hs_to_coq_projT1s.zip_length as zip_length'.
-Print zip_length'.
-
-Print hs_to_coqV_p.zip.
-
-(* It'd be nice if we could project the 2nd element after inducting, like this: *)
-Program Definition unpacked_zip_handwritten_8 (a b : Type) (n : nat) (v1 : vector a n) (v2 : vector b n) : vector (a * b) n :=
-VectorDef.t_rect a
-  (fun (n : nat) (_ : vector a n) =>
-   vector b n -> vector (a * b) n)
-  (fun _ : vector b 0 => (nilV (a * b)))
-  (fun (h : a) (n : nat) (_ : vector a n)
-     (H : vector b n -> vector (a * b) n)
-     (arg_1__0 : vector b (S n)) =>
-     (VectorDef.t_rect b
-           (fun (n0 : nat) (_ : vector b n0) => vector (a * b) _)
-           (nilV (a * b))
-           (fun (h0 : b) (n0 : nat) (t1 : vector b n0)
-              (IH : vector (a * b) n0) =>
-              (consV n0 (h, h0) IH))
-           (S n) arg_1__0)) 
-  n
-  v1
-  v2.
-(* This is the ideal, so we want to see if we can go between these automatically *)
-
 (* TODO is there an induction principle that describes that? check it out *)
+
+Print packed_vector.zip.
+Print hs_to_coq_projT1s.zip_length_n.
+(* TODO get working: *)
+Lift packed vector in packed_vector.zip as zip { opaque hs_to_coq_projT1s.zip_length_n hs_to_coqV_p.zip hs_to_coq_projT1s.zip_length eq_trans eq_sym eq_ind projT1 projT2 }.
 
 (*
  * Lifting along this equivalence will soon be automated, but for now apply
@@ -495,6 +612,8 @@ Proof.
   - apply (unpack_vector_inv A n v1).
   - apply (unpack_vector_inv B n v2).
 Defined.
+
+
 
 Program Definition zip_with:
   forall {A B C : Type} (f : A -> B -> C) {n : nat},

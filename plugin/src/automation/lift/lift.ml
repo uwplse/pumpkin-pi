@@ -83,6 +83,8 @@ let lift_elim_args env sigma c npms args =
      let sigma, typ_args = type_from_args c env arg sigma in
      let sigma, lifted_arg = lift env l arg typ_args sigma in
      sigma, [lifted_arg]
+  | UnpackSigma ->
+     sigma, []
 
 (*
  * MOTIVE
@@ -125,6 +127,8 @@ let lift_motive env sigma c npms parameterized_elim p =
        reindex value_off lifted_arg args
     | CurryRecord ->
        [lifted_arg]
+    | UnpackSigma ->
+       []
   in
   let p_app = reduce_stateless reduce_term env_p_to sigma (mkAppl (p, args)) in
   sigma, reconstruct_lambda_n env_p_to p_app (nb_rel env)
@@ -258,6 +262,8 @@ let lift_case_args c env_c_b env_c to_c_typ npms nargs sigma =
        let c_args, b_args = take_split (nargs_lifted - npms) args in
        let sigma, arg_pair = pack_pair_rec env_c (List.tl c_args) sigma in
        sigma, List.append [List.hd c_args; arg_pair] b_args
+  | UnpackSigma ->
+     sigma, []
 
 (*
  * CASE
@@ -341,7 +347,7 @@ let repack c env lifted typ sigma =
      let args = unfold_args typ in
      let sigma, typ_red = specialize_delta_f env f args sigma in
      sigma, mkLetIn (Anonymous, lifted, typ, eta_prod_rec (mkRel 1) (shift typ_red))
-  | SwapConstruct _ ->
+  | SwapConstruct _ | UnpackSigma ->
      sigma, lifted
 
 (*
@@ -372,7 +378,7 @@ let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
            else
              let lifted_red = reduce_stateless reduce_nf env sigma lifted in
              is_or_applies pair lifted_red
-        | SwapConstruct _ ->
+        | SwapConstruct _ | UnpackSigma ->
            true
       in
       if not optimize_ignore_repack then
@@ -515,13 +521,43 @@ let lift_core env c trm sigma =
        let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in
        lift_rec en sigma c projected
     | Equivalence args ->
+       (* tr: (sigT (sigT nat (λ (_ : nat) . (t (a [Rel 4]) (_ [Rel 1])))) (λ (l1 : (sigT nat (λ (_ : nat) . (t (a [Rel 4]) (_ [Rel 1]))))) . (eq nat (Coq.Init.Specif.projT1 nat (λ (_ : nat) . (t (a [Rel 5]) (_ [Rel 1]))) (l1 [Rel 1])) (n [Rel 2]))))
+
+args: ??
+
+args: ??
+
+tr: ??
+
+args: ??
+
+args: ??
+
+red: (t nat (λ (_ : nat) . (t (a [Rel 4]) (_ [Rel 1])))) 
+
+red: (t (t nat (λ (_ : nat) . (t (a [Rel 4]) (_ [Rel 1])))) (λ (l1 : (sigT nat (λ (_ : nat) . (t (a [Rel 4]) (_ [Rel 1]))))) . (eq nat (Coq.Init.Specif.projT1 nat (λ (_ : nat) . (t (a [Rel 5]) (_ [Rel 1]))) (l1 [Rel 1])) (n [Rel 2]))))
+
+b.c. a_typ it is inferring is:
+
+a_typ: (λ (A : Type Coq.Init.Specif.7) . (λ (P : (Π (_ : (A [Rel 1])) . Type Coq.Init.Specif.8)) . (sigT (A [Rel 2]) (P [Rel 1]))))
+
+but we want specific to vectors.
+
+this is a bug in promotion_type_to_types 
+*)
        let (_, b_typ) = get_types c in
+       let open Printing in
+       debug_term en tr "tr";
+       debug_term en a_typ "a_typ";
+       debug_terms en args "args";
        let sigma, lifted_args = map_rec_args lift_rec en sigma c (Array.of_list args) in
        if l.is_fwd then
          if Array.length lifted_args = 0 then
            sigma, b_typ
          else
-           reduce_term en sigma (mkApp (b_typ, lifted_args))
+           let sigma, red = reduce_term en sigma (mkApp (b_typ, lifted_args)) in
+           debug_term en red "red";
+           sigma, red
        else
          if Array.length lifted_args = 0 then
            sigma, a_typ
@@ -553,6 +589,8 @@ let lift_core env c trm sigma =
             a_arity - (List.length tr_elim.pms) + 1
          | CurryRecord ->
             1
+         | UnpackSigma  ->
+            0
        in
        let (final_args, post_args) = take_split nargs tr_elim.final_args in
        let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in

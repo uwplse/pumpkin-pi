@@ -295,6 +295,8 @@ let save_ornament d_old d_new d_orn_o d_orn_inv_o =
  *)
 let lift_definition_by_ornament env sigma n l c_old ignores =
   let sigma, lifted = do_lift_defn env sigma l c_old ignores in
+  let open Printing in
+  debug_term env lifted "lifted";
   try
     ignore
       (if is_lift_type () then
