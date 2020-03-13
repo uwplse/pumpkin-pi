@@ -453,13 +453,13 @@ let initialize_constr_rules c env sigma =
  *)
 let initialize_proj_rules env sigma c =
   let l = get_lifting c in
-  let sigma, lift_typ = reduce_type env sigma (lift_to l) in
-  let env_proj = zoom_env zoom_product_type env lift_typ in
-  let t = mkRel 1 in
-  let sigma, typ_args = type_from_args c env_proj t sigma in
-  let sigma, lift_t = lift env_proj l t typ_args sigma in
   match l.orn.kind with
   | Algebraic (indexer, _) ->
+     let sigma, lift_typ = reduce_type env sigma (lift_to l) in
+     let env_proj = zoom_env zoom_product_type env lift_typ in
+     let t = mkRel 1 in
+     let sigma, typ_args = type_from_args c env_proj t sigma in
+     let sigma, lift_t = lift env_proj l t typ_args sigma in
      if l.is_fwd then (* indexer -> projT1 *)
        let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj sigma lift_t) in
        let p1 = reconstruct_lambda env_proj (project_index b_sig_typ lift_t) in
@@ -477,6 +477,11 @@ let initialize_proj_rules env sigma c =
      (* no projections *)
      sigma, []
   | CurryRecord ->
+     let sigma, lift_typ = reduce_type env sigma (lift_to l) in
+     let env_proj = zoom_env zoom_product_type env lift_typ in
+     let t = mkRel 1 in
+     let sigma, typ_args = type_from_args c env_proj t sigma in
+     let sigma, lift_t = lift env_proj l t typ_args sigma in
      (* accessors <-> projections *)
      let accessors =
        let (a_typ, _) = get_types c in
