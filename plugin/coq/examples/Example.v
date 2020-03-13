@@ -268,21 +268,6 @@ Module uf.
 Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 Find ornament packed vector as unpack_vector.
 
-Print packed_rect.
-
-Print hs_to_coqV_p.zip.
-
-Check (fun a b n v1 v2 =>(projT2
-       (hs_to_coqV_p.zip a b
-         (existT _ n v1)
-         (existT _ n v2)))).
-
-Check (fun a b n v1 v2 => (packed_vector.zip_length a b n
-       (existT _ n v1)
-       (existT _ n v2)
-       (erefl n)
-       (erefl n))).
-
 (* playing around with useful induction principles for lifting (TODO then take a break and try implementing dumbest stuff w/o elim lifting): *)
 Definition unpack_proof :
   forall (T : Type) (n : nat) (P : {s : {n : nat & vector T n} & projT1 s = n} -> Type),
@@ -596,7 +581,11 @@ Check unpack_vector.
 Print packed_vector.zip.
 Print hs_to_coq_projT1s.zip_length_n.
 (* TODO get working: *)
+Definition minimal_test (T : Type) (n : nat) := { s : { n : nat & vector T n } & projT1 s = n }.
+Lift packed vector in minimal_test as minimal_test_lifted.
+Fail.
 Lift packed vector in packed_vector.zip as zip { opaque hs_to_coq_projT1s.zip_length_n hs_to_coqV_p.zip hs_to_coq_projT1s.zip_length eq_trans eq_sym eq_ind projT1 projT2 }.
+Fail.
 
 (*
  * Lifting along this equivalence will soon be automated, but for now apply
