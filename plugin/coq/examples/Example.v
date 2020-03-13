@@ -592,7 +592,7 @@ VectorDef.t_rect a
   v2.
 
 (* TODO is there an induction principle that describes that? check it out *)
-
+Check unpack_vector.
 Print packed_vector.zip.
 Print hs_to_coq_projT1s.zip_length_n.
 (* TODO get working: *)

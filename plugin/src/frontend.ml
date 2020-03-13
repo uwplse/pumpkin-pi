@@ -31,6 +31,7 @@ open Smartelim
 open Zooming
 open Apputils
 open Sigmautils
+open Reducers
 
 (* --- Utilities --- *)
 
@@ -84,17 +85,19 @@ let maybe_prove_coherence n inv_n kind : unit =
  * find_ornament is called. Otherwise, do nothing.
  *)
 let maybe_prove_equivalence n inv_n : unit =
-  let define_proof suffix ?(adjective=suffix) sigma term =
+  let define_proof suffix ?(adjective=suffix) sigma term typ =
     let ident = with_suffix n suffix in
-    define_print ident term sigma |> destConstRef
+    define_print ident term ~typ:typ sigma |> destConstRef
   in
   if is_search_equiv () then
     let sigma, env = refresh_env () in
     let (promote, forget) = map_tuple make_constant (n, inv_n) in
     let sigma, l = initialize_lifting_provided env sigma promote forget in
-    let (section, retraction) = prove_equivalence env sigma l in
-    let sect = define_proof "section" sigma section in
-    let retr0 = define_proof "retraction" sigma retraction in
+    let ((section, section_typ), (retraction, retraction_typ)) =
+      prove_equivalence env sigma l
+    in
+    let sect = define_proof "section" sigma section section_typ in
+    let retr0 = define_proof "retraction" sigma retraction retraction_typ in
     let pre_adj = { orn = l; sect; retr0 } in
     let _ =
       let sigma, env = refresh_env () in
@@ -213,11 +216,13 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
       | _ ->
          orn
     in
-    let promote =
+    let sigma, env = refresh_env () in
+    let sigma, promote =
       if Option.has_some promote_o then
-        Option.get promote_o
+        sigma, Option.get promote_o
       else
-        Universes.constr_of_global (define_print n orn.promote sigma)
+        let sigma, typ = reduce_type env sigma orn.promote in
+        sigma, Universes.constr_of_global (define_print n orn.promote ~typ:typ sigma)
     in
     let inv_n, forget =
       if Option.has_some forget_o then
@@ -227,7 +232,8 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
         Label.to_id lab, forget
       else
         let inv_n = with_suffix n "inv" in
-        inv_n, Universes.constr_of_global (define_print inv_n orn.forget sigma)
+        let sigma, typ = reduce_type env sigma orn.forget in
+        inv_n, Universes.constr_of_global (define_print inv_n orn.forget ~typ:typ sigma)
     in
     maybe_prove_coherence n inv_n orn.kind;
     maybe_prove_equivalence n inv_n;
