@@ -504,7 +504,10 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
 let lift_core env c trm sigma =
   let l = get_lifting c in
   let (a_typ, _) = get_types c in
+  let open Printing in
+  debug_term env a_typ "a_typ";
   let sigma, a_typ_eta = expand_eta env sigma a_typ in
+  debug_term env a_typ_eta "a_typ_eta";
   let a_arity = arity a_typ_eta in
   let rec lift_rec en sigma c tr : types state =
     let sigma, lift_rule = determine_lift_rule c en tr sigma in
@@ -521,43 +524,13 @@ let lift_core env c trm sigma =
        let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in
        lift_rec en sigma c projected
     | Equivalence args ->
-       (* tr: (sigT (sigT nat (λ (_ : nat) . (t (a [Rel 4]) (_ [Rel 1])))) (λ (l1 : (sigT nat (λ (_ : nat) . (t (a [Rel 4]) (_ [Rel 1]))))) . (eq nat (Coq.Init.Specif.projT1 nat (λ (_ : nat) . (t (a [Rel 5]) (_ [Rel 1]))) (l1 [Rel 1])) (n [Rel 2]))))
-
-args: ??
-
-args: ??
-
-tr: ??
-
-args: ??
-
-args: ??
-
-red: (t nat (λ (_ : nat) . (t (a [Rel 4]) (_ [Rel 1])))) 
-
-red: (t (t nat (λ (_ : nat) . (t (a [Rel 4]) (_ [Rel 1])))) (λ (l1 : (sigT nat (λ (_ : nat) . (t (a [Rel 4]) (_ [Rel 1]))))) . (eq nat (Coq.Init.Specif.projT1 nat (λ (_ : nat) . (t (a [Rel 5]) (_ [Rel 1]))) (l1 [Rel 1])) (n [Rel 2]))))
-
-b.c. a_typ it is inferring is:
-
-a_typ: (λ (A : Type Coq.Init.Specif.7) . (λ (P : (Π (_ : (A [Rel 1])) . Type Coq.Init.Specif.8)) . (sigT (A [Rel 2]) (P [Rel 1]))))
-
-but we want specific to vectors.
-
-this is a bug in promotion_type_to_types 
-*)
        let (_, b_typ) = get_types c in
-       let open Printing in
-       debug_term en tr "tr";
-       debug_term en a_typ "a_typ";
-       debug_terms en args "args";
        let sigma, lifted_args = map_rec_args lift_rec en sigma c (Array.of_list args) in
        if l.is_fwd then
          if Array.length lifted_args = 0 then
            sigma, b_typ
          else
-           let sigma, red = reduce_term en sigma (mkApp (b_typ, lifted_args)) in
-           debug_term en red "red";
-           sigma, red
+           reduce_term en sigma (mkApp (b_typ, lifted_args))
        else
          if Array.length lifted_args = 0 then
            sigma, a_typ
