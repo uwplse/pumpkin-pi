@@ -430,8 +430,8 @@ let lift_constr env sigma c trm =
        (* inductive case - refold *)
        refold l env (lift_to l) app rec_args sigma
   | UnpackSigma ->
-    (* While this has no inductive cases, we do refold this (TODO explain, implement) *)
-     sigma, app
+     (* Don't even reduce; let lifting handle this (TODO explain) *)
+     reduce_term env sigma app
   | CurryRecord ->
      (* no inductive cases, so don't try to refold *)
      reduce_nf env sigma app

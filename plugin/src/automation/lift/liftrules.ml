@@ -200,15 +200,14 @@ let is_packed_constr c env sigma trm =
       * Consider meaning. Comment similarly for eliminators. Return None there.
       * Unless can think of a good "eliminator" transformation to use.
       *)
-     let open Printing in
-     debug_term env trm "checking trm";
-     let sigma_right, args_opt = type_is_from c env trm sigma in
-     if Option.has_some args_opt then
-       let open Printing in
-       Printf.printf "%s\n\n" "it's a constr";
-       sigma_right, Some (0, snoc trm (Option.get args_opt))
-     else
+     if isRel trm then
        sigma, None
+     else
+       let sigma_right, args_opt = type_is_from c env trm sigma in
+       if Option.has_some args_opt then
+         sigma_right, Some (0, snoc trm (Option.get args_opt))
+       else
+         sigma, None
 
 (* Premises for LIFT-PACK *)
 let is_pack c env sigma trm =
@@ -340,12 +339,9 @@ let determine_lift_rule c env trm sigma =
       let sigma, i_and_args_o = is_packed_constr c env sigma trm in
       if Option.has_some i_and_args_o then
         let i, args = Option.get i_and_args_o in
-        let open Printing in
-        debug_terms env args "args";
         let lifted_constr = (get_lifted_constrs c).(i) in
-        debug_term env lifted_constr "lifted_constr";
         if List.length args > 0 then
-          if not l.is_fwd || l.orn.kind = UnpackSigma then
+          if not l.is_fwd && not (l.orn.kind = UnpackSigma) then
             sigma, LiftConstr (lifted_constr, args)
           else
             match l.orn.kind with
