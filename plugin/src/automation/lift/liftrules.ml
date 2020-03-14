@@ -362,6 +362,7 @@ let determine_lift_rule c env trm sigma =
             if arity trm_eta > arity trm then
               sigma, Optimization (LazyEta trm_eta)
             else
+              (* TODO! Next step is getting coherence working for UnpackSigma *)
               let (_, p) = List.nth (get_proj_map c) i in
               sigma, Coherence (to_proj, p, args)
           else

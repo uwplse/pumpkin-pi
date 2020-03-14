@@ -589,7 +589,7 @@ Print minimal_test_lifted.
 Definition minimal_test_2 (T : Type) (n : nat) (pv : { s : { n : nat & vector T n } & projT1 s = n }) := pv.
 Lift packed vector in minimal_test_2 as minimal_test_2_lifted { opaque eq_rect }. (* TODO need to stop this from reducing generally... refold or something *)
 Print minimal_test_2_lifted.
-Lift packed vector in packed_vector.zip as zip { opaque eq_rect hs_to_coq_projT1s.zip_length_n hs_to_coqV_p.zip hs_to_coq_projT1s.zip_length eq_trans eq_sym eq_ind projT1 projT2 }.
+Lift packed vector in packed_vector.zip as zip { opaque eq_rect hs_to_coq_projT1s.zip_length_n hs_to_coqV_p.zip hs_to_coq_projT1s.zip_length eq_trans eq_sym eq_ind }.
 Fail.
 
 (*
