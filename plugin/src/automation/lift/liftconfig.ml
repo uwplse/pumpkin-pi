@@ -23,6 +23,7 @@ open Desugarprod
 open Evarutil
 open Evarconv
 open Names
+open Equtils
 
 (*
  * Lifting configuration: Includes the lifting, types, and cached rules
@@ -484,13 +485,43 @@ let initialize_proj_rules env sigma c =
        let args = shift_all (mk_n_rels (nb_rel env_proj - 1)) in
        let p1 = reconstruct_lambda env_proj (mkAppl (indexer, snoc lift_t args)) in
        let p2 = reconstruct_lambda env_proj lift_t in
-       let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj sigma (mkRel 1)) in
-       let projT1 = reconstruct_lambda env_proj (project_index b_sig_typ (mkRel 1)) in
-       let projT2 = reconstruct_lambda env_proj (project_value b_sig_typ (mkRel 1)) in
+       let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj sigma t) in
+       let projT1 = reconstruct_lambda env_proj (project_index b_sig_typ t) in
+       let projT2 = reconstruct_lambda env_proj (project_value b_sig_typ t) in
        sigma, [(projT1, p1); (projT2, p2)]
-  | SwapConstruct _ | UnpackSigma ->
-     (* no projections *)
-     sigma, []
+  | UnpackSigma ->
+     let sigma, lift_typ = reduce_type env sigma (lift_to l) in
+     let env_proj = zoom_env zoom_product_type env lift_typ in
+     let t = mkRel 1 in
+     let sigma, typ_args = type_from_args c env_proj t sigma in
+     let sigma, lift_t = lift env_proj l t typ_args sigma in
+     if l.is_fwd then (* projT1 -> pack, projT2 -> eq_refl *)
+       (* TODO clean etc *)
+       let args = shift_all (mk_n_rels (nb_rel env_proj - 1)) in
+       let sigma, b_sig_eq_typ = reduce_type env_proj sigma t in
+       let sigma, [i_b_typ; b; i_b] = unpack_typ_args env_proj b_sig_eq_typ sigma in
+       let b_sig_typ = (dest_sigT b_sig_eq_typ).index_type in
+       let index_type = i_b_typ in
+       let packer = (dest_sigT b_sig_typ).packer in
+       let index = i_b in
+       let unpacked = lift_t in
+       let indexer = pack_existT { index_type; packer; index; unpacked } in
+       let p1 = reconstruct_lambda env_proj indexer in
+       let open Printing in
+       debug_term env p1 "p1";
+       let sigma, p1_typ = Inference.infer_type env sigma p1 in
+       debug_term env p1_typ "p1_typ";
+       let p2 = reconstruct_lambda env_proj (apply_eq_refl {typ = i_b_typ; trm = i_b}) in
+       let projT1 = reconstruct_lambda env_proj (project_index (dest_sigT b_sig_eq_typ) t) in
+       let projT2 = reconstruct_lambda env_proj (project_value (dest_sigT b_sig_eq_typ) t) in
+       let open Printing in
+       debug_term env projT2 "projT2";
+       debug_term env projT1 "projT1";
+       debug_term env p2 "p2";
+       sigma, [(projT1, p1); (projT2, p2)]
+     else (* pack -> projT1, eq_refl -> projT2 *)
+       (* TODO!! *)
+       sigma, []
   | CurryRecord ->
      let sigma, lift_typ = reduce_type env sigma (lift_to l) in
      let env_proj = zoom_env zoom_product_type env lift_typ in
@@ -536,6 +567,9 @@ let initialize_proj_rules env sigma c =
          Feedback.msg_warning
            (Pp.str "Can't find record accessors; skipping an optimization")
        in sigma, []
+  | SwapConstruct _ ->
+     (* no projections *)
+     sigma, []
 
 (*
  * Sometimes we can do better than Coq's reduction and simplify eagerly.

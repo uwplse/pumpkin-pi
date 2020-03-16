@@ -577,8 +577,11 @@ VectorDef.t_rect a
   v2.
 
 (* TODO is there an induction principle that describes that? check it out *)
+
+(* TODO move a lot of below to separate test file so we can really work through easy tests: *)
 Check unpack_vector.
 Print unpack_vector.
+Print unpack_vector_inv.
 Print unpack_generic.
 Print packed_vector.zip.
 Print hs_to_coq_projT1s.zip_length_n.
@@ -586,9 +589,18 @@ Print hs_to_coq_projT1s.zip_length_n.
 Definition minimal_test (T : Type) (n : nat) := { s : { n : nat & vector T n } & projT1 s = n }.
 Lift packed vector in minimal_test as minimal_test_lifted. (* TODO move to tests somewhere *)
 Print minimal_test_lifted.
+Definition proj1_test (T : Type) (n : nat) (pv : { s : { n : nat & vector T n } & projT1 s = n }) := projT1 pv.
+Print proj1_test.
+Lift packed vector in proj1_test as proj1_test_lifted.
+Definition proj1_test_expected (T : Type) (n : nat) (v : vector T n) := existT _ n v.
+Print proj1_test_expected.
+Print proj1_test_lifted.
 Definition minimal_test_2 (T : Type) (n : nat) (pv : { s : { n : nat & vector T n } & projT1 s = n }) := pv.
 Lift packed vector in minimal_test_2 as minimal_test_2_lifted { opaque eq_rect }. (* TODO need to stop this from reducing generally... refold or something *)
 Print minimal_test_2_lifted.
+Definition proj2_test (T : Type) (n : nat) (pv : { s : { n : nat & vector T n } & projT1 s = n }) := projT2 pv.
+Lift packed vector in proj2_test as proj2_test_lifted.
+Print proj2_test_lifted.
 Lift packed vector in packed_vector.zip as zip { opaque eq_rect hs_to_coq_projT1s.zip_length_n hs_to_coqV_p.zip hs_to_coq_projT1s.zip_length eq_trans eq_sym eq_ind }.
 Fail.
 

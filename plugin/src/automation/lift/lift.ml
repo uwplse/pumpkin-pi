@@ -531,7 +531,10 @@ let lift_core env c trm sigma =
     | Section | Retraction | Internalize ->
        lift_rec en sigma c (last_arg tr)
     | Coherence (to_proj, p, args) ->
+       let open Printing in
+       debug_term en tr "tr";
        let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in
+       debug_term en projected "projected";
        lift_rec en sigma c projected
     | Equivalence args ->
        let (_, b_typ) = get_types c in

@@ -201,6 +201,7 @@ let is_packed_constr c env sigma trm =
       * Unless can think of a good "eliminator" transformation to use.
       *)
      if isRel trm then
+       (* TODO can/should we remove this? *)
        sigma, None
      else
        let sigma_right, args_opt = type_is_from c env trm sigma in
@@ -362,7 +363,6 @@ let determine_lift_rule c env trm sigma =
             if arity trm_eta > arity trm then
               sigma, Optimization (LazyEta trm_eta)
             else
-              (* TODO! Next step is getting coherence working for UnpackSigma *)
               let (_, p) = List.nth (get_proj_map c) i in
               sigma, Coherence (to_proj, p, args)
           else
