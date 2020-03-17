@@ -20,6 +20,10 @@ open Evd
 open Evarutil
 open Evarconv
 open Specialization
+open Debruijn
+open Names
+open Equtils
+open Environ
 
 (*
  * This module takes in a Coq term that we are lifting and determines
@@ -159,7 +163,7 @@ let is_packed_constr c env sigma trm =
          let constr = constrs.(i - 1) in
          let constr_f = first_fun (unpack (zoom_term zoom_lambda_term env constr)) in
          if equal constr_f f && List.length args = arity constr then
-           sigma, Some (i - 1, args)
+           sigma, Some (i - 1, args, trm)
          else
            sigma, None
       | _ ->
@@ -185,7 +189,7 @@ let is_packed_constr c env sigma trm =
           let constr = constrs.(0) in
           let pms = Option.get args_opt in
           let args = pair_projections_eta_rec_n trm (arity constr - List.length pms) in
-          sigma, Some (0, List.append pms args)
+          sigma, Some (0, List.append pms args, trm)
         else
           sigma, None
       else
@@ -194,16 +198,71 @@ let is_packed_constr c env sigma trm =
      (*
       * TODO
       * No clue what I'm doing yet! Do not merge this!
+      *
+      * TODO!!! use constrs instead of rolling by hand; change
+      * args when you do that.
+      * Then we can probably combine w/ the eta rule! But for now whatever
+      *
+      * TODO!!! clean/consolidate etc. this is a proof of concept
       *)
      if (get_lifting c).is_fwd then
        let sigma_right, args_opt = type_is_from c env trm sigma in
        if Option.has_some args_opt then
+         let typ_args = Option.get args_opt in
          if is_or_applies existT trm then
            let trm_ex = dest_existT trm in
-           if is_or_applies existT trm_ex.index then
-             sigma_right, Some (0, snoc trm (Option.get args_opt))
-           else
-             sigma, None
+           let index = trm_ex.index in
+           let unpacked = trm_ex.unpacked in
+           let try_eta =
+             if is_or_applies existT index && isRel unpacked then
+               let index_ex = dest_existT index in
+               if isRel index_ex.index && isRel index_ex.unpacked then
+                 false
+               else
+                 true
+             else
+               true
+           in
+           let sigma, trm_eta =
+             if not try_eta then
+               sigma_right, trm
+             else
+               let sigma, b_sig_eq = reduce_term env sigma_right (mkAppl (fst (get_types c), typ_args)) in
+               let open Printing in
+               let sigma, [i_b_typ; b_typ; i_b] = unpack_typ_args env b_sig_eq sigma in
+               let env_i_b = push_local (Anonymous, i_b_typ) env in
+               let env_b = push_local (Anonymous, mkAppl (shift b_typ, [mkRel 1])) env_i_b in
+               let at_type = shift_by 2 i_b_typ in
+               let trm1 = mkRel 2 in
+               let trm2 = shift_by 2 i_b in
+               let eq_typ = apply_eq { at_type; trm1; trm2 } in
+               let env_h = push_local (Anonymous, eq_typ) env_b in
+               let i_b = project_index (dest_sigT (dest_sigT b_sig_eq).index_type) index in
+               let b = project_value (dest_sigT (dest_sigT b_sig_eq).index_type) index in
+               let h = unpacked in
+               let args = [i_b; b; h] in
+               let f_bod =
+                 let index_type =
+                   let index_type = shift at_type in
+                   let packer = mkLambda (Anonymous, index_type, mkAppl (shift_by 4 b_typ, [mkRel 1])) in
+                   pack_sigT { index_type; packer }
+                 in
+                 let eq_typ = apply_eq { at_type = shift_by 2 at_type; trm1 = project_index (dest_sigT (shift index_type)) (mkRel 1); trm2 = shift_by 2 trm2} in
+                 let packer = mkLambda (Anonymous, index_type, eq_typ) in
+                 let index =
+                   let index_type = shift at_type in
+                   let packer = mkLambda (Anonymous, index_type, mkAppl (shift_by 4 b_typ, [mkRel 1])) in
+                   let index = mkRel 3 in
+                   let unpacked = mkRel 2 in
+                   pack_existT { index_type; packer; index; unpacked}
+                 in
+                 let unpacked = mkRel 1 in
+                 pack_existT { index_type; packer; index; unpacked }
+               in let open Printing in
+                  debug_term env (reconstruct_lambda_n env_h f_bod (nb_rel env)) "f";
+                  debug_terms env args "args";
+                  sigma, mkAppl (reconstruct_lambda_n env_h f_bod (nb_rel env), args)
+           in sigma, Some (0, snoc trm typ_args, trm_eta)
          else
            sigma, None
        else
@@ -342,19 +401,27 @@ let determine_lift_rule c env trm sigma =
     else
       let sigma, i_and_args_o = is_packed_constr c env sigma trm in
       if Option.has_some i_and_args_o then
-        let i, args = Option.get i_and_args_o in
-        let lifted_constr = (get_lifted_constrs c).(i) in
-        if List.length args > 0 then
-          if not l.is_fwd && not (l.orn.kind = UnpackSigma) then
-            sigma, LiftConstr (lifted_constr, args)
-          else
-            match l.orn.kind with
-            | SwapConstruct _ ->
-               sigma, LiftConstr (lifted_constr, args)
-            | _ ->
-               sigma, Optimization (SmartLiftConstr (lifted_constr, args))
+        let i, args, trm_eta = Option.get i_and_args_o in
+        let open Printing in
+        debug_term env trm "trm";
+        debug_term env trm_eta "trm_eta";
+        let _, trm_eta_type = Inference.infer_type env sigma trm_eta in
+        debug_term env trm_eta_type "trm_eta_type";
+        if not (equal trm_eta trm) then
+          sigma, Optimization (LazyEta trm_eta)
         else
-          sigma, LiftConstr (lifted_constr, args)
+          let lifted_constr = (get_lifted_constrs c).(i) in
+          if List.length args > 0 then
+            if not l.is_fwd && not (l.orn.kind = UnpackSigma) then
+              sigma, LiftConstr (lifted_constr, args)
+            else
+              match l.orn.kind with
+              | SwapConstruct _ ->
+                 sigma, LiftConstr (lifted_constr, args)
+              | _ ->
+                 sigma, Optimization (SmartLiftConstr (lifted_constr, args))
+          else
+            sigma, LiftConstr (lifted_constr, args)
       else
         let sigma, is_pack = is_pack c env sigma trm in
         if is_pack then
