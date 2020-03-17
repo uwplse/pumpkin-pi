@@ -600,9 +600,158 @@ Lift packed vector in minimal_test_2 as minimal_test_2_lifted { opaque eq_rect }
 Print minimal_test_2_lifted.
 Definition proj2_test (T : Type) (n : nat) (pv : { s : { n : nat & vector T n } & projT1 s = n }) := projT2 pv.
 Lift packed vector in proj2_test as proj2_test_lifted.
+Definition lifted (T : Type) (n : nat)  (pv : vector T n) :=
+  existT (fun (s : sigT (vector T)) => projT1 s = n) (existT (fun n => vector T n) n pv) (eq_refl n).
+Check lifted.
+Definition ex_test_constr (T : Type) (n : nat) (pv : { s : { n : nat & vector T n } & projT1 s = n }) : {s : {x : nat & vector T x} & projT1 s = n} :=
+  (fun n s H => existT _ (existT _ n s) H) (projT1 (projT1 pv)) (projT2 (projT1 pv)) (projT2 pv).
+
+Lift packed vector in ex_test_constr as ex_test_constr_lifted.
+
+Lemma ex_test_constr_lift_correct :
+  forall T n v, ex_test_constr_lifted T n v = v.
+Proof.
+  reflexivity.
+Qed.
+
+(* TODO we will need to eta expand below to above before running: *)
+Definition ex_test (T : Type) (n : nat) (pv : { s : { n : nat & vector T n } & projT1 s = n }) := existT _ (projT1 pv) (projT2 pv).
+Definition ex_test_expected (T : Type) (n : nat) (v : vector T n) := v.
+Fail Lift packed vector in ex_test as ex_test_lifted.
+
+(* everything below will fail because of eta problem *)
+Fail.
+Definition proj1_eta_test (T : Type) (n : nat) (pv : { s : { n : nat & vector T n } & projT1 s = n }) := projT1 (existT _ (projT1 pv) (projT2 pv)).
+Lift packed vector in proj1_eta_test as proj1_eta_test_lifted.
+Print proj1_eta_test_lifted.
+Fail.
+
+
+Fail.
 Print proj2_test_lifted.
+
+(* TODO still stuck here: *)
+Print packed_vector.zip.
+
+
 Lift packed vector in packed_vector.zip as zip { opaque eq_rect hs_to_coq_projT1s.zip_length_n hs_to_coqV_p.zip hs_to_coq_projT1s.zip_length eq_trans eq_sym eq_ind }.
 Fail.
+
+(* Want (or want to unfold packed_rect): *)
+Definition zip_lifted_handwritten_0 (a b : Type) (n : nat) (pl1 : vector a n) :=
+  @packed_rect
+    (sigT (vector a))
+    nat
+    (fun (l : sigT (vector a)) => projT1 l)
+    id
+    (fun (n : nat) (s : sigT (vector a)) => id)
+    n
+    (fun (_ : { s : sigT (vector a) & projT1 s = n }) => vector b n -> vector (a * b) n)
+    (fun (l : {H : nat & vector a H}) (H : projT1 l = n) (pl2 : vector b n) =>
+      existT _
+        (existT _
+          (projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+          (projT2 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ n pl2))))
+       (packed_vector.zip_length a b n (existT _ (projT1 l) (projT2 l)) (existT _ n pl2) H (erefl n)))
+    pl1.
+
+(* Got: *)
+Definition zip_lifted_auto_0 (a b : Type) (n : nat) (pl1 : vector a n) :=
+  @packed_rect
+    (sigT (vector a))
+    nat
+    (fun (l : sigT (vector a)) => projT1 l)
+    id
+    (fun (n : nat) (s : sigT (vector a)) => id)
+    n
+    (fun (_ : vector a n) => vector b n -> vector (a * b) n)
+    (fun (l : {H : nat & vector a H}) (H : projT1 l = n) (pl2 : vector b n) =>
+      existT _
+        (existT _
+          (projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+          (projT2 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ n pl2))))
+       (packed_vector.zip_length a b n (existT _ (projT1 l) (projT2 l)) (existT _ n pl2) H (erefl n)))
+    pl1.
+
+
+
+
+
+
+Definition zip_lifted_handwritten_1 (a b : Type) (n : nat) (pl1 : vector a n) :=
+  @packed_rect
+    (sigT (vector a))
+    nat 
+    (fun (l : sigT (vector a)) => projT1 l)
+    id
+    (fun (n : nat) (s : sigT (vector a)) => id)
+    n
+    (fun (pl1 : { s : sigT (vector a) & projT1 s = n }) => vector b n -> vector (a * b) n)
+    (fun (l : sigT (vector a)) (H : projT1 l = n) (pl2 : vector b n) =>
+      @eq_rect
+        nat
+        (projT1
+          (projT1
+            (existT _
+              (existT _
+                (projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))))
+                (projT2 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))))))
+              (packed_vector.zip_length a b n (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))) H (projT2 pl2))))) 
+        (vector (a * b))
+        (projT2
+          (projT1
+            (existT _
+               (existT _
+                 (projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))))
+                 (projT2 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))))))
+             (packed_vector.zip_length a b n (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))) H (projT2 pl2)))))
+     n
+     (projT2
+       (existT _
+         (existT _
+           (projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))))
+           (projT2 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))))))
+         (packed_vector.zip_length a b n (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))) H (projT2 pl2)))))
+     pl1.
+
+Definition zip_lifted (a b : Type) (n : nat) (pl1 : vector a n) :=
+  @packed_rect
+    (sigT (vector a))
+    nat 
+    (fun (l : sigT (vector a)) => projT1 l)
+    id
+    (fun (n : nat) (s : sigT (vector a)) => id)
+    n
+    (fun (pl1 : vector a n) => vector b n -> vector (a * b) n)
+    (fun (l : sigT (vector a)) (H : projT1 l = n) (pl2 : vector b n) =>
+      @eq_rect
+        nat
+        (projT1
+          (projT1
+            (existT _
+              (existT _
+                (projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))))
+                (projT2 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))))))
+              (packed_vector.zip_length a b n (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))) H (projT2 pl2))))) 
+        (vector (a * b))
+        (projT2
+          (projT1
+            (existT _
+               (existT _
+                 (projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))))
+                 (projT2 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))))))
+             (packed_vector.zip_length a b n (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))) H (projT2 pl2)))))
+     n
+     (projT2
+       (existT _
+         (existT _
+           (projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))))
+           (projT2 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))))))
+         (packed_vector.zip_length a b n (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))) H (projT2 pl2)))))
+     pl1.
+
+
+
 
 (*
  * Lifting along this equivalence will soon be automated, but for now apply

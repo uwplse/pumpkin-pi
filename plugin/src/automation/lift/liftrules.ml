@@ -192,23 +192,26 @@ let is_packed_constr c env sigma trm =
         sigma, None
   | UnpackSigma ->
      (*
-      * We treat all terms of the relevant type as constructors, since
-      * there is no change in inductive type, so we always want to apply
-      * the promotion function and then reduce.
-      *
-      * TODO should this be handled in repack instead? Consider.
-      * Consider meaning. Comment similarly for eliminators. Return None there.
-      * Unless can think of a good "eliminator" transformation to use.
+      * TODO
+      * No clue what I'm doing yet! Do not merge this!
       *)
-     if isRel trm then
-       (* TODO can/should we remove this? *)
-       sigma, None
-     else
+     if (get_lifting c).is_fwd then
        let sigma_right, args_opt = type_is_from c env trm sigma in
        if Option.has_some args_opt then
-         sigma_right, Some (0, snoc trm (Option.get args_opt))
+         if is_or_applies existT trm then
+           let trm_ex = dest_existT trm in
+           if is_or_applies existT trm_ex.index then
+             sigma_right, Some (0, snoc trm (Option.get args_opt))
+           else
+             sigma, None
+         else
+           sigma, None
        else
          sigma, None
+     else
+       sigma, None (* TODO unimplemented *)
+     (*
+     existT _ (existT _ n pv) (eq_refl n)*)
 
 (* Premises for LIFT-PACK *)
 let is_pack c env sigma trm =

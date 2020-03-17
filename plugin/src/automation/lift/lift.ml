@@ -492,6 +492,8 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
      (sigma, apply_pair {typ1; typ2; trm1; trm2})
   | UnpackSigma ->
      (* TODO explain, test to see if bad ever *)
+     (* TODO what we really want here is to get into the eq_rect ... form,
+        but then recursively lift the projections. *)
      let open Printing in
      debug_term env constr_app "constr_app";
      let sigma, args' = map_rec_args lift_rec env sigma c (Array.of_list (all_but_last args)) in
@@ -501,6 +503,20 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
      debug_term env app "app delta";
      let sigma, app = specialize_delta_f env (first_fun app) (unfold_args app) sigma in
      debug_term env app "app delta delta";
+     let args''' = unfold_args app in
+     let arg' = (Array.of_list args''').(3) in
+     debug_term env arg' "arg'";
+    (* let sigma, arg'_lifted = lift_rec env sigma c arg' in
+     debug_term env arg'_lifted "arg'_lifted";*)
+     (* (@eq_rect
+      nat
+      (projT1 (projT1 pv))
+      (vector T)
+      (projT2 (projT1 pv))
+      n
+      (projT2 pv)).*)
+    (* let sigma, args''' = map_rec_args lift_rec env sigma c (Array.of_list (unfold_args app)) in
+     debug_terms env (Array.to_list args''') "args'''";*)
      sigma, app
   (* TODO lift args but without recursing infinitely? how to stop? *)
   | _ ->
@@ -529,6 +545,8 @@ let lift_core env c trm sigma =
     | Optimization (LazyEta tr_eta) ->
        lift_rec en sigma c tr_eta
     | Section | Retraction | Internalize ->
+       let open Printing in
+       debug_term en tr "section/retraction/internalize";
        lift_rec en sigma c (last_arg tr)
     | Coherence (to_proj, p, args) ->
        let open Printing in
