@@ -417,6 +417,9 @@ let lift_simplify_project_packed c env reduce f args lift_rec sigma =
  * Lift applications, possibly being lazy about delta if we can get away with it
  *)
 let lift_app_lazy_delta c env f args lift_rec sigma =
+  let open Printing in
+  debug_term env f "f";
+  debug_terms env (Array.to_list args) "args";
   let l = get_lifting c in
   let sigma, f' = lift_rec env sigma c f in
   let sigma, args' = map_rec_args lift_rec env sigma c args in
@@ -428,22 +431,19 @@ let lift_app_lazy_delta c env f args lift_rec sigma =
     | Const (c, u) when Option.has_some (inductive_of_elim env (c, u)) ->
        sigma, mkApp (f', args')
     | _ ->
-       if not (equal f f') then
+       let sigma, app' = specialize_delta_f env f (Array.to_list args) sigma in
+       if equal (mkApp (f, args)) app' then
          sigma, mkApp (f', args')
        else
-         let sigma, app' = specialize_delta_f env f (Array.to_list args) sigma in
-         if equal (mkApp (f, args)) app' then
+         let sigma, lifted_red = lift_rec env sigma c app' in
+         if equal lifted_red app' then
            sigma, mkApp (f', args')
          else
-           let sigma, lifted_red = lift_rec env sigma c app' in
-           if equal lifted_red app' then
+           let sigma, app'' = specialize_delta_f env f' (Array.to_list args') sigma in
+           if equal lifted_red app'' then
              sigma, mkApp (f', args')
            else
-             let sigma, app'' = specialize_delta_f env f' (Array.to_list args') sigma in
-             if equal lifted_red app'' then
-               sigma, mkApp (f', args')
-             else
-               sigma, lifted_red
+             sigma, lifted_red
 
 (*
  * Lift constants, possibly being lazy about delta if we can get away with it
@@ -545,14 +545,9 @@ let lift_core env c trm sigma =
     | Optimization (LazyEta tr_eta) ->
        lift_rec en sigma c tr_eta
     | Section | Retraction | Internalize ->
-       let open Printing in
-       debug_term en tr "section/retraction/internalize";
        lift_rec en sigma c (last_arg tr)
     | Coherence (to_proj, p, args) ->
-       let open Printing in
-       debug_term en tr "tr";
        let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in
-       debug_term en projected "projected";
        lift_rec en sigma c projected
     | Equivalence args ->
        let (_, b_typ) = get_types c in
