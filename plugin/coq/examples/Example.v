@@ -600,6 +600,9 @@ Lift packed vector in minimal_test_2 as minimal_test_2_lifted { opaque eq_rect }
 Print minimal_test_2_lifted.
 Definition proj2_test (T : Type) (n : nat) (pv : { s : { n : nat & vector T n } & projT1 s = n }) := projT2 pv.
 Lift packed vector in proj2_test as proj2_test_lifted.
+
+Print proj2_test_lifted.
+
 Definition lifted (T : Type) (n : nat)  (pv : vector T n) :=
   existT (fun (s : sigT (vector T)) => projT1 s = n) (existT (fun n => vector T n) n pv) (eq_refl n).
 Check lifted.
@@ -622,18 +625,10 @@ Definition ex_test_expected (T : Type) (n : nat) (v : vector T n) := v.
 
 Lift packed vector in ex_test as ex_test_lifted.
 Print ex_test_lifted. (* TODO yay!!! ok now move on to other tests *)
-Fail.
 
-(* everything below will fail because eta *)
-Fail.
 Definition proj1_eta_test (T : Type) (n : nat) (pv : { s : { n : nat & vector T n } & projT1 s = n }) := projT1 (existT _ (projT1 pv) (projT2 pv)).
 Lift packed vector in proj1_eta_test as proj1_eta_test_lifted.
 Print proj1_eta_test_lifted.
-Fail.
-
-
-Fail.
-Print proj2_test_lifted.
 
 (* TODO still stuck here: *)
 Print packed_vector.zip.
