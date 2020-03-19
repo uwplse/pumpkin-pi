@@ -217,7 +217,7 @@ Defined.
  * we can just use UIP, since equality over natural numbers
  * is decidable:
  *)
-Lemma zip_with_is_zip :
+Lemma zip_with_is_zip' :
   forall A B n (pl1 : { l1 : list A & length l1 = n }) (pl2 : { l2 : list B & length l2 = n }),
     zip_with A B (A * B) pair n pl1 pl2 = zip A B n pl1 pl2.
 Proof.
@@ -230,6 +230,7 @@ Proof.
   (* length invariant: *)
   apply (Eqdep_dec.UIP_dec Nat.eq_dec).
 Defined.
+Preprocess zip_with_is_zip' as zip_with_is_zip.
 (*
  * TECHNICAL NOTE: In general, we may be able to avoid using UIP over the index
  * using adjunction and coherence together to show that we do not duplicate equalities (credit to Jason Gross).
@@ -250,6 +251,8 @@ Lift Module list vector in packed_list as packed_vector.
 
 Check packed_vector.zip.
 Check packed_vector.zip_with.
+Print packed_list.zip_with_is_zip.
+Print packed_vector.zip_with_is_zip.
 Check packed_vector.zip_with_is_zip.
 
 (*
@@ -633,154 +636,16 @@ Print proj1_eta_test_lifted.
 (* TODO still stuck here: *)
 Print packed_vector.zip.
 
-
+Lift packed vector in packed_vector.zip_length as zip_length { opaque eq_rect hs_to_coq_projT1s.zip_length_n hs_to_coqV_p.zip hs_to_coq_projT1s.zip_length eq_trans eq_sym eq_ind }.
+Lift packed vector in packed_vector.zip_with_length as zip_with_length  { opaque eq_rect hs_to_coq_projT1s.zip_with_length_n hs_to_coqV_p.zip_with hs_to_coq_projT1s.zip_with_length eq_trans eq_sym eq_ind }.
 Lift packed vector in packed_vector.zip as zip { opaque eq_rect hs_to_coq_projT1s.zip_length_n hs_to_coqV_p.zip hs_to_coq_projT1s.zip_length eq_trans eq_sym eq_ind }.
-Fail.
-
-(* Want (or want to unfold packed_rect): *)
-Definition zip_lifted_handwritten_0 (a b : Type) (n : nat) (pl1 : vector a n) :=
-  @packed_rect
-    (sigT (vector a))
-    nat
-    (fun (l : sigT (vector a)) => projT1 l)
-    id
-    (fun (n : nat) (s : sigT (vector a)) => id)
-    n
-    (fun (_ : { s : sigT (vector a) & projT1 s = n }) => vector b n -> vector (a * b) n)
-    (fun (l : {H : nat & vector a H}) (H : projT1 l = n) (pl2 : vector b n) =>
-      existT _
-        (existT _
-          (projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
-          (projT2 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ n pl2))))
-       (packed_vector.zip_length a b n (existT _ (projT1 l) (projT2 l)) (existT _ n pl2) H (erefl n)))
-    pl1.
-
-(* Got: *)
-Definition zip_lifted_auto_0 (a b : Type) (n : nat) (pl1 : vector a n) :=
-  @packed_rect
-    (sigT (vector a))
-    nat
-    (fun (l : sigT (vector a)) => projT1 l)
-    id
-    (fun (n : nat) (s : sigT (vector a)) => id)
-    n
-    (fun (_ : vector a n) => vector b n -> vector (a * b) n)
-    (fun (l : {H : nat & vector a H}) (H : projT1 l = n) (pl2 : vector b n) =>
-      existT _
-        (existT _
-          (projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
-          (projT2 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ n pl2))))
-       (packed_vector.zip_length a b n (existT _ (projT1 l) (projT2 l)) (existT _ n pl2) H (erefl n)))
-    pl1.
-
-
-
-
-
-
-Definition zip_lifted_handwritten_1 (a b : Type) (n : nat) (pl1 : vector a n) :=
-  @packed_rect
-    (sigT (vector a))
-    nat 
-    (fun (l : sigT (vector a)) => projT1 l)
-    id
-    (fun (n : nat) (s : sigT (vector a)) => id)
-    n
-    (fun (pl1 : { s : sigT (vector a) & projT1 s = n }) => vector b n -> vector (a * b) n)
-    (fun (l : sigT (vector a)) (H : projT1 l = n) (pl2 : vector b n) =>
-      @eq_rect
-        nat
-        (projT1
-          (projT1
-            (existT _
-              (existT _
-                (projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))))
-                (projT2 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))))))
-              (packed_vector.zip_length a b n (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))) H (projT2 pl2))))) 
-        (vector (a * b))
-        (projT2
-          (projT1
-            (existT _
-               (existT _
-                 (projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))))
-                 (projT2 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))))))
-             (packed_vector.zip_length a b n (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))) H (projT2 pl2)))))
-     n
-     (projT2
-       (existT _
-         (existT _
-           (projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))))
-           (projT2 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))))))
-         (packed_vector.zip_length a b n (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))) H (projT2 pl2)))))
-     pl1.
-
-Definition zip_lifted (a b : Type) (n : nat) (pl1 : vector a n) :=
-  @packed_rect
-    (sigT (vector a))
-    nat 
-    (fun (l : sigT (vector a)) => projT1 l)
-    id
-    (fun (n : nat) (s : sigT (vector a)) => id)
-    n
-    (fun (pl1 : vector a n) => vector b n -> vector (a * b) n)
-    (fun (l : sigT (vector a)) (H : projT1 l = n) (pl2 : vector b n) =>
-      @eq_rect
-        nat
-        (projT1
-          (projT1
-            (existT _
-              (existT _
-                (projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))))
-                (projT2 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))))))
-              (packed_vector.zip_length a b n (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))) H (projT2 pl2))))) 
-        (vector (a * b))
-        (projT2
-          (projT1
-            (existT _
-               (existT _
-                 (projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))))
-                 (projT2 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))))))
-             (packed_vector.zip_length a b n (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))) H (projT2 pl2)))))
-     n
-     (projT2
-       (existT _
-         (existT _
-           (projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2)))))
-           (projT2 (hs_to_coqV_p.zip a b (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))))))
-         (packed_vector.zip_length a b n (existT _ (projT1 l) (projT2 l)) (existT _ (projT1 (projT1 pl2)) (projT2 (projT1 pl2))) H (projT2 pl2)))))
-     pl1.
-
-
-
-
-(*
- * Lifting along this equivalence will soon be automated, but for now apply
- * the above functions by hand:
- *)
-Program Definition zip:
-  forall {A B : Type} {n : nat},
-    vector A n ->
-    vector B n ->
-    vector (A * B) n.
-Proof.
-  intros A B n v1 v2. apply unpack_vector. apply packed_vector.zip.
-  - apply (unpack_vector_inv A n v1).
-  - apply (unpack_vector_inv B n v2).
-Defined.
-
-
-
-Program Definition zip_with:
-  forall {A B C : Type} (f : A -> B -> C) {n : nat},
-    vector A n ->
-    vector B n ->
-    vector C n.
-Proof.
-  intros A B C f n v1 v2. apply unpack_vector. apply (packed_vector.zip_with A B).
-  - apply f.
-  - apply (unpack_vector_inv A n v1).
-  - apply (unpack_vector_inv B n v2).
-Defined.
+Lift packed vector in packed_vector.zip_with as zip_with  { opaque eq_rect hs_to_coq_projT1s.zip_with_length_n hs_to_coqV_p.zip_with hs_to_coq_projT1s.zip_with_length eq_trans eq_sym eq_ind }.
+Print zip_with.
+(* TODO need to preprocess *)
+Print packed_vector.zip_with_is_zip. (* TODO note that projections of packed terms still not simplifying. fix! *)
+(* TODO trying subterms? Then, try w/ lifting subterms as constants first. Then, auto add opaque when possible! *)
+Lift packed vector in packed_vector.zip_with_is_zip as zip_with_is_zip { opaque f_equal hs_to_coqV_p.zip_with_is_zip EqdepFacts.eq_sigT_sig_eq Coq.Init.Logic.eq_ind Coq.Init.Logic.eq_trans Coq.Init.Logic.eq_sym hs_to_coqV_p.zip hs_to_coqV_p.zip_with hs_to_coq_projT1s.zip_length hs_to_coq_projT1s.zip_length_n eq_rect eq_rect_r eq_rec eq_rec_r eq_ind eq_ind_r hs_to_coq_projT1s.zip_with_length_n hs_to_coq_projT1s.zip_with_length Eqdep_dec.UIP_dec Nat.eq_dec existT }.
+(* TODO clean opaques *)
 
 (*
  * The advantage of all of this is that our proof is trivial,

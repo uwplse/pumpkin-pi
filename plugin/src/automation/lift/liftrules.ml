@@ -258,10 +258,7 @@ let is_packed_constr c env sigma trm =
                  in
                  let unpacked = mkRel 1 in
                  pack_existT { index_type; packer; index; unpacked }
-               in let open Printing in
-                  debug_term env (reconstruct_lambda_n env_h f_bod (nb_rel env)) "f";
-                  debug_terms env args "args";
-                  sigma, mkAppl (reconstruct_lambda_n env_h f_bod (nb_rel env), args)
+               in sigma, mkAppl (reconstruct_lambda_n env_h f_bod (nb_rel env), args)
            in sigma, Some (0, snoc trm typ_args, trm_eta)
          else
            sigma, None

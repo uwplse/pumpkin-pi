@@ -417,13 +417,11 @@ let lift_simplify_project_packed c env reduce f args lift_rec sigma =
  * Lift applications, possibly being lazy about delta if we can get away with it
  *)
 let lift_app_lazy_delta c env f args lift_rec sigma =
-  let open Printing in
-  debug_term env f "f";
-  debug_terms env (Array.to_list args) "args";
   let l = get_lifting c in
   let sigma, f' = lift_rec env sigma c f in
   let sigma, args' = map_rec_args lift_rec env sigma c args in
-  if (not (equal f f')) || l.is_fwd || Array.length args = 0 || is_opaque c f then
+  (* TODO really need to get below working more generallly; why does it infinite recurse with is_fwd for some kinds of ornaments? what is it not considering? *)
+  if (not (equal f f')) || (l.is_fwd && not (l.orn.kind = UnpackSigma)) || Array.length args = 0 || is_opaque c f then
     let lifted = mkApp (f', args') in
     maybe_repack lift_rec c env (mkApp (f, args)) lifted (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) l.is_fwd sigma
   else
@@ -494,31 +492,10 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
      (* TODO explain, test to see if bad ever *)
      (* TODO what we really want here is to get into the eq_rect ... form,
         but then recursively lift the projections. *)
-     let open Printing in
-     debug_term env constr_app "constr_app";
      let sigma, args' = map_rec_args lift_rec env sigma c (Array.of_list (all_but_last args)) in
      let args'' = snoc (last args) (Array.to_list args') in
      let sigma, app = specialize_delta_f env (first_fun constr_app) args'' sigma in
-     let open Printing in
-     debug_term env app "app delta";
-     let sigma, app = specialize_delta_f env (first_fun app) (unfold_args app) sigma in
-     debug_term env app "app delta delta";
-     let args''' = unfold_args app in
-     let arg' = (Array.of_list args''').(3) in
-     debug_term env arg' "arg'";
-    (* let sigma, arg'_lifted = lift_rec env sigma c arg' in
-     debug_term env arg'_lifted "arg'_lifted";*)
-     (* (@eq_rect
-      nat
-      (projT1 (projT1 pv))
-      (vector T)
-      (projT2 (projT1 pv))
-      n
-      (projT2 pv)).*)
-    (* let sigma, args''' = map_rec_args lift_rec env sigma c (Array.of_list (unfold_args app)) in
-     debug_terms env (Array.to_list args''') "args'''";*)
-     sigma, app
-  (* TODO lift args but without recursing infinitely? how to stop? *)
+     specialize_delta_f env (first_fun app) (unfold_args app) sigma
   | _ ->
      raise NotAlgebraic
      
