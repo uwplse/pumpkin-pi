@@ -765,6 +765,342 @@ The 5th term has type
   ...".*)
 Print packed_vector.Coq_Logic_EqdepFacts_eq_sigT_sig_eq.
 Print packed_list.Coq_Logic_EqdepFacts_eq_sigT_sig_eq.
+Definition subterm (A B : Type) (n : nat) (l : {H : nat & vector A H}) (H : projT1 l = n)
+          (pl2 : {l2 : {H0 : nat & vector B H0} & projT1 l2 = n}) :=
+(packed_vector.Coq_Logic_EqdepFacts_eq_sigT_sig_eq
+             {H0 : nat & vector (A * B) H0}
+             (fun l3 : {H0 : nat & vector (A * B) H0} => projT1 l3 = n)
+             (existT _
+                (projT1
+                   (hs_to_coqV_p.zip_with A B (A * B) pair
+                      (existT _ (projT1 l) (projT2 l))
+                      (existT _ (projT1 (projT1 pl2))
+                         (projT2 (projT1 pl2)))))
+                (projT2
+                   (hs_to_coqV_p.zip_with A B (A * B) pair
+                      (existT _ (projT1 l) (projT2 l))
+                      (existT _ (projT1 (projT1 pl2))
+                         (projT2 (projT1 pl2))))))
+             (existT _
+                (projT1
+                   (hs_to_coqV_p.zip A B
+                      (existT _ (projT1 l) (projT2 l))
+                      (existT _ (projT1 (projT1 pl2))
+                         (projT2 (projT1 pl2)))))
+                (projT2
+                   (hs_to_coqV_p.zip A B
+                      (existT _ (projT1 l) (projT2 l))
+                      (existT _ (projT1 (projT1 pl2))
+                         (projT2 (projT1 pl2))))))
+             (packed_vector.zip_with_length A B (A * B) pair n
+                (existT _ (projT1 l) (projT2 l))
+                (existT _ (projT1 (projT1 pl2))
+                   (projT2 (projT1 pl2))) H 
+                (projT2 pl2))
+             (packed_vector.zip_length A B n
+                (existT _ (projT1 l) (projT2 l))
+                (existT _ (projT1 (projT1 pl2))
+                   (projT2 (projT1 pl2))) H 
+                (projT2 pl2))).
+
+Eval compute in (fun A B l n pl2 => projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2))).
+
+
+(* Below tried to produce: *)
+Fail Definition subterm_manual (A B : Type) (n : nat) (l : {H : nat & vector A H}) (H : projT1 l = n)
+          (pl2 : vector B n) :=
+  @eq_ind
+    (vector (A * B) n)
+    (rew
+      (zip_with_length A B (A * B) pair n (existT _ (projT1 l) (projT2 l)) (existT _ n pl2) H (erefl n)) in
+      projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+    (fun y : vector (A * B) n =>
+      {H0 : existT _
+              (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+              (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+          =
+            existT (vector (A * B)) n y
+      |
+        @eq_rect
+          _
+          (existT _
+            (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+            (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2))))
+          (fun l3 : {H1 : nat & vector (A * B) H1} => projT1 l3 = n)
+          (zip_with_length A B (A * B) pair n (existT _ (projT1 l) (projT2 l)) (existT _ n pl2) H (erefl n))
+          (existT _ n y)
+           H0 
+       = erefl n})
+    (exist
+      (fun (H0 : existT _
+              (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+              (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2))) =
+            existT _
+              (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+              (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2))))
+     =>
+     @eq_rect
+       _
+       (existT _
+         (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+         (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2))))
+       (fun l3 : {H1 : nat & vector (A * B) H1} => projT1 l3 = n)
+       (zip_with_length A B (A * B) pair n (existT _ (projT1 l) (projT2 l)) (existT _ n pl2) H (erefl n))
+       (existT _
+         (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+         (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2))))
+       H0 =
+     zip_with_length A B (A * B) pair n (existT _ (projT1 l) (projT2 l)) (existT _ n pl2) H (erefl n))
+      (erefl
+        (existT _
+          (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+          (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))))
+      (erefl
+        (zip_with_length A B (A * B) pair n (existT _ (projT1 l) (projT2 l)) (existT _ n pl2) H (erefl n)))).
+
+(* ??? ugh whatever. is it a matter of delta or eta, or maybe we need to rewrite by imaginary equality? when we have
+   (pl : { s : sigT (vector T) & projT1 s = n }, when we lift projT1 of that,
+   I imagine we need rewrite (projT2 pl) in ...., and likewise for constr rule.
+   TODO 3/20 or 3/21 try this *)
+
+(* What works? *)
+Definition subterm_manual_2 (A B : Type) (n : nat) (l : {H : nat & vector A H}) (H : projT1 l = n)
+          (pl2 : vector B n) :=
+  @eq_ind
+    (vector (A * B) n)
+    (rew
+      (zip_with_length A B (A * B) pair n (existT _ (projT1 l) (projT2 l)) (existT _ n pl2) H (erefl n)) in
+      projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+    (fun y : vector (A * B) n =>
+      {H0 : existT _
+              (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+              (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+          =
+            existT (vector (A * B)) n y
+      |
+        @eq_rect
+          _
+          (existT _
+            (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+            (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2))))
+          (fun l3 : {H1 : nat & vector (A * B) H1} => projT1 l3 = n)
+          (zip_with_length A B (A * B) pair n (existT _ (projT1 l) (projT2 l)) (existT _ n pl2) H (erefl n))
+          (existT _ n y)
+           H0 
+       = erefl n})
+    (exist
+      (fun (H0 : existT _
+              (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+              (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2))) =
+            existT _
+              n
+              (rew (zip_with_length A B (A * B) pair n (existT _  (projT1 l) (projT2 l)) (existT _ n pl2) H (erefl n)) in
+                (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))))
+     =>
+     @eq_rect
+       _
+       (existT _
+         (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+         (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2))))
+       (fun l3 : {H1 : nat & vector (A * B) H1} => projT1 l3 = n)
+       (zip_with_length A B (A * B) pair n (existT _ (projT1 l) (projT2 l)) (existT _ n pl2) H (erefl n))
+       (existT _
+         n
+         (rew (zip_with_length A B (A * B) pair n (existT _  (projT1 l) (projT2 l)) (existT _ n pl2) H (erefl n)) in
+                (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))))
+       H0 =
+     erefl n)
+      (erefl
+        (existT _
+          (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))
+          (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ (projT1 l) (projT2 l)) (existT _ n pl2)))))
+      (erefl
+        (zip_with_length A B (A * B) pair n (existT _ (projT1 l) (projT2 l)) (existT _ n pl2) H (erefl n)))).
+
+
+Check eq_rect.
+
+(* TODO test below: *)
+Lift packed vector in subterm as subterm'
+ { opaque f_equal hs_to_coqV_p.zip_with_is_zip Coq.Init.Logic.eq_ind
+   Coq.Init.Logic.eq_trans Coq.Init.Logic.eq_sym
+   hs_to_coqV_p.zip hs_to_coqV_p.zip_with hs_to_coq_projT1s.zip_length
+   hs_to_coq_projT1s.zip_length_n eq_rect eq_rect_r eq_rec eq_rec_r eq_ind 
+   eq_ind_r hs_to_coq_projT1s.zip_with_length_n hs_to_coq_projT1s.zip_with_length
+   packed_vector.Coq_Logic_Eqdep_dec_UIP_dec packed_vector.Coq_Arith_PeanoNat_Nat_eq_dec
+   existT EqdepFacts.internal_eq_rew_r_dep sig_ind }.
+
+
+(* DEVOID tried to produce a term that is not well-typed. Coq gave us this scary looking error:
+
+ "rew [vector (A * B)]
+      projT2
+        (existT (fun H : {H : nat & vector (A * B) H} => projT1 H = n)
+           (existT _
+              (projT1
+                 (hs_to_coqV_p.zip A B
+                    (existT _ (projT1 l) (projT2 l))
+                    (existT _ n pl0)))
+              (projT2
+                 (hs_to_coqV_p.zip A B
+                    (existT _ (projT1 l) (projT2 l))
+                    (existT _ n pl0))))
+           (zip_length A B n (existT _ (projT1 l) (projT2 l))
+              (existT _ n pl0) H 
+              (erefl n))) in
+  projT2
+    (projT1
+       (existT (fun H : {H : nat & vector (A * B) H} => projT1 H = n)
+          (existT _
+             (projT1
+                (hs_to_coqV_p.zip A B
+                   (existT _ (projT1 l) (projT2 l))
+                   (existT _ n pl0)))
+             (projT2
+                (hs_to_coqV_p.zip A B
+                   (existT _ (projT1 l) (projT2 l))
+                   (existT _ n pl0))))
+          (zip_length A B n (existT _ (projT1 l) (projT2 l))
+             (existT _ n pl0) H 
+             (erefl n))))" : "vector (A * B) n"
+ "H0"
+   : "rew [vector (A * B)]
+          projT2
+            (existT (fun H : {H : nat & vector (A * B) H} => projT1 H = n)
+               (existT _
+                  (projT1
+                     (hs_to_coqV_p.zip_with A B (A * B) pair
+                        (existT _ (projT1 l) (projT2 l))
+                        (existT _ n pl0)))
+                  (projT2
+                     (hs_to_coqV_p.zip_with A B (A * B) pair
+                        (existT _ (projT1 l) (projT2 l))
+                        (existT _ n pl0))))
+               (zip_with_length A B (A * B) pair n
+                  (existT _ (projT1 l) (projT2 l))
+                  (existT _ n pl0) H 
+                  (erefl n))) in
+      projT2
+        (projT1
+           (existT (fun H : {H : nat & vector (A * B) H} => projT1 H = n)
+              (existT _
+                 (projT1
+                    (hs_to_coqV_p.zip_with A B (A * B) pair
+                       (existT _ (projT1 l) (projT2 l))
+                       (existT _ n pl0)))
+                 (projT2
+                    (hs_to_coqV_p.zip_with A B (A * B) pair
+                       (existT _ (projT1 l) (projT2 l))
+                       (existT _ n pl0))))
+              (zip_with_length A B (A * B) pair n
+                 (existT _ (projT1 l) (projT2 l))
+                 (existT _ n pl0) H 
+                 (erefl n)))) =
+      rew [vector (A * B)]
+          projT2
+            (existT (fun H : {H : nat & vector (A * B) H} => projT1 H = n)
+               (existT _
+                  (projT1
+                     (hs_to_coqV_p.zip A B
+                        (existT _ (projT1 l) (projT2 l))
+                        (existT _ n pl0)))
+                  (projT2
+                     (hs_to_coqV_p.zip A B
+                        (existT _ (projT1 l) (projT2 l))
+                        (existT _ n pl0))))
+               (zip_length A B n (existT _ (projT1 l) (projT2 l))
+                  (existT _ n pl0) H 
+                  (erefl n))) in
+      projT2
+        (projT1
+           (existT (fun H : {H : nat & vector (A * B) H} => projT1 H = n)
+              (existT _
+                 (projT1
+                    (hs_to_coqV_p.zip A B
+                       (existT _ (projT1 l) (projT2 l))
+                       (existT _ n pl0)))
+                 (projT2
+                    (hs_to_coqV_p.zip A B
+                       (existT _ (projT1 l) (projT2 l))
+                       (existT _ n pl0))))
+              (zip_length A B n (existT _ (projT1 l) (projT2 l))
+                 (existT _ n pl0) H 
+                 (erefl n))))"
+The 4th term has type
+ "{H0
+  : existT _
+      (projT1
+         (hs_to_coqV_p.zip_with A B (A * B) pair
+            (existT _ (projT1 l) (projT2 l))
+            (existT _ n pl0)))
+      (projT2
+         (hs_to_coqV_p.zip_with A B (A * B) pair
+            (existT _ (projT1 l) (projT2 l))
+            (existT _ n pl0))) =
+    existT _
+      (projT1
+         (hs_to_coqV_p.zip_with A B (A * B) pair
+            (existT _ (projT1 l) (projT2 l))
+            (existT _ n pl0)))
+      (projT2
+         (hs_to_coqV_p.zip_with A B (A * B) pair
+            (existT _ (projT1 l) (projT2 l))
+            (existT _ n pl0))) |
+  rew [fun l3 : {H1 : nat & vector (A * B) H1} => projT1 l3 = n] H0 in
+  zip_with_length A B (A * B) pair n
+    (existT _ (projT1 l) (projT2 l)) (existT _ n pl0)
+    H (erefl n) =
+  zip_with_length A B (A * B) pair n
+    (existT _ (projT1 l) (projT2 l)) (existT _ n pl0)
+    H (erefl n)}" which should be coercible to
+ "(fun y : vector (A * B) n =>
+   {H0
+   : existT _
+       (projT1
+          (hs_to_coqV_p.zip_with A B (A * B) pair
+             (existT _ (projT1 l) (projT2 l))
+             (existT _ n pl0)))
+       (projT2
+          (hs_to_coqV_p.zip_with A B (A * B) pair
+             (existT _ (projT1 l) (projT2 l))
+             (existT _ n pl0))) = existT (vector (A * B)) n y |
+   rew [fun l3 : {H1 : nat & vector (A * B) H1} => projT1 l3 = n] H0 in
+   zip_with_length A B (A * B) pair n
+     (existT _ (projT1 l) (projT2 l))
+     (existT _ n pl0) H 
+     (erefl n) = erefl n})
+    (rew [vector (A * B)]
+         projT2
+           (existT (fun H : {H : nat & vector (A * B) H} => projT1 H = n)
+              (existT _
+                 (projT1
+                    (hs_to_coqV_p.zip_with A B (A * B) pair
+                       (existT _ (projT1 l) (projT2 l))
+                       (existT _ n pl0)))
+                 (projT2
+                    (hs_to_coqV_p.zip_with A B (A * B) pair
+                       (existT _ (projT1 l) (projT2 l))
+                       (existT _ n pl0))))
+              (zip_with_length A B (A * B) pair n
+                 (existT _ (projT1 l) (projT2 l))
+                 (existT _ n pl0) H 
+                 (erefl n))) in
+     projT2
+       (projT1
+          (existT (fun H : {H : nat & vector (A * B) H} => projT1 H = n)
+             (existT _
+                (projT1
+                   (hs_to_coqV_p.zip_with A B (A * B) pair
+                      (existT _ (projT1 l) (projT2 l))
+                      (existT _ n pl0)))
+                (projT2
+                   (hs_to_coqV_p.zip_with A B (A * B) pair
+                      (existT _ (projT1 l) (projT2 l))
+                      (existT _ n pl0))))
+             (zip_with_length A B (A * B) pair n
+                (existT _ (projT1 l) (projT2 l))
+                (existT _ n pl0) H 
+                (erefl n)))))".*)
 
 Lift packed vector in packed_vector.zip_with_is_zip as zip_with_is_zip
  { opaque f_equal hs_to_coqV_p.zip_with_is_zip Coq.Init.Logic.eq_ind
