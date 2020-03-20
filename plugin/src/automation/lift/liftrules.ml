@@ -399,11 +399,6 @@ let determine_lift_rule c env trm sigma =
       let sigma, i_and_args_o = is_packed_constr c env sigma trm in
       if Option.has_some i_and_args_o then
         let i, args, trm_eta = Option.get i_and_args_o in
-        let open Printing in
-        debug_term env trm "trm";
-        debug_term env trm_eta "trm_eta";
-        let _, trm_eta_type = Inference.infer_type env sigma trm_eta in
-        debug_term env trm_eta_type "trm_eta_type";
         if not (equal trm_eta trm) then
           sigma, Optimization (LazyEta trm_eta)
         else

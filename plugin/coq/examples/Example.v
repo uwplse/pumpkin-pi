@@ -149,7 +149,7 @@ Defined.
 
 End hs_to_coq_lengths'.
 
-Preprocess Module hs_to_coq_lengths' as hs_to_coq_lengths { opaque hs_to_coq.zip hs_to_coq.zip_with list_ind list_rect Coq.Init.Logic }.
+Preprocess Module hs_to_coq_lengths' as hs_to_coq_lengths { opaque Datatypes Logic Coq.Init.Nat.pred Coq.Init.Peano.eq_add_S hs_to_coq.zip hs_to_coq.zip_with list_ind list_rect }.
 
 (*
  * Once we have the length proofs, we write the proofs
@@ -174,7 +174,7 @@ Check packed_list_rect.
  * Then we can write our proofs. Now note how everything here
  * follows a nice and easy formula:
  *)
-Module packed_list.
+Module packed_list'.
 
 Definition zip_length := hs_to_coq_lengths.zip_length_n.
 Definition zip_with_length := hs_to_coq_lengths.zip_with_length_n.
@@ -217,7 +217,7 @@ Defined.
  * we can just use UIP, since equality over natural numbers
  * is decidable:
  *)
-Lemma zip_with_is_zip' :
+Lemma zip_with_is_zip :
   forall A B n (pl1 : { l1 : list A & length l1 = n }) (pl2 : { l2 : list B & length l2 = n }),
     zip_with A B (A * B) pair n pl1 pl2 = zip A B n pl1 pl2.
 Proof.
@@ -230,7 +230,6 @@ Proof.
   (* length invariant: *)
   apply (Eqdep_dec.UIP_dec Nat.eq_dec).
 Defined.
-Preprocess zip_with_is_zip' as zip_with_is_zip.
 (*
  * TECHNICAL NOTE: In general, we may be able to avoid using UIP over the index
  * using adjunction and coherence together to show that we do not duplicate equalities (credit to Jason Gross).
@@ -241,12 +240,13 @@ Preprocess zip_with_is_zip' as zip_with_is_zip.
  *
  * I will update this file when we solve this problem.
  *)
-End packed_list.
+End packed_list'.
 
 (*
  * Now we can get from that to packed_vector_rect:
  *)
 Lift Module list vector in hs_to_coq_lengths as hs_to_coq_projT1s.
+Preprocess Module packed_list' as packed_list { opaque Ornamental.Eliminators Datatypes Logic Coq.Init.Nat.pred Coq.Init.Peano.eq_add_S hs_to_coq_lengths.zip_length hs_to_coq_lengths.zip_length_n hs_to_coq_lengths.zip_with_length hs_to_coq_lengths.zip_with_length_n hs_to_coqV_p.list_to_t_index packed_list_rect hs_to_coqV_p.list_to_t_rect projT1 projT2 hs_to_coq.zip_with hs_to_coq_lengths.zip_length hs_to_coq_lengths.zip_length_n hs_to_coq_lengths.zip_with_length hs_to_coq_lengths.zip_with_length_n hs_to_coqV_p.list_to_t_index packed_list_rect hs_to_coqV_p.list_to_t_rect projT1 projT2 hs_to_coq.zip hs_to_coq_lengths.zip_length hs_to_coq_lengths.zip_length_n hs_to_coq_lengths.zip_with_length hs_to_coq_lengths.zip_with_length_n hs_to_coqV_p.list_to_t_index packed_list_rect hs_to_coqV_p.list_to_t_rect projT1 projT2 hs_to_coq.zip hs_to_coq.zip_with hs_to_coq.zip_with_is_zip }. 
 Lift Module list vector in packed_list as packed_vector.
 
 Check packed_vector.zip.
@@ -636,15 +636,144 @@ Print proj1_eta_test_lifted.
 (* TODO still stuck here: *)
 Print packed_vector.zip.
 
+(* TODO lift module *)
 Lift packed vector in packed_vector.zip_length as zip_length { opaque eq_rect hs_to_coq_projT1s.zip_length_n hs_to_coqV_p.zip hs_to_coq_projT1s.zip_length eq_trans eq_sym eq_ind }.
 Lift packed vector in packed_vector.zip_with_length as zip_with_length  { opaque eq_rect hs_to_coq_projT1s.zip_with_length_n hs_to_coqV_p.zip_with hs_to_coq_projT1s.zip_with_length eq_trans eq_sym eq_ind }.
 Lift packed vector in packed_vector.zip as zip { opaque eq_rect hs_to_coq_projT1s.zip_length_n hs_to_coqV_p.zip hs_to_coq_projT1s.zip_length eq_trans eq_sym eq_ind }.
 Lift packed vector in packed_vector.zip_with as zip_with  { opaque eq_rect hs_to_coq_projT1s.zip_with_length_n hs_to_coqV_p.zip_with hs_to_coq_projT1s.zip_with_length eq_trans eq_sym eq_ind }.
 Print zip_with.
 (* TODO need to preprocess *)
-Print packed_vector.zip_with_is_zip. (* TODO note that projections of packed terms still not simplifying. fix! *)
+Print packed_vector.zip_with_is_zip.
+Print packed_vector.Coq_Logic_EqdepFacts_eq_sigT_sig_eq. (* TODO opaque something it depends on *)
+ (* TODO note that projections of packed terms still not simplifying. fix! *)
 (* TODO trying subterms? Then, try w/ lifting subterms as constants first. Then, auto add opaque when possible! *)
-Lift packed vector in packed_vector.zip_with_is_zip as zip_with_is_zip { opaque f_equal hs_to_coqV_p.zip_with_is_zip EqdepFacts.eq_sigT_sig_eq Coq.Init.Logic.eq_ind Coq.Init.Logic.eq_trans Coq.Init.Logic.eq_sym hs_to_coqV_p.zip hs_to_coqV_p.zip_with hs_to_coq_projT1s.zip_length hs_to_coq_projT1s.zip_length_n eq_rect eq_rect_r eq_rec eq_rec_r eq_ind eq_ind_r hs_to_coq_projT1s.zip_with_length_n hs_to_coq_projT1s.zip_with_length Eqdep_dec.UIP_dec Nat.eq_dec existT }.
+
+(* v Below gets us this so far: *)
+
+Fail Definition zip_with_is_zip_handwritten (A B : Type) (n : nat) (pl1 : vector A n) (pl2 : vector B n) : zip_with A B (A * B) pair n pl1 pl2 = zip A B n pl1 pl2 :=
+  @and_ind
+    (((rew (zip_with_length A B (A * B) pair n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n))
+       in projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2)))
+       =
+      (rew (zip_length A B n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n))
+       in projT2 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2)))) ->
+    {H : existT _
+          (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2)))
+          (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2))) =
+         existT _
+          (projT1 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2)))
+          (projT2 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2)))
+    |
+     (@eq_rect
+       (sigT (vector (A * B)))
+       (existT _
+         (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2)))
+         (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2))))
+       (fun l3 : {H0 : nat & vector (A * B) H0} => projT1 l3 = n) 
+       (zip_with_length A B (A * B) pair n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n))
+       (existT _
+         (projT1 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2)))
+         (projT2 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2))))
+       H)
+     =
+      zip_length A B n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n)})
+   ({H : existT _
+          (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2)))
+          (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2))) =
+         existT _
+          (projT1 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2)))
+          (projT2 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2)))
+    |
+     (@eq_rect
+       (sigT (vector (A * B)))
+       (existT _
+         (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2)))
+         (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2))))
+       (fun l3 : {H0 : nat & vector (A * B) H0} => projT1 l3 = n) 
+       (zip_with_length A B (A * B) pair n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n))
+       (existT _
+         (projT1 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2)))
+         (projT2 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2))))
+       H)
+    =
+     zip_length A B n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n)} ->
+   rew (zip_with_length A B (A * B) pair n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n)) in
+   (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2))) =
+   rew (zip_length A B n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n)) in
+   (projT2 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2))))
+ ({H : existT _
+        (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2)))
+        (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2))) =
+       existT _
+        (projT1 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2)))
+        (projT2 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2))) |
+     (@eq_rect
+       (sigT (vector (A * B)))
+       (existT _
+         (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2)))
+         (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2))))
+       (fun l3 : {H0 : nat & vector (A * B) H0} => projT1 l3 = n) 
+       (zip_with_length A B (A * B) pair n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n))
+       (existT _
+         (projT1 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2)))
+         (projT2 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2))))
+       H) =
+  zip_length A B n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n)} ->
+  rew (zip_with_length A B (A * B) pair n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n)) in
+  (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2))) =
+  rew (zip_length A B n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n)) in
+  (projT2 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2))))
+ (fun _ => id)
+ (packed_vector.eq_sigT_sig_eq
+    _
+    (fun l3 : {H : nat & vector (A * B) H} => projT1 l3 = n)
+    (existT _
+      (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2)))
+      (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2))))
+    (existT _
+      (projT1 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2)))
+      (projT2 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2))))
+    (zip_with_length A B (A * B) pair n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n))
+    (zip_length A B n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n)))
+ (exist _
+    (hs_to_coqV_p.zip_with_is_zip A B (existT _ n pl1) (existT _ n pl2))
+    (Eqdep_dec.UIP_dec Nat.eq_dec
+       (rew [fun l3 : {H : nat & vector (A * B) H} => projT1 l3 = n]
+        hs_to_coqV_p.zip_with_is_zip A B (existT _ n pl1) (existT _ n pl2) in
+        zip_with_length A B (A * B) pair n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n))
+       (zip_length A B n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n)))).
+
+(*
+The 5th term has type
+ "existT (fun l3 : {H : nat & vector (A * B) H} => projT1 l3 = n)
+    (existT _
+       (projT1 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2)))
+       (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2))))
+    (zip_with_length A B (A * B) pair n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n)) =
+  existT _
+    (existT _
+       (projT1 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2)))
+       (projT2 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2))))
+    (zip_length A B n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n)) <->
+  ..." which should be coercible to
+ "(rew
+    (zip_with_length A B (A * B) pair n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n)) in
+    (projT2 (hs_to_coqV_p.zip_with A B (A * B) pair (existT _ n pl1) (existT _ n pl2)))) =
+  rew
+    (zip_length A B n (existT _ n pl1) (existT _ n pl2) (erefl n) (erefl n)) in
+    (projT2 (hs_to_coqV_p.zip A B (existT _ n pl1) (existT _ n pl2))))) <->
+  ...".*)
+Print packed_vector.Coq_Logic_EqdepFacts_eq_sigT_sig_eq.
+Print packed_list.Coq_Logic_EqdepFacts_eq_sigT_sig_eq.
+
+Lift packed vector in packed_vector.zip_with_is_zip as zip_with_is_zip
+ { opaque f_equal hs_to_coqV_p.zip_with_is_zip Coq.Init.Logic.eq_ind
+   Coq.Init.Logic.eq_trans Coq.Init.Logic.eq_sym
+   hs_to_coqV_p.zip hs_to_coqV_p.zip_with hs_to_coq_projT1s.zip_length
+   hs_to_coq_projT1s.zip_length_n eq_rect eq_rect_r eq_rec eq_rec_r eq_ind 
+   eq_ind_r hs_to_coq_projT1s.zip_with_length_n hs_to_coq_projT1s.zip_with_length
+   packed_vector.Coq_Logic_Eqdep_dec_UIP_dec packed_vector.Coq_Arith_PeanoNat_Nat_eq_dec
+   existT EqdepFacts.internal_eq_rew_r_dep sig_ind }.
 (* TODO clean opaques *)
 
 (*
