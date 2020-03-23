@@ -463,16 +463,11 @@ let lift_constr env sigma c trm =
      let sigma, app = specialize_delta_f env f args sigma in
      let sigma, app = specialize_delta_f env (first_fun app) (unfold_args app) sigma in
      let f = first_fun app in
-     let open Printing in
-     debug_terms env (unfold_args app) "args";
      let sigma, args =
        map_state
          (fun a sigma ->
-           let open Printing in
-           debug_term env a "a";
            let how_reduce_o = can_reduce_now c a in
            if Option.has_some how_reduce_o then
-             let _ = Printf.printf "%s\n\n" "can reduce" in
              let a_args = unfold_args a in
              let a_inner = last a_args in
              let proj_a = Option.get how_reduce_o in
@@ -480,22 +475,16 @@ let lift_constr env sigma c trm =
              if Option.has_some how_reduce_o then
                let a_inner_args = unfold_args a_inner in
                let a_inner_inner = last a_inner_args in
-               let open Printing in
-               debug_term env a_inner_inner "a_packed";
                let proj_a_inner = Option.get how_reduce_o in
                let sigma, a_red = proj_a_inner env sigma a_inner_inner in
                proj_a env sigma a_red
              else
                proj_a env sigma a_inner
            else
-             let _ = Printf.printf "%s\n\n" "cannot reduce" in
              sigma, a)
          (unfold_args app)
          sigma
-     in
-     let open Printing in
-     debug_term env (mkAppl (f, args)) "app";
-     sigma, (mkAppl (f, args))
+     in sigma, (mkAppl (f, args))
   | CurryRecord ->
      (* no inductive cases, so don't try to refold *)
      reduce_nf env sigma app
