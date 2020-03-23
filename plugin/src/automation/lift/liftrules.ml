@@ -206,28 +206,63 @@ let is_packed_constr c env sigma trm =
       * TODO!!! clean/consolidate etc. this is a proof of concept
       *)
      if (get_lifting c).is_fwd then
-       let sigma_right, args_opt = type_is_from c env trm sigma in
-       if Option.has_some args_opt then
-         let typ_args = Option.get args_opt in
-         if is_or_applies existT trm then
-           let trm_ex = dest_existT trm in
-           let index = trm_ex.index in
-           let unpacked = trm_ex.unpacked in
+       if isRel trm then
+         sigma,  None
+       else
+         let sigma_right, args_opt = type_is_from c env trm sigma in
+         if Option.has_some args_opt then
+           let typ_args = Option.get args_opt in
+           let sigma, b_sig_eq = reduce_term env sigma_right (mkAppl (fst (get_types c), typ_args)) in
+           let s, h_eq = (* TODO prevents infinite recursion *)
+             if is_or_applies existT trm then
+               let trm_ex = dest_existT trm in
+               trm_ex.index, trm_ex.unpacked
+             else
+               projections (dest_sigT b_sig_eq) trm
+           in
+           let i_b, b =
+             if is_or_applies existT s then
+               let index_ex = dest_existT s in
+               index_ex.index, index_ex.unpacked
+             else
+               projections (dest_sigT (dest_sigT b_sig_eq).index_type) s
+           in
+           let args = [i_b; b; h_eq] in
+           sigma, Some (0, List.append typ_args args, trm)
+         else
+           sigma, None
+      (* if isRel trm then
+         sigma, None
+       else
+         let sigma_right, args_opt = type_is_from c env trm sigma in
+         if Option.has_some args_opt then
+           let typ_args = Option.get args_opt in
+           let sigma, trm_red = reduce_term env sigma_right trm in
            let try_eta =
-             if is_or_applies existT index && isRel unpacked then
-               let index_ex = dest_existT index in
-               if isRel index_ex.index && isRel index_ex.unpacked then
-                 false
+             if is_or_applies existT trm_red then
+               let trm_ex = dest_existT trm_red in
+               let index = trm_ex.index in
+               let unpacked = trm_ex.unpacked in
+               if is_or_applies existT index && is_or_applies projT2 unpacked then
+                 let index_ex = dest_existT index in
+                 if is_or_applies projT1 index_ex.index && is_or_applies projT2 index_ex.unpacked then
+                   false
+                 else
+                   true
                else
                  true
              else
                true
            in
+           let open Printing in
+           debug_term env trm "trm";
            let sigma, trm_eta =
              if not try_eta then
-               sigma_right, trm
+               let open Printing in
+               debug_term env trm_red "trm_red";
+               sigma, trm_red
              else
-               let sigma, b_sig_eq = reduce_term env sigma_right (mkAppl (fst (get_types c), typ_args)) in
+               let sigma, b_sig_eq = reduce_term env sigma (mkAppl (fst (get_types c), typ_args)) in
                let open Printing in
                let sigma, [i_b_typ; b_typ; i_b] = unpack_typ_args env b_sig_eq sigma in
                let env_i_b = push_local (Anonymous, i_b_typ) env in
@@ -237,10 +272,13 @@ let is_packed_constr c env sigma trm =
                let trm2 = shift_by 2 i_b in
                let eq_typ = apply_eq { at_type; trm1; trm2 } in
                let env_h = push_local (Anonymous, eq_typ) env_b in
+               let index = project_index (dest_sigT b_sig_eq) trm in
+               let unpacked = project_value (dest_sigT b_sig_eq) trm in
                let i_b = project_index (dest_sigT (dest_sigT b_sig_eq).index_type) index in
                let b = project_value (dest_sigT (dest_sigT b_sig_eq).index_type) index in
                let h = unpacked in
                let args = [i_b; b; h] in
+               debug_terms env args "args";
                let f_bod =
                  let index_type =
                    let index_type = shift at_type in
@@ -259,11 +297,9 @@ let is_packed_constr c env sigma trm =
                  let unpacked = mkRel 1 in
                  pack_existT { index_type; packer; index; unpacked }
                in sigma, mkAppl (reconstruct_lambda_n env_h f_bod (nb_rel env), args)
-           in sigma, Some (0, snoc trm typ_args, trm_eta)
+           in debug_term env trm_eta "trm_eta"; sigma, Some (0, snoc trm typ_args, trm_eta)
          else
-           sigma, None
-       else
-         sigma, None
+           sigma, None*)
      else
        sigma, None (* TODO unimplemented *)
      (*

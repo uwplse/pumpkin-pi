@@ -344,8 +344,33 @@ let initialize_packed_constrs c env sigma =
     | UnpackSigma ->
        let env_a_typ = zoom_env zoom_lambda_term env a_typ in
        let typ_args = mk_n_rels (nb_rel env_a_typ) in
-       let env_a = push_local (Anonymous, mkAppl (a_typ, typ_args)) env_a_typ in
-       sigma, Array.of_list [reconstruct_lambda env_a (mkRel 1)]
+       let sigma, b_sig_eq = reduce_term env sigma (mkAppl (a_typ, typ_args)) in
+       let sigma, [i_b_typ; b_typ; i_b] = unpack_typ_args env b_sig_eq sigma in
+       let env_i_b = push_local (Anonymous, i_b_typ) env_a_typ in
+       let env_b = push_local (Anonymous, mkAppl (shift b_typ, [mkRel 1])) env_i_b in
+       let at_type = shift_by 2 i_b_typ in
+       let trm1 = mkRel 2 in
+       let trm2 = shift_by 2 i_b in
+       let eq_typ = apply_eq { at_type; trm1; trm2 } in
+       let env_h = push_local (Anonymous, eq_typ) env_b in
+       let f_bod =
+         let index_type =
+           let index_type = shift at_type in
+           let packer = mkLambda (Anonymous, index_type, mkAppl (shift_by 4 b_typ, [mkRel 1])) in
+           pack_sigT { index_type; packer }
+         in
+         let eq_typ = apply_eq { at_type = shift_by 2 at_type; trm1 = project_index (dest_sigT (shift index_type)) (mkRel 1); trm2 = shift_by 2 trm2} in
+         let packer = mkLambda (Anonymous, index_type, eq_typ) in
+         let index =
+           let index_type = shift at_type in
+           let packer = mkLambda (Anonymous, index_type, mkAppl (shift_by 4 b_typ, [mkRel 1])) in
+           let index = mkRel 3 in
+           let unpacked = mkRel 2 in
+           pack_existT { index_type; packer; index; unpacked}
+         in
+         let unpacked = mkRel 1 in
+         pack_existT { index_type; packer; index; unpacked }
+       in sigma, Array.of_list [reconstruct_lambda_n env_h f_bod (nb_rel env)]
   in
   let sigma, b_constrs =
     match l.orn.kind with
@@ -431,8 +456,46 @@ let lift_constr env sigma c trm =
        (* inductive case - refold *)
        refold l env (lift_to l) app rec_args sigma
   | UnpackSigma ->
-     (* Don't even reduce; let lifting handle this (TODO explain) *)
-     reduce_term env sigma app
+     (* Delta-recude the function, and simplify projections of existentials *)
+     let sigma, app = reduce_term env sigma app in
+     let f = first_fun app in
+     let args = unfold_args app in
+     let sigma, app = specialize_delta_f env f args sigma in
+     let sigma, app = specialize_delta_f env (first_fun app) (unfold_args app) sigma in
+     let f = first_fun app in
+     let open Printing in
+     debug_terms env (unfold_args app) "args";
+     let sigma, args =
+       map_state
+         (fun a sigma ->
+           let open Printing in
+           debug_term env a "a";
+           let how_reduce_o = can_reduce_now c a in
+           if Option.has_some how_reduce_o then
+             let _ = Printf.printf "%s\n\n" "can reduce" in
+             let a_args = unfold_args a in
+             let a_inner = last a_args in
+             let proj_a = Option.get how_reduce_o in
+             let how_reduce_o = can_reduce_now c a_inner in
+             if Option.has_some how_reduce_o then
+               let a_inner_args = unfold_args a_inner in
+               let a_inner_inner = last a_inner_args in
+               let open Printing in
+               debug_term env a_inner_inner "a_packed";
+               let proj_a_inner = Option.get how_reduce_o in
+               let sigma, a_red = proj_a_inner env sigma a_inner_inner in
+               proj_a env sigma a_red
+             else
+               proj_a env sigma a_inner
+           else
+             let _ = Printf.printf "%s\n\n" "cannot reduce" in
+             sigma, a)
+         (unfold_args app)
+         sigma
+     in
+     let open Printing in
+     debug_term env (mkAppl (f, args)) "app";
+     sigma, (mkAppl (f, args))
   | CurryRecord ->
      (* no inductive cases, so don't try to refold *)
      reduce_nf env sigma app
@@ -566,18 +629,20 @@ let initialize_proj_rules env sigma c =
  * Sometimes we can do better than Coq's reduction and simplify eagerly.
  * In particular, this happens when we have projections of packed terms.
  *)
-let initialize_optimize_proj_packed_rules c =
-  match (get_lifting c).orn.kind with
-  | Algebraic (_, _) | UnpackSigma ->
-     let proj1_rule = (fun a -> (dest_existT a).index) in
-     let proj2_rule = (fun a -> (dest_existT a).unpacked) in
-     is_or_applies existT, [(projT1, proj1_rule); (projT2, proj2_rule)]
-  | SwapConstruct _ ->
-     (fun _ -> false), []
-  | CurryRecord ->
-     let proj1_rule = (fun a -> (dest_pair a).Produtils.trm1) in
-     let proj2_rule = (fun a -> (dest_pair a).Produtils.trm2) in
-     is_or_applies pair, [(Desugarprod.fst_elim (), proj1_rule); (Desugarprod.snd_elim (), proj2_rule)]
+let initialize_optimize_proj_packed_rules c env sigma =
+  let optimize_proj_packed_rules =
+    match (get_lifting c).orn.kind with
+    | Algebraic (_, _) | UnpackSigma ->
+       let proj1_rule = (fun a -> (dest_existT a).index) in
+       let proj2_rule = (fun a -> (dest_existT a).unpacked) in
+       is_or_applies existT, [(projT1, proj1_rule); (projT2, proj2_rule)]
+    | SwapConstruct _ ->
+       (fun _ -> false), []
+    | CurryRecord ->
+       let proj1_rule = (fun a -> (dest_pair a).Produtils.trm1) in
+       let proj2_rule = (fun a -> (dest_pair a).Produtils.trm2) in
+       is_or_applies pair, [(Desugarprod.fst_elim (), proj1_rule); (Desugarprod.snd_elim (), proj2_rule)]
+  in sigma, { c with optimize_proj_packed_rules }
                            
 (* Initialize the lift_config *)
 let initialize_lift_config env l ignores sigma =
@@ -598,12 +663,12 @@ let initialize_lift_config env l ignores sigma =
       opaques
     }
   in
+  let sigma, c = initialize_optimize_proj_packed_rules c env sigma in
   let sigma, c = initialize_elim_types c env sigma in
   let sigma, c = initialize_packed_constrs c env sigma in
   let sigma, c = initialize_constr_rules c env sigma in
   let sigma, fwd_proj_rules = initialize_proj_rules env sigma c in
   let sigma, bwd_proj_rules = initialize_proj_rules env sigma (reverse c) in
   let proj_rules = fwd_proj_rules, bwd_proj_rules in
-  let optimize_proj_packed_rules = initialize_optimize_proj_packed_rules c in
-  sigma, { c with proj_rules; optimize_proj_packed_rules }
+  sigma, { c with proj_rules }
 
