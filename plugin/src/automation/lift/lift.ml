@@ -490,21 +490,7 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
      (sigma, apply_pair {typ1; typ2; trm1; trm2})
   | UnpackSigma ->
      (* TODO explain, test to see if bad ever *)
-     (* TODO what we really want here is to get into the eq_rect ... form,
-        but then recursively lift the projections. *)
-     let open Printing in
-     debug_terms env args "args";
      let sigma, args' = map_rec_args lift_rec env sigma c (Array.of_list args) in
-     debug_terms env (Array.to_list args') "args'";
-     (* let args'' = snoc (last args) (Array.to_list args') in
-     let args'' = Array.to_list args' in*)
-     (*let [ib_typ; i_b; b_typ; i_b'; b] = *)
-     (*let app'_args = unfold_args constr_app in
-     let app'_args' = Array.of_list app'_args in*)
-     (* let sigma, app'_args' = map_rec_args lift_rec env sigma c (Array.of_list app'_args) in*)
-     (* debug_terms env (Array.to_list app'_args') "app'_args'";*)
-     let open Printing in
-     debug_term env lifted_constr "f";
      sigma, (mkApp (lifted_constr, args'))
   | _ ->
      raise NotAlgebraic
