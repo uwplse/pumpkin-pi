@@ -652,22 +652,10 @@ Lift packed vector in packed_vector.zip_with_is_zip as zip_with_is_zip
    hs_to_coq_projT1s.zip_length_n eq_rect eq_rect_r eq_rec eq_rec_r eq_ind 
    eq_ind_r hs_to_coq_projT1s.zip_with_length_n hs_to_coq_projT1s.zip_with_length
    packed_vector.Coq_Logic_Eqdep_dec_UIP_dec packed_vector.Coq_Arith_PeanoNat_Nat_eq_dec
-   existT EqdepFacts.internal_eq_rew_r_dep sig_ind eq_existT_uncurried }.
+   existT EqdepFacts.internal_eq_rew_r_dep sig_ind }.
 (* TODO clean opaques *)
 
-(*
- * The advantage of all of this is that our proof is trivial,
- * whereas over normal vectors it can be painful to separate the
- * data from the index:
- *)
-Lemma zip_with_is_zip:
-  forall {A B : Type} (n : nat) (v1 : vector A n) (v2 : vector B n),
-    zip_with (@pair A B) v1 v2 = zip v1 v2.
-Proof.
-  intros A B n v1 v2.
-  pose proof (packed_vector.zip_with_is_zip A B n (unpack_vector_inv A n v1) (unpack_vector_inv B n v2)).
-  unfold zip_with, zip. f_equal. auto.
-Defined.
+Print zip_with_is_zip. (* surprisingly that works lol *)
 
 End uf.
 (*
