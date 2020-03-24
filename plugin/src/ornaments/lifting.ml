@@ -133,9 +133,8 @@ let get_kind_of_ornament env (o, n) sigma =
       sigma, Algebraic (mkRel 1, 0)
     else if isInd (first_fun from_typ_app) && isInd (first_fun to_typ_app) then
       sigma, SwapConstruct []
-    else (*TODO!!! proper impl.*)
-      sigma, UnpackSigma
-               (*sigma, CurryRecord*)
+    else
+      sigma, CurryRecord
   in
   match prelim_kind with
   | Algebraic _ ->
