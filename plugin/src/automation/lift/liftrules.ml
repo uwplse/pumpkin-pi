@@ -206,9 +206,7 @@ let is_packed_constr c env sigma trm =
       * TODO!!! clean/consolidate etc. this is a proof of concept
       *)
      if (get_lifting c).is_fwd then
-       if isRel trm then
-         sigma,  None
-       else
+       if is_or_applies existT trm then
          let sigma_right, args_opt = type_is_from c env trm sigma in
          if Option.has_some args_opt then
            let typ_args = Option.get args_opt in
@@ -231,75 +229,8 @@ let is_packed_constr c env sigma trm =
            sigma, Some (0, List.append typ_args args, trm)
          else
            sigma, None
-      (* if isRel trm then
-         sigma, None
        else
-         let sigma_right, args_opt = type_is_from c env trm sigma in
-         if Option.has_some args_opt then
-           let typ_args = Option.get args_opt in
-           let sigma, trm_red = reduce_term env sigma_right trm in
-           let try_eta =
-             if is_or_applies existT trm_red then
-               let trm_ex = dest_existT trm_red in
-               let index = trm_ex.index in
-               let unpacked = trm_ex.unpacked in
-               if is_or_applies existT index && is_or_applies projT2 unpacked then
-                 let index_ex = dest_existT index in
-                 if is_or_applies projT1 index_ex.index && is_or_applies projT2 index_ex.unpacked then
-                   false
-                 else
-                   true
-               else
-                 true
-             else
-               true
-           in
-           let open Printing in
-           debug_term env trm "trm";
-           let sigma, trm_eta =
-             if not try_eta then
-               let open Printing in
-               debug_term env trm_red "trm_red";
-               sigma, trm_red
-             else
-               let sigma, b_sig_eq = reduce_term env sigma (mkAppl (fst (get_types c), typ_args)) in
-               let open Printing in
-               let sigma, [i_b_typ; b_typ; i_b] = unpack_typ_args env b_sig_eq sigma in
-               let env_i_b = push_local (Anonymous, i_b_typ) env in
-               let env_b = push_local (Anonymous, mkAppl (shift b_typ, [mkRel 1])) env_i_b in
-               let at_type = shift_by 2 i_b_typ in
-               let trm1 = mkRel 2 in
-               let trm2 = shift_by 2 i_b in
-               let eq_typ = apply_eq { at_type; trm1; trm2 } in
-               let env_h = push_local (Anonymous, eq_typ) env_b in
-               let index = project_index (dest_sigT b_sig_eq) trm in
-               let unpacked = project_value (dest_sigT b_sig_eq) trm in
-               let i_b = project_index (dest_sigT (dest_sigT b_sig_eq).index_type) index in
-               let b = project_value (dest_sigT (dest_sigT b_sig_eq).index_type) index in
-               let h = unpacked in
-               let args = [i_b; b; h] in
-               debug_terms env args "args";
-               let f_bod =
-                 let index_type =
-                   let index_type = shift at_type in
-                   let packer = mkLambda (Anonymous, index_type, mkAppl (shift_by 4 b_typ, [mkRel 1])) in
-                   pack_sigT { index_type; packer }
-                 in
-                 let eq_typ = apply_eq { at_type = shift_by 2 at_type; trm1 = project_index (dest_sigT (shift index_type)) (mkRel 1); trm2 = shift_by 2 trm2} in
-                 let packer = mkLambda (Anonymous, index_type, eq_typ) in
-                 let index =
-                   let index_type = shift at_type in
-                   let packer = mkLambda (Anonymous, index_type, mkAppl (shift_by 4 b_typ, [mkRel 1])) in
-                   let index = mkRel 3 in
-                   let unpacked = mkRel 2 in
-                   pack_existT { index_type; packer; index; unpacked}
-                 in
-                 let unpacked = mkRel 1 in
-                 pack_existT { index_type; packer; index; unpacked }
-               in sigma, mkAppl (reconstruct_lambda_n env_h f_bod (nb_rel env), args)
-           in debug_term env trm_eta "trm_eta"; sigma, Some (0, snoc trm typ_args, trm_eta)
-         else
-           sigma, None*)
+         sigma, None
      else
        sigma, None (* TODO unimplemented *)
      (*
