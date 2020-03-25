@@ -492,7 +492,6 @@ let lift_constr env sigma c trm =
  * Wrapper around NORMALIZE
  *)
 let initialize_constr_rule c env constr sigma =
-  let sigma, constr_typ = Inference.infer_type env sigma constr in
   let sigma, constr_exp = expand_eta env sigma constr in
   let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
   let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
