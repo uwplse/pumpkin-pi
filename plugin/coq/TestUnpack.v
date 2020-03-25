@@ -2,6 +2,7 @@
  * Lifting tests for unpack
  *)
 
+(* TODO do whole list library here TBH, why not *)
 (* TODO add deps and so on *)
 (* TODO add to test.sh *)
 (* TODO add more here *)

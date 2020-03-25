@@ -106,8 +106,8 @@ Check zip_with_is_zipV_p.
  * for any n, { l : list T & length l = n } lifts to equivalent
  * { s : sigT (vector T) & projT1 s = n}, which is equivalent to vector T n.
  * Thus, we write proofs about { l : list T & length l = n },
- * lift those from list to vector, and then do a tiny bit of work
- * to get from { s : sigT (vector T) & projT1 s = n} to vector.
+ * lift those from list to vector, and then lift those again
+ * from { s : sigT (vector T) & projT1 s = n} to vector.
  *
  * However, writing proofs about { l : list T & length l = n } isn't
  * in itself straightforward, so we break this up into parts and use
