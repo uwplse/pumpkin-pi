@@ -248,7 +248,7 @@ Defined.
 End packed_list.
 
 (*
- * Now we can get from that to { s : sigT (vector T) & projT1 s = n} by lifting fro
+ * Now we can get from that to { s : sigT (vector T) & projT1 s = n} by lifting from
  * lists to vectors.
  *)
 Lift Module list vector in hs_to_coq_lengths as hs_to_coq_projT1s.
@@ -278,11 +278,10 @@ Lift Module packed vector in packed_vector as uf.
 Check uf.zip.
 Check uf.zip_with.
 Check uf.zip_with_is_zip.
-
 (*
  * TECHNICAL NOTE: For this particular example, interestingly, doing these by hand
  * without DEVOID, it's possible to construct functions such that the proof
- * of zip_with_is_zipV_uf goes through by reflexivity. However, these
+ * of uf.zip_with_is_zipV goes through by reflexivity. However, these
  * are not the analogues of the functions included in the hs_to_coq module
  * (note that the proof using reflexivity does not work for them either).
  *)
