@@ -308,23 +308,26 @@ let initialize_elim_types c env sigma =
   sigma, { c with elim_types }
 
 (*
- * Utility function: Map over the constructors of a type 
+ * Utility function: Map over the constructors of an inductive type 
  *)
 let map_constrs f env typ sigma =
-  if isInd typ then
-    let ((i, i_index), u) = destInd typ in
-    let mutind_body = lookup_mind i env in
-    let ind_bodies = mutind_body.mind_packets in
-    let ind_body = ind_bodies.(i_index) in
-    map_state_array
-      (f env)
-      (Array.mapi
-         (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
-         ind_body.mind_consnames)
-      sigma
-  else
-    sigma, Array.of_list []
-  
+  let ((i, i_index), u) = destInd typ in
+  let mutind_body = lookup_mind i env in
+  let ind_bodies = mutind_body.mind_packets in
+  let ind_body = ind_bodies.(i_index) in
+  map_state_array
+    (f env)
+    (Array.mapi
+       (fun c_index _ -> mkConstructU (((i, i_index), c_index + 1), u))
+       ind_body.mind_consnames)
+    sigma
+
+(*
+ * Utility function: Expand all constructors of an inductive type
+ *)
+let eta_constrs =
+  map_constrs (fun env constr sigma -> expand_eta env sigma constr)
+
 (*
  * Initialize the packed constructors for each type
  *)
@@ -334,11 +337,7 @@ let initialize_packed_constrs c env sigma =
   let sigma, a_constrs =
     match l.orn.kind with
     | Algebraic _ | CurryRecord | SwapConstruct _ ->
-       map_constrs
-         (fun env constr sigma -> expand_eta env sigma constr)
-         env
-         a_typ
-         sigma
+       eta_constrs env a_typ sigma
     | UnpackSigma ->
        let env_a_typ = zoom_env zoom_lambda_term env a_typ in
        let typ_args = mk_n_rels (nb_rel env_a_typ) in
@@ -395,11 +394,7 @@ let initialize_packed_constrs c env sigma =
        let constr = reconstruct_lambda_n env_c_b app (nb_rel env) in
        sigma, Array.make 1 constr
     | SwapConstruct _ ->
-       map_constrs
-         (fun env constr sigma -> expand_eta env sigma constr)
-         env
-         b_typ
-         sigma
+       eta_constrs env b_typ sigma
     | UnpackSigma ->
        let env_b_typ = zoom_env zoom_lambda_term env b_typ in
        let typ_args = mk_n_rels (nb_rel env_b_typ) in
@@ -486,7 +481,6 @@ let lift_constr env sigma c trm =
   | CurryRecord ->
      (* no inductive cases, so don't try to refold *)
      reduce_nf env sigma app
-     
 
 (*
  * Wrapper around NORMALIZE
