@@ -53,6 +53,12 @@ End hs_to_coq'.
 
 (* --- Preprocess --- *)
 
+(*
+ * We define our terms using match statements, so we first need to preprocess.
+ * Sometimes we can get away without this when we write terms ourselves, as is
+ * true later in this file.
+ *)
+
 Preprocess Module hs_to_coq' as hs_to_coq { opaque list_ind list_rect Coq.Init.Logic }.
 
 (* --- Search and Lift --- *)
@@ -174,12 +180,10 @@ Check packed_list_rect.
  * Then we can write our proofs. Now note how everything here
  * follows a nice and easy formula:
  *)
-Module packed_list'.
+Module packed_list.
 
 Definition zip_length := hs_to_coq_lengths.zip_length_n.
 Definition zip_with_length := hs_to_coq_lengths.zip_with_length_n.
-
-Print hs_to_coqV_p.list_to_t_rect.
 
 Program Definition zip:
   forall a b n,
@@ -224,7 +228,7 @@ Proof.
   intros A B n pl1. 
   apply packed_list_rect with (P := fun (pl1 : {l1 : list A & length l1 = n}) => forall pl2 : {l2 : list B & length l2 = n}, zip_with A B (A * B) pair n pl1 pl2 = zip A B n pl1 pl2). 
   intros l H pl2.
-  unfold zip_with, zip, packed_list_rect, hs_to_coqV_p.list_to_t_rect, packed_rect. simpl. f_equal.
+  unfold zip_with, zip, packed_list_rect, hs_to_coqV_p.list_to_t_rect, packed_rect. simpl.
   apply eq_existT_uncurried.
   (* list proof: *)
   exists (hs_to_coq.zip_with_is_zip A B l (projT1 pl2)).
@@ -241,48 +245,40 @@ Defined.
  *
  * I will update this file when we solve this problem.
  *)
-End packed_list'.
+End packed_list.
 
 (*
- * Now we can get from that to packed_vector_rect:
+ * Now we can get from that to { s : sigT (vector T) & projT1 s = n} by lifting fro
+ * lists to vectors.
  *)
 Lift Module list vector in hs_to_coq_lengths as hs_to_coq_projT1s.
-Preprocess Module packed_list' as packed_list { opaque Ornamental.Eliminators Datatypes Logic Coq.Init.Nat.pred Coq.Init.Peano.eq_add_S hs_to_coq_lengths.zip_length hs_to_coq_lengths.zip_length_n hs_to_coq_lengths.zip_with_length hs_to_coq_lengths.zip_with_length_n hs_to_coqV_p.list_to_t_index packed_list_rect hs_to_coqV_p.list_to_t_rect projT1 projT2 hs_to_coq.zip_with hs_to_coq_lengths.zip_length hs_to_coq_lengths.zip_length_n hs_to_coq_lengths.zip_with_length hs_to_coq_lengths.zip_with_length_n hs_to_coqV_p.list_to_t_index packed_list_rect hs_to_coqV_p.list_to_t_rect projT1 projT2 hs_to_coq.zip hs_to_coq_lengths.zip_length hs_to_coq_lengths.zip_length_n hs_to_coq_lengths.zip_with_length hs_to_coq_lengths.zip_with_length_n hs_to_coqV_p.list_to_t_index packed_list_rect hs_to_coqV_p.list_to_t_rect projT1 projT2 hs_to_coq.zip hs_to_coq.zip_with hs_to_coq.zip_with_is_zip }. 
 Lift Module list vector in packed_list as packed_vector.
 
 (*
- * Finally, we can get from that to unpacked vectors
+ * Finally, we can get from { s : sigT (vector T) & projT1 s = n} to unpacked vectors
  * at the index we want very easily.
- *)
-Module uf.
-
-(*
- * We define a constant for the type we're lifting from, since DEVOID needs this to
- * cache the ornament.
+ *
+ * First we define a constant for { s : sigT (vector T) & projT1 s = n}, since DEVOID needs
+ * this for caching.
  *)
 Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 
 (*
- * We can then lift, which will search automatically: (TODO lift module)
+ * We can get away without preprocessing here, though we must set some terms to opaque to do that:
  *)
-Lift packed vector in packed_vector.zip_length as zip_length { opaque eq_rect hs_to_coq_projT1s.zip_length_n hs_to_coqV_p.zip hs_to_coq_projT1s.zip_length eq_trans eq_sym eq_ind }.
-Lift packed vector in packed_vector.zip_with_length as zip_with_length  { opaque eq_rect hs_to_coq_projT1s.zip_with_length_n hs_to_coqV_p.zip_with hs_to_coq_projT1s.zip_with_length eq_trans eq_sym eq_ind }.
-Lift packed vector in packed_vector.zip as zip { opaque eq_rect hs_to_coq_projT1s.zip_length_n hs_to_coqV_p.zip hs_to_coq_projT1s.zip_length eq_trans eq_sym eq_ind }.
-Lift packed vector in packed_vector.zip_with as zip_with  { opaque eq_rect hs_to_coq_projT1s.zip_with_length_n hs_to_coqV_p.zip_with hs_to_coq_projT1s.zip_with_length eq_trans eq_sym eq_ind }.
+Configure Lift packed vector { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.
 
-Lift packed vector in packed_vector.zip_with_is_zip as zip_with_is_zip
- { opaque f_equal hs_to_coqV_p.zip_with_is_zip Coq.Init.Logic.eq_ind
-   Coq.Init.Logic.eq_trans Coq.Init.Logic.eq_sym
-   hs_to_coqV_p.zip hs_to_coqV_p.zip_with hs_to_coq_projT1s.zip_length
-   hs_to_coq_projT1s.zip_length_n eq_rect eq_rect_r eq_rec eq_rec_r eq_ind 
-   eq_ind_r hs_to_coq_projT1s.zip_with_length_n hs_to_coq_projT1s.zip_with_length
-   packed_vector.Coq_Logic_Eqdep_dec_UIP_dec packed_vector.Coq_Arith_PeanoNat_Nat_eq_dec
-   existT EqdepFacts.internal_eq_rew_r_dep sig_ind }.
-(* TODO clean opaques *)
+(*
+ * Then we lift (lifting hs_to_coqV_p first makes this faster and makes the result prettier):
+ *)
+Lift Module packed vector in hs_to_coqV_p as hs_to_coqV_u.
+Lift Module packed vector in packed_vector as uf.
 
-Print zip_with_is_zip. (* surprisingly that works lol *)
+(* We are done. Here are our final types: *)
+Check uf.zip.
+Check uf.zip_with.
+Check uf.zip_with_is_zip.
 
-End uf.
 (*
  * TECHNICAL NOTE: For this particular example, interestingly, doing these by hand
  * without DEVOID, it's possible to construct functions such that the proof
