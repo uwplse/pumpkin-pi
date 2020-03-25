@@ -2,6 +2,8 @@
  * Datatypes for promotions and lifting
  *)
 
+open Environ
+open Evd
 open Utilities
 open Constr
 open Apputils
@@ -18,6 +20,10 @@ open Stateutils
 open Promotion
 open Reducers
 open Equtils
+open Funutils
+open Evarconv
+open Evarutil
+open Hypotheses
 
 (* --- Datatypes --- *)
 
@@ -68,22 +74,53 @@ let rec promotion_type_to_types (typ : types) : types * types =
 let promotion_term_to_types env sigma trm =
   on_red_type_default (ignore_env promotion_type_to_types) env sigma trm
 
-(* --- Utilities for initialization --- *)
+(*
+ * Determine whether a type is the type we are ornamenting from
+ * (A in forward direction, B in backward direction) using unification.
+ * We optimize this in liftconfig.ml depending on the kind of ornament.
+ *)
+let e_is_from env goal_typ typ sigma =
+  let nargs = arity goal_typ in
+  (try
+     let sigma, eargs =
+       map_state
+         (fun _ sigma ->
+           let sigma, (earg_typ, _) = new_type_evar env sigma univ_flexible in
+           let sigma, earg = new_evar env sigma earg_typ in
+           sigma, EConstr.to_constr sigma earg)
+         (mk_n_rels nargs)
+         sigma
+     in
+     let sigma, typ_app = reduce_term env sigma (mkAppl (goal_typ, eargs)) in
+     let sigma = the_conv_x env (EConstr.of_constr typ) (EConstr.of_constr typ_app) sigma in
+     sigma, Some eargs
+   with _ ->
+     sigma, None)
 
+(* --- Utilities for initialization --- *)
+                         
 (*
  * Determine if the direction is forwards or backwards
  * That is, if trm is a promotion or a forgetful function
  * True if forwards, false if backwards
  *)
 let direction_cached env from_typ promote k sigma : bool state =
-  match k with
-  | UnpackSigma ->
-     sigma, true (* TODO!!! *)
-  | _ ->
-     let sigma, promote_typ = reduce_type env sigma promote in
-     let promote_env = zoom_env zoom_product_type env promote_typ in
-     let sigma, promote_typ = infer_type promote_env sigma (mkRel 1) in
-     sigma, is_or_applies from_typ promote_typ
+  let sigma, promote_typ = reduce_type env sigma promote in
+  let promote_env = zoom_env zoom_product_type env promote_typ in
+  let sigma, promote_typ = infer_type promote_env sigma (mkRel 1) in
+  if is_or_applies from_typ promote_typ then
+    sigma, true
+  else
+    match k with
+    | UnpackSigma ->
+       (* unify *)
+       let sigma, from_typ = expand_eta promote_env sigma from_typ in
+       Util.on_snd
+         Option.has_some
+         (e_is_from promote_env from_typ promote_typ sigma)
+    | _ ->
+       (* don't bother *)
+       sigma, false
 
 (* 
  * Unpack a promotion

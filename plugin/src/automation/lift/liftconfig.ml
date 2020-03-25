@@ -113,17 +113,16 @@ let get_elim_type c = fst (c.elim_types)
  * if our type is in a format that is very easy to reason about without
  * unification.
  *)
-let optimize_is_from c env typ =
-  let (a_typ, b_typ) = c.typs in
+let optimize_is_from c env goal_typ typ =
   if c.l.is_fwd then
-    if is_or_applies a_typ typ then
+    if is_or_applies goal_typ typ then
       Some (unfold_args typ)
     else
       None
   else
     match c.l.orn.kind with
     | SwapConstruct _ ->
-       if is_or_applies b_typ typ then
+       if is_or_applies goal_typ typ then
          Some (unfold_args typ)
        else
          None
@@ -136,29 +135,13 @@ let optimize_is_from c env typ =
  * Return the arguments to the type if so
  *)
 let is_from c env typ sigma =
-  let args_o = optimize_is_from c env typ in
+  let (a_typ, b_typ) = c.typs in
+  let goal_typ = if c.l.is_fwd then a_typ else b_typ in
+  let args_o = optimize_is_from c env goal_typ typ in
   if Option.has_some args_o then
     sigma, args_o
   else
-    let (a_typ, b_typ) = c.typs in
-    let goal_typ = if c.l.is_fwd then a_typ else b_typ in
-    (* ^ TODO eta? *)
-    let nargs = arity goal_typ in
-    (try
-       let sigma, eargs =
-         map_state
-           (fun _ sigma ->
-             let sigma, (earg_typ, _) = new_type_evar env sigma univ_flexible in
-             let sigma, earg = new_evar env sigma earg_typ in
-             sigma, EConstr.to_constr sigma earg)
-           (mk_n_rels nargs)
-           sigma
-       in
-       let sigma, b_app = reduce_term env sigma (mkAppl (goal_typ, eargs)) in
-       let sigma = the_conv_x env (EConstr.of_constr typ) (EConstr.of_constr b_app) sigma in
-       sigma, Some eargs
-     with _ ->
-       sigma, None)
+    e_is_from env goal_typ typ sigma
 
 (*
  * Just get all of the unfolded arguments, skipping the check
