@@ -183,8 +183,6 @@ let type_is_from c env trm sigma =
  * skipping the check
  *)
 let type_from_args c env trm sigma =
-  let sigma, typ = Inference.infer_type env sigma trm in
-  let sigma, typ = reduce_nf env sigma typ in
   on_red_type
     reduce_nf
     (fun env sigma typ -> from_args c env typ sigma)
