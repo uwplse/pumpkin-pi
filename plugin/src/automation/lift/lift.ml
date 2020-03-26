@@ -488,10 +488,6 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
      let sigma, trm1 = lift_rec env sigma c pair.trm1 in
      let sigma, trm2 = lift_rec env sigma c pair.trm2 in
      (sigma, apply_pair {typ1; typ2; trm1; trm2})
-  | UnpackSigma ->
-     (* TODO explain, test to see if bad ever *)
-     let sigma, args' = map_rec_args lift_rec env sigma c (Array.of_list args) in
-     sigma, (mkApp (lifted_constr, args'))
   | _ ->
      raise NotAlgebraic
      
@@ -540,11 +536,9 @@ let lift_core env c trm sigma =
     | LiftConstr (lifted_constr, args) ->
        let sigma, constr_app = reduce_term en sigma (mkAppl (lifted_constr, args)) in
        if List.length args > 0 then
-         let (f', args') = destApp constr_app in
-         let sigma, args'' = map_rec_args lift_rec en sigma c args' in
-         sigma, mkApp (f', args'')
+         lift_rec en sigma c constr_app
        else
-         sigma, constr_app (* TODO ... *)
+         sigma, constr_app
     | LiftPack ->
        if l.is_fwd then
          (* pack *)

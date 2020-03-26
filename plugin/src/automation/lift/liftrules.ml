@@ -366,11 +366,11 @@ let determine_lift_rule c env trm sigma =
         let i, args = Option.get i_and_args_o in
         let lifted_constr = (get_lifted_constrs c).(i) in
         if List.length args > 0 then
-          if not l.is_fwd && not (l.orn.kind = UnpackSigma) then
+          if not l.is_fwd then
             sigma, LiftConstr (lifted_constr, args)
           else
             match l.orn.kind with
-            | SwapConstruct _ ->
+            | SwapConstruct _ | UnpackSigma ->
                sigma, LiftConstr (lifted_constr, args)
             | _ ->
                sigma, Optimization (SmartLiftConstr (lifted_constr, args))
