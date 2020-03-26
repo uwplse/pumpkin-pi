@@ -495,13 +495,13 @@ let initialize_constr_rules c env sigma =
  *)
 let initialize_proj_rules env sigma c =
   let l = get_lifting c in
+  let sigma, lift_typ = reduce_type env sigma (lift_to l) in
+  let env_proj = zoom_env zoom_product_type env lift_typ in
+  let t = mkRel 1 in
+  let sigma, typ_args = type_from_args c env_proj t sigma in
+  let sigma, lift_t = lift env_proj l t typ_args sigma in
   match l.orn.kind with
   | Algebraic (indexer, _) ->
-     let sigma, lift_typ = reduce_type env sigma (lift_to l) in
-     let env_proj = zoom_env zoom_product_type env lift_typ in
-     let t = mkRel 1 in
-     let sigma, typ_args = type_from_args c env_proj t sigma in
-     let sigma, lift_t = lift env_proj l t typ_args sigma in
      if l.is_fwd then (* indexer -> projT1 *)
        let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj sigma lift_t) in
        let p1 = reconstruct_lambda env_proj (project_index b_sig_typ lift_t) in
@@ -516,35 +516,30 @@ let initialize_proj_rules env sigma c =
        let projT2 = reconstruct_lambda env_proj (project_value b_sig_typ t) in
        sigma, [(projT1, p1); (projT2, p2)]
   | UnpackSigma ->
-     let sigma, lift_typ = reduce_type env sigma (lift_to l) in
-     let env_proj = zoom_env zoom_product_type env lift_typ in
-     let t = mkRel 1 in
-     let sigma, typ_args = type_from_args c env_proj t sigma in
-     let sigma, lift_t = lift env_proj l t typ_args sigma in
-     if l.is_fwd then (* projT1 -> pack, projT2 -> eq_refl *)
-       (* TODO clean etc *)
-       let sigma, b_sig_eq_typ = reduce_type env_proj sigma t in
-       let sigma, [i_b_typ; b; i_b] = unpack_typ_args env_proj b_sig_eq_typ sigma in
-       let b_sig_typ = (dest_sigT b_sig_eq_typ).index_type in
-       let index_type = i_b_typ in
+     let packed, unpacked = if l.is_fwd then (t, lift_t) else (lift_t, t) in
+     let sigma, b_sig_eq_typ = reduce_type env_proj sigma packed in
+     let b_sig_eq_typ_app = dest_sigT b_sig_eq_typ in
+     let proj_bods = projections b_sig_eq_typ_app packed in
+     let projT1, projT2 = map_tuple (reconstruct_lambda env_proj) proj_bods in
+     let sigma, (index_type, index) =
+       let sigma, args = unpack_typ_args env_proj b_sig_eq_typ sigma in
+       sigma, (List.hd args, last args)
+     in
+     let p1 =
+       let b_sig_typ = b_sig_eq_typ_app.index_type in
        let packer = (dest_sigT b_sig_typ).packer in
-       let index = i_b in
-       let unpacked = lift_t in
        let indexer = pack_existT { index_type; packer; index; unpacked } in
-       let p1 = reconstruct_lambda env_proj indexer in
-       let p2 = reconstruct_lambda env_proj (apply_eq_refl {typ = i_b_typ; trm = i_b}) in
-       let projT1 = reconstruct_lambda env_proj (project_index (dest_sigT b_sig_eq_typ) t) in
-       let projT2 = reconstruct_lambda env_proj (project_value (dest_sigT b_sig_eq_typ) t) in
+       reconstruct_lambda env_proj indexer
+     in
+     let p2 =
+       let eq = apply_eq_refl {typ = index_type; trm = index } in
+       reconstruct_lambda env_proj eq
+     in
+     if l.is_fwd then (* projT1 -> pack, projT2 -> eq_refl *)
        sigma, [(projT1, p1); (projT2, p2)]
      else (* pack -> projT1, eq_refl -> projT2 *)
-       (* TODO!! *)
-       sigma, []
+       sigma, [(p1, projT1); (p2, projT2)]
   | CurryRecord ->
-     let sigma, lift_typ = reduce_type env sigma (lift_to l) in
-     let env_proj = zoom_env zoom_product_type env lift_typ in
-     let t = mkRel 1 in
-     let sigma, typ_args = type_from_args c env_proj t sigma in
-     let sigma, lift_t = lift env_proj l t typ_args sigma in
      (* accessors <-> projections *)
      let accessors =
        let (a_typ, _) = get_types c in
