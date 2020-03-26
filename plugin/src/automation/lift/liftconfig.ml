@@ -322,35 +322,48 @@ let initialize_packed_constrs c env sigma =
     | Algebraic _ | CurryRecord | SwapConstruct _ ->
        eta_constrs env a_typ sigma
     | UnpackSigma ->
-       let env_a_typ = zoom_env zoom_lambda_term env a_typ in
-       let typ_args = mk_n_rels (nb_rel env_a_typ) in
-       let sigma, b_sig_eq = reduce_term env sigma (mkAppl (a_typ, typ_args)) in
-       let sigma, [i_b_typ; b_typ; i_b] = unpack_typ_args env b_sig_eq sigma in
-       let env_i_b = push_local (Anonymous, i_b_typ) env_a_typ in
-       let env_b = push_local (Anonymous, mkAppl (shift b_typ, [mkRel 1])) env_i_b in
-       let at_type = shift_by 2 i_b_typ in
-       let trm1 = mkRel 2 in
-       let trm2 = shift_by 2 i_b in
-       let eq_typ = apply_eq { at_type; trm1; trm2 } in
-       let env_h = push_local (Anonymous, eq_typ) env_b in
-       let f_bod =
+       (* We create a proxy "constructor" here, though it is just a function *)
+       let sigma, (env_eq, (eq, eq_typ), (b, b_typ)) =
+         let push_anon t = push_local (Anonymous, t) in
+         let env_sig = zoom_env zoom_lambda_term env a_typ in
+         let sigma, (i_b_typ, b_typ, i_b) =
+           let sig_eq = mkAppl (a_typ, mk_n_rels (nb_rel env_sig)) in
+           let sigma, sig_eq = reduce_term env_sig sigma sig_eq in
+           let sigma, typ_args = unpack_typ_args env_sig sig_eq sigma in
+           sigma, (List.hd typ_args, List.hd (List.tl typ_args), last typ_args)
+         in
+         let env_i_b = push_anon i_b_typ env_sig in
+         let env_b = push_anon (mkAppl (shift b_typ, [mkRel 1])) env_i_b in
+         let eq_typ =
+           let at_type = shift_by 2 i_b_typ in
+           apply_eq { at_type; trm1 = mkRel 2; trm2 = shift_by 2 i_b }
+         in
+         let env_eq = push_anon eq_typ env_b in
+         sigma, (env_eq, (mkRel 1, shift eq_typ), (mkRel 2, shift_by 3 b_typ))
+       in
+       let eq_typ_app = dest_eq eq_typ in
+       let packed =
          let index_type =
-           let index_type = shift at_type in
-           let packer = mkLambda (Anonymous, index_type, mkAppl (shift_by 4 b_typ, [mkRel 1])) in
-           pack_sigT { index_type; packer }
+           let index_type = eq_typ_app.at_type in
+           let packer =
+             let unpacked = mkAppl (shift b_typ, [mkRel 1]) in
+             mkLambda (Anonymous, index_type, unpacked)
+           in pack_sigT { index_type; packer }
          in
-         let eq_typ = apply_eq { at_type = shift_by 2 at_type; trm1 = project_index (dest_sigT (shift index_type)) (mkRel 1); trm2 = shift_by 2 trm2} in
-         let packer = mkLambda (Anonymous, index_type, eq_typ) in
+         let packer =
+           let at_type = shift eq_typ_app.at_type in
+           let trm1 = project_index (dest_sigT (shift index_type)) (mkRel 1) in
+           let trm2 = shift eq_typ_app.trm2 in
+           mkLambda (Anonymous, index_type, apply_eq { at_type; trm1; trm2 })
+         in
          let index =
-           let index_type = shift at_type in
-           let packer = mkLambda (Anonymous, index_type, mkAppl (shift_by 4 b_typ, [mkRel 1])) in
-           let index = mkRel 3 in
-           let unpacked = mkRel 2 in
-           pack_existT { index_type; packer; index; unpacked}
-         in
-         let unpacked = mkRel 1 in
-         pack_existT { index_type; packer; index; unpacked }
-       in sigma, Array.of_list [reconstruct_lambda_n env_h f_bod (nb_rel env)]
+           let index_type_app = dest_sigT index_type in
+           let index_type = index_type_app.index_type in
+           let packer = index_type_app.packer in
+           let index = eq_typ_app.trm1 in
+           pack_existT { index_type; packer; index; unpacked = b }
+         in pack_existT { index_type; packer; index; unpacked = eq }
+       in sigma, Array.make 1 (reconstruct_lambda_n env_eq packed (nb_rel env))
   in
   let sigma, b_constrs =
     match l.orn.kind with
