@@ -163,7 +163,7 @@ let is_packed_constr c env sigma trm =
          let constr = constrs.(i - 1) in
          let constr_f = first_fun (unpack (zoom_term zoom_lambda_term env constr)) in
          if equal constr_f f && List.length args = arity constr then
-           sigma, Some (i - 1, args, trm)
+           sigma, Some (i - 1, args)
          else
            sigma, None
       | _ ->
@@ -189,7 +189,7 @@ let is_packed_constr c env sigma trm =
           let constr = constrs.(0) in
           let pms = Option.get args_opt in
           let args = pair_projections_eta_rec_n trm (arity constr - List.length pms) in
-          sigma, Some (0, List.append pms args, trm)
+          sigma, Some (0, List.append pms args)
         else
           sigma, None
       else
@@ -226,15 +226,13 @@ let is_packed_constr c env sigma trm =
                projections (dest_sigT (dest_sigT b_sig_eq).index_type) s
            in
            let args = [i_b; b; h_eq] in
-           sigma, Some (0, List.append typ_args args, trm)
+           sigma, Some (0, List.append typ_args args)
          else
            sigma, None
        else
          sigma, None
      else
        sigma, None (* TODO unimplemented *)
-     (*
-     existT _ (existT _ n pv) (eq_refl n)*)
 
 (* Premises for LIFT-PACK *)
 let is_pack c env sigma trm =
@@ -365,22 +363,19 @@ let determine_lift_rule c env trm sigma =
     else
       let sigma, i_and_args_o = is_packed_constr c env sigma trm in
       if Option.has_some i_and_args_o then
-        let i, args, trm_eta = Option.get i_and_args_o in
-        if not (equal trm_eta trm) then
-          sigma, Optimization (LazyEta trm_eta)
-        else
-          let lifted_constr = (get_lifted_constrs c).(i) in
-          if List.length args > 0 then
-            if not l.is_fwd && not (l.orn.kind = UnpackSigma) then
-              sigma, LiftConstr (lifted_constr, args)
-            else
-              match l.orn.kind with
-              | SwapConstruct _ ->
-                 sigma, LiftConstr (lifted_constr, args)
-              | _ ->
-                 sigma, Optimization (SmartLiftConstr (lifted_constr, args))
-          else
+        let i, args = Option.get i_and_args_o in
+        let lifted_constr = (get_lifted_constrs c).(i) in
+        if List.length args > 0 then
+          if not l.is_fwd && not (l.orn.kind = UnpackSigma) then
             sigma, LiftConstr (lifted_constr, args)
+          else
+            match l.orn.kind with
+            | SwapConstruct _ ->
+               sigma, LiftConstr (lifted_constr, args)
+            | _ ->
+               sigma, Optimization (SmartLiftConstr (lifted_constr, args))
+        else
+          sigma, LiftConstr (lifted_constr, args)
       else
         let sigma, is_pack = is_pack c env sigma trm in
         if is_pack then
