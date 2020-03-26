@@ -149,7 +149,7 @@ type lift_rule =
 
 (* --- Premises --- *)
 
-(* Premises for LIFT-CONSTR *) (* TODO move to config? *)
+(* Premises for LIFT-CONSTR *)
 let is_packed_constr c env sigma trm =
   let l = get_lifting c in
   let constrs = get_constrs c in
