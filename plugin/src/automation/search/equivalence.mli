@@ -27,9 +27,11 @@ type pre_adjoint = {
  * step; wrapping the proof term for retraction in a clever way (formalized in
  * `fg_id'`) makes a later equality of equality proofs true definitionally.
  *)
-val adjointify_retraction : env -> pre_adjoint -> evar_map -> constr state
+val adjointify_retraction :
+  env -> pre_adjoint -> evar_map -> constr state
 
 (*
  * Prove adjunction.
  *)
-val prove_adjunction : env -> pre_adjoint -> evar_map -> constr state
+val prove_adjunction :
+  env -> pre_adjoint -> evar_map -> (constr * types) state

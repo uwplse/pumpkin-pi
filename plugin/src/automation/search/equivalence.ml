@@ -516,18 +516,21 @@ let equiv_proof_unpack env l sigma =
   let trm = reconstruct_lambda env_args app in
   let sigma, typ =
     (* The default inferred type is not very good, so we guide Coq *)
-    let sigma, typ = infer_type env sigma trm in
-    let env_eq, eq = Util.on_snd dest_eq (zoom_product_type env typ) in
-    let trm1 = eq.trm1 in
-    let f_arg = last_arg trm1 in
-    let f_f_arg = last_arg f_arg in
-    let lift_args = shift_all (mk_n_rels (nb_rel env_args)) in
-    let sigma, f = reduce_term env sigma (mkAppl (lift_back l, lift_args)) in
-    let sigma, f_f = reduce_term env sigma (mkAppl (lift_to l, lift_args)) in
-    let trm1 = mkAppl (f, [mkAppl (f_f, [f_f_arg])]) in
-    let eq = apply_eq { eq with trm1 } in
-    let typ = reconstruct_product env_eq eq in
-    sigma, typ
+    let sigma, (env_eq, eq) =
+      let sigma, (env_eq, eq_app) =
+        let sigma, typ = infer_type env sigma trm in
+        sigma, Util.on_snd dest_eq (zoom_product_type env typ)
+      in
+      let sigma, eq =
+        let sigma, trm1 =
+          let typ_args = shift_all (mk_n_rels (nb_rel env_args)) in
+          let sigma, lifted =
+            let arg = last_arg (last_arg eq_app.trm1) in
+            lift env_eq l arg typ_args sigma
+          in lift env_eq (flip_dir l) lifted typ_args sigma
+        in sigma, apply_eq { eq_app with trm1 }
+      in sigma, (env_eq, eq)
+    in sigma, reconstruct_product env_eq eq
   in trm, typ
 
 (* --- Top-level equivalence proof generation --- *)
@@ -616,7 +619,9 @@ let adjointify_retraction env pre_adj =
 (*
  * Prove adjunction.
  *)
-let prove_adjunction env pre_adj =
+let prove_adjunction env pre_adj sigma =
   let c = lookup_constant "Ornamental.Adjoint.f_adjoint" in
-  quantify_pre_adjunction_const env pre_adj c
+  let sigma, adjunction = quantify_pre_adjunction_const env pre_adj c sigma in
+  let sigma, adjunction_typ = reduce_type env sigma adjunction in
+  sigma, (adjunction, adjunction_typ)
 
