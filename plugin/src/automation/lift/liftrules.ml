@@ -224,7 +224,20 @@ let is_packed_constr c env sigma trm =
        else
          sigma, None
      else
-       sigma, None (* TODO unimplemented *)
+       let sigma_right, args_opt = type_is_from c env trm sigma in
+       if Option.has_some args_opt then
+         let typ_args = Option.get args_opt in
+         let sigma, (i_b, i_b_typ) =
+           let sig_eq = mkAppl (fst (get_types c), typ_args) in
+           let sigma, sig_eq = reduce_term env sigma sig_eq in
+           let sigma, args = unpack_typ_args env sig_eq sigma in
+           sigma, (last args, List.hd args)
+         in
+         let b = trm in
+         let h_eq = apply_eq_refl { typ = i_b_typ; trm = i_b } in
+         sigma, Some (0, List.append typ_args [i_b; b; h_eq])
+       else
+         sigma, None
 
 (* Premises for LIFT-PACK *)
 let is_pack c env sigma trm =

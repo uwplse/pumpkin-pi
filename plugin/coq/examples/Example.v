@@ -268,6 +268,11 @@ Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
  *)
 Configure Lift packed vector { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.
 
+(* TODO move these tests later *)
+
+Fail.
+(* end TODO *)
+
 (*
  * Then we lift (lifting hs_to_coqV_p first makes this faster and makes the result prettier):
  *)

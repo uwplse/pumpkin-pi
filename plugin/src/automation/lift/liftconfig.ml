@@ -394,8 +394,6 @@ let initialize_packed_constrs c env sigma =
     | UnpackSigma -> (* TODO consolidate / clean if needed *)
        (* We create a proxy "constructor" here, though it is just a function *)
        let sigma, (env_eq, (eq, eq_typ), (b, b_typ)) =
-         (* TODO maybe easier to use b_typ straight up for both of these *)
-         (* TODO unsure if we need this...bleh *)
          let push_anon t = push_local (Anonymous, t) in
          let env_sig = zoom_env zoom_lambda_term env a_typ in
          let sigma, (i_b_typ, b_typ, i_b) =
