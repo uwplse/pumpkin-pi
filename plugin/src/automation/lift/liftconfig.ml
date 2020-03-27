@@ -445,34 +445,37 @@ let lift_constr env sigma c trm =
        (* inductive case - refold *)
        refold l env (lift_to l) app rec_args sigma
   | UnpackSigma ->
-     (* Delta-recude the function, and simplify projections of existentials *)
+     (* specialized folding for a cleaner and more efficient result *)
+     let delta app = specialize_delta_f env (first_fun app) (unfold_args app) in
      let sigma, app = reduce_term env sigma app in
+     (* delta-reduce unpack_generic(_inv) (no custom equivalence support yet) *)
+     let sigma, app = delta app sigma in
+     let sigma, app = delta app sigma in
      let f = first_fun app in
      let args = unfold_args app in
-     let sigma, app = specialize_delta_f env f args sigma in
-     let sigma, app = specialize_delta_f env (first_fun app) (unfold_args app) sigma in
-     let f = first_fun app in
      let sigma, args =
-       map_state
-         (fun a sigma ->
-           let how_reduce_o = can_reduce_now c a in
-           if Option.has_some how_reduce_o then
-             let a_args = unfold_args a in
-             let a_inner = last a_args in
-             let proj_a = Option.get how_reduce_o in
-             let how_reduce_o = can_reduce_now c a_inner in
+       if l.is_fwd then
+         (* simplify projections of existentials *)
+         map_state
+           (fun a sigma ->
+             let how_reduce_o = can_reduce_now c a in
              if Option.has_some how_reduce_o then
-               let a_inner_args = unfold_args a_inner in
-               let a_inner_inner = last a_inner_args in
-               let proj_a_inner = Option.get how_reduce_o in
-               let sigma, a_red = proj_a_inner env sigma a_inner_inner in
-               proj_a env sigma a_red
+               let proj_a = Option.get how_reduce_o in
+               let a_inner = last_arg a in
+               let how_reduce_o = can_reduce_now c a_inner in
+               if Option.has_some how_reduce_o then
+                 let proj_a_inner = Option.get how_reduce_o in
+                 let a_inner_inner = last_arg a_inner in
+                 let sigma, a_red = proj_a_inner env sigma a_inner_inner in
+                 proj_a env sigma a_red
+               else
+                 proj_a env sigma a_inner
              else
-               proj_a env sigma a_inner
-           else
-             sigma, a)
-         (unfold_args app)
-         sigma
+               sigma, a)
+           args
+           sigma
+       else
+         sigma, args
      in sigma, (mkAppl (f, args))
   | CurryRecord ->
      (* no inductive cases, so don't try to refold *)
