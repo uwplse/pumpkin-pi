@@ -391,11 +391,35 @@ let initialize_packed_constrs c env sigma =
        sigma, Array.make 1 constr
     | SwapConstruct _ ->
        eta_constrs env b_typ sigma
-    | UnpackSigma ->
-       let env_b_typ = zoom_env zoom_lambda_term env b_typ in
-       let typ_args = mk_n_rels (nb_rel env_b_typ) in
-       let env_b = push_local (Anonymous, mkAppl (b_typ, typ_args)) env_b_typ in
-       sigma, Array.of_list [reconstruct_lambda env_b (mkRel 1)]
+    | UnpackSigma -> (* TODO consolidate / clean if needed *)
+       (* We create a proxy "constructor" here, though it is just a function *)
+       let sigma, (env_eq, (eq, eq_typ), (b, b_typ)) =
+         (* TODO maybe easier to use b_typ straight up for both of these *)
+         (* TODO unsure if we need this...bleh *)
+         let push_anon t = push_local (Anonymous, t) in
+         let env_sig = zoom_env zoom_lambda_term env a_typ in
+         let sigma, (i_b_typ, b_typ, i_b) =
+           let sig_eq = mkAppl (a_typ, mk_n_rels (nb_rel env_sig)) in
+           let sigma, sig_eq = reduce_term env_sig sigma sig_eq in
+           let sigma, typ_args = unpack_typ_args env_sig sig_eq sigma in
+           sigma, (List.hd typ_args, List.hd (List.tl typ_args), last typ_args)
+         in
+         let env_i_b = push_anon i_b_typ env_sig in
+         let env_b = push_anon (mkAppl (shift b_typ, [mkRel 1])) env_i_b in
+         let eq_typ =
+           let at_type = shift_by 2 i_b_typ in
+           apply_eq { at_type; trm1 = mkRel 2; trm2 = shift_by 2 i_b }
+         in
+         let env_eq = push_anon eq_typ env_b in
+         sigma, (env_eq, (mkRel 1, shift eq_typ), (mkRel 2, shift_by 3 b_typ))
+       in
+       let eq_typ_app = dest_eq eq_typ in
+       let rewrite =
+         let at_type = eq_typ_app.at_type in
+         let trm1 = eq_typ_app.trm1 in
+         let trm2 = eq_typ_app.trm2 in
+         mkAppl (eq_rect, [at_type; trm1; b_typ; b; trm2; eq])
+       in sigma, Array.make 1 (reconstruct_lambda_n env_eq rewrite (nb_rel env))
   in
   let fwd_constrs = if l.is_fwd then a_constrs else b_constrs in
   let bwd_constrs = if l.is_fwd then b_constrs else a_constrs in
