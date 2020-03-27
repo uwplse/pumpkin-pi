@@ -173,16 +173,19 @@ let is_packed_constr c env sigma trm =
   in
   match l.orn.kind with
   | Algebraic _ ->
-     if isConstruct trm || (isApp trm && l.is_fwd) then
-       is_packed_inductive_constr (fun _ -> true) id trm
-     else
-       is_packed_inductive_constr (is_packed c) last_arg trm
+     let is_packed, unpacked =
+       if isConstruct trm || (isApp trm && l.is_fwd) then
+         (fun _ -> true), id
+       else
+         is_packed c, last_arg
+     in is_packed_inductive_constr is_packed unpacked trm
   | SwapConstruct _ ->
      is_packed_inductive_constr (fun _ -> true) id trm
   | CurryRecord ->
       if isConstruct trm || (isApp trm && l.is_fwd) then
         is_packed_inductive_constr (fun _ -> true) id trm
       else if is_packed c trm then
+        (* we treat any pair of the right type as a constructor *)
         let sigma_right, args_opt = type_is_from c env trm sigma in
         if Option.has_some args_opt then
           let sigma = sigma_right in
@@ -195,38 +198,27 @@ let is_packed_constr c env sigma trm =
       else
         sigma, None
   | UnpackSigma ->
-     (*
-      * TODO
-      * No clue what I'm doing yet! Do not merge this!
-      *
-      * TODO!!! use constrs instead of rolling by hand; change
-      * args when you do that.
-      * Then we can probably combine w/ the eta rule! But for now whatever
-      *
-      * TODO!!! clean/consolidate etc. this is a proof of concept
-      *)
      if (get_lifting c).is_fwd then
-       if is_or_applies existT trm then
+       if is_packed c trm then
+         (* we treat any existential of the right type as a constructor *)
          let sigma_right, args_opt = type_is_from c env trm sigma in
          if Option.has_some args_opt then
            let typ_args = Option.get args_opt in
-           let sigma, b_sig_eq = reduce_term env sigma_right (mkAppl (fst (get_types c), typ_args)) in
-           let s, h_eq = (* TODO prevents infinite recursion *)
-             if is_or_applies existT trm then
-               let trm_ex = dest_existT trm in
-               trm_ex.index, trm_ex.unpacked
-             else
-               projections (dest_sigT b_sig_eq) trm
+           let sigma, b_sig_eq =
+             let b_sig_eq_typ = mkAppl (fst (get_types c), typ_args) in
+             Util.on_snd dest_sigT (reduce_term env sigma_right b_sig_eq_typ)
+           in
+           let s, h_eq =
+             let trm_ex = dest_existT trm in
+             trm_ex.index, trm_ex.unpacked
            in
            let i_b, b =
              if is_or_applies existT s then
                let index_ex = dest_existT s in
                index_ex.index, index_ex.unpacked
              else
-               projections (dest_sigT (dest_sigT b_sig_eq).index_type) s
-           in
-           let args = [i_b; b; h_eq] in
-           sigma, Some (0, List.append typ_args args)
+               projections (dest_sigT b_sig_eq.index_type) s
+           in sigma, Some (0, List.append typ_args [i_b; b; h_eq])
          else
            sigma, None
        else
