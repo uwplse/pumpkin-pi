@@ -272,8 +272,11 @@ Configure Lift packed vector { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.
 Definition my_id (T : Type) (n : nat) (v : vector T n) := v.
 Lift vector packed in my_id as id'.
 Print id'.
+Fail.
 Definition my_cons (T : Type) (n : nat) (v : vector T n) (t : T) := consV n t v.
 Print t_unpack.
+
+
 Lift vector packed in my_cons as my_cons'.
 Fail.
 

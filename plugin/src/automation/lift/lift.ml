@@ -331,7 +331,8 @@ let lift_elim env sigma c trm_app pms =
 (*
  * REPACK
  *
- * This is to deal with non-primitive projections
+ * This is to deal with non-primitive projections (what it means to lift
+ * the identity function)
  *)
 let repack c env lifted typ sigma =
   match (get_lifting c).orn.kind with
@@ -343,12 +344,23 @@ let repack c env lifted typ sigma =
      let packer = lift_typ.packer in
      let e = pack_existT {index_type; packer; index = n; unpacked = b} in
      sigma, mkLetIn (Anonymous, lifted, typ, e)
+  | UnpackSigma -> (* TODO clean etc *)
+     let lift_typ = dest_sigT (shift typ) in
+     let s, eq = projections lift_typ (mkRel 1) in
+     let env_typ = push_local (Anonymous, typ) env in
+     let sigma, s_typ = Util.on_snd dest_sigT (reduce_type env_typ sigma s) in
+     let i_b, b = projections s_typ s in
+     let s_e = pack_existT { index_type = s_typ.index_type; packer = s_typ.packer; index = i_b; unpacked = b} in
+     let index_type = lift_typ.index_type in
+     let packer = lift_typ.packer in
+     let e = pack_existT {index_type; packer; index = s_e; unpacked = eq} in
+     sigma, mkLetIn (Anonymous, lifted, typ, e)
   | CurryRecord ->
      let f = first_fun typ in
      let args = unfold_args typ in
      let sigma, typ_red = specialize_delta_f env f args sigma in
      sigma, mkLetIn (Anonymous, lifted, typ, eta_prod_rec (mkRel 1) (shift typ_red))
-  | SwapConstruct _ | UnpackSigma ->
+  | SwapConstruct _ ->
      sigma, lifted
 
 (*
@@ -360,6 +372,8 @@ let repack c env lifted typ sigma =
  * the code too much and producing ugly terms.
  *)
 let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
+  let open Printing in
+  debug_term env trm "trm";
   if try_repack then
     let sigma_typ, typ = reduce_type env sigma trm in
     let sigma_typ, is_from_typ = is_from c env typ sigma in
@@ -379,11 +393,14 @@ let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
            else
              let lifted_red = reduce_stateless reduce_nf env sigma lifted in
              is_or_applies pair lifted_red
-        | SwapConstruct _ | UnpackSigma ->
+        | UnpackSigma ->
+           false
+        | SwapConstruct _ ->
            true
       in
       if not optimize_ignore_repack then
         let sigma, lifted_typ = lift_rec env sigma_typ c typ in
+        let sigma, lifted_typ = reduce_term env sigma lifted_typ in
         repack c env lifted lifted_typ sigma
       else
         sigma, lifted
@@ -578,9 +595,12 @@ let lift_core env c trm sigma =
        else
          sigma, constr_app
     | LiftPack ->
-       if l.is_fwd then
+       if isRel tr then (* TODO now these rules are different *)
          (* pack *)
-         maybe_repack lift_rec c en tr tr (fun _ _ _ -> ret true) true sigma
+         let sigma, packed = maybe_repack lift_rec c en tr tr (fun _ _ _ -> ret true) true sigma in
+         let open Printing in
+         debug_term en packed "packed";
+         sigma, packed
        else
          (* unpack (when not covered by constructor rule) *)
          lift_rec en sigma c (dest_existT tr).unpacked

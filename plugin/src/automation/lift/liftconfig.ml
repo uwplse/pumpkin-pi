@@ -221,6 +221,9 @@ let is_packed c = fst (fst (c.optimize_proj_packed_rules))
  * Determine if we can be smarter than Coq and simplify earlier
  * If yes, return how
  * Otherwise, return None
+ *
+ * Sometimes, we need this for termination when lifted terms can be
+ * self-referrential
  *)
 let can_reduce_now c trm =
   let _, proj_packed_map = fst c.optimize_proj_packed_rules in
