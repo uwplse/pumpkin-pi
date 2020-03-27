@@ -269,8 +269,24 @@ Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 Configure Lift packed vector { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.
 
 (* TODO move these tests later *)
-
+Definition my_id (T : Type) (n : nat) (v : vector T n) := v.
+Lift vector packed in my_id as id'.
+Print id'.
+Definition my_cons (T : Type) (n : nat) (v : vector T n) (t : T) := consV n t v.
+Print t_unpack.
+Lift vector packed in my_cons as my_cons'.
 Fail.
+
+Definition my_zip (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
+rew [vector (a * b)]
+    packed_vector.zip_length a b n (existT [eta vector a] n pl1)
+      (existT [eta vector b] n pl2) (Datatypes.id (erefl n)) 
+      (erefl n) in
+projT2
+  (hs_to_coqV_p.zip a b (existT [eta vector a] n pl1)
+     (existT [eta vector b] n pl2)).
+Lift vector packed in my_zip as zip'.
+
 (* end TODO *)
 
 (*
@@ -281,6 +297,7 @@ Lift Module packed vector in packed_vector as uf.
 
 (* We are done. Here are our final types: *)
 Check uf.zip.
+Print uf.zip.
 Check uf.zip_with.
 Check uf.zip_with_is_zip.
 (*

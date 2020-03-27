@@ -16,6 +16,7 @@ open Caching
 open Declarations
 open Specialization
 open Typehofs
+open Equtils
 open Indutils
 open Apputils
 open Reducers
@@ -488,6 +489,32 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
      let sigma, trm1 = lift_rec env sigma c pair.trm1 in
      let sigma, trm2 = lift_rec env sigma c pair.trm2 in
      (sigma, apply_pair {typ1; typ2; trm1; trm2})
+  | UnpackSigma ->
+     let open Printing in
+     debug_term env constr_app "constr_app";
+     let ex_eq = dest_existT constr_app in
+     let ex = dest_existT ex_eq.index in
+     let sigma, packer = lift_rec env sigma c ex.packer in
+     debug_term env packer "packer";
+     let sigma, index = lift_rec env sigma c ex.index in
+     debug_term env index "index";
+     let sigma, (unpacked, h_eq) =
+       if is_or_applies eq_refl ex_eq.unpacked then
+         (* terminate *)
+         sigma, (ex.unpacked, ex_eq.unpacked)
+       else
+         (* recurse *)
+         let sigma, unpacked = lift_rec env sigma c ex.unpacked in
+         let sigma, h_eq = lift_rec env sigma c ex_eq.unpacked in
+         sigma, (unpacked, h_eq)
+     in
+     debug_term env h_eq "h_eq";
+     debug_term env unpacked "unpacked";
+     let index = pack_existT { ex with packer; index; unpacked } in
+     debug_term env index "index";
+     let sigma, packer = lift_rec env sigma c ex_eq.packer in
+     debug_term env packer "packer";
+     (sigma, pack_existT { ex_eq with packer; index; unpacked = h_eq })
   | _ ->
      raise NotAlgebraic
      
@@ -514,10 +541,16 @@ let lift_core env c trm sigma =
     | Optimization (LazyEta tr_eta) ->
        lift_rec en sigma c tr_eta
     | Section | Retraction | Internalize ->
+       let open Printing in
+       debug_term en (last_arg tr) "lifting last arg";
        lift_rec en sigma c (last_arg tr)
     | Coherence (to_proj, p, args) ->
        let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in
-       lift_rec en sigma c projected
+       let open Printing in
+       debug_term en projected "projected!";
+       let sigma, lifted = lift_rec en sigma c projected in
+       debug_term en lifted "lifted";
+       sigma, lifted
     | Equivalence args ->
        let (_, b_typ) = get_types c in
        let sigma, lifted_args = map_rec_args lift_rec en sigma c (Array.of_list args) in
@@ -532,7 +565,12 @@ let lift_core env c trm sigma =
          else
            (sigma, mkApp (a_typ, lifted_args))
     | Optimization (SmartLiftConstr (lifted_constr, args)) ->
-       lift_smart_lift_constr c en lifted_constr args lift_rec sigma
+       let open Printing in
+       debug_term en lifted_constr "lifted_constr";
+       debug_terms en args "args";
+       let sigma, lifted = lift_smart_lift_constr c en lifted_constr args lift_rec sigma in
+       debug_term en lifted "lifted";
+       sigma, lifted
     | LiftConstr (lifted_constr, args) ->
        let sigma, constr_app = reduce_term en sigma (mkAppl (lifted_constr, args)) in
        if List.length args > 0 then

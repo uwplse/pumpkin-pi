@@ -223,21 +223,33 @@ let is_packed_constr c env sigma trm =
            sigma, None
        else
          sigma, None
-     else
+     else if not (isRel trm) then (* <-- TODO correct or not? needed? *)
        let sigma_right, args_opt = type_is_from c env trm sigma in
        if Option.has_some args_opt then
          let typ_args = Option.get args_opt in
-         let sigma, (i_b, i_b_typ) =
-           let sig_eq = mkAppl (fst (get_types c), typ_args) in
-           let sigma, sig_eq = reduce_term env sigma sig_eq in
-           let sigma, args = unpack_typ_args env sig_eq sigma in
-           sigma, (last args, List.hd args)
-         in
-         let b = trm in
-         let h_eq = apply_eq_refl { typ = i_b_typ; trm = i_b } in
-         sigma, Some (0, List.append typ_args [i_b; b; h_eq])
+         if (is_or_applies eq_rect trm) then (* TODO better as elim rule. maybe want whole thing as elim rule and no constrs? *)
+           let sigma, trm = expand_eta env sigma_right trm in
+           let eq_args = Array.of_list (unfold_args trm) in
+           let i_b = eq_args.(1) in
+           let b = eq_args.(3) in
+           let h_eq = eq_args.(5) in
+           if is_or_applies eq_refl h_eq then
+             sigma, None
+           else
+             sigma, Some (0, List.append typ_args [i_b; b; h_eq])
+         else
+           if isConstruct (first_fun trm) then
+             let i_b = last typ_args in
+             let sigma, i_b_typ = reduce_type env sigma_right i_b in
+             let b = trm in
+             let h_eq = apply_eq_refl { typ = i_b_typ; trm = i_b } in
+             sigma, Some (0, List.append typ_args [i_b; b; h_eq])
+           else
+             sigma, None
        else
          sigma, None
+     else
+       sigma, None
 
 (* Premises for LIFT-PACK *)
 let is_pack c env sigma trm =
@@ -366,34 +378,40 @@ let determine_lift_rule c env trm sigma =
     if Option.has_some args_o then
       sigma, Equivalence (Option.get args_o)
     else
-      let sigma, i_and_args_o = is_packed_constr c env sigma trm in
-      if Option.has_some i_and_args_o then
-        let i, args = Option.get i_and_args_o in
-        let lifted_constr = (get_lifted_constrs c).(i) in
-        if List.length args > 0 then
-          if not l.is_fwd then
-            sigma, LiftConstr (lifted_constr, args)
-          else
-            match l.orn.kind with
-            | SwapConstruct _ | UnpackSigma ->
-               sigma, LiftConstr (lifted_constr, args)
-            | _ ->
-               sigma, Optimization (SmartLiftConstr (lifted_constr, args))
+      let sigma, to_proj_o = is_proj c env trm sigma in
+      if Option.has_some to_proj_o then
+        let to_proj, i, args, trm_eta = Option.get to_proj_o in
+        if arity trm_eta > arity trm then
+          sigma, Optimization (LazyEta trm_eta)
         else
-          sigma, LiftConstr (lifted_constr, args)
+          let (_, p) = List.nth (get_proj_map c) i in
+          sigma, Coherence (to_proj, p, args)
       else
-        let sigma, is_pack = is_pack c env sigma trm in
-        if is_pack then
-          sigma, LiftPack
+        let sigma, i_and_args_o = is_packed_constr c env sigma trm in
+        if Option.has_some i_and_args_o then
+          let i, args = Option.get i_and_args_o in
+          let lifted_constr = (get_lifted_constrs c).(i) in
+          if List.length args > 0 then
+            match l.orn.kind with
+            | SwapConstruct _ ->
+               sigma, LiftConstr (lifted_constr, args)
+            | UnpackSigma ->
+               if l.is_fwd then
+                 sigma, LiftConstr (lifted_constr, args)
+               else
+                 (* needed for termination *)
+                 sigma, Optimization (SmartLiftConstr (lifted_constr, args))
+            | _ ->
+               if not l.is_fwd then
+                 sigma, LiftConstr (lifted_constr, args)
+               else
+                 sigma, Optimization (SmartLiftConstr (lifted_constr, args))
+          else
+            sigma, LiftConstr (lifted_constr, args)
         else
-          let sigma, to_proj_o = is_proj c env trm sigma in
-          if Option.has_some to_proj_o then
-            let to_proj, i, args, trm_eta = Option.get to_proj_o in
-            if arity trm_eta > arity trm then
-              sigma, Optimization (LazyEta trm_eta)
-            else
-              let (_, p) = List.nth (get_proj_map c) i in
-              sigma, Coherence (to_proj, p, args)
+          let sigma, is_pack = is_pack c env sigma trm in
+          if is_pack then
+            sigma, LiftPack
           else
             let sigma, is_elim_o = is_eliminator c env trm sigma in
             if Option.has_some is_elim_o then

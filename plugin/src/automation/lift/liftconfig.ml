@@ -52,7 +52,8 @@ type lift_config =
     constr_rules : types array * types array;
     proj_rules : (constr * constr) list * (constr * constr) list;
     optimize_proj_packed_rules :
-      (constr -> bool) * ((constr * (constr -> constr)) list);
+      ((constr -> bool) * ((constr * (constr -> constr)) list)) *
+      ((constr -> bool) * ((constr * (constr -> constr)) list));
     cache : temporary_cache;
     opaques : temporary_cache
   }
@@ -197,6 +198,7 @@ let reverse c =
     elim_types = reverse c.elim_types;
     packed_constrs = reverse c.packed_constrs;
     proj_rules = reverse c.proj_rules;
+    optimize_proj_packed_rules = reverse c.optimize_proj_packed_rules;
     constr_rules = reverse c.constr_rules
   }
 
@@ -213,7 +215,7 @@ let zoom c =
 (*
  * Return true if a term is packed
  *)
-let is_packed c = fst (c.optimize_proj_packed_rules)
+let is_packed c = fst (fst (c.optimize_proj_packed_rules))
 
 (*
  * Determine if we can be smarter than Coq and simplify earlier
@@ -221,17 +223,14 @@ let is_packed c = fst (c.optimize_proj_packed_rules)
  * Otherwise, return None
  *)
 let can_reduce_now c trm =
-  let _, proj_packed_map = c.optimize_proj_packed_rules in
+  let _, proj_packed_map = fst c.optimize_proj_packed_rules in
   let optimize_proj_packed_o =
-    if (get_lifting c).is_fwd then
-      try
-        Some
-          (List.find
-             (fun (pr, _) -> is_or_applies pr trm)
-             proj_packed_map)
-      with _ ->
-        None
-    else
+    try
+      Some
+        (List.find
+           (fun (pr, _) -> is_or_applies pr trm)
+           proj_packed_map)
+    with _ ->
       None
   in
   if Option.has_some optimize_proj_packed_o then
@@ -570,7 +569,7 @@ let initialize_proj_rules env sigma c =
        reconstruct_lambda env_proj indexer
      in
      let p2 =
-       let eq = apply_eq_refl {typ = index_type; trm = index } in
+       let eq = apply_eq_refl { typ = index_type; trm = index } in
        reconstruct_lambda env_proj eq
      in
      if l.is_fwd then (* projT1 -> pack, projT2 -> eq_refl *)
@@ -624,10 +623,14 @@ let initialize_proj_rules env sigma c =
 (*
  * Sometimes we can do better than Coq's reduction and simplify eagerly.
  * In particular, this happens when we have projections of packed terms.
+ * When subterms recursively refer to the original type, like in UnpackSigma,
+ * this also helps ensure that the algorithm terminates by simplifying away
+ * redundant terms.
  *)
 let initialize_optimize_proj_packed_rules c env sigma =
-  let optimize_proj_packed_rules =
-    match (get_lifting c).orn.kind with
+  let l = get_lifting c in
+  let rules_fwd =
+    match l.orn.kind with
     | Algebraic (_, _) | UnpackSigma ->
        let proj1_rule = (fun a -> (dest_existT a).index) in
        let proj2_rule = (fun a -> (dest_existT a).unpacked) in
@@ -638,7 +641,10 @@ let initialize_optimize_proj_packed_rules c env sigma =
        let proj1_rule = (fun a -> (dest_pair a).Produtils.trm1) in
        let proj2_rule = (fun a -> (dest_pair a).Produtils.trm2) in
        is_or_applies pair, [(Desugarprod.fst_elim (), proj1_rule); (Desugarprod.snd_elim (), proj2_rule)]
-  in sigma, { c with optimize_proj_packed_rules }
+  in
+  let rules_bwd = (fun _ -> false), [] in
+  let optimize_proj_packed_rules = (rules_fwd, rules_bwd) in
+  sigma, { c with optimize_proj_packed_rules }
                            
 (* Initialize the lift_config *)
 let initialize_lift_config env l ignores sigma =
@@ -654,7 +660,7 @@ let initialize_lift_config env l ignores sigma =
       packed_constrs = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
       constr_rules = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
       proj_rules = [], [];
-      optimize_proj_packed_rules = ((fun _ -> false), []);
+      optimize_proj_packed_rules = (((fun _ -> false), []), ((fun _ -> false), []));
       cache;
       opaques
     }
