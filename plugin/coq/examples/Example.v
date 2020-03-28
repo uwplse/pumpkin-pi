@@ -269,16 +269,24 @@ Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 Configure Lift packed vector { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.
 
 (* TODO move these tests later *)
+
 Definition my_id (T : Type) (n : nat) (v : vector T n) := v.
 Lift vector packed in my_id as id'.
-Print id'.
-Fail.
+Print id'. 
+Print packed_vector.zip.
+Definition my_cons_lifted (T : Type) (n : nat) (v : { s : sigT (vector T) & projT1 s = n }) (t : T) := (*: { s : sigT (vector T) & projT1 s = S n } :=
+  *)
+  consV n t (t_unpack T n v).
+Check my_cons_lifted.
+Print t_unpack.
+Print unpack_generic.
+
 Definition my_cons (T : Type) (n : nat) (v : vector T n) (t : T) := consV n t v.
 Print t_unpack.
 
 
 Lift vector packed in my_cons as my_cons'.
-Fail.
+Print my_cons'.
 
 Definition my_zip (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
 rew [vector (a * b)]
@@ -288,8 +296,7 @@ rew [vector (a * b)]
 projT2
   (hs_to_coqV_p.zip a b (existT [eta vector a] n pl1)
      (existT [eta vector b] n pl2)).
-Lift vector packed in my_zip as zip'.
-
+Fail Lift vector packed in my_zip as zip'. (* TODO left off here *)
 (* end TODO *)
 
 (*

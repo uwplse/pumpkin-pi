@@ -223,7 +223,7 @@ let is_packed_constr c env sigma trm =
            sigma, None
        else
          sigma, None
-     else (* <-- TODO correct or not? needed? *)
+     else (* <-- TODO correct or not? needed? also, this is slow *)
        let sigma_right, args_opt = type_is_from c env trm sigma in
        if Option.has_some args_opt then
          let typ_args = Option.get args_opt in
@@ -238,7 +238,8 @@ let is_packed_constr c env sigma trm =
            else
              sigma, Some (0, List.append typ_args [i_b; b; h_eq])
          else
-           if not (isRel trm) then (* TODO blehhh *)
+           if isApp trm && isConstruct (first_fun trm) then (* TODO blehhh *)
+             (* TODO get correct args; then return actual constr; then refold correctly *)
              let i_b = last typ_args in
              let sigma, i_b_typ = reduce_type env sigma_right i_b in
              let b = trm in

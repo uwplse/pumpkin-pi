@@ -344,17 +344,20 @@ let repack c env lifted typ sigma =
      let packer = lift_typ.packer in
      let e = pack_existT {index_type; packer; index = n; unpacked = b} in
      sigma, mkLetIn (Anonymous, lifted, typ, e)
-  | UnpackSigma -> (* TODO clean etc *)
-     let lift_typ = dest_sigT (shift typ) in
-     let s, eq = projections lift_typ (mkRel 1) in
-     let env_typ = push_local (Anonymous, typ) env in
-     let sigma, s_typ = Util.on_snd dest_sigT (reduce_type env_typ sigma s) in
-     let i_b, b = projections s_typ s in
-     let s_e = pack_existT { index_type = s_typ.index_type; packer = s_typ.packer; index = i_b; unpacked = b} in
-     let index_type = lift_typ.index_type in
-     let packer = lift_typ.packer in
-     let e = pack_existT {index_type; packer; index = s_e; unpacked = eq} in
-     sigma, mkLetIn (Anonymous, lifted, typ, e)
+  | UnpackSigma ->
+     if (get_lifting c).is_fwd then
+       sigma, lifted
+     else
+       let lift_typ = dest_sigT (shift typ) in
+       let s, eq = projections lift_typ (mkRel 1) in
+       let env_typ = push_local (Anonymous, typ) env in
+       let sigma, s_typ = Util.on_snd dest_sigT (reduce_type env_typ sigma s) in
+       let i_b, b = projections s_typ s in
+       let s_e = pack_existT { index_type = s_typ.index_type; packer = s_typ.packer; index = i_b; unpacked = b} in
+       let index_type = lift_typ.index_type in
+       let packer = lift_typ.packer in
+       let e = pack_existT {index_type; packer; index = s_e; unpacked = eq} in
+       sigma, mkLetIn (Anonymous, lifted, typ, e)
   | CurryRecord ->
      let f = first_fun typ in
      let args = unfold_args typ in
@@ -372,8 +375,6 @@ let repack c env lifted typ sigma =
  * the code too much and producing ugly terms.
  *)
 let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
-  let open Printing in
-  debug_term env trm "trm";
   if try_repack then
     let sigma_typ, typ = reduce_type env sigma trm in
     let sigma_typ, is_from_typ = is_from c env typ sigma in
@@ -507,30 +508,41 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
      let sigma, trm2 = lift_rec env sigma c pair.trm2 in
      (sigma, apply_pair {typ1; typ2; trm1; trm2})
   | UnpackSigma ->
-     let open Printing in
-     debug_term env constr_app "constr_app";
      let ex_eq = dest_existT constr_app in
      let ex = dest_existT ex_eq.index in
      let sigma, packer = lift_rec env sigma c ex.packer in
-     debug_term env packer "packer";
      let sigma, index = lift_rec env sigma c ex.index in
-     debug_term env index "index";
      let sigma, (unpacked, h_eq) =
        if is_or_applies eq_refl ex_eq.unpacked then
          (* terminate *)
-         sigma, (ex.unpacked, ex_eq.unpacked)
+         (* TODO eta expand first, so we get this right, also.. test w/o eta *)
+         let lifted_inner = (Array.of_list args).(3) in
+         let (f', args') = destApp lifted_inner in
+         (* TODO move this to refolding in a real constr rule! for now hax *)
+         let sigma, args'' =
+           map_state_array
+             (fun a sigma ->
+               let sigma_right, is_from_o = type_is_from c env a sigma in
+               if Option.has_some is_from_o then
+                 let open Printing in
+                 Printf.printf "%s\n\n" "is from!";
+                 let typ_args = Option.get is_from_o in
+                 lift env (get_lifting (reverse c)) a typ_args sigma_right 
+               else
+                 lift_rec env sigma c a)
+             args'
+             sigma
+         in
+         let b = mkApp (f', args'') in
+         sigma, (b, ex_eq.unpacked)
        else
          (* recurse *)
          let sigma, unpacked = lift_rec env sigma c ex.unpacked in
          let sigma, h_eq = lift_rec env sigma c ex_eq.unpacked in
          sigma, (unpacked, h_eq)
      in
-     debug_term env h_eq "h_eq";
-     debug_term env unpacked "unpacked";
      let index = pack_existT { ex with packer; index; unpacked } in
-     debug_term env index "index";
      let sigma, packer = lift_rec env sigma c ex_eq.packer in
-     debug_term env packer "packer";
      (sigma, pack_existT { ex_eq with packer; index; unpacked = h_eq })
   | _ ->
      raise NotAlgebraic
@@ -558,15 +570,10 @@ let lift_core env c trm sigma =
     | Optimization (LazyEta tr_eta) ->
        lift_rec en sigma c tr_eta
     | Section | Retraction | Internalize ->
-       let open Printing in
-       debug_term en (last_arg tr) "lifting last arg";
        lift_rec en sigma c (last_arg tr)
     | Coherence (to_proj, p, args) ->
        let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in
-       let open Printing in
-       debug_term en projected "projected!";
        let sigma, lifted = lift_rec en sigma c projected in
-       debug_term en lifted "lifted";
        sigma, lifted
     | Equivalence args ->
        let (_, b_typ) = get_types c in
@@ -582,11 +589,7 @@ let lift_core env c trm sigma =
          else
            (sigma, mkApp (a_typ, lifted_args))
     | Optimization (SmartLiftConstr (lifted_constr, args)) ->
-       let open Printing in
-       debug_term en lifted_constr "lifted_constr";
-       debug_terms en args "args";
        let sigma, lifted = lift_smart_lift_constr c en lifted_constr args lift_rec sigma in
-       debug_term en lifted "lifted";
        sigma, lifted
     | LiftConstr (lifted_constr, args) ->
        let sigma, constr_app = reduce_term en sigma (mkAppl (lifted_constr, args)) in
@@ -598,8 +601,6 @@ let lift_core env c trm sigma =
        if isRel tr then (* TODO now these rules are different *)
          (* pack *)
          let sigma, packed = maybe_repack lift_rec c en tr tr (fun _ _ _ -> ret true) true sigma in
-         let open Printing in
-         debug_term en packed "packed";
          sigma, packed
        else
          (* unpack (when not covered by constructor rule) *)
