@@ -24,6 +24,7 @@ open Evarutil
 open Evarconv
 open Names
 open Equtils
+open Idutils
 
 (*
  * Lifting configuration: Includes the lifting, types, and cached rules
@@ -40,6 +41,7 @@ open Equtils
 (*
  * Lifting configuration, along with the types A and B,
  * rules for constructors and projections that are configurable by equivalence,
+ * simplification rules, rules for lifting the identity function,
  * a cache for constants encountered as the algorithm traverses,
  * and a cache for the constructor rules that refolding determines.
  *)
@@ -53,7 +55,8 @@ type lift_config =
     proj_rules : (constr * constr) list * (constr * constr) list;
     optimize_proj_packed_rules :
       ((constr -> bool) * ((constr * (constr -> constr)) list)) *
-      ((constr -> bool) * ((constr * (constr -> constr)) list));
+        ((constr -> bool) * ((constr * (constr -> constr)) list));
+    id_rules : (constr * constr);
     cache : temporary_cache;
     opaques : temporary_cache
   }
@@ -129,7 +132,7 @@ let optimize_is_from c env goal_typ typ =
          None
     | _ ->
        None
-    
+
 (*
  * Determine whether a type is the type we are ornamenting from
  * That is, A when we are promoting, and B when we are forgetting
@@ -189,6 +192,35 @@ let get_constrs c = fst c.packed_constrs
  *)
 let get_lifted_constrs c = fst c.constr_rules
 
+(*
+ * Check if a term applies the eta-expanded identity function
+ *)
+let applies_id_eta c env trm sigma =
+  let l = get_lifting c in
+  let right_type trm = type_is_from c env trm sigma in
+  let (id, _) = c.id_rules in
+  if equal (zoom_term zoom_lambda_term env id) (mkRel 1) then
+    right_type trm
+  else
+    match l.orn.kind with
+    | Algebraic (_, _) | UnpackSigma ->
+       if is_or_applies existT trm then
+         right_type trm
+       else
+         sigma, None
+    | CurryRecord ->
+       if is_or_applies pair trm then
+         right_type trm
+       else
+         sigma, None
+    | SwapConstruct _ ->
+       sigma, None
+
+(*
+ * Get the cached lifted identity function
+ *)
+let get_lifted_id_eta c = snd c.id_rules
+
 (* --- Modifying the configuration --- *)
 
 let reverse c =
@@ -199,7 +231,8 @@ let reverse c =
     packed_constrs = reverse c.packed_constrs;
     proj_rules = reverse c.proj_rules;
     optimize_proj_packed_rules = reverse c.optimize_proj_packed_rules;
-    constr_rules = reverse c.constr_rules
+    constr_rules = reverse c.constr_rules;
+    id_rules = reverse c.id_rules;
   }
 
 let zoom c =
@@ -629,6 +662,8 @@ let initialize_proj_rules env sigma c =
  * When subterms recursively refer to the original type, like in UnpackSigma,
  * this also helps ensure that the algorithm terminates by simplifying away
  * redundant terms.
+ *
+ * TODO use id rules here
  *)
 let initialize_optimize_proj_packed_rules c env sigma =
   let l = get_lifting c in
@@ -648,7 +683,71 @@ let initialize_optimize_proj_packed_rules c env sigma =
   let rules_bwd = (fun _ -> false), [] in
   let optimize_proj_packed_rules = (rules_fwd, rules_bwd) in
   sigma, { c with optimize_proj_packed_rules }
-                           
+
+(*
+ * Define what it means to lift the identity function, since we must
+ * preserve definitional equalities.
+ *)
+let initialize_id_rules c env sigma =
+  let (a_typ, b_typ) = get_types c in
+  let l = get_lifting c in
+  let sigma, fwd_typ = reduce_type env sigma (lift_to l) in
+  let sigma, bwd_typ = reduce_type env sigma (lift_back l) in
+  let sigma, id_a =
+    let env_id = zoom_env zoom_product_type env (if l.is_fwd then fwd_typ else bwd_typ) in
+    let a = mkRel 1 in
+    match l.orn.kind with
+    | UnpackSigma ->
+       (* eta for nested sigT *)
+       let typ_args = shift_all (mk_n_rels (nb_rel env_id - 1)) in
+       let sigma, typ = reduce_term env_id sigma (mkAppl (a_typ, typ_args)) in
+       let s_eq_typ = dest_sigT typ in
+       let index_type = s_eq_typ.index_type in
+       let packer = s_eq_typ.packer in
+       let s, unpacked = projections s_eq_typ a in
+       let sigma, index =
+         let sigma, typ = reduce_type env_id sigma s in
+         let s_typ = dest_sigT typ in
+         let index_type = s_typ.index_type in
+         let packer = s_typ.packer in
+         let index, unpacked = projections s_typ s in
+         sigma, pack_existT { index_type; packer; index; unpacked}
+       in
+       let e = pack_existT {index_type; packer; index; unpacked} in
+       sigma, reconstruct_lambda env_id e
+    | Algebraic _ | CurryRecord | SwapConstruct _ ->
+       (* identity *)
+       sigma, reconstruct_lambda env_id a
+  in
+  let sigma, id_b =
+    let env_id = zoom_env zoom_product_type env (if l.is_fwd then bwd_typ else fwd_typ) in
+    let b = mkRel 1 in
+    match l.orn.kind with
+    | Algebraic _ ->
+       (* eta for sigT *)
+       let typ_args = shift_all (mk_n_rels (nb_rel env_id - 1)) in
+       let sigma, typ = reduce_term env_id sigma (mkAppl (b_typ, typ_args)) in
+       let s_typ = dest_sigT typ in
+       let index_type = s_typ.index_type in
+       let packer = s_typ.packer in
+       let index, unpacked = projections s_typ b in
+       let e = pack_existT {index_type; packer; index; unpacked} in
+       sigma, reconstruct_lambda env_id e
+    | CurryRecord ->
+       (* eta for nested prod *)
+       let typ_args = shift_all (mk_n_rels (nb_rel env_id - 1)) in
+       let sigma, typ = reduce_term env_id sigma (mkAppl (b_typ, typ_args)) in
+       let f = first_fun typ in
+       let args = unfold_args typ in
+       let sigma, typ_red = specialize_delta_f env_id f args sigma in
+       sigma, reconstruct_lambda env_id (eta_prod_rec b typ_red)
+    | UnpackSigma | SwapConstruct _ ->
+       (* identity *)
+       sigma, reconstruct_lambda env_id b
+  in
+  let id_rules = if l.is_fwd then (id_a, id_b) else (id_b, id_a) in
+  sigma, { c with id_rules }
+
 (* Initialize the lift_config *)
 let initialize_lift_config env l ignores sigma =
   let sigma, typs = initialize_types l env sigma in
@@ -664,11 +763,13 @@ let initialize_lift_config env l ignores sigma =
       constr_rules = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
       proj_rules = [], [];
       optimize_proj_packed_rules = (((fun _ -> false), []), ((fun _ -> false), []));
+      id_rules = (mkRel 1, mkRel 1);
       cache;
       opaques
     }
   in
   let sigma, c = initialize_optimize_proj_packed_rules c env sigma in
+  let sigma, c = initialize_id_rules c env sigma in
   let sigma, c = initialize_elim_types c env sigma in
   let sigma, c = initialize_packed_constrs c env sigma in
   let sigma, c = initialize_constr_rules c env sigma in

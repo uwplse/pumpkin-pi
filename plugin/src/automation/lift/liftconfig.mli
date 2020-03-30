@@ -106,6 +106,19 @@ val get_constrs :
 val get_lifted_constrs :
   lift_config -> constr array
 
+(*
+ * Check if the term applies the eta-expanded identity function
+ * If so, return the type arguments
+ *)
+val applies_id_eta :
+  lift_config -> env -> constr -> evar_map -> ((constr list) option) state
+
+(*
+ * Get the cached lifted identity function
+ *)
+val get_lifted_id_eta :
+  lift_config -> constr
+
 (* --- Smart simplification --- *)
 
 (*

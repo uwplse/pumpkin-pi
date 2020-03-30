@@ -335,6 +335,7 @@ let lift_elim env sigma c trm_app pms =
  * the identity function)
  *)
 let repack c env lifted typ sigma =
+  (* TODO use id rules *)
   match (get_lifting c).orn.kind with
   | Algebraic _ ->
      let lift_typ = dest_sigT (shift typ) in
@@ -373,6 +374,8 @@ let repack c env lifted typ sigma =
  *
  * We are strategic about when we repack in order to avoid slowing down
  * the code too much and producing ugly terms.
+ *
+ * TODO get rid of this if we can, and update the comment if we can't
  *)
 let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
   if try_repack then
@@ -573,8 +576,7 @@ let lift_core env c trm sigma =
        lift_rec en sigma c (last_arg tr)
     | Coherence (to_proj, p, args) ->
        let sigma, projected = reduce_term en sigma (mkAppl (p, snoc to_proj args)) in
-       let sigma, lifted = lift_rec en sigma c projected in
-       sigma, lifted
+       lift_rec en sigma c projected
     | Equivalence args ->
        let (_, b_typ) = get_types c in
        let sigma, lifted_args = map_rec_args lift_rec en sigma c (Array.of_list args) in
@@ -589,22 +591,17 @@ let lift_core env c trm sigma =
          else
            (sigma, mkApp (a_typ, lifted_args))
     | Optimization (SmartLiftConstr (lifted_constr, args)) ->
-       let sigma, lifted = lift_smart_lift_constr c en lifted_constr args lift_rec sigma in
-       sigma, lifted
+       lift_smart_lift_constr c en lifted_constr args lift_rec sigma
     | LiftConstr (lifted_constr, args) ->
        let sigma, constr_app = reduce_term en sigma (mkAppl (lifted_constr, args)) in
        if List.length args > 0 then
          lift_rec en sigma c constr_app
        else
          sigma, constr_app
-    | LiftPack ->
-       if isRel tr then (* TODO now these rules are different *)
-         (* pack *)
-         let sigma, packed = maybe_repack lift_rec c en tr tr (fun _ _ _ -> ret true) true sigma in
-         sigma, packed
-       else
-         (* unpack (when not covered by constructor rule) *)
-         lift_rec en sigma c (dest_existT tr).unpacked
+    | LiftIdentity (lifted_id, args) ->
+       let typ_args = Array.of_list (all_but_last args) in
+       let sigma, lifted_typ_args = map_rec_args lift_rec en sigma c typ_args in
+       sigma, mkAppl (lifted_id, snoc tr (Array.to_list lifted_typ_args))
     | Optimization (SimplifyProjectPacked (reduce, (f, args))) ->
        lift_simplify_project_packed c en reduce f args lift_rec sigma
     | LiftElim (tr_elim, lifted_pms) ->
@@ -623,7 +620,17 @@ let lift_core env c trm sigma =
        let sigma, post_args' = map_rec_args lift_rec en sigma c (Array.of_list post_args) in
        sigma, mkApp (tr'', post_args')
     | Optimization (AppLazyDelta (f, args)) ->
-       lift_app_lazy_delta c en f args lift_rec sigma
+       let l = get_lifting c in
+       (match l.orn.kind with
+       | Algebraic _ when not (l.is_fwd) ->
+          if Option.has_some (snd (applies_id_eta c en tr sigma)) then
+            (* TODO clean/move/extend this *)
+            (* unpack (when not covered by constructor rule) *)
+            lift_rec en sigma c (dest_existT tr).unpacked
+          else
+            lift_app_lazy_delta c en f args lift_rec sigma
+       | _ ->
+          lift_app_lazy_delta c en f args lift_rec sigma)
     | Optimization (ConstLazyDelta (co, u)) ->
        lift_const_lazy_delta c en (co, u) lift_rec sigma
     | CIC k ->

@@ -42,7 +42,7 @@ type lift_optimization =
 type lift_rule =
 | Equivalence of constr list
 | LiftConstr of constr * constr list
-| LiftPack
+| LiftIdentity of constr * constr list
 | Coherence of constr * constr * constr list
 | LiftElim of elim_app * constr list
 | Section

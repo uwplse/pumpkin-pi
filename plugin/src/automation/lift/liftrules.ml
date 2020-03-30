@@ -128,9 +128,9 @@ type lift_optimization =
  *
  * 8. OPTIMIZATION runs when some optimization applies.
  *
- * 9. LIFT-PACK runs when we must repack for non-primitive projections.
- *    I hope to understand when we need this at some point; I suspect
- *    it should be a part of other rules.
+ * 9. LIFT-IDENTITY runs when we lift the eta-expanded identity function.
+ *    This exists to ensure that we preserve definitional equalities.
+ *    The rule returns the lifted identity function and its argument.
  *
  * 10. CIC runs when no optimization applies and none of the other rules
  *    apply. It returns the kind of the Gallina term.
@@ -138,7 +138,7 @@ type lift_optimization =
 type lift_rule =
 | Equivalence of constr list
 | LiftConstr of constr * constr list
-| LiftPack
+| LiftIdentity of constr * constr list
 | Coherence of constr * constr * constr list
 | LiftElim of elim_app * constr list
 | Section
@@ -150,6 +150,7 @@ type lift_rule =
 (* --- Premises --- *)
 
 (* Premises for LIFT-CONSTR *)
+(* TODO use ID rules, and mvoe out id rules from constr if possible *)
 let is_packed_constr c env sigma trm =
   let l = get_lifting c in
   let constrs = get_constrs c in
@@ -250,26 +251,13 @@ let is_packed_constr c env sigma trm =
        else
          sigma, None
 
-(* Premises for LIFT-PACK *)
-let is_pack c env sigma trm =
-  let l = get_lifting c in
-  let right_type trm = type_is_from c env trm sigma in
-  if l.is_fwd || l.orn.kind = UnpackSigma then
-    if isRel trm then
-      (* pack *)
-      Util.on_snd Option.has_some (right_type trm)
-    else
-      sigma, false
+(* Premises for LIFT-IDENTITY *)
+let is_identity c env trm sigma =
+  if isRel trm then
+    applies_id_eta c env trm sigma
   else
-    match l.orn.kind with
-    | Algebraic (_, _) ->
-       if is_packed c trm then
-         (* unpack *)
-         Util.on_snd Option.has_some (right_type trm)
-       else
-         sigma, false
-    | _ ->
-       sigma, false
+    (* TODO non-rel/constr versions *)
+    sigma, None
 
 (* Auxiliary function for premise for LIFT-PROJ *)
 let check_is_proj c env trm proj_is =
@@ -408,9 +396,12 @@ let determine_lift_rule c env trm sigma =
           else
             sigma, LiftConstr (lifted_constr, args)
         else
-          let sigma, is_pack = is_pack c env sigma trm in
-          if is_pack then
-            sigma, LiftPack
+          let sigma, is_identity_o = is_identity c env trm sigma in
+          if Option.has_some is_identity_o then
+            let typ_args = Option.get is_identity_o in
+            let args = snoc trm typ_args in
+            let lifted_id = get_lifted_id_eta c in
+            sigma, LiftIdentity (lifted_id, args)
           else
             let sigma, is_elim_o = is_eliminator c env trm sigma in
             if Option.has_some is_elim_o then
