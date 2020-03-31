@@ -307,7 +307,6 @@ Lift Module packed vector in packed_vector as uf.
 
 (* We are done. Here are our final types: *)
 Check uf.zip.
-Print uf.zip.
 Check uf.zip_with.
 Check uf.zip_with_is_zip.
 (*

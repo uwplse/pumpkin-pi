@@ -107,8 +107,15 @@ val get_lifted_constrs :
   lift_config -> constr array
 
 (*
+ * Check if a term may apply the eta-expanded identity function,
+ * but don't bother checking the type
+ *)
+val may_apply_id_eta :
+  lift_config -> env -> constr -> bool
+
+(*
  * Check if the term applies the eta-expanded identity function
- * If so, return the type arguments
+ * If so, return the arguments
  *)
 val applies_id_eta :
   lift_config -> env -> constr -> evar_map -> ((constr list) option) state
@@ -122,16 +129,11 @@ val get_lifted_id_eta :
 (* --- Smart simplification --- *)
 
 (*
- * Return true if a term is packed
- *)
-val is_packed : lift_config -> constr -> bool
-
-(*
  * Determine if we can be smarter than Coq and simplify earlier
  * If yes, return how
  * Otherwise, return None
  *)
-val can_reduce_now : lift_config -> constr -> reducer option
+val can_reduce_now : lift_config -> env -> constr -> reducer option
 
 (* --- Modifying the configuration --- *)
 

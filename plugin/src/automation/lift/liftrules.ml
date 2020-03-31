@@ -175,32 +175,35 @@ let is_packed_constr c env sigma trm =
   match l.orn.kind with
   | Algebraic _ ->
      let is_packed, unpacked =
-       if isConstruct trm || (isApp trm && l.is_fwd) then
-         (fun _ -> true), id
+       if l.is_fwd then
+         (fun _ -> true), id (* TODO can we use may_apply ... ? *)
        else
-         is_packed c, last_arg
+         may_apply_id_eta c env, last_arg
      in is_packed_inductive_constr is_packed unpacked trm
   | SwapConstruct _ ->
-     is_packed_inductive_constr (fun _ -> true) id trm
+     is_packed_inductive_constr (fun _ -> true) id trm (* TODO can we use may_apply ... ? *)
   | CurryRecord ->
-      if isConstruct trm || (isApp trm && l.is_fwd) then
-        is_packed_inductive_constr (fun _ -> true) id trm
-      else if is_packed c trm then
-        (* we treat any pair of the right type as a constructor *)
-        let sigma_right, args_opt = type_is_from c env trm sigma in
-        if Option.has_some args_opt then
-          let sigma = sigma_right in
-          let constr = constrs.(0) in
-          let pms = Option.get args_opt in
-          let args = pair_projections_eta_rec_n trm (arity constr - List.length pms) in
-          sigma, Some (0, List.append pms args)
-        else
-          sigma, None
-      else
-        sigma, None
+     if isConstruct trm || (isApp trm && l.is_fwd) then
+       is_packed_inductive_constr (fun _ -> true) id trm (* TODO can we use may_apply ... ? *)
+     else if (not l.is_fwd) && may_apply_id_eta c env trm then
+       (* we treat any pair of the right type as a constructor *)
+       if applies (lift_back l) trm then
+         sigma, None
+       else
+         let sigma_right, args_opt = type_is_from c env trm sigma in
+         if Option.has_some args_opt then
+           let sigma = sigma_right in
+           let constr = constrs.(0) in
+           let pms = Option.get args_opt in
+           let args = pair_projections_eta_rec_n trm (arity constr - List.length pms) in
+           sigma, Some (0, List.append pms args)
+         else
+           sigma, None
+     else
+       sigma, None
   | UnpackSigma ->
      if (get_lifting c).is_fwd then
-       if is_packed c trm then
+       if may_apply_id_eta c env trm then
          (* we treat any existential of the right type as a constructor *)
          let sigma_right, args_opt = type_is_from c env trm sigma in
          if Option.has_some args_opt then
@@ -256,7 +259,6 @@ let is_identity c env trm sigma =
   if isRel trm then
     applies_id_eta c env trm sigma
   else
-    (* TODO non-rel/constr versions *)
     sigma, None
 
 (* Auxiliary function for premise for LIFT-PROJ *)
@@ -418,7 +420,7 @@ let determine_lift_rule c env trm sigma =
                  else if equal (lift_to l) f then
                    sigma, Internalize
                  else
-                   let how_reduce_o = can_reduce_now c trm in
+                   let how_reduce_o = can_reduce_now c env trm in
                    if Option.has_some how_reduce_o then
                      let how_reduce = Option.get how_reduce_o in
                      sigma, Optimization (SimplifyProjectPacked (how_reduce, (f, args)))

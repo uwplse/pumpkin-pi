@@ -422,10 +422,11 @@ let lift_simplify_project_packed c env reduce f args lift_rec sigma =
   let sigma, args' = map_rec_args lift_rec env sigma c args in
   let arg' = last (Array.to_list args') in
   let arg'' = reduce_stateless reduce_term env sigma arg' in
-  if is_packed c arg'' then
-    let sigma, arg_red = reduce env sigma arg'' in
-    sigma, arg_red
+  if may_apply_id_eta (reverse c) env arg'' then
+    (* projection of expanded identity *)
+    reduce env sigma arg''
   else
+    (* TODO needed? Why? *)
     let sigma, f' = lift_rec env sigma c f in
     let lifted = mkApp (f', args') in
     let lifted_typ = args'.(0) in
@@ -527,8 +528,6 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
              (fun a sigma ->
                let sigma_right, is_from_o = type_is_from c env a sigma in
                if Option.has_some is_from_o then
-                 let open Printing in
-                 Printf.printf "%s\n\n" "is from!";
                  let typ_args = Option.get is_from_o in
                  lift env (get_lifting (reverse c)) a typ_args sigma_right 
                else

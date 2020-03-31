@@ -53,9 +53,9 @@ type lift_config =
     packed_constrs : types array * types array;
     constr_rules : types array * types array;
     proj_rules : (constr * constr) list * (constr * constr) list;
-    optimize_proj_packed_rules :
-      ((constr -> bool) * ((constr * (constr -> constr)) list)) *
-        ((constr -> bool) * ((constr * (constr -> constr)) list));
+    optimize_proj_id_rules :
+      ((constr * (constr -> constr)) list) *
+      ((constr * (constr -> constr)) list);
     id_rules : (constr * constr);
     cache : temporary_cache;
     opaques : temporary_cache
@@ -193,28 +193,32 @@ let get_constrs c = fst c.packed_constrs
 let get_lifted_constrs c = fst c.constr_rules
 
 (*
- * Check if a term applies the eta-expanded identity function
+ * Check if a term may apply the eta-expanded identity function,
+ * but don't bother checking the type
  *)
-let applies_id_eta c env trm sigma =
+let may_apply_id_eta c env trm =
   let l = get_lifting c in
-  let right_type trm = type_is_from c env trm sigma in
   let (id, _) = c.id_rules in
   if equal (zoom_term zoom_lambda_term env id) (mkRel 1) then
-    right_type trm
+    true
   else
     match l.orn.kind with
     | Algebraic (_, _) | UnpackSigma ->
-       if is_or_applies existT trm then
-         right_type trm
-       else
-         sigma, None
+       is_or_applies existT trm || is_or_applies (lift_back l) trm
     | CurryRecord ->
-       if is_or_applies pair trm then
-         right_type trm
-       else
-         sigma, None
+       is_or_applies pair trm || is_or_applies (lift_back l) trm
     | SwapConstruct _ ->
-       sigma, None
+       false (* impossible state *)
+                 
+(*
+ * Check if a term applies the eta-expanded identity function
+ *)
+let applies_id_eta c env trm sigma =
+  let right_type trm = type_is_from c env trm sigma in
+  if may_apply_id_eta c env trm then
+    right_type trm
+  else
+    sigma, None
 
 (*
  * Get the cached lifted identity function
@@ -230,8 +234,8 @@ let reverse c =
     elim_types = reverse c.elim_types;
     packed_constrs = reverse c.packed_constrs;
     proj_rules = reverse c.proj_rules;
-    optimize_proj_packed_rules = reverse c.optimize_proj_packed_rules;
     constr_rules = reverse c.constr_rules;
+    optimize_proj_id_rules = reverse c.optimize_proj_id_rules;
     id_rules = reverse c.id_rules;
   }
 
@@ -246,11 +250,6 @@ let zoom c =
 (* --- Smart simplification --- *)
 
 (*
- * Return true if a term is packed
- *)
-let is_packed c = fst (fst (c.optimize_proj_packed_rules))
-
-(*
  * Determine if we can be smarter than Coq and simplify earlier
  * If yes, return how
  * Otherwise, return None
@@ -258,22 +257,26 @@ let is_packed c = fst (fst (c.optimize_proj_packed_rules))
  * Sometimes, we need this for termination when lifted terms can be
  * self-referrential
  *)
-let can_reduce_now c trm =
-  let _, proj_packed_map = fst c.optimize_proj_packed_rules in
-  let optimize_proj_packed_o =
-    try
-      Some
-        (List.find
-           (fun (pr, _) -> is_or_applies pr trm)
-           proj_packed_map)
-    with _ ->
-      None
-  in
-  if Option.has_some optimize_proj_packed_o then
-    let _, reduce = Option.get optimize_proj_packed_o in
-    Some (fun _ sigma trm -> sigma, reduce trm)
-  else
-    None
+let can_reduce_now c env trm =
+  match kind trm with
+  | App (_, args) when Array.length args > 0 ->
+     let proj_packed_map = fst c.optimize_proj_id_rules in
+     let optimize_proj_packed_o =
+       try
+         Some
+           (List.find
+              (fun (pr, _) -> is_or_applies pr trm)
+              proj_packed_map)
+       with _ ->
+         None
+     in
+     if Option.has_some optimize_proj_packed_o then
+       let _, reduce = Option.get optimize_proj_packed_o in
+       Some (fun _ sigma trm -> sigma, reduce trm)
+     else
+       None
+  | _ ->
+     None
 
 (* --- Initialization --- *)
 
@@ -515,11 +518,11 @@ let lift_constr env sigma c trm =
          (* simplify projections of existentials *)
          map_state
            (fun a sigma ->
-             let how_reduce_o = can_reduce_now c a in
+             let how_reduce_o = can_reduce_now (reverse c) env a in
              if Option.has_some how_reduce_o then
                let proj_a = Option.get how_reduce_o in
                let a_inner = last_arg a in
-               let how_reduce_o = can_reduce_now c a_inner in
+               let how_reduce_o = can_reduce_now (reverse c) env a_inner in
                if Option.has_some how_reduce_o then
                  let proj_a_inner = Option.get how_reduce_o in
                  let a_inner_inner = last_arg a_inner in
@@ -658,31 +661,46 @@ let initialize_proj_rules env sigma c =
 
 (*
  * Sometimes we can do better than Coq's reduction and simplify eagerly.
- * In particular, this happens when we have projections of packed terms.
+ * In particular, this happens when we lift to projections of the eta-expanded
+ * identity functions, like (projT1 (existT _ n v)).
  * When subterms recursively refer to the original type, like in UnpackSigma,
  * this also helps ensure that the algorithm terminates by simplifying away
  * redundant terms.
  *
- * TODO use id rules here
+ * TODO !!! this seems to have broken for large packed constants like the case
+ * study, causing an explosion in time to run the tests. Investigate & fix
+ * before pushing.
  *)
-let initialize_optimize_proj_packed_rules c env sigma =
+let initialize_optimize_proj_id_rules c env sigma =
   let l = get_lifting c in
   let rules_fwd =
     match l.orn.kind with
-    | Algebraic (_, _) | UnpackSigma ->
+    | Algebraic (_, _) ->
        let proj1_rule = (fun a -> (dest_existT a).index) in
        let proj2_rule = (fun a -> (dest_existT a).unpacked) in
-       is_or_applies existT, [(projT1, proj1_rule); (projT2, proj2_rule)]
-    | SwapConstruct _ ->
-       (fun _ -> false), []
+       [(projT1, proj1_rule); (projT2, proj2_rule)]
     | CurryRecord ->
        let proj1_rule = (fun a -> (dest_pair a).Produtils.trm1) in
        let proj2_rule = (fun a -> (dest_pair a).Produtils.trm2) in
-       is_or_applies pair, [(Desugarprod.fst_elim (), proj1_rule); (Desugarprod.snd_elim (), proj2_rule)]
+       [(Desugarprod.fst_elim (), proj1_rule); (Desugarprod.snd_elim (), proj2_rule)]
+    | SwapConstruct _ | UnpackSigma ->
+       []
   in
-  let rules_bwd = (fun _ -> false), [] in
-  let optimize_proj_packed_rules = (rules_fwd, rules_bwd) in
-  sigma, { c with optimize_proj_packed_rules }
+  let rules_bwd =
+    match l.orn.kind with
+    | UnpackSigma ->
+       let proj1_rule = (fun a -> (dest_existT a).index) in
+       let proj2_rule = (fun a -> (dest_existT a).unpacked) in
+       [(projT1, proj1_rule); (projT2, proj2_rule)]
+    | SwapConstruct _ | Algebraic (_, _) | CurryRecord ->
+       []
+  in
+  let optimize_proj_id_rules =
+    if l.is_fwd then
+      (rules_fwd, rules_bwd)
+    else
+      (rules_bwd, rules_fwd)
+  in sigma, { c with optimize_proj_id_rules }
 
 (*
  * Define what it means to lift the identity function, since we must
@@ -762,14 +780,14 @@ let initialize_lift_config env l ignores sigma =
       packed_constrs = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
       constr_rules = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
       proj_rules = [], [];
-      optimize_proj_packed_rules = (((fun _ -> false), []), ((fun _ -> false), []));
+      optimize_proj_id_rules = [], [];
       id_rules = (mkRel 1, mkRel 1);
       cache;
       opaques
     }
   in
-  let sigma, c = initialize_optimize_proj_packed_rules c env sigma in
   let sigma, c = initialize_id_rules c env sigma in
+  let sigma, c = initialize_optimize_proj_id_rules c env sigma in
   let sigma, c = initialize_elim_types c env sigma in
   let sigma, c = initialize_packed_constrs c env sigma in
   let sigma, c = initialize_constr_rules c env sigma in
