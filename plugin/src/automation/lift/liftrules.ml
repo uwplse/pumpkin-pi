@@ -154,56 +154,53 @@ type lift_rule =
 let is_packed_constr c env sigma trm =
   let l = get_lifting c in
   let constrs = get_constrs c in
-  let is_packed_inductive_constr is_packed unpack trm =
-    if is_packed trm then
-      let unpacked = unpack trm in
-      let f = first_fun unpacked in
-      let args = unfold_args unpacked in
-      match kind f with
-      | Construct ((_, i), _) when i <= Array.length constrs ->
-         let constr = constrs.(i - 1) in
-         let constr_f = first_fun (unpack (zoom_term zoom_lambda_term env constr)) in
-         if equal constr_f f && List.length args = arity constr then
-           sigma, Some (i - 1, args)
-         else
-           sigma, None
-      | _ ->
-         sigma, None
-    else
-      sigma, None
-  in
-  match l.orn.kind with
-  | Algebraic _ ->
-     let is_packed, unpacked =
-       if l.is_fwd then
-         (fun _ -> true), id (* TODO can we use may_apply ... ? *)
+  let is_packed_inductive_constr unpack trm =
+    let unpacked = unpack trm in
+    let f = first_fun unpacked in
+    let args = unfold_args unpacked in
+    match kind f with
+    | Construct ((_, i), _) when i <= Array.length constrs ->
+       let constr = constrs.(i - 1) in
+       let constr_f = first_fun (unpack (zoom_term zoom_lambda_term env constr)) in
+       if equal constr_f f && List.length args = arity constr then
+         sigma, Some (i - 1, args)
        else
-         may_apply_id_eta c env, last_arg
-     in is_packed_inductive_constr is_packed unpacked trm
-  | SwapConstruct _ ->
-     is_packed_inductive_constr (fun _ -> true) id trm (* TODO can we use may_apply ... ? *)
-  | CurryRecord ->
-     if isConstruct trm || (isApp trm && l.is_fwd) then
-       is_packed_inductive_constr (fun _ -> true) id trm (* TODO can we use may_apply ... ? *)
-     else if (not l.is_fwd) && may_apply_id_eta c env trm then
-       (* we treat any pair of the right type as a constructor *)
-       if applies (lift_back l) trm then
          sigma, None
-       else
-         let sigma_right, args_opt = type_is_from c env trm sigma in
-         if Option.has_some args_opt then
-           let sigma = sigma_right in
-           let constr = constrs.(0) in
-           let pms = Option.get args_opt in
-           let args = pair_projections_eta_rec_n trm (arity constr - List.length pms) in
-           sigma, Some (0, List.append pms args)
-         else
-           sigma, None
-     else
+    | _ ->
        sigma, None
-  | UnpackSigma ->
-     if (get_lifting c).is_fwd then
-       if may_apply_id_eta c env trm then
+  in
+  if may_apply_id_eta c env trm then
+    match l.orn.kind with
+    | Algebraic _ ->
+       let unpacked =
+         if l.is_fwd then
+           id
+         else
+           last_arg
+       in is_packed_inductive_constr unpacked trm
+    | SwapConstruct _ ->
+       is_packed_inductive_constr id trm
+    | CurryRecord ->
+       if isConstruct trm || (isApp trm && l.is_fwd) then
+         is_packed_inductive_constr id trm
+       else if (not l.is_fwd) then
+         (* we treat any pair of the right type as a constructor *)
+         if applies (lift_back l) trm then
+           sigma, None
+         else
+           let sigma_right, args_opt = type_is_from c env trm sigma in
+           if Option.has_some args_opt then
+             let sigma = sigma_right in
+             let constr = constrs.(0) in
+             let pms = Option.get args_opt in
+             let args = pair_projections_eta_rec_n trm (arity constr - List.length pms) in
+             sigma, Some (0, List.append pms args)
+           else
+             sigma, None
+       else
+         sigma, None
+    | UnpackSigma ->
+       if (get_lifting c).is_fwd then
          (* we treat any existential of the right type as a constructor *)
          let sigma_right, args_opt = type_is_from c env trm sigma in
          if Option.has_some args_opt then
@@ -225,41 +222,41 @@ let is_packed_constr c env sigma trm =
            in sigma, Some (0, List.append typ_args [i_b; b; h_eq])
          else
            sigma, None
-       else
-         sigma, None
-     else (* <-- TODO correct or not? needed? also, this is slow *)
-       let sigma_right, args_opt = type_is_from c env trm sigma in
-       if Option.has_some args_opt then
-         let typ_args = Option.get args_opt in
-         if (is_or_applies eq_rect trm) then (* TODO better as elim rule. maybe want whole thing as elim rule and no constrs? *)
-           let sigma, trm = expand_eta env sigma_right trm in
-           let eq_args = Array.of_list (unfold_args trm) in
-           let i_b = eq_args.(1) in
-           let b = eq_args.(3) in
-           let h_eq = eq_args.(5) in
-           if is_or_applies eq_refl h_eq then
-             sigma, None
+       else (* <-- TODO correct or not? needed? also, this is slow *)
+         let sigma_right, args_opt = type_is_from c env trm sigma in
+         if Option.has_some args_opt then
+           let typ_args = Option.get args_opt in
+           if (is_or_applies eq_rect trm) then (* TODO better as elim rule. maybe want whole thing as elim rule and no constrs? *)
+             let sigma, trm = expand_eta env sigma_right trm in
+             let eq_args = Array.of_list (unfold_args trm) in
+             let i_b = eq_args.(1) in
+             let b = eq_args.(3) in
+             let h_eq = eq_args.(5) in
+             if is_or_applies eq_refl h_eq then
+               sigma, None
+             else
+               sigma, Some (0, List.append typ_args [i_b; b; h_eq])
            else
-             sigma, Some (0, List.append typ_args [i_b; b; h_eq])
+             if isApp trm && isConstruct (first_fun trm) then (* TODO blehhh *)
+               (* TODO get correct args; then return actual constr; then refold correctly *)
+               let i_b = last typ_args in
+               let sigma, i_b_typ = reduce_type env sigma_right i_b in
+               let b = trm in
+               let h_eq = apply_eq_refl { typ = i_b_typ; trm = i_b } in
+               sigma, Some (0, List.append typ_args [i_b; b; h_eq])
+             else
+               sigma, None
          else
-           if isApp trm && isConstruct (first_fun trm) then (* TODO blehhh *)
-             (* TODO get correct args; then return actual constr; then refold correctly *)
-             let i_b = last typ_args in
-             let sigma, i_b_typ = reduce_type env sigma_right i_b in
-             let b = trm in
-             let h_eq = apply_eq_refl { typ = i_b_typ; trm = i_b } in
-             sigma, Some (0, List.append typ_args [i_b; b; h_eq])
-           else
-             sigma, None
-       else
-         sigma, None
+           sigma, None
+  else
+    sigma, None
 
 (* Premises for LIFT-IDENTITY *)
 let is_identity c env trm sigma =
   if isRel trm then
     applies_id_eta c env trm sigma
   else
-    sigma, None
+    sigma, None (* TODO non-rel identity? like existT _ n v. where is this handled? *)
 
 (* Auxiliary function for premise for LIFT-PROJ *)
 let check_is_proj c env trm proj_is =
