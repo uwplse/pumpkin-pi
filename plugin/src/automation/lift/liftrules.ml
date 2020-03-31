@@ -63,8 +63,8 @@ let convertible env t1 t2 sigma =
  *    consider a constant opaque when Coq does not. It depends only on the
  *    user setting this particular option for DEVOID.
  *
- * 4. SimplifyProjectPacked: When we see projections of packed terms
- *    (for example, projT1 (existT ...)), we reduce eagerly rather than
+ * 4. SimplifyProjectId: When we see projections of lifted eta-expanded identity
+ *    terms (for example, projT1 (existT ...)), we reduce eagerly rather than
  *    wait for Coq to reduce, since we can be smarter than Coq for this
  *    case. This simplifies very large lifted constants significantly.
  *    This carries a reducer that explains how to project, and a function
@@ -93,7 +93,7 @@ type lift_optimization =
 | GlobalCaching of constr
 | LocalCaching of constr
 | OpaqueConstant
-| SimplifyProjectPacked of reducer * (constr * constr array)
+| SimplifyProjectId of reducer * (constr * constr array)
 | LazyEta of constr
 | AppLazyDelta of constr * constr array
 | ConstLazyDelta of Names.Constant.t Univ.puniverses
@@ -423,7 +423,7 @@ let determine_lift_rule c env trm sigma =
                    let how_reduce_o = can_reduce_now c env trm in
                    if Option.has_some how_reduce_o then
                      let how_reduce = Option.get how_reduce_o in
-                     sigma, Optimization (SimplifyProjectPacked (how_reduce, (f, args)))
+                     sigma, Optimization (SimplifyProjectId (how_reduce, (f, args)))
                    else
                      sigma, Optimization (AppLazyDelta (f, args))
               | Construct (((i, i_index), _), u) ->

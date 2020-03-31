@@ -416,9 +416,10 @@ let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
 (* --- Optimization implementations, besides packing --- *)
 
 (*
- * When we see a packed projection, simplify early rather than wait for Coq 
+ * When we lift to a projection of the eta-expanded identity function,
+ * simplify early rather than wait for Coq 
  *)
-let lift_simplify_project_packed c env reduce f args lift_rec sigma =
+let lift_simplify_project_id c env reduce f args lift_rec sigma =
   let sigma, args' = map_rec_args lift_rec env sigma c args in
   let arg' = last (Array.to_list args') in
   let arg'' = reduce_stateless reduce_term env sigma arg' in
@@ -426,7 +427,7 @@ let lift_simplify_project_packed c env reduce f args lift_rec sigma =
     (* projection of expanded identity *)
     reduce env sigma arg''
   else
-    (* TODO needed? Why? *)
+    (* false positive; projection of something else (TODO gross; simplify) *)
     let sigma, f' = lift_rec env sigma c f in
     let lifted = mkApp (f', args') in
     let lifted_typ = args'.(0) in
@@ -601,8 +602,8 @@ let lift_core env c trm sigma =
        let typ_args = Array.of_list (all_but_last args) in
        let sigma, lifted_typ_args = map_rec_args lift_rec en sigma c typ_args in
        sigma, mkAppl (lifted_id, snoc tr (Array.to_list lifted_typ_args))
-    | Optimization (SimplifyProjectPacked (reduce, (f, args))) ->
-       lift_simplify_project_packed c en reduce f args lift_rec sigma
+    | Optimization (SimplifyProjectId (reduce, (f, args))) ->
+       lift_simplify_project_id c en reduce f args lift_rec sigma
     | LiftElim (tr_elim, lifted_pms) ->
        let nargs =
          match l.orn.kind with

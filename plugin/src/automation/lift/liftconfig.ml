@@ -250,7 +250,7 @@ let zoom c =
 (* --- Smart simplification --- *)
 
 (*
- * Determine if we can be smarter than Coq and simplify earlier
+ * Determine if we can probably be smarter than Coq and simplify earlier
  * If yes, return how
  * Otherwise, return None
  *
@@ -666,10 +666,6 @@ let initialize_proj_rules env sigma c =
  * When subterms recursively refer to the original type, like in UnpackSigma,
  * this also helps ensure that the algorithm terminates by simplifying away
  * redundant terms.
- *
- * TODO !!! this seems to have broken for large packed constants like the case
- * study, causing an explosion in time to run the tests. Investigate & fix
- * before pushing.
  *)
 let initialize_optimize_proj_id_rules c env sigma =
   let l = get_lifting c in

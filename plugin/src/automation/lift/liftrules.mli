@@ -26,7 +26,7 @@ type lift_optimization =
 | GlobalCaching of constr
 | LocalCaching of constr
 | OpaqueConstant
-| SimplifyProjectPacked of reducer * (constr * constr array)
+| SimplifyProjectId of reducer * (constr * constr array)
 | LazyEta of constr
 | AppLazyDelta of constr * constr array
 | ConstLazyDelta of Names.Constant.t Univ.puniverses
