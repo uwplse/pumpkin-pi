@@ -431,7 +431,7 @@ let lift_identity c env lifted_id args lift_rec sigma =
          failwith "TODO"
     in lift_rec env sigma c arg
   else
-    (* eta-expand (will need faster versions for algebraic) *)
+    (* eta-expand (TODO will need faster versions for algebraic, also will want equivalent of optimize_ignore_repack, perhaps in is_identity to begin with) *)
     let sigma, args' = map_rec_args lift_rec env sigma c (Array.of_list args) in
     reduce_term env sigma (mkApp (lifted_id, args'))
 
