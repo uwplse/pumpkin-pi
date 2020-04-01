@@ -384,23 +384,11 @@ let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
     if is_from_typ then
       let optimize_ignore_repack =
         (* Don't bother repacking when the result would reduce *)
-        match (get_lifting c).orn.kind with
-        | Algebraic (_, _) ->
-           if is_or_applies existT lifted then
-             true
-           else
-             let lifted_red = reduce_stateless reduce_nf env sigma lifted in
-             is_or_applies existT lifted_red
-        | CurryRecord ->
-           if is_or_applies pair lifted then
-             true
-           else
-             let lifted_red = reduce_stateless reduce_nf env sigma lifted in
-             is_or_applies pair lifted_red
-        | UnpackSigma ->
-           false
-        | SwapConstruct _ ->
-           true
+        if may_apply_id_eta (reverse c) env lifted then
+          true
+        else
+          let lifted_red = reduce_stateless reduce_nf env sigma lifted in
+          may_apply_id_eta (reverse c) env lifted_red
       in
       if not optimize_ignore_repack then
         let sigma, lifted_typ = lift_rec env sigma_typ c typ in

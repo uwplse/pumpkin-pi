@@ -199,6 +199,7 @@ let get_lifted_constrs c = fst c.constr_rules
 let may_apply_id_eta c env trm =
   let l = get_lifting c in
   let (id, _) = c.id_rules in
+  (* Heuristic for unification without slowdown *)
   if equal (zoom_term zoom_lambda_term env id) (mkRel 1) then
     true
   else
