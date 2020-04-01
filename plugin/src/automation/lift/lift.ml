@@ -335,7 +335,7 @@ let lift_elim env sigma c trm_app pms =
  * the identity function)
  *)
 let repack c env lifted typ sigma =
-  (* TODO use id rules *)
+  (* TODO use id rules / merge with lift_identity *)
   match (get_lifting c).orn.kind with
   | Algebraic _ ->
      let lift_typ = dest_sigT (shift typ) in
@@ -413,7 +413,15 @@ let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
   else
     sigma, lifted
 
-(* --- Optimization implementations, besides packing --- *)
+(*
+ * Lift the eta-expanded identity function
+ *)
+let lift_identity c env lifted_id args lift_rec sigma =
+  let typ_args = Array.of_list (all_but_last args) in
+  let sigma, lifted_typ_args = map_rec_args lift_rec env sigma c typ_args in
+  sigma, mkAppl (lifted_id, snoc (last args) (Array.to_list lifted_typ_args))
+
+(* --- Optimization implementations --- *)
 
 (*
  * When we lift to a projection of the eta-expanded identity function,
@@ -549,10 +557,9 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
      (sigma, pack_existT { ex_eq with packer; index; unpacked = h_eq })
   | _ ->
      raise NotAlgebraic
-     
-             
+
 (* --- Core algorithm --- *)
-    
+
 (*
  * Core lifting algorithm.
  * A few extra rules to deal with real Coq terms as opposed to CIC,
@@ -599,9 +606,7 @@ let lift_core env c trm sigma =
        else
          sigma, constr_app
     | LiftIdentity (lifted_id, args) ->
-       let typ_args = Array.of_list (all_but_last args) in
-       let sigma, lifted_typ_args = map_rec_args lift_rec en sigma c typ_args in
-       sigma, mkAppl (lifted_id, snoc tr (Array.to_list lifted_typ_args))
+       lift_identity c en lifted_id args lift_rec sigma
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args lift_rec sigma
     | LiftElim (tr_elim, lifted_pms) ->

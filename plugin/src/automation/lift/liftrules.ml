@@ -172,18 +172,13 @@ let is_packed_constr c env sigma trm =
   if may_apply_id_eta c env trm then
     match l.orn.kind with
     | Algebraic _ ->
-       let unpacked =
-         if l.is_fwd then
-           id
-         else
-           last_arg
-       in is_packed_inductive_constr unpacked trm
+       is_packed_inductive_constr (if l.is_fwd then id else last_arg) trm
     | SwapConstruct _ ->
        is_packed_inductive_constr id trm
     | CurryRecord ->
-       if isConstruct trm || (isApp trm && l.is_fwd) then
+       if l.is_fwd then
          is_packed_inductive_constr id trm
-       else if (not l.is_fwd) then
+       else
          (* we treat any pair of the right type as a constructor *)
          if applies (lift_back l) trm then
            sigma, None
@@ -197,10 +192,8 @@ let is_packed_constr c env sigma trm =
              sigma, Some (0, List.append pms args)
            else
              sigma, None
-       else
-         sigma, None
     | UnpackSigma ->
-       if (get_lifting c).is_fwd then
+       if l.is_fwd then
          (* we treat any existential of the right type as a constructor *)
          let sigma_right, args_opt = type_is_from c env trm sigma in
          if Option.has_some args_opt then
@@ -253,10 +246,11 @@ let is_packed_constr c env sigma trm =
 
 (* Premises for LIFT-IDENTITY *)
 let is_identity c env trm sigma =
-  if isRel trm then
-    applies_id_eta c env trm sigma
-  else
-    sigma, None (* TODO non-rel identity? like existT _ n v. where is this handled? *)
+  match kind trm with
+  | Rel _ (*| App _*) ->
+     applies_id_eta c env trm sigma
+  | _ ->
+     sigma, None
 
 (* Auxiliary function for premise for LIFT-PROJ *)
 let check_is_proj c env trm proj_is =
