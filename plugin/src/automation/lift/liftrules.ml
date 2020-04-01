@@ -366,6 +366,10 @@ let determine_lift_rule c env trm skip_id sigma =
     sigma, Optimization (LocalCaching (lookup_cache c trm))
   else if is_opaque c trm then
     sigma, Optimization OpaqueConstant
+  else if isApp trm && applies (lift_back l) trm then
+    sigma, if l.is_fwd then Retraction else Section
+  else if isApp trm && applies (lift_to l) trm then
+    sigma, Internalize
   else
     let sigma, args_o = is_from c env trm sigma in
     if Option.has_some args_o then
@@ -401,10 +405,6 @@ let determine_lift_rule c env trm skip_id sigma =
                  sigma, Optimization (SmartLiftConstr (lifted_constr, args))
           else
             sigma, LiftConstr (lifted_constr, args)
-        else if isApp trm && applies (lift_back l) trm then
-          sigma, if l.is_fwd then Retraction else Section
-        else if isApp trm && applies (lift_to l) trm then
-          sigma, Internalize
         else
           let sigma, is_identity_o = is_identity c env trm skip_id sigma in
           if Option.has_some is_identity_o then
