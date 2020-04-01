@@ -155,19 +155,22 @@ let is_packed_constr c env sigma trm =
   let l = get_lifting c in
   let constrs = get_constrs c in
   let is_packed_inductive_constr unpack trm =
-    let unpacked = unpack trm in
-    let f = first_fun unpacked in
-    let args = unfold_args unpacked in
-    match kind f with
-    | Construct ((_, i), _) when i <= Array.length constrs ->
-       let constr = constrs.(i - 1) in
-       let constr_f = first_fun (unpack (zoom_term zoom_lambda_term env constr)) in
-       if equal constr_f f && List.length args = arity constr then
-         sigma, Some (i - 1, args)
-       else
+    try
+      let unpacked = unpack trm in
+      let f = first_fun unpacked in
+      let args = unfold_args unpacked in
+      match kind f with
+      | Construct ((_, i), _) when i <= Array.length constrs ->
+         let constr = constrs.(i - 1) in
+         let constr_f = first_fun (unpack (zoom_term zoom_lambda_term env constr)) in
+         if equal constr_f f && List.length args = arity constr then
+           sigma, Some (i - 1, args)
+         else
+           sigma, None
+      | _ ->
          sigma, None
-    | _ ->
-       sigma, None
+    with _ ->
+      sigma, None
   in
   if may_apply_id_eta c env trm then
     match l.orn.kind with
@@ -245,12 +248,22 @@ let is_packed_constr c env sigma trm =
     sigma, None
 
 (* Premises for LIFT-IDENTITY *)
-let is_identity c env trm sigma =
-  match kind trm with
-  | Rel _ (*| App _*) ->
-     applies_id_eta c env trm sigma
-  | _ ->
-     sigma, None
+let is_identity c env trm skip_id sigma =
+  if skip_id then (* prevent infinite recursion *)
+    sigma, None
+  else
+    match kind trm with
+    | Rel _ ->
+       applies_id_eta c env trm sigma
+    | App _ ->
+       (* TODO gradually combine back w/ rule, but need to phase out old code first *)
+       (match (get_lifting c).orn.kind with
+        | Algebraic _ when (not (get_lifting c).is_fwd) ->
+           applies_id_eta c env trm sigma
+        | _ ->
+           sigma, None)
+    | _ ->
+       sigma, None
 
 (* Auxiliary function for premise for LIFT-PROJ *)
 let check_is_proj c env trm proj_is =
@@ -344,7 +357,7 @@ let is_eliminator c env trm sigma =
 (*
  * Given a term, determine the appropriate lift rule to run
  *)
-let determine_lift_rule c env trm sigma =
+let determine_lift_rule c env trm skip_id sigma =
   let l = get_lifting c in
   let lifted_opt = lookup_lifting (lift_to l, lift_back l, trm) in
   if Option.has_some lifted_opt then
@@ -388,8 +401,12 @@ let determine_lift_rule c env trm sigma =
                  sigma, Optimization (SmartLiftConstr (lifted_constr, args))
           else
             sigma, LiftConstr (lifted_constr, args)
+        else if isApp trm && applies (lift_back l) trm then
+          sigma, if l.is_fwd then Retraction else Section
+        else if isApp trm && applies (lift_to l) trm then
+          sigma, Internalize
         else
-          let sigma, is_identity_o = is_identity c env trm sigma in
+          let sigma, is_identity_o = is_identity c env trm skip_id sigma in
           if Option.has_some is_identity_o then
             let typ_args = Option.get is_identity_o in
             let args = snoc trm typ_args in
@@ -406,17 +423,12 @@ let determine_lift_rule c env trm sigma =
             else
               match kind trm with
               | App (f, args) ->
-                 if equal (lift_back l) f then
-                   sigma, if l.is_fwd then Retraction else Section
-                 else if equal (lift_to l) f then
-                   sigma, Internalize
+                 let how_reduce_o = can_reduce_now c env trm in
+                 if Option.has_some how_reduce_o then
+                   let how_reduce = Option.get how_reduce_o in
+                   sigma, Optimization (SimplifyProjectId (how_reduce, (f, args)))
                  else
-                   let how_reduce_o = can_reduce_now c env trm in
-                   if Option.has_some how_reduce_o then
-                     let how_reduce = Option.get how_reduce_o in
-                     sigma, Optimization (SimplifyProjectId (how_reduce, (f, args)))
-                   else
-                     sigma, Optimization (AppLazyDelta (f, args))
+                   sigma, Optimization (AppLazyDelta (f, args))
               | Construct (((i, i_index), _), u) ->
                  let ind = mkInd (i, i_index) in
                  let (a_typ, b_typ) = get_types c in

@@ -53,6 +53,9 @@ type lift_rule =
 
 (*
  * Determine which lift rule to run
+ *
+ * The boolean says to skip the identity rule in order to prevent
+ * infinite recursion
  *)
 val determine_lift_rule :
-  lift_config -> env -> constr -> evar_map -> lift_rule state
+  lift_config -> env -> constr -> bool -> evar_map -> lift_rule state
