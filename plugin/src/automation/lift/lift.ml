@@ -431,9 +431,9 @@ let lift_identity c env lifted_id args lift_rec sigma =
          failwith "TODO"
     in lift_rec env sigma c arg
   else
-    (* eta-expand *)
+    (* eta-expand (will need faster versions for algebraic) *)
     let sigma, args' = map_rec_args lift_rec env sigma c (Array.of_list args) in
-    sigma, mkApp (lifted_id, args')
+    reduce_term env sigma (mkApp (lifted_id, args'))
 
 (* --- Optimization implementations --- *)
 
@@ -455,12 +455,7 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
     let lifted_typ = args'.(0) in
     let sigma, is_from_o = is_from (reverse c) env lifted_typ sigma in
     if Option.has_some is_from_o then
-      (* TODO gradually phasing out repacking *)
-      match (get_lifting c).orn.kind with
-      | Algebraic _ ->
-         sigma, lifted
-      | _ ->
-         maybe_repack lift_rec c env (mkApp (f, args)) lifted (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) (get_lifting c).is_fwd sigma
+      maybe_repack lift_rec c env (mkApp (f, args)) lifted (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) (get_lifting c).is_fwd sigma
     else
       sigma, lifted
                           
