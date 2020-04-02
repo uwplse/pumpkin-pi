@@ -349,7 +349,9 @@ let repack c env lifted typ sigma =
      if (get_lifting c).is_fwd then
        sigma, lifted
      else
-       let lift_typ = dest_sigT (shift typ) in
+  (* TODO not quite; consider rewrites *)
+       sigma, lifted
+       (*let lift_typ = dest_sigT (shift typ) in
        let s, eq = projections lift_typ (mkRel 1) in
        let env_typ = push_local (Anonymous, typ) env in
        let sigma, s_typ = Util.on_snd dest_sigT (reduce_type env_typ sigma s) in
@@ -358,7 +360,7 @@ let repack c env lifted typ sigma =
        let index_type = lift_typ.index_type in
        let packer = lift_typ.packer in
        let e = pack_existT {index_type; packer; index = s_e; unpacked = eq} in
-       sigma, mkLetIn (Anonymous, lifted, typ, e)
+       sigma, mkLetIn (Anonymous, lifted, typ, e)*)
   | CurryRecord ->
      let f = first_fun typ in
      let args = unfold_args typ in
@@ -405,13 +407,23 @@ let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
  * Lift the eta-expanded identity function
  *)
 let lift_identity c env lifted_id args lift_rec sigma =
-  if equal (zoom_term zoom_lambda_term env lifted_id) (mkRel 1) then
-    (* contract the eta-expansion *)
-    lift_rec env sigma c (last args)
+  let arg = last args in
+  let ignore_id =
+    (* Don't apply identity when the result would reduce to itself *)
+    if may_apply_id_eta (reverse c) env arg then
+      true
+    else
+      let arg_red = reduce_stateless reduce_nf env sigma arg in
+      may_apply_id_eta (reverse c) env arg_red
+  in
+  if ignore_id then
+    (* contract the eta-expansion, or do nothing *)
+    lift_rec env sigma c arg
   else
-    (* eta-expand (TODO will need faster versions for algebraic, also will want equivalent of optimize_ignore_repack, perhaps in is_identity to begin with) *)
-    let sigma, args' = map_rec_args lift_rec env sigma c (Array.of_list args) in
-    reduce_term env sigma (mkApp (lifted_id, args'))
+    (* eta-expand *)
+    let typ_args = all_but_last args in
+    let sigma, lifted_arg = lift_rec env sigma c (last args) in
+    reduce_term env sigma (mkAppl (lifted_id, snoc lifted_arg typ_args))
 
 (* --- Optimization implementations --- *)
 
@@ -432,7 +444,7 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
     let lifted = mkApp (f', args') in
     let lifted_typ = args'.(0) in
     let sigma, is_from_o = is_from (reverse c) env lifted_typ sigma in
-    if Option.has_some is_from_o then
+    if Option.has_some is_from_o && not ((get_lifting c).orn.kind = UnpackSigma) then
       maybe_repack lift_rec c env (mkApp (f, args)) lifted (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) (get_lifting c).is_fwd sigma
     else
       sigma, lifted
@@ -457,6 +469,8 @@ let lift_app_lazy_delta c env f args lift_rec sigma =
        if equal (mkApp (f, args)) app' then
          sigma, mkApp (f', args')
        else
+         let open Printing in
+         debug_term env app' "app'";
          let sigma, lifted_red = lift_rec env sigma c app' in
          if equal lifted_red app' then
            sigma, mkApp (f', args')
@@ -615,8 +629,12 @@ let lift_core env c trm sigma =
             0
        in
        let (final_args, post_args) = take_split nargs tr_elim.final_args in
+       let open Printing in
+       debug_term en tr "tr";
        let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
+       debug_term en tr' "tr'";
        let sigma, tr'' = lift_rec skip_id en sigma c tr' in
+       debug_term en tr'' "tr''";
        let sigma, post_args' = map_rec_args (lift_rec skip_id) en sigma c (Array.of_list post_args) in
        sigma, mkApp (tr'', post_args')
     | Optimization (AppLazyDelta (f, args)) ->

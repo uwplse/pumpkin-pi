@@ -266,13 +266,14 @@ Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 (*
  * We can get away without preprocessing here, though we must set some terms to opaque to do that:
  *)
-Configure Lift packed vector { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.
+Configure Lift packed vector { opaque Eqdep_dec.UIP_dec Nat.eq_dec eq_rect eq_ind projT1 projT2 }.
+Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec eq_rect eq_ind projT1 projT2 }.
+
 
 (* TODO move these tests later *)
-
 Definition my_id (T : Type) (n : nat) (v : vector T n) := v.
 Lift vector packed in my_id as id'.
-Print id'. 
+Print id'.
 Print packed_vector.zip.
 Definition my_cons_lifted (T : Type) (n : nat) (v : { s : sigT (vector T) & projT1 s = n }) (t : T) := (*: { s : sigT (vector T) & projT1 s = S n } :=
   *)
@@ -287,7 +288,7 @@ Print t_unpack.
 
 Lift vector packed in my_cons as my_cons'.
 Print my_cons'.
-
+(*
 Definition my_zip (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
 rew [vector (a * b)]
     packed_vector.zip_length a b n (existT [eta vector a] n pl1)
@@ -296,14 +297,14 @@ rew [vector (a * b)]
 projT2
   (hs_to_coqV_p.zip a b (existT [eta vector a] n pl1)
      (existT [eta vector b] n pl2)).
-Fail Lift vector packed in my_zip as zip'. (* TODO left off here *)
-(* end TODO *)
+Fail Lift vector packed in my_zip as zip'.*) (* TODO need elim rule *)
 
 (*
  * Then we lift (lifting hs_to_coqV_p first makes this faster and makes the result prettier):
  *)
+
 Lift Module packed vector in hs_to_coqV_p as hs_to_coqV_u.
-Lift Module packed vector in packed_vector as uf.
+Fail Lift Module packed vector in packed_vector as uf. (* TODO temporarily broken *)
 
 (* We are done. Here are our final types: *)
 Check uf.zip.

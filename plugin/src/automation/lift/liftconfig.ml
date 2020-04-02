@@ -25,6 +25,7 @@ open Evarconv
 open Names
 open Equtils
 open Idutils
+open Convertibility
 
 (*
  * Lifting configuration: Includes the lifting, types, and cached rules
@@ -60,6 +61,14 @@ type lift_config =
     cache : temporary_cache;
     opaques : temporary_cache
   }
+
+(* --- Convenient shorthand --- *)
+
+let convertible env t1 t2 sigma =
+  if equal t1 t2 then
+    sigma, true
+  else
+    convertible env sigma t1 t2
 
 (* --- Recover the lifting --- *)
 
@@ -182,6 +191,56 @@ let type_from_args c env trm sigma =
  *)
 let get_proj_map c = fst c.proj_rules
 
+(* Check if a term applies a given projection *)
+let check_is_proj c env trm proj_is =
+  match kind trm with
+  | App _ | Const _ -> (* this check is an optimization *)
+     let f = first_fun trm in
+     let rec check_is_proj_i i proj_is =
+       match proj_is with
+       | proj_i :: tl ->
+          let proj_i_f = first_fun (zoom_term zoom_lambda_term env proj_i) in
+          branch_state
+            (convertible env proj_i_f) (* this check is an optimization *)
+            (fun _ sigma ->
+              let sigma, trm_eta = expand_eta env sigma trm in
+              let env_b, b = zoom_lambda_term env trm_eta in
+              let args = unfold_args b in
+              if List.length args = 0 then
+                check_is_proj_i (i + 1) tl sigma
+              else
+                (* attempt unification *)
+                try
+                  let sigma, eargs =
+                    map_state
+                      (fun _ sigma ->
+                        let sigma, (earg_typ, _) = new_type_evar env_b sigma univ_flexible in
+                        let sigma, earg = new_evar env_b sigma earg_typ in
+                        sigma, EConstr.to_constr sigma earg)
+                      (mk_n_rels (arity proj_i))
+                      sigma
+                  in
+                  let sigma, proj_app = reduce_term env_b sigma (mkAppl (proj_i, eargs)) in
+                  let sigma = the_conv_x env_b (EConstr.of_constr b) (EConstr.of_constr proj_app) sigma in
+                  sigma, Some (last eargs, i, all_but_last eargs, trm_eta) 
+                with _ ->
+                  check_is_proj_i (i + 1) tl sigma)
+            (fun _ -> check_is_proj_i (i + 1) tl)
+            f
+       | _ ->
+          ret None
+     in check_is_proj_i 0 proj_is
+  | _ ->
+     ret None
+
+(* Check if a term applies any projection *)
+let is_proj c env trm =
+  let proj_rules = get_proj_map c in
+  if List.length proj_rules = 0 then
+    ret None
+  else
+    check_is_proj c env trm (List.map fst proj_rules)
+
 (*
  * Get the cached unlifted constructors
  *)
@@ -203,8 +262,13 @@ let may_apply_id_eta c env trm =
   else
     let l = get_lifting c in
     match l.orn.kind with
-    | Algebraic _ | UnpackSigma ->
+    | Algebraic _ ->
        is_or_applies existT trm || is_or_applies (lift_back l) trm
+    | UnpackSigma ->
+       if l.is_fwd then
+         is_or_applies existT trm || is_or_applies (lift_back l) trm
+       else
+         true
     | CurryRecord ->
        is_or_applies pair trm || is_or_applies (lift_back l) trm
     | SwapConstruct _ ->
@@ -237,13 +301,52 @@ let applies_id_eta c env trm sigma =
              let proj_value = snd (last opt_proj_map) in
              sigma, Some (snoc (proj_value trm) typ_args)
           | UnpackSigma ->
-             let proj_index = snd (List.hd opt_proj_map) in
-             let ex_eq = proj_index trm in
-             if is_or_applies existT ex_eq then
-               let proj_value = snd (last opt_proj_map) in
-               sigma, Some (snoc (proj_value ex_eq) typ_args)
+             if l.is_fwd then
+               let projT1, proj_index = List.hd opt_proj_map in
+               let projT2, proj_value = last opt_proj_map in
+               let s, h_eq = proj_index trm, proj_value trm in
+               let sigma, b_sig_eq =
+                 let b_sig_eq_typ = mkAppl (fst (get_types c), typ_args) in
+                 Util.on_snd dest_sigT (reduce_term env sigma b_sig_eq_typ)
+               in
+               let i_b, b =
+                 if is_or_applies existT s then
+                   proj_index s, proj_value s
+                 else
+                   projections (dest_sigT b_sig_eq.index_type) s
+               in
+               sigma, Some (List.append typ_args [i_b; b; h_eq])
              else
-               sigma, None (* TODO *)
+               if is_or_applies eq_rect trm || is_or_applies eq_ind trm || is_or_applies eq_rec trm then
+                 let sigma, trm = expand_eta env sigma trm in
+                 let eq_args = Array.of_list (unfold_args trm) in
+                 let i_b_typ = eq_args.(0) in
+                 let i_b = eq_args.(1) in
+                 let b_typ  = eq_args.(2) in
+                 let b = eq_args.(3) in
+                 let i_b' = eq_args.(4) in
+                 let h_eq = eq_args.(5) in
+                 let packed =
+                   let index_type =
+                     let packer =
+                       let unpacked = mkAppl (shift b_typ, [mkRel 1]) in
+                       mkLambda (Anonymous, i_b_typ, unpacked)
+                     in pack_sigT { index_type = i_b_typ; packer }
+                   in
+                   let packer =
+                     let at_type = shift i_b_typ in
+                     let trm1 = project_index (dest_sigT (shift index_type)) (mkRel 1) in
+                     let trm2 = shift i_b' in
+                     mkLambda (Anonymous, index_type, apply_eq { at_type; trm1; trm2 })
+                   in
+                   let index =
+                     let index_type_app = dest_sigT index_type in
+                     let packer = index_type_app.packer in
+                     pack_existT { index_type = i_b_typ; packer; index = i_b; unpacked = b }
+                   in pack_existT { index_type; packer; index; unpacked = h_eq }
+                 in sigma, Some (snoc packed typ_args)
+               else
+                 sigma, Some (snoc trm typ_args) (* TODO *)
           | CurryRecord ->
              sigma, Some (snoc trm typ_args)
           | SwapConstruct _ ->
@@ -384,6 +487,7 @@ let eta_constrs =
 
 (*
  * Initialize the packed constructors for each type
+ * TODO use id rules to pack
  *)
 let initialize_packed_constrs c env sigma =
   let a_typ, b_typ = c.typs in
@@ -462,33 +566,10 @@ let initialize_packed_constrs c env sigma =
        sigma, Array.make 1 constr
     | SwapConstruct _ ->
        eta_constrs env b_typ sigma
-    | UnpackSigma -> (* TODO consolidate / clean if needed *)
-       (* We create a proxy "constructor" here, though it is just a function *)
-       let sigma, (env_eq, (eq, eq_typ), (b, b_typ)) =
-         let push_anon t = push_local (Anonymous, t) in
-         let env_sig = zoom_env zoom_lambda_term env a_typ in
-         let sigma, (i_b_typ, b_typ, i_b) =
-           let sig_eq = mkAppl (a_typ, mk_n_rels (nb_rel env_sig)) in
-           let sigma, sig_eq = reduce_term env_sig sigma sig_eq in
-           let sigma, typ_args = unpack_typ_args env_sig sig_eq sigma in
-           sigma, (List.hd typ_args, List.hd (List.tl typ_args), last typ_args)
-         in
-         let env_i_b = push_anon i_b_typ env_sig in
-         let env_b = push_anon (mkAppl (shift b_typ, [mkRel 1])) env_i_b in
-         let eq_typ =
-           let at_type = shift_by 2 i_b_typ in
-           apply_eq { at_type; trm1 = mkRel 2; trm2 = shift_by 2 i_b }
-         in
-         let env_eq = push_anon eq_typ env_b in
-         sigma, (env_eq, (mkRel 1, shift eq_typ), (mkRel 2, shift_by 3 b_typ))
-       in
-       let eq_typ_app = dest_eq eq_typ in
-       let rewrite =
-         let at_type = eq_typ_app.at_type in
-         let trm1 = eq_typ_app.trm1 in
-         let trm2 = eq_typ_app.trm2 in
-         mkAppl (eq_rect, [at_type; trm1; b_typ; b; trm2; eq])
-       in sigma, Array.make 1 (reconstruct_lambda_n env_eq rewrite (nb_rel env))
+    | UnpackSigma ->
+       let id_b = if l.is_fwd then snd c.id_rules else fst c.id_rules in
+       (* TODO move constrs into here *)
+       sigma, Array.make 1 id_b
   in
   let fwd_constrs = if l.is_fwd then a_constrs else b_constrs in
   let bwd_constrs = if l.is_fwd then b_constrs else a_constrs in
@@ -645,9 +726,10 @@ let initialize_proj_rules c env sigma =
          let eq = apply_eq_refl { typ = index_type; trm = index } in
          reconstruct_lambda env_proj eq
        in
+       (* TODO is this right? or is this why we need rewrite elsehwere? *)
        if l.is_fwd then (* projT1 -> pack, projT2 -> eq_refl *)
          sigma, [(projT1, p1); (projT2, p2)]
-       else (* pack -> projT1, eq_refl -> projT2 *) (* TODO projT2 (projT1) should map to ID *)
+       else (* pack -> projT1, eq_refl -> projT2 *)
          sigma, [(p1, projT1); (p2, projT2)]
     | CurryRecord ->
        (* accessors <-> projections *)
@@ -736,7 +818,7 @@ let initialize_optimize_proj_id_rules c env sigma =
       (rules_fwd, rules_bwd)
     else
       (rules_bwd, rules_fwd)
-  in sigma, { c with optimize_proj_id_rules }
+  in sigma, { c with optimize_proj_id_rules } (* TODO somewhere, rewrite eq_refl in ... *)
 
 (*
  * Define what it means to lift the identity function, since we must
@@ -795,7 +877,34 @@ let initialize_id_rules c env sigma =
        let args = unfold_args typ in
        let sigma, typ_red = specialize_delta_f env_id f args sigma in
        sigma, reconstruct_lambda env_id (eta_prod_rec b typ_red)
-    | UnpackSigma | SwapConstruct _ ->
+    | UnpackSigma ->
+       (* rewrite in pack (identity at eq_refl) *)
+       let sigma, (env_eq, (eq, eq_typ), (b, b_typ)) =
+         let push_anon t = push_local (Anonymous, t) in
+         let env_sig = zoom_env zoom_lambda_term env a_typ in
+         let sigma, (i_b_typ, b_typ, i_b) =
+           let sig_eq = mkAppl (a_typ, mk_n_rels (nb_rel env_sig)) in
+           let sigma, sig_eq = reduce_term env_sig sigma sig_eq in
+           let sigma, typ_args = unpack_typ_args env_sig sig_eq sigma in
+           sigma, (List.hd typ_args, List.hd (List.tl typ_args), last typ_args)
+         in
+         let env_i_b = push_anon i_b_typ env_sig in
+         let env_b = push_anon (mkAppl (shift b_typ, [mkRel 1])) env_i_b in
+         let eq_typ =
+           let at_type = shift_by 2 i_b_typ in
+           apply_eq { at_type; trm1 = mkRel 2; trm2 = shift_by 2 i_b }
+         in
+         let env_eq = push_anon eq_typ env_b in
+         sigma, (env_eq, (mkRel 1, shift eq_typ), (mkRel 2, shift_by 3 b_typ))
+       in
+       let eq_typ_app = dest_eq eq_typ in
+       let rewrite =
+         let at_type = eq_typ_app.at_type in
+         let trm1 = eq_typ_app.trm1 in
+         let trm2 = eq_typ_app.trm2 in
+         mkAppl (eq_rect, [at_type; trm1; b_typ; b; trm2; eq])
+       in sigma, reconstruct_lambda_n env_eq rewrite (nb_rel env)
+    | SwapConstruct _ ->
        (* identity *)
        sigma, reconstruct_lambda env_id b
   in

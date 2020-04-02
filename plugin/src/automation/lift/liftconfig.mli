@@ -95,6 +95,16 @@ val get_proj_map :
   lift_config -> (constr * constr) list
 
 (*
+ * Check if a term applies some projection
+ *)
+val is_proj :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  ((constr * int * constr list * types) option) state
+
+(*
  * Get the cached unlifted constructors
  *)
 val get_constrs :

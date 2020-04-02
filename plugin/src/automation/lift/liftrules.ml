@@ -12,7 +12,6 @@ open Desugarprod
 open Reducers
 open Funutils
 open Stateutils
-open Convertibility
 open Hypotheses
 open Envutils
 open Indexing
@@ -29,14 +28,6 @@ open Environ
  * This module takes in a Coq term that we are lifting and determines
  * the appropriate lifting rule to run
  *)
-
-(* --- Convenient shorthand --- *)
-
-let convertible env t1 t2 sigma =
-  if equal t1 t2 then
-    sigma, true
-  else
-    convertible env sigma t1 t2
 
 (* --- Datatypes --- *)
 
@@ -197,51 +188,22 @@ let is_packed_constr c env sigma trm =
              sigma, None
     | UnpackSigma ->
        if l.is_fwd then
-         (* we treat any existential of the right type as a constructor *)
-         let sigma_right, args_opt = type_is_from c env trm sigma in
-         if Option.has_some args_opt then
-           let typ_args = Option.get args_opt in
-           let sigma, b_sig_eq =
-             let b_sig_eq_typ = mkAppl (fst (get_types c), typ_args) in
-             Util.on_snd dest_sigT (reduce_term env sigma_right b_sig_eq_typ)
-           in
-           let s, h_eq =
-             let trm_ex = dest_existT trm in
-             trm_ex.index, trm_ex.unpacked
-           in
-           let i_b, b =
-             if is_or_applies existT s then
-               let index_ex = dest_existT s in
-               index_ex.index, index_ex.unpacked
-             else
-               projections (dest_sigT b_sig_eq.index_type) s
-           in sigma, Some (0, List.append typ_args [i_b; b; h_eq])
-         else
-           sigma, None
+         (* TODO add real constr here *)
+         sigma, None
        else (* <-- TODO correct or not? needed? also, this is slow *)
          let sigma_right, args_opt = type_is_from c env trm sigma in
+         (* TODO make lift_rules faster by getting type_is_from just once when needed *)
          if Option.has_some args_opt then
            let typ_args = Option.get args_opt in
-           if (is_or_applies eq_rect trm) then (* TODO better as elim rule. maybe want whole thing as elim rule and no constrs? *)
-             let sigma, trm = expand_eta env sigma_right trm in
-             let eq_args = Array.of_list (unfold_args trm) in
-             let i_b = eq_args.(1) in
-             let b = eq_args.(3) in
-             let h_eq = eq_args.(5) in
-             if is_or_applies eq_refl h_eq then
-               sigma, None
-             else
-               sigma, Some (0, List.append typ_args [i_b; b; h_eq])
+           if isApp trm && isConstruct (first_fun trm) then (* TODO blehhh *)
+             (* TODO get correct args; then return actual constr; then refold correctly *)
+             let i_b = last typ_args in
+             let sigma, i_b_typ = reduce_type env sigma_right i_b in
+             let b = trm in
+             let h_eq = apply_eq_refl { typ = i_b_typ; trm = i_b } in
+             sigma, Some (0, List.append typ_args [i_b; b; h_eq])
            else
-             if isApp trm && isConstruct (first_fun trm) then (* TODO blehhh *)
-               (* TODO get correct args; then return actual constr; then refold correctly *)
-               let i_b = last typ_args in
-               let sigma, i_b_typ = reduce_type env sigma_right i_b in
-               let b = trm in
-               let h_eq = apply_eq_refl { typ = i_b_typ; trm = i_b } in
-               sigma, Some (0, List.append typ_args [i_b; b; h_eq])
-             else
-               sigma, None
+             sigma, None
          else
            sigma, None
   else
@@ -260,60 +222,12 @@ let is_identity c env trm skip_id sigma =
        (match (get_lifting c).orn.kind with
         | Algebraic _ when (not (get_lifting c).is_fwd) ->
            applies_id_eta c env trm sigma
+        | UnpackSigma ->
+           applies_id_eta c env trm sigma
         | _ ->
            sigma, None)
     | _ ->
        sigma, None
-
-(* Auxiliary function for premise for LIFT-PROJ *)
-let check_is_proj c env trm proj_is =
-  match kind trm with
-  | App _ | Const _ -> (* this check is an optimization *)
-     let f = first_fun trm in
-     let rec check_is_proj_i i proj_is =
-       match proj_is with
-       | proj_i :: tl ->
-          let proj_i_f = first_fun (zoom_term zoom_lambda_term env proj_i) in
-          branch_state
-            (convertible env proj_i_f) (* this check is an optimization *)
-            (fun _ sigma ->
-              let sigma, trm_eta = expand_eta env sigma trm in
-              let env_b, b = zoom_lambda_term env trm_eta in
-              let args = unfold_args b in
-              if List.length args = 0 then
-                check_is_proj_i (i + 1) tl sigma
-              else
-                (* attempt unification *)
-                try
-                  let sigma, eargs =
-                    map_state
-                      (fun _ sigma ->
-                        let sigma, (earg_typ, _) = new_type_evar env_b sigma univ_flexible in
-                        let sigma, earg = new_evar env_b sigma earg_typ in
-                        sigma, EConstr.to_constr sigma earg)
-                      (mk_n_rels (arity proj_i))
-                      sigma
-                  in
-                  let sigma, proj_app = reduce_term env_b sigma (mkAppl (proj_i, eargs)) in
-                  let sigma = the_conv_x env_b (EConstr.of_constr b) (EConstr.of_constr proj_app) sigma in
-                  sigma, Some (last eargs, i, all_but_last eargs, trm_eta) 
-                with _ ->
-                  check_is_proj_i (i + 1) tl sigma)
-            (fun _ -> check_is_proj_i (i + 1) tl)
-            f
-       | _ ->
-          ret None
-     in check_is_proj_i 0 proj_is
-  | _ ->
-     ret None
-
-(* Premises for LIFT-PROJ *)
-let is_proj c env trm =
-  let proj_rules = get_proj_map c in
-  if List.length proj_rules = 0 then
-    ret None
-  else
-    check_is_proj c env trm (List.map fst proj_rules)
 
 (* Premises for LIFT-ELIM *)
 let is_eliminator c env trm sigma =
