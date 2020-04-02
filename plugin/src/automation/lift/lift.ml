@@ -407,17 +407,7 @@ let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
 let lift_identity c env lifted_id args lift_rec sigma =
   if equal (zoom_term zoom_lambda_term env lifted_id) (mkRel 1) then
     (* contract the eta-expansion *)
-    let l = get_lifting c in
-    let arg =
-      (* faster way of unifying with the expanded identity function arguments *)
-      match l.orn.kind with
-      | Algebraic _ ->
-         (dest_existT (last args)).unpacked
-      | SwapConstruct _ ->
-         last args
-      | _ ->
-         failwith "TODO"
-    in lift_rec env sigma c arg
+    lift_rec env sigma c (last args)
   else
     (* eta-expand (TODO will need faster versions for algebraic, also will want equivalent of optimize_ignore_repack, perhaps in is_identity to begin with) *)
     let sigma, args' = map_rec_args lift_rec env sigma c (Array.of_list args) in

@@ -408,8 +408,7 @@ let determine_lift_rule c env trm skip_id sigma =
         else
           let sigma, is_identity_o = is_identity c env trm skip_id sigma in
           if Option.has_some is_identity_o then
-            let typ_args = Option.get is_identity_o in
-            let args = snoc trm typ_args in
+            let args = Option.get is_identity_o in
             let lifted_id = get_lifted_id_eta c in
             sigma, LiftIdentity (lifted_id, args)
           else
