@@ -407,29 +407,8 @@ let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
  * Lift the eta-expanded identity function
  *)
 let lift_identity c env lifted_id args proj_arg lift_rec sigma =
-  let ignore_id =
-    (* Don't apply identity when the result would reduce to itself *)
-    let sigma, args_o = applies_id_eta (reverse c) env proj_arg sigma in
-    if Option.has_some args_o then
-      let open Printing in
-      let args' = fst (Option.get args_o) in
-      debug_terms env args "args";
-      debug_term env lifted_id "lifted_id";
-      debug_term env proj_arg "proj_arg";
-      debug_terms env args' "args'";
-      List.for_all2 equal args args'
-    else
-      false
-  in
-  if ignore_id then
-    (* contract the eta-expansion, or do nothing *)
-    let open Printing in
-    Printf.printf "%s\n\n" "ignore";
-    lift_rec env sigma c proj_arg
-  else
-    (* eta-expand *)
-    let sigma, lifted_args = map_rec_args lift_rec env sigma c (Array.of_list args) in
-    reduce_term env sigma (mkApp (lifted_id, lifted_args))
+  let sigma, lifted_args = map_rec_args lift_rec env sigma c (Array.of_list args) in
+  reduce_term env sigma (mkApp (lifted_id, lifted_args))
 
 (* --- Optimization implementations --- *)
 

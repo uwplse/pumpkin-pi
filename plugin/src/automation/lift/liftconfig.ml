@@ -303,8 +303,6 @@ let applies_id_eta c env trm sigma =
              sigma, Some (snoc proj_arg typ_args, proj_arg)
           | UnpackSigma ->
              if l.is_fwd then
-               let open Printing in
-               debug_term env trm "trm";
                let projT1, proj_index = List.hd opt_proj_map in
                let projT2, proj_value = last opt_proj_map in
                let s, h_eq = proj_index trm, proj_value trm in

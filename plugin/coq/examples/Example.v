@@ -267,28 +267,23 @@ Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
  * We can get away without preprocessing here, though we must set some terms to opaque to do that:
  *)
 Configure Lift packed vector { opaque Eqdep_dec.UIP_dec Nat.eq_dec projT1 projT2 }.
-(*Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.*)
+Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.
 
 
 (* TODO move these tests later *)
-(*
 Definition my_id (T : Type) (n : nat) (v : vector T n) := v.
 Lift vector packed in my_id as id'.
 Print id'.
-Print packed_vector.zip.
-Definition my_cons_lifted (T : Type) (n : nat) (v : { s : sigT (vector T) & projT1 s = n }) (t : T) := (*: { s : sigT (vector T) & projT1 s = S n } :=
-  *)
-  consV n t (t_unpack T n v).
-Check my_cons_lifted.
-Print t_unpack.
-Print unpack_generic.
+
+Definition my_nil (T : Type) := nilV T.
+Lift vector packed in my_nil as my_nil'.
+Print my_nil'.
 
 Definition my_cons (T : Type) (n : nat) (v : vector T n) (t : T) := consV n t v.
-Print t_unpack.
-
-
 Lift vector packed in my_cons as my_cons'.
-Print my_cons'. *)
+Print my_cons'.
+
+Print hs_to_coqV_p.zip.
 (*
 Definition my_zip (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
 rew [vector (a * b)]
