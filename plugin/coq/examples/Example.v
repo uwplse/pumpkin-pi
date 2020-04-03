@@ -263,21 +263,20 @@ Lift Module list vector in packed_list as packed_vector.
  *)
 Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 
-(*Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.*)
+Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.
 
-
-(* TODO move these tests later *)(*
+(* TODO move these tests later *)
 Definition my_id (T : Type) (n : nat) (v : vector T n) := v.
 Lift vector packed in my_id as id'.
-Print id'.*)
-(*
+Print id'.
+
 Definition my_nil (T : Type) := nilV T.
 Lift vector packed in my_nil as my_nil'.
 Print my_nil'.
 
 Definition my_cons (T : Type) (n : nat) (v : vector T n) (t : T) := consV n t v.
 Lift vector packed in my_cons as my_cons'.
-Print my_cons'.*)
+Print my_cons'.
 (*
 Definition packed_nil (T : Type) := existT _ 0 (nilV T).
 Lift vector packed in packed_nil as packed_nil'.

@@ -513,36 +513,36 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
      let sigma, trm2 = lift_rec env sigma c pair.trm2 in
      (sigma, apply_pair {typ1; typ2; trm1; trm2})
   | UnpackSigma ->
+     (* TODO gross *)
      let ex_eq = dest_existT constr_app in
      let ex = dest_existT ex_eq.index in
-     let sigma, packer = lift_rec env sigma c ex.packer in
+     let sigma, packer =
+       let env_b, b_app = zoom_lambda_term env ex.packer in
+       let b = first_fun b_app in
+       let b_args = Array.of_list (unfold_args b_app) in
+       let sigma, b_args' = map_rec_args lift_rec env sigma c b_args in
+       sigma, reconstruct_lambda_n env_b (mkApp (b, b_args')) (nb_rel env)
+     in
      let sigma, index = lift_rec env sigma c ex.index in
      let sigma, (unpacked, h_eq) =
-       if is_or_applies eq_refl ex_eq.unpacked then
-         (* terminate *)
-         (* TODO eta expand first, so we get this right, also.. test w/o eta *)
-         let lifted_inner = (Array.of_list args).(3) in
-         let (f', args') = destApp lifted_inner in
-         (* TODO move this to refolding in a real constr rule! for now hax *)
-         let sigma, args'' =
-           map_state_array
-             (fun a sigma ->
-               let sigma_right, is_from_o = type_is_from c env a sigma in
-               if Option.has_some is_from_o then
-                 let typ_args = Option.get is_from_o in
-                 lift env (get_lifting (reverse c)) a typ_args sigma_right 
-               else
-                 lift_rec env sigma c a)
-             args'
-             sigma
-         in
-         let b = mkApp (f', args'') in
-         sigma, (b, ex_eq.unpacked)
-       else
-         (* recurse *)
-         let sigma, unpacked = lift_rec env sigma c ex.unpacked in
-         let sigma, h_eq = lift_rec env sigma c ex_eq.unpacked in
-         sigma, (unpacked, h_eq)
+       (* TODO eta expand first, so we get this right, also.. test w/o eta *)
+       let lifted_inner = (Array.of_list args).(3) in
+       let (f', args') = destApp lifted_inner in
+       (* TODO move this to refolding in a real constr rule! for now hax *)
+       let sigma, args'' =
+         map_state_array
+           (fun a sigma ->
+             let sigma_right, is_from_o = type_is_from c env a sigma in
+             if Option.has_some is_from_o then
+               let typ_args = Option.get is_from_o in
+               lift env (get_lifting (reverse c)) a typ_args sigma_right 
+             else
+               lift_rec env sigma c a)
+           args'
+           sigma
+       in
+       let b = mkApp (f', args'') in
+       sigma, (b, ex_eq.unpacked)
      in
      let index = pack_existT { ex with packer; index; unpacked } in
      let sigma, packer = lift_rec env sigma c ex_eq.packer in

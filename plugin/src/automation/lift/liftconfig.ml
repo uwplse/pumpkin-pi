@@ -747,12 +747,12 @@ let initialize_proj_rules c env sigma =
          let eq = apply_eq_refl { typ = index_type; trm = index } in
          reconstruct_lambda env_proj eq
        in
-       let env_proj_typ = pop_rel_context 2 env_proj in
-       let p1_typ = reconstruct_lambda env_proj_typ (unshift_by 2 b_sig_typ) in
        if l.is_fwd then (* projT1 -> pack, projT2 -> eq_refl *)
          sigma, ([(projT1, p1); (projT2, p2)], [])
        else (* pack -> projT1, eq_refl -> projT2 *)
-         sigma, ([(p1, projT1); (p2, projT2)], [(p1_typ, p1_typ)])
+         let p1_typ = reconstruct_lambda (pop_rel_context 2 env_proj) (unshift_by 2 b_sig_typ) in
+         let p2_typ = reconstruct_lambda (pop_rel_context 1 env_proj) (unshift b_sig_eq_typ_app.packer) in
+         sigma, ([(p1, projT1); (p2, projT2)], [(p1_typ, p1_typ); (p2_typ, p2_typ)])
     | CurryRecord ->
        (* accessors <-> projections *)
        let accessors =
