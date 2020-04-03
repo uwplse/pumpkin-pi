@@ -43,7 +43,7 @@ type lift_rule =
 | Equivalence of constr list
 | LiftConstr of constr * constr list
 | LiftIdentity of constr * constr list * constr
-| Coherence of constr * constr * constr list
+| Coherence of constr * constr list
 | LiftElim of elim_app * constr list
 | Section
 | Retraction
@@ -54,8 +54,8 @@ type lift_rule =
 (*
  * Determine which lift rule to run
  *
- * The boolean says to skip the identity rule in order to prevent
- * infinite recursion
+ * The lift_rule argument is the previous lift rule (with CIC as identity)
+ * to prevent infinite recursion in obvious cases
  *)
 val determine_lift_rule :
-  lift_config -> env -> constr -> bool -> evar_map -> lift_rule state
+  lift_config -> env -> constr -> lift_rule -> evar_map -> lift_rule state

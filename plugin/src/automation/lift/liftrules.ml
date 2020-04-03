@@ -89,7 +89,7 @@ type lift_optimization =
 | AppLazyDelta of constr * constr array
 | ConstLazyDelta of Names.Constant.t Univ.puniverses
 | SmartLiftConstr of constr * constr list
-
+                                     
 (*
  * We compile Gallina to a language that matches our premises for the rules
  * in our lifting algorithm.
@@ -101,9 +101,9 @@ type lift_optimization =
  * 2. LIFT-CONSTR runs when we lift constructors of the type in the equivalence.
  *    This carries the lifted constructor and the arguments.
  *
- * 3. COHERENCE runs when we lift projections of the type in the equivalence.
- *    This carries the term we are projecting, the lifted projection, and the
- *    arguments.
+ * 3. COHERENCE runs when we lift projections of the type in the equivalence
+ *    (either at the term or type level). This carries the term we are
+ *    projecting, the lifted projection, and the arguments.
  *
  * 4. LIFT-ELIM runs when we lift applications of eliminators of the type
  *    in the equivalence. This carries the application of the eliminator,
@@ -130,7 +130,7 @@ type lift_rule =
 | Equivalence of constr list
 | LiftConstr of constr * constr list
 | LiftIdentity of constr * constr list * constr
-| Coherence of constr * constr * constr list
+| Coherence of constr * constr list
 | LiftElim of elim_app * constr list
 | Section
 | Retraction
@@ -209,11 +209,30 @@ let is_packed_constr c env sigma trm =
   else
     sigma, None
 
-(* Premises for LIFT-IDENTITY *)
-let is_identity c env trm skip_id sigma =
-  if skip_id then (* prevent infinite recursion *)
-    sigma, None
+(* Premises for COHERENCE *)
+let is_coh c env trm prev_rule sigma =
+  let sigma, to_proj_o = is_proj c env trm sigma in
+  if Option.has_some to_proj_o then
+    match prev_rule with
+    | Coherence (proj', _) ->
+       let proj, _, _ = Option.get to_proj_o in
+       if equal proj proj' then
+         (* Terminate, so bugs result in error messages *)
+         sigma, None
+       else
+         sigma, to_proj_o
+    | _ ->
+       sigma, to_proj_o
   else
+    sigma, None
+             
+(* Premises for LIFT-IDENTITY *)
+let is_identity c env trm prev_rule sigma =
+  match prev_rule with
+  | LiftIdentity _ ->
+     (* Terminate *)
+     sigma, None
+  | _ ->
     match kind trm with
     | Rel _ ->
        applies_id_eta c env trm sigma
@@ -271,7 +290,7 @@ let is_eliminator c env trm sigma =
 (*
  * Given a term, determine the appropriate lift rule to run
  *)
-let determine_lift_rule c env trm skip_id sigma =
+let determine_lift_rule c env trm prev_rule sigma =
   let l = get_lifting c in
   let lifted_opt = lookup_lifting (lift_to l, lift_back l, trm) in
   if Option.has_some lifted_opt then
@@ -289,14 +308,13 @@ let determine_lift_rule c env trm skip_id sigma =
     if Option.has_some args_o then
       sigma, Equivalence (Option.get args_o)
     else
-      let sigma, to_proj_o = is_proj c env trm sigma in
+      let sigma, to_proj_o = is_coh c env trm prev_rule sigma in
       if Option.has_some to_proj_o then
-        let to_proj, i, args, trm_eta = Option.get to_proj_o in
+        let proj, args, trm_eta = Option.get to_proj_o in
         if arity trm_eta > arity trm then
           sigma, Optimization (LazyEta trm_eta)
         else
-          let (_, p) = List.nth (get_proj_map c) i in
-          sigma, Coherence (to_proj, p, args)
+          sigma, Coherence (proj, args)
       else
         let sigma, i_and_args_o = is_packed_constr c env sigma trm in
         if Option.has_some i_and_args_o then
@@ -320,7 +338,7 @@ let determine_lift_rule c env trm skip_id sigma =
           else
             sigma, LiftConstr (lifted_constr, args)
         else
-          let sigma, is_identity_o = is_identity c env trm skip_id sigma in
+          let sigma, is_identity_o = is_identity c env trm prev_rule sigma in
           if Option.has_some is_identity_o then
             let args, proj_arg = Option.get is_identity_o in
             let lifted_id = get_lifted_id_eta c in

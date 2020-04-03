@@ -80,22 +80,22 @@ let promotion_term_to_types env sigma trm =
  * We optimize this in liftconfig.ml depending on the kind of ornament.
  *)
 let e_is_from env goal_typ typ sigma =
-  let nargs = arity goal_typ in
-  (try
-     let sigma, eargs =
-       map_state
-         (fun _ sigma ->
-           let sigma, (earg_typ, _) = new_type_evar env sigma univ_flexible in
-           let sigma, earg = new_evar env sigma earg_typ in
-           sigma, EConstr.to_constr sigma earg)
-         (mk_n_rels nargs)
-         sigma
-     in
-     let sigma, typ_app = reduce_term env sigma (mkAppl (goal_typ, eargs)) in
-     let sigma = the_conv_x env (EConstr.of_constr typ) (EConstr.of_constr typ_app) sigma in
-     sigma, Some eargs
-   with _ ->
-     sigma, None)
+  try
+    let nargs = arity goal_typ in
+    let sigma, eargs =
+      map_state
+        (fun _ sigma ->
+          let sigma, (earg_typ, _) = new_type_evar env sigma univ_flexible in
+          let sigma, earg = new_evar env sigma earg_typ in
+          sigma, EConstr.to_constr sigma earg)
+        (mk_n_rels nargs)
+        sigma
+    in
+    let sigma, typ_app = reduce_term env sigma (mkAppl (goal_typ, eargs)) in
+    let sigma = the_conv_x env (EConstr.of_constr typ) (EConstr.of_constr typ_app) sigma in
+    sigma, Some eargs
+  with _ ->
+    sigma, None
 
 (* --- Utilities for initialization --- *)
                          

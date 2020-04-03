@@ -53,7 +53,9 @@ type lift_config =
     elim_types : types * types;
     packed_constrs : types array * types array;
     constr_rules : types array * types array;
-    proj_rules : (constr * constr) list * (constr * constr) list;
+    proj_rules :
+      ((constr * constr) list * (types * types) list) *
+      ((constr * constr) list * (types * types) list);
     optimize_proj_id_rules :
       ((constr * (constr -> constr)) list) *
       ((constr * (constr -> constr)) list);
@@ -139,6 +141,12 @@ let optimize_is_from c env goal_typ typ =
          Some (unfold_args typ)
        else
          None
+    | UnpackSigma ->
+       let goal_ind = first_fun (zoom_term zoom_lambda_term env goal_typ) in
+       if is_or_applies goal_ind typ then
+         Some (unfold_args typ)
+       else
+         None
     | _ ->
        None
 
@@ -203,28 +211,28 @@ let check_is_proj c env trm proj_is =
           branch_state
             (convertible env proj_i_f) (* this check is an optimization *)
             (fun _ sigma ->
-              let sigma, trm_eta = expand_eta env sigma trm in
-              let env_b, b = zoom_lambda_term env trm_eta in
-              let args = unfold_args b in
-              if List.length args = 0 then
-                check_is_proj_i (i + 1) tl sigma
-              else
-                (* attempt unification *)
-                try
+              try
+                let sigma, trm_eta = expand_eta env sigma trm in
+                let env_b, b = zoom_lambda_term env trm_eta in
+                let args = unfold_args b in
+                if List.length args = 0 then
+                  check_is_proj_i (i + 1) tl sigma
+                else
+                  (* attempt unification *)
                   let sigma, eargs =
                     map_state
                       (fun _ sigma ->
                         let sigma, (earg_typ, _) = new_type_evar env_b sigma univ_flexible in
                         let sigma, earg = new_evar env_b sigma earg_typ in
-                        sigma, EConstr.to_constr sigma earg)
+                      sigma, EConstr.to_constr sigma earg)
                       (mk_n_rels (arity proj_i))
                       sigma
                   in
                   let sigma, proj_app = reduce_term env_b sigma (mkAppl (proj_i, eargs)) in
-                  let sigma = the_conv_x env_b (EConstr.of_constr b) (EConstr.of_constr proj_app) sigma in
-                  sigma, Some (last eargs, i, all_but_last eargs, trm_eta) 
-                with _ ->
-                  check_is_proj_i (i + 1) tl sigma)
+                  let sigma = the_conv_x env (EConstr.of_constr b) (EConstr.of_constr proj_app) sigma in
+                  sigma, Some (i, eargs, trm_eta)
+              with _ ->
+                check_is_proj_i (i + 1) tl sigma)
             (fun _ -> check_is_proj_i (i + 1) tl)
             f
        | _ ->
@@ -234,12 +242,25 @@ let check_is_proj c env trm proj_is =
      ret None
 
 (* Check if a term applies any projection *)
-let is_proj c env trm =
-  let proj_rules = get_proj_map c in
-  if List.length proj_rules = 0 then
-    ret None
+let is_proj c env trm sigma =
+  let proj_term_rules, proj_type_rules = get_proj_map c in
+  if List.length proj_term_rules = 0 then
+    sigma, None
   else
-    check_is_proj c env trm (List.map fst proj_rules)
+    let rec check proj_maps sigma =
+      match proj_maps with
+      | proj_map :: tl ->
+         let proj_terms = List.map fst proj_map in
+         let sigma, to_proj_o = check_is_proj c env trm proj_terms sigma in
+         if Option.has_some to_proj_o then
+           let i, args, trm_eta = Option.get to_proj_o in
+           let (_, proj) = List.nth proj_map i in
+           sigma, Some (proj, args, trm_eta)
+         else
+           check tl sigma
+      | _ ->
+         sigma, None
+    in check [proj_term_rules; proj_type_rules] sigma
 
 (*
  * Get the cached unlifted constructors
@@ -697,7 +718,7 @@ let initialize_proj_rules c env sigma =
          let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj sigma lift_t) in
          let p1 = reconstruct_lambda env_proj (project_index b_sig_typ lift_t) in
          let indexer = reconstruct_lambda env_proj (mkAppl (indexer, mk_n_rels (nb_rel env_proj))) in
-         sigma, [(indexer, p1)]
+         sigma, ([(indexer, p1)], [])
        else (* projT1 -> indexer, projT2 -> id *)
          let args = shift_all (mk_n_rels (nb_rel env_proj - 1)) in
          let p1 = reconstruct_lambda env_proj (mkAppl (indexer, snoc lift_t args)) in
@@ -705,7 +726,7 @@ let initialize_proj_rules c env sigma =
          let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj sigma t) in
          let projT1 = reconstruct_lambda env_proj (project_index b_sig_typ t) in
          let projT2 = reconstruct_lambda env_proj (project_value b_sig_typ t) in
-         sigma, [(projT1, p1); (projT2, p2)]
+         sigma, ([(projT1, p1); (projT2, p2)], [])
     | UnpackSigma ->
        let packed, unpacked = if l.is_fwd then (t, lift_t) else (lift_t, t) in
        let sigma, b_sig_eq_typ = reduce_type env_proj sigma packed in
@@ -716,8 +737,8 @@ let initialize_proj_rules c env sigma =
          let sigma, args = unpack_typ_args env_proj b_sig_eq_typ sigma in
          sigma, (List.hd args, last args)
        in
+       let b_sig_typ = b_sig_eq_typ_app.index_type in
        let p1 =
-         let b_sig_typ = b_sig_eq_typ_app.index_type in
          let packer = (dest_sigT b_sig_typ).packer in
          let indexer = pack_existT { index_type; packer; index; unpacked } in
          reconstruct_lambda env_proj indexer
@@ -726,11 +747,12 @@ let initialize_proj_rules c env sigma =
          let eq = apply_eq_refl { typ = index_type; trm = index } in
          reconstruct_lambda env_proj eq
        in
-       (* TODO is this right? or is this why we need rewrite elsehwere? *)
+       let env_proj_typ = pop_rel_context 2 env_proj in
+       let p1_typ = reconstruct_lambda env_proj_typ (unshift_by 2 b_sig_typ) in
        if l.is_fwd then (* projT1 -> pack, projT2 -> eq_refl *)
-         sigma, [(projT1, p1); (projT2, p2)]
+         sigma, ([(projT1, p1); (projT2, p2)], [])
        else (* pack -> projT1, eq_refl -> projT2 *)
-         sigma, [(p1, projT1); (p2, projT2)]
+         sigma, ([(p1, projT1); (p2, projT2)], [(p1_typ, p1_typ)])
     | CurryRecord ->
        (* accessors <-> projections *)
        let accessors =
@@ -765,15 +787,16 @@ let initialize_proj_rules c env sigma =
            in sigma, (projections, lifted_accessors)
        in
        if List.length ps = List.length ps_to then
-         map2_state (fun p1 p2 -> ret (p1, p2)) ps ps_to sigma
+         let sigma, ps = map2_state (fun p1 p2 -> ret (p1, p2)) ps ps_to sigma in
+         sigma, (ps, [])
        else
          let _ =
            Feedback.msg_warning
              (Pp.str "Can't find record accessors; skipping an optimization")
-         in sigma, []
+         in sigma, ([], [])
     | SwapConstruct _ ->
        (* no projections *)
-       sigma, []
+       sigma, ([], [])
   in
   let sigma, fwd_proj_rules = init c sigma in
   let sigma, bwd_proj_rules = init (reverse c) sigma in
@@ -924,7 +947,7 @@ let initialize_lift_config env l ignores sigma =
       elim_types = (mkRel 1, mkRel 1);
       packed_constrs = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
       constr_rules = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
-      proj_rules = [], [];
+      proj_rules = ([], []), ([], []);
       optimize_proj_id_rules = [], [];
       id_rules = (mkRel 1, mkRel 1);
       cache;

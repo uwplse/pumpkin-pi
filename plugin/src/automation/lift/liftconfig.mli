@@ -87,12 +87,6 @@ val type_is_from :
  *)
 val type_from_args :
   lift_config -> env -> constr -> evar_map -> (constr list) state
-                                                            
-(*
- * Get the map of projections of the types for the lifting
- *)
-val get_proj_map :
-  lift_config -> (constr * constr) list
 
 (*
  * Check if a term applies some projection
@@ -102,7 +96,8 @@ val is_proj :
   env ->
   constr ->
   evar_map ->
-  ((constr * int * constr list * types) option) state
+  (* proj, args, trm_eta *)
+  ((constr * constr list * constr) option) state
 
 (*
  * Get the cached unlifted constructors
