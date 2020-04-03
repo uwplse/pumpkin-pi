@@ -263,10 +263,6 @@ Lift Module list vector in packed_list as packed_vector.
  *)
 Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 
-(*
- * We can get away without preprocessing here, though we must set some terms to opaque to do that:
- *)
-Configure Lift packed vector { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.
 (*Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.*)
 
 
@@ -301,11 +297,16 @@ projT2
 Fail Lift vector packed in my_zip as zip'.*) (* TODO need elim rule *)
 
 (*
+ * We can get away without preprocessing here, though we must set some terms to opaque to do that:
+ *)
+Configure Lift packed vector { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.
+
+(*
  * Then we lift (lifting hs_to_coqV_p first makes this faster and makes the result prettier):
  *)
 
 Lift Module packed vector in hs_to_coqV_p as hs_to_coqV_u.
-Lift Module packed vector in packed_vector as uf. (* TODO temporarily broken *)
+Lift Module packed vector in packed_vector as uf.
 
 (* We are done. Here are our final types: *)
 Check uf.zip.

@@ -229,7 +229,7 @@ let check_is_proj c env trm proj_is =
                       sigma
                   in
                   let sigma, proj_app = reduce_term env_b sigma (mkAppl (proj_i, eargs)) in
-                  let sigma = the_conv_x env (EConstr.of_constr b) (EConstr.of_constr proj_app) sigma in
+                  let sigma = the_conv_x env_b (EConstr.of_constr b) (EConstr.of_constr proj_app) sigma in
                   sigma, Some (i, eargs, trm_eta)
               with _ ->
                 check_is_proj_i (i + 1) tl sigma)
