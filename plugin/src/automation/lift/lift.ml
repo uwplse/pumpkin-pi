@@ -609,12 +609,10 @@ let lift_core env c trm sigma =
     | LiftElim (tr_elim, lifted_pms) ->
        let nargs =
          match l.orn.kind with
-         | Algebraic _ | SwapConstruct _ ->
+         | Algebraic _ | SwapConstruct _ | UnpackSigma ->
             a_arity - (List.length tr_elim.pms) + 1
          | CurryRecord ->
             1
-         | UnpackSigma  ->
-            0
        in
        let (final_args, post_args) = take_split nargs tr_elim.final_args in
        let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in

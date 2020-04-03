@@ -469,7 +469,7 @@ let initialize_types l env sigma =
  *)
 let initialize_elim_types c env sigma =
   let l = get_lifting c in
-  let (a_t, b_t) = get_types c in
+  let (a_t, b_t) = get_types c in (* TODO UnpackSigma *)
   let b_t =
     match l.orn.kind with
     | Algebraic _ ->
@@ -478,7 +478,7 @@ let initialize_elim_types c env sigma =
     | CurryRecord ->
        prod
     | _ ->
-       b_t
+       first_fun (zoom_term zoom_lambda_term env b_t)
   in
   let fwd_elim_typ = directional l a_t b_t in
   let bwd_elim_typ = directional l b_t a_t in

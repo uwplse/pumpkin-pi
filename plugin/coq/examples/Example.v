@@ -277,13 +277,12 @@ Print my_nil'.
 Definition my_cons (T : Type) (n : nat) (v : vector T n) (t : T) := consV n t v.
 Lift vector packed in my_cons as my_cons'.
 Print my_cons'.
-(*
+
 Definition packed_nil (T : Type) := existT _ 0 (nilV T).
 Lift vector packed in packed_nil as packed_nil'.
 Print packed_nil'.
-Fail.
 
-Print hs_to_coqV_p.zip.*)
+Fail Lift vector packed in hs_to_coqV_p.zip as zip'. (* TODO WIP *)
 (*
 Definition my_zip (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
 rew [vector (a * b)]
