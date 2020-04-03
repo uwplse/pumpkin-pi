@@ -233,7 +233,7 @@ Theorem test_append_vect:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
     append_vect A pv1 pv2  = append_vect_lifted A pv1 pv2.
 Proof.
-  intros. reflexivity.
+  reflexivity.
 Qed.
 
 Lift vector list in append_vect_lifted as append_lifted.

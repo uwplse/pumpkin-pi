@@ -406,24 +406,30 @@ let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
 (*
  * Lift the eta-expanded identity function
  *)
-let lift_identity c env lifted_id args lift_rec sigma =
-  let arg = last args in
+let lift_identity c env lifted_id args proj_arg lift_rec sigma =
   let ignore_id =
     (* Don't apply identity when the result would reduce to itself *)
-    if may_apply_id_eta (reverse c) env arg then
-      true
+    let sigma, args_o = applies_id_eta (reverse c) env proj_arg sigma in
+    if Option.has_some args_o then
+      let open Printing in
+      let args' = fst (Option.get args_o) in
+      debug_terms env args "args";
+      debug_term env lifted_id "lifted_id";
+      debug_term env proj_arg "proj_arg";
+      debug_terms env args' "args'";
+      List.for_all2 equal args args'
     else
-      let arg_red = reduce_stateless reduce_nf env sigma arg in
-      may_apply_id_eta (reverse c) env arg_red
+      false
   in
   if ignore_id then
     (* contract the eta-expansion, or do nothing *)
-    lift_rec env sigma c arg
+    let open Printing in
+    Printf.printf "%s\n\n" "ignore";
+    lift_rec env sigma c proj_arg
   else
     (* eta-expand *)
-    let typ_args = all_but_last args in
-    let sigma, lifted_arg = lift_rec env sigma c (last args) in
-    reduce_term env sigma (mkAppl (lifted_id, snoc lifted_arg typ_args))
+    let sigma, lifted_args = map_rec_args lift_rec env sigma c (Array.of_list args) in
+    reduce_term env sigma (mkApp (lifted_id, lifted_args))
 
 (* --- Optimization implementations --- *)
 
@@ -469,8 +475,6 @@ let lift_app_lazy_delta c env f args lift_rec sigma =
        if equal (mkApp (f, args)) app' then
          sigma, mkApp (f', args')
        else
-         let open Printing in
-         debug_term env app' "app'";
          let sigma, lifted_red = lift_rec env sigma c app' in
          if equal lifted_red app' then
            sigma, mkApp (f', args')
@@ -614,8 +618,8 @@ let lift_core env c trm sigma =
          lift_rec skip_id en sigma c constr_app
        else
          sigma, constr_app
-    | LiftIdentity (lifted_id, args) ->
-       lift_identity c en lifted_id args (lift_rec true) sigma
+    | LiftIdentity (lifted_id, args, proj_arg) ->
+       lift_identity c en lifted_id args proj_arg (lift_rec true) sigma
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec skip_id) sigma
     | LiftElim (tr_elim, lifted_pms) ->
@@ -629,12 +633,8 @@ let lift_core env c trm sigma =
             0
        in
        let (final_args, post_args) = take_split nargs tr_elim.final_args in
-       let open Printing in
-       debug_term en tr "tr";
        let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
-       debug_term en tr' "tr'";
        let sigma, tr'' = lift_rec skip_id en sigma c tr' in
-       debug_term en tr'' "tr''";
        let sigma, post_args' = map_rec_args (lift_rec skip_id) en sigma c (Array.of_list post_args) in
        sigma, mkApp (tr'', post_args')
     | Optimization (AppLazyDelta (f, args)) ->

@@ -290,18 +290,21 @@ let applies_id_eta c env trm sigma =
     if Option.has_some typ_args_o then
       let typ_args = Option.get typ_args_o in
       if equal (zoom_term zoom_lambda_term env (fst c.id_rules)) (mkRel 1) then
-        sigma, Some (snoc trm typ_args)
+        sigma, Some (snoc trm typ_args, trm)
       else
         let l = get_lifting c in
         if is_or_applies (lift_back l) trm then
-          sigma, Some (snoc trm typ_args)
+          sigma, Some (snoc trm typ_args, trm)
         else
           match l.orn.kind with
           | Algebraic _ ->
              let proj_value = snd (last opt_proj_map) in
-             sigma, Some (snoc (proj_value trm) typ_args)
+             let proj_arg = proj_value trm in
+             sigma, Some (snoc proj_arg typ_args, proj_arg)
           | UnpackSigma ->
              if l.is_fwd then
+               let open Printing in
+               debug_term env trm "trm";
                let projT1, proj_index = List.hd opt_proj_map in
                let projT2, proj_value = last opt_proj_map in
                let s, h_eq = proj_index trm, proj_value trm in
@@ -314,8 +317,7 @@ let applies_id_eta c env trm sigma =
                    proj_index s, proj_value s
                  else
                    projections (dest_sigT b_sig_eq.index_type) s
-               in
-               sigma, Some (List.append typ_args [i_b; b; h_eq])
+               in sigma, Some (List.append typ_args [i_b; b; h_eq], b)
              else
                if is_or_applies eq_rect trm || is_or_applies eq_ind trm || is_or_applies eq_rec trm then
                  let sigma, trm = expand_eta env sigma trm in
@@ -344,11 +346,11 @@ let applies_id_eta c env trm sigma =
                      let packer = index_type_app.packer in
                      pack_existT { index_type = i_b_typ; packer; index = i_b; unpacked = b }
                    in pack_existT { index_type; packer; index; unpacked = h_eq }
-                 in sigma, Some (snoc packed typ_args)
+                 in sigma, Some (snoc packed typ_args, packed)
                else
-                 sigma, Some (snoc trm typ_args) (* TODO *)
+                 sigma, Some (snoc trm typ_args, trm) (* TODO *)
           | CurryRecord ->
-             sigma, Some (snoc trm typ_args)
+             sigma, Some (snoc trm typ_args, trm)
           | SwapConstruct _ ->
              sigma, None (* impossible state *)
     else

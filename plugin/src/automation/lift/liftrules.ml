@@ -129,7 +129,7 @@ type lift_optimization =
 type lift_rule =
 | Equivalence of constr list
 | LiftConstr of constr * constr list
-| LiftIdentity of constr * constr list
+| LiftIdentity of constr * constr list * constr
 | Coherence of constr * constr * constr list
 | LiftElim of elim_app * constr list
 | Section
@@ -322,9 +322,9 @@ let determine_lift_rule c env trm skip_id sigma =
         else
           let sigma, is_identity_o = is_identity c env trm skip_id sigma in
           if Option.has_some is_identity_o then
-            let args = Option.get is_identity_o in
+            let args, proj_arg = Option.get is_identity_o in
             let lifted_id = get_lifted_id_eta c in
-            sigma, LiftIdentity (lifted_id, args)
+            sigma, LiftIdentity (lifted_id, args, proj_arg)
           else
             let sigma, is_elim_o = is_eliminator c env trm sigma in
             if Option.has_some is_elim_o then

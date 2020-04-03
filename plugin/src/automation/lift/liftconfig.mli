@@ -128,7 +128,7 @@ val may_apply_id_eta :
  * If so, return the arguments
  *)
 val applies_id_eta :
-  lift_config -> env -> constr -> evar_map -> ((constr list) option) state
+  lift_config -> env -> constr -> evar_map -> ((constr list * constr) option) state
 
 (*
  * Get the cached lifted identity function
