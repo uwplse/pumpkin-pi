@@ -74,7 +74,7 @@ let lift_elim_args env sigma c npms args =
        (* don't project and deindex *)
        let a = lifted_arg in
        sigma, deindex l (reindex value_off a args)
-  | SwapConstruct _ | UnpackSigma ->
+  | SwapConstruct _ ->
      let arg = last args in
      let sigma, typ_args = type_from_args c env arg sigma in
      let sigma, lifted_arg = lift env l arg typ_args sigma in
@@ -85,6 +85,8 @@ let lift_elim_args env sigma c npms args =
      let sigma, typ_args = type_from_args c env arg sigma in
      let sigma, lifted_arg = lift env l arg typ_args sigma in
      sigma, [lifted_arg]
+  | UnpackSigma ->
+     sigma, args
 
 (*
  * MOTIVE
@@ -268,7 +270,7 @@ let lift_case_args c env_c_b env_c to_c_typ npms nargs sigma =
        let sigma, arg_pair = pack_pair_rec env_c (List.tl c_args) sigma in
        sigma, List.append [List.hd c_args; arg_pair] b_args
   | UnpackSigma ->
-     sigma, []
+     sigma, mk_n_rels nargs
 
 (*
  * CASE
@@ -583,10 +585,6 @@ let lift_core env c trm sigma =
     | Section | Retraction | Internalize ->
        lift_rec lift_rule en sigma c (last_arg tr)
     | Coherence (p, args, proj_opaque) ->
-       let open Printing in
-       debug_term en tr "tr";
-       debug_term en p "p";
-       debug_terms en args "args";
        if proj_opaque then
          let args = Array.of_list args in
          let sigma, lifted_args = map_rec_args (lift_rec lift_rule) en sigma c args in
@@ -701,8 +699,6 @@ let lift_core env c trm sigma =
  * Run the core lifting algorithm on a term
  *)
 let do_lift_term env sigma (l : lifting) trm opaques =
-  let open Printing in
-  debug_term env trm "lifting trm";
   let sigma, c = initialize_lift_config env l opaques sigma in
   lift_core env c trm sigma
 

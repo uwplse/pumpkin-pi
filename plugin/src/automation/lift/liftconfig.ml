@@ -487,9 +487,6 @@ let initialize_elim_types c env sigma =
     | _ ->
        a_t
   in
-  let open Printing in
-  debug_term env a_t "a_t";
-  debug_term env b_t "b_t";
   let fwd_elim_typ = directional l a_t b_t in
   let bwd_elim_typ = directional l b_t a_t in
   let elim_types = (fwd_elim_typ, bwd_elim_typ) in
