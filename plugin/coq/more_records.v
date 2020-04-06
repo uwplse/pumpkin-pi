@@ -537,7 +537,7 @@ Module LiftedHandwrittenParams.
 
 Configure Lift HandwrittenParams'.input GeneratedParams'.input { opaque HandwrittenParams'.input_rect }.
 Fail Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.input_rect as input_rect'.
-Configure Lift HandwrittenParams'.input  GeneratedParams'.input { ~opaque HandwrittenParams'.input_rect }.
+Configure Lift HandwrittenParams'.input GeneratedParams'.input { ~opaque HandwrittenParams'.input_rect }.
 Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.input_rect as input_rect'.
 Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.output_rect as output_rect'.
 Lift HandwrittenParams'.input GeneratedParams'.input in HandwrittenParams'.MkInput as MkInput.
@@ -669,11 +669,10 @@ Lift GeneratedParams'.output HandwrittenParams'.output in op_1 as op
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.and_spec_true_true as and_spec_true_true_1 {
   opaque Nat.add GeneratedParams'.Coq_Init_Datatypes_andb
   GeneratedParams'.Coq_Init_Datatypes_andb_true_intro
-  GeneratedParams'.field1and3 GeneratedParams'.field2and4 }.
+  GeneratedParams'.field1and3 GeneratedParams'.field2and4 }.  
 Lift GeneratedParams'.output HandwrittenParams'.output in and_spec_true_true_1 as and_spec_true_true {
   opaque GeneratedParams'.Coq_Init_Datatypes_andb_true_intro
-  field1 field2 field3 field4 MkInput }.
-
+  field1 field2 field3 field4 MkInput HandwrittenParams'.field1and3 HandwrittenParams'.field2and4 }.
 Lift GeneratedParams'.input HandwrittenParams'.input in GeneratedParams'.plus_spec_O_l as plus_spec_O_l_1
   { opaque
      Nat.add GeneratedParams'.Coq_Init_Datatypes_andb
