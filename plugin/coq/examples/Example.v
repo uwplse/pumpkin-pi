@@ -282,7 +282,15 @@ Definition packed_nil (T : Type) := existT _ 0 (nilV T).
 Lift vector packed in packed_nil as packed_nil'.
 Print packed_nil'.
 
-Fail Lift vector packed in hs_to_coqV_p.zip as zip'. (* TODO WIP *)
+Definition zip_typ :=
+ forall a b : Type,
+  {H : nat & vector a H} ->
+  {H : nat & vector b H} -> {H : nat & vector (a * b) H}.
+Lift vector packed in zip_typ as zip_typ'.
+Print zip_typ'.
+
+Print hs_to_coqV_p.zip.
+Lift vector packed in hs_to_coqV_p.zip as zip'. (* TODO WIP, passes for the wrong reason *)
 (*
 Definition my_zip (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
 rew [vector (a * b)]

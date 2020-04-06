@@ -40,6 +40,12 @@ open Evarconv
 
 let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
 
+let convertible env t1 t2 sigma =
+  if equal t1 t2 then
+    sigma, true
+  else
+    Convertibility.convertible env sigma t1 t2
+
 (* --- Lifting the induction principle --- *)
 
 (*
@@ -575,7 +581,8 @@ let lift_core env c trm sigma =
        lift_rec lift_rule en sigma c (last_arg tr)
     | Coherence (p, args) ->
        let sigma, projected = reduce_term en sigma (mkAppl (p, args)) in
-       if equal tr projected then
+       let sigma, terminate = convertible en tr projected sigma in
+       if terminate then
          let args = Array.of_list args in
          let sigma, lifted_args = map_rec_args (lift_rec lift_rule) en sigma c args in
          reduce_term en sigma (mkApp (p, lifted_args))
@@ -615,8 +622,12 @@ let lift_core env c trm sigma =
             1
        in
        let (final_args, post_args) = take_split nargs tr_elim.final_args in
+       let open Printing in
+       debug_term en tr "tr";
        let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
+       debug_term en tr' "tr'";
        let sigma, tr'' = lift_rec lift_rule en sigma c tr' in
+       debug_term en tr'' "tr''";
        let sigma, post_args' = map_rec_args (lift_rec lift_rule) en sigma c (Array.of_list post_args) in
        sigma, mkApp (tr'', post_args')
     | Optimization (AppLazyDelta (f, args)) ->

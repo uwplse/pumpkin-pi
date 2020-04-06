@@ -261,22 +261,27 @@ let is_eliminator c env trm prev_rule sigma =
          let sigma, trm_eta = expand_eta env sigma trm in
          let env_elim, trm_b = zoom_lambda_term env trm_eta in
          let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm_b in
-         if (not l.is_fwd) && l.orn.kind = CurryRecord then
-           let (final_args, post_args) = take_split 1 trm_elim.final_args in
-           let sigma, is_from = type_is_from c env_elim (List.hd final_args) sigma in
-           if Option.has_some is_from then
-             sigma, Some (env_elim, trm_eta, trm_elim, Option.get is_from)
-           else
-             sigma, None
-         else
-           if l.orn.kind = CurryRecord then
-             let typ_f = first_fun (zoom_term zoom_lambda_term env_elim (snd (get_types c))) in
-             let sigma, to_typ_prod = specialize_delta_f env_elim typ_f trm_elim.pms sigma in
-             let to_elim = dest_prod to_typ_prod in
-             let pms = [to_elim.Produtils.typ1; to_elim.Produtils.typ2] in
-             sigma, Some (env_elim, trm_eta, trm_elim, pms)
-           else
-             sigma, Some (env_elim, trm_eta, trm_elim, trm_elim.pms)
+         match prev_rule with
+         | LiftElim (trm_elim', _) when trm_elim.elim = trm_elim'.elim ->
+            (* Terminate *)
+            sigma, None
+         | _ ->
+            if (not l.is_fwd) && l.orn.kind = CurryRecord then
+              let (final_args, post_args) = take_split 1 trm_elim.final_args in
+              let sigma, is_from = type_is_from c env_elim (List.hd final_args) sigma in
+              if Option.has_some is_from then
+                sigma, Some (env_elim, trm_eta, trm_elim, Option.get is_from)
+              else
+                sigma, None
+            else
+              if l.orn.kind = CurryRecord then
+                let typ_f = first_fun (zoom_term zoom_lambda_term env_elim (snd (get_types c))) in
+                let sigma, to_typ_prod = specialize_delta_f env_elim typ_f trm_elim.pms sigma in
+                let to_elim = dest_prod to_typ_prod in
+                let pms = [to_elim.Produtils.typ1; to_elim.Produtils.typ2] in
+                sigma, Some (env_elim, trm_eta, trm_elim, pms)
+              else
+                sigma, Some (env_elim, trm_eta, trm_elim, trm_elim.pms)
        else
          sigma, None
      else
