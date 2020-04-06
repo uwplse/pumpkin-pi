@@ -632,7 +632,11 @@ let lift_core env c trm sigma =
          let sigma, tr'_elim = deconstruct_eliminator en sigma tr' in
          (* TODO get below working w/ partial opaque for UnpackSigma *)
          let sigma, pms = map_rec_args_list (lift_rec lift_rule) en sigma c tr'_elim.pms in
-         let sigma, p = lift_rec lift_rule en sigma c tr'_elim.p in
+         let sigma, p =
+           let env_p, p_bod = zoom_lambda_term en tr'_elim.p in
+           let sigma, p_bod' = lift_rec lift_rule env_p sigma c p_bod in
+           sigma, reconstruct_lambda_n env_p p_bod' (nb_rel en)
+         in
          let sigma, cs = map_rec_args_list (lift_rec lift_rule) en sigma c tr'_elim.cs in
          let sigma, final_args = map_rec_args_list (lift_rec lift_rule) en sigma c tr'_elim.final_args in
          sigma, apply_eliminator { tr'_elim with pms; p; cs; final_args }
