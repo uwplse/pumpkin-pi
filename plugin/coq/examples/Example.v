@@ -290,7 +290,7 @@ Lift vector packed in zip_typ as zip_typ'.
 Print zip_typ'.
 
 Print hs_to_coqV_p.zip.
-Lift vecto  r packed in hs_to_coqV_p.zip as zip'. (* TODO WIP, passes for the wrong reason *)
+Lift vector packed in hs_to_coqV_p.zip as zip'. (* TODO WIP, passes for the wrong reason *)
 Print zip'.
 Fail.
 (*

@@ -40,6 +40,11 @@ open Evarconv
 
 let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
 
+let map_rec_args_list lift_rec env sigma c args =
+  Util.on_snd
+    Array.to_list
+    (map_rec_args lift_rec env sigma c (Array.of_list args))
+
 (* --- Lifting the induction principle --- *)
 
 (*
@@ -325,17 +330,11 @@ let lift_cases env c npms p_elim cs =
  *)
 let lift_elim env sigma c trm_app pms =
   let to_typ = get_elim_type (reverse c) in
-  let open Printing in
-  debug_term env to_typ "to_typ";
   let elim = type_eliminator env (fst (destInd to_typ)) in
   let npms = List.length pms in
   let param_elim = mkAppl (elim, pms) in
-  let open Printing in
-  debug_term env trm_app.p "trm_app.p";
   let sigma, p = lift_motive env sigma c npms param_elim trm_app.p in
-  debug_term env p "p with lifted domain";
   let p_elim = mkAppl (param_elim, [p]) in
-  debug_term env p_elim "p_elim";
   let sigma, cs = lift_cases env c npms p_elim trm_app.cs sigma in
   let sigma, final_args = lift_elim_args env sigma c npms trm_app.final_args in
   sigma, apply_eliminator { elim; pms; p; cs; final_args }
@@ -419,8 +418,8 @@ let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
  * Lift the eta-expanded identity function
  *)
 let lift_identity c env lifted_id args proj_arg lift_rec sigma =
-  let sigma, lifted_args = map_rec_args lift_rec env sigma c (Array.of_list args) in
-  reduce_term env sigma (mkApp (lifted_id, lifted_args))
+  let sigma, lifted_args = map_rec_args_list lift_rec env sigma c args in
+  reduce_term env sigma (mkAppl (lifted_id, lifted_args))
 
 (* --- Optimization implementations --- *)
 
@@ -530,9 +529,8 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
      let sigma, packer =
        let env_b, b_app = zoom_lambda_term env ex.packer in
        let b = first_fun b_app in
-       let b_args = Array.of_list (unfold_args b_app) in
-       let sigma, b_args' = map_rec_args lift_rec env sigma c b_args in
-       sigma, reconstruct_lambda_n env_b (mkApp (b, b_args')) (nb_rel env)
+       let sigma, b_args' = map_rec_args_list lift_rec env sigma c (unfold_args b_app) in
+       sigma, reconstruct_lambda_n env_b (mkAppl (b, b_args')) (nb_rel env)
      in
      let sigma, index = lift_rec env sigma c ex.index in
      let sigma, (unpacked, h_eq) =
@@ -586,25 +584,24 @@ let lift_core env c trm sigma =
        lift_rec lift_rule en sigma c (last_arg tr)
     | Coherence (p, args, proj_opaque) ->
        if proj_opaque then
-         let args = Array.of_list args in
-         let sigma, lifted_args = map_rec_args (lift_rec lift_rule) en sigma c args in
-         reduce_term en sigma (mkApp (p, lifted_args))
+         let sigma, lifted_args = map_rec_args_list (lift_rec lift_rule) en sigma c args in
+         reduce_term en sigma (mkAppl (p, lifted_args))
        else
          let sigma, projected = reduce_term en sigma (mkAppl (p, args)) in
          lift_rec lift_rule en sigma c projected
     | Equivalence args ->
        let (_, b_typ) = get_types c in
-       let sigma, lifted_args = map_rec_args (lift_rec lift_rule) en sigma c (Array.of_list args) in
+       let sigma, lifted_args = map_rec_args_list (lift_rec lift_rule) en sigma c args in
        if l.is_fwd then
-         if Array.length lifted_args = 0 then
+         if List.length lifted_args = 0 then
            sigma, b_typ
          else
-           reduce_term en sigma (mkApp (b_typ, lifted_args))
+           reduce_term en sigma (mkAppl (b_typ, lifted_args))
        else
-         if Array.length lifted_args = 0 then
+         if List.length lifted_args = 0 then
            sigma, a_typ
          else
-           (sigma, mkApp (a_typ, lifted_args))
+           (sigma, mkAppl (a_typ, lifted_args))
     | Optimization (SmartLiftConstr (lifted_constr, args)) ->
        lift_smart_lift_constr c en lifted_constr args (lift_rec lift_rule) sigma
     | LiftConstr (lifted_constr, args) ->
@@ -630,10 +627,22 @@ let lift_core env c trm sigma =
        debug_term en tr "tr";
        let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
        debug_term en tr' "tr'";
-       let sigma, tr'' = lift_rec lift_rule en sigma c tr' in
+       (* TODO move this, and explain why needed (opaque sometimes) *)
+       let sigma, tr'' =
+         let sigma, tr'_elim = deconstruct_eliminator en sigma tr' in
+         (* TODO get below working w/ partial opaque for UnpackSigma *)
+         let sigma, pms = map_rec_args_list (lift_rec lift_rule) en sigma c tr'_elim.pms in
+         let sigma, p = lift_rec lift_rule en sigma c tr'_elim.p in
+         let sigma, cs = map_rec_args_list (lift_rec lift_rule) en sigma c tr'_elim.cs in
+         let sigma, final_args = map_rec_args_list (lift_rec lift_rule) en sigma c tr'_elim.final_args in
+         sigma, apply_eliminator { tr'_elim with pms; p; cs; final_args }
+       in
        debug_term en tr'' "tr''";
-       let sigma, post_args' = map_rec_args (lift_rec lift_rule) en sigma c (Array.of_list post_args) in
-       sigma, mkApp (tr'', post_args')
+       let sigma, post_args' = map_rec_args_list (lift_rec lift_rule) en sigma c post_args in
+       debug_terms en post_args' "post_args'";
+       let sigma, lifted = sigma, mkAppl (tr'', post_args') in
+       (* v TODO remove below once we have everything in identity *)
+       maybe_repack (lift_rec lift_rule) c en tr' lifted (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) ((not (l.orn.kind = UnpackSigma)) && l.is_fwd) sigma
     | Optimization (AppLazyDelta (f, args)) ->
        lift_app_lazy_delta c en f args (lift_rec lift_rule) sigma
     | Optimization (ConstLazyDelta (co, u)) ->
