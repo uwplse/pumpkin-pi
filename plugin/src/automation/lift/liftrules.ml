@@ -259,6 +259,8 @@ let is_eliminator c env trm prev_rule sigma =
        let ind = Option.get maybe_ind in
        let is_elim = equal (mkInd (ind, 0)) (get_elim_type c) in
        if is_elim then
+         let open Printing in
+         debug_term env trm "is_elim";
          let sigma, trm_eta = expand_eta env sigma trm in
          let env_elim, trm_b = zoom_lambda_term env trm_eta in
          let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm_b in
@@ -267,6 +269,8 @@ let is_eliminator c env trm prev_rule sigma =
             (* Terminate *)
             sigma, None
          | _ ->
+            let open Printing in
+            Printf.printf "%s\n\n" "also, not redundant";
             if (not l.is_fwd) && l.orn.kind = CurryRecord then
               let (final_args, post_args) = take_split 1 trm_elim.final_args in
               let sigma, is_from = type_is_from c env_elim (List.hd final_args) sigma in

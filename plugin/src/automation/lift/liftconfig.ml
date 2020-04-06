@@ -469,7 +469,7 @@ let initialize_types l env sigma =
  *)
 let initialize_elim_types c env sigma =
   let l = get_lifting c in
-  let (a_t, b_t) = get_types c in (* TODO UnpackSigma *)
+  let (a_t, b_t) = get_types c in
   let b_t =
     match l.orn.kind with
     | Algebraic _ ->
@@ -480,6 +480,16 @@ let initialize_elim_types c env sigma =
     | _ ->
        first_fun (zoom_term zoom_lambda_term env b_t)
   in
+  let a_t =
+    match l.orn.kind with
+    | UnpackSigma ->
+       b_t
+    | _ ->
+       a_t
+  in
+  let open Printing in
+  debug_term env a_t "a_t";
+  debug_term env b_t "b_t";
   let fwd_elim_typ = directional l a_t b_t in
   let bwd_elim_typ = directional l b_t a_t in
   let elim_types = (fwd_elim_typ, bwd_elim_typ) in

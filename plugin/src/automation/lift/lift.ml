@@ -96,16 +96,23 @@ let lift_motive env sigma c npms parameterized_elim p =
   let env_p_to = zoom_env zoom_product_type env p_to_typ in
   let nargs = new_rels2 env_p_to env in
   let p = shift_by nargs p in
-  let args = mk_n_rels nargs in
-  let sigma, arg =
-    map_backward
-      (fun (sigma, t) -> pack env_p_to (flip_dir l) t sigma)
-      (flip_dir l)
-      (sigma, last args)
-  in
-  let sigma, typ_args = type_from_args (reverse c) env_p_to arg sigma in
-  let sigma, lifted_arg = lift env_p_to (flip_dir l) arg typ_args sigma in
-  let args =
+  let sigma, args =
+    let args = mk_n_rels nargs in
+    let sigma, lifted_arg =
+      if l.orn.kind = UnpackSigma then
+        (* The domain of induction doens't change *)
+        sigma, last args
+      else
+        (* v TODO can typ_args just be first n rels? *)
+        let sigma, arg =
+          map_backward
+            (fun (sigma, t) -> pack env_p_to (flip_dir l) t sigma)
+            (flip_dir l)
+            (sigma, last args)
+        in
+        let sigma, typ_args = type_from_args (reverse c) env_p_to arg sigma in
+        lift env_p_to (flip_dir l) arg typ_args sigma
+    in
     match l.orn.kind with
     | Algebraic (indexer, off) ->
        let value_off = nargs - 1 in
@@ -114,21 +121,19 @@ let lift_motive env sigma c npms parameterized_elim p =
        if l.is_fwd then
          (* forget packed b to a, don't project, and deindex *)
          let a = lifted_arg in
-         deindex l (reindex value_off a args)
+         sigma, deindex l (reindex value_off a args)
        else
          (* promote a to packed b, project, and index *)
          let b_sig = lifted_arg in
          let b_sig_typ = dest_sigT_type env_p_to sigma b_sig in
          let i_b = project_index b_sig_typ b_sig in
          let b = project_value b_sig_typ b_sig in
-         index l i_b (reindex value_off b args)
-    | SwapConstruct _ ->
+         sigma, index l i_b (reindex value_off b args)
+    | SwapConstruct _ | UnpackSigma ->
        let value_off = nargs - 1 in
-       reindex value_off lifted_arg args
+       sigma, reindex value_off lifted_arg args
     | CurryRecord ->
-       [lifted_arg]
-    | UnpackSigma ->
-       args
+       sigma, [lifted_arg]
   in
   let p_app = reduce_stateless reduce_term env_p_to sigma (mkAppl (p, args)) in
   sigma, reconstruct_lambda_n env_p_to p_app (nb_rel env)
@@ -318,6 +323,8 @@ let lift_cases env c npms p_elim cs =
  *)
 let lift_elim env sigma c trm_app pms =
   let to_typ = get_elim_type (reverse c) in
+  let open Printing in
+  debug_term env to_typ "to_typ";
   let elim = type_eliminator env (fst (destInd to_typ)) in
   let npms = List.length pms in
   let param_elim = mkAppl (elim, pms) in
@@ -326,6 +333,7 @@ let lift_elim env sigma c trm_app pms =
   let sigma, p = lift_motive env sigma c npms param_elim trm_app.p in
   debug_term env p "p with lifted domain";
   let p_elim = mkAppl (param_elim, [p]) in
+  debug_term env p_elim "p_elim";
   let sigma, cs = lift_cases env c npms p_elim trm_app.cs sigma in
   let sigma, final_args = lift_elim_args env sigma c npms trm_app.final_args in
   sigma, apply_eliminator { elim; pms; p; cs; final_args }
@@ -575,12 +583,16 @@ let lift_core env c trm sigma =
     | Section | Retraction | Internalize ->
        lift_rec lift_rule en sigma c (last_arg tr)
     | Coherence (p, args, proj_opaque) ->
-       let sigma, projected = reduce_term en sigma (mkAppl (p, args)) in
+       let open Printing in
+       debug_term en tr "tr";
+       debug_term en p "p";
+       debug_terms en args "args";
        if proj_opaque then
          let args = Array.of_list args in
          let sigma, lifted_args = map_rec_args (lift_rec lift_rule) en sigma c args in
          reduce_term en sigma (mkApp (p, lifted_args))
        else
+         let sigma, projected = reduce_term en sigma (mkAppl (p, args)) in
          lift_rec lift_rule en sigma c projected
     | Equivalence args ->
        let (_, b_typ) = get_types c in
@@ -689,6 +701,8 @@ let lift_core env c trm sigma =
  * Run the core lifting algorithm on a term
  *)
 let do_lift_term env sigma (l : lifting) trm opaques =
+  let open Printing in
+  debug_term env trm "lifting trm";
   let sigma, c = initialize_lift_config env l opaques sigma in
   lift_core env c trm sigma
 
