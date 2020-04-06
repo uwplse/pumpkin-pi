@@ -40,12 +40,6 @@ open Evarconv
 
 let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
 
-let convertible env t1 t2 sigma =
-  if equal t1 t2 then
-    sigma, true
-  else
-    Convertibility.convertible env sigma t1 t2
-
 (* --- Lifting the induction principle --- *)
 
 (*
@@ -80,7 +74,7 @@ let lift_elim_args env sigma c npms args =
        (* don't project and deindex *)
        let a = lifted_arg in
        sigma, deindex l (reindex value_off a args)
-  | SwapConstruct _ ->
+  | SwapConstruct _ | UnpackSigma ->
      let arg = last args in
      let sigma, typ_args = type_from_args c env arg sigma in
      let sigma, lifted_arg = lift env l arg typ_args sigma in
@@ -91,8 +85,6 @@ let lift_elim_args env sigma c npms args =
      let sigma, typ_args = type_from_args c env arg sigma in
      let sigma, lifted_arg = lift env l arg typ_args sigma in
      sigma, [lifted_arg]
-  | UnpackSigma ->
-     sigma, []
 
 (*
  * MOTIVE
@@ -136,7 +128,7 @@ let lift_motive env sigma c npms parameterized_elim p =
     | CurryRecord ->
        [lifted_arg]
     | UnpackSigma ->
-       []
+       args
   in
   let p_app = reduce_stateless reduce_term env_p_to sigma (mkAppl (p, args)) in
   sigma, reconstruct_lambda_n env_p_to p_app (nb_rel env)
@@ -329,7 +321,10 @@ let lift_elim env sigma c trm_app pms =
   let elim = type_eliminator env (fst (destInd to_typ)) in
   let npms = List.length pms in
   let param_elim = mkAppl (elim, pms) in
+  let open Printing in
+  debug_term env trm_app.p "trm_app.p";
   let sigma, p = lift_motive env sigma c npms param_elim trm_app.p in
+  debug_term env p "p with lifted domain";
   let p_elim = mkAppl (param_elim, [p]) in
   let sigma, cs = lift_cases env c npms p_elim trm_app.cs sigma in
   let sigma, final_args = lift_elim_args env sigma c npms trm_app.final_args in
@@ -579,10 +574,9 @@ let lift_core env c trm sigma =
        lift_rec lift_rule en sigma c tr_eta
     | Section | Retraction | Internalize ->
        lift_rec lift_rule en sigma c (last_arg tr)
-    | Coherence (p, args) ->
+    | Coherence (p, args, proj_opaque) ->
        let sigma, projected = reduce_term en sigma (mkAppl (p, args)) in
-       let sigma, terminate = convertible en tr projected sigma in
-       if terminate then
+       if proj_opaque then
          let args = Array.of_list args in
          let sigma, lifted_args = map_rec_args (lift_rec lift_rule) en sigma c args in
          reduce_term en sigma (mkApp (p, lifted_args))

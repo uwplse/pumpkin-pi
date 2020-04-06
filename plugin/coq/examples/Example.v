@@ -291,6 +291,8 @@ Print zip_typ'.
 
 Print hs_to_coqV_p.zip.
 Lift vector packed in hs_to_coqV_p.zip as zip'. (* TODO WIP, passes for the wrong reason *)
+Print zip'.
+Fail.
 (*
 Definition my_zip (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
 rew [vector (a * b)]

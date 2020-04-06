@@ -103,7 +103,8 @@ type lift_optimization =
  *
  * 3. COHERENCE runs when we lift projections of the type in the equivalence
  *    (either at the term or type level). This carries the term we are
- *    projecting, the lifted projection, and the arguments.
+ *    the lifted projection and the arguments, as well as a flag for whether
+ *    to treat the projection function as opaque.
  *
  * 4. LIFT-ELIM runs when we lift applications of eliminators of the type
  *    in the equivalence. This carries the application of the eliminator,
@@ -130,7 +131,7 @@ type lift_rule =
 | Equivalence of constr list
 | LiftConstr of constr * constr list
 | LiftIdentity of constr * constr list * constr
-| Coherence of constr * constr list
+| Coherence of constr * constr list * bool
 | LiftElim of elim_app * constr list
 | Section
 | Retraction
@@ -214,8 +215,8 @@ let is_coh c env trm prev_rule sigma =
   let sigma, to_proj_o = is_proj c env trm sigma in
   if Option.has_some to_proj_o then
     match prev_rule with
-    | Coherence (proj', _) ->
-       let proj, _, _ = Option.get to_proj_o in
+    | Coherence (proj', _, _) ->
+       let proj, _, _, _ = Option.get to_proj_o in
        if equal proj proj' then
          (* Terminate, so bugs result in error messages *)
          sigma, None
@@ -312,11 +313,11 @@ let determine_lift_rule c env trm prev_rule sigma =
     else
       let sigma, to_proj_o = is_coh c env trm prev_rule sigma in
       if Option.has_some to_proj_o then
-        let proj, args, trm_eta = Option.get to_proj_o in
+        let proj, args, trm_eta, proj_opaque = Option.get to_proj_o in
         if arity trm_eta > arity trm then
           sigma, Optimization (LazyEta trm_eta)
         else
-          sigma, Coherence (proj, args)
+          sigma, Coherence (proj, args, proj_opaque)
       else
         let sigma, i_and_args_o = is_packed_constr c env sigma trm in
         if Option.has_some i_and_args_o then
