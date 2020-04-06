@@ -340,6 +340,38 @@ let lift_elim env sigma c trm_app pms =
   sigma, apply_eliminator { elim; pms; p; cs; final_args }
 
 (*
+ * This recurses for LIFT-ELIM
+ * TODO move/clean this, and explain why needed (opaque sometimes) 
+ *)
+let lift_elim_rec lift_rec c env trm sigma =
+  let sigma, tr'_elim = deconstruct_eliminator env sigma trm in
+  (* TODO get below working w/ partial opaque for UnpackSigma *)
+  let sigma, pms = map_rec_args_list lift_rec env sigma c tr'_elim.pms in
+  (* TODO do in a better way, e.g. with lift_rule or opaque *)
+  let sigma, p =
+    let env_p, p_bod = zoom_lambda_term env tr'_elim.p in
+    let env_pms = pop_rel_context 1 env_p in
+    let p_pms = reconstruct_lambda_n env_p p_bod (nb_rel env_pms) in
+    let (n, t, b) = destLambda p_pms in
+    let sigma, b' = lift_rec env_p sigma c b in
+    let t_args = unfold_args t in
+    if List.length t_args = 0 then
+      sigma, reconstruct_lambda_n env_pms (mkLambda (n, t, b')) (nb_rel env)
+    else
+      let sigma, t_args' = map_rec_args_list lift_rec env_pms sigma c t_args in
+      let t' = mkAppl (first_fun t, t_args') in
+      sigma, reconstruct_lambda_n env_pms (mkLambda (n, t', b')) (nb_rel env)
+  in
+  let sigma, cs =
+    map_state
+      (fun constr sigma -> lift_rec env sigma c constr)
+      tr'_elim.cs
+      sigma
+  in
+  let sigma, final_args = map_rec_args_list lift_rec env sigma c tr'_elim.final_args in
+  sigma, apply_eliminator { tr'_elim with pms; p; cs; final_args }
+
+(*
  * REPACK
  *
  * This is to deal with non-primitive projections (what it means to lift
@@ -624,35 +656,7 @@ let lift_core env c trm sigma =
        in
        let (final_args, post_args) = take_split nargs tr_elim.final_args in
        let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
-       (* TODO move this, and explain why needed (opaque sometimes) *)
-       let sigma, tr'' =
-         let sigma, tr'_elim = deconstruct_eliminator en sigma tr' in
-         (* TODO get below working w/ partial opaque for UnpackSigma *)
-         let sigma, pms = map_rec_args_list (lift_rec lift_rule) en sigma c tr'_elim.pms in
-         (* TODO do in a better way, e.g. with lift_rule or opaque *)
-         let sigma, p =
-           let env_p, p_bod = zoom_lambda_term en tr'_elim.p in
-           let env_pms = pop_rel_context 1 env_p in
-           let p_pms = reconstruct_lambda_n env_p p_bod (nb_rel env_pms) in
-           let (n, t, b) = destLambda p_pms in
-           let sigma, b' = lift_rec lift_rule env_p sigma c b in
-           let t_args = unfold_args t in
-           if List.length t_args = 0 then
-             sigma, reconstruct_lambda_n env_pms (mkLambda (n, t, b')) (nb_rel en)
-           else
-             let sigma, t_args' = map_rec_args_list (lift_rec lift_rule) env_pms sigma c t_args in
-             let t' = mkAppl (first_fun t, t_args') in
-             sigma, reconstruct_lambda_n env_pms (mkLambda (n, t', b')) (nb_rel en)
-         in
-         let sigma, cs =
-           map_state
-             (fun constr sigma -> lift_rec lift_rule en sigma c constr)
-             tr'_elim.cs
-             sigma
-         in
-         let sigma, final_args = map_rec_args_list (lift_rec lift_rule) en sigma c tr'_elim.final_args in
-         sigma, apply_eliminator { tr'_elim with pms; p; cs; final_args }
-       in
+       let sigma, tr'' = lift_elim_rec (lift_rec lift_rule) c en tr' sigma in
        let sigma, post_args' = map_rec_args_list (lift_rec lift_rule) en sigma c post_args in
        let sigma, lifted = sigma, mkAppl (tr'', post_args') in
        (* v TODO remove below once we have everything in identity *)
