@@ -343,9 +343,8 @@ let lift_elim env sigma c trm_app pms =
  * This recurses for LIFT-ELIM
  * TODO move/clean this, and explain why needed (opaque sometimes) 
  *)
-let lift_elim_rec lift_rec c env trm sigma =
+let lift_elim_rec lift_rec c env trm post_args sigma =
   let sigma, tr'_elim = deconstruct_eliminator env sigma trm in
-  (* TODO get below working w/ partial opaque for UnpackSigma *)
   let sigma, pms = map_rec_args_list lift_rec env sigma c tr'_elim.pms in
   (* TODO do in a better way, e.g. with lift_rule or opaque *)
   let sigma, p =
@@ -362,12 +361,66 @@ let lift_elim_rec lift_rec c env trm sigma =
       let t' = mkAppl (first_fun t, t_args') in
       sigma, reconstruct_lambda_n env_pms (mkLambda (n, t', b')) (nb_rel env)
   in
+  (* TODO WIP for UnpackSigma *)
   let sigma, cs =
-    map_state
-      (fun constr sigma -> lift_rec env sigma c constr)
+    let ind_typ = fst (destInd (get_elim_type (reverse c))) in
+    let elim = type_eliminator env ind_typ in
+    let sigma, elim_eta = expand_eta env sigma elim in
+    let open Printing in
+    debug_term env elim_eta "elim_eta";
+    let env_elim_eta, elim_eta = zoom_lambda_term env elim_eta in
+    let sigma, elim_eta_app = deconstruct_eliminator env_elim_eta sigma elim_eta in
+    let generic_cs = elim_eta_app.cs in
+    let sigma, generic_cs_typs =
+      map_state
+        (fun constr sigma -> reduce_type env_elim_eta sigma constr)
+        generic_cs
+        sigma
+    in
+    let open Printing in
+    debug_terms env generic_cs_typs "cs_typs";
+    let open Printing in
+    debug_term env_elim_eta elim_eta "elim_eta";
+    let rec lift_case_rec env num_skip trm typ sigma =
+      (* TODO need to make sure eta-expanded etc *)
+      let open Printing in
+      debug_term env trm "trm";
+      debug_term env typ "typ";
+      match map_tuple kind (trm, typ) with
+      | (Lambda (n, t, b), _) when num_skip > 0 ->
+         let sigma, t' = lift_rec env sigma c t in
+         let env_b = push_local (n, t) env in
+         let sigma, b' = lift_case_rec env_b (num_skip - 1) b typ sigma in
+         sigma, mkLambda (n, t', b')
+      | (Lambda (n, t, b), Prod (n', t', b')) ->
+         let env_b = push_local (n, t) env in
+         let sigma, t'' =
+           if is_or_applies (get_elim_type (reverse c)) t' then
+             let open Printing in
+             Printf.printf "%s\n\n" "being smart";
+             let args = unfold_args t in
+             if List.length args = 0 then
+               sigma, t
+             else
+               let sigma, args' = map_rec_args_list lift_rec env sigma c args in
+               sigma, mkAppl (first_fun t, args')
+           else
+             lift_rec env sigma c t
+         in
+         let sigma, b'' = lift_case_rec env_b num_skip b b' sigma in
+         sigma, mkLambda (n, t'', b'')
+      | _ ->
+         lift_rec env sigma c trm
+    in
+    map2_state
+      (lift_case_rec env (List.length post_args))
       tr'_elim.cs
+      generic_cs_typs
       sigma
   in
+  let open Printing in
+  debug_terms env cs "cs";
+  Printf.printf "%s\n\n" "---";
   let sigma, final_args = map_rec_args_list lift_rec env sigma c tr'_elim.final_args in
   sigma, apply_eliminator { tr'_elim with pms; p; cs; final_args }
 
@@ -656,7 +709,7 @@ let lift_core env c trm sigma =
        in
        let (final_args, post_args) = take_split nargs tr_elim.final_args in
        let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
-       let sigma, tr'' = lift_elim_rec (lift_rec lift_rule) c en tr' sigma in
+       let sigma, tr'' = lift_elim_rec (lift_rec lift_rule) c en tr' post_args sigma in
        let sigma, post_args' = map_rec_args_list (lift_rec lift_rule) en sigma c post_args in
        let sigma, lifted = sigma, mkAppl (tr'', post_args') in
        (* v TODO remove below once we have everything in identity *)
