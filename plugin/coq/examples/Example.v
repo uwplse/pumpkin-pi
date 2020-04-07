@@ -292,6 +292,19 @@ Lift vector packed in zip_typ as zip_typ'.
 Print zip_typ'.
 
 Print hs_to_coqV_p.zip.
+Definition zip_inner a b h arg_1__0 H :=
+  VectorDef.t_rect b
+           (fun (n0 : nat) (_ : vector b n0) => {H0 : nat & vector (a * b) H0})
+           (existT [eta vector (a * b)] 0 (nilV (a * b)))
+           (fun (h0 : b) (n0 : nat) (t1 : vector b n0)
+              (_ : {H0 : nat & vector (a * b) H0}) =>
+            existT [eta vector (a * b)]
+              (S (projT1 (H (existT [eta vector b] n0 t1))))
+              (consV (projT1 (H (existT [eta vector b] n0 t1))) 
+                 (h, h0) (projT2 (H (existT [eta vector b] n0 t1)))))
+           (projT1 arg_1__0) (projT2 arg_1__0).
+Lift vector packed in zip_inner as zip_inner'. (* TODO WIP *)
+
 Lift vector packed in hs_to_coqV_p.zip as zip'. (* TODO WIP *)
 Print zip'.
 (*

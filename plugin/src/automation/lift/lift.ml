@@ -708,10 +708,14 @@ let lift_core env c trm sigma =
        let (final_args, post_args) = take_split nargs tr_elim.final_args in
        let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
        let sigma, tr'' = lift_elim_rec (lift_rec lift_rule) c en tr' post_args sigma in
+       let open Printing in
+       debug_term en tr'' "tr''";
        let sigma, post_args' = map_rec_args_list (lift_rec lift_rule) en sigma c post_args in
        let sigma, lifted = sigma, mkAppl (tr'', post_args') in
        (* v TODO remove below once we have everything in identity *)
-       maybe_repack (lift_rec lift_rule) c en tr' lifted (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) ((not (l.orn.kind = UnpackSigma)) && l.is_fwd) sigma
+       let sigma, lifted = maybe_repack (lift_rec lift_rule) c en tr' lifted (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) ((not (l.orn.kind = UnpackSigma)) && l.is_fwd) sigma in
+       debug_term en lifted "lifted";
+       sigma, lifted
     | Optimization (AppLazyDelta (f, args)) ->
        lift_app_lazy_delta c en f args (lift_rec lift_rule) sigma
     | Optimization (ConstLazyDelta (co, u)) ->
