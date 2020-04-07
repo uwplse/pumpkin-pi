@@ -299,7 +299,7 @@ Definition zip_inner a b h arg_1__0 H :=
            (fun (h0 : b) (n0 : nat) (t1 : vector b n0)
               (_ : {H0 : nat & vector (a * b) H0}) =>
             existT [eta vector (a * b)]
-              (S (projT1 (H (existT [eta vector b] n0 t1))))
+              (S (projT1 (H (existT [eta vector b] n0 t1)))) (* <--- t1 is lifting, but here shouldn't, since it refers to IH arg. same btw when lifting motive, need to consider *)
               (consV (projT1 (H (existT [eta vector b] n0 t1))) 
                  (h, h0) (projT2 (H (existT [eta vector b] n0 t1)))))
            (projT1 arg_1__0) (projT2 arg_1__0).
