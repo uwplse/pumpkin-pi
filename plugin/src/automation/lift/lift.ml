@@ -342,6 +342,7 @@ let lift_elim env sigma c trm_app pms =
 (*
  * This recurses for LIFT-ELIM
  * TODO move/clean this, and explain why needed (opaque sometimes) 
+ * TODO just have a way of setting "opaque elims" or something
  *)
 let lift_elim_rec lift_rec c env trm post_args sigma =
   let sigma, tr'_elim = deconstruct_eliminator env sigma trm in
@@ -418,7 +419,9 @@ let lift_elim_rec lift_rec c env trm post_args sigma =
          sigma)
   in
   let sigma, final_args = map_rec_args_list lift_rec env sigma c tr'_elim.final_args in
-  sigma, apply_eliminator { tr'_elim with pms; p; cs; final_args }
+  let lifted = apply_eliminator { tr'_elim with pms; p; cs; final_args } in
+  let sigma, post_args = map_rec_args_list lift_rec env sigma c post_args in
+  sigma, mkAppl (lifted, post_args)
 
 (*
  * REPACK
@@ -692,8 +695,6 @@ let lift_core env c trm sigma =
        else
          sigma, constr_app
     | LiftIdentity (lifted_id, args, proj_arg) ->
-       let open Printing in
-       debug_term en tr "identity";
        lift_identity c en lifted_id args proj_arg (lift_rec lift_rule) sigma
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rule) sigma
@@ -708,12 +709,9 @@ let lift_core env c trm sigma =
        let (final_args, post_args) = take_split nargs tr_elim.final_args in
        let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
        let sigma, tr'' = lift_elim_rec (lift_rec lift_rule) c en tr' post_args sigma in
-       let open Printing in
-       debug_term en tr'' "tr''";
-       let sigma, post_args' = map_rec_args_list (lift_rec lift_rule) en sigma c post_args in
-       let sigma, lifted = sigma, mkAppl (tr'', post_args') in
        (* v TODO remove below once we have everything in identity *)
-       let sigma, lifted = maybe_repack (lift_rec lift_rule) c en tr' lifted (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) ((not (l.orn.kind = UnpackSigma)) && l.is_fwd) sigma in
+       let sigma, lifted = maybe_repack (lift_rec lift_rule) c en tr' tr'' (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) ((not (l.orn.kind = UnpackSigma)) && l.is_fwd) sigma in
+       let open Printing in
        debug_term en lifted "lifted";
        sigma, lifted
     | Optimization (AppLazyDelta (f, args)) ->

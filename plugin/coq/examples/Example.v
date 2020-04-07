@@ -85,8 +85,6 @@ Set DEVOID search smart eliminators.
  * We can then lift our entire module (search runs automatically):
  *)
 Lift Module list vector in hs_to_coq as hs_to_coqV_p.
-Lift list vector in hs_to_coq.zip as zip'.
-Print zip'.
 Definition zipV_p := hs_to_coqV_p.zip.
 Definition zip_withV_p := hs_to_coqV_p.zip_with.
 Definition zip_with_is_zipV_p := hs_to_coqV_p.zip_with_is_zip.
@@ -292,7 +290,8 @@ Lift vector packed in zip_typ as zip_typ'.
 Print zip_typ'.
 
 Print hs_to_coqV_p.zip.
-Definition zip_inner a b h arg_1__0 H :=
+
+Definition zip_inner a b h (arg_1__0 : {x : nat & vector b x}) (H : {H : nat & vector b H} -> {H : nat & vector (a * b) H}) :=
   VectorDef.t_rect b
            (fun (n0 : nat) (_ : vector b n0) => {H0 : nat & vector (a * b) H0})
            (existT [eta vector (a * b)] 0 (nilV (a * b)))
@@ -303,11 +302,10 @@ Definition zip_inner a b h arg_1__0 H :=
               (consV (projT1 (H (existT [eta vector b] n0 t1))) 
                  (h, h0) (projT2 (H (existT [eta vector b] n0 t1)))))
            (projT1 arg_1__0) (projT2 arg_1__0).
-Lift vector packed in zip_inner as zip_inner'. (* TODO WIP *)
+Lift vector packed in zip_inner as zip_inner'. (* TODO WIP, or restrict not to work *)
 
 Lift vector packed in hs_to_coqV_p.zip as zip'. (* TODO WIP *)
 Print zip'.
-(*
 Definition my_zip (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
 rew [vector (a * b)]
     packed_vector.zip_length a b n (existT [eta vector a] n pl1)
@@ -316,7 +314,8 @@ rew [vector (a * b)]
 projT2
   (hs_to_coqV_p.zip a b (existT [eta vector a] n pl1)
      (existT [eta vector b] n pl2)).
-Fail Lift vector packed in my_zip as zip'.*) (* TODO need elim rule *)
+Lift vector packed in my_zip as zip''. (* TODO need elim rule *)
+Print zip''.
 
 (*
  * We can get away without preprocessing here, though we must set some terms to opaque to do that:
