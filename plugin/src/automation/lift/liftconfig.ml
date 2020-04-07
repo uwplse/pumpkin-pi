@@ -367,8 +367,6 @@ let applies_id_eta c env trm sigma =
                    in pack_existT { index_type; packer; index; unpacked = h_eq }
                  in sigma, Some (snoc packed typ_args, packed)
                else
-                 let open Printing in
-                 debug_term env trm "trm";
                  sigma, Some (snoc trm typ_args, trm) (* TODO *)
           | CurryRecord ->
              sigma, Some (snoc trm typ_args, trm)

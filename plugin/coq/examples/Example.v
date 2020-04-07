@@ -278,9 +278,20 @@ Definition my_cons (T : Type) (n : nat) (v : vector T n) (t : T) := consV n t v.
 Lift vector packed in my_cons as my_cons'.
 Print my_cons'.
 
+Definition packed_cons_ex_2 (T : Type) (n : nat) (v : vector T n) (t : T) : sigT (fun (n : nat) => { s0 : sigT (vector T) & projT1 s0 = n }) :=
+  existT _ (S n) (existT _ (existT (vector T) (S n) (consV n t v)) eq_refl).
+
+
+Definition packed_cons (T : Type) (n : nat) (v : vector T n) (t : T) :=
+  existT _ (S n) (consV n t v).
+Lift vector packed in packed_cons as packed_cons'.
+
 Definition packed_nil (T : Type) := existT _ 0 (nilV T).
 Lift vector packed in packed_nil as packed_nil'.
 Print packed_nil'.
+
+Definition packed_nil_ex_2 (T : Type) : sigT (fun (n : nat) => { s0 : sigT (vector T) & projT1 s0 = n }) :=
+  existT _ 0 (existT _ (existT (vector T) 0 (nilV T)) eq_refl).
 
 Definition zip_typ :=
  forall a b : Type,
@@ -291,20 +302,19 @@ Print zip_typ'.
 
 Print hs_to_coqV_p.zip.
 
-Definition zip_inner a b h (arg_1__0 : {x : nat & vector b x}) (H : {H : nat & vector b H} -> {H : nat & vector (a * b) H}) :=
-  VectorDef.t_rect b
-           (fun (n0 : nat) (_ : vector b n0) => {H0 : nat & vector (a * b) H0})
-           (existT [eta vector (a * b)] 0 (nilV (a * b)))
-           (fun (h0 : b) (n0 : nat) (t1 : vector b n0)
-              (_ : {H0 : nat & vector (a * b) H0}) =>
-            existT [eta vector (a * b)]
-              (S (projT1 (H (existT [eta vector b] n0 t1)))) (* <--- t1 is lifting, but here shouldn't, since it refers to IH arg. same btw when lifting motive, need to consider *)
-              (consV (projT1 (H (existT [eta vector b] n0 t1))) 
-                 (h, h0) (projT2 (H (existT [eta vector b] n0 t1)))))
-           (projT1 arg_1__0) (projT2 arg_1__0).
+Definition zip_inner (a b : Type) (h : a) (s: sigT (vector b)) (H : sigT (vector b) -> sigT (vector (a * b))) :=
+  VectorDef.t_rect
+    b
+    (fun (n : nat) (_ : vector b n) =>
+      sigT (vector (a * b)))
+    (packed_nil (a * b))
+    (fun (h0 : b) (n : nat) (v : vector b n) (IH : sigT (vector (a * b))) =>
+      packed_cons (a * b) (projT1 (H (existT _ n v))) (projT2 (H (existT _ n v))) (h, h0))
+    (@projT1 nat (vector b) s)
+    (@projT2 nat (vector b) s).
 Lift vector packed in zip_inner as zip_inner'. (* TODO WIP, or restrict not to work *)
 
-Lift vector packed in hs_to_coqV_p.zip as zip'. (* TODO WIP *)
+Fail Lift vector packed in hs_to_coqV_p.zip as zip'. (* TODO WIP *)
 Print zip'.
 Definition my_zip (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
 rew [vector (a * b)]
@@ -314,7 +324,7 @@ rew [vector (a * b)]
 projT2
   (hs_to_coqV_p.zip a b (existT [eta vector a] n pl1)
      (existT [eta vector b] n pl2)).
-Lift vector packed in my_zip as zip''. (* TODO need elim rule *)
+Fail Lift vector packed in my_zip as zip''. (* TODO need elim rule *)
 Print zip''.
 
 (*

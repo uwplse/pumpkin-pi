@@ -218,7 +218,7 @@ let is_coh c env trm prev_rule sigma =
     | Coherence (proj', _, _) ->
        let proj, _, _, _ = Option.get to_proj_o in
        if equal proj proj' then
-         (* Terminate, so bugs result in error messages *)
+         (* Terminate, so bugs more likely result in error messages *)
          sigma, None
        else
          sigma, to_proj_o
@@ -226,6 +226,15 @@ let is_coh c env trm prev_rule sigma =
        sigma, to_proj_o
   else
     sigma, None
+
+(* Premises for SIMPLIFY-PROJECT-ID optimization *)
+let is_reduce_now c env trm prev_rule =
+  match prev_rule with
+  | Optimization (SimplifyProjectId _) ->
+     (* Terminate, so bugs more likely result in error messages *)
+     None
+  | _ ->
+     can_reduce_now c env trm
              
 (* Premises for LIFT-IDENTITY *)
 let is_identity c env trm prev_rule sigma =
@@ -352,7 +361,7 @@ let determine_lift_rule c env trm prev_rule sigma =
             else
               match kind trm with
               | App (f, args) ->
-                 let how_reduce_o = can_reduce_now c env trm in
+                 let how_reduce_o = is_reduce_now c env trm prev_rule in
                  if Option.has_some how_reduce_o then
                    let how_reduce = Option.get how_reduce_o in
                    sigma, Optimization (SimplifyProjectId (how_reduce, (f, args)))

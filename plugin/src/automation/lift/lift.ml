@@ -340,90 +340,6 @@ let lift_elim env sigma c trm_app pms =
   sigma, apply_eliminator { elim; pms; p; cs; final_args }
 
 (*
- * This recurses for LIFT-ELIM
- * TODO move/clean this, and explain why needed (opaque sometimes) 
- * TODO just have a way of setting "opaque elims" or something
- *)
-let lift_elim_rec lift_rec c env trm post_args sigma =
-  let sigma, tr'_elim = deconstruct_eliminator env sigma trm in
-  let sigma, pms = map_rec_args_list lift_rec env sigma c tr'_elim.pms in
-  (* TODO do in a better way, e.g. with lift_rule or opaque *)
-  let sigma, p =
-    let env_p, p_bod = zoom_lambda_term env tr'_elim.p in
-    let env_pms = pop_rel_context 1 env_p in
-    let p_pms = reconstruct_lambda_n env_p p_bod (nb_rel env_pms) in
-    let (n, t, b) = destLambda p_pms in
-    let sigma, b' = lift_rec env_p sigma c b in
-    let t_args = unfold_args t in
-    if List.length t_args = 0 then
-      sigma, reconstruct_lambda_n env_pms (mkLambda (n, t, b')) (nb_rel env)
-    else
-      let sigma, t_args' = map_rec_args_list lift_rec env_pms sigma c t_args in
-      let t' = mkAppl (first_fun t, t_args') in
-      sigma, reconstruct_lambda_n env_pms (mkLambda (n, t', b')) (nb_rel env)
-  in
-  (* TODO WIP for UnpackSigma *)
-  let sigma, cs =
-    let ind_typ = fst (destInd (get_elim_type (reverse c))) in
-    let elim = type_eliminator env ind_typ in
-    let sigma, elim_eta = expand_eta env sigma elim in
-    let env_elim_eta, elim_eta = zoom_lambda_term env elim_eta in
-    let sigma, elim_eta_app = deconstruct_eliminator env_elim_eta sigma elim_eta in
-    let generic_cs = elim_eta_app.cs in
-    let sigma, generic_cs_typs =
-      map_state
-        (fun constr sigma -> reduce_type env_elim_eta sigma constr)
-        generic_cs
-        sigma
-    in
-    let rec lift_case_rec env num_skip p_rel trm typ sigma =
-      (* TODO need to make sure eta-expanded etc *)
-      (* TODO clean a lot, explain (maybe compile this even further to better form *)
-      match map_tuple kind (trm, typ) with
-      (*| (Lambda (n, t, b), _) when num_skip > 0 ->
-         let sigma, t' = lift_rec env sigma c t in
-         let env_b = push_local (n, t) env in
-         let sigma, b' = lift_case_rec env_b (num_skip - 1) (p_rel + 1) b typ sigma in
-         sigma, mkLambda (n, t', b')*)
-      | (Lambda (n, t, b), Prod (n', t', b')) ->
-         let env_b = push_local (n, t) env in
-         let sigma, t'' =
-           if is_or_applies (mkRel p_rel) t' then
-             let sigma, p_typ = reduce_type env sigma p in
-             reduce_term env sigma (mkAppl (p_typ, unfold_args t'))
-           else if is_or_applies (get_elim_type (reverse c)) t' then
-             let args = unfold_args t in
-             if List.length args = 0 then
-               sigma, t
-             else
-               let sigma, args' = map_rec_args_list lift_rec env sigma c args in
-               sigma, mkAppl (first_fun t, args')
-           else
-             lift_rec env sigma c t
-         in
-         let sigma, b'' = lift_case_rec env_b num_skip (p_rel + 1) b b' sigma in
-         sigma, mkLambda (n, t'', b'')
-      | _ ->
-         lift_rec env sigma c trm
-    in
-    Util.on_snd
-      (fun (_, l) -> List.rev l)
-      (fold_left2_state
-         (fun (carity, lifted_cs) constr constr_typ sigma ->
-           let num_skip = arity constr - arity constr_typ in
-           let sigma, lifted_constr = lift_case_rec env num_skip carity constr constr_typ sigma in
-           sigma, (carity + arity constr_typ, lifted_constr :: lifted_cs))
-         (List.length pms, [])
-         tr'_elim.cs
-         generic_cs_typs
-         sigma)
-  in
-  let sigma, final_args = map_rec_args_list lift_rec env sigma c tr'_elim.final_args in
-  let lifted = apply_eliminator { tr'_elim with pms; p; cs; final_args } in
-  let sigma, post_args = map_rec_args_list lift_rec env sigma c post_args in
-  sigma, mkAppl (lifted, post_args)
-
-(*
  * REPACK
  *
  * This is to deal with non-primitive projections (what it means to lift
@@ -440,28 +356,12 @@ let repack c env lifted typ sigma =
      let packer = lift_typ.packer in
      let e = pack_existT {index_type; packer; index = n; unpacked = b} in
      sigma, mkLetIn (Anonymous, lifted, typ, e)
-  | UnpackSigma ->
-     if (get_lifting c).is_fwd then
-       sigma, lifted
-     else
-  (* TODO not quite; consider rewrites *)
-       sigma, lifted
-       (*let lift_typ = dest_sigT (shift typ) in
-       let s, eq = projections lift_typ (mkRel 1) in
-       let env_typ = push_local (Anonymous, typ) env in
-       let sigma, s_typ = Util.on_snd dest_sigT (reduce_type env_typ sigma s) in
-       let i_b, b = projections s_typ s in
-       let s_e = pack_existT { index_type = s_typ.index_type; packer = s_typ.packer; index = i_b; unpacked = b} in
-       let index_type = lift_typ.index_type in
-       let packer = lift_typ.packer in
-       let e = pack_existT {index_type; packer; index = s_e; unpacked = eq} in
-       sigma, mkLetIn (Anonymous, lifted, typ, e)*)
   | CurryRecord ->
      let f = first_fun typ in
      let args = unfold_args typ in
      let sigma, typ_red = specialize_delta_f env f args sigma in
      sigma, mkLetIn (Anonymous, lifted, typ, eta_prod_rec (mkRel 1) (shift typ_red))
-  | SwapConstruct _ ->
+  | SwapConstruct _ | UnpackSigma ->
      sigma, lifted
 
 (*
@@ -521,13 +421,15 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
   else
     (* false positive; projection of something else (TODO gross; simplify) *)
     let sigma, f' = lift_rec env sigma c f in
-    let lifted = mkApp (f', args') in
+    let typ_args = all_but_last (Array.to_list args) in
+    let lifted = mkAppl (f', snoc arg' typ_args) in
     let lifted_typ = args'.(0) in
     let sigma, is_from_o = is_from (reverse c) env lifted_typ sigma in
     if Option.has_some is_from_o && not ((get_lifting c).orn.kind = UnpackSigma) then
       maybe_repack lift_rec c env (mkApp (f, args)) lifted (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) (get_lifting c).is_fwd sigma
     else
       sigma, lifted
+
                           
 (*
  * Lift applications, possibly being lazy about delta if we can get away with it
@@ -699,21 +601,26 @@ let lift_core env c trm sigma =
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rule) sigma
     | LiftElim (tr_elim, lifted_pms) ->
-       let nargs =
-         match l.orn.kind with
-         | Algebraic _ | SwapConstruct _ | UnpackSigma ->
-            a_arity - (List.length tr_elim.pms) + 1
-         | CurryRecord ->
-            1
-       in
-       let (final_args, post_args) = take_split nargs tr_elim.final_args in
-       let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
-       let sigma, tr'' = lift_elim_rec (lift_rec lift_rule) c en tr' post_args sigma in
-       (* v TODO remove below once we have everything in identity *)
-       let sigma, lifted = maybe_repack (lift_rec lift_rule) c en tr' tr'' (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) ((not (l.orn.kind = UnpackSigma)) && l.is_fwd) sigma in
-       let open Printing in
-       debug_term en lifted "lifted";
-       sigma, lifted
+       (* TODO clean/move/explain, have way of setting opaque elims as sep rule *)
+       (* TODO remove unpacksigma additions to liftelim we don't need anymore *)
+       (match l.orn.kind with
+       | UnpackSigma ->
+          (* opaque *)
+          sigma, tr
+       | _ ->
+          (* recurse *)
+          let nargs = (* TODO move this to arg of liftelim *)
+            match l.orn.kind with
+            | Algebraic _ | SwapConstruct _ | UnpackSigma ->
+               a_arity - (List.length tr_elim.pms) + 1
+            | CurryRecord ->
+               1
+          in
+          let (final_args, post_args) = take_split nargs tr_elim.final_args in
+          let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
+          let sigma, tr'' = lift_rec lift_rule en sigma c tr' in
+          let sigma, post_args' = map_rec_args_list (lift_rec lift_rule) en sigma c post_args in
+          sigma, mkAppl (tr'', post_args'))
     | Optimization (AppLazyDelta (f, args)) ->
        lift_app_lazy_delta c en f args (lift_rec lift_rule) sigma
     | Optimization (ConstLazyDelta (co, u)) ->
