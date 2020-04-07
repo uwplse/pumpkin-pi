@@ -367,7 +367,36 @@ let applies_id_eta c env trm sigma =
                    in pack_existT { index_type; packer; index; unpacked = h_eq }
                  in sigma, Some (snoc packed typ_args, packed)
                else
-                 sigma, Some (snoc trm typ_args, trm) (* TODO *)
+                 (* TODO redundant TBH *)
+                 let sigma, packed =
+                   if isRel trm then
+                     sigma, trm
+                   else
+                     let sigma, b_sig_eq =
+                       let b_sig_eq_typ = mkAppl (fst (get_types c), typ_args) in
+                       Util.on_snd dest_sigT (reduce_term env sigma b_sig_eq_typ)
+                     in
+                     let index_type = b_sig_eq.index_type in
+                     let packer = b_sig_eq.packer in
+                     let index, unpacked =
+                       let b_sig = dest_sigT index_type in
+                       let index_type = b_sig.index_type in
+                       let index_index = last typ_args in
+                       let index =
+                         (* TODO this is p1 *)
+                         let packer = b_sig.packer in
+                         let index = last typ_args in
+                         let unpacked = trm in
+                         pack_existT { index_type; packer; index; unpacked }
+                       in
+                       (* TODO this is p2 *)
+                       let unpacked = apply_eq_refl { typ = index_type; trm = index_index } in
+                       index, unpacked
+                     in sigma, pack_existT { index_type; packer; index; unpacked }
+                 in
+                 let open Printing in
+                 debug_term env trm "trm";
+                 sigma, Some (snoc packed typ_args, packed)
           | CurryRecord ->
              sigma, Some (snoc trm typ_args, trm)
           | SwapConstruct _ ->

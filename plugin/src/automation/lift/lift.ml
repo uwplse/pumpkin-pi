@@ -402,8 +402,18 @@ let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
  * Lift the eta-expanded identity function
  *)
 let lift_identity c env lifted_id args proj_arg lift_rec sigma =
-  let sigma, lifted_args = map_rec_args_list lift_rec env sigma c args in
-  reduce_term env sigma (mkAppl (lifted_id, lifted_args))
+  let open Printing in
+  debug_term env lifted_id "lifted_id";
+  debug_terms env args "args";
+  if (get_lifting c).orn.kind = UnpackSigma && (not (get_lifting c).is_fwd) && is_or_applies existT (last args) then
+    (* TODO better condition, better handling---for now trying to understand *)
+    (* right now this prevents inf. recursion by catching cases when applying ID would be redundant *)
+    sigma, last args
+  else
+    let sigma, lifted_args = map_rec_args_list lift_rec env sigma c args in
+    let open Printing in
+    debug_terms env lifted_args "lifted_args";
+    reduce_term env sigma (mkAppl (lifted_id, lifted_args))
 
 (* --- Optimization implementations --- *)
 
@@ -420,9 +430,17 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
     reduce env sigma arg''
   else
     (* false positive; projection of something else (TODO gross; simplify) *)
+    (* TODO breaks algebraic ... *)
+    (* TODO move this into config or something. explain why different *)
     let sigma, f' = lift_rec env sigma c f in
-    let typ_args = all_but_last (Array.to_list args) in
-    let lifted = mkAppl (f', snoc arg' typ_args) in
+    let lifted_args =
+      if (get_lifting c).orn.kind = UnpackSigma && not (get_lifting c).is_fwd then
+        let typ_args = all_but_last (Array.to_list args) in
+        snoc arg' typ_args
+      else
+        Array.to_list args'
+    in
+    let lifted = mkAppl (f', lifted_args) in
     let lifted_typ = args'.(0) in
     let sigma, is_from_o = is_from (reverse c) env lifted_typ sigma in
     if Option.has_some is_from_o && not ((get_lifting c).orn.kind = UnpackSigma) then
@@ -597,6 +615,8 @@ let lift_core env c trm sigma =
        else
          sigma, constr_app
     | LiftIdentity (lifted_id, args, proj_arg) ->
+       let open Printing in
+       debug_term en tr "tr";
        lift_identity c en lifted_id args proj_arg (lift_rec lift_rule) sigma
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rule) sigma

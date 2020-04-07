@@ -263,12 +263,11 @@ Lift Module list vector in packed_list as packed_vector.
 Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 
 Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec Vector.t_rect Coq.Vectors.VectorDef.t_rect }.
-
 (* TODO move these tests later *)
 Definition my_id (T : Type) (n : nat) (v : vector T n) := v.
 Lift vector packed in my_id as id'.
 Print id'.
-Print t_unpack_inv. 
+Print t_unpack_inv.
 
 Definition my_nil (T : Type) := nilV T.
 Lift vector packed in my_nil as my_nil'.
@@ -312,9 +311,8 @@ Definition zip_inner (a b : Type) (h : a) (s: sigT (vector b)) (H : sigT (vector
       packed_cons (a * b) (projT1 (H (existT _ n v))) (projT2 (H (existT _ n v))) (h, h0))
     (@projT1 nat (vector b) s)
     (@projT2 nat (vector b) s).
-Lift vector packed in zip_inner as zip_inner'. (* TODO WIP, or restrict not to work *)
-
-Fail Lift vector packed in hs_to_coqV_p.zip as zip'. (* TODO WIP *)
+Lift vector packed in zip_inner as zip_inner'.
+Lift vector packed in hs_to_coqV_p.zip as zip'.
 Print zip'.
 Definition my_zip (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
 rew [vector (a * b)]
@@ -324,8 +322,10 @@ rew [vector (a * b)]
 projT2
   (hs_to_coqV_p.zip a b (existT [eta vector a] n pl1)
      (existT [eta vector b] n pl2)).
-Fail Lift vector packed in my_zip as zip''. (* TODO need elim rule *)
+Print packed_vector.zip.
+Lift vector packed in my_zip as zip''. (* TODO need elim rule *)
 Print zip''.
+Fail.
 
 (*
  * We can get away without preprocessing here, though we must set some terms to opaque to do that:
