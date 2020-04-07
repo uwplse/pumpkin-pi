@@ -85,7 +85,8 @@ Set DEVOID search smart eliminators.
  * We can then lift our entire module (search runs automatically):
  *)
 Lift Module list vector in hs_to_coq as hs_to_coqV_p.
-
+Lift list vector in hs_to_coq.zip as zip'.
+Print zip'.
 Definition zipV_p := hs_to_coqV_p.zip.
 Definition zip_withV_p := hs_to_coqV_p.zip_with.
 Definition zip_with_is_zipV_p := hs_to_coqV_p.zip_with_is_zip.
@@ -263,12 +264,13 @@ Lift Module list vector in packed_list as packed_vector.
  *)
 Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 
-Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.
+Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec Vector.t_rect Coq.Vectors.VectorDef.t_rect }.
 
 (* TODO move these tests later *)
 Definition my_id (T : Type) (n : nat) (v : vector T n) := v.
 Lift vector packed in my_id as id'.
 Print id'.
+Print t_unpack_inv. 
 
 Definition my_nil (T : Type) := nilV T.
 Lift vector packed in my_nil as my_nil'.

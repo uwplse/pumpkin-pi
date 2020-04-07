@@ -366,8 +366,6 @@ let lift_elim_rec lift_rec c env trm post_args sigma =
     let ind_typ = fst (destInd (get_elim_type (reverse c))) in
     let elim = type_eliminator env ind_typ in
     let sigma, elim_eta = expand_eta env sigma elim in
-    let open Printing in
-    debug_term env elim_eta "elim_eta";
     let env_elim_eta, elim_eta = zoom_lambda_term env elim_eta in
     let sigma, elim_eta_app = deconstruct_eliminator env_elim_eta sigma elim_eta in
     let generic_cs = elim_eta_app.cs in
@@ -377,27 +375,22 @@ let lift_elim_rec lift_rec c env trm post_args sigma =
         generic_cs
         sigma
     in
-    let open Printing in
-    debug_terms env generic_cs_typs "cs_typs";
-    let open Printing in
-    debug_term env_elim_eta elim_eta "elim_eta";
-    let rec lift_case_rec env num_skip trm typ sigma =
+    let rec lift_case_rec env num_skip p_rel trm typ sigma =
       (* TODO need to make sure eta-expanded etc *)
-      let open Printing in
-      debug_term env trm "trm";
-      debug_term env typ "typ";
+      (* TODO clean a lot, explain (maybe compile this even further to better form *)
       match map_tuple kind (trm, typ) with
-      | (Lambda (n, t, b), _) when num_skip > 0 ->
+      (*| (Lambda (n, t, b), _) when num_skip > 0 ->
          let sigma, t' = lift_rec env sigma c t in
          let env_b = push_local (n, t) env in
-         let sigma, b' = lift_case_rec env_b (num_skip - 1) b typ sigma in
-         sigma, mkLambda (n, t', b')
+         let sigma, b' = lift_case_rec env_b (num_skip - 1) (p_rel + 1) b typ sigma in
+         sigma, mkLambda (n, t', b')*)
       | (Lambda (n, t, b), Prod (n', t', b')) ->
          let env_b = push_local (n, t) env in
          let sigma, t'' =
-           if is_or_applies (get_elim_type (reverse c)) t' then
-             let open Printing in
-             Printf.printf "%s\n\n" "being smart";
+           if is_or_applies (mkRel p_rel) t' then
+             let sigma, p_typ = reduce_type env sigma p in
+             reduce_term env sigma (mkAppl (p_typ, unfold_args t'))
+           else if is_or_applies (get_elim_type (reverse c)) t' then
              let args = unfold_args t in
              if List.length args = 0 then
                sigma, t
@@ -407,20 +400,23 @@ let lift_elim_rec lift_rec c env trm post_args sigma =
            else
              lift_rec env sigma c t
          in
-         let sigma, b'' = lift_case_rec env_b num_skip b b' sigma in
+         let sigma, b'' = lift_case_rec env_b num_skip (p_rel + 1) b b' sigma in
          sigma, mkLambda (n, t'', b'')
       | _ ->
          lift_rec env sigma c trm
     in
-    map2_state
-      (lift_case_rec env (List.length post_args))
-      tr'_elim.cs
-      generic_cs_typs
-      sigma
+    Util.on_snd
+      (fun (_, l) -> List.rev l)
+      (fold_left2_state
+         (fun (carity, lifted_cs) constr constr_typ sigma ->
+           let num_skip = arity constr - arity constr_typ in
+           let sigma, lifted_constr = lift_case_rec env num_skip carity constr constr_typ sigma in
+           sigma, (carity + arity constr_typ, lifted_constr :: lifted_cs))
+         (List.length pms, [])
+         tr'_elim.cs
+         generic_cs_typs
+         sigma)
   in
-  let open Printing in
-  debug_terms env cs "cs";
-  Printf.printf "%s\n\n" "---";
   let sigma, final_args = map_rec_args_list lift_rec env sigma c tr'_elim.final_args in
   sigma, apply_eliminator { tr'_elim with pms; p; cs; final_args }
 
@@ -696,6 +692,8 @@ let lift_core env c trm sigma =
        else
          sigma, constr_app
     | LiftIdentity (lifted_id, args, proj_arg) ->
+       let open Printing in
+       debug_term en tr "identity";
        lift_identity c en lifted_id args proj_arg (lift_rec lift_rule) sigma
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rule) sigma
