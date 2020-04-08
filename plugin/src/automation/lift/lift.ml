@@ -402,13 +402,8 @@ let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
  * Lift the eta-expanded identity function
  *)
 let lift_identity c env lifted_id args proj_arg lift_rec sigma =
-  let open Printing in
-  debug_terms env args "args";
   let sigma, lifted_args = map_rec_args_list lift_rec env sigma c args in
-  debug_terms env lifted_args "lifted_args";
-  let sigma, lifted = reduce_term env sigma (mkAppl (lifted_id, lifted_args)) in
-  debug_term env lifted "lifted";
-  sigma, lifted
+  reduce_term env sigma (mkAppl (lifted_id, lifted_args))
 
 (* --- Optimization implementations --- *)
 
@@ -449,8 +444,13 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
  *)
 let lift_app_lazy_delta c env f args lift_rec sigma =
   let l = get_lifting c in
+  let open Printing in
+  debug_term env f "f";
+  debug_terms env (Array.to_list args) "args";
   let sigma, f' = lift_rec env sigma c f in
   let sigma, args' = map_rec_args lift_rec env sigma c args in
+  debug_term env f' "f'";
+  debug_terms env (Array.to_list args') "args'";
   (* TODO really need to get below working more generallly; why does it infinite recurse with is_fwd for some kinds of ornaments? what is it not considering? *)
   if (not (equal f f')) || (l.is_fwd && not (l.orn.kind = UnpackSigma)) || Array.length args = 0 || is_opaque c f then
     let lifted = mkApp (f', args') in
@@ -586,8 +586,15 @@ let lift_core env c trm sigma =
          let sigma, lifted_args = map_rec_args_list (lift_rec lift_rule) en sigma c args in
          reduce_term en sigma (mkAppl (p, lifted_args))
        else
+         let open Printing in
+         debug_term en tr "tr";
+         debug_term en p "p";
+         debug_terms en args "args";
          let sigma, projected = reduce_term en sigma (mkAppl (p, args)) in
-         lift_rec lift_rule en sigma c projected
+         debug_term en projected "projected";
+         let sigma, lifted = lift_rec lift_rule en sigma c projected in
+         debug_term en lifted "lifted projected";
+         sigma, lifted
     | Equivalence args ->
        let (_, b_typ) = get_types c in
        let sigma, lifted_args = map_rec_args_list (lift_rec lift_rule) en sigma c args in
@@ -615,13 +622,9 @@ let lift_core env c trm sigma =
          (* really running coherence in opposite direction. do we want to lift in opposite direction? or we can use optimize_project_packed, maybe, if we fix that up *)
          let arg = last_arg tr in
          let sigma, arg' = lift_rec lift_rule en sigma c arg in
-         let open Printing in
-         debug_term en arg "arg";
-         debug_term en arg' "arg'";
          (* TODO or use proj_arg like we used to, and be smarter, and take different args here. for now gross things: *)
          let sigma, args =
            let typ_args = all_but_last args in
-           debug_terms en args "args";
            let trm = mkAppl (projT2, snoc arg' (all_but_last (unfold_args tr))) in
            let sigma, typ_args = map_rec_args_list (lift_rec lift_rule) en sigma c typ_args in
            let sigma, b_sig_eq =
@@ -647,12 +650,9 @@ let lift_core env c trm sigma =
            in
            let packed = pack_existT { index_type; packer; index; unpacked } in
            sigma, snoc packed typ_args
-         in
-         let open Printing in
-         debug_terms en args "lifted_args";
-         sigma, mkAppl (lifted_id, args)
-         else
-           lift_identity c en lifted_id args proj_arg (lift_rec lift_rule) sigma
+         in sigma, mkAppl (lifted_id, args)
+       else
+         lift_identity c en lifted_id args proj_arg (lift_rec lift_rule) sigma
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rule) sigma
     | LiftElim (tr_elim, lifted_pms) ->

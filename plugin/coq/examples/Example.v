@@ -266,7 +266,27 @@ Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec Vector.t_rect
 (* TODO move these tests later *)
 Definition my_id (T : Type) (n : nat) (v : vector T n) := v.
 Lift vector packed in my_id as id'.
-Print id'.
+Definition id_expected (T : Type) (n : nat) (v : {s : {x : nat & vector T x} & projT1 s = n}) :=
+existT (fun s : {x : nat & vector T x} => projT1 s = n)
+  (existT (vector T) (projT1 (projT1 v)) (projT2 (projT1 v))) 
+  (projT2 v).
+Lemma test_id: id' = id_expected.
+Proof.
+  reflexivity.
+Qed.
+
+Definition my_pack (T : Type) (n : nat) (v : vector T n) :=
+  @existT (sigT (vector T)) (fun (s : sigT (vector T)) => projT1 s = n)
+    (@existT nat (vector T) n v)
+    (@eq_refl nat n).
+Lift vector packed in my_pack as my_pack'.
+
+Definition my_id_rew (T : Type) (n : nat) (v : vector T n) := 
+  @eq_rect nat n (t T) v n (@eq_refl nat n). (* rew eq_refl in v *)
+Print my_id_rew.
+Lift vector packed in my_id_rew as id''.
+Print id''.
+Fail.
 
 Definition my_nil (T : Type) := nilV T.
 Lift vector packed in my_nil as my_nil'.

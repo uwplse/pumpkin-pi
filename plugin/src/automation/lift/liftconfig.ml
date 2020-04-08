@@ -109,7 +109,7 @@ let smart_cache c trm lifted =
 
 (*
  * Check if something is in the local cache
- *)
+*)
 let is_cached c trm = is_locally_cached c.cache trm
 
 (*
@@ -224,11 +224,14 @@ let check_is_proj c env trm proj_is =
                       (fun _ sigma ->
                         let sigma, (earg_typ, _) = new_type_evar env_b sigma univ_flexible in
                         let sigma, earg = new_evar env_b sigma earg_typ in
-                      sigma, EConstr.to_constr sigma earg)
+                        sigma, EConstr.to_constr sigma earg)
                       (mk_n_rels (arity proj_i))
                       sigma
                   in
-                  let sigma, proj_app = reduce_term env_b sigma (mkAppl (proj_i, eargs)) in
+                  let proj_app = mkAppl (proj_i, eargs) in
+                  let open Printing in
+                  debug_term env_b b "b";
+                  debug_term env_b proj_app "proj_app";
                   let sigma = the_conv_x env_b (EConstr.of_constr b) (EConstr.of_constr proj_app) sigma in
                   sigma, Some (i, eargs, trm_eta)
               with _ ->
@@ -786,6 +789,8 @@ let initialize_proj_rules c env sigma =
        else (* pack -> projT1, eq_refl -> projT2 *)
          let p1_typ = reconstruct_lambda (pop_rel_context 2 env_proj) (unshift_by 2 b_sig_typ) in
          let p2_typ = reconstruct_lambda (pop_rel_context 1 env_proj) (unshift b_sig_eq_typ_app.packer) in
+         let open Printing in
+         debug_term env p1 "p1";
          sigma, ([(p1, projT1); (p2, projT2)], [(p1_typ, p1_typ); (p2_typ, p2_typ)])
     | CurryRecord ->
        (* accessors <-> projections *)

@@ -141,6 +141,15 @@ type lift_rule =
 
 (* --- Premises --- *)
 
+(* Premises for EQUIVALENCE *)
+let is_equivalence c env trm prev_rule sigma =
+  match prev_rule with
+  | Equivalence _ ->
+     (* Terminate *)
+     sigma, None
+  | _ ->
+     is_from c env trm sigma
+                                                   
 (* Premises for LIFT-CONSTR *)
 (* TODO use ID rules, and mvoe out id rules from constr if possible *)
 let is_packed_constr c env sigma trm =
@@ -299,6 +308,8 @@ let is_eliminator c env trm sigma =
  *)
 let determine_lift_rule c env trm prev_rule sigma =
   let l = get_lifting c in
+  let open Printing in
+  debug_term env trm "trm";
   let lifted_opt = lookup_lifting (lift_to l, lift_back l, trm) in
   if Option.has_some lifted_opt then
     sigma, Optimization (GlobalCaching (Option.get lifted_opt))
@@ -311,7 +322,7 @@ let determine_lift_rule c env trm prev_rule sigma =
   else if isApp trm && applies (lift_to l) trm then
     sigma, Internalize
   else
-    let sigma, args_o = is_from c env trm sigma in
+    let sigma, args_o = is_equivalence c env trm prev_rule sigma in
     if Option.has_some args_o then
       sigma, Equivalence (Option.get args_o)
     else
