@@ -44,21 +44,7 @@ let refresh_env () : env state =
   Evd.from_env env, env
 
 let define_print ?typ n trm sigma =
-  try
-    let trm = Evarutil.flush_and_check_evars sigma (EConstr.of_constr trm) in
-    let def =
-      if Option.has_some typ then
-        let typ = Evarutil.flush_and_check_evars sigma (EConstr.of_constr (Option.get typ)) in
-        define_term ~typ n sigma trm true
-      else
-        define_term n sigma trm true
-    in
-    Feedback.msg_info
-      (str (Printf.sprintf "DEVOID generated %s" (Id.to_string n)));
-    def
-  with Evarutil.Uninstantiated_evar _ ->
-    CErrors.user_err (str "DEVOID does not fully support implicit arguments")
-  (*let sigma_ref = ref sigma in
+  let sigma_ref = ref sigma in
   let trm = Typing.e_solve_evars (Global.env ()) sigma_ref (EConstr.of_constr trm) in
   let sigma = !sigma_ref in
   let trm = EConstr.to_constr sigma trm in
@@ -76,7 +62,7 @@ let define_print ?typ n trm sigma =
   in
   Feedback.msg_info
     (str (Printf.sprintf "DEVOID generated %s" (Id.to_string n)));
-  def*)
+  def
 
 (* --- Commands --- *)
 

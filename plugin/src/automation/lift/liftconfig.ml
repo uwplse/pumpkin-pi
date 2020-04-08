@@ -175,12 +175,15 @@ let from_args c env trm sigma =
  * Return the arguments to the type if so
  *)
 let type_is_from c env trm sigma =
-  on_red_type
-    reduce_term (* TODO was reduce_nf. changing to reduce_term helps us w/ UnpackSigma, but breaks CurryRecord. investigate what we want *)
-    (fun env sigma typ -> is_from c env typ sigma)
-    env
-    sigma
-    trm
+  try
+    on_red_type
+      reduce_term (* TODO was reduce_nf. changing to reduce_term helps us w/ UnpackSigma, but breaks CurryRecord. investigate what we want *)
+      (fun env sigma typ -> is_from c env typ sigma)
+      env
+      sigma
+      trm
+  with _ ->
+    sigma, None
 
 (* 
  * Just return the arguments to from, assuming term has the right type,
