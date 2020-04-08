@@ -229,9 +229,6 @@ let check_is_proj c env trm proj_is =
                       sigma
                   in
                   let proj_app = mkAppl (proj_i, eargs) in
-                  let open Printing in
-                  debug_term env_b b "b";
-                  debug_term env_b proj_app "proj_app";
                   let sigma = the_conv_x env_b (EConstr.of_constr b) (EConstr.of_constr proj_app) sigma in
                   sigma, Some (i, eargs, trm_eta)
               with _ ->
@@ -370,6 +367,8 @@ let applies_id_eta c env trm sigma =
                    in pack_existT { index_type; packer; index; unpacked = h_eq }
                  in sigma, Some (snoc packed typ_args, packed)
                else
+                 let open Printing in
+                 Printf.printf "%s\n\n" "checking identity";
                  (* TODO redundant TBH *)
                  let sigma, packed =
                    if isRel trm then

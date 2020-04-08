@@ -396,3 +396,4 @@ let determine_lift_rule c env trm prev_rule sigma =
                  sigma, Optimization (ConstLazyDelta (co, u))
               | _ ->
                  sigma, CIC (kind trm)
+
