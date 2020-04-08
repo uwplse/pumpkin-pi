@@ -623,6 +623,7 @@ let lift_core env c trm sigma =
            let typ_args = all_but_last args in
            debug_terms en args "args";
            let trm = mkAppl (projT2, snoc arg' (all_but_last (unfold_args tr))) in
+           let sigma, typ_args = map_rec_args_list (lift_rec lift_rule) en sigma c typ_args in
            let sigma, b_sig_eq =
              let b_sig_eq_typ = mkAppl (fst (get_types c), typ_args) in
              Util.on_snd dest_sigT (reduce_term en sigma b_sig_eq_typ)
@@ -647,6 +648,8 @@ let lift_core env c trm sigma =
            let packed = pack_existT { index_type; packer; index; unpacked } in
            sigma, snoc packed typ_args
          in
+         let open Printing in
+         debug_terms en args "lifted_args";
          sigma, mkAppl (lifted_id, args)
          else
            lift_identity c en lifted_id args proj_arg (lift_rec lift_rule) sigma
