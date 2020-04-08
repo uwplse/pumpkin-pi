@@ -687,16 +687,8 @@ let lift_core env c trm sigma =
        (match k with
         | Evar (etrm, _) ->
            (* TODO move *)
-           let open Printing in
-           debug_term en tr "evar";
-           let sigma, typ = reduce_type en sigma tr in
+           let sigma, typ = Inference.infer_type en sigma tr in
            let sigma, lifted_typ = lift_rec en sigma c typ in
-           let sigma_ref = ref sigma in
-           let lifted_typ = Typing.e_solve_evars en sigma_ref (EConstr.of_constr lifted_typ) in
-           let sigma = !sigma_ref in
-           let lifted_typ = EConstr.to_constr sigma lifted_typ in
-           debug_term en typ "typ";
-           debug_term en lifted_typ "lifted_typ";
            let info = Evd.find sigma etrm in
            let sigma, lifted_info =
              let evar_concl = lifted_typ in
@@ -704,34 +696,18 @@ let lift_core env c trm sigma =
                match info.evar_body with
                | Evar_empty -> sigma, Evar_empty
                | Evar_defined bod ->
-                  let open Printing in
-                  debug_term en bod "bod";
                   let sigma, lifted_bod = lift_rec en sigma c bod in
-                  debug_term en lifted_bod "lifted_bod";
                   sigma, Evar_defined lifted_bod
              in
              let sigma, evar_candidates =
                if Option.has_some info.evar_candidates then
                  let candidates = Option.get info.evar_candidates in
-                 let open Printing in
-                 debug_terms en candidates "candidates";
                  let sigma, lifted_candidates = map_rec_args_list lift_rec en sigma c candidates in
-                 debug_terms en lifted_candidates "lifted_candidates";
                  sigma, Some lifted_candidates
                else
                  sigma, None
-             in Printf.printf "%s\n\n" "built info";
-             sigma, { info with evar_concl; evar_body; evar_candidates }
-           in
-           let sigma = Evd.add (Evd.remove sigma etrm) etrm lifted_info in
-           Printf.printf "%s\n\n" "added info to the evar_map";
-           let sigma_ref = ref sigma in
-           let lifted_tr = Typing.e_solve_evars en sigma_ref (EConstr.of_constr tr) in
-           let sigma = !sigma_ref in
-           let lifted_tr = EConstr.to_constr sigma lifted_tr in
-           let open Printing in
-           debug_term en lifted_tr "lifted_tr";
-           sigma, lifted_tr
+             in sigma, { info with evar_concl; evar_body; evar_candidates }
+           in Evd.add (Evd.remove sigma etrm) etrm lifted_info, tr
         | Cast (ca, k, t) ->
            (* CAST *)
            let sigma, ca' = lift_rec en sigma c ca in

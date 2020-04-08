@@ -279,26 +279,24 @@ Definition my_pack_coh (T : Type) (n : nat) (v : vector T n) :=
     (@existT nat (vector T) n v).
 Lift vector packed in my_pack_coh as my_pack_coh'.
 Print my_pack_coh'.
-
+(*
+TODO fail gracefully (can we remove p2 rule everywhere?):
 Definition my_refl_coh (T : Type) (n : nat) (v : vector T n) :=
   erefl n.
-Lift vector packed in my_refl_coh as my_refl_coh'.
-Print my_refl_coh'.
-
-Fail.
-
+Fail Lift vector packed in my_refl_coh as my_refl_coh'. (* TODO can't instantiate evars --- don't resolve until here and when that happens, don't lift coh *)
+*)
 Definition my_pack (T : Type) (n : nat) (v : vector T n) :=
   @existT (sigT (vector T)) (fun (s : sigT (vector T)) => projT1 s = n)
     (@existT nat (vector T) n v)
     (@eq_refl nat n).
 Lift vector packed in my_pack as my_pack'.
+Print my_pack'.
 
 Definition my_id_rew (T : Type) (n : nat) (v : vector T n) := 
   @eq_rect nat n (t T) v n (@eq_refl nat n). (* rew eq_refl in v *)
 Print my_id_rew.
 Lift vector packed in my_id_rew as id''.
-Print id''.
-Fail.
+Print id''. (* TODO needs simplify poject packed _badly_ *)
 
 Definition my_nil (T : Type) := nilV T.
 Lift vector packed in my_nil as my_nil'.
@@ -364,15 +362,15 @@ Lift vector packed in zip_app_proj as zip_app_proj'. (* TODO fails at lifting ty
 Set DEVOID lift type. (* TODO *)
 Print zip_app'.
 Print zip_app_proj'.
-
+(*
 Lift vector packed in packed_vector.zip_length as zip_length'.
 
 Print zip_length'.
 
-Unset DEVOID lift type. (* TODO this is failing, why? *)
+Unset DEVOID lift type. (* TODO this is failing, why? *)*)
 
 
-
+(*
 Definition zip_length_2 (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
     packed_vector.zip_length a b n (existT [eta vector a] n pl1)
       (existT [eta vector b] n pl2) (Datatypes.id (erefl n)) 
@@ -380,7 +378,7 @@ Definition zip_length_2 (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector 
 
 Lift vector packed in zip_length_2 as zip_length_2'. (* TODO this fails too *)
 Print zip_length_2'.
-Set DEVOID lift type. (* TODO *)
+Set DEVOID lift type. (* TODO *)*)
 
 Definition my_zip (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
 rew [vector (a * b)]
@@ -391,7 +389,7 @@ projT2
   (hs_to_coqV_p.zip a b (existT [eta vector a] n pl1)
      (existT [eta vector b] n pl2)).
 Print packed_vector.zip.
-Fail Lift vector packed in my_zip as zip''.
+Fail Lift vector packed in my_zip as zip''. (* TODO WIP *)
 
 (*
  * We can get away without preprocessing here, though we must set some terms to opaque to do that:

@@ -786,14 +786,29 @@ let initialize_proj_rules c env sigma =
          let eq = apply_eq_refl { typ = index_type; trm = index } in
          reconstruct_lambda env_proj eq
        in
+       (* TODO can we move this into identity? *)
+       let sigma, p1_p2 =
+         let index_type = b_sig_typ in
+         let packer = b_sig_eq_typ_app.packer in
+         let sigma, index = reduce_term env_proj sigma (mkAppl (p1, mk_n_rels (nb_rel env_proj))) in
+         let sigma, unpacked = reduce_term env_proj sigma (mkAppl (p2, mk_n_rels (nb_rel env_proj))) in
+         let packed = pack_existT { index_type; packer; index; unpacked } in
+         sigma, reconstruct_lambda env_proj packed
+       in
+       let id = reconstruct_lambda env_proj lift_t in
        if l.is_fwd then (* projT1 -> pack, projT2 -> eq_refl *)
          sigma, ([(projT1, p1); (projT2, p2)], [])
-       else (* pack -> projT1, eq_refl -> projT2 *)
+       else (* pack -> projT1, existT _ pack eq_refl -> existT _ _ projT2 *)
+         (* (we can't infer the arguments to eq_refl in more general cases,
+            and not every eq_refl n is coherence. so we need to restrict
+            our inputs to a certain format, which makes sense given the
+            self reference) TODO clean and move comment *)
+         (* TODO then for typs do we want to restrict below? *)
          let p1_typ = reconstruct_lambda (pop_rel_context 2 env_proj) (unshift_by 2 b_sig_typ) in
          let p2_typ = reconstruct_lambda (pop_rel_context 1 env_proj) (unshift b_sig_eq_typ_app.packer) in
          let open Printing in
          debug_term env p1 "p1";
-         sigma, ([(p1, projT1); (p2, projT2)], [(p1_typ, p1_typ); (p2_typ, p2_typ)])
+         sigma, ([(p1, projT1); (p1_p2, id)], [(p1_typ, p1_typ); (p2_typ, p2_typ)])
     | CurryRecord ->
        (* accessors <-> projections *)
        let accessors =
