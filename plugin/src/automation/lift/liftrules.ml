@@ -308,8 +308,6 @@ let is_eliminator c env trm sigma =
  *)
 let determine_lift_rule c env trm prev_rule sigma =
   let l = get_lifting c in
-  let open Printing in
-  debug_term env trm "trm";
   let lifted_opt = lookup_lifting (lift_to l, lift_back l, trm) in
   if Option.has_some lifted_opt then
     sigma, Optimization (GlobalCaching (Option.get lifted_opt))

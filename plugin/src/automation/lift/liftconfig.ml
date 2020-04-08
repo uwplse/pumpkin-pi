@@ -221,7 +221,7 @@ let check_is_proj c env trm proj_is =
                   (* attempt unification *)
                   let sigma, eargs =
                     map_state
-                      (fun _ sigma ->
+                      (fun r sigma ->
                         let sigma, (earg_typ, _) = new_type_evar env_b sigma univ_flexible in
                         let sigma, earg = new_evar env_b sigma earg_typ in
                         sigma, EConstr.to_constr sigma earg)

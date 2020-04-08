@@ -44,20 +44,25 @@ let refresh_env () : env state =
   Evd.from_env env, env
 
 let define_print ?typ n trm sigma =
-  try
-    let trm = Evarutil.flush_and_check_evars sigma (EConstr.of_constr trm) in
-    let def =
-      if Option.has_some typ then
-        let typ = Evarutil.flush_and_check_evars sigma (EConstr.of_constr (Option.get typ)) in
-        define_term ~typ n sigma trm true
-      else
-        define_term n sigma trm true
-    in
-    Feedback.msg_info
-      (str (Printf.sprintf "DEVOID generated %s" (Id.to_string n)));
-    def
-  with Evarutil.Uninstantiated_evar _ ->
-    CErrors.user_err (str "DEVOID does not fully support implicit arguments")
+  let sigma_ref = ref sigma in
+  let trm = Typing.e_solve_evars (Global.env ()) sigma_ref (EConstr.of_constr trm) in
+  let sigma = !sigma_ref in
+  let trm = EConstr.to_constr sigma trm in
+  let open Printing in
+  debug_term (Global.env ()) trm "trm";
+  let def =
+    if Option.has_some typ then
+      let sigma_ref = ref sigma in
+      let typ = Typing.e_solve_evars (Global.env ()) sigma_ref (EConstr.of_constr (Option.get typ)) in
+      let sigma = !sigma_ref in
+      let typ = EConstr.to_constr sigma typ in
+      define_term ~typ n sigma trm true
+    else
+      define_term n sigma trm true
+  in
+  Feedback.msg_info
+    (str (Printf.sprintf "DEVOID generated %s" (Id.to_string n)));
+  def
 
 (* --- Commands --- *)
 
@@ -301,16 +306,13 @@ let save_ornament d_old d_new d_orn_o d_orn_inv_o =
  *)
 let lift_definition_by_ornament env sigma n l c_old ignores =
   let sigma, lifted = do_lift_defn env sigma l c_old ignores in
-  let open Printing in
-  debug_term env lifted "lifted";
   try
     ignore
       (if is_lift_type () then
          (* Lift the type as well *)
          let sigma, typ = infer_type env sigma c_old in
-         let open Printing in
-         debug_term env typ "typ";
          let sigma, lifted_typ = do_lift_defn env sigma l typ ignores in
+         debug_term env lifted "lifted";
          debug_term env lifted_typ "lifted_typ";
          define_print ~typ:lifted_typ n lifted sigma 
        else

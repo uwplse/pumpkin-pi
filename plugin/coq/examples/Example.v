@@ -275,6 +275,18 @@ Proof.
   reflexivity.
 Qed.
 
+Definition my_pack_coh (T : Type) (n : nat) (v : vector T n) :=
+    (@existT nat (vector T) n v).
+Lift vector packed in my_pack_coh as my_pack_coh'.
+Print my_pack_coh'.
+
+Definition my_refl_coh (T : Type) (n : nat) (v : vector T n) :=
+  erefl n.
+Lift vector packed in my_refl_coh as my_refl_coh'.
+Print my_refl_coh'.
+
+Fail.
+
 Definition my_pack (T : Type) (n : nat) (v : vector T n) :=
   @existT (sigT (vector T)) (fun (s : sigT (vector T)) => projT1 s = n)
     (@existT nat (vector T) n v)
