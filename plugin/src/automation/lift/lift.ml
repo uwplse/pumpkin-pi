@@ -31,6 +31,7 @@ open Liftconfig
 open Liftrules
 open Sigmautils
 open Evarconv
+open Evd
 
 (*
  * The top-level lifting algorithm
@@ -684,6 +685,34 @@ let lift_core env c trm sigma =
     | CIC k ->
        let lift_rec = lift_rec lift_rule in
        (match k with
+        | Evar (etrm, _) ->
+           (* TODO move *)
+           let sigma, typ = reduce_type en sigma tr in
+           let sigma, lifted_typ = lift_rec en sigma c typ in
+           let info = Evd.find sigma etrm in
+           let sigma = Evd.remove sigma etrm in
+           let sigma, e = Evarutil.new_evar en sigma (EConstr.of_constr lifted_typ) in
+           let (lifted_etrm, _) = destEvar (EConstr.to_constr sigma e) in
+           let einfo = Evd.find sigma lifted_etrm in
+           let sigma, lifted_info =
+             let sigma, evar_body =
+               match info.evar_body with
+               | Evar_empty -> sigma, Evar_empty
+               | Evar_defined bod ->  
+                  let sigma, lifted_bod = lift_rec en sigma c bod in
+                  sigma, Evar_defined lifted_bod
+             in
+             let sigma, evar_candidates =
+               if Option.has_some info.evar_candidates then
+                 let candidates = Option.get info.evar_candidates in
+                 let sigma, lifted_candidates = map_rec_args_list lift_rec en sigma c candidates in
+                 sigma, Some lifted_candidates
+               else
+                 sigma, None
+             in
+             sigma, { einfo with evar_body; evar_candidates }
+           in
+           Evd.add (Evd.remove sigma lifted_etrm) etrm lifted_info, tr
         | Cast (ca, k, t) ->
            (* CAST *)
            let sigma, ca' = lift_rec en sigma c ca in
