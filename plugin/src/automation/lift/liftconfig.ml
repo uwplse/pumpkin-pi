@@ -376,8 +376,6 @@ let applies_id_eta c env trm sigma =
                    in pack_existT { index_type; packer; index; unpacked = h_eq }
                  in sigma, Some (snoc packed typ_args, packed)
                else
-                 let open Printing in
-                 Printf.printf "%s\n\n" "checking identity";
                  (* TODO redundant TBH *)
                  let sigma, packed =
                    if isRel trm then

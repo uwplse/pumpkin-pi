@@ -448,7 +448,22 @@ let lift_app_lazy_delta c env f args lift_rec sigma =
   let sigma, f' = lift_rec env sigma c f in
   let sigma, args' = map_rec_args lift_rec env sigma c args in
   (* TODO really need to get below working more generallly; why does it infinite recurse with is_fwd for some kinds of ornaments? what is it not considering? *)
-  if (not (equal f f')) || (l.is_fwd && not (l.orn.kind = UnpackSigma)) || Array.length args = 0 || is_opaque c f then
+  let sigma, do_delta =
+    if l.is_fwd && not (l.orn.kind = UnpackSigma) then
+      sigma, false
+    else if (Array.length args = 0) then
+      sigma, false
+    else if (is_opaque c f) then
+      sigma, false
+    else if equal f f' then
+      sigma, true
+    else
+      try
+        Convertibility.convertible env sigma f f'
+      with _ ->
+        sigma, false
+  in
+  if not do_delta then
     let lifted = mkApp (f', args') in
     maybe_repack lift_rec c env (mkApp (f, args)) lifted (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) l.is_fwd sigma
   else
@@ -468,6 +483,9 @@ let lift_app_lazy_delta c env f args lift_rec sigma =
            if equal lifted_red app'' then
              sigma, mkApp (f', args')
            else
+             let open Printing in
+             debug_term env f "f";
+             debug_term env f' "f'";
              sigma, lifted_red
 
 (*

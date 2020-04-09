@@ -154,7 +154,7 @@ Defined.
 
 End hs_to_coq_lengths'.
 
-Preprocess Module hs_to_coq_lengths' as hs_to_coq_lengths { opaque Datatypes Logic Coq.Init.Nat.pred Coq.Init.Peano.eq_add_S hs_to_coq.zip hs_to_coq.zip_with list_ind list_rect }.
+Preprocess Module hs_to_coq_lengths' as hs_to_coq_lengths { opaque Datatypes Logic Coq.Init.Nat.pred Coq.Init.Peano.eq_add_S hs_to_coq.zip hs_to_coq.zip_with list_ind list_rect eq_trans eq_sym }.
 
 (*
  * Once we have the length proofs, we write the proofs
@@ -262,7 +262,7 @@ Lift Module list vector in packed_list as packed_vector.
  *)
 Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 
-Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec Vector.t_rect Coq.Vectors.VectorDef.t_rect }.
+Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec Vector.t_rect Coq.Vectors.VectorDef.t_rect eq_sym eq_trans }.
 (* TODO move these tests later *)
 Definition my_id (T : Type) (n : nat) (v : vector T n) := v.
 Lift vector packed in my_id as id'.
@@ -372,6 +372,11 @@ Definition zip_app_proj_H (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vecto
      (existT [eta vector b] n pl2)).
 Lift vector packed in zip_app_proj_H as zip_app_proj_H'.
 Print zip_app_proj_H'.
+
+(* The function we use for rewriting: *)
+Lift vector packed in packed_vector.zip_length as zip_length'.
+Print packed_vector.zip_length.
+Print zip_length'.
 
 (* The H we want: *)
 Definition my_zip_length (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
