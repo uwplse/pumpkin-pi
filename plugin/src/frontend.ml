@@ -49,6 +49,8 @@ let define_print ?typ n trm sigma =
     let def =
       if Option.has_some typ then
         let typ = Evarutil.flush_and_check_evars sigma (EConstr.of_constr (Option.get typ)) in
+        let open Printing in
+        debug_term (Global.env ()) typ "lifted typ";
         define_term ~typ n sigma trm true
       else
         define_term n sigma trm true
@@ -307,8 +309,8 @@ let lift_definition_by_ornament env sigma n l c_old ignores =
       (if is_lift_type () then
          (* Lift the type as well *)
          let sigma, typ = infer_type env sigma c_old in
+         debug_term env typ "typ";
          let sigma, lifted_typ = do_lift_defn env sigma l typ ignores in
-         debug_term env lifted_typ "lifted_typ";
          define_print ~typ:lifted_typ n lifted sigma 
        else
          (* Let Coq infer the type *)

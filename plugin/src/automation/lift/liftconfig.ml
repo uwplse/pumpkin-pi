@@ -128,27 +128,28 @@ let get_elim_type c = fst (c.elim_types)
  * if our type is in a format that is very easy to reason about without
  * unification.
  *)
-let optimize_is_from c env goal_typ typ =
+let optimize_is_from c env goal_typ typ sigma =
   if c.l.is_fwd then
     if is_or_applies goal_typ typ then
-      Some (unfold_args typ)
+      sigma, Some (unfold_args typ)
     else
-      None
+      sigma, None
   else
     match c.l.orn.kind with
     | SwapConstruct _ ->
        if is_or_applies goal_typ typ then
-         Some (unfold_args typ)
+         sigma, Some (unfold_args typ)
        else
-         None
+         sigma, None
     | UnpackSigma ->
        let goal_ind = first_fun (zoom_term zoom_lambda_term env goal_typ) in
+       let sigma, typ = reduce_term env sigma typ in
        if is_or_applies goal_ind typ then
-         Some (unfold_args typ)
+         sigma, Some (unfold_args typ)
        else
-         None
+         sigma, None
     | _ ->
-       None
+       sigma, None
 
 (*
  * Determine whether a type is the type we are ornamenting from
@@ -158,7 +159,7 @@ let optimize_is_from c env goal_typ typ =
 let is_from c env typ sigma =
   let (a_typ, b_typ) = c.typs in
   let goal_typ = if c.l.is_fwd then a_typ else b_typ in
-  let args_o = optimize_is_from c env goal_typ typ in
+  let sigma, args_o = optimize_is_from c env goal_typ typ sigma in
   if Option.has_some args_o then
     sigma, args_o
   else

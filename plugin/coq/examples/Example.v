@@ -344,24 +344,28 @@ Lift vector packed in zip_inner as zip_inner'.
 Lift vector packed in hs_to_coqV_p.zip as zip'.
 Print zip'.
 
-
-
-
 Definition zip_app (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
  hs_to_coqV_p.zip a b (existT [eta vector a] n pl1)
      (existT [eta vector b] n pl2).
 Lift vector packed in zip_app as zip_app'.
+Print zip_app'. (* correct *)
 
+(* now if we project: *)
 
-
-Unset DEVOID lift type. (* TODO *)
 Definition zip_app_proj (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
  projT2 (hs_to_coqV_p.zip a b (existT [eta vector a] n pl1)
      (existT [eta vector b] n pl2)).
-Lift vector packed in zip_app_proj as zip_app_proj'. (* TODO fails at lifting type. uninstantiated evars *)
-Set DEVOID lift type. (* TODO *)
-Print zip_app'.
+Lift vector packed in zip_app_proj as zip_app_proj'.
 Print zip_app_proj'.
+
+(* project and rewrite by refl: *)
+Definition zip_app_proj_refl (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
+  rew [vector (a * b)] (erefl n) in
+  projT2 (hs_to_coqV_p.zip a b (existT [eta vector a] n pl1)
+     (existT [eta vector b] n pl2)).
+
+(* project and rewrite by the thing we want: *)
+
 (*
 Lift vector packed in packed_vector.zip_length as zip_length'.
 

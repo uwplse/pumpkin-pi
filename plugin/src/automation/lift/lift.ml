@@ -413,9 +413,6 @@ let lift_identity c env lifted_id args proj_arg lift_rec sigma =
  * simplify early rather than wait for Coq 
  *)
 let lift_simplify_project_id c env reduce f args lift_rec sigma =
-  let open Printing in
-  debug_term env f "f";
-  debug_terms env (Array.to_list args) "args";
   let sigma, arg' = lift_rec env sigma c (last (Array.to_list args)) in 
   let arg'' = reduce_stateless reduce_term env sigma arg' in
   if may_apply_id_eta (reverse c) env arg'' then
@@ -426,7 +423,6 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
     (* TODO breaks algebraic ... *)
     (* TODO move this into config or something. explain why different *)
     let sigma, f' = lift_rec env sigma c f in
-    debug_term env f' "f'";
     let lifted_args =
       if (get_lifting c).orn.kind = UnpackSigma && not (get_lifting c).is_fwd then
         let typ_args = all_but_last (Array.to_list args) in
@@ -435,10 +431,7 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
         let sigma, args' = map_rec_args lift_rec env sigma c args in
         Array.to_list args'
     in
-    debug_terms env lifted_args "lifted_args";
     let lifted = mkAppl (f', lifted_args) in
-    let open Printing in
-    debug_term env lifted "lifted";
     let lifted_typ = List.hd lifted_args in
     let sigma, is_from_o = is_from (reverse c) env lifted_typ sigma in
     if Option.has_some is_from_o && not ((get_lifting c).orn.kind = UnpackSigma) then
@@ -590,12 +583,11 @@ let lift_core env c trm sigma =
          reduce_term en sigma (mkAppl (p, lifted_args))
        else
          let sigma, projected = reduce_term en sigma (mkAppl (p, args)) in
-         let open Printing in
-         debug_term en projected "projected";
-         let sigma, lifted = lift_rec lift_rule en sigma c projected in
-         debug_term en lifted "lifted projected";
-         sigma, lifted
+         lift_rec lift_rule en sigma c projected
     | Equivalence args ->
+       let open Printing in
+       debug_term en tr "tr";
+       debug_terms en args "args";
        let (_, b_typ) = get_types c in
        let sigma, lifted_args = map_rec_args_list (lift_rec lift_rule) en sigma c args in
        if l.is_fwd then
@@ -654,8 +646,6 @@ let lift_core env c trm sigma =
        else
          lift_identity c en lifted_id args proj_arg (lift_rec lift_rule) sigma
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
-       let open Printing in
-       debug_term en tr "simplify project ID";
        lift_simplify_project_id c en reduce f args (lift_rec lift_rule) sigma
     | LiftElim (tr_elim, lifted_pms) ->
        (* TODO clean/move/explain, have way of setting opaque elims as sep rule *)
