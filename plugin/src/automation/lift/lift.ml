@@ -483,9 +483,6 @@ let lift_app_lazy_delta c env f args lift_rec sigma =
            if equal lifted_red app'' then
              sigma, mkApp (f', args')
            else
-             let open Printing in
-             debug_term env app' "app'";
-             debug_term env lifted_red "lifted_red";
              sigma, lifted_red
 
 (*
@@ -603,42 +600,39 @@ let lift_core env c trm sigma =
          let sigma, projected = reduce_term en sigma (mkAppl (p, args)) in
          if (not l.is_fwd) && l.orn.kind = UnpackSigma && is_or_applies existT projected && is_or_applies eq_rect (last_arg projected) then
            (* TODO move me and explain - for termination. also clean. do something like constrs and id, where you have lifted projections in config and you use those *)
+           let open Printing in
+           debug_term en tr "rect";
            let ex = dest_existT projected in
            let [at_type; trm1; b_typ; b; trm2; eq] = unfold_args ex.unpacked in
            let sigma, packer =
              let sigma, typ_args = from_args c en b_typ sigma in
              let sigma, typ_args =  map_rec_args_list (lift_rec lift_rule) en sigma c typ_args in
              sigma, mkAppl (snd (get_types c), typ_args)
-               in
-               let sigma, unpacked =
-                 let sigma, at_type = lift_rec lift_rule en sigma c at_type in
-                 let sigma, eq = lift_rec lift_rule en sigma c eq in
-                 let sigma, b =
-                   let b_inner = last_arg (last_arg b) in
-                   let open Printing in
-                 debug_term en b_inner "b_inner";
-                 let sigma, b_inner_lifted = lift_rec lift_rule en sigma c b_inner in
-                 debug_term en b_inner_lifted "b_inner_lifted";
-                 debug_term en (dest_existT (dest_existT b_inner_lifted).index).unpacked "unpacked";
-                 sigma, (dest_existT (dest_existT b_inner_lifted).index).unpacked
-                 in
-                 let sigma, trm1 = lift_rec lift_rule en sigma c trm1 in
-                 let sigma, trm2 = lift_rec lift_rule en sigma c trm2 in
-                 
-                 let unpacked = mkAppl (eq_rect, [at_type; trm1; packer; b; trm2; eq]) in
-                 sigma, unpacked
-               in
-               let sigma, index = lift_rec lift_rule en sigma c ex.index in
-               let sigma, index_type = lift_rec lift_rule en sigma c ex.index_type
-               in sigma, pack_existT { index_type; packer; index; unpacked }
+           in
+           debug_term en packer "packer";
+           let sigma, unpacked =
+             let sigma, at_type = lift_rec lift_rule en sigma c at_type in
+             let sigma, eq = lift_rec lift_rule en sigma c eq in
+             let sigma, b =
+               let b_inner = last_arg (last_arg b) in
+               debug_term en b_inner "b_inner before lifting";
+               let sigma, b_inner_lifted = lift_rec lift_rule en sigma c b_inner in
+               let sigma, b_inner_lifted = reduce_term en sigma b_inner_lifted in
+               debug_term en b_inner_lifted "b_inner after lifting";
+               sigma, (dest_existT (dest_existT b_inner_lifted).index).unpacked
+             in
+             debug_term en b "b";
+             let sigma, trm1 = lift_rec lift_rule en sigma c trm1 in
+             let sigma, trm2 = lift_rec lift_rule en sigma c trm2 in
+             
+             let unpacked = mkAppl (eq_rect, [at_type; trm1; packer; b; trm2; eq]) in
+             sigma, unpacked
+           in
+           let sigma, index = lift_rec lift_rule en sigma c ex.index in
+           let sigma, index_type = lift_rec lift_rule en sigma c ex.index_type
+           in sigma, pack_existT { index_type; packer; index; unpacked }
          else
-           let open Printing in
-           debug_term en tr "tr";
-           
-           debug_term en projected "projected";
-           let sigma, lifted = lift_rec lift_rule en sigma c projected in
-           debug_term en lifted "lifted";
-           sigma, lifted
+           lift_rec lift_rule en sigma c projected
     | Equivalence args ->
        let (_, b_typ) = get_types c in
        let sigma, lifted_args = map_rec_args_list (lift_rec lift_rule) en sigma c args in
@@ -696,8 +690,6 @@ let lift_core env c trm sigma =
            sigma, snoc packed typ_args
          in sigma, mkAppl (lifted_id, args)
        else
-         let open Printing in
-         debug_term en tr "identity";
          lift_identity c en lifted_id args proj_arg (lift_rec lift_rule) sigma
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rule) sigma

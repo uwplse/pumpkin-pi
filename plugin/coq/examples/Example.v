@@ -262,7 +262,7 @@ Lift Module list vector in packed_list as packed_vector.
  *)
 Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 
-Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec Vector.t_rect Coq.Vectors.VectorDef.t_rect eq_sym eq_trans eq_rect eq_ind eq_rec projT1 projT2 }.
+Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec Vector.t_rect Coq.Vectors.VectorDef.t_rect eq_sym eq_trans }.
 (* TODO move these tests later *)
 Definition my_id (T : Type) (n : nat) (v : vector T n) := v.
 Lift vector packed in my_id as id'.
@@ -279,7 +279,6 @@ Definition my_pack_coh (T : Type) (n : nat) (v : vector T n) :=
     (@existT nat (vector T) n v).
 Lift vector packed in my_pack_coh as my_pack_coh'.
 Print my_pack_coh'.
-Fail.
 
 Print t_unpack.
 Print unpack_generic.
@@ -369,6 +368,14 @@ Definition H_typ (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
 Lift vector packed in H_typ as H_typ'.
 Print H_typ'.
 
+(* packed zip *)
+Definition packed_zip (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
+ existT _ (projT1 (hs_to_coqV_p.zip a b (existT [eta vector a] n pl1)
+     (existT [eta vector b] n pl2))) (projT2 (hs_to_coqV_p.zip a b (existT [eta vector a] n pl1)
+     (existT [eta vector b] n pl2))).
+Lift vector packed in packed_zip as packed_zip'.
+Print packed_zip'.
+
 (* project and rewrite by some H: *)
 Definition zip_app_proj_H (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n)
   (H : projT1 (hs_to_coqV_p.zip a b (existT [eta vector a] n pl1) (existT [eta vector b] n pl2)) = n) :=
@@ -414,7 +421,8 @@ projT2
   (hs_to_coqV_p.zip a b (existT [eta vector a] n pl1)
      (existT [eta vector b] n pl2)).
 Print packed_vector.zip.
-Fail Lift vector packed in my_zip as zip''. (* TODO WIP *)
+Lift vector packed in my_zip as zip''.
+Fail.
 
 (*
  * We can get away without preprocessing here, though we must set some terms to opaque to do that:

@@ -824,9 +824,7 @@ let initialize_proj_rules c env sigma =
            let proj_bod = pack_existT { index_type; packer; index; unpacked } in
            sigma, reconstruct_lambda env_proj proj_bod
          in
-       let open Printing in
-       debug_term env projT1_bwd "projT1_bwd";
-       sigma, ([(p1, projT1_bwd); (p1_p2, id)], [(p1_typ, p1_typ); (p2_typ, p2_typ)])
+         sigma, ([(p1, projT1_bwd) (*; (p1_p2, id)*)], [(p1_typ, p1_typ); (p2_typ, p2_typ)])
     | CurryRecord ->
        (* accessors <-> projections *)
        let accessors =
