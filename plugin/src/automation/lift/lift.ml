@@ -585,9 +585,6 @@ let lift_core env c trm sigma =
          let sigma, projected = reduce_term en sigma (mkAppl (p, args)) in
          lift_rec lift_rule en sigma c projected
     | Equivalence args ->
-       let open Printing in
-       debug_term en tr "tr";
-       debug_terms en args "args";
        let (_, b_typ) = get_types c in
        let sigma, lifted_args = map_rec_args_list (lift_rec lift_rule) en sigma c args in
        if l.is_fwd then

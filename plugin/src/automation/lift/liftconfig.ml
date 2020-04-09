@@ -232,9 +232,14 @@ let check_is_proj c env trm proj_is =
                       (mk_n_rels (arity proj_i))
                       sigma
                   in
-                  let proj_app = mkAppl (proj_i, eargs) in
-                  let sigma = the_conv_x env_b (EConstr.of_constr b) (EConstr.of_constr proj_app) sigma in
-                  sigma, Some (i, eargs, trm_eta)
+                  (* TODO env_b here, but env outside! *)
+                  (* TODO move this to your own evarutils or something. maybe force resolve in is_from too. see how slow *)
+                  let proj_app = EConstr.of_constr (mkAppl (proj_i, eargs)) in
+                  let sigma_ref = ref (the_conv_x env_b (EConstr.of_constr b) proj_app sigma) in
+                  let proj_app = Typing.e_solve_evars env_b sigma_ref proj_app in
+                  let sigma = !sigma_ref in
+                  let args = unfold_args (EConstr.to_constr sigma proj_app) in
+                  sigma, Some (i, args, trm_eta)
               with _ ->
                 check_is_proj_i (i + 1) tl sigma)
             (fun _ -> check_is_proj_i (i + 1) tl)
@@ -807,8 +812,6 @@ let initialize_proj_rules c env sigma =
          (* TODO then for typs do we want to restrict below? *)
          let p1_typ = reconstruct_lambda (pop_rel_context 2 env_proj) (unshift_by 2 b_sig_typ) in
          let p2_typ = reconstruct_lambda (pop_rel_context 1 env_proj) (unshift b_sig_eq_typ_app.packer) in
-         let open Printing in
-         debug_term env p1 "p1";
          sigma, ([(p1, projT1); (p1_p2, id)], [(p1_typ, p1_typ); (p2_typ, p2_typ)])
     | CurryRecord ->
        (* accessors <-> projections *)

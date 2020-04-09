@@ -358,31 +358,31 @@ Definition zip_app_proj (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector 
 Lift vector packed in zip_app_proj as zip_app_proj'.
 Print zip_app_proj'.
 
-(* project and rewrite by refl: *)
-Definition zip_app_proj_refl (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
-  rew [vector (a * b)] (erefl n) in
+(* type of H *)
+Definition H_typ (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
+ projT1 (hs_to_coqV_p.zip a b (existT [eta vector a] n pl1) (existT [eta vector b] n pl2)) = n.
+Lift vector packed in H_typ as H_typ'.
+Print H_typ'.
+
+(* project and rewrite by some H: *)
+Definition zip_app_proj_H (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n)
+  (H : projT1 (hs_to_coqV_p.zip a b (existT [eta vector a] n pl1) (existT [eta vector b] n pl2)) = n) :=
+  rew [vector (a * b)] H in
   projT2 (hs_to_coqV_p.zip a b (existT [eta vector a] n pl1)
      (existT [eta vector b] n pl2)).
+Lift vector packed in zip_app_proj_H as zip_app_proj_H'.
+Print zip_app_proj_H'.
 
-(* project and rewrite by the thing we want: *)
-
-(*
-Lift vector packed in packed_vector.zip_length as zip_length'.
-
-Print zip_length'.
-
-Unset DEVOID lift type. (* TODO this is failing, why? *)*)
-
-
-(*
-Definition zip_length_2 (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
-    packed_vector.zip_length a b n (existT [eta vector a] n pl1)
+(* The H we want: *)
+Definition my_zip_length (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
+  packed_vector.zip_length a b n (existT [eta vector a] n pl1)
       (existT [eta vector b] n pl2) (Datatypes.id (erefl n)) 
       (erefl n).
+Lift vector packed in my_zip_length as my_zip_length'.
+Print my_zip_length'.
+Fail.
 
-Lift vector packed in zip_length_2 as zip_length_2'. (* TODO this fails too *)
-Print zip_length_2'.
-Set DEVOID lift type. (* TODO *)*)
+(* project and rewrite by the thing we want: *)
 
 Definition my_zip (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
 rew [vector (a * b)]

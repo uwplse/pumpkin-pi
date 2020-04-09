@@ -49,8 +49,6 @@ let define_print ?typ n trm sigma =
     let def =
       if Option.has_some typ then
         let typ = Evarutil.flush_and_check_evars sigma (EConstr.of_constr (Option.get typ)) in
-        let open Printing in
-        debug_term (Global.env ()) typ "lifted typ";
         define_term ~typ n sigma trm true
       else
         define_term n sigma trm true
@@ -58,7 +56,7 @@ let define_print ?typ n trm sigma =
     Feedback.msg_info
       (str (Printf.sprintf "DEVOID generated %s" (Id.to_string n)));
     def
-  with Evarutil.Uninstantiated_evar _ ->
+  with Evarutil.Uninstantiated_evar _ -> (* TODO better error message *)
     CErrors.user_err (str "DEVOID does not fully support implicit arguments")
 
 (* --- Commands --- *)
@@ -303,13 +301,11 @@ let save_ornament d_old d_new d_orn_o d_orn_inv_o =
  *)
 let lift_definition_by_ornament env sigma n l c_old ignores =
   let sigma, lifted = do_lift_defn env sigma l c_old ignores in
-  debug_term env lifted "lifted";
   try
     ignore
       (if is_lift_type () then
          (* Lift the type as well *)
          let sigma, typ = infer_type env sigma c_old in
-         debug_term env typ "typ";
          let sigma, lifted_typ = do_lift_defn env sigma l typ ignores in
          define_print ~typ:lifted_typ n lifted sigma 
        else
