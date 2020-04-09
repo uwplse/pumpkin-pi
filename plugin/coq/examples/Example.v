@@ -262,7 +262,7 @@ Lift Module list vector in packed_list as packed_vector.
  *)
 Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 
-Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec Vector.t_rect Coq.Vectors.VectorDef.t_rect eq_sym eq_trans }.
+Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec Vector.t_rect Coq.Vectors.VectorDef.t_rect eq_sym eq_trans eq_rect eq_ind eq_rec projT1 projT2 }.
 (* TODO move these tests later *)
 Definition my_id (T : Type) (n : nat) (v : vector T n) := v.
 Lift vector packed in my_id as id'.
@@ -279,6 +279,11 @@ Definition my_pack_coh (T : Type) (n : nat) (v : vector T n) :=
     (@existT nat (vector T) n v).
 Lift vector packed in my_pack_coh as my_pack_coh'.
 Print my_pack_coh'.
+Fail.
+
+Print t_unpack.
+Print unpack_generic.
+Print unpack_generic_section.
 (*
 TODO fail gracefully (can we remove p2 rule everywhere?):
 Definition my_refl_coh (T : Type) (n : nat) (v : vector T n) :=
@@ -377,6 +382,18 @@ Print zip_app_proj_H'.
 Lift vector packed in packed_vector.zip_length as zip_length'.
 Print packed_vector.zip_length.
 Print zip_length'.
+Print hs_to_coq_projT1s.zip_length_n.
+Print hs_to_coq_projT1s.zip_length.
+
+(* Internal term for the H we want: *)
+Definition proj_length_app (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
+  hs_to_coq_projT1s.zip_length a b
+     (existT _ (projT1 (existT _ n pl1)) (projT2 (existT _ n pl1)))
+     (existT _ (projT1 (existT _ n pl2)) (projT2 (existT _ n pl2))) 
+     (eq_trans (id (erefl n)) (eq_sym (erefl n))).
+Lift vector packed in proj_length_app as proj_length_app'.
+Print proj_length_app.
+Fail.
 
 (* The H we want: *)
 Definition my_zip_length (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
@@ -385,7 +402,6 @@ Definition my_zip_length (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector
       (erefl n).
 Lift vector packed in my_zip_length as my_zip_length'.
 Print my_zip_length'.
-Fail.
 
 (* project and rewrite by the thing we want: *)
 

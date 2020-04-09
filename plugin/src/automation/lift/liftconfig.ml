@@ -790,8 +790,8 @@ let initialize_proj_rules c env sigma =
          let eq = apply_eq_refl { typ = index_type; trm = index } in
          reconstruct_lambda env_proj eq
        in
-       (* TODO can we move this into identity? *)
-       let sigma, p1_p2 =
+       (* TODO can we move this into identity? also clean up w/ rules above and explain why different (basically need to capture rew in op. dir since can't capture arbitrary refl) *)
+       let sigma, p1_p2 = (* TODO maybe remove after proj1_bwd works, if it does *)
          let index_type = b_sig_typ in
          let packer = b_sig_eq_typ_app.packer in
          let sigma, index = reduce_term env_proj sigma (mkAppl (p1, mk_n_rels (nb_rel env_proj))) in
@@ -810,7 +810,23 @@ let initialize_proj_rules c env sigma =
          (* TODO then for typs do we want to restrict below? *)
          let p1_typ = reconstruct_lambda (pop_rel_context 2 env_proj) (unshift_by 2 b_sig_typ) in
          let p2_typ = reconstruct_lambda (pop_rel_context 1 env_proj) (unshift b_sig_eq_typ_app.packer) in
-         sigma, ([(p1, projT1); (p1_p2, id)], [(p1_typ, p1_typ); (p2_typ, p2_typ)])
+         let sigma, projT1_bwd =
+           let packer = (dest_sigT b_sig_typ).packer in
+           let index = mkRel 2 in
+           let unpacked =
+             let at_type = index_type in
+             let trm1 = project_index (dest_sigT b_sig_typ) (fst proj_bods) in
+             let trm2 = mkRel 2 in
+             let b = project_value (dest_sigT b_sig_typ) (fst proj_bods) in
+             let eq = snd proj_bods in
+             mkAppl (eq_rect, [at_type; trm1; packer; b; trm2; eq])
+           in
+           let proj_bod = pack_existT { index_type; packer; index; unpacked } in
+           sigma, reconstruct_lambda env_proj proj_bod
+         in
+       let open Printing in
+       debug_term env projT1_bwd "projT1_bwd";
+       sigma, ([(p1, projT1_bwd); (p1_p2, id)], [(p1_typ, p1_typ); (p2_typ, p2_typ)])
     | CurryRecord ->
        (* accessors <-> projections *)
        let accessors =
