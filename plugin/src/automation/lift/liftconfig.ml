@@ -65,6 +65,28 @@ type lift_config =
     opaques : temporary_cache
   }
 
+(* --- Modifying the configuration --- *)
+
+let reverse c =
+  {
+    c with
+    l = flip_dir c.l;
+    elim_types = reverse c.elim_types;
+    packed_constrs = reverse c.packed_constrs;
+    proj_rules = reverse c.proj_rules;
+    constr_rules = reverse c.constr_rules;
+    optimize_proj_id_rules = reverse c.optimize_proj_id_rules;
+    id_rules = reverse c.id_rules;
+  }
+
+let zoom c =
+  match c.l.orn.kind with
+  | Algebraic (indexer, off) ->
+     let typs = map_tuple shift c.typs in
+     { c with typs }
+  | _ ->
+     c
+
 (* --- Convenient shorthand --- *)
 
 let convertible env t1 t2 sigma =
@@ -131,10 +153,14 @@ let get_elim_type c = fst (c.elim_types)
  *)
 let optimize_is_from c env goal_typ typ sigma =
   if c.l.is_fwd then
-    if is_or_applies goal_typ typ then
-      sigma, Some (unfold_args typ)
-    else
-      sigma, None
+    match c.l.orn.kind with
+    | UnpackSigma ->
+       sigma, None
+    | _ ->
+       if is_or_applies goal_typ typ then
+         sigma, Some (unfold_args typ)
+       else
+         sigma, None
   else
     match c.l.orn.kind with
     | SwapConstruct _ ->
@@ -210,7 +236,22 @@ let optimize_is_proj c env trm proj_is sigma =
   match l.orn.kind with
   | UnpackSigma ->
      if l.is_fwd then
-       sigma, None
+       let args = unfold_args trm in
+       let isProjT1 = is_or_applies projT1 trm in
+       let isProjT2 = is_or_applies projT2 trm in
+       if List.length args = 3 && (isProjT1 || isProjT2) then
+         let packed = last args in
+         let sigma, typ_args_o = type_is_from c env packed sigma in
+         if Option.has_some typ_args_o then
+           let typ_args = Option.get typ_args_o in
+           if isProjT1 then
+             sigma, Some (0, snoc packed typ_args, trm)
+           else
+             sigma, Some (1, snoc packed typ_args, trm)
+         else
+           sigma, None
+       else
+         sigma, None
      else
        if is_or_applies existT trm then
          try
@@ -441,28 +482,6 @@ let applies_id_eta c env trm sigma =
  * Get the cached lifted identity function
  *)
 let get_lifted_id_eta c = snd c.id_rules
-
-(* --- Modifying the configuration --- *)
-
-let reverse c =
-  {
-    c with
-    l = flip_dir c.l;
-    elim_types = reverse c.elim_types;
-    packed_constrs = reverse c.packed_constrs;
-    proj_rules = reverse c.proj_rules;
-    constr_rules = reverse c.constr_rules;
-    optimize_proj_id_rules = reverse c.optimize_proj_id_rules;
-    id_rules = reverse c.id_rules;
-  }
-
-let zoom c =
-  match c.l.orn.kind with
-  | Algebraic (indexer, off) ->
-     let typs = map_tuple shift c.typs in
-     { c with typs }
-  | _ ->
-     c
 
 (* --- Smart simplification --- *)
 
@@ -823,7 +842,6 @@ let initialize_proj_rules c env sigma =
          let packed = pack_existT { index_type; packer; index; unpacked } in
          sigma, reconstruct_lambda env_proj packed
        in
-       let id = reconstruct_lambda env_proj lift_t in
        if l.is_fwd then (* projT1 -> pack, projT2 -> eq_refl *)
          sigma, ([(projT1, p1); (projT2, p2)], [])
        else (* pack -> projT1, existT _ pack eq_refl -> existT _ _ projT2 *)
@@ -848,7 +866,7 @@ let initialize_proj_rules c env sigma =
            let proj_bod = pack_existT { index_type; packer; index; unpacked } in
            sigma, reconstruct_lambda env_proj proj_bod
          in
-         sigma, ([(p1, projT1_bwd) (*; (p1_p2, id)*)], [(p1_typ, p1_typ); (p2_typ, p2_typ)])
+         sigma, ([(p1, projT1_bwd)], [(p1_typ, p1_typ); (p2_typ, p2_typ)])
     | CurryRecord ->
        (* accessors <-> projections *)
        let accessors =
