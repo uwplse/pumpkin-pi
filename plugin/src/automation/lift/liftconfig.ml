@@ -26,6 +26,7 @@ open Names
 open Equtils
 open Idutils
 open Convertibility
+open Unificationutils
 
 (*
  * Lifting configuration: Includes the lifting, types, and cached rules
@@ -254,22 +255,15 @@ let check_is_proj c env trm proj_is sigma =
                     check_is_proj_i (i + 1) tl sigma
                   else
                     (* attempt unification *)
-                    let sigma, eargs =
-                      map_state
-                        (fun r sigma ->
-                          let sigma, (earg_typ, _) = new_type_evar env_b sigma univ_flexible in
-                          let sigma, earg = new_evar env_b sigma earg_typ in
-                          sigma, EConstr.to_constr sigma earg)
-                        (mk_n_rels (arity proj_i))
-                        sigma
-                    in
-                    (* TODO move this to your own evarutils or something. maybe force resolve in is_from too. see how slow *)
-                    let proj_app = EConstr.of_constr (mkAppl (proj_i, eargs)) in
-                    let sigma_ref = ref (the_conv_x env_b (EConstr.of_constr b) proj_app sigma) in
-                    let proj_app = Typing.e_solve_evars env_b sigma_ref proj_app in
-                    let sigma = !sigma_ref in
-                    let args = unfold_args (EConstr.to_constr sigma proj_app) in
-                    sigma, Some (i, args, trm_eta)
+                    let sigma, eargs = mk_n_evars (arity proj_i) env_b sigma in
+                    let proj_app = mkAppl (proj_i, eargs) in
+                    let sigma, resolved = unify_resolve_evars env_b b proj_app sigma in
+                    if Option.has_some resolved then
+                      let (_, proj_app) = Option.get resolved in
+                      let args = unfold_args proj_app in
+                      sigma, Some (i, args, trm_eta)
+                    else
+                      check_is_proj_i (i + 1) tl sigma
                 with _ ->
                   check_is_proj_i (i + 1) tl sigma)
               (fun _ -> check_is_proj_i (i + 1) tl)

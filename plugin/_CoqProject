@@ -95,6 +95,8 @@ src/lib/desugarprod.ml
 src/lib/desugarprod.mli
 src/lib/ornerrors.ml
 src/lib/ornerrors.mli
+src/lib/unificationutils.ml
+src/lib/unificationutils.mli
 
 src/ornaments/promotion.ml
 src/ornaments/promotion.mli
