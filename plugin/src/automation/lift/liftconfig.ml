@@ -178,7 +178,7 @@ let from_args c env trm sigma =
 let type_is_from c env trm sigma =
   try
     on_red_type
-      reduce_term (* TODO was reduce_nf. changing to reduce_term helps us w/ UnpackSigma, but breaks CurryRecord. investigate what we want *)
+      reduce_term
       (fun env sigma typ -> is_from c env typ sigma)
       env
       sigma
@@ -203,52 +203,82 @@ let type_from_args c env trm sigma =
  *)
 let get_proj_map c = fst c.proj_rules
 
-(* Check if a term applies a given projection *)
-let check_is_proj c env trm proj_is =
-  match kind trm with
-  | App _ | Const _ -> (* this check is an optimization *)
-     let f = first_fun trm in
-     let rec check_is_proj_i i proj_is =
-       match proj_is with
-       | proj_i :: tl ->
-          let proj_i_f = first_fun (zoom_term zoom_lambda_term env proj_i) in
-          branch_state
-            (convertible env proj_i_f) (* this check is an optimization *)
-            (fun _ sigma ->
-              try
-                let sigma, trm_eta = expand_eta env sigma trm in
-                let env_b, b = zoom_lambda_term env trm_eta in
-                let args = unfold_args b in
-                if List.length args = 0 then
-                  check_is_proj_i (i + 1) tl sigma
-                else
-                  (* attempt unification *)
-                  let sigma, eargs =
-                    map_state
-                      (fun r sigma ->
-                        let sigma, (earg_typ, _) = new_type_evar env_b sigma univ_flexible in
-                        let sigma, earg = new_evar env_b sigma earg_typ in
-                        sigma, EConstr.to_constr sigma earg)
-                      (mk_n_rels (arity proj_i))
-                      sigma
-                  in
-                  (* TODO env_b here, but env outside! *)
-                  (* TODO move this to your own evarutils or something. maybe force resolve in is_from too. see how slow *)
-                  let proj_app = EConstr.of_constr (mkAppl (proj_i, eargs)) in
-                  let sigma_ref = ref (the_conv_x env_b (EConstr.of_constr b) proj_app sigma) in
-                  let proj_app = Typing.e_solve_evars env_b sigma_ref proj_app in
-                  let sigma = !sigma_ref in
-                  let args = unfold_args (EConstr.to_constr sigma proj_app) in
-                  sigma, Some (i, args, trm_eta)
-              with _ ->
-                check_is_proj_i (i + 1) tl sigma)
-            (fun _ -> check_is_proj_i (i + 1) tl)
-            f
-       | _ ->
-          ret None
-     in check_is_proj_i 0 proj_is
+(* Unification can be slow, so sometimes we can do better ourselves *)
+let optimize_is_proj c env trm proj_is sigma =
+  let l = get_lifting c in
+  match l.orn.kind with
+  | UnpackSigma ->
+     if l.is_fwd then
+       sigma, None
+     else
+       if is_or_applies existT trm then
+         try
+           let ex = dest_existT trm in
+           let packer = ex.packer in
+           let index = ex.index in
+           let unpacked = ex.unpacked in
+           let sigma, typ_args_o = is_from c env packer sigma in
+           if Option.has_some typ_args_o then
+             let typ_args = Option.get typ_args_o in
+             sigma, Some (0, snoc unpacked (snoc index typ_args), trm)
+           else
+             sigma, None
+         with _ ->
+           sigma, None
+       else
+         sigma, None
   | _ ->
-     ret None
+     sigma, None
+                         
+(* Check if a term applies a given projection *)
+let check_is_proj c env trm proj_is sigma =
+  let sigma, is_proj = optimize_is_proj c env trm proj_is sigma in
+  if Option.has_some is_proj then
+    sigma, is_proj
+  else
+    match kind trm with
+    | App _ | Const _ -> (* this check is an optimization *)
+       let f = first_fun trm in
+       let rec check_is_proj_i i proj_is =
+         match proj_is with
+         | proj_i :: tl ->
+            let proj_i_f = first_fun (zoom_term zoom_lambda_term env proj_i) in
+            branch_state
+              (convertible env proj_i_f) (* this check is an optimization *)
+              (fun _ sigma ->
+                try
+                  let sigma, trm_eta = expand_eta env sigma trm in
+                  let env_b, b = zoom_lambda_term env trm_eta in
+                  let args = unfold_args b in
+                  if List.length args = 0 then
+                    check_is_proj_i (i + 1) tl sigma
+                  else
+                    (* attempt unification *)
+                    let sigma, eargs =
+                      map_state
+                        (fun r sigma ->
+                          let sigma, (earg_typ, _) = new_type_evar env_b sigma univ_flexible in
+                          let sigma, earg = new_evar env_b sigma earg_typ in
+                          sigma, EConstr.to_constr sigma earg)
+                        (mk_n_rels (arity proj_i))
+                        sigma
+                    in
+                    (* TODO move this to your own evarutils or something. maybe force resolve in is_from too. see how slow *)
+                    let proj_app = EConstr.of_constr (mkAppl (proj_i, eargs)) in
+                    let sigma_ref = ref (the_conv_x env_b (EConstr.of_constr b) proj_app sigma) in
+                    let proj_app = Typing.e_solve_evars env_b sigma_ref proj_app in
+                    let sigma = !sigma_ref in
+                    let args = unfold_args (EConstr.to_constr sigma proj_app) in
+                    sigma, Some (i, args, trm_eta)
+                with _ ->
+                  check_is_proj_i (i + 1) tl sigma)
+              (fun _ -> check_is_proj_i (i + 1) tl)
+              f
+         | _ ->
+            ret None
+       in check_is_proj_i 0 proj_is sigma
+    | _ ->
+       ret None sigma
 
 (* Check if a term applies any projection *)
 let is_proj c env trm sigma =
