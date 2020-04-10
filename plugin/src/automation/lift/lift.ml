@@ -455,13 +455,8 @@ let lift_app_lazy_delta c env f args lift_rec sigma =
       sigma, false
     else if (is_opaque c f) then
       sigma, false
-    else if equal f f' then
-      sigma, true
     else
-      try
-        Convertibility.convertible env sigma f f'
-      with _ ->
-        sigma, false
+      sigma, equal f f'
   in
   if not do_delta then
     let lifted = mkApp (f', args') in
@@ -600,8 +595,6 @@ let lift_core env c trm sigma =
          let sigma, projected = reduce_term en sigma (mkAppl (p, args)) in
          if (not l.is_fwd) && l.orn.kind = UnpackSigma && is_or_applies existT projected && is_or_applies eq_rect (last_arg projected) then
            (* TODO move me and explain - for termination. also clean. do something like constrs and id, where you have lifted projections in config and you use those *)
-           let open Printing in
-           debug_term en tr "rect";
            let ex = dest_existT projected in
            let [at_type; trm1; b_typ; b; trm2; eq] = unfold_args ex.unpacked in
            let sigma, packer =
@@ -609,19 +602,15 @@ let lift_core env c trm sigma =
              let sigma, typ_args =  map_rec_args_list (lift_rec lift_rule) en sigma c typ_args in
              sigma, mkAppl (snd (get_types c), typ_args)
            in
-           debug_term en packer "packer";
            let sigma, unpacked =
              let sigma, at_type = lift_rec lift_rule en sigma c at_type in
              let sigma, eq = lift_rec lift_rule en sigma c eq in
              let sigma, b =
                let b_inner = last_arg (last_arg b) in
-               debug_term en b_inner "b_inner before lifting";
                let sigma, b_inner_lifted = lift_rec lift_rule en sigma c b_inner in
                let sigma, b_inner_lifted = reduce_term en sigma b_inner_lifted in
-               debug_term en b_inner_lifted "b_inner after lifting";
                sigma, (dest_existT (dest_existT b_inner_lifted).index).unpacked
              in
-             debug_term en b "b";
              let sigma, trm1 = lift_rec lift_rule en sigma c trm1 in
              let sigma, trm2 = lift_rec lift_rule en sigma c trm2 in
              

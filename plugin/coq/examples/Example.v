@@ -392,15 +392,16 @@ Print zip_length'.
 Print hs_to_coq_projT1s.zip_length_n.
 Print hs_to_coq_projT1s.zip_length.
 
-(* Internal term for the H we want: *)
+(* TODO AFAIK this recurses infinitely still, though we avoid it, should simplify eagerly: *)
 Definition proj_length_app (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
   hs_to_coq_projT1s.zip_length a b
      (existT _ (projT1 (existT _ n pl1)) (projT2 (existT _ n pl1)))
      (existT _ (projT1 (existT _ n pl2)) (projT2 (existT _ n pl2))) 
      (eq_trans (id (erefl n)) (eq_sym (erefl n))).
-Lift vector packed in proj_length_app as proj_length_app'.
+(*Lift vector packed in proj_length_app as proj_length_app'.
 Print proj_length_app.
 Fail.
+*)
 
 (* The H we want: *)
 Definition my_zip_length (a b : Type) (n : nat) (pl1 : vector a n) (pl2 : vector b n) :=
@@ -422,7 +423,190 @@ projT2
      (existT [eta vector b] n pl2)).
 Print packed_vector.zip.
 Lift vector packed in my_zip as zip''.
-Fail.
+Print zip''.
+
+Definition my_zip_with (A B C : Type) (f : A -> B -> C) (n : nat) (pl1 : vector A n) (pl2 : vector B n) :=
+  rew [vector C]
+    eq_ind n
+      [eta eq
+             (projT1
+                (hs_to_coqV_p.zip_with A B C f (existT [eta vector A] n pl1)
+                  (existT [eta vector B] n pl2)))]
+      (hs_to_coq_projT1s.zip_with_length A B C f
+         (existT [eta vector A] n pl1) (existT [eta vector B] n pl2)
+         (eq_trans (Datatypes.id (erefl n)) (eq_sym (erefl n)))) n
+      (Datatypes.id (erefl n)) in
+(projT2 (hs_to_coqV_p.zip_with A B C f (existT [eta vector A] n pl1)
+     (existT [eta vector B] n pl2))). (* TODO let format below means we need proj as opaque *)
+Lift vector packed in my_zip_with as zip_with''.
+Print zip_with''.
+
+Definition subproof1 (A B : Type) (n : nat) (pl1 : t A n) (pl2 : t B n) :=
+    (@eq_rect (@sigT nat (fun H : nat => t (prod A B) H))
+       (@existT nat (fun H : nat => t (prod A B) H)
+          (projT1
+             (hs_to_coqV_p.zip_with A B (prod A B) (@pair A B)
+               (@existT nat (fun H : nat => t A H) n pl1)
+               (@existT nat (fun H : nat => t B H) n pl2)))
+          (projT2
+             (hs_to_coqV_p.zip_with A B (prod A B) (@pair A B)
+               (@existT nat (fun H : nat => t A H) n pl1)
+               (@existT nat (fun H : nat => t B H) n pl2))))
+       (fun l3 : @sigT nat (fun H : nat => t (prod A B) H) =>
+        @eq nat (@projT1 nat (fun H : nat => t (prod A B) H) l3) n)
+       (packed_vector.zip_with_length A B (prod A B) (@pair A B) n
+          (@existT nat (fun H : nat => t A H) n pl1)
+          (@existT nat (fun H : nat => t B H) n pl2)
+          (@Datatypes.id (@eq nat n n) (@eq_refl nat n)) 
+          (@eq_refl nat n))
+       (@existT nat (fun H : nat => t (prod A B) H)
+          (projT1 (
+             hs_to_coqV_p.zip A B (@existT nat (fun H : nat => t A H) n pl1)
+               (@existT nat (fun H : nat => t B H) n pl2)))
+          (projT2
+             (hs_to_coqV_p.zip A B (@existT nat (fun H : nat => t A H) n pl1)
+               (@existT nat (fun H : nat => t B H) n pl2))))
+       (hs_to_coqV_p.zip_with_is_zip A B
+          (@existT nat (fun H : nat => t A H) n pl1)
+          (@existT nat (fun H : nat => t B H) n pl2))).
+Lift vector packed in subproof1 as subproof1' { opaque hs_to_coqV_p.zip_with_is_zip packed_vector.zip_with_length packed_vector.zip_length projT1 projT2 }.
+
+Definition subproof2 (A B : Type) (n : nat) (pl1 : t A n) (pl2 : t B n) :=
+  @Eqdep_dec.UIP_dec nat Nat.eq_dec
+    (projT1(hs_to_coqV_p.zip A B (@existT nat (fun H : nat => t A H) n pl1)
+         (@existT nat (fun H : nat => t B H) n pl2))) n
+    (subproof1 A B n pl1 pl2)
+    (packed_vector.zip_length A B n (@existT nat (fun H : nat => t A H) n pl1)
+       (@existT nat (fun H : nat => t B H) n pl2)
+       (@Datatypes.id (@eq nat n n) (@eq_refl nat n)) 
+       (@eq_refl nat n)).
+Lift vector packed in subproof2 as subproof2' { opaque hs_to_coqV_p.zip_with_is_zip packed_vector.zip_with_length packed_vector.zip_length projT1 projT2 }.
+
+Definition type1 (A B : Type) (n : nat) (pl1 : t A n) (pl2 : t B n) y :=
+    (@eq (t (prod A B) n)
+       (@eq_rect nat
+          (projT1
+             (hs_to_coqV_p.zip_with A B (prod A B) (@pair A B)
+               (@existT nat (fun H : nat => t A H) n pl1)
+               (@existT nat (fun H : nat => t B H) n pl2))) (t (prod A B))
+          (projT2
+             (hs_to_coqV_p.zip_with A B (prod A B) (@pair A B)
+               (@existT nat (fun H : nat => t A H) n pl1)
+               (@existT nat (fun H : nat => t B H) n pl2))) n
+          (packed_vector.zip_with_length A B (prod A B) (@pair A B) n
+             (@existT nat (fun H : nat => t A H) n pl1)
+             (@existT nat (fun H : nat => t B H) n pl2)
+             (@Datatypes.id (@eq nat n n) (@eq_refl nat n)) 
+             (@eq_refl nat n)))
+       (@eq_rect nat
+          (projT1
+             (hs_to_coqV_p.zip A B (@existT nat (fun H : nat => t A H) n pl1)
+               (@existT nat (fun H : nat => t B H) n pl2))) (t (prod A B))
+          (projT2
+             (hs_to_coqV_p.zip A B (@existT nat (fun H : nat => t A H) n pl1)
+               (@existT nat (fun H : nat => t B H) n pl2))) n y)).
+Lift vector packed in type1 as type1' { opaque hs_to_coqV_p.zip_with_is_zip packed_vector.zip_with_length packed_vector.zip_length projT1 projT2 }.
+
+Definition subproof3 (A B : Type) (n : nat) (pl1 : t A n) (pl2 : t B n) :=
+hs_to_coqV_p.zip_with_is_zip A B (@existT nat (fun H : nat => t A H) n pl1)
+        (@existT nat (fun H : nat => t B H) n pl2).
+Lift vector packed in subproof3 as subproof3' { opaque hs_to_coqV_p.zip_with_is_zip packed_vector.zip_with_length packed_vector.zip_length projT1 projT2 }.
+
+Definition type2 (A B : Type) (n : nat) (pl1 : t A n) (pl2 : t B n) y e :=
+(@eq (t (prod A B) n)
+           (@eq_rect nat
+              (projT1
+                 (hs_to_coqV_p.zip_with A B (prod A B) 
+                   (@pair A B) (@existT nat (fun H : nat => t A H) n pl1)
+                   (@existT nat (fun H : nat => t B H) n pl2))) (t (prod A B))
+              (projT2 (hs_to_coqV_p.zip_with A B (prod A B) 
+                   (@pair A B) (@existT nat (fun H : nat => t A H) n pl1)
+                   (@existT nat (fun H : nat => t B H) n pl2))) n
+              (packed_vector.zip_with_length A B (prod A B) (@pair A B) n
+                 (@existT nat (fun H : nat => t A H) n pl1)
+                 (@existT nat (fun H : nat => t B H) n pl2)
+                 (@Datatypes.id (@eq nat n n) (@eq_refl nat n)) 
+                 (@eq_refl nat n)))
+           (@eq_rect nat (@projT1 nat (t (prod A B)) y) 
+              (t (prod A B)) (@projT2 nat (t (prod A B)) y) n
+              (@eq_rect (@sigT nat (fun H : nat => t (prod A B) H))
+                 (@existT nat (fun H : nat => t (prod A B) H)
+                    (projT1
+                       (hs_to_coqV_p.zip_with A B (prod A B) 
+                         (@pair A B) (@existT nat (fun H : nat => t A H) n pl1)
+                         (@existT nat (fun H : nat => t B H) n pl2)))
+                    (projT2
+                       (hs_to_coqV_p.zip_with A B (prod A B) 
+                         (@pair A B) (@existT nat (fun H : nat => t A H) n pl1)
+                         (@existT nat (fun H : nat => t B H) n pl2))))
+                 (fun l3 : @sigT nat (fun H : nat => t (prod A B) H) =>
+                  @eq nat (@projT1 nat (fun H : nat => t (prod A B) H) l3) n)
+                 (packed_vector.zip_with_length A B (prod A B) (@pair A B) n
+                    (@existT nat (fun H : nat => t A H) n pl1)
+                    (@existT nat (fun H : nat => t B H) n pl2)
+                    (@Datatypes.id (@eq nat n n) (@eq_refl nat n))
+                    (@eq_refl nat n)) y e))).
+Lift vector packed in type2 as type2' { opaque hs_to_coqV_p.zip_with_is_zip packed_vector.zip_with_length packed_vector.zip_length projT1 projT2 }.
+
+
+Definition my_zip_with_is_zip (A B : Type) (n : nat) (pl1 : t A n) (pl2 : t B n) :=
+match (subproof2 A B n pl1 pl2) in (eq _ y) return type1 A B n pl1 pl2 y
+with
+| eq_refl =>
+    match subproof3 A B n pl1 pl2 as e in (eq _ y) return type2 A B n pl1 pl2 y e
+    with
+    | eq_refl =>
+        @eq_refl (t (prod A B) n)
+          (@eq_rect nat
+             (projT1
+                (hs_to_coqV_p.zip_with A B (prod A B) 
+                  (@pair A B) (@existT nat (fun H : nat => t A H) n pl1)
+                  (@existT nat (fun H : nat => t B H) n pl2))) (t (prod A B))
+             (projT2
+                (hs_to_coqV_p.zip_with A B (prod A B) 
+                  (@pair A B) (@existT nat (fun H : nat => t A H) n pl1)
+                  (@existT nat (fun H : nat => t B H) n pl2))) n
+             (@eq_rect (@sigT nat (fun H : nat => t (prod A B) H))
+                (@existT nat (fun H : nat => t (prod A B) H)
+                   (projT1
+                      (hs_to_coqV_p.zip_with A B (prod A B) 
+                        (@pair A B) (@existT nat (fun H : nat => t A H) n pl1)
+                        (@existT nat (fun H : nat => t B H) n pl2)))
+                   (projT2
+                      (hs_to_coqV_p.zip_with A B (prod A B) 
+                        (@pair A B) (@existT nat (fun H : nat => t A H) n pl1)
+                        (@existT nat (fun H : nat => t B H) n pl2))))
+                (fun l3 : @sigT nat (fun H : nat => t (prod A B) H) =>
+                 @eq nat (@projT1 nat (fun H : nat => t (prod A B) H) l3) n)
+                (packed_vector.zip_with_length A B (prod A B) (@pair A B) n
+                   (@existT nat (fun H : nat => t A H) n pl1)
+                   (@existT nat (fun H : nat => t B H) n pl2)
+                   (@Datatypes.id (@eq nat n n) (@eq_refl nat n))
+                   (@eq_refl nat n))
+                (@existT nat (fun H : nat => t (prod A B) H)
+                   (projT1
+                      (hs_to_coqV_p.zip_with A B (prod A B) 
+                        (@pair A B) (@existT nat (fun H : nat => t A H) n pl1)
+                        (@existT nat (fun H : nat => t B H) n pl2)))
+                   (projT2
+                      (hs_to_coqV_p.zip_with A B (prod A B) 
+                        (@pair A B) (@existT nat (fun H : nat => t A H) n pl1)
+                        (@existT nat (fun H : nat => t B H) n pl2))))
+                (@eq_refl (@sigT nat (fun H : nat => t (prod A B) H))
+                   (@existT nat (fun H : nat => t (prod A B) H)
+                      (projT1
+                         (hs_to_coqV_p.zip_with A B (prod A B) 
+                           (@pair A B) (@existT nat (fun H : nat => t A H) n pl1)
+                           (@existT nat (fun H : nat => t B H) n pl2)))
+                      (projT2
+                         (hs_to_coqV_p.zip_with A B (prod A B) 
+                           (@pair A B) (@existT nat (fun H : nat => t A H) n pl1)
+                           (@existT nat (fun H : nat => t B H) n pl2)))))))
+    end
+end.  
+Lift vector packed in my_zip_with_is_zip as my_zip_with_is_zip' { opaque hs_to_coqV_p.zip_with_is_zip packed_vector.zip_with_length packed_vector.zip_length projT1 projT2 }.
+Print my_zip_with_is_zip'. (* TODO very slow *)
+
 
 (*
  * We can get away without preprocessing here, though we must set some terms to opaque to do that:
@@ -440,6 +624,7 @@ Lift Module packed vector in packed_vector as uf.
 Check uf.zip.
 Check uf.zip_with.
 Check uf.zip_with_is_zip.
+
 (*
  * TECHNICAL NOTE: For this particular example, interestingly, doing these by hand
  * without DEVOID, it's possible to construct functions such that the proof
