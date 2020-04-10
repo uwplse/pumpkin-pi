@@ -643,12 +643,13 @@ let lift_core env c trm sigma =
          sigma, constr_app
     | LiftIdentity (lifted_id, args, proj_arg) ->
        (* TODO consolidate/explain/fix *)
+       let sigma, lifted =
        if l.orn.kind = UnpackSigma && (not l.is_fwd) && is_or_applies projT2 tr then
          (* really running coherence in opposite direction. do we want to lift in opposite direction? or we can use optimize_project_packed, maybe, if we fix that up *)
          let arg = last_arg tr in
          let sigma, arg' = lift_rec lift_rule en sigma c arg in
          (* TODO or use proj_arg like we used to, and be smarter, and take different args here. for now gross things: *)
-         let sigma, args =
+         let sigma, packed =
            let typ_args = all_but_last args in
            let trm = mkAppl (projT2, snoc arg' (all_but_last (unfold_args tr))) in
            let sigma, typ_args = map_rec_args_list (lift_rec lift_rule) en sigma c typ_args in
@@ -673,11 +674,11 @@ let lift_core env c trm sigma =
              let unpacked = apply_eq_refl { typ = index_type; trm = index_index } in
              index, unpacked)
            in
-           let packed = pack_existT { index_type; packer; index; unpacked } in
-           sigma, snoc packed typ_args
-         in sigma, mkAppl (lifted_id, args)
+           sigma, pack_existT { index_type; packer; index; unpacked }
+         in sigma, packed
        else
          lift_identity c en lifted_id args proj_arg (lift_rec lift_rule) sigma
+       in sigma, lifted
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rule) sigma
     | LiftElim (tr_elim, lifted_pms) ->
