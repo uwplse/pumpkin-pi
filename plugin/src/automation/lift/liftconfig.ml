@@ -151,11 +151,31 @@ let get_elim_type c = fst (c.elim_types)
  * if our type is in a format that is very easy to reason about without
  * unification.
  *)
-let optimize_is_from c env goal_typ typ sigma =
+let rec optimize_is_from c env typ sigma =
+  let (a_typ, b_typ) = c.typs in
+  let goal_typ = if c.l.is_fwd then a_typ else b_typ in
   if c.l.is_fwd then
     match c.l.orn.kind with
     | UnpackSigma ->
-       sigma, None
+       (try
+          let eq_sig_typ = dest_sigT typ in
+          let sig_typ = dest_sigT eq_sig_typ.index_type in
+          let rev_typ = sig_typ.packer in
+          let sigma, typ_args_o = optimize_is_from (reverse c) env rev_typ sigma in
+          if Option.has_some typ_args_o then
+            let packer = eq_sig_typ.packer in
+            let index = unshift (last_arg (zoom_term zoom_lambda_term env packer)) in
+            let goal_typ = mkAppl (goal_typ, snoc index (Option.get typ_args_o)) in
+            let sigma, goal_typ = reduce_term env sigma goal_typ in
+            let goal_packer = (dest_sigT goal_typ).packer in
+            if equal packer goal_packer then
+              sigma, typ_args_o
+            else
+              sigma, None
+          else
+            sigma, None
+        with _ ->
+          sigma, None)
     | _ ->
        if is_or_applies goal_typ typ then
          sigma, Some (unfold_args typ)
@@ -184,12 +204,12 @@ let optimize_is_from c env goal_typ typ sigma =
  * Return the arguments to the type if so
  *)
 let is_from c env typ sigma =
-  let (a_typ, b_typ) = c.typs in
-  let goal_typ = if c.l.is_fwd then a_typ else b_typ in
-  let sigma, args_o = optimize_is_from c env goal_typ typ sigma in
+  let sigma, args_o = optimize_is_from c env typ sigma in
   if Option.has_some args_o then
     sigma, args_o
   else
+    let (a_typ, b_typ) = c.typs in
+    let goal_typ = if c.l.is_fwd then a_typ else b_typ in
     e_is_from env goal_typ typ sigma
 
 (*
