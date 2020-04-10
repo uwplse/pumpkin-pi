@@ -420,7 +420,6 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
     reduce env sigma arg''
   else
     (* false positive; projection of something else (TODO gross; simplify) *)
-    (* TODO breaks algebraic ... *)
     (* TODO move this into config or something. explain why different *)
     let sigma, f' = lift_rec env sigma c f in
     let lifted_args =
@@ -439,7 +438,6 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
     else
       sigma, lifted
 
-                          
 (*
  * Lift applications, possibly being lazy about delta if we can get away with it
  *)
