@@ -413,9 +413,12 @@ let applies_id_eta c env trm sigma =
         else
           match l.orn.kind with
           | Algebraic _ ->
-             let proj_value = snd (last opt_proj_map) in
-             let proj_arg = proj_value trm in
-             sigma, Some (snoc proj_arg typ_args, proj_arg)
+             if l.is_fwd then
+               sigma, Some (snoc trm typ_args, trm)
+             else
+               let proj_value = snd (last opt_proj_map) in
+               let proj_arg = proj_value trm in
+               sigma, Some (snoc proj_arg typ_args, proj_arg)
           | UnpackSigma ->
              if l.is_fwd then
                let projT1, proj_index = List.hd opt_proj_map in

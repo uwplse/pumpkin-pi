@@ -252,7 +252,8 @@ let is_identity c env trm prev_rule sigma =
      (* Terminate *)
      sigma, None
   | _ ->
-    match kind trm with
+     applies_id_eta c env trm sigma
+    (*match kind trm with
     | Rel _ ->
        applies_id_eta c env trm sigma
     | App _ ->
@@ -260,12 +261,12 @@ let is_identity c env trm prev_rule sigma =
        (match (get_lifting c).orn.kind with
         | Algebraic _ when (not (get_lifting c).is_fwd) ->
            applies_id_eta c env trm sigma
-        | UnpackSigma ->
+        | UnpackSigma | CurryRecord ->
            applies_id_eta c env trm sigma
         | _ ->
            sigma, None)
     | _ ->
-       sigma, None
+       sigma, None*)
 
 (* Premises for LIFT-ELIM *)
 let is_eliminator c env trm sigma =

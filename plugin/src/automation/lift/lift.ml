@@ -349,20 +349,15 @@ let lift_elim env sigma c trm_app pms =
 let repack c env lifted typ sigma =
   (* TODO use id rules / merge with lift_identity *)
   match (get_lifting c).orn.kind with
-  | Algebraic _ ->
+  (*| Algebraic _ ->
      let lift_typ = dest_sigT (shift typ) in
      let n = project_index lift_typ (mkRel 1) in
      let b = project_value lift_typ (mkRel 1) in
      let index_type = lift_typ.index_type in
      let packer = lift_typ.packer in
      let e = pack_existT {index_type; packer; index = n; unpacked = b} in
-     sigma, mkLetIn (Anonymous, lifted, typ, e)
-  | CurryRecord ->
-     let f = first_fun typ in
-     let args = unfold_args typ in
-     let sigma, typ_red = specialize_delta_f env f args sigma in
-     sigma, mkLetIn (Anonymous, lifted, typ, eta_prod_rec (mkRel 1) (shift typ_red))
-  | SwapConstruct _ | UnpackSigma ->
+     sigma, mkLetIn (Anonymous, lifted, typ, e*)
+  | SwapConstruct _ | UnpackSigma | CurryRecord | Algebraic _ ->
      sigma, lifted
 
 (*
@@ -423,7 +418,7 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
     (* TODO move this into config or something. explain why different *)
     let sigma, f' = lift_rec env sigma c f in
     let lifted_args =
-      if (get_lifting c).orn.kind = UnpackSigma && not (get_lifting c).is_fwd then
+      if ((get_lifting c).orn.kind = UnpackSigma && not (get_lifting c).is_fwd) then
         let typ_args = all_but_last (Array.to_list args) in
         snoc arg' typ_args
       else
@@ -431,12 +426,7 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
         Array.to_list args'
     in
     let lifted = mkAppl (f', lifted_args) in
-    let lifted_typ = List.hd lifted_args in
-    let sigma, is_from_o = is_from (reverse c) env lifted_typ sigma in
-    if Option.has_some is_from_o && not ((get_lifting c).orn.kind = UnpackSigma) then
-      maybe_repack lift_rec c env (mkApp (f, args)) lifted (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) (get_lifting c).is_fwd sigma
-    else
-      sigma, lifted
+    sigma, lifted
 
 (*
  * Lift applications, possibly being lazy about delta if we can get away with it
@@ -643,13 +633,15 @@ let lift_core env c trm sigma =
          sigma, constr_app
     | LiftIdentity (lifted_id, args, proj_arg) ->
        (* TODO consolidate/explain/fix *)
-       let sigma, lifted =
-       if l.orn.kind = UnpackSigma && (not l.is_fwd) && is_or_applies projT2 tr then
-         (* really running coherence in opposite direction. do we want to lift in opposite direction? or we can use optimize_project_packed, maybe, if we fix that up *)
-         let arg = last_arg tr in
-         let sigma, arg' = lift_rec lift_rule en sigma c arg in
-         (* TODO or use proj_arg like we used to, and be smarter, and take different args here. for now gross things: *)
-         let sigma, packed =
+       (match l.orn.kind with
+        | Algebraic _ when l.is_fwd && is_or_applies projT2 tr ->
+           let sigma, args' = map_rec_args_list (lift_rec lift_rule) en sigma c (snoc (last_arg (last args)) (all_but_last args)) in
+           reduce_term en sigma (mkAppl (lifted_id, args'))
+        | UnpackSigma when (not l.is_fwd) && is_or_applies projT2 tr ->
+           (* really running coherence in opposite direction. do we want to lift in opposite direction? or we can use optimize_project_packed, maybe, if we fix that up *)
+           let arg = last_arg tr in
+           let sigma, arg' = lift_rec lift_rule en sigma c arg in
+           (* TODO or use proj_arg like we used to, and be smarter, and take different args here. for now gross things: *)
            let typ_args = all_but_last args in
            let trm = mkAppl (projT2, snoc arg' (all_but_last (unfold_args tr))) in
            let sigma, typ_args = map_rec_args_list (lift_rec lift_rule) en sigma c typ_args in
@@ -660,25 +652,21 @@ let lift_core env c trm sigma =
            let index_type = b_sig_eq.index_type in
            let packer = b_sig_eq.packer in
            let index, unpacked =
-             (let b_sig = dest_sigT index_type in
-             let index_type = b_sig.index_type in
-             let index_index = last typ_args in
-             let index =
-               (* TODO this is p1 *)
-               let packer = b_sig.packer in
-               let index = last typ_args in
-               let unpacked = trm in
-               pack_existT { index_type; packer; index; unpacked }
-             in
-             (* TODO this is p2 *)
-             let unpacked = apply_eq_refl { typ = index_type; trm = index_index } in
-             index, unpacked)
-           in
-           sigma, pack_existT { index_type; packer; index; unpacked }
-         in sigma, packed
-       else
-         lift_identity c en lifted_id args proj_arg (lift_rec lift_rule) sigma
-       in sigma, lifted
+             let b_sig = dest_sigT index_type in
+              let index_type = b_sig.index_type in
+              let index_index = last typ_args in
+              let index =
+                (* TODO this is p1 *)
+                let packer = b_sig.packer in
+                let index = last typ_args in
+                let unpacked = trm in
+                pack_existT { index_type; packer; index; unpacked }
+              in
+              (* TODO this is p2 *)
+              index, apply_eq_refl { typ = index_type; trm = index_index }
+           in sigma, pack_existT { index_type; packer; index; unpacked }
+        | _ ->
+           lift_identity c en lifted_id args proj_arg (lift_rec lift_rule) sigma)
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rule) sigma
     | LiftElim (tr_elim, lifted_pms) ->
@@ -791,6 +779,8 @@ let lift_core env c trm sigma =
  *)
 let do_lift_term env sigma (l : lifting) trm opaques =
   let sigma, c = initialize_lift_config env l opaques sigma in
+  let open Printing in
+  debug_term env trm "trm";
   lift_core env c trm sigma
 
 (*
