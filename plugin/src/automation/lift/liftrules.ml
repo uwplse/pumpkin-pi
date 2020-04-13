@@ -238,12 +238,7 @@ let is_coh c env trm prev_rule sigma =
 
 (* Premises for SIMPLIFY-PROJECT-ID optimization *)
 let is_reduce_now c env trm prev_rule =
-  match prev_rule with
-  | Optimization (SimplifyProjectId _) ->
-     (* Terminate, so bugs more likely result in error messages *)
-     None
-  | _ ->
-     can_reduce_now c env trm
+  can_reduce_now c env trm
              
 (* Premises for LIFT-IDENTITY *)
 let is_identity c env trm prev_rule sigma =
@@ -253,20 +248,6 @@ let is_identity c env trm prev_rule sigma =
      sigma, None
   | _ ->
      applies_id_eta c env trm sigma
-    (*match kind trm with
-    | Rel _ ->
-       applies_id_eta c env trm sigma
-    | App _ ->
-       (* TODO gradually combine back w/ rule, but need to phase out old code first *)
-       (match (get_lifting c).orn.kind with
-        | Algebraic _ when (not (get_lifting c).is_fwd) ->
-           applies_id_eta c env trm sigma
-        | UnpackSigma | CurryRecord ->
-           applies_id_eta c env trm sigma
-        | _ ->
-           sigma, None)
-    | _ ->
-       sigma, None*)
 
 (* Premises for LIFT-ELIM *)
 let is_eliminator c env trm sigma =

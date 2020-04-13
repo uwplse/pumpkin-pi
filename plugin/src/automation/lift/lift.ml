@@ -65,8 +65,6 @@ let lift_elim_args env sigma c npms args =
   | Algebraic (indexer, off) ->
      let arg = map_backward last_arg l (last args) in
      let sigma, typ_args = type_from_args c env arg sigma in
-     let open Printing in
-     debug_terms env typ_args "typ_args";
      let sigma, lifted_arg = lift env l arg typ_args sigma in
      let value_off = List.length args - 1 in
      let orn = { l.orn with kind = Algebraic (indexer, off - npms) } in
@@ -93,7 +91,7 @@ let lift_elim_args env sigma c npms args =
      let sigma, typ_args = type_from_args c env arg sigma in
      let sigma, lifted_arg = lift env l arg typ_args sigma in
      sigma, [lifted_arg]
-  | UnpackSigma ->
+  | _ ->
      sigma, args
 
 (*
@@ -139,11 +137,11 @@ let lift_motive env sigma c npms parameterized_elim p =
          let i_b = project_index b_sig_typ b_sig in
          let b = project_value b_sig_typ b_sig in
          sigma, index l i_b (reindex value_off b args)
+    | CurryRecord ->
+       sigma, [lifted_arg]
     | SwapConstruct _ | UnpackSigma ->
        let value_off = nargs - 1 in
        sigma, reindex value_off lifted_arg args
-    | CurryRecord ->
-       sigma, [lifted_arg]
   in
   let p_app = reduce_stateless reduce_term env_p_to sigma (mkAppl (p, args)) in
   sigma, reconstruct_lambda_n env_p_to p_app (nb_rel env)
@@ -277,7 +275,7 @@ let lift_case_args c env_c_b env_c to_c_typ npms nargs sigma =
        let c_args, b_args = take_split (nargs_lifted - npms) args in
        let sigma, arg_pair = pack_pair_rec env_c (List.tl c_args) sigma in
        sigma, List.append [List.hd c_args; arg_pair] b_args
-  | UnpackSigma ->
+  | _ ->
      sigma, mk_n_rels nargs
 
 (*
@@ -340,66 +338,11 @@ let lift_elim env sigma c trm_app pms =
   let p_elim = mkAppl (param_elim, [p]) in
   let sigma, cs = lift_cases env c npms p_elim trm_app.cs sigma in
   let sigma, final_args = lift_elim_args env sigma c npms trm_app.final_args in
-  let open Printing in
-  debug_terms env final_args "final_args lifted";
   sigma, apply_eliminator { elim; pms; p; cs; final_args }
 
 (*
- * REPACK
- *
- * This is to deal with non-primitive projections (what it means to lift
- * the identity function)
- *)
-let repack c env lifted typ sigma =
-  (* TODO use id rules / merge with lift_identity *)
-  match (get_lifting c).orn.kind with
-  (*| Algebraic _ ->
-     let lift_typ = dest_sigT (shift typ) in
-     let n = project_index lift_typ (mkRel 1) in
-     let b = project_value lift_typ (mkRel 1) in
-     let index_type = lift_typ.index_type in
-     let packer = lift_typ.packer in
-     let e = pack_existT {index_type; packer; index = n; unpacked = b} in
-     sigma, mkLetIn (Anonymous, lifted, typ, e*)
-  | SwapConstruct _ | UnpackSigma | CurryRecord | Algebraic _ ->
-     sigma, lifted
-
-(*
- * Sometimes we must repack because of non-primitive projections.
- * For sigma types, we pack into an existential, and for products, we pack
- * into a pair. It remains to be seen how this generalizes to other types.
- *
- * We are strategic about when we repack in order to avoid slowing down
- * the code too much and producing ugly terms.
- *
- * TODO get rid of this if we can, and update the comment if we can't
- *)
-let maybe_repack lift_rec c env trm lifted is_from try_repack sigma =
-  if try_repack then
-    let sigma_typ, typ = reduce_type env sigma trm in
-    let sigma_typ, is_from_typ = is_from c env typ sigma in
-    if is_from_typ then
-      let optimize_ignore_repack =
-        (* Don't bother repacking when the result would reduce *)
-        if may_apply_id_eta (reverse c) env lifted then
-          true
-        else
-          let lifted_red = reduce_stateless reduce_nf env sigma lifted in
-          may_apply_id_eta (reverse c) env lifted_red
-      in
-      if not optimize_ignore_repack then
-        let sigma, lifted_typ = lift_rec env sigma_typ c typ in
-        let sigma, lifted_typ = reduce_term env sigma lifted_typ in
-        repack c env lifted lifted_typ sigma
-      else
-        sigma, lifted
-    else
-      sigma, lifted
-  else
-    sigma, lifted
-
-(*
  * Lift the eta-expanded identity function
+ * TODO explain/remove proj_arg, explain simplify (termination too), etc.
  *)
 let lift_identity c env lifted_id args proj_arg lift_rec sigma =
   let sigma, lifted_args = map_rec_args_list lift_rec env sigma c args in
@@ -412,7 +355,7 @@ let lift_identity c env lifted_id args proj_arg lift_rec sigma =
  * simplify early rather than wait for Coq 
  *)
 let lift_simplify_project_id c env reduce f args lift_rec sigma =
-  let sigma, arg' = lift_rec env sigma c (last (Array.to_list args)) in 
+  let sigma, arg' = lift_rec env sigma c (last (Array.to_list args)) in
   let arg'' = reduce_stateless reduce_term env sigma arg' in
   if may_apply_id_eta (reverse c) env arg'' then
     (* projection of expanded identity *)
@@ -421,6 +364,7 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
     (* false positive; projection of something else (TODO gross; simplify) *)
     (* TODO move this into config or something. explain why different *)
     let sigma, f' = lift_rec env sigma c f in
+    (* TODO using right sigma slows things down like crazy. why? also, lifted terms still don't look that good---see our trees for example *)
     let lifted_args =
       if ((get_lifting c).orn.kind = UnpackSigma && not (get_lifting c).is_fwd) then
         let typ_args = all_but_last (Array.to_list args) in
@@ -451,8 +395,7 @@ let lift_app_lazy_delta c env f args lift_rec sigma =
       sigma, equal f f'
   in
   if not do_delta then
-    let lifted = mkApp (f', args') in
-    maybe_repack lift_rec c env (mkApp (f, args)) lifted (fun c env typ sigma -> Util.on_snd Option.has_some (is_from c env typ sigma)) l.is_fwd sigma
+    sigma, mkApp (f', args')
   else
     match kind f with
     | Const (c, u) when Option.has_some (inductive_of_elim env (c, u)) ->
@@ -636,18 +579,15 @@ let lift_core env c trm sigma =
        else
          sigma, constr_app
     | LiftIdentity (lifted_id, args, proj_arg) ->
-       (* TODO consolidate/explain/fix *)
+       (* TODO consolidate/explain/fix...move into simplify...etc *)
        (match l.orn.kind with
-        | Algebraic _ when l.is_fwd && is_or_applies projT2 tr ->
-           let sigma, args' = map_rec_args_list (lift_rec lift_rule) en sigma c (snoc (last_arg (last args)) (all_but_last args)) in
-           reduce_term en sigma (mkAppl (lifted_id, args'))
         | UnpackSigma when (not l.is_fwd) && is_or_applies projT2 tr ->
            (* really running coherence in opposite direction. do we want to lift in opposite direction? or we can use optimize_project_packed, maybe, if we fix that up *)
            let arg = last_arg tr in
            let sigma, arg' = lift_rec lift_rule en sigma c arg in
            (* TODO or use proj_arg like we used to, and be smarter, and take different args here. for now gross things: *)
            let typ_args = all_but_last args in
-           let trm = mkAppl (projT2, snoc arg' (all_but_last (unfold_args tr))) in
+           let trm = mkAppl (projT2, snoc arg' (all_but_last (unfold_args tr))) in (* TODO why not lift those args? *)
            let sigma, typ_args = map_rec_args_list (lift_rec lift_rule) en sigma c typ_args in
            let sigma, b_sig_eq =
              let b_sig_eq_typ = mkAppl (fst (get_types c), typ_args) in
@@ -690,8 +630,6 @@ let lift_core env c trm sigma =
                1
           in
           let (final_args, post_args) = take_split nargs tr_elim.final_args in
-          let open Printing in
-          debug_terms en final_args "final_args";
           let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
           let sigma, tr'' = lift_rec lift_rule en sigma c tr' in
           let sigma, post_args' = map_rec_args_list (lift_rec lift_rule) en sigma c post_args in
@@ -785,8 +723,6 @@ let lift_core env c trm sigma =
  *)
 let do_lift_term env sigma (l : lifting) trm opaques =
   let sigma, c = initialize_lift_config env l opaques sigma in
-  let open Printing in
-  debug_term env trm "trm";
   lift_core env c trm sigma
 
 (*
