@@ -64,7 +64,9 @@ let lift_elim_args env sigma c npms args =
   match l.orn.kind with
   | Algebraic (indexer, off) ->
      let arg = map_backward last_arg l (last args) in
-     let sigma, typ_args = non_index_typ_args off env sigma arg in
+     let sigma, typ_args = type_from_args c env arg sigma in
+     let open Printing in
+     debug_terms env typ_args "typ_args";
      let sigma, lifted_arg = lift env l arg typ_args sigma in
      let value_off = List.length args - 1 in
      let orn = { l.orn with kind = Algebraic (indexer, off - npms) } in
@@ -338,6 +340,8 @@ let lift_elim env sigma c trm_app pms =
   let p_elim = mkAppl (param_elim, [p]) in
   let sigma, cs = lift_cases env c npms p_elim trm_app.cs sigma in
   let sigma, final_args = lift_elim_args env sigma c npms trm_app.final_args in
+  let open Printing in
+  debug_terms env final_args "final_args lifted";
   sigma, apply_eliminator { elim; pms; p; cs; final_args }
 
 (*
@@ -686,6 +690,8 @@ let lift_core env c trm sigma =
                1
           in
           let (final_args, post_args) = take_split nargs tr_elim.final_args in
+          let open Printing in
+          debug_terms en final_args "final_args";
           let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
           let sigma, tr'' = lift_rec lift_rule en sigma c tr' in
           let sigma, post_args' = map_rec_args_list (lift_rec lift_rule) en sigma c post_args in
