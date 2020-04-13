@@ -561,8 +561,12 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/equivalences/orn_balance_retraction" Print orn_balance_retraction.
 
     Lift Ordered.bst _avl in Ordered.preorder as _preorder'.
+    Print _preorder'.
     Unpack _preorder' as _preorder.
+    Print _preorder.
+    Fail.
     Lift _avl avl in _preorder as preorder'.
+    Print preorder'.
     Unpack preorder' as preorder.
 
     Lift Ordered.bst _avl in Ordered.inorder as _inorder'.
