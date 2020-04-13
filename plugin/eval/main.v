@@ -221,6 +221,9 @@ Module CaseStudy (Elem : Comparable).
 
     Find ornament Base.tree tree as orn_size.
 
+    (* For efficiency in lifting: *)
+    Configure Lift Base.tree tree { opaque Permutation_cons_app Permutation_app projT1 projT2 }.
+
     (* --- Generated equivalences --- *)
     Redirect "out/equivalences/orn_size_index" Print orn_size_index.
     Redirect "out/equivalences/orn_size" Print orn_size.
@@ -339,6 +342,8 @@ Module CaseStudy (Elem : Comparable).
     Find ornament __bst _bst as _orn_order.
     Find ornament _bst bst as orn_order.
 
+    Configure Lift _bst bst { opaque projT1 projT2 }.
+
     (* --- Generated equivalences --- *)
     Redirect "out/equivalences/__orn_order_index" Print __orn_order_index.
     Redirect "out/equivalences/__orn_order" Print __orn_order.
@@ -435,6 +440,30 @@ Module CaseStudy (Elem : Comparable).
     Lift __bst _bst in __tree60000 as _tree60000. 
     Lift __bst _bst in __tree80000 as _tree80000. 
     Lift __bst _bst in __tree100000 as _tree100000. 
+
+    Print _tree10.
+    (* existT (fun t : Elem.t => {H : Elem.t & _bst t H}) Elem.y
+  (existT (fun H : Elem.t => _bst Elem.y H)
+     (existT (fun H : Elem.t => _bst Elem.y H) Elem.z
+        (_Branch Elem.y Elem.y Elem.z Elem.z Elem.y
+           (_Branch Elem.y Elem.y Elem.z Elem.z Elem.z
+              (_Branch Elem.y Elem.z Elem.y Elem.z Elem.x 
+                 (_Leaf Elem.y) (_Leaf Elem.z))
+              (_Branch Elem.y Elem.z Elem.y Elem.z Elem.x 
+                 (_Leaf Elem.y) (_Leaf Elem.z)))
+           (_Branch Elem.y Elem.z Elem.y Elem.z Elem.x 
+              (_Leaf Elem.y) (_Leaf Elem.z)))) .1
+     (existT (fun H : Elem.t => _bst Elem.y H) Elem.z
+        (_Branch Elem.y Elem.y Elem.z Elem.z Elem.y
+           (_Branch Elem.y Elem.y Elem.z Elem.z Elem.z
+              (_Branch Elem.y Elem.z Elem.y Elem.z Elem.x 
+                 (_Leaf Elem.y) (_Leaf Elem.z))
+              (_Branch Elem.y Elem.z Elem.y Elem.z Elem.x 
+                 (_Leaf Elem.y) (_Leaf Elem.z)))
+           (_Branch Elem.y Elem.z Elem.y Elem.z Elem.x 
+              (_Leaf Elem.y) (_Leaf Elem.z)))) .2)
+     : {t : Elem.t & {H : Elem.t & _bst t H}}
+*)
 
     Lift _bst bst in _tree1 as tree1'''.
     Lift _bst bst in _tree10 as tree10'''.
