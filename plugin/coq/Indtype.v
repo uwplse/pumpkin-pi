@@ -98,7 +98,7 @@ Section Append.
     - inversion Exs.
   Defined.
   Preprocess is_app_uncons as is_app_uncons'.
-  Lift list vector in is_app_uncons' as is_appV_uncons.
+  Lift list vector in is_app_uncons' as is_appV_uncons { opaque eq_rect_r }.
 
 End Append.
 

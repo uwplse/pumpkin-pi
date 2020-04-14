@@ -8,6 +8,9 @@ Require Import Infrastructure.
  * Test lifting directly
  *)
 
+Configure Lift list vector { opaque f_equal }.
+Configure Lift vector list { opaque f_equal }.
+
 (* --- Simple constructor tests ---- *)
 
 Definition nil' := @nil.

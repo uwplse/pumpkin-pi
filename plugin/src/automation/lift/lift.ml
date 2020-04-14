@@ -342,11 +342,11 @@ let lift_elim env sigma c trm_app pms =
 
 (*
  * Lift the eta-expanded identity function
- * TODO explain/remove proj_arg, explain simplify (termination too), etc.
+ * TODO explain simplify (termination too), etc.
  *)
-let lift_identity c env lifted_id args proj_arg lift_rec sigma =
+let lift_identity c env lifted_id args simplify lift_rec sigma =
   let sigma, lifted_args = map_rec_args_list lift_rec env sigma c args in
-  reduce_term env sigma (mkAppl (lifted_id, lifted_args))
+  simplify env sigma (mkAppl (lifted_id, lifted_args))
 
 (* --- Optimization implementations --- *)
 
@@ -380,14 +380,14 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
  * Lift applications, possibly being lazy about delta if we can get away with it
  *)
 let lift_app_lazy_delta c env f args lift_rec sigma =
-  let l = get_lifting c in
   let sigma, f' = lift_rec env sigma c f in
   let sigma, args' = map_rec_args lift_rec env sigma c args in
   (* TODO really need to get below working more generallly; why does it infinite recurse with is_fwd for some kinds of ornaments? what is it not considering? *)
   let sigma, do_delta =
-    if l.is_fwd && not (l.orn.kind = UnpackSigma) then
+   (* if l.is_fwd && not (l.orn.kind = UnpackSigma) then
       sigma, false
-    else if (Array.length args = 0) then
+    else*)
+    if (Array.length args = 0) then
       sigma, false
     else if (is_opaque c f) then
       sigma, false
@@ -578,7 +578,7 @@ let lift_core env c trm sigma =
          lift_rec lift_rule en sigma c constr_app
        else
          sigma, constr_app
-    | LiftIdentity (lifted_id, args, proj_arg) ->
+    | LiftIdentity (simplify, (lifted_id, args)) ->
        (* TODO consolidate/explain/fix...move into simplify...etc *)
        (match l.orn.kind with
         | UnpackSigma when (not l.is_fwd) && is_or_applies projT2 tr ->
@@ -610,7 +610,7 @@ let lift_core env c trm sigma =
               index, apply_eq_refl { typ = index_type; trm = index_index }
            in sigma, pack_existT { index_type; packer; index; unpacked }
         | _ ->
-           lift_identity c en lifted_id args proj_arg (lift_rec lift_rule) sigma)
+           lift_identity c en lifted_id args simplify (lift_rec lift_rule) sigma)
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rule) sigma
     | LiftElim (tr_elim, lifted_pms) ->
@@ -683,15 +683,11 @@ let lift_core env c trm sigma =
            (sigma, mkLambda (n, t', b'))
         | LetIn (n, trm, typ, e) ->
            (* LETIN *)
-           if l.is_fwd then
-             let sigma, trm' = lift_rec en sigma c trm in
-             let sigma, typ' = lift_rec en sigma c typ in
-             let en_e = push_let_in (n, trm, typ) en in
-             let sigma, e' = lift_rec en_e sigma (zoom c) e in
-             (sigma, mkLetIn (n, trm', typ', e'))
-           else
-             (* Needed for #58 until we implement #42 *)
-             lift_rec en sigma c (reduce_stateless whd en sigma tr)
+           let sigma, trm' = lift_rec en sigma c trm in
+           let sigma, typ' = lift_rec en sigma c typ in
+           let en_e = push_let_in (n, trm, typ) en in
+           let sigma, e' = lift_rec en_e sigma (zoom c) e in
+           (sigma, mkLetIn (n, trm', typ', e'))
         | Case (ci, ct, m, bs) ->
            (* CASE (will not work if this destructs over A; preprocess first) *)
            let sigma, ct' = lift_rec en sigma c ct in

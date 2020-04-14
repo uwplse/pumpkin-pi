@@ -122,7 +122,9 @@ type lift_optimization =
  *
  * 9. LIFT-IDENTITY runs when we lift the eta-expanded identity function.
  *    This exists to ensure that we preserve definitional equalities.
- *    The rule returns the lifted identity function and its argument.
+ *    The rule returns the lifted identity function and its arguments, as
+ *    well as a custom reduction function to apply identity to those arguments
+ *    (for efficiency and to ensure termination).
  *
  * 10. CIC runs when no optimization applies and none of the other rules
  *    apply. It returns the kind of the Gallina term.
@@ -130,7 +132,7 @@ type lift_optimization =
 type lift_rule =
 | Equivalence of constr list
 | LiftConstr of constr * constr list
-| LiftIdentity of constr * constr list * constr
+| LiftIdentity of reducer * (constr * constr list)
 | Coherence of constr * constr list * bool
 | LiftElim of elim_app * constr list
 | Section
@@ -338,9 +340,9 @@ let determine_lift_rule c env trm prev_rule sigma =
         else
           let sigma, is_identity_o = is_identity c env trm prev_rule sigma in
           if Option.has_some is_identity_o then
-            let args, proj_arg = Option.get is_identity_o in
+            let args = Option.get is_identity_o in
             let lifted_id = get_lifted_id_eta c in
-            sigma, LiftIdentity (lifted_id, args, proj_arg)
+            sigma, LiftIdentity (reduce_lifted_id c, (lifted_id, args))
           else
             let sigma, is_elim_o = is_eliminator c env trm sigma in
             if Option.has_some is_elim_o then

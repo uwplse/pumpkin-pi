@@ -356,6 +356,37 @@ let is_proj c env trm sigma =
          sigma, None
     in check [(proj_term_rules, false); (proj_type_rules, true)] sigma
 
+(* --- Smart simplification --- *)
+
+(*
+ * Determine if we can probably be smarter than Coq and simplify earlier
+ * If yes, return how
+ * Otherwise, return None
+ *
+ * Sometimes, we need this for termination when lifted terms can be
+ * self-referrential
+ *)
+let can_reduce_now c env trm =
+  match kind trm with
+  | App (_, args) when Array.length args > 0 ->
+     let proj_packed_map = fst c.optimize_proj_id_rules in
+     let optimize_proj_packed_o =
+       try
+         Some
+           (List.find
+              (fun (pr, _) -> is_or_applies pr trm)
+              proj_packed_map)
+       with _ ->
+         None
+     in
+     if Option.has_some optimize_proj_packed_o then
+       let _, reduce = Option.get optimize_proj_packed_o in
+       Some (fun _ sigma trm -> sigma, reduce trm)
+     else
+       None
+  | _ ->
+     None
+
 (*
  * Get the cached unlifted constructors
  *)
@@ -388,7 +419,38 @@ let may_apply_id_eta c env trm =
        is_or_applies pair trm || is_or_applies (lift_back l) trm
     | SwapConstruct _ ->
        false (* impossible state *)
-                 
+
+(*
+ * Custom reduction function for lifted eta-expanded identity,
+ * for efficiency and to ensure termination. For example, this may
+ * simplify projections of existentials.
+ *)
+let reduce_lifted_id c env sigma trm =
+  let l = get_lifting c in
+  let sigma, trm = reduce_term env sigma trm in
+  match c.l.orn.kind with
+  | Algebraic _ when l.is_fwd ->
+     let ex = dest_existT trm in
+     let project_existential arg sigma =
+       let how_reduce_o = can_reduce_now c env arg in
+       if Option.has_some how_reduce_o then
+         let proj_a = Option.get how_reduce_o in
+         let arg_inner = last_arg arg in
+         if may_apply_id_eta (reverse c) env arg_inner then
+           proj_a env sigma arg_inner
+         else
+           sigma, arg
+       else
+         sigma, arg
+     in
+     let sigma, index = project_existential ex.index sigma in
+     let sigma, unpacked = project_existential ex.unpacked sigma in
+     sigma, pack_existT { ex with index; unpacked }
+  | UnpackSigma when not l.is_fwd ->
+     sigma, trm (* TODO move the thing here *)
+  | _ ->
+     sigma, trm
+         
 (*
  * Check if a term applies the eta-expanded identity function
  *
@@ -405,20 +467,17 @@ let applies_id_eta c env trm sigma =
     if Option.has_some typ_args_o then
       let typ_args = Option.get typ_args_o in
       if equal (zoom_term zoom_lambda_term env (fst c.id_rules)) (mkRel 1) then
-        sigma, Some (snoc trm typ_args, trm)
+        sigma, Some (snoc trm typ_args)
       else
         let l = get_lifting c in
         if is_or_applies (lift_back l) trm then
-          sigma, Some (snoc trm typ_args, trm)
+          sigma, Some (snoc trm typ_args)
         else
           match l.orn.kind with
           | Algebraic _ ->
-             if l.is_fwd then
-               sigma, Some (snoc trm typ_args, trm)
-             else
-               let proj_value = snd (last opt_proj_map) in
-               let proj_arg = proj_value trm in
-               sigma, Some (snoc proj_arg typ_args, proj_arg)
+             let proj_value = snd (last opt_proj_map) in
+             let proj_arg = proj_value trm in
+             sigma, Some (snoc proj_arg typ_args)
           | UnpackSigma ->
              if l.is_fwd then
                let projT1, proj_index = List.hd opt_proj_map in
@@ -433,7 +492,7 @@ let applies_id_eta c env trm sigma =
                    proj_index s, proj_value s
                  else
                    projections (dest_sigT b_sig_eq.index_type) s
-               in sigma, Some (List.append typ_args [i_b; b; h_eq], b)
+               in sigma, Some (List.append typ_args [i_b; b; h_eq])
              else
                if is_or_applies eq_rect trm || is_or_applies eq_ind trm || is_or_applies eq_rec trm then
                  let sigma, trm = expand_eta env sigma trm in
@@ -462,7 +521,7 @@ let applies_id_eta c env trm sigma =
                      let packer = index_type_app.packer in
                      pack_existT { index_type = i_b_typ; packer; index = i_b; unpacked = b }
                    in pack_existT { index_type; packer; index; unpacked = h_eq }
-                 in sigma, Some (snoc packed typ_args, packed)
+                 in sigma, Some (snoc packed typ_args)
                else
                  (* TODO redundant TBH *)
                  let sigma, packed =
@@ -491,9 +550,9 @@ let applies_id_eta c env trm sigma =
                        index, unpacked
                      in sigma, pack_existT { index_type; packer; index; unpacked }
                  in
-                 sigma, Some (snoc packed typ_args, packed)
+                 sigma, Some (snoc packed typ_args)
           | CurryRecord ->
-             sigma, Some (snoc trm typ_args, trm)
+             sigma, Some (snoc trm typ_args)
           | SwapConstruct _ ->
              sigma, None (* impossible state *)
     else
@@ -505,37 +564,6 @@ let applies_id_eta c env trm sigma =
  * Get the cached lifted identity function
  *)
 let get_lifted_id_eta c = snd c.id_rules
-
-(* --- Smart simplification --- *)
-
-(*
- * Determine if we can probably be smarter than Coq and simplify earlier
- * If yes, return how
- * Otherwise, return None
- *
- * Sometimes, we need this for termination when lifted terms can be
- * self-referrential
- *)
-let can_reduce_now c env trm =
-  match kind trm with
-  | App (_, args) when Array.length args > 0 ->
-     let proj_packed_map = fst c.optimize_proj_id_rules in
-     let optimize_proj_packed_o =
-       try
-         Some
-           (List.find
-              (fun (pr, _) -> is_or_applies pr trm)
-              proj_packed_map)
-       with _ ->
-         None
-     in
-     if Option.has_some optimize_proj_packed_o then
-       let _, reduce = Option.get optimize_proj_packed_o in
-       Some (fun _ sigma trm -> sigma, reduce trm)
-     else
-       None
-  | _ ->
-     None
 
 (* --- Initialization --- *)
 

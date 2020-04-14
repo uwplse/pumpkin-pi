@@ -16,13 +16,9 @@ Notation vcons := Vector.cons.
 (* --- Preprocess --- *)
 
 Preprocess Module List as List' { opaque (* ignore these: *)
-  (* dependent elimination only: *)
   RelationClasses
-  (* proofs about these match over the above opaque terms, and would fail: *)
-  Nat.add
-  Nat.sub
-  (* we're going to use the real length function, so leave it alone *)
-  Coq.Init.Datatypes.length
+  Nat
+  Coq.Init.Nat
 }.
 
 (* --- Length function --- *)
@@ -71,7 +67,18 @@ Save ornament list vector { promote = ltv }.
 (*
  * The cute thing is that we can now lift all of these using the length function:
  *)
-Lift Module list vector in List' as Vector'.
+Lift Module list vector in List' as Vector { opaque (* ignore these, just for speed *)
+   RelationClasses.Equivalence_Reflexive
+   RelationClasses.reflexivity
+   Nat.add
+   Nat.sub
+   Nat.lt_eq_cases
+   Nat.compare_refl
+   Nat.lt_irrefl
+   Nat.le_refl
+   Nat.bi_induction
+   Nat.central_induction
+}.
 
 (*
  * One nice thing about this is that we can lift these directly:

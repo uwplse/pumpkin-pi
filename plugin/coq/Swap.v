@@ -25,22 +25,25 @@ Inductive list' (T : Type) : Type :=
 | nil' : list' T.
 
 (* Preprocess for lifting: *)
-Preprocess Module List as List_pre { opaque (* ignore these: *)
-  (* dependent elimination only: *)
-  RelationClasses.StrictOrder_Transitive
-  RelationClasses.StrictOrder_Irreflexive
-  RelationClasses.Equivalence_Symmetric
-  RelationClasses.Equivalence_Transitive
-  RelationClasses.PER_Symmetric
-  RelationClasses.PER_Transitive
-  RelationClasses.Equivalence_Reflexive
-  (* proofs about these match over the above opaque terms, and would fail: *)
-  Nat.add
-  Nat.sub
+Preprocess Module List as List_pre { opaque (* ignore these nested modules: *)
+  RelationClasses
+  Nat
+  Coq.Init.Nat
 }.
 
 (* Lift the whole list module: *)
-Lift Module list list' in List_pre as List'.
+Lift Module list list' in List_pre as List' { opaque (* ignore these, just for speed *)
+  RelationClasses.Equivalence_Reflexive
+  RelationClasses.reflexivity
+  Nat.add
+  Nat.sub
+  Nat.lt_eq_cases
+  Nat.compare_refl
+  Nat.lt_irrefl
+  Nat.le_refl
+  Nat.bi_induction
+  Nat.central_induction
+}.
 
 (* A small test in the opposite direction that doesn't rely on caching: *)
 Lemma my_lemma:

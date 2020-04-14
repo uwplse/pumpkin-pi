@@ -249,10 +249,12 @@ End packed_list.
 (*
  * Now we can get from that to { s : sigT (vector T) & projT1 s = n} by lifting from
  * lists to vectors.
+ *
+ * Rather than preprocess here, we just set terms that use pattern matching to
+ * opaque for efficiency.
  *)
 Lift Module list vector in hs_to_coq_lengths as hs_to_coq_projT1s.
-Lift Module list vector in packed_list as packed_vector.
-
+Lift Module list vector in packed_list as packed_vector { opaque eq_existT_uncurried Eqdep_dec.UIP_dec Nat.eq_dec }.
 (*
  * Finally, we can get from { s : sigT (vector T) & projT1 s = n} to unpacked vectors
  * at the index we want very easily.
