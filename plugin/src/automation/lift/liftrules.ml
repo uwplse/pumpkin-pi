@@ -23,6 +23,7 @@ open Debruijn
 open Names
 open Equtils
 open Environ
+open Hofs
 
 (*
  * This module takes in a Coq term that we are lifting and determines
@@ -144,9 +145,9 @@ type lift_rule =
 (* --- Premises --- *)
 
 (* Premises for EQUIVALENCE *)
-let is_equivalence c env trm prev_rule sigma =
-  match prev_rule with
-  | Equivalence _ ->
+let is_equivalence c env trm prev_rules sigma =
+  match prev_rules with
+  | (Equivalence _) :: _ ->
      (* Terminate *)
      sigma, None
   | _ ->
@@ -221,35 +222,64 @@ let is_packed_constr c env sigma trm =
   else
     sigma, None
 
+(* Termination condition for COHERENCE *)
+let terminate_coh prev_rules proj_o =
+  let proj, args, trm_eta, proj_opaque = Option.get proj_o in
+  List.exists
+    (fun prev_rule ->
+      match prev_rule with
+      | Coherence (proj', args', _) ->
+         equal proj proj' && List.for_all2 equal args args'
+      | _ ->
+         false)
+    prev_rules
+             
 (* Premises for COHERENCE *)
-let is_coh c env trm prev_rule sigma =
+let is_coh c env trm prev_rules sigma =
   let sigma, to_proj_o = is_proj c env trm sigma in
-  if Option.has_some to_proj_o then
-    match prev_rule with
-    | Coherence (proj', _, _) ->
-       let proj, _, _, _ = Option.get to_proj_o in
-       if equal proj proj' then
-         (* Terminate, so bugs more likely result in error messages *)
-         sigma, None
-       else
-         sigma, to_proj_o
-    | _ ->
-       sigma, to_proj_o
+  if Option.has_some to_proj_o && not (terminate_coh prev_rules to_proj_o) then
+    sigma, to_proj_o
   else
     sigma, None
 
-(* Premises for SIMPLIFY-PROJECT-ID optimization *)
-let is_reduce_now c env trm prev_rule =
-  can_reduce_now c env trm
-             
-(* Premises for LIFT-IDENTITY *)
-let is_identity c env trm prev_rule sigma =
-  match prev_rule with
-  | LiftIdentity _ ->
-     (* Terminate *)
-     sigma, None
+(* Termination condition for IDENTITY *)
+let terminate_identity prev_rules args_o env trm sigma =
+  let args = Option.get args_o in
+  match prev_rules with
+  | ((Coherence (proj, args', opaque)) :: _) when not opaque ->
+     let sigma, projected = reduce_term env sigma (mkAppl (proj, args')) in
+     (* TODO figure out condition, then map over all rules? *)
+     exists_subterm_env
+       (fun _ sigma _ projected ->
+         sigma, equal trm projected)
+       id
+       env
+       sigma
+       ()
+       projected
   | _ ->
-     applies_id_eta c env trm sigma
+     exists_state
+       (fun prev_rule ->
+         match prev_rule with
+         | LiftIdentity (_, (_, args')) ->
+            ret (List.for_all2 equal args args')
+         | _ ->
+            ret false)
+       prev_rules
+       sigma
+
+(* Premises for LIFT-IDENTITY *)
+let is_identity c env trm prev_rules sigma =
+  let sigma, args_o = applies_id_eta c env trm sigma in
+  if Option.has_some args_o then
+    let lifted_id = get_lifted_id_eta c in
+    let sigma, terminate = terminate_identity prev_rules args_o env trm sigma in
+    if not terminate then
+      sigma, Some (lifted_id, Option.get args_o)
+    else
+      sigma, None
+  else
+    sigma, None
 
 (* Premises for LIFT-ELIM *)
 let is_eliminator c env trm sigma =
@@ -290,7 +320,7 @@ let is_eliminator c env trm sigma =
 (*
  * Given a term, determine the appropriate lift rule to run
  *)
-let determine_lift_rule c env trm prev_rule sigma =
+let determine_lift_rule c env trm prev_rules sigma =
   let l = get_lifting c in
   let lifted_opt = lookup_lifting (lift_to l, lift_back l, trm) in
   if Option.has_some lifted_opt then
@@ -304,11 +334,11 @@ let determine_lift_rule c env trm prev_rule sigma =
   else if isApp trm && applies (lift_to l) trm then
     sigma, Internalize
   else
-    let sigma, args_o = is_equivalence c env trm prev_rule sigma in
+    let sigma, args_o = is_equivalence c env trm prev_rules sigma in
     if Option.has_some args_o then
       sigma, Equivalence (Option.get args_o)
     else
-      let sigma, to_proj_o = is_coh c env trm prev_rule sigma in
+      let sigma, to_proj_o = is_coh c env trm prev_rules sigma in
       if Option.has_some to_proj_o then
         let proj, args, trm_eta, proj_opaque = Option.get to_proj_o in
         if arity trm_eta > arity trm then
@@ -338,10 +368,9 @@ let determine_lift_rule c env trm prev_rule sigma =
           else
             sigma, LiftConstr (lifted_constr, args)
         else
-          let sigma, is_identity_o = is_identity c env trm prev_rule sigma in
+          let sigma, is_identity_o = is_identity c env trm prev_rules sigma in
           if Option.has_some is_identity_o then
-            let args = Option.get is_identity_o in
-            let lifted_id = get_lifted_id_eta c in
+            let lifted_id, args = Option.get is_identity_o in
             sigma, LiftIdentity (reduce_lifted_id c, (lifted_id, args))
           else
             let sigma, is_elim_o = is_eliminator c env trm sigma in
@@ -354,7 +383,7 @@ let determine_lift_rule c env trm prev_rule sigma =
             else
               match kind trm with
               | App (f, args) ->
-                 let how_reduce_o = is_reduce_now c env trm prev_rule in
+                 let how_reduce_o = can_reduce_now c env trm in
                  if Option.has_some how_reduce_o then
                    let how_reduce = Option.get how_reduce_o in
                    sigma, Optimization (SimplifyProjectId (how_reduce, (f, args)))

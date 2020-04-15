@@ -503,55 +503,50 @@ let lift_core env c trm sigma =
   let (a_typ, _) = get_types c in
   let sigma, a_typ_eta = expand_eta env sigma a_typ in
   let a_arity = arity a_typ_eta in
-  let rec lift_rec prev_rule en sigma c tr : types state =
-    let sigma, lift_rule = determine_lift_rule c en tr prev_rule sigma in
+  let rec lift_rec prev_rules en sigma c tr : types state =
+    let sigma, lift_rule = determine_lift_rule c en tr prev_rules sigma in
+    let lift_rules = lift_rule :: prev_rules in
     match lift_rule with
     | Optimization (GlobalCaching lifted) | Optimization (LocalCaching lifted) ->
        sigma, lifted
     | Optimization OpaqueConstant ->
        sigma, tr
     | Optimization (LazyEta tr_eta) ->
-       lift_rec lift_rule en sigma c tr_eta
+       lift_rec lift_rules en sigma c tr_eta
     | Section | Retraction | Internalize ->
-       lift_rec lift_rule en sigma c (last_arg tr)
+       lift_rec lift_rules en sigma c (last_arg tr)
     | Coherence (p, args, proj_opaque) ->
        if proj_opaque then
-         let sigma, lifted_args = map_rec_args_list (lift_rec lift_rule) en sigma c args in
+         let sigma, lifted_args = map_rec_args_list (lift_rec lift_rules) en sigma c args in
          reduce_term en sigma (mkAppl (p, lifted_args))
        else
          let sigma, projected = reduce_term en sigma (mkAppl (p, args)) in
          if (not l.is_fwd) && l.orn.kind = UnpackSigma && is_or_applies existT projected && is_or_applies eq_rect (last_arg projected) then
            (* TODO move me and explain - for termination. also clean. do something like constrs and id, where you have lifted projections in config and you use those *)
+           (* TODO also simplify after like we do for identity *)
            let ex = dest_existT projected in
            let [at_type; trm1; b_typ; b; trm2; eq] = unfold_args ex.unpacked in
            let sigma, packer =
              let sigma, typ_args = from_args c en b_typ sigma in
-             let sigma, typ_args =  map_rec_args_list (lift_rec lift_rule) en sigma c typ_args in
+             let sigma, typ_args =  map_rec_args_list (lift_rec lift_rules) en sigma c typ_args in
              sigma, mkAppl (snd (get_types c), typ_args)
            in
            let sigma, unpacked =
-             let sigma, at_type = lift_rec lift_rule en sigma c at_type in
-             let sigma, eq = lift_rec lift_rule en sigma c eq in
-             let sigma, b =
-               let b_inner = last_arg (last_arg b) in
-               let sigma, b_inner_lifted = lift_rec lift_rule en sigma c b_inner in
-               let sigma, b_inner_lifted = reduce_term en sigma b_inner_lifted in
-               sigma, (dest_existT (dest_existT b_inner_lifted).index).unpacked
-             in
-             let sigma, trm1 = lift_rec lift_rule en sigma c trm1 in
-             let sigma, trm2 = lift_rec lift_rule en sigma c trm2 in
-             
-             let unpacked = mkAppl (eq_rect, [at_type; trm1; packer; b; trm2; eq]) in
-             sigma, unpacked
+             let sigma, at_type = lift_rec lift_rules en sigma c at_type in
+             let sigma, eq = lift_rec lift_rules en sigma c eq in
+             let sigma, b = lift_rec lift_rules en sigma c b in
+             let sigma, trm1 = lift_rec lift_rules en sigma c trm1 in
+             let sigma, trm2 = lift_rec lift_rules en sigma c trm2 in
+             sigma, mkAppl (eq_rect, [at_type; trm1; packer; b; trm2; eq])
            in
-           let sigma, index = lift_rec lift_rule en sigma c ex.index in
-           let sigma, index_type = lift_rec lift_rule en sigma c ex.index_type
+           let sigma, index = lift_rec lift_rules en sigma c ex.index in
+           let sigma, index_type = lift_rec lift_rules en sigma c ex.index_type
            in sigma, pack_existT { index_type; packer; index; unpacked }
          else
-           lift_rec lift_rule en sigma c projected
+           lift_rec lift_rules en sigma c projected
     | Equivalence args ->
        let (_, b_typ) = get_types c in
-       let sigma, lifted_args = map_rec_args_list (lift_rec lift_rule) en sigma c args in
+       let sigma, lifted_args = map_rec_args_list (lift_rec lift_rules) en sigma c args in
        if l.is_fwd then
          if List.length lifted_args = 0 then
            sigma, b_typ
@@ -563,11 +558,11 @@ let lift_core env c trm sigma =
          else
            (sigma, mkAppl (a_typ, lifted_args))
     | Optimization (SmartLiftConstr (lifted_constr, args)) ->
-       lift_smart_lift_constr c en lifted_constr args (lift_rec lift_rule) sigma
+       lift_smart_lift_constr c en lifted_constr args (lift_rec lift_rules) sigma
     | LiftConstr (lifted_constr, args) ->
        let sigma, constr_app = reduce_term en sigma (mkAppl (lifted_constr, args)) in
        if List.length args > 0 then
-         lift_rec lift_rule en sigma c constr_app
+         lift_rec lift_rules en sigma c constr_app
        else
          sigma, constr_app
     | LiftIdentity (simplify, (lifted_id, args)) ->
@@ -576,11 +571,11 @@ let lift_core env c trm sigma =
         | UnpackSigma when (not l.is_fwd) && is_or_applies projT2 tr ->
            (* really running coherence in opposite direction. do we want to lift in opposite direction? or we can use optimize_project_packed, maybe, if we fix that up *)
            let arg = last_arg tr in
-           let sigma, arg' = lift_rec lift_rule en sigma c arg in
+           let sigma, arg' = lift_rec lift_rules en sigma c arg in
            (* TODO or use proj_arg like we used to, and be smarter, and take different args here. for now gross things: *)
            let typ_args = all_but_last args in
            let trm = mkAppl (projT2, snoc arg' (all_but_last (unfold_args tr))) in (* TODO why not lift those args? *)
-           let sigma, typ_args = map_rec_args_list (lift_rec lift_rule) en sigma c typ_args in
+           let sigma, typ_args = map_rec_args_list (lift_rec lift_rules) en sigma c typ_args in
            let sigma, b_sig_eq =
              let b_sig_eq_typ = mkAppl (fst (get_types c), typ_args) in
              Util.on_snd dest_sigT (reduce_term en sigma b_sig_eq_typ)
@@ -602,9 +597,9 @@ let lift_core env c trm sigma =
               index, apply_eq_refl { typ = index_type; trm = index_index }
            in sigma, pack_existT { index_type; packer; index; unpacked }
         | _ ->
-           lift_identity c en lifted_id args simplify (lift_rec lift_rule) sigma)
+           lift_identity c en lifted_id args simplify (lift_rec lift_rules) sigma)
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
-       lift_simplify_project_id c en reduce f args (lift_rec lift_rule) sigma
+       lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma
     | LiftElim (tr_elim, lifted_pms) ->
        (* TODO clean/move/explain, have way of setting opaque elims as sep rule *)
        (* TODO remove unpacksigma additions to liftelim we don't need anymore *)
@@ -623,15 +618,15 @@ let lift_core env c trm sigma =
           in
           let (final_args, post_args) = take_split nargs tr_elim.final_args in
           let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
-          let sigma, tr'' = lift_rec lift_rule en sigma c tr' in
-          let sigma, post_args' = map_rec_args_list (lift_rec lift_rule) en sigma c post_args in
+          let sigma, tr'' = lift_rec lift_rules en sigma c tr' in
+          let sigma, post_args' = map_rec_args_list (lift_rec lift_rules) en sigma c post_args in
           sigma, mkAppl (tr'', post_args'))
     | Optimization (AppLazyDelta (f, args)) ->
-       lift_app_lazy_delta c en f args (lift_rec lift_rule) sigma
+       lift_app_lazy_delta c en f args (lift_rec lift_rules) sigma
     | Optimization (ConstLazyDelta (co, u)) ->
-       lift_const_lazy_delta c en (co, u) (lift_rec lift_rule) sigma
+       lift_const_lazy_delta c en (co, u) (lift_rec lift_rules) sigma
     | CIC k ->
-       let lift_rec = lift_rec lift_rule in
+       let lift_rec = lift_rec lift_rules in
        (match k with
         | Evar (etrm, _) ->
            (* TODO move *)
@@ -704,7 +699,7 @@ let lift_core env c trm sigma =
            smart_cache c tr tr; (sigma, tr)
         | _ ->
            (sigma, tr))
-  in lift_rec (CIC (kind trm)) env sigma c trm
+  in lift_rec [] env sigma c trm
               
 (*
  * Run the core lifting algorithm on a term

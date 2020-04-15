@@ -54,8 +54,8 @@ type lift_rule =
 (*
  * Determine which lift rule to run
  *
- * The lift_rule argument is the previous lift rule (with CIC as identity)
+ * The lift_rule argument is the previous lift rules
  * to prevent infinite recursion in obvious cases
  *)
 val determine_lift_rule :
-  lift_config -> env -> constr -> lift_rule -> evar_map -> lift_rule state
+  lift_config -> env -> constr -> lift_rule list -> evar_map -> lift_rule state
