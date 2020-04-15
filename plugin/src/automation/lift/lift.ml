@@ -501,8 +501,6 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
 let lift_core env c trm sigma =
   let l = get_lifting c in
   let (a_typ, _) = get_types c in
-  let sigma, a_typ_eta = expand_eta env sigma a_typ in
-  let a_arity = arity a_typ_eta in
   let rec lift_rec prev_rules en sigma c tr : types state =
     let sigma, lift_rule = determine_lift_rule c en tr prev_rules sigma in
     let lift_rules = lift_rule :: prev_rules in
@@ -578,26 +576,15 @@ let lift_core env c trm sigma =
            lift_identity c en lifted_id args simplify (lift_rec lift_rules) sigma)
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma
-    | LiftElim (tr_elim, lifted_pms) ->
-       (* TODO clean/move/explain, have way of setting opaque elims as sep rule *)
-       (match l.orn.kind with
-       | UnpackSigma ->
-          (* opaque *)
-          sigma, tr
-       | _ ->
-          (* recurse *)
-          let nargs = (* TODO move this to arg of liftelim *)
-            match l.orn.kind with
-            | Algebraic _ | SwapConstruct _ | UnpackSigma ->
-               a_arity - (List.length tr_elim.pms) + 1
-            | CurryRecord ->
-               1
-          in
-          let (final_args, post_args) = take_split nargs tr_elim.final_args in
-          let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
-          let sigma, tr'' = lift_rec lift_rules en sigma c tr' in
-          let sigma, post_args' = map_rec_args_list (lift_rec lift_rules) en sigma c post_args in
-          sigma, mkAppl (tr'', post_args'))
+    | LiftElim (tr_elim, lifted_pms, nargs, opaque) ->
+       if opaque then
+         sigma, tr
+       else
+         let (final_args, post_args) = take_split nargs tr_elim.final_args in
+         let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
+         let sigma, tr'' = lift_rec lift_rules en sigma c tr' in
+         let sigma, post_args' = map_rec_args_list (lift_rec lift_rules) en sigma c post_args in
+         sigma, mkAppl (tr'', post_args')
     | Optimization (AppLazyDelta (f, args)) ->
        lift_app_lazy_delta c en f args (lift_rec lift_rules) sigma
     | Optimization (ConstLazyDelta (co, u)) ->

@@ -44,7 +44,7 @@ type lift_rule =
 | LiftConstr of constr * constr list
 | LiftIdentity of reducer * (constr * constr list)
 | Coherence of constr * constr list * bool
-| LiftElim of elim_app * constr list
+| LiftElim of elim_app * constr list * int * bool
 | Section
 | Retraction
 | Internalize
