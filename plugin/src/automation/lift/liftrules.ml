@@ -244,11 +244,22 @@ let is_packed_constr c env sigma trm =
     sigma, None
 
 (* Termination condition for COHERENCE *)
-let terminate_coh prev_rules proj_o env trm sigma =
+let terminate_coh c prev_rules proj_o env trm sigma =
+  let l = get_lifting c in
   let proj, args, trm_eta, proj_opaque = Option.get proj_o in
   exists_state
     (fun prev_rule sigma ->
       match prev_rule with
+      | LiftIdentity (_, (_, args')) when l.orn.kind = UnpackSigma ->
+         (* TODO WIP *)
+         let open Printing in
+         debug_term env trm "trm";
+         debug_terms env args' "args'";
+         debug_terms env args "args";
+         if (not l.is_fwd) && is_or_applies existT (last args') then
+           sigma, equal trm (dest_existT (last args')).index
+         else
+           sigma, false
       | Coherence (proj', args', _) when equal proj proj' ->
          if List.for_all2 equal args args' then
            sigma, true
@@ -264,7 +275,7 @@ let terminate_coh prev_rules proj_o env trm sigma =
 let is_coh c env trm prev_rules sigma =
   let sigma, to_proj_o = is_proj c env trm sigma in
   if Option.has_some to_proj_o then
-    let sigma, terminate = terminate_coh prev_rules to_proj_o env trm sigma in
+    let sigma, terminate = terminate_coh c prev_rules to_proj_o env trm sigma in
     if not terminate then
       sigma, to_proj_o
     else

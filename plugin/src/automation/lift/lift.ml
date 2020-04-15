@@ -346,6 +346,9 @@ let lift_elim env sigma c trm_app pms =
  *)
 let lift_identity c env lifted_id args simplify lift_rec sigma =
   let sigma, lifted_args = map_rec_args_list lift_rec env sigma c args in
+  let open Printing in
+  debug_terms env args "args";
+  debug_terms env lifted_args "lifted_args";
   simplify env sigma (mkAppl (lifted_id, lifted_args))
 
 (* --- Optimization implementations --- *)
@@ -546,6 +549,9 @@ let lift_core env c trm sigma =
        (match l.orn.kind with
         | UnpackSigma when (not l.is_fwd) && is_or_applies projT2 tr ->
            (* really running coherence in opposite direction. do we want to lift in opposite direction? or we can use optimize_project_packed, maybe, if we fix that up *)
+           let open Printing in (* TODO WIP getting this recursive call to coherence not to fire *)
+           debug_term en tr "tr";
+         let sigma, wanted =
            let arg = last_arg tr in
            let sigma, arg' = lift_rec lift_rules en sigma c arg in
            (* TODO or use proj_arg like we used to, and be smarter, and take different args here. for now gross things: *)
@@ -572,6 +578,8 @@ let lift_core env c trm sigma =
               (* TODO this is p2 *)
               index, apply_eq_refl { typ = index_type; trm = index_index }
            in sigma, pack_existT { index_type; packer; index; unpacked }
+         in debug_term en wanted "wanted";
+           lift_identity c en lifted_id args simplify (lift_rec lift_rules) sigma
         | _ ->
            lift_identity c en lifted_id args simplify (lift_rec lift_rules) sigma)
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
