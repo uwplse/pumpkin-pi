@@ -377,24 +377,16 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
     sigma, lifted
 
 (*
- * Lift applications, possibly being lazy about delta if we can get away with it
+ * Lift applications, possibly being lazy about delta if we can get away with it.
+ *
+ * This can still lift some code very slowly if functions are not set as opaque.
+ * However, delta is sometimes needed for correctness. To lift code quickly,
+ * it's advisable to set appropriate functions as opaque.
  *)
 let lift_app_lazy_delta c env f args lift_rec sigma =
   let sigma, f' = lift_rec env sigma c f in
   let sigma, args' = map_rec_args lift_rec env sigma c args in
-  (* TODO really need to get below working more generallly; why does it infinite recurse with is_fwd for some kinds of ornaments? what is it not considering? *)
-  let sigma, do_delta =
-   (* if l.is_fwd && not (l.orn.kind = UnpackSigma) then
-      sigma, false
-    else*)
-    if (Array.length args = 0) then
-      sigma, false
-    else if (is_opaque c f) then
-      sigma, false
-    else
-      sigma, equal f f'
-  in
-  if not do_delta then
+  if (not (equal f f')) || Array.length args = 0 || is_opaque c f then
     sigma, mkApp (f', args')
   else
     match kind f with
