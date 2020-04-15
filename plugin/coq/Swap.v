@@ -16,6 +16,8 @@ Set DEVOID lift type.
 
 (* --- Swap the only constructor --- *)
 
+Print Nat.central_induction.
+
 (*
  * Here we simply flip the constructors of list and then
  * lift the entire list module:
