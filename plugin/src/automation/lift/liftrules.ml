@@ -144,14 +144,33 @@ type lift_rule =
 
 (* --- Premises --- *)
 
+(* Termination condition for EQUIVALENCE *)
+let terminate_eqv c prev_rules args_o env trm sigma =
+  let l = get_lifting c in
+  let args = Option.get args_o in
+  exists_state
+    (fun prev_rule sigma ->
+      match prev_rule with
+      | Equivalence args' when List.length args = List.length args' ->
+         sigma, List.for_all2 equal args args'
+      | Coherence (_, _, opaque) when l.orn.kind = UnpackSigma ->
+         sigma, not l.is_fwd && not opaque
+      | _ ->
+         sigma, false)
+    prev_rules
+    sigma
+
 (* Premises for EQUIVALENCE *)
 let is_equivalence c env trm prev_rules sigma =
-  match prev_rules with
-  | (Equivalence _) :: _ ->
-     (* Terminate *)
-     sigma, None
-  | _ ->
-     is_from c env trm sigma
+  let sigma, args_o = is_from c env trm sigma in
+  if Option.has_some args_o then
+    let sigma, terminates = terminate_eqv c prev_rules args_o env trm sigma in
+    if not terminates then
+      sigma, args_o
+    else
+      sigma, None
+  else
+    sigma, None
                                                    
 (* Premises for LIFT-CONSTR *)
 (* TODO use ID rules, and mvoe out id rules from constr if possible *)
@@ -223,22 +242,31 @@ let is_packed_constr c env sigma trm =
     sigma, None
 
 (* Termination condition for COHERENCE *)
-let terminate_coh prev_rules proj_o =
+let terminate_coh prev_rules proj_o env trm sigma =
   let proj, args, trm_eta, proj_opaque = Option.get proj_o in
-  List.exists
-    (fun prev_rule ->
+  exists_state
+    (fun prev_rule sigma ->
       match prev_rule with
-      | Coherence (proj', args', _) ->
-         equal proj proj' && List.for_all2 equal args args'
+      | Coherence (proj', args', _) when equal proj proj' ->
+         if List.for_all2 equal args args' then
+           sigma, true
+         else
+           let sigma, projected = reduce_term env sigma (mkAppl (proj', args')) in
+           sigma, equal trm projected
       | _ ->
-         false)
+         sigma, false)
     prev_rules
+    sigma
              
 (* Premises for COHERENCE *)
 let is_coh c env trm prev_rules sigma =
   let sigma, to_proj_o = is_proj c env trm sigma in
-  if Option.has_some to_proj_o && not (terminate_coh prev_rules to_proj_o) then
-    sigma, to_proj_o
+  if Option.has_some to_proj_o then
+    let sigma, terminate = terminate_coh prev_rules to_proj_o env trm sigma in
+    if not terminate then
+      sigma, to_proj_o
+    else
+      sigma, None
   else
     sigma, None
 

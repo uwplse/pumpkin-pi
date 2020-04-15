@@ -521,29 +521,7 @@ let lift_core env c trm sigma =
          reduce_term en sigma (mkAppl (p, lifted_args))
        else
          let sigma, projected = reduce_term en sigma (mkAppl (p, args)) in
-         if (not l.is_fwd) && l.orn.kind = UnpackSigma && is_or_applies existT projected && is_or_applies eq_rect (last_arg projected) then
-           (* TODO move me and explain - for termination. also clean. do something like constrs and id, where you have lifted projections in config and you use those *)
-           (* TODO also simplify after like we do for identity *)
-           let ex = dest_existT projected in
-           let [at_type; trm1; b_typ; b; trm2; eq] = unfold_args ex.unpacked in
-           let sigma, packer =
-             let sigma, typ_args = from_args c en b_typ sigma in
-             let sigma, typ_args =  map_rec_args_list (lift_rec lift_rules) en sigma c typ_args in
-             sigma, mkAppl (snd (get_types c), typ_args)
-           in
-           let sigma, unpacked =
-             let sigma, at_type = lift_rec lift_rules en sigma c at_type in
-             let sigma, eq = lift_rec lift_rules en sigma c eq in
-             let sigma, b = lift_rec lift_rules en sigma c b in
-             let sigma, trm1 = lift_rec lift_rules en sigma c trm1 in
-             let sigma, trm2 = lift_rec lift_rules en sigma c trm2 in
-             sigma, mkAppl (eq_rect, [at_type; trm1; packer; b; trm2; eq])
-           in
-           let sigma, index = lift_rec lift_rules en sigma c ex.index in
-           let sigma, index_type = lift_rec lift_rules en sigma c ex.index_type
-           in sigma, pack_existT { index_type; packer; index; unpacked }
-         else
-           lift_rec lift_rules en sigma c projected
+         lift_rec lift_rules en sigma c projected
     | Equivalence args ->
        let (_, b_typ) = get_types c in
        let sigma, lifted_args = map_rec_args_list (lift_rec lift_rules) en sigma c args in
@@ -555,7 +533,7 @@ let lift_core env c trm sigma =
        else
          if List.length lifted_args = 0 then
            sigma, a_typ
-         else
+         else (* TODO reduce? *)
            (sigma, mkAppl (a_typ, lifted_args))
     | Optimization (SmartLiftConstr (lifted_constr, args)) ->
        lift_smart_lift_constr c en lifted_constr args (lift_rec lift_rules) sigma
@@ -602,7 +580,6 @@ let lift_core env c trm sigma =
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma
     | LiftElim (tr_elim, lifted_pms) ->
        (* TODO clean/move/explain, have way of setting opaque elims as sep rule *)
-       (* TODO remove unpacksigma additions to liftelim we don't need anymore *)
        (match l.orn.kind with
        | UnpackSigma ->
           (* opaque *)
