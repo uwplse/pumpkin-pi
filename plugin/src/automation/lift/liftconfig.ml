@@ -420,6 +420,33 @@ let may_apply_id_eta c env trm =
     | SwapConstruct _ ->
        false (* impossible state *)
 
+
+(*
+ * Custom reduction function for coherence,
+ * for efficiency and to ensure termination. For example, this may
+ * simplify projections of existentials.
+ * TODO move/explain
+ *)
+let reduce_coh c env sigma trm =
+  let l = get_lifting c in
+  let sigma, trm = reduce_term env sigma trm in
+  match c.l.orn.kind with
+  | Algebraic _ when l.is_fwd ->
+     let how_reduce_o = can_reduce_now c env trm in
+     if Option.has_some how_reduce_o then
+       let proj_a = Option.get how_reduce_o in
+       let arg_inner = last_arg trm in
+       if may_apply_id_eta (reverse c) env arg_inner then
+         proj_a env sigma arg_inner
+         else
+           sigma, trm
+     else
+       sigma, trm
+  | UnpackSigma when not l.is_fwd ->
+     sigma, trm (* TODO move the thing here *)
+  | _ ->
+     sigma, trm
+         
 (*
  * Custom reduction function for lifted eta-expanded identity,
  * for efficiency and to ensure termination. For example, this may
@@ -431,20 +458,8 @@ let reduce_lifted_id c env sigma trm =
   match c.l.orn.kind with
   | Algebraic _ when l.is_fwd ->
      let ex = dest_existT trm in
-     let project_existential arg sigma =
-       let how_reduce_o = can_reduce_now c env arg in
-       if Option.has_some how_reduce_o then
-         let proj_a = Option.get how_reduce_o in
-         let arg_inner = last_arg arg in
-         if may_apply_id_eta (reverse c) env arg_inner then
-           proj_a env sigma arg_inner
-         else
-           sigma, arg
-       else
-         sigma, arg
-     in
-     let sigma, index = project_existential ex.index sigma in
-     let sigma, unpacked = project_existential ex.unpacked sigma in
+     let sigma, index = reduce_coh c env sigma ex.index in
+     let sigma, unpacked = reduce_coh c env sigma ex.unpacked in
      sigma, pack_existT { ex with index; unpacked }
   | UnpackSigma when not l.is_fwd ->
      sigma, trm (* TODO move the thing here *)
@@ -845,30 +860,33 @@ let initialize_proj_rules c env sigma =
   let init c sigma =
     let l = get_lifting c in
     let sigma, lift_typ = reduce_type env sigma (lift_to l) in
+    let sigma, lift_typ_inv = reduce_type env sigma (lift_back l) in
     let env_proj = zoom_env zoom_product_type env lift_typ in
+    let env_proj_inv = zoom_env zoom_product_type env lift_typ_inv in
     let t = mkRel 1 in
     let sigma, typ_args = type_from_args c env_proj t sigma in
-    let sigma, lift_t = lift env_proj l t typ_args sigma in
     match l.orn.kind with
+    (* TODO now redundant and messy *)
     | Algebraic (indexer, _) ->
        if l.is_fwd then (* indexer -> projT1 *)
-         let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj sigma lift_t) in
-         let p1 = reconstruct_lambda env_proj (project_index b_sig_typ lift_t) in
+         let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj_inv sigma t) in
+         let p1 = reconstruct_lambda env_proj_inv (project_index b_sig_typ t) in
          let indexer = reconstruct_lambda env_proj (mkAppl (indexer, mk_n_rels (nb_rel env_proj))) in
          sigma, ([(indexer, p1)], [])
        else (* projT1 -> indexer, projT2 -> id *)
          let args = shift_all (mk_n_rels (nb_rel env_proj - 1)) in
-         let p1 = reconstruct_lambda env_proj (mkAppl (indexer, snoc lift_t args)) in
-         let p2 = reconstruct_lambda env_proj lift_t in
+         let p1 = reconstruct_lambda env_proj_inv (mkAppl (indexer, snoc t args)) in
+         let p2 = reconstruct_lambda env_proj_inv t in
          let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj sigma t) in
          let projT1 = reconstruct_lambda env_proj (project_index b_sig_typ t) in
          let projT2 = reconstruct_lambda env_proj (project_value b_sig_typ t) in
          sigma, ([(projT1, p1); (projT2, p2)], [])
     | UnpackSigma ->
-       let packed, unpacked = if l.is_fwd then (t, lift_t) else (lift_t, t) in
-       let sigma, b_sig_eq_typ = reduce_type env_proj sigma packed in
+       let env_proj = if l.is_fwd then env_proj else env_proj_inv in
+       let env_proj_inv = if l.is_fwd then env_proj_inv else env_proj in
+       let sigma, b_sig_eq_typ = reduce_type env_proj sigma t in
        let b_sig_eq_typ_app = dest_sigT b_sig_eq_typ in
-       let proj_bods = projections b_sig_eq_typ_app packed in
+       let proj_bods = projections b_sig_eq_typ_app t in
        let projT1, projT2 = map_tuple (reconstruct_lambda env_proj) proj_bods in
        let sigma, (index_type, index) =
          let sigma, args = unpack_typ_args env_proj b_sig_eq_typ sigma in
@@ -877,21 +895,21 @@ let initialize_proj_rules c env sigma =
        let b_sig_typ = b_sig_eq_typ_app.index_type in
        let p1 =
          let packer = (dest_sigT b_sig_typ).packer in
-         let indexer = pack_existT { index_type; packer; index; unpacked } in
-         reconstruct_lambda env_proj indexer
+         let indexer = pack_existT { index_type; packer; index; unpacked = t } in
+         reconstruct_lambda env_proj_inv indexer
        in
        let p2 =
          let eq = apply_eq_refl { typ = index_type; trm = index } in
-         reconstruct_lambda env_proj eq
+         reconstruct_lambda env_proj_inv eq
        in
        (* TODO can we move this into identity? also clean up w/ rules above and explain why different (basically need to capture rew in op. dir since can't capture arbitrary refl) *)
        let sigma, p1_p2 = (* TODO maybe remove after proj1_bwd works, if it does *)
          let index_type = b_sig_typ in
          let packer = b_sig_eq_typ_app.packer in
-         let sigma, index = reduce_term env_proj sigma (mkAppl (p1, mk_n_rels (nb_rel env_proj))) in
-         let sigma, unpacked = reduce_term env_proj sigma (mkAppl (p2, mk_n_rels (nb_rel env_proj))) in
+         let sigma, index = reduce_term env_proj_inv sigma (mkAppl (p1, mk_n_rels (nb_rel env_proj_inv))) in
+         let sigma, unpacked = reduce_term env_proj_inv sigma (mkAppl (p2, mk_n_rels (nb_rel env_proj_inv))) in
          let packed = pack_existT { index_type; packer; index; unpacked } in
-         sigma, reconstruct_lambda env_proj packed
+         sigma, reconstruct_lambda env_proj_inv packed
        in
        if l.is_fwd then (* projT1 -> pack, projT2 -> eq_refl *)
          sigma, ([(projT1, p1); (projT2, p2)], [])
@@ -901,8 +919,8 @@ let initialize_proj_rules c env sigma =
             our inputs to a certain format, which makes sense given the
             self reference) TODO clean and move comment *)
          (* TODO then for typs do we want to restrict below? *)
-         let p1_typ = reconstruct_lambda (pop_rel_context 2 env_proj) (unshift_by 2 b_sig_typ) in
-         let p2_typ = reconstruct_lambda (pop_rel_context 1 env_proj) (unshift b_sig_eq_typ_app.packer) in
+         let p1_typ = reconstruct_lambda (pop_rel_context 2 env_proj_inv) (unshift_by 2 b_sig_typ) in
+         let p2_typ = reconstruct_lambda (pop_rel_context 1 env_proj_inv) (unshift b_sig_eq_typ_app.packer) in
          let sigma, projT1_bwd =
            let packer = (dest_sigT b_sig_typ).packer in
            let index = mkRel 2 in
@@ -933,21 +951,21 @@ let initialize_proj_rules c env sigma =
        let sigma, (ps, ps_to) =
          if l.is_fwd then (* accessors -> projections *)
            let sigma, lifted_projections =
-             let sigma, p_bodies = prod_projections_rec env_proj lift_t sigma in
-             map_state (fun p -> ret (reconstruct_lambda env_proj p)) p_bodies sigma
+             let sigma, p_bodies = prod_projections_rec env_proj_inv t sigma in
+             map_state (fun p -> ret (reconstruct_lambda env_proj_inv p)) p_bodies sigma
            in sigma, (accessors, lifted_projections)
          else (* projections -> accessors *)
            let sigma, lifted_accessors =
              map_state
                (fun a sigma ->
                  let args = shift_all (mk_n_rels (nb_rel env_proj - 1)) in
-                 let sigma, app = reduce_term env sigma (mkAppl (a, snoc lift_t args)) in
-                 ret (reconstruct_lambda env_proj app) sigma)
+                 let sigma, app = reduce_term env sigma (mkAppl (a, snoc t args)) in
+                 ret (reconstruct_lambda env_proj_inv app) sigma)
                accessors
                sigma
            in
            let sigma, projections =
-             let sigma, p_bodies = prod_projections_rec env_proj (mkRel 1) sigma in
+             let sigma, p_bodies = prod_projections_rec env_proj t sigma in
              map_state (fun p -> ret (reconstruct_lambda env_proj p)) p_bodies sigma
            in sigma, (projections, lifted_accessors)
        in

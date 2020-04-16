@@ -336,6 +336,15 @@ Print zip_typ'.
 
 Print hs_to_coqV_p.zip.
 
+Definition zip_inner_typ :=
+  forall a b : Type,
+       a ->
+       forall (s : @sigT nat (t b)),
+       (@sigT nat (t b) -> @sigT nat (t (@prod a b))) ->
+       ((fun (n : nat) (v : t b n) => @sigT nat (t (@prod a b))) (projT1 s) (projT2 s)).
+Lift vector packed in zip_inner_typ as zip_inner_typ'.
+Print zip_inner_typ'. 
+
 Definition zip_inner (a b : Type) (h : a) (s: sigT (vector b)) (H : sigT (vector b) -> sigT (vector (a * b))) :=
   VectorDef.t_rect
     b
@@ -346,6 +355,7 @@ Definition zip_inner (a b : Type) (h : a) (s: sigT (vector b)) (H : sigT (vector
       packed_cons (a * b) (projT1 (H (existT _ n v))) (projT2 (H (existT _ n v))) (h, h0))
     (@projT1 nat (vector b) s)
     (@projT2 nat (vector b) s).
+Check zip_inner.
 Lift vector packed in zip_inner as zip_inner'.
 Lift vector packed in hs_to_coqV_p.zip as zip'.
 Print zip'.

@@ -105,7 +105,9 @@ type lift_optimization =
  * 3. COHERENCE runs when we lift projections of the type in the equivalence
  *    (either at the term or type level). This carries the term we are
  *    the lifted projection and the arguments, as well as a flag for whether
- *    to treat the projection function as opaque.
+ *    to treat the projection function as opaque and a custom reduction
+ *    function to apply coherence to the arguments (to neatly ensure
+ *    termination while also maintaining correctness).
  *
  * 4. LIFT-ELIM runs when we lift applications of eliminators of the type
  *    in the equivalence. This carries the application of the eliminator,
@@ -136,7 +138,7 @@ type lift_rule =
 | Equivalence of constr list
 | LiftConstr of constr * constr list
 | LiftIdentity of reducer * (constr * constr list)
-| Coherence of constr * constr list * bool
+| Coherence of reducer * (constr * constr list * bool)
 | LiftElim of elim_app * constr list * int * bool
 | Section
 | Retraction
@@ -155,7 +157,7 @@ let terminate_eqv c prev_rules args_o env trm sigma =
       match prev_rule with
       | Equivalence args' when List.length args = List.length args' ->
          sigma, List.for_all2 equal args args'
-      | Coherence (_, _, opaque) when l.orn.kind = UnpackSigma ->
+      | Coherence (_, (_, _, opaque)) when l.orn.kind = UnpackSigma ->
          sigma, not l.is_fwd && not opaque
       | _ ->
          sigma, false)
@@ -244,23 +246,12 @@ let is_packed_constr c env sigma trm =
     sigma, None
 
 (* Termination condition for COHERENCE *)
-let terminate_coh c prev_rules proj_o env trm sigma =
-  let l = get_lifting c in
+let terminate_coh prev_rules proj_o env trm sigma =
   let proj, args, trm_eta, proj_opaque = Option.get proj_o in
   exists_state
     (fun prev_rule sigma ->
       match prev_rule with
-      | LiftIdentity (_, (_, args')) when l.orn.kind = UnpackSigma ->
-         (* TODO WIP *)
-         let open Printing in
-         debug_term env trm "trm";
-         debug_terms env args' "args'";
-         debug_terms env args "args";
-         if (not l.is_fwd) && is_or_applies existT (last args') then
-           sigma, equal trm (dest_existT (last args')).index
-         else
-           sigma, false
-      | Coherence (proj', args', _) when equal proj proj' ->
+      | Coherence (_, (proj', args', _)) when equal proj proj' ->
          if List.for_all2 equal args args' then
            sigma, true
          else
@@ -275,7 +266,7 @@ let terminate_coh c prev_rules proj_o env trm sigma =
 let is_coh c env trm prev_rules sigma =
   let sigma, to_proj_o = is_proj c env trm sigma in
   if Option.has_some to_proj_o then
-    let sigma, terminate = terminate_coh c prev_rules to_proj_o env trm sigma in
+    let sigma, terminate = terminate_coh prev_rules to_proj_o env trm sigma in
     if not terminate then
       sigma, to_proj_o
     else
@@ -292,7 +283,7 @@ let terminate_identity c prev_rules args_o env trm sigma =
       match prev_rule with
       | LiftIdentity (_, (_, args')) ->
          sigma, List.for_all2 equal args args'
-      | Coherence (_, _, opaque) when not opaque ->
+      | Coherence (_, (_, _, opaque)) when not opaque ->
          exists_subterm_env
            (fun env sigma _ subterm ->
              sigma, is_or_applies (lift_to l) subterm)
@@ -317,7 +308,7 @@ let is_identity c env trm prev_rules sigma =
       sigma, None
   else
     sigma, None
-
+             
 (* Premises for LIFT-ELIM (TODO move more to liftconfig) *)
 let is_eliminator c env trm sigma =
   let l = get_lifting c in
@@ -391,7 +382,7 @@ let determine_lift_rule c env trm prev_rules sigma =
         if arity trm_eta > arity trm then
           sigma, Optimization (LazyEta trm_eta)
         else
-          sigma, Coherence (proj, args, proj_opaque)
+          sigma, Coherence (reduce_coh c, (proj, args, proj_opaque))
       else
         let sigma, i_and_args_o = is_packed_constr c env sigma trm in
         if Option.has_some i_and_args_o then

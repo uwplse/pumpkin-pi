@@ -119,13 +119,13 @@ val may_apply_id_eta :
   lift_config -> env -> constr -> bool
 
 (*
- * Custom reduction function for lifted eta-expanded identity,
+ * Custom reduction functions for lifted eta-expanded identity and coherence,
  * for efficiency and to ensure termination. For example, this may
  * simplify projections of existentials.
  *)
-val reduce_lifted_id :
-  lift_config -> reducer
-                                    
+val reduce_lifted_id : lift_config -> reducer
+val reduce_coh : lift_config -> reducer
+
 (*
  * Check if the term applies the eta-expanded identity function
  * If so, return the the arguments

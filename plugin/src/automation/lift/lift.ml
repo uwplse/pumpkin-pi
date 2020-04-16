@@ -516,13 +516,14 @@ let lift_core env c trm sigma =
        lift_rec lift_rules en sigma c tr_eta
     | Section | Retraction | Internalize ->
        lift_rec lift_rules en sigma c (last_arg tr)
-    | Coherence (p, args, proj_opaque) ->
-       if proj_opaque then
-         let sigma, lifted_args = map_rec_args_list (lift_rec lift_rules) en sigma c args in
-         reduce_term en sigma (mkAppl (p, lifted_args))
-       else
-         let sigma, projected = reduce_term en sigma (mkAppl (p, args)) in
-         lift_rec lift_rules en sigma c projected
+    | Coherence (simplify, (p, args, proj_opaque)) ->
+       let sigma, lifted_args = map_rec_args_list (lift_rec lift_rules) en sigma c args in
+       let open Printing in
+       debug_term en tr "tr";
+       debug_term en p "p";
+       debug_terms en args "args";
+       debug_terms en lifted_args "lifted_args";
+       simplify en sigma (mkAppl (p, lifted_args))
     | Equivalence args ->
        let (_, b_typ) = get_types c in
        let sigma, lifted_args = map_rec_args_list (lift_rec lift_rules) en sigma c args in
@@ -550,8 +551,8 @@ let lift_core env c trm sigma =
         | UnpackSigma when (not l.is_fwd) && is_or_applies projT2 tr ->
            (* really running coherence in opposite direction. do we want to lift in opposite direction? or we can use optimize_project_packed, maybe, if we fix that up *)
            let open Printing in (* TODO WIP getting this recursive call to coherence not to fire *)
-           debug_term en tr "tr";
-         let sigma, wanted =
+           debug_term en tr "identity at projT2";
+         (*let sigma, wanted =
            let arg = last_arg tr in
            let sigma, arg' = lift_rec lift_rules en sigma c arg in
            (* TODO or use proj_arg like we used to, and be smarter, and take different args here. for now gross things: *)
@@ -578,7 +579,7 @@ let lift_core env c trm sigma =
               (* TODO this is p2 *)
               index, apply_eq_refl { typ = index_type; trm = index_index }
            in sigma, pack_existT { index_type; packer; index; unpacked }
-         in debug_term en wanted "wanted";
+         in debug_term en wanted "wanted";*)
            lift_identity c en lifted_id args simplify (lift_rec lift_rules) sigma
         | _ ->
            lift_identity c en lifted_id args simplify (lift_rec lift_rules) sigma)
