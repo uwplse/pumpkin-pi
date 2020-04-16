@@ -281,6 +281,7 @@ Definition my_pack_coh (T : Type) (n : nat) (v : vector T n) :=
     (@existT nat (vector T) n v).
 Lift vector packed in my_pack_coh as my_pack_coh'.
 Print my_pack_coh'.
+Fail.
 
 Print t_unpack.
 Print unpack_generic.

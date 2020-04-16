@@ -427,19 +427,43 @@ let may_apply_id_eta c env trm =
  * simplify projections of existentials.
  * TODO move/explain
  *)
-let rec reduce_coh c env sigma trm =
-  let sigma, trm = reduce_term env sigma trm in
-  let how_reduce_o = can_reduce_now c env trm in
-  if Option.has_some how_reduce_o then
-    let proj_a = Option.get how_reduce_o in
-    let arg_inner = last_arg trm in
-    if may_apply_id_eta (reverse c) env arg_inner then
-      let sigma, projected = proj_a env sigma arg_inner in
-      reduce_coh c env sigma projected
+let reduce_coh c env sigma trm =
+  let l = get_lifting c in
+  let rec reduce_arg c env sigma arg =
+    let sigma, arg = reduce_term env sigma arg in
+    let how_reduce_o = can_reduce_now c env arg in
+    if Option.has_some how_reduce_o then
+      let proj_a = Option.get how_reduce_o in
+      let arg_inner = last_arg arg in
+      if may_apply_id_eta (reverse c) env arg_inner then
+        let sigma, projected = proj_a env sigma arg_inner in
+        reduce_arg c env sigma projected
+      else
+        sigma, arg
     else
-      sigma, trm
-  else
-    sigma, trm
+      sigma, arg
+  in
+  match l.orn.kind with
+  | UnpackSigma when not l.is_fwd ->
+     let sigma, trm = reduce_term env sigma trm in
+     let open Printing in
+     debug_term env trm "trm";
+     if is_or_applies existT trm then
+       let ex = dest_existT trm in
+       let sigma, index = reduce_arg c env sigma ex.index in
+       let sigma, unpacked =
+         let f, args = destApp ex.unpacked in
+         let sigma, args =
+           map_state_array
+             (fun trm sigma -> reduce_arg c env sigma trm)
+             args
+             sigma
+         in sigma, (mkApp (f, args))
+       in sigma, pack_existT { ex with index; unpacked }
+     else
+       reduce_arg c env sigma trm
+  | _ ->
+     reduce_arg c env sigma trm
          
 (*
  * Custom reduction function for lifted eta-expanded identity,
@@ -463,7 +487,15 @@ let reduce_lifted_id c env sigma trm =
        let sigma, unpacked = reduce_coh c env sigma index_ex.unpacked in
        sigma, pack_existT { index_ex with index; unpacked }
      in
-     sigma, pack_existT { ex with index }
+     let sigma, unpacked =
+       let f, args = destApp ex.unpacked in
+       let sigma, args =
+         map_state_array
+           (fun trm sigma -> reduce_coh c env sigma trm)
+           args
+           sigma
+       in sigma, (mkApp (f, args))
+     in sigma, pack_existT { ex with index; unpacked }
   | _ ->
      sigma, trm
          
