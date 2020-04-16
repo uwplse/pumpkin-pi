@@ -517,11 +517,12 @@ let lift_core env c trm sigma =
     | Section | Retraction | Internalize ->
        lift_rec lift_rules en sigma c (last_arg tr)
     | Coherence (simplify, (p, args, proj_opaque)) ->
-       let sigma, lifted_args = map_rec_args_list (lift_rec lift_rules) en sigma c args in
+       (* TODO remove opaque since no longer used; combine w/ identity *)
        let open Printing in
        debug_term en tr "tr";
        debug_term en p "p";
        debug_terms en args "args";
+       let sigma, lifted_args = map_rec_args_list (lift_rec lift_rules) en sigma c args in
        debug_terms en lifted_args "lifted_args";
        simplify en sigma (mkAppl (p, lifted_args))
     | Equivalence args ->

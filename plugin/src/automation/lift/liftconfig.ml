@@ -443,6 +443,8 @@ let reduce_coh c env sigma trm =
      else
        sigma, trm
   | UnpackSigma when not l.is_fwd ->
+     let open Printing in
+     debug_term env trm "trm";
      sigma, trm (* TODO move the thing here *)
   | _ ->
      sigma, trm
@@ -882,8 +884,7 @@ let initialize_proj_rules c env sigma =
          let projT2 = reconstruct_lambda env_proj (project_value b_sig_typ t) in
          sigma, ([(projT1, p1); (projT2, p2)], [])
     | UnpackSigma ->
-       let env_proj = if l.is_fwd then env_proj else env_proj_inv in
-       let env_proj_inv = if l.is_fwd then env_proj_inv else env_proj in
+       let env_proj, env_proj_inv = if l.is_fwd then env_proj, env_proj_inv else env_proj_inv, env_proj in
        let sigma, b_sig_eq_typ = reduce_type env_proj sigma t in
        let b_sig_eq_typ_app = dest_sigT b_sig_eq_typ in
        let proj_bods = projections b_sig_eq_typ_app t in
@@ -902,16 +903,12 @@ let initialize_proj_rules c env sigma =
          let eq = apply_eq_refl { typ = index_type; trm = index } in
          reconstruct_lambda env_proj_inv eq
        in
-       (* TODO can we move this into identity? also clean up w/ rules above and explain why different (basically need to capture rew in op. dir since can't capture arbitrary refl) *)
-       let sigma, p1_p2 = (* TODO maybe remove after proj1_bwd works, if it does *)
-         let index_type = b_sig_typ in
-         let packer = b_sig_eq_typ_app.packer in
-         let sigma, index = reduce_term env_proj_inv sigma (mkAppl (p1, mk_n_rels (nb_rel env_proj_inv))) in
-         let sigma, unpacked = reduce_term env_proj_inv sigma (mkAppl (p2, mk_n_rels (nb_rel env_proj_inv))) in
-         let packed = pack_existT { index_type; packer; index; unpacked } in
-         sigma, reconstruct_lambda env_proj_inv packed
-       in
        if l.is_fwd then (* projT1 -> pack, projT2 -> eq_refl *)
+         let open Printing in
+         debug_term env projT1 "projT1";
+         debug_term env projT2 "projT2";
+         debug_term env p1 "p1";
+         debug_term env p2 "p2";
          sigma, ([(projT1, p1); (projT2, p2)], [])
        else (* pack -> projT1, existT _ pack eq_refl -> existT _ _ projT2 *)
          (* (we can't infer the arguments to eq_refl in more general cases,
@@ -919,13 +916,13 @@ let initialize_proj_rules c env sigma =
             our inputs to a certain format, which makes sense given the
             self reference) TODO clean and move comment *)
          (* TODO then for typs do we want to restrict below? *)
-         let p1_typ = reconstruct_lambda (pop_rel_context 2 env_proj_inv) (unshift_by 2 b_sig_typ) in
-         let p2_typ = reconstruct_lambda (pop_rel_context 1 env_proj_inv) (unshift b_sig_eq_typ_app.packer) in
+         let p1_typ = reconstruct_lambda (pop_rel_context 2 env_proj) (unshift_by 2 b_sig_typ) in
+         let p2_typ = reconstruct_lambda (pop_rel_context 1 env_proj) (unshift b_sig_eq_typ_app.packer) in
          let sigma, projT1_bwd =
            let packer = (dest_sigT b_sig_typ).packer in
            let index = mkRel 2 in
+           let at_type = index_type in
            let unpacked =
-             let at_type = index_type in
              let trm1 = project_index (dest_sigT b_sig_typ) (fst proj_bods) in
              let trm2 = mkRel 2 in
              let b = project_value (dest_sigT b_sig_typ) (fst proj_bods) in

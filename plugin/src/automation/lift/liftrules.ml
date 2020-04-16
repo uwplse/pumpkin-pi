@@ -275,23 +275,13 @@ let is_coh c env trm prev_rules sigma =
     sigma, None
 
 (* Termination condition for IDENTITY *)
-let terminate_identity c prev_rules args_o env trm sigma =
-  let l = get_lifting c in
+let terminate_identity prev_rules args_o env trm sigma =
   let args = Option.get args_o in
   exists_state
     (fun prev_rule sigma ->
       match prev_rule with
       | LiftIdentity (_, (_, args')) ->
          sigma, List.for_all2 equal args args'
-      | Coherence (_, (_, _, opaque)) when not opaque ->
-         exists_subterm_env
-           (fun env sigma _ subterm ->
-             sigma, is_or_applies (lift_to l) subterm)
-           id
-           env
-           sigma
-           ()
-           (last args)
       | _ ->
          sigma, false)
     prev_rules
@@ -301,7 +291,7 @@ let terminate_identity c prev_rules args_o env trm sigma =
 let is_identity c env trm prev_rules sigma =
   let sigma, args_o = applies_id_eta c env trm sigma in
   if Option.has_some args_o then
-    let sigma, terminate = terminate_identity c prev_rules args_o env trm sigma in
+    let sigma, terminate = terminate_identity prev_rules args_o env trm sigma in
     if not terminate then
       sigma, Some (get_lifted_id_eta c, Option.get args_o)
     else
