@@ -129,7 +129,8 @@ type lift_optimization =
  *    This exists to ensure that we preserve definitional equalities.
  *    The rule returns the lifted identity function and its arguments, as
  *    well as a custom reduction function to apply identity to those arguments
- *    (for efficiency and to ensure termination).
+ *    (for efficiency and to ensure termination). This also has a boolean
+ *    for termination when the lifted type refers to the unlifted type.
  *
  * 10. CIC runs when no optimization applies and none of the other rules
  *    apply. It returns the kind of the Gallina term.
@@ -137,7 +138,7 @@ type lift_optimization =
 type lift_rule =
 | Equivalence of constr list
 | LiftConstr of constr * constr list
-| LiftIdentity of reducer * (constr * constr list)
+| LiftIdentity of reducer * (constr * constr list * bool)
 | Coherence of reducer * (constr * constr list * bool)
 | LiftElim of elim_app * constr list * int * bool
 | Section
@@ -275,12 +276,23 @@ let is_coh c env trm prev_rules sigma =
     sigma, None
 
 (* Termination condition for IDENTITY *)
-let terminate_identity prev_rules args_o env trm sigma =
+let terminate_identity prev_rules env =
+  List.exists
+    (fun prev_rule ->
+      match prev_rule with
+      | LiftIdentity (_, (_, _, terminate)) ->
+         terminate
+      | _ ->
+         false)
+    prev_rules
+
+(* Before we terminate for identity, we apply it one last time (TODO explain) *)
+let last_identity prev_rules args_o env trm sigma =
   let args = Option.get args_o in
   exists_state
     (fun prev_rule sigma ->
       match prev_rule with
-      | LiftIdentity (_, (_, args')) ->
+      | LiftIdentity (_, (_, args', _)) ->
          sigma, List.for_all2 equal args args'
       | _ ->
          sigma, false)
@@ -291,14 +303,14 @@ let terminate_identity prev_rules args_o env trm sigma =
 let is_identity c env trm prev_rules sigma =
   let sigma, args_o = applies_id_eta c env trm sigma in
   if Option.has_some args_o then
-    let sigma, terminate = terminate_identity prev_rules args_o env trm sigma in
-    if not terminate then
-      sigma, Some (get_lifted_id_eta c, Option.get args_o)
-    else
+    let sigma, last = last_identity prev_rules args_o env trm sigma in
+    if last then
       sigma, None
+    else
+      sigma, Some (get_lifted_id_eta c, Option.get args_o, false) (* TODO change back to terminate, etc, remove extra stuff *)
   else
     sigma, None
-             
+
 (* Premises for LIFT-ELIM (TODO move more to liftconfig) *)
 let is_eliminator c env trm sigma =
   let l = get_lifting c in
@@ -398,8 +410,8 @@ let determine_lift_rule c env trm prev_rules sigma =
         else
           let sigma, is_identity_o = is_identity c env trm prev_rules sigma in
           if Option.has_some is_identity_o then
-            let lifted_id, args = Option.get is_identity_o in
-            sigma, LiftIdentity (reduce_lifted_id c, (lifted_id, args))
+            let lifted_id, args, terminate = Option.get is_identity_o in
+            sigma, LiftIdentity (reduce_lifted_id c, (lifted_id, args, terminate))
           else
             let sigma, is_elim_o = is_eliminator c env trm sigma in
             if Option.has_some is_elim_o then

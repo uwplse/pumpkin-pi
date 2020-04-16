@@ -344,11 +344,8 @@ let lift_elim env sigma c trm_app pms =
  * Lift the eta-expanded identity function
  * TODO explain simplify (termination too), etc.
  *)
-let lift_identity c env lifted_id args simplify lift_rec sigma =
+let lift_identity c env lifted_id args simplify terminate lift_rec sigma =
   let sigma, lifted_args = map_rec_args_list lift_rec env sigma c args in
-  let open Printing in
-  debug_terms env args "args";
-  debug_terms env lifted_args "lifted_args";
   simplify env sigma (mkAppl (lifted_id, lifted_args))
 
 (* --- Optimization implementations --- *)
@@ -518,12 +515,7 @@ let lift_core env c trm sigma =
        lift_rec lift_rules en sigma c (last_arg tr)
     | Coherence (simplify, (p, args, proj_opaque)) ->
        (* TODO remove opaque since no longer used; combine w/ identity *)
-       let open Printing in
-       debug_term en tr "tr";
-       debug_term en p "p";
-       debug_terms en args "args";
        let sigma, lifted_args = map_rec_args_list (lift_rec lift_rules) en sigma c args in
-       debug_terms en lifted_args "lifted_args";
        simplify en sigma (mkAppl (p, lifted_args))
     | Equivalence args ->
        let (_, b_typ) = get_types c in
@@ -546,44 +538,8 @@ let lift_core env c trm sigma =
          lift_rec lift_rules en sigma c constr_app
        else
          sigma, constr_app
-    | LiftIdentity (simplify, (lifted_id, args)) ->
-       (* TODO consolidate/explain/fix...move into simplify...etc *)
-       (match l.orn.kind with
-        | UnpackSigma when (not l.is_fwd) && is_or_applies projT2 tr ->
-           (* really running coherence in opposite direction. do we want to lift in opposite direction? or we can use optimize_project_packed, maybe, if we fix that up *)
-           let open Printing in (* TODO WIP getting this recursive call to coherence not to fire *)
-           debug_term en tr "identity at projT2";
-         (*let sigma, wanted =
-           let arg = last_arg tr in
-           let sigma, arg' = lift_rec lift_rules en sigma c arg in
-           (* TODO or use proj_arg like we used to, and be smarter, and take different args here. for now gross things: *)
-           let typ_args = all_but_last args in
-           let trm = mkAppl (projT2, snoc arg' (all_but_last (unfold_args tr))) in (* TODO why not lift those args? *)
-           let sigma, typ_args = map_rec_args_list (lift_rec lift_rules) en sigma c typ_args in
-           let sigma, b_sig_eq =
-             let b_sig_eq_typ = mkAppl (fst (get_types c), typ_args) in
-             Util.on_snd dest_sigT (reduce_term en sigma b_sig_eq_typ)
-           in
-           let index_type = b_sig_eq.index_type in
-           let packer = b_sig_eq.packer in
-           let index, unpacked =
-             let b_sig = dest_sigT index_type in
-              let index_type = b_sig.index_type in
-              let index_index = last typ_args in
-              let index =
-                (* TODO this is p1 *)
-                let packer = b_sig.packer in
-                let index = last typ_args in
-                let unpacked = trm in
-                pack_existT { index_type; packer; index; unpacked }
-              in
-              (* TODO this is p2 *)
-              index, apply_eq_refl { typ = index_type; trm = index_index }
-           in sigma, pack_existT { index_type; packer; index; unpacked }
-         in debug_term en wanted "wanted";*)
-           lift_identity c en lifted_id args simplify (lift_rec lift_rules) sigma
-        | _ ->
-           lift_identity c en lifted_id args simplify (lift_rec lift_rules) sigma)
+    | LiftIdentity (simplify, (lifted_id, args, terminate)) ->
+       lift_identity c en lifted_id args simplify terminate (lift_rec lift_rules) sigma
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma
     | LiftElim (tr_elim, lifted_pms, nargs, opaque) ->

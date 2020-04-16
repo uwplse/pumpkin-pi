@@ -556,11 +556,14 @@ let applies_id_eta c env trm sigma =
                        let index_type = b_sig.index_type in
                        let index_index = last typ_args in
                        let index =
-                         (* TODO this is p1 *)
-                         let packer = b_sig.packer in
-                         let index = last typ_args in
-                         let unpacked = trm in
-                         pack_existT { index_type; packer; index; unpacked }
+                         if is_or_applies projT1 index_index && is_or_applies projT2 trm then
+                           last_arg trm
+                         else
+                           (* TODO this is p1 *)
+                           let packer = b_sig.packer in
+                           let index = last typ_args in
+                           let unpacked = trm in
+                           pack_existT { index_type; packer; index; unpacked }
                        in
                        (* TODO this is p2 *)
                        let unpacked = apply_eq_refl { typ = index_type; trm = index_index } in
@@ -904,11 +907,6 @@ let initialize_proj_rules c env sigma =
          reconstruct_lambda env_proj_inv eq
        in
        if l.is_fwd then (* projT1 -> pack, projT2 -> eq_refl *)
-         let open Printing in
-         debug_term env projT1 "projT1";
-         debug_term env projT2 "projT2";
-         debug_term env p1 "p1";
-         debug_term env p2 "p2";
          sigma, ([(projT1, p1); (projT2, p2)], [])
        else (* pack -> projT1, existT _ pack eq_refl -> existT _ _ projT2 *)
          (* (we can't infer the arguments to eq_refl in more general cases,
@@ -932,6 +930,7 @@ let initialize_proj_rules c env sigma =
            let proj_bod = pack_existT { index_type; packer; index; unpacked } in
            sigma, reconstruct_lambda env_proj proj_bod
          in
+         (* TODO map projT2 to something? Would that work? *)
          sigma, ([(p1, projT1_bwd)], [(p1_typ, p1_typ); (p2_typ, p2_typ)])
     | CurryRecord ->
        (* accessors <-> projections *)
