@@ -435,6 +435,7 @@ let reduce_coh c env sigma trm =
     if Option.has_some how_reduce_o then
       let proj_a = Option.get how_reduce_o in
       let arg_inner = last_arg arg in
+      let sigma, arg_inner = reduce_arg c env sigma arg_inner in
       if may_apply_id_eta (reverse c) env arg_inner then
         let sigma, projected = proj_a env sigma arg_inner in
         reduce_arg c env sigma projected
@@ -446,19 +447,20 @@ let reduce_coh c env sigma trm =
   match l.orn.kind with
   | UnpackSigma when not l.is_fwd ->
      let sigma, trm = reduce_term env sigma trm in
-     let open Printing in
-     debug_term env trm "trm";
      if is_or_applies existT trm then
        let ex = dest_existT trm in
        let sigma, index = reduce_arg c env sigma ex.index in
        let sigma, unpacked =
-         let f, args = destApp ex.unpacked in
-         let sigma, args =
-           map_state_array
-             (fun trm sigma -> reduce_arg c env sigma trm)
-             args
-             sigma
-         in sigma, (mkApp (f, args))
+         if isApp ex.unpacked then
+           let f, args = destApp ex.unpacked in
+           let sigma, args =
+             map_state_array
+               (fun trm sigma -> reduce_arg c env sigma trm)
+               args
+               sigma
+           in sigma, (mkApp (f, args))
+         else
+           sigma, ex.unpacked
        in sigma, pack_existT { ex with index; unpacked }
      else
        reduce_arg c env sigma trm
@@ -981,9 +983,6 @@ let initialize_proj_rules c env sigma =
              let sigma, p_bodies = prod_projections_rec env_proj_inv t sigma in
              map_state (fun p -> ret (reconstruct_lambda env_proj_inv p)) p_bodies sigma
            in
-           let open Printing in
-           debug_terms env accessors "accessors";
-           debug_terms env lifted_projections "lifted_projections";
            sigma, (accessors, lifted_projections)
          else (* projections -> accessors *)
            let sigma, lifted_accessors =
@@ -998,7 +997,7 @@ let initialize_proj_rules c env sigma =
            let sigma, projections =
              let sigma, p_bodies = prod_projections_rec env_proj t sigma in
              map_state (fun p -> ret (reconstruct_lambda env_proj p)) p_bodies sigma
-           in let open Printing in debug_terms env lifted_accessors "lifted_accessors"; debug_terms env projections "projections"; sigma, (projections, lifted_accessors)
+           in sigma, (projections, lifted_accessors)
        in
        if List.length ps = List.length ps_to then
          let sigma, ps = map2_state (fun p1 p2 -> ret (p1, p2)) ps ps_to sigma in
