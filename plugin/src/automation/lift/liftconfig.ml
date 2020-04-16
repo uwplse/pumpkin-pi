@@ -428,36 +428,18 @@ let may_apply_id_eta c env trm =
  * TODO move/explain
  *)
 let rec reduce_coh c env sigma trm =
-  let l = get_lifting c in
   let sigma, trm = reduce_term env sigma trm in
-  match c.l.orn.kind with
-  | Algebraic _ when l.is_fwd ->
-     let how_reduce_o = can_reduce_now c env trm in
-     if Option.has_some how_reduce_o then
-       let proj_a = Option.get how_reduce_o in
-       let arg_inner = last_arg trm in
-       if may_apply_id_eta (reverse c) env arg_inner then
-         let sigma, projected = proj_a env sigma arg_inner in
-         reduce_coh c env sigma projected
-       else
-         sigma, trm
-     else
-       sigma, trm
-  | UnpackSigma when not l.is_fwd ->
-     (* TODO duplicate code *)
-     let how_reduce_o = can_reduce_now c env trm in
-     if Option.has_some how_reduce_o then
-       let proj_a = Option.get how_reduce_o in
-       let arg_inner = last_arg trm in
-       if may_apply_id_eta (reverse c) env arg_inner then
-         let sigma, projected = proj_a env sigma arg_inner in
-         reduce_coh c env sigma projected
-       else
-         sigma, trm
-     else
-       sigma, trm
-  | _ ->
-     sigma, trm
+  let how_reduce_o = can_reduce_now c env trm in
+  if Option.has_some how_reduce_o then
+    let proj_a = Option.get how_reduce_o in
+    let arg_inner = last_arg trm in
+    if may_apply_id_eta (reverse c) env arg_inner then
+      let sigma, projected = proj_a env sigma arg_inner in
+      reduce_coh c env sigma projected
+    else
+      sigma, trm
+  else
+    sigma, trm
          
 (*
  * Custom reduction function for lifted eta-expanded identity,
@@ -966,7 +948,11 @@ let initialize_proj_rules c env sigma =
            let sigma, lifted_projections =
              let sigma, p_bodies = prod_projections_rec env_proj_inv t sigma in
              map_state (fun p -> ret (reconstruct_lambda env_proj_inv p)) p_bodies sigma
-           in sigma, (accessors, lifted_projections)
+           in
+           let open Printing in
+           debug_terms env accessors "accessors";
+           debug_terms env lifted_projections "lifted_projections";
+           sigma, (accessors, lifted_projections)
          else (* projections -> accessors *)
            let sigma, lifted_accessors =
              map_state
@@ -980,7 +966,7 @@ let initialize_proj_rules c env sigma =
            let sigma, projections =
              let sigma, p_bodies = prod_projections_rec env_proj t sigma in
              map_state (fun p -> ret (reconstruct_lambda env_proj p)) p_bodies sigma
-           in sigma, (projections, lifted_accessors)
+           in let open Printing in debug_terms env lifted_accessors "lifted_accessors"; debug_terms env projections "projections"; sigma, (projections, lifted_accessors)
        in
        if List.length ps = List.length ps_to then
          let sigma, ps = map2_state (fun p1 p2 -> ret (p1, p2)) ps ps_to sigma in
