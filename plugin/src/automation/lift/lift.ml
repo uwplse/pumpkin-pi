@@ -555,6 +555,7 @@ let lift_core env c trm sigma =
     | Optimization (ConstLazyDelta (co, u)) ->
        lift_const_lazy_delta c en (co, u) (lift_rec lift_rules) sigma
     | CIC k ->
+       let lift_rules = List.tl lift_rules in (* no point passing this on *)
        let lift_rec = lift_rec lift_rules in
        (match k with
         | Evar (etrm, _) ->

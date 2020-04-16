@@ -359,6 +359,7 @@ let is_eliminator c env trm sigma =
 
 (*
  * Given a term, determine the appropriate lift rule to run
+ * TODO make prev_rules a hash
  *)
 let determine_lift_rule c env trm prev_rules sigma =
   let l = get_lifting c in
