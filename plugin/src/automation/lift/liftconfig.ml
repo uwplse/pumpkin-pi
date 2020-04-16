@@ -427,7 +427,7 @@ let may_apply_id_eta c env trm =
  * simplify projections of existentials.
  * TODO move/explain
  *)
-let reduce_coh c env sigma trm =
+let rec reduce_coh c env sigma trm =
   let l = get_lifting c in
   let sigma, trm = reduce_term env sigma trm in
   match c.l.orn.kind with
@@ -437,15 +437,25 @@ let reduce_coh c env sigma trm =
        let proj_a = Option.get how_reduce_o in
        let arg_inner = last_arg trm in
        if may_apply_id_eta (reverse c) env arg_inner then
-         proj_a env sigma arg_inner
-         else
-           sigma, trm
+         let sigma, projected = proj_a env sigma arg_inner in
+         reduce_coh c env sigma projected
+       else
+         sigma, trm
      else
        sigma, trm
   | UnpackSigma when not l.is_fwd ->
-     let open Printing in
-     debug_term env trm "trm";
-     sigma, trm (* TODO move the thing here *)
+     (* TODO duplicate code *)
+     let how_reduce_o = can_reduce_now c env trm in
+     if Option.has_some how_reduce_o then
+       let proj_a = Option.get how_reduce_o in
+       let arg_inner = last_arg trm in
+       if may_apply_id_eta (reverse c) env arg_inner then
+         let sigma, projected = proj_a env sigma arg_inner in
+         reduce_coh c env sigma projected
+       else
+         sigma, trm
+     else
+       sigma, trm
   | _ ->
      sigma, trm
          
@@ -464,7 +474,14 @@ let reduce_lifted_id c env sigma trm =
      let sigma, unpacked = reduce_coh c env sigma ex.unpacked in
      sigma, pack_existT { ex with index; unpacked }
   | UnpackSigma when not l.is_fwd ->
-     sigma, trm (* TODO move the thing here *)
+     let ex = dest_existT trm in
+     let sigma, index =
+       let index_ex = dest_existT ex.index in
+       let sigma, index = reduce_coh c env sigma index_ex.index in
+       let sigma, unpacked = reduce_coh c env sigma index_ex.unpacked in
+       sigma, pack_existT { index_ex with index; unpacked }
+     in
+     sigma, pack_existT { ex with index }
   | _ ->
      sigma, trm
          
