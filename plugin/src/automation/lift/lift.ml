@@ -437,43 +437,22 @@ let lift_const_lazy_delta c env (co, u) lift_rec sigma =
  * TODO remove
  *)
 let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
+  let open Printing in
+  debug_term env lifted_constr "lifted_constr";
+  debug_terms env args "args";
   let sigma, constr_app = reduce_term env sigma (mkAppl (lifted_constr, args)) in
+  debug_term env constr_app "constr_app";
   match (get_lifting c).orn.kind with
   | UnpackSigma ->
      (* TODO remove, WIP need to move this and consider opaque/termination *)
      (* TODO easy approach might be cleaning this first, and cleaning constr rules, then revisiting ... *)
      let ex_eq = dest_existT constr_app in
      let ex = dest_existT ex_eq.index in
-     let sigma, packer =
-       let env_b, b_app = zoom_lambda_term env ex.packer in
-       let b = first_fun b_app in
-       let sigma, b_args' = map_rec_args_list lift_rec env sigma c (unfold_args b_app) in
-       sigma, reconstruct_lambda_n env_b (mkAppl (b, b_args')) (nb_rel env)
-     in
+     let sigma, packer = lift_rec env sigma c ex.packer in
      let sigma, index = lift_rec env sigma c ex.index in
-     let sigma, (unpacked, h_eq) =
-       (* TODO eta expand first, so we get this right, also.. test w/o eta *)
-       let lifted_inner = (Array.of_list args).(3) in
-       let (f', args') = destApp lifted_inner in
-       (* TODO move this to refolding in a real constr rule! for now hax *)
-       let sigma, args'' =
-         map_state_array
-           (fun a sigma ->
-             let sigma_right, is_from_o = type_is_from c env a sigma in
-             if Option.has_some is_from_o then
-               let typ_args = Option.get is_from_o in
-               lift env (get_lifting (reverse c)) a typ_args sigma_right 
-             else
-               lift_rec env sigma c a)
-           args'
-           sigma
-       in
-       let b = mkApp (f', args'') in
-       sigma, (b, ex_eq.unpacked)
-     in
-     let index = pack_existT { ex with packer; index; unpacked } in
+     let index = pack_existT { ex with packer; index} in
      let sigma, packer = lift_rec env sigma c ex_eq.packer in
-     (sigma, pack_existT { ex_eq with packer; index; unpacked = h_eq })
+     (sigma, pack_existT { ex_eq with packer; index })
   | _ ->
      raise NotAlgebraic
 

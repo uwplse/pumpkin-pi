@@ -156,6 +156,9 @@ let terminate_eqv c prev_rules args_o env =
   List.exists
     (fun prev_rule ->
       match prev_rule with
+      | Optimization (SmartLiftConstr _) ->
+         (* TODO *)
+         true
       | Equivalence (_, args') when List.length args = List.length args' ->
          List.for_all2 equal args args'
       | Coherence (_, (p, _)) when (not l.is_fwd) && l.orn.kind = UnpackSigma ->
@@ -231,21 +234,7 @@ let is_packed_constr c env sigma trm =
            (* TODO add real constr here *)
            sigma, None
          else (* <-- TODO correct or not? needed? also, this is slow *)
-           let sigma_right, args_opt = type_is_from c env trm sigma in
-           (* TODO make lift_rules faster by getting type_is_from just once when needed *)
-           if Option.has_some args_opt then
-             let typ_args = Option.get args_opt in
-             if isApp trm && isConstruct (first_fun trm) then (* TODO blehhh *)
-               (* TODO get correct args; then return actual constr; then refold correctly *)
-               let i_b = last typ_args in
-               let sigma, i_b_typ = reduce_type env sigma_right i_b in
-               let b = trm in
-               let h_eq = apply_eq_refl { typ = i_b_typ; trm = i_b } in
-               sigma, Some (0, List.append typ_args [i_b; b; h_eq])
-             else
-               sigma, None
-           else
-             sigma, None
+           is_packed_inductive_constr id trm
     in
     if Option.has_some i_and_args_o then
       let i, args = Option.get i_and_args_o in
@@ -261,6 +250,9 @@ let terminate_coh prev_rules proj_o env trm sigma =
   exists_state
     (fun prev_rule sigma ->
       match prev_rule with
+      | Optimization (SmartLiftConstr _) ->
+         (* TODO *)
+         sigma, true
       | Coherence (_, (proj', args')) when equal proj proj' ->
          if List.for_all2 equal args args' then
            sigma, true
@@ -355,6 +347,37 @@ let is_eliminator c env trm sigma =
      sigma, None
 
 (*
+ * Termination condition for SECTION / RETRACTION
+ *)
+let terminate_section_retraction c prev_rules =
+  let l = get_lifting c in
+  match l.orn.kind with
+  | UnpackSigma when not l.is_fwd ->
+     List.exists
+       (fun prev_rule ->
+         match prev_rule with
+         | Optimization (SmartLiftConstr _) ->
+            (* TODO remove *)
+            true
+         | LiftConstr _ ->
+            true
+         | _ ->
+            false)
+       prev_rules
+  | _ ->
+     false
+
+(*
+ * SECTION / RETRACTION
+ *)
+let is_section_retraction c prev_rules trm =
+  let l = get_lifting c in
+  if isApp trm && applies (lift_back l) trm then
+    not (terminate_section_retraction c prev_rules)
+  else
+    false
+
+(*
  * Given a term, determine the appropriate lift rule to run
  * TODO make prev_rules a hash
  *)
@@ -367,7 +390,7 @@ let determine_lift_rule c env trm prev_rules sigma =
     sigma, Optimization (LocalCaching (lookup_cache c trm))
   else if is_opaque c trm then
     sigma, Optimization OpaqueConstant
-  else if isApp trm && applies (lift_back l) trm then
+  else if is_section_retraction c prev_rules trm then
     sigma, if l.is_fwd then Retraction else Section
   else if isApp trm && applies (lift_to l) trm then
     sigma, Internalize
