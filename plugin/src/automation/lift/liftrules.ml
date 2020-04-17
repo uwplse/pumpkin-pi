@@ -100,12 +100,14 @@ type lift_optimization =
  *    and the arguments to the lifted type.
  *
  * 2. LIFT-CONSTR runs when we lift constructors of the type in the equivalence.
- *    This carries the lifted constructor and the arguments.
+ *    This carries the lifted constructor and the arguments, as well as a custom
+ *    reduction function to apply the constructor to the arguments prior to
+ *    lifting the result.
  *
  * 3. COHERENCE runs when we lift projections of the type in the equivalence
  *    (either at the term or type level). This carries the term we are
  *    the lifted projection and the arguments, as well as a custom reduction
- *    function to apply coherence to the arguments (to neatly ensure
+ *    function to apply coherence to the lifted arguments (to neatly ensure
  *    termination while also maintaining correctness).
  *
  * 4. LIFT-ELIM runs when we lift applications of eliminators of the type
@@ -127,15 +129,15 @@ type lift_optimization =
  * 9. LIFT-IDENTITY runs when we lift the eta-expanded identity function.
  *    This exists to ensure that we preserve definitional equalities.
  *    The rule returns the lifted identity function and its arguments, as
- *    well as a custom reduction function to apply identity to those arguments
- *    (for efficiency and to ensure termination).
+ *    well as a custom reduction function to apply identity to the
+ *    lifted arguments (for efficiency and to ensure termination).
  *
  * 10. CIC runs when no optimization applies and none of the other rules
  *    apply. It returns the kind of the Gallina term.
  *)
 type lift_rule =
 | Equivalence of constr * constr list
-| LiftConstr of constr * constr list
+| LiftConstr of reducer * (constr * constr list)
 | LiftIdentity of reducer * (constr * constr list)
 | Coherence of reducer * (constr * constr list)
 | LiftElim of elim_app * constr list * int * bool
@@ -201,48 +203,55 @@ let is_packed_constr c env sigma trm =
       sigma, None
   in
   if may_apply_id_eta c env trm then
-    match l.orn.kind with
-    | Algebraic _ ->
-       is_packed_inductive_constr (if l.is_fwd then id else last_arg) trm
-    | SwapConstruct _ ->
-       is_packed_inductive_constr id trm
-    | CurryRecord ->
-       if l.is_fwd then
+    let sigma, i_and_args_o =
+      match l.orn.kind with
+      | Algebraic _ ->
+         is_packed_inductive_constr (if l.is_fwd then id else last_arg) trm
+      | SwapConstruct _ ->
          is_packed_inductive_constr id trm
-       else
-         (* we treat any pair of the right type as a constructor *)
-         if applies (lift_back l) trm then
-           sigma, None
+      | CurryRecord ->
+         if l.is_fwd then
+           is_packed_inductive_constr id trm
          else
+           (* we treat any pair of the right type as a constructor *)
+           if applies (lift_back l) trm then
+             sigma, None
+           else
+             let sigma_right, args_opt = type_is_from c env trm sigma in
+             if Option.has_some args_opt then
+               let sigma = sigma_right in
+               let constr = constrs.(0) in
+               let pms = Option.get args_opt in
+               let args = pair_projections_eta_rec_n trm (arity constr - List.length pms) in
+               sigma, Some (0, List.append pms args)
+             else
+               sigma, None
+      | UnpackSigma ->
+         if l.is_fwd then
+           (* TODO add real constr here *)
+           sigma, None
+         else (* <-- TODO correct or not? needed? also, this is slow *)
            let sigma_right, args_opt = type_is_from c env trm sigma in
+           (* TODO make lift_rules faster by getting type_is_from just once when needed *)
            if Option.has_some args_opt then
-             let sigma = sigma_right in
-             let constr = constrs.(0) in
-             let pms = Option.get args_opt in
-             let args = pair_projections_eta_rec_n trm (arity constr - List.length pms) in
-             sigma, Some (0, List.append pms args)
+             let typ_args = Option.get args_opt in
+             if isApp trm && isConstruct (first_fun trm) then (* TODO blehhh *)
+               (* TODO get correct args; then return actual constr; then refold correctly *)
+               let i_b = last typ_args in
+               let sigma, i_b_typ = reduce_type env sigma_right i_b in
+               let b = trm in
+               let h_eq = apply_eq_refl { typ = i_b_typ; trm = i_b } in
+               sigma, Some (0, List.append typ_args [i_b; b; h_eq])
+             else
+               sigma, None
            else
              sigma, None
-    | UnpackSigma ->
-       if l.is_fwd then
-         (* TODO add real constr here *)
-         sigma, None
-       else (* <-- TODO correct or not? needed? also, this is slow *)
-         let sigma_right, args_opt = type_is_from c env trm sigma in
-         (* TODO make lift_rules faster by getting type_is_from just once when needed *)
-         if Option.has_some args_opt then
-           let typ_args = Option.get args_opt in
-           if isApp trm && isConstruct (first_fun trm) then (* TODO blehhh *)
-             (* TODO get correct args; then return actual constr; then refold correctly *)
-             let i_b = last typ_args in
-             let sigma, i_b_typ = reduce_type env sigma_right i_b in
-             let b = trm in
-             let h_eq = apply_eq_refl { typ = i_b_typ; trm = i_b } in
-             sigma, Some (0, List.append typ_args [i_b; b; h_eq])
-           else
-             sigma, None
-         else
-           sigma, None
+    in
+    if Option.has_some i_and_args_o then
+      let i, args = Option.get i_and_args_o in
+      sigma, Some (i, args, reduce_term) (* TODO customize *)
+    else
+      sigma, None
   else
     sigma, None
 
@@ -376,27 +385,27 @@ let determine_lift_rule c env trm prev_rules sigma =
         else
           sigma, Coherence (reduce_coh c, (proj, args))
       else
-        let sigma, i_and_args_o = is_packed_constr c env sigma trm in
-        if Option.has_some i_and_args_o then
-          let i, args = Option.get i_and_args_o in
+        let sigma, packed_constr_o = is_packed_constr c env sigma trm in
+        if Option.has_some packed_constr_o then
+          let i, args, simplify = Option.get packed_constr_o in
           let lifted_constr = (get_lifted_constrs c).(i) in
           if List.length args > 0 then
             match l.orn.kind with
             | SwapConstruct _ ->
-               sigma, LiftConstr (lifted_constr, args)
+               sigma, LiftConstr (simplify, (lifted_constr, args))
             | UnpackSigma ->
                if l.is_fwd then
-                 sigma, LiftConstr (lifted_constr, args)
+                 sigma, LiftConstr (simplify, (lifted_constr, args))
                else
                  (* needed for termination *)
                  sigma, Optimization (SmartLiftConstr (lifted_constr, args))
             | _ ->
                if not l.is_fwd then
-                 sigma, LiftConstr (lifted_constr, args)
+                 sigma, LiftConstr (simplify, (lifted_constr, args))
                else
                  sigma, Optimization (SmartLiftConstr (lifted_constr, args))
           else
-            sigma, LiftConstr (lifted_constr, args)
+            sigma, LiftConstr (simplify, (lifted_constr, args))
         else
           let sigma, is_identity_o = is_identity c env trm prev_rules sigma in
           if Option.has_some is_identity_o then

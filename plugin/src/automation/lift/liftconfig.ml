@@ -425,7 +425,9 @@ let may_apply_id_eta c env trm =
  * Custom reduction function for coherence,
  * for efficiency and to ensure termination. For example, this may
  * simplify projections of existentials.
- * TODO move/explain
+ * TODO move/explain (move some of this to specialization! maybe
+ * specialize_coh taking (f, args) (but don't think c should leak into
+ * specialization.ml).
  *)
 let reduce_coh c env sigma trm =
   let l = get_lifting c in

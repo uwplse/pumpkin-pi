@@ -340,17 +340,20 @@ let lift_elim env sigma c trm_app pms =
   sigma, apply_eliminator { elim; pms; p; cs; final_args }
 
 (*
- * LIFT-IDENTITY lifts the eta-expanded identity function.
+ * LIFT-IDENTITY, COHERENCE, and EQUIVALENCE all run here.
  *
- * First it lifts the arguments, then it applies the lifted identity
- * function (which is cached) and uses a custom reducer to simplify the result.
+ * First this lifts the arguments, then it applies the lifted function
+ * (which is cached) and uses a custom reducer to simplify the result.
  * The custom reducer creates simpler terms (for example, by simplifying
  * pojections of existentials), and in doing so helps ensure termination
- * when the lifted type refers to the unlifted type.
+ * and correctness when the lifted type refers to the unlifted type.
  *)
-let lift_identity c env lifted_id args simplify lift_rec sigma =
+let lift_app_simplify c env lifted_f args simplify lift_rec sigma =
   let sigma, lifted_args = map_rec_args_list lift_rec env sigma c args in
-  simplify env sigma (mkAppl (lifted_id, lifted_args))
+  if List.length lifted_args = 0 then
+    sigma, lifted_f
+  else
+    simplify env sigma (mkAppl (lifted_f, lifted_args))
 
 (* --- Optimization implementations --- *)
 
@@ -431,7 +434,7 @@ let lift_const_lazy_delta c env (co, u) lift_rec sigma =
  * Lift constructors when we can do something faster than lifting all of
  * the arguments
  *
- * TODO use identity
+ * TODO remove
  *)
 let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
   let sigma, constr_app = reduce_term env sigma (mkAppl (lifted_constr, args)) in
@@ -510,26 +513,22 @@ let lift_core env c trm sigma =
        lift_rec lift_rules en sigma c tr_eta
     | Section | Retraction | Internalize ->
        lift_rec lift_rules en sigma c (last_arg tr)
-    | Coherence (simplify, (lifted_p, args)) ->
-       let sigma, lifted_args = map_rec_args_list (lift_rec lift_rules) en sigma c args in
-       simplify en sigma (mkAppl (lifted_p, lifted_args))
-    | LiftIdentity (simplify, (lifted_id, args)) ->
-       lift_identity c en lifted_id args simplify (lift_rec lift_rules) sigma
-    | Equivalence (lifted_typ, args) ->
-       let sigma, lifted_args = map_rec_args_list (lift_rec lift_rules) en sigma c args in
-       if List.length lifted_args = 0 then
-         sigma, lifted_typ
-       else
-         reduce_term en sigma (mkAppl (lifted_typ, lifted_args))
-    | Optimization (SmartLiftConstr (lifted_constr, args)) ->
-       lift_smart_lift_constr c en lifted_constr args (lift_rec lift_rules) sigma
-    | LiftConstr (lifted_constr, args) ->
-       let sigma, constr_app = reduce_term en sigma (mkAppl (lifted_constr, args)) in
+    | LiftIdentity (simplify, (f, args)) | Coherence (simplify, (f, args)) ->
+       lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma
+    | Equivalence (f, args) ->
+       lift_app_simplify c en f args reduce_term (lift_rec lift_rules) sigma
+    | Optimization (SmartLiftConstr (f, args)) ->
+       (* TODO combine w/ original liftconstr rule *)
+       lift_smart_lift_constr c en f args (lift_rec lift_rules) sigma
+    | LiftConstr (simplify, (f, args)) ->
+       (* TODO move etc *)
+       let sigma, constr_app = simplify en sigma (mkAppl (f, args)) in
        if List.length args > 0 then
          lift_rec lift_rules en sigma c constr_app
        else
          sigma, constr_app
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
+       (* TODO still needed, once we have other rules doing this? *)
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma
     | LiftElim (tr_elim, lifted_pms, nargs, opaque) ->
        if opaque then
