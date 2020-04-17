@@ -96,8 +96,8 @@ val is_proj :
   env ->
   constr ->
   evar_map ->
-  (* proj, args, trm_eta, proj_opaque *)
-  ((constr * constr list * constr * bool) option) state
+  (* proj, args, trm_eta *)
+  ((constr * constr list * constr) option) state
 
 (*
  * Get the cached unlifted constructors

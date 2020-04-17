@@ -40,10 +40,10 @@ type lift_optimization =
  * See the implementation for an explanation of each of these.
  *)
 type lift_rule =
-| Equivalence of constr list
+| Equivalence of constr * constr list
 | LiftConstr of constr * constr list
-| LiftIdentity of reducer * (constr * constr list * bool)
-| Coherence of reducer * (constr * constr list * bool)
+| LiftIdentity of reducer * (constr * constr list)
+| Coherence of reducer * (constr * constr list)
 | LiftElim of elim_app * constr list * int * bool
 | Section
 | Retraction

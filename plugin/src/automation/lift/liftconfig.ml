@@ -343,18 +343,18 @@ let is_proj c env trm sigma =
   else
     let rec check proj_maps sigma =
       match proj_maps with
-      | (proj_map, proj_opaque) :: tl ->
+      | proj_map :: tl ->
          let proj_terms = List.map fst proj_map in
          let sigma, to_proj_o = check_is_proj c env trm proj_terms sigma in
          if Option.has_some to_proj_o then
            let i, args, trm_eta = Option.get to_proj_o in
            let (_, proj) = List.nth proj_map i in
-           sigma, Some (proj, args, trm_eta, proj_opaque)
+           sigma, Some (proj, args, trm_eta)
          else
            check tl sigma
       | _ ->
          sigma, None
-    in check [(proj_term_rules, false); (proj_type_rules, true)] sigma
+    in check [proj_term_rules; proj_type_rules] sigma
 
 (* --- Smart simplification --- *)
 

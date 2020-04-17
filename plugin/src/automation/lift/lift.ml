@@ -111,7 +111,6 @@ let lift_motive env sigma c npms parameterized_elim p =
         (* The domain of induction doens't change *)
         sigma, last args
       else
-        (* v TODO can typ_args just be first n rels? *)
         let sigma, arg =
           map_backward
             (fun (sigma, t) -> pack env_p_to (flip_dir l) t sigma)
@@ -341,10 +340,15 @@ let lift_elim env sigma c trm_app pms =
   sigma, apply_eliminator { elim; pms; p; cs; final_args }
 
 (*
- * Lift the eta-expanded identity function
- * TODO explain simplify (termination too), etc.
+ * LIFT-IDENTITY lifts the eta-expanded identity function.
+ *
+ * First it lifts the arguments, then it applies the lifted identity
+ * function (which is cached) and uses a custom reducer to simplify the result.
+ * The custom reducer creates simpler terms (for example, by simplifying
+ * pojections of existentials), and in doing so helps ensure termination
+ * when the lifted type refers to the unlifted type.
  *)
-let lift_identity c env lifted_id args simplify terminate lift_rec sigma =
+let lift_identity c env lifted_id args simplify lift_rec sigma =
   let sigma, lifted_args = map_rec_args_list lift_rec env sigma c args in
   simplify env sigma (mkAppl (lifted_id, lifted_args))
 
@@ -361,20 +365,15 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
     (* projection of expanded identity *)
     reduce env sigma arg''
   else
-    (* false positive; projection of something else (TODO gross; simplify) *)
-    (* TODO move this into config or something. explain why different *)
+    (* false positive; projection of something else *)
     let sigma, f' = lift_rec env sigma c f in
-    (* TODO using right sigma slows things down like crazy. why? also, lifted terms still don't look that good---see our trees for example *)
     let lifted_args =
       if ((get_lifting c).orn.kind = UnpackSigma && not (get_lifting c).is_fwd) then
-        let typ_args = all_but_last (Array.to_list args) in
-        snoc arg' typ_args
+        snoc arg' (all_but_last (Array.to_list args))
       else
         let sigma, args' = map_rec_args lift_rec env sigma c args in
         Array.to_list args'
-    in
-    let lifted = mkAppl (f', lifted_args) in
-    sigma, lifted
+    in sigma, mkAppl (f', lifted_args)
 
 (*
  * Lift applications, possibly being lazy about delta if we can get away with it.
@@ -499,8 +498,6 @@ let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
  * including caching.
  *)
 let lift_core env c trm sigma =
-  let l = get_lifting c in
-  let (a_typ, _) = get_types c in
   let rec lift_rec prev_rules en sigma c tr : types state =
     let sigma, lift_rule = determine_lift_rule c en tr prev_rules sigma in
     let lift_rules = lift_rule :: prev_rules in
@@ -513,22 +510,17 @@ let lift_core env c trm sigma =
        lift_rec lift_rules en sigma c tr_eta
     | Section | Retraction | Internalize ->
        lift_rec lift_rules en sigma c (last_arg tr)
-    | Coherence (simplify, (p, args, proj_opaque)) ->
+    | Coherence (simplify, (lifted_p, args)) ->
        let sigma, lifted_args = map_rec_args_list (lift_rec lift_rules) en sigma c args in
-       simplify en sigma (mkAppl (p, lifted_args))
-    | Equivalence args ->
-       let (_, b_typ) = get_types c in
+       simplify en sigma (mkAppl (lifted_p, lifted_args))
+    | LiftIdentity (simplify, (lifted_id, args)) ->
+       lift_identity c en lifted_id args simplify (lift_rec lift_rules) sigma
+    | Equivalence (lifted_typ, args) ->
        let sigma, lifted_args = map_rec_args_list (lift_rec lift_rules) en sigma c args in
-       if l.is_fwd then
-         if List.length lifted_args = 0 then
-           sigma, b_typ
-         else
-           reduce_term en sigma (mkAppl (b_typ, lifted_args))
+       if List.length lifted_args = 0 then
+         sigma, lifted_typ
        else
-         if List.length lifted_args = 0 then
-           sigma, a_typ
-         else (* TODO reduce? *)
-           (sigma, mkAppl (a_typ, lifted_args))
+         reduce_term en sigma (mkAppl (lifted_typ, lifted_args))
     | Optimization (SmartLiftConstr (lifted_constr, args)) ->
        lift_smart_lift_constr c en lifted_constr args (lift_rec lift_rules) sigma
     | LiftConstr (lifted_constr, args) ->
@@ -537,8 +529,6 @@ let lift_core env c trm sigma =
          lift_rec lift_rules en sigma c constr_app
        else
          sigma, constr_app
-    | LiftIdentity (simplify, (lifted_id, args, terminate)) ->
-       lift_identity c en lifted_id args simplify terminate (lift_rec lift_rules) sigma
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma
     | LiftElim (tr_elim, lifted_pms, nargs, opaque) ->
