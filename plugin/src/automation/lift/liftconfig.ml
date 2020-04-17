@@ -468,7 +468,7 @@ let reduce_coh c env sigma trm =
        reduce_arg c env sigma trm
   | _ ->
      reduce_arg c env sigma trm
-         
+
 (*
  * Custom reduction function for lifted eta-expanded identity,
  * for efficiency and to ensure termination. For example, this may
@@ -502,7 +502,23 @@ let reduce_lifted_id c env sigma trm =
      in sigma, pack_existT { ex with index; unpacked }
   | _ ->
      sigma, trm
-         
+
+(* TODO explain, move, extend, etc *)
+let reduce_constr_app c env sigma trm =
+  let l = get_lifting c in
+  let sigma, trm = reduce_term env sigma trm in
+  match c.l.orn.kind with
+  | Algebraic _ when l.is_fwd ->
+     (* TODO for when we remove simplify_proj_packed (first we want the constr
+        rules to operate over lifted types w/o nested references to fn though) *)
+     sigma, trm
+  | UnpackSigma when not l.is_fwd ->
+     (* TODO *)
+     sigma, trm
+  | _ ->
+     (* TODO *)
+     sigma, trm
+
 (*
  * Check if a term applies the eta-expanded identity function
  *

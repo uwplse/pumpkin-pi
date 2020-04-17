@@ -125,6 +125,7 @@ val may_apply_id_eta :
  *)
 val reduce_lifted_id : lift_config -> reducer
 val reduce_coh : lift_config -> reducer
+val reduce_constr_app : lift_config -> reducer
 
 (*
  * Check if the term applies the eta-expanded identity function

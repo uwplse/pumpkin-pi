@@ -249,7 +249,7 @@ let is_packed_constr c env sigma trm =
     in
     if Option.has_some i_and_args_o then
       let i, args = Option.get i_and_args_o in
-      sigma, Some (i, args, reduce_term) (* TODO customize *)
+      sigma, Some (i, args, reduce_constr_app c)
     else
       sigma, None
   else
@@ -391,19 +391,14 @@ let determine_lift_rule c env trm prev_rules sigma =
           let lifted_constr = (get_lifted_constrs c).(i) in
           if List.length args > 0 then
             match l.orn.kind with
-            | SwapConstruct _ ->
-               sigma, LiftConstr (simplify, (lifted_constr, args))
             | UnpackSigma ->
                if l.is_fwd then
                  sigma, LiftConstr (simplify, (lifted_constr, args))
                else
-                 (* needed for termination *)
+                 (* needed for termination (TODO remove) *)
                  sigma, Optimization (SmartLiftConstr (lifted_constr, args))
             | _ ->
-               if not l.is_fwd then
-                 sigma, LiftConstr (simplify, (lifted_constr, args))
-               else
-                 sigma, Optimization (SmartLiftConstr (lifted_constr, args))
+               sigma, LiftConstr (simplify, (lifted_constr, args))
           else
             sigma, LiftConstr (simplify, (lifted_constr, args))
         else

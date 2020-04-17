@@ -439,25 +439,9 @@ let lift_const_lazy_delta c env (co, u) lift_rec sigma =
 let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
   let sigma, constr_app = reduce_term env sigma (mkAppl (lifted_constr, args)) in
   match (get_lifting c).orn.kind with
-  | Algebraic (_, _) ->
-     let lifted_inner = last_arg constr_app in
-     let (f', args') = destApp lifted_inner in
-     let sigma, args'' = map_rec_args lift_rec env sigma c args' in
-     let b = mkApp (f', args'') in
-     let ex = dest_existT constr_app in
-     let sigma, n = lift_rec env sigma c ex.index in
-     let sigma, packer = lift_rec env sigma c ex.packer in
-     (sigma, pack_existT { ex with packer; index = n; unpacked = b })
-  | CurryRecord ->
-     let open Produtils in
-     let pair = dest_pair constr_app in
-     let sigma, typ1 = lift_rec env sigma c pair.typ1 in
-     let sigma, typ2 = lift_rec env sigma c pair.typ2 in
-     let sigma, trm1 = lift_rec env sigma c pair.trm1 in
-     let sigma, trm2 = lift_rec env sigma c pair.trm2 in
-     (sigma, apply_pair {typ1; typ2; trm1; trm2})
   | UnpackSigma ->
-     (* TODO gross *)
+     (* TODO remove, WIP need to move this and consider opaque/termination *)
+     (* TODO easy approach might be cleaning this first, and cleaning constr rules, then revisiting ... *)
      let ex_eq = dest_existT constr_app in
      let ex = dest_existT ex_eq.index in
      let sigma, packer =
@@ -529,6 +513,8 @@ let lift_core env c trm sigma =
          sigma, constr_app
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        (* TODO still needed, once we have other rules doing this? *)
+       (*let open Printing in
+       debug_term en tr "simplify project packed";*)
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma
     | LiftElim (tr_elim, lifted_pms, nargs, opaque) ->
        if opaque then
