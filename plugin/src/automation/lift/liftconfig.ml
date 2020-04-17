@@ -821,13 +821,13 @@ let lift_constr env sigma c trm =
      (* TODO move all of this stuff to refolding *)
      (* specialized folding for a cleaner and more efficient result *)
      let delta app = specialize_delta_f env (first_fun app) (unfold_args app) in
-     let sigma, app = reduce_term env sigma app in
+     let sigma, app_red = reduce_term env sigma app in
      (* delta-reduce unpack_generic(_inv) (no custom equivalence support yet) *)
-     let sigma, app = delta app sigma in
-     let sigma, app = delta app sigma in
-     let sigma, app = reduce_term env sigma app in
+     let sigma, app_red = delta app_red sigma in
+     let sigma, app_red = delta app_red sigma in
+     let sigma, app_red = reduce_term env sigma app_red in
      if l.is_fwd then
-       let f = first_fun app in
+       let f = first_fun app_red in
        let sigma, args =
          (* simplify projections of existentials (TODO move?) *)
          map_state
@@ -846,31 +846,32 @@ let lift_constr env sigma c trm =
                  proj_a env sigma a_inner
              else
                sigma, a)
-           (unfold_args app)
+           (unfold_args app_red)
            sigma
        in sigma, (mkAppl (f, args))
      else
-       let ex_eq = dest_existT app in
+       let ex_eq = dest_existT app_red in
        let ex = dest_existT ex_eq.index in
-       let sigma, (unpacked, h_eq) =
-         let f', args' = destApp ex.unpacked in
-         let sigma, args'' =
-           map_state_array
-             (fun a sigma ->
-               let sigma_right, is_from_o = type_is_from c env a sigma in
-               if Option.has_some is_from_o then
-                 let typ_args = Option.get is_from_o in
-                 lift env (get_lifting (reverse c)) a typ_args sigma_right 
-               else
-                 sigma, a)
-             args'
-             sigma
-         in
-         let b = mkApp (f', args'') in
-         sigma, (b, ex_eq.unpacked)
+       let f', args' = destApp ex.unpacked in
+       let sigma, args'' =
+         map_state_array
+           (fun a sigma ->
+             let sigma_right, is_from_o = type_is_from c env a sigma in
+             if Option.has_some is_from_o then
+               let typ_args = Option.get is_from_o in
+               lift env (get_lifting (reverse c)) a typ_args sigma_right 
+             else
+               sigma, a)
+           args'
+           sigma
        in
-       let index = pack_existT { ex with unpacked } in
-       (sigma, pack_existT { ex_eq with index; unpacked = h_eq })
+       if List.for_all2 equal (Array.to_list args') (Array.to_list args'') then
+         (* base case *)
+         sigma, app
+       else
+         let unpacked = mkApp (f', args'') in
+         let index = pack_existT { ex with unpacked } in
+         sigma, pack_existT { ex_eq with index }
   | CurryRecord ->
      (* no inductive cases, so don't try to refold *)
      reduce_nf env sigma app

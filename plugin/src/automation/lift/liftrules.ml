@@ -75,11 +75,6 @@ open Hofs
  *
  * 7. ConstLazyDelta: This optimization skips delta-reduction for some
  *    contants. It is similar to AppLazyDelta. This carries the constant.
- *
- * 8. SmartLiftConstr: For certain equivalences, we can configure a faster
- *    version of LiftConstr. This rule fires when we've determined a faster
- *    version to run in its place. This carries the cached lifted constructor
- *    and the arguments.
  *)
 type lift_optimization =
 | GlobalCaching of constr
@@ -89,7 +84,6 @@ type lift_optimization =
 | LazyEta of constr
 | AppLazyDelta of constr * constr array
 | ConstLazyDelta of Names.Constant.t Univ.puniverses
-| SmartLiftConstr of constr * constr list
                                      
 (*
  * We compile Gallina to a language that matches our premises for the rules
@@ -156,8 +150,7 @@ let terminate_eqv c prev_rules args_o env =
   List.exists
     (fun prev_rule ->
       match prev_rule with
-      | Optimization (SmartLiftConstr _) ->
-         (* TODO *)
+      | LiftConstr _ when (not l.is_fwd) && l.orn.kind = UnpackSigma ->
          true
       | Equivalence (_, args') when List.length args = List.length args' ->
          List.for_all2 equal args args'
@@ -181,10 +174,38 @@ let is_equivalence c env trm prev_rules sigma =
       sigma, None
   else
     sigma, None
-                                                   
+
+(* Termination condition for LIFT-CONSTR *)
+let terminate_constr c prev_rules lifted_constr args env trm sigma =
+  let l = get_lifting c in
+  exists_state
+    (fun prev_rule sigma ->
+      match prev_rule with
+      | LiftConstr (simplify, (lifted_constr', args')) ->
+         if equal lifted_constr lifted_constr' then
+           if List.for_all2 equal args args' then
+             sigma, true
+           else if l.orn.kind = UnpackSigma && not l.is_fwd then
+             let sigma, constr_app = simplify env sigma (mkAppl (lifted_constr', args')) in
+             if is_or_applies existT constr_app then
+               let ex = dest_existT constr_app in
+               let index_ex = dest_existT ex.index in
+               let unpacked = index_ex.unpacked in
+               let unpacked_args = unfold_args unpacked in
+               exists_state (fun a sigma -> sigma, is_or_applies (lift_back l) a) unpacked_args sigma
+             else
+               sigma, false
+           else
+             sigma, false
+         else
+           sigma, false
+      | _ -> sigma, false)
+    prev_rules
+    sigma
+             
 (* Premises for LIFT-CONSTR *)
 (* TODO use ID rules, and mvoe out id rules from constr if possible *)
-let is_packed_constr c env sigma trm =
+let is_packed_constr c prev_rules env trm sigma =
   let l = get_lifting c in
   let constrs = get_constrs c in
   let is_packed_inductive_constr unpack trm =
@@ -238,19 +259,25 @@ let is_packed_constr c env sigma trm =
     in
     if Option.has_some i_and_args_o then
       let i, args = Option.get i_and_args_o in
-      sigma, Some (i, args, reduce_constr_app c)
+      let lifted_constr = (get_lifted_constrs c).(i) in
+      let sigma, terminate = terminate_constr c prev_rules lifted_constr args env trm sigma in
+      if not terminate then
+        sigma, Some (lifted_constr, args, reduce_constr_app c)
+      else
+        sigma, None
     else
       sigma, None
   else
     sigma, None
 
 (* Termination condition for COHERENCE *)
-let terminate_coh prev_rules proj_o env trm sigma =
+let terminate_coh c prev_rules proj_o env trm sigma =
+  let l = get_lifting c in
   let proj, args, _ = Option.get proj_o in
   exists_state
     (fun prev_rule sigma ->
       match prev_rule with
-      | Optimization (SmartLiftConstr _) ->
+      | LiftConstr _ when (l.orn.kind = UnpackSigma && not l.is_fwd) ->
          (* TODO *)
          sigma, true
       | Coherence (_, (proj', args')) when equal proj proj' ->
@@ -268,7 +295,7 @@ let terminate_coh prev_rules proj_o env trm sigma =
 let is_coh c env trm prev_rules sigma =
   let sigma, to_proj_o = is_proj c env trm sigma in
   if Option.has_some to_proj_o then
-    let sigma, terminate = terminate_coh prev_rules to_proj_o env trm sigma in
+    let sigma, terminate = terminate_coh c prev_rules to_proj_o env trm sigma in
     if not terminate then
       sigma, to_proj_o
     else
@@ -277,7 +304,7 @@ let is_coh c env trm prev_rules sigma =
     sigma, None
 
 (* Termination condition for LIFT-IDENTITY *)
-let terminate_identity prev_rules args_o =
+let terminate_identity c prev_rules args_o =
   let args = Option.get args_o in
   List.exists
     (fun prev_rule ->
@@ -292,7 +319,7 @@ let terminate_identity prev_rules args_o =
 let is_identity c env trm prev_rules sigma =
   let sigma, args_o = applies_id_eta c env trm sigma in
   if Option.has_some args_o then
-    let terminate = terminate_identity prev_rules args_o in
+    let terminate = terminate_identity c prev_rules args_o in
     if not terminate then
       sigma, Some (get_lifted_id_eta c, Option.get args_o)
     else
@@ -353,12 +380,10 @@ let terminate_section_retraction c prev_rules =
   let l = get_lifting c in
   match l.orn.kind with
   | UnpackSigma when not l.is_fwd ->
+     (* TODO *)
      List.exists
        (fun prev_rule ->
          match prev_rule with
-         | Optimization (SmartLiftConstr _) ->
-            (* TODO remove *)
-            true
          | LiftConstr _ ->
             true
          | _ ->
@@ -408,22 +433,10 @@ let determine_lift_rule c env trm prev_rules sigma =
         else
           sigma, Coherence (reduce_coh c, (proj, args))
       else
-        let sigma, packed_constr_o = is_packed_constr c env sigma trm in
+        let sigma, packed_constr_o = is_packed_constr c prev_rules env trm sigma in
         if Option.has_some packed_constr_o then
-          let i, args, simplify = Option.get packed_constr_o in
-          let lifted_constr = (get_lifted_constrs c).(i) in
-          if List.length args > 0 then
-            match l.orn.kind with
-            | UnpackSigma ->
-               if l.is_fwd then
-                 sigma, LiftConstr (simplify, (lifted_constr, args))
-               else
-                 (* needed for termination (TODO remove) *)
-                 sigma, Optimization (SmartLiftConstr (lifted_constr, args))
-            | _ ->
-               sigma, LiftConstr (simplify, (lifted_constr, args))
-          else
-            sigma, LiftConstr (simplify, (lifted_constr, args))
+          let lifted_constr, args, simplify = Option.get packed_constr_o in
+          sigma, LiftConstr (simplify, (lifted_constr, args))
         else
           let sigma, is_identity_o = is_identity c env trm prev_rules sigma in
           if Option.has_some is_identity_o then

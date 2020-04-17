@@ -30,7 +30,6 @@ type lift_optimization =
 | LazyEta of constr
 | AppLazyDelta of constr * constr array
 | ConstLazyDelta of Names.Constant.t Univ.puniverses
-| SmartLiftConstr of constr * constr list
 
 (*
  * We compile Gallina to a language that matches our premises for the rules

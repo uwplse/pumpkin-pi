@@ -386,7 +386,14 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
  * it's advisable to set appropriate functions as opaque.
  *)
 let lift_app_lazy_delta c env f args lift_rec sigma =
-  let sigma, f' = lift_rec env sigma c f in
+  (* TODO remove some of me once this flow is better for constr rule: *)
+  let sigma, f' =
+    let l = get_lifting c in
+    if equal f (lift_to l) || equal f (lift_back l) then
+      sigma, f
+    else
+      lift_rec env sigma c f
+  in
   let sigma, args' = map_rec_args lift_rec env sigma c args in
   if (not (equal f f')) || Array.length args = 0 || is_opaque c f then
     sigma, mkApp (f', args')
@@ -430,32 +437,6 @@ let lift_const_lazy_delta c env (co, u) lift_rec sigma =
        sigma, trm)
   in smart_cache c trm lifted; (sigma, lifted)
 
-(*
- * Lift constructors when we can do something faster than lifting all of
- * the arguments
- *
- * TODO remove
- *)
-let lift_smart_lift_constr c env lifted_constr args lift_rec sigma =
-  let open Printing in
-  debug_term env lifted_constr "lifted_constr";
-  debug_terms env args "args";
-  let sigma, constr_app = reduce_term env sigma (mkAppl (lifted_constr, args)) in
-  debug_term env constr_app "constr_app";
-  match (get_lifting c).orn.kind with
-  | UnpackSigma ->
-     (* TODO remove, WIP need to move this and consider opaque/termination *)
-     (* TODO easy approach might be cleaning this first, and cleaning constr rules, then revisiting ... *)
-     let ex_eq = dest_existT constr_app in
-     let ex = dest_existT ex_eq.index in
-     let sigma, packer = lift_rec env sigma c ex.packer in
-     let sigma, index = lift_rec env sigma c ex.index in
-     let index = pack_existT { ex with packer; index} in
-     let sigma, packer = lift_rec env sigma c ex_eq.packer in
-     (sigma, pack_existT { ex_eq with packer; index })
-  | _ ->
-     raise NotAlgebraic
-
 (* --- Core algorithm --- *)
 
 (*
@@ -480,9 +461,6 @@ let lift_core env c trm sigma =
        lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma
     | Equivalence (f, args) ->
        lift_app_simplify c en f args reduce_term (lift_rec lift_rules) sigma
-    | Optimization (SmartLiftConstr (f, args)) ->
-       (* TODO combine w/ original liftconstr rule *)
-       lift_smart_lift_constr c en f args (lift_rec lift_rules) sigma
     | LiftConstr (simplify, (f, args)) ->
        (* TODO move etc *)
        let sigma, constr_app = simplify en sigma (mkAppl (f, args)) in
@@ -492,8 +470,6 @@ let lift_core env c trm sigma =
          sigma, constr_app
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        (* TODO still needed, once we have other rules doing this? *)
-       (*let open Printing in
-       debug_term en tr "simplify project packed";*)
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma
     | LiftElim (tr_elim, lifted_pms, nargs, opaque) ->
        if opaque then
