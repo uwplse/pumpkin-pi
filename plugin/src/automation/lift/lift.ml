@@ -386,7 +386,6 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
  * it's advisable to set appropriate functions as opaque.
  *)
 let lift_app_lazy_delta c env f args lift_rec sigma =
-  (* TODO remove some of me once this flow is better for constr rule: *)
   let sigma, f' =
     let l = get_lifting c in
     if equal f (lift_to l) || equal f (lift_back l) then
@@ -437,6 +436,31 @@ let lift_const_lazy_delta c env (co, u) lift_rec sigma =
        sigma, trm)
   in smart_cache c trm lifted; (sigma, lifted)
 
+(* Lift existential variables *)
+let lift_evar c env trm lift_rec sigma =
+  let (etrm, _) = destEvar trm in
+  let sigma, typ = Inference.infer_type env sigma trm in
+  let sigma, lifted_typ = lift_rec env sigma c typ in
+  let info = Evd.find sigma etrm in
+  let sigma, lifted_info =
+    let evar_concl = lifted_typ in
+    let sigma, evar_body =
+      match info.evar_body with
+      | Evar_empty -> sigma, Evar_empty
+      | Evar_defined bod ->
+         let sigma, lifted_bod = lift_rec env sigma c bod in
+         sigma, Evar_defined lifted_bod
+    in
+    let sigma, evar_candidates =
+      if Option.has_some info.evar_candidates then
+        let candidates = Option.get info.evar_candidates in
+        let sigma, lifted_candidates = map_rec_args_list lift_rec env sigma c candidates in
+        sigma, Some lifted_candidates
+      else
+        sigma, None
+    in sigma, { info with evar_concl; evar_body; evar_candidates }
+  in Evd.add (Evd.remove sigma etrm) etrm lifted_info, trm
+
 (* --- Core algorithm --- *)
 
 (*
@@ -462,14 +486,12 @@ let lift_core env c trm sigma =
     | Equivalence (f, args) ->
        lift_app_simplify c en f args reduce_term (lift_rec lift_rules) sigma
     | LiftConstr (simplify, (f, args)) ->
-       (* TODO move etc *)
        let sigma, constr_app = simplify en sigma (mkAppl (f, args)) in
        if List.length args > 0 then
          lift_rec lift_rules en sigma c constr_app
        else
          sigma, constr_app
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
-       (* TODO still needed, once we have other rules doing this? *)
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma
     | LiftElim (tr_elim, lifted_pms, nargs, opaque) ->
        if opaque then
@@ -488,28 +510,8 @@ let lift_core env c trm sigma =
        let lift_rec = lift_rec lift_rules in
        (match k with
         | Evar (etrm, _) ->
-           (* TODO move *)
-           let sigma, typ = Inference.infer_type en sigma tr in
-           let sigma, lifted_typ = lift_rec en sigma c typ in
-           let info = Evd.find sigma etrm in
-           let sigma, lifted_info =
-             let evar_concl = lifted_typ in
-             let sigma, evar_body =
-               match info.evar_body with
-               | Evar_empty -> sigma, Evar_empty
-               | Evar_defined bod ->
-                  let sigma, lifted_bod = lift_rec en sigma c bod in
-                  sigma, Evar_defined lifted_bod
-             in
-             let sigma, evar_candidates =
-               if Option.has_some info.evar_candidates then
-                 let candidates = Option.get info.evar_candidates in
-                 let sigma, lifted_candidates = map_rec_args_list lift_rec en sigma c candidates in
-                 sigma, Some lifted_candidates
-               else
-                 sigma, None
-             in sigma, { info with evar_concl; evar_body; evar_candidates }
-           in Evd.add (Evd.remove sigma etrm) etrm lifted_info, tr
+           (* EVAR *)
+           lift_evar c en tr lift_rec sigma
         | Cast (ca, k, t) ->
            (* CAST *)
            let sigma, ca' = lift_rec en sigma c ca in
