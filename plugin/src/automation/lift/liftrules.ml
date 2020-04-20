@@ -107,9 +107,9 @@ type lift_optimization =
  *
  * 4. LIFT-ELIM runs when we lift applications of eliminators of the type
  *    in the equivalence. This carries the application of the eliminator,
- *    the lifted parameters, and the number of arguments it expects,
- *    as well as a flag for whether to treat the entire eliminated term
- *    as opaque.
+ *    the lifted parameters, and the arguments after the eliminator (if the
+ *    motive is a product type), as well as a flag for whether to treat the
+ *    entire eliminated term as opaque.
  *
  * 5. SECTION runs when section applies.
  *
@@ -135,7 +135,7 @@ type lift_rule =
 | LiftConstr of reducer * (constr * constr list * bool)
 | LiftIdentity of reducer * (constr * constr list)
 | Coherence of reducer * (constr * constr list)
-| LiftElim of elim_app * constr list * int * bool
+| LiftElim of elim_app * constr list * constr list * bool
 | Section
 | Retraction
 | Internalize
@@ -230,66 +230,13 @@ let is_equivalence c env trm prev_rules sigma =
     sigma, None
              
 (* Premises for LIFT-CONSTR *)
-(* TODO use ID rules, and mvoe out id rules from constr if possible *)
-let is_packed_constr c prev_rules env trm sigma =
-  let l = get_lifting c in
-  let constrs = get_constrs c in
-  let is_packed_inductive_constr unpack trm opaque =
-    try
-      let unpacked = unpack trm in
-      let f = first_fun unpacked in
-      let args = unfold_args unpacked in
-      match kind f with
-      | Construct ((_, i), _) when i <= Array.length constrs ->
-         let constr = constrs.(i - 1) in
-         let constr_f = first_fun (unpack (zoom_term zoom_lambda_term env constr)) in
-         if equal constr_f f && List.length args = arity constr then
-           sigma, Some (i - 1, args, opaque)
-         else
-           sigma, None
-      | _ ->
-         sigma, None
-    with _ ->
-      sigma, None
-  in
-  if may_apply_id_eta c env trm then
-    let sigma, app_o =
-      match l.orn.kind with
-      | Algebraic _ ->
-         is_packed_inductive_constr (if l.is_fwd then id else last_arg) trm false
-      | SwapConstruct _ ->
-         is_packed_inductive_constr id trm false
-      | CurryRecord ->
-         if l.is_fwd then
-           is_packed_inductive_constr id trm false
-         else
-           (* we treat any pair of the right type as a constructor *)
-           if applies (lift_back l) trm then
-             sigma, None
-           else
-             let sigma_right, args_opt = type_is_from c env trm sigma in
-             if Option.has_some args_opt then
-               let sigma = sigma_right in
-               let constr = constrs.(0) in
-               let pms = Option.get args_opt in
-               let args = pair_projections_eta_rec_n trm (arity constr - List.length pms) in
-               sigma, Some (0, List.append pms args, false)
-             else
-               sigma, None
-      | UnpackSigma ->
-         if l.is_fwd then
-           (* TODO !! add real constr here *)
-           sigma, None
-         else
-           is_packed_inductive_constr id trm true
-    in
-    if Option.has_some app_o then
-      let i, args, opaque = Option.get app_o in
-      let lifted_constr = (get_lifted_constrs c).(i) in
-      if not (terminate_constr prev_rules lifted_constr args) then
-        sigma, Some (lifted_constr, args, reduce_constr_app c, opaque)
-      else
-        sigma, None
+let is_constr c prev_rules env trm sigma =
+  let sigma, app_o = applies_constr_eta c env trm sigma in
+  if Option.has_some app_o then
+    let i, args, opaque = Option.get app_o in
+    let lifted_constr = (get_lifted_constrs c).(i) in
+    if not (terminate_constr prev_rules lifted_constr args) then
+      sigma, Some (lifted_constr, args, reduce_constr_app c, opaque)
     else
       sigma, None
   else
@@ -318,52 +265,19 @@ let is_identity c env trm prev_rules sigma =
   else
     sigma, None
 
-(* Premises for LIFT-ELIM (TODO move more to liftconfig) *)
+(* Premises for LIFT-ELIM *)
 let is_eliminator c env trm sigma =
-  let l = get_lifting c in
-  match kind (first_fun trm) with
-  | Const (k, u) ->
-     let maybe_ind = inductive_of_elim env (k, u) in
-     if Option.has_some maybe_ind then
-       let ind = Option.get maybe_ind in
-       let is_elim = equal (mkInd (ind, 0)) (get_elim_type c) in
-       if is_elim then
-         let sigma, trm_eta = expand_eta env sigma trm in
-         let env_elim, trm_b = zoom_lambda_term env trm_eta in
-         let do_eta = new_rels2 env_elim env > 0 in
-         let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm_b in
-         let (a_typ, _) = get_types c in
-         let sigma, a_typ_eta = expand_eta env sigma a_typ in
-         let a_arity = arity a_typ_eta in
-         let nargs =
-           match l.orn.kind with
-           | Algebraic _ | SwapConstruct _ | UnpackSigma ->
-              a_arity - (List.length trm_elim.pms) + 1
-           | CurryRecord ->
-              1
-         in
-         if (not l.is_fwd) && l.orn.kind = CurryRecord then
-           let (final_args, post_args) = take_split 1 trm_elim.final_args in
-           let sigma, is_from = type_is_from c env_elim (List.hd final_args) sigma in
-           if Option.has_some is_from then
-             sigma, Some (do_eta, trm_eta, trm_elim, Option.get is_from, nargs, false)
-           else
-             sigma, None
-         else
-           if l.orn.kind = CurryRecord then
-             let typ_f = first_fun (zoom_term zoom_lambda_term env_elim (snd (get_types c))) in
-             let sigma, to_typ_prod = specialize_delta_f env_elim typ_f trm_elim.pms sigma in
-             let to_elim = dest_prod to_typ_prod in
-             let pms = [to_elim.Produtils.typ1; to_elim.Produtils.typ2] in
-             sigma, Some (do_eta, trm_eta, trm_elim, pms, nargs, false)
-           else
-             sigma, Some (do_eta, trm_eta, trm_elim, trm_elim.pms, nargs, l.orn.kind = UnpackSigma)
-       else
-         sigma, None
-     else
-       sigma, None
-  | _ ->
-     sigma, None
+  let sigma, elim_app_o = applies_elim c env trm sigma in
+  if Option.has_some elim_app_o then
+    let eta_o, trm_elim, pms, nargs, opaque = Option.get elim_app_o in
+    if Option.has_some eta_o then
+      (* Lazy eta *)
+      sigma, Some (eta_o, None)
+    else
+      (* Already eta-expanded *)
+      sigma, Some (None, Some (trm_elim, pms, nargs, opaque))
+  else
+    sigma, None
 
 (*
  * SECTION / RETRACTION
@@ -409,9 +323,9 @@ let determine_lift_rule c env trm prev_rules sigma =
         else
           sigma, Coherence (reduce_coh c, (proj, args))
       else
-        let sigma, packed_constr_o = is_packed_constr c prev_rules env trm sigma in
-        if Option.has_some packed_constr_o then
-          let f, args, simplify, opaque = Option.get packed_constr_o in
+        let sigma, constr_o = is_constr c prev_rules env trm sigma in
+        if Option.has_some constr_o then
+          let f, args, simplify, opaque = Option.get constr_o in
           sigma, LiftConstr (simplify, (f, args, opaque))
         else
           let sigma, is_identity_o = is_identity c env trm prev_rules sigma in
@@ -421,11 +335,14 @@ let determine_lift_rule c env trm prev_rules sigma =
           else
             let sigma, is_elim_o = is_eliminator c env trm sigma in
             if Option.has_some is_elim_o then
-              let is_eta, trm_eta, trm_elim, pms, nargs, opaque = Option.get is_elim_o in
-              if is_eta then
-                sigma, Optimization (LazyEta trm_eta)
+              let eta_o, elim_app_o = Option.get is_elim_o in
+              if Option.has_some eta_o then
+                sigma, Optimization (LazyEta (Option.get eta_o))
               else
-                sigma, LiftElim (trm_elim, pms, nargs, opaque)
+                let trm_elim, pms, nargs, opaque = Option.get elim_app_o in
+                let args = take_split nargs trm_elim.final_args in
+                let trm_elim = { trm_elim with final_args = fst args } in
+                sigma, LiftElim (trm_elim, pms, snd args, opaque)
             else
               match kind trm with
               | App (f, args) ->

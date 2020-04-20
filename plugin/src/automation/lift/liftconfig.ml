@@ -27,6 +27,7 @@ open Equtils
 open Idutils
 open Convertibility
 open Unificationutils
+open Indutils
 
 (*
  * Lifting configuration: Includes the lifting, types, and cached rules
@@ -633,9 +634,124 @@ let applies_id_eta c env trm sigma =
     sigma, None
 
 (*
- * Get the cached lifted identity function
+ * Get the lifted identity function
  *)
 let get_lifted_id_eta c = snd c.id_rules
+
+(*
+ * Check if a term applies the eta-expanded constructor
+ * Part of LIFT-CONSTR, basically a speedup over unification rather than
+ * using the constructor rules and unification directly
+ *)
+let applies_constr_eta c env trm sigma =
+  let l = get_lifting c in
+  let constrs = get_constrs c in
+    let is_inductive_constr project trm opaque =
+    (* Helper function, faster than unifying with constructor rules *)
+    try
+      let unpacked = project trm in
+      let f = first_fun unpacked in
+      let args = unfold_args unpacked in
+      match kind f with
+      | Construct ((_, i), _) when i <= Array.length constrs ->
+         let constr = constrs.(i - 1) in
+         let f' = first_fun (project (zoom_term zoom_lambda_term env constr)) in
+         if equal f f' && List.length args = arity constr then
+           sigma, Some (i - 1, args, opaque)
+         else
+           sigma, None
+      | _ ->
+         sigma, None
+    with _ ->
+      sigma, None
+  in
+  if may_apply_id_eta c env trm then
+    match l.orn.kind with
+    | Algebraic _ ->
+       is_inductive_constr (if l.is_fwd then id else last_arg) trm false
+    | SwapConstruct _ ->
+       is_inductive_constr id trm false
+    | CurryRecord ->
+       if l.is_fwd then
+         is_inductive_constr id trm false
+       else
+         if applies (lift_back l) trm then
+           sigma, None
+         else
+           (* we treat any pair of the right type as a constructor *)
+           let sigma_right, args_opt = type_is_from c env trm sigma in
+           if Option.has_some args_opt then
+             let sigma = sigma_right in
+             let constr = constrs.(0) in
+             let pms = Option.get args_opt in
+             let npm = List.length pms in
+             let args = pair_projections_eta_rec_n trm (arity constr - npm) in
+             sigma, Some (0, List.append pms args, false)
+           else
+             sigma, None
+    | UnpackSigma ->
+       if l.is_fwd then
+         (* TODO !! add real constr here *)
+         sigma, None
+       else
+         is_inductive_constr id trm true
+  else
+    sigma, None
+
+(*
+ * Check if the term applies the eliminator
+ * If so return the eliminator application, parameters, and the arity
+ * of the motive (the number of "final arguments" after inducting over
+ * the term)
+ *)
+let applies_elim c env trm sigma =
+  let l = get_lifting c in
+  match kind (first_fun trm) with
+  | Const (k, u) ->
+     let maybe_ind = inductive_of_elim env (k, u) in
+     if Option.has_some maybe_ind then
+       let ind = Option.get maybe_ind in
+       let elim_typ = get_elim_type c in
+       if equal (mkInd (ind, 0)) elim_typ then
+         let sigma, trm_eta = expand_eta env sigma trm in
+         let env_elim, trm_b = zoom_lambda_term env trm_eta in
+         let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm_b in
+         let sigma, elim_app_o =
+           match l.orn.kind with
+           | Algebraic _ | SwapConstruct _ | UnpackSigma ->
+              let sigma, elim_typ_eta = expand_eta env sigma elim_typ in
+              let nargs = (arity elim_typ_eta) - (List.length trm_elim.pms) + 1 in
+              sigma, Some (trm_elim, trm_elim.pms, nargs)
+           | CurryRecord ->
+              let nargs = 1 in
+              if l.is_fwd then
+                let typ_f = first_fun (zoom_term zoom_lambda_term env_elim (snd (get_types c))) in
+                let sigma, to_typ_prod = specialize_delta_f env_elim typ_f trm_elim.pms sigma in
+                let to_elim = dest_prod to_typ_prod in
+                let pms = [to_elim.Produtils.typ1; to_elim.Produtils.typ2] in
+                sigma, Some (trm_elim, pms, nargs)
+              else
+                let sigma, is_from = type_is_from c env_elim (List.hd trm_elim.final_args) sigma in
+                if Option.has_some is_from then
+                  sigma, Some (trm_elim, Option.get is_from, nargs)
+                else
+                  sigma, None
+         in
+         if Option.has_some elim_app_o then
+           let trm_elim, pms, nargs = Option.get elim_app_o in
+           let opaque = (l.orn.kind = UnpackSigma) in
+           if new_rels2 env_elim env > 0 then
+             sigma, Some (Some trm_eta, trm_elim, pms, nargs, opaque)
+           else
+             sigma, Some (None, trm_elim, pms, nargs, opaque)
+         else
+           sigma, None
+       else
+         sigma, None
+     else
+       sigma, None
+  | _ ->
+     sigma, None
 
 (* --- Initialization --- *)
 

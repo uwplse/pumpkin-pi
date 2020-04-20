@@ -386,13 +386,7 @@ let lift_simplify_project_id c env reduce f args lift_rec sigma =
  * it's advisable to set appropriate functions as opaque.
  *)
 let lift_app_lazy_delta c env f args lift_rec sigma =
-  let sigma, f' =
-    let l = get_lifting c in
-    if equal f (lift_to l) || equal f (lift_back l) then
-      sigma, f
-    else
-      lift_rec env sigma c f
-  in
+  let sigma, f' = lift_rec env sigma c f in
   let sigma, args' = map_rec_args lift_rec env sigma c args in
   if (not (equal f f')) || Array.length args = 0 || is_opaque c f then
     sigma, mkApp (f', args')
@@ -496,15 +490,15 @@ let lift_core env c trm sigma =
            sigma, constr_app
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma
-    | LiftElim (tr_elim, lifted_pms, nargs, opaque) ->
+    | LiftElim (tr_elim, pms, args, opaque) ->
        if opaque then
-         sigma, tr
+         let f = apply_eliminator tr_elim in
+         lift_app_simplify c en f args reduce_term (lift_rec lift_rules) sigma
        else
-         let (final_args, post_args) = take_split nargs tr_elim.final_args in
-         let sigma, tr' = lift_elim en sigma c { tr_elim with final_args } lifted_pms in
+         let sigma, tr' = lift_elim en sigma c tr_elim pms in
          let sigma, tr'' = lift_rec lift_rules en sigma c tr' in
-         let sigma, post_args' = map_rec_args_list (lift_rec lift_rules) en sigma c post_args in
-         sigma, mkAppl (tr'', post_args')
+         let sigma, args' = map_rec_args_list (lift_rec lift_rules) en sigma c args in
+         sigma, mkAppl (tr'', args')
     | Optimization (AppLazyDelta (f, args)) ->
        lift_app_lazy_delta c en f args (lift_rec lift_rules) sigma
     | Optimization (ConstLazyDelta (co, u)) ->

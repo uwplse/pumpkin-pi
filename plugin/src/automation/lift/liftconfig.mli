@@ -4,6 +4,7 @@ open Environ
 open Evd
 open Stateutils
 open Reducers
+open Indutils
 
 (*
  * Lifting configuration: Includes the lifting, types, and cached rules
@@ -132,13 +133,42 @@ val reduce_constr_app : lift_config -> reducer
  * If so, return the the arguments
  *)
 val applies_id_eta :
-  lift_config -> env ->  constr -> evar_map -> ((constr list) option) state
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  ((constr list) option) state
 
 (*
- * Get the cached lifted identity function
+ * Check if the term applies the eta-expanded identity function
+ * If so, return the the constructor index, arguments, and whether to treat
+ * the constructor as opaque when lifting recursively
  *)
-val get_lifted_id_eta :
-  lift_config -> constr
+val applies_constr_eta :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  ((int * (constr list) * bool) option) state
+
+(*
+ * Check if the term applies the eliminator
+ * If so return the eta-expanded term, the eliminator application, the
+ * parameters, and the arity of the motive (the number of "final arguments"
+ * after inducting over the term), as well as whether to treat the eliminator
+ * application as opaque when lifting recursively
+ *)
+val applies_elim :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  ((constr option * elim_app * constr list * int * bool) option) state
+                                        
+(*
+ * Get the cached  lifted identity function
+ *)
+val get_lifted_id_eta : lift_config -> constr
 
 (* --- Smart simplification --- *)
 
