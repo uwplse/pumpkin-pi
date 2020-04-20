@@ -141,7 +141,19 @@ type lift_rule =
 | Optimization of lift_optimization
 | CIC of (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
 
-(* --- Premises --- *)
+(* --- Termination conditions --- *)
+
+(*
+ * DEVOID supports some equivalences where the the type B refers in some
+ * way to the type A. Work support these equivalences is preliminary,
+ * but the way that DEVOID currently handles this is by threading the
+ * history of the lifting operation through each recursive call.
+ * When appropriate, based on the history, for certain rules,
+ * certain termination conditions fire. If those conditions fire, we
+ * skip those rules and continue.
+ *
+ * TODO remove unecessary ones
+ *)
 
 (* Termination condition for EQUIVALENCE *)
 let terminate_eqv c prev_rules args_o env =
@@ -151,15 +163,99 @@ let terminate_eqv c prev_rules args_o env =
     (fun prev_rule ->
       match prev_rule with
       | LiftConstr _ when (not l.is_fwd) && l.orn.kind = UnpackSigma ->
+         (* the lifted constructor refers to the unlifted type *)
          true
       | Equivalence (_, args') when List.length args = List.length args' ->
+         (* the lifted type refers to the unlifted type *)
          List.for_all2 equal args args'
       | Coherence (_, (p, _)) when (not l.is_fwd) && l.orn.kind = UnpackSigma ->
+         (* the lifted application refers to the unlifted type *)
          let p_body = zoom_term zoom_lambda_term env p in
          is_or_applies existT p_body
       | _ ->
          false)
     prev_rules
+
+(* Termination condition for LIFT-CONSTR *)
+let terminate_constr c prev_rules f args env trm sigma =
+  let l = get_lifting c in
+  exists_state
+    (fun prev_rule sigma ->
+      match prev_rule with
+      | LiftConstr (simplify, (f', args')) when equal f f' ->
+         if List.for_all2 equal args args' then
+           (* the lifted contructor refers to the unlifted constructor *)
+           sigma, true
+         else if l.orn.kind = UnpackSigma && not l.is_fwd then
+           (* the lifted contructor refers to the unlifted constructor *)
+           let sigma, constr_app = simplify env sigma (mkAppl (f', args')) in
+           if is_or_applies existT constr_app then
+             let ex = dest_existT constr_app in
+             let index_ex = dest_existT ex.index in
+             let unpacked = index_ex.unpacked in
+             let unpacked_args = unfold_args unpacked in
+             sigma, List.exists (is_or_applies (lift_back l)) unpacked_args
+           else
+             sigma, false
+         else
+           sigma, false
+      | _ -> sigma, false)
+    prev_rules
+    sigma
+
+ (* Termination condition for COHERENCE *)
+let terminate_coh c prev_rules proj_o env trm sigma =
+  let l = get_lifting c in
+  let proj, args, _ = Option.get proj_o in
+  exists_state
+    (fun prev_rule sigma ->
+      match prev_rule with
+      | LiftConstr _ when l.orn.kind = UnpackSigma && not l.is_fwd ->
+         (* TODO move to opaque *)
+         sigma, true
+      | Coherence (_, (proj', args')) when equal proj proj' ->
+         if List.for_all2 equal args args' then
+           sigma, true
+         else
+           let sigma, projected = reduce_term env sigma (mkAppl (proj', args')) in
+           sigma, equal trm projected
+      | _ ->
+         sigma, false)
+    prev_rules
+    sigma
+
+(* Termination condition for LIFT-IDENTITY *)
+let terminate_identity c prev_rules args_o =
+  let args = Option.get args_o in
+  List.exists
+    (fun prev_rule ->
+      match prev_rule with
+      | LiftIdentity (_, (_, args')) ->
+         List.for_all2 equal args args'
+      | _ ->
+         false)
+    prev_rules
+
+(*
+ * Termination condition for SECTION / RETRACTION
+ *)
+let terminate_section_retraction c prev_rules =
+  let l = get_lifting c in
+  match l.orn.kind with
+  | UnpackSigma when not l.is_fwd ->
+     (* TODO *)
+     List.exists
+       (fun prev_rule ->
+         match prev_rule with
+         | LiftConstr _ ->
+            true
+         | _ ->
+            false)
+       prev_rules
+  | _ ->
+     false
+
+(* --- Premises --- *)
 
 (* Premises for EQUIVALENCE *)
 let is_equivalence c env trm prev_rules sigma =
@@ -174,34 +270,6 @@ let is_equivalence c env trm prev_rules sigma =
       sigma, None
   else
     sigma, None
-
-(* Termination condition for LIFT-CONSTR *)
-let terminate_constr c prev_rules lifted_constr args env trm sigma =
-  let l = get_lifting c in
-  exists_state
-    (fun prev_rule sigma ->
-      match prev_rule with
-      | LiftConstr (simplify, (lifted_constr', args')) ->
-         if equal lifted_constr lifted_constr' then
-           if List.for_all2 equal args args' then
-             sigma, true
-           else if l.orn.kind = UnpackSigma && not l.is_fwd then
-             let sigma, constr_app = simplify env sigma (mkAppl (lifted_constr', args')) in
-             if is_or_applies existT constr_app then
-               let ex = dest_existT constr_app in
-               let index_ex = dest_existT ex.index in
-               let unpacked = index_ex.unpacked in
-               let unpacked_args = unfold_args unpacked in
-               exists_state (fun a sigma -> sigma, is_or_applies (lift_back l) a) unpacked_args sigma
-             else
-               sigma, false
-           else
-             sigma, false
-         else
-           sigma, false
-      | _ -> sigma, false)
-    prev_rules
-    sigma
              
 (* Premises for LIFT-CONSTR *)
 (* TODO use ID rules, and mvoe out id rules from constr if possible *)
@@ -254,7 +322,7 @@ let is_packed_constr c prev_rules env trm sigma =
          if l.is_fwd then
            (* TODO add real constr here *)
            sigma, None
-         else (* <-- TODO correct or not? needed? also, this is slow *)
+         else
            is_packed_inductive_constr id trm
     in
     if Option.has_some i_and_args_o then
@@ -269,27 +337,6 @@ let is_packed_constr c prev_rules env trm sigma =
       sigma, None
   else
     sigma, None
-
-(* Termination condition for COHERENCE *)
-let terminate_coh c prev_rules proj_o env trm sigma =
-  let l = get_lifting c in
-  let proj, args, _ = Option.get proj_o in
-  exists_state
-    (fun prev_rule sigma ->
-      match prev_rule with
-      | LiftConstr _ when (l.orn.kind = UnpackSigma && not l.is_fwd) ->
-         (* TODO *)
-         sigma, true
-      | Coherence (_, (proj', args')) when equal proj proj' ->
-         if List.for_all2 equal args args' then
-           sigma, true
-         else
-           let sigma, projected = reduce_term env sigma (mkAppl (proj', args')) in
-           sigma, equal trm projected
-      | _ ->
-         sigma, false)
-    prev_rules
-    sigma
              
 (* Premises for COHERENCE *)
 let is_coh c env trm prev_rules sigma =
@@ -302,18 +349,6 @@ let is_coh c env trm prev_rules sigma =
       sigma, None
   else
     sigma, None
-
-(* Termination condition for LIFT-IDENTITY *)
-let terminate_identity c prev_rules args_o =
-  let args = Option.get args_o in
-  List.exists
-    (fun prev_rule ->
-      match prev_rule with
-      | LiftIdentity (_, (_, args')) ->
-         List.for_all2 equal args args'
-      | _ ->
-         false)
-    prev_rules
 
 (* Premises for LIFT-IDENTITY *)
 let is_identity c env trm prev_rules sigma =
@@ -372,25 +407,6 @@ let is_eliminator c env trm sigma =
        sigma, None
   | _ ->
      sigma, None
-
-(*
- * Termination condition for SECTION / RETRACTION
- *)
-let terminate_section_retraction c prev_rules =
-  let l = get_lifting c in
-  match l.orn.kind with
-  | UnpackSigma when not l.is_fwd ->
-     (* TODO *)
-     List.exists
-       (fun prev_rule ->
-         match prev_rule with
-         | LiftConstr _ ->
-            true
-         | _ ->
-            false)
-       prev_rules
-  | _ ->
-     false
 
 (*
  * SECTION / RETRACTION
