@@ -96,7 +96,8 @@ type lift_optimization =
  * 2. LIFT-CONSTR runs when we lift constructors of the type in the equivalence.
  *    This carries the lifted constructor and the arguments, as well as a custom
  *    reduction function to apply the constructor to the arguments prior to
- *    lifting the result.
+ *    lifting the result, as well as a flag for whether the lifted constructor
+ *    should be treated asopaque.
  *
  * 3. COHERENCE runs when we lift projections of the type in the equivalence
  *    (either at the term or type level). This carries the term we are
@@ -131,7 +132,7 @@ type lift_optimization =
  *)
 type lift_rule =
 | Equivalence of constr * constr list
-| LiftConstr of reducer * (constr * constr list)
+| LiftConstr of reducer * (constr * constr list * bool)
 | LiftIdentity of reducer * (constr * constr list)
 | Coherence of reducer * (constr * constr list)
 | LiftElim of elim_app * constr list * int * bool
@@ -152,72 +153,48 @@ type lift_rule =
  * certain termination conditions fire. If those conditions fire, we
  * skip those rules and continue.
  *
- * TODO remove unecessary ones
+ * This can also help us catch bugs in lifting by preventing infinite
+ * recursion when we would otherwise accidentally recurse on the same subterm
+ * over and over again.
  *)
 
 (* Termination condition for EQUIVALENCE *)
-let terminate_eqv c prev_rules args_o env =
-  let l = get_lifting c in
+let terminate_eqv prev_rules args_o =
   let args = Option.get args_o in
   List.exists
     (fun prev_rule ->
       match prev_rule with
-      | LiftConstr _ when (not l.is_fwd) && l.orn.kind = UnpackSigma ->
-         (* the lifted constructor refers to the unlifted type *)
-         true
       | Equivalence (_, args') when List.length args = List.length args' ->
          (* the lifted type refers to the unlifted type *)
          List.for_all2 equal args args'
-      | Coherence (_, (p, _)) when (not l.is_fwd) && l.orn.kind = UnpackSigma ->
-         (* the lifted application refers to the unlifted type *)
-         let p_body = zoom_term zoom_lambda_term env p in
-         is_or_applies existT p_body
       | _ ->
          false)
     prev_rules
 
 (* Termination condition for LIFT-CONSTR *)
-let terminate_constr c prev_rules f args env trm sigma =
-  let l = get_lifting c in
-  exists_state
-    (fun prev_rule sigma ->
+let terminate_constr prev_rules f args=
+  List.exists
+    (fun prev_rule ->
       match prev_rule with
-      | LiftConstr (simplify, (f', args')) when equal f f' ->
-         if List.for_all2 equal args args' then
-           (* the lifted contructor refers to the unlifted constructor *)
-           sigma, true
-         else if l.orn.kind = UnpackSigma && not l.is_fwd then
-           (* the lifted contructor refers to the unlifted constructor *)
-           let sigma, constr_app = simplify env sigma (mkAppl (f', args')) in
-           if is_or_applies existT constr_app then
-             let ex = dest_existT constr_app in
-             let index_ex = dest_existT ex.index in
-             let unpacked = index_ex.unpacked in
-             let unpacked_args = unfold_args unpacked in
-             sigma, List.exists (is_or_applies (lift_back l)) unpacked_args
-           else
-             sigma, false
-         else
-           sigma, false
-      | _ -> sigma, false)
+      | LiftConstr (simplify, (f', args', opaque)) when equal f f' ->
+         (* the lifted contructor refers to the unlifted constructor *)
+         equal f f' && List.for_all2 equal args args'
+      | _ ->
+         false)
     prev_rules
-    sigma
 
  (* Termination condition for COHERENCE *)
-let terminate_coh c prev_rules proj_o env trm sigma =
-  let l = get_lifting c in
-  let proj, args, _ = Option.get proj_o in
+let terminate_coh prev_rules proj_o env trm sigma =
+  let f, args, _ = Option.get proj_o in
   exists_state
     (fun prev_rule sigma ->
       match prev_rule with
-      | LiftConstr _ when l.orn.kind = UnpackSigma && not l.is_fwd ->
-         (* TODO move to opaque *)
-         sigma, true
-      | Coherence (_, (proj', args')) when equal proj proj' ->
+      | Coherence (_, (f', args')) when equal f f' ->
+         (* the lifted applications refers to the unlifted application *)
          if List.for_all2 equal args args' then
            sigma, true
          else
-           let sigma, projected = reduce_term env sigma (mkAppl (proj', args')) in
+           let sigma, projected = reduce_term env sigma (mkAppl (f', args')) in
            sigma, equal trm projected
       | _ ->
          sigma, false)
@@ -225,35 +202,17 @@ let terminate_coh c prev_rules proj_o env trm sigma =
     sigma
 
 (* Termination condition for LIFT-IDENTITY *)
-let terminate_identity c prev_rules args_o =
+let terminate_identity prev_rules args_o =
   let args = Option.get args_o in
   List.exists
     (fun prev_rule ->
       match prev_rule with
       | LiftIdentity (_, (_, args')) ->
+         (* The lifted eta-expanded identity refers to unlifted identity *)
          List.for_all2 equal args args'
       | _ ->
          false)
     prev_rules
-
-(*
- * Termination condition for SECTION / RETRACTION
- *)
-let terminate_section_retraction c prev_rules =
-  let l = get_lifting c in
-  match l.orn.kind with
-  | UnpackSigma when not l.is_fwd ->
-     (* TODO *)
-     List.exists
-       (fun prev_rule ->
-         match prev_rule with
-         | LiftConstr _ ->
-            true
-         | _ ->
-            false)
-       prev_rules
-  | _ ->
-     false
 
 (* --- Premises --- *)
 
@@ -261,8 +220,7 @@ let terminate_section_retraction c prev_rules =
 let is_equivalence c env trm prev_rules sigma =
   let sigma, args_o = is_from c env trm sigma in
   if Option.has_some args_o then
-    let terminates = terminate_eqv c prev_rules args_o env in
-    if not terminates then
+    if not (terminate_eqv prev_rules args_o) then
       let (a_typ, b_typ) = get_types c in
       let typ = if (get_lifting c).is_fwd then b_typ else a_typ in
       sigma, Some (typ, Option.get args_o)
@@ -276,7 +234,7 @@ let is_equivalence c env trm prev_rules sigma =
 let is_packed_constr c prev_rules env trm sigma =
   let l = get_lifting c in
   let constrs = get_constrs c in
-  let is_packed_inductive_constr unpack trm =
+  let is_packed_inductive_constr unpack trm opaque =
     try
       let unpacked = unpack trm in
       let f = first_fun unpacked in
@@ -286,7 +244,7 @@ let is_packed_constr c prev_rules env trm sigma =
          let constr = constrs.(i - 1) in
          let constr_f = first_fun (unpack (zoom_term zoom_lambda_term env constr)) in
          if equal constr_f f && List.length args = arity constr then
-           sigma, Some (i - 1, args)
+           sigma, Some (i - 1, args, opaque)
          else
            sigma, None
       | _ ->
@@ -295,15 +253,15 @@ let is_packed_constr c prev_rules env trm sigma =
       sigma, None
   in
   if may_apply_id_eta c env trm then
-    let sigma, i_and_args_o =
+    let sigma, app_o =
       match l.orn.kind with
       | Algebraic _ ->
-         is_packed_inductive_constr (if l.is_fwd then id else last_arg) trm
+         is_packed_inductive_constr (if l.is_fwd then id else last_arg) trm false
       | SwapConstruct _ ->
-         is_packed_inductive_constr id trm
+         is_packed_inductive_constr id trm false
       | CurryRecord ->
          if l.is_fwd then
-           is_packed_inductive_constr id trm
+           is_packed_inductive_constr id trm false
          else
            (* we treat any pair of the right type as a constructor *)
            if applies (lift_back l) trm then
@@ -315,22 +273,21 @@ let is_packed_constr c prev_rules env trm sigma =
                let constr = constrs.(0) in
                let pms = Option.get args_opt in
                let args = pair_projections_eta_rec_n trm (arity constr - List.length pms) in
-               sigma, Some (0, List.append pms args)
+               sigma, Some (0, List.append pms args, false)
              else
                sigma, None
       | UnpackSigma ->
          if l.is_fwd then
-           (* TODO add real constr here *)
+           (* TODO !! add real constr here *)
            sigma, None
          else
-           is_packed_inductive_constr id trm
+           is_packed_inductive_constr id trm true
     in
-    if Option.has_some i_and_args_o then
-      let i, args = Option.get i_and_args_o in
+    if Option.has_some app_o then
+      let i, args, opaque = Option.get app_o in
       let lifted_constr = (get_lifted_constrs c).(i) in
-      let sigma, terminate = terminate_constr c prev_rules lifted_constr args env trm sigma in
-      if not terminate then
-        sigma, Some (lifted_constr, args, reduce_constr_app c)
+      if not (terminate_constr prev_rules lifted_constr args) then
+        sigma, Some (lifted_constr, args, reduce_constr_app c, opaque)
       else
         sigma, None
     else
@@ -342,7 +299,7 @@ let is_packed_constr c prev_rules env trm sigma =
 let is_coh c env trm prev_rules sigma =
   let sigma, to_proj_o = is_proj c env trm sigma in
   if Option.has_some to_proj_o then
-    let sigma, terminate = terminate_coh c prev_rules to_proj_o env trm sigma in
+    let sigma, terminate = terminate_coh prev_rules to_proj_o env trm sigma in
     if not terminate then
       sigma, to_proj_o
     else
@@ -354,9 +311,8 @@ let is_coh c env trm prev_rules sigma =
 let is_identity c env trm prev_rules sigma =
   let sigma, args_o = applies_id_eta c env trm sigma in
   if Option.has_some args_o then
-    let terminate = terminate_identity c prev_rules args_o in
-    if not terminate then
-      sigma, Some (get_lifted_id_eta c, Option.get args_o)
+    if not (terminate_identity prev_rules args_o) then
+      sigma, Some (reduce_lifted_id c, (get_lifted_id_eta c, Option.get args_o))
     else
       sigma, None
   else
@@ -374,6 +330,7 @@ let is_eliminator c env trm sigma =
        if is_elim then
          let sigma, trm_eta = expand_eta env sigma trm in
          let env_elim, trm_b = zoom_lambda_term env trm_eta in
+         let do_eta = new_rels2 env_elim env > 0 in
          let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm_b in
          let (a_typ, _) = get_types c in
          let sigma, a_typ_eta = expand_eta env sigma a_typ in
@@ -389,7 +346,7 @@ let is_eliminator c env trm sigma =
            let (final_args, post_args) = take_split 1 trm_elim.final_args in
            let sigma, is_from = type_is_from c env_elim (List.hd final_args) sigma in
            if Option.has_some is_from then
-             sigma, Some (env_elim, trm_eta, trm_elim, Option.get is_from, nargs, false)
+             sigma, Some (do_eta, trm_eta, trm_elim, Option.get is_from, nargs, false)
            else
              sigma, None
          else
@@ -398,9 +355,9 @@ let is_eliminator c env trm sigma =
              let sigma, to_typ_prod = specialize_delta_f env_elim typ_f trm_elim.pms sigma in
              let to_elim = dest_prod to_typ_prod in
              let pms = [to_elim.Produtils.typ1; to_elim.Produtils.typ2] in
-             sigma, Some (env_elim, trm_eta, trm_elim, pms, nargs, false)
+             sigma, Some (do_eta, trm_eta, trm_elim, pms, nargs, false)
            else
-             sigma, Some (env_elim, trm_eta, trm_elim, trm_elim.pms, nargs, l.orn.kind = UnpackSigma)
+             sigma, Some (do_eta, trm_eta, trm_elim, trm_elim.pms, nargs, l.orn.kind = UnpackSigma)
        else
          sigma, None
      else
@@ -411,16 +368,19 @@ let is_eliminator c env trm sigma =
 (*
  * SECTION / RETRACTION
  *)
-let is_section_retraction c prev_rules trm =
+let is_section_retraction c trm =
   let l = get_lifting c in
-  if isApp trm && applies (lift_back l) trm then
-    not (terminate_section_retraction c prev_rules)
-  else
-    false
+  isApp trm && applies (lift_back l) trm
+
+(*
+ * INTERNALIZE
+ *)
+let is_internalize c trm =
+  let l = get_lifting c in
+  isApp trm && applies (lift_to l) trm
 
 (*
  * Given a term, determine the appropriate lift rule to run
- * TODO make prev_rules a hash
  *)
 let determine_lift_rule c env trm prev_rules sigma =
   let l = get_lifting c in
@@ -431,9 +391,9 @@ let determine_lift_rule c env trm prev_rules sigma =
     sigma, Optimization (LocalCaching (lookup_cache c trm))
   else if is_opaque c trm then
     sigma, Optimization OpaqueConstant
-  else if is_section_retraction c prev_rules trm then
+  else if is_section_retraction c trm then
     sigma, if l.is_fwd then Retraction else Section
-  else if isApp trm && applies (lift_to l) trm then
+  else if is_internalize c trm then
     sigma, Internalize
   else
     let sigma, args_o = is_equivalence c env trm prev_rules sigma in
@@ -451,18 +411,18 @@ let determine_lift_rule c env trm prev_rules sigma =
       else
         let sigma, packed_constr_o = is_packed_constr c prev_rules env trm sigma in
         if Option.has_some packed_constr_o then
-          let lifted_constr, args, simplify = Option.get packed_constr_o in
-          sigma, LiftConstr (simplify, (lifted_constr, args))
+          let f, args, simplify, opaque = Option.get packed_constr_o in
+          sigma, LiftConstr (simplify, (f, args, opaque))
         else
           let sigma, is_identity_o = is_identity c env trm prev_rules sigma in
           if Option.has_some is_identity_o then
-            let lifted_id, args = Option.get is_identity_o in
-            sigma, LiftIdentity (reduce_lifted_id c, (lifted_id, args))
+            let simplify, (f, args) = Option.get is_identity_o in
+            sigma, LiftIdentity (simplify, (f, args))
           else
             let sigma, is_elim_o = is_eliminator c env trm sigma in
             if Option.has_some is_elim_o then
-              let env_elim, trm_eta, trm_elim, pms, nargs, opaque = Option.get is_elim_o in
-              if new_rels2 env_elim env > 0 then
+              let is_eta, trm_eta, trm_elim, pms, nargs, opaque = Option.get is_elim_o in
+              if is_eta then
                 sigma, Optimization (LazyEta trm_eta)
               else
                 sigma, LiftElim (trm_elim, pms, nargs, opaque)

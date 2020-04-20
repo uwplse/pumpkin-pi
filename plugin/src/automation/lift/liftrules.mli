@@ -40,7 +40,7 @@ type lift_optimization =
  *)
 type lift_rule =
 | Equivalence of constr * constr list
-| LiftConstr of reducer * (constr * constr list)
+| LiftConstr of reducer * (constr * constr list * bool)
 | LiftIdentity of reducer * (constr * constr list)
 | Coherence of reducer * (constr * constr list)
 | LiftElim of elim_app * constr list * int * bool

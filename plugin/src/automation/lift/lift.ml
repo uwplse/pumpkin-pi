@@ -485,12 +485,15 @@ let lift_core env c trm sigma =
        lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma
     | Equivalence (f, args) ->
        lift_app_simplify c en f args reduce_term (lift_rec lift_rules) sigma
-    | LiftConstr (simplify, (f, args)) ->
-       let sigma, constr_app = simplify en sigma (mkAppl (f, args)) in
-       if List.length args > 0 then
-         lift_rec lift_rules en sigma c constr_app
+    | LiftConstr (simplify, (f, args, opaque)) ->
+       if opaque then
+         lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma
        else
-         sigma, constr_app
+         let sigma, constr_app = simplify en sigma (mkAppl (f, args)) in
+         if List.length args > 0 then
+           lift_rec lift_rules en sigma c constr_app
+         else
+           sigma, constr_app
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma
     | LiftElim (tr_elim, lifted_pms, nargs, opaque) ->
