@@ -96,6 +96,8 @@ let convertible env t1 t2 sigma =
   else
     convertible env sigma t1 t2
 
+let rev_tuple = Utilities.reverse
+
 (* --- Recover the lifting --- *)
 
 let get_lifting c = c.l
@@ -272,7 +274,6 @@ let type_from_args c env trm sigma =
     sigma
     trm
 
-
 (* --- Identity and coherence (for definitional equality) --- *)
 
 (* 
@@ -280,125 +281,103 @@ let type_from_args c env trm sigma =
  * This is COHERENCE, but cached
  *)
 let initialize_proj_rules c env sigma =
+  let l = get_lifting c in
   let init c sigma =
-    let l = get_lifting c in
+    let l = { l with is_fwd = true } in
     let sigma, lift_typ = reduce_type env sigma (lift_to l) in
     let sigma, lift_typ_inv = reduce_type env sigma (lift_back l) in
-    let env_proj = zoom_env zoom_product_type env lift_typ in
-    let env_proj_inv = zoom_env zoom_product_type env lift_typ_inv in
+    let env_a = zoom_env zoom_product_type env lift_typ in
+    let env_b = zoom_env zoom_product_type env lift_typ_inv in
     let t = mkRel 1 in
-    let sigma, typ_args = type_from_args c env_proj t sigma in
     match l.orn.kind with
-    (* TODO now redundant and messy *)
     | Algebraic (indexer, _) ->
-       if l.is_fwd then (* indexer -> projT1 *)
-         let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj_inv sigma t) in
-         let p1 = reconstruct_lambda env_proj_inv (project_index b_sig_typ t) in
-         let indexer = reconstruct_lambda env_proj (mkAppl (indexer, mk_n_rels (nb_rel env_proj))) in
-         sigma, ([(indexer, p1)], [])
-       else (* projT1 -> indexer, projT2 -> id *)
-         let args = shift_all (mk_n_rels (nb_rel env_proj - 1)) in
-         let p1 = reconstruct_lambda env_proj_inv (mkAppl (indexer, snoc t args)) in
-         let p2 = reconstruct_lambda env_proj_inv t in
-         let sigma, b_sig_typ = Util.on_snd dest_sigT (reduce_type env_proj sigma t) in
-         let projT1 = reconstruct_lambda env_proj (project_index b_sig_typ t) in
-         let projT2 = reconstruct_lambda env_proj (project_value b_sig_typ t) in
-         sigma, ([(projT1, p1); (projT2, p2)], [])
+       (* indexer <-> projT1, id <- projT2 *)
+       let sigma, b_sig = Util.on_snd dest_sigT (reduce_type env_b sigma t) in
+       let projT1 = reconstruct_lambda env_b (project_index b_sig t) in
+       let projT2 = reconstruct_lambda env_b (project_value b_sig t) in
+       let indexer =
+         let args = mk_n_rels (nb_rel env_a) in
+         reconstruct_lambda env_a (mkAppl (indexer, args))
+       in
+       let id = reconstruct_lambda env_a t in
+       let a_rules = [(indexer, projT1)], [] in
+       let b_rules = [(projT1, indexer); (projT2, id)], [] in
+       sigma, (a_rules, b_rules)
     | UnpackSigma ->
-       let env_proj, env_proj_inv = if l.is_fwd then env_proj, env_proj_inv else env_proj_inv, env_proj in
-       let sigma, b_sig_eq_typ = reduce_type env_proj sigma t in
-       let b_sig_eq_typ_app = dest_sigT b_sig_eq_typ in
-       let proj_bods = projections b_sig_eq_typ_app t in
-       let projT1, projT2 = map_tuple (reconstruct_lambda env_proj) proj_bods in
+       let sigma, a_typ = reduce_type env_a sigma t in
+       let a_sig_sig = dest_sigT a_typ in
+       let a_inner_typ = a_sig_sig.index_type in
+       let a_sig = dest_sigT a_inner_typ in
        let sigma, (index_type, index) =
-         let sigma, args = unpack_typ_args env_proj b_sig_eq_typ sigma in
+         let sigma, args = unpack_typ_args env_a a_typ sigma in
          sigma, (List.hd args, last args)
        in
-       let b_sig_typ = b_sig_eq_typ_app.index_type in
        let p1 =
-         let packer = (dest_sigT b_sig_typ).packer in
+         let packer = a_sig.packer in
          let indexer = pack_existT { index_type; packer; index; unpacked = t } in
-         reconstruct_lambda env_proj_inv indexer
+         reconstruct_lambda env_b indexer
        in
-       let p2 =
-         let eq = apply_eq_refl { typ = index_type; trm = index } in
-         reconstruct_lambda env_proj_inv eq
+       let proj_bods = projections a_sig_sig t in
+       let fwd_rules =
+         (* projT1 -> pack, projT2 -> eq_refl *)
+         let projT1, projT2 = map_tuple (reconstruct_lambda env_a) proj_bods in
+         let p2 =
+           let eq = apply_eq_refl { typ = index_type; trm = index } in
+           reconstruct_lambda env_b eq
+         in [(projT1, p1); (projT2, p2)], []
        in
-       if l.is_fwd then (* projT1 -> pack, projT2 -> eq_refl *)
-         sigma, ([(projT1, p1); (projT2, p2)], [])
-       else (* pack -> projT1, existT _ pack eq_refl -> existT _ _ projT2 *)
-         (* (we can't infer the arguments to eq_refl in more general cases,
-            and not every eq_refl n is coherence. so we need to restrict
-            our inputs to a certain format, which makes sense given the
-            self reference) TODO clean and move comment *)
-         (* TODO then for typs do we want to restrict below? *)
-         let p1_typ = reconstruct_lambda (pop_rel_context 2 env_proj) (unshift_by 2 b_sig_typ) in
-         let p2_typ = reconstruct_lambda (pop_rel_context 1 env_proj) (unshift b_sig_eq_typ_app.packer) in
-         let sigma, projT1_bwd =
-           let packer = (dest_sigT b_sig_typ).packer in
+       let sigma, bwd_rules =
+         (* pack -> projT1, pack ... eq_refl -> pack ... (rew ... in projT2) *)
+         (* in addition, opaque types so they match *)
+         let p1_typ = reconstruct_lambda (pop_rel_context 2 env_b) (unshift_by 2 a_inner_typ) in
+         let p2_typ = reconstruct_lambda (pop_rel_context 1 env_b) (unshift a_sig_sig.packer) in
+         let sigma, projT1 =
+           let packer = a_sig.packer in
            let index = mkRel 2 in
            let at_type = index_type in
            let unpacked =
-             let trm1 = project_index (dest_sigT b_sig_typ) (fst proj_bods) in
+             let trm1 = project_index a_sig (fst proj_bods) in
              let trm2 = mkRel 2 in
-             let b = project_value (dest_sigT b_sig_typ) (fst proj_bods) in
+             let b = project_value a_sig (fst proj_bods) in
              let eq = snd proj_bods in
              mkAppl (eq_rect, [at_type; trm1; packer; b; trm2; eq])
            in
            let proj_bod = pack_existT { index_type; packer; index; unpacked } in
-           sigma, reconstruct_lambda env_proj proj_bod
-         in
-         (* TODO map projT2 to something? Would that work? *)
-         sigma, ([(p1, projT1_bwd)], [(p1_typ, p1_typ); (p2_typ, p2_typ)])
+           sigma, reconstruct_lambda env_b proj_bod
+         in sigma, ([(p1, projT1)], [(p1_typ, p1_typ); (p2_typ, p2_typ)])
+       in sigma, (fwd_rules, bwd_rules)
     | CurryRecord ->
        (* accessors <-> projections *)
        let accessors =
          let (a_typ, _) = get_types c in
          let ((i, i_index), u) = destInd a_typ in
          let accessor_opts = Recordops.lookup_projections (i, i_index) in
-         let args = mk_n_rels (nb_rel env_proj) in
+         let args = mk_n_rels (nb_rel env_a) in
          try
-           List.map (fun a_o -> reconstruct_lambda env_proj (mkAppl ((mkConst (Option.get a_o)), args))) accessor_opts
+           List.map (fun a_o -> reconstruct_lambda env_a (mkAppl ((mkConst (Option.get a_o)), args))) accessor_opts
          with _ ->
            []
        in
-       let sigma, (ps, ps_to) =
-         if l.is_fwd then (* accessors -> projections *)
-           let sigma, lifted_projections =
-             let sigma, p_bodies = prod_projections_rec env_proj_inv t sigma in
-             map_state (fun p -> ret (reconstruct_lambda env_proj_inv p)) p_bodies sigma
-           in
-           sigma, (accessors, lifted_projections)
-         else (* projections -> accessors *)
-           let sigma, lifted_accessors =
-             map_state
-               (fun a sigma ->
-                 let args = shift_all (mk_n_rels (nb_rel env_proj - 1)) in
-                 let sigma, app = reduce_term env sigma (mkAppl (a, snoc t args)) in
-                 ret (reconstruct_lambda env_proj_inv app) sigma)
-               accessors
-               sigma
-           in
-           let sigma, projections =
-             let sigma, p_bodies = prod_projections_rec env_proj t sigma in
-             map_state (fun p -> ret (reconstruct_lambda env_proj p)) p_bodies sigma
-           in sigma, (projections, lifted_accessors)
+       let sigma, projections =
+         let sigma, p_bodies = prod_projections_rec env_b t sigma in
+         map_state (fun p -> ret (reconstruct_lambda env_b p)) p_bodies sigma
        in
-       if List.length ps = List.length ps_to then
-         let sigma, ps = map2_state (fun p1 p2 -> ret (p1, p2)) ps ps_to sigma in
-         sigma, (ps, [])
+       if List.length accessors = List.length projections then
+         let sigma, fwd_rules =
+           map2_state (fun p1 p2 -> ret (p1, p2)) accessors projections sigma
+         in
+         let bwd_rules = List.map rev_tuple fwd_rules in
+         sigma, ((fwd_rules, []), (bwd_rules, []))
        else
          let _ =
            Feedback.msg_warning
              (Pp.str "Can't find record accessors; skipping an optimization")
-         in sigma, ([], [])
+         in sigma, (([], []), ([], []))
     | SwapConstruct _ ->
        (* no projections *)
-       sigma, ([], [])
+       sigma, (([], []), ([], []))
   in
-  let sigma, fwd_proj_rules = init c sigma in
-  let sigma, bwd_proj_rules = init (reverse c) sigma in
-  let proj_rules = fwd_proj_rules, bwd_proj_rules in
+  let sigma, proj_rules = Util.on_snd (map_backward rev_tuple l) (init c sigma) in
   sigma, { c with proj_rules }
 
 (*
