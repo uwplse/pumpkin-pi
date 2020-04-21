@@ -334,13 +334,11 @@ let initialize_proj_rules c env sigma =
          let sigma, projT1 =
            let packer = a_sig.packer in
            let index = mkRel 2 in
-           let at_type = index_type in
            let unpacked =
-             let trm1 = project_index a_sig (fst proj_bods) in
-             let trm2 = mkRel 2 in
+             let proj_index = project_index a_sig (fst proj_bods) in
              let b = project_value a_sig (fst proj_bods) in
              let eq = snd proj_bods in
-             mkAppl (eq_rect, [at_type; trm1; packer; b; trm2; eq])
+             mkAppl (eq_rect, [index_type; proj_index; packer; b; index; eq])
            in
            let proj_bod = pack_existT { index_type; packer; index; unpacked } in
            sigma, reconstruct_lambda env_b proj_bod
@@ -682,7 +680,6 @@ let applies_id_eta c env trm sigma =
                    in pack_existT { index_type; packer; index; unpacked = h_eq }
                  in sigma, Some (snoc packed typ_args)
                else
-                 (* TODO redundant TBH *)
                  let sigma, packed =
                    if isRel trm then
                      sigma, trm
@@ -701,13 +698,11 @@ let applies_id_eta c env trm sigma =
                          if is_or_applies projT1 index_index && is_or_applies projT2 trm then
                            last_arg trm
                          else
-                           (* TODO this is p1 *)
                            let packer = b_sig.packer in
                            let index = last typ_args in
                            let unpacked = trm in
                            pack_existT { index_type; packer; index; unpacked }
                        in
-                       (* TODO this is p2 *)
                        let unpacked = apply_eq_refl { typ = index_type; trm = index_index } in
                        index, unpacked
                      in sigma, pack_existT { index_type; packer; index; unpacked }
@@ -797,9 +792,6 @@ let can_reduce_now c env trm =
  * Custom reduction function for coherence,
  * for efficiency and to ensure termination. For example, this may
  * simplify projections of existentials.
- * TODO move/explain (move some of this to specialization! maybe
- * specialize_coh taking (f, args) (but don't think c should leak into
- * specialization.ml).
  *)
 let reduce_coh c env sigma trm =
   let l = get_lifting c in
@@ -875,22 +867,6 @@ let reduce_lifted_id c env sigma trm =
   | _ ->
      sigma, trm
 
-(* TODO explain, move, extend, etc *)
-let reduce_constr_app c env sigma trm =
-  let l = get_lifting c in
-  let sigma, trm = reduce_term env sigma trm in
-  match c.l.orn.kind with
-  | Algebraic _ when l.is_fwd ->
-     (* TODO for when we remove simplify_proj_packed (first we want the constr
-        rules to operate over lifted types w/o nested references to fn though) *)
-     sigma, trm
-  | UnpackSigma when not l.is_fwd ->
-     (* TODO *)
-     sigma, trm
-  | _ ->
-     (* TODO *)
-     sigma, trm
-
 (* --- Constructors --- *)
 
 (*
@@ -916,18 +892,17 @@ let eta_constrs =
 
 (*
  * Initialize the packed constructors for each type
- * TODO use id rules to pack
  *)
 let initialize_packed_constrs c env sigma =
-  let a_typ, b_typ = c.typs in
   let l = c.l in
+  let a_typ, b_typ = c.typs in
   let sigma, a_constrs =
     match l.orn.kind with
     | Algebraic _ | CurryRecord | SwapConstruct _ ->
        eta_constrs env a_typ sigma
     | UnpackSigma ->
-       (* We create a proxy "constructor" here, though it is just a function (TODO clean/fix explanation/etc.) *)
-       let sigma, constrs = eta_constrs env (first_fun (zoom_term zoom_lambda_term env b_typ)) sigma in
+       let b_typ_inner = first_fun (zoom_term zoom_lambda_term env b_typ) in
+       let sigma, constrs = eta_constrs env b_typ_inner sigma in
        let c = if l.is_fwd then reverse c else c in
        map_state_array
          (fun constr sigma ->
@@ -973,7 +948,6 @@ let initialize_packed_constrs c env sigma =
   let bwd_constrs = if l.is_fwd then b_constrs else a_constrs in
   sigma, { c with packed_constrs = (fwd_constrs, bwd_constrs) }
 
-
 (*
  * For packing constructor aguments: Pack, but only if it's B
  *)
@@ -1018,8 +992,7 @@ let lift_constr env sigma c trm =
        (* inductive case - refold *)
        refold l env (lift_to l) app rec_args sigma
   | UnpackSigma ->
-     (* TODO move all of this stuff to refolding *)
-     (* specialized folding for a cleaner and more efficient result *)
+     (* specialized refolding for a cleaner and more efficient result *)
      let delta app = specialize_delta_f env (first_fun app) (unfold_args app) in
      let sigma, app_red = reduce_term env sigma app in
      (* delta-reduce unpack_generic(_inv) (no custom equivalence support yet) *)
@@ -1027,28 +1000,8 @@ let lift_constr env sigma c trm =
      let sigma, app_red = delta app_red sigma in
      let sigma, app_red = reduce_term env sigma app_red in
      if l.is_fwd then
-       let f = first_fun app_red in
-       let sigma, args =
-         (* simplify projections of existentials (TODO move?) *)
-         map_state
-           (fun a sigma ->
-             let how_reduce_o = can_reduce_now (reverse c) env a in
-             if Option.has_some how_reduce_o then
-               let proj_a = Option.get how_reduce_o in
-               let a_inner = last_arg a in
-               let how_reduce_o = can_reduce_now (reverse c) env a_inner in
-               if Option.has_some how_reduce_o then
-                 let proj_a_inner = Option.get how_reduce_o in
-                 let a_inner_inner = last_arg a_inner in
-                 let sigma, a_red = proj_a_inner env sigma a_inner_inner in
-                 proj_a env sigma a_red
-               else
-                 proj_a env sigma a_inner
-             else
-               sigma, a)
-           (unfold_args app_red)
-           sigma
-       in sigma, (mkAppl (f, args))
+       (* don't bother modifying; this never fires since ID rules always do, anyways *)
+       sigma, app_red
      else
        let ex_eq = dest_existT app_red in
        let ex = dest_existT ex_eq.index in
@@ -1159,12 +1112,18 @@ let applies_constr_eta c env trm sigma =
              sigma, None
     | UnpackSigma ->
        if l.is_fwd then
-         (* TODO !! add real constr here *)
+         (* ID rules always take care of this, so no need *)
          sigma, None
        else
          is_inductive_constr id trm true
   else
     sigma, None
+
+(*
+ * Custom simplification for applications of constructors
+ *)
+let reduce_constr_app c env sigma trm =
+  reduce_term env sigma trm
 
 (* --- Eliminators --- *)
 

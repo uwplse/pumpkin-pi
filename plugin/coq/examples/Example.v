@@ -310,11 +310,9 @@ Print my_nil'.
 
 Definition my_cons (T : Type) (n : nat) (v : vector T n) (t : T) := consV n t v.
 Lift vector packed in my_cons as my_cons'.
-Print my_cons'.
 
 Definition packed_cons_ex_2 (T : Type) (n : nat) (v : vector T n) (t : T) : sigT (fun (n : nat) => { s0 : sigT (vector T) & projT1 s0 = n }) :=
   existT _ (S n) (existT _ (existT (vector T) (S n) (consV n t v)) eq_refl).
-
 
 Definition packed_cons (T : Type) (n : nat) (v : vector T n) (t : T) :=
   existT _ (S n) (consV n t v).
