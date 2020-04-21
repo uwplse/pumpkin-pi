@@ -60,11 +60,6 @@ val lookup_cache : lift_config -> constr -> constr
 val get_types : lift_config -> types * types
 
 (*
- * Eliminators
- *)
-val get_elim_type : lift_config -> types
-
-(*
  * Determine if the supplied type is the type we are lifting from
  * Return the arguments if true
  *)
@@ -89,6 +84,13 @@ val type_is_from :
 val type_from_args :
   lift_config -> env -> constr -> evar_map -> (constr list) state
 
+(* --- Identity and coherence (for preserving definitional equalities) --- *)
+
+(*
+ * Get the cached  lifted identity function
+ *)
+val get_lifted_id_eta : lift_config -> constr
+
 (*
  * Check if a term applies some projection
  *)
@@ -101,32 +103,10 @@ val is_proj :
   ((constr * constr list * constr) option) state
 
 (*
- * Get the cached unlifted constructors
- *)
-val get_constrs :
-  lift_config -> constr array
-      
-(*
- * Get the cached lifted constructors
- *)
-val get_lifted_constrs :
-  lift_config -> constr array
-
-(*
  * Check if a term may apply the eta-expanded identity function,
  * but don't bother checking the type
  *)
-val may_apply_id_eta :
-  lift_config -> env -> constr -> bool
-
-(*
- * Custom reduction functions for lifted eta-expanded identity and coherence,
- * for efficiency and to ensure termination. For example, this may
- * simplify projections of existentials.
- *)
-val reduce_lifted_id : lift_config -> reducer
-val reduce_coh : lift_config -> reducer
-val reduce_constr_app : lift_config -> reducer
+val may_apply_id_eta : lift_config -> env -> constr -> bool
 
 (*
  * Check if the term applies the eta-expanded identity function
@@ -138,6 +118,19 @@ val applies_id_eta :
   constr ->
   evar_map ->
   ((constr list) option) state
+
+(* --- Constructors and eliminators --- *)
+
+(*
+ * Get the cached unlifted and lifted constructors
+ *)
+val get_constrs : lift_config -> constr array
+val get_lifted_constrs : lift_config -> constr array
+
+(*
+ * Get the type we eliminate over
+ *)
+val get_elim_type : lift_config -> types
 
 (*
  * Check if the term applies the eta-expanded identity function
@@ -164,13 +157,17 @@ val applies_elim :
   constr ->
   evar_map ->
   ((constr option * elim_app * constr list * int * bool) option) state
-                                        
-(*
- * Get the cached  lifted identity function
- *)
-val get_lifted_id_eta : lift_config -> constr
 
-(* --- Smart simplification --- *)
+(* --- Custom simplification --- *)
+                                     
+(*
+ * Custom reduction functions for lifted eta-expanded identity and coherence,
+ * for efficiency and to ensure termination. For example, this may
+ * simplify projections of existentials.
+ *)
+val reduce_lifted_id : lift_config -> reducer
+val reduce_coh : lift_config -> reducer
+val reduce_constr_app : lift_config -> reducer
 
 (*
  * Determine if we can be smarter than Coq and simplify earlier
