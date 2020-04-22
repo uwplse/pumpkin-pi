@@ -8,7 +8,6 @@ open Evd
 open Lifting
 open Stateutils
 open Reducers
-open Sigmautils
 
 (* --- Packing --- *)
 

@@ -2,8 +2,6 @@
  * Datatypes for promotions and lifting
  *)
 
-open Environ
-open Evd
 open Utilities
 open Constr
 open Apputils
@@ -21,8 +19,6 @@ open Promotion
 open Reducers
 open Equtils
 open Funutils
-open Evarconv
-open Evarutil
 open Hypotheses
 open Unificationutils
 

@@ -11,12 +11,10 @@ open Debruijn
 open Utilities
 open Indexing
 open Hypotheses
-open Names
 open Caching
 open Declarations
 open Specialization
 open Typehofs
-open Equtils
 open Indutils
 open Apputils
 open Reducers
@@ -25,12 +23,10 @@ open Funutils
 open Stateutils
 open Hofs
 open Desugarprod
-open Ornerrors
 open Promotion
 open Liftconfig
 open Liftrules
 open Sigmautils
-open Evarconv
 open Evd
 
 (*

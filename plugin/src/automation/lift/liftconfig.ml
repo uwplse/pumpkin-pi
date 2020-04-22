@@ -1,7 +1,6 @@
 open Lifting
 open Constr
 open Environ
-open Evd
 open Stateutils
 open Caching
 open Apputils
@@ -20,11 +19,8 @@ open Hypotheses
 open Declarations
 open Utilities
 open Desugarprod
-open Evarutil
-open Evarconv
 open Names
 open Equtils
-open Idutils
 open Convertibility
 open Unificationutils
 open Indutils
@@ -907,7 +903,6 @@ let initialize_packed_constrs c env sigma =
        map_state_array
          (fun constr sigma ->
            let env_c_b, c_body = zoom_lambda_term env constr in
-           let sigma, typ_args = type_from_args c env_c_b c_body sigma in
            let sigma, id_args_o = applies_id_eta c env_c_b c_body sigma in
            let lifted_id = get_lifted_id_eta c in
            let sigma, id_app = reduce_lifted_id c env_c_b sigma (mkAppl (lifted_id, Option.get id_args_o)) in

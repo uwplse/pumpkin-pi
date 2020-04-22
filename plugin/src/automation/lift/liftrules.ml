@@ -8,22 +8,11 @@ open Apputils
 open Promotion
 open Sigmautils
 open Utilities
-open Desugarprod
 open Reducers
 open Funutils
 open Stateutils
 open Hypotheses
-open Envutils
 open Indexing
-open Evd
-open Evarutil
-open Evarconv
-open Specialization
-open Debruijn
-open Names
-open Equtils
-open Environ
-open Hofs
 
 (*
  * This module takes in a Coq term that we are lifting and determines

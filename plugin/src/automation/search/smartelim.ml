@@ -15,7 +15,6 @@ open Names
 open Utilities
 open Equtils
 open Nameutils
-open Hypotheses
 
 (*
  * If the appropriate option is set, DEVOID generates useful "smart eliminators"

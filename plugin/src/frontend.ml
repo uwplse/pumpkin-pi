@@ -56,7 +56,7 @@ let define_print ?typ n trm sigma =
     Feedback.msg_info
       (str (Printf.sprintf "DEVOID generated %s" (Id.to_string n)));
     def
-  with Evarutil.Uninstantiated_evar _ -> (* TODO better error message *)
+  with Evarutil.Uninstantiated_evar _ ->
     CErrors.user_err (str "DEVOID does not fully support implicit arguments")
 
 (* --- Commands --- *)

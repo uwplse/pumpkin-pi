@@ -1,7 +1,5 @@
 open Stateutils
 open Evarutil
-open Constr
-open Funutils
 open Envutils
 open Evarconv
 open Utilities
