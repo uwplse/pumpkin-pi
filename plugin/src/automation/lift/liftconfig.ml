@@ -843,23 +843,30 @@ let reduce_lifted_id c env sigma trm =
      let sigma, index = reduce_coh c env sigma ex.index in
      let sigma, unpacked = reduce_coh c env sigma ex.unpacked in
      sigma, pack_existT { ex with index; unpacked }
-  | UnpackSigma when not l.is_fwd ->
-     let ex = dest_existT trm in
-     let sigma, index =
-       let index_ex = dest_existT ex.index in
-       let sigma, index = reduce_coh c env sigma index_ex.index in
-       let sigma, unpacked = reduce_coh c env sigma index_ex.unpacked in
-       sigma, pack_existT { index_ex with index; unpacked }
-     in
-     let sigma, unpacked =
-       let f, args = destApp ex.unpacked in
-       let sigma, args =
-         map_state_array
-           (fun trm sigma -> reduce_coh c env sigma trm)
-           args
-           sigma
-       in sigma, (mkApp (f, args))
-     in sigma, pack_existT { ex with index; unpacked }
+  | UnpackSigma ->
+     if l.is_fwd then
+       let args = unfold_args trm in
+       if is_or_applies eq_refl (last args) then
+         sigma, List.nth args 3
+       else
+         sigma, trm
+     else
+       let ex = dest_existT trm in
+       let sigma, index =
+         let index_ex = dest_existT ex.index in
+         let sigma, index = reduce_coh c env sigma index_ex.index in
+         let sigma, unpacked = reduce_coh c env sigma index_ex.unpacked in
+         sigma, pack_existT { index_ex with index; unpacked }
+       in
+       let sigma, unpacked =
+         let f, args = destApp ex.unpacked in
+         let sigma, args =
+           map_state_array
+             (fun trm sigma -> reduce_coh c env sigma trm)
+             args
+             sigma
+         in sigma, (mkApp (f, args))
+       in sigma, pack_existT { ex with index; unpacked }
   | _ ->
      sigma, trm
 
@@ -1015,7 +1022,7 @@ let lift_constr env sigma c trm =
        in
        if List.for_all2 equal (Array.to_list args') (Array.to_list args'') then
          (* base case *)
-         sigma, app
+         sigma, app_red
        else
          let unpacked = mkApp (f', args'') in
          let index = pack_existT { ex with unpacked } in

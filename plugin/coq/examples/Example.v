@@ -285,6 +285,10 @@ Definition zip_inner_typ :=
 Lift vector packed in zip_inner_typ as zip_inner_typ'.
 Print zip_inner_typ'. 
 
+Definition packed_nil (T : Type) := existT _ 0 (nilV T).
+Definition packed_cons (T : Type) (n : nat) (v : vector T n) (t : T) :=
+  existT _ (S n) (consV n t v).
+
 Definition zip_inner (a b : Type) (h : a) (s: sigT (vector b)) (H : sigT (vector b) -> sigT (vector (a * b))) :=
   VectorDef.t_rect
     b

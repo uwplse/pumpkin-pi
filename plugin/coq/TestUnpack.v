@@ -5,31 +5,42 @@
 Add LoadPath "coq".
 Require Import Vector.
 Require Import List.
+Require Import Test.
 Require Import TestLift.
 Require Import Ornamental.Ornaments.
 Require Import Infrastructure.
 
 Set DEVOID lift type.
 
+Definition packed_list_rect := Test.orn_list_vector_rect.
+Definition length {T} l := orn_list_vector_index T l.
+Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
+
 (* --- Simple constructor tests ---- *)
 
-Definition nil' := @nil.
+Program Definition nilp (T : Type):
+  { l : list T & length l = 0 }.
+Proof.
+  exists (nil' T). (* lists *)
+  reflexivity. (* lengths *)
+Defined.
 
-Program Definition nilV 
+Lift list vector in nilp as nilpv.
+Lift packed vector in nilpv as nilV.
 
-Lift list vector in nil' as nil'_c.
 Theorem testNil:
-  forall A, nil'_c A = existT (vector A) 0 (nilV A).
+  forall A, nilV A = Test.nilV A.
 Proof.
   intros. reflexivity.
 Qed.
 
-Definition nilV' (A : Type) :=
-  existT (vector A) 0 (nilV A).
+Definition nilV' (A : Type) := Test.nilV A.
 
-Lift vector list in nilV' as nilV'_c.
+Lift vector packed in nilV' as nilpv'.
+Lift vector list in nilpv' as nilp'.
+
 Theorem testNilV:
-  forall A, nilV'_c A = @nil A.
+  forall A, nilp' A = nilp A.
 Proof.
   intros. reflexivity.
 Qed.
