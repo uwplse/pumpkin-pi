@@ -282,12 +282,12 @@ let initialize_proj_rules c env sigma =
     let l = { l with is_fwd = true } in
     let sigma, lift_typ = reduce_type env sigma (lift_to l) in
     let sigma, lift_typ_inv = reduce_type env sigma (lift_back l) in
-    let env_a = zoom_env zoom_product_type env lift_typ in
-    let env_b = zoom_env zoom_product_type env lift_typ_inv in
+    let env_a, b_typ = zoom_product_type env lift_typ in
+    let env_b, a_typ = zoom_product_type env lift_typ_inv in
     let t = mkRel 1 in
     match l.orn.kind with
     | Algebraic (indexer, _) ->
-       (* indexer <-> projT1, id <- projT2 *)
+       (* indexer <-> projT1, id(_typ) <- projT2(_typ) *)
        let sigma, b_sig = Util.on_snd dest_sigT (reduce_type env_b sigma t) in
        let projT1 = reconstruct_lambda env_b (project_index b_sig t) in
        let projT2 = reconstruct_lambda env_b (project_value b_sig t) in
@@ -296,8 +296,11 @@ let initialize_proj_rules c env sigma =
          reconstruct_lambda env_a (mkAppl (indexer, args))
        in
        let id = reconstruct_lambda env_a t in
+       let projT2_typ = reconstruct_lambda (pop_rel_context 1 env_b) (unshift b_sig.packer) in
+       let env_id_typ = zoom_env zoom_lambda_term env projT2_typ in
+       let id_typ = reconstruct_lambda env_id_typ a_typ in
        let a_rules = [(indexer, projT1)], [] in
-       let b_rules = [(projT1, indexer); (projT2, id)], [] in
+       let b_rules = [(projT1, indexer); (projT2, id)], [(projT2_typ, id_typ)] in
        sigma, (a_rules, b_rules)
     | UnpackSigma ->
        let sigma, a_typ = reduce_type env_a sigma t in
@@ -323,7 +326,7 @@ let initialize_proj_rules c env sigma =
          in [(projT1, p1); (projT2, p2)], []
        in
        let sigma, bwd_rules =
-         (* pack -> projT1, pack ... eq_refl -> pack ... (rew ... in projT2) *)
+         (* pack ... eq_refl -> pack ... (rew ... in projT2) *)
          (* in addition, opaque types so they match *)
          let p1_typ = reconstruct_lambda (pop_rel_context 2 env_b) (unshift_by 2 a_inner_typ) in
          let p2_typ = reconstruct_lambda (pop_rel_context 1 env_b) (unshift a_sig_sig.packer) in
@@ -803,6 +806,16 @@ let reduce_coh c env sigma trm =
         reduce_arg c env sigma projected
       else
         sigma, arg
+    else if isApp arg then
+      let f = first_fun arg in
+      let args = unfold_args arg in
+      let sigma, args =
+        map_state
+          (fun trm sigma ->
+            reduce_arg c env sigma trm)
+          args
+          sigma
+      in sigma, mkAppl (f, args)
     else
       sigma, arg
   in
@@ -812,18 +825,8 @@ let reduce_coh c env sigma trm =
      if is_or_applies existT trm then
        let ex = dest_existT trm in
        let sigma, index = reduce_arg c env sigma ex.index in
-       let sigma, unpacked =
-         if isApp ex.unpacked then
-           let f, args = destApp ex.unpacked in
-           let sigma, args =
-             map_state_array
-               (fun trm sigma -> reduce_arg c env sigma trm)
-               args
-               sigma
-           in sigma, (mkApp (f, args))
-         else
-           sigma, ex.unpacked
-       in sigma, pack_existT { ex with index; unpacked }
+       let sigma, unpacked = reduce_arg c env sigma ex.unpacked in
+       sigma, pack_existT { ex with index; unpacked }
      else
        reduce_arg c env sigma trm
   | _ ->
@@ -852,21 +855,9 @@ let reduce_lifted_id c env sigma trm =
          sigma, trm
      else
        let ex = dest_existT trm in
-       let sigma, index =
-         let index_ex = dest_existT ex.index in
-         let sigma, index = reduce_coh c env sigma index_ex.index in
-         let sigma, unpacked = reduce_coh c env sigma index_ex.unpacked in
-         sigma, pack_existT { index_ex with index; unpacked }
-       in
-       let sigma, unpacked =
-         let f, args = destApp ex.unpacked in
-         let sigma, args =
-           map_state_array
-             (fun trm sigma -> reduce_coh c env sigma trm)
-             args
-             sigma
-         in sigma, (mkApp (f, args))
-       in sigma, pack_existT { ex with index; unpacked }
+       let sigma, index = reduce_coh c env sigma ex.index in
+       let sigma, unpacked = reduce_coh c env sigma ex.unpacked in
+       sigma, pack_existT { ex with index; unpacked }
   | _ ->
      sigma, trm
 
@@ -1016,7 +1007,7 @@ let lift_constr env sigma c trm =
                let typ_args = Option.get is_from_o in
                let sigma, a' = lift env (get_lifting (reverse c)) a typ_args sigma_right in
                let sigma, a'_red = delta a' sigma in
-               let sigma, a'_red = delta a' sigma in
+               let sigma, a'_red = delta a'_red sigma in
                reduce_term env sigma a'_red
              else
                sigma, a)
@@ -1027,6 +1018,7 @@ let lift_constr env sigma c trm =
          (* base case *)
          sigma, app_red
        else
+         (* inductive case (in future, need to tweak for vector to list case) *)
          let unpacked = mkApp (f', args'') in
          let index = pack_existT { ex with unpacked } in
          sigma, pack_existT { ex_eq with index }
@@ -1128,7 +1120,16 @@ let applies_constr_eta c env trm sigma =
  * Custom simplification for applications of constructors
  *)
 let reduce_constr_app c env sigma trm =
-  reduce_term env sigma trm
+  let l = get_lifting c in
+  let sigma, trm = reduce_term env sigma trm in
+  match l.orn.kind with
+  | UnpackSigma when not l.is_fwd ->
+     let ex = dest_existT trm in
+     let sigma, index = reduce_coh c env sigma ex.index in
+     let sigma, unpacked = reduce_coh c env sigma ex.unpacked in
+     sigma, pack_existT { ex with index; unpacked }
+  | _ ->
+     sigma, trm
 
 (* --- Eliminators --- *)
 
