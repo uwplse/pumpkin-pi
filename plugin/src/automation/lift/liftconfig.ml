@@ -1014,7 +1014,10 @@ let lift_constr env sigma c trm =
              let sigma_right, is_from_o = type_is_from c env a sigma in
              if Option.has_some is_from_o then
                let typ_args = Option.get is_from_o in
-               lift env (get_lifting (reverse c)) a typ_args sigma_right 
+               let sigma, a' = lift env (get_lifting (reverse c)) a typ_args sigma_right in
+               let sigma, a'_red = delta a' sigma in
+               let sigma, a'_red = delta a' sigma in
+               reduce_term env sigma a'_red
              else
                sigma, a)
            args'

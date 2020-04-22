@@ -29,9 +29,9 @@ Lift list vector in nilp as nilpv.
 Lift packed vector in nilpv as nilV.
 
 Theorem testNil:
-  forall A, nilV A = Test.nilV A.
+  nilV = Test.nilV.
 Proof.
-  intros. reflexivity.
+  reflexivity.
 Qed.
 
 Definition nilV' (A : Type) := Test.nilV A.
@@ -45,16 +45,30 @@ Proof.
   intros. reflexivity.
 Qed.
 
-Definition cons' := @cons.
-
-Lift list vector in cons' as cons'_c.
-Theorem testCons:
-  forall A a pv,
-    cons'_c A a pv =
-    existT (vector A) (S (projT1 pv)) (consV A (projT1 pv) a (projT2 pv)).
+Program Definition consp (T : Type) (n : nat) (t : T):
+  { l : list T & length l = n} ->
+  { l : list T & length l = S n }.
 Proof.
-  intros. reflexivity.
+  intros. apply packed_list_rect with (P := fun (_ : { l : list T & length l = n }) => { l : list T & length l = S n}).
+  - intros. exists (cons t a). (* lists *)
+    simpl. auto. (* lengths *)
+  - apply X.
+Defined.
+
+Lift list vector in consp as conspv.
+Lift packed vector in conspv as consV.
+
+Theorem testCons:
+  consV = Test.consV.
+Proof.
+  reflexivity.
 Qed.
+
+Definition consV' (T : Type) (n : nat) (t : T) (v : vector T n) := Test.consV T n t v.
+
+Lift vector packed in consV' as conspv'.
+Print conspv'.
+Lift vector list in conspv' as consp'.
 
 Lift vector list in cons'_c as consV'_c.
 Theorem testConsV:
