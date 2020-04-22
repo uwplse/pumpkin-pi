@@ -265,66 +265,8 @@ Lift Module list vector in packed_list as packed_vector { opaque eq_existT_uncur
 Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 
 Configure Lift vector packed { opaque Eqdep_dec.UIP_dec Nat.eq_dec Vector.t_rect Coq.Vectors.VectorDef.t_rect eq_sym eq_trans }.
+
 (* TODO move these tests later *)
-Definition my_id (T : Type) (n : nat) (v : vector T n) := v.
-Lift vector packed in my_id as id'.
-Definition id_expected (T : Type) (n : nat) (v : {s : {x : nat & vector T x} & projT1 s = n}) :=
-existT (fun s : {x : nat & vector T x} => projT1 s = n)
-  (existT (vector T) (projT1 (projT1 v)) (projT2 (projT1 v))) 
-  (projT2 v).
-Lemma test_id: id' = id_expected.
-Proof.
-  reflexivity.
-Qed.
-
-Definition my_pack_coh (T : Type) (n : nat) (v : vector T n) :=
-    (@existT nat (vector T) n v).
-Lift vector packed in my_pack_coh as my_pack_coh'.
-Print my_pack_coh'.
-
-Print t_unpack.
-Print unpack_generic.
-Print unpack_generic_section.
-(*
-TODO fail gracefully (can we remove p2 rule everywhere?):
-Definition my_refl_coh (T : Type) (n : nat) (v : vector T n) :=
-  erefl n.
-Fail Lift vector packed in my_refl_coh as my_refl_coh'. (* TODO can't instantiate evars --- don't resolve until here and when that happens, don't lift coh *)
-*)
-Definition my_pack (T : Type) (n : nat) (v : vector T n) :=
-  @existT (sigT (vector T)) (fun (s : sigT (vector T)) => projT1 s = n)
-    (@existT nat (vector T) n v)
-    (@eq_refl nat n).
-Lift vector packed in my_pack as my_pack'.
-Print my_pack'.
-
-Definition my_id_rew (T : Type) (n : nat) (v : vector T n) := 
-  @eq_rect nat n (t T) v n (@eq_refl nat n). (* rew eq_refl in v *)
-Print my_id_rew.
-Lift vector packed in my_id_rew as id''.
-Print id''. (* TODO needs simplify poject packed _badly_ *)
-
-Definition my_nil (T : Type) := nilV T.
-Lift vector packed in my_nil as my_nil'.
-Print my_nil'.
-
-Definition my_cons (T : Type) (n : nat) (v : vector T n) (t : T) := consV n t v.
-Lift vector packed in my_cons as my_cons'.
-
-Definition packed_cons_ex_2 (T : Type) (n : nat) (v : vector T n) (t : T) : sigT (fun (n : nat) => { s0 : sigT (vector T) & projT1 s0 = n }) :=
-  existT _ (S n) (existT _ (existT (vector T) (S n) (consV n t v)) eq_refl).
-
-Definition packed_cons (T : Type) (n : nat) (v : vector T n) (t : T) :=
-  existT _ (S n) (consV n t v).
-Lift vector packed in packed_cons as packed_cons'.
-
-Definition packed_nil (T : Type) := existT _ 0 (nilV T).
-Lift vector packed in packed_nil as packed_nil'.
-Print packed_nil'.
-
-Definition packed_nil_ex_2 (T : Type) : sigT (fun (n : nat) => { s0 : sigT (vector T) & projT1 s0 = n }) :=
-  existT _ 0 (existT _ (existT (vector T) 0 (nilV T)) eq_refl).
-
 Definition zip_typ :=
  forall a b : Type,
   {H : nat & vector a H} ->

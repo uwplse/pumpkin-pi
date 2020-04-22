@@ -8,6 +8,8 @@ Require Import Infrastructure.
  * Test lifting directly
  *)
 
+Set DEVOID search smart eliminators.
+
 Configure Lift list vector { opaque f_equal }.
 Configure Lift vector list { opaque f_equal }.
 

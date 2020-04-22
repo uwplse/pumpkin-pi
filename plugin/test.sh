@@ -18,6 +18,7 @@ smartcache=false
 nosmartcache=false
 prodrect=false
 swap=false
+unpack=false
 
 start=$SECONDS
 
@@ -85,9 +86,20 @@ fi
 
 cd ..
 
+echo "Testing Swap Constructor."
+
 if coqc coq/Swap.v
 then
   swap=true
+else
+  :
+fi
+
+echo "Testing Unpack Sigma."
+
+if coqc coq/Unpack.v
+then
+  unpack=true
 else
   :
 fi
@@ -205,7 +217,7 @@ if [ $lifted = true ] && [ $liftedind = true ] && [ $findlift = true ] &&
    [ $example = true ] && [ $liftspec = true ] && [ $search = true ] && 
    [ $lift = true ] && [ $listtovect = true ] && [ $listtovectcustom = true ] && [ $records = true ] &&
    [ $morerecords = true ] && [ $nosmartcache = true ] && [ $smartcache = true ] && [ $prodrect = true ] &&
-   [ $swap = true ]
+   [ $swap = true ] && [ $unpack = true ]
 then
   echo "SUCCESS: All tests passed."
 
@@ -252,6 +264,12 @@ else
   if [ $swap = false ]
   then
     echo "tests for swapping and renaming constructors"
+  else
+    :
+  fi
+  if [ $unpack = false ]
+  then
+    echo "tests for unpacking indexed types"
   else
     :
   fi
