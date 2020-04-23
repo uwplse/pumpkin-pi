@@ -263,7 +263,7 @@ Lift Module list vector in packed_list as packed_vector { opaque eq_existT_uncur
  * this for caching.
  *)
 Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
-
+  
 (*
  * We can get away without preprocessing here, though we must set some terms to opaque to do that:
  *)

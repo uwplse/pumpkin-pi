@@ -97,7 +97,7 @@ fi
 
 echo "Testing Unpack Sigma."
 
-if coqc coq/Unpack.v
+if coqc coq/TestUnpack.v
 then
   unpack=true
 else
