@@ -51,7 +51,7 @@ let pack env l unpacked sigma =
      let sigma, typ = infer_type env sigma unpacked in
      let sigma, typ_red = specialize_delta_f env (first_fun typ) (unfold_args typ) sigma in
      sigma, eta_prod_rec unpacked typ_red
-  | SwapConstruct _ ->
+  | SwapConstruct _ | UnpackSigma ->
      sigma, unpacked
 
 (* --- Unpacking for unpack ornaments --- *)

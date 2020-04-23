@@ -1,5 +1,5 @@
 (*
- * Section 2 Example from the ITP paper.
+ * Section 2 Example from the ITP 2019 paper.
  *
  * NOTE: This has changed a lot since the ITP paper! I have updated this file
  * to reflect the latest automation. To see the original ITP version,
@@ -53,7 +53,13 @@ End hs_to_coq'.
 
 (* --- Preprocess --- *)
 
-Preprocess Module hs_to_coq' as hs_to_coq { opaque list_ind list_rect eq_ind eq_ind_r eq_sym }.
+(*
+ * We define our terms using match statements, so we first need to preprocess.
+ * Sometimes we can get away without this when we write terms ourselves, as is
+ * true later in this file.
+ *)
+
+Preprocess Module hs_to_coq' as hs_to_coq { opaque list_ind list_rect Coq.Init.Logic }.
 
 (* --- Search and Lift --- *)
 
@@ -79,7 +85,6 @@ Set DEVOID search smart eliminators.
  * We can then lift our entire module (search runs automatically):
  *)
 Lift Module list vector in hs_to_coq as hs_to_coqV_p.
-
 Definition zipV_p := hs_to_coqV_p.zip.
 Definition zip_withV_p := hs_to_coqV_p.zip_with.
 Definition zip_with_is_zipV_p := hs_to_coqV_p.zip_with_is_zip.
@@ -100,8 +105,8 @@ Check zip_with_is_zipV_p.
  * for any n, { l : list T & length l = n } lifts to equivalent
  * { s : sigT (vector T) & projT1 s = n}, which is equivalent to vector T n.
  * Thus, we write proofs about { l : list T & length l = n },
- * lift those from list to vector, and then do a tiny bit of work
- * to get from { s : sigT (vector T) & projT1 s = n} to vector.
+ * lift those from list to vector, and then lift those again
+ * from { s : sigT (vector T) & projT1 s = n} to vector.
  *
  * However, writing proofs about { l : list T & length l = n } isn't
  * in itself straightforward, so we break this up into parts and use
@@ -116,8 +121,8 @@ Lemma zip_length:
     length l1 = length l2 ->
     length (hs_to_coq.zip a b l1 l2) = length l1.
 Proof.
-  induction l1, l2; intros; auto; inversion H.
-  simpl. f_equal. auto.
+  induction l1, l2; intros; auto. 
+  simpl. f_equal. rewrite IHl1; auto.
 Defined.
 
 Lemma zip_length_n:
@@ -134,8 +139,8 @@ Lemma zip_with_length:
     length l1 = length l2 ->
     length (hs_to_coq.zip_with A B C f l1 l2) = length l1.
 Proof.
-  induction l1, l2; intros; auto; inversion H.
-  simpl. f_equal. auto.
+  induction l1, l2; intros; auto.
+  simpl. f_equal. rewrite IHl1; auto.
 Defined.
 
 Lemma zip_with_length_n:
@@ -149,7 +154,7 @@ Defined.
 
 End hs_to_coq_lengths'.
 
-Preprocess Module hs_to_coq_lengths' as hs_to_coq_lengths.
+Preprocess Module hs_to_coq_lengths' as hs_to_coq_lengths { opaque Datatypes Logic Coq.Init.Nat.pred Coq.Init.Peano.eq_add_S hs_to_coq.zip hs_to_coq.zip_with list_ind list_rect eq_trans eq_sym }.
 
 (*
  * Once we have the length proofs, we write the proofs
@@ -221,9 +226,10 @@ Lemma zip_with_is_zip :
 Proof.
   intros A B n pl1. 
   apply packed_list_rect with (P := fun (pl1 : {l1 : list A & length l1 = n}) => forall pl2 : {l2 : list B & length l2 = n}, zip_with A B (A * B) pair n pl1 pl2 = zip A B n pl1 pl2). 
-  intros l  H pl2.
+  intros l H pl2.
+  unfold zip_with, zip, packed_list_rect, hs_to_coqV_p.list_to_t_rect, packed_rect. simpl.
+  apply eq_existT_uncurried.
   (* list proof: *)
-  apply EqdepFacts.eq_sigT_sig_eq.
   exists (hs_to_coq.zip_with_is_zip A B l (projT1 pl2)).
   (* length invariant: *)
   apply (Eqdep_dec.UIP_dec Nat.eq_dec).
@@ -241,74 +247,49 @@ Defined.
 End packed_list.
 
 (*
- * Now we can get from that to packed_vector_rect:
+ * Now we can get from that to { s : sigT (vector T) & projT1 s = n} by lifting from
+ * lists to vectors.
+ *
+ * Rather than preprocess here, we just set terms that use pattern matching to
+ * opaque for efficiency.
  *)
-Lift Module list vector in packed_list as packed_vector.
+Lift Module list vector in hs_to_coq_lengths as hs_to_coq_projT1s.
+Lift Module list vector in packed_list as packed_vector { opaque eq_existT_uncurried Eqdep_dec.UIP_dec Nat.eq_dec }.
 
 Check packed_vector.zip.
 Check packed_vector.zip_with.
 Check packed_vector.zip_with_is_zip.
 
 (*
- * Finally, we can get from that to unpacked vectors
+ * Finally, we can get from { s : sigT (vector T) & projT1 s = n} to unpacked vectors
  * at the index we want very easily.
- * There is WIP on automating this.
- *)
-Module uf.
-
-(*
- * We first automatically find another ornament
- * (in order to cache this ornament, DEVOID needs the first argument
- * to be a constant).
+ *
+ * First we define a constant for { s : sigT (vector T) & projT1 s = n}, since DEVOID needs
+ * this for caching.
  *)
 Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
-Find ornament packed vector as unpack_vector.
+  
 (*
- * Lifting along this equivalence will soon be automated, but for now apply
- * the above functions by hand:
+ * We can get away without preprocessing here, though we must set some terms to opaque to do that:
  *)
-Program Definition zip:
-  forall {A B : Type} {n : nat},
-    vector A n ->
-    vector B n ->
-    vector (A * B) n.
-Proof.
-  intros A B n v1 v2. apply unpack_vector. apply packed_vector.zip.
-  - apply (unpack_vector_inv A n v1).
-  - apply (unpack_vector_inv B n v2).
-Defined.
-
-Program Definition zip_with:
-  forall {A B C : Type} (f : A -> B -> C) {n : nat},
-    vector A n ->
-    vector B n ->
-    vector C n.
-Proof.
-  intros A B C f n v1 v2. apply unpack_vector. apply (packed_vector.zip_with A B).
-  - apply f.
-  - apply (unpack_vector_inv A n v1).
-  - apply (unpack_vector_inv B n v2).
-Defined.
+Configure Lift packed vector { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.
 
 (*
- * The advantage of all of this is that our proof is trivial,
- * whereas over normal vectors it can be painful to separate the
- * data from the index:
+ * Then we lift (lifting hs_to_coqV_p first makes this faster and makes the result prettier):
  *)
-Lemma zip_with_is_zip:
-  forall {A B : Type} (n : nat) (v1 : vector A n) (v2 : vector B n),
-    zip_with (@pair A B) v1 v2 = zip v1 v2.
-Proof.
-  intros A B n v1 v2.
-  pose proof (packed_vector.zip_with_is_zip A B n (unpack_vector_inv A n v1) (unpack_vector_inv B n v2)).
-  unfold zip_with, zip. f_equal. auto.
-Defined.
 
-End uf.
+Lift Module packed vector in hs_to_coqV_p as hs_to_coqV_u.
+Lift Module packed vector in packed_vector as uf.
+
+(* We are done. Here are our final types: *)
+Check uf.zip.
+Check uf.zip_with.
+Check uf.zip_with_is_zip.
+
 (*
  * TECHNICAL NOTE: For this particular example, interestingly, doing these by hand
  * without DEVOID, it's possible to construct functions such that the proof
- * of zip_with_is_zipV_uf goes through by reflexivity. However, these
+ * of uf.zip_with_is_zipV goes through by reflexivity. However, these
  * are not the analogues of the functions included in the hs_to_coq module
  * (note that the proof using reflexivity does not work for them either).
  *)
@@ -317,5 +298,5 @@ End uf.
 
 (* Client code can then call our functions and proofs, for example: *)
 Definition BVand' {n : nat} (v1 : vector bool n) (v2 : vector bool n) : vector bool n :=
-  uf.zip_with andb v1 v2.
+  uf.zip_with bool bool bool andb n v1 v2.
 

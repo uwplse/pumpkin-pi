@@ -67,6 +67,18 @@ val map_backward : ('a -> 'a) -> lifting -> 'a -> 'a
  *)
 val promotion_type_to_types : types -> (types * types)
 
+(*
+ * Determine whether a type is the type we are ornamenting from
+ * (A in forward direction, B in backward direction) using unification.
+ * We optimize this in liftconfig.ml depending on the kind of ornament.
+ *)
+val e_is_from :
+  env ->
+  types -> (* eta-expanded A or B, depending on direction *)
+  types -> (* type we are checking *)
+  evar_map ->
+  ((constr list) option) state
+
 (* --- Directionality --- *)
        
 (* 

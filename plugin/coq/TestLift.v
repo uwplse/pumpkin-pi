@@ -8,6 +8,11 @@ Require Import Infrastructure.
  * Test lifting directly
  *)
 
+Set DEVOID search smart eliminators.
+
+Configure Lift list vector { opaque f_equal }.
+Configure Lift vector list { opaque f_equal }.
+
 (* --- Simple constructor tests ---- *)
 
 Definition nil' := @nil.
@@ -233,7 +238,7 @@ Theorem test_append_vect:
   forall (A : Type) (pv1 : packed_vector A) (pv2 : packed_vector A),
     append_vect A pv1 pv2  = append_vect_lifted A pv1 pv2.
 Proof.
-  intros. reflexivity.
+  reflexivity.
 Qed.
 
 Lift vector list in append_vect_lifted as append_lifted.

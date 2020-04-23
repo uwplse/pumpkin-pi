@@ -221,6 +221,9 @@ Module CaseStudy (Elem : Comparable).
 
     Find ornament Base.tree tree as orn_size.
 
+    (* For efficiency in lifting: *)
+    Configure Lift Base.tree tree { opaque Permutation_cons_app Permutation_app projT1 projT2 }.
+
     (* --- Generated equivalences --- *)
     Redirect "out/equivalences/orn_size_index" Print orn_size_index.
     Redirect "out/equivalences/orn_size" Print orn_size.
@@ -339,6 +342,8 @@ Module CaseStudy (Elem : Comparable).
     Find ornament __bst _bst as _orn_order.
     Find ornament _bst bst as orn_order.
 
+    Configure Lift _bst bst { opaque projT1 projT2 }.
+
     (* --- Generated equivalences --- *)
     Redirect "out/equivalences/__orn_order_index" Print __orn_order_index.
     Redirect "out/equivalences/__orn_order" Print __orn_order.
@@ -435,6 +440,9 @@ Module CaseStudy (Elem : Comparable).
     Lift __bst _bst in __tree60000 as _tree60000. 
     Lift __bst _bst in __tree80000 as _tree80000. 
     Lift __bst _bst in __tree100000 as _tree100000. 
+
+    (* For more efficient lifting: *)
+    Configure Lift _bst bst { opaque inv }.
 
     Lift _bst bst in _tree1 as tree1'''.
     Lift _bst bst in _tree10 as tree10'''.
@@ -559,6 +567,10 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/equivalences/orn_balance_inv" Print orn_balance_inv.
     Redirect "out/equivalences/orn_balance_section" Print orn_balance_section.
     Redirect "out/equivalences/orn_balance_retraction" Print orn_balance_retraction.
+
+    (* For more efficient lifting: *)
+    Configure Lift Ordered.bst _avl { opaque Ordered.inv }.
+    Configure Lift _avl avl { opaque Ordered.inv inv }.
 
     Lift Ordered.bst _avl in Ordered.preorder as _preorder'.
     Unpack _preorder' as _preorder.

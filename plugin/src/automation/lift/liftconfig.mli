@@ -4,6 +4,7 @@ open Environ
 open Evd
 open Stateutils
 open Reducers
+open Indutils
 
 (*
  * Lifting configuration: Includes the lifting, types, and cached rules
@@ -59,11 +60,6 @@ val lookup_cache : lift_config -> constr -> constr
 val get_types : lift_config -> types * types
 
 (*
- * Eliminators
- *)
-val get_elim_type : lift_config -> types
-
-(*
  * Determine if the supplied type is the type we are lifting from
  * Return the arguments if true
  *)
@@ -87,38 +83,98 @@ val type_is_from :
  *)
 val type_from_args :
   lift_config -> env -> constr -> evar_map -> (constr list) state
-                                                            
-(*
- * Get the map of projections of the types for the lifting
- *)
-val get_proj_map :
-  lift_config -> (constr * constr) list
+
+(* --- Identity and coherence (for preserving definitional equalities) --- *)
 
 (*
- * Get the cached unlifted constructors
+ * Get the cached  lifted identity function
  *)
-val get_constrs :
-  lift_config -> constr array
-      
-(*
- * Get the cached lifted constructors
- *)
-val get_lifted_constrs :
-  lift_config -> constr array
-
-(* --- Smart simplification --- *)
+val get_lifted_id_eta : lift_config -> constr
 
 (*
- * Return true if a term is packed
+ * Check if a term applies some projection
  *)
-val is_packed : lift_config -> constr -> bool
+val is_proj :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  (* proj, args, trm_eta *)
+  ((constr * constr list * constr) option) state
+
+(*
+ * Check if a term may apply the eta-expanded identity function,
+ * but don't bother checking the type
+ *)
+val may_apply_id_eta : lift_config -> env -> constr -> bool
+
+(*
+ * Check if the term applies the eta-expanded identity function
+ * If so, return the the arguments
+ *)
+val applies_id_eta :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  ((constr list) option) state
+
+(* --- Constructors and eliminators --- *)
+
+(*
+ * Get the cached unlifted and lifted constructors
+ *)
+val get_constrs : lift_config -> constr array
+val get_lifted_constrs : lift_config -> constr array
+
+(*
+ * Get the type we eliminate over
+ *)
+val get_elim_type : lift_config -> types
+
+(*
+ * Check if the term applies the eta-expanded identity function
+ * If so, return the the constructor index, arguments, and whether to treat
+ * the constructor as opaque when lifting recursively
+ *)
+val applies_constr_eta :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  ((int * (constr list) * bool) option) state
+
+(*
+ * Check if the term applies the eliminator
+ * If so return the eta-expanded term, the eliminator application, the
+ * parameters, and the arity of the motive (the number of "final arguments"
+ * after inducting over the term), as well as whether to treat the eliminator
+ * application as opaque when lifting recursively
+ *)
+val applies_elim :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  ((constr option * elim_app * constr list * int * bool) option) state
+
+(* --- Custom simplification --- *)
+                                     
+(*
+ * Custom reduction functions for lifted eta-expanded identity and coherence,
+ * for efficiency and to ensure termination. For example, this may
+ * simplify projections of existentials.
+ *)
+val reduce_lifted_id : lift_config -> reducer
+val reduce_coh : lift_config -> reducer
+val reduce_constr_app : lift_config -> reducer
 
 (*
  * Determine if we can be smarter than Coq and simplify earlier
  * If yes, return how
  * Otherwise, return None
  *)
-val can_reduce_now : lift_config -> constr -> reducer option
+val can_reduce_now : lift_config -> env -> constr -> reducer option
 
 (* --- Modifying the configuration --- *)
 

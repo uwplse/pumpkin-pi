@@ -13,6 +13,8 @@ over A (like `length`)
 a record with the same number of fields that have the same types
 3. **Swapping and Renaming Constructors**: the types A and B are two inductive types that are equal up to
 swapping constructor order and renaming constructors
+4. **Escaping Sigma Types**: the type B (like `vector T n`) is the type A (like `{ s : sigT (vector T) & projT1 s = n}`) 
+escaping the sigma type
 
 DEVOID is a part of the [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH) 
 proof repair plugin suite, and is included as a dependency of PUMPKIN PATCH
@@ -198,8 +200,11 @@ when you are positive that lifting them will have no effect:
 Lift A B in f as g { opaque constant1 constant2 ... }.
 ``` 
 
-This can make lifting faster.
-However, it can also cause unpredictable errors if your assumption is incorrect.
+This can make lifting much faster.
+It is **strongly advisable** to do this for certain terms that you know DEVOID
+should never reduce.
+However, this can also cause unpredictable errors if your assumption is incorrect,
+so be careful about your assumption.
 
 You can also set a term to be globally opaque every time you lift between A and B
 by using the following command:
@@ -261,11 +266,9 @@ set the following option:
 Set DEVOID search smart eliminators.
 ```
 
-This generates a useful induction principle that makes it much easier to get from
-your unlifted type A to B at a particular index, with much nicer type signatures.
-
-There is more work in progress to make this even more automatic than it currently is.
-The file above will be updated as more automation becomes available.
+This generates a useful induction principle. Using that induction princple and composing
+this by lifting across another equivalence, you can get from your unlifted type A to B at a
+particular index, with much nicer type signatures.
 
 ### Assumptions
 
@@ -467,7 +470,8 @@ Please also feel free to ask if you are confused about anything that the code do
     - [Infrastructure.v](/plugin/coq/Infrastructure.v): Testing infrastructure
     - [ShouldFail.v](/plugin/coq/ShouldFail.v): Tests that should currently fail
     - [Test.v](/plugin/coq/Test.v): Tests for search for algebraic ornaments
-    - [TestLift.v](/plugin/coq/TestLift.v): Tests for lifting across algebraic ornmanets
+    - [TestLift.v](/plugin/coq/TestLift.v): Tests for lifting across algebraic ornaments
+    - [TestUnpack.v](/plugin/coq/TestUnpack.v): Tests for unpacking indexed types
     - [minimal_records.v](/plugin/coq/minimal_records.v): Basic tests for products and records
     - [more_records.v](/plugin/coq/more_records.v): More advanced tests for products and records
     - [NoSmartCache.v](/plugin/coq/NoSmartCache.v): Disabling the smart cache

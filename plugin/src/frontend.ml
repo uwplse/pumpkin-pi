@@ -31,6 +31,7 @@ open Smartelim
 open Zooming
 open Apputils
 open Sigmautils
+open Reducers
 
 (* --- Utilities --- *)
 
@@ -64,12 +65,11 @@ let define_print ?typ n trm sigma =
  * If the option is enabled, then prove coherence after find_ornament is called.
  * Otherwise, do nothing.
  *)
-let maybe_prove_coherence n inv_n kind : unit =
+let maybe_prove_coherence n promote forget kind : unit =
   match kind with
   | Algebraic _ ->
      if is_search_coh () then
        let sigma, env = refresh_env () in
-       let (promote, forget) = map_tuple make_constant (n, inv_n) in
        let orn = { promote; forget; kind } in
        let coh, coh_typ = prove_coherence env sigma orn in
        let coh_n = with_suffix n "coh" in
@@ -83,28 +83,29 @@ let maybe_prove_coherence n inv_n kind : unit =
  * If the option is enabled, then prove section, retraction, and adjunction after
  * find_ornament is called. Otherwise, do nothing.
  *)
-let maybe_prove_equivalence n inv_n : unit =
-  let define_proof suffix ?(adjective=suffix) sigma term =
+let maybe_prove_equivalence n promote forget : unit =
+  let define_proof suffix ?(adjective=suffix) sigma term typ =
     let ident = with_suffix n suffix in
-    define_print ident term sigma |> destConstRef
+    define_print ident term ~typ:typ sigma |> destConstRef
   in
   if is_search_equiv () then
     let sigma, env = refresh_env () in
-    let (promote, forget) = map_tuple make_constant (n, inv_n) in
     let sigma, l = initialize_lifting_provided env sigma promote forget in
-    let (section, retraction) = prove_equivalence env sigma l in
-    let sect = define_proof "section" sigma section in
-    let retr0 = define_proof "retraction" sigma retraction in
+    let ((section, section_typ), (retraction, retraction_typ)) =
+      prove_equivalence env sigma l
+    in
+    let sect = define_proof "section" sigma section section_typ in
+    let retr0 = define_proof "retraction" sigma retraction retraction_typ in
     let pre_adj = { orn = l; sect; retr0 } in
     let _ =
       let sigma, env = refresh_env () in
-      let (sigma, retraction_adj) = adjointify_retraction env pre_adj sigma in
-      define_proof "retraction_adjoint" sigma retraction_adj ~adjective:"adjoint retraction"
+      let sigma, retraction_adj = adjointify_retraction env pre_adj sigma in
+      define_proof "retraction_adjoint" sigma retraction_adj retraction_typ ~adjective:"adjoint retraction"
     in
     let _ =
       let sigma, env = refresh_env () in
-      let (sigma, adjunction) = prove_adjunction env pre_adj sigma in
-      define_proof "adjunction" sigma adjunction
+      let sigma, (adjunction, adjunction_typ) = prove_adjunction env pre_adj sigma in
+      define_proof "adjunction" sigma adjunction adjunction_typ
     in ()
   else
     ()
@@ -112,10 +113,9 @@ let maybe_prove_equivalence n inv_n : unit =
 (*
  * If the option is enabled, generate smart eliminators
  *)
-let maybe_find_smart_elims n inv_n : unit =
+let maybe_find_smart_elims promote forget : unit =
   if is_smart_elim () then
     let sigma, env = refresh_env () in
-    let (promote, forget) = map_tuple make_constant (n, inv_n) in
     let sigma, l = initialize_lifting_provided env sigma promote forget in
     let sigma, elims = find_smart_elims l env sigma in
     List.iter
@@ -142,13 +142,12 @@ let infer_name_for_ornament env trm_o trm_n n_o =
      let arity_n = arity (type_of_inductive env ii_n m_n) in
      if arity_o = arity_n then
        (* Swap constructor *)
-       n, None
+         n, None
      else
-       (* Algebraic ornament *)
+         (* Algebraic ornament *)
        let idx_n = with_suffix n "index" in
        n, Some idx_n
   |_ ->
-    (* Unpack sigma or curry record *)
     if Option.has_some n_o then
       (* name provided *)
       Option.get n_o, None
@@ -213,11 +212,13 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
       | _ ->
          orn
     in
-    let promote =
+    let sigma, env = refresh_env () in
+    let sigma, promote =
       if Option.has_some promote_o then
-        Option.get promote_o
+        sigma, Option.get promote_o
       else
-        Universes.constr_of_global (define_print n orn.promote sigma)
+        let sigma, typ = reduce_type env sigma orn.promote in
+        sigma, Universes.constr_of_global (define_print n orn.promote ~typ:typ sigma)
     in
     let inv_n, forget =
       if Option.has_some forget_o then
@@ -227,11 +228,12 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
         Label.to_id lab, forget
       else
         let inv_n = with_suffix n "inv" in
-        inv_n, Universes.constr_of_global (define_print inv_n orn.forget sigma)
+        let sigma, typ = reduce_type env sigma orn.forget in
+        inv_n, Universes.constr_of_global (define_print inv_n orn.forget ~typ:typ sigma)
     in
-    maybe_prove_coherence n inv_n orn.kind;
-    maybe_prove_equivalence n inv_n;
-    maybe_find_smart_elims n inv_n;
+    maybe_prove_coherence n promote forget orn.kind;
+    maybe_prove_equivalence n promote forget;
+    maybe_find_smart_elims promote forget;
     (try
        save_ornament (trm_o, trm_n) (promote, forget, orn.kind)
      with _ ->

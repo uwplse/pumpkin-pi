@@ -220,7 +220,9 @@ let equiv_proof eq_lemmas equiv_case is_packed unpack_env index_args unpack_eq_p
   let eq_proof_unpacked = unpack_eq_proof env_to typ_app eq_typ packed in
   let eq_typ = on_red_type_default (ignore_env dest_eq) env_to sigma eq_proof_unpacked in
   let equiv_b = apply_eq_sym { eq_typ; eq_proof = eq_proof_unpacked } in
-  reconstruct_lambda env_to equiv_b
+  let trm = reconstruct_lambda env_to equiv_b in
+  let sigma, typ = reduce_type env sigma trm in
+  trm, typ
 
 (* --- Algebraic ornaments  --- *)
 
@@ -421,7 +423,7 @@ let equiv_proof_body_curry_record env_to sigma p pms l =
       [shift (reconstruct_lambda_n env_c_b refl (nb_rel env_to + (List.length pms)))]
     in
     let elim = type_eliminator env_to (i, i_index) in
-    apply_eliminator
+    sigma, apply_eliminator
       {
         elim;
         pms;
@@ -458,7 +460,7 @@ let equiv_proof_body_curry_record env_to sigma p pms l =
     in
     let to_elim = dest_prod typ_app in
     let proof = build_proof env_to pms typ_app to_elim arg in
-    elim_prod { to_elim; p; proof; arg }
+    sigma, elim_prod { to_elim; p; proof; arg }
   
 (*
  * Prove section/retraction for curry record
@@ -469,10 +471,12 @@ let equiv_proof_curry_record env l sigma =
   let npm = nb_rel env_to - 1 in
   let pms = shift_all (mk_n_rels npm) in
   let sigma, p = equiv_motive env_to pms l false sigma in
-  let eq_proof = equiv_proof_body_curry_record env_to sigma p pms l in
+  let sigma, eq_proof = equiv_proof_body_curry_record env_to sigma p pms l in
   let eq_typ = on_red_type_default (ignore_env dest_eq) env_to sigma eq_proof in
   let equiv_b = apply_eq_sym { eq_typ; eq_proof } in
-  reconstruct_lambda env_to equiv_b
+  let trm = reconstruct_lambda env_to equiv_b in
+  let sigma, typ = reduce_type env sigma trm in
+  trm, typ
 
 (* --- Equivalence proofs for unpack sigma --- *)
 
@@ -507,7 +511,27 @@ let equiv_proof_unpack env l sigma =
     let sigma, args = unpack_typ_args env_b_sig_eq b_sig_eq sigma in
     let env_args = pop_rel_context 1 env_b_sig_eq in
     sigma, (env_args, unshift_all args)
-  in reconstruct_lambda env_args (mkAppl (f, args))
+  in
+  let sigma, app = reduce_term env sigma (mkAppl (f, args)) in
+  let trm = reconstruct_lambda env_args app in
+  let sigma, typ =
+    (* The default inferred type is not very good, so we guide Coq *)
+    let sigma, (env_eq, eq) =
+      let sigma, (env_eq, eq_app) =
+        let sigma, typ = infer_type env sigma trm in
+        sigma, Util.on_snd dest_eq (zoom_product_type env typ)
+      in
+      let sigma, eq =
+        let sigma, trm1 =
+          let typ_args = shift_all (mk_n_rels (nb_rel env_args)) in
+          let sigma, lifted =
+            let arg = last_arg (last_arg eq_app.trm1) in
+            lift env_eq l arg typ_args sigma
+          in lift env_eq (flip_dir l) lifted typ_args sigma
+        in sigma, apply_eq { eq_app with trm1 }
+      in sigma, (env_eq, eq)
+    in sigma, reconstruct_product env_eq eq
+  in trm, typ
 
 (* --- Top-level equivalence proof generation --- *)
                      
@@ -595,7 +619,9 @@ let adjointify_retraction env pre_adj =
 (*
  * Prove adjunction.
  *)
-let prove_adjunction env pre_adj =
+let prove_adjunction env pre_adj sigma =
   let c = lookup_constant "Ornamental.Adjoint.f_adjoint" in
-  quantify_pre_adjunction_const env pre_adj c
+  let sigma, adjunction = quantify_pre_adjunction_const env pre_adj c sigma in
+  let sigma, adjunction_typ = reduce_type env sigma adjunction in
+  sigma, (adjunction, adjunction_typ)
 

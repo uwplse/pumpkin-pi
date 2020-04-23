@@ -4,6 +4,7 @@
 
 Require Import Vector.
 Require Import List.
+Require Import ZArith.
 
 Require Import Ornamental.Ornaments.
 
@@ -19,11 +20,9 @@ Notation vcons := Vector.cons.
 (* --- Preprocess --- *)
 
 Preprocess Module List as List' { opaque (* ignore these: *)
-  (* dependent elimination only: *)
   RelationClasses
-  (* proofs about these match over the above opaque terms, and would fail: *)
-  Nat.add
-  Nat.sub
+  Nat
+  Coq.Init.Nat
 }.
 
 (* --- Search & Lift --- *)
@@ -43,7 +42,18 @@ Check (vect_elim :
            forall (xs : {n : nat & vector A n}),
              P xs.&).
 
-Lift Module list vector in List' as Vector'.
+Lift Module list vector in List' as Vector' { opaque (* ignore these, just for speed *)
+  RelationClasses.Equivalence_Reflexive
+  RelationClasses.reflexivity
+  Nat.add
+  Nat.sub
+  Nat.lt_eq_cases
+  Nat.compare_refl
+  Nat.lt_irrefl
+  Nat.le_refl
+  Nat.bi_induction
+  Nat.central_induction
+}.
 
 (*
  * There are still two proofs (`partition_length` and `elements_in_partition`)

@@ -8,31 +8,16 @@ open Apputils
 open Promotion
 open Sigmautils
 open Utilities
-open Desugarprod
 open Reducers
 open Funutils
 open Stateutils
-open Convertibility
 open Hypotheses
-open Envutils
 open Indexing
-open Evd
-open Evarutil
-open Evarconv
-open Specialization
 
 (*
  * This module takes in a Coq term that we are lifting and determines
  * the appropriate lifting rule to run
  *)
-
-(* --- Convenient shorthand --- *)
-
-let convertible env t1 t2 sigma =
-  if equal t1 t2 then
-    sigma, true
-  else
-    convertible env sigma t1 t2
 
 (* --- Datatypes --- *)
 
@@ -59,8 +44,8 @@ let convertible env t1 t2 sigma =
  *    consider a constant opaque when Coq does not. It depends only on the
  *    user setting this particular option for DEVOID.
  *
- * 4. SimplifyProjectPacked: When we see projections of packed terms
- *    (for example, projT1 (existT ...)), we reduce eagerly rather than
+ * 4. SimplifyProjectId: When we see projections of lifted eta-expanded identity
+ *    terms (for example, projT1 (existT ...)), we reduce eagerly rather than
  *    wait for Coq to reduce, since we can be smarter than Coq for this
  *    case. This simplifies very large lifted constants significantly.
  *    This carries a reducer that explains how to project, and a function
@@ -79,40 +64,41 @@ let convertible env t1 t2 sigma =
  *
  * 7. ConstLazyDelta: This optimization skips delta-reduction for some
  *    contants. It is similar to AppLazyDelta. This carries the constant.
- *
- * 8. SmartLiftConstr: For certain equivalences, we can configure a faster
- *    version of LiftConstr. This rule fires when we've determined a faster
- *    version to run in its place. This carries the cached lifted constructor
- *    and the arguments.
  *)
 type lift_optimization =
 | GlobalCaching of constr
 | LocalCaching of constr
 | OpaqueConstant
-| SimplifyProjectPacked of reducer * (constr * constr array)
+| SimplifyProjectId of reducer * (constr * constr array)
 | LazyEta of constr
 | AppLazyDelta of constr * constr array
 | ConstLazyDelta of Names.Constant.t Univ.puniverses
-| SmartLiftConstr of constr * constr list
-
+                                     
 (*
  * We compile Gallina to a language that matches our premises for the rules
  * in our lifting algorithm.
  *
  * 1. EQUIVALENCE runs when the term we are lifting is one of the types in
- *    the type equivalence we are lifting across. This carries the arguments
- *    to the lifted type.
+ *    the type equivalence we are lifting across. This carries the lifted type
+ *    and the arguments to the lifted type.
  *
  * 2. LIFT-CONSTR runs when we lift constructors of the type in the equivalence.
- *    This carries the lifted constructor and the arguments.
+ *    This carries the lifted constructor and the arguments, as well as a custom
+ *    reduction function to apply the constructor to the arguments prior to
+ *    lifting the result, as well as a flag for whether the lifted constructor
+ *    should be treated asopaque.
  *
- * 3. COHERENCE runs when we lift projections of the type in the equivalence.
- *    This carries the term we are projecting, the lifted projection, and the
- *    arguments.
+ * 3. COHERENCE runs when we lift projections of the type in the equivalence
+ *    (either at the term or type level). This carries the term we are
+ *    the lifted projection and the arguments, as well as a custom reduction
+ *    function to apply coherence to the lifted arguments (to neatly ensure
+ *    termination while also maintaining correctness).
  *
  * 4. LIFT-ELIM runs when we lift applications of eliminators of the type
  *    in the equivalence. This carries the application of the eliminator,
- *    as well as the lifted parameters.
+ *    the lifted parameters, and the arguments after the eliminator (if the
+ *    motive is a product type), as well as a flag for whether to treat the
+ *    entire eliminated term as opaque.
  *
  * 5. SECTION runs when section applies.
  *
@@ -124,186 +110,182 @@ type lift_optimization =
  *
  * 8. OPTIMIZATION runs when some optimization applies.
  *
- * 9. LIFT-PACK runs when we must repack for non-primitive projections.
- *    I hope to understand when we need this at some point; I suspect
- *    it should be a part of other rules.
+ * 9. LIFT-IDENTITY runs when we lift the eta-expanded identity function.
+ *    This exists to ensure that we preserve definitional equalities.
+ *    The rule returns the lifted identity function and its arguments, as
+ *    well as a custom reduction function to apply identity to the
+ *    lifted arguments (for efficiency and to ensure termination).
  *
  * 10. CIC runs when no optimization applies and none of the other rules
  *    apply. It returns the kind of the Gallina term.
  *)
 type lift_rule =
-| Equivalence of constr list
-| LiftConstr of constr * constr list
-| LiftPack
-| Coherence of constr * constr * constr list
-| LiftElim of elim_app * constr list
+| Equivalence of constr * constr list
+| LiftConstr of reducer * (constr * constr list * bool)
+| LiftIdentity of reducer * (constr * constr list)
+| Coherence of reducer * (constr * constr list)
+| LiftElim of elim_app * constr list * constr list * bool
 | Section
 | Retraction
 | Internalize
 | Optimization of lift_optimization
 | CIC of (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
 
+(* --- Termination conditions --- *)
+
+(*
+ * DEVOID supports some equivalences where the the type B refers in some
+ * way to the type A. Work support these equivalences is preliminary,
+ * but the way that DEVOID currently handles this is by threading the
+ * history of the lifting operation through each recursive call.
+ * When appropriate, based on the history, for certain rules,
+ * certain termination conditions fire. If those conditions fire, we
+ * skip those rules and continue.
+ *
+ * This can also help us catch bugs in lifting by preventing infinite
+ * recursion when we would otherwise accidentally recurse on the same subterm
+ * over and over again.
+ *)
+
+(* Termination condition for EQUIVALENCE *)
+let terminate_eqv prev_rules args_o =
+  let args = Option.get args_o in
+  List.exists
+    (fun prev_rule ->
+      match prev_rule with
+      | Equivalence (_, args') when List.length args = List.length args' ->
+         (* the lifted type refers to the unlifted type *)
+         List.for_all2 equal args args'
+      | _ ->
+         false)
+    prev_rules
+
+(* Termination condition for LIFT-CONSTR *)
+let terminate_constr prev_rules f args=
+  List.exists
+    (fun prev_rule ->
+      match prev_rule with
+      | LiftConstr (simplify, (f', args', opaque)) when equal f f' ->
+         (* the lifted contructor refers to the unlifted constructor *)
+         equal f f' && List.for_all2 equal args args'
+      | _ ->
+         false)
+    prev_rules
+
+ (* Termination condition for COHERENCE *)
+let terminate_coh prev_rules proj_o env trm sigma =
+  let f, args, _ = Option.get proj_o in
+  exists_state
+    (fun prev_rule sigma ->
+      match prev_rule with
+      | Coherence (_, (f', args')) when equal f f' ->
+         (* the lifted applications refers to the unlifted application *)
+         if List.for_all2 equal args args' then
+           sigma, true
+         else
+           let sigma, projected = reduce_term env sigma (mkAppl (f', args')) in
+           sigma, equal trm projected
+      | _ ->
+         sigma, false)
+    prev_rules
+    sigma
+
+(* Termination condition for LIFT-IDENTITY *)
+let terminate_identity prev_rules args_o =
+  let args = Option.get args_o in
+  List.exists
+    (fun prev_rule ->
+      match prev_rule with
+      | LiftIdentity (_, (_, args')) ->
+         (* The lifted eta-expanded identity refers to unlifted identity *)
+         List.for_all2 equal args args'
+      | _ ->
+         false)
+    prev_rules
+
 (* --- Premises --- *)
 
-(* Premises for LIFT-CONSTR *)
-let is_packed_constr c env sigma trm =
-  let l = get_lifting c in
-  let constrs = get_constrs c in
-  let is_packed_inductive_constr is_packed unpack trm =
-    if is_packed trm then
-      let unpacked = unpack trm in
-      let f = first_fun unpacked in
-      let args = unfold_args unpacked in
-      match kind f with
-      | Construct ((_, i), _) when i <= Array.length constrs ->
-         let constr = constrs.(i - 1) in
-         let constr_f = first_fun (unpack (zoom_term zoom_lambda_term env constr)) in
-         if equal constr_f f && List.length args = arity constr then
-           sigma, Some (i - 1, args)
-         else
-           sigma, None
-      | _ ->
-         sigma, None
+(* Premises for EQUIVALENCE *)
+let is_equivalence c env trm prev_rules sigma =
+  let sigma, args_o = is_from c env trm sigma in
+  if Option.has_some args_o then
+    if not (terminate_eqv prev_rules args_o) then
+      let (a_typ, b_typ) = get_types c in
+      let typ = if (get_lifting c).is_fwd then b_typ else a_typ in
+      sigma, Some (typ, Option.get args_o)
     else
       sigma, None
-  in
-  if isConstruct trm || (isApp trm && l.is_fwd) then
-    is_packed_inductive_constr (fun _ -> true) id trm
   else
-    match l.orn.kind with
-    | Algebraic _ ->
-       is_packed_inductive_constr (is_packed c) last_arg trm
-    | SwapConstruct _ ->
-       is_packed_inductive_constr (fun _ -> true) id trm
-    | CurryRecord ->
-       if is_packed c trm then
-          let sigma_right, args_opt = type_is_from c env trm sigma in
-          if Option.has_some args_opt then
-            let sigma = sigma_right in
-            let constr = constrs.(0) in
-            let pms = Option.get args_opt in
-            let args = pair_projections_eta_rec_n trm (arity constr - List.length pms) in
-            sigma, Some (0, List.append pms args)
-          else
-            sigma, None
-       else
-         sigma, None
-
-(* Premises for LIFT-PACK *)
-let is_pack c env sigma trm =
-  let l = get_lifting c in
-  let right_type trm = type_is_from c env trm sigma in
-  if l.is_fwd then
-    if isRel trm then
-      (* pack *)
-      Util.on_snd Option.has_some (right_type trm)
+    sigma, None
+             
+(* Premises for LIFT-CONSTR *)
+let is_constr c prev_rules env trm sigma =
+  let sigma, app_o = applies_constr_eta c env trm sigma in
+  if Option.has_some app_o then
+    let i, args, opaque = Option.get app_o in
+    let lifted_constr = (get_lifted_constrs c).(i) in
+    if not (terminate_constr prev_rules lifted_constr args) then
+      sigma, Some (lifted_constr, args, reduce_constr_app c, opaque)
     else
-      sigma, false
+      sigma, None
   else
-    match l.orn.kind with
-    | Algebraic (_, _) ->
-       if is_packed c trm then
-         (* unpack *)
-         Util.on_snd Option.has_some (right_type trm)
-       else
-         sigma, false
-    | SwapConstruct _ ->
-       (* no packing *)
-       sigma, false
-    | CurryRecord ->
-       (* taken care of by constructor rule *)
-       sigma, false
-
-(* Auxiliary function for premise for LIFT-PROJ *)
-let check_is_proj c env trm proj_is =
-  match kind trm with
-  | App _ | Const _ -> (* this check is an optimization *)
-     let f = first_fun trm in
-     let rec check_is_proj_i i proj_is =
-       match proj_is with
-       | proj_i :: tl ->
-          let proj_i_f = first_fun (zoom_term zoom_lambda_term env proj_i) in
-          branch_state
-            (convertible env proj_i_f) (* this check is an optimization *)
-            (fun _ sigma ->
-              let sigma, trm_eta = expand_eta env sigma trm in
-              let env_b, b = zoom_lambda_term env trm_eta in
-              let args = unfold_args b in
-              if List.length args = 0 then
-                check_is_proj_i (i + 1) tl sigma
-              else
-                (* attempt unification *)
-                try
-                  let sigma, eargs =
-                    map_state
-                      (fun _ sigma ->
-                        let sigma, (earg_typ, _) = new_type_evar env_b sigma univ_flexible in
-                        let sigma, earg = new_evar env_b sigma earg_typ in
-                        sigma, EConstr.to_constr sigma earg)
-                      (mk_n_rels (arity proj_i))
-                      sigma
-                  in
-                  let sigma, proj_app = reduce_term env_b sigma (mkAppl (proj_i, eargs)) in
-                  let sigma = the_conv_x env_b (EConstr.of_constr b) (EConstr.of_constr proj_app) sigma in
-                  sigma, Some (last eargs, i, all_but_last eargs, trm_eta) 
-                with _ ->
-                  check_is_proj_i (i + 1) tl sigma)
-            (fun _ -> check_is_proj_i (i + 1) tl)
-            f
-       | _ ->
-          ret None
-     in check_is_proj_i 0 proj_is
-  | _ ->
-     ret None
-
-(* Premises for LIFT-PROJ *)
-let is_proj c env trm =
-  let proj_rules = get_proj_map c in
-  if List.length proj_rules = 0 then
-    ret None
+    sigma, None
+             
+(* Premises for COHERENCE *)
+let is_coh c env trm prev_rules sigma =
+  let sigma, to_proj_o = is_proj c env trm sigma in
+  if Option.has_some to_proj_o then
+    let sigma, terminate = terminate_coh prev_rules to_proj_o env trm sigma in
+    if not terminate then
+      sigma, to_proj_o
+    else
+      sigma, None
   else
-    check_is_proj c env trm (List.map fst proj_rules)
+    sigma, None
+
+(* Premises for LIFT-IDENTITY *)
+let is_identity c env trm prev_rules sigma =
+  let sigma, args_o = applies_id_eta c env trm sigma in
+  if Option.has_some args_o then
+    if not (terminate_identity prev_rules args_o) then
+      sigma, Some (reduce_lifted_id c, (get_lifted_id_eta c, Option.get args_o))
+    else
+      sigma, None
+  else
+    sigma, None
 
 (* Premises for LIFT-ELIM *)
 let is_eliminator c env trm sigma =
+  let sigma, elim_app_o = applies_elim c env trm sigma in
+  if Option.has_some elim_app_o then
+    let eta_o, trm_elim, pms, nargs, opaque = Option.get elim_app_o in
+    if Option.has_some eta_o then
+      (* Lazy eta *)
+      sigma, Some (eta_o, None)
+    else
+      (* Already eta-expanded *)
+      sigma, Some (None, Some (trm_elim, pms, nargs, opaque))
+  else
+    sigma, None
+
+(*
+ * SECTION / RETRACTION
+ *)
+let is_section_retraction c trm =
   let l = get_lifting c in
-  match kind (first_fun trm) with
-  | Const (k, u) ->
-     let maybe_ind = inductive_of_elim env (k, u) in
-     if Option.has_some maybe_ind then
-       let ind = Option.get maybe_ind in
-       let is_elim = equal (mkInd (ind, 0)) (get_elim_type c) in
-       if is_elim then
-         let sigma, trm_eta = expand_eta env sigma trm in
-         let env_elim, trm_b = zoom_lambda_term env trm_eta in
-         let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm_b in
-         if (not l.is_fwd) && l.orn.kind = CurryRecord then
-           let (final_args, post_args) = take_split 1 trm_elim.final_args in
-           let sigma, is_from = type_is_from c env_elim (List.hd final_args) sigma in
-           if Option.has_some is_from then
-             sigma, Some (env_elim, trm_eta, trm_elim, Option.get is_from)
-           else
-             sigma, None
-         else
-           if l.orn.kind = CurryRecord then
-             let typ_f = first_fun (zoom_term zoom_lambda_term env_elim (snd (get_types c))) in
-             let sigma, to_typ_prod = specialize_delta_f env_elim typ_f trm_elim.pms sigma in
-             let to_elim = dest_prod to_typ_prod in
-             let pms = [to_elim.Produtils.typ1; to_elim.Produtils.typ2] in
-             sigma, Some (env_elim, trm_eta, trm_elim, pms)
-           else
-             sigma, Some (env_elim, trm_eta, trm_elim, trm_elim.pms)
-       else
-         sigma, None
-     else
-       sigma, None
-  | _ ->
-     sigma, None
+  isApp trm && applies (lift_back l) trm
+
+(*
+ * INTERNALIZE
+ *)
+let is_internalize c trm =
+  let l = get_lifting c in
+  isApp trm && applies (lift_to l) trm
 
 (*
  * Given a term, determine the appropriate lift rule to run
  *)
-let determine_lift_rule c env trm sigma =
+let determine_lift_rule c env trm prev_rules sigma =
   let l = get_lifting c in
   let lifted_opt = lookup_lifting (lift_to l, lift_back l, trm) in
   if Option.has_some lifted_opt then
@@ -312,61 +294,53 @@ let determine_lift_rule c env trm sigma =
     sigma, Optimization (LocalCaching (lookup_cache c trm))
   else if is_opaque c trm then
     sigma, Optimization OpaqueConstant
+  else if is_section_retraction c trm then
+    sigma, if l.is_fwd then Retraction else Section
+  else if is_internalize c trm then
+    sigma, Internalize
   else
-    let sigma, args_o = is_from c env trm sigma in
+    let sigma, args_o = is_equivalence c env trm prev_rules sigma in
     if Option.has_some args_o then
-      sigma, Equivalence (Option.get args_o)
+      let typ, args = Option.get args_o in
+      sigma, Equivalence (typ, args)
     else
-      let sigma, i_and_args_o = is_packed_constr c env sigma trm in
-      if Option.has_some i_and_args_o then
-        let i, args = Option.get i_and_args_o in
-        let lifted_constr = (get_lifted_constrs c).(i) in
-        if List.length args > 0 then
-          if not l.is_fwd then
-            sigma, LiftConstr (lifted_constr, args)
-          else
-            match l.orn.kind with
-            | SwapConstruct _ ->
-               sigma, LiftConstr (lifted_constr, args)
-            | _ ->
-               sigma, Optimization (SmartLiftConstr (lifted_constr, args))
+      let sigma, to_proj_o = is_coh c env trm prev_rules sigma in
+      if Option.has_some to_proj_o then
+        let proj, args, trm_eta = Option.get to_proj_o in
+        if arity trm_eta > arity trm then
+          sigma, Optimization (LazyEta trm_eta)
         else
-          sigma, LiftConstr (lifted_constr, args)
+          sigma, Coherence (reduce_coh c, (proj, args))
       else
-        let sigma, is_pack = is_pack c env sigma trm in
-        if is_pack then
-          sigma, LiftPack
+        let sigma, constr_o = is_constr c prev_rules env trm sigma in
+        if Option.has_some constr_o then
+          let f, args, simplify, opaque = Option.get constr_o in
+          sigma, LiftConstr (simplify, (f, args, opaque))
         else
-          let sigma, to_proj_o = is_proj c env trm sigma in
-          if Option.has_some to_proj_o then
-            let to_proj, i, args, trm_eta = Option.get to_proj_o in
-            if arity trm_eta > arity trm then
-              sigma, Optimization (LazyEta trm_eta)
-            else
-              let (_, p) = List.nth (get_proj_map c) i in
-              sigma, Coherence (to_proj, p, args)
+          let sigma, is_identity_o = is_identity c env trm prev_rules sigma in
+          if Option.has_some is_identity_o then
+            let simplify, (f, args) = Option.get is_identity_o in
+            sigma, LiftIdentity (simplify, (f, args))
           else
             let sigma, is_elim_o = is_eliminator c env trm sigma in
             if Option.has_some is_elim_o then
-              let env_elim, trm_eta, trm_elim, pms = Option.get is_elim_o in
-              if new_rels2 env_elim env > 0 then
-                sigma, Optimization (LazyEta trm_eta)
+              let eta_o, elim_app_o = Option.get is_elim_o in
+              if Option.has_some eta_o then
+                sigma, Optimization (LazyEta (Option.get eta_o))
               else
-                sigma, LiftElim (trm_elim, pms)
+                let trm_elim, pms, nargs, opaque = Option.get elim_app_o in
+                let args = take_split nargs trm_elim.final_args in
+                let trm_elim = { trm_elim with final_args = fst args } in
+                sigma, LiftElim (trm_elim, pms, snd args, opaque)
             else
               match kind trm with
               | App (f, args) ->
-                 if equal (lift_back l) f then
-                   sigma, if l.is_fwd then Retraction else Section
-                 else if equal (lift_to l) f then
-                   sigma, Internalize
+                 let how_reduce_o = can_reduce_now c env trm in
+                 if Option.has_some how_reduce_o then
+                   let how_reduce = Option.get how_reduce_o in
+                   sigma, Optimization (SimplifyProjectId (how_reduce, (f, args)))
                  else
-                   let how_reduce_o = can_reduce_now c trm in
-                   if Option.has_some how_reduce_o then
-                     let how_reduce = Option.get how_reduce_o in
-                     sigma, Optimization (SimplifyProjectPacked (how_reduce, (f, args)))
-                   else
-                     sigma, Optimization (AppLazyDelta (f, args))
+                   sigma, Optimization (AppLazyDelta (f, args))
               | Construct (((i, i_index), _), u) ->
                  let ind = mkInd (i, i_index) in
                  let (a_typ, b_typ) = get_types c in
@@ -387,3 +361,4 @@ let determine_lift_rule c env trm sigma =
                  sigma, Optimization (ConstLazyDelta (co, u))
               | _ ->
                  sigma, CIC (kind trm)
+

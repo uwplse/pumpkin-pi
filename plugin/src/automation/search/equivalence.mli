@@ -9,10 +9,10 @@ open Stateutils
 
 (*
  * Prove section and retraction
- * Return the section term and the retraction term
- * (Don't return the types, since Coq can infer them without issue)
+ * Return the section term and the retraction term, as well as their types
  *)
-val prove_equivalence : env -> evar_map -> lifting -> (types * types)
+val prove_equivalence :
+  env -> evar_map -> lifting -> ((constr * types) * (constr * types))
 
 type pre_adjoint = {
   orn : lifting;
@@ -27,9 +27,11 @@ type pre_adjoint = {
  * step; wrapping the proof term for retraction in a clever way (formalized in
  * `fg_id'`) makes a later equality of equality proofs true definitionally.
  *)
-val adjointify_retraction : env -> pre_adjoint -> evar_map -> constr state
+val adjointify_retraction :
+  env -> pre_adjoint -> evar_map -> constr state
 
 (*
  * Prove adjunction.
  *)
-val prove_adjunction : env -> pre_adjoint -> evar_map -> constr state
+val prove_adjunction :
+  env -> pre_adjoint -> evar_map -> (constr * types) state

@@ -18,6 +18,9 @@ open Stateutils
 open Promotion
 open Reducers
 open Equtils
+open Funutils
+open Hypotheses
+open Unificationutils
 
 (* --- Datatypes --- *)
 
@@ -68,18 +71,48 @@ let rec promotion_type_to_types (typ : types) : types * types =
 let promotion_term_to_types env sigma trm =
   on_red_type_default (ignore_env promotion_type_to_types) env sigma trm
 
-(* --- Utilities for initialization --- *)
+(*
+ * Determine whether a type is the type we are ornamenting from
+ * (A in forward direction, B in backward direction) using unification.
+ * We optimize this in liftconfig.ml depending on the kind of ornament.
+ *)
+let e_is_from env goal_typ typ sigma =
+  try
+    let nargs = arity goal_typ in
+    let sigma, eargs = mk_n_evars nargs env sigma in
+    let sigma, typ_app = reduce_term env sigma (mkAppl (goal_typ, eargs)) in
+    let sigma, unifies = unify env typ typ_app sigma in
+    if unifies then
+      sigma, Some eargs
+    else
+      sigma, None
+  with _ ->
+    sigma, None
 
+(* --- Utilities for initialization --- *)
+                         
 (*
  * Determine if the direction is forwards or backwards
  * That is, if trm is a promotion or a forgetful function
  * True if forwards, false if backwards
  *)
 let direction_cached env from_typ promote k sigma : bool state =
-  let promote = unwrap_definition env promote in
-  let promote_env = zoom_env zoom_lambda_term env promote in
+  let sigma, promote_typ = reduce_type env sigma promote in
+  let promote_env = zoom_env zoom_product_type env promote_typ in
   let sigma, promote_typ = infer_type promote_env sigma (mkRel 1) in
-  sigma, is_or_applies from_typ promote_typ
+  if is_or_applies from_typ promote_typ then
+    sigma, true
+  else
+    match k with
+    | UnpackSigma ->
+       (* unify *)
+       let sigma, from_typ = expand_eta promote_env sigma from_typ in
+       Util.on_snd
+         Option.has_some
+         (e_is_from promote_env from_typ promote_typ sigma)
+    | _ ->
+       (* don't bother *)
+       sigma, false
 
 (* 
  * Unpack a promotion

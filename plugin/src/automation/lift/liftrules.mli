@@ -26,11 +26,10 @@ type lift_optimization =
 | GlobalCaching of constr
 | LocalCaching of constr
 | OpaqueConstant
-| SimplifyProjectPacked of reducer * (constr * constr array)
+| SimplifyProjectId of reducer * (constr * constr array)
 | LazyEta of constr
 | AppLazyDelta of constr * constr array
 | ConstLazyDelta of Names.Constant.t Univ.puniverses
-| SmartLiftConstr of constr * constr list
 
 (*
  * We compile Gallina to a language that matches our premises for the rules
@@ -40,11 +39,11 @@ type lift_optimization =
  * See the implementation for an explanation of each of these.
  *)
 type lift_rule =
-| Equivalence of constr list
-| LiftConstr of constr * constr list
-| LiftPack
-| Coherence of constr * constr * constr list
-| LiftElim of elim_app * constr list
+| Equivalence of constr * constr list
+| LiftConstr of reducer * (constr * constr list * bool)
+| LiftIdentity of reducer * (constr * constr list)
+| Coherence of reducer * (constr * constr list)
+| LiftElim of elim_app * constr list * constr list * bool
 | Section
 | Retraction
 | Internalize
@@ -53,6 +52,9 @@ type lift_rule =
 
 (*
  * Determine which lift rule to run
+ *
+ * The lift_rule argument is the previous lift rules
+ * to prevent infinite recursion in obvious cases
  *)
 val determine_lift_rule :
-  lift_config -> env -> constr -> evar_map -> lift_rule state
+  lift_config -> env -> constr -> lift_rule list -> evar_map -> lift_rule state
