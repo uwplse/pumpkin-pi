@@ -255,6 +255,11 @@ End packed_list.
  *)
 Lift Module list vector in hs_to_coq_lengths as hs_to_coq_projT1s.
 Lift Module list vector in packed_list as packed_vector { opaque eq_existT_uncurried Eqdep_dec.UIP_dec Nat.eq_dec }.
+
+Check packed_vector.zip.
+Check packed_vector.zip_with.
+Check packed_vector.zip_with_is_zip.
+
 (*
  * Finally, we can get from { s : sigT (vector T) & projT1 s = n} to unpacked vectors
  * at the index we want very easily.
