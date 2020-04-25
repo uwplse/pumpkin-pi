@@ -287,20 +287,53 @@ let initialize_proj_rules c env sigma =
     let t = mkRel 1 in
     match l.orn.kind with
     | Algebraic (indexer, _) ->
-       (* indexer <-> projT1, id(_typ) <- projT2(_typ) *)
+       (* indexer <-> projT1, id(_typ) <- (rew ... in projT2(_typ) *)
        let sigma, b_sig = Util.on_snd dest_sigT (reduce_type env_b sigma t) in
        let projT1 = reconstruct_lambda env_b (project_index b_sig t) in
        let projT2 = reconstruct_lambda env_b (project_value b_sig t) in
+       let rew_projT2 =
+         let index_type = b_sig.index_type in
+         let env_index = push_local (Anonymous, index_type) env_b in
+         let env_eq =
+           let eq_typ =
+             let at_type = shift index_type in
+             let trm1 = shift (project_index b_sig t) in
+             let trm2 = mkRel 1 in
+             apply_eq { at_type; trm1; trm2 }
+           in push_local (Anonymous, eq_typ) env_index
+         in
+         let rew =
+           let index_type = shift_by 2 index_type in
+           let proj_index = shift_by 2 (project_index b_sig t) in
+           let packer = shift_by 2 b_sig.packer in
+           let b = shift_by 2 (project_value b_sig t) in
+           let index = mkRel 2 in
+           let eq = mkRel 1 in
+           mkAppl (eq_rect, [index_type; proj_index; packer; b; index; eq])
+         in reconstruct_lambda env_eq rew
+       in
        let indexer =
          let args = mk_n_rels (nb_rel env_a) in
          reconstruct_lambda env_a (mkAppl (indexer, args))
        in
        let id = reconstruct_lambda env_a t in
+       let rew_id =
+         let index_type = b_sig.index_type in
+         let env_index = push_local (Anonymous, index_type) env_a in
+         let env_eq =
+           let eq_typ =
+             let at_type = shift index_type in
+             let trm1 = mkAppl (indexer, shift_all (mk_n_rels (nb_rel env_a))) in
+             let trm2 = mkRel 1 in
+             apply_eq { at_type; trm1; trm2 }
+           in push_local (Anonymous, eq_typ) env_index
+         in reconstruct_lambda env_eq (shift_by 2 t)
+       in
        let projT2_typ = reconstruct_lambda (pop_rel_context 1 env_b) (unshift b_sig.packer) in
        let env_id_typ = zoom_env zoom_lambda_term env projT2_typ in
        let id_typ = reconstruct_lambda env_id_typ a_typ in
        let a_rules = [(indexer, projT1)], [] in
-       let b_rules = [(projT1, indexer); (projT2, id)], [(projT2_typ, id_typ)] in
+       let b_rules = [(projT1, indexer); (projT2, id); (rew_projT2, rew_id)], [(projT2_typ, id_typ)] in
        sigma, (a_rules, b_rules)
     | UnpackSigma ->
        let sigma, a_typ = reduce_type env_a sigma t in
