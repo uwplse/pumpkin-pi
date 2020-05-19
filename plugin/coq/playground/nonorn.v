@@ -220,9 +220,11 @@ Module Bin_Equiv_Proof := Split_Equiv_Proof Bin Bin_Equiv_OK.
 
 (*
  * The key is that we need a way to partition the S case exactly.
+ * (So this is not partitioning the natural numbers, but rather partitioning
+ * the successor function itself into two parts).
  * Any partition works fine, as long as we can always get back to where we started.
  * What we saw before is that binary numbers are exactly what we get by
- * partitioning the successor case for the natural numbers into even and odd cases.
+ * partitioning the successor function for the natural numbers into even and odd cases.
  * This makes sense because the original nat inductive type acts like a unary nat.
  * I think we could get n-ary nat if we split n times all at once following that
  * pattern, and in a sense, the n-ary numbers induce the n-induction principle.
@@ -231,4 +233,9 @@ Module Bin_Equiv_Proof := Split_Equiv_Proof Bin Bin_Equiv_OK.
  * some other types. So that's what I'll do here next. Then I'll automate both
  * proving this equivalence (with the parameters as user proof obligations) and
  * lifting proofs across it.
+ *
+ * Are there any partitions here besides the mod groups for which you can
+ * define a successor function that the equivalence preserves? If so,
+ * what are they? I'm not sure. I tried lists and it was useless because
+ * I don't understand how to split the cons case. Ugh.
  *)
