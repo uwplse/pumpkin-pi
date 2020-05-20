@@ -216,6 +216,36 @@ End Bin_Equiv_OK.
 
 Module Bin_Equiv_Proof := Split_Equiv_Proof Bin Bin_Equiv_OK.
 
+(*
+ * Here's our dependent eliminator, but to get there we convert to nats first:
+ *)
+Definition dep_elim_via_nat_rect (P : Bin.nat -> Type) (PO : P Bin.O)
+    (PS : forall n : Bin.nat, P n -> P (Bin.S n)) (n : Bin.nat) : P n :=
+  eq_rect
+    (nat_to_binnat (binnat_to_nat n))
+    (fun n0 : binnat => P n0)
+    (nat_rect
+      (fun m0 : nat =>
+        forall n0 : Bin.nat, m0 = binnat_to_nat n0 -> P (nat_to_binnat m0))
+      (fun (n0 : Bin.nat) (_ : 0 = binnat_to_nat n0) => PO)
+      (fun (m0 : nat) (IHm : forall n0 : Bin.nat, m0 = binnat_to_nat n0 -> P (nat_to_binnat m0))
+           (n0 : Bin.nat) (Heqm0 : S m0 = binnat_to_nat n0) =>
+        PS (nat_to_binnat m0) (IHm (nat_to_binnat (pred (binnat_to_nat n0)))
+           (eq_ind_r (fun n1 : nat => m0 = n1)
+              (eq_ind (S m0) (fun n1 : nat => m0 = pred n1) eq_refl
+                 (binnat_to_nat n0) Heqm0)
+              (retraction (pred (binnat_to_nat n0))))))
+      (binnat_to_nat n)
+      n
+      eq_refl)
+    n
+    (section n).
+
+(*
+ * I assume there is a way to do this without inducting over nats by cleverly
+ * manipulating the motive. How so, though? argh.
+ *)
+
 (* --- OK cute. Notes on how to keep playing with this below. --- *)
 
 (*
