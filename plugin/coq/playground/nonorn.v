@@ -1,5 +1,6 @@
 Require Import Coq.Program.Tactics.
 Require Import PeanoNat.
+Require Import Ornamental.Ornaments.
 
 (*
  * This is my first attempt at understanding equivalences that are not ornaments
@@ -245,6 +246,51 @@ Definition dep_elim_via_nat_rect (P : Bin.nat -> Type) (PO : P Bin.O)
  * I assume there is a way to do this without inducting over nats by cleverly
  * manipulating the motive. How so, though? argh.
  *)
+
+(* via Dan Licata (yay) *)
+Fixpoint natrec (T : Type) (o : T) (s : T -> T) (b : Bin.nat) : T :=
+  (fix iterate (s : T -> T) (b : Bin.nat) : T -> T :=
+  match b with
+  | zero => (fun x => x)
+  | consOdd n => (fun x => (iterate s n) ((iterate s n) (s x))) (* S (m + m) *)
+  | consEven n => (fun x => (iterate s n) ((iterate s n) (s (s x)))) (* S (S (m + m)) *)
+  end) s b o.
+
+(* Defined with more cases than needed to avoid lemmas *)
+Program Definition add (b1 b2 : Bin.nat) : Bin.nat.
+Proof.
+  revert b2. induction b1; intros.
+  - apply b2.
+  - apply Bin.S. apply IHb1. apply IHb1. apply b2.
+  - apply Bin.S. apply Bin.S. apply IHb1. apply b2.
+Defined.
+
+Lemma iterate:
+  forall (P : Bin.nat -> Type) (s : forall (b : Bin.nat), P b -> P (Bin.S b)),
+  forall (b1 b2 : Bin.nat), P b2 -> P (add b1 b2).
+Proof.
+  intros P s b1. induction b1; intros.
+  - apply X.
+  - simpl. apply s. apply IHb1. apply IHb1. apply X.
+  - simpl. apply s. apply s. apply IHb1. apply X.
+Defined.
+
+Lemma add_n_O:
+  forall (n : Bin.nat),
+    add n Bin.O = n.
+Proof.
+  admit. (* TODO *)
+Admitted.
+
+Lemma binnat_licata_rect :
+  forall (P : Bin.nat -> Type),
+    P Bin.O ->
+    (forall n : Bin.nat, P n -> P (Bin.S n)) ->
+    forall (n : Bin.nat), P n.
+Proof.
+  intros P PO PS n. pose proof (iterate P PS n Bin.O PO).
+  rewrite <- add_n_O. apply X.
+Defined.
 
 (* --- OK cute. Notes on how to keep playing with this below. --- *)
 
