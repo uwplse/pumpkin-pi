@@ -191,8 +191,10 @@ Definition Datatypes_S2 (n : Datatypes.nat) := Datatypes.S (Datatypes.S (n + n))
 
 End Bin.
 
-Module Bin_Equiv_OK <: Split_Equiv_OK Bin.
 Module e := Split_Equiv Bin.
+
+Module Bin_Equiv_OK <: Split_Equiv_OK Bin.
+Module e := e.
 Import e Bin.
 
 Definition S_OK := refold_suc_binnat.
@@ -245,56 +247,52 @@ Definition dep_elim_via_nat_rect (P : Bin.nat -> Type) (PO : P Bin.O)
 (*
  * I assume there is a way to do this without inducting over nats by cleverly
  * manipulating the motive. How so, though? argh.
+ *
+ * Ah, Conor McBride wrote an epic poem about this, as always:
+ * https://personal.cis.strath.ac.uk/conor.mcbride/pub/1Song/Song.pdf
+ *
+ * For now we'll use the last construction from that paper, since it's the easiest.
+ * (Conor credits McKinna for this one)
  *)
+Inductive natty : Bin.nat -> Type :=
+| nO : natty Bin.O
+| nsuc : forall (n : Bin.nat), natty n -> natty (Bin.S n).
 
-(* via Dan Licata (yay) *)
-Fixpoint natrec (T : Type) (o : T) (s : T -> T) (b : Bin.nat) : T :=
-  (fix iterate (s : T -> T) (b : Bin.nat) : T -> T :=
-  match b with
-  | zero => (fun x => x)
-  | consOdd n => (fun x => (iterate s n) ((iterate s n) (s x))) (* S (m + m) *)
-  | consEven n => (fun x => (iterate s n) ((iterate s n) (s (s x)))) (* S (S (m + m)) *)
-  end) s b o.
-
-(* Defined with more cases than needed to avoid lemmas *)
-Program Definition add (b1 b2 : Bin.nat) : Bin.nat.
+(*
+ * Hey cute, this is an algebraic ornament of nat. Actually, more than cute.
+ * This really connects everything together.
+ *)
+Lemma bin_natty:
+  forall (n : Bin.nat), natty n.
 Proof.
-  revert b2. induction b1; intros.
-  - apply b2.
-  - apply Bin.S. apply IHb1. apply IHb1. apply b2.
-  - apply Bin.S. apply Bin.S. apply IHb1. apply b2.
-Defined.
+  intros n. induction n.
+  - constructor.
+  - induction IHn.
+    + apply (nsuc zero). constructor.
+    + apply (nsuc (Bin.S2 n)). apply (nsuc (Bin.S1 n)). apply IHIHn. 
+  - induction IHn.
+    + apply (nsuc (Bin.S1 Bin.O) (nsuc zero nO)).
+    + apply (nsuc (Bin.S1 (Bin.S n))). apply (nsuc (Bin.S2 n)). apply IHIHn.
+Defined. 
 
-Lemma iterate:
-  forall (P : Bin.nat -> Type) (s : forall (b : Bin.nat), P b -> P (Bin.S b)),
-  forall (b1 b2 : Bin.nat), P b2 -> P (add b1 b2).
-Proof.
-  intros P s b1. induction b1; intros.
-  - apply X.
-  - simpl. apply s. apply IHb1. apply IHb1. apply X.
-  - simpl. apply s. apply s. apply IHb1. apply X.
-Defined.
-
-Lemma add_n_O:
-  forall (n : Bin.nat),
-    add n Bin.O = n.
-Proof.
-  admit. (* TODO *)
-Admitted.
-
-Lemma binnat_licata_rect :
+Program Definition binnat_nat_rect :
   forall (P : Bin.nat -> Type),
     P Bin.O ->
-    (forall n : Bin.nat, P n -> P (Bin.S n)) ->
+    (forall (n : Bin.nat), P n -> P (Bin.S n)) ->
     forall (n : Bin.nat), P n.
 Proof.
-  intros P PO PS n. pose proof (iterate P PS n Bin.O PO).
-  rewrite <- add_n_O. apply X.
+  intros P PO PS n. induction (bin_natty n); auto.
 Defined.
+
+(*
+ * So nice automation would be writing a procedure that determines the
+ * algebraic ornament from the equivalence between binnat and nat.
+ * Also, what happens to our definitional equalities, here?
+ *)
 
 (* --- OK cute. Notes on how to keep playing with this below. --- *)
 
-(*
+(* 
  * The key is that we need a way to partition the S case exactly.
  * (So this is not partitioning the natural numbers, but rather partitioning
  * the successor function itself into two parts).
