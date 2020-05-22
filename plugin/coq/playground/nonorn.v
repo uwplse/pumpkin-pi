@@ -62,7 +62,7 @@ Lemma refold_suc_binnat :
   forall (b : binnat), binnat_to_nat (suc_binnat b) = S (binnat_to_nat b).
 Proof.
   intros b. induction b; auto. simpl.
-  rewrite IHb. simpl. rewrite Nat.add_comm. auto.
+  rewrite IHb. simpl. rewrite <- plus_n_Sm. auto.
 Defined.
 
 Lemma retraction :
@@ -79,7 +79,7 @@ Lemma refold_suc_nat:
 Proof.
   intros n. induction n.
   - reflexivity.
-  - simpl. rewrite Nat.add_comm. simpl. rewrite IHn. auto.
+  - simpl. rewrite <- plus_n_Sm. simpl. rewrite IHn. auto.
 Defined.
 
 Lemma section :
@@ -203,7 +203,7 @@ Program Definition S1_OK :
 Proof.
   intros n. induction n.
   - auto.
-  - simpl. simpl in IHn. rewrite Nat.add_comm. simpl.
+  - simpl. simpl in IHn. rewrite <- plus_n_Sm. simpl.
     rewrite IHn. auto.
 Defined.
 Program Definition S2_OK :
@@ -211,7 +211,7 @@ Program Definition S2_OK :
 Proof.
   intros n. induction n.
   - auto.
-  - simpl. simpl in IHn. rewrite Nat.add_comm. simpl.
+  - simpl. simpl in IHn. rewrite <- plus_n_Sm. simpl.
     rewrite IHn. auto.
 Defined.
 
@@ -258,10 +258,6 @@ Inductive natty : Bin.nat -> Type :=
 | nO : natty Bin.O
 | nsuc : forall (n : Bin.nat), natty n -> natty (Bin.S n).
 
-(*
- * Hey cute, this is an algebraic ornament of nat. Actually, more than cute.
- * This really connects everything together.
- *)
 Lemma bin_natty:
   forall (n : Bin.nat), natty n.
 Proof.
@@ -285,10 +281,65 @@ Proof.
 Defined.
 
 (*
+ * Hey cute, this is an algebraic ornament of nat. Actually, more than cute.
+ * This really connects everything together.
+ *)
+
+Set DEVOID search prove equivalence.
+Set DEVOID search prove coherence.
+Set DEVOID lift type.
+
+Preprocess Nat.add as add.
+Lift nat natty in add as add_natty.
+
+(*
  * So nice automation would be writing a procedure that determines the
  * algebraic ornament from the equivalence between binnat and nat.
  * Also, what happens to our definitional equalities, here?
+ * They are preserved between nat and natty. But I'm guessing what breaks them
+ * is the conversion from bin to natty!
+ *
+ * Also note that what we get here is over { b : Bin.nat & natty b }.
+ * To get proofs over Bin.nat from proofs over nat, we want to swap in
+ * binnat_nat_rect for nat_rect, then take care of the appropriate
+ * equalities. The algorithm should take care of that part.
+ *
+ * When we go from proofs over nat to proofs over Bin.nat, we will want
+ * something similar in the opposite direction.
  *)
+
+(*
+ * What are our identities, now?
+ *)
+Definition id_eta (n : Bin.nat) : Bin.nat := n.
+
+Lemma dep_elim_OK :
+  forall (n : Bin.nat) (f : forall (n : Bin.nat), n = n),
+    binnat_nat_rect (fun n => n = n) (f Bin.O) (fun n _ => f (Bin.S n)) n = f (id_eta n).
+Proof.
+  (* TODO: I don't know how to show this right now. It's tricky the same way everything else
+     has been tricky. *)
+Admitted.
+
+Definition elim_id (b : Bin.nat) :=
+  binnat_nat_rect
+   (fun _ => Bin.nat)
+   Bin.O
+   (fun _ IH => Bin.S IH)
+   b.
+
+(*
+ * We probably need the same thing we used to show nat OK but over natty.
+ * Wait lol let's port that:
+ *)
+Lift nat natty in nat_to_binnat as natty_to_binnat.
+Preprocess Module Bin_Equiv_OK as Bin_Equiv_OK'.
+Lift Module nat natty in Bin_Equiv_OK' as Natty_Equiv_OK.
+Check Natty_Equiv_OK.S1_OK.
+Check Natty_Equiv_OK.S2_OK.
+Check Natty_Equiv_OK.S_OK.
+
+(* TODO just need to project out. *)
 
 (* --- OK cute. Notes on how to keep playing with this below. --- *)
 
