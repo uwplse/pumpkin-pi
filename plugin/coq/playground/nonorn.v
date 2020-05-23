@@ -258,28 +258,6 @@ Inductive natty : Bin.nat -> Type :=
 | nO : natty Bin.O
 | nsuc : forall (n : Bin.nat), natty n -> natty (Bin.S n).
 
-Lemma bin_natty:
-  forall (n : Bin.nat), natty n.
-Proof.
-  intros n. induction n.
-  - constructor.
-  - induction IHn.
-    + apply (nsuc zero). constructor.
-    + apply (nsuc (Bin.S2 n)). apply (nsuc (Bin.S1 n)). apply IHIHn. 
-  - induction IHn.
-    + apply (nsuc (Bin.S1 Bin.O) (nsuc zero nO)).
-    + apply (nsuc (Bin.S1 (Bin.S n))). apply (nsuc (Bin.S2 n)). apply IHIHn.
-Defined. 
-
-Program Definition binnat_nat_rect :
-  forall (P : Bin.nat -> Type),
-    P Bin.O ->
-    (forall (n : Bin.nat), P n -> P (Bin.S n)) ->
-    forall (n : Bin.nat), P n.
-Proof.
-  intros P PO PS n. induction (bin_natty n); auto.
-Defined.
-
 (*
  * Hey cute, this is an algebraic ornament of nat. Actually, more than cute.
  * This really connects everything together.
@@ -288,9 +266,6 @@ Defined.
 Set DEVOID search prove equivalence.
 Set DEVOID search prove coherence.
 Set DEVOID lift type.
-
-Preprocess Nat.add as add.
-Lift nat natty in add as add_natty.
 
 (*
  * So nice automation would be writing a procedure that determines the
@@ -309,8 +284,109 @@ Lift nat natty in add as add_natty.
  *)
 
 (*
- * What are our identities, now?
+ * What are our identities, now? First let's lift our equality proofs from nat
+ * along the algebraic ornament.
  *)
+Preprocess Module Bin_Equiv_OK as Bin_Equiv_OK'
+  { opaque
+      binnat_rect binnat_rec binnat_ind
+      Coq.Init.Datatypes.nat_ind Coq.Init.Datatypes.nat_rect Coq.Init.Datatypes.nat_rec
+      Coq.Init.Logic.eq_ind Coq.Init.Logic.eq_ind_r Coq.Init.Logic.eq_sym
+      Bin.nat
+  }.
+Lift Module nat natty in Bin_Equiv_OK' as Natty_Equiv_OK.
+
+(*
+ * This gives us these identities:
+ *)
+Lemma natty_S1_OK:
+  forall (n : {H : Bin.nat & natty H}),
+    Bin.S (projT1 (Natty_Equiv_OK.Coq_Init_Nat_add (existT _ (projT1 n) (projT2 n)) (existT _ (projT1 n) (projT2 n)))) =
+    Bin.S1 (projT1 n).
+Proof.
+  intros. apply Natty_Equiv_OK.S1_OK.
+Defined.
+
+Lemma natty_S2_OK:
+  forall (n : {H : Bin.nat & natty H}),
+    Bin.S (Bin.S (projT1 (Natty_Equiv_OK.Coq_Init_Nat_add (existT _ (projT1 n) (projT2 n)) (existT _ (projT1 n) (projT2 n))))) =
+    Bin.S2 (projT1 n).
+Proof.
+  intros. apply Natty_Equiv_OK.S2_OK.
+Defined.
+
+Lemma natty_S_OK:
+  forall (b : binnat),
+    Natty_Equiv_OK.Top_binnat_to_nat (Bin.S b) =
+    existT _
+      (Bin.S (projT1 (Natty_Equiv_OK.Top_binnat_to_nat b)))
+      (nsuc (projT1 (Natty_Equiv_OK.Top_binnat_to_nat b)) (projT2 (Natty_Equiv_OK.Top_binnat_to_nat b))).
+Proof.
+  intros. apply Natty_Equiv_OK.S_OK.
+Defined.
+
+(*
+ * From this we can get bin_natty and our eliminator
+ * (this is not the most efficient, but it does give us our proofs about it for free):
+ *)
+Program Definition bin_natty (n : Bin.nat) : natty n :=
+  projT2 (Natty_Equiv_OK.Top_binnat_to_nat n).
+Next Obligation.
+  assert (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n) = n); auto.
+  induction n.
+  - auto.
+  - pose proof (natty_S1_OK (Natty_Equiv_OK.Top_binnat_to_nat n)).
+    assert (Bin.S1 (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n)) = Bin.S1 n); auto.
+    + rewrite IHn. auto.
+    + symmetry. eapply eq_trans.
+      * symmetry. apply H0.
+      * auto.
+  - pose proof (natty_S2_OK (Natty_Equiv_OK.Top_binnat_to_nat n)).
+    assert (Bin.S2 (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n)) = Bin.S2 n); auto.
+    + rewrite IHn. auto.
+    + symmetry. eapply eq_trans. 
+      * symmetry. apply H0.
+      * auto.
+Defined.
+
+Program Definition binnat_nat_rect :
+  forall (P : Bin.nat -> Type),
+    P Bin.O ->
+    (forall (n : Bin.nat), P n -> P (Bin.S n)) ->
+    forall (n : Bin.nat), P n.
+Proof.
+  intros P PO PS n. induction (bin_natty n); auto.
+Defined.
+
+
+(*
+ * Now our identities over bin:
+ *)
+Lemma S1_OK:
+  forall (n : Bin.nat),
+    Bin.S (projT1 (Natty_Equiv_OK.Coq_Init_Nat_add (existT _ n (bin_natty n)) (existT _ n (bin_natty n)))) =
+    Bin.S1 n.
+Proof.
+  intros. apply (natty_S1_OK (existT _ n (bin_natty n))).
+Defined.
+
+Lemma S2_OK:
+  forall (n : Bin.nat),
+    Bin.S (Bin.S (projT1 (Natty_Equiv_OK.Coq_Init_Nat_add (existT _ n (bin_natty n)) (existT _ n (bin_natty n))))) =
+    Bin.S2 n.
+Proof.
+  intros. apply (natty_S2_OK (existT _ n (bin_natty n))).
+Defined.
+
+Lemma S_OK:
+  forall (b : binnat),
+    bin_natty (Bin.S b) =
+    nsuc b (bin_natty b).
+Proof.
+  intros. pose proof (natty_S_OK b).
+  unfold bin_natty. admit. (* TODO might need HSet, or might need rew *)
+Admitted.
+
 Definition id_eta (n : Bin.nat) : Bin.nat := n.
 
 Lemma dep_elim_OK :
@@ -327,19 +403,6 @@ Definition elim_id (b : Bin.nat) :=
    Bin.O
    (fun _ IH => Bin.S IH)
    b.
-
-(*
- * We probably need the same thing we used to show nat OK but over natty.
- * Wait lol let's port that:
- *)
-Lift nat natty in nat_to_binnat as natty_to_binnat.
-Preprocess Module Bin_Equiv_OK as Bin_Equiv_OK'.
-Lift Module nat natty in Bin_Equiv_OK' as Natty_Equiv_OK.
-Check Natty_Equiv_OK.S1_OK.
-Check Natty_Equiv_OK.S2_OK.
-Check Natty_Equiv_OK.S_OK.
-
-(* TODO just need to project out. *)
 
 (* --- OK cute. Notes on how to keep playing with this below. --- *)
 
