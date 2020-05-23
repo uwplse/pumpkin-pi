@@ -332,21 +332,15 @@ Defined.
 Program Definition bin_natty (n : Bin.nat) : natty n :=
   projT2 (Natty_Equiv_OK.Top_binnat_to_nat n).
 Next Obligation.
-  assert (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n) = n); auto.
+  assert (n = projT1 (Natty_Equiv_OK.Top_binnat_to_nat n)); auto.
   induction n.
   - auto.
-  - pose proof (natty_S1_OK (Natty_Equiv_OK.Top_binnat_to_nat n)).
-    assert (Bin.S1 (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n)) = Bin.S1 n); auto.
-    + rewrite IHn. auto.
-    + symmetry. eapply eq_trans.
-      * symmetry. apply H0.
-      * auto.
-  - pose proof (natty_S2_OK (Natty_Equiv_OK.Top_binnat_to_nat n)).
-    assert (Bin.S2 (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n)) = Bin.S2 n); auto.
-    + rewrite IHn. auto.
-    + symmetry. eapply eq_trans. 
-      * symmetry. apply H0.
-      * auto.
+  - assert (consOdd n = consOdd (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n))).
+    + f_equal. auto.
+    + rewrite <- natty_S1_OK in H. apply H.
+  - assert (consEven n = consEven (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n))).
+    + f_equal. auto.
+    + rewrite <- natty_S2_OK in H. apply H.
 Defined.
 
 Program Definition binnat_nat_rect :
@@ -357,7 +351,6 @@ Program Definition binnat_nat_rect :
 Proof.
   intros P PO PS n. induction (bin_natty n); auto.
 Defined.
-
 
 (*
  * Now our identities over bin:
@@ -378,24 +371,17 @@ Proof.
   intros. apply (natty_S2_OK (existT _ n (bin_natty n))).
 Defined.
 
-Lemma S_OK:
-  forall (b : binnat),
-    bin_natty (Bin.S b) =
-    nsuc b (bin_natty b).
-Proof.
-  intros. pose proof (natty_S_OK b).
-  unfold bin_natty. admit. (* TODO might need HSet, or might need rew *)
-Admitted.
-
 Definition id_eta (n : Bin.nat) : Bin.nat := n.
 
+(*
+ * dep_elim is OK:
+ *)
 Lemma dep_elim_OK :
   forall (n : Bin.nat) (f : forall (n : Bin.nat), n = n),
     binnat_nat_rect (fun n => n = n) (f Bin.O) (fun n _ => f (Bin.S n)) n = f (id_eta n).
 Proof.
-  (* TODO: I don't know how to show this right now. It's tricky the same way everything else
-     has been tricky. *)
-Admitted.
+  unfold id_eta. intros n f. unfold binnat_nat_rect. induction (bin_natty n); auto.
+Defined.
 
 Definition elim_id (b : Bin.nat) :=
   binnat_nat_rect
@@ -403,6 +389,25 @@ Definition elim_id (b : Bin.nat) :=
    Bin.O
    (fun _ IH => Bin.S IH)
    b.
+
+Lemma refold_elim_S:
+  forall P PO PS n,
+    binnat_nat_rect P PO PS (Bin.S n) = 
+    PS n (binnat_nat_rect P PO PS n).
+Proof.
+  admit. (* :( *)
+Admitted.
+
+(*
+ * Where this differs from ornaments is that this is no longer
+ * reflexivity.
+ *)
+Lemma rew_S:
+  forall b,
+    Bin.S (elim_id b) = elim_id (Bin.S b).
+Proof.
+  admit. (* :( *)
+Admitted.
 
 (* --- OK cute. Notes on how to keep playing with this below. --- *)
 
