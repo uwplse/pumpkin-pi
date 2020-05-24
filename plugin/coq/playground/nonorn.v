@@ -327,21 +327,40 @@ Defined.
 
 (*
  * From this we can get bin_natty and our eliminator
- * (this is not the most efficient, but it does give us our proofs about it for free):
+ * (this is not the most efficient, but it does give us some of our
+ * proofs about it for free):
  *)
-Program Definition bin_natty (n : Bin.nat) : natty n :=
-  projT2 (Natty_Equiv_OK.Top_binnat_to_nat n).
-Next Obligation.
-  assert (n = projT1 (Natty_Equiv_OK.Top_binnat_to_nat n)); auto.
-  induction n.
-  - auto.
-  - assert (consOdd n = consOdd (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n))).
-    + f_equal. auto.
-    + rewrite <- natty_S1_OK in H. apply H.
-  - assert (consEven n = consEven (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n))).
-    + f_equal. auto.
-    + rewrite <- natty_S2_OK in H. apply H.
+Lemma projT1_bin_natty:
+  forall (n : Bin.nat),
+    n = projT1 (Natty_Equiv_OK.Top_binnat_to_nat n).
+Proof.
+  induction n; auto.
+  - apply (* easier to write by hand *)
+     (@eq_rect_r
+       _
+       (Bin.S1 (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n)))
+       (fun b : binnat => Bin.S1 n = b)
+       (f_equal Bin.S1 IHn)
+       _
+       (natty_S1_OK (Natty_Equiv_OK.Top_binnat_to_nat n))).
+  - apply (* easier to write by hand *)
+     (@eq_rect_r
+       _
+       (Bin.S2 (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n)))
+       (fun b : binnat => Bin.S2 n = b)
+       (f_equal Bin.S2 IHn)
+       _
+       (natty_S2_OK (Natty_Equiv_OK.Top_binnat_to_nat n))).
 Defined.
+
+Definition bin_natty (n : Bin.nat) : natty n :=
+  @eq_rect_r
+    _
+    (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n))
+    (fun H : Bin.nat => natty H)
+    (projT2 (Natty_Equiv_OK.Top_binnat_to_nat n))
+    n
+    (projT1_bin_natty n).
 
 Program Definition binnat_nat_rect :
   forall (P : Bin.nat -> Type),
@@ -383,6 +402,11 @@ Proof.
   unfold id_eta. intros n f. unfold binnat_nat_rect. induction (bin_natty n); auto.
 Defined.
 
+(*
+ * Showing our eliminator is OK is harder, so I'm going to prove a bunch
+ * of lemmas here.
+ *)
+
 Definition elim_id (b : Bin.nat) :=
   binnat_nat_rect
    (fun _ => Bin.nat)
@@ -390,13 +414,61 @@ Definition elim_id (b : Bin.nat) :=
    (fun _ IH => Bin.S IH)
    b.
 
-Lemma refold_elim_S:
-  forall P PO PS n,
-    binnat_nat_rect P PO PS (Bin.S n) = 
-    PS n (binnat_nat_rect P PO PS n).
+Lemma suc_S:
+  forall (b : Bin.nat) (n : sigT natty)
+         (H0 : n = Natty_Equiv_OK.Top_binnat_to_nat b)
+         (H1 : b = projT1 n),
+    @eq_rect_r
+      _
+      (Bin.S (projT1 n))
+      natty
+      (nsuc (projT1 n) (projT2 n))
+      (Bin.S b)
+      (f_equal Bin.S H1) =
+    nsuc
+      b
+      (@eq_rect_r
+        _
+        (projT1 n)
+        natty
+        (projT2 n)
+        b
+        H1).
 Proof.
-  admit. (* :( *)
+  intros. induction n. rewrite H1. reflexivity.
+Defined.
+
+Lemma projT1_bin_natty_S:
+  forall (b : Bin.nat),
+    @eq_rect_r
+      _
+     (projT1 (Natty_Equiv_OK.Top_binnat_to_nat (Bin.S b)))
+     natty
+     (projT2 (Natty_Equiv_OK.Top_binnat_to_nat (Bin.S b)))
+     (Bin.S b)
+     (projT1_bin_natty (Bin.S b)) =
+    @eq_rect_r
+      _
+      (Bin.S (projT1 (Natty_Equiv_OK.Top_binnat_to_nat b)))
+      natty
+      (nsuc (projT1 (Natty_Equiv_OK.Top_binnat_to_nat b)) (projT2 (Natty_Equiv_OK.Top_binnat_to_nat b)))
+      (Bin.S b)
+      (f_equal Bin.S (projT1_bin_natty b)).
+Proof.
+  intros b. unfold projT1_bin_natty.
+
 Admitted.
+
+
+Lemma bin_natty_suc :
+  forall (b : Bin.nat),
+    bin_natty (Bin.S b) = nsuc b (bin_natty b).
+Proof.
+  intros b. unfold bin_natty. 
+  rewrite projT1_bin_natty_S.
+  apply suc_S.
+  auto.
+Defined.
 
 (*
  * Where this differs from ornaments is that this is no longer
@@ -406,8 +478,19 @@ Lemma rew_S:
   forall b,
     Bin.S (elim_id b) = elim_id (Bin.S b).
 Proof.
-  admit. (* :( *)
-Admitted.
+  intros b. unfold elim_id. unfold binnat_nat_rect.
+  rewrite bin_natty_suc. reflexivity.
+Defined.
+
+
+Lemma refold_elim_S:
+  forall P PO PS n,
+    binnat_nat_rect P PO PS (Bin.S n) = 
+    PS n (binnat_nat_rect P PO PS n).
+Proof.
+  intros. unfold binnat_nat_rect.
+  rewrite bin_natty_suc. reflexivity. 
+Defined.
 
 (* --- OK cute. Notes on how to keep playing with this below. --- *)
 
