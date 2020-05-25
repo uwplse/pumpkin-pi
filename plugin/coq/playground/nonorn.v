@@ -265,6 +265,7 @@ Inductive natty : Bin.nat -> Type :=
 
 Set DEVOID search prove equivalence.
 Set DEVOID search prove coherence.
+Set DEVOID search smart eliminators.
 Set DEVOID lift type.
 
 (*
@@ -287,6 +288,13 @@ Set DEVOID lift type.
  * What are our identities, now? First let's lift our equality proofs from nat
  * along the algebraic ornament.
  *)
+Preprocess Module e as e'
+  { opaque
+      binnat_rect binnat_rec binnat_ind
+      Coq.Init.Datatypes.nat_ind Coq.Init.Datatypes.nat_rect Coq.Init.Datatypes.nat_rec
+      Coq.Init.Logic.eq_ind Coq.Init.Logic.eq_ind_r Coq.Init.Logic.eq_sym
+      Bin.nat
+  }.
 Preprocess Module Bin_Equiv_OK as Bin_Equiv_OK'
   { opaque
       binnat_rect binnat_rec binnat_ind
@@ -294,73 +302,63 @@ Preprocess Module Bin_Equiv_OK as Bin_Equiv_OK'
       Coq.Init.Logic.eq_ind Coq.Init.Logic.eq_ind_r Coq.Init.Logic.eq_sym
       Bin.nat
   }.
+Lift Module nat natty in e' as Natty_Equiv.
 Lift Module nat natty in Bin_Equiv_OK' as Natty_Equiv_OK.
 
-(*
- * This gives us these identities:
- *)
-Lemma natty_S1_OK:
-  forall (n : {H : Bin.nat & natty H}),
-    Bin.S1 (projT1 n) =
-    Bin.S (projT1 (Natty_Equiv_OK.Coq_Init_Nat_add (existT _ (projT1 n) (projT2 n)) (existT _ (projT1 n) (projT2 n)))).
+Lemma refold_projT1 :
+  forall (b : Bin.nat) (n : natty b),
+    projT1 (existT _ b n) = b.
 Proof.
-  intros. symmetry. apply Natty_Equiv_OK.S1_OK.
+  reflexivity.
 Defined.
 
-Lemma natty_S2_OK:
-  forall (n : {H : Bin.nat & natty H}),
-    Bin.S2 (projT1 n) =
-    Bin.S (Bin.S (projT1 (Natty_Equiv_OK.Coq_Init_Nat_add (existT _ (projT1 n) (projT2 n)) (existT _ (projT1 n) (projT2 n))))).
+Lemma refold_projT2 :
+  forall (b : Bin.nat) (n : natty b),
+    projT2 (existT _ b n) = n.
 Proof.
-  intros. symmetry. apply Natty_Equiv_OK.S2_OK.
-Defined.
-
-Lemma natty_S_OK:
-  forall (b : binnat),
-    Natty_Equiv_OK.Top_binnat_to_nat (Bin.S b) =
-    existT _
-      (Bin.S (projT1 (Natty_Equiv_OK.Top_binnat_to_nat b)))
-      (nsuc (projT1 (Natty_Equiv_OK.Top_binnat_to_nat b)) (projT2 (Natty_Equiv_OK.Top_binnat_to_nat b))).
-Proof.
-  intros. apply Natty_Equiv_OK.S_OK.
+  reflexivity.
 Defined.
 
 (*
- * From this we can get bin_natty and our eliminator
- * (this is not the most efficient, but it does give us some of our
- * proofs about it for free):
+ * To get bin_natty, we'll want proofs over indexed natty first
  *)
-Lemma projT1_bin_natty:
-  forall (n : Bin.nat),
-    projT1 (Natty_Equiv_OK.Top_binnat_to_nat n) = n.
-Proof.
-  induction n; auto.
-  - apply (* easier to write by hand *)
-     (@eq_rect
-       _
-       (Bin.S1 (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n)))
-       (fun b : binnat => b = Bin.S1 n)
-       (f_equal Bin.S1 IHn)
-       _
-       (natty_S1_OK (Natty_Equiv_OK.Top_binnat_to_nat n))).
-  - apply (* easier to write by hand *)
-     (@eq_rect
-       _
-       (Bin.S2 (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n)))
-       (fun b : binnat => b = Bin.S2 n)
-       (f_equal Bin.S2 IHn)
-       _
-       (natty_S2_OK (Natty_Equiv_OK.Top_binnat_to_nat n))).
-Defined.
+Module indexed.
 
+  Lemma to_index_OK:
+    forall (b : Bin.nat),
+      projT1 (Natty_Equiv.to b) = b.
+  Proof.
+    intros b. induction b; auto.
+    - replace (projT1 (Natty_Equiv.to (consOdd b))) with
+              (projT1 (Natty_Equiv.Top_Bin_Datatypes_S1 (existT (fun H : Bin.nat => natty H) (projT1 (Natty_Equiv.to b)) (projT2 (Natty_Equiv.to b))))) by reflexivity.
+      eapply eq_trans.
+      + apply Natty_Equiv_OK.S1_OK.
+      + unfold Natty_Equiv_OK.Top_Bin_S1. unfold Bin_Equiv_OK'.Top_Bin_S1. f_equal; auto. 
+    - replace (projT1 (Natty_Equiv.to (consEven b))) with
+              (projT1 (Natty_Equiv.Top_Bin_Datatypes_S2 (existT (fun H : Bin.nat => natty H) (projT1 (Natty_Equiv.to b)) (projT2 (Natty_Equiv.to b))))) by reflexivity.
+      eapply eq_trans.
+      + apply Natty_Equiv_OK.S2_OK.
+      + unfold Natty_Equiv_OK.Top_Bin_S2. unfold Bin_Equiv_OK'.Top_Bin_S2. f_equal; auto. 
+  Defined.
+
+  Definition binnat_to_natty (b : Bin.nat) : { n : sigT natty & projT1 n = b } :=
+    existT _ (Natty_Equiv.to b) (eq_rect (projT1 (Natty_Equiv.to b)) (fun b0 => projT1 (Natty_Equiv.to b) = b0) eq_refl b (to_index_OK b)).
+
+End indexed.
+
+Print Natty_Equiv_OK.Top_binnat_to_nat.
+Definition packed b := {n : sigT natty & projT1 n = b}.
+Lift Module packed natty in Natty_Equiv as Natty_Indexed_Equiv.
+Lift Module packed natty in Natty_Equiv_OK as Natty_Indexed_Equiv_OK.
+Lift Module packed natty in indexed as Natty_Indexed.
+
+Print Natty_Indexed_Equiv_OK.S_OK.
+
+(*
+ * This gives us bin_natty:
+ *)
 Definition bin_natty (n : Bin.nat) : natty n :=
-  @eq_rect
-    _
-    (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n))
-    (fun H : Bin.nat => natty H)
-    (projT2 (Natty_Equiv_OK.Top_binnat_to_nat n))
-    n
-    (projT1_bin_natty n).
+   Natty_Indexed.binnat_to_natty n.
 
 Program Definition binnat_nat_rect :
   forall (P : Bin.nat -> Type),
@@ -369,25 +367,6 @@ Program Definition binnat_nat_rect :
     forall (n : Bin.nat), P n.
 Proof.
   intros P PO PS n. induction (bin_natty n); auto.
-Defined.
-
-(*
- * Now our identities over bin:
- *)
-Lemma S1_OK:
-  forall (n : Bin.nat),
-    Bin.S1 n =
-    Bin.S (projT1 (Natty_Equiv_OK.Coq_Init_Nat_add (existT _ n (bin_natty n)) (existT _ n (bin_natty n)))).
-Proof.
-  intros. apply (natty_S1_OK (existT _ n (bin_natty n))).
-Defined.
-
-Lemma S2_OK:
-  forall (n : Bin.nat),
-    Bin.S2 n =
-    Bin.S (Bin.S (projT1 (Natty_Equiv_OK.Coq_Init_Nat_add (existT _ n (bin_natty n)) (existT _ n (bin_natty n))))).
-Proof.
-  intros. apply (natty_S2_OK (existT _ n (bin_natty n))).
 Defined.
 
 Definition id_eta (n : Bin.nat) : Bin.nat := n.
@@ -452,23 +431,15 @@ Defined.
 
 Require Import Arith.
 
-Lemma projT1_bin_natty_S:
-  forall (b : Bin.nat),
-    eq_trans (projT1_eq (natty_S_OK b)) (f_equal Bin.S (projT1_bin_natty b)) =
-    projT1_bin_natty (Bin.S b).
-Proof.
-  intros. apply Eqdep_dec.UIP_dec. apply bin_dec. 
-Defined.
-
 Lemma bin_natty_suc :
   forall (b : Bin.nat),
     bin_natty (Bin.S b) = nsuc b (bin_natty b).
 Proof.
-  intros b. unfold bin_natty.
+  intros b. unfold bin_natty. unfold Natty_Indexed.binnat_to_natty.
   rewrite <- suc_S; auto.
   symmetry. eapply eq_trans.
-  - apply (f_equal (fun n => eq_rect _ _ n _ _) (eq_sym (projT2_eq (natty_S_OK b)))).
-  - rewrite <- eq_trans_rew_distr. f_equal. apply projT1_bin_natty_S. 
+  - apply (f_equal (fun n => eq_rect _ _ n _ _) (eq_sym (projT2_eq (Natty_Equiv_OK.S_OK b)))).
+  - rewrite <- eq_trans_rew_distr. f_equal. apply Eqdep_dec.UIP_dec. apply bin_dec. 
 Defined.
 
 (*
