@@ -1031,9 +1031,10 @@ let lift_constr env sigma c trm =
      else
        let ex_eq = dest_existT app_red in
        let ex = dest_existT ex_eq.index in
-       let f', args' = destApp ex.unpacked in
+       let f' = first_fun ex.unpacked in
+       let args' = unfold_args ex.unpacked in
        let sigma, args'' =
-         map_state_array
+         map_state
            (fun a sigma ->
              let sigma_right, is_from_o = type_is_from c env a sigma in
              if Option.has_some is_from_o then
@@ -1047,12 +1048,12 @@ let lift_constr env sigma c trm =
            args'
            sigma
        in
-       if List.for_all2 equal (Array.to_list args') (Array.to_list args'') then
+       if List.for_all2 equal args' args'' then
          (* base case *)
          sigma, app_red
        else
          (* inductive case (in future, need to tweak for vector to list case) *)
-         let unpacked = mkApp (f', args'') in
+         let unpacked = mkAppl (f', args'') in
          let index = pack_existT { ex with unpacked } in
          sigma, pack_existT { ex_eq with index }
   | CurryRecord ->
