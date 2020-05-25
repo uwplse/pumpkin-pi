@@ -301,18 +301,18 @@ Lift Module nat natty in Bin_Equiv_OK' as Natty_Equiv_OK.
  *)
 Lemma natty_S1_OK:
   forall (n : {H : Bin.nat & natty H}),
-    Bin.S (projT1 (Natty_Equiv_OK.Coq_Init_Nat_add (existT _ (projT1 n) (projT2 n)) (existT _ (projT1 n) (projT2 n)))) =
-    Bin.S1 (projT1 n).
+    Bin.S1 (projT1 n) =
+    Bin.S (projT1 (Natty_Equiv_OK.Coq_Init_Nat_add (existT _ (projT1 n) (projT2 n)) (existT _ (projT1 n) (projT2 n)))).
 Proof.
-  intros. apply Natty_Equiv_OK.S1_OK.
+  intros. symmetry. apply Natty_Equiv_OK.S1_OK.
 Defined.
 
 Lemma natty_S2_OK:
   forall (n : {H : Bin.nat & natty H}),
-    Bin.S (Bin.S (projT1 (Natty_Equiv_OK.Coq_Init_Nat_add (existT _ (projT1 n) (projT2 n)) (existT _ (projT1 n) (projT2 n))))) =
-    Bin.S2 (projT1 n).
+    Bin.S2 (projT1 n) =
+    Bin.S (Bin.S (projT1 (Natty_Equiv_OK.Coq_Init_Nat_add (existT _ (projT1 n) (projT2 n)) (existT _ (projT1 n) (projT2 n))))).
 Proof.
-  intros. apply Natty_Equiv_OK.S2_OK.
+  intros. symmetry. apply Natty_Equiv_OK.S2_OK.
 Defined.
 
 Lemma natty_S_OK:
@@ -332,29 +332,29 @@ Defined.
  *)
 Lemma projT1_bin_natty:
   forall (n : Bin.nat),
-    n = projT1 (Natty_Equiv_OK.Top_binnat_to_nat n).
+    projT1 (Natty_Equiv_OK.Top_binnat_to_nat n) = n.
 Proof.
   induction n; auto.
   - apply (* easier to write by hand *)
-     (@eq_rect_r
+     (@eq_rect
        _
        (Bin.S1 (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n)))
-       (fun b : binnat => Bin.S1 n = b)
+       (fun b : binnat => b = Bin.S1 n)
        (f_equal Bin.S1 IHn)
        _
        (natty_S1_OK (Natty_Equiv_OK.Top_binnat_to_nat n))).
   - apply (* easier to write by hand *)
-     (@eq_rect_r
+     (@eq_rect
        _
        (Bin.S2 (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n)))
-       (fun b : binnat => Bin.S2 n = b)
+       (fun b : binnat => b = Bin.S2 n)
        (f_equal Bin.S2 IHn)
        _
        (natty_S2_OK (Natty_Equiv_OK.Top_binnat_to_nat n))).
 Defined.
 
 Definition bin_natty (n : Bin.nat) : natty n :=
-  @eq_rect_r
+  @eq_rect
     _
     (projT1 (Natty_Equiv_OK.Top_binnat_to_nat n))
     (fun H : Bin.nat => natty H)
@@ -376,16 +376,16 @@ Defined.
  *)
 Lemma S1_OK:
   forall (n : Bin.nat),
-    Bin.S (projT1 (Natty_Equiv_OK.Coq_Init_Nat_add (existT _ n (bin_natty n)) (existT _ n (bin_natty n)))) =
-    Bin.S1 n.
+    Bin.S1 n =
+    Bin.S (projT1 (Natty_Equiv_OK.Coq_Init_Nat_add (existT _ n (bin_natty n)) (existT _ n (bin_natty n)))).
 Proof.
   intros. apply (natty_S1_OK (existT _ n (bin_natty n))).
 Defined.
 
 Lemma S2_OK:
   forall (n : Bin.nat),
-    Bin.S (Bin.S (projT1 (Natty_Equiv_OK.Coq_Init_Nat_add (existT _ n (bin_natty n)) (existT _ n (bin_natty n))))) =
-    Bin.S2 n.
+    Bin.S2 n =
+    Bin.S (Bin.S (projT1 (Natty_Equiv_OK.Coq_Init_Nat_add (existT _ n (bin_natty n)) (existT _ n (bin_natty n))))).
 Proof.
   intros. apply (natty_S2_OK (existT _ n (bin_natty n))).
 Defined.
@@ -416,58 +416,59 @@ Definition elim_id (b : Bin.nat) :=
 
 Lemma suc_S:
   forall (b : Bin.nat) (n : sigT natty)
-         (H0 : n = Natty_Equiv_OK.Top_binnat_to_nat b)
-         (H1 : b = projT1 n),
-    @eq_rect_r
+         (H : projT1 n = b),
+    @eq_rect
       _
       (Bin.S (projT1 n))
       natty
       (nsuc (projT1 n) (projT2 n))
       (Bin.S b)
-      (f_equal Bin.S H1) =
+      (f_equal Bin.S H) =
     nsuc
       b
-      (@eq_rect_r
+      (@eq_rect
         _
         (projT1 n)
         natty
         (projT2 n)
         b
-        H1).
+        H).
 Proof.
-  intros. induction n. rewrite H1. reflexivity.
+  intros. induction n. rewrite <- H. reflexivity.
+Defined.   
+
+(*
+ * Can we, in general, do this without using UIP_dec?
+ * That is, does this work when we don't have an hset? It was
+ * too hard to prove before.
+ *)
+Lemma bin_dec:
+  forall x y : Bin.nat, {x = y} + {x <> y}.
+Proof.
+  intros x. induction x; induction y; auto; try (right; discriminate);
+  induction (IHx y); try (rewrite a; auto);
+  right; unfold not; intros; apply b; inversion H; auto. 
 Defined.
+
+Require Import Arith.
 
 Lemma projT1_bin_natty_S:
   forall (b : Bin.nat),
-    @eq_rect_r
-      _
-     (projT1 (Natty_Equiv_OK.Top_binnat_to_nat (Bin.S b)))
-     natty
-     (projT2 (Natty_Equiv_OK.Top_binnat_to_nat (Bin.S b)))
-     (Bin.S b)
-     (projT1_bin_natty (Bin.S b)) =
-    @eq_rect_r
-      _
-      (Bin.S (projT1 (Natty_Equiv_OK.Top_binnat_to_nat b)))
-      natty
-      (nsuc (projT1 (Natty_Equiv_OK.Top_binnat_to_nat b)) (projT2 (Natty_Equiv_OK.Top_binnat_to_nat b)))
-      (Bin.S b)
-      (f_equal Bin.S (projT1_bin_natty b)).
+    eq_trans (projT1_eq (natty_S_OK b)) (f_equal Bin.S (projT1_bin_natty b)) =
+    projT1_bin_natty (Bin.S b).
 Proof.
-  intros b. unfold projT1_bin_natty.
-
-Admitted.
-
+  intros. apply Eqdep_dec.UIP_dec. apply bin_dec. 
+Defined.
 
 Lemma bin_natty_suc :
   forall (b : Bin.nat),
     bin_natty (Bin.S b) = nsuc b (bin_natty b).
 Proof.
-  intros b. unfold bin_natty. 
-  rewrite projT1_bin_natty_S.
-  apply suc_S.
-  auto.
+  intros b. unfold bin_natty.
+  rewrite <- suc_S; auto.
+  symmetry. eapply eq_trans.
+  - apply (f_equal (fun n => eq_rect _ _ n _ _) (eq_sym (projT2_eq (natty_S_OK b)))).
+  - rewrite <- eq_trans_rew_distr. f_equal. apply projT1_bin_natty_S. 
 Defined.
 
 (*
@@ -481,7 +482,6 @@ Proof.
   intros b. unfold elim_id. unfold binnat_nat_rect.
   rewrite bin_natty_suc. reflexivity.
 Defined.
-
 
 Lemma refold_elim_S:
   forall P PO PS n,
