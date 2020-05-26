@@ -443,7 +443,7 @@ Lemma refold_elim_S:
     PS n (binnat_nat_rect P PO PS n).
 Proof.
   intros. unfold binnat_nat_rect. rewrite bin_natty_suc.
-  reflexivity.
+  auto.
 Defined.
 
 (* --- OK cute. Notes on how to keep playing with this below. --- *)
