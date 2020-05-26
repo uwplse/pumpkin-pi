@@ -643,6 +643,32 @@ Definition cast_binnat_OK (n0 m : Bin.nat) : (Bin.S (Bin.S (binnat_add n0 m)) = 
     (binnat_add (Bin.S n0) m)
     (binnat_plus_Sn_m n0 m).
 
+(*
+ * Another way of thinking about casted refl is that we are
+ * implicitly rewriting with reflexivity:
+ *)
+Definition cast_nat_OK_rew (n0 m : nat) : (S (S (add n0 m)) = S (add n0 (S m))) = ((S (add (S n0) m)) = (add (S n0) (S m))) :=
+  eq_rect
+    (S (add n0 m))
+    (fun n : nat =>
+      (S (S (add n0 m)) = S (add n0 (S m))) =
+      (S n = add (S n0) (S m)))
+    (eq_rect
+      (S (add n0 (S m)))
+      (fun n : nat =>
+        (S (S (add n0 m)) = S (add n0 (S m))) =
+        (S (S (add n0 m)) = n))
+      (@eq_refl Prop (S (S (add n0 m)) = S (add n0 (S m))))
+      (add (S n0) (S m))
+      eq_refl) (* <-- first refl *)
+    (add (S n0) m)
+    eq_refl. (* <-- second refl *)
+
+(*
+ * Thus, every refl proof that does not lift correctly can be viewed as a contracted
+ * rewrite.
+ *)
+
 (* --- What happens when we don't have an h-set? --- *)
 
 (*
