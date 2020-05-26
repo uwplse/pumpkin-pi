@@ -660,14 +660,95 @@ Definition cast_nat_OK_rew (n0 m : nat) : (S (S (add n0 m)) = S (add n0 (S m))) 
         (S (S (add n0 m)) = n))
       (@eq_refl Prop (S (S (add n0 m)) = S (add n0 (S m))))
       (add (S n0) (S m))
-      eq_refl) (* <-- first refl *)
+      (@eq_refl nat (S (add n0 (S m))))) (* <-- first refl *)
     (add (S n0) m)
-    eq_refl. (* <-- second refl *)
+    (@eq_refl nat (S (add n0 m))). (* <-- second refl *)
 
 (*
  * Thus, every refl proof that does not lift correctly can be viewed as a contracted
- * rewrite.
+ * rewrite. The first difficult step is figuring out how to expand our input term
+ * to include these. For now, let's assume this occurs in a seperate step as part
+ * of requiring fully expanded terms. We want every equality to be expanded with explicit
+ * refl over successors of eliminators and eliminators of successors.
+ * We'll need automation to do that expansion at some point. But it is orthogonal
+ * to lifting itself. (I actually think in a language without casting, these
+ * rewrites would maybe have to show up?) Once we have that, we can lift rewrites.
+ * We lift every:
  *)
+Definition rew_S_add (P : nat -> Type) (n m : nat) (H : P (S (add n m))) : P (add (S n) m) :=
+  eq_rect
+    (S (add n m))
+    (fun n : nat => P n)
+    H
+    (add (S n) m)
+    (@eq_refl nat (S (add n m))).
+(*
+ * to:
+ *)
+Definition rew_bin_S_add (P : Bin.nat -> Type) (n m : Bin.nat) (H : P (Bin.S (binnat_add n m))) : P (binnat_add (Bin.S n) m) :=
+  eq_rect
+    (Bin.S (binnat_add n m))
+    (fun n : Bin.nat => P n)
+    H
+    (binnat_add (Bin.S n) m)
+    (binnat_plus_Sn_m n m).
+(*
+ * and every:
+ *)
+Definition rew_add_S (P : nat -> Type) (n m : nat) (H : P (add (S n) m)) : P (S (add n m)) :=
+  eq_rect
+    (add (S n) m)
+    (fun n : nat => P n)
+    H
+    (S (add n m))
+    (@eq_refl nat (add (S n) m)).
+(*
+ * to:
+ *)
+Definition rew_bin_add_S (P : Bin.nat -> Type) (n m : Bin.nat) (H : P (binnat_add (Bin.S n) m)) : P (Bin.S (binnat_add n m)) :=
+  eq_rect
+    (binnat_add (Bin.S n) m)
+    (fun n : Bin.nat => P n)
+    H
+    (Bin.S (binnat_add n m))
+    (eq_sym (binnat_plus_Sn_m n m)).
+
+(*
+ * We can generate these based on every induction.
+ * If we generalize by our proof: 
+ *)
+Definition rew_S_elim (P : nat -> Type) PO PS n (Q : P (S n) -> Type) (H : Q (PS n (nat_rect P PO PS n))) : Q (nat_rect P PO PS (S n)) :=
+  eq_rect
+    (PS n (nat_rect P PO PS n))
+    (fun (H : P (S n)) => Q H)
+    H
+    (nat_rect P PO PS (S n))
+    (@eq_refl (P (S n)) (PS n (nat_rect P PO PS n))).
+
+Definition rew_binnat_S_elim (P : Bin.nat -> Type) PO PS n (Q : P (Bin.S n) -> Type) (H : Q (PS n (binnat_nat_rect P PO PS n))) : Q (binnat_nat_rect P PO PS (Bin.S n)) :=
+  eq_rect
+    (PS n (binnat_nat_rect P PO PS n))
+    (fun (H : P (Bin.S n)) => Q H)
+    H
+    (binnat_nat_rect P PO PS (Bin.S n))
+    (eq_sym (refold_elim_S P PO PS n)).
+
+Definition rew_elim_S (P : nat -> Type) PO PS n (Q : P (S n) -> Type) (H : Q (nat_rect P PO PS (S n))) : Q (PS n (nat_rect P PO PS n)) :=
+  eq_rect
+    (nat_rect P PO PS (S n))
+    (fun (H : P (S n)) => Q H)
+    H
+    (PS n (nat_rect P PO PS n))
+    (@eq_refl (P (S n)) (nat_rect P PO PS (S n))).
+
+Definition rew_binnat_elim_S (P : Bin.nat -> Type) PO PS n (Q : P (Bin.S n) -> Type) (H : Q (binnat_nat_rect P PO PS (Bin.S n))) : Q (PS n (binnat_nat_rect P PO PS n)) :=
+  eq_rect
+    (binnat_nat_rect P PO PS (Bin.S n))
+    (fun (H : P (Bin.S n)) => Q H)
+    H
+    (PS n (binnat_nat_rect P PO PS n))
+    (refold_elim_S P PO PS n).
+
 
 (* --- What happens when we don't have an h-set? --- *)
 
