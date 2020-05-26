@@ -749,11 +749,75 @@ Definition rew_binnat_elim_S (P : Bin.nat -> Type) PO PS n (Q : P (Bin.S n) -> T
     (PS n (binnat_nat_rect P PO PS n))
     (refold_elim_S P PO PS n).
 
+(*
+ * Thus, the expanded plus_n_Sm is:
+ *)
+Definition plus_n_Sm_expanded_rewrites (n m : nat) : S (add n m) = add n (S m) :=
+  nat_ind
+    (fun (n0 : nat) =>
+       S (add n0 m) = add n0 (S m))
+    (@eq_refl nat (S m) : (S (add O m)) = (add O (S m)))
+    (fun (n0 : nat) (IHn : (S (add n0 m)) = (add n0 (S m))) =>
+       rew_S_elim
+         (fun _ => nat -> nat)
+         (fun p => p)
+         (fun _ IH p => S (IH p))
+         n0
+         (fun PS => S (PS m) = add (S n0) (S m))
+         (rew_S_elim
+           (fun _ => nat -> nat)
+           (fun p => p)
+           (fun _ IH p => S (IH p))
+           n0
+           (fun PS => S (S (add n0 m)) = PS (S m))
+           (@f_equal
+             nat
+             nat
+             (fun (n : nat) => S n)
+             (S (add n0 m))
+             (add n0 (S m))
+             IHn)))
+     n.
+
+Definition plus_n_Sm_binnat_expanded_rewrites (n m : Bin.nat) : Bin.S (binnat_add n m) = binnat_add n (Bin.S m) :=
+  binnat_nat_rect
+    (fun (n0 : Bin.nat) =>
+       Bin.S (binnat_add n0 m) = binnat_add n0 (Bin.S m))
+    (@eq_refl Bin.nat (Bin.S m) : (Bin.S (binnat_add Bin.O m)) = (binnat_add Bin.O (Bin.S m)))
+    (fun (n0 : Bin.nat) (IHn : (Bin.S (binnat_add n0 m)) = (binnat_add n0 (Bin.S m))) =>
+       rew_binnat_S_elim
+         (fun _ => Bin.nat -> Bin.nat)
+         (fun p => p)
+         (fun _ IH p => Bin.S (IH p))
+         n0
+         (fun PS => Bin.S (PS m) = binnat_add (Bin.S n0) (Bin.S m))
+         (rew_binnat_S_elim
+           (fun _ => Bin.nat -> Bin.nat)
+           (fun p => p)
+           (fun _ IH p => Bin.S (IH p))
+           n0
+           (fun PS => Bin.S (Bin.S (binnat_add n0 m)) = PS (Bin.S m))
+           (@f_equal
+             Bin.nat
+             Bin.nat
+             (fun (n : Bin.nat) => Bin.S n)
+             (Bin.S (binnat_add n0 m))
+             (binnat_add n0 (Bin.S m))
+             IHn)))
+     n.
 
 (* --- What happens when we don't have an h-set? --- *)
 
 (*
  * I don't know yet. I need to see if we can prove a variant of refold_elim_S.
  * Lists might be a good case study.
+ *)
+
+(* --- What happens when we have a type equivalent to equality? --- *)
+
+(*
+ * We want to make sure we're not specializing too much.
+ * Perhaps we want our eliminator over equality (and other types indexed by our type)
+ * to lift to an elimiantor that does this extra work.
  *)
 
