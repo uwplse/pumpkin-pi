@@ -71,7 +71,7 @@ Lemma retraction :
 Proof.
   intros n. induction n.
   - auto.
-  - simpl. rewrite refold_suc_binnat. f_equal. apply IHn.
+  - simpl. rewrite refold_suc_binnat. rewrite IHn. auto.
 Defined.
 
 Lemma refold_suc_nat:
@@ -158,7 +158,7 @@ Lemma retraction :
 Proof.
   intros n. induction n.
   - auto.
-  - simpl. rewrite H.S_OK. f_equal. apply IHn.
+  - simpl. rewrite H.S_OK. rewrite IHn. auto.
 Defined.
 
 Lemma section :
@@ -302,47 +302,24 @@ Preprocess Module Bin_Equiv_OK as Bin_Equiv_OK'
       Coq.Init.Logic.eq_ind Coq.Init.Logic.eq_ind_r Coq.Init.Logic.eq_sym
       Bin.nat
   }.
+Preprocess Module Bin_Equiv_Proof as Bin_Equiv_Proof'
+  { opaque
+      binnat_rect binnat_rec binnat_ind
+      Coq.Init.Datatypes.nat_ind Coq.Init.Datatypes.nat_rect Coq.Init.Datatypes.nat_rec
+      Coq.Init.Logic.eq_ind Coq.Init.Logic.eq_ind_r Coq.Init.Logic.eq_sym
+      Bin.nat
+  }.
 Lift Module nat natty in e' as Natty_Equiv.
 Lift Module nat natty in Bin_Equiv_OK' as Natty_Equiv_OK.
-
-Lemma refold_projT1 :
-  forall (b : Bin.nat) (n : natty b),
-    projT1 (existT _ b n) = b.
-Proof.
-  reflexivity.
-Defined.
-
-Lemma refold_projT2 :
-  forall (b : Bin.nat) (n : natty b),
-    projT2 (existT _ b n) = n.
-Proof.
-  reflexivity.
-Defined.
+Lift Module nat natty in Bin_Equiv_Proof' as Natty_Equiv_Proof.
 
 (*
  * To get bin_natty, we'll want proofs over indexed natty first
  *)
 Module indexed.
 
-  Lemma to_index_OK:
-    forall (b : Bin.nat),
-      projT1 (Natty_Equiv.to b) = b.
-  Proof.
-    intros b. induction b; auto.
-    - replace (projT1 (Natty_Equiv.to (consOdd b))) with
-              (projT1 (Natty_Equiv.Top_Bin_Datatypes_S1 (existT (fun H : Bin.nat => natty H) (projT1 (Natty_Equiv.to b)) (projT2 (Natty_Equiv.to b))))) by reflexivity.
-      eapply eq_trans.
-      + apply Natty_Equiv_OK.S1_OK.
-      + unfold Natty_Equiv_OK.Top_Bin_S1. unfold Bin_Equiv_OK'.Top_Bin_S1. f_equal; auto. 
-    - replace (projT1 (Natty_Equiv.to (consEven b))) with
-              (projT1 (Natty_Equiv.Top_Bin_Datatypes_S2 (existT (fun H : Bin.nat => natty H) (projT1 (Natty_Equiv.to b)) (projT2 (Natty_Equiv.to b))))) by reflexivity.
-      eapply eq_trans.
-      + apply Natty_Equiv_OK.S2_OK.
-      + unfold Natty_Equiv_OK.Top_Bin_S2. unfold Bin_Equiv_OK'.Top_Bin_S2. f_equal; auto. 
-  Defined.
-
   Definition binnat_to_natty (b : Bin.nat) : { n : sigT natty & projT1 n = b } :=
-    existT _ (Natty_Equiv.to b) (eq_rect (projT1 (Natty_Equiv.to b)) (fun b0 => projT1 (Natty_Equiv.to b) = b0) eq_refl b (to_index_OK b)).
+    existT _ (Natty_Equiv.to b) (eq_rect (projT1 (Natty_Equiv.to b)) (fun b0 => projT1 (Natty_Equiv.to b) = b0) eq_refl b (Natty_Equiv_Proof.section b)).
 
 End indexed.
 
@@ -350,9 +327,8 @@ Print Natty_Equiv_OK.Top_binnat_to_nat.
 Definition packed b := {n : sigT natty & projT1 n = b}.
 Lift Module packed natty in Natty_Equiv as Natty_Indexed_Equiv.
 Lift Module packed natty in Natty_Equiv_OK as Natty_Indexed_Equiv_OK.
+Lift Module packed natty in Natty_Equiv_Proof as Natty_Indexed_Proof.
 Lift Module packed natty in indexed as Natty_Indexed.
-
-Print Natty_Indexed_Equiv_OK.S_OK.
 
 (*
  * This gives us bin_natty:
@@ -393,6 +369,40 @@ Definition elim_id (b : Bin.nat) :=
    (fun _ IH => Bin.S IH)
    b.
 
+Lemma elim_id_id:
+  forall b,
+    b = elim_id b.
+Proof.
+  intros b. unfold elim_id. unfold binnat_nat_rect.
+  induction (bin_natty b); auto.
+  simpl. f_equal. apply IHn.
+Defined.
+
+(*
+ * Where this differs from ornaments is that this is no longer
+ * reflexivity.
+ *)
+Lemma rew_S:
+  forall b,
+    elim_id (Bin.S b) = Bin.S (elim_id b).
+Proof.
+  intros b. rewrite <- elim_id_id. f_equal. apply elim_id_id. 
+Defined. 
+
+(*
+ * I can't find a way to prove refold_elim_S without UIP_dec, so if we need
+ * this property to hold too, we might need our types to be H-sets.
+ *)
+Lemma bin_dec:
+  forall x y : Bin.nat, {x = y} + {x <> y}.
+Proof.
+  intros x. induction x; induction y; auto; try (right; discriminate);
+  induction (IHx y); try (rewrite a; auto);
+  right; unfold not; intros; apply b; inversion H; auto. 
+Defined.
+
+Require Import Arith.
+
 Lemma suc_S:
   forall (b : Bin.nat) (n : sigT natty)
          (H : projT1 n = b),
@@ -416,21 +426,6 @@ Proof.
   intros. induction n. rewrite <- H. reflexivity.
 Defined.   
 
-(*
- * Can we, in general, do this without using UIP_dec?
- * That is, does this work when we don't have an hset? It was
- * too hard to prove before.
- *)
-Lemma bin_dec:
-  forall x y : Bin.nat, {x = y} + {x <> y}.
-Proof.
-  intros x. induction x; induction y; auto; try (right; discriminate);
-  induction (IHx y); try (rewrite a; auto);
-  right; unfold not; intros; apply b; inversion H; auto. 
-Defined.
-
-Require Import Arith.
-
 Lemma bin_natty_suc :
   forall (b : Bin.nat),
     bin_natty (Bin.S b) = nsuc b (bin_natty b).
@@ -442,25 +437,13 @@ Proof.
   - rewrite <- eq_trans_rew_distr. f_equal. apply Eqdep_dec.UIP_dec. apply bin_dec. 
 Defined.
 
-(*
- * Where this differs from ornaments is that this is no longer
- * reflexivity.
- *)
-Lemma rew_S:
-  forall b,
-    Bin.S (elim_id b) = elim_id (Bin.S b).
-Proof.
-  intros b. unfold elim_id. unfold binnat_nat_rect.
-  rewrite bin_natty_suc. reflexivity.
-Defined.
-
 Lemma refold_elim_S:
   forall P PO PS n,
     binnat_nat_rect P PO PS (Bin.S n) = 
     PS n (binnat_nat_rect P PO PS n).
 Proof.
-  intros. unfold binnat_nat_rect.
-  rewrite bin_natty_suc. reflexivity. 
+  intros. unfold binnat_nat_rect. rewrite bin_natty_suc.
+  reflexivity.
 Defined.
 
 (* --- OK cute. Notes on how to keep playing with this below. --- *)
