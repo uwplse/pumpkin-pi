@@ -448,24 +448,100 @@ Defined.
 
 (* --- OK cute. Notes on how to keep playing with this below. --- *)
 
-(* 
- * The key is that we need a way to partition the S case exactly.
- * (So this is not partitioning the natural numbers, but rather partitioning
- * the successor function itself into two parts).
- * Any partition works fine, as long as we can always get back to where we started.
- * What we saw before is that binary numbers are exactly what we get by
- * partitioning the successor function for the natural numbers into even and odd cases.
- * This makes sense because the original nat inductive type acts like a unary nat.
- * I think we could get n-ary nat if we split n times all at once following that
- * pattern, and in a sense, the n-ary numbers induce the n-induction principle.
+(*
+ * For now let's focus not on partitions in particular, but on
+ * providing the equalities we need manually. Let's see how we can
+ * port proofs using those. Let's start manually with a few proofs
+ * on natural numbers. 
  *
- * But it would be way more fun to think of some weirder partitions and to partition
- * some other types. So that's what I'll do here next. Then I'll automate both
- * proving this equivalence (with the parameters as user proof obligations) and
- * lifting proofs across it.
- *
- * Are there any partitions here besides the mod groups for which you can
- * define a successor function that the equivalence preserves? If so,
- * what are they? I'm not sure. I tried lists and it was useless because
- * I don't understand how to split the cons case. Ugh.
+ * We already have addition preprocessed and lifted to natty, so it's
+ * a nice starting example.
  *)
+
+Definition add := e'.Coq_Init_Nat_add.
+Definition natty_add := Natty_Equiv_Proof.Coq_Init_Nat_add.
+
+(*
+ * How would we port addition to use binnat_nat_rect?
+ * Naively:
+ *)
+Definition binnat_add (b1 : Bin.nat) (b2 : Bin.nat) :=
+  binnat_nat_rect
+    (fun _ : Bin.nat => Bin.nat -> Bin.nat)
+    (fun b2 : Bin.nat => b2)
+    (fun (_ : Bin.nat) (add : Bin.nat -> Bin.nat) (b2 : Bin.nat) =>
+      Bin.S (add b2))
+    b1
+    b2.
+
+(*
+ * Now what happens when we port proofs? Let's look at plus_n_Sm:
+ *)
+Definition plus_n_Sm := Bin_Equiv_Proof'.Coq_Init_Peano_plus_n_Sm.
+Definition natty_plus_n_Sm := Natty_Equiv_Proof.Coq_Init_Peano_plus_n_Sm.
+
+(*
+ * Naively:
+ *)
+Fail Definition binnat_plus_n_Sm (n m : Bin.nat) :=
+  binnat_nat_rect
+    (fun n0 : Bin.nat =>
+       Bin.S (binnat_add n0 m) =
+       binnat_add n0 (Bin.S m))
+    eq_refl
+    (fun (n0 : Bin.nat) (IHn : Bin.S (binnat_add n0 m) = binnat_add n0 (Bin.S m)) =>
+       f_equal Bin.S IHn)
+    n.
+
+(*
+ * Here the equality problem shows up:
+ *
+ * In environment
+ *   n m n0 : Bin.nat
+ *   IHn : Bin.S (binnat_add n0 m) = binnat_add n0 (Bin.S m)
+ * The term 
+ *   f_equal Bin.S IHn
+ * has type
+ *   Bin.S (Bin.S (binnat_add n0 m)) = Bin.S (binnat_add n0 (Bin.S m))
+ * while it is expected to have type
+ *   Bin.S (binnat_add (Bin.S n0) m) = binnat_add (Bin.S n0) (Bin.S m)
+ *)
+
+(*
+ * What would we need to fix this?
+ * The inductive argument of add is the first argument.
+ * We need to show it preserves the successor case.
+ * For nats, this holds reflexively, but for binnats,
+ * we need to be more clever. This is easy with refold_elim_S.
+ *)
+Lemma binnat_plus_Sn_m:
+  forall (n0 m : Bin.nat),
+    Bin.S (binnat_add n0 m) = binnat_add (Bin.S n0) m.
+Proof.
+  intros. unfold binnat_add. rewrite refold_elim_S. reflexivity.
+Defined.
+
+Lemma transport_IH:
+  forall (n0 m : Bin.nat),
+    Bin.S (Bin.S (binnat_add n0 m)) = Bin.S (binnat_add n0 (Bin.S m)) ->
+    Bin.S (binnat_add (Bin.S n0) m) = binnat_add (Bin.S n0) (Bin.S m).
+Proof.
+  intros. rewrite <- binnat_plus_Sn_m. rewrite <- binnat_plus_Sn_m.
+  apply H.
+Defined.
+
+(*
+ * Then:
+ *)
+Definition binnat_plus_n_Sm (n m : Bin.nat) :=
+  binnat_nat_rect
+    (fun n0 : Bin.nat =>
+       Bin.S (binnat_add n0 m) =
+       binnat_add n0 (Bin.S m))
+    eq_refl
+    (fun (n0 : Bin.nat) (IHn : Bin.S (binnat_add n0 m) = binnat_add n0 (Bin.S m)) =>
+       transport_IH n0 m (f_equal Bin.S IHn))
+    n.
+
+
+
