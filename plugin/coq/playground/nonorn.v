@@ -806,18 +806,19 @@ Definition plus_n_Sm_binnat_expanded_rewrites (n m : Bin.nat) : Bin.S (binnat_ad
              IHn)))
      n.
 
-(* --- What happens when we don't have an h-set? --- *)
-
-(*
- * I don't know yet. I need to see if we can prove a variant of refold_elim_S.
- * Lists might be a good case study.
- *)
-
 (* --- What happens when we have a type equivalent to equality? --- *)
 
 (*
  * We want to make sure we're not specializing too much.
  * Perhaps we want our eliminator over equality (and other types indexed by our type)
  * to lift to an elimiantor that does this extra work.
+ * I can't immediately think of what this would be.
+ *)
+
+(* --- What happens when we don't have an h-set? --- *)
+
+(*
+ * I don't know yet. I need to see if we can prove a variant of refold_elim_S.
+ * Lists might be a good case study.
  *)
 
