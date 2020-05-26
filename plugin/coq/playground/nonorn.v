@@ -623,4 +623,30 @@ Definition cast_nat_OK (n0 m : nat) : (S (S (add n0 m)) = S (add n0 (S m))) = ((
 Fail Definition cast_binnat_OK (n0 m : Bin.nat) : (Bin.S (Bin.S (binnat_add n0 m)) = Bin.S (binnat_add n0 (Bin.S m))) = ((Bin.S (binnat_add (Bin.S n0) m)) = (binnat_add (Bin.S n0) (Bin.S m))) :=
   @eq_refl Prop (Bin.S (Bin.S (binnat_add n0 m)) = Bin.S (binnat_add n0 (Bin.S m))).
 
+(*
+ * On the other hand:
+ *)
+Definition cast_binnat_OK (n0 m : Bin.nat) : (Bin.S (Bin.S (binnat_add n0 m)) = Bin.S (binnat_add n0 (Bin.S m))) = ((Bin.S (binnat_add (Bin.S n0) m)) = (binnat_add (Bin.S n0) (Bin.S m))) :=
+  eq_rect
+    (Bin.S (binnat_add n0 m))
+    (fun b : Bin.nat =>
+      (Bin.S (Bin.S (binnat_add n0 m)) = Bin.S (binnat_add n0 (Bin.S m))) =
+      (Bin.S b = binnat_add (Bin.S n0) (Bin.S m)))
+    (eq_rect
+      (Bin.S (binnat_add n0 (Bin.S m)))
+      (fun b : binnat =>
+        (Bin.S (Bin.S (binnat_add n0 m)) = Bin.S (binnat_add n0 (Bin.S m))) =
+        (Bin.S (Bin.S (binnat_add n0 m)) = b))
+      (@eq_refl Prop (Bin.S (Bin.S (binnat_add n0 m)) = Bin.S (binnat_add n0 (Bin.S m))))
+      (binnat_add (Bin.S n0) (Bin.S m))
+      (binnat_plus_Sn_m n0 (Bin.S m)))
+    (binnat_add (Bin.S n0) m)
+    (binnat_plus_Sn_m n0 m).
+
+(* --- What happens when we don't have an h-set? --- *)
+
+(*
+ * I don't know yet. I need to see if we can prove a variant of refold_elim_S.
+ * Lists might be a good case study.
+ *)
 
