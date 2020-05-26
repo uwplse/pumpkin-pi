@@ -520,6 +520,9 @@ Lemma binnat_plus_Sn_m:
 Proof.
   intros. unfold binnat_add. rewrite refold_elim_S. reflexivity.
 Defined.
+(*
+ * Immediately after porting add, we want to generate the proof of this lemma.
+ *)
 
 Lemma transport_IH:
   forall (n0 m : Bin.nat),
@@ -543,5 +546,81 @@ Definition binnat_plus_n_Sm (n m : Bin.nat) :=
        transport_IH n0 m (f_equal Bin.S IHn))
     n.
 
+(*
+ * We need to figure out where there are implicit uses of eq_refl,
+ * so we can figure out where to use binnat_plus_Sn_m.
+ * Over nats we have this subterm, expanded:
+ *)
+Definition f_equal_IH (n0 m : nat) (IHn : S (add n0 m) = add n0 (S m)) : S (S (add n0 m)) = S (add n0 (S m)) :=
+  @f_equal
+    nat
+    nat
+    (fun (n : nat) => S n)
+    (S (add n0 m))
+    (add n0 (S m))
+    IHn.
+
+(*
+ * Actually, what's interesting here is that over binnats this term can be defined OK:
+ *)
+Definition f_equal_binnat_IH (n0 m : Bin.nat) (IHn : Bin.S (binnat_add n0 m) = binnat_add n0 (Bin.S m)) : Bin.S (Bin.S (binnat_add n0 m)) = Bin.S (binnat_add n0 (Bin.S m)) :=
+  @f_equal
+    Bin.nat
+    Bin.nat
+    (fun (n : Bin.nat) => Bin.S n)
+    (Bin.S (binnat_add n0 m))
+    (binnat_add n0 (Bin.S m))
+    IHn.
+(*
+ * But the catch is that over nats, the type:
+ *   S (S (add n0 m)) = S (add n0 (S m))
+ * that Coq infers for this term is definitionally equal to the type:
+ *   S (add (S n0) m) = add (S n0) (S m)
+ * that the inductive case of our proof expects.
+ * In contrast, these types do not unify over binnat.
+ *
+ * Interestingly, if we fully expand the nat proof, we see the casts:
+ *)
+Definition plus_n_Sm_expanded (n m : nat) : S (add n m) = add n (S m) :=
+  nat_ind
+    (fun (n0 : nat) =>
+       S (add n0 m) = add n0 (S m))
+    (@eq_refl nat (S m) : (S (add O m)) = (add O (S m)))
+    (fun (n0 : nat) (IHn : (S (add n0 m)) = (add n0 (S m))) =>
+       @f_equal
+         nat
+         nat
+         (fun (n : nat) => S n)
+         (S (add n0 m))
+         (add n0 (S m))
+         IHn
+      : (* <-- Check it out! The cast! *)
+        (S (add (S n0) m)) = (add (S n0) (S m)))
+     n.
+
+(*
+ * So we can cast in the nat case:
+ *)
+Definition f_equal_IH_cast (n0 m : nat) (IHn : S (add n0 m) = add n0 (S m)) : (S (add (S n0) m)) = (add (S n0) (S m)) :=
+  f_equal_IH n0 m IHn.
+
+(*
+ * But note in the binnat case:
+ *)
+Fail Definition f_equal_binnat_IH_cast (n0 m : Bin.nat) (IHn : Bin.S (binnat_add n0 m) = binnat_add n0 (Bin.S m)) : (Bin.S (binnat_add (Bin.S n0) m)) = (binnat_add (Bin.S n0) (Bin.S m)) :=
+  f_equal_binnat_IH n0 m IHn.
+
+(*
+ * What are the semantics of casting? If t : T, and we cast t to some T', then
+ * we are saying that eq_refl T : T = T'. So over nats, our claim is that:
+ *)
+Definition cast_nat_OK (n0 m : nat) : (S (S (add n0 m)) = S (add n0 (S m))) = ((S (add (S n0) m)) = (add (S n0) (S m))) :=
+  @eq_refl Prop (S (S (add n0 m)) = S (add n0 (S m))).
+
+(*
+ * Transporting this to binnats naively would not work:
+ *)
+Fail Definition cast_binnat_OK (n0 m : Bin.nat) : (Bin.S (Bin.S (binnat_add n0 m)) = Bin.S (binnat_add n0 (Bin.S m))) = ((Bin.S (binnat_add (Bin.S n0) m)) = (binnat_add (Bin.S n0) (Bin.S m))) :=
+  @eq_refl Prop (Bin.S (Bin.S (binnat_add n0 m)) = Bin.S (binnat_add n0 (Bin.S m))).
 
 
