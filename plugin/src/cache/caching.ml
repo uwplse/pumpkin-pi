@@ -221,10 +221,11 @@ let cache_local c trm lifted =
   with _ ->
     Feedback.msg_warning (Pp.str "can't cache term")
                          
-(* --- Ornaments cache --- *)
+(* --- Equivalence cache --- *)
 
 (*
- * This is a persistent cache for ornaments
+ * This is a persistent cache for equivalences
+ * (for now all called ornaments because of legacy code---will change later)
  *)
   
 (* The persistent storage is backed by a normal hashtable *)
@@ -241,6 +242,8 @@ module OrnamentsCache =
             (ExtRefOrdered.hash (TrueGlobal o))
             (ExtRefOrdered.hash (TrueGlobal n)))
     end)
+
+type 'a metadata = (global_reference * global_reference) * 'a 
 
 (* Initialize the ornament cache *)
 let orn_cache = OrnamentsCache.create 100
@@ -279,18 +282,14 @@ let kind_to_int (k : kind_of_orn) =
      2
   | UnpackSigma ->
      3
-             
+
 (*
  * Wrapping the table for persistence
  *)
-type orn_obj =
-  (global_reference * global_reference) * (global_reference * global_reference * int)
 
-type indexer_obj =
-  (global_reference * global_reference) * (global_reference * int)
-
-type swap_obj =
-  (global_reference * global_reference) * ((int * int) list)
+type orn_obj = (global_reference * global_reference * int) metadata
+type indexer_obj = (global_reference * int) metadata
+type swap_obj = ((int * int) list) metadata
 
 let cache_ornament (_, (typs, orns_and_kind)) =
   OrnamentsCache.add orn_cache typs orns_and_kind
@@ -342,28 +341,28 @@ let inSwaps : swap_obj -> obj =
 (*
  * Precise version
  *)
-let has_ornament_exact typs =
+let has_metadata_exact cache typs =
   try
     let globals = map_tuple global_of_constr typs in
-    OrnamentsCache.mem orn_cache globals
+    OrnamentsCache.mem cache globals
   with _ ->
     false
               
 (*
  * Check if an ornament is cached
  *)
-let has_ornament typs =
-  if has_ornament_exact typs then
+let has_metadata cache typs =
+  if has_metadata_exact cache typs then
     true
   else
-    has_ornament_exact (reverse typs)
+    has_metadata_exact cache (reverse typs)
 
 (*
  * Lookup an ornament
  *)
 let lookup_ornament typs =
-  let typs = if has_ornament_exact typs then typs else reverse typs in
-  if not (has_ornament typs) then
+  let typs = if has_metadata_exact orn_cache typs then typs else reverse typs in
+  if not (has_metadata orn_cache typs) then
     None
   else
     let globals = map_tuple global_of_constr typs in
@@ -373,6 +372,7 @@ let lookup_ornament typs =
       Some (orn, orn_inv, int_to_kind i globals)
     with _ ->
       None
+
 (*
  * Add an ornament to the ornament cache
  *)
@@ -399,4 +399,118 @@ let save_ornament typs (orn, orn_inv, kind) =
           Pp.str "Please try definining your types as constants, ";
           Pp.str "and passing those constants to `Find ornament` instead."])
  
+                        
+(* --- Lifting configuration cache --- *)
 
+(*
+ * This is a persistent cache for DepConstr, DepElim, IdEta, and RewEta
+ *)
+
+(* Initialize the config cache *)
+let dep_constr_cache = OrnamentsCache.create 100
+let dep_elim_cache = OrnamentsCache.create 100
+let id_eta_cache = OrnamentsCache.create 100
+let rew_eta_cache = OrnamentsCache.create 100
+             
+(*
+ * Wrapping the table for persistence
+ *)
+type dep_constr_obj = (global_reference array * global_reference array) metadata
+type dep_elim_obj = (global_reference * global_reference) metadata
+type id_eta_obj = (global_reference * global_reference) metadata
+type rew_eta_obj = (global_reference * global_reference) metadata
+
+let cache_dep_constr (_, (typs, constrs)) =
+  OrnamentsCache.add dep_constr_cache typs constrs
+
+let cache_dep_elim (_, (typs, elims)) =
+  OrnamentsCache.add dep_elim_cache typs elims
+
+let cache_id_eta (_, (typs, ids)) =
+  OrnamentsCache.add id_eta_cache typs ids
+
+let cache_rew_eta (_, (typs, rews)) =
+  OrnamentsCache.add rew_eta_cache typs rews
+
+let sub_dep_constr (subst, (typs, (constrs_o, constrs_n))) =
+  let typs = map_tuple (subst_global_reference subst) typs in
+  let constrs_o = Array.map (subst_global_reference subst) constrs_o in
+  let constrs_n = Array.map (subst_global_reference subst) constrs_n in
+  typs, (constrs_o, constrs_n)
+
+let sub_dep_elim (subst, (typs, elims)) =
+  let typs = map_tuple (subst_global_reference subst) typs in
+  let elims = map_tuple (subst_global_reference subst) elims in
+  typs, elims
+
+let sub_id_eta (subst, (typs, ids)) =
+  let typs = map_tuple (subst_global_reference subst) typs in
+  let ids = map_tuple (subst_global_reference subst) ids in
+  typs, ids
+
+let sub_rew_eta (subst, (typs, rews)) =
+  let typs = map_tuple (subst_global_reference subst) typs in
+  let rews = map_tuple (subst_global_reference subst) rews in
+  typs, rews
+
+let inDepConstrs : dep_constr_obj -> obj =
+  declare_object { (default_object "DEP_CONSTRS") with
+    cache_function = cache_dep_constr;
+    load_function = (fun _ -> cache_dep_constr);
+    open_function = (fun _ -> cache_dep_constr);
+    classify_function = (fun dep_constr_obj -> Substitute dep_constr_obj);
+    subst_function = sub_dep_constr }
+
+let inDepElims : dep_elim_obj -> obj =
+  declare_object { (default_object "DEP_ELIMS") with
+    cache_function = cache_dep_elim;
+    load_function = (fun _ -> cache_dep_elim);
+    open_function = (fun _ -> cache_dep_elim);
+    classify_function = (fun dep_elim_obj -> Substitute dep_elim_obj);
+    subst_function = sub_dep_elim }
+
+let inIdEtas : id_eta_obj -> obj =
+  declare_object { (default_object "ID_ETAS") with
+    cache_function = cache_id_eta;
+    load_function = (fun _ -> cache_id_eta);
+    open_function = (fun _ -> cache_id_eta);
+    classify_function = (fun id_eta_obj -> Substitute id_eta_obj);
+    subst_function = sub_id_eta }
+
+let inRewEtas : rew_eta_obj -> obj =
+  declare_object { (default_object "REW_ETAS") with
+    cache_function = cache_rew_eta;
+    load_function = (fun _ -> cache_rew_eta);
+    open_function = (fun _ -> cache_rew_eta);
+    classify_function = (fun rew_eta_obj -> Substitute rew_eta_obj);
+    subst_function = sub_rew_eta }
+
+(*
+ * Lookup a configuration
+ * For now this just gets IdEta, just so we can test to start
+ *)
+let lookup_config typs =
+  let typs = if has_metadata_exact id_eta_cache typs then typs else reverse typs in
+  if not (has_metadata id_eta_cache typs) then
+    None
+  else
+    let globals = map_tuple global_of_constr typs in
+    let ids = OrnamentsCache.find id_eta_cache globals in
+    Some (map_tuple Universes.constr_of_global ids)
+
+(*
+ * Add an ornament to the ornament cache
+ *)
+let save_config typs ids =
+  try
+    let globals = map_tuple global_of_constr typs in
+    let ids = map_tuple global_of_constr ids in
+    let id_eta_obj = inIdEtas (globals, ids) in
+    add_anonymous_leaf id_eta_obj
+  with _ ->
+    Feedback.msg_warning
+      (Pp.seq
+         [Pp.str "Failed to cache configuration. ";
+          Pp.str "Lifting my fail later. ";
+          Pp.str "Please report a bug."])
+ 
