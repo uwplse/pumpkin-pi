@@ -487,16 +487,18 @@ let inRewEtas : rew_eta_obj -> obj =
 
 (*
  * Lookup a configuration
- * For now this just gets IdEta, just so we can test to start
+ * For now this just gets IdEta and ConstrEta, just so we can test to start
  *)
 let lookup_config typs =
-  if not (has_metadata_exact id_eta_cache typs) then
+  if not (has_metadata_exact dep_constr_cache typs &&
+          has_metadata_exact id_eta_cache typs) then
     None
   else
     let globals = map_tuple global_of_constr typs in
     let ids = OrnamentsCache.find id_eta_cache globals in
+    let constrs = OrnamentsCache.find dep_constr_cache globals in
     try
-      Some (map_tuple Universes.constr_of_global ids)
+      Some (map_tuple (Array.map Universes.constr_of_global) constrs, map_tuple Universes.constr_of_global ids)
     with _ ->
       Feedback.msg_warning
         (Pp.seq
@@ -505,10 +507,27 @@ let lookup_config typs =
             Pp.str "Please report a bug if this happens."]);
       None
 
+ 
 (*
- * Add an ornament to the ornament cache
+ * DepConstr to the config cache
  *)
-let save_config typs ids =
+let save_dep_constr typs constrs =
+  try
+    let globals = map_tuple global_of_constr typs in
+    let constrs = map_tuple (Array.map global_of_constr) constrs in
+    let dep_constr_obj = inDepConstrs (globals, constrs) in
+    add_anonymous_leaf dep_constr_obj
+  with _ ->
+    Feedback.msg_warning
+      (Pp.seq
+         [Pp.str "Failed to cache DepConstr configuration. ";
+          Pp.str "Lifting my fail later. ";
+          Pp.str "Please report a bug if this happens."])
+
+(*
+ * Add IdEta to the config cache
+ *)
+let save_id_eta typs ids =
   try
     let globals = map_tuple global_of_constr typs in
     let ids = map_tuple global_of_constr ids in
@@ -517,7 +536,6 @@ let save_config typs ids =
   with _ ->
     Feedback.msg_warning
       (Pp.seq
-         [Pp.str "Failed to cache configuration. ";
+         [Pp.str "Failed to cache IdEta configuration. ";
           Pp.str "Lifting my fail later. ";
           Pp.str "Please report a bug if this happens."])
- 

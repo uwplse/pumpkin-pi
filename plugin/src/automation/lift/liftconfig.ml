@@ -416,13 +416,12 @@ let initialize_proj_rules c env sigma =
  * Define what it means to lift the identity function, since we must
  * preserve definitional equalities.
  *)
-let initialize_id_rules c env sigma =
+let initialize_id_rules c cached env sigma =
   let l = get_lifting c in
-  let cached_ids = lookup_config (l.orn.promote, l.orn.forget) in
   let sigma, ids =
-    if Option.has_some cached_ids then
+    if Option.has_some cached then
       (* Use the cached id rules *)
-      sigma, Option.get cached_ids
+      sigma, snd (Option.get cached)
     else
       (* Determine the id rules and cache them for later *)
       let (a_typ, b_typ) = get_types c in
@@ -515,17 +514,20 @@ let initialize_id_rules c env sigma =
           (with_suffix base_n "id_eta_a", with_suffix base_n "id_eta_b")
         in
         let id_a, id_b = ((id_a_n, id_a), (id_b_n, id_b)) in
-        let id_a = define_term (fst id_a) sigma (snd id_a) true in
-        let id_b = define_term (fst id_b) sigma (snd id_b) true in
-        map_tuple Universes.constr_of_global (id_a, id_b)
+        try
+          let id_a = define_term (fst id_a) sigma (snd id_a) true in
+          let id_b = define_term (fst id_b) sigma (snd id_b) true in
+          map_tuple Universes.constr_of_global (id_a, id_b)
+        with _ ->
+          snd id_a, snd id_b
       in
-      save_config (l.orn.promote, l.orn.forget) ids;
+      save_id_eta (l.orn.promote, l.orn.forget) ids;
       sigma, ids
   in
   let ids = if l.is_fwd then ids else rev_tuple ids in
   let env = Global.env () in
   let sigma = Evd.from_env env in
-  let id_rules = map_tuple (lookup_definition env) ids in
+  let id_rules = map_tuple (unwrap_definition env) ids in
   sigma, { c with id_rules }
 
 (*
@@ -1100,7 +1102,7 @@ let initialize_constr_rule c env constr sigma =
 (*
  * Run NORMALIZE for all constructors, so we can cache the result
  *)
-let initialize_constr_rules c env sigma =
+let initialize_constr_rules c cached env sigma =
   let (fwd_constrs, bwd_constrs) = c.packed_constrs in
   let sigma, lifted_fwd_constrs =
     map_state_array (initialize_constr_rule c env) fwd_constrs sigma
@@ -1301,10 +1303,11 @@ let initialize_lift_config env l ignores sigma =
       opaques
     }
   in
+  let cached = lookup_config (l.orn.promote, l.orn.forget) in
   let sigma, c = initialize_proj_rules c env sigma in
   let sigma, c = initialize_optimize_proj_id_rules c env sigma in
-  let sigma, c = initialize_id_rules c env sigma in
+  let sigma, c = initialize_id_rules c cached env sigma in
   let sigma, c = initialize_elim_types c env sigma in
   let sigma, c = initialize_packed_constrs c env sigma in
-  initialize_constr_rules c env sigma
+  initialize_constr_rules c cached env sigma
 
