@@ -490,13 +490,20 @@ let inRewEtas : rew_eta_obj -> obj =
  * For now this just gets IdEta, just so we can test to start
  *)
 let lookup_config typs =
-  let typs = if has_metadata_exact id_eta_cache typs then typs else reverse typs in
-  if not (has_metadata id_eta_cache typs) then
+  if not (has_metadata_exact id_eta_cache typs) then
     None
   else
     let globals = map_tuple global_of_constr typs in
     let ids = OrnamentsCache.find id_eta_cache globals in
-    Some (map_tuple Universes.constr_of_global ids)
+    try
+      Some (map_tuple Universes.constr_of_global ids)
+    with _ ->
+      Feedback.msg_warning
+        (Pp.seq
+           [Pp.str "Failed to retrieve cached configuration. ";
+            Pp.str "Lifting my fail later. ";
+            Pp.str "Please report a bug if this happens."]);
+      None
 
 (*
  * Add an ornament to the ornament cache
@@ -512,5 +519,5 @@ let save_config typs ids =
       (Pp.seq
          [Pp.str "Failed to cache configuration. ";
           Pp.str "Lifting my fail later. ";
-          Pp.str "Please report a bug."])
+          Pp.str "Please report a bug if this happens."])
  
