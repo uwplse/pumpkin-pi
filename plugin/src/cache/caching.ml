@@ -511,7 +511,7 @@ let lookup_config typs =
 (*
  * DepConstr to the config cache
  *)
-let save_dep_constr typs constrs =
+let save_dep_constrs typs constrs =
   try
     let globals = map_tuple global_of_constr typs in
     let constrs = map_tuple (Array.map global_of_constr) constrs in

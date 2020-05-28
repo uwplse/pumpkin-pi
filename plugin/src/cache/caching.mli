@@ -99,7 +99,7 @@ val lookup_config :
   ((constr array * constr array) * (constr * constr)) option
 
 (*
- * Store DepContr, DepElim, IdEta, and RewEta
+ * Store DepConstr, DepElim, IdEta, and RewEta
  *)
-val save_dep_constr : (types * types) -> (constr array * constr array) -> unit
+val save_dep_constrs : (types * types) -> (constr array * constr array) -> unit
 val save_id_eta : (types * types) -> (constr * constr) -> unit
