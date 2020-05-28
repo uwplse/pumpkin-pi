@@ -87,7 +87,7 @@ val save_ornament :
 
 (*
  * Lookup DepConstr, DepElim, IdEta, and RewEta
- * Arguments: typ1, typ2
+ * Arguments: orn_o, orn_n
  * Order of return values: dep_constrs, dep_elims, id_etas, rew_etas 
  * (for now, just one of these, since this is work in progress)
  *
