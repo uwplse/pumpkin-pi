@@ -421,7 +421,8 @@ let initialize_id_etas c cached env sigma =
   let sigma, ids =
     if Option.has_some cached then
       (* Use the cached id rules *)
-      sigma, snd (Option.get cached)
+      let (_, _, ids) = Option.get cached in
+      sigma, ids
     else
       (* Determine the id rules and cache them for later *)
       let (a_typ, b_typ) = get_types c in
@@ -954,7 +955,8 @@ let initialize_dep_constrs c cached env sigma =
   let sigma, constrs =
     if Option.has_some cached then
       (* Use the cached DepConstr rules *)
-      sigma, fst (Option.get cached)
+      let (constrs, _, _) = Option.get cached in
+      sigma, constrs
     else
       let a_typ, b_typ = c.typs in
       let sigma, a_constrs =

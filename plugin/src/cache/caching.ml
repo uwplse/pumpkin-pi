@@ -491,14 +491,19 @@ let inRewEtas : rew_eta_obj -> obj =
  *)
 let lookup_config typs =
   if not (has_metadata_exact dep_constr_cache typs &&
+          has_metadata_exact dep_elim_cache typs &&
           has_metadata_exact id_eta_cache typs) then
     None
   else
     let globals = map_tuple global_of_constr typs in
-    let ids = OrnamentsCache.find id_eta_cache globals in
     let constrs = OrnamentsCache.find dep_constr_cache globals in
+    let elims = OrnamentsCache.find dep_elim_cache globals in
+    let ids = OrnamentsCache.find id_eta_cache globals in
     try
-      Some (map_tuple (Array.map Universes.constr_of_global) constrs, map_tuple Universes.constr_of_global ids)
+      let constrs = map_tuple (Array.map Universes.constr_of_global) constrs in
+      let elims = map_tuple Universes.constr_of_global elims in
+      let ids = map_tuple Universes.constr_of_global ids in
+      Some (constrs, elims, ids)
     with _ ->
       Feedback.msg_warning
         (Pp.seq
@@ -506,10 +511,9 @@ let lookup_config typs =
             Pp.str "Lifting my fail later. ";
             Pp.str "Please report a bug if this happens."]);
       None
-
  
 (*
- * DepConstr to the config cache
+ * Add DepConstr to the config cache
  *)
 let save_dep_constrs typs constrs =
   try
@@ -517,6 +521,22 @@ let save_dep_constrs typs constrs =
     let constrs = map_tuple (Array.map global_of_constr) constrs in
     let dep_constr_obj = inDepConstrs (globals, constrs) in
     add_anonymous_leaf dep_constr_obj
+  with _ ->
+    Feedback.msg_warning
+      (Pp.seq
+         [Pp.str "Failed to cache DepConstr configuration. ";
+          Pp.str "Lifting my fail later. ";
+          Pp.str "Please report a bug if this happens."])
+
+(*
+ * Add DepElim to the config cache
+ *)
+let save_dep_elim typs elims =
+  try
+    let globals = map_tuple global_of_constr typs in
+    let elims = map_tuple global_of_constr elims in
+    let dep_elim_obj = inDepElims (globals, elims) in
+    add_anonymous_leaf dep_elim_obj
   with _ ->
     Feedback.msg_warning
       (Pp.seq
