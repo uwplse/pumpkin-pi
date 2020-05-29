@@ -51,6 +51,7 @@ type lift_config =
     l : lifting;
     typs : types * types;
     elim_types : types * types;
+    dep_elims : types * types;
     dep_constrs : types array * types array;
     constr_rules : types array * types array;
     proj_rules :
@@ -71,6 +72,7 @@ let reverse c =
     c with
     l = flip_dir c.l;
     elim_types = reverse c.elim_types;
+    dep_elims = reverse c.dep_elims;
     dep_constrs = reverse c.dep_constrs;
     proj_rules = reverse c.proj_rules;
     constr_rules = reverse c.constr_rules;
@@ -1266,6 +1268,20 @@ let initialize_elim_types c env sigma =
 let get_elim_type c = fst (c.elim_types)
 
 (*
+ * Initialize dep_elims
+ *)
+let initialize_dep_elims c cached env sigma =
+  let sigma, elims =
+    if Option.has_some cached then
+      (* Use the cached DepElim rules *)
+      let (_, elims, _) = Option.get cached in
+      sigma, elims
+    else
+      (* Determine DepElim and cache if needed *)
+      sigma, c.dep_elims
+  in sigma, { c with dep_elims = elims }
+
+(*
  * Check if the term applies the eliminator
  * If so return the eliminator application, parameters, and the arity
  * of the motive (the number of "final arguments" after inducting over
@@ -1333,6 +1349,7 @@ let initialize_lift_config env l ignores sigma =
       l;
       typs;
       elim_types = (mkRel 1, mkRel 1);
+      dep_elims = (mkRel 1, mkRel 1);
       dep_constrs = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
       constr_rules = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
       proj_rules = ([], []), ([], []);
@@ -1347,6 +1364,7 @@ let initialize_lift_config env l ignores sigma =
   let sigma, c = initialize_optimize_proj_id_rules c env sigma in
   let sigma, c = initialize_id_etas c cached env sigma in
   let sigma, c = initialize_elim_types c env sigma in
+  let sigma, c = initialize_dep_elims c cached env sigma in
   let sigma, c = initialize_dep_constrs c cached env sigma in
   initialize_constr_rules c env sigma
 
