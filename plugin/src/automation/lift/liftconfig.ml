@@ -1268,6 +1268,57 @@ let initialize_elim_types c env sigma =
 let get_elim_type c = fst (c.elim_types)
 
 (*
+ * MOTIVE
+ *)
+let lift_motive env sigma c npms parameterized_elim p =
+  let l = get_lifting c in
+  let sigma, parameterized_elim_type = reduce_type env sigma parameterized_elim in
+  let (_, p_to_typ, _) = destProd parameterized_elim_type in
+  let env_p_to = zoom_env zoom_product_type env p_to_typ in
+  let nargs = new_rels2 env_p_to env in
+  let p = shift_by nargs p in
+  let sigma, args =
+    let args = mk_n_rels nargs in
+    let sigma, lifted_arg =
+      if l.orn.kind = UnpackSigma then
+        (* The domain of induction doens't change *)
+        sigma, last args
+      else
+        let sigma, arg =
+          map_backward
+            (fun (sigma, t) -> pack env_p_to (flip_dir l) t sigma)
+            (flip_dir l)
+            (sigma, last args)
+        in
+        let sigma, typ_args = type_from_args (reverse c) env_p_to arg sigma in
+        lift env_p_to (flip_dir l) arg typ_args sigma
+    in
+    match l.orn.kind with
+    | Algebraic (indexer, off) ->
+       let value_off = nargs - 1 in
+       let orn = { l.orn with kind = Algebraic (indexer, off - npms) } in
+       let l = { l with orn } in (* no parameters here *)
+       if l.is_fwd then
+         (* forget packed b to a, don't project, and deindex *)
+         let a = lifted_arg in
+         sigma, deindex l (reindex value_off a args)
+       else
+         (* promote a to packed b, project, and index *)
+         let b_sig = lifted_arg in
+         let b_sig_typ = on_red_type_default (ignore_env dest_sigT) env_p_to sigma b_sig in
+         let i_b = project_index b_sig_typ b_sig in
+         let b = project_value b_sig_typ b_sig in
+         sigma, index l i_b (reindex value_off b args)
+    | CurryRecord ->
+       sigma, [lifted_arg]
+    | SwapConstruct _ | UnpackSigma ->
+       let value_off = nargs - 1 in
+       sigma, reindex value_off lifted_arg args
+  in
+  let p_app = reduce_stateless reduce_term env_p_to sigma (mkAppl (p, args)) in
+  sigma, reconstruct_lambda_n env_p_to p_app (nb_rel env)
+
+(*
  * Initialize dep_elims
  *)
 let initialize_dep_elims c cached env sigma =
@@ -1286,8 +1337,22 @@ let initialize_dep_elims c cached env sigma =
            if c.l.is_fwd then
              sigma, elim
            else
-             let sigma, elim = expand_eta env sigma elim in
-             sigma, elim (* TODO eliminate projections and adjust hypotheses *)
+             (* TODO still includes explicit lifting/refolding, and is in term of old env --- move out later *)
+             let rev_elim_typ = get_elim_type (reverse c) in
+             let rev_elim = type_eliminator env (fst (destInd rev_elim_typ)) in
+             let sigma, elim_eta = expand_eta env sigma rev_elim in
+             let env_trm, trm = zoom_lambda_term env elim_eta in
+             let sigma, trm_app = deconstruct_eliminator env_trm sigma trm in
+             let npms = List.length trm_app.pms in
+             let param_elim = mkAppl (rev_elim, trm_app.pms) in
+             let open Printing in
+             debug_term env_trm param_elim "param_elim";
+             let sigma, p = lift_motive env_trm sigma c npms param_elim trm_app.p in
+             let p_elim = mkAppl (param_elim, [p]) in
+             (*let sigma, cs = lift_cases env c npms p_elim trm_app.cs sigma in
+             let sigma, final_args = lift_elim_args env sigma c npms trm_app.final_args in*)
+             let lifted = apply_eliminator { trm_app with elim; p } in
+             sigma, reconstruct_lambda_n env_trm lifted (nb_rel env)
         | SwapConstruct swaps ->
            if c.l.is_fwd then
              sigma, elim

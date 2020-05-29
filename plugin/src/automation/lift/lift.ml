@@ -92,6 +92,7 @@ let lift_elim_args env sigma c npms args =
 
 (*
  * MOTIVE
+ * TODO remove this once totally ported
  *)
 let lift_motive env sigma c npms parameterized_elim p =
   let l = get_lifting c in
