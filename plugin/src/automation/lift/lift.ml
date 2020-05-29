@@ -487,6 +487,7 @@ let lift_core env c trm sigma =
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma
     | LiftElim (tr_elim, pms, args, opaque) ->
+       (* TODO use depelim *)
        if opaque then
          let f = apply_eliminator tr_elim in
          lift_app_simplify c en f args reduce_term (lift_rec lift_rules) sigma

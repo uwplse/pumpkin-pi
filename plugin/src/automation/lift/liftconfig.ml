@@ -1278,14 +1278,37 @@ let initialize_dep_elims c cached env sigma =
       sigma, elims
     else
       (* Determine DepElim and cache if needed *)
-      sigma, c.dep_elims
-  in sigma, { c with dep_elims = elims }
+      let initialize_dep_elim c sigma =
+        let elim_typ = get_elim_type c in
+        let elim = type_eliminator env (fst (destInd elim_typ)) in
+        match c.l.orn.kind with
+        | Algebraic _ | SwapConstruct _ when c.l.is_fwd ->
+           sigma, elim
+        | CurryRecord when not c.l.is_fwd ->
+           sigma, elim
+        | UnpackSigma ->
+           sigma, elim
+        | _ ->
+           sigma, elim_typ (* TODO *)
+      in
+      let c = if c.l.is_fwd then c else reverse c in
+      let sigma, a_elim = initialize_dep_elim c sigma in
+      let sigma, b_elim = initialize_dep_elim (reverse c) sigma in
+      (* TODO define and cache *)
+      sigma, (a_elim, b_elim)
+  in
+  let elims = if c.l.is_fwd then elims else rev_tuple elims in
+  let open Printing in
+  debug_terms env [fst elims; snd elims] "elims";
+  sigma, { c with dep_elims = elims }
 
 (*
  * Check if the term applies the eliminator
  * If so return the eliminator application, parameters, and the arity
  * of the motive (the number of "final arguments" after inducting over
  * the term)
+ *
+ * TODO use dep_elim
  *)
 let applies_elim c env trm sigma =
   let l = get_lifting c in

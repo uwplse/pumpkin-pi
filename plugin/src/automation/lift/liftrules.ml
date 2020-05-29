@@ -258,6 +258,7 @@ let is_identity c env trm prev_rules sigma =
 let is_eliminator c env trm sigma =
   let sigma, elim_app_o = applies_elim c env trm sigma in
   if Option.has_some elim_app_o then
+    (* TODO use dep_elim *)
     let eta_o, trm_elim, pms, nargs, opaque = Option.get elim_app_o in
     if Option.has_some eta_o then
       (* Lazy eta *)
