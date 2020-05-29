@@ -1282,14 +1282,25 @@ let initialize_dep_elims c cached env sigma =
         let elim_typ = get_elim_type c in
         let elim = type_eliminator env (fst (destInd elim_typ)) in
         match c.l.orn.kind with
-        | Algebraic _ | SwapConstruct _ when c.l.is_fwd ->
-           sigma, elim
-        | CurryRecord when not c.l.is_fwd ->
-           sigma, elim
+        | Algebraic _ ->
+           if c.l.is_fwd then
+             sigma, elim
+           else
+             let sigma, elim = expand_eta env sigma elim in
+             sigma, elim (* TODO eliminate projections and adjust hypotheses *)
+        | SwapConstruct swaps ->
+           if c.l.is_fwd then
+             sigma, elim
+           else
+             let sigma, elim = expand_eta env sigma elim in
+             sigma, elim (* TODO shuffle order of constrs *)
+        | CurryRecord ->
+           if c.l.is_fwd then
+             sigma, elim (* TODO instantiate particular pms *)
+           else
+             sigma, elim
         | UnpackSigma ->
            sigma, elim
-        | _ ->
-           sigma, elim_typ (* TODO *)
       in
       let c = if c.l.is_fwd then c else reverse c in
       let sigma, a_elim = initialize_dep_elim c sigma in
