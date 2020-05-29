@@ -276,6 +276,7 @@ let lift_case_args c env_c_b env_c to_c_typ npms nargs sigma =
 
 (*
  * CASE
+ * TODO remove later
  *)
 let lift_case env c npms c_elim constr sigma =
   let sigma, c_elim_type = reduce_type env sigma c_elim in
