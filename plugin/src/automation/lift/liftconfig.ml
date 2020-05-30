@@ -1565,16 +1565,46 @@ let initialize_dep_elims c cached env sigma =
         let elim = type_eliminator env (fst (destInd elim_typ)) in
         let sigma, elim_eta = expand_eta env sigma elim in
         let env_trm, trm = zoom_lambda_term env elim_eta in
+        let open Printing in
+        debug_term env_trm trm "trm";
         let sigma, trm_app = deconstruct_eliminator env_trm sigma trm in
         let rev_elim_typ = get_elim_type (reverse c) in
         let rev_elim = type_eliminator env (fst (destInd rev_elim_typ)) in
-        let npms = List.length trm_app.pms in
-        let param_elim = mkAppl (rev_elim, trm_app.pms) in
+        let sigma, pms =
+          match c.l.orn.kind with
+          | CurryRecord ->
+             if not c.l.is_fwd then
+               let typ_f = first_fun (zoom_term zoom_lambda_term env_trm (snd (get_types c))) in
+               debug_term env_trm typ_f "typ_f";
+               (* TODO pass pms instead of [] to to_typ_prod here *)
+               let sigma, to_typ_prod = specialize_delta_f env_trm typ_f [] sigma in
+               debug_term env_trm to_typ_prod "to_typ_prod";
+               let to_elim = dest_prod to_typ_prod in
+               let open Printing in
+               Printf.printf "%s\n\n" "after dest prod";
+               sigma, [to_elim.Produtils.typ1; to_elim.Produtils.typ2]
+             else
+               let open Printing in
+               debug_term env_trm (List.hd trm_app.final_args) "final arg";
+               debug_env env_trm "env_trm";
+               let sigma, is_from = type_is_from (reverse c) env_trm (List.hd trm_app.final_args) sigma in
+               sigma, Option.get is_from
+          | _ ->
+             sigma, trm_app.pms
+        in
+        let open Printing in
+        debug_terms env_trm pms "pms";
+        let npms = List.length pms in
+        let param_elim = mkAppl (rev_elim, pms) in
+        debug_term env_trm param_elim "param_elim";
         let sigma, p = lift_motive env_trm sigma c npms param_elim trm_app.p in
+        debug_term env_trm p "p";
         let p_elim = mkAppl (param_elim, [p]) in
         let sigma, cs = lift_cases env_trm c npms p_elim trm_app.cs sigma in
         let sigma, final_args = lift_elim_args env_trm sigma c npms trm_app.final_args in
-        let lifted = apply_eliminator { trm_app with elim; p; cs; final_args } in
+        let lifted = apply_eliminator { elim; pms; p; cs; final_args } in
+        let open Printing in
+        debug_term env_trm lifted "lifted";
         sigma, reconstruct_lambda_n env_trm lifted (nb_rel env)
       in
       let c = if c.l.is_fwd then c else reverse c in
