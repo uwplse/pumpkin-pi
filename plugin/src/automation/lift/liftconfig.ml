@@ -1374,7 +1374,20 @@ let initialize_dep_elim_cs c env_elim elim_app =
 
 (* Determine the arguments for DepElim *)
 let initialize_dep_elim_args c env_elim elim_app sigma =
-  elim_app.final_args (* TODO *)
+  let l = get_lifting c in
+  match l.orn.kind with
+  | Algebraic (indexer, off) when not l.is_fwd ->
+     let b_old = last elim_app.final_args in
+     let value_off = List.length elim_app.final_args - 1 in
+     let off = off -  List.length elim_app.pms in (* no parameters here *)
+     (* project *)
+     let sigma, b_pack = pack env_elim c.l b_old sigma in
+     let b_sig_typ = dest_sigT_type env_elim sigma b_pack in
+     let i_b = project_index b_sig_typ b_old in
+     let b = project_value b_sig_typ b_old in
+     sigma, reindex off i_b (reindex value_off b elim_app.final_args)
+  | _ ->
+     sigma, elim_app.final_args
 
 (* Determine the environment for DepElim *)
 let initialize_dep_elim_env c env_elim elim_app sigma =
@@ -1390,7 +1403,7 @@ let initialize_dep_elim c env sigma =
   let pms = elim_app.pms in
   let sigma, p = initialize_dep_elim_p c env_elim elim_app sigma in
   let sigma, cs = initialize_dep_elim_cs c env_elim elim_app sigma in
-  let final_args = initialize_dep_elim_args c env_elim elim_app sigma in
+  let sigma, final_args = initialize_dep_elim_args c env_elim elim_app sigma in
   let env_dep_elim = initialize_dep_elim_env c env_elim elim_app sigma in
   let dep_elim = apply_eliminator { elim; pms; p; cs; final_args } in 
   sigma, reconstruct_lambda_n env_dep_elim dep_elim (nb_rel env)
