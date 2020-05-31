@@ -1281,10 +1281,10 @@ let initialize_dep_elim_p c env_elim elim_app sigma =
        let f = first_fun p_b in
        let sigma, args =
          let old_args = unfold_args p_b in
+         let sigma, b = pack env_p_b c.l (last old_args) sigma in
          let value_off = List.length old_args - 1 in
          let orn = { c.l.orn with kind = Algebraic (indexer, off - List.length elim_app.pms) } in
          let l = { c.l with orn } in (* no parameters here *)
-         let sigma, b = pack env_p_b l (last old_args) sigma in
          sigma, deindex l (reindex value_off b old_args)
        in sigma, reconstruct_lambda_n env_p_b (mkAppl (f, args)) (nb_rel env_elim)
   | _ ->
@@ -1299,36 +1299,32 @@ let initialize_dep_elim_c_args c env_case_body args sigma =
   match l.orn.kind with
   | Algebraic (_, off) ->
      let b_typ = get_elim_type c in
-     let rec lift_args sigma args i_b =
+     let rec init_args sigma args i_b =
        match args with
        | n :: tl ->
           if equal n i_b then
-            (* DROP-INDEX *)
-            lift_args sigma (shift_all tl) i_b
+            init_args sigma (shift_all tl) i_b
           else
             let sigma, t = reduce_type env_case_body sigma n in
             if is_or_applies b_typ t then
-              (* FORGET-ARG *)
               let sigma, b = pack env_case_body l n sigma in
               Util.on_snd
                 (fun tl -> b :: tl)
-                (lift_args sigma tl (get_arg off t))
+                (init_args sigma tl (get_arg off t))
             else
-              (* ARG *)
-              Util.on_snd (fun tl -> n :: tl) (lift_args sigma tl i_b)
+              Util.on_snd (fun tl -> n :: tl) (init_args sigma tl i_b)
        | _ ->
-          (* CONCL in inductive case *)
           sigma, []
-     in Util.on_snd List.rev (lift_args sigma (List.rev args) (mkRel 0))
+     in Util.on_snd List.rev (init_args sigma (List.rev args) (mkRel 0))
   | _ ->
      sigma, args (* TODO *)
 
 (*
  * Determine a single case for DepElim
  *)
-let initialize_dep_elim_c c env_elim case sigma =
+let initialize_dep_elim_c c env_elim elim_app case sigma =
   match c.l.orn.kind with
-  | Algebraic _ when not c.l.is_fwd ->
+  | Algebraic (indexer, off) when not c.l.is_fwd ->
      let sigma, case_eta = expand_eta env_elim sigma case in
      let env_case_body, case_body = zoom_lambda_term env_elim case_eta in
      let elim_typ = get_elim_type c in
@@ -1343,13 +1339,38 @@ let initialize_dep_elim_c c env_elim case sigma =
        let f = first_fun case_body in
        let sigma, args = initialize_dep_elim_c_args c env_case_body args sigma in
        let sigma, body = reduce_term env_case_body sigma (mkAppl (f, args)) in
-       sigma, reconstruct_lambda_n env_case_body body (nb_rel env_elim)
+       let case_old_p = reconstruct_lambda_n env_case_body body (nb_rel env_elim) in
+       let sigma, case_new_p =
+         let rec pack_p env case p sigma =
+           match kind case with
+           | Lambda (n, t, b) ->
+              if is_or_applies p t then
+                let sigma, args =
+                  let old_args = unfold_args t in
+                  let sigma, b = pack env c.l (last old_args) sigma in
+                  let value_off = List.length old_args - 1 in
+                  let orn = { c.l.orn with kind = Algebraic (indexer, off) } in
+                  let l = { c.l with orn } in (* no parameters here *)
+                  sigma, deindex l (reindex value_off b old_args)
+                in
+                let t' = mkAppl (p, args) in
+                let env_b = push_local (n, t) env in
+                let sigma, b' = pack_p env_b b (shift p) sigma in
+                sigma, mkLambda (n, t', b')
+              else
+                let env_b = push_local (n, t) env in
+                let sigma, b' = pack_p env_b b (shift p) sigma in
+                sigma, mkLambda (n, t, b')
+           | _ ->
+              sigma, case
+         in pack_p env_elim case_old_p elim_app.p sigma
+       in sigma, case_new_p
   | _ ->
      sigma, case (* TODO *)
 
 (* Determine the cases for DepElim *)
 let initialize_dep_elim_cs c env_elim elim_app =
-  map_state (initialize_dep_elim_c c env_elim) elim_app.cs
+  map_state (initialize_dep_elim_c c env_elim elim_app) elim_app.cs
 
 (* Determine the arguments for DepElim *)
 let initialize_dep_elim_args c env_elim elim_app sigma =
