@@ -508,7 +508,7 @@ let lookup_config typs =
       Feedback.msg_warning
         (Pp.seq
            [Pp.str "Failed to retrieve cached configuration. ";
-            Pp.str "Lifting my fail later. ";
+            Pp.str "Lifting may fail later. ";
             Pp.str "Please report a bug if this happens."]);
       None
  
@@ -525,7 +525,7 @@ let save_dep_constrs typs constrs =
     Feedback.msg_warning
       (Pp.seq
          [Pp.str "Failed to cache DepConstr configuration. ";
-          Pp.str "Lifting my fail later. ";
+          Pp.str "Lifting may fail later. ";
           Pp.str "Please report a bug if this happens."])
 
 (*
@@ -540,8 +540,8 @@ let save_dep_elim typs elims =
   with _ ->
     Feedback.msg_warning
       (Pp.seq
-         [Pp.str "Failed to cache DepConstr configuration. ";
-          Pp.str "Lifting my fail later. ";
+         [Pp.str "Failed to cache DepElim configuration. ";
+          Pp.str "Lifting may fail later. ";
           Pp.str "Please report a bug if this happens."])
 
 (*
@@ -557,5 +557,5 @@ let save_id_eta typs ids =
     Feedback.msg_warning
       (Pp.seq
          [Pp.str "Failed to cache IdEta configuration. ";
-          Pp.str "Lifting my fail later. ";
+          Pp.str "Lifting may fail later. ";
           Pp.str "Please report a bug if this happens."])
