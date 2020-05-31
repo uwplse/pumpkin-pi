@@ -1557,16 +1557,22 @@ let initialize_dep_elims c cached env sigma =
       (* Use the cached DepElim rules *)
       let (_, elims, _) = Option.get cached in
       sigma, elims
-    else if c.l.orn.kind = CurryRecord then
-      (* TODO harder to port than the others *)
-      sigma, c.dep_elims
     else
       (* Determine DepElim and cache if needed *)
       let initialize_dep_elim c sigma =
-        (* TODO fix broken ones, use, remove old code *)
-        let c = reverse c in
         let elim_typ = get_elim_type c in
         let elim = type_eliminator env (fst (destInd elim_typ)) in
+        match c.l.orn.kind with
+        | Algebraic _ ->
+           if c.l.is_fwd then
+             sigma, elim
+           else
+             (* TODO not done yet *)
+             sigma, snd c.dep_elims
+        | _ ->
+           (* TODO not done yet *)
+           sigma, if c.l.is_fwd then fst c.dep_elims else snd c.dep_elims
+      (*
         let sigma, elim_eta = expand_eta env sigma elim in
         let env_trm, trm = zoom_lambda_term env elim_eta in
         let sigma, trm_app = deconstruct_eliminator env_trm sigma trm in
@@ -1580,7 +1586,7 @@ let initialize_dep_elims c cached env sigma =
         let sigma, cs = lift_cases env_trm c npms p_elim trm_app.cs sigma in
         let sigma, final_args = lift_elim_args env_trm sigma c npms trm_app.final_args in
         let lifted = apply_eliminator { elim; pms; p; cs; final_args } in
-        sigma, reconstruct_lambda_n env_trm lifted (nb_rel env)
+        sigma, reconstruct_lambda_n env_trm lifted (nb_rel env)*)
       in
       try
         let c = if c.l.is_fwd then c else reverse c in
@@ -1593,11 +1599,14 @@ let initialize_dep_elims c cached env sigma =
             let base_n = Label.to_id lab in
             (with_suffix base_n "dep_elim_a", with_suffix base_n "dep_elim_b")
           in
+          let open Printing in
+          debug_term env a_elim "a_elim";
+          debug_term env b_elim "b_elim";
           let elim_a, elim_b = ((elim_a_n, a_elim), (elim_b_n, b_elim)) in
           (try
              let elim_a = define_term (fst elim_a) sigma (snd elim_a) true in
-            let elim_b = define_term (fst elim_b) sigma (snd elim_b) true in
-            map_tuple Universes.constr_of_global (elim_a, elim_b)
+             let elim_b = define_term (fst elim_b) sigma (snd elim_b) true in
+             map_tuple Universes.constr_of_global (elim_a, elim_b)
            with _ ->
              snd elim_a, snd elim_b)
         in
@@ -1608,8 +1617,6 @@ let initialize_dep_elims c cached env sigma =
         sigma, c.dep_elims
   in
   let elims = if c.l.is_fwd then elims else rev_tuple elims in
-  let open Printing in
-  debug_terms env [fst elims; snd elims] "elims";
   sigma, { c with dep_elims = elims }
 
 (*
