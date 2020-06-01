@@ -1390,41 +1390,92 @@ let initialize_dep_elim_args c env_elim elim_app sigma =
      sigma, elim_app.final_args
 
 (* Determine the environment for DepElim *)
-let initialize_dep_elim_env c env env_elim elim_app sigma =
+let initialize_dep_elim_env c env env_elim sigma =
   match c.l.orn.kind with
   | Algebraic (_, off) when not c.l.is_fwd ->
-     let elim_typ = get_elim_type c in
-     let elim = reconstruct_lambda_n env_elim (apply_eliminator elim_app) (nb_rel env) in
-     let env, elim = zoom_n_lambda env (List.length elim_app.pms) elim in
-     let (p_n, p_typ, b) = destLambda elim in
-     let rec init_p_typ env p_typ off i sigma =
+     let elim_typ_rev = get_elim_type (reverse c) in
+     let elim_rev = type_eliminator env (fst (destInd elim_typ_rev)) in
+     let sigma, elim_rev_eta = expand_eta env sigma elim_rev in
+     let env_elim_rev, elim_body_rev = zoom_lambda_term env elim_rev_eta in
+     let open Printing in
+     debug_term env_elim_rev elim_body_rev "elim_body_rev";
+     let sigma, elim_app_rev = deconstruct_eliminator env_elim_rev sigma elim_body_rev in
+     let env, elim_rev = zoom_n_lambda env (List.length elim_app_rev.pms) elim_rev_eta in
+     let (p_n, p_typ, b) = destLambda elim_rev in
+     let rec init_p_typ env p_typ sigma =
        match kind p_typ with
        | Prod (n, t, b) ->
           let env_b = push_local (n, t) env in
-          let sigma, b' = init_p_typ env_b b off (i + 1) sigma in
-          if off = i then
-            sigma, unshift b'
-          else if is_or_applies elim_typ t then
-            let sigma, b_pack = pack env_b c.l (mkRel 1) sigma in
-            let b_sig_typ = dest_sigT_type env_b sigma b_pack in
-            let t' = unshift (pack_sigT b_sig_typ) in
-            sigma, mkProd (n, t', b')
+          let sigma, b' = init_p_typ env_b b sigma in
+          if is_or_applies elim_typ_rev t then
+            let args = unfold_args t in
+            let sigma, t' =
+              if List.length args = 0 then
+                sigma, snd (get_types c)
+              else
+                reduce_term env sigma (mkAppl (snd (get_types c), args))
+            in sigma, mkProd (n, t', b')
           else
             sigma, mkProd (n, t, b')
        | _ ->
           sigma, p_typ
      in
-     let sigma, p_typ' = init_p_typ env p_typ (off - List.length elim_app.pms) 0 sigma in
+     let sigma, p_typ' = init_p_typ env p_typ sigma in
+     let open Printing in
+     debug_term env p_typ "p_typ";
      let env_p = push_local (p_n, p_typ') env in
-     let rec init env elim =
+     let rec init_case_typ env case_typ p sigma =
+       (* TODO debug and fix *)
+       match kind case_typ with
+       | Prod (n, t, b) ->
+          let env_b = push_local (n, t) env in
+          let sigma, b' = init_case_typ env_b b (shift p) sigma in
+          if is_or_applies elim_typ_rev t then
+            let args = unfold_args t in
+            let sigma, t' =
+              if List.length args = 0 then
+                sigma, snd (get_types c)
+              else
+                reduce_term env sigma (mkAppl (snd (get_types c), args))
+            in sigma, mkProd (n, t', b')
+          else if is_or_applies p t then
+            let sigma, t' =
+              let f = first_fun t in
+              let args = all_but_last (unfold_args t) in
+              let arg = last_arg t in
+              let sigma, app_o = applies_constr_eta (reverse c) env arg sigma in
+              let i, c_args, _ = Option.get app_o in
+              let lifted_constr = (get_constrs c).(i) in
+              let sigma, arg' = reduce_term env sigma (mkAppl (lifted_constr, c_args)) in
+              reduce_term env sigma (mkAppl (f, snoc arg' args))
+            in sigma, mkProd (n, t', b')
+          else
+            sigma, mkProd (n, t, b')
+       | _ ->
+          let f = first_fun case_typ in
+          let args = all_but_last (unfold_args case_typ) in
+          let arg = last_arg case_typ in
+          let sigma, app_o = applies_constr_eta (reverse c) env arg sigma in
+          let i, c_args, _ = Option.get app_o in
+          let lifted_constr = (get_constrs c).(i) in
+          let sigma, arg' = reduce_term env sigma (mkAppl (lifted_constr, c_args)) in
+          reduce_term env sigma (mkAppl (f, snoc arg' args))
+     in
+     debug_term env_p b "b";
+     let rec init env elim i sigma =
        match kind elim with
        | Lambda (n, t, b) ->
-          env (* TODO *)
+          if i < List.length elim_app_rev.cs then
+            let sigma, t' = init_case_typ env t (mkRel 1) sigma in
+            debug_term env t' "t'";
+            init (push_local (n, t') env) b (i + 1) sigma
+          else
+            init (push_local (n, t) env) b (i + 1) sigma (* TODO *)
        | _ ->
-          env
-     in init env_p b
+          sigma, env
+     in init env_p b 0 sigma
   | _ ->
-     env_elim (* TODO *)
+     sigma, env_elim (* TODO *)
 
 (* Determine DepElim *)
 let initialize_dep_elim c env sigma =
@@ -1437,7 +1488,7 @@ let initialize_dep_elim c env sigma =
   let sigma, p = initialize_dep_elim_p c env_elim elim_app sigma in
   let sigma, cs = initialize_dep_elim_cs c env_elim elim_app sigma in
   let sigma, final_args = initialize_dep_elim_args c env_elim elim_app sigma in
-  let env_dep_elim = initialize_dep_elim_env c env env_elim elim_app sigma in
+  let sigma, env_dep_elim = initialize_dep_elim_env c env env_elim sigma in
   let dep_elim = apply_eliminator { elim; pms; p; cs; final_args } in 
   sigma, reconstruct_lambda_n env_dep_elim dep_elim (nb_rel env)
 
