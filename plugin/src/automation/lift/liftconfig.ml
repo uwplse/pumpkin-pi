@@ -1651,9 +1651,9 @@ let initialize_lift_config env l ignores sigma =
   let sigma, c = initialize_proj_rules c env sigma in
   let sigma, c = initialize_optimize_proj_id_rules c env sigma in
   let sigma, c = initialize_id_etas c cached env sigma in
+  let sigma, c = initialize_elim_types c env sigma in
   let sigma, c = initialize_dep_constrs c cached env sigma in
   let sigma, c = initialize_constr_rules c env sigma in
-  let sigma, c = initialize_elim_types c env sigma in
   initialize_dep_elims c cached env sigma
   
 
