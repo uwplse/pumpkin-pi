@@ -1379,7 +1379,7 @@ let initialize_dep_elim_args c env_elim elim_app sigma =
   | Algebraic (indexer, off) when not l.is_fwd ->
      let b_old = last elim_app.final_args in
      let value_off = List.length elim_app.final_args - 1 in
-     let off = off -  List.length elim_app.pms in (* no parameters here *)
+     let off = off - List.length elim_app.pms in (* no parameters here *)
      (* project *)
      let sigma, b_pack = pack env_elim c.l b_old sigma in
      let b_sig_typ = dest_sigT_type env_elim sigma b_pack in
@@ -1390,8 +1390,41 @@ let initialize_dep_elim_args c env_elim elim_app sigma =
      sigma, elim_app.final_args
 
 (* Determine the environment for DepElim *)
-let initialize_dep_elim_env c env_elim elim_app sigma =
-  env_elim (* TODO *)
+let initialize_dep_elim_env c env env_elim elim_app sigma =
+  match c.l.orn.kind with
+  | Algebraic (_, off) when not c.l.is_fwd ->
+     let elim_typ = get_elim_type c in
+     let elim = reconstruct_lambda_n env_elim (apply_eliminator elim_app) (nb_rel env) in
+     let env, elim = zoom_n_lambda env (List.length elim_app.pms) elim in
+     let (p_n, p_typ, b) = destLambda elim in
+     let rec init_p_typ env p_typ off i sigma =
+       match kind p_typ with
+       | Prod (n, t, b) ->
+          let env_b = push_local (n, t) env in
+          let sigma, b' = init_p_typ env_b b off (i + 1) sigma in
+          if off = i then
+            sigma, unshift b'
+          else if is_or_applies elim_typ t then
+            let sigma, b_pack = pack env_b c.l (mkRel 1) sigma in
+            let b_sig_typ = dest_sigT_type env_b sigma b_pack in
+            let t' = unshift (pack_sigT b_sig_typ) in
+            sigma, mkProd (n, t', b')
+          else
+            sigma, mkProd (n, t, b')
+       | _ ->
+          sigma, p_typ
+     in
+     let sigma, p_typ' = init_p_typ env p_typ (off - List.length elim_app.pms) 0 sigma in
+     let env_p = push_local (p_n, p_typ') env in
+     let rec init env elim =
+       match kind elim with
+       | Lambda (n, t, b) ->
+          env (* TODO *)
+       | _ ->
+          env
+     in init env_p b
+  | _ ->
+     env_elim (* TODO *)
 
 (* Determine DepElim *)
 let initialize_dep_elim c env sigma =
@@ -1404,7 +1437,7 @@ let initialize_dep_elim c env sigma =
   let sigma, p = initialize_dep_elim_p c env_elim elim_app sigma in
   let sigma, cs = initialize_dep_elim_cs c env_elim elim_app sigma in
   let sigma, final_args = initialize_dep_elim_args c env_elim elim_app sigma in
-  let env_dep_elim = initialize_dep_elim_env c env_elim elim_app sigma in
+  let env_dep_elim = initialize_dep_elim_env c env env_elim elim_app sigma in
   let dep_elim = apply_eliminator { elim; pms; p; cs; final_args } in 
   sigma, reconstruct_lambda_n env_dep_elim dep_elim (nb_rel env)
 
