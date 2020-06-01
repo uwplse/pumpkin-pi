@@ -971,6 +971,87 @@ let eta_constrs =
   map_constrs (fun env constr sigma -> expand_eta env sigma constr)
 
 (*
+ * Initialize the arguments to a case of a DepConstr
+ * TODO move common code, clean etc. before merging
+ *)
+let initialize_constr_args c env_constr_body args sigma =
+  let l = get_lifting c in
+  match l.orn.kind with
+  | Algebraic (_, off) ->
+     (* Pack arguments *)
+     let c = if c.l.is_fwd then reverse c else c in
+     let b_typ_unpacked = fst c.elim_types in
+     let rec init_args sigma args i_b b =
+       match args with
+       | n :: tl ->
+          if equal n i_b then
+            let sigma, b_typ = reduce_type env_constr_body sigma b in
+            let sigma, typ_args = from_args c env_constr_body b_typ sigma in
+            let sigma, b_sig_typ =
+              let before_i_b, after_i_b = take_split off typ_args in
+              let before_i_b = unshift_all before_i_b in
+              let args = List.append before_i_b after_i_b in
+              let sigma, b_typ = reduce_term env_constr_body sigma (mkAppl (snd (get_types c), args)) in
+              sigma, dest_sigT b_typ
+            in
+            Util.on_snd
+              (fun tl -> project_index b_sig_typ (dest_existT b).unpacked :: unshift_all tl)
+              (init_args sigma tl i_b b)
+          else
+            let sigma, t = reduce_type env_constr_body sigma n in
+            if is_or_applies b_typ_unpacked t then
+              let sigma, b = pack env_constr_body l n sigma in
+              let sigma, b_typ = reduce_type env_constr_body sigma b in
+              let sigma, typ_args = from_args c env_constr_body b_typ sigma in
+              let sigma, b_sig_typ =
+                let before_i_b, after_i_b = take_split off typ_args in
+                let before_i_b = unshift_all before_i_b in
+                let args = List.append before_i_b after_i_b in
+                let sigma, b_typ = reduce_term env_constr_body sigma (mkAppl (snd (get_types c), args)) in
+                sigma, dest_sigT b_typ
+              in
+              Util.on_snd
+                (fun tl -> project_value b_sig_typ (dest_existT b).unpacked :: tl)
+                (init_args sigma tl (get_arg off t) b)
+            else
+              Util.on_snd (fun tl -> n :: tl) (init_args sigma tl i_b b)
+       | _ ->
+          sigma, []
+     in Util.on_snd List.rev (init_args sigma (List.rev args) (mkRel 0) (mkRel 0))
+  | _ ->
+     sigma, args (* TODO *)
+
+(* Determine the environment for DepConstr *)
+(* TODO clean a lot *)
+let initialize_constr_env c env env_b_constr b_constr sigma =
+  match c.l.orn.kind with
+  | Algebraic (_, off) ->
+     let a_ind = (if c.l.is_fwd then fst else snd) c.elim_types in
+     let a_constr =
+       let ((_, c_index), _) = destConstruct b_constr in
+       let ((i, i_index), u) = destInd a_ind in
+       mkConstructU (((i, i_index), c_index), u)
+     in
+     let sigma, a_constr_eta = expand_eta env sigma a_constr in
+     let open Printing in
+     debug_term env a_constr_eta "a_constr_eta";
+     let rec init env constr sigma =
+       match kind constr with
+       | Lambda (n, t, b) ->
+          if is_or_applies a_ind t then
+            let sigma, t' =
+              let args = unfold_args t in
+              reduce_term env sigma (mkAppl (snd c.typs, args))
+            in init (push_local (n, t') env) b sigma 
+          else
+            init (push_local (n, t) env) b sigma
+       | _ ->
+          sigma, env
+     in init env a_constr_eta sigma
+  | _ ->
+     sigma, env_b_constr (* TODO *)
+
+(*
  * Initialize DepConstr for each type
  *)
 let initialize_dep_constrs c cached env sigma =
@@ -1009,9 +1090,18 @@ let initialize_dep_constrs c cached env sigma =
              (fun env constr sigma ->
                let sigma, constr_exp = expand_eta env sigma constr in
                let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
-               let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
-               let sigma, packed = pack env_c_b l c_body sigma in
-               sigma, reconstruct_lambda_n env_c_b packed (nb_rel env))
+               let f = first_fun c_body in
+               let sigma, args = initialize_constr_args c env_c_b (unfold_args c_body) sigma in
+               let open Printing in
+               debug_terms env_c_b args "args";
+               let sigma, env_packed =  initialize_constr_env c env env_c_b constr sigma in
+               debug_env env_packed "env_packed";
+               debug_terms env_packed args "args";
+               let c_body = reduce_stateless reduce_term env_packed sigma (mkAppl (f, args)) in
+               let sigma, packed = pack env_packed l c_body sigma in
+               let open Printing in
+               debug_term env_packed packed "packed";
+               sigma, reconstruct_lambda_n env_packed packed (nb_rel env))
              env
              b_typ_inner
              sigma
@@ -1256,7 +1346,7 @@ let reduce_constr_app c env sigma trm =
   | _ ->
      sigma, trm
 
-(* --- Eliminators --- *)
+(* --- Eliminators --- *) (* TODO reorganize file after these changes *)
 
 (*
  * Initialize the type of the eliminator
@@ -1342,7 +1432,7 @@ let initialize_dep_elim_c_args c env_case_body args sigma =
      in Util.on_snd List.rev (init_args sigma (List.rev args) (mkRel 0))
   | _ ->
      sigma, args (* TODO *)
-
+              
 (*
  * Determine a single case for DepElim
  *)
@@ -1490,7 +1580,7 @@ let initialize_dep_elim_env c env env_elim sigma =
           let sigma, app_o = applies_constr_eta (reverse c) env arg sigma in
           let i, c_args, _ = Option.get app_o in
           let lifted_constr = (get_constrs c).(i) in
-          (* TODO dep_constr here is wrong b.c. it takes explicit indices *)
+          (* TODO dep_constr here is wrong b.c. it takes explicit indices. so let's make an initialize_packed_constr kinda thing that acts like initialize_lifted_constr for now *)
           let sigma, arg' = reduce_term env sigma (mkAppl (lifted_constr, c_args)) in
           reduce_term env sigma (mkAppl (f, snoc arg' args))
      in
