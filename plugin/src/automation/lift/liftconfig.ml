@@ -975,6 +975,8 @@ let eta_constrs =
  * TODO move common code, clean etc. before merging
  *)
 let initialize_constr_args c env_constr_body args sigma =
+  let open Printing in
+  debug_terms env_constr_body args "args";
   let l = get_lifting c in
   match l.orn.kind with
   | Algebraic (_, off) ->
@@ -1271,17 +1273,48 @@ let get_lifted_constrs c = fst c.constr_rules
 let applies_constr_eta c env trm sigma =
   let l = get_lifting c in
   let constrs = get_constrs c in
-    let is_inductive_constr project trm opaque =
+  let is_inductive_constr project trm opaque =
     (* Helper function, faster than unifying with constructor rules *)
     try
       let unpacked = project trm in
       let f = first_fun unpacked in
-      let args = unfold_args unpacked in
       match kind f with
       | Construct ((_, i), _) when i <= Array.length constrs ->
          let constr = constrs.(i - 1) in
+         let carity = arity constr in
          let f' = first_fun (project (zoom_term zoom_lambda_term env constr)) in
-         if equal f f' && List.length args = arity constr then
+         let rec forget args sigma =
+           match l.orn.kind with
+           | Algebraic _ when not l.is_fwd ->
+              (match args with
+               | h :: tl ->
+                  if is_or_applies projT1 h then
+                    let b = last_arg h in
+                    let sigma_right, args_opt = type_is_from c env b sigma in
+                    if Option.has_some args_opt then
+                      forget tl sigma_right
+                    else
+                      let sigma, tl' = forget tl sigma in
+                      sigma, h :: tl'
+                  else if is_or_applies projT2 h then
+                    let b = last_arg h in
+                    let sigma_right, args_opt = type_is_from c env b sigma in
+                    if Option.has_some args_opt then
+                      let sigma, tl' = forget tl sigma_right in
+                      sigma, b :: tl'
+                    else
+                      let sigma, tl' = forget tl sigma in
+                      sigma, h :: tl'
+                  else
+                    let sigma, tl' = forget tl sigma in
+                    sigma, h :: tl'
+               | _ ->
+                  sigma, args)
+           | _ ->
+              sigma, args
+         in
+         let sigma, args = forget (unfold_args unpacked) sigma in
+         if equal f f' && List.length args = carity then
            sigma, Some (i - 1, args, opaque)
          else
            sigma, None
@@ -1524,7 +1557,6 @@ let initialize_dep_elim_env c env sigma =
      let sigma, p_typ' = init_p_typ env p_typ sigma in
      let env_p = push_local (p_n, p_typ') env in
      let rec init_case_typ env case_typ p sigma =
-       (* TODO debug and fix *)
        match kind case_typ with
        | Prod (n, t, b) ->
           let env_b = push_local (n, t) env in
@@ -1703,6 +1735,8 @@ let applies_elim c env trm sigma =
 (* Initialize the lift_config *)
 let initialize_lift_config env l ignores sigma =
   let sigma, typs = initialize_types l env sigma in
+  let open Printing in
+  debug_terms env [fst typs; snd typs] "typs";
   let cache = initialize_local_cache () in
   let opaques = initialize_local_cache () in
   List.iter (fun opaque -> cache_local opaques opaque opaque) ignores;
@@ -1721,13 +1755,22 @@ let initialize_lift_config env l ignores sigma =
       opaques
     }
   in
+  let open Printing in
+  debug_term env l.orn.promote "promote";
+  debug_term env l.orn.forget "forget";
   let cached = lookup_config (l.orn.promote, l.orn.forget) in
+  let open Printing in
+  Printf.printf "%s\n\n" "looked up config";
   let sigma, c = initialize_proj_rules c env sigma in
   let sigma, c = initialize_optimize_proj_id_rules c env sigma in
   let sigma, c = initialize_id_etas c cached env sigma in
   let sigma, c = initialize_elim_types c env sigma in
+  Printf.printf "%s\n\n" "initializing dep_constrs";
   let sigma, c = initialize_dep_constrs c cached env sigma in
   let sigma, c = initialize_constr_rules c env sigma in
+  let open Printing in
+  debug_terms env (Array.to_list (fst c.constr_rules)) "constr";
+  debug_terms env (Array.to_list (snd c.constr_rules)) "lifted constr";
   initialize_dep_elims c cached env sigma
   
 
