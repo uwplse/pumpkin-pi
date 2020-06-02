@@ -1058,9 +1058,6 @@ let initialize_dep_constrs c cached env sigma =
     if Option.has_some cached then
       (* Use the cached DepConstr rules *)
       let (constrs, _, _) = Option.get cached in
-      let open Printing in
-      debug_terms env (Array.to_list (fst constrs)) "a_constrs cached";
-      debug_terms env (Array.to_list (snd constrs)) "b_constrs cached";
       sigma, constrs
     else
       let a_typ, b_typ = c.typs in
@@ -1127,8 +1124,6 @@ let initialize_dep_constrs c cached env sigma =
             Array.mapi
               (fun i c ->
                 let n = with_suffix (fst a_constrs) (string_of_int i) in
-                let open Printing in
-                debug_term env c "a_constr";
                 define_term n sigma c true)
               (snd a_constrs)
           in
@@ -1136,8 +1131,6 @@ let initialize_dep_constrs c cached env sigma =
             Array.mapi
               (fun i c ->
                 let n = with_suffix (fst b_constrs) (string_of_int i) in
-                let open Printing in
-                debug_term env c "b_constr";
                 define_term n sigma c true)
               (snd b_constrs)
           in
@@ -1404,146 +1397,99 @@ let initialize_dep_elim_p c env_elim elim_pms npms sigma =
 (*
  * Initialize the arguments to a case of a constructor of DepElim
  *)
-let initialize_dep_elim_c_args c env_case_body args sigma =
+let initialize_dep_elim_c_args c env_case env_elim case_typ nargs case sigma =
   let l = get_lifting c in
   match l.orn.kind with
-  | Algebraic (_, off) ->
+  | Algebraic (_, off) when not l.is_fwd ->
+     let sigma, case_typ_packed = reduce_type env_elim sigma case in
+     let env_case_packed = zoom_env zoom_product_type env_elim case_typ_packed in
+     let args = mk_n_rels (new_rels2 env_case_packed env_elim) in
      let b_typ = get_elim_type c in
-     let rec init_args sigma args i_b =
+     let rec lift_args sigma args i_b =
        match args with
        | n :: tl ->
           if equal n i_b then
-            init_args sigma (shift_all tl) i_b
+            Util.on_snd
+              (fun tl -> shift n :: tl)
+              (lift_args sigma (shift_all tl) i_b)
           else
-            let sigma, t = reduce_type env_case_body sigma n in
+            let sigma, t = reduce_type env_case sigma n in
             if is_or_applies b_typ t then
-              let sigma, b = pack env_case_body l n sigma in
-              let sigma, args =
-                let args = unfold_args t in
-                let before_i_b, after_i_b = take_split off args in
-                let before_i_b = unshift_all before_i_b in
-                sigma, List.append before_i_b after_i_b
-              in
-              let b =
-                let index_type = shift (dest_existT b).index_type in
-                let packer = mkLambda (Anonymous, index_type, mkAppl (b_typ, reindex off (mkRel 1) (shift_all args))) in
-                let index = List.nth args off in
-                let unpacked = n in
-                pack_existT { index_type; packer; index; unpacked }
-              in
+              let sigma, b = pack env_case c.l n sigma in
               Util.on_snd
                 (fun tl -> b :: tl)
-                (init_args sigma tl (get_arg off t))
+                (lift_args sigma tl (get_arg off t))
             else
-              Util.on_snd (fun tl -> n :: tl) (init_args sigma tl i_b)
+              Util.on_snd
+                (fun tl -> n :: tl)
+                (lift_args sigma tl i_b)
        | _ ->
           sigma, []
-     in Util.on_snd List.rev (init_args sigma (List.rev args) (mkRel 0))
+     in Util.on_snd List.rev (lift_args sigma (List.rev args) (mkRel 0))
   | _ ->
-     sigma, args (* TODO *)
+     sigma, mk_n_rels nargs
               
 (*
  * Determine a single case for DepElim
  *)
-let initialize_dep_elim_c c env_elim elim_app case sigma =
+let initialize_dep_elim_c c env_elim elim_c case sigma =
   match c.l.orn.kind with
   | Algebraic (indexer, off) when not c.l.is_fwd ->
-     let sigma, case_eta = expand_eta env_elim sigma case in
-     let env_case_body, case_body = zoom_lambda_term env_elim case_eta in
-     let elim_typ = get_elim_type c in
-     let args = unfold_args case_body in
-     let sigma, arg_typs = map_state (fun a sigma -> reduce_type env_case_body sigma a) args sigma in
-     let num_ihs = List.length (List.filter (is_or_applies elim_typ) arg_typs) in
-     if num_ihs = 0 then
+     let (_, case_typ, _) = destLambda elim_c in
+     let env_c = zoom_env zoom_product_type env_elim case_typ in
+     let nargs = new_rels2 env_c env_elim in
+     if nargs = 0 then
        (* no need to get arguments *)
        sigma, unshift case
      else
        (* get arguments *)
-       let f = first_fun case_body in
-       let sigma, args = initialize_dep_elim_c_args c env_case_body args sigma in
-       let sigma, body = reduce_term env_case_body sigma (mkAppl (f, args)) in
-       let case_old_p = reconstruct_lambda_n env_case_body body (nb_rel env_elim) in
-       let sigma, case_new_p =
-         let rec pack_p env case p sigma =
-           match kind case with
-           | Lambda (n, t, b) ->
-              if is_or_applies p t then
-                let sigma, args =
-                  let old_args = unfold_args t in
-                  let sigma, b = pack env c.l (last old_args) sigma in
-                  let sigma, b_typ = reduce_type env sigma b in
-                  let sigma, typ_args =
-                    let sigma, typ_args = from_args c env b_typ sigma in
-                    let before_i_b, after_i_b = take_split off typ_args in
-                    let before_i_b = unshift_all before_i_b in
-                    sigma, List.append before_i_b after_i_b
-                  in
-                  let _, args = take_split (List.length elim_app.pms) typ_args in
-                  let b =
-                    let index_type = shift (dest_existT b).index_type in
-                    let packer = mkLambda (Anonymous, index_type, mkAppl (elim_typ, index c.l (mkRel 1) (shift_all typ_args))) in
-                    let index = List.nth old_args (off - List.length elim_app.pms) in
-                    let unpacked = last old_args in
-                    pack_existT { index_type; packer; index; unpacked }
-                  in sigma, snoc b args
-                in
-                let t' = mkAppl (unshift p, args) in
-                let env_b = push_local (n, t) env in
-                let sigma, b' = pack_p env_b b (shift p) sigma in
-                sigma, mkLambda (n, t', b')
-              else if is_or_applies elim_typ t then
-                let sigma, args =
-                  let args = unfold_args t in
-                  let before_i_b, after_i_b = take_split off args in
-                  let before_i_b = unshift_all before_i_b in
-                  sigma, List.append before_i_b after_i_b
-                in
-                let t' = mkAppl (elim_typ, args) in
-                let env_b = push_local (n, t) env in
-                let sigma, b' = pack_p env_b b (shift p) sigma in
-                sigma, mkLambda (n, t', b')
-              else
-                let env_b = push_local (n, t) env in
-                let sigma, b' = pack_p env_b b (shift p) sigma in
-                sigma, mkLambda (n, unshift t, b')
-           | _ ->
-              sigma, case
-         in pack_p env_elim case_old_p elim_app.p sigma
-       in sigma, case_new_p
+       let sigma, c_eta = expand_eta env_elim sigma (unshift case) in
+       let (env_c_b, c_body) = zoom_lambda_term env_elim c_eta in
+       let (c_f, _) = destApp c_body in
+       let sigma, args = initialize_dep_elim_c_args c env_c env_elim (shift_by nargs case_typ) nargs (unshift case) sigma in
+       let f = unshift_by (new_rels2 env_c_b env_c) c_f in
+       let body = reduce_stateless reduce_term env_c sigma (mkAppl (f, args)) in
+       sigma, reconstruct_lambda_n env_c body (nb_rel env_elim)
   | _ ->
      sigma, case (* TODO *)
 
 (* Determine the cases for DepElim *)
-let initialize_dep_elim_cs c env_elim elim_app =
-  map_state (initialize_dep_elim_c c env_elim elim_app) elim_app.cs
+let initialize_dep_elim_cs c env_dep_elim elim_p sigma =
+  let sigma, elim_eta = expand_eta env_dep_elim sigma elim_p in
+  let env_elim, elim_body = zoom_lambda_term env_dep_elim elim_eta in
+  let sigma, elim_body = reduce_term env_elim sigma elim_body in
+  let sigma, elim_app = deconstruct_eliminator env_elim sigma elim_body in
+  bind
+    (fold_left_state
+       (fun (elim_c, cs) case sigma ->
+         let sigma, case = initialize_dep_elim_c c env_dep_elim elim_c case sigma in
+         let sigma, elim_c = reduce_term env_dep_elim sigma (mkAppl (elim_c, [case])) in
+         sigma, (elim_c, snoc case cs))
+       (elim_p, [])
+       elim_app.cs)
+    (fun (_, cs) -> ret cs)
+    sigma
 
 (* Determine the arguments for DepElim *)
-let initialize_dep_elim_args c env_elim elim_app sigma =
+let initialize_dep_elim_args c env_elim elim_cs npms sigma =
   let l = get_lifting c in
+  let nargs = arity elim_cs in
+  let args = mk_n_rels nargs in
   match l.orn.kind with
   | Algebraic (indexer, off) when not l.is_fwd ->
-     let value_off = List.length elim_app.final_args - 1 in
-     let off = off - List.length elim_app.pms in (* no parameters here *)
-     let up_to_i_b, after_i_b = take_split (off + 1) elim_app.final_args in
+     let value_off = arity elim_cs - 1 in
+     let off = off - npms in (* no parameters here *)
+     let up_to_i_b, after_i_b = take_split (off + 1) args in
      let b_old = last after_i_b in
-     (* project *)
-     let sigma, b_pack = pack env_elim c.l b_old sigma in
-     let sigma, b_typ = reduce_type env_elim sigma b_pack in
-     let sigma, typ_args = from_args c env_elim b_typ sigma in
-     let sigma, b_sig_typ =
-       let before_i_b, after_i_b = take_split (off + List.length elim_app.pms) typ_args in
-       let before_i_b = unshift_all before_i_b in
-       let args = List.append before_i_b after_i_b in
-       let sigma, b_typ = reduce_term env_elim sigma (mkAppl (snd (get_types c), args)) in
-       sigma, dest_sigT b_typ
-     in
+     let sigma, b_typ = reduce_type env_elim sigma b_old in
+     let b_sig_typ = dest_sigT b_typ in
      let i_b = project_index b_sig_typ b_old in
      let b = project_value b_sig_typ b_old in
-     let up_to_i_b = reindex off i_b (unshift_all up_to_i_b) in
+     let up_to_i_b = reindex off i_b up_to_i_b in
      let after_i_b = reindex (value_off - off - 1) b after_i_b in
      sigma, List.append up_to_i_b after_i_b
   | _ ->
-     sigma, elim_app.final_args
+     sigma, args
 
 (* Determine the environment for DepElim *)
 (* TODO clean a lot *)
@@ -1611,7 +1557,6 @@ let initialize_dep_elim_env c env sigma =
           let sigma, app_o = applies_constr_eta (reverse c) env arg sigma in
           let i, c_args, _ = Option.get app_o in
           let lifted_constr = (get_constrs c).(i) in
-          (* TODO dep_constr here is wrong b.c. it takes explicit indices. so let's make an initialize_packed_constr kinda thing that acts like initialize_lifted_constr for now *)
           let sigma, arg' = reduce_term env sigma (mkAppl (lifted_constr, c_args)) in
           reduce_term env sigma (mkAppl (f, snoc arg' args))
      in
@@ -1653,14 +1598,12 @@ let initialize_dep_elim c env sigma =
        in
        let sigma, pms = initialize_dep_elim_pms c env_dep_elim npms sigma in
        let sigma, elim_pms = reduce_term env_dep_elim sigma (mkAppl (elim_eta, pms)) in
-       let open Printing in
-       debug_term env_dep_elim elim_pms "elim_pms";
        let sigma, p = initialize_dep_elim_p c env_dep_elim elim_pms npms sigma in
-       debug_term env_dep_elim p "p";
-       let sigma, cs = sigma, [] in (* initialize_dep_elim_cs c env_dep_elim sigma in *)
-       let sigma, final_args = sigma, [] in (*initialize_dep_elim_args c env_dep_elim sigma in *)
-       let args = List.append pms (List.append (p :: cs) final_args) in
-       reduce_term env_dep_elim sigma (mkAppl (elim_eta, args))
+       let sigma, elim_p = reduce_term env_dep_elim sigma (mkAppl (elim_pms, [p])) in
+       let sigma, cs = initialize_dep_elim_cs c env_dep_elim elim_p sigma in
+       let sigma, elim_cs = reduce_term env_dep_elim sigma (mkAppl (elim_p, cs)) in
+       let sigma, final_args = initialize_dep_elim_args c env_dep_elim elim_cs npms sigma in
+       reduce_term env_dep_elim sigma (mkAppl (elim_cs, final_args))
      in sigma, reconstruct_lambda_n env_dep_elim dep_elim (nb_rel env)
   | _ ->
      sigma, elim (* TODO *)
@@ -1685,16 +1628,11 @@ let initialize_dep_elims c cached env sigma =
         let base_n = Label.to_id lab in
         (with_suffix base_n "dep_elim_a", with_suffix base_n "dep_elim_b")
       in
-      let open Printing in
-      debug_term env a_elim "a_elim";
-      debug_term env b_elim "b_elim";
       let elim_a, elim_b = ((elim_a_n, a_elim), (elim_b_n, b_elim)) in
       try
         let elim_a = define_term (fst elim_a) sigma (snd elim_a) true in
         let elim_b = define_term (fst elim_b) sigma (snd elim_b) true in
         let elims = map_tuple Universes.constr_of_global (elim_a, elim_b) in
-        let open Printing in
-        Printf.printf "%s\n\n" "saving dep elim";
         save_dep_elim (c.l.orn.promote, c.l.orn.forget) elims;
         sigma, elims
       with _ ->
