@@ -1285,37 +1285,34 @@ let applies_constr_eta c env trm sigma =
          let constr = constrs.(i - 1) in
          let carity = arity constr in
          let f' = first_fun (project (zoom_term zoom_lambda_term env constr)) in
-         let rec forget args sigma =
+         let rec forget args is sigma =
            match l.orn.kind with
            | Algebraic _ when not l.is_fwd ->
               (match args with
                | h :: tl ->
-                  if is_or_applies projT1 h then
-                    let b = last_arg h in
-                    let sigma_right, args_opt = type_is_from c env b sigma in
-                    if Option.has_some args_opt then
-                      forget tl sigma_right
-                    else
-                      let sigma, tl' = forget tl sigma in
-                      sigma, h :: tl'
-                  else if is_or_applies projT2 h then
-                    let b = last_arg h in
-                    let sigma_right, args_opt = type_is_from c env b sigma in
-                    if Option.has_some args_opt then
-                      let sigma, tl' = forget tl sigma_right in
-                      sigma, b :: tl'
-                    else
-                      let sigma, tl' = forget tl sigma in
-                      sigma, h :: tl'
+                  let sigma, is_i = exists_state (convertible env h) is sigma in
+                  if is_i then
+                    forget tl is sigma
                   else
-                    let sigma, tl' = forget tl sigma in
-                    sigma, h :: tl'
+                    (try
+                       let sigma, b = pack env c.l h sigma in
+                       let sigma_right, args_opt = type_is_from c env b sigma in
+                       if Option.has_some args_opt then
+                         let i_b = (dest_existT b).index in
+                         let sigma, tl' = forget tl (i_b :: is) sigma_right in
+                         sigma, b :: tl'
+                       else
+                         let sigma, tl' = forget tl is sigma in
+                         sigma, h :: tl'
+                     with _ ->
+                       let sigma, tl' = forget tl is sigma in
+                       sigma, h :: tl')
                | _ ->
                   sigma, args)
            | _ ->
               sigma, args
          in
-         let sigma, args = forget (unfold_args unpacked) sigma in
+         let sigma, args = Util.on_snd List.rev (forget (List.rev (unfold_args unpacked)) [] sigma) in
          if equal f f' && List.length args = carity then
            sigma, Some (i - 1, args, opaque)
          else
