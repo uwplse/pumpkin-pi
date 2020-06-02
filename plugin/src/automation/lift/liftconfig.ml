@@ -971,10 +971,25 @@ let eta_constrs =
   map_constrs (fun env constr sigma -> expand_eta env sigma constr)
 
 (*
+ * For packing constructor aguments: Pack, but only if it's B
+ *)
+let pack_to_typ c env unpacked sigma =
+  let b_typ = (if c.l.is_fwd then snd else fst) c.elim_types in
+  let l = c.l in
+  if on_red_type_default (ignore_env (is_or_applies b_typ)) env sigma unpacked then
+    match l.orn.kind with
+    | Algebraic (_, off) ->
+       pack env l unpacked sigma
+    | _ ->
+       raise NotAlgebraic
+  else
+    sigma, unpacked
+
+(*
  * Initialize the arguments to a case of a DepConstr
  * TODO move common code, clean etc. before merging
  *)
-let initialize_constr_args c env_constr_body args sigma =
+let initialize_constr_args c env_constr_body env_packed args sigma =
   let l = get_lifting c in
   match l.orn.kind with
   | Algebraic (_, off) ->
@@ -983,46 +998,54 @@ let initialize_constr_args c env_constr_body args sigma =
      let b_typ_unpacked = fst c.elim_types in
      let open Printing in
      debug_terms env_constr_body args "args";
-     let rec init_args sigma args m =
+     let pack_args (sigma, args) = map_state (pack_to_typ c env_constr_body) args sigma in
+     let sigma, packed_args = pack_args (sigma, args) in
+     let sigma, rec_args = filter_state (fun tr sigma -> let sigma, o = type_is_from c env_constr_body tr sigma in sigma, Option.has_some o) packed_args sigma in
+     debug_terms env_constr_body rec_args "rec_args";
+     let rec init_args sigma args m sh =
        match args with
        | n :: tl ->
           if List.exists (equal n) (List.map fst m) then
             let (_, b) = List.find (fun (i_b, _) -> equal n i_b) m in
             let sigma, b_typ = reduce_type env_constr_body sigma b in
             let sigma, typ_args = from_args c env_constr_body b_typ sigma in
+            let open Printing in
+            debug_terms env_constr_body typ_args "typ_args";
+            debug_term env_constr_body b "b";
+            Printf.printf "%d\n" sh;
             let sigma, b_sig_typ =
               let before_i_b, after_i_b = take_split off typ_args in
-              let before_i_b = unshift_all before_i_b in
+              debug_terms env_constr_body before_i_b "before_i_b";
+              let before_i_b = unshift_all_by (List.length rec_args) before_i_b in
+              debug_terms env_packed before_i_b "before_i_b";
               let args = List.append before_i_b after_i_b in
               let sigma, b_typ = reduce_term env_constr_body sigma (mkAppl (snd (get_types c), args)) in
               sigma, dest_sigT b_typ
             in
             Util.on_snd
-              (fun tl -> project_index b_sig_typ (dest_existT b).unpacked :: unshift_all tl)
-              (init_args sigma tl m)
+              (fun tl -> project_index b_sig_typ (dest_existT b).unpacked :: tl)
+              (init_args sigma tl m (sh - 1))
           else
             let sigma, t = reduce_type env_constr_body sigma n in
             if is_or_applies b_typ_unpacked t then
-              let open Printing in
-              debug_term env_constr_body t "t";
               let sigma, b = pack env_constr_body l n sigma in
               let sigma, b_typ = reduce_type env_constr_body sigma b in
               let sigma, typ_args = from_args c env_constr_body b_typ sigma in
               let sigma, b_sig_typ =
                 let before_i_b, after_i_b = take_split off typ_args in
-                let before_i_b = unshift_all before_i_b in
+                let before_i_b = unshift_all_by (List.length rec_args) before_i_b in
                 let args = List.append before_i_b after_i_b in
                 let sigma, b_typ = reduce_term env_constr_body sigma (mkAppl (snd (get_types c), args)) in
                 sigma, dest_sigT b_typ
               in
               Util.on_snd
                 (fun tl -> project_value b_sig_typ (dest_existT b).unpacked :: tl)
-                (init_args sigma tl ((get_arg off t, b) :: m))
+                (init_args sigma tl ((get_arg off t, b) :: m) sh)
             else
-              Util.on_snd (fun tl -> n :: tl) (init_args sigma tl m)
+              Util.on_snd (fun tl -> unshift_by (List.length rec_args - sh) n :: tl) (init_args sigma tl m sh)
        | _ ->
           sigma, []
-     in Util.on_snd List.rev (init_args sigma (List.rev args) [(mkRel 0, mkRel 0)])
+     in Util.on_snd List.rev (init_args sigma (List.rev args) [(mkRel 0, mkRel 0)] (List.length rec_args))
   | _ ->
      sigma, args (* TODO *)
 
@@ -1096,8 +1119,9 @@ let initialize_dep_constrs c cached env sigma =
                let open Printing in
                debug_term env_c_b c_body "c_body";
                let f = first_fun c_body in
-               let sigma, args = initialize_constr_args c env_c_b (unfold_args c_body) sigma in
                let sigma, env_packed =  initialize_constr_env c env env_c_b constr sigma in
+               let sigma, args = initialize_constr_args c env_c_b env_packed (unfold_args c_body) sigma in
+               debug_env env_packed "env_packed";
                debug_term env_packed f "f";
                debug_terms env_packed args "args";
                let c_body = reduce_stateless reduce_term env_packed sigma (mkAppl (f, args)) in
@@ -1155,21 +1179,6 @@ let initialize_dep_constrs c cached env sigma =
   let sigma = Evd.from_env env in
   let dep_constrs = map_tuple (Array.map (unwrap_definition env)) constrs in
   sigma, { c with dep_constrs }
-
-(*
- * For packing constructor aguments: Pack, but only if it's B
- *)
-let pack_to_typ c env unpacked sigma =
-  let b_typ = (if c.l.is_fwd then snd else fst) c.elim_types in
-  let l = c.l in
-  if on_red_type_default (ignore_env (is_or_applies b_typ)) env sigma unpacked then
-    match l.orn.kind with
-    | Algebraic (_, off) ->
-       pack env l unpacked sigma
-    | _ ->
-       raise NotAlgebraic
-  else
-    sigma, unpacked
              
 (*
  * NORMALIZE (the result of this is cached)
