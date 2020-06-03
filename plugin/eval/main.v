@@ -41,7 +41,6 @@ Module Type Comparable.
 
 End Comparable.
 
-
 Module CaseStudy (Elem : Comparable).
 
   Module Base.

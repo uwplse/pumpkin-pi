@@ -995,48 +995,35 @@ let initialize_constr_args c env_constr_body env_packed args sigma =
   | Algebraic (_, off) ->
      (* Pack arguments *)
      let c = if c.l.is_fwd then reverse c else c in
-     let b_typ_unpacked = fst c.elim_types in
+     let b_typ = fst c.elim_types in
      let pack_args (sigma, args) = map_state (pack_to_typ c env_constr_body) args sigma in
      let sigma, packed_args = pack_args (sigma, args) in
-     let sigma, rec_args = filter_state (fun tr sigma -> let sigma, o = type_is_from c env_constr_body tr sigma in sigma, Option.has_some o) packed_args sigma in
-     let rec init_args sigma args m sh =
+     let rec lift_args sigma args is sh =
        match args with
        | n :: tl ->
-          if List.exists (equal n) (List.map fst m) then
-            let (_, (b, b_sh)) = List.find (fun (i_b, _) -> equal n i_b) m in
-            let sigma, b_typ = reduce_type env_constr_body sigma b in
-            let sigma, typ_args = from_args c env_constr_body b_typ sigma in
-            let sigma, b_sig_typ =
-              let before_i_b, after_i_b = take_split off typ_args in
-              let before_i_b = unshift_all_by (List.length rec_args) before_i_b in
-              let args = List.append before_i_b after_i_b in
-              let sigma, b_typ = reduce_term env_constr_body sigma (mkAppl (snd (get_types c), args)) in
-              sigma, dest_sigT b_typ
-            in
+          if List.exists (fun (i, _) -> equal n i) is then
+            let (_, i') = List.find (fun (i, _) -> equal n i) is in
             Util.on_snd
-              (fun tl -> project_index b_sig_typ b_sh :: tl)
-              (init_args sigma tl m (sh - 1))
+              (fun tl -> i' :: tl)
+              (lift_args sigma tl is (sh + 1))
           else
             let sigma, t = reduce_type env_constr_body sigma n in
-            if is_or_applies b_typ_unpacked t then
-              let sigma, b = pack env_constr_body l n sigma in
-              let sigma, b_typ = reduce_type env_constr_body sigma b in
-              let sigma, typ_args = from_args c env_constr_body b_typ sigma in
-              let sigma, b_sig_typ =
-                let before_i_b, after_i_b = take_split off typ_args in
-                let before_i_b = unshift_all_by (List.length rec_args) before_i_b in
-                let args = List.append before_i_b after_i_b in
-                let sigma, b_typ = reduce_term env_constr_body sigma (mkAppl (snd (get_types c), args)) in
-                sigma, dest_sigT b_typ
-              in
+            if is_or_applies b_typ t then
+              let n = unshift_by sh n in
+              let sigma, b_sig = reduce_type env_packed sigma n in
+              let b_sig_typ = dest_sigT b_sig in
+              let b' = project_value b_sig_typ n in
+              let i' = project_index b_sig_typ n in
               Util.on_snd
-                (fun tl -> project_value b_sig_typ (unshift_by (List.length rec_args - sh) (dest_existT b).unpacked) :: tl)
-                (init_args sigma tl ((get_arg off t, (b, unshift_by (List.length rec_args - sh) (dest_existT b).unpacked)) :: m) sh)
+                (fun tl -> b' :: tl)
+                (lift_args sigma tl ((get_arg off t, i') :: is) sh)
             else
-              Util.on_snd (fun tl -> unshift_by (List.length rec_args - sh) n :: tl) (init_args sigma tl m sh)
+              Util.on_snd
+                (fun tl -> unshift_by sh n :: tl)
+                (lift_args sigma tl is sh)
        | _ ->
           sigma, []
-     in Util.on_snd List.rev (init_args sigma (List.rev args) [(mkRel 0, (mkRel 0, mkRel 0))] (List.length rec_args))
+     in Util.on_snd List.rev (lift_args sigma (List.rev args) [(mkRel 0, mkRel 0)] 0)
   | _ ->
      sigma, args (* TODO *)
 
@@ -1437,27 +1424,27 @@ let initialize_dep_elim_c_args c env_case env_elim case_typ nargs case sigma =
      let env_case_packed = zoom_env zoom_product_type env_elim case_typ_packed in
      let args = mk_n_rels (new_rels2 env_case_packed env_elim) in
      let b_typ = get_elim_type c in
-     let rec lift_args sigma args i_b =
+     let rec lift_args sigma args is =
        match args with
        | n :: tl ->
-          if equal n i_b then
+          if List.exists (equal n) is then
             Util.on_snd
               (fun tl -> shift n :: tl)
-              (lift_args sigma (shift_all tl) i_b)
+              (lift_args sigma (shift_all tl) is)
           else
             let sigma, t = reduce_type env_case sigma n in
             if is_or_applies b_typ t then
               let sigma, b = pack env_case c.l n sigma in
               Util.on_snd
                 (fun tl -> b :: tl)
-                (lift_args sigma tl (get_arg off t))
+                (lift_args sigma tl ((get_arg off t) :: is))
             else
               Util.on_snd
                 (fun tl -> n :: tl)
-                (lift_args sigma tl i_b)
+                (lift_args sigma tl is)
        | _ ->
           sigma, []
-     in Util.on_snd List.rev (lift_args sigma (List.rev args) (mkRel 0))
+     in Util.on_snd List.rev (lift_args sigma (List.rev args) [mkRel 0])
   | _ ->
      sigma, mk_n_rels nargs
               
