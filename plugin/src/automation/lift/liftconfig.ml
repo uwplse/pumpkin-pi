@@ -113,7 +113,15 @@ let is_opaque c trm =
   if is_locally_cached c.opaques trm then
     true
   else
-    lookup_opaque (lift_to c.l, lift_back c.l, trm)
+    (* TODO once done, port all of these to behave like this *)
+    match c.l.orn.kind with
+    | Algebraic _ ->
+       if equal trm (snd c.dep_elims) then
+         true
+       else
+         lookup_opaque (lift_to c.l, lift_back c.l, trm)
+    | _ ->
+       lookup_opaque (lift_to c.l, lift_back c.l, trm)
     
 (*
  * Configurable caching of constants
@@ -1654,17 +1662,17 @@ let initialize_dep_elims c cached env sigma =
         (with_suffix base_n "dep_elim_a", with_suffix base_n "dep_elim_b")
       in
       let elim_a, elim_b = ((elim_a_n, a_elim), (elim_b_n, b_elim)) in
-      try
-        let elim_a = define_term (fst elim_a) sigma (snd elim_a) true in
-        let elim_b = define_term (fst elim_b) sigma (snd elim_b) true in
-        let elims = map_tuple Universes.constr_of_global (elim_a, elim_b) in
-        save_dep_elim (c.l.orn.promote, c.l.orn.forget) elims;
-        sigma, elims
-      with _ ->
-        sigma, c.dep_elims
+      let elim_a = define_term (fst elim_a) sigma (snd elim_a) true in
+      let elim_b = define_term (fst elim_b) sigma (snd elim_b) true in
+      let elims = map_tuple Universes.constr_of_global (elim_a, elim_b) in
+      save_dep_elim (c.l.orn.promote, c.l.orn.forget) elims;
+      sigma, elims
   in
   let elims = if c.l.is_fwd then elims else rev_tuple elims in
   sigma, { c with dep_elims = elims }
+
+let get_dep_elim c = fst (c.dep_elims)
+let get_lifted_dep_elim c = snd (c.dep_elims)
 
 (*
  * Check if the term applies the eliminator

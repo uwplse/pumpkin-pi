@@ -361,7 +361,9 @@ Module CaseStudy (Elem : Comparable).
     Redirect "out/equivalences/orn_order_retraction" Print orn_order_retraction.
 
     Lift Base.tree __bst in Base.preorder as __preorder'.
+    Print __preorder'.
     Unpack __preorder' as __preorder.
+    Print __preorder.
     Lift __bst _bst in __preorder as _preorder'.
     Unpack _preorder' as _preorder.
     Lift _bst bst in _preorder as preorder'.

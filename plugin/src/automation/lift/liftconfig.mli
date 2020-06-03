@@ -128,9 +128,12 @@ val get_constrs : lift_config -> constr array
 val get_lifted_constrs : lift_config -> constr array
 
 (*
- * Get the type we eliminate over
+ * Get the type we eliminate over, and DepElim
+ * (TODO remove get_elim_type from interface when done with port)
  *)
 val get_elim_type : lift_config -> types
+val get_dep_elim : lift_config -> types
+val get_lifted_dep_elim : lift_config -> types
 
 (*
  * Check if the term applies the eta-expanded identity function
