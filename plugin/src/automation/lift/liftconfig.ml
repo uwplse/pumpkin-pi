@@ -1004,8 +1004,6 @@ let initialize_constr_args c env_constr_body env_packed args sigma =
      (* Pack arguments *)
      let c = if c.l.is_fwd then reverse c else c in
      let b_typ = fst c.elim_types in
-     let pack_args (sigma, args) = map_state (pack_to_typ c env_constr_body) args sigma in
-     let sigma, packed_args = pack_args (sigma, args) in
      let rec lift_args sigma args is sh =
        match args with
        | n :: tl ->
@@ -1431,7 +1429,7 @@ let initialize_dep_elim_p c env_elim elim_pms npms sigma =
 (*
  * Initialize the arguments to a case of a constructor of DepElim
  *)
-let initialize_dep_elim_c_args c env_case env_elim case_typ nargs case sigma =
+let initialize_dep_elim_c_args c env_case env_case_body env_elim case_typ nargs case sigma =
   let l = get_lifting c in
   match l.orn.kind with
   | Algebraic (_, off) when not l.is_fwd ->
@@ -1443,16 +1441,15 @@ let initialize_dep_elim_c_args c env_case env_elim case_typ nargs case sigma =
        match args with
        | n :: tl ->
           if List.exists (equal n) is then
-            Util.on_snd
-              (fun tl -> shift n :: tl)
-              (lift_args sigma (shift_all tl) is)
+            lift_args sigma (shift_all (n :: tl)) is
           else
             let sigma, t = reduce_type env_case sigma n in
             if is_or_applies b_typ t then
-              let sigma, b = pack env_case c.l n sigma in
+              let sigma, b' = pack env_case c.l n sigma in
+              let i = get_arg off t in
               Util.on_snd
-                (fun tl -> b :: tl)
-                (lift_args sigma tl ((get_arg off t) :: is))
+                (fun tl -> b' :: tl)
+                (lift_args sigma tl (i :: is))
             else
               Util.on_snd
                 (fun tl -> n :: tl)
@@ -1480,7 +1477,7 @@ let initialize_dep_elim_c c env_elim elim_c case sigma =
        let sigma, c_eta = expand_eta env_elim sigma (unshift case) in
        let (env_c_b, c_body) = zoom_lambda_term env_elim c_eta in
        let (c_f, _) = destApp c_body in
-       let sigma, args = initialize_dep_elim_c_args c env_c env_elim (shift_by nargs case_typ) nargs (unshift case) sigma in
+       let sigma, args = initialize_dep_elim_c_args c env_c env_c_b env_elim (shift_by nargs case_typ) nargs (unshift case) sigma in
        let f = unshift_by (new_rels2 env_c_b env_c) c_f in
        let body = reduce_stateless reduce_term env_c sigma (mkAppl (f, args)) in
        sigma, reconstruct_lambda_n env_c body (nb_rel env_elim)
@@ -1514,6 +1511,7 @@ let initialize_dep_elim_args c env_elim elim_cs npms sigma =
      let value_off = arity elim_cs - 1 in
      let off = off - npms in (* no parameters here *)
      let up_to_i_b, after_i_b = take_split (off + 1) args in
+     let up_to_i_b = unshift_all up_to_i_b in
      let b_old = last after_i_b in
      let sigma, b_typ = reduce_type env_elim sigma b_old in
      let b_sig_typ = dest_sigT b_typ in
