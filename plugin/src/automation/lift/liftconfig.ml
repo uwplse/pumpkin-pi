@@ -1155,6 +1155,7 @@ let initialize_dep_constrs c cached env sigma =
              
 (*
  * NORMALIZE (the result of this is cached)
+ * TODO remove this when done porting to depconstr
  *)
 let lift_constr env sigma c trm =
   let l = c.l in
@@ -1252,7 +1253,13 @@ let initialize_constr_rules c env sigma =
  * Get the cached unlifted and lifted constructors
  *)
 let get_constrs c = fst c.dep_constrs
-let get_lifted_constrs c = fst c.constr_rules
+let get_lifted_constrs c =
+  match c.l.orn.kind with
+  | Algebraic _ ->
+     (* TODO moving entirely to this at some point *)
+     snd c.dep_constrs
+  | _ ->
+     fst c.constr_rules
 
 (*
  * Check if a term applies the eta-expanded constructor

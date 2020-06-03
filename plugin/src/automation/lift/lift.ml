@@ -459,6 +459,8 @@ let lift_evar c env trm lift_rec sigma =
  * Core lifting algorithm.
  * A few extra rules to deal with real Coq terms as opposed to CIC,
  * including caching.
+ *
+ * TODO remove extra rules once we finish
  *)
 let lift_core env c trm sigma =
   let rec lift_rec prev_rules en sigma c tr : types state =
@@ -481,11 +483,16 @@ let lift_core env c trm sigma =
        if opaque then
          lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma
        else
-         let sigma, constr_app = simplify en sigma (mkAppl (f, args)) in
-         if List.length args > 0 then
-           lift_rec lift_rules en sigma c constr_app
-         else
-           sigma, constr_app
+         (match (get_lifting c).orn.kind with
+          | Algebraic _ ->
+             (* TODO move to this for every lifting once we move to DepConstr *)
+             lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma
+          | _ ->
+             let sigma, constr_app = simplify en sigma (mkAppl (f, args)) in
+             if List.length args > 0 then
+               lift_rec lift_rules en sigma c constr_app
+             else
+               sigma, constr_app)
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma
     | LiftElim (tr_elim, pms, args, opaque) ->
