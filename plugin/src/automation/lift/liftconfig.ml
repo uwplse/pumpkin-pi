@@ -282,12 +282,8 @@ let from_args c env trm sigma =
  *)
 let type_is_from c env trm sigma =
   try
-    on_red_type
-      reduce_term
-      (fun env sigma typ -> is_from c env typ sigma)
-      env
-      sigma
-      trm
+    let sigma, typ = reduce_type env sigma trm in
+    is_from c env typ sigma
   with _ ->
     sigma, None
 
@@ -709,9 +705,8 @@ let may_apply_id_eta c env trm =
  * sense to combine this with the COHERENCE rules.
  *)
 let applies_id_eta c env trm sigma =
-  let right_type trm = type_is_from c env trm sigma in
   if may_apply_id_eta c env trm then
-    let sigma, typ_args_o = right_type trm in
+    let sigma, typ_args_o = type_is_from c env trm sigma in
     let opt_proj_map = snd c.optimize_proj_id_rules in
     (* Heuristic for unification again *)
     if Option.has_some typ_args_o then
@@ -1512,9 +1507,6 @@ let initialize_dep_elim_c c env_elim elim_c case is_match sigma =
      let env_c = zoom_env zoom_product_type env_elim case_typ in
      let nargs = new_rels2 env_c env_elim in
      let case = if is_match then case else unshift case in
-     let open Printing in
-     debug_env env_elim "env_elim";
-     debug_term env_elim case "case";
      if nargs = 0 then
        (* no need to get arguments *)
        sigma, case
@@ -1524,10 +1516,8 @@ let initialize_dep_elim_c c env_elim elim_c case is_match sigma =
        let (env_c_b, c_body) = zoom_lambda_term env_elim c_eta in
        let (c_f, _) = destApp c_body in
        let sigma, args = initialize_dep_elim_c_args c env_c env_elim (shift_by nargs case_typ) nargs case is_match sigma in
-       debug_terms env_c args "args";
        let f = unshift_by (new_rels2 env_c_b env_c) c_f in
-       debug_term env_c f "f";
-       let body = reduce_stateless reduce_term env_c sigma (mkAppl (f, args)) in
+       let sigma, body = reduce_term env_c sigma (mkAppl (f, args)) in
        sigma, reconstruct_lambda_n env_c body (nb_rel env_elim)
   | _ ->
      sigma, case (* TODO *)
@@ -1552,13 +1542,11 @@ let initialize_dep_elim_args c env_elim elim_cs npms args is_match sigma =
   | Algebraic (indexer, off) when not l.is_fwd ->
      let value_off = arity elim_cs - 1 in
      let off = off - npms in (* no parameters here *)
-     let open Printing in
-     debug_terms env_elim args "args";
      if is_match then
        (* match against DepElim and find arguments *)
        let b_old = last args in
        let sigma, b = pack env_elim l b_old sigma in
-       sigma, deindex l (reindex value_off b args)
+       sigma, reindex value_off b (deindex l args)
      else
        (* initialize DepElim for the first time *)
        let up_to_i_b, after_i_b = take_split (off + 1) args in
@@ -1684,8 +1672,6 @@ let initialize_dep_elim c env sigma =
        let sigma, cs =
          let sigma, elim_eta = expand_eta env_dep_elim sigma elim_p in
          let env_elim, elim_body = zoom_lambda_term env_dep_elim elim_eta in
-         let open Printing in
-         debug_term env_elim elim_body "elim_body";
          let sigma, elim_body = reduce_term env_elim sigma elim_body in
          let sigma, elim_app = deconstruct_eliminator env_elim sigma elim_body in
          initialize_dep_elim_cs c env_dep_elim elim_p elim_app.cs false sigma
@@ -1762,26 +1748,15 @@ let applies_elim c env trm sigma =
                 sigma, Some (trm_elim, [], 0)
               else
                 let elim = get_dep_elim c in
-                let open Printing in
-                debug_term env_elim elim "elim";
                 let npms = List.length trm_elim.pms in
-                debug_terms env_elim (trm_elim.pms) "pms";
-                let sigma, pms = initialize_dep_elim_pms c env_elim npms sigma in
-                let open Printing in
-                debug_terms env_elim pms "pms";
-                let sigma, elim_pms = reduce_term env_elim sigma (mkAppl (unwrap_definition env_elim elim, pms)) in
-                debug_term env_elim elim_pms "elim_pms";
-                debug_term env_elim trm_elim.p "p before packing";
+                let pms = trm_elim.pms in
+                let elim_delta = unwrap_definition env_elim elim in
+                let sigma, elim_pms = reduce_term env_elim sigma (mkAppl (elim_delta, pms)) in
                 let sigma, p = initialize_dep_elim_p c env_elim elim_pms npms trm_elim.p true sigma in
-                debug_term env_elim p "p";
                 let sigma, elim_p = reduce_term env_elim sigma (mkAppl (elim_pms, [p])) in
-                debug_term env_elim elim_p "elim_p";
                 let sigma, cs = initialize_dep_elim_cs c env_elim elim_p trm_elim.cs true sigma in
-                debug_terms env_elim cs "cs";
                 let sigma, elim_cs = reduce_term env_elim sigma (mkAppl (elim_p, cs)) in
-                debug_term env_elim elim_cs "elim_cs";
                 let sigma, final_args = initialize_dep_elim_args c env_elim elim_cs npms trm_elim.final_args true sigma in
-                debug_terms env_elim final_args "final_args";
                 let trm_elim = { elim; pms; p; cs; final_args } in
                 sigma, Some (trm_elim, [], 0)
            | SwapConstruct _ | UnpackSigma ->

@@ -334,9 +334,6 @@ let determine_lift_rule c env trm prev_rules sigma =
                  | Algebraic _ ->
                     let lifted_dep_elim = get_lifted_dep_elim c in
                     let args = unfold_args (apply_eliminator trm_elim) in
-                    let open Printing in
-                    debug_term env lifted_dep_elim "lifted_dep_elim";
-                    debug_terms env args "args";
                     sigma, Optimization (AppLazyDelta (lifted_dep_elim, Array.of_list args))
                  | _ ->
                     let args = take_split nargs trm_elim.final_args in
