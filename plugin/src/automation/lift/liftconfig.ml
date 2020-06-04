@@ -1407,8 +1407,7 @@ let initialize_dep_elim_pms c env_elim npms sigma =
   sigma, shift_all_by (nb_rel env_elim - npms) (mk_n_rels npms)
                           
 (* Determine the motive for DepElim *)
-let initialize_dep_elim_p c env_elim elim_pms npms sigma =
-  let p = shift_by (nb_rel env_elim - npms - 1) (mkRel 1) in
+let initialize_dep_elim_p c env_elim elim_pms npms p is_match sigma =
   match c.l.orn.kind with
   | Algebraic (indexer, off) when not c.l.is_fwd ->
      let (_, p_typ, _) = destLambda elim_pms in
@@ -1417,109 +1416,160 @@ let initialize_dep_elim_p c env_elim elim_pms npms sigma =
      let f = shift_by nargs p in
      let sigma, args =
        let old_args = mk_n_rels nargs in
-       let sigma, b = pack env_p_b c.l (last old_args) sigma in
-       let value_off = List.length old_args - 1 in
-       let orn = { c.l.orn with kind = Algebraic (indexer, off - npms) } in
-       let l = { c.l with orn } in (* no parameters here *)
-       sigma, deindex l (reindex value_off b old_args)
-     in sigma, reconstruct_lambda_n env_p_b (mkAppl (f, args)) (nb_rel env_elim)
+       let b = last old_args in
+       if is_match then
+         (* We are detecting applications of dep_elim *)
+         let sigma, b_sig_typ = reduce_type env_p_b sigma b in
+         let b_sig = dest_sigT b_sig_typ in
+         let i_b, b = projections b_sig b in
+         let value_off = List.length old_args - 1 in
+         let orn = { c.l.orn with kind = Algebraic (indexer, off - npms) } in
+         let l = { c.l with orn } in (* no parameters here *)
+         sigma, index l i_b (reindex value_off b old_args)
+       else
+         (* We are instantiating dep_elim for the first time *)
+         let sigma, b = pack env_p_b c.l b sigma in
+         let value_off = List.length old_args - 1 in
+         let orn = { c.l.orn with kind = Algebraic (indexer, off - npms) } in
+         let l = { c.l with orn } in (* no parameters here *)
+         sigma, deindex l (reindex value_off b old_args)
+     in
+     let sigma, p_b = reduce_term env_p_b sigma (mkAppl (f, args)) in
+     sigma, reconstruct_lambda_n env_p_b p_b (nb_rel env_elim)
   | _ ->
      sigma, p
 
 (*
  * Initialize the arguments to a case of a constructor of DepElim
  *)
-let initialize_dep_elim_c_args c env_case env_case_body env_elim case_typ nargs case sigma =
+let initialize_dep_elim_c_args c env_case env_elim case_typ nargs case is_match sigma =
   let l = get_lifting c in
   match l.orn.kind with
   | Algebraic (_, off) when not l.is_fwd ->
-     let sigma, case_typ_packed = reduce_type env_elim sigma case in
-     let env_case_packed = zoom_env zoom_product_type env_elim case_typ_packed in
-     let args = mk_n_rels (new_rels2 env_case_packed env_elim) in
+     let sigma, case_typ = reduce_type env_elim sigma case in
+     let env_case_typ = zoom_env zoom_product_type env_elim case_typ in
+     let args = mk_n_rels (new_rels2 env_case_typ env_elim) in
      let b_typ = get_elim_type c in
-     let rec lift_args sigma args is =
-       match args with
-       | n :: tl ->
-          if List.exists (equal n) is then
-            lift_args sigma (shift_all (n :: tl)) is
-          else
-            let sigma, t = reduce_type env_case sigma n in
-            if is_or_applies b_typ t then
-              let sigma, b' = pack env_case c.l n sigma in
-              let i = get_arg off t in
+     if is_match then
+       (* matching against DepElim *)
+       let rec lift_args sigma args is sh =
+         match args with
+         | n :: tl ->
+            if List.exists (fun (i, _) -> equal n i) is then
+              let (_, i') = List.find (fun (i, _) -> equal n i) is in
               Util.on_snd
-                (fun tl -> b' :: tl)
-                (lift_args sigma tl (i :: is))
+                (fun tl -> i' :: tl)
+                (lift_args sigma tl is (sh + 1))
             else
-              Util.on_snd
-                (fun tl -> n :: tl)
-                (lift_args sigma tl is)
-       | _ ->
-          sigma, []
-     in Util.on_snd List.rev (lift_args sigma (List.rev args) [mkRel 0])
+              let sigma, t = reduce_type env_case_typ sigma n in
+              if is_or_applies b_typ t then
+                let n = unshift_by sh n in
+                let sigma, b_sig = reduce_type env_case sigma n in
+                let b_sig_typ = dest_sigT b_sig in
+                let i', b' = projections b_sig_typ n in
+                Util.on_snd
+                  (fun tl -> b' :: tl)
+                  (lift_args sigma tl ((get_arg off t, i') :: is) sh)
+              else
+                Util.on_snd
+                  (fun tl -> unshift_by sh n :: tl)
+                  (lift_args sigma tl is sh)
+         | _ ->
+            sigma, []
+       in Util.on_snd List.rev (lift_args sigma (List.rev args) [(mkRel 0, mkRel 0)] 0)
+     else
+       (* initializing DepElim for the first time *)
+       let rec lift_args sigma args is =
+         match args with
+         | n :: tl ->
+            if List.exists (equal n) is then
+              lift_args sigma (shift_all (n :: tl)) is
+            else
+              let sigma, t = reduce_type env_case sigma n in
+              if is_or_applies b_typ t then
+                let sigma, b' = pack env_case c.l n sigma in
+                let i = get_arg off t in
+                Util.on_snd
+                  (fun tl -> b' :: tl)
+                  (lift_args sigma tl (i :: is))
+              else
+                Util.on_snd
+                  (fun tl -> n :: tl)
+                  (lift_args sigma tl is)
+         | _ ->
+            sigma, []
+       in Util.on_snd List.rev (lift_args sigma (List.rev args) [mkRel 0])
   | _ ->
      sigma, mk_n_rels nargs
               
 (*
  * Determine a single case for DepElim
  *)
-let initialize_dep_elim_c c env_elim elim_c case sigma =
+let initialize_dep_elim_c c env_elim elim_c case is_match sigma =
   match c.l.orn.kind with
   | Algebraic (indexer, off) when not c.l.is_fwd ->
      let (_, case_typ, _) = destLambda elim_c in
      let env_c = zoom_env zoom_product_type env_elim case_typ in
      let nargs = new_rels2 env_c env_elim in
+     let case = if is_match then case else unshift case in
+     let open Printing in
+     debug_env env_elim "env_elim";
+     debug_term env_elim case "case";
      if nargs = 0 then
        (* no need to get arguments *)
-       sigma, unshift case
+       sigma, case
      else
        (* get arguments *)
-       let sigma, c_eta = expand_eta env_elim sigma (unshift case) in
+       let sigma, c_eta = expand_eta env_elim sigma case in
        let (env_c_b, c_body) = zoom_lambda_term env_elim c_eta in
        let (c_f, _) = destApp c_body in
-       let sigma, args = initialize_dep_elim_c_args c env_c env_c_b env_elim (shift_by nargs case_typ) nargs (unshift case) sigma in
+       let sigma, args = initialize_dep_elim_c_args c env_c env_elim (shift_by nargs case_typ) nargs case is_match sigma in
+       debug_terms env_c args "args";
        let f = unshift_by (new_rels2 env_c_b env_c) c_f in
+       debug_term env_c f "f";
        let body = reduce_stateless reduce_term env_c sigma (mkAppl (f, args)) in
        sigma, reconstruct_lambda_n env_c body (nb_rel env_elim)
   | _ ->
      sigma, case (* TODO *)
 
 (* Determine the cases for DepElim *)
-let initialize_dep_elim_cs c env_dep_elim elim_p sigma =
-  let sigma, elim_eta = expand_eta env_dep_elim sigma elim_p in
-  let env_elim, elim_body = zoom_lambda_term env_dep_elim elim_eta in
-  let sigma, elim_body = reduce_term env_elim sigma elim_body in
-  let sigma, elim_app = deconstruct_eliminator env_elim sigma elim_body in
+let initialize_dep_elim_cs c env_dep_elim elim_p cs is_match sigma =
   bind
     (fold_left_state
        (fun (elim_c, cs) case sigma ->
-         let sigma, case = initialize_dep_elim_c c env_dep_elim elim_c case sigma in
+         let sigma, case = initialize_dep_elim_c c env_dep_elim elim_c case is_match sigma in
          let sigma, elim_c = reduce_term env_dep_elim sigma (mkAppl (elim_c, [case])) in
          sigma, (elim_c, snoc case cs))
        (elim_p, [])
-       elim_app.cs)
+       cs)
     (fun (_, cs) -> ret cs)
     sigma
 
 (* Determine the arguments for DepElim *)
-let initialize_dep_elim_args c env_elim elim_cs npms sigma =
+let initialize_dep_elim_args c env_elim elim_cs npms args is_match sigma =
   let l = get_lifting c in
-  let nargs = arity elim_cs in
-  let args = mk_n_rels nargs in
   match l.orn.kind with
   | Algebraic (indexer, off) when not l.is_fwd ->
      let value_off = arity elim_cs - 1 in
      let off = off - npms in (* no parameters here *)
-     let up_to_i_b, after_i_b = take_split (off + 1) args in
-     let up_to_i_b = unshift_all up_to_i_b in
-     let b_old = last after_i_b in
-     let sigma, b_typ = reduce_type env_elim sigma b_old in
-     let b_sig_typ = dest_sigT b_typ in
-     let i_b = project_index b_sig_typ b_old in
-     let b = project_value b_sig_typ b_old in
-     let up_to_i_b = reindex off i_b up_to_i_b in
-     let after_i_b = reindex (value_off - off - 1) b after_i_b in
-     sigma, List.append up_to_i_b after_i_b
+     let open Printing in
+     debug_terms env_elim args "args";
+     if is_match then
+       (* match against DepElim and find arguments *)
+       let b_old = last args in
+       let sigma, b = pack env_elim l b_old sigma in
+       sigma, deindex l (reindex value_off b args)
+     else
+       (* initialize DepElim for the first time *)
+       let up_to_i_b, after_i_b = take_split (off + 1) args in
+       let up_to_i_b = unshift_all up_to_i_b in
+       let b_old = last after_i_b in
+       let sigma, b_typ = reduce_type env_elim sigma b_old in
+       let b_sig_typ = dest_sigT b_typ in
+       let i_b, b = projections b_sig_typ b_old in
+       let up_to_i_b = reindex off i_b up_to_i_b in
+       let after_i_b = reindex (value_off - off - 1) b after_i_b in
+       sigma, List.append up_to_i_b after_i_b
   | _ ->
      sigma, args
 
@@ -1629,11 +1679,23 @@ let initialize_dep_elim c env sigma =
        in
        let sigma, pms = initialize_dep_elim_pms c env_dep_elim npms sigma in
        let sigma, elim_pms = reduce_term env_dep_elim sigma (mkAppl (elim_eta, pms)) in
-       let sigma, p = initialize_dep_elim_p c env_dep_elim elim_pms npms sigma in
+       let sigma, p = initialize_dep_elim_p c env_dep_elim elim_pms npms (shift_by (nb_rel env_dep_elim - npms - 1) (mkRel 1)) false sigma in
        let sigma, elim_p = reduce_term env_dep_elim sigma (mkAppl (elim_pms, [p])) in
-       let sigma, cs = initialize_dep_elim_cs c env_dep_elim elim_p sigma in
+       let sigma, cs =
+         let sigma, elim_eta = expand_eta env_dep_elim sigma elim_p in
+         let env_elim, elim_body = zoom_lambda_term env_dep_elim elim_eta in
+         let open Printing in
+         debug_term env_elim elim_body "elim_body";
+         let sigma, elim_body = reduce_term env_elim sigma elim_body in
+         let sigma, elim_app = deconstruct_eliminator env_elim sigma elim_body in
+         initialize_dep_elim_cs c env_dep_elim elim_p elim_app.cs false sigma
+       in
        let sigma, elim_cs = reduce_term env_dep_elim sigma (mkAppl (elim_p, cs)) in
-       let sigma, final_args = initialize_dep_elim_args c env_dep_elim elim_cs npms sigma in
+       let sigma, final_args =
+         let nargs = arity elim_cs in
+         let args = mk_n_rels nargs in
+         initialize_dep_elim_args c env_dep_elim elim_cs npms args false sigma
+       in
        reduce_term env_dep_elim sigma (mkAppl (elim_cs, final_args))
      in sigma, reconstruct_lambda_n env_dep_elim dep_elim (nb_rel env)
   | _ ->
@@ -1678,7 +1740,7 @@ let get_lifted_dep_elim c = snd (c.dep_elims)
  * of the motive (the number of "final arguments" after inducting over
  * the term)
  *
- * TODO use dep_elim
+ * TODO use dep_elim, port away from old return arguments once all moved
  *)
 let applies_elim c env trm sigma =
   let l = get_lifting c in
@@ -1694,7 +1756,35 @@ let applies_elim c env trm sigma =
          let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm_b in
          let sigma, elim_app_o =
            match l.orn.kind with
-           | Algebraic _ | SwapConstruct _ | UnpackSigma ->
+           | Algebraic _ ->
+              (* We return the elimination of dep_elim here *)
+              if l.is_fwd then
+                sigma, Some (trm_elim, [], 0)
+              else
+                let elim = get_dep_elim c in
+                let open Printing in
+                debug_term env_elim elim "elim";
+                let npms = List.length trm_elim.pms in
+                debug_terms env_elim (trm_elim.pms) "pms";
+                let sigma, pms = initialize_dep_elim_pms c env_elim npms sigma in
+                let open Printing in
+                debug_terms env_elim pms "pms";
+                let sigma, elim_pms = reduce_term env_elim sigma (mkAppl (unwrap_definition env_elim elim, pms)) in
+                debug_term env_elim elim_pms "elim_pms";
+                debug_term env_elim trm_elim.p "p before packing";
+                let sigma, p = initialize_dep_elim_p c env_elim elim_pms npms trm_elim.p true sigma in
+                debug_term env_elim p "p";
+                let sigma, elim_p = reduce_term env_elim sigma (mkAppl (elim_pms, [p])) in
+                debug_term env_elim elim_p "elim_p";
+                let sigma, cs = initialize_dep_elim_cs c env_elim elim_p trm_elim.cs true sigma in
+                debug_terms env_elim cs "cs";
+                let sigma, elim_cs = reduce_term env_elim sigma (mkAppl (elim_p, cs)) in
+                debug_term env_elim elim_cs "elim_cs";
+                let sigma, final_args = initialize_dep_elim_args c env_elim elim_cs npms trm_elim.final_args true sigma in
+                debug_terms env_elim final_args "final_args";
+                let trm_elim = { elim; pms; p; cs; final_args } in
+                sigma, Some (trm_elim, [], 0)
+           | SwapConstruct _ | UnpackSigma ->
               let sigma, elim_typ_eta = expand_eta env sigma elim_typ in
               let nargs = (arity elim_typ_eta) - (List.length trm_elim.pms) + 1 in
               sigma, Some (trm_elim, trm_elim.pms, nargs)
