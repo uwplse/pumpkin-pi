@@ -1382,17 +1382,18 @@ let initialize_elim_types c env sigma =
 let get_elim_type c = fst (c.elim_types)
 
 (* Determine the parameters for DepElim *)
-let initialize_dep_elim_pms c env_elim npms sigma =
+let initialize_dep_elim_pms c env_elim pms is_match sigma =
   match c.l.orn.kind with
   | CurryRecord when not c.l.is_fwd ->
-     let npms_old = nb_rel env_elim - 3 in
-     let typ_f = first_fun (zoom_term zoom_lambda_term env_elim (snd (get_types c))) in
-     let pms_old = shift_all_by (nb_rel env_elim - npms_old) (mk_n_rels npms_old) in
-     let sigma, to_typ_prod = specialize_delta_f env_elim typ_f pms_old sigma in
-     let to_elim = dest_prod to_typ_prod in
-     sigma, [to_elim.Produtils.typ1; to_elim.Produtils.typ2]
+     if is_match then
+       sigma, List.tl (List.tl pms) (* TODO *)
+     else
+       let typ_f = first_fun (zoom_term zoom_lambda_term env_elim (snd (get_types c))) in
+       let sigma, to_typ_prod = specialize_delta_f env_elim typ_f pms sigma in
+       let to_elim = dest_prod to_typ_prod in
+       sigma, [to_elim.Produtils.typ1; to_elim.Produtils.typ2]
   | _ ->
-     sigma, shift_all_by (nb_rel env_elim - npms) (mk_n_rels npms)
+     sigma, pms
                           
 (* Determine the motive for DepElim *)
 (* TODO clean etc *)
@@ -1429,7 +1430,7 @@ let initialize_dep_elim_p c env_elim elim_pms npms p is_match sigma =
      let (_, p_typ, _) = destLambda elim_pms in
      let env_p_b, p_b = zoom_product_type env_elim p_typ in
      let nargs = new_rels2 env_p_b env_elim in
-     let f = shift_by 3 (mkRel (new_rels2 env_p_b env_elim)) in
+     let f = shift_by nargs p in
      let sigma, args =
        let old_args = mk_n_rels nargs in
        let b = last old_args in
@@ -1715,12 +1716,18 @@ let initialize_dep_elim c env sigma =
      let sigma, env_dep_elim = initialize_dep_elim_env c env sigma in
      let sigma, elim_eta = expand_eta env_dep_elim sigma elim in
      let sigma, dep_elim =
-       let npms = 
-         let env_elim, elim_body = zoom_lambda_term env_dep_elim elim_eta in
-         let sigma, elim_app = deconstruct_eliminator env_elim sigma elim_body in
-         List.length elim_app.pms
+       let npms =
+         if c.l.orn.kind = CurryRecord then
+           nb_rel env_dep_elim - 3
+         else
+           let env_elim, elim_body = zoom_lambda_term env_dep_elim elim_eta in
+           let sigma, elim_app = deconstruct_eliminator env_elim sigma elim_body in
+           List.length elim_app.pms
        in
-       let sigma, pms = initialize_dep_elim_pms c env_dep_elim npms sigma in
+       let sigma, pms =
+         let pms = shift_all_by (nb_rel env_dep_elim - npms) (mk_n_rels npms) in
+         initialize_dep_elim_pms c env_dep_elim pms false sigma
+       in
        let sigma, elim_pms = reduce_term env_dep_elim sigma (mkAppl (elim_eta, pms)) in
        let sigma, p = initialize_dep_elim_p c env_dep_elim elim_pms npms (shift_by (nb_rel env_dep_elim - npms - 1) (mkRel 1)) false sigma in
        let sigma, elim_p = reduce_term env_dep_elim sigma (mkAppl (elim_pms, [p])) in
@@ -1798,41 +1805,35 @@ let applies_elim c env trm sigma =
          let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm_b in
          let sigma, elim_app_o =
            match l.orn.kind with
-           | Algebraic _ | SwapConstruct _ ->
+           | Algebraic _ | SwapConstruct _ | CurryRecord ->
               (* We return the elimination of dep_elim here *)
               if l.is_fwd then
                 sigma, Some (trm_elim, [], 0)
               else
-                let elim = get_dep_elim c in
-                let npms = List.length trm_elim.pms in
-                let pms = trm_elim.pms in
-                let elim_delta = unwrap_definition env_elim elim in
-                let sigma, elim_pms = reduce_term env_elim sigma (mkAppl (elim_delta, pms)) in
-                let sigma, p = initialize_dep_elim_p c env_elim elim_pms npms trm_elim.p true sigma in
-                let sigma, elim_p = reduce_term env_elim sigma (mkAppl (elim_pms, [p])) in
-                let sigma, cs = initialize_dep_elim_cs c env_elim elim_p npms trm_elim.cs true sigma in
-                let sigma, elim_cs = reduce_term env_elim sigma (mkAppl (elim_p, cs)) in
-                let sigma, final_args = initialize_dep_elim_args c env_elim elim_cs npms trm_elim.final_args true sigma in
-                let trm_elim = { elim; pms; p; cs; final_args } in
-                sigma, Some (trm_elim, [], 0)
+                let sigma, is_from = type_is_from c env_elim (List.hd trm_elim.final_args) sigma in
+                if Option.has_some is_from then
+                  let elim = get_dep_elim c in
+                  let npms = List.length trm_elim.pms in
+                  let sigma, pms = initialize_dep_elim_pms c env_elim trm_elim.pms true sigma in
+                  let elim_delta = unwrap_definition env_elim elim in
+                  let sigma, elim_pms = reduce_term env_elim sigma (mkAppl (elim_delta, pms)) in
+                  let sigma, p = initialize_dep_elim_p c env_elim elim_pms npms trm_elim.p true sigma in
+                  let sigma, elim_p = reduce_term env_elim sigma (mkAppl (elim_pms, [p])) in
+                  let open Printing in
+                  debug_terms env_elim trm_elim.cs "cs";
+                  let sigma, cs = initialize_dep_elim_cs c env_elim elim_p npms trm_elim.cs true sigma in
+                  let open Printing in
+                  debug_terms env_elim cs "cs";
+                  let sigma, elim_cs = reduce_term env_elim sigma (mkAppl (elim_p, cs)) in
+                  let sigma, final_args = initialize_dep_elim_args c env_elim elim_cs npms trm_elim.final_args true sigma in
+                  let trm_elim = { elim; pms; p; cs; final_args } in
+                  sigma, Some (trm_elim, [], 0)
+                else
+                  sigma, None
            | UnpackSigma ->
               let sigma, elim_typ_eta = expand_eta env sigma elim_typ in
               let nargs = (arity elim_typ_eta) - (List.length trm_elim.pms) + 1 in
               sigma, Some (trm_elim, trm_elim.pms, nargs)
-           | CurryRecord ->
-              let nargs = 1 in
-              if l.is_fwd then
-                let typ_f = first_fun (zoom_term zoom_lambda_term env_elim (snd (get_types c))) in
-                let sigma, to_typ_prod = specialize_delta_f env_elim typ_f trm_elim.pms sigma in
-                let to_elim = dest_prod to_typ_prod in
-                let pms = [to_elim.Produtils.typ1; to_elim.Produtils.typ2] in
-                sigma, Some (trm_elim, pms, nargs)
-              else
-                let sigma, is_from = type_is_from c env_elim (List.hd trm_elim.final_args) sigma in
-                if Option.has_some is_from then
-                  sigma, Some (trm_elim, Option.get is_from, nargs)
-                else
-                  sigma, None
          in
          if Option.has_some elim_app_o then
            let trm_elim, pms, nargs = Option.get elim_app_o in

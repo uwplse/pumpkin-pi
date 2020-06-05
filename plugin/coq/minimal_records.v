@@ -88,7 +88,6 @@ Lift Module Generated'.output Handwritten'.output in Temp1 as Handwritten''.
  * See: https://taliasplse.wordpress.com/2020/02/02/automating-transport-with-univalent-e-graphs/
  *)
 
-
 (*
  * OK, now that we're in the handwritten world, we can write our proofs over
  * these nicer types:

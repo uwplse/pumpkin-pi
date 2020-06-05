@@ -163,6 +163,8 @@ Lift Handwritten4'.output Generated4'.output in Handwritten4'.field1and3 as fiel
 Lift Handwritten4'.input Generated4'.input in Handwritten4'.op as op_1.
 Lift Handwritten4'.output Generated4'.output in op_1 as op.
 Lift Handwritten4'.input Generated4'.input in Handwritten4'.and_spec_true_true as and_spec_true_true_1.
+Print and_spec_true_true_1.
+Fail.
 Lift Handwritten4'.output Generated4'.output in and_spec_true_true_1 as and_spec_true_true.
 Lift Handwritten4'.input Generated4'.input in Handwritten4'.plus_spec_O_l as plus_spec_O_l_1.
 Lift Handwritten4'.output Generated4'.output in plus_spec_O_l_1 as plus_spec_O_l.
