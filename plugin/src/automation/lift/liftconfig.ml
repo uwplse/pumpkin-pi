@@ -1188,9 +1188,6 @@ let lift_constr env sigma c trm =
          let unpacked = mkAppl (f', args'') in
          let index = pack_existT { ex with unpacked } in
          sigma, pack_existT { ex_eq with index }
-  | CurryRecord ->
-     (* no inductive cases, so don't try to refold *)
-     reduce_nf env sigma app
   | _ ->
      failwith "not yet implemented"
 
@@ -1209,7 +1206,7 @@ let initialize_constr_rule c env constr sigma =
  *)
 let initialize_constr_rules c env sigma =
   match c.l.orn.kind with
-  | Algebraic _ | SwapConstruct _ ->
+  | Algebraic _ | SwapConstruct _ | CurryRecord ->
      (* already ported to depconstr *)
      sigma, c
   | _ ->
@@ -1230,7 +1227,7 @@ let initialize_constr_rules c env sigma =
 let get_constrs c = fst c.dep_constrs
 let get_lifted_constrs c =
   match c.l.orn.kind with
-  | Algebraic _ | SwapConstruct _ ->
+  | Algebraic _ | SwapConstruct _ | CurryRecord ->
      (* TODO moving entirely to this at some point *)
      snd c.dep_constrs
   | _ ->

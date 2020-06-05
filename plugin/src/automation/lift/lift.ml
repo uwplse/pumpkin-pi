@@ -355,19 +355,7 @@ let lift_core env c trm sigma =
     | Equivalence (f, args) ->
        lift_app_simplify c en f args reduce_term (lift_rec lift_rules) sigma
     | LiftConstr (simplify, (f, args, opaque)) ->
-       if opaque then
-         lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma
-       else
-         (match (get_lifting c).orn.kind with
-          | Algebraic _ | SwapConstruct _ ->
-             (* TODO move to this for every lifting once we move to DepConstr *)
-             lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma
-          | _ ->
-             let sigma, constr_app = simplify en sigma (mkAppl (f, args)) in
-             if List.length args > 0 then
-               lift_rec lift_rules en sigma c constr_app
-             else
-               sigma, constr_app)
+       lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma
     | LiftElim (tr_elim, pms, args, opaque) ->
