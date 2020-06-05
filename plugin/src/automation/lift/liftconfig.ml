@@ -1523,6 +1523,18 @@ let initialize_dep_elim_c c env_elim elim_c case is_match sigma =
 
 (* Determine the cases for DepElim *)
 let initialize_dep_elim_cs c env_dep_elim elim_p cs is_match sigma =
+  let cs =
+    match (get_lifting c).orn.kind with
+    | SwapConstruct swaps ->
+       (* swap the order before eliminating *)
+       let cs_arr = Array.of_list cs in
+       List.map
+         (fun i -> cs_arr.(List.assoc i swaps - 1))
+         (range 1 (List.length cs + 1))
+    | _ ->
+       (* leave the order alone *)
+       cs
+  in
   bind
     (fold_left_state
        (fun (elim_c, cs) case sigma ->
@@ -1564,7 +1576,7 @@ let initialize_dep_elim_args c env_elim elim_cs npms args is_match sigma =
 (* TODO clean a lot *)
 let initialize_dep_elim_env c env sigma =
   match c.l.orn.kind with
-  | Algebraic (_, off) when not c.l.is_fwd ->
+  | Algebraic _ | SwapConstruct _ when not c.l.is_fwd ->
      let elim_typ_rev = get_elim_type (reverse c) in
      let elim_rev = type_eliminator env (fst (destInd elim_typ_rev)) in
      let sigma, elim_rev_eta = expand_eta env sigma elim_rev in
@@ -1650,7 +1662,7 @@ let initialize_dep_elim_env c env sigma =
   | _ ->
      sigma, env (* TODO *)
 
-(* Determine DepElim *)
+(* Determine DepElim (TODO clean a lot) *)
 let initialize_dep_elim c env sigma =
   let elim_typ = get_elim_type c in
   let elim = type_eliminator env (fst (destInd elim_typ)) in
@@ -1683,6 +1695,17 @@ let initialize_dep_elim c env sigma =
        in
        reduce_term env_dep_elim sigma (mkAppl (elim_cs, final_args))
      in sigma, reconstruct_lambda_n env_dep_elim dep_elim (nb_rel env)
+  | SwapConstruct swaps when not c.l.is_fwd ->
+     let sigma, env_dep_elim = initialize_dep_elim_env c env sigma in
+     let sigma, elim_eta = expand_eta env sigma elim in
+     let env_elim, elim_body = zoom_lambda_term env elim_eta in
+     let sigma, elim_app = deconstruct_eliminator env_dep_elim sigma elim_body in
+     let elim_p = mkAppl (elim_app.elim, snoc elim_app.p elim_app.pms) in
+     let sigma, cs =
+       initialize_dep_elim_cs c env_dep_elim elim_p elim_app.cs false sigma
+     in
+     let dep_elim = apply_eliminator { elim_app with cs } in
+     sigma, reconstruct_lambda_n env_dep_elim dep_elim (nb_rel env)
   | _ ->
      sigma, elim (* TODO *)
 
