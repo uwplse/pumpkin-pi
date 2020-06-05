@@ -383,7 +383,7 @@ let lift_core env c trm sigma =
          lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma
        else
          (match (get_lifting c).orn.kind with
-          | Algebraic _ ->
+          | Algebraic _ | SwapConstruct _ ->
              (* TODO move to this for every lifting once we move to DepConstr *)
              lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma
           | _ ->

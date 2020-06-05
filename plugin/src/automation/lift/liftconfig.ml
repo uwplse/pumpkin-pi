@@ -1113,8 +1113,12 @@ let initialize_dep_constrs c cached env sigma =
            let sigma, app = reduce_nf env sigma app in
            let constr = reconstruct_lambda_n env_c_b app (nb_rel env) in
            sigma, Array.make 1 constr
-        | SwapConstruct _ ->
-           eta_constrs env b_typ sigma
+        | SwapConstruct swaps ->
+           let sigma, constrs = eta_constrs env b_typ sigma in
+           map_state_array
+             (fun i sigma -> sigma, constrs.(List.assoc i swaps - 1))
+             (Array.of_list (range 1 (Array.length constrs + 1)))
+             sigma
         | UnpackSigma ->
            eta_constrs env (first_fun (zoom_term zoom_lambda_term env b_typ)) sigma
       in
@@ -1163,15 +1167,6 @@ let lift_constr env sigma c trm =
   let sigma, typ_args = type_from_args c env trm sigma in
   let sigma, app = lift env l trm typ_args sigma in
   match l.orn.kind with
-  | SwapConstruct _ ->
-     let args = unfold_args trm in
-     let sigma, rec_args = filter_state (fun tr sigma -> let sigma, o = type_is_from c env tr sigma in sigma, Option.has_some o) args sigma in
-     if List.length rec_args = 0 then
-       (* base case - don't bother refolding *)
-       reduce_nf env sigma app
-     else
-       (* inductive case - refold *)
-       refold l env (lift_to l) app rec_args sigma
   | UnpackSigma ->
      (* specialized refolding for a cleaner and more efficient result *)
      let delta app = specialize_delta_f env (first_fun app) (unfold_args app) in
@@ -1232,7 +1227,7 @@ let initialize_constr_rule c env constr sigma =
  *)
 let initialize_constr_rules c env sigma =
   match c.l.orn.kind with
-  | Algebraic _ ->
+  | Algebraic _ | SwapConstruct _ ->
      (* already ported to depconstr *)
      sigma, c
   | _ ->
@@ -1253,7 +1248,7 @@ let initialize_constr_rules c env sigma =
 let get_constrs c = fst c.dep_constrs
 let get_lifted_constrs c =
   match c.l.orn.kind with
-  | Algebraic _ ->
+  | Algebraic _ | SwapConstruct _ ->
      (* TODO moving entirely to this at some point *)
      snd c.dep_constrs
   | _ ->
@@ -1274,7 +1269,14 @@ let applies_constr_eta c env trm sigma =
       let f = first_fun unpacked in
       match kind f with
       | Construct ((_, i), _) when i <= Array.length constrs ->
-         let constr = constrs.(i - 1) in
+         let c_i =
+           match l.orn.kind with
+           | SwapConstruct swaps when not l.is_fwd ->
+              List.assoc i swaps - 1
+           | _ ->
+              i - 1
+         in
+         let constr = constrs.(c_i) in
          let carity = arity constr in
          let f' = first_fun (project (zoom_term zoom_lambda_term env constr)) in
          let rec forget args is sigma =
@@ -1306,7 +1308,7 @@ let applies_constr_eta c env trm sigma =
          in
          let sigma, args = Util.on_snd List.rev (forget (List.rev (unfold_args unpacked)) [] sigma) in
          if equal f f' && List.length args = carity then
-           sigma, Some (i - 1, args, opaque)
+           sigma, Some (c_i, args, opaque)
          else
            sigma, None
       | _ ->
