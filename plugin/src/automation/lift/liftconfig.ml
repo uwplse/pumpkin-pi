@@ -98,8 +98,6 @@ let convertible env t1 t2 sigma =
 
 let rev_tuple = Utilities.reverse
 
-let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
-
 (* --- Recover the lifting --- *)
 
 let get_lifting c = c.l
@@ -974,21 +972,6 @@ let eta_constrs =
   map_constrs (fun env constr sigma -> expand_eta env sigma constr)
 
 (*
- * For packing constructor aguments: Pack, but only if it's B
- *)
-let pack_to_typ c env unpacked sigma =
-  let b_typ = (if c.l.is_fwd then snd else fst) c.elim_types in
-  let l = c.l in
-  if on_red_type_default (ignore_env (is_or_applies b_typ)) env sigma unpacked then
-    match l.orn.kind with
-    | Algebraic (_, off) ->
-       pack env l unpacked sigma
-    | _ ->
-       raise NotAlgebraic
-  else
-    sigma, unpacked
-
-(*
  * Initialize the arguments to a case of a DepConstr
  * TODO move common code, clean etc. before merging
  *)
@@ -1013,8 +996,7 @@ let initialize_constr_args c env_constr_body env_packed args sigma =
               let n = unshift_by sh n in
               let sigma, b_sig = reduce_type env_packed sigma n in
               let b_sig_typ = dest_sigT b_sig in
-              let b' = project_value b_sig_typ n in
-              let i' = project_index b_sig_typ n in
+              let i', b' = projections b_sig_typ n in
               Util.on_snd
                 (fun tl -> b' :: tl)
                 (lift_args sigma tl ((get_arg off t, i') :: is) sh)
@@ -1667,7 +1649,7 @@ let initialize_dep_elim c env sigma =
   let elim_typ = get_elim_type c in
   let elim = type_eliminator env (fst (destInd elim_typ)) in
   match c.l.orn.kind with
-  | Algebraic _ when not c.l.is_fwd ->
+  | Algebraic _ | SwapConstruct _ when not c.l.is_fwd ->
      let sigma, env_dep_elim = initialize_dep_elim_env c env sigma in
      let sigma, elim_eta = expand_eta env_dep_elim sigma elim in
      let sigma, dep_elim =
@@ -1695,17 +1677,6 @@ let initialize_dep_elim c env sigma =
        in
        reduce_term env_dep_elim sigma (mkAppl (elim_cs, final_args))
      in sigma, reconstruct_lambda_n env_dep_elim dep_elim (nb_rel env)
-  | SwapConstruct swaps when not c.l.is_fwd ->
-     let sigma, env_dep_elim = initialize_dep_elim_env c env sigma in
-     let sigma, elim_eta = expand_eta env sigma elim in
-     let env_elim, elim_body = zoom_lambda_term env elim_eta in
-     let sigma, elim_app = deconstruct_eliminator env_dep_elim sigma elim_body in
-     let elim_p = mkAppl (elim_app.elim, snoc elim_app.p elim_app.pms) in
-     let sigma, cs =
-       initialize_dep_elim_cs c env_dep_elim elim_p elim_app.cs false sigma
-     in
-     let dep_elim = apply_eliminator { elim_app with cs } in
-     sigma, reconstruct_lambda_n env_dep_elim dep_elim (nb_rel env)
   | _ ->
      sigma, elim (* TODO *)
 
@@ -1764,7 +1735,7 @@ let applies_elim c env trm sigma =
          let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm_b in
          let sigma, elim_app_o =
            match l.orn.kind with
-           | Algebraic _ ->
+           | Algebraic _ | SwapConstruct _ ->
               (* We return the elimination of dep_elim here *)
               if l.is_fwd then
                 sigma, Some (trm_elim, [], 0)
@@ -1780,17 +1751,6 @@ let applies_elim c env trm sigma =
                 let sigma, elim_cs = reduce_term env_elim sigma (mkAppl (elim_p, cs)) in
                 let sigma, final_args = initialize_dep_elim_args c env_elim elim_cs npms trm_elim.final_args true sigma in
                 let trm_elim = { elim; pms; p; cs; final_args } in
-                sigma, Some (trm_elim, [], 0)
-           | SwapConstruct _ ->
-              (* We return the elimination of dep_elim here (TODO consolidate) *)
-              if l.is_fwd then
-                sigma, Some (trm_elim, [], 0)
-              else
-                let elim = get_dep_elim c in
-                let elim_delta = unwrap_definition env_elim elim in
-                let sigma, elim_p = reduce_term env_elim sigma (mkAppl (elim_delta, snoc trm_elim.p trm_elim.pms)) in
-                let sigma, cs = initialize_dep_elim_cs c env_elim elim_p trm_elim.cs true sigma in
-                let trm_elim = { trm_elim with elim; cs } in
                 sigma, Some (trm_elim, [], 0)
            | UnpackSigma ->
               let sigma, elim_typ_eta = expand_eta env sigma elim_typ in
