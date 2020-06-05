@@ -1163,17 +1163,6 @@ let lift_constr env sigma c trm =
   let sigma, typ_args = type_from_args c env trm sigma in
   let sigma, app = lift env l trm typ_args sigma in
   match l.orn.kind with
-  | Algebraic _ ->
-     let pack_args (sigma, args) = map_state (pack_to_typ c env) args sigma in
-     let args = unfold_args (map_backward last_arg l trm) in
-     let sigma, packed_args = map_backward pack_args l (sigma, args) in
-     let sigma, rec_args = filter_state (fun tr sigma -> let sigma, o = type_is_from c env tr sigma in sigma, Option.has_some o) packed_args sigma in
-     if List.length rec_args = 0 then
-       (* base case - don't bother refolding *)
-       reduce_nf env sigma app
-     else
-       (* inductive case - refold *)
-       refold l env (lift_to l) app rec_args sigma
   | SwapConstruct _ ->
      let args = unfold_args trm in
      let sigma, rec_args = filter_state (fun tr sigma -> let sigma, o = type_is_from c env tr sigma in sigma, Option.has_some o) args sigma in
@@ -1225,6 +1214,8 @@ let lift_constr env sigma c trm =
   | CurryRecord ->
      (* no inductive cases, so don't try to refold *)
      reduce_nf env sigma app
+  | _ ->
+     failwith "not yet implemented"
 
 (*
  * Wrapper around NORMALIZE
@@ -1240,16 +1231,22 @@ let initialize_constr_rule c env constr sigma =
  * Run NORMALIZE for all constructors, so we can cache the result
  *)
 let initialize_constr_rules c env sigma =
-  let (fwd_constrs, bwd_constrs) = c.dep_constrs in
-  let sigma, lifted_fwd_constrs =
-    map_state_array (initialize_constr_rule c env) fwd_constrs sigma
-  in
-  let sigma, lifted_bwd_constrs =
-    map_state_array (initialize_constr_rule (reverse c) env) bwd_constrs sigma
-  in
-  let constr_rules = (lifted_fwd_constrs, lifted_bwd_constrs) in
-  sigma, { c with constr_rules }
-           
+  match c.l.orn.kind with
+  | Algebraic _ ->
+     (* already ported to depconstr *)
+     sigma, c
+  | _ ->
+     (* still porting *)
+     let (fwd_constrs, bwd_constrs) = c.dep_constrs in
+     let sigma, lifted_fwd_constrs =
+       map_state_array (initialize_constr_rule c env) fwd_constrs sigma
+     in
+     let sigma, lifted_bwd_constrs =
+       map_state_array (initialize_constr_rule (reverse c) env) bwd_constrs sigma
+     in
+     let constr_rules = (lifted_fwd_constrs, lifted_bwd_constrs) in
+     sigma, { c with constr_rules }
+
 (*
  * Get the cached unlifted and lifted constructors
  *)
