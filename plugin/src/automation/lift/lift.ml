@@ -81,7 +81,7 @@ let lift_motive env sigma c npms parameterized_elim p =
     let args = mk_n_rels nargs in
     let sigma, lifted_arg =
       if l.orn.kind = UnpackSigma then
-        (* The domain of induction doens't change *)
+        (* The domain of induction doesn't change *)
         sigma, last args
       else
         let sigma, arg =
