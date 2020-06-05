@@ -1132,6 +1132,12 @@ let initialize_dep_constrs c cached env sigma =
           snd a_constrs, snd b_constrs
       in
       save_dep_constrs (l.orn.promote, l.orn.forget) dep_constrs;
+      Array.iter2
+        (fun c1 c2 ->
+          save_lifting (l.orn.promote, l.orn.forget, c1) c2;
+          save_lifting (l.orn.forget, l.orn.promote, c2) c1)
+        (fst dep_constrs)
+        (snd dep_constrs);
       sigma, dep_constrs
   in
   let constrs = if l.is_fwd then constrs else rev_tuple constrs in
@@ -1702,6 +1708,8 @@ let initialize_dep_elims c cached env sigma =
       let elim_b = define_term (fst elim_b) sigma (snd elim_b) true in
       let elims = map_tuple Universes.constr_of_global (elim_a, elim_b) in
       save_dep_elim (c.l.orn.promote, c.l.orn.forget) elims;
+      save_lifting (c.l.orn.promote, c.l.orn.forget, (fst elims)) (snd elims);
+      save_lifting (c.l.orn.forget, c.l.orn.promote, (snd elims)) (fst elims);
       sigma, elims
   in
   let elims = if c.l.is_fwd then elims else rev_tuple elims in
