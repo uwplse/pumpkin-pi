@@ -115,7 +115,7 @@ let is_opaque c trm =
   else
     (* TODO once done, port all of these to behave like this *)
     match c.l.orn.kind with
-    | Algebraic _ ->
+    | Algebraic _ | SwapConstruct _ ->
        if equal trm (snd c.dep_elims) then
          true
        else
@@ -1524,7 +1524,7 @@ let initialize_dep_elim_c c env_elim elim_c case is_match sigma =
 (* Determine the cases for DepElim *)
 let initialize_dep_elim_cs c env_dep_elim elim_p cs is_match sigma =
   let cs =
-    match (get_lifting c).orn.kind with
+    match (get_lifting (if is_match then reverse c else c)).orn.kind with
     | SwapConstruct swaps ->
        (* swap the order before eliminating *)
        let cs_arr = Array.of_list cs in
@@ -1781,7 +1781,18 @@ let applies_elim c env trm sigma =
                 let sigma, final_args = initialize_dep_elim_args c env_elim elim_cs npms trm_elim.final_args true sigma in
                 let trm_elim = { elim; pms; p; cs; final_args } in
                 sigma, Some (trm_elim, [], 0)
-           | SwapConstruct _ | UnpackSigma ->
+           | SwapConstruct _ ->
+              (* We return the elimination of dep_elim here (TODO consolidate) *)
+              if l.is_fwd then
+                sigma, Some (trm_elim, [], 0)
+              else
+                let elim = get_dep_elim c in
+                let elim_delta = unwrap_definition env_elim elim in
+                let sigma, elim_p = reduce_term env_elim sigma (mkAppl (elim_delta, snoc trm_elim.p trm_elim.pms)) in
+                let sigma, cs = initialize_dep_elim_cs c env_elim elim_p trm_elim.cs true sigma in
+                let trm_elim = { trm_elim with elim; cs } in
+                sigma, Some (trm_elim, [], 0)
+           | UnpackSigma ->
               let sigma, elim_typ_eta = expand_eta env sigma elim_typ in
               let nargs = (arity elim_typ_eta) - (List.length trm_elim.pms) + 1 in
               sigma, Some (trm_elim, trm_elim.pms, nargs)

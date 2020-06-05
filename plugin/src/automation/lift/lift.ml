@@ -58,12 +58,6 @@ let map_rec_args_list lift_rec env sigma c args =
 let lift_elim_args env sigma c npms args =
   let l = get_lifting c in
   match l.orn.kind with
-  | SwapConstruct _ ->
-     let arg = last args in
-     let sigma, typ_args = type_from_args c env arg sigma in
-     let sigma, lifted_arg = lift env l arg typ_args sigma in
-     let value_off = List.length args - 1 in
-     sigma, reindex value_off lifted_arg args
   | CurryRecord ->
      let arg = last args in
      let sigma, typ_args = type_from_args c env arg sigma in
@@ -102,7 +96,7 @@ let lift_motive env sigma c npms parameterized_elim p =
     match l.orn.kind with
     | CurryRecord ->
        sigma, [lifted_arg]
-    | SwapConstruct _ | UnpackSigma ->
+    | UnpackSigma ->
        let value_off = nargs - 1 in
        sigma, reindex value_off lifted_arg args
     | _ ->
@@ -151,12 +145,6 @@ let lift_case_args c env_c to_c_typ npms nargs sigma =
   let l = get_lifting c in
   let to_typ = get_elim_type (reverse c) in
   match l.orn.kind with
-  | SwapConstruct _ ->
-     let args = mk_n_rels nargs in
-     if l.is_fwd then
-       promote_case_args env_c sigma c args
-     else
-       forget_case_args env_c sigma c args
   | CurryRecord ->
      let args = mk_n_rels nargs in
      if l.is_fwd then
@@ -198,18 +186,6 @@ let lift_case env c npms c_elim constr sigma =
 
 (* Lift cases *)
 let lift_cases env c npms p_elim cs =
-  let cs =
-    match (get_lifting (reverse c)).orn.kind with
-    | SwapConstruct swaps ->
-       (* swap the order before eliminating *)
-       let cs_arr = Array.of_list cs in
-       List.map
-         (fun i -> cs_arr.(List.assoc i swaps - 1))
-         (range 1 (List.length cs + 1))
-    | _ ->
-       (* leave the order alone *)
-       cs
-  in
   bind
     (fold_left_state
        (fun (c_elim, cs) constr sigma ->
