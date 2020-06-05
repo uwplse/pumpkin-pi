@@ -58,24 +58,6 @@ let map_rec_args_list lift_rec env sigma c args =
 let lift_elim_args env sigma c npms args =
   let l = get_lifting c in
   match l.orn.kind with
-  | Algebraic (indexer, off) ->
-     let arg = map_backward last_arg l (last args) in
-     let sigma, typ_args = type_from_args c env arg sigma in
-     let sigma, lifted_arg = lift env l arg typ_args sigma in
-     let value_off = List.length args - 1 in
-     let orn = { l.orn with kind = Algebraic (indexer, off - npms) } in
-     let l = { l with orn } in (* no parameters here *)
-     if l.is_fwd then
-       (* project and index *)
-       let b_sig = lifted_arg in
-       let b_sig_typ = dest_sigT_type env sigma b_sig in
-       let i_b = project_index b_sig_typ b_sig in
-       let b = project_value b_sig_typ b_sig in
-       sigma, index l i_b (reindex value_off b args)
-     else
-       (* don't project and deindex *)
-       let a = lifted_arg in
-       sigma, deindex l (reindex value_off a args)
   | SwapConstruct _ ->
      let arg = last args in
      let sigma, typ_args = type_from_args c env arg sigma in
@@ -118,26 +100,13 @@ let lift_motive env sigma c npms parameterized_elim p =
         lift env_p_to (flip_dir l) arg typ_args sigma
     in
     match l.orn.kind with
-    | Algebraic (indexer, off) ->
-       let value_off = nargs - 1 in
-       let orn = { l.orn with kind = Algebraic (indexer, off - npms) } in
-       let l = { l with orn } in (* no parameters here *)
-       if l.is_fwd then
-         (* forget packed b to a, don't project, and deindex *)
-         let a = lifted_arg in
-         sigma, deindex l (reindex value_off a args)
-       else
-         (* promote a to packed b, project, and index *)
-         let b_sig = lifted_arg in
-         let b_sig_typ = dest_sigT_type env_p_to sigma b_sig in
-         let i_b = project_index b_sig_typ b_sig in
-         let b = project_value b_sig_typ b_sig in
-         sigma, index l i_b (reindex value_off b args)
     | CurryRecord ->
        sigma, [lifted_arg]
     | SwapConstruct _ | UnpackSigma ->
        let value_off = nargs - 1 in
        sigma, reindex value_off lifted_arg args
+    | _ ->
+       failwith "not yet implemented"
   in
   let p_app = reduce_stateless reduce_term env_p_to sigma (mkAppl (p, args)) in
   sigma, reconstruct_lambda_n env_p_to p_app (nb_rel env)
@@ -150,114 +119,44 @@ let lift_motive env sigma c npms parameterized_elim p =
 let promote_case_args env sigma c args =
   let l = get_lifting c in
   let b_typ = get_elim_type (reverse c) in
-  match l.orn.kind with
-  | Algebraic (_, off) ->
-     let rec lift_args sigma args i_b =
-       match args with
-       | n :: tl ->
-          if equal n i_b then
-            (* DROP-INDEX *)
-            Util.on_snd
-              (fun tl -> shift n :: tl)
-              (lift_args sigma (shift_all tl) i_b)
-          else
-            let sigma, t = reduce_type env sigma n in
-            if is_or_applies b_typ t then
-              (* FORGET-ARG *)
-              let sigma, n = pack env (flip_dir l) n sigma in
-              let sigma, typ_args = type_from_args (reverse c) env n sigma in
-              let sigma, a = lift env (flip_dir l) n typ_args sigma in
-              Util.on_snd
-                (fun tl -> a :: tl)
-                (lift_args sigma tl (get_arg off t))
-            else
-              (* ARG *)
-              Util.on_snd (fun tl -> n :: tl) (lift_args sigma tl i_b)
-       | _ ->
-          (* CONCL in inductive case *)
-          sigma, []
-     in Util.on_snd List.rev (lift_args sigma (List.rev args) (mkRel 0))
-  | _ ->
-     let rec lift_args sigma args =
-       match args with
-       | n :: tl ->
-          let sigma, t = reduce_type env sigma n in
-          if is_or_applies b_typ t then
-            (* FORGET-ARG *)
-            let sigma, typ_args = type_from_args (reverse c) env n sigma in
-            let sigma, a = lift env (flip_dir l) n typ_args sigma in
-            Util.on_snd (fun tl -> a :: tl) (lift_args sigma tl)
-          else
-            (* ARG *)
-            Util.on_snd (fun tl -> n :: tl) (lift_args sigma tl)
-       | _ ->
-          (* CONCL in inductive case *)
-          sigma, []
-     in Util.on_snd List.rev (lift_args sigma (List.rev args))
+  let rec lift_args sigma args =
+    match args with
+    | n :: tl ->
+       let sigma, t = reduce_type env sigma n in
+       if is_or_applies b_typ t then
+         (* FORGET-ARG *)
+         let sigma, typ_args = type_from_args (reverse c) env n sigma in
+         let sigma, a = lift env (flip_dir l) n typ_args sigma in
+         Util.on_snd (fun tl -> a :: tl) (lift_args sigma tl)
+       else
+         (* ARG *)
+         Util.on_snd (fun tl -> n :: tl) (lift_args sigma tl)
+    | _ ->
+       (* CONCL in inductive case *)
+       sigma, []
+  in Util.on_snd List.rev (lift_args sigma (List.rev args))
 
 (*
  * The argument rules for lifting eliminator cases in the forgetful direction.
  * Note that since we save arguments and reduce at the end, this looks a bit
  * different, and the call to new is no longer necessary.
  *)
-let forget_case_args env_c_b env sigma c args =
-  let l = get_lifting c in
-  match l.orn.kind with
-  | Algebraic (_, off)->
-     let b_typ = get_elim_type c in
-     let rec lift_args sigma args (i_b, proj_i_b) =
-       match args with
-       | n :: tl ->
-          if equal n i_b then
-            (* ADD-INDEX *)
-            Util.on_snd
-              (fun tl -> proj_i_b :: tl)
-              (lift_args sigma (unshift_all tl) (i_b, proj_i_b))
-          else
-            let sigma, t = reduce_type env_c_b sigma n in
-            if is_or_applies b_typ t then
-              (* PROMOTE-ARG *)
-              let sigma, typ_args = type_from_args (reverse c) env n sigma in
-              let sigma, b_sig = lift env (flip_dir l) n typ_args sigma in
-              let b_sig_typ = dest_sigT_type env sigma b_sig in
-              let proj_b = project_value b_sig_typ b_sig in
-              let proj_i_b = project_index b_sig_typ b_sig in
-              Util.on_snd
-                (fun tl -> proj_b :: tl)
-                (lift_args sigma tl (get_arg off t, proj_i_b))
-            else
-              (* ARG *)
-              Util.on_snd
-                (fun tl -> n :: tl)
-                (lift_args sigma tl (i_b, proj_i_b))
-       | _ ->
-          (* CONCL in inductive case *)
-          sigma, []
-     in Util.on_snd List.rev (lift_args sigma (List.rev args) (mkRel 0, mkRel 0))
-  | _ ->
-     promote_case_args env sigma (reverse c) args
+let forget_case_args env sigma c args =
+  promote_case_args env sigma (reverse c) args
 
 (*
  * Lift the arguments of a case of an eliminator
  *)
-let lift_case_args c env_c_b env_c to_c_typ npms nargs sigma =
+let lift_case_args c env_c to_c_typ npms nargs sigma =
   let l = get_lifting c in
   let to_typ = get_elim_type (reverse c) in
   match l.orn.kind with
-  | Algebraic _ ->
-     let nihs = num_ihs env_c sigma to_typ to_c_typ in
-     let nargs_lifted = if l.is_fwd then nargs - nihs else nargs + nihs in
-     let args = mk_n_rels nargs_lifted in
-     if l.is_fwd then
-       promote_case_args env_c sigma c args
-     else
-       forget_case_args env_c_b env_c sigma c args
   | SwapConstruct _ ->
      let args = mk_n_rels nargs in
      if l.is_fwd then
        promote_case_args env_c sigma c args
      else
-       forget_case_args env_c_b env_c sigma c args
+       forget_case_args env_c sigma c args
   | CurryRecord ->
      let args = mk_n_rels nargs in
      if l.is_fwd then
@@ -292,7 +191,7 @@ let lift_case env c npms c_elim constr sigma =
     let c_eta = shift_by nargs c_eta in
     let (env_c_b, c_body) = zoom_lambda_term env_c c_eta in
     let (c_f, _) = destApp c_body in
-    let sigma, args = lift_case_args c env_c_b env_c (shift_by nargs to_c_typ) npms nargs sigma in
+    let sigma, args = lift_case_args c env_c (shift_by nargs to_c_typ) npms nargs sigma in
     let f = unshift_by (new_rels2 env_c_b env_c) c_f in
     let body = reduce_stateless reduce_term env_c sigma (mkAppl (f, args)) in
     sigma, reconstruct_lambda_n env_c body (nb_rel env)
