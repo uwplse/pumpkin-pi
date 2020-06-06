@@ -114,7 +114,6 @@ type lift_rule =
 | LiftConstr of reducer * (constr * constr list)
 | LiftIdentity of reducer * (constr * constr list)
 | Coherence of reducer * (constr * constr list)
-| Internalize
 | Optimization of lift_optimization
 | CIC of (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
 
@@ -264,8 +263,6 @@ let determine_lift_rule c env trm prev_rules sigma =
     sigma, Optimization (LocalCaching (lookup_cache c trm))
   else if is_opaque c trm then
     sigma, Optimization OpaqueConstant
-  else if is_internalize c trm then
-    sigma, Internalize
   else
     let sigma, args_o = is_equivalence c env trm prev_rules sigma in
     if Option.has_some args_o then
