@@ -76,7 +76,7 @@ type lift_optimization =
                                      
 (*
  * We compile Gallina to a language that matches our premises for the rules
- * in our lifting algorithm.
+ * in our lifting algorithm. (TODO fix numbers/descriptions)
  *
  * 1. EQUIVALENCE runs when the term we are lifting is one of the types in
  *    the type equivalence we are lifting across. This carries the lifted type
@@ -94,29 +94,19 @@ type lift_optimization =
  *    function to apply coherence to the lifted arguments (to neatly ensure
  *    termination while also maintaining correctness).
  *
- * 4. LIFT-ELIM runs when we lift applications of eliminators of the type
- *    in the equivalence. This carries the application of the eliminator,
- *    the lifted parameters, and the arguments after the eliminator (if the
- *    motive is a product type), as well as a flag for whether to treat the
- *    entire eliminated term as opaque.
- *
- * 5. SECTION runs when section applies.
- *
- * 6. RETRACTION runs when retraction applies.
- *
- * 7. INTERNALIZE runs when it is necessary to get rid of some application
+ * 4. INTERNALIZE runs when it is necessary to get rid of some application
  *    of the equivalence temporarily introduced by LIFT-CONSTR or LIFT-ELIM
  *    for the sake of creating intermediate terms that type check.
  *
- * 8. OPTIMIZATION runs when some optimization applies.
+ * 5. OPTIMIZATION runs when some optimization applies.
  *
- * 9. LIFT-IDENTITY runs when we lift the eta-expanded identity function.
+ * 6. LIFT-IDENTITY runs when we lift the eta-expanded identity function.
  *    This exists to ensure that we preserve definitional equalities.
  *    The rule returns the lifted identity function and its arguments, as
  *    well as a custom reduction function to apply identity to the
  *    lifted arguments (for efficiency and to ensure termination).
  *
- * 10. CIC runs when no optimization applies and none of the other rules
+ * 7. CIC runs when no optimization applies and none of the other rules
  *    apply. It returns the kind of the Gallina term.
  *)
 type lift_rule =
@@ -124,8 +114,6 @@ type lift_rule =
 | LiftConstr of reducer * (constr * constr list)
 | LiftIdentity of reducer * (constr * constr list)
 | Coherence of reducer * (constr * constr list)
-| Section
-| Retraction
 | Internalize
 | Optimization of lift_optimization
 | CIC of (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
@@ -258,13 +246,6 @@ let is_eliminator c env trm sigma =
   applies_elim c env trm sigma
 
 (*
- * SECTION / RETRACTION
- *)
-let is_section_retraction c trm =
-  let l = get_lifting c in
-  isApp trm && applies (lift_back l) trm
-
-(*
  * INTERNALIZE
  *)
 let is_internalize c trm =
@@ -283,8 +264,6 @@ let determine_lift_rule c env trm prev_rules sigma =
     sigma, Optimization (LocalCaching (lookup_cache c trm))
   else if is_opaque c trm then
     sigma, Optimization OpaqueConstant
-  else if is_section_retraction c trm then
-    sigma, if l.is_fwd then Retraction else Section
   else if is_internalize c trm then
     sigma, Internalize
   else

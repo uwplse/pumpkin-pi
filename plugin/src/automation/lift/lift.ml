@@ -180,7 +180,7 @@ let lift_core env c trm sigma =
        sigma, tr
     | Optimization (LazyEta tr_eta) ->
        lift_rec lift_rules en sigma c tr_eta
-    | Section | Retraction | Internalize ->
+    | Internalize ->
        lift_rec lift_rules en sigma c (last_arg tr)
     | LiftIdentity (simplify, (f, args)) | Coherence (simplify, (f, args)) ->
        lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma
