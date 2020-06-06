@@ -1810,7 +1810,7 @@ let applies_elim c env trm sigma =
               if l.is_fwd then
                 sigma, Some (trm_elim, [], 0)
               else
-                let sigma, is_from = type_is_from c env_elim (List.hd trm_elim.final_args) sigma in
+                let sigma, is_from = if l.orn.kind = CurryRecord then type_is_from c env_elim (List.hd trm_elim.final_args) sigma else sigma, None in
                 if (not (l.orn.kind = CurryRecord)) || Option.has_some is_from then
                   let elim = get_dep_elim c in
                   let sigma, pms =
