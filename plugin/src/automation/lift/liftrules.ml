@@ -124,7 +124,6 @@ type lift_rule =
 | LiftConstr of reducer * (constr * constr list * bool)
 | LiftIdentity of reducer * (constr * constr list)
 | Coherence of reducer * (constr * constr list)
-| LiftElim of elim_app * constr list * constr list * bool
 | Section
 | Retraction
 | Internalize
@@ -256,17 +255,7 @@ let is_identity c env trm prev_rules sigma =
 
 (* Premises for LIFT-ELIM *)
 let is_eliminator c env trm sigma =
-  let sigma, elim_app_o = applies_elim c env trm sigma in
-  if Option.has_some elim_app_o then
-    let eta_o, trm_elim, pms, nargs, opaque = Option.get elim_app_o in
-    if Option.has_some eta_o then
-      (* Lazy eta *)
-      sigma, Some (eta_o, None)
-    else
-      (* Already eta-expanded *)
-      sigma, Some (None, Some (trm_elim, pms, nargs, opaque))
-  else
-    sigma, None
+  applies_elim c env trm sigma
 
 (*
  * SECTION / RETRACTION
@@ -324,11 +313,10 @@ let determine_lift_rule c env trm prev_rules sigma =
           else
             let sigma, is_elim_o = is_eliminator c env trm sigma in
             if Option.has_some is_elim_o then
-              let eta_o, elim_app_o = Option.get is_elim_o in
+              let eta_o, trm_elim = Option.get is_elim_o in
               if Option.has_some eta_o then
                 sigma, Optimization (LazyEta (Option.get eta_o))
               else
-                let trm_elim, pms, nargs, opaque = Option.get elim_app_o in
                 let lifted_dep_elim = get_lifted_dep_elim c in
                 let args = unfold_args (apply_eliminator trm_elim) in
                 sigma, Optimization (AppLazyDelta (lifted_dep_elim, Array.of_list args))

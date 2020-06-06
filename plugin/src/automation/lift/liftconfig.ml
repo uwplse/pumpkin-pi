@@ -1803,7 +1803,7 @@ let applies_elim c env trm sigma =
            | Algebraic _ | SwapConstruct _ | CurryRecord ->
               (* We return the elimination of dep_elim here *)
               if l.is_fwd then
-                sigma, Some (trm_elim, [], 0)
+                sigma, Some (trm_elim)
               else
                 let sigma, is_from = if l.orn.kind = CurryRecord then type_is_from c env_elim (List.hd trm_elim.final_args) sigma else sigma, None in
                 if (not (l.orn.kind = CurryRecord)) || Option.has_some is_from then
@@ -1825,20 +1825,19 @@ let applies_elim c env trm sigma =
                   let sigma, elim_cs = reduce_term env_elim sigma (mkAppl (elim_p, cs)) in
                   let sigma, final_args = initialize_dep_elim_args c env_elim elim_cs npms trm_elim.final_args true sigma in
                   let trm_elim = { elim; pms; p; cs; final_args } in
-                  sigma, Some (trm_elim, [], 0)
+                  sigma, Some (trm_elim)
                 else
                   sigma, None
            | UnpackSigma ->
               (* TODO eventually, use explicit depelim here (one step further than regression though *)
-              sigma, Some (trm_elim, [], 0)
+              sigma, Some (trm_elim)
          in
          if Option.has_some elim_app_o then
-           let trm_elim, pms, nargs = Option.get elim_app_o in
-           let opaque = (l.orn.kind = UnpackSigma) in
+           let trm_elim = Option.get elim_app_o in
            if new_rels2 env_elim env > 0 then
-             sigma, Some (Some trm_eta, trm_elim, pms, nargs, opaque)
+             sigma, Some (Some trm_eta, trm_elim)
            else
-             sigma, Some (None, trm_elim, pms, nargs, opaque)
+             sigma, Some (None, trm_elim)
          else
            sigma, None
        else

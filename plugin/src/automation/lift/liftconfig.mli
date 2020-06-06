@@ -122,16 +122,14 @@ val applies_id_eta :
 (* --- Constructors and eliminators --- *)
 
 (*
- * Get the cached unlifted and lifted constructors
+ * Get DepConstr
  *)
 val get_constrs : lift_config -> constr array
 val get_lifted_constrs : lift_config -> constr array
 
 (*
- * Get the type we eliminate over, and DepElim
- * (TODO remove get_elim_type from interface when done with port)
+ * Get DepElim
  *)
-val get_elim_type : lift_config -> types
 val get_dep_elim : lift_config -> types
 val get_lifted_dep_elim : lift_config -> types
 
@@ -148,18 +146,15 @@ val applies_constr_eta :
   ((int * (constr list) * bool) option) state
 
 (*
- * Check if the term applies the eliminator
- * If so return the eta-expanded term, the eliminator application, the
- * parameters, and the arity of the motive (the number of "final arguments"
- * after inducting over the term), as well as whether to treat the eliminator
- * application as opaque when lifting recursively
+ * Check if the term applies DepElim
+ * If so return the eta-expanded term and the eliminator application
  *)
 val applies_elim :
   lift_config ->
   env ->
   constr ->
   evar_map ->
-  ((constr option * elim_app * constr list * int * bool) option) state
+  ((constr option * elim_app) option) state
 
 (* --- Custom simplification --- *)
                                      
