@@ -186,7 +186,7 @@ let lift_core env c trm sigma =
        lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma
     | Equivalence (f, args) ->
        lift_app_simplify c en f args reduce_term (lift_rec lift_rules) sigma
-    | LiftConstr (simplify, (f, args, opaque)) ->
+    | LiftConstr (simplify, (f, args)) ->
        lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma

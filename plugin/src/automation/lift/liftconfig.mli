@@ -143,7 +143,7 @@ val applies_constr_eta :
   env ->
   constr ->
   evar_map ->
-  ((int * (constr list) * bool) option) state
+  ((int * (constr list)) option) state
 
 (*
  * Check if the term applies DepElim

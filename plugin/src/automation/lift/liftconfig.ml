@@ -1242,7 +1242,7 @@ let get_lifted_constrs c =
 let applies_constr_eta c env trm sigma =
   let l = get_lifting c in
   let constrs = get_constrs c in
-  let is_inductive_constr project trm opaque =
+  let is_inductive_constr project trm =
     (* Helper function, faster than unifying with constructor rules *)
     try
       let unpacked = project trm in
@@ -1288,7 +1288,7 @@ let applies_constr_eta c env trm sigma =
          in
          let sigma, args = Util.on_snd List.rev (forget (List.rev (unfold_args unpacked)) [] sigma) in
          if equal f f' && List.length args = carity then
-           sigma, Some (c_i, args, opaque)
+           sigma, Some (c_i, args)
          else
            sigma, None
       | _ ->
@@ -1299,12 +1299,12 @@ let applies_constr_eta c env trm sigma =
   if may_apply_id_eta c env trm then
     match l.orn.kind with
     | Algebraic _ ->
-       is_inductive_constr (if l.is_fwd then id else last_arg) trm false
+       is_inductive_constr (if l.is_fwd then id else last_arg) trm
     | SwapConstruct _ ->
-       is_inductive_constr id trm false
+       is_inductive_constr id trm
     | CurryRecord ->
        if l.is_fwd then
-         is_inductive_constr id trm false
+         is_inductive_constr id trm
        else
          if applies (lift_back l) trm then
            sigma, None
@@ -1317,7 +1317,7 @@ let applies_constr_eta c env trm sigma =
              let pms = Option.get args_opt in
              let npm = List.length pms in
              let args = pair_projections_eta_rec_n trm (arity constr - npm) in
-             sigma, Some (0, List.append pms args, false)
+             sigma, Some (0, List.append pms args)
            else
              sigma, None
     | UnpackSigma ->
@@ -1325,7 +1325,7 @@ let applies_constr_eta c env trm sigma =
          (* ID rules always take care of this, so no need *)
          sigma, None
        else
-         is_inductive_constr id trm true
+         is_inductive_constr id trm
   else
     sigma, None
 
@@ -1675,7 +1675,7 @@ let initialize_dep_elim_env c env sigma =
           let args = all_but_last (unfold_args case_typ) in
           let arg = last_arg case_typ in
           let sigma, app_o = applies_constr_eta (reverse c) env arg sigma in
-          let i, c_args, _ = Option.get app_o in
+          let i, c_args = Option.get app_o in
           let lifted_constr = (get_constrs c).(i) in
           let sigma, arg' = reduce_term env sigma (mkAppl (lifted_constr, c_args)) in
           reduce_term env sigma (mkAppl (f, snoc arg' args))

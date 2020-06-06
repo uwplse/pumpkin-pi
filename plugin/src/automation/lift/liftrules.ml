@@ -121,7 +121,7 @@ type lift_optimization =
  *)
 type lift_rule =
 | Equivalence of constr * constr list
-| LiftConstr of reducer * (constr * constr list * bool)
+| LiftConstr of reducer * (constr * constr list)
 | LiftIdentity of reducer * (constr * constr list)
 | Coherence of reducer * (constr * constr list)
 | Section
@@ -164,7 +164,7 @@ let terminate_constr prev_rules f args=
   List.exists
     (fun prev_rule ->
       match prev_rule with
-      | LiftConstr (simplify, (f', args', opaque)) when equal f f' ->
+      | LiftConstr (simplify, (f', args')) when equal f f' ->
          (* the lifted contructor refers to the unlifted constructor *)
          equal f f' && List.for_all2 equal args args'
       | _ ->
@@ -221,10 +221,10 @@ let is_equivalence c env trm prev_rules sigma =
 let is_constr c prev_rules env trm sigma =
   let sigma, app_o = applies_constr_eta c env trm sigma in
   if Option.has_some app_o then
-    let i, args, opaque = Option.get app_o in
+    let i, args = Option.get app_o in
     let lifted_constr = (get_lifted_constrs c).(i) in
     if not (terminate_constr prev_rules lifted_constr args) then
-      sigma, Some (lifted_constr, args, reduce_constr_app c, opaque)
+      sigma, Some (lifted_constr, args, reduce_constr_app c)
     else
       sigma, None
   else
@@ -303,8 +303,8 @@ let determine_lift_rule c env trm prev_rules sigma =
       else
         let sigma, constr_o = is_constr c prev_rules env trm sigma in
         if Option.has_some constr_o then
-          let f, args, simplify, opaque = Option.get constr_o in
-          sigma, LiftConstr (simplify, (f, args, opaque))
+          let f, args, simplify = Option.get constr_o in
+          sigma, LiftConstr (simplify, (f, args))
         else
           let sigma, is_identity_o = is_identity c env trm prev_rules sigma in
           if Option.has_some is_identity_o then
