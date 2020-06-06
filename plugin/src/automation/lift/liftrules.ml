@@ -329,16 +329,9 @@ let determine_lift_rule c env trm prev_rules sigma =
                 sigma, Optimization (LazyEta (Option.get eta_o))
               else
                 let trm_elim, pms, nargs, opaque = Option.get elim_app_o in
-                (* TODO use dep_elim for all cases *)
-                (match (get_lifting c).orn.kind with
-                 | Algebraic _ | SwapConstruct _ | CurryRecord ->
-                    let lifted_dep_elim = get_lifted_dep_elim c in
-                    let args = unfold_args (apply_eliminator trm_elim) in
-                    sigma, Optimization (AppLazyDelta (lifted_dep_elim, Array.of_list args))
-                 | _ ->
-                    let args = take_split nargs trm_elim.final_args in
-                    let trm_elim = { trm_elim with final_args = fst args } in
-                    sigma, LiftElim (trm_elim, pms, snd args, opaque))
+                let lifted_dep_elim = get_lifted_dep_elim c in
+                let args = unfold_args (apply_eliminator trm_elim) in
+                sigma, Optimization (AppLazyDelta (lifted_dep_elim, Array.of_list args))
             else
               match kind trm with
               | App (f, args) ->

@@ -192,7 +192,13 @@ let lift_core env c trm sigma =
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma
     | LiftElim (tr_elim, pms, args, opaque) ->
        (* TODO remove and remove other related rules once done porting *)
-       let f = apply_eliminator tr_elim in
+       let tr_elim = apply_eliminator tr_elim in
+       let f = first_fun tr_elim in
+       let args = List.append (unfold_args tr_elim) args in
+       (* let f = apply_eliminator tr_elim in *)
+       let open Printing in
+       debug_term en f "f";
+       debug_terms en args "args";
        lift_app_simplify c en f args reduce_term (lift_rec lift_rules) sigma
     | Optimization (AppLazyDelta (f, args)) ->
        lift_app_lazy_delta c en f args (lift_rec lift_rules) sigma

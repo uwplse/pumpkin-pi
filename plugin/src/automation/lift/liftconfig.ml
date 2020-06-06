@@ -111,15 +111,10 @@ let is_opaque c trm =
   if is_locally_cached c.opaques trm then
     true
   else
-    (* TODO once done, port all of these to behave like this *)
-    match c.l.orn.kind with
-    | Algebraic _ | SwapConstruct _ ->
-       if equal trm (snd c.dep_elims) then
-         true
-       else
-         lookup_opaque (lift_to c.l, lift_back c.l, trm)
-    | _ ->
-       lookup_opaque (lift_to c.l, lift_back c.l, trm)
+    if equal trm (snd c.dep_elims) then
+      true
+    else
+      lookup_opaque (lift_to c.l, lift_back c.l, trm)
     
 (*
  * Configurable caching of constants
@@ -1746,7 +1741,7 @@ let initialize_dep_elim c env sigma =
        in reduce_term env_dep_elim sigma (mkAppl (elim_cs, final_args))
      in sigma, reconstruct_lambda_n env_dep_elim dep_elim (nb_rel env)
   | _ ->
-     sigma, elim (* TODO *)
+     sigma, elim
 
 (*
  * Initialize dep_elims
@@ -1834,9 +1829,8 @@ let applies_elim c env trm sigma =
                 else
                   sigma, None
            | UnpackSigma ->
-              let sigma, elim_typ_eta = expand_eta env sigma elim_typ in
-              let nargs = (arity elim_typ_eta) - (List.length trm_elim.pms) + 1 in
-              sigma, Some (trm_elim, trm_elim.pms, nargs)
+              (* TODO eventually, use explicit depelim here (one step further than regression though *)
+              sigma, Some (trm_elim, [], 0)
          in
          if Option.has_some elim_app_o then
            let trm_elim, pms, nargs = Option.get elim_app_o in
