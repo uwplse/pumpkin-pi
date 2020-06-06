@@ -263,7 +263,6 @@ Lift Generated4'.output Handwritten4'.output in Generated4'.field1and3 as field1
 Lift Generated4'.output Handwritten4'.output in Generated4'.op as .._1.
 Lift Generated4'.input Handwritten4'.input in op_1 as op.
 Lift Generated4'.output Handwritten4'.output in Generated4'.and_spec_true_true as .._1.
-Print LiftedHandwritten4.input_curry_dep_elim_b.
 Lift Generated4'.input Handwritten4'.input in and_spec_true_true_1 as and_spec_true_true.
 Lift Generated4'.output Handwritten4'.output in Generated4'.plus_spec_O_l as plus_spec_O_l_1.
 Lift Generated4'.input Handwritten4'.input in plus_spec_O_l_1 as plus_spec_O_l.

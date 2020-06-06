@@ -1386,7 +1386,7 @@ let initialize_dep_elim_pms c env_elim pms is_match sigma =
   match c.l.orn.kind with
   | CurryRecord when not c.l.is_fwd ->
      if is_match then
-       sigma, List.tl (List.tl pms) (* TODO *)
+       sigma, pms
      else
        let typ_f = first_fun (zoom_term zoom_lambda_term env_elim (snd (get_types c))) in
        let sigma, to_typ_prod = specialize_delta_f env_elim typ_f pms sigma in
@@ -1519,9 +1519,6 @@ let initialize_dep_elim_c_args c env_case env_elim case_typ nargs npms case is_m
        let sigma, c_typ = reduce_type env_case sigma (mkConstruct (ind, 1)) in
        let nargs_lifted = arity c_typ in
        let c_args, b_args = take_split nargs_lifted args in
-       let open Printing in
-       debug_terms env_case c_args "c_args";
-       debug_terms env_case b_args "b_args";
        let sigma, arg_pair = pack_pair_rec env_case (List.tl c_args) sigma in
        sigma, List.append [List.hd c_args; arg_pair] b_args
   | _ ->
@@ -1563,10 +1560,7 @@ let initialize_dep_elim_c c env_elim elim_c npms case is_match sigma =
        let (env_c_b, c_body) = zoom_lambda_term env_elim c_eta in
        let (c_f, _) = destApp c_body in
        let sigma, args = initialize_dep_elim_c_args c env_c env_elim (shift_by nargs case_typ) nargs npms case is_match sigma in
-       let open Printing in
-       debug_terms env_c args "args";
        let f = unshift_by (new_rels2 env_c_b env_c) c_f in
-       debug_term env_c f "f";
        let sigma, body = reduce_term env_c sigma (mkAppl (f, args)) in
        sigma, reconstruct_lambda_n env_c body (nb_rel env_elim)
   | _ ->
@@ -1816,37 +1810,25 @@ let applies_elim c env trm sigma =
               if l.is_fwd then
                 sigma, Some (trm_elim, [], 0)
               else
-                let open Printing in
                 let sigma, is_from = type_is_from c env_elim (List.hd trm_elim.final_args) sigma in
-                if Option.has_some is_from then
+                if (not (l.orn.kind = CurryRecord)) || Option.has_some is_from then
                   let elim = get_dep_elim c in
-                  let open Printing in
-                  debug_term env_elim elim "elim";
-                  let npms =
-                    if c.l.orn.kind = CurryRecord then
-                      (new_rels2 env_elim env) - 3
-                    else
-                      List.length trm_elim.pms
+                  let sigma, pms =
+                    let pms_old =
+                      if l.orn.kind = CurryRecord then
+                        Option.get is_from
+                      else
+                        trm_elim.pms
+                    in initialize_dep_elim_pms c env_elim pms_old true sigma
                   in
-                  let sigma, pms = initialize_dep_elim_pms c env_elim trm_elim.pms true sigma in
-                  let open Printing in
-                  debug_terms env_elim pms "pms";
+                  let npms = List.length trm_elim.pms in
                   let elim_delta = unwrap_definition env_elim elim in
                   let sigma, elim_pms = reduce_term env_elim sigma (mkAppl (elim_delta, pms)) in
                   let sigma, p = initialize_dep_elim_p c env_elim elim_pms npms trm_elim.p true sigma in
                   let sigma, elim_p = reduce_term env_elim sigma (mkAppl (elim_pms, [p])) in
-                  let sigma, typ = reduce_type env_elim sigma elim_p in
-                  debug_term env_elim typ "elim_p_typ";
-                  let open Printing in
-                  debug_terms env_elim trm_elim.cs "cs";
                   let sigma, cs = initialize_dep_elim_cs c env_elim elim_p npms trm_elim.cs true sigma in
-                  let open Printing in
-                  debug_terms env_elim cs "cs";
                   let sigma, elim_cs = reduce_term env_elim sigma (mkAppl (elim_p, cs)) in
-                  let sigma, typ = reduce_type env_elim sigma elim_cs in
-                  debug_term env_elim typ "elim_cs_typ";
                   let sigma, final_args = initialize_dep_elim_args c env_elim elim_cs npms trm_elim.final_args true sigma in
-                  debug_terms env_elim final_args "final_args";
                   let trm_elim = { elim; pms; p; cs; final_args } in
                   sigma, Some (trm_elim, [], 0)
                 else
