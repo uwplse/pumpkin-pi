@@ -442,7 +442,7 @@ let initialize_id_etas c cached env sigma =
   let sigma, ids =
     if Option.has_some cached then
       (* Use the cached id rules *)
-      let (_, _, ids) = Option.get cached in
+      let (_, _, ids, _) = Option.get cached in
       sigma, ids
     else
       (* Determine the id rules and cache them for later *)
@@ -1064,7 +1064,7 @@ let initialize_dep_constrs c cached env sigma =
   let sigma, constrs =
     if Option.has_some cached then
       (* Use the cached DepConstr rules *)
-      let (constrs, _, _) = Option.get cached in
+      let (constrs, _, _, _) = Option.get cached in
       sigma, constrs
     else
       let a_typ, b_typ = c.typs in
@@ -1736,7 +1736,7 @@ let initialize_dep_elims c cached env sigma =
   let sigma, elims =
     if Option.has_some cached then
       (* Use the cached DepElim rules *)
-      let (_, elims, _) = Option.get cached in
+      let (_, elims, _, _) = Option.get cached in
       sigma, elims
     else
       (* Determine DepElim and cache if needed *)
@@ -1765,12 +1765,7 @@ let get_dep_elim c = fst (c.dep_elims)
 let get_lifted_dep_elim c = snd (c.dep_elims)
 
 (*
- * Check if the term applies the eliminator
- * If so return the eliminator application, parameters, and the arity
- * of the motive (the number of "final arguments" after inducting over
- * the term)
- *
- * TODO use dep_elim, port away from old return arguments once all moved
+ * Check if the term applies dep_elim, and if so return the arguments
  *)
 let applies_elim c env trm sigma =
   let l = get_lifting c in

@@ -96,7 +96,10 @@ val save_ornament :
  *)
 val lookup_config :
   (types * types) ->
-  ((constr array * constr array) * (constr * constr) * (constr * constr)) option
+  ((constr array * constr array) *
+   (constr * constr) *
+   (constr * constr) *
+   (constr * constr)) option
 
 (*
  * Store DepConstr, DepElim, IdEta, and RewEta
@@ -104,3 +107,4 @@ val lookup_config :
 val save_dep_constrs : (types * types) -> (constr array * constr array) -> unit
 val save_dep_elim : (types * types) -> (constr * constr) -> unit
 val save_id_eta : (types * types) -> (constr * constr) -> unit
+val save_rew_eta : (types * types) -> (constr * constr) -> unit

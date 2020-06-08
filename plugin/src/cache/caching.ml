@@ -499,11 +499,13 @@ let lookup_config typs =
     let constrs = OrnamentsCache.find dep_constr_cache globals in
     let elims = OrnamentsCache.find dep_elim_cache globals in
     let ids = OrnamentsCache.find id_eta_cache globals in
+    let rews = OrnamentsCache.find rew_eta_cache globals in
     try
       let constrs = map_tuple (Array.map Universes.constr_of_global) constrs in
       let elims = map_tuple Universes.constr_of_global elims in
       let ids = map_tuple Universes.constr_of_global ids in
-      Some (constrs, elims, ids)
+      let rews = map_tuple Universes.constr_of_global rews in
+      Some (constrs, elims, ids, rews)
     with _ ->
       Feedback.msg_warning
         (Pp.seq
@@ -553,6 +555,22 @@ let save_id_eta typs ids =
     let ids = map_tuple global_of_constr ids in
     let id_eta_obj = inIdEtas (globals, ids) in
     add_anonymous_leaf id_eta_obj
+  with _ ->
+    Feedback.msg_warning
+      (Pp.seq
+         [Pp.str "Failed to cache IdEta configuration. ";
+          Pp.str "Lifting may fail later. ";
+          Pp.str "Please report a bug if this happens."])
+
+(*
+ * Add RewEta to the config cache
+ *)
+let save_rew_eta typs rews =
+  try
+    let globals = map_tuple global_of_constr typs in
+    let rews = map_tuple global_of_constr rews in
+    let rew_eta_obj = inRewEtas (globals, rews) in
+    add_anonymous_leaf rew_eta_obj
   with _ ->
     Feedback.msg_warning
       (Pp.seq
