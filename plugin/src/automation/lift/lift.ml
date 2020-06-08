@@ -180,12 +180,11 @@ let lift_core env c trm sigma =
        sigma, tr
     | Optimization (LazyEta tr_eta) ->
        lift_rec lift_rules en sigma c tr_eta
-    | LiftIdentity (simplify, (f, args)) | Coherence (simplify, (f, args)) ->
-       lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma
-    | Equivalence (f, args) ->
-       lift_app_simplify c en f args reduce_term (lift_rec lift_rules) sigma
+    | LiftIdentity (simplify, (f, args)) | Coherence (simplify, (f, args))
     | LiftConstr (simplify, (f, args)) ->
-       lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma
+       lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma  
+    | Equivalence (f, args) | LiftRewEta (f, args) ->
+       lift_app_simplify c en f args reduce_term (lift_rec lift_rules) sigma
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma
     | Optimization (AppLazyDelta (f, args)) ->

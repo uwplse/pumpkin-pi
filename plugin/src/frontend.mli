@@ -27,7 +27,7 @@ val lift_by_ornament : ?suffix:bool -> ?opaques:Libnames.reference list -> Id.t 
   * ornament, defining a new module with all the transformed module elements.
   *)
 val lift_module_by_ornament : ?opaques:Libnames.reference list -> Id.t -> constr_expr -> constr_expr -> Libnames.reference -> unit
-
+                                             
 (*
  * Unpack sigma types in the functional signature of a constant.
  *
@@ -44,3 +44,15 @@ val add_lifting_opaques :
   constr_expr -> constr_expr -> Libnames.reference list -> unit
 val remove_lifting_opaques :
   constr_expr -> constr_expr ->  Libnames.reference list -> unit
+
+(*
+ * Configure lifting manually 
+ *)
+val configure_lifting_manual :
+  constr_expr ->
+  constr_expr ->
+  (Libnames.reference list) * (Libnames.reference list) ->
+  (Libnames.reference * Libnames.reference) ->
+  (Libnames.reference * Libnames.reference) ->
+  (Libnames.reference * Libnames.reference) ->
+  unit

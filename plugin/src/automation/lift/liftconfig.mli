@@ -87,7 +87,7 @@ val type_from_args :
 (* --- Identity and coherence (for preserving definitional equalities) --- *)
 
 (*
- * Get the cached  lifted identity function
+ * Get the cached lifted identity function
  *)
 val get_lifted_id_eta : lift_config -> constr
 
@@ -118,7 +118,24 @@ val applies_id_eta :
   constr ->
   evar_map ->
   ((constr list) option) state
+                         
+(*
+ * Get RewEta
+ *)
+val get_rew_eta : lift_config -> constr
+val get_lifted_rew_eta : lift_config -> constr
 
+(*
+ * Check if the term applies RewEta
+ * If so, return the the arguments
+ *)
+val applies_rew_eta :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  ((constr list) option) state
+              
 (* --- Constructors and eliminators --- *)
 
 (*

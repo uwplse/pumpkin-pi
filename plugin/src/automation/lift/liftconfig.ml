@@ -552,12 +552,59 @@ let initialize_id_etas c cached env sigma =
   let id_etas = map_tuple (unwrap_definition env) ids in
   sigma, { c with id_etas }
 
-
 (*
  * Define what it means to lift equality proofs.
+ * TODO tweak beyond refl (consider coherence) when this is not refl---for
+ * now just regress
  *)
 let initialize_rew_etas c cached env sigma =
-  sigma, c (* TODO *)
+  let l = get_lifting c in
+  let sigma, rews =
+    if Option.has_some cached then
+      (* Use the cached rew rules *)
+      let (_, _, _, rews) = Option.get cached in
+      sigma, rews
+    else
+      (* Determine the id rules and cache them for later *)
+      let sigma, fwd_typ = reduce_type env sigma (lift_to l) in
+      let sigma, bwd_typ = reduce_type env sigma (lift_back l) in
+      let sigma, rew_a =
+        let env_rew = zoom_env zoom_product_type env (if l.is_fwd then fwd_typ else bwd_typ) in
+        let a = mkRel 1 in
+        let sigma, a_typ = reduce_type env_rew sigma a in
+        let rew_a_bod = apply_eq_refl { typ = a_typ; trm = mkRel 1 } in
+        sigma, reconstruct_lambda_n env_rew rew_a_bod (nb_rel env)
+      in
+      let sigma, rew_b =
+        let env_rew = zoom_env zoom_product_type env (if l.is_fwd then bwd_typ else fwd_typ) in
+        let b = mkRel 1 in
+        let sigma, b_typ = reduce_type env_rew sigma b in
+        let rew_b_bod = apply_eq_refl { typ = b_typ; trm = mkRel 1 } in
+        sigma, reconstruct_lambda_n env_rew rew_b_bod (nb_rel env)
+      in
+      let rews =
+        let rew_a_n, rew_b_n =
+          let promote = Constant.canonical (fst (destConst l.orn.promote)) in
+          let (_, _, lab) = KerName.repr promote in
+          let base_n = Label.to_id lab in
+          (with_suffix base_n "rew_eta_a", with_suffix base_n "rew_eta_b")
+        in
+        let rew_a, rew_b = ((rew_a_n, rew_a), (rew_b_n, rew_b)) in
+        try
+          let rew_a = define_term (fst rew_a) sigma (snd rew_a) true in
+          let rew_b = define_term (fst rew_b) sigma (snd rew_b) true in
+          map_tuple Universes.constr_of_global (rew_a, rew_b)
+        with _ ->
+          snd rew_a, snd rew_b
+      in
+      save_rew_eta (l.orn.promote, l.orn.forget) rews;
+      sigma, rews
+  in
+  let rews = if l.is_fwd then rews else rev_tuple rews in
+  let env = Global.env () in
+  let sigma = Evd.from_env env in
+  let rew_etas = map_tuple (unwrap_definition env) rews in
+  sigma, { c with rew_etas }
 
 (*
  * Get the map of projections for the type
@@ -805,6 +852,13 @@ let applies_id_eta c env trm sigma =
       sigma, None
   else
     sigma, None
+
+let get_rew_eta c = fst c.rew_etas
+let get_lifted_rew_eta c = snd c.rew_etas
+
+(* TODO explain, implement once we have non-refl *)
+let applies_rew_eta c env trm sigma =
+  sigma, None
 
 (* --- Smart simplification (for termination and efficiency) --- *)
 

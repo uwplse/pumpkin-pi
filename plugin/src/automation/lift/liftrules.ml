@@ -106,13 +106,17 @@ type lift_optimization =
  *    well as a custom reduction function to apply identity to the
  *    lifted arguments (for efficiency and to ensure termination).
  *
- * 7. CIC runs when no optimization applies and none of the other rules
+ * 7. REW-ETA runs when we lift eta-expanded proofs of equality.
+ *    This is also to preserve definitional equalities.
+ *
+ * 8. CIC runs when no optimization applies and none of the other rules
  *    apply. It returns the kind of the Gallina term.
  *)
 type lift_rule =
 | Equivalence of constr * constr list
 | LiftConstr of reducer * (constr * constr list)
 | LiftIdentity of reducer * (constr * constr list)
+| LiftRewEta of constr * constr list
 | Coherence of reducer * (constr * constr list)
 | Optimization of lift_optimization
 | CIC of (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
@@ -240,6 +244,14 @@ let is_identity c env trm prev_rules sigma =
   else
     sigma, None
 
+(* Premises for LIFT-REW-ETA *)
+let is_rew_eta c env trm prev_rules sigma =
+  let sigma, args_o = applies_rew_eta c env trm sigma in
+  if Option.has_some args_o then
+    sigma, Some (get_lifted_rew_eta c, Option.get args_o)
+  else
+    sigma, None
+
 (* Premises for LIFT-ELIM *)
 let is_eliminator c env trm sigma =
   applies_elim c env trm sigma
@@ -287,24 +299,29 @@ let determine_lift_rule c env trm prev_rules sigma =
             let simplify, (f, args) = Option.get is_identity_o in
             sigma, LiftIdentity (simplify, (f, args))
           else
-            let sigma, is_elim_o = is_eliminator c env trm sigma in
-            if Option.has_some is_elim_o then
-              let eta_o, trm_elim = Option.get is_elim_o in
-              if Option.has_some eta_o then
-                sigma, Optimization (LazyEta (Option.get eta_o))
-              else
-                let lifted_dep_elim = get_lifted_dep_elim c in
-                let args = unfold_args (apply_eliminator trm_elim) in
-                sigma, Optimization (AppLazyDelta (lifted_dep_elim, Array.of_list args))
+            let sigma, is_rew_eta_o = is_rew_eta c env trm prev_rules sigma in
+            if Option.has_some is_rew_eta_o then
+              let (f, args) = Option.get is_rew_eta_o in
+              sigma, LiftRewEta (f, args)
             else
-              match kind trm with
-              | App (f, args) ->
-                 let how_reduce_o = can_reduce_now c env trm in
-                 if Option.has_some how_reduce_o then
+              let sigma, is_elim_o = is_eliminator c env trm sigma in
+              if Option.has_some is_elim_o then
+                let eta_o, trm_elim = Option.get is_elim_o in
+                if Option.has_some eta_o then
+                  sigma, Optimization (LazyEta (Option.get eta_o))
+                else
+                  let lifted_dep_elim = get_lifted_dep_elim c in
+                  let args = unfold_args (apply_eliminator trm_elim) in
+                  sigma, Optimization (AppLazyDelta (lifted_dep_elim, Array.of_list args))
+              else
+                match kind trm with
+                | App (f, args) ->
+                   let how_reduce_o = can_reduce_now c env trm in
+                   if Option.has_some how_reduce_o then
                    let how_reduce = Option.get how_reduce_o in
                    sigma, Optimization (SimplifyProjectId (how_reduce, (f, args)))
-                 else
-                   sigma, Optimization (AppLazyDelta (f, args))
+                   else
+                     sigma, Optimization (AppLazyDelta (f, args))
               | Construct (((i, i_index), _), u) ->
                  let ind = mkInd (i, i_index) in
                  let (a_typ, b_typ) = get_types c in
