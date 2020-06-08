@@ -90,7 +90,7 @@ let maybe_prove_equivalence n promote forget : unit =
   in
   if is_search_equiv () then
     let sigma, env = refresh_env () in
-    let sigma, l = initialize_lifting_provided env sigma promote forget in
+    let sigma, l = initialize_lifting_provided env sigma promote forget false in
     let ((section, section_typ), (retraction, retraction_typ)) =
       prove_equivalence env sigma l
     in
@@ -116,7 +116,7 @@ let maybe_prove_equivalence n promote forget : unit =
 let maybe_find_smart_elims promote forget : unit =
   if is_smart_elim () then
     let sigma, env = refresh_env () in
-    let sigma, l = initialize_lifting_provided env sigma promote forget in
+    let sigma, l = initialize_lifting_provided env sigma promote forget false in
     let sigma, elims = find_smart_elims l env sigma in
     List.iter
       (fun (n, trm, typ) -> ignore (define_print ~typ:typ n trm sigma))
@@ -180,7 +180,7 @@ let infer_name_for_ornament env trm_o trm_n n_o =
 (*
  * Common function for find_ornament and save_ornament
  *)
-let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
+let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o is_custom sigma =
   try
     let sigma, def_o = intern env sigma d_old in
     let sigma, def_n = intern env sigma d_new in
@@ -189,14 +189,14 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
     let sigma, orn =
       if not (Option.has_some promote_o || Option.has_some forget_o) then
         (* Find ornament *)
-        let _ = Feedback.msg_info (Pp.str "Searching for ornament") in
+        let _ = Feedback.msg_info (Pp.str "Searching for equivalence") in
         search_orn env sigma idx_n swap_i_o trm_o trm_n
       else if (Option.has_some promote_o && Option.has_some forget_o) then
         (* Save ornament *)
-        let _ = Feedback.msg_info (Pp.str "Saving ornament") in
+        let _ = Feedback.msg_info (Pp.str "Saving equivalence") in
         let promote = Option.get promote_o in
         let forget = Option.get forget_o in
-        let sigma, l = initialize_lifting_provided env sigma promote forget in
+        let sigma, l = initialize_lifting_provided env sigma promote forget is_custom in
         sigma, l.orn
       else
         (* Save ornament with automatic inversion *)
@@ -231,9 +231,12 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
         let sigma, typ = reduce_type env sigma orn.forget in
         inv_n, Universes.constr_of_global (define_print inv_n orn.forget ~typ:typ sigma)
     in
-    maybe_prove_coherence n promote forget orn.kind;
-    maybe_prove_equivalence n promote forget;
-    maybe_find_smart_elims promote forget;
+    (if not is_custom then
+      (maybe_prove_coherence n promote forget orn.kind;
+       maybe_prove_equivalence n promote forget;
+       maybe_find_smart_elims promote forget)
+     else
+       ());
     (try
        save_ornament (trm_o, trm_n) (promote, forget, orn.kind)
      with _ ->
@@ -259,12 +262,12 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
  *)
 let find_ornament n_o d_old d_new swap_i_o =
   let (sigma, env) = Pfedit.get_current_context () in
-  find_ornament_common env n_o d_old d_new swap_i_o None None sigma
+  find_ornament_common env n_o d_old d_new swap_i_o None None false sigma
 
 (*
  * Save a user-provided ornament
  *)
-let save_ornament d_old d_new d_orn_o d_orn_inv_o =
+let save_ornament d_old d_new d_orn_o d_orn_inv_o is_custom =
   Feedback.msg_warning (Pp.str "Custom equivalences are experimental. Use at your own risk!");
   let (sigma, env) = Pfedit.get_current_context () in
   if not (Option.has_some d_orn_o || Option.has_some d_orn_inv_o) then
@@ -289,7 +292,7 @@ let save_ornament d_old d_new d_orn_o d_orn_inv_o =
         get_base_name promote_o
       else
         with_suffix (get_base_name forget_o) "inv"
-    in find_ornament_common env (Some n) d_old d_new None promote_o forget_o sigma
+    in find_ornament_common env (Some n) d_old d_new None promote_o forget_o is_custom sigma
 
 (*
  * Lift a definition according to a lifting configuration, defining the lifted

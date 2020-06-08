@@ -15,14 +15,16 @@ VERNAC COMMAND EXTEND FindOrnament CLASSIFIED AS SIDEFF
   [ find_ornament None d_old d_new (Some i) ]
 END
 
-(* Save a user-supplied ornament between two types *)
+(* Save a user-supplied equivalence between two types *)
 VERNAC COMMAND EXTEND SaveOrnament CLASSIFIED AS SIDEFF
 | [ "Save" "ornament" constr(d_old) constr(d_new) "{" "promote" "=" constr(d_orn) ";" "forget" "=" constr(d_orn_inv) "}" ] ->
-  [ save_ornament d_old d_new (Some d_orn) (Some d_orn_inv) ]
+  [ save_ornament d_old d_new (Some d_orn) (Some d_orn_inv) false ]
 | [ "Save" "ornament" constr(d_old) constr(d_new) "{" "promote" "=" constr(d_orn) "}" ] ->
-  [ save_ornament d_old d_new (Some d_orn) None ]
+  [ save_ornament d_old d_new (Some d_orn) None false ]
 | [ "Save" "ornament" constr(d_old) constr(d_new) "{" "forget" "=" constr(d_orn_inv) "}" ] ->
-  [ save_ornament d_old d_new None (Some d_orn_inv) ]
+  [ save_ornament d_old d_new None (Some d_orn_inv) false ]
+| [ "Save" "equivalence" constr(d_old) constr(d_new) "{" "promote" "=" constr(d_orn) ";" "forget" "=" constr(d_orn_inv) "}" ] ->
+  [ save_ornament d_old d_new (Some d_orn) (Some d_orn_inv) true ]
 END
 
 (* Lift a function along an ornament *)
