@@ -806,6 +806,9 @@ Definition plus_n_Sm_binnat_expanded_rewrites (n m : Bin.nat) : Bin.S (binnat_ad
              IHn)))
      n.
 
+Print e.to.
+Print e.of.
+
 (* --- What happens when we have a type equivalent to equality? --- *)
 
 (*
@@ -820,5 +823,11 @@ Definition plus_n_Sm_binnat_expanded_rewrites (n m : Bin.nat) : Bin.S (binnat_ad
 (*
  * I don't know yet. I need to see if we can prove a variant of refold_elim_S.
  * Lists might be a good case study.
+ *
+ * John managed to prove refold_elim_S without using the fact
+ * that bin is an hset.
  *)
 
+(* --- Let's start playing with the implemented commands --- *)
+
+Save equivalence Bin.nat nat { promote = e.to; forget = e.of }.

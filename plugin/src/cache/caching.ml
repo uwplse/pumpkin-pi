@@ -390,14 +390,14 @@ let save_ornament typs (orn, orn_inv, kind) =
     | SwapConstruct swap_map ->
        let ind_obj = inSwaps (globals, swap_map) in
        add_anonymous_leaf ind_obj
-    | CurryRecord | UnpackSigma ->
+    | CurryRecord | UnpackSigma | Custom ->
        ()
   with _ ->
     Feedback.msg_warning
       (Pp.seq
-         [Pp.str "Failed to cache ornament. ";
+         [Pp.str "Failed to cache equivalence. ";
           Pp.str "Please try definining your types as constants, ";
-          Pp.str "and passing those constants to `Find ornament` instead."])
+          Pp.str "and passing those constants to the command instead."])
  
                         
 (* --- Lifting configuration cache --- *)
