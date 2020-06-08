@@ -60,6 +60,7 @@ type lift_config =
       ((constr * (constr -> constr)) list) *
       ((constr * (constr -> constr)) list);
     id_etas : (constr * constr);
+    rew_etas : (constr * constr);
     cache : temporary_cache;
     opaques : temporary_cache
   }
@@ -550,6 +551,13 @@ let initialize_id_etas c cached env sigma =
   let sigma = Evd.from_env env in
   let id_etas = map_tuple (unwrap_definition env) ids in
   sigma, { c with id_etas }
+
+
+(*
+ * Define what it means to lift equality proofs.
+ *)
+let initialize_rew_etas c cached env sigma =
+  sigma, c (* TODO *)
 
 (*
  * Get the map of projections for the type
@@ -1843,6 +1851,7 @@ let initialize_lift_config env l ignores sigma =
       proj_rules = ([], []), ([], []);
       optimize_proj_id_rules = [], [];
       id_etas = (mkRel 1, mkRel 1);
+      rew_etas = (mkRel 1, mkRel 1);
       cache;
       opaques
     }
@@ -1851,6 +1860,7 @@ let initialize_lift_config env l ignores sigma =
   let sigma, c = initialize_proj_rules c env sigma in
   let sigma, c = initialize_optimize_proj_id_rules c env sigma in
   let sigma, c = initialize_id_etas c cached env sigma in
+  let sigma, c = initialize_rew_etas c cached env sigma in
   let sigma, c = initialize_elim_types c env sigma in
   let sigma, c = initialize_dep_constrs c cached env sigma in
   initialize_dep_elims c cached env sigma
