@@ -753,7 +753,7 @@ Definition rew_binnat_elim_S (P : Bin.nat -> Type) PO PS n (Q : P (Bin.S n) -> T
  * Thus, the expanded plus_n_Sm is:
  *)
 Definition plus_n_Sm_expanded_rewrites (n m : nat) : S (add n m) = add n (S m) :=
-  nat_ind
+  nat_rect
     (fun (n0 : nat) =>
        S (add n0 m) = add n0 (S m))
     (@eq_refl nat (S m) : (S (add O m)) = (add O (S m)))
@@ -843,3 +843,52 @@ Configure Lift nat Bin.nat {
   rew_eta_a = rew_S_elim;
   rew_eta_b = rew_binnat_S_elim
 }.
+
+(* Basic tests *)
+Lift nat Bin.nat in O as O_lifted.
+Lift nat Bin.nat in S as S_lifted.
+Lift Bin.nat nat in Bin.O as Bin_O_lifted.
+Lift Bin.nat nat in Bin.S as Bin_S_lifted.
+
+Definition add2 (n m : nat) : nat :=
+nat_rect (fun _ : nat => nat -> nat) (fun m : nat => m)
+  (fun (_ : nat) (add : nat -> nat) (m : nat) => S (add m)) n m.
+
+Lift nat Bin.nat in add2 as binnat_add2.
+
+Definition plus_n_Sm_expanded_rewrites2 (n m : nat) : S (add2 n m) = add2 n (S m) :=
+  nat_rect
+    (fun (n0 : nat) =>
+       S (add2 n0 m) = add2 n0 (S m))
+    (@eq_refl nat (S m))
+    (fun (n0 : nat) (IHn : (S (add2 n0 m)) = (add2 n0 (S m))) =>
+       rew_S_elim
+         (fun _ => nat -> nat)
+         (fun p => p)
+         (fun _ IH p => S (IH p))
+         n0
+         (fun PS => S (PS m) = add2 (S n0) (S m))
+         (rew_S_elim
+           (fun _ => nat -> nat)
+           (fun p => p)
+           (fun _ IH p => S (IH p))
+           n0
+           (fun PS => S (S (add2 n0 m)) = PS (S m))
+           (@f_equal
+             nat
+             nat
+             (fun (n : nat) => S n)
+             (S (add2 n0 m))
+             (add2 n0 (S m))
+             IHn)))
+     n.
+
+(* TODO why broken? *)
+Lift nat Bin.nat in plus_n_Sm_expanded_rewrites2 as binnat_plus_n_Sm_expanded_rewrites2.
+
+Print binnat_plus_n_Sm_expanded_rewrites2.
+
+Print O_lifted.
+Print S_lifted.
+Print Bin_O_lifted.
+Print Bin_S_lifted.

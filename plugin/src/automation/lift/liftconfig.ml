@@ -173,6 +173,11 @@ let initialize_types l env sigma =
      let a_t = reconstruct_lambda env_typs a_i_t in
      let b_t = reconstruct_lambda env_typs (unshift b_i_t) in
      sigma, (a_t, b_t)
+  | Custom ->
+     (* TODO requires type of promote to be state exactly, so state in expectations, or take in the arguments to Lift *)
+     let a_t = first_fun a_i_t in
+     let b_t = first_fun b_i_t in
+     sigma, (a_t, b_t)
 
 let get_types c = c.typs
 
@@ -233,7 +238,7 @@ let rec optimize_is_from c env typ sigma =
             sigma, None
         with _ ->
           sigma, None)
-    | SwapConstruct _ ->
+    | SwapConstruct _ | Custom ->
        if is_or_applies goal_typ typ then
          sigma, Some (unfold_args typ)
        else
@@ -426,7 +431,7 @@ let initialize_proj_rules c env sigma =
            Feedback.msg_warning
              (Pp.str "Can't find record accessors; skipping an optimization")
          in sigma, (([], []), ([], []))
-    | SwapConstruct _ ->
+    | SwapConstruct _ | Custom ->
        (* no projections *)
        sigma, (([], []), ([], []))
   in
@@ -471,7 +476,7 @@ let initialize_id_etas c cached env sigma =
            in
            let e = pack_existT {index_type; packer; index; unpacked} in
            sigma, reconstruct_lambda env_id e
-        | Algebraic _ | CurryRecord | SwapConstruct _ ->
+        | Algebraic _ | CurryRecord | SwapConstruct _ | Custom ->
            (* identity *)
            sigma, reconstruct_lambda env_id a
       in
@@ -524,7 +529,7 @@ let initialize_id_etas c cached env sigma =
              let trm2 = eq_typ_app.trm2 in
              mkAppl (eq_rect, [at_type; trm1; b_typ; b; trm2; eq])
            in sigma, reconstruct_lambda_n env_eq rewrite (nb_rel env)
-        | SwapConstruct _ ->
+        | SwapConstruct _ | Custom ->
            (* identity *)
            sigma, reconstruct_lambda env_id b
       in
@@ -744,6 +749,8 @@ let may_apply_id_eta c env trm =
        is_or_applies pair trm || is_or_applies (lift_back l) trm
     | SwapConstruct _ ->
        false (* impossible state *)
+    | Custom ->
+       true (* TODO? *)
 
 (*
  * Check if a term applies the eta-expanded identity function
@@ -759,7 +766,7 @@ let applies_id_eta c env trm sigma =
     (* Heuristic for unification again *)
     if Option.has_some typ_args_o then
       let typ_args = Option.get typ_args_o in
-      if equal (zoom_term zoom_lambda_term env (fst c.id_etas)) (mkRel 1) then
+      if (not (c.l.orn.kind = Custom)) && equal (zoom_term zoom_lambda_term env (fst c.id_etas)) (mkRel 1) then
         sigma, Some (snoc trm typ_args)
       else
         let l = get_lifting c in
@@ -848,6 +855,9 @@ let applies_id_eta c env trm sigma =
              sigma, Some (snoc trm typ_args)
           | SwapConstruct _ ->
              sigma, None (* impossible state *)
+          | Custom ->
+             (* does not yet do actual unification, and so is handled by caching*)
+             sigma, None
     else
       sigma, None
   else
@@ -858,6 +868,7 @@ let get_lifted_rew_eta c = snd c.rew_etas
 
 (* TODO explain, implement once we have non-refl *)
 let applies_rew_eta c env trm sigma =
+  (* Does not yet do unification, and so is handled by caching *)
   sigma, None
 
 (* --- Smart simplification (for termination and efficiency) --- *)
@@ -882,7 +893,7 @@ let initialize_optimize_proj_id_rules c env sigma =
        let proj1_rule = (fun a -> (dest_pair a).Produtils.trm1) in
        let proj2_rule = (fun a -> (dest_pair a).Produtils.trm2) in
        [(Desugarprod.fst_elim (), proj1_rule); (Desugarprod.snd_elim (), proj2_rule)]
-    | SwapConstruct _ | UnpackSigma ->
+    | SwapConstruct _ | UnpackSigma | Custom ->
        []
   in
   let rules_bwd =
@@ -892,7 +903,7 @@ let initialize_optimize_proj_id_rules c env sigma =
        let proj1_rule = (fun a -> (dest_existT a).index) in
        let proj2_rule = (fun a -> (dest_existT a).unpacked) in
        [(projT1, proj1_rule); (projT2, proj2_rule)]
-    | SwapConstruct _ | Algebraic (_, _) | CurryRecord ->
+    | SwapConstruct _ | Algebraic (_, _) | CurryRecord | Custom ->
        []
   in
   let optimize_proj_id_rules =
@@ -1173,6 +1184,8 @@ let initialize_dep_constrs c cached env sigma =
                in sigma, reconstruct_lambda_n env_packed app_red (nb_rel env))
              constrs
              sigma
+        | Custom ->
+           failwith "impossible"
       in
       let sigma, b_constrs =
         match l.orn.kind with
@@ -1228,6 +1241,8 @@ let initialize_dep_constrs c cached env sigma =
                sigma, reconstruct_lambda_n env_c_b app_red (nb_rel env))
              constrs
              sigma
+        | Custom ->
+           failwith "impossible"
       in
       let dep_constrs =
         let c_a_n, c_b_n =
@@ -1366,6 +1381,9 @@ let applies_constr_eta c env trm sigma =
          let b_typ_inner = first_fun (zoom_term zoom_lambda_term env (snd c.typs)) in
          let sigma, constrs = eta_constrs env b_typ_inner sigma in 
          is_inductive_constr id constrs trm sigma
+    | Custom ->
+       (* Does not yet unify, and so exact case is handled by caching *)
+       sigma, None
   else
     sigma, None
 
@@ -1866,6 +1884,9 @@ let applies_elim c env trm sigma =
            | UnpackSigma ->
               (* TODO eventually, use explicit depelim here (one step further than regression though *)
               sigma, Some (trm_elim)
+           | Custom ->
+              (* no unification yet; requires exact application *)
+              sigma, None
          in
          if Option.has_some elim_app_o then
            let trm_elim = Option.get elim_app_o in

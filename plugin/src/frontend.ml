@@ -494,7 +494,19 @@ let configure_lifting_manual d_orn d_orn_inv constrs elims ids rews =
   save_dep_constrs (l.orn.promote, l.orn.forget) (map_tuple Array.of_list constrs);
   save_dep_elim (l.orn.promote, l.orn.forget) elims;
   save_id_eta (l.orn.promote, l.orn.forget) ids;
-  save_rew_eta (l.orn.promote, l.orn.forget) rews
+  save_rew_eta (l.orn.promote, l.orn.forget) rews;
+  List.iter2
+    (fun c1 c2 ->
+      save_lifting (l.orn.promote, l.orn.forget, c1) c2;
+      save_lifting (l.orn.forget, l.orn.promote, c2) c1)
+    (fst constrs)
+    (snd constrs);
+  save_lifting (l.orn.promote, l.orn.forget, (fst elims)) (snd elims);
+  save_lifting (l.orn.forget, l.orn.promote, (snd elims)) (fst elims);
+  save_lifting (l.orn.promote, l.orn.forget, (fst ids)) (snd ids);
+  save_lifting (l.orn.forget, l.orn.promote, (snd ids)) (fst ids);
+  save_lifting (l.orn.promote, l.orn.forget, (fst rews)) (snd rews);
+  save_lifting (l.orn.forget, l.orn.promote, (snd rews)) (fst rews)
 
 (*
  * Unpack sigma types in the functional signature of a constant.
