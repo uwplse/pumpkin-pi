@@ -144,6 +144,8 @@ let get_direction (from_typ_app, to_typ_app) orn_kind =
      true
   | UnpackSigma ->
      equal sigT (first_fun from_typ_app)
+  | _ ->
+     failwith "not yet supported"
 
 (*
  * For an uncached ornament, get the kind and its direction
@@ -191,6 +193,8 @@ let get_kind_of_ornament env (o, n) is_custom sigma =
     | UnpackSigma | CurryRecord ->
        let is_fwd = get_direction (from_typ_app, to_typ_app) prelim_kind in
        sigma, (is_fwd, prelim_kind)
+    | _ ->
+       failwith "Not yet supported"
 
 (* --- Directionality --- *)
        

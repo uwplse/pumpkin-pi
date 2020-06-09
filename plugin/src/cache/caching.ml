@@ -269,6 +269,8 @@ let int_to_kind (i : int) globals =
     SwapConstruct swap_map
   else if i = 3 then
     UnpackSigma
+  else if i = 4 then
+    Custom
   else
     failwith "Unsupported kind of ornament passed to interpret_kind in caching"
 
@@ -282,6 +284,8 @@ let kind_to_int (k : kind_of_orn) =
      2
   | UnpackSigma ->
      3
+  | Custom ->
+     4
 
 (*
  * Wrapping the table for persistence

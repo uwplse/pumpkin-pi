@@ -481,7 +481,20 @@ let remove_lifting_opaques d_orn d_orn_inv opaques =
  * Configure lifting manually
  *)
 let configure_lifting_manual d_orn d_orn_inv constrs elims ids rews =
-  () (* TODO *)
+  let (sigma, env) = Pfedit.get_current_context () in
+  let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in
+  let lookup_reference r =
+    let qid = qualid_of_reference r in
+    mkConst (Nametab.locate_constant qid)
+  in
+  let constrs = map_tuple (List.map lookup_reference) constrs in
+  let elims = map_tuple lookup_reference elims in
+  let ids = map_tuple lookup_reference ids in
+  let rews = map_tuple lookup_reference rews in
+  save_dep_constrs (l.orn.promote, l.orn.forget) (map_tuple Array.of_list constrs);
+  save_dep_elim (l.orn.promote, l.orn.forget) elims;
+  save_id_eta (l.orn.promote, l.orn.forget) ids;
+  save_rew_eta (l.orn.promote, l.orn.forget) rews
 
 (*
  * Unpack sigma types in the functional signature of a constant.

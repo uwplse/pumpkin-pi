@@ -806,9 +806,6 @@ Definition plus_n_Sm_binnat_expanded_rewrites (n m : Bin.nat) : Bin.S (binnat_ad
              IHn)))
      n.
 
-Print e.to.
-Print e.of.
-
 (* --- What happens when we have a type equivalent to equality? --- *)
 
 (*
@@ -830,4 +827,19 @@ Print e.of.
 
 (* --- Let's start playing with the implemented commands --- *)
 
-Save equivalence Bin.nat nat { promote = e.to; forget = e.of }.
+Definition O := O.
+Definition S := S.
+Definition id_eta_nat (n : nat) : nat := n.
+
+(* TODO may be multiple rew_etas for different constructors? fix *)
+Save equivalence nat Bin.nat { promote = e.of; forget = e.to }.
+Configure Lift nat Bin.nat {
+  constrs_a = O S;
+  constrs_b = Bin.O Bin.S;
+  elim_a = nat_rect;
+  elim_b = binnat_nat_rect;
+  id_eta_a = id_eta_nat;
+  id_eta_b = id_eta;
+  rew_eta_a = rew_S_elim;
+  rew_eta_b = rew_binnat_S_elim
+}.
