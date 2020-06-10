@@ -323,7 +323,6 @@ Module indexed.
 
 End indexed.
 
-Print Natty_Equiv_OK.Top_binnat_to_nat.
 Definition packed b := {n : sigT natty & projT1 n = b}.
 Lift Module packed natty in Natty_Equiv as Natty_Indexed_Equiv.
 Lift Module packed natty in Natty_Equiv_OK as Natty_Indexed_Equiv_OK.
@@ -831,6 +830,38 @@ Definition O := O.
 Definition S := S.
 Definition id_eta_nat (n : nat) : nat := n.
 
+Definition rew_S_elim2 (P : nat -> Type) (PO : P O) (PS : forall x : nat, P x -> P (S x)) n (Q : P (S n) -> Type) (H : Q (PS n (nat_rect P PO PS n))) : Q (nat_rect P PO PS (S n)) :=
+  eq_rect
+    (PS n (nat_rect P PO PS n))
+    (fun (H : P (S n)) => Q H)
+    H
+    (nat_rect P PO PS (S n))
+    (@eq_refl (P (S n)) (PS n (nat_rect P PO PS n))).
+
+Definition rew_binnat_S_elim2 (P : Bin.nat -> Type) PO PS n (Q : P (Bin.S n) -> Type) (H : Q (PS n (binnat_nat_rect P PO PS n))) : Q (binnat_nat_rect P PO PS (Bin.S n)) :=
+  eq_rect
+    (PS n (binnat_nat_rect P PO PS n))
+    (fun (H : P (Bin.S n)) => Q H)
+    H
+    (binnat_nat_rect P PO PS (Bin.S n))
+    (eq_sym (refold_elim_S P PO PS n)).
+
+Definition rew_elim_S2 (P : nat -> Type) PO PS n (Q : P (S n) -> Type) (H : Q (nat_rect P PO PS (S n))) : Q (PS n (nat_rect P PO PS n)) :=
+  eq_rect
+    (nat_rect P PO PS (S n))
+    (fun (H : P (S n)) => Q H)
+    H
+    (PS n (nat_rect P PO PS n))
+    (@eq_refl (P (S n)) (nat_rect P PO PS (S n))).
+
+Definition rew_binnat_elim_S2 (P : Bin.nat -> Type) PO PS n (Q : P (Bin.S n) -> Type) (H : Q (binnat_nat_rect P PO PS (Bin.S n))) : Q (PS n (binnat_nat_rect P PO PS n)) :=
+  eq_rect
+    (binnat_nat_rect P PO PS (Bin.S n))
+    (fun (H : P (Bin.S n)) => Q H)
+    H
+    (PS n (binnat_nat_rect P PO PS n))
+    (refold_elim_S P PO PS n).
+
 (* TODO may be multiple rew_etas for different constructors? fix *)
 Save equivalence nat Bin.nat { promote = e.of; forget = e.to }.
 Configure Lift nat Bin.nat {
@@ -840,8 +871,8 @@ Configure Lift nat Bin.nat {
   elim_b = binnat_nat_rect;
   id_eta_a = id_eta_nat;
   id_eta_b = id_eta;
-  rew_eta_a = rew_S_elim;
-  rew_eta_b = rew_binnat_S_elim
+  rew_eta_a = rew_S_elim2;
+  rew_eta_b = rew_binnat_S_elim2
 }.
 
 (* Basic tests *)
@@ -856,34 +887,60 @@ nat_rect (fun _ : nat => nat -> nat) (fun m : nat => m)
 
 Lift nat Bin.nat in add2 as binnat_add2.
 
+Definition f_equal_term (m : nat) (n0 : nat) (IHn : (S (add2 n0 m)) = (add2 n0 (S m))) :=
+  @f_equal
+             nat
+             nat
+             (fun (n : nat) => S n)
+             (S (add2 n0 m))
+             (add2 n0 (S m))
+             IHn.
+
+Configure Lift nat Bin.nat {
+  opaque f_equal eq_rect (* TODO make rew_S_elim opaque automatically? and why is the fact that it's cached not triggering? *)
+}.
+
+Lift nat Bin.nat in f_equal_term as f_equal_term_binnat.
+
+Definition inner_term (m : nat) (n0 : nat) (IHn : (S (add2 n0 m)) = (add2 n0 (S m))) :=
+(rew_S_elim2
+           (fun _ => nat -> nat)
+           (fun p => p)
+           (fun _ IH p => S (IH p))
+           n0
+           (fun PS => S (S (add2 n0 m)) = PS (S m))
+           (f_equal_term m n0 IHn)).
+
+(* TODO why is type-checking failing? These should be definitionally equal *)
+Print rew_S_elim2.
+Lift nat Bin.nat in rew_S_elim2 as rew_S_elim_lifted.
+Print rew_S_elim_lifted.
+Fail.
+Lift nat Bin.nat in inner_term as binnat_inner_term.
+
+Definition plus_n_Sm_expanded_rewrites2_inductive (m : nat) 
+  (n0 : nat) (IHn : (S (add2 n0 m)) = (add2 n0 (S m))) :=
+       rew_S_elim2
+         (fun _ => nat -> nat)
+         (fun p => p)
+         (fun _ IH p => S (IH p))
+         n0
+         (fun PS => S (PS m) = add2 (S n0) (S m))
+         (inner_term m n0 IHn).
+
+(* TODO why broken? *)
+Lift nat Bin.nat in plus_n_Sm_expanded_rewrites2_inductive as binnat_plus_n_Sm_expanded_rewrites2_inductive.
+
 Definition plus_n_Sm_expanded_rewrites2 (n m : nat) : S (add2 n m) = add2 n (S m) :=
   nat_rect
     (fun (n0 : nat) =>
        S (add2 n0 m) = add2 n0 (S m))
     (@eq_refl nat (S m))
     (fun (n0 : nat) (IHn : (S (add2 n0 m)) = (add2 n0 (S m))) =>
-       rew_S_elim
-         (fun _ => nat -> nat)
-         (fun p => p)
-         (fun _ IH p => S (IH p))
-         n0
-         (fun PS => S (PS m) = add2 (S n0) (S m))
-         (rew_S_elim
-           (fun _ => nat -> nat)
-           (fun p => p)
-           (fun _ IH p => S (IH p))
-           n0
-           (fun PS => S (S (add2 n0 m)) = PS (S m))
-           (@f_equal
-             nat
-             nat
-             (fun (n : nat) => S n)
-             (S (add2 n0 m))
-             (add2 n0 (S m))
-             IHn)))
+       plus_n_Sm_expanded_rewrites2_inductive m n0 IHn)
      n.
 
-(* TODO why broken? *)
+
 Lift nat Bin.nat in plus_n_Sm_expanded_rewrites2 as binnat_plus_n_Sm_expanded_rewrites2.
 
 Print binnat_plus_n_Sm_expanded_rewrites2.

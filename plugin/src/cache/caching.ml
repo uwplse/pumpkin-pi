@@ -578,6 +578,6 @@ let save_rew_eta typs rews =
   with _ ->
     Feedback.msg_warning
       (Pp.seq
-         [Pp.str "Failed to cache IdEta configuration. ";
+         [Pp.str "Failed to cache RewEta configuration. ";
           Pp.str "Lifting may fail later. ";
           Pp.str "Please report a bug if this happens."])

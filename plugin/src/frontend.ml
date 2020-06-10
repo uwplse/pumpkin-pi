@@ -506,7 +506,8 @@ let configure_lifting_manual d_orn d_orn_inv constrs elims ids rews =
   save_lifting (l.orn.promote, l.orn.forget, (fst ids)) (snd ids);
   save_lifting (l.orn.forget, l.orn.promote, (snd ids)) (fst ids);
   save_lifting (l.orn.promote, l.orn.forget, (fst rews)) (snd rews);
-  save_lifting (l.orn.forget, l.orn.promote, (snd rews)) (fst rews)
+  save_lifting (l.orn.forget, l.orn.promote, (snd rews)) (fst rews);
+  ()
 
 (*
  * Unpack sigma types in the functional signature of a constant.
