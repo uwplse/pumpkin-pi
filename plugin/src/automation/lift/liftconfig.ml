@@ -553,7 +553,6 @@ let initialize_id_etas c cached env sigma =
   in
   let ids = if l.is_fwd then ids else rev_tuple ids in
   let env = Global.env () in
-  let sigma = Evd.from_env env in
   let id_etas = map_tuple (unwrap_definition env) ids in
   sigma, { c with id_etas }
 
@@ -607,7 +606,6 @@ let initialize_rew_etas c cached env sigma =
   in
   let rews = if l.is_fwd then rews else rev_tuple rews in
   let env = Global.env () in
-  let sigma = Evd.from_env env in
   let rew_etas = map_tuple (unwrap_definition env) rews in
   sigma, { c with rew_etas }
 
@@ -1278,7 +1276,6 @@ let initialize_dep_constrs c cached env sigma =
   in
   let constrs = if l.is_fwd then constrs else rev_tuple constrs in
   let env = Global.env () in
-  let sigma = Evd.from_env env in
   let dep_constrs = map_tuple (Array.map (unwrap_definition env)) constrs in
   sigma, { c with dep_constrs }
 

@@ -496,7 +496,8 @@ let inRewEtas : rew_eta_obj -> obj =
 let lookup_config typs =
   if not (has_metadata_exact dep_constr_cache typs &&
           has_metadata_exact dep_elim_cache typs &&
-          has_metadata_exact id_eta_cache typs) then
+          has_metadata_exact id_eta_cache typs &&
+          has_metadata_exact rew_eta_cache typs) then
     None
   else
     let globals = map_tuple global_of_constr typs in
