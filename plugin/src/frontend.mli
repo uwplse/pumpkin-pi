@@ -29,7 +29,7 @@ val save_ornament :
  * Lift the supplied function along an ornament between the supplied types
  * Define the lifted version
  *)
-val lift_by_ornament : ?suffix:bool -> ?opaques:Libnames.reference list -> Id.t -> constr_expr -> constr_expr -> constr_expr -> unit
+val lift_by_ornament : ?suffix:bool -> ?opaques:Libnames.reference list -> Id.t -> constr_expr -> constr_expr -> constr_expr -> bool -> unit
 
 (*
   * Lift each module element (constant and inductive definitions) along the given

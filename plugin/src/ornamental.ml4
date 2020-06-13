@@ -30,13 +30,13 @@ END
 (* Lift a function along an ornament *)
 VERNAC COMMAND EXTEND LiftOrnament CLASSIFIED AS SIDEFF
 | [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
-  [ lift_by_ornament n d_orn d_orn_inv d_old ]
+  [ lift_by_ornament n d_orn d_orn_inv d_old false ]
 | [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n) "{" "opaque" ne_reference_list(opaques) "}" ] ->
-  [ lift_by_ornament ~opaques:opaques n d_orn d_orn_inv d_old ]
+  [ lift_by_ornament ~opaques:opaques n d_orn d_orn_inv d_old false ]
 | [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ".." ident(n)] ->
-  [ lift_by_ornament ~suffix:true n d_orn d_orn_inv d_old ]
+  [ lift_by_ornament ~suffix:true n d_orn d_orn_inv d_old false ]
 | [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ".." ident(n) "{" "opaque" ne_reference_list(opaques) "}" ] ->
-  [ lift_by_ornament ~opaques:opaques ~suffix:true n d_orn d_orn_inv d_old ]
+  [ lift_by_ornament ~opaques:opaques ~suffix:true n d_orn d_orn_inv d_old false ]
 | [ "Lift" "Module" constr(d_orn) constr(d_orn_inv) "in" reference(mod_ref) "as" ident(id) ] ->
   [ lift_module_by_ornament id d_orn d_orn_inv mod_ref ]
 | [ "Lift" "Module" constr(d_orn) constr(d_orn_inv) "in" reference(mod_ref) "as" ident(id) "{" "opaque" ne_reference_list(opaques) "}" ] ->

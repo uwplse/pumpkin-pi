@@ -335,10 +335,10 @@ let lift_definition_by_ornament env sigma n l c_old ignores =
  * new lifted version and declaring type-to-type, constructor-to-constructor,
  * and eliminator-to-eliminator liftings.
  *)
-let lift_inductive_by_ornament env sigma n s l c_old ignores =
+let lift_inductive_by_ornament env sigma n s l c_old ignores is_lift_module =
   try
     let ind, _ = destInd c_old in
-    let ind' = do_lift_ind env sigma l n s ind ignores in
+    let ind' = do_lift_ind env sigma l n s ind ignores is_lift_module in
     let env' = Global.env () in
     Feedback.msg_info (str "DEVOID generated " ++ pr_inductive env' ind')
   with
@@ -379,7 +379,7 @@ let init_lift env d_orn d_orn_inv sigma =
  * Lift the supplied definition or inductive type along the supplied ornament
  * Define the lifted version
  *)
-let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old =
+let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old is_lift_module =
   let (sigma, env) = Pfedit.get_current_context () in
   let opaque_terms =
     List.map
@@ -403,7 +403,7 @@ let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old =
   if isInd u_old then
     let from_typ = fst (on_red_type_default (fun _ _ -> promotion_type_to_types) env sigma l.orn.promote) in
     if not (equal u_old from_typ) then
-      lift_inductive_by_ornament env sigma n_new s l c_old opaque_terms
+      lift_inductive_by_ornament env sigma n_new s l c_old opaque_terms is_lift_module
     else
       lift_definition_by_ornament env sigma n_new l c_old opaque_terms
   else
@@ -420,7 +420,7 @@ let lift_module_by_ornament ?(opaques=[]) ident d_orn d_orn_inv mod_ref =
   let lift_global gref =
     let ident = Nametab.basename_of_global gref in
     try
-      lift_by_ornament ~opaques:opaques ident d_orn d_orn_inv (expr_of_global gref)
+      lift_by_ornament ~opaques:opaques ident d_orn d_orn_inv (expr_of_global gref) true
     with _ ->
       Feedback.msg_warning (str "Failed to lift " ++ pr_global_as_constr gref)
   in
