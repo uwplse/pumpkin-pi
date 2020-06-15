@@ -51,8 +51,8 @@ type lift_config =
     l : lifting;
     typs : types * types;
     elim_types : types * types;
+    dep_elims : types * types;
     dep_constrs : types array * types array;
-    constr_rules : types array * types array;
     proj_rules :
       ((constr * constr) list * (types * types) list) *
       ((constr * constr) list * (types * types) list);
@@ -60,6 +60,7 @@ type lift_config =
       ((constr * (constr -> constr)) list) *
       ((constr * (constr -> constr)) list);
     id_etas : (constr * constr);
+    rew_etas : (constr * constr);
     cache : temporary_cache;
     opaques : temporary_cache
   }
@@ -71,9 +72,9 @@ let reverse c =
     c with
     l = flip_dir c.l;
     elim_types = reverse c.elim_types;
+    dep_elims = reverse c.dep_elims;
     dep_constrs = reverse c.dep_constrs;
     proj_rules = reverse c.proj_rules;
-    constr_rules = reverse c.constr_rules;
     optimize_proj_id_rules = reverse c.optimize_proj_id_rules;
     id_etas = reverse c.id_etas;
   }
@@ -109,7 +110,10 @@ let is_opaque c trm =
   if is_locally_cached c.opaques trm then
     true
   else
-    lookup_opaque (lift_to c.l, lift_back c.l, trm)
+    if equal trm (snd c.dep_elims) then
+      true
+    else
+      lookup_opaque (lift_to c.l, lift_back c.l, trm)
     
 (*
  * Configurable caching of constants
@@ -169,6 +173,8 @@ let initialize_types l env sigma =
      let a_t = reconstruct_lambda env_typs a_i_t in
      let b_t = reconstruct_lambda env_typs (unshift b_i_t) in
      sigma, (a_t, b_t)
+  | Custom typs ->
+     sigma, typs
 
 let get_types c = c.typs
 
@@ -210,7 +216,26 @@ let rec optimize_is_from c env typ sigma =
          sigma, None
   else
     match c.l.orn.kind with
-    | SwapConstruct _ ->
+    | Algebraic _ ->
+       (try
+          let sig_typ = dest_sigT typ in
+          let b_typ = sig_typ.packer in
+          let unpacked_typ = first_fun (zoom_term zoom_lambda_term env b_typ) in
+          let elim_typ = fst c.elim_types in
+          if equal unpacked_typ elim_typ then
+            let b = zoom_term zoom_lambda_term env b_typ in
+            let args = unshift_all (deindex c.l (unfold_args b)) in
+            let sigma, goal_app = reduce_term env sigma (mkAppl (goal_typ, args)) in
+            let index_type = sig_typ.index_type in
+            if equal index_type (dest_sigT goal_app).index_type then
+              sigma, Some args
+            else
+              sigma, None
+          else
+            sigma, None
+        with _ ->
+          sigma, None)
+    | SwapConstruct _ | Custom _ ->
        if is_or_applies goal_typ typ then
          sigma, Some (unfold_args typ)
        else
@@ -251,12 +276,8 @@ let from_args c env trm sigma =
  *)
 let type_is_from c env trm sigma =
   try
-    on_red_type
-      reduce_term
-      (fun env sigma typ -> is_from c env typ sigma)
-      env
-      sigma
-      trm
+    let sigma, typ = reduce_type env sigma trm in
+    is_from c env typ sigma
   with _ ->
     sigma, None
 
@@ -277,6 +298,9 @@ let type_from_args c env trm sigma =
 (* 
  * Initialize the rules for lifting projections
  * This is COHERENCE, but cached
+ *
+ * A lot of this will likely go into IdEta or RewEta soon, at least what is
+ * not here just for optimizaiton pruposes
  *)
 let initialize_proj_rules c env sigma =
   let l = get_lifting c in
@@ -405,7 +429,7 @@ let initialize_proj_rules c env sigma =
            Feedback.msg_warning
              (Pp.str "Can't find record accessors; skipping an optimization")
          in sigma, (([], []), ([], []))
-    | SwapConstruct _ ->
+    | SwapConstruct _ | Custom _ ->
        (* no projections *)
        sigma, (([], []), ([], []))
   in
@@ -421,7 +445,8 @@ let initialize_id_etas c cached env sigma =
   let sigma, ids =
     if Option.has_some cached then
       (* Use the cached id rules *)
-      sigma, snd (Option.get cached)
+      let (_, _, ids, _) = Option.get cached in
+      sigma, ids
     else
       (* Determine the id rules and cache them for later *)
       let (a_typ, b_typ) = get_types c in
@@ -449,7 +474,7 @@ let initialize_id_etas c cached env sigma =
            in
            let e = pack_existT {index_type; packer; index; unpacked} in
            sigma, reconstruct_lambda env_id e
-        | Algebraic _ | CurryRecord | SwapConstruct _ ->
+        | Algebraic _ | CurryRecord | SwapConstruct _ | Custom _ ->
            (* identity *)
            sigma, reconstruct_lambda env_id a
       in
@@ -502,7 +527,7 @@ let initialize_id_etas c cached env sigma =
              let trm2 = eq_typ_app.trm2 in
              mkAppl (eq_rect, [at_type; trm1; b_typ; b; trm2; eq])
            in sigma, reconstruct_lambda_n env_eq rewrite (nb_rel env)
-        | SwapConstruct _ ->
+        | SwapConstruct _ | Custom _ ->
            (* identity *)
            sigma, reconstruct_lambda env_id b
       in
@@ -526,9 +551,57 @@ let initialize_id_etas c cached env sigma =
   in
   let ids = if l.is_fwd then ids else rev_tuple ids in
   let env = Global.env () in
-  let sigma = Evd.from_env env in
   let id_etas = map_tuple (unwrap_definition env) ids in
   sigma, { c with id_etas }
+
+(*
+ * Define what it means to lift equality proofs.
+ *)
+let initialize_rew_etas c cached env sigma =
+  let l = get_lifting c in
+  let sigma, rews =
+    if Option.has_some cached then
+      (* Use the cached rew rules *)
+      let (_, _, _, rews) = Option.get cached in
+      sigma, rews
+    else
+      (* Determine the id rules and cache them for later *)
+      let sigma, fwd_typ = reduce_type env sigma (lift_to l) in
+      let sigma, bwd_typ = reduce_type env sigma (lift_back l) in
+      let sigma, rew_a =
+        let env_rew = zoom_env zoom_product_type env (if l.is_fwd then fwd_typ else bwd_typ) in
+        let a = mkRel 1 in
+        let sigma, a_typ = reduce_type env_rew sigma a in
+        let rew_a_bod = apply_eq_refl { typ = a_typ; trm = mkRel 1 } in
+        sigma, reconstruct_lambda_n env_rew rew_a_bod (nb_rel env)
+      in
+      let sigma, rew_b =
+        let env_rew = zoom_env zoom_product_type env (if l.is_fwd then bwd_typ else fwd_typ) in
+        let b = mkRel 1 in
+        let sigma, b_typ = reduce_type env_rew sigma b in
+        let rew_b_bod = apply_eq_refl { typ = b_typ; trm = mkRel 1 } in
+        sigma, reconstruct_lambda_n env_rew rew_b_bod (nb_rel env)
+      in
+      let rews =
+        let rew_a_n, rew_b_n =
+          let promote = Constant.canonical (fst (destConst l.orn.promote)) in
+          let (_, _, lab) = KerName.repr promote in
+          let base_n = Label.to_id lab in
+          (with_suffix base_n "rew_eta_a", with_suffix base_n "rew_eta_b")
+        in
+        let rew_a, rew_b = ((rew_a_n, rew_a), (rew_b_n, rew_b)) in
+        try
+          let rew_a = define_term (fst rew_a) sigma (snd rew_a) true in
+          let rew_b = define_term (fst rew_b) sigma (snd rew_b) true in
+          map_tuple Universes.constr_of_global (rew_a, rew_b)
+        with _ ->
+          snd rew_a, snd rew_b
+      in save_rew_eta (l.orn.promote, l.orn.forget) rews; sigma, rews
+  in
+  let rews = if l.is_fwd then rews else rev_tuple rews in
+  let env = Global.env () in
+  let rew_etas = map_tuple (unwrap_definition env) rews in
+  sigma, { c with rew_etas }
 
 (*
  * Get the map of projections for the type
@@ -668,6 +741,8 @@ let may_apply_id_eta c env trm =
        is_or_applies pair trm || is_or_applies (lift_back l) trm
     | SwapConstruct _ ->
        false (* impossible state *)
+    | Custom _ ->
+       true (* not enough information without unification *)
 
 (*
  * Check if a term applies the eta-expanded identity function
@@ -677,14 +752,14 @@ let may_apply_id_eta c env trm =
  * sense to combine this with the COHERENCE rules.
  *)
 let applies_id_eta c env trm sigma =
-  let right_type trm = type_is_from c env trm sigma in
   if may_apply_id_eta c env trm then
-    let sigma, typ_args_o = right_type trm in
+    let sigma, typ_args_o = type_is_from c env trm sigma in
     let opt_proj_map = snd c.optimize_proj_id_rules in
     (* Heuristic for unification again *)
     if Option.has_some typ_args_o then
       let typ_args = Option.get typ_args_o in
-      if equal (zoom_term zoom_lambda_term env (fst c.id_etas)) (mkRel 1) then
+      let is_custom = match c.l.orn.kind with | Custom _ -> true | _ -> false in
+      if (not is_custom) && equal (zoom_term zoom_lambda_term env (fst c.id_etas)) (mkRel 1) then
         sigma, Some (snoc trm typ_args)
       else
         let l = get_lifting c in
@@ -767,16 +842,41 @@ let applies_id_eta c env trm sigma =
                        let unpacked = apply_eq_refl { typ = index_type; trm = index_index } in
                        index, unpacked
                      in sigma, pack_existT { index_type; packer; index; unpacked }
-                 in
-                 sigma, Some (snoc packed typ_args)
+                 in sigma, Some (snoc packed typ_args)
           | CurryRecord ->
              sigma, Some (snoc trm typ_args)
           | SwapConstruct _ ->
              sigma, None (* impossible state *)
+          | Custom _ ->
+             (* attempt unification *)
+             let id_eta = fst c.id_etas in
+             let sigma, eargs = mk_n_evars (arity id_eta) env sigma in
+             let id_app = mkAppl (id_eta, eargs) in
+             let sigma, resolved = unify_resolve_evars env trm id_app sigma in
+             if Option.has_some resolved then
+               let (_, id_app) = Option.get resolved in
+               let args = unfold_args id_app in
+               sigma, Some args
+             else
+               sigma, None
     else
       sigma, None
   else
     sigma, None
+
+let get_rew_eta c = fst c.rew_etas
+let get_lifted_rew_eta c = snd c.rew_etas
+
+(*
+ * When rew_eta is not reflexivity, check if we apply RewEta
+ *)
+let applies_rew_eta c env trm sigma =
+  match c.l.orn.kind with
+  | Custom _ ->
+     (* no custom unification yet---require explicit expansion *)
+     sigma, None
+  | _ ->
+     sigma, None
 
 (* --- Smart simplification (for termination and efficiency) --- *)
 
@@ -800,7 +900,7 @@ let initialize_optimize_proj_id_rules c env sigma =
        let proj1_rule = (fun a -> (dest_pair a).Produtils.trm1) in
        let proj2_rule = (fun a -> (dest_pair a).Produtils.trm2) in
        [(Desugarprod.fst_elim (), proj1_rule); (Desugarprod.snd_elim (), proj2_rule)]
-    | SwapConstruct _ | UnpackSigma ->
+    | SwapConstruct _ | UnpackSigma | Custom _ ->
        []
   in
   let rules_bwd =
@@ -810,7 +910,7 @@ let initialize_optimize_proj_id_rules c env sigma =
        let proj1_rule = (fun a -> (dest_existT a).index) in
        let proj2_rule = (fun a -> (dest_existT a).unpacked) in
        [(projT1, proj1_rule); (projT2, proj2_rule)]
-    | SwapConstruct _ | Algebraic (_, _) | CurryRecord ->
+    | SwapConstruct _ | Algebraic (_, _) | CurryRecord | Custom _ ->
        []
   in
   let optimize_proj_id_rules =
@@ -947,6 +1047,79 @@ let eta_constrs =
   map_constrs (fun env constr sigma -> expand_eta env sigma constr)
 
 (*
+ * Initialize the arguments to a case of a DepConstr
+ *
+ * This needs significant refactoring and cleaning post-deadline
+ *)
+let initialize_constr_args c env_constr_body env_packed args sigma =
+  let l = get_lifting c in
+  match l.orn.kind with
+  | Algebraic (_, off) ->
+     (* Pack arguments *)
+     let c = if c.l.is_fwd then reverse c else c in
+     let b_typ = fst c.elim_types in
+     let rec lift_args sigma args is sh =
+       match args with
+       | n :: tl ->
+          if List.exists (fun (i, _) -> equal n i) is then
+            let (_, i') = List.find (fun (i, _) -> equal n i) is in
+            Util.on_snd
+              (fun tl -> i' :: tl)
+              (lift_args sigma tl is (sh + 1))
+          else
+            let sigma, t = reduce_type env_constr_body sigma n in
+            if is_or_applies b_typ t then
+              let n = unshift_by sh n in
+              let sigma, b_sig = reduce_type env_packed sigma n in
+              let b_sig_typ = dest_sigT b_sig in
+              let i', b' = projections b_sig_typ n in
+              Util.on_snd
+                (fun tl -> b' :: tl)
+                (lift_args sigma tl ((get_arg off t, i') :: is) sh)
+            else
+              Util.on_snd
+                (fun tl -> unshift_by sh n :: tl)
+                (lift_args sigma tl is sh)
+       | _ ->
+          sigma, []
+     in Util.on_snd List.rev (lift_args sigma (List.rev args) [(mkRel 0, mkRel 0)] 0)
+  | _ ->
+     sigma, args
+
+(*
+ * Determine the environment for DepConstr
+ *)
+let initialize_constr_env c env b_constr sigma =
+  let rec init env ind typ constr sigma =
+    match kind constr with
+    | Lambda (n, t, b) ->
+       if is_or_applies ind t then
+         let sigma, t' =
+           let args = unfold_args t in
+           reduce_term env sigma (mkAppl (typ, args))
+         in init (push_local (n, t') env) ind typ b sigma 
+       else
+         init (push_local (n, t) env) ind typ b sigma
+    | _ ->
+       sigma, env
+  in
+  match c.l.orn.kind with
+  | Algebraic (_, off) ->
+     let a_ind = (if c.l.is_fwd then fst else snd) c.elim_types in
+     let a_constr =
+       let ((_, c_index), _) = destConstruct b_constr in
+       let ((i, i_index), u) = destInd a_ind in
+       mkConstructU (((i, i_index), c_index), u)
+     in
+     let sigma, a_constr_eta = expand_eta env sigma a_constr in
+     init env a_ind (snd c.typs) a_constr_eta sigma
+  | UnpackSigma ->
+     let b_typ = (if c.l.is_fwd then snd else fst) c.elim_types in
+     init env b_typ (fst c.typs) b_constr sigma
+  | _ ->
+     failwith "not implemented"
+
+(*
  * Initialize DepConstr for each type
  *)
 let initialize_dep_constrs c cached env sigma =
@@ -954,7 +1127,8 @@ let initialize_dep_constrs c cached env sigma =
   let sigma, constrs =
     if Option.has_some cached then
       (* Use the cached DepConstr rules *)
-      sigma, fst (Option.get cached)
+      let (constrs, _, _, _) = Option.get cached in
+      sigma, constrs
     else
       let a_typ, b_typ = c.typs in
       let sigma, a_constrs =
@@ -964,16 +1138,52 @@ let initialize_dep_constrs c cached env sigma =
         | UnpackSigma ->
            let b_typ_inner = first_fun (zoom_term zoom_lambda_term env b_typ) in
            let sigma, constrs = eta_constrs env b_typ_inner sigma in
-           let c = if l.is_fwd then reverse c else c in
+           let c = if l.is_fwd then c else reverse c in
            map_state_array
              (fun constr sigma ->
                let env_c_b, c_body = zoom_lambda_term env constr in
-               let sigma, id_args_o = applies_id_eta c env_c_b c_body sigma in
-               let lifted_id = get_lifted_id_eta c in
-               let sigma, id_app = reduce_lifted_id c env_c_b sigma (mkAppl (lifted_id, Option.get id_args_o)) in
-               sigma, reconstruct_lambda_n env_c_b id_app (nb_rel env))
+               let sigma, env_packed = initialize_constr_env c env constr sigma in
+               let sigma, typ_args = type_from_args (reverse c) env_c_b c_body sigma in
+               let sigma, app = lift env_c_b (reverse c).l c_body typ_args sigma in
+               let delta app = specialize_delta_f env_c_b (first_fun app) (unfold_args app) in
+               let sigma, app_red = reduce_term env_c_b sigma app in
+               (* delta-reduce unpack_generic(_inv) *)
+               let sigma, app_red = delta app_red sigma in
+               let sigma, app_red = delta app_red sigma in
+               let sigma, app_red = reduce_term env_c_b sigma app_red in
+               let ex_eq = dest_existT app_red in
+               let ex = dest_existT ex_eq.index in
+               let f' = first_fun ex.unpacked in
+               let args' = unfold_args ex.unpacked in
+               let sigma, args'' =
+                 map_state
+                   (fun a sigma ->
+                     let sigma_right, is_from_o = type_is_from (reverse c) env_c_b a sigma in
+                     if Option.has_some is_from_o then
+                       let typ_args = Option.get is_from_o in
+                       let sigma, a' = lift env_c_b (get_lifting c) a typ_args sigma_right in
+                       let sigma, a'_red = delta a' sigma in
+                       let sigma, a'_red = delta a'_red sigma in
+                       reduce_term env_c_b sigma a'_red
+                     else
+                       sigma, a)
+                   args'
+                   sigma
+               in
+               let sigma, app_red =
+                 if List.for_all2 equal args' args'' then
+                   (* base case *)
+                   sigma, app_red
+                 else
+                   (* inductive case (in future, need to tweak for vector to list case) *)
+                   let unpacked = mkAppl (f', args'') in
+                   let index = pack_existT { ex with unpacked } in
+                   sigma, pack_existT { ex_eq with index }
+               in sigma, reconstruct_lambda_n env_packed app_red (nb_rel env))
              constrs
              sigma
+        | Custom _ ->
+           failwith "impossible"
       in
       let sigma, b_constrs =
         match l.orn.kind with
@@ -984,9 +1194,12 @@ let initialize_dep_constrs c cached env sigma =
              (fun env constr sigma ->
                let sigma, constr_exp = expand_eta env sigma constr in
                let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
-               let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
-               let sigma, packed = pack env_c_b l c_body sigma in
-               sigma, reconstruct_lambda_n env_c_b packed (nb_rel env))
+               let f = first_fun c_body in
+               let sigma, env_packed =  initialize_constr_env c env constr sigma in
+               let sigma, args = initialize_constr_args c env_c_b env_packed (unfold_args c_body) sigma in
+               let c_body = reduce_stateless reduce_term env_packed sigma (mkAppl (f, args)) in
+               let sigma, packed = pack env_packed l c_body sigma in
+               sigma, reconstruct_lambda_n env_packed packed (nb_rel env))
              env
              b_typ_inner
              sigma
@@ -999,10 +1212,35 @@ let initialize_dep_constrs c cached env sigma =
            let sigma, app = reduce_nf env sigma app in
            let constr = reconstruct_lambda_n env_c_b app (nb_rel env) in
            sigma, Array.make 1 constr
-        | SwapConstruct _ ->
-           eta_constrs env b_typ sigma
+        | SwapConstruct swaps ->
+           let sigma, constrs = eta_constrs env b_typ sigma in
+           map_state_array
+             (fun i sigma -> sigma, constrs.(List.assoc i swaps - 1))
+             (Array.of_list (range 1 (Array.length constrs + 1)))
+             sigma
         | UnpackSigma ->
-           eta_constrs env (first_fun (zoom_term zoom_lambda_term env b_typ)) sigma
+           let sigma, constrs = eta_constrs env (first_fun (zoom_term zoom_lambda_term env b_typ)) sigma in
+           map_state_array
+             (fun constr sigma ->
+               let sigma, constr_exp = expand_eta env sigma constr in
+               let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
+               let sigma, id_args_o = applies_id_eta (if l.is_fwd then reverse c else c) env_c_b c_body sigma in
+               let lifted_id = get_lifted_id_eta (if l.is_fwd then reverse c else c) in
+               let sigma, id_app = reduce_lifted_id (if l.is_fwd then reverse c else c) env_c_b sigma (mkAppl (lifted_id, Option.get id_args_o)) in
+               let c_body_id = reduce_stateless reduce_term env_c_b sigma id_app in
+               let sigma, typ_args = type_from_args (if l.is_fwd then reverse c else c) env_c_b c_body sigma in
+               let sigma, app = lift env_c_b (if l.is_fwd then l else flip_dir l) c_body_id typ_args sigma in
+               let delta app = specialize_delta_f env_c_b (first_fun app) (unfold_args app) in
+               let sigma, app_red = reduce_term env_c_b sigma app in
+               (* delta-reduce unpack_generic(_inv) *)
+               let sigma, app_red = delta app_red sigma in
+               let sigma, app_red = delta app_red sigma in
+               let sigma, app_red = reduce_term env_c_b sigma app_red in
+               sigma, reconstruct_lambda_n env_c_b app_red (nb_rel env))
+             constrs
+             sigma
+        | Custom _ ->
+           failwith "impossible"
       in
       let dep_constrs =
         let c_a_n, c_b_n =
@@ -1012,149 +1250,40 @@ let initialize_dep_constrs c cached env sigma =
           (with_suffix base_n "dep_constr_a", with_suffix base_n "dep_constr_b")
         in
         let a_constrs, b_constrs = ((c_a_n, a_constrs), (c_b_n, b_constrs)) in
-        try
-          let a_constrs =
-            Array.mapi
-              (fun i c ->
-                let n = with_suffix (fst a_constrs) (string_of_int i) in
-                define_term n sigma c true)
-              (snd a_constrs)
-          in
-          let b_constrs =
-            Array.mapi
-              (fun i c ->
-                let n = with_suffix (fst b_constrs) (string_of_int i) in
-                define_term n sigma c true)
-              (snd b_constrs)
-          in
-          map_tuple (Array.map Universes.constr_of_global) (a_constrs, b_constrs)
-        with _ ->
-          snd a_constrs, snd b_constrs
+        let a_constrs =
+          Array.mapi
+            (fun i c ->
+              let n = with_suffix (fst a_constrs) (string_of_int i) in
+              define_term n sigma c true)
+            (snd a_constrs)
+        in
+        let b_constrs =
+          Array.mapi
+            (fun i c ->
+              let n = with_suffix (fst b_constrs) (string_of_int i) in
+              define_term n sigma c true)
+            (snd b_constrs)
+        in map_tuple (Array.map Universes.constr_of_global) (a_constrs, b_constrs)
       in
       save_dep_constrs (l.orn.promote, l.orn.forget) dep_constrs;
+      Array.iter2
+        (fun c1 c2 ->
+          save_lifting (l.orn.promote, l.orn.forget, c1) c2;
+          save_lifting (l.orn.forget, l.orn.promote, c2) c1)
+        (fst dep_constrs)
+        (snd dep_constrs);
       sigma, dep_constrs
   in
   let constrs = if l.is_fwd then constrs else rev_tuple constrs in
   let env = Global.env () in
-  let sigma = Evd.from_env env in
   let dep_constrs = map_tuple (Array.map (unwrap_definition env)) constrs in
   sigma, { c with dep_constrs }
 
 (*
- * For packing constructor aguments: Pack, but only if it's B
- *)
-let pack_to_typ c env unpacked sigma =
-  let b_typ = (if c.l.is_fwd then snd else fst) c.elim_types in
-  let l = c.l in
-  if on_red_type_default (ignore_env (is_or_applies b_typ)) env sigma unpacked then
-    match l.orn.kind with
-    | Algebraic (_, off) ->
-       pack env l unpacked sigma
-    | _ ->
-       raise NotAlgebraic
-  else
-    sigma, unpacked
-             
-(*
- * NORMALIZE (the result of this is cached)
- *)
-let lift_constr env sigma c trm =
-  let l = c.l in
-  let sigma, typ_args = type_from_args c env trm sigma in
-  let sigma, app = lift env l trm typ_args sigma in
-  match l.orn.kind with
-  | Algebraic _ ->
-     let pack_args (sigma, args) = map_state (pack_to_typ c env) args sigma in
-     let args = unfold_args (map_backward last_arg l trm) in
-     let sigma, packed_args = map_backward pack_args l (sigma, args) in
-     let sigma, rec_args = filter_state (fun tr sigma -> let sigma, o = type_is_from c env tr sigma in sigma, Option.has_some o) packed_args sigma in
-     if List.length rec_args = 0 then
-       (* base case - don't bother refolding *)
-       reduce_nf env sigma app
-     else
-       (* inductive case - refold *)
-       refold l env (lift_to l) app rec_args sigma
-  | SwapConstruct _ ->
-     let args = unfold_args trm in
-     let sigma, rec_args = filter_state (fun tr sigma -> let sigma, o = type_is_from c env tr sigma in sigma, Option.has_some o) args sigma in
-     if List.length rec_args = 0 then
-       (* base case - don't bother refolding *)
-       reduce_nf env sigma app
-     else
-       (* inductive case - refold *)
-       refold l env (lift_to l) app rec_args sigma
-  | UnpackSigma ->
-     (* specialized refolding for a cleaner and more efficient result *)
-     let delta app = specialize_delta_f env (first_fun app) (unfold_args app) in
-     let sigma, app_red = reduce_term env sigma app in
-     (* delta-reduce unpack_generic(_inv) (no custom equivalence support yet) *)
-     let sigma, app_red = delta app_red sigma in
-     let sigma, app_red = delta app_red sigma in
-     let sigma, app_red = reduce_term env sigma app_red in
-     if l.is_fwd then
-       (* don't bother modifying; this never fires since ID rules always do, anyways *)
-       sigma, app_red
-     else
-       let ex_eq = dest_existT app_red in
-       let ex = dest_existT ex_eq.index in
-       let f' = first_fun ex.unpacked in
-       let args' = unfold_args ex.unpacked in
-       let sigma, args'' =
-         map_state
-           (fun a sigma ->
-             let sigma_right, is_from_o = type_is_from c env a sigma in
-             if Option.has_some is_from_o then
-               let typ_args = Option.get is_from_o in
-               let sigma, a' = lift env (get_lifting (reverse c)) a typ_args sigma_right in
-               let sigma, a'_red = delta a' sigma in
-               let sigma, a'_red = delta a'_red sigma in
-               reduce_term env sigma a'_red
-             else
-               sigma, a)
-           args'
-           sigma
-       in
-       if List.for_all2 equal args' args'' then
-         (* base case *)
-         sigma, app_red
-       else
-         (* inductive case (in future, need to tweak for vector to list case) *)
-         let unpacked = mkAppl (f', args'') in
-         let index = pack_existT { ex with unpacked } in
-         sigma, pack_existT { ex_eq with index }
-  | CurryRecord ->
-     (* no inductive cases, so don't try to refold *)
-     reduce_nf env sigma app
-
-(*
- * Wrapper around NORMALIZE
- *)
-let initialize_constr_rule c env constr sigma =
-  let sigma, constr_exp = expand_eta env sigma constr in
-  let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
-  let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
-  let sigma, lifted_body = lift_constr env_c_b sigma c c_body in
-  sigma, reconstruct_lambda_n env_c_b lifted_body (nb_rel env)
-
-(*
- * Run NORMALIZE for all constructors, so we can cache the result
- *)
-let initialize_constr_rules c env sigma =
-  let (fwd_constrs, bwd_constrs) = c.dep_constrs in
-  let sigma, lifted_fwd_constrs =
-    map_state_array (initialize_constr_rule c env) fwd_constrs sigma
-  in
-  let sigma, lifted_bwd_constrs =
-    map_state_array (initialize_constr_rule (reverse c) env) bwd_constrs sigma
-  in
-  let constr_rules = (lifted_fwd_constrs, lifted_bwd_constrs) in
-  sigma, { c with constr_rules }
-           
-(*
  * Get the cached unlifted and lifted constructors
  *)
 let get_constrs c = fst c.dep_constrs
-let get_lifted_constrs c = fst c.constr_rules
+let get_lifted_constrs c = snd c.dep_constrs
 
 (*
  * Check if a term applies the eta-expanded constructor
@@ -1163,19 +1292,53 @@ let get_lifted_constrs c = fst c.constr_rules
  *)
 let applies_constr_eta c env trm sigma =
   let l = get_lifting c in
-  let constrs = get_constrs c in
-    let is_inductive_constr project trm opaque =
+  let is_inductive_constr project constrs trm sigma =
     (* Helper function, faster than unifying with constructor rules *)
     try
       let unpacked = project trm in
       let f = first_fun unpacked in
-      let args = unfold_args unpacked in
       match kind f with
       | Construct ((_, i), _) when i <= Array.length constrs ->
-         let constr = constrs.(i - 1) in
+         let c_i =
+           match l.orn.kind with
+           | SwapConstruct swaps when not l.is_fwd ->
+              List.assoc i swaps - 1
+           | _ ->
+              i - 1
+         in
+         let constr = constrs.(c_i) in
+         let carity = arity constr in
          let f' = first_fun (project (zoom_term zoom_lambda_term env constr)) in
-         if equal f f' && List.length args = arity constr then
-           sigma, Some (i - 1, args, opaque)
+         let rec forget args is sigma =
+           match l.orn.kind with
+           | Algebraic _ when not l.is_fwd ->
+              (match args with
+               | h :: tl ->
+                  let sigma, is_i = exists_state (convertible env h) is sigma in
+                  if is_i then
+                    forget tl is sigma
+                  else
+                    (try
+                       let sigma, b = pack env c.l h sigma in
+                       let sigma_right, args_opt = type_is_from c env b sigma in
+                       if Option.has_some args_opt then
+                         let i_b = (dest_existT b).index in
+                         let sigma, tl' = forget tl (i_b :: is) sigma_right in
+                         sigma, b :: tl'
+                       else
+                         let sigma, tl' = forget tl is sigma in
+                         sigma, h :: tl'
+                     with _ ->
+                       let sigma, tl' = forget tl is sigma in
+                       sigma, h :: tl')
+               | _ ->
+                  sigma, args)
+           | _ ->
+              sigma, args
+         in
+         let sigma, args = Util.on_snd List.rev (forget (List.rev (unfold_args unpacked)) [] sigma) in
+         if equal f f' && List.length args = carity then
+           sigma, Some (c_i, args)
          else
            sigma, None
       | _ ->
@@ -1186,12 +1349,12 @@ let applies_constr_eta c env trm sigma =
   if may_apply_id_eta c env trm then
     match l.orn.kind with
     | Algebraic _ ->
-       is_inductive_constr (if l.is_fwd then id else last_arg) trm false
+       is_inductive_constr (if l.is_fwd then id else last_arg) (get_constrs c) trm sigma
     | SwapConstruct _ ->
-       is_inductive_constr id trm false
+       is_inductive_constr id (get_constrs c) trm sigma
     | CurryRecord ->
        if l.is_fwd then
-         is_inductive_constr id trm false
+         is_inductive_constr id (get_constrs c) trm sigma
        else
          if applies (lift_back l) trm then
            sigma, None
@@ -1200,11 +1363,11 @@ let applies_constr_eta c env trm sigma =
            let sigma_right, args_opt = type_is_from c env trm sigma in
            if Option.has_some args_opt then
              let sigma = sigma_right in
-             let constr = constrs.(0) in
+             let constr = (get_constrs c).(0) in
              let pms = Option.get args_opt in
              let npm = List.length pms in
              let args = pair_projections_eta_rec_n trm (arity constr - npm) in
-             sigma, Some (0, List.append pms args, false)
+             sigma, Some (0, List.append pms args)
            else
              sigma, None
     | UnpackSigma ->
@@ -1212,7 +1375,27 @@ let applies_constr_eta c env trm sigma =
          (* ID rules always take care of this, so no need *)
          sigma, None
        else
-         is_inductive_constr id trm true
+         let b_typ_inner = first_fun (zoom_term zoom_lambda_term env (snd c.typs)) in
+         let sigma, constrs = eta_constrs env b_typ_inner sigma in 
+         is_inductive_constr id constrs trm sigma
+    | Custom _ ->
+       (* attempt unification *)
+       let dep_constrs = Array.to_list (fst c.dep_constrs) in
+       let rec applies_dep_constr i constrs sigma =
+         match constrs with
+         | constr :: tl ->
+            let sigma, eargs = mk_n_evars (arity constr) env sigma in
+            let constr_app = mkAppl (constr, eargs) in
+            let sigma, resolved = unify_resolve_evars env trm constr_app sigma in
+            if Option.has_some resolved then
+              let (_, constr_app) = Option.get resolved in
+              let args = unfold_args constr_app in
+              sigma, Some (i, args)
+            else
+              applies_dep_constr (i + 1) tl sigma
+         | _ ->
+            sigma, None
+       in applies_dep_constr 0 dep_constrs sigma
   else
     sigma, None
 
@@ -1263,11 +1446,393 @@ let initialize_elim_types c env sigma =
 
 let get_elim_type c = fst (c.elim_types)
 
+(* Determine the parameters for DepElim *)
+let initialize_dep_elim_pms c env_elim pms is_match sigma =
+  match c.l.orn.kind with
+  | CurryRecord when not c.l.is_fwd ->
+     if is_match then
+       sigma, pms
+     else
+       let typ_f = first_fun (zoom_term zoom_lambda_term env_elim (snd (get_types c))) in
+       let sigma, to_typ_prod = specialize_delta_f env_elim typ_f pms sigma in
+       let to_elim = dest_prod to_typ_prod in
+       sigma, [to_elim.Produtils.typ1; to_elim.Produtils.typ2]
+  | _ ->
+     sigma, pms
+                          
+(* Determine the motive for DepElim (needs cleaning post-deadline) *)
+let initialize_dep_elim_p c env_elim elim_pms npms p is_match sigma =
+  match c.l.orn.kind with
+  | Algebraic (indexer, off) when not c.l.is_fwd ->
+     let (_, p_typ, _) = destLambda elim_pms in
+     let env_p_b, p_b = zoom_product_type env_elim p_typ in
+     let nargs = new_rels2 env_p_b env_elim in
+     let f = shift_by nargs p in
+     let sigma, args =
+       let old_args = mk_n_rels nargs in
+       let b = last old_args in
+       if is_match then
+         (* We are detecting applications of dep_elim *)
+         let sigma, b_sig_typ = reduce_type env_p_b sigma b in
+         let b_sig = dest_sigT b_sig_typ in
+         let i_b, b = projections b_sig b in
+         let value_off = List.length old_args - 1 in
+         let orn = { c.l.orn with kind = Algebraic (indexer, off - npms) } in
+         let l = { c.l with orn } in (* no parameters here *)
+         sigma, index l i_b (reindex value_off b old_args)
+       else
+         (* We are instantiating dep_elim for the first time *)
+         let sigma, b = pack env_p_b c.l b sigma in
+         let value_off = List.length old_args - 1 in
+         let orn = { c.l.orn with kind = Algebraic (indexer, off - npms) } in
+         let l = { c.l with orn } in (* no parameters here *)
+         sigma, deindex l (reindex value_off b old_args)
+     in
+     let sigma, p_b = reduce_term env_p_b sigma (mkAppl (f, args)) in
+     sigma, reconstruct_lambda_n env_p_b p_b (nb_rel env_elim)
+  | CurryRecord when not c.l.is_fwd ->
+     let (_, p_typ, _) = destLambda elim_pms in
+     let env_p_b, p_b = zoom_product_type env_elim p_typ in
+     let nargs = new_rels2 env_p_b env_elim in
+     let f = shift_by nargs p in
+     let sigma, args =
+       let old_args = mk_n_rels nargs in
+       let b = last old_args in
+       if is_match then
+         (* We are detecting applications of dep_elim *)
+         sigma, [b]
+       else
+         (* We are instantiating dep_elim for the first time *)
+         let sigma, b = pack env_p_b c.l b sigma in
+         sigma, [b]
+     in
+     let sigma, p_b = reduce_term env_p_b sigma (mkAppl (f, args)) in
+     sigma, reconstruct_lambda_n env_p_b p_b (nb_rel env_elim)
+  | _ ->
+     sigma, p
+
 (*
- * Check if the term applies the eliminator
- * If so return the eliminator application, parameters, and the arity
- * of the motive (the number of "final arguments" after inducting over
- * the term)
+ * Initialize the arguments to a case of a constructor of DepElim
+ *
+ * This needs cleaning post-deadline
+ *)
+let initialize_dep_elim_c_args c env_case env_elim case_typ nargs npms case is_match sigma =
+  let l = get_lifting c in
+  match l.orn.kind with
+  | Algebraic (_, off) when not l.is_fwd ->
+     let sigma, case_typ = reduce_type env_elim sigma case in
+     let env_case_typ = zoom_env zoom_product_type env_elim case_typ in
+     let args = mk_n_rels (new_rels2 env_case_typ env_elim) in
+     let b_typ = get_elim_type c in
+     if is_match then
+       (* matching against DepElim *)
+       let rec lift_args sigma args is sh =
+         match args with
+         | n :: tl ->
+            if List.exists (fun (i, _) -> equal n i) is then
+              let (_, i') = List.find (fun (i, _) -> equal n i) is in
+              Util.on_snd
+                (fun tl -> i' :: tl)
+                (lift_args sigma tl is (sh + 1))
+            else
+              let sigma, t = reduce_type env_case_typ sigma n in
+              if is_or_applies b_typ t then
+                let n = unshift_by sh n in
+                let sigma, b_sig = reduce_type env_case sigma n in
+                let b_sig_typ = dest_sigT b_sig in
+                let i', b' = projections b_sig_typ n in
+                Util.on_snd
+                  (fun tl -> b' :: tl)
+                  (lift_args sigma tl ((get_arg off t, i') :: is) sh)
+              else
+                Util.on_snd
+                  (fun tl -> unshift_by sh n :: tl)
+                  (lift_args sigma tl is sh)
+         | _ ->
+            sigma, []
+       in Util.on_snd List.rev (lift_args sigma (List.rev args) [(mkRel 0, mkRel 0)] 0)
+     else
+       (* initializing DepElim for the first time *)
+       let rec lift_args sigma args is =
+         match args with
+         | n :: tl ->
+            if List.exists (equal n) is then
+              lift_args sigma (shift_all (n :: tl)) is
+            else
+              let sigma, t = reduce_type env_case sigma n in
+              if is_or_applies b_typ t then
+                let sigma, b' = pack env_case c.l n sigma in
+                let i = get_arg off t in
+                Util.on_snd
+                  (fun tl -> b' :: tl)
+                  (lift_args sigma tl (i :: is))
+              else
+                Util.on_snd
+                  (fun tl -> n :: tl)
+                  (lift_args sigma tl is)
+         | _ ->
+            sigma, []
+       in Util.on_snd List.rev (lift_args sigma (List.rev args) [mkRel 0])
+  | CurryRecord when not l.is_fwd ->
+     let args = mk_n_rels nargs in
+     let b_typ = get_elim_type c in
+     if not is_match then
+       let c_args, b_args = take_split 2 args in
+       let sigma, args_tl = prod_projections_rec env_case (List.hd (List.tl c_args)) sigma in
+       sigma, List.append (List.hd c_args :: args_tl) b_args
+     else
+       let (ind, _) = destInd b_typ in
+       let sigma, c_typ = reduce_type env_case sigma (mkConstruct (ind, 1)) in
+       let nargs_lifted = arity c_typ in
+       let c_args, b_args = take_split nargs_lifted args in
+       let sigma, arg_pair = pack_pair_rec env_case (List.tl c_args) sigma in
+       sigma, List.append [List.hd c_args; arg_pair] b_args
+  | _ ->
+     sigma, mk_n_rels nargs
+              
+(*
+ * Determine a single case for DepElim
+ *)
+let initialize_dep_elim_c c env_elim elim_c npms case is_match sigma =
+  match c.l.orn.kind with
+  | Algebraic _ | CurryRecord when not c.l.is_fwd ->
+     let (_, case_typ, _) = destLambda elim_c in
+     let env_c = zoom_env zoom_product_type env_elim case_typ in
+     let nargs = new_rels2 env_c env_elim in
+     let case = if c.l.orn.kind = CurryRecord || is_match then case else unshift case in
+     if nargs = 0 then
+       (* no need to get arguments *)
+       sigma, case
+     else
+       (* get arguments *)
+       let sigma, c_eta = expand_eta env_elim sigma case in
+       let (env_c_b, c_body) = zoom_lambda_term env_elim c_eta in
+       let (c_f, _) = destApp c_body in
+       let sigma, args = initialize_dep_elim_c_args c env_c env_elim (shift_by nargs case_typ) nargs npms case is_match sigma in
+       let f = unshift_by (new_rels2 env_c_b env_c) c_f in
+       let sigma, body = reduce_term env_c sigma (mkAppl (f, args)) in
+       sigma, reconstruct_lambda_n env_c body (nb_rel env_elim)
+  | _ ->
+     sigma, case
+
+(* Determine the cases for DepElim *)
+let initialize_dep_elim_cs c env_dep_elim elim_p npms cs is_match sigma =
+  let cs =
+    match (get_lifting (if is_match then reverse c else c)).orn.kind with
+    | SwapConstruct swaps ->
+       (* swap the order before eliminating *)
+       let cs_arr = Array.of_list cs in
+       List.map
+         (fun i -> cs_arr.(List.assoc i swaps - 1))
+         (range 1 (List.length cs + 1))
+    | _ ->
+       (* leave the order alone *)
+       cs
+  in
+  bind
+    (fold_left_state
+       (fun (elim_c, cs) case sigma ->
+         let sigma, case = initialize_dep_elim_c c env_dep_elim elim_c npms case is_match sigma in
+         let sigma, elim_c = reduce_term env_dep_elim sigma (mkAppl (elim_c, [case])) in
+         sigma, (elim_c, snoc case cs))
+       (elim_p, [])
+       cs)
+    (fun (_, cs) -> ret cs)
+    sigma
+
+(* Determine the arguments for DepElim *)
+let initialize_dep_elim_args c env_elim elim_cs npms args is_match sigma =
+  let l = get_lifting c in
+  match l.orn.kind with
+  | Algebraic (indexer, off) when not l.is_fwd ->
+     let value_off = arity elim_cs - 1 in
+     let off = off - npms in (* no parameters here *)
+     if is_match then
+       (* match against DepElim and find arguments *)
+       let b_old = last args in
+       let sigma, b = pack env_elim l b_old sigma in
+       sigma, reindex value_off b (deindex l args)
+     else
+       (* initialize DepElim for the first time *)
+       let up_to_i_b, after_i_b = take_split (off + 1) args in
+       let up_to_i_b = unshift_all up_to_i_b in
+       let b_old = last after_i_b in
+       let sigma, b_typ = reduce_type env_elim sigma b_old in
+       let b_sig_typ = dest_sigT b_typ in
+       let i_b, b = projections b_sig_typ b_old in
+       let up_to_i_b = reindex off i_b up_to_i_b in
+       let after_i_b = reindex (value_off - off - 1) b after_i_b in
+       sigma, List.append up_to_i_b after_i_b
+  | _ ->
+     sigma, args
+
+(* Determine the environment for DepElim (needs mega cleaning post-deadline) *)
+let initialize_dep_elim_env c env sigma =
+  match c.l.orn.kind with
+  | Algebraic _ | SwapConstruct _ | CurryRecord when not c.l.is_fwd ->
+     let elim_typ_rev = get_elim_type (reverse c) in
+     let elim_rev = type_eliminator env (fst (destInd elim_typ_rev)) in
+     let sigma, elim_rev_eta = expand_eta env sigma elim_rev in
+     let env_elim_rev, elim_body_rev = zoom_lambda_term env elim_rev_eta in
+     let sigma, elim_app_rev = deconstruct_eliminator env_elim_rev sigma elim_body_rev in
+     let env, elim_rev = zoom_n_lambda env (List.length elim_app_rev.pms) elim_rev_eta in
+     let (p_n, p_typ, b) = destLambda elim_rev in
+     let rec init_p_typ env p_typ sigma =
+       match kind p_typ with
+       | Prod (n, t, b) ->
+          let env_b = push_local (n, t) env in
+          let sigma, b' = init_p_typ env_b b sigma in
+          if is_or_applies elim_typ_rev t then
+            let args = unfold_args t in
+            let sigma, t' =
+              if List.length args = 0 then
+                sigma, snd (get_types c)
+              else
+                reduce_term env sigma (mkAppl (snd (get_types c), args))
+            in sigma, mkProd (n, t', b')
+          else
+            sigma, mkProd (n, t, b')
+       | _ ->
+          sigma, p_typ
+     in
+     let sigma, p_typ' = init_p_typ env p_typ sigma in
+     let env_p = push_local (p_n, p_typ') env in
+     let rec init_case_typ env case_typ p sigma =
+       match kind case_typ with
+       | Prod (n, t, b) ->
+          let env_b = push_local (n, t) env in
+          let sigma, b' = init_case_typ env_b b (shift p) sigma in
+          if is_or_applies elim_typ_rev t then
+            let args = unfold_args t in
+            let sigma, t' =
+              if List.length args = 0 then
+                sigma, snd (get_types c)
+              else
+                reduce_term env sigma (mkAppl (snd (get_types c), args))
+            in sigma, mkProd (n, t', b')
+          else if is_or_applies p t then
+            let sigma, t' =
+              let f = first_fun t in
+              let args = all_but_last (unfold_args t) in
+              let arg = last_arg t in
+              let lifted_id = fst c.id_etas in
+              let pms = mk_n_rels (List.length elim_app_rev.pms) in
+              let pms = shift_all_by (nb_rel env - List.length pms) pms in
+              let sigma, arg' = reduce_term env sigma (mkAppl (lifted_id, List.append pms (snoc arg args))) in
+              reduce_term env sigma (mkAppl (f, snoc arg' args))
+            in sigma, mkProd (n, t', b')
+          else
+            sigma, mkProd (n, t, b')
+       | _ ->
+          let f = first_fun case_typ in
+          let args = all_but_last (unfold_args case_typ) in
+          let arg = last_arg case_typ in
+          let sigma, app_o = applies_constr_eta (reverse c) env arg sigma in
+          let i, c_args = Option.get app_o in
+          let lifted_constr = (get_constrs c).(i) in
+          let sigma, arg' = reduce_term env sigma (mkAppl (lifted_constr, c_args)) in
+          reduce_term env sigma (mkAppl (f, snoc arg' args))
+     in
+     let rec init env elim i sigma =
+       match kind elim with
+       | Lambda (n, t, b) ->
+          if i < List.length elim_app_rev.cs then
+            let sigma, t' = init_case_typ env t (mkRel (i + 1)) sigma in
+            init (push_local (n, t') env) b (i + 1) sigma
+          else if is_or_applies elim_typ_rev t then
+            let args = unfold_args t in
+            let sigma, t' =
+              if List.length args = 0 then
+                sigma, snd (get_types c)
+              else
+                reduce_term env sigma (mkAppl (snd (get_types c), args))
+            in init (push_local (n, t') env) b (i + 1) sigma
+          else
+            init (push_local (n, t) env) b (i + 1) sigma
+       | _ ->
+          sigma, env
+     in init env_p b 0 sigma
+  | _ ->
+     sigma, env
+
+(* Determine DepElim (needs cleaning post-deadline) *)
+let initialize_dep_elim c env sigma =
+  let elim_typ = get_elim_type c in
+  let elim = type_eliminator env (fst (destInd elim_typ)) in
+  match c.l.orn.kind with
+  | Algebraic _ | SwapConstruct _ | CurryRecord when not c.l.is_fwd ->
+     let sigma, env_dep_elim = initialize_dep_elim_env c env sigma in
+     let sigma, elim_eta = expand_eta env_dep_elim sigma elim in
+     let sigma, dep_elim =
+       let npms =
+         if c.l.orn.kind = CurryRecord then
+           nb_rel env_dep_elim - 3
+         else
+           let env_elim, elim_body = zoom_lambda_term env_dep_elim elim_eta in
+           let sigma, elim_app = deconstruct_eliminator env_elim sigma elim_body in
+           List.length elim_app.pms
+       in
+       let sigma, pms =
+         let pms = shift_all_by (nb_rel env_dep_elim - npms) (mk_n_rels npms) in
+         initialize_dep_elim_pms c env_dep_elim pms false sigma
+       in
+       let sigma, elim_pms = reduce_term env_dep_elim sigma (mkAppl (elim_eta, pms)) in
+       let sigma, p = initialize_dep_elim_p c env_dep_elim elim_pms npms (shift_by (nb_rel env_dep_elim - npms - 1) (mkRel 1)) false sigma in
+       let sigma, elim_p = reduce_term env_dep_elim sigma (mkAppl (elim_pms, [p])) in
+       let sigma, cs =
+         let sigma, elim_eta = expand_eta env_dep_elim sigma elim_p in
+         let env_elim, elim_body = zoom_lambda_term env_dep_elim elim_eta in
+         let sigma, elim_body = reduce_term env_elim sigma elim_body in
+         let sigma, elim_app = deconstruct_eliminator env_elim sigma elim_body in
+         initialize_dep_elim_cs c env_dep_elim elim_p npms elim_app.cs false sigma
+       in
+       let sigma, elim_cs = reduce_term env_dep_elim sigma (mkAppl (elim_p, cs)) in
+       let sigma, final_args =
+         let nargs = arity elim_cs in
+         let args = mk_n_rels nargs in
+         initialize_dep_elim_args c env_dep_elim elim_cs npms args false sigma
+       in reduce_term env_dep_elim sigma (mkAppl (elim_cs, final_args))
+     in sigma, reconstruct_lambda_n env_dep_elim dep_elim (nb_rel env)
+  | _ ->
+     sigma, elim
+
+(*
+ * Initialize dep_elims
+ *)
+let initialize_dep_elims c cached env sigma =
+  let sigma, elims =
+    if Option.has_some cached then
+      (* Use the cached DepElim rules *)
+      let (_, elims, _, _) = Option.get cached in
+      sigma, elims
+    else
+      (* Determine DepElim and cache if needed *)
+      let c = if c.l.is_fwd then c else reverse c in
+      let sigma, a_elim = initialize_dep_elim c env sigma in
+      let sigma, b_elim = initialize_dep_elim (reverse c) env sigma in
+      let elim_a_n, elim_b_n =
+        let promote = Constant.canonical (fst (destConst c.l.orn.promote)) in
+        let (_, _, lab) = KerName.repr promote in
+        let base_n = Label.to_id lab in
+        (with_suffix base_n "dep_elim_a", with_suffix base_n "dep_elim_b")
+      in
+      let elim_a, elim_b = ((elim_a_n, a_elim), (elim_b_n, b_elim)) in
+      let elim_a = define_term (fst elim_a) sigma (snd elim_a) true in
+      let elim_b = define_term (fst elim_b) sigma (snd elim_b) true in
+      let elims = map_tuple Universes.constr_of_global (elim_a, elim_b) in
+      save_dep_elim (c.l.orn.promote, c.l.orn.forget) elims;
+      save_lifting (c.l.orn.promote, c.l.orn.forget, (fst elims)) (snd elims);
+      save_lifting (c.l.orn.forget, c.l.orn.promote, (snd elims)) (fst elims);
+      sigma, elims
+  in
+  let elims = if c.l.is_fwd then elims else rev_tuple elims in
+  sigma, { c with dep_elims = elims }
+
+let get_dep_elim c = fst (c.dep_elims)
+let get_lifted_dep_elim c = snd (c.dep_elims)
+
+(*
+ * Check if the term applies dep_elim, and if so return the arguments
  *)
 let applies_elim c env trm sigma =
   let l = get_lifting c in
@@ -1283,32 +1848,59 @@ let applies_elim c env trm sigma =
          let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm_b in
          let sigma, elim_app_o =
            match l.orn.kind with
-           | Algebraic _ | SwapConstruct _ | UnpackSigma ->
-              let sigma, elim_typ_eta = expand_eta env sigma elim_typ in
-              let nargs = (arity elim_typ_eta) - (List.length trm_elim.pms) + 1 in
-              sigma, Some (trm_elim, trm_elim.pms, nargs)
-           | CurryRecord ->
-              let nargs = 1 in
+           | Algebraic _ | SwapConstruct _ | CurryRecord ->
+              (* We return the elimination of dep_elim here *)
               if l.is_fwd then
-                let typ_f = first_fun (zoom_term zoom_lambda_term env_elim (snd (get_types c))) in
-                let sigma, to_typ_prod = specialize_delta_f env_elim typ_f trm_elim.pms sigma in
-                let to_elim = dest_prod to_typ_prod in
-                let pms = [to_elim.Produtils.typ1; to_elim.Produtils.typ2] in
-                sigma, Some (trm_elim, pms, nargs)
+                let args = unfold_args (apply_eliminator trm_elim) in
+                sigma, Some args
               else
-                let sigma, is_from = type_is_from c env_elim (List.hd trm_elim.final_args) sigma in
-                if Option.has_some is_from then
-                  sigma, Some (trm_elim, Option.get is_from, nargs)
+                let sigma, is_from = if l.orn.kind = CurryRecord then type_is_from c env_elim (List.hd trm_elim.final_args) sigma else sigma, None in
+                if (not (l.orn.kind = CurryRecord)) || Option.has_some is_from then
+                  let elim = get_dep_elim c in
+                  let sigma, pms =
+                    let pms_old =
+                      if l.orn.kind = CurryRecord then
+                        Option.get is_from
+                      else
+                        trm_elim.pms
+                    in initialize_dep_elim_pms c env_elim pms_old true sigma
+                  in
+                  let npms = List.length trm_elim.pms in
+                  let elim_delta = unwrap_definition env_elim elim in
+                  let sigma, elim_pms = reduce_term env_elim sigma (mkAppl (elim_delta, pms)) in
+                  let sigma, p = initialize_dep_elim_p c env_elim elim_pms npms trm_elim.p true sigma in
+                  let sigma, elim_p = reduce_term env_elim sigma (mkAppl (elim_pms, [p])) in
+                  let sigma, cs = initialize_dep_elim_cs c env_elim elim_p npms trm_elim.cs true sigma in
+                  let sigma, elim_cs = reduce_term env_elim sigma (mkAppl (elim_p, cs)) in
+                  let sigma, final_args = initialize_dep_elim_args c env_elim elim_cs npms trm_elim.final_args true sigma in
+                  let trm_elim = { elim; pms; p; cs; final_args } in
+                  let args = unfold_args (apply_eliminator trm_elim) in
+                  sigma, Some args
                 else
                   sigma, None
+           | UnpackSigma ->
+              (* eventually, use explicit depelim here too *)
+              let args = unfold_args (apply_eliminator trm_elim) in
+              sigma, Some args
+           | Custom _ ->
+              (* attempt unification *)
+              let dep_elim = fst c.dep_elims in
+              let sigma, eargs = mk_n_evars (arity dep_elim) env sigma in
+              let elim_app = mkAppl (dep_elim, eargs) in
+              let sigma, resolved = unify_resolve_evars env trm elim_app sigma in
+              if Option.has_some resolved then
+                let (_, elim_app) = Option.get resolved in
+                let args = unfold_args elim_app in
+                sigma, Some args
+              else
+                sigma, None
          in
          if Option.has_some elim_app_o then
-           let trm_elim, pms, nargs = Option.get elim_app_o in
-           let opaque = (l.orn.kind = UnpackSigma) in
+           let args = Option.get elim_app_o in
            if new_rels2 env_elim env > 0 then
-             sigma, Some (Some trm_eta, trm_elim, pms, nargs, opaque)
+             sigma, Some (Some trm_eta, args)
            else
-             sigma, Some (None, trm_elim, pms, nargs, opaque)
+             sigma, Some (None, args)
          else
            sigma, None
        else
@@ -1331,11 +1923,12 @@ let initialize_lift_config env l ignores sigma =
       l;
       typs;
       elim_types = (mkRel 1, mkRel 1);
+      dep_elims = (mkRel 1, mkRel 1);
       dep_constrs = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
-      constr_rules = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
       proj_rules = ([], []), ([], []);
       optimize_proj_id_rules = [], [];
       id_etas = (mkRel 1, mkRel 1);
+      rew_etas = (mkRel 1, mkRel 1);
       cache;
       opaques
     }
@@ -1344,7 +1937,9 @@ let initialize_lift_config env l ignores sigma =
   let sigma, c = initialize_proj_rules c env sigma in
   let sigma, c = initialize_optimize_proj_id_rules c env sigma in
   let sigma, c = initialize_id_etas c cached env sigma in
+  let sigma, c = initialize_rew_etas c cached env sigma in
   let sigma, c = initialize_elim_types c env sigma in
   let sigma, c = initialize_dep_constrs c cached env sigma in
-  initialize_constr_rules c env sigma
+  initialize_dep_elims c cached env sigma
+  
 

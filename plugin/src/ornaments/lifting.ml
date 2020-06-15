@@ -144,50 +144,57 @@ let get_direction (from_typ_app, to_typ_app) orn_kind =
      true
   | UnpackSigma ->
      equal sigT (first_fun from_typ_app)
+  | _ ->
+     failwith "not yet supported"
 
 (*
  * For an uncached ornament, get the kind and its direction
  *)
-let get_kind_of_ornament env (o, n) sigma =
-  let (from_typ_app, to_typ_app) = promotion_term_to_types env sigma o in
-  let sigma, prelim_kind =
-    if applies sigT from_typ_app || applies sigT to_typ_app then
-      let s = if applies sigT from_typ_app then from_typ_app else to_typ_app in
-      let packer = (dest_sigT s).packer in
-      let env_b, packer_b = zoom_lambda_term env packer in
-      let sigma, packer_b = reduce_nf env_b sigma packer_b in
-      if is_or_applies eq packer_b then
-        sigma, UnpackSigma
+let get_kind_of_ornament env typs (o, n) is_custom sigma =
+  if is_custom then
+    sigma, (true, Custom typs)
+  else
+    let (from_typ_app, to_typ_app) = promotion_term_to_types env sigma o in
+    let sigma, prelim_kind =
+      if applies sigT from_typ_app || applies sigT to_typ_app then
+        let s = if applies sigT from_typ_app then from_typ_app else to_typ_app in
+        let packer = (dest_sigT s).packer in
+        let env_b, packer_b = zoom_lambda_term env packer in
+        let sigma, packer_b = reduce_nf env_b sigma packer_b in
+        if is_or_applies eq packer_b then
+          sigma, UnpackSigma
+        else
+          sigma, Algebraic (mkRel 1, 0)
+      else if isInd (first_fun from_typ_app) && isInd (first_fun to_typ_app) then
+        sigma, SwapConstruct []
       else
-      sigma, Algebraic (mkRel 1, 0)
-    else if isInd (first_fun from_typ_app) && isInd (first_fun to_typ_app) then
-      sigma, SwapConstruct []
-    else
-      sigma, CurryRecord
-  in
-  match prelim_kind with
-  | Algebraic _ ->
-     let is_fwd = get_direction (from_typ_app, to_typ_app) prelim_kind in
-     let (promote, _) = map_if reverse (not is_fwd) (o, n) in
-     let promote_unpacked = unpack_promotion env (unwrap_definition env promote) in
-     let to_ind = snd (promotion_term_to_types env sigma promote_unpacked) in
-     let to_args = unfold_args to_ind in
-     let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
-     let (o, i) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
-     let indexer = first_fun i in
-     sigma, (is_fwd, Algebraic (indexer, o))
-  | SwapConstruct _ ->
-     let a = first_fun from_typ_app in
-     let b = first_fun to_typ_app in
-     let sigma, swap_map_cs = swap_map_of_promote_or_forget env a b (Some o) None sigma in
-     let swap_map =
-       List.map
-         (fun (((_, i), _), (((_, j), _))) -> i, j)
-         swap_map_cs
-     in sigma, (true, SwapConstruct swap_map)
-  | UnpackSigma | CurryRecord ->
-     let is_fwd = get_direction (from_typ_app, to_typ_app) prelim_kind in
-     sigma, (is_fwd, prelim_kind)
+        sigma, CurryRecord
+    in
+    match prelim_kind with
+    | Algebraic _ ->
+       let is_fwd = get_direction (from_typ_app, to_typ_app) prelim_kind in
+       let (promote, _) = map_if reverse (not is_fwd) (o, n) in
+       let promote_unpacked = unpack_promotion env (unwrap_definition env promote) in
+       let to_ind = snd (promotion_term_to_types env sigma promote_unpacked) in
+       let to_args = unfold_args to_ind in
+       let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
+       let (o, i) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
+       let indexer = first_fun i in
+       sigma, (is_fwd, Algebraic (indexer, o))
+    | SwapConstruct _ ->
+       let a = first_fun from_typ_app in
+       let b = first_fun to_typ_app in
+       let sigma, swap_map_cs = swap_map_of_promote_or_forget env a b (Some o) None sigma in
+       let swap_map =
+         List.map
+           (fun (((_, i), _), (((_, j), _))) -> i, j)
+           swap_map_cs
+       in sigma, (true, SwapConstruct swap_map)
+    | UnpackSigma | CurryRecord ->
+       let is_fwd = get_direction (from_typ_app, to_typ_app) prelim_kind in
+       sigma, (is_fwd, prelim_kind)
+    | _ ->
+       failwith "Not yet supported"
 
 (* --- Directionality --- *)
        
@@ -236,10 +243,10 @@ let initialize_lifting_cached env sigma o n =
 (*
  * Initialize a lifting for a user-provided ornament
  *)
-let initialize_lifting_provided env sigma o n =
+let initialize_lifting_provided env sigma typs funs is_custom =
   let sigma, (is_fwd, (promote, forget), kind) =
-    let sigma, (is_fwd, k) = get_kind_of_ornament env (o, n) sigma in
-    let orns = map_if reverse (not is_fwd) (o, n) in
+    let sigma, (is_fwd, k) = get_kind_of_ornament env typs funs is_custom sigma in
+    let orns = map_if reverse (not is_fwd) funs in
     sigma, (is_fwd, orns, k)
   in
   let orn = { promote; forget; kind } in

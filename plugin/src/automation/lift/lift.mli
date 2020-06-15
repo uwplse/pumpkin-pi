@@ -16,7 +16,7 @@ val do_lift_defn :
   env ->
   evar_map ->
   lifting -> (* lifting configuration *)
-  types -> (* unlifted constant (defined function) *)
+  constr -> (* unlifted constant (defined function) *)
   constr list -> (* constants to treat as opaque *)
   types state (* lifted function *)
 
@@ -28,4 +28,5 @@ val do_lift_ind :
   string ->
   inductive ->
   constr list -> (* constants to treat as opaque *)
+  bool -> (* whether we're lifting a whole module *)
   inductive (* lifted type and number of constructors for caching *)

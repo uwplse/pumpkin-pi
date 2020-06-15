@@ -248,12 +248,12 @@ type 'a metadata = (global_reference * global_reference) * 'a
 (* Initialize the ornament cache *)
 let orn_cache = OrnamentsCache.create 100
 
-(* Initialize the private cache of indexers for algebraic ornamnets *)
+(* Initialize the private cache of indexers for algebraic ornaments *)
 let indexer_cache = OrnamentsCache.create 100
 
-(* Initialize the private cache of swap maps for swap ornamnets *)
+(* Initialize the private cache of swap maps for swap ornaments *)
 let swap_cache = OrnamentsCache.create 100
-                                      
+
 (*
  * The kind of ornament is saved as an int, so this interprets it
  *)
@@ -269,6 +269,9 @@ let int_to_kind (i : int) globals =
     SwapConstruct swap_map
   else if i = 3 then
     UnpackSigma
+  else if i = 4 then
+    let typs = map_tuple Universes.constr_of_global globals in
+    Custom typs
   else
     failwith "Unsupported kind of ornament passed to interpret_kind in caching"
 
@@ -282,6 +285,8 @@ let kind_to_int (k : kind_of_orn) =
      2
   | UnpackSigma ->
      3
+  | Custom typs ->
+     4
 
 (*
  * Wrapping the table for persistence
@@ -336,7 +341,7 @@ let inSwaps : swap_obj -> obj =
     load_function = (fun _ -> cache_swap_map);
     open_function = (fun _ -> cache_swap_map);
     classify_function = (fun ind_obj -> Substitute ind_obj);
-    subst_function = sub_swap_map }             
+    subst_function = sub_swap_map }
 
 (*
  * Precise version
@@ -390,14 +395,14 @@ let save_ornament typs (orn, orn_inv, kind) =
     | SwapConstruct swap_map ->
        let ind_obj = inSwaps (globals, swap_map) in
        add_anonymous_leaf ind_obj
-    | CurryRecord | UnpackSigma ->
+    | CurryRecord | UnpackSigma | Custom _ ->
        ()
   with _ ->
     Feedback.msg_warning
       (Pp.seq
-         [Pp.str "Failed to cache ornament. ";
+         [Pp.str "Failed to cache equivalence. ";
           Pp.str "Please try definining your types as constants, ";
-          Pp.str "and passing those constants to `Find ornament` instead."])
+          Pp.str "and passing those constants to the command instead."])
  
                         
 (* --- Lifting configuration cache --- *)
@@ -491,25 +496,32 @@ let inRewEtas : rew_eta_obj -> obj =
  *)
 let lookup_config typs =
   if not (has_metadata_exact dep_constr_cache typs &&
-          has_metadata_exact id_eta_cache typs) then
+          has_metadata_exact dep_elim_cache typs &&
+          has_metadata_exact id_eta_cache typs &&
+          has_metadata_exact rew_eta_cache typs) then
     None
   else
     let globals = map_tuple global_of_constr typs in
-    let ids = OrnamentsCache.find id_eta_cache globals in
     let constrs = OrnamentsCache.find dep_constr_cache globals in
+    let elims = OrnamentsCache.find dep_elim_cache globals in
+    let ids = OrnamentsCache.find id_eta_cache globals in
+    let rews = OrnamentsCache.find rew_eta_cache globals in
     try
-      Some (map_tuple (Array.map Universes.constr_of_global) constrs, map_tuple Universes.constr_of_global ids)
+      let constrs = map_tuple (Array.map Universes.constr_of_global) constrs in
+      let elims = map_tuple Universes.constr_of_global elims in
+      let ids = map_tuple Universes.constr_of_global ids in
+      let rews = map_tuple Universes.constr_of_global rews in
+      Some (constrs, elims, ids, rews)
     with _ ->
       Feedback.msg_warning
         (Pp.seq
            [Pp.str "Failed to retrieve cached configuration. ";
-            Pp.str "Lifting my fail later. ";
+            Pp.str "Lifting may fail later. ";
             Pp.str "Please report a bug if this happens."]);
       None
-
  
 (*
- * DepConstr to the config cache
+ * Add DepConstr to the config cache
  *)
 let save_dep_constrs typs constrs =
   try
@@ -521,7 +533,23 @@ let save_dep_constrs typs constrs =
     Feedback.msg_warning
       (Pp.seq
          [Pp.str "Failed to cache DepConstr configuration. ";
-          Pp.str "Lifting my fail later. ";
+          Pp.str "Lifting may fail later. ";
+          Pp.str "Please report a bug if this happens."])
+
+(*
+ * Add DepElim to the config cache
+ *)
+let save_dep_elim typs elims =
+  try
+    let globals = map_tuple global_of_constr typs in
+    let elims = map_tuple global_of_constr elims in
+    let dep_elim_obj = inDepElims (globals, elims) in
+    add_anonymous_leaf dep_elim_obj
+  with _ ->
+    Feedback.msg_warning
+      (Pp.seq
+         [Pp.str "Failed to cache DepElim configuration. ";
+          Pp.str "Lifting may fail later. ";
           Pp.str "Please report a bug if this happens."])
 
 (*
@@ -537,5 +565,21 @@ let save_id_eta typs ids =
     Feedback.msg_warning
       (Pp.seq
          [Pp.str "Failed to cache IdEta configuration. ";
-          Pp.str "Lifting my fail later. ";
+          Pp.str "Lifting may fail later. ";
+          Pp.str "Please report a bug if this happens."])
+
+(*
+ * Add RewEta to the config cache
+ *)
+let save_rew_eta typs rews =
+  try
+    let globals = map_tuple global_of_constr typs in
+    let rews = map_tuple global_of_constr rews in
+    let rew_eta_obj = inRewEtas (globals, rews) in
+    add_anonymous_leaf rew_eta_obj
+  with _ ->
+    Feedback.msg_warning
+      (Pp.seq
+         [Pp.str "Failed to cache RewEta configuration. ";
+          Pp.str "Lifting may fail later. ";
           Pp.str "Please report a bug if this happens."])

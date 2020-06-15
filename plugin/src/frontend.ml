@@ -83,14 +83,14 @@ let maybe_prove_coherence n promote forget kind : unit =
  * If the option is enabled, then prove section, retraction, and adjunction after
  * find_ornament is called. Otherwise, do nothing.
  *)
-let maybe_prove_equivalence n promote forget : unit =
+let maybe_prove_equivalence n typs promote forget : unit =
   let define_proof suffix ?(adjective=suffix) sigma term typ =
     let ident = with_suffix n suffix in
     define_print ident term ~typ:typ sigma |> destConstRef
   in
   if is_search_equiv () then
     let sigma, env = refresh_env () in
-    let sigma, l = initialize_lifting_provided env sigma promote forget in
+    let sigma, l = initialize_lifting_provided env sigma typs (promote, forget) false in
     let ((section, section_typ), (retraction, retraction_typ)) =
       prove_equivalence env sigma l
     in
@@ -113,10 +113,10 @@ let maybe_prove_equivalence n promote forget : unit =
 (*
  * If the option is enabled, generate smart eliminators
  *)
-let maybe_find_smart_elims promote forget : unit =
+let maybe_find_smart_elims typs promote forget : unit =
   if is_smart_elim () then
     let sigma, env = refresh_env () in
-    let sigma, l = initialize_lifting_provided env sigma promote forget in
+    let sigma, l = initialize_lifting_provided env sigma typs (promote, forget) false in
     let sigma, elims = find_smart_elims l env sigma in
     List.iter
       (fun (n, trm, typ) -> ignore (define_print ~typ:typ n trm sigma))
@@ -180,7 +180,7 @@ let infer_name_for_ornament env trm_o trm_n n_o =
 (*
  * Common function for find_ornament and save_ornament
  *)
-let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
+let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o is_custom sigma =
   try
     let sigma, def_o = intern env sigma d_old in
     let sigma, def_n = intern env sigma d_new in
@@ -189,14 +189,14 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
     let sigma, orn =
       if not (Option.has_some promote_o || Option.has_some forget_o) then
         (* Find ornament *)
-        let _ = Feedback.msg_info (Pp.str "Searching for ornament") in
+        let _ = Feedback.msg_info (Pp.str "Searching for equivalence") in
         search_orn env sigma idx_n swap_i_o trm_o trm_n
       else if (Option.has_some promote_o && Option.has_some forget_o) then
         (* Save ornament *)
-        let _ = Feedback.msg_info (Pp.str "Saving ornament") in
+        let _ = Feedback.msg_info (Pp.str "Saving equivalence") in
         let promote = Option.get promote_o in
         let forget = Option.get forget_o in
-        let sigma, l = initialize_lifting_provided env sigma promote forget in
+        let sigma, l = initialize_lifting_provided env sigma (trm_o, trm_n) (promote, forget) is_custom in
         sigma, l.orn
       else
         (* Save ornament with automatic inversion *)
@@ -231,9 +231,12 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
         let sigma, typ = reduce_type env sigma orn.forget in
         inv_n, Universes.constr_of_global (define_print inv_n orn.forget ~typ:typ sigma)
     in
-    maybe_prove_coherence n promote forget orn.kind;
-    maybe_prove_equivalence n promote forget;
-    maybe_find_smart_elims promote forget;
+    (if not is_custom then
+      (maybe_prove_coherence n promote forget orn.kind;
+       maybe_prove_equivalence n (trm_o, trm_n) promote forget;
+       maybe_find_smart_elims (trm_o, trm_n) promote forget)
+     else
+       ());
     (try
        save_ornament (trm_o, trm_n) (promote, forget, orn.kind)
      with _ ->
@@ -259,12 +262,12 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o sigma =
  *)
 let find_ornament n_o d_old d_new swap_i_o =
   let (sigma, env) = Pfedit.get_current_context () in
-  find_ornament_common env n_o d_old d_new swap_i_o None None sigma
+  find_ornament_common env n_o d_old d_new swap_i_o None None false sigma
 
 (*
  * Save a user-provided ornament
  *)
-let save_ornament d_old d_new d_orn_o d_orn_inv_o =
+let save_ornament d_old d_new d_orn_o d_orn_inv_o is_custom =
   Feedback.msg_warning (Pp.str "Custom equivalences are experimental. Use at your own risk!");
   let (sigma, env) = Pfedit.get_current_context () in
   if not (Option.has_some d_orn_o || Option.has_some d_orn_inv_o) then
@@ -289,7 +292,7 @@ let save_ornament d_old d_new d_orn_o d_orn_inv_o =
         get_base_name promote_o
       else
         with_suffix (get_base_name forget_o) "inv"
-    in find_ornament_common env (Some n) d_old d_new None promote_o forget_o sigma
+    in find_ornament_common env (Some n) d_old d_new None promote_o forget_o is_custom sigma
 
 (*
  * Lift a definition according to a lifting configuration, defining the lifted
@@ -332,10 +335,10 @@ let lift_definition_by_ornament env sigma n l c_old ignores =
  * new lifted version and declaring type-to-type, constructor-to-constructor,
  * and eliminator-to-eliminator liftings.
  *)
-let lift_inductive_by_ornament env sigma n s l c_old ignores =
+let lift_inductive_by_ornament env sigma n s l c_old ignores is_lift_module =
   try
     let ind, _ = destInd c_old in
-    let ind' = do_lift_ind env sigma l n s ind ignores in
+    let ind' = do_lift_ind env sigma l n s ind ignores is_lift_module in
     let env' = Global.env () in
     Feedback.msg_info (str "DEVOID generated " ++ pr_inductive env' ind')
   with
@@ -376,7 +379,7 @@ let init_lift env d_orn d_orn_inv sigma =
  * Lift the supplied definition or inductive type along the supplied ornament
  * Define the lifted version
  *)
-let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old =
+let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old is_lift_module =
   let (sigma, env) = Pfedit.get_current_context () in
   let opaque_terms =
     List.map
@@ -400,7 +403,7 @@ let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old =
   if isInd u_old then
     let from_typ = fst (on_red_type_default (fun _ _ -> promotion_type_to_types) env sigma l.orn.promote) in
     if not (equal u_old from_typ) then
-      lift_inductive_by_ornament env sigma n_new s l c_old opaque_terms
+      lift_inductive_by_ornament env sigma n_new s l c_old opaque_terms is_lift_module
     else
       lift_definition_by_ornament env sigma n_new l c_old opaque_terms
   else
@@ -417,7 +420,7 @@ let lift_module_by_ornament ?(opaques=[]) ident d_orn d_orn_inv mod_ref =
   let lift_global gref =
     let ident = Nametab.basename_of_global gref in
     try
-      lift_by_ornament ~opaques:opaques ident d_orn d_orn_inv (expr_of_global gref)
+      lift_by_ornament ~opaques:opaques ident d_orn d_orn_inv (expr_of_global gref) true
     with _ ->
       Feedback.msg_warning (str "Failed to lift " ++ pr_global_as_constr gref)
   in
@@ -473,6 +476,38 @@ let remove_lifting_opaques d_orn d_orn_inv opaques =
           [try_check_typos; try_fully_qualify]
           [problematic; mistake])
     opaques
+
+(*
+ * Configure lifting manually
+ *)
+let configure_lifting_manual d_orn d_orn_inv constrs elims ids rews =
+  let (sigma, env) = Pfedit.get_current_context () in
+  let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in
+  let lookup_reference r =
+    let qid = qualid_of_reference r in
+    mkConst (Nametab.locate_constant qid)
+  in
+  let constrs = map_tuple (List.map lookup_reference) constrs in
+  let elims = map_tuple lookup_reference elims in
+  let ids = map_tuple lookup_reference ids in
+  let rews = map_tuple lookup_reference rews in
+  save_dep_constrs (l.orn.promote, l.orn.forget) (map_tuple Array.of_list constrs);
+  save_dep_elim (l.orn.promote, l.orn.forget) elims;
+  save_id_eta (l.orn.promote, l.orn.forget) ids;
+  save_rew_eta (l.orn.promote, l.orn.forget) rews;
+  List.iter2
+    (fun c1 c2 ->
+      save_lifting (l.orn.promote, l.orn.forget, c1) c2;
+      save_lifting (l.orn.forget, l.orn.promote, c2) c1)
+    (fst constrs)
+    (snd constrs);
+  save_lifting (l.orn.promote, l.orn.forget, (fst elims)) (snd elims);
+  save_lifting (l.orn.forget, l.orn.promote, (snd elims)) (fst elims);
+  save_lifting (l.orn.promote, l.orn.forget, (fst ids)) (snd ids);
+  save_lifting (l.orn.forget, l.orn.promote, (snd ids)) (fst ids);
+  save_lifting (l.orn.promote, l.orn.forget, (fst rews)) (snd rews);
+  save_lifting (l.orn.forget, l.orn.promote, (snd rews)) (fst rews);
+  ()
 
 (*
  * Unpack sigma types in the functional signature of a constant.

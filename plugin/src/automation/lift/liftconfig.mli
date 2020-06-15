@@ -87,7 +87,7 @@ val type_from_args :
 (* --- Identity and coherence (for preserving definitional equalities) --- *)
 
 (*
- * Get the cached  lifted identity function
+ * Get the cached lifted identity function
  *)
 val get_lifted_id_eta : lift_config -> constr
 
@@ -118,19 +118,37 @@ val applies_id_eta :
   constr ->
   evar_map ->
   ((constr list) option) state
+                         
+(*
+ * Get RewEta
+ *)
+val get_rew_eta : lift_config -> constr
+val get_lifted_rew_eta : lift_config -> constr
 
+(*
+ * Check if the term applies RewEta
+ * If so, return the the arguments
+ *)
+val applies_rew_eta :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  ((constr list) option) state
+              
 (* --- Constructors and eliminators --- *)
 
 (*
- * Get the cached unlifted and lifted constructors
+ * Get DepConstr
  *)
 val get_constrs : lift_config -> constr array
 val get_lifted_constrs : lift_config -> constr array
 
 (*
- * Get the type we eliminate over
+ * Get DepElim
  *)
-val get_elim_type : lift_config -> types
+val get_dep_elim : lift_config -> types
+val get_lifted_dep_elim : lift_config -> types
 
 (*
  * Check if the term applies the eta-expanded identity function
@@ -142,21 +160,18 @@ val applies_constr_eta :
   env ->
   constr ->
   evar_map ->
-  ((int * (constr list) * bool) option) state
+  ((int * (constr list)) option) state
 
 (*
- * Check if the term applies the eliminator
- * If so return the eta-expanded term, the eliminator application, the
- * parameters, and the arity of the motive (the number of "final arguments"
- * after inducting over the term), as well as whether to treat the eliminator
- * application as opaque when lifting recursively
+ * Check if the term applies DepElim
+ * If so return the eta-expanded term and the arguments
  *)
 val applies_elim :
   lift_config ->
   env ->
   constr ->
   evar_map ->
-  ((constr option * elim_app * constr list * int * bool) option) state
+  ((constr option * (constr list)) option) state
 
 (* --- Custom simplification --- *)
                                      

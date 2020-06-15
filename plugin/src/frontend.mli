@@ -9,25 +9,34 @@ open Names
 val find_ornament : Id.t option -> constr_expr -> constr_expr -> int option -> unit          
 
 (*
- * Save a user-supplied ornament between two types
- * If only one of two function is supplied, automatically invert
+ * Save a user-supplied equivalence between two types.
+ * The boolean denotes a custom kind of equivalence (that is, not one of
+ * the supported kinds, like the supported algebraic ornaments and so on).
+ * If only one of two functions is supplied, automatically invert for
+ * non-custom equivalences.
  * If the appropriate option is set, prove that these form an equivalence
+ * for non-custom ornaments.
  *)
 val save_ornament :
-  constr_expr -> constr_expr -> constr_expr option -> constr_expr option -> unit
+  constr_expr ->
+  constr_expr ->
+  constr_expr option ->
+  constr_expr option ->
+  bool ->
+  unit
                                                                    
 (*
  * Lift the supplied function along an ornament between the supplied types
  * Define the lifted version
  *)
-val lift_by_ornament : ?suffix:bool -> ?opaques:Libnames.reference list -> Id.t -> constr_expr -> constr_expr -> constr_expr -> unit
+val lift_by_ornament : ?suffix:bool -> ?opaques:Libnames.reference list -> Id.t -> constr_expr -> constr_expr -> constr_expr -> bool -> unit
 
 (*
   * Lift each module element (constant and inductive definitions) along the given
   * ornament, defining a new module with all the transformed module elements.
   *)
 val lift_module_by_ornament : ?opaques:Libnames.reference list -> Id.t -> constr_expr -> constr_expr -> Libnames.reference -> unit
-
+                                             
 (*
  * Unpack sigma types in the functional signature of a constant.
  *
@@ -44,3 +53,15 @@ val add_lifting_opaques :
   constr_expr -> constr_expr -> Libnames.reference list -> unit
 val remove_lifting_opaques :
   constr_expr -> constr_expr ->  Libnames.reference list -> unit
+
+(*
+ * Configure lifting manually 
+ *)
+val configure_lifting_manual :
+  constr_expr ->
+  constr_expr ->
+  (Libnames.reference list) * (Libnames.reference list) ->
+  (Libnames.reference * Libnames.reference) ->
+  (Libnames.reference * Libnames.reference) ->
+  (Libnames.reference * Libnames.reference) ->
+  unit

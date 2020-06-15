@@ -24,7 +24,7 @@ type lifting =
 (* --- Initialization --- *)
 
 (*
- * Initialize a lifting for a cached ornament, given (in order):
+ * Initialize a lifting for a cached equivalence, given (in order):
  * 1) an environment
  * 2) an evar_map
  * 3) the old type
@@ -34,14 +34,15 @@ val initialize_lifting_cached :
   env -> evar_map -> types -> types -> lifting state
 
 (*
- * Initialize a lifting for a user-supplied ornament, given (in order):
+ * Initialize a lifting for a user-supplied equivalence, given (in order):
  * 1) an environment
  * 2) an evar_map
- * 3) the old user-supplied ornament function
- * 4) the new user-supplied ornament function
+ * 3) the old and new types
+ * 4) the old and new user-supplied equivalence functions
+ * 5) a boolean flag if it is a custom kind of equivalence
  *)
 val initialize_lifting_provided :
-  env -> evar_map -> constr -> constr -> lifting state
+  env -> evar_map -> types * types -> constr * constr -> bool -> lifting state
 
 (* --- Control structures --- *)
     

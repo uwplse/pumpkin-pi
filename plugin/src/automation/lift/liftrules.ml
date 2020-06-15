@@ -85,8 +85,7 @@ type lift_optimization =
  * 2. LIFT-CONSTR runs when we lift constructors of the type in the equivalence.
  *    This carries the lifted constructor and the arguments, as well as a custom
  *    reduction function to apply the constructor to the arguments prior to
- *    lifting the result, as well as a flag for whether the lifted constructor
- *    should be treated asopaque.
+ *    lifting the result.
  *
  * 3. COHERENCE runs when we lift projections of the type in the equivalence
  *    (either at the term or type level). This carries the term we are
@@ -94,40 +93,26 @@ type lift_optimization =
  *    function to apply coherence to the lifted arguments (to neatly ensure
  *    termination while also maintaining correctness).
  *
- * 4. LIFT-ELIM runs when we lift applications of eliminators of the type
- *    in the equivalence. This carries the application of the eliminator,
- *    the lifted parameters, and the arguments after the eliminator (if the
- *    motive is a product type), as well as a flag for whether to treat the
- *    entire eliminated term as opaque.
+ * 4. OPTIMIZATION runs when some optimization applies.
  *
- * 5. SECTION runs when section applies.
- *
- * 6. RETRACTION runs when retraction applies.
- *
- * 7. INTERNALIZE runs when it is necessary to get rid of some application
- *    of the equivalence temporarily introduced by LIFT-CONSTR or LIFT-ELIM
- *    for the sake of creating intermediate terms that type check.
- *
- * 8. OPTIMIZATION runs when some optimization applies.
- *
- * 9. LIFT-IDENTITY runs when we lift the eta-expanded identity function.
+ * 5. LIFT-IDENTITY runs when we lift the eta-expanded identity function.
  *    This exists to ensure that we preserve definitional equalities.
  *    The rule returns the lifted identity function and its arguments, as
  *    well as a custom reduction function to apply identity to the
  *    lifted arguments (for efficiency and to ensure termination).
  *
- * 10. CIC runs when no optimization applies and none of the other rules
+ * 6. REW-ETA runs when we lift eta-expanded proofs of equality.
+ *    This is also to preserve definitional equalities.
+ *
+ * 7. CIC runs when no optimization applies and none of the other rules
  *    apply. It returns the kind of the Gallina term.
  *)
 type lift_rule =
 | Equivalence of constr * constr list
-| LiftConstr of reducer * (constr * constr list * bool)
+| LiftConstr of reducer * (constr * constr list)
 | LiftIdentity of reducer * (constr * constr list)
+| LiftRewEta of constr * constr list
 | Coherence of reducer * (constr * constr list)
-| LiftElim of elim_app * constr list * constr list * bool
-| Section
-| Retraction
-| Internalize
 | Optimization of lift_optimization
 | CIC of (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
 
@@ -165,7 +150,7 @@ let terminate_constr prev_rules f args=
   List.exists
     (fun prev_rule ->
       match prev_rule with
-      | LiftConstr (simplify, (f', args', opaque)) when equal f f' ->
+      | LiftConstr (simplify, (f', args')) when equal f f' ->
          (* the lifted contructor refers to the unlifted constructor *)
          equal f f' && List.for_all2 equal args args'
       | _ ->
@@ -222,10 +207,10 @@ let is_equivalence c env trm prev_rules sigma =
 let is_constr c prev_rules env trm sigma =
   let sigma, app_o = applies_constr_eta c env trm sigma in
   if Option.has_some app_o then
-    let i, args, opaque = Option.get app_o in
+    let i, args = Option.get app_o in
     let lifted_constr = (get_lifted_constrs c).(i) in
     if not (terminate_constr prev_rules lifted_constr args) then
-      sigma, Some (lifted_constr, args, reduce_constr_app c, opaque)
+      sigma, Some (lifted_constr, args, reduce_constr_app c)
     else
       sigma, None
   else
@@ -254,26 +239,17 @@ let is_identity c env trm prev_rules sigma =
   else
     sigma, None
 
-(* Premises for LIFT-ELIM *)
-let is_eliminator c env trm sigma =
-  let sigma, elim_app_o = applies_elim c env trm sigma in
-  if Option.has_some elim_app_o then
-    let eta_o, trm_elim, pms, nargs, opaque = Option.get elim_app_o in
-    if Option.has_some eta_o then
-      (* Lazy eta *)
-      sigma, Some (eta_o, None)
-    else
-      (* Already eta-expanded *)
-      sigma, Some (None, Some (trm_elim, pms, nargs, opaque))
+(* Premises for LIFT-REW-ETA *)
+let is_rew_eta c env trm prev_rules sigma =
+  let sigma, args_o = applies_rew_eta c env trm sigma in
+  if Option.has_some args_o then
+    sigma, Some (get_lifted_rew_eta c, Option.get args_o)
   else
     sigma, None
 
-(*
- * SECTION / RETRACTION
- *)
-let is_section_retraction c trm =
-  let l = get_lifting c in
-  isApp trm && applies (lift_back l) trm
+(* Premises for LIFT-ELIM *)
+let is_eliminator c env trm sigma =
+  applies_elim c env trm sigma
 
 (*
  * INTERNALIZE
@@ -294,10 +270,6 @@ let determine_lift_rule c env trm prev_rules sigma =
     sigma, Optimization (LocalCaching (lookup_cache c trm))
   else if is_opaque c trm then
     sigma, Optimization OpaqueConstant
-  else if is_section_retraction c trm then
-    sigma, if l.is_fwd then Retraction else Section
-  else if is_internalize c trm then
-    sigma, Internalize
   else
     let sigma, args_o = is_equivalence c env trm prev_rules sigma in
     if Option.has_some args_o then
@@ -314,33 +286,36 @@ let determine_lift_rule c env trm prev_rules sigma =
       else
         let sigma, constr_o = is_constr c prev_rules env trm sigma in
         if Option.has_some constr_o then
-          let f, args, simplify, opaque = Option.get constr_o in
-          sigma, LiftConstr (simplify, (f, args, opaque))
+          let f, args, simplify = Option.get constr_o in
+          sigma, LiftConstr (simplify, (f, args))
         else
           let sigma, is_identity_o = is_identity c env trm prev_rules sigma in
           if Option.has_some is_identity_o then
             let simplify, (f, args) = Option.get is_identity_o in
             sigma, LiftIdentity (simplify, (f, args))
           else
-            let sigma, is_elim_o = is_eliminator c env trm sigma in
-            if Option.has_some is_elim_o then
-              let eta_o, elim_app_o = Option.get is_elim_o in
-              if Option.has_some eta_o then
-                sigma, Optimization (LazyEta (Option.get eta_o))
-              else
-                let trm_elim, pms, nargs, opaque = Option.get elim_app_o in
-                let args = take_split nargs trm_elim.final_args in
-                let trm_elim = { trm_elim with final_args = fst args } in
-                sigma, LiftElim (trm_elim, pms, snd args, opaque)
+            let sigma, is_rew_eta_o = is_rew_eta c env trm prev_rules sigma in
+            if Option.has_some is_rew_eta_o then
+              let (f, args) = Option.get is_rew_eta_o in
+              sigma, LiftRewEta (f, args)
             else
-              match kind trm with
-              | App (f, args) ->
-                 let how_reduce_o = can_reduce_now c env trm in
-                 if Option.has_some how_reduce_o then
+              let sigma, is_elim_o = is_eliminator c env trm sigma in
+              if Option.has_some is_elim_o then
+                let eta_o, args = Option.get is_elim_o in
+                if Option.has_some eta_o then
+                  sigma, Optimization (LazyEta (Option.get eta_o))
+                else
+                  let lifted_dep_elim = get_lifted_dep_elim c in
+                  sigma, Optimization (AppLazyDelta (lifted_dep_elim, Array.of_list args))
+              else
+                match kind trm with
+                | App (f, args) ->
+                   let how_reduce_o = can_reduce_now c env trm in
+                   if Option.has_some how_reduce_o then
                    let how_reduce = Option.get how_reduce_o in
                    sigma, Optimization (SimplifyProjectId (how_reduce, (f, args)))
-                 else
-                   sigma, Optimization (AppLazyDelta (f, args))
+                   else
+                     sigma, Optimization (AppLazyDelta (f, args))
               | Construct (((i, i_index), _), u) ->
                  let ind = mkInd (i, i_index) in
                  let (a_typ, b_typ) = get_types c in

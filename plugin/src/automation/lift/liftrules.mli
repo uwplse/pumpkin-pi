@@ -40,13 +40,10 @@ type lift_optimization =
  *)
 type lift_rule =
 | Equivalence of constr * constr list
-| LiftConstr of reducer * (constr * constr list * bool)
+| LiftConstr of reducer * (constr * constr list)
 | LiftIdentity of reducer * (constr * constr list)
+| LiftRewEta of constr * constr list
 | Coherence of reducer * (constr * constr list)
-| LiftElim of elim_app * constr list * constr list * bool
-| Section
-| Retraction
-| Internalize
 | Optimization of lift_optimization
 | CIC of (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
 
