@@ -20,6 +20,7 @@ nosmartcache=false
 prodrect=false
 swap=false
 unpack=false
+nonorn=false
 
 start=$SECONDS
 
@@ -108,6 +109,15 @@ echo "Testing Unpack Sigma."
 if coqc coq/TestUnpack.v
 then
   unpack=true
+else
+  :
+fi
+
+echo "Testing Non-Ornaments."
+
+if coqc coq/nonorn.v
+then
+  nonorn=true
 else
   :
 fi
@@ -225,7 +235,7 @@ if [ $lifted = true ] && [ $liftedind = true ] && [ $findlift = true ] &&
    [ $example = true ] && [ $liftspec = true ] && [ $search = true ] && 
    [ $lift = true ] && [ $listtovect = true ] && [ $listtovectcustom = true ] && [ $records = true ] && [ $handshake = true ] &&
    [ $morerecords = true ] && [ $nosmartcache = true ] && [ $smartcache = true ] && [ $prodrect = true ] &&
-   [ $swap = true ] && [ $unpack = true ]
+   [ $swap = true ] && [ $unpack = true ] && [ $nonorn = true ]
 then
   echo "SUCCESS: All tests passed."
 
@@ -284,6 +294,12 @@ else
   if [ $unpack = false ]
   then
     echo "tests for unpacking indexed types"
+  else
+    :
+  fi
+  if [ $nonorn = false ]
+  then
+    echo "tests for non-ornament equivalences"
   else
     :
   fi

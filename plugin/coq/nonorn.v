@@ -740,7 +740,6 @@ Definition plus_n_Sm_expanded_rewrites2_inductive (m : nat)
          (fun PS => nat_S (PS m) = add2 (nat_S n0) (nat_S m))
          (inner_term m n0 IHn).
 
-(* TODO why broken? *)
 Lift nat binnat in plus_n_Sm_expanded_rewrites2_inductive as binnat_plus_n_Sm_expanded_rewrites2_inductive.
 
 Definition plus_n_Sm_expanded_rewrites2 (n m : nat) : nat_S (add2 n m) = add2 n (nat_S m) :=
