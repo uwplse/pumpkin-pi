@@ -1,6 +1,8 @@
 From Ornamental Require Import Ornaments.
 
-(* TODO clean, explain test, add to tests *)
+(*
+ * This is a test from a user that ensures record projections lift correctly.
+ *)
 
 Set DEVOID search prove equivalence.
 Set DEVOID lift type.
@@ -150,36 +152,10 @@ Module ConnectionLift.
   (* Checking that [getClientAuthFlag0] has indeed input type [connectionPP]: *)
   Check (getClientAuthFlag0 : connectionPP -> bool).
 
-  Print getClientAuthFlag0.
-  Print connectionPP.
-  (* (bool *
- (bool *
-  (bool * (HandshakeRecordPP.Handshake * (bool * (bool * (bool * (bool * nat))))))))%type *)
-  Print getClientAuthFlag0.
-  Print ConnectionRecordPP.Connection.
-  (* Inductive Connection : Set :=
-    MkConnection : bool ->
-                   bool ->
-                   bool ->
-                   HandshakeRecord.Handshake ->
-                   bool ->
-                   bool -> bool -> bool -> nat -> ConnectionRecordPP.Connection *)
   Lift HandshakeRecord.Handshake
        HandshakeRecordPP.Handshake
     in ConnectionRecordPP.Connection
     as connectionRecordPP. 
-  Print connectionRecordPP.
-  Print ConnectionRecordPP.
-  Print clientAuthFlag.
-
-  Find ornament connectionPP connectionRecordPP as orn.
-  Print orn.
-  Print connectionPP.
-  Print connectionRecordPP.
-
-  Print connectionPP.
-  Print connectionRecordPP.
-  Print getClientAuthFlag0.
 
   Lift connectionPP
        connectionRecordPP
