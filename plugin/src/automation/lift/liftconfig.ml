@@ -596,9 +596,7 @@ let initialize_rew_etas c cached env sigma =
           map_tuple Universes.constr_of_global (rew_a, rew_b)
         with _ ->
           snd rew_a, snd rew_b
-      in
-      save_rew_eta (l.orn.promote, l.orn.forget) rews;
-      sigma, rews
+      in save_rew_eta (l.orn.promote, l.orn.forget) rews; sigma, rews
   in
   let rews = if l.is_fwd then rews else rev_tuple rews in
   let env = Global.env () in
@@ -875,17 +873,8 @@ let get_lifted_rew_eta c = snd c.rew_etas
 let applies_rew_eta c env trm sigma =
   match c.l.orn.kind with
   | Custom _ ->
-     (* attempt unification *)
-     let rew_eta = fst c.id_etas in
-     let sigma, eargs = mk_n_evars (arity rew_eta) env sigma in
-     let rew_app = mkAppl (rew_eta, eargs) in
-     let sigma, resolved = unify_resolve_evars env trm rew_app sigma in
-     if Option.has_some resolved then
-       let (_, rew_app) = Option.get resolved in
-       let args = unfold_args rew_app in
-       sigma, Some args
-     else
-       sigma, None
+     (* no custom unification yet---require explicit expansion *)
+     sigma, None
   | _ ->
      sigma, None
 
@@ -1390,8 +1379,23 @@ let applies_constr_eta c env trm sigma =
          let sigma, constrs = eta_constrs env b_typ_inner sigma in 
          is_inductive_constr id constrs trm sigma
     | Custom _ ->
-       (* Does not yet unify, and so exact case is handled by caching *)
-       sigma, None
+       (* attempt unification *)
+       let dep_constrs = Array.to_list (fst c.dep_constrs) in
+       let rec applies_dep_constr i constrs sigma =
+         match constrs with
+         | constr :: tl ->
+            let sigma, eargs = mk_n_evars (arity constr) env sigma in
+            let constr_app = mkAppl (constr, eargs) in
+            let sigma, resolved = unify_resolve_evars env trm constr_app sigma in
+            if Option.has_some resolved then
+              let (_, constr_app) = Option.get resolved in
+              let args = unfold_args constr_app in
+              sigma, Some (i, args)
+            else
+              applies_dep_constr (i + 1) tl sigma
+         | _ ->
+            sigma, None
+       in applies_dep_constr 0 dep_constrs sigma
   else
     sigma, None
 
@@ -1410,7 +1414,7 @@ let reduce_constr_app c env sigma trm =
   | _ ->
      sigma, trm
 
-(* --- Eliminators --- *) (* TODO reorganize file after these changes *)
+(* --- Eliminators --- *)
 
 (*
  * Initialize the type of the eliminator
@@ -1456,8 +1460,7 @@ let initialize_dep_elim_pms c env_elim pms is_match sigma =
   | _ ->
      sigma, pms
                           
-(* Determine the motive for DepElim *)
-(* TODO clean etc *)
+(* Determine the motive for DepElim (needs cleaning post-deadline) *)
 let initialize_dep_elim_p c env_elim elim_pms npms p is_match sigma =
   match c.l.orn.kind with
   | Algebraic (indexer, off) when not c.l.is_fwd ->
@@ -1497,7 +1500,7 @@ let initialize_dep_elim_p c env_elim elim_pms npms p is_match sigma =
        let b = last old_args in
        if is_match then
          (* We are detecting applications of dep_elim *)
-         sigma, [b] (* TODO? maybe look like fwd of lift_case_args? *)
+         sigma, [b]
        else
          (* We are instantiating dep_elim for the first time *)
          let sigma, b = pack env_p_b c.l b sigma in
@@ -1510,6 +1513,8 @@ let initialize_dep_elim_p c env_elim elim_pms npms p is_match sigma =
 
 (*
  * Initialize the arguments to a case of a constructor of DepElim
+ *
+ * This needs cleaning post-deadline
  *)
 let initialize_dep_elim_c_args c env_case env_elim case_typ nargs npms case is_match sigma =
   let l = get_lifting c in
@@ -1587,31 +1592,14 @@ let initialize_dep_elim_c_args c env_case env_elim case_typ nargs npms case is_m
               
 (*
  * Determine a single case for DepElim
- * TODO clean etc
  *)
 let initialize_dep_elim_c c env_elim elim_c npms case is_match sigma =
   match c.l.orn.kind with
-  | Algebraic (indexer, off) when not c.l.is_fwd ->
+  | Algebraic _ | CurryRecord when not c.l.is_fwd ->
      let (_, case_typ, _) = destLambda elim_c in
      let env_c = zoom_env zoom_product_type env_elim case_typ in
      let nargs = new_rels2 env_c env_elim in
-     let case = if is_match then case else unshift case in
-     if nargs = 0 then
-       (* no need to get arguments *)
-       sigma, case
-     else
-       (* get arguments *)
-       let sigma, c_eta = expand_eta env_elim sigma case in
-       let (env_c_b, c_body) = zoom_lambda_term env_elim c_eta in
-       let (c_f, _) = destApp c_body in
-       let sigma, args = initialize_dep_elim_c_args c env_c env_elim (shift_by nargs case_typ) nargs npms case is_match sigma in
-       let f = unshift_by (new_rels2 env_c_b env_c) c_f in
-       let sigma, body = reduce_term env_c sigma (mkAppl (f, args)) in
-       sigma, reconstruct_lambda_n env_c body (nb_rel env_elim)
-  | CurryRecord when not c.l.is_fwd ->
-     let (_, case_typ, _) = destLambda elim_c in
-     let env_c = zoom_env zoom_product_type env_elim case_typ in
-     let nargs = new_rels2 env_c env_elim in
+     let case = if c.l.orn.kind = CurryRecord || is_match then case else unshift case in
      if nargs = 0 then
        (* no need to get arguments *)
        sigma, case
@@ -1625,7 +1613,7 @@ let initialize_dep_elim_c c env_elim elim_c npms case is_match sigma =
        let sigma, body = reduce_term env_c sigma (mkAppl (f, args)) in
        sigma, reconstruct_lambda_n env_c body (nb_rel env_elim)
   | _ ->
-     sigma, case (* TODO *)
+     sigma, case
 
 (* Determine the cases for DepElim *)
 let initialize_dep_elim_cs c env_dep_elim elim_p npms cs is_match sigma =
@@ -1678,8 +1666,7 @@ let initialize_dep_elim_args c env_elim elim_cs npms args is_match sigma =
   | _ ->
      sigma, args
 
-(* Determine the environment for DepElim *)
-(* TODO clean a lot *)
+(* Determine the environment for DepElim (needs mega cleaning post-deadline) *)
 let initialize_dep_elim_env c env sigma =
   match c.l.orn.kind with
   | Algebraic _ | SwapConstruct _ | CurryRecord when not c.l.is_fwd ->
@@ -1766,9 +1753,9 @@ let initialize_dep_elim_env c env sigma =
           sigma, env
      in init env_p b 0 sigma
   | _ ->
-     sigma, env (* TODO *)
+     sigma, env
 
-(* Determine DepElim (TODO clean a lot) *)
+(* Determine DepElim (needs cleaning post-deadline) *)
 let initialize_dep_elim c env sigma =
   let elim_typ = get_elim_type c in
   let elim = type_eliminator env (fst (destInd elim_typ)) in
@@ -1864,7 +1851,8 @@ let applies_elim c env trm sigma =
            | Algebraic _ | SwapConstruct _ | CurryRecord ->
               (* We return the elimination of dep_elim here *)
               if l.is_fwd then
-                sigma, Some (trm_elim)
+                let args = unfold_args (apply_eliminator trm_elim) in
+                sigma, Some args
               else
                 let sigma, is_from = if l.orn.kind = CurryRecord then type_is_from c env_elim (List.hd trm_elim.final_args) sigma else sigma, None in
                 if (not (l.orn.kind = CurryRecord)) || Option.has_some is_from then
@@ -1886,22 +1874,33 @@ let applies_elim c env trm sigma =
                   let sigma, elim_cs = reduce_term env_elim sigma (mkAppl (elim_p, cs)) in
                   let sigma, final_args = initialize_dep_elim_args c env_elim elim_cs npms trm_elim.final_args true sigma in
                   let trm_elim = { elim; pms; p; cs; final_args } in
-                  sigma, Some (trm_elim)
+                  let args = unfold_args (apply_eliminator trm_elim) in
+                  sigma, Some args
                 else
                   sigma, None
            | UnpackSigma ->
-              (* TODO eventually, use explicit depelim here (one step further than regression though *)
-              sigma, Some (trm_elim)
+              (* eventually, use explicit depelim here too *)
+              let args = unfold_args (apply_eliminator trm_elim) in
+              sigma, Some args
            | Custom _ ->
-              (* no unification yet; requires exact application *)
-              sigma, None
+              (* attempt unification *)
+              let dep_elim = fst c.dep_elims in
+              let sigma, eargs = mk_n_evars (arity dep_elim) env sigma in
+              let elim_app = mkAppl (dep_elim, eargs) in
+              let sigma, resolved = unify_resolve_evars env trm elim_app sigma in
+              if Option.has_some resolved then
+                let (_, elim_app) = Option.get resolved in
+                let args = unfold_args elim_app in
+                sigma, Some args
+              else
+                sigma, None
          in
          if Option.has_some elim_app_o then
-           let trm_elim = Option.get elim_app_o in
+           let args = Option.get elim_app_o in
            if new_rels2 env_elim env > 0 then
-             sigma, Some (Some trm_eta, trm_elim)
+             sigma, Some (Some trm_eta, args)
            else
-             sigma, Some (None, trm_elim)
+             sigma, Some (None, args)
          else
            sigma, None
        else

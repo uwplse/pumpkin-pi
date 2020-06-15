@@ -306,12 +306,11 @@ let determine_lift_rule c env trm prev_rules sigma =
             else
               let sigma, is_elim_o = is_eliminator c env trm sigma in
               if Option.has_some is_elim_o then
-                let eta_o, trm_elim = Option.get is_elim_o in
+                let eta_o, args = Option.get is_elim_o in
                 if Option.has_some eta_o then
                   sigma, Optimization (LazyEta (Option.get eta_o))
                 else
                   let lifted_dep_elim = get_lifted_dep_elim c in
-                  let args = unfold_args (apply_eliminator trm_elim) in
                   sigma, Optimization (AppLazyDelta (lifted_dep_elim, Array.of_list args))
               else
                 match kind trm with

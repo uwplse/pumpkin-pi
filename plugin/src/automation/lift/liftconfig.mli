@@ -164,14 +164,14 @@ val applies_constr_eta :
 
 (*
  * Check if the term applies DepElim
- * If so return the eta-expanded term and the eliminator application
+ * If so return the eta-expanded term and the arguments
  *)
 val applies_elim :
   lift_config ->
   env ->
   constr ->
   evar_map ->
-  ((constr option * elim_app) option) state
+  ((constr option * (constr list)) option) state
 
 (* --- Custom simplification --- *)
                                      
