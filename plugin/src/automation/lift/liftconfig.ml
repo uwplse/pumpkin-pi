@@ -102,7 +102,7 @@ let rev_tuple = Utilities.reverse
 let get_lifting c = c.l
     
 (* --- Caching --- *)
-                      
+
 (*
  * Check opaqueness using either local or global cache
  *)
@@ -299,7 +299,8 @@ let type_from_args c env trm sigma =
  * Initialize the rules for lifting projections
  * This is COHERENCE, but cached
  *
- * TODO how does this fit into alg? Can we remove this with reweta?
+ * A lot of this will likely go into IdEta or RewEta soon, at least what is
+ * not here just for optimizaiton pruposes
  *)
 let initialize_proj_rules c env sigma =
   let l = get_lifting c in
@@ -312,7 +313,7 @@ let initialize_proj_rules c env sigma =
     let t = mkRel 1 in
     match l.orn.kind with
     | Algebraic (indexer, _) ->
-       (* indexer <-> projT1, id(_typ) <- (rew ... in projT2(_typ) (TODO latter seems to belong in reweta) *)
+       (* indexer <-> projT1, id(_typ) <- (rew ... in projT2(_typ) *)
        let sigma, b_sig = Util.on_snd dest_sigT (reduce_type env_b sigma t) in
        let projT1 = reconstruct_lambda env_b (project_index b_sig t) in
        let projT2 = reconstruct_lambda env_b (project_value b_sig t) in
@@ -385,7 +386,7 @@ let initialize_proj_rules c env sigma =
        in
        let sigma, bwd_rules =
          (* pack ... eq_refl -> pack ... (rew ... in projT2) *)
-         (* in addition, opaque types so they match (TODO this belongs in reweta) *)
+         (* in addition, opaque types so they match *)
          let p1_typ = reconstruct_lambda (pop_rel_context 2 env_b) (unshift_by 2 a_inner_typ) in
          let p2_typ = reconstruct_lambda (pop_rel_context 1 env_b) (unshift a_sig_sig.packer) in
          let sigma, projT1 =
@@ -555,8 +556,6 @@ let initialize_id_etas c cached env sigma =
 
 (*
  * Define what it means to lift equality proofs.
- * TODO tweak beyond refl (consider coherence) when this is not refl---for
- * now just regress
  *)
 let initialize_rew_etas c cached env sigma =
   let l = get_lifting c in
@@ -745,7 +744,7 @@ let may_apply_id_eta c env trm =
     | SwapConstruct _ ->
        false (* impossible state *)
     | Custom _ ->
-       true (* TODO? *)
+       true (* not enough information without unification *)
 
 (*
  * Check if a term applies the eta-expanded identity function
@@ -845,15 +844,23 @@ let applies_id_eta c env trm sigma =
                        let unpacked = apply_eq_refl { typ = index_type; trm = index_index } in
                        index, unpacked
                      in sigma, pack_existT { index_type; packer; index; unpacked }
-                 in
-                 sigma, Some (snoc packed typ_args)
+                 in sigma, Some (snoc packed typ_args)
           | CurryRecord ->
              sigma, Some (snoc trm typ_args)
           | SwapConstruct _ ->
              sigma, None (* impossible state *)
           | Custom _ ->
-             (* does not yet do actual unification, and so is handled by caching*)
-             sigma, None
+             (* attempt unification *)
+             let id_eta = fst c.id_etas in
+             let sigma, eargs = mk_n_evars (arity id_eta) env sigma in
+             let id_app = mkAppl (id_eta, eargs) in
+             let sigma, resolved = unify_resolve_evars env trm id_app sigma in
+             if Option.has_some resolved then
+               let (_, id_app) = Option.get resolved in
+               let args = unfold_args id_app in
+               sigma, Some args
+             else
+               sigma, None
     else
       sigma, None
   else
@@ -862,10 +869,25 @@ let applies_id_eta c env trm sigma =
 let get_rew_eta c = fst c.rew_etas
 let get_lifted_rew_eta c = snd c.rew_etas
 
-(* TODO explain, implement once we have non-refl *)
+(*
+ * When rew_eta is not reflexivity, check if we apply RewEta
+ *)
 let applies_rew_eta c env trm sigma =
-  (* Does not yet do unification, and so is handled by caching *)
-  sigma, None
+  match c.l.orn.kind with
+  | Custom _ ->
+     (* attempt unification *)
+     let rew_eta = fst c.id_etas in
+     let sigma, eargs = mk_n_evars (arity rew_eta) env sigma in
+     let rew_app = mkAppl (rew_eta, eargs) in
+     let sigma, resolved = unify_resolve_evars env trm rew_app sigma in
+     if Option.has_some resolved then
+       let (_, rew_app) = Option.get resolved in
+       let args = unfold_args rew_app in
+       sigma, Some args
+     else
+       sigma, None
+  | _ ->
+     sigma, None
 
 (* --- Smart simplification (for termination and efficiency) --- *)
 
@@ -1037,7 +1059,8 @@ let eta_constrs =
 
 (*
  * Initialize the arguments to a case of a DepConstr
- * TODO move common code, clean etc. before merging
+ *
+ * This needs significant refactoring and cleaning post-deadline
  *)
 let initialize_constr_args c env_constr_body env_packed args sigma =
   let l = get_lifting c in
@@ -1072,11 +1095,25 @@ let initialize_constr_args c env_constr_body env_packed args sigma =
           sigma, []
      in Util.on_snd List.rev (lift_args sigma (List.rev args) [(mkRel 0, mkRel 0)] 0)
   | _ ->
-     sigma, args (* TODO *)
+     sigma, args
 
-(* Determine the environment for DepConstr *)
-(* TODO clean a lot *)
+(*
+ * Determine the environment for DepConstr
+ *)
 let initialize_constr_env c env b_constr sigma =
+  let rec init env ind typ constr sigma =
+    match kind constr with
+    | Lambda (n, t, b) ->
+       if is_or_applies ind t then
+         let sigma, t' =
+           let args = unfold_args t in
+           reduce_term env sigma (mkAppl (typ, args))
+         in init (push_local (n, t') env) ind typ b sigma 
+       else
+         init (push_local (n, t) env) ind typ b sigma
+    | _ ->
+       sigma, env
+  in
   match c.l.orn.kind with
   | Algebraic (_, off) ->
      let a_ind = (if c.l.is_fwd then fst else snd) c.elim_types in
@@ -1086,34 +1123,10 @@ let initialize_constr_env c env b_constr sigma =
        mkConstructU (((i, i_index), c_index), u)
      in
      let sigma, a_constr_eta = expand_eta env sigma a_constr in
-     let rec init env constr sigma =
-       match kind constr with
-       | Lambda (n, t, b) ->
-          if is_or_applies a_ind t then
-            let sigma, t' =
-              let args = unfold_args t in
-              reduce_term env sigma (mkAppl (snd c.typs, args))
-            in init (push_local (n, t') env) b sigma 
-          else
-            init (push_local (n, t) env) b sigma
-       | _ ->
-          sigma, env
-     in init env a_constr_eta sigma
+     init env a_ind (snd c.typs) a_constr_eta sigma
   | UnpackSigma ->
      let b_typ = (if c.l.is_fwd then snd else fst) c.elim_types in
-     let rec init env constr sigma =
-       match kind constr with
-       | Lambda (n, t, b) ->
-          if is_or_applies b_typ t then
-            let sigma, t' =
-              let args = unfold_args t in
-              reduce_term env sigma (mkAppl (fst c.typs, args))
-            in init (push_local (n, t') env) b sigma 
-          else
-            init (push_local (n, t) env) b sigma
-       | _ ->
-          sigma, env
-     in init env b_constr sigma
+     init env b_typ (fst c.typs) b_constr sigma
   | _ ->
      failwith "not implemented"
 
