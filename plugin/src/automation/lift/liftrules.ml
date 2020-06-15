@@ -76,7 +76,7 @@ type lift_optimization =
                                      
 (*
  * We compile Gallina to a language that matches our premises for the rules
- * in our lifting algorithm. (TODO fix numbers/descriptions)
+ * in our lifting algorithm.
  *
  * 1. EQUIVALENCE runs when the term we are lifting is one of the types in
  *    the type equivalence we are lifting across. This carries the lifted type
@@ -85,8 +85,7 @@ type lift_optimization =
  * 2. LIFT-CONSTR runs when we lift constructors of the type in the equivalence.
  *    This carries the lifted constructor and the arguments, as well as a custom
  *    reduction function to apply the constructor to the arguments prior to
- *    lifting the result, as well as a flag for whether the lifted constructor
- *    should be treated asopaque.
+ *    lifting the result.
  *
  * 3. COHERENCE runs when we lift projections of the type in the equivalence
  *    (either at the term or type level). This carries the term we are
@@ -94,22 +93,18 @@ type lift_optimization =
  *    function to apply coherence to the lifted arguments (to neatly ensure
  *    termination while also maintaining correctness).
  *
- * 4. INTERNALIZE runs when it is necessary to get rid of some application
- *    of the equivalence temporarily introduced by LIFT-CONSTR or LIFT-ELIM
- *    for the sake of creating intermediate terms that type check.
+ * 4. OPTIMIZATION runs when some optimization applies.
  *
- * 5. OPTIMIZATION runs when some optimization applies.
- *
- * 6. LIFT-IDENTITY runs when we lift the eta-expanded identity function.
+ * 5. LIFT-IDENTITY runs when we lift the eta-expanded identity function.
  *    This exists to ensure that we preserve definitional equalities.
  *    The rule returns the lifted identity function and its arguments, as
  *    well as a custom reduction function to apply identity to the
  *    lifted arguments (for efficiency and to ensure termination).
  *
- * 7. REW-ETA runs when we lift eta-expanded proofs of equality.
+ * 6. REW-ETA runs when we lift eta-expanded proofs of equality.
  *    This is also to preserve definitional equalities.
  *
- * 8. CIC runs when no optimization applies and none of the other rules
+ * 7. CIC runs when no optimization applies and none of the other rules
  *    apply. It returns the kind of the Gallina term.
  *)
 type lift_rule =
