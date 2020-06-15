@@ -83,14 +83,14 @@ let maybe_prove_coherence n promote forget kind : unit =
  * If the option is enabled, then prove section, retraction, and adjunction after
  * find_ornament is called. Otherwise, do nothing.
  *)
-let maybe_prove_equivalence n promote forget : unit =
+let maybe_prove_equivalence n typs promote forget : unit =
   let define_proof suffix ?(adjective=suffix) sigma term typ =
     let ident = with_suffix n suffix in
     define_print ident term ~typ:typ sigma |> destConstRef
   in
   if is_search_equiv () then
     let sigma, env = refresh_env () in
-    let sigma, l = initialize_lifting_provided env sigma promote forget false in
+    let sigma, l = initialize_lifting_provided env sigma typs (promote, forget) false in
     let ((section, section_typ), (retraction, retraction_typ)) =
       prove_equivalence env sigma l
     in
@@ -113,10 +113,10 @@ let maybe_prove_equivalence n promote forget : unit =
 (*
  * If the option is enabled, generate smart eliminators
  *)
-let maybe_find_smart_elims promote forget : unit =
+let maybe_find_smart_elims typs promote forget : unit =
   if is_smart_elim () then
     let sigma, env = refresh_env () in
-    let sigma, l = initialize_lifting_provided env sigma promote forget false in
+    let sigma, l = initialize_lifting_provided env sigma typs (promote, forget) false in
     let sigma, elims = find_smart_elims l env sigma in
     List.iter
       (fun (n, trm, typ) -> ignore (define_print ~typ:typ n trm sigma))
@@ -196,7 +196,7 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o is_cust
         let _ = Feedback.msg_info (Pp.str "Saving equivalence") in
         let promote = Option.get promote_o in
         let forget = Option.get forget_o in
-        let sigma, l = initialize_lifting_provided env sigma promote forget is_custom in
+        let sigma, l = initialize_lifting_provided env sigma (trm_o, trm_n) (promote, forget) is_custom in
         sigma, l.orn
       else
         (* Save ornament with automatic inversion *)
@@ -233,8 +233,8 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o is_cust
     in
     (if not is_custom then
       (maybe_prove_coherence n promote forget orn.kind;
-       maybe_prove_equivalence n promote forget;
-       maybe_find_smart_elims promote forget)
+       maybe_prove_equivalence n (trm_o, trm_n) promote forget;
+       maybe_find_smart_elims (trm_o, trm_n) promote forget)
      else
        ());
     (try

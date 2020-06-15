@@ -16,7 +16,7 @@ val do_lift_defn :
   env ->
   evar_map ->
   lifting -> (* lifting configuration *)
-  types -> (* unlifted constant (defined function) *)
+  constr -> (* unlifted constant (defined function) *)
   constr list -> (* constants to treat as opaque *)
   types state (* lifted function *)
 

@@ -248,12 +248,12 @@ type 'a metadata = (global_reference * global_reference) * 'a
 (* Initialize the ornament cache *)
 let orn_cache = OrnamentsCache.create 100
 
-(* Initialize the private cache of indexers for algebraic ornamnets *)
+(* Initialize the private cache of indexers for algebraic ornaments *)
 let indexer_cache = OrnamentsCache.create 100
 
-(* Initialize the private cache of swap maps for swap ornamnets *)
+(* Initialize the private cache of swap maps for swap ornaments *)
 let swap_cache = OrnamentsCache.create 100
-                                      
+
 (*
  * The kind of ornament is saved as an int, so this interprets it
  *)
@@ -270,7 +270,8 @@ let int_to_kind (i : int) globals =
   else if i = 3 then
     UnpackSigma
   else if i = 4 then
-    Custom
+    let typs = map_tuple Universes.constr_of_global globals in
+    Custom typs
   else
     failwith "Unsupported kind of ornament passed to interpret_kind in caching"
 
@@ -284,7 +285,7 @@ let kind_to_int (k : kind_of_orn) =
      2
   | UnpackSigma ->
      3
-  | Custom ->
+  | Custom typs ->
      4
 
 (*
@@ -340,7 +341,7 @@ let inSwaps : swap_obj -> obj =
     load_function = (fun _ -> cache_swap_map);
     open_function = (fun _ -> cache_swap_map);
     classify_function = (fun ind_obj -> Substitute ind_obj);
-    subst_function = sub_swap_map }             
+    subst_function = sub_swap_map }
 
 (*
  * Precise version
@@ -394,7 +395,7 @@ let save_ornament typs (orn, orn_inv, kind) =
     | SwapConstruct swap_map ->
        let ind_obj = inSwaps (globals, swap_map) in
        add_anonymous_leaf ind_obj
-    | CurryRecord | UnpackSigma | Custom ->
+    | CurryRecord | UnpackSigma | Custom _ ->
        ()
   with _ ->
     Feedback.msg_warning
