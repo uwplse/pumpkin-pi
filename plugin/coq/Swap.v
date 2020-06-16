@@ -29,6 +29,11 @@ Preprocess Module List as List_pre { opaque (* ignore these nested modules: *)
   RelationClasses
   Nat
   Coq.Init.Nat
+  Coq.Init.Logic.False_ind
+  Coq.Init.Datatypes.list_ind
+  Coq.Init.Datatypes.nat_ind
+  eq_ind
+  eq_ind_r
 }.
 
 (* Lift the whole list module: *)

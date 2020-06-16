@@ -126,7 +126,7 @@ Qed.
 (* flist/flector version *)
 (* these use save ornament to make sure we support it *)
 
-Save ornament natFlector.flist natFlector.flector { promote = orn_flist_flector_nat; forget = orn_flist_flector_nat_inv }. 
+Save ornament natFlector.flist natFlector.flector { promote = orn_flist_flector_nat; forget = orn_flist_flector_nat_inv }.
 
 Definition hdF (default : nat) (l : natFlector.flist) :=
   natFlector.flist_rect

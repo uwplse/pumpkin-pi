@@ -1794,7 +1794,7 @@ let initialize_dep_elim c env sigma =
        in reduce_term env_dep_elim sigma (mkAppl (elim_cs, final_args))
      in sigma, reconstruct_lambda_n env_dep_elim dep_elim (nb_rel env)
   | _ ->
-     sigma, elim
+     expand_eta env sigma elim
 
 (*
  * Initialize dep_elims
