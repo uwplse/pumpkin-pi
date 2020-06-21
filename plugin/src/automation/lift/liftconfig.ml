@@ -51,8 +51,8 @@ type lift_config =
     l : lifting;
     typs : types * types;
     elim_types : types * types;
-    dep_elims : types * types;
-    dep_constrs : types array * types array;
+    dep_elims : constr * constr;
+    dep_constrs : constr array * constr array;
     proj_rules :
       ((constr * constr) list * (types * types) list) *
       ((constr * constr) list * (types * types) list);
@@ -60,7 +60,7 @@ type lift_config =
       ((constr * (constr -> constr)) list) *
       ((constr * (constr -> constr)) list);
     id_etas : (constr * constr);
-    rew_etas : (constr * constr);
+    rew_etas : (constr array * constr array);
     cache : temporary_cache;
     opaques : temporary_cache
   }
@@ -545,9 +545,7 @@ let initialize_id_etas c cached env sigma =
           map_tuple Universes.constr_of_global (id_a, id_b)
         with _ ->
           snd id_a, snd id_b
-      in
-      save_id_eta (l.orn.promote, l.orn.forget) ids;
-      sigma, ids
+      in save_id_eta (l.orn.promote, l.orn.forget) ids; sigma, ids
   in
   let ids = if l.is_fwd then ids else rev_tuple ids in
   let env = Global.env () in
@@ -565,22 +563,30 @@ let initialize_rew_etas c cached env sigma =
       let (_, _, _, rews) = Option.get cached in
       sigma, rews
     else
-      (* Determine the id rules and cache them for later *)
+      (* Determine the rew rules and cache them for later *)
       let sigma, fwd_typ = reduce_type env sigma (lift_to l) in
       let sigma, bwd_typ = reduce_type env sigma (lift_back l) in
       let sigma, rew_a =
-        let env_rew = zoom_env zoom_product_type env (if l.is_fwd then fwd_typ else bwd_typ) in
-        let a = mkRel 1 in
-        let sigma, a_typ = reduce_type env_rew sigma a in
-        let rew_a_bod = apply_eq_refl { typ = a_typ; trm = mkRel 1 } in
-        sigma, reconstruct_lambda_n env_rew rew_a_bod (nb_rel env)
+        map_state_array
+          (fun _ sigma -> (* TODO args should be case of elim later *)
+            let env_rew = zoom_env zoom_product_type env (if l.is_fwd then fwd_typ else bwd_typ) in
+            let a = mkRel 1 in
+            let sigma, a_typ = reduce_type env_rew sigma a in
+            let rew_a_bod = apply_eq_refl { typ = a_typ; trm = mkRel 1 } in
+            sigma, reconstruct_lambda_n env_rew rew_a_bod (nb_rel env))
+          ((if l.is_fwd then fst else snd) c.dep_constrs)
+          sigma
       in
       let sigma, rew_b =
-        let env_rew = zoom_env zoom_product_type env (if l.is_fwd then bwd_typ else fwd_typ) in
-        let b = mkRel 1 in
-        let sigma, b_typ = reduce_type env_rew sigma b in
-        let rew_b_bod = apply_eq_refl { typ = b_typ; trm = mkRel 1 } in
-        sigma, reconstruct_lambda_n env_rew rew_b_bod (nb_rel env)
+        map_state_array
+          (fun _ sigma -> (* TODO args should be case of elim later *)
+            let env_rew = zoom_env zoom_product_type env (if l.is_fwd then bwd_typ else fwd_typ) in
+            let b = mkRel 1 in
+            let sigma, b_typ = reduce_type env_rew sigma b in
+            let rew_b_bod = apply_eq_refl { typ = b_typ; trm = mkRel 1 } in
+            sigma, reconstruct_lambda_n env_rew rew_b_bod (nb_rel env))
+          ((if l.is_fwd then snd else fst) c.dep_constrs)
+          sigma
       in
       let rews =
         let rew_a_n, rew_b_n =
@@ -590,17 +596,25 @@ let initialize_rew_etas c cached env sigma =
           (with_suffix base_n "rew_eta_a", with_suffix base_n "rew_eta_b")
         in
         let rew_a, rew_b = ((rew_a_n, rew_a), (rew_b_n, rew_b)) in
-        try
-          let rew_a = define_term (fst rew_a) sigma (snd rew_a) true in
-          let rew_b = define_term (fst rew_b) sigma (snd rew_b) true in
-          map_tuple Universes.constr_of_global (rew_a, rew_b)
-        with _ ->
-          snd rew_a, snd rew_b
+        let rew_as =
+          Array.mapi
+            (fun i rew ->
+              let n = with_suffix (fst rew_a) (string_of_int i) in
+              define_term n sigma rew true)
+            (snd rew_a)
+        in
+        let rew_bs =
+          Array.mapi
+            (fun i rew ->
+              let n = with_suffix (fst rew_b) (string_of_int i) in
+              define_term n sigma rew true)
+            (snd rew_b)
+        in map_tuple (Array.map Universes.constr_of_global) (rew_as, rew_bs)
       in save_rew_eta (l.orn.promote, l.orn.forget) rews; sigma, rews
   in
   let rews = if l.is_fwd then rews else rev_tuple rews in
   let env = Global.env () in
-  let rew_etas = map_tuple (unwrap_definition env) rews in
+  let rew_etas = map_tuple (Array.map (unwrap_definition env)) rews in
   sigma, { c with rew_etas }
 
 (*
@@ -1928,7 +1942,7 @@ let initialize_lift_config env l ignores sigma =
       proj_rules = ([], []), ([], []);
       optimize_proj_id_rules = [], [];
       id_etas = (mkRel 1, mkRel 1);
-      rew_etas = (mkRel 1, mkRel 1);
+      rew_etas = (Array.make 0 (mkRel 1), Array.make 0 (mkRel 1));
       cache;
       opaques
     }
@@ -1937,9 +1951,9 @@ let initialize_lift_config env l ignores sigma =
   let sigma, c = initialize_proj_rules c env sigma in
   let sigma, c = initialize_optimize_proj_id_rules c env sigma in
   let sigma, c = initialize_id_etas c cached env sigma in
-  let sigma, c = initialize_rew_etas c cached env sigma in
   let sigma, c = initialize_elim_types c env sigma in
   let sigma, c = initialize_dep_constrs c cached env sigma in
+  let sigma, c = initialize_rew_etas c cached env sigma in
   initialize_dep_elims c cached env sigma
   
 

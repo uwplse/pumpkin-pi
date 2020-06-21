@@ -63,5 +63,5 @@ val configure_lifting_manual :
   (Libnames.reference list) * (Libnames.reference list) ->
   (Libnames.reference * Libnames.reference) ->
   (Libnames.reference * Libnames.reference) ->
-  (Libnames.reference * Libnames.reference) ->
+  (Libnames.reference list) * (Libnames.reference list) ->
   unit

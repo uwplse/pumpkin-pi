@@ -423,7 +423,7 @@ let rew_eta_cache = OrnamentsCache.create 100
 type dep_constr_obj = (global_reference array * global_reference array) metadata
 type dep_elim_obj = (global_reference * global_reference) metadata
 type id_eta_obj = (global_reference * global_reference) metadata
-type rew_eta_obj = (global_reference * global_reference) metadata
+type rew_eta_obj = (global_reference array * global_reference array) metadata
 
 let cache_dep_constr (_, (typs, constrs)) =
   OrnamentsCache.add dep_constr_cache typs constrs
@@ -453,10 +453,11 @@ let sub_id_eta (subst, (typs, ids)) =
   let ids = map_tuple (subst_global_reference subst) ids in
   typs, ids
 
-let sub_rew_eta (subst, (typs, rews)) =
+let sub_rew_eta (subst, (typs, (rews_o, rews_n))) =
   let typs = map_tuple (subst_global_reference subst) typs in
-  let rews = map_tuple (subst_global_reference subst) rews in
-  typs, rews
+  let rews_o = Array.map (subst_global_reference subst) rews_o in
+  let rews_n = Array.map (subst_global_reference subst) rews_n in
+  typs, (rews_o, rews_n)
 
 let inDepConstrs : dep_constr_obj -> obj =
   declare_object { (default_object "DEP_CONSTRS") with
@@ -510,7 +511,7 @@ let lookup_config typs =
       let constrs = map_tuple (Array.map Universes.constr_of_global) constrs in
       let elims = map_tuple Universes.constr_of_global elims in
       let ids = map_tuple Universes.constr_of_global ids in
-      let rews = map_tuple Universes.constr_of_global rews in
+      let rews = map_tuple (Array.map Universes.constr_of_global) rews in
       Some (constrs, elims, ids, rews)
     with _ ->
       Feedback.msg_warning
@@ -574,7 +575,7 @@ let save_id_eta typs ids =
 let save_rew_eta typs rews =
   try
     let globals = map_tuple global_of_constr typs in
-    let rews = map_tuple global_of_constr rews in
+    let rews = map_tuple (Array.map global_of_constr) rews in
     let rew_eta_obj = inRewEtas (globals, rews) in
     add_anonymous_leaf rew_eta_obj
   with _ ->

@@ -122,8 +122,8 @@ val applies_id_eta :
 (*
  * Get RewEta
  *)
-val get_rew_eta : lift_config -> constr
-val get_lifted_rew_eta : lift_config -> constr
+val get_rew_eta : lift_config -> constr array
+val get_lifted_rew_eta : lift_config -> constr array
 
 (*
  * Check if the term applies RewEta
@@ -134,7 +134,7 @@ val applies_rew_eta :
   env ->
   constr ->
   evar_map ->
-  ((constr list) option) state
+  ((int * constr list) option) state
               
 (* --- Constructors and eliminators --- *)
 

@@ -638,6 +638,10 @@ Definition nat_S := Datatypes.S.
 Definition id_eta_nat (n : nat) : nat := n.
 Definition z := zero.
 
+Definition rew_O_elim :=
+ (fun (P : nat -> Type) (PO : P O) (PS : forall n, P n -> P (nat_S n)) (Q : P O -> Type) (H : Q PO) =>
+   H).
+
 Definition rew_S_elim_2_typ :=
 forall (P : nat -> Type) (PO : P O) (PS : forall x : nat, P x -> P (nat_S x)) 
          (n : nat) (Q : P (nat_S n) -> Type),
@@ -652,13 +656,17 @@ Definition rew_S_elim2 :=
     (nat_rect P PO PS (nat_S n))
     (@eq_refl (P (nat_S n)) (PS n (nat_rect P PO PS n)))) : rew_S_elim_2_typ.
 
+Definition rew_binnat_O_elim :=
+ (fun (P : binnat -> Type) (PO : P z) (PS : forall b, P b -> P (e.suc_binnat b)) (Q : P z -> Type) (H : Q PO) =>
+   H).
+
 Definition rew_binnat_S_elim_2_typ :=
   forall (P : binnat -> Type) (PO : P z) (PS : forall x : binnat, P x -> P (e.suc_binnat x)) 
          (n : binnat) (Q : P (e.suc_binnat n) -> Type),
        Q (PS n (binnat_nat_rect P PO PS n)) -> Q (binnat_nat_rect P PO PS (e.suc_binnat n)).
 
 Definition rew_binnat_S_elim2  :=
-  (fun (P : binnat -> Type) (PO : P z) (PS : forall b, P b -> P (S b)) n (Q : P (e.suc_binnat n) -> Type) (H : Q (PS n (binnat_nat_rect P PO PS n))) =>
+  (fun (P : binnat -> Type) (PO : P z) (PS : forall b, P b -> P (e.suc_binnat b)) n (Q : P (e.suc_binnat n) -> Type) (H : Q (PS n (binnat_nat_rect P PO PS n))) =>
   eq_rect
     (PS n (binnat_nat_rect P PO PS n))
     (fun (H : P (e.suc_binnat n)) => Q H)
@@ -666,7 +674,6 @@ Definition rew_binnat_S_elim2  :=
     (binnat_nat_rect P PO PS (e.suc_binnat n))
     (eq_sym (refold_elim_S P PO PS n))) : rew_binnat_S_elim_2_typ.
 
-(* TODO may be multiple rew_etas for different constructors? fix *)
 Save equivalence nat binnat { promote = e.nat_to_binnat; forget = e.binnat_to_nat }.
 Configure Lift nat binnat {
   constrs_a = O nat_S;
@@ -675,8 +682,8 @@ Configure Lift nat binnat {
   elim_b = binnat_nat_rect;
   id_eta_a = id_eta_nat;
   id_eta_b = id_eta;
-  rew_eta_a = rew_S_elim2;
-  rew_eta_b = rew_binnat_S_elim2
+  rew_eta_a = rew_O_elim rew_S_elim2;
+  rew_eta_b = rew_binnat_O_elim rew_binnat_S_elim2
 }.
 
 (* Basic tests *)

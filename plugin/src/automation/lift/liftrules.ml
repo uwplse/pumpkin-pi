@@ -241,9 +241,10 @@ let is_identity c env trm prev_rules sigma =
 
 (* Premises for LIFT-REW-ETA *)
 let is_rew_eta c env trm prev_rules sigma =
-  let sigma, args_o = applies_rew_eta c env trm sigma in
-  if Option.has_some args_o then
-    sigma, Some (get_lifted_rew_eta c, Option.get args_o)
+  let sigma, app_o = applies_rew_eta c env trm sigma in
+  if Option.has_some app_o then
+    let i, args = Option.get app_o in
+    sigma, Some ((get_lifted_rew_eta c).(i), args)
   else
     sigma, None
 
