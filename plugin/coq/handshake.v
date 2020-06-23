@@ -125,43 +125,84 @@ Module ConnectionRecord.
   Definition get_handshake (c : Connection.connection) : Handshake.handshake :=
     fst (snd (snd (snd c))).
 
+  Definition get_is_caching_enabled (c : Connection.connection) : bool :=
+    fst (snd (snd (snd (snd c)))).
+
+  Definition get_key_exchange_EPH (c : Connection.connection) : bool :=
+    fst (snd (snd (snd (snd (snd c))))).
+
+  Definition get_mode (c : Connection.connection) : bool :=
+    fst (snd (snd (snd (snd (snd (snd c)))))).
+
+  Definition get_resume_from_cache (c : Connection.connection) : bool :=
+    fst (snd (snd (snd (snd (snd (snd (snd c))))))).
+
+  Definition get_server_can_send_ocsp (c : Connection.connection) : nat :=
+    snd (snd (snd (snd (snd (snd (snd (snd c))))))).
+
 End ConnectionRecord.
 
-Preprocess Module ConnectionRecord as ConnectionRecordPP.
+Preprocess Module ConnectionRecord as ConnectionRecordPP0.
 
-Module ConnectionLift.
+Print ConnectionRecordPP0.
 
-  Print ConnectionRecordPP.get_client_auth_flag.
+Lift Module HandshakePP.handshake
+            HandshakeRecordPP.Handshake
+         in ConnectionRecordPP0
+         as ConnectionRecordPP1.
 
-  Lift HandshakePP.handshake
-       HandshakeRecordPP.Handshake
-  in ConnectionRecordPP.get_client_auth_flag
-  as getClientAuthFlag0.
-  Print getClientAuthFlag0.
+(* We need to be able to talk about the type that is just like ConnectionPP.connection, but with
+   HandshakePP.handshake replaced with HandshakeRecordPP.Handshake.
+ *)
+Lift Handshake.handshake
+     HandshakeRecordPP.Handshake
+  in ConnectionPP.connection
+  as ConnectionPPHandshakeRecordPP. (* used to be connectionPP *)
 
-  (* We need to be able to talk about the type that is just like ConnectionPP.connection, but with
-     HandshakePP.handshake replaced with HandshakeRecordPP.Handhake.
-   *)
-  Lift Handshake.handshake
-       HandshakeRecordPP.Handshake
-    in ConnectionPP.connection
-    as connectionPP.
+Check (ConnectionRecordPP1.get_corked : ConnectionPPHandshakeRecordPP -> bool).
 
-  Print connectionPP. (* ouch, of course there is a second unfortunate match! *)
+Lift HandshakeRecord.Handshake
+     HandshakeRecordPP.Handshake
+  in ConnectionRecordPP1.Connection
+  as connectionRecordPP.
 
-  (* Checking that [getClientAuthFlag0] has indeed input type [connectionPP]: *)
-  Check (getClientAuthFlag0 : connectionPP -> bool).
+Print ConnectionRecordPP1.Connection.
 
-  Lift HandshakeRecord.Handshake
-       HandshakeRecordPP.Handshake
-    in ConnectionRecordPP.Connection
-    as connectionRecordPP. 
+Print ConnectionRecordPP1.
 
-  Lift connectionPP
-       connectionRecordPP
-    in getClientAuthFlag0
-    as getClientAuthFlag.
+Print ConnectionPPHandshakeRecordPP.
+Print connectionRecordPP.
 
-  Print getClientAuthFlag.
+Print ConnectionRecordPP1.
+Find ornament ConnectionPPHandshakeRecordPP connectionRecordPP.
 
-End ConnectionLift.
+(* Problem 1: all liftings appear to fail here *)
+Lift Module
+     ConnectionPPHandshakeRecordPP (* used to be connectionPP *)
+     connectionRecordPP (* used to be connectionRecordPP *)
+  in ConnectionRecordPP1
+  as ConnectionRecordPP.
+
+
+(* Trying one field manually: *)
+Lift HandshakePP.handshake
+     HandshakeRecordPP.Handshake
+  in ConnectionRecordPP0.get_corked
+  as getCorked0.
+
+Check (getCorked0 : ConnectionPPHandshakeRecordPP -> bool).
+
+(* indeed it ought to be the same: *)
+Lemma check1 : getCorked0 = ConnectionRecordPP1.get_corked.
+Proof.
+  reflexivity.
+Qed.
+
+(*
+this fails here, but in my original file, it succeeds, and I'm having trouble
+figuring out where I must have made a mistake...
+ *)
+Lift ConnectionPPHandshakeRecordPP
+     connectionRecordPP
+  in getCorked0
+  as getCorked.

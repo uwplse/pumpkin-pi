@@ -229,8 +229,11 @@ Inductive Term' : Set :=
 Fail Find ornament Term Term'. (* for now, we tell the user to pick one via an error *)
 Find ornament Term Term' { mapping 0 }. (* we pick one this way *)
 
+Print User5Session19_pre.
+
 (*
- * We can now lift everything:
+ * We can now lift everything (failures are just silly attempts to lift record
+ * projections twice; safe to ignore them):
  *)
 Lift Module Term Term' in User5Session19_pre as User5Session19'.
 
@@ -262,6 +265,10 @@ Inductive Term'' : Set :=
 
 Find ornament Term' Term'' { mapping 8 }.
 
+(*
+ * We can now lift everything (failures are just silly attempts to lift record
+ * projections twice; safe to ignore them):
+ *)
 Lift Module Term' Term'' in User5Session19' as User5Session19''.
 
 Lemma test_eval_eq_true_or_false_2:
@@ -321,6 +328,10 @@ Inductive Expr : Set :=
 
 Find ornament Term''' Expr { mapping 0 }.
 
+(*
+ * We can now lift everything (failures are just silly attempts to lift record
+ * projections twice; safe to ignore them):
+ *)
 Lift Module Term''' Expr in User5Session19''' as CustomRenaming.
 
 Lemma test_eval_equal_true_or_false:

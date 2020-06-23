@@ -333,43 +333,41 @@ let do_lift_ind env sigma l typename suffix ind ignores is_lift_module =
     in
     List.iter (define_lifted_eliminator l ind ind') ind_body.mind_kelim;
     declare_inductive_liftings l ind ind' (List.length constypes);
-    if not is_lift_module then
-      (* Lift record projections *)
-      try
-        let env = Global.env () in
-        let sigma = Evd.from_env env in
-        let open Recordops in
-        let r = lookup_structure ind in
-        Feedback.msg_info (Pp.str "Lifted a record");
-        let pks = r.s_PROJKIND in
-        let mod_path = Lib.current_mp () in
-        let ps =
-          List.map
-            (Option.map
-               (fun p -> Names.Constant.make2 mod_path (Names.Constant.label p)))
-            r.s_PROJ
-        in
-        let _ =
-          List.map
-            (Option.map
-               (fun p ->
-                 let c = mkConst p in
-                 let sigma, p_lifted = do_lift_term env sigma l c ignores in
-                 let n = Names.Label.to_id (Names.Constant.label p) in
-                 let def = Defutils.define_term n sigma p_lifted true in
-                 Feedback.msg_info
-                   (Pp.str (Printf.sprintf "DEVOID generated %s" (Names.Id.to_string n)));
-                 def))
-            r.s_PROJ
-        in
-        (try
-           declare_structure (ind', (ind', 1), pks, ps);
-           ind'
-         with _ ->
-           Feedback.msg_warning
-             (Pp.str "Failed to register projections for lifted record");
-           ind')
-      with Not_found ->
-        ind'
-    else
+    (* Lift record projections *)
+    try
+      let env = Global.env () in
+      let sigma = Evd.from_env env in
+      let open Recordops in
+      let r = lookup_structure ind in
+      Feedback.msg_info (Pp.str "Lifted a record");
+      let pks = r.s_PROJKIND in
+      let mod_path = Lib.current_mp () in
+      let ps =
+        List.map
+          (Option.map
+             (fun p -> Names.Constant.make2 mod_path (Names.Constant.label p)))
+          r.s_PROJ
+      in
+      let _ =
+        List.map
+          (Option.map
+             (fun p ->
+               (* In modules, this may try to lift record projections twice *)
+               let c = mkConst p in
+               let sigma, p_lifted = do_lift_term env sigma l c ignores in
+               let n = Names.Label.to_id (Names.Constant.label p) in
+               let def = Defutils.define_term n sigma p_lifted true in
+               Feedback.msg_info
+                 (Pp.str (Printf.sprintf "DEVOID generated %s" (Names.Id.to_string n)));
+               def))
+          r.s_PROJ
+      in
+      (try
+         declare_structure (ind', (ind', 1), pks, ps);
+         ind'
+       with _ ->
+         Feedback.msg_warning
+           (Pp.str "Failed to register projections for lifted record");
+         ind')
+    with Not_found ->
       ind'
