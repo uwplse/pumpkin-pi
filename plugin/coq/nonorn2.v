@@ -7,7 +7,6 @@ Require Import Coq.NArith.Nnat.
 Set DEVOID search prove equivalence.
 Set DEVOID search prove coherence.
 Set DEVOID search smart eliminators.
-Set DEVOID lift type.
 
 (*
  * Now we use the standard Coq binary natural number.
@@ -33,8 +32,11 @@ Definition dep_constr_B_1 := Bin.succ.
 
 (*
  * For this type, Coq already has a nice DepElim:
+ * (Because of an annoying universe bug, we need to set dep_elim for each universe):
  *)
-Definition dep_elim_A := nat_rect.
+Definition dep_elim_A_Prop := nat_ind.
+Definition dep_elim_A_Set := nat_rec.
+Definition dep_elim_A_Type := nat_rect.
 Definition dep_elim_B := N.peano_rect.
 
 (* --- IdEta --- *)
@@ -80,11 +82,22 @@ Definition rew_eta_B_1  :=
     (N.peano_rect P PO PS (Bin.succ n))
     (eq_sym (N.peano_rect_succ P PO PS n))) : rew_eta_B_1_typ.
 
+(* --- Our nat functions and proofs we'll want to lift --- *)
+
+Module Nat.
+  Definition add := Nat.add.
+  Definition plus_n_Sm := plus_n_Sm.
+End Nat.
+
+Preprocess Module Nat as Nat_pre { opaque nat_ind f_equal_nat f_equal }.
+
+(* --- Lifting addition --- *)
+
 Save equivalence nat binnat { promote = N.of_nat; forget = N.to_nat }.
 Configure Lift nat binnat {
   constrs_a = dep_constr_A_O dep_constr_A_1;
   constrs_b = dep_constr_B_O dep_constr_B_1;
-  elim_a = dep_elim_A;
+  elim_a = dep_elim_A_Set;
   elim_b = dep_elim_B;
   id_eta_a = id_eta_A;
   id_eta_b = id_eta_B;
@@ -92,107 +105,85 @@ Configure Lift nat binnat {
   rew_eta_b = rew_eta_B_O rew_eta_B_1
 }.
 
-(* Basic tests *)
-Lift nat binnat in O as O_lifted.
-Lift nat binnat in S as S_lifted.
-Lift binnat nat in 0%N as Bin_O_lifted.
-Lift binnat nat in Bin.succ as Bin_S_lifted.
-
-(* Lift addition (bug right now with nat_rec & universes so we use nat_rect) *)
-Definition add (n m : nat) : nat :=
-nat_rect (fun _ : nat => nat -> nat) (fun m : nat => m)
-  (fun (_ : nat) (add : nat -> nat) (m : nat) => S (add m)) n m.
-
-Lift nat binnat in add as binnat_add.
-
-Definition f_equal_term (m : nat) (n0 : nat) (IHn : (S (add n0 m)) = (add n0 (S m))) :=
-  @f_equal
-             nat
-             nat
-             (fun (n : nat) => S n)
-             (S (add n0 m))
-             (add n0 (S m))
-             IHn.
-
-Configure Lift nat binnat {
-  opaque f_equal eq_rect N_rect binnat_add (* TODO make rew_S_elim opaque automatically? and why is the fact that it's cached not triggering? *)
-}.
-
-Lift nat binnat in f_equal_term as f_equal_term_binnat.
-
-Lift nat binnat in rew_eta_A_1_typ as rew_eta_A_1_typ_lifted. 
-Lemma foo:
-  rew_eta_B_1_typ =
-  rew_eta_A_1_typ_lifted.
-Proof.
-  reflexivity.
-Defined.
-
-Lift nat binnat in rew_eta_A_1 as rew_eta_A_1_lifted.
-Print rew_eta_A_1_lifted.
-
-(* TODO There is some evar map bug if we don't prove foo. investigate *)
-
-
-
-Definition inner_term (m : nat) (n0 : nat) (IHn : (S (add n0 m)) = (add n0 (S m))) :=
-(rew_eta_A_1
-           (fun _ => nat -> nat)
-           (fun p => p)
-           (fun _ IH p => S (IH p))
-           n0
-           (fun PS => S (S (add n0 m)) = PS (S m))
-           (f_equal_term m n0 IHn)).
-
-
-Lift nat binnat in inner_term as inner_term_lifted.
-
-
-Definition plus_n_Sm_inductive (m : nat) 
-  (n0 : nat) (IHn : (S (add n0 m)) = (add n0 (S m))) :=
-       rew_eta_A_1
-         (fun _ => nat -> nat)
-         (fun p => p)
-         (fun _ IH p => S (IH p))
-         n0
-         (fun PS => S (PS m) = add (S n0) (S m))
-         (inner_term m n0 IHn).
-
-Lift nat binnat in plus_n_Sm_inductive as binnat_plus_n_Sm_inductive.
-
-(* expanded reweta ourselves *)
-Definition plus_n_Sm (n m : nat) : S (add n m) = add n (S m) :=
-  nat_rect
-    (fun (n0 : nat) =>
-       S (add n0 m) = add n0 (S m))
-    (@eq_refl nat (S m))
-    (fun (n0 : nat) (IHn : (S (add n0 m)) = (add n0 (S m))) =>
-       plus_n_Sm_inductive m n0 IHn)
-     n.
-
-
-Lift nat binnat in plus_n_Sm as binnat_plus_n_Sm.
-Print binnat_plus_n_Sm.
-Print N.add.
-
-
-
-Print binnat_add.
+Lift nat binnat in Nat_pre.add as slow_add.
 
 (*
- * Fast addition behaves like slow addition
+ * Fast addition behaves like slow addition!
  *)
 Lemma add_fast_add:
   forall (n m : Bin.nat),
-    binnat_add n m = N.add n m.
+    slow_add n m = N.add n m.
 Proof.
   induction n using N.peano_rect; intros m; auto.
-  unfold binnat_add. 
+  unfold slow_add.
   rewrite N.peano_rect_succ. (* <- RewEta *)
-  unfold binnat_add in IHn. rewrite IHn.
+  unfold slow_add in IHn. rewrite IHn.
   rewrite N.add_succ_l.
   reflexivity.
 Qed.
+
+(* --- RewEta for add --- *)
+
+(*
+ * We should generate this automatically at some point, but this just instantiates
+ * RewEta to add. Then we can lift it to binnat easily.
+ *)
+
+Definition rew_eta_A_plus (n : nat) Q (H: Q (fun m : nat => S (Nat_pre.add n m))) : Q (Nat_pre.add (S n)) :=
+  rew_eta_A_1 _ (fun p => p) (fun _ IH p => S (IH p)) n Q H.
+
+Lift nat binnat in rew_eta_A_plus as rew_eta_B_plus.
+
+(* --- Lifting a theorem about addition --- *)
+
+(*
+ * This is a theorem so we need the Prop eliminator.
+ * We need to reconfigure just because of the universe bug.
+*)
+Configure Lift nat binnat {
+  constrs_a = dep_constr_A_O dep_constr_A_1;
+  constrs_b = dep_constr_B_O dep_constr_B_1;
+  elim_a = dep_elim_A_Prop; (* <- annoying but will fix soon *)
+  elim_b = dep_elim_B;
+  id_eta_a = id_eta_A;
+  id_eta_b = id_eta_B;
+  rew_eta_a = rew_eta_A_O rew_eta_A_1;
+  rew_eta_b = rew_eta_B_O rew_eta_B_1
+}.
+
+(* Now we tweak add_n_Sm to manually add rew_eta where we have casts: *)
+Print Nat_pre.Coq_Init_Peano_plus_n_Sm.
+
+(* That gives us this: *)
+Definition plus_n_Sm (n m : nat) :=
+  nat_ind
+    (fun n0 : nat => S (Nat_pre.add n0 m) = Nat_pre.add n0 (S m))
+    eq_refl
+    (fun (n0 : nat) (IHn : S (Nat_pre.add n0 m) = Nat_pre.add n0 (S m)) =>
+      f_equal_nat nat S (S (Nat_pre.add n0 m)) (Nat_pre.add n0 (S m)) IHn)
+    n.
+
+(* And then we apply that where we have casts to make them explicit: *)
+Definition plus_n_Sm_expanded (n m : nat) :=
+  nat_ind
+    (fun n0 : nat => S (Nat_pre.add n0 m) = Nat_pre.add n0 (S m))
+    eq_refl
+    (fun (n0 : nat) (IHn : S (Nat_pre.add n0 m) = Nat_pre.add n0 (S m)) =>
+      rew_eta_A_plus _ (fun PS => S (PS m) = Nat_pre.add (S n0) (S m))
+        (rew_eta_A_plus _ (fun PS => S (S (Nat_pre.add n0 m)) = PS (S m))
+          (f_equal_nat nat S (S (Nat_pre.add n0 m)) (Nat_pre.add n0 (S m)) IHn)))
+    n.
+
+(*
+ * That's really the only annoying step, and I think we can automate it
+ * at some point.
+ *)
+
+
+Lift nat binnat in f_equal_nat as f_equal_binnat.
+Lift nat binnat in plus_n_Sm_expanded as binnat_plus_n_Sm.
+
+(* --- Now we can show our theorem over fast addition --- *)
 
 Lemma add_n_Sm :
   forall n m,
