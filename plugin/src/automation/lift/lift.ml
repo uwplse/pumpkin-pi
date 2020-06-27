@@ -171,8 +171,6 @@ let lift_evar c env trm lift_rec sigma =
  * Core lifting algorithm.
  * A few extra rules to deal with real Coq terms as opposed to CIC,
  * including caching.
- *
- * TODO remove extra rules once we finish
  *)
 let lift_core env c trm sigma =
   let rec lift_rec prev_rules en sigma c tr : types state =
@@ -186,7 +184,7 @@ let lift_core env c trm sigma =
     | Optimization (LazyEta tr_eta) ->
        lift_rec lift_rules en sigma c tr_eta
     | LiftIdentity (simplify, (f, args)) | Coherence (simplify, (f, args))
-    | LiftConstr (simplify, (f, args)) ->
+      | LiftConstr (simplify, (f, args)) ->
        lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma  
     | Equivalence (f, args) | LiftRewEta (f, args) ->
        lift_app_simplify c en f args reduce_term (lift_rec lift_rules) sigma

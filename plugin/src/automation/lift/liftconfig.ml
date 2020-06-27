@@ -1398,15 +1398,16 @@ let applies_constr_eta c env trm sigma =
        let rec applies_dep_constr i constrs sigma =
          match constrs with
          | constr :: tl ->
-            let sigma, eargs = mk_n_evars (arity constr) env sigma in
-            let constr_app = mkAppl (constr, eargs) in
-            let sigma, resolved = unify_resolve_evars env trm constr_app sigma in
-            if Option.has_some resolved then
-              let (_, constr_app) = Option.get resolved in
-              let args = unfold_args constr_app in
-              sigma, Some (i, args)
+            if is_or_applies constr trm then
+              sigma, Some (i, unfold_args trm)
             else
-              applies_dep_constr (i + 1) tl sigma
+              let constr_def = unwrap_definition env constr in
+              if is_or_applies constr_def trm then
+                sigma, Some (i, unfold_args trm)
+              else
+                (* Unfortunately, unification reduces eliminators :( *)
+                (* so we can't even be this smart yet *)
+                applies_dep_constr (i + 1) tl sigma
          | _ ->
             sigma, None
        in applies_dep_constr 0 dep_constrs sigma
@@ -1899,15 +1900,23 @@ let applies_elim c env trm sigma =
            | Custom _ ->
               (* attempt unification *)
               let dep_elim = fst c.dep_elims in
-              let sigma, eargs = mk_n_evars (arity dep_elim) env sigma in
-              let elim_app = mkAppl (dep_elim, eargs) in
-              let sigma, resolved = unify_resolve_evars env trm elim_app sigma in
-              if Option.has_some resolved then
-                let (_, elim_app) = Option.get resolved in
-                let args = unfold_args elim_app in
-                sigma, Some args
+              if is_or_applies dep_elim trm then
+                sigma, Some (unfold_args trm)
               else
-                sigma, None
+                let dep_elim_def = lookup_definition env dep_elim in
+                if is_or_applies dep_elim_def trm then
+                  sigma, Some (unfold_args trm)
+                else
+                  let sigma, dep_elim_eta = expand_eta env sigma dep_elim in
+                  let sigma, eargs = mk_n_evars (arity dep_elim_eta) env sigma in
+                  let elim_app = mkAppl (dep_elim, eargs) in
+                  let sigma, resolved = unify_resolve_evars env trm elim_app sigma in
+                  if Option.has_some resolved then
+                    let (_, elim_app) = Option.get resolved in
+                    let args = unfold_args elim_app in
+                    sigma, Some args
+                  else
+                    sigma, None
          in
          if Option.has_some elim_app_o then
            let args = Option.get elim_app_o in
