@@ -35,7 +35,7 @@ Definition dep_constr_B_1 := Bin.succ.
  * For this type, Coq already has a nice DepElim:
  *)
 Definition dep_elim_A := nat_rect.
-Preprocess N.peano_rect as dep_elim_B.
+Definition dep_elim_B := N.peano_rect.
 
 (* --- IdEta --- *)
 
@@ -173,6 +173,30 @@ Definition plus_n_Sm (n m : nat) : S (add n m) = add n (S m) :=
 
 Lift nat binnat in plus_n_Sm as binnat_plus_n_Sm.
 Print binnat_plus_n_Sm.
+Print N.add.
 
 
 
+Print binnat_add.
+
+(*
+ * Fast addition behaves like slow addition
+ *)
+Lemma add_fast_add:
+  forall (n m : Bin.nat),
+    binnat_add n m = N.add n m.
+Proof.
+  induction n using N.peano_rect; intros m; auto.
+  unfold binnat_add. 
+  rewrite N.peano_rect_succ. (* <- RewEta *)
+  unfold binnat_add in IHn. rewrite IHn.
+  rewrite N.add_succ_l.
+  reflexivity.
+Qed.
+
+Lemma add_n_Sm :
+  forall n m,
+    Bin.succ (N.add n m) = N.add n (Bin.succ m).
+Proof.
+  intros. repeat rewrite <- add_fast_add. apply binnat_plus_n_Sm.
+Qed.
