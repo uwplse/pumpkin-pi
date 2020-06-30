@@ -259,6 +259,8 @@ let lift_core env c trm sigma =
  *)
 let do_lift_term env sigma (l : lifting) trm opaques =
   let sigma, c = initialize_lift_config env l opaques sigma in
+  let env = Global.env () in
+  let sigma = Evd.from_env env in
   lift_core env c trm sigma
 
 (*
@@ -315,6 +317,8 @@ let declare_inductive_liftings l ind ind' ncons =
  *)
 let do_lift_ind env sigma l typename suffix ind ignores is_lift_module =
   let sigma, c = initialize_lift_config env l ignores sigma in
+  let env = Global.env () in
+  let sigma = Evd.from_env env in
   let (mind_body, ind_body) as mind_specif = Inductive.lookup_mind_specif env ind in
   if is_opaque c (mkInd ind) then
     let _ = Feedback.msg_warning (Pp.str "Ignoring inductive type") in
