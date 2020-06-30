@@ -96,8 +96,12 @@ let lift_app_lazy_delta c env f args lift_rec sigma =
   if (not (equal f f')) || Array.length args = 0 || is_opaque c f then
     if equal f' (get_lifted_dep_elim c) then
       (* eliminator---reduce *)
-      let f'' = lookup_definition env f' in
-      reduce_term env sigma (mkApp (f'', args'))
+      let f'' =
+        try
+          lookup_definition env f'
+        with _ ->
+          f'
+      in reduce_term env sigma (mkApp (f'', args'))
     else
       sigma, mkApp (f', args')
   else
