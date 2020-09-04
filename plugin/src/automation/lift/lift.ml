@@ -190,7 +190,7 @@ let lift_core env c trm sigma =
     | LiftIdentity (simplify, (f, args)) | Coherence (simplify, (f, args))
     | LiftConstr (simplify, (f, args)) ->
        lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma  
-    | Equivalence (f, args) | LiftRewEta (f, args) ->
+    | Equivalence (f, args) | Iota (f, args) ->
        lift_app_simplify c en f args reduce_term (lift_rec lift_rules) sigma
     | Optimization (SimplifyProjectId (reduce, (f, args))) ->
        lift_simplify_project_id c en reduce f args (lift_rec lift_rules) sigma

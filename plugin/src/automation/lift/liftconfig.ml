@@ -60,7 +60,7 @@ type lift_config =
       ((constr * (constr -> constr)) list) *
       ((constr * (constr -> constr)) list);
     id_etas : (constr * constr);
-    rew_etas : (constr array * constr array);
+    iotas : (constr array * constr array);
     cache : temporary_cache;
     opaques : temporary_cache
   }
@@ -299,7 +299,7 @@ let type_from_args c env trm sigma =
  * Initialize the rules for lifting projections
  * This is COHERENCE, but cached
  *
- * A lot of this will likely go into IdEta or RewEta soon, at least what is
+ * A lot of this will likely go into IdEta or Iota soon, at least what is
  * not here just for optimizaiton pruposes
  *)
 let initialize_proj_rules c env sigma =
@@ -554,68 +554,69 @@ let initialize_id_etas c cached env sigma =
 
 (*
  * Define what it means to lift equality proofs.
+ * TODO implement trivial useless iotas for search procedures 
  *)
-let initialize_rew_etas c cached env sigma =
+let initialize_iotas c cached env sigma =
   let l = get_lifting c in
-  let sigma, rews =
+  let sigma, iotas =
     if Option.has_some cached then
       (* Use the cached rew rules *)
-      let (_, _, _, rews) = Option.get cached in
-      sigma, rews
+      let (_, _, _, iotas) = Option.get cached in
+      sigma, iotas
     else
       (* Determine the rew rules and cache them for later *)
       let sigma, fwd_typ = reduce_type env sigma (lift_to l) in
       let sigma, bwd_typ = reduce_type env sigma (lift_back l) in
-      let sigma, rew_a =
+      let sigma, iota_a =
         map_state_array
-          (fun _ sigma -> (* TODO args should be case of elim later *)
-            let env_rew = zoom_env zoom_product_type env (if l.is_fwd then fwd_typ else bwd_typ) in
+          (fun _ sigma -> (* TODO args should be case of dep_elim later *)
+            let env_iota = zoom_env zoom_product_type env (if l.is_fwd then fwd_typ else bwd_typ) in
             let a = mkRel 1 in
-            let sigma, a_typ = reduce_type env_rew sigma a in
-            let rew_a_bod = apply_eq_refl { typ = a_typ; trm = mkRel 1 } in
-            sigma, reconstruct_lambda_n env_rew rew_a_bod (nb_rel env))
+            let sigma, a_typ = reduce_type env_iota sigma a in
+            let iota_a_bod = apply_eq_refl { typ = a_typ; trm = mkRel 1 } in
+            sigma, reconstruct_lambda_n env_iota iota_a_bod (nb_rel env))
           ((if l.is_fwd then fst else snd) c.dep_constrs)
           sigma
       in
-      let sigma, rew_b =
+      let sigma, iota_b =
         map_state_array
           (fun _ sigma -> (* TODO args should be case of elim later *)
-            let env_rew = zoom_env zoom_product_type env (if l.is_fwd then bwd_typ else fwd_typ) in
+            let env_iota = zoom_env zoom_product_type env (if l.is_fwd then bwd_typ else fwd_typ) in
             let b = mkRel 1 in
-            let sigma, b_typ = reduce_type env_rew sigma b in
-            let rew_b_bod = apply_eq_refl { typ = b_typ; trm = mkRel 1 } in
-            sigma, reconstruct_lambda_n env_rew rew_b_bod (nb_rel env))
+            let sigma, b_typ = reduce_type env_iota sigma b in
+            let iota_b_bod = apply_eq_refl { typ = b_typ; trm = mkRel 1 } in
+            sigma, reconstruct_lambda_n env_iota iota_b_bod (nb_rel env))
           ((if l.is_fwd then snd else fst) c.dep_constrs)
           sigma
       in
-      let rews =
-        let rew_a_n, rew_b_n =
+      let iotas =
+        let iota_a_n, iota_b_n =
           let promote = Constant.canonical (fst (destConst l.orn.promote)) in
           let (_, _, lab) = KerName.repr promote in
           let base_n = Label.to_id lab in
-          (with_suffix base_n "rew_eta_a", with_suffix base_n "rew_eta_b")
+          (with_suffix base_n "iota_a", with_suffix base_n "iota_b")
         in
-        let rew_a, rew_b = ((rew_a_n, rew_a), (rew_b_n, rew_b)) in
-        let rew_as =
+        let iota_a, iota_b = ((iota_a_n, iota_a), (iota_b_n, iota_b)) in
+        let iota_as =
           Array.mapi
             (fun i rew ->
-              let n = with_suffix (fst rew_a) (string_of_int i) in
+              let n = with_suffix (fst iota_a) (string_of_int i) in
               define_term n sigma rew true)
-            (snd rew_a)
+            (snd iota_a)
         in
-        let rew_bs =
+        let iota_bs =
           Array.mapi
             (fun i rew ->
-              let n = with_suffix (fst rew_b) (string_of_int i) in
+              let n = with_suffix (fst iota_b) (string_of_int i) in
               define_term n sigma rew true)
-            (snd rew_b)
-        in map_tuple (Array.map Universes.constr_of_global) (rew_as, rew_bs)
-      in save_rew_eta (l.orn.promote, l.orn.forget) rews; sigma, rews
+            (snd iota_b)
+        in map_tuple (Array.map Universes.constr_of_global) (iota_as, iota_bs)
+      in save_iota (l.orn.promote, l.orn.forget) iotas; sigma, iotas
   in
-  let rews = if l.is_fwd then rews else rev_tuple rews in
+  let iotas = if l.is_fwd then iotas else rev_tuple iotas in
   let env = Global.env () in
-  let rew_etas = map_tuple (Array.map (unwrap_definition env)) rews in
-  sigma, { c with rew_etas }
+  let iotas = map_tuple (Array.map (unwrap_definition env)) iotas in
+  sigma, { c with iotas }
 
 (*
  * Get the map of projections for the type
@@ -878,13 +879,13 @@ let applies_id_eta c env trm sigma =
   else
     sigma, None
 
-let get_rew_eta c = fst c.rew_etas
-let get_lifted_rew_eta c = snd c.rew_etas
+let get_iota c = fst c.iotas
+let get_lifted_iota c = snd c.iotas
 
 (*
- * When rew_eta is not reflexivity, check if we apply RewEta
+ * When iota is not rewriting by reflexivity, check if we apply Iota
  *)
-let applies_rew_eta c env trm sigma =
+let applies_iota c env trm sigma =
   match c.l.orn.kind with
   | Custom _ ->
      (* no custom unification yet---require explicit expansion *)
@@ -1951,7 +1952,7 @@ let initialize_lift_config env l ignores sigma =
       proj_rules = ([], []), ([], []);
       optimize_proj_id_rules = [], [];
       id_etas = (mkRel 1, mkRel 1);
-      rew_etas = (Array.make 0 (mkRel 1), Array.make 0 (mkRel 1));
+      iotas = (Array.make 0 (mkRel 1), Array.make 0 (mkRel 1));
       cache;
       opaques
     }
@@ -1962,7 +1963,7 @@ let initialize_lift_config env l ignores sigma =
   let sigma, c = initialize_id_etas c cached env sigma in
   let sigma, c = initialize_elim_types c env sigma in
   let sigma, c = initialize_dep_constrs c cached env sigma in
-  let sigma, c = initialize_rew_etas c cached env sigma in
+  let sigma, c = initialize_iotas c cached env sigma in
   initialize_dep_elims c cached env sigma
   
 

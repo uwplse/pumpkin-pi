@@ -78,6 +78,7 @@ Preprocess Module Handwritten as Handwritten'.
  *)
 Lift Module Generated'.input Handwritten'.input in Generated' as Temp1.
 Lift Module Generated'.output Handwritten'.output in Temp1 as Handwritten''.
+
 (*
  * If you lift in the opposite order, for op, you get something well-typed but with
  * a type you don't even want. So for now when one type definition you lift along
@@ -124,7 +125,29 @@ Lift Handwritten'.output Generated'.output in HandwrittenProofs'.and_spec_true_t
 Lift Handwritten'.input Generated'.input in and_spec_true_true_1 as and_spec_true_true'.
 
 (*
- * Now we get our proof over generated types with just one catch: We need to call
+Print and_spec_true_true'.
+Require Import Patcher.Patch.
+Decompile and_spec_true_true'.
+Check and_spec_true_true'.
+
+(*
+ * We get these tactics automatically from the decompiler, and they work
+ * forgetting about preprocess:
+ *)
+Theorem and_spec_true_true_by_tactics
+  (r : Generated.input)
+  (F : Generated.firstBool  r = true)
+  (S : Generated.secondBool r = true)
+  : Generated.andBools (Generated.op r) = true.
+Proof.
+  destruct r as [ a b].
+  apply andb_true_intro.
+  intuition.
+Qed.
+*)
+
+(*
+ * Otherwise we get our proof over generated types with just one catch: We need to call
  * induction first, since we have something defined over Preprocessed types
  * (induction principles) and we want something defined over the original types
  * (pattern matching and so on).

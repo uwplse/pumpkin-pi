@@ -44,43 +44,43 @@ Definition dep_elim_B := N.peano_rect.
 Definition id_eta_A (n : nat) := nat.
 Definition id_eta_B (b : binnat) := binnat.
 
-(* --- RewEta --- *)
+(* --- Iota --- *)
 
-Definition rew_eta_A_O :=
+Definition iota_A_O :=
  (fun (P : nat -> Type) (PO : P O) (PS : forall n, P n -> P (S n)) (Q : P O -> Type) (H : Q PO) =>
    H).
 
-Definition rew_eta_A_1_typ :=
+Definition iota_A_1_typ :=
 forall (P : nat -> Type) (PO : P O) (PS : forall x : nat, P x -> P (S x)) 
          (n : nat) (Q : P (S n) -> Type),
        Q (PS n (nat_rect P PO PS n)) -> Q (nat_rect P PO PS (S n)).
 
-Definition rew_eta_A_1 :=
+Definition iota_A_1 :=
   (fun (P : nat -> Type) (PO : P O) (PS : forall n, P n -> P (S n)) n (Q : P (S n) -> Type) (H : Q (PS n (nat_rect P PO PS n))) =>
    eq_rect
     (PS n (nat_rect P PO PS n))
     (fun (H : P (S n)) => Q H)
     H
     (nat_rect P PO PS (S n))
-    (@eq_refl (P (S n)) (PS n (nat_rect P PO PS n)))) : rew_eta_A_1_typ.
+    (@eq_refl (P (S n)) (PS n (nat_rect P PO PS n)))) : iota_A_1_typ.
 
-Definition rew_eta_B_O :=
+Definition iota_B_O :=
  (fun (P : binnat -> Type) (PO : P 0%N) (PS : forall b, P b -> P (Bin.succ b)) (Q : P 0%N -> Type) (H : Q PO) =>
    H).
 
-Definition rew_eta_B_1_typ :=
+Definition iota_B_1_typ :=
   forall (P : binnat -> Type) (PO : P 0%N) (PS : forall x : binnat, P x -> P (Bin.succ x)) 
          (n : binnat) (Q : P (Bin.succ n) -> Type),
        Q (PS n (N.peano_rect P PO PS n)) -> Q (N.peano_rect P PO PS (Bin.succ n)).
 
-Definition rew_eta_B_1  :=
+Definition iota_B_1  :=
   (fun (P : binnat -> Type) (PO : P 0%N) (PS : forall b, P b -> P (Bin.succ b)) n (Q : P (Bin.succ n) -> Type) (H : Q (PS n (N.peano_rect P PO PS n))) =>
   eq_rect
     (PS n (N.peano_rect P PO PS n))
     (fun (H : P (Bin.succ n)) => Q H)
     H
     (N.peano_rect P PO PS (Bin.succ n))
-    (eq_sym (N.peano_rect_succ P PO PS n))) : rew_eta_B_1_typ.
+    (eq_sym (N.peano_rect_succ P PO PS n))) : iota_B_1_typ.
 
 (* --- Our nat functions and proofs we'll want to lift --- *)
 
@@ -101,8 +101,8 @@ Configure Lift nat binnat {
   elim_b = dep_elim_B;
   id_eta_a = id_eta_A;
   id_eta_b = id_eta_B;
-  rew_eta_a = rew_eta_A_O rew_eta_A_1;
-  rew_eta_b = rew_eta_B_O rew_eta_B_1
+  iota_a = iota_A_O iota_A_1;
+  iota_b = iota_B_O iota_B_1
 }.
 
 Lift nat binnat in Nat_pre.add as slow_add.
@@ -116,23 +116,23 @@ Lemma add_fast_add:
 Proof.
   induction n using N.peano_rect; intros m; auto.
   unfold slow_add.
-  rewrite N.peano_rect_succ. (* <- RewEta *)
+  rewrite N.peano_rect_succ. (* <- Iota *)
   unfold slow_add in IHn. rewrite IHn.
   rewrite N.add_succ_l.
   reflexivity.
 Qed.
 
-(* --- RewEta for add --- *)
+(* --- Iota for add --- *)
 
 (*
  * We should generate this automatically at some point, but this just instantiates
- * RewEta to add. Then we can lift it to binnat easily.
+ * Iota to add. Then we can lift it to binnat easily.
  *)
 
-Definition rew_eta_A_plus (n : nat) Q (H: Q (fun m : nat => S (Nat_pre.add n m))) : Q (Nat_pre.add (S n)) :=
-  rew_eta_A_1 _ (fun p => p) (fun _ IH p => S (IH p)) n Q H.
+Definition iota_A_plus (n : nat) Q (H: Q (fun m : nat => S (Nat_pre.add n m))) : Q (Nat_pre.add (S n)) :=
+  iota_A_1 _ (fun p => p) (fun _ IH p => S (IH p)) n Q H.
 
-Lift nat binnat in rew_eta_A_plus as rew_eta_B_plus.
+Lift nat binnat in iota_A_plus as iota_B_plus.
 
 (* --- Lifting a theorem about addition --- *)
 
@@ -147,11 +147,11 @@ Configure Lift nat binnat {
   elim_b = dep_elim_B;
   id_eta_a = id_eta_A;
   id_eta_b = id_eta_B;
-  rew_eta_a = rew_eta_A_O rew_eta_A_1;
-  rew_eta_b = rew_eta_B_O rew_eta_B_1
+  iota_a = iota_A_O iota_A_1;
+  iota_b = iota_B_O iota_B_1
 }.
 
-(* Now we tweak add_n_Sm to manually add rew_eta where we have casts: *)
+(* Now we tweak add_n_Sm to manually add iota where we have casts: *)
 Print Nat_pre.Coq_Init_Peano_plus_n_Sm.
 
 (* That gives us this: *)
@@ -169,8 +169,8 @@ Definition plus_n_Sm_expanded (n m : nat) :=
     (fun n0 : nat => S (Nat_pre.add n0 m) = Nat_pre.add n0 (S m))
     eq_refl
     (fun (n0 : nat) (IHn : S (Nat_pre.add n0 m) = Nat_pre.add n0 (S m)) =>
-      rew_eta_A_plus _ (fun PS => S (PS m) = Nat_pre.add (S n0) (S m))
-        (rew_eta_A_plus _ (fun PS => S (S (Nat_pre.add n0 m)) = PS (S m))
+      iota_A_plus _ (fun PS => S (PS m) = Nat_pre.add (S n0) (S m))
+        (iota_A_plus _ (fun PS => S (S (Nat_pre.add n0 m)) = PS (S m))
           (f_equal_nat nat S (S (Nat_pre.add n0 m)) (Nat_pre.add n0 (S m)) IHn)))
     n.
 

@@ -120,16 +120,16 @@ val applies_id_eta :
   ((constr list) option) state
                          
 (*
- * Get RewEta
+ * Iota rules
  *)
-val get_rew_eta : lift_config -> constr array
-val get_lifted_rew_eta : lift_config -> constr array
+val get_iota : lift_config -> constr array
+val get_lifted_iota : lift_config -> constr array
 
 (*
- * Check if the term applies RewEta
+ * Check if the term applies Iota
  * If so, return the the arguments
  *)
-val applies_rew_eta :
+val applies_iota :
   lift_config ->
   env ->
   constr ->

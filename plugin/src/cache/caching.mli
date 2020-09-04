@@ -86,9 +86,9 @@ val save_ornament :
 (* --- Database of configuration --- *)
 
 (*
- * Lookup DepConstr, DepElim, IdEta, and RewEta
+ * Lookup DepConstr, DepElim, IdEta, and Iota
  * Arguments: orn_o, orn_n
- * Order of return values: dep_constrs, dep_elims, id_etas, rew_etas 
+ * Order of return values: dep_constrs, dep_elims, id_etas, iotas 
  * (for now, just two of these, since this is work in progress)
  *
  * Return None if the configuration does not exist or is not in the current
@@ -102,9 +102,9 @@ val lookup_config :
    (constr array * constr array)) option
 
 (*
- * Store DepConstr, DepElim, IdEta, and RewEta
+ * Store DepConstr, DepElim, IdEta, and Iota
  *)
 val save_dep_constrs : (types * types) -> (constr array * constr array) -> unit
 val save_dep_elim : (types * types) -> (constr * constr) -> unit
 val save_id_eta : (types * types) -> (constr * constr) -> unit
-val save_rew_eta : (types * types) -> (constr array * constr array) -> unit
+val save_iota : (types * types) -> (constr array * constr array) -> unit

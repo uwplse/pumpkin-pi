@@ -101,8 +101,7 @@ type lift_optimization =
  *    well as a custom reduction function to apply identity to the
  *    lifted arguments (for efficiency and to ensure termination).
  *
- * 6. REW-ETA runs when we lift eta-expanded proofs of equality.
- *    This is also to preserve definitional equalities.
+ * 6. IOTA runs when we lift iota reduction.
  *
  * 7. CIC runs when no optimization applies and none of the other rules
  *    apply. It returns the kind of the Gallina term.
@@ -111,8 +110,8 @@ type lift_rule =
 | Equivalence of constr * constr list
 | LiftConstr of reducer * (constr * constr list)
 | LiftIdentity of reducer * (constr * constr list)
-| LiftRewEta of constr * constr list
-| Coherence of reducer * (constr * constr list)
+| Iota of constr * constr list
+| Coherence of reducer * (constr * constr list) (* TODO move to optimization? *)
 | Optimization of lift_optimization
 | CIC of (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
 
@@ -240,11 +239,11 @@ let is_identity c env trm prev_rules sigma =
     sigma, None
 
 (* Premises for LIFT-REW-ETA *)
-let is_rew_eta c env trm prev_rules sigma =
-  let sigma, app_o = applies_rew_eta c env trm sigma in
+let is_iota c env trm prev_rules sigma =
+  let sigma, app_o = applies_iota c env trm sigma in
   if Option.has_some app_o then
     let i, args = Option.get app_o in
-    sigma, Some ((get_lifted_rew_eta c).(i), args)
+    sigma, Some ((get_lifted_iota c).(i), args)
   else
     sigma, None
 
@@ -295,10 +294,10 @@ let determine_lift_rule c env trm prev_rules sigma =
             let simplify, (f, args) = Option.get is_identity_o in
             sigma, LiftIdentity (simplify, (f, args))
           else
-            let sigma, is_rew_eta_o = is_rew_eta c env trm prev_rules sigma in
-            if Option.has_some is_rew_eta_o then
-              let (f, args) = Option.get is_rew_eta_o in
-              sigma, LiftRewEta (f, args)
+            let sigma, is_iota_o = is_iota c env trm prev_rules sigma in
+            if Option.has_some is_iota_o then
+              let (f, args) = Option.get is_iota_o in
+              sigma, Iota (f, args)
             else
               let sigma, is_elim_o = is_eliminator c env trm sigma in
               if Option.has_some is_elim_o then

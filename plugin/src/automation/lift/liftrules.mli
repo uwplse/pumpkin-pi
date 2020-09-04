@@ -42,7 +42,7 @@ type lift_rule =
 | Equivalence of constr * constr list
 | LiftConstr of reducer * (constr * constr list)
 | LiftIdentity of reducer * (constr * constr list)
-| LiftRewEta of constr * constr list
+| Iota of constr * constr list
 | Coherence of reducer * (constr * constr list)
 | Optimization of lift_optimization
 | CIC of (constr, types, Sorts.t, Univ.Instance.t) kind_of_term

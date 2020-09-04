@@ -85,6 +85,7 @@ Set DEVOID search smart eliminators.
  * We can then lift our entire module (search runs automatically):
  *)
 Lift Module list vector in hs_to_coq as hs_to_coqV_p.
+
 Definition zipV_p := hs_to_coqV_p.zip.
 Definition zip_withV_p := hs_to_coqV_p.zip_with.
 Definition zip_with_is_zipV_p := hs_to_coqV_p.zip_with_is_zip.

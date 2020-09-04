@@ -480,7 +480,7 @@ let remove_lifting_opaques d_orn d_orn_inv opaques =
 (*
  * Configure lifting manually
  *)
-let configure_lifting_manual d_orn d_orn_inv constrs elims ids rews =
+let configure_lifting_manual d_orn d_orn_inv constrs elims ids iotas =
   let (sigma, env) = Pfedit.get_current_context () in
   let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in
   let lookup_reference r =
@@ -490,11 +490,11 @@ let configure_lifting_manual d_orn d_orn_inv constrs elims ids rews =
   let constrs = map_tuple (List.map lookup_reference) constrs in
   let elims = map_tuple lookup_reference elims in
   let ids = map_tuple lookup_reference ids in
-  let rews = map_tuple (List.map lookup_reference) rews in
+  let iotas = map_tuple (List.map lookup_reference) iotas in
   save_dep_constrs (l.orn.promote, l.orn.forget) (map_tuple Array.of_list constrs);
   save_dep_elim (l.orn.promote, l.orn.forget) elims;
   save_id_eta (l.orn.promote, l.orn.forget) ids;
-  save_rew_eta (l.orn.promote, l.orn.forget) (map_tuple Array.of_list rews);
+  save_iota (l.orn.promote, l.orn.forget) (map_tuple Array.of_list iotas);
   List.iter2
     (fun c1 c2 ->
       save_lifting (l.orn.promote, l.orn.forget, c1) c2;
@@ -506,11 +506,11 @@ let configure_lifting_manual d_orn d_orn_inv constrs elims ids rews =
   save_lifting (l.orn.promote, l.orn.forget, (fst ids)) (snd ids);
   save_lifting (l.orn.forget, l.orn.promote, (snd ids)) (fst ids);
   List.iter2
-    (fun rew1 rew2 ->
-      save_lifting (l.orn.promote, l.orn.forget, rew1) rew2;
-      save_lifting (l.orn.forget, l.orn.promote, rew2) rew1)
-    (fst rews)
-    (snd rews);
+    (fun iota1 iota2 ->
+      save_lifting (l.orn.promote, l.orn.forget, iota1) iota2;
+      save_lifting (l.orn.forget, l.orn.promote, iota2) iota1)
+    (fst iotas)
+    (snd iotas);
   ()
 
 (*
