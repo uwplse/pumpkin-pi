@@ -49,7 +49,7 @@ let err_type env sigma err =
      Pp.fnl ();
      Pp.str "This is often due to one of three issues:\n";
      Pp.str "1. during lifting, the term refers to an earlier term that is opaque, or\n";
-     Pp.str "2. during lifting, the term contains match statements that are not preprocessed.";
+     Pp.str "2. during lifting, the term contains match statements that are not preprocessed.\n";
      Pp.str "3. during search or lifting, a type or term is not supported, but we do not correctly detect this."]
 
 let err_ambiguous_swap env num_solutions swap_maps sigma =
