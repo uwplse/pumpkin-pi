@@ -493,7 +493,7 @@ let configure_lifting_manual d_orn d_orn_inv constrs elims ids iotas =
   let iotas = map_tuple (List.map lookup_reference) iotas in
   save_dep_constrs (l.orn.promote, l.orn.forget) (map_tuple Array.of_list constrs);
   save_dep_elim (l.orn.promote, l.orn.forget) elims;
-  save_id_eta (l.orn.promote, l.orn.forget) ids;
+  save_eta (l.orn.promote, l.orn.forget) ids;
   save_iota (l.orn.promote, l.orn.forget) (map_tuple Array.of_list iotas);
   List.iter2
     (fun c1 c2 ->

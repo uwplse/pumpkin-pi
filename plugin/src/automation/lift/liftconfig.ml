@@ -42,7 +42,7 @@ open Nameutils
 (*
  * Lifting configuration, along with the types A and B,
  * rules for constructors and projections that are configurable by equivalence,
- * simplification rules, rules for lifting the identity function,
+ * simplification rules, definitional equality rules,
  * a cache for constants encountered as the algorithm traverses,
  * and a cache for the constructor rules that refolding determines.
  *)
@@ -59,7 +59,7 @@ type lift_config =
     optimize_proj_id_rules :
       ((constr * (constr -> constr)) list) *
       ((constr * (constr -> constr)) list);
-    id_etas : (constr * constr);
+    etas : (constr * constr);
     iotas : (constr array * constr array);
     cache : temporary_cache;
     opaques : temporary_cache
@@ -76,7 +76,7 @@ let reverse c =
     dep_constrs = reverse c.dep_constrs;
     proj_rules = reverse c.proj_rules;
     optimize_proj_id_rules = reverse c.optimize_proj_id_rules;
-    id_etas = reverse c.id_etas;
+    etas = reverse c.etas;
   }
 
 let zoom c =
@@ -293,13 +293,13 @@ let type_from_args c env trm sigma =
     sigma
     trm
 
-(* --- Identity and coherence (for definitional equality) --- *)
+(* --- Eta, iota, and coherence (for definitional equality) --- *)
 
 (* 
  * Initialize the rules for lifting projections
  * This is COHERENCE, but cached
  *
- * A lot of this will likely go into IdEta or Iota soon, at least what is
+ * A lot of this will likely go into Eta or Iota soon, at least what is
  * not here just for optimizaiton pruposes
  *)
 let initialize_proj_rules c env sigma =
@@ -440,32 +440,32 @@ let initialize_proj_rules c env sigma =
  * Define what it means to lift the identity function, since we must
  * preserve definitional equalities.
  *)
-let initialize_id_etas c cached env sigma =
+let initialize_etas c cached env sigma =
   let l = get_lifting c in
-  let sigma, ids =
+  let sigma, etas =
     if Option.has_some cached then
-      (* Use the cached id rules *)
-      let (_, _, ids, _) = Option.get cached in
-      sigma, ids
+      (* Use the cached eta rules *)
+      let (_, _, etas, _) = Option.get cached in
+      sigma, etas
     else
-      (* Determine the id rules and cache them for later *)
+      (* Determine the eta rules and cache them for later *)
       let (a_typ, b_typ) = get_types c in
       let sigma, fwd_typ = reduce_type env sigma (lift_to l) in
       let sigma, bwd_typ = reduce_type env sigma (lift_back l) in
-      let sigma, id_a =
-        let env_id = zoom_env zoom_product_type env (if l.is_fwd then fwd_typ else bwd_typ) in
+      let sigma, eta_a =
+        let env_eta = zoom_env zoom_product_type env (if l.is_fwd then fwd_typ else bwd_typ) in
         let a = mkRel 1 in
         match l.orn.kind with
         | UnpackSigma ->
            (* eta for nested sigT *)
-           let typ_args = shift_all (mk_n_rels (nb_rel env_id - 1)) in
-           let sigma, typ = reduce_term env_id sigma (mkAppl (a_typ, typ_args)) in
+           let typ_args = shift_all (mk_n_rels (nb_rel env_eta - 1)) in
+           let sigma, typ = reduce_term env_eta sigma (mkAppl (a_typ, typ_args)) in
            let s_eq_typ = dest_sigT typ in
            let index_type = s_eq_typ.index_type in
            let packer = s_eq_typ.packer in
            let s, unpacked = projections s_eq_typ a in
            let sigma, index =
-             let sigma, typ = reduce_type env_id sigma s in
+             let sigma, typ = reduce_type env_eta sigma s in
              let s_typ = dest_sigT typ in
              let index_type = s_typ.index_type in
              let packer = s_typ.packer in
@@ -473,33 +473,33 @@ let initialize_id_etas c cached env sigma =
              sigma, pack_existT { index_type; packer; index; unpacked}
            in
            let e = pack_existT {index_type; packer; index; unpacked} in
-           sigma, reconstruct_lambda env_id e
+           sigma, reconstruct_lambda env_eta e
         | Algebraic _ | CurryRecord | SwapConstruct _ | Custom _ ->
            (* identity *)
-           sigma, reconstruct_lambda env_id a
+           sigma, reconstruct_lambda env_eta a
       in
-      let sigma, id_b =
-        let env_id = zoom_env zoom_product_type env (if l.is_fwd then bwd_typ else fwd_typ) in
+      let sigma, eta_b =
+        let env_eta = zoom_env zoom_product_type env (if l.is_fwd then bwd_typ else fwd_typ) in
         let b = mkRel 1 in
         match l.orn.kind with
         | Algebraic _ ->
            (* eta for sigT *)
-           let typ_args = shift_all (mk_n_rels (nb_rel env_id - 1)) in
-           let sigma, typ = reduce_term env_id sigma (mkAppl (b_typ, typ_args)) in
+           let typ_args = shift_all (mk_n_rels (nb_rel env_eta - 1)) in
+           let sigma, typ = reduce_term env_eta sigma (mkAppl (b_typ, typ_args)) in
            let s_typ = dest_sigT typ in
            let index_type = s_typ.index_type in
            let packer = s_typ.packer in
            let index, unpacked = projections s_typ b in
            let e = pack_existT {index_type; packer; index; unpacked} in
-           sigma, reconstruct_lambda env_id e
+           sigma, reconstruct_lambda env_eta e
         | CurryRecord ->
            (* eta for nested prod *)
-           let typ_args = shift_all (mk_n_rels (nb_rel env_id - 1)) in
-           let sigma, typ = reduce_term env_id sigma (mkAppl (b_typ, typ_args)) in
+           let typ_args = shift_all (mk_n_rels (nb_rel env_eta - 1)) in
+           let sigma, typ = reduce_term env_eta sigma (mkAppl (b_typ, typ_args)) in
            let f = first_fun typ in
            let args = unfold_args typ in
-           let sigma, typ_red = specialize_delta_f env_id f args sigma in
-           sigma, reconstruct_lambda env_id (eta_prod_rec b typ_red)
+           let sigma, typ_red = specialize_delta_f env_eta f args sigma in
+           sigma, reconstruct_lambda env_eta (eta_prod_rec b typ_red)
         | UnpackSigma ->
            (* rewrite in pack (identity at eq_refl) *)
            let sigma, (env_eq, (eq, eq_typ), (b, b_typ)) =
@@ -529,28 +529,28 @@ let initialize_id_etas c cached env sigma =
            in sigma, reconstruct_lambda_n env_eq rewrite (nb_rel env)
         | SwapConstruct _ | Custom _ ->
            (* identity *)
-           sigma, reconstruct_lambda env_id b
+           sigma, reconstruct_lambda env_eta b
       in
-      let ids =
-        let id_a_n, id_b_n =
+      let etas =
+        let eta_a_n, eta_b_n =
           let promote = Constant.canonical (fst (destConst l.orn.promote)) in
           let (_, _, lab) = KerName.repr promote in
           let base_n = Label.to_id lab in
-          (with_suffix base_n "id_eta_a", with_suffix base_n "id_eta_b")
+          (with_suffix base_n "eta_a", with_suffix base_n "eta_b")
         in
-        let id_a, id_b = ((id_a_n, id_a), (id_b_n, id_b)) in
+        let eta_a, eta_b = ((eta_a_n, eta_a), (eta_b_n, eta_b)) in
         try
-          let id_a = define_term (fst id_a) sigma (snd id_a) true in
-          let id_b = define_term (fst id_b) sigma (snd id_b) true in
-          map_tuple Universes.constr_of_global (id_a, id_b)
+          let eta_a = define_term (fst eta_a) sigma (snd eta_a) true in
+          let eta_b = define_term (fst eta_b) sigma (snd eta_b) true in
+          map_tuple Universes.constr_of_global (eta_a, eta_b)
         with _ ->
-          snd id_a, snd id_b
-      in save_id_eta (l.orn.promote, l.orn.forget) ids; sigma, ids
+          snd eta_a, snd eta_b
+      in save_eta (l.orn.promote, l.orn.forget) etas; sigma, etas
   in
-  let ids = if l.is_fwd then ids else rev_tuple ids in
+  let etas = if l.is_fwd then etas else rev_tuple etas in
   let env = Global.env () in
-  let id_etas = map_tuple (unwrap_definition env) ids in
-  sigma, { c with id_etas }
+  let etas = map_tuple (unwrap_definition env) etas in
+  sigma, { c with etas }
 
 (*
  * Define what it means to lift equality proofs.
@@ -730,17 +730,17 @@ let is_proj c env trm sigma =
     in check [proj_term_rules; proj_type_rules] sigma
 
 (*
- * Get the lifted identity function
+ * Get the lifted eta expansion function
  *)
-let get_lifted_id_eta c = snd c.id_etas
+let get_lifted_eta c = snd c.etas
 
 (*
- * Check if a term may apply the eta-expanded identity function,
+ * Check if a term may apply the eta expansion function,
  * but don't bother checking the type
  *)
-let may_apply_id_eta c env trm =
+let may_apply_eta c env trm =
   (* Heuristic for unification without slowdown *)
-  if equal (zoom_term zoom_lambda_term env (fst c.id_etas)) (mkRel 1) then
+  if equal (zoom_term zoom_lambda_term env (fst c.etas)) (mkRel 1) then
     true
   else
     let l = get_lifting c in
@@ -760,21 +760,17 @@ let may_apply_id_eta c env trm =
        true (* not enough information without unification *)
 
 (*
- * Check if a term applies the eta-expanded identity function
- *
- * We can think of this as part of COHERENCE, since the identity
- * function is, in a sense, also a projection. Long-term, it may make
- * sense to combine this with the COHERENCE rules.
+ * Check if a term applies the eta expansion function function
  *)
-let applies_id_eta c env trm sigma =
-  if may_apply_id_eta c env trm then
+let applies_eta c env trm sigma =
+  if may_apply_eta c env trm then
     let sigma, typ_args_o = type_is_from c env trm sigma in
     let opt_proj_map = snd c.optimize_proj_id_rules in
     (* Heuristic for unification again *)
     if Option.has_some typ_args_o then
       let typ_args = Option.get typ_args_o in
       let is_custom = match c.l.orn.kind with | Custom _ -> true | _ -> false in
-      if (not is_custom) && equal (zoom_term zoom_lambda_term env (fst c.id_etas)) (mkRel 1) then
+      if (not is_custom) && equal (zoom_term zoom_lambda_term env (fst c.etas)) (mkRel 1) then
         sigma, Some (snoc trm typ_args)
       else
         let l = get_lifting c in
@@ -864,13 +860,13 @@ let applies_id_eta c env trm sigma =
              sigma, None (* impossible state *)
           | Custom _ ->
              (* attempt unification *)
-             let id_eta = fst c.id_etas in
-             let sigma, eargs = mk_n_evars (arity id_eta) env sigma in
-             let id_app = mkAppl (id_eta, eargs) in
-             let sigma, resolved = unify_resolve_evars env trm id_app sigma in
+             let eta = fst c.etas in
+             let sigma, eargs = mk_n_evars (arity eta) env sigma in
+             let eta_app = mkAppl (eta, eargs) in
+             let sigma, resolved = unify_resolve_evars env trm eta_app sigma in
              if Option.has_some resolved then
-               let (_, id_app) = Option.get resolved in
-               let args = unfold_args id_app in
+               let (_, eta_app) = Option.get resolved in
+               let args = unfold_args eta_app in
                sigma, Some args
              else
                sigma, None
@@ -978,7 +974,7 @@ let reduce_coh c env sigma trm =
       let proj_a = Option.get how_reduce_o in
       let arg_inner = last_arg arg in
       let sigma, arg_inner = reduce_arg c env sigma arg_inner in
-      if may_apply_id_eta (reverse c) env arg_inner then
+      if may_apply_eta (reverse c) env arg_inner then
         let sigma, projected = proj_a env sigma arg_inner in
         reduce_arg c env sigma projected
       else
@@ -1010,11 +1006,11 @@ let reduce_coh c env sigma trm =
      reduce_arg c env sigma trm
 
 (*
- * Custom reduction function for lifted eta-expanded identity,
+ * Custom reduction function for lifted eta expansion function,
  * for efficiency and to ensure termination. For example, this may
  * simplify projections of existentials.
  *)
-let reduce_lifted_id c env sigma trm =
+let reduce_lifted_eta c env sigma trm =
   let l = get_lifting c in
   let sigma, trm = reduce_term env sigma trm in
   match c.l.orn.kind with
@@ -1239,10 +1235,10 @@ let initialize_dep_constrs c cached env sigma =
              (fun constr sigma ->
                let sigma, constr_exp = expand_eta env sigma constr in
                let (env_c_b, c_body) = zoom_lambda_term env constr_exp in
-               let sigma, id_args_o = applies_id_eta (if l.is_fwd then reverse c else c) env_c_b c_body sigma in
-               let lifted_id = get_lifted_id_eta (if l.is_fwd then reverse c else c) in
-               let sigma, id_app = reduce_lifted_id (if l.is_fwd then reverse c else c) env_c_b sigma (mkAppl (lifted_id, Option.get id_args_o)) in
-               let c_body_id = reduce_stateless reduce_term env_c_b sigma id_app in
+               let sigma, eta_args_o = applies_eta (if l.is_fwd then reverse c else c) env_c_b c_body sigma in
+               let lifted_eta = get_lifted_eta (if l.is_fwd then reverse c else c) in
+               let sigma, eta_app = reduce_lifted_eta (if l.is_fwd then reverse c else c) env_c_b sigma (mkAppl (lifted_eta, Option.get eta_args_o)) in
+               let c_body_id = reduce_stateless reduce_term env_c_b sigma eta_app in
                let sigma, typ_args = type_from_args (if l.is_fwd then reverse c else c) env_c_b c_body sigma in
                let sigma, app = lift env_c_b (if l.is_fwd then l else flip_dir l) c_body_id typ_args sigma in
                let delta app = specialize_delta_f env_c_b (first_fun app) (unfold_args app) in
@@ -1361,7 +1357,7 @@ let applies_constr_eta c env trm sigma =
     with _ ->
       sigma, None
   in
-  if may_apply_id_eta c env trm then
+  if may_apply_eta c env trm then
     match l.orn.kind with
     | Algebraic _ ->
        is_inductive_constr (if l.is_fwd then id else last_arg) (get_constrs c) trm sigma
@@ -1387,7 +1383,7 @@ let applies_constr_eta c env trm sigma =
              sigma, None
     | UnpackSigma ->
        if l.is_fwd then
-         (* ID rules always take care of this, so no need *)
+         (* Eta rules always take care of this, so no need *)
          sigma, None
        else
          let b_typ_inner = first_fun (zoom_term zoom_lambda_term env (snd c.typs)) in
@@ -1731,10 +1727,10 @@ let initialize_dep_elim_env c env sigma =
               let f = first_fun t in
               let args = all_but_last (unfold_args t) in
               let arg = last_arg t in
-              let lifted_id = fst c.id_etas in
+              let lifted_eta = fst c.etas in
               let pms = mk_n_rels (List.length elim_app_rev.pms) in
               let pms = shift_all_by (nb_rel env - List.length pms) pms in
-              let sigma, arg' = reduce_term env sigma (mkAppl (lifted_id, List.append pms (snoc arg args))) in
+              let sigma, arg' = reduce_term env sigma (mkAppl (lifted_eta, List.append pms (snoc arg args))) in
               reduce_term env sigma (mkAppl (f, snoc arg' args))
             in sigma, mkProd (n, t', b')
           else
@@ -1951,7 +1947,7 @@ let initialize_lift_config env l ignores sigma =
       dep_constrs = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
       proj_rules = ([], []), ([], []);
       optimize_proj_id_rules = [], [];
-      id_etas = (mkRel 1, mkRel 1);
+      etas = (mkRel 1, mkRel 1);
       iotas = (Array.make 0 (mkRel 1), Array.make 0 (mkRel 1));
       cache;
       opaques
@@ -1960,7 +1956,7 @@ let initialize_lift_config env l ignores sigma =
   let cached = lookup_config (l.orn.promote, l.orn.forget) in
   let sigma, c = initialize_proj_rules c env sigma in
   let sigma, c = initialize_optimize_proj_id_rules c env sigma in
-  let sigma, c = initialize_id_etas c cached env sigma in
+  let sigma, c = initialize_etas c cached env sigma in
   let sigma, c = initialize_elim_types c env sigma in
   let sigma, c = initialize_dep_constrs c cached env sigma in
   let sigma, c = initialize_iotas c cached env sigma in

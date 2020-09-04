@@ -408,13 +408,13 @@ let save_ornament typs (orn, orn_inv, kind) =
 (* --- Lifting configuration cache --- *)
 
 (*
- * This is a persistent cache for DepConstr, DepElim, IdEta, and Iota
+ * This is a persistent cache for DepConstr, DepElim, Eta, and Iota
  *)
 
 (* Initialize the config cache *)
 let dep_constr_cache = OrnamentsCache.create 100
 let dep_elim_cache = OrnamentsCache.create 100
-let id_eta_cache = OrnamentsCache.create 100
+let eta_cache = OrnamentsCache.create 100
 let iota_cache = OrnamentsCache.create 100
              
 (*
@@ -422,7 +422,7 @@ let iota_cache = OrnamentsCache.create 100
  *)
 type dep_constr_obj = (global_reference array * global_reference array) metadata
 type dep_elim_obj = (global_reference * global_reference) metadata
-type id_eta_obj = (global_reference * global_reference) metadata
+type eta_obj = (global_reference * global_reference) metadata
 type iota_obj = (global_reference array * global_reference array) metadata
 
 let cache_dep_constr (_, (typs, constrs)) =
@@ -431,8 +431,8 @@ let cache_dep_constr (_, (typs, constrs)) =
 let cache_dep_elim (_, (typs, elims)) =
   OrnamentsCache.add dep_elim_cache typs elims
 
-let cache_id_eta (_, (typs, ids)) =
-  OrnamentsCache.add id_eta_cache typs ids
+let cache_eta (_, (typs, etas)) =
+  OrnamentsCache.add eta_cache typs etas
 
 let cache_iota (_, (typs, iotas)) =
   OrnamentsCache.add iota_cache typs iotas
@@ -448,10 +448,10 @@ let sub_dep_elim (subst, (typs, elims)) =
   let elims = map_tuple (subst_global_reference subst) elims in
   typs, elims
 
-let sub_id_eta (subst, (typs, ids)) =
+let sub_eta (subst, (typs, etas)) =
   let typs = map_tuple (subst_global_reference subst) typs in
-  let ids = map_tuple (subst_global_reference subst) ids in
-  typs, ids
+  let etas = map_tuple (subst_global_reference subst) etas in
+  typs, etas
 
 let sub_iota (subst, (typs, (iotas_o, iotas_n))) =
   let typs = map_tuple (subst_global_reference subst) typs in
@@ -475,13 +475,13 @@ let inDepElims : dep_elim_obj -> obj =
     classify_function = (fun dep_elim_obj -> Substitute dep_elim_obj);
     subst_function = sub_dep_elim }
 
-let inIdEtas : id_eta_obj -> obj =
-  declare_object { (default_object "ID_ETAS") with
-    cache_function = cache_id_eta;
-    load_function = (fun _ -> cache_id_eta);
-    open_function = (fun _ -> cache_id_eta);
-    classify_function = (fun id_eta_obj -> Substitute id_eta_obj);
-    subst_function = sub_id_eta }
+let inEtas : eta_obj -> obj =
+  declare_object { (default_object "ETAS") with
+    cache_function = cache_eta;
+    load_function = (fun _ -> cache_eta);
+    open_function = (fun _ -> cache_eta);
+    classify_function = (fun eta_obj -> Substitute eta_obj);
+    subst_function = sub_eta }
 
 let inIotas : iota_obj -> obj =
   declare_object { (default_object "IOTAS") with
@@ -493,26 +493,25 @@ let inIotas : iota_obj -> obj =
 
 (*
  * Lookup a configuration
- * For now this just gets IdEta and ConstrEta, just so we can test to start
  *)
 let lookup_config typs =
   if not (has_metadata_exact dep_constr_cache typs &&
           has_metadata_exact dep_elim_cache typs &&
-          has_metadata_exact id_eta_cache typs &&
+          has_metadata_exact eta_cache typs &&
           has_metadata_exact iota_cache typs) then
     None
   else
     let globals = map_tuple global_of_constr typs in
     let constrs = OrnamentsCache.find dep_constr_cache globals in
     let elims = OrnamentsCache.find dep_elim_cache globals in
-    let ids = OrnamentsCache.find id_eta_cache globals in
+    let etas = OrnamentsCache.find eta_cache globals in
     let iotas = OrnamentsCache.find iota_cache globals in
     try
       let constrs = map_tuple (Array.map Universes.constr_of_global) constrs in
       let elims = map_tuple Universes.constr_of_global elims in
-      let ids = map_tuple Universes.constr_of_global ids in
+      let etas = map_tuple Universes.constr_of_global etas in
       let iotas = map_tuple (Array.map Universes.constr_of_global) iotas in
-      Some (constrs, elims, ids, iotas)
+      Some (constrs, elims, etas, iotas)
     with _ ->
       Feedback.msg_warning
         (Pp.seq
@@ -554,14 +553,14 @@ let save_dep_elim typs elims =
           Pp.str "Please report a bug if this happens."])
 
 (*
- * Add IdEta to the config cache
+ * Add Eta to the config cache
  *)
-let save_id_eta typs ids =
+let save_eta typs etas =
   try
     let globals = map_tuple global_of_constr typs in
-    let ids = map_tuple global_of_constr ids in
-    let id_eta_obj = inIdEtas (globals, ids) in
-    add_anonymous_leaf id_eta_obj
+    let etas = map_tuple global_of_constr etas in
+    let eta_obj = inEtas (globals, etas) in
+    add_anonymous_leaf eta_obj
   with _ ->
     Feedback.msg_warning
       (Pp.seq

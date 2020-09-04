@@ -69,7 +69,7 @@ let lift_app_simplify c env lifted_f args simplify lift_rec sigma =
 let lift_simplify_project_id c env reduce f args lift_rec sigma =
   let sigma, arg' = lift_rec env sigma c (last (Array.to_list args)) in
   let arg'' = reduce_stateless reduce_term env sigma arg' in
-  if may_apply_id_eta (reverse c) env arg'' then
+  if may_apply_eta (reverse c) env arg'' then
     (* projection of expanded identity *)
     reduce env sigma arg''
   else
@@ -187,7 +187,7 @@ let lift_core env c trm sigma =
        sigma, tr
     | Optimization (LazyEta tr_eta) ->
        lift_rec lift_rules en sigma c tr_eta
-    | LiftIdentity (simplify, (f, args)) | Coherence (simplify, (f, args))
+    | Eta (simplify, (f, args)) | Coherence (simplify, (f, args))
     | LiftConstr (simplify, (f, args)) ->
        lift_app_simplify c en f args simplify (lift_rec lift_rules) sigma  
     | Equivalence (f, args) | Iota (f, args) ->

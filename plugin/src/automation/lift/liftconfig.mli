@@ -84,12 +84,12 @@ val type_is_from :
 val type_from_args :
   lift_config -> env -> constr -> evar_map -> (constr list) state
 
-(* --- Identity and coherence (for preserving definitional equalities) --- *)
+(* --- Eta, iota, and coherence (for preserving definitional equalities) --- *)
 
 (*
- * Get the cached lifted identity function
+ * Get the cached lifted eta expansion function
  *)
-val get_lifted_id_eta : lift_config -> constr
+val get_lifted_eta : lift_config -> constr
 
 (*
  * Check if a term applies some projection
@@ -103,16 +103,16 @@ val is_proj :
   ((constr * constr list * constr) option) state
 
 (*
- * Check if a term may apply the eta-expanded identity function,
+ * Check if a term may apply the eta expansion function,
  * but don't bother checking the type
  *)
-val may_apply_id_eta : lift_config -> env -> constr -> bool
+val may_apply_eta : lift_config -> env -> constr -> bool
 
 (*
- * Check if the term applies the eta-expanded identity function
+ * Check if the term applies the eta expansion identity function
  * If so, return the the arguments
  *)
-val applies_id_eta :
+val applies_eta :
   lift_config ->
   env ->
   constr ->
@@ -151,7 +151,7 @@ val get_dep_elim : lift_config -> types
 val get_lifted_dep_elim : lift_config -> types
 
 (*
- * Check if the term applies the eta-expanded identity function
+ * Check if the term applies the eta expansion function
  * If so, return the the constructor index, arguments, and whether to treat
  * the constructor as opaque when lifting recursively
  *)
@@ -176,11 +176,11 @@ val applies_elim :
 (* --- Custom simplification --- *)
                                      
 (*
- * Custom reduction functions for lifted eta-expanded identity and coherence,
+ * Custom reduction functions for lifted eta and coherence,
  * for efficiency and to ensure termination. For example, this may
  * simplify projections of existentials.
  *)
-val reduce_lifted_id : lift_config -> reducer
+val reduce_lifted_eta : lift_config -> reducer
 val reduce_coh : lift_config -> reducer
 val reduce_constr_app : lift_config -> reducer
 

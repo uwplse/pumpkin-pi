@@ -95,13 +95,12 @@ type lift_optimization =
  *
  * 4. OPTIMIZATION runs when some optimization applies.
  *
- * 5. LIFT-IDENTITY runs when we lift the eta-expanded identity function.
- *    This exists to ensure that we preserve definitional equalities.
- *    The rule returns the lifted identity function and its arguments, as
- *    well as a custom reduction function to apply identity to the
+ * 5. ETA runs when we lift eta expansion of constructors.
+ *    The rule returns the lifted eta expansion function and its arguments, as
+ *    well as a custom reduction function to apply it to the
  *    lifted arguments (for efficiency and to ensure termination).
  *
- * 6. IOTA runs when we lift iota reduction.
+ * 6. IOTA runs when we lift iota reduction of eliminator cases.
  *
  * 7. CIC runs when no optimization applies and none of the other rules
  *    apply. It returns the kind of the Gallina term.
@@ -109,7 +108,7 @@ type lift_optimization =
 type lift_rule =
 | Equivalence of constr * constr list
 | LiftConstr of reducer * (constr * constr list)
-| LiftIdentity of reducer * (constr * constr list)
+| Eta of reducer * (constr * constr list)
 | Iota of constr * constr list
 | Coherence of reducer * (constr * constr list) (* TODO move to optimization? *)
 | Optimization of lift_optimization
@@ -174,14 +173,14 @@ let terminate_coh prev_rules proj_o env trm sigma =
     prev_rules
     sigma
 
-(* Termination condition for LIFT-IDENTITY *)
-let terminate_identity prev_rules args_o =
+(* Termination condition for ETA *)
+let terminate_eta prev_rules args_o =
   let args = Option.get args_o in
   List.exists
     (fun prev_rule ->
       match prev_rule with
-      | LiftIdentity (_, (_, args')) ->
-         (* The lifted eta-expanded identity refers to unlifted identity *)
+      | Eta (_, (_, args')) ->
+         (* The lifted eta refers to the unlifted eta *)
          List.for_all2 equal args args'
       | _ ->
          false)
@@ -227,18 +226,18 @@ let is_coh c env trm prev_rules sigma =
   else
     sigma, None
 
-(* Premises for LIFT-IDENTITY *)
-let is_identity c env trm prev_rules sigma =
-  let sigma, args_o = applies_id_eta c env trm sigma in
+(* Premises for ETA *)
+let is_eta c env trm prev_rules sigma =
+  let sigma, args_o = applies_eta c env trm sigma in
   if Option.has_some args_o then
-    if not (terminate_identity prev_rules args_o) then
-      sigma, Some (reduce_lifted_id c, (get_lifted_id_eta c, Option.get args_o))
+    if not (terminate_eta prev_rules args_o) then
+      sigma, Some (reduce_lifted_eta c, (get_lifted_eta c, Option.get args_o))
     else
       sigma, None
   else
     sigma, None
 
-(* Premises for LIFT-REW-ETA *)
+(* Premises for IOTA *)
 let is_iota c env trm prev_rules sigma =
   let sigma, app_o = applies_iota c env trm sigma in
   if Option.has_some app_o then
@@ -289,10 +288,10 @@ let determine_lift_rule c env trm prev_rules sigma =
           let f, args, simplify = Option.get constr_o in
           sigma, LiftConstr (simplify, (f, args))
         else
-          let sigma, is_identity_o = is_identity c env trm prev_rules sigma in
-          if Option.has_some is_identity_o then
-            let simplify, (f, args) = Option.get is_identity_o in
-            sigma, LiftIdentity (simplify, (f, args))
+          let sigma, is_eta_o = is_eta c env trm prev_rules sigma in
+          if Option.has_some is_eta_o then
+            let simplify, (f, args) = Option.get is_eta_o in
+            sigma, Eta (simplify, (f, args))
           else
             let sigma, is_iota_o = is_iota c env trm prev_rules sigma in
             if Option.has_some is_iota_o then

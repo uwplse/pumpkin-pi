@@ -39,10 +39,10 @@ Definition dep_elim_A_Set := nat_rec.
 Definition dep_elim_A_Type := nat_rect.
 Definition dep_elim_B := N.peano_rect.
 
-(* --- IdEta --- *)
+(* --- Eta --- *)
 
-Definition id_eta_A (n : nat) := nat.
-Definition id_eta_B (b : binnat) := binnat.
+Definition eta_A (n : nat) := nat.
+Definition eta_B (b : binnat) := binnat.
 
 (* --- Iota --- *)
 
@@ -99,8 +99,8 @@ Configure Lift nat binnat {
   constrs_b = dep_constr_B_O dep_constr_B_1;
   elim_a = dep_elim_A_Set;
   elim_b = dep_elim_B;
-  id_eta_a = id_eta_A;
-  id_eta_b = id_eta_B;
+  eta_a = eta_A;
+  eta_b = eta_B;
   iota_a = iota_A_O iota_A_1;
   iota_b = iota_B_O iota_B_1
 }.
@@ -145,8 +145,8 @@ Configure Lift nat binnat {
   constrs_b = dep_constr_B_O dep_constr_B_1;
   elim_a = dep_elim_A_Prop; (* <- annoying but will fix soon *)
   elim_b = dep_elim_B;
-  id_eta_a = id_eta_A;
-  id_eta_b = id_eta_B;
+  eta_a = eta_A;
+  eta_b = eta_B;
   iota_a = iota_A_O iota_A_1;
   iota_b = iota_B_O iota_B_1
 }.
