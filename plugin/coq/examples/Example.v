@@ -173,7 +173,8 @@ Check packed_list_rect.
  * { l : list T & length l = n } directly, and instead try to 
  * use this induction principle. I'm working on relaxing this
  * assumption and understanding more about it. It has to do with
- * preserving definitional equalities when we lift.
+ * preserving definitional equalities when we lift (more specifically,
+ * incompleteness of matching against Eta and Iota).
  *)
 
 (*
