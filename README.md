@@ -16,6 +16,10 @@ swapping constructor order and renaming constructors
 4. **Escaping Sigma Types**: the type B (like `vector T n`) is the type A (like `{ s : sigT (vector T) & projT1 s = n}`) 
 escaping the sigma type
 
+Other changes that correspond to a particular configuration can be supported as well, though they are not
+yet documented due to time constraints. An example of switching between unary and binary natural numbers is 
+implemented [here](https://github.com/uwplse/ornamental-search/blob/master/plugin/coq/nonorn.v).
+
 DEVOID is a part of the [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH) 
 proof repair plugin suite, and is included as a dependency of PUMPKIN PATCH
 starting with release 0.1.
