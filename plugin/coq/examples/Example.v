@@ -4,6 +4,9 @@
  * NOTE: This has changed a lot since the ITP paper! I have updated this file
  * to reflect the latest automation. To see the original ITP version,
  * take a look at the state of this file in the ITP release.
+ *
+ * Also note that the tactic functionality is not merged into this branch yet.
+ * It is in PUMPKIN PATCH (which DEVOID is a part of) and will move here very soon.
  *)
 
 Add LoadPath "coq/examples".
@@ -113,7 +116,8 @@ Check zip_with_is_zipV_p.
  * in itself straightforward, so we break this up into parts and use
  * a nice custom eliminator to make this easier.
  *
- * Let's start by proving the length invariants:
+ * Let's start by proving the length invariants
+ * (these were also proven by the human for ITP 2019):
  *)
 Module hs_to_coq_lengths'.
 
@@ -161,7 +165,7 @@ Preprocess Module hs_to_coq_lengths' as hs_to_coq_lengths { opaque Datatypes Log
  * Once we have the length proofs, we write the proofs
  * about { l : list T & length l = n }. To do this,
  * it's useful to have a nice induction principle,
- * which DEVOID generated since we set the "smart elims" option
+ * which DEVOID generated since we set the "smart elims" option (new since ITP 2019)
  * (the name of this will always be the name of your promote function
  * followed by _rect):
  *)
@@ -172,8 +176,8 @@ Check packed_list_rect.
  * about the format here. Try not to run "induction" on terms of type
  * { l : list T & length l = n } directly, and instead try to 
  * use this induction principle. I'm working on relaxing this
- * assumption and understanding more about it. It has to do with
- * preserving definitional equalities when we lift.
+ * assumption. It has to do with preserving definitional equalities
+ * when we lift (more specifically, incompleteness of matching against Eta and Iota).
  *)
 
 (*
@@ -249,7 +253,7 @@ End packed_list.
 
 (*
  * Now we can get from that to { s : sigT (vector T) & projT1 s = n} by lifting from
- * lists to vectors.
+ * lists to vectors (new since ITP 2019).
  *
  * Rather than preprocess here, we just set terms that use pattern matching to
  * opaque for efficiency.
