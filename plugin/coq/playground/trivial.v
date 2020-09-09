@@ -2,7 +2,7 @@
  * Equivalences do capture the set of all changes that one can make to a type,
  * including semantic changes, just not in a way that is practically useful!
  * So the challenge is determining when useful, nontrivial equivalences exist
- * that separate out new information into the left projection of the sigma type,
+ * that separate out new information into a projection of the sigma type,
  * and then writing good interfaces for getting that new information.
  *)
 
