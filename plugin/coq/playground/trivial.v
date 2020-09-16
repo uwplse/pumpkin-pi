@@ -1,8 +1,11 @@
 (*
+ * It makes more sense to prove this quickly in a Coq file than explain it in text.
+ * This is to clear something up for reviews.
+ *
  * Equivalences do capture the set of all changes that one can make to a type,
  * including semantic changes, just not in a way that is practically useful!
- * So the challenge is determining when useful, nontrivial equivalences exist
- * that separate out new information into the left projection of the sigma type,
+ * So the challenge is determining when _useful_, _nontrivial_ equivalences exist
+ * that separate out new information into a projection of the sigma type,
  * and then writing good interfaces for getting that new information.
  *)
 
@@ -59,7 +62,7 @@ End Rudamentary.
  * them to provide enough information to construct a proof about vectors given a
  * proof about natural numbers, but is easier to work with than asking for
  * the vector proof directly, and easier than working with lists. We don't
- * know if this possible. The same goes for adding new constructors.
+ * know if this is possible. The same goes for adding new constructors.
  *
  * The point here is that any question about scope really needs to ask about
  * the set of changes we can handle _usefully_, which is tied to the set of
