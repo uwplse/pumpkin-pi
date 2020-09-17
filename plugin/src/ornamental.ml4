@@ -50,7 +50,7 @@ VERNAC COMMAND EXTEND ConfigureLift CLASSIFIED AS SIDEFF
 | [ "Configure" "Lift" constr(d_orn) constr(d_orn_inv) "{" "~" "opaque" ne_reference_list(opaques) "}"] ->
   [ remove_lifting_opaques d_orn d_orn_inv opaques ]
 | [ "Configure" "Lift" constr(d_orn) constr(d_orn_inv) "{" "constrs_a" "=" reference_list(constrs_a) ";" "constrs_b" "=" reference_list(constrs_b) ";" "elim_a" "=" reference(elim_a) ";" "elim_b" "=" reference(elim_b) ";" "eta_a" "=" reference(eta_a) ";" "eta_b" "=" reference(eta_b) ";" "iota_a" "=" reference_list(iota_a) ";" "iota_b" "=" reference_list(iota_b) "}" ] ->
-  [ configure_lifting_manual d_orn d_orn_inv (constrs_a, constrs_b) (elim_a, elim_b) (eta_a, eta_b) (iota_a, iota_b) ]
+  [ configure_manual d_orn d_orn_inv (constrs_a, constrs_b) (elim_a, elim_b) (eta_a, eta_b) (iota_a, iota_b) ]
 END
 
 (* Register the Ltac script for sigma unpacking *)

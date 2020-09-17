@@ -55,13 +55,13 @@ val remove_lifting_opaques :
   constr_expr -> constr_expr ->  Libnames.reference list -> unit
 
 (*
- * Configure lifting manually 
+ * Manual configuration
  *)
-val configure_lifting_manual :
-  constr_expr ->
-  constr_expr ->
-  (Libnames.reference list) * (Libnames.reference list) ->
-  (Libnames.reference * Libnames.reference) ->
-  (Libnames.reference * Libnames.reference) ->
-  (Libnames.reference list) * (Libnames.reference list) ->
+val configure_manual :
+  constr_expr -> (* A *)
+  constr_expr -> (* B *)
+  (Libnames.reference list) * (Libnames.reference list) -> (* DepConstr *)
+  (Libnames.reference * Libnames.reference) -> (* DepElim *)
+  (Libnames.reference * Libnames.reference) -> (* Eta *)
+  (Libnames.reference list) * (Libnames.reference list) -> (* Iota *)
   unit
