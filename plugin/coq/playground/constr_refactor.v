@@ -1,3 +1,8 @@
+Add LoadPath "coq/playground".
+Require Import Ornamental.Ornaments.
+
+Set DEVOID search prove equivalence.
+Set DEVOID lift type.
 
 (* --- 9/17: Playing with a Reviewer A example --- *)
 
