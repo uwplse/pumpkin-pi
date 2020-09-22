@@ -5,7 +5,7 @@ ITP camera-ready can be found in [this release](http://github.com/uwplse/ornamen
 
 Given two types A and B that are related in certain ways, DEVOID can search for
 and prove the relation between those types, then lift functions and proofs between them.
-The following relations are currently supported:
+The following relations are currently supported automatically:
 
 1. **Algebraic Ornaments**: the type B (like `vector`) is the type A (like `list`) indexed by a fold
 over A (like `length`)
@@ -17,6 +17,7 @@ swapping constructor order and renaming constructors
 escaping the sigma type
 
 In general, DEVOID can lift functions and proofs across **any equivalence that can be described by a configuration with a certain form**.
+For change that don't fall into the above four buckets, you need to supply the configuration for that equivalence yourself.
 This is not yet documented here due to time constraints (I promise I will document it soon).
 For now, check out two examples: switching between unary and binary natural numbers [here](/plugin/coq/nonorn.v),
 and an easier refactoring of constructors [here](https://github.com/uwplse/ornamental-search/blob/master/plugin/coq/playground/constr_refactor.v).
@@ -50,8 +51,8 @@ and [minimal_records.v](/plugin/coq/minimal_records.v).
 
 ### Overview
 
-At a high level, there are two main commands: `Find ornament` to search for ornaments,
-and `Lift` to lift along those ornaments. `Find ornament` supports two additional options
+At a high level, there are two main commands: `Find ornament` to search for equivalences,
+and `Lift` (or `Repair` for tactic support) to lift along those equivalences. `Find ornament` supports two additional options
 to increase user confidence and to make the functions that it generates more useful.
 If you skip running the `Find ornament` command and just run `Lift`,
 then DEVOID will run `Find ornament` for you automatically first.
@@ -124,7 +125,7 @@ You can also use this to substitute in a different equivalence for an existing o
 are some restrictions here on what is possible. See [ListToVectCustom.v](/plugin/coq/examples/ListToVectCustom.v)
 for more information.
 
-You can also skip one of promote or forget, provide just one, and let DEVOID find the other, for example:
+You can also skip one of promote or forget, provide just one, and let DEVOID find the other for certain search procedures, for example:
 
 ```
 Save ornament A B { promote = f }.
@@ -132,6 +133,11 @@ Save ornament A B { promote = f }.
 
 This is especially useful when there are many possible equivalences and you'd like to use a particular one,
 but let DEVOID figure out the rest. See [Swap.v](/plugin/coq/Swap.v) for examples of this.
+
+To use a custom equivalence not at all supported by one of the four search procedures, like switching between unary and binary natural numbers,
+check out two examples [here](/plugin/coq/nonorn.v) and [here](https://github.com/uwplse/ornamental-search/blob/master/plugin/coq/playground/constr_refactor.v).
+These examples set manual configuration and essentially skip the search procedure.
+We will document them soon!
 
 ##### Ambiguity 
 
@@ -143,7 +149,12 @@ options for the user (in a smart order), presents this as an error, and gives in
 provide more information to `Find ornament` in the next iteration. If the equivalence you want is not in the
 first 50 candidates, please use `Save ornament`. See [Swap.v](/plugin/coq/Swap.v) for examples of both of these.
 
-#### Lift
+##### Tactic Support
+
+DEVOID produces tactic suggestions for all proofs that `Find ornament` finds.
+These are experimental, especially with dependent types, but may help you work with tactic proofs about equivalences.
+
+#### Lift and Repair
 
 See [Example.v](/plugin/coq/examples/Example.v), [minimal_records.v](/plugin/coq/minimal_records.v),
 and [Swap.v](/plugin/coq/Swap.v) for examples of lifting.
@@ -185,6 +196,11 @@ Lift Module A B in Foo as Bar.
 ```
 
 This will create a new module `Bar` with all of the liftings from `Foo`.
+
+##### Tactic Support
+
+If you would like tactic suggestions for lifted proofs, you may substitute `Repair` for `Lift` in all commands.
+These tactic suggestions are experimental, but may help you with workflow integration.
 
 ##### Prettier Types
 
