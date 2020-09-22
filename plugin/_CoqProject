@@ -10,6 +10,7 @@
 -I src/coq-plugin-lib/src/coq/logicutils/transformation
 -I src/coq-plugin-lib/src/coq/devutils
 -I src/coq-plugin-lib/src/coq/representationutils
+-I src/coq-plugin-lib/src/coq/decompiler
 -I src/ornaments
 -I src/cache
 -I src/components
@@ -50,6 +51,8 @@ src/coq-plugin-lib/src/coq/constants/produtils.mli
 src/coq-plugin-lib/src/coq/constants/produtils.ml
 src/coq-plugin-lib/src/coq/constants/idutils.mli
 src/coq-plugin-lib/src/coq/constants/idutils.ml
+src/coq-plugin-lib/src/coq/constants/proputils.mli
+src/coq-plugin-lib/src/coq/constants/proputils.ml
 
 src/coq-plugin-lib/src/coq/logicutils/contexts/stateutils.mli
 src/coq-plugin-lib/src/coq/logicutils/contexts/stateutils.ml
@@ -85,6 +88,9 @@ src/coq-plugin-lib/src/coq/logicutils/contexts/modutils.ml
 
 src/coq-plugin-lib/src/coq/devutils/printing.mli
 src/coq-plugin-lib/src/coq/devutils/printing.ml
+
+src/coq-plugin-lib/src/coq/decompiler/decompiler.mli
+src/coq-plugin-lib/src/coq/decompiler/decompiler.ml
 
 deps/fix-to-elim/plugin/src/usability/preprocess_errors.mli
 deps/fix-to-elim/plugin/src/usability/preprocess_errors.ml

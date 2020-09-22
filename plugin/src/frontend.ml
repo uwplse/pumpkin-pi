@@ -32,6 +32,9 @@ open Zooming
 open Apputils
 open Sigmautils
 open Reducers
+open Decompiler
+open Ltac_plugin
+open Tacinterp
 
 (* --- Utilities --- *)
 
@@ -301,21 +304,23 @@ let save_ornament d_old d_new d_orn_o d_orn_inv_o is_custom =
 let lift_definition_by_ornament env sigma n l c_old ignores =
   let sigma, lifted = do_lift_defn env sigma l c_old ignores in
   try
-    ignore
-      (if is_lift_type () then
-         (* Lift the type as well *)
-         let sigma, typ = infer_type env sigma c_old in
-         let sigma, lifted_typ = do_lift_defn env sigma l typ ignores in
-         define_print ~typ:lifted_typ n lifted sigma 
-       else
-         (* Let Coq infer the type *)
-         define_print n lifted sigma);
-    try
-      let c_new = mkConst (Constant.make1 (Lib.make_kn n)) in
-      save_lifting (lift_to l, lift_back l, c_old) c_new;
-      save_lifting (lift_back l, lift_to l, c_new) c_old
-    with _ ->
-      Feedback.msg_warning (Pp.str "Failed to cache lifting.")
+    let def =
+      if is_lift_type () then
+        (* Lift the type as well *)
+        let sigma, typ = infer_type env sigma c_old in
+        let sigma, lifted_typ = do_lift_defn env sigma l typ ignores in
+        define_print ~typ:lifted_typ n lifted sigma 
+      else
+        (* Let Coq infer the type *)
+        define_print n lifted sigma
+    in
+    (try
+       let c_new = mkConst (Constant.make1 (Lib.make_kn n)) in
+       save_lifting (lift_to l, lift_back l, c_old) c_new;
+       save_lifting (lift_back l, lift_to l, c_new) c_old
+     with _ ->
+       Feedback.msg_warning (Pp.str "Failed to cache lifting."));
+    def
   with
   | PretypeError (env, sigma, err) ->
      user_err
@@ -340,7 +345,8 @@ let lift_inductive_by_ornament env sigma n s l c_old ignores is_lift_module =
     let ind, _ = destInd c_old in
     let ind' = do_lift_ind env sigma l n s ind ignores is_lift_module in
     let env' = Global.env () in
-    Feedback.msg_info (str "DEVOID generated " ++ pr_inductive env' ind')
+    Feedback.msg_info (str "DEVOID generated " ++ pr_inductive env' ind');
+    ind'
   with
   | PretypeError (env, sigma, err) ->
      user_err
@@ -376,10 +382,9 @@ let init_lift env d_orn d_orn_inv sigma =
   sigma, (env, l)
 
 (*
- * Lift the supplied definition or inductive type along the supplied ornament
- * Define the lifted version
+ * Core functionality of lift
  *)
-let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old is_lift_module =
+let lift_inner ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old is_lift_module =
   let (sigma, env) = Pfedit.get_current_context () in
   let opaque_terms =
     List.map
@@ -403,16 +408,23 @@ let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old is_li
   if isInd u_old then
     let from_typ = fst (on_red_type_default (fun _ _ -> promotion_type_to_types) env sigma l.orn.promote) in
     if not (equal u_old from_typ) then
-      lift_inductive_by_ornament env sigma n_new s l c_old opaque_terms is_lift_module
+      IndRef (lift_inductive_by_ornament env sigma n_new s l c_old opaque_terms is_lift_module)
     else
       lift_definition_by_ornament env sigma n_new l c_old opaque_terms
   else
     lift_definition_by_ornament env sigma n_new l c_old opaque_terms
 
 (*
-  * Lift each module element (constant and inductive definitions) along the given
-  * ornament, defining a new module with all the transformed module elements.
-  *)
+ * Lift the supplied definition or inductive type along the supplied ornament
+ * Define the lifted version
+ *)
+let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old is_lift_module =
+  ignore (lift_inner ~suffix ~opaques n d_orn d_orn_inv d_old is_lift_module)
+
+(*
+ * Lift each module element (constant and inductive definitions) along the given
+ * ornament, defining a new module with all the transformed module elements.
+ *)
 let lift_module_by_ornament ?(opaques=[]) ident d_orn d_orn_inv mod_ref =
   let mod_body =
     qualid_of_reference mod_ref |> Nametab.locate_module |> Global.lookup_module
@@ -421,6 +433,58 @@ let lift_module_by_ornament ?(opaques=[]) ident d_orn d_orn_inv mod_ref =
     let ident = Nametab.basename_of_global gref in
     try
       lift_by_ornament ~opaques:opaques ident d_orn d_orn_inv (expr_of_global gref) true
+    with _ ->
+      Feedback.msg_warning (str "Failed to lift " ++ pr_global_as_constr gref)
+  in
+  let _ =
+    declare_module_structure
+      ident
+      (fun _ -> iter_module_structure_by_glob lift_global mod_body)
+  in
+  Feedback.msg_info (str "Defined lifted module " ++ Id.print ident)
+
+(* Convert a tactic expression into a semantic tactic (from Randair) *)
+let parse_tac_str (s : string) : unit Proofview.tactic =
+  let raw = Pcoq.parse_string Pltac.tactic s in
+  let glob = Tacintern.intern_pure_tactic (Tacintern.make_empty_glob_sign ()) raw in
+  eval_tactic glob
+                    
+(*
+ * Lift then decompile
+ *)
+let repair ?(suffix=false) ?(opaques=[]) ?(tacs=[]) n d_orn d_orn_inv d_old is_lift_module =
+  let lifted =
+    match lift_inner ~suffix ~opaques n d_orn d_orn_inv d_old is_lift_module with
+    | VarRef v ->
+       mkVar v
+    | ConstRef c ->
+       mkConst c
+    | IndRef ind ->
+       mkInd ind
+    | ConstructRef c ->
+       mkConstruct c
+  in
+  let (sigma, env) = Pfedit.get_current_context () in
+  let lifted = unwrap_definition env lifted in
+  let opts = List.map (fun s -> (parse_tac_str s, s)) tacs in
+  let script = tac_from_term env sigma opts lifted in
+  Feedback.msg_info (Pp.str "Suggested tactic script:");
+  Feedback.msg_info (Pp.str "Proof.");
+  Feedback.msg_info (tac_to_string sigma script);
+  Feedback.msg_info (Pp.str "Qed.");
+  Feedback.msg_info (Pp.str "")
+
+(*
+ * Lift then decompile a whole module
+ *)
+let repair_module ?(opaques=[]) ident d_orn d_orn_inv mod_ref =
+  let mod_body =
+    qualid_of_reference mod_ref |> Nametab.locate_module |> Global.lookup_module
+  in
+  let lift_global gref =
+    let ident = Nametab.basename_of_global gref in
+    try
+      repair ~opaques:opaques ident d_orn d_orn_inv (expr_of_global gref) true
     with _ ->
       Feedback.msg_warning (str "Failed to lift " ++ pr_global_as_constr gref)
   in

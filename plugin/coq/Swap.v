@@ -27,17 +27,15 @@ Inductive list' (T : Type) : Type :=
 (* Preprocess for lifting: *)
 Preprocess Module List as List_pre { opaque (* ignore these nested modules: *)
   RelationClasses
-  Nat
-  Coq.Init.Nat
-  Coq.Init.Logic.False_ind
-  Coq.Init.Datatypes.list_ind
-  Coq.Init.Datatypes.nat_ind
-  eq_ind
-  eq_ind_r
+  Nat Coq.Init.Nat 
+  Coq.Init.Logic Coq.Init.Peano
+  Coq.Init.Datatypes.list_ind Coq.Init.Datatypes.list_rect Coq.Init.Datatypes.list_rec
+  Coq.Init.Datatypes.nat_ind Coq.Init.Datatypes.nat_rect Coq.Init.Datatypes.nat_rec
+  eq_ind eq_ind_r eq_rec eq_rec_r eq_rect eq_rect_r
 }.
 
 (* Lift the whole list module: *)
-Lift Module list list' in List_pre as List' { opaque (* ignore these, just for speed *)
+Repair Module list list' in List_pre as List' { opaque (* ignore these, just for speed *)
   RelationClasses.Equivalence_Reflexive
   RelationClasses.reflexivity
   Nat.add
@@ -50,6 +48,52 @@ Lift Module list list' in List_pre as List' { opaque (* ignore these, just for s
   Nat.central_induction
 }.
 
+(* That should generate tactics for a whole bunch of these, but just to check
+   the paper example (has explicit A whereas paper has implicit A): *)
+Repair list list' in List_pre.rev_app_distr as rev_app_distr.
+
+(* Example from the overview that shows append is OK *)
+Lemma app_ok:
+  forall T (l1 l2 : list T),
+    List'.list_to_list' T (List_pre.Coq_Init_Datatypes_app T l1 l2) =
+    List'.Coq_Init_Datatypes_app T (List'.list_to_list' T l1) (List'.list_to_list' T l2).
+Proof.
+  intros. induction l1.
+  - auto.
+  - simpl. rewrite IHl1. reflexivity.
+Defined. 
+
+Print List'.list_to_list'_section.
+Print List'.list_to_list'_retraction.
+Print List.rev_app_distr.
+Print List'.rev_app_distr.
+
+(*
+These require PUMPKIN PATCH so not pushing to the DEVOID repo,
+but uncomment to get tactics
+Print List'.list_to_list'_section.
+Print List'.list_to_list'_retraction.
+Require Import Patcher.Patch.
+Decompile List'.list_to_list'_section.
+Decompile List'.list_to_list'_retraction.
+
+(* That gives us this: *)
+  Lemma section:
+  forall A l, List'.list_to_list'_inv A (List'.list_to_list' A l) = l.
+Proof.
+  intros A l. symmetry. induction l as [|a l0 H].
+  - reflexivity.
+  - simpl. rewrite <- H. reflexivity.
+Defined.
+
+Lemma retraction:
+  forall T l, List'.list_to_list' T (List'.list_to_list'_inv T l) = l.
+Proof.
+  intros T l. symmetry. induction l as [t l0 H|].
+  - simpl. rewrite <- H. reflexivity.
+  - reflexivity.
+Defined.*)
+
 (* A small test in the opposite direction that doesn't rely on caching: *)
 Lemma my_lemma:
   forall (T : Type) (l : list' T),
@@ -61,6 +105,11 @@ Proof.
 Defined.
 
 Lift list' list in my_lemma as my_lemma_lifted.
+
+(*
+Require Import Patcher.Patch.
+Decompile my_lemma_lifted.
+*)
 
 (* --- Composing with algebraic ornaments --- *)
 
@@ -228,8 +277,6 @@ Inductive Term' : Set :=
 
 Fail Find ornament Term Term'. (* for now, we tell the user to pick one via an error *)
 Find ornament Term Term' { mapping 0 }. (* we pick one this way *)
-
-Print User5Session19_pre.
 
 (*
  * We can now lift everything (failures are just silly attempts to lift record
@@ -519,4 +566,3 @@ Defined.
  * problem for you, let us know and we can make it possible to
  * clear the lifting cache.
  *)
-

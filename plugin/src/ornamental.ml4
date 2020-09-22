@@ -27,7 +27,7 @@ VERNAC COMMAND EXTEND SaveOrnament CLASSIFIED AS SIDEFF
   [ save_ornament d_old d_new (Some d_orn) (Some d_orn_inv) true ]
 END
 
-(* Lift a function along an ornament *)
+(* Lift a function along an equivalence *)
 VERNAC COMMAND EXTEND LiftOrnament CLASSIFIED AS SIDEFF
 | [ "Lift" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
   [ lift_by_ornament n d_orn d_orn_inv d_old false ]
@@ -51,6 +51,22 @@ VERNAC COMMAND EXTEND ConfigureLift CLASSIFIED AS SIDEFF
   [ remove_lifting_opaques d_orn d_orn_inv opaques ]
 | [ "Configure" "Lift" constr(d_orn) constr(d_orn_inv) "{" "constrs_a" "=" reference_list(constrs_a) ";" "constrs_b" "=" reference_list(constrs_b) ";" "elim_a" "=" reference(elim_a) ";" "elim_b" "=" reference(elim_b) ";" "eta_a" "=" reference(eta_a) ";" "eta_b" "=" reference(eta_b) ";" "iota_a" "=" reference_list(iota_a) ";" "iota_b" "=" reference_list(iota_b) "}" ] ->
   [ configure_manual d_orn d_orn_inv (constrs_a, constrs_b) (elim_a, elim_b) (eta_a, eta_b) (iota_a, iota_b) ]
+END
+
+(* Repair: lift (transform) and then decompile *)
+VERNAC COMMAND EXTEND RepairProof CLASSIFIED AS SIDEFF
+| [ "Repair" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n)] ->
+  [ repair n d_orn d_orn_inv d_old false ]
+| [ "Repair" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n) "{" "opaque" ne_reference_list(opaques) "}" ] ->
+  [ repair ~opaques:opaques n d_orn d_orn_inv d_old false ]
+| [ "Repair" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ".." ident(n)] ->
+  [ repair ~suffix:true n d_orn d_orn_inv d_old false ]
+| [ "Repair" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ".." ident(n) "{" "opaque" ne_reference_list(opaques) "}" ] ->
+  [ repair ~opaques:opaques ~suffix:true n d_orn d_orn_inv d_old false ]
+| [ "Repair" "Module" constr(d_orn) constr(d_orn_inv) "in" reference(mod_ref) "as" ident(id) ] ->
+  [ repair_module id d_orn d_orn_inv mod_ref ]
+| [ "Repair" "Module" constr(d_orn) constr(d_orn_inv) "in" reference(mod_ref) "as" ident(id) "{" "opaque" ne_reference_list(opaques) "}" ] ->
+  [ repair_module ~opaques:opaques id d_orn d_orn_inv mod_ref ]
 END
 
 (* Register the Ltac script for sigma unpacking *)
