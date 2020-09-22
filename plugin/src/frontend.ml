@@ -62,6 +62,25 @@ let define_print ?typ n trm sigma =
   with Evarutil.Uninstantiated_evar _ ->
     CErrors.user_err (str "DEVOID does not fully support implicit arguments")
 
+let suggest_tactic_script env trm_ref opts sigma =
+  let trm = match trm_ref with
+    | VarRef v ->
+       mkVar v
+    | ConstRef c ->
+       mkConst c
+    | IndRef ind ->
+       mkInd ind
+    | ConstructRef c ->
+       mkConstruct c
+  in
+  let body = unwrap_definition env trm in
+  let script = tac_from_term env sigma opts body in
+  Feedback.msg_info (Pp.str "Suggested tactic script:");
+  Feedback.msg_info (Pp.str "Proof.");
+  Feedback.msg_info (tac_to_string sigma script);
+  Feedback.msg_info (Pp.str "Qed.");
+  Feedback.msg_info (Pp.str "")
+                     
 (* --- Commands --- *)
 
 (*
@@ -89,7 +108,10 @@ let maybe_prove_coherence n promote forget kind : unit =
 let maybe_prove_equivalence n typs promote forget : unit =
   let define_proof suffix ?(adjective=suffix) sigma term typ =
     let ident = with_suffix n suffix in
-    define_print ident term ~typ:typ sigma |> destConstRef
+    let tr = define_print ident term ~typ:typ sigma in
+    let sigma, env = refresh_env () in
+    suggest_tactic_script env tr [] sigma;
+    destConstRef tr
   in
   if is_search_equiv () then
     let sigma, env = refresh_env () in
@@ -453,26 +475,10 @@ let parse_tac_str (s : string) : unit Proofview.tactic =
  * Lift then decompile
  *)
 let repair ?(suffix=false) ?(opaques=[]) ?(tacs=[]) n d_orn d_orn_inv d_old is_lift_module =
-  let lifted =
-    match lift_inner ~suffix ~opaques n d_orn d_orn_inv d_old is_lift_module with
-    | VarRef v ->
-       mkVar v
-    | ConstRef c ->
-       mkConst c
-    | IndRef ind ->
-       mkInd ind
-    | ConstructRef c ->
-       mkConstruct c
-  in
+  let lifted = lift_inner ~suffix ~opaques n d_orn d_orn_inv d_old is_lift_module in
   let (sigma, env) = Pfedit.get_current_context () in
-  let lifted = unwrap_definition env lifted in
   let opts = List.map (fun s -> (parse_tac_str s, s)) tacs in
-  let script = tac_from_term env sigma opts lifted in
-  Feedback.msg_info (Pp.str "Suggested tactic script:");
-  Feedback.msg_info (Pp.str "Proof.");
-  Feedback.msg_info (tac_to_string sigma script);
-  Feedback.msg_info (Pp.str "Qed.");
-  Feedback.msg_info (Pp.str "")
+  suggest_tactic_script env lifted opts sigma
 
 (*
  * Lift then decompile a whole module

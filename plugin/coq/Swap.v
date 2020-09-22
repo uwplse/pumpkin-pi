@@ -51,6 +51,8 @@ Repair Module list list' in List_pre as List' { opaque (* ignore these, just for
 (* That should generate tactics for a whole bunch of these, but just to check
    the paper example (has explicit A whereas paper has implicit A): *)
 Repair list list' in List_pre.rev_app_distr as rev_app_distr.
+(* The tactics for section and retraction are in the output of Repair Module above
+   (at the top). *)
 
 (* Example from the overview that shows append is OK *)
 Lemma app_ok:
@@ -67,32 +69,7 @@ Print List'.list_to_list'_section.
 Print List'.list_to_list'_retraction.
 Print List.rev_app_distr.
 Print List'.rev_app_distr.
-
-(*
-These require PUMPKIN PATCH so not pushing to the DEVOID repo,
-but uncomment to get tactics
-Print List'.list_to_list'_section.
-Print List'.list_to_list'_retraction.
-Require Import Patcher.Patch.
-Decompile List'.list_to_list'_section.
-Decompile List'.list_to_list'_retraction.
-
-(* That gives us this: *)
-  Lemma section:
-  forall A l, List'.list_to_list'_inv A (List'.list_to_list' A l) = l.
-Proof.
-  intros A l. symmetry. induction l as [|a l0 H].
-  - reflexivity.
-  - simpl. rewrite <- H. reflexivity.
-Defined.
-
-Lemma retraction:
-  forall T l, List'.list_to_list' T (List'.list_to_list'_inv T l) = l.
-Proof.
-  intros T l. symmetry. induction l as [t l0 H|].
-  - simpl. rewrite <- H. reflexivity.
-  - reflexivity.
-Defined.*)
+(* The tactics for section and retraction are in the output of Repair Module. *)
 
 (* A small test in the opposite direction that doesn't rely on caching: *)
 Lemma my_lemma:
@@ -104,12 +81,18 @@ Proof.
   - reflexivity.
 Defined.
 
-Lift list' list in my_lemma as my_lemma_lifted.
+Repair list' list in my_lemma as my_lemma_lifted.
 
-(*
-Require Import Patcher.Patch.
-Decompile my_lemma_lifted.
-*)
+(* Trying the above suggested tactics:*)
+Lemma my_lemma_lifted_test:
+  forall (T : Type) (l : list T),
+   List_pre.Coq_Init_Datatypes_app T l [] =
+   List_pre.Coq_Init_Datatypes_app T [] l.
+Proof.
+  intros T l. induction l as [ |t l0 IHl].
+  - reflexivity.
+  - simpl. rewrite IHl. reflexivity.
+Defined.
 
 (* --- Composing with algebraic ornaments --- *)
 
@@ -120,6 +103,7 @@ Inductive vector' (T : Type) : nat -> Type :=
 | consV' : T -> forall (n : nat), vector' T n -> vector' T (S n)
 | nilV' : vector' T 0.
 
+(* Suggested tactics aren't useful for dependent types yet, so we use Lift: *)
 Lift list' vector' in List'.Coq_Init_Datatypes_app as appV'.
 Lift list' vector' in my_lemma as my_lemmaV'.
 
@@ -280,9 +264,13 @@ Find ornament Term Term' { mapping 0 }. (* we pick one this way *)
 
 (*
  * We can now lift everything (failures are just silly attempts to lift record
- * projections twice; safe to ignore them):
+ * projections twice;  safe to ignore them):
  *)
 Lift Module Term Term' in User5Session19_pre as User5Session19'.
+(*
+ * Suggested tactics here would need some work (can generate them with Repair,
+ * they just aren't very useful yet).
+ *)
 
 Lemma test_eval_eq_true_or_false:
   forall (L : User5Session19'.EpsilonLogic)
