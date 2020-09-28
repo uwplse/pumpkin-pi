@@ -3,7 +3,7 @@ certain equivalences between types in Coq.
 DEVOID is a part of the [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH) 
 proof repair plugin suite, and is included as a dependency of PUMPKIN PATCH
 starting with release 0.1.
-We call PUMPKIN PATCH with DEVOID "PUMPKIN $\Pi$."
+We call PUMPKIN PATCH with DEVOID "PUMPKIN Pi."
 
 DEVOID began as the artifact for the ITP paper [Ornaments for Proof Reuse in Coq](http://tlringer.github.io/pdf/ornpaper.pdf), but has since been extended. A version of DEVOID that corresponds to the
 ITP camera-ready can be found in [this release](http://github.com/uwplse/ornamental-search/releases/tag/itp+equiv).
