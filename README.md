@@ -1,6 +1,5 @@
 This is DEVOID, a plugin for automatic discovery of and lifting across 
-certain equivalences between types in Coq. It began as the artifact for the ITP paper [Ornaments for Proof Reuse in Coq](http://tlringer.github.io/pdf/ornpaper.pdf), but has since been extended.
-Please cite this paper when referring to DEVOID. A version of DEVOID that corresponds to the
+certain equivalences between types in Coq. It began as the artifact for the ITP paper [Ornaments for Proof Reuse in Coq](http://tlringer.github.io/pdf/ornpaper.pdf), but has since been extended. A version of DEVOID that corresponds to the
 ITP camera-ready can be found in [this release](http://github.com/uwplse/ornamental-search/releases/tag/itp+equiv).
 
 Given two types A and B that are related in certain ways, DEVOID can search for
