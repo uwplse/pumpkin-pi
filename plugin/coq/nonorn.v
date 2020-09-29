@@ -7,6 +7,7 @@ Require Import Coq.NArith.Nnat.
 Set DEVOID search prove equivalence.
 Set DEVOID search prove coherence.
 Set DEVOID search smart eliminators.
+Set DEVOID lift type.
 
 (*
  * Now we use the standard Coq binary natural number.
@@ -105,6 +106,7 @@ Configure Lift nat binnat {
   iota_b = iota_B_O iota_B_1
 }.
 
+(* We use Lift instead of Rrepair since this is just a function: *)
 Lift nat binnat in Nat_pre.add as slow_add.
 
 (*
@@ -151,7 +153,11 @@ Configure Lift nat binnat {
   iota_b = iota_B_O iota_B_1
 }.
 
-(* Now we tweak add_n_Sm to manually add iota where we have casts: *)
+(*
+ * Now we tweak add_n_Sm to manually add iota where we have casts,
+ * since matching against iota is incomplete, and we don't yet have support for custom
+ * matching procedures:
+ *)
 Print Nat_pre.Coq_Init_Peano_plus_n_Sm.
 
 (* That gives us this: *)
@@ -179,9 +185,8 @@ Definition plus_n_Sm_expanded (n m : nat) :=
  * at some point.
  *)
 
-
 Lift nat binnat in f_equal_nat as f_equal_binnat.
-Lift nat binnat in plus_n_Sm_expanded as binnat_plus_n_Sm.
+Repair nat binnat in plus_n_Sm_expanded as binnat_plus_n_Sm.
 
 (* --- Now we can show our theorem over fast addition --- *)
 
@@ -191,3 +196,75 @@ Lemma add_n_Sm :
 Proof.
   intros. repeat rewrite <- add_fast_add. apply binnat_plus_n_Sm.
 Qed.
+
+(* --- Tactics --- *)
+
+(*
+ * Now we have terms, and these are correct. But we don't have tactics yet.
+ * Repair suggested some tactics, but they weren't useful, because the decompiler
+ * does not recognize N.peano_rect as an induction principle (since Coq does not either).
+ * So it's reasonable to ask how close we are to getting these, if we had that.
+ * Let's split up the proof before lifting and we'll see.
+ *)
+Definition plus_n_Sm_expanded_base (n m : nat) : S (Nat_pre.add 0 m) = Nat_pre.add 0 (S m) :=
+  eq_refl.
+
+Definition plus_n_Sm_expanded_inductive (n m : nat) :=
+  (fun (n0 : nat) (IHn : S (Nat_pre.add n0 m) = Nat_pre.add n0 (S m)) =>
+    iota_A_plus _ (fun PS => S (PS m) = Nat_pre.add (S n0) (S m))
+      (iota_A_plus _ (fun PS => S (S (Nat_pre.add n0 m)) = PS (S m))
+        (f_equal_nat nat S (S (Nat_pre.add n0 m)) (Nat_pre.add n0 (S m)) IHn))).
+
+Repair nat binnat in plus_n_Sm_expanded_base as binnat_plus_n_Sm_base.
+Repair nat binnat in plus_n_Sm_expanded_inductive as binnat_plus_n_Sm_inductive.
+
+Lemma binnat_plus_n_Sm_tac:
+ forall n m : N,
+       N_rec (fun _ : N => N) 1%N
+         (fun p : positive => N.pos (Bin.Coq_PArith_BinPos_Pos_succ p))
+         (slow_add n m) =
+       slow_add n
+         (N_rec (fun _ : N => N) 1%N
+            (fun p : positive => N.pos (Bin.Coq_PArith_BinPos_Pos_succ p)) m).
+Proof.
+  intros n m. induction n as [| n IHn] using (N.peano_rect).
+  - (* base case is fine *)
+    reflexivity. 
+  - (* inductive case still struggles, really must do manually still *)
+    apply (iota_B_plus n (fun PS =>
+                             N_rec (fun _ : N => N) 1%N
+                               (fun p : positive =>
+                                N.pos (Bin.Coq_PArith_BinPos_Pos_succ p)) 
+                               (PS m) =
+                             slow_add
+                               (N_rec (fun _ : N => N) 1%N
+                                  (fun p : positive =>
+                                   N.pos (Bin.Coq_PArith_BinPos_Pos_succ p)) n)
+                               (N_rec (fun _ : N => N) 1%N
+                                  (fun p : positive =>
+                                   N.pos (Bin.Coq_PArith_BinPos_Pos_succ p)) m))).
+   apply (iota_B_plus n
+                               (fun PS =>
+                                N_rec (fun _ : N => N) 1%N
+                                  (fun p : positive =>
+                                   N.pos (Bin.Coq_PArith_BinPos_Pos_succ p))
+                                  (N_rec (fun _ : N => N) 1%N
+                                     (fun p : positive =>
+                                      N.pos (Bin.Coq_PArith_BinPos_Pos_succ p))
+                                     (slow_add n m)) =
+                                PS
+                                  (N_rec (fun _ : N => N) 1%N
+                                     (fun p : positive =>
+                                      N.pos (Bin.Coq_PArith_BinPos_Pos_succ p)) m))).
+  f_equal. apply IHn.
+Qed.
+(*
+ * So there's of course still some work for getting the decompiler from
+ * a prototype to something useful here, just like we saw with dependent types!
+ * But lots of it is work in progress.
+ *
+ * Here, in addition to support for custom induction principles and better application,
+ * I think we could really use some tactic support for iota!
+ * This could help with unlifted terms, too, since using iota by hand can be annoying,
+ * until we have automation for inserting iota.
+ *)
