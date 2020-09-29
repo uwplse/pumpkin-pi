@@ -85,18 +85,38 @@ Set DEVOID lift type.
 Set DEVOID search smart eliminators.
 
 (*
- * We can then lift our entire module (search runs automatically):
+ * We can then repair our entire module (search runs automatically):
  *)
-Lift Module list vector in hs_to_coq as hs_to_coqV_p.
+Repair Module list vector in hs_to_coq as hs_to_coqV_p.
+(*
+ * This also prints suggested proofs for section and retraction.
+ * The suggested proof for section is the same as the paper draft version up to renaming.
+ * The suggested proof for retraction has an additional "intros" that we remove when
+ * we modify the suggestion in the paper.
+ *
+ * Please also note this regression bug that makes terms and types uglier than usual
+ * (though still correct): https://github.com/uwplse/pumpkin-pi/issues/84
+ *)
 
+(*
+ * That gives us these terms:
+ *)
 Definition zipV_p := hs_to_coqV_p.zip.
 Definition zip_withV_p := hs_to_coqV_p.zip_with.
 Definition zip_with_is_zipV_p := hs_to_coqV_p.zip_with_is_zip.
+(*
+ * Tactics from tweaked tactic suggestions "Repair" outputs
+ * are at the bottom of this file.
+ *)
 
 (* Here are our lifted types: *)
 Check zipV_p.
 Check zip_withV_p.
 Check zip_with_is_zipV_p.
+(*
+ * This gets us to vectors of _some_ length. Next, we'll see how with additional
+ * user input, we can get vectors of a _particular_ length.
+ *)
 
 (* --- Unpack --- *)
 
@@ -218,6 +238,12 @@ Proof.
     apply zip_with_length; auto. apply (projT2 pl2).
   - apply pl1.
 Defined.
+(*
+ * It is cleaner for lifting to separate this out (not necessary though),
+ * since Preprocess doesn't handle eq_existT_uncurried nicely:
+ *)
+Definition eq_existT_uncurried (T : Type) (n : nat) (l1 l2 : list T) (H1 : length l1 = n) (H2 : length l2 = n) (H : {p : l1 = l2 & rew [fun l : list T => length l = n] p in H1 = H2}) :=
+@eq_existT_uncurried (list T) (fun (l : list T) => length l = n) l1 l2 H1 H2 H. 
 
 (*
  * The length invariant here relates our _proofs_ of the
@@ -256,11 +282,12 @@ End packed_list.
  * lists to vectors (new since ITP 2019).
  *
  * Rather than preprocess here, we just set terms that use pattern matching to
- * opaque for efficiency.
+ * opaque for efficiency. We use Lift intead of Repair when tactics don't matter.
  *)
 Lift Module list vector in hs_to_coq_lengths as hs_to_coq_projT1s.
 Lift Module list vector in packed_list as packed_vector { opaque eq_existT_uncurried Eqdep_dec.UIP_dec Nat.eq_dec }.
 
+(* We don't need tactics for these since they're just intermediate terms: *)
 Check packed_vector.zip.
 Check packed_vector.zip_with.
 Check packed_vector.zip_with_is_zip.
@@ -280,11 +307,10 @@ Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 Configure Lift packed vector { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.
 
 (*
- * Then we lift (lifting hs_to_coqV_p first makes this faster and makes the result prettier):
+ * Then we repair (repairing hs_to_coqV_p first makes this faster and makes the result prettier):
  *)
-
 Lift Module packed vector in hs_to_coqV_p as hs_to_coqV_u.
-Lift Module packed vector in packed_vector as uf.
+Repair Module packed vector in packed_vector as uf.
 
 (* We are done. Here are our final types: *)
 Check uf.zip.
@@ -304,4 +330,110 @@ Check uf.zip_with_is_zip.
 (* Client code can then call our functions and proofs, for example: *)
 Definition BVand' {n : nat} (v1 : vector bool n) (v2 : vector bool n) : vector bool n :=
   uf.zip_with bool bool bool andb n v1 v2.
+
+(* --- Tactics --- *)
+
+(*
+ * We now have working functions and proofs over unpacked vectors.
+ * We can use suggested tactics to get tactic scripts, but (as noted)
+ * since they struggle with dependent types, we need to do a _lot_ of tweaking
+ * right now. Still, let's do it using the suggested tactics and the terms
+ * DEVOID has generated. These won't give exactly the same proof terms,
+ * but we're OK with that.
+ *
+ * For zip:
+ *)
+Lemma zip_length:
+  forall (a b : Type) (n : nat) (l1 : {H : nat & vector a H}) (l2 : {H : nat & vector b H}),
+    projT1 l1 = n ->
+    projT1 l2 = n ->
+    projT1 (hs_to_coqV_p.zip a b (existT _ (projT1 l1) (projT2 l1)) (existT _ (projT1 l2) (projT2 l2))) = n.
+Proof.
+  intros a b n l1 l2 H.
+  generalize dependent (projT2 l2). generalize dependent (projT1 l2).
+  generalize dependent (projT2 l1). generalize dependent (projT1 l1).
+  intros n1 H v1. rewrite <- H.
+  revert H. revert n. induction v1 as [|h n0 t]; auto.
+  intros n H n2 v2. revert H. revert n.
+  induction v2 as [|h0 n1 t0]; auto.
+  intros n H H2.
+  simpl. f_equal. apply (IHt n0); auto.
+Qed.
+
+Program Definition zip:
+  forall (a b : Type) (n : nat),
+    vector a n -> vector b n -> vector (a * b) n.
+Proof.
+  intros a b n v1 v2.
+  rewrite <- (zip_length _ _ _ (existT _ n v1) (existT _ n v2)); auto.
+  apply (projT2 (hs_to_coqV_p.zip _ _ (existT _ n v1) (existT _ n v2))).
+Defined.
+
+(*
+ * Note that this doesn't simplify away hs_to_coqV_p.zip.
+ * There is no real point to doing so since we need both projections anyways.
+ * Similarly, for zip_with:
+ *)
+Lemma zip_with_length:
+  forall (A B C : Type) (f : A -> B -> C) (n : nat) (l1 : {H : nat & vector A H}) (l2 : {H : nat & vector B H}),
+    projT1 l1 = n ->
+    projT1 l2 = n ->
+    projT1 (hs_to_coqV_p.zip_with A B C f (existT _ (projT1 l1) (projT2 l1)) (existT _ (projT1 l2) (projT2 l2))) = n.
+Proof.
+  intros A B C f n l1 l2 H.
+  generalize dependent (projT2 l2). generalize dependent (projT1 l2).
+  generalize dependent (projT2 l1). generalize dependent (projT1 l1).
+  intros n1 H v1. rewrite <- H.
+  revert H. revert n. induction v1 as [|h n0 t]; auto.
+  intros n H n2 v2. revert H. revert n.
+  induction v2 as [|h0 n1 t0]; auto.
+  intros n H3 H4.
+  simpl. f_equal. apply (IHt n0); auto.
+Qed.
+
+Program Definition zip_with:
+  forall A B C : Type, (A -> B -> C) -> 
+    forall n : nat, vector A n -> vector B n -> vector C n.
+Proof.
+  intros A B C f n v1 v2.
+  rewrite <- (zip_with_length _ _ _ f _ (existT _ n v1) (existT _ n v2)); auto.
+  apply (projT2 (hs_to_coqV_p.zip_with _ _ _ f (existT _ n v1) (existT _ n v2))).
+Defined.
+
+(*
+ * Finally:
+ *)
+Lemma zip_with_is_zipV_p_tactics :
+  forall (A B : Type) (l1 : {H : nat & vector A H}) (l2 : {H : nat & vector B H}),
+    zip_withV_p A B (A * B) pair (existT _ (projT1 l1) (projT2 l1)) (existT _ (projT1 l2) (projT2 l2))  =
+    zipV_p A B (existT _ (projT1 l1) (projT2 l1)) (existT _ (projT1 l2) (projT2 l2)).
+Proof.
+  intros A B l1. induction (projT2 l1) as [|h n t].
+  - intros l2. induction (projT2 l2) as [|h n t]; reflexivity.
+  - intros l2. induction (projT2 l2) as [|h0 n0 t0].
+    + reflexivity.
+    + specialize (IHt (existT _ n0 t0)).
+      replace (existT _ (projT1 (existT [eta vector B] n0 t0)) (projT2 (existT [eta vector B] n0 t0))) 
+      with (existT _ n0 t0) in IHt by auto.
+      replace (zip_withV_p _ _ _ pair (existT _ (S n) (consV n h t)) (existT _ (S n0) (consV n0 h0 t0)))
+      with
+      (existT _ 
+        (S (projT1 (zip_withV_p A B (A * B) pair (existT _ n t) (existT _ n0 t0))))
+        (consV
+          (projT1 (zip_withV_p A B (A * B) pair (existT _ n t) (existT _ n0 t0)))
+          (h, h0) 
+          (projT2 (zip_withV_p A B (A * B) pair (existT _ n t) (existT _ n0 t0))))) by auto.
+    rewrite IHt. reflexivity.
+Qed.
+
+Lemma zip_with_is_zip:
+  forall (A B : Type) (n : nat) (pl1 : vector A n) (pl2 : vector B n),
+    zip_with A B (A * B) pair n pl1 pl2 = zip A B n pl1 pl2.
+Proof.
+  intros A B n pl1 pl2.
+  apply uf.eq_existT_uncurried.
+  exists (zip_with_is_zipV_p A B (existT [eta vector A] n pl1) (existT [eta vector B] n pl2)).
+  apply (Eqdep_dec.UIP_dec Nat.eq_dec).
+Qed.
+
 
