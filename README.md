@@ -1,6 +1,11 @@
 This is DEVOID, a plugin for automatic discovery of and lifting across 
-certain equivalences between types in Coq. It began as the artifact for the ITP paper [Ornaments for Proof Reuse in Coq](http://tlringer.github.io/pdf/ornpaper.pdf), but has since been extended.
-Please cite this paper when referring to DEVOID. A version of DEVOID that corresponds to the
+certain equivalences between types in Coq.
+DEVOID is a part of the [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH) 
+proof repair plugin suite, and is included as a dependency of PUMPKIN PATCH
+starting with release 0.1.
+We call the current version of PUMPKIN PATCH with support for equivalences through DEVOID "PUMPKIN Pi."
+
+DEVOID began as the artifact for the ITP paper [Ornaments for Proof Reuse in Coq](http://tlringer.github.io/pdf/ornpaper.pdf), but has since been extended. A version of DEVOID that corresponds to the
 ITP camera-ready can be found in [this release](http://github.com/uwplse/ornamental-search/releases/tag/itp+equiv).
 
 Given two types A and B that are related in certain ways, DEVOID can search for
@@ -21,10 +26,6 @@ For change that don't fall into the above four buckets, you need to supply the c
 This is not yet documented here due to time constraints (I promise I will document it soon).
 For now, check out two examples: switching between unary and binary natural numbers [here](/plugin/coq/nonorn.v),
 and an easier refactoring of constructors [here](https://github.com/uwplse/ornamental-search/blob/master/plugin/coq/playground/constr_refactor.v).
-
-DEVOID is a part of the [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH) 
-proof repair plugin suite, and is included as a dependency of PUMPKIN PATCH
-starting with release 0.1.
 
 # Getting Started with DEVOID
 
