@@ -35,7 +35,7 @@ Theorem demorgan_1:
     neg (and i1 i2) =
     or (neg i1) (neg i2).
 Proof.
-  intros i1 i2. induction i1; auto.
+  intros i1 i2. induction i1; reflexivity.
 Defined.
 
 Theorem demorgan_2:
@@ -43,7 +43,7 @@ Theorem demorgan_2:
     neg (or i1 i2) =
     and (neg i1) (neg i2).
 Proof.
-  intros i1 i2. induction i1; auto.
+  intros i1 i2. induction i1; reflexivity.
 Defined.
 
 End Old'.
@@ -55,21 +55,39 @@ Import Old.
 Inductive J :=
 | makeJ : bool -> J.
 
+(* --- Configuration ---*)
+
+(*
+ * This example uses manual configuration. Many of the examples we see later will
+ * do this part automatically! The exact meaning of this will be explained
+ * later. But essentially, this tells the tool which constructor maps to true 
+ * and which maps to false:
+ *)
 Definition dep_constr_I_0 : I := A.
 Definition dep_constr_I_1 : I := B.
 
 Definition dep_constr_J_0 : J := makeJ true.
 Definition dep_constr_J_1 : J := makeJ false.
 
+(*
+ * How to eta-expand I and J (trivial here):
+ *)
 Definition eta_I (i : I) : I := i.
 Definition eta_J (j : J) : J := j.
 
+(*
+ * How to map between eliminators:
+ *)
 Definition dep_elim_I P f0 f1 i : P (eta_I i) :=
   I_rect P f0 f1 i.
 
 Definition dep_elim_J P f0 f1 j : P (eta_J j) :=
   J_rect P (fun b => bool_rect _ f0 f1 b) j.
 
+(*
+ * And how to reduce inductive cases of eliminators, which here is trivial since
+ * there are no inductive cases of these types:
+ *)
 Definition iota_I_0 (P : I -> Type) (f0 : P A) (f1 : P B) (Q : P A -> Type) (H : Q f0) :=
   H.
 
@@ -82,11 +100,17 @@ Definition iota_J_0 (P : J -> Type) (f0 : P (makeJ true)) (f1 : P (makeJ false))
 Definition iota_J_1 (P : J -> Type) (f0 : P (makeJ true)) (f1 : P (makeJ false)) (Q : P (makeJ false) -> Type) (H : Q f1) :=
   H.
 
+(* --- Equivalence --- *)
+
 (*
+ * Automatic configuration also does this part automatically,
+ * but here we used manual configuration.
+ *
  * For now, manual configuration doesn't construct the
  * equivalence, so you need to construct it yourself.
  * A bit silly! Should fix this soon. After all,
- * it's a really simple algorithm:
+ * it's a really simple algorithm. Our two functions
+ * eliminate over one type and construct the other:
  *)
 Definition f (i : I) : J :=
   dep_elim_I (fun _ => J) dep_constr_J_0 dep_constr_J_1 i.
@@ -94,7 +118,9 @@ Definition f (i : I) : J :=
 Definition g (j : J) : I :=
   dep_elim_J (fun _ => I) dep_constr_I_0 dep_constr_I_1 j.
 
-(* The iotas below could also be eq_refls, but just to make a point I'll expand them *)
+(*
+ * And our two proofs eliminate over one type and reduce using the iota reduction rules:
+ *)
 Definition section (i : I) : g (f i) = i :=
   dep_elim_I
     (fun i => g (f i) = i)
@@ -109,11 +135,13 @@ Definition retraction (j : J) : f (g j) = j :=
     (iota_J_1 (fun _ => I) dep_constr_I_0 dep_constr_I_1 (fun i => f i = f dep_constr_I_1) eq_refl)
     j.
 
-Save equivalence I J { promote = f; forget = g }.
+(* --- Saving the configuration and equivalence --- *)
 
 (*
- * OK now we can do this:
+ * Then we just save that:
  *)
+Save equivalence I J { promote = f; forget = g }.
+
 Configure Lift I J {
   constrs_a = dep_constr_I_0 dep_constr_I_1;
   constrs_b = dep_constr_J_0 dep_constr_J_1;
@@ -125,19 +153,52 @@ Configure Lift I J {
   iota_b = iota_J_0 iota_J_1
 }.
 
+(* --- Repairing the functions and proofs --- *)
+
 (*
- * Now we lift the module:
+ * Now we repair the module:
  *)
 Repair Module I J in Old as New.
 
+(*
+ * Our functions behave the same way, but are defined over J instead of I:
+ *)
 Print New.and.
+Lemma and_OK: 
+  forall (j1 j2 : J),
+    New.and j1 j2 = f (Old.and (g j1) (g j2)).
+Proof.
+  intros. induction j1. induction b; auto.
+  simpl. rewrite retraction. auto.
+Defined.
+
 Print New.or.
+Lemma or_OK: 
+  forall (j1 j2 : J),
+    New.or j1 j2 = f (Old.or (g j1) (g j2)).
+Proof.
+  intros. induction j1. induction b; auto.
+  simpl. rewrite retraction. auto.
+Defined.
+
 Print New.neg.
+Lemma neg_OK: 
+  forall (j : J),
+    New.neg j = f (Old.neg (g j)).
+Proof.
+  intros. induction j. induction b; auto.
+Defined.
+
+(*
+ * And our proofs still hold:
+ *)
 Check New.demorgan_1.
 Check New.demorgan_2.
 
+(* --- Using suggested tactics --- *)
+
 (*
- * Let's use the suggested tactics:
+ * Let's use the suggested tactics from Repair:
  *)
 Theorem demorgan_1:
   forall j1 j2 : J, 
@@ -154,6 +215,8 @@ Proof.
   intros j1 j2. induction j1 as [b].
   induction b as [ | ]; reflexivity.
 Defined.
+
+(* --- Note on opposite direction ---*)
 
 (*
  * In the opposite direction, we can used cached terms,
