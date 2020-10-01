@@ -10,6 +10,48 @@ Inductive I :=
 | A : I
 | B : I.
 
+Module Old'.
+
+Definition and (i1 i2 : I) : I :=
+  match i1 with
+  | A => i2
+  | B => B
+  end.
+
+Definition or (i1 i2 : I) : I :=
+  match i1 with
+  | A => A
+  | B => i2
+  end.
+
+Definition neg (i : I) : I :=
+  match i with
+  | A => B
+  | B => A
+  end.
+
+Theorem demorgan_1:
+  forall (i1 i2 : I), 
+    neg (and i1 i2) =
+    or (neg i1) (neg i2).
+Proof.
+  intros i1 i2. induction i1; auto.
+Defined.
+
+Theorem demorgan_2:
+  forall (i1 i2 : I), 
+    neg (or i1 i2) =
+    and (neg i1) (neg i2).
+Proof.
+  intros i1 i2. induction i1; auto.
+Defined.
+
+End Old'.
+
+Preprocess Module Old' as Old { opaque I_ind }.
+Import Old.
+
+(* We will change the type to this: *)
 Inductive J :=
 | makeJ : bool -> J.
 
@@ -84,40 +126,15 @@ Configure Lift I J {
 }.
 
 (*
- * Simple lifting tests:
+ * Now we lift the module:
  *)
-Lift I J in A as A_lifted.
-Lift I J in B as B_lifted.
+Lift Module I J in Old as New.
 
-Lemma A_lift_correct:
-  A_lifted = makeJ true.
-Proof.
-  reflexivity.
-Defined.
-
-Lemma B_lift_correct:
-  B_lifted = makeJ false.
-Proof.
-  reflexivity.
-Defined.
-
-Lift I J in f as f_lifted.
-Lift I J in g as g_lifted.
-
-Lemma f_lifted_is_g_lifted:
-  f_lifted = g_lifted.
-Proof.
-  reflexivity.
-Defined.
-
-Lift I J in section as section_lifted.
-Lift I J in retraction as retraction_lifted.
-
-Lemma section_lifted_is_retraction_lifted:
-  section_lifted = retraction_lifted.
-Proof.
-  reflexivity.
-Defined.
+Print New.and.
+Print New.or.
+Print New.neg.
+Check New.demorgan_1.
+Check New.demorgan_2.
 
 (*
  * In the opposite direction, we can used cached terms,
