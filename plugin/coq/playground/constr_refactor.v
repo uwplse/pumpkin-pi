@@ -198,13 +198,13 @@ Check New.demorgan_2.
 (* --- Using suggested tactics --- *)
 
 (*
- * Let's use the suggested tactics from Repair:
+ * Let's use the suggested tactics from Repair (up to renaming):
  *)
 Theorem demorgan_1:
   forall j1 j2 : J, 
     New.neg (New.and j1 j2) = New.or (New.neg j1) (New.neg j2).
 Proof.
-  intros i1 i2. induction i1 as [b].
+  intros j1 j2. induction j1 as [b].
   induction b as [ | ]; reflexivity.
 Defined.
 
