@@ -128,13 +128,32 @@ Configure Lift I J {
 (*
  * Now we lift the module:
  *)
-Lift Module I J in Old as New.
+Repair Module I J in Old as New.
 
 Print New.and.
 Print New.or.
 Print New.neg.
 Check New.demorgan_1.
 Check New.demorgan_2.
+
+(*
+ * Let's use the suggested tactics:
+ *)
+Theorem demorgan_1:
+  forall j1 j2 : J, 
+    New.neg (New.and j1 j2) = New.or (New.neg j1) (New.neg j2).
+Proof.
+  intros i1 i2. induction i1 as [b].
+  induction b as [ | ]; reflexivity.
+Defined.
+
+Theorem demorgan_2:
+  forall j1 j2 : J,
+    New.neg (New.or j1 j2) = New.and (New.neg j1) (New.neg j2).
+Proof.
+  intros j1 j2. induction j1 as [b].
+  induction b as [ | ]; reflexivity.
+Defined.
 
 (*
  * In the opposite direction, we can used cached terms,
