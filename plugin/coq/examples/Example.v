@@ -4,9 +4,6 @@
  * NOTE: This has changed a lot since the ITP paper! I have updated this file
  * to reflect the latest automation. To see the original ITP version,
  * take a look at the state of this file in the ITP release.
- *
- * Also note that the tactic functionality is not merged into this branch yet.
- * It is in PUMPKIN PATCH (which DEVOID is a part of) and will move here very soon.
  *)
 
 Add LoadPath "coq/examples".
