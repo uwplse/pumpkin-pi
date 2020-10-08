@@ -474,23 +474,23 @@ let parse_tac_str (s : string) : unit Proofview.tactic =
 (*
  * Lift then decompile
  *)
-let repair ?(suffix=false) ?(opaques=[]) ?(tacs=[]) n d_orn d_orn_inv d_old is_lift_module =
+let repair ?(suffix=false) ?(opaques=[]) ?(hints=[]) n d_orn d_orn_inv d_old is_lift_module =
   let lifted = lift_inner ~suffix ~opaques n d_orn d_orn_inv d_old is_lift_module in
   let (sigma, env) = Pfedit.get_current_context () in
-  let opts = List.map (fun s -> (parse_tac_str s, s)) tacs in
+  let opts = List.map (fun s -> (parse_tac_str s, s)) hints in
   suggest_tactic_script env lifted opts sigma
 
 (*
  * Lift then decompile a whole module
  *)
-let repair_module ?(opaques=[]) ident d_orn d_orn_inv mod_ref =
+let repair_module ?(opaques=[]) ?(hints=[]) ident d_orn d_orn_inv mod_ref =
   let mod_body =
     qualid_of_reference mod_ref |> Nametab.locate_module |> Global.lookup_module
   in
   let lift_global gref =
     let ident = Nametab.basename_of_global gref in
     try
-      repair ~opaques:opaques ident d_orn d_orn_inv (expr_of_global gref) true
+      repair ~opaques:opaques ~hints:hints ident d_orn d_orn_inv (expr_of_global gref) true
     with _ ->
       Feedback.msg_warning (str "Failed to lift " ++ pr_global_as_constr gref)
   in

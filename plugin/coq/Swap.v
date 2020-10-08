@@ -35,7 +35,8 @@ Preprocess Module List as List_pre { opaque (* ignore these nested modules: *)
 }.
 
 (* Lift the whole list module: *)
-Repair Module list list' in List_pre as List' { opaque (* ignore these, just for speed *)
+Repair Module list list' in List_pre as List' { 
+opaque (* ignore these, just for speed *)
   RelationClasses.Equivalence_Reflexive
   RelationClasses.reflexivity
   Nat.add
@@ -45,12 +46,15 @@ Repair Module list list' in List_pre as List' { opaque (* ignore these, just for
   Nat.lt_irrefl
   Nat.le_refl
   Nat.bi_induction
-  Nat.central_induction
+  Nat.central_induction;
+hint (* some tacic hints for better scripts *)
+  "auto"
 }.
 
 (* That should generate tactics for a whole bunch of these, but just to check
-   the paper example (has explicit A whereas paper has implicit A): *)
-Repair list list' in List_pre.rev_app_distr as rev_app_distr.
+   the paper example (has explicit A whereas paper has implicit A,
+   and passes in a tactic hint to try auto instead of reflexivity): *)
+Repair list list' in List_pre.rev_app_distr as rev_app_distr { hint "auto" }. 
 (* The tactics for section and retraction are in the output of Repair Module above
    (at the top). *)
 

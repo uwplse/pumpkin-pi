@@ -67,6 +67,18 @@ VERNAC COMMAND EXTEND RepairProof CLASSIFIED AS SIDEFF
   [ repair_module id d_orn d_orn_inv mod_ref ]
 | [ "Repair" "Module" constr(d_orn) constr(d_orn_inv) "in" reference(mod_ref) "as" ident(id) "{" "opaque" ne_reference_list(opaques) "}" ] ->
   [ repair_module ~opaques:opaques id d_orn d_orn_inv mod_ref ]
+| [ "Repair" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n) "{" "hint" ne_string_list(hints) "}" ] ->
+  [ repair ~hints:hints n d_orn d_orn_inv d_old false ]
+| [ "Repair" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ident(n) "{" "opaque" ne_reference_list(opaques) ";" "hint" ne_string_list(hints) "}" ] ->
+  [ repair ~opaques:opaques ~hints:hints n d_orn d_orn_inv d_old false ]
+| [ "Repair" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ".." ident(n) "{" "hint" ne_string_list(hints) "}" ] ->
+  [ repair ~suffix:true ~hints:hints n d_orn d_orn_inv d_old false ]
+| [ "Repair" constr(d_orn) constr(d_orn_inv) "in" constr(d_old) "as" ".." ident(n) "{" "opaque" ne_reference_list(opaques) ";" "hint" ne_string_list(hints) "}" ] ->
+  [ repair ~opaques:opaques ~suffix:true ~hints:hints n d_orn d_orn_inv d_old false ]
+| [ "Repair" "Module" constr(d_orn) constr(d_orn_inv) "in" reference(mod_ref) "as" ident(id) "{" "hint" ne_string_list(hints) "}" ] ->
+  [ repair_module ~hints:hints id d_orn d_orn_inv mod_ref ]
+| [ "Repair" "Module" constr(d_orn) constr(d_orn_inv) "in" reference(mod_ref) "as" ident(id) "{" "opaque" ne_reference_list(opaques) ";" "hint" ne_string_list(hints) "}" ] ->
+  [ repair_module ~opaques:opaques ~hints:hints id d_orn d_orn_inv mod_ref ]
 END
 
 (* Register the Ltac script for sigma unpacking *)
