@@ -80,6 +80,12 @@ let suggest_tactic_script env trm_ref opts sigma =
   Feedback.msg_info (tac_to_string sigma script);
   Feedback.msg_info (Pp.str "Qed.");
   Feedback.msg_info (Pp.str "")
+
+(* Convert a tactic expression into a semantic tactic (from Randair) *)
+let parse_tac_str (s : string) : unit Proofview.tactic =
+  let raw = Pcoq.parse_string Pltac.tactic s in
+  let glob = Tacintern.intern_pure_tactic (Tacintern.make_empty_glob_sign ()) raw in
+  eval_tactic glob
                      
 (* --- Commands --- *)
 
@@ -105,12 +111,13 @@ let maybe_prove_coherence n promote forget kind : unit =
  * If the option is enabled, then prove section, retraction, and adjunction after
  * find_ornament is called. Otherwise, do nothing.
  *)
-let maybe_prove_equivalence n typs promote forget : unit =
+let maybe_prove_equivalence ?(hints=[]) n typs promote forget : unit =
   let define_proof suffix ?(adjective=suffix) sigma term typ =
     let ident = with_suffix n suffix in
     let tr = define_print ident term ~typ:typ sigma in
     let sigma, env = refresh_env () in
-    suggest_tactic_script env tr [] sigma;
+    let opts = List.map (fun s -> (parse_tac_str s, s)) hints in
+    suggest_tactic_script env tr opts sigma;
     destConstRef tr
   in
   if is_search_equiv () then
@@ -205,7 +212,7 @@ let infer_name_for_ornament env trm_o trm_n n_o =
 (*
  * Common function for find_ornament and save_ornament
  *)
-let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o is_custom sigma =
+let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forget_o is_custom sigma =
   try
     let sigma, def_o = intern env sigma d_old in
     let sigma, def_n = intern env sigma d_new in
@@ -258,7 +265,7 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o is_cust
     in
     (if not is_custom then
       (maybe_prove_coherence n promote forget orn.kind;
-       maybe_prove_equivalence n (trm_o, trm_n) promote forget;
+       maybe_prove_equivalence ~hints:hints n (trm_o, trm_n) promote forget;
        maybe_find_smart_elims (trm_o, trm_n) promote forget)
      else
        ());
@@ -285,9 +292,9 @@ let find_ornament_common env n_o d_old d_new swap_i_o promote_o forget_o is_cust
  * Define the components of the corresponding equivalence
  * If the appropriate option is set, prove these components form an equivalence
  *)
-let find_ornament n_o d_old d_new swap_i_o =
+let find_ornament ?(hints=[]) n_o d_old d_new swap_i_o =
   let (sigma, env) = Pfedit.get_current_context () in
-  find_ornament_common env n_o d_old d_new swap_i_o None None false sigma
+  find_ornament_common ~hints:hints env n_o d_old d_new swap_i_o None None false sigma
 
 (*
  * Save a user-provided ornament
@@ -386,7 +393,7 @@ let lift_inductive_by_ornament env sigma n s l c_old ignores is_lift_module =
 (*
  * Common configuration for several commands
  *)
-let init_lift env d_orn d_orn_inv sigma =
+let init_lift ?(hints=[]) env d_orn d_orn_inv sigma =
   let sigma, c_orn = intern env sigma d_orn in
   let sigma, c_orn_inv = intern env sigma d_orn_inv in
   let (o, n) = map_tuple (try_delta_inductive env) (c_orn, c_orn_inv) in
@@ -394,7 +401,7 @@ let init_lift env d_orn d_orn_inv sigma =
     let orn_opt = lookup_ornament (o, n) in
     if not (Option.has_some orn_opt) then
       (* The user never ran Find ornament *)
-      let _ = find_ornament None d_orn d_orn_inv None in
+      let _ = find_ornament ~hints:hints None d_orn d_orn_inv None in
       refresh_env ()
     else
       (* The ornament is cached *)
@@ -406,7 +413,7 @@ let init_lift env d_orn d_orn_inv sigma =
 (*
  * Core functionality of lift
  *)
-let lift_inner ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old is_lift_module =
+let lift_inner ?(suffix=false) ?(opaques=[]) ?(hints=[]) n d_orn d_orn_inv d_old is_lift_module =
   let (sigma, env) = Pfedit.get_current_context () in
   let opaque_terms =
     List.map
@@ -425,7 +432,7 @@ let lift_inner ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old is_lift_mod
   let sigma, c_old = intern env sigma d_old in
   let n_new = if suffix then suffix_term_name c_old n else n in
   let s = if suffix then Id.to_string n else "_" ^ Id.to_string n in
-  let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in 
+  let sigma, (env, l) = init_lift ~hints:hints env d_orn d_orn_inv sigma in 
   let u_old = unwrap_definition env c_old in
   if isInd u_old then
     let from_typ = fst (on_red_type_default (fun _ _ -> promotion_type_to_types) env sigma l.orn.promote) in
@@ -440,21 +447,21 @@ let lift_inner ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old is_lift_mod
  * Lift the supplied definition or inductive type along the supplied ornament
  * Define the lifted version
  *)
-let lift_by_ornament ?(suffix=false) ?(opaques=[]) n d_orn d_orn_inv d_old is_lift_module =
-  ignore (lift_inner ~suffix ~opaques n d_orn d_orn_inv d_old is_lift_module)
+let lift_by_ornament ?(suffix=false) ?(opaques=[]) ?(hints=[]) n d_orn d_orn_inv d_old is_lift_module =
+  ignore (lift_inner ~suffix ~opaques ~hints n d_orn d_orn_inv d_old is_lift_module)
 
 (*
  * Lift each module element (constant and inductive definitions) along the given
  * ornament, defining a new module with all the transformed module elements.
  *)
-let lift_module_by_ornament ?(opaques=[]) ident d_orn d_orn_inv mod_ref =
+let lift_module_by_ornament ?(opaques=[]) ?(hints=[]) ident d_orn d_orn_inv mod_ref =
   let mod_body =
     qualid_of_reference mod_ref |> Nametab.locate_module |> Global.lookup_module
   in
   let lift_global gref =
     let ident = Nametab.basename_of_global gref in
     try
-      lift_by_ornament ~opaques:opaques ident d_orn d_orn_inv (expr_of_global gref) true
+      lift_by_ornament ~opaques:opaques ~hints:hints ident d_orn d_orn_inv (expr_of_global gref) true
     with _ ->
       Feedback.msg_warning (str "Failed to lift " ++ pr_global_as_constr gref)
   in
@@ -464,18 +471,12 @@ let lift_module_by_ornament ?(opaques=[]) ident d_orn d_orn_inv mod_ref =
       (fun _ -> iter_module_structure_by_glob lift_global mod_body)
   in
   Feedback.msg_info (str "Defined lifted module " ++ Id.print ident)
-
-(* Convert a tactic expression into a semantic tactic (from Randair) *)
-let parse_tac_str (s : string) : unit Proofview.tactic =
-  let raw = Pcoq.parse_string Pltac.tactic s in
-  let glob = Tacintern.intern_pure_tactic (Tacintern.make_empty_glob_sign ()) raw in
-  eval_tactic glob
                     
 (*
  * Lift then decompile
  *)
 let repair ?(suffix=false) ?(opaques=[]) ?(hints=[]) n d_orn d_orn_inv d_old is_lift_module =
-  let lifted = lift_inner ~suffix ~opaques n d_orn d_orn_inv d_old is_lift_module in
+  let lifted = lift_inner ~suffix ~opaques ~hints n d_orn d_orn_inv d_old is_lift_module in
   let (sigma, env) = Pfedit.get_current_context () in
   let opts = List.map (fun s -> (parse_tac_str s, s)) hints in
   suggest_tactic_script env lifted opts sigma

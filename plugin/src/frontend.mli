@@ -6,7 +6,7 @@ open Names
  * Define the components of the corresponding equivalence
  * If the appropriate option is set, prove that these form an equivalence
  *)
-val find_ornament : Id.t option -> constr_expr -> constr_expr -> int option -> unit          
+val find_ornament : ?hints:string list -> Id.t option -> constr_expr -> constr_expr -> int option -> unit          
 
 (*
  * Save a user-supplied equivalence between two types.
@@ -29,13 +29,13 @@ val save_ornament :
  * Lift the supplied function along an ornament between the supplied types
  * Define the lifted version
  *)
-val lift_by_ornament : ?suffix:bool -> ?opaques:Libnames.reference list -> Id.t -> constr_expr -> constr_expr -> constr_expr -> bool -> unit
+val lift_by_ornament : ?suffix:bool -> ?opaques:Libnames.reference list -> ?hints:string list -> Id.t -> constr_expr -> constr_expr -> constr_expr -> bool -> unit
 
 (*
   * Lift each module element (constant and inductive definitions) along the given
   * ornament, defining a new module with all the transformed module elements.
   *)
-val lift_module_by_ornament : ?opaques:Libnames.reference list -> Id.t -> constr_expr -> constr_expr -> Libnames.reference -> unit
+val lift_module_by_ornament : ?opaques:Libnames.reference list -> ?hints:string list -> Id.t -> constr_expr -> constr_expr -> Libnames.reference -> unit
 
 (*
  * Lift (transform) and then decompile for tactic suggestions
