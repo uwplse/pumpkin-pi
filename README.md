@@ -203,6 +203,19 @@ This will create a new module `Bar` with all of the liftings from `Foo`.
 If you would like tactic suggestions for lifted proofs, you may substitute `Repair` for `Lift` in all commands.
 These tactic suggestions are experimental, but may help you with workflow integration.
 
+To suggest decision procedures to try to improve tactic output, you can pass the `hint` option, like:
+
+```
+Repair Module A B in Foo as Bar { hint : "ring" "auto" }
+```
+This option comes after `opaque`, like:
+
+```
+Repair Module A B in Foo as Bar { opaque : A_rect B_rect; hint : "ring" "auto" }
+```
+At some point, we hope to make it possible to reuse the tactics from the original proof script easily,
+even when they are not decision procedures.
+
 ##### Prettier Types
 
 By default, DEVOID lets Coq infer the types of lifted terms. You can 
