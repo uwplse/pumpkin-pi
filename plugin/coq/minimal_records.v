@@ -86,7 +86,7 @@ Lift Module Generated'.output Handwritten'.output in Temp1 as Handwritten''.
  * with the bigger one and then tell DEVOID to treat the lifted projections as opaque.
  * Really interesting WIP on handling this better without so much work for the user.
  *
- * See: https://taliasplse.wordpress.com/2020/02/02/automating-transport-with-univalent-e-graphs/
+ * See: [redacted]
  *)
 
 (*
