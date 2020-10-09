@@ -5,9 +5,6 @@ proof repair plugin suite, and is included as a dependency of PUMPKIN PATCH
 starting with release 0.1.
 We call the current version of PUMPKIN PATCH with support for equivalences through DEVOID "PUMPKIN Pi."
 
-DEVOID began as the artifact for the ITP paper [Ornaments for Proof Reuse in Coq](http://tlringer.github.io/pdf/ornpaper.pdf), but has since been extended. A version of DEVOID that corresponds to the
-ITP camera-ready can be found in [this release](http://github.com/uwplse/ornamental-search/releases/tag/itp+equiv).
-
 Given two types A and B that are related in certain ways, DEVOID can search for
 and prove the relation between those types, then lift functions and proofs between them.
 The following relations are currently supported automatically:
@@ -526,7 +523,7 @@ Please also feel free to ask if you are confused about anything that the code do
       - [depelim.ml](/plugin/src/automation/depelim.ml) and [depelim.mli](/plugin/src/automation/depelim.mli): Automation for non-primitive projections
     - [cache](/plugin/src/cache): Caching ornaments and lifted terms
       - [caching.ml](/plugin/src/cache/caching.ml) and [caching.mli](/plugin/src/cache/caching.mli)
-    - [components](/plugin/src/components): Components in the style of [PUMPKIN PATCH](http://tlringer.github.io/pdf/pumpkinpaper.pdf)
+    - [components](/plugin/src/components): Components in the style of (redacted)
       - [abstraction.ml](/plugin/src/components/abstraction.ml) and [abstraction.mli](/plugin/src/components/abstraction.mli): 
       - [differencing.ml](differencing.ml) and [differencing.mli](/plugin/src/components/differencing.mli): 
       - [factoring.ml](/plugin/src/components/factoring.ml) and [factoring.mli](/plugin/src/components/factoring.mli): 
