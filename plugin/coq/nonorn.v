@@ -186,7 +186,7 @@ Definition plus_n_Sm_expanded (n m : nat) :=
  *)
 
 Lift nat binnat in f_equal_nat as f_equal_binnat.
-Repair nat binnat in plus_n_Sm_expanded as binnat_plus_n_Sm.
+Repair nat binnat in plus_n_Sm_expanded as binnat_plus_n_Sm { hint "auto" }.
 
 (* --- Now we can show our theorem over fast addition --- *)
 
@@ -215,8 +215,8 @@ Definition plus_n_Sm_expanded_inductive (n m : nat) :=
       (iota_A_plus _ (fun PS => S (S (Nat_pre.add n0 m)) = PS (S m))
         (f_equal_nat nat S (S (Nat_pre.add n0 m)) (Nat_pre.add n0 (S m)) IHn))).
 
-Repair nat binnat in plus_n_Sm_expanded_base as binnat_plus_n_Sm_base.
-Repair nat binnat in plus_n_Sm_expanded_inductive as binnat_plus_n_Sm_inductive.
+Repair nat binnat in plus_n_Sm_expanded_base as binnat_plus_n_Sm_base { hint "auto" }.
+Repair nat binnat in plus_n_Sm_expanded_inductive as binnat_plus_n_Sm_inductive { hint "auto" }.
 
 Lemma binnat_plus_n_Sm_tac:
  forall n m : N,
@@ -229,34 +229,9 @@ Lemma binnat_plus_n_Sm_tac:
 Proof.
   intros n m. induction n as [| n IHn] using (N.peano_rect).
   - (* base case is fine *)
-    reflexivity. 
+    auto. 
   - (* inductive case still struggles, really must do manually still *)
-    apply (iota_B_plus n (fun PS =>
-                             N_rec (fun _ : N => N) 1%N
-                               (fun p : positive =>
-                                N.pos (Bin.Coq_PArith_BinPos_Pos_succ p)) 
-                               (PS m) =
-                             slow_add
-                               (N_rec (fun _ : N => N) 1%N
-                                  (fun p : positive =>
-                                   N.pos (Bin.Coq_PArith_BinPos_Pos_succ p)) n)
-                               (N_rec (fun _ : N => N) 1%N
-                                  (fun p : positive =>
-                                   N.pos (Bin.Coq_PArith_BinPos_Pos_succ p)) m))).
-   apply (iota_B_plus n
-                               (fun PS =>
-                                N_rec (fun _ : N => N) 1%N
-                                  (fun p : positive =>
-                                   N.pos (Bin.Coq_PArith_BinPos_Pos_succ p))
-                                  (N_rec (fun _ : N => N) 1%N
-                                     (fun p : positive =>
-                                      N.pos (Bin.Coq_PArith_BinPos_Pos_succ p))
-                                     (slow_add n m)) =
-                                PS
-                                  (N_rec (fun _ : N => N) 1%N
-                                     (fun p : positive =>
-                                      N.pos (Bin.Coq_PArith_BinPos_Pos_succ p)) m))).
-  f_equal. apply IHn.
+    apply iota_B_plus. f_equal. apply IHn.
 Qed.
 (*
  * So there's of course still some work for getting the decompiler from
@@ -268,3 +243,4 @@ Qed.
  * This could help with unlifted terms, too, since using iota by hand can be annoying,
  * until we have automation for inserting iota.
  *)
+

@@ -107,7 +107,7 @@ Inductive vector' (T : Type) : nat -> Type :=
 | consV' : T -> forall (n : nat), vector' T n -> vector' T (S n)
 | nilV' : vector' T 0.
 
-(* Suggested tactics aren't useful for dependent types yet, so we use Lift: *)
+(* Suggested tactics sometimes aren't useful for dependent types yet, so we use Lift: *)
 Lift list' vector' in List'.Coq_Init_Datatypes_app as appV'.
 Lift list' vector' in my_lemma as my_lemmaV'.
 

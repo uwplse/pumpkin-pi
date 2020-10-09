@@ -35,7 +35,7 @@ Theorem demorgan_1:
     neg (and i1 i2) =
     or (neg i1) (neg i2).
 Proof.
-  intros i1 i2. induction i1; reflexivity.
+  intros i1 i2. induction i1; auto.
 Defined.
 
 Theorem demorgan_2:
@@ -43,7 +43,7 @@ Theorem demorgan_2:
     neg (or i1 i2) =
     and (neg i1) (neg i2).
 Proof.
-  intros i1 i2. induction i1; reflexivity.
+  intros i1 i2. induction i1; auto.
 Defined.
 
 End Old'.
@@ -158,7 +158,7 @@ Configure Lift I J {
 (*
  * Now we repair the module:
  *)
-Repair Module I J in Old as New.
+Repair Module I J in Old as New { hint "auto" }.
 
 (*
  * Our functions behave the same way, but are defined over J instead of I:
@@ -205,7 +205,7 @@ Theorem demorgan_1:
     New.neg (New.and j1 j2) = New.or (New.neg j1) (New.neg j2).
 Proof.
   intros j1 j2. induction j1 as [b].
-  induction b as [ | ]; reflexivity.
+  induction b as [ | ]; auto.
 Defined.
 
 Theorem demorgan_2:
@@ -213,7 +213,7 @@ Theorem demorgan_2:
     New.neg (New.or j1 j2) = New.and (New.neg j1) (New.neg j2).
 Proof.
   intros j1 j2. induction j1 as [b].
-  induction b as [ | ]; reflexivity.
+  induction b as [ | ]; auto.
 Defined.
 
 (* --- Note on opposite direction ---*)

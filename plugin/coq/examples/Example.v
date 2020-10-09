@@ -84,7 +84,7 @@ Set DEVOID search smart eliminators.
 (*
  * We can then repair our entire module (search runs automatically):
  *)
-Repair Module list vector in hs_to_coq as hs_to_coqV_p.
+Repair Module list vector in hs_to_coq as hs_to_coqV_p { hint "auto" }.
 (*
  * This also prints suggested proofs for section and retraction.
  * The suggested proof for section is the same as the paper draft version up to renaming.
@@ -304,7 +304,7 @@ Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
 Configure Lift packed vector { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.
 
 (*
- * Then we repair (repairing hs_to_coqV_p first makes this faster and makes the result prettier):
+ * Then we repair (lifting hs_to_coqV_p first makes this faster and makes the result prettier):
  *)
 Lift Module packed vector in hs_to_coqV_p as hs_to_coqV_u.
 Repair Module packed vector in packed_vector as uf.
@@ -406,9 +406,9 @@ Lemma zip_with_is_zipV_p_tactics :
     zipV_p A B (existT _ (projT1 l1) (projT2 l1)) (existT _ (projT1 l2) (projT2 l2)).
 Proof.
   intros A B l1. induction (projT2 l1) as [|h n t].
-  - intros l2. induction (projT2 l2) as [|h n t]; reflexivity.
+  - intros l2. induction (projT2 l2) as [|h n t]; auto.
   - intros l2. induction (projT2 l2) as [|h0 n0 t0].
-    + reflexivity.
+    + auto.
     + specialize (IHt (existT _ n0 t0)).
       replace (existT _ (projT1 (existT [eta vector B] n0 t0)) (projT2 (existT [eta vector B] n0 t0))) 
       with (existT _ n0 t0) in IHt by auto.
@@ -420,7 +420,7 @@ Proof.
           (projT1 (zip_withV_p A B (A * B) pair (existT _ n t) (existT _ n0 t0)))
           (h, h0) 
           (projT2 (zip_withV_p A B (A * B) pair (existT _ n t) (existT _ n0 t0))))) by auto.
-    rewrite IHt. reflexivity.
+    rewrite IHt. auto.
 Qed.
 
 Lemma zip_with_is_zip:
