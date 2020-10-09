@@ -438,7 +438,7 @@ We used to use this command to measure the performance of `foo`:
 Eval vm_compute in foo.
 ```
 
-An ITP reviewer noted that this includes the amount of time to print `foo`. This is a lot of
+A reviewer noted that this includes the amount of time to print `foo`. This is a lot of
 overhead that clouds the usefulness of the data. The reviewer suggested writing:
 
 ```
@@ -557,5 +557,5 @@ If you are an expert in licensing, definitely let me know if this is wrong.
 
 Regardless, I would like CARROT to be used freely by anyone for any purpose.
 All I ask for is attribution, especially in any papers that you publish that use CARROT
-or any of its code. Please cite the ITP paper when referring to CARROT in those papers.
+or any of its code. Please cite (redacted) when referring to CARROT in those papers.
 
