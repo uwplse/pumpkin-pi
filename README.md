@@ -1,9 +1,7 @@
 This is DEVOID, a plugin for automatic discovery of and lifting across 
 certain equivalences between types in Coq.
-DEVOID is a part of the [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH) 
-proof repair plugin suite, and is included as a dependency of PUMPKIN PATCH
-starting with release 0.1.
-We call the current version of PUMPKIN PATCH with support for equivalences through DEVOID "PUMPKIN Pi."
+DEVOID is a part of one of the author's past projects, a 
+proof repair plugin suite, and is included as a dependency of that project.
 
 Given two types A and B that are related in certain ways, DEVOID can search for
 and prove the relation between those types, then lift functions and proofs between them.

@@ -210,11 +210,7 @@ Fail Find ornament list vector_int as orn_list_vectorint.
  * that gets us from nat to Z first. And for some terms, this function
  * might be less obvious.
  *
- * The way to loosen this restriction a bit is to chain DEVOID with PUMPKIN PATCH.
- * Finding the relationship between vector and vector_int is very, very much
- * a PUMPKIN PATCH problem in the original style of PUMPKIN PATCH. I am very
- * excited to do this as part of my thesis work, and I was very excited when
- * I found this problem to begin with. But it's a hard problem.
+ * The way to loosen this restriction a bit is to chain DEVOID with (redacted).
  *)
 
 (* --- New hypotheses must be exactly the new index of the recursive references --- *)
