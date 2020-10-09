@@ -115,7 +115,7 @@ Qed.
  * This fails:
  * Find ornament list vector_int as orn_list_vectorint.
  *
- * For this to pass, we really need to chain it with PUMPKIN, because what
+ * For this to pass, we really need to chain it with (redacted), because what
  * is happening is we first need to find the patch that gets us from list
  * to vector, and then we need to get from that indexing function
  * to Z by searching for a patch. This is really cool.
