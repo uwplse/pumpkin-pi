@@ -177,7 +177,7 @@ Module CaseStudy (Elem : Comparable).
     (* --- Begin inputs --- *)
 
     (*
-     * We import these from DEVOID, that way we can measure the performance difference of
+     * We import these from CARROT, that way we can measure the performance difference of
      * only the lifted functions, controlling for the performance of lifted inputs (which is
      * slower in EFF) without clouding the results.
      *)
@@ -305,7 +305,7 @@ Module CaseStudy (Elem : Comparable).
       rewrite Equiv_tree_id. cbn. eapply Equiv_id.
     Defined.
 
-    (* --- Begin auto-generated equivalences from DEVOID --- *)
+    (* --- Begin auto-generated equivalences from CARROT --- *)
 
     (* EQUIV orn_size_index *)
     (* EQUIV orn_size *)
@@ -313,7 +313,7 @@ Module CaseStudy (Elem : Comparable).
     (* EQUIV orn_size_section *)
     (* EQUIV orn_size_retraction *)
  
-    (* --- End auto-generated equivalences from DEVOID --- *)
+    (* --- End auto-generated equivalences from CARROT --- *)
 
     Instance IsEquiv_orn_size : IsEquiv orn_size.
     Proof.
@@ -337,10 +337,10 @@ Module CaseStudy (Elem : Comparable).
 
     Definition orn_size_coh t : orn_size_inv (orn_size t) = t := e_sect orn_size t.
 
-    (* --- Begin automatically generated lifted inputs from DEVOID --- *)
+    (* --- Begin automatically generated lifted inputs from CARROT --- *)
 
     (*
-     * We import these from DEVOID, that way we can measure the performance difference of
+     * We import these from CARROT, that way we can measure the performance difference of
      * only the lifted functions, controlling for the performance of lifted inputs (which is
      * slower in EFF) without clouding the results.
      *)
@@ -367,7 +367,7 @@ Module CaseStudy (Elem : Comparable).
     (* INPUT tree80000-sized *)
     (* INPUT tree100000-sized *)
 
-    (* --- End automatically generated lifted inputs from DEVOID --- *)
+    (* --- End automatically generated lifted inputs from CARROT --- *)
 
     (* 38 LoC in normal form *)
     Definition preorder' : {n:nat & tree n} -> list Elem.t := ↑ Base.preorder.
@@ -517,7 +517,7 @@ Module CaseStudy (Elem : Comparable).
       econstructor. cbn. intros t t'. unfold univalent_transport. rewrite Equiv_bst_id. cbn. eapply Equiv_id.
     Defined.
 
-    (* --- Begin auto-generated equivalences from DEVOID --- *)
+    (* --- Begin auto-generated equivalences from CARROT --- *)
 
     (* EQUIV __orn_order_index *)
     (* EQUIV __orn_order *)
@@ -535,7 +535,7 @@ Module CaseStudy (Elem : Comparable).
     (* EQUIV orn_order_section *)
     (* EQUIV orn_order_retraction *)
  
-    (* --- End auto-generated equivalences from DEVOID --- *)
+    (* --- End auto-generated equivalences from CARROT --- *)
  
    Instance IsEquiv___orn_order : IsEquiv __orn_order.
     Proof.
@@ -597,10 +597,10 @@ Module CaseStudy (Elem : Comparable).
       - apply Canonical_eq_gen.
     Defined.
 
-    (* --- Begin automatically generated lifted inputs from DEVOID --- *)
+    (* --- Begin automatically generated lifted inputs from CARROT --- *)
 
     (*
-     * We import these from DEVOID, that way we can measure the performance difference of
+     * We import these from CARROT, that way we can measure the performance difference of
      * only the lifted functions, controlling for the performance of lifted inputs (which is
      * slower in EFF) without clouding the results.
      *)
@@ -648,7 +648,7 @@ Module CaseStudy (Elem : Comparable).
     (* INPUT tree10000-bst *)
     (* INPUT tree100000-bst *)
 
-    (* --- End automatically generated lifted inputs from DEVOID --- *)
+    (* --- End automatically generated lifted inputs from CARROT --- *)
 
     (* For consistency, follow the same process *)
     Definition __preorder'  : {lo:Elem.t & __bst lo} -> list Elem.t := ↑ Base.preorder.
@@ -749,7 +749,7 @@ Module CaseStudy (Elem : Comparable).
       rewrite Equiv_avl_id. cbn. eapply Equiv_id.
     Defined.
 
-    (* --- Begin auto-generated equivalences from DEVOID --- *)
+    (* --- Begin auto-generated equivalences from CARROT --- *)
 
     (* EQUIV _orn_balance_index *)
     (* EQUIV _orn_balance *)
@@ -762,7 +762,7 @@ Module CaseStudy (Elem : Comparable).
     (* EQUIV orn_balance_section *)
     (* EQUIV orn_balance_retraction *)
  
-    (* --- End auto-generated equivalences from DEVOID --- *)
+    (* --- End auto-generated equivalences from CARROT --- *)
 
     Instance IsEquiv__orn_balance (lo hi : Elem.t) (ord : bool) : IsEquiv (_orn_balance lo hi ord).
     Proof.
@@ -808,10 +808,10 @@ Module CaseStudy (Elem : Comparable).
       - apply Canonical_eq_gen.
     Defined.
 
-    (* --- Begin automatically generated lifted inputs from DEVOID --- *)
+    (* --- Begin automatically generated lifted inputs from CARROT --- *)
 
     (*
-     * We import these from DEVOID, that way we can measure the performance difference of
+     * We import these from CARROT, that way we can measure the performance difference of
      * only the lifted functions, controlling for the performance of lifted inputs (which is
      * slower in EFF) without clouding the results.
      *)
@@ -866,7 +866,7 @@ Module CaseStudy (Elem : Comparable).
     (* INPUT tree10000-avl *)
     (* INPUT tree100000-avl *)
 
-    (* --- End automatically generated lifted inputs from DEVOID --- *)
+    (* --- End automatically generated lifted inputs from CARROT --- *)
 
     Definition _preorder' lo hi ord : {n : nat & _avl lo hi ord n} -> list Elem.t :=
       ↑ (@Ordered.preorder lo hi ord).

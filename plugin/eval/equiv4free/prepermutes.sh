@@ -26,7 +26,7 @@ mkdir ../out/equivalences
 mkdir ../out/normalized
 cp main.v main2.v
 
-# Remake DEVOID case study code exactly once, to print terms
+# Remake CARROT case study code exactly once, to print terms
 cd ..
 make clean
 make

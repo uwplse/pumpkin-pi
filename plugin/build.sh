@@ -5,7 +5,7 @@ echo "building dependencies"
 cd deps/fix-to-elim/plugin
 ./build.sh
 cd ../../..
-echo "building DEVOID"
+echo "building CARROT"
 
 coq_makefile -f _CoqProject -o Makefile
 make clean && make && make install

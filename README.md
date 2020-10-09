@@ -1,9 +1,9 @@
-This is DEVOID, a plugin for automatic discovery of and lifting across 
+This is CARROT, a plugin for automatic discovery of and lifting across 
 certain equivalences between types in Coq.
-DEVOID is a part of one of the author's past projects, a 
+CARROT is a part of one of the author's past projects, a 
 proof repair plugin suite, and is included as a dependency of that project.
 
-Given two types A and B that are related in certain ways, DEVOID can search for
+Given two types A and B that are related in certain ways, CARROT can search for
 and prove the relation between those types, then lift functions and proofs between them.
 The following relations are currently supported automatically:
 
@@ -16,31 +16,31 @@ swapping constructor order and renaming constructors
 4. **Escaping Sigma Types**: the type B (like `vector T n`) is the type A (like `{ s : sigT (vector T) & projT1 s = n}`) 
 escaping the sigma type
 
-In general, DEVOID can lift functions and proofs across **any equivalence that can be described by a configuration with a certain form**.
+In general, CARROT can lift functions and proofs across **any equivalence that can be described by a configuration with a certain form**.
 For change that don't fall into the above four buckets, you need to supply the configuration for that equivalence yourself.
 This is not yet documented here due to time constraints (I promise I will document it soon).
 For now, check out two examples: switching between unary and binary natural numbers [here](/plugin/coq/nonorn.v),
 and an easier refactoring of constructors [here](redacted).
 
-# Getting Started with DEVOID
+# Getting Started with CARROT
 
 This section of the README is a getting started guide for users.
 Please report any issues you encounter to GitHub issues, and please feel free to reach out with questions.
 
-## Building DEVOID
+## Building CARROT
 
-The only dependency you need to install yourself in order to use DEVOID is Coq 8.8. 
-DEVOID also depends on a
+The only dependency you need to install yourself in order to use CARROT is Coq 8.8. 
+CARROT also depends on a
 [Coq plugin library](redacted) which is included
 as a submodule automatically in the build script,
-and on the [fix-to-elim](redacted) plugin, which is also included. To build DEVOID, run these commands:
+and on the [fix-to-elim](redacted) plugin, which is also included. To build CARROT, run these commands:
 
 ```
 cd plugin
 ./build.sh
 ```
 
-## Using DEVOID
+## Using CARROT
 
 For an overview of how to use the tool, see [Example.v](/plugin/coq/examples/Example.v)
 and [minimal_records.v](/plugin/coq/minimal_records.v).
@@ -51,9 +51,9 @@ At a high level, there are two main commands: `Find ornament` to search for equi
 and `Lift` (or `Repair` for tactic support) to lift along those equivalences. `Find ornament` supports two additional options
 to increase user confidence and to make the functions that it generates more useful.
 If you skip running the `Find ornament` command and just run `Lift`,
-then DEVOID will run `Find ornament` for you automatically first.
+then CARROT will run `Find ornament` for you automatically first.
 
-In addition, there are a few commands that help make DEVOID more useful: `Preprocess`
+In addition, there are a few commands that help make CARROT more useful: `Preprocess`
 for pattern matching and fixpoint support, and `Unpack` to help recover more user-friendly types.
 The `Preprocess` command comes from our plugin
 [fix-to-elim](redacted).
@@ -91,14 +91,14 @@ By default, these options are disabled.
 Together, setting these two options tells `Find ornament` to prove that its outputs are correct.
 
 ```
-Set DEVOID search prove coherence.
+Set CARROT search prove coherence.
 ```
 
 For algebraic ornaments, this option tells `Find ornament` to additionally generate a proof `A_to_B_coh` that shows that
 `A_to_B_index` computes the left projection of applying `A_to_B`.
 
 ```
-Set DEVOID search prove equivalence.
+Set CARROT search prove equivalence.
 ```
 
 This option tells `Find ornament` to generate proofs `A_to_B_section` and `A_to_B_retraction` that
@@ -121,14 +121,14 @@ You can also use this to substitute in a different equivalence for an existing o
 are some restrictions here on what is possible. See [ListToVectCustom.v](/plugin/coq/examples/ListToVectCustom.v)
 for more information.
 
-You can also skip one of promote or forget, provide just one, and let DEVOID find the other for certain search procedures, for example:
+You can also skip one of promote or forget, provide just one, and let CARROT find the other for certain search procedures, for example:
 
 ```
 Save ornament A B { promote = f }.
 ```
 
 This is especially useful when there are many possible equivalences and you'd like to use a particular one,
-but let DEVOID figure out the rest. See [Swap.v](/plugin/coq/Swap.v) for examples of this.
+but let CARROT figure out the rest. See [Swap.v](/plugin/coq/Swap.v) for examples of this.
 
 To use a custom equivalence not at all supported by one of the four search procedures, like switching between unary and binary natural numbers,
 check out two examples [here](/plugin/coq/nonorn.v) and [here](redacted).
@@ -137,17 +137,17 @@ We will document them soon!
 
 ##### Ambiguity 
 
-Sometimes, DEVOID finds multiple possible equivalences. With swapping constructors in particular, there can
+Sometimes, CARROT finds multiple possible equivalences. With swapping constructors in particular, there can
 be an exponential number of possible equivalences.
 
-In the case of ambiguity, DEVOID presents up to the first 50 possible
+In the case of ambiguity, CARROT presents up to the first 50 possible
 options for the user (in a smart order), presents this as an error, and gives instructions for the user to
 provide more information to `Find ornament` in the next iteration. If the equivalence you want is not in the
 first 50 candidates, please use `Save ornament`. See [Swap.v](/plugin/coq/Swap.v) for examples of both of these.
 
 ##### Tactic Support
 
-DEVOID produces tactic suggestions for all proofs that `Find ornament` finds.
+CARROT produces tactic suggestions for all proofs that `Find ornament` finds.
 These are experimental, especially with dependent types, but may help you work with tactic proofs about equivalences.
 
 #### Lift and Repair
@@ -162,7 +162,7 @@ Lift A B in f as g.
 ``` 
 
 This command lifts a function or proof `f` along the discovered relation.
-DEVOID must be able to find an ornament between `A` and `B` for this
+CARROT must be able to find an ornament between `A` and `B` for this
 command to work. If you have already called `Find ornament` on `A` and `B`,
 it will use the discovered ornament; otherwise, it will search for an
 ornament first.
@@ -200,12 +200,12 @@ These tactic suggestions are experimental, but may help you with workflow integr
 
 ##### Prettier Types
 
-By default, DEVOID lets Coq infer the types of lifted terms. You can 
-instead tell DEVOID to lift the types (these are typically prettier)
+By default, CARROT lets Coq infer the types of lifted terms. You can 
+instead tell CARROT to lift the types (these are typically prettier)
 if you set the following function:
 
 ```
-Set DEVOID lift type.
+Set CARROT lift type.
 ```
 
 ##### Opaque Terms
@@ -218,7 +218,7 @@ Lift A B in f as g { opaque constant1 constant2 ... }.
 ``` 
 
 This can make lifting much faster.
-It is **strongly advisable** to do this for certain terms that you know DEVOID
+It is **strongly advisable** to do this for certain terms that you know CARROT
 should never reduce.
 However, this can also cause unpredictable errors if your assumption is incorrect,
 so be careful about your assumption.
@@ -234,11 +234,11 @@ You can find an example of this in [more_records.v](/plugin/coq/more_records.v).
 
 ##### Caching
 
-DEVOID by default caches all lifted terms it encounters as it goes in order to save time.
+CARROT by default caches all lifted terms it encounters as it goes in order to save time.
 You can disable this if you'd like by running this command:
 
 ```
-Unset DEVOID smart cache. 
+Unset CARROT smart cache. 
 ```
 
 #### Additional Functionality
@@ -280,7 +280,7 @@ that are very user friendly, check out the methodology in
 set the following option:
 
 ```
-Set DEVOID search smart eliminators.
+Set CARROT search smart eliminators.
 ```
 
 This generates a useful induction principle. Using that induction princple and composing
@@ -289,7 +289,7 @@ particular index, with much nicer type signatures.
 
 ### Assumptions
 
-DEVOID makes some assumptions about your terms and types for now (described in Section 3 of the paper).
+CARROT makes some assumptions about your terms and types for now (described in Section 3 of the paper).
 [Assumptions.v](/plugin/coq/examples/Assumptions.v) describes these assumptions in more detail
 and gives examples of unsupported terms and types.
 Note that the assumptions for records and tuples are not yet documented, since
@@ -397,7 +397,7 @@ Run the following script:
 ```
 
 The script takes a while, as it runs each function ten times each
-on large data both for DEVOID and for EFF.
+on large data both for CARROT and for EFF.
 When it is done, check the `results` folder for the median runtimes as well as the size of reduced functions.
 This also does a sanity check to make sure both versions of the code produce the same output.
 It does not yet try to reduce the proof of `pre_permutes` using EFF,
@@ -425,8 +425,8 @@ This should take a while (how long depends on your architecture) and produce a v
 ## Understanding the Case Study Code
 
 The code for the case study is in the [eval](/plugin/eval) folder.
-The case study uses the same exact input datatypes for both DEVOID and EFF,
-copying and pasting in the inputs, lifted functions, and equivalences DEVOID produces to run on the dependencies of EFF.
+The case study uses the same exact input datatypes for both CARROT and EFF,
+copying and pasting in the inputs, lifted functions, and equivalences CARROT produces to run on the dependencies of EFF.
 The reasons for copying the inputs are that EFF has different
 Coq dependencies, so the base functions perform differently. In addition, lifting constants with EFF additionally slows down 
 performance, and we would like to control for only the performance of lifted functions, which is easiest to understand.
@@ -462,11 +462,11 @@ Transparency is very important to me and my coauthors. My goal is not just to pr
 but also to demonstrate ideas that other people can use in their tools.
 
 Some information for transparency is in the paper:
-Section 4 discusses the core algorithms that DEVOID implements, and
+Section 4 discusses the core algorithms that CARROT implements, and
 section 5 discusses a sample of implementation challenges.
 
 This part of the README is here to complement that. It describes the structure of the code a bit. It should also help if you are interested in contributing
-to DEVOID, or if you are interested in using some of the libraries from DEVOID in your code.
+to CARROT, or if you are interested in using some of the libraries from CARROT in your code.
 
 ## Understanding the Code
 
@@ -479,7 +479,7 @@ Please also feel free to ask if you are confused about anything that the code do
   - [test.sh](/plugin/coq/test.sh): Test script
   - [coq](/plugin/coq): Tests and paper examples
     - [examples](/plugin/coq/examples): Paper examples (see paper examples section of this document for details)
-    - [playground](/plugin/coq/playground): Preliminary thoughts on useful theory for later extensions to DEVOID
+    - [playground](/plugin/coq/playground): Preliminary thoughts on useful theory for later extensions to CARROT
     - [Indtype.v](/plugin/coq/Indtype.v): Lifting tests for inductive relations
     - [Infrastructure.v](/plugin/coq/Infrastructure.v): Testing infrastructure
     - [ShouldFail.v](/plugin/coq/ShouldFail.v): Tests that should currently fail
@@ -503,7 +503,7 @@ Please also feel free to ask if you are confused about anything that the code do
     - [Makefile](/plugin/eval/Makefile)
     - [cast.v](/plugin/eval/cast.v)
     - [lemmas.v](/plugin/eval/lemmas.v)
-    - [main.v](/plugin/eval/main.v): Main DEVOID case study code
+    - [main.v](/plugin/eval/main.v): Main CARROT case study code
     - [times.sed](/plugin/eval/times.sed): Script to format times
     - [together.sh](/plugin/eval/together.sh): Main case study script
   - [deps](/plugin/deps): Depedencies
@@ -528,11 +528,11 @@ Please also feel free to ask if you are confused about anything that the code do
     - [options.ml](/plugin/src/options.ml) and [options.mli](/plugin/src/options.mli): Definitions of and access to options
     - [ornamental.ml4](/plugin/src/ornamental.ml4): **Top-level source file**
     - [ornaments.mlpack](/plugin/src/ornaments.mlpack)
-  - [theories](/plugin/theories): DEVOID theories
+  - [theories](/plugin/theories): CARROT theories
     - [Adjoint.v](/plugin/theories/Adjoint.v): Turning equivalences into adjoint equivalences
     - [Prod.v](/plugin/theories/Prod.v): Preprocessed projections of pairs
     - [Eliminators.v](/plugin/theories/Eliminators.v): **Generalized smart eliminators for user-friendly types**
-    - [Ornaments.v](/plugin/theories/Ornaments.v): Loader theory for DEVOID
+    - [Ornaments.v](/plugin/theories/Ornaments.v): Loader theory for CARROT
     - [Unpack.v](/plugin/theories/Unpack.v): **Unpacking terms** (Ltac tactic)
 * [.gitignore](/.gitignore)
 * [README.md](/README.md)
@@ -545,17 +545,17 @@ The test script in the [plugin](/plugin) directory runs all of the regression te
 ./test.sh
 ```
 
-After making a change to DEVOID, you should always run this. You should
+After making a change to CARROT, you should always run this. You should
 also run the case study scripts to check performance.
 
 ## Licensing and Attribution
 
-DEVOID is MIT licensed, since I have a very strong preference for the MIT license and
+CARROT is MIT licensed, since I have a very strong preference for the MIT license and
 since I believe I do not need to use Coq's LGPL when writing language plugins.
 This interpretation might be wrong, though, so I suppose you should tread lightly.
 If you are an expert in licensing, definitely let me know if this is wrong.
 
-Regardless, I would like DEVOID to be used freely by anyone for any purpose.
-All I ask for is attribution, especially in any papers that you publish that use DEVOID
-or any of its code. Please cite the ITP paper when referring to DEVOID in those papers.
+Regardless, I would like CARROT to be used freely by anyone for any purpose.
+All I ask for is attribution, especially in any papers that you publish that use CARROT
+or any of its code. Please cite the ITP paper when referring to CARROT in those papers.
 

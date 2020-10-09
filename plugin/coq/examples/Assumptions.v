@@ -210,7 +210,7 @@ Fail Find ornament list vector_int as orn_list_vectorint.
  * that gets us from nat to Z first. And for some terms, this function
  * might be less obvious.
  *
- * The way to loosen this restriction a bit is to chain DEVOID with (redacted).
+ * The way to loosen this restriction a bit is to chain CARROT with (redacted).
  *)
 
 (* --- New hypotheses must be exactly the new index of the recursive references --- *)

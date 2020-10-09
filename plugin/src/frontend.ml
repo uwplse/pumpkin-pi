@@ -57,10 +57,10 @@ let define_print ?typ n trm sigma =
         define_term n sigma trm true
     in
     Feedback.msg_info
-      (str (Printf.sprintf "DEVOID generated %s" (Id.to_string n)));
+      (str (Printf.sprintf "CARROT generated %s" (Id.to_string n)));
     def
   with Evarutil.Uninstantiated_evar _ ->
-    CErrors.user_err (str "DEVOID does not fully support implicit arguments")
+    CErrors.user_err (str "CARROT does not fully support implicit arguments")
 
 let suggest_tactic_script env trm_ref opts sigma =
   let trm = match trm_ref with
@@ -367,7 +367,7 @@ let lift_inductive_by_ornament env sigma n s l c_old ignores is_lift_module =
     let ind, _ = destInd c_old in
     let ind' = do_lift_ind env sigma l n s ind ignores is_lift_module in
     let env' = Global.env () in
-    Feedback.msg_info (str "DEVOID generated " ++ pr_inductive env' ind');
+    Feedback.msg_info (str "CARROT generated " ++ pr_inductive env' ind');
     ind'
   with
   | PretypeError (env, sigma, err) ->

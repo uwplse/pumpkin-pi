@@ -28,7 +28,7 @@ let err_save_ornament = Pp.str "Failed to save ornament."
 
 let err_unexpected_change expected_kind =
   Pp.seq
-    [Pp.str "DEVOID expected an ";
+    [Pp.str "CARROT expected an ";
      Pp.str expected_kind;
      Pp.str "."]
 
@@ -41,7 +41,7 @@ let err_opaque_not_constant qid =
 
 let err_type env sigma err =
   Pp.seq
-    [Pp.str "DEVOID tried to produce a term that is not well-typed. ";
+    [Pp.str "CARROT tried to produce a term that is not well-typed. ";
      Pp.str "Coq gave us this scary looking error:\n";
      Pp.fnl ();
      explain_pretype_error env sigma err;
@@ -68,7 +68,7 @@ let err_ambiguous_swap env num_solutions swap_maps sigma =
        Pp.fnl ()]
   in
   Pp.seq
-    [Pp.str "DEVOID found ";
+    [Pp.str "CARROT found ";
      Pp.str num_solutions;
      Pp.str " possible mappings for constructors. ";
      Pp.str "Showing up to the first 50:";
@@ -76,7 +76,7 @@ let err_ambiguous_swap env num_solutions swap_maps sigma =
      Pp.seq (List.mapi print_swap_map swap_maps);
      Pp.fnl ();
      Pp.str "Please choose the mapping you'd like to use. ";
-     Pp.str "Then, pass that to DEVOID by calling `Find ornament` again. ";
+     Pp.str "Then, pass that to CARROT by calling `Find ornament` again. ";
      Pp.str "For example: `Find ornament old new { mapping 0 }`. ";
      Pp.str "If the mapping you want is not in the 50 shown, ";
      Pp.str "please pass the mapping to `Save ornament` instead."]

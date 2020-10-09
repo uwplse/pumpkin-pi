@@ -37,12 +37,12 @@ open Indexing
  *    we just return the cached lifted term. This carries the cached
  *    lifted term.
  *
- * 3. OpaqueConstant: When a user uses the opaque option for DEVOID for a given
+ * 3. OpaqueConstant: When a user uses the opaque option for CARROT for a given
  *    constant, we do not delta-reduce that constant.
  *    Note that this is different from Coq's notion of "opaque"; we may
  *    delta-reduce constants marked as opaque to the rest of Coq, and we may
  *    consider a constant opaque when Coq does not. It depends only on the
- *    user setting this particular option for DEVOID.
+ *    user setting this particular option for CARROT.
  *
  * 4. SimplifyProjectId: When we see projections of lifted eta-expanded identity
  *    terms (for example, projT1 (existT ...)), we reduce eagerly rather than
@@ -117,9 +117,9 @@ type lift_rule =
 (* --- Termination conditions --- *)
 
 (*
- * DEVOID supports some equivalences where the the type B refers in some
+ * CARROT supports some equivalences where the the type B refers in some
  * way to the type A. Work support these equivalences is preliminary,
- * but the way that DEVOID currently handles this is by threading the
+ * but the way that CARROT currently handles this is by threading the
  * history of the lifting operation through each recursive call.
  * When appropriate, based on the history, for certain rules,
  * certain termination conditions fire. If those conditions fire, we

@@ -76,7 +76,7 @@ Set DEVOID search prove equivalence.
 Set DEVOID lift type.
 
 (*
- * This option tells DEVOID to generate an induction principle that
+ * This option tells CARROT to generate an induction principle that
  * will be useful later:
  *)
 Set DEVOID search smart eliminators.
@@ -182,14 +182,14 @@ Preprocess Module hs_to_coq_lengths' as hs_to_coq_lengths { opaque Datatypes Log
  * Once we have the length proofs, we write the proofs
  * about { l : list T & length l = n }. To do this,
  * it's useful to have a nice induction principle,
- * which DEVOID generated since we set the "smart elims" option (new since ITP 2019)
+ * which CARROT generated since we set the "smart elims" option (new since ITP 2019)
  * (the name of this will always be the name of your promote function
  * followed by _rect):
  *)
 Definition packed_list_rect := hs_to_coqV_p.list_to_t_rect.
 Check packed_list_rect.
 (*
- * TECHNICAL NOTE: DEVOID for now makes some assumptions
+ * TECHNICAL NOTE: CARROT for now makes some assumptions
  * about the format here. Try not to run "induction" on terms of type
  * { l : list T & length l = n } directly, and instead try to 
  * use this induction principle. I'm working on relaxing this
@@ -293,7 +293,7 @@ Check packed_vector.zip_with_is_zip.
  * Finally, we can get from { s : sigT (vector T) & projT1 s = n} to unpacked vectors
  * at the index we want very easily.
  *
- * First we define a constant for { s : sigT (vector T) & projT1 s = n}, since DEVOID needs
+ * First we define a constant for { s : sigT (vector T) & projT1 s = n}, since CARROT needs
  * this for caching.
  *)
 Definition packed T n := { s : sigT (vector T) & projT1 s = n}.
@@ -316,7 +316,7 @@ Check uf.zip_with_is_zip.
 
 (*
  * TECHNICAL NOTE: For this particular example, interestingly, doing these by hand
- * without DEVOID, it's possible to construct functions such that the proof
+ * without CARROT, it's possible to construct functions such that the proof
  * of uf.zip_with_is_zipV goes through by reflexivity. However, these
  * are not the analogues of the functions included in the hs_to_coq module
  * (note that the proof using reflexivity does not work for them either).
@@ -335,7 +335,7 @@ Definition BVand' {n : nat} (v1 : vector bool n) (v2 : vector bool n) : vector b
  * We can use suggested tactics to get tactic scripts, but (as noted)
  * since they struggle with dependent types, we need to do a _lot_ of tweaking
  * right now. Still, let's do it using the suggested tactics and the terms
- * DEVOID has generated. These won't give exactly the same proof terms,
+ * CARROT has generated. These won't give exactly the same proof terms,
  * but we're OK with that.
  *
  * For zip:

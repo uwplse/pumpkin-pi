@@ -1,5 +1,5 @@
 (*
- * DEVOID supports swapping and renaming constructors!
+ * CARROT supports swapping and renaming constructors!
  * Here are some examples.
  *)
 

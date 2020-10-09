@@ -83,7 +83,7 @@ Lift Module Generated'.output Handwritten'.output in Temp1 as Handwritten''.
  * If you lift in the opposite order, for op, you get something well-typed but with
  * a type you don't even want. So for now when one type definition you lift along
  * is a subterm of another type definition you lift along, you will need to start
- * with the bigger one and then tell DEVOID to treat the lifted projections as opaque.
+ * with the bigger one and then tell CARROT to treat the lifted projections as opaque.
  * Really interesting WIP on handling this better without so much work for the user.
  *
  * See: [redacted]

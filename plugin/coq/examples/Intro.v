@@ -1,5 +1,5 @@
 (*
- * Section 1 Example, using DEVOID
+ * Section 1 Example, using CARROT
  *)
 
 Require Import Vector.

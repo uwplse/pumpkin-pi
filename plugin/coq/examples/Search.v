@@ -69,9 +69,9 @@ Notation forget l := (ltv_inv _ l).
 
 (*
  * Since we set the "prove coherence" and "prove equivalence" options,
- * DEVOID generated coherence, section, and retraction proofs. Here I
+ * CARROT generated coherence, section, and retraction proofs. Here I
  * simply restate them and show that the generated terms are correct.
- * These automatically generated proofs show that the components DEVOID
+ * These automatically generated proofs show that the components CARROT
  * found form the ornamental promotion isomorphism between lists and vectors.
  *
  * Coherence follows by construction, while section and retraction each
