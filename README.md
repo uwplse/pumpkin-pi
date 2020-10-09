@@ -20,7 +20,7 @@ In general, DEVOID can lift functions and proofs across **any equivalence that c
 For change that don't fall into the above four buckets, you need to supply the configuration for that equivalence yourself.
 This is not yet documented here due to time constraints (I promise I will document it soon).
 For now, check out two examples: switching between unary and binary natural numbers [here](/plugin/coq/nonorn.v),
-and an easier refactoring of constructors [here](https://github.com/uwplse/ornamental-search/blob/master/plugin/coq/playground/constr_refactor.v).
+and an easier refactoring of constructors [here](redacted).
 
 # Getting Started with DEVOID
 
@@ -31,9 +31,9 @@ Please report any issues you encounter to GitHub issues, and please feel free to
 
 The only dependency you need to install yourself in order to use DEVOID is Coq 8.8. 
 DEVOID also depends on a
-[Coq plugin library](https://github.com/uwplse/coq-plugin-lib) which is included
+[Coq plugin library](redacted) which is included
 as a submodule automatically in the build script,
-and on the [fix-to-elim](https://github.com/uwplse/fix-to-elim) plugin, which is also included. To build DEVOID, run these commands:
+and on the [fix-to-elim](redacted) plugin, which is also included. To build DEVOID, run these commands:
 
 ```
 cd plugin
@@ -56,7 +56,7 @@ then DEVOID will run `Find ornament` for you automatically first.
 In addition, there are a few commands that help make DEVOID more useful: `Preprocess`
 for pattern matching and fixpoint support, and `Unpack` to help recover more user-friendly types.
 The `Preprocess` command comes from our plugin
-[fix-to-elim](https://github.com/uwplse/coq-plugin-lib).
+[fix-to-elim](redacted).
 There is also work in progress on a general methodology (which will hopefully be automated in
 the future) to get even more user-friendly types.
 
@@ -131,7 +131,7 @@ This is especially useful when there are many possible equivalences and you'd li
 but let DEVOID figure out the rest. See [Swap.v](/plugin/coq/Swap.v) for examples of this.
 
 To use a custom equivalence not at all supported by one of the four search procedures, like switching between unary and binary natural numbers,
-check out two examples [here](/plugin/coq/nonorn.v) and [here](https://github.com/uwplse/ornamental-search/blob/master/plugin/coq/playground/constr_refactor.v).
+check out two examples [here](/plugin/coq/nonorn.v) and [here](redacted).
 These examples set manual configuration and essentially skip the search procedure.
 We will document them soon!
 
@@ -261,7 +261,7 @@ Lift A B in f as g.
 ```
 
 You can also run `Preprocess` on an entire module; see [ListToVect.v](/plugin/coq/examples/ListToVect.v)
-for an example of this. See the [fix-to-elim](https://github.com/uwplse/coq-plugin-lib) plugin
+for an example of this. See the [fix-to-elim](redacted) plugin
 for more functionality for `Preprocess`.
 
 ##### User-Friendly Types
@@ -301,12 +301,9 @@ you would like to see supported so that we can prioritize accordingly.
 
 ### Known Issues
 
-Please see our GitHub [issues](https://github.com/uwplse/ornamental-search/issues) before reporting a bug
-(though please do report any bugs not listed there).
-
 One outstanding issue (an unimplemented optimization) has consequences for how we lift and unpack large
 constants compositionally. For now, for large constants, you should prefer lifting several times and then unpacking
-the result several times over iteratively lifting and unpacking. See [this issue](https://github.com/uwplse/ornamental-search/issues/44).
+the result several times over iteratively lifting and unpacking. See [this issue](redacted).
 
 There are also still some open questions about eta expansion and definitional equality. Practically, from a user's perspective,
 that means that lifting may sometimes fail with mysterious type errors for types that look almost but not quite correct.
@@ -510,9 +507,9 @@ Please also feel free to ask if you are confused about anything that the code do
     - [times.sed](/plugin/eval/times.sed): Script to format times
     - [together.sh](/plugin/eval/together.sh): Main case study script
   - [deps](/plugin/deps): Depedencies
-    - [fix-to-elim](/plugin/src/fix-to-elim): **Preprocessing** with the [fix-to-elim](https://github.com/uwplse/coq-plugin-lib) plugin
+    - [fix-to-elim](/plugin/src/fix-to-elim): **Preprocessing** with the [fix-to-elim](redacted) plugin
   - [src](/plugin/src): Source directory
-    - [coq-plugin-lib](/plugin/src/coq-plugin-lib): [Coq plugin library](https://github.com/uwplse/coq-plugin-lib)
+    - [coq-plugin-lib](/plugin/src/coq-plugin-lib): [Coq plugin library](redacted)
     - [lib](/plugin/src/lib): Internal library
     - [automation](/plugin/src/automation): Automation directory
       - [search](/plugin/src/automation/search): **Search**

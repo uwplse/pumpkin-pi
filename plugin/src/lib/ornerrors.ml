@@ -102,7 +102,7 @@ let workaround suggestions =
 (* --- Suggestion to read the FAQ --- *)
 
 let read_faq =
-  Pp.str "Please see the README in uwplse/ornamental-search for more information."
+  Pp.str "Please see the README in redacted for more information."
 
 (* --- Reasons to cut an issue --- *)
 
@@ -114,7 +114,7 @@ let cut_issue reasons =
   Pp.seq
     [Pp.str "If ";
      Pp.prlist_with_sep (fun _ -> Pp.str ", or if ") id reasons;
-     Pp.str ", then please cut an issue in the uwplse/ornamental-search repository."]
+     Pp.str ", then please cut an issue in the [redacted] repository."]
 
 (* --- Putting these together --- *)
     

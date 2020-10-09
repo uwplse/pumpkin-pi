@@ -525,7 +525,7 @@ Proof. reflexivity. Defined.
 (* --- Regressing the bug Nate caught with LIFT-PACK and variables --- *)
 
 (*
- * See: https://github.com/uwplse/ornamental-search/issues/14
+ * See: redacted
  *)
 
 Lemma tl_ok:

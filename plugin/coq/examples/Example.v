@@ -92,7 +92,7 @@ Repair Module list vector in hs_to_coq as hs_to_coqV_p.
  * we modify the suggestion in the paper.
  *
  * Please also note this regression bug that makes terms and types uglier than usual
- * (though still correct): https://github.com/uwplse/pumpkin-pi/issues/84
+ * (though still correct): redacted
  *)
 
 (*
