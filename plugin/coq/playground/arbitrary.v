@@ -86,6 +86,7 @@ Lemma iota_B_aux_gen:
 Proof.
   intros P a f0. unfold dep_elim_B. 
   unfold dep_constr_A_0. unfold dep_constr_B_0. unfold eta_B.
+  unfold dep_constr_B_0 in *.
   admit. (* unsure how to solve, if possible *)
 Admitted.
 
@@ -101,7 +102,6 @@ Lemma iota_B_0 :
     Q (f0 a).
 Proof.
   intros. unfold dep_elim_B in X. unfold eta_B in X. unfold dep_constr_B_0 in X.
-  pose proof (iota_B_aux a).
   rewrite <- iota_B_aux_gen. apply X.
 Defined.
 
