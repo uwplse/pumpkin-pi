@@ -61,7 +61,7 @@ Definition f' (a : A) : B :=
   dep_elim_A (fun _ => B) (fun a => dep_constr_B_0 a) a.
 
 Definition g' (b : B) : A :=
-  dep_elim_B (fun _ => A) (fun b => dep_constr_A_0 b) b.
+  dep_elim_B (fun _ => A) (fun a => dep_constr_A_0 a) b.
 
 Lemma section' (a : A) : g' (f' a) = a.
 Proof.
