@@ -1,5 +1,11 @@
 (*
- * I wonder...
+ * ANY equivalence can be expressed by a configuration. Here is a proof!
+ *
+ * However, this does not necessarily imply _usefulness_ of the transformation
+ * for every equivalence---note that the trivial construction of the equivalence
+ * does not remove references to the old type entirely.
+ * In particular, dep_elim_B rewrites by retraction.
+ * Though these occurrences may reduce away later.
  *)
 Require Import Coq.Program.Tactics.
 Require Import Ornamental.Ornaments.
@@ -15,9 +21,13 @@ Parameter g : B -> A.
 Parameter section : forall (a : A), g (f a) = a.
 Parameter retraction : forall (b : B), f (g b) = b.
 
-Definition retraction_adjoint := Adjoint.fg_id' f g section retraction.
-
+(*
+ * We don't want to lift this, so later we'll set it as opaque.
+ * For now redefine it to make this clear.
+ *)
 Definition ignore_A := A.
+
+(* --- Defining a configuration for the arbitrary equivalence --- *)
 
 (*
  * Then we get:
@@ -56,44 +66,37 @@ Proof.
 Defined.
 
 (* 
- * This one we can always do:
+ * For iota over B, we use a modified version of Gaëtan Gilbert's proof,
+ * using the adjunction machinery that Jasper Hugunin proved for us a
+ * while ago. Without Gaëtan's help, I wouldn't have understood how to
+ * use this.
  *)
-Lemma iota_B_aux:
-  forall a,
-    dep_elim_B 
-      (fun _ : B => A)
-      (fun a0 : A => dep_constr_A_0 a0)
-      (dep_constr_B_0 a)
-    =
-    dep_constr_A_0 a.
+Definition section_adjoint := Adjoint.fg_id' g f retraction section.
+
+Lemma is_adjoint (a : A) : retraction (f a) = f_equal f (section_adjoint a).
 Proof.
-  intros a. unfold dep_elim_B. 
-  unfold dep_constr_A_0. unfold dep_constr_B_0. unfold eta_B.
-  rewrite retraction.
-  apply section.
+  apply Adjoint.g_adjoint.
 Defined.
-(*
- * But?
- *)
+
 Lemma iota_B_aux_gen:
   forall (P : B -> Type) (a : A) (f0 : forall (a : A), P (dep_constr_B_0 a)),
-    dep_elim_B 
+    dep_elim_B
       P
       (fun a0 : A => f0 a0)
       (dep_constr_B_0 a)
     =
     f0 a.
 Proof.
-  intros P a f0. unfold dep_elim_B. 
+  intros P a f0. unfold dep_elim_B.
   unfold dep_constr_A_0. unfold dep_constr_B_0. unfold eta_B.
-  admit. (* unsure how to solve, if possible *)
-Admitted.
+  unfold dep_constr_B_0 in *.
+  rewrite is_adjoint.
+  destruct (section_adjoint a).
+  reflexivity.
+Defined.
 
 (*
- * Can we always do that one??? I don't know!
- * But it's the remaining proof obligation (paper probably should clarify this better for
- * the base case). So we can construct _some_ configuration from an equivalence
- * if and only if we can prove this.
+ * Then we get:
  *)
 Lemma iota_B_0 :
   forall (P : B -> Type) (f0 : forall (a : A), P (dep_constr_B_0 a)) (a : A) (Q : P (dep_constr_B_0 a) -> Type),
@@ -101,9 +104,10 @@ Lemma iota_B_0 :
     Q (f0 a).
 Proof.
   intros. unfold dep_elim_B in X. unfold eta_B in X. unfold dep_constr_B_0 in X.
-  pose proof (iota_B_aux a).
   rewrite <- iota_B_aux_gen. apply X.
 Defined.
+
+(* --- Proving the induced equivalence --- *)
 
 (*
  * These should form their own equivalence:
@@ -145,4 +149,6 @@ Proof.
   apply (iota_B_0 (fun _ => A) (fun a0 : A => dep_constr_A_0 a0) a).
   reflexivity.
 Defined.
+
+(* --- Using the configuration --- *)
 

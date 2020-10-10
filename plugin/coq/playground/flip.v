@@ -124,7 +124,7 @@ End Over_A.
 Lift A B in dep_constr_A_0 as dep_constr_A_0_lifted { opaque ignore_A }.
 
 Lift Module A B in Over_A as Over_B.
-Check Over_B.from_t3_explicit.
+Print Over_B.from_t3_explicit.
 (* Over_B.from_t3_explicit
      : T3 -> B *)
 
