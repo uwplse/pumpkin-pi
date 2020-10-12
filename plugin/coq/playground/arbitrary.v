@@ -1,11 +1,5 @@
 (*
  * ANY equivalence can be expressed by a configuration. Here is a proof!
- *
- * However, this does not necessarily imply _usefulness_ of the transformation
- * for every equivalence---note that the trivial construction of the equivalence
- * does not remove references to the old type entirely.
- * In particular, dep_elim_B rewrites by retraction.
- * Though these occurrences may reduce away later.
  *)
 Require Import Coq.Program.Tactics.
 Require Import Ornamental.Ornaments.
@@ -152,3 +146,92 @@ Defined.
 
 (* --- Using the configuration --- *)
 
+(*
+ * We can then transform functions and proofs using this equivalence.
+ * However, this does not necessarily imply _usefulness_ of the transformation
+ * for every equivalence---note that the trivial construction of the equivalence
+ * does not remove references to the old type entirely.
+ * In particular, dep_constr_B applies f, and dep_elim_B rewrites by retraction.
+ * Though these occurrences may reduce away later.
+ *)
+
+(*
+ * First we save the equivalence:
+ *)
+Save equivalence A B { promote = f'; forget = g' }.
+Configure Lift A B {
+  constrs_a = dep_constr_A_0;
+  constrs_b = dep_constr_B_0;
+  elim_a = dep_elim_A;
+  elim_b = dep_elim_B;
+  eta_a = eta_A;
+  eta_b = eta_B;
+  iota_a = iota_A_0;
+  iota_b = iota_B_0
+}.
+
+(*
+ * Same note from flip.v: Note that since we don't have unification
+ * heuristics for custom equivalences, for now we'll need to represent the configuration
+ * terms explicitly everywhere. And also because the transformation tries to transform
+ * _everything_ that matches, but our dependent constructors take B and A respectively as
+ * inputs, we need to baby the transformation into understanding when _not_ to lift a B.
+ *
+ * So the answer here is: we can handle any equivalence, but when
+ * it comes to the details of handling it usefully, the usability barriers come up a lot here.
+ * In particular all of our notes in the paper about the current lack of:
+ * 1) custom unification heuristics, and
+ * 2) type-directed search
+ * become extremely relevant.
+ *)
+Module Over_A.
+  Definition id (a : A) := a.
+
+  Parameter X : Type.
+  Axiom from_x : X -> A.
+  Axiom to_x : A -> X.
+
+  (*
+   * The transformation doesn't work unless we tell the transformation that this:
+   *)
+  Definition from_x_implicit (x : X) : A := from_x x.
+  (*
+   * is an application of dep_constr:
+   *)
+  Definition from_x_explicit (x : X) : A := dep_constr_A_0 (from_x x).
+
+  (*
+   * Similarly:
+   *)
+  Definition to_x_implicit (a : A) : X := to_x a.
+  (*
+   * is an application of dep_elim:
+   *)
+  Definition to_x_explicit (a : A) := dep_elim_A (fun _ => X) (fun a0 => to_x a0) a.
+
+End Over_A.
+
+(*
+ * opaque says to ignore ignore_A :
+ *)
+Lift Module A B in Over_A as Over_B { opaque ignore_A eq_ind eq_ind_r }.
+Print Over_B.from_x_explicit.
+(* Over_B.from_x_explicit = fun x : Over_B.X => f (Over_A.from_x x)
+     : Over_B.X -> B*)
+Print Over_B.to_x_explicit.
+(* Over_B.to_x_explicit = 
+fun a : B =>
+eq_rect (f (g (eta_B a))) (fun _ : B => Over_B.X) (Over_A.to_x (g (eta_B a))) 
+  (eta_B a) (retraction (eta_B a))
+     : forall a : B, (fun _ : B => Over_B.X) (eta_B a) *)
+
+(* 
+ * So, as we see above, this way, we get something OK. But when we know
+ * nothing about A and B or the equivalence between them, we can't get
+ * rid of all occurrences to A yet. In contrast, if we know how f behaves
+ * (and we know how from_x behaves), we can effectively reduce (f (OverA.from x x))
+ * ahead of time to get something over B, and transform directly.
+ * We could similarly port proofs then without rewriting by retraction.
+ * And this is where the transformation is useful for repair.
+ *)
+  
