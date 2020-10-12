@@ -1,7 +1,6 @@
 (*
  * ANY equivalence can be expressed by a configuration. Here is a proof!
  *)
-Require Import Coq.Program.Tactics.
 Require Import Ornamental.Ornaments.
 
 Set DEVOID lift type.
@@ -100,6 +99,11 @@ Proof.
   intros. unfold dep_elim_B in X. unfold eta_B in X. unfold dep_constr_B_0 in X.
   rewrite <- iota_B_aux_gen. apply X.
 Defined.
+
+(*
+ * The proof of dep_elim_OK would require univalence or UP,
+ * as noted in the paper.
+ *)
 
 (* --- Proving the induced equivalence --- *)
 
@@ -234,4 +238,3 @@ eq_rect (f (g (eta_B a))) (fun _ : B => Over_B.X) (Over_A.to_x (g (eta_B a)))
  * We could similarly port proofs then without rewriting by retraction.
  * And this is where the transformation is useful for repair.
  *)
-  
