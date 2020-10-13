@@ -35,10 +35,10 @@ Defined.
 
 Program Definition dep_constr_B_1 (t : T) (n : nat) (f : B n) : B (S n).
 Proof.
-  unfold B in *. intros. apply @Fin.caseS' with (n := n).
+  unfold B in *. intros. apply @Fin.rectS with (n := n).
+  - intros. apply t.
+  - intros. apply X.
   - apply H.
-  - apply t.
-  - apply f.
 Defined.
 
 Definition eta_A (n : nat) (a : A n) : A n := a.
@@ -54,6 +54,25 @@ Definition dep_elim_A (P : forall n : nat, A n -> Type) (f0 : P 0 dep_constr_A_0
 :=
   Vector.t_rect T P f0 f1 n v.
 
-(* dep_elim_B is hard to define---need a clever motive. not sure what it is. *)
+Program Definition dep_elim_B (P : forall n : nat, B n -> Type) (f0 : P 0 dep_constr_B_0)
+  (f1 : forall (t : T) (n : nat) (f : B n), P n f -> P (S n) (dep_constr_B_1 t n f)) 
+  (n : nat) (f : B n) 
+: P n f. 
+Proof.
+  assert (prod (P n f) (Fin.t (S n))).
+  - induction n.
+    + intros. rewrite (funext f (fun f : Fin.t 0 => Fin.case0 (fun _ : Fin.t 0 => T) f)).
+      * split; auto. constructor.
+      * apply Fin.case0.
+    + split.
+      * unfold B in f. unfold dep_constr_B_1 in f1. apply @Fin.caseS' with (n := n).
+        -- apply IHn. unfold B. intros. apply f. constructor.
+        -- specialize (IHn (fun (x : Fin.t n) => f (FS x))). destruct IHn. specialize (f1 (f t) n (fun (x : Fin.t n) => f (FS x)) p).
+           rewrite (funext f (dep_constr_B_1 (f t) n (fun x : Fin.t n => f (FS x)))); auto.
+           (* ??? ugh *)
+           admit.
+Admitted.
+
+  - 
 
 
