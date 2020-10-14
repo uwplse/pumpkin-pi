@@ -90,5 +90,49 @@ Proof.
     apply tl_OK.
 Defined.
 
+(*
+ * I expect all of our iotas to be trivial except iota_B_1:
+ *)
+Lemma iota_A_0 :
+ forall (P : forall (n : nat), A n -> Type)
+   (f0 : P 0 dep_constr_A_0)
+   (f1 : forall (t : T) (n : nat) (f : A n), P n f -> P (S n) (dep_constr_A_1 t n f))
+   (Q : P 0 dep_constr_A_0 -> Type),
+   Q (dep_elim_A P f0 f1 0 dep_constr_A_0) ->
+   Q (dep_elim_A P f0 f1 0 dep_constr_A_0).
+Proof.
+  intros. auto.
+Defined.
 
+Lemma iota_A_1 :
+ forall (P : forall (n : nat), A n -> Type)
+   (f0 : P 0 dep_constr_A_0)
+   (f1 : forall (t : T) (n : nat) (f : A n), P n f -> P (S n) (dep_constr_A_1 t n f))
+   (t : T) (n : nat) (f : A n) (Q : P (S n) (dep_constr_A_1 t n f) -> Type),
+   Q (dep_elim_A P f0 f1 (S n) (dep_constr_A_1 t n f)) ->
+   Q (f1 t n f (dep_elim_A P f0 f1 n f)).
+Proof.
+  intros. auto.
+Defined.
 
+Lemma iota_B_0 :
+ forall (P : forall (n : nat), B n -> Type)
+   (f0 : P 0 dep_constr_B_0)
+   (f1 : forall (t : T) (n : nat) (f : B n), P n f -> P (S n) (dep_constr_B_1 t n f))
+   (Q : P 0 dep_constr_B_0 -> Type),
+   Q (dep_elim_B P f0 f1 0 dep_constr_B_0) ->
+   Q (dep_elim_B P f0 f1 0 dep_constr_B_0).
+Proof.
+  intros. auto.
+Defined.
+
+Lemma iota_B_1 :
+ forall (P : forall (n : nat), B n -> Type)
+   (f0 : P 0 dep_constr_B_0)
+   (f1 : forall (t : T) (n : nat) (f : B n), P n f -> P (S n) (dep_constr_B_1 t n f))
+   (t : T) (n : nat) (f : B n) (Q : P (S n) (dep_constr_B_1 t n f) -> Type),
+   Q (dep_elim_B P f0 f1 (S n) (dep_constr_B_1 t n f)) ->
+   Q (f1 t n f (dep_elim_B P f0 f1 n f)).
+Proof.
+  intros. admit. (* TODO indeed! *)
+Admitted.
