@@ -43,7 +43,7 @@ Definition dep_constr_B_1 (t : T) (n : nat) (b : B n) : B (S n) :=
 Definition eta_A (n : nat) (a : A n) : A n := a.
 Definition eta_B (n : nat) (b : B n) : B n := b.
 
-(* might need this instead, unsure: *)
+(* TODO for practicality, might need this instead, unsure: *)
 (*Definition eta_A (n m : nat) (H : n = m) (a : A n) : A m := eq_rect m A a n H.*)
 (* and eta B might need to use the tail/hd properties. we'll see *)
 
@@ -106,7 +106,7 @@ Lemma iota_A_0 :
    (f1 : forall (t : T) (n : nat) (f : A n), P n f -> P (S n) (dep_constr_A_1 t n f))
    (Q : P 0 dep_constr_A_0 -> Type),
    Q (dep_elim_A P f0 f1 0 dep_constr_A_0) ->
-   Q (dep_elim_A P f0 f1 0 dep_constr_A_0).
+   Q f0.
 Proof.
   intros. auto.
 Defined.
@@ -122,15 +122,28 @@ Proof.
   intros. auto.
 Defined.
 
+(*
+ * Needed for iota_B_0:
+ *)
+Lemma eta_refl_B_0:
+  eta_dep_constr_B_0 dep_constr_B_0 = eq_refl.
+Proof.
+  intros. unfold eta_dep_constr_B_0.
+  symmetry. eapply eq_trans.
+  - symmetry. apply functional_extensionality_dep_good_refl.
+  - f_equal. extensionality f.
+    apply Fin.case0. apply f.
+Defined.
+
 Lemma iota_B_0 :
  forall (P : forall (n : nat), B n -> Type)
    (f0 : P 0 dep_constr_B_0)
    (f1 : forall (t : T) (n : nat) (f : B n), P n f -> P (S n) (dep_constr_B_1 t n f))
    (Q : P 0 dep_constr_B_0 -> Type),
    Q (dep_elim_B P f0 f1 0 dep_constr_B_0) ->
-   Q (dep_elim_B P f0 f1 0 dep_constr_B_0).
+   Q f0.
 Proof.
-  intros. auto.
+  intros. simpl in X. rewrite eta_refl_B_0 in X. apply X.
 Defined.
 
 (*
@@ -164,4 +177,69 @@ Proof.
   rewrite eta_refl_B_1 in X. apply X.
 Defined.
 
+End Config.
 
+Section Equivalence.
+
+(*
+ * These should form their own equivalence:
+ *)
+Definition f {n : nat} (a : A n) : B n :=
+  dep_elim_A
+    (fun n _ => B n) 
+    dep_constr_B_0
+    (fun t n b IH => dep_constr_B_1 t n IH)
+    n
+    a.
+
+Definition g {n : nat} (b : B n) : A n :=
+  dep_elim_B
+    (fun n _ => A n) 
+    dep_constr_A_0
+    (fun t n b IH => dep_constr_A_1 t n IH)
+    n
+    b.
+
+(*
+ * This could be much easier, but I want to make a point of doing this algorithmically!
+ *)
+Lemma section {n : nat} (a : A n) : g (f a) = a.
+Proof.
+  apply dep_elim_A with (n := n) (v := a); unfold f; unfold g; intros.
+  - unfold dep_constr_A_0 at 1. unfold dep_constr_A_0 at 1.
+    apply (iota_B_0 (fun n _ => A n) dep_constr_A_0 (fun t n b IH => dep_constr_A_1 t n IH)).
+    unfold dep_constr_B_0 at 1.
+    apply (iota_A_0 (fun n _ => B n) dep_constr_B_0 (fun t n a IH => dep_constr_B_1 t n IH)).
+    reflexivity.
+  - unfold dep_constr_A_1 at 1. unfold dep_constr_A_1 at 1.
+    replace (dep_constr_A_1 t n0 v) with (dep_constr_A_1 t n0 (g (f v))).
+    + unfold g. unfold f.
+      apply (iota_B_1 (fun n _ => A n) dep_constr_A_0 (fun t n b IH => dep_constr_A_1 t n IH) t n0).
+      apply (iota_A_1 (fun n _ => B n) dep_constr_B_0 (fun t n a IH => dep_constr_B_1 t n IH)).
+      reflexivity.
+    + unfold g. unfold f. rewrite H. reflexivity. 
+Defined.
+
+(*
+ * The point being that this direction should mirror this exactly, despite iota actually mattering here.
+ *)
+Lemma retraction {n : nat} (b : B n) : f (g b) = b.
+Proof.
+  apply dep_elim_B with (n := n) (b := b); unfold f; unfold g; intros.
+  - unfold dep_constr_B_0 at 1. unfold dep_constr_B_0 at 1.
+    apply (iota_A_0 (fun n _ => B n) dep_constr_B_0 (fun t n a IH => dep_constr_B_1 t n IH)).
+    unfold dep_constr_A_0 at 1.
+    apply (iota_B_0 (fun n _ => A n) dep_constr_A_0 (fun t n b IH => dep_constr_A_1 t n IH)).
+    reflexivity.
+  - unfold dep_constr_B_1 at 1. unfold dep_constr_B_1 at 1.
+    replace (dep_constr_B_1 t n0 f0) with (dep_constr_B_1 t n0 (f (g f0))).
+    + unfold f. unfold g.
+      apply (iota_A_1 (fun n _ => B n) dep_constr_B_0 (fun t n a IH => dep_constr_B_1 t n IH) t n0).
+      apply (iota_B_1 (fun n _ => A n) dep_constr_A_0 (fun t n a IH => dep_constr_A_1 t n IH)).
+      reflexivity.
+    + unfold f. unfold g. rewrite H. reflexivity. 
+Defined.
+
+End Equivalence.
+
+(* hahaha holy shit *)
