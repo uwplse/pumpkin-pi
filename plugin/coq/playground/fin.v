@@ -9,14 +9,12 @@ Set DEVOID lift type.
 Require Import Coq.Vectors.Fin.
 Require Import Coq.Vectors.Vector.
 
+(* needed for this equivalence *)
+Require Import Coq.Logic.FunctionalExtensionality.
+
 Section Config.
 
 Parameter T : Type.
-
-(* needed for this equivalence *)
-Axiom funext : forall {X} {Y : X -> Type},
-  forall (f g : forall x : X, Y x),
-  (forall x, f x = g x) -> f = g.
 
 Definition A (n : nat) :=
   Vector.t T n.
@@ -62,12 +60,23 @@ Definition hd n (b : B (S n)) : T :=
 Definition tl n (b : B (S n)) : B n :=
   fun f => b (Fin.FS f).
 
-Lemma tl_OK:
+Lemma eta_dep_constr_B_0:
+  forall (b : B 0),
+    dep_constr_B_0 = b.
+Proof.
+  intros b.
+  apply functional_extensionality_dep_good.
+  intros f.
+  apply Fin.case0.
+  apply f.
+Defined.
+
+Lemma eta_dep_constr_B_1:
   forall (n : nat) (b : B (S n)),
     dep_constr_B_1 (hd n b) n (tl n b) = b.
 Proof.
   intros n b.
-  apply funext.
+  apply functional_extensionality_dep_good.
   intros f.
   revert b.
   refine (
@@ -84,10 +93,8 @@ Program Definition dep_elim_B (P : forall n : nat, B n -> Type) (f0 : P 0 dep_co
 : P n b. 
 Proof.
   induction n.
-  - rewrite (funext b (fun f : Fin.t 0 => Fin.case0 (fun _ : Fin.t 0 => T) f)); auto.
-    intros f. apply Fin.case0. apply f.
-  - replace b with (dep_constr_B_1 (hd n b) n (tl n b)); auto.
-    apply tl_OK.
+  - replace b with dep_constr_B_0 by (apply eta_dep_constr_B_0). auto.
+  - replace b with (dep_constr_B_1 (hd n b) n (tl n b)) by (apply eta_dep_constr_B_1). auto.
 Defined.
 
 (*
@@ -126,13 +133,35 @@ Proof.
   intros. auto.
 Defined.
 
+(*
+ * Needed for iota_B_1:
+ *)
+Lemma eta_refl_B_1:
+  forall (n : nat) (t : T) (b : B n),
+    eta_dep_constr_B_1 n (dep_constr_B_1 t n b) = eq_refl.
+Proof.
+  intros. unfold eta_dep_constr_B_1. unfold hd. unfold tl. simpl.
+  symmetry. eapply eq_trans.
+  - symmetry. apply functional_extensionality_dep_good_refl.
+  - f_equal. extensionality f.
+    revert b. 
+    refine (
+    match f with
+    | Fin.F1 => _
+    | Fin.FS _ => _
+    end); auto.
+Defined.
+
 Lemma iota_B_1 :
  forall (P : forall (n : nat), B n -> Type)
    (f0 : P 0 dep_constr_B_0)
    (f1 : forall (t : T) (n : nat) (f : B n), P n f -> P (S n) (dep_constr_B_1 t n f))
-   (t : T) (n : nat) (f : B n) (Q : P (S n) (dep_constr_B_1 t n f) -> Type),
-   Q (dep_elim_B P f0 f1 (S n) (dep_constr_B_1 t n f)) ->
-   Q (f1 t n f (dep_elim_B P f0 f1 n f)).
+   (t : T) (n : nat) (b : B n) (Q : P (S n) (dep_constr_B_1 t n b) -> Type),
+   Q (dep_elim_B P f0 f1 (S n) (dep_constr_B_1 t n b)) ->
+   Q (f1 t n b (dep_elim_B P f0 f1 n b)).
 Proof.
-  intros. admit. (* TODO indeed! *)
-Admitted.
+  intros. simpl in X. unfold hd in X. unfold tl in X. simpl in X.
+  rewrite eta_refl_B_1 in X. apply X.
+Defined.
+
+
