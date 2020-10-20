@@ -1418,6 +1418,11 @@ let reduce_constr_app c env sigma trm =
   let l = get_lifting c in
   let sigma, trm = reduce_term env sigma trm in
   match l.orn.kind with
+  | Algebraic _ when l.is_fwd ->
+     let ex = dest_existT trm in
+     let sigma, index = reduce_coh c env sigma ex.index in
+     let sigma, unpacked = reduce_coh c env sigma ex.unpacked in
+     sigma, pack_existT { ex with index; unpacked }
   | UnpackSigma when not l.is_fwd ->
      let ex = dest_existT trm in
      let sigma, index = reduce_coh c env sigma ex.index in
