@@ -252,6 +252,8 @@ Proof.
     + unfold f. unfold g. rewrite H. reflexivity. 
 Defined.
 
+Print retraction.
+
 (* hahaha holy shit *)
 
 (* --- Saving the equivalence --- *)
@@ -285,6 +287,7 @@ Configure Lift A B {
  * This at least proves that the problem is unification heuristics here,
  * and that the solution is at least in some cases really not hard.
  *)
+Require Import Patcher.Patch.
 Module Over_A.
 
 Replace Convertible dep_constr_A_1 in VectorDef'.caseS as caseS.

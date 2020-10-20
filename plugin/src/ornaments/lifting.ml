@@ -103,16 +103,10 @@ let direction_cached env from_typ promote k sigma : bool state =
   if is_or_applies from_typ promote_typ then
     sigma, true
   else
-    match k with
-    | UnpackSigma ->
-       (* unify *)
-       let sigma, from_typ = expand_eta promote_env sigma from_typ in
-       Util.on_snd
-         Option.has_some
-         (e_is_from promote_env from_typ promote_typ sigma)
-    | _ ->
-       (* don't bother *)
-       sigma, false
+    let sigma, from_typ = expand_eta promote_env sigma from_typ in
+    Util.on_snd
+      Option.has_some
+      (e_is_from promote_env from_typ promote_typ sigma)
 
 (* 
  * Unpack a promotion
