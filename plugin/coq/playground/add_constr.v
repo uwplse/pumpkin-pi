@@ -524,77 +524,35 @@ Defined.
 Repair A B in identity_A as identity.
 Print identity.
 
+(* Proof obligation (TODO follow this pattern elsewhere): *)
+Program Definition free_vars_A_ext (old : forall (t : AddBool.Term) (H : no_bools t), list Identifier) (t : Term) (H : yes_bools t) : list Identifier.
+Proof.
+  induction H; intros.
+  - apply [].
+  - apply (IHyes_bools ++ old t2 n).
+  - apply (old t1 n ++ IHyes_bools). 
+  - apply (IHyes_bools1 ++ IHyes_bools2).
+  - apply (IHyes_bools ++ old t2 n).
+  - apply (old t1 n ++ IHyes_bools).
+  - apply (IHyes_bools1 ++ IHyes_bools2).
+  - apply (IHyes_bools ++ old t2 n).
+  - apply (old t1 n ++ IHyes_bools).
+  - apply (IHyes_bools1 ++ IHyes_bools2).
+  - apply (IHyes_bools ++ old t2 n).
+  - apply (old t1 n ++ IHyes_bools).
+  - apply (IHyes_bools1 ++ IHyes_bools2).
+  - apply (filter (fun y => if id_eq_dec a y then false else true) IHyes_bools).
+Defined.
+
 Program Definition free_vars_A (a : A) : list Identifier.
 Proof.
   apply dep_elim_A_gen with (a := a) (P := fun _ => list Identifier); intros.
-  - apply free_vars. apply (existT _ t H).
-  - induction H0; intros.
-    + apply [].
-    + apply (IHyes_bools ++ H t2 n).
-    + apply (H t1 n ++ IHyes_bools). 
-    + apply (IHyes_bools1 ++ IHyes_bools2).
-    + apply (IHyes_bools ++ H t2 n).
-    + apply (H t1 n ++ IHyes_bools).
-    + apply (IHyes_bools1 ++ IHyes_bools2).
-    + apply (IHyes_bools ++ H t2 n).
-    + apply (H t1 n ++ IHyes_bools).
-    + apply (IHyes_bools1 ++ IHyes_bools2).
-    + apply (IHyes_bools ++ H t2 n).
-    + apply (H t1 n ++ IHyes_bools).
-    + apply (IHyes_bools1 ++ IHyes_bools2).
-    + apply (filter (fun y => if id_eq_dec a0 y then false else true) IHyes_bools).
+  - apply (AddBoolProofs.free_vars (existT no_bools t H)).
+  - apply (free_vars_A_ext H t H0).
 Defined.
 
+Repair A B in free_vars_A_ext as free_vars_ext.
 Repair A B in free_vars_A as free_vars.
-Print dep_elim_B_gen.
-
-Definition free_vars_delta (a : Term) : list Identifier :=
-  let H := (fun (t : Term) (H : no_bools t) => AddBoolProofs.free_vars (existT no_bools t H)) in
-  dep_elim_A_lifted
-    (fun _ : Term => list Identifier)
-    H
-  (fun (t : Term) (H0 : yes_bools t) =>
-   yes_bools_rec 
-     (fun (t0 : Term) (_ : yes_bools t0) => list Identifier)
-     (fun _ : bool => [])
-     (fun (t1 t2 : Term) (_ : yes_bools t1) (IHyes_bools : list Identifier)
-        (n : no_bools t2) => IHyes_bools ++ H t2 n)
-     (fun (t1 t2 : Term) (n : no_bools t1) (_ : yes_bools t2)
-        (IHyes_bools : list Identifier) => H t1 n ++ IHyes_bools)
-     (fun (t1 t2 : Term) (_ : yes_bools t1) (IHyes_bools1 : list Identifier)
-        (_ : yes_bools t2) (IHyes_bools2 : list Identifier) =>
-      IHyes_bools1 ++ IHyes_bools2)
-     (fun (t1 t2 : Term) (_ : yes_bools t1) (IHyes_bools : list Identifier)
-        (n : no_bools t2) => IHyes_bools ++ H t2 n)
-     (fun (t1 t2 : Term) (n : no_bools t1) (_ : yes_bools t2)
-        (IHyes_bools : list Identifier) => H t1 n ++ IHyes_bools)
-     (fun (t1 t2 : Term) (_ : yes_bools t1) (IHyes_bools1 : list Identifier)
-        (_ : yes_bools t2) (IHyes_bools2 : list Identifier) =>
-      IHyes_bools1 ++ IHyes_bools2)
-     (fun (t1 t2 : Term) (_ : yes_bools t1) (IHyes_bools : list Identifier)
-        (n : no_bools t2) => IHyes_bools ++ H t2 n)
-     (fun (t1 t2 : Term) (n : no_bools t1) (_ : yes_bools t2)
-        (IHyes_bools : list Identifier) => H t1 n ++ IHyes_bools)
-     (fun (t1 t2 : Term) (_ : yes_bools t1) (IHyes_bools1 : list Identifier)
-        (_ : yes_bools t2) (IHyes_bools2 : list Identifier) =>
-      IHyes_bools1 ++ IHyes_bools2)
-     (fun (t1 t2 : Term) (_ : yes_bools t1) (IHyes_bools : list Identifier)
-        (n : no_bools t2) => IHyes_bools ++ H t2 n)
-     (fun (t1 t2 : Term) (n : no_bools t1) (_ : yes_bools t2)
-        (IHyes_bools : list Identifier) => H t1 n ++ IHyes_bools)
-     (fun (t1 t2 : Term) (_ : yes_bools t1) (IHyes_bools1 : list Identifier)
-        (_ : yes_bools t2) (IHyes_bools2 : list Identifier) =>
-      IHyes_bools1 ++ IHyes_bools2)
-     (fun (a0 : Identifier) (t0 : Term) (_ : yes_bools t0)
-        (IHyes_bools : list Identifier) =>
-      filter (fun y : string => if id_eq_dec a0 y then false else true)
-        IHyes_bools) t H0) a.
-
-Lemma test:
-  free_vars_delta = free_vars.
-Proof.
-  auto.
-Defined.
 
 Program Definition free_vars_manual (a : Term) : list Identifier.
 Proof.
@@ -609,11 +567,68 @@ Proof.
   - apply (filter (fun y : string => if id_eq_dec i y then false else true) IHa).
 Defined.
 
-Lemma testOther:
-  forall t, free_vars_delta t = free_vars_manual t.
+(* OK so it's very ugly and slow, but correct.
+   How can we recover the fast version for free?
+   Maybe let's start with a more general correpsondence? *)
+
+Lemma slow_fast:
+  forall (a : Term) (H : (forall t : Term, no_bools t -> list Identifier) -> forall t : Term, yes_bools t -> list Identifier) H0,
+    (forall t b, H0 t b = free_vars_manual t) ->
+    ((forall t b, H0 t b = free_vars_manual t) -> forall t b, H H0 t b = free_vars_manual t) ->
+    dep_elim_B_gen
+      (fun _ : Term => list Identifier)
+      H0
+      H
+      a 
+    =
+    free_vars_manual a.
 Proof.
-  intros t. unfold free_vars_delta.
+  intros a H H0 H1 H2. unfold dep_elim_B_gen.
   unfold dep_elim_A_lifted. unfold dep_elim_B.
+  remember (split_dec a). induction s; simpl; auto.
+Defined.
+
+Lemma test:
+  forall t, free_vars t = free_vars_manual t.
+Proof.
+  intros t. unfold free_vars.
+  apply slow_fast; intros; auto.
+  - induction b; simpl; auto.
+    + rewrite <- IHb1. rewrite <- IHb2. auto.
+    + rewrite <- IHb1. rewrite <- IHb2. auto.
+    + rewrite <- IHb1. rewrite <- IHb2. auto.
+    + rewrite <- IHb1. rewrite <- IHb2. auto.
+    + rewrite <- IHb. auto.
+  - induction b; simpl; auto.
+    + rewrite <- IHb; simpl; auto. f_equal. apply H.
+    + rewrite <- IHb; simpl; auto. f_equal. apply H.
+    + rewrite <- IHb1; simpl; auto. rewrite <- IHb2; simpl; auto.
+    + rewrite <- IHb; simpl; auto. f_equal. apply H.
+    + rewrite <- IHb; simpl; auto. f_equal. apply H.
+    + rewrite <- IHb1; simpl; auto. rewrite <- IHb2; simpl; auto.
+    + rewrite <- IHb; simpl; auto. f_equal. apply H.
+    + rewrite <- IHb; simpl; auto. f_equal. apply H.
+    + rewrite <- IHb1; simpl; auto. rewrite <- IHb2; simpl; auto.
+    + rewrite <- IHb; simpl; auto. f_equal. apply H.
+    + rewrite <- IHb; simpl; auto. f_equal. apply H.
+    + rewrite <- IHb1; simpl; auto. rewrite <- IHb2; simpl; auto.
+    + f_equal. auto.
+Defined.
+
+
+
+Program Definition free_vars_A' (a : A) : list Identifier.
+Proof.
+  apply dep_elim_A_gen with (a := a) (P := fun _ => list Identifier); intros.
+  - apply (AddBoolProofs.free_vars (existT no_bools t H)).
+  - apply (free_vars_A_ext H t H0).
+Defined.
+
+
+Lemma test2:
+  forall t, free_vars t = free_vars_manual t.
+Proof.
+  intros t.
   assert (forall t a, AddBoolProofs.free_vars (existT no_bools t a) = free_vars_manual t).
   - induction a; simpl; auto.
     + rewrite <- IHa1. rewrite <- IHa2; auto.
@@ -621,7 +636,9 @@ Proof.
     + rewrite <- IHa1. rewrite <- IHa2; auto.
     + rewrite <- IHa1. rewrite <- IHa2; auto.
     + rewrite <- IHa; auto.
-  - remember (split_dec t). induction s; simpl; auto.
+  - rewrite <- H.
+
+ remember (split_dec t). induction s; simpl; auto.
     induction b; simpl; auto.
     + rewrite <- IHb; simpl; auto.
       * f_equal. apply H.
@@ -661,10 +678,6 @@ Proof.
       * apply split_dec_right_OK.
     + rewrite <- IHb; simpl; auto. apply split_dec_right_OK.
 Defined.
-
-(* OK so it's very ugly and slow, but correct.
-   How can we recover the fast version for free?
-   Maybe let's start with a more general correpsondence? *)
 
 End AddBoolProofsExt.
 
