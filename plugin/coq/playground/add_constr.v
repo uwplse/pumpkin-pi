@@ -233,65 +233,23 @@ Definition A : Type := sigT (fun (t : AddBool.Term) => no_bools t) + sigT (fun (
 Definition B : Type := AddBool.Term.
 
 (* TODO can probably automate this part *)
-Program Definition dep_constr_A_0 (i : Identifier) : A.
+Program Definition dep_constr_A_0 (t : AddBool.Term) (H : no_bools t) : A.
 Proof.
-  unfold A. intros. left. exists (AddBool.Var i). constructor.
+  unfold A. left. exists t. apply H.
 Defined.
-Program Definition dep_constr_A_1 (b : bool) : A.
+Program Definition dep_constr_A_1 (t : AddBool.Term) (H : yes_bools t) : A.
 Proof.
-  unfold A. right. exists (AddBool.Bool b). constructor.
-Defined.
-Program Definition dep_constr_A_2 (a1 a2 : A) : A.
-Proof.
-  unfold A in *. induction a1, a2.
-  - left. exists (AddBool.Eq (projT1 a) (projT1 s)). apply (nb2 (projT1 a) (projT1 s) (projT2 a) (projT2 s)).
-  - right. exists (AddBool.Eq (projT1 a) (projT1 s)). apply (yb2right (projT1 a) (projT1 s) (projT2 a) (projT2 s)).
-  - right. exists (AddBool.Eq (projT1 b) (projT1 s)). apply (yb2left (projT1 b) (projT1 s) (projT2 b) (projT2 s)).
-  - right. exists (AddBool.Eq (projT1 b) (projT1 s)). apply (yb2 (projT1 b) (projT1 s) (projT2 b) (projT2 s)).
-Defined.
-Program Definition dep_constr_A_3 (z : Z) : A.
-Proof.
-  unfold A. left. exists (AddBool.Int z). constructor.
-Defined.
-Program Definition dep_constr_A_4 (a1 a2 : A) : A.
-Proof.
-  unfold A in *. induction a1, a2.
-  - left. exists (AddBool.Plus (projT1 a) (projT1 s)). apply (nb4 (projT1 a) (projT1 s) (projT2 a) (projT2 s)).
-  - right. exists (AddBool.Plus (projT1 a) (projT1 s)). apply (yb3right (projT1 a) (projT1 s) (projT2 a) (projT2 s)).
-  - right. exists (AddBool.Plus (projT1 b) (projT1 s)). apply (yb3left (projT1 b) (projT1 s) (projT2 b) (projT2 s)).
-  - right. exists (AddBool.Plus (projT1 b) (projT1 s)). apply (yb3 (projT1 b) (projT1 s) (projT2 b) (projT2 s)).
-Defined.
-Program Definition dep_constr_A_5 (a1 a2 : A) : A.
-Proof.
-  unfold A in *. induction a1, a2.
-  - left. exists (AddBool.Times (projT1 a) (projT1 s)). apply (nb5 (projT1 a) (projT1 s) (projT2 a) (projT2 s)).
-  - right. exists (AddBool.Times (projT1 a) (projT1 s)). apply (yb4right (projT1 a) (projT1 s) (projT2 a) (projT2 s)).
-  - right. exists (AddBool.Times (projT1 b) (projT1 s)). apply (yb4left (projT1 b) (projT1 s) (projT2 b) (projT2 s)).
-  - right. exists (AddBool.Times (projT1 b) (projT1 s)). apply (yb4 (projT1 b) (projT1 s) (projT2 b) (projT2 s)).
-Defined.
-Program Definition dep_constr_A_6 (a1 a2 : A) : A.
-Proof.
-  unfold A in *. induction a1, a2.
-  - left. exists (AddBool.Minus (projT1 a) (projT1 s)). apply (nb6 (projT1 a) (projT1 s) (projT2 a) (projT2 s)).
-  - right. exists (AddBool.Minus (projT1 a) (projT1 s)). apply (yb5right (projT1 a) (projT1 s) (projT2 a) (projT2 s)).
-  - right. exists (AddBool.Minus (projT1 b) (projT1 s)). apply (yb5left (projT1 b) (projT1 s) (projT2 b) (projT2 s)).
-  - right. exists (AddBool.Minus (projT1 b) (projT1 s)). apply (yb5 (projT1 b) (projT1 s) (projT2 b) (projT2 s)).
-Defined.
-Program Definition dep_constr_A_7 (i : Identifier) (a : A) : A.
-Proof.
-  unfold A in *. induction a.
-  - left. exists (AddBool.Choose i (projT1 a)). apply (nb7 i (projT1 a) (projT2 a)).
-  - right. exists (AddBool.Choose i (projT1 b)). apply (yb6 i (projT1 b) (projT2 b)).
+  unfold A. right. exists t. apply H.
 Defined.
 
-Definition dep_constr_B_0 (i : Identifier) : B := AddBool.Var i.
-Definition dep_constr_B_1 (b : bool) : B := AddBool.Bool b.
-Definition dep_constr_B_2 (b1 b2 : B) : B := AddBool.Eq b1 b2.
-Definition dep_constr_B_3 (z : Z) : B := AddBool.Int z.
-Definition dep_constr_B_4 (b1 b2 : B) : B := AddBool.Plus b1 b2.
-Definition dep_constr_B_5 (b1 b2 : B) : B := AddBool.Times b1 b2.
-Definition dep_constr_B_6 (b1 b2 : B) : B := AddBool.Minus b1 b2.
-Definition dep_constr_B_7 (i : Identifier) (b : B) : B := AddBool.Choose i b.
+Program Definition dep_constr_B_0 (t : AddBool.Term) (H : no_bools t) : B.
+Proof.
+  apply t.
+Defined.
+Program Definition dep_constr_B_1 (t : AddBool.Term) (H : yes_bools t) : B.
+Proof.
+  apply t.
+Defined.
 
 Program Definition eta_A (a : A) : A.
 Proof.
@@ -302,375 +260,148 @@ Defined.
 Definition eta_B (b : B) := b.
 
 Program Definition dep_elim_A (P : A -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_A_0 i))
-  (f1 : forall b : bool, P (dep_constr_A_1 b))
-  (f2 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_A_3 z))
-  (f4 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_4 a a0)))
-  (f5 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_5 a a0)))
-  (f6 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0) -> P (eta_A (dep_constr_A_6 a a0)))
-  (f7 : forall (i : Identifier) (a : A), P (eta_A a) -> P (eta_A (dep_constr_A_7 i a)))
+  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_A_0 t H))
+  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_A_1 t H))
   (a : A)
 : P (eta_A a).
 Proof.
-  assert (forall (t : AddBool.Term) (H : no_bools t), P (inl (existT _ t H))).
-  - intros. induction H.
-    + apply f0.
-    + apply (f2 (inl (existT _ t1 H)) IHno_bools1 (inl (existT _ t2 H0)) IHno_bools2).
-    + apply f3.
-    + apply (f4 (inl (existT _ t1 H)) IHno_bools1 (inl (existT _ t2 H0)) IHno_bools2).
-    + apply (f5 (inl (existT _ t1 H)) IHno_bools1 (inl (existT _ t2 H0)) IHno_bools2).
-    + apply (f6 (inl (existT _ t1 H)) IHno_bools1 (inl (existT _ t2 H0)) IHno_bools2).
-    + apply (f7 a0 (inl (existT _ t H)) IHno_bools).
-  - assert ((forall (t : AddBool.Term) (H : no_bools t), P (inl (existT _ t H))) -> forall (t : AddBool.Term) (H : yes_bools t), P (inr (existT _ t H))).
-    + intros. induction H.
-      * apply f1.
-      * apply (f2 (inr (existT _ t1 H)) IHyes_bools (inl (existT _ t2 n)) (X t2 n)).
-      * apply (f2 (inl (existT _ t1 n)) (X t1 n) (inr (existT _ t2 H)) IHyes_bools).
-      * apply (f2 (inr (existT _ t1 H)) IHyes_bools1 (inr (existT _ t2 H0)) IHyes_bools2).
-      * apply (f4 (inr (existT _ t1 H)) IHyes_bools (inl (existT _ t2 n)) (X t2 n)).
-      * apply (f4 (inl (existT _ t1 n)) (X t1 n) (inr (existT _ t2 H)) IHyes_bools).
-      * apply (f4 (inr (existT _ t1 H)) IHyes_bools1 (inr (existT _ t2 H0)) IHyes_bools2).
-      * apply (f5 (inr (existT _ t1 H)) IHyes_bools (inl (existT _ t2 n)) (X t2 n)).
-      * apply (f5 (inl (existT _ t1 n)) (X t1 n) (inr (existT _ t2 H)) IHyes_bools).
-      * apply (f5 (inr (existT _ t1 H)) IHyes_bools1 (inr (existT _ t2 H0)) IHyes_bools2).
-      * apply (f6 (inr (existT _ t1 H)) IHyes_bools (inl (existT _ t2 n)) (X t2 n)).
-      * apply (f6 (inl (existT _ t1 n)) (X t1 n) (inr (existT _ t2 H)) IHyes_bools).
-      * apply (f6 (inr (existT _ t1 H)) IHyes_bools1 (inr (existT _ t2 H0)) IHyes_bools2).
-      * apply (f7 a0 (inr (existT _ t H)) IHyes_bools). 
-    + induction a.
-      * induction a. apply X.
-      * induction b. apply X0. apply X.
+  induction a.
+  - induction a. apply f0.
+  - induction b. apply f1.
 Defined.
 
-Definition dep_elim_B (P : B -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_B_0 i))
-  (f1 : forall b : bool, P (dep_constr_B_1 b))
-  (f2 : forall b : B, P b -> forall b0 : B, P b0 -> P (dep_constr_B_2 b b0))
-  (f3 : forall z : Z, P (dep_constr_B_3 z))
-  (f4 : forall b : B, P b -> forall b0 : B, P b0 -> P (dep_constr_B_4 b b0))
-  (f5 : forall b : B, P b -> forall b0 : B, P b0 -> P (dep_constr_B_5 b b0))
-  (f6 : forall b : B, P b -> forall b0 : B, P b0 -> P (dep_constr_B_6 b b0))
-  (f7 : forall (i : Identifier) (b : B), P b -> P (dep_constr_B_7 i b))
+Lemma split_dec :
+  forall (b : B), no_bools b + yes_bools b.
+Proof.
+  intros b0. induction b0.
+  - left. constructor.
+  - right. constructor.
+  - induction IHb0_1, IHb0_2.
+    + left. constructor; auto.
+    + right. apply yb2right; auto.
+    + right. apply yb2left; auto.
+    + right. apply yb2; auto.
+  - left. constructor.
+  - induction IHb0_1, IHb0_2.
+    + left. constructor; auto.
+    + right. apply yb3right; auto.
+    + right. apply yb3left; auto.
+    + right. apply yb3; auto.
+  - induction IHb0_1, IHb0_2.
+    + left. constructor; auto.
+    + right. apply yb4right; auto.
+    + right. apply yb4left; auto.
+    + right. apply yb4; auto.
+  - induction IHb0_1, IHb0_2.
+    + left. constructor; auto.
+    + right. apply yb5right; auto.
+    + right. apply yb5left; auto.
+    + right. apply yb5; auto.
+  - induction IHb0.
+    + left. constructor; auto.
+    + right. apply yb6; auto.
+Defined.
+
+Program Definition dep_elim_B (P : B -> Type)
+  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_B_0 t H))
+  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_B_1 t H))
   (b : B)
-: P b :=
-  AddBool.Term_rect P f0 f1 f2 f3 f4 f5 f6 f7 b.
+: P b.
+Proof.
+  generalize (split_dec b). intros. induction H. 
+  - apply (f0 b a).
+  - apply (f1 b b0).
+Defined.
 
 Lemma iota_A_0 (P : A -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_A_0 i))
-  (f1 : forall b : bool, P (dep_constr_A_1 b))
-  (f2 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_A_3 z))
-  (f4 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_4 a a0)))
-  (f5 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_5 a a0)))
-  (f6 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0) -> P (eta_A (dep_constr_A_6 a a0)))
-  (f7 : forall (i : Identifier) (a : A), P (eta_A a) -> P (eta_A (dep_constr_A_7 i a)))
-  (i : Identifier) (Q : P (dep_constr_A_0 i) -> Type)
-  (H : Q (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_0 i))) 
-: Q (f0 i).
+  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_A_0 t H))
+  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_A_1 t H))
+  (t : AddBool.Term) (Ht : no_bools t) (Q : P (dep_constr_A_0 t Ht) -> Type)
+  (H : Q (dep_elim_A P f0 f1 (dep_constr_A_0 t Ht))) 
+: Q (f0 t Ht).
 Proof.
   intros. apply H.
 Defined.
 
-Program Definition iota_A_1 (P : A -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_A_0 i))
-  (f1 : forall b : bool, P (dep_constr_A_1 b))
-  (f2 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_A_3 z))
-  (f4 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_4 a a0)))
-  (f5 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_5 a a0)))
-  (f6 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0) -> P (eta_A (dep_constr_A_6 a a0)))
-  (f7 : forall (i : Identifier) (a : A), P (eta_A a) -> P (eta_A (dep_constr_A_7 i a)))
-  (b : bool) (Q : P (dep_constr_A_1 b) -> Type)
-  (H : Q (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_1 b))) 
-: Q (f1 b).
+Lemma iota_A_1 (P : A -> Type)
+  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_A_0 t H))
+  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_A_1 t H))
+  (t : AddBool.Term) (Ht : yes_bools t) (Q : P (dep_constr_A_1 t Ht) -> Type)
+  (H : Q (dep_elim_A P f0 f1 (dep_constr_A_1 t Ht))) 
+: Q (f1 t Ht).
 Proof.
   intros. apply H.
 Defined.
 
-Lemma iota_A_2 (P : A -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_A_0 i))
-  (f1 : forall b : bool, P (dep_constr_A_1 b))
-  (f2 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_A_3 z))
-  (f4 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_4 a a0)))
-  (f5 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_5 a a0)))
-  (f6 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0) -> P (eta_A (dep_constr_A_6 a a0)))
-  (f7 : forall (i : Identifier) (a : A), P (eta_A a) -> P (eta_A (dep_constr_A_7 i a)))
-  (a1 a2 : A) (Q : P (eta_A (dep_constr_A_2 a1 a2)) -> Type)
-  (H : Q (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_2 a1 a2))) 
-: Q (f2 a1 (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 a2)).
+Lemma split_dec_left_OK:
+  forall (t : AddBool.Term) (H : no_bools t),
+    inl H = split_dec t.
 Proof.
-  intros. induction a1, a2.
-  - induction a, s. apply H.
-  - induction a, s. apply H.
-  - induction b, s; apply H.
-  - induction b, s; apply H.
+  intros. induction H; auto; simpl.
+  - rewrite <- IHno_bools1. rewrite <- IHno_bools2. auto.
+  - rewrite <- IHno_bools1. rewrite <- IHno_bools2. auto.
+  - rewrite <- IHno_bools1. rewrite <- IHno_bools2. auto.
+  - rewrite <- IHno_bools1. rewrite <- IHno_bools2. auto.
+  - rewrite <- IHno_bools. auto.
 Defined.
 
-Lemma iota_A_3 (P : A -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_A_0 i))
-  (f1 : forall b : bool, P (dep_constr_A_1 b))
-  (f2 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_A_3 z))
-  (f4 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_4 a a0)))
-  (f5 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_5 a a0)))
-  (f6 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0) -> P (eta_A (dep_constr_A_6 a a0)))
-  (f7 : forall (i : Identifier) (a : A), P (eta_A a) -> P (eta_A (dep_constr_A_7 i a)))
-  (z : Z) (Q : P (dep_constr_A_3 z) -> Type)
-  (H : Q (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_3 z))) 
-: Q (f3 z).
+Lemma split_dec_right_OK:
+  forall (t : AddBool.Term) (H : yes_bools t),
+    inr H = split_dec t.
 Proof.
-  intros. apply H.
+  intros. induction H; auto; simpl.
+  - rewrite <- IHyes_bools. simpl. rewrite <- (split_dec_left_OK t2 n). auto.
+  - rewrite <- IHyes_bools. simpl. rewrite <- (split_dec_left_OK t1 n). auto.
+  - rewrite <- IHyes_bools1. rewrite <- IHyes_bools2. auto.
+  - rewrite <- IHyes_bools. simpl. rewrite <- (split_dec_left_OK t2 n). auto.
+  - rewrite <- IHyes_bools. simpl. rewrite <- (split_dec_left_OK t1 n). auto.
+  - rewrite <- IHyes_bools1. rewrite <- IHyes_bools2. auto.
+  - rewrite <- IHyes_bools. simpl. rewrite <- (split_dec_left_OK t2 n). auto.
+  - rewrite <- IHyes_bools. simpl. rewrite <- (split_dec_left_OK t1 n). auto.
+  - rewrite <- IHyes_bools1. rewrite <- IHyes_bools2. auto.
+  - rewrite <- IHyes_bools. simpl. rewrite <- (split_dec_left_OK t2 n). auto.
+  - rewrite <- IHyes_bools. simpl. rewrite <- (split_dec_left_OK t1 n). auto.
+  - rewrite <- IHyes_bools1. rewrite <- IHyes_bools2. auto.
+  - rewrite <- IHyes_bools. simpl. auto.
 Defined.
 
-Lemma iota_A_4 (P : A -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_A_0 i))
-  (f1 : forall b : bool, P (dep_constr_A_1 b))
-  (f2 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_A_3 z))
-  (f4 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_4 a a0)))
-  (f5 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_5 a a0)))
-  (f6 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0) -> P (eta_A (dep_constr_A_6 a a0)))
-  (f7 : forall (i : Identifier) (a : A), P (eta_A a) -> P (eta_A (dep_constr_A_7 i a)))
-  (a1 a2 : A) (Q : P (eta_A (dep_constr_A_4 a1 a2)) -> Type)
-  (H : Q (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_4 a1 a2))) 
-: Q (f4 a1 (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 a2)).
+Lemma iota_B_0 (P : B -> Type)
+  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_B_0 t H))
+  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_B_1 t H))
+  (t : AddBool.Term) (Ht : no_bools t) (Q : P (dep_constr_B_0 t Ht) -> Type)
+  (H : Q (dep_elim_B P f0 f1 (dep_constr_B_0 t Ht))) 
+: Q (f0 t Ht).
 Proof.
-  intros. induction a1, a2.
-  - induction a, s. apply H.
-  - induction a, s. apply H.
-  - induction b, s; apply H.
-  - induction b, s; apply H.
+  unfold dep_elim_B in H. unfold dep_constr_B_0 in H.
+  rewrite <- (split_dec_left_OK t Ht) in H.
+  apply H.
 Defined.
 
-Lemma iota_A_5 (P : A -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_A_0 i))
-  (f1 : forall b : bool, P (dep_constr_A_1 b))
-  (f2 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_A_3 z))
-  (f4 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_4 a a0)))
-  (f5 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_5 a a0)))
-  (f6 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0) -> P (eta_A (dep_constr_A_6 a a0)))
-  (f7 : forall (i : Identifier) (a : A), P (eta_A a) -> P (eta_A (dep_constr_A_7 i a)))
-  (a1 a2 : A) (Q : P (eta_A (dep_constr_A_5 a1 a2)) -> Type)
-  (H : Q (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_5 a1 a2))) 
-: Q (f5 a1 (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 a2)).
+Lemma iota_B_1 (P : B -> Type)
+  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_B_0 t H))
+  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_B_1 t H))
+  (t : AddBool.Term) (Ht : yes_bools t) (Q : P (dep_constr_B_1 t Ht) -> Type)
+  (H : Q (dep_elim_B P f0 f1 (dep_constr_B_1 t Ht))) 
+: Q (f1 t Ht).
 Proof.
-  intros. induction a1, a2.
-  - induction a, s. apply H.
-  - induction a, s. apply H.
-  - induction b, s; apply H.
-  - induction b, s; apply H.
-Defined.
-
-Lemma iota_A_6 (P : A -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_A_0 i))
-  (f1 : forall b : bool, P (dep_constr_A_1 b))
-  (f2 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_A_3 z))
-  (f4 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_4 a a0)))
-  (f5 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_5 a a0)))
-  (f6 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0) -> P (eta_A (dep_constr_A_6 a a0)))
-  (f7 : forall (i : Identifier) (a : A), P (eta_A a) -> P (eta_A (dep_constr_A_7 i a)))
-  (a1 a2 : A) (Q : P (eta_A (dep_constr_A_6 a1 a2)) -> Type)
-  (H : Q (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_6 a1 a2))) 
-: Q (f6 a1 (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 a2)).
-Proof.
-  intros. induction a1, a2.
-  - induction a, s. apply H.
-  - induction a, s. apply H.
-  - induction b, s; apply H.
-  - induction b, s; apply H.
-Defined.
-
-Lemma iota_A_7 (P : A -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_A_0 i))
-  (f1 : forall b : bool, P (dep_constr_A_1 b))
-  (f2 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_A_3 z))
-  (f4 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_4 a a0)))
-  (f5 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0)  -> P (eta_A (dep_constr_A_5 a a0)))
-  (f6 : forall a : A, P (eta_A a) -> forall a0 : A, P (eta_A a0) -> P (eta_A (dep_constr_A_6 a a0)))
-  (f7 : forall (i : Identifier) (a : A), P (eta_A a) -> P (eta_A (dep_constr_A_7 i a)))
-  i (a : A) (Q : P (eta_A (dep_constr_A_7 i a)) -> Type)
-  (H : Q (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_7 i a))) 
-: Q (f7 i a (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 a)).
-Proof.
-  intros. induction a.
-  - induction a. apply H.
-  - induction b. apply H.
-Defined.
-
-Program Definition iota_B_0 (P : B -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_B_0 i))
-  (f1 : forall b : bool, P (dep_constr_B_1 b))
-  (f2 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_B_3 z))
-  (f4 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_4 a a0)))
-  (f5 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_5 a a0)))
-  (f6 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0) -> P (eta_B (dep_constr_B_6 a a0)))
-  (f7 : forall (i : Identifier) (a : B), P (eta_B a) -> P (eta_B (dep_constr_B_7 i a)))
-  i (Q : P (dep_constr_B_0 i) -> Type)
-  (H : Q (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_B_0 i))) 
-: Q (f0 i).
-Proof.
-  intros. apply H.
-Defined.
-
-Program Definition iota_B_1 (P : B -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_B_0 i))
-  (f1 : forall b : bool, P (dep_constr_B_1 b))
-  (f2 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_B_3 z))
-  (f4 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_4 a a0)))
-  (f5 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_5 a a0)))
-  (f6 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0) -> P (eta_B (dep_constr_B_6 a a0)))
-  (f7 : forall (i : Identifier) (a : B), P (eta_B a) -> P (eta_B (dep_constr_B_7 i a)))
-  (b : bool) (Q : P (dep_constr_B_1 b) -> Type)
-  (H : Q (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_B_1 b))) 
-: Q (f1 b).
-Proof.
-  intros. apply H.
-Defined.
-
-Lemma iota_B_2 (P : B -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_B_0 i))
-  (f1 : forall b : bool, P (dep_constr_B_1 b))
-  (f2 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_B_3 z))
-  (f4 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_4 a a0)))
-  (f5 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_5 a a0)))
-  (f6 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0) -> P (eta_B (dep_constr_B_6 a a0)))
-  (f7 : forall (i : Identifier) (a : B), P (eta_B a) -> P (eta_B (dep_constr_B_7 i a)))
-  (a1 a2 : B) (Q : P (eta_B (dep_constr_B_2 a1 a2)) -> Type)
-  (H : Q (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_B_2 a1 a2))) 
-: Q (f2 a1 (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 a2)).
-Proof.
-  intros. apply H.
-Defined.
-
-Lemma iota_B_3 (P : B -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_B_0 i))
-  (f1 : forall b : bool, P (dep_constr_B_1 b))
-  (f2 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_B_3 z))
-  (f4 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_4 a a0)))
-  (f5 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_5 a a0)))
-  (f6 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0) -> P (eta_B (dep_constr_B_6 a a0)))
-  (f7 : forall (i : Identifier) (a : B), P (eta_B a) -> P (eta_B (dep_constr_B_7 i a)))
-  (z : Z) (Q : P (dep_constr_B_3 z) -> Type)
-  (H : Q (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_B_3 z))) 
-: Q (f3 z).
-Proof.
-  intros. apply H.
-Defined.
-
-Lemma iota_B_4 (P : B -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_B_0 i))
-  (f1 : forall b : bool, P (dep_constr_B_1 b))
-  (f2 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_B_3 z))
-  (f4 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_4 a a0)))
-  (f5 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_5 a a0)))
-  (f6 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0) -> P (eta_B (dep_constr_B_6 a a0)))
-  (f7 : forall (i : Identifier) (a : B), P (eta_B a) -> P (eta_B (dep_constr_B_7 i a)))
-  (a1 a2 : B) (Q : P (eta_B (dep_constr_B_4 a1 a2)) -> Type)
-  (H : Q (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_B_4 a1 a2))) 
-: Q (f4 a1 (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 a2)).
-Proof.
-  intros. apply H.
-Defined.
-
-Lemma iota_B_5 (P : B -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_B_0 i))
-  (f1 : forall b : bool, P (dep_constr_B_1 b))
-  (f2 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_B_3 z))
-  (f4 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_4 a a0)))
-  (f5 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_5 a a0)))
-  (f6 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0) -> P (eta_B (dep_constr_B_6 a a0)))
-  (f7 : forall (i : Identifier) (a : B), P (eta_B a) -> P (eta_B (dep_constr_B_7 i a)))
-  (a1 a2 : B) (Q : P (eta_B (dep_constr_B_5 a1 a2)) -> Type)
-  (H : Q (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_B_5 a1 a2))) 
-: Q (f5 a1 (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 a2)).
-Proof.
-  intros. apply H.
-Defined.
-
-Lemma iota_B_6 (P : B -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_B_0 i))
-  (f1 : forall b : bool, P (dep_constr_B_1 b))
-  (f2 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_B_3 z))
-  (f4 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_4 a a0)))
-  (f5 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_5 a a0)))
-  (f6 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0) -> P (eta_B (dep_constr_B_6 a a0)))
-  (f7 : forall (i : Identifier) (a : B), P (eta_B a) -> P (eta_B (dep_constr_B_7 i a)))
-  (a1 a2 : B) (Q : P (eta_B (dep_constr_B_6 a1 a2)) -> Type)
-  (H : Q (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_B_6 a1 a2))) 
-: Q (f6 a1 (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 a2)).
-Proof.
-  intros. apply H.
-Defined.
-
-Lemma iota_B_7 (P : B -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_B_0 i))
-  (f1 : forall b : bool, P (dep_constr_B_1 b))
-  (f2 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_2 a a0)))
-  (f3 : forall z : Z, P (dep_constr_B_3 z))
-  (f4 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_4 a a0)))
-  (f5 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0)  -> P (eta_B (dep_constr_B_5 a a0)))
-  (f6 : forall a : B, P (eta_B a) -> forall a0 : B, P (eta_B a0) -> P (eta_B (dep_constr_B_6 a a0)))
-  (f7 : forall (i : Identifier) (a : B), P (eta_B a) -> P (eta_B (dep_constr_B_7 i a)))
-  i (a : B) (Q : P (eta_B (dep_constr_B_7 i a)) -> Type)
-  (H : Q (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_B_7 i a))) 
-: Q (f7 i a (dep_elim_B P f0 f1 f2 f3 f4 f5 f6 f7 a)).
-Proof.
-  intros. apply H.
+  unfold dep_elim_B in H. unfold dep_constr_B_1 in H.
+  rewrite <- (split_dec_right_OK t Ht) in H.
+  apply H.
 Defined.
 
 Program Definition f : A -> B.
 Proof.
   intros a. apply dep_elim_A with (P := fun _ => B); intros.
-  - apply dep_constr_B_0. auto.
-  - apply dep_constr_B_1. auto.
-  - apply dep_constr_B_2.
-    + apply X.
-    + apply X0.
-  - apply dep_constr_B_3. auto.
-  - apply dep_constr_B_4.
-    + apply X.
-    + apply X0.
-  - apply dep_constr_B_5.
-    + apply X.
-    + apply X0.
-  - apply dep_constr_B_6.
-    + apply X.
-    + apply X0.
-  - apply dep_constr_B_7; auto.
+  - apply (dep_constr_B_0 t H).
+  - apply (dep_constr_B_1 t H).
   - apply a.
 Defined.
 
 Program Definition g : B -> A.
 Proof.
   intros b. apply dep_elim_B with (P := fun _ => A); intros.
-  - apply dep_constr_A_0. auto.
-  - apply dep_constr_A_1. auto.
-  - apply dep_constr_A_2.
-    + apply X.
-    + apply X0.
-  - apply dep_constr_A_3. auto.
-  - apply dep_constr_A_4.
-    + apply X.
-    + apply X0.
-  - apply dep_constr_A_5.
-    + apply X.
-    + apply X0.
-  - apply dep_constr_A_6.
-    + apply X.
-    + apply X0.
-  - apply dep_constr_A_7; auto.
+  - apply (dep_constr_A_0 t H).
+  - apply (dep_constr_A_1 t H).
   - apply b.
 Defined.
 
@@ -685,7 +416,6 @@ Configure Lift A B {
   iota_a = iota_A_0 iota_A_1 iota_A_2 iota_A_3 iota_A_4 iota_A_5 iota_A_6 iota_A_7;
   iota_b = iota_B_0 iota_B_1 iota_B_2 iota_B_3 iota_B_4 iota_B_5 iota_B_6 iota_B_7
 }.
-
 
 Program Definition dep_elim_A_gen:
   forall (P : A -> Type) (f0 : forall (t : AddBool.Term) (H : no_bools t), P (inl (existT _ t H)))
@@ -720,6 +450,286 @@ Proof.
     + apply f0.
     + apply f1. apply f0.
 Defined.
+
+Unset DEVOID lift type. (* silly unification bug *)
+Repair A B in dep_elim_A as dep_elim_A_lifted.
+Print dep_elim_A_lifted.
+Print dep_elim_A_gen.
+
+Definition gen_elim_A_P (P : A -> Type) := fun (a0 : A) => P a0.
+Repair A B in gen_elim_A_P as gen_elim_B_P.
+
+Definition gen_elim_A_0 (P : A -> Type) (f0 : forall (t : AddBool.Term) (H : no_bools t),
+        P (inl (existT (fun t0 : AddBool.Term => no_bools t0) t H))) :=
+(fun i : Identifier => f0 (AddBool.Var i) (nb1 i)).
+Repair A B in gen_elim_A_0 as gen_elim_B_0.
+
+Definition gen_elim_A_parts (P : A -> Type)
+(f0 : forall (t : AddBool.Term) (H : no_bools t),
+        P (inl (existT (fun t0 : AddBool.Term => no_bools t0) t H)))
+  (f1 : (forall (t : AddBool.Term) (H : no_bools t),
+         P (inl (existT (fun t0 : AddBool.Term => no_bools t0) t H))) ->
+        forall (t : AddBool.Term) (H : yes_bools t),
+        P (inr (existT (fun t0 : AddBool.Term => yes_bools t0) t H))) 
+  (a : A) : P (eta_A a) :=
+dep_elim_A (gen_elim_A_P P)
+  (fun i : Identifier => f0 (AddBool.Var i) (nb1 i))
+  (fun b : bool => f1 f0 (AddBool.Bool b) (yb1 b))
+  (fun (a0 : A) (X : P (eta_A a0)) (a1 : A) (X0 : P (eta_A a1)) =>
+   sum_rect
+     (fun a2 : {t : AddBool.Term & no_bools t} + {t : AddBool.Term & yes_bools t}
+      => P (eta_A a2) -> P (eta_A (dep_constr_A_2 a2 a1)))
+     (fun (a2 : {t : AddBool.Term & no_bools t}) (_ : P (eta_A (inl a2))) =>
+      match
+        a1 as s return (P (eta_A s) -> P (eta_A (dep_constr_A_2 (inl a2) s)))
+      with
+      | inl s =>
+          fun _ : P (eta_A (inl s)) =>
+          f0
+            (projT1
+               (existT (fun t : AddBool.Term => no_bools t)
+                  (AddBool.Eq (projT1 a2) (projT1 s))
+                  (nb2 (projT1 a2) (projT1 s) (projT2 a2) (projT2 s))))
+            (projT2
+               (existT (fun t : AddBool.Term => no_bools t)
+                  (AddBool.Eq (projT1 a2) (projT1 s))
+                  (nb2 (projT1 a2) (projT1 s) (projT2 a2) (projT2 s))))
+      | inr s =>
+          fun _ : P (eta_A (inr s)) =>
+          f1 f0
+            (projT1
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Eq (projT1 a2) (projT1 s))
+                  (yb2right (projT1 a2) (projT1 s) (projT2 a2) (projT2 s))))
+            (projT2
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Eq (projT1 a2) (projT1 s))
+                  (yb2right (projT1 a2) (projT1 s) (projT2 a2) (projT2 s))))
+      end X0)
+     (fun (b : {t : AddBool.Term & yes_bools t}) (_ : P (eta_A (inr b))) =>
+      match
+        a1 as s return (P (eta_A s) -> P (eta_A (dep_constr_A_2 (inr b) s)))
+      with
+      | inl s =>
+          fun _ : P (eta_A (inl s)) =>
+          f1 f0
+            (projT1
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Eq (projT1 b) (projT1 s))
+                  (yb2left (projT1 b) (projT1 s) (projT2 b) (projT2 s))))
+            (projT2
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Eq (projT1 b) (projT1 s))
+                  (yb2left (projT1 b) (projT1 s) (projT2 b) (projT2 s))))
+      | inr s =>
+          fun _ : P (eta_A (inr s)) =>
+          f1 f0
+            (projT1
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Eq (projT1 b) (projT1 s))
+                  (yb2 (projT1 b) (projT1 s) (projT2 b) (projT2 s))))
+            (projT2
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Eq (projT1 b) (projT1 s))
+                  (yb2 (projT1 b) (projT1 s) (projT2 b) (projT2 s))))
+      end X0) a0 X) (fun z : Z => f0 (AddBool.Int z) (nb3 z))
+  (fun (a0 : A) (X : P (eta_A a0)) (a1 : A) (X0 : P (eta_A a1)) =>
+   sum_rect
+     (fun a2 : {t : AddBool.Term & no_bools t} + {t : AddBool.Term & yes_bools t}
+      => P (eta_A a2) -> P (eta_A (dep_constr_A_4 a2 a1)))
+     (fun (a2 : {t : AddBool.Term & no_bools t}) (_ : P (eta_A (inl a2))) =>
+      match
+        a1 as s return (P (eta_A s) -> P (eta_A (dep_constr_A_4 (inl a2) s)))
+      with
+      | inl s =>
+          fun _ : P (eta_A (inl s)) =>
+          f0
+            (projT1
+               (existT (fun t : AddBool.Term => no_bools t)
+                  (AddBool.Plus (projT1 a2) (projT1 s))
+                  (nb4 (projT1 a2) (projT1 s) (projT2 a2) (projT2 s))))
+            (projT2
+               (existT (fun t : AddBool.Term => no_bools t)
+                  (AddBool.Plus (projT1 a2) (projT1 s))
+                  (nb4 (projT1 a2) (projT1 s) (projT2 a2) (projT2 s))))
+      | inr s =>
+          fun _ : P (eta_A (inr s)) =>
+          f1 f0
+            (projT1
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Plus (projT1 a2) (projT1 s))
+                  (yb3right (projT1 a2) (projT1 s) (projT2 a2) (projT2 s))))
+            (projT2
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Plus (projT1 a2) (projT1 s))
+                  (yb3right (projT1 a2) (projT1 s) (projT2 a2) (projT2 s))))
+      end X0)
+     (fun (b : {t : AddBool.Term & yes_bools t}) (_ : P (eta_A (inr b))) =>
+      match
+        a1 as s return (P (eta_A s) -> P (eta_A (dep_constr_A_4 (inr b) s)))
+      with
+      | inl s =>
+          fun _ : P (eta_A (inl s)) =>
+          f1 f0
+            (projT1
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Plus (projT1 b) (projT1 s))
+                  (yb3left (projT1 b) (projT1 s) (projT2 b) (projT2 s))))
+            (projT2
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Plus (projT1 b) (projT1 s))
+                  (yb3left (projT1 b) (projT1 s) (projT2 b) (projT2 s))))
+      | inr s =>
+          fun _ : P (eta_A (inr s)) =>
+          f1 f0
+            (projT1
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Plus (projT1 b) (projT1 s))
+                  (yb3 (projT1 b) (projT1 s) (projT2 b) (projT2 s))))
+            (projT2
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Plus (projT1 b) (projT1 s))
+                  (yb3 (projT1 b) (projT1 s) (projT2 b) (projT2 s))))
+      end X0) a0 X)
+  (fun (a0 : A) (X : P (eta_A a0)) (a1 : A) (X0 : P (eta_A a1)) =>
+   sum_rect
+     (fun a2 : {t : AddBool.Term & no_bools t} + {t : AddBool.Term & yes_bools t}
+      => P (eta_A a2) -> P (eta_A (dep_constr_A_5 a2 a1)))
+     (fun (a2 : {t : AddBool.Term & no_bools t}) (_ : P (eta_A (inl a2))) =>
+      match
+        a1 as s return (P (eta_A s) -> P (eta_A (dep_constr_A_5 (inl a2) s)))
+      with
+      | inl s =>
+          fun _ : P (eta_A (inl s)) =>
+          f0
+            (projT1
+               (existT (fun t : AddBool.Term => no_bools t)
+                  (AddBool.Times (projT1 a2) (projT1 s))
+                  (nb5 (projT1 a2) (projT1 s) (projT2 a2) (projT2 s))))
+            (projT2
+               (existT (fun t : AddBool.Term => no_bools t)
+                  (AddBool.Times (projT1 a2) (projT1 s))
+                  (nb5 (projT1 a2) (projT1 s) (projT2 a2) (projT2 s))))
+      | inr s =>
+          fun _ : P (eta_A (inr s)) =>
+          f1 f0
+            (projT1
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Times (projT1 a2) (projT1 s))
+                  (yb4right (projT1 a2) (projT1 s) (projT2 a2) (projT2 s))))
+            (projT2
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Times (projT1 a2) (projT1 s))
+                  (yb4right (projT1 a2) (projT1 s) (projT2 a2) (projT2 s))))
+      end X0)
+     (fun (b : {t : AddBool.Term & yes_bools t}) (_ : P (eta_A (inr b))) =>
+      match
+        a1 as s return (P (eta_A s) -> P (eta_A (dep_constr_A_5 (inr b) s)))
+      with
+      | inl s =>
+          fun _ : P (eta_A (inl s)) =>
+          f1 f0
+            (projT1
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Times (projT1 b) (projT1 s))
+                  (yb4left (projT1 b) (projT1 s) (projT2 b) (projT2 s))))
+            (projT2
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Times (projT1 b) (projT1 s))
+                  (yb4left (projT1 b) (projT1 s) (projT2 b) (projT2 s))))
+      | inr s =>
+          fun _ : P (eta_A (inr s)) =>
+          f1 f0
+            (projT1
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Times (projT1 b) (projT1 s))
+                  (yb4 (projT1 b) (projT1 s) (projT2 b) (projT2 s))))
+            (projT2
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Times (projT1 b) (projT1 s))
+                  (yb4 (projT1 b) (projT1 s) (projT2 b) (projT2 s))))
+      end X0) a0 X)
+  (fun (a0 : A) (X : P (eta_A a0)) (a1 : A) (X0 : P (eta_A a1)) =>
+   sum_rect
+     (fun a2 : {t : AddBool.Term & no_bools t} + {t : AddBool.Term & yes_bools t}
+      => P (eta_A a2) -> P (eta_A (dep_constr_A_6 a2 a1)))
+     (fun (a2 : {t : AddBool.Term & no_bools t}) (_ : P (eta_A (inl a2))) =>
+      match
+        a1 as s return (P (eta_A s) -> P (eta_A (dep_constr_A_6 (inl a2) s)))
+      with
+      | inl s =>
+          fun _ : P (eta_A (inl s)) =>
+          f0
+            (projT1
+               (existT (fun t : AddBool.Term => no_bools t)
+                  (AddBool.Minus (projT1 a2) (projT1 s))
+                  (nb6 (projT1 a2) (projT1 s) (projT2 a2) (projT2 s))))
+            (projT2
+               (existT (fun t : AddBool.Term => no_bools t)
+                  (AddBool.Minus (projT1 a2) (projT1 s))
+                  (nb6 (projT1 a2) (projT1 s) (projT2 a2) (projT2 s))))
+      | inr s =>
+          fun _ : P (eta_A (inr s)) =>
+          f1 f0
+            (projT1
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Minus (projT1 a2) (projT1 s))
+                  (yb5right (projT1 a2) (projT1 s) (projT2 a2) (projT2 s))))
+            (projT2
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Minus (projT1 a2) (projT1 s))
+                  (yb5right (projT1 a2) (projT1 s) (projT2 a2) (projT2 s))))
+      end X0)
+     (fun (b : {t : AddBool.Term & yes_bools t}) (_ : P (eta_A (inr b))) =>
+      match
+        a1 as s return (P (eta_A s) -> P (eta_A (dep_constr_A_6 (inr b) s)))
+      with
+      | inl s =>
+          fun _ : P (eta_A (inl s)) =>
+          f1 f0
+            (projT1
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Minus (projT1 b) (projT1 s))
+                  (yb5left (projT1 b) (projT1 s) (projT2 b) (projT2 s))))
+            (projT2
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Minus (projT1 b) (projT1 s))
+                  (yb5left (projT1 b) (projT1 s) (projT2 b) (projT2 s))))
+      | inr s =>
+          fun _ : P (eta_A (inr s)) =>
+          f1 f0
+            (projT1
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Minus (projT1 b) (projT1 s))
+                  (yb5 (projT1 b) (projT1 s) (projT2 b) (projT2 s))))
+            (projT2
+               (existT (fun t : AddBool.Term => yes_bools t)
+                  (AddBool.Minus (projT1 b) (projT1 s))
+                  (yb5 (projT1 b) (projT1 s) (projT2 b) (projT2 s))))
+      end X0) a0 X)
+  (fun (i : Identifier) (a0 : A) (X : P (eta_A a0)) =>
+   sum_rect
+     (fun a1 : {t : AddBool.Term & no_bools t} + {t : AddBool.Term & yes_bools t}
+      => P (eta_A a1) -> P (eta_A (dep_constr_A_7 i a1)))
+     (fun (a1 : {t : AddBool.Term & no_bools t}) (_ : P (eta_A (inl a1))) =>
+      f0
+        (projT1
+           (existT (fun t : AddBool.Term => no_bools t)
+              (AddBool.Choose i (projT1 a1)) (nb7 i (projT1 a1) (projT2 a1))))
+        (projT2
+           (existT (fun t : AddBool.Term => no_bools t)
+              (AddBool.Choose i (projT1 a1)) (nb7 i (projT1 a1) (projT2 a1)))))
+     (fun (b : {t : AddBool.Term & yes_bools t}) (_ : P (eta_A (inr b))) =>
+      f1 f0
+        (projT1
+           (existT (fun t : AddBool.Term => yes_bools t)
+              (AddBool.Choose i (projT1 b)) (yb6 i (projT1 b) (projT2 b))))
+        (projT2
+           (existT (fun t : AddBool.Term => yes_bools t)
+              (AddBool.Choose i (projT1 b)) (yb6 i (projT1 b) (projT2 b))))) a0 X)
+  a.
+
+Repair A B in dep_elim_A_gen as dep_elim_B_gen.
 
 Print dep_elim_A_gen.
 
