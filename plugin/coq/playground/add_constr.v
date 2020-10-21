@@ -251,12 +251,7 @@ Proof.
   apply t.
 Defined.
 
-Program Definition eta_A (a : A) : A.
-Proof.
-  unfold A in *. induction a.
-  - left. apply (existT _ (projT1 a) (projT2 a)).
-  - right. apply (existT _ (projT1 b) (projT2 b)).
-Defined.
+Definition eta_A (a : A) := a.
 Definition eta_B (b : B) := b.
 
 Program Definition dep_elim_A (P : A -> Type)
@@ -504,9 +499,61 @@ Proof.
   - intros. unfold dep_elim_A_gen. apply iota_A_1_bwd. apply H3. apply H2.
 Defined.
 
+Lemma iota_slow_fast_A:
+  forall (a : A) (P : A -> Type) (H : (forall (t : Term) (H : no_bools t), P (dep_constr_A_0 t H)) -> forall (t : Term) (H : yes_bools t), P (dep_constr_A_1 t H)) (H0 : forall (x : Term) (H : no_bools x), P (dep_constr_A_0 x H)) (H1 : forall a, P (eta_A a)),
+    (forall t b, H0 t b = H1 (dep_constr_A_0 t b)) ->
+    ((forall t b, H0 t b = H1 (dep_constr_A_0 t b)) -> forall t b, H H0 t b = H1 (dep_constr_A_1 t b)) ->
+    forall (Q : P (eta_A (eta_A a)) -> Type),
+    Q (dep_elim_A_gen
+      P
+      H0
+      H
+      (eta_A a)) ->
+    Q (H1 (eta_A a)).
+Proof.
+  intros a P H H0 H1 H2 H3 Q H4. rewrite <- (slow_fast_A a P H H0 H1 H2 H3). apply H4.
+Defined.
+
 Print slow_fast_A.
 
 Repair A B in slow_fast_A as slow_fast.
+Repair A B in iota_slow_fast_A as iota_slow_fast.
+Check iota_slow_fast.
+
+Check dep_elim_A.
+
+Check Term_rect.
+
+Repair A B in f as proj_id.
+Repair A B in g as mk_id.
+
+Lemma retraction:
+  forall (a : A), g (f a) = eta_A a.
+Proof.
+  intros a. replace a with (eta_A a) at 1 by reflexivity.
+  apply (dep_elim_A) with (a := a).
+  - intros. unfold f. unfold g. apply iota_A_0_bwd. apply iota_B_0_bwd. reflexivity. 
+  - intros. unfold f. unfold g. apply iota_A_1_bwd. apply iota_B_1_bwd. reflexivity.
+Defined.
+
+Repair A B in iota_A_0_bwd as iota_A_0_bwd_lifted.
+Repair A B in iota_A_1_bwd as iota_A_1_bwd_lifted.
+Repair A B in eta_A as id.
+Print iota_B_0_bwd.
+Repair A B in retraction as retraction_lifted  { opaque iota_B_0_bwd iota_B_1_bwd }.
+Print retraction_lifted.
+
+Program Definition slow_fast_A_term_rect a P H H0 f0 f1 f2 f3 f4 f5 f6 f7 H2 :=
+  slow_fast_A a P H H0 (fun a => Term_rect (fun t => P (g t)) f0 f1 f2 f3 f4 f5 f6 f7 (f a)) H2.
+Next Obligation.
+  apply retraction.
+Defined.
+Print slow_fast_A_term_rect.
+
+Lift A B in slow_fast_A_term_rect_obligation_1 as obligation.
+Print obligation.
+Lift A B in slow_fast_A_term_rect as slow_fast_term_rect.
+Print slow_fast_term_rect.
 
 End Curious.
 
@@ -666,70 +713,6 @@ Proof.
     + rewrite <- IHb; simpl; auto. f_equal. apply H.
     + rewrite <- IHb1; simpl; auto. rewrite <- IHb2; simpl; auto.
     + f_equal. auto.
-Defined.
-
-
-
-Program Definition free_vars_A' (a : A) : list Identifier.
-Proof.
-  apply dep_elim_A_gen with (a := a) (P := fun _ => list Identifier); intros.
-  - apply (AddBoolProofs.free_vars (existT no_bools t H)).
-  - apply (free_vars_A_ext H t H0).
-Defined.
-
-
-Lemma test2:
-  forall t, free_vars t = free_vars_manual t.
-Proof.
-  intros t.
-  assert (forall t a, AddBoolProofs.free_vars (existT no_bools t a) = free_vars_manual t).
-  - induction a; simpl; auto.
-    + rewrite <- IHa1. rewrite <- IHa2; auto.
-    + rewrite <- IHa1. rewrite <- IHa2; auto.
-    + rewrite <- IHa1. rewrite <- IHa2; auto.
-    + rewrite <- IHa1. rewrite <- IHa2; auto.
-    + rewrite <- IHa; auto.
-  - rewrite <- H.
-
- remember (split_dec t). induction s; simpl; auto.
-    induction b; simpl; auto.
-    + rewrite <- IHb; simpl; auto.
-      * f_equal. apply H.
-      * apply split_dec_right_OK.
-    + rewrite <- IHb; simpl; auto.
-      * f_equal. apply H.
-      * apply split_dec_right_OK.
-    + rewrite <- IHb1; simpl; auto.
-      * rewrite <- IHb2; simpl; auto. apply split_dec_right_OK.
-      * apply split_dec_right_OK.
-    + rewrite <- IHb; simpl; auto.
-      * f_equal. apply H.
-      * apply split_dec_right_OK.
-    + rewrite <- IHb; simpl; auto.
-      * f_equal. apply H.
-      * apply split_dec_right_OK.
-    + rewrite <- IHb1; simpl; auto.
-      * rewrite <- IHb2; simpl; auto. apply split_dec_right_OK.
-      * apply split_dec_right_OK.
-    + rewrite <- IHb; simpl; auto.
-      * f_equal. apply H.
-      * apply split_dec_right_OK.
-    + rewrite <- IHb; simpl; auto.
-      * f_equal. apply H.
-      * apply split_dec_right_OK.
-    + rewrite <- IHb1; simpl; auto.
-      * rewrite <- IHb2; simpl; auto. apply split_dec_right_OK.
-      * apply split_dec_right_OK.
-    + rewrite <- IHb; simpl; auto.
-      * f_equal. apply H.
-      * apply split_dec_right_OK.
-    + rewrite <- IHb; simpl; auto.
-      * f_equal. apply H.
-      * apply split_dec_right_OK.
-    + rewrite <- IHb1; simpl; auto.
-      * rewrite <- IHb2; simpl; auto. apply split_dec_right_OK.
-      * apply split_dec_right_OK.
-    + rewrite <- IHb; simpl; auto. apply split_dec_right_OK.
 Defined.
 
 End AddBoolProofsExt.
