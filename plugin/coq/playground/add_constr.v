@@ -596,122 +596,75 @@ Proof.
   auto.
 Defined.
 
+Program Definition free_vars_manual (a : Term) : list Identifier.
+Proof.
+  induction a.
+  - apply [i].
+  - apply [].
+  - apply (IHa1 ++ IHa2).
+  - apply [].
+  - apply (IHa1 ++ IHa2).
+  - apply (IHa1 ++ IHa2).
+  - apply (IHa1 ++ IHa2).
+  - apply (filter (fun y : string => if id_eq_dec i y then false else true) IHa).
+Defined.
+
+Lemma testOther:
+  forall t, free_vars_delta t = free_vars_manual t.
+Proof.
+  intros t. unfold free_vars_delta.
+  unfold dep_elim_A_lifted. unfold dep_elim_B.
+  assert (forall t a, AddBoolProofs.free_vars (existT no_bools t a) = free_vars_manual t).
+  - induction a; simpl; auto.
+    + rewrite <- IHa1. rewrite <- IHa2; auto.
+    + rewrite <- IHa1. rewrite <- IHa2; auto.
+    + rewrite <- IHa1. rewrite <- IHa2; auto.
+    + rewrite <- IHa1. rewrite <- IHa2; auto.
+    + rewrite <- IHa; auto.
+  - remember (split_dec t). induction s; simpl; auto.
+    induction b; simpl; auto.
+    + rewrite <- IHb; simpl; auto.
+      * f_equal. apply H.
+      * apply split_dec_right_OK.
+    + rewrite <- IHb; simpl; auto.
+      * f_equal. apply H.
+      * apply split_dec_right_OK.
+    + rewrite <- IHb1; simpl; auto.
+      * rewrite <- IHb2; simpl; auto. apply split_dec_right_OK.
+      * apply split_dec_right_OK.
+    + rewrite <- IHb; simpl; auto.
+      * f_equal. apply H.
+      * apply split_dec_right_OK.
+    + rewrite <- IHb; simpl; auto.
+      * f_equal. apply H.
+      * apply split_dec_right_OK.
+    + rewrite <- IHb1; simpl; auto.
+      * rewrite <- IHb2; simpl; auto. apply split_dec_right_OK.
+      * apply split_dec_right_OK.
+    + rewrite <- IHb; simpl; auto.
+      * f_equal. apply H.
+      * apply split_dec_right_OK.
+    + rewrite <- IHb; simpl; auto.
+      * f_equal. apply H.
+      * apply split_dec_right_OK.
+    + rewrite <- IHb1; simpl; auto.
+      * rewrite <- IHb2; simpl; auto. apply split_dec_right_OK.
+      * apply split_dec_right_OK.
+    + rewrite <- IHb; simpl; auto.
+      * f_equal. apply H.
+      * apply split_dec_right_OK.
+    + rewrite <- IHb; simpl; auto.
+      * f_equal. apply H.
+      * apply split_dec_right_OK.
+    + rewrite <- IHb1; simpl; auto.
+      * rewrite <- IHb2; simpl; auto. apply split_dec_right_OK.
+      * apply split_dec_right_OK.
+    + rewrite <- IHb; simpl; auto. apply split_dec_right_OK.
+Defined.
+
+(* OK so it's very ugly and slow, but correct.
+   How can we recover the fast version for free?
+   Maybe let's start with a more general correpsondence? *)
+
 End AddBoolProofsExt.
-
-Module SelfEquiv.
-
-Definition A := AddBool.Term.
-Definition B := AddBool.Term.
-
-Definition dep_constr_A_0 := AddBool.Var.
-Definition dep_constr_A_1 := AddBool.Bool.
-Definition dep_constr_A_2 := AddBool.Eq.
-Definition dep_constr_A_3 := AddBool.Int.
-Definition dep_constr_A_4 := AddBool.Plus.
-Definition dep_constr_A_5 := AddBool.Times.
-Definition dep_constr_A_6 := AddBool.Minus.
-Definition dep_constr_A_7 := AddBool.Choose.
-
-Definition dep_constr_B_0 := AddBool.Var.
-Definition dep_constr_B_1 := AddBool.Bool.
-Definition dep_constr_B_2 := AddBool.Eq.
-Definition dep_constr_B_3 := AddBool.Int.
-Definition dep_constr_B_4 := AddBool.Plus.
-Definition dep_constr_B_5 := AddBool.Times.
-Definition dep_constr_B_6 := AddBool.Minus.
-Definition dep_constr_B_7 := AddBool.Choose.
-
-Definition eta_A (a : A) := a.
-Definition eta_B (b : B) := b.
-
-Program Definition dep_elim_A (P : A -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_A_0 i))
-  (f1 : forall b : bool, P (dep_constr_A_1 b))
-  (f2 : forall a : A, P a -> forall a0 : A, P a0 -> P (dep_constr_A_2 a a0))
-  (f3 : forall z : Z, P (dep_constr_A_3 z))
-  (f4 : forall a : A, P a -> forall a0 : A, P a0 -> P (dep_constr_A_4 a a0))
-  (f5 : forall a : A, P a -> forall a0 : A, P a0 -> P (dep_constr_A_5 a a0))
-  (f6 : forall a : A, P a -> forall a0 : A, P a0 -> P (dep_constr_A_6 a a0))
-  (f7 : forall (i : Identifier) (a : A), P a -> P (AddBool.Choose i a))
-  (a : A)
-: P a.
-Proof.
-  apply dep_elim_B_gen with (a := a) (P := P); intros.
-  - simpl. unfold Curious.dep_constr_B_0. induction H; auto.
-  - simpl. unfold Curious.dep_constr_B_1. induction H; auto.
-    + apply f2; auto. apply (X t2 n).
-    + apply f2; auto. apply (X t1 n).
-    + apply f4; auto. apply (X t2 n).
-    + apply f4; auto. apply (X t1 n).
-    + apply f5; auto. apply (X t2 n).
-    + apply f5; auto. apply (X t1 n).
-    + apply f6; auto. apply (X t2 n).
-    + apply f6; auto. apply (X t1 n).
-Defined.
-
-Definition dep_elim_B (P : B -> Type)
-  (f0 : forall i : Identifier, P (dep_constr_B_0 i))
-  (f1 : forall b : bool, P (dep_constr_B_1 b))
-  (f2 : forall b : B, P b -> forall b0 : B, P b0 -> P (dep_constr_B_2 b b0))
-  (f3 : forall z : Z, P (dep_constr_B_3 z))
-  (f4 : forall b : B, P b -> forall b0 : B, P b0 -> P (dep_constr_B_4 b b0))
-  (f5 : forall b : B, P b -> forall b0 : B, P b0 -> P (dep_constr_B_5 b b0))
-  (f6 : forall b : B, P b -> forall b0 : B, P b0 -> P (dep_constr_B_6 b b0))
-  (f7 : forall (i : Identifier) (b : B), P b -> P (AddBool.Choose i b))
-  (b : B) 
-: P b :=
-  AddBool.Term_rect P f0 f1 f2 f3 f4 f5 f6 f7 b.
-
-Program Definition iota_A_0
-  P f0 f1 f2 f3 f4 f5 f6 f7 i (Q : P (dep_constr_A_0 i) -> Type)
-  (H : Q (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_0 i)))
-: Q (f0 i).
-Proof.
-  apply H.
-Defined.
-
-Program Definition iota_A_1
-  P f0 f1 f2 f3 f4 f5 f6 f7 b (Q : P (dep_constr_A_1 b) -> Type)
-  (H : Q (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_1 b)))
-: Q (f1 b).
-Proof.
-  apply H.
-Defined.
-
-Program Definition iota_A_2
-  P f0 f1 f2 f3 f4 f5 f6 f7 a1 a2 (Q : P (dep_constr_A_2 a1 a2) -> Type)
-  (H : Q (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_2 a1 a2)))
-: Q (f2 a1 (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_A P f0 f1 f2 f3 f4 f5 f6 f7 a2)).
-Proof.
-  revert H.
-  unfold dep_elim_A. unfold dep_elim_B_gen. unfold dep_elim_A_lifted. unfold Curious.dep_elim_B.
-  remember (split_dec a1). remember (split_dec a2).
-  induction s, s0; simpl; intros.
-  - subst.  intros.
-  unfold dep_elim_A in H.
-  unfold dep_elim_B_gen in H.
-Defined.
-
-Lemma iota_B_0 (P : B -> Type)
-  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_B_0 t H))
-  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_B_1 t H))
-  (t : AddBool.Term) (Ht : no_bools t) (Q : P (dep_constr_B_0 t Ht) -> Type)
-  (H : Q (dep_elim_B P f0 f1 (dep_constr_B_0 t Ht))) 
-: Q (f0 t Ht).
-Proof.
-  unfold dep_elim_B in H. unfold dep_constr_B_0 in H.
-  rewrite <- (split_dec_left_OK t Ht) in H.
-  apply H.
-Defined.
-
-Print dep_elim_B.
-Print split_dec.
-(*  sum_rect (fun _ : no_bools b + yes_bools b => P b) (fun a : no_bools b => f0 b a)
-   (fun b0 : yes_bools b => f1 b b0) H) (split_dec b)*)
-
-End SelfEquiv.
-
-(*
- * Honestly now let's just try a self-equivalence and use that?
- *)
 
