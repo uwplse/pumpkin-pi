@@ -572,16 +572,16 @@ Defined.
    Maybe let's start with a more general correpsondence? *)
 
 Lemma slow_fast:
-  forall (a : Term) (H : (forall t : Term, no_bools t -> list Identifier) -> forall t : Term, yes_bools t -> list Identifier) H0,
-    (forall t b, H0 t b = free_vars_manual t) ->
-    ((forall t b, H0 t b = free_vars_manual t) -> forall t b, H H0 t b = free_vars_manual t) ->
+  forall (a : Term) (P : Term -> Type) (H : (forall t : Term, no_bools t -> P t) -> forall t : Term, yes_bools t -> P t) H0 H1,
+    (forall t b, H0 t b = H1 t) ->
+    ((forall t b, H0 t b = H1 t) -> forall t b, H H0 t b = H1 t) ->
     dep_elim_B_gen
-      (fun _ : Term => list Identifier)
+      P
       H0
       H
       a 
     =
-    free_vars_manual a.
+    H1 a.
 Proof.
   intros a H H0 H1 H2. unfold dep_elim_B_gen.
   unfold dep_elim_A_lifted. unfold dep_elim_B.
@@ -592,7 +592,7 @@ Lemma test:
   forall t, free_vars t = free_vars_manual t.
 Proof.
   intros t. unfold free_vars.
-  apply slow_fast; intros; auto.
+  apply slow_fast with (P := (fun _ => list Identifier)); intros; auto.
   - induction b; simpl; auto.
     + rewrite <- IHb1. rewrite <- IHb2. auto.
     + rewrite <- IHb1. rewrite <- IHb2. auto.
