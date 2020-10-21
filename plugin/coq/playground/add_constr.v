@@ -480,8 +480,6 @@ Print dep_elim_B_gen.
 
 Import AddBool.
 
-
-
 Lemma slow_fast_A:
   forall (a : A) (P : A -> Type) (H : (forall (t : Term) (H : no_bools t), P (dep_constr_A_0 t H)) -> forall (t : Term) (H : yes_bools t), P (dep_constr_A_1 t H)) (H0 : forall (x : Term) (H : no_bools x), P (dep_constr_A_0 x H)) (H1 : forall a, P (eta_A a)),
     (forall t b, H0 t b = H1 (dep_constr_A_0 t b)) ->
@@ -499,69 +497,7 @@ Proof.
   - intros. unfold dep_elim_A_gen. apply iota_A_1_bwd. apply H3. apply H2.
 Defined.
 
-Lemma iota_slow_fast_A:
-  forall (a : A) (P : A -> Type) (H : (forall (t : Term) (H : no_bools t), P (dep_constr_A_0 t H)) -> forall (t : Term) (H : yes_bools t), P (dep_constr_A_1 t H)) (H0 : forall (x : Term) (H : no_bools x), P (dep_constr_A_0 x H)) (H1 : forall a, P (eta_A a)),
-    (forall t b, H0 t b = H1 (dep_constr_A_0 t b)) ->
-    ((forall t b, H0 t b = H1 (dep_constr_A_0 t b)) -> forall t b, H H0 t b = H1 (dep_constr_A_1 t b)) ->
-    forall (Q : P (eta_A (eta_A a)) -> Type),
-    Q (dep_elim_A_gen
-      P
-      H0
-      H
-      (eta_A a)) ->
-    Q (H1 (eta_A a)).
-Proof.
-  intros a P H H0 H1 H2 H3 Q H4. rewrite <- (slow_fast_A a P H H0 H1 H2 H3). apply H4.
-Defined.
-
-Print slow_fast_A.
-
-Repair A B in slow_fast_A as slow_fast.
-Repair A B in iota_slow_fast_A as iota_slow_fast.
-Check iota_slow_fast.
-
-Check dep_elim_A.
-
-Check Term_rect.
-
-Repair A B in f as proj_id.
-Repair A B in g as mk_id.
-
-Lemma retraction:
-  forall (a : A), g (f a) = eta_A a.
-Proof.
-  intros a. replace a with (eta_A a) at 1 by reflexivity.
-  apply (dep_elim_A) with (a := a).
-  - intros. unfold f. unfold g. apply iota_A_0_bwd. apply iota_B_0_bwd. reflexivity. 
-  - intros. unfold f. unfold g. apply iota_A_1_bwd. apply iota_B_1_bwd. reflexivity.
-Defined.
-
-Repair A B in iota_A_0_bwd as iota_A_0_bwd_lifted.
-Repair A B in iota_A_1_bwd as iota_A_1_bwd_lifted.
-Repair A B in eta_A as id.
-Print iota_B_0_bwd.
-Repair A B in retraction as retraction_lifted  { opaque iota_B_0_bwd iota_B_1_bwd }.
-Print retraction_lifted.
-
-Program Definition slow_fast_A_term_rect a P H H0 f0 f1 f2 f3 f4 f5 f6 f7 H2 :=
-  slow_fast_A a P H H0 (fun a => Term_rect (fun t => P (g t)) f0 f1 f2 f3 f4 f5 f6 f7 (f a)) H2.
-Next Obligation.
-  apply retraction.
-Defined.
-Print slow_fast_A_term_rect.
-
-Program Definition iota_slow_fast_A_term_rect a P H H0 f0 f1 f2 f3 f4 f5 f6 f7 H2 :=
-  iota_slow_fast_A a P H H0 (fun a => Term_rect (fun t => P (g t)) f0 f1 f2 f3 f4 f5 f6 f7 (f a)) H2.
-Next Obligation.
-  apply retraction.
-Defined.
-
-Lift A B in slow_fast_A_term_rect_obligation_1 as obligation.
-Lift A B in iota_slow_fast_A_term_rect_obligation_1 as obligation_2.
-Print obligation.
-Lift A B in slow_fast_A_term_rect as slow_fast_term_rect.
-Lift A B in iota_slow_fast_A_term_rect as iota_slow_fast_term_rect.
-Print slow_fast_term_rect.
+Lift A B in slow_fast_A as slow_fast.
 
 End Curious.
 
@@ -666,7 +602,7 @@ Proof.
   - apply (Choose i t).
 Defined.
 
-(* Proof obligation (TODO follow this pattern elsewhere): *)
+(* Proof obligation: *)
 Program Definition free_vars_A_ext (old : forall (t : AddBool.Term) (H : no_bools t), list Identifier) (t : Term) (H : yes_bools t) : list Identifier.
 Proof.
   induction H; intros.
