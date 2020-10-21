@@ -333,6 +333,27 @@ Proof.
   intros. apply H.
 Defined.
 
+(* TODO should be a way around this, since these are symmetric, but whatever *)
+Lemma iota_A_0_bwd (P : A -> Type)
+  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_A_0 t H))
+  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_A_1 t H))
+  (t : AddBool.Term) (Ht : no_bools t) (Q : P (dep_constr_A_0 t Ht) -> Type)
+  (H : Q (f0 t Ht))
+: Q (dep_elim_A P f0 f1 (dep_constr_A_0 t Ht)). 
+Proof.
+  intros. apply H.
+Defined.
+
+Lemma iota_A_1_bwd (P : A -> Type)
+  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_A_0 t H))
+  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_A_1 t H))
+  (t : AddBool.Term) (Ht : yes_bools t) (Q : P (dep_constr_A_1 t Ht) -> Type)
+  (H : Q (f1 t Ht)) 
+: Q (dep_elim_A P f0 f1 (dep_constr_A_1 t Ht)).
+Proof.
+  intros. apply H.
+Defined.
+
 Lemma split_dec_left_OK:
   forall (t : AddBool.Term) (H : no_bools t),
     inl H = split_dec t.
@@ -389,6 +410,30 @@ Proof.
   apply H.
 Defined.
 
+Lemma iota_B_0_bwd (P : B -> Type)
+  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_B_0 t H))
+  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_B_1 t H))
+  (t : AddBool.Term) (Ht : no_bools t) (Q : P (dep_constr_B_0 t Ht) -> Type)
+  (H :  Q (f0 t Ht))
+: Q (dep_elim_B P f0 f1 (dep_constr_B_0 t Ht)).
+Proof.
+  unfold dep_elim_B. unfold dep_constr_B_0.
+  rewrite <- (split_dec_left_OK t Ht).
+  apply H.
+Defined.
+
+Lemma iota_B_1_bwd (P : B -> Type)
+  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_B_0 t H))
+  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_B_1 t H))
+  (t : AddBool.Term) (Ht : yes_bools t) (Q : P (dep_constr_B_1 t Ht) -> Type)
+  (H : Q (f1 t Ht))
+: Q (dep_elim_B P f0 f1 (dep_constr_B_1 t Ht)).
+Proof.
+  unfold dep_elim_B. unfold dep_constr_B_1.
+  rewrite <- (split_dec_right_OK t Ht).
+  apply H.
+Defined.
+
 Program Definition f : A -> B.
 Proof.
   intros a. apply dep_elim_A with (P := fun _ => B); intros.
@@ -413,8 +458,8 @@ Configure Lift A B {
   elim_b = dep_elim_B;
   eta_a = eta_A;
   eta_b = eta_B;
-  iota_a = iota_A_0 iota_A_1;
-  iota_b = iota_B_0 iota_B_1
+  iota_a = iota_A_0 iota_A_1 iota_A_0_bwd iota_A_1_bwd;
+  iota_b = iota_B_0 iota_B_1 iota_B_0_bwd iota_B_1_bwd
 }.
 
 Unset DEVOID lift type. (* silly unification bug *)
@@ -437,6 +482,31 @@ Defined.
 
 Repair A B in dep_elim_A_gen as dep_elim_B_gen.
 Print dep_elim_B_gen.
+
+Import AddBool.
+
+
+
+Lemma slow_fast_A:
+  forall (a : A) (P : A -> Type) (H : (forall (t : Term) (H : no_bools t), P (dep_constr_A_0 t H)) -> forall (t : Term) (H : yes_bools t), P (dep_constr_A_1 t H)) (H0 : forall (x : Term) (H : no_bools x), P (dep_constr_A_0 x H)) (H1 : forall a, P (eta_A a)),
+    (forall t b, H0 t b = H1 (dep_constr_A_0 t b)) ->
+    ((forall t b, H0 t b = H1 (dep_constr_A_0 t b)) -> forall t b, H H0 t b = H1 (dep_constr_A_1 t b)) ->
+    dep_elim_A_gen
+      P
+      H0
+      H
+      (eta_A a) 
+    =
+    H1 (eta_A a).
+Proof.
+  intros a P H H0 H1 H2 H3. apply dep_elim_A_gen with (P := fun a => dep_elim_A_gen P H0 H a = H1 a). 
+  - intros. unfold dep_elim_A_gen. apply iota_A_0_bwd. apply H2.
+  - intros. unfold dep_elim_A_gen. apply iota_A_1_bwd. apply H3. apply H2.
+Defined.
+
+Print slow_fast_A.
+
+Repair A B in slow_fast_A as slow_fast.
 
 End Curious.
 
@@ -571,35 +641,18 @@ Defined.
    How can we recover the fast version for free?
    Maybe let's start with a more general correpsondence? *)
 
-Lemma slow_fast:
-  forall (a : Term) (P : Term -> Type) (H : (forall t : Term, no_bools t -> P t) -> forall t : Term, yes_bools t -> P t) H0 H1,
-    (forall t b, H0 t b = H1 t) ->
-    ((forall t b, H0 t b = H1 t) -> forall t b, H H0 t b = H1 t) ->
-    dep_elim_B_gen
-      P
-      H0
-      H
-      a 
-    =
-    H1 a.
-Proof.
-  intros a H H0 H1 H2. unfold dep_elim_B_gen.
-  unfold dep_elim_A_lifted. unfold dep_elim_B.
-  remember (split_dec a). induction s; simpl; auto.
-Defined.
-
 Lemma test:
   forall t, free_vars t = free_vars_manual t.
 Proof.
   intros t. unfold free_vars.
   apply slow_fast with (P := (fun _ => list Identifier)); intros; auto.
-  - induction b; simpl; auto.
+  - unfold dep_constr_B_0. induction b; simpl; auto.
     + rewrite <- IHb1. rewrite <- IHb2. auto.
     + rewrite <- IHb1. rewrite <- IHb2. auto.
     + rewrite <- IHb1. rewrite <- IHb2. auto.
     + rewrite <- IHb1. rewrite <- IHb2. auto.
     + rewrite <- IHb. auto.
-  - induction b; simpl; auto.
+  - unfold dep_constr_B_1. induction b; simpl; auto.
     + rewrite <- IHb; simpl; auto. f_equal. apply H.
     + rewrite <- IHb; simpl; auto. f_equal. apply H.
     + rewrite <- IHb1; simpl; auto. rewrite <- IHb2; simpl; auto.
