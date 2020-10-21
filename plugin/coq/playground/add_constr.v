@@ -546,15 +546,16 @@ Proof.
 Defined.
 
 Repair A B in free_vars_A as free_vars.
+Print dep_elim_B_gen.
 
 Definition free_vars_delta (a : Term) : list Identifier :=
-  dep_elim_B_gen
+  let H := (fun (t : Term) (H : no_bools t) => AddBoolProofs.free_vars (existT no_bools t H)) in
+  dep_elim_A_lifted
     (fun _ : Term => list Identifier)
-  (fun (t : Term) (H : no_bools t) =>
-   AddBoolProofs.free_vars (existT no_bools t H))
-  (fun (H : forall t : Term, no_bools t -> list Identifier) 
-     (t : Term) (H0 : yes_bools t) =>
-   yes_bools_rec (fun (t0 : Term) (_ : yes_bools t0) => list Identifier)
+    H
+  (fun (t : Term) (H0 : yes_bools t) =>
+   yes_bools_rec 
+     (fun (t0 : Term) (_ : yes_bools t0) => list Identifier)
      (fun _ : bool => [])
      (fun (t1 t2 : Term) (_ : yes_bools t1) (IHyes_bools : list Identifier)
         (n : no_bools t2) => IHyes_bools ++ H t2 n)
@@ -588,6 +589,12 @@ Definition free_vars_delta (a : Term) : list Identifier :=
         (IHyes_bools : list Identifier) =>
       filter (fun y : string => if id_eq_dec a0 y then false else true)
         IHyes_bools) t H0) a.
+
+Lemma test:
+  free_vars_delta = free_vars.
+Proof.
+  auto.
+Defined.
 
 End AddBoolProofsExt.
 
