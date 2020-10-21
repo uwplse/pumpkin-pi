@@ -550,9 +550,17 @@ Next Obligation.
 Defined.
 Print slow_fast_A_term_rect.
 
+Program Definition iota_slow_fast_A_term_rect a P H H0 f0 f1 f2 f3 f4 f5 f6 f7 H2 :=
+  iota_slow_fast_A a P H H0 (fun a => Term_rect (fun t => P (g t)) f0 f1 f2 f3 f4 f5 f6 f7 (f a)) H2.
+Next Obligation.
+  apply retraction.
+Defined.
+
 Lift A B in slow_fast_A_term_rect_obligation_1 as obligation.
+Lift A B in iota_slow_fast_A_term_rect_obligation_1 as obligation_2.
 Print obligation.
 Lift A B in slow_fast_A_term_rect as slow_fast_term_rect.
+Lift A B in iota_slow_fast_A_term_rect as iota_slow_fast_term_rect.
 Print slow_fast_term_rect.
 
 End Curious.
@@ -616,12 +624,9 @@ Definition EpsilonLogic :=
 Definition isTheorem (L : EpsilonLogic) (t : Term) :=
   forall env, L.(eval) env t = L.(vTrue).*)
 
-
-Program Definition identity_A (a : A) : Term.
+Program Definition identity_A_ext (old : (forall t : Term, no_bools t -> Term)) (t : Term) (H : yes_bools t) : Term.
 Proof.
-  apply dep_elim_A_gen with (a := a) (P := fun _ => Term); intros.
-  - apply identity. apply (existT _ t H).
-  - induction H0; intros.
+  induction H; intros.
     + apply (AddBool.Bool b).
     + apply (AddBool.Eq t1 t2).
     + apply (AddBool.Eq t1 t2).
@@ -635,11 +640,31 @@ Proof.
     + apply (AddBool.Minus t1 t2).
     + apply (AddBool.Minus t1 t2).
     + apply (AddBool.Minus t1 t2).
-    + apply (AddBool.Choose a0 t).
+    + apply (AddBool.Choose a t).
 Defined.
 
-Repair A B in identity_A as identity.
-Print identity.
+Program Definition identity_A (a : A) : Term.
+Proof.
+  apply dep_elim_A_gen with (a := a) (P := fun _ => Term); intros.
+  - apply identity. apply (existT _ t H).
+  - apply (identity_A_ext (fun t H => projT1 (identity (existT _ t H))) t). auto.
+Defined.
+
+Lift A B in identity_A_ext as identity_ext.
+Lift A B in identity_A as identity.
+
+Program Definition identity_manual (t : Term) : Term.
+Proof.
+  induction t.
+  - apply (Var i).
+  - apply (Bool b).
+  - apply (Eq t1 t2).
+  - apply (Int z).
+  - apply (Plus t1 t2).
+  - apply (Times t1 t2).
+  - apply (Minus t1 t2).
+  - apply (Choose i t).
+Defined.
 
 (* Proof obligation (TODO follow this pattern elsewhere): *)
 Program Definition free_vars_A_ext (old : forall (t : AddBool.Term) (H : no_bools t), list Identifier) (t : Term) (H : yes_bools t) : list Identifier.
@@ -685,14 +710,24 @@ Proof.
 Defined.
 
 (* OK so it's very ugly and slow, but correct.
-   How can we recover the fast version for free?
-   Maybe let's start with a more general correpsondence? *)
+   How can we recover the fast version for free? 
+   Or maybe this is fine---use this when you want the proof obligation to be very explicit,
+   and show fast version yourself, and relate them?
+   Or can we hook in with another framework? 
+   Or just build additional automation to get from this to the thing we want? 
+   idk.
+   I guess what you get here is a correctness spec.
+   Nobody would ever want to use these functions, but the spec might be useful, I suppose.
+   Since the spec guarantees preservation of behavior of the old code,
+   but doesn't refer to the old code.
 
-Lemma test:
+   but it would still be nice to get useful functions *)
+
+Lemma test_free_vars:
   forall t, free_vars t = free_vars_manual t.
 Proof.
-  intros t. unfold free_vars.
-  apply slow_fast with (P := (fun _ => list Identifier)); intros; auto.
+  intros t. unfold free_vars. 
+  apply slow_fast with (P := fun _ => list Identifier) (a := t); intros.
   - unfold dep_constr_B_0. induction b; simpl; auto.
     + rewrite <- IHb1. rewrite <- IHb2. auto.
     + rewrite <- IHb1. rewrite <- IHb2. auto.
@@ -714,6 +749,33 @@ Proof.
     + rewrite <- IHb1; simpl; auto. rewrite <- IHb2; simpl; auto.
     + f_equal. auto.
 Defined.
+
+Lemma test_identity:
+  forall t, identity t = identity_manual t.
+Proof.
+  intros t. unfold identity. unfold identity_manual.
+  apply slow_fast with (P := fun _ => Term) (a := t); intros.
+  - simpl. unfold dep_constr_B_0. induction b; simpl in *; f_equal.
+    + destruct t1; auto.
+    + destruct t2; auto.
+    + destruct t1; auto.
+    + destruct t2; auto.
+    + destruct t1; auto.
+    + destruct t2; auto.
+    + destruct t1; auto.
+    + destruct t2; auto.
+    + destruct t0; auto.
+  - unfold dep_constr_B_1. induction b; simpl; auto.
+Defined.
+
+(*
+ * This is clearly not needed for small changes like this.
+ * But are there more complex changes where having extra guarantees like this
+ * might be nice?
+ * A check on another way to write the spec where the proof obligations are clearer,
+ * and where preservation of the old behavior is guaranteed?
+ * Not sure. Maybe.
+ *)
 
 End AddBoolProofsExt.
 
