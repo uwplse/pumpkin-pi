@@ -14,7 +14,11 @@ Set DEVOID lift type.
 Set DEVOID search smart eliminators.
 
 (*
- * Let's do the full REPLICA benchmark and see what happens.
+ * Let's do more of the REPLICA benchmark and see what happens.
+ * We start with the swap from Swap.v, then add the bool constructor.
+ *
+ * This is going to walk through more steps than actually needed long-term,
+ * just to show the thought process.
  *)
 
 (* --- Original --- *)
@@ -177,12 +181,19 @@ Inductive Term : Set :=
 
 End AddBool.
 
+(* --- What's new? --- *)
+
 (*
- * OK, so the first challenge is figuring out the equivalence to begin with.
- * What is the new information?
- *
- * Let's start with the trivial equivalence that ignores the new information,
- * and then improve from there.
+ * To capture the new information, the first thing we are going to do is split
+ * extended AddBool type in half: the left projection and the right projection,
+ * essentially. We should be able to produce these automatically, I believe,
+ * but for now let's write them manually.
+ *)
+
+(*
+ * The left projection is straightforward---just use the same structure as
+ * the old type, but index by the new type. I think Conor McBride said this
+ * is the reornament.
  *)
 Inductive no_bools : AddBool.Term -> Type :=
 | nb1 : forall i, no_bools (AddBool.Var i)
@@ -194,524 +205,127 @@ Inductive no_bools : AddBool.Term -> Type :=
 | nb7 : forall a t, no_bools t -> no_bools (AddBool.Choose a t).
 
 (*
- * Hilariously, this is an algebraic ornament.
- * So we can get these with automatic config:
+ * The right projection needs to handle the new case, plus all of the inductive
+ * cases that may refer to the new case. There is some case explosion here
+ * that we will need to make induction useful.
  *)
-Repair Module New.Term no_bools in NewProofs as AddBoolProofs.
-Print AddBoolProofs.identity.
-  
-Definition index := AddBoolProofs.Term_to_no_bools_index.
-
-(*
- * OK, we have things over B. Now the question is, is there an
- * easy way to get from that to the extended definition?
- *
- * Maybe:
- *)
-Module Curious.
-
-(*
- * TODO can probably automate this part:
- *)
-Inductive yes_bools : forall (t : AddBool.Term), Type :=
+Inductive yes_bools : AddBool.Term -> Type :=
 | yb1 : forall b, yes_bools (AddBool.Bool b)
-| yb2left : forall t1 t2, yes_bools t1 -> no_bools t2 -> yes_bools (AddBool.Eq t1 t2)
-| yb2right : forall t1 t2, no_bools t1 -> yes_bools t2 -> yes_bools (AddBool.Eq t1 t2)
+| yb2left : forall t1, yes_bools t1 -> forall t2 : sigT no_bools, yes_bools (AddBool.Eq t1 (projT1 t2))
+| yb2right : forall t1 : sigT no_bools, forall t2, yes_bools t2 -> yes_bools (AddBool.Eq (projT1 t1) t2)
 | yb2 : forall t1 t2, yes_bools t1 -> yes_bools t2 -> yes_bools (AddBool.Eq t1 t2)
-| yb3left : forall t1 t2, yes_bools t1 -> no_bools t2 -> yes_bools (AddBool.Plus t1 t2)
-| yb3right : forall t1 t2, no_bools t1 -> yes_bools t2 -> yes_bools (AddBool.Plus t1 t2)
+| yb3left : forall t1, yes_bools t1 -> forall t2 : sigT no_bools, yes_bools (AddBool.Plus t1 (projT1 t2))
+| yb3right : forall t1 : sigT no_bools, forall t2, yes_bools t2 -> yes_bools (AddBool.Plus (projT1 t1) t2)
 | yb3 : forall t1 t2, yes_bools t1 -> yes_bools t2 -> yes_bools (AddBool.Plus t1 t2)
-| yb4left : forall t1 t2, yes_bools t1 -> no_bools t2 -> yes_bools (AddBool.Times t1 t2)
-| yb4right : forall t1 t2, no_bools t1 -> yes_bools t2 -> yes_bools (AddBool.Times t1 t2)
+| yb4left : forall t1, yes_bools t1 -> forall t2 : sigT no_bools, yes_bools (AddBool.Times t1 (projT1 t2))
+| yb4right : forall t1 : sigT no_bools, forall t2, yes_bools t2 -> yes_bools (AddBool.Times (projT1 t1) t2)
 | yb4 : forall t1 t2, yes_bools t1 -> yes_bools t2 -> yes_bools (AddBool.Times t1 t2)
-| yb5left : forall t1 t2, yes_bools t1 -> no_bools t2 -> yes_bools (AddBool.Minus t1 t2)
-| yb5right : forall t1 t2, no_bools t1 -> yes_bools t2 -> yes_bools (AddBool.Minus t1 t2)
+| yb5left : forall t1, yes_bools t1 -> forall t2 : sigT no_bools, yes_bools (AddBool.Minus t1 (projT1 t2))
+| yb5right : forall t1 : sigT no_bools, forall t2, yes_bools t2 -> yes_bools (AddBool.Minus (projT1 t1) t2)
 | yb5 : forall t1 t2, yes_bools t1 -> yes_bools t2 -> yes_bools (AddBool.Minus t1 t2)
 | yb6 : forall a t, yes_bools t -> yes_bools (AddBool.Choose a t).
 
-Definition A : Type := sigT (fun (t : AddBool.Term) => no_bools t) + sigT (fun (t : AddBool.Term) => yes_bools t).
-Definition B : Type := AddBool.Term.
+(*
+ * The idea is that:
+ * 1. New.Term is equivalent to sigT no_bools.
+ * 2. There exists some non-indexed type Diff that is equivalent to sigT yes_bools.
+ * 3. AddBool.Term is equivalent to sigT no_bools + sigT yes_bools.
+ * 4. Thus, New.Term + Diff is equivalent to AddBool.Term.
+ *
+ * We are going to start by finding the ornaments that get us 1 and 2.
+ *)
 
-(* TODO can probably automate this part *)
-Program Definition dep_constr_A_0 (t : AddBool.Term) (H : no_bools t) : A.
-Proof.
-  unfold A. left. exists t. apply H.
-Defined.
-Program Definition dep_constr_A_1 (t : AddBool.Term) (H : yes_bools t) : A.
-Proof.
-  unfold A. right. exists t. apply H.
-Defined.
+(* --- 1. New.Term is equivalent to sigT no_bools --- *)
 
-Program Definition dep_constr_B_0 (t : AddBool.Term) (H : no_bools t) : B.
-Proof.
-  apply t.
-Defined.
-Program Definition dep_constr_B_1 (t : AddBool.Term) (H : yes_bools t) : B.
-Proof.
-  apply t.
-Defined.
+(*
+ * This is easy.
+ * The left projection no_bools is an ornament. So we can easily do this:
+ *)
+Repair Module New.Term no_bools in NewProofs as NoBoolProofs.
+(*
+ * This proves the equivalence, and gives us all functions and proofs over
+ * sigT no_bools.
+ *)
 
-Definition eta_A (a : A) := a.
-Definition eta_B (b : B) := b.
+(* --- 2. There exists some non-indexed type Diff that is equivalent to sigT yes_bools --- *)
 
-Program Definition dep_elim_A (P : A -> Type)
-  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_A_0 t H))
-  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_A_1 t H))
-  (a : A)
-: P (eta_A a).
-Proof.
-  induction a.
-  - induction a. apply f0.
-  - induction b. apply f1.
-Defined.
+(*
+ * yes_bools must be the reornament of something.
+ * We can just go in and remove the index.
+ *)
+Inductive Diff : Type :=
+| DiffBool : bool -> Diff
+| DiffEqLeft : Diff -> sigT no_bools -> Diff
+| DiffEqRight : sigT no_bools -> Diff -> Diff
+| DiffEq : Diff -> Diff -> Diff
+| DiffPlusLeft : Diff -> sigT no_bools -> Diff
+| DiffPlusRight : sigT no_bools -> Diff -> Diff
+| DiffPlus : Diff -> Diff -> Diff
+| DiffTimesLeft : Diff -> sigT no_bools -> Diff
+| DiffTimesRight : sigT no_bools -> Diff -> Diff
+| DiffTimes : Diff -> Diff -> Diff
+| DiffMinusLeft : Diff -> sigT no_bools -> Diff
+| DiffMinusRight : sigT no_bools -> Diff -> Diff
+| DiffMinus : Diff -> Diff -> Diff
+| DiffChoose : Identifier -> Diff -> Diff.
 
-Lemma split_dec :
-  forall (b : B), no_bools b + yes_bools b.
-Proof.
-  intros b0. induction b0.
-  - left. constructor.
-  - right. constructor.
-  - induction IHb0_1, IHb0_2.
-    + left. constructor; auto.
-    + right. apply yb2right; auto.
-    + right. apply yb2left; auto.
-    + right. apply yb2; auto.
-  - left. constructor.
-  - induction IHb0_1, IHb0_2.
-    + left. constructor; auto.
-    + right. apply yb3right; auto.
-    + right. apply yb3left; auto.
-    + right. apply yb3; auto.
-  - induction IHb0_1, IHb0_2.
-    + left. constructor; auto.
-    + right. apply yb4right; auto.
-    + right. apply yb4left; auto.
-    + right. apply yb4; auto.
-  - induction IHb0_1, IHb0_2.
-    + left. constructor; auto.
-    + right. apply yb5right; auto.
-    + right. apply yb5left; auto.
-    + right. apply yb5; auto.
-  - induction IHb0.
-    + left. constructor; auto.
-    + right. apply yb6; auto.
-Defined.
+(*
+ * Let's prove things over diff and port it to yes_bools.
+ * For now, we will leave EpsilonLogic alone.
+ * We'll deal with that later, since it involves extending a second type.
+ * I just want to see what happens to our simple functions.
+ *)
+Module DiffProofs_fix.
 
-Program Definition dep_elim_B (P : B -> Type)
-  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_B_0 t H))
-  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_B_1 t H))
-  (b : B)
-: P b.
-Proof.
-  generalize (split_dec b). intros. induction H. 
-  - apply (f0 b a).
-  - apply (f1 b b0).
-Defined.
+Fixpoint identity (d : Diff) : Diff :=
+  match d with
+  | DiffBool b => DiffBool b
+  | DiffEqLeft t1 t2 => DiffEqLeft (identity t1) (NoBoolProofs.identity t2)
+  | DiffEqRight t1 t2 => DiffEqRight (NoBoolProofs.identity t1) (identity t2)
+  | DiffEq t1 t2 => DiffEq (identity t1) (identity t2)
+  | DiffPlusLeft t1 t2 => DiffPlusLeft (identity t1) (NoBoolProofs.identity t2)
+  | DiffPlusRight t1 t2 => DiffPlusRight (NoBoolProofs.identity t1) (identity t2)
+  | DiffPlus t1 t2 => DiffPlus (identity t1) (identity t2)
+  | DiffTimesLeft t1 t2 => DiffTimesLeft (identity t1) (NoBoolProofs.identity t2)
+  | DiffTimesRight t1 t2 => DiffTimesRight (NoBoolProofs.identity t1) (identity t2)
+  | DiffTimes t1 t2 => DiffTimes (identity t1) (identity t2)
+  | DiffMinusLeft t1 t2 => DiffMinusLeft (identity t1) (NoBoolProofs.identity t2)
+  | DiffMinusRight t1 t2 => DiffMinusRight (NoBoolProofs.identity t1) (identity t2)
+  | DiffMinus t1 t2 => DiffMinus (identity t1) (identity t2)
+  | DiffChoose i t => DiffChoose i (identity t)
+  end.
 
-Lemma iota_A_0 (P : A -> Type)
-  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_A_0 t H))
-  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_A_1 t H))
-  (t : AddBool.Term) (Ht : no_bools t) (Q : P (dep_constr_A_0 t Ht) -> Type)
-  (H : Q (dep_elim_A P f0 f1 (dep_constr_A_0 t Ht))) 
-: Q (f0 t Ht).
-Proof.
-  intros. apply H.
-Defined.
+Fixpoint free_vars (d : Diff) : list Identifier :=
+  match d with
+  | DiffBool b => []
+  | DiffEqLeft t1 t2 => free_vars t1 ++ NoBoolProofs.free_vars t2
+  | DiffEqRight t1 t2 => NoBoolProofs.free_vars t1 ++ free_vars t2
+  | DiffEq t1 t2 => free_vars t1 ++ free_vars t2
+  | DiffPlusLeft t1 t2 => free_vars t1 ++ NoBoolProofs.free_vars t2
+  | DiffPlusRight t1 t2 => NoBoolProofs.free_vars t1 ++ free_vars t2
+  | DiffPlus t1 t2 => free_vars t1 ++ free_vars t2
+  | DiffTimesLeft t1 t2 => free_vars t1 ++ NoBoolProofs.free_vars t2
+  | DiffTimesRight t1 t2 => NoBoolProofs.free_vars t1 ++ free_vars t2
+  | DiffTimes t1 t2 => free_vars t1 ++ free_vars t2
+  | DiffMinusLeft t1 t2 => free_vars t1 ++ NoBoolProofs.free_vars t2
+  | DiffMinusRight t1 t2 => NoBoolProofs.free_vars t1 ++ free_vars t2
+  | DiffMinus t1 t2 => free_vars t1 ++ free_vars t2
+  | DiffChoose x t =>
+      filter (fun y => if id_eq_dec x y then false else true) (free_vars t)
+  end.
 
-Lemma iota_A_1 (P : A -> Type)
-  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_A_0 t H))
-  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_A_1 t H))
-  (t : AddBool.Term) (Ht : yes_bools t) (Q : P (dep_constr_A_1 t Ht) -> Type)
-  (H : Q (dep_elim_A P f0 f1 (dep_constr_A_1 t Ht))) 
-: Q (f1 t Ht).
-Proof.
-  intros. apply H.
-Defined.
+End DiffProofs_fix.
 
-(* TODO should be a way around this, since these are symmetric, but whatever *)
-Lemma iota_A_0_bwd (P : A -> Type)
-  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_A_0 t H))
-  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_A_1 t H))
-  (t : AddBool.Term) (Ht : no_bools t) (Q : P (dep_constr_A_0 t Ht) -> Type)
-  (H : Q (f0 t Ht))
-: Q (dep_elim_A P f0 f1 (dep_constr_A_0 t Ht)). 
-Proof.
-  intros. apply H.
-Defined.
-
-Lemma iota_A_1_bwd (P : A -> Type)
-  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_A_0 t H))
-  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_A_1 t H))
-  (t : AddBool.Term) (Ht : yes_bools t) (Q : P (dep_constr_A_1 t Ht) -> Type)
-  (H : Q (f1 t Ht)) 
-: Q (dep_elim_A P f0 f1 (dep_constr_A_1 t Ht)).
-Proof.
-  intros. apply H.
-Defined.
-
-Lemma split_dec_left_OK:
-  forall (t : AddBool.Term) (H : no_bools t),
-    inl H = split_dec t.
-Proof.
-  intros. induction H; auto; simpl.
-  - rewrite <- IHno_bools1. rewrite <- IHno_bools2. auto.
-  - rewrite <- IHno_bools1. rewrite <- IHno_bools2. auto.
-  - rewrite <- IHno_bools1. rewrite <- IHno_bools2. auto.
-  - rewrite <- IHno_bools1. rewrite <- IHno_bools2. auto.
-  - rewrite <- IHno_bools. auto.
-Defined.
-
-Lemma split_dec_right_OK:
-  forall (t : AddBool.Term) (H : yes_bools t),
-    inr H = split_dec t.
-Proof.
-  intros. induction H; auto; simpl.
-  - rewrite <- IHyes_bools. simpl. rewrite <- (split_dec_left_OK t2 n). auto.
-  - rewrite <- IHyes_bools. simpl. rewrite <- (split_dec_left_OK t1 n). auto.
-  - rewrite <- IHyes_bools1. rewrite <- IHyes_bools2. auto.
-  - rewrite <- IHyes_bools. simpl. rewrite <- (split_dec_left_OK t2 n). auto.
-  - rewrite <- IHyes_bools. simpl. rewrite <- (split_dec_left_OK t1 n). auto.
-  - rewrite <- IHyes_bools1. rewrite <- IHyes_bools2. auto.
-  - rewrite <- IHyes_bools. simpl. rewrite <- (split_dec_left_OK t2 n). auto.
-  - rewrite <- IHyes_bools. simpl. rewrite <- (split_dec_left_OK t1 n). auto.
-  - rewrite <- IHyes_bools1. rewrite <- IHyes_bools2. auto.
-  - rewrite <- IHyes_bools. simpl. rewrite <- (split_dec_left_OK t2 n). auto.
-  - rewrite <- IHyes_bools. simpl. rewrite <- (split_dec_left_OK t1 n). auto.
-  - rewrite <- IHyes_bools1. rewrite <- IHyes_bools2. auto.
-  - rewrite <- IHyes_bools. simpl. auto.
-Defined.
-
-Lemma iota_B_0 (P : B -> Type)
-  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_B_0 t H))
-  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_B_1 t H))
-  (t : AddBool.Term) (Ht : no_bools t) (Q : P (dep_constr_B_0 t Ht) -> Type)
-  (H : Q (dep_elim_B P f0 f1 (dep_constr_B_0 t Ht))) 
-: Q (f0 t Ht).
-Proof.
-  unfold dep_elim_B in H. unfold dep_constr_B_0 in H.
-  rewrite <- (split_dec_left_OK t Ht) in H.
-  apply H.
-Defined.
-
-Lemma iota_B_1 (P : B -> Type)
-  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_B_0 t H))
-  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_B_1 t H))
-  (t : AddBool.Term) (Ht : yes_bools t) (Q : P (dep_constr_B_1 t Ht) -> Type)
-  (H : Q (dep_elim_B P f0 f1 (dep_constr_B_1 t Ht))) 
-: Q (f1 t Ht).
-Proof.
-  unfold dep_elim_B in H. unfold dep_constr_B_1 in H.
-  rewrite <- (split_dec_right_OK t Ht) in H.
-  apply H.
-Defined.
-
-Lemma iota_B_0_bwd (P : B -> Type)
-  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_B_0 t H))
-  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_B_1 t H))
-  (t : AddBool.Term) (Ht : no_bools t) (Q : P (dep_constr_B_0 t Ht) -> Type)
-  (H :  Q (f0 t Ht))
-: Q (dep_elim_B P f0 f1 (dep_constr_B_0 t Ht)).
-Proof.
-  unfold dep_elim_B. unfold dep_constr_B_0.
-  rewrite <- (split_dec_left_OK t Ht).
-  apply H.
-Defined.
-
-Lemma iota_B_1_bwd (P : B -> Type)
-  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_B_0 t H))
-  (f1 : forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_B_1 t H))
-  (t : AddBool.Term) (Ht : yes_bools t) (Q : P (dep_constr_B_1 t Ht) -> Type)
-  (H : Q (f1 t Ht))
-: Q (dep_elim_B P f0 f1 (dep_constr_B_1 t Ht)).
-Proof.
-  unfold dep_elim_B. unfold dep_constr_B_1.
-  rewrite <- (split_dec_right_OK t Ht).
-  apply H.
-Defined.
-
-Program Definition f : A -> B.
-Proof.
-  intros a. apply dep_elim_A with (P := fun _ => B); intros.
-  - apply (dep_constr_B_0 t H).
-  - apply (dep_constr_B_1 t H).
-  - apply a.
-Defined.
-
-Program Definition g : B -> A.
-Proof.
-  intros b. apply dep_elim_B with (P := fun _ => A); intros.
-  - apply (dep_constr_A_0 t H).
-  - apply (dep_constr_A_1 t H).
-  - apply b.
-Defined.
-
-Save equivalence A B { promote = f; forget = g }.
-Configure Lift A B {
-  constrs_a = dep_constr_A_0 dep_constr_A_1;
-  constrs_b = dep_constr_B_0 dep_constr_B_1;
-  elim_a = dep_elim_A;
-  elim_b = dep_elim_B;
-  eta_a = eta_A;
-  eta_b = eta_B;
-  iota_a = iota_A_0 iota_A_1 iota_A_0_bwd iota_A_1_bwd;
-  iota_b = iota_B_0 iota_B_1 iota_B_0_bwd iota_B_1_bwd
+Preprocess Module DiffProofs_fix as DiffProofs {
+  opaque
+    Coq.Init.Datatypes Coq.Strings.String Coq.Init.Logic Coq.Lists.List
 }.
 
-Unset DEVOID lift type. (* silly unification bug *)
-Repair A B in dep_elim_A as dep_elim_A_lifted.
-Print dep_elim_A_lifted.
-(* TODO iota, equiv, proof, save config, use *)
-(* TODO then one more ...
-Definition A := AddBool.Term.
-Definition B := True.
-*)
-
-Program Definition dep_elim_A_gen (P : A -> Type)
-  (f0 : forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_A_0 t H))
-  (f1 : (forall (t : AddBool.Term) (H : no_bools t), P (dep_constr_A_0 t H)) -> forall (t : AddBool.Term) (H : yes_bools t), P (dep_constr_A_1 t H))
-  (a : A)
-: P (eta_A a).
-Proof.
-  apply dep_elim_A; intros; auto.
-Defined.
-
-Repair A B in dep_elim_A_gen as dep_elim_B_gen.
-Print dep_elim_B_gen.
-
-Import AddBool.
-
-Lemma slow_fast_A:
-  forall (a : A) (P : A -> Type) (H : (forall (t : Term) (H : no_bools t), P (dep_constr_A_0 t H)) -> forall (t : Term) (H : yes_bools t), P (dep_constr_A_1 t H)) (H0 : forall (x : Term) (H : no_bools x), P (dep_constr_A_0 x H)) (H1 : forall a, P (eta_A a)),
-    (forall t b, H0 t b = H1 (dep_constr_A_0 t b)) ->
-    ((forall t b, H0 t b = H1 (dep_constr_A_0 t b)) -> forall t b, H H0 t b = H1 (dep_constr_A_1 t b)) ->
-    dep_elim_A_gen
-      P
-      H0
-      H
-      (eta_A a) 
-    =
-    H1 (eta_A a).
-Proof.
-  intros a P H H0 H1 H2 H3. apply dep_elim_A_gen with (P := fun a => dep_elim_A_gen P H0 H a = H1 a). 
-  - intros. unfold dep_elim_A_gen. apply iota_A_0_bwd. apply H2.
-  - intros. unfold dep_elim_A_gen. apply iota_A_1_bwd. apply H3. apply H2.
-Defined.
-
-Lift A B in slow_fast_A as slow_fast.
-
-End Curious.
-
-Import Curious.
-
 (*
- * Can we get this induction principle to begin with somehow, though? To avoid gross sigma stuff?
- * If so, what would AddBool.Bool and projT1 lift from?
+ * OK, then we port that to yes_bools:
  *)
+Repair Module Diff yes_bools in DiffProofs as YesBoolProofs.
 
-Module AddBoolProofsExt.
 
-Import AddBool AddBoolProofs.
 
-Print EpsilonLogic.
-
-(* TODO defer these
-Definition EpsilonLogic := 
- mkLogic {Value : Type;
-          value_eq_dec : forall v1 v2 : Value, {v1 = v2} + {v1 <> v2};
-          vTrue : Value;
-          vFalse : Value;
-          trueAndFalseDistinct : vTrue <> vFalse;
-          eval : (Identifier -> Value) -> Term -> Value;
-          evalVar : forall env id, eval env (Var id) = env id;
-          evalIntConst :
-           forall env1 env2 i, eval env1 (Int i) = eval env2 (Int i);
-          evalIntInj :
-           forall env i j, i <> j -> eval env (Int i) <> eval env (Int j);
-          evalEqTrue :
-           forall env a b,
-           eval env a = eval env b <-> eval env (Eq a b) = vTrue;
-          evalEqFalse :
-           forall env a b,
-           eval env a <> eval env b <-> eval env (Eq a b) = vFalse;
-          evalPlus :
-           forall env iE jE i j,
-           eval env iE = eval env (Int i) ->
-           eval env jE = eval env (Int j) ->
-           eval env (Plus iE jE) = eval env (Int (i + j));
-          evalMinus :
-           forall env iE jE i j,
-           eval env iE = eval env (Int i) ->
-           eval env jE = eval env (Int j) ->
-           eval env (Minus iE jE) = eval env (Int (i - j));
-          evalTimes :
-           forall env iE jE i j,
-           eval env iE = eval env (Int i) ->
-           eval env jE = eval env (Int j) ->
-           eval env (Times iE jE) = eval env (Int (i * j));
-          evalChoose :
-           forall env x P,
-           (exists value, eval (extendEnv env x value) P = vTrue) ->
-           eval (extendEnv env x (eval env (Choose x P))) P = vTrue;
-          evalChooseDet :
-           forall env x P Q,
-           eval env P = vTrue <-> eval env Q = vTrue ->
-           eval env (Choose x P) = eval env (Choose x Q)}.
-
-Definition isTheorem (L : EpsilonLogic) (t : Term) :=
-  forall env, L.(eval) env t = L.(vTrue).*)
-
-Program Definition identity_A_ext (old : (forall t : Term, no_bools t -> Term)) (t : Term) (H : yes_bools t) : Term.
-Proof.
-  induction H; intros.
-    + apply (AddBool.Bool b).
-    + apply (AddBool.Eq t1 t2).
-    + apply (AddBool.Eq t1 t2).
-    + apply (AddBool.Eq t1 t2).
-    + apply (AddBool.Plus t1 t2).
-    + apply (AddBool.Plus t1 t2).
-    + apply (AddBool.Plus t1 t2).
-    + apply (AddBool.Times t1 t2).
-    + apply (AddBool.Times t1 t2).
-    + apply (AddBool.Times t1 t2).
-    + apply (AddBool.Minus t1 t2).
-    + apply (AddBool.Minus t1 t2).
-    + apply (AddBool.Minus t1 t2).
-    + apply (AddBool.Choose a t).
-Defined.
-
-Program Definition identity_A (a : A) : Term.
-Proof.
-  apply dep_elim_A_gen with (a := a) (P := fun _ => Term); intros.
-  - apply identity. apply (existT _ t H).
-  - apply (identity_A_ext (fun t H => projT1 (identity (existT _ t H))) t). auto.
-Defined.
-
-Lift A B in identity_A_ext as identity_ext.
-Lift A B in identity_A as identity.
-
-Program Definition identity_manual (t : Term) : Term.
-Proof.
-  induction t.
-  - apply (Var i).
-  - apply (Bool b).
-  - apply (Eq t1 t2).
-  - apply (Int z).
-  - apply (Plus t1 t2).
-  - apply (Times t1 t2).
-  - apply (Minus t1 t2).
-  - apply (Choose i t).
-Defined.
-
-(* Proof obligation: *)
-Program Definition free_vars_A_ext (old : forall (t : AddBool.Term) (H : no_bools t), list Identifier) (t : Term) (H : yes_bools t) : list Identifier.
-Proof.
-  induction H; intros.
-  - apply [].
-  - apply (IHyes_bools ++ old t2 n).
-  - apply (old t1 n ++ IHyes_bools). 
-  - apply (IHyes_bools1 ++ IHyes_bools2).
-  - apply (IHyes_bools ++ old t2 n).
-  - apply (old t1 n ++ IHyes_bools).
-  - apply (IHyes_bools1 ++ IHyes_bools2).
-  - apply (IHyes_bools ++ old t2 n).
-  - apply (old t1 n ++ IHyes_bools).
-  - apply (IHyes_bools1 ++ IHyes_bools2).
-  - apply (IHyes_bools ++ old t2 n).
-  - apply (old t1 n ++ IHyes_bools).
-  - apply (IHyes_bools1 ++ IHyes_bools2).
-  - apply (filter (fun y => if id_eq_dec a y then false else true) IHyes_bools).
-Defined.
-
-Program Definition free_vars_A (a : A) : list Identifier.
-Proof.
-  apply dep_elim_A_gen with (a := a) (P := fun _ => list Identifier); intros.
-  - apply (AddBoolProofs.free_vars (existT no_bools t H)).
-  - apply (free_vars_A_ext H t H0).
-Defined.
-
-Repair A B in free_vars_A_ext as free_vars_ext.
-Repair A B in free_vars_A as free_vars.
-
-Program Definition free_vars_manual (a : Term) : list Identifier.
-Proof.
-  induction a.
-  - apply [i].
-  - apply [].
-  - apply (IHa1 ++ IHa2).
-  - apply [].
-  - apply (IHa1 ++ IHa2).
-  - apply (IHa1 ++ IHa2).
-  - apply (IHa1 ++ IHa2).
-  - apply (filter (fun y : string => if id_eq_dec i y then false else true) IHa).
-Defined.
-
-(* OK so it's very ugly and slow, but correct.
-   How can we recover the fast version for free? 
-   Or maybe this is fine---use this when you want the proof obligation to be very explicit,
-   and show fast version yourself, and relate them?
-   Or can we hook in with another framework? 
-   Or just build additional automation to get from this to the thing we want? 
-   idk.
-   I guess what you get here is a correctness spec.
-   Nobody would ever want to use these functions, but the spec might be useful, I suppose.
-   Since the spec guarantees preservation of behavior of the old code,
-   but doesn't refer to the old code.
-
-   but it would still be nice to get useful functions *)
-
-Lemma test_free_vars:
-  forall t, free_vars t = free_vars_manual t.
-Proof.
-  intros t. unfold free_vars. 
-  apply slow_fast with (P := fun _ => list Identifier) (a := t); intros.
-  - unfold dep_constr_B_0. induction b; simpl; auto.
-    + rewrite <- IHb1. rewrite <- IHb2. auto.
-    + rewrite <- IHb1. rewrite <- IHb2. auto.
-    + rewrite <- IHb1. rewrite <- IHb2. auto.
-    + rewrite <- IHb1. rewrite <- IHb2. auto.
-    + rewrite <- IHb. auto.
-  - unfold dep_constr_B_1. induction b; simpl; auto.
-    + rewrite <- IHb; simpl; auto. f_equal. apply H.
-    + rewrite <- IHb; simpl; auto. f_equal. apply H.
-    + rewrite <- IHb1; simpl; auto. rewrite <- IHb2; simpl; auto.
-    + rewrite <- IHb; simpl; auto. f_equal. apply H.
-    + rewrite <- IHb; simpl; auto. f_equal. apply H.
-    + rewrite <- IHb1; simpl; auto. rewrite <- IHb2; simpl; auto.
-    + rewrite <- IHb; simpl; auto. f_equal. apply H.
-    + rewrite <- IHb; simpl; auto. f_equal. apply H.
-    + rewrite <- IHb1; simpl; auto. rewrite <- IHb2; simpl; auto.
-    + rewrite <- IHb; simpl; auto. f_equal. apply H.
-    + rewrite <- IHb; simpl; auto. f_equal. apply H.
-    + rewrite <- IHb1; simpl; auto. rewrite <- IHb2; simpl; auto.
-    + f_equal. auto.
-Defined.
-
-Lemma test_identity:
-  forall t, identity t = identity_manual t.
-Proof.
-  intros t. unfold identity. unfold identity_manual.
-  apply slow_fast with (P := fun _ => Term) (a := t); intros.
-  - simpl. unfold dep_constr_B_0. induction b; simpl in *; f_equal.
-    + destruct t1; auto.
-    + destruct t2; auto.
-    + destruct t1; auto.
-    + destruct t2; auto.
-    + destruct t1; auto.
-    + destruct t2; auto.
-    + destruct t1; auto.
-    + destruct t2; auto.
-    + destruct t0; auto.
-  - unfold dep_constr_B_1. induction b; simpl; auto.
-Defined.
-
-(*
- * This is clearly not needed for small changes like this.
- * But are there more complex changes where having extra guarantees like this
- * might be nice?
- * A check on another way to write the spec where the proof obligations are clearer,
- * and where preservation of the old behavior is guaranteed?
- * Not sure. Maybe.
- *)
-
-End AddBoolProofsExt.
 
