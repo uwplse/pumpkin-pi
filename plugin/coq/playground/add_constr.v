@@ -550,3 +550,130 @@ Defined.
 
 (* --- 4. Thus, New.Term + Diff is equivalent to AddBool.Term --- *)
 
+Definition A' : Type := New.Term + Diff.
+Definition B' : Type := AddBool.Term.
+
+Program Definition dep_constr_A_0' (i : Identifier) : A'.
+Proof.
+  left. apply (New.Var i).
+Defined.
+Program Definition dep_constr_A_1' (b : bool) : A'.
+Proof.
+  right. apply (DiffBool b).
+Defined.
+Program Definition dep_constr_A_2' (a1 a2 : A') : A'.
+Proof.
+  induction a1, a2.
+  - left. apply (New.Eq a t).
+  - right. apply DiffEqLeft; auto using NoBoolProofs.Term_to_no_bools.
+  - right. apply DiffEqRight; auto using NoBoolProofs.Term_to_no_bools.
+  - right. apply (DiffEq b d). 
+Defined.
+Program Definition dep_constr_A_3' (z : Z) : A'.
+Proof.
+  left. apply (New.Int z).
+Defined.
+Program Definition dep_constr_A_4' (a1 a2 : A') : A'.
+Proof.
+  induction a1, a2.
+  - left. apply (New.Plus a t).
+  - right. apply DiffPlusLeft; auto using NoBoolProofs.Term_to_no_bools.
+  - right. apply DiffPlusRight; auto using NoBoolProofs.Term_to_no_bools.
+  - right. apply (DiffPlus b d). 
+Defined.
+Program Definition dep_constr_A_5' (a1 a2 : A') : A'.
+Proof.
+  induction a1, a2.
+  - left. apply (New.Times a t).
+  - right. apply DiffTimesLeft; auto using NoBoolProofs.Term_to_no_bools.
+  - right. apply DiffTimesRight; auto using NoBoolProofs.Term_to_no_bools.
+  - right. apply (DiffTimes b d).  
+Defined.
+Program Definition dep_constr_A_6' (a1 a2 : A') : A'.
+Proof.
+  induction a1, a2.
+  - left. apply (New.Minus a t).
+  - right. apply DiffMinusLeft; auto using NoBoolProofs.Term_to_no_bools.
+  - right. apply DiffMinusRight; auto using NoBoolProofs.Term_to_no_bools.
+  - right. apply (DiffMinus b d).  
+Defined.
+Program Definition dep_constr_A_7' (i : Identifier) (a : A') : A'.
+Proof.
+  induction a.
+  - left. apply (New.Choose i a).
+  - right. apply DiffChoose; auto.
+Defined.
+Definition dep_constr_B_0' := AddBool.Var.
+Definition dep_constr_B_1' := AddBool.Bool.
+Definition dep_constr_B_2' := AddBool.Eq.
+Definition dep_constr_B_3' := AddBool.Int.
+Definition dep_constr_B_4' := AddBool.Plus.
+Definition dep_constr_B_5' := AddBool.Times.
+Definition dep_constr_B_6' := AddBool.Minus.
+Definition dep_constr_B_7' := AddBool.Choose.
+
+Definition eta_A' (a : A') : A' := a.
+Definition eta_B' (b : B') : B' := b.
+
+Program Definition split_type' (a : A') : Type.
+Proof.
+  induction a.
+  - apply (no_bools (NoBoolProofs.Term_to_no_bools_index a)).
+  - apply (yes_bools (YesBoolProofs.Diff_to_yes_bools_index b)).
+Defined.
+
+Program Definition split' (a : A') : split_type' a.
+Proof.
+  induction a.
+  - apply (projT2 (NoBoolProofs.Term_to_no_bools a)).
+  - apply (projT2 (YesBoolProofs.Diff_to_yes_bools b)).
+Defined.
+
+Lemma dep_elim_A' (P : A' -> Type)
+  (f0 : forall i : Identifier, P (dep_constr_A_0' i))
+  (f1 : forall b : bool, P (dep_constr_A_1' b))
+  (f2 : forall t : A', P t -> forall t0 : A', P t0 -> P (dep_constr_A_2' t t0))
+  (f3 : forall z : Z, P (dep_constr_A_3' z))
+  (f4 : forall t : A', P t -> forall t0 : A', P t0 -> P (dep_constr_A_4' t t0))
+  (f5 : forall t : A', P t -> forall t0 : A', P t0 -> P (dep_constr_A_5' t t0))
+  (f6 : forall t : A', P t -> forall t0 : A', P t0 -> P (dep_constr_A_6' t t0))
+  (f7 : forall (i : Identifier) (t : A'), P t -> P (dep_constr_A_7' i t))
+  (t : A')
+: P t.
+Proof.
+  assert (forall a, P (inl a)).
+  - intros a. induction a.
+    + apply f0.
+    + apply (f2 (inl a1) IHa1 (inl a2) IHa2).
+    + apply f3.
+    + apply (f4 (inl a1) IHa1 (inl a2) IHa2).
+    + apply (f5 (inl a1) IHa1 (inl a2) IHa2).
+    + apply (f6 (inl a1) IHa1 (inl a2) IHa2).
+    + apply (f7 i (inl a) IHa).
+  - induction t; auto. induction b.
+    + apply f1.
+    + rewrite <- (NoBoolProofs.Term_to_no_bools_retraction s).
+      apply (f2 (inl (NoBoolProofs.Term_to_no_bools_inv s)) (X (NoBoolProofs.Term_to_no_bools_inv s)) (inr b) IHb ).
+    + rewrite <- (NoBoolProofs.Term_to_no_bools_retraction s).
+      apply (f2 (inr b) IHb (inl (NoBoolProofs.Term_to_no_bools_inv s)) (X (NoBoolProofs.Term_to_no_bools_inv s))).
+    + apply (f2 (inr b1) IHb1 (inr b2) IHb2).
+    + rewrite <- (NoBoolProofs.Term_to_no_bools_retraction s).
+      apply (f4 (inl (NoBoolProofs.Term_to_no_bools_inv s)) (X (NoBoolProofs.Term_to_no_bools_inv s)) (inr b) IHb ).
+    + rewrite <- (NoBoolProofs.Term_to_no_bools_retraction s).
+      apply (f4 (inr b) IHb (inl (NoBoolProofs.Term_to_no_bools_inv s)) (X (NoBoolProofs.Term_to_no_bools_inv s))).
+    + apply (f4 (inr b1) IHb1 (inr b2) IHb2).
+    + rewrite <- (NoBoolProofs.Term_to_no_bools_retraction s).
+      apply (f5 (inl (NoBoolProofs.Term_to_no_bools_inv s)) (X (NoBoolProofs.Term_to_no_bools_inv s)) (inr b) IHb ).
+    + rewrite <- (NoBoolProofs.Term_to_no_bools_retraction s).
+      apply (f5 (inr b) IHb (inl (NoBoolProofs.Term_to_no_bools_inv s)) (X (NoBoolProofs.Term_to_no_bools_inv s))).
+    + apply (f5 (inr b1) IHb1 (inr b2) IHb2).
+    + rewrite <- (NoBoolProofs.Term_to_no_bools_retraction s).
+      apply (f6 (inl (NoBoolProofs.Term_to_no_bools_inv s)) (X (NoBoolProofs.Term_to_no_bools_inv s)) (inr b) IHb ).
+    + rewrite <- (NoBoolProofs.Term_to_no_bools_retraction s).
+      apply (f6 (inr b) IHb (inl (NoBoolProofs.Term_to_no_bools_inv s)) (X (NoBoolProofs.Term_to_no_bools_inv s))).
+    + apply (f6 (inr b1) IHb1 (inr b2) IHb2).
+    + apply (f7 i (inr b) IHb).
+Defined.
+
+Definition dep_elim_B' := AddBool.Term_rect.
+
