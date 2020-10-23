@@ -749,3 +749,126 @@ Proof.
   intros. auto.
 Defined.
 
+Lemma iota_A_4'_aux P f0 f1 f2 f3 f4 f5 f6 f7 a1 a2:
+  dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_4' a1 a2) =
+  f4 a1 (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a2).
+Proof.
+  induction a1, a2; auto.
+  - simpl. rewrite is_adjoint. destruct (section_adjoint a). auto.
+  - simpl. rewrite is_adjoint. destruct (section_adjoint t). auto.
+Defined.
+
+Program Definition iota_A_4' P f0 f1 f2 f3 f4 f5 f6 f7 a1 a2 Q
+: Q (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_4' a1 a2)) ->
+  Q (f4 a1 (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a2)).
+Proof.
+  intros. rewrite <- iota_A_4'_aux. auto.
+Defined.
+
+Program Definition iota_B_4' P f0 f1 f2 f3 f4 f5 f6 f7 b1 b2 Q
+: Q (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_B_4' b1 b2)) ->
+  Q (f4 b1 (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 b1) b2 (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 b2)).
+Proof.
+  intros. auto.
+Defined.
+
+Lemma iota_A_5'_aux P f0 f1 f2 f3 f4 f5 f6 f7 a1 a2:
+  dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_5' a1 a2) =
+  f5 a1 (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a2).
+Proof.
+  induction a1, a2; auto.
+  - simpl. rewrite is_adjoint. destruct (section_adjoint a). auto.
+  - simpl. rewrite is_adjoint. destruct (section_adjoint t). auto.
+Defined.
+
+Program Definition iota_A_5' P f0 f1 f2 f3 f4 f5 f6 f7 a1 a2 Q
+: Q (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_5' a1 a2)) ->
+  Q (f5 a1 (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a2)).
+Proof.
+  intros. rewrite <- iota_A_5'_aux. auto.
+Defined.
+
+Program Definition iota_B_5' P f0 f1 f2 f3 f4 f5 f6 f7 b1 b2 Q
+: Q (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_B_5' b1 b2)) ->
+  Q (f5 b1 (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 b1) b2 (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 b2)).
+Proof.
+  intros. auto.
+Defined.
+
+Lemma iota_A_6'_aux P f0 f1 f2 f3 f4 f5 f6 f7 a1 a2:
+  dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_6' a1 a2) =
+  f6 a1 (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a2).
+Proof.
+  induction a1, a2; auto.
+  - simpl. rewrite is_adjoint. destruct (section_adjoint a). auto.
+  - simpl. rewrite is_adjoint. destruct (section_adjoint t). auto.
+Defined.
+
+Program Definition iota_A_6' P f0 f1 f2 f3 f4 f5 f6 f7 a1 a2 Q
+: Q (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_6' a1 a2)) ->
+  Q (f6 a1 (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a2)).
+Proof.
+  intros. rewrite <- iota_A_6'_aux. auto.
+Defined.
+
+Program Definition iota_B_6' P f0 f1 f2 f3 f4 f5 f6 f7 b1 b2 Q
+: Q (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_B_6' b1 b2)) ->
+  Q (f6 b1 (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 b1) b2 (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 b2)).
+Proof.
+  intros. auto.
+Defined.
+
+Program Definition iota_A_7' P f0 f1 f2 f3 f4 f5 f6 f7 i a Q
+: Q (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_7' i a)) ->
+  Q (f7 i a (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a)).
+Proof.
+  intros. induction a; apply X.
+Defined.
+
+Program Definition iota_B_7' P f0 f1 f2 f3 f4 f5 f6 f7 i b Q
+: Q (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_B_7' i b)) ->
+  Q (f7 i b (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 b)).
+Proof.
+  intros. auto.
+Defined.
+
+Program Definition f' : A' -> B'.
+Proof.
+  intros a. apply dep_elim_A' with (P := fun _ => B'); intros.
+  - apply (dep_constr_B_0' i).
+  - apply (dep_constr_B_1' b).
+  - apply (dep_constr_B_2' X X0).
+  - apply (dep_constr_B_3' z).
+  - apply (dep_constr_B_4' X X0).
+  - apply (dep_constr_B_5' X X0).
+  - apply (dep_constr_B_6' X X0).
+  - apply (dep_constr_B_7' i X).
+  - apply a.
+Defined.
+
+Program Definition g' : B' -> A'.
+Proof.
+  intros b. apply dep_elim_B' with (P := fun _ => A'); intros.
+  - apply (dep_constr_A_0' i).
+  - apply (dep_constr_A_1' b0).
+  - apply (dep_constr_A_2' X X0).
+  - apply (dep_constr_A_3' z).
+  - apply (dep_constr_A_4' X X0).
+  - apply (dep_constr_A_5' X X0).
+  - apply (dep_constr_A_6' X X0).
+  - apply (dep_constr_A_7' i X).
+  - apply b.
+Defined.
+
+Save equivalence A' B' { promote = f'; forget = g' }.
+Configure Lift A' B' {
+  constrs_a = dep_constr_A_0' dep_constr_A_1';
+  constrs_b = dep_constr_B_0' dep_constr_B_1';
+  elim_a = dep_elim_A';
+  elim_b = dep_elim_B';
+  eta_a = eta_A';
+  eta_b = eta_B';
+  iota_a = iota_A_0' iota_A_1';
+  iota_b = iota_B_0' iota_B_1'
+}.
+
