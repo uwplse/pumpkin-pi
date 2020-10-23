@@ -550,6 +550,19 @@ Defined.
 
 (* --- 4. Thus, New.Term + Diff is equivalent to AddBool.Term --- *)
 
+(*
+ * We already have slow correct functions.
+ * Down here I'm exploring if we can get fast ones.
+ * The developer effort to get fast ones here is way too high,
+ * so I think the answer is for now, not reasonably, and getting
+ * slow versions and checking correctness is the better use case.
+ * There may be a better equivalence and configuration that gets you there,
+ * or this may be a place to compose with another tool since it involves
+ * a very different eliminator transformation.
+ * 
+ * Still, you can look at this equivalence if you are interested.
+ *)
+
 Definition A' : Type := New.Term + Diff.
 Definition B' : Type := AddBool.Term.
 
@@ -612,22 +625,8 @@ Definition dep_constr_B_5' := AddBool.Times.
 Definition dep_constr_B_6' := AddBool.Minus.
 Definition dep_constr_B_7' := AddBool.Choose.
 
-Definition eta_A' (a : A') : A' := a.
+Definition eta_A' (a : A') : A' := a. (* should probably expand for real *)
 Definition eta_B' (b : B') : B' := b.
-
-Program Definition split_type' (a : A') : Type.
-Proof.
-  induction a.
-  - apply (no_bools (NoBoolProofs.Term_to_no_bools_index a)).
-  - apply (yes_bools (YesBoolProofs.Diff_to_yes_bools_index b)).
-Defined.
-
-Program Definition split' (a : A') : split_type' a.
-Proof.
-  induction a.
-  - apply (projT2 (NoBoolProofs.Term_to_no_bools a)).
-  - apply (projT2 (YesBoolProofs.Diff_to_yes_bools b)).
-Defined.
 
 Lemma dep_elim_A' (P : A' -> Type)
   (f0 : forall i : Identifier, P (dep_constr_A_0' i))
@@ -862,13 +861,25 @@ Defined.
 
 Save equivalence A' B' { promote = f'; forget = g' }.
 Configure Lift A' B' {
-  constrs_a = dep_constr_A_0' dep_constr_A_1';
-  constrs_b = dep_constr_B_0' dep_constr_B_1';
+  constrs_a = dep_constr_A_0' dep_constr_A_1' dep_constr_A_2' dep_constr_A_3' dep_constr_A_4' dep_constr_A_5' dep_constr_A_6' dep_constr_A_7';
+  constrs_b = dep_constr_B_0' dep_constr_B_1' dep_constr_B_2' dep_constr_B_3' dep_constr_B_4' dep_constr_B_5' dep_constr_B_6' dep_constr_B_7';
   elim_a = dep_elim_A';
   elim_b = dep_elim_B';
   eta_a = eta_A';
   eta_b = eta_B';
-  iota_a = iota_A_0' iota_A_1';
-  iota_b = iota_B_0' iota_B_1'
+  iota_a = iota_A_0' iota_A_1' iota_A_2' iota_A_3' iota_A_4' iota_A_5' iota_A_6' iota_A_7';
+  iota_b = iota_B_0' iota_B_1' iota_B_2' iota_B_3' iota_B_4' iota_B_5' iota_B_6' iota_B_7'
 }.
+
+(*
+ * But writing functions and proofs this way isn't any easier.
+ * We can backport from the fast version to show equivalent terms exist,
+ * at least, but nobody would ever want to write these directly.
+ *)
+Preprocess Module Manual as Manual'.
+Repair Module B' A' in Manual' as Backported.
+Print Backported.identity.
+Print Backported.free_vars.
+(* there may be a different configuration that gets you there and isn't this hard, but I don't know it *)
+
 
