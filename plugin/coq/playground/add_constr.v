@@ -677,3 +677,75 @@ Defined.
 
 Definition dep_elim_B' := AddBool.Term_rect.
 
+Definition section_adjoint := Adjoint.fg_id' NoBoolProofs.Term_to_no_bools_inv NoBoolProofs.Term_to_no_bools NoBoolProofs.Term_to_no_bools_retraction NoBoolProofs.Term_to_no_bools_section.
+
+Lemma is_adjoint a : NoBoolProofs.Term_to_no_bools_retraction (NoBoolProofs.Term_to_no_bools a) = f_equal NoBoolProofs.Term_to_no_bools (section_adjoint a).
+Proof.
+  apply Adjoint.g_adjoint.
+Defined.
+
+Program Definition iota_A_0' P f0 f1 f2 f3 f4 f5 f6 f7 i Q
+: Q (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_0' i)) ->
+  Q (f0 i).
+Proof.
+  intros. auto.
+Defined.
+
+Program Definition iota_B_0' P f0 f1 f2 f3 f4 f5 f6 f7 i Q
+: Q (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_B_0' i)) ->
+  Q (f0 i).
+Proof.
+  intros. auto.
+Defined.
+
+Program Definition iota_A_1' P f0 f1 f2 f3 f4 f5 f6 f7 b Q
+: Q (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_1' b)) ->
+  Q (f1 b).
+Proof.
+  intros. auto.
+Defined.
+
+Program Definition iota_B_1' P f0 f1 f2 f3 f4 f5 f6 f7 b Q
+: Q (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_B_1' b)) ->
+  Q (f1 b).
+Proof.
+  intros. auto.
+Defined.
+
+Lemma iota_A_2'_aux P f0 f1 f2 f3 f4 f5 f6 f7 a1 a2:
+  dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_2' a1 a2) =
+  f2 a1 (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a2).
+Proof.
+  induction a1, a2; auto.
+  - simpl. rewrite is_adjoint. destruct (section_adjoint a). auto.
+  - simpl. rewrite is_adjoint. destruct (section_adjoint t). auto.
+Defined.
+
+Program Definition iota_A_2' P f0 f1 f2 f3 f4 f5 f6 f7 a1 a2 Q
+: Q (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_2' a1 a2)) ->
+  Q (f2 a1 (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a1) a2 (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 a2)).
+Proof.
+  intros. rewrite <- iota_A_2'_aux. auto.
+Defined.
+
+Program Definition iota_B_2' P f0 f1 f2 f3 f4 f5 f6 f7 b1 b2 Q
+: Q (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_B_2' b1 b2)) ->
+  Q (f2 b1 (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 b1) b2 (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 b2)).
+Proof.
+  intros. auto.
+Defined.
+
+Program Definition iota_A_3' P f0 f1 f2 f3 f4 f5 f6 f7 z Q
+: Q (dep_elim_A' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_A_3' z)) ->
+  Q (f3 z).
+Proof.
+  intros. auto.
+Defined.
+
+Program Definition iota_B_3' P f0 f1 f2 f3 f4 f5 f6 f7 z Q
+: Q (dep_elim_B' P f0 f1 f2 f3 f4 f5 f6 f7 (dep_constr_B_3' z)) ->
+  Q (f3 z).
+Proof.
+  intros. auto.
+Defined.
+
