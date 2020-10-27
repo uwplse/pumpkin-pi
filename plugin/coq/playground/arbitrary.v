@@ -5,99 +5,91 @@ Require Import Ornamental.Ornaments.
 
 Set DEVOID lift type.
 
+(*
+ * Assume two arbitrary equivalent types A and B:
+ *)
 Parameter A : Type.
 Parameter B : Type.
 
+(*
+ * And assume an arbitrary equivalence between them:
+ *)
 Parameter f : A -> B.
 Parameter g : B -> A.
 
 Parameter section : forall (a : A), g (f a) = a.
 Parameter retraction : forall (b : B), f (g b) = b.
 
-(*
- * We don't want to lift this, so later we'll set it as opaque.
- * For now redefine it to make this clear.
- *)
-Definition ignore_A := A.
-
 (* --- Defining a configuration for the arbitrary equivalence --- *)
 
 (*
- * Then we get:
+ * The trick is to view each a : A as g (f a). So DepConstr:
  *)
-Definition dep_constr_A_0 (a : ignore_A) : A := a.
-Definition dep_constr_B_0 (a : ignore_A) : B := f a.
+Definition dep_constr_A_0 (b : B) : A := g b.
+Definition dep_constr_B_0 (b : B) : B := b.
 
 (*
  * Eta:
  *)
-Definition eta_A (a : A) := a.
-Definition eta_B (b : B) := b.
+Definition eta_A (a : A) : A := a.
+Definition eta_B (b : B) : B := b.
 
 (*
- * This gives us dep_elim:
+ * DepElim:
  *)
-Program Definition dep_elim_A (P : A -> Type) (f0 : forall (a : A), P (dep_constr_A_0 a)) (a : A) : P (eta_A a).
+Program Definition dep_elim_A (P : A -> Type) (f0 : forall (b : B), P (dep_constr_A_0 b)) (a : A) : P (eta_A a).
+Proof.
+  unfold eta_A. rewrite <- section. apply f0.
+Defined.
+
+Program Definition dep_elim_B (P : B -> Type) (f0 : forall (b : B), P (dep_constr_B_0 b)) (b : B) : P (eta_B b).
 Proof.
   apply f0.
 Defined.
 
-Program Definition dep_elim_B (P : B -> Type) (f0 : forall (a : A), P (dep_constr_B_0 a)) (b : B) : P (eta_B b).
-Proof.
-  rewrite <- retraction. apply f0.
-Defined.
-
-(*
- * iota over A is easy, but for iota over B it is a bit weirder:
- *)
-Lemma iota_A_0 :
-  forall (P : A -> Type) (f0 : forall (a : A), P (dep_constr_A_0 a)) (a : A) (Q : P (dep_constr_A_0 a) -> Type),
-    Q (dep_elim_A P f0 (dep_constr_A_0 a)) ->
-    Q (f0 a).
-Proof.
-  intros. apply X.
-Defined.
-
 (* 
- * For iota over B, we use a modified version of Gaëtan Gilbert's proof,
+ * We use a modified version of Gaëtan Gilbert's proof,
  * using the adjunction machinery that Jasper Hugunin proved for us a
  * while ago. Without Gaëtan's help, I wouldn't have understood how to
  * use this.
  *)
-Definition section_adjoint := Adjoint.fg_id' g f retraction section.
+Definition retraction_adjoint := Adjoint.fg_id' f g section retraction.
 
-Lemma is_adjoint (a : A) : retraction (f a) = f_equal f (section_adjoint a).
+Lemma is_adjoint (b : B) : section (g b) = f_equal g (retraction_adjoint b).
 Proof.
   apply Adjoint.g_adjoint.
 Defined.
 
-Lemma iota_B_aux_gen:
-  forall (P : B -> Type) (a : A) (f0 : forall (a : A), P (dep_constr_B_0 a)),
-    dep_elim_B
+Lemma iota_A_aux_gen:
+  forall (P : A -> Type) (b : B) (f0 : forall (b : B), P (dep_constr_A_0 b)),
+    dep_elim_A
       P
-      (fun a0 : A => f0 a0)
-      (dep_constr_B_0 a)
+      (fun b0 : B => f0 b0)
+      (dep_constr_A_0 b)
     =
-    f0 a.
+    f0 b.
 Proof.
-  intros P a f0. unfold dep_elim_B.
-  unfold dep_constr_A_0. unfold dep_constr_B_0. unfold eta_B.
-  unfold dep_constr_B_0 in *.
+  intros P b f0. unfold dep_elim_A.
+  unfold dep_constr_A_0.
   rewrite is_adjoint.
-  destruct (section_adjoint a).
+  destruct (retraction_adjoint b).
   reflexivity.
 Defined.
 
-(*
- * Then we get:
- *)
-Lemma iota_B_0 :
-  forall (P : B -> Type) (f0 : forall (a : A), P (dep_constr_B_0 a)) (a : A) (Q : P (dep_constr_B_0 a) -> Type),
-    Q (dep_elim_B P f0 (dep_constr_B_0 a)) ->
-    Q (f0 a).
+Lemma iota_A_0:
+  forall (P : A -> Type) (f0 : forall b : B, P (dep_constr_A_0 b))  (b : B) (Q : P (eta_A (dep_constr_A_0 b)) -> Type),
+    Q (dep_elim_A P f0 (dep_constr_A_0 b)) ->
+    Q (f0 b).
 Proof.
-  intros. unfold dep_elim_B in X. unfold eta_B in X. unfold dep_constr_B_0 in X.
-  rewrite <- iota_B_aux_gen. apply X.
+  intros. rewrite <- iota_A_aux_gen. apply X.
+Defined.
+
+Lemma iota_B_0 :
+  forall (P : B -> Type) (f0 : forall (b : B), P (dep_constr_B_0 b)) (b : B) (Q : P (dep_constr_B_0 b) -> Type),
+    Q (dep_elim_B P f0 (dep_constr_B_0 b)) ->
+    Q (f0 b).
+Proof.
+  intros. apply X.
 Defined.
 
 (*
@@ -111,10 +103,10 @@ Defined.
  * These should form their own equivalence:
  *)
 Definition f' (a : A) : B :=
-  dep_elim_A (fun _ => B) (fun a => dep_constr_B_0 a) a.
+  dep_elim_A (fun _ => B) (fun b => dep_constr_B_0 b) a.
 
 Definition g' (b : B) : A :=
-  dep_elim_B (fun _ => A) (fun a => dep_constr_A_0 a) b.
+  dep_elim_B (fun _ => A) (fun b => dep_constr_A_0 b) b.
 
 (*
  * Ah, here is yet another surprise!
@@ -128,11 +120,11 @@ Lemma section' (a : A) : g' (f' a) = a.
 Proof.
   replace a with (eta_A a) by reflexivity.
   apply dep_elim_A.
-  intros a0.
+  intros b0.
   unfold f'. unfold g'.
   unfold dep_constr_A_0 at 1. unfold dep_constr_A_0 at 1.
-  apply (iota_B_0 (fun _ => A) (fun a0 : A => dep_constr_A_0 a0) a0).
-  apply (iota_A_0 (fun _ => B) (fun a0 : A => dep_constr_B_0 a0) a0).
+  apply (iota_B_0 (fun _ => A) (fun b0 : B => dep_constr_A_0 b0) b0).
+  apply (iota_A_0 (fun _ => B) (fun b0 : B => dep_constr_B_0 b0) b0).
   reflexivity.
 Defined.
 
@@ -140,11 +132,11 @@ Lemma retraction' (b : B) : f' (g' b) = b.
 Proof.
   replace b with (eta_B b) by reflexivity.
   apply dep_elim_B.
-  intros a.
+  intros b0.
   unfold f'. unfold g'.
   unfold dep_constr_B_0 at 1. unfold dep_constr_B_0 at 1.
-  apply (iota_A_0 (fun _ => B) (fun a0 : A => dep_constr_B_0 a0) a).
-  apply (iota_B_0 (fun _ => A) (fun a0 : A => dep_constr_A_0 a0) a).
+  apply (iota_A_0 (fun _ => B) (fun b0 : B => dep_constr_B_0 b0) b0).
+  apply (iota_B_0 (fun _ => A) (fun b0 : B => dep_constr_A_0 b0) b0).
   reflexivity.
 Defined.
 
@@ -152,14 +144,7 @@ Defined.
 
 (*
  * We can then transform functions and proofs using this equivalence.
- * However, this does not necessarily imply _usefulness_ of the transformation
- * for every equivalence---note that the trivial construction of the equivalence
- * does not remove references to the old type entirely.
- * In particular, dep_constr_B applies f, and dep_elim_B rewrites by retraction.
- * Though these occurrences may reduce away later.
- *)
-
-(*
+ *
  * First we save the equivalence:
  *)
 Save equivalence A B { promote = f'; forget = g' }.
@@ -189,52 +174,45 @@ Configure Lift A B {
  * become extremely relevant.
  *)
 Module Over_A.
-  Definition id (a : A) := a.
-
-  Parameter X : Type.
-  Axiom from_x : X -> A.
-  Axiom to_x : A -> X.
-
   (*
-   * The transformation doesn't work unless we tell the transformation that this:
+   * These are fine:
    *)
-  Definition from_x_implicit (x : X) : A := from_x x.
-  (*
-   * is an application of dep_constr:
-   *)
-  Definition from_x_explicit (x : X) : A := dep_constr_A_0 (from_x x).
+  Definition from_x (X : Type) (from_x : X -> A) (x : X) : A := from_x x.
+  Definition to_x (X : Type) (to_x : A -> X) (a : A) : X := to_x a.
 
   (*
-   * Similarly:
+   * The catch is whenever you can _only_ create a B from an A,
+   * you will not be able to remove references to A. Obviously, I guess.
    *)
-  Definition to_x_implicit (a : A) : X := to_x a.
-  (*
-   * is an application of dep_elim:
-   *)
-  Definition to_x_explicit (a : A) := dep_elim_A (fun _ => X) (fun a0 => to_x a0) a.
+   Definition ignore_A := A.
+   Definition from_A (a : ignore_A) : A := dep_constr_A_0 (f a).
 
 End Over_A.
 
-(*
- * opaque says to ignore ignore_A :
- *)
-Lift Module A B in Over_A as Over_B { opaque ignore_A eq_ind eq_ind_r }.
-Print Over_B.from_x_explicit.
-(* Over_B.from_x_explicit = fun x : Over_B.X => f (Over_A.from_x x)
-     : Over_B.X -> B*)
-Print Over_B.to_x_explicit.
-(* Over_B.to_x_explicit = 
-fun a : B =>
-eq_rect (f (g (eta_B a))) (fun _ : B => Over_B.X) (Over_A.to_x (g (eta_B a))) 
-  (eta_B a) (retraction (eta_B a))
-     : forall a : B, (fun _ : B => Over_B.X) (eta_B a) *)
+Lift Module A B in Over_A as Over_B { opaque Over_A.ignore_A }.
+Print Over_B.from_x.
+Print Over_B.to_x.
+Print Over_B.from_A.
 
 (* 
- * So, as we see above, this way, we get something OK. But when we know
- * nothing about A and B or the equivalence between them, we can't get
- * rid of all occurrences to A yet. In contrast, if we know how f behaves
- * (and we know how from_x behaves), we can effectively reduce (f (OverA.from x x))
- * ahead of time to get something over B, and transform directly.
- * We could similarly port proofs then without rewriting by retraction.
- * And this is where the transformation is useful for repair.
+ * So, as we see above, this way, we get something OK. It's just not the most
+ * useful configuration. It is always OK: given any (a : A), we can always choose
+ * some b such that (g b = a), since a and b are equivalent:
+ *)
+Lemma this_is_fine_gif:
+  forall (a : A), { b : B | g b = a}.
+Proof.
+  intros a. exists (f a). apply section.
+Defined.
+
+(*
+ * But writing all of our functions and proofs this way would be silly.
+ * So with concrete instances of A, like when A is inductive,
+ * we can split up into cases.
+ *
+ * For example, let A be list T and let B be sigT (vector T), using the standard equivalence.
+ * Since (g (existT _ 0 (nilV T))) reduces to (nil T), and similarly for the cons case,
+ * and nil and cons are the only two ways to construct a list, we split g into
+ * two cases: nil and cons, and let those be dep_constr_A_0 and dep_constr_A_1.
+ * This gives us the standard configuration.
  *)
