@@ -7,6 +7,7 @@ We call the current version of PUMPKIN PATCH with support for equivalences throu
 
 DEVOID began as the artifact for the ITP paper [Ornaments for Proof Reuse in Coq](http://tlringer.github.io/pdf/ornpaper.pdf), but has since been extended. A version of DEVOID that corresponds to the
 ITP camera-ready can be found in [this release](http://github.com/uwplse/ornamental-search/releases/tag/itp+equiv).
+There is an arXiv paper on the PUMPKIN Pi extension (https://arxiv.org/abs/2010.00774) with support for equivalences beyond ornaments.
 
 Given two types A and B that are related in certain ways, DEVOID can search for
 and prove the relation between those types, then lift functions and proofs between them.
@@ -26,6 +27,7 @@ For change that don't fall into the above four buckets, you need to supply the c
 This is not yet documented here due to time constraints (I promise I will document it soon).
 For now, check out two examples: switching between unary and binary natural numbers [here](/plugin/coq/nonorn.v),
 and an easier refactoring of constructors [here](https://github.com/uwplse/ornamental-search/blob/master/plugin/coq/playground/constr_refactor.v).
+Also check out the arXiv paper [here](https://arxiv.org/abs/2010.00774).
 
 # Getting Started with DEVOID
 
@@ -578,5 +580,5 @@ If you are an expert in licensing, definitely let me know if this is wrong.
 
 Regardless, I would like DEVOID to be used freely by anyone for any purpose.
 All I ask for is attribution, especially in any papers that you publish that use DEVOID
-or any of its code. Please cite the ITP paper when referring to DEVOID in those papers.
+or any of its code. Please cite the ITP paper or the arXiv paper when referring to DEVOID in those papers.
 
