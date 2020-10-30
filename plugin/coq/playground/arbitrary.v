@@ -31,15 +31,24 @@ Definition dep_constr_B_0 (b : B) : B := b.
 (*
  * Eta:
  *)
-Definition eta_A (a : A) : A := a.
-Definition eta_B (b : B) : B := b.
+Definition eta_A (a : A) := a.
+Definition eta_B (b : B) := b.
+
+Lemma eta_OK_A : forall (a : A), eta_A a = a.
+Proof.
+  reflexivity.
+Defined.
+Lemma eta_OK_B : forall (b : B), eta_B b = b.
+Proof.
+  reflexivity.
+Defined.
 
 (*
  * DepElim:
  *)
 Program Definition dep_elim_A (P : A -> Type) (f0 : forall (b : B), P (dep_constr_A_0 b)) (a : A) : P (eta_A a).
 Proof.
-  unfold eta_A. rewrite <- section. apply f0.
+  rewrite <- section. apply f0.
 Defined.
 
 Program Definition dep_elim_B (P : B -> Type) (f0 : forall (b : B), P (dep_constr_B_0 b)) (b : B) : P (eta_B b).
@@ -60,36 +69,60 @@ Proof.
   apply Adjoint.g_adjoint.
 Defined.
 
-Lemma iota_A_aux_gen:
+Lemma iota_A_aux_gen :
   forall (P : A -> Type) (b : B) (f0 : forall (b : B), P (dep_constr_A_0 b)),
     dep_elim_A
       P
       (fun b0 : B => f0 b0)
       (dep_constr_A_0 b)
     =
-    f0 b.
+    eq_rect (dep_constr_A_0 b) (fun H : A => P H) (f0 b) (eta_A (dep_constr_A_0 b)) (eq_sym (eta_OK_A (dep_constr_A_0 b))).
 Proof.
   intros P b f0. unfold dep_elim_A.
-  unfold dep_constr_A_0.
+  unfold dep_constr_A_0. rewrite eta_OK_A.
   rewrite is_adjoint.
   destruct retraction_adjoint.
   reflexivity.
 Defined.
 
+(*
+ * This nasty eq_rect ... here reduces to just (f0 b), it is just included for clarity in the general case
+ * where eta is not identity.
+ *)
 Lemma iota_A_0:
   forall (P : A -> Type) (f0 : forall b : B, P (dep_constr_A_0 b))  (b : B) (Q : P (eta_A (dep_constr_A_0 b)) -> Type),
     Q (dep_elim_A P f0 (dep_constr_A_0 b)) ->
-    Q (f0 b).
+    Q (eq_rect (dep_constr_A_0 b) (fun H : A => P H) (f0 b) (eta_A (dep_constr_A_0 b)) (eq_sym (eta_OK_A (dep_constr_A_0 b)))).
 Proof.
   intros. rewrite <- iota_A_aux_gen. apply X.
 Defined.
 
-Lemma iota_B_0 :
-  forall (P : B -> Type) (f0 : forall (b : B), P (dep_constr_B_0 b)) (b : B) (Q : P (dep_constr_B_0 b) -> Type),
-    Q (dep_elim_B P f0 (dep_constr_B_0 b)) ->
-    Q (f0 b).
+(*
+ * This follows by reflexivity, but I abstract to show the type signatures and so on:
+ *)
+Lemma iota_B_aux_gen :
+  forall (P : B -> Type) (b : B) (f0 : forall (b : B), P (dep_constr_B_0 b)),
+    dep_elim_B
+      P
+      (fun b0 : B => f0 b0)
+      (dep_constr_B_0 b)
+    =
+    eq_rect (dep_constr_B_0 b) (fun H : B => P H) (f0 b) (eta_B (dep_constr_B_0 b)) (eq_sym (eta_OK_B (dep_constr_B_0 b))).
 Proof.
-  intros. apply X.
+  intros P b f0. unfold dep_elim_B.
+  unfold dep_constr_B_0. destruct eta_OK_B.
+  reflexivity.
+Defined.
+
+(*
+ * Likewise, this nasty eq_rect ... here reduces to just (f0 b).
+ *)
+Lemma iota_B_0 :
+  forall (P : B -> Type) (f0 : forall (b : B), P (dep_constr_B_0 b)) (b : B) (Q : P (eta_B (dep_constr_B_0 b)) -> Type),
+    Q (dep_elim_B P f0 (dep_constr_B_0 b)) ->
+    Q (eq_rect (dep_constr_B_0 b) (fun H : B => P H) (f0 b) (eta_B (dep_constr_B_0 b)) (eq_sym (eta_OK_B (dep_constr_B_0 b)))).
+Proof.
+  intros. rewrite <- iota_B_aux_gen. apply X.
 Defined.
 
 (* --- Proof that this configuration is OK --- *)
@@ -107,38 +140,34 @@ Definition f' (a : A) : B :=
 Definition g' (b : B) : A :=
   dep_elim_B (fun _ => A) (fun b => dep_constr_A_0 b) b.
 
-Lemma eta_OK_A : forall (a : A), eta_A a = a.
-Proof.
-  reflexivity.
-Defined.
-
-Lemma eta_OK_B : forall (b : B), eta_B b = b.
-Proof.
-  reflexivity.
-Defined.
-
 Lemma section' (a : A) : g' (f' a) = a.
 Proof.
   replace a with (eta_A a) by (apply eta_OK_A).
   apply dep_elim_A.
-  intros b0.
-  unfold f'. unfold g'.
-  unfold dep_constr_A_0 at 1. unfold dep_constr_A_0 at 1.
-  apply (iota_B_0 (fun _ => A) (fun b0 : B => dep_constr_A_0 b0) b0).
-  apply (iota_A_0 (fun _ => B) (fun b0 : B => dep_constr_B_0 b0) b0).
-  reflexivity.
+  intros b0. unfold dep_constr_A_0 at 1.
+  replace (dep_constr_A_0 b0) with (eq_rect (dep_constr_B_0 b0) (fun _ : B => A) (dep_constr_A_0 b0) (eta_B (dep_constr_B_0 b0)) (eq_sym (eta_OK_B (dep_constr_B_0 b0)))).
+  - apply (iota_B_0 (fun _ => A) (fun b0 : B => dep_constr_A_0 b0) b0 (fun a => (g' (f' (dep_constr_A_0 b0))) = a)).
+    replace (dep_constr_B_0 b0) with (eq_rect (dep_constr_A_0 b0) (fun _ : A => B) (dep_constr_B_0 b0) (eta_A (dep_constr_A_0 b0)) (eq_sym (eta_OK_A (dep_constr_A_0 b0)))).
+    + apply (iota_A_0 (fun _ => B) (fun b0 : B => dep_constr_B_0 b0) b0 (fun b => (g' (f' (dep_constr_A_0 b0))) = g' b)).
+      reflexivity.
+    + destruct (eta_OK_A (dep_constr_A_0 b0)). reflexivity.
+  - destruct (eta_OK_B (dep_constr_B_0 b0)). reflexivity.
 Defined.
+
+Print section'.
 
 Lemma retraction' (b : B) : f' (g' b) = b.
 Proof.
   replace b with (eta_B b) by (apply eta_OK_B).
   apply dep_elim_B.
-  intros b0.
-  unfold f'. unfold g'.
-  unfold dep_constr_B_0 at 1. unfold dep_constr_B_0 at 1.
-  apply (iota_A_0 (fun _ => B) (fun b0 : B => dep_constr_B_0 b0) b0).
-  apply (iota_B_0 (fun _ => A) (fun b0 : B => dep_constr_A_0 b0) b0).
-  reflexivity.
+  intros b0. unfold dep_constr_B_0 at 1.
+  replace (dep_constr_B_0 b0) with (eq_rect (dep_constr_A_0 b0) (fun _ : A => B) (dep_constr_B_0 b0) (eta_A (dep_constr_A_0 b0)) (eq_sym (eta_OK_A (dep_constr_A_0 b0)))).
+  - apply (iota_A_0 (fun _ => B) (fun b0 : B => dep_constr_B_0 b0) b0 (fun b => (f' (g' (dep_constr_B_0 b0))) = b)).
+    replace (dep_constr_A_0 b0) with (eq_rect (dep_constr_B_0 b0) (fun _ : B => A) (dep_constr_A_0 b0) (eta_B (dep_constr_B_0 b0)) (eq_sym (eta_OK_B (dep_constr_B_0 b0)))).
+    + apply (iota_B_0 (fun _ => A) (fun b0 : B => dep_constr_A_0 b0) b0 (fun b => (f' (g' (dep_constr_B_0 b0))) = f' b)).
+      reflexivity.
+    + destruct (eta_OK_B (dep_constr_B_0 b0)). reflexivity.
+  - destruct (eta_OK_A (dep_constr_A_0 b0)). reflexivity.
 Defined.
 
 (*
@@ -160,17 +189,18 @@ Defined.
 (*
  * Same here:
  *)
-Lemma dep_elim_OK:
+Lemma dep_elim_OK_typ :
   forall P f0 b,
     dep_elim_B P f0 b =
     eq_rect
-      (f (g b))
+      (f (eta_A (g b)))
       (fun (H : B) => P H)
       (dep_elim_A (fun (a : A) => P (f a)) (fun b => f0 (f (dep_constr_A_0 b))) (g b)) 
       (eta_B b)
       (retraction b).
 Proof.
-  intros P f0 b. unfold dep_elim_B. unfold eta_B. unfold dep_elim_A.
+  intros P f0 b. unfold dep_elim_B. destruct (eta_OK_B b).
+  unfold dep_elim_A. unfold eta_A. unfold eta_B.
   rewrite is_adjoint.
   destruct retraction_adjoint.
   rewrite is_adjoint'.
@@ -183,6 +213,10 @@ Definition elim_eta_B := dep_elim_B.
 
 Definition iota_OK_0_A := iota_A_0.
 Definition iota_OK_0_B := iota_B_0.
+
+(*
+ * eta_OK is up top of the file.
+ *)
 
 (* --- Using the configuration --- *)
 
