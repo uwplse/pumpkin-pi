@@ -54,25 +54,24 @@ hint (* some tacic hints for better scripts *)
 (* That should generate tactics for a whole bunch of these, but just to check
    the paper example (has explicit A whereas paper has implicit A,
    and passes in a tactic hint to try auto instead of reflexivity): *)
-Repair list list' in List_pre.rev_app_distr as rev_app_distr { hint "auto" }. 
+Repair list list' in List_pre.rev_app_distr as rev_app_distr' { hint "auto" }. 
 (* The tactics for section and retraction are in the output of Repair Module above
    (at the top). *)
 
 (* Example from the overview that shows append is OK *)
+Definition swap := List'.list_to_list'.
+Definition app' := List'.Coq_Init_Datatypes_app.
+Definition app := List_pre.Coq_Init_Datatypes_app.
 Lemma app_ok:
   forall T (l1 l2 : list T),
-    List'.list_to_list' T (List_pre.Coq_Init_Datatypes_app T l1 l2) =
-    List'.Coq_Init_Datatypes_app T (List'.list_to_list' T l1) (List'.list_to_list' T l2).
+    swap T (app T l1 l2) =
+    app' T (swap T l1) (swap T l2).
 Proof.
   intros. induction l1.
   - auto.
   - simpl. rewrite IHl1. reflexivity.
-Defined. 
+Defined.
 
-Print List'.list_to_list'_section.
-Print List'.list_to_list'_retraction.
-Print List.rev_app_distr.
-Print List'.rev_app_distr.
 (* The tactics for section and retraction are in the output of Repair Module. *)
 
 (* A small test in the opposite direction that doesn't rely on caching: *)
