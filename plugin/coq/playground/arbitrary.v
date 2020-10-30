@@ -189,7 +189,7 @@ Defined.
 (*
  * Same here:
  *)
-Lemma dep_elim_OK_typ :
+Lemma dep_elim_OK :
   forall P f0 b,
     dep_elim_B P f0 b =
     eq_rect
