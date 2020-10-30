@@ -1,5 +1,13 @@
 (*
  * Taking another shot at adding new constructors.
+ * 
+ * My conclusion: I think it's really cool that we can express adding
+ * a constructor as an equivalence, like I suspected.
+ * But I'm not trying to fool anyone into thinking the way that I do this
+ * is useful yet. It just gives clear path to something useful, separating
+ * out the hard work from the easy work. A lot of the other changes we handle,
+ * we handle efficiently and usefully. Just being able to do this at all surprised
+ * people, so I think it's cute still.
  *)
 Require Import List.
 Require Import String.
@@ -561,6 +569,8 @@ Defined.
  * a very different eliminator transformation.
  * 
  * Still, you can look at this equivalence if you are interested.
+ * Long-term, I think we're going to chain our work with CoqEAL or something
+ * to handle this case efficiently.
  *)
 
 Definition A' : Type := New.Term + Diff.
