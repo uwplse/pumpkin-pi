@@ -72,7 +72,7 @@ Proof.
   intros P b f0. unfold dep_elim_A.
   unfold dep_constr_A_0.
   rewrite is_adjoint.
-  destruct (retraction_adjoint b).
+  destruct retraction_adjoint.
   reflexivity.
 Defined.
 
@@ -92,15 +92,14 @@ Proof.
   intros. apply X.
 Defined.
 
+(* --- Proof that this configuration is OK --- *)
+
 (*
- * The proof of dep_elim_OK would require univalence or UP,
- * as noted in the paper.
+ * Here we prove the correctness criteria from Figure 12.
  *)
 
-(* --- Proving the induced equivalence --- *)
-
 (*
- * These should form their own equivalence:
+ * First we define f, g, section, and retraction:
  *)
 Definition f' (a : A) : B :=
   dep_elim_A (fun _ => B) (fun b => dep_constr_B_0 b) a.
@@ -108,14 +107,6 @@ Definition f' (a : A) : B :=
 Definition g' (b : B) : A :=
   dep_elim_B (fun _ => A) (fun b => dep_constr_A_0 b) b.
 
-(*
- * Ah, here is yet another surprise!
- * These each follow by _both_ iota, not just by one.
- * Need to think more and fix paper appropriately.
- * The idea that it forms an equivalence is true, but my proof sketch of section
- * and retraction doesn't follow in all cases---sometimes need both iota.
- * What is the meaning of this? And when will I eat dinner?
- *)
 Lemma section' (a : A) : g' (f' a) = a.
 Proof.
   replace a with (eta_A a) by reflexivity.
@@ -140,10 +131,48 @@ Proof.
   reflexivity.
 Defined.
 
+(*
+ * To avoid dependencies, we unfold the definition of transport here.
+ *)
+Lemma dep_constr_OK :
+  forall (b : B), dep_constr_A_0 b = g (dep_constr_B_0 b).
+Proof.
+  reflexivity.
+Defined.
+
+Definition section_adjoint := Adjoint.fg_id' g f retraction section.
+
+Lemma is_adjoint' (a : A) : retraction (f a) = f_equal f (section_adjoint a).
+Proof.
+  apply Adjoint.g_adjoint.
+Defined.
+
+(*
+ * Same here:
+ *)
+Lemma dep_elim_OK:
+  forall P f0 b,
+    dep_elim_B P f0 b =
+    eq_rect
+      (f (g b))
+      (fun (H : B) => P H)
+      (dep_elim_A (fun (a : A) => P (f a)) (fun b => f0 (f (dep_constr_A_0 b))) (g b)) 
+      (eta_B b)
+      (retraction b).
+Proof.
+  intros P f0 b. unfold dep_elim_B. unfold eta_B. unfold dep_elim_A.
+  rewrite is_adjoint.
+  destruct retraction_adjoint.
+  simpl.
+  rewrite is_adjoint'.
+  destruct section_adjoint.
+  reflexivity.
+Defined.
+
 (* --- Using the configuration --- *)
 
 (*
- * We can then transform functions and proofs using this equivalence.
+ * We can transform functions and proofs using this equivalence.
  *
  * First we save the equivalence:
  *)
@@ -216,3 +245,7 @@ Defined.
  * two cases: nil and cons, and let those be dep_constr_A_0 and dep_constr_A_1.
  * This gives us the standard configuration.
  *)
+
+
+
+
