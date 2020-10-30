@@ -107,9 +107,19 @@ Definition f' (a : A) : B :=
 Definition g' (b : B) : A :=
   dep_elim_B (fun _ => A) (fun b => dep_constr_A_0 b) b.
 
+Lemma eta_OK_A : forall (a : A), eta_A a = a.
+Proof.
+  reflexivity.
+Defined.
+
+Lemma eta_OK_B : forall (b : B), eta_B b = b.
+Proof.
+  reflexivity.
+Defined.
+
 Lemma section' (a : A) : g' (f' a) = a.
 Proof.
-  replace a with (eta_A a) by reflexivity.
+  replace a with (eta_A a) by (apply eta_OK_A).
   apply dep_elim_A.
   intros b0.
   unfold f'. unfold g'.
@@ -121,7 +131,7 @@ Defined.
 
 Lemma retraction' (b : B) : f' (g' b) = b.
 Proof.
-  replace b with (eta_B b) by reflexivity.
+  replace b with (eta_B b) by (apply eta_OK_B).
   apply dep_elim_B.
   intros b0.
   unfold f'. unfold g'.
@@ -163,11 +173,16 @@ Proof.
   intros P f0 b. unfold dep_elim_B. unfold eta_B. unfold dep_elim_A.
   rewrite is_adjoint.
   destruct retraction_adjoint.
-  simpl.
   rewrite is_adjoint'.
   destruct section_adjoint.
   reflexivity.
 Defined.
+
+Definition elim_eta_A := dep_elim_A.
+Definition elim_eta_B := dep_elim_B.
+
+Definition iota_OK_0_A := iota_A_0.
+Definition iota_OK_0_B := iota_B_0.
 
 (* --- Using the configuration --- *)
 
