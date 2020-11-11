@@ -72,10 +72,10 @@ The big and interesting step is to use the adjunction property of equivalences (
 
 **Location**: [search.ml](/plugin/src/automation/search/search.ml).
 
-**Notes**: Right OK, so back to the weird part I mentioned when discussing file 6.
+**Notes**: Back to the weird part I mentioned when discussing file 6.
 As an artifact of history, we find equivalences first, then derive configurations, rather than the other way around.
 So the word "essentially" in the paper is important.
-We do use the paper algorithm, but the paper algorithm is the idealized post-hoc description of the thing we did in a more ad-hoc manner manually.
+We do use the paper algorithm, but the paper algorithm is the idealized post-hoc description of the thing we did in a more ad-hoc manner originally.
 Also as mentioned in the paper, we don't describe these in detail, but the code should help with understanding the way that they work.
 The algebraic ornaments search procedure comes from DEVOID; all others are CARROT-specific.
 
@@ -190,7 +190,9 @@ So to make this understandable to the proof engineer, every time the industrial 
 we worked with them to determine why they were encountering that error.
 We then included the reason in a list of common causes in the actual error message.
 But we also included the scary-looking type error that Coq gave us, because sometimes it did include useful information.
-We just disclaimed that with "Coq gave us this scary looking error." So this is sort of like "eapply" saying
+We just disclaimed that with "Coq gave us this scary looking error."
+
+So this is sort of like "eapply" saying
 "we had inferred these constraints" and then telling you the constraints and some common reasons why this might happen,
 rather than just telling you the constraints you had no idea it was inferring were wrong and leaving you to pray.
 It's only a line in the paper but I think it's important engineering insight, maybe applicable to Coq more broadly, who knows.
