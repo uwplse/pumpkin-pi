@@ -1,5 +1,5 @@
 (*
- * Question from Anders Mortberg
+ * Question from REDACTED NON-AUTHOR 1
  *)
 Require Import Coq.Program.Tactics.
 Require Import Ornamental.Ornaments.

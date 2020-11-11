@@ -4,7 +4,7 @@ Require Import Ornamental.Ornaments.
 Set CARROT search prove equivalence.
 Set CARROT lift type.
 
-(* --- 9/17: Playing with a Reviewer A example --- *)
+(* --- 9/17: Playing with a REDACTED NON-AUTHOR 4 example --- *)
 
 Inductive I :=
 | A : I

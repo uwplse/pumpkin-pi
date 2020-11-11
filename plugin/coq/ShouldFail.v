@@ -4,7 +4,7 @@ Require Import Test.
 
 (*
  * Bellow are other kinds of changes I have tried that are not
- * yet supported.
+ * yet supported for automatic configuration with algebraic ornaments.
  *)
 
 (* --- Balanced binary trees --- *)
@@ -115,7 +115,7 @@ Qed.
  * This fails:
  * Find ornament list vector_int as orn_list_vectorint.
  *
- * For this to pass, we really need to chain it with PUMPKIN, because what
+ * For this to pass, we really need to chain it with PUMPKIN PATCH, because what
  * is happening is we first need to find the patch that gets us from list
  * to vector, and then we need to get from that indexing function
  * to Z by searching for a patch. This is really cool.

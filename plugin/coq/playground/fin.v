@@ -1,7 +1,7 @@
 (*
- * Vectors and Fin (also from Anders)
- * Thanks to James Wilcox for the missing gaps that I needed!
- * https://gist.github.com/wilcoxjay/10cc817d20ad7148899c3725a1ebf06e
+ * Vectors and Fin (also from REDACTED NON-AUTHOR 1)
+ * Thanks to REDACTED NON-AUTHOR 2 for the missing gaps that I needed!
+ * REDACTED LINK TO GITHUB GIST
  *)
 Require Import Ornamental.Ornaments.
 
@@ -27,7 +27,7 @@ Preprocess Module VectorDef as VectorDef' { opaque
 }.
 
 (*
- * PUMPKIN Pi still gets annoyed about implicit parameters sometimes, so for now we make
+ * CARROT still gets annoyed about implicit parameters sometimes, so for now we make
  * T and n explicit.
  *)
 Definition A (T : Type) (n : nat) := VectorDef'.t T n.
@@ -282,10 +282,15 @@ Configure Lift A B {
  * But we still need to make dep_constr_A_1 explicit because, yes, lack of unification heuristics
  * makes things that dire, though I think that is fixable to some degree).
  *
- * To do that, we use "Replace Convertible" from PUMPKIN PATCH, but this won't
- * build without PUMPKIN PATCH, so TODO expose this inside of PUMPKIN Pi.
+ * To do that, we use "Replace Convertible" from REDACTED, but this won't
+ * build without REDACTED, so TODO expose this inside of CARROT.
  * This at least proves that the problem is unification heuristics here,
  * and that the solution is at least in some cases really not hard.
+ *
+ * Note to reviewers: Unless I have time to anonymize REDACTED too,
+ * you won't be able to run this right now, but you will be able to look at it,
+ * and you'll be able to run it by the time this is packaged into an
+ * artifact. Anonymization is hard.
  *)
 Require Import Patcher.Patch.
 Module Over_A.

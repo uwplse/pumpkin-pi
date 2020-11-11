@@ -522,10 +522,10 @@ Lemma test_letin_list_lifted_ok (A : Type) (xs : list A) :
   test_letin_list_lifted A xs = xs.
 Proof. reflexivity. Defined.
 
-(* --- Regressing the bug Nate caught with LIFT-PACK and variables --- *)
+(* --- Regressing the bug REDACTED caught with LIFT-PACK and variables --- *)
 
 (*
- * See: https://github.com/uwplse/ornamental-search/issues/14
+ * See: REDACTED
  *)
 
 Lemma tl_ok:

@@ -136,7 +136,7 @@ End AddBool.
 
 (*
  * The left projection is straightforward---just use the same structure as
- * the old type, but index by the new type. I think Conor McBride said this
+ * the old type, but index by the new type. I think REDACTED NON-AUTHOR 3 said this
  * is the reornament.
  *)
 Inductive no_bools : AddBool.Term -> Type :=

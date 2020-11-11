@@ -11,4 +11,12 @@ CPP
 ITP
 QED
 cite
+Talia
+Nate
+RanDair
+John
+Anders
+Conor
+James
+Reviewer
 \ my\ 

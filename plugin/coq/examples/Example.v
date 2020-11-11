@@ -1,9 +1,6 @@
 (*
- * Section 2 Example from the ITP 2019 paper.
- *
- * NOTE: This has changed a lot since the ITP paper! I have updated this file
- * to reflect the latest automation. To see the original ITP version,
- * take a look at the state of this file in the ITP release.
+ * CARROT generalizes DEVOID, but adds a lot more automation.
+ * This file shows the example from DEVOID with the new CARROT automation.
  *)
 
 Add LoadPath "coq/examples".
@@ -90,9 +87,6 @@ Repair Module list vector in hs_to_coq as hs_to_coqV_p { hint "auto" }.
  * The suggested proof for section is the same as the paper draft version up to renaming.
  * The suggested proof for retraction has an additional "intros" that we remove when
  * we modify the suggestion in the paper.
- *
- * Please also note this regression bug that makes terms and types uglier than usual
- * (though still correct): https://github.com/uwplse/pumpkin-pi/issues/84
  *)
 
 (*
@@ -134,7 +128,7 @@ Check zip_with_is_zipV_p.
  * a nice custom eliminator to make this easier.
  *
  * Let's start by proving the length invariants
- * (these were also proven by the human for ITP 2019):
+ * (these were also proven by the human for DEVOID):
  *)
 Module hs_to_coq_lengths'.
 
@@ -182,7 +176,7 @@ Preprocess Module hs_to_coq_lengths' as hs_to_coq_lengths { opaque Datatypes Log
  * Once we have the length proofs, we write the proofs
  * about { l : list T & length l = n }. To do this,
  * it's useful to have a nice induction principle,
- * which CARROT generated since we set the "smart elims" option (new since ITP 2019)
+ * which CARROT generated since we set the "smart elims" option (everything here on, DEVOID lacks)
  * (the name of this will always be the name of your promote function
  * followed by _rect):
  *)
@@ -276,7 +270,7 @@ End packed_list.
 
 (*
  * Now we can get from that to { s : sigT (vector T) & projT1 s = n} by lifting from
- * lists to vectors (new since ITP 2019).
+ * lists to vectors (DEVOID left this to the proof engineer).
  *
  * Rather than preprocess here, we just set terms that use pattern matching to
  * opaque for efficiency. We use Lift intead of Repair when tactics don't matter.

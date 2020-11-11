@@ -1,5 +1,5 @@
 (*
- * This file explains the assumptions from Section 3 in more detail,
+ * This file explains the assumptions from REDACTED in more detail,
  * and demonstrates some failing examples.
  *
  * These assumptions are not core to the type theory or to the
@@ -213,8 +213,7 @@ Fail Find ornament list vector_int as orn_list_vectorint.
  * The way to loosen this restriction a bit is to chain CARROT with PUMPKIN PATCH.
  * Finding the relationship between vector and vector_int is very, very much
  * a PUMPKIN PATCH problem in the original style of PUMPKIN PATCH. I am very
- * excited to do this as part of my thesis work, and I was very excited when
- * I found this problem to begin with. But it's a hard problem.
+ * excited to do this as part of my REDACTED hahahaha anonymization sucks.
  *)
 
 (* --- New hypotheses must be exactly the new index of the recursive references --- *)

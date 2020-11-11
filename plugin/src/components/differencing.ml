@@ -125,7 +125,7 @@ let is_new_index i b_o b_n =
  * If indices depend on earlier types, the types may be dependent;
  * the client needs to shift by the appropriate offset.
  *
- * This algorithm only runs when there is ambiguity, since Nate's
+ * This algorithm only runs when there is ambiguity, since REDACTED's
  * algorithm can take care of simpler cases where the types enough
  * are revealing. There are some examples of ambiguity in Test.v;
  * these should never break, and if they do, it means the code is incorrect.
@@ -157,7 +157,7 @@ let new_index_type env sigma elim_t_o elim_t_n =
     (candidates env sigma p_o p_n)
                
 (*
- * This is Nate's simple search heuristic that works when there is no ambiguity
+ * This is REDACTED's simple search heuristic that works when there is no ambiguity
  *)
 let diff_context_simple env sigma decls_o decls_n =
   let nth_type n = Rel.Declaration.get_type (List.nth decls_n n) in
@@ -204,7 +204,7 @@ let diff_context_simple env sigma decls_o decls_n =
     None
                
 (*
- * Top-level index finder for Nate's heuristic
+ * Top-level index finder for REDACTED's heuristic
  *)
 let new_index_type_simple env sigma ind_o ind_n =
   (* Applying each parameter increments the index for the next one. *)

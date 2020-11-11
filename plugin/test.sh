@@ -170,7 +170,7 @@ else
 fi
 cd ..
 
-echo "Running ITP paper examples."
+echo "Running DEVOID regression examples."
 
 if coqc coq/examples/Intro.v
 then
@@ -323,49 +323,49 @@ else
   fi
   if [ $assumptions = false ]
   then
-    echo "Assumptions.v from ITP examples"
+    echo "Assumptions.v from DEVOID regression examples"
   else
     :
   fi
   if [ $intro = false ]
   then
-    echo "Intro.v from ITP examples"
+    echo "Intro.v from DEVOID regression examples"
   else
     :
   fi
   if [ $example = false ]
   then
-    echo "Example.v from ITP examples"
+    echo "Example.v from DEVOID regression examples"
   else
     :
   fi
   if [ $liftspec = false ]
   then
-    echo "LiftSpec.v from ITP examples"
+    echo "LiftSpec.v from DEVOID regression examples"
   else
     :
   fi
   if [ $search = false ]
   then
-    echo "Search.v from ITP examples"
+    echo "Search.v from DEVOID regression examples"
   else
     :
   fi
   if [ $lift = false ]
   then
-    echo "Lift.v from ITP examples"
+    echo "Lift.v from DEVOID regression examples"
   else
     :
   fi
   if [ $listtovect = false ]
   then
-    echo "ListToVect.v from ITP examples"
+    echo "ListToVect.v from DEVOID regression examples"
   else
     :
   fi
   if [ $listtovectcustom = false ]
   then
-    echo "ListToVectCustom.v from extended ITP examples"
+    echo "ListToVectCustom.v from extended DEVOID regression examples"
   else
     :
   fi
