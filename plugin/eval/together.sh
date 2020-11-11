@@ -48,10 +48,10 @@ mkdir results/search
 cp main.v main2.v
 cp equiv4free/main.v equiv4free/main2.v
 
-# Set DEVOID case study code to print regular terms instead of computed ones
+# Set CARROT case study code to print regular terms instead of computed ones
 sed -i "s/Eval compute in/Print/" main2.v
 
-# Remake DEVOID case study code exactly once, to print terms
+# Remake CARROT case study code exactly once, to print terms
 make clean
 make together
 

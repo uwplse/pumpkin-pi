@@ -1,9 +1,9 @@
 Require Import List.
 Require Import Ornamental.Ornaments.
 
-Set DEVOID search prove coherence.
-Set DEVOID search prove equivalence.
-Set DEVOID search smart eliminators.
+Set CARROT search prove coherence.
+Set CARROT search prove equivalence.
+Set CARROT search smart eliminators.
 
 (*--- Lists and Vectors ---*)
 

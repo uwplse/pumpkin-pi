@@ -3,7 +3,7 @@
  *)
 Require Import Ornamental.Ornaments.
 
-Set DEVOID lift type.
+Set CARROT lift type.
 
 (*
  * Assume two arbitrary equivalent types A and B:

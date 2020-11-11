@@ -16,10 +16,10 @@ Require Import ZArith.
 Import ListNotations.
 
 Require Import Ornamental.Ornaments.
-Set DEVOID search prove coherence.
-Set DEVOID search prove equivalence.
-Set DEVOID lift type.
-Set DEVOID search smart eliminators.
+Set CARROT search prove coherence.
+Set CARROT search prove equivalence.
+Set CARROT lift type.
+Set CARROT search smart eliminators.
 
 (*
  * Let's do more of the REPLICA benchmark and see what happens.

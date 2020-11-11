@@ -10,7 +10,7 @@ Require Import TestLift.
 Require Import Ornamental.Ornaments.
 Require Import Infrastructure.
 
-Set DEVOID lift type.
+Set CARROT lift type.
 
 Definition packed_list_rect := Test.orn_list_vector_rect.
 Definition length {T} l := list_to_vector_index T l.

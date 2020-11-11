@@ -1,4 +1,4 @@
-(* --- Options for DEVOID --- *)
+(* --- Options for CARROT --- *)
 
        
 (*

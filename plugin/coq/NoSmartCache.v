@@ -4,10 +4,10 @@ Require Import List.
 Require Import minimal_records.
 Require Import Coq.Bool.Bool.
 
-Set DEVOID search prove equivalence. (* <-- Correctness proofs for search *)
-Set DEVOID lift type. (* <-- Prettier types than the ones Coq infers *)
+Set CARROT search prove equivalence. (* <-- Correctness proofs for search *)
+Set CARROT lift type. (* <-- Prettier types than the ones Coq infers *)
 Set Nonrecursive Elimination Schemes. (* <--- Preprocess needs induction principles for records *)
-Unset DEVOID smart cache. (* <-- Disable the smart cache! *)
+Unset CARROT smart cache. (* <-- Disable the smart cache! *)
 
 Module leb.
 

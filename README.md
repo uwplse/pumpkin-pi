@@ -129,7 +129,7 @@ but let CARROT figure out the rest. See [Swap.v](/plugin/coq/Swap.v) for example
 ##### Using Custom Equivalences with Manual Configuration
 
 To use a custom equivalence not at all supported by one of the four search procedures, like switching between unary and binary natural numbers,
-check out two examples [here](/plugin/coq/nonorn.v) and [here](https://github.com/uwplse/ornamental-search/blob/master/plugin/coq/playground/constr_refactor.v).
+check out two examples [here](/plugin/coq/nonorn.v) and [here](/plugin/coq/playground/constr_refactor.v).
 These examples set manual configuration and essentially skip the search procedure.
 We will document them soon!
 The paper says a lot about these but the examples are the best place to look for now.

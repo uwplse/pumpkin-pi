@@ -14,7 +14,7 @@ Preprocess Module List as List' { opaque (* ignore these: *)
   Nat
   Coq.Init.Nat
 }.
-Set DEVOID lift type.
+Set CARROT lift type.
 Lift list Vector.t in List'.Coq_Init_Datatypes_app as appV.
 
 (*

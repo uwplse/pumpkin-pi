@@ -7,9 +7,9 @@ Notation vector := Vector.t.
 Notation nilV := Vector.nil.
 Notation consV := Vector.cons.
 
-Set DEVOID search prove coherence.
-Set DEVOID search prove equivalence.
-Set DEVOID lift type.
+Set CARROT search prove coherence.
+Set CARROT search prove equivalence.
+Set CARROT lift type.
 
 (*
  * Attempt at understanding why lifting eliminators is OK, formally.

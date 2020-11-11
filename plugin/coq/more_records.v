@@ -1,7 +1,7 @@
 Require Import Ornamental.Ornaments.
 
-Set DEVOID search prove equivalence. (* <-- Correctness proofs for search *)
-Set DEVOID lift type. (* <-- Prettier types than the ones Coq infers *)
+Set CARROT search prove equivalence. (* <-- Correctness proofs for search *)
+Set CARROT lift type. (* <-- Prettier types than the ones Coq infers *)
 Set Nonrecursive Elimination Schemes. (* <--- Preprocess needs induction principles for records *)
 
 (*

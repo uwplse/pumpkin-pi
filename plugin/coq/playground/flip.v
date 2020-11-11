@@ -4,7 +4,7 @@
 Require Import Coq.Program.Tactics.
 Require Import Ornamental.Ornaments.
 
-Set DEVOID lift type.
+Set CARROT lift type.
 
 Parameter T1 : Type.
 Parameter T2 : Type.

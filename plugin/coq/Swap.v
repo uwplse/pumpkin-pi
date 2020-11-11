@@ -1,5 +1,5 @@
 (*
- * DEVOID supports swapping and renaming constructors!
+ * CARROT supports swapping and renaming constructors!
  * Here are some examples.
  *)
 
@@ -11,8 +11,8 @@ Require Import Vector.
 Import ListNotations.
 
 Require Import Ornamental.Ornaments.
-Set DEVOID search prove equivalence.
-Set DEVOID lift type.
+Set CARROT search prove equivalence.
+Set CARROT lift type.
 
 (* --- Swap the only constructor --- *)
 

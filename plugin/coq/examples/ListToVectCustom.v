@@ -8,7 +8,7 @@ Require Import ZArith.
 
 Require Import Ornamental.Ornaments.
 
-Set DEVOID search prove equivalence.
+Set CARROT search prove equivalence.
 
 Notation vector := Vector.t.
 Notation vnil := Vector.nil.
@@ -60,7 +60,7 @@ existT (fun H : nat => vector A H) (length l)
 (*
  * The correctness condition is that these also form an equivalence with the same
  * coherence properties. We don't need to prove this, however. We can just tell
- * DEVOID to use our equivalence. (Use at your own risk! If you pick something that isn't an equivalence,
+ * CARROT to use our equivalence. (Use at your own risk! If you pick something that isn't an equivalence,
  * lifting will fail with confusing type errors.)
  *)
 Save ornament list vector { promote = ltv }.

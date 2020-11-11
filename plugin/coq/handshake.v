@@ -4,8 +4,8 @@ From Ornamental Require Import Ornaments.
  * This is a test from a user that ensures record projections lift correctly.
  *)
 
-Set DEVOID search prove equivalence.
-Set DEVOID lift type.
+Set CARROT search prove equivalence.
+Set CARROT lift type.
 
 Set Preprocess default opaque.
 

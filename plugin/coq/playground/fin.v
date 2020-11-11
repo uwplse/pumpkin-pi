@@ -306,7 +306,7 @@ Replace Convertible dep_constr_A_1 in VectorDef'.fold_right as fold_right.
 
 End Over_A.
 
-Set DEVOID lift type.
+Set CARROT lift type.
 Repair Module A B in Over_A as Over_B { opaque nat_rect VectorDef'.Coq_Arith_PeanoNat_Nat_nle_succ_0 VectorDef'.Coq_Arith_Le_le_S_n False_rect VectorDef'.Coq_Arith_PeanoNat_Nat_add VectorDef'.Coq_Arith_Plus_tail_plus }.
 Print Over_B.
 

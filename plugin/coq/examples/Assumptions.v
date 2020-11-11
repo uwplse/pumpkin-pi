@@ -15,8 +15,8 @@ Require Import Ornamental.Ornaments.
 Require Import List ZArith Nat.
 Require Import Search.
 
-Set DEVOID search prove coherence.
-Set DEVOID search prove equivalence.
+Set CARROT search prove coherence.
+Set CARROT search prove equivalence.
 
 (*
  * Our arguments to cons are swapped from Coq's in the paper
@@ -210,7 +210,7 @@ Fail Find ornament list vector_int as orn_list_vectorint.
  * that gets us from nat to Z first. And for some terms, this function
  * might be less obvious.
  *
- * The way to loosen this restriction a bit is to chain DEVOID with PUMPKIN PATCH.
+ * The way to loosen this restriction a bit is to chain CARROT with PUMPKIN PATCH.
  * Finding the relationship between vector and vector_int is very, very much
  * a PUMPKIN PATCH problem in the original style of PUMPKIN PATCH. I am very
  * excited to do this as part of my thesis work, and I was very excited when

@@ -1,8 +1,8 @@
 From Ornamental Require Import Ornaments.
 Require Import Infrastructure.
 
-Set DEVOID search prove equivalence.
-Set DEVOID lift type.
+Set CARROT search prove equivalence.
+Set CARROT lift type.
 Set Nonrecursive Elimination Schemes.
 
 (*

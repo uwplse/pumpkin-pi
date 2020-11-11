@@ -364,7 +364,7 @@ let do_lift_ind env sigma l typename suffix ind ignores is_lift_module =
                let n = Names.Label.to_id (Names.Constant.label p) in
                let def = Defutils.define_term n sigma p_lifted true in
                Feedback.msg_info
-                 (Pp.str (Printf.sprintf "DEVOID generated %s" (Names.Id.to_string n)));
+                 (Pp.str (Printf.sprintf "CARROT generated %s" (Names.Id.to_string n)));
                def))
           r.s_PROJ
       in

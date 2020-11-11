@@ -4,7 +4,7 @@ Require Import lemmas cast.
 Import ListNotations.
 
 (* Generate equivalences for use with EFF, and to ensure search is correct. *)
-Set DEVOID search prove equivalence.
+Set CARROT search prove equivalence.
 
 Open Scope bool_scope.
 

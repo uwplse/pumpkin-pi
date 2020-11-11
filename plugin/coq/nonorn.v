@@ -4,10 +4,10 @@ Require Import Ornamental.Ornaments.
 Require Import Coq.NArith.BinNat.
 Require Import Coq.NArith.Nnat.
 
-Set DEVOID search prove equivalence.
-Set DEVOID search prove coherence.
-Set DEVOID search smart eliminators.
-Set DEVOID lift type.
+Set CARROT search prove equivalence.
+Set CARROT search prove coherence.
+Set CARROT search smart eliminators.
+Set CARROT lift type.
 
 (*
  * Now we use the standard Coq binary natural number.

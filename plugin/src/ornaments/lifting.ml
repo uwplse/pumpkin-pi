@@ -222,7 +222,7 @@ let initialize_lifting_cached env sigma o n =
       try
         Option.get (lookup_ornament (o, n))
       with _ ->
-        failwith "Cannot find cached ornament! Please report a bug in DEVOID"
+        failwith "Cannot find cached ornament! Please report a bug in CARROT"
     in
     let sigma, is_fwd = direction_cached env o promote k sigma in
     sigma, (is_fwd, (promote, forget), k)

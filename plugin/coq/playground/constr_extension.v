@@ -2,8 +2,8 @@ Add LoadPath "coq/playground".
 Require Import List.
 Require Import Ornamental.Ornaments.
 
-Set DEVOID search prove equivalence.
-Set DEVOID lift type.
+Set CARROT search prove equivalence.
+Set CARROT lift type.
 
 (*
  * Attempts at figuring equivalences that correspond to constructor extension,
