@@ -137,16 +137,14 @@ only ones that do not rely on the industrial proof engineer's code.
 
 # 18
 
-**Location**: Unable to anonymize (see notes).
+**Location**: In a different zip file.
 
 **Notes**: The industrial user is a non-author, and so I have not anonymized their repository.
-I have included this link in the software URLs you can request later in the review process if you would like.
-It is not documented extensively because it is not our code,
-and because immigration and pandemic related issues forced the proof engineer to put this effort on pause.
-So if during author responses you would like to better understand where in that code to find useful examples,
-and what is happening in that code more precisely, I am happy to provide that information to you.
-I do not expect the code URL alone will help you with that.
-I am also happy to put an example in the paper given additional space.
+I have attached the zip file for their repository seperately. I am legally obligated to distribute it with the license,
+which gives away the company identity. Please do not check the license.
+For an example using PUMPKIN Pi with the explained workflow on records to tuples, I recommend checking out the 
+file `saw-core-coq/coq/handwritten/Lift/Lift/ConnectionLift.v`.
+It is not documented extensively because it is not our code.
 
 # 19
 
