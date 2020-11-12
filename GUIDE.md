@@ -142,7 +142,7 @@ only ones that do not rely on the industrial proof engineer's code.
 **Notes**: The industrial user is a non-author, and so I have not anonymized their repository.
 I have attached the zip file for their repository seperately. I am legally obligated to distribute it with the license,
 which gives away the company identity. Please do not check the license.
-For an example using PUMPKIN Pi with the explained workflow on records to tuples, I recommend checking out the 
+For an example using CARROT with the explained workflow on records to tuples, I recommend checking out the 
 file `saw-core-coq/coq/handwritten/Lift/Lift/ConnectionLift.v`.
 It is not documented extensively because it is not our code.
 
