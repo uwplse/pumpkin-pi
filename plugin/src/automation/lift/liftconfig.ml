@@ -45,6 +45,8 @@ open Nameutils
  * simplification rules, definitional equality rules,
  * a cache for constants encountered as the algorithm traverses,
  * and a cache for the constructor rules that refolding determines.
+ *
+ * The extra things in here are for convenience or for optimizations.
  *)
 type lift_config =
   {
