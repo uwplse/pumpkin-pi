@@ -25,9 +25,9 @@ We have documented this extensively, including what is unique to CARROT.
 
 **Location**: [lift.ml](/plugin/src/automation/lift/lift.ml).
 
-**Notes**: Some of the comments are out of sync with the paper. We apologize for that.
-You will also see more rules than there are in the transformation in the paper;
-those extra rules are optimizations, and are partially discussed in the implementation section of the paper.
+**Notes**: You will see more rules than there are in the transformation in the paper;
+those extra rules are optimizations or ways of dealing with Coq as opposed to CIC,
+and are partially discussed in the implementation section of the paper.
 
 # 5
 

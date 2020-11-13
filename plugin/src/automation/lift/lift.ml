@@ -45,7 +45,7 @@ let map_rec_args_list lift_rec env sigma c args =
 (* --- Application --- *)
 
 (*
- * LIFT-IDENTITY, COHERENCE, and EQUIVALENCE all run here.
+ * CONSTR and EQUIVALENCE run here.
  *
  * First this lifts the arguments, then it applies the lifted function
  * (which is cached) and uses a custom reducer to simplify the result.
@@ -63,14 +63,14 @@ let lift_app_simplify c env lifted_f args simplify lift_rec sigma =
 (* --- Optimization implementations --- *)
 
 (*
- * When we lift to a projection of the eta-expanded identity function,
+ * When we lift to a projection eta,
  * simplify early rather than wait for Coq 
  *)
 let lift_simplify_project_id c env reduce f args lift_rec sigma =
   let sigma, arg' = lift_rec env sigma c (last (Array.to_list args)) in
   let arg'' = reduce_stateless reduce_term env sigma arg' in
   if may_apply_eta (reverse c) env arg'' then
-    (* projection of expanded identity *)
+    (* projection of eta *)
     reduce env sigma arg''
   else
     (* false positive; projection of something else *)
@@ -144,7 +144,7 @@ let lift_const_lazy_delta c env (co, u) lift_rec sigma =
        sigma, trm)
   in smart_cache c trm lifted; (sigma, lifted)
 
-(* Lift existential variables *)
+(* Lift existential variables (buggy, needs work) *)
 let lift_evar c env trm lift_rec sigma =
   let (etrm, _) = destEvar trm in
   let sigma, typ = Inference.infer_type env sigma trm in
@@ -174,7 +174,7 @@ let lift_evar c env trm lift_rec sigma =
 (*
  * Core lifting algorithm.
  * A few extra rules to deal with real Coq terms as opposed to CIC,
- * including caching.
+ * including caching. Lots of optimizations.
  *)
 let lift_core env c trm sigma =
   let rec lift_rec prev_rules en sigma c tr : types state =
