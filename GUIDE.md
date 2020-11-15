@@ -84,6 +84,7 @@ The algebraic ornaments search procedure comes from DEVOID; all others are CARRO
 **Location**: [equivalence.ml](/plugin/src/automation/search/equivalence.ml).
 
 **Notes**: All of the notes from file 9 apply here as well.
+Note (for HoTT folks) that the adjoint equivalence is also generated automatically here.
 
 # 11
 
@@ -196,4 +197,15 @@ rather than just telling you the constraints you had no idea it was inferring we
 It's only a line in the paper but I think it's important engineering insight, maybe applicable to Coq more broadly, who knows.
 It helped the proof engineer a lot.
 But the infrastructure is a bit difficult to maintain.
+
+# 23
+
+**Location**: [Adjoint.v](/plugin/theories/Adjoint.v).
+
+**Notes**: This is a modified version of the proof from the HoTT book, adapted to vanilla Coq.
+It is not our result, and the author of the vanilla Coq proof is credited in the file.
+Our machinery for using this automatically for automatic configuration is in File 10.
+An example where we need this property is in File 8.
+But note that it holds for every equivalence; we don't need HoTT for this,
+and we don't need any special properties for the types or the original equivalence.
 
