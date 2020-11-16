@@ -122,17 +122,23 @@ Preprocess Module HandwrittenProofs as HandwrittenProofs'.
  * in the opposite order. But it will work regardless of which direction you do.
  *)
 Lift Handwritten'.output Generated'.output in HandwrittenProofs'.and_spec_true_true as and_spec_true_true_1.
-Lift Handwritten'.input Generated'.input in and_spec_true_true_1 as and_spec_true_true'.
+Repair Handwritten'.input Generated'.input in and_spec_true_true_1 as and_spec_true_true' { hint "intuition" }.
 
 (*
-Print and_spec_true_true'.
-Require Import Patcher.Patch.
-Decompile and_spec_true_true'.
-Check and_spec_true_true'.
+ * We get these tactics automatically from the decompiler
+ * (added induction since no more eta in hypotheses):
+ *)
+Theorem and_spec_true_true'_by_tactics
+  (r : Generated'.input)
+  (F : Generated'.firstBool  r = true)
+  (S : Generated'.secondBool r = true)
+  : Generated'.andBools (Generated'.op r) = true.
+Proof.
+  induction r. simpl. intuition.
+Qed.
 
 (*
- * We get these tactics automatically from the decompiler, and they work
- * forgetting about preprocess:
+ * Forgetting about preprocess now:
  *)
 Theorem and_spec_true_true_by_tactics
   (r : Generated.input)
@@ -140,11 +146,8 @@ Theorem and_spec_true_true_by_tactics
   (S : Generated.secondBool r = true)
   : Generated.andBools (Generated.op r) = true.
 Proof.
-  destruct r as [ a b].
-  apply andb_true_intro.
-  intuition.
+  destruct r. simpl. intuition.
 Qed.
-*)
 
 (*
  * Otherwise we get our proof over generated types with just one catch: We need to call
