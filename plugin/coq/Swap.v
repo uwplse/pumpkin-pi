@@ -58,6 +58,21 @@ Repair list list' in List_pre.rev_app_distr as rev_app_distr' { hint "auto" }.
 (* The tactics for section and retraction are in the output of Repair Module above
    (at the top). *)
 
+(*
+ * Above tactic proof for rev_app_distr works with no changes:
+ *)
+Lemma rev_app_distr_tactics: 
+  forall (A : Type)(x y : list' A),
+    List'.rev A (List'.Coq_Init_Datatypes_app A x y) =
+    List'.Coq_Init_Datatypes_app A (List'.rev A y) (List'.rev A x).
+Proof.
+  intros A x. induction x as [a l IHl| ]; intro y0.
+  - simpl. rewrite IHl. simpl. rewrite List'.app_assoc. auto.
+  - induction y0 as [a l H| ].
+    + simpl. rewrite List'.app_nil_r. auto.
+    + auto.
+Qed.
+
 (* Example from the overview that shows append is OK *)
 Definition swap := List'.list_to_list'.
 Definition app' := List'.Coq_Init_Datatypes_app.
