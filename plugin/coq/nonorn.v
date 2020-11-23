@@ -42,8 +42,8 @@ Definition dep_elim_B := N.peano_rect.
 
 (* --- Eta --- *)
 
-Definition eta_A (n : nat) := nat.
-Definition eta_B (b : binnat) := binnat.
+Definition eta_A (n : nat) := n.
+Definition eta_B (b : binnat) := b.
 
 (* --- Iota --- *)
 
