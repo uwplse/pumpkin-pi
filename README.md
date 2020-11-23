@@ -1,3 +1,5 @@
+**Coming here from the latest arXiv draft? The documentation below is meant for users and is a bit out of date. The arXiv draft code guide can be found in [GUIDE.md](./GUIDE.md).**
+
 This is DEVOID, a plugin for automatic discovery of and lifting across 
 certain equivalences between types in Coq.
 DEVOID is a part of the [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH) 
@@ -22,11 +24,10 @@ swapping constructor order and renaming constructors
 4. **Escaping Sigma Types**: the type B (like `vector T n`) is the type A (like `{ s : sigT (vector T) & projT1 s = n}`) 
 escaping the sigma type
 
-In general, DEVOID can lift functions and proofs across **any equivalence that can be described by a configuration with a certain form**.
-For change that don't fall into the above four buckets, you need to supply the configuration for that equivalence yourself.
-This is not yet documented here due to time constraints (I promise I will document it soon).
-For now, check out two examples: switching between unary and binary natural numbers [here](/plugin/coq/nonorn.v),
-and an easier refactoring of constructors [here](https://github.com/uwplse/ornamental-search/blob/master/plugin/coq/playground/constr_refactor.v).
+It then ports functions and proofs across those equivalences.
+For changes that don't fall into the above four buckets, you need to supply the equivalence yourself in a deconstructed form called a *configuration*.
+If you need help with this, please check out two examples: switching between unary and binary natural numbers [here](/plugin/coq/nonorn.v),
+and an easier refactoring of constructors [here](/plugin/coq/playground/constr_refactor.v).
 Also check out the arXiv paper [here](https://arxiv.org/abs/2010.00774).
 
 # Getting Started with DEVOID
@@ -54,22 +55,20 @@ and [minimal_records.v](/plugin/coq/minimal_records.v).
 
 ### Overview
 
-At a high level, there are two main commands: `Find ornament` to search for equivalences,
+At a high level, there are two main commands: `Find ornament` to search for equivalences (misleadingly named as an artifact of history and time constraints),
 and `Lift` (or `Repair` for tactic support) to lift along those equivalences. `Find ornament` supports two additional options
 to increase user confidence and to make the functions that it generates more useful.
-If you skip running the `Find ornament` command and just run `Lift`,
+If you skip running the `Find ornament` command and just run `Lift` or `Repair`,
 then DEVOID will run `Find ornament` for you automatically first.
 
 In addition, there are a few commands that help make DEVOID more useful: `Preprocess`
 for pattern matching and fixpoint support, and `Unpack` to help recover more user-friendly types.
 The `Preprocess` command comes from our plugin
-[fix-to-elim](https://github.com/uwplse/coq-plugin-lib).
-There is also work in progress on a general methodology (which will hopefully be automated in
-the future) to get even more user-friendly types.
+[fix-to-elim](https://github.com/uwplse/fix-to-elim).
 
 #### Search
 
-See [Search.v](coq/examples/Search.v) for an example of search.
+See [Search.v](/plugin/	coq/examples/Search.v) for an example of search.
 
 ##### Command
 
@@ -77,7 +76,7 @@ See [Search.v](coq/examples/Search.v) for an example of search.
 Find ornament A B as A_to_B.
 ```
 
-This command searches for the relation between A and B.
+This command searches for the equivalence that describes the change from A to B, when the change is supported by automatic configuration.
 
 ##### Outputs 
 
@@ -89,7 +88,7 @@ For algebraic ornaments, `Find ornament` returns three functions if successful:
 
 `A_to_B` and `A_to_B_inv` form a specific equivalence, with `A_to_B_index` describing the fold over `A`.
 
-For other kinds of ornaments, `Find ornament` returns only the first two of these.
+For other kinds of equivalences, `Find ornament` returns only the first two of these.
 
 ##### Options for Correctness
 
@@ -111,24 +110,25 @@ Set DEVOID search prove equivalence.
 This option tells `Find ornament` to generate proofs `A_to_B_section` and `A_to_B_retraction` that
 prove that `A_to_B` and `A_to_B_inv` form an equivalence.
 
-##### Using Custom Equivalences
+##### Using Custom Equivalences with Automatic Configuration
 
-If `Find ornament` fails or you would like to use an existing equivalence, you can run this
-command before lifting:
+If `Find ornament` fails for an automatic configuration or you would like to use an existing equivalence, you can run this
+command before lifting (still misleadingly named as an artifact of history and time constraints):
 
 ```
 Save ornament A B { promote = f; forget = g}. 
 ```
 
 where `f` and `g` form an equivalence that describes one of the supported relations between `A` and `B`.
-Note that support for this is extremely experimental, and will not yet work if you try this with unsupported
-relations. You can find an example in [TestLift.v](/plugin/coq/TestLift.v).
+Note that support for this is extremely experimental, and will not yet work if you try this with changes
+not supported by automatic configuration (you will need manual configuration for that; more below).
+You can find an example in [TestLift.v](/plugin/coq/TestLift.v).
 
-You can also use this to substitute in a different equivalence for an existing ornament, but again there
+You can also use this to substitute in a different equivalence for an existing equivalence, but again there
 are some restrictions here on what is possible. See [ListToVectCustom.v](/plugin/coq/examples/ListToVectCustom.v)
 for more information.
 
-You can also skip one of promote or forget, provide just one, and let DEVOID find the other for certain search procedures, for example:
+You can also skip one of promote or forget, provide just one, and let DEVOID find the other for certain automatic configurations, for example:
 
 ```
 Save ornament A B { promote = f }.
@@ -137,14 +137,17 @@ Save ornament A B { promote = f }.
 This is especially useful when there are many possible equivalences and you'd like to use a particular one,
 but let DEVOID figure out the rest. See [Swap.v](/plugin/coq/Swap.v) for examples of this.
 
+##### Using Custom Equivalences with Manual Configuration
+
 To use a custom equivalence not at all supported by one of the four search procedures, like switching between unary and binary natural numbers,
 check out two examples [here](/plugin/coq/nonorn.v) and [here](https://github.com/uwplse/ornamental-search/blob/master/plugin/coq/playground/constr_refactor.v).
 These examples set manual configuration and essentially skip the search procedure.
 We will document them soon!
+The arXiv paper says a lot about these but the examples are the best place to look for now.
 
 ##### Ambiguity 
 
-Sometimes, DEVOID finds multiple possible equivalences. With swapping constructors in particular, there can
+Sometimes, automatic configuration of DEVOID finds multiple possible equivalences. With swapping constructors in particular, there can
 be an exponential number of possible equivalences.
 
 In the case of ambiguity, DEVOID presents up to the first 50 possible
@@ -165,18 +168,19 @@ and [Swap.v](/plugin/coq/Swap.v) for examples of lifting.
 ##### Command
 
 ```
-Lift A B in f as g.
+Lift A B in f as g. (* no tactic suggestions *)
+Repair A B in f as g. (* tactic suggestions *)
 ``` 
 
-This command lifts a function or proof `f` along the discovered relation.
-DEVOID must be able to find an ornament between `A` and `B` for this
-command to work. If you have already called `Find ornament` on `A` and `B`,
-it will use the discovered ornament; otherwise, it will search for an
-ornament first.
+This command lifts a function or proof `f` along the configured equivalence.
+If you have already called `Find ornament` on `A` and `B`,
+it will use the discovered equivalence.
+If you have used manual configuration, it will use that configuration.
+Otherwise, it will search for an equivalence first.
 
 ##### Outputs
 
-`Lift` produces a function `g` which is the analogue of `f`.
+`Lift` or `Repair` produces a term `g` which is the analogue of `f`, but refers to `B` in place of `A`.
 
 ##### Alternate Syntax
 
@@ -185,6 +189,7 @@ You can run this with an alternate syntax as well:
 
 ```
 Lift A B in f as ..suffix.
+Repair A B in f as ..suffix.
 ``` 
 
 This will name the result `f_suffix`.
@@ -195,14 +200,15 @@ You can lift an endure module across an ornament all at the same time by running
 this command:
 
 ```
-Lift Module A B in Foo as Bar.
+Lift Module A B in Foo as Bar. (* no tactic suggestions *)
+Repair Module A B in Foo as Bar. (* tactic suggestions *)
 ```
 
 This will create a new module `Bar` with all of the liftings from `Foo`.
 
 ##### Tactic Support
 
-If you would like tactic suggestions for lifted proofs, you may substitute `Repair` for `Lift` in all commands.
+Using `Repair` instead of `Lift` in thte above commands gives you tactic suggestions.
 These tactic suggestions are experimental, but may help you with workflow integration.
 
 To suggest decision procedures to try to improve tactic output, you can pass the `hint` option, like:
@@ -230,11 +236,12 @@ Set DEVOID lift type.
 
 ##### Opaque Terms
 
-If you'd like, you can tell the `Lift` command to treat certain terms as opaque
+If you'd like, you can tell the `Lift` or `Repair` command to treat certain terms as opaque
 when you are positive that lifting them will have no effect:
 
 ```
 Lift A B in f as g { opaque constant1 constant2 ... }.
+Repair A B in f as g  { opaque constant1 constant2 ... }.
 ``` 
 
 This can make lifting much faster.
@@ -281,10 +288,10 @@ Lift A B in f as g.
 ```
 
 You can also run `Preprocess` on an entire module; see [ListToVect.v](/plugin/coq/examples/ListToVect.v)
-for an example of this. See the [fix-to-elim](https://github.com/uwplse/coq-plugin-lib) plugin
+for an example of this. See the [fix-to-elim](https://github.com/uwplse/fix-to-elim) plugin
 for more functionality for `Preprocess`.
 
-##### User-Friendly Types
+##### Bonus Features for Algebraic Ornaments
 
 When lifting across algebraic ornaments, to recover a slightly more user-friendly type for a lifted term `g`
 with very little extra work, run:
@@ -307,9 +314,9 @@ This generates a useful induction principle. Using that induction princple and c
 this by lifting across another equivalence, you can get from your unlifted type A to B at a
 particular index, with much nicer type signatures.
 
-### Assumptions
+##### Assumptions for Automatic Configuration with Algebraic Ornaments
 
-DEVOID makes some assumptions about your terms and types for now (described in Section 3 of the paper).
+DEVOID makes some assumptions about your terms and types for now (described in Section 3 of the ITP 2019 paper).
 [Assumptions.v](/plugin/coq/examples/Assumptions.v) describes these assumptions in more detail
 and gives examples of unsupported terms and types.
 Note that the assumptions for records and tuples are not yet documented, since
@@ -335,10 +342,10 @@ error messaging and rule out invalid inputs.
 
 # Examples
 
-This part of the README explains the examples and how they correspond to the paper.
+This part of the README explains some examples and how they correspond to the ITP 2019 paper.
 You may find these useful as a user, as a reader, or as a developer.
 
-## Paper Examples
+## ITP 2019 Paper Examples
 
 The example from the paper are in the [examples](/plugin/coq/examples) directory.
 Here is an overview of the examples, in order of relevance to the paper:
@@ -363,17 +370,15 @@ The most useful examples of swapping and renaming constructors are in [Swap.v](/
 
 ## Other Examples
 
-The [coq](/plugin/coq) directory has more examples.
-These examples are regression tests, and so are not guaranteed to be useful
-to users. However, if you would like more examples, you may look there as well.
+The [coq](/plugin/coq) directory has more examples, including regression tests and examples from the arXiv paper.
 
-The [eval](/plugin/eval) directory has examples from the case study from Section 6 of the paper.
+The [eval](/plugin/eval) directory has examples from the case study from Section 6 of the ITP 2019 paper.
 They may be a bit hard to read since there is some scripting going on.
 They may still be interesting to you whether or not you want to actually run the case study.
 
-# Case Study
+# ITP 2019 Case Study
 
-This section of the README describes how to reproduce the case study from Section 4 of the paper.
+This section of the README describes how to reproduce the case study from Section 4 of the ITP 2019 paper.
 The case study is in the [eval](/plugin/eval) directory.
 We support the case study scripts on only Linux right now.
 
@@ -530,7 +535,7 @@ Please also feel free to ask if you are confused about anything that the code do
     - [times.sed](/plugin/eval/times.sed): Script to format times
     - [together.sh](/plugin/eval/together.sh): Main case study script
   - [deps](/plugin/deps): Depedencies
-    - [fix-to-elim](/plugin/src/fix-to-elim): **Preprocessing** with the [fix-to-elim](https://github.com/uwplse/coq-plugin-lib) plugin
+    - [fix-to-elim](/plugin/deps/fix-to-elim): **Preprocessing** with the [fix-to-elim](https://github.com/uwplse/fix-to-elim) plugin
   - [src](/plugin/src): Source directory
     - [coq-plugin-lib](/plugin/src/coq-plugin-lib): [Coq plugin library](https://github.com/uwplse/coq-plugin-lib)
     - [lib](/plugin/src/lib): Internal library
