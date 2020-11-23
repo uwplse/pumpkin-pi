@@ -1,4 +1,4 @@
-**Coming here from the latest arXiv draft? The documentation below is meant for users and is a bit out of date. The arXiv draft code guide can be found in [GUIDE.md](./GUIDE.md).**
+**Coming here from the latest arXiv draft? The documentation below is meant for users and is a bit out of date. The arXiv draft code guide can be found [here](./GUIDE.md).**
 
 This is DEVOID, a plugin for automatic discovery of and lifting across 
 certain equivalences between types in Coq.
