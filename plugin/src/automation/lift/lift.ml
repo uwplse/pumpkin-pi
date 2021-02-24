@@ -83,16 +83,12 @@ let lift_app_lazy_delta c env f args lift_rec sigma =
   let sigma, f' = lift_rec env sigma c f in
   let sigma, args' = map_rec_args lift_rec env sigma c args in
   if (not (equal f f')) || Array.length args = 0 || is_opaque c f then
+    let app' = mkApp (f', args') in
     if equal f' (get_lifted_dep_elim c) then
-      (* eliminator---reduce (still struggles with coherence inside) *)
-      let f'' =
-        try
-          lookup_definition env f'
-        with _ ->
-          f'
-      in reduce_term env sigma (mkApp (f'', args'))
+      (* eliminator---custom reduction *)
+      reduce_lifted_elim c env sigma app'
     else
-      sigma, mkApp (f', args')
+      sigma, app'
   else
     match kind f with
     | Const (c, u) when Option.has_some (inductive_of_elim env (c, u)) ->

@@ -90,9 +90,6 @@ Repair Module list vector in hs_to_coq as hs_to_coqV_p { hint "auto" }.
  * The suggested proof for section is the same as the paper draft version up to renaming.
  * The suggested proof for retraction has an additional "intros" that we remove when
  * we modify the suggestion in the paper.
- *
- * Please also note this regression bug that makes terms and types uglier than usual
- * (though still correct): https://github.com/uwplse/pumpkin-pi/issues/84
  *)
 
 (*

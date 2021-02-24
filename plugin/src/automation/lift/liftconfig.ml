@@ -25,6 +25,7 @@ open Unificationutils
 open Indutils
 open Defutils
 open Nameutils
+open Hofs
 
 (*
  * Lifting configuration: Includes the lifting, types, and cached rules
@@ -1933,6 +1934,40 @@ let applies_elim c env trm sigma =
        sigma, None
   | _ ->
      sigma, None
+
+(* Reduce the lifted eliminator application *)
+let reduce_lifted_elim c env sigma trm =
+  let (f, args) = destApp trm in
+  let f' = (try lookup_definition env f with _ -> f) in
+  let sigma, trm' = reduce_term env sigma (mkApp (f', args)) in
+  match c.l.orn.kind with
+  | Algebraic _ when c.l.is_fwd ->
+     let map_reduce t sigma =
+       map_unit_env_if_lazy
+         (fun env sigma t ->
+           match kind t with
+           | App (f, args) when Array.length args > 0 ->
+              let arg = last (Array.to_list args) in
+              sigma, may_apply_eta (reverse c) env arg
+           | _ ->
+              sigma, false)
+         (fun env sigma t ->
+           let how_reduce_o = can_reduce_now c env t in
+           if Option.has_some how_reduce_o then
+             let reduce = Option.get how_reduce_o in
+             reduce env sigma (last_arg t)
+           else
+             sigma, t)
+         env
+         sigma
+         t
+     in
+     let sigma, elim_app = deconstruct_eliminator env sigma trm' in
+     let sigma, cs = map_state map_reduce elim_app.cs sigma in
+     let sigma, final_args = map_state map_reduce elim_app.final_args sigma in
+     sigma, apply_eliminator { elim_app with cs; final_args }
+  | _ ->
+     sigma, trm'
 
 (* --- Initialization --- *)
 
