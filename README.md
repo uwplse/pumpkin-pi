@@ -37,7 +37,7 @@ Please report any issues you encounter to GitHub issues, and please feel free to
 
 ## Building DEVOID
 
-The only dependency you need to install yourself in order to use DEVOID is Coq 8.8. 
+The only dependency you need to install yourself in order to use DEVOID is Coq 8.9.1. 
 DEVOID also depends on a
 [Coq plugin library](https://github.com/uwplse/coq-plugin-lib) which is included
 as a submodule automatically in the build script,
