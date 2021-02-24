@@ -198,6 +198,12 @@ Check packed_list_rect.
  *)
 
 (*
+ * Regression bug after updating to 8.9.1: For some reason we now need to lift this
+ * explicitly. Should investigate, as it may point to a regression bug elsewhere.
+ *)
+Lift list vector in packed_list_rect as packed_vector_rect.
+
+(*
  * Then we can write our proofs. Now note how everything here
  * follows a nice and easy formula:
  *)

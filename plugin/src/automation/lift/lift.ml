@@ -84,7 +84,7 @@ let lift_app_lazy_delta c env f args lift_rec sigma =
   let sigma, args' = map_rec_args lift_rec env sigma c args in
   if (not (equal f f')) || Array.length args = 0 || is_opaque c f then
     if equal f' (get_lifted_dep_elim c) then
-      (* eliminator---reduce *)
+      (* eliminator---reduce (still struggles with coherence inside) *)
       let f'' =
         try
           lookup_definition env f'
@@ -138,10 +138,12 @@ let lift_evar c env trm lift_rec sigma =
   (* For now, this has many extra EConstr conversions, which can be slow *)
   let (etrm, _) = destEvar trm in
   let sigma, typ = Inference.infer_type env sigma trm in
-  let sigma, lifted_typ = lift_rec env sigma c typ in
   let info = Evd.find sigma etrm in
   let sigma, lifted_info =
-    let evar_concl = EConstr.of_constr lifted_typ in
+    let sigma, evar_concl =
+      let sigma, lifted_typ = lift_rec env sigma c typ in
+      sigma, EConstr.of_constr lifted_typ
+    in
     let sigma, evar_body =
       match info.evar_body with
       | Evar_empty -> sigma, Evar_empty
