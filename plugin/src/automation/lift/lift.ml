@@ -127,7 +127,7 @@ let lift_const_lazy_delta c env (co, u) lift_rec sigma =
          if equal def try_lifted then
            sigma, trm
          else
-           reduce_term env sigma try_lifted
+           reduce_remove_identities env sigma try_lifted
      with _ ->
        (* axiom *)
        sigma, trm)
