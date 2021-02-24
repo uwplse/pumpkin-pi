@@ -4,29 +4,20 @@
 
 open Util
 open Constr
-open Environ
-open Zooming
 open Lifting
-open Debruijn
 open Utilities
-open Indexing
-open Hypotheses
 open Caching
 open Declarations
 open Specialization
-open Typehofs
 open Indutils
 open Apputils
 open Reducers
 open Envutils
-open Funutils
 open Stateutils
 open Hofs
-open Desugarprod
 open Promotion
 open Liftconfig
 open Liftrules
-open Sigmautils
 open Evd
 
 (*
@@ -34,8 +25,6 @@ open Evd
  *)
 
 (* --- Convenient shorthand --- *)
-
-let dest_sigT_type = on_red_type_default (ignore_env dest_sigT)
 
 let map_rec_args_list lift_rec env sigma c args =
   Util.on_snd
@@ -146,24 +135,26 @@ let lift_const_lazy_delta c env (co, u) lift_rec sigma =
 
 (* Lift existential variables *)
 let lift_evar c env trm lift_rec sigma =
+  (* For now, this has many extra EConstr conversions, which can be slow *)
   let (etrm, _) = destEvar trm in
   let sigma, typ = Inference.infer_type env sigma trm in
   let sigma, lifted_typ = lift_rec env sigma c typ in
   let info = Evd.find sigma etrm in
   let sigma, lifted_info =
-    let evar_concl = lifted_typ in
+    let evar_concl = EConstr.of_constr lifted_typ in
     let sigma, evar_body =
       match info.evar_body with
       | Evar_empty -> sigma, Evar_empty
       | Evar_defined bod ->
+         let bod = EConstr.to_constr sigma bod in
          let sigma, lifted_bod = lift_rec env sigma c bod in
-         sigma, Evar_defined lifted_bod
+         sigma, Evar_defined (EConstr.of_constr lifted_bod)
     in
     let sigma, evar_candidates =
       if Option.has_some info.evar_candidates then
-        let candidates = Option.get info.evar_candidates in
+        let candidates = List.map (EConstr.to_constr sigma) (Option.get info.evar_candidates) in
         let sigma, lifted_candidates = map_rec_args_list lift_rec env sigma c candidates in
-        sigma, Some lifted_candidates
+        sigma, Some (List.map EConstr.of_constr lifted_candidates)
       else
         sigma, None
     in sigma, { info with evar_concl; evar_body; evar_candidates }
@@ -293,8 +284,8 @@ let define_lifted_eliminator ?(suffix="_sigT") l ind0 ind sort =
       let term, typ = EConstr.(to_constr sigma term, to_constr sigma typ) in
       sigma, Depelim.eta_guard_eliminator mind_specif term typ
     in
-    let elim' = Universes.constr_of_global (Defutils.define_term ~typ:eta_type ident sigma eta_term true) in
-    let elim0 = Universes.constr_of_global elim0 in
+    let elim' = UnivGen.constr_of_global (Defutils.define_term ~typ:eta_type ident sigma eta_term true) in
+    let elim0 = UnivGen.constr_of_global elim0 in
     save_lifting (lift_to l, lift_back l, elim0) elim';
     save_lifting (lift_back l, lift_to l, elim') elim0
 

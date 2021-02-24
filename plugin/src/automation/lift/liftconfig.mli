@@ -4,7 +4,6 @@ open Environ
 open Evd
 open Stateutils
 open Reducers
-open Indutils
 
 (*
  * Lifting configuration: Includes the lifting, types, and cached rules

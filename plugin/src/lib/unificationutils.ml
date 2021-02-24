@@ -42,11 +42,9 @@ let unify_resolve_evars env trm1 trm2 sigma =
   let etrm1, etrm2 = map_tuple EConstr.of_constr (trm1, trm2) in
   let sigma, unifies = eunify env etrm1 etrm2 sigma in
   if unifies then
-    let sigma_ref = ref sigma in
     try
-      let etrm1 = Typing.e_solve_evars env sigma_ref etrm1 in
-      let etrm2 = Typing.e_solve_evars env sigma_ref etrm2 in
-      let sigma = !sigma_ref in
+      let sigma, etrm1 = Typing.solve_evars env sigma etrm1 in
+      let sigma, etrm2 = Typing.solve_evars env sigma etrm2 in
       sigma, Some (map_tuple (EConstr.to_constr sigma) (etrm1, etrm2))
     with _ ->
       sigma, None

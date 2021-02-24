@@ -548,6 +548,8 @@ let prove_section_or_retraction env sigma l =
      equiv_proof_swap env l sigma
   | UnpackSigma ->
      equiv_proof_unpack env l sigma
+  | Custom _ ->
+     failwith "not supported"
                         
 (*
  * Prove section and retraction

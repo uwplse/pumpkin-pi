@@ -1,13 +1,11 @@
 open Constr
 open Liftconfig
-open Indutils
 open Caching
 open Lifting
 open Zooming
 open Apputils
 open Promotion
 open Sigmautils
-open Utilities
 open Reducers
 open Funutils
 open Stateutils
@@ -249,13 +247,6 @@ let is_iota c env trm prev_rules sigma =
 (* Premises for LIFT-ELIM *)
 let is_eliminator c env trm sigma =
   applies_elim c env trm sigma
-
-(*
- * INTERNALIZE
- *)
-let is_internalize c trm =
-  let l = get_lifting c in
-  isApp trm && applies (lift_to l) trm
 
 (*
  * Given a term, determine the appropriate lift rule to run

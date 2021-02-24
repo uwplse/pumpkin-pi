@@ -1,5 +1,4 @@
 open Constr
-open Globnames
 open Utilities
 open Libobject
 open Lib
@@ -15,12 +14,14 @@ open Promotion
 module LiftingsCache =
   Hashtbl.Make
     (struct
-      type t = (global_reference * global_reference * global_reference)
+      type t = (Names.GlobRef.t * Names.GlobRef.t * Names.GlobRef.t)
       let equal =
         (fun (o, n, t) (o', n', t') ->
-          eq_gr o o' && eq_gr n n' && eq_gr t t')
+          let open Names.GlobRef in
+          equal o o' && equal n n' && equal t t')
       let hash =
         (fun (o, n, t) ->
+          let open Globnames in
           Hashset.Combine.combine
             (Hashset.Combine.combine
                (ExtRefOrdered.hash (TrueGlobal o))
@@ -35,13 +36,14 @@ let lift_cache = LiftingsCache.create 100
  * Wrapping the table for persistence
  *)
 type lift_obj =
-  (global_reference * global_reference * global_reference) *
-  (global_reference option)
+  (Names.GlobRef.t * Names.GlobRef.t * Names.GlobRef.t) *
+  (Names.GlobRef.t option)
 
 let cache_lifting (_, (orns_and_trm, lifted_trm)) =
   LiftingsCache.add lift_cache orns_and_trm lifted_trm
 
 let sub_lifting (subst, ((orn_o, orn_n, trm), lifted_trm)) =
+  let open Globnames in
   let orn_o, orn_n = map_tuple (subst_global_reference subst) (orn_o, orn_n) in
   let trm = subst_global_reference subst trm in
   let lifted_trm =
@@ -64,6 +66,7 @@ let inLifts : lift_obj -> obj =
  *)
 let has_lifting_opt (orn_o, orn_n, trm) =
   try
+    let open Globnames in
     let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
     let trm = global_of_constr trm in
     LiftingsCache.mem lift_cache (orn_o, orn_n, trm)
@@ -77,11 +80,12 @@ let lookup_lifting (orn_o, orn_n, trm) =
   if not (has_lifting_opt (orn_o, orn_n, trm)) then
     None
   else
+    let open Globnames in
     let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
     let trm = global_of_constr trm in
     let lifted_trm = LiftingsCache.find lift_cache (orn_o, orn_n, trm) in
     try
-      Some (Universes.constr_of_global (Option.get lifted_trm))
+      Some (UnivGen.constr_of_global (Option.get lifted_trm))
     with _ ->
       None
 
@@ -90,6 +94,7 @@ let lookup_lifting (orn_o, orn_n, trm) =
  *)
 let save_lifting (orn_o, orn_n, trm) lifted_trm =
   try
+    let open Globnames in
     let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
     let trm = global_of_constr trm in
     let lifted_trm = global_of_constr lifted_trm in
@@ -107,12 +112,13 @@ let opaque_lift_cache = LiftingsCache.create 100
  * Wrapping the table for persistence
  *)
 type opaque_lift_obj =
-  (global_reference * global_reference * global_reference) * bool
+  (Names.GlobRef.t * Names.GlobRef.t * Names.GlobRef.t) * bool
 
 let cache_opaque_lifting (_, (orns_and_trm, is_opaque)) =
   LiftingsCache.add opaque_lift_cache orns_and_trm is_opaque
 
 let sub_opaque_lifting (subst, ((orn_o, orn_n, trm), is_opaque)) =
+  let open Globnames in
   let orn_o, orn_n = map_tuple (subst_global_reference subst) (orn_o, orn_n) in
   let trm = subst_global_reference subst trm in
   (orn_o, orn_n, trm), is_opaque
@@ -130,6 +136,7 @@ let inOpaqueLifts : opaque_lift_obj -> obj =
  *)
 let has_opaque_lifting_bool (orn_o, orn_n, trm) =
   try
+    let open Globnames in
     let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
     let trm = global_of_constr trm in
     LiftingsCache.mem opaque_lift_cache (orn_o, orn_n, trm)
@@ -140,6 +147,7 @@ let has_opaque_lifting_bool (orn_o, orn_n, trm) =
  * Lookup an opaque lifting
  *)
 let lookup_opaque (orn_o, orn_n, trm) =
+  let open Globnames in
   if has_opaque_lifting_bool (orn_o, orn_n, trm) then
     let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
     let trm = global_of_constr trm in
@@ -152,6 +160,7 @@ let lookup_opaque (orn_o, orn_n, trm) =
  *)
 let save_opaque (orn_o, orn_n, trm) =
   try
+    let open Globnames in
     let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
     let trm = global_of_constr trm in
     let opaque_lift_obj = inOpaqueLifts ((orn_o, orn_n, trm), true) in
@@ -166,6 +175,7 @@ let save_opaque (orn_o, orn_n, trm) =
  *)
 let remove_opaque (orn_o, orn_n, trm) =
   try
+    let open Globnames in
     let orn_o, orn_n = map_tuple global_of_constr (orn_o, orn_n) in
     let trm = global_of_constr trm in
     let opaque_lift_obj = inOpaqueLifts ((orn_o, orn_n, trm), false) in
@@ -183,7 +193,7 @@ let remove_opaque (orn_o, orn_n, trm) =
  * Otherwise, we would clog the cache with many constants.
  *)
 
-type temporary_cache = (global_reference, types) Hashtbl.t
+type temporary_cache = (Names.GlobRef.t, types) Hashtbl.t
 
 (*
  * Initialize the local cache
@@ -196,7 +206,7 @@ let initialize_local_cache () =
  *)
 let is_locally_cached c trm =
   try
-    let gr = global_of_constr trm in
+    let gr = Globnames.global_of_constr trm in
     Hashtbl.mem c gr
   with _ ->
     false
@@ -206,7 +216,7 @@ let is_locally_cached c trm =
  *)
 let lookup_local_cache c trm =
   try
-    let gr = global_of_constr trm in
+    let gr = Globnames.global_of_constr trm in
     Hashtbl.find c gr
   with _ ->
     failwith "not cached"
@@ -216,7 +226,7 @@ let lookup_local_cache c trm =
  *)
 let cache_local c trm lifted =
   try
-    let gr = global_of_constr trm in
+    let gr = Globnames.global_of_constr trm in
     Hashtbl.add c gr lifted
   with _ ->
     Feedback.msg_warning (Pp.str "can't cache term")
@@ -232,18 +242,20 @@ let cache_local c trm lifted =
 module OrnamentsCache =
   Hashtbl.Make
     (struct
-      type t = (global_reference * global_reference)
+      type t = (Names.GlobRef.t * Names.GlobRef.t)
       let equal =
         (fun (o, n) (o', n') ->
-          eq_gr o o' && eq_gr n n')
+          let open Names.GlobRef in
+          equal o o' && equal n n')
       let hash =
         (fun (o, n) ->
+          let open Globnames in
           Hashset.Combine.combine
             (ExtRefOrdered.hash (TrueGlobal o))
             (ExtRefOrdered.hash (TrueGlobal n)))
     end)
 
-type 'a metadata = (global_reference * global_reference) * 'a 
+type 'a metadata = (Names.GlobRef.t * Names.GlobRef.t) * 'a 
 
 (* Initialize the ornament cache *)
 let orn_cache = OrnamentsCache.create 100
@@ -260,7 +272,7 @@ let swap_cache = OrnamentsCache.create 100
 let int_to_kind (i : int) globals =
   if i = 0 then
     let (indexer, off) = OrnamentsCache.find indexer_cache globals in
-    let indexer = Universes.constr_of_global indexer in
+    let indexer = UnivGen.constr_of_global indexer in
     Algebraic (indexer, off)
   else if i = 1 then
     CurryRecord
@@ -270,7 +282,7 @@ let int_to_kind (i : int) globals =
   else if i = 3 then
     UnpackSigma
   else if i = 4 then
-    let typs = map_tuple Universes.constr_of_global globals in
+    let typs = map_tuple UnivGen.constr_of_global globals in
     Custom typs
   else
     failwith "Unsupported kind of ornament passed to interpret_kind in caching"
@@ -292,8 +304,8 @@ let kind_to_int (k : kind_of_orn) =
  * Wrapping the table for persistence
  *)
 
-type orn_obj = (global_reference * global_reference * int) metadata
-type indexer_obj = (global_reference * int) metadata
+type orn_obj = (Names.GlobRef.t * Names.GlobRef.t * int) metadata
+type indexer_obj = (Names.GlobRef.t * int) metadata
 type swap_obj = ((int * int) list) metadata
 
 let cache_ornament (_, (typs, orns_and_kind)) =
@@ -306,17 +318,19 @@ let cache_swap_map (_, (typs, swap_map)) =
   OrnamentsCache.add swap_cache typs swap_map
 
 let sub_ornament (subst, (typs, (orn_o, orn_n, kind))) =
+  let open Globnames in
   let typs = map_tuple (subst_global_reference subst) typs in
   let orn_o, orn_n = map_tuple (subst_global_reference subst) (orn_o, orn_n) in
   typs, (orn_o, orn_n, kind)
 
 let sub_indexer (subst, (typs, (indexer, off))) =
+  let open Globnames in
   let typs = map_tuple (subst_global_reference subst) typs in
   let indexer = subst_global_reference subst indexer in
   typs, (indexer, off)
 
 let sub_swap_map (subst, (typs, swap_map)) =
-  let typs = map_tuple (subst_global_reference subst) typs in
+  let typs = map_tuple (Globnames.subst_global_reference subst) typs in
   typs, swap_map
 
 let inOrns : orn_obj -> obj =
@@ -348,7 +362,7 @@ let inSwaps : swap_obj -> obj =
  *)
 let has_metadata_exact cache typs =
   try
-    let globals = map_tuple global_of_constr typs in
+    let globals = map_tuple Globnames.global_of_constr typs in
     OrnamentsCache.mem cache globals
   with _ ->
     false
@@ -370,10 +384,10 @@ let lookup_ornament typs =
   if not (has_metadata orn_cache typs) then
     None
   else
-    let globals = map_tuple global_of_constr typs in
+    let globals = map_tuple Globnames.global_of_constr typs in
     let (orn, orn_inv, i) = OrnamentsCache.find orn_cache globals in
     try
-      let orn, orn_inv = map_tuple Universes.constr_of_global (orn, orn_inv) in
+      let orn, orn_inv = map_tuple UnivGen.constr_of_global (orn, orn_inv) in
       Some (orn, orn_inv, int_to_kind i globals)
     with _ ->
       None
@@ -383,13 +397,13 @@ let lookup_ornament typs =
  *)
 let save_ornament typs (orn, orn_inv, kind) =
   try
-    let globals = map_tuple global_of_constr typs in
-    let orn, orn_inv = map_tuple global_of_constr (orn, orn_inv) in
+    let globals = map_tuple Globnames.global_of_constr typs in
+    let orn, orn_inv = map_tuple Globnames.global_of_constr (orn, orn_inv) in
     let orn_obj = inOrns (globals, (orn, orn_inv, kind_to_int kind)) in
     add_anonymous_leaf orn_obj;
     match kind with
     | Algebraic (indexer, off) ->
-       let indexer = global_of_constr indexer in
+       let indexer = Globnames.global_of_constr indexer in
        let ind_obj = inIndexers (globals, (indexer, off)) in
        add_anonymous_leaf ind_obj
     | SwapConstruct swap_map ->
@@ -420,10 +434,10 @@ let iota_cache = OrnamentsCache.create 100
 (*
  * Wrapping the table for persistence
  *)
-type dep_constr_obj = (global_reference array * global_reference array) metadata
-type dep_elim_obj = (global_reference * global_reference) metadata
-type eta_obj = (global_reference * global_reference) metadata
-type iota_obj = (global_reference array * global_reference array) metadata
+type dep_constr_obj = (Names.GlobRef.t array * Names.GlobRef.t array) metadata
+type dep_elim_obj = (Names.GlobRef.t * Names.GlobRef.t) metadata
+type eta_obj = (Names.GlobRef.t * Names.GlobRef.t) metadata
+type iota_obj = (Names.GlobRef.t array * Names.GlobRef.t array) metadata
 
 let cache_dep_constr (_, (typs, constrs)) =
   OrnamentsCache.add dep_constr_cache typs constrs
@@ -438,22 +452,26 @@ let cache_iota (_, (typs, iotas)) =
   OrnamentsCache.add iota_cache typs iotas
 
 let sub_dep_constr (subst, (typs, (constrs_o, constrs_n))) =
+  let open Globnames in
   let typs = map_tuple (subst_global_reference subst) typs in
   let constrs_o = Array.map (subst_global_reference subst) constrs_o in
   let constrs_n = Array.map (subst_global_reference subst) constrs_n in
   typs, (constrs_o, constrs_n)
 
 let sub_dep_elim (subst, (typs, elims)) =
+  let open Globnames in
   let typs = map_tuple (subst_global_reference subst) typs in
   let elims = map_tuple (subst_global_reference subst) elims in
   typs, elims
 
 let sub_eta (subst, (typs, etas)) =
+  let open Globnames in
   let typs = map_tuple (subst_global_reference subst) typs in
   let etas = map_tuple (subst_global_reference subst) etas in
   typs, etas
 
 let sub_iota (subst, (typs, (iotas_o, iotas_n))) =
+  let open Globnames in
   let typs = map_tuple (subst_global_reference subst) typs in
   let iotas_o = Array.map (subst_global_reference subst) iotas_o in
   let iotas_n = Array.map (subst_global_reference subst) iotas_n in
@@ -501,16 +519,16 @@ let lookup_config typs =
           has_metadata_exact iota_cache typs) then
     None
   else
-    let globals = map_tuple global_of_constr typs in
+    let globals = map_tuple Globnames.global_of_constr typs in
     let constrs = OrnamentsCache.find dep_constr_cache globals in
     let elims = OrnamentsCache.find dep_elim_cache globals in
     let etas = OrnamentsCache.find eta_cache globals in
     let iotas = OrnamentsCache.find iota_cache globals in
     try
-      let constrs = map_tuple (Array.map Universes.constr_of_global) constrs in
-      let elims = map_tuple Universes.constr_of_global elims in
-      let etas = map_tuple Universes.constr_of_global etas in
-      let iotas = map_tuple (Array.map Universes.constr_of_global) iotas in
+      let constrs = map_tuple (Array.map UnivGen.constr_of_global) constrs in
+      let elims = map_tuple UnivGen.constr_of_global elims in
+      let etas = map_tuple UnivGen.constr_of_global etas in
+      let iotas = map_tuple (Array.map UnivGen.constr_of_global) iotas in
       Some (constrs, elims, etas, iotas)
     with _ ->
       Feedback.msg_warning
@@ -525,6 +543,7 @@ let lookup_config typs =
  *)
 let save_dep_constrs typs constrs =
   try
+    let open Globnames in
     let globals = map_tuple global_of_constr typs in
     let constrs = map_tuple (Array.map global_of_constr) constrs in
     let dep_constr_obj = inDepConstrs (globals, constrs) in
@@ -541,6 +560,7 @@ let save_dep_constrs typs constrs =
  *)
 let save_dep_elim typs elims =
   try
+    let open Globnames in
     let globals = map_tuple global_of_constr typs in
     let elims = map_tuple global_of_constr elims in
     let dep_elim_obj = inDepElims (globals, elims) in
@@ -557,6 +577,7 @@ let save_dep_elim typs elims =
  *)
 let save_eta typs etas =
   try
+    let open Globnames in
     let globals = map_tuple global_of_constr typs in
     let etas = map_tuple global_of_constr etas in
     let eta_obj = inEtas (globals, etas) in
@@ -573,6 +594,7 @@ let save_eta typs etas =
  *)
 let save_iota typs iotas =
   try
+    let open Globnames in
     let globals = map_tuple global_of_constr typs in
     let iotas = map_tuple (Array.map global_of_constr) iotas in
     let iota_obj = inIotas (globals, iotas) in

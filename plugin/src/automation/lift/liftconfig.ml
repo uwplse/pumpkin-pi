@@ -14,7 +14,6 @@ open Envutils
 open Specialization
 open Debruijn
 open Typehofs
-open Ornerrors
 open Hypotheses
 open Declarations
 open Utilities
@@ -542,7 +541,7 @@ let initialize_etas c cached env sigma =
         try
           let eta_a = define_term (fst eta_a) sigma (snd eta_a) true in
           let eta_b = define_term (fst eta_b) sigma (snd eta_b) true in
-          map_tuple Universes.constr_of_global (eta_a, eta_b)
+          map_tuple UnivGen.constr_of_global (eta_a, eta_b)
         with _ ->
           snd eta_a, snd eta_b
       in save_eta (l.orn.promote, l.orn.forget) etas; sigma, etas
@@ -610,7 +609,7 @@ let initialize_iotas c cached env sigma =
               let n = with_suffix (fst iota_b) (string_of_int i) in
               define_term n sigma rew true)
             (snd iota_b)
-        in map_tuple (Array.map Universes.constr_of_global) (iota_as, iota_bs)
+        in map_tuple (Array.map UnivGen.constr_of_global) (iota_as, iota_bs)
       in save_iota (l.orn.promote, l.orn.forget) iotas; sigma, iotas
   in
   let iotas = if l.is_fwd then iotas else rev_tuple iotas in
@@ -1274,7 +1273,7 @@ let initialize_dep_constrs c cached env sigma =
               let n = with_suffix (fst b_constrs) (string_of_int i) in
               define_term n sigma c true)
             (snd b_constrs)
-        in map_tuple (Array.map Universes.constr_of_global) (a_constrs, b_constrs)
+        in map_tuple (Array.map UnivGen.constr_of_global) (a_constrs, b_constrs)
       in
       save_dep_constrs (l.orn.promote, l.orn.forget) dep_constrs;
       Array.iter2
@@ -1836,7 +1835,7 @@ let initialize_dep_elims c cached env sigma =
       let elim_a, elim_b = ((elim_a_n, a_elim), (elim_b_n, b_elim)) in
       let elim_a = define_term (fst elim_a) sigma (snd elim_a) true in
       let elim_b = define_term (fst elim_b) sigma (snd elim_b) true in
-      let elims = map_tuple Universes.constr_of_global (elim_a, elim_b) in
+      let elims = map_tuple UnivGen.constr_of_global (elim_a, elim_b) in
       save_dep_elim (c.l.orn.promote, c.l.orn.forget) elims;
       save_lifting (c.l.orn.promote, c.l.orn.forget, (fst elims)) (snd elims);
       save_lifting (c.l.orn.forget, c.l.orn.promote, (snd elims)) (fst elims);
