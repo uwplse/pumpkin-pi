@@ -186,16 +186,16 @@ else
   :
 fi
 
-if coqc coq/examples/LiftSpec.v
+if coqc coq/examples/Search.v
 then
-  liftspec=true
+  search=true
 else
   :
 fi
 
-if coqc coq/examples/Search.v
+if coqc coq/examples/LiftSpec.v
 then
-  search=true
+  liftspec=true
 else
   :
 fi
