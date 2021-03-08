@@ -260,7 +260,6 @@ let lift_core env c trm sigma =
 let do_lift_term env sigma (l : lifting) trm opaques =
   let sigma, c = initialize_lift_config env l opaques sigma in
   let env = Global.env () in
-  let sigma = Evd.from_env env in
   lift_core env c trm sigma
 
 (*

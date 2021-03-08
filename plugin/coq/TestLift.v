@@ -608,7 +608,12 @@ Defined.
 Lift bintree bintreeV2 in bintree_map' as bintree_mapV2.
 Lift bintree bintreeV2 in map_id' as map_idV2.
 
+(* --- Universe regression --- *)
 
+Set DEVOID lift type.
 
+Definition type := Type.
+
+Lift bintree bintreeV2 in type as type'.
 
   
