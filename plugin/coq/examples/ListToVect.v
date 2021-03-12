@@ -59,4 +59,7 @@ Lift Module list vector in List' as Vector' { opaque (* ignore these, just for s
  * There are still two proofs (`partition_length` and `elements_in_partition`)
  * that fail to lift above, due to implementation bugs.
  * See: https://github.com/uwplse/ornamental-search/issues/32
+ *
+ * The effort here is fully automatic, whereas the old tactics don't work for
+ * the repaired proofs here, so there are obvious development time savings.
  *)
