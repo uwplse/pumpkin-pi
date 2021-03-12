@@ -197,6 +197,27 @@ Proof.
   intros. repeat rewrite <- add_fast_add. apply binnat_plus_n_Sm.
 Qed.
 
+(*
+ * Writing these annotations once accustomed to using PUMPKIN Pi takes me an order
+ * of minutes. How long does this proof take us by hand? Without using 
+ * binnat_plus_n_Sm, or ever converting to nat, assuming the lemmas in the 
+ * standard library about binary numbers don't exist yet? I gave up, but I am 
+ * not an expert proof engineer. I took to Twitter to crowdsource other solutions.
+ *
+ * The fastest proof engineer solved this in about 12 minutes:
+ * https://twitter.com/lysxia/status/1370220118748319748
+ * https://gist.github.com/Lysxia/c541ee3621df70b655f4b74517a226ee
+ *
+ * Proof engineers who succeeded took between 12 minutes and 2 hours.
+ * At least one other proof engineer gave up.
+ *
+ * So thanks to the annotation burden, we likely don't really have time savings yet 
+ * for expert proof engineers, but we will get there! The effort seems comparable,
+ * so if we can automate the annotations, we should have some cost savings.
+ * The return on investment for learning PUMPKIN Pi in this case may be higherr
+ * for non-expert proof engineers.
+ *)
+
 (* --- Tactics --- *)
 
 (*

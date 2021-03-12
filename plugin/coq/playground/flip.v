@@ -19,8 +19,6 @@ Proof.
   intros t2 t1. apply a; auto.
 Defined.
 
-Print f.
-
 Program Definition g : B -> A.
 Proof.
   unfold B. unfold A. intros b.
