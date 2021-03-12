@@ -216,6 +216,52 @@ Proof.
   induction b as [ | ]; auto.
 Defined.
 
+(* --- Manual effort --- *)
+
+(*
+ * How hard is this to do manually?
+ * (Using pattern matching even though the tool uses eliminators.)
+ * Start time: 18:05
+ * End time: 18:13
+ * So we get 8 minutes of savings, but with a small overhead of writing the
+ * configuration above.
+ *)
+Definition and' (i1 i2 : J) : J :=
+  match i1 with
+  | makeJ true => i2
+  | makeJ false => makeJ false
+  end.
+
+Definition or' (i1 i2 : J) : J :=
+  match i1 with
+  | makeJ true => makeJ true
+  | makeJ false => i2
+  end.
+
+Definition neg' (i : J) : J :=
+  match i with
+  | makeJ true => makeJ false
+  | makeJ false => makeJ true
+  end.
+
+Theorem demorgan_1':
+  forall (i1 i2 : J), 
+    neg' (and' i1 i2) =
+    or' (neg' i1) (neg' i2).
+Proof.
+  intros i1 i2. induction i1; auto.
+  induction b; auto.
+Defined.
+
+Theorem demorgan_2':
+  forall (i1 i2 : J), 
+    neg' (or' i1 i2) =
+    and' (neg' i1) (neg' i2).
+Proof.
+  intros i1 i2. induction i1; auto.
+  induction b; auto.
+Defined.
+
 (* --- Note on opposite direction ---*)
 
 (*
