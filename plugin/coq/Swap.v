@@ -71,6 +71,22 @@ Proof.
   - auto.
   - simpl. rewrite IHl1. reflexivity.
 Defined.
+(*
+ * We get this for free, whereas the original tactic script doesn't work here,
+ * so even for a single proof we save development time.
+ * We have all of the updated functions and proofs here with no additional effort.
+ * To get tactics that match the original style, though, we might still need
+ * to tweak the original script.
+ *
+ * So we get a significant time savings over manually fixing the entire standard 
+ * library (no time for every single function and proof, while a number of the
+ * functions and proofs break), but for now at some cost to readability.
+ * See this video for a comparison: https://www.youtube.com/watch?v=JINV13wNgIQ
+ *
+ * If we want readable proofs that match the original style, we may need to tweak
+ * the output tactic scripts, which may add back some effort (though for the proof
+ * above it is simple).
+ *)
 
 (* The tactics for section and retraction are in the output of Repair Module. *)
 
