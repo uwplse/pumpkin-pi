@@ -8,6 +8,17 @@ Set Nonrecursive Elimination Schemes. (* <--- Preprocess needs induction princip
  * This file includes more about records, including
  * tests that the curry record functionality works correctly,
  * rather than the simple walkthrough from minimal_records.v.
+ *
+ * Development time for all of these is a bit faster than the reference manual proofs.
+ * The tactics require tweaking in the end to get back useful tactic proofs.
+ * There is also a tiny bit of effort to port things in the right order when
+ * multiple types change at the same time, as with op.
+ *
+ * But once you figure this out once, you've figued it out forever.
+ * On the other hand, we didn't need to fix the functions and proofs ourselves,
+ * which saved us time (on the order of minutes for each module for us).
+ * This was especially true for not needing to reason about how tuple elements
+ * and fields correspond to one another, especially for more complex changes.
  *)
 
 (* --- Test a record with 4 fields --- *)
