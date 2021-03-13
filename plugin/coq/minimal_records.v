@@ -145,7 +145,10 @@ Qed.
  * What do we get if we try to do this manually?
  * Let's start with the old proof.
  * The time is 10:29, end time is 10:31. So comparable effort,
- * since we need to tweak the tactics a bit, and the proof is really easy.
+ * since we need to tweak the tactics a bit, and the proof is really easy,
+ * but that's just for the proof---we'd also need to port all of the functions,
+ * like we did above. That took some time, but here we got it for free.
+ * So we get a slight savings in development time overall.
  *)
 Theorem and_spec_true_true_manual
   (r : Generated.input)
