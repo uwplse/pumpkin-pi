@@ -563,6 +563,11 @@ Proof.
 Defined.
 
 (*
+ * The effort here is comparable since we supply the function, which is exactly
+ * as hard as writing the updated functions for each of these. Though it would
+ * likely save us development time to use PUMPKIN Pi if we were to look at not 
+ * just functions, but also proofs, especially more complex proofs. Still, this 
+ * scales to large ambiguous types without much overhead, just a single function.
  * We could just as well have provided forget.
  *
  * Do note that if you change the equivalence when you run
