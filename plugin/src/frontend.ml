@@ -337,7 +337,7 @@ let lift_definition_by_ornament env sigma n l c_old ignores =
         (* Lift the type as well *)
         let sigma, typ = infer_type env sigma c_old in
         let sigma, lifted_typ = do_lift_defn env sigma l typ ignores in
-        define_print ~typ:lifted_typ n lifted sigma 
+        define_print ~typ:lifted_typ n lifted sigma
       else
         (* Let Coq infer the type *)
         define_print n lifted sigma

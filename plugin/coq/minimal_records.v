@@ -122,35 +122,11 @@ Preprocess Module HandwrittenProofs as HandwrittenProofs'.
  * in the opposite order. But it will work regardless of which direction you do.
  *)
 Lift Handwritten'.output Generated'.output in HandwrittenProofs'.and_spec_true_true as and_spec_true_true_1.
-Lift Handwritten'.input Generated'.input in and_spec_true_true_1 as and_spec_true_true'.
+Repair Handwritten'.input Generated'.input in and_spec_true_true_1 as and_spec_true_true'.
 
 (*
-Print and_spec_true_true'.
-Require Import Patcher.Patch.
-Decompile and_spec_true_true'.
-Check and_spec_true_true'.
-
-(*
- * We get these tactics automatically from the decompiler, and they work
- * forgetting about preprocess:
- *)
-Theorem and_spec_true_true_by_tactics
-  (r : Generated.input)
-  (F : Generated.firstBool  r = true)
-  (S : Generated.secondBool r = true)
-  : Generated.andBools (Generated.op r) = true.
-Proof.
-  destruct r as [ a b].
-  apply andb_true_intro.
-  intuition.
-Qed.
-*)
-
-(*
- * Otherwise we get our proof over generated types with just one catch: We need to call
- * induction first, since we have something defined over Preprocessed types
- * (induction principles) and we want something defined over the original types
- * (pattern matching and so on).
+ * Tweaking those tactics, we can get back the original proof even forgetting about
+ * Preprocessing.
  *)
 Theorem and_spec_true_true
   (r : Generated.input)
@@ -158,8 +134,34 @@ Theorem and_spec_true_true
   (S : Generated.secondBool r = true)
   : Generated.andBools (Generated.op r) = true.
 Proof.
-  induction r. (* <-- NOTE: You will need this because you used Preprocess *)
-  apply and_spec_true_true'; auto.
+  induction r.
+  apply (andb_true_intro (conj F S)).
 Qed.
 
 (* We are done! *)
+
+(*
+ * This is fully automatic, save for tweaking the tactics.
+ * What do we get if we try to do this manually?
+ * Let's start with the old proof.
+ * The time is 10:29, end time is 10:31. So comparable effort,
+ * since we need to tweak the tactics a bit, and the proof is really easy,
+ * but that's just for the proof---we'd also need to port all of the functions,
+ * like we did above. That took some time, but here we got it for free.
+ * So we get a slight savings in development time overall.
+ *)
+Theorem and_spec_true_true_manual
+  (r : Generated.input)
+  (F : Generated.firstBool  r = true)
+  (S : Generated.secondBool r = true)
+  : Generated.andBools (Generated.op r) = true.
+Proof.
+  destruct r as [n b].
+  unfold Generated.op.
+  simpl in *.
+  apply andb_true_intro.
+  intuition.
+Qed.
+(*
+ * All we change is the first line to get rid of the warning.
+ *)

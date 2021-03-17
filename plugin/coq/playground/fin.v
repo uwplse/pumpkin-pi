@@ -308,7 +308,18 @@ End Over_A.
 
 Set DEVOID lift type.
 Repair Module A B in Over_A as Over_B { opaque nat_rect VectorDef'.Coq_Arith_PeanoNat_Nat_nle_succ_0 VectorDef'.Coq_Arith_Le_le_S_n False_rect VectorDef'.Coq_Arith_PeanoNat_Nat_add VectorDef'.Coq_Arith_Plus_tail_plus }.
-Print Over_B.
+
+(*
+ * The configuration for this took an expert proof engineer (James Wilcox) well under
+ * an hour to write, and then repair was free. I think my head would explode
+ * trying to write these functons by hand, so for me this is a smiley face
+ * in that it saves the development time I'd be too afraid to even attempt.
+ * I consulted Twitter, and it took the same proof engineer (notably) over an
+ * hour (75 minutes) to do manually, plus it was reportedly very much
+ * not fun: https://twitter.com/TaliaRinger/status/1370576188310048770
+ *
+ * Reference: https://gist.github.com/wilcoxjay/9ddedb32d3b7659826dbcb96f70beae8
+ *)
 
 (*
  * TODO some proofs (with iota, will be annoying), some stuff with matrices
