@@ -1,17 +1,16 @@
 **Coming here from the latest PLDI 2021 draft? The documentation below is meant for users and is a bit out of date. The PLDI 2021 draft code guide can be found [here](./GUIDE.md).**
 
-This is DEVOID, a plugin for automatic discovery of and lifting across 
-certain equivalences between types in Coq.
-DEVOID is a part of the [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH) 
+This is PUMPKIN Pi (formerly DEVOID), a plugin for automatic discovery of and lifting across equivalences between types in Coq.
+PUMPKIN Pi is a part of the [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH) 
 proof repair plugin suite, and is included as a dependency of PUMPKIN PATCH
 starting with release 0.1.
-We call the current version of PUMPKIN PATCH with support for equivalences through DEVOID "PUMPKIN Pi."
 
-DEVOID began as the artifact for the ITP paper [Ornaments for Proof Reuse in Coq](http://tlringer.github.io/pdf/ornpaper.pdf), but has since been extended. A version of DEVOID that corresponds to the
+PUMPKIN Pi began as DEVOID, the artifact for the ITP paper [Ornaments for Proof Reuse in Coq](http://tlringer.github.io/pdf/ornpaper.pdf).
+It has since been extended. A version of PUMPKIN Pi that corresponds to the
 ITP camera-ready can be found in [this release](http://github.com/uwplse/ornamental-search/releases/tag/itp+equiv).
-There is an arXiv paper on the PUMPKIN Pi extension (https://arxiv.org/abs/2010.00774) with support for equivalences beyond ornaments.
+A pre-print of our PLDI 2021 paper [here](https://arxiv.org/abs/2010.00774).
 
-Given two types A and B that are related in certain ways, DEVOID can search for
+Given two types A and B that are related in certain ways, PUMPKIN Pi can search for
 and prove the relation between those types, then lift functions and proofs between them.
 The following relations are currently supported automatically:
 
@@ -28,27 +27,27 @@ It then ports functions and proofs across those equivalences.
 For changes that don't fall into the above four buckets, you need to supply the equivalence yourself in a deconstructed form called a *configuration*.
 If you need help with this, please check out two examples: switching between unary and binary natural numbers [here](/plugin/coq/nonorn.v),
 and an easier refactoring of constructors [here](/plugin/coq/playground/constr_refactor.v).
-Also check out the arXiv paper [here](https://arxiv.org/abs/2010.00774).
+Also check out the PLDI 2021 draft [here](https://arxiv.org/abs/2010.00774).
 
-# Getting Started with DEVOID
+# Getting Started
 
 This section of the README is a getting started guide for users.
 Please report any issues you encounter to GitHub issues, and please feel free to reach out with questions.
 
-## Building DEVOID
+## Building PUMPKIN Pi
 
-The only dependency you need to install yourself in order to use DEVOID is Coq 8.8. 
-DEVOID also depends on a
+The only dependency you need to install yourself is Coq 8.8. 
+PUMPKIN Pi also depends on a
 [Coq plugin library](https://github.com/uwplse/coq-plugin-lib) which is included
 as a submodule automatically in the build script,
-and on the [fix-to-elim](https://github.com/uwplse/fix-to-elim) plugin, which is also included. To build DEVOID, run these commands:
+and on the [fix-to-elim](https://github.com/uwplse/fix-to-elim) plugin, which is also included. To build PUMPKIN Pi, run these commands:
 
 ```
 cd plugin
 ./build.sh
 ```
 
-## Using DEVOID
+## Using PUMPKIN Pi
 
 For an overview of how to use the tool, see [Example.v](/plugin/coq/examples/Example.v)
 and [minimal_records.v](/plugin/coq/minimal_records.v).
@@ -59,16 +58,16 @@ At a high level, there are two main commands: `Find ornament` to search for equi
 and `Lift` (or `Repair` for tactic support) to lift along those equivalences. `Find ornament` supports two additional options
 to increase user confidence and to make the functions that it generates more useful.
 If you skip running the `Find ornament` command and just run `Lift` or `Repair`,
-then DEVOID will run `Find ornament` for you automatically first.
+then PUMPKIN Pi will run `Find ornament` for you automatically first.
 
-In addition, there are a few commands that help make DEVOID more useful: `Preprocess`
+In addition, there are a few commands that help make PUMPKIN Pi more useful: `Preprocess`
 for pattern matching and fixpoint support, and `Unpack` to help recover more user-friendly types.
 The `Preprocess` command comes from our plugin
 [fix-to-elim](https://github.com/uwplse/fix-to-elim).
 
 #### Search
 
-See [Search.v](/plugin/	coq/examples/Search.v) for an example of search.
+See [Search.v](/plugin/coq/examples/Search.v) for an example of search.
 
 ##### Command
 
@@ -95,6 +94,7 @@ For other kinds of equivalences, `Find ornament` returns only the first two of t
 `Find ornament` supports two options. 
 By default, these options are disabled.
 Together, setting these two options tells `Find ornament` to prove that its outputs are correct.
+(Also as an artifact of time constraints, the options use the old name, DEVOID.)
 
 ```
 Set DEVOID search prove coherence.
@@ -128,14 +128,14 @@ You can also use this to substitute in a different equivalence for an existing e
 are some restrictions here on what is possible. See [ListToVectCustom.v](/plugin/coq/examples/ListToVectCustom.v)
 for more information.
 
-You can also skip one of promote or forget, provide just one, and let DEVOID find the other for certain automatic configurations, for example:
+You can also skip one of promote or forget, provide just one, and let PUMPKIN Pi find the other for certain automatic configurations, for example:
 
 ```
 Save ornament A B { promote = f }.
 ```
 
 This is especially useful when there are many possible equivalences and you'd like to use a particular one,
-but let DEVOID figure out the rest. See [Swap.v](/plugin/coq/Swap.v) for examples of this.
+but let PUMPKIN Pi figure out the rest. See [Swap.v](/plugin/coq/Swap.v) for examples of this.
 
 ##### Using Custom Equivalences with Manual Configuration
 
@@ -147,18 +147,20 @@ The arXiv paper says a lot about these but the examples are the best place to lo
 
 ##### Ambiguity 
 
-Sometimes, automatic configuration of DEVOID finds multiple possible equivalences. With swapping constructors in particular, there can
+Sometimes, automatic configuration of PUMPKIN Pi finds multiple possible equivalences. With swapping constructors in particular, there can
 be an exponential number of possible equivalences.
 
-In the case of ambiguity, DEVOID presents up to the first 50 possible
+In the case of ambiguity, PUMPKIN Pi presents up to the first 50 possible
 options for the user (in a smart order), presents this as an error, and gives instructions for the user to
 provide more information to `Find ornament` in the next iteration. If the equivalence you want is not in the
 first 50 candidates, please use `Save ornament`. See [Swap.v](/plugin/coq/Swap.v) for examples of both of these.
 
 ##### Tactic Support
 
-DEVOID produces tactic suggestions for all proofs that `Find ornament` finds.
+PUMPKIN Pi produces tactic suggestions for all proofs that `Find ornament` finds.
 These are experimental, especially with dependent types, but may help you work with tactic proofs about equivalences.
+You should think of these as suggestions to tweak.
+Improving the decompiler to both be sound and produce intuitive tactics that match common proof engineering styles is an ongoing project!
 
 #### Lift and Repair
 
@@ -226,8 +228,8 @@ even when they are not decision procedures.
 
 ##### Prettier Types
 
-By default, DEVOID lets Coq infer the types of lifted terms. You can 
-instead tell DEVOID to lift the types (these are typically prettier)
+By default, PUMPKIN Pi lets Coq infer the types of lifted terms. You can 
+instead tell PUMPKIN Pi to lift the types (these are typically prettier)
 if you set the following function:
 
 ```
@@ -245,7 +247,7 @@ Repair A B in f as g  { opaque constant1 constant2 ... }.
 ``` 
 
 This can make lifting much faster.
-It is **strongly advisable** to do this for certain terms that you know DEVOID
+It is **strongly advisable** to do this for certain terms that you know PUMPKIN Pi
 should never reduce.
 However, this can also cause unpredictable errors if your assumption is incorrect,
 so be careful about your assumption.
@@ -261,7 +263,7 @@ You can find an example of this in [more_records.v](/plugin/coq/more_records.v).
 
 ##### Caching
 
-DEVOID by default caches all lifted terms it encounters as it goes in order to save time.
+PUMPKIN Pi by default caches all lifted terms it encounters as it goes in order to save time.
 You can disable this if you'd like by running this command:
 
 ```
@@ -316,7 +318,7 @@ particular index, with much nicer type signatures.
 
 ##### Assumptions for Automatic Configuration with Algebraic Ornaments
 
-DEVOID makes some assumptions about your terms and types for now (described in Section 3 of the ITP 2019 paper).
+PUMPKIN Pi makes some assumptions about your terms and types for now (described in Section 3 of the ITP 2019 paper).
 [Assumptions.v](/plugin/coq/examples/Assumptions.v) describes these assumptions in more detail
 and gives examples of unsupported terms and types.
 Note that the assumptions for records and tuples are not yet documented, since
@@ -425,7 +427,7 @@ Run the following script:
 ```
 
 The script takes a while, as it runs each function ten times each
-on large data both for DEVOID and for EFF.
+on large data both for PUMPKIN Pi and for EFF.
 When it is done, check the `results` folder for the median runtimes as well as the size of reduced functions.
 This also does a sanity check to make sure both versions of the code produce the same output.
 It does not yet try to reduce the proof of `pre_permutes` using EFF,
@@ -453,8 +455,8 @@ This should take a while (how long depends on your architecture) and produce a v
 ## Understanding the Case Study Code
 
 The code for the case study is in the [eval](/plugin/eval) folder.
-The case study uses the same exact input datatypes for both DEVOID and EFF,
-copying and pasting in the inputs, lifted functions, and equivalences DEVOID produces to run on the dependencies of EFF.
+The case study uses the same exact input datatypes for both PUMPKIN Pi and EFF,
+copying and pasting in the inputs, lifted functions, and equivalences PUMPKIN Pi produces to run on the dependencies of EFF.
 The reasons for copying the inputs are that EFF has different
 Coq dependencies, so the base functions perform differently. In addition, lifting constants with EFF additionally slows down 
 performance, and we would like to control for only the performance of lifted functions, which is easiest to understand.
@@ -490,11 +492,11 @@ Transparency is very important to me and my coauthors. My goal is not just to pr
 but also to demonstrate ideas that other people can use in their tools.
 
 Some information for transparency is in the paper:
-Section 4 discusses the core algorithms that DEVOID implements, and
+Section 4 discusses the core algorithms that PUMPKIN Pi implements, and
 section 5 discusses a sample of implementation challenges.
 
 This part of the README is here to complement that. It describes the structure of the code a bit. It should also help if you are interested in contributing
-to DEVOID, or if you are interested in using some of the libraries from DEVOID in your code.
+to PUMPKIN Pi, or if you are interested in using some of the libraries from PUMPKIN Pi in your code.
 
 ## Understanding the Code
 
@@ -507,7 +509,7 @@ Please also feel free to ask if you are confused about anything that the code do
   - [test.sh](/plugin/coq/test.sh): Test script
   - [coq](/plugin/coq): Tests and paper examples
     - [examples](/plugin/coq/examples): Paper examples (see paper examples section of this document for details)
-    - [playground](/plugin/coq/playground): Preliminary thoughts on useful theory for later extensions to DEVOID
+    - [playground](/plugin/coq/playground): Preliminary thoughts on useful theory for later extensions to PUMPKIN Pi
     - [Indtype.v](/plugin/coq/Indtype.v): Lifting tests for inductive relations
     - [Infrastructure.v](/plugin/coq/Infrastructure.v): Testing infrastructure
     - [ShouldFail.v](/plugin/coq/ShouldFail.v): Tests that should currently fail
@@ -531,7 +533,7 @@ Please also feel free to ask if you are confused about anything that the code do
     - [Makefile](/plugin/eval/Makefile)
     - [cast.v](/plugin/eval/cast.v)
     - [lemmas.v](/plugin/eval/lemmas.v)
-    - [main.v](/plugin/eval/main.v): Main DEVOID case study code
+    - [main.v](/plugin/eval/main.v): Main ITP 2019 case study code
     - [times.sed](/plugin/eval/times.sed): Script to format times
     - [together.sh](/plugin/eval/together.sh): Main case study script
   - [deps](/plugin/deps): Depedencies
@@ -556,11 +558,11 @@ Please also feel free to ask if you are confused about anything that the code do
     - [options.ml](/plugin/src/options.ml) and [options.mli](/plugin/src/options.mli): Definitions of and access to options
     - [ornamental.ml4](/plugin/src/ornamental.ml4): **Top-level source file**
     - [ornaments.mlpack](/plugin/src/ornaments.mlpack)
-  - [theories](/plugin/theories): DEVOID theories
+  - [theories](/plugin/theories): PUMPKIN Pi theories
     - [Adjoint.v](/plugin/theories/Adjoint.v): Turning equivalences into adjoint equivalences
     - [Prod.v](/plugin/theories/Prod.v): Preprocessed projections of pairs
     - [Eliminators.v](/plugin/theories/Eliminators.v): **Generalized smart eliminators for user-friendly types**
-    - [Ornaments.v](/plugin/theories/Ornaments.v): Loader theory for DEVOID
+    - [Ornaments.v](/plugin/theories/Ornaments.v): Loader theory for PUMPKIN Pi
     - [Unpack.v](/plugin/theories/Unpack.v): **Unpacking terms** (Ltac tactic)
 * [.gitignore](/.gitignore)
 * [README.md](/README.md)
@@ -573,17 +575,17 @@ The test script in the [plugin](/plugin) directory runs all of the regression te
 ./test.sh
 ```
 
-After making a change to DEVOID, you should always run this. You should
+After making a change to PUMPKIN Pi, you should always run this. You should
 also run the case study scripts to check performance.
 
 ## Licensing and Attribution
 
-DEVOID is MIT licensed, since I have a very strong preference for the MIT license and
+PUMPKIN Pi is MIT licensed, since I have a very strong preference for the MIT license and
 since I believe I do not need to use Coq's LGPL when writing language plugins.
 This interpretation might be wrong, though, so I suppose you should tread lightly.
 If you are an expert in licensing, definitely let me know if this is wrong.
 
-Regardless, I would like DEVOID to be used freely by anyone for any purpose.
-All I ask for is attribution, especially in any papers that you publish that use DEVOID
-or any of its code. Please cite the ITP paper or the arXiv paper when referring to DEVOID in those papers.
+Regardless, I would like PUMPKIN Pi to be used freely by anyone for any purpose.
+All I ask for is attribution, especially in any papers that you publish that use PUMPKIN Pi
+or any of its code. Please cite the ITP paper or the arXiv paper when referring to PUMPKIN Pi in those papers.
 
