@@ -74,7 +74,7 @@ let suggest_tactic_script env trm_ref opts sigma =
        mkConstruct c
   in
   let body = unwrap_definition env trm in
-  let script = tac_from_term env sigma (fun _ sigma -> sigma, opts) body in
+  let script = tac_from_term env sigma (fun _ sigma _ -> sigma, opts) body in
   Feedback.msg_info (Pp.str "Suggested tactic script:");
   Feedback.msg_info (Pp.str "Proof.");
   Feedback.msg_info (tac_to_string sigma script);
