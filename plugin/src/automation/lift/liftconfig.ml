@@ -14,7 +14,6 @@ open Envutils
 open Specialization
 open Debruijn
 open Typehofs
-open Ornerrors
 open Hypotheses
 open Declarations
 open Utilities
@@ -26,6 +25,7 @@ open Unificationutils
 open Indutils
 open Defutils
 open Nameutils
+open Hofs
 
 (*
  * Lifting configuration: Includes the lifting, types, and cached rules
@@ -542,7 +542,7 @@ let initialize_etas c cached env sigma =
         try
           let eta_a = define_term (fst eta_a) sigma (snd eta_a) true in
           let eta_b = define_term (fst eta_b) sigma (snd eta_b) true in
-          map_tuple Universes.constr_of_global (eta_a, eta_b)
+          map_tuple UnivGen.constr_of_global (eta_a, eta_b)
         with _ ->
           snd eta_a, snd eta_b
       in save_eta (l.orn.promote, l.orn.forget) etas; sigma, etas
@@ -610,7 +610,7 @@ let initialize_iotas c cached env sigma =
               let n = with_suffix (fst iota_b) (string_of_int i) in
               define_term n sigma rew true)
             (snd iota_b)
-        in map_tuple (Array.map Universes.constr_of_global) (iota_as, iota_bs)
+        in map_tuple (Array.map UnivGen.constr_of_global) (iota_as, iota_bs)
       in save_iota (l.orn.promote, l.orn.forget) iotas; sigma, iotas
   in
   let iotas = if l.is_fwd then iotas else rev_tuple iotas in
@@ -1274,7 +1274,7 @@ let initialize_dep_constrs c cached env sigma =
               let n = with_suffix (fst b_constrs) (string_of_int i) in
               define_term n sigma c true)
             (snd b_constrs)
-        in map_tuple (Array.map Universes.constr_of_global) (a_constrs, b_constrs)
+        in map_tuple (Array.map UnivGen.constr_of_global) (a_constrs, b_constrs)
       in
       save_dep_constrs (l.orn.promote, l.orn.forget) dep_constrs;
       Array.iter2
@@ -1836,7 +1836,7 @@ let initialize_dep_elims c cached env sigma =
       let elim_a, elim_b = ((elim_a_n, a_elim), (elim_b_n, b_elim)) in
       let elim_a = define_term (fst elim_a) sigma (snd elim_a) true in
       let elim_b = define_term (fst elim_b) sigma (snd elim_b) true in
-      let elims = map_tuple Universes.constr_of_global (elim_a, elim_b) in
+      let elims = map_tuple UnivGen.constr_of_global (elim_a, elim_b) in
       save_dep_elim (c.l.orn.promote, c.l.orn.forget) elims;
       save_lifting (c.l.orn.promote, c.l.orn.forget, (fst elims)) (snd elims);
       save_lifting (c.l.orn.forget, c.l.orn.promote, (snd elims)) (fst elims);
@@ -1934,6 +1934,40 @@ let applies_elim c env trm sigma =
        sigma, None
   | _ ->
      sigma, None
+
+(* Reduce the lifted eliminator application *)
+let reduce_lifted_elim c env sigma trm =
+  let (f, args) = destApp trm in
+  let f' = (try lookup_definition env f with _ -> f) in
+  let sigma, trm' = reduce_term env sigma (mkApp (f', args)) in
+  match c.l.orn.kind with
+  | Algebraic _ when c.l.is_fwd ->
+     let map_reduce t sigma =
+       map_unit_env_if_lazy
+         (fun env sigma t ->
+           match kind t with
+           | App (f, args) when Array.length args > 0 ->
+              let arg = last (Array.to_list args) in
+              sigma, may_apply_eta (reverse c) env arg
+           | _ ->
+              sigma, false)
+         (fun env sigma t ->
+           let how_reduce_o = can_reduce_now c env t in
+           if Option.has_some how_reduce_o then
+             let reduce = Option.get how_reduce_o in
+             reduce env sigma (last_arg t)
+           else
+             sigma, t)
+         env
+         sigma
+         t
+     in
+     let sigma, elim_app = deconstruct_eliminator env sigma trm' in
+     let sigma, cs = map_state map_reduce elim_app.cs sigma in
+     let sigma, final_args = map_state map_reduce elim_app.final_args sigma in
+     sigma, apply_eliminator { elim_app with cs; final_args }
+  | _ ->
+     sigma, trm'
 
 (* --- Initialization --- *)
 

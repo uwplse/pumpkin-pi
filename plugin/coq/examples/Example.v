@@ -90,9 +90,6 @@ Repair Module list vector in hs_to_coq as hs_to_coqV_p { hint "auto" }.
  * The suggested proof for section is the same as the paper draft version up to renaming.
  * The suggested proof for retraction has an additional "intros" that we remove when
  * we modify the suggestion in the paper.
- *
- * Please also note this regression bug that makes terms and types uglier than usual
- * (though still correct): https://github.com/uwplse/pumpkin-pi/issues/84
  *)
 
 (*
@@ -196,6 +193,12 @@ Check packed_list_rect.
  * assumption. It has to do with preserving definitional equalities
  * when we lift (more specifically, incompleteness of matching against Eta and Iota).
  *)
+
+(*
+ * Regression bug after updating to 8.9.1: For some reason we now need to lift this
+ * explicitly. Should investigate, as it may point to a regression bug elsewhere.
+ *)
+Lift list vector in packed_list_rect as packed_vector_rect.
 
 (*
  * Then we can write our proofs. Now note how everything here

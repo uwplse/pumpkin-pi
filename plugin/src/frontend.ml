@@ -14,7 +14,6 @@ open Coherence
 open Equivalence
 open Options
 open Typehofs
-open Constutils
 open Nameutils
 open Defutils
 open Modutils
@@ -240,7 +239,7 @@ let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forg
       | Algebraic (indexer, off) when not (isConst indexer) ->
          (* Substitute the defined indexer constant for the raw term *)
          let indexer = define_print (Option.get idx_n) indexer sigma in
-         { orn with kind = Algebraic (Universes.constr_of_global indexer, off) }
+         { orn with kind = Algebraic (UnivGen.constr_of_global indexer, off) }
       | _ ->
          orn
     in
@@ -250,7 +249,7 @@ let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forg
         sigma, Option.get promote_o
       else
         let sigma, typ = reduce_type env sigma orn.promote in
-        sigma, Universes.constr_of_global (define_print n orn.promote ~typ:typ sigma)
+        sigma, UnivGen.constr_of_global (define_print n orn.promote ~typ:typ sigma)
     in
     let inv_n, forget =
       if Option.has_some forget_o then
@@ -261,7 +260,7 @@ let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forg
       else
         let inv_n = with_suffix n "inv" in
         let sigma, typ = reduce_type env sigma orn.forget in
-        inv_n, Universes.constr_of_global (define_print inv_n orn.forget ~typ:typ sigma)
+        inv_n, UnivGen.constr_of_global (define_print inv_n orn.forget ~typ:typ sigma)
     in
     (if not is_custom then
       (maybe_prove_coherence n promote forget orn.kind;
@@ -418,7 +417,7 @@ let lift_inner ?(suffix=false) ?(opaques=[]) ?(hints=[]) n d_orn d_orn_inv d_old
   let opaque_terms =
     List.map
       (fun r ->
-        match Nametab.locate (qualid_of_reference r) with
+        match Nametab.locate r with
         | VarRef v ->
            mkVar v
         | ConstRef c ->
@@ -455,9 +454,7 @@ let lift_by_ornament ?(suffix=false) ?(opaques=[]) ?(hints=[]) n d_orn d_orn_inv
  * ornament, defining a new module with all the transformed module elements.
  *)
 let lift_module_by_ornament ?(opaques=[]) ?(hints=[]) ident d_orn d_orn_inv mod_ref =
-  let mod_body =
-    qualid_of_reference mod_ref |> Nametab.locate_module |> Global.lookup_module
-  in
+  let mod_body = Nametab.locate_module mod_ref |> Global.lookup_module in
   let lift_global gref =
     let ident = Nametab.basename_of_global gref in
     try
@@ -485,9 +482,7 @@ let repair ?(suffix=false) ?(opaques=[]) ?(hints=[]) n d_orn d_orn_inv d_old is_
  * Lift then decompile a whole module
  *)
 let repair_module ?(opaques=[]) ?(hints=[]) ident d_orn d_orn_inv mod_ref =
-  let mod_body =
-    qualid_of_reference mod_ref |> Nametab.locate_module |> Global.lookup_module
-  in
+  let mod_body = Nametab.locate_module mod_ref |> Global.lookup_module in
   let lift_global gref =
     let ident = Nametab.basename_of_global gref in
     try
@@ -509,8 +504,7 @@ let add_lifting_opaques d_orn d_orn_inv opaques =
   let (sigma, env) = Pfedit.get_current_context () in
   let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in
   List.iter
-    (fun r ->
-      let qid = qualid_of_reference r in
+    (fun qid ->
       Feedback.msg_info
         (Pp.seq [Pp.str "Adding opaque lifting "; Libnames.pr_qualid qid]);
       try
@@ -532,8 +526,7 @@ let remove_lifting_opaques d_orn d_orn_inv opaques =
   let (sigma, env) = Pfedit.get_current_context () in
   let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in
   List.iter
-    (fun r ->
-      let qid = qualid_of_reference r in
+    (fun qid ->
       Feedback.msg_info
         (Pp.seq [Pp.str "Removing opaque lifting "; Libnames.pr_qualid qid]);
       try
@@ -554,10 +547,7 @@ let remove_lifting_opaques d_orn d_orn_inv opaques =
 let configure_manual d_orn d_orn_inv constrs elims etas iotas =
   let (sigma, env) = Pfedit.get_current_context () in
   let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in
-  let lookup_reference r =
-    let qid = qualid_of_reference r in
-    mkConst (Nametab.locate_constant qid)
-  in
+  let lookup_reference qid = mkConst (Nametab.locate_constant qid) in
   let constrs = map_tuple (List.map lookup_reference) constrs in
   let elims = map_tuple lookup_reference elims in
   let etas = map_tuple lookup_reference etas in
@@ -593,7 +583,5 @@ let configure_manual d_orn d_orn_inv constrs elims etas iotas =
 let do_unpack_constant ident const_ref =
   let env = Global.env () in
   let sigma = ref (Evd.from_env env) in
-  let term =
-    qualid_of_reference const_ref |> Nametab.locate_constant |>
-    unpack_constant env sigma
-  in ignore (define_print ident term !sigma)
+  let term = Nametab.locate_constant const_ref |> unpack_constant env sigma in
+  ignore (define_print ident term !sigma)

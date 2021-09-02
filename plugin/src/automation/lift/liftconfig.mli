@@ -4,7 +4,6 @@ open Environ
 open Evd
 open Stateutils
 open Reducers
-open Indutils
 
 (*
  * Lifting configuration: Includes the lifting, types, and cached rules
@@ -183,6 +182,7 @@ val applies_elim :
 val reduce_lifted_eta : lift_config -> reducer
 val reduce_coh : lift_config -> reducer
 val reduce_constr_app : lift_config -> reducer
+val reduce_lifted_elim : lift_config -> reducer
 
 (*
  * Determine if we can be smarter than Coq and simplify earlier

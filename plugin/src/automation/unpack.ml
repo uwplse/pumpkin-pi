@@ -1,10 +1,9 @@
 open Util
-open Names
 open Libnames
 open Ltac_plugin
 
 let tactic_script =
-  Qualid (qualid_of_string "Ornamental.Unpack.unpack") |> CAst.make
+  qualid_of_string "Ornamental.Unpack.unpack"
 
 (* Evaluate a tactic on no goals and return any proofs constructed *)
 let eval_tactic env sigma ?goal tac =
@@ -27,5 +26,5 @@ let call_tactic env sigma tac args =
   eval_tactic env sigma
 
 let unpack_constant env sigma const =
-  let term = Evarutil.e_new_global sigma (ConstRef const) in
+  let term = Evarutil.e_new_global sigma (Names.GlobRef.ConstRef const) in
   call_tactic env sigma tactic_script [Constrextern.extern_constr false env !sigma term]

@@ -2,7 +2,6 @@ open Liftconfig
 open Constr
 open Environ
 open Evd
-open Indutils
 open Stateutils
 open Reducers
       
