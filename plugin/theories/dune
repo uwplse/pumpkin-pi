@@ -1,0 +1,5 @@
+(coq.theory
+ (name PumpkinPi)
+ (package pumpkin-pi)
+ (flags -q -noinit -I ./src)
+)

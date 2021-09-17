@@ -1,0 +1,7 @@
+(library
+  (name promotion)
+  (public_name pumpkin-pi.promotion)
+  (libraries
+    coq.interp
+    coq-plugin-lib.plugin)
+  (wrapped false))

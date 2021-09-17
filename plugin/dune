@@ -1,0 +1,5 @@
+(env
+ (dev     (flags (:standard -rectypes -w -8-33-3-27-28-32)))
+ (release (flags (:standard -rectypes -w -8-33-3-27-28-32))))
+
+(data_only_dirs deps)

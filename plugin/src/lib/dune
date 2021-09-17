@@ -1,0 +1,7 @@
+(library
+  (name lib)
+  (public_name pumpkin-pi.lib)
+  (libraries
+    coq.interp
+    coq-plugin-lib.plugin)
+  (wrapped false))

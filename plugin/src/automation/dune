@@ -1,0 +1,7 @@
+(library
+  (name automation)
+  (public_name pumpkin-pi.automation)
+  (libraries
+    coq.interp
+    coq-plugin-lib.plugin)
+  (wrapped false))

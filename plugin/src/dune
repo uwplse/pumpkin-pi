@@ -1,0 +1,47 @@
+(library
+ (name pumpkinpi)
+ (public_name pumpkin-pi.plugin)
+ (synopsis "PUMPKIN Pi plugin for proof repair across type equivalences")
+ (flags :standard -w -27 -warn-error -A)       ; CoqPP codes requires this
+ (modules ("ornamental"))
+ (library_flags -linkall)
+ (libraries
+   coq.vernac                      ; needed for vernac extend
+   pumpkin-pi.promotion
+   pumpkin-pi.cache
+   pumpkin-pi.lib
+   pumpkin-pi.ornaments
+   pumpkin-pi.components
+   pumpkin-pi.options
+   pumpkin-pi.automation
+   pumpkin-pi.lift
+   pumpkin-pi.search
+   pumpkin-pi.frontend
+))
+
+(rule
+ (targets ornamental.ml)
+ (deps (:pp-file ornamental.ml4) )
+ (action (bash "camlp5 pa_o.cmo pr_o.cmo pa_op.cmo pr_dump.cmo pa_extend.cmo q_MLast.cmo pa_macro.cmo %{lib:coq.grammar:grammar.cma} -loc loc -impl %{pp-file} -o %{targets}")))
+
+(rule
+  (targets pumpkinpi_full_plugin.cmxs)
+  (action (run %{ocamlopt} -shared -linkall -o %{targets}
+           %{lib:pumpkin-pi.promotion:promotion.cmxa}
+           %{lib:pumpkin-pi.cache:cache.cmxa}
+           %{lib:pumpkin-pi.lib:lib.cmxa}
+           %{lib:pumpkin-pi.ornaments:ornaments.cmxa}
+           %{lib:pumpkin-pi.components:components.cmxa}
+           %{lib:pumpkin-pi.options:options.cmxa}
+           %{lib:pumpkin-pi.automation:automation.cmxa}
+           %{lib:pumpkin-pi.lift:lift.cmxa}
+           %{lib:pumpkin-pi.search:search.cmxa}
+           %{lib:pumpkin-pi.frontend:frontend.cmxa}
+           %{cmxa:pumpkinpi})))
+
+(install
+  (section lib_root)
+  (package pumpkin-pi)
+  (files
+    (pumpkinpi_full_plugin.cmxs as coq/user-contrib/pumpkinpi_full_plugin.cmxs)))
+

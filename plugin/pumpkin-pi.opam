@@ -1,0 +1,19 @@
+synopsis:     "PUMPKIN Pi"
+description:  "PUMPKIN Pi plugin for proof repair across type equivalences"
+name:         "pumpkin-pi"
+opam-version: "2.0"
+maintainer:   "talia@dependenttyp.es"
+authors:      "PUMPKIN PATCH team"
+homepage:     "https://github.com/uwplse/pumpkin-pi"
+bug-reports:  "https://github.com/uwplse/pumpkin-pi"
+dev-repo:     "git+https://github.com/uwplse/pumpkin-pi"
+license:      "MIT"
+doc:          "https://github.com/uwplse/pumpkin-pi"
+
+depends: [
+  "ocaml"         { = "4.07.1+flambda"           }
+  "coq"           { = "8.9.1" }
+  "dune"          { build & >= "1.9.0" & <= "2.7.1"    }
+]
+
+build: [ "dune" "build" "-p" name "-j" jobs ]

@@ -7,6 +7,7 @@ cd deps/fix-to-elim/plugin
 cd ../../..
 echo "building DEVOID"
 
-coq_makefile -f _CoqProject -o Makefile
-make clean && make && make install
+dune clean
+dune build @all
+dune install
 

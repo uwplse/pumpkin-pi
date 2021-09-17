@@ -1,0 +1,11 @@
+(library
+  (name lift)
+  (public_name pumpkin-pi.lift)
+  (libraries
+    coq.interp
+    pumpkin-pi.ornaments
+    pumpkin-pi.cache
+    pumpkin-pi.components
+    pumpkin-pi.options
+    pumpkin-pi.automation)
+  (wrapped false))

@@ -1,0 +1,10 @@
+(library
+  (name search)
+  (public_name pumpkin-pi.search)
+  (libraries
+    coq.interp
+    coq-plugin-lib.plugin
+    pumpkin-pi.promotion
+    pumpkin-pi.ornaments
+    pumpkin-pi.components)
+  (wrapped false))

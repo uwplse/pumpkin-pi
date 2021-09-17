@@ -5,8 +5,9 @@ Require Ornamental.Eliminators.
 Require Ornamental.Equivalences.
 
 Declare ML Module "ornaments".
+Declare ML Module "ornaments_full_plugin".
 
 Export Ornamental.Eliminators.
 Export Ornamental.Equivalences.
 Export Ornamental.Unpack.Lemmas.
-Require Export Fixtranslation.Fixtoelim.
+Require Export FixTranslation.Fixtoelim.

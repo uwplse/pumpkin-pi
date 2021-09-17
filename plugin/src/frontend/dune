@@ -1,0 +1,9 @@
+(library
+  (name frontend)
+  (public_name pumpkin-pi.frontend)
+  (libraries
+    coq.interp
+    pumpkin-pi.lift
+    pumpkin-pi.automation
+    pumpkin-pi.search)
+  (wrapped false))
