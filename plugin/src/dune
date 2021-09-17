@@ -17,6 +17,7 @@
    pumpkin-pi.search_lib
    pumpkin-pi.frontend
    coq.vernac                      ; needed for vernac extend
+   fix-to-elim.plugin
 ))
 
 (rule

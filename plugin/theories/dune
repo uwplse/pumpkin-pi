@@ -1,5 +1,6 @@
 (coq.theory
  (name Ornamental)
  (package pumpkin-pi)
- (flags -q -noinit -I ./src)
+ (flags -q -noinit)
+ (libraries fix-to-elim.plugin)
 )
