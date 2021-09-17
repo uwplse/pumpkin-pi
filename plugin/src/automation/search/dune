@@ -1,6 +1,6 @@
 (library
-  (name search)
-  (public_name pumpkin-pi.search)
+  (name search_lib)
+  (public_name pumpkin-pi.search_lib)
   (libraries
     coq.interp
     coq-plugin-lib.plugin

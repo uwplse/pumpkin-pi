@@ -2,8 +2,7 @@
   (name frontend)
   (public_name pumpkin-pi.frontend)
   (libraries
-    coq.interp
     pumpkin-pi.lift
     pumpkin-pi.automation
-    pumpkin-pi.search)
+    pumpkin-pi.search_lib)
   (wrapped false))

@@ -3,7 +3,7 @@ open Names
 open Globnames
 open Lifting
 open Caching
-open Search
+open Searchequiv
 open Lift
 open Unpack
 open Utilities

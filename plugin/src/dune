@@ -6,7 +6,6 @@
  (modules ("ornamental"))
  (library_flags -linkall)
  (libraries
-   coq.vernac                      ; needed for vernac extend
    pumpkin-pi.promotion
    pumpkin-pi.cache
    pumpkin-pi.lib
@@ -15,8 +14,9 @@
    pumpkin-pi.options
    pumpkin-pi.automation
    pumpkin-pi.lift
-   pumpkin-pi.search
+   pumpkin-pi.search_lib
    pumpkin-pi.frontend
+   coq.vernac                      ; needed for vernac extend
 ))
 
 (rule
@@ -35,7 +35,7 @@
            %{lib:pumpkin-pi.options:options.cmxa}
            %{lib:pumpkin-pi.automation:automation.cmxa}
            %{lib:pumpkin-pi.lift:lift.cmxa}
-           %{lib:pumpkin-pi.search:search.cmxa}
+           %{lib:pumpkin-pi.search_lib:search_lib.cmxa}
            %{lib:pumpkin-pi.frontend:frontend.cmxa}
            %{cmxa:pumpkinpi})))
 
