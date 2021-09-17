@@ -1,3 +1,5 @@
+**The documentation for PUMPKIN Pi is out of date in the sound branch, since the build system and file locations have changed. Do not merge this without updating the docs!**
+
 **Coming here from the latest PLDI 2021 draft? The documentation below is meant for users and is a bit out of date. The PLDI 2021 draft code guide can be found [here](./GUIDE.md).**
 
 This is PUMPKIN Pi (formerly DEVOID), a plugin for automatic discovery of and lifting across equivalences between types in Coq.
