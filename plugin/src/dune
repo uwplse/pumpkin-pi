@@ -1,5 +1,5 @@
 (library
- (name pumpkinpi)
+ (name ornamental)
  (public_name pumpkin-pi.plugin)
  (synopsis "PUMPKIN Pi plugin for proof repair across type equivalences")
  (flags :standard -w -27 -warn-error -A)       ; CoqPP codes requires this
@@ -37,7 +37,7 @@
            %{lib:pumpkin-pi.lift:lift.cmxa}
            %{lib:pumpkin-pi.search_lib:search_lib.cmxa}
            %{lib:pumpkin-pi.frontend:frontend.cmxa}
-           %{cmxa:pumpkinpi})))
+           %{cmxa:ornamental})))
 
 (install
   (section lib_root)

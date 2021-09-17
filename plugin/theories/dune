@@ -1,5 +1,5 @@
 (coq.theory
- (name PumpkinPi)
+ (name Ornamental)
  (package pumpkin-pi)
  (flags -q -noinit -I ./src)
 )

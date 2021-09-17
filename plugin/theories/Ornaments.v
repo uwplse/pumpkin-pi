@@ -4,7 +4,6 @@ Require Ornamental.Prod.
 Require Ornamental.Eliminators.
 Require Ornamental.Equivalences.
 
-Declare ML Module "ornaments".
 Declare ML Module "ornaments_full_plugin".
 
 Export Ornamental.Eliminators.
