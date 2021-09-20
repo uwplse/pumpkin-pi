@@ -17,7 +17,6 @@
    pumpkin-pi.search_lib
    pumpkin-pi.frontend
    coq.vernac                      ; needed for vernac extend
-   fix-to-elim.plugin
 ))
 
 (rule
@@ -28,6 +27,22 @@
 (rule
   (targets pumpkinpi_full_plugin.cmxs)
   (action (run %{ocamlopt} -shared -linkall -o %{targets}
+           %{lib:coq-plugin-lib.utilities:utilities.cmxa}
+           %{lib:coq-plugin-lib.devutils:devutils.cmxa}           
+           ;%{lib:coq-plugin-lib.termutils:termutils.cmxa}
+           ;%{lib:coq-plugin-lib.inference:inference.cmxa}
+           ;%{lib:coq-plugin-lib.representationutils:representationutils.cmxa}
+           ;%{lib:coq-plugin-lib.state:state.cmxa}
+           ;%{lib:coq-plugin-lib.envs:envs.cmxa}
+           ;%{lib:coq-plugin-lib.typesandequality:typesandequality.cmxa}
+           ;%{lib:coq-plugin-lib.hofs:hofs.cmxa}
+           ;%{lib:coq-plugin-lib.debruijn:debruijn.cmxa}
+           ;%{lib:coq-plugin-lib.constants:constants.cmxa}
+           ;%{lib:coq-plugin-lib.hofimpls:hofimpls.cmxa}
+           ;%{lib:coq-plugin-lib.inductive:inductive.cmxa}
+           ;%{lib:coq-plugin-lib.contexts:contexts.cmxa}
+           ;%{lib:coq-plugin-lib.transformation:transformation.cmxa}
+           %{lib:coq-plugin-lib.decompiler:decompiler.cmxa}
            %{lib:pumpkin-pi.promotion:promotion.cmxa}
            %{lib:pumpkin-pi.cache:cache.cmxa}
            %{lib:pumpkin-pi.lib:lib.cmxa}

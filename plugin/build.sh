@@ -4,5 +4,6 @@ echo "Building PUMPKIN Pi"
 
 dune clean
 dune build @all
+dune build @all # annoying hack for first build loadpath issue
 dune install
 
