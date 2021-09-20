@@ -4,7 +4,7 @@ Require Ornamental.Prod.
 Require Ornamental.Eliminators.
 Require Ornamental.Equivalences.
 
-Declare ML Module "ornaments_full_plugin".
+Declare ML Module "pumpkinpi_full_plugin".
 
 Export Ornamental.Eliminators.
 Export Ornamental.Equivalences.
