@@ -51,3 +51,20 @@ Definition MonoidEquiv (M N : Monoid) (f : projT1 M -> projT1 N) (g : projT1 N -
   ((f id_M = id_N) *
    (forall x y, f (op_M x y) = op_N (f x) (f y))).
 
+(*
+ * One way I deviated was by not forcing this in Set.
+ * This might matter, but it might not, for us, and I prefer to work over Type.
+ * So let's leave that for now.
+ *
+ * We don't have internal SIP. But what could external SIP get us?
+ * Perhaps let's formulate the nat to bin problem this way and see!
+ *)
+Definition NatMonoid : Monoid :=
+  existT
+    (fun (X : Type) => MonoidStructure X)
+    nat
+    (existT
+      (fun (S : RawMonoidStructure nat) => MonoidAxioms (existT RawMonoidStructure nat S)) 
+      (0, Init.Nat.add)
+      (Nat.add_assoc, fun x : nat => (eq_sym (plus_n_O x), eq_refl))).
+
