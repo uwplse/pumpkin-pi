@@ -45,7 +45,8 @@ Definition Monoid := TypeWithStr MonoidStructure.
 Definition MonoidEquiv (M N : Monoid) (f : projT1 M -> projT1 N) (g : projT1 N -> projT1 M)
   (section : forall (x : projT1 M), g (f x) = x)
   (retraction : forall (y : projT1 N), f (g y) = y)
-: Type :=
+  : Type
+:=
   let (id_M, op_M) := projT1 (projT2 M) in
   let (id_N, op_N) := projT1 (projT2 N) in
   ((f id_M = id_N) *
@@ -58,6 +59,7 @@ Definition MonoidEquiv (M N : Monoid) (f : projT1 M -> projT1 N) (g : projT1 N -
  *
  * We don't have internal SIP. But what could external SIP get us?
  * Perhaps let's formulate the nat to bin problem this way and see!
+ * We can show both of these are monoids:
  *)
 Definition NatMonoid : Monoid :=
   existT
@@ -78,8 +80,26 @@ Program Definition BinMonoid : Monoid :=
       (N.add_assoc, fun x : N => (N.add_0_r x, eq_refl))).
 
 (*
- * One interesting thing already is that we need the proofs of the monoid laws
- * over bin. But I suppose the point is that once we have those, we can get
- * much more for free? What precisely can we get for free this way?
+ * But the point of the SIP paper is that it is sufficient to just show one
+ * is a monoid, then define the monoid equivalence; then we should be able
+ * to get that the other is a monoid for free. This is significant because
+ * the proofs of N.add_0_r and so on can be annoying.
+ * So what does this look like?
+ * Does the standard equivalence work?
  *)
+Definition equivIsMonoidEquiv
+  : MonoidEquiv NatMonoid BinMonoid N.of_nat N.to_nat Nat2N.id N2Nat.id
+:=
+  (eq_refl, Nat2N.inj_add).
+
+(*
+ * It does.
+ * But I guess the thing is, we won't have defined BinMonoid at all.
+ * Rather we should be able to infer it from N.of_nat and N.to_nat,
+ * plus Nat2N.id and N2Nat.id, plus N.add.
+ * Given that the equivalence is a monoid equivalence.
+ * Is that right?
+ * How?
+ *)
+
 
