@@ -66,5 +66,20 @@ Definition NatMonoid : Monoid :=
     (existT
       (fun (S : RawMonoidStructure nat) => MonoidAxioms (existT RawMonoidStructure nat S)) 
       (0, Init.Nat.add)
-      (Nat.add_assoc, fun x : nat => (eq_sym (plus_n_O x), eq_refl))).
+      (Nat.add_assoc, fun x : nat => (Nat.add_0_r x, eq_refl))).
+
+Program Definition BinMonoid : Monoid :=
+  existT
+    (fun (X : Type) => MonoidStructure X)
+    N
+    (existT
+      (fun (S : RawMonoidStructure N) => MonoidAxioms (existT RawMonoidStructure N S)) 
+      (0%N, N.add)
+      (N.add_assoc, fun x : N => (N.add_0_r x, eq_refl))).
+
+(*
+ * One interesting thing already is that we need the proofs of the monoid laws
+ * over bin. But I suppose the point is that once we have those, we can get
+ * much more for free? What precisely can we get for free this way?
+ *)
 
