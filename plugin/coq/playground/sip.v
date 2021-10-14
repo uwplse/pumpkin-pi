@@ -100,6 +100,34 @@ Definition equivIsMonoidEquiv
  * Given that the equivalence is a monoid equivalence.
  * Is that right?
  * How?
+ *
+ * The paper says that there's one property we need to show in order to get this.
+ * Maybe showing that property will help us understand how automation follows.
+ * This is already done for us, but does it work only by induction on nat?
+ * It seems to use section, so I'm a bit confused about how to do it only
+ * by induction over nat? I should ask Carlo about what he means by
+ * "which can readily be achieved by N-induction" on page 15.
+ * Nonetheless, let's dissect. We have:
  *)
+Lemma structure_preserving:
+  forall (x y : nat),
+    N.of_nat (x + y) = N.add (N.of_nat x) (N.of_nat y).
+Proof.
+  intros x y. 
+  rewrite (N2Nat.inj (N.of_nat (x + y)) (N.of_nat x + N.of_nat y)). (* <- The adjoint?!? *)
+  - reflexivity.
+  - rewrite N2Nat.inj_add. rewrite Nat2N.id. rewrite Nat2N.id. rewrite Nat2N.id.
+    reflexivity.
+Defined.
 
+(*
+ * I guess Nat2N.id and N2Nat.inj are both given to us by the equivalence.
+ * So what is new? N2Nat.inj_add, presumably.
+ *)
+Print N2Nat.inj_add.
 
+(*
+ * Ah, the proofs given to us in the standard library work by induction over bin instead.
+ * What's a proof of structure_preserfving that inducts only over nat?
+ * I'm just not sure---I need to think more.
+ *)
