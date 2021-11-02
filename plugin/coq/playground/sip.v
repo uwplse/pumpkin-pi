@@ -107,27 +107,65 @@ Definition equivIsMonoidEquiv
  * It seems to use section, so I'm a bit confused about how to do it only
  * by induction over nat? I should ask Carlo about what he means by
  * "which can readily be achieved by N-induction" on page 15.
- * Nonetheless, let's dissect. We have:
+ * 
+ * Anders Mortberg sent me the Agda code, and it is obvious but only with a lemma first.
+ * The lemma in Anders' code isn't quite what we need I guess.
+ * And it turns out these proofs, even in Anders' code, are not done purely over nat.
+ * They use the equivalent of BinPos.Pos.add_succ_l.
+ * Even Anders proves this by induction over BinPos.Pos (as does the Coq standard library).
+ * Whatever, okay, let's do it in Coq however it works.
+ *)
+Lemma of_succ_nat_unfold:
+  forall (n : nat),
+    BinPos.Pos.of_succ_nat n =
+    match n with
+    | 0 => xH
+    | S _ => BinPos.Pos.succ (BinPos.Pos.of_nat n)
+    end.
+Proof.
+  intros n. induction n; auto.
+  simpl. f_equal. apply IHn.
+Defined.
+
+Lemma add_pos_succ_ok:
+  forall (x y : nat),
+    BinPos.Pos.of_succ_nat (x + S y) =
+    BinPos.Pos.add (BinPos.Pos.of_succ_nat x) (BinPos.Pos.of_succ_nat y).
+Proof.
+  intros x y. induction x.
+  - symmetry. apply BinPos.Pos.add_1_l. (* <-- uses bin-induction *)
+  - replace (BinPos.Pos.of_succ_nat (S x)) with (BinPos.Pos.succ (BinPos.Pos.of_nat (S x))).
+    + rewrite BinPos.Pos.add_succ_l. (* <-- use bin-induction *)
+      simpl. f_equal. rewrite IHx. f_equal.
+      apply of_succ_nat_unfold.
+    + simpl. symmetry. f_equal. apply of_succ_nat_unfold. 
+Defined.
+
+(*
+ * Okay, then:
  *)
 Lemma structure_preserving:
   forall (x y : nat),
     N.of_nat (x + y) = N.add (N.of_nat x) (N.of_nat y).
 Proof.
-  intros x y. 
-  rewrite (N2Nat.inj (N.of_nat (x + y)) (N.of_nat x + N.of_nat y)). (* <- The adjoint?!? *)
+  intros x. induction x; intros.
   - reflexivity.
-  - rewrite N2Nat.inj_add. rewrite Nat2N.id. rewrite Nat2N.id. rewrite Nat2N.id.
-    reflexivity.
+  - induction y; intros.
+    + simpl. f_equal. f_equal. apply Nat.add_0_r.
+    + simpl. f_equal. apply add_pos_succ_ok.
 Defined.
 
 (*
- * I guess Nat2N.id and N2Nat.inj are both given to us by the equivalence.
- * So what is new? N2Nat.inj_add, presumably.
+ * So it still relies on induction over pos at some point, I think because
+ * it needs to eta-expand pos, effectively.
+ * Is there a way to never, ever induct over bin here,
+ * without basically defining the induction principle for bin in terms of nat?
+ * No idea. But even Anders doesn't do this.
+ * So I'm confused about the point he was making.
+ *
+ * Nonetheless, let us suppose that we have this lemma.
+ * What kind of automation can we get from this?
+ * And do we need this lemma proven, or only for the fact that it holds to be true?
+ * And so on.
  *)
-Print N2Nat.inj_add.
 
-(*
- * Ah, the proofs given to us in the standard library work by induction over bin instead.
- * What's a proof of structure_preserfving that inducts only over nat?
- * I'm just not sure---I need to think more.
- *)
