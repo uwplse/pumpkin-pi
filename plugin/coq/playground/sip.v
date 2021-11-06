@@ -133,9 +133,9 @@ Lemma add_pos_succ_ok:
     BinPos.Pos.add (BinPos.Pos.of_succ_nat x) (BinPos.Pos.of_succ_nat y).
 Proof.
   intros x y. induction x.
-  - symmetry. apply BinPos.Pos.add_1_l. (* <-- uses bin-induction *)
+  - symmetry. apply BinPos.Pos.add_1_l. (* <-- uses pos-induction *)
   - replace (BinPos.Pos.of_succ_nat (S x)) with (BinPos.Pos.succ (BinPos.Pos.of_nat (S x))).
-    + rewrite BinPos.Pos.add_succ_l. (* <-- use bin-induction *)
+    + rewrite BinPos.Pos.add_succ_l. (* <-- uses pos-induction *)
       simpl. f_equal. rewrite IHx. f_equal.
       apply of_succ_nat_unfold.
     + simpl. symmetry. f_equal. apply of_succ_nat_unfold. 
@@ -167,5 +167,105 @@ Defined.
  * What kind of automation can we get from this?
  * And do we need this lemma proven, or only for the fact that it holds to be true?
  * And so on.
+ *
+ * I guess the first question is how we can get a BinMonoid from a NatMonoid.
+ *)
+Module Automation.
+
+(*
+ * Given a BinMonoid, we can use our proof to define:
+ *)
+Definition equivIsMonoidEquiv
+  : MonoidEquiv NatMonoid BinMonoid N.of_nat N.to_nat Nat2N.id N2Nat.id
+:=
+  (eq_refl, structure_preserving).
+
+
+Print equivIsMonoidEquiv.
+
+(*
+ * If we don't have a BinMonoid, implicitly this still has this type:
+ *)
+Definition equivIsMonoidEquivImplicit :=
+  (@eq_refl N (N.of_nat O), (* identity checks out *)
+   structure_preserving).   (* structure preserving over addition *)
+
+(*
+ * In effect, it is like we have defined an inductive type where the 
+ * constructors are O and addition.
+ * And what we have here is sort of like the iota rules for
+ * each constructor.
+ *)
+Check equivIsMonoidEquivImplicit.
+
+(*
+ * If we translate it to such a problem, maybe it is painless to use the
+ * existing PUMPKIN Pi infrastructure?
+ *
+ * I don't know, but let's see if there's a normal equivalence between
+ * NatMonoid and BinMonoid first.
+ * I think the point is for any Monoid, we can show this equivalence.
+ *)
+Definition A := {s : RawMonoidStructure nat & MonoidAxioms (existT RawMonoidStructure nat s)}.
+Definition B := {s : RawMonoidStructure N & MonoidAxioms (existT RawMonoidStructure N s)}.
+
+Program Definition f : A -> B.
+Proof.
+  intros n. induction n. induction x.
+  exists (N.of_nat a, fun n1 n2 => N.of_nat (b (N.to_nat n1) (N.to_nat n2))).
+  unfold MonoidAxioms in *; simpl in *.
+  destruct p. split; intros.
+  - f_equal. repeat rewrite Nat2N.id. apply e.
+  - rewrite Nat2N.id. specialize (p (N.to_nat x)). destruct p. split.
+    + rewrite e0. apply N2Nat.id.
+    + rewrite e1. apply N2Nat.id.
+Defined.
+
+Program Definition g : B -> A.
+Proof.
+  intros n. induction n. induction x.
+  exists (N.to_nat a, fun n1 n2 => N.to_nat (b (N.of_nat n1) (N.of_nat n2))).
+  unfold MonoidAxioms in *; simpl in *.
+  destruct p. split; intros.
+  - f_equal. repeat rewrite N2Nat.id. apply e.
+  - rewrite N2Nat.id. specialize (p (N.of_nat x)). destruct p. split.
+    + rewrite e0. apply Nat2N.id.
+    + rewrite e1. apply Nat2N.id.
+Defined.
+
+(*
+ * Ah, I think this only holds up to funext :).
+ *)
+Lemma section :
+  forall (a : A), g (f a) = a.
+Proof.
+  intros a. induction a. induction x. simpl.
+  apply eq_existT_uncurried. 
+  assert ((N.to_nat (N.of_nat a),
+  fun n1 n2 : nat =>
+  N.to_nat (N.of_nat (b (N.to_nat (N.of_nat n1)) (N.to_nat (N.of_nat n2))))) =
+  (a, b)).
+  - rewrite Nat2N.id. admit.
+Abort.
+
+(*
+ * In fact even the equivalence between the RawMonoidStructures only
+ * holds up to funext.
+ *
+ * But since it's metatheoretically true, I think the idea is that you
+ * can transform any A into a B, and it will preserve transport?
+ * But surely definitional equality becomes annoying at some point.
+ * It always does.
+ *
+ * I am curious what happens if we just do the dumbest possible thing
+ * and transform the operation.
+ * I think we will need an iota equivalent.
+ * I super want an inductive framing of this problem.
+ *
+ * I also bet there's a problem in unifying with addition, maybe
+ * solvable by way of annotations.
+ *
+ * Are there any useful equivalences we can show directly, internally?
  *)
 
+End Automation.
