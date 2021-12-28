@@ -44,6 +44,22 @@ Proof.
   apply Adjoint.g_adjoint.
 Defined.
 
+(*
+Lemma mocha_uip :
+  forall (T : Type) (n : nat) (l : list T) (p1 p2 : projT1 (ltv T l) = ltv_index T l),
+    p1 = p2.
+Proof.
+  intros T n l. destruct (ltv_coh T l). remember (ltv T l) as s.
+  
+
+ unfold ltv. simpl. 
+
+ remember (ltv T l) as s. induction s.
+
+ Check ltv_coh.
+
+ apply (Eqdep_dec.UIP_dec Nat.eq_dec).*)
+
 (* Try the Jason thing first: *)
 Definition ltv_u (A : Type) (n : nat) (ll : { l : list A & ltv_index A l = n}) : vector A n :=
   eq_rect
