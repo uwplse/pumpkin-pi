@@ -111,6 +111,22 @@ Qed.
 Definition zip := packed_list.zip.
 Definition zip_with := packed_list.zip_with.
 
+Lemma uip_instance:
+  forall (A B : Type) (n : nat)
+    (l : list A) (H : hs_to_coqV_p.list_to_t_index A l = n)
+    (pl2 : {l2 : list B & length l2 = n}),
+  eq_rect
+    (hs_to_coq.zip_with A B (A * B) pair l (projT1 pl2))
+    (fun l3 : list (A * B) => length l3 = n)
+    (packed_list.zip_with_length A B (A * B) pair n l (projT1 pl2) (id H) (projT2 pl2))
+    (hs_to_coq.zip A B l (projT1 pl2))
+    (hs_to_coq.zip_with_is_zip A B l (projT1 pl2)) =
+  packed_list.zip_length A B n l (projT1 pl2) (id H) (projT2 pl2).
+Proof.
+  intros.
+  apply (Eqdep_dec.UIP_dec Nat.eq_dec). (* <- what we want to replace *)
+Defined.
+
 Lemma zip_with_is_zip :
   forall A B n (pl1 : { l1 : list A & length l1 = n }) (pl2 : { l2 : list B & length l2 = n }),
     zip_with A B (A * B) pair n pl1 pl2 = zip A B n pl1 pl2.
@@ -123,5 +139,5 @@ Proof.
   (* list proof: *)
   exists (hs_to_coq.zip_with_is_zip A B l (projT1 pl2)).
   (* length invariant: *)
-  apply (Eqdep_dec.UIP_dec Nat.eq_dec).
+  apply uip_instance.
 Defined.
