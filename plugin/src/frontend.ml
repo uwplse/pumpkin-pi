@@ -92,15 +92,42 @@ let parse_tac_str (s : string) : unit Proofview.tactic =
  * If the option is enabled, then prove coherence after find_ornament is called.
  * Otherwise, do nothing.
  *)
-let maybe_prove_coherence n promote forget kind : unit =
+let maybe_prove_coherence n promote forget kind : Names.GlobRef.t option =
   match kind with
   | Algebraic _ ->
-     if is_search_coh () then
+     let go_ahead =
+       if is_unpack_algebraic () && not (is_search_coh ()) then
+         (Feedback.msg_info (str "Proving coherence to unpack algebraic");
+          true)
+       else
+         is_search_coh ()
+     in
+     if go_ahead then
        let sigma, env = refresh_env () in
        let orn = { promote; forget; kind } in
        let coh, coh_typ = prove_coherence env sigma orn in
        let coh_n = with_suffix n "coh" in
-       ignore (define_print ~typ:coh_typ coh_n coh sigma)
+       Some (define_print ~typ:coh_typ coh_n coh sigma)
+     else
+       None
+  | _ ->
+     None
+
+(*
+ * If the option is enabled, then generate the unpacked equivalence.
+ * Otherwise, do nothing.
+ *)
+let maybe_unpack_algebraic n promote forget coh_o kind : unit =
+  match kind with
+  | Algebraic _ ->
+     if is_unpack_algebraic () then
+       if not (Option.has_some coh_o) then
+         Feedback.msg_warning (str "Internal error; skipping unpack algebraic")
+       else
+         let sigma, env = refresh_env () in
+         let coh = UnivGen.constr_of_global (Option.get coh_o) in
+         let orn = { promote; forget; kind } in
+         () (* TODO *)
      else
        ()
   | _ ->
@@ -263,7 +290,8 @@ let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forg
         inv_n, UnivGen.constr_of_global (define_print inv_n orn.forget ~typ:typ sigma)
     in
     (if not is_custom then
-      (maybe_prove_coherence n promote forget orn.kind;
+      (let coh_o = maybe_prove_coherence n promote forget orn.kind in
+       maybe_unpack_algebraic n promote forget coh_o orn.kind; 
        maybe_prove_equivalence ~hints:hints n (trm_o, trm_n) promote forget;
        maybe_find_smart_elims (trm_o, trm_n) promote forget)
      else
