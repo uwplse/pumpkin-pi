@@ -34,6 +34,7 @@ open Reducers
 open Decompiler
 open Ltac_plugin
 open Tacinterp
+open Unpackalg
 
 (* --- Utilities --- *)
 
@@ -117,16 +118,19 @@ let maybe_prove_coherence n promote forget kind : Names.GlobRef.t option =
  * If the option is enabled, then generate the unpacked equivalence.
  * Otherwise, do nothing.
  *)
-let maybe_unpack_algebraic n promote forget coh_o kind : unit =
+let maybe_unpack_algebraic ?(hints=[]) n typs promote forget coh_o pfs_o kind : unit =
   match kind with
   | Algebraic _ ->
      if is_unpack_algebraic () then
-       if not (Option.has_some coh_o) then
+       if not (Option.has_some coh_o && Option.has_some pfs_o) then
          Feedback.msg_warning (str "Internal error; skipping unpack algebraic")
        else
          let sigma, env = refresh_env () in
          let coh = UnivGen.constr_of_global (Option.get coh_o) in
+         let pfs = map_tuple UnivGen.constr_of_global (Option.get pfs_o) in
          let orn = { promote; forget; kind } in
+         let sigma, l = initialize_lifting_provided env sigma typs (promote, forget) false in
+         let (f, g) = unpack_algebraic env sigma l coh pfs in
          () (* TODO *)
      else
        ()
@@ -137,16 +141,23 @@ let maybe_unpack_algebraic n promote forget coh_o kind : unit =
  * If the option is enabled, then prove section, retraction, and adjunction after
  * find_ornament is called. Otherwise, do nothing.
  *)
-let maybe_prove_equivalence ?(hints=[]) n typs promote forget : unit =
+let maybe_prove_equivalence ?(hints=[]) n typs promote forget : (Names.GlobRef.t * Names.GlobRef.t) option =
   let define_proof suffix ?(adjective=suffix) sigma term typ =
     let ident = with_suffix n suffix in
     let tr = define_print ident term ~typ:typ sigma in
     let sigma, env = refresh_env () in
     let opts = List.map (fun s -> (parse_tac_str s, s)) hints in
     suggest_tactic_script env tr opts sigma;
-    destConstRef tr
+    tr
   in
-  if is_search_equiv () then
+  let go_ahead =
+    if is_unpack_algebraic () && not (is_search_equiv ()) then
+      (Feedback.msg_info (str "Proving equivalence to unpack algebraic");
+       true)
+    else
+      is_search_equiv ()
+  in
+  if go_ahead then
     let sigma, env = refresh_env () in
     let sigma, l = initialize_lifting_provided env sigma typs (promote, forget) false in
     let ((section, section_typ), (retraction, retraction_typ)) =
@@ -154,7 +165,7 @@ let maybe_prove_equivalence ?(hints=[]) n typs promote forget : unit =
     in
     let sect = define_proof "section" sigma section section_typ in
     let retr0 = define_proof "retraction" sigma retraction retraction_typ in
-    let pre_adj = { orn = l; sect; retr0 } in
+    let pre_adj = { orn = l; sect = destConstRef sect; retr0 = destConstRef retr0 } in
     let _ =
       let sigma, env = refresh_env () in
       let sigma, retraction_adj = adjointify_retraction env pre_adj sigma in
@@ -164,9 +175,9 @@ let maybe_prove_equivalence ?(hints=[]) n typs promote forget : unit =
       let sigma, env = refresh_env () in
       let sigma, (adjunction, adjunction_typ) = prove_adjunction env pre_adj sigma in
       define_proof "adjunction" sigma adjunction adjunction_typ
-    in ()
+    in Some (sect, retr0)
   else
-    ()
+    None
 
 (*
  * If the option is enabled, generate smart eliminators
@@ -290,10 +301,12 @@ let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forg
         inv_n, UnivGen.constr_of_global (define_print inv_n orn.forget ~typ:typ sigma)
     in
     (if not is_custom then
-      (let coh_o = maybe_prove_coherence n promote forget orn.kind in
-       maybe_unpack_algebraic n promote forget coh_o orn.kind; 
-       maybe_prove_equivalence ~hints:hints n (trm_o, trm_n) promote forget;
-       maybe_find_smart_elims (trm_o, trm_n) promote forget)
+       (let coh_o = maybe_prove_coherence n promote forget orn.kind in
+        let pfs_o =
+          maybe_prove_equivalence ~hints:hints n (trm_o, trm_n) promote forget
+        in
+        maybe_unpack_algebraic ~hints:hints n (trm_o, trm_n) promote forget coh_o pfs_o orn.kind;
+        maybe_find_smart_elims (trm_o, trm_n) promote forget)
      else
        ());
     (try
