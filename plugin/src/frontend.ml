@@ -128,7 +128,6 @@ let maybe_unpack_algebraic ?(hints=[]) n typs promote forget coh_o pfs_o kind : 
          let sigma, env = refresh_env () in
          let coh = UnivGen.constr_of_global (Option.get coh_o) in
          let pfs = map_tuple UnivGen.constr_of_global (Option.get pfs_o) in
-         let orn = { promote; forget; kind } in
          let sigma, l = initialize_lifting_provided env sigma typs (promote, forget) false in
          let (f, g) = unpack_algebraic env sigma l coh pfs in
          () (* TODO *)
