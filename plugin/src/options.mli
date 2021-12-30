@@ -1,4 +1,4 @@
-(* --- Options for DEVOID --- *)
+(* --- Options for PUMPKIN Pi --- *)
 
        
 (*
@@ -7,6 +7,12 @@
  *)
 val is_search_coh : unit -> bool
 
+(*
+ * Generate an unpacked version of the algebraic promotion isomorphism
+ * (disabled by default)
+ *)
+val is_unpack_algebraic : unit -> bool
+  
 (*
  * Prove section and retraction for the algebraic promotion isomorphism
  * (disabled by default)
