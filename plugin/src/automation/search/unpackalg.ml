@@ -12,4 +12,4 @@ open Stateutils
  * Return the components of the equivalence, as well as their types
  *)
 let unpack_algebraic env sigma l coh pfs =
-  pfs (* TODO unpack *)
+  l.orn.promote, l.orn.forget (* TODO unpack *)
