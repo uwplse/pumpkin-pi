@@ -25,7 +25,7 @@ Definition deq {A : Type} (q : queue A) : queue A :=
   match q with
   | ([], b) => ([], b)
   | (h::[], b) => (List.rev b, [])
-  | (h::t, b) => (h::t, b)
+  | (h::t, b) => (t, b)
   end.
 
 Definition peek {A : Type} (q : queue A) : option A :=
