@@ -4,6 +4,7 @@ Import Equivalence.
 Require Import Morphisms.
 Require Import Specif.
 Require Import StructTact.StructTactics.
+Require Import Coq.Classes.SetoidClass.
 Module TwoListQueue.
 
 Definition raw_queue (A : Type) := (list A * list A) % type.
@@ -50,6 +51,10 @@ Proof.
   |apply raw_equiv_trans].
 Qed.
 
+#[export] Instance raw_tlq_setoid {A : Type} : Setoid (@raw_queue A) :=
+  {equiv := (@raw_equiv A)
+   ;setoid_equiv := raw_equiv_equiv
+  }.
   
 Definition rep_ok {A : Type} (q : raw_queue A) : Prop :=
   match q with
@@ -328,7 +333,7 @@ Proof.
   simpl.
   apply app_rev_lem.
 Qed.
-
+  
 Print raw_deq_enq_nonempty.
 
 Check prod_ind.
@@ -664,10 +669,10 @@ Proof.
         discriminate.
 Qed.
   
-Theorem raw_queue_ind : forall (A : Type) (P : raw_queue A -> Prop),
+Theorem raw_queue_ind {A : Type} : forall (P : raw_queue A -> Prop),
     P raw_empty ->
-    (forall (a : A) (q : raw_queue A), (rep_ok q -> P (raw_enq a q))) ->
-    (forall (q : raw_queue A), (rep_ok q -> P (raw_deq q))) ->
+    (forall (a : A) (q : raw_queue A), (rep_ok q -> P q -> P (raw_enq a q))) ->
+    (forall (q : raw_queue A), (rep_ok q -> P q -> P (raw_deq q))) ->
     forall q : raw_queue A, (rep_ok q -> P q).
 Proof.
   intros.
@@ -677,11 +682,91 @@ Proof.
   - apply H0.
     apply reachable_rep_ok.
     apply H2.
+    apply IHreachable.
   - apply H1.
     apply reachable_rep_ok.
     apply H2.
-Qed.  
+    apply IHreachable.
+Qed.
+
+Definition size {A : Type} (q : raw_queue A) : nat :=
+  let (f,b) := q in
+  length f + length b.
+
+Lemma raw_deq_dec {A : Type} : forall (q : raw_queue A),
+  raw_is_empty q = false -> S (size (raw_deq q)) = size q.
+Proof.
+  intros.
+  destruct q.
+  destruct l.
+  - discriminate.
+  - destruct l.
+    + simpl.
+      rewrite rev_length.
+      rewrite <- plus_n_O.
+      reflexivity.
+    + reflexivity.
+Qed.
+     
+Require Import Coq.Program.Wf.
+Require Import Coq.Arith.Wf_nat.
+(** enqueue q2's elements onto q1*)
+Program Fixpoint raw_app {A : Type} (q1 q2 : raw_queue A) {measure (size q2)} : raw_queue A :=
+  match (raw_peek q2) with
+  | None => q1
+  | Some a => raw_app (raw_enq a q1) (raw_deq q2)
+  end.
+Next Obligation.
+  unfold lt.
+  rewrite raw_deq_dec.
+  - apply le_n.
+  - destruct q2.
+    destruct l.
+    + discriminate.
+    + reflexivity.
+Qed.
+
+Theorem raw_app_front {A : Type} : forall (q1 q2 : raw_queue A),
+  rep_ok q1 -> rep_ok q2 -> raw_is_empty q1 = false -> raw_peek (raw_app q1 q2) = raw_peek q1.
+Proof.
+  intros.
+  apply (raw_queue_ind (fun q : raw_queue A => raw_is_empty q = false -> raw_peek (raw_app q q2) = raw_peek q)).
+  - discriminate.
+Abort.
+
+(**
+Theorem raw_deq_enq_nonempty_queue_ind : forall (A : Type) (a : A) (q : raw_queue A),
+    rep_ok q -> raw_is_nonempty q -> queue_ok a q.
+Proof.
+  intros A a q.
+  intros H.
+  apply rep_ok_reachable in H.
+  induction H.
+  - intros.
+    discriminate.
+  - intros.    
+    apply (raw_queue_ind (fun q : raw_queue A => raw_is_nonempty q -> queue_ok a q)).
   
+  - intros.
+    unfold raw_is_nonempty in H.
+    discriminate.
+  - intros.
+    unfold queue_ok.
+    unfold raw_equiv.
+    apply rep_ok_reachable in H.
+    unfold rep_ok in H.
+    unfold raw_is_nonempty in H0.
+
+    
+  generalize dependent q.
+  unfold rep_ok_nonemp_q_ok.
+  unfold queue_ok.
+  intros.
+  apply raw_queue_ind.
+  - unfold raw_equiv.
+Abort.
+**)  
+
 (** Queue with representation invariant enforced. **)
 
 Definition queue (A : Type) := sig (@rep_ok A) % type.
@@ -717,6 +802,11 @@ Proof.
   |apply equiv_sym
   |apply equiv_trans].
 Qed.
+
+#[export] Instance tlq_setoid {A : Type} : Setoid (@queue A) :=
+  {equiv := (@equiv A)
+   ;setoid_equiv := equiv_equiv
+  }.
 
 Definition empty {A : Type} : queue A :=
   (exist rep_ok (@raw_empty A) (@rep_ok_empty A)). 
