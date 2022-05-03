@@ -1,8 +1,14 @@
 Require Import List Bool.
 Import ListNotations.
+Require Import Coq.Classes.SetoidClass.
 Module SimpleQueue.
 
 Definition queue (A : Type) := list A % type.
+
+#[export] Instance slq_setoid {A : Type} : Setoid (@queue A) :=
+  {equiv := eq
+   ;setoid_equiv := eq_equivalence
+  }.
 
 Definition empty {A : Type} : queue A := [].
 Definition is_empty {A : Type} (q : queue A) : bool :=
