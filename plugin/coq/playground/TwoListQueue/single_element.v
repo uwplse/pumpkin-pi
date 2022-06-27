@@ -1,3 +1,9 @@
+Require Import Ornamental.Ornaments.
+
+Set DEVOID search prove equivalence. (* <-- Correctness proofs for search *)
+Set DEVOID lift type. (* <-- Prettier types than the ones Coq infers *)
+Set Nonrecursive Elimination Schemes. (* <--- Preprocess needs induction principles for records *)
+
 Module Old.
 
 Inductive one : Type :=
@@ -35,3 +41,6 @@ Definition both (x : two) : two :=
   end.
 
 End New.
+
+Preprocess Module Old as Old'.
+Preprocess Module New as New'.
