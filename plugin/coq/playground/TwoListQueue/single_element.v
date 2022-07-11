@@ -3,6 +3,13 @@ Require Import List Bool.
 Import Equivalence.
 Require Import Coq.Classes.SetoidClass.
 Require Import setoid_equivalence.
+Require Import Ornamental.Ornaments.
+
+Set DEVOID search prove equivalence. (* <-- Correctness proofs for search *)
+Set DEVOID lift type. (* <-- Prettier types than the ones Coq infers *)
+Set Nonrecursive Elimination Schemes. (* <--- Preprocess needs induction principles for records *)
+
+Module Old.
 
 Inductive one : Type :=
   | xI : one.
@@ -13,6 +20,19 @@ Instance one_setoid : Setoid one :=
 Definition dep_constr_one_0 : one := xI.
 Check one_rect.
 Definition dep_elim_one := fun (P : one -> Type) (x : P xI) (o : one) => one_rect P x o.
+
+Definition out_of (x : one) : nat :=
+  match x with
+  | xI => 0
+  end.
+
+Definition in_to (n : nat) : one := xI.
+
+Definition both (x : one) : one := xI.
+
+End Old.
+
+Module New.
 
 Inductive two : Type :=
   | first : two
@@ -47,42 +67,38 @@ Qed.
 Instance two_setoid : Setoid two :=
   {equiv := two_equiv; setoid_equiv := two_equiv_equiv}.
 
-Definition f (x : one) : two := first.
+Definition out_of (x : two) : nat :=
+  match x with
+  | first => 0
+  | second => 0
+  end.
 
-Definition g (y : two) : one := xI.
+Definition dep_constr_two_0 : two := first.
+Check two_rect.
+(**Program Definition dep_elim_two := fun (P : two -> Type) (x : P first) (t : two) => two_rect P x (_ x) t.*)
 
-Theorem one_two_equ : @SetoidEquivalence.setoid_equiv one one_setoid two two_setoid. 
+Definition in_to (n : nat) : two := first.
+
+Definition both (x : two) : two :=
+  match x with
+  | first => first
+  | second => first
+  end.
+
+End New.
+
+Definition f (x : Old.one) : New.two := New.first.
+
+Definition g (y : New.two) : Old.one := Old.xI.
+
+Theorem one_two_equ : @SetoidEquivalence.setoid_equiv Old.one Old.one_setoid New.two New.two_setoid. 
 Proof.
-  apply (@SetoidEquivalence.mkEquiv one one_setoid two two_setoid f g).
+  apply (@SetoidEquivalence.mkEquiv Old.one Old.one_setoid New.two New.two_setoid f g).
   - intros. reflexivity.
   - intros. reflexivity.
   - intros. destruct a. reflexivity.
   - intros. reflexivity.
 Qed.
 
-Definition dep_constr_two_0 : two := first.
-Check two_rect.
-Program Definition dep_elim_two := fun (P : two -> Type) (x : P first) (t : two) => two_rect P x (_ x) t. 
-
-Definition out_of (x : one) : nat :=
-  match x with
-  | xI => 0
-  end.
-
-Definition out_of' (x : two) : nat :=
-  match x with
-  | first => 0
-  | second => 0
-  end.
-
-Definition in_to (n : nat) : one := xI.
-
-Definition in_to' (n : nat) : two := first.
-
-Definition both (x : one) : one := xI.
-
-Definition both' (x : two) : two :=
-  match x with
-  | first => first
-  | second => first
-  end.
+Preprocess Module Old as Old'.
+Preprocess Module New as New'.

@@ -3,6 +3,7 @@ Require Import PeanoNat.
 Require Import Ornamental.Ornaments.
 Require Import Coq.NArith.BinNat.
 Require Import Coq.NArith.Nnat.
+Require Coq.Logic.FunctionalExtensionality. (* Needed for internal higher equivalences *)
 
 Set DEVOID search prove equivalence.
 Set DEVOID search prove coherence.
@@ -269,3 +270,72 @@ Abort.
  *)
 
 End Automation.
+
+(*
+ * Let's see how this behaves with funext!
+ *)
+Module WithFunext.
+
+Import Coq.Logic.FunctionalExtensionality.
+
+Definition A := {s : RawMonoidStructure nat & MonoidAxioms (existT RawMonoidStructure nat s)}.
+Definition B := {s : RawMonoidStructure N & MonoidAxioms (existT RawMonoidStructure N s)}.
+
+Program Definition f : A -> B.
+Proof.
+  intros n. induction n. induction x.
+  exists (N.of_nat a, fun n1 n2 => N.of_nat (b (N.to_nat n1) (N.to_nat n2))).
+  unfold MonoidAxioms in *; simpl in *.
+  destruct p. split; intros.
+  - f_equal. repeat rewrite Nat2N.id. apply e.
+  - rewrite Nat2N.id. specialize (p (N.to_nat x)). destruct p. split.
+    + rewrite e0. apply N2Nat.id.
+    + rewrite e1. apply N2Nat.id.
+Defined.
+
+Program Definition g : B -> A.
+Proof.
+  intros n. induction n. induction x.
+  exists (N.to_nat a, fun n1 n2 => N.to_nat (b (N.of_nat n1) (N.of_nat n2))).
+  unfold MonoidAxioms in *; simpl in *.
+  destruct p. split; intros.
+  - f_equal. repeat rewrite N2Nat.id. apply e.
+  - rewrite N2Nat.id. specialize (p (N.of_nat x)). destruct p. split.
+    + rewrite e0. apply Nat2N.id.
+    + rewrite e1. apply Nat2N.id.
+Defined.
+
+Lemma section_pair_funext:
+  forall n f,
+    (N.to_nat (N.of_nat n),
+     (fun n1 n2 : nat =>
+        N.to_nat (N.of_nat (f (N.to_nat (N.of_nat n1)) (N.to_nat (N.of_nat n2)))))) =
+    (n, f).
+Proof.
+  intros n f.
+  rewrite Nat2N.id.
+  rewrite functional_extensionality_dep_good with
+    (f0 := fun n1 n2 : nat =>
+      N.to_nat (N.of_nat (f (N.to_nat (N.of_nat n1)) (N.to_nat (N.of_nat n2)))))
+    (g := f); auto.
+  intros n1. rewrite functional_extensionality_dep_good with 
+    (f0 := (fun n2 : nat =>
+      N.to_nat (N.of_nat (f (N.to_nat (N.of_nat n1)) (N.to_nat (N.of_nat n2))))))
+    (g := f n1); auto.
+  intros n2. repeat rewrite Nat2N.id. auto.
+Defined.
+
+Lemma section :
+  forall (a : A), g (f a) = a.
+Proof.
+  intros a. induction a. induction x as [n f].
+  apply eq_existT_uncurried.
+  exists (section_pair_funext n f).
+  admit. (* TODO left off here *)
+Abort.
+
+(* TODO messy, and probably needs the adjoint equivalence to be reasonable *)
+
+End WithFunext.
+
+
