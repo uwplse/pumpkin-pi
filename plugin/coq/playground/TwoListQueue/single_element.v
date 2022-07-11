@@ -11,6 +11,7 @@ Set Nonrecursive Elimination Schemes. (* <--- Preprocess needs induction princip
 
 Module Old.
 
+(**Type with one element.*)
 Inductive one : Type :=
   | xI : one.
 
@@ -34,13 +35,17 @@ End Old.
 
 Module New.
 
+(** Type with two elements.*)
 Inductive two : Type :=
   | first : two
   | second : two.
 
+(** Equivalence relation setting two constructors equal.
+    The quotient of two under this relation has one element. *)
 Definition two_equiv (x1 x2 : two) : Prop :=
   True.
 
+(** Proving that two is a setoid with this equivalence relation. *)
 Instance two_equiv_refl : Reflexive (@two_equiv).
 Proof.
   intros x. apply I.
@@ -75,7 +80,7 @@ Definition out_of (x : two) : nat :=
 
 Definition dep_constr_two_0 : two := first.
 Check two_rect.
-(**Program Definition dep_elim_two := fun (P : two -> Type) (x : P first) (t : two) => two_rect P x (_ x) t.*)
+(*Program Definition dep_elim_two := fun (P : two -> Type) (x : P first) (t : two) => two_rect P x (_ x) t.*)
 
 Definition in_to (n : nat) : two := first.
 
@@ -87,6 +92,7 @@ Definition both (x : two) : two :=
 
 End New.
 
+(** Constructing the setoid equivalence between one and two. *)
 Definition f (x : Old.one) : New.two := New.first.
 
 Definition g (y : New.two) : Old.one := Old.xI.
