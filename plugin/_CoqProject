@@ -148,7 +148,7 @@ src/automation/lift/lift.mli
 
 src/frontend.ml
 src/frontend.mli
-src/ornamental.ml4
+src/ornamental.mlg
 src/ornaments.mlpack
 
 theories/Adjoint.v
