@@ -24,7 +24,7 @@ let mk_n_evars n env =
  *)
 let eunify env etrm1 etrm2 sigma =
   try
-    the_conv_x env etrm1 etrm2 sigma, true
+    unify_delay ?flags:None env sigma etrm1 etrm2, true
   with _ ->
     sigma, false
     
@@ -44,10 +44,10 @@ let unify_resolve_evars env trm1 trm2 sigma =
   if unifies then
     let sigma_ref = ref sigma in
     try
-      let etrm1 = Typing.e_solve_evars env sigma_ref etrm1 in
-      let etrm2 = Typing.e_solve_evars env sigma_ref etrm2 in
+      let etrm1 = Typing.solve_evars env sigma etrm1 in
+      let etrm2 = Typing.solve_evars env sigma etrm2 in
       let sigma = !sigma_ref in
-      sigma, Some (map_tuple (EConstr.to_constr sigma) (etrm1, etrm2))
+      sigma, Some (map_tuple (EConstr.to_constr sigma) (snd etrm1, snd etrm2))
     with _ ->
       sigma, None
   else

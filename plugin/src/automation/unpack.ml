@@ -7,16 +7,17 @@ let tactic_script =
 
 (* Evaluate a tactic on no goals and return any proofs constructed *)
 let eval_tactic env sigma ?goal tac =
-  let typ, _ = Evarutil.e_new_type_evar env sigma Evd.univ_flexible_alg in
-  let (ent, pv) = Proofview.init !sigma [(env, typ)] in
-  let sigma0 = !sigma in
-  let ((), pv, (unsafe, shelved, obliged), _) = Proofview.apply env tac pv in
-  sigma := Proofview.proofview pv |> snd;
+  let (_, (typ, _)) = Evarutil.new_type_evar env sigma Evd.univ_flexible_alg in
+  let sigma_ref = ref sigma in
+  let (ent, pv) = Proofview.init !sigma_ref [(env, typ)] in
+  let sigma0 = !sigma_ref in
+  let (_, pv, (unsafe, shelved, obliged), _) = Proofview.apply ~name:tac ~poly:true env (Proofview.tclUNIT tac) pv in
+  sigma_ref := Proofview.proofview pv |> snd;
   (* NOTE: Technically our current examples/tests do not require this post-processing
    * unification step, but I suspect that it may sometimes be necessary to ensure that
    * Coq handles any lingering typeclass/implicit argument inference in the usual way. *)
-  sigma := Pretyping.solve_remaining_evars (Pretyping.default_inference_flags true) env !sigma sigma0;
-  let proofs = Proofview.partial_proof ent pv |> List.map (EConstr.to_constr !sigma) in
+  sigma_ref := Pretyping.solve_remaining_evars (Pretyping.default_inference_flags true) env !sigma_ref ?initial:(Some sigma0);
+  let proofs = Proofview.partial_proof ent pv |> List.map (EConstr.to_constr !sigma_ref) in
   List.hd proofs
 
 let call_tactic env sigma tac args =

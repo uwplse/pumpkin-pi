@@ -85,7 +85,7 @@ let lookup_lifting (orn_o, orn_n, trm) =
     let trm = global_of_constr trm in
     let lifted_trm = LiftingsCache.find lift_cache (orn_o, orn_n, trm) in
     try
-      Some (UnivGen.constr_of_global (Option.get lifted_trm))
+      Some (UnivGen.constr_of_monomorphic_global (Option.get lifted_trm))
     with _ ->
       None
 
@@ -272,7 +272,7 @@ let swap_cache = OrnamentsCache.create 100
 let int_to_kind (i : int) globals =
   if i = 0 then
     let (indexer, off) = OrnamentsCache.find indexer_cache globals in
-    let indexer = UnivGen.constr_of_global indexer in
+    let indexer = UnivGen.constr_of_monomorphic_global indexer in
     Algebraic (indexer, off)
   else if i = 1 then
     CurryRecord
@@ -282,7 +282,7 @@ let int_to_kind (i : int) globals =
   else if i = 3 then
     UnpackSigma
   else if i = 4 then
-    let typs = map_tuple UnivGen.constr_of_global globals in
+    let typs = map_tuple UnivGen.constr_of_monomorphic_global globals in
     Custom typs
   else
     failwith "Unsupported kind of ornament passed to interpret_kind in caching"
@@ -387,7 +387,7 @@ let lookup_ornament typs =
     let globals = map_tuple Globnames.global_of_constr typs in
     let (orn, orn_inv, i) = OrnamentsCache.find orn_cache globals in
     try
-      let orn, orn_inv = map_tuple UnivGen.constr_of_global (orn, orn_inv) in
+      let orn, orn_inv = map_tuple UnivGen.constr_of_monomorphic_global (orn, orn_inv) in
       Some (orn, orn_inv, int_to_kind i globals)
     with _ ->
       None
@@ -525,10 +525,10 @@ let lookup_config typs =
     let etas = OrnamentsCache.find eta_cache globals in
     let iotas = OrnamentsCache.find iota_cache globals in
     try
-      let constrs = map_tuple (Array.map UnivGen.constr_of_global) constrs in
-      let elims = map_tuple UnivGen.constr_of_global elims in
-      let etas = map_tuple UnivGen.constr_of_global etas in
-      let iotas = map_tuple (Array.map UnivGen.constr_of_global) iotas in
+      let constrs = map_tuple (Array.map UnivGen.constr_of_monomorphic_global) constrs in
+      let elims = map_tuple UnivGen.constr_of_monomorphic_global elims in
+      let etas = map_tuple UnivGen.constr_of_monomorphic_global etas in
+      let iotas = map_tuple (Array.map UnivGen.constr_of_monomorphic_global) iotas in
       Some (constrs, elims, etas, iotas)
     with _ ->
       Feedback.msg_warning
