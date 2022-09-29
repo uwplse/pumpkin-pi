@@ -239,7 +239,7 @@ let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forg
       | Algebraic (indexer, off) when not (isConst indexer) ->
          (* Substitute the defined indexer constant for the raw term *)
          let indexer = define_print (Option.get idx_n) indexer sigma in
-         { orn with kind = Algebraic (UnivGen.constr_of_global indexer, off) }
+         { orn with kind = Algebraic (UnivGen.constr_of_monomorphic_global indexer, off) }
       | _ ->
          orn
     in
@@ -249,7 +249,7 @@ let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forg
         sigma, Option.get promote_o
       else
         let sigma, typ = reduce_type env sigma orn.promote in
-        sigma, UnivGen.constr_of_global (define_print n orn.promote ~typ:typ sigma)
+        sigma, UnivGen.constr_of_monomorphic_global (define_print n orn.promote ~typ:typ sigma)
     in
     let inv_n, forget =
       if Option.has_some forget_o then
@@ -260,7 +260,7 @@ let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forg
       else
         let inv_n = with_suffix n "inv" in
         let sigma, typ = reduce_type env sigma orn.forget in
-        inv_n, UnivGen.constr_of_global (define_print inv_n orn.forget ~typ:typ sigma)
+        inv_n, UnivGen.constr_of_monomorphic_global (define_print inv_n orn.forget ~typ:typ sigma)
     in
     (if not is_custom then
       (maybe_prove_coherence n promote forget orn.kind;
