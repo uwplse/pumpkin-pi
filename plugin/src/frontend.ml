@@ -162,8 +162,8 @@ let infer_name_for_ornament env trm_o trm_n n_o =
   match map_tuple kind (trm_o, trm_n) with
   | Ind ((i_o, ii_o), _), Ind ((i_n, ii_n), _) ->
      (* Algebraic ornament or swap constructor *)
-     let (_, _, lab_o) = KerName.repr (MutInd.canonical i_o) in
-     let (_, _, lab_n) = KerName.repr (MutInd.canonical i_n) in
+     let (_, lab_o) = KerName.repr (MutInd.canonical i_o) in
+     let (_, lab_n) = KerName.repr (MutInd.canonical i_n) in
      let name_o = Label.to_id lab_o in
      let name_n = Label.to_string lab_n in
      let auto_n = with_suffix (with_suffix name_o "to") name_n in
@@ -187,7 +187,7 @@ let infer_name_for_ornament env trm_o trm_n n_o =
       if isInd trm_o || isInd trm_n then
         let ind, nind = if isInd trm_o then trm_o, trm_n else trm_n, trm_o in
         let ((m, _), _) = destInd ind in
-        let (_, _, lab) = KerName.repr (MutInd.canonical m) in
+        let (_, lab) = KerName.repr (MutInd.canonical m) in
         let name = Label.to_id lab in
         let auto_n =
           let nind_delta = unwrap_definition env nind in
@@ -255,7 +255,7 @@ let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forg
       if Option.has_some forget_o then
         let forget = Option.get forget_o in
         let (c, _) = destConst forget in
-        let (_, _, lab) = KerName.repr (Constant.canonical c) in
+        let (_, lab) = KerName.repr (Constant.canonical c) in
         Label.to_id lab, forget
       else
         let inv_n = with_suffix n "inv" in
@@ -292,7 +292,7 @@ let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forg
  * If the appropriate option is set, prove these components form an equivalence
  *)
 let find_ornament ?(hints=[]) n_o d_old d_new swap_i_o =
-  let (sigma, env) = Pfedit.get_current_context () in
+  let (sigma, env) = Vernacstate.Proof_global.get_current_context () in
   find_ornament_common ~hints:hints env n_o d_old d_new swap_i_o None None false sigma
 
 (*
@@ -300,7 +300,7 @@ let find_ornament ?(hints=[]) n_o d_old d_new swap_i_o =
  *)
 let save_ornament d_old d_new d_orn_o d_orn_inv_o is_custom =
   Feedback.msg_warning (Pp.str "Custom equivalences are experimental. Use at your own risk!");
-  let (sigma, env) = Pfedit.get_current_context () in
+  let (sigma, env) = Vernacstate.Proof_global.get_current_context () in
   if not (Option.has_some d_orn_o || Option.has_some d_orn_inv_o) then
     CErrors.user_err (str "Please provide a promotion or forgetful function")
   else
@@ -313,7 +313,7 @@ let save_ornament d_old d_new d_orn_o d_orn_inv_o is_custom =
     in
     let get_base_name trm_o =
       let (c, _) = destConst (Option.get trm_o) in
-      let (_, _, lab) = KerName.repr (Constant.canonical c) in
+      let (_, lab) = KerName.repr (Constant.canonical c) in
       Label.to_id lab
     in
     let sigma, promote_o = maybe_intern d_orn_o sigma in
@@ -413,7 +413,7 @@ let init_lift ?(hints=[]) env d_orn d_orn_inv sigma =
  * Core functionality of lift
  *)
 let lift_inner ?(suffix=false) ?(opaques=[]) ?(hints=[]) n d_orn d_orn_inv d_old is_lift_module =
-  let (sigma, env) = Pfedit.get_current_context () in
+  let (sigma, env) = Vernacstate.Proof_global.get_current_context () in
   let opaque_terms =
     List.map
       (fun r ->
@@ -474,7 +474,7 @@ let lift_module_by_ornament ?(opaques=[]) ?(hints=[]) ident d_orn d_orn_inv mod_
  *)
 let repair ?(suffix=false) ?(opaques=[]) ?(hints=[]) n d_orn d_orn_inv d_old is_lift_module =
   let lifted = lift_inner ~suffix ~opaques ~hints n d_orn d_orn_inv d_old is_lift_module in
-  let (sigma, env) = Pfedit.get_current_context () in
+  let (sigma, env) = Vernacstate.Proof_global.get_current_context () in
   let opts = List.map (fun s -> (parse_tac_str s, s)) hints in
   suggest_tactic_script env lifted opts sigma
 
@@ -501,7 +501,7 @@ let repair_module ?(opaques=[]) ?(hints=[]) ident d_orn d_orn_inv mod_ref =
  * Add terms to the globally opaque lifting cache at a particular ornament
  *)
 let add_lifting_opaques d_orn d_orn_inv opaques =
-  let (sigma, env) = Pfedit.get_current_context () in
+  let (sigma, env) = Vernacstate.Proof_global.get_current_context () in
   let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in
   List.iter
     (fun qid ->
@@ -523,7 +523,7 @@ let add_lifting_opaques d_orn d_orn_inv opaques =
  * Remove terms from the globally opaque lifting cache at a particular ornament
  *)
 let remove_lifting_opaques d_orn d_orn_inv opaques =
-  let (sigma, env) = Pfedit.get_current_context () in
+  let (sigma, env) = Vernacstate.Proof_global.get_current_context () in
   let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in
   List.iter
     (fun qid ->
@@ -545,7 +545,7 @@ let remove_lifting_opaques d_orn d_orn_inv opaques =
  * Manual configuration
  *)
 let configure_manual d_orn d_orn_inv constrs elims etas iotas =
-  let (sigma, env) = Pfedit.get_current_context () in
+  let (sigma, env) = Vernacstate.Proof_global.get_current_context () in
   let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in
   let lookup_reference qid = mkConst (Nametab.locate_constant qid) in
   let constrs = map_tuple (List.map lookup_reference) constrs in
