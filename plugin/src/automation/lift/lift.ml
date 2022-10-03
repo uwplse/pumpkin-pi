@@ -19,6 +19,9 @@ open Promotion
 open Liftconfig
 open Liftrules
 open Evd
+open Context
+open Contextutils
+open Record
 
 (*
  * The top-level lifting algorithm
@@ -201,20 +204,20 @@ let lift_core env c trm sigma =
         | Prod (n, t, b) ->
            (* PROD *)
            let sigma, t' = lift_rec en sigma c t in
-           let en_b = push_local (n, t) en in
+           let en_b = push_local (n.binder_name, t) en in
            let sigma, b' = lift_rec en_b sigma (zoom c) b in
            (sigma, mkProd (n, t', b'))
         | Lambda (n, t, b) ->
            (* LAMBDA *)
            let sigma, t' = lift_rec en sigma c t in
-           let en_b = push_local (n, t) en in
+           let en_b = push_local (n.binder_name, t) en in
            let sigma, b' = lift_rec en_b sigma (zoom c) b in
            (sigma, mkLambda (n, t', b'))
         | LetIn (n, trm, typ, e) ->
            (* LETIN *)
            let sigma, trm' = lift_rec en sigma c trm in
            let sigma, typ' = lift_rec en sigma c typ in
-           let en_e = push_let_in (n, trm, typ) en in
+           let en_e = push_let_in (n.binder_name, trm, typ) en in
            let sigma, e' = lift_rec en_e sigma (zoom c) e in
            (sigma, mkLetIn (n, trm', typ', e'))
         | Case (ci, ct, m, bs) ->
@@ -226,12 +229,14 @@ let lift_core env c trm sigma =
         | Fix ((is, i), (ns, ts, ds)) ->
            (* FIX (will not work if this destructs over A; preprocess first) *)
            let sigma, ts' = map_rec_args lift_rec en sigma c ts in
-           let sigma, ds' = map_rec_args (fun en sigma a trm -> map_rec_env_fix lift_rec zoom en sigma a ns ts trm) en sigma c ds in
+           let ns_binder_name = Array.map (fun x -> x.binder_name) ns in
+           let sigma, ds' = map_rec_args (fun en sigma a trm -> map_rec_env_fix lift_rec zoom en sigma a ns_binder_name ts trm) en sigma c ds in
            (sigma, mkFix ((is, i), (ns, ts', ds')))
         | CoFix (i, (ns, ts, ds)) ->
            (* COFIX (will not work if this destructs over A; preprocess first) *)
            let sigma, ts' = map_rec_args lift_rec en sigma c ts in
-           let sigma, ds' = map_rec_args (fun en sigma a trm -> map_rec_env_fix lift_rec zoom en sigma a ns ts trm) en sigma c ds in
+           let ns_binder_name = Array.map (fun x -> x.binder_name) ns in
+           let sigma, ds' = map_rec_args (fun en sigma a trm -> map_rec_env_fix lift_rec zoom en sigma a ns_binder_name ts trm) en sigma c ds in
            (sigma, mkCoFix (i, (ns, ts', ds')))
         | Proj (pr, co) ->
            (* PROJ *)
@@ -272,8 +277,8 @@ let define_lifted_eliminator ?(suffix="_sigT") l ind0 ind sort =
       let raw_ident = Indrec.make_elimination_ident ind_name sort in
       Nameops.add_suffix raw_ident suffix
     in
-    let elim0 = Indrec.lookup_eliminator ind0 sort in
-    let elim = Indrec.lookup_eliminator ind sort in
+    let elim0 = Indrec.lookup_eliminator env ind0 sort in
+    let elim = Indrec.lookup_eliminator env ind sort in
     let sigma, (eta_term, eta_type) =
       let sigma, term = Evarutil.new_global (Evd.from_env env) elim in
       let sigma, typ = Typing.type_of env sigma term in
@@ -281,8 +286,8 @@ let define_lifted_eliminator ?(suffix="_sigT") l ind0 ind sort =
       let term, typ = EConstr.(to_constr sigma term, to_constr sigma typ) in
       sigma, Depelim.eta_guard_eliminator mind_specif term typ
     in
-    let elim' = UnivGen.constr_of_global (Defutils.define_term ~typ:eta_type ident sigma eta_term true) in
-    let elim0 = UnivGen.constr_of_global elim0 in
+    let elim' = UnivGen.constr_of_monomorphic_global (Defutils.define_term ~typ:eta_type ident sigma eta_term true) in
+    let elim0 = UnivGen.constr_of_monomorphic_global elim0 in
     save_lifting (lift_to l, lift_back l, elim0) elim';
     save_lifting (lift_back l, lift_to l, elim') elim0
 
@@ -325,7 +330,7 @@ let do_lift_ind env sigma l typename suffix ind ignores is_lift_module =
     let ind' =
       declare_inductive typename consnames is_template univs nparam arity' constypes'
     in
-    List.iter (define_lifted_eliminator l ind ind') ind_body.mind_kelim;
+    List.iter (define_lifted_eliminator l ind ind') [ind_body.mind_kelim];
     declare_inductive_liftings l ind ind' (List.length constypes);
     (* Lift record projections *)
     try
@@ -357,7 +362,7 @@ let do_lift_ind env sigma l typename suffix ind ignores is_lift_module =
           r.s_PROJ
       in
       (try
-         declare_structure (ind', (ind', 1), pks, ps);
+         declare_structure_entry (r.s_CONST, pks, ps);
          ind'
        with _ ->
          Feedback.msg_warning
