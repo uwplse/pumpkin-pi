@@ -292,15 +292,22 @@ let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forg
  * If the appropriate option is set, prove these components form an equivalence
  *)
 let find_ornament ?(hints=[]) n_o d_old d_new swap_i_o =
-  let (sigma, env) = Vernacstate.Proof_global.get_current_context () in
+  let (sigma, env) = refresh_env() in
   find_ornament_common ~hints:hints env n_o d_old d_new swap_i_o None None false sigma
+  (* let gl = Prooview.Goal.enter () in *)
+  (* let (sigma, env) = (Proofview.Goal.env gl, Proofview.Goal.sigma gl) *)
+  (* let (Some proof_global) = Vernacstate.Proof_global.get_pstate () in *)
+  (* let (sigma, env) = Pfedit.get_current_goal_context proof_global in *)
+  (* let (proof) = Vernacstate.Proof_global.give_me_the_proof () in *)
+  (* let (sigma, env) = Pfedit.get_proof_context proof in *)
+  (* let _ = Feedback.msg_info (Pp.str "Finding ornament") in *)
 
 (*
  * Save a user-provided ornament
  *)
 let save_ornament d_old d_new d_orn_o d_orn_inv_o is_custom =
   Feedback.msg_warning (Pp.str "Custom equivalences are experimental. Use at your own risk!");
-  let (sigma, env) = Vernacstate.Proof_global.get_current_context () in
+  let (sigma, env) = refresh_env() in
   if not (Option.has_some d_orn_o || Option.has_some d_orn_inv_o) then
     CErrors.user_err (str "Please provide a promotion or forgetful function")
   else
@@ -413,7 +420,7 @@ let init_lift ?(hints=[]) env d_orn d_orn_inv sigma =
  * Core functionality of lift
  *)
 let lift_inner ?(suffix=false) ?(opaques=[]) ?(hints=[]) n d_orn d_orn_inv d_old is_lift_module =
-  let (sigma, env) = Vernacstate.Proof_global.get_current_context () in
+  let (sigma, env) = refresh_env() in
   let opaque_terms =
     List.map
       (fun r ->
@@ -474,7 +481,7 @@ let lift_module_by_ornament ?(opaques=[]) ?(hints=[]) ident d_orn d_orn_inv mod_
  *)
 let repair ?(suffix=false) ?(opaques=[]) ?(hints=[]) n d_orn d_orn_inv d_old is_lift_module =
   let lifted = lift_inner ~suffix ~opaques ~hints n d_orn d_orn_inv d_old is_lift_module in
-  let (sigma, env) = Vernacstate.Proof_global.get_current_context () in
+  let (sigma, env) = refresh_env() in
   let opts = List.map (fun s -> (parse_tac_str s, s)) hints in
   suggest_tactic_script env lifted opts sigma
 
@@ -501,7 +508,7 @@ let repair_module ?(opaques=[]) ?(hints=[]) ident d_orn d_orn_inv mod_ref =
  * Add terms to the globally opaque lifting cache at a particular ornament
  *)
 let add_lifting_opaques d_orn d_orn_inv opaques =
-  let (sigma, env) = Vernacstate.Proof_global.get_current_context () in
+  let (sigma, env) = refresh_env() in
   let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in
   List.iter
     (fun qid ->
@@ -523,7 +530,7 @@ let add_lifting_opaques d_orn d_orn_inv opaques =
  * Remove terms from the globally opaque lifting cache at a particular ornament
  *)
 let remove_lifting_opaques d_orn d_orn_inv opaques =
-  let (sigma, env) = Vernacstate.Proof_global.get_current_context () in
+  let (sigma, env) = refresh_env() in
   let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in
   List.iter
     (fun qid ->
@@ -545,7 +552,7 @@ let remove_lifting_opaques d_orn d_orn_inv opaques =
  * Manual configuration
  *)
 let configure_manual d_orn d_orn_inv constrs elims etas iotas =
-  let (sigma, env) = Vernacstate.Proof_global.get_current_context () in
+  let (sigma, env) = refresh_env() in
   let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in
   let lookup_reference qid = mkConst (Nametab.locate_constant qid) in
   let constrs = map_tuple (List.map lookup_reference) constrs in

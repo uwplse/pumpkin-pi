@@ -138,7 +138,7 @@ let refold_econv env (abs_red, abs) trm sigma =
       sigma, isApp t && not (is_or_applies (first_fun abs) t))
     (fun env sigma (abs_red, abs) t ->
       try
-        let sigma = unify_delay ?flags:None env sigma (EConstr.of_constr t) (EConstr.of_constr abs_red) in
+        let sigma = unify_delay env sigma (EConstr.of_constr t) (EConstr.of_constr abs_red) in
         sigma, abs
       with _ ->
         sigma, t)
