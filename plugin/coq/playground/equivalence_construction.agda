@@ -6,6 +6,7 @@ open import Cubical.HITs.SetQuotients as SetQuotients
 open import Cubical.Foundations.Path
 open import Cubical.Foundations.Prelude
 open import Cubical.Foundations.HLevels
+open import Cubical.Foundations.Isomorphism
 
 data Two : Set where
   first : Two
@@ -34,11 +35,51 @@ isSetTrue = isProp→isSet isPropTrue
 isSetTwoR : isSet (Two / R)
 isSetTwoR x y p q = squash/ x y p q
 
--- how do we define this?
+-- thanks to amelia liao for giving the third case
 g : Two / R -> True
 g [ x ] = tt
 g (eq/ a b r i) = tt
 g (squash/ x y p q i j) = isSetTrue (g x) (g y) (λ i → g (p i)) (λ i → g (q i)) i j
+
+sec : section f g
+sec = elimProp (λ x → isSetTwoR (f (g x)) x) lem where
+  lem : (a : Two) → f (g [ a ]) ≡ [ a ]
+  lem first = refl
+  lem second = eq/ first second tt
+
+ret : retract f g
+ret tt = refl
+
+TrueIsoTwoR : Iso True (Two / R)
+TrueIsoTwoR = iso f g sec ret
+
+TrueEqTwoR : True ≡ (Two / R)
+TrueEqTwoR = isoToPath TrueIsoTwoR
+
+depConstrTrue : True
+depConstrTrue = tt
+
+depConstrTwo/R : Two / R
+depConstrTwo/R = [ first ]
+
+depElimTrue : (P : True → Set) → P tt → ((t : True) → P t)
+depElimTrue P Pt tt = Pt
+
+depElimTwo/R : (P : Two / R → Set) → (∀ x → isProp (P x)) → P [ first ] → ((x : Two / R) → P x)
+depElimTwo/R P prop Pf = elimProp prop lem where
+  lem : (a : Two) → P [ a ]
+  lem first = Pf
+  lem second = subst P (eq/ first second tt) Pf
+
+{-
+sec [ first ] = refl
+sec [ second ] = eq/ first second tt
+sec (eq/ first first r i) = {!refl!}
+sec (eq/ first second r i) = {!!}
+sec (eq/ second b r i) = {!!}
+sec (squash/ x y p q i j) = {!!}
+-}
+
 
 {-
   lem2 : p ≡ q
