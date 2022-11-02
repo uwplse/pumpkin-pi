@@ -48,6 +48,8 @@ let refresh_env () : env state =
 let define_print ?typ n trm sigma =
   try
     let trm = Evarutil.flush_and_check_evars sigma (EConstr.of_constr trm) in
+    let _ = Printing.debug_term (Global.env ()) trm "define_print debug" in
+    let _ = Printing.debug_env (Global.env ()) "debug_print env" in
     let def =
       if Option.has_some typ then
         let typ = Evarutil.flush_and_check_evars sigma (EConstr.of_constr (Option.get typ)) in
@@ -338,6 +340,7 @@ let save_ornament d_old d_new d_orn_o d_orn_inv_o is_custom =
  *)
 let lift_definition_by_ornament env sigma n l c_old ignores =
   let sigma, lifted = do_lift_defn env sigma l c_old ignores in
+  let _ = Printing.debug_env env "lift_def by ornament debug" in
   try
     let def =
       if is_lift_type () then
@@ -349,6 +352,7 @@ let lift_definition_by_ornament env sigma n l c_old ignores =
         (* Let Coq infer the type *)
         define_print n lifted sigma
     in
+       Feedback.msg_warning (Pp.str "here in lift");
     (try
        let c_new = mkConst (Constant.make1 (Lib.make_kn n)) in
        save_lifting (lift_to l, lift_back l, c_old) c_new;
