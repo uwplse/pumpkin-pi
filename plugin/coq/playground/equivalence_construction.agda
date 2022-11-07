@@ -7,6 +7,9 @@ open import Cubical.Foundations.Path
 open import Cubical.Foundations.Prelude
 open import Cubical.Foundations.HLevels
 open import Cubical.Foundations.Isomorphism
+open import Cubical.Relation.Nullary
+open import Cubical.Data.Empty
+open import Cubical.Data.Sum
 
 data Two : Set where
   first : Two
@@ -32,6 +35,27 @@ isPropTrue tt tt = refl
 isSetTrue : isSet True
 isSetTrue = isProp→isSet isPropTrue
 
+first≠second : ¬ (first ≡ second)
+first≠second p = subst t p tt where
+  t : Two → Type
+  t first = True
+  t second = ⊥
+
+second≠first : ¬ (second ≡ first)
+second≠first p = subst t p tt where
+  t : Two → Type
+  t first = ⊥
+  t second = True
+
+discreteTwo : Discrete Two
+discreteTwo first first = yes refl
+discreteTwo first second = no first≠second
+discreteTwo second first = no second≠first
+discreteTwo second second = yes refl
+
+isSetTwo : isSet Two
+isSetTwo = Discrete→isSet discreteTwo
+
 isSetTwoR : isSet (Two / R)
 isSetTwoR x y p q = squash/ x y p q
 
@@ -56,6 +80,57 @@ TrueIsoTwoR = iso f g sec ret
 TrueEqTwoR : True ≡ (Two / R)
 TrueEqTwoR = isoToPath TrueIsoTwoR
 
+data Three : Set where
+  t1 : Three
+  t2 : Three
+  t3 : Three
+
+R2 : Three → Three → Type
+R2 t1 t1 = True
+R2 t1 t2 = ⊥
+R2 t1 t3 = ⊥
+R2 t2 t1 = ⊥
+R2 t2 t2 = True
+R2 t2 t3 = True
+R2 t3 t1 = ⊥
+R2 t3 t2 = True
+R2 t3 t3 = True
+
+f2 : Two → (Three / R2)
+f2 first = [ t1 ]
+f2 second = [ t2 ]
+
+g2 : (Three / R2) → Two
+g2 [ t1 ] = first
+g2 [ t2 ] = second
+g2 [ t3 ] = second
+g2 (eq/ t1 t1 r i) = first
+g2 (eq/ t2 t2 r i) = second
+g2 (eq/ t2 t3 r i) = second
+g2 (eq/ t3 t2 r i) = second
+g2 (eq/ t3 t3 r i) = second
+g2 (squash/ x y p q i j) = isSetTwo (g2 x) (g2 y) (λ i → g2 (p i)) (λ i → g2 (q i)) i j
+
+isSetThree/R2 : isSet (Three / R2)
+isSetThree/R2 x y p q = squash/ x y p q
+
+sec2 : section f2 g2
+sec2 = elimProp (λ x → isSetThree/R2 (f2 (g2 x)) x) lem where
+  lem : (a : Three) → f2 (g2 [ a ]) ≡ [ a ]
+  lem t1 = refl
+  lem t2 = refl
+  lem t3 = eq/ t2 t3 tt
+
+ret2 : retract f2 g2
+ret2 first = refl
+ret2 second = refl
+
+TwoIsoThree/R2 : Iso Two (Three / R2)
+TwoIsoThree/R2 = iso f2 g2 sec2 ret2
+
+TwoEquivThree/R2 : Two ≡ (Three / R2)
+TwoEquivThree/R2 = isoToPath TwoIsoThree/R2
+
 depConstrTrue : True
 depConstrTrue = tt
 
@@ -70,6 +145,12 @@ depElimTwo/R P prop Pf = elimProp prop lem where
   lem : (a : Two) → P [ a ]
   lem first = Pf
   lem second = subst P (eq/ first second tt) Pf
+
+outOfTrue : True → True
+outOfTrue = depElimTrue (λ x → True) tt
+
+outOfTwo/R : (Two / R) → True
+outOfTwo/R = depElimTwo/R (λ x → True) (λ x → isPropTrue) tt
 
 {-
 sec [ first ] = refl
