@@ -152,6 +152,17 @@ outOfTrue = depElimTrue (λ x → True) tt
 outOfTwo/R : (Two / R) → True
 outOfTwo/R = depElimTwo/R (λ x → True) (λ x → isPropTrue) tt
 
+isContrTrue : isContr True
+isContrTrue = (tt , lem) where
+  lem : (y : True) → tt ≡ y
+  lem tt = refl
+
+isContrTrue2 : isContr True
+isContrTrue2 = (depConstrTrue , depElimTrue (λ x → depConstrTrue ≡ x) refl)
+
+isContrTwo/R : isContr (Two / R)
+isContrTwo/R = (depConstrTwo/R , depElimTwo/R (λ x → depConstrTwo/R ≡ x) (λ x → isSetTwoR depConstrTwo/R x) refl)
+
 {-
 sec [ first ] = refl
 sec [ second ] = eq/ first second tt
