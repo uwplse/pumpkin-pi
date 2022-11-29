@@ -141,6 +141,10 @@ sucLemNat/rNat (eq/ zero zero r i) n = {!!}
 sucLemNat/rNat (eq/ (suc a) (suc b) r i) n = (sucLemNat/rNat (sucNat/rNat(eq/ a b r i)) n)
 sucLemNat/rNat (squash/ a b p q i j) n = cong {!!} {!!}
 
+-- e.t.s sucNat/rNat (addNat/rNat [ suc a ] b) ≡ addNat/rNat [ suc a ] (sucNat/rNat b)
+
+-- elimProp (λ x → isSetNat/rNat (g (f x)) x) lem where
+
 addNat/rNat' : (Nat / rNat) -> (Nat / rNat) -> (Nat / rNat)
 addNat/rNat' [ zero ] n = n
 addNat/rNat' [ suc a ] n = sucNat/rNat (addNat/rNat' [ a ] (n))
@@ -148,6 +152,14 @@ addNat/rNat' (eq/ zero zero r i) n = n
 addNat/rNat' (eq/ (suc a) (suc b) r i) n = sucNat/rNat (addNat/rNat' (eq/ a b r i) n)
 addNat/rNat' (squash/ a b p q i j) n = squash/ (addNat/rNat' a n) (addNat/rNat' b n) (cong addN' p) (cong addN' q) i j where
   addN' = (λ c → addNat/rNat' c n)
+
+-- Trying a version of this with the eliminator instead
+sucLemNat/rNat'' : (a : Nat / rNat) -> (b : Nat / rNat) -> sucNat/rNat (addNat/rNat' a b) ≡ addNat/rNat' a (sucNat/rNat b)
+sucLemNat/rNat'' a b = elimProp (λ x -> isSetNat/rNat (sucNat/rNat (addNat/rNat' x b)) (addNat/rNat' x (sucNat/rNat b))) (λ a -> lem a b) a where
+  lem : (a : Nat) → (b : Nat / rNat) → sucNat/rNat (addNat/rNat' [ a ] b) ≡ addNat/rNat' [ a ] (sucNat/rNat b)
+  lem zero b =  refl
+  lem (suc a) b = cong sucNat/rNat (lem a b)
+
 
 sucLemNat/rNat' : (a : Nat / rNat) -> (b : Nat / rNat) -> sucNat/rNat (addNat/rNat' a b) ≡ addNat/rNat' a (sucNat/rNat b)
 sucLemNat/rNat' [ zero ] b = refl
