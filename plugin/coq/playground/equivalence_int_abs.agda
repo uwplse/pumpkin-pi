@@ -141,10 +141,6 @@ sucLemNat/rNat (eq/ zero zero r i) n = {!!}
 sucLemNat/rNat (eq/ (suc a) (suc b) r i) n = (sucLemNat/rNat (sucNat/rNat(eq/ a b r i)) n)
 sucLemNat/rNat (squash/ a b p q i j) n = cong {!!} {!!}
 
--- e.t.s sucNat/rNat (addNat/rNat [ suc a ] b) ≡ addNat/rNat [ suc a ] (sucNat/rNat b)
-
--- elimProp (λ x → isSetNat/rNat (g (f x)) x) lem where
-
 addNat/rNat' : (Nat / rNat) -> (Nat / rNat) -> (Nat / rNat)
 addNat/rNat' [ zero ] n = n
 addNat/rNat' [ suc a ] n = sucNat/rNat (addNat/rNat' [ a ] (n))
