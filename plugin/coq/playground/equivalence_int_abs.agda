@@ -138,13 +138,6 @@ addNat/rNat (eq/ (suc a) (suc n) r i) b = addNat/rNat (eq/ a n r i) (sucNat/rNat
 addNat/rNat (squash/ a b p q i j) n = squash/ (addNat/rNat a n) (addNat/rNat b n) (cong addN p) (cong addN q) i j where
   addN = (λ c → addNat/rNat c n)
 
--- sucLemNat/rNat : (a : Nat / rNat) -> (b : Nat / rNat) -> sucNat/rNat (addNat/rNat a b) ≡ addNat/rNat a (sucNat/rNat b)
--- sucLemNat/rNat [ zero ] b = refl
--- sucLemNat/rNat [ suc a ] b = (sucLemNat/rNat (sucNat/rNat [ a ]) b)
--- sucLemNat/rNat (eq/ zero zero r i) n = {!!}
--- sucLemNat/rNat (eq/ (suc a) (suc b) r i) n = (sucLemNat/rNat (sucNat/rNat(eq/ a b r i)) n)
--- sucLemNat/rNat (squash/ a b p q i j) n = cong {!!} {!!}
-
 addNat/rNat' : (Nat / rNat) -> (Nat / rNat) -> (Nat / rNat)
 addNat/rNat' [ zero ] n = n
 addNat/rNat' [ suc a ] n = sucNat/rNat (addNat/rNat' [ a ] (n))
@@ -160,14 +153,6 @@ sucLemNat/rNat'' a b = elimProp (λ x -> isSetNat/rNat (sucNat/rNat (addNat/rNat
   lem zero b =  refl
   lem (suc a) b = cong sucNat/rNat (lem a b)
 
-
--- sucLemNat/rNat' : (a : Nat / rNat) -> (b : Nat / rNat) -> sucNat/rNat (addNat/rNat' a b) ≡ addNat/rNat' a (sucNat/rNat b)
--- sucLemNat/rNat' [ zero ] b = refl
--- sucLemNat/rNat' [ suc a ] b = cong sucNat/rNat (sucLemNat/rNat' [ a ] b)
--- sucLemNat/rNat' (eq/ zero zero r i) n = refl
--- sucLemNat/rNat' (eq/ (suc a) (suc b) r i) n = cong sucNat/rNat (sucLemNat/rNat' (eq/ a b r i) n)
--- -- sucLemNat/rNat' (squash/ a b p q i j) n = {!!}
--- sucLemNat/rNat' (squash/ a b p q i j) n = {!!}
 
 sucInt : Int -> Int
 sucInt (pos n) = pos (suc n)
@@ -197,12 +182,6 @@ addInt/rInt (eq/ (neg (suc n)) (pos (suc a)) r i) b = sucInt/rInt (addInt/rInt (
 addInt/rInt (eq/ (neg zero) (neg zero) r i) b = b
 addInt/rInt (eq/ (neg (suc n)) (neg (suc a)) r i) b = sucInt/rInt (addInt/rInt (eq/ (neg n) (neg a) r i) b)
 addInt/rInt (squash/ a b p q i j) n = squash/ (addInt/rInt a n) (addInt/rInt b n) (cong (λ c → addInt/rInt c n) p) (cong (λ c → addInt/rInt c n) q) i j
-
--- subst-path-both : ∀ {ℓ} {A : Type ℓ} {x x' : A}
---                 → (p : x ≡ x)
---                 → (adj : x ≡ x')
---                 → subst (λ x → x ≡ x) adj p ≡ sym adj ∙ p ∙ adj
--- subst-path-both p adj = {!!} p adj adj -- from 1lab
 
 sucLemInt/rInt : (a : Int / rInt) -> (b : Int / rInt) -> sucInt/rInt (addInt/rInt a b) ≡ (addInt/rInt a (sucInt/rInt b))
 sucLemInt/rInt a b = elimProp (λ x → isSetInt/rInt (sucInt/rInt (addInt/rInt x b)) (addInt/rInt x (sucInt/rInt b))) (λ c → lem c b) a where
@@ -241,158 +220,3 @@ addCommInt/rInt a b = elimProp (λ x → isSetInt/rInt (addInt/rInt x b) (addInt
     lem' (neg (suc n)) (pos (suc b)) = cong sucInt/rInt (lem' (neg n) (pos (suc b))) ∙ cong sucInt/rInt (sucLemInt/rInt [ pos b ] [ neg n ])
     lem' (neg (suc n)) (neg zero) = cong sucInt/rInt (lem' (neg n) (neg zero))
     lem' (neg (suc n)) (neg (suc b)) = cong sucInt/rInt (lem' (neg n) (neg (suc b))) ∙ cong sucInt/rInt (sucLemInt/rInt [ neg b ] [ neg n ])
-
-  -- lem (pos zero) b = {!!}
-  -- lem (pos (suc n)) b = cong {!!} {!!}
-  -- lem (neg zero) b = cong {!!} {!!}
-  -- lem (neg (suc n)) b = cong {!!} {!!}
-
-
--- sucLemNat/rNat'' : (a : Nat / rNat) -> (b : Nat / rNat) -> sucNat/rNat (addNat/rNat' a b) ≡ addNat/rNat' a (sucNat/rNat b)
--- sucLemNat/rNat'' a b = elimProp (λ x -> isSetNat/rNat (sucNat/rNat (addNat/rNat' x b)) (addNat/rNat' x (sucNat/rNat b))) (λ a -> lem a b) a where
---   lem : (a : Nat) → (b : Nat / rNat) → sucNat/rNat (addNat/rNat' [ a ] b) ≡ addNat/rNat' [ a ] (sucNat/rNat b)
---   lem zero b =  refl
---   lem (suc a) b = cong sucNat/rNat (lem a b)
-
-
--- sucLemInt/rInt [ pos zero ] b = refl
--- sucLemInt/rInt [ pos (suc n) ] b = cong sucInt/rInt (sucLemInt/rInt [ pos n ] b)
--- sucLemInt/rInt [ neg zero ] b = refl
--- sucLemInt/rInt [ neg (suc n) ] b = cong sucInt/rInt (sucLemInt/rInt [ neg n ] b)
--- sucLemInt/rInt (eq/ (pos zero) (pos zero) r i) b = refl
--- sucLemInt/rInt (eq/ (pos zero) (neg zero) r i) b = refl
--- sucLemInt/rInt (eq/ (pos (suc n)) (pos (suc a)) r i) b = cong sucInt/rInt (sucLemInt/rInt (eq/ (pos n) (pos a) r i) b)
--- sucLemInt/rInt (eq/ (pos (suc n)) (neg (suc a)) r i) b = cong sucInt/rInt (sucLemInt/rInt (eq/ (pos n) (neg a) r i) b)
--- sucLemInt/rInt (eq/ (neg zero) (pos zero) r i) b = refl
--- sucLemInt/rInt (eq/ (neg zero) (neg zero) r i) b = refl
--- sucLemInt/rInt (eq/ (neg (suc n)) (pos (suc a)) r i) b = cong sucInt/rInt (sucLemInt/rInt (eq/ (neg n) (pos a) r i) b)
--- sucLemInt/rInt (eq/ (neg (suc n)) (neg (suc a)) r i) b = cong sucInt/rInt (sucLemInt/rInt (eq/ (neg n) (neg a) r i) b)
--- sucLemInt/rInt (squash/ a n p q i j) b = {!!}
-
--- sucLemInt/rInt (squash/ a b p q i j) n = squash/ (sucLemInt/rInt a n) (sucLemInt/rInt b n) (cong sucLem p) (cong sucLem q) i j where
---   sucLem = (λ c → sucLemInt/rInt c n)
--- transport (λ i₁ → {!!}) {!!}
--- (subst {!!} {!!}) {!!}
--- what do we want?
--- (subst {!!} {!!}) n
-
-  -- subst
-  --   {!!}
-  --   (sucLemInt/rInt n b)
-  --   {!!}
-
-    -- (
-    --   (λ x → {!!})
-    --   -- squash/
-    --   -- (sucInt/rInt (addInt/rInt a b)) (sucInt/rInt (addInt/rInt n b))
-    --   -- (λ i₁ → sucInt/rInt (addInt/rInt (p i₁) b))
-    --   -- (λ i₁ → sucInt/rInt (addInt/rInt (q i₁) b))
-    --   -- i
-    --   -- j
-    -- ) {!!}
-
-  -- transport
-  --   (cong (λ x → {!!}) refl)
-  --   (
-  --     squash/
-  --     (sucInt/rInt (addInt/rInt a b)) (sucInt/rInt (addInt/rInt n b))
-  --     (λ i₁ → sucInt/rInt (addInt/rInt (p i₁) b))
-  --     (λ i₁ → sucInt/rInt (addInt/rInt (q i₁) b))
-  --     i
-  --     j
-  --   )
-{-
-Goal: (sucInt/rInt (addInt/rInt a b) ≡
-       addInt/rInt a (sucInt/rInt b))
-      ≡
-      (squash/ (sucInt/rInt (addInt/rInt a b))
-       (sucInt/rInt (addInt/rInt n b))
-       (λ i₁ → sucInt/rInt (addInt/rInt (p i₁) b))
-       (λ i₁ → sucInt/rInt (addInt/rInt (q i₁) b)) i j
-       ≡
-       squash/ (addInt/rInt a (sucInt/rInt b))
-       (addInt/rInt n (sucInt/rInt b))
-       (λ i₁ → addInt/rInt (p i₁) (sucInt/rInt b))
-       (λ i₁ → addInt/rInt (q i₁) (sucInt/rInt b)) i j)
--}
--- ————————————————————————————————————————————————————————————
--- b : Int / rInt
--- j : I
--- i : I
--- q : a ≡ n
--- p : a ≡ n
--- n : Int / rInt
--- a : Int / rInt
-
--- (λ n -> sucLemInt/rInt a b) j
-
--- sucLemInt/rInt (squash/ a n p q i j) b = transport (λ k → PathP (λ x → {!!}) p i (q j)) (sucLemInt/rInt a b) j
-
--- sucLemInt/rInt (squash/ a n p q i j) b = transport {!!} (sucLemInt/rInt a b) j
-
--- sucLemInt/rInt a b : sucInt/rInt (addInt/rInt a b) ≡ (addInt/rInt a (sucInt/rInt b))
--- p :
--- q :
--- PathP (λ i -> p i) (λ i -> q i) refl :
-
--- Goal: squash/ (sucInt/rInt (addInt/rInt a b))
---       (sucInt/rInt (addInt/rInt n b))
---       (λ i₁ → sucInt/rInt (addInt/rInt (p i₁) b))
---       (λ i₁ → sucInt/rInt (addInt/rInt (q i₁) b)) i j
---       ≡
---       squash/ (addInt/rInt a (sucInt/rInt b))
---       (addInt/rInt n (sucInt/rInt b))
---       (λ i₁ → addInt/rInt (p i₁) (sucInt/rInt b))
---       (λ i₁ → addInt/rInt (q i₁) (sucInt/rInt b)) i j
--- ———— Boundary ——————————————————————————————————————————————
--- i = i0 ⊢ sucLemInt/rInt (p j) b
--- i = i1 ⊢ sucLemInt/rInt (q j) b
--- j = i0 ⊢ sucLemInt/rInt a b
--- j = i1 ⊢ sucLemInt/rInt n b
--- ————————————————————————————————————————————————————————————
--- b : Int / rInt
--- j : I
--- i : I
--- q : a ≡ n
--- p : a ≡ n
--- n : Int / rInt
--- a : Int / rInt
---
--- transport (cong {!!} {!!}) p {!!}
--- transp (λ i₁ → {!!}) {!!} {!!}
--- cong (λ c → {!!}) (sucLemInt/rInt a [ b ])
--- sucLemInt/rInt (squash/ a n p q i j) (eq/ a₁ b r i₁) = {!!}
--- sucLemInt/rInt (squash/ a n p q i j) (squash/ b b₁ p₁ q₁ i₁ i₂) = {!!}
--- sucLemInt/rInt [ pos zero ] (squash/ {!!} {!!} {!!} {!!} i j)
--- cong sucInt/rInt (sucLemInt/rInt (squash/ {!!} {!!} {!!} {!!} i j) b)
-  -- (sucLemInt/rInt
-  --   -- (squash/ {!!} {!!} {!!} {!!} {!!} {!!})
-  --   (squash/
-  --     (sucInt/rInt (addInt/rInt {!!} b))
-  --     (sucInt/rInt {!!})
-  --     -- (addInt/rInt {!!} b)
-  --     -- (addInt/rInt (sucInt/rInt {!!}) b)
-  --     (λ i₁ → sucInt/rInt (addInt/rInt (p i₁) b))
-  --     (λ i₁ → sucInt/rInt (addInt/rInt (q i₁) b)) i j
-  --   )
-  --   -- (squash/ (addInt/rInt a b) (addInt/rInt n b) (cong (λ c → addInt/rInt {! !} n) p) (cong {!!} q) i j)
-  --   (addInt/rInt n b)
-  -- )
-  -- -- cong sucInt/rInt {!!}
-
--- ∀ P p0 pS n (Q: P (DepConstr(1, N) n) → s),
--- Iota(1, N, Q) :
--- Q (pS n (DepElim(n, P) { p0, pS })) →
--- Q (DepElim(DepConstr(1, N) n, P) { p0, pS }).
-
--- addInt/rInt (squash/ a b p q i j) n = squash/ (addInt/rInt a n) (addInt/rInt b n) (cong (λ a₁ → {!!}) p) (cong (λ a₁ → {!!}) q) i j
-
--- sucLemInt/rInt : (a : Int / rInt) -> (b : Int / rInt) -> sucInt (sucInt/rInt a b) ≡ sucInt/rInt (a (sucInt b))
--- sucLemInt/rInt  = {!!}
-
--- sucLemInt/rInt : (a : Int / rInt) -> (b : Int / rInt) -> suc (a + b) ≡ a + suc b
--- sucLemInt/rInt zero b = refl
--- sucLemInt/rInt (suc a) b = cong suc (sucLem a b)
-
-
--- cong suc (addComm a b)
