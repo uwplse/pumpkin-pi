@@ -148,6 +148,17 @@ depElimTwo/R P prop Pf = elimProp prop lem where
   lem first = Pf
   lem second = subst P (eq/ first second tt) Pf
 
+elimSetTwo/R : {B : Type} → isSet B → B → ((Two / R) → B)
+elimSetTwo/R set b = SetQuotients.rec set (λ x → b) (λ x y r → refl)
+
+depElimSetTwo/R : (P : Two / R → Set) → (∀ x → isSet (P x)) → P [ first ] → ((x : Two / R) → P x)
+depElimSetTwo/R P set Pt = SetQuotients.elim set fun {!wellDefined!} where
+  fun : (a : Two) → P [ a ]
+  fun first = Pt
+  fun second = transport (cong P (eq/ first second tt)) Pt
+  wellDefined : (a b : Two) (r : R a b) → PathP (λ i → P (eq/ a b r i)) (fun a) (fun b)
+  wellDefined a b r = {!!}
+
 outOfTrue : True → True
 outOfTrue = depElimTrue (λ x → True) tt
 
