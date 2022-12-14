@@ -151,13 +151,22 @@ depElimTwo/R P prop Pf = elimProp prop lem where
 elimSetTwo/R : {B : Type} → isSet B → B → ((Two / R) → B)
 elimSetTwo/R set b = SetQuotients.rec set (λ x → b) (λ x y r → refl)
 
+constantEq/Refl : (a : Two) → (r : R a a) → eq/ a a r ≡ refl
+constantEq/Refl a r = squash/ [ a ] [ a ] (eq/ a a r) refl
+
+eq/SymInverse : (a b : Two) → (r1 : R a b) → (r2 : R b a) → (eq/ a b r1) ∙ (eq/ b a r2) ≡ refl
+eq/SymInverse a b r1 r2 = squash/ [ a ] [ a ] ((eq/ a b r1) ∙ (eq/ b a r2)) refl
+
 depElimSetTwo/R : (P : Two / R → Set) → (∀ x → isSet (P x)) → P [ first ] → ((x : Two / R) → P x)
-depElimSetTwo/R P set Pt = SetQuotients.elim set fun {!wellDefined!} where
+depElimSetTwo/R P set Pt = SetQuotients.elim set fun wellDefined where
   fun : (a : Two) → P [ a ]
   fun first = Pt
   fun second = transport (cong P (eq/ first second tt)) Pt
   wellDefined : (a b : Two) (r : R a b) → PathP (λ i → P (eq/ a b r i)) (fun a) (fun b)
-  wellDefined a b r = {!!}
+  wellDefined first first tt = subst (λ x → PathP (λ i → P (x i)) Pt Pt) (sym (constantEq/Refl first tt)) refl
+  wellDefined first second tt = toPathP refl
+  wellDefined second first tt = (symP (subst (λ x → PathP (λ i → P (x (~ i))) (fun first) (fun second)) (squash/ [ second ] [ first ] (λ i → eq/ first second tt (~ i)) (eq/ second first tt)) (toPathP refl)))
+  wellDefined second second tt = subst (λ x → PathP (λ i → P (x i)) (fun second) (fun second)) (sym (constantEq/Refl second tt)) refl
 
 outOfTrue : True → True
 outOfTrue = depElimTrue (λ x → True) tt
