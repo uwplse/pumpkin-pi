@@ -16,14 +16,6 @@ open import Cubical.Data.Nat
 data True : Type where
   tt : True
 
--- data Nat : Type where
---   zero : Nat
---   suc  : Nat → Nat
-
--- _+_ : Nat -> Nat -> Nat
--- _+_ = {!!}
-
-
 data Int : Set where
   pos : (n : Nat) → Int
   neg : (n : Nat) → Int
@@ -71,7 +63,6 @@ rNatEquiv (suc a) = rNatEquiv a
 rIntPosNeg : (n : Nat) → (rInt (pos n) (neg n))
 rIntPosNeg n = rNatEquiv n
 
-
 rIntPosNegQ : (n : Nat) -> ([_] {A = Int} {R = rInt} (pos n)  ≡ [_] {A = Int} {R = rInt} (neg n)) -- implicit args . . .
 rIntPosNegQ n = eq/ (pos n) (neg n) (rIntPosNeg n)
 
@@ -81,8 +72,7 @@ sec : section f g
 sec = elimProp (λ x → isSetInt/rInt (f (g x)) x) lem where
   lem : (a : Int) → [ pos (abs a) ] ≡ [ a ]
   lem (pos n) = refl
-  lem (neg zero) i = eq/ (pos zero) (neg zero) tt i
-  lem (neg (suc n)) i = eq/ (pos (abs (neg (suc n)))) (neg (suc n)) (rIntPosNeg (suc n)) i
+  lem (neg n) = rIntPosNegQ n
 
 ret : retract f g
 ret = elimProp (λ x → isSetNat/rNat (g (f x)) x) lem where
