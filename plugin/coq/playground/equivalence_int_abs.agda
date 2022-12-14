@@ -62,7 +62,6 @@ f [ a ] = [ pos a ]
 f (eq/ a b r i) = eq/ (pos a) (pos b) r i
 f (squash/ a b p q i j) = squash/ (f a) (f b) (cong f p) (cong f q) i j
 
-
 -- thoughts: is this necessary? this seems always true, metatheoretically.
 -- can we try to always derive a form of this?
 rNatEquiv : (a : Nat) -> (rNat a a)
@@ -72,8 +71,10 @@ rNatEquiv (suc a) = rNatEquiv a
 rIntPosNeg : (n : Nat) → (rInt (pos n) (neg n))
 rIntPosNeg n = rNatEquiv n
 
-rIntPosNegQ : (n : Nat) → [ pos n ] ≡ [ neg n ]
-rIntPosNegQ n = eq/ (pos n) (neg n) rIntPosNeg
+
+rIntPosNegQ : (n : Nat) -> ([_] {A = Int} {R = rInt} (pos n)  ≡ [_] {A = Int} {R = rInt} (neg n)) -- implicit args . . .
+rIntPosNegQ n = eq/ (pos n) (neg n) (rIntPosNeg n)
+
 -- todo: factor out using this lemma ^^^
 
 sec : section f g
@@ -113,7 +114,6 @@ Nat/rNatIsoNat = iso g' f' ret' sec'
 
 Int/rIntIsoNat : Iso (Int / rInt) Nat
 Int/rIntIsoNat  = compIso Int/rIntIsoNat/rNat Nat/rNatIsoNat
-
 
 sucLemNat : (a : Nat) -> (b : Nat) -> suc (a + b) ≡ a + suc b
 sucLemNat zero b = refl
