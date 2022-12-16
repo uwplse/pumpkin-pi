@@ -36,6 +36,10 @@ rNat zero (suc b) = ⊥
 rNat (suc a) zero = ⊥
 rNat (suc a) (suc b) = rNat a b
 
+rNatEq : (a : Nat) -> (b : Nat) → (rNat a b) → a ≡ b
+rNatEq zero zero x = refl
+rNatEq (suc a) (suc b) x = cong suc (rNatEq a b x)
+
 rInt : Int -> Int -> Type
 rInt a b = rNat (abs a) (abs b)
 
@@ -210,3 +214,33 @@ addCommInt/rInt a b = elimProp (λ x → isSetInt/rInt (addInt/rInt x b) (addInt
     lem' (neg (suc n)) (pos (suc b)) = cong sucInt/rInt (lem' (neg n) (pos (suc b))) ∙ cong sucInt/rInt (sucLemInt/rInt [ pos b ] [ neg n ])
     lem' (neg (suc n)) (neg zero) = cong sucInt/rInt (lem' (neg n) (neg zero))
     lem' (neg (suc n)) (neg (suc b)) = cong sucInt/rInt (lem' (neg n) (neg (suc b))) ∙ cong sucInt/rInt (sucLemInt/rInt [ neg b ] [ neg n ])
+
+depElimNat : (P : Nat -> Set) -> (P 0) -> (∀ n -> (P n) -> P (suc n)) -> ((x : Nat) -> P x)
+depElimNat P baseCase sucCase zero = baseCase
+depElimNat P baseCase sucCase (suc x) = sucCase x (depElimNat P baseCase sucCase x)
+
+depElimNat/rNat : (P : Nat / rNat -> Set) -> (∀ x -> isProp (P x)) -> (P [ 0 ]) -> (∀ n -> (P n) -> P (sucNat/rNat n)) -> ((x : Nat / rNat) -> P x)
+depElimNat/rNat P set baseCase sucCase = elimProp set lem where
+  lem : (a : ℕ) → P [ a ]
+  lem zero = baseCase
+  lem (suc a) = sucCase [ a ] (lem a)
+
+depElimInt/rInt : (P : Int / rInt -> Set) -> (∀ x -> isProp (P x)) -> (P [ pos 0 ]) -> (∀ n -> (P n) -> P (sucInt/rInt n)) -> ((x : Int / rInt) -> P x)
+depElimInt/rInt P set baseCase sucCase = elimProp set lem where
+  lem : (a : Int) → P [ a ]
+  lem (pos zero) = baseCase
+  lem (pos (suc n)) = sucCase [ pos n ] (lem (pos n))
+  lem (neg zero) = subst P (eq/ (pos zero) (neg zero) tt) baseCase
+  lem (neg (suc n)) = sucCase [ neg n ] (lem (neg n))
+
+constantEq/Refl : {A : Type} -> {R : A -> A -> Type} -> (a : A) →  (r : R a a) → eq/ a a r ≡ refl
+constantEq/Refl a r = squash/ ([_] a) ([_] a) (eq/ a a r) refl
+
+depElimSetNat/rNat : (P : Nat / rNat -> Set) -> (∀ x -> isSet (P x)) -> (P [ 0 ]) -> (∀ n -> (P n) -> P (sucNat/rNat n)) -> ((x : Nat / rNat) -> P x)
+depElimSetNat/rNat P set baseCase sucCase = SetQuotients.elim set lem wellDefined where
+  lem : (a : ℕ) → P [ a ]
+  lem zero = baseCase
+  lem (suc a) = sucCase [ a ] (lem a)
+  wellDefined : (a b : ℕ) (r : rNat a b) → PathP (λ i → P (eq/ a b r i)) (lem a) (lem b)
+  wellDefined zero zero tt = subst (λ x → PathP (λ i → P (x i)) baseCase baseCase) (sym (constantEq/Refl zero tt)) refl
+  wellDefined (suc a) (suc b) r = {!!} -- subst (λ x → PathP (λ i → P (eq/ (suc a) (suc x) {!!} i)) (sucCase [ a ] (lem a)) (sucCase [ x ] (lem x))) {!!} {!!}
