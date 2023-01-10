@@ -168,6 +168,18 @@ depElimSetTwo/R P set Pt = SetQuotients.elim set fun wellDefined where
   wellDefined second first tt = (symP (subst (λ x → PathP (λ i → P (x (~ i))) (fun first) (fun second)) (squash/ [ second ] [ first ] (λ i → eq/ first second tt (~ i)) (eq/ second first tt)) (toPathP refl)))
   wellDefined second second tt = subst (λ x → PathP (λ i → P (x i)) (fun second) (fun second)) (sym (constantEq/Refl second tt)) refl
 
+ηTrue : True → True
+ηTrue x = depConstrTrue
+
+ηTwo/R : Two / R → Two / R
+ηTwo/R x = depConstrTwo/R
+
+ιTrue : (P : True → Set) → (pt : P tt) → (Q : P depConstrTrue → Type) → Q pt → Q (depElimTrue P pt depConstrTrue)
+ιTrue P pt Q Qpt = Qpt
+
+ιTwo/R : (P : (Two / R) → Set) → (set : ∀ x → isSet (P x)) → (pt : P depConstrTwo/R) → (Q : P depConstrTwo/R → Type) → Q pt → Q (depElimSetTwo/R P set pt depConstrTwo/R)
+ιTwo/R P set pt Q Qpt = Qpt 
+
 outOfTrue : True → True
 outOfTrue = depElimTrue (λ x → True) tt
 
