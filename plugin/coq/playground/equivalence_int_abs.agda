@@ -252,3 +252,43 @@ depElimSetNat/rNat P set baseCase sucCase = SetQuotients.elim set lem wellDefine
     where
       cool : PathP (λ i → P (sucNat/rNat [ rNatEq a b r i ])) (sucCase [ a ] (lem a)) (sucCase [ b ] (lem b))
       cool i = sucCase [ rNatEq a b r i  ] (lem (rNatEq a b r i))
+
+
+depConstrInt/rInt0 : Int / rInt
+depConstrInt/rInt0 = [ pos 0 ]
+
+depConstrInt/rIntS : Int / rInt -> Int / rInt
+depConstrInt/rIntS = sucInt/rInt
+
+rIntEq : (a : Int) -> (b : Int) -> (rInt a b) → ([_] {A = Int} {R = rInt} (a)  ≡ [_] {A = Int} {R = rInt} (b))
+rIntEq a b r = eq/ a b r
+
+depElimSetInt/rInt : (P : Int / rInt -> Set) -> (∀ x -> isSet (P x)) -> (P depConstrInt/rInt0) -> (∀ n -> (P n) -> P (depConstrInt/rIntS n)) -> ((x : Int / rInt) -> P x)
+depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefined where
+  lem : (a : Int) → P [ a ]
+  lem (pos zero) = baseCase
+  lem (pos (suc n)) =  sucCase [ pos n ] (lem (pos n))
+  lem (neg zero) = transport (cong P (rIntPosNegQ 0)) baseCase
+  lem (neg (suc n)) = sucCase [ neg n ] (lem (neg n))
+  wellDefined : (a b : Int) (r : rInt a b) → PathP (λ i → P (eq/ a b r i)) (lem a) (lem b)
+  wellDefined a b r i = transport (λ i → {!PathP!}) cool -- (PathP (λ j → P (squash/ {!!} {!!} {!!} {!!} i j)) ({!!}) ({!!}))
+    where
+      cool : PathP (λ x → P (eq/ a b r i0)) (lem a) (lem a)
+      cool = refl
+    -- transport (λ i → PathP (λ j → P (squash/ [ suc a ] [ suc b ] (λ i → [ suc (rNatEq a b r i) ]) (eq/ (suc a) (suc b) r) i j)) (sucCase [ a ] (lem a)) (sucCase [ b ] (lem b))) cool
+    -- where
+    --   cool : PathP (λ i → P (sucNat/rNat [ rNatEq a b r i ])) (sucCase [ a ] (lem a)) (sucCase [ b ] (lem b))
+    --   cool i = sucCase [ rNatEq a b r i  ] (lem (rNatEq a b r i))
+  -- where
+  --   cool : PathP (λ i → P (depConstrInt/rIntS [ rNatEq a b r i ])) (sucCase [ a ] (lem a)) (sucCase [ b ] (lem b))
+  --   cool = {!!}
+
+
+-- Goal: PathP (λ i → P (eq/ a b r i)) (lem a) (lem b)
+-- ————————————————————————————————————————————————————————————
+-- r        : rInt a b
+-- b        : Int
+-- a        : Int
+-- sucCase  : (n : Int / rInt) → P n → P (depConstrInt/rIntS n)
+-- baseCase : P depConstrInt/rInt0
+-- set      : (x : Int / rInt) → isSet (P x)
