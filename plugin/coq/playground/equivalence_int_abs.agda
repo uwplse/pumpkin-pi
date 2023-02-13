@@ -7,7 +7,10 @@ open import Cubical.Foundations.Path
 open import Cubical.Foundations.Prelude
 open import Cubical.Foundations.HLevels
 open import Cubical.Foundations.Isomorphism
+open import Cubical.Foundations.Equiv
+open import Cubical.Foundations.Isomorphism
 open import Cubical.Relation.Nullary
+open import Cubical.Foundations.Univalence
 open import Cubical.Data.Empty
 open import Cubical.Data.Sum
 open import Agda.Builtin.Nat
@@ -263,18 +266,82 @@ depConstrInt/rIntS = sucInt/rInt
 rIntEq : (a : Int) -> (b : Int) -> (rInt a b) → ([_] {A = Int} {R = rInt} (a)  ≡ [_] {A = Int} {R = rInt} (b))
 rIntEq a b r = eq/ a b r
 
+
+
+rIntRefl : (a : Int) -> rInt a a
+rIntRefl (pos n) = rNatEquiv n
+rIntRefl (neg n) = rNatEquiv n
+
+rIntEquiv : (a : Nat) → ([ pos a ] ≡ [ neg a ]) ≡ ([ pos a ] ≡ [ pos a ])
+rIntEquiv a = subst (λ x → ([ pos a ] ≡ x) ≡ (([_] {R = rInt} (pos a)) ≡ [ pos a ])) (eq/ {R = rInt} (pos a) (neg a) (rIntPosNeg a)) refl
+
+rIntEquivGen : (a : Int) -> (b : Int) -> (r : rInt a b) → ([ a ] ≡ [ b ]) ≡ ([ a ] ≡ [ a ])
+rIntEquivGen a b r = subst (λ x → ([ a ] ≡ x) ≡ (([_] {R = rInt} a) ≡ [ a ])) (eq/ {R = rInt} a b r) refl
+
+rIntPath : (n : ℕ) → (r1 : rInt (pos n) (neg n)) → (r2 : rInt (pos n) (pos n)) → (PathP (λ i → rIntEquiv n i) (eq/ (pos n) (neg n) r1) (eq/ (pos n) (pos n) r2))
+rIntPath n r1 r2 = {!!}
+
+rIntPathGen : (a : Int) (b : Int) → (r : rInt a b) -> (r' : rInt a a) → (PathP (λ i → rIntEquivGen a b r i) (eq/ a b r) (eq/ a a r'))
+rIntPathGen a b r r' = transport {!!} lem where
+  lem : (b : Int) -> (r : rInt a b) -> PathP (λ x → rIntEquivGen a b r x) (eq/ a b r) (eq/ a a r')
+  lem x = {!!}
+
+-- rIntEq' : (a : Nat) → PathP (λ x → Path {! !} (eq/ (pos a) (neg a) (rInt (pos a ) (neg a)) {!x!}) (eq/ (pos a) (pos a) (rInt (pos a) (pos a)) {!x!})) (eq/ (pos a) (neg a) (rInt (pos a) (neg a))) (eq/ (pos a) (pos a) (rInt (pos a) (neg a)))
+-- eq/ (pos a) (neg a) {!rNat (pos a) (neg a)!} ≡ eq/ (pos a) {!pos b!} {!!} -- eq/ (pos a) (pos a) (rInt (pos a) (pos a)))
+
 depElimSetInt/rInt : (P : Int / rInt -> Set) -> (∀ x -> isSet (P x)) -> (P depConstrInt/rInt0) -> (∀ n -> (P n) -> P (depConstrInt/rIntS n)) -> ((x : Int / rInt) -> P x)
 depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefined where
   lem : (a : Int) → P [ a ]
   lem (pos zero) = baseCase
   lem (pos (suc n)) =  sucCase [ pos n ] (lem (pos n))
   lem (neg zero) = transport (cong P (rIntPosNegQ 0)) baseCase
-  lem (neg (suc n)) = sucCase [ neg n ] (lem (neg n))
+  lem (neg (suc n)) = transport (cong P (rIntPosNegQ (suc n))) (sucCase [ pos n ] (lem (pos n))) -- sucCase [ neg n ] (lem (neg n))
   wellDefined : (a b : Int) (r : rInt a b) → PathP (λ i → P (eq/ a b r i)) (lem a) (lem b)
-  wellDefined a b r i = transport (λ i → {!PathP!}) cool -- (PathP (λ j → P (squash/ {!!} {!!} {!!} {!!} i j)) ({!!}) ({!!}))
-    where
-      cool : PathP (λ x → P (eq/ a b r i0)) (lem a) (lem a)
-      cool = refl
+  wellDefined a b r = transport (λ i₁ → cong (λ a₁ → P a₁) (rIntPathGen a b r (rIntRefl a) {!i₁ !}) {!!} ) (lem a)
+-- cong (λ a₁ → {!lem!}) (rIntEquivGen a b r)
+
+
+  -- wellDefined (pos zero) (pos zero) r i = {!!}
+  -- transport (λ i → {!PathP!}) cool
+  --   where
+  --     cool : PathP (λ x → P (eq/ (pos zero) (pos zero) r i)) {!baseCase!} {!lem (pos zero) !}
+  --     cool = refl
+-- Goal: P (eq/ (pos zero) (pos zero) r i)
+-- ———— Boundary ——————————————————————————————————————————————
+-- i = i0 ⊢ baseCase
+-- i = i1 ⊢ baseCase
+-- ————————————————————————————————————————————————————————————
+-- i        : I
+-- r        : rInt (pos zero) (pos zero)
+-- sucCase  : (n : Int / rInt) → P n → P (depConstrInt/rIntS n)
+-- baseCase : P depConstrInt/rInt0
+-- set      : (x : Int / rInt) → isSet (P x)
+-- P        : Int / rInt → Type
+
+
+  -- wellDefined (pos zero) (neg zero) r i =  transport (cong (λ a → P a) {!!}) (lem (pos zero))
+
+-- transport (cong {!P!} (rIntEq' (pos zero) (neg zero) r i)) (lem (pos zero))
+-- Goal: P [ pos zero ] ≡ P (eq/ (pos zero) (neg zero) r i)
+-- ————————————————————————————————————————————————————————————
+-- i        : I
+-- r        : rInt (pos zero) (neg zero)
+-- sucCase  : (n : Int / rInt) → P n → P (depConstrInt/rIntS n)
+-- baseCase : P depConstrInt/rInt0
+-- set      : (x : Int / rInt) → isSet (P x)
+-- P        : Int / rInt → Type
+
+
+  -- wellDefined (pos (suc a)) (pos (suc b)) r i = transport (λ i → {!!}) {!!}
+  -- wellDefined (pos (suc a)) (neg (suc b)) r i = transport (λ i → {!!}) {!!}
+  -- wellDefined (neg zero) (pos zero) r i = transport (λ i → {!!}) {!!}
+  -- wellDefined (neg zero) (neg zero) r i = transport (λ i → {!!}) {!!}
+  -- wellDefined (neg (suc a)) (pos (suc b)) r i = transport (λ i → {!!}) {!!}
+  -- wellDefined (neg (suc a)) (neg (suc b)) r i = transport (λ i → {!!}) {!!}
+    -- where
+    --   cool : PathP (λ x → P (eq/ (neg a) b r i0)) (lem (neg a)) (lem (neg a))
+    --   cool = refl
+
     -- transport (λ i → PathP (λ j → P (squash/ [ suc a ] [ suc b ] (λ i → [ suc (rNatEq a b r i) ]) (eq/ (suc a) (suc b) r) i j)) (sucCase [ a ] (lem a)) (sucCase [ b ] (lem b))) cool
     -- where
     --   cool : PathP (λ i → P (sucNat/rNat [ rNatEq a b r i ])) (sucCase [ a ] (lem a)) (sucCase [ b ] (lem b))
