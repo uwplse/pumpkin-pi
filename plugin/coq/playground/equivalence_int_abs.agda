@@ -322,11 +322,6 @@ private
   variable
     ℓ ℓ' ℓ'' : Level
 
-congP : {A : I → Type ℓ} {B : (i : I) → A i → Type ℓ'}
-  (f : (i : I) → (a : A i) → B i a) {x : A i0} {y : A i1}
-  (p : PathP A x y) → PathP (λ i → B i (p i)) (f i0 x) (f i1 y)
-congP f p i = f i (p i)
-
 depElimSetInt/rInt : (P : Int / rInt -> Set) -> (∀ x -> isSet (P x)) -> (P depConstrInt/rInt0) -> (∀ n -> (P n) -> P (depConstrInt/rIntS n)) -> ((x : Int / rInt) -> P x)
 depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefined where
   lem : (a : Int) → P [ a ]
@@ -335,14 +330,43 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
   lem (neg zero) = transport (cong P (rIntPosNegQ 0)) baseCase
   lem (neg (suc n)) = transport (cong P (rIntPosNegQ (suc n))) (sucCase [ pos n ] (lem (pos n))) -- sucCase [ neg n ] (lem (neg n))
   wellDefined : (a b : Int) (r : rInt a b) → PathP (λ i → P (eq/ a b r i)) (lem a) (lem b)
-  wellDefined a b r i' = transport (congP (λ i₁ x → λ i' -> P x ) (lem''' a b r i') i') (lem a) where
-  -- {B = P } (λ x → {!lem'' x!})
-    lem' : (PathP (λ i → rIntEquivGen a b r i) (eq/ a b r) (eq/ a a (rIntRefl a)))
-    lem' = rIntPathGen a b r (rIntRefl a)
-    -- lem'' : (x : Int / rInt) -> P x
-    -- lem'' x = {!!}
-    lem''' : (a : Int) -> (b : Int) -> (r : rInt a b) -> (i : I) ->  [_] {A = Int} {R = rInt} a ≡ (eq/ a b r i)
-    lem''' a b r i = transport (λ i''' → rIntPathGen a b r (rIntRefl a) {!i'''!}) refl
+  wellDefined (pos zero) (pos zero) tt =
+    subst
+      {A = [ pos zero ] ≡ [ pos zero ]}
+      {x = refl}
+      {y = eq/ (pos zero) (pos zero) tt}
+      (λ x → PathP (λ i → P (x i)) baseCase baseCase)
+      (sym (constantEq/Refl (pos zero) tt))
+      refl
+  wellDefined (neg zero) (neg zero) tt =
+    subst
+      {A = [ neg zero ] ≡ [ neg zero ]}
+      {x = refl}
+      {y = eq/ (neg zero) (neg zero) tt}
+      (λ x → PathP (λ i → P (x i)) (transport (cong P (rIntPosNegQ 0)) baseCase) (transport (cong P (rIntPosNegQ 0)) baseCase))
+      (sym (constantEq/Refl (neg zero) tt))
+      refl
+  wellDefined (pos zero) (neg zero) tt =
+    subst
+      {A = [ pos zero ] ≡ [ neg zero ]}
+      {x = subst {A = Int / rInt} {x = [ pos zero ]} {y = [ neg zero ]} (λ x → [ pos zero ] ≡ x) (rIntPosNegQ 0) refl}
+      {y = rIntPosNegQ 0}
+      (λ x → PathP (λ i → P (x i))
+      baseCase
+      (transport (cong P (rIntPosNegQ 0)) baseCase))
+      (sym (squash/ [ pos zero ] [ neg zero ] (eq/ (pos zero) (neg zero) tt) (subst (λ x → [ pos zero ] ≡ x) (rIntPosNegQ 0) refl)))
+      (subst {! !} {!!} (refl { x = baseCase }))
+  -- (λ x → PathP (λ i → P (x i)) baseCase (transport (cong P (rIntPosNegQ 0)) baseCase)) (rIntPosNegQ 0) refl
+
+ -- wellDefined (pos (suc a)) (pos (suc b)) r =
+   -- transport
+     -- (λ i → PathP (λ j → P (squash/ [ suc a ] [ suc b ] (λ i → [ suc (rNatEq a b r i) ]) (eq/ (suc a) (suc b) r) i j)) (sucCase [ a ] (lem a)) (sucCase [ b ] (lem b)))
+     -- cool
+    --where
+      --cool : PathP (λ i → P (sucNat/rNat [ rNatEq a b r i ])) (sucCase [ a ] (lem a)) (sucCase [ b ] (lem b))
+      --cool i = sucCase [ rNatEq a b r i  ] (lem (rNatEq a b r i))
+
+
 
 
 -- P i x
