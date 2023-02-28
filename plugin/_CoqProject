@@ -136,6 +136,8 @@ src/automation/search/coherence.ml
 src/automation/search/coherence.mli
 src/automation/search/equivalence.ml
 src/automation/search/equivalence.mli
+src/automation/search/unpackalg.ml
+src/automation/search/unpackalg.mli
 src/automation/search/smartelim.ml
 src/automation/search/smartelim.mli
 

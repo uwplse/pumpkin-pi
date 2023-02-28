@@ -1,0 +1,66 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry} 
+\usepackage{amsmath,amsthm,amssymb,amsfonts, bbm, listings, tikz-cd}
+ 
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\RP}{\mathbb{R}\text{P}}
+\newcommand{\CP}{\mathbb{C}\text{P}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\F}{\mathbb{F}}
+\newcommand{\indicator}{\textbf{1}}
+\newcommand{\vol}{\text{ vol}}
+\newcommand{\extder}{\text{\textbf{d}}}
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\Aut}{\text{Aut}}
+\newcommand{\badphi}{\phi}
+\renewcommand{\phi}{\varphi}
+\renewcommand{\epsilon}{\varepsilon}
+\DeclareMathOperator{\im}{Im}
+\DeclareMathOperator{\lcm}{lcm}
+\DeclareMathOperator{\End}{End}
+\let\Re\relax
+\let\hom\relax
+\DeclareMathOperator{\Re}{Re}
+\DeclareMathOperator{\sgn}{sgn}
+\DeclareMathOperator{\Alt}{Alt}
+\DeclareMathOperator{\rank}{rank}
+\DeclareMathOperator{\hom}{Hom}
+\DeclareMathOperator{\ext}{Ext}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator*{\argmax}{argmax}
+\usepackage[utf8]{inputenc}
+ 
+\newenvironment{problem}[2][Problem]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
+\title{Proof Repair across Type Non-Equivalences}
+\begin{document}
+\maketitle
+We already know how to repair across equivalences. See the Pumpkin Pi paper. What about more generic relationships?
+
+Consider types $A$ and $B$, where $A \simeq B/\sim$ for some equivalence relation $\sim$. One such example in that of queues. The type of queues implemented using one list is not equivalent to the type of queues implemented using two lists $(l_1, l_2)$, but is equivalent if we say $(l_1, l_2) ~ (l_3, l_4)$ if $l_1 ++ rev(l_2) = l_3 ++ rev(l_4)$. We could repair between $A$ and $B/\sim$ via the equivalence, but Coq does not have quotient types. How do we cope with this? Idea: implement repair across setoids instead, with setoids taking the place of quotients.
+
+In general, suppose we have a type $A$ and wish to repair to a type $(B, \sim)$ such that $A \simeq B/\sim$. To capture this, we define the notion of a setoid equivalence as follows. A function $f : A \to B$ is a setoid equivalence between setoids $(A, \sim_A)$ and $(B, \sim_B)$ if there exists $g : B \to A$ such that 
+\begin{enumerate}
+\item $\forall a_1, a_2 : A, a_1 \sim_A a_2 \implies (f(a_1)) \sim_B (f(a_2))$
+\item $\forall b_1, b_2 : B, b_1 \sim_B b_2 \implies (g(b_1)) \sim_A (g(b_2))$
+\item $\forall a : A, a \sim_A (g (f(a)))$
+\item $\forall b : B, b \sim_A (f (g(a)))$
+\end{enumerate}
+The first two conditions ensure that $f$ and $g$ induce proper functions on the setoids $(A, \sim_A)$ and $(B, \sim_B)$. The second two conditions ensure that those induced functions define an equivalence on the setoids. This definition is formalized in setoid\_equivalence.v.
+
+Now, given such a setoid equivalence, can we do proof repair? Let us consider the case where $A = \textbf{1}$, $B = \textbf{2}$, $\sim_A = eq\ A$ and $\sim_B = \{\{first, second\}\}$. Up to equivalence, $(A, \sim_A)$ and $(B, \sim_B)$ both have one element, and hence are equivalent. We can define a setoid equivalence $f$ by $f(I) = first$, with the corresponding $g$ being $g(first) = g(second) = I$. Notice that $f(I) = second$ produces an equally good equivalence. 
+
+Following the example of the Pumpkin Pi paper, we will attempt to define constructors and eliminators for the quotiented datatypes such that each constructor and eliminator respects the equivalence. These constructors and eliminators will need to respect the quotient structure. This causes challenges when it comes to the types of objects. In the above example, we can make a single dependent constructor for both types; in $\textbf{1}$ it returns $I$, and in $\textbf{2}$ it returns $first$. Clearly, these respect the equivalence. However, it is not as easy to define the eliminators. Specifically, defining the eliminator for $\textbf{2}$ is challenging. The problem is that for a motive $P$, we might have that $P(first)$ and $P(second)$ have different types. However, to match the type of the eliminator for $\textbf{1}$, we need to return a value of type $\forall t : \textbf{2}, P(t)$. It might not even be possible to define such a value; consider, for instance, $P(t) = eq_{\textbf{2}}(first, t)$; it is not possible to define a value of type $P(second)$. Hence, we need to work around the problem this type mismatch poses. 
+
+The basic idea is that we need to restrict $P$ to those motives that respect the quotient. Different proposed approaches include the following ideas:
+\begin{itemize}
+\item Restrict $P$ in some way such that the quotient is respected using a sigma type. For example, consider $\Sigma_{P : Prop} (P(first) = P(second))$. This would likely add more complication to actually using the repaired type because the sigma needs to be dealt with. Type equality might be too strict to be practical though, and it might be necessary to instead lift the equivalence relation on the underlying type to an equivalence relation on the type of propositions. 
+\item Create individual eliminators for each specific motive $P$. 
+\item Alter the transformation method Pumpkin Pi uses to be applicable in these more general circumstances.
+\end{itemize}
+\end{document}
