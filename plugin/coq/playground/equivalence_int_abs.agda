@@ -347,15 +347,40 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
       (sym (constantEq/Refl (neg zero) tt))
       refl
   wellDefined (pos zero) (neg zero) tt =
-    subst
-      {A = [ pos zero ] ≡ [ neg zero ]}
-      {x = subst {A = Int / rInt} {x = [ pos zero ]} {y = [ neg zero ]} (λ x → [ pos zero ] ≡ x) (rIntPosNegQ 0) refl}
-      {y = rIntPosNegQ 0}
-      (λ x → PathP (λ i → P (x i))
-      baseCase
-      (transport (cong P (rIntPosNegQ 0)) baseCase))
-      (sym (squash/ [ pos zero ] [ neg zero ] (eq/ (pos zero) (neg zero) tt) (subst (λ x → [ pos zero ] ≡ x) (rIntPosNegQ 0) refl)))
-      (subst {! !} {!!} (refl { x = baseCase }))
+    congP
+      {A = (λ i → P (eq/ (pos zero) (pos zero) tt i))}
+      {B = λ i a →  P (eq/ (pos zero) (neg zero) tt i)}
+      (λ i a →
+        transport
+          {!!}
+          a) -- transport : {A B : Type ℓ} → A ≡ B → A → B
+      ((subst
+         {A = [ pos zero ] ≡ [ pos zero ]}
+         {x = refl}
+         {y = eq/ (pos zero) (pos zero) tt}
+         (λ x → PathP (λ i → P (x i)) baseCase baseCase)
+         (sym (constantEq/Refl (pos zero) tt))
+         refl))
+
+--    subst
+ --     {A = [ pos zero ] ≡ [ neg zero ]}
+  --    {x = subst {A = Int / rInt} {x = [ pos zero ]} {y = [ neg zero ]} (λ x → [ pos zero ] ≡ x) (rIntPosNegQ 0) refl}
+ --     {y = rIntPosNegQ 0}
+ --     (λ x → PathP (λ i → P (x i)) baseCase (transport (cong P (rIntPosNegQ 0)) baseCase))
+ --     (sym (squash/ [ pos zero ] [ neg zero ] (eq/ (pos zero) (neg zero) tt) (subst (λ x → [ pos zero ] ≡ x) (rIntPosNegQ 0) refl)))
+ --     (congP
+ --       {A = (λ i → P (eq/ (pos zero) (pos zero) tt i))}
+ --       {B = λ i a → P (eq/ (pos zero) (neg zero) tt i) }
+  --      (λ i a → {!!})
+  --      (subst
+  --        {A = [ pos zero ] ≡ [ pos zero ]}
+  --        {x = refl}
+  --        {y = eq/ (pos zero) (pos zero) tt}
+   --       (λ x → PathP (λ i → P (x i)) baseCase baseCase)
+--          (sym (constantEq/Refl (pos zero) tt))
+--          refl))
+
+-- congP : {A : I → Type ℓ} {B : (i : I) → A i → Type ℓ'} (f : (i : I) → (a : A i) → B i a) {x : A i0} {y : A i1} (p : PathP A x y) → PathP (λ i → B i (p i)) (f i0 x) (f i1 y)
   -- (λ x → PathP (λ i → P (x i)) baseCase (transport (cong P (rIntPosNegQ 0)) baseCase)) (rIntPosNegQ 0) refl
 
  -- wellDefined (pos (suc a)) (pos (suc b)) r =
