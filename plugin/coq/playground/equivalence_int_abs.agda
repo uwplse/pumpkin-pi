@@ -352,7 +352,13 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
       λ i → lem (pos x))
     r
   wellDefined (pos x) (neg y) r = rJ x ((λ y r → PathP (λ i → P (quot {R = rInt} r i)) (lem (pos x)) (lem (neg y)))) {!!} {!r!}
-  wellDefined (neg x) b r = {!!}
+  wellDefined (neg x) (pos y) r = {!!}
+  wellDefined (neg x) (neg y) r = rJ x
+    (λ y r → PathP (λ i → P (quot {R = rInt} r i)) (lem (neg x)) (lem (neg y)))
+    (subst (λ e → PathP (λ i → P (e i)) (lem (neg x)) (lem (neg x)))
+      (squash/ {R = rInt} [ neg x ] [ neg x ] refl (quot (rrefl x)))
+      λ i → lem (neg x))
+    r
 
 -- P i x
 
