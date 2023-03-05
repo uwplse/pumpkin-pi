@@ -337,13 +337,23 @@ quot : ∀ {ℓ ℓ'} {A : Type ℓ} {R : A → A → Type ℓ'} {x y : A} → R
     → Path (A / R) ([ x ]) ([ y ])
 quot {x = x} {y = y} r = eq/ x y r
 
+coe0→i : ∀ {ℓ : I → Level} (A : ∀ i → Type (ℓ i)) (i : I) → A i0 → A i
+coe0→i A i a = transp (λ j → A (i ∧ j)) (~ i) a
+
+to-pathp : ∀ {ℓ} {A : I → Type ℓ} {x : A i0} {y : A i1}
+         → transport (λ i → A i) x ≡ y
+         → PathP A x y
+to-pathp {A = A} {x} {y} p = transport (sym (PathP≡Path A x y)) p
+
+-- transport (λ i → P (eq/ _ _ (rrefl n) i)) (sucCase [ pos n ] (lem (pos n))) ≡ transport (λ i → P (eq/ (pos (suc n)) (neg (suc n)) (suc n) i)) (sucCase [ pos n ] (lem (pos n)))
+
 depElimSetInt/rInt : (P : Int / rInt -> Set) -> (∀ x -> isSet (P x)) -> (P depConstrInt/rInt0) -> (∀ n -> (P n) -> P (depConstrInt/rIntS n)) -> ((x : Int / rInt) -> P x)
 depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefined where
   lem : (a : Int) → P [ a ]
   lem (pos zero) = baseCase
   lem (pos (suc n)) =  sucCase [ pos n ] (lem (pos n))
-  lem (neg zero) = transport (cong P (rIntPosNegQ 0)) (lem (pos zero))
-  lem (neg (suc n)) = transport (cong P (rIntPosNegQ (suc n))) (sucCase [ pos n ] (lem (pos n))) -- sucCase [ neg n ] (lem (neg n))
+  lem (neg zero) = transport (cong P (quot (rrefl 0))) (lem (pos zero))
+  lem (neg (suc n)) = transport (cong P (quot (rrefl (suc n)))) (sucCase [ pos n ] (lem (pos n))) -- sucCase [ neg n ] (lem (neg n))
   wellDefined : (a b : Int) (r : rInt a b) → PathP (λ i → P (eq/ a b r i)) (lem a) (lem b)
   wellDefined (pos x) (pos y) r = rJ x
     (λ y r → PathP (λ i → P (quot {R = rInt} r i)) (lem (pos x)) (lem (pos y)))
@@ -351,8 +361,19 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
       (squash/ {R = rInt} [ pos x ] [ pos x ] refl (quot (rrefl x)))
       λ i → lem (pos x))
     r
-  wellDefined (pos x) (neg y) r = rJ x ((λ y r → PathP (λ i → P (quot {R = rInt} r i)) (lem (pos x)) (lem (neg y)))) {!!} {!r!}
-  wellDefined (neg x) (pos y) r = {!!}
+  wellDefined (pos x) (neg y) r = rJ x
+    (λ y r → PathP (λ i → P (quot {R = rInt} r i)) (lem (pos x)) (lem (neg y)))
+    (to-pathp
+      (Cubical.Data.Nat.elim
+        {A = λ n → transport (λ i → P (quot (rrefl n) i)) (lem (pos n)) ≡ (lem (neg n))}
+        refl
+        (λ _ _ → refl)
+        x))
+    r
+  wellDefined (neg x) (pos y) r = rJ x
+    (λ y r → PathP (λ i → P (quot {R = rInt} r i)) (lem (neg x)) (lem (pos y)))
+    {!!} -- TODO uses to-pathp's backwards direction
+    r
   wellDefined (neg x) (neg y) r = rJ x
     (λ y r → PathP (λ i → P (quot {R = rInt} r i)) (lem (neg x)) (lem (neg y)))
     (subst (λ e → PathP (λ i → P (e i)) (lem (neg x)) (lem (neg x)))
