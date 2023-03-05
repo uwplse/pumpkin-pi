@@ -292,10 +292,28 @@ rIntSame = {!!}
 rIntPath : (n : ℕ) → (r1 : rInt (pos n) (neg n)) → (r2 : rInt (pos n) (pos n)) → (PathP (λ i → rIntEquiv n i) (eq/ (pos n) (neg n) r1) (eq/ (pos n) (pos n) r2))
 rIntPath n r1 r2 = {!!}
 
+rIntPathGenRefl : (a : Int) → (r : rInt a a) -> (PathP (λ i → rIntEquivGen a a r i) (eq/ a a r) (eq/ a a r))
+rIntPathGenRefl a r = λ i → refl i
+
+rIntPathGen' : (a : Int) → (r : rInt a a) -> (i : I) -> (PathP (λ i' → rIntEquivGen a a r ( i ∨ {!!})) (eq/ a a r i) [ a ])
+-- rIntPathGen' : (a : Int) → (r : rInt a a) -> (i : I) -> Path (eq/ a a r i) [ a ]
+rIntPathGen' a r = {!!}
+
 rIntPathGen : (a : Int) (b : Int) → (r : rInt a b) -> (r' : rInt a a) → (PathP (λ i → rIntEquivGen a b r i) (eq/ a b r) (eq/ a a r'))
-rIntPathGen a b r r' = transport {!!} lem where
-  lem : (b : Int) -> (r : rInt a b) -> PathP (λ x → rIntEquivGen a b r x) (eq/ a b r) (eq/ a a r')
-  lem x = {!!}
+-- rIntPathGen a b r r' = transport-filler (rIntEquivGen a b r) (eq/ a b r) {!!}
+rIntPathGen a b r r' = transport-filler (λ i → rIntEquivGen a b r i) (λ i → eq/ a b r i) {!!}
+
+rIntEquivGen' : (a : Int) -> (b : Int) -> (r : rInt a b) → PathP (λ x → refl x) [ a ] [ b ]
+rIntEquivGen' = λ a b r i j -> rIntEquivGen a b r j {!!}
+
+-- rIntPathGen' : (a : Int) (b : Int) → (r : rInt a b) -> (r' : rInt a a) → (i' : I) → ((eq/ a b r i') ≡ (eq/ a a r' i'))
+-- rIntPathGen' a b r r' = λ i j → rIntPathGen a b r r' {!i!}
+
+
+-- λ j → rIntPathGen a b r r' {!!}
+-- transport {!!} lem where
+--   lem : (b : Int) -> (r : rInt a b) -> PathP (λ x → rIntEquivGen a b r x) (eq/ a b r) (eq/ a a r')
+--   lem b' r' = λ i → {!!}
 
 -- rIntEq' : (a : Nat) → PathP (λ x → Path {! !} (eq/ (pos a) (neg a) (rInt (pos a ) (neg a)) {!x!}) (eq/ (pos a) (pos a) (rInt (pos a) (pos a)) {!x!})) (eq/ (pos a) (neg a) (rInt (pos a) (neg a))) (eq/ (pos a) (pos a) (rInt (pos a) (neg a)))
 -- eq/ (pos a) (neg a) {!rNat (pos a) (neg a)!} ≡ eq/ (pos a) {!pos b!} {!!} -- eq/ (pos a) (pos a) (rInt (pos a) (pos a)))
@@ -303,8 +321,6 @@ rIntPathGen a b r r' = transport {!!} lem where
 private
   variable
     ℓ ℓ' ℓ'' : Level
-
---- much of the below approach is due to Amelia Liao
 
 rrefl : ∀ x → rNat x x
 rrefl zero    = tt
@@ -337,7 +353,6 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
     r
   wellDefined (pos x) (neg y) r = rJ x ((λ y r → PathP (λ i → P (quot {R = rInt} r i)) (lem (pos x)) (lem (neg y)))) {!!} {!r!}
   wellDefined (neg x) b r = {!!}
-
 
 -- P i x
 
