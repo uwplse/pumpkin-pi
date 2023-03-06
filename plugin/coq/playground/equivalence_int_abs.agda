@@ -295,16 +295,6 @@ quot : ∀ {ℓ ℓ'} {A : Type ℓ} {R : A → A → Type ℓ'} {x y : A} → R
     → Path (A / R) ([ x ]) ([ y ])
 quot {x = x} {y = y} r = eq/ x y r
 
-to-pathp : ∀ {ℓ} {A : I → Type ℓ} {x : A i0} {y : A i1}
-         → transport (λ i → A i) x ≡ y
-         → PathP A x y
-to-pathp {A = A} {x} {y} p = transport (sym (PathP≡Path A x y)) p
-
-to-pathp⁻ : ∀ {ℓ} {A : I → Type ℓ} {x : A i0} {y : A i1}
-         → x ≡ transport (λ i → A (~ i)) y
-         → PathP A x y
-to-pathp⁻ {A = A} {x} {y} p = transport (sym (PathP≡Path⁻ A x y)) p
-
 -- dependent eliminator for Int/rInt over Set
 depElimSetInt/rInt : (P : Int / rInt -> Set) -> (∀ x -> isSet (P x)) -> (P depConstrInt/rInt0) -> (∀ n -> (P n) -> P (depConstrInt/rIntS n)) -> ((x : Int / rInt) -> P x)
 depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefined where
@@ -324,7 +314,8 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
     r
   wellDefined (pos x) (neg y) r = rJ x
     (λ y r → PathP (λ i → P (quot {R = rInt} r i)) (lem (pos x)) (lem (neg y)))
-    (to-pathp {A = λ i → P (quot (rrefl x) i)} {x = lem (pos x)} {y = lem (neg x)}
+    (transport
+      (sym (PathP≡Path (λ i → P (quot (rrefl x) i)) (lem (pos x)) (lem (neg x))))
       (Cubical.Data.Nat.elim
         {A = λ n → transport (λ i → P (quot (rrefl n) i)) (lem (pos n)) ≡ (lem (neg n))}
         refl
@@ -333,7 +324,8 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
     r
   wellDefined (neg x) (pos y) r = rJ x
     (λ y r → PathP (λ i → P (quot {R = rInt} r i)) (lem (neg x)) (lem (pos y)))
-    (to-pathp⁻ {A = λ i → P (quot {R = rInt} (rrefl x) i)} {x = lem (neg x)} {y = lem (pos x)}
+    (transport
+      (sym (PathP≡Path⁻ (λ i → P (quot {R = rInt} (rrefl x) i)) (lem (neg x)) (lem (pos x))))
       (Cubical.Data.Nat.elim
         {A = λ n → lem (neg n) ≡ transport {A = P [ pos n ]} {B = P [ neg n ]} (λ i → P (quot {R = rInt} {x = neg n} {y = pos n} (rrefl n) (~ i))) (lem (pos n)) }
         (subst
