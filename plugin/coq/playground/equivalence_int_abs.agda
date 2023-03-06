@@ -239,10 +239,7 @@ depElimInt/rInt P set baseCase sucCase = elimProp set lem where
 constantEq/Refl : {A : Type} -> {R : A -> A -> Type} -> (a : A) →  (r : R a a) → eq/ {R = R} a a r ≡ refl
 constantEq/Refl a r = squash/ ([_] a) ([_] a) (eq/ a a r) refl
 
--- rNatEq : (a : Nat) -> (b : Nat) → (rNat a b) → a ≡ b
--- rNatEq zero zero x = refl
--- rNatEq (suc a) (suc b) x = cong suc (rNatEq a b x)
-
+-- dependent set eliminator for Nat/rNat
 depElimSetNat/rNat : (P : Nat / rNat -> Set) -> (∀ x -> isSet (P x)) -> (P [ 0 ]) -> (∀ n -> (P n) -> P (sucNat/rNat n)) -> ((x : Nat / rNat) -> P x)
 depElimSetNat/rNat P set baseCase sucCase = SetQuotients.elim set lem wellDefined where
   lem : (a : ℕ) → P [ a ]
@@ -258,38 +255,28 @@ depElimSetNat/rNat P set baseCase sucCase = SetQuotients.elim set lem wellDefine
       cool : PathP (λ i → P (sucNat/rNat [ rNatEq a b r i ])) (sucCase [ a ] (lem a)) (sucCase [ b ] (lem b))
       cool i = sucCase [ rNatEq a b r i  ] (lem (rNatEq a b r i))
 
-
+-- dependent constructors for Int/rInt
 depConstrInt/rInt0 : Int / rInt
 depConstrInt/rInt0 = [ pos 0 ]
 
 depConstrInt/rIntS : Int / rInt -> Int / rInt
 depConstrInt/rIntS = sucInt/rInt
 
-rIntEq : (a : Int) -> (b : Int) -> (rInt a b) → ([_] {A = Int} {R = rInt} (a)  ≡ [_] {A = Int} {R = rInt} (b))
-rIntEq a b r = eq/ a b r
-
-
-
-rIntRefl : (a : Int) -> rInt a a
-rIntRefl (pos n) = rNatEquiv n
-rIntRefl (neg n) = rNatEquiv n
-
-rIntEquiv : (a : Nat) → ([ pos a ] ≡ [ neg a ]) ≡ ([ pos a ] ≡ [ pos a ])
-rIntEquiv a = subst (λ x → ([ pos a ] ≡ x) ≡ (([_] {R = rInt} (pos a)) ≡ [ pos a ])) (eq/ {R = rInt} (pos a) (neg a) (rIntPosNeg a)) refl
-
-rIntEquivGen : (a : Int) -> (b : Int) -> (r : rInt a b) → ([ a ] ≡ [ b ]) ≡ ([ a ] ≡ [ a ])
-rIntEquivGen a b r = subst (λ x → ([ a ] ≡ x) ≡ (([_] {R = rInt} a) ≡ [ a ])) (eq/ {R = rInt} a b r) refl
-
+-- from Amelia
 rrefl : ∀ x → rNat x x
 rrefl zero    = tt
 rrefl (suc x) = rrefl x
 
+-- from Amelia
 rJ
   : ∀ x (P : (y : Nat) → rNat x y → Type)
   → P x (rrefl x)
   → ∀ {y} r → P y r
 rJ zero P pr {zero} tt = pr
 rJ (suc x) P pr {suc y} r = rJ x (λ y → P (suc y)) pr r
+
+-- there is a path between any eq/ and its reversal
+---- TODO define and use
 
 -- dependent eliminator for Int/rInt over Set
 depElimSetInt/rInt : (P : Int / rInt -> Set) -> (∀ x -> isSet (P x)) -> (P depConstrInt/rInt0) -> (∀ n -> (P n) -> P (depConstrInt/rIntS n)) -> ((x : Int / rInt) -> P x)
