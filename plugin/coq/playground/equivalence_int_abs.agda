@@ -377,9 +377,17 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
     (to-pathp⁻
       (Cubical.Data.Nat.elim
         {A = λ n → lem (neg n) ≡ transport {A = P [ pos n ]} {B = P  [ neg n ]} (λ i → P (quot {R = rInt} {x = neg n} {y = pos n} (rrefl n) (~ i))) (lem (pos n)) }
-        {!!} -- transport (λ i → P (quot tt i)) baseCase ≡ transport (λ i → P (quot tt (~ i))) baseCase
-        (λ n IH → {!!}) -- transport (λ i → P (quot (rrefl n) i)) (sucCase [ pos n ] (lem (pos n))) ≡ transport (λ i → P (quot (rrefl n) (~ i))) (sucCase [ pos n ] (lem (pos n)))
-        x)) --lem (neg x) ≡ transport (λ i → P (quot (rrefl x) (~ i))) (lem (pos x))
+        (subst
+          (λ (H : [ neg zero ] ≡ [ pos zero ]) → transport (λ i → P (H (~ i))) baseCase ≡ transport (λ i → P (quot {A = Int} {R = rInt} {x = neg zero} {y = pos zero} tt (~ i))) baseCase)
+          (squash/ {R = rInt} [ neg zero ] [ pos zero ] (λ i → quot {A = Int} {R = rInt} {x = neg zero} {y = pos zero} tt i) (λ i → quot {A = Int} {R = rInt} {x = pos zero} {y = neg zero} tt (~ i)))
+          refl) -- -- transport (λ i → P (quot tt i)) baseCase ≡ transport (λ i → P (quot tt (~ i))) baseCase
+        (λ n IH →
+          subst
+            (λ (H : [ neg (suc n) ] ≡ [ pos (suc n) ]) →
+              transport (λ i → P (H (~ i))) (sucCase [ pos n ] (lem (pos n))) ≡ transport (λ i → P (quot {A = Int} {R = rInt} {x = neg (suc n)} {y = pos (suc n)} (rrefl (suc n)) (~ i))) (sucCase [ pos n ] (lem (pos n))))
+            (squash/ {R = rInt} [ neg (suc n) ] [ pos (suc n) ] (λ i → quot {A = Int} {R = rInt} {x = neg (suc n)} {y = pos (suc n)} (rrefl (suc n)) i) (λ i → quot {A = Int} {R = rInt} {x = pos (suc n)} {y = neg (suc n)} (rrefl (suc n)) (~ i)))
+            refl) -- transport (λ i → P (quot (rrefl n) i)) (sucCase [ pos n ] (lem (pos n))) ≡ transport (λ i → P (quot (rrefl n) (~ i))) (sucCase [ pos n ] (lem (pos n)))
+        x))
     r
   wellDefined (neg x) (neg y) r = rJ x
     (λ y r → PathP (λ i → P (quot {R = rInt} r i)) (lem (neg x)) (lem (neg y)))
