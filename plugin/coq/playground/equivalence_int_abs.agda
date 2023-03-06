@@ -280,48 +280,6 @@ rIntEquiv a = subst (λ x → ([ pos a ] ≡ x) ≡ (([_] {R = rInt} (pos a)) �
 rIntEquivGen : (a : Int) -> (b : Int) -> (r : rInt a b) → ([ a ] ≡ [ b ]) ≡ ([ a ] ≡ [ a ])
 rIntEquivGen a b r = subst (λ x → ([ a ] ≡ x) ≡ (([_] {R = rInt} a) ≡ [ a ])) (eq/ {R = rInt} a b r) refl
 
--- rIntTrue : { a b : Int } (p : rInt a b) -> Path {!!} (rInt a b) True
--- rIntTrue {pos zero} p = {!!}
--- rIntTrue {pos (suc n)} p = {!!}
--- rIntTrue {neg zero} p = {!!}
--- rIntTrue {neg (suc n)} p = {!!}
-
-rIntSame : (a b : Int) -> (p : rInt a a) -> (q : rInt a b) -> PathP (λ x → {!!}) p q
-rIntSame = {!!}
-
-rIntPath : (n : ℕ) → (r1 : rInt (pos n) (neg n)) → (r2 : rInt (pos n) (pos n)) → (PathP (λ i → rIntEquiv n i) (eq/ (pos n) (neg n) r1) (eq/ (pos n) (pos n) r2))
-rIntPath n r1 r2 = {!!}
-
-rIntPathGenRefl : (a : Int) → (r : rInt a a) -> (PathP (λ i → rIntEquivGen a a r i) (eq/ a a r) (eq/ a a r))
-rIntPathGenRefl a r = λ i → refl i
-
-rIntPathGen' : (a : Int) → (r : rInt a a) -> (i : I) -> (PathP (λ i' → rIntEquivGen a a r ( i ∨ {!!})) (eq/ a a r i) [ a ])
--- rIntPathGen' : (a : Int) → (r : rInt a a) -> (i : I) -> Path (eq/ a a r i) [ a ]
-rIntPathGen' a r = {!!}
-
-rIntPathGen : (a : Int) (b : Int) → (r : rInt a b) -> (r' : rInt a a) → (PathP (λ i → rIntEquivGen a b r i) (eq/ a b r) (eq/ a a r'))
--- rIntPathGen a b r r' = transport-filler (rIntEquivGen a b r) (eq/ a b r) {!!}
-rIntPathGen a b r r' = transport-filler (λ i → rIntEquivGen a b r i) (λ i → eq/ a b r i) {!!}
-
-rIntEquivGen' : (a : Int) -> (b : Int) -> (r : rInt a b) → PathP (λ x → refl x) [ a ] [ b ]
-rIntEquivGen' = λ a b r i j -> rIntEquivGen a b r j {!!}
-
--- rIntPathGen' : (a : Int) (b : Int) → (r : rInt a b) -> (r' : rInt a a) → (i' : I) → ((eq/ a b r i') ≡ (eq/ a a r' i'))
--- rIntPathGen' a b r r' = λ i j → rIntPathGen a b r r' {!i!}
-
-
--- λ j → rIntPathGen a b r r' {!!}
--- transport {!!} lem where
---   lem : (b : Int) -> (r : rInt a b) -> PathP (λ x → rIntEquivGen a b r x) (eq/ a b r) (eq/ a a r')
---   lem b' r' = λ i → {!!}
-
--- rIntEq' : (a : Nat) → PathP (λ x → Path {! !} (eq/ (pos a) (neg a) (rInt (pos a ) (neg a)) {!x!}) (eq/ (pos a) (pos a) (rInt (pos a) (pos a)) {!x!})) (eq/ (pos a) (neg a) (rInt (pos a) (neg a))) (eq/ (pos a) (pos a) (rInt (pos a) (neg a)))
--- eq/ (pos a) (neg a) {!rNat (pos a) (neg a)!} ≡ eq/ (pos a) {!pos b!} {!!} -- eq/ (pos a) (pos a) (rInt (pos a) (pos a)))
-
-private
-  variable
-    ℓ ℓ' ℓ'' : Level
-
 rrefl : ∀ x → rNat x x
 rrefl zero    = tt
 rrefl (suc x) = rrefl x
@@ -347,15 +305,16 @@ to-pathp⁻ : ∀ {ℓ} {A : I → Type ℓ} {x : A i0} {y : A i1}
          → PathP A x y
 to-pathp⁻ {A = A} {x} {y} p = transport (sym (PathP≡Path⁻ A x y)) p
 
--- transport (λ i → P (eq/ _ _ (rrefl n) i)) (sucCase [ pos n ] (lem (pos n))) ≡ transport (λ i → P (eq/ (pos (suc n)) (neg (suc n)) (suc n) i)) (sucCase [ pos n ] (lem (pos n)))
-
+-- dependent eliminator for Int/rInt over Set
 depElimSetInt/rInt : (P : Int / rInt -> Set) -> (∀ x -> isSet (P x)) -> (P depConstrInt/rInt0) -> (∀ n -> (P n) -> P (depConstrInt/rIntS n)) -> ((x : Int / rInt) -> P x)
 depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefined where
+  -- points
   lem : (a : Int) → P [ a ]
   lem (pos zero) = baseCase
   lem (pos (suc n)) =  sucCase [ pos n ] (lem (pos n))
   lem (neg zero) = transport (cong P (quot (rrefl 0))) (lem (pos zero))
-  lem (neg (suc n)) = transport (cong P (quot (rrefl (suc n)))) (sucCase [ pos n ] (lem (pos n))) -- sucCase [ neg n ] (lem (neg n))
+  lem (neg (suc n)) = transport (cong P (quot (rrefl (suc n)))) (sucCase [ pos n ] (lem (pos n)))
+  -- paths
   wellDefined : (a b : Int) (r : rInt a b) → PathP (λ i → P (eq/ a b r i)) (lem a) (lem b)
   wellDefined (pos x) (pos y) r = rJ x
     (λ y r → PathP (λ i → P (quot {R = rInt} r i)) (lem (pos x)) (lem (pos y)))
@@ -365,7 +324,7 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
     r
   wellDefined (pos x) (neg y) r = rJ x
     (λ y r → PathP (λ i → P (quot {R = rInt} r i)) (lem (pos x)) (lem (neg y)))
-    (to-pathp
+    (to-pathp {A = λ i → P (quot (rrefl x) i)} {x = lem (pos x)} {y = lem (neg x)}
       (Cubical.Data.Nat.elim
         {A = λ n → transport (λ i → P (quot (rrefl n) i)) (lem (pos n)) ≡ (lem (neg n))}
         refl
@@ -374,18 +333,27 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
     r
   wellDefined (neg x) (pos y) r = rJ x
     (λ y r → PathP (λ i → P (quot {R = rInt} r i)) (lem (neg x)) (lem (pos y)))
-    (to-pathp⁻
+    (to-pathp⁻ {A = λ i → P (quot {R = rInt} (rrefl x) i)} {x = lem (neg x)} {y = lem (pos x)}
       (Cubical.Data.Nat.elim
-        {A = λ n → lem (neg n) ≡ transport {A = P [ pos n ]} {B = P  [ neg n ]} (λ i → P (quot {R = rInt} {x = neg n} {y = pos n} (rrefl n) (~ i))) (lem (pos n)) }
+        {A = λ n → lem (neg n) ≡ transport {A = P [ pos n ]} {B = P [ neg n ]} (λ i → P (quot {R = rInt} {x = neg n} {y = pos n} (rrefl n) (~ i))) (lem (pos n)) }
         (subst
           (λ (H : [ neg zero ] ≡ [ pos zero ]) → transport (λ i → P (H (~ i))) baseCase ≡ transport (λ i → P (quot {A = Int} {R = rInt} {x = neg zero} {y = pos zero} tt (~ i))) baseCase)
           (squash/ {R = rInt} [ neg zero ] [ pos zero ] (λ i → quot {A = Int} {R = rInt} {x = neg zero} {y = pos zero} tt i) (λ i → quot {A = Int} {R = rInt} {x = pos zero} {y = neg zero} tt (~ i)))
-          refl) -- -- transport (λ i → P (quot tt i)) baseCase ≡ transport (λ i → P (quot tt (~ i))) baseCase
+          refl) -- transport (λ i → P (quot tt i)) baseCase ≡ transport (λ i → P (quot tt (~ i))) baseCase
         (λ n IH →
           subst
             (λ (H : [ neg (suc n) ] ≡ [ pos (suc n) ]) →
-              transport (λ i → P (H (~ i))) (sucCase [ pos n ] (lem (pos n))) ≡ transport (λ i → P (quot {A = Int} {R = rInt} {x = neg (suc n)} {y = pos (suc n)} (rrefl (suc n)) (~ i))) (sucCase [ pos n ] (lem (pos n))))
-            (squash/ {R = rInt} [ neg (suc n) ] [ pos (suc n) ] (λ i → quot {A = Int} {R = rInt} {x = neg (suc n)} {y = pos (suc n)} (rrefl (suc n)) i) (λ i → quot {A = Int} {R = rInt} {x = pos (suc n)} {y = neg (suc n)} (rrefl (suc n)) (~ i)))
+              transport
+                (λ i → P (H (~ i)))
+                (sucCase [ pos n ] (lem (pos n))) ≡
+              transport
+                (λ i → P (quot {A = Int} {R = rInt} {x = neg (suc n)} {y = pos (suc n)} (rrefl (suc n)) (~ i)))
+                (sucCase [ pos n ] (lem (pos n))))
+            (squash/ {R = rInt}
+              [ neg (suc n) ]
+              [ pos (suc n) ]
+              (λ i → quot {A = Int} {R = rInt} {x = neg (suc n)} {y = pos (suc n)} (rrefl (suc n)) i)
+              (λ i → quot {A = Int} {R = rInt} {x = pos (suc n)} {y = neg (suc n)} (rrefl (suc n)) (~ i)))
             refl) -- transport (λ i → P (quot (rrefl n) i)) (sucCase [ pos n ] (lem (pos n))) ≡ transport (λ i → P (quot (rrefl n) (~ i))) (sucCase [ pos n ] (lem (pos n)))
         x))
     r
