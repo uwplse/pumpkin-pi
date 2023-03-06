@@ -262,7 +262,7 @@ depConstrInt/rInt0 = [ pos 0 ]
 depConstrInt/rIntS : Int / rInt -> Int / rInt
 depConstrInt/rIntS = sucInt/rInt
 
--- from Amelia
+-- from Amelia?
 rrefl : ∀ x → rNat x x
 rrefl zero    = tt
 rrefl (suc x) = rrefl x
@@ -276,7 +276,10 @@ rJ zero P pr {zero} tt = pr
 rJ (suc x) P pr {suc y} r = rJ x (λ y → P (suc y)) pr r
 
 -- there is a path between any eq/ and its reversal
----- TODO define and use
+eq≡eqRev/ : ∀ (x y : Int) (r1 : rInt x y) (r2 : rInt y x) →
+  (λ i → eq/ {R = rInt} x y r1 i) ≡ (λ i → eq/ {R = rInt} y x r2 (~ i))
+eq≡eqRev/ x y r1 r2 =
+  squash/ {R = rInt} [ x ] [ y ] (λ i → eq/ x y r1 i) (λ i → eq/ y x r2 (~ i))
 
 -- dependent eliminator for Int/rInt over Set
 depElimSetInt/rInt : (P : Int / rInt -> Set) -> (∀ x -> isSet (P x)) -> (P depConstrInt/rInt0) -> (∀ n -> (P n) -> P (depConstrInt/rIntS n)) -> ((x : Int / rInt) -> P x)
@@ -319,11 +322,7 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
         {A = λ n → lem (neg n) ≡ transport {A = P [ pos n ]} {B = P [ neg n ]} (λ i → P (eq/ (neg n) (pos n) (rrefl n) (~ i))) (lem (pos n)) }
         (subst
           (λ (H : [ neg zero ] ≡ [ pos zero ]) → transport (λ i → P (H (~ i))) baseCase ≡ transport (λ i → P (eq/ (neg zero) (pos zero) tt (~ i))) baseCase)
-          (squash/ {R = rInt}
-            [ neg zero ]
-            [ pos zero ]
-            (λ i → eq/ (neg zero) (pos zero) tt i)
-            (λ i → eq/ (pos zero) (neg zero) tt (~ i)))
+         (eq≡eqRev/ (neg zero) (pos zero) tt tt)
           refl)
         (λ n _ →
           subst
@@ -334,11 +333,7 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
               transport
                 (λ i → P (eq/ (neg (suc n)) (pos (suc n)) (rrefl (suc n)) (~ i)))
                 (sucCase [ pos n ] (lem (pos n))))
-            (squash/ {R = rInt}
-              [ neg (suc n) ]
-              [ pos (suc n) ]
-              (λ i → eq/ (neg (suc n)) (pos (suc n)) (rrefl (suc n)) i)
-              (λ i → eq/ (pos (suc n)) (neg (suc n)) (rrefl (suc n)) (~ i)))
+            (eq≡eqRev/ (neg (suc n)) (pos (suc n)) (rrefl (suc n)) (rrefl (suc n)))
             refl)
         x))
     r
