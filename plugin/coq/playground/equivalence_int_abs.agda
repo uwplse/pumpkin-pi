@@ -374,7 +374,12 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
     r
   wellDefined (neg x) (pos y) r = rJ x
     (λ y r → PathP (λ i → P (quot {R = rInt} r i)) (lem (neg x)) (lem (pos y)))
-    (to-pathp⁻ {!!})
+    (to-pathp⁻
+      (Cubical.Data.Nat.elim
+        {A = λ n → lem (neg n) ≡ transport {A = P [ pos n ]} {B = P  [ neg n ]} (λ i → P (quot {R = rInt} {x = neg n} {y = pos n} (rrefl n) (~ i))) (lem (pos n)) }
+        {!!} -- transport (λ i → P (quot tt i)) baseCase ≡ transport (λ i → P (quot tt (~ i))) baseCase
+        (λ n IH → {!!}) -- transport (λ i → P (quot (rrefl n) i)) (sucCase [ pos n ] (lem (pos n))) ≡ transport (λ i → P (quot (rrefl n) (~ i))) (sucCase [ pos n ] (lem (pos n)))
+        x)) --lem (neg x) ≡ transport (λ i → P (quot (rrefl x) (~ i))) (lem (pos x))
     r
   wellDefined (neg x) (neg y) r = rJ x
     (λ y r → PathP (λ i → P (quot {R = rInt} r i)) (lem (neg x)) (lem (neg y)))
