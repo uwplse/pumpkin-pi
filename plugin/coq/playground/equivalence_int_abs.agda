@@ -281,6 +281,18 @@ eq≡eqRev/ : ∀ (x y : Int) (r1 : rInt x y) (r2 : rInt y x) →
 eq≡eqRev/ x y r1 r2 =
   squash/ {R = rInt} [ x ] [ y ] (λ i → eq/ x y r1 i) (λ i → eq/ y x r2 (~ i))
 
+-- thus, we can get between transporting in either direction
+transportEq≡transportEqRev/ : ∀ n (r1 : rInt (pos n) (neg n)) (r2 : rInt (neg n) (pos n)) (req : r1 ≡ r2) (P : Int / rInt → Set) (px : P [ pos n ]) →
+  transport (λ i → P (eq/ {R = rInt} (pos n) (neg n) r1 i)) px ≡ transport (λ i → P (eq/ {R = rInt} (neg n) (pos n) r2 (~ i))) px
+transportEq≡transportEqRev/ n r1 r2 req P px =
+  subst
+    (λ (H : [ neg n ] ≡ [ pos n ]) → transport ( λ i → P (H (~ i))) px ≡ transport (λ i → P (eq/ (neg n) (pos n) r2 (~ i))) px)
+    (eq≡eqRev/ (neg n) (pos n) r1 r1)
+    (subst
+      (λ (r : rInt (pos n) (neg n)) → transport (λ i → P (eq/ (neg n) (pos n) r1 (~ i))) px ≡ transport (λ i → P (eq/ (neg n) (pos n) r (~ i))) px)
+      req
+      refl)
+
 -- dependent eliminator for Int/rInt over Set
 depElimSetInt/rInt : (P : Int / rInt -> Set) -> (∀ x -> isSet (P x)) -> (P depConstrInt/rInt0) -> (∀ n -> (P n) -> P (depConstrInt/rIntS n)) -> ((x : Int / rInt) -> P x)
 depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefined where
@@ -297,7 +309,7 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
       (cong P (eq/ (pos (suc n)) (neg (suc n)) (rrefl (suc n))))
       (sucCase [ pos n ] (lem (pos n)))
   -- paths
-  wellDefined : (a b : Int) (r : rInt a b) → PathP (λ i → P (eq/ a b r i)) (lem a) (lem b)
+  wellDefined : (a b : Int) (r :  rInt a b) → PathP (λ i → P (eq/ a b r i)) (lem a) (lem b)
   wellDefined (pos x) (pos y) r = rJ x
     (λ y r → PathP (λ i → P (eq/ (pos x) (pos y) r i)) (lem (pos x)) (lem (pos y)))
     (subst (λ e → PathP (λ i → P (e i)) (lem (pos x)) (lem (pos x)))
@@ -320,21 +332,8 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
       (sym (PathP≡Path⁻ (λ i → P (eq/ (neg x) (pos x) (rrefl x) i)) (lem (neg x)) (lem (pos x))))
       (Cubical.Data.Nat.elim
         {A = λ n → lem (neg n) ≡ transport {A = P [ pos n ]} {B = P [ neg n ]} (λ i → P (eq/ (neg n) (pos n) (rrefl n) (~ i))) (lem (pos n)) }
-        (subst
-          (λ (H : [ neg zero ] ≡ [ pos zero ]) → transport (λ i → P (H (~ i))) baseCase ≡ transport (λ i → P (eq/ (neg zero) (pos zero) tt (~ i))) baseCase)
-         (eq≡eqRev/ (neg zero) (pos zero) tt tt)
-          refl)
-        (λ n _ →
-          subst
-            (λ (H : [ neg (suc n) ] ≡ [ pos (suc n) ]) →
-              transport
-                (λ i → P (H (~ i)))
-                (sucCase [ pos n ] (lem (pos n))) ≡
-              transport
-                (λ i → P (eq/ (neg (suc n)) (pos (suc n)) (rrefl (suc n)) (~ i)))
-                (sucCase [ pos n ] (lem (pos n))))
-            (eq≡eqRev/ (neg (suc n)) (pos (suc n)) (rrefl (suc n)) (rrefl (suc n)))
-            refl)
+        (transportEq≡transportEqRev/ zero tt tt refl P baseCase)
+        (λ n _ → transportEq≡transportEqRev/ (suc n) (rrefl (suc n)) (rrefl (suc n)) refl P (sucCase [ pos n ] (lem (pos n))))
         x))
     r
   wellDefined (neg x) (neg y) r = rJ x
