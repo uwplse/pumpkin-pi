@@ -293,7 +293,7 @@ transportEq≡transportEqRev/ n r1 r2 req P px =
       req
       refl)
 
--- dependent eliminator for Int/rInt over Set
+-- dependent eliminator for Int/rInt over Set (thanks to Amelia for helping us figure this out)
 depElimSetInt/rInt : (P : Int / rInt -> Set) -> (∀ x -> isSet (P x)) -> (P depConstrInt/rInt0) -> (∀ n -> (P n) -> P (depConstrInt/rIntS n)) -> ((x : Int / rInt) -> P x)
 depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefined where
   -- points
@@ -312,14 +312,21 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
   wellDefined : (a b : Int) (r :  rInt a b) → PathP (λ i → P (eq/ a b r i)) (lem a) (lem b)
   wellDefined (pos x) (pos y) r = rJ x
     (λ y r → PathP (λ i → P (eq/ (pos x) (pos y) r i)) (lem (pos x)) (lem (pos y)))
-    (subst (λ e → PathP (λ i → P (e i)) (lem (pos x)) (lem (pos x)))
-      (squash/ {R = rInt} [ pos x ] [ pos x ] refl (eq/ (pos x) (pos x) (rrefl x)))
-      λ i → lem (pos x))
+    (subst
+      (λ e → PathP (λ i → P (e i)) (lem (pos x)) (lem (pos x)))
+      (sym (constantEq/Refl (pos x) (rrefl x)))
+      (λ i → lem (pos x)))
+    r
+  wellDefined (neg x) (neg y) r = rJ x
+    (λ y r → PathP (λ i → P (eq/ (neg x) (neg y) r i)) (lem (neg x)) (lem (neg y)))
+    (subst
+      (λ e → PathP (λ i → P (e i)) (lem (neg x)) (lem (neg x)))
+      (sym (constantEq/Refl (neg x) (rrefl x)))
+      (λ i → lem (neg x)))
     r
   wellDefined (pos x) (neg y) r = rJ x
     (λ y r → PathP (λ i → P (eq/ (pos x) (neg y) r i)) (lem (pos x)) (lem (neg y)))
-    (transport
-      (sym (PathP≡Path (λ i → P (eq/ (pos x) (neg x) (rrefl x) i)) (lem (pos x)) (lem (neg x))))
+    (toPathP -- transport (λ i → A i) x ≡ y → PathP A x y
       (Cubical.Data.Nat.elim
         {A = λ n → transport (λ i → P (eq/ (pos n) (neg n) (rrefl n) i)) (lem (pos n)) ≡ (lem (neg n))}
         refl
@@ -328,8 +335,7 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
     r
   wellDefined (neg x) (pos y) r = rJ x
     (λ y r → PathP (λ i → P (eq/ (neg x) (pos y) r i)) (lem (neg x)) (lem (pos y)))
-    (transport
-      (sym (PathP≡Path⁻ (λ i → P (eq/ (neg x) (pos x) (rrefl x) i)) (lem (neg x)) (lem (pos x))))
+    (toPathP⁻ -- x ≡ transport (λ i → A i) y → PathP A x y
       (Cubical.Data.Nat.elim
         {A = λ n → lem (neg n) ≡ transport {A = P [ pos n ]} {B = P [ neg n ]} (λ i → P (eq/ (neg n) (pos n) (rrefl n) (~ i))) (lem (pos n)) }
         (transportEq≡transportEqRev/ zero tt tt refl P baseCase)
@@ -354,3 +360,27 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
 ιInt/rIntS P pset pz ps [ neg (suc n) ] = {!!}
 ιInt/rIntS P pset pz ps (eq/ a b r i) = {!!}
 ιInt/rIntS P pset pz ps (squash/ n n₁ p q i i₁) = {!!}
+
+-- 3.1.6 in the HoTT book
+isSetProd : ∀ {A B : Type} → isSet B → isSet (A → B)
+isSetProd {A} {B} setB =
+   λ (f g : A → B) (p q : f ≡ g) →
+     cong funExt (funExt (λ (a : A) → setB (f a) (g a) (funExt⁻ p a) (funExt⁻ q a)))
+
+-- Porting functions to nat-like eliminators
+addInt/rInt' : (Int / rInt) -> (Int / rInt) -> (Int / rInt)
+addInt/rInt' a b =
+  depElimSetInt/rInt
+    (λ _ → Int / rInt → Int / rInt) -- motive P
+    (λ (n : Int / rInt) → isSetProd squash/) -- ∀ n, isSet (P n)
+    (λ _ → b) -- P depConstrInt/rInt0 
+    (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m)) -- ∀ n, P n → P (depConstrInt/rIntS n)
+    a
+    b
+
+-- A couple simple tests
+addOKPos : addInt/rInt' [ pos 5 ] [ pos 6 ] ≡ [ pos 11 ]
+addOKPos = refl
+
+addOKNeg : addInt/rInt' [ neg 2 ] [ neg 7 ] ≡ [ neg 9 ]
+addOKNeg = refl
