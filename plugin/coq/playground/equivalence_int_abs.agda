@@ -342,12 +342,6 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
         (λ n _ → transportEq≡transportEqRev/ (suc n) (rrefl (suc n)) (rrefl (suc n)) refl P (sucCase [ pos n ] (lem (pos n))))
         x))
     r
-  wellDefined (neg x) (neg y) r = rJ x
-    (λ y r → PathP (λ i → P (eq/ (neg x) (neg y) r i)) (lem (neg x)) (lem (neg y)))
-    (subst (λ e → PathP (λ i → P (e i)) (lem (neg x)) (lem (neg x)))
-      (squash/ {R = rInt} [ neg x ] [ neg x ] refl (eq/ (neg x) (neg x) (rrefl x)))
-      λ i → lem (neg x))
-    r
 
 ιInt/rInt0 : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) →
     depElimSetInt/rInt P pset pz ps depConstrInt/rInt0 ≡ pz
@@ -355,11 +349,13 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
 
 ιInt/rIntS : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
     depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n) ≡ ps n (depElimSetInt/rInt P pset pz ps n)
-ιInt/rIntS P pset pz ps [ pos n ] = refl
-ιInt/rIntS P pset pz ps [ neg zero ] = {!refl!}
-ιInt/rIntS P pset pz ps [ neg (suc n) ] = {!!}
-ιInt/rIntS P pset pz ps (eq/ a b r i) = {!!}
-ιInt/rIntS P pset pz ps (squash/ n n₁ p q i i₁) = {!!}
+ιInt/rIntS P pset pz ps = elimProp prop fpoint where
+  fpoint : (x : Int) → depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS [ x ]) ≡ ps [ x ] (depElimSetInt/rInt P pset pz ps [ x ])
+  fpoint (pos n) = refl
+  fpoint (neg n) = subst (λ e → depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS e) ≡ ps e (depElimSetInt/rInt P pset pz ps e)) (rIntPosNegQ n) refl
+
+  prop : (n : Int / rInt) → isProp (depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n) ≡ ps n (depElimSetInt/rInt P pset pz ps n))
+  prop n p q = pset (sucInt/rInt n) (depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n)) (ps n (depElimSetInt/rInt P pset pz ps n)) p q
 
 -- 3.1.6 in the HoTT book
 isSetProd : ∀ {A B : Type} → isSet B → isSet (A → B)
