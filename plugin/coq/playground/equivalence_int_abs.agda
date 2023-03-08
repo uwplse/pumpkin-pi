@@ -342,3 +342,15 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
       (squash/ {R = rInt} [ neg x ] [ neg x ] refl (eq/ (neg x) (neg x) (rrefl x)))
       λ i → lem (neg x))
     r
+
+ιInt/rInt0 : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) →
+    depElimSetInt/rInt P pset pz ps depConstrInt/rInt0 ≡ pz
+ιInt/rInt0 P pset pz ps = refl
+
+ιInt/rIntS : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
+    depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n) ≡ ps n (depElimSetInt/rInt P pset pz ps n)
+ιInt/rIntS P pset pz ps [ pos n ] = refl
+ιInt/rIntS P pset pz ps [ neg zero ] = {!refl!}
+ιInt/rIntS P pset pz ps [ neg (suc n) ] = {!!}
+ιInt/rIntS P pset pz ps (eq/ a b r i) = {!!}
+ιInt/rIntS P pset pz ps (squash/ n n₁ p q i i₁) = {!!}
