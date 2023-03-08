@@ -342,3 +342,27 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
         (λ n _ → transportEq≡transportEqRev/ (suc n) (rrefl (suc n)) (rrefl (suc n)) refl P (sucCase [ pos n ] (lem (pos n))))
         x))
     r
+
+-- 3.1.6 in the HoTT book
+isSetProd : ∀ {A B : Type} → isSet B → isSet (A → B)
+isSetProd {A} {B} setB =
+   λ (f g : A → B) (p q : f ≡ g) →
+     cong funExt (funExt (λ (a : A) → setB (f a) (g a) (funExt⁻ p a) (funExt⁻ q a)))
+
+-- Porting functions to nat-like eliminators
+addInt/rInt' : (Int / rInt) -> (Int / rInt) -> (Int / rInt)
+addInt/rInt' a b =
+  depElimSetInt/rInt
+    (λ _ → Int / rInt → Int / rInt) -- motive P
+    (λ (n : Int / rInt) → isSetProd squash/) -- ∀ n, isSet (P n)
+    (λ _ → b) -- P depConstrInt/rInt0 
+    (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m)) -- ∀ n, P n → P (depConstrInt/rIntS n)
+    a
+    b
+
+-- A couple simple tests
+addOKPos : addInt/rInt' [ pos 5 ] [ pos 6 ] ≡ [ pos 11 ]
+addOKPos = refl
+
+addOKNeg : addInt/rInt' [ neg 2 ] [ neg 7 ] ≡ [ neg 9 ]
+addOKNeg = refl
