@@ -414,7 +414,13 @@ sucLemInt/rInt'' a b =
         (funExt (λ x → squash/ _ _ (p x) (q x)))
         i
         i) -- p ≡ q
-    {!!} -- base case
-    {!!} -- inductive case
+    (λ b → refl) -- base case
+    (λ a IH b → -- inductive case
+      ιInt/rIntSProp
+        {!!}
+        {!!}
+        {!!}
+        {!!}
+        {!!})
     a
     b
