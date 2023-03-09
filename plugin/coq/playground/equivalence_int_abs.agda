@@ -375,17 +375,17 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
 
 
 -- 3.1.6 in the HoTT book
-isSetProd : ∀ {A B : Type} → isSet B → isSet (A → B)
+isSetProd : ∀ {A : Type} {B : A → Type} → (∀ (a : A) → isSet (B a)) → isSet (∀ (a : A) → B a)
 isSetProd {A} {B} setB =
-   λ (f g : A → B) (p q : f ≡ g) →
-     cong funExt (funExt (λ (a : A) → setB (f a) (g a) (funExt⁻ p a) (funExt⁻ q a)))
+   λ (f g : ∀ (a : A) → B a) (p q : f ≡ g) →
+     cong funExt (funExt (λ (a : A) → setB a (f a) (g a) (funExt⁻ p a) (funExt⁻ q a)))
 
 -- Porting functions to nat-like eliminators
 addInt/rInt' : (Int / rInt) -> (Int / rInt) -> (Int / rInt)
 addInt/rInt' a b =
   depElimSetInt/rInt
     (λ _ → Int / rInt → Int / rInt) -- motive P
-    (λ (n : Int / rInt) → isSetProd squash/) -- ∀ n, isSet (P n)
+    (λ (_ : Int / rInt) → isSetProd (λ _ → squash/)) -- ∀ n, isSet (P n)
     (λ _ → b) -- P depConstrInt/rInt0 
     (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m)) -- ∀ n, P n → P (depConstrInt/rIntS n)
     a
@@ -397,3 +397,16 @@ addOKPos = refl
 
 addOKNeg : addInt/rInt' [ neg 2 ] [ neg 7 ] ≡ [ neg 9 ]
 addOKNeg = refl
+
+-- Porting proofs to nat-like eliminators
+
+sucLemInt/rInt'' : (a : Int / rInt) -> (b : Int / rInt) -> depConstrInt/rIntS (addInt/rInt' a b) ≡ (addInt/rInt' a (depConstrInt/rIntS b))
+sucLemInt/rInt'' a b =
+  depElimInt/rInt
+    (λ (a : Int / rInt) → ∀ (b : Int / rInt) → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b))
+    (λ (a : Int / rInt) (p q : ∀ b → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b)) →
+      {!!}) -- p ≡ q
+    {!!} -- base case
+    {!!} -- inductive case
+    a
+    b
