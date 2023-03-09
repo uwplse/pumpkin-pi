@@ -427,13 +427,13 @@ sucLemInt/rInt'' a b =
         i) -- p ≡ q
     (λ b → refl) -- base case
     (λ a IH b → -- inductive case
-      ιInt/rIntSProp
+      ιInt/rIntS
+        (λ _ → Int / rInt → Int / rInt) -- P for addition
         {!!}
+        (λ _ → b) -- addition at 0
+        (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m)) -- addition at S
         {!!}
-        {!!}
-        (λ a IH → congS depConstrInt/rIntS (IH b)) -- TODO may not be exactly right, something like this though
-        {!!}
-        {!!}
-        {!!} )
+        (λ x → {!!} ≡ {!!}) -- Q, some equality of nats relating to our proof obligation
+        (congS depConstrInt/rIntS (IH b))) -- something like this, the nat proof
     a
     b
