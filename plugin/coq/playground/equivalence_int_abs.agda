@@ -404,8 +404,16 @@ sucLemInt/rInt'' : (a : Int / rInt) -> (b : Int / rInt) -> depConstrInt/rIntS (a
 sucLemInt/rInt'' a b =
   depElimInt/rInt
     (λ (a : Int / rInt) → ∀ (b : Int / rInt) → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b))
-    (λ (a : Int / rInt) (p q : ∀ b → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b)) →
-      {!!}) -- p ≡ q
+    (λ (a : Int / rInt) (p q : ∀ b → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b)) i →
+      isSetProd
+        {B = λ b → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b)}
+        (λ b → isProp→isSet (squash/ _ _))
+        (λ b → p b)
+        (λ b → q b)
+        (funExt (λ x → squash/ _ _ (p x) (q x)))
+        (funExt (λ x → squash/ _ _ (p x) (q x)))
+        i
+        i) -- p ≡ q
     {!!} -- base case
     {!!} -- inductive case
     a
