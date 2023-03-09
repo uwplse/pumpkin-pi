@@ -416,7 +416,7 @@ sucLemInt/rInt'' a b =
         i) -- p ≡ q
     (λ b → refl) -- base case
     (λ a IH b → -- inductive case
-      ιInt/rIntS
+      ιInt/rIntSProp
         {!!}
         {! !}
         {! !}
@@ -424,3 +424,5 @@ sucLemInt/rInt'' a b =
         {! !})
     a
     b
+
+-- ιInt/rIntS : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) → depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n) ≡ ps n (depElimSetInt/rInt P pset pz ps n)
