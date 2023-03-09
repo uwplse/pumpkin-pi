@@ -343,6 +343,7 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
         x))
     r
 
+-- ι for the Set eliminator
 ιInt/rInt0 : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) →
     depElimSetInt/rInt P pset pz ps depConstrInt/rInt0 ≡ pz
 ιInt/rInt0 P pset pz ps = refl
@@ -353,9 +354,25 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
   fpoint : (x : Int) → depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS [ x ]) ≡ ps [ x ] (depElimSetInt/rInt P pset pz ps [ x ])
   fpoint (pos n) = refl
   fpoint (neg n) = subst (λ e → depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS e) ≡ ps e (depElimSetInt/rInt P pset pz ps e)) (rIntPosNegQ n) refl
-
+  -- it's OK to use elimProp:
   prop : (n : Int / rInt) → isProp (depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n) ≡ ps n (depElimSetInt/rInt P pset pz ps n))
-  prop n p q = pset (sucInt/rInt n) (depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n)) (ps n (depElimSetInt/rInt P pset pz ps n)) p q
+  prop n p q = pset (depConstrInt/rIntS n) (depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n)) (ps n (depElimSetInt/rInt P pset pz ps n)) p q
+
+-- ι for the Prop eliminator
+ιInt/rInt0Prop : (P : Int / rInt → Set) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) →
+    depElimInt/rInt P pprop pz ps depConstrInt/rInt0 ≡ pz
+ιInt/rInt0Prop P pprop pz ps = refl
+
+ιInt/rIntSProp : (P : Int / rInt → Set) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
+    depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n) ≡ ps n (depElimInt/rInt P pprop pz ps n)
+ιInt/rIntSProp P pprop pz ps = elimProp prop fpoint where
+  fpoint : (x : Int) → depElimInt/rInt P pprop pz ps (depConstrInt/rIntS [ x ]) ≡ ps [ x ] (depElimInt/rInt P pprop pz ps [ x ])
+  fpoint (pos n) = refl
+  fpoint (neg n) = subst (λ e → depElimInt/rInt P pprop pz ps (depConstrInt/rIntS e) ≡ ps e (depElimInt/rInt P pprop pz ps e)) (rIntPosNegQ n) refl
+  -- it's OK to use elimProp:
+  prop : (n : Int / rInt) → isProp (depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n) ≡ ps n (depElimInt/rInt P pprop pz ps n))
+  prop n p q = isProp→isSet (pprop (depConstrInt/rIntS n)) (depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n)) (ps n (depElimInt/rInt P pprop pz ps n)) p q
+
 
 -- 3.1.6 in the HoTT book
 isSetProd : ∀ {A B : Type} → isSet B → isSet (A → B)
