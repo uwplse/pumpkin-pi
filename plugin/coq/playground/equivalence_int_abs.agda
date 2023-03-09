@@ -416,11 +416,11 @@ sucLemInt/rInt'' a b =
         i) -- p ≡ q
     (λ b → refl) -- base case
     (λ a IH b → -- inductive case
-      ιInt/rIntSProp
+      ιInt/rIntS
         {!!}
-        {!!}
-        {!!}
-        {!!}
-        {!!})
+        {! !}
+        {! !}
+        (λ a IH → congS depConstrInt/rIntS (IH b))
+        {! !})
     a
     b
