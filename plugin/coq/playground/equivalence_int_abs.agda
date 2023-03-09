@@ -345,9 +345,10 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
 
 -- ι for the Set eliminator
 ιInt/rInt0 : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) →
-    depElimSetInt/rInt P pset pz ps depConstrInt/rInt0 ≡ pz
-ιInt/rInt0 P pset pz ps = refl
+    (Q : P depConstrInt/rInt0 → Set) → Q (depElimSetInt/rInt P pset pz ps depConstrInt/rInt0) → Q pz
+ιInt/rInt0 P pset pz ps Q qz = qz 
 
+-- TODO need to generalize by Q like above
 ιInt/rIntS : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
     depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n) ≡ ps n (depElimSetInt/rInt P pset pz ps n)
 ιInt/rIntS P pset pz ps = elimProp prop fpoint where
@@ -360,9 +361,10 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
 
 -- ι for the Prop eliminator
 ιInt/rInt0Prop : (P : Int / rInt → Set) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) →
-    depElimInt/rInt P pprop pz ps depConstrInt/rInt0 ≡ pz
-ιInt/rInt0Prop P pprop pz ps = refl
+  (Q : P depConstrInt/rInt0 → Set) → Q (depElimInt/rInt P pprop pz ps depConstrInt/rInt0) → Q pz
+ιInt/rInt0Prop P pprop pz ps Q qz = qz
 
+-- TODO need to generalize by Q like above
 ιInt/rIntSProp : (P : Int / rInt → Set) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
     depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n) ≡ ps n (depElimInt/rInt P pprop pz ps n)
 ιInt/rIntSProp P pprop pz ps = elimProp prop fpoint where
