@@ -423,10 +423,6 @@ addOKNeg = refl
 
 -- Porting proofs to nat-like eliminators
 
--- uh, I think I may need an eta like this? generalize what is happening here ...
-eta-add : ∀ a b → addInt/rInt' a b ≡ depElimSetInt/rInt (λ z → Int / rInt → Int / rInt) (λ z → isSetProd (λ _ → squash/)) (λ _ → b) (λ _ IH₁ m → depConstrInt/rIntS (IH₁ m)) a b
-eta-add a b = refl
-
 sucLemInt/rInt'' : (a : Int / rInt) -> (b : Int / rInt) -> depConstrInt/rIntS (addInt/rInt' a b) ≡ (addInt/rInt' a (depConstrInt/rIntS b))
 sucLemInt/rInt'' a b =
   depElimInt/rInt
