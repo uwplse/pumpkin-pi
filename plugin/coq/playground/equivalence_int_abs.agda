@@ -439,7 +439,7 @@ sucLemInt/rInt'' a b =
         i) -- p ≡ q
     (λ b → refl) -- base case
     (λ a (IH : ∀ b → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b)) b → -- inductive case
-      ιInt/rIntS⁻ -- w.t.s that S (S (a + b)) ≡ S (a + S b)
+      ιInt/rIntS⁻ -- w.t.s that S (S a + b) ≡ S a + S b
         (λ _ → Int / rInt → Int / rInt)
         (λ _ → isSetProd (λ _ → squash/))
         (λ _ → b)
