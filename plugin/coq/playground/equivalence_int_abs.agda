@@ -445,16 +445,8 @@ sucLemInt/rInt'' a b =
         (λ b → b)
         (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
         a
-        (λ (add-Sa : Int / rInt → Int / rInt) → -- e.t.s. that S (S (a + b)) ≡ S a + S b
-          depConstrInt/rIntS (add-Sa b) ≡ addInt/rInt' (depConstrInt/rIntS a) (depConstrInt/rIntS b))
-        (ιInt/rIntS⁻ 
-          (λ _ → Int / rInt → Int / rInt)
-          (λ (_ : Int / rInt) → isSetProd (λ _ → squash/))
-          (λ b → b)
-          (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
-          a
-          (λ (add-Sa : Int / rInt → Int / rInt) → -- e.t.s that S (S (a + b)) ≡ S (a + S b)
-            depConstrInt/rIntS (depConstrInt/rIntS (addInt/rInt' a b)) ≡ add-Sa (depConstrInt/rIntS b))
-          (cong depConstrInt/rIntS (IH b)))) -- which holds by cong and the IH
+        (λ (add-Sa : Int / rInt → Int / rInt) → -- e.t.s. that S (S (a + b)) ≡ S (a + S b)
+          depConstrInt/rIntS (add-Sa b) ≡ add-Sa (depConstrInt/rIntS b))
+        (cong depConstrInt/rIntS (IH b))) -- which holds by cong and the IH
       a
       b
