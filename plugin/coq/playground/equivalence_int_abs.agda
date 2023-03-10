@@ -15,7 +15,6 @@ open import Cubical.Data.Empty
 open import Cubical.Data.Sum
 open import Agda.Builtin.Nat
 open import Cubical.Data.Nat
-open import Cubical.HITs.Nullification.Properties
 
 data True : Type where
   tt : True
@@ -410,7 +409,7 @@ addInt/rInt' a b =
   depElimSetInt/rInt
     (λ _ → Int / rInt → Int / rInt) -- motive P
     (λ (_ : Int / rInt) → isSetProd (λ _ → squash/)) -- ∀ n, isSet (P n)
-    (λ _ → b) -- P depConstrInt/rInt0 
+    (λ b → b) -- P depConstrInt/rInt0 
     (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m)) -- ∀ n, P n → P (depConstrInt/rIntS n)
     a
     b
@@ -436,7 +435,7 @@ help a b IH =
   ιInt/rIntS⁻
     (λ _ → Int / rInt → Int / rInt)
     (λ (_ : Int / rInt) → isSetProd (λ _ → squash/)) -- ∀ n, isSet (P n)
-    (λ _ → b) -- P depConstrInt/rInt0 
+    (λ b → b) -- P depConstrInt/rInt0 
     (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m)) -- ∀ n, P n → P (depConstrInt/rIntS n)
     a
     (λ PS → depConstrInt/rIntS (depConstrInt/rIntS (addInt/rInt' a b)) ≡ PS (depConstrInt/rIntS b))
@@ -461,7 +460,7 @@ sucLemInt/rInt'' a b =
       ιInt/rIntS⁻ -- w.t.s that S (S a + b) ≡ S a + S b
         (λ _ → Int / rInt → Int / rInt)
         (λ _ → isSetProd (λ _ → squash/))
-        (λ _ → b)
+        (λ b → b)
         (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
         a
         (λ (PS : Int / rInt → Int / rInt) → depConstrInt/rIntS (PS b) ≡ addInt/rInt' (depConstrInt/rIntS a) (depConstrInt/rIntS b))
