@@ -15,6 +15,7 @@ open import Cubical.Data.Empty
 open import Cubical.Data.Sum
 open import Agda.Builtin.Nat
 open import Cubical.Data.Nat
+open import Cubical.HITs.Nullification.Properties
 
 data True : Type where
   tt : True
