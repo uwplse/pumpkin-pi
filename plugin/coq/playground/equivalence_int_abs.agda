@@ -426,14 +426,13 @@ sucLemInt/rInt'' a b =
         i
         i) -- p ≡ q
     (λ b → refl) -- base case
-    (λ a IH b → -- inductive case
-      ιInt/rIntS
-        (λ _ → Int / rInt → Int / rInt) -- P for addition
-        {!!}
-        (λ _ → b) -- addition at 0
-        (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m)) -- addition at S
-        {!!}
-        (λ x → {!!} ≡ {!!}) -- Q, some equality of nats relating to our proof obligation
-        (congS depConstrInt/rIntS (IH b))) -- something like this, the nat proof
+    (λ a (IH : ∀ b → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b)) b → -- inductive case
+      {!!})
+      -- for this hole, we have that:
+      --   congS depConstrInt/rIntS (IH b) : depConstrInt/rIntS (depConstrInt/rIntS (addInt/rInt' a b)) ≡ depConstrInt/rIntS (addInt/rInt' a (depConstrInt/rIntS b))
+      -- we want to show:
+      --   ??                              : depConstrInt/rIntS (addInt/rInt' (depConstrInt/rIntS a) b) ≡ addInt/rInt' (sucInt/rInt a) (depConstrInt/rIntS b)
+      -- by way of applying some number of iotas. What are the reductions?
     a
     b
+
