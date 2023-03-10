@@ -364,6 +364,12 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
     Q (ps n (depElimSetInt/rInt P pset pz ps n))
 ιInt/rIntS P pset pz ps n Q Qb = subst (λ e → Q e) (ιInt/rIntSEq P pset pz ps n) Qb
 
+ιInt/rIntS⁻ : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
+    (Q : P (depConstrInt/rIntS n) → Set) → 
+    Q (ps n (depElimSetInt/rInt P pset pz ps n)) →
+    Q (depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n))
+ιInt/rIntS⁻ P pset pz ps n Q Qb = subst (λ e → Q e) (sym (ιInt/rIntSEq P pset pz ps n)) Qb
+
 -- ι for the Prop eliminator
 ιInt/rInt0Prop : (P : Int / rInt → Set) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) →
   (Q : P depConstrInt/rInt0 → Set) → Q (depElimInt/rInt P pprop pz ps depConstrInt/rInt0) → Q pz
@@ -384,6 +390,12 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
     Q (depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n)) →
     Q (ps n (depElimInt/rInt P pprop pz ps n))
 ιInt/rIntSProp P pprop pz ps n Q Qb = subst (λ e → Q e) (ιInt/rIntSPropEq P pprop pz ps n) Qb
+
+ιInt/rIntSProp⁻ : (P : Int / rInt → Set) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
+    (Q : P (depConstrInt/rIntS n) → Set) → 
+    Q (ps n (depElimInt/rInt P pprop pz ps n)) →
+    Q (depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n))
+ιInt/rIntSProp⁻ P pprop pz ps n Q Qb = subst (λ e → Q e) (sym (ιInt/rIntSPropEq P pprop pz ps n)) Qb
 
 -- 3.1.6 in the HoTT book
 isSetProd : ∀ {A : Type} {B : A → Type} → (∀ (a : A) → isSet (B a)) → isSet (∀ (a : A) → B a)
@@ -411,6 +423,10 @@ addOKNeg = refl
 
 -- Porting proofs to nat-like eliminators
 
+-- uh, I think I may need an eta like this? generalize what is happening here ...
+eta-add : ∀ a b → addInt/rInt' a b ≡ depElimSetInt/rInt (λ z → Int / rInt → Int / rInt) (λ z → isSetProd (λ _ → squash/)) (λ _ → b) (λ _ IH₁ m → depConstrInt/rIntS (IH₁ m)) a b
+eta-add a b = refl
+
 sucLemInt/rInt'' : (a : Int / rInt) -> (b : Int / rInt) -> depConstrInt/rIntS (addInt/rInt' a b) ≡ (addInt/rInt' a (depConstrInt/rIntS b))
 sucLemInt/rInt'' a b =
   depElimInt/rInt
@@ -427,12 +443,13 @@ sucLemInt/rInt'' a b =
         i) -- p ≡ q
     (λ b → refl) -- base case
     (λ a (IH : ∀ b → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b)) b → -- inductive case
-      {!!})
-      -- for this hole, we have that:
-      --   congS depConstrInt/rIntS (IH b) : depConstrInt/rIntS (depConstrInt/rIntS (addInt/rInt' a b)) ≡ depConstrInt/rIntS (addInt/rInt' a (depConstrInt/rIntS b))
-      -- we want to show:
-      --   ??                              : depConstrInt/rIntS (addInt/rInt' (depConstrInt/rIntS a) b) ≡ addInt/rInt' (sucInt/rInt a) (depConstrInt/rIntS b)
-      -- by way of applying some number of iotas. What are the reductions?
+      ιInt/rIntS⁻ -- w.t.s that S (S (a + b)) ≡ S (a + S b)
+        (λ _ → Int / rInt → Int / rInt)
+        (λ _ → isSetProd (λ _ → squash/))
+        (λ _ → b)
+        (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+        a
+        (λ (PS : Int / rInt → Int / rInt) → depConstrInt/rIntS (PS b) ≡ addInt/rInt' (depConstrInt/rIntS a) (depConstrInt/rIntS b))
+        {!!}) -- e.t.s. that S (S (a + b)) ≡ S a + S b. Probably needs one more iota, but I failed trying to find it ...
     a
     b
-
