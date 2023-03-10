@@ -423,24 +423,6 @@ addOKNeg = refl
 
 -- Porting proofs to nat-like eliminators
 
-help1 : ∀ a b →
-  depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b) →
-  depConstrInt/rIntS (depConstrInt/rIntS (addInt/rInt' a b)) ≡ depConstrInt/rIntS (addInt/rInt' a (depConstrInt/rIntS b))
-help1 a b IH = cong depConstrInt/rIntS IH
-
-help : ∀ a b →
-  depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b) →
-  depConstrInt/rIntS (depConstrInt/rIntS (addInt/rInt' a b)) ≡ addInt/rInt' (depConstrInt/rIntS a) (depConstrInt/rIntS b)
-help a b IH =
-  ιInt/rIntS⁻
-    (λ _ → Int / rInt → Int / rInt)
-    (λ (_ : Int / rInt) → isSetProd (λ _ → squash/)) -- ∀ n, isSet (P n)
-    (λ b → b) -- P depConstrInt/rInt0
-    (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m)) -- ∀ n, P n → P (depConstrInt/rIntS n)
-    a
-    (λ PS → depConstrInt/rIntS (depConstrInt/rIntS (addInt/rInt' a b)) ≡ PS (depConstrInt/rIntS b))
-    (help1 a b IH) -- magically fails to type check whyyyyyyy
-
 sucLemInt/rInt'' : (a : Int / rInt) -> (b : Int / rInt) -> depConstrInt/rIntS (addInt/rInt' a b) ≡ (addInt/rInt' a (depConstrInt/rIntS b))
 sucLemInt/rInt'' a b =
   depElimInt/rInt
