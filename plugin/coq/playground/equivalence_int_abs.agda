@@ -450,3 +450,83 @@ sucLemInt/rInt'' a b =
         (cong depConstrInt/rIntS (IH b))) -- which holds by cong and the IH
       a
       b
+
+-- Some thoughts on automating the above, from Talia:
+--
+-- We would eventually like to be able to infer the iota applications automatically.
+-- We have the corresponding proofs over nat, for which the iota reductions hold
+-- definitionally. What does this mean?
+--
+-- It means that we know that over nat, we have:
+--   Γ, IH : ∀ b → S (a + b) ≡ a + S b, b : Nat ⊢ cong S (IH b) : S (S a + b) ≡ S a + S b
+-- since that is our goal shown by cong S (IH b) in the proof over Nat. But also:
+--   Γ, IH : ∀ b → S (a + b) ≡ a + S b, b : Nat ⊢ cong S (IH b) : S (S (a + b)) ≡ S (a + S b)
+-- before reduction of the type, just by the type signature of cong and of IH.
+-- 
+-- This means that we have:
+--   (S (S a + b) ≡ S a + S b) ≝ (S (S (a + b)) ≡ S (a + S b))
+-- So when we normalize both sides, over nat, we get the same normal form.
+--
+-- How do we actually get the particular normalization steps that happen, here?
+-- Because we need to reify them when we move out of the original type, since
+-- now these iota reductions do not hold definitionally. It would be nice to do this
+-- fully automatically, rather than by hand. I see two potential paths forward:
+--
+-- 1. We could instrument Cubical Agda's definitional equality to track each reduction step.
+-- This is probably overkill, but it doesn't require much knowledge of anything.
+--
+-- 2. We could figure out the normalization steps ourselves, after the fact. I think
+-- we could potentially skip over knowing the entire normalization algorithm, since the
+-- only thing that should change in significant ways will be the iota steps, so if it's
+-- blocked it must be blocked on iota (or eta if we are yet to find that). But those iota
+-- steps could be nested inside of other reductions, potentially, which might make it hard
+-- to do anything unless we know everything about normalization. Maybe we can make some
+-- simplifying assumptions, though.
+--
+-- Let us look at the example above in a bit more detail. What are the relevant ι-reduction
+-- steps that happen to show:
+--   (S (S a + b) ≡ S a + S b) ≝ (S (S (a + b)) ≡ S (a + S b))
+-- over natural numbers? The RHS is fully normalized already, but the LHS is not.
+-- δ unfolds + to an application of the Nat eliminator (we are again pretending general
+-- pattern matching isn't a thing). Β-reduction a few times simplifies this to applying
+-- the nat eliminator to (S a), which is when ι applies. This happens to both instances of
+-- + on the LHS.
+--
+-- Thus, when we want to do this propositionally, what we must do is abstract every (S a) in
+-- our call to ι specialized to + (over Int/rInt). Furthermore, we apply ι in the backwards
+-- direction because our LHS (goal) is normalized already, but the RHS (the term we claim has the
+-- type of our goal, and that indeed does when we are working over nat with definitional ι)
+-- is not yet normalized, and needs those (S a) abstracted away.
+--
+-- OK, let's generalize. Let's say that over nat we have:
+--   Γ ⊢ t : T
+-- by definition, where t is the term that proves our goal T.
+-- By raw syntactic type checking without normalizing, let us also say we have:
+--   Γ ⊢ t : T'
+-- Then over nat we can infer that:
+--   Γ ⊢ T ≝ T'
+-- Say we move to Int/rInt, now, and we no longer have that (lifted) T ≝ T'.
+-- We want to show that (lifted) T ≡ T'. All significant changes in the equality between T and T'
+-- must come from applications of of ι (unless eta is a thing; I guess we don't know yet). Thus:
+--
+-- 1. We should first fully normalize (lifted) T and T'. In the case of our example above,
+-- this would δ-expand lifted + and Β-reduce its application.
+--
+-- 2. We should arrive at forms of T and T' that explicitly apply the lifted eliminator over
+-- Int/rInt. Since ι is the only significant change, they should furthermore apply the lifted
+-- eliminator to (S x) for some x (where S is shorthand for depConstrInt/rIntS; it is lifted S)
+--
+-- 3. Abstract everything definitionally equal to (S x) for some x, where that (S x) is eliminated
+-- over in normalized T. This is the argument Q to ι in the backwards direction.
+--
+-- 4. Abstract everything definitionally equal to (S x) for some x, where that (S x) is eliminated
+-- over in normalized T'. This is the argument Q to ι in the forwards direction.
+--
+-- 5. Apply those ι rewrites to T and T' propositionally to get updated T and T'.
+--
+-- 6. Repeat 1-5 until we arrive at updated T, T' such that T ≝ T'.
+--
+-- I think this is reasonable but it also means knowing how to fully normalize things in
+-- between. I think we should write a constrained normalization algorithm over a restricted
+-- fragment of the type theory that we define ourselves? Or something.
+
