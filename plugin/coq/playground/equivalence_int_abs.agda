@@ -529,4 +529,8 @@ sucLemInt/rInt'' a b =
 -- I think this is reasonable but it also means knowing how to fully normalize things in
 -- between. I think we should write a constrained normalization algorithm over a restricted
 -- fragment of the type theory that we define ourselves? Or something.
+--
+-- Maybe we can use Cubical Agda's normalization as an oracle. It remains to be seen
+-- whether the information we get back from Cubical Agda is actually useful enough
+-- to help us with that?
 
