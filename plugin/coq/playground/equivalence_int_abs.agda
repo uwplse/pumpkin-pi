@@ -602,8 +602,10 @@ addCommInt/rInt' a b =
         (λ b → addInt/rInt' [ pos zero ] b ≡ addInt/rInt' b [ pos zero ])
         (λ b → squash/ _ _)
         refl
-        {!!}  -- some ι with cong depConstrInt/rIntS sucLemInt/rInt''
+        (λ b (IHb : addInt/rInt' [ pos zero ] b ≡ addInt/rInt' b [ pos zero ]) →
+          {!!})  -- some ι with cong depConstrInt/rIntS sucLemInt/rInt''
         b)
-    {!!} -- some ι with cong depConstrInt/rIntS IH ∙ cong depConstrInt/rIntS (sucLemInt/rInt'' b a)
+    (λ a (IHa : ∀ b → addInt/rInt' a b ≡ addInt/rInt' b a) b →
+      {!!}) -- some ι with cong depConstrInt/rIntS IH ∙ cong depConstrInt/rIntS (sucLemInt/rInt'' b a)
     a
     b
