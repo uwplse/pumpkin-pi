@@ -404,6 +404,15 @@ isSetProd {A} {B} setB =
      cong funExt (funExt (λ (a : A) → setB a (f a) (g a) (funExt⁻ p a) (funExt⁻ q a)))
 
 -- Porting functions to nat-like eliminators
+add' : (a : ℕ) → (b : ℕ) → ℕ
+add' a b =
+  Cubical.Data.Nat.elim
+    {A = λ _ → ℕ → ℕ} -- motive P
+    (λ b → b) -- P 0
+    (λ a IH b → suc (IH b)) -- ∀ n, P n → P (S n)
+    a
+    b
+
 addInt/rInt' : (Int / rInt) -> (Int / rInt) -> (Int / rInt)
 addInt/rInt' a b =
   depElimSetInt/rInt
@@ -423,7 +432,28 @@ addOKNeg = refl
 
 -- Porting proofs to nat-like eliminators
 
-sucLemInt/rInt'' : (a : Int / rInt) -> (b : Int / rInt) -> depConstrInt/rIntS (addInt/rInt' a b) ≡ (addInt/rInt' a (depConstrInt/rIntS b))
+sucLemNat'' : (a : ℕ) → (b : ℕ) → suc (add' a b) ≡ add' a (suc b)
+sucLemNat'' a b =
+  Cubical.Data.Nat.elim
+    {A = λ a → ∀ b → suc (add' a b) ≡ add' a (suc b)} -- motive P
+    (λ b → refl) -- base case
+    (λ a (IH : ∀ b → suc (add' a b) ≡ add' a (suc b)) b →
+      -- want to show P (suc a) b, which is suc (add' (suc a) b) ≡ add' (suc a) (suc b)
+      -- we have cong suc (IH b), where (IH b) : suc (add' a b) ≡ add' a (suc b)
+      -- thus, cong suc (IH b) : suc (suc (add' a b)) ≡ suc (add' a (suc b))
+      -- so our definitional equality is:
+      --  (suc (add' (suc a) b) ≡ add' (suc a) (suc b)) ≝ (suc (suc (add' a b)) ≡ suc (add' a (suc b)))
+      --    by δ, unfold add' everywhere
+      --    this will give us an application of Cubical.Data.Nat.elim (the add' defined above)
+      --    by Β, take the (λ a b → ...) that add' unfolded to, and specialize to each a, b (e.g., (suc a) b)
+      --    Now we have (Cubical.Data.Nat.elim ... (suc a)) b
+      --    Now by ι, we have suc ((Cubical.Data.Nat.elim ... a) b)
+      --    etc.
+      cong suc (IH b)) -- inductive case
+    a
+    b
+
+sucLemInt/rInt'' : (a : Int / rInt) -> (b : Int / rInt) -> depConstrInt/rIntS (addInt/rInt' a b) ≡ (addInt/rInt' a (depConstrInt/rIntS b)) -- S (a + b) = a + S b
 sucLemInt/rInt'' a b =
   depElimInt/rInt
     (λ (a : Int / rInt) → ∀ (b : Int / rInt) → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b))
