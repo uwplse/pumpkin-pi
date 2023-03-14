@@ -582,3 +582,28 @@ sucLemInt/rInt''' a b =
               cong depConstrInt/rIntS (IH b))))
     a
     b
+
+-- Now let's try for commutativity
+addCommInt/rInt' : (a : Int / rInt) → (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a
+addCommInt/rInt' a b =
+  depElimInt/rInt
+    (λ a → ∀ b → addInt/rInt' a b ≡ addInt/rInt' b a)
+    (λ (a : Int / rInt) p q i →
+      isSetProd
+        (λ b → isProp→isSet (squash/ _ _))
+        (λ b → p b)
+        (λ b → q b)
+        (funExt (λ x → squash/ _ _ (p x) (q x)))
+        (funExt (λ x → squash/ _ _ (p x) (q x)))
+        i
+        i)
+    (λ b →
+      depElimInt/rInt
+        (λ b → addInt/rInt' [ pos zero ] b ≡ addInt/rInt' b [ pos zero ])
+        (λ b → squash/ _ _)
+        refl
+        {!!}  -- some ι with cong depConstrInt/rIntS sucLemInt/rInt''
+        b)
+    {!!} -- some ι with cong depConstrInt/rIntS IH ∙ cong depConstrInt/rIntS (sucLemInt/rInt'' b a)
+    a
+    b
