@@ -517,14 +517,16 @@ sucLemInt/rInt'' a b =
 -- eliminator to (S x) for some x (where S is shorthand for depConstrInt/rIntS; it is lifted S)
 --
 -- 3. Abstract everything definitionally equal to (S x) for some x, where that (S x) is eliminated
--- over in normalized T. This is the argument Q to ι in the backwards direction.
+-- over in normalized T. This is the argument Q to ι in the backwards direction, while that x
+-- is the argument n to ι in the backwards direction. Apply the ι rewrites propositionally
+-- to get updated T, t.
 --
--- 4. Abstract everything definitionally equal to (S x) for some x, where that (S x) is eliminated
--- over in normalized T'. This is the argument Q to ι in the forwards direction.
+-- 4. If T ≝ T', stop and return. Otherwise, abstract everything definitionally equal to (S x)
+-- for some x, where that (S x) is eliminated over in normalized T'. This is the argument Q to
+-- ι in the forwards direction, while that x is the argument n to ι in the forwards direction.
+-- Apply the ι rewrites propositionally to get updated T', t.
 --
--- 5. Apply those ι rewrites to T and T' propositionally to get updated T and T'.
---
--- 6. Repeat 1-5 until we arrive at updated T, T' such that T ≝ T'.
+-- 5. If T ≝ T', stop and return. Otherwise, repeat steps 1-5.
 --
 -- I think this is reasonable but it also means knowing how to fully normalize things in
 -- between. I think we should write a constrained normalization algorithm over a restricted
@@ -534,3 +536,49 @@ sucLemInt/rInt'' a b =
 -- whether the information we get back from Cubical Agda is actually useful enough
 -- to help us with that?
 
+-- In any case, let us try this algorithm over the other proof
+sucLemInt/rInt''' : (a : Int / rInt) → (b : Int / rInt) → (addInt/rInt' (depConstrInt/rIntS a) b) ≡ depConstrInt/rIntS (addInt/rInt' a b)
+sucLemInt/rInt''' a b =
+  depElimInt/rInt
+    (λ a → ∀ (b : Int / rInt) → -- P
+      addInt/rInt' (depConstrInt/rIntS a) b ≡ depConstrInt/rIntS (addInt/rInt' a b))
+    (λ (a : Int / rInt) p q i →
+      isSetProd
+        (λ b → isProp→isSet (squash/ _ _))
+        (λ b → p b)
+        (λ b → q b)
+        (funExt (λ x → squash/ _ _ (p x) (q x)))
+        (funExt (λ x → squash/ _ _ (p x) (q x)))
+        i
+        i)
+    (λ b → refl)
+    (λ a (IH : ∀ b → addInt/rInt' (depConstrInt/rIntS a) b ≡ depConstrInt/rIntS (addInt/rInt' a b)) b →
+      -- P (S a) b is T so
+      -- T is (S S a) + b ≡ S (S a + b)
+      -- cong depConstrInt/rIntS (IH b) : T', so
+      -- T' is S (S a + b) ≡ S (S (a + b))
+      -- Normalizing T blocks on ι in the RHS; let us abstract (S a):
+      ιInt/rIntS⁻
+        (λ _ → Int / rInt → Int / rInt)
+        (λ _ → isSetProd (λ _ → squash/))
+        (λ b → b)
+        (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+        a
+        (λ (add-Sa : Int / rInt → Int / rInt) →
+          addInt/rInt' (depConstrInt/rIntS (depConstrInt/rIntS a)) b ≡ depConstrInt/rIntS (add-Sa b))
+        ( -- We have simplified T to (S S a) + b ≡ S (S (a + b))
+          -- Normalizing T further blocks on ι on the LHS; let us abstract (S (S a)):
+          ιInt/rIntS⁻
+            (λ _ → Int / rInt → Int / rInt)
+            (λ _ → isSetProd (λ _ → squash/))
+            (λ b → b)
+            (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+            (depConstrInt/rIntS a) -- note that we must also instantiate argument to Q
+            (λ (add-SSa : Int / rInt → Int / rInt) →
+              add-SSa b ≡ depConstrInt/rIntS (depConstrInt/rIntS (addInt/rInt' a b)))
+            ( -- We have simplified T to S (S a + b) ≡ S (S (a + b))
+              -- I guess this points out one missed piece in our algorithm, which is
+              -- we can stop preemptively if T and T' are identical
+              cong depConstrInt/rIntS (IH b))))
+    a
+    b
