@@ -614,6 +614,22 @@ sucLemInt/rInt''' a b =
     b
 
 -- Now let's try for commutativity
+addCommNat' : (a : ℕ) → (b : ℕ) → add' a b ≡ add' b a
+addCommNat' a b =
+  Cubical.Data.Nat.elim
+    {A = λ a → ∀ b → add' a b ≡ add' b a}
+    (λ b →
+      Cubical.Data.Nat.elim
+        {A = λ b → add' 0 b ≡ add' b 0}
+        refl
+        (λ b (IHb : add' 0 b ≡ add' b 0) →
+          cong suc IHb)
+        b)
+    (λ a (IHa : ∀ b → add' a b ≡ add' b a) b →
+      cong suc (IHa b) ∙ sucLemNat'' b a) 
+    a
+    b
+
 addCommInt/rInt' : (a : Int / rInt) → (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a
 addCommInt/rInt' a b =
   depElimInt/rInt
@@ -633,9 +649,33 @@ addCommInt/rInt' a b =
         (λ b → squash/ _ _)
         refl
         (λ b (IHb : addInt/rInt' [ pos zero ] b ≡ addInt/rInt' b [ pos zero ]) →
-          {!!})  -- some ι with cong depConstrInt/rIntS sucLemInt/rInt''
+          -- T := P (S b) := [ pos zero ] + (S b) ≡ (S b) + [ pos zero ]
+          -- cong S IHb : T', so
+          -- T' := S ([ pos zero ] + b) = S (b + [ pos zero ])
+          -- One backwards ι abstracting over S b
+          ιInt/rIntS⁻
+            (λ _ → Int / rInt → Int / rInt)
+            (λ _ → isSetProd (λ _ → squash/))
+            (λ b → b)
+            (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+            b
+            (λ add-Sb →
+              addInt/rInt' [ pos zero ] (depConstrInt/rIntS b) ≡ add-Sb [ pos zero ])
+            (cong depConstrInt/rIntS IHb))
         b)
     (λ a (IHa : ∀ b → addInt/rInt' a b ≡ addInt/rInt' b a) b →
-      {!!}) -- some ι with cong depConstrInt/rIntS IH ∙ cong depConstrInt/rIntS (sucLemInt/rInt'' b a)
+      -- T := P (S a) b := S a + b ≡ b + S a
+      ιInt/rIntS⁻
+        (λ _ → Int / rInt → Int / rInt)
+        (λ _ → isSetProd (λ _ → squash/))
+        (λ b → b)
+        (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+        a
+        (λ add-Sa →
+          add-Sa b ≡ addInt/rInt' b (depConstrInt/rIntS a))
+        (cong depConstrInt/rIntS (IHa b) ∙ sucLemInt/rInt'' b a)) 
     a
     b
+
+-- TODO, show that this is correct in comparison to a nat version!
+-- think about how to algorithmically generate those proofs
