@@ -112,6 +112,9 @@ Nat/rNatIsoNat = iso g' f' ret' sec'
 Int/rIntIsoNat : Iso (Int / rInt) Nat
 Int/rIntIsoNat  = compIso Int/rIntIsoNat/rNat Nat/rNatIsoNat
 
+Nat≡Int/rInt : Nat ≡ Int / rInt
+Nat≡Int/rInt = sym (isoToPath Int/rIntIsoNat)
+
 sucLemNat : (a : Nat) -> (b : Nat) -> suc (a + b) ≡ a + suc b
 sucLemNat zero b = refl
 sucLemNat (suc a) b = cong suc (sucLemNat a b)
@@ -430,6 +433,14 @@ addOKPos = refl
 addOKNeg : addInt/rInt' [ neg 2 ] [ neg 7 ] ≡ [ neg 9 ]
 addOKNeg = refl
 
+-- Proof of correctness of repaired function
+addCorrect :
+  ∀ (a b : ℕ) (a' b' : Int / rInt) →
+  ∀ (pa : PathP (λ i → Nat≡Int/rInt i) a a') (pb : PathP (λ i → Nat≡Int/rInt i) b b') →
+  PathP (λ i → Nat≡Int/rInt i) (add' a b) (addInt/rInt a' b')
+addCorrect a b a' b' pa pb =
+  {!!} -- ?
+
 -- Porting proofs to nat-like eliminators
 
 sucLemNat'' : (a : ℕ) → (b : ℕ) → suc (add' a b) ≡ add' a (suc b)
@@ -676,6 +687,13 @@ addCommInt/rInt' a b =
         (cong depConstrInt/rIntS (IHa b) ∙ sucLemInt/rInt'' b a)) 
     a
     b
+
+-- Proof of correctness of repaired proof
+-- addCommCorrect : ∀ (a : ℕ) (a' : Int / rInt) (p : PathP {!!} a a') → {!!}
+-- addCommCorrect = {!!}
+
+-- addCommNat' : (a : ℕ) → (b : ℕ) → add' a b ≡ add' b a
+-- addCommInt/rInt' : (a : Int / rInt) → (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a
 
 -- TODO, show that this is correct in comparison to a nat version!
 -- think about how to algorithmically generate those proofs
