@@ -439,47 +439,31 @@ addCorrect :
   ∀ (pa : PathP (λ i → Nat≡Int/rInt i) a a') (pb : PathP (λ i → Nat≡Int/rInt i) b b') →
   PathP (λ i → Nat≡Int/rInt i) (add' a b) (addInt/rInt' a' b')
 addCorrect a b a' b' pa pb =
-  Cubical.Data.Nat.elim
-    {A =
-      λ (a : ℕ) →
-        ∀ (a' : Int / rInt) →
-        ∀ (pa : PathP (λ i → Nat≡Int/rInt i) a a') →
-        PathP _ (add' a b) (addInt/rInt' a' b')}
-    (λ a' (pa : PathP (λ i → Nat≡Int/rInt i) 0 a') →
-      JDep
-        {A = Nat}
-        {B = λ _ → Int / rInt}
-        {b = b'}
-        (λ (y : Nat) (p : _ ≡ y) (z : Int / rInt) (q : b' ≡ z) →
-          PathP (λ i → Nat≡Int/rInt i) y z)
-        pb
-        refl
-        (subst
-          {x = a'}
-          {y = [ pos zero ]}
-          (λ (z : Int / rInt) → addInt/rInt' z b' ≡  addInt/rInt' a' b')
-          (sym (fromPathP pa))
-          refl))
-    (λ a (IHa : ∀ a' pa → PathP _ (add' a b) (addInt/rInt' a' b')) a' (pa : PathP _ (suc a) a') →
-      JDep
-        {A = Nat}
-        {B = λ _ → Int / rInt}
-        (λ (y : Nat) (p : _ ≡ y) (z : Int / rInt) (q : _ ≡ z) →
-          PathP (λ i → Nat≡Int/rInt i) y z)
-        (toPathP
+  JDep
+    {A = Nat}
+    {B = λ _ → Int / rInt}
+    (λ y p z q → PathP (λ i → Nat≡Int/rInt i) y z)
+    (Cubical.Data.Nat.elim
+      {A = λ a → ∀ (a' : Int / rInt) (pa : PathP (λ i → Nat≡Int/rInt i) a a') →
+        PathP (λ i → Nat≡Int/rInt i) (add' a b) (addInt/rInt' (transport (λ i → Nat≡Int/rInt i) a) b')}
+      (λ _ _ → pb)
+      (λ a (IHa : ∀ a' pa → PathP _ (add' a b) (addInt/rInt' (transport (λ i → Nat≡Int/rInt i) a) b')) a' pa →
+        toPathP
           (cong
             depConstrInt/rIntS
-            (fromPathP (IHa [ pos a ] (toPathP refl)))))
-        refl
-        (subst
-          {x = a'}
-          {y = depConstrInt/rIntS [ pos a ]}
-          (λ (z : Int / rInt) → addInt/rInt' z b' ≡ addInt/rInt' a' b')
-          (sym (fromPathP pa))
-          refl))     
-  a
-  a'
-  pa
+            (fromPathP (IHa (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl)))))
+      a
+      a'
+      pa)
+    refl
+    (subst
+      {x = a'}
+      {y = transport Nat≡Int/rInt a}
+      (λ (z : Int / rInt) → addInt/rInt' z b' ≡  addInt/rInt' a' b')
+      (sym (fromPathP pa))
+      refl)
+
+-- TODO prove lifted eliminator correct in general case, should simplify these proofs
 
 -- Porting proofs to nat-like eliminators
 
