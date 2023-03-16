@@ -437,9 +437,23 @@ addOKNeg = refl
 addCorrect :
   ∀ (a b : ℕ) (a' b' : Int / rInt) →
   ∀ (pa : PathP (λ i → Nat≡Int/rInt i) a a') (pb : PathP (λ i → Nat≡Int/rInt i) b b') →
-  PathP (λ i → Nat≡Int/rInt i) (add' a b) (addInt/rInt a' b')
+  PathP (λ i → Nat≡Int/rInt i) (add' a b) (addInt/rInt' a' b')
 addCorrect a b a' b' pa pb =
-  {!!} -- ?
+  toPathP
+    (Cubical.Data.Nat.elim
+      {A =
+        λ (a : ℕ) →
+          ∀ (b : ℕ) (a' b' : Int / rInt) →
+          ∀ (pa : PathP (λ i → Nat≡Int/rInt i) a a') (pb : PathP (λ i → Nat≡Int/rInt i) b b') →
+          transport Nat≡Int/rInt (add' a b) ≡ addInt/rInt' a' b'}
+      (λ b a' b' (pa : PathP (λ i → Nat≡Int/rInt i) 0 a') pb → {!!})
+      (λ a IHa b a' b' pa pb → {!!})
+      a
+      b
+      a'
+      b'
+      pa
+      pb)
 
 -- Porting proofs to nat-like eliminators
 
