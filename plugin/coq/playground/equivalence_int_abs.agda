@@ -442,15 +442,16 @@ addCorrect a b a' b' pa pb =
   Cubical.Data.Nat.elim
     {A =
       λ (a : ℕ) →
-        ∀ (b : ℕ) (a' b' : Int / rInt) →
-        ∀ (pa : PathP (λ i → Nat≡Int/rInt i) a a') (pb : PathP (λ i → Nat≡Int/rInt i) b b') →
+        ∀ (a' : Int / rInt) →
+        ∀ (pa : PathP (λ i → Nat≡Int/rInt i) a a') →
         PathP _ (add' a b) (addInt/rInt' a' b')}
-    (λ b a' b' (pa : PathP (λ i → Nat≡Int/rInt i) 0 a') pb →
+    (λ a' (pa : PathP (λ i → Nat≡Int/rInt i) 0 a') →
       JDep
         {A = Nat}
         {B = λ _ → Int / rInt}
         {b = b'}
-        (λ (y : Nat) (p : _ ≡ y) (z : Int / rInt) q → PathP (λ i → Nat≡Int/rInt i) y z)
+        (λ (y : Nat) (p : _ ≡ y) (z : Int / rInt) (q : b' ≡ z) →
+          PathP (λ i → Nat≡Int/rInt i) y z)
         pb
         refl
         (subst
@@ -459,49 +460,26 @@ addCorrect a b a' b' pa pb =
           (λ (z : Int / rInt) → addInt/rInt' z b' ≡  addInt/rInt' a' b')
           (sym (fromPathP pa))
           refl))
-    {!!}
-    a
-    b
-    a'
-    b'
-    pa
-    pb
-
---  JDep
---    {A = Nat} -- A : Type
---    {x = {!!}} -- x : Nat
---    {B =  λ _ → Int / rInt} -- B : Nat → Type 
---    {b = b'} -- b : Int/rInt
---    (λ (y : Nat) (p : _ ≡ y) (z : Int / rInt) q → PathP ( λ i → Nat≡Int/rInt i) y z) -- P : ∀ y p z → PathP (λ i → B (Nat≡Int/rInt i)) b z → Type
---    {!!} -- prefl : P x refl b refl
---    {!!} -- H : x ≡ y
---    {!!} -- q : PathP (λ i → B (Nat≡Int/rInt i)) b z s.t. z : Int/rInt (IDK where y, z come from, but they are bound in return type)
-  -- : P y H z q ≡ PathP (λ i → NatInt/rInt i) (add' a b) (addInt/rInt' a' b')
-
--- module _ {b : B x}
---  (P : (y : A) (p : x ≡ y) (z : B y) (q : PathP (λ i → B (p i)) b z) → Type ℓ'')
---  (d : P _ refl _ refl) where
--- JDep : {y : A} (p : x ≡ y) {z : B y} (q : PathP (λ i → B (p i)) b z) → P _ p _ q
--- JDepRefl : JDep refl refl ≡ d
-
-
- -- (Cubical.Data.Nat.elim
- --     {A =
-   --     λ (a : ℕ) →
-    --      ∀ (b : ℕ) (a' b' : Int / rInt) →
-    --      ∀ (pa : PathP (λ i → Nat≡Int/rInt i) a a') (pb : PathP (λ i → Nat≡Int/rInt i) b b') →
-   --       transport Nat≡Int/rInt (add' a b) ≡ addInt/rInt' a' b'}
-   --   (λ b a' b' (pa : PathP (λ i → Nat≡Int/rInt i) 0 a') pb →
-   --     -- TODO is there a way to get this by inducting over the PathP with a J-like thing instead of a'?
-   --     J ( λ _ _ → transport Nat≡Int/rInt b ≡ addInt/rInt' ) pb refl) -- transport Nat≡Int/rInt b ≡ addInt/rInt' a' b'
-   --   (λ a IHa b a' b' pa pb →
-   --     {!!}) -- transport Nat≡Int/rInt (add' (suc a) b) ≡ addInt/rInt' a' b'
-   --   a
-   --   b
-   --   a'
-   --   b'
-   --   pa
-   --   pb)
+    (λ a (IHa : ∀ a' pa → PathP _ (add' a b) (addInt/rInt' a' b')) a' (pa : PathP _ (suc a) a') →
+      JDep
+        {A = Nat}
+        {B = λ _ → Int / rInt}
+        (λ (y : Nat) (p : _ ≡ y) (z : Int / rInt) (q : _ ≡ z) →
+          PathP (λ i → Nat≡Int/rInt i) y z)
+        (toPathP
+          (cong
+            depConstrInt/rIntS
+            (fromPathP (IHa [ pos a ] (toPathP refl)))))
+        refl
+        (subst
+          {x = a'}
+          {y = depConstrInt/rIntS [ pos a ]}
+          (λ (z : Int / rInt) → addInt/rInt' z b' ≡ addInt/rInt' a' b')
+          (sym (fromPathP pa))
+          refl))     
+  a
+  a'
+  pa
 
 -- Porting proofs to nat-like eliminators
 
