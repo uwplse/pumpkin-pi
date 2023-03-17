@@ -481,10 +481,47 @@ depElimSetCorrect :
   ∀ (x : Nat) (x' : Int / rInt) →
   (P≡P' : ∀ x x' → PathP (λ i → Nat≡Int/rInt i) x x' → PathP (λ i → Set) (P x) (P' x')) →
   (PO≡PO' : PathP (λ i → P≡P' zero depConstrInt/rInt0 depConstr0Correct i) PO P'O) →
-  (PS≡PS' : ∀ x x' IH IH' x≡x' → PathP (λ i → P≡P' (suc x) (depConstrInt/rIntS x') (depConstrSCorrect x x' x≡x') i) (PS x IH) (P'S x' IH')) → -- TODO do we need IH≡IH' or is that implied?
+  (PS≡PS' : ∀ x x' IH IH' x≡x' → PathP (λ i → P≡P' _ _ (depConstrSCorrect x x' x≡x') i) (PS x IH) (P'S x' IH')) → -- TODO do we need IH≡IH' or is that implied?
   (x≡x' : PathP (λ i → Nat≡Int/rInt i) x x') →
   PathP (λ i → P≡P' x x' x≡x' i) (Cubical.Data.Nat.elim {A = P} PO PS x) (depElimSetInt/rInt P' P'set P'O P'S x')
-depElimSetCorrect = {!!}
+depElimSetCorrect P P' P'set PO P'O PS P'S x x' P≡P' PO≡PO' PS≡PS' x≡x' =
+  JDep
+    {A = P x}
+    {B = λ _ → P' x'}
+    (λ y p z q → PathP (λ i → P≡P' x x' x≡x' i) y z)
+    (Cubical.Data.Nat.elim
+      {A = λ x → ∀ x' x≡x' → PathP (λ i → P≡P' x x' x≡x' i) (Cubical.Data.Nat.elim {A = P} PO PS x) (depElimSetInt/rInt P' P'set P'O P'S x') }
+      (λ x' x≡x' → {!!})
+      (λ x IH x' x≡x' → {!!})
+      x
+      x'
+      x≡x')
+    refl
+    refl
+
+--  JDep
+--    {A = Nat}
+--    {B = λ _ → Int / rInt}
+--    (λ y p z q → PathP (λ i → Nat≡Int/rInt i) y z)
+--    (Cubical.Data.Nat.elim
+--      {A = λ a → ∀ (a' : Int / rInt) (pa : PathP (λ i → Nat≡Int/rInt i) a a') →
+--        PathP (λ i → Nat≡Int/rInt i) (add' a b) (addInt/rInt' (transport (λ i → Nat≡Int/rInt i) a) b')}
+--      (λ _ _ → pb)
+--      (λ a (IHa : ∀ a' pa → PathP _ (add' a b) (addInt/rInt' (transport (λ i → Nat≡Int/rInt i) a) b')) a' pa →
+--        toPathP
+--          (cong
+--            depConstrInt/rIntS
+--            (fromPathP (IHa (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl)))))
+--      a
+--      a'
+--      pa)
+--    refl
+--    (subst
+--      {x = a'}
+--      {y = transport Nat≡Int/rInt a}
+--      (λ (z : Int / rInt) → addInt/rInt' z b' ≡  addInt/rInt' a' b')
+ --     (sym (fromPathP pa))
+  --    refl)
 
 --addCorrect :
 --  ∀ (a b : ℕ) (a' b' : Int / rInt) →
