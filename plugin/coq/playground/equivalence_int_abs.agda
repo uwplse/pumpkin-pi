@@ -464,10 +464,15 @@ addCorrect a b a' b' pa pb =
       (sym (fromPathP pa))
       refl)
 
--- Or, better: let's prove the lifted eliminator correct in the general case, then maybe we can use that
+-- Or, better: let's prove the lifted decomposition of the equivalence correct in the general case, then maybe we can use that
 
 depConstr0Correct : PathP (λ i → Nat≡Int/rInt i) zero depConstrInt/rInt0
 depConstr0Correct = toPathP refl
+
+depConstrSCorrect :
+  ∀ n n' → PathP (λ i → Nat≡Int/rInt i) n n' → PathP (λ i → Nat≡Int/rInt i) (suc n) (depConstrInt/rIntS n')
+depConstrSCorrect n n' n≡n' =
+  toPathP (cong depConstrInt/rIntS (fromPathP n≡n'))
 
 depElimSetCorrect :
   ∀ (P : Nat → Set) (P' : Int / rInt → Set) (P'set : ∀ x → isSet (P' x)) →
@@ -476,9 +481,9 @@ depElimSetCorrect :
   ∀ (x : Nat) (x' : Int / rInt) →
   (P≡P' : ∀ x x' → PathP (λ i → Nat≡Int/rInt i) x x' → PathP (λ i → Set) (P x) (P' x')) →
   (PO≡PO' : PathP (λ i → P≡P' zero depConstrInt/rInt0 depConstr0Correct i) PO P'O) →
-  (PS≡PS' : PathP {!!} PS P'S) →
+  (PS≡PS' : ∀ x x' IH IH' x≡x' → PathP (λ i → P≡P' (suc x) (depConstrInt/rIntS x') (depConstrSCorrect x x' x≡x') i) (PS x IH) (P'S x' IH')) → -- TODO do we need IH≡IH' or is that implied?
   (x≡x' : PathP (λ i → Nat≡Int/rInt i) x x') →
-  PathP {!!} (Cubical.Data.Nat.elim {A = P} PO PS x) (depElimSetInt/rInt P' P'set P'O P'S x')
+  PathP (λ i → P≡P' x x' x≡x' i) (Cubical.Data.Nat.elim {A = P} PO PS x) (depElimSetInt/rInt P' P'set P'O P'S x')
 depElimSetCorrect = {!!}
 
 --addCorrect :
