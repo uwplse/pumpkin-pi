@@ -112,6 +112,7 @@ Nat/rNatIsoNat = iso g' f' ret' sec'
 Int/rIntIsoNat : Iso (Int / rInt) Nat
 Int/rIntIsoNat  = compIso Int/rIntIsoNat/rNat Nat/rNatIsoNat
 
+-- path equality corresponding to this isomorphism
 Nat≡Int/rInt : Nat ≡ Int / rInt
 Nat≡Int/rInt = sym (isoToPath Int/rIntIsoNat)
 
@@ -462,6 +463,28 @@ addCorrect a b a' b' pa pb =
       (λ (z : Int / rInt) → addInt/rInt' z b' ≡  addInt/rInt' a' b')
       (sym (fromPathP pa))
       refl)
+
+-- Or, better: let's prove the lifted eliminator correct in the general case, then maybe we can use that
+
+depConstr0Correct : PathP (λ i → Nat≡Int/rInt i) zero depConstrInt/rInt0
+depConstr0Correct = toPathP refl
+
+depElimSetCorrect :
+  ∀ (P : Nat → Set) (P' : Int / rInt → Set) (P'set : ∀ x → isSet (P' x)) →
+  ∀ (PO : P zero) (P'O : P' depConstrInt/rInt0) →
+  ∀ (PS : ∀ n → P n → P (suc n)) (P'S : ∀ n → P' n → P' (depConstrInt/rIntS n)) →
+  ∀ (x : Nat) (x' : Int / rInt) →
+  (P≡P' : ∀ x x' → PathP (λ i → Nat≡Int/rInt i) x x' → PathP (λ i → Set) (P x) (P' x')) →
+  (PO≡PO' : PathP (λ i → P≡P' zero depConstrInt/rInt0 depConstr0Correct i) PO P'O) →
+  (PS≡PS' : PathP {!!} PS P'S) →
+  (x≡x' : PathP (λ i → Nat≡Int/rInt i) x x') →
+  PathP {!!} (Cubical.Data.Nat.elim {A = P} PO PS x) (depElimSetInt/rInt P' P'set P'O P'S x')
+depElimSetCorrect = {!!}
+
+--addCorrect :
+--  ∀ (a b : ℕ) (a' b' : Int / rInt) →
+--  ∀ (pa : PathP (λ i → Nat≡Int/rInt i) a a') (pb : PathP (λ i → Nat≡Int/rInt i) b b') →
+--  PathP (λ i → Nat≡Int/rInt i) (add' a b) (addInt/rInt' a' b')
 
 -- TODO prove lifted eliminator correct in general case, should simplify these proofs
 
