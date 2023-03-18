@@ -480,19 +480,28 @@ depElimSetCorrect :
   ∀ (PS : ∀ n → P n → P (suc n)) (P'S : ∀ n → P' n → P' (depConstrInt/rIntS n)) →
   ∀ (x : Nat) (x' : Int / rInt) →
   (P≡P' : ∀ x x' → PathP (λ i → Nat≡Int/rInt i) x x' → PathP (λ i → Set) (P x) (P' x')) →
-  (PO≡PO' : PathP (λ i → P≡P' zero depConstrInt/rInt0 depConstr0Correct i) PO P'O) →
-  (PS≡PS' : ∀ x x' IH IH' x≡x' → PathP (λ i → P≡P' _ _ (depConstrSCorrect x x' x≡x') i) (PS x IH) (P'S x' IH')) → -- TODO do we need IH≡IH' or is that implied?
+  (PO≡P'O : PathP (λ i → P≡P' zero depConstrInt/rInt0 depConstr0Correct i) PO P'O) →
+  (PS≡P'S : ∀ x x' IH IH' x≡x' → PathP (λ i → P≡P' _ _ (depConstrSCorrect x x' x≡x') i) (PS x IH) (P'S x' IH')) → -- TODO do we need IH≡IH' or is that implied?
   (x≡x' : PathP (λ i → Nat≡Int/rInt i) x x') →
   PathP (λ i → P≡P' x x' x≡x' i) (Cubical.Data.Nat.elim {A = P} PO PS x) (depElimSetInt/rInt P' P'set P'O P'S x')
-depElimSetCorrect P P' P'set PO P'O PS P'S x x' P≡P' PO≡PO' PS≡PS' x≡x' =
+depElimSetCorrect P P' P'set PO P'O PS P'S x x' P≡P' PO≡P'O PS≡P'S x≡x' =
   JDep
     {A = P x}
-    {B = λ _ → P' x'}
+    {B = λ x → P' x'}
     (λ y p z q → PathP (λ i → P≡P' x x' x≡x' i) y z)
     (Cubical.Data.Nat.elim
       {A = λ x → ∀ x' x≡x' → PathP (λ i → P≡P' x x' x≡x' i) (Cubical.Data.Nat.elim {A = P} PO PS x) (depElimSetInt/rInt P' P'set P'O P'S x') }
-      (λ x' x≡x' → {!!})
-      (λ x IH x' x≡x' → {!!})
+      (λ x' zero≡x' →
+      
+         -- given:
+         --  fromPathP zero≡x' :
+         --    [ pos zero ] ≡ x'
+         --  fromPathP⁻ PO≡P'O :
+         --   PO ≡ transport (λ i → P≡P' zero [ pos zero ] (depElimSetInt/rInt P' P'set P'O P'S [ pos zero ])
+         -- show:
+         --   PO ≡ transport (λ i → P≡P' zero x' zero≡x' (~ i)) (depElimSetInt/rInt P' P'set P'O P'S x')
+         {!!}) -- why is this so hard though
+      (λ x IHx x' Sx≡x' → {!!})
       x
       x'
       x≡x')
