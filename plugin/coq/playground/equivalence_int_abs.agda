@@ -498,19 +498,27 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
        --   PathP (λ i → PA≡PB i (zero≡b i)) PAO (depElimSetInt/rInt PB PBSet PBO PBS b)
        -- this should be true because:
        --   1. since zero≡b, e.t.s that PathP (λ i → PA≡PB i (zero≡b i)) PAO PBO
-       --   2. all proofs of zero≡b are refl?
+       --   2. by J, e.t.s this for refl
        --   3. thus by PAO≡PBO we are good
-       JDep
-         {A = Int / rInt}
-         {B = λ (b : Int / rInt) → PB b}
-         {b = PBO}
-         (λ (b : Int / rInt) (zero≡b : [ pos zero ] ≡ b) (PBb : PB b) (PBO≡PBb : PathP (λ i → (refl i) ((toPathP zero≡b) i)) PBO PBb) →
-           PathP (λ i → (PA≡PB i) ((toPathP zero≡b) i)) PAO PBb)
-         PAO≡PBO
-         {y = b}
-         (fromPathP zero≡b)
-         {z = depElimSetInt/rInt PB PBSet PBO PBS b}
-         {!  !}) -- e.t.s PathP (λ i → PB (fromPathP zero≡b i)) PBO (depElimSetInt/rInt PB PBSet PBO PBS b)
+       J
+        (λ zero≡b' (H : toPathP (fromPathP zero≡b) ≡ zero≡b') →
+          PathP ( λ i → PA≡PB i (zero≡b' i)) PAO (depElimSetInt/rInt PB PBSet PBO PBS b))
+        (JDep
+          {A = Int / rInt}
+          {B = λ (b : Int / rInt) → PB b}
+          {b = PBO}
+          (λ b (zero≡b : [ pos zero ] ≡ b) (PBb : PB b) PBO≡PBb →
+            PathP (λ i → (PA≡PB i) (toPathP {A = λ i → Nat≡Int/rInt i} {x = zero} {y = b} zero≡b i)) PAO PBb)
+          PAO≡PBO
+          {y = b}
+          (fromPathP zero≡b)
+          {z = depElimSetInt/rInt PB PBSet PBO PBS b}
+          (J
+            (λ (b : Int / rInt) (zero≡b : [ pos zero ] ≡ b) →
+              PathP (λ i → PB (fromPathP zero≡b i)) PBO (depElimSetInt/rInt PB PBSet PBO PBS b))
+            refl
+            (fromPathP {A = λ i → Nat≡Int/rInt i} zero≡b)))
+          (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) zero b) zero≡b))
     (λ a IHa b Sa≡b → {!!})
     a
     b
