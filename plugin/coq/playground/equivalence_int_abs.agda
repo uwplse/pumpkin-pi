@@ -475,7 +475,7 @@ depConstrSCorrect a b a≡b =
   toPathP (cong depConstrInt/rIntS (fromPathP a≡b))
 
 -- WIP: prove the lifted eliminator OK, so can use to simplify proofs of lifted functions and proofs later
--- TODO can we move the JDep out of the elimination? tbd but probably if smart enough
+-- TODO can we move the J and JDep out of the elimination? tbd but probably if smart enough, do later
 elimOK : -- Based on elim_ok in Figure 11 in the PLDI 2021 paper
   ∀ (a : Nat) (b : Int / rInt) →
   ∀ (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
@@ -518,9 +518,17 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
               PathP (λ i → PB (fromPathP zero≡b i)) PBO (depElimSetInt/rInt PB PBSet PBO PBS b))
             refl
             (fromPathP {A = λ i → Nat≡Int/rInt i} zero≡b)))
-          (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) zero b) zero≡b))
+        (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) zero b) zero≡b))
     (λ a (IHa : ∀ b a≡b → PathP (λ i → PA≡PB i (a≡b i)) _ _) b (Sa≡b : PathP _ (suc a) b) →
-      {!!}) -- PathP (λ i → PA≡PB i (Sa≡b i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) (depElimSetInt/rInt PB PBSet PBO PBS b)
+      J
+        (λ Sa≡b' (H : toPathP (fromPathP Sa≡b) ≡ Sa≡b') →
+          PathP (λ i → PA≡PB i (Sa≡b' i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) (depElimSetInt/rInt PB PBSet PBO PBS b))
+        (JDep -- should be an ι in here somewhere probably
+          {!!}
+          {!!}
+          {!!}
+          {!!})
+        (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) (suc a) b) Sa≡b))
     a
     b
     a≡b
