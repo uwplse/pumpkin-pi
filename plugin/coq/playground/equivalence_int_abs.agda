@@ -502,7 +502,7 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
        --   3. thus by PAO≡PBO we are good
        J
         (λ zero≡b' (H : toPathP (fromPathP zero≡b) ≡ zero≡b') →
-          PathP ( λ i → PA≡PB i (zero≡b' i)) PAO (depElimSetInt/rInt PB PBSet PBO PBS b))
+          PathP (λ i → PA≡PB i (zero≡b' i)) PAO (depElimSetInt/rInt PB PBSet PBO PBS b))
         (JDep
           {A = Int / rInt}
           {B = λ (b : Int / rInt) → PB b}
@@ -519,7 +519,8 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
             refl
             (fromPathP {A = λ i → Nat≡Int/rInt i} zero≡b)))
           (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) zero b) zero≡b))
-    (λ a IHa b Sa≡b → {!!})
+    (λ a (IHa : ∀ b a≡b → PathP (λ i → PA≡PB i (a≡b i)) _ _) b (Sa≡b : PathP _ (suc a) b) →
+      {!!}) -- PathP (λ i → PA≡PB i (Sa≡b i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) (depElimSetInt/rInt PB PBSet PBO PBS b)
     a
     b
     a≡b
