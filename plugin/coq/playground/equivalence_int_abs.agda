@@ -486,11 +486,11 @@ elimOK : -- Based on elim_ok in Figure 11 in the PLDI 2021 paper
   ∀ (PAS≡PBS : ∀ a b IHa IHb a≡b → PathP (λ i → (PA≡PB i) (depConstrSCorrect a b a≡b i)) (PAS a IHa) (PBS b IHb)) →
   PathP (λ i → (PA≡PB i) (a≡b i)) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b)
 elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
-  JDep
-    {A = PA a}
-    {B = λ a → PB b}
-    (λ (pa : PA a) (_ : Cubical.Data.Nat.elim {A = PA} PAO PAS a ≡ pa) (pb : PB b) (_ : depElimSetInt/rInt PB PBSet PBO PBS b ≡ pb) →
-      PathP (λ i → (PA≡PB i) (a≡b i)) pa pb)
+ -- JDep
+ --   {A = PA a}
+ --   {B = λ a → PB b}
+ --  (λ (pa : PA a) (_ : Cubical.Data.Nat.elim {A = PA} PAO PAS a ≡ pa) (pb : PB b) (_ : depElimSetInt/rInt PB PBSet PBO PBS b ≡ pb) →
+ --     PathP (λ i → (PA≡PB i) (a≡b i)) pa pb)
     (Cubical.Data.Nat.elim
       {A = λ a → ∀ b (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
         PathP (λ i → (PA≡PB i) (a≡b i)) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b) }
@@ -500,13 +500,17 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
          --  PAO≡PBO : PathP (λ i → (PA≡PB i) (depConstr0Correct i))
          -- show:
          --   PathP (λ i → PA≡PB i (zero≡b i)) PAO (depElimSetInt/rInt PB PBSet PBO PBS b)
+         -- this should be true because:
+         --   1. since zero≡b, e.t.s that PathP (λ i → PA≡PB i (zero≡b i)) PAO PBO
+         --   2. all proofs of zero≡b are refl?
+         --   3. thus by PAO≡PBO we are good
          {!!}) -- why is this so hard though
       (λ a IHa b Sa≡b → {!!})
       a
       b
       a≡b)
-    refl
-    refl
+  --  refl
+  --  refl
 
 
 -- TODO prove lifted eliminator correct in general case, should simplify these proofs
