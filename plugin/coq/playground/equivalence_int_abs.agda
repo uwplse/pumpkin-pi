@@ -470,72 +470,44 @@ depConstr0Correct : PathP (λ i → Nat≡Int/rInt i) zero depConstrInt/rInt0
 depConstr0Correct = toPathP refl
 
 depConstrSCorrect :
-  ∀ n n' → PathP (λ i → Nat≡Int/rInt i) n n' → PathP (λ i → Nat≡Int/rInt i) (suc n) (depConstrInt/rIntS n')
-depConstrSCorrect n n' n≡n' =
-  toPathP (cong depConstrInt/rIntS (fromPathP n≡n'))
+  ∀ a b → PathP (λ i → Nat≡Int/rInt i) a b → PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)
+depConstrSCorrect a b a≡b =
+  toPathP (cong depConstrInt/rIntS (fromPathP a≡b))
 
-depElimSetCorrect :
-  ∀ (P : Nat → Set) (P' : Int / rInt → Set) (P'set : ∀ x → isSet (P' x)) →
-  ∀ (PO : P zero) (P'O : P' depConstrInt/rInt0) →
-  ∀ (PS : ∀ n → P n → P (suc n)) (P'S : ∀ n → P' n → P' (depConstrInt/rIntS n)) →
-  ∀ (x : Nat) (x' : Int / rInt) →
-  (P≡P' : ∀ x x' → PathP (λ i → Nat≡Int/rInt i) x x' → PathP (λ i → Set) (P x) (P' x')) →
-  (PO≡P'O : PathP (λ i → P≡P' zero depConstrInt/rInt0 depConstr0Correct i) PO P'O) →
-  (PS≡P'S : ∀ x x' IH IH' x≡x' → PathP (λ i → P≡P' _ _ (depConstrSCorrect x x' x≡x') i) (PS x IH) (P'S x' IH')) → -- TODO do we need IH≡IH' or is that implied?
-  (x≡x' : PathP (λ i → Nat≡Int/rInt i) x x') →
-  PathP (λ i → P≡P' x x' x≡x' i) (Cubical.Data.Nat.elim {A = P} PO PS x) (depElimSetInt/rInt P' P'set P'O P'S x')
-depElimSetCorrect P P' P'set PO P'O PS P'S x x' P≡P' PO≡P'O PS≡P'S x≡x' =
+-- WIP: prove the lifted eliminator OK, so can use to simplify proofs of lifted functions and proofs later
+elimOK : -- Based on elim_ok in Figure 11 in the PLDI 2021 paper
+  ∀ (a : Nat) (b : Int / rInt) →
+  ∀ (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
+  ∀ (PA : Nat → Set) (PB : Int / rInt → Set) (PBSet : ∀ b → isSet (PB b)) →
+  ∀ (PA≡PB : PathP (λ i → (Nat≡Int/rInt i) → Set) PA PB) →
+  ∀ (PAO : PA zero) (PBO : PB depConstrInt/rInt0) →
+  ∀ (PAO≡PBO : PathP (λ i → (PA≡PB i) (depConstr0Correct i)) PAO PBO) →
+  ∀ (PAS : ∀ a → PA a → PA (suc a)) (PBS : ∀ b → PB b → PB (depConstrInt/rIntS b)) →
+  ∀ (PAS≡PBS : ∀ a b IHa IHb a≡b → PathP (λ i → (PA≡PB i) (depConstrSCorrect a b a≡b i)) (PAS a IHa) (PBS b IHb)) →
+  PathP (λ i → (PA≡PB i) (a≡b i)) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b)
+elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
   JDep
-    {A = P x}
-    {B = λ x → P' x'}
-    (λ y p z q → PathP (λ i → P≡P' x x' x≡x' i) y z)
+    {A = PA a}
+    {B = λ a → PB b}
+    (λ (pa : PA a) (_ : Cubical.Data.Nat.elim {A = PA} PAO PAS a ≡ pa) (pb : PB b) (_ : depElimSetInt/rInt PB PBSet PBO PBS b ≡ pb) →
+      PathP (λ i → (PA≡PB i) (a≡b i)) pa pb)
     (Cubical.Data.Nat.elim
-      {A = λ x → ∀ x' x≡x' → PathP (λ i → P≡P' x x' x≡x' i) (Cubical.Data.Nat.elim {A = P} PO PS x) (depElimSetInt/rInt P' P'set P'O P'S x') }
-      (λ x' zero≡x' →
-      
+      {A = λ a → ∀ b (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
+        PathP (λ i → (PA≡PB i) (a≡b i)) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b) }
+      (λ (b : Int / rInt) (zero≡b : PathP (λ i → Nat≡Int/rInt i) zero b) →
          -- given:
-         --  fromPathP zero≡x' :
-         --    [ pos zero ] ≡ x'
-         --  fromPathP⁻ PO≡P'O :
-         --   PO ≡ transport (λ i → P≡P' zero [ pos zero ] (depElimSetInt/rInt P' P'set P'O P'S [ pos zero ])
+         --  zero≡b : PathP (λ i → Nat≡Int/rInt i) zero b
+         --  PAO≡PBO : PathP (λ i → (PA≡PB i) (depConstr0Correct i))
          -- show:
-         --   PO ≡ transport (λ i → P≡P' zero x' zero≡x' (~ i)) (depElimSetInt/rInt P' P'set P'O P'S x')
+         --   PathP (λ i → PA≡PB i (zero≡b i)) PAO (depElimSetInt/rInt PB PBSet PBO PBS b)
          {!!}) -- why is this so hard though
-      (λ x IHx x' Sx≡x' → {!!})
-      x
-      x'
-      x≡x')
+      (λ a IHa b Sa≡b → {!!})
+      a
+      b
+      a≡b)
     refl
     refl
 
---  JDep
---    {A = Nat}
---    {B = λ _ → Int / rInt}
---    (λ y p z q → PathP (λ i → Nat≡Int/rInt i) y z)
---    (Cubical.Data.Nat.elim
---      {A = λ a → ∀ (a' : Int / rInt) (pa : PathP (λ i → Nat≡Int/rInt i) a a') →
---        PathP (λ i → Nat≡Int/rInt i) (add' a b) (addInt/rInt' (transport (λ i → Nat≡Int/rInt i) a) b')}
---      (λ _ _ → pb)
---      (λ a (IHa : ∀ a' pa → PathP _ (add' a b) (addInt/rInt' (transport (λ i → Nat≡Int/rInt i) a) b')) a' pa →
---        toPathP
---          (cong
---            depConstrInt/rIntS
---            (fromPathP (IHa (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl)))))
---      a
---      a'
---      pa)
---    refl
---    (subst
---      {x = a'}
---      {y = transport Nat≡Int/rInt a}
---      (λ (z : Int / rInt) → addInt/rInt' z b' ≡  addInt/rInt' a' b')
- --     (sym (fromPathP pa))
-  --    refl)
-
---addCorrect :
---  ∀ (a b : ℕ) (a' b' : Int / rInt) →
---  ∀ (pa : PathP (λ i → Nat≡Int/rInt i) a a') (pb : PathP (λ i → Nat≡Int/rInt i) b b') →
---  PathP (λ i → Nat≡Int/rInt i) (add' a b) (addInt/rInt' a' b')
 
 -- TODO prove lifted eliminator correct in general case, should simplify these proofs
 
