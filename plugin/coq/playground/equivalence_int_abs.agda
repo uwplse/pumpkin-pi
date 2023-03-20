@@ -508,7 +508,7 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
           {B = λ (b : Int / rInt) → PB b}
           {b = PBO}
           (λ b (zero≡b : [ pos zero ] ≡ b) (PBb : PB b) PBO≡PBb →
-            PathP (λ i → (PA≡PB i) (toPathP {A = λ i → Nat≡Int/rInt i} {x = zero} {y = b} zero≡b i)) PAO PBb)
+            PathP (λ i → (PA≡PB i) (toPathP {A = λ i → Nat≡Int/rInt i} zero≡b i)) PAO PBb)
           PAO≡PBO
           {y = b}
           (fromPathP zero≡b)
