@@ -523,11 +523,7 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
       J
         (λ Sa≡b' (H : toPathP (fromPathP Sa≡b) ≡ Sa≡b') →
           PathP (λ i → PA≡PB i (Sa≡b' i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) (depElimSetInt/rInt PB PBSet PBO PBS b))
-        (JDep -- should be an ι in here somewhere probably
-          {!!}
-          {!!}
-          {!!}
-          {!!})
+        {!!} -- ι somewhere in here probably
         (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) (suc a) b) Sa≡b))
     a
     b
