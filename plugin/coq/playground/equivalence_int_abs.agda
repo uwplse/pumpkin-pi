@@ -562,12 +562,12 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
         {z = depElimSetInt/rInt PB PBSet PBO PBS b}
         {! !}
       where
-        whatever2 :
+        whatever :
           PathP
-            (λ i → PA≡PB i (toPathP {A = λ i → Nat≡Int/rInt i} (refl {x = transport (λ i → Nat≡Int/rInt i) (suc a)}) i))
+            (λ i → PA≡PB i (depConstrSCorrect a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl) i))
             (PAS a (Cubical.Data.Nat.elim PAO PAS a))
             (depElimSetInt/rInt PB PBSet PBO PBS (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a)))
-        whatever2 =
+        whatever =
           ιInt/rIntS⁻
             PB
             PBSet
@@ -575,13 +575,8 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
             PBS
             (transport (λ i → Nat≡Int/rInt i) a)
             (λ PBSa →
-              PathP (λ i → PA≡PB i (toPathP refl i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) PBSa)
-            whatever
-          where
-            whatever :
-              PathP (λ i → PA≡PB i (toPathP refl i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) (PBS (transport (λ i → Nat≡Int/rInt i) a) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)))
-            whatever =
-              PAS≡PBS a (transport (λ i → Nat≡Int/rInt i) a) (Cubical.Data.Nat.elim PAO PAS a) ( depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)) (toPathP refl)
+              PathP (λ i → PA≡PB i (depConstrSCorrect a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl) i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) PBSa)
+            (PAS≡PBS a (transport (λ i → Nat≡Int/rInt i) a) (Cubical.Data.Nat.elim PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)) (toPathP refl))
 
 -- TODO prove lifted eliminator correct in general case, should simplify these proofs
 
