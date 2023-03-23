@@ -469,10 +469,24 @@ addCorrect a b a' b' pa pb =
 depConstr0Correct : PathP (λ i → Nat≡Int/rInt i) zero depConstrInt/rInt0
 depConstr0Correct = toPathP refl
 
+depConstr0CorrectIrrel : depConstr0Correct ≡ toPathP refl
+depConstr0CorrectIrrel = refl
+
 depConstrSCorrect :
   ∀ a b → PathP (λ i → Nat≡Int/rInt i) a b → PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)
 depConstrSCorrect a b a≡b =
   toPathP (cong depConstrInt/rIntS (fromPathP a≡b))
+
+depConstrSCorrectIrrel : ∀ (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) (Sa≡Sb : PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)) →
+  depConstrSCorrect a b a≡b ≡ Sa≡Sb
+depConstrSCorrectIrrel a b a≡b Sa≡Sb =
+  subst2
+    (λ (Sa≡Sb Sa≡Sb' : PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)) → Sa≡Sb' ≡ Sa≡Sb)
+    (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)) Sa≡Sb)
+    (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)) (depConstrSCorrect a b a≡b))
+    (cong
+      (toPathP {A = λ i → Nat≡Int/rInt i})
+      (squash/ (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a)) (depConstrInt/rIntS b) (fromPathP (depConstrSCorrect a b a≡b)) (fromPathP Sa≡Sb)))
 
 -- WIP: prove the lifted eliminator OK, so can use to simplify proofs of lifted functions and proofs later
 -- TODO can we move the J and JDep out of the elimination? tbd but probably if smart enough, do later
@@ -556,12 +570,31 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
         (λ (b : Int / rInt) (Sa≡b : transport (λ i → Nat≡Int/rInt i) (suc a) ≡ b)
            (PBb : PB b) (PBS≡PBb : PathP (λ i → PB (Sa≡b i)) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) (suc a))) PBb) →
           PathP (λ i → PA≡PB i (toPathP {A = λ i → Nat≡Int/rInt i} Sa≡b i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) PBb)
-        {!!}
+        (whatever2 whatever) -- PathP (λ i → PA≡PB i (toPathP refl i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) (suc a)))
         {y = b}
         (fromPathP Sa≡b)
         {z = depElimSetInt/rInt PB PBSet PBO PBS b}
-        {! !}
-      where
+        {! !} -- PathP (λ i → PB (fromPathP Sa≡b i)) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) (suc a))) (depElimSetInt/rInt PB PBSet PBO PBS b)
+        -- TODO where to use IHa? How to get things to be refl? etc. weird if I don't need IHa
+      where -- TODO inline/clean later
+        whatever2 :
+          (PathP
+            (λ i → PA≡PB i (depConstrSCorrect a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl) i))
+            (PAS a (Cubical.Data.Nat.elim PAO PAS a))
+            (depElimSetInt/rInt PB PBSet PBO PBS (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a)))) →
+          PathP
+            (λ i → PA≡PB i (toPathP {A = λ i → Nat≡Int/rInt i} (refl {x = depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a)}) i))
+            (PAS a (Cubical.Data.Nat.elim PAO PAS a))
+            (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) (suc a)))
+        whatever2 PSa≡PSa =
+          subst
+            {A = PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a))}
+            {x = depConstrSCorrect a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl)}
+            {y = toPathP {A = λ i → Nat≡Int/rInt i} refl}
+            (λ (Sa≡Sa : PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a))) →
+              PathP (λ i → PA≡PB i (Sa≡Sa i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) (depElimSetInt/rInt PB PBSet PBO PBS (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a))))
+            (depConstrSCorrectIrrel a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl) (toPathP refl))
+            PSa≡PSa
         whatever :
           PathP
             (λ i → PA≡PB i (depConstrSCorrect a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl) i))
