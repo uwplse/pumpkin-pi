@@ -553,7 +553,7 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
     a
     b
     a≡b
-  where -- TODO move back in when done; find ι
+  where -- TODO move back in when done; note weird if don't need IHa; simplify later
     elimOK_S : ∀ (a : Nat) (b : Int / rInt) (Sa≡b : PathP (λ i → Nat≡Int/rInt i) (suc a) b) →
       ∀ (PA : Nat → Set) (PB : Int / rInt → Set) (PBSet : ∀ b → isSet (PB b)) →
       ∀ (PA≡PB : PathP (λ i → (Nat≡Int/rInt i) → Set) PA PB) →
@@ -570,11 +570,15 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
         (λ (b : Int / rInt) (Sa≡b : transport (λ i → Nat≡Int/rInt i) (suc a) ≡ b)
            (PBb : PB b) (PBS≡PBb : PathP (λ i → PB (Sa≡b i)) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) (suc a))) PBb) →
           PathP (λ i → PA≡PB i (toPathP {A = λ i → Nat≡Int/rInt i} Sa≡b i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) PBb)
-        (whatever2 whatever) -- PathP (λ i → PA≡PB i (toPathP refl i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) (suc a)))
+        (whatever2 whatever)
         {y = b}
         (fromPathP Sa≡b)
         {z = depElimSetInt/rInt PB PBSet PBO PBS b}
-        {! !} -- PathP (λ i → PB (fromPathP Sa≡b i)) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) (suc a))) (depElimSetInt/rInt PB PBSet PBO PBS b)
+        (J
+          (λ (b : Int / rInt) (Sa≡b : transport (λ i → Nat≡Int/rInt i) (suc a) ≡ b) →
+            PathP (λ i → PB (fromPathP Sa≡b i)) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) (suc a))) (depElimSetInt/rInt PB PBSet PBO PBS b))
+          refl
+          (fromPathP Sa≡b)) -- PathP (λ i → PB (fromPathP Sa≡b i)) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) (suc a))) (depElimSetInt/rInt PB PBSet PBO PBS b)
         -- TODO where to use IHa? How to get things to be refl? etc. weird if I don't need IHa
       where -- TODO inline/clean later
         whatever2 :
