@@ -501,23 +501,14 @@ elimOK : -- Based on elim_ok in Figure 11 in the PLDI 2021 paper
   ∀ (PAS≡PBS : ∀ a b IHa IHb a≡b → PathP (λ i → (PA≡PB i) (depConstrSCorrect a b a≡b i)) (PAS a IHa) (PBS b IHb)) →
   PathP (λ i → (PA≡PB i) (a≡b i)) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b)
 elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
-  Cubical.Data.Nat.elim
-    {A = λ a → ∀ b (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
-      PathP (λ i → (PA≡PB i) (a≡b i)) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b)}
-    (λ (b : Int / rInt) (zero≡b : PathP (λ i → Nat≡Int/rInt i) zero b) →
-       -- given:
-       --  zero≡b : PathP (λ i → Nat≡Int/rInt i) zero b
-       --  PAO≡PBO : PathP (λ i → (PA≡PB i) (depConstr0Correct i))
-       -- show:
-       --   PathP (λ i → PA≡PB i (zero≡b i)) PAO (depElimSetInt/rInt PB PBSet PBO PBS b)
-       -- this should be true because:
-       --   1. since zero≡b, e.t.s that PathP (λ i → PA≡PB i (zero≡b i)) PAO PBO
-       --   2. by J, e.t.s this for refl
-       --   3. thus by PAO≡PBO we are good
-       J
-        (λ zero≡b' (H : toPathP (fromPathP zero≡b) ≡ zero≡b') →
-          PathP (λ i → PA≡PB i (zero≡b' i)) PAO (depElimSetInt/rInt PB PBSet PBO PBS b))
-        (JDep
+  J -- adjust a≡b from pathP to path to make it easy to use JDep
+    (λ a≡b' (H : toPathP (fromPathP a≡b) ≡ a≡b') →
+      PathP (λ i → (PA≡PB i (a≡b' i))) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b))
+    (Cubical.Data.Nat.elim
+      {A = λ a → ∀ b (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
+        PathP (λ i → (PA≡PB i) (toPathP {A = λ i → Nat≡Int/rInt i} (fromPathP a≡b) i)) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b)}
+      (λ (b : Int / rInt) (zero≡b : PathP (λ i → Nat≡Int/rInt i) zero b) →
+        JDep -- adjust to a homogeneous PathP about proofs about Int/rInt
           {A = Int / rInt}
           {B = λ (b : Int / rInt) → PB b}
           {b = PBO}
@@ -527,33 +518,28 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
           {y = b}
           (fromPathP zero≡b)
           {z = depElimSetInt/rInt PB PBSet PBO PBS b}
-          (J
+          (J -- reduce to refl
             (λ (b : Int / rInt) (zero≡b : [ pos zero ] ≡ b) →
               PathP (λ i → PB (fromPathP zero≡b i)) PBO (depElimSetInt/rInt PB PBSet PBO PBS b))
             refl
             (fromPathP {A = λ i → Nat≡Int/rInt i} zero≡b)))
-        (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) zero b) zero≡b))
-    (λ (a : Nat) (IHa : ∀ b a≡b → PathP (λ i → PA≡PB i (a≡b i)) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b))
-       (b : Int / rInt) (Sa≡b : PathP (λ i → Nat≡Int/rInt i) (suc a) b) →
-      -- Similar, but messy because of ι
-      J
-        (λ Sa≡b' (H : toPathP (fromPathP Sa≡b) ≡ Sa≡b') →
-          PathP (λ i → PA≡PB i (Sa≡b' i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) (depElimSetInt/rInt PB PBSet PBO PBS b))
-        (JDep
+      (λ (a : Nat) (IHa : ∀ b a≡b → PathP (λ i → PA≡PB i (toPathP {A = λ i → Nat≡Int/rInt i} (fromPathP a≡b) i)) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b))
+         (b : Int / rInt) (Sa≡b : PathP (λ i → Nat≡Int/rInt i) (suc a) b) →
+        JDep -- adjust to a homogeneous PathP about proofs about Int/rInt
           {A = Int / rInt}
-          {B = λ b → PB b}
+          {B = λ (b : Int / rInt) → PB b}
           {b = depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) (suc a))}
           (λ (b : Int / rInt) (Sa≡b : transport (λ i → Nat≡Int/rInt i) (suc a) ≡ b)
              (PBb : PB b) (PBS≡PBb : PathP (λ i → PB (Sa≡b i)) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) (suc a))) PBb) →
             PathP (λ i → PA≡PB i (toPathP {A = λ i → Nat≡Int/rInt i} Sa≡b i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) PBb)
-          (subst
+          (subst -- adjust to refl
             {A = PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a))}
             {x = depConstrSCorrect a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl)}
             {y = toPathP {A = λ i → Nat≡Int/rInt i} refl}
             (λ (Sa≡Sa : PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a))) →
               PathP (λ i → PA≡PB i (Sa≡Sa i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) (depElimSetInt/rInt PB PBSet PBO PBS (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a))))
             (depConstrSCorrectIrrel a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl) (toPathP refl))
-            (ιInt/rIntS⁻
+            (ιInt/rIntS⁻ -- ι reduce the successor case for proofs about Int/rInt
               PB
               PBSet
               PBO
@@ -565,17 +551,15 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
           {y = b}
           (fromPathP Sa≡b)
           {z = depElimSetInt/rInt PB PBSet PBO PBS b}
-          (J
+          (J -- reduce to refl
             (λ (b : Int / rInt) (Sa≡b : transport (λ i → Nat≡Int/rInt i) (suc a) ≡ b) →
               PathP (λ i → PB (fromPathP Sa≡b i)) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) (suc a))) (depElimSetInt/rInt PB PBSet PBO PBS b))
             refl
             (fromPathP Sa≡b)))
-          (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) (suc a) b) Sa≡b))
-    a
-    b
-    a≡b
-
--- TODO prove lifted eliminator correct in general case, should simplify these proofs
+      a
+      b
+      a≡b)
+    (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) a b) a≡b)
 
 -- Porting proofs to nat-like eliminators
 
