@@ -13,7 +13,7 @@ open import Cubical.Relation.Nullary
 open import Cubical.Foundations.Univalence
 open import Cubical.Data.Prod
 open import Cubical.Data.Empty
-open import Cubical.Data.Sum
+open import Cubical.Data.Sum as Sum
 open import Cubical.Data.Nat as Nat
 open import Cubical.Data.Int
 
@@ -64,5 +64,22 @@ canonicalizePres (suc n1 , suc n2) =
   [ n1 , n2 ] ≡⟨ canonicalizePres (n1 , n2) ⟩
   [ canonicalize (n1 , n2) ] ∎
 
+canonicalizeSignDec : (p : ℕ × ℕ) → (Σ[ n ∈ ℕ ] (canonicalize p ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((canonicalize p ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m))))
+canonicalizeSignDec (zero , zero) = inl (zero , refl)
+canonicalizeSignDec (zero , suc n2) = inr ((suc n2) , (refl , (n2 , refl)))
+canonicalizeSignDec (suc n1 , zero) = inl ((suc n1) , refl)
+canonicalizeSignDec (suc n1 , suc n2) = canonicalizeSignDec (n1 , n2)
+
 depElimGZNegSuc : (P : GZ → Set) → (∀ x → isSet (P x)) → (∀ n → P (depConstrGZPos n)) → (∀ n → P (depConstrGZNegSuc n)) → ∀ z → P z
-depElimGZNegSuc P set posP negsucP = SetQuotients.elim set {!!} {!!}
+depElimGZNegSuc P set posP negsucP = SetQuotients.elim set func {!!} where
+  func : (p : ℕ × ℕ) → P [ p ]
+  func p = Sum.rec (λ x → transport (cong P (sym ([ p ] ≡⟨ (canonicalizePres p) ⟩ [ canonicalize p ]
+                                                  ≡⟨ (cong [_] (snd x)) ⟩ (depConstrGZPos (fst x)) ∎)))
+                                    (posP (fst x)))
+                   (λ x → transport (cong P (sym ([ p ] ≡⟨ canonicalizePres p ⟩ [ canonicalize p ]
+                                                        ≡⟨ cong [_] (proj₁ (snd x)) ⟩ [ (zero , (fst x)) ]
+                                                        ≡⟨ cong [_] (×≡ refl (snd (proj₂ (snd x)))) ⟩ (depConstrGZNegSuc (fst (proj₂ (snd x)))) ∎)))
+                                    (negsucP (fst (proj₂ (snd x)))))
+                   (canonicalizeSignDec p)
+
+                                   
