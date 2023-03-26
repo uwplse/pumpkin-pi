@@ -364,6 +364,12 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
     Q (ps n (depElimSetInt/rInt P pset pz ps n))
 ιInt/rIntS P pset pz ps n Q Qb = subst (λ e → Q e) (ιInt/rIntSEq P pset pz ps n) Qb
 
+ιInt/rIntS⁻ : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
+    (Q : P (depConstrInt/rIntS n) → Set) → 
+    Q (ps n (depElimSetInt/rInt P pset pz ps n)) →
+    Q (depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n))
+ιInt/rIntS⁻ P pset pz ps n Q Qb = subst (λ e → Q e) (sym (ιInt/rIntSEq P pset pz ps n)) Qb
+
 -- ι for the Prop eliminator
 ιInt/rInt0Prop : (P : Int / rInt → Set) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) →
   (Q : P depConstrInt/rInt0 → Set) → Q (depElimInt/rInt P pprop pz ps depConstrInt/rInt0) → Q pz
@@ -385,6 +391,12 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
     Q (ps n (depElimInt/rInt P pprop pz ps n))
 ιInt/rIntSProp P pprop pz ps n Q Qb = subst (λ e → Q e) (ιInt/rIntSPropEq P pprop pz ps n) Qb
 
+ιInt/rIntSProp⁻ : (P : Int / rInt → Set) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
+    (Q : P (depConstrInt/rIntS n) → Set) → 
+    Q (ps n (depElimInt/rInt P pprop pz ps n)) →
+    Q (depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n))
+ιInt/rIntSProp⁻ P pprop pz ps n Q Qb = subst (λ e → Q e) (sym (ιInt/rIntSPropEq P pprop pz ps n)) Qb
+
 -- 3.1.6 in the HoTT book
 isSetProd : ∀ {A : Type} {B : A → Type} → (∀ (a : A) → isSet (B a)) → isSet (∀ (a : A) → B a)
 isSetProd {A} {B} setB =
@@ -392,12 +404,21 @@ isSetProd {A} {B} setB =
      cong funExt (funExt (λ (a : A) → setB a (f a) (g a) (funExt⁻ p a) (funExt⁻ q a)))
 
 -- Porting functions to nat-like eliminators
+add' : (a : ℕ) → (b : ℕ) → ℕ
+add' a b =
+  Cubical.Data.Nat.elim
+    {A = λ _ → ℕ → ℕ} -- motive P
+    (λ b → b) -- P 0
+    (λ a IH b → suc (IH b)) -- ∀ n, P n → P (S n)
+    a
+    b
+
 addInt/rInt' : (Int / rInt) -> (Int / rInt) -> (Int / rInt)
 addInt/rInt' a b =
   depElimSetInt/rInt
     (λ _ → Int / rInt → Int / rInt) -- motive P
     (λ (_ : Int / rInt) → isSetProd (λ _ → squash/)) -- ∀ n, isSet (P n)
-    (λ _ → b) -- P depConstrInt/rInt0 
+    (λ b → b) -- P depConstrInt/rInt0
     (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m)) -- ∀ n, P n → P (depConstrInt/rIntS n)
     a
     b
@@ -411,7 +432,28 @@ addOKNeg = refl
 
 -- Porting proofs to nat-like eliminators
 
-sucLemInt/rInt'' : (a : Int / rInt) -> (b : Int / rInt) -> depConstrInt/rIntS (addInt/rInt' a b) ≡ (addInt/rInt' a (depConstrInt/rIntS b))
+sucLemNat'' : (a : ℕ) → (b : ℕ) → suc (add' a b) ≡ add' a (suc b)
+sucLemNat'' a b =
+  Cubical.Data.Nat.elim
+    {A = λ a → ∀ b → suc (add' a b) ≡ add' a (suc b)} -- motive P
+    (λ b → refl) -- base case
+    (λ a (IH : ∀ b → suc (add' a b) ≡ add' a (suc b)) b →
+      -- want to show P (suc a) b, which is suc (add' (suc a) b) ≡ add' (suc a) (suc b)
+      -- we have cong suc (IH b), where (IH b) : suc (add' a b) ≡ add' a (suc b)
+      -- thus, cong suc (IH b) : suc (suc (add' a b)) ≡ suc (add' a (suc b))
+      -- so our definitional equality is:
+      --  (suc (add' (suc a) b) ≡ add' (suc a) (suc b)) ≝ (suc (suc (add' a b)) ≡ suc (add' a (suc b)))
+      --    by δ, unfold add' everywhere
+      --    this will give us an application of Cubical.Data.Nat.elim (the add' defined above)
+      --    by Β, take the (λ a b → ...) that add' unfolded to, and specialize to each a, b (e.g., (suc a) b)
+      --    Now we have (Cubical.Data.Nat.elim ... (suc a)) b
+      --    Now by ι, we have suc ((Cubical.Data.Nat.elim ... a) b)
+      --    etc.
+      cong suc (IH b)) -- inductive case
+    a
+    b
+
+sucLemInt/rInt'' : (a : Int / rInt) -> (b : Int / rInt) -> depConstrInt/rIntS (addInt/rInt' a b) ≡ (addInt/rInt' a (depConstrInt/rIntS b)) -- S (a + b) = a + S b
 sucLemInt/rInt'' a b =
   depElimInt/rInt
     (λ (a : Int / rInt) → ∀ (b : Int / rInt) → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b))
@@ -426,14 +468,174 @@ sucLemInt/rInt'' a b =
         i
         i) -- p ≡ q
     (λ b → refl) -- base case
-    (λ a IH b → -- inductive case
-      ιInt/rIntSPropEq
-        {!!}
-        {! !}
-        {! !}
-        (λ a IH → congS depConstrInt/rIntS (IH b))
-        {! !})
+    (λ a (IH : ∀ b → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b)) b → -- inductive case
+      ιInt/rIntS⁻ -- w.t.s that S (S a + b) ≡ S a + S b
+        (λ _ → Int / rInt → Int / rInt)
+        (λ _ → isSetProd (λ _ → squash/))
+        (λ b → b)
+        (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+        a
+        (λ (add-Sa : Int / rInt → Int / rInt) → -- e.t.s. that S (S (a + b)) ≡ S (a + S b)
+          depConstrInt/rIntS (add-Sa b) ≡ add-Sa (depConstrInt/rIntS b))
+        (cong depConstrInt/rIntS (IH b))) -- which holds by cong and the IH
+      a
+      b
+
+-- Some thoughts on automating the above, from Talia:
+--
+-- We would eventually like to be able to infer the iota applications automatically.
+-- We have the corresponding proofs over nat, for which the iota reductions hold
+-- definitionally. What does this mean?
+--
+-- It means that we know that over nat, we have:
+--   Γ, IH : ∀ b → S (a + b) ≡ a + S b, b : Nat ⊢ cong S (IH b) : S (S a + b) ≡ S a + S b
+-- since that is our goal shown by cong S (IH b) in the proof over Nat. But also:
+--   Γ, IH : ∀ b → S (a + b) ≡ a + S b, b : Nat ⊢ cong S (IH b) : S (S (a + b)) ≡ S (a + S b)
+-- before reduction of the type, just by the type signature of cong and of IH.
+-- 
+-- This means that we have:
+--   (S (S a + b) ≡ S a + S b) ≝ (S (S (a + b)) ≡ S (a + S b))
+-- So when we normalize both sides, over nat, we get the same normal form.
+--
+-- How do we actually get the particular normalization steps that happen, here?
+-- Because we need to reify them when we move out of the original type, since
+-- now these iota reductions do not hold definitionally. It would be nice to do this
+-- fully automatically, rather than by hand. I see two potential paths forward:
+--
+-- 1. We could instrument Cubical Agda's definitional equality to track each reduction step.
+-- This is probably overkill, but it doesn't require much knowledge of anything.
+--
+-- 2. We could figure out the normalization steps ourselves, after the fact. I think
+-- we could potentially skip over knowing the entire normalization algorithm, since the
+-- only thing that should change in significant ways will be the iota steps, so if it's
+-- blocked it must be blocked on iota (or eta if we are yet to find that). But those iota
+-- steps could be nested inside of other reductions, potentially, which might make it hard
+-- to do anything unless we know everything about normalization. Maybe we can make some
+-- simplifying assumptions, though.
+--
+-- Let us look at the example above in a bit more detail. What are the relevant ι-reduction
+-- steps that happen to show:
+--   (S (S a + b) ≡ S a + S b) ≝ (S (S (a + b)) ≡ S (a + S b))
+-- over natural numbers? The RHS is fully normalized already, but the LHS is not.
+-- δ unfolds + to an application of the Nat eliminator (we are again pretending general
+-- pattern matching isn't a thing). Β-reduction a few times simplifies this to applying
+-- the nat eliminator to (S a), which is when ι applies. This happens to both instances of
+-- + on the LHS.
+--
+-- Thus, when we want to do this propositionally, what we must do is abstract every (S a) in
+-- our call to ι specialized to + (over Int/rInt). Furthermore, we apply ι in the backwards
+-- direction because our LHS (goal) is normalized already, but the RHS (the term we claim has the
+-- type of our goal, and that indeed does when we are working over nat with definitional ι)
+-- is not yet normalized, and needs those (S a) abstracted away.
+--
+-- OK, let's generalize. Let's say that over nat we have:
+--   Γ ⊢ t : T
+-- by definition, where t is the term that proves our goal T.
+-- By raw syntactic type checking without normalizing, let us also say we have:
+--   Γ ⊢ t : T'
+-- Then over nat we can infer that:
+--   Γ ⊢ T ≝ T'
+-- Say we move to Int/rInt, now, and we no longer have that (lifted) T ≝ T'.
+-- We want to show that (lifted) T ≡ T'. All significant changes in the equality between T and T'
+-- must come from applications of of ι (unless eta is a thing; I guess we don't know yet). Thus:
+--
+-- 1. We should first fully normalize (lifted) T and T'. In the case of our example above,
+-- this would δ-expand lifted + and Β-reduce its application.
+--
+-- 2. We should arrive at forms of T and T' that explicitly apply the lifted eliminator over
+-- Int/rInt. Since ι is the only significant change, they should furthermore apply the lifted
+-- eliminator to (S x) for some x (where S is shorthand for depConstrInt/rIntS; it is lifted S)
+--
+-- 3. Abstract everything definitionally equal to (S x) for some x, where that (S x) is eliminated
+-- over in normalized T. This is the argument Q to ι in the backwards direction, while that x
+-- is the argument n to ι in the backwards direction. Apply the ι rewrites propositionally
+-- to get updated T, t.
+--
+-- 4. If T ≝ T', stop and return. Otherwise, abstract everything definitionally equal to (S x)
+-- for some x, where that (S x) is eliminated over in normalized T'. This is the argument Q to
+-- ι in the forwards direction, while that x is the argument n to ι in the forwards direction.
+-- Apply the ι rewrites propositionally to get updated T', t.
+--
+-- 5. If T ≝ T', stop and return. Otherwise, repeat steps 1-5.
+--
+-- I think this is reasonable but it also means knowing how to fully normalize things in
+-- between. I think we should write a constrained normalization algorithm over a restricted
+-- fragment of the type theory that we define ourselves? Or something.
+--
+-- Maybe we can use Cubical Agda's normalization as an oracle. It remains to be seen
+-- whether the information we get back from Cubical Agda is actually useful enough
+-- to help us with that?
+
+-- In any case, let us try this algorithm over the other proof
+sucLemInt/rInt''' : (a : Int / rInt) → (b : Int / rInt) → (addInt/rInt' (depConstrInt/rIntS a) b) ≡ depConstrInt/rIntS (addInt/rInt' a b)
+sucLemInt/rInt''' a b =
+  depElimInt/rInt
+    (λ a → ∀ (b : Int / rInt) → -- P
+      addInt/rInt' (depConstrInt/rIntS a) b ≡ depConstrInt/rIntS (addInt/rInt' a b))
+    (λ (a : Int / rInt) p q i →
+      isSetProd
+        (λ b → isProp→isSet (squash/ _ _))
+        (λ b → p b)
+        (λ b → q b)
+        (funExt (λ x → squash/ _ _ (p x) (q x)))
+        (funExt (λ x → squash/ _ _ (p x) (q x)))
+        i
+        i)
+    (λ b → refl)
+    (λ a (IH : ∀ b → addInt/rInt' (depConstrInt/rIntS a) b ≡ depConstrInt/rIntS (addInt/rInt' a b)) b →
+      -- P (S a) b is T so
+      -- T is (S S a) + b ≡ S (S a + b)
+      -- cong depConstrInt/rIntS (IH b) : T', so
+      -- T' is S (S a + b) ≡ S (S (a + b))
+      -- Normalizing T blocks on ι in the RHS; let us abstract (S a):
+      ιInt/rIntS⁻
+        (λ _ → Int / rInt → Int / rInt)
+        (λ _ → isSetProd (λ _ → squash/))
+        (λ b → b)
+        (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+        a
+        (λ (add-Sa : Int / rInt → Int / rInt) →
+          addInt/rInt' (depConstrInt/rIntS (depConstrInt/rIntS a)) b ≡ depConstrInt/rIntS (add-Sa b))
+        ( -- We have simplified T to (S S a) + b ≡ S (S (a + b))
+          -- Normalizing T further blocks on ι on the LHS; let us abstract (S (S a)):
+          ιInt/rIntS⁻
+            (λ _ → Int / rInt → Int / rInt)
+            (λ _ → isSetProd (λ _ → squash/))
+            (λ b → b)
+            (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+            (depConstrInt/rIntS a) -- note that we must also instantiate argument to Q
+            (λ (add-SSa : Int / rInt → Int / rInt) →
+              add-SSa b ≡ depConstrInt/rIntS (depConstrInt/rIntS (addInt/rInt' a b)))
+            ( -- We have simplified T to S (S a + b) ≡ S (S (a + b))
+              -- I guess this points out one missed piece in our algorithm, which is
+              -- we can stop preemptively if T and T' are identical
+              cong depConstrInt/rIntS (IH b))))
     a
     b
 
--- ιInt/rIntS : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) → depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n) ≡ ps n (depElimSetInt/rInt P pset pz ps n)
+-- Now let's try for commutativity
+addCommInt/rInt' : (a : Int / rInt) → (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a
+addCommInt/rInt' a b =
+  depElimInt/rInt
+    (λ a → ∀ b → addInt/rInt' a b ≡ addInt/rInt' b a)
+    (λ (a : Int / rInt) p q i →
+      isSetProd
+        (λ b → isProp→isSet (squash/ _ _))
+        (λ b → p b)
+        (λ b → q b)
+        (funExt (λ x → squash/ _ _ (p x) (q x)))
+        (funExt (λ x → squash/ _ _ (p x) (q x)))
+        i
+        i)
+    (λ b →
+      depElimInt/rInt
+        (λ b → addInt/rInt' [ pos zero ] b ≡ addInt/rInt' b [ pos zero ])
+        (λ b → squash/ _ _)
+        refl
+        (λ b (IHb : addInt/rInt' [ pos zero ] b ≡ addInt/rInt' b [ pos zero ]) →
+          {!!})  -- some ι with cong depConstrInt/rIntS sucLemInt/rInt''
+        b)
+    (λ a (IHa : ∀ b → addInt/rInt' a b ≡ addInt/rInt' b a) b →
+      {!!}) -- some ι with cong depConstrInt/rIntS IH ∙ cong depConstrInt/rIntS (sucLemInt/rInt'' b a)
+    a
+    b
