@@ -488,8 +488,7 @@ depConstrSCorrectIrrel a b a≡b Sa≡Sb =
       (toPathP {A = λ i → Nat≡Int/rInt i})
       (squash/ (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a)) (depConstrInt/rIntS b) (fromPathP (depConstrSCorrect a b a≡b)) (fromPathP Sa≡Sb)))
 
--- TODO simplify proof a lot, use to prove other things, think about automation
--- TODO can we move the J and JDep out of the elimination? tbd but probably if smart enough, do later
+-- Yay! May try to simplify proof a lot, use to prove other things, think about automation
 elimOK : -- Based on elim_ok in Figure 11 in the PLDI 2021 paper
   ∀ (a : Nat) (b : Int / rInt) →
   ∀ (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
