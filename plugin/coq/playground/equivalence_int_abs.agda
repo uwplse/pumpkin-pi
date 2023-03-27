@@ -112,6 +112,10 @@ Nat/rNatIsoNat = iso g' f' ret' sec'
 Int/rIntIsoNat : Iso (Int / rInt) Nat
 Int/rIntIsoNat  = compIso Int/rIntIsoNat/rNat Nat/rNatIsoNat
 
+-- path equality corresponding to this isomorphism
+Nat≡Int/rInt : Nat ≡ Int / rInt
+Nat≡Int/rInt = sym (isoToPath Int/rIntIsoNat)
+
 sucLemNat : (a : Nat) -> (b : Nat) -> suc (a + b) ≡ a + suc b
 sucLemNat zero b = refl
 sucLemNat (suc a) b = cong suc (sucLemNat a b)
@@ -430,6 +434,118 @@ addOKPos = refl
 addOKNeg : addInt/rInt' [ neg 2 ] [ neg 7 ] ≡ [ neg 9 ]
 addOKNeg = refl
 
+-- Proof of correctness of repaired function
+addCorrect :
+  ∀ (a b : ℕ) (a' b' : Int / rInt) →
+  ∀ (pa : PathP (λ i → Nat≡Int/rInt i) a a') (pb : PathP (λ i → Nat≡Int/rInt i) b b') →
+  PathP (λ i → Nat≡Int/rInt i) (add' a b) (addInt/rInt' a' b')
+addCorrect a b a' b' pa pb =
+  JDep
+    {A = Nat}
+    {B = λ _ → Int / rInt}
+    (λ y p z q → PathP (λ i → Nat≡Int/rInt i) y z)
+    (Cubical.Data.Nat.elim
+      {A = λ a → ∀ (a' : Int / rInt) (pa : PathP (λ i → Nat≡Int/rInt i) a a') →
+        PathP (λ i → Nat≡Int/rInt i) (add' a b) (addInt/rInt' (transport (λ i → Nat≡Int/rInt i) a) b')}
+      (λ _ _ → pb)
+      (λ a (IHa : ∀ a' pa → PathP _ (add' a b) (addInt/rInt' (transport (λ i → Nat≡Int/rInt i) a) b')) a' pa →
+        toPathP
+          (cong
+            depConstrInt/rIntS
+            (fromPathP (IHa (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl)))))
+      a
+      a'
+      pa)
+    refl
+    (subst
+      {x = a'}
+      {y = transport Nat≡Int/rInt a}
+      (λ (z : Int / rInt) → addInt/rInt' z b' ≡  addInt/rInt' a' b')
+      (sym (fromPathP pa))
+      refl)
+
+-- Or, better: let's prove the lifted decomposition of the equivalence correct in the general case, then maybe we can use that
+
+depConstr0Correct : PathP (λ i → Nat≡Int/rInt i) zero depConstrInt/rInt0
+depConstr0Correct = toPathP refl
+
+depConstr0CorrectIrrel : depConstr0Correct ≡ toPathP refl
+depConstr0CorrectIrrel = refl
+
+depConstrSCorrect :
+  ∀ a b → PathP (λ i → Nat≡Int/rInt i) a b → PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)
+depConstrSCorrect a b a≡b =
+  toPathP (cong depConstrInt/rIntS (fromPathP a≡b))
+
+depConstrSCorrectIrrel : ∀ (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) (Sa≡Sb : PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)) →
+  depConstrSCorrect a b a≡b ≡ Sa≡Sb
+depConstrSCorrectIrrel a b a≡b Sa≡Sb =
+  subst2
+    (λ (Sa≡Sb Sa≡Sb' : PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)) → Sa≡Sb' ≡ Sa≡Sb)
+    (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)) Sa≡Sb)
+    (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)) (depConstrSCorrect a b a≡b))
+    (cong
+      (toPathP {A = λ i → Nat≡Int/rInt i})
+      (squash/ (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a)) (depConstrInt/rIntS b) (fromPathP (depConstrSCorrect a b a≡b)) (fromPathP Sa≡Sb)))
+
+-- TODO simplify proof a lot, use to prove other things, think about automation
+-- TODO can we move the J and JDep out of the elimination? tbd but probably if smart enough, do later
+elimOK : -- Based on elim_ok in Figure 11 in the PLDI 2021 paper
+  ∀ (a : Nat) (b : Int / rInt) →
+  ∀ (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
+  ∀ (PA : Nat → Set) (PB : Int / rInt → Set) (PBSet : ∀ b → isSet (PB b)) →
+  ∀ (PA≡PB : PathP (λ i → (Nat≡Int/rInt i) → Set) PA PB) →
+  ∀ (PAO : PA zero) (PBO : PB depConstrInt/rInt0) →
+  ∀ (PAO≡PBO : PathP (λ i → (PA≡PB i) (depConstr0Correct i)) PAO PBO) →
+  ∀ (PAS : ∀ a → PA a → PA (suc a)) (PBS : ∀ b → PB b → PB (depConstrInt/rIntS b)) →
+  ∀ (PAS≡PBS : ∀ a b IHa IHb a≡b → PathP (λ i → (PA≡PB i) (depConstrSCorrect a b a≡b i)) (PAS a IHa) (PBS b IHb)) →
+  PathP (λ i → (PA≡PB i) (a≡b i)) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b)
+elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
+  J -- adjust a≡b from pathP to path to make it easy to use JDep
+    (λ a≡b' (H : toPathP (fromPathP a≡b) ≡ a≡b') →
+      PathP (λ i → (PA≡PB i (a≡b' i))) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b))
+    (JDep -- adjust to a homogeneous PathP about proofs about a
+       {A = Int / rInt}
+       {B = λ (b : Int / rInt) → PB b}
+       {b =  depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)}
+       (λ (b : Int / rInt) (a≡b : transport (λ i → Nat≡Int/rInt i) a ≡ b) (PBb : PB b)
+          (p : PathP (λ i → PB (a≡b i)) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)) PBb) →
+         PathP (λ i → PA≡PB i (toPathP {A = λ i → Nat≡Int/rInt i} a≡b i)) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b))
+       (Cubical.Data.Nat.elim
+         {A = λ (a : Nat) →
+           PathP
+             (λ i → PA≡PB i (toPathP {A = λ i → Nat≡Int/rInt i} (refl {x = transport (λ i → Nat≡Int/rInt i) a}) i))
+             (Cubical.Data.Nat.elim PAO PAS a)
+             (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a))}
+         PAO≡PBO -- base case holds by PAO≡PBO
+         (λ (a : Nat) _ → -- inductive case holds by ι of PAS≡PBS
+           (subst -- adjust to refl
+            {A = PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a))}
+            {x = depConstrSCorrect a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl)}
+            {y = toPathP {A = λ i → Nat≡Int/rInt i} refl}
+            (λ (Sa≡Sa : PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a))) →
+              PathP (λ i → PA≡PB i (Sa≡Sa i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) (depElimSetInt/rInt PB PBSet PBO PBS (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a))))
+            (depConstrSCorrectIrrel a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl) (toPathP refl))
+            (ιInt/rIntS⁻ -- ι reduce the successor case for proofs about Int/rInt
+              PB
+              PBSet
+              PBO
+              PBS
+              (transport (λ i → Nat≡Int/rInt i) a)
+              (λ PBSa →
+                PathP (λ i → PA≡PB i (depConstrSCorrect a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl) i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) PBSa)
+              (PAS≡PBS a (transport (λ i → Nat≡Int/rInt i) a) (Cubical.Data.Nat.elim PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)) (toPathP refl)))))
+           a)
+       {y = b}
+       (fromPathP a≡b)
+       {z = depElimSetInt/rInt PB PBSet PBO PBS b}
+       (J -- reduce to refl
+          (λ (b : Int / rInt) (a≡b : transport (λ i → Nat≡Int/rInt i) a ≡ b) →
+            PathP (λ i → PB (fromPathP a≡b i)) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)) (depElimSetInt/rInt PB PBSet PBO PBS b))
+          refl
+          (fromPathP {A = λ i → Nat≡Int/rInt i} a≡b)))
+    (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) a b) a≡b)
+
 -- Porting proofs to nat-like eliminators
 
 sucLemNat'' : (a : ℕ) → (b : ℕ) → suc (add' a b) ≡ add' a (suc b)
@@ -614,6 +730,22 @@ sucLemInt/rInt''' a b =
     b
 
 -- Now let's try for commutativity
+addCommNat' : (a : ℕ) → (b : ℕ) → add' a b ≡ add' b a
+addCommNat' a b =
+  Cubical.Data.Nat.elim
+    {A = λ a → ∀ b → add' a b ≡ add' b a}
+    (λ b →
+      Cubical.Data.Nat.elim
+        {A = λ b → add' 0 b ≡ add' b 0}
+        refl
+        (λ b (IHb : add' 0 b ≡ add' b 0) →
+          cong suc IHb)
+        b)
+    (λ a (IHa : ∀ b → add' a b ≡ add' b a) b →
+      cong suc (IHa b) ∙ sucLemNat'' b a) 
+    a
+    b
+
 addCommInt/rInt' : (a : Int / rInt) → (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a
 addCommInt/rInt' a b =
   depElimInt/rInt
@@ -633,9 +765,40 @@ addCommInt/rInt' a b =
         (λ b → squash/ _ _)
         refl
         (λ b (IHb : addInt/rInt' [ pos zero ] b ≡ addInt/rInt' b [ pos zero ]) →
-          {!!})  -- some ι with cong depConstrInt/rIntS sucLemInt/rInt''
+          -- T := P (S b) := [ pos zero ] + (S b) ≡ (S b) + [ pos zero ]
+          -- cong S IHb : T', so
+          -- T' := S ([ pos zero ] + b) = S (b + [ pos zero ])
+          -- One backwards ι abstracting over S b
+          ιInt/rIntS⁻
+            (λ _ → Int / rInt → Int / rInt)
+            (λ _ → isSetProd (λ _ → squash/))
+            (λ b → b)
+            (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+            b
+            (λ add-Sb →
+              addInt/rInt' [ pos zero ] (depConstrInt/rIntS b) ≡ add-Sb [ pos zero ])
+            (cong depConstrInt/rIntS IHb))
         b)
     (λ a (IHa : ∀ b → addInt/rInt' a b ≡ addInt/rInt' b a) b →
-      {!!}) -- some ι with cong depConstrInt/rIntS IH ∙ cong depConstrInt/rIntS (sucLemInt/rInt'' b a)
+      -- T := P (S a) b := S a + b ≡ b + S a
+      ιInt/rIntS⁻
+        (λ _ → Int / rInt → Int / rInt)
+        (λ _ → isSetProd (λ _ → squash/))
+        (λ b → b)
+        (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+        a
+        (λ add-Sa →
+          add-Sa b ≡ addInt/rInt' b (depConstrInt/rIntS a))
+        (cong depConstrInt/rIntS (IHa b) ∙ sucLemInt/rInt'' b a)) 
     a
     b
+
+-- Proof of correctness of repaired proof
+-- addCommCorrect : ∀ (a : ℕ) (a' : Int / rInt) (p : PathP {!!} a a') → {!!}
+-- addCommCorrect = {!!}
+
+-- addCommNat' : (a : ℕ) → (b : ℕ) → add' a b ≡ add' b a
+-- addCommInt/rInt' : (a : Int / rInt) → (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a
+
+-- TODO, show that this is correct in comparison to a nat version!
+-- think about how to algorithmically generate those proofs
