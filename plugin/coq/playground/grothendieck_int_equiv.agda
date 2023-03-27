@@ -64,14 +64,25 @@ canonicalizePres (suc n1 , suc n2) =
   [ n1 , n2 ] ≡⟨ canonicalizePres (n1 , n2) ⟩
   [ canonicalize (n1 , n2) ] ∎
 
+canonicalizePres⁻ : (p : ℕ × ℕ) → [_] {R = R} (canonicalize p) ≡ [ p ]
+canonicalizePres⁻ p = sym (canonicalizePres p)
+
 canonicalizeSignDec : (p : ℕ × ℕ) → (Σ[ n ∈ ℕ ] (canonicalize p ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((canonicalize p ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m))))
 canonicalizeSignDec (zero , zero) = inl (zero , refl)
 canonicalizeSignDec (zero , suc n2) = inr ((suc n2) , (refl , (n2 , refl)))
 canonicalizeSignDec (suc n1 , zero) = inl ((suc n1) , refl)
 canonicalizeSignDec (suc n1 , suc n2) = canonicalizeSignDec (n1 , n2)
 
+canonicalIsCanonical : (a b : ℕ × ℕ) → R a b → canonicalize a ≡ canonicalize b
+canonicalIsCanonical (a1 , a2) (b1 , b2) r = {!!}
+
+canonicalizeIdempotent : (p : ℕ × ℕ) → canonicalize p ≡ canonicalize (canonicalize p)
+canonicalizeIdempotent (zero , p2) = refl
+canonicalizeIdempotent (suc p1 , zero) = refl
+canonicalizeIdempotent (suc p1 , suc p2) = canonicalizeIdempotent (p1 , p2)
+
 depElimGZNegSuc : (P : GZ → Set) → (∀ x → isSet (P x)) → (∀ n → P (depConstrGZPos n)) → (∀ n → P (depConstrGZNegSuc n)) → ∀ z → P z
-depElimGZNegSuc P set posP negsucP = SetQuotients.elim set func {!!} where
+depElimGZNegSuc P set posP negsucP = SetQuotients.elim set func resp where
   func : (p : ℕ × ℕ) → P [ p ]
   func p = Sum.rec (λ x → transport (cong P (sym ([ p ] ≡⟨ (canonicalizePres p) ⟩ [ canonicalize p ]
                                                   ≡⟨ (cong [_] (snd x)) ⟩ (depConstrGZPos (fst x)) ∎)))
@@ -81,5 +92,15 @@ depElimGZNegSuc P set posP negsucP = SetQuotients.elim set func {!!} where
                                                         ≡⟨ cong [_] (×≡ refl (snd (proj₂ (snd x)))) ⟩ (depConstrGZNegSuc (fst (proj₂ (snd x)))) ∎)))
                                     (negsucP (fst (proj₂ (snd x)))))
                    (canonicalizeSignDec p)
+  funcCanonical : (p : ℕ × ℕ) → PathP (λ i → P (canonicalizePres p i)) (func p) (func (canonicalize p))
+  funcCanonical p = {!!}
+  funcCanonical⁻ : (p : ℕ × ℕ) → PathP (λ i → P (canonicalizePres⁻ p i)) (func (canonicalize p)) (func p)
+  funcCanonical⁻ p = symP (funcCanonical p)
+  composedPaths : (a b : ℕ × ℕ) (r : R a b) → PathP (λ i → P ((canonicalizePres a ∙ (cong [_] (canonicalIsCanonical a b r) ∙ canonicalizePres⁻ b)) i)) (func a) (func b)
+  composedPaths a b r = compPathP' {B = P} (funcCanonical a) (compPathP' {B = P} (cong func (canonicalIsCanonical a b r)) (funcCanonical⁻ b))
+  typesSame : (a b : ℕ × ℕ) (r : R a b) → PathP (λ i → P ((canonicalizePres a ∙ (cong [_] (canonicalIsCanonical a b r) ∙ canonicalizePres⁻ b)) i)) (func a) (func b) ≡ PathP (λ i → P (eq/ a b r i)) (func a) (func b)
+  typesSame a b r = cong (λ x → PathP (λ i → P (x i)) (func a) (func b)) (squash/ [ a ] [ b ] ((canonicalizePres a ∙ (cong [_] (canonicalIsCanonical a b r) ∙ canonicalizePres⁻ b))) (eq/ a b r))
+  resp : (a b : ℕ × ℕ) (r : R a b) → PathP (λ i → P (eq/ a b r i)) (func a) (func b)
+  resp a b r = transport (typesSame a b r) (composedPaths a b r)
 
-                                   
+
