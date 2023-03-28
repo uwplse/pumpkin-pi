@@ -464,7 +464,7 @@ addCorrect a b a' b' pa pb =
       (sym (fromPathP pa))
       refl)
 
--- Or, better: let's prove the lifted decomposition of the equivalence correct in the general case, then maybe we can use that
+{- Correctness for dependent constructors and eliminators -}
 
 depConstr0Correct : PathP (λ i → Nat≡Int/rInt i) zero depConstrInt/rInt0
 depConstr0Correct = toPathP refl
@@ -545,7 +545,22 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
           (fromPathP {A = λ i → Nat≡Int/rInt i} a≡b)))
     (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) a b) a≡b)
 
--- Porting proofs to nat-like eliminators
+{- Correctness for the other derivations (needed so we can use elimOK on particular functions and proofs) -}
+
+-- equivalence is OK
+equiv_OK : Nat ≡ Int / rInt
+equiv_OK = Nat≡Int/rInt
+
+-- app is OK (loosely based on congP)
+app_OK : {A : I → Set} {B : (i : I) → A i → Set}
+  (f : (a : A i0) → B i0 a) (f' : (a : A i1) → B i1 a)
+  (f≡f' : PathP (λ i → ∀ (a : A i) → B i a) f f')
+  (t : A i0) (t' : A i1)
+  (t≡t' : PathP A t t') →
+  PathP (λ i → B i (t≡t' i)) (f t) (f' t')
+app_OK f f' f≡f' t t' t≡t' = congP (λ i a → f≡f' i a) t≡t'
+
+{- Porting proofs to nat-like eliminators -}
 
 sucLemNat'' : (a : ℕ) → (b : ℕ) → suc (add' a b) ≡ add' a (suc b)
 sucLemNat'' a b =
