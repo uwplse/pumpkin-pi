@@ -552,12 +552,12 @@ equiv_OK : Nat ≡ Int / rInt
 equiv_OK = Nat≡Int/rInt
 
 -- app is OK (loosely based on congP)
-app_OK : {A : I → Set} {B : (i : I) → A i → Set}
-  (f : (a : A i0) → B i0 a) (f' : (a : A i1) → B i1 a)
-  (f≡f' : PathP (λ i → ∀ (a : A i) → B i a) f f')
-  (t : A i0) (t' : A i1)
-  (t≡t' : PathP A t t') →
-  PathP (λ i → B i (t≡t' i)) (f t) (f' t')
+app_OK : {T : I → Set} {F : (i : I) → T i → Set}
+  (f : (t : T i0) → F i0 t) (f' : (t : T i1) → F i1 t)
+  (f≡f' : PathP (λ i → ∀ (t : T i) → F i t) f f')
+  (t : T i0) (t' : T i1)
+  (t≡t' : PathP T t t') →
+  PathP (λ i → F i (t≡t' i)) (f t) (f' t')
 app_OK f f' f≡f' t t' t≡t' = congP (λ i a → f≡f' i a) t≡t'
 
 {- Porting proofs to nat-like eliminators -}
