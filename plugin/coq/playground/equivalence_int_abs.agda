@@ -492,8 +492,8 @@ depConstrSCorrectIrrel a b a≡b Sa≡Sb =
 elimOK : -- Based on elim_ok in Figure 11 in the PLDI 2021 paper
   ∀ (a : Nat) (b : Int / rInt) →
   ∀ (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
-  ∀ (PA : Nat → Set) (PB : Int / rInt → Set) (PBSet : ∀ b → isSet (PB b)) →
-  ∀ (PA≡PB : PathP (λ i → (Nat≡Int/rInt i) → Set) PA PB) →
+  ∀ (PA : Nat → Type) (PB : Int / rInt → Type) (PBSet : ∀ b → isSet (PB b)) →
+  ∀ (PA≡PB : PathP (λ i → (Nat≡Int/rInt i) → Type) PA PB) →
   ∀ (PAO : PA zero) (PBO : PB depConstrInt/rInt0) →
   ∀ (PAO≡PBO : PathP (λ i → (PA≡PB i) (depConstr0Correct i)) PAO PBO) →
   ∀ (PAS : ∀ a → PA a → PA (suc a)) (PBS : ∀ b → PB b → PB (depConstrInt/rIntS b)) →
@@ -547,18 +547,32 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
 
 {- Correctness for the other derivations (needed so we can use elimOK on particular functions and proofs) -}
 
--- equivalence is OK
+-- equivalence is OK by A≡B
 equiv_OK : Nat ≡ Int / rInt
 equiv_OK = Nat≡Int/rInt
 
--- app is OK (loosely based on congP)
-app_OK : {T : I → Set} {F : (i : I) → T i → Set}
+-- application: app is OK by congP
+app_OK : {T : I → Type} {F : (i : I) → T i → Type}
   (f : (t : T i0) → F i0 t) (f' : (t : T i1) → F i1 t)
   (f≡f' : PathP (λ i → ∀ (t : T i) → F i t) f f')
   (t : T i0) (t' : T i1)
   (t≡t' : PathP T t t') →
   PathP (λ i → F i (t≡t' i)) (f t) (f' t')
 app_OK f f' f≡f' t t' t≡t' = congP (λ i a → f≡f' i a) t≡t'
+
+-- term abstraction: lam is OK by ?? (hard to state right now)
+
+-- type abstraction: prod is OK by ?? (similar to lam)
+
+-- variables: var is OK by refl
+var : ∀ {T : I → Type} (i : I) (v : T i) → v ≡ v
+var {T} i v = refl
+
+-- TODO prove iota, lam, prod, var
+-- TODO lift vectors from ℕ to Int / rInt
+-- TODO prove the other three rules for vectors specifically
+-- TODO prove some functions and proofs are repaired correctly using only these pieces
+-- TODO change Set to Type elsewhere too?
 
 {- Porting proofs to nat-like eliminators -}
 
