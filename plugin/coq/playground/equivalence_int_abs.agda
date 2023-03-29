@@ -561,18 +561,14 @@ app_OK : {T : I → Type} {F : (i : I) → T i → Type}
   PathP (λ i → F i (t≡t' i)) (f t) (f' t')
 app_OK f f' f≡f' t t' t≡t' = congP (λ i a → f≡f' i a) t≡t'
 
--- term abstraction: lam is OK by funExtDep
+-- term abstraction: lam is OK by funExtDep (is this type signature correct though?)
 lam_OK : {T : I → Type} {F : (i : I) → T i → Type}
-  (t : T i0) (t' : T i1)
-  (t≡t' : PathP (λ i → T i) t t')
   (f : (t : T i0) → F i0 t) (f' : (t : T i1) → F i1 t)
   (b≡b' : ∀ {t : T i0} {t' : T i1} (t≡t' : PathP (λ i → T i) t t') →
     PathP (λ i → F i (t≡t' i)) (f t) (f' t')) →
   PathP (λ i → ∀ (t : T i) → F i t) f f'
-lam_OK {T} {F} t t' t≡t' f f' b≡b' =
+lam_OK {T} {F} f f' b≡b' =
   funExtDep b≡b'
-
--- type abstraction: prod is OK by ?? (similar to lam)
 
 -- variables: var is OK by refl
 var : ∀ {T : I → Type} (i : I) (v : T i) → v ≡ v
