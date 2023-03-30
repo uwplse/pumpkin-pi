@@ -616,23 +616,42 @@ var {T} i v = refl
     (ιInt/rIntSEq PB PBset PBzero PBS b)
 ιOKSEq PA PB PA≡PB PBset PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS a b a≡b =
   toPathP
-  (PBset
-    (depConstrInt/rIntS b)
-    (depElimSetInt/rInt PB PBset PBzero PBS (depConstrInt/rIntS b))
-    (PBS b (depElimSetInt/rInt PB PBset PBzero PBS b))
-    (transport
-      (λ i →
-         elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i ≡
-         PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a)
-      (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b i)
-      refl)
-    (ιInt/rIntSEq PB PBset PBzero PBS b))
+    (PBset
+      (depConstrInt/rIntS b)
+      (depElimSetInt/rInt PB PBset PBzero PBS (depConstrInt/rIntS b))
+      (PBS b (depElimSetInt/rInt PB PBset PBzero PBS b))
+      (transport
+        (λ i →
+           elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i ≡
+           PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a)
+        (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b i)
+        refl)
+      (ιInt/rIntSEq PB PBset PBzero PBS b))
 
-{-
-
-ιInt/rIntSEq : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
-    depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n) ≡ ps n (depElimSetInt/rInt P pset pz ps n)
--}
+ιOKS : (PA : Nat → Type) (PB : Int / rInt → Type)
+  (PA≡PB : PathP (λ i → Nat≡Int/rInt i → Type) PA PB)
+  (PBset : ∀ x → isSet (PB x))
+  (PAzero : PA zero) (PBzero : PB depConstrInt/rInt0)
+  (PAzero≡PBzero : PathP (λ i → (PA≡PB i) (depConstr0Correct i)) PAzero PBzero)
+  (PAS : ∀ n → PA n → PA (suc n)) (PBS : ∀ n → PB n → PB (depConstrInt/rIntS n))
+  (PAS≡PBS : ∀ a b IHa IHb a≡b → PathP (λ i → (PA≡PB i) (depConstrSCorrect a b a≡b i)) (PAS a IHa) (PBS b IHb))
+  (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
+  (QA : PA (suc a) → Type) (QB : PB (depConstrInt/rIntS b) → Type)
+  (QA≡QB : PathP (λ i → (PA≡PB i) (depConstrSCorrect a b a≡b i) → Type) QA QB)
+  (QAS : QA (Cubical.Data.Nat.elim {A = PA} PAzero PAS (suc a))) (QBS : QB (depElimSetInt/rInt PB PBset PBzero PBS (depConstrInt/rIntS b)))
+  (QAS≡QBS :
+    PathP
+      (λ i → QA≡QB i
+        (elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i))
+      QAS
+      QBS) →
+  PathP
+    (λ i → QA≡QB i
+      (PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b i))
+    QAS
+    (ιInt/rIntS PB PBset PBzero PBS b QB QBS)
+ιOKS PA PB PA≡PB PBset PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS a b a≡b QA QB QA≡QB QAS QBS QAS≡QBS =
+  {!!}
 
 -- TODO prove iota
 -- TODO lift vectors from ℕ to Int / rInt
