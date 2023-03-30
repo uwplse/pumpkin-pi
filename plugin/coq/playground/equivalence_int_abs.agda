@@ -16,6 +16,7 @@ open import Cubical.Data.Sum
 open import Agda.Builtin.Nat
 open import Cubical.Data.Nat
 open import Cubical.Functions.FunExtEquiv
+open import Cubical.Foundations.CartesianKanOps
 
 data True : Type where
   tt : True
@@ -549,32 +550,91 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
 {- Correctness for the other derivations (needed so we can use elimOK on particular functions and proofs) -}
 
 -- equivalence is OK by A≡B
-equiv_OK : Nat ≡ Int / rInt
-equiv_OK = Nat≡Int/rInt
+equivOK : Nat ≡ Int / rInt
+equivOK = Nat≡Int/rInt
 
 -- application: app is OK by congP
-app_OK : {T : I → Type} {F : (i : I) → T i → Type}
+appOK : {T : I → Type} {F : (i : I) → T i → Type}
   (f : (t : T i0) → F i0 t) (f' : (t : T i1) → F i1 t)
   (f≡f' : PathP (λ i → ∀ (t : T i) → F i t) f f')
   (t : T i0) (t' : T i1)
   (t≡t' : PathP T t t') →
   PathP (λ i → F i (t≡t' i)) (f t) (f' t')
-app_OK f f' f≡f' t t' t≡t' = congP (λ i a → f≡f' i a) t≡t'
+appOK f f' f≡f' t t' t≡t' = congP (λ i a → f≡f' i a) t≡t'
 
--- term abstraction: lam is OK by funExtDep (is this type signature correct though?)
-lam_OK : {T : I → Type} {F : (i : I) → T i → Type}
+-- term abstraction: lam is OK by funExtDep (TODO is this type signature correct though, or too specific?)
+lamOK : {T : I → Type} {F : (i : I) → T i → Type}
   (f : (t : T i0) → F i0 t) (f' : (t : T i1) → F i1 t)
   (b≡b' : ∀ {t : T i0} {t' : T i1} (t≡t' : PathP (λ i → T i) t t') →
     PathP (λ i → F i (t≡t' i)) (f t) (f' t')) →
   PathP (λ i → ∀ (t : T i) → F i t) f f'
-lam_OK {T} {F} f f' b≡b' =
+lamOK {T} {F} f f' b≡b' =
   funExtDep b≡b'
+
+-- type abstraction: prod is OK by funExtDep (TODO is this type signature correct though, or too specific?)
+prodOK : {T : I → Type} (F : (i : I) → T i → Type)
+  (b≡b' : ∀ {t : T i0} {t' : T i1} (t≡t' : PathP (λ i → T i) t t') →
+    PathP (λ i → Type) (F i0 t) (F i1 t')) →
+  PathP (λ i → T i → Type) (F i0) (F i1)
+prodOK {T} F b≡b' = funExtDep b≡b'
 
 -- variables: var is OK by refl
 var : ∀ {T : I → Type} (i : I) (v : T i) → v ≡ v
 var {T} i v = refl
 
--- TODO prove iota, lam, prod, var
+-- iota: iota is OK at 0 by QAzero≡QBzero
+ιOK0 : (PA : Nat → Type) (PB : Int / rInt → Type)
+  (PA≡PB : PathP (λ i → Nat≡Int/rInt i → Type) PA PB)
+  (PBset : ∀ x → isSet (PB x))
+  (PAzero : PA zero) (PBzero : PB depConstrInt/rInt0)
+  (PAzero≡PBzero : PathP (λ i → (PA≡PB i) (depConstr0Correct i)) PAzero PBzero)
+  (PAS : ∀ n → PA n → PA (suc n)) (PBS : ∀ n → PB n → PB (depConstrInt/rIntS n))
+  (PAS≡PBS : ∀ a b IHa IHb a≡b → PathP (λ i → (PA≡PB i) (depConstrSCorrect a b a≡b i)) (PAS a IHa) (PBS b IHb))
+  (QA : PA zero → Type) (QB : PB depConstrInt/rInt0 → Type)
+  (QA≡QB : PathP (λ i → (PA≡PB i) (depConstr0Correct i) → Type) QA QB)
+  (QAzero : QA PAzero) (QBzero : QB PBzero)
+  (QAzero≡QBzero : PathP (λ i → (QA≡QB i) (PAzero≡PBzero i)) QAzero QBzero) → 
+  PathP (λ i → (QA≡QB i) (PAzero≡PBzero i)) QAzero (ιInt/rInt0 PB PBset PBzero PBS QB QBzero)
+ιOK0 PA PB PA≡PB PBSet PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS QA QB QA≡QB QAzero QBzero QAzero≡QBzero =
+  QAzero≡QBzero
+
+-- iota: iota is OK at S (it's cool to lift definitional to propositional equality) because we are eliminating into set
+-- (TODO proving over equality first, then use that to show rewrite is OK, types suck though)
+ιOKSEq : (PA : Nat → Type) (PB : Int / rInt → Type)
+  (PA≡PB : PathP (λ i → Nat≡Int/rInt i → Type) PA PB)
+  (PBset : ∀ x → isSet (PB x))
+  (PAzero : PA zero) (PBzero : PB depConstrInt/rInt0)
+  (PAzero≡PBzero : PathP (λ i → (PA≡PB i) (depConstr0Correct i)) PAzero PBzero)
+  (PAS : ∀ n → PA n → PA (suc n)) (PBS : ∀ n → PB n → PB (depConstrInt/rIntS n))
+  (PAS≡PBS : ∀ a b IHa IHb a≡b → PathP (λ i → (PA≡PB i) (depConstrSCorrect a b a≡b i)) (PAS a IHa) (PBS b IHb))
+  (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
+  PathP
+    (λ i →
+      elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i ≡
+      PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b i)
+    (refl {x = Cubical.Data.Nat.elim {A = PA} PAzero PAS (suc a)})
+    (ιInt/rIntSEq PB PBset PBzero PBS b)
+ιOKSEq PA PB PA≡PB PBset PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS a b a≡b =
+  toPathP
+  (PBset
+    (depConstrInt/rIntS b)
+    (depElimSetInt/rInt PB PBset PBzero PBS (depConstrInt/rIntS b))
+    (PBS b (depElimSetInt/rInt PB PBset PBzero PBS b))
+    (transport
+      (λ i →
+         elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i ≡
+         PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a)
+      (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b i)
+      refl)
+    (ιInt/rIntSEq PB PBset PBzero PBS b))
+
+{-
+
+ιInt/rIntSEq : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
+    depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n) ≡ ps n (depElimSetInt/rInt P pset pz ps n)
+-}
+
+-- TODO prove iota
 -- TODO lift vectors from ℕ to Int / rInt
 -- TODO prove the other three rules for vectors specifically
 -- TODO prove some functions and proofs are repaired correctly using only these pieces
