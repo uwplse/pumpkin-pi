@@ -648,12 +648,30 @@ var {T} i v = refl
   PathP
     (λ i → QA≡QB i
       (PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b i))
-    QAS
+    QAS -- TOOD have (transport (λ i → QA (Cubical.Data.Nat.elim PAzero PAS (suc a))) QAS)
     (ιInt/rIntS PB PBset PBzero PBS b QB QBS)
 ιOKS PA PB PA≡PB PBset PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS a b a≡b QA QB QA≡QB QAS QBS QAS≡QBS =
-  {!!}
+  subst
+    {x = subst (λ e → QA e) (refl {x = Cubical.Data.Nat.elim {A = PA} PAzero PAS (suc a)}) QAS}
+    {y = QAS}
+    (λ QAS' →
+      PathP
+        (λ i → QA≡QB i (PAS≡PBS a b (Cubical.Data.Nat.elim {A = PA} PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b i))
+        QAS'
+        (ιInt/rIntS PB PBset PBzero PBS b QB QBS))
+    (sym (subst-filler (λ e → QA e) refl QAS))
+    (congP
+      {A = λ i →
+        elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i ≡
+        PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b i}
+      {B = λ i p → QA≡QB i (PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b i)}
+      (λ (i : I) (p : elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i ≡
+                      PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b i) →
+        subst (λ e → QA≡QB i e) p (QAS≡QBS i))
+      {x = refl {x = Cubical.Data.Nat.elim {A = PA} PAzero PAS (suc a)}}
+      {y = ιInt/rIntSEq PB PBset PBzero PBS b}
+      (ιOKSEq PA PB PA≡PB PBset PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS a b a≡b))
 
--- TODO prove iota
 -- TODO lift vectors from ℕ to Int / rInt
 -- TODO prove the other three rules for vectors specifically
 -- TODO prove some functions and proofs are repaired correctly using only these pieces
