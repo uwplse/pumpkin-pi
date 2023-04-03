@@ -598,8 +598,7 @@ var {T} i v = refl
 ιOK0 PA PB PA≡PB PBSet PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS QA QB QA≡QB QAzero QBzero QAzero≡QBzero =
   QAzero≡QBzero
 
--- iota: iota is OK at S (it's cool to lift definitional to propositional equality) because we are eliminating into set
--- (TODO proving over equality first, then use that to show rewrite is OK, types suck though)
+-- iota: iota is OK at S (it's cool to lift definitional to propositional equality) because we are eliminating into set (equality first)
 ιOKSEq : (PA : Nat → Type) (PB : Int / rInt → Type)
   (PA≡PB : PathP (λ i → Nat≡Int/rInt i → Type) PA PB)
   (PBset : ∀ x → isSet (PB x))
@@ -628,6 +627,7 @@ var {T} i v = refl
         refl)
       (ιInt/rIntSEq PB PBset PBzero PBS b))
 
+-- rewrite version of the above
 ιOKS : (PA : Nat → Type) (PB : Int / rInt → Type)
   (PA≡PB : PathP (λ i → Nat≡Int/rInt i → Type) PA PB)
   (PBset : ∀ x → isSet (PB x))
@@ -648,7 +648,7 @@ var {T} i v = refl
   PathP
     (λ i → QA≡QB i
       (PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b i))
-    QAS -- TOOD have (transport (λ i → QA (Cubical.Data.Nat.elim PAzero PAS (suc a))) QAS)
+    QAS
     (ιInt/rIntS PB PBset PBzero PBS b QB QBS)
 ιOKS PA PB PA≡PB PBset PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS a b a≡b QA QB QA≡QB QAS QBS QAS≡QBS =
   subst
@@ -672,8 +672,38 @@ var {T} i v = refl
       {y = ιInt/rIntSEq PB PBset PBzero PBS b}
       (ιOKSEq PA PB PA≡PB PBset PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS a b a≡b))
 
--- TODO lift vectors from ℕ to Int / rInt
--- TODO prove the other three rules for vectors specifically
+{- We can't prove ind, constr, and elim in general, but let's instantiate to a particular inductive type -}
+
+data Vec (T : Set) : ℕ → Set where
+  nil : Vec T zero
+  cons : (n : ℕ) → (t : T) → Vec T n → Vec T (suc n)
+
+data Vecz (T : Set) : Int / rInt → Set where
+  nilz : Vecz T depConstrInt/rInt0
+  consz : (n : Int / rInt) → (t : T) → Vecz T n → Vecz T (depConstrInt/rIntS n)
+
+-- Ind is OK by TODO WIP
+IndOK : ∀ (T : Set) →
+  PathP (λ i → Type₁) (T → ℕ → Set) (T → Int / rInt → Set) →
+  PathP (λ i → Set) (Vec T zero) (Vecz T depConstrInt/rInt0) →
+  PathP (λ i → Set) ((n : ℕ) → (t : T) → Vec T n → Vec T (suc n)) ((n : Int / rInt) → (t : T) → Vecz T n → Vecz T (depConstrInt/rIntS n)) →
+  PathP (λ i → Set → Nat≡Int/rInt i → Set) Vec Vecz
+IndOK T S≡S' nilT≡nilzT consT≡conszT =
+  funExtDep
+    (λ {T} {T'} T≡T' →
+      funExtDep
+        (λ {a} {b} a≡b →
+          toPathP (isoToPath (IndOKIso T≡T' a≡b))))
+  where
+    IndOKIso : ∀ {T} {T'} T≡T' → ∀ {a} {b} a≡b → Iso (transport (λ i → Type) (Vec T a)) (Vecz T' b)
+    IndOKIso {T} {T'} T≡T' {a} {b} a≡b =
+      iso
+        {!!}
+        {!!}
+        {!!}
+        {!!}
+
+-- TODO prove the other three rules for vectors specifically (WIP)
 -- TODO prove some functions and proofs are repaired correctly using only these pieces
 -- TODO change Set to Type elsewhere too?
 
