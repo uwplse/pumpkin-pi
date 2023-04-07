@@ -686,7 +686,7 @@ data Vecz (T : Set) : Int / rInt → Set where
 
 -- We can define an eliminator for Vec:
 elimVec :
-  ∀ {ℓ} {T : Set} (P : ∀ (n : ℕ) → Vec T n → Type ℓ) →
+  ∀ {T : Set} (P : ∀ (n : ℕ) → Vec T n → Set) →
     P zero nil →
     (∀ (n : ℕ) (t : T) (v : Vec T n) → P n v → P (suc n) (cons n t v)) →
     ∀ (n : ℕ) (v : Vec T n) → P n v
@@ -697,7 +697,7 @@ elimVec {T} P Pnil Pcons .(suc n) (cons n t v) =
 
 -- Which repairs to an eliminator for Vecz:
 elimVecz :
-  ∀ {ℓ} {T : Set} (P : ∀ (n : Int / rInt) → Vecz T n → Type ℓ) →
+  ∀ {T : Set} (P : ∀ (n : Int / rInt) → Vecz T n → Set) →
     P depConstrInt/rInt0 nilz →
     (∀ (n : Int / rInt) (t : T) (v : Vecz T n) → P n v → P (depConstrInt/rIntS n) (consz n t v)) →
     ∀ (n : Int / rInt) (v : Vecz T n) → P n v
@@ -707,12 +707,12 @@ elimVecz {T} P Pnil Pcons .(depConstrInt/rIntS n) (consz n t v) =
   Pcons n t v (elimVecz P Pnil Pcons n v)
 
 -- Ind is OK by TODO WIP
-IndOK : ∀ (T : Set) →
-  PathP (λ i → Type₁) (T → ℕ → Set) (T → Int / rInt → Set) →
-  PathP (λ i → Set) (Vec T zero) (Vecz T depConstrInt/rInt0) →
-  PathP (λ i → Set) ((n : ℕ) → (t : T) → Vec T n → Vec T (suc n)) ((n : Int / rInt) → (t : T) → Vecz T n → Vecz T (depConstrInt/rIntS n)) →
+IndOK :
+  --(∀ (T : Set) → PathP (λ i → Type₁) (T → ℕ → Set) (T → Int / rInt → Set)) →
+  --(∀ (T : Set) → PathP (λ i → Set) (Vec T zero) (Vecz T depConstrInt/rInt0)) →
+  --(∀ (T : Set) → PathP (λ i → Set) ((n : ℕ) → (t : T) → Vec T n → Vec T (suc n)) ((n : Int / rInt) → (t : T) → Vecz T n → Vecz T (depConstrInt/rIntS n))) →
   PathP (λ i → Set → Nat≡Int/rInt i → Set) Vec Vecz
-IndOK T S≡S' nilT≡nilzT consT≡conszT =
+IndOK = -- TODO where do these paths become useful?
   funExtDep
     (λ {T} {T'} T≡T' →
       subst
@@ -720,15 +720,38 @@ IndOK T S≡S' nilT≡nilzT consT≡conszT =
         (fromPathP T≡T')
         (funExtDep
           (λ {a} {b} a≡b →
-            subst
-              (λ b → PathP (λ i → Set) (Vec T a) (Vecz T b))
-              (fromPathP a≡b)
-              (isoToPath -- Vec T a ≡ Vecz T [ pos a ]
-                (iso
-                  {!!}
-                  {!!}
-                  {!!}
-                  {!!})))))
+            isoToPath -- Vec T a ≡ Vecz T b
+              (iso
+                (λ (v : Vec T a) → -- Vecz T b
+                  subst
+                    (λ b → Vecz T b)
+                    (fromPathP a≡b)
+                    (elimVec
+                      {T = T}
+                      (λ (a : ℕ) (v : Vec T a) → Vecz T (transport (λ i → Nat≡Int/rInt i) a))
+                      nilz
+                      (λ (a : ℕ) (t : T) (v : Vec T a) IH →
+                        consz (transport (λ i → Nat≡Int/rInt i) a) t IH)
+                      a
+                      v))
+                (λ (v : Vecz T b) →
+                  subst
+                    (λ a → Vec T a)
+                    (sym (fromPathP⁻ a≡b))
+                    (elimVecz
+                      (λ (b : Int / rInt) (v : Vecz T b) → Vec T (transport (λ i → Nat≡Int/rInt (~ i)) b))
+                      nil
+                      (λ (b : Int / rInt) (t : T) (v : Vecz T b) IH →
+                        subst
+                          (λ a → Vec T a)
+                          (fromPathP⁻ (depConstrSCorrect (transport (λ i → Nat≡Int/rInt (~ i)) b) b (toPathP⁻ refl)))
+                          (cons (transport (λ i → Nat≡Int/rInt (~ i)) b) t IH))
+                      b
+                      v))
+                  (λ (v : Vecz T b) →
+                    {!!}) -- ugh
+                  (λ (v : Vec T a) →
+                    {!!})))))
         
 
 -- TODO prove the other three rules for vectors specifically (WIP)
