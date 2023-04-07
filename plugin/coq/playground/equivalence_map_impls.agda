@@ -61,11 +61,29 @@ module NaiveList {ℓ} (A : Set ℓ) where
   insert : (x : ℕ) → (y : A) → (L : List (Pair ℕ A)) → (List (Pair ℕ A))
   insert x y L = insert' x y (delete x L)
 
-  store : KVStore A
-  store = record { KV = List (Pair ℕ A); null = []; insert = insert; delete = delete; find = find }
+  -- this will become iota later on . . .
+  if_then_else_true : (x y : Maybe A) -> (if true then x else y) ≡ x
+  if_then_else_true x y = refl
 
-  insertFindGood : (k : ℕ) (v : A) (l : store A) → find k (insert k v l) ≡ Maybe.just v
-  insertFindGood = {!!}
+  equalIsTrue : (x : ℕ) -> (x == x) ≡ true
+  equalIsTrue zero = refl
+  equalIsTrue (suc x) = equalIsTrue x
+
+  ifElimTrue : (x y : Maybe A) (b : Bool) -> (b ≡ true) -> (if b then x else y) ≡ x
+  ifElimTrue x y b proofTrue = cong (λ b -> if b then x else y) proofTrue
+
+
+  -- {y..1 : Level} {A = A₁ : Type y..1} {ℓ' : Level}
+  -- {x = x₁ : A₁} {y = y₁ : A₁} (B : A₁ → Type ℓ') →
+  -- x₁ ≡ y₁ → B x₁ → B y₁
+
+  insertFindGood : (k : ℕ) (v : A) (l : List (Pair ℕ A)) → find k (insert k v l) ≡ Maybe.just v
+  insertFindGood k v [] = ifElimTrue (just v) nothing (k == k) (equalIsTrue k)
+  insertFindGood zero v ((zero , snd) :: l) = refl
+  insertFindGood zero v ((suc fst , snd) :: l) = refl
+  insertFindGood (suc k) v ((zero , snd) :: l) = insertFindGood (suc k) v l
+  insertFindGood (suc k) v ((suc fst , snd) :: l) = ifElimTrue (Maybe.just v) (find (suc k) (if k == fst then l else ((suc fst , snd) :: delete (suc k) l))) (k == k) (equalIsTrue k)
+
 
 data Tree (A : Set) : Set where
    leaf : (Pair ℕ A) → Tree A
@@ -88,8 +106,6 @@ module NaiveTree {ℓ} (A : Set) (sA : isSet A) where
   delete : {A : Set} (x : ℕ) → (L : Tree A) → Tree A
   delete = {!!}
 
-  store : KVStore A
-  store = record { KV = Tree A ; null = {!!}; insert = {!!}; delete = {!!}; find = {!!} }
 
 
 -- data Map (A : Set) : List (Pair ℕ A) → Set where
