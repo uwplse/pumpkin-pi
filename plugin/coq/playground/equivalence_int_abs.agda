@@ -674,34 +674,85 @@ var {T} i v = refl
 
 {- We can't prove ind, constr, and elim in general, but let's instantiate to a particular inductive type -}
 
+-- We can define a dependent vector type Vec:
 data Vec (T : Set) : ℕ → Set where
   nil : Vec T zero
   cons : (n : ℕ) → (t : T) → Vec T n → Vec T (suc n)
 
+-- Which repairs to a dependent vector type Vecz:
 data Vecz (T : Set) : Int / rInt → Set where
   nilz : Vecz T depConstrInt/rInt0
   consz : (n : Int / rInt) → (t : T) → Vecz T n → Vecz T (depConstrInt/rIntS n)
 
+-- We can define an eliminator for Vec:
+elimVec :
+  ∀ {T : Set} (P : ∀ (n : ℕ) → Vec T n → Set) →
+    P zero nil →
+    (∀ (n : ℕ) (t : T) (v : Vec T n) → P n v → P (suc n) (cons n t v)) →
+    ∀ (n : ℕ) (v : Vec T n) → P n v
+elimVec {T} P Pnil Pcons .zero nil =
+  Pnil
+elimVec {T} P Pnil Pcons .(suc n) (cons n t v) =
+  Pcons n t v (elimVec P Pnil Pcons n v)
+
+-- Which repairs to an eliminator for Vecz:
+elimVecz :
+  ∀ {T : Set} (P : ∀ (n : Int / rInt) → Vecz T n → Set) →
+    P depConstrInt/rInt0 nilz →
+    (∀ (n : Int / rInt) (t : T) (v : Vecz T n) → P n v → P (depConstrInt/rIntS n) (consz n t v)) →
+    ∀ (n : Int / rInt) (v : Vecz T n) → P n v
+elimVecz {T} P Pnil Pcons .depConstrInt/rInt0 nilz =
+  Pnil
+elimVecz {T} P Pnil Pcons .(depConstrInt/rIntS n) (consz n t v) =
+  Pcons n t v (elimVecz P Pnil Pcons n v)
+
 -- Ind is OK by TODO WIP
-IndOK : ∀ (T : Set) →
-  PathP (λ i → Type₁) (T → ℕ → Set) (T → Int / rInt → Set) →
-  PathP (λ i → Set) (Vec T zero) (Vecz T depConstrInt/rInt0) →
-  PathP (λ i → Set) ((n : ℕ) → (t : T) → Vec T n → Vec T (suc n)) ((n : Int / rInt) → (t : T) → Vecz T n → Vecz T (depConstrInt/rIntS n)) →
+IndOK :
+  --(∀ (T : Set) → PathP (λ i → Type₁) (T → ℕ → Set) (T → Int / rInt → Set)) →
+  --(∀ (T : Set) → PathP (λ i → Set) (Vec T zero) (Vecz T depConstrInt/rInt0)) →
+  --(∀ (T : Set) → PathP (λ i → Set) ((n : ℕ) → (t : T) → Vec T n → Vec T (suc n)) ((n : Int / rInt) → (t : T) → Vecz T n → Vecz T (depConstrInt/rIntS n))) →
   PathP (λ i → Set → Nat≡Int/rInt i → Set) Vec Vecz
-IndOK T S≡S' nilT≡nilzT consT≡conszT =
+IndOK = -- TODO where do these paths become useful?
   funExtDep
     (λ {T} {T'} T≡T' →
-      funExtDep
-        (λ {a} {b} a≡b →
-          toPathP (isoToPath (IndOKIso T≡T' a≡b))))
-  where
-    IndOKIso : ∀ {T} {T'} T≡T' → ∀ {a} {b} a≡b → Iso (transport (λ i → Type) (Vec T a)) (Vecz T' b)
-    IndOKIso {T} {T'} T≡T' {a} {b} a≡b =
-      iso
-        {!!}
-        {!!}
-        {!!}
-        {!!}
+      subst
+        (λ T' → PathP (λ i → Nat≡Int/rInt i → Set) (Vec T) (Vecz T'))
+        (fromPathP T≡T')
+        (funExtDep
+          (λ {a} {b} a≡b →
+            isoToPath -- Vec T a ≡ Vecz T b
+              (iso
+                (λ (v : Vec T a) → -- Vecz T b
+                  subst
+                    (λ b → Vecz T b)
+                    (fromPathP a≡b)
+                    (elimVec
+                      {T = T}
+                      (λ (a : ℕ) (v : Vec T a) → Vecz T (transport (λ i → Nat≡Int/rInt i) a))
+                      nilz
+                      (λ (a : ℕ) (t : T) (v : Vec T a) IH →
+                        consz (transport (λ i → Nat≡Int/rInt i) a) t IH)
+                      a
+                      v))
+                (λ (v : Vecz T b) →
+                  subst
+                    (λ a → Vec T a)
+                    (sym (fromPathP⁻ a≡b))
+                    (elimVecz
+                      (λ (b : Int / rInt) (v : Vecz T b) → Vec T (transport (λ i → Nat≡Int/rInt (~ i)) b))
+                      nil
+                      (λ (b : Int / rInt) (t : T) (v : Vecz T b) IH →
+                        subst
+                          (λ a → Vec T a)
+                          (fromPathP⁻ (depConstrSCorrect (transport (λ i → Nat≡Int/rInt (~ i)) b) b (toPathP⁻ refl)))
+                          (cons (transport (λ i → Nat≡Int/rInt (~ i)) b) t IH))
+                      b
+                      v))
+                  (λ (v : Vecz T b) →
+                    {!!}) -- ugh
+                  (λ (v : Vec T a) →
+                    {!!})))))
+        
 
 -- TODO prove the other three rules for vectors specifically (WIP)
 -- TODO prove some functions and proofs are repaired correctly using only these pieces
