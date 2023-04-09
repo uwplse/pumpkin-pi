@@ -706,52 +706,63 @@ elimVecz {T} P Pnil Pcons .depConstrInt/rInt0 nilz =
 elimVecz {T} P Pnil Pcons .(depConstrInt/rIntS n) (consz n t v) =
   Pcons n t v (elimVecz P Pnil Pcons n v)
 
--- Ind is OK by TODO WIP
+-- Vec and Vecz are (dependently) isomorphic
+VecIsoVecz : ∀ {T : Set} (a : ℕ) (b : Int / rInt) →
+  PathP (λ i → Nat≡Int/rInt i) a b →
+  Iso (Vec T a) (Vecz T b)
+VecIsoVecz {T} a b a≡b =
+  iso
+    VecToVecz
+    VeczToVec
+    VecVeczSection
+    VecVeczRetraction
+  where
+    VecToVecz : Vec T a → Vecz T b
+    VecToVecz v =
+      subst
+        (λ b → Vecz T b)
+        (fromPathP a≡b)
+        (elimVec
+          {T = T}
+          (λ (a : ℕ) (v : Vec T a) → Vecz T (transport (λ i → Nat≡Int/rInt i) a))
+          nilz
+          (λ (a : ℕ) (t : T) (v : Vec T a) IH →
+            consz (transport (λ i → Nat≡Int/rInt i) a) t IH)
+          a
+          v)
+    ---
+    VeczToVec : Vecz T b → Vec T a
+    VeczToVec v =
+      subst
+        (λ a → Vec T a)
+        (sym (fromPathP⁻ a≡b))
+        (elimVecz
+          (λ (b : Int / rInt) (v : Vecz T b) → Vec T (transport (λ i → Nat≡Int/rInt (~ i)) b))
+          nil
+          (λ (b : Int / rInt) (t : T) (v : Vecz T b) IH →
+            subst
+              (λ a → Vec T a)
+              (fromPathP⁻ (depConstrSCorrect (transport (λ i → Nat≡Int/rInt (~ i)) b) b (toPathP⁻ refl)))
+              (cons (transport (λ i → Nat≡Int/rInt (~ i)) b) t IH))
+          b
+          v)
+    ---
+    VecVeczSection : ∀ (v : Vecz T b) → VecToVecz (VeczToVec v) ≡ v
+    VecVeczSection v = {!!}
+    ---
+    VecVeczRetraction : ∀ (v : Vec T a) → VeczToVec (VecToVecz v) ≡ v
+    VecVeczRetraction v = {!!}
+
+-- Ind is OK by isomorphism
 IndOK :
-  --(∀ (T : Set) → PathP (λ i → Type₁) (T → ℕ → Set) (T → Int / rInt → Set)) →
-  --(∀ (T : Set) → PathP (λ i → Set) (Vec T zero) (Vecz T depConstrInt/rInt0)) →
-  --(∀ (T : Set) → PathP (λ i → Set) ((n : ℕ) → (t : T) → Vec T n → Vec T (suc n)) ((n : Int / rInt) → (t : T) → Vecz T n → Vecz T (depConstrInt/rIntS n))) →
   PathP (λ i → Set → Nat≡Int/rInt i → Set) Vec Vecz
-IndOK = -- TODO where do these paths become useful?
+IndOK =
   funExtDep
     (λ {T} {T'} T≡T' →
       subst
         (λ T' → PathP (λ i → Nat≡Int/rInt i → Set) (Vec T) (Vecz T'))
         (fromPathP T≡T')
-        (funExtDep
-          (λ {a} {b} a≡b →
-            isoToPath -- Vec T a ≡ Vecz T b
-              (iso
-                (λ (v : Vec T a) → -- Vecz T b
-                  subst
-                    (λ b → Vecz T b)
-                    (fromPathP a≡b)
-                    (elimVec
-                      {T = T}
-                      (λ (a : ℕ) (v : Vec T a) → Vecz T (transport (λ i → Nat≡Int/rInt i) a))
-                      nilz
-                      (λ (a : ℕ) (t : T) (v : Vec T a) IH →
-                        consz (transport (λ i → Nat≡Int/rInt i) a) t IH)
-                      a
-                      v))
-                (λ (v : Vecz T b) →
-                  subst
-                    (λ a → Vec T a)
-                    (sym (fromPathP⁻ a≡b))
-                    (elimVecz
-                      (λ (b : Int / rInt) (v : Vecz T b) → Vec T (transport (λ i → Nat≡Int/rInt (~ i)) b))
-                      nil
-                      (λ (b : Int / rInt) (t : T) (v : Vecz T b) IH →
-                        subst
-                          (λ a → Vec T a)
-                          (fromPathP⁻ (depConstrSCorrect (transport (λ i → Nat≡Int/rInt (~ i)) b) b (toPathP⁻ refl)))
-                          (cons (transport (λ i → Nat≡Int/rInt (~ i)) b) t IH))
-                      b
-                      v))
-                  (λ (v : Vecz T b) →
-                    {!!}) -- ugh
-                  (λ (v : Vec T a) →
-                    {!!})))))
+        (funExtDep (λ {a} {b} a≡b → isoToPath (VecIsoVecz a b a≡b))))
         
 
 -- TODO prove the other three rules for vectors specifically (WIP)
