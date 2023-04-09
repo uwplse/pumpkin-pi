@@ -113,20 +113,20 @@ isSetCanonicalizeSignDecCanonicalType p = isSet⊎ (isSetΣ isSetℕ (λ n → i
 canonicalizeSignDecCanonicalLeftFst : (p : ℕ × ℕ) → (Σ[ n ∈ ℕ ] (canonicalize p ≡ (n , zero))) ≡ (Σ[ n ∈ ℕ ] (canonicalize (canonicalize p) ≡ (n , zero)))
 canonicalizeSignDecCanonicalLeftFst p = subst (λ x → (Σ[ n ∈ ℕ ] (canonicalize p ≡ (n , zero))) ≡ (Σ[ n ∈ ℕ ] (x ≡ (n , zero)))) (canonicalizeIdempotent p) refl
 
--- construct a PathP from canonicalizeSignDec p to canonicalizeSignDec (canonicalize p), then transport across it canonicalizeSignDecCanonicalType (zero , p2)
--- (isSetCanonicalizeSignDecCanonicalType (zero , p2) (canonicalizeSignDec (zero , p2)) (canonicalizeSignDec (zero , p2))))
+-- idea: construct a PathP from canonicalizeSignDec p to canonicalizeSignDec (canonicalize p), then transport across it 
 
 canonicalizeSignDecCanonical : (p : ℕ × ℕ) → PathP (λ i → canonicalizeSignDecCanonicalType p i) (canonicalizeSignDec p) (canonicalizeSignDec (canonicalize p))
-canonicalizeSignDecCanonical (zero , p2) = toPathP {!!}
-
--- ((zero , p2) (canonicalizeSignDec (zero , p2)) (canonicalizeSignDec (zero , p2)) refl (canonicalizeSignDecCanonicalType (zero , p2)))
-                                                   where
-  lem2 : (p2 : ℕ) → refl ≡ canonicalizeSignDecCanonicalType (zero , p2)
-  lem2 p2 = {!isSetCanonicalizeSignDecCanonicalType (zero , p2) ? ? ? ?!}
-  lem1 : (p2 : ℕ) → PathP (λ i → refl {x = (Σ[ n ∈ ℕ ] (canonicalize (zero , p2) ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((canonicalize (zero , p2) ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m))))} i) (canonicalizeSignDec (zero , p2)) (canonicalizeSignDec (zero , p2))
-                    ≡ PathP (λ i → canonicalizeSignDecCanonicalType (zero , p2) i) (canonicalizeSignDec (zero , p2)) (canonicalizeSignDec (zero , p2))
-  lem1 p2 = {!!}
-canonicalizeSignDecCanonical (suc p1 , p2) = {!!}
+canonicalizeSignDecCanonical (zero , p2) = subst (λ x → PathP (λ i → x i) (canonicalizeSignDec (zero , p2)) (canonicalizeSignDec (canonicalize (zero , p2)))) (lem p2) refl where
+  pathPLem : (p2 : ℕ) → PathP (λ i → (Σ[ n ∈ ℕ ] (canonicalize (zero , p2) ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((canonicalize (zero , p2) ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m)))) ≡ (Σ[ n ∈ ℕ ] ((refl i) ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] (((refl {x = (zero , p2)} i) ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m))))) refl (canonicalizeSignDecCanonicalType (zero , p2))
+  pathPLem p2 = subst-filler ((λ x → (Σ[ n ∈ ℕ ] (canonicalize (zero , p2) ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((canonicalize (zero , p2) ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m)))) ≡ (Σ[ n ∈ ℕ ] (x ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((x ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m)))))) refl refl
+  lem : (p2 : ℕ) → refl ≡ canonicalizeSignDecCanonicalType (zero , p2)
+  lem = pathPLem
+canonicalizeSignDecCanonical (suc p1 , zero) = subst (λ x → PathP (λ i → x i) (canonicalizeSignDec (suc p1 , zero)) (canonicalizeSignDec (canonicalize (suc p1 , zero)))) (lem p1) refl where
+  pathPLem : (p1 : ℕ) → PathP (λ i → (Σ[ n ∈ ℕ ] (canonicalize (suc p1 , zero) ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((canonicalize (suc p1 , zero) ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m)))) ≡ (Σ[ n ∈ ℕ ] ((refl i) ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((((refl {x = (suc p1 , zero)} i)) ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m))))) refl (canonicalizeSignDecCanonicalType (suc p1 , zero))
+  pathPLem p1 = subst-filler ((λ x → (Σ[ n ∈ ℕ ] (canonicalize (suc p1 , zero) ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((canonicalize (suc p1 , zero) ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m)))) ≡ (Σ[ n ∈ ℕ ] (x ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((x ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m)))))) refl refl
+  lem : (p1 : ℕ) → refl ≡ canonicalizeSignDecCanonicalType (suc p1 , zero)
+  lem = pathPLem
+canonicalizeSignDecCanonical (suc p1 , suc p2) = canonicalizeSignDecCanonical (p1 , p2)
 
 canonicalizeSignDecCanonicalLeft : (p : ℕ × ℕ) → (Σ[ y ∈ (Σ[ n ∈ ℕ ] (canonicalize p ≡ (n , zero))) ] (canonicalizeSignDec p ≡ inl y)) ≡ (Σ[ y ∈ (Σ[ n ∈ ℕ ] (canonicalize (canonicalize p) ≡ (n , zero))) ] (canonicalizeSignDec (canonicalize p) ≡ inl y))
 canonicalizeSignDecCanonicalLeft p = Σ-cong' (canonicalizeSignDecCanonicalLeftFst p) ({!!}) 
