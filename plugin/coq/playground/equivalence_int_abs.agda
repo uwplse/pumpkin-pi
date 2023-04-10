@@ -712,13 +712,13 @@ VecIsoVecz : ∀ {T : Set} (a : ℕ) (b : Int / rInt) →
   Iso (Vec T a) (Vecz T b)
 VecIsoVecz {T} a b a≡b =
   iso
-    VecToVecz
-    VeczToVec
+    (VecToVecz a≡b)
+    (VeczToVec a≡b)
     VecVeczSection
     VecVeczRetraction
   where
-    VecToVecz : Vec T a → Vecz T b
-    VecToVecz v =
+    VecToVecz : ∀ {a : ℕ} {b : Int / rInt} (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → Vec T a → Vecz T b
+    VecToVecz {a} {b} a≡b v =
       subst
         (λ b → Vecz T b)
         (fromPathP a≡b)
@@ -731,8 +731,8 @@ VecIsoVecz {T} a b a≡b =
           a
           v)
     ---
-    VeczToVec : Vecz T b → Vec T a
-    VeczToVec v =
+    VeczToVec : ∀ {a : ℕ} {b : Int / rInt} (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → Vecz T b → Vec T a
+    VeczToVec {a} {b} a≡b v =
       subst
         (λ a → Vec T a)
         (sym (fromPathP⁻ a≡b))
@@ -747,11 +747,32 @@ VecIsoVecz {T} a b a≡b =
           b
           v)
     ---
-    VecVeczSection : ∀ (v : Vecz T b) → VecToVecz (VeczToVec v) ≡ v
-    VecVeczSection v = {!!}
+    VecVeczSection : ∀ (v : Vecz T b) → VecToVecz a≡b (VeczToVec a≡b v) ≡ v
+    VecVeczSection v =
+      -- TODO JDep/subst first? since subst is in outer loop
+      J -- adjust a≡b from pathP to path to make it easy to use JDep
+      (λ a≡b' (H : toPathP (fromPathP a≡b) ≡ a≡b') →
+        VecToVecz a≡b' (VeczToVec a≡b' v) ≡ v)
+      (JDep
+        {A = Int / rInt}
+        {B = λ (b : Int / rInt) → Vecz T b}
+        {b = subst (λ b → Vecz T b) (sym (fromPathP a≡b)) v}
+        (λ (b : Int / rInt) (a≡b : transport (λ i → Nat≡Int/rInt i) a ≡ b) (v : Vecz T b) p →
+          VecToVecz (toPathP a≡b) (VeczToVec (toPathP a≡b) v) ≡ v)
+        {!!}
+        (fromPathP a≡b)
+        {z = v}
+        {!!})
+      (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) a b) a≡b)
     ---
-    VecVeczRetraction : ∀ (v : Vec T a) → VeczToVec (VecToVecz v) ≡ v
-    VecVeczRetraction v = {!!}
+    VecVeczRetraction : ∀ (v : Vec T a) → VeczToVec a≡b (VecToVecz a≡b v) ≡ v
+    VecVeczRetraction v =
+      elimVec
+        {!!}
+        {!!}
+        {!!}
+        a
+        v
 
 -- Ind is OK by isomorphism
 IndOK :
