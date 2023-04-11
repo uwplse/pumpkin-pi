@@ -749,7 +749,6 @@ VecIsoVecz {T} a b a≡b =
     ---
     VecVeczSection : ∀ (v : Vecz T b) → VecToVecz a≡b (VeczToVec a≡b v) ≡ v
     VecVeczSection v =
-      -- TODO JDep/subst first? since subst is in outer loop
       J -- adjust a≡b from pathP to path to make it easy to use JDep
       (λ a≡b' (H : toPathP (fromPathP a≡b) ≡ a≡b') →
         VecToVecz a≡b' (VeczToVec a≡b' v) ≡ v)
@@ -759,7 +758,18 @@ VecIsoVecz {T} a b a≡b =
         {b = subst (λ b → Vecz T b) (sym (fromPathP a≡b)) v}
         (λ (b : Int / rInt) (a≡b : transport (λ i → Nat≡Int/rInt i) a ≡ b) (v : Vecz T b) p →
           VecToVecz (toPathP a≡b) (VeczToVec (toPathP a≡b) v) ≡ v)
-        {!!}
+        (elimVecz
+          (λ (b : Int / rInt) (v : Vecz T b) →
+            ∀ (a : ℕ) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
+            VecToVecz (toPathP refl) (VeczToVec (toPathP refl) (subst (λ b → Vecz T b) (sym (fromPathP a≡b)) v)) ≡ (subst (λ b → Vecz T b) (sym (fromPathP a≡b)) v))
+          (λ (a : ℕ) (a≡zero : PathP (λ i → Nat≡Int/rInt i) a depConstrInt/rInt0) →
+            -- VecToVecz (toPathP refl) (VeczToVec (toPathP refl) (subst (Vecz T) (λ i → fromPathP a≡zero (~ i)) nilz) ≡ subst (Vecz T) (λ i → fromPathP a≡zero (~ i)) nilz
+            {!!}) -- ugh
+          {!!}
+          b
+          v
+          a
+          a≡b)
         (fromPathP a≡b)
         {z = v}
         {!!})
