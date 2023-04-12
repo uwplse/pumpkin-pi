@@ -707,75 +707,44 @@ elimVecz {T} P Pnil Pcons .(depConstrInt/rIntS n) (consz n t v) =
   Pcons n t v (elimVecz P Pnil Pcons n v)
 
 -- Vec and Vecz are (dependently) isomorphic
-VecIsoVecz : ∀ {T : Set} (a : ℕ) (b : Int / rInt) →
-  PathP (λ i → Nat≡Int/rInt i) a b →
-  Iso (Vec T a) (Vecz T b)
-VecIsoVecz {T} a b a≡b =
+VecIsoVecz : ∀ {T : Set} (a : ℕ) →
+  Iso (Vec T a) (Vecz T (transport (λ i → Nat≡Int/rInt i) a))
+VecIsoVecz {T} a =
   iso
-    (VecToVecz a≡b)
-    (VeczToVec a≡b)
+    VecToVecz
+    VeczToVec
     VecVeczSection
     VecVeczRetraction
   where
-    VecToVecz : ∀ {a : ℕ} {b : Int / rInt} (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → Vec T a → Vecz T b
-    VecToVecz {a} {b} a≡b v =
-      subst
-        (λ b → Vecz T b)
-        (fromPathP a≡b)
-        (elimVec
-          {T = T}
-          (λ (a : ℕ) (v : Vec T a) → Vecz T (transport (λ i → Nat≡Int/rInt i) a))
-          nilz
-          (λ (a : ℕ) (t : T) (v : Vec T a) IH →
-            consz (transport (λ i → Nat≡Int/rInt i) a) t IH)
-          a
-          v)
+    VecToVecz : ∀ {a : ℕ} → Vec T a → Vecz T (transport (λ i → Nat≡Int/rInt i) a)
+    VecToVecz {a} v =
+      elimVec
+        {T = T}
+        (λ (a : ℕ) (v : Vec T a) → Vecz T (transport (λ i → Nat≡Int/rInt i) a))
+        nilz
+        (λ (a : ℕ) (t : T) (v : Vec T a) IH →
+          consz (transport (λ i → Nat≡Int/rInt i) a) t IH)
+        a
+        v
     ---
-    VeczToVec : ∀ {a : ℕ} {b : Int / rInt} (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → Vecz T b → Vec T a
-    VeczToVec {a} {b} a≡b v =
-      subst
-        (λ a → Vec T a)
-        (sym (fromPathP⁻ a≡b))
-        (elimVecz
-          (λ (b : Int / rInt) (v : Vecz T b) → Vec T (transport (λ i → Nat≡Int/rInt (~ i)) b))
-          nil
-          (λ (b : Int / rInt) (t : T) (v : Vecz T b) IH →
-            subst
-              (λ a → Vec T a)
-              (fromPathP⁻ (depConstrSCorrect (transport (λ i → Nat≡Int/rInt (~ i)) b) b (toPathP⁻ refl)))
-              (cons (transport (λ i → Nat≡Int/rInt (~ i)) b) t IH))
-          b
-          v)
+    VeczToVec : ∀ {a : ℕ} → Vecz T (transport (λ i → Nat≡Int/rInt i) a) → Vec T a
+    VeczToVec {a} v =
+      elimVecz
+        (λ (b : Int / rInt) (v : Vecz T b) → Vec T (transport (λ i → Nat≡Int/rInt (~ i)) b))
+        nil
+        (λ (b : Int / rInt) (t : T) (v : Vecz T b) IH →
+          subst
+            (λ a → Vec T a)
+            (fromPathP⁻ (depConstrSCorrect (transport (λ i → Nat≡Int/rInt (~ i)) b) b (toPathP⁻ refl)))
+            (cons (transport (λ i → Nat≡Int/rInt (~ i)) b) t IH))
+        (transport (λ i → Nat≡Int/rInt i) a)
+        v
     ---
-    VecVeczSection : ∀ (v : Vecz T b) → VecToVecz a≡b (VeczToVec a≡b v) ≡ v
+    VecVeczSection : ∀ (v : Vecz T (transport (λ i → Nat≡Int/rInt i) a)) → VecToVecz (VeczToVec v) ≡ v
     VecVeczSection v =
-      J -- adjust a≡b from pathP to path to make it easy to use JDep
-      (λ a≡b' (H : toPathP (fromPathP a≡b) ≡ a≡b') →
-        VecToVecz a≡b' (VeczToVec a≡b' v) ≡ v)
-      (JDep
-        {A = Int / rInt}
-        {B = λ (b : Int / rInt) → Vecz T b}
-        {b = subst (λ b → Vecz T b) (sym (fromPathP a≡b)) v}
-        (λ (b : Int / rInt) (a≡b : transport (λ i → Nat≡Int/rInt i) a ≡ b) (v : Vecz T b) p →
-          VecToVecz (toPathP a≡b) (VeczToVec (toPathP a≡b) v) ≡ v)
-        (elimVecz
-          (λ (b : Int / rInt) (v : Vecz T b) →
-            ∀ (a : ℕ) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
-            VecToVecz (toPathP refl) (VeczToVec (toPathP refl) (subst (λ b → Vecz T b) (sym (fromPathP a≡b)) v)) ≡ (subst (λ b → Vecz T b) (sym (fromPathP a≡b)) v))
-          (λ (a : ℕ) (a≡zero : PathP (λ i → Nat≡Int/rInt i) a depConstrInt/rInt0) →
-            -- VecToVecz (toPathP refl) (VeczToVec (toPathP refl) (subst (Vecz T) (λ i → fromPathP a≡zero (~ i)) nilz) ≡ subst (Vecz T) (λ i → fromPathP a≡zero (~ i)) nilz
-            {!!}) -- ugh
-          {!!}
-          b
-          v
-          a
-          a≡b)
-        (fromPathP a≡b)
-        {z = v}
-        {!!})
-      (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) a b) a≡b)
+      {!!}
     ---
-    VecVeczRetraction : ∀ (v : Vec T a) → VeczToVec a≡b (VecToVecz a≡b v) ≡ v
+    VecVeczRetraction : ∀ (v : Vec T a) → VeczToVec (VecToVecz v) ≡ v
     VecVeczRetraction v =
       elimVec
         {!!}
@@ -793,7 +762,11 @@ IndOK =
       subst
         (λ T' → PathP (λ i → Nat≡Int/rInt i → Set) (Vec T) (Vecz T'))
         (fromPathP T≡T')
-        (funExtDep (λ {a} {b} a≡b → isoToPath (VecIsoVecz a b a≡b))))
+        (funExtDep (λ {a} {b} a≡b →
+          subst
+            (λ b' → PathP (λ i → Set) (Vec T a) (Vecz T b'))
+            (fromPathP a≡b)
+            (isoToPath (VecIsoVecz a)))))
         
 
 -- TODO prove the other three rules for vectors specifically (WIP)
