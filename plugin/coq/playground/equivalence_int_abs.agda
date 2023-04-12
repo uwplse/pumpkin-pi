@@ -741,15 +741,23 @@ VecIsoVecz {T} a =
         v
     ---
     VecVeczSection : ∀ (v : Vecz T (transport (λ i → Nat≡Int/rInt i) a)) → VecToVecz (VeczToVec v) ≡ v
-    VecVeczSection v =
-      {!!}
+    VecVeczSection v = {!!} -- ahhhh hard
     ---
     VecVeczRetraction : ∀ (v : Vec T a) → VeczToVec (VecToVecz v) ≡ v
     VecVeczRetraction v =
       elimVec
-        {!!}
-        {!!}
-        {!!}
+        (λ (a : ℕ) (v : Vec T a) → VeczToVec (VecToVecz v) ≡ v)
+        refl
+        (λ (a : ℕ) (t : T) (v : Vec T a) (IH : VeczToVec (VecToVecz v) ≡ v) →
+          subst
+            (λ (v' : Vec T a) → subst (λ a → Vec T a) (fromPathP⁻ (depConstrSCorrect a (transport (λ i → Nat≡Int/rInt i) a) (toPathP⁻ refl))) (cons a t (VeczToVec (VecToVecz v))) ≡ cons a t v')
+            IH
+            (subst
+              {x = refl}
+              {y = fromPathP⁻ (depConstrSCorrect a (transport (λ i → Nat≡Int/rInt i) a) (toPathP⁻ refl))}
+              (λ p → subst (λ a → Vec T a) p (cons a t (VeczToVec (VecToVecz v))) ≡ cons a t (VeczToVec (VecToVecz v)))
+              (isSetℕ (suc a) _ refl (fromPathP⁻ (depConstrSCorrect a (transport (λ i → Nat≡Int/rInt i) a) (toPathP⁻ refl))))
+              (substRefl {B = λ a → Vec T a} (cons a t (VeczToVec (VecToVecz v))))))
         a
         v
 
