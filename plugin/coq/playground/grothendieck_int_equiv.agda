@@ -143,8 +143,6 @@ sumRememberEq (inr x) = inr (x , refl)
 -- Rprop : isPropValued R
 -- Rprop (a1 , a2) (b1 , b2) p1 p2 = isSetℕ (a1 Nat.+ b2) (a2 Nat.+ b1) p1 p2
 -- 
--- Rrefl : {x : ℕ × ℕ} → R x x
--- Rrefl {x1 , x2} = Nat.+-comm x1 x2
 -- 
 -- isReflR : isRefl R
 -- isReflR x = Rrefl
@@ -160,9 +158,38 @@ sumRememberEq (inr x) = inr (x , refl)
 -- 
 -- rFromPath : {a b : ℕ × ℕ } → [ a ] ≡ [ b ] → R a b
 -- rFromPath {a} {b} p = effective Rprop REquivRel a b p
--- 
--- JR : (x : ℕ × ℕ) → (P : ∀ y → R x y → Set) (d : P x Rrefl) {y : ℕ × ℕ} (r : R x y) → P y r
--- JR x P d {y} r = J (λ z p → {!!}) {!!} (eq/ {R = R} x y r)
+--
+
+Rrefl : {x : ℕ × ℕ} → R x x
+Rrefl {x1 , x2} = Nat.+-comm x1 x2
+
+--R : (ℕ × ℕ) → (ℕ × ℕ) → Type
+--R (x1 , x2) (y1 , y2) = x1 Nat.+ y2 ≡ x2 Nat.+ y1
+
+RIrrel : ∀ x1 x2 (p : x1 Nat.+ x2 ≡ x2 Nat.+ x1) → p ≡ Rrefl {x1 , x2}
+RIrrel x1 x2 p = isSetℕ _ _ p (Rrefl {x1 , x2})
+
+JR : ∀ (x : ℕ × ℕ) (P : ∀ y → R x y → Set) →
+  P x Rrefl →
+  ∀ {y : ℕ × ℕ} (r : R x y) → P y r
+-- going to start with an obviously inefficient proof, and then simplify after
+JR (zero , zero) P d {zero , zero} r =
+  subst {A = R (zero , zero) (zero , zero)} (λ d' → P (zero , zero) d') (sym (RIrrel zero zero r)) d
+JR (zero , zero) P d {zero , suc y₂} r = Cubical.Data.Empty.rec (snotz r)
+JR (zero , zero) P d {suc y₁ , zero} r = Cubical.Data.Empty.rec (snotz (sym r))
+JR (zero , zero) P d {suc y₁ , suc y₂} r = {!!}
+JR (zero , suc x₂) P d {zero , zero} r = Cubical.Data.Empty.rec (snotz (sym r))
+JR (zero , suc x₂) P d {zero , suc y₂} r = {!!}
+JR (zero , suc x₂) P d {suc y₁ , zero} r = Cubical.Data.Empty.rec (snotz (sym r))
+JR (zero , suc x₂) P d {suc y₁ , suc y₂} r = {!!}
+JR (suc x₁ , zero) P d {zero , zero} r = Cubical.Data.Empty.rec (snotz r)
+JR (suc x₁ , zero) P d {zero , suc y₂} r = Cubical.Data.Empty.rec (snotz r)
+JR (suc x₁ , zero) P d {suc y₁ , zero} r = {!!}
+JR (suc x₁ , zero) P d {suc y₁ , suc y₂} r = {!!}
+JR (suc x₁ , suc x₂) P d {zero , zero} r = {!!}
+JR (suc x₁ , suc x₂) P d {zero , suc y₂} r = {!!}
+JR (suc x₁ , suc x₂) P d {suc y₁ , zero} r = {!!}
+JR (suc x₁ , suc x₂) P d {suc y₁ , suc y₂} r = {!!}
 
 depElimGZNegSuc : (P : GZ → Set) → (∀ x → isSet (P x)) → (∀ n → P (depConstrGZPos n)) → (∀ n → P (depConstrGZNegSuc n)) → ∀ z → P z
 depElimGZNegSuc P set posP negsucP = SetQuotients.elim set func resp where
