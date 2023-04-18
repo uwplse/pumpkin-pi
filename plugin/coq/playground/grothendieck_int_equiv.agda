@@ -17,6 +17,7 @@ open import Cubical.Data.Sum as Sum
 open import Cubical.Data.Nat as Nat
 open import Cubical.Data.Int
 open import Cubical.Data.Sigma.Properties
+open import Cubical.Foundations.GroupoidLaws
 
 -- dependand constructors/eliminators on standard library inductive ℤ
 
@@ -60,10 +61,7 @@ canonicalize (suc n1 , suc n2) = canonicalize (n1 , n2)
 canonicalizePres : (p : ℕ × ℕ) → [_] {R = R} p ≡ [ canonicalize p ]
 canonicalizePres (zero , n2) = refl
 canonicalizePres (suc n1 , zero) = refl
-canonicalizePres (suc n1 , suc n2) =
-  [ suc n1 , suc n2 ] ≡⟨ sucRPres n1 n2 ⟩
-  [ n1 , n2 ] ≡⟨ canonicalizePres (n1 , n2) ⟩
-  [ canonicalize (n1 , n2) ] ∎
+canonicalizePres (suc n1 , suc n2) = (sucRPres n1 n2) ∙ (canonicalizePres (n1 , n2))
 
 canonicalizePres⁻ : (p : ℕ × ℕ) → [_] {R = R} (canonicalize p) ≡ [ p ]
 canonicalizePres⁻ p = sym (canonicalizePres p)
@@ -77,6 +75,10 @@ canonicalizeSignDec (suc n1 , suc n2) = canonicalizeSignDec (n1 , n2)
 canonicalizeSame : (a : ℕ) → (zero , zero) ≡ canonicalize (a , a)
 canonicalizeSame zero = refl
 canonicalizeSame (suc a) = canonicalizeSame a
+
+canonicalizeRZ : (a : ℕ) → canonicalize (a , zero) ≡ (a , zero)
+canonicalizeRZ zero = refl
+canonicalizeRZ (suc a) = refl
 
 -- there is probably a better way to do this
 canonicalIsCanonical : (a b : ℕ × ℕ) → R a b → canonicalize a ≡ canonicalize b
@@ -129,7 +131,19 @@ canonicalizeSignDecCanonical (suc p1 , zero) = subst (λ x → PathP (λ i → x
 canonicalizeSignDecCanonical (suc p1 , suc p2) = canonicalizeSignDecCanonical (p1 , p2)
 
 canonicalizeSignDecCanonicalLeft : (p : ℕ × ℕ) → (Σ[ y ∈ (Σ[ n ∈ ℕ ] (canonicalize p ≡ (n , zero))) ] (canonicalizeSignDec p ≡ inl y)) ≡ (Σ[ y ∈ (Σ[ n ∈ ℕ ] (canonicalize (canonicalize p) ≡ (n , zero))) ] (canonicalizeSignDec (canonicalize p) ≡ inl y))
-canonicalizeSignDecCanonicalLeft p = Σ-cong' (canonicalizeSignDecCanonicalLeftFst p) ({!!}) 
+canonicalizeSignDecCanonicalLeft p = Σ-cong' (canonicalizeSignDecCanonicalLeftFst p) ({!!})
+
+canonicalizeSignDecCanonicalLeft' : (p : ℕ × ℕ) → (Σ[ y ∈ (Σ[ n ∈ ℕ ] (canonicalize p ≡ (n , zero))) ] (canonicalizeSignDec p ≡ inl y)) → (Σ[ y ∈ (Σ[ n ∈ ℕ ] (canonicalize (canonicalize p) ≡ (n , zero))) ] (canonicalizeSignDec (canonicalize p) ≡ inl y))
+canonicalizeSignDecCanonicalLeft' p ((zero , s12) , s2) = subst (λ x → Σ-syntax (Σ-syntax ℕ
+                                                                                          (λ n → canonicalize x ≡ (n , zero)))
+                                                                                          (λ y → canonicalizeSignDec x ≡ inl y))
+                                                                                (sym s12)
+                                                                                ((zero , canonicalizeRZ zero) , refl)
+canonicalizeSignDecCanonicalLeft' p ((suc s11 , s12) , s2) = subst (λ x → Σ-syntax (Σ-syntax ℕ
+                                                                                             (λ n → canonicalize x ≡ (n , zero)))
+                                                                                             (λ y → canonicalizeSignDec x ≡ inl y))
+                                                                                   (sym s12)
+                                                                                   (((suc s11) , refl) , refl)
 
 sumRememberEq : {A B : Set} → (x : A ⊎ B) → (Σ[ a ∈ A ] x ≡ inl a) ⊎ (Σ[ b ∈ B ] x ≡ inr b)
 sumRememberEq (inl x) = inl (x , refl)
@@ -167,52 +181,146 @@ sumRememberEq (inr x) = inr (x , refl)
 depElimGZNegSuc : (P : GZ → Set) → (∀ x → isSet (P x)) → (∀ n → P (depConstrGZPos n)) → (∀ n → P (depConstrGZNegSuc n)) → ∀ z → P z
 depElimGZNegSuc P set posP negsucP = SetQuotients.elim set func resp where
   func : (p : ℕ × ℕ) → P [ p ]
-  func p = Sum.rec (λ x → transport (cong P (sym ([ p ] ≡⟨ (canonicalizePres p) ⟩ [ canonicalize p ]
-                                                        ≡⟨ (cong [_] (snd x)) ⟩ (depConstrGZPos (fst x)) ∎)))
+  func p = Sum.rec (λ x → transport (cong P (sym ((canonicalizePres p) ∙ (cong [_] (snd x) ∙ refl))))
                                     (posP (fst x)))
                    (λ x → transport (cong P (sym ([ p ] ≡⟨ canonicalizePres p ⟩ [ canonicalize p ]
                                                         ≡⟨ cong [_] (proj₁ (snd x)) ⟩ [ (zero , (fst x)) ]
                                                         ≡⟨ cong [_] (×≡ refl (snd (proj₂ (snd x)))) ⟩ (depConstrGZNegSuc (fst (proj₂ (snd x)))) ∎)))
                                     (negsucP (fst (proj₂ (snd x)))))
                    (canonicalizeSignDec p)
+  funcLeft : (p : ℕ × ℕ) →
+             (y : Σ[ a ∈ (Σ[ n ∈ ℕ ] canonicalize p ≡ (n , zero)) ] (canonicalizeSignDec p ≡ inl a)) →
+             func p ≡ transport (cong P (sym ((canonicalizePres p) ∙ cong [_] (snd (fst y)) ∙ refl)))
+                                (posP (fst (fst y)))
+  funcLeft p y = subst (λ path → Sum.rec (λ x → transport (cong P (sym ((canonicalizePres p) ∙ (cong [_] (snd x) ∙ refl))))
+                                                          (posP (fst x)))
+                                         (λ x → transport (cong P (sym ([ p ] ≡⟨ canonicalizePres p ⟩ [ canonicalize p ]
+                                                                              ≡⟨ cong [_] (proj₁ (snd x)) ⟩ [ (zero , (fst x)) ]
+                                                                              ≡⟨ cong [_] (×≡ refl (snd (proj₂ (snd x)))) ⟩ (depConstrGZNegSuc (fst (proj₂ (snd x)))) ∎)))
+                                                          (negsucP (fst (proj₂ (snd x)))))
+                                         (path)
+                                  ≡ transport (cong P (sym ((canonicalizePres p) ∙ cong [_] (snd (fst y)) ∙ refl)))
+                                              (posP (fst (fst y))))
+                       (sym (snd y))
+                       refl
+  lem3 : (p1 p2 : ℕ) →
+         (x : Σ[ a ∈ (Σ[ n ∈ ℕ ] canonicalize (p1 , p2) ≡ (n , zero)) ] (canonicalizeSignDec (p1 , p2) ≡ inl a)) →
+         PathP
+          (λ i → sucRPres p1 p2 i ≡ [ (p1 , p2) ])          
+          (sucRPres p1 p2)
+          refl
+  lem3 p1 p2 x = toPathP (squash/ [ p1 , p2 ] [ p1 , p2 ] _ refl)
+  lem4 : (p1 p2 : ℕ) →
+         (x : Σ[ a ∈ (Σ[ n ∈ ℕ ] canonicalize (p1 , p2) ≡ (n , zero)) ] (canonicalizeSignDec (p1 , p2) ≡ inl a)) →
+          PathP
+            (λ i → sucRPres p1 p2 i ≡ [ canonicalize (p1 , p2) ])
+            (sucRPres p1 p2 ∙ canonicalizePres (p1 , p2))
+            (refl ∙ canonicalizePres (p1 , p2))
+  lem4 p1 p2 x = congP (λ i p → p ∙ (canonicalizePres (p1 , p2))) (lem3 p1 p2 x)
+  lem2 : (p1 p2 : ℕ) →
+         (x : Σ[ a ∈ (Σ[ n ∈ ℕ ] canonicalize (p1 , p2) ≡ (n , zero)) ] (canonicalizeSignDec (p1 , p2) ≡ inl a)) →
+          PathP
+            (λ i → sucRPres p1 p2 i ≡ [ canonicalize (p1 , p2) ])
+            (sucRPres p1 p2 ∙ canonicalizePres (p1 , p2))
+            (canonicalizePres (p1 , p2))
+  lem2 p1 p2 x = subst (λ y → PathP
+                                (λ i → sucRPres p1 p2 i ≡ [ canonicalize (p1 , p2) ])
+                                (sucRPres p1 p2 ∙ canonicalizePres (p1 , p2))
+                                y)
+                        (sym (lUnit (canonicalizePres (p1 , p2))))
+                        (lem4 p1 p2 x)
+  lem : (p1 p2 : ℕ) →
+        (x : Σ[ a ∈ (Σ[ n ∈ ℕ ] canonicalize (p1 , p2) ≡ (n , zero)) ] (canonicalizeSignDec (p1 , p2) ≡ inl a)) →
+        PathP
+          (λ i → sucRPres p1 p2 i ≡ depConstrGZPos (fst (fst x)))          
+          (((sucRPres p1 p2 ∙ canonicalizePres (p1 , p2)) ∙ cong [_] (snd (fst x)) ∙ refl))          
+          (canonicalizePres (p1 , p2) ∙ cong [_] (snd (fst x)) ∙ refl)
+  lem p1 p2 x = congP (λ i p → _∙_ p ((cong [_] (snd (fst x))) ∙ refl)) (lem2 p1 p2 x)
+  lem5 : (p1 p2 : ℕ) →
+         (x : Σ[ a ∈ (Σ[ n ∈ ℕ ] canonicalize (p1 , p2) ≡ (n , zero)) ] (canonicalizeSignDec (p1 , p2) ≡ inl a)) →
+         PathP
+          (λ i → P (sucRPres p1 p2 i))
+          (transport
+           (cong P
+            (sym
+             ((sucRPres p1 p2 ∙ canonicalizePres (p1 , p2)) ∙ cong [_] (snd (fst x)) ∙ refl)))
+           (posP (fst (fst x))))
+          (transport
+           (cong P
+            (sym (canonicalizePres (p1 , p2) ∙ cong [_] (snd (fst x)) ∙ refl)))
+           (posP (fst (fst x))))
+  lem5 p1 p2 x = congP (λ i p → transport (cong P (sym p)) (posP (fst (fst x)))) (lem p1 p2 x)
   funcCanonical : (p : ℕ × ℕ) → PathP (λ i → P (canonicalizePres p i)) (func p) (func (canonicalize p))
-  funcCanonical p = Sum.rec (λ s → toPathP (transport (λ v → P (canonicalizePres p v)) (func p) ≡⟨ refl ⟩
-                                            transport (λ v → P (canonicalizePres p v))
-                                                (Sum.rec (λ x → transport (cong P (sym ([ p ] ≡⟨ (canonicalizePres p) ⟩ [ canonicalize p ]
-                                                                                              ≡⟨ (cong [_] (snd x)) ⟩ (depConstrGZPos (fst x)) ∎)))
-                                                                          (posP (fst x)))
-                                                         (λ x → transport (cong P (sym ([ p ] ≡⟨ canonicalizePres p ⟩ [ canonicalize p ]
-                                                                                              ≡⟨ cong [_] (proj₁ (snd x)) ⟩ [ (zero , (fst x)) ]
-                                                                                              ≡⟨ cong [_] (×≡ refl (snd (proj₂ (snd x)))) ⟩ (depConstrGZNegSuc (fst (proj₂ (snd x)))) ∎)))
-                                                                          (negsucP (fst (proj₂ (snd x)))))
-                                                         (canonicalizeSignDec p)) ≡⟨ cong (λ y → transport (λ v → P (canonicalizePres p v))
-                                                                                                           (Sum.rec (λ x → transport (cong P (sym ([ p ] ≡⟨ (canonicalizePres p) ⟩ [ canonicalize p ]
-                                                                                                                                                         ≡⟨ (cong [_] (snd x)) ⟩ (depConstrGZPos (fst x)) ∎)))
-                                                                                                                                     (posP (fst x)))
-                                                                                                                    (λ x → transport (cong P (sym ([ p ] ≡⟨ canonicalizePres p ⟩ [ canonicalize p ]
-                                                                                                                                                         ≡⟨ cong [_] (proj₁ (snd x)) ⟩ [ (zero , (fst x)) ]
-                                                                                                                                                         ≡⟨ cong [_] (×≡ refl (snd (proj₂ (snd x)))) ⟩ (depConstrGZNegSuc (fst (proj₂ (snd x)))) ∎)))
-                                                                                                                                     (negsucP (fst (proj₂ (snd x)))))
-                                                                                                                    (y))) (snd s) ⟩
-                                           transport (λ v → P (canonicalizePres p v))
-                                                     (transport (cong P (sym ([ p ] ≡⟨ (canonicalizePres p) ⟩ [ canonicalize p ]
-                                                                                    ≡⟨ (cong [_] (snd (fst s))) ⟩ (depConstrGZPos (fst (fst s))) ∎)))
-                                                                (posP (fst (fst s)))) ≡⟨ {!!} ⟩
-                                           {!!} ≡⟨ {!!} ⟩
-                                           transport (cong P (sym ([ canonicalize p ] ≡⟨ (canonicalizePres (canonicalize p)) ⟩ [ canonicalize (canonicalize p) ]
-                                                                                      ≡⟨ (cong [_] (snd (fst (transport (canonicalizeSignDecCanonicalLeft p) s)))) ⟩ (depConstrGZPos (fst (fst (transport (canonicalizeSignDecCanonicalLeft p) s)))) ∎)))
-                                                     (posP (fst (fst (transport (canonicalizeSignDecCanonicalLeft p) s)))) ≡⟨ cong {!!} {!!} ⟩
-                                           Sum.rec (λ x → transport (cong P (sym ([ canonicalize p ] ≡⟨ (canonicalizePres (canonicalize p)) ⟩ [ canonicalize (canonicalize p) ]
-                                                                                                     ≡⟨ (cong [_] (snd x)) ⟩ (depConstrGZPos (fst x)) ∎)))
-                                                                    (posP (fst x)))
-                                                   (λ x → transport (cong P (sym ([ canonicalize p ] ≡⟨ canonicalizePres (canonicalize p) ⟩ [ canonicalize (canonicalize p) ]
-                                                                                                     ≡⟨ cong [_] (proj₁ (snd x)) ⟩ [ (zero , (fst x)) ]
-                                                                                                     ≡⟨ cong [_] (×≡ refl (snd (proj₂ (snd x)))) ⟩ (depConstrGZNegSuc (fst (proj₂ (snd x)))) ∎)))
-                                                                    (negsucP (fst (proj₂ (snd x)))))
-                                                   (canonicalizeSignDec (canonicalize p)) ≡⟨ refl ⟩
-                                           func (canonicalize p) ∎))
-                            {!!}
-                            (sumRememberEq (canonicalizeSignDec p))
+  funcCanonical (zero , p2) = refl
+  funcCanonical (suc p1 , zero) = refl
+  funcCanonical (suc p1 , suc p2) =
+    compPathP'
+      (Sum.rec
+        (λ x → subst2
+          (λ y z → PathP (λ i → P (sucRPres p1 p2 i)) y z)
+          (sym (funcLeft (suc p1 , suc p2) x))
+          (sym (funcLeft (p1 , p2) x))
+          (lem5 p1 p2 x))
+        {!!}
+        (sumRememberEq (canonicalizeSignDec (p1 , p2))))
+      (funcCanonical (p1 , p2))
+
+
+
+
+
+-- Sum.rec (λ s → toPathP (transport (λ v → P (canonicalizePres p v)) (func p) ≡⟨ refl ⟩
+  --                                           transport (λ v → P (canonicalizePres p v))
+  --                                               (Sum.rec (λ x → transport (cong P (sym ([ p ] ≡⟨ (canonicalizePres p) ⟩ [ canonicalize p ]
+  --                                                                                             ≡⟨ (cong [_] (snd x)) ⟩ (depConstrGZPos (fst x)) ∎)))
+  --                                                                         (posP (fst x)))
+  --                                                        (λ x → transport (cong P (sym ([ p ] ≡⟨ canonicalizePres p ⟩ [ canonicalize p ]
+  --                                                                                             ≡⟨ cong [_] (proj₁ (snd x)) ⟩ [ (zero , (fst x)) ]
+  --                                                                                             ≡⟨ cong [_] (×≡ refl (snd (proj₂ (snd x)))) ⟩ (depConstrGZNegSuc (fst (proj₂ (snd x)))) ∎)))
+  --                                                                         (negsucP (fst (proj₂ (snd x)))))
+  --                                                        (canonicalizeSignDec p)) ≡⟨ cong (λ y → transport (λ v → P (canonicalizePres p v))
+  --                                                                                                          (Sum.rec (λ x → transport (cong P (sym ([ p ] ≡⟨ (canonicalizePres p) ⟩ [ canonicalize p ]
+  --                                                                                                                                                        ≡⟨ (cong [_] (snd x)) ⟩ (depConstrGZPos (fst x)) ∎)))
+  --                                                                                                                                    (posP (fst x)))
+  --                                                                                                                   (λ x → transport (cong P (sym ([ p ] ≡⟨ canonicalizePres p ⟩ [ canonicalize p ]
+  --                                                                                                                                                        ≡⟨ cong [_] (proj₁ (snd x)) ⟩ [ (zero , (fst x)) ]
+  --                                                                                                                                                        ≡⟨ cong [_] (×≡ refl (snd (proj₂ (snd x)))) ⟩ (depConstrGZNegSuc (fst (proj₂ (snd x)))) ∎)))
+  --                                                                                                                                    (negsucP (fst (proj₂ (snd x)))))
+  --                                                                                                                   (y))) (snd s) ⟩
+  --                                          transport (λ v → P (canonicalizePres p v))
+  --                                                    (transport (cong P (sym ([ p ] ≡⟨ (canonicalizePres p) ⟩ [ canonicalize p ]
+  --                                                                                   ≡⟨ (cong [_] (snd (fst s))) ⟩ (depConstrGZPos (fst (fst s))) ∎)))
+  --                                                               (posP (fst (fst s)))) ≡⟨ {!!} ⟩
+  --                                          {!!} ≡⟨ {!!} ⟩
+  --                                          transport (cong P (sym ([ canonicalize p ] ≡⟨ (canonicalizePres (canonicalize p)) ⟩ [ canonicalize (canonicalize p) ]
+  --                                                                                     ≡⟨ (cong [_] (snd (fst (canonicalizeSignDecCanonicalLeft' p s)))) ⟩ (depConstrGZPos (fst (fst (canonicalizeSignDecCanonicalLeft' p s)))) ∎)))
+  --                                                    (posP (fst (fst (canonicalizeSignDecCanonicalLeft' p s)))) ≡⟨ {!!} ⟩
+  --                                          Sum.rec (λ x → transport (cong P (sym ([ canonicalize p ] ≡⟨ (canonicalizePres (canonicalize p)) ⟩ [ canonicalize (canonicalize p) ]
+  --                                                                                                    ≡⟨ (cong [_] (snd x)) ⟩ (depConstrGZPos (fst x)) ∎)))
+  --                                                                   (posP (fst x)))
+  --                                                  (λ x → transport (cong P (sym ([ canonicalize p ] ≡⟨ canonicalizePres (canonicalize p) ⟩ [ canonicalize (canonicalize p) ]
+  --                                                                                                    ≡⟨ cong [_] (proj₁ (snd x)) ⟩ [ (zero , (fst x)) ]
+  --                                                                                                    ≡⟨ cong [_] (×≡ refl (snd (proj₂ (snd x)))) ⟩ (depConstrGZNegSuc (fst (proj₂ (snd x)))) ∎)))
+  --                                                                   (negsucP (fst (proj₂ (snd x)))))
+  --                                                  (transport (λ i → canonicalizeSignDecCanonicalType p i) (canonicalizeSignDec p)) ≡⟨ refl ⟩
+  --                                          Sum.rec (λ x → transport (cong P (sym ([ canonicalize p ] ≡⟨ (canonicalizePres (canonicalize p)) ⟩ [ canonicalize (canonicalize p) ]
+  --                                                                                                    ≡⟨ (cong [_] (snd x)) ⟩ (depConstrGZPos (fst x)) ∎)))
+  --                                                                   (posP (fst x)))
+  --                                                  (λ x → transport (cong P (sym ([ canonicalize p ] ≡⟨ canonicalizePres (canonicalize p) ⟩ [ canonicalize (canonicalize p) ]
+  --                                                                                                    ≡⟨ cong [_] (proj₁ (snd x)) ⟩ [ (zero , (fst x)) ]
+  --                                                                                                    ≡⟨ cong [_] (×≡ refl (snd (proj₂ (snd x)))) ⟩ (depConstrGZNegSuc (fst (proj₂ (snd x)))) ∎)))
+  --                                                                   (negsucP (fst (proj₂ (snd x)))))
+  --                                                  (canonicalizeSignDec (canonicalize p)) ≡⟨ refl ⟩
+  --                                          func (canonicalize p) ∎))
+  --                           (λ s → compPathP' {!!} (congP {!λ i a → Sum.rec (λ x → transport (cong P (sym ([ canonicalize p ] ≡⟨ (canonicalizePres (canonicalize p)) ⟩ [ canonicalize (canonicalize p) ]
+  --                                                                                                    ≡⟨ (cong [_] (snd x)) ⟩ (depConstrGZPos (fst x)) ∎)))
+  --                                                                   (posP (fst x)))
+  --                                                  (λ x → transport (cong P (sym ([ canonicalize p ] ≡⟨ canonicalizePres (canonicalize p) ⟩ [ canonicalize (canonicalize p) ]
+  --                                                                                                    ≡⟨ cong [_] (proj₁ (snd x)) ⟩ [ (zero , (fst x)) ]
+  --                                                                                                    ≡⟨ cong [_] (×≡ refl (snd (proj₂ (snd x)))) ⟩ (depConstrGZNegSuc (fst (proj₂ (snd x)))) ∎)))
+  --                                                                   (negsucP (fst (proj₂ (snd x)))))
+  --                                                  (a)!} (canonicalizeSignDecCanonical p)))
+  --                           (sumRememberEq (canonicalizeSignDec p))
   funcCanonical⁻ : (p : ℕ × ℕ) → PathP (λ i → P (canonicalizePres⁻ p i)) (func (canonicalize p)) (func p)
   funcCanonical⁻ p = symP (funcCanonical p)
   composedPaths : (a b : ℕ × ℕ) (r : R a b) → PathP (λ i → P ((canonicalizePres a ∙ (cong [_] (canonicalIsCanonical a b r) ∙ canonicalizePres⁻ b)) i)) (func a) (func b)
