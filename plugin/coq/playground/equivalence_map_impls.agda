@@ -45,24 +45,8 @@ record Pair A B where
   field fst : A
         snd : B
 
-module NaiveList {ℓ} (A : Set ℓ) where
 
-  find : (x : ℕ) → (L : List (Pair ℕ A)) → Maybe A
-  find x [] = Maybe.nothing
-  find x ((fst , snd) :: L) = if x == fst then Maybe.just snd else find x L
-
-  insert' : (x : ℕ) → (y : A) → (L : List (Pair ℕ A)) → (List (Pair ℕ A))
-  insert' x y L =  (x , y) :: L
-
-  delete : (x : ℕ) → (L : List (Pair ℕ A)) → List (Pair ℕ A)
-  delete x [] = []
-  delete x ((fst , snd) :: L) = if x == fst then L else ((fst , snd) :: delete x L)
-
-  -- do not allow dup keys; if dup, will overwrite
-  insert : (x : ℕ) → (y : A) → (L : List (Pair ℕ A)) → (List (Pair ℕ A))
-  insert x y L = insert' x y (delete x L)
-
-  -- this will become iota later on . . .
+module lib (A : Set) where
   if_then_else_true : (x y : Maybe A) -> (if true then x else y) ≡ x
   if_then_else_true x y = refl
 
@@ -76,93 +60,130 @@ module NaiveList {ℓ} (A : Set ℓ) where
   ifElimFalse : (x y : Maybe A) (b : Bool) -> (b ≡ false) -> (if b then x else y) ≡ y
   ifElimFalse x y b proofTrue = cong (λ b -> if b then x else y) proofTrue
 
-  insertFindGood : (k : ℕ) (v : A) (l : List (Pair ℕ A)) → find k (insert k v l) ≡ Maybe.just v
-  insertFindGood k v [] = ifElimTrue (just v) nothing (k == k) (equalIsTrue k)
-  insertFindGood zero v ((zero , snd) :: l) = refl
-  insertFindGood zero v ((suc fst , snd) :: l) = refl
-  insertFindGood (suc k) v ((zero , snd) :: l) = insertFindGood (suc k) v l
-  insertFindGood (suc k) v ((suc fst , snd) :: l) = ifElimTrue (Maybe.just v) (find (suc k) (if k == fst then l else ((suc fst , snd) :: delete (suc k) l))) (k == k) (equalIsTrue k)
+
+  module NaiveList where
+
+    find : (x : ℕ) → (L : List (Pair ℕ A)) → Maybe A
+    find x [] = Maybe.nothing
+    find x ((fst , snd) :: L) = if x == fst then Maybe.just snd else find x L
+
+    insert' : (x : ℕ) → (y : A) → (L : List (Pair ℕ A)) → (List (Pair ℕ A))
+    insert' x y L =  (x , y) :: L
+
+    delete : (x : ℕ) → (L : List (Pair ℕ A)) → List (Pair ℕ A)
+    delete x [] = []
+    delete x ((fst , snd) :: L) = if x == fst then L else ((fst , snd) :: delete x L)
+
+    -- do not allow dup keys; if dup, will overwrite
+    insert : (x : ℕ) → (y : A) → (L : List (Pair ℕ A)) → (List (Pair ℕ A))
+    insert x y L = insert' x y (delete x L)
+
+    insertFindGood : (k : ℕ) (v : A) (l : List (Pair ℕ A)) → find k (insert k v l) ≡ Maybe.just v
+    insertFindGood k v [] = ifElimTrue (just v) nothing (k == k) (equalIsTrue k)
+    insertFindGood zero v ((zero , snd) :: l) = refl
+    insertFindGood zero v ((suc fst , snd) :: l) = refl
+    insertFindGood (suc k) v ((zero , snd) :: l) = insertFindGood (suc k) v l
+    insertFindGood (suc k) v ((suc fst , snd) :: l) = ifElimTrue (Maybe.just v)
+      (find (suc k) (if k == fst then l else ((suc fst , snd) :: delete (suc k) l)))
+      (k == k)
+      (equalIsTrue k)
 
 
-data Tree (A : Set) : Set where
-   null : Tree A
-   leaf : (Pair ℕ A) → Tree A
-   node : (Pair ℕ A) → Tree A → Tree A → Tree A
+  data Tree (A : Set) : Set where
+    null : Tree A
+    leaf : (Pair ℕ A) → Tree A
+    node : (Pair ℕ A) → Tree A → Tree A → Tree A
 
--- left child is smaller, right child is greater than
+  -- left child is smaller, right child is greater than
 
--- absurd : true ≡ false -> empty
--- absurd = {!!}
+  -- absurd : true ≡ false -> empty
+  -- absurd = {!!}
 
--- unbalanced tree
-module NaiveTree {ℓ} (A : Set) (sA : isSet A) where
-  find : {A : Set} (x : ℕ) → (L : Tree A) → Maybe A
-  find x null = Maybe.nothing
-  find x (leaf (fst , snd)) = if x == fst then Maybe.just snd else Maybe.nothing
-  find x (node (fst , snd) L L') =
-    if x == fst
-    then Maybe.just snd
-    else (if x < fst
-      then find x L
-      else find x L')
+  -- unbalanced tree
+  module NaiveTree where
+    find : {A : Set} (x : ℕ) → (L : Tree A) → Maybe A
+    find x null = Maybe.nothing
+    find x (leaf (fst , snd)) = if x == fst then Maybe.just snd else Maybe.nothing
+    find x (node (fst , snd) L L') =
+      if x == fst
+      then Maybe.just snd
+      else (if x < fst
+        then find x L
+        else find x L')
 
-  -- overwrite if key already exists
-  insert : {A : Set} (x : ℕ) → (y : A) → (L : Tree A) → Tree A
-  insert x y (null) = leaf (x , y)
-  insert x y (leaf (fst , snd)) = if x == fst then leaf (x , y) else (if x < fst then node (x , y) (leaf (fst , snd)) null else node (x , y) null (leaf (fst , snd)))
-  insert x y (node (fst , snd) L L') = if x == fst then node (x , y) L L' else (if x < fst then node (fst , snd) (insert x y L ) L' else node (fst , snd) L (insert x y L'))
+    -- overwrite if key already exists
+    insert : {A : Set} (x : ℕ) → (y : A) → (L : Tree A) → Tree A
+    insert x y (null) = leaf (x , y)
+    insert x y (leaf (fst , snd)) = if x == fst then leaf (x , y) else (if x < fst then node (x , y) (leaf (fst , snd)) null else node (x , y) null (leaf (fst , snd)))
+    insert x y (node (fst , snd) L L') = if x == fst then node (x , y) L L' else (if x < fst then node (fst , snd) (insert x y L ) L' else node (fst , snd) L (insert x y L'))
 
-  isEmpty : {A : Set} (L : Tree A) -> Bool
-  isEmpty null = true
-  isEmpty (leaf x) = false
-  isEmpty (node x L L₁) = false
+    isEmpty : {A : Set} (L : Tree A) -> Bool
+    isEmpty null = true
+    isEmpty (leaf x) = false
+    isEmpty (node x L L₁) = false
 
-  boolEq : Bool → Bool → Bool
-  boolEq false false = true
-  boolEq false true = false
-  boolEq true false = false
-  boolEq true true = true
+    boolEq : Bool → Bool → Bool
+    boolEq false false = true
+    boolEq false true = false
+    boolEq true false = false
+    boolEq true true = true
 
-  removeNextVal : {A : Set} (x : ℕ) → (L : Tree A) → isEmpty L ≡ false → Pair (Tree A) (Pair ℕ A)
-  removeNextVal x null proofNotEmpty = Cubical.Data.Empty.elim (true≢false proofNotEmpty)
-  removeNextVal x (leaf (fst , snd)) proofNotEmpty = (null , (fst , snd))
-  removeNextVal x (node x₁ null L₁) proofNotEmpty = (L₁ , x₁)
-  removeNextVal x (node x₁ (leaf x₂) L₁) proofNotEmpty = ((node x₁ null L₁) , x₂)
-  removeNextVal x (node x₁ (node x₂ L L₂) L₁) proofNotEmpty = let (L' , a) = removeNextVal x (node x₂ L L₂) refl in ((node x₁ L' L₁), a) -- needed to inline isEmpty
+    -- get rightmmost val
+    removeNextVal : {A : Set} (x : ℕ) → (L : Tree A) → isEmpty L ≡ false → Pair (Tree A) (Pair ℕ A)
+    removeNextVal x null proofNotEmpty = Cubical.Data.Empty.elim {A = {!!}} (true≢false proofNotEmpty)
+    removeNextVal x (leaf (fst , snd)) proofNotEmpty = (null , (fst , snd))
+    removeNextVal x (node x₁ L₁ null) proofNotEmpty = (L₁ , x₁)
+    removeNextVal x (node x₁ L₁ (leaf x₂)) proofNotEmpty = ((node x₁ null L₁) , x₂)
+    removeNextVal x (node x₁ L₁ (node x₂ L L₂)) proofNotEmpty = let (L' , a) = removeNextVal x (node x₂ L L₂) refl in ((node x₁ L' L₁), a) -- needed to inline isEmpty
 
-  removeNextValHacky : {A : Set} (x : ℕ) → (default : A) → (L : Tree A) → Pair (Tree A) (Pair ℕ A)
-  removeNextValHacky x default null = (null , (x , default)) --  Cubical.Data.Empty.elim (true≢false proofNotEmpty)
-  removeNextValHacky x default (leaf (fst , snd)) = (null , (fst , snd))
-  removeNextValHacky x default (node x₁ null L₁) = (L₁ , x₁)
-  removeNextValHacky x default (node x₁ (leaf x₂) L₁) = ((node x₁ null L₁) , x₂)
-  removeNextValHacky x default (node x₁ (node x₂ L L₂) L₁) = let (L' , a) = removeNextValHacky x default (node x₂ L L₂) in ((node x₁ L' L₁), a) -- needed to inline isEmpty
+    removeNextValHacky : {A : Set} (x : ℕ) → (default : A) → (L : Tree A) → Pair (Tree A) (Pair ℕ A)
+    removeNextValHacky x default null = (null , (x , default)) --  Cubical.Data.Empty.elim (true≢false proofNotEmpty)
+    removeNextValHacky x default (leaf (fst , snd)) = (null , (fst , snd))
+    removeNextValHacky x default (node x₁ null L₁) = (L₁ , x₁)
+    removeNextValHacky x default (node x₁ (leaf x₂) L₁) = ((node x₁ null L₁) , x₂)
+    removeNextValHacky x default (node x₁ (node x₂ L L₂) L₁) = let (L' , a) = removeNextValHacky x default (node x₂ L L₂) in ((node x₁ L' L₁), a) -- needed to inline isEmpty
 
-  delete : {A : Set} (x : ℕ) → (L : Tree A) → Tree A
-  delete x null = null
-  delete x (leaf (fst , snd)) = if x == fst then null else leaf (fst , snd)
-  delete x (node (fst , snd) null L') = if x == fst then L' else (if x < fst then (node (fst , snd) null L') else (node (fst , snd) null (delete x L')))
-  delete x (node (fst , snd) (leaf (fst' , snd')) L') =
-    if x == fst
-    then node (fst' , snd') null L'
-    else
-      (if x < fst
-      then (node (fst , snd) (delete x (leaf (fst' , snd'))) L')
+    delete : {A : Set} (x : ℕ) → (L : Tree A) → Tree A
+    delete x null = null
+    delete x (leaf (fst , snd)) = if x == fst then null else leaf (fst , snd)
+    delete x (node (fst , snd) null L') = if x == fst then L' else (if x < fst then (node (fst , snd) null L') else (node (fst , snd) null (delete x L')))
+    delete x (node (fst , snd) (leaf (fst' , snd')) L') =
+      if x == fst
+      then node (fst' , snd') null L'
       else
-      (node (fst , snd) (leaf (fst' , snd')) (delete x L')))
-  delete x (node (fst , snd) (node (fst' , snd') L L₁) L') =
-    if x == fst
-    then {!removeNextValHacky  !}
-    else
-      (if x < fst then (node (fst , snd) (delete x (node (fst' , snd') L L₁)) L') else (node (fst , snd) (node (fst' , snd') L L₁) (delete x L')))
+        (if x < fst
+        then (node (fst , snd) (delete x (leaf (fst' , snd'))) L')
+        else
+        (node (fst , snd) (leaf (fst' , snd')) (delete x L')))
+    delete x (node (fst , snd) (node (fst' , snd') L L₁) L') = -- replace with the leftmost val
+      let (removedLeftTree , nextNode) = removeNextVal x (node (fst' , snd') L L₁) refl in
+      if x == fst
+      then node nextNode removedLeftTree L'
+      else
+        (if x < fst then (node (fst , snd) (delete x (node (fst' , snd') L L₁)) L') else (node (fst , snd) (node (fst' , snd') L L₁) (delete x L')))
 
 
+    insertFindGood : (k : ℕ) (v : A) (l : Tree A) → find k (insert k v l) ≡ Maybe.just v
+    insertFindGood k v null = ifElimTrue (just v) nothing (k == k) (equalIsTrue k)
+    insertFindGood zero v (leaf (zero , snd₁)) = refl
+    insertFindGood zero v (leaf (suc fst , snd₁)) = refl
+    insertFindGood (suc k) v (leaf (zero , snd)) = ifElimTrue (just v) (if k < k then nothing else nothing) (k == k) (equalIsTrue k)
+-- Goal: find (suc k)
+--       (if k == fst then leaf (suc k , v) else
+--        (if k < fst then node (suc k , v) (leaf (suc fst , snd)) null else
+--         node (suc k , v) null (leaf (suc fst , snd)))
+--       )
+--       ≡ just v
+    insertFindGood (suc k) v (leaf (suc fst , snd)) = cong (λ a → {!suc a !}) (insertFindGood k v (leaf (fst , snd)))
+    insertFindGood k v (node x l l₁) = {!!}
 
--- data Map (A : Set) : List (Pair ℕ A) → Set where
---   null : Map A []
---   insert''' : ∀ {L} (x : ℕ) (y : A) → Map A L → Map A ((x , y) :: L)
-  -- delete : ∀ {L} (x :)
-  -- find : ∀ {L} (x : A) → Map A L → find' x L → Maybe A
-  -- delete : ∀ {L} (x : A) (y : B) → Map A B L → Map A B ((x , y) :: L)
+
+  -- data Map (A : Set) : List (Pair ℕ A) → Set where
+  --   null : Map A []
+  --   insert''' : ∀ {L} (x : ℕ) (y : A) → Map A L → Map A ((x , y) :: L)
+    -- delete : ∀ {L} (x :)
+    -- find : ∀ {L} (x : A) → Map A L → find' x L → Maybe A
+    -- delete : ∀ {L} (x : A) (y : B) → Map A B L → Map A B ((x , y) :: L)
 
 
--- mapInsertFind3 : find (insert 3 null)
+  -- mapInsertFind3 : find (insert 3 null)
