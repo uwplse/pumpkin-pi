@@ -217,53 +217,14 @@ depElimGZNegSuc P set posP negsucP = SetQuotients.elim set func resp where
                                               (negsucP (fst (proj₂ (snd (fst y))))))
                         (sym (snd y))
                         refl
-  extendPath : {A : Set} {a1 a2 a3 a4 : A} {q0 : a1 ≡ a2} {q1 : a1 ≡ a3} {q2 : a2 ≡ a3} (p : PathP (λ i → q0 i ≡ a3) q1 q2) → (r : a3 ≡ a4) → PathP (λ i → q0 i ≡ a4) (q1 ∙ r) (q2 ∙ r)
-  extendPath p r = congP (λ i s → s ∙ r) p
-  lem3 : (p1 p2 : ℕ) →
-         PathP
-          (λ i → sucRPres p1 p2 i ≡ [ (p1 , p2) ])          
-          (sucRPres p1 p2)
-          refl
-  lem3 p1 p2 = toPathP (squash/ [ p1 , p2 ] [ p1 , p2 ] _ refl)
-  lem4 : (p1 p2 : ℕ) →
-          PathP
-            (λ i → sucRPres p1 p2 i ≡ [ canonicalize (p1 , p2) ])
-            (sucRPres p1 p2 ∙ canonicalizePres (p1 , p2))
-            (refl ∙ canonicalizePres (p1 , p2))
-  lem4 p1 p2 = extendPath (lem3 p1 p2) (canonicalizePres (p1 , p2))
-  lem2 : (p1 p2 : ℕ) →
-          PathP
-            (λ i → sucRPres p1 p2 i ≡ [ canonicalize (p1 , p2) ])
-            (sucRPres p1 p2 ∙ canonicalizePres (p1 , p2))
-            (canonicalizePres (p1 , p2))
-  lem2 p1 p2 = subst (λ y → PathP
-                                (λ i → sucRPres p1 p2 i ≡ [ canonicalize (p1 , p2) ])
-                                (sucRPres p1 p2 ∙ canonicalizePres (p1 , p2))
-                                y)
-                        (sym (lUnit (canonicalizePres (p1 , p2))))
-                        (lem4 p1 p2)
-  lem : (p1 p2 : ℕ) →
-        (x : Σ[ a ∈ (Σ[ n ∈ ℕ ] canonicalize (p1 , p2) ≡ (n , zero)) ] (canonicalizeSignDec (p1 , p2) ≡ inl a)) →
-        PathP
-          (λ i → sucRPres p1 p2 i ≡ depConstrGZPos (fst (fst x)))          
-          (((sucRPres p1 p2 ∙ canonicalizePres (p1 , p2)) ∙ cong [_] (snd (fst x)) ∙ refl))          
-          (canonicalizePres (p1 , p2) ∙ cong [_] (snd (fst x)) ∙ refl)
-  lem p1 p2 x = extendPath (lem2 p1 p2) ((cong [_] (snd (fst x))) ∙ refl)
-  lem5 : (p1 p2 : ℕ) →
-         (x : Σ[ a ∈ (Σ[ n ∈ ℕ ] canonicalize (p1 , p2) ≡ (n , zero)) ] (canonicalizeSignDec (p1 , p2) ≡ inl a)) →
-         PathP
-          (λ i → P (sucRPres p1 p2 i))
-          (transport
-           (cong P
-            (sym
-             ((sucRPres p1 p2 ∙ canonicalizePres (p1 , p2)) ∙ cong [_] (snd (fst x)) ∙ refl)))
-           (posP (fst (fst x))))
-          (transport
-           (cong P
-            (sym (canonicalizePres (p1 , p2) ∙ cong [_] (snd (fst x)) ∙ refl)))
-           (posP (fst (fst x))))
-  lem5 p1 p2 x = congP (λ i p → transport (cong P (sym p)) (posP (fst (fst x)))) (lem p1 p2 x)
-  lem6 : (p1 p2 : ℕ) →
+  innerEqLeft : (p1 p2 : ℕ) →
+                (x : Σ[ a ∈ (Σ[ n ∈ ℕ ] canonicalize (p1 , p2) ≡ (n , zero)) ] (canonicalizeSignDec (p1 , p2) ≡ inl a)) →
+                PathP
+                  (λ i → sucRPres p1 p2 i ≡ depConstrGZPos (fst (fst x)))          
+                  (((sucRPres p1 p2 ∙ canonicalizePres (p1 , p2)) ∙ cong [_] (snd (fst x)) ∙ refl))          
+                  (canonicalizePres (p1 , p2) ∙ cong [_] (snd (fst x)) ∙ refl)
+  innerEqLeft p1 p2 x = toPathP (squash/ _ _ _ _)
+  innerEqRight : (p1 p2 : ℕ) →
          (x : Σ[ a ∈ (Σ[ n ∈ ℕ ] ((canonicalize (p1 , p2) ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m)))) ] (canonicalizeSignDec (p1 , p2) ≡ inr a)) →
          PathP
           (λ i → sucRPres p1 p2 i ≡ depConstrGZNegSuc (fst (proj₂ (snd (fst x)))))
@@ -273,7 +234,7 @@ depElimGZNegSuc P set posP negsucP = SetQuotients.elim set func resp where
           (canonicalizePres (p1 , p2) ∙
           cong [_] (proj₁ (snd (fst x))) ∙
           cong [_] (λ i → refl {x = zero} i , snd (proj₂ (snd (fst x))) i))
-  lem6 p1 p2 x = extendPath (lem2 p1 p2) (cong [_] (proj₁ (snd (fst x))) ∙ cong [_] (λ i → refl {x = zero} i , snd (proj₂ (snd (fst x))) i))
+  innerEqRight p1 p2 x = toPathP (squash/ _ _ _ _)
   funcCanonical : (p : ℕ × ℕ) → PathP (λ i → P (canonicalizePres p i)) (func p) (func (canonicalize p))
   funcCanonical (zero , p2) = refl
   funcCanonical (suc p1 , zero) = refl
@@ -285,15 +246,14 @@ depElimGZNegSuc P set posP negsucP = SetQuotients.elim set func resp where
           (λ y z → PathP (λ i → P (sucRPres p1 p2 i)) y z)
           (sym (funcLeft (suc p1 , suc p2) x))
           (sym (funcLeft (p1 , p2) x))
-          (lem5 p1 p2 x))
+          (congP (λ i p → transport (cong P (sym p)) (posP (fst (fst x)))) (innerEqLeft p1 p2 x)))
         (λ x → subst2
           (λ y z → PathP (λ i → P (sucRPres p1 p2 i)) y z)
           (sym (funcRight (suc p1 , suc p2) x))
           (sym (funcRight (p1 , p2) x))
-          (congP (λ i p → transport (cong P (sym p)) (negsucP (fst (proj₂ (snd (fst x)))))) (lem6 p1 p2 x)))
+          (congP (λ i p → transport (cong P (sym p)) (negsucP (fst (proj₂ (snd (fst x)))))) (innerEqRight p1 p2 x)))
         (sumRememberEq (canonicalizeSignDec (p1 , p2))))
       (funcCanonical (p1 , p2))
-
   funcCanonical⁻ : (p : ℕ × ℕ) → PathP (λ i → P (canonicalizePres⁻ p i)) (func (canonicalize p)) (func p)
   funcCanonical⁻ p = symP (funcCanonical p)
   composedPaths : (a b : ℕ × ℕ) (r : R a b) → PathP (λ i → P ((canonicalizePres a ∙ (cong [_] (canonicalIsCanonical a b r) ∙ canonicalizePres⁻ b)) i)) (func a) (func b)
