@@ -287,3 +287,28 @@ depElimGZ P set posP negsucP = SetQuotients.elim set func resp where
 ιGZPos : (P : GZ → Set) → (pset : ∀ x → isSet (P x)) → (posP : (n : ℕ) → P (depConstrGZPos n)) → (negSucP : (n : ℕ) → P (depConstrGZNegSuc n)) → (n : ℕ) →
     (Q : P (depConstrGZPos n) → Set) → Q (depElimGZ P pset posP negSucP (depConstrGZPos n)) → Q (posP n)
 ιGZPos P pset posP negSucP n Q Qp = subst (λ e → Q e) (ιGZPosEq P pset posP negSucP n) Qp 
+
+ιGZNegSucEq : (P : GZ → Set) → (pset : (x : GZ) → isSet (P x)) → (posP : (n : ℕ) → P (depConstrGZPos n)) → (negSucP : (n : ℕ) → P (depConstrGZNegSuc n)) → (n : ℕ) →
+    depElimGZ P pset posP negSucP (depConstrGZNegSuc n) ≡ negSucP n
+ιGZNegSucEq P pset posP negSucP zero = lem ∙ transportRefl (negSucP zero) where
+  lem3 : refl ≡ sym ((canonicalizePres (zero , suc zero)) ∙ (cong [_] refl) ∙ (cong [_] (×≡ refl refl)))
+  lem3 = squash/ [ zero , suc zero ] [ zero , suc zero ] _ _
+  lem2 : (cong P (sym ((canonicalizePres (zero , suc zero)) ∙ (cong [_] refl) ∙ (cong [_] (×≡ refl refl))))) ≡ refl
+  lem2 = subst (λ path → cong P path ≡ refl) lem3 refl
+  lem : transport (cong P (sym ((canonicalizePres (zero , suc zero)) ∙ (cong [_] refl) ∙ (cong [_] (×≡ refl refl)))))
+                  (negSucP zero)
+        ≡ transport refl (negSucP zero)
+  lem = subst (λ path → transport path (negSucP zero) ≡ transport refl (negSucP zero)) (sym lem2) refl
+ιGZNegSucEq P pset posP negSucP (suc n) = lem ∙ transportRefl (negSucP (suc n)) where
+  lem3 : refl ≡ sym ((canonicalizePres (zero , suc (suc n))) ∙ (cong [_] refl) ∙ (cong [_] (×≡ refl refl)))
+  lem3 = squash/ [ zero , suc (suc n) ] [ zero , suc (suc n) ] _ _
+  lem2 : (cong P (sym ((canonicalizePres (zero , suc (suc n))) ∙ (cong [_] refl) ∙ (cong [_] (×≡ refl refl))))) ≡ refl
+  lem2 = subst (λ path → cong P path ≡ refl) lem3 refl
+  lem : transport (cong P (sym ((canonicalizePres (zero , suc (suc n))) ∙ (cong [_] refl) ∙ (cong [_] (×≡ refl refl)))))
+                  (negSucP (suc n))
+        ≡ transport refl (negSucP (suc n))
+  lem = subst (λ path → transport path (negSucP (suc n)) ≡ transport refl (negSucP (suc n))) (sym lem2) refl
+
+ιGZNegSuc : (P : GZ → Set) → (pset : ∀ x → isSet (P x)) → (posP : (n : ℕ) → P (depConstrGZPos n)) → (negSucP : (n : ℕ) → P (depConstrGZNegSuc n)) → (n : ℕ) →
+    (Q : P (depConstrGZNegSuc n) → Set) → Q (depElimGZ P pset posP negSucP (depConstrGZNegSuc n)) → Q (negSucP n)
+ιGZNegSuc P pset posP negSucP n Q Qp = subst (λ e → Q e) (ιGZNegSucEq P pset posP negSucP n) Qp 
