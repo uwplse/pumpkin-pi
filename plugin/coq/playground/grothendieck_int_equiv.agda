@@ -183,8 +183,8 @@ Rrefl {x1 , x2} = Nat.+-comm x1 x2
 RIrrel : ∀ x1 x2 (p : x1 Nat.+ x2 ≡ x2 Nat.+ x1) → p ≡ Rrefl {x1 , x2}
 RIrrel x1 x2 p = isSetℕ _ _ p (Rrefl {x1 , x2})
 
-depElimGZNegSuc : (P : GZ → Set) → (∀ x → isSet (P x)) → (∀ n → P (depConstrGZPos n)) → (∀ n → P (depConstrGZNegSuc n)) → ∀ z → P z
-depElimGZNegSuc P set posP negsucP = SetQuotients.elim set func resp where
+depElimGZ : (P : GZ → Set) → (∀ x → isSet (P x)) → (∀ n → P (depConstrGZPos n)) → (∀ n → P (depConstrGZNegSuc n)) → ∀ z → P z
+depElimGZ P set posP negsucP = SetQuotients.elim set func resp where
   func : (p : ℕ × ℕ) → P [ p ]
   func p = Sum.rec (λ x → transport (cong P (sym ((canonicalizePres p) ∙ (cong [_] (snd x) ∙ refl))))
                                     (posP (fst x)))
@@ -209,10 +209,10 @@ depElimGZNegSuc P set posP negsucP = SetQuotients.elim set func resp where
               func p ≡ transport (cong P (sym ((canonicalizePres p) ∙ (cong [_] (proj₁ (snd (fst y)))) ∙ (cong [_] (×≡ refl (snd (proj₂ (snd (fst y)))))))))
                                  (negsucP (fst (proj₂ (snd (fst y)))))
   funcRight p y = subst (λ path → Sum.rec (λ x → transport (cong P (sym ((canonicalizePres p) ∙ (cong [_] (snd x) ∙ refl))))
-                                                          (posP (fst x)))
-                                         (λ x → transport (cong P (sym ((canonicalizePres p) ∙ (cong [_] (proj₁ (snd x))) ∙ (cong [_] (×≡ refl (snd (proj₂ (snd x))))))))
-                                                          (negsucP (fst (proj₂ (snd x)))))
-                                         (path)
+                                                           (posP (fst x)))
+                                          (λ x → transport (cong P (sym ((canonicalizePres p) ∙ (cong [_] (proj₁ (snd x))) ∙ (cong [_] (×≡ refl (snd (proj₂ (snd x))))))))
+                                                           (negsucP (fst (proj₂ (snd x)))))
+                                          (path)
                                   ≡ transport (cong P (sym ((canonicalizePres p) ∙ (cong [_] (proj₁ (snd (fst y)))) ∙ (cong [_] (×≡ refl (snd (proj₂ (snd (fst y)))))))))
                                               (negsucP (fst (proj₂ (snd (fst y))))))
                         (sym (snd y))
@@ -262,3 +262,28 @@ depElimGZNegSuc P set posP negsucP = SetQuotients.elim set func resp where
   typesSame a b r = cong (λ x → PathP (λ i → P (x i)) (func a) (func b)) (squash/ [ a ] [ b ] ((canonicalizePres a ∙ (cong [_] (canonicalIsCanonical a b r) ∙ canonicalizePres⁻ b))) (eq/ a b r))
   resp : (a b : ℕ × ℕ) (r : R a b) → PathP (λ i → P (eq/ a b r i)) (func a) (func b)
   resp a b r = transport (typesSame a b r) (composedPaths a b r)
+
+ιGZPosEq : (P : GZ → Set) → (pset : (x : GZ) → isSet (P x)) → (posP : (n : ℕ) → P (depConstrGZPos n)) → (negSucP : (n : ℕ) → P (depConstrGZNegSuc n)) → (n : ℕ) →
+    depElimGZ P pset posP negSucP (depConstrGZPos n) ≡ posP n
+ιGZPosEq P pset posP negSucP zero = lem ∙ (transportRefl (posP zero)) where
+  lem3 : refl ≡ sym ((canonicalizePres (zero , zero)) ∙ (cong [_] (refl) ∙ refl))
+  lem3 = squash/ [ zero , zero ] [ zero , zero ] _ _
+  lem2 : (cong P (sym ((canonicalizePres (zero , zero)) ∙ (cong [_] (refl) ∙ refl)))) ≡ refl
+  lem2 = subst (λ path → cong P path ≡ refl) lem3 refl
+  lem : transport (cong P (sym ((canonicalizePres (zero , zero)) ∙ (cong [_] (refl) ∙ refl))))
+                  (posP zero)
+        ≡ transport refl (posP zero)
+  lem = subst (λ path → transport path (posP zero) ≡ transport refl (posP zero)) (sym lem2) refl
+ιGZPosEq P pset posP negSucP (suc n) = lem ∙ (transportRefl (posP (suc n))) where
+  lem3 : refl ≡ sym ((canonicalizePres (suc n , zero)) ∙ (cong [_] (refl) ∙ refl))
+  lem3 = squash/ [ suc n , zero ] [ suc n , zero ] _ _
+  lem2 : (cong P (sym ((canonicalizePres (suc n , zero)) ∙ (cong [_] (refl) ∙ refl)))) ≡ refl
+  lem2 = subst (λ path → cong P path ≡ refl) lem3 refl
+  lem : transport (cong P (sym ((canonicalizePres (suc n , zero)) ∙ (cong [_] (refl) ∙ refl))))
+                  (posP (suc n))
+        ≡ transport refl (posP (suc n))
+  lem = subst (λ path → transport path (posP (suc n)) ≡ transport refl (posP (suc n))) (sym lem2) refl
+
+ιGZPos : (P : GZ → Set) → (pset : ∀ x → isSet (P x)) → (posP : (n : ℕ) → P (depConstrGZPos n)) → (negSucP : (n : ℕ) → P (depConstrGZNegSuc n)) → (n : ℕ) →
+    (Q : P (depConstrGZPos n) → Set) → Q (depElimGZ P pset posP negSucP (depConstrGZPos n)) → Q (posP n)
+ιGZPos P pset posP negSucP n Q Qp = subst (λ e → Q e) (ιGZPosEq P pset posP negSucP n) Qp 
