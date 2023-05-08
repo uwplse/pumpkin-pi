@@ -31,6 +31,14 @@ depElimIndZ : (P : ℤ → Set) → (∀ n → P (depConstrIndZPos n)) → (∀ 
 depElimIndZ P posP negP (pos n) = posP n
 depElimIndZ P posP negsucP (negsuc n) = negsucP n
 
+ιIndZPos : (P : ℤ → Set)  → (posP : (n : ℕ) → P (depConstrIndZPos n)) → (negSucP : (n : ℕ) → P (depConstrIndZNegSuc n)) → (n : ℕ) →
+    (Q : P (depConstrIndZPos n) → Set) → Q (depElimIndZ P posP negSucP (depConstrIndZPos n)) → Q (posP n)
+ιIndZPos P posP negSucP n Q Qp = Qp
+
+ιIndZNegSuc : (P : ℤ → Set)  → (posP : (n : ℕ) → P (depConstrIndZPos n)) → (negSucP : (n : ℕ) → P (depConstrIndZNegSuc n)) → (n : ℕ) →
+    (Q : P (depConstrIndZNegSuc n) → Set) → Q (depElimIndZ P posP negSucP (depConstrIndZNegSuc n)) → Q (negSucP n)
+ιIndZNegSuc P posP negSucP n Q Qp = Qp
+
 -- grothendieck group construction of ℤ
 
 R : (ℕ × ℕ) → (ℕ × ℕ) → Type
