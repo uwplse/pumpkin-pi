@@ -15,11 +15,14 @@ open import Cubical.Data.Prod
 open import Cubical.Data.Empty
 open import Cubical.Data.Sum as Sum
 open import Cubical.Data.Nat as Nat
-open import Cubical.Data.Int
 open import Cubical.Data.Sigma.Properties
 open import Cubical.Foundations.GroupoidLaws
 
 -- dependent constructors/eliminators on standard library inductive ℤ
+
+data ℤ : Type₀ where
+  pos    : (n : ℕ) → ℤ
+  negsuc : (n : ℕ) → ℤ
 
 depConstrIndZPos : ℕ → ℤ
 depConstrIndZPos n = pos n
@@ -38,6 +41,46 @@ depElimIndZ P posP negsucP (negsuc n) = negsucP n
 ιIndZNegSuc : (P : ℤ → Set)  → (posP : (n : ℕ) → P (depConstrIndZPos n)) → (negSucP : (n : ℕ) → P (depConstrIndZNegSuc n)) → (n : ℕ) →
     (Q : P (depConstrIndZNegSuc n) → Set) → Q (depElimIndZ P posP negSucP (depConstrIndZNegSuc n)) → Q (negSucP n)
 ιIndZNegSuc P posP negSucP n Q Qp = Qp
+
+-- Addition on integers, based on standard library functions.
+sucℤ : ℤ → ℤ
+sucℤ z = depElimIndZ
+           (λ _ → ℤ)
+           (λ n → depConstrIndZPos (suc n))
+           (λ n → Nat.elim
+             (depConstrIndZPos zero)
+             (λ m _ → depConstrIndZNegSuc m )
+             n)
+           z
+
+predℤ : ℤ → ℤ
+predℤ z = depElimIndZ
+            (λ _ → ℤ)
+            (λ n → Nat.elim
+              (depConstrIndZNegSuc zero)
+              (λ m _ → depConstrIndZPos m)
+              n)
+            (λ n → depConstrIndZNegSuc (suc n))
+            z
+
+_+pos_ : ℤ → ℕ → ℤ
+z +pos n = Nat.elim
+             z
+             (λ _ p → sucℤ p)
+             n
+
+_+negsuc_ : ℤ → ℕ → ℤ
+z +negsuc n = Nat.elim
+                (predℤ z)
+                (λ _ p → predℤ p)
+                n
+
+_+ℤ_ : ℤ → ℤ → ℤ
+m +ℤ n = depElimIndZ
+          (λ _ → ℤ)
+          (λ p → m +pos p)
+          (λ p → m +negsuc p)
+          n
 
 -- grothendieck group construction of ℤ
 
@@ -319,4 +362,49 @@ depElimGZ P set posP negsucP = SetQuotients.elim set func resp where
 
 ιGZNegSuc : (P : GZ → Set) → (pset : ∀ x → isSet (P x)) → (posP : (n : ℕ) → P (depConstrGZPos n)) → (negSucP : (n : ℕ) → P (depConstrGZNegSuc n)) → (n : ℕ) →
     (Q : P (depConstrGZNegSuc n) → Set) → Q (depElimGZ P pset posP negSucP (depConstrGZNegSuc n)) → Q (negSucP n)
-ιGZNegSuc P pset posP negSucP n Q Qp = subst (λ e → Q e) (ιGZNegSucEq P pset posP negSucP n) Qp 
+ιGZNegSuc P pset posP negSucP n Q Qp = subst (λ e → Q e) (ιGZNegSucEq P pset posP negSucP n) Qp
+
+isSetGZ : isSet GZ
+isSetGZ = squash/
+
+sucGZ : GZ → GZ
+sucGZ z = depElimGZ
+           (λ _ → GZ)
+           (λ _ → isSetGZ)
+           (λ n → depConstrGZPos (suc n))
+           (λ n → Nat.elim
+             (depConstrGZPos zero)
+             (λ m _ → depConstrGZNegSuc m )
+             n)
+           z
+
+predGZ : GZ → GZ
+predGZ z = depElimGZ
+            (λ _ → GZ)
+            (λ _ → isSetGZ)
+            (λ n → Nat.elim
+              (depConstrGZNegSuc zero)
+              (λ m _ → depConstrGZPos m)
+              n)
+            (λ n → depConstrGZNegSuc (suc n))
+            z
+
+_+posGZ_ : GZ → ℕ → GZ
+z +posGZ n = Nat.elim
+             z
+             (λ _ p → sucGZ p)
+             n
+
+_+negsucGZ_ : GZ → ℕ → GZ
+z +negsucGZ n = Nat.elim
+                (predGZ z)
+                (λ _ p → predGZ p)
+                n
+
+_+GZ_ : GZ → GZ → GZ
+m +GZ n = depElimGZ
+          (λ _ → GZ)
+          (λ _ → isSetGZ)
+          (λ p → m +posGZ p)
+          (λ p → m +negsucGZ p)
+          n
