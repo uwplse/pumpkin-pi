@@ -20,6 +20,8 @@ open import Cubical.Data.Nat
 open import Cubical.Data.Bool
 open import Cubical.Data.Empty
 
+data ⊤ : Type where
+  tt : ⊤
 
 data List {ℓ} (A : Set ℓ) : Set ℓ where
   []   : List A
@@ -54,11 +56,32 @@ module lib (A : Set) where
   equalIsTrue zero = refl
   equalIsTrue (suc x) = equalIsTrue x
 
-  ifElimTrue : (x y : Maybe A) (b : Bool) -> (b ≡ true) -> (if b then x else y) ≡ x
+{--
+  not : Bool → Bool
+  not = {!!}
+--}
+
+
+  -- ifElimTrue : (x y : Maybe A) (b : Bool) -> (b ≡ true) -> (if b then x else y) ≡ x
+  -- ifElimTrue x y b proofTrue = cong (λ b -> if b then x else y) proofTrue
+  ifElimTrue : {A : Set} (x y : A) (b : Bool) -> (b ≡ true) -> (if b then x else y) ≡ x
   ifElimTrue x y b proofTrue = cong (λ b -> if b then x else y) proofTrue
 
   ifElimFalse : (x y : Maybe A) (b : Bool) -> (b ≡ false) -> (if b then x else y) ≡ y
   ifElimFalse x y b proofTrue = cong (λ b -> if b then x else y) proofTrue
+
+  -- in the future, maybe generalize to types with decidable equalities
+  ifLifted_equal_then_else_ : {B : Set} (x y : ℕ) -> (((x == y) ≡ true ) → B) → (((x == y) ≡ false ) → B) → B
+  ifLifted zero equal zero then ifEqual else ifNotEqual = ifEqual refl
+  ifLifted zero equal suc y then ifEqual else ifNotEqual = ifNotEqual refl
+  ifLifted suc x equal zero then ifEqual else ifNotEqual = ifNotEqual refl 
+  ifLifted suc x equal suc y then ifEqual else ifNotEqual = ifLifted x equal y then ifEqual else ifNotEqual
+
+  ifElimEitherWay : {B : Set} (x y : ℕ) -> (branchTrue branchFalse : B) -> (branchTrue ≡ branchFalse) -> ((if x == y then branchTrue else branchFalse) ≡ branchTrue)
+  ifElimEitherWay = {!!}
+
+  ifElimEitherWay' : {B : Set} (x y : ℕ) -> (branchTrue branchFalse : B) -> (branchTrue ≡ branchFalse) -> ((if x == y then branchTrue else branchFalse) ≡ branchFalse)
+  ifElimEitherWay' = {!!}
 
 
   module NaiveList where
@@ -88,6 +111,39 @@ module lib (A : Set) where
       (k == k)
       (equalIsTrue k)
 
+  module SortedList where
+    length : List (Pair ℕ A) → ℕ -- todo: when compiling, swap out with O(1) impl
+    length [] = 0
+    length (x :: x₁) = 1 + length x₁
+
+    nth : (x : ℕ) → (L : List (Pair ℕ A)) -> Maybe (Pair ℕ A) -- todo: when compiling, swap out with O(1) Array impl
+    nth x [] = Maybe.nothing
+    nth zero (x₁ :: L) = Maybe.just x₁
+    nth (suc x) (x₁ :: L) = nth x L
+
+    isJust : Maybe (Pair ℕ A) → Type
+    isJust (just x) = ⊤
+    isJust nothing = ⊥
+
+    isNothing : Maybe A → Type
+    isNothing (just x) = ⊥
+    isNothing nothing = ⊤
+
+    nthLengthGood : (l : List (Pair ℕ A)) → (x n : ℕ) → ((n == length l) ≡ true) → (((x < n) or (x == n)) ≡ true) → isJust (nth x l)
+    nthLengthGood [] x n nIsLength xLeqN = {!!}
+    nthLengthGood (x₁ :: l) x n nIsLength xLeqN = {!!}
+
+    -- same as NaiveList
+    findNaive : (x : ℕ) → (L : List (Pair ℕ A)) → Maybe A
+    findNaive x [] = Maybe.nothing
+    findNaive x ((fst , snd) :: L) = if x == fst then Maybe.just snd else findNaive x L
+
+    findFast : (x : ℕ) → (L : List (Pair ℕ A)) → Maybe A
+    findFast = {!!}
+
+    insert : (x : ℕ) → (y : A) → (L : List (Pair ℕ A)) → (List (Pair ℕ A))
+    insert x y [] =  (x , y) :: []
+    insert x y ((x' , y') :: L) = if x == x' then ((x , y) :: L) else {!!}
 
   data Tree (A : Set) : Set where
     null : Tree A
@@ -163,19 +219,40 @@ module lib (A : Set) where
         (if x < fst then (node (fst , snd) (delete x (node (fst' , snd') L L₁)) L') else (node (fst , snd) (node (fst' , snd') L L₁) (delete x L')))
 
 
+    sucMaybe : Maybe A -> Maybe A
+    sucMaybe (just x) = just {!suc x!}
+    sucMaybe nothing = {!!}
+
+
     insertFindGood : (k : ℕ) (v : A) (l : Tree A) → find k (insert k v l) ≡ Maybe.just v
     insertFindGood k v null = ifElimTrue (just v) nothing (k == k) (equalIsTrue k)
+    insertFindGood k v (leaf (k' , v')) = {!!}
+    {--
+    insertFindGood k v (leaf (k' , v')) = ifLifted k equal k' then
+      (λ proofEqual → cong (λ a → find k {!a!}) (ifElimTrue (leaf (k , v)) {!!} (k == k') proofEqual))
+      else
+      (λ proofNotEqual → {!!}) --}
+{--
+Goal: find k
+      (if k == k' then leaf (k , v) else
+       (if k < k' then node (k , v) (leaf (k' , v')) null else
+        node (k , v) null (leaf (k' , v'))))
+      ≡ just v
+      --}
+    insertFindGood k v (node x l l₁) = {!!}
+    {--
     insertFindGood zero v (leaf (zero , snd₁)) = refl
     insertFindGood zero v (leaf (suc fst , snd₁)) = refl
     insertFindGood (suc k) v (leaf (zero , snd)) = ifElimTrue (just v) (if k < k then nothing else nothing) (k == k) (equalIsTrue k)
+    insertFindGood (suc k) v (leaf (suc fst , snd)) =  if suc k == suc fst then {!!} else {!!} -- (λ x → insertFindGood k v (leaf (fst , snd))) {!suc k!} -- (insertFindGood k v (leaf (fst , snd)))
+    --}
+
 -- Goal: find (suc k)
 --       (if k == fst then leaf (suc k , v) else
 --        (if k < fst then node (suc k , v) (leaf (suc fst , snd)) null else
 --         node (suc k , v) null (leaf (suc fst , snd)))
 --       )
 --       ≡ just v
-    insertFindGood (suc k) v (leaf (suc fst , snd)) = cong (λ a → {!suc a !}) (insertFindGood k v (leaf (fst , snd)))
-    insertFindGood k v (node x l l₁) = {!!}
 
 
   -- data Map (A : Set) : List (Pair ℕ A) → Set where
