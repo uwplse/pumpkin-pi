@@ -116,6 +116,26 @@ module lib (A : Set) where
     length [] = 0
     length (x :: x₁) = 1 + length x₁
 
+    -- computes n / m, with rounding
+    _div_ : ℕ → ℕ → ℕ
+    _div_ n zero = zero -- error, undefined
+    _div_ n (suc m) = div-helper 0 m n m
+
+    _div_withP_ : (n m : ℕ) → ((m == 0) ≡ false) → ℕ -- divsion with proof of well-defined
+    _div_withP_ n zero proofNotZero = Cubical.Data.Empty.elim {A = λ _ → ℕ} (true≢false proofNotZero)
+    _div_withP_ n (suc m) proofNotZero = div-helper 0 m n m
+
+    divTest1 : 10 div 5 ≡ 2
+    divTest1 = refl
+
+    divTest2 : 11 div 5 ≡ 2
+    divTest2 = refl
+
+    divTest3 : 12 div 2 ≡ 6
+    divTest3 = refl
+
+    -- div-helper 0 1 10 1
+
     nth : (x : ℕ) → (L : List (Pair ℕ A)) -> Maybe (Pair ℕ A) -- todo: when compiling, swap out with O(1) Array impl
     nth x [] = Maybe.nothing
     nth zero (x₁ :: L) = Maybe.just x₁
@@ -125,21 +145,47 @@ module lib (A : Set) where
     isJust (just x) = ⊤
     isJust nothing = ⊥
 
+    isJustExtract : (a : Maybe (Pair ℕ A)) → isJust a -> (Pair ℕ A)
+    isJustExtract (just x₁) x = x₁
+
     isNothing : Maybe A → Type
     isNothing (just x) = ⊥
     isNothing nothing = ⊤
 
-    nthLengthGood : (l : List (Pair ℕ A)) → (x n : ℕ) → ((n == length l) ≡ true) → (((x < n) or (x == n)) ≡ true) → isJust (nth x l)
-    nthLengthGood [] x n nIsLength xLeqN = {!!}
-    nthLengthGood (x₁ :: l) x n nIsLength xLeqN = {!!}
+    nthLengthGood : (l : List (Pair ℕ A)) → (x n : ℕ) → ((n == length l) ≡ true) → ((x < n) ≡ true) → isJust (nth x l)
+    nthLengthGood [] x zero nIsLength xLeqN = true≢false (sym xLeqN)
+    nthLengthGood [] x (suc n) nIsLength xLeqN = true≢false (sym nIsLength)
+    nthLengthGood (x₁ :: l) zero n nIsLength xLeqN = tt
+    nthLengthGood (x₁ :: l) (suc x) zero nIsLength xLeqN = Cubical.Data.Empty.elim {A = λ _ → isJust (nth (suc x) (x₁ :: l))} (true≢false (sym xLeqN))
+    nthLengthGood (x₁ :: l) (suc x) (suc n) nIsLength xLeqN = nthLengthGood l x n nIsLength xLeqN
 
     -- same as NaiveList
     findNaive : (x : ℕ) → (L : List (Pair ℕ A)) → Maybe A
     findNaive x [] = Maybe.nothing
     findNaive x ((fst , snd) :: L) = if x == fst then Maybe.just snd else findNaive x L
 
+    findFastHelper : (x start end : ℕ) → (L : List (Pair ℕ A)) → Maybe A
+    findFastHelper x start end [] = Maybe.nothing
+    findFastHelper x start end (x₁ :: L) = ifLifted {!!} equal {!!} then {!!} else {!!} where
+      halfNth : Pair ℕ A
+      halfNth = isJustExtract halfNthMaybe (nthLengthGood (x₁ :: L) middleOfSearch lengthOfL (equalIsTrue (length L)) {!!}) where
+        middleOfSearch : ℕ
+        middleOfSearch = (start + end) div 2 withP refl -- note: proof might slow things down, maybe remove later?
+        halfNthMaybe : Maybe (Pair ℕ A)
+        halfNthMaybe = nth middleOfSearch (x₁ :: L)
+        lengthOfL : ℕ
+        lengthOfL = length (x₁ :: L)
+
     findFast : (x : ℕ) → (L : List (Pair ℕ A)) → Maybe A
-    findFast = {!!}
+    findFast x L = findFastHelper x 0 (length L) L
+    {--
+    findFast x [] = Maybe.nothing
+    findFast x (x' :: l) = {!!} where
+      halfOfLengthOfL : ℕ
+      halfOfLengthOfL = lengthOfL div 2 withP refl  where
+        lengthOfL : ℕ
+        lengthOfL = length l
+      --}
 
     insert : (x : ℕ) → (y : A) → (L : List (Pair ℕ A)) → (List (Pair ℕ A))
     insert x y [] =  (x , y) :: []
@@ -185,8 +231,8 @@ module lib (A : Set) where
     boolEq true true = true
 
     -- get rightmmost val
-    removeNextVal : {A : Set} (x : ℕ) → (L : Tree A) → isEmpty L ≡ false → Pair (Tree A) (Pair ℕ A)
-    removeNextVal x null proofNotEmpty = Cubical.Data.Empty.elim {A = {!!}} (true≢false proofNotEmpty)
+    removeNextVal : (x : ℕ) → (L : Tree A) → isEmpty L ≡ false → Pair (Tree A) (Pair ℕ A)
+    removeNextVal x null proofNotEmpty = Cubical.Data.Empty.elim {A = λ _ → Pair (Tree A) (Pair ℕ A)} (true≢false proofNotEmpty)
     removeNextVal x (leaf (fst , snd)) proofNotEmpty = (null , (fst , snd))
     removeNextVal x (node x₁ L₁ null) proofNotEmpty = (L₁ , x₁)
     removeNextVal x (node x₁ L₁ (leaf x₂)) proofNotEmpty = ((node x₁ null L₁) , x₂)
@@ -199,7 +245,7 @@ module lib (A : Set) where
     removeNextValHacky x default (node x₁ (leaf x₂) L₁) = ((node x₁ null L₁) , x₂)
     removeNextValHacky x default (node x₁ (node x₂ L L₂) L₁) = let (L' , a) = removeNextValHacky x default (node x₂ L L₂) in ((node x₁ L' L₁), a) -- needed to inline isEmpty
 
-    delete : {A : Set} (x : ℕ) → (L : Tree A) → Tree A
+    delete : (x : ℕ) → (L : Tree A) → Tree A
     delete x null = null
     delete x (leaf (fst , snd)) = if x == fst then null else leaf (fst , snd)
     delete x (node (fst , snd) null L') = if x == fst then L' else (if x < fst then (node (fst , snd) null L') else (node (fst , snd) null (delete x L')))
