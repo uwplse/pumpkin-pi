@@ -195,11 +195,12 @@ module lib (A : Set) where
     findNaive x [] = Maybe.nothing
     findNaive x ((fst , snd) :: L) = if x == fst then Maybe.just snd else findNaive x L
 
-    findFastHelper : (key start end : ℕ) → (L : List (Pair ℕ A)) → (boundsGood L start) → (boundsGood L end) → Maybe A
-    findFastHelper key start end [] startBoundGood endBoundGood = Maybe.nothing
-    findFastHelper key start end (x₁ :: L) startBoundGood endBoundGood = cmpLifted (1st halfNth) equal key then (λ x → Maybe.just (2nd halfNth))
-      ge (λ x' → ifLifted start equal end then (λ _ → Maybe.nothing) else λ x → findFastHelper key start middleOfSearch (x₁ :: L) startBoundGood {!!})
-      le  λ x' → ifLifted start equal end then (λ _ → Maybe.nothing) else λ x → findFastHelper key middleOfSearch end (x₁ :: L) {!!} endBoundGood where
+    findFastHelper : (key start end : ℕ) → (L : List (Pair ℕ A)) → (fuel : ℕ) → ((fuel == 0) ≡ false) → (boundsGood L start) → (boundsGood L end) → Maybe A
+    findFastHelper key start end [] fuel fuelNotEmpty startBoundGood endBoundGood = Maybe.nothing
+    findFastHelper key start end (x₁ :: L) 0 fuelNotEmpty startBoundGood endBoundGood = Cubical.Data.Empty.elim {A = λ _ → Maybe A} (true≢false fuelNotEmpty)
+    findFastHelper key start end (x₁ :: L) (suc fuel) fuelNotEmpty startBoundGood endBoundGood = cmpLifted (1st halfNth) equal key then (λ x → Maybe.just (2nd halfNth))
+      ge (λ x' → ifLifted start equal end then (λ _ → Maybe.nothing) else λ x → findFastHelper key start middleOfSearch (x₁ :: L) fuel {!!} startBoundGood {!!})
+      le  λ x' → ifLifted start equal end then (λ _ → Maybe.nothing) else λ x → findFastHelper key middleOfSearch end (x₁ :: L) fuel {!!} {!!} endBoundGood where
      -- ifLifted start equal end then {!!} else {!!} where
       middleOfSearch : ℕ
       middleOfSearch = (start + end) div 2 withP refl -- note: proof might slow things down, maybe remove later?
@@ -219,7 +220,7 @@ module lib (A : Set) where
 
     findFast : (x : ℕ) → (L : List (Pair ℕ A)) → Maybe A
     findFast x [] = Maybe.nothing
-    findFast x (x₁ :: L) = findFastHelper x 0 (length L) (x₁ :: L) tt {!tt!}
+    findFast x (x₁ :: L) = findFastHelper x 0 (length L) (x₁ :: L) (length (x₁ :: L)) refl tt {!tt!}
     {--
     findFast x [] = Maybe.nothing
     findFast x (x' :: l) = {!!} where
