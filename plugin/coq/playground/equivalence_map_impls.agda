@@ -140,6 +140,12 @@ module lib (A : Set) where
     divTest3 : 12 div 2 ≡ 6
     divTest3 = refl
 
+    divTest4 : (4 + 5) div 2 ≡ 4
+    divTest4 = refl
+
+    divTest5 : (5 + 6) div 2 ≡ 5
+    divTest5 = refl
+
     -- div-helper 0 1 10 1
 
     nth : (x : ℕ) → (L : List (Pair ℕ A)) -> Maybe (Pair ℕ A) -- todo: when compiling, swap out with O(1) Array impl
@@ -191,15 +197,25 @@ module lib (A : Set) where
 
     findFastHelper : (key start end : ℕ) → (L : List (Pair ℕ A)) → (boundsGood L start) → (boundsGood L end) → Maybe A
     findFastHelper key start end [] startBoundGood endBoundGood = Maybe.nothing
-    findFastHelper key start end (x₁ :: L) startBoundGood endBoundGood = cmpLifted (1st halfNth) equal key then (λ x → Maybe.just (2nd halfNth)) ge (λ x₂ → {!!}) le {!!} where
+    findFastHelper key start end (x₁ :: L) startBoundGood endBoundGood = cmpLifted (1st halfNth) equal key then (λ x → Maybe.just (2nd halfNth))
+      ge (λ x' → ifLifted start equal end then (λ _ → Maybe.nothing) else λ x → findFastHelper key start middleOfSearch (x₁ :: L) startBoundGood {!!})
+      le  λ x' → ifLifted start equal end then (λ _ → Maybe.nothing) else λ x → findFastHelper key middleOfSearch end (x₁ :: L) {!!} endBoundGood where
+     -- ifLifted start equal end then {!!} else {!!} where
+      middleOfSearch : ℕ
+      middleOfSearch = (start + end) div 2 withP refl -- note: proof might slow things down, maybe remove later?
+      halfNthMaybe : Maybe (Pair ℕ A)
+      halfNthMaybe = nth middleOfSearch (x₁ :: L)
+      lengthOfL : ℕ
+      lengthOfL = length (x₁ :: L)
       halfNth : Pair ℕ A
-      halfNth = isJustExtract halfNthMaybe (nthLengthGood' (x₁ :: L) middleOfSearch lengthOfL (equalIsTrue (length L)) {!!}) where
-        middleOfSearch : ℕ
-        middleOfSearch = (start + end) div 2 withP refl -- note: proof might slow things down, maybe remove later?
-        halfNthMaybe : Maybe (Pair ℕ A)
-        halfNthMaybe = nth middleOfSearch (x₁ :: L)
-        lengthOfL : ℕ
-        lengthOfL = length (x₁ :: L)
+      halfNth = isJustExtract halfNthMaybe (nthLengthGood' (x₁ :: L) middleOfSearch lengthOfL (equalIsTrue (length L)) {!!})
+      boundsPreservedByMiddleLem : (n m middle : ℕ) → boundsGood (x₁ :: L) n → boundsGood (x₁ :: L) m → (middle ≡ (n + m) div 2 withP refl) → boundsGood (x₁ :: L) middle
+      boundsPreservedByMiddleLem zero zero middle nBoundGood mBoundGood middleRefl = subst (λ x → boundsGood (x₁ :: L) x) (sym middleRefl) tt
+      boundsPreservedByMiddleLem zero (suc m) middle nBoundGood mBoundGood middleRefl = subst (λ x → boundsGood (x₁ :: L) x) (sym middleRefl) {!tt!}
+      boundsPreservedByMiddleLem (suc n) zero middle nBoundGood mBoundGood middleRefl = {!!}
+      boundsPreservedByMiddleLem (suc n) (suc m) middle nBoundGood mBoundGood middleRefl = {!!}
+      boundsPreservedByMiddle : boundsGood (x₁ :: L) middleOfSearch
+      boundsPreservedByMiddle = {!tt!}
 
     findFast : (x : ℕ) → (L : List (Pair ℕ A)) → Maybe A
     findFast x [] = Maybe.nothing
