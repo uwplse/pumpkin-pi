@@ -77,11 +77,17 @@ module lib (A : Set) where
   ifLifted suc x equal zero then ifEqual else ifNotEqual = ifNotEqual refl 
   ifLifted suc x equal suc y then ifEqual else ifNotEqual = ifLifted x equal y then ifEqual else ifNotEqual
 
-  ifElimEitherWay : {B : Set} (x y : ℕ) -> (branchTrue branchFalse : B) -> (branchTrue ≡ branchFalse) -> ((if x == y then branchTrue else branchFalse) ≡ branchTrue)
-  ifElimEitherWay = {!!}
+  cmpLifted_equal_then_ge_le_ : {B : Set} (x y : ℕ) -> (((x == y) ≡ true ) → B) → ((((x == y) or (not (x < y))) ≡ true ) → B) → (((x < y) ≡ true ) → B) → B
+  cmpLifted zero equal zero then ifEqual ge ifGe le ifLe = ifEqual refl
+  cmpLifted zero equal suc y then ifEqual ge ifGe le ifLe = ifLe refl
+  cmpLifted suc x equal zero then ifEqual ge ifGe le ifLe = ifGe refl
+  cmpLifted suc x equal suc y then ifEqual ge ifGe le ifLe = cmpLifted x equal y then ifEqual ge ifGe le ifLe
 
-  ifElimEitherWay' : {B : Set} (x y : ℕ) -> (branchTrue branchFalse : B) -> (branchTrue ≡ branchFalse) -> ((if x == y then branchTrue else branchFalse) ≡ branchFalse)
-  ifElimEitherWay' = {!!}
+  -- ifElimEitherWay : {B : Set} (x y : ℕ) -> (branchTrue branchFalse : B) -> (branchTrue ≡ branchFalse) -> ((if x == y then branchTrue else branchFalse) ≡ branchTrue)
+  -- ifElimEitherWay = {!!}
+
+  -- ifElimEitherWay' : {B : Set} (x y : ℕ) -> (branchTrue branchFalse : B) -> (branchTrue ≡ branchFalse) -> ((if x == y then branchTrue else branchFalse) ≡ branchFalse)
+  -- ifElimEitherWay' = {!!}
 
 
   module NaiveList where
@@ -152,23 +158,42 @@ module lib (A : Set) where
     isNothing (just x) = ⊥
     isNothing nothing = ⊤
 
-    nthLengthGood : (l : List (Pair ℕ A)) → (x n : ℕ) → ((n == length l) ≡ true) → ((x < n) ≡ true) → isJust (nth x l)
-    nthLengthGood [] x zero nIsLength xLeqN = true≢false (sym xLeqN)
-    nthLengthGood [] x (suc n) nIsLength xLeqN = true≢false (sym nIsLength)
-    nthLengthGood (x₁ :: l) zero n nIsLength xLeqN = tt
-    nthLengthGood (x₁ :: l) (suc x) zero nIsLength xLeqN = Cubical.Data.Empty.elim {A = λ _ → isJust (nth (suc x) (x₁ :: l))} (true≢false (sym xLeqN))
-    nthLengthGood (x₁ :: l) (suc x) (suc n) nIsLength xLeqN = nthLengthGood l x n nIsLength xLeqN
+    1st : Pair ℕ A → ℕ
+    1st (fst₁ , snd₁) = fst₁
+
+    2nd : Pair ℕ A → A
+    2nd (fst₁ , snd₁) = snd₁
+
+    _<=_ : ℕ → ℕ → Bool
+    zero <= x' = true
+    suc x <= zero = false
+    suc x <= suc x' = x <= x'
+
+    boundsGood : (l : List (Pair ℕ A)) → (x : ℕ) → Type
+    boundsGood l x  = if x < length l then ⊤ else ⊥
+
+    nthLengthGood : (l : List (Pair ℕ A)) → (x : ℕ) → boundsGood l x → isJust (nth x l)
+    nthLengthGood [] (suc x) ()
+    nthLengthGood (x₁ :: l) zero boundGoodProof = tt
+    nthLengthGood (x₁ :: l) (suc x) boundGoodProof = nthLengthGood l x boundGoodProof
+
+    nthLengthGood' : (l : List (Pair ℕ A)) → (x n : ℕ) → ((n == length l) ≡ true) → ((x < n) ≡ true) → isJust (nth x l)
+    nthLengthGood' [] x zero nIsLength xLeqN = true≢false (sym xLeqN)
+    nthLengthGood' [] x (suc n) nIsLength xLeqN = true≢false (sym nIsLength)
+    nthLengthGood' (x₁ :: l) zero n nIsLength xLeqN = tt
+    nthLengthGood' (x₁ :: l) (suc x) zero nIsLength xLeqN = Cubical.Data.Empty.elim {A = λ _ → isJust (nth (suc x) (x₁ :: l))} (true≢false (sym xLeqN))
+    nthLengthGood' (x₁ :: l) (suc x) (suc n) nIsLength xLeqN = nthLengthGood' l x n nIsLength xLeqN
 
     -- same as NaiveList
     findNaive : (x : ℕ) → (L : List (Pair ℕ A)) → Maybe A
     findNaive x [] = Maybe.nothing
     findNaive x ((fst , snd) :: L) = if x == fst then Maybe.just snd else findNaive x L
 
-    findFastHelper : (x start end : ℕ) → (L : List (Pair ℕ A)) → Maybe A
-    findFastHelper x start end [] = Maybe.nothing
-    findFastHelper x start end (x₁ :: L) = ifLifted {!!} equal {!!} then {!!} else {!!} where
+    findFastHelper : (key start end : ℕ) → (L : List (Pair ℕ A)) → (boundsGood L start) → (boundsGood L end) → Maybe A
+    findFastHelper key start end [] startBoundGood endBoundGood = Maybe.nothing
+    findFastHelper key start end (x₁ :: L) startBoundGood endBoundGood = cmpLifted (1st halfNth) equal key then (λ x → Maybe.just (2nd halfNth)) ge (λ x₂ → {!!}) le {!!} where
       halfNth : Pair ℕ A
-      halfNth = isJustExtract halfNthMaybe (nthLengthGood (x₁ :: L) middleOfSearch lengthOfL (equalIsTrue (length L)) {!!}) where
+      halfNth = isJustExtract halfNthMaybe (nthLengthGood' (x₁ :: L) middleOfSearch lengthOfL (equalIsTrue (length L)) {!!}) where
         middleOfSearch : ℕ
         middleOfSearch = (start + end) div 2 withP refl -- note: proof might slow things down, maybe remove later?
         halfNthMaybe : Maybe (Pair ℕ A)
@@ -177,7 +202,8 @@ module lib (A : Set) where
         lengthOfL = length (x₁ :: L)
 
     findFast : (x : ℕ) → (L : List (Pair ℕ A)) → Maybe A
-    findFast x L = findFastHelper x 0 (length L) L
+    findFast x [] = Maybe.nothing
+    findFast x (x₁ :: L) = findFastHelper x 0 (length L) (x₁ :: L) tt {!tt!}
     {--
     findFast x [] = Maybe.nothing
     findFast x (x' :: l) = {!!} where
@@ -187,9 +213,9 @@ module lib (A : Set) where
         lengthOfL = length l
       --}
 
-    insert : (x : ℕ) → (y : A) → (L : List (Pair ℕ A)) → (List (Pair ℕ A))
-    insert x y [] =  (x , y) :: []
-    insert x y ((x' , y') :: L) = if x == x' then ((x , y) :: L) else {!!}
+    -- insert : (x : ℕ) → (y : A) → (L : List (Pair ℕ A)) → (List (Pair ℕ A))
+    -- insert x y [] =  (x , y) :: []
+    -- insert x y ((x' , y') :: L) = if x == x' then ((x , y) :: L) else {!!}
 
   data Tree (A : Set) : Set where
     null : Tree A
@@ -265,14 +291,16 @@ module lib (A : Set) where
         (if x < fst then (node (fst , snd) (delete x (node (fst' , snd') L L₁)) L') else (node (fst , snd) (node (fst' , snd') L L₁) (delete x L')))
 
 
-    sucMaybe : Maybe A -> Maybe A
-    sucMaybe (just x) = just {!suc x!}
-    sucMaybe nothing = {!!}
+    -- commented out to make things compile
+    -- sucMaybe : Maybe A -> Maybe A
+    -- sucMaybe (just x) = just {!suc x!}
+    -- sucMaybe nothing = {!!}
 
 
-    insertFindGood : (k : ℕ) (v : A) (l : Tree A) → find k (insert k v l) ≡ Maybe.just v
-    insertFindGood k v null = ifElimTrue (just v) nothing (k == k) (equalIsTrue k)
-    insertFindGood k v (leaf (k' , v')) = {!!}
+    -- commented out to make things compile
+    -- insertFindGood : (k : ℕ) (v : A) (l : Tree A) → find k (insert k v l) ≡ Maybe.just v
+    -- insertFindGood k v null = ifElimTrue (just v) nothing (k == k) (equalIsTrue k)
+    -- insertFindGood k v (leaf (k' , v')) = {!!}
     {--
     insertFindGood k v (leaf (k' , v')) = ifLifted k equal k' then
       (λ proofEqual → cong (λ a → find k {!a!}) (ifElimTrue (leaf (k , v)) {!!} (k == k') proofEqual))
@@ -285,7 +313,8 @@ Goal: find k
         node (k , v) null (leaf (k' , v'))))
       ≡ just v
       --}
-    insertFindGood k v (node x l l₁) = {!!}
+    -- insertFindGood k v (node x l l₁) = {!!}
+
     {--
     insertFindGood zero v (leaf (zero , snd₁)) = refl
     insertFindGood zero v (leaf (suc fst , snd₁)) = refl
