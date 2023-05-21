@@ -195,9 +195,10 @@ module lib (A : Set) where
     findNaive x [] = Maybe.nothing
     findNaive x ((fst , snd) :: L) = if x == fst then Maybe.just snd else findNaive x L
 
-    findFastHelper : (key start end : ℕ) → (L : List (Pair ℕ A)) → (fuel : ℕ) → ((fuel == 0) ≡ false) → (boundsGood L start) → (boundsGood L end) → Maybe A
+    -- findFastHelper : (key start end : ℕ) → (L : List (Pair ℕ A)) → (fuel : ℕ) → ((fuel == 0) ≡ false) → (boundsGood L start) → (boundsGood L end) → Maybe A
+    findFastHelper : (key start end : ℕ) → (L : List (Pair ℕ A)) → (fuel : ℕ) → (((end - start) < fuel) ≡ true) → (boundsGood L start) → (boundsGood L end) → Maybe A
     findFastHelper key start end [] fuel fuelNotEmpty startBoundGood endBoundGood = Maybe.nothing
-    findFastHelper key start end (x₁ :: L) 0 fuelNotEmpty startBoundGood endBoundGood = Cubical.Data.Empty.elim {A = λ _ → Maybe A} (true≢false fuelNotEmpty)
+    findFastHelper key start end (x₁ :: L) 0 fuelNotEmpty startBoundGood endBoundGood = Cubical.Data.Empty.elim {A = λ _ → Maybe A} (true≢false (sym fuelNotEmpty))
     findFastHelper key start end (x₁ :: L) (suc fuel) fuelNotEmpty startBoundGood endBoundGood = cmpLifted (1st halfNth) equal key then (λ x → Maybe.just (2nd halfNth))
       ge (λ x' → ifLifted start equal end then (λ _ → Maybe.nothing) else λ x → findFastHelper key start middleOfSearch (x₁ :: L) fuel {!!} startBoundGood boundsPreservedByMiddle)
       le  λ x' → ifLifted start equal end then (λ _ → Maybe.nothing) else λ x → findFastHelper key middleOfSearch end (x₁ :: L) fuel {!!} boundsPreservedByMiddle endBoundGood where
@@ -233,7 +234,10 @@ module lib (A : Set) where
 
     findFast : (x : ℕ) → (L : List (Pair ℕ A)) → Maybe A
     findFast x [] = Maybe.nothing
-    findFast x (x₁ :: L) = findFastHelper x 0 (length L) (x₁ :: L) (length (x₁ :: L)) refl tt {!tt!}
+    findFast x (x₁ :: L) = findFastHelper x 0 (length L) (x₁ :: L) (length (x₁ :: L)) (sucAlwaysGreater (length (x₁ :: L))) tt {!tt!} where
+      sucAlwaysGreater : (n : ℕ) → (n < suc n) ≡ true
+      sucAlwaysGreater zero = refl
+      sucAlwaysGreater (suc n) = sucAlwaysGreater n
     {--
     findFast x [] = Maybe.nothing
     findFast x (x' :: l) = {!!} where
