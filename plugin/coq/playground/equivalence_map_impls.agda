@@ -47,6 +47,8 @@ record Pair A B where
   field fst : A
         snd : B
 
+test : ℕ → ℕ
+test x = x
 
 module lib (A : Set) where
   if_then_else_true : (x y : Maybe A) -> (if true then x else y) ≡ x
@@ -195,49 +197,80 @@ module lib (A : Set) where
     findNaive x [] = Maybe.nothing
     findNaive x ((fst , snd) :: L) = if x == fst then Maybe.just snd else findNaive x L
 
-    -- findFastHelper : (key start end : ℕ) → (L : List (Pair ℕ A)) → (fuel : ℕ) → ((fuel == 0) ≡ false) → (boundsGood L start) → (boundsGood L end) → Maybe A
-    findFastHelper : (key start end : ℕ) → (L : List (Pair ℕ A)) → (fuel : ℕ) → (((end - start) < fuel) ≡ true) → (boundsGood L start) → (boundsGood L end) → Maybe A
-    findFastHelper key start end [] fuel fuelNotEmpty startBoundGood endBoundGood = Maybe.nothing
-    findFastHelper key start end (x₁ :: L) 0 fuelNotEmpty startBoundGood endBoundGood = Cubical.Data.Empty.elim {A = λ _ → Maybe A} (true≢false (sym fuelNotEmpty))
-    findFastHelper key start end (x₁ :: L) (suc fuel) fuelNotEmpty startBoundGood endBoundGood = cmpLifted (1st halfNth) equal key then (λ x → Maybe.just (2nd halfNth))
-      ge (λ x' → ifLifted start equal end then (λ _ → Maybe.nothing) else λ x → findFastHelper key start middleOfSearch (x₁ :: L) fuel {!!} startBoundGood boundsPreservedByMiddle)
-      le  λ x' → ifLifted start equal end then (λ _ → Maybe.nothing) else λ x → findFastHelper key middleOfSearch end (x₁ :: L) fuel {!!} boundsPreservedByMiddle endBoundGood where
-     -- ifLifted start equal end then {!!} else {!!} where
-      middleOfSearch : ℕ
-      middleOfSearch = (start + end) div 2 withP refl -- note: proof might slow things down, maybe remove later?
-      lengthOfL : ℕ
-      lengthOfL = length (x₁ :: L)
+    findFastHelper : (key start end : ℕ) → (L : List (Pair ℕ A)) → (fuel : ℕ) → Maybe A
+    findFastHelper key start end [] fuel = Maybe.nothing
+    findFastHelper key start end (x₁ :: L) 0 = Maybe.nothing
+    findFastHelper key start end (x₁ :: L) (suc fuel) with (let middleOfSearch = ((start + end) div 2) in
+                                                      (nth middleOfSearch (x₁ :: L)))
+    ...                                               | Maybe.just (fst , snd) with (key == fst) | (key < fst)
+    ...                                                 | true | _ = Maybe.just snd
+    ...                                                 | false | true = findFastHelper key start (let middleOfSearch = ((start + end) div 2 withP refl) in middleOfSearch) (x₁ :: L) fuel -- key is in first half
+    ...                                                 | false | false = findFastHelper key (let middleOfSearch = ((start + end) div 2 withP refl) in middleOfSearch) end (x₁ :: L) fuel -- key is in second half
+    findFastHelper key start end (x₁ :: L) (suc fuel) | Maybe.nothing = Maybe.nothing
 
-      div2AlwaysSmaller : (n : ℕ) → ((n == 0) ≡ false) → (n div 2 withP refl < n) ≡ true
-      div2AlwaysSmaller zero notZeroProof = Cubical.Data.Empty.elim {A = λ _ → (zero div 2 withP refl < zero) ≡ true} (true≢false notZeroProof)
-      div2AlwaysSmaller (suc zero) notZeroProof = refl
-      div2AlwaysSmaller (suc (suc zero)) notZeroProof = refl
-      div2AlwaysSmaller (suc (suc (suc n))) notZeroProof = cong (λ a → {!!}) (div2AlwaysSmaller (suc n) refl) -- {!!} ∙ div2AlwaysSmaller (suc n) refl ∙ refl
+--     commented out to make things compile
+--     -- if cmpLifted (1st {!!}) equal key then (λ x → Maybe.just (2nd {!!}))
+--     --   ge (λ x' → ifLifted start equal end then (λ _ → Maybe.nothing) else λ x → findFastHelper key start middleOfSearch (x₁ :: L) fuel )
+--     --   le  λ x' → ifLifted start equal end then (λ _ → Maybe.nothing) else λ x → findFastHelper key middleOfSearch end (x₁ :: L) fuel where
+--     --   middleOfSearch : ℕ
+--     --   middleOfSearch = (start + end) div 2 withP refl -- note: proof might slow things down, maybe remove later?
+--     --   halfNth : Maybe (Pair ℕ A)
+--     --   halfNth = {!!}
+--     -- proofs should get erased at compile-time, hopefully
+--     -- findFastHelper : (key start end : ℕ) → (L : List (Pair ℕ A)) → (fuel : ℕ) → ((fuel == 0) ≡ false) → (boundsGood L start) → (boundsGood L end) → Maybe A
+--     findFastHelperWithP : (key start end : ℕ) → (L : List (Pair ℕ A)) → (fuel : ℕ) → (((end - start) < fuel) ≡ true) → (boundsGood L start) → (boundsGood L end) → Maybe A
+--     findFastHelperWithP key start end [] fuel fuelNotEmpty startBoundGood endBoundGood = Maybe.nothing
+--     findFastHelperWithP key start end (x₁ :: L) 0 fuelNotEmpty startBoundGood endBoundGood = Cubical.Data.Empty.elim {A = λ _ → Maybe A} (true≢false (sym fuelNotEmpty))
+--     findFastHelperWithP key start end (x₁ :: L) (suc fuel) fuelNotEmpty startBoundGood endBoundGood = cmpLifted (1st halfNth) equal key then (λ x → Maybe.just (2nd halfNth))
+--       ge (λ x' → ifLifted start equal end then (λ _ → Maybe.nothing) else λ x → findFastHelperWithP key start middleOfSearch (x₁ :: L) fuel {!!} startBoundGood boundsPreservedByMiddle)
+--       le  λ x' → ifLifted start equal end then (λ _ → Maybe.nothing) else λ x → findFastHelperWithP key middleOfSearch end (x₁ :: L) fuel {!!} boundsPreservedByMiddle endBoundGood where
+--      -- ifLifted start equal end then {!!} else {!!} where
+--       middleOfSearch : ℕ
+--       middleOfSearch = (start + end) div 2 withP refl -- note: proof might slow things down, maybe remove later?
+--       lengthOfL : ℕ
+--       lengthOfL = length (x₁ :: L)
 
-      boundsPreservedByMiddleLem : (n m middle : ℕ) → boundsGood (x₁ :: L) n → boundsGood (x₁ :: L) m → (middle ≡ (n + m) div 2 withP refl) → boundsGood (x₁ :: L) middle
-      boundsPreservedByMiddleLem zero zero middle nBoundGood mBoundGood middleRefl = subst (λ x → boundsGood (x₁ :: L) x) (sym middleRefl) tt
-      boundsPreservedByMiddleLem zero (suc m) middle nBoundGood mBoundGood middleRefl = subst (λ x → boundsGood (x₁ :: L) x) (sym middleRefl) {!tt!}
-      boundsPreservedByMiddleLem (suc n) zero middle nBoundGood mBoundGood middleRefl = subst (λ x → boundsGood (x₁ :: L) x) (sym middleRefl) {!tt!}
-      boundsPreservedByMiddleLem (suc n) (suc m) middle nBoundGood mBoundGood middleRefl = subst (λ x → boundsGood (x₁ :: L ) x) (sym (sucSucDiv2IsJustSuc n m) ∙ sym middleRefl ∙ refl) {!!} where
-        sucSucDiv2IsJustSuc : (n m : ℕ) → (suc n + suc m) div 2 withP refl ≡ suc ((n + m) div 2 withP refl) -- (s n + s m) / 2 = s ((n + m) /2)
-        sucSucDiv2IsJustSuc zero zero = refl
-        sucSucDiv2IsJustSuc (suc n) zero = {!!} ∙ (sucSucDiv2IsJustSuc zero (suc n)) ∙ cong (λ a → suc (div-helper 0 1 a 0)) (sym (+-comm n zero))
-        sucSucDiv2IsJustSuc zero (suc m) = sucSucDiv2IsJustSuc 1 m
-        -- +-comm n zero
-        sucSucDiv2IsJustSuc (suc n) (suc m) = {!!}
-      boundsPreservedByMiddle : boundsGood (x₁ :: L) middleOfSearch
-      boundsPreservedByMiddle = boundsPreservedByMiddleLem start end middleOfSearch startBoundGood endBoundGood refl
-      halfNthMaybe : Maybe (Pair ℕ A)
-      halfNthMaybe = nth middleOfSearch (x₁ :: L)
-      halfNth : Pair ℕ A
-      halfNth = isJustExtract halfNthMaybe (nthLengthGood (x₁ :: L) middleOfSearch boundsPreservedByMiddle)
+--       div2AlwaysSmaller : (n : ℕ) → ((n == 0) ≡ false) → (n div 2 withP refl < n) ≡ true
+--       div2AlwaysSmaller zero notZeroProof = Cubical.Data.Empty.elim {A = λ _ → (zero div 2 withP refl < zero) ≡ true} (true≢false notZeroProof)
+--       div2AlwaysSmaller (suc zero) notZeroProof = refl
+--       div2AlwaysSmaller (suc (suc zero)) notZeroProof = refl
+--       div2AlwaysSmaller (suc (suc (suc n))) notZeroProof = cong (λ a → {!!}) (div2AlwaysSmaller (suc n) refl) -- {!!} ∙ div2AlwaysSmaller (suc n) refl ∙ refl
+
+--       sucSucDiv2IsJustSuc : (n m : ℕ) → (suc n + suc m) div 2 withP refl ≡ suc ((n + m) div 2 withP refl) -- (s n + s m) / 2 = s ((n + m) /2)
+--       sucSucDiv2IsJustSuc zero zero = refl
+--       sucSucDiv2IsJustSuc (suc n) zero = {!!} ∙ (sucSucDiv2IsJustSuc zero (suc n)) ∙ cong (λ a → suc (div-helper 0 1 a 0)) (sym (+-comm n zero))
+--       sucSucDiv2IsJustSuc zero (suc m) = sucSucDiv2IsJustSuc 1 m
+--       -- +-comm n zero
+--       sucSucDiv2IsJustSuc (suc n) (suc m) = {!!}
+
+--       boundsPreservedByMiddleLem : (n m middle : ℕ) → boundsGood (x₁ :: L) n → boundsGood (x₁ :: L) m → (middle ≡ (n + m) div 2 withP refl) → boundsGood (x₁ :: L) middle
+--       boundsPreservedByMiddleLem zero zero middle nBoundGood mBoundGood middleRefl = subst (λ x → boundsGood (x₁ :: L) x) (sym middleRefl) tt
+--       boundsPreservedByMiddleLem zero (suc zero) middle nBoundGood mBoundGood middleRefl = subst (λ x → boundsGood (x₁ :: L) x) (sym middleRefl) tt
+--       boundsPreservedByMiddleLem zero (suc (suc m)) middle nBoundGood mBoundGood middleRefl = subst (λ x → boundsGood (x₁ :: L) x) (sym middleRefl) {!!}
+-- -- subst : {y..1 : Level} {A = A₁ : Type y..1} {ℓ' : Level}
+-- -- {x = x₂ : A₁} {y : A₁} (B : A₁ → Type ℓ') →
+-- -- x₂ ≡ y → B x₂ → B y
+-- -- Goal: boundsGood (x₁ :: L) (div-helper 0 1 (n + zero) 0)
+--       boundsPreservedByMiddleLem (suc n) zero middle nBoundGood mBoundGood middleRefl = subst (λ x → boundsGood (x₁ :: L) x) (sym middleRefl)
+--                                                       (subst (λ x' → boundsGood (x₁ :: L) (div-helper 0 1 x' 0)) (sym (+-comm n zero))
+-- -- middle != div-helper 0 1 n 0 of type ℕ
+--                                                       (boundsPreservedByMiddleLem zero (suc n) {!!} mBoundGood nBoundGood ({!!}∙ middleRefl ∙ cong (λ x → div-helper 0 1 x 0) (+-comm n zero)))) --  (+-comm n zero) (boundsPreservedByMiddleLem zero (suc n) middle mBoundGood nBoundGood (middleRefl ∙ cong (λ x → div-helper 0 1 x 0) (+-comm n zero))))
+--       boundsPreservedByMiddleLem (suc n) (suc m) middle nBoundGood mBoundGood middleRefl = subst (λ x → boundsGood (x₁ :: L ) x) (sym (sucSucDiv2IsJustSuc n m) ∙ sym middleRefl ∙ refl) {!!}
+
+--       boundsPreservedByMiddle : boundsGood (x₁ :: L) middleOfSearch
+--       boundsPreservedByMiddle = boundsPreservedByMiddleLem start end middleOfSearch startBoundGood endBoundGood refl
+--       halfNthMaybe : Maybe (Pair ℕ A)
+--       halfNthMaybe = nth middleOfSearch (x₁ :: L)
+--       halfNth : Pair ℕ A
+--       halfNth = isJustExtract halfNthMaybe (nthLengthGood (x₁ :: L) middleOfSearch boundsPreservedByMiddle)
 
     findFast : (x : ℕ) → (L : List (Pair ℕ A)) → Maybe A
     findFast x [] = Maybe.nothing
-    findFast x (x₁ :: L) = findFastHelper x 0 (length L) (x₁ :: L) (length (x₁ :: L)) (sucAlwaysGreater (length (x₁ :: L))) tt {!tt!} where
-      sucAlwaysGreater : (n : ℕ) → (n < suc n) ≡ true
-      sucAlwaysGreater zero = refl
-      sucAlwaysGreater (suc n) = sucAlwaysGreater n
+    findFast x (x₁ :: L) = findFastHelper x 0 (length L) (x₁ :: L) (length (x₁ :: L))
+    -- findFast x (x₁ :: L) = findFastHelperWithP x 0 (length L) (x₁ :: L) (length (x₁ :: L)) (sucAlwaysGreater (length (x₁ :: L))) tt {!tt!} where
+    --   sucAlwaysGreater : (n : ℕ) → (n < suc n) ≡ true
+    --   sucAlwaysGreater zero = refl
+    --   sucAlwaysGreater (suc n) = sucAlwaysGreater n
     {--
     findFast x [] = Maybe.nothing
     findFast x (x' :: l) = {!!} where
