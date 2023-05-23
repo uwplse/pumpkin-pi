@@ -82,6 +82,13 @@ m +ℤ n = depElimIndZ
           (λ p → m +negsuc p)
           n
 
+add0LIndZ : (z : ℤ) → z ≡ (depConstrIndZPos 0) +ℤ z
+add0LIndZ z = depElimIndZ
+                (λ z → z ≡ (depConstrIndZPos 0) +ℤ z)
+                (λ n → Nat.elim {A = λ m → depConstrIndZPos m ≡ (depConstrIndZPos 0) +ℤ (depConstrIndZPos m)} refl (λ m Pm → cong sucℤ Pm) n)
+                (λ n → Nat.elim {A = λ m → depConstrIndZNegSuc m ≡ (depConstrIndZPos 0) +ℤ (depConstrIndZNegSuc m)} refl (λ m Pm → cong predℤ Pm) n)
+                z
+
 -- grothendieck group construction of ℤ
 
 R : (ℕ × ℕ) → (ℕ × ℕ) → Type
@@ -337,7 +344,11 @@ depElimGZ P set posP negsucP = SetQuotients.elim set func resp where
 
 ιGZPos : (P : GZ → Set) → (pset : ∀ x → isSet (P x)) → (posP : (n : ℕ) → P (depConstrGZPos n)) → (negSucP : (n : ℕ) → P (depConstrGZNegSuc n)) → (n : ℕ) →
     (Q : P (depConstrGZPos n) → Set) → Q (depElimGZ P pset posP negSucP (depConstrGZPos n)) → Q (posP n)
-ιGZPos P pset posP negSucP n Q Qp = subst (λ e → Q e) (ιGZPosEq P pset posP negSucP n) Qp 
+ιGZPos P pset posP negSucP n Q Qp = subst (λ e → Q e) (ιGZPosEq P pset posP negSucP n) Qp
+
+ιGZPos⁻ : (P : GZ → Set) → (pset : ∀ x → isSet (P x)) → (posP : (n : ℕ) → P (depConstrGZPos n)) → (negSucP : (n : ℕ) → P (depConstrGZNegSuc n)) → (n : ℕ) →
+    (Q : P (depConstrGZPos n) → Set) → Q (posP n) → Q (depElimGZ P pset posP negSucP (depConstrGZPos n))
+ιGZPos⁻ P pset posP negSucP n Q Qp = subst (λ e → Q e) (sym (ιGZPosEq P pset posP negSucP n)) Qp 
 
 ιGZNegSucEq : (P : GZ → Set) → (pset : (x : GZ) → isSet (P x)) → (posP : (n : ℕ) → P (depConstrGZPos n)) → (negSucP : (n : ℕ) → P (depConstrGZNegSuc n)) → (n : ℕ) →
     depElimGZ P pset posP negSucP (depConstrGZNegSuc n) ≡ negSucP n
@@ -380,31 +391,79 @@ sucGZ z = depElimGZ
 
 predGZ : GZ → GZ
 predGZ z = depElimGZ
-            (λ _ → GZ)
-            (λ _ → isSetGZ)
-            (λ n → Nat.elim
-              (depConstrGZNegSuc zero)
-              (λ m _ → depConstrGZPos m)
-              n)
-            (λ n → depConstrGZNegSuc (suc n))
-            z
+             (λ _ → GZ)
+             (λ _ → isSetGZ)
+             (λ n → Nat.elim
+               (depConstrGZNegSuc zero)
+               (λ m _ → depConstrGZPos m)
+               n)
+             (λ n → depConstrGZNegSuc (suc n))
+             z
 
 _+posGZ_ : GZ → ℕ → GZ
 z +posGZ n = Nat.elim
-             z
-             (λ _ p → sucGZ p)
-             n
+               z
+               (λ _ p → sucGZ p)
+               n
 
 _+negsucGZ_ : GZ → ℕ → GZ
 z +negsucGZ n = Nat.elim
-                (predGZ z)
-                (λ _ p → predGZ p)
-                n
+                  (predGZ z)
+                  (λ _ p → predGZ p)
+                  n
 
 _+GZ_ : GZ → GZ → GZ
 m +GZ n = depElimGZ
-          (λ _ → GZ)
-          (λ _ → isSetGZ)
-          (λ p → m +posGZ p)
-          (λ p → m +negsucGZ p)
-          n
+            (λ _ → GZ)
+            (λ _ → isSetGZ)
+            (λ p → m +posGZ p)
+            (λ p → m +negsucGZ p)
+            n
+
+add0LGZ : (z : GZ) → z ≡ (depConstrGZPos 0) +GZ z
+add0LGZ z = depElimGZ
+                (λ z → z ≡ (depConstrGZPos 0) +GZ z)
+                (λ x → isProp→isSet (isSetGZ x ((depConstrGZPos 0) +GZ x)))
+                (λ n → Nat.elim
+                          {A = λ m → depConstrGZPos m ≡ (depConstrGZPos 0) +GZ (depConstrGZPos m)}
+                          refl
+                          (λ m Pm → ιGZPos
+                                       (λ _ → GZ)
+                                       (λ _ → isSetGZ)
+                                       (λ n → depConstrGZPos (suc n))
+                                       (λ n → Nat.elim
+                                         (depConstrGZPos zero)
+                                         (λ m _ → depConstrGZNegSuc m )
+                                         n)
+                                       m
+                                       (λ s → s ≡ (depConstrGZPos 0) +GZ (depConstrGZPos (suc m))) --need to iota for +GZ and sucGZ separately
+                                       (ιGZPos⁻
+                                         (λ _ → GZ)
+                                         (λ _ → isSetGZ)
+                                         (λ p → depConstrGZPos 0 +posGZ p)
+                                         (λ p → depConstrGZPos 0 +negsucGZ p)
+                                         (suc m)
+                                         (λ s → depElimGZ
+                                                  (λ _ → GZ)
+                                                  (λ _ → isSetGZ)
+                                                  (λ n₁ → depConstrGZPos (suc n₁))
+                                                  (λ n₁ → Nat.elim (depConstrGZPos zero) (λ m₁ _ → depConstrGZNegSuc m₁) n₁)
+                                                  (depConstrGZPos m)
+                                                 ≡ s)
+                                         (ιGZPos
+                                           (λ _ → GZ)
+                                           (λ _ → isSetGZ)
+                                           (λ p → depConstrGZPos 0 +posGZ p)
+                                           (λ p → depConstrGZPos 0 +negsucGZ p)
+                                           m
+                                           (λ s → depElimGZ
+                                                  (λ _ → GZ)
+                                                  (λ _ → isSetGZ)
+                                                  (λ n₁ → depConstrGZPos (suc n₁))
+                                                  (λ n₁ → Nat.elim (depConstrGZPos zero) (λ m₁ _ → depConstrGZNegSuc m₁) n₁)
+                                                  (depConstrGZPos m)
+                                                 ≡ sucGZ s)
+                                           (cong sucGZ Pm))))
+                          n)
+                (λ n → Nat.elim {A = λ m → depConstrGZNegSuc m ≡ (depConstrGZPos 0) +GZ (depConstrGZNegSuc m)} refl {!!} n)
+                z
