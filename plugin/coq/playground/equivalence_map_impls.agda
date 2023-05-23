@@ -119,6 +119,44 @@ module lib (A : Set) where
       (k == k)
       (equalIsTrue k)
 
+    -- we need the values to have decidable equality to define the quotient relation
+    sorted : (l : List (Pair ℕ ℕ)) → Type
+    sorted [] = ⊤
+    sorted (x :: []) = ⊤
+    sorted ((zero , snd) :: ((fst' , snd') :: l)) = sorted ((fst' , snd') :: l)
+    sorted ((suc fst , snd) :: ((zero , snd') :: l)) = ⊥
+    sorted ((suc fst , snd) :: ((suc fst' , snd') :: l)) = sorted ((fst , snd) :: ((fst' , snd') :: l))
+
+    insertionSort : (k : ℕ ) → (v : ℕ ) →  List (Pair ℕ ℕ) → List (Pair ℕ ℕ)
+    insertionSort k v [] = (k , v) :: []
+    insertionSort k v ((k' , v') :: l) with (k == k')
+    ...                                   | true = (k , v) :: ((k' , v') :: l)
+    ...                                   | false with (k < k')
+    ...                                     | true =  (k , v) :: ((k' , v') :: l)
+    ...                                     | false = (k' , v') :: insertionSort k v l
+
+    sort : List (Pair ℕ ℕ) → List (Pair ℕ ℕ)
+    sort [] = []
+    sort ((fst₁ , snd₁) :: l) = insertionSort fst₁ snd₁ (sort l)
+
+    listEqual : List (Pair ℕ ℕ) → List (Pair ℕ ℕ) → Type
+    listEqual [] [] = ⊤
+    listEqual [] (x :: l') = ⊥
+    listEqual (x :: l) [] = ⊥
+    listEqual ((zero , zero) :: l) ((zero , zero) :: l') = listEqual l l'
+    listEqual ((zero , zero) :: l) ((zero , suc snd') :: l') = ⊥
+    listEqual ((zero , suc snd₁) :: l) ((zero , zero) :: l') = ⊥
+    listEqual ((zero , suc snd₁) :: l) ((zero , suc snd') :: l') = listEqual ((zero , snd₁) :: l) ((zero , snd') :: l')
+    listEqual ((zero , snd) :: l) ((suc fst' , snd') :: l') = ⊥
+    listEqual ((suc fst₁ , snd) :: l) ((zero , snd') :: l') = ⊥
+    listEqual ((suc fst₁ , snd) :: l) ((suc fst' , snd') :: l') = listEqual ((fst₁ , snd) :: l) ((fst' , snd') :: l')
+
+    rSort : (List (Pair ℕ ℕ)) → (List (Pair ℕ ℕ)) → Type
+    rSort l l' = listEqual (sort l) (sort l')
+
+    isSetList/sort : isSet (List (Pair ℕ ℕ) / rSort)
+    isSetList/sort = squash/
+
   module SortedList where
     length : List (Pair ℕ A) → ℕ -- todo: when compiling, swap out with O(1) impl
     length [] = 0
