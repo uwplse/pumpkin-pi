@@ -157,6 +157,10 @@ module lib (A : Set) where
     isSetList/sort : isSet (List (Pair ℕ ℕ) / rSort)
     isSetList/sort = squash/
 
+    isSetSortedList : isSet (Σ (List (Pair ℕ ℕ)) sorted)
+    isSetSortedList x y x₁ y₁ i = {!!}
+
+
   module SortedList where
     length : List (Pair ℕ A) → ℕ -- todo: when compiling, swap out with O(1) impl
     length [] = 0
