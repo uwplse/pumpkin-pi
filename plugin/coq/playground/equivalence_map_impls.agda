@@ -18,7 +18,16 @@ open import Agda.Builtin.Bool
 open import Agda.Builtin.Nat
 open import Cubical.Data.Nat
 open import Cubical.Data.Bool
+open import Cubical.Data.Bool.Properties
 open import Cubical.Data.Empty
+-- open import Agda.Builtin.Equality renaming (_≡_ to _≡'_; refl to refl')
+open import Cubical.Data.Equality renaming (
+  _≡_ to _≡'_
+  ; refl to refl'
+  ; sym to sym'
+  ; _∙_ to _∙'_
+  )
+
 
 data ⊤ : Type where
   tt : ⊤
@@ -139,6 +148,35 @@ module lib (A : Set) where
     sort [] = []
     sort ((fst₁ , snd₁) :: l) = insertionSort fst₁ snd₁ (sort l)
 
+    decFirstElmMaintainsSorted : (k v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((suc k , v) :: l) → sorted ((k , v) :: l)
+    decFirstElmMaintainsSorted k v [] x = tt
+-- Goal: sorted ((suc fst , snd) :: l)
+    decFirstElmMaintainsSorted zero v ((suc fst , snd) :: l) x' = {!!}
+    decFirstElmMaintainsSorted (suc k) v ((suc fst₁ , snd) :: l) x' = {!!}
+
+    prependLeqMaintainsSorted : (k v k' v' : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((k' , v') :: l) → ((k < k') or (k == k') ≡ true) → sorted ((k , v) :: ((k' , v') :: l))
+    prependLeqMaintainsSorted zero v k' v' l x x₁ = x
+    prependLeqMaintainsSorted (suc k) v zero v' l x x₁ = Cubical.Data.Empty.elim (true≢false (sym x₁))
+    prependLeqMaintainsSorted (suc k) v (suc k') v' l x x₁ = prependLeqMaintainsSorted k v k' v' l (decFirstElmMaintainsSorted k' v' l x) x₁
+
+    orIntroL : {l r : Bool} (p : l ≡ true) → l or r ≡ true
+    orIntroL {false} p = Cubical.Data.Empty.elim (true≢false (sym p))
+    orIntroL {true} p = refl
+
+    orIntroR : {l r : Bool} (p : r ≡ true) → l or r ≡ true
+    orIntroR {r = false} p = Cubical.Data.Empty.elim (true≢false (sym p))
+    orIntroR {l} {r = true} p = or-comm l true
+
+
+    insertionSortΣ : (k v : ℕ) → Σ (List (Pair ℕ ℕ)) sorted → Σ (List (Pair ℕ ℕ)) sorted
+    insertionSortΣ k v ([] , proofSorted) = ((k , v) :: []) , tt
+    insertionSortΣ k v (((k' , v') :: l) , proofSorted) with (k == k') in eqProof
+    ...                                                   | true = (k , v) :: ((k' , v') :: l) , prependLeqMaintainsSorted k v k' v' l proofSorted (orIntroR (eqToPath eqProof))
+    ...                                                   | false with (k < k') in leqProof
+    ...                                                     | true = ((k , v) :: ((k' , v') :: l)) , prependLeqMaintainsSorted k v k' v' l proofSorted (orIntroL (eqToPath leqProof))
+    ...                                                     | false = let recVal = insertionSortΣ k v ((l , {!proofSorted!})) in ((k' , v') :: {!insertionSortΣ!}) , {!!}
+
+
     listEqual : List (Pair ℕ ℕ) → List (Pair ℕ ℕ) → Type
     listEqual [] [] = ⊤
     listEqual [] (x :: l') = ⊥
@@ -160,6 +198,15 @@ module lib (A : Set) where
     isSetSortedList : isSet (Σ (List (Pair ℕ ℕ)) sorted)
     isSetSortedList x y x₁ y₁ i = {!!}
 
+
+    g : ((List (Pair ℕ ℕ)) / rSort) → Σ (List (Pair ℕ ℕ)) sorted
+    g [ [] ] =  [] , tt
+    g [ (k , v) :: a ] = insertionSortΣ k v (g [ a ])
+    g (eq/ a b r i) = {!!}
+    g (squash/ x x₁ p q i i₁) = {!!}
+
+    f : Σ (List (Pair ℕ ℕ)) sorted → (List (Pair ℕ ℕ) / rSort)
+    f (fst , snd) = [ fst ]
 
   module SortedList where
     length : List (Pair ℕ A) → ℕ -- todo: when compiling, swap out with O(1) impl
