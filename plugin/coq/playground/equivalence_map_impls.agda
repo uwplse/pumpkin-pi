@@ -129,12 +129,20 @@ module lib (A : Set) where
       (equalIsTrue k)
 
     -- we need the values to have decidable equality to define the quotient relation
+    -- sorted : (l : List (Pair ℕ ℕ)) → Type
+    -- sorted [] = ⊤
+    -- sorted (x :: []) = ⊤
+    -- sorted ((zero , snd) :: ((fst' , snd') :: l)) = sorted ((fst' , snd') :: l)
+    -- sorted ((suc fst , snd) :: ((zero , snd') :: l)) = ⊥
+    -- sorted ((suc fst , snd) :: ((suc fst' , snd') :: l)) = sorted ((fst , snd) :: ((fst' , snd') :: l))
     sorted : (l : List (Pair ℕ ℕ)) → Type
     sorted [] = ⊤
     sorted (x :: []) = ⊤
-    sorted ((zero , snd) :: ((fst' , snd') :: l)) = sorted ((fst' , snd') :: l)
-    sorted ((suc fst , snd) :: ((zero , snd') :: l)) = ⊥
-    sorted ((suc fst , snd) :: ((suc fst' , snd') :: l)) = sorted ((fst , snd) :: ((fst' , snd') :: l))
+    sorted ((k , v) :: ((k' , v') :: l)) with (k < k')
+    ...                                     | true = ⊤
+    ...                                     | false with (k == k')
+    ...                                       | true = ⊤
+    ...                                       | false = ⊥
 
     insertionSort : (k : ℕ ) → (v : ℕ ) →  List (Pair ℕ ℕ) → List (Pair ℕ ℕ)
     insertionSort k v [] = (k , v) :: []
@@ -155,9 +163,9 @@ module lib (A : Set) where
     decFirstElmMaintainsSorted (suc k) v ((suc fst₁ , snd) :: l) x' = {!!}
 
     prependLeqMaintainsSorted : (k v k' v' : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((k' , v') :: l) → ((k < k') or (k == k') ≡ true) → sorted ((k , v) :: ((k' , v') :: l))
-    prependLeqMaintainsSorted zero v k' v' l x x₁ = x
+    prependLeqMaintainsSorted zero v k' v' l x x₁ = {!!}
     prependLeqMaintainsSorted (suc k) v zero v' l x x₁ = Cubical.Data.Empty.elim (true≢false (sym x₁))
-    prependLeqMaintainsSorted (suc k) v (suc k') v' l x x₁ = prependLeqMaintainsSorted k v k' v' l (decFirstElmMaintainsSorted k' v' l x) x₁
+    prependLeqMaintainsSorted (suc k) v (suc k') v' l x x₁ = {!!} -- prependLeqMaintainsSorted k v k' v' l (decFirstElmMaintainsSorted k' v' l x) x₁
 
     orIntroL : {l r : Bool} (p : l ≡ true) → l or r ≡ true
     orIntroL {false} p = Cubical.Data.Empty.elim (true≢false (sym p))
@@ -167,6 +175,35 @@ module lib (A : Set) where
     orIntroR {r = false} p = Cubical.Data.Empty.elim (true≢false (sym p))
     orIntroR {l} {r = true} p = or-comm l true
 
+    zeroFrontAlwaysOk : (v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted l → sorted ((zero , v) :: l)
+    zeroFrontAlwaysOk v [] proofSortedL = tt
+    zeroFrontAlwaysOk v ((fst₁ , snd₁) :: l) proofSortedL = {!!} -- proofSortedL
+
+    zeroFrontAlwaysOk' : (v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((zero , v) :: l) → sorted l
+    zeroFrontAlwaysOk' v [] proofSortedL = tt
+    zeroFrontAlwaysOk' v ((fst₁ , snd₁) :: l) proofSortedL = {!!} -- proofSortedL
+
+    decFrontAlwaysOk : (k v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((suc k , v) :: l) → sorted ((k , v) :: l)
+    decFrontAlwaysOk k v [] proofSorted = tt
+-- proofSorted : sorted (suc zero , v) :: (suc k' , v') :: l
+-- proofSorted : sorted (zero , v) :: (k' , v') :: l
+-- proofSorted : sorted (k' , v') :: l
+-- Goal: sorted ((suc k' , v') :: l)
+    decFrontAlwaysOk zero v ((suc k' , v') :: []) proofSorted = tt
+    decFrontAlwaysOk zero v ((suc zero , v') :: ((zero , v'') :: l)) proofSorted = {!!}
+    decFrontAlwaysOk zero v ((suc zero , v') :: ((suc k'' , v'') :: l)) proofSorted = {!!}
+    decFrontAlwaysOk zero v ((suc (suc k') , v') :: ((k'' , v'') :: l)) proofSorted = {!!}
+    -- decFrontAlwaysOk zero v ((suc k' , v') :: []) proofSorted = tt
+    -- decFrontAlwaysOk zero v ((suc k' , v') :: ((zero , v'') :: l)) proofSorted = {!proofSorted!}
+    -- decFrontAlwaysOk zero v ((suc k' , v') :: ((suc k'' , v'') :: l)) proofSorted = {!!}
+    decFrontAlwaysOk (suc k) v ((suc k' , v') :: l) proofSorted = {!!} -- decFrontAlwaysOk k v ((k' , v') :: l) proofSorted
+
+    popSortedMaintainsSorted : (k v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((k , v) :: l) → sorted l
+    popSortedMaintainsSorted k v [] proofSorted = tt
+    popSortedMaintainsSorted zero v ((k' , v') :: l) proofSorted = {!!} -- proofSorted
+    popSortedMaintainsSorted (suc k) v ((k' , v') :: l) proofSorted = popSortedMaintainsSorted k v ((k' , v') :: l) (decFrontAlwaysOk k v ((k' , v') :: l) proofSorted)
+    -- popSortedMaintainsSorted k v ((suc k' , v') :: l) proofSorted = popSortedMaintainsSorted (suc k') v' {!!} {!!}
+    -- popSortedMaintainsSorted k v ((k' , v') :: (x :: l)) proofSorted = {!!} -- popSortedMaintainsSorted k' v' {! {!!} :: l!} {!!}
 
     insertionSortΣ : (k v : ℕ) → Σ (List (Pair ℕ ℕ)) sorted → Σ (List (Pair ℕ ℕ)) sorted
     insertionSortΣ k v ([] , proofSorted) = ((k , v) :: []) , tt
@@ -174,7 +211,10 @@ module lib (A : Set) where
     ...                                                   | true = (k , v) :: ((k' , v') :: l) , prependLeqMaintainsSorted k v k' v' l proofSorted (orIntroR (eqToPath eqProof))
     ...                                                   | false with (k < k') in leqProof
     ...                                                     | true = ((k , v) :: ((k' , v') :: l)) , prependLeqMaintainsSorted k v k' v' l proofSorted (orIntroL (eqToPath leqProof))
-    ...                                                     | false = let recVal = insertionSortΣ k v ((l , {!proofSorted!})) in ((k' , v') :: {!insertionSortΣ!}) , {!!}
+    ...                                                     | false with (insertionSortΣ k v ((l , popSortedMaintainsSorted k' v' l proofSorted)))
+    ...                                                       | ([] , snd') = ((k' , v') :: [] , tt) -- this case will never happen
+    ...                                                       | ((k'' , v'') :: l' , proofSorted') = (((k' , v') :: ((k'' , v'') :: l')) , prependLeqMaintainsSorted k' v' k'' v'' l' proofSorted' {!!})
+                                                                        -- ((k' , v') :: l') , prependLeqMaintainsSorted {!k'!} {!!} {!!} {!!} {!!} {!!} {!!}
 
 
     listEqual : List (Pair ℕ ℕ) → List (Pair ℕ ℕ) → Type
