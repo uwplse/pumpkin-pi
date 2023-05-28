@@ -203,13 +203,15 @@ module lib (A : Set) where
     decFrontAlwaysOk : (k v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((suc k , v) :: l) → sorted ((k , v) :: l)
     decFrontAlwaysOk k v [] proofSorted = tt
     decFrontAlwaysOk zero v ((suc k' , v') :: l) proofSorted = tt
-    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted with (k < suc k') in leProof
-    ...                                                                 | true = tt
-    ...                                                                 | false with (k == suc k') in eqProof
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted with (k < suc k') in leProof' -- need to use fact that this is decidable, recusring forever is not gonna work
     ...                                                                   | true = tt
-    ...                                                                   | false with (k < k') in leProof' -- need to use fact that this is decidable, recusring forever is not gonna work
-    ...                                                                     | true = let recLem = incPreservesLeRel k k' (eqToPath leProof') in Cubical.Data.Empty.elim (true≢false (sym recLem ∙ {!eqToPath leProof!}))
-    ...                                                                     | false = {!!}
+    ...                                                                   | false with (k == suc k') in eqProof'
+    ...                                                                             | true = tt
+    ...                                                                             | false with k
+    ...                                                                                      | zero = Cubical.Data.Empty.elim (true≢false (eqToPath leProof'))
+    ...                                                                                      | suc x with k'
+    ...                                                                                               | zero = proofSorted
+    ...                                                                                               | suc y = {!!} -- rec here
 
     popSortedMaintainsSorted : (k v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((k , v) :: l) → sorted l
     popSortedMaintainsSorted k v [] proofSorted = tt
