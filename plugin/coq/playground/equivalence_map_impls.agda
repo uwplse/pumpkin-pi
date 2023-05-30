@@ -59,8 +59,8 @@ record Pair A B where
 test : ℕ → ℕ
 test x = x
 
-module lib (A : Set) where
-  if_then_else_true : (x y : Maybe A) -> (if true then x else y) ≡ x
+module lib where
+  if_then_else_true : (x y : Maybe ℕ) -> (if true then x else y) ≡ x
   if_then_else_true x y = refl
 
   equalIsTrue : (x : ℕ) -> (x == x) ≡ true
@@ -73,12 +73,12 @@ module lib (A : Set) where
 --}
 
 
-  -- ifElimTrue : (x y : Maybe A) (b : Bool) -> (b ≡ true) -> (if b then x else y) ≡ x
+  -- ifElimTrue : (x y : Maybe ℕ) (b : Bool) -> (b ≡ true) -> (if b then x else y) ≡ x
   -- ifElimTrue x y b proofTrue = cong (λ b -> if b then x else y) proofTrue
-  ifElimTrue : {A : Set} (x y : A) (b : Bool) -> (b ≡ true) -> (if b then x else y) ≡ x
+  ifElimTrue : {ℕ : Set} (x y : ℕ) (b : Bool) -> (b ≡ true) -> (if b then x else y) ≡ x
   ifElimTrue x y b proofTrue = cong (λ b -> if b then x else y) proofTrue
 
-  ifElimFalse : (x y : Maybe A) (b : Bool) -> (b ≡ false) -> (if b then x else y) ≡ y
+  ifElimFalse : (x y : Maybe ℕ) (b : Bool) -> (b ≡ false) -> (if b then x else y) ≡ y
   ifElimFalse x y b proofTrue = cong (λ b -> if b then x else y) proofTrue
 
   -- in the future, maybe generalize to types with decidable equalities
@@ -103,22 +103,22 @@ module lib (A : Set) where
 
   module NaiveList where
 
-    find : (x : ℕ) → (L : List (Pair ℕ A)) → Maybe A
+    find : (x : ℕ) → (L : List (Pair ℕ ℕ)) → Maybe ℕ
     find x [] = Maybe.nothing
     find x ((fst , snd) :: L) = if x == fst then Maybe.just snd else find x L
 
-    insert' : (x : ℕ) → (y : A) → (L : List (Pair ℕ A)) → (List (Pair ℕ A))
+    insert' : (x : ℕ) → (y : ℕ) → (L : List (Pair ℕ ℕ)) → (List (Pair ℕ ℕ))
     insert' x y L =  (x , y) :: L
 
-    delete : (x : ℕ) → (L : List (Pair ℕ A)) → List (Pair ℕ A)
+    delete : (x : ℕ) → (L : List (Pair ℕ ℕ)) → List (Pair ℕ ℕ)
     delete x [] = []
     delete x ((fst , snd) :: L) = if x == fst then L else ((fst , snd) :: delete x L)
 
     -- do not allow dup keys; if dup, will overwrite
-    insert : (x : ℕ) → (y : A) → (L : List (Pair ℕ A)) → (List (Pair ℕ A))
+    insert : (x : ℕ) → (y : ℕ) → (L : List (Pair ℕ ℕ)) → (List (Pair ℕ ℕ))
     insert x y L = insert' x y (delete x L)
 
-    insertFindGood : (k : ℕ) (v : A) (l : List (Pair ℕ A)) → find k (insert k v l) ≡ Maybe.just v
+    insertFindGood : (k : ℕ) (v : ℕ) (l : List (Pair ℕ ℕ)) → find k (insert k v l) ≡ Maybe.just v
     insertFindGood k v [] = ifElimTrue (just v) nothing (k == k) (equalIsTrue k)
     insertFindGood zero v ((zero , snd) :: l) = refl
     insertFindGood zero v ((suc fst , snd) :: l) = refl
@@ -138,11 +138,12 @@ module lib (A : Set) where
     sorted : (l : List (Pair ℕ ℕ)) → Type
     sorted [] = ⊤
     sorted (x :: []) = ⊤
-    sorted ((k , v) :: ((k' , v') :: l)) with (k < k')
-    ...                                     | true = ⊤
-    ...                                     | false with (k == k')
-    ...                                       | true = ⊤
-    ...                                       | false = ⊥
+    sorted ((k , v) :: ((k' , v') :: l)) with (sorted ((k' , v') :: l)) -- rewritten to satify termination checking
+    ...                                     | res with (k < k')
+    ...                                            | true = res
+    ...                                            | false with (k == k')
+    ...                                                     | true = res
+    ...                                                     | false = ⊥
 
     insertionSort : (k : ℕ ) → (v : ℕ ) →  List (Pair ℕ ℕ) → List (Pair ℕ ℕ)
     insertionSort k v [] = (k , v) :: []
@@ -157,7 +158,7 @@ module lib (A : Set) where
     sort ((fst₁ , snd₁) :: l) = insertionSort fst₁ snd₁ (sort l)
 
     decFirstElmMaintainsSorted : (k v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((suc k , v) :: l) → sorted ((k , v) :: l)
-    decFirstElmMaintainsSorted k v [] x = tt
+    decFirstElmMaintainsSorted k v [] x = {!!}
 -- Goal: sorted ((suc fst , snd) :: l)
     decFirstElmMaintainsSorted zero v ((suc fst , snd) :: l) x' = {!!}
     decFirstElmMaintainsSorted (suc k) v ((suc fst₁ , snd) :: l) x' = {!!}
@@ -177,16 +178,36 @@ module lib (A : Set) where
 
     zeroFrontAlwaysOk : (v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted l → sorted ((zero , v) :: l)
     zeroFrontAlwaysOk v [] proofSortedL = tt
-    zeroFrontAlwaysOk v ((zero , snd) :: l) proofSortedL = tt
-    zeroFrontAlwaysOk v ((suc fst₁ , snd) :: l) proofSortedL = tt
+    zeroFrontAlwaysOk v ((zero , snd) :: []) proofSortedL = tt
+    zeroFrontAlwaysOk v ((zero , snd) :: ((fst' , snd') :: l)) proofSortedL = {!!}
+    zeroFrontAlwaysOk v ((suc fst₁ , snd) :: l) proofSortedL = {!!}
+
+-- {y..1 : Level} {A = A₁ : Type y..1} {ℓ' : Level} {x y : A₁}
+-- (B : A₁ → Type ℓ') →
+-- x ≡ y → B x → B y
+    liftNatEquiv : (x y : ℕ) → ((x == y) ≡ true) → x ≡ y
+    liftNatEquiv zero zero x₁ = refl
+    liftNatEquiv zero (suc y) x₁ = Cubical.Data.Empty.elim (false≢true x₁)
+    liftNatEquiv (suc x) zero x₁ = Cubical.Data.Empty.elim (false≢true x₁)
+    liftNatEquiv (suc x) (suc y) x₁ = congPath suc (liftNatEquiv x y x₁)
 
     zeroFrontAlwaysOk' : (v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((zero , v) :: l) → sorted l
     zeroFrontAlwaysOk' v [] proofSortedL = tt
-    zeroFrontAlwaysOk' v ((k' , v') :: l) proofSortedL with (zero < k')
-    ...                                                  | true = {!proofSortedL!}
-    ...                                                  | false with zero == k'
-    ...                                                    | true = {!!}
-    ...                                                    | false = Cubical.Data.Empty.elim proofSortedL
+    zeroFrontAlwaysOk' v ((k' , v') :: l) proofSortedL with (zero < k') in leProof
+-- Goal: sorted ((k' , v') :: l)
+-- ————————————————————————————————————————————————————————————
+-- proofSortedL
+--         : ⊤
+-- l       : List (Pair ℕ ℕ)
+-- v'      : ℕ
+-- v       : ℕ
+-- A       : Type
+-- leProof : (0 < k') ≡' true
+-- k'      : ℕ
+    ...                                                  | true = let leProof' = (eqToPath leProof) in substPath (λ k' → sorted (((k' , v')) :: l)) {!!} {!!}
+    ...                                                  | false with zero == k' in eqProof
+    ...                                                    | true = let eqProof' = (liftNatEquiv zero k' (eqToPath eqProof)) in substPath (λ k' → sorted (((k' , v')) :: l)) eqProof' {!zeroFrontAlwaysOk' v' l!}
+    ...                                                    | false = Cubical.Data.Empty.elim {!!}
 
     decPreservesLeRel : (x y : ℕ) → (((suc x) < y) ≡ true) → ((x < y) ≡ true)
     decPreservesLeRel zero zero proofLePrem = proofLePrem
@@ -200,21 +221,62 @@ module lib (A : Set) where
     incPreservesLeRel (suc x) zero proofLePrem = proofLePrem
     incPreservesLeRel (suc x) (suc y) proofLePrem = incPreservesLeRel x y proofLePrem
 
+    decNeqPreservesLeRel : (x y : ℕ) → ((x < suc y) ≡ false) → ((x == suc y) ≡ false) → ((x < y) ≡ false)
+    decNeqPreservesLeRel zero y p1 p2 = Cubical.Data.Empty.elim (true≢false p1)
+    decNeqPreservesLeRel (suc x) zero p1 p2 = refl
+    decNeqPreservesLeRel (suc x) (suc y) p1 p2 = decNeqPreservesLeRel x y p1 p2
+
     decFrontAlwaysOk : (k v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((suc k , v) :: l) → sorted ((k , v) :: l)
     decFrontAlwaysOk k v [] proofSorted = tt
-    decFrontAlwaysOk zero v ((suc k' , v') :: l) proofSorted = tt
-    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted with (k < suc k') in leProof' -- need to use fact that this is decidable, recusring forever is not gonna work
-    ...                                                                   | true = tt
-    ...                                                                   | false with (k == suc k') in eqProof'
-    ...                                                                             | true = tt
-    ...                                                                             | false with k
-    ...                                                                                      | zero = Cubical.Data.Empty.elim (true≢false (eqToPath leProof'))
-    ...                                                                                      | suc x with k'
-    ...                                                                                               | zero = proofSorted
-    ...                                                                                               | suc y = {!!} -- rec here
+    decFrontAlwaysOk zero v ((suc k' , v') :: l) proofSorted = {!!}
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted = {!!}
+
+    -- to prove the above, we need to generalize
+    decFrontN : ℕ → List (Pair ℕ ℕ) → List (Pair ℕ ℕ)
+    decFrontN x [] = []
+    decFrontN zero (x :: l) = x :: l
+    decFrontN (suc x) ((zero , snd) :: l) = (zero , snd) :: decFrontN x l
+    decFrontN (suc x) ((suc fst , snd) :: l) = (fst , snd) :: (decFrontN x l)
+
+    decFrontAlwaysOkGen : (x : ℕ) → (l : List (Pair ℕ ℕ)) → sorted l → sorted (decFrontN x l)
+    decFrontAlwaysOkGen zero [] proofSorted = proofSorted
+    decFrontAlwaysOkGen zero (x :: l) proofSorted = proofSorted
+    decFrontAlwaysOkGen (suc x) [] proofSorted = {!!}
+    decFrontAlwaysOkGen (suc x) ((zero , snd) :: l) proofSorted = zeroFrontAlwaysOk snd (decFrontN x l) (decFrontAlwaysOkGen x l (zeroFrontAlwaysOk' snd l proofSorted))
+    decFrontAlwaysOkGen (suc x) ((suc fst , snd) :: []) proofSorted = {!!}
+-- Goal: sorted ((fst , snd) :: decFrontN x ((fst' , snd') :: l))
+-- ————————————————————————————————————————————————————————————
+-- proofSorted
+--      : sorted A ((suc fst , snd) :: ((fst' , snd') :: l))
+--        | suc fst < fst'
+-- l    : List (Pair ℕ ℕ)
+-- snd' : ℕ
+-- fst' : ℕ
+-- snd  : ℕ
+-- fst  : ℕ
+-- x    : ℕ
+-- A    : Type
+-- subst : {y..1 : Level} {A : Type y..1} {ℓ' : Level} {x y : A}
+-- (B : A → Type ℓ') →
+-- x ≡ y → B x → B y
+    decFrontAlwaysOkGen (suc x) ((suc fst , snd) :: ((fst' , snd') :: l)) proofSorted with (suc fst < fst') in leProof
+    ...                                                                                 | true = {!!}
+    ...                                                                                 | false with (suc fst == fst') in eqProof
+    ...                                                                                          | true = {!!}
+    ...                                                                                          | false = {!!}
+
+    -- subst (λ x' → sorted x') (sym (lem fst snd (((fst' , snd')) :: l))) {!!} where -- subst (λ x' → sorted x') (sym (lem fst snd ((fst' , snd') :: l))) where
+    --                                                                   lem : (fst snd : ℕ) → (l : List (Pair ℕ ℕ)) → ((fst , snd) :: decFrontN x l) ≡ (decFrontN (suc x) ((suc fst , snd) :: l))
+    --                                                                   lem fst snd l = {!!}
+    -- decFrontAlwaysOkGen (suc x) ((suc fst , snd) :: l) proofSorted = subst (λ x' → sorted x' ) (sym (lem fst snd l)) {!!} where
+    --                                                                   lem : (fst snd : ℕ) → (l : List (Pair ℕ ℕ)) → ((fst , snd) :: decFrontN x l) ≡ (decFrontN (suc x) ((suc fst , snd) :: l))
+    --                                                                   lem fst snd l = {!!}
+
+    decFrontAlwaysOk' : (k v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((suc k , v) :: l) → sorted ((k , v) :: l)
+    decFrontAlwaysOk' k v l x = let lem = decFrontAlwaysOkGen 1 ((suc k , v) :: l) in {!!}
 
     popSortedMaintainsSorted : (k v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((k , v) :: l) → sorted l
-    popSortedMaintainsSorted k v [] proofSorted = tt
+    popSortedMaintainsSorted k v [] proofSorted = {!!}
 -- Goal: sorted ((k' , v') :: l)
 -- ————————————————————————————————————————————————————————————
 -- proofSorted
@@ -223,21 +285,27 @@ module lib (A : Set) where
     ...                                                            | true = {!proofSorted!}
     ...                                                            | false with zero == k' in eqProof
     ...                                                              | true = {!!}
-    ...                                                              | false = Cubical.Data.Empty.elim proofSorted
+    ...                                                              | false = Cubical.Data.Empty.elim {!!}
     popSortedMaintainsSorted (suc k) v ((k' , v') :: l) proofSorted = popSortedMaintainsSorted k v ((k' , v') :: l) (decFrontAlwaysOk k v ((k' , v') :: l) proofSorted)
     -- popSortedMaintainsSorted k v ((suc k' , v') :: l) proofSorted = popSortedMaintainsSorted (suc k') v' {!!} {!!}
     -- popSortedMaintainsSorted k v ((k' , v') :: (x :: l)) proofSorted = {!!} -- popSortedMaintainsSorted k' v' {! {!!} :: l!} {!!}
 
-    insertionSortΣ : (k v : ℕ) → Σ (List (Pair ℕ ℕ)) sorted → Σ (List (Pair ℕ ℕ)) sorted
-    insertionSortΣ k v ([] , proofSorted) = ((k , v) :: []) , tt
-    insertionSortΣ k v (((k' , v') :: l) , proofSorted) with (k == k') in eqProof
-    ...                                                   | true = (k , v) :: ((k' , v') :: l) , prependLeqMaintainsSorted k v k' v' l proofSorted (orIntroR (eqToPath eqProof))
-    ...                                                   | false with (k < k') in leqProof
-    ...                                                     | true = ((k , v) :: ((k' , v') :: l)) , prependLeqMaintainsSorted k v k' v' l proofSorted (orIntroL (eqToPath leqProof))
-    ...                                                     | false with (insertionSortΣ k v ((l , popSortedMaintainsSorted k' v' l proofSorted)))
-    ...                                                       | ([] , snd') = ((k' , v') :: [] , tt) -- this case will never happen
-    ...                                                       | ((k'' , v'') :: l' , proofSorted') = (((k' , v') :: ((k'' , v'') :: l')) , prependLeqMaintainsSorted k' v' k'' v'' l' proofSorted' {!!})
+    -- this func is separated *just* to make Agda's termination checking happy
+    insertionSortTerm : (k v : ℕ) → (l : (List (Pair ℕ ℕ))) → sorted l → Σ (List (Pair ℕ ℕ)) sorted
+    insertionSortTerm k v [] proofSorted = ((k , v) :: []) , tt
+    insertionSortTerm k v ((k' , v') :: l) proofSorted with (insertionSortTerm k v l (popSortedMaintainsSorted k' v' l proofSorted))
+    ...                                                   | ([] , proofSorted') = ((k' , v') :: [] , tt) -- will never happen
+    ...                                                   | ((k'' , v'') :: l' , proofSorted') with (k == k') in eqProof
+    ...                                                          | true = (k , v) :: ((k' , v') :: l) , prependLeqMaintainsSorted k v k' v' l proofSorted (orIntroR (eqToPath eqProof))
+    ...                                                          | false with (k < k') in leqProof
+    ...                                                                   | true = ((k , v) :: ((k' , v') :: l)) , prependLeqMaintainsSorted k v k' v' l proofSorted (orIntroL (eqToPath leqProof))
+    ...                                                                   | false = (((k' , v') :: ((k'' , v'') :: l')) , prependLeqMaintainsSorted k' v' k'' v'' l' proofSorted' {!!})
+    -- ...                                                                            | ([] , snd') = ((k' , v') :: [] , {!!}) -- this case will never happen
+    -- ...                                                                            | ((k'' , v'') :: l' , proofSorted') = (((k' , v') :: ((k'' , v'') :: l')) , prependLeqMaintainsSorted k' v' k'' v'' l' proofSorted' {!!})
                                                                         -- ((k' , v') :: l') , prependLeqMaintainsSorted {!k'!} {!!} {!!} {!!} {!!} {!!} {!!}
+
+    insertionSortΣ : (k v : ℕ) → Σ (List (Pair ℕ ℕ)) sorted → Σ (List (Pair ℕ ℕ)) sorted
+    insertionSortΣ k v (fst , snd) = insertionSortTerm k v fst snd
 
 
     listEqual : List (Pair ℕ ℕ) → List (Pair ℕ ℕ) → Type
@@ -261,9 +329,12 @@ module lib (A : Set) where
     isSetSortedList : isSet (Σ (List (Pair ℕ ℕ)) sorted)
     isSetSortedList x y x₁ y₁ i = {!!}
 
+    sortedEmpty : (l : List (Pair ℕ ℕ)) → l ≡ [] → sorted l
+    sortedEmpty [] x = {!!}
+    sortedEmpty (x₁ :: l) x = {!!}
 
     g : ((List (Pair ℕ ℕ)) / rSort) → Σ (List (Pair ℕ ℕ)) sorted
-    g [ [] ] =  [] , tt
+    g [ [] ] =  [] , {!!}
     g [ (k , v) :: a ] = insertionSortΣ k v (g [ a ])
     g (eq/ a b r i) = {!!}
     g (squash/ x x₁ p q i i₁) = {!!}
@@ -272,7 +343,7 @@ module lib (A : Set) where
     f (fst , snd) = [ fst ]
 
   module SortedList where
-    length : List (Pair ℕ A) → ℕ -- todo: when compiling, swap out with O(1) impl
+    length : List (Pair ℕ ℕ) → ℕ -- todo: when compiling, swap out with O(1) impl
     length [] = 0
     length (x :: x₁) = 1 + length x₁
 
@@ -302,26 +373,26 @@ module lib (A : Set) where
 
     -- div-helper 0 1 10 1
 
-    nth : (x : ℕ) → (L : List (Pair ℕ A)) -> Maybe (Pair ℕ A) -- todo: when compiling, swap out with O(1) Array impl
+    nth : (x : ℕ) → (L : List (Pair ℕ ℕ)) -> Maybe (Pair ℕ ℕ) -- todo: when compiling, swap out with O(1) Array impl
     nth x [] = Maybe.nothing
     nth zero (x₁ :: L) = Maybe.just x₁
     nth (suc x) (x₁ :: L) = nth x L
 
-    isJust : Maybe (Pair ℕ A) → Type
+    isJust : Maybe (Pair ℕ ℕ) → Type
     isJust (just x) = ⊤
     isJust nothing = ⊥
 
-    isJustExtract : (a : Maybe (Pair ℕ A)) → isJust a -> (Pair ℕ A)
+    isJustExtract : (a : Maybe (Pair ℕ ℕ)) → isJust a -> (Pair ℕ ℕ)
     isJustExtract (just x₁) x = x₁
 
-    isNothing : Maybe A → Type
+    isNothing : Maybe ℕ → Type
     isNothing (just x) = ⊥
     isNothing nothing = ⊤
 
-    1st : Pair ℕ A → ℕ
+    1st : Pair ℕ ℕ → ℕ
     1st (fst₁ , snd₁) = fst₁
 
-    2nd : Pair ℕ A → A
+    2nd : Pair ℕ ℕ → ℕ
     2nd (fst₁ , snd₁) = snd₁
 
     _<=_ : ℕ → ℕ → Bool
@@ -329,15 +400,15 @@ module lib (A : Set) where
     suc x <= zero = false
     suc x <= suc x' = x <= x'
 
-    boundsGood : (l : List (Pair ℕ A)) → (x : ℕ) → Type
+    boundsGood : (l : List (Pair ℕ ℕ)) → (x : ℕ) → Type
     boundsGood l x  = if x < length l then ⊤ else ⊥
 
-    nthLengthGood : (l : List (Pair ℕ A)) → (x : ℕ) → boundsGood l x → isJust (nth x l)
+    nthLengthGood : (l : List (Pair ℕ ℕ)) → (x : ℕ) → boundsGood l x → isJust (nth x l)
     nthLengthGood [] (suc x) ()
     nthLengthGood (x₁ :: l) zero boundGoodProof = tt
     nthLengthGood (x₁ :: l) (suc x) boundGoodProof = nthLengthGood l x boundGoodProof
 
-    nthLengthGood' : (l : List (Pair ℕ A)) → (x n : ℕ) → ((n == length l) ≡ true) → ((x < n) ≡ true) → isJust (nth x l)
+    nthLengthGood' : (l : List (Pair ℕ ℕ)) → (x n : ℕ) → ((n == length l) ≡ true) → ((x < n) ≡ true) → isJust (nth x l)
     nthLengthGood' [] x zero nIsLength xLeqN = true≢false (sym xLeqN)
     nthLengthGood' [] x (suc n) nIsLength xLeqN = true≢false (sym nIsLength)
     nthLengthGood' (x₁ :: l) zero n nIsLength xLeqN = tt
@@ -345,7 +416,7 @@ module lib (A : Set) where
     nthLengthGood' (x₁ :: l) (suc x) (suc n) nIsLength xLeqN = nthLengthGood' l x n nIsLength xLeqN
 
     -- same as NaiveList
-    findNaive : (x : ℕ) → (L : List (Pair ℕ A)) → Maybe A
+    findNaive : (x : ℕ) → (L : List (Pair ℕ ℕ)) → Maybe ℕ
     findNaive x [] = Maybe.nothing
     findNaive x ((fst , snd) :: L) = if x == fst then Maybe.just snd else findNaive x L
 
@@ -353,11 +424,11 @@ module lib (A : Set) where
       outOfFuel : FuelStatus a
       hasFuel   : a -> FuelStatus a
 
-    isFueled : FuelStatus (Maybe A) → Type
+    isFueled : FuelStatus (Maybe ℕ) → Type
     isFueled outOfFuel = ⊥
     isFueled (hasFuel x) = ⊤
 
-    findFastHelper : (key start end : ℕ) → (L : List (Pair ℕ A)) → (fuel : ℕ) → FuelStatus (Maybe A)
+    findFastHelper : (key start end : ℕ) → (L : List (Pair ℕ ℕ)) → (fuel : ℕ) → FuelStatus (Maybe ℕ)
     findFastHelper key start end [] fuel = hasFuel Maybe.nothing
     findFastHelper key start end (x₁ :: L) 0 = outOfFuel
     findFastHelper key start end (x₁ :: L) (suc fuel) with (let middleOfSearch = ((start + end) div 2) in
@@ -377,9 +448,9 @@ module lib (A : Set) where
     --   halfNth = {!!}
     -- proofs should get erased at compile-time, hopefully
     -- findFastHelper : (key start end : ℕ) → (L : List (Pair ℕ A)) → (fuel : ℕ) → ((fuel == 0) ≡ false) → (boundsGood L start) → (boundsGood L end) → Maybe A
-    findFastHelperWithP : (key start end : ℕ) → (L : List (Pair ℕ A)) → (fuel : ℕ) → (((end - start) < fuel) ≡ true) → (boundsGood L start) → (boundsGood L end) → Maybe A
+    findFastHelperWithP : (key start end : ℕ) → (L : List (Pair ℕ ℕ)) → (fuel : ℕ) → (((end - start) < fuel) ≡ true) → (boundsGood L start) → (boundsGood L end) → Maybe ℕ
     findFastHelperWithP key start end [] fuel fuelNotEmpty startBoundGood endBoundGood = Maybe.nothing
-    findFastHelperWithP key start end (x₁ :: L) 0 fuelNotEmpty startBoundGood endBoundGood = Cubical.Data.Empty.elim {A = λ _ → Maybe A} (true≢false (sym fuelNotEmpty))
+    findFastHelperWithP key start end (x₁ :: L) 0 fuelNotEmpty startBoundGood endBoundGood = Cubical.Data.Empty.elim {A = λ _ → Maybe ℕ} (true≢false (sym fuelNotEmpty))
     findFastHelperWithP key start end (x₁ :: L) (suc fuel) fuelNotEmpty startBoundGood endBoundGood = cmpLifted (1st halfNth) equal key then (λ x → Maybe.just (2nd halfNth))
       ge (λ x' → ifLifted start equal end then (λ _ → Maybe.nothing) else λ x → findFastHelperWithP key start middleOfSearch (x₁ :: L) fuel {!!} startBoundGood boundsPreservedByMiddle)
       le  λ x' → ifLifted start equal end then (λ _ → Maybe.nothing) else λ x → findFastHelperWithP key middleOfSearch end (x₁ :: L) fuel {!!} boundsPreservedByMiddle endBoundGood where
@@ -418,25 +489,25 @@ module lib (A : Set) where
 
       boundsPreservedByMiddle : boundsGood (x₁ :: L) middleOfSearch
       boundsPreservedByMiddle = boundsPreservedByMiddleLem start end middleOfSearch startBoundGood endBoundGood refl
-      halfNthMaybe : Maybe (Pair ℕ A)
+      halfNthMaybe : Maybe (Pair ℕ ℕ)
       halfNthMaybe = nth middleOfSearch (x₁ :: L)
-      halfNth : Pair ℕ A
+      halfNth : Pair ℕ ℕ
       halfNth = isJustExtract halfNthMaybe (nthLengthGood (x₁ :: L) middleOfSearch boundsPreservedByMiddle)
 
 
 
-    findFast : (x : ℕ) → (L : List (Pair ℕ A)) → FuelStatus (Maybe A)
+    findFast : (x : ℕ) → (L : List (Pair ℕ ℕ)) → FuelStatus (Maybe ℕ)
     findFast x [] = hasFuel (Maybe.nothing)
     findFast x (x₁ :: L) = findFastHelper x 0 (length L) (x₁ :: L) (length (x₁ :: L))
 
-    findFastNeverRunOutOfFuel : (x : ℕ) → (L : List (Pair ℕ A)) → isFueled (findFast x L)
+    findFastNeverRunOutOfFuel : (x : ℕ) → (L : List (Pair ℕ ℕ)) → isFueled (findFast x L)
     findFastNeverRunOutOfFuel x [] = tt
     findFastNeverRunOutOfFuel x (x₁ :: L) = {!!}
 
-    isFueledExtract : (a : FuelStatus (Maybe A)) → isFueled a → Maybe A
+    isFueledExtract : (a : FuelStatus (Maybe ℕ)) → isFueled a → Maybe ℕ
     isFueledExtract (hasFuel x₁) x = x₁
 
-    findFastExtracted : (x : ℕ) → (L : List (Pair ℕ A)) → Maybe A
+    findFastExtracted : (x : ℕ) → (L : List (Pair ℕ ℕ)) → Maybe ℕ
     findFastExtracted x l = isFueledExtract (findFast x l) (findFastNeverRunOutOfFuel x l)
 
 
@@ -498,8 +569,8 @@ module lib (A : Set) where
     boolEq true true = true
 
     -- get rightmmost val
-    removeNextVal : (x : ℕ) → (L : Tree A) → isEmpty L ≡ false → Pair (Tree A) (Pair ℕ A)
-    removeNextVal x null proofNotEmpty = Cubical.Data.Empty.elim {A = λ _ → Pair (Tree A) (Pair ℕ A)} (true≢false proofNotEmpty)
+    removeNextVal : (x : ℕ) → (L : Tree ℕ) → isEmpty L ≡ false → Pair (Tree ℕ) (Pair ℕ ℕ)
+    removeNextVal x null proofNotEmpty = Cubical.Data.Empty.elim {A = λ _ → Pair (Tree ℕ) (Pair ℕ ℕ)} (true≢false proofNotEmpty)
     removeNextVal x (leaf (fst , snd)) proofNotEmpty = (null , (fst , snd))
     removeNextVal x (node x₁ L₁ null) proofNotEmpty = (L₁ , x₁)
     removeNextVal x (node x₁ L₁ (leaf x₂)) proofNotEmpty = ((node x₁ null L₁) , x₂)
@@ -512,7 +583,7 @@ module lib (A : Set) where
     removeNextValHacky x default (node x₁ (leaf x₂) L₁) = ((node x₁ null L₁) , x₂)
     removeNextValHacky x default (node x₁ (node x₂ L L₂) L₁) = let (L' , a) = removeNextValHacky x default (node x₂ L L₂) in ((node x₁ L' L₁), a) -- needed to inline isEmpty
 
-    delete : (x : ℕ) → (L : Tree A) → Tree A
+    delete : (x : ℕ) → (L : Tree ℕ) → Tree ℕ
     delete x null = null
     delete x (leaf (fst , snd)) = if x == fst then null else leaf (fst , snd)
     delete x (node (fst , snd) null L') = if x == fst then L' else (if x < fst then (node (fst , snd) null L') else (node (fst , snd) null (delete x L')))
