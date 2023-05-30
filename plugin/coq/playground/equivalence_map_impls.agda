@@ -178,9 +178,11 @@ module lib where
 
     zeroFrontAlwaysOk : (v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted l → sorted ((zero , v) :: l)
     zeroFrontAlwaysOk v [] proofSortedL = tt
-    zeroFrontAlwaysOk v ((zero , snd) :: []) proofSortedL = tt
-    zeroFrontAlwaysOk v ((zero , snd) :: ((fst' , snd') :: l)) proofSortedL = {!!}
-    zeroFrontAlwaysOk v ((suc fst₁ , snd) :: l) proofSortedL = {!!}
+    zeroFrontAlwaysOk v ((k' , v') :: l) proofSortedL with (zero < k') in leProof
+    ...                                                | true = proofSortedL
+    ...                                                | false with zero == k' in eqProof
+    ...                                                         | true = proofSortedL
+    ...                                                         | false = {!!}
 
 -- {y..1 : Level} {A = A₁ : Type y..1} {ℓ' : Level} {x y : A₁}
 -- (B : A₁ → Type ℓ') →
@@ -194,20 +196,10 @@ module lib where
     zeroFrontAlwaysOk' : (v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((zero , v) :: l) → sorted l
     zeroFrontAlwaysOk' v [] proofSortedL = tt
     zeroFrontAlwaysOk' v ((k' , v') :: l) proofSortedL with (zero < k') in leProof
--- Goal: sorted ((k' , v') :: l)
--- ————————————————————————————————————————————————————————————
--- proofSortedL
---         : ⊤
--- l       : List (Pair ℕ ℕ)
--- v'      : ℕ
--- v       : ℕ
--- A       : Type
--- leProof : (0 < k') ≡' true
--- k'      : ℕ
-    ...                                                  | true = let leProof' = (eqToPath leProof) in substPath (λ k' → sorted (((k' , v')) :: l)) {!!} {!!}
+    ...                                                  | true = proofSortedL
     ...                                                  | false with zero == k' in eqProof
-    ...                                                    | true = let eqProof' = (liftNatEquiv zero k' (eqToPath eqProof)) in substPath (λ k' → sorted (((k' , v')) :: l)) eqProof' {!zeroFrontAlwaysOk' v' l!}
-    ...                                                    | false = Cubical.Data.Empty.elim {!!}
+    ...                                                    | true = proofSortedL
+    ...                                                    | false = Cubical.Data.Empty.elim proofSortedL
 
     decPreservesLeRel : (x y : ℕ) → (((suc x) < y) ≡ true) → ((x < y) ≡ true)
     decPreservesLeRel zero zero proofLePrem = proofLePrem
@@ -241,54 +233,21 @@ module lib where
     decFrontAlwaysOkGen : (x : ℕ) → (l : List (Pair ℕ ℕ)) → sorted l → sorted (decFrontN x l)
     decFrontAlwaysOkGen zero [] proofSorted = proofSorted
     decFrontAlwaysOkGen zero (x :: l) proofSorted = proofSorted
-    decFrontAlwaysOkGen (suc x) [] proofSorted = {!!}
+    decFrontAlwaysOkGen (suc x) [] proofSorted = proofSorted
     decFrontAlwaysOkGen (suc x) ((zero , snd) :: l) proofSorted = zeroFrontAlwaysOk snd (decFrontN x l) (decFrontAlwaysOkGen x l (zeroFrontAlwaysOk' snd l proofSorted))
-    decFrontAlwaysOkGen (suc x) ((suc fst , snd) :: []) proofSorted = {!!}
--- Goal: sorted ((fst , snd) :: decFrontN x ((fst' , snd') :: l))
--- ————————————————————————————————————————————————————————————
--- proofSorted
---      : sorted A ((suc fst , snd) :: ((fst' , snd') :: l))
---        | suc fst < fst'
--- l    : List (Pair ℕ ℕ)
--- snd' : ℕ
--- fst' : ℕ
--- snd  : ℕ
--- fst  : ℕ
--- x    : ℕ
--- A    : Type
--- subst : {y..1 : Level} {A : Type y..1} {ℓ' : Level} {x y : A}
--- (B : A → Type ℓ') →
--- x ≡ y → B x → B y
-    decFrontAlwaysOkGen (suc x) ((suc fst , snd) :: ((fst' , snd') :: l)) proofSorted with (suc fst < fst') in leProof
-    ...                                                                                 | true = {!!}
-    ...                                                                                 | false with (suc fst == fst') in eqProof
-    ...                                                                                          | true = {!!}
-    ...                                                                                          | false = {!!}
-
-    -- subst (λ x' → sorted x') (sym (lem fst snd (((fst' , snd')) :: l))) {!!} where -- subst (λ x' → sorted x') (sym (lem fst snd ((fst' , snd') :: l))) where
-    --                                                                   lem : (fst snd : ℕ) → (l : List (Pair ℕ ℕ)) → ((fst , snd) :: decFrontN x l) ≡ (decFrontN (suc x) ((suc fst , snd) :: l))
-    --                                                                   lem fst snd l = {!!}
-    -- decFrontAlwaysOkGen (suc x) ((suc fst , snd) :: l) proofSorted = subst (λ x' → sorted x' ) (sym (lem fst snd l)) {!!} where
-    --                                                                   lem : (fst snd : ℕ) → (l : List (Pair ℕ ℕ)) → ((fst , snd) :: decFrontN x l) ≡ (decFrontN (suc x) ((suc fst , snd) :: l))
-    --                                                                   lem fst snd l = {!!}
+    decFrontAlwaysOkGen (suc x) ((suc fst , snd) :: l) proofSorted = {!!}
 
     decFrontAlwaysOk' : (k v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((suc k , v) :: l) → sorted ((k , v) :: l)
-    decFrontAlwaysOk' k v l x = let lem = decFrontAlwaysOkGen 1 ((suc k , v) :: l) in {!!}
+    decFrontAlwaysOk' k v l x = let lem = decFrontAlwaysOkGen 1 ((suc k , v) :: l) in {!lem!}
 
     popSortedMaintainsSorted : (k v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((k , v) :: l) → sorted l
-    popSortedMaintainsSorted k v [] proofSorted = {!!}
--- Goal: sorted ((k' , v') :: l)
--- ————————————————————————————————————————————————————————————
--- proofSorted
---    : sorted A ((zero , v) :: ((k' , v') :: l)) | zero < k'
-    popSortedMaintainsSorted zero v ((k' , v') :: l) proofSorted with zero < k' in leProof
-    ...                                                            | true = {!proofSorted!}
+    popSortedMaintainsSorted k v [] proofSorted = tt
+    popSortedMaintainsSorted zero v ((k' , v') :: l) proofSorted with zero < k' in leProof -- with clauses are useful!
+    ...                                                            | true = proofSorted
     ...                                                            | false with zero == k' in eqProof
-    ...                                                              | true = {!!}
-    ...                                                              | false = Cubical.Data.Empty.elim {!!}
+    ...                                                              | true = proofSorted
+    ...                                                              | false = Cubical.Data.Empty.elim proofSorted
     popSortedMaintainsSorted (suc k) v ((k' , v') :: l) proofSorted = popSortedMaintainsSorted k v ((k' , v') :: l) (decFrontAlwaysOk k v ((k' , v') :: l) proofSorted)
-    -- popSortedMaintainsSorted k v ((suc k' , v') :: l) proofSorted = popSortedMaintainsSorted (suc k') v' {!!} {!!}
-    -- popSortedMaintainsSorted k v ((k' , v') :: (x :: l)) proofSorted = {!!} -- popSortedMaintainsSorted k' v' {! {!!} :: l!} {!!}
 
     -- this func is separated *just* to make Agda's termination checking happy
     insertionSortTerm : (k v : ℕ) → (l : (List (Pair ℕ ℕ))) → sorted l → Σ (List (Pair ℕ ℕ)) sorted
@@ -300,9 +259,6 @@ module lib where
     ...                                                          | false with (k < k') in leqProof
     ...                                                                   | true = ((k , v) :: ((k' , v') :: l)) , prependLeqMaintainsSorted k v k' v' l proofSorted (orIntroL (eqToPath leqProof))
     ...                                                                   | false = (((k' , v') :: ((k'' , v'') :: l')) , prependLeqMaintainsSorted k' v' k'' v'' l' proofSorted' {!!})
-    -- ...                                                                            | ([] , snd') = ((k' , v') :: [] , {!!}) -- this case will never happen
-    -- ...                                                                            | ((k'' , v'') :: l' , proofSorted') = (((k' , v') :: ((k'' , v'') :: l')) , prependLeqMaintainsSorted k' v' k'' v'' l' proofSorted' {!!})
-                                                                        -- ((k' , v') :: l') , prependLeqMaintainsSorted {!k'!} {!!} {!!} {!!} {!!} {!!} {!!}
 
     insertionSortΣ : (k v : ℕ) → Σ (List (Pair ℕ ℕ)) sorted → Σ (List (Pair ℕ ℕ)) sorted
     insertionSortΣ k v (fst , snd) = insertionSortTerm k v fst snd
