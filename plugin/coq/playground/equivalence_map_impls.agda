@@ -160,6 +160,10 @@ module lib where
     sort [] = []
     sort ((fst₁ , snd₁) :: l) = insertionSort fst₁ snd₁ (sort l)
 
+    fstKey : (l : List (Pair ℕ ℕ)) → ((0 < length l) ≡ true) → ℕ -- for sorted lists these should be the same
+    fstKey [] x = Cubical.Data.Empty.elim {A = λ x → ℕ} (true≢false (sym x))
+    fstKey ((fst₁ , snd₁) :: l) x = fst₁
+
     prependLeqMaintainsSorted : (k v k' v' : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((k' , v') :: l) → ((k < k') or (k == k') ≡ true) → sorted ((k , v) :: ((k' , v') :: l))
     prependLeqMaintainsSorted k v k' v' l x x₁ with (k < k')
     ...                                         | true = x
@@ -211,7 +215,6 @@ module lib where
     decPreservesLeRel zero (suc y) proofLePrem = refl
     decPreservesLeRel (suc x) zero proofLePrem = proofLePrem
     decPreservesLeRel (suc x) (suc y) proofLePrem = decPreservesLeRel x y proofLePrem
-
     incPreservesLeRel : (x y : ℕ) → ((x < y) ≡ true) → ((x < suc y) ≡ true)
     incPreservesLeRel zero zero proofLePrem = refl
     incPreservesLeRel zero (suc y) proofLePrem = refl
@@ -231,8 +234,34 @@ module lib where
 
     decFrontAlwaysOk : (k v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((suc k , v) :: l) → sorted ((k , v) :: l)
     decFrontAlwaysOk k v [] proofSorted = tt
-    decFrontAlwaysOk zero v ((suc k' , v') :: l) proofSorted = {!!}
-    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted = {!!}
+    decFrontAlwaysOk zero v ((suc k' , v') :: l) proofSorted with (zero < suc k')
+    decFrontAlwaysOk zero v ((suc k' , v') :: l) proofSorted  | true with (zero < k')
+    decFrontAlwaysOk zero v ((suc k' , v') :: l) proofSorted  | true | true = proofSorted
+    decFrontAlwaysOk zero v ((suc k' , v') :: l) proofSorted  | true | false with (zero == k')
+    decFrontAlwaysOk zero v ((suc k' , v') :: l) proofSorted  | true | false  | true = proofSorted
+    decFrontAlwaysOk zero v ((suc k' , v') :: l) proofSorted  | true | false  | false = Cubical.Data.Empty.elim proofSorted
+    decFrontAlwaysOk zero v ((suc k' , v') :: l) proofSorted  | false with (zero < k')
+    decFrontAlwaysOk zero v ((suc k' , v') :: l) proofSorted  | false  | true = proofSorted
+    decFrontAlwaysOk zero v ((suc k' , v') :: l) proofSorted  | false  | false with (zero == k')
+    decFrontAlwaysOk zero v ((suc k' , v') :: l) proofSorted  | false  | false  | true = proofSorted
+    decFrontAlwaysOk zero v ((suc k' , v') :: l) proofSorted  | false  | false  | false = Cubical.Data.Empty.elim proofSorted
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted with (suc (suc k) < suc (suc k')) in leProof
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted  | true with (k < suc k') in leProof'
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted  | true | true = proofSorted
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted  | true | false with (k == suc k') in eqProof
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted  | true | false | true = proofSorted
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted  | true | false | false = Cubical.Data.Empty.elim (true≢false (sym (incPreservesLeRel k k' (eqToPath leProof)) ∙ eqToPath leProof'))
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted  | false with (k < suc k') in leProof''
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted  | false | true with (k == k') in eqProof
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted  | false | true  | true = proofSorted
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted  | false | true  | false = Cubical.Data.Empty.elim proofSorted
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted  | false | false with (k == suc k') in eqProof'
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted  | false | false | true with (k == k')
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted  | false | false | true  | true = proofSorted
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted  | false | false | true  | false = Cubical.Data.Empty.elim proofSorted
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted  | false | false | false with (k == k') in eqProof''
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted  | false | false | false  | true = true≢false (sym (eqIncLeRel k k' (eqToPath eqProof'')) ∙ eqToPath leProof'')
+    decFrontAlwaysOk (suc k) v ((suc (suc k') , v') :: l) proofSorted  | false | false | false  | false = proofSorted
 
     -- to prove the above, we need to generalize
     decFrontN : ℕ → List (Pair ℕ ℕ) → List (Pair ℕ ℕ)
@@ -246,89 +275,26 @@ module lib where
     minKeyList ((fst , snd) :: []) p1 = fst
     minKeyList ((fst , snd) :: (x :: l)) p1 = min fst (minKeyList (x :: l) p1)
 
-    decFrontAlwaysOkGen : (x : ℕ) → (l : List (Pair ℕ ℕ)) → sorted l → sorted (decFrontN x l)
-    decFrontAlwaysOkGen zero [] proofSorted = proofSorted
-    decFrontAlwaysOkGen zero (x :: l) proofSorted = proofSorted
-    decFrontAlwaysOkGen (suc x) [] proofSorted = proofSorted
-    decFrontAlwaysOkGen (suc x) ((zero , v) :: []) proofSorted = tt
-    decFrontAlwaysOkGen (suc x) ((suc k , v) :: []) proofSorted = tt
-    decFrontAlwaysOkGen (suc zero) ((zero , v) :: ((k' , v') :: [])) proofSorted = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: [])) proofSorted with (k < suc k') in leProof
-    ...                                                                        | true = tt
-    ...                                                                        | false with (k == suc k') in eqProof
-    ...                                                                                 | true = tt
-    ...                                                                                 | false with (suc k < suc k') in leProof'
-    ...                                                                                          | true = Cubical.Data.Empty.elim (true≢false (symPath (incPreservesLeRel k k' (eqToPath leProof')) ∙ eqToPath leProof))
-    ...                                                                                          | false with (suc k == suc k') in eqProof'
-    ...                                                                                                   | true = Cubical.Data.Empty.elim (true≢false (symPath (eqIncLeRel k k' (eqToPath eqProof')) ∙ eqToPath leProof))
-    ...                                                                                                   | false = proofSorted
-    decFrontAlwaysOkGen (suc (suc x)) ((zero , v) :: ((zero , v') :: [])) proofSorted = proofSorted
-    decFrontAlwaysOkGen (suc (suc x)) ((zero , v) :: ((suc k' , v') :: [])) proofSorted = zeroFrontAlwaysOk v ((k' , v') :: []) tt
-    decFrontAlwaysOkGen (suc (suc x)) ((suc k , v) :: ((suc k' , v') :: [])) proofSorted with (k < k') in leProof
-    ...                                                                                   | true = tt
-    ...                                                                                   | false with (k == k')
-    ...                                                                                            | true = tt
-    ...                                                                                            | false = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((zero , v) :: ((k' , v') :: ((k'' , v'') :: l))) proofSorted = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted with (k < suc k') in leProof
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true with (suc k' < k'') in leProof'
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true  | true with (k < k') in leProof''
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true  | true | true = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true  | true | false with (k == k')
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true  | true | false | true = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true  | true | false | false = Cubical.Data.Empty.elim proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true  | false with (suc k' == k'') in eqProof''
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true  | false | true with (k < k')
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true  | false | true | true = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true  | false | true | false with (k == k')
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true  | false | true | false | true = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true  | false | true | false | false = Cubical.Data.Empty.elim proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true  | false | false with (k < k')
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true  | false | false | true = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true  | false | false | false with (k == k')
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true  | false | false | false | true = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | true  | false | false | false | false = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false with (k == suc k') in eqProof'
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true with (suc k' < k'')
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true | true with (k < k')
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true | true | true = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true | true | false with (k == k')
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true | true | false | true = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true | true | false | false = Cubical.Data.Empty.elim proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true | false with (suc k' == k'')
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true | false | true with (k < k')
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true | false | true | true = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true | false | true | false with (k == k')
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true | false | true | false | true = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true | false | true | false | false = Cubical.Data.Empty.elim proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true | false | false with (k < k')
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true | false | false | true = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true | false | false | false with (k == k')
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true | false | false | false | true = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | true | false | false | false | false = proofSorted
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | false with (k < k') in leProof''
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | false | true = {!!} -- obv absurd
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | false | false with (suc k' < k'') in leProof'''
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | false | false | true with (k == k') in eqProof''''
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | false | false | true | true = {!!}
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | false | false | true | false = {!!}
-    decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted  | false | false | false | false = {!!}
-    decFrontAlwaysOkGen (suc (suc x)) ((zero , v) :: ((zero , v') :: ((k'' , v'') :: l))) proofSorted = {!!}
-    decFrontAlwaysOkGen (suc (suc x)) ((zero , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted = {!!}
-    decFrontAlwaysOkGen (suc (suc x)) ((suc k , v) :: ((suc k' , v') :: ((zero , v'') :: l))) proofSorted = {!!}
-    decFrontAlwaysOkGen (suc (suc zero)) ((suc k , v) :: ((suc k' , v') :: ((suc k'' , v'') :: l))) proofSorted = {!!}
-    decFrontAlwaysOkGen (suc (suc (suc x))) ((suc k , v) :: ((suc k' , v') :: ((suc k'' , v'') :: l))) proofSorted = {!!}
-    -- decFrontAlwaysOkGen (suc x) ((zero , snd) :: l) proofSorted = zeroFrontAlwaysOk snd (decFrontN x l) (decFrontAlwaysOkGen x l (zeroFrontAlwaysOk' snd l proofSorted))
-    -- decFrontAlwaysOkGen (suc x) ((suc fst , snd) :: []) proofSorted = tt
-    -- decFrontAlwaysOkGen (suc zero) ((suc k , v) :: ((suc k' , v') :: [])) proofSorted = {!proofSorted!}
-    -- decFrontAlwaysOkGen (suc (suc x)) ((suc k , v) :: ((suc k' , v') :: [])) proofSorted = {!!}
-    -- decFrontAlwaysOkGen (suc x) ((suc k , v) :: ((suc k' , v') :: ((k'' , v'') :: l))) proofSorted = {!!}
-    -- with (k < k')
-    -- ...                                                                        | true = {!!}
-    -- ...                                                                        | false = {!!}
+    decFrontLem : (k v x : ℕ) → (l : List (Pair ℕ ℕ)) → (0 < length (decFrontN x ((k , v) :: l))) ≡ true
+    decFrontLem zero v zero [] = refl
+    decFrontLem zero v (suc x) [] = refl
+    decFrontLem (suc k) v zero [] = refl
+    decFrontLem (suc k) v (suc x) [] = refl
+    decFrontLem k v zero (x' :: l) = refl
+    decFrontLem zero v (suc x) (x' :: l) = refl
+    decFrontLem (suc k) v (suc x) (x' :: l) = refl
 
-    decFrontAlwaysOk' : (k v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((suc k , v) :: l) → sorted ((k , v) :: l)
-    decFrontAlwaysOk' k v l x = let lem = decFrontAlwaysOkGen 1 ((suc k , v) :: l) in {!lem!}
+    decFrontLeq : (k v x : ℕ) → (l : List (Pair ℕ ℕ)) → (((fstKey (decFrontN x ((k , v) :: l)) (decFrontLem k v x l)) < k) or ((fstKey (decFrontN x ((k , v) :: l)) (decFrontLem k v x l)) == k) ≡ true)
+    decFrontLeq zero v zero l = refl
+    decFrontLeq zero v (suc x) l = refl
+    decFrontLeq (suc k) v zero l = orIntroR (equalIsTrue k)
+    decFrontLeq (suc k) v (suc x) l = orIntroL (eqIncLeRel k k (equalIsTrue k))
+
+    -- decFrontAlwaysOkGen : (x : ℕ) → (l : List (Pair ℕ ℕ)) → sorted l → sorted (decFrontN x l)
+    -- decFrontAlwaysOkGen = {!!}
+
+    -- decFrontAlwaysOk' : (k v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((suc k , v) :: l) → sorted ((k , v) :: l)
+    -- decFrontAlwaysOk' k v l x = let lem = decFrontAlwaysOkGen 1 ((suc k , v) :: l) in {!lem!}
 
     popSortedMaintainsSorted : (k v : ℕ) → (l : List (Pair ℕ ℕ)) → sorted ((k , v) :: l) → sorted l
     popSortedMaintainsSorted k v [] proofSorted = tt
@@ -342,13 +308,29 @@ module lib where
     -- this func is separated *just* to make Agda's termination checking happy
     insertionSortTerm : (k v : ℕ) → (l : (List (Pair ℕ ℕ))) → sorted l → Σ (List (Pair ℕ ℕ)) sorted
     insertionSortTerm k v [] proofSorted = ((k , v) :: []) , tt
-    insertionSortTerm k v ((k' , v') :: l) proofSorted with (insertionSortTerm k v l (popSortedMaintainsSorted k' v' l proofSorted))
+    insertionSortTerm k v ((k' , v') :: l) proofSorted with (insertionSortTerm k v l (popSortedMaintainsSorted k' v' l proofSorted)) in proof
     ...                                                   | ([] , proofSorted') = ((k' , v') :: [] , tt) -- will never happen
     ...                                                   | ((k'' , v'') :: l' , proofSorted') with (k == k') in eqProof
     ...                                                          | true = (k , v) :: ((k' , v') :: l) , prependLeqMaintainsSorted k v k' v' l proofSorted (orIntroR (eqToPath eqProof))
-    ...                                                          | false with (k < k') in leqProof
-    ...                                                                   | true = ((k , v) :: ((k' , v') :: l)) , prependLeqMaintainsSorted k v k' v' l proofSorted (orIntroL (eqToPath leqProof))
-    ...                                                                   | false = (((k' , v') :: ((k'' , v'') :: l')) , prependLeqMaintainsSorted k' v' k'' v'' l' proofSorted' {!!})
+    ...                                                          | false with (k < k') in leProof
+    ...                                                                   | true = ((k , v) :: ((k' , v') :: l)) , prependLeqMaintainsSorted k v k' v' l proofSorted (orIntroL (eqToPath leProof))
+    ...                                                                   | false with (k' == k'') in eqProof' -- rec call made here
+    ...                                                                            | true = (((k' , v') :: ((k'' , v'') :: l')) , prependLeqMaintainsSorted k' v' k'' v'' l' proofSorted' (orIntroR (eqToPath eqProof')))
+    ...                                                                            | false with (k' < k'') in leProof'
+    ...                                                                                     | true = (((k' , v') :: ((k'' , v'') :: l')) , prependLeqMaintainsSorted k' v' k'' v'' l' proofSorted' (orIntroL (eqToPath leProof')))
+    ...                                                                                     | false = (((k' , v') :: ((k'' , v'') :: l')) , Cubical.Data.Empty.elim (thisIsAbsurdLem k v k' v' k'' v'' l l' proofSorted proofSorted' (eqToPath proof) (eqToPath eqProof) (eqToPath leProof) (eqToPath eqProof') (eqToPath leProof'))) where
+      thisIsAbsurdLem : (k v k' v' k'' v'' : ℕ) → (l l' : List (Pair ℕ ℕ)) →
+        (proofSorted : sorted ((k' , v') :: l)) → (proofSorted' : sorted ((k'' , v'') :: l')) →
+        (proof : insertionSortTerm k v l (popSortedMaintainsSorted k' v' l proofSorted) ≡ (((k'' , v'') :: l') , proofSorted')) →
+        ((k == k') ≡ false) → ((k < k') ≡ false) → ((k' == k'') ≡ false) → ((k' < k'') ≡ false) → ⊥
+      thisIsAbsurdLem k v k' v' k'' v'' [] l' proofSorted proofSorted' proof leProof eqProof leProof' eqProof' with (k == k'') in eqProof''
+      thisIsAbsurdLem k v k' v' k'' v'' [] l' proofSorted proofSorted' proof leProof eqProof leProof' eqProof'  | true = {!!} -- reqwrite by eqProof''
+      thisIsAbsurdLem k v k' v' k'' v'' [] l' proofSorted proofSorted' proof leProof eqProof leProof' eqProof'  | false = {!!} -- contradicts proof
+      -- not sure if the below works
+      thisIsAbsurdLem k v k' v' k'' v'' ((kInner , vInner) :: lInner) l' proofSorted proofSorted' proof leProof eqProof leProof' eqProof' with ((insertionSortTerm k v ((kInner , vInner) :: lInner) (popSortedMaintainsSorted k' v' ((kInner , vInner) :: lInner) proofSorted))) in proofInner
+      thisIsAbsurdLem k v k' v' k'' v'' ((kInner , vInner) :: lInner) l' proofSorted proofSorted' proof leProof eqProof leProof' eqProof'  | ([] , proofSortedInner) = {!!} -- proof is absurd
+      thisIsAbsurdLem k v k' v' k'' v'' ((kInner , vInner) :: lInner) l' proofSorted proofSorted' proof leProof eqProof leProof' eqProof'  | (((kInner' , vInner') :: lInner') , proofSortedInner) =
+        thisIsAbsurdLem k v k' v' kInner' vInner' ((kInner , vInner) :: lInner) lInner' proofSorted proofSortedInner (eqToPath proofInner) leProof eqProof {!!} {!!}
 
     insertionSortΣ : (k v : ℕ) → Σ (List (Pair ℕ ℕ)) sorted → Σ (List (Pair ℕ ℕ)) sorted
     insertionSortΣ k v (fst , snd) = insertionSortTerm k v fst snd
