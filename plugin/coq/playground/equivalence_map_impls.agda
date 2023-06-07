@@ -67,6 +67,15 @@ module lib where
   equalIsTrue zero = refl
   equalIsTrue (suc x) = equalIsTrue x
 
+  equivIsTrue : (x y : ℕ) -> (x ≡ y) → (x == y) ≡ true
+  equivIsTrue zero zero p = refl
+  equivIsTrue zero (suc y) p = sym (cong (λ a → a == zero) p)
+  equivIsTrue (suc x) zero p = cong (λ a → a == zero) p
+  equivIsTrue (suc x) (suc y) p = equivIsTrue x y (cong dec p) where
+    dec : ℕ → ℕ
+    dec zero = zero
+    dec (suc x) = x
+
 {--
   not : Bool → Bool
   not = {!!}
@@ -179,6 +188,12 @@ module lib where
     orIntroR {r = false} p = Cubical.Data.Empty.elim (true≢false (sym p))
     orIntroR {l} {r = true} p = or-comm l true
 
+    orElim : {l r : Bool} (p : l ≡ false) → (p' : r ≡ false) → (l or r) ≡ false
+    orElim {l = false} {r = false} p p' = refl
+    orElim {l = false} {r = true} p p' = p'
+    orElim {l = true} {r = false} p p' = p
+    orElim {l = true} {r = true} p p' = p'
+
     zeroAlwaysLeq : (n : ℕ) → ((0 == n) ≡ false) → ((0 < n) ≡ true)
     zeroAlwaysLeq zero x = sym x
     zeroAlwaysLeq (suc n) x = refl
@@ -193,9 +208,12 @@ module lib where
     ...                                                         | true = proofSortedL
     ...                                                         | false =  Cubical.Data.Empty.elim (true≢false (symPath (zeroAlwaysLeq k' (eqToPath eqProof)) ∙ eqToPath leProof))
 
--- {y..1 : Level} {A = A₁ : Type y..1} {ℓ' : Level} {x y : A₁}
--- (B : A₁ → Type ℓ') →
--- x ≡ y → B x → B y
+    inEqChoice : (x y : ℕ) → ((x == y) or ((x < y) or (y < x))) ≡ true
+    inEqChoice zero zero = refl
+    inEqChoice zero (suc y) = refl
+    inEqChoice (suc x) zero = refl
+    inEqChoice (suc x) (suc y) = inEqChoice x y
+
     liftNatEquiv : (x y : ℕ) → ((x == y) ≡ true) → x ≡ y
     liftNatEquiv zero zero x₁ = refl
     liftNatEquiv zero (suc y) x₁ = Cubical.Data.Empty.elim (false≢true x₁)
@@ -318,19 +336,26 @@ module lib where
     ...                                                                            | true = (((k' , v') :: ((k'' , v'') :: l')) , prependLeqMaintainsSorted k' v' k'' v'' l' proofSorted' (orIntroR (eqToPath eqProof')))
     ...                                                                            | false with (k' < k'') in leProof'
     ...                                                                                     | true = (((k' , v') :: ((k'' , v'') :: l')) , prependLeqMaintainsSorted k' v' k'' v'' l' proofSorted' (orIntroL (eqToPath leProof')))
-    ...                                                                                     | false = (((k' , v') :: ((k'' , v'') :: l')) , Cubical.Data.Empty.elim (thisIsAbsurdLem k v k' v' k'' v'' l l' proofSorted proofSorted' (eqToPath proof) (eqToPath eqProof) (eqToPath leProof) (eqToPath eqProof') (eqToPath leProof'))) where
+    ...                                                                                     | false with (k == k'') in eqProof'' -- this is absurd now
+    ...                                                                                              | true = (((k' , v') :: ((k'' , v'') :: l')) , Cubical.Data.Empty.elim (true≢false (symPath (inEqChoice k k') ∙ orElim (eqToPath eqProof) (orElim (eqToPath leProof) ((substPath (λ x → {!!}) (sym (liftNatEquiv k k'' (eqToPath eqProof''))) (λ x → (k' < x) ≡ false))))))) --  (congPath (λ a → {!!}) (liftNatEquiv k k'' (eqToPath eqProof'')) cong {!!} (liftNatEquiv k k'' (eqToPath eqProof''))
+    ...                                                                                              | false = (((k' , v') :: ((k'' , v'') :: l')) , {!!}) where -- Cubical.Data.Empty.elim (thisIsAbsurdLem k v k' v' k'' v'' l l' proofSorted proofSorted' (eqToPath proof) (eqToPath eqProof) (eqToPath leProof) (eqToPath eqProof') (eqToPath leProof'))) where
       thisIsAbsurdLem : (k v k' v' k'' v'' : ℕ) → (l l' : List (Pair ℕ ℕ)) →
         (proofSorted : sorted ((k' , v') :: l)) → (proofSorted' : sorted ((k'' , v'') :: l')) →
         (proof : insertionSortTerm k v l (popSortedMaintainsSorted k' v' l proofSorted) ≡ (((k'' , v'') :: l') , proofSorted')) →
         ((k == k') ≡ false) → ((k < k') ≡ false) → ((k' == k'') ≡ false) → ((k' < k'') ≡ false) → ⊥
       thisIsAbsurdLem k v k' v' k'' v'' [] l' proofSorted proofSorted' proof leProof eqProof leProof' eqProof' with (k == k'') in eqProof''
-      thisIsAbsurdLem k v k' v' k'' v'' [] l' proofSorted proofSorted' proof leProof eqProof leProof' eqProof'  | true = {!!} -- reqwrite by eqProof''
+      thisIsAbsurdLem k v k' v' k'' v'' [] l' proofSorted proofSorted' proof leProof eqProof leProof' eqProof'  | true = {!!} -- let kEquivk''Proof = cong (fst (fst {!!})) proof in true≢false (equivIsTrue {!!} {!!} {!!} ∙ {!!}) -- reqwrite by eqProof''
       thisIsAbsurdLem k v k' v' k'' v'' [] l' proofSorted proofSorted' proof leProof eqProof leProof' eqProof'  | false = {!!} -- contradicts proof
       -- not sure if the below works
       thisIsAbsurdLem k v k' v' k'' v'' ((kInner , vInner) :: lInner) l' proofSorted proofSorted' proof leProof eqProof leProof' eqProof' with ((insertionSortTerm k v ((kInner , vInner) :: lInner) (popSortedMaintainsSorted k' v' ((kInner , vInner) :: lInner) proofSorted))) in proofInner
       thisIsAbsurdLem k v k' v' k'' v'' ((kInner , vInner) :: lInner) l' proofSorted proofSorted' proof leProof eqProof leProof' eqProof'  | ([] , proofSortedInner) = {!!} -- proof is absurd
       thisIsAbsurdLem k v k' v' k'' v'' ((kInner , vInner) :: lInner) l' proofSorted proofSorted' proof leProof eqProof leProof' eqProof'  | (((kInner' , vInner') :: lInner') , proofSortedInner) =
         thisIsAbsurdLem k v k' v' kInner' vInner' ((kInner , vInner) :: lInner) lInner' proofSorted proofSortedInner (eqToPath proofInner) leProof eqProof {!!} {!!}
+      -- proof sketch:
+      -- 1. we know that the inserted element is "somewhere" inside the list
+      -- 2. we know the first elm is smaller than or equal to everything else in the list
+      -- 3. the first elm is small than or equal to the inserted elm
+      -- 4. contradiction, done
 
     insertionSortΣ : (k v : ℕ) → Σ (List (Pair ℕ ℕ)) sorted → Σ (List (Pair ℕ ℕ)) sorted
     insertionSortΣ k v (fst , snd) = insertionSortTerm k v fst snd
@@ -489,8 +514,8 @@ module lib where
 
       sucSucDiv2IsJustSuc : (n m : ℕ) → (suc n + suc m) div 2 withP refl ≡ suc ((n + m) div 2 withP refl) -- (s n + s m) / 2 = s ((n + m) /2)
       sucSucDiv2IsJustSuc zero zero = refl
-      sucSucDiv2IsJustSuc (suc n) zero = {!!} ∙ (sucSucDiv2IsJustSuc zero (suc n)) ∙ cong (λ a → suc (div-helper 0 1 a 0)) (sym (+-comm n zero))
-      sucSucDiv2IsJustSuc zero (suc m) = sucSucDiv2IsJustSuc 1 m
+      sucSucDiv2IsJustSuc (suc n) zero = {!!} -- {!!} ∙ (sucSucDiv2IsJustSuc zero (suc n)) ∙ cong (λ a → suc (div-helper 0 1 a 0)) (sym (+-comm n zero))
+      sucSucDiv2IsJustSuc zero (suc m) = {!!} -- sucSucDiv2IsJustSuc 1 m
       -- +-comm n zero
       sucSucDiv2IsJustSuc (suc n) (suc m) = {!!}
 
