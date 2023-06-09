@@ -17,6 +17,7 @@ open import Cubical.Data.Sum as Sum
 open import Cubical.Data.Nat as Nat
 open import Cubical.Data.Sigma.Properties
 open import Cubical.Foundations.GroupoidLaws
+open import Cubical.Relation.Binary.Base
 
 -- dependent constructors/eliminators on standard library inductive ℤ
 
@@ -34,11 +35,11 @@ depElimIndZ : (P : ℤ → Set) → (∀ n → P (depConstrIndZPos n)) → (∀ 
 depElimIndZ P posP negP (pos n) = posP n
 depElimIndZ P posP negsucP (negsuc n) = negsucP n
 
-ιIndZPos : (P : ℤ → Set)  → (posP : (n : ℕ) → P (depConstrIndZPos n)) → (negSucP : (n : ℕ) → P (depConstrIndZNegSuc n)) → (n : ℕ) →
+ιIndZPos : (P : ℤ → Set) → (posP : (n : ℕ) → P (depConstrIndZPos n)) → (negSucP : (n : ℕ) → P (depConstrIndZNegSuc n)) → (n : ℕ) →
     (Q : P (depConstrIndZPos n) → Set) → Q (depElimIndZ P posP negSucP (depConstrIndZPos n)) → Q (posP n)
 ιIndZPos P posP negSucP n Q Qp = Qp
 
-ιIndZNegSuc : (P : ℤ → Set)  → (posP : (n : ℕ) → P (depConstrIndZPos n)) → (negSucP : (n : ℕ) → P (depConstrIndZNegSuc n)) → (n : ℕ) →
+ιIndZNegSuc : (P : ℤ → Set) → (posP : (n : ℕ) → P (depConstrIndZPos n)) → (negSucP : (n : ℕ) → P (depConstrIndZNegSuc n)) → (n : ℕ) →
     (Q : P (depConstrIndZNegSuc n) → Set) → Q (depElimIndZ P posP negSucP (depConstrIndZNegSuc n)) → Q (negSucP n)
 ιIndZNegSuc P posP negSucP n Q Qp = Qp
 
@@ -207,7 +208,11 @@ sumRememberEq : {A B : Set} → (x : A ⊎ B) → (Σ[ a ∈ A ] x ≡ inl a) �
 sumRememberEq (inl x) = inl (x , refl)
 sumRememberEq (inr x) = inr (x , refl)
 
--- open BinaryRelation
+open BinaryRelation
+
+Rrefl : {x : ℕ × ℕ} → R x x
+Rrefl {x1 , x2} = Nat.+-comm x1 x2
+
 -- 
 -- isSetProd : {A B : Set} → isSet A → isSet B → isSet (A × B)
 -- isSetProd {A} {B} setA setB = isOfHLevelProd 2 setA setB
@@ -216,8 +221,8 @@ sumRememberEq (inr x) = inr (x , refl)
 -- Rprop (a1 , a2) (b1 , b2) p1 p2 = isSetℕ (a1 Nat.+ b2) (a2 Nat.+ b1) p1 p2
 -- 
 -- 
--- isReflR : isRefl R
--- isReflR x = Rrefl
+isReflR : isRefl R
+isReflR x = Rrefl
 -- 
 -- isSymR : isSym R
 -- isSymR (x1 , x2) (y1 , y2) r = (Nat.+-comm y1 x2) ∙ (sym r) ∙ (Nat.+-comm x1 y2)
@@ -231,9 +236,6 @@ sumRememberEq (inr x) = inr (x , refl)
 -- rFromPath : {a b : ℕ × ℕ } → [ a ] ≡ [ b ] → R a b
 -- rFromPath {a} {b} p = effective Rprop REquivRel a b p
 --
-
-Rrefl : {x : ℕ × ℕ} → R x x
-Rrefl {x1 , x2} = Nat.+-comm x1 x2
 
 --R : (ℕ × ℕ) → (ℕ × ℕ) → Type
 --R (x1 , x2) (y1 , y2) = x1 Nat.+ y2 ≡ x2 Nat.+ y1
@@ -517,3 +519,152 @@ add0LGZ z = depElimGZ
                                            (cong predGZ Pm))))
                           n)
                 z
+
+addHelpFunc : (ℕ × ℕ) → (ℕ × ℕ) → GZ
+addHelpFunc (n1 , n2) (m1 , m2) = [ n1 + m1 , n2 + m2 ]
+
+addHelpRespLem : (n1 n2 a1 a2 b1 b2 : ℕ) → (r : R (a1 , a2) (b1 , b2)) → n1 + a1 + (n2 + b2) ≡ n2 + a2 + (n1 + b1)
+addHelpRespLem n1 n2 a1 a2 b1 b2 r = (+-comm (n1 + a1) (n2 + b2))
+                                     ∙ sym (+-assoc n2 b2 (n1 + a1))
+                                     ∙ cong
+                                         (λ x → n2 + x)
+                                         ((+-comm b2 (n1 + a1))
+                                           ∙ ((sym (+-assoc n1 a1 b2))
+                                           ∙ (((cong
+                                               (λ x → n1 + x)
+                                               (r
+                                               ∙ (+-comm a2 b1)))
+                                           ∙ (+-assoc n1 b1 a2))
+                                           ∙ (sym (+-comm a2 (n1 + b1))))))
+                                       ∙ +-assoc n2 a2 (n1 + b1)
+
+addHelpResp : (n a b : ℕ × ℕ) (r : R a b) → addHelpFunc n a ≡ addHelpFunc n b
+addHelpResp (n1 , n2) (a1 , a2) (b1 , b2) r = eq/ (n1 + a1 , n2 + a2) (n1 + b1 , n2 + b2) (addHelpRespLem n1 n2 a1 a2 b1 b2 r)
+
+addHelp : GZ → (ℕ × ℕ) → GZ
+addHelp z (n1 , n2) = SetQuotients.rec isSetGZ (addHelpFunc (n1 , n2)) (addHelpResp (n1 , n2)) z
+
+lem : (a b : ℕ × ℕ) (r : R a b) → addHelpFunc a ≡ addHelpFunc b
+lem a b r = funExt λ x → lem2 a b x r where
+  lem2 : (a b n : ℕ × ℕ) (r : R a b) → addHelpFunc a n ≡ addHelpFunc b n
+  lem2 (a1 , a2) (b1 , b2) (n1 , n2) r = eq/ (a1 + n1 , a2 + n2) (b1 + n1 , b2 + n2) (lem3 a1 a2 b1 b2 n1 n2 r) where
+    lem3 : (a1 a2 b1 b2 n1 n2 : ℕ) (r : R (a1 , a2) (b1 , b2)) → a1 + n1 + (b2 + n2) ≡ a2 + n2 + (b1 + n1)
+    lem3 a1 a2 b1 b2 n1 n2 r = {!!} --- this won't be hard, focusing on the rest first
+
+--- try using this for lem4?
+lem5 : (a b c : ℕ × ℕ) (r : R a b) (r2 : R c c) → PathP (λ i → (lem a b r i) c ≡ (lem a b r i) c) (addHelpResp a c c r2) (addHelpResp b c c r2)
+lem5 a b c r r2 = subst2 (λ x y → PathP (λ i → lem a b r i c ≡ lem a b r i c) x y) (squash/ _ _ _ _) (squash/ _ _ _ _) lem10 where
+  lem10 : PathP (λ i → lem a b r i c ≡ lem a b r i c) refl refl
+  lem10 i = refl
+
+lem8 : (a c d : ℕ × ℕ) (r : R c c) (r2 : R c d) → PathP (λ i → addHelpFunc a c ≡ (refl ∙ addHelpResp a c d r2) i) (addHelpResp a c c r) (addHelpResp a c d r2)
+lem8 (a1 , a2) (c1 , c2) (d1 , d2) r r2 =
+  compPathP'
+    {B = λ x → addHelpFunc (a1 , a2) (c1 , c2) ≡ x}
+    (squash/ [ a1 + c1 , a2 + c2 ] [ a1 + c1 , a2 + c2 ] (addHelpResp (a1 , a2) (c1 , c2) (c1 , c2) r) refl)
+    λ i j → addHelpResp (a1 , a2) (c1 , c2) (d1 , d2) r2 (i ∧ j)
+
+lem6 : (a c d : ℕ × ℕ) (r : R c c) (r2 : R c d) → PathP (λ i → addHelpFunc a c ≡ addHelpResp a c d r2 i) (addHelpResp a c c r) (addHelpResp a c d r2)
+lem6 a c d r r2 =
+  subst (λ x → PathP (λ i → addHelpFunc a c ≡ x i) (addHelpResp a c c r) (addHelpResp a c d r2)) (sym (lUnit (addHelpResp a c d r2))) (lem8 a c d r r2)
+
+lem7 : (a b c d : ℕ × ℕ) (r : R a b) (r2 : R c d) → PathP (λ i → (sym (λ i → addHelpFunc a c ≡ addHelpResp a c d r2 i) ∙ ((λ i → (lem a b r i) c ≡ (lem a b r i) c) ∙ λ i → addHelpFunc b c ≡ addHelpResp b c d r2 i)) i) (addHelpResp a c d r2) (addHelpResp b c d r2)
+lem7 a b c d r r2 =
+  compPathP
+  (symP (lem6 a c d Rrefl r2))
+  (compPathP
+    (lem5 a b c r Rrefl)
+    (lem6 b c d Rrefl r2))
+
+lem4 : (a b : ℕ × ℕ) (r : R a b) → PathP (λ i → (c d : ℕ × ℕ) (r2 : R c d) → (lem a b r i) c ≡ (lem a b r i) d) (addHelpResp a) (addHelpResp b)
+lem4 a b r =
+  funExt
+    λ c → funExt
+      (λ d → funExt
+        λ r2 → subst
+         ((λ x → PathP (λ i → x i) (addHelpResp a c d r2) (addHelpResp b c d r2)))
+         (lem9 a b c d r r2)
+         (lem7 a b c d r r2)) where
+    lem9 : (a b c d : ℕ × ℕ) (r : R a b) (r2 : R c d) → (sym (λ i → addHelpFunc a c ≡ addHelpResp a c d r2 i) ∙ ((λ i → (lem a b r i) c ≡ (lem a b r i) c) ∙ λ i → addHelpFunc b c ≡ addHelpResp b c d r2 i)) ≡ (λ i → (lem a b r i) c ≡ (lem a b r i) d)
+    lem9 (a1 , a2) (b1 , b2) (c1 , c2) (d1 , d2) r r2 = lem11 _ _ where  --- ([a], [b]) ≡ ([a], [b]) is a singleton type; this is a path on a singleton type and hence is trivial
+      lem11 : isProp (([ (a1 + c1) , (a2 + c2) ] ≡ [ (a1 + d1) , (a2 + d2) ]) ≡ ([ (b1 + c1) , (b2 + c2) ] ≡ [ (b1 + d1) , (b2 + d2) ]))
+      lem11 p1 p2 = {!!}
+
+addHelpFunc' : (ℕ × ℕ) → (ℕ × ℕ) → (ℕ × ℕ)
+addHelpFunc' (n1 , n2) (m1 , m2) = (n1 + m1 , n2 + m2)
+
+open import Cubical.Data.Vec.Base
+open import Cubical.Data.FinData
+open import Cubical.Tactics.NatSolver.NatExpression
+open import Cubical.Tactics.NatSolver.HornerForms
+open import Cubical.Tactics.NatSolver.Solver
+open import Cubical.Tactics.NatSolver.Reflection
+
+open EqualityToNormalform renaming (solve to natSolve)
+open IteratedHornerOperations hiding (X)
+
+varType = IteratedHornerForms 8
+var0 : varType
+var0 = Variable 8 (Fin.zero)
+
+var1 : varType
+var1 = Variable 8 (suc Fin.zero)
+
+var2 : varType
+var2 = Variable 8 (suc (suc Fin.zero))
+
+var3 : varType
+var3 = Variable 8 (suc (suc (suc Fin.zero)))
+
+var4 : varType
+var4 = Variable 8 (suc (suc (suc (suc Fin.zero))))
+
+var5 : varType
+var5 = Variable 8 (suc (suc (suc (suc (suc Fin.zero)))))
+
+var6 : varType
+var6 = Variable 8 (suc (suc (suc (suc (suc (suc Fin.zero))))))
+
+var7 : varType
+var7 = Variable 8 (suc (suc (suc (suc (suc (suc (suc Fin.zero)))))))
+
+A1 : Expr 8
+A1 = ∣ Fin.zero
+
+A2 : Expr 8
+A2 = ∣ (suc Fin.zero)
+
+A1' : Expr 8
+A1' = ∣ (suc (suc Fin.zero))
+
+A2' : Expr 8
+A2' = ∣ (suc (suc (suc Fin.zero)))
+
+B1 : Expr 8
+B1 = ∣ (suc (suc (suc (suc Fin.zero))))
+
+B2 : Expr 8
+B2 = ∣ (suc (suc (suc (suc (suc Fin.zero)))))
+
+B1' : Expr 8
+B1' = ∣ (suc (suc (suc (suc (suc (suc Fin.zero))))))
+
+B2' : Expr 8
+B2' = ∣ (suc (suc (suc (suc (suc (suc (suc Fin.zero)))))))
+
+
+add'Resp : (a a' b b' : ℕ × ℕ) → R a a' → R b b' → R (addHelpFunc' a b) (addHelpFunc' a' b')
+add'Resp (a1 , a2) (a1' , a2') (b1 , b2) (b1' , b2') ra rb = inj-m+ {m = a2 + a1'} (inj-m+ {m = b2 + b1'} (subst2 (λ x y →  b2 + b1' + (a2 + a1' + (a1 + b1 + (a2' + b2'))) ≡
+      y + (x + (a2 + b2 + (a1' + b1')))) ra rb let
+                                                 lhs = B2 +' B1' +' (A2 +' A1' +' (A1 +' B1 +' (A2' +' B2'))) 
+                                                 rhs = B1 +' B2' +' (A1 +' A2' +' (A2 +' B2 +' (A1' +' B1')))
+                                                 in natSolve lhs rhs (a1 ∷ a2 ∷ a1' ∷ a2' ∷ b1 ∷ b2 ∷ b1' ∷ b2' ∷ []) refl))
+
+addGZ' : GZ → GZ → GZ
+addGZ' = setQuotBinOp isReflR isReflR addHelpFunc' add'Resp
+
+_fastAddGZ_ : GZ → GZ → GZ
+_fastAddGZ_ z1 z2 = SetQuotients.rec isSetGZ (addHelp z1) (resp z1) z2 where
+  resp : (z : GZ) (a b : ℕ × ℕ) (r : R a b) → addHelp z a ≡ addHelp z b
+  resp z (a1 , a2) (b1 , b2) r i = SetQuotients.rec isSetGZ (lem (a1 , a2) (b1 , b2) r i) (lem4 (a1 , a2) (b1 , b2) r i) z
+  
