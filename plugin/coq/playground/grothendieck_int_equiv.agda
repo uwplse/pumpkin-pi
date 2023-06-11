@@ -217,21 +217,73 @@ Rrefl {x1 , x2} = Nat.+-comm x1 x2
 -- isSetProd : {A B : Set} → isSet A → isSet B → isSet (A × B)
 -- isSetProd {A} {B} setA setB = isOfHLevelProd 2 setA setB
 -- 
--- Rprop : isPropValued R
--- Rprop (a1 , a2) (b1 , b2) p1 p2 = isSetℕ (a1 Nat.+ b2) (a2 Nat.+ b1) p1 p2
--- 
--- 
+Rprop : isPropValued R
+Rprop (a1 , a2) (b1 , b2) p1 p2 = isSetℕ (a1 Nat.+ b2) (a2 Nat.+ b1) p1 p2
+
 isReflR : isRefl R
 isReflR x = Rrefl
--- 
--- isSymR : isSym R
--- isSymR (x1 , x2) (y1 , y2) r = (Nat.+-comm y1 x2) ∙ (sym r) ∙ (Nat.+-comm x1 y2)
--- 
--- isTransR : isTrans R
--- isTransR (x1 , x2) (y1 , y2) (z1 , z2) r1 r2 = {!!}
--- 
--- REquivRel : isEquivRel R
--- REquivRel = equivRel isReflR {!!} {!!}
+ 
+isSymR : isSym R
+isSymR (x1 , x2) (y1 , y2) r = (Nat.+-comm y1 x2) ∙ (sym r) ∙ (Nat.+-comm x1 y2)
+
+addBothSides : {a b c d : ℕ} → (a ≡ b) → (a + c ≡ b + d) → (c ≡ d)
+addBothSides {a} {b} {c} {d} p1 p2 = inj-m+ {m = b} (subst (λ y → y + c ≡ b + d) p1 p2)
+
+open import Cubical.Data.Vec.Base
+open import Cubical.Data.FinData hiding (suc)
+open import Cubical.Tactics.NatSolver.NatExpression
+open import Cubical.Tactics.NatSolver.HornerForms
+open import Cubical.Tactics.NatSolver.Solver
+open import Cubical.Tactics.NatSolver.Reflection
+
+open EqualityToNormalform renaming (solve to natSolve)
+open IteratedHornerOperations hiding (X)
+
+varType6 = IteratedHornerForms 6
+var06 : varType6
+var06 = Variable 6 (Fin.zero)
+
+var16 : varType6
+var16 = Variable 6 (Fin.suc Fin.zero)
+
+var26 : varType6
+var26 = Variable 6 (Fin.suc (Fin.suc Fin.zero))
+
+var36 : varType6
+var36 = Variable 6 (Fin.suc (Fin.suc (Fin.suc Fin.zero)))
+
+var46 : varType6
+var46 = Variable 6 (Fin.suc (Fin.suc (Fin.suc (Fin.suc Fin.zero))))
+
+var56 : varType6
+var56 = Variable 6 (Fin.suc (Fin.suc (Fin.suc (Fin.suc (Fin.suc Fin.zero)))))
+
+X1 : Expr 6
+X1 = ∣ Fin.zero
+
+X2 : Expr 6
+X2 = ∣ (Fin.suc Fin.zero)
+
+Y1 : Expr 6
+Y1 = ∣ (Fin.suc (Fin.suc Fin.zero))
+
+Y2 : Expr 6
+Y2 = ∣ (Fin.suc (Fin.suc (Fin.suc Fin.zero)))
+
+Z1 : Expr 6
+Z1 = ∣ (Fin.suc (Fin.suc (Fin.suc (Fin.suc Fin.zero))))
+
+Z2 : Expr 6
+Z2 = ∣ (Fin.suc (Fin.suc (Fin.suc (Fin.suc (Fin.suc Fin.zero)))))
+
+isTransR : isTrans R
+isTransR (x1 , x2) (y1 , y2) (z1 , z2) r1 r2 = addBothSides (sym r1) (addBothSides (sym r2) let
+                                                 lhs = Y2 +' Z1 +' (X2 +' Y1 +' (X1 +' Z2)) 
+                                                 rhs = Y1 +' Z2 +' (X1 +' Y2 +' (X2 +' Z1))
+                                                 in natSolve lhs rhs (x1 ∷ x2 ∷ y1 ∷ y2 ∷ z1 ∷ z2 ∷ []) refl)
+
+REquivRel : isEquivRel R
+REquivRel = equivRel isReflR isSymR isTransR
 -- 
 -- rFromPath : {a b : ℕ × ℕ } → [ a ] ≡ [ b ] → R a b
 -- rFromPath {a} {b} p = effective Rprop REquivRel a b p
@@ -520,6 +572,9 @@ add0LGZ z = depElimGZ
                           n)
                 z
 
+addNegSuc0LGZ : (z : GZ) → predGZ z ≡ (depConstrGZNegSuc zero) +GZ z
+addNegSuc0LGZ z = {!!}
+
 addHelpFunc : (ℕ × ℕ) → (ℕ × ℕ) → GZ
 addHelpFunc (n1 , n2) (m1 , m2) = [ n1 + m1 , n2 + m2 ]
 
@@ -652,7 +707,6 @@ B1' = ∣ (suc (suc (suc (suc (suc (suc Fin.zero))))))
 B2' : Expr 8
 B2' = ∣ (suc (suc (suc (suc (suc (suc (suc Fin.zero)))))))
 
-
 add'Resp : (a a' b b' : ℕ × ℕ) → R a a' → R b b' → R (addHelpFunc' a b) (addHelpFunc' a' b')
 add'Resp (a1 , a2) (a1' , a2') (b1 , b2) (b1' , b2') ra rb = inj-m+ {m = a2 + a1'} (inj-m+ {m = b2 + b1'} (subst2 (λ x y →  b2 + b1' + (a2 + a1' + (a1 + b1 + (a2' + b2'))) ≡
       y + (x + (a2 + b2 + (a1' + b1')))) ra rb let
@@ -662,6 +716,345 @@ add'Resp (a1 , a2) (a1' , a2') (b1 , b2) (b1' , b2') ra rb = inj-m+ {m = a2 + a1
 
 addGZ' : GZ → GZ → GZ
 addGZ' = setQuotBinOp isReflR isReflR addHelpFunc' add'Resp
+
+addGZ'0R : (x : GZ) → addGZ' x [ 0 , 0 ] ≡ x
+addGZ'0R x =
+  depElimGZ
+    (λ x → addGZ' x [ 0 , 0 ] ≡ x)
+    (λ x → isProp→isSet (isSetGZ _ _))
+    (λ n → cong (λ m → [ m , 0 ]) (+-zero n))
+    (λ n → cong (λ m → [ 0 , suc m ]) (+-zero n))
+    x
+
+addGZ'NegSuc0R : (x : GZ) → addGZ' x (depConstrGZNegSuc 0) ≡ predGZ x
+addGZ'NegSuc0R x =
+  depElimGZ
+    (λ x → addGZ' x (depConstrGZNegSuc 0) ≡ predGZ x)
+    (λ x → isProp→isSet (isSetGZ _ _))
+    (λ n → Nat.elim
+              {A = λ n → addGZ' (depConstrGZPos n) (depConstrGZNegSuc 0) ≡ predGZ (depConstrGZPos n)}
+              refl
+              (λ k Pk → eq/ (suc (k + 0) , 1) (k , 0) (cong ℕ.suc (((+-zero (k + 0)) ∙ (+-zero k)))))
+              n)
+    (λ n → cong (λ m → [_] {R = R} (0 , m)) (cong ℕ.suc (+-suc n 0 ∙ cong ℕ.suc (+-zero n))))
+    x
+
+add+GZ0R : (x : GZ) → x ≡ x +GZ (depConstrGZPos zero)
+add+GZ0R x =
+  depElimGZ
+    (λ x → x ≡ x +GZ (depConstrGZPos zero))
+    (λ x → isProp→isSet (isSetGZ _ _))
+    (λ n → refl)
+    (λ n → refl)
+    x
+
+add+GZNegSuc0R : (x : GZ) → predGZ x ≡ x +GZ (depConstrGZNegSuc zero)
+add+GZNegSuc0R x =
+  depElimGZ
+    (λ x → predGZ x ≡ x +GZ (depConstrGZNegSuc zero))
+    (λ x → isProp→isSet (isSetGZ _ _))
+    (λ n → Nat.elim
+      {A = λ m → predGZ (depConstrGZPos m) ≡ depConstrGZPos m +GZ (depConstrGZNegSuc zero)}
+      refl
+      (λ k _ → refl)
+      n)
+    (λ n → Nat.elim
+      {A = λ m → predGZ (depConstrGZNegSuc m) ≡ depConstrGZNegSuc m +GZ (depConstrGZNegSuc zero)}
+      refl
+      (λ k _ → refl)
+      n)
+    x
+
+reduce+GZPosR : (x : GZ) (n : ℕ) → sucGZ (x +GZ depConstrGZPos n) ≡ x +GZ depConstrGZPos (suc n)
+reduce+GZPosR x n =
+  ιGZPos⁻
+    (λ _ → GZ)
+    (λ _ → isSetGZ)
+    (λ p → x +posGZ p)
+    (λ p → x +negsucGZ p)
+    n
+    (λ s → sucGZ s ≡ x +GZ (depConstrGZPos (suc n)))
+    (ιGZPos
+      (λ _ → GZ)
+      (λ _ → isSetGZ)
+      (λ p → x +posGZ p)
+      (λ p → x +negsucGZ p)
+      (suc n)
+      (λ s → s ≡ x +GZ (depConstrGZPos (suc n)))
+      refl)
+
+reduce+GZNegSucR : (x : GZ) (n : ℕ) → predGZ (x +GZ depConstrGZNegSuc n) ≡ x +GZ depConstrGZNegSuc (suc n)
+reduce+GZNegSucR x n =
+  ιGZNegSuc⁻
+    (λ _ → GZ)
+    (λ _ → isSetGZ)
+    (λ p → x +posGZ p)
+    (λ p → x +negsucGZ p)
+    n
+    (λ s → predGZ s ≡ x +GZ (depConstrGZNegSuc (suc n)))
+    (ιGZNegSuc
+      (λ _ → GZ)
+      (λ _ → isSetGZ)
+      (λ p → x +posGZ p)
+      (λ p → x +negsucGZ p)
+      (suc n)
+      (λ s → s ≡ x +GZ (depConstrGZNegSuc (suc n)))
+      refl)
+
+reduceSucGZDepConstrPos : (n : ℕ) → depConstrGZPos (suc n) ≡ sucGZ (depConstrGZPos n)
+reduceSucGZDepConstrPos n =
+  ιGZPos
+    (λ _ → GZ)
+    (λ _ → isSetGZ)
+    (λ n → depConstrGZPos (suc n))
+    (λ n → Nat.elim
+      (depConstrGZPos zero)
+      (λ m _ → depConstrGZNegSuc m )
+      n)
+    n
+    (λ s → s ≡ sucGZ (depConstrGZPos n))
+    refl
+
+reduceSucGZDepConstrNegSuc : (n : ℕ) → depConstrGZNegSuc n ≡ sucGZ (depConstrGZNegSuc (suc n))
+reduceSucGZDepConstrNegSuc n =
+  ιGZNegSuc
+    (λ _ → GZ)
+    (λ _ → isSetGZ)
+    (λ n → depConstrGZPos (suc n))
+    (λ n → Nat.elim
+      (depConstrGZPos zero)
+      (λ m _ → depConstrGZNegSuc m )
+      n)
+    (suc n)
+    (λ s → s ≡ sucGZ (depConstrGZNegSuc (suc n)))
+    refl
+
+natEq0Dec : (x : ℕ) → (x ≡ 0) ⊎ (Σ[ y ∈ ℕ ] x ≡ suc y)
+natEq0Dec zero = inl refl
+natEq0Dec (suc x) = inr (x , refl)
+
+reduceSucGZ : (n m : ℕ) → [ suc n , m ] ≡ sucGZ [ n , m ]
+reduceSucGZ n m =
+  Sum.rec
+    (λ x → subst
+      (λ y → [ suc n , m ] ≡ sucGZ [ y ])
+      (sym (snd x))
+      (eq/ _ _ (cong
+        ℕ.suc
+        (effective
+          Rprop
+          REquivRel
+          (n , m)
+          (fst x , 0)
+          (canonicalizePres (n , m) ∙ cong [_] (snd x))) ∙ (sym (+-suc m (fst x)))) ∙ reduceSucGZDepConstrPos (fst x))
+      ∙ (sym (cong sucGZ (canonicalizePres (n , m)))))
+    (λ x → let
+      v = fst x
+      canonicalEq = proj₁ (snd x)
+      pv = fst (proj₂ (snd x))
+      pvEq = snd (proj₂ (snd x)) in 
+      (subst
+        (λ y → [ suc n , m ] ≡ sucGZ [ y ])
+        (sym canonicalEq)
+        (subst
+          (λ y → [ suc n , m ] ≡ sucGZ [ zero , y ])
+          (sym pvEq)
+          (Sum.rec
+            (λ pvEq0 → subst
+              (λ y → [ suc n , m ] ≡ sucGZ [ zero , suc y ])
+              (sym pvEq0)
+              (eq/
+                _
+                _
+                (sym (+-suc n 0)
+                ∙ subst
+                    (λ y → (n + y) ≡ m + zero)
+                    (pvEq ∙ cong suc pvEq0)
+                    (effective
+                      Rprop
+                      REquivRel
+                      (n , m)
+                      (0 , v)
+                      (canonicalizePres (n , m) ∙ cong [_] canonicalEq)))))
+            (λ pvEqSuc → subst
+              (λ y → [ suc n , m ] ≡ sucGZ [ zero , suc y ])
+              (sym (snd pvEqSuc))
+              (eq/
+                _
+                _
+                (sym (+-suc n (suc (fst pvEqSuc)))
+                ∙ subst
+                    (λ y → n + y ≡ m + 0)
+                    (pvEq ∙ (cong suc (snd pvEqSuc)))
+                    (effective
+                      Rprop
+                      REquivRel
+                      (n , m)
+                      (0 , v)
+                      ((canonicalizePres (n , m) ∙ cong [_] canonicalEq))))
+              ∙ reduceSucGZDepConstrNegSuc (fst pvEqSuc)))
+            (natEq0Dec pv))))
+      ∙ (sym (cong sucGZ (canonicalizePres (n , m)))))
+    (canonicalizeSignDec (n , m))
+
+reduceAddGZ'Pos : (x : GZ) (n : ℕ) → addGZ' x (depConstrGZPos (suc n)) ≡ sucGZ (addGZ' x (depConstrGZPos n))
+reduceAddGZ'Pos x n =
+  depElimGZ
+    (λ x → addGZ' x (depConstrGZPos (suc n)) ≡ sucGZ (addGZ' x (depConstrGZPos n)))
+    (λ x → isProp→isSet (isSetGZ _ _))
+    (λ m → cong (λ k → [ k , 0 ]) (+-suc m n) ∙ (reduceSucGZ (m + n) 0))
+    (λ m → reduceSucGZ n (suc (m + 0)))
+    x
+
+reducePredGZDepConstrPos : (n : ℕ) → depConstrGZPos n ≡ predGZ (depConstrGZPos (suc n))
+reducePredGZDepConstrPos n =
+  ιGZPos
+    (λ _ → GZ)
+    (λ _ → isSetGZ)
+    (λ n → Nat.elim
+      (depConstrGZNegSuc zero)
+      (λ m _ → depConstrGZPos m)
+      n)
+    (λ n → depConstrGZNegSuc (suc n))
+    (suc n)
+    (λ s → s ≡ predGZ (depConstrGZPos (suc n)))
+    refl
+
+reducePredGZDepConstrNegSuc : (n : ℕ) → depConstrGZNegSuc (suc n) ≡ predGZ (depConstrGZNegSuc n)
+reducePredGZDepConstrNegSuc n =
+  ιGZNegSuc
+    (λ _ → GZ)
+    (λ _ → isSetGZ)
+    (λ n → Nat.elim
+      (depConstrGZNegSuc zero)
+      (λ m _ → depConstrGZPos m)
+      n)
+    (λ n → depConstrGZNegSuc (suc n))
+    n
+    (λ s → s ≡ predGZ (depConstrGZNegSuc n))
+    refl
+
+reducePredGZ : (n m : ℕ) → [ n , suc m ] ≡ predGZ [ n , m ]
+reducePredGZ n m =
+  Sum.rec
+    (λ x → let
+      v = fst x
+      canonicalEq = snd x in
+      subst
+        (λ y → [ n , suc m ] ≡ predGZ [ y ])
+        (sym canonicalEq)
+        (Sum.rec
+          (λ vEq0 → subst
+            (λ y → [ n , suc m ] ≡ predGZ [ y , zero ])
+            (sym vEq0)
+            (eq/
+              (n , suc m)
+              (0 , suc zero)
+              (+-suc n zero
+              ∙ cong
+                  ℕ.suc
+                  (subst
+                    (λ y → n + zero ≡ m + y)
+                    vEq0
+                    (effective
+                      Rprop
+                      REquivRel
+                      (n , m)
+                      (fst x , 0)
+                      (canonicalizePres (n , m) ∙ cong [_] canonicalEq))))))
+          (λ vEqSuc → subst
+            (λ y → [ n , suc m ] ≡ predGZ [ y , zero ])
+            (sym (snd vEqSuc))
+            (eq/
+              (n , suc m)
+              (fst vEqSuc , 0)
+              (subst (λ y → n + 0 ≡ m + y)
+                (snd vEqSuc)
+                (effective
+                  Rprop
+                  REquivRel
+                  (n , m)
+                  (v , 0)
+                  (canonicalizePres (n , m) ∙ cong [_] canonicalEq))
+              ∙ +-suc m (fst vEqSuc))
+            ∙ reducePredGZDepConstrPos (fst vEqSuc)))
+          (natEq0Dec v))
+      ∙ (cong predGZ (sym (canonicalizePres (n , m)))))
+    (λ x → let
+      v = fst x
+      canonicalEq = proj₁ (snd x)
+      pv = fst (proj₂ (snd x ))
+      pvEq = snd (proj₂ (snd x)) in
+      subst
+        (λ y → [ n , suc m ] ≡ predGZ [ y ])
+        (sym canonicalEq)
+        (subst
+          (λ y → [ n , suc m ] ≡ predGZ [ zero , y ])
+          (sym pvEq)
+          (eq/
+            (n , suc m)
+            (0 , suc (suc pv))
+            (+-suc n (suc pv)
+            ∙ cong
+                ℕ.suc
+                (effective
+                  Rprop
+                  REquivRel
+                  (n , m)
+                  (0 , suc pv)
+                  (subst
+                    (λ y → [_] {R = R} (n , m) ≡ [ 0 , y ])
+                    pvEq
+                    (canonicalizePres (n , m) ∙ cong [_] canonicalEq))))
+          ∙ reducePredGZDepConstrNegSuc pv))
+      ∙ (cong predGZ (sym (canonicalizePres (n , m)))))
+    (canonicalizeSignDec (n , m))
+
+reduceAddGZ'NegSuc : (x : GZ) (n : ℕ) → addGZ' x (depConstrGZNegSuc (suc n)) ≡ predGZ (addGZ' x (depConstrGZNegSuc n))
+reduceAddGZ'NegSuc x n =
+  depElimGZ
+    (λ x → addGZ' x (depConstrGZNegSuc (suc n)) ≡ predGZ (addGZ' x (depConstrGZNegSuc n)))
+    (λ x → isProp→isSet (isSetGZ _ _))
+    (λ m → reducePredGZ (m + 0) (suc n))
+    (λ m → cong (λ k → [ 0 , suc k ]) (+-suc m (suc n)) ∙ reducePredGZ 0 (suc m + suc n))
+    x
+
+addEqualOnInputs : (x y : GZ) → addGZ' x y ≡ x +GZ y
+addEqualOnInputs x y =
+  depElimGZ
+    (λ z → addGZ' x z ≡ x +GZ z)
+    (λ y → isProp→isSet (isSetGZ _ _))
+    (λ m → Nat.elim
+      {A = λ m → addGZ' x (depConstrGZPos m) ≡ x +GZ (depConstrGZPos m)} 
+      (addGZ'0R x ∙ add+GZ0R x)
+      (λ k Pk → reduceAddGZ'Pos x k ∙ cong sucGZ Pk ∙ reduce+GZPosR x k)
+      m)
+    (λ m → Nat.elim
+      {A = λ m → addGZ' x (depConstrGZNegSuc m) ≡ x +GZ (depConstrGZNegSuc m)}
+      (addGZ'NegSuc0R x ∙ add+GZNegSuc0R x)
+      (λ k Pk → (reduceAddGZ'NegSuc x k) ∙ (cong predGZ Pk) ∙ reduce+GZNegSucR x k)
+      m)
+    y
+
+-- depElimGZ
+--    (λ z → addGZ' x z ≡ x +GZ z)
+--    (λ y → isProp→isSet (isSetGZ (addGZ' x y) (x +GZ y)))
+--    (λ n → depElimGZ
+--      (λ z → addGZ' z (depConstrGZPos n) ≡ (z +GZ depConstrGZPos n))
+--      (λ x → isProp→isSet (isSetGZ _ _))
+--      (λ m → Nat.elim
+--        {A = λ x → addGZ' (depConstrGZPos m) (depConstrGZPos x) ≡ (depConstrGZPos m +GZ depConstrGZPos x)}
+--        (cong (λ n → [ n , 0 ]) (+-zero m))
+--        (λ k Pk → reduceAddGZ'Pos (depConstrGZPos m) k ∙ (cong sucGZ Pk) ∙ (reduce+GZPos (depConstrGZPos m) k))
+--       n)
+--      {!!}
+--      x)
+--    {!!}
+--    y
+
+addEqual : addGZ' ≡ _+GZ_
+addEqual = funExt (λ x → funExt (λ y → addEqualOnInputs x y))
+  
 
 _fastAddGZ_ : GZ → GZ → GZ
 _fastAddGZ_ z1 z2 = SetQuotients.rec isSetGZ (addHelp z1) (resp z1) z2 where
