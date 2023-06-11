@@ -575,76 +575,6 @@ add0LGZ z = depElimGZ
 addNegSuc0LGZ : (z : GZ) → predGZ z ≡ (depConstrGZNegSuc zero) +GZ z
 addNegSuc0LGZ z = {!!}
 
-addHelpFunc : (ℕ × ℕ) → (ℕ × ℕ) → GZ
-addHelpFunc (n1 , n2) (m1 , m2) = [ n1 + m1 , n2 + m2 ]
-
-addHelpRespLem : (n1 n2 a1 a2 b1 b2 : ℕ) → (r : R (a1 , a2) (b1 , b2)) → n1 + a1 + (n2 + b2) ≡ n2 + a2 + (n1 + b1)
-addHelpRespLem n1 n2 a1 a2 b1 b2 r = (+-comm (n1 + a1) (n2 + b2))
-                                     ∙ sym (+-assoc n2 b2 (n1 + a1))
-                                     ∙ cong
-                                         (λ x → n2 + x)
-                                         ((+-comm b2 (n1 + a1))
-                                           ∙ ((sym (+-assoc n1 a1 b2))
-                                           ∙ (((cong
-                                               (λ x → n1 + x)
-                                               (r
-                                               ∙ (+-comm a2 b1)))
-                                           ∙ (+-assoc n1 b1 a2))
-                                           ∙ (sym (+-comm a2 (n1 + b1))))))
-                                       ∙ +-assoc n2 a2 (n1 + b1)
-
-addHelpResp : (n a b : ℕ × ℕ) (r : R a b) → addHelpFunc n a ≡ addHelpFunc n b
-addHelpResp (n1 , n2) (a1 , a2) (b1 , b2) r = eq/ (n1 + a1 , n2 + a2) (n1 + b1 , n2 + b2) (addHelpRespLem n1 n2 a1 a2 b1 b2 r)
-
-addHelp : GZ → (ℕ × ℕ) → GZ
-addHelp z (n1 , n2) = SetQuotients.rec isSetGZ (addHelpFunc (n1 , n2)) (addHelpResp (n1 , n2)) z
-
-lem : (a b : ℕ × ℕ) (r : R a b) → addHelpFunc a ≡ addHelpFunc b
-lem a b r = funExt λ x → lem2 a b x r where
-  lem2 : (a b n : ℕ × ℕ) (r : R a b) → addHelpFunc a n ≡ addHelpFunc b n
-  lem2 (a1 , a2) (b1 , b2) (n1 , n2) r = eq/ (a1 + n1 , a2 + n2) (b1 + n1 , b2 + n2) (lem3 a1 a2 b1 b2 n1 n2 r) where
-    lem3 : (a1 a2 b1 b2 n1 n2 : ℕ) (r : R (a1 , a2) (b1 , b2)) → a1 + n1 + (b2 + n2) ≡ a2 + n2 + (b1 + n1)
-    lem3 a1 a2 b1 b2 n1 n2 r = {!!} --- this won't be hard, focusing on the rest first
-
---- try using this for lem4?
-lem5 : (a b c : ℕ × ℕ) (r : R a b) (r2 : R c c) → PathP (λ i → (lem a b r i) c ≡ (lem a b r i) c) (addHelpResp a c c r2) (addHelpResp b c c r2)
-lem5 a b c r r2 = subst2 (λ x y → PathP (λ i → lem a b r i c ≡ lem a b r i c) x y) (squash/ _ _ _ _) (squash/ _ _ _ _) lem10 where
-  lem10 : PathP (λ i → lem a b r i c ≡ lem a b r i c) refl refl
-  lem10 i = refl
-
-lem8 : (a c d : ℕ × ℕ) (r : R c c) (r2 : R c d) → PathP (λ i → addHelpFunc a c ≡ (refl ∙ addHelpResp a c d r2) i) (addHelpResp a c c r) (addHelpResp a c d r2)
-lem8 (a1 , a2) (c1 , c2) (d1 , d2) r r2 =
-  compPathP'
-    {B = λ x → addHelpFunc (a1 , a2) (c1 , c2) ≡ x}
-    (squash/ [ a1 + c1 , a2 + c2 ] [ a1 + c1 , a2 + c2 ] (addHelpResp (a1 , a2) (c1 , c2) (c1 , c2) r) refl)
-    λ i j → addHelpResp (a1 , a2) (c1 , c2) (d1 , d2) r2 (i ∧ j)
-
-lem6 : (a c d : ℕ × ℕ) (r : R c c) (r2 : R c d) → PathP (λ i → addHelpFunc a c ≡ addHelpResp a c d r2 i) (addHelpResp a c c r) (addHelpResp a c d r2)
-lem6 a c d r r2 =
-  subst (λ x → PathP (λ i → addHelpFunc a c ≡ x i) (addHelpResp a c c r) (addHelpResp a c d r2)) (sym (lUnit (addHelpResp a c d r2))) (lem8 a c d r r2)
-
-lem7 : (a b c d : ℕ × ℕ) (r : R a b) (r2 : R c d) → PathP (λ i → (sym (λ i → addHelpFunc a c ≡ addHelpResp a c d r2 i) ∙ ((λ i → (lem a b r i) c ≡ (lem a b r i) c) ∙ λ i → addHelpFunc b c ≡ addHelpResp b c d r2 i)) i) (addHelpResp a c d r2) (addHelpResp b c d r2)
-lem7 a b c d r r2 =
-  compPathP
-  (symP (lem6 a c d Rrefl r2))
-  (compPathP
-    (lem5 a b c r Rrefl)
-    (lem6 b c d Rrefl r2))
-
-lem4 : (a b : ℕ × ℕ) (r : R a b) → PathP (λ i → (c d : ℕ × ℕ) (r2 : R c d) → (lem a b r i) c ≡ (lem a b r i) d) (addHelpResp a) (addHelpResp b)
-lem4 a b r =
-  funExt
-    λ c → funExt
-      (λ d → funExt
-        λ r2 → subst
-         ((λ x → PathP (λ i → x i) (addHelpResp a c d r2) (addHelpResp b c d r2)))
-         (lem9 a b c d r r2)
-         (lem7 a b c d r r2)) where
-    lem9 : (a b c d : ℕ × ℕ) (r : R a b) (r2 : R c d) → (sym (λ i → addHelpFunc a c ≡ addHelpResp a c d r2 i) ∙ ((λ i → (lem a b r i) c ≡ (lem a b r i) c) ∙ λ i → addHelpFunc b c ≡ addHelpResp b c d r2 i)) ≡ (λ i → (lem a b r i) c ≡ (lem a b r i) d)
-    lem9 (a1 , a2) (b1 , b2) (c1 , c2) (d1 , d2) r r2 = lem11 _ _ where  --- ([a], [b]) ≡ ([a], [b]) is a singleton type; this is a path on a singleton type and hence is trivial
-      lem11 : isProp (([ (a1 + c1) , (a2 + c2) ] ≡ [ (a1 + d1) , (a2 + d2) ]) ≡ ([ (b1 + c1) , (b2 + c2) ] ≡ [ (b1 + d1) , (b2 + d2) ]))
-      lem11 p1 p2 = {!!}
-
 addHelpFunc' : (ℕ × ℕ) → (ℕ × ℕ) → (ℕ × ℕ)
 addHelpFunc' (n1 , n2) (m1 , m2) = (n1 + m1 , n2 + m2)
 
@@ -1036,28 +966,5 @@ addEqualOnInputs x y =
       m)
     y
 
--- depElimGZ
---    (λ z → addGZ' x z ≡ x +GZ z)
---    (λ y → isProp→isSet (isSetGZ (addGZ' x y) (x +GZ y)))
---    (λ n → depElimGZ
---      (λ z → addGZ' z (depConstrGZPos n) ≡ (z +GZ depConstrGZPos n))
---      (λ x → isProp→isSet (isSetGZ _ _))
---      (λ m → Nat.elim
---        {A = λ x → addGZ' (depConstrGZPos m) (depConstrGZPos x) ≡ (depConstrGZPos m +GZ depConstrGZPos x)}
---        (cong (λ n → [ n , 0 ]) (+-zero m))
---        (λ k Pk → reduceAddGZ'Pos (depConstrGZPos m) k ∙ (cong sucGZ Pk) ∙ (reduce+GZPos (depConstrGZPos m) k))
---       n)
---      {!!}
---      x)
---    {!!}
---    y
-
 addEqual : addGZ' ≡ _+GZ_
 addEqual = funExt (λ x → funExt (λ y → addEqualOnInputs x y))
-  
-
-_fastAddGZ_ : GZ → GZ → GZ
-_fastAddGZ_ z1 z2 = SetQuotients.rec isSetGZ (addHelp z1) (resp z1) z2 where
-  resp : (z : GZ) (a b : ℕ × ℕ) (r : R a b) → addHelp z a ≡ addHelp z b
-  resp z (a1 , a2) (b1 , b2) r i = SetQuotients.rec isSetGZ (lem (a1 , a2) (b1 , b2) r i) (lem4 (a1 , a2) (b1 , b2) r i) z
-  
