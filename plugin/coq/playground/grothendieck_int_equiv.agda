@@ -968,3 +968,6 @@ addEqualOnInputs x y =
 
 addEqual : addGZ' ≡ _+GZ_
 addEqual = funExt (λ x → funExt (λ y → addEqualOnInputs x y))
+
+add'0LGZ : (z : GZ) → z ≡ addGZ' (depConstrGZPos 0) z
+add'0LGZ = subst (λ y → (z : GZ) → z ≡ y (depConstrGZPos 0) z) (sym addEqual) add0LGZ
