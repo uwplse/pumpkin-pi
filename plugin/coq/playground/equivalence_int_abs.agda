@@ -740,33 +740,21 @@ addCorrectBetter a b a' b' pa pb =
     {F = λ i n → Nat≡Int/rInt i}
     (add' a)
     (addInt/rInt' a')
-    (lamOK
-      (add' a)
-      (addInt/rInt' a')
-      (λ pb' →
-        appOK
-          {T = λ i → Nat≡Int/rInt i}
-          {F = λ i n → Nat≡Int/rInt i}
-          (add' a)
-          (addInt/rInt' a')
-          (elimOK' a a' pa
-            (λ _ → ℕ → ℕ) -- motive of add'
-            (λ _ → Int / rInt → Int / rInt) -- motive of addInt/rInt'
-            (λ (_ : Int / rInt) → isSetProd (λ _ → squash/)) -- isSet proof of addInt/rInt'
-            (λ i z → Nat≡Int/rInt i → Nat≡Int/rInt i) -- path between motives
-            (λ (b : ℕ) → b) -- base case of add'
-            (λ (b : Int / rInt) → b) -- base case off addInt/rInt'
-            (lamOK (λ (b : ℕ) → b) (λ (b : Int / rInt) → b) (λ p → p)) -- path between base cases
-            (λ a IH b → suc (IH b)) -- inductive case of add'
-            (λ a IH b → depConstrInt/rIntS (IH b)) -- inductive case of addInt/rInt'
-            (λ a a' (IHa : ℕ → ℕ) (IHa' : Int / rInt → Int / rInt) a≡a' IHa≡IHa' → -- path between inductive cases
-              lamOK
-                (λ b → suc (IHa b))
-                (λ b → depConstrInt/rIntS (IHa' b))
-                (λ b≡b' → depConstrSCorrect (IHa _) (IHa' _) (appOK IHa IHa' IHa≡IHa' _ _ b≡b'))))
-        _
-        _
-        pb'))
+    (elimOK' a a' pa
+      (λ _ → ℕ → ℕ) -- motive of add'
+      (λ _ → Int / rInt → Int / rInt) -- motive of addInt/rInt'
+      (λ (_ : Int / rInt) → isSetProd (λ _ → squash/)) -- isSet proof of addInt/rInt'
+      (λ i z → Nat≡Int/rInt i → Nat≡Int/rInt i) -- path between motives
+      (λ (b : ℕ) → b) -- base case of add'
+      (λ (b : Int / rInt) → b) -- base case off addInt/rInt'
+      (lamOK (λ (b : ℕ) → b) (λ (b : Int / rInt) → b) (λ p → p)) -- path between base cases
+      (λ a IH b → suc (IH b)) -- inductive case of add'
+      (λ a IH b → depConstrInt/rIntS (IH b)) -- inductive case of addInt/rInt'
+      (λ a a' (IHa : ℕ → ℕ) (IHa' : Int / rInt → Int / rInt) a≡a' IHa≡IHa' → -- path between inductive cases
+        lamOK
+          (λ b → suc (IHa b))
+          (λ b → depConstrInt/rIntS (IHa' b))
+          (λ b≡b' → depConstrSCorrect (IHa _) (IHa' _) (appOK IHa IHa' IHa≡IHa' _ _ b≡b'))))
       b
       b'
       pb
