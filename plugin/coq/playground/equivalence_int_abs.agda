@@ -771,32 +771,6 @@ addCorrectBetter a b a' b' pa pb =
       b'
       pb
 
-{- prodOK : {T : I → Type} (F : (i : I) → T i → Type)
-  (b≡b' : ∀ {t : T i0} {t' : T i1} (t≡t' : PathP (λ i → T i) t t') →
-    PathP (λ i → Type) (F i0 t) (F i1 t')) →
-  PathP (λ i → T i → Type) (F i0) (F i1)
-prodOK {T} F b≡b' = funExtDep b≡b'-}
-
-{- -- Porting functions to nat-like eliminators
-add' : (a : ℕ) → (b : ℕ) → ℕ
-add' a b =
-  Cubical.Data.Nat.elim
-    {A = λ _ → ℕ → ℕ} -- motive P
-    (λ b → b) -- P 0
-    (λ a IH b → suc (IH b)) -- ∀ n, P n → P (S n)
-    a
-    b
-
-addInt/rInt' : (Int / rInt) -> (Int / rInt) -> (Int / rInt)
-addInt/rInt' a b =
-  depElimSetInt/rInt
-    (λ _ → Int / rInt → Int / rInt) -- motive P
-    -- ∀ n, isSet (P n)
-    (λ b → b) -- P depConstrInt/rInt0
-    (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m)) -- ∀ n, P n → P (depConstrInt/rIntS n)
-    a
-    b -}
-
 {- We can't prove ind, constr, and elim in general, but let's instantiate to a particular inductive type (WIP) -}
 
 -- We can define a dependent vector type Vec:
