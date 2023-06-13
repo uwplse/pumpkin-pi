@@ -1059,20 +1059,74 @@ addCommInt/rInt' a b =
     b
 
 {- proof of correctness of repaired proof!!! which we could totes automatically generate -}
+
+-- TODO how do I automatically derive this one? It's obvious but why can't I use appOK here?
+eqTypeOK :
+  ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
+  (a ≡ b) ≡ (a' ≡ b')
+eqTypeOK a a' a≡a' b b' b≡b' =
+  λ i → a≡a' i ≡ b≡b' i
+
+-- TODO likewise here ...
 addCommCorrectType :
   ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
   PathP (λ i → Type) (add' a b ≡ add' b a) (addInt/rInt' a' b' ≡ addInt/rInt' b' a')
 addCommCorrectType a a' a≡a' b b' b≡b' =
-  {!!}
+  eqTypeOK (add' a b) (addInt/rInt' a' b') (addCorrectBetter a b a' b' a≡a' b≡b') (add' b a) (addInt/rInt' b' a') (addCorrectBetter b a b' a' b≡b' a≡a')
 
 addCommCorrect :
   ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
   PathP (λ i → addCommCorrectType a a' a≡a' b b' b≡b' i) (addCommNat' a b) (addCommInt/rInt' a' b')
-addCommCorrect =
+addCommCorrect a a' a≡a' b b' b≡b' =
   {!!}
 
--- addCommNat' : (a : ℕ) → (b : ℕ) → add' a b ≡ add' b a
--- addCommInt/rInt' : (a : Int / rInt) → (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a
+{-
 
--- TODO, show that this is correct in comparison to a nat version!
--- think about how to algorithmically generate those proofs
+addCommInt/rInt' : (a : Int / rInt) → (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a
+addCommInt/rInt' a b =
+  depElimInt/rInt
+    (λ a → ∀ b → addInt/rInt' a b ≡ addInt/rInt' b a)
+    (λ (a : Int / rInt) p q i →
+      isSetProd
+        (λ b → isProp→isSet (squash/ _ _))
+        (λ b → p b)
+        (λ b → q b)
+        (funExt (λ x → squash/ _ _ (p x) (q x)))
+        (funExt (λ x → squash/ _ _ (p x) (q x)))
+        i
+        i)
+    (λ b →
+      depElimInt/rInt
+        (λ b → addInt/rInt' [ pos zero ] b ≡ addInt/rInt' b [ pos zero ])
+        (λ b → squash/ _ _)
+        refl
+        (λ b (IHb : addInt/rInt' [ pos zero ] b ≡ addInt/rInt' b [ pos zero ]) →
+          -- T := P (S b) := [ pos zero ] + (S b) ≡ (S b) + [ pos zero ]
+          -- cong S IHb : T', so
+          -- T' := S ([ pos zero ] + b) = S (b + [ pos zero ])
+          -- One backwards ι abstracting over S b
+          ιInt/rIntS⁻
+            (λ _ → Int / rInt → Int / rInt)
+            (λ _ → isSetProd (λ _ → squash/))
+            (λ b → b)
+            (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+            b
+            (λ add-Sb →
+              addInt/rInt' [ pos zero ] (depConstrInt/rIntS b) ≡ add-Sb [ pos zero ])
+            (cong depConstrInt/rIntS IHb))
+        b)
+    (λ a (IHa : ∀ b → addInt/rInt' a b ≡ addInt/rInt' b a) b →
+      -- T := P (S a) b := S a + b ≡ b + S a
+      ιInt/rIntS⁻
+        (λ _ → Int / rInt → Int / rInt)
+        (λ _ → isSetProd (λ _ → squash/))
+        (λ b → b)
+        (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+        a
+        (λ add-Sa →
+          add-Sa b ≡ addInt/rInt' b (depConstrInt/rIntS a))
+        (cong depConstrInt/rIntS (IHa b) ∙ sucLemInt/rInt'' b a)) 
+    a
+    b
+
+-}
