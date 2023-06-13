@@ -499,7 +499,7 @@ elimOK : -- Based on elim_ok in Figure 11 in the PLDI 2021 paper
   ∀ (PAO : PA zero) (PBO : PB depConstrInt/rInt0) →
   ∀ (PAO≡PBO : PathP (λ i → (PA≡PB i) (depConstr0Correct i)) PAO PBO) →
   ∀ (PAS : ∀ a → PA a → PA (suc a)) (PBS : ∀ b → PB b → PB (depConstrInt/rIntS b)) →
-  ∀ (PAS≡PBS : ∀ a b IHa IHb a≡b → PathP (λ i → (PA≡PB i) (depConstrSCorrect a b a≡b i)) (PAS a IHa) (PBS b IHb)) →
+  ∀ (PAS≡PBS : ∀ a b (IHa : PA a) (IHb : PB b) a≡b → PathP (λ i → (PA≡PB i) (depConstrSCorrect a b a≡b i)) (PAS a IHa) (PBS b IHb)) →
   PathP (λ i → (PA≡PB i) (a≡b i)) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b)
 elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
   J -- adjust a≡b from pathP to path to make it easy to use JDep
@@ -536,6 +536,63 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
               (λ PBSa →
                 PathP (λ i → PA≡PB i (depConstrSCorrect a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl) i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) PBSa)
               (PAS≡PBS a (transport (λ i → Nat≡Int/rInt i) a) (Cubical.Data.Nat.elim PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)) (toPathP refl)))))
+           a)
+       {y = b}
+       (fromPathP a≡b)
+       {z = depElimSetInt/rInt PB PBSet PBO PBS b}
+       (J -- reduce to refl
+          (λ (b : Int / rInt) (a≡b : transport (λ i → Nat≡Int/rInt i) a ≡ b) →
+            PathP (λ i → PB (fromPathP a≡b i)) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)) (depElimSetInt/rInt PB PBSet PBO PBS b))
+          refl
+          (fromPathP {A = λ i → Nat≡Int/rInt i} a≡b)))
+    (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) a b) a≡b)
+
+-- To make this more useful, we want to track the IH (TODO port ιOK to use this, and then remove old version; will need for proofs probably)
+elimOK' :
+  ∀ (a : Nat) (b : Int / rInt) →
+  ∀ (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
+  ∀ (PA : Nat → Type) (PB : Int / rInt → Type) (PBSet : ∀ b → isSet (PB b)) →
+  ∀ (PA≡PB : PathP (λ i → (Nat≡Int/rInt i) → Type) PA PB) →
+  ∀ (PAO : PA zero) (PBO : PB depConstrInt/rInt0) →
+  ∀ (PAO≡PBO : PathP (λ i → (PA≡PB i) (depConstr0Correct i)) PAO PBO) →
+  ∀ (PAS : ∀ a → PA a → PA (suc a)) (PBS : ∀ b → PB b → PB (depConstrInt/rIntS b)) →
+  ∀ (PAS≡PBS : ∀ a b (IHa : PA a) (IHb : PB b) a≡b (IHa≡IHb : PathP (λ i → PA≡PB i (a≡b i)) IHa IHb) → PathP (λ i → (PA≡PB i) (depConstrSCorrect a b a≡b i)) (PAS a IHa) (PBS b IHb)) →
+  PathP (λ i → (PA≡PB i) (a≡b i)) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b)
+elimOK' a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
+  J -- adjust a≡b from pathP to path to make it easy to use JDep
+    (λ a≡b' (H : toPathP (fromPathP a≡b) ≡ a≡b') →
+      PathP (λ i → (PA≡PB i (a≡b' i))) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b))
+    (JDep -- adjust to a homogeneous PathP about proofs about a
+       {A = Int / rInt}
+       {B = λ (b : Int / rInt) → PB b}
+       {b =  depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)}
+       (λ (b : Int / rInt) (a≡b : transport (λ i → Nat≡Int/rInt i) a ≡ b) (PBb : PB b)
+          (p : PathP (λ i → PB (a≡b i)) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)) PBb) →
+         PathP (λ i → PA≡PB i (toPathP {A = λ i → Nat≡Int/rInt i} a≡b i)) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b))
+       (Cubical.Data.Nat.elim
+         {A = λ (a : Nat) →
+           PathP
+             (λ i → PA≡PB i (toPathP {A = λ i → Nat≡Int/rInt i} (refl {x = transport (λ i → Nat≡Int/rInt i) a}) i))
+             (Cubical.Data.Nat.elim PAO PAS a)
+             (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a))}
+         PAO≡PBO -- base case holds by PAO≡PBO
+         (λ (a : Nat) IHa → -- inductive case holds by ι of PAS≡PBS
+           (subst -- adjust to refl
+            {A = PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a))}
+            {x = depConstrSCorrect a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl)}
+            {y = toPathP {A = λ i → Nat≡Int/rInt i} refl}
+            (λ (Sa≡Sa : PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a))) →
+              PathP (λ i → PA≡PB i (Sa≡Sa i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) (depElimSetInt/rInt PB PBSet PBO PBS (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a))))
+            (depConstrSCorrectIrrel a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl) (toPathP refl))
+            (ιInt/rIntS⁻ -- ι reduce the successor case for proofs about Int/rInt
+              PB
+              PBSet
+              PBO
+              PBS
+              (transport (λ i → Nat≡Int/rInt i) a)
+              (λ PBSa →
+                PathP (λ i → PA≡PB i (depConstrSCorrect a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl) i)) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) PBSa)
+              (PAS≡PBS a (transport (λ i → Nat≡Int/rInt i) a) (Cubical.Data.Nat.elim PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)) (toPathP refl) IHa))))
            a)
        {y = b}
        (fromPathP a≡b)
@@ -622,8 +679,7 @@ var {T} i v = refl
       (transport
         (λ i →
            elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i ≡
-           PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a)
-        (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b i)
+           PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b i)
         refl)
       (ιInt/rIntSEq PB PBset PBzero PBS b))
 
@@ -672,7 +728,50 @@ var {T} i v = refl
       {y = ιInt/rIntSEq PB PBset PBzero PBS b}
       (ιOKSEq PA PB PA≡PB PBset PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS a b a≡b))
 
-{- We can't prove ind, constr, and elim in general, but let's instantiate to a particular inductive type -}
+{- From this, we can already prove add and the proofs about it correct -}
+
+addCorrectBetter :
+  ∀ (a b : ℕ) (a' b' : Int / rInt) →
+  ∀ (pa : PathP (λ i → Nat≡Int/rInt i) a a') (pb : PathP (λ i → Nat≡Int/rInt i) b b') →
+  PathP (λ i → Nat≡Int/rInt i) (add' a b) (addInt/rInt' a' b')
+addCorrectBetter a b a' b' pa pb =
+  appOK
+    {T = λ i → Nat≡Int/rInt i}
+    {F = λ i n → Nat≡Int/rInt i}
+    (add' a)
+    (addInt/rInt' a')
+    (lamOK
+      (add' a)
+      (addInt/rInt' a')
+      (λ pb' →
+        appOK
+          {T = λ i → Nat≡Int/rInt i}
+          {F = λ i n → Nat≡Int/rInt i}
+          (add' a)
+          (addInt/rInt' a')
+          (elimOK' a a' pa
+            (λ _ → ℕ → ℕ) -- motive of add'
+            (λ _ → Int / rInt → Int / rInt) -- motive of addInt/rInt'
+            (λ (_ : Int / rInt) → isSetProd (λ _ → squash/)) -- isSet proof of addInt/rInt'
+            (λ i z → Nat≡Int/rInt i → Nat≡Int/rInt i) -- path between motives
+            (λ (b : ℕ) → b) -- base case of add'
+            (λ (b : Int / rInt) → b) -- base case off addInt/rInt'
+            (lamOK (λ (b : ℕ) → b) (λ (b : Int / rInt) → b) (λ p → p)) -- path between base cases
+            (λ a IH b → suc (IH b)) -- inductive case of add'
+            (λ a IH b → depConstrInt/rIntS (IH b)) -- inductive case of addInt/rInt'
+            (λ a a' (IHa : ℕ → ℕ) (IHa' : Int / rInt → Int / rInt) a≡a' IHa≡IHa' → -- path between inductive cases
+              lamOK
+                (λ b → suc (IHa b))
+                (λ b → depConstrInt/rIntS (IHa' b))
+                (λ b≡b' → depConstrSCorrect (IHa _) (IHa' _) (appOK IHa IHa' IHa≡IHa' _ _ b≡b'))))
+        _
+        _
+        pb'))
+      b
+      b'
+      pb
+
+{- We can't prove ind, constr, and elim in general, but let's instantiate to a particular inductive type (WIP) -}
 
 -- We can define a dependent vector type Vec:
 data Vec (T : Set) : ℕ → Set where
