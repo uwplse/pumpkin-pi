@@ -671,7 +671,7 @@ var {T} i v = refl
       {y = ιInt/rIntSEq PB PBset PBzero PBS b}
       (ιOKSEq PA PB PA≡PB PBset PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS a b a≡b))
 
-{- From this, we can already prove add and the proofs about it correct -}
+{- From this, we can already prove add and the proofs about it correct (will do proofs at botom of file) -}
 
 addCorrectBetter :
   ∀ (a b : ℕ) (a' b' : Int / rInt) →
@@ -1058,9 +1058,18 @@ addCommInt/rInt' a b =
     a
     b
 
--- Proof of correctness of repaired proof
--- addCommCorrect : ∀ (a : ℕ) (a' : Int / rInt) (p : PathP {!!} a a') → {!!}
--- addCommCorrect = {!!}
+{- proof of correctness of repaired proof!!! which we could totes automatically generate -}
+addCommCorrectType :
+  ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
+  PathP (λ i → Type) (add' a b ≡ add' b a) (addInt/rInt' a' b' ≡ addInt/rInt' b' a')
+addCommCorrectType a a' a≡a' b b' b≡b' =
+  {!!}
+
+addCommCorrect :
+  ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
+  PathP (λ i → addCommCorrectType a a' a≡a' b b' b≡b' i) (addCommNat' a b) (addCommInt/rInt' a' b')
+addCommCorrect =
+  {!!}
 
 -- addCommNat' : (a : ℕ) → (b : ℕ) → add' a b ≡ add' b a
 -- addCommInt/rInt' : (a : Int / rInt) → (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a
