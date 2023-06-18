@@ -337,7 +337,7 @@ module lib where
     ...                                                                            | false with (k' < k'') in leProof'
     ...                                                                                     | true = (((k' , v') :: ((k'' , v'') :: l')) , prependLeqMaintainsSorted k' v' k'' v'' l' proofSorted' (orIntroL (eqToPath leProof')))
     ...                                                                                     | false with (k == k'') in eqProof'' -- this is absurd now
-    ...                                                                                              | true = (((k' , v') :: ((k'' , v'') :: l')) , Cubical.Data.Empty.elim (true≢false (symPath (inEqChoice k k') ∙ orElim (eqToPath eqProof) (orElim (eqToPath leProof) ((substPath (λ x → {!!}) (sym (liftNatEquiv k k'' (eqToPath eqProof''))) (λ x → (k' < x) ≡ false))))))) --  (congPath (λ a → {!!}) (liftNatEquiv k k'' (eqToPath eqProof'')) cong {!!} (liftNatEquiv k k'' (eqToPath eqProof''))
+    ...                                                                                              | true = (((k' , v') :: ((k'' , v'') :: l')) , Cubical.Data.Empty.elim (true≢false (symPath (inEqChoice k k') ∙ orElim (eqToPath eqProof) (orElim (eqToPath leProof) ( cong (λ y → (k' < y)) (liftNatEquiv k k'' (eqToPath eqProof'')) ∙ eqToPath leProof')))))
     ...                                                                                              | false = (((k' , v') :: ((k'' , v'') :: l')) , {!!}) where -- Cubical.Data.Empty.elim (thisIsAbsurdLem k v k' v' k'' v'' l l' proofSorted proofSorted' (eqToPath proof) (eqToPath eqProof) (eqToPath leProof) (eqToPath eqProof') (eqToPath leProof'))) where
       thisIsAbsurdLem : (k v k' v' k'' v'' : ℕ) → (l l' : List (Pair ℕ ℕ)) →
         (proofSorted : sorted ((k' , v') :: l)) → (proofSorted' : sorted ((k'' , v'') :: l')) →
@@ -386,7 +386,7 @@ module lib where
     g [ [] ] =  [] , tt
     g [ (k , v) :: a ] = insertionSortΣ k v (g [ a ])
     g (eq/ a b r i) = {!!}
-    g (squash/ x x₁ p q i i₁) = {!!}
+    g (squash/ x x₁ p q i i₁) = SetQuotients.elim {!!} {!!} {!!} {!!}
 
     f : Σ (List (Pair ℕ ℕ)) sorted → (List (Pair ℕ ℕ) / rSort)
     f (fst , snd) = [ fst ]
