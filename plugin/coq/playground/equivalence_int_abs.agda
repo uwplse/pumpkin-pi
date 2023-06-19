@@ -1078,7 +1078,25 @@ addCommCorrect :
   ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
   PathP (λ i → addCommCorrectType a a' a≡a' b b' b≡b' i) (addCommNat' a b) (addCommInt/rInt' a' b')
 addCommCorrect a a' a≡a' b b' b≡b' =
-  {!!}
+  appOK
+    {T = λ i → Nat≡Int/rInt i}
+    {F = λ i n → {!!}} -- TODO stuck here, may need to generalize appOK
+    (λ (b : ℕ) → addCommNat' a b)
+    (λ (b : Int / rInt) → addCommInt/rInt a' b)
+    (elimOK a a' a≡a'
+       (λ a → ∀ (b : ℕ) → add' a b ≡ add' b a)
+       (λ a → ∀ (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt b a)
+       {!!}
+       {!!}
+       {!!}
+       {!!}
+       {!!}
+       {!!}
+       {!!}
+       {!!})
+    b -- T i0 
+    b' -- T i1
+    b≡b'
 
 {-
 
