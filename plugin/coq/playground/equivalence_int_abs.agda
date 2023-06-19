@@ -549,12 +549,16 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
 
 {- Correctness for the other derivations (needed so we can use elimOK on particular functions and proofs) -}
 
+private
+  variable
+    ℓ ℓ' ℓ'' : Level
+
 -- equivalence is OK by A≡B
 equivOK : Nat ≡ Int / rInt
 equivOK = Nat≡Int/rInt
 
 -- application: app is OK by congP
-appOK : {T : I → Type} {F : (i : I) → T i → Type}
+appOK : {T : I → Type ℓ} {F : (i : I) → T i → Type ℓ'}
   (f : (t : T i0) → F i0 t) (f' : (t : T i1) → F i1 t)
   (f≡f' : PathP (λ i → ∀ (t : T i) → F i t) f f')
   (t : T i0) (t' : T i1)
@@ -1074,15 +1078,24 @@ addCommCorrectType :
 addCommCorrectType a a' a≡a' b b' b≡b' =
   eqTypeOK (add' a b) (addInt/rInt' a' b') (addCorrectBetter a b a' b' a≡a' b≡b') (add' b a) (addInt/rInt' b' a') (addCorrectBetter b a b' a' b≡b' a≡a')
 
+{-
+appOK : {T : I → Type} {F : (i : I) → T i → Type}
+  (f : (t : T i0) → F i0 t) (f' : (t : T i1) → F i1 t)
+  (f≡f' : PathP (λ i → ∀ (t : T i) → F i t) f f')
+  (t : T i0) (t' : T i1)
+  (t≡t' : PathP T t t') →
+  PathP (λ i → F i (t≡t' i)) (f t) (f' t')
+-}
+
 addCommCorrect :
   ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
   PathP (λ i → addCommCorrectType a a' a≡a' b b' b≡b' i) (addCommNat' a b) (addCommInt/rInt' a' b')
 addCommCorrect a a' a≡a' b b' b≡b' =
   appOK
     {T = λ i → Nat≡Int/rInt i}
-    {F = λ i n → {!!}} -- TODO stuck here, may need to generalize appOK
-    (λ (b : ℕ) → addCommNat' a b)
-    (λ (b : Int / rInt) → addCommInt/rInt a' b)
+    {F = λ i (n : Nat≡Int/rInt i) → {!!}} -- TODO stuck here, may need to generalize appOK
+    (λ (b : ℕ) → addCommNat' a b) -- F i0 b := add' a b ≡ add' b a 
+    (λ (b : Int / rInt) → addCommInt/rInt' a' b) -- F i1 b := addInt/rInt' a' b ≡ addInt/rInt' b a'
     (elimOK a a' a≡a'
        (λ a → ∀ (b : ℕ) → add' a b ≡ add' b a)
        (λ a → ∀ (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt b a)
