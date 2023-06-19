@@ -567,7 +567,7 @@ appOK : {T : I → Type ℓ} {F : (i : I) → T i → Type ℓ'}
 appOK f f' f≡f' t t' t≡t' = congP (λ i a → f≡f' i a) t≡t'
 
 -- term abstraction: lam is OK by funExtDep (TODO is this type signature correct though, or too specific?)
-lamOK : {T : I → Type} {F : (i : I) → T i → Type}
+lamOK : {T : I → Type ℓ} {F : (i : I) → T i → Type ℓ'}
   (f : (t : T i0) → F i0 t) (f' : (t : T i1) → F i1 t)
   (b≡b' : ∀ {t : T i0} {t' : T i1} (t≡t' : PathP (λ i → T i) t t') →
     PathP (λ i → F i (t≡t' i)) (f t) (f' t')) →
@@ -576,10 +576,10 @@ lamOK {T} {F} f f' b≡b' =
   funExtDep b≡b'
 
 -- type abstraction: prod is OK by funExtDep (TODO is this type signature correct though, or too specific?)
-prodOK : {T : I → Type} (F : (i : I) → T i → Type)
+prodOK : {T : I → Type ℓ} (F : (i : I) → T i → Type ℓ')
   (b≡b' : ∀ {t : T i0} {t' : T i1} (t≡t' : PathP (λ i → T i) t t') →
-    PathP (λ i → Type) (F i0 t) (F i1 t')) →
-  PathP (λ i → T i → Type) (F i0) (F i1)
+    PathP (λ i → Type ℓ') (F i0 t) (F i1 t')) →
+  PathP (λ i → T i → Type ℓ') (F i0) (F i1)
 prodOK {T} F b≡b' = funExtDep b≡b'
 
 -- variables: var is OK by refl
@@ -1071,6 +1071,8 @@ eqTypeOK :
 eqTypeOK a a' a≡a' b b' b≡b' =
   λ i → a≡a' i ≡ b≡b' i
 
+--  PathP (λ i → (t : Nat≡Int/rInt i) → Type) (λ b₁ → a ≡ b₁) (λ b₁ → a' ≡ b')
+
 -- TODO likewise here ...
 addCommCorrectType :
   ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
@@ -1093,16 +1095,16 @@ addCommCorrect :
 addCommCorrect a a' a≡a' b b' b≡b' =
   appOK
     {T = λ i → Nat≡Int/rInt i}
-    {F = λ i (n : Nat≡Int/rInt i) → {!!}} -- TODO stuck here, may need to generalize appOK
+    {F = λ i (b : Nat≡Int/rInt i) → {!!}} -- TODO help I am stuck here, may need to generalize appOK more?
     (λ (b : ℕ) → addCommNat' a b) -- F i0 b := add' a b ≡ add' b a 
     (λ (b : Int / rInt) → addCommInt/rInt' a' b) -- F i1 b := addInt/rInt' a' b ≡ addInt/rInt' b a'
     (elimOK a a' a≡a'
        (λ a → ∀ (b : ℕ) → add' a b ≡ add' b a)
-       (λ a → ∀ (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt b a)
+       (λ a → ∀ (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a)
+       (λ a → isSetProd (λ b → isProp→isSet (squash/ _ _)))
        {!!}
-       {!!}
-       {!!}
-       {!!}
+       (λ b → addCommNat' zero b)
+       (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
        {!!}
        {!!}
        {!!}
