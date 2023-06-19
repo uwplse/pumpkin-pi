@@ -1102,10 +1102,10 @@ addCommCorrect a a' a≡a' b b' b≡b' =
        (λ a → ∀ (b : ℕ) → add' a b ≡ add' b a)
        (λ a → ∀ (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a)
        (λ a → isSetProd (λ b → isProp→isSet (squash/ _ _)))
-       {!!}
+       {!!} -- TODO need a better prodOK definition and type to make this possible
        (λ b → addCommNat' zero b)
        (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
-       {!!}
+       (elimOK b b' b≡b' {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
        {!!}
        {!!}
        {!!})
