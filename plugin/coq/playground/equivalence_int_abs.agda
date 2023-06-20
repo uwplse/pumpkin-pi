@@ -224,17 +224,17 @@ addCommInt/rInt a b = elimProp (λ x → isSetInt/rInt (addInt/rInt x b) (addInt
     lem' (neg (suc n)) (neg zero) = cong sucInt/rInt (lem' (neg n) (neg zero))
     lem' (neg (suc n)) (neg (suc b)) = cong sucInt/rInt (lem' (neg n) (neg (suc b))) ∙ cong sucInt/rInt (sucLemInt/rInt [ neg b ] [ neg n ])
 
-depElimNat : (P : Nat -> Set) -> (P 0) -> (∀ n -> (P n) -> P (suc n)) -> ((x : Nat) -> P x)
+depElimNat : (P : Nat -> Type) -> (P 0) -> (∀ n -> (P n) -> P (suc n)) -> ((x : Nat) -> P x)
 depElimNat P baseCase sucCase zero = baseCase
 depElimNat P baseCase sucCase (suc x) = sucCase x (depElimNat P baseCase sucCase x)
 
-depElimNat/rNat : (P : Nat / rNat -> Set) -> (∀ x -> isProp (P x)) -> (P [ 0 ]) -> (∀ n -> (P n) -> P (sucNat/rNat n)) -> ((x : Nat / rNat) -> P x)
+depElimNat/rNat : (P : Nat / rNat -> Type) -> (∀ x -> isProp (P x)) -> (P [ 0 ]) -> (∀ n -> (P n) -> P (sucNat/rNat n)) -> ((x : Nat / rNat) -> P x)
 depElimNat/rNat P set baseCase sucCase = elimProp set lem where
   lem : (a : ℕ) → P [ a ]
   lem zero = baseCase
   lem (suc a) = sucCase [ a ] (lem a)
 
-depElimInt/rInt : (P : Int / rInt -> Set) -> (∀ x -> isProp (P x)) -> (P [ pos 0 ]) -> (∀ n -> (P n) -> P (sucInt/rInt n)) -> ((x : Int / rInt) -> P x)
+depElimInt/rInt : (P : Int / rInt -> Type) -> (∀ x -> isProp (P x)) -> (P [ pos 0 ]) -> (∀ n -> (P n) -> P (sucInt/rInt n)) -> ((x : Int / rInt) -> P x)
 depElimInt/rInt P set baseCase sucCase = elimProp set lem where
   lem : (a : Int) → P [ a ]
   lem (pos zero) = baseCase
@@ -246,7 +246,7 @@ constantEq/Refl : {A : Type} -> {R : A -> A -> Type} -> (a : A) →  (r : R a a)
 constantEq/Refl a r = squash/ ([_] a) ([_] a) (eq/ a a r) refl
 
 -- dependent set eliminator for Nat/rNat
-depElimSetNat/rNat : (P : Nat / rNat -> Set) -> (∀ x -> isSet (P x)) -> (P [ 0 ]) -> (∀ n -> (P n) -> P (sucNat/rNat n)) -> ((x : Nat / rNat) -> P x)
+depElimSetNat/rNat : (P : Nat / rNat -> Type) -> (∀ x -> isSet (P x)) -> (P [ 0 ]) -> (∀ n -> (P n) -> P (sucNat/rNat n)) -> ((x : Nat / rNat) -> P x)
 depElimSetNat/rNat P set baseCase sucCase = SetQuotients.elim set lem wellDefined where
   lem : (a : ℕ) → P [ a ]
   lem zero = baseCase
@@ -288,7 +288,7 @@ eq≡eqRev/ x y r1 r2 =
   squash/ {R = rInt} [ x ] [ y ] (λ i → eq/ x y r1 i) (λ i → eq/ y x r2 (~ i))
 
 -- thus, we can get between transporting in either direction
-transportEq≡transportEqRev/ : ∀ n (r1 : rInt (pos n) (neg n)) (r2 : rInt (neg n) (pos n)) (req : r1 ≡ r2) (P : Int / rInt → Set) (px : P [ pos n ]) →
+transportEq≡transportEqRev/ : ∀ n (r1 : rInt (pos n) (neg n)) (r2 : rInt (neg n) (pos n)) (req : r1 ≡ r2) (P : Int / rInt → Type) (px : P [ pos n ]) →
   transport (λ i → P (eq/ {R = rInt} (pos n) (neg n) r1 i)) px ≡ transport (λ i → P (eq/ {R = rInt} (neg n) (pos n) r2 (~ i))) px
 transportEq≡transportEqRev/ n r1 r2 req P px =
   subst
@@ -300,7 +300,7 @@ transportEq≡transportEqRev/ n r1 r2 req P px =
       refl)
 
 -- dependent eliminator for Int/rInt over Set (thanks to Amelia for helping us figure this out)
-depElimSetInt/rInt : (P : Int / rInt -> Set) -> (∀ x -> isSet (P x)) -> (P depConstrInt/rInt0) -> (∀ n -> (P n) -> P (depConstrInt/rIntS n)) -> ((x : Int / rInt) -> P x)
+depElimSetInt/rInt : (P : Int / rInt -> Type) -> (∀ x -> isSet (P x)) -> (P depConstrInt/rInt0) -> (∀ n -> (P n) -> P (depConstrInt/rIntS n)) -> ((x : Int / rInt) -> P x)
 depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefined where
   -- points
   lem : (a : Int) → P [ a ]
@@ -350,11 +350,11 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
     r
 
 -- ι for the Set eliminator
-ιInt/rInt0 : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) →
+ιInt/rInt0 : (P : Int / rInt → Type) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) →
     (Q : P depConstrInt/rInt0 → Set) → Q (depElimSetInt/rInt P pset pz ps depConstrInt/rInt0) → Q pz
 ιInt/rInt0 P pset pz ps Q qz = qz 
 
-ιInt/rIntSEq : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
+ιInt/rIntSEq : (P : Int / rInt → Type) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
     depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n) ≡ ps n (depElimSetInt/rInt P pset pz ps n)
 ιInt/rIntSEq P pset pz ps = elimProp prop fpoint where
   fpoint : (x : Int) → depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS [ x ]) ≡ ps [ x ] (depElimSetInt/rInt P pset pz ps [ x ])
@@ -364,13 +364,13 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
   prop : (n : Int / rInt) → isProp (depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n) ≡ ps n (depElimSetInt/rInt P pset pz ps n))
   prop n p q = pset (depConstrInt/rIntS n) (depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n)) (ps n (depElimSetInt/rInt P pset pz ps n)) p q
 
-ιInt/rIntS : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
+ιInt/rIntS : (P : Int / rInt → Type) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
     (Q : P (depConstrInt/rIntS n) → Set) → 
     Q (depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n)) →
     Q (ps n (depElimSetInt/rInt P pset pz ps n))
 ιInt/rIntS P pset pz ps n Q Qb = subst (λ e → Q e) (ιInt/rIntSEq P pset pz ps n) Qb
 
-ιInt/rIntS⁻ : (P : Int / rInt → Set) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
+ιInt/rIntS⁻ : (P : Int / rInt → Type) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
     (Q : P (depConstrInt/rIntS n) → Set) → 
     Q (ps n (depElimSetInt/rInt P pset pz ps n)) →
     Q (depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n))
@@ -378,10 +378,10 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
 
 -- ι for the Prop eliminator
 ιInt/rInt0Prop : (P : Int / rInt → Set) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) →
-  (Q : P depConstrInt/rInt0 → Set) → Q (depElimInt/rInt P pprop pz ps depConstrInt/rInt0) → Q pz
+  (Q : P depConstrInt/rInt0 → Type) → Q (depElimInt/rInt P pprop pz ps depConstrInt/rInt0) → Q pz
 ιInt/rInt0Prop P pprop pz ps Q qz = qz
 
-ιInt/rIntSPropEq : (P : Int / rInt → Set) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
+ιInt/rIntSPropEq : (P : Int / rInt → Type) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
     depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n) ≡ ps n (depElimInt/rInt P pprop pz ps n)
 ιInt/rIntSPropEq P pprop pz ps = elimProp prop fpoint where
   fpoint : (x : Int) → depElimInt/rInt P pprop pz ps (depConstrInt/rIntS [ x ]) ≡ ps [ x ] (depElimInt/rInt P pprop pz ps [ x ])
@@ -391,14 +391,14 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
   prop : (n : Int / rInt) → isProp (depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n) ≡ ps n (depElimInt/rInt P pprop pz ps n))
   prop n p q = isProp→isSet (pprop (depConstrInt/rIntS n)) (depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n)) (ps n (depElimInt/rInt P pprop pz ps n)) p q
 
-ιInt/rIntSProp : (P : Int / rInt → Set) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
-    (Q : P (depConstrInt/rIntS n) → Set) → 
+ιInt/rIntSProp : (P : Int / rInt → Type) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
+    (Q : P (depConstrInt/rIntS n) → Type) → 
     Q (depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n)) →
     Q (ps n (depElimInt/rInt P pprop pz ps n))
 ιInt/rIntSProp P pprop pz ps n Q Qb = subst (λ e → Q e) (ιInt/rIntSPropEq P pprop pz ps n) Qb
 
-ιInt/rIntSProp⁻ : (P : Int / rInt → Set) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
-    (Q : P (depConstrInt/rIntS n) → Set) → 
+ιInt/rIntSProp⁻ : (P : Int / rInt → Type) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
+    (Q : P (depConstrInt/rIntS n) → Type) → 
     Q (ps n (depElimInt/rInt P pprop pz ps n)) →
     Q (depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n))
 ιInt/rIntSProp⁻ P pprop pz ps n Q Qb = subst (λ e → Q e) (sym (ιInt/rIntSPropEq P pprop pz ps n)) Qb
@@ -490,6 +490,11 @@ depConstrSCorrectIrrel a b a≡b Sa≡Sb =
       (toPathP {A = λ i → Nat≡Int/rInt i})
       (squash/ (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a)) (depConstrInt/rIntS b) (fromPathP (depConstrSCorrect a b a≡b)) (fromPathP Sa≡Sb)))
 
+-- universes argh
+private
+  variable
+    ℓ ℓ' ℓ'' : Level
+
 -- Yay! May try to simplify proof a lot, use to prove other things, think about automation
 elimOK : -- based on elim_OK from the PLDI 2021 paper
   ∀ (a : Nat) (b : Int / rInt) →
@@ -549,10 +554,6 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
 
 {- Correctness for the other derivations (needed so we can use elimOK on particular functions and proofs) -}
 
-private
-  variable
-    ℓ ℓ' ℓ'' : Level
-
 -- equivalence is OK by A≡B
 equivOK : Nat ≡ Int / rInt
 equivOK = Nat≡Int/rInt
@@ -574,6 +575,7 @@ lamOK : {T : I → Type ℓ} {F : (i : I) → T i → Type ℓ'}
   PathP (λ i → ∀ (t : T i) → F i t) f f'
 lamOK {T} {F} f f' b≡b' =
   funExtDep b≡b'
+-- t => t', T => T', and Γ, (t : T) ⊢ b => b' || λ (t : T) . b => λ (t' : T') . b'
 
 -- type abstraction: prod is OK by funExtDep (TODO is this type signature correct though, or too specific?)
 prodOK : {T : I → Type ℓ} (F : (i : I) → T i → Type ℓ')
@@ -581,6 +583,7 @@ prodOK : {T : I → Type ℓ} (F : (i : I) → T i → Type ℓ')
     PathP (λ i → Type ℓ') (F i0 t) (F i1 t')) →
   PathP (λ i → T i → Type ℓ') (F i0) (F i1)
 prodOK {T} F b≡b' = funExtDep b≡b'
+-- t => t', T => T', and Γ, (t : T) ⊢ b => b' || Π (t : T) . b => Π (t' : T') . b'
 
 -- variables: var is OK by refl
 var : ∀ {T : I → Type} (i : I) (v : T i) → v ≡ v
@@ -1080,14 +1083,30 @@ addCommCorrectType :
 addCommCorrectType a a' a≡a' b b' b≡b' =
   eqTypeOK (add' a b) (addInt/rInt' a' b') (addCorrectBetter a b a' b' a≡a' b≡b') (add' b a) (addInt/rInt' b' a') (addCorrectBetter b a b' a' b≡b' a≡a')
 
-{-
-appOK : {T : I → Type} {F : (i : I) → T i → Type}
+-- OK, the term (stuck on universe problems and weird type mismatches, breaking down)
+-- TODO need to separately define type here too I think
+addCommCorrectElim : ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') →
+   PathP (λ i → {!!}) (addCommNat' a) (addCommInt/rInt' a')
+addCommCorrectElim a a' a≡a' =
+      (elimOK a a' a≡a'
+       (λ a → ∀ (b : ℕ) → add' a b ≡ add' b a)
+       (λ a → ∀ (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a)
+       (λ a → isSetProd (λ b → isProp→isSet (squash/ _ _)))
+       {!!}
+       (λ b → addCommNat' zero b)
+       (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
+       {!!}
+       {!!}
+       {!!}
+       {!!})
+
+{- appOK : {T : I → Type ℓ} {F : (i : I) → T i → Type ℓ'}
   (f : (t : T i0) → F i0 t) (f' : (t : T i1) → F i1 t)
   (f≡f' : PathP (λ i → ∀ (t : T i) → F i t) f f')
   (t : T i0) (t' : T i1)
   (t≡t' : PathP T t t') →
   PathP (λ i → F i (t≡t' i)) (f t) (f' t')
--}
+appOK f f' f≡f' t t' t≡t' = congP (λ i a → f≡f' i a) t≡t' -}
 
 addCommCorrect :
   ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
@@ -1098,17 +1117,7 @@ addCommCorrect a a' a≡a' b b' b≡b' =
     {F = λ i (b : Nat≡Int/rInt i) → {!!}} -- TODO help I am stuck here, may need to generalize appOK more?
     (λ (b : ℕ) → addCommNat' a b) -- F i0 b := add' a b ≡ add' b a 
     (λ (b : Int / rInt) → addCommInt/rInt' a' b) -- F i1 b := addInt/rInt' a' b ≡ addInt/rInt' b a'
-    (elimOK a a' a≡a'
-       (λ a → ∀ (b : ℕ) → add' a b ≡ add' b a)
-       (λ a → ∀ (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a)
-       (λ a → isSetProd (λ b → isProp→isSet (squash/ _ _)))
-       {!!} -- TODO need a better prodOK definition and type to make this possible
-       (λ b → addCommNat' zero b)
-       (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
-       (elimOK b b' b≡b' {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!})
-       {!!}
-       {!!}
-       {!!})
+    (addCommCorrectElim a a' a≡a')
     b -- T i0 
     b' -- T i1
     b≡b'
