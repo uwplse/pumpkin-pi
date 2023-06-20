@@ -1084,21 +1084,58 @@ addCommCorrectType a a' a≡a' b b' b≡b' =
   eqTypeOK (add' a b) (addInt/rInt' a' b') (addCorrectBetter a b a' b' a≡a' b≡b') (add' b a) (addInt/rInt' b' a') (addCorrectBetter b a b' a' b≡b' a≡a')
 
 -- OK, the term (stuck on universe problems and weird type mismatches, breaking down)
--- TODO need to separately define type here too I think
-addCommCorrectElim : ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') →
-   PathP (λ i → {!!}) (addCommNat' a) (addCommInt/rInt' a')
+addCommCorrectMotive :
+  PathP
+    (λ i → Nat≡Int/rInt i → Type)
+    (λ a → (b : ℕ) → add' a b ≡ add' b a)
+    (λ a → (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a)
+addCommCorrectMotive =
+   lamOK
+     (λ (a : ℕ) → ∀ b → add' a b ≡ add' b a)
+     (λ (a : Int / rInt) → ∀ b → addInt/rInt' a b ≡ addInt/rInt' b a)
+     (λ {a} {a'} a≡a' →
+       λ i →
+         ∀ (b : Nat≡Int/rInt i) →
+           lamOK
+             {T = λ j → Nat≡Int/rInt j}
+             {F = λ j _ → Nat≡Int/rInt j}
+             (λ (b : ℕ) → add' a b)
+             (λ (b' : Int / rInt) → addInt/rInt' a' b')
+             (λ {b} {b'} b≡b' →
+               addCorrectBetter a b a' b' a≡a' b≡b')
+             i
+             b
+           ≡
+           lamOK
+             {T = λ j → Nat≡Int/rInt j}
+             {F = λ j _ → Nat≡Int/rInt j}
+             (λ (b : ℕ) → add' b a)
+             (λ (b' : Int / rInt) → addInt/rInt' b' a')
+             (λ {b} {b'} b≡b' →
+               addCorrectBetter b a b' a' b≡b' a≡a')
+             i
+             b)
+
+addCommCorrectElim :
+  ∀ (a : ℕ) (a' : Int / rInt) (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') →
+   PathP
+     (λ i → addCommCorrectMotive i (a≡a' i))
+     (λ b → addCommNat' a b)
+     (λ b' → addCommInt/rInt' a' b')
 addCommCorrectElim a a' a≡a' =
-      (elimOK a a' a≡a'
-       (λ a → ∀ (b : ℕ) → add' a b ≡ add' b a)
-       (λ a → ∀ (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a)
-       (λ a → isSetProd (λ b → isProp→isSet (squash/ _ _)))
-       {!!}
-       (λ b → addCommNat' zero b)
-       (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
-       {!!}
-       {!!}
-       {!!}
-       {!!})
+  elimOK a a' a≡a'
+    (λ a → ∀ (b : ℕ) → add' a b ≡ add' b a)
+    (λ a → ∀ (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a)
+    (λ a → isSetProd (λ b → isProp→isSet (squash/ _ _)))
+    ((λ (p : PathP (λ i → Nat≡Int/rInt i → Type) (λ a → ∀ b → add' a b ≡ add' b a) λ a → ∀ b → addInt/rInt' a b ≡ addInt/rInt' b a) →
+      {!!})
+     addCommCorrectMotive) -- causes def. eq. issues to use addCommCorrectMotive, though type is fine --- how do we resolve the def eq issues? sad
+    (λ b → addCommNat' zero b)
+    (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
+    {!!}
+    {!!}
+    {!!}
+    {!!}
 
 {- appOK : {T : I → Type ℓ} {F : (i : I) → T i → Type ℓ'}
   (f : (t : T i0) → F i0 t) (f' : (t : T i1) → F i1 t)
@@ -1117,7 +1154,7 @@ addCommCorrect a a' a≡a' b b' b≡b' =
     {F = λ i (b : Nat≡Int/rInt i) → {!!}} -- TODO help I am stuck here, may need to generalize appOK more?
     (λ (b : ℕ) → addCommNat' a b) -- F i0 b := add' a b ≡ add' b a 
     (λ (b : Int / rInt) → addCommInt/rInt' a' b) -- F i1 b := addInt/rInt' a' b ≡ addInt/rInt' b a'
-    (addCommCorrectElim a a' a≡a')
+    {!!}
     b -- T i0 
     b' -- T i1
     b≡b'
