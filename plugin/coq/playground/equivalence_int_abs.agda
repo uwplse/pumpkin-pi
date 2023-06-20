@@ -1020,21 +1020,15 @@ addCommNat' a b =
 
 addCommInt/rInt' : (a : Int / rInt) → (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a
 addCommInt/rInt' a b =
-  depElimInt/rInt
+  depElimSetInt/rInt
     (λ a → ∀ b → addInt/rInt' a b ≡ addInt/rInt' b a)
-    (λ (a : Int / rInt) p q i →
+    (λ (a : Int / rInt) →
       isSetProd
-        (λ b → isProp→isSet (squash/ _ _))
-        (λ b → p b)
-        (λ b → q b)
-        (funExt (λ x → squash/ _ _ (p x) (q x)))
-        (funExt (λ x → squash/ _ _ (p x) (q x)))
-        i
-        i)
+        (λ b → isProp→isSet (squash/ _ _)))
     (λ b →
-      depElimInt/rInt
+      depElimSetInt/rInt
         (λ b → addInt/rInt' [ pos zero ] b ≡ addInt/rInt' b [ pos zero ])
-        (λ b → squash/ _ _)
+        (λ b → isProp→isSet (squash/ _ _))
         refl
         (λ b (IHb : addInt/rInt' [ pos zero ] b ≡ addInt/rInt' b [ pos zero ]) →
           -- T := P (S b) := [ pos zero ] + (S b) ≡ (S b) + [ pos zero ]
@@ -1127,9 +1121,7 @@ addCommCorrectElim a a' a≡a' =
     (λ a → ∀ (b : ℕ) → add' a b ≡ add' b a)
     (λ a → ∀ (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a)
     (λ a → isSetProd (λ b → isProp→isSet (squash/ _ _)))
-    ((λ (p : PathP (λ i → Nat≡Int/rInt i → Type) (λ a → ∀ b → add' a b ≡ add' b a) λ a → ∀ b → addInt/rInt' a b ≡ addInt/rInt' b a) →
-      {!!})
-     addCommCorrectMotive) -- causes def. eq. issues to use addCommCorrectMotive, though type is fine --- how do we resolve the def eq issues? sad
+    addCommCorrectMotive
     (λ b → addCommNat' zero b)
     (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
     {!!}
