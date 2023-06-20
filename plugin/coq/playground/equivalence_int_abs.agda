@@ -1124,12 +1124,12 @@ addCommCorrectElim a a' a≡a' =
     addCommCorrectMotive
     (λ b → addCommNat' zero b)
     (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
-    {!!}
-    {!!}
-    {!!}
-    {!!}
+    {!!} -- path between base cases
+    _
+    _
+    {!!} -- path between inductive cases
 
-{- appOK : {T : I → Type ℓ} {F : (i : I) → T i → Type ℓ'}
+{- appOK : {T : I →Type ℓ} {F : (i : I) → T i → Type ℓ'}
   (f : (t : T i0) → F i0 t) (f' : (t : T i1) → F i1 t)
   (f≡f' : PathP (λ i → ∀ (t : T i) → F i t) f f')
   (t : T i0) (t' : T i1)
