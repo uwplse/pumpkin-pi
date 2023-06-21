@@ -1124,7 +1124,35 @@ addCommCorrectElim a a' a≡a' =
     addCommCorrectMotive
     (λ b → addCommNat' zero b)
     (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
-    {!!} -- path between base cases
+    (elimOK -- path between case cases
+      {!!}
+      {!!}
+      {!!}
+      (λ b → add' 0 b ≡ add' b 0)
+      (λ b → addInt/rInt' depConstrInt/rInt0 b ≡ addInt/rInt' b depConstrInt/rInt0)
+      {!!}
+      {!!}
+      refl
+      refl
+      {!!}
+      (λ b IHb → cong suc IHb)
+      (λ b (IHb : addInt/rInt' [ pos zero ] b ≡ addInt/rInt' b [ pos zero ]) →
+        ιInt/rIntS⁻
+          (λ _ → Int / rInt → Int / rInt)
+          (λ _ → isSetProd (λ _ → squash/))
+          (λ b → b)
+          (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+          b
+          (λ add-Sb →
+            addInt/rInt' depConstrInt/rInt0 (depConstrInt/rIntS b) ≡ add-Sb depConstrInt/rInt0)
+          (cong depConstrInt/rIntS IHb))
+      {!!})
+    {-
+    PathP
+      (λ i → addCommCorrectMotive i (depConstr0Correct i))
+      (λ b → addCommNat' zero b)
+      (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
+    -}
     _
     _
     {!!} -- path between inductive cases
