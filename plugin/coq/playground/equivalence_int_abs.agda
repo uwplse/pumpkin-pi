@@ -1161,7 +1161,7 @@ addCommIndCorrect = {!!}
 addCommCorrectElim :
   ∀ (a : ℕ) (a' : Int / rInt) (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') →
    PathP
-     (λ i → {!!} i)
+     (λ i → addCommMotiveCorrect a a' a≡a' i)
      (λ b → addCommNat' a b)
      (λ b' → addCommInt/rInt' a' b')
 addCommCorrectElim a a' a≡a' =
