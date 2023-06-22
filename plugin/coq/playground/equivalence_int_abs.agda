@@ -1136,7 +1136,7 @@ addCommBaseCorrect i =
           λ i → b≡b' i ≡ addCorrectBetter b zero b' depConstrInt/rInt0 b≡b' depConstr0Correct i)
         (addCommNat' 0 0)
         (addCommInt/rInt' depConstrInt/rInt0 depConstrInt/rInt0)
-        (toPathP⁻ refl) -- TODO where does this come from, systematically?
+        (toPathP⁻ refl) -- path between base cases (TODO where does this come from, systematically?)
         (λ b IHb → cong suc IHb)
         (λ b IHb →
           ιInt/rIntS⁻
@@ -1149,6 +1149,7 @@ addCommBaseCorrect i =
               addInt/rInt' [ pos zero ] (depConstrInt/rIntS b) ≡ add-Sb [ pos zero ])
             (cong depConstrInt/rIntS IHb))
         (λ (b : ℕ) (b' : Int / rInt) (IHb : add' zero b ≡ add' b zero) (IHb' : addInt/rInt' depConstrInt/rInt0 b' ≡ addInt/rInt' b' depConstrInt/rInt0) b≡b' IHb≡IHb' →
+          -- path between inductive cases
           ιOKS⁻
             (λ _ → ℕ → ℕ)
             (λ _ → Int / rInt → Int / rInt)
@@ -1169,11 +1170,19 @@ addCommBaseCorrect i =
             b≡b'
             (λ add-Sb → add' zero (suc b) ≡ add-Sb 0)
             (λ add-Sb' → addInt/rInt' depConstrInt/rInt0 (depConstrInt/rIntS b') ≡ add-Sb' depConstrInt/rInt0)
-            {!!}
+            {!!} -- TODO help?
             (cong suc IHb)
             (cong depConstrInt/rIntS IHb')
-            {!!})) -- path between inductive cases
+            {!!}))
     i
+
+{-
+prodOK : {T : I → Type ℓ} (F : (i : I) → T i → Type ℓ')
+  (b≡b' : ∀ {t : T i0} {t' : T i1} (t≡t' : PathP (λ i → T i) t t') →
+    PathP (λ i → Type ℓ') (F i0 t) (F i1 t')) →
+  PathP (λ i → T i → Type ℓ') (F i0) (F i1)
+prodOK {T} F b≡b' = funExtDep b≡b'
+-}
 
 {-
   elimOK b b' b≡b'
@@ -1188,11 +1197,10 @@ addCommBaseCorrect i =
     _
     {!!}-}
 
-{-
 addCommCorrectElim :
   ∀ (a : ℕ) (a' : Int / rInt) (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') →
    PathP
-     (λ i → addCommCorrectMotive i (a≡a' i))
+     (λ i → {!!} i (a≡a' i))
      (λ b → addCommNat' a b)
      (λ b' → addCommInt/rInt' a' b')
 addCommCorrectElim a a' a≡a' =
@@ -1200,13 +1208,13 @@ addCommCorrectElim a a' a≡a' =
     (λ a → ∀ (b : ℕ) → add' a b ≡ add' b a)
     (λ a → ∀ (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a)
     (λ a → isSetProd (λ b → isProp→isSet (squash/ _ _)))
-    addCommCorrectMotive
+    {!!}
     (λ b → addCommNat' zero b)
     (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
-    {!!}
+    addCommBaseCorrect -- path between base cases
     _
     _
-    {!!} -} -- path between inductive cases
+    {!!} -- path between inductive cases
 
 {- appOK : {T : I →Type ℓ} {F : (i : I) → T i → Type ℓ'}
   (f : (t : T i0) → F i0 t) (f' : (t : T i1) → F i1 t)
