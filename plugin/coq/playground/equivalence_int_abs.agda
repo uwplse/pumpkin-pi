@@ -1107,14 +1107,15 @@ addCommBaseCorrect =
         (λ (b : ℕ) → add' zero b ≡ add' b zero)
         (λ (b : Int / rInt) → addInt/rInt' depConstrInt/rInt0 b ≡ addInt/rInt' b depConstrInt/rInt0)
         (λ b → isProp→isSet (squash/ _ _))
-        (λ (b : ℕ) (b' : Int / rInt) (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
-          {!!})
-        refl
-        refl
-        depConstr0Correct -- path between base cases
-        {!!}
-        {!!}
-        (λ (b : ℕ) (b' : Int / rInt) (IHb : add' zero b ≡ add' b zero) (IHb' : addInt/rInt' depConstrInt/rInt0 b' ≡ addInt/rInt' b' depConstrInt/rInt0) IHa≡IHb →
+        (λ (b : ℕ) (b' : Int / rInt) (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') i →
+          addCorrectBetter zero b depConstrInt/rInt0 b' depConstr0Correct b≡b' i ≡
+          addCorrectBetter b zero {!!} depConstrInt/rInt0 {!!} depConstr0Correct i)
+        (refl {x = add' zero zero})
+        (refl {x = addInt/rInt' depConstrInt/rInt0 depConstrInt/rInt0})
+        {!!} -- path between base cases, with type (PathP (λ i → refl i ≡ refl i) refl refl)
+        _
+        _
+        (λ (b : ℕ) (b' : Int / rInt) (IHb : add' zero b ≡ add' b zero) (IHb' : addInt/rInt' depConstrInt/rInt0 b' ≡ addInt/rInt' b' depConstrInt/rInt0) b≡b' IHb≡IHb' →
           {!!})) -- path between inductive cases
 
 {-
