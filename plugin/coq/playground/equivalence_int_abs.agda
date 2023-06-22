@@ -1156,23 +1156,23 @@ addCommBaseCorrect i =
 
 -- TODO clean (rename variables) and implement
 addCommIndCorrect :
-   ∀ (a : ℕ) (b : Int / rInt)
-    (IHa : (b₁ : ℕ) → add' a b₁ ≡ add' b₁ a)
-    (IHb : (b₁ : Int / rInt) → addInt/rInt' b b₁ ≡ addInt/rInt' b₁ b)
-    (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
-    PathP (λ i → addCommMotiveCorrect a b a≡b i) IHa IHb →
+   ∀ (a : ℕ) (a' : Int / rInt)
+    (IHa : (b : ℕ) → add' a b ≡ add' b a)
+    (IHa' : (b : Int / rInt) → addInt/rInt' a' b ≡ addInt/rInt' b a')
+    (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') →
+    PathP (λ i → addCommMotiveCorrect a a' a≡a' i) IHa IHa' →
     PathP
-    (λ i →
-       addCommMotiveCorrect (suc a) (depConstrInt/rIntS b)
-       (depConstrSCorrect a b a≡b) i)
-    (λ b₁ → (λ i → suc (IHa b₁ i)) ∙ sucLemNat'' b₁ a)
-    (λ b₁ →
-       ιInt/rIntS⁻ (λ z → Int / rInt → Int / rInt)
-       (λ z → isSetProd (λ _ → squash/)) (λ b₂ → b₂)
-       (λ _ IH m → depConstrInt/rIntS (IH m)) b
-       (λ add-Sa → add-Sa b₁ ≡ addInt/rInt' b₁ (depConstrInt/rIntS b))
-       ((λ i → depConstrInt/rIntS (IHb b₁ i)) ∙ sucLemInt/rInt'' b₁ b))
-addCommIndCorrect = {!!}
+      (λ i → addCommMotiveCorrect (suc a) (depConstrInt/rIntS a') (depConstrSCorrect a a' a≡a') i)
+      (λ b → (λ i → suc (IHa b i)) ∙ sucLemNat'' b a)
+      (λ b →
+         ιInt/rIntS⁻
+           (λ z → Int / rInt → Int / rInt)
+           (λ z → isSetProd (λ _ → squash/))
+           (λ b₂ → b₂)
+           (λ _ IH m → depConstrInt/rIntS (IH m)) a'
+           (λ add-Sa → add-Sa b ≡ addInt/rInt' b (depConstrInt/rIntS a'))
+           ((λ i → depConstrInt/rIntS (IHa' b i)) ∙ sucLemInt/rInt'' b a'))
+addCommIndCorrect a a' IHa IHa' a≡a' IHa≡IHa' = {!!}
 
 addCommCorrectElim :
   ∀ (a : ℕ) (a' : Int / rInt) (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') →
