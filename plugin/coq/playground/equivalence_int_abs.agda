@@ -1093,13 +1093,13 @@ addCommCorrectMotiveBase =
 
 addCommBaseCorrect :
   PathP
-    (λ i → ∀ (b : Nat≡Int/rInt i) → addCommCorrectMotiveBase i b)
+    (λ i → ∀ (b : Nat≡Int/rInt i) → {!!} i b)
     (λ (b : ℕ) → addCommNat' zero b)
     (λ (b : Int / rInt) → addCommInt/rInt' depConstrInt/rInt0 b)
-addCommBaseCorrect =
+addCommBaseCorrect i =
   lamOK
     {T = λ i → Nat≡Int/rInt i}
-    {F = λ i b → addCommCorrectMotiveBase i b}
+    {F = λ i b → {!!} i b} -- causes issues unifying, unsure why can't use addCommCorrectMotiveBase
     (λ b → addCommNat' zero b)
     (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
     (λ {b} {b'} b≡b' →
@@ -1107,9 +1107,14 @@ addCommBaseCorrect =
         (λ (b : ℕ) → add' zero b ≡ add' b zero)
         (λ (b : Int / rInt) → addInt/rInt' depConstrInt/rInt0 b ≡ addInt/rInt' b depConstrInt/rInt0)
         (λ b → isProp→isSet (squash/ _ _))
-        (λ (b : ℕ) (b' : Int / rInt) (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') i →
-          addCorrectBetter zero b depConstrInt/rInt0 b' depConstr0Correct b≡b' i ≡
-          addCorrectBetter b zero {!!} depConstrInt/rInt0 {!!} depConstr0Correct i)
+        (λ (b : ℕ) (b' : Int / rInt) (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') → -- path between motives
+          eqTypeOK
+            (add' zero b)
+            (addInt/rInt' depConstrInt/rInt0 b')
+            b≡b'
+            (add' b zero)
+            (addInt/rInt' b' depConstrInt/rInt0)
+            (addCorrectBetter b zero b' depConstrInt/rInt0 b≡b' depConstr0Correct)) -- path between motives
         (refl {x = add' zero zero})
         (refl {x = addInt/rInt' depConstrInt/rInt0 depConstrInt/rInt0})
         {!!} -- path between base cases, with type (PathP (λ i → refl i ≡ refl i) refl refl)
@@ -1117,6 +1122,7 @@ addCommBaseCorrect =
         _
         (λ (b : ℕ) (b' : Int / rInt) (IHb : add' zero b ≡ add' b zero) (IHb' : addInt/rInt' depConstrInt/rInt0 b' ≡ addInt/rInt' b' depConstrInt/rInt0) b≡b' IHb≡IHb' →
           {!!})) -- path between inductive cases
+    i
 
 {-
   elimOK b b' b≡b'
