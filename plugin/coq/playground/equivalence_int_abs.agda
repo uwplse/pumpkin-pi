@@ -843,18 +843,9 @@ sucLemNat'' a b =
 
 sucLemInt/rInt'' : (a : Int / rInt) -> (b : Int / rInt) -> depConstrInt/rIntS (addInt/rInt' a b) ≡ (addInt/rInt' a (depConstrInt/rIntS b)) -- S (a + b) = a + S b
 sucLemInt/rInt'' a b =
-  depElimInt/rInt
+  depElimSetInt/rInt
     (λ (a : Int / rInt) → ∀ (b : Int / rInt) → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b))
-    (λ (a : Int / rInt) (p q : ∀ b → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b)) i →
-      isSetProd
-        {B = λ b → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b)}
-        (λ b → isProp→isSet (squash/ _ _))
-        (λ b → p b)
-        (λ b → q b)
-        (funExt (λ x → squash/ _ _ (p x) (q x)))
-        (funExt (λ x → squash/ _ _ (p x) (q x)))
-        i
-        i) -- p ≡ q
+    (λ (a : Int / rInt) → isSetProd (λ b → isProp→isSet (squash/ _ _)))
     (λ b → refl) -- base case
     (λ a (IH : ∀ b → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b)) b → -- inductive case
       ιInt/rIntS⁻ -- w.t.s that S (S a + b) ≡ S a + S b
@@ -957,18 +948,10 @@ sucLemInt/rInt'' a b =
 -- In any case, let us try this algorithm over the other proof
 sucLemInt/rInt''' : (a : Int / rInt) → (b : Int / rInt) → (addInt/rInt' (depConstrInt/rIntS a) b) ≡ depConstrInt/rIntS (addInt/rInt' a b)
 sucLemInt/rInt''' a b =
-  depElimInt/rInt
+  depElimSetInt/rInt
     (λ a → ∀ (b : Int / rInt) → -- P
       addInt/rInt' (depConstrInt/rIntS a) b ≡ depConstrInt/rIntS (addInt/rInt' a b))
-    (λ (a : Int / rInt) p q i →
-      isSetProd
-        (λ b → isProp→isSet (squash/ _ _))
-        (λ b → p b)
-        (λ b → q b)
-        (funExt (λ x → squash/ _ _ (p x) (q x)))
-        (funExt (λ x → squash/ _ _ (p x) (q x)))
-        i
-        i)
+    (λ (a : Int / rInt) → isSetProd (λ b → isProp→isSet (squash/ _ _)))
     (λ b → refl)
     (λ a (IH : ∀ b → addInt/rInt' (depConstrInt/rIntS a) b ≡ depConstrInt/rIntS (addInt/rInt' a b)) b →
       -- P (S a) b is T so
@@ -1121,16 +1104,18 @@ addCommBaseCorrect =
     (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
     (λ {b} {b'} b≡b' →
       elimOK b b' b≡b'
-        (λ b → add' zero b ≡ add' b zero)
-        (λ b → addInt/rInt' depConstrInt/rInt0 b ≡ addInt/rInt' b depConstrInt/rInt0)
+        (λ (b : ℕ) → add' zero b ≡ add' b zero)
+        (λ (b : Int / rInt) → addInt/rInt' depConstrInt/rInt0 b ≡ addInt/rInt' b depConstrInt/rInt0)
         (λ b → isProp→isSet (squash/ _ _))
-        {!!} -- path between motives
+        (λ (b : ℕ) (b' : Int / rInt) (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
+          {!!})
         refl
         refl
-        {!!} -- path between base cases
+        depConstr0Correct -- path between base cases
         {!!}
         {!!}
-        {!!})
+        (λ (b : ℕ) (b' : Int / rInt) (IHb : add' zero b ≡ add' b zero) (IHb' : addInt/rInt' depConstrInt/rInt0 b' ≡ addInt/rInt' b' depConstrInt/rInt0) IHa≡IHb →
+          {!!})) -- path between inductive cases
 
 {-
   elimOK b b' b≡b'
