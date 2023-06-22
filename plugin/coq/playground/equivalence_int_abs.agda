@@ -1172,7 +1172,8 @@ addCommIndCorrect :
            (λ _ IH m → depConstrInt/rIntS (IH m)) a'
            (λ add-Sa → add-Sa b ≡ addInt/rInt' b (depConstrInt/rIntS a'))
            ((λ i → depConstrInt/rIntS (IHa' b i)) ∙ sucLemInt/rInt'' b a'))
-addCommIndCorrect a a' IHa IHa' a≡a' IHa≡IHa' = {!!}
+addCommIndCorrect a a' IHa IHa' a≡a' IHa≡IHa' =
+  {!!}
 
 addCommCorrectElim :
   ∀ (a : ℕ) (a' : Int / rInt) (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') →
@@ -1200,7 +1201,7 @@ addCommCorrectElim a a' a≡a' =
         (λ add-Sa →
           add-Sa b ≡ addInt/rInt' b (depConstrInt/rIntS a))
         (cong depConstrInt/rIntS (addComm-a b) ∙ sucLemInt/rInt'' b a))
-    {!!} -- addCommIndCorrect -- path between inductive cases
+    addCommIndCorrect -- path between inductive cases
 
 {- appOK : {T : I →Type ℓ} {F : (i : I) → T i → Type ℓ'}
   (f : (t : T i0) → F i0 t) (f' : (t : T i1) → F i1 t)
