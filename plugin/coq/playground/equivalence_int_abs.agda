@@ -678,6 +678,31 @@ var {T} i v = refl
       {y = ιInt/rIntSEq PB PBset PBzero PBS b}
       (ιOKSEq PA PB PA≡PB PBset PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS a b a≡b))
 
+ιOKS⁻ : (PA : Nat → Type) (PB : Int / rInt → Type)
+  (PA≡PB : ∀ (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → PathP (λ i → Type) (PA a) (PB b)) →
+  (PBset : ∀ x → isSet (PB x))
+  (PAzero : PA zero) (PBzero : PB depConstrInt/rInt0)
+  (PAzero≡PBzero : PathP (λ i → PA≡PB _ _ depConstr0Correct i) PAzero PBzero)
+  (PAS : ∀ n → PA n → PA (suc n)) (PBS : ∀ n → PB n → PB (depConstrInt/rIntS n))
+  (PAS≡PBS : ∀ a b (IHa : PA a) (IHb : PB b) a≡b (IHa≡IHb : PathP (λ i → PA≡PB _ _ a≡b i) IHa IHb) → PathP (λ i → PA≡PB _ _ (depConstrSCorrect a b a≡b) i) (PAS a IHa) (PBS b IHb))
+  (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
+  (QA : PA (suc a) → Type) (QB : PB (depConstrInt/rIntS b) → Type)
+  (QA≡QB : PathP (λ i → PA≡PB _ _ (depConstrSCorrect a b a≡b) i → Type) QA QB)
+  (QAS : QA (PAS a (Cubical.Data.Nat.elim {A = PA} PAzero PAS a))) (QBS : QB (PBS b (depElimSetInt/rInt PB PBset PBzero PBS b)))
+  (QAS≡QBS :
+    PathP
+      (λ i → QA≡QB i
+        (elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i))
+      QAS
+      (ιInt/rIntS⁻ PB PBset PBzero PBS b QB QBS)) →
+  PathP
+    (λ i → QA≡QB i
+      (PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i))
+    QAS
+    QBS
+ιOKS⁻ PA PB PA≡PB PBset PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS a b a≡b QA QB QA≡QB QAS QBS QAS≡QBS =
+  {!!} -- IDK need to fix this
+
 {- From this, we can already prove add and the proofs about it correct (will do proofs at botom of file) -}
 
 addCorrectBetter :
@@ -1124,7 +1149,7 @@ addCommBaseCorrect i =
               addInt/rInt' [ pos zero ] (depConstrInt/rIntS b) ≡ add-Sb [ pos zero ])
             (cong depConstrInt/rIntS IHb))
         (λ (b : ℕ) (b' : Int / rInt) (IHb : add' zero b ≡ add' b zero) (IHb' : addInt/rInt' depConstrInt/rInt0 b' ≡ addInt/rInt' b' depConstrInt/rInt0) b≡b' IHb≡IHb' →
-          ιOKS
+          ιOKS⁻
             (λ _ → ℕ → ℕ)
             (λ _ → Int / rInt → Int / rInt)
             (λ a b a≡b i → Nat≡Int/rInt i → Nat≡Int/rInt i)
@@ -1145,8 +1170,8 @@ addCommBaseCorrect i =
             (λ add-Sb → add' zero (suc b) ≡ add-Sb 0)
             (λ add-Sb' → addInt/rInt' depConstrInt/rInt0 (depConstrInt/rIntS b') ≡ add-Sb' depConstrInt/rInt0)
             {!!}
-            {!!}
-            {!!}
+            (cong suc IHb)
+            (cong depConstrInt/rIntS IHb')
             {!!})) -- path between inductive cases
     i
 
