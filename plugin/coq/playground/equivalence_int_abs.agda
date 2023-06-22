@@ -694,7 +694,7 @@ addCorrectBetter a b a' b' pa pb =
       (λ _ → ℕ → ℕ) -- motive of add'
       (λ _ → Int / rInt → Int / rInt) -- motive of addInt/rInt'
       (λ (_ : Int / rInt) → isSetProd (λ _ → squash/)) -- isSet proof of addInt/rInt'
-      {!!} -- path between motives
+      (λ (a : ℕ) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) i → Nat≡Int/rInt i → Nat≡Int/rInt i) -- path between motives
       (λ (b : ℕ) → b) -- base case of add'
       (λ (b : Int / rInt) → b) -- base case off addInt/rInt'
       (lamOK (λ (b : ℕ) → b) (λ (b : Int / rInt) → b) (λ p → p)) -- path between base cases
