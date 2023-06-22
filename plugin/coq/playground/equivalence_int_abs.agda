@@ -1096,13 +1096,13 @@ addCommMotiveCorrect =
 -- TODO finish
 addCommBaseCorrect :
   PathP
-    (λ i → ∀ (b : Nat≡Int/rInt i) → {!!})
+    (λ i → addCommMotiveCorrect zero depConstrInt/rInt0 depConstr0Correct i)
     (λ (b : ℕ) → addCommNat' zero b)
     (λ (b : Int / rInt) → addCommInt/rInt' depConstrInt/rInt0 b)
 addCommBaseCorrect i =
   lamOK
     {T = λ i → Nat≡Int/rInt i}
-    {F = λ i b → {!!} i b} -- causes issues unifying, unsure why can't use addCommCorrectMotiveBase
+    {F = λ i b → {!!}} -- TODO
     (λ b → addCommNat' zero b)
     (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
     (λ {b} {b'} b≡b' →
@@ -1151,11 +1151,27 @@ addCommBaseCorrect i =
             {!!} -- TODO help?
             (cong suc IHb)
             (cong depConstrInt/rIntS IHb')
-            {!!}))
+            {!!})) -- TODO
     i
 
--- TODO
-addCommIndCorrect : {!!}
+-- TODO clean (rename variables) and implement
+addCommIndCorrect :
+   ∀ (a : ℕ) (b : Int / rInt)
+    (IHa : (b₁ : ℕ) → add' a b₁ ≡ add' b₁ a)
+    (IHb : (b₁ : Int / rInt) → addInt/rInt' b b₁ ≡ addInt/rInt' b₁ b)
+    (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
+    PathP (λ i → addCommMotiveCorrect a b a≡b i) IHa IHb →
+    PathP
+    (λ i →
+       addCommMotiveCorrect (suc a) (depConstrInt/rIntS b)
+       (depConstrSCorrect a b a≡b) i)
+    (λ b₁ → (λ i → suc (IHa b₁ i)) ∙ sucLemNat'' b₁ a)
+    (λ b₁ →
+       ιInt/rIntS⁻ (λ z → Int / rInt → Int / rInt)
+       (λ z → isSetProd (λ _ → squash/)) (λ b₂ → b₂)
+       (λ _ IH m → depConstrInt/rIntS (IH m)) b
+       (λ add-Sa → add-Sa b₁ ≡ addInt/rInt' b₁ (depConstrInt/rIntS b))
+       ((λ i → depConstrInt/rIntS (IHb b₁ i)) ∙ sucLemInt/rInt'' b₁ b))
 addCommIndCorrect = {!!}
 
 addCommCorrectElim :
@@ -1184,7 +1200,7 @@ addCommCorrectElim a a' a≡a' =
         (λ add-Sa →
           add-Sa b ≡ addInt/rInt' b (depConstrInt/rIntS a))
         (cong depConstrInt/rIntS (addComm-a b) ∙ sucLemInt/rInt'' b a))
-    addCommIndCorrect -- path between inductive cases
+    {!!} -- addCommIndCorrect -- path between inductive cases
 
 {- appOK : {T : I →Type ℓ} {F : (i : I) → T i → Type ℓ'}
   (f : (t : T i0) → F i0 t) (f' : (t : T i1) → F i1 t)
