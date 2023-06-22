@@ -1108,20 +1108,42 @@ addCommBaseCorrect i =
         (λ (b : Int / rInt) → addInt/rInt' depConstrInt/rInt0 b ≡ addInt/rInt' b depConstrInt/rInt0)
         (λ b → isProp→isSet (squash/ _ _))
         (λ (b : ℕ) (b' : Int / rInt) (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') → -- path between motives
-          eqTypeOK
-            (add' zero b)
-            (addInt/rInt' depConstrInt/rInt0 b')
-            b≡b'
-            (add' b zero)
-            (addInt/rInt' b' depConstrInt/rInt0)
-            (addCorrectBetter b zero b' depConstrInt/rInt0 b≡b' depConstr0Correct)) -- path between motives
-        (refl {x = add' zero zero})
-        (refl {x = addInt/rInt' depConstrInt/rInt0 depConstrInt/rInt0})
-        {!!} -- path between base cases, with type (PathP (λ i → refl i ≡ refl i) refl refl)
-        _
-        _
+          λ i → b≡b' i ≡ addCorrectBetter b zero b' depConstrInt/rInt0 b≡b' depConstr0Correct i)
+        (addCommNat' 0 0)
+        (addCommInt/rInt' depConstrInt/rInt0 depConstrInt/rInt0)
+        (toPathP⁻ refl) -- where does this come from
+        (λ b IHb → cong suc IHb)
+        (λ b IHb →
+          ιInt/rIntS⁻
+            (λ _ → Int / rInt → Int / rInt)
+            (λ _ → isSetProd (λ _ → squash/))
+            (λ b → b)
+            (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+            b
+            (λ add-Sb →
+              addInt/rInt' [ pos zero ] (depConstrInt/rIntS b) ≡ add-Sb [ pos zero ])
+            (cong depConstrInt/rIntS IHb))
         (λ (b : ℕ) (b' : Int / rInt) (IHb : add' zero b ≡ add' b zero) (IHb' : addInt/rInt' depConstrInt/rInt0 b' ≡ addInt/rInt' b' depConstrInt/rInt0) b≡b' IHb≡IHb' →
-          {!!})) -- path between inductive cases
+          ιOKS
+            (λ _ → ℕ → ℕ)
+            (λ _ → Int / rInt → Int / rInt)
+            (λ a b a≡b i → Nat≡Int/rInt i → Nat≡Int/rInt i)
+            (λ _ → isSetProd (λ _ → squash/))
+            (λ b → b)
+            (λ b → b)
+            {!!}
+            {!!}
+            {!!}
+            {!!}
+            {!!}
+            {!!}
+            {!!}
+            {!!}
+            {!!}
+            {!!}
+            {!!}
+            {!!}
+            {!!})) -- path between inductive cases
     i
 
 {-
