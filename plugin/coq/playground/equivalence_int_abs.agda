@@ -1111,7 +1111,7 @@ addCommBaseCorrect i =
           λ i → b≡b' i ≡ addCorrectBetter b zero b' depConstrInt/rInt0 b≡b' depConstr0Correct i)
         (addCommNat' 0 0)
         (addCommInt/rInt' depConstrInt/rInt0 depConstrInt/rInt0)
-        (toPathP⁻ refl) -- where does this come from
+        (toPathP⁻ refl) -- TODO where does this come from, systematically?
         (λ b IHb → cong suc IHb)
         (λ b IHb →
           ιInt/rIntS⁻
@@ -1131,15 +1131,19 @@ addCommBaseCorrect i =
             (λ _ → isSetProd (λ _ → squash/))
             (λ b → b)
             (λ b → b)
-            {!!}
-            {!!}
-            {!!}
-            {!!}
-            {!!}
-            {!!}
-            {!!}
-            {!!}
-            {!!}
+            (lamOK _ _ (λ p → p))
+            (λ _ IH m → suc (IH m))
+            (λ _ IH m → depConstrInt/rIntS (IH m))
+            (λ a a' (IHa : ℕ → ℕ) (IHa' : Int / rInt → Int / rInt) a≡a' IHa≡IHa' → -- path between inductive cases
+              lamOK
+                (λ b → suc (IHa b))
+                (λ b → depConstrInt/rIntS (IHa' b))
+                (λ b≡b' → depConstrSCorrect (IHa _) (IHa' _) (appOK IHa IHa' IHa≡IHa' _ _ b≡b')))
+            b
+            b'
+            b≡b'
+            (λ add-Sb → add' zero (suc b) ≡ add-Sb 0)
+            (λ add-Sb' → addInt/rInt' depConstrInt/rInt0 (depConstrInt/rIntS b') ≡ add-Sb' depConstrInt/rInt0)
             {!!}
             {!!}
             {!!}
