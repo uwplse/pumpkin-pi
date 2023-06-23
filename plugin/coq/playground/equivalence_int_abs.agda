@@ -1071,6 +1071,28 @@ addCommInt/rInt' a b =
 
 -- Start with the lemma, since it should be easier
 
+sucLemBaseCaseCorrect : ∀ (i : I) (b : Nat≡Int/rInt i) →
+  lamOK
+    (λ b → suc b ≡ suc b)
+    (λ b → depConstrInt/rIntS b ≡ depConstrInt/rIntS b)
+    (λ {b} {b'} b≡b' j →
+      depConstrSCorrect b b'
+        (addCorrectBetter zero b depConstrInt/rInt0 b' depConstr0Correct b≡b')
+        j
+      ≡
+      addCorrectBetter
+        zero
+        (suc b)
+        depConstrInt/rInt0
+        (depConstrInt/rIntS b')
+        depConstr0Correct
+        (depConstrSCorrect b b' b≡b')
+        j) -- : PathP (λ i → ∀ (b : Nat≡Int/rInt i) → _ i ≡ _ i) (λ b → suc b ≡ suc b) (λ b → depConstrInt/rIntS b ≡ depConstrInt/rIntS b)
+    i
+    b
+sucLemBaseCaseCorrect i b = -- TODO find a way to do this one systematically instead of by hand
+  {!!} -- ugh
+
 sucLemElimCorrect :
   ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') →
   PathP
@@ -1092,13 +1114,32 @@ sucLemElimCorrect a a' a≡a' =
     (λ a → ∀ b → suc (add' a b) ≡ add' a (suc b))
     (λ a → ∀ b → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b))
     (λ (a : Int / rInt) → isSetProd (λ b → isProp→isSet (squash/ _ _)))
-    (λ a a' a≡a' i → ∀ (b : Nat≡Int/rInt i) → {!!}) -- TODO hard to find motive equality
+    (λ a a' a≡a' i → ∀ (b : Nat≡Int/rInt i) →
+      lamOK
+        {T = λ i → Nat≡Int/rInt i}
+        {F = λ i b → Type}
+        (λ (b : ℕ) → suc (add' a b) ≡ add' a (suc b))
+        (λ (b : Int / rInt) → depConstrInt/rIntS (addInt/rInt' a' b) ≡ addInt/rInt' a' (depConstrInt/rIntS b))
+        (λ {b} {b'} b≡b' j →
+          depConstrSCorrect (add' a b) (addInt/rInt' a' b') (addCorrectBetter a b a' b' a≡a' b≡b') j ≡
+          addCorrectBetter a (suc b) a' (depConstrInt/rIntS b') a≡a' (depConstrSCorrect b b' b≡b') j)
+        i
+        b)
     (λ b → refl {x = suc b})
     (λ b → refl {x = depConstrInt/rIntS b})
-    (λ i (b : Nat≡Int/rInt i) →
-      lamOK (λ b → suc b) (λ b → depConstrInt/rIntS b) (λ {b} {b'} b≡b' → depConstrSCorrect b b' b≡b') i b)
-    {!!}
-    {!!}
+    (λ i (b : Nat≡Int/rInt i) → sucLemBaseCaseCorrect i b)
+    (λ a (IH : ∀ b → suc (add' a b) ≡ add' a (suc b)) b →
+      cong suc (IH b))
+    (λ a (IH : ∀ b → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b)) b →
+      ιInt/rIntS⁻ 
+        (λ _ → Int / rInt → Int / rInt)
+        (λ _ → isSetProd (λ _ → squash/))
+        (λ b → b)
+        (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+        a
+        (λ (add-Sa : Int / rInt → Int / rInt) →
+          depConstrInt/rIntS (add-Sa b) ≡ add-Sa (depConstrInt/rIntS b))
+        (cong depConstrInt/rIntS (IH b)))
     {!!}
 
 sucLemCorrect :
