@@ -1069,13 +1069,6 @@ addCommInt/rInt' a b =
 
 {- proof of correctness of repaired proof!!! which we could totes automatically generate -}
 
--- TODO how do I automatically derive this one? It's obvious but why can't I use appOK here?
-eqTypeOK :
-  ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
-  (a ≡ b) ≡ (a' ≡ b')
-eqTypeOK a a' a≡a' b b' b≡b' =
-  λ i → a≡a' i ≡ b≡b' i
-
 --  PathP (λ i → (t : Nat≡Int/rInt i) → Type) (λ b₁ → a ≡ b₁) (λ b₁ → a' ≡ b')
 
 -- TODO likewise here ...
@@ -1084,7 +1077,8 @@ eqTypeOK a a' a≡a' b b' b≡b' =
 addCommCorrectType :
   ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
   PathP (λ i → Type) (add' a b ≡ add' b a) (addInt/rInt' a' b' ≡ addInt/rInt' b' a')
-addCommCorrectType = {!!}
+addCommCorrectType a a' a≡a' b b' b≡b' =
+  λ i → (addCorrectBetter a b a' b' a≡a' b≡b') i ≡ (addCorrectBetter b a b' a' b≡b' a≡a') i
 
 -- TODO
 addCommMotiveCorrect :
@@ -1096,7 +1090,7 @@ addCommMotiveCorrect a a' a≡a = {!!}
 
 -- TODO finish
 addCommBaseCorrect :
-  ∀ b b' b≡b' →
+  ∀ b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
   PathP
     (λ i → addCommCorrectType zero depConstrInt/rInt0 depConstr0Correct b b' b≡b' i)
     (addCommNat' zero b)
@@ -1108,9 +1102,9 @@ addCommBaseCorrect b b' b≡b' i =
     (λ b → isProp→isSet (squash/ _ _))
     (λ (b : ℕ) (b' : Int / rInt) (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') → -- path between motives
       addCommCorrectType zero depConstrInt/rInt0 depConstr0Correct b b' b≡b') -- TODO redo for type consistency
-    (addCommNat' 0 0)
+    (addCommNat' zero zero)
     (addCommInt/rInt' depConstrInt/rInt0 depConstrInt/rInt0)
-    (toPathP⁻ refl) -- path between base cases (TODO where does this come from, systematically?)
+    {!!} -- path between base cases (TODO where does this come from, systematically?)
     (λ b IHb → cong suc IHb)
     (λ b IHb →
       ιInt/rIntS⁻
