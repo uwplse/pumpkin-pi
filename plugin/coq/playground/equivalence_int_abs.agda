@@ -1181,7 +1181,7 @@ addCommElimCorrect :
      (λ i → addCommMotiveCorrect a a' a≡a' i)
      (λ b → addCommNat' a b)
      (λ b → addCommInt/rInt' a' b)
-addCommElimCorrect a a' a≡a'  =
+addCommElimCorrect a a' a≡a' =
   elimOK a a' a≡a'
     (λ a → ∀ (b : ℕ) → add' a b ≡ add' b a)
     (λ a → ∀ (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a)
@@ -1189,7 +1189,7 @@ addCommElimCorrect a a' a≡a'  =
     addCommMotiveCorrect -- path between motives
     (λ b → addCommNat' zero b)
     (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
-    (addCommBaseCorrect {!!} {!!} {!!}) -- path between base cases (TODO how to get b, b', b≡b'?
+    (lamOK {T = λ i → Nat≡Int/rInt i} {F = λ i b → {!!}} _ _ (λ {b} {b'} b≡b' → addCommBaseCorrect b b' b≡b')) -- path between base cases (TODO what is F?)
     (λ a addComm-a b → cong suc (addComm-a b) ∙ sucLemNat'' b a)
     (λ a addComm-a b →
       ιInt/rIntS⁻
