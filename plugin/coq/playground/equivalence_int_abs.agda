@@ -1071,6 +1071,36 @@ addCommInt/rInt' a b =
 
 -- Start with the lemma, since it should be easier
 
+sucLemElimCorrect :
+  ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') →
+  PathP
+    (λ i → ∀ (b : Nat≡Int/rInt i) →
+      lamOK
+        {T = λ i → Nat≡Int/rInt i}
+        {F = λ i b → Type}
+        (λ (b : ℕ) → suc (add' a b) ≡ add' a (suc b))
+        (λ (b : Int / rInt) → depConstrInt/rIntS (addInt/rInt' a' b) ≡ addInt/rInt' a' (depConstrInt/rIntS b))
+        (λ {b} {b'} b≡b' j →
+          depConstrSCorrect (add' a b) (addInt/rInt' a' b') (addCorrectBetter a b a' b' a≡a' b≡b') j ≡
+          addCorrectBetter a (suc b) a' (depConstrInt/rIntS b') a≡a' (depConstrSCorrect b b' b≡b') j)
+        i
+        b)
+    (λ b → sucLemNat'' a b)
+    (λ b → sucLemInt/rInt'' a' b)
+sucLemElimCorrect a a' a≡a' =
+  elimOK a a' a≡a'
+    (λ a → ∀ b → suc (add' a b) ≡ add' a (suc b))
+    (λ a → ∀ b → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b))
+    (λ (a : Int / rInt) → isSetProd (λ b → isProp→isSet (squash/ _ _)))
+    (λ a a' a≡a' i → ∀ (b : Nat≡Int/rInt i) → {!!}) -- TODO hard to find motive equality
+    (λ b → refl {x = suc b})
+    (λ b → refl {x = depConstrInt/rIntS b})
+    (λ i (b : Nat≡Int/rInt i) →
+      lamOK (λ b → suc b) (λ b → depConstrInt/rIntS b) (λ {b} {b'} b≡b' → depConstrSCorrect b b' b≡b') i b)
+    {!!}
+    {!!}
+    {!!}
+
 sucLemCorrect :
   ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
   PathP
@@ -1079,18 +1109,20 @@ sucLemCorrect :
       addCorrectBetter a (suc b) a' (depConstrInt/rIntS b') a≡a' (depConstrSCorrect b b' b≡b') i)
     (sucLemNat'' a b)
     (sucLemInt/rInt'' a' b')
-sucLemCorrect a a' a≡a' b b' b≡b' = {!!}
+sucLemCorrect a a' a≡a' b b' b≡b' =
+  {!!}
 
 {-
 sucLemNat'' : (a : ℕ) → (b : ℕ) → suc (add' a b) ≡ add' a (suc b)
-sucLemNat'' a b =
-  Cubical.Data.Nat.elim
+sucLemNat'' a =
+  λ b →
+  ((Cubical.Data.Nat.elim
     {A = λ a → ∀ b → suc (add' a b) ≡ add' a (suc b)} -- motive P
     (λ b → refl) -- base case
     (λ a (IH : ∀ b → suc (add' a b) ≡ add' a (suc b)) b →
       cong suc (IH b)) -- inductive case
-    a
-    b
+    a)
+    b)
 -}
 
 {-
