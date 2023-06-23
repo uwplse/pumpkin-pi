@@ -1069,6 +1069,53 @@ addCommInt/rInt' a b =
 
 {- proof of correctness of repaired proof!!! which we could totes automatically generate -}
 
+-- Start with the lemma, since it should be easier
+
+sucLemCorrect :
+  ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
+  PathP
+    (λ i →
+      depConstrSCorrect (add' a b) (addInt/rInt' a' b') (addCorrectBetter a b a' b' a≡a' b≡b') i ≡
+      addCorrectBetter a (suc b) a' (depConstrInt/rIntS b') a≡a' (depConstrSCorrect b b' b≡b') i)
+    (sucLemNat'' a b)
+    (sucLemInt/rInt'' a' b')
+sucLemCorrect a a' a≡a' b b' b≡b' = {!!}
+
+{-
+sucLemNat'' : (a : ℕ) → (b : ℕ) → suc (add' a b) ≡ add' a (suc b)
+sucLemNat'' a b =
+  Cubical.Data.Nat.elim
+    {A = λ a → ∀ b → suc (add' a b) ≡ add' a (suc b)} -- motive P
+    (λ b → refl) -- base case
+    (λ a (IH : ∀ b → suc (add' a b) ≡ add' a (suc b)) b →
+      cong suc (IH b)) -- inductive case
+    a
+    b
+-}
+
+{-
+sucLemInt/rInt'' : (a : Int / rInt) -> (b : Int / rInt) -> depConstrInt/rIntS (addInt/rInt' a b) ≡ (addInt/rInt' a (depConstrInt/rIntS b)) -- S (a + b) = a + S b
+sucLemInt/rInt'' a b =
+  depElimSetInt/rInt
+    (λ (a : Int / rInt) → ∀ (b : Int / rInt) → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b))
+    (λ (a : Int / rInt) → isSetProd (λ b → isProp→isSet (squash/ _ _)))
+    (λ b → refl) -- base case
+    (λ a (IH : ∀ b → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b)) b → -- inductive case
+      ιInt/rIntS⁻ -- w.t.s that S (S a + b) ≡ S a + S b
+        (λ _ → Int / rInt → Int / rInt)
+        (λ _ → isSetProd (λ _ → squash/))
+        (λ b → b)
+        (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+        a
+        (λ (add-Sa : Int / rInt → Int / rInt) → -- e.t.s. that S (S (a + b)) ≡ S (a + S b)
+          depConstrInt/rIntS (add-Sa b) ≡ add-Sa (depConstrInt/rIntS b))
+        (cong depConstrInt/rIntS (IH b))) -- which holds by cong and the IH
+      a
+      b
+-}
+
+-- Now try commutativity, which will be annoying
+
 --  PathP (λ i → (t : Nat≡Int/rInt i) → Type) (λ b₁ → a ≡ b₁) (λ b₁ → a' ≡ b')
 
 -- TODO likewise here ...
@@ -1138,10 +1185,11 @@ addCommBaseCorrect b b' b≡b' i =
         b≡b'
         (λ add-Sb → add' zero (suc b) ≡ add-Sb zero)
         (λ add-Sb' → addInt/rInt' depConstrInt/rInt0 (depConstrInt/rIntS b') ≡ add-Sb' depConstrInt/rInt0)
-        {!!} -- TODO help?
+        (λ j (add-Sb : Nat≡Int/rInt j → Nat≡Int/rInt j) →
+          {!!}) -- TODO help?
         (cong suc IHb)
         (cong depConstrInt/rIntS IHb')
-        {!!}) -- TODO
+        (λ j → {!!})) -- TODO
     i
 
 -- TODO implement
