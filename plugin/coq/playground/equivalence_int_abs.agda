@@ -1079,82 +1079,78 @@ eqTypeOK a a' a≡a' b b' b≡b' =
 --  PathP (λ i → (t : Nat≡Int/rInt i) → Type) (λ b₁ → a ≡ b₁) (λ b₁ → a' ≡ b')
 
 -- TODO likewise here ...
+
+-- TODO ahh
 addCommCorrectType :
   ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
   PathP (λ i → Type) (add' a b ≡ add' b a) (addInt/rInt' a' b' ≡ addInt/rInt' b' a')
-addCommCorrectType a a' a≡a' b b' b≡b' =
-  eqTypeOK (add' a b) (addInt/rInt' a' b') (addCorrectBetter a b a' b' a≡a' b≡b') (add' b a) (addInt/rInt' b' a') (addCorrectBetter b a b' a' b≡b' a≡a')
+addCommCorrectType = {!!}
 
 -- TODO
 addCommMotiveCorrect :
   ∀ (a : ℕ) (a' : Int / rInt) →
     PathP (λ i → Nat≡Int/rInt i) a a' →
     ((b : ℕ) → add' a b ≡ add' b a) ≡ ((b : Int / rInt) → addInt/rInt' a' b ≡ addInt/rInt' b a')
-addCommMotiveCorrect =
-  {!!}
+addCommMotiveCorrect a a' a≡a = {!!}
+
 
 -- TODO finish
 addCommBaseCorrect :
+  ∀ b b' b≡b' →
   PathP
-    (λ i → addCommMotiveCorrect zero depConstrInt/rInt0 depConstr0Correct i)
-    (λ (b : ℕ) → addCommNat' zero b)
-    (λ (b : Int / rInt) → addCommInt/rInt' depConstrInt/rInt0 b)
-addCommBaseCorrect i =
-  lamOK
-    {T = λ i → Nat≡Int/rInt i}
-    {F = λ i b → {!!}} -- TODO
-    (λ b → addCommNat' zero b)
-    (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
-    (λ {b} {b'} b≡b' →
-      elimOK b b' b≡b'
-        (λ (b : ℕ) → add' zero b ≡ add' b zero)
-        (λ (b : Int / rInt) → addInt/rInt' depConstrInt/rInt0 b ≡ addInt/rInt' b depConstrInt/rInt0)
-        (λ b → isProp→isSet (squash/ _ _))
-        (λ (b : ℕ) (b' : Int / rInt) (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') → -- path between motives
-          λ i → b≡b' i ≡ addCorrectBetter b zero b' depConstrInt/rInt0 b≡b' depConstr0Correct i)
-        (addCommNat' 0 0)
-        (addCommInt/rInt' depConstrInt/rInt0 depConstrInt/rInt0)
-        (toPathP⁻ refl) -- path between base cases (TODO where does this come from, systematically?)
-        (λ b IHb → cong suc IHb)
-        (λ b IHb →
-          ιInt/rIntS⁻
-            (λ _ → Int / rInt → Int / rInt)
-            (λ _ → isSetProd (λ _ → squash/))
-            (λ b → b)
-            (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
-            b
-            (λ add-Sb →
-              addInt/rInt' [ pos zero ] (depConstrInt/rIntS b) ≡ add-Sb [ pos zero ])
-            (cong depConstrInt/rIntS IHb))
-        (λ (b : ℕ) (b' : Int / rInt) (IHb : add' zero b ≡ add' b zero) (IHb' : addInt/rInt' depConstrInt/rInt0 b' ≡ addInt/rInt' b' depConstrInt/rInt0) b≡b' IHb≡IHb' →
-          -- path between inductive cases
-          ιOKS⁻
-            (λ _ → ℕ → ℕ)
-            (λ _ → Int / rInt → Int / rInt)
-            (λ a b a≡b i → Nat≡Int/rInt i → Nat≡Int/rInt i)
-            (λ _ → isSetProd (λ _ → squash/))
-            (λ b → b)
-            (λ b → b)
-            (lamOK _ _ (λ p → p))
-            (λ _ IH m → suc (IH m))
-            (λ _ IH m → depConstrInt/rIntS (IH m))
-            (λ a a' (IHa : ℕ → ℕ) (IHa' : Int / rInt → Int / rInt) a≡a' IHa≡IHa' → -- path between inductive cases
-              lamOK
-                (λ b → suc (IHa b))
-                (λ b → depConstrInt/rIntS (IHa' b))
-                (λ b≡b' → depConstrSCorrect (IHa _) (IHa' _) (appOK IHa IHa' IHa≡IHa' _ _ b≡b')))
-            b
-            b'
-            b≡b'
-            (λ add-Sb → add' zero (suc b) ≡ add-Sb 0)
-            (λ add-Sb' → addInt/rInt' depConstrInt/rInt0 (depConstrInt/rIntS b') ≡ add-Sb' depConstrInt/rInt0)
-            {!!} -- TODO help?
-            (cong suc IHb)
-            (cong depConstrInt/rIntS IHb')
-            {!!})) -- TODO
+    (λ i → addCommCorrectType zero depConstrInt/rInt0 depConstr0Correct b b' b≡b' i)
+    (addCommNat' zero b)
+    (addCommInt/rInt' depConstrInt/rInt0 b')
+addCommBaseCorrect b b' b≡b' i =
+  elimOK b b' b≡b'
+    (λ (b : ℕ) → add' zero b ≡ add' b zero)
+    (λ (b : Int / rInt) → addInt/rInt' depConstrInt/rInt0 b ≡ addInt/rInt' b depConstrInt/rInt0)
+    (λ b → isProp→isSet (squash/ _ _))
+    (λ (b : ℕ) (b' : Int / rInt) (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') → -- path between motives
+      addCommCorrectType zero depConstrInt/rInt0 depConstr0Correct b b' b≡b') -- TODO redo for type consistency
+    (addCommNat' 0 0)
+    (addCommInt/rInt' depConstrInt/rInt0 depConstrInt/rInt0)
+    (toPathP⁻ refl) -- path between base cases (TODO where does this come from, systematically?)
+    (λ b IHb → cong suc IHb)
+    (λ b IHb →
+      ιInt/rIntS⁻
+        (λ _ → Int / rInt → Int / rInt)
+        (λ _ → isSetProd (λ _ → squash/))
+        (λ b → b)
+        (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
+        b
+        (λ add-Sb →
+          addInt/rInt' [ pos zero ] (depConstrInt/rIntS b) ≡ add-Sb [ pos zero ])
+        (cong depConstrInt/rIntS IHb))
+    (λ (b : ℕ) (b' : Int / rInt) (IHb : add' zero b ≡ add' b zero) (IHb' : addInt/rInt' depConstrInt/rInt0 b' ≡ addInt/rInt' b' depConstrInt/rInt0) b≡b' IHb≡IHb' →
+      -- path between inductive cases
+      ιOKS⁻
+        (λ _ → ℕ → ℕ)
+        (λ _ → Int / rInt → Int / rInt)
+        (λ a b a≡b i → Nat≡Int/rInt i → Nat≡Int/rInt i)
+        (λ _ → isSetProd (λ _ → squash/))
+        (λ b → b)
+        (λ b → b)
+        (lamOK _ _ (λ p → p))
+        (λ _ IH m → suc (IH m))
+        (λ _ IH m → depConstrInt/rIntS (IH m))
+        (λ a a' (IHa : ℕ → ℕ) (IHa' : Int / rInt → Int / rInt) a≡a' IHa≡IHa' → -- path between inductive cases
+          lamOK
+            (λ b → suc (IHa b))
+            (λ b → depConstrInt/rIntS (IHa' b))
+            (λ b≡b' → depConstrSCorrect (IHa _) (IHa' _) (appOK IHa IHa' IHa≡IHa' _ _ b≡b')))
+        b
+        b'
+        b≡b'
+        (λ add-Sb → add' zero (suc b) ≡ add-Sb 0)
+        (λ add-Sb' → addInt/rInt' depConstrInt/rInt0 (depConstrInt/rIntS b') ≡ add-Sb' depConstrInt/rInt0)
+        {!!} -- TODO help?
+        (cong suc IHb)
+        (cong depConstrInt/rIntS IHb')
+        {!!}) -- TODO
     i
 
--- TODO clean (rename variables) and implement
+-- TODO implement
 addCommIndCorrect :
    ∀ (a : ℕ) (a' : Int / rInt)
     (IHa : (b : ℕ) → add' a b ≡ add' b a)
@@ -1173,15 +1169,19 @@ addCommIndCorrect :
            (λ add-Sa → add-Sa b ≡ addInt/rInt' b (depConstrInt/rIntS a'))
            ((λ i → depConstrInt/rIntS (IHa' b i)) ∙ sucLemInt/rInt'' b a'))
 addCommIndCorrect a a' IHa IHa' a≡a' IHa≡IHa' =
-  {!!}
+  lamOK {T = λ i → Nat≡Int/rInt i} {F = λ i b → {!!} ≡ {!!}}
+    _
+    _
+    (λ {b} {b'} b≡b' →
+      {!!})
 
-addCommCorrectElim :
+addCommElimCorrect :
   ∀ (a : ℕ) (a' : Int / rInt) (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') →
    PathP
      (λ i → addCommMotiveCorrect a a' a≡a' i)
      (λ b → addCommNat' a b)
-     (λ b' → addCommInt/rInt' a' b')
-addCommCorrectElim a a' a≡a' =
+     (λ b → addCommInt/rInt' a' b)
+addCommElimCorrect a a' a≡a'  =
   elimOK a a' a≡a'
     (λ a → ∀ (b : ℕ) → add' a b ≡ add' b a)
     (λ a → ∀ (b : Int / rInt) → addInt/rInt' a b ≡ addInt/rInt' b a)
@@ -1189,7 +1189,7 @@ addCommCorrectElim a a' a≡a' =
     addCommMotiveCorrect -- path between motives
     (λ b → addCommNat' zero b)
     (λ b → addCommInt/rInt' depConstrInt/rInt0 b)
-    addCommBaseCorrect -- path between base cases
+    (addCommBaseCorrect {!!} {!!} {!!}) -- path between base cases (TODO how to get b, b', b≡b'?
     (λ a addComm-a b → cong suc (addComm-a b) ∙ sucLemNat'' b a)
     (λ a addComm-a b →
       ιInt/rIntS⁻
@@ -1201,7 +1201,7 @@ addCommCorrectElim a a' a≡a' =
         (λ add-Sa →
           add-Sa b ≡ addInt/rInt' b (depConstrInt/rIntS a))
         (cong depConstrInt/rIntS (addComm-a b) ∙ sucLemInt/rInt'' b a))
-    addCommIndCorrect -- path between inductive cases
+    addCommIndCorrect
 
 {- appOK : {T : I →Type ℓ} {F : (i : I) → T i → Type ℓ'}
   (f : (t : T i0) → F i0 t) (f' : (t : T i1) → F i1 t)
@@ -1211,10 +1211,10 @@ addCommCorrectElim a a' a≡a' =
   PathP (λ i → F i (t≡t' i)) (f t) (f' t')
 appOK f f' f≡f' t t' t≡t' = congP (λ i a → f≡f' i a) t≡t' -}
 
+{-
 addCommCorrect :
-  ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
-  PathP (λ i → addCommCorrectType a a' a≡a' b b' b≡b' i) (addCommNat' a b) (addCommInt/rInt' a' b')
-addCommCorrect a a' a≡a' b b' b≡b' =
+  PathP (λ i → addCommCorrectType i) addCommNat' addCommInt/rInt'
+addCommCorrect =
   appOK
     {T = λ i → Nat≡Int/rInt i}
     {F = λ i (b : Nat≡Int/rInt i) → {!!}} -- TODO help I am stuck here, may need to generalize appOK more?
@@ -1223,7 +1223,7 @@ addCommCorrect a a' a≡a' b b' b≡b' =
     {!!}
     b -- T i0 
     b' -- T i1
-    b≡b'
+    b≡b'-}
 
 {-
 
