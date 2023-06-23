@@ -1104,7 +1104,7 @@ addCommBaseCorrect b b' b≡b' i =
       addCommCorrectType zero depConstrInt/rInt0 depConstr0Correct b b' b≡b') -- TODO redo for type consistency
     (addCommNat' zero zero)
     (addCommInt/rInt' depConstrInt/rInt0 depConstrInt/rInt0)
-    {!!} -- path between base cases (TODO where does this come from, systematically?)
+    (λ j → refl) -- path between base cases
     (λ b IHb → cong suc IHb)
     (λ b IHb →
       ιInt/rIntS⁻
