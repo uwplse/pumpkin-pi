@@ -16,6 +16,7 @@
 *.d
 *.cmxa
 *.a
+*.agdai
 plugin/Makefile.coq.conf
 plugin/Makefile.coq
 plugin/Makefile.conf
