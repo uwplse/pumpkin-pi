@@ -79,7 +79,6 @@ module TwoList where
         go [] x₁ = x₁
         go (x :: xs) x₁ = go xs (x :: x₁)
 
-
     dequeue : (List Nat × List Nat) → Maybe ((List Nat × List Nat) × Nat)
     dequeue (x , []) = let xs = reverse x in help xs where
       help : List Nat → Maybe ((List Nat × List Nat) × Nat)
@@ -88,10 +87,3 @@ module TwoList where
     dequeue (x , (x₁ :: x')) = just ((((x , x')) , x₁))
 
     TwoList = record { A = Nat; Q = (List Nat × List Nat) ; null = ([] , []) ; enqueue = enqueue ; dequeue = dequeue }
-
-
-
--- record Queue {ℓ} (A : Set ℓ) : Set (ℓ-suc ℓ) where
---   field Q : Set ℓ
---         enqueue : A → Q → Q
---         dequeue : Q → (Q , A)
