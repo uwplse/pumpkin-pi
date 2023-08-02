@@ -3,6 +3,7 @@ module equivalence_queue where
 
 open import Cubical.Core.Everything
 open import Cubical.HITs.SetQuotients as SetQuotients
+open import Cubical.Foundations.HLevels
 open import Cubical.Foundations.Path
 open import Cubical.Foundations.Prelude
 open import Cubical.Foundations.HLevels
@@ -102,6 +103,18 @@ module TwoList where
     reverse : List A → List A
     reverse [] = []
     reverse (x ∷ xs) = (reverse xs) ++ (x ∷ [])
+
+    revLem : (l : List A) → (x : A) → reverse (l ++ x ∷ []) ≡ x ∷ reverse l
+    revLem [] x = refl
+    revLem (x₁ ∷ l) x = cong (λ a → a ++ x₁ ∷ []) (revLem l x) 
+
+    revRevId : (l : List A) → reverse (reverse l) ≡ l
+    revRevId [] = refl
+    revRevId (x ∷ l) = revLem (reverse l) x ∙ rightSide where
+      help : reverse (reverse l) ≡ l
+      help = revRevId l
+      rightSide : x ∷ (reverse (reverse l)) ≡ x ∷ l
+      rightSide = cong (λ a → x ∷ a) help
     -- reverse l = go l [] where
     --     go : List A → List A → List A
     --     go [] x₁ = x₁
@@ -160,6 +173,9 @@ module TwoList where
     canonicalizeInv : OneList.Q → Q
     canonicalizeInv x = ([] , x)
 
+    canonicalizeSimple : Q → Q
+    canonicalizeSimple (x , x₁) = ( [] , x₁ ++ (reverse x) )
+
     -- _and_ : Type → Type → Type
     -- _and_ x x₁ = True
 
@@ -210,6 +226,15 @@ module TwoList where
     tail : List Nat → List Nat
     tail [] = []
     tail (x ∷ xs) = xs
+
+    last : List Nat → Nat
+    last [] = 0
+    last (x ∷ []) = x
+    last (x ∷ xs ∷ xs') = last (xs ∷ xs')
+    allButLast : List Nat → List Nat
+    allButLast [] = []
+    allButLast (x ∷ []) = []
+    allButLast (x ∷ xs ∷ xs') = x ∷ allButLast (xs ∷ xs')
 
     π₁ : Q → List Nat
     π₁ (x , x₁) = x
@@ -287,13 +312,6 @@ module TwoList where
 
     genCanonHomo : (a : Q) → (x : A) → genCanon (enqueue x a) ≡ genCanon (enqueue x (genCanon a))
     genCanonHomo (x₁ , x₂) x = cong (λ a → [] , a) (sym (appAssoc x₂ (reverse x₁) (x ∷ [])))
---     genCanonHomo ([] , x₂) x = cong (λ a → (genCanon (x ∷ [] , a))) (canonicalizeTermRight x₂)
---     genCanonHomo ((x ∷ xs) , ys) x' = {!!} where
--- -- ([] , (ys ++ equivalence_queue.TwoList.go (x ∷ xs) xs (x ∷ []))) ≡ ([] , ((ys ++ equivalence_queue.TwoList.go xs xs []) ++ (x ∷ [])))
---       recCall : genCanon (enqueue x (xs , ys)) ≡ genCanon (enqueue x (genCanon (xs , ys)))
---       recCall =  genCanonHomo (xs , ys) x
---       -- recCall : (xs ys : List Nat) → (x : A) → genCanon (enqueue x (xs , ys)) ≡ genCanon (enqueue x (genCanon (xs , ys)))
---       -- recCall xs ys x = genCanonHomo (xs , ys) x
 
     depConstrEmpty : Q / quotient
     depConstrEmpty = _/_.[ ([] , []) ]
@@ -309,16 +327,46 @@ module TwoList where
       rLem = genCanonHomo a x ∙ rHelp ∙ symPath (genCanonHomo b x)
     depConstrInsert x (squash/ a b p q i j) = squash/ (depConstrInsert x a) (depConstrInsert x b) (cong (λ o → depConstrInsert x o) p) ((cong (λ o → depConstrInsert x o) q)) i j
 
-    depElimQ : (P : (Q / quotient) → Set) → (∀ x → isSet (P x)) → P depConstrEmpty → (∀ q → ∀ a → P (depConstrInsert a q)) → ∀ q' → P q'
+    isSetProd : ∀ {A : Type} {B : A → Type} → (∀ (a : A) → isSet (B a)) → isSet (∀ (a : A) → B a)
+    isSetProd {A} {B} setB = λ (f g : ∀ (a : A) → B a) (p q : f ≡ g) → cong funExtPath (funExtPath (λ (a : A) → setB a (f a) (g a) (funExt⁻ p a) (funExt⁻ q a)))
+
+    isSetFunc : {A B : Set} → isSet A → isSet B → isSet (A → B)
+    isSetFunc {A} {B} setA setB = isSetProd {B = λ _ → B} (λ _ → setB)
+
+    isSetFunc' : {A : Set} (B : A → Set) → ((a : A) → isSet (B a)) → isSet ((a : A) → (B a))
+    isSetFunc' {A} B resultIsSet = isSetProd resultIsSet
+
+    revSwap : (l : List Nat ) → _/_.[ reverse l , [] ] ≡ _/_.[ [] , l ]
+    revSwap l = refl
+
+    depElimQ : (P : (Q / quotient) → Set) → (∀ x → isSet (P x)) → P depConstrEmpty → (∀ q → ∀ a → P q → P (depConstrInsert a q)) → ∀ q' → P q'
     depElimQ P set baseCase insertCase = SetQuotients.elim set lem wellDefined where
+      ++Q : (a b : Q) → Q
+      ++Q (x , x₁) (x₂ , x₃) = {!!}
+      ++lem : (a b : Q) → P _/_.[ a ] →  P _/_.[ ++Q a b ] -- P _/_.[ a ++ b ]
+      ++lem a = {!!}
       lem : (a : Q) → P _/_.[ a ]
-      lem ([] , []) = baseCase
-      lem ([] , (x ∷ x₁)) = {!P _/_.[ {!!} ]!} where
-         help : List Nat → Nat → List Nat
-         help = {!!}
-      lem ((x ∷ x₂) , x₁) = insertCase _/_.[ ( x₂ , x₁ ) ] x
+      -- lem a = {!help q!} where
+      --   q : Q
+      --   q = canonicalizeSimple a
+      --   help' : Q → P _/_.[ q ]
+      --   help' (x , x₁) = {!!}
+      --   help : (a : Q) → P _/_.[ a ]
+      --   help a = {!!}
+      --
+      lem ([] , x) = insertBackwards x where
+         insertBackwards : (x : List Nat) → P _/_.[ [] , x ]
+         insertBackwards x = {!!} where -- substPath (λ a → {!!}) (revSwap x) startPoint where
+           recInsert : (x : List Nat) → P _/_.[ x , [] ]
+           recInsert [] = baseCase
+           recInsert (x ∷ xs) = insertCase _/_.[ (xs , []) ] x (recInsert xs) -- (help xs)
+           startPoint : P _/_.[ reverse x , [] ]
+           startPoint = recInsert (reverse x)
+      lem ((x ∷ xs) , x₁) = insertCase _/_.[ (xs , x₁) ] x (lem (xs , x₁))
       wellDefined : (a b : Q) (r : quotient a b) → PathP (λ i → P (eq/ a b r i)) (lem a) (lem b)
       wellDefined a b r = {!!}
+      help' : isSet ((a : Q) → P _/_.[ a ])
+      help' = isSetFunc' (λ x → P _/_.[ x ]) λ x → set _/_.[ x ]
 
 
     -- OneListIsoTwoList : Iso OneList.Q Q
