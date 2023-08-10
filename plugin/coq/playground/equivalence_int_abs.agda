@@ -1137,14 +1137,14 @@ addCommInt/rInt' a b =
 
 sucLemBaseCaseCorrect : ∀ (i : I) (b : Nat≡Int/rInt i) →
   depConstrSCorrect _ _
-    (addCorrectBetter zero _ depConstrInt/rInt0 _ depConstr0Correct (λ j → coei→j _ i j b))
+    (addCorrectBetter zero _ depConstrInt/rInt0 _ depConstr0Correct (λ j → alternateFunExtDep.coei→j _ i j b))
     i
   ≡
   addCorrectBetter zero _ depConstrInt/rInt0 _ depConstr0Correct
-    (depConstrSCorrect _ _ (λ j → coei→j _ i j b))
+    (depConstrSCorrect _ _ (λ j → alternateFunExtDep.coei→j _ i j b))
     i
 sucLemBaseCaseCorrect i b = -- TODO find a way to do this one systematically instead of by hand
-  comp ? ? ?
+  comp {!!} {!!} {!!}
 
 sucLemElimCorrect :
   ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') →
