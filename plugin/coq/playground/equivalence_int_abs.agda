@@ -471,6 +471,17 @@ addCorrect a b a' b' pa pb =
 
 {- Correctness for dependent constructors and eliminators -}
 
+Nat≡Int/rIntIrrel : ∀ (a : ℕ) (b : Int / rInt) (p1 p2 : PathP (λ i → Nat≡Int/rInt i) a b) →
+  p1 ≡ p2
+Nat≡Int/rIntIrrel a b p1 p2 =
+  subst2
+    (λ p1 p2 → p1 ≡ p2)
+    (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) a b) p1)
+    (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) a b) p2)
+    (cong
+      (toPathP {A = λ i → Nat≡Int/rInt i})
+      (squash/ _ _ (fromPathP p1) (fromPathP p2)))
+
 depConstr0Correct : PathP (λ i → Nat≡Int/rInt i) zero depConstrInt/rInt0
 depConstr0Correct = toPathP refl
 
@@ -484,14 +495,7 @@ depConstrSCorrect a b a≡b =
 
 depConstrSCorrectIrrel : ∀ (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) (Sa≡Sb : PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)) →
   depConstrSCorrect a b a≡b ≡ Sa≡Sb
-depConstrSCorrectIrrel a b a≡b Sa≡Sb =
-  subst2
-    (λ (Sa≡Sb Sa≡Sb' : PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)) → Sa≡Sb' ≡ Sa≡Sb)
-    (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)) Sa≡Sb)
-    (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)) (depConstrSCorrect a b a≡b))
-    (cong
-      (toPathP {A = λ i → Nat≡Int/rInt i})
-      (squash/ (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a)) (depConstrInt/rIntS b) (fromPathP (depConstrSCorrect a b a≡b)) (fromPathP Sa≡Sb)))
+depConstrSCorrectIrrel a b a≡b Sa≡Sb = Nat≡Int/rIntIrrel (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) Sa≡Sb
 
 -- universes argh
 private
@@ -1132,26 +1136,15 @@ addCommInt/rInt' a b =
 -- Start with the lemma, since it should be easier
 
 sucLemBaseCaseCorrect : ∀ (i : I) (b : Nat≡Int/rInt i) →
-  lamOK
-    (λ b → suc b ≡ suc b)
-    (λ b → depConstrInt/rIntS b ≡ depConstrInt/rIntS b)
-    (λ {b} {b'} b≡b' j →
-      depConstrSCorrect b b'
-        (addCorrectBetter zero b depConstrInt/rInt0 b' depConstr0Correct b≡b')
-        j
-      ≡
-      addCorrectBetter
-        zero
-        (suc b)
-        depConstrInt/rInt0
-        (depConstrInt/rIntS b')
-        depConstr0Correct
-        (depConstrSCorrect b b' b≡b')
-        j) -- : PathP (λ i → ∀ (b : Nat≡Int/rInt i) → _ i ≡ _ i) (λ b → suc b ≡ suc b) (λ b → depConstrInt/rIntS b ≡ depConstrInt/rIntS b)
+  depConstrSCorrect _ _
+    (addCorrectBetter zero _ depConstrInt/rInt0 _ depConstr0Correct (λ j → coei→j _ i j b))
     i
-    b
+  ≡
+  addCorrectBetter zero _ depConstrInt/rInt0 _ depConstr0Correct
+    (depConstrSCorrect _ _ (λ j → coei→j _ i j b))
+    i
 sucLemBaseCaseCorrect i b = -- TODO find a way to do this one systematically instead of by hand
-  {!!} -- ugh
+  comp ? ? ?
 
 sucLemElimCorrect :
   ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') →
@@ -1187,7 +1180,7 @@ sucLemElimCorrect a a' a≡a' =
         b)
     (λ b → refl {x = suc b})
     (λ b → refl {x = depConstrInt/rIntS b})
-    (λ i (b : Nat≡Int/rInt i) → sucLemBaseCaseCorrect i b)
+    {!!} --  TODO use new types that are less horrible than lamOK (λ i (b : Nat≡Int/rInt i) → sucLemBaseCaseCorrect i b)
     (λ a (IH : ∀ b → suc (add' a b) ≡ add' a (suc b)) b →
       cong suc (IH b))
     (λ a (IH : ∀ b → depConstrInt/rIntS (addInt/rInt' a b) ≡ addInt/rInt' a (depConstrInt/rIntS b)) b →
