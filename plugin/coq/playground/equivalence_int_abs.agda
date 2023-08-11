@@ -1320,7 +1320,10 @@ addCommBaseCorrect b b' b≡b' i =
         (lamOK {T = λ i → funTypeOK equivOK equivOK i} {F = λ _ _ → Type}
           (λ add-Sb → add' zero (suc b) ≡ add-Sb zero)
           (λ add-Sb' → addInt/rInt' depConstrInt/rInt0 (depConstrInt/rIntS b') ≡ add-Sb' depConstrInt/rInt0)
-          λ {t} {t'} t≡t' → {!addCorrectBetter zero (suc b) depConstrInt/rInt0 (depConstrInt/rIntS b') depConstr0Correct (depConstrSCorrect b b' b≡b') k ≡ addCorrectBetter (suc b) zero (depConstrInt/rIntS b') depConstrInt/rInt0 (depConstrSCorrect b b' b≡b') depConstr0Correct k!}) -- λ {t} {t'} t≡t' → eqOK {TA = ℕ} {TB = Int / rInt} {!!} {!!}) -- TODO help?
+          (λ {add-Sb} {add-Sb'} add-Sb≡add-Sb' →
+            eqOK
+              (addCorrectBetter zero (suc b) depConstrInt/rInt0 (depConstrInt/rIntS b') depConstr0Correct (depConstrSCorrect b b' b≡b'))
+              (appOK add-Sb add-Sb' add-Sb≡add-Sb' zero depConstrInt/rInt0 depConstr0Correct)))
         (cong suc IHb)
         (cong depConstrInt/rIntS IHb')
         {!!}) -- TODO
