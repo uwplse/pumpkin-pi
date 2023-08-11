@@ -1267,6 +1267,25 @@ addCommMotiveCorrect a a' a≡a =
       (addCorrectBetter a t a' t' a≡a p)
       (addCorrectBetter t a t' a' p a≡a)
 
+lhs : Int / rInt → Int / rInt
+lhs b' =
+  depElimSetInt/rInt _ (λ _ → isSetProd (λ _ → squash/)) (λ b → b) (λ _ IH m → depConstrInt/rIntS (IH m)) (sucInt/rInt b')
+   (transp (λ j → equivOK ((~ (i0 ∨ ~ j) ∧ i1) ∨ ((i0 ∨ ~ j) ∧ i1) ∨ i1 ∧ i1)) (((i1 ∧ i1) ∨ ~ i1 ∧ ~ i1) ∨ i0) (depConstr0Correct i1))
+
+rhs : Int / rInt → I → Int / rInt
+rhs b' i₁ = transp (λ i₁ → Nat≡Int/rInt i1) i₁ {!!}
+
+{-
+(SetQuotients.elim (λ _ → isSetProd (λ _ → squash/))
+ (equivalence_int_abs.lem (λ _ → Int / rInt → Int / rInt)
+  (λ _ → isSetProd (λ _ → squash/)) (λ b₁ → b₁)
+  (λ a IH b₁ → depConstrInt/rIntS (IH b₁)))
+ (equivalence_int_abs.wellDefined (λ _ → Int / rInt → Int / rInt)
+  (λ _ → isSetProd (λ _ → squash/)) (λ b₁ → b₁)
+  (λ a IH b₁ → depConstrInt/rIntS (IH b₁)))
+ (sucInt/rInt b')
+ (transp (λ j → Nat≡Int/rInt i1) (i₁ ∨ i0) (depConstr0Correct i1)))-}
+
 -- TODO finish
 addCommBaseCorrect :
   (b : ℕ) (b' : Int / rInt) (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
@@ -1280,7 +1299,8 @@ addCommBaseCorrect b b' b≡b' i =
     (λ (b : Int / rInt) → addInt/rInt' depConstrInt/rInt0 b ≡ addInt/rInt' b depConstrInt/rInt0)
     (λ b → isProp→isSet (squash/ _ _))
     (λ (b : ℕ) (b' : Int / rInt) (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') → -- path between motives
-      addCommCorrectType zero depConstrInt/rInt0 depConstr0Correct b b' b≡b') -- TODO redo for type consistency
+      {!!})
+      --addCommCorrectType zero depConstrInt/rInt0 depConstr0Correct b b' b≡b') -- TODO redo for type consistency
     (addCommNat' zero zero)
     (addCommInt/rInt' depConstrInt/rInt0 depConstrInt/rInt0)
     (λ j → refl {x = depConstr0Correct j}) -- path between base cases
