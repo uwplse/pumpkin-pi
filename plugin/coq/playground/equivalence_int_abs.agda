@@ -1309,52 +1309,45 @@ rhs b' i₁ = transp (λ i₁ → Nat≡Int/rInt i1) i₁ {!!}
 
 depConstrSCorrect' :
   PathP (λ i → (Nat≡Int/rInt i → Nat≡Int/rInt i)) suc depConstrInt/rIntS
-depConstrSCorrect' = funExtDep (λ {a} {b} p → depConstrSCorrect a b p)
+depConstrSCorrect' =
+  funExtDep (λ {a} {b} p → depConstrSCorrect a b p)
 
-lemzzzz : (b : Int / rInt) → addInt/rInt' depConstrInt/rInt0 b ≡ addInt/rInt' b depConstrInt/rInt0 → {!!}
-lemzzzz b IHb =
-  {!ιInt/rIntS⁻
-        (λ _ → Int / rInt → Int / rInt)
-        (λ _ → isSetProd (λ _ → squash/))
-        (λ b → b)
-        (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
-        b
-        (λ add-Sb →
-          addInt/rInt' [ pos zero ] (depConstrInt/rIntS b) ≡ add-Sb [ pos zero ])
-        (cong depConstrInt/rIntS IHb)!}
-
-lemzzzzz : {!!}
-lemzzzzz =
-  {!ιOKS⁻
-        (λ _ → ℕ → ℕ)
-        (λ _ → Int / rInt → Int / rInt)
-        (λ a b a≡b → funTypeOK equivOK equivOK)
-        (λ _ → isSetProd (λ _ → squash/))
-        (λ b → b)
-        (λ b → b)
-        (lamOK _ _ (λ p → p))
-        (λ _ IH m → suc (IH m))
-        (λ _ IH m → depConstrInt/rIntS (IH m))
-        (λ a a' (IHa : ℕ → ℕ) (IHa' : Int / rInt → Int / rInt) a≡a' IHa≡IHa' → -- path between inductive cases
-          lamOK
-            (λ b → suc (IHa b))
-            (λ b → depConstrInt/rIntS (IHa' b))
-            (λ b≡b' → depConstrSCorrect (IHa _) (IHa' _) (appOK IHa IHa' IHa≡IHa' _ _ b≡b')))
-        b
-        b'
-        b≡b'
-        (λ add-Sb → add' zero (suc b) ≡ add-Sb zero)
-        (λ add-Sb' → addInt/rInt' depConstrInt/rInt0 (depConstrInt/rIntS b') ≡ add-Sb' depConstrInt/rInt0)
-        (lamOK {T = λ i → funTypeOK equivOK equivOK i} {F = λ _ _ → Type}
-          (λ add-Sb → add' zero (suc b) ≡ add-Sb zero)
-          (λ add-Sb' → addInt/rInt' depConstrInt/rInt0 (depConstrInt/rIntS b') ≡ add-Sb' depConstrInt/rInt0)
-          (λ {add-Sb} {add-Sb'} add-Sb≡add-Sb' →
-            eqOK
-              (addCorrectBetter zero (suc b) depConstrInt/rInt0 (depConstrInt/rIntS b') depConstr0Correct (depConstrSCorrect b b' b≡b'))
-              (appOK add-Sb add-Sb' add-Sb≡add-Sb' zero depConstrInt/rInt0 depConstr0Correct)))
-        (cong suc IHb)
-        (cong depConstrInt/rIntS IHb')
-        (congOK {!!} {!!} {!!} {!!} {!!} {!!} {!!} {!!}))!}
+lemzzzzz : (b : ℕ) (b' : Int / rInt) (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
+  (IHb : {!!}) →
+  (IHb' : {!!}) →
+  {!!} →
+  PathP (λ i → {!!} i ≡ {!!} i) {!!} {!!}
+lemzzzzz b b' b≡b' IHb IHb' IHb≡IHb' =
+  ιOKS⁻
+    (λ _ → ℕ → ℕ)
+    (λ _ → Int / rInt → Int / rInt)
+    (λ a b a≡b → funTypeOK equivOK equivOK)
+    (λ _ → isSetProd (λ _ → squash/))
+    (λ b → b)
+    (λ b → b)
+    (lamOK _ _ (λ p → p))
+    (λ _ IH m → suc (IH m))
+    (λ _ IH m → depConstrInt/rIntS (IH m))
+    (λ a a' (IHa : ℕ → ℕ) (IHa' : Int / rInt → Int / rInt) a≡a' IHa≡IHa' → -- path between inductive cases
+      lamOK
+        (λ b → suc (IHa b))
+        (λ b → depConstrInt/rIntS (IHa' b))
+        (λ b≡b' → depConstrSCorrect (IHa _) (IHa' _) (appOK IHa IHa' IHa≡IHa' _ _ b≡b')))
+    b
+    b'
+    b≡b'
+    (λ add-Sb → add' zero (suc b) ≡ add-Sb zero)
+    (λ add-Sb' → addInt/rInt' depConstrInt/rInt0 (depConstrInt/rIntS b') ≡ add-Sb' depConstrInt/rInt0)
+    (lamOK {T = λ i → funTypeOK equivOK equivOK i} {F = λ _ _ → Type}
+      (λ add-Sb → add' zero (suc b) ≡ add-Sb zero)
+      (λ add-Sb' → addInt/rInt' depConstrInt/rInt0 (depConstrInt/rIntS b') ≡ add-Sb' depConstrInt/rInt0)
+      (λ {add-Sb} {add-Sb'} add-Sb≡add-Sb' →
+        eqOK
+          (addCorrectBetter zero (suc b) depConstrInt/rInt0 (depConstrInt/rIntS b') depConstr0Correct (depConstrSCorrect b b' b≡b'))
+          (appOK add-Sb add-Sb' add-Sb≡add-Sb' zero depConstrInt/rInt0 depConstr0Correct)))
+    (cong suc IHb)
+    (cong depConstrInt/rIntS IHb')
+     (congOK {AL = ℕ} {AR = ℕ} {BL = Int / rInt} {BR = Int / rInt} equivOK equivOK {a1 = add' zero b} {a2 = add' b zero} IHb {b1 = addInt/rInt' depConstrInt/rInt0 b'} {b2 = addInt/rInt' b' depConstrInt/rInt0} IHb' (addCorrectBetter zero b depConstrInt/rInt0 b' depConstr0Correct b≡b') (addCorrectBetter b zero b' depConstrInt/rInt0 b≡b' depConstr0Correct) {fa = suc} {fb = depConstrInt/rIntS} depConstrSCorrect' IHb≡IHb')
 
 -- TODO finish
 addCommBaseCorrect :
