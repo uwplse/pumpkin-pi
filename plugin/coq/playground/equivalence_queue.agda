@@ -341,10 +341,16 @@ module TwoList where
 
     depElimQ : (P : (Q / quotient) → Set) → (∀ x → isSet (P x)) → P depConstrEmpty → (∀ q → ∀ a → P q → P (depConstrInsert a q)) → ∀ q' → P q'
     depElimQ P set baseCase insertCase = SetQuotients.elim set lem wellDefined where
+      lem' : (a : Q) → P _/_.[ a ]
+      lem' ([] , []) = baseCase
+      lem' ([] , (x ∷ xs)) = help xs where
+        help : List ℕ → P _/_.[ ([] , (x ∷ xs)) ]
+        help x = {!!}
+      lem' ((x ∷ xs) , y) = insertCase _/_.[ (xs , y) ] x (lem' (xs , y))
       ++Q : (a b : Q) → Q
-      ++Q (x , x₁) (x₂ , x₃) = {!!}
-      ++lem : (a b : Q) → P _/_.[ a ] →  P _/_.[ ++Q a b ] -- P _/_.[ a ++ b ]
-      ++lem a = {!!}
+      ++Q (x , x₁) (x₂ , x₃) = ( [] , x₁ ++ (reverse x) ++ x₃ ++ (reverse x₂) )
+      ++lem : (a b : Q) → P _/_.[ a ] → P _/_.[ b ] → P _/_.[ ++Q a b ] -- P _/_.[ a ++ b ]
+      ++lem (x , x₁) (x₂ , x₃) b c = {!!}
       lem : (a : Q) → P _/_.[ a ]
       -- lem a = {!help q!} where
       --   q : Q
@@ -353,7 +359,6 @@ module TwoList where
       --   help' (x , x₁) = {!!}
       --   help : (a : Q) → P _/_.[ a ]
       --   help a = {!!}
-      --
       lem ([] , x) = insertBackwards x where
          insertBackwards : (x : List Nat) → P _/_.[ [] , x ]
          insertBackwards x = {!!} where -- substPath (λ a → {!!}) (revSwap x) startPoint where
