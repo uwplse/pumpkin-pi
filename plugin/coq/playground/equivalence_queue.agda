@@ -14,10 +14,7 @@ open import Cubical.Relation.Nullary
 open import Cubical.Foundations.Univalence
 open import Cubical.Data.Empty
 open import Cubical.Data.Sum
-open import Agda.Builtin.Maybe
-open import Agda.Builtin.Unit
-open import Agda.Builtin.Bool
-open import Agda.Builtin.Nat
+open import Cubical.Data.Maybe
 open import Cubical.Data.Nat
 open import Cubical.Data.Bool
 open import Cubical.Data.Bool.Properties
@@ -52,8 +49,8 @@ record Queue {ℓ} : Set (ℓ-suc ℓ) where
 
 
 module OneList where
-    Q = List Nat
-    A = Nat
+    Q = List ℕ
+    A = ℕ
 
     bind : (Maybe (Q × A)) → ((Q × A) → (Maybe (Q × A))) → Maybe (Q × A)
     bind (just x) f = f x
@@ -85,8 +82,8 @@ module OneList where
     isSetQ = isOfHLevelList 0 isSetℕ
 
 module TwoList where
-    Q = (List Nat × List Nat)
-    A = Nat
+    Q = (List ℕ × List ℕ)
+    A = ℕ
 
     -- _++_ : List A → List A → List A
     -- [] ++ ys = ys
@@ -163,14 +160,14 @@ module TwoList where
     -- _and_ : Type → Type → Type
     -- _and_ x x₁ = True
 
-    defEquivN : Nat → Nat → Type
-    defEquivN zero zero = ⊤
+    defEquivN : ℕ → ℕ → Type
+    defEquivN zero zero = Unit
     defEquivN zero (suc b) = ⊥
     defEquivN (suc a) zero = ⊥
     defEquivN (suc a) (suc b) = defEquivN a b
 
-    defEquivL : List Nat → List Nat → Type
-    defEquivL [] [] = ⊤
+    defEquivL : List ℕ → List ℕ → Type
+    defEquivL [] [] = Unit
     defEquivL [] (x ∷ x') = ⊥
     defEquivL (x ∷ x₂) [] = ⊥
     defEquivL (zero ∷ x₂) (zero ∷ x'') = defEquivL x₂ x''
@@ -188,11 +185,11 @@ module TwoList where
     defEquivQ ((suc x ∷ x₄) , x₂) ((suc x'' ∷ x') , x₃) = defEquivQ ((x ∷ x₄) , x₂) ((x'' ∷ x') , x₃)
 
 
-    defEquivLLifted : (n1 n2 : List Nat) → defEquivL n1 n2 → n1 ≡ n2
+    defEquivLLifted : (n1 n2 : List ℕ) → defEquivL n1 n2 → n1 ≡ n2
     defEquivLLifted [] [] x = refl
     defEquivLLifted (zero ∷ n1) (zero ∷ n2) x = cong (λ a →  zero ∷ a) (defEquivLLifted n1 n2 x)
     defEquivLLifted (suc x' ∷ n1) (suc x'' ∷ n2) x = cong (λ a → help a) (defEquivLLifted (x' ∷ n1) (x'' ∷ n2) x) where
-      help : List Nat → List Nat
+      help : List ℕ → List ℕ
       help [] = []
       help (x ∷ x₁) = suc x ∷ x₁
 
@@ -200,35 +197,35 @@ module TwoList where
     -- length [] = 0
     -- length (x ∷ x₁) = 1 + length x₁
 
-    isEmpty : List Nat → Bool
+    isEmpty : List ℕ → Bool
     isEmpty [] = true
     isEmpty (x ∷ x₁) = false
 
-    head : List Nat → Nat
+    head : List ℕ → ℕ
     head [] = 0
     head (x ∷ x₁) = x
-    tail : List Nat → List Nat
+    tail : List ℕ → List ℕ
     tail [] = []
     tail (x ∷ xs) = xs
 
-    last : List Nat → Nat
+    last : List ℕ → ℕ
     last [] = 0
     last (x ∷ []) = x
     last (x ∷ xs ∷ xs') = last (xs ∷ xs')
-    allButLast : List Nat → List Nat
+    allButLast : List ℕ → List ℕ
     allButLast [] = []
     allButLast (x ∷ []) = []
     allButLast (x ∷ xs ∷ xs') = x ∷ allButLast (xs ∷ xs')
 
-    π₁ : Q → List Nat
+    π₁ : Q → List ℕ
     π₁ (x , x₁) = x
-    π₂ : Q → List Nat
+    π₂ : Q → List ℕ
     π₂ (x , x₁) = x₁
 
 -- {y..1 : Level} {A : Type y..1} {ℓ' : Level} {x y : A}
 -- (B : A → Type ℓ') →
 -- x ≡ y → B x → B y
-    defEquivLLower : (n1 n2 : List Nat) → n1 ≡ n2 → defEquivL n1 n2
+    defEquivLLower : (n1 n2 : List ℕ) → n1 ≡ n2 → defEquivL n1 n2
     defEquivLLower [] [] x = tt
     defEquivLLower [] (x₁ ∷ n2) x = false≢true (sym (cong isEmpty x))
     defEquivLLower (x₁ ∷ n1) [] x = false≢true (cong isEmpty x)
@@ -236,7 +233,7 @@ module TwoList where
     defEquivLLower (zero ∷ n1) (suc y ∷ n2) proof = false≢true (sym (cong (λ a → isZero (head a)) proof))
     defEquivLLower (suc x ∷ n1) (zero ∷ n2) proof = false≢true (cong (λ a → isZero (head a)) proof)
     defEquivLLower (suc x ∷ n1) (suc y ∷ n2) proof = defEquivLLower (x ∷ n1) (y ∷ n2) (cong help proof) where
-      help : List Nat → List Nat
+      help : List ℕ → List ℕ
       help [] = []
       help (zero ∷ xs) = (zero ∷ xs)
       help (suc x ∷ xs) = (x ∷ xs)
@@ -259,7 +256,7 @@ module TwoList where
     defEquivQLifted ([] , []) ([] , []) proof = refl
     defEquivQLifted ([] , (zero ∷ x')) ([] , (zero ∷ x'')) proof = cong (λ a → ([] , (zero ∷ a))) (defEquivLLifted x' x'' proof)
     defEquivQLifted ([] , (suc x ∷ xs)) ([] , (suc y ∷ ys)) proof = cong help (defEquivLLifted (x ∷ xs) (y ∷ ys) proof) where
-      help : List Nat → Q
+      help : List ℕ → Q
       help [] = ([] , [])
       help (x ∷ xs) = ([] , suc x ∷ xs)
     defEquivQLifted ((zero ∷ xs) , x₁) ((zero ∷ ys) , x₃) proof = cong help (defEquivQLifted (xs , x₁) (ys , x₃) proof) where
@@ -320,7 +317,7 @@ module TwoList where
     isSetFunc' : {A : Set} (B : A → Set) → ((a : A) → isSet (B a)) → isSet ((a : A) → (B a))
     isSetFunc' {A} B resultIsSet = isSetProd resultIsSet
 
-    revSwap : (l : List Nat ) → _/_.[_] (rev l , []) ≡ _/_.[ [] , l ]
+    revSwap : (l : List ℕ ) → _/_.[_] (rev l , []) ≡ _/_.[ [] , l ]
     revSwap l = refl
 
     depElimQ : (P : (Q / quotient) → Set) → (∀ x → isSet (P x)) → P depConstrEmpty → (∀ q → ∀ a → P q → P (depConstrInsert a q)) → ∀ q' → P q'
@@ -344,9 +341,9 @@ module TwoList where
       --   help : (a : Q) → P _/_.[ a ]
       --   help a = {!!}
       lem ([] , x) = insertBackwards x where
-         insertBackwards : (x : List Nat) → P _/_.[ [] , x ]
+         insertBackwards : (x : List ℕ) → P _/_.[ [] , x ]
          insertBackwards x = {!!} where -- substPath (λ a → {!!}) (revSwap x) startPoint where
-           recInsert : (x : List Nat) → P _/_.[ x , [] ]
+           recInsert : (x : List ℕ) → P _/_.[ x , [] ]
            recInsert [] = baseCase
            recInsert (x ∷ xs) = insertCase _/_.[ (xs , []) ] x (recInsert xs) -- (help xs)
            startPoint : P _/_.[ rev x , [] ]
