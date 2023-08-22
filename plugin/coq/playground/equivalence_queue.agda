@@ -31,13 +31,6 @@ open import Cubical.Data.Equality renaming (
   ; _∙_ to _dot'_
   )
 
--- data True : Type where
---   tt : True
-
--- data List {ℓ} (A : Set ℓ) : Set ℓ where
---   []   : List A
---   _∷_ : A -> List A -> List A
-
 record Queue {ℓ} : Set (ℓ-suc ℓ) where
 -- record Queue {ℓ} (A : Set ℓ) : Set (ℓ-suc ℓ) where
   field
@@ -85,22 +78,6 @@ module TwoList where
     Q = (List ℕ × List ℕ)
     A = ℕ
 
-    -- _++_ : List A → List A → List A
-    -- [] ++ ys = ys
-    -- (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
-
-    appAssoc : (x y z : List A) → (x ++ y) ++ z ≡ x ++ (y ++ z)
-    appAssoc [] y z = refl
-    appAssoc (x ∷ x₁) y z = cong (λ a → x ∷ a) (appAssoc x₁ y z)
-
-    appEmpty : (l : List A) → (l ++ [] ≡ l)
-    appEmpty [] = refl
-    appEmpty (x ∷ l) = cong (λ a → x ∷ a) (appEmpty l)
-
-    revLem : (l : List A) → (x : A) → rev (l ++ x ∷ []) ≡ x ∷ rev l
-    revLem [] x = refl
-    revLem (x₁ ∷ l) x = cong (λ a → a ++ x₁ ∷ []) (revLem l x) 
-
     dequeue : Q → Maybe (Q × A)
     dequeue (x , []) = let xs = rev x in help xs where
       help : List A → Maybe (Q × A)
@@ -131,15 +108,8 @@ module TwoList where
     --   ...               | (y ∷ ys) = go [] ys (OneList.depConstrInsert y output)
     --   go in1 (x ∷ xs) output = go in1 xs (OneList.depConstrInsert x output)
 
-    reverseEmptyIdentity : [] ≡ rev []
-    reverseEmptyIdentity = refl
-
-    appendEmptyIdentity : (q : List A) → (q ++ []) ≡ q
-    appendEmptyIdentity [] = refl
-    appendEmptyIdentity (x ∷ q) = cong (λ a → x ∷ a) (appendEmptyIdentity q)
-
     canonicalizeTermRight : (x : List A) → x ≡ canonicalizeTerm [] x
-    canonicalizeTermRight l =  sym (appendEmptyIdentity l) ∙ refl
+    canonicalizeTermRight l =  sym (++-unit-r l) ∙ refl
     -- refl
     -- canonicalizeTermRight (x ∷ xs) = cong (λ a → {!!}) (canonicalizeTermRight xs)
     -- cong help (canonicalizeTermRight xs) where
@@ -292,7 +262,7 @@ module TwoList where
     quotientGenCanonLifted a b x = defEquivQLifted (genCanon a) (genCanon b) x
 
     genCanonHomo : (a : Q) → (x : A) → genCanon (enqueue x a) ≡ genCanon (enqueue x (genCanon a))
-    genCanonHomo (x₁ , x₂) x = cong (λ a → [] , a) (sym (appAssoc x₂ (rev x₁) (x ∷ [])))
+    genCanonHomo (x₁ , x₂) x = cong (λ a → [] , a) (sym (++-assoc x₂ (rev x₁) (x ∷ [])))
 
     depConstrEmpty : Q / quotient
     depConstrEmpty = _/_.[ ([] , []) ]
@@ -391,11 +361,11 @@ module TwoList where
     OneListIsoTwoList' : Iso OneList.Q (Q / quotient)
     Iso.fun OneListIsoTwoList' = canonicalizeInvQ
     Iso.inv OneListIsoTwoList' = canonicalizeQ
-    Iso.rightInv OneListIsoTwoList' [ a ] = eq/ (genCanon a) a (defEquivLLower (canonicalize a ++ []) (canonicalize a) (appEmpty (canonicalize a)))
+    Iso.rightInv OneListIsoTwoList' [ a ] = eq/ (genCanon a) a (defEquivLLower (canonicalize a ++ []) (canonicalize a) (++-unit-r (canonicalize a)))
     Iso.rightInv OneListIsoTwoList' (eq/ a b r i) = {!!}
 -- canonicalizeInvQ (canonicalizeQ (eq/ a b r i)) ≡ eq/ a b r i
 -- _/_.[ canonicalizeInv (canonicalizeQ (eq/ a b r i)) ] ≡ eq/ a b r i
 -- _/_.[ [] , π₂ (defEquivQLifted ([] , canonicalize a) ([] , canonicalize b) r i) ] ≡ eq/ a b r i
 -- _/_.[ [] , π₂ (defEquivQLifted ([] , canonicalize a) ([] , canonicalize b) r i) ] ≡ eq/ a b r i
     Iso.rightInv OneListIsoTwoList' (squash/ b b₁ p q i i₁) = {!!}
-    Iso.leftInv OneListIsoTwoList' a = appEmpty a
+    Iso.leftInv OneListIsoTwoList' a = ++-unit-r a
