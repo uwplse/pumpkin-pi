@@ -100,28 +100,12 @@ module TwoList where
     appEmpty [] = refl
     appEmpty (x ∷ l) = cong (λ a → x ∷ a) (appEmpty l)
 
-    reverse : List A → List A
-    reverse [] = []
-    reverse (x ∷ xs) = (reverse xs) ++ (x ∷ [])
-
-    revLem : (l : List A) → (x : A) → reverse (l ++ x ∷ []) ≡ x ∷ reverse l
+    revLem : (l : List A) → (x : A) → rev (l ++ x ∷ []) ≡ x ∷ rev l
     revLem [] x = refl
     revLem (x₁ ∷ l) x = cong (λ a → a ++ x₁ ∷ []) (revLem l x) 
 
-    revRevId : (l : List A) → reverse (reverse l) ≡ l
-    revRevId [] = refl
-    revRevId (x ∷ l) = revLem (reverse l) x ∙ rightSide where
-      help : reverse (reverse l) ≡ l
-      help = revRevId l
-      rightSide : x ∷ (reverse (reverse l)) ≡ x ∷ l
-      rightSide = cong (λ a → x ∷ a) help
-    -- reverse l = go l [] where
-    --     go : List A → List A → List A
-    --     go [] x₁ = x₁
-    --     go (x ∷ xs) x₁ = go xs (x ∷ x₁)
-
     dequeue : Q → Maybe (Q × A)
-    dequeue (x , []) = let xs = reverse x in help xs where
+    dequeue (x , []) = let xs = rev x in help xs where
       help : List A → Maybe (Q × A)
       help [] = nothing
       help (x ∷ x₁) = just ((([] , x₁)), x)
@@ -141,7 +125,7 @@ module TwoList where
     --   ...      | nothing = output
 
     canonicalizeTerm : List A → List A → OneList.Q
-    canonicalizeTerm q q' = q' ++ (reverse q)
+    canonicalizeTerm q q' = q' ++ (rev q)
     -- go q q' OneList.depConstrEmpty where -- tail recursive
     --   go : List A → List A → OneList.Q → OneList.Q -- inlined dequeue here to make term checking happy
     --   go [] [] output = output
@@ -150,7 +134,7 @@ module TwoList where
     --   ...               | (y ∷ ys) = go [] ys (OneList.depConstrInsert y output)
     --   go in1 (x ∷ xs) output = go in1 xs (OneList.depConstrInsert x output)
 
-    reverseEmptyIdentity : [] ≡ reverse []
+    reverseEmptyIdentity : [] ≡ rev []
     reverseEmptyIdentity = refl
 
     appendEmptyIdentity : (q : List A) → (q ++ []) ≡ q
@@ -174,7 +158,7 @@ module TwoList where
     canonicalizeInv x = ([] , x)
 
     canonicalizeSimple : Q → Q
-    canonicalizeSimple (x , x₁) = ( [] , x₁ ++ (reverse x) )
+    canonicalizeSimple (x , x₁) = ( [] , x₁ ++ (rev x) )
 
     -- _and_ : Type → Type → Type
     -- _and_ x x₁ = True
@@ -311,7 +295,7 @@ module TwoList where
     quotientGenCanonLifted a b x = defEquivQLifted (genCanon a) (genCanon b) x
 
     genCanonHomo : (a : Q) → (x : A) → genCanon (enqueue x a) ≡ genCanon (enqueue x (genCanon a))
-    genCanonHomo (x₁ , x₂) x = cong (λ a → [] , a) (sym (appAssoc x₂ (reverse x₁) (x ∷ [])))
+    genCanonHomo (x₁ , x₂) x = cong (λ a → [] , a) (sym (appAssoc x₂ (rev x₁) (x ∷ [])))
 
     depConstrEmpty : Q / quotient
     depConstrEmpty = _/_.[ ([] , []) ]
@@ -336,7 +320,7 @@ module TwoList where
     isSetFunc' : {A : Set} (B : A → Set) → ((a : A) → isSet (B a)) → isSet ((a : A) → (B a))
     isSetFunc' {A} B resultIsSet = isSetProd resultIsSet
 
-    revSwap : (l : List Nat ) → _/_.[ reverse l , [] ] ≡ _/_.[ [] , l ]
+    revSwap : (l : List Nat ) → _/_.[_] (rev l , []) ≡ _/_.[ [] , l ]
     revSwap l = refl
 
     depElimQ : (P : (Q / quotient) → Set) → (∀ x → isSet (P x)) → P depConstrEmpty → (∀ q → ∀ a → P q → P (depConstrInsert a q)) → ∀ q' → P q'
@@ -348,7 +332,7 @@ module TwoList where
         help x = {!!}
       lem' ((x ∷ xs) , y) = insertCase _/_.[ (xs , y) ] x (lem' (xs , y))
       ++Q : (a b : Q) → Q
-      ++Q (x , x₁) (x₂ , x₃) = ( [] , x₁ ++ (reverse x) ++ x₃ ++ (reverse x₂) )
+      ++Q (x , x₁) (x₂ , x₃) = ( [] , x₁ ++ (rev x) ++ x₃ ++ (rev x₂) )
       ++lem : (a b : Q) → P _/_.[ a ] → P _/_.[ b ] → P _/_.[ ++Q a b ] -- P _/_.[ a ++ b ]
       ++lem (x , x₁) (x₂ , x₃) b c = {!!}
       lem : (a : Q) → P _/_.[ a ]
@@ -365,8 +349,8 @@ module TwoList where
            recInsert : (x : List Nat) → P _/_.[ x , [] ]
            recInsert [] = baseCase
            recInsert (x ∷ xs) = insertCase _/_.[ (xs , []) ] x (recInsert xs) -- (help xs)
-           startPoint : P _/_.[ reverse x , [] ]
-           startPoint = recInsert (reverse x)
+           startPoint : P _/_.[ rev x , [] ]
+           startPoint = recInsert (rev x)
       lem ((x ∷ xs) , x₁) = insertCase _/_.[ (xs , x₁) ] x (lem (xs , x₁))
       wellDefined : (a b : Q) (r : quotient a b) → PathP (λ i → P (eq/ a b r i)) (lem a) (lem b)
       wellDefined a b r = {!!}
