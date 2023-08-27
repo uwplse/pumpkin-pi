@@ -117,9 +117,14 @@ module TwoList where
     --   help [] = ?
     --   help (x ∷ x₁) = ?
 
+    insOrder : Q → List A
+    insOrder (l1 , l2) = l1 ++ (rev l2)
 
-    canonicalize : Q → OneList.Q
-    canonicalize (x , x₁) = canonicalizeTerm x x₁
+    canonicalize : Q → Q
+    canonicalize q = (insOrder q , [])
+
+    insOrderCanonicalizeResp : (q : Q) → insOrder q ≡ insOrder (canonicalize q)
+    insOrderCanonicalizeResp q = sym (++-unit-r (insOrder q))
 
     canonicalizeInv : OneList.Q → Q
     canonicalizeInv x = ([] , x)
@@ -252,21 +257,30 @@ module TwoList where
       help (zero ∷ xs , y) = (zero ∷ xs , y)
       help (suc x ∷ xs , y) = (x ∷ xs , y)
 
-    genCanon : Q → Q
-    genCanon x = canonicalizeInv (canonicalize x)
+    
 
-    quotient : Q → Q → Type
-    quotient x x' = defEquivQ (genCanon x) (genCanon x')
+    R : Q → Q → Type
+    R q1 q2 = insOrder q1 ≡ insOrder q2
 
-    quotientGenCanonLifted : (a b : Q) → quotient a b → genCanon a ≡ genCanon b
-    quotientGenCanonLifted a b x = defEquivQLifted (genCanon a) (genCanon b) x
-
-    genCanonHomo : (a : Q) → (x : A) → genCanon (enqueue x a) ≡ genCanon (enqueue x (genCanon a))
-    genCanonHomo (x₁ , x₂) x = cong (λ a → [] , a) (sym (++-assoc x₂ (rev x₁) (x ∷ [])))
-
-    depConstrEmpty : Q / quotient
+    depConstrEmpty : Q / R
     depConstrEmpty = _/_.[ ([] , []) ]
 
+    canonicalizeResp : (q : Q) → _/_.[_] {R = R} q ≡ _/_.[ canonicalize q ]
+    canonicalizeResp (l1 , l2) = eq/ (l1 , l2) (canonicalize (l1 , l2)) (insOrderCanonicalizeResp (l1 , l2))
+
+    enqCanonicalResp : (a : A) → (q : Q) → _/_.[_] {R = R} (enqueue a q) ≡ _/_.[ enqueue a (canonicalize q) ]
+    enqCanonicalResp a (l1 , l2) = {!!}
+
+    insOrderCons : (a : A) → (l1 l2 : List A) → a ∷ insOrder (l1 , l2) ≡ insOrder (a ∷ l1 , l2)
+    insOrderCons a l1 l2 = refl
+
+    enqResp : (a : A) → (q1 q2 : Q) → R q1 q2 → _/_.[_] {R = R} (enqueue a q1) ≡ _/_.[ enqueue a q2 ]
+    enqResp a (l1 , l2) (l3 , l4) r = eq/ (a ∷ l1 , l2) (a ∷ l3 , l4) (cong (λ l → a ∷ l) r)
+
+    depConstrInsert : A → (Q / R) → (Q / R)
+    depConstrInsert a = SetQuotients.rec squash/ (λ q → _/_.[ enqueue a q ] ) (enqResp a)
+
+{-
     depConstrInsert : A → (Q / quotient) → (Q / quotient)
     depConstrInsert x [ a ] =  _/_.[ enqueue x a ]
     depConstrInsert x (eq/ a b r i) = eq/ (enqueue x a) (enqueue x b) (defEquivQLower (genCanon (enqueue x a)) (genCanon (enqueue x b)) rLem) i where
@@ -277,6 +291,7 @@ module TwoList where
       rLem :  genCanon (enqueue x a) ≡ genCanon (enqueue x b)
       rLem = genCanonHomo a x ∙ rHelp ∙ symPath (genCanonHomo b x)
     depConstrInsert x (squash/ a b p q i j) = squash/ (depConstrInsert x a) (depConstrInsert x b) (cong (λ o → depConstrInsert x o) p) ((cong (λ o → depConstrInsert x o) q)) i j
+-}
 
     isSetProd : ∀ {A : Type} {B : A → Type} → (∀ (a : A) → isSet (B a)) → isSet (∀ (a : A) → B a)
     isSetProd {A} {B} setB = λ (f g : ∀ (a : A) → B a) (p q : f ≡ g) → cong funExtPath (funExtPath (λ (a : A) → setB a (f a) (g a) (funExt⁻ p a) (funExt⁻ q a)))
@@ -290,7 +305,7 @@ module TwoList where
     revSwap : (l : List ℕ ) → _/_.[_] (rev l , []) ≡ _/_.[ [] , l ]
     revSwap l = refl
 
-    depElimQ : (P : (Q / quotient) → Set) → (∀ x → isSet (P x)) → P depConstrEmpty → (∀ q → ∀ a → P q → P (depConstrInsert a q)) → ∀ q' → P q'
+    depElimQ : (P : (Q / R) → Set) → (∀ x → isSet (P x)) → P depConstrEmpty → (∀ q → ∀ a → P q → P (depConstrInsert a q)) → ∀ q' → P q'
     depElimQ P set baseCase insertCase = SetQuotients.elim set lem wellDefined where
       lem' : (a : Q) → P _/_.[ a ]
       lem' ([] , []) = baseCase
@@ -319,7 +334,7 @@ module TwoList where
            startPoint : P _/_.[ rev x , [] ]
            startPoint = recInsert (rev x)
       lem ((x ∷ xs) , x₁) = insertCase _/_.[ (xs , x₁) ] x (lem (xs , x₁))
-      wellDefined : (a b : Q) (r : quotient a b) → PathP (λ i → P (eq/ a b r i)) (lem a) (lem b)
+      wellDefined : (a b : Q) (r : R a b) → PathP (λ i → P (eq/ a b r i)) (lem a) (lem b)
       wellDefined a b r = {!!}
       help' : isSet ((a : Q) → P _/_.[ a ])
       help' = isSetFunc' (λ x → P _/_.[ x ]) λ x → set _/_.[ x ]
@@ -339,8 +354,10 @@ module TwoList where
     canonicalizeInvEquiv : (q1 q2 : OneList.Q) → canonicalizeInv q1 ≡ canonicalizeInv q2 → q1 ≡ q2
     canonicalizeInvEquiv q1 q2 proof = cong π₂ proof
 
+{-
     quotientCanonicalizeLifted : (a b : Q) → quotient a b → canonicalize a ≡ canonicalize b
     quotientCanonicalizeLifted a b x = canonicalizeInvEquiv (canonicalize a) (canonicalize b) (quotientGenCanonLifted a b x)
+-}
 
     -- canonicalizeQ : (Q / quotient) → OneList.Q
     -- canonicalizeQ [ a ] = canonicalize a
@@ -352,9 +369,10 @@ module TwoList where
     --   j where
     --     help : p ≡ q
     --     help = squash/ a b p q
-    canonicalizeQ : (Q / quotient) → OneList.Q
-    canonicalizeQ = SetQuotients.rec OneList.isSetQ canonicalize quotientCanonicalizeLifted
+    -- canonicalizeQ : (Q / quotient) → OneList.Q
+    -- canonicalizeQ = SetQuotients.rec OneList.isSetQ canonicalize quotientCanonicalizeLifted
 
+{-
     canonicalizeInvQ : OneList.Q → (Q / quotient)
     canonicalizeInvQ x = _/_.[ canonicalizeInv x ]
 
@@ -369,3 +387,4 @@ module TwoList where
 -- _/_.[ [] , π₂ (defEquivQLifted ([] , canonicalize a) ([] , canonicalize b) r i) ] ≡ eq/ a b r i
     Iso.rightInv OneListIsoTwoList' (squash/ b b₁ p q i i₁) = {!!}
     Iso.leftInv OneListIsoTwoList' a = ++-unit-r a
+-}
