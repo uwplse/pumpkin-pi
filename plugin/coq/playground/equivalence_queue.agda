@@ -24,12 +24,6 @@ open import Cubical.Data.Prod
 open import Cubical.Data.Bool
 open import Cubical.Data.List
 -- open import Agda.Builtin.Equality renaming (_≡_ to _≡'_; refl to refl')
-open import Cubical.Data.Equality renaming (
-  _≡_ to _≡'_
-  ; refl to refl'
-  ; sym to sym'
-  ; _∙_ to _dot'_
-  )
 
 record Queue {ℓ} : Set (ℓ-suc ℓ) where
 -- record Queue {ℓ} (A : Set ℓ) : Set (ℓ-suc ℓ) where
@@ -294,7 +288,7 @@ module TwoList where
 -}
 
     isSetProd : ∀ {A : Type} {B : A → Type} → (∀ (a : A) → isSet (B a)) → isSet (∀ (a : A) → B a)
-    isSetProd {A} {B} setB = λ (f g : ∀ (a : A) → B a) (p q : f ≡ g) → cong funExtPath (funExtPath (λ (a : A) → setB a (f a) (g a) (funExt⁻ p a) (funExt⁻ q a)))
+    isSetProd {A} {B} setB = λ (f g : ∀ (a : A) → B a) (p q : f ≡ g) → cong funExt (funExt (λ (a : A) → setB a (f a) (g a) (funExt⁻ p a) (funExt⁻ q a)))
 
     isSetFunc : {A B : Set} → isSet A → isSet B → isSet (A → B)
     isSetFunc {A} {B} setA setB = isSetProd {B = λ _ → B} (λ _ → setB)
@@ -305,8 +299,14 @@ module TwoList where
     revSwap : (l : List ℕ ) → _/_.[_] (rev l , []) ≡ _/_.[ [] , l ]
     revSwap l = refl
 
-    depElimQ : (P : (Q / R) → Set) → (∀ x → isSet (P x)) → P depConstrEmpty → (∀ q → ∀ a → P q → P (depConstrInsert a q)) → ∀ q' → P q'
-    depElimQ P set baseCase insertCase = SetQuotients.elim set lem wellDefined where
+    depElimQ : (P : (Q / R) → Set) → (∀ x → isSet (P x)) → P depConstrEmpty → ((q : Q / R) → (a : A) → P q → P (depConstrInsert a q)) → ∀ q' → P q'
+    depElimQ P set baseCase insertCase = SetQuotients.elim set lem {!!} where
+      lem' : (l : List A) → P _/_.[ (l , []) ]
+      lem' [] = baseCase
+      lem' (a ∷ l) = insertCase _/_.[ l , [] ] a (lem' l)
+      lem : (q : Q) → P _/_.[ q ]
+      lem q = transport (cong P (sym (canonicalizeResp q))) (lem' (insOrder q))
+      {-
       lem' : (a : Q) → P _/_.[ a ]
       lem' ([] , []) = baseCase
       lem' ([] , (x ∷ xs)) = help xs where
@@ -334,10 +334,13 @@ module TwoList where
            startPoint : P _/_.[ rev x , [] ]
            startPoint = recInsert (rev x)
       lem ((x ∷ xs) , x₁) = insertCase _/_.[ (xs , x₁) ] x (lem (xs , x₁))
+      -}
+      {-
       wellDefined : (a b : Q) (r : R a b) → PathP (λ i → P (eq/ a b r i)) (lem a) (lem b)
       wellDefined a b r = {!!}
       help' : isSet ((a : Q) → P _/_.[ a ])
       help' = isSetFunc' (λ x → P _/_.[ x ]) λ x → set _/_.[ x ]
+      -}
 
 
     -- OneListIsoTwoList : Iso OneList.Q Q
