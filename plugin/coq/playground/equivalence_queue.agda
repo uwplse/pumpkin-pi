@@ -84,33 +84,6 @@ module TwoList where
 
     TwoList = record { A = A; Q = Q; null = ([] , []); enqueue = enqueue ; dequeue = dequeue }
 
-    -- tail-recursive canonicalization func
-    -- canonicalize : Q → OneList.Q
-    -- canonicalize q = go q OneList.depConstrEmpty where
-    --   go : Q → OneList.Q → OneList.Q
-    --   go input output with dequeue input
-    --   ...      | just (q , x) = go q (OneList.depConstrInsert x output)
-    --   ...      | nothing = output
-
-    canonicalizeTerm : List A → List A → OneList.Q
-    canonicalizeTerm q q' = q' ++ (rev q)
-    -- go q q' OneList.depConstrEmpty where -- tail recursive
-    --   go : List A → List A → OneList.Q → OneList.Q -- inlined dequeue here to make term checking happy
-    --   go [] [] output = output
-    --   go (x ∷ xs) [] output with reverse (x ∷ xs)
-    --   ...               | [] = output
-    --   ...               | (y ∷ ys) = go [] ys (OneList.depConstrInsert y output)
-    --   go in1 (x ∷ xs) output = go in1 xs (OneList.depConstrInsert x output)
-
-    canonicalizeTermRight : (x : List A) → x ≡ canonicalizeTerm [] x
-    canonicalizeTermRight l =  sym (++-unit-r l) ∙ refl
-    -- refl
-    -- canonicalizeTermRight (x ∷ xs) = cong (λ a → {!!}) (canonicalizeTermRight xs)
-    -- cong help (canonicalizeTermRight xs) where
-    --   help : List A → List A
-    --   help [] = ?
-    --   help (x ∷ x₁) = ?
-
     insOrder : Q → List A
     insOrder (l1 , l2) = l1 ++ (rev l2)
 
@@ -119,52 +92,6 @@ module TwoList where
 
     insOrderCanonicalizeResp : (q : Q) → insOrder q ≡ insOrder (canonicalize q)
     insOrderCanonicalizeResp q = sym (++-unit-r (insOrder q))
-
-    canonicalizeInv : OneList.Q → Q
-    canonicalizeInv x = ([] , x)
-
-    canonicalizeSimple : Q → Q
-    canonicalizeSimple (x , x₁) = ( [] , x₁ ++ (rev x) )
-
-    -- _and_ : Type → Type → Type
-    -- _and_ x x₁ = True
-
-    defEquivN : ℕ → ℕ → Type
-    defEquivN zero zero = Unit
-    defEquivN zero (suc b) = ⊥
-    defEquivN (suc a) zero = ⊥
-    defEquivN (suc a) (suc b) = defEquivN a b
-
-    defEquivL : List ℕ → List ℕ → Type
-    defEquivL [] [] = Unit
-    defEquivL [] (x ∷ x') = ⊥
-    defEquivL (x ∷ x₂) [] = ⊥
-    defEquivL (zero ∷ x₂) (zero ∷ x'') = defEquivL x₂ x''
-    defEquivL (zero ∷ x₂) (suc x' ∷ x'') = ⊥
-    defEquivL (suc x ∷ x₂) (zero ∷ x'') = ⊥
-    defEquivL (suc x ∷ x₂) (suc x' ∷ x'') = defEquivL (x ∷ x₂) (x' ∷ x'')
-
-    defEquivQ : Q → Q → Type
-    defEquivQ ([] , x₂) ([] , x₃) = defEquivL x₂ x₃
-    defEquivQ ([] , x₂) ((x ∷ x') , x₃) = ⊥
-    defEquivQ ((x ∷ x₄) , x₂) ([] , x₃) = ⊥
-    defEquivQ ((zero ∷ x₄) , x₂) ((zero ∷ x') , x₃) = defEquivQ (x₄ , x₂) (x' , x₃)
-    defEquivQ ((zero ∷ x₄) , x₂) ((suc x'' ∷ x') , x₃) = ⊥
-    defEquivQ ((suc x ∷ x₄) , x₂) ((zero ∷ x') , x₃) = ⊥
-    defEquivQ ((suc x ∷ x₄) , x₂) ((suc x'' ∷ x') , x₃) = defEquivQ ((x ∷ x₄) , x₂) ((x'' ∷ x') , x₃)
-
-
-    defEquivLLifted : (n1 n2 : List ℕ) → defEquivL n1 n2 → n1 ≡ n2
-    defEquivLLifted [] [] x = refl
-    defEquivLLifted (zero ∷ n1) (zero ∷ n2) x = cong (λ a →  zero ∷ a) (defEquivLLifted n1 n2 x)
-    defEquivLLifted (suc x' ∷ n1) (suc x'' ∷ n2) x = cong (λ a → help a) (defEquivLLifted (x' ∷ n1) (x'' ∷ n2) x) where
-      help : List ℕ → List ℕ
-      help [] = []
-      help (x ∷ x₁) = suc x ∷ x₁
-
-    -- length : List Nat → Nat
-    -- length [] = 0
-    -- length (x ∷ x₁) = 1 + length x₁
 
     isEmpty : List ℕ → Bool
     isEmpty [] = true
@@ -191,68 +118,6 @@ module TwoList where
     π₂ : Q → List ℕ
     π₂ (x , x₁) = x₁
 
--- {y..1 : Level} {A : Type y..1} {ℓ' : Level} {x y : A}
--- (B : A → Type ℓ') →
--- x ≡ y → B x → B y
-    defEquivLLower : (n1 n2 : List ℕ) → n1 ≡ n2 → defEquivL n1 n2
-    defEquivLLower [] [] x = tt
-    defEquivLLower [] (x₁ ∷ n2) x = false≢true (sym (cong isEmpty x))
-    defEquivLLower (x₁ ∷ n1) [] x = false≢true (cong isEmpty x)
-    defEquivLLower (zero ∷ n1) (zero ∷ n2) proof = defEquivLLower n1 n2 (cong tail proof)
-    defEquivLLower (zero ∷ n1) (suc y ∷ n2) proof = false≢true (sym (cong (λ a → isZero (head a)) proof))
-    defEquivLLower (suc x ∷ n1) (zero ∷ n2) proof = false≢true (cong (λ a → isZero (head a)) proof)
-    defEquivLLower (suc x ∷ n1) (suc y ∷ n2) proof = defEquivLLower (x ∷ n1) (y ∷ n2) (cong help proof) where
-      help : List ℕ → List ℕ
-      help [] = []
-      help (zero ∷ xs) = (zero ∷ xs)
-      help (suc x ∷ xs) = (x ∷ xs)
-      -- lem : defEquivL n1 n1
-      -- lem = defEquivLLower n1 n1 refl
-      -- lem' : defEquivL n1 n2
-      -- lem' = defEquivLLower n1 n2 tailHelp where
-      --   headHelp : x₁ ≡ x₂
-      --   headHelp = cong help x where
-      --     help : List Nat → Nat
-      --     help [] = 0
-      --     help (x ∷ x₁) = x
-      --   tailHelp : n1 ≡ n2
-      --   tailHelp = cong help x where
-      --     help : List Nat → List Nat
-      --     help [] = []
-      --     help (x ∷ xs) = xs
-
-    defEquivQLifted : (q1 q2 : Q) → defEquivQ q1 q2 → q1 ≡ q2
-    defEquivQLifted ([] , []) ([] , []) proof = refl
-    defEquivQLifted ([] , (zero ∷ x')) ([] , (zero ∷ x'')) proof = cong (λ a → ([] , (zero ∷ a))) (defEquivLLifted x' x'' proof)
-    defEquivQLifted ([] , (suc x ∷ xs)) ([] , (suc y ∷ ys)) proof = cong help (defEquivLLifted (x ∷ xs) (y ∷ ys) proof) where
-      help : List ℕ → Q
-      help [] = ([] , [])
-      help (x ∷ xs) = ([] , suc x ∷ xs)
-    defEquivQLifted ((zero ∷ xs) , x₁) ((zero ∷ ys) , x₃) proof = cong help (defEquivQLifted (xs , x₁) (ys , x₃) proof) where
-      help : Q → Q
-      help (x , y) = (zero ∷ x , y)
-    defEquivQLifted ((suc x ∷ xs) , x₁) ((suc y ∷ ys) , x₃) proof = cong help (defEquivQLifted ((x ∷ xs) , x₁) ((y ∷ ys) , x₃) proof) where
-      help : Q → Q
-      help ([] , y) = ([] , y)
-      help ((x ∷ xs) , y) = (suc x ∷ xs , y)
-
-    defEquivQLower : (q1 q2 : Q) → q1 ≡ q2 → defEquivQ q1 q2
-    defEquivQLower ([] , y) ([] , x) proof = defEquivLLower y x (cong π₂ proof)
-    defEquivQLower ([] , y) ((x ∷ x') , x'') proof = false≢true (sym (cong (λ a → isEmpty (π₁ a)) proof))
-    defEquivQLower ((x ∷ x₄) , x₁) ([] , x₃) proof = false≢true (cong (λ a → isEmpty (π₁ a)) proof)
-    defEquivQLower ((zero ∷ xs) , x₁) ((zero ∷ ys) , x₃) proof = defEquivQLower (xs , x₁) (ys , x₃) help where
-      help : (xs , x₁) ≡ (ys , x₃)
-      help = cong (λ a → (tail (π₁ a) , π₂ a)) proof
-    defEquivQLower ((zero ∷ xs) , x₁) ((suc y ∷ ys) , x₃) proof = false≢true (sym (cong (λ a → isZero (head (π₁ a))) proof))
-    defEquivQLower ((suc x ∷ xs) , x₁) ((zero ∷ ys) , x₃) proof = false≢true (cong (λ a → isZero (head (π₁ a))) proof)
-    defEquivQLower ((suc x ∷ xs) , x₁) ((suc y ∷ ys) , x₃) proof = defEquivQLower ((x ∷ xs) , x₁) ((y ∷ ys) , x₃) (cong help proof) where
-      help : Q → Q
-      help ([] , y) = ([] , y)
-      help (zero ∷ xs , y) = (zero ∷ xs , y)
-      help (suc x ∷ xs , y) = (x ∷ xs , y)
-
-    
-
     R : Q → Q → Type
     R q1 q2 = insOrder q1 ≡ insOrder q2
 
@@ -261,6 +126,12 @@ module TwoList where
 
     canonicalizeResp : (q : Q) → _/_.[_] {R = R} q ≡ _/_.[ canonicalize q ]
     canonicalizeResp (l1 , l2) = eq/ (l1 , l2) (canonicalize (l1 , l2)) (insOrderCanonicalizeResp (l1 , l2))
+
+    canonicalizeResp⁻ : (q : Q) → _/_.[ canonicalize q ] ≡ _/_.[_] {R = R} q
+    canonicalizeResp⁻ q = sym (canonicalizeResp q)
+
+    canonicalizeIdempotent : (q : Q) →  canonicalize q ≡ canonicalize (canonicalize q)
+    canonicalizeIdempotent q = ×≡ (sym (++-unit-r (insOrder q))) refl
 
     enqCanonicalResp : (a : A) → (q : Q) → _/_.[_] {R = R} (enqueue a q) ≡ _/_.[ enqueue a (canonicalize q) ]
     enqCanonicalResp a (l1 , l2) = {!!}
@@ -273,19 +144,6 @@ module TwoList where
 
     depConstrInsert : A → (Q / R) → (Q / R)
     depConstrInsert a = SetQuotients.rec squash/ (λ q → _/_.[ enqueue a q ] ) (enqResp a)
-
-{-
-    depConstrInsert : A → (Q / quotient) → (Q / quotient)
-    depConstrInsert x [ a ] =  _/_.[ enqueue x a ]
-    depConstrInsert x (eq/ a b r i) = eq/ (enqueue x a) (enqueue x b) (defEquivQLower (genCanon (enqueue x a)) (genCanon (enqueue x b)) rLem) i where
-      rTransform : genCanon a ≡ genCanon b
-      rTransform = quotientGenCanonLifted a b r
-      rHelp : genCanon (enqueue x (genCanon a)) ≡ genCanon (enqueue x (genCanon b))
-      rHelp = cong (λ a → genCanon (enqueue x a)) rTransform
-      rLem :  genCanon (enqueue x a) ≡ genCanon (enqueue x b)
-      rLem = genCanonHomo a x ∙ rHelp ∙ symPath (genCanonHomo b x)
-    depConstrInsert x (squash/ a b p q i j) = squash/ (depConstrInsert x a) (depConstrInsert x b) (cong (λ o → depConstrInsert x o) p) ((cong (λ o → depConstrInsert x o) q)) i j
--}
 
     isSetProd : ∀ {A : Type} {B : A → Type} → (∀ (a : A) → isSet (B a)) → isSet (∀ (a : A) → B a)
     isSetProd {A} {B} setB = λ (f g : ∀ (a : A) → B a) (p q : f ≡ g) → cong funExt (funExt (λ (a : A) → setB a (f a) (g a) (funExt⁻ p a) (funExt⁻ q a)))
@@ -300,48 +158,28 @@ module TwoList where
     revSwap l = refl
 
     depElimQ : (P : (Q / R) → Set) → (∀ x → isSet (P x)) → P depConstrEmpty → ((q : Q / R) → (a : A) → P q → P (depConstrInsert a q)) → ∀ q' → P q'
-    depElimQ P set baseCase insertCase = SetQuotients.elim set lem {!!} where
-      lem' : (l : List A) → P _/_.[ (l , []) ]
-      lem' [] = baseCase
-      lem' (a ∷ l) = insertCase _/_.[ l , [] ] a (lem' l)
-      lem : (q : Q) → P _/_.[ q ]
-      lem q = transport (cong P (sym (canonicalizeResp q))) (lem' (insOrder q))
-      {-
-      lem' : (a : Q) → P _/_.[ a ]
-      lem' ([] , []) = baseCase
-      lem' ([] , (x ∷ xs)) = help xs where
-        help : List ℕ → P _/_.[ ([] , (x ∷ xs)) ]
-        help x = {!!}
-      lem' ((x ∷ xs) , y) = insertCase _/_.[ (xs , y) ] x (lem' (xs , y))
-      ++Q : (a b : Q) → Q
-      ++Q (x , x₁) (x₂ , x₃) = ( [] , x₁ ++ (rev x) ++ x₃ ++ (rev x₂) )
-      ++lem : (a b : Q) → P _/_.[ a ] → P _/_.[ b ] → P _/_.[ ++Q a b ] -- P _/_.[ a ++ b ]
-      ++lem (x , x₁) (x₂ , x₃) b c = {!!}
-      lem : (a : Q) → P _/_.[ a ]
-      -- lem a = {!help q!} where
-      --   q : Q
-      --   q = canonicalizeSimple a
-      --   help' : Q → P _/_.[ q ]
-      --   help' (x , x₁) = {!!}
-      --   help : (a : Q) → P _/_.[ a ]
-      --   help a = {!!}
-      lem ([] , x) = insertBackwards x where
-         insertBackwards : (x : List ℕ) → P _/_.[ [] , x ]
-         insertBackwards x = {!!} where -- substPath (λ a → {!!}) (revSwap x) startPoint where
-           recInsert : (x : List ℕ) → P _/_.[ x , [] ]
-           recInsert [] = baseCase
-           recInsert (x ∷ xs) = insertCase _/_.[ (xs , []) ] x (recInsert xs) -- (help xs)
-           startPoint : P _/_.[ rev x , [] ]
-           startPoint = recInsert (rev x)
-      lem ((x ∷ xs) , x₁) = insertCase _/_.[ (xs , x₁) ] x (lem (xs , x₁))
-      -}
-      {-
-      wellDefined : (a b : Q) (r : R a b) → PathP (λ i → P (eq/ a b r i)) (lem a) (lem b)
-      wellDefined a b r = {!!}
-      help' : isSet ((a : Q) → P _/_.[ a ])
-      help' = isSetFunc' (λ x → P _/_.[ x ]) λ x → set _/_.[ x ]
-      -}
-
+    depElimQ P set baseCase insertCase = SetQuotients.elim set func wellDefined where
+      lem : (l : List A) → P _/_.[ (l , []) ]
+      lem [] = baseCase
+      lem (a ∷ l) = insertCase _/_.[ l , [] ] a (lem l)
+      func : (q : Q) → P _/_.[ q ]
+      func q = transport (cong P (canonicalizeResp⁻ q)) (lem (insOrder q))
+      lem2 : (q : Q) → PathP (λ i → P ((canonicalizeResp⁻ q) i)) (lem (insOrder q)) (transport (cong P (sym (canonicalizeResp q))) (lem (insOrder q)))
+      lem2 q = transport-filler (cong P (canonicalizeResp⁻ q)) (lem (insOrder q))
+      lemResp : (q1 q2 : Q) → (r : R q1 q2) → PathP (λ i → P (cong (λ l → _/_.[ (l , []) ]) r i)) (lem (insOrder q1)) (lem (insOrder q2))
+      lemResp q1 q2 r = congP (λ i a → lem a) r
+      -- lem4 : (q1 q2 : Q) → (r : R q1 q2) → PathP (λ i → P ((cong (λ l → _/_.[ (l , []) ]) r ∙ canonicalizeResp⁻ q2) i)) (lem (insOrder q1)) (func q2)
+      -- lem4 q1 q2 r = compPathP' {B = P} {p = cong (λ l → _/_.[ (l , []) ]) r} {q = canonicalizeResp⁻ q2} (lemResp q1 q2 r) (lem2 q2)
+      composedPaths : (q1 q2 : Q) → (r : R q1 q2) → PathP (λ i → P (((canonicalizeResp q1) ∙ (λ j → _/_.[ (r j , []) ]) ∙ (canonicalizeResp⁻ q2)) i)) (func q1) (func q2)
+      composedPaths q1 q2 r = compPathP' {B = P} (symP (lem2 q1)) (compPathP' {B = P} (lemResp q1 q2 r) (lem2 q2))
+      pathsEq : (q1 q2 : Q) → (r : R q1 q2) → ((canonicalizeResp q1) ∙ (λ j → _/_.[ (r j , []) ]) ∙ (canonicalizeResp⁻ q2)) ≡ eq/ q1 q2 r
+      pathsEq q1 q2 r = squash/ _/_.[ q1 ] _/_.[ q2 ] _ _
+      typesSame : (q1 q2 : Q) → (r : R q1 q2) →
+        PathP (λ i → P (((canonicalizeResp q1) ∙ (λ j → _/_.[ (r j , []) ]) ∙ (canonicalizeResp⁻ q2)) i)) (func q1) (func q2)
+        ≡ PathP (λ i → P (eq/ q1 q2 r i)) (func q1) (func q2)
+      typesSame q1 q2 r = cong (λ x → PathP (λ i → P (x i)) (func q1) (func q2)) (pathsEq q1 q2 r)
+      wellDefined : (q1 q2 : Q) (r : R q1 q2) → PathP (λ i → P (eq/ q1 q2 r i)) (func q1) (func q2)
+      wellDefined q1 q2 r = transport (typesSame q1 q2 r) (composedPaths q1 q2 r)
 
     -- OneListIsoTwoList : Iso OneList.Q Q
     -- Iso.fun OneListIsoTwoList = canonicalizeInv
@@ -353,9 +191,6 @@ module TwoList where
     -- Iso.rightInv OneListIsoTwoList ((x ∷ x₂) , x₁) = {!!}
     -- Iso.leftInv OneListIsoTwoList [] = refl
     -- Iso.leftInv OneListIsoTwoList (x ∷ a) = {!!}
-
-    canonicalizeInvEquiv : (q1 q2 : OneList.Q) → canonicalizeInv q1 ≡ canonicalizeInv q2 → q1 ≡ q2
-    canonicalizeInvEquiv q1 q2 proof = cong π₂ proof
 
 {-
     quotientCanonicalizeLifted : (a b : Q) → quotient a b → canonicalize a ≡ canonicalize b
