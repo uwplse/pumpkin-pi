@@ -198,6 +198,19 @@ module TwoList where
           refl)
       ∙ transportRefl emptyP
 
+    ιTLQEmpty : (P : TLQ → Set) → (pset : (q : TLQ) → isSet (P q)) →
+      (emptyP : P depConstrEmpty) →
+      (insertP : (q : TLQ) → (a : A) → (P q) → P (depConstrInsert a q)) →
+      (Q : P depConstrEmpty → Set) → Q (depElimQ P pset emptyP insertP depConstrEmpty) → Q emptyP
+    ιTLQEmpty P pset emptyP insertP Q Qp = transport (cong Q (ιTLQEmptyEq P pset emptyP insertP)) Qp
+
+    ιTLQEmpty⁻ : (P : TLQ → Set) → (pset : (q : TLQ) → isSet (P q)) →
+      (emptyP : P depConstrEmpty) →
+      (insertP : (q : TLQ) → (a : A) → (P q) → P (depConstrInsert a q)) →
+      (Q : P depConstrEmpty → Set) → Q emptyP → Q (depElimQ P pset emptyP insertP depConstrEmpty)
+    ιTLQEmpty⁻ P pset emptyP insertP Q Qp = transport (cong Q (sym (ιTLQEmptyEq P pset emptyP insertP))) Qp
+
+
     -- OneListIsoTwoList : Iso OneList.Q Q
     -- Iso.fun OneListIsoTwoList = canonicalizeInv
     -- Iso.inv OneListIsoTwoList = canonicalize
