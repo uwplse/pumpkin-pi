@@ -210,6 +210,13 @@ module TwoList where
       (Q : P depConstrEmpty → Set) → Q emptyP → Q (depElimQ P pset emptyP insertP depConstrEmpty)
     ιTLQEmpty⁻ P pset emptyP insertP Q Qp = transport (cong Q (sym (ιTLQEmptyEq P pset emptyP insertP))) Qp
 
+    ιTLQInsertEq : (P : TLQ → Set) → (pset : (q : TLQ) → isSet (P q)) →
+      (emptyP : P depConstrEmpty) →
+      (insertP : (q : TLQ) → (a : A) → (P q) → P (depConstrInsert a q)) →
+      (a : A) → (q : TLQ) →
+      depElimQ P pset emptyP insertP (depConstrInsert a q)
+      ≡ insertP q a (depElimQ P pset emptyP insertP q)
+    ιTLQInsertEq P pset emptyP insertP a = SetQuotients.elim {!λ x → isProp→isSet (pset x _ _)!} {!!} {!!}
 
     -- OneListIsoTwoList : Iso OneList.Q Q
     -- Iso.fun OneListIsoTwoList = canonicalizeInv
