@@ -121,6 +121,9 @@ module TwoList where
     R : Q → Q → Type
     R q1 q2 = insOrder q1 ≡ insOrder q2
 
+    TLQ : Type
+    TLQ = Q / R
+
     depConstrEmpty : Q / R
     depConstrEmpty = _/_.[ ([] , []) ]
 
@@ -180,6 +183,20 @@ module TwoList where
       typesSame q1 q2 r = cong (λ x → PathP (λ i → P (x i)) (func q1) (func q2)) (pathsEq q1 q2 r)
       wellDefined : (q1 q2 : Q) (r : R q1 q2) → PathP (λ i → P (eq/ q1 q2 r i)) (func q1) (func q2)
       wellDefined q1 q2 r = transport (typesSame q1 q2 r) (composedPaths q1 q2 r)
+
+    ιTLQEmptyEq : (P : TLQ → Set) → (pset : (q : TLQ) → isSet (P q)) →
+      (emptyP : P depConstrEmpty) →
+      (insertP : (q : TLQ) → (a : A) → (P q) → P (depConstrInsert a q)) →
+      depElimQ P pset emptyP insertP depConstrEmpty ≡ emptyP
+    ιTLQEmptyEq P pset emptyP insertP =
+      cong
+        (λ x → transport (λ i → P (x i)) emptyP)
+        (squash/ {R = R}
+          depConstrEmpty
+          depConstrEmpty
+          (sym (eq/ ([] , []) ([] , []) refl))
+          refl)
+      ∙ transportRefl emptyP
 
     -- OneListIsoTwoList : Iso OneList.Q Q
     -- Iso.fun OneListIsoTwoList = canonicalizeInv
