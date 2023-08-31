@@ -142,6 +142,9 @@ module TwoList where
     insOrderCons : (a : A) → (l1 l2 : List A) → a ∷ insOrder (l1 , l2) ≡ insOrder (a ∷ l1 , l2)
     insOrderCons a l1 l2 = refl
 
+    insOrderEnq : (a : A) → (q : Q) → a ∷ insOrder q ≡ insOrder (enqueue a q)
+    insOrderEnq a (l1 , l2) = refl
+
     enqResp : (a : A) → (q1 q2 : Q) → R q1 q2 → _/_.[_] {R = R} (enqueue a q1) ≡ _/_.[ enqueue a q2 ]
     enqResp a (l1 , l2) (l3 , l4) r = eq/ (a ∷ l1 , l2) (a ∷ l3 , l4) (cong (λ l → a ∷ l) r)
 
@@ -160,17 +163,18 @@ module TwoList where
     revSwap : (l : List ℕ ) → _/_.[_] (rev l , []) ≡ _/_.[ [] , l ]
     revSwap l = refl
 
+    lem : (P : (Q / R) → Set) → P depConstrEmpty → ((q : Q / R) → (a : A) → P q → P (depConstrInsert a q)) → (l : List A) → P _/_.[ (l , []) ]
+    lem P baseCase insertCase [] = baseCase
+    lem P baseCase insertCase (a ∷ l) = insertCase _/_.[ l , [] ] a (lem P baseCase insertCase l)
+
     depElimQ : (P : (Q / R) → Set) → (∀ x → isSet (P x)) → P depConstrEmpty → ((q : Q / R) → (a : A) → P q → P (depConstrInsert a q)) → ∀ q' → P q'
     depElimQ P set baseCase insertCase = SetQuotients.elim set func wellDefined where
-      lem : (l : List A) → P _/_.[ (l , []) ]
-      lem [] = baseCase
-      lem (a ∷ l) = insertCase _/_.[ l , [] ] a (lem l)
       func : (q : Q) → P _/_.[ q ]
-      func q = transport (cong P (canonicalizeResp⁻ q)) (lem (insOrder q))
-      lem2 : (q : Q) → PathP (λ i → P ((canonicalizeResp⁻ q) i)) (lem (insOrder q)) (transport (cong P (sym (canonicalizeResp q))) (lem (insOrder q)))
-      lem2 q = transport-filler (cong P (canonicalizeResp⁻ q)) (lem (insOrder q))
-      lemResp : (q1 q2 : Q) → (r : R q1 q2) → PathP (λ i → P (cong (λ l → _/_.[ (l , []) ]) r i)) (lem (insOrder q1)) (lem (insOrder q2))
-      lemResp q1 q2 r = congP (λ i a → lem a) r
+      func q = transport (cong P (canonicalizeResp⁻ q)) (lem P baseCase insertCase (insOrder q))
+      lem2 : (q : Q) → PathP (λ i → P ((canonicalizeResp⁻ q) i)) (lem P baseCase insertCase (insOrder q)) (transport (cong P (sym (canonicalizeResp q))) (lem P baseCase insertCase (insOrder q)))
+      lem2 q = transport-filler (cong P (canonicalizeResp⁻ q)) (lem P baseCase insertCase (insOrder q))
+      lemResp : (q1 q2 : Q) → (r : R q1 q2) → PathP (λ i → P (cong (λ l → _/_.[ (l , []) ]) r i)) (lem P baseCase insertCase (insOrder q1)) (lem P baseCase insertCase (insOrder q2))
+      lemResp q1 q2 r = congP (λ i a → lem P baseCase insertCase a) r
       -- lem4 : (q1 q2 : Q) → (r : R q1 q2) → PathP (λ i → P ((cong (λ l → _/_.[ (l , []) ]) r ∙ canonicalizeResp⁻ q2) i)) (lem (insOrder q1)) (func q2)
       -- lem4 q1 q2 r = compPathP' {B = P} {p = cong (λ l → _/_.[ (l , []) ]) r} {q = canonicalizeResp⁻ q2} (lemResp q1 q2 r) (lem2 q2)
       composedPaths : (q1 q2 : Q) → (r : R q1 q2) → PathP (λ i → P (((canonicalizeResp q1) ∙ (λ j → _/_.[ (r j , []) ]) ∙ (canonicalizeResp⁻ q2)) i)) (func q1) (func q2)
@@ -216,7 +220,18 @@ module TwoList where
       (a : A) → (q : TLQ) →
       depElimQ P pset emptyP insertP (depConstrInsert a q)
       ≡ insertP q a (depElimQ P pset emptyP insertP q)
-    ιTLQInsertEq P pset emptyP insertP a = SetQuotients.elim {!λ x → isProp→isSet (pset x _ _)!} {!!} {!!}
+    ιTLQInsertEq P pset emptyP insertP a =
+      SetQuotients.elim
+        (λ x → isProp→isSet ((pset (depConstrInsert a x)) (depElimQ P pset emptyP insertP (depConstrInsert a x)) (insertP x a (depElimQ P pset emptyP insertP x))) )
+        (λ q → lem3 q)
+        λ q1 q2 r → {!!} where
+      lem3 : (q : Q) → transport (λ i → P (canonicalizeResp (enqueue a q) (~ i)))
+                         (lem P emptyP insertP
+                           (insOrder (enqueue a q)))
+                       ≡ insertP _/_.[ q ] a
+                           (transport (λ i → P (canonicalizeResp q (~ i)))
+                             (lem P emptyP insertP (insOrder q)))
+      lem3 q = {!!}
 
     -- OneListIsoTwoList : Iso OneList.Q Q
     -- Iso.fun OneListIsoTwoList = canonicalizeInv
