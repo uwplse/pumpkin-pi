@@ -225,13 +225,79 @@ module TwoList where
         (λ x → isProp→isSet ((pset (depConstrInsert a x)) (depElimQ P pset emptyP insertP (depConstrInsert a x)) (insertP x a (depElimQ P pset emptyP insertP x))) )
         (λ q → lem3 q)
         λ q1 q2 r → {!!} where
+      lem5 : (q : Q) → PathP
+                         (λ i → P (canonicalizeResp q (~ i)))      
+                         (lem P emptyP insertP (insOrder q))
+                         (transport
+                           (λ i → P (canonicalizeResp q (~ i)))
+                           (lem P emptyP insertP (insOrder q)))
+      lem5 q = transport-filler (cong P (canonicalizeResp⁻ q)) (lem P emptyP insertP (insOrder q))
+      lem4 : (q : Q) → PathP
+                         (λ i → P (canonicalizeResp (enqueue a q) i))
+                         (transport
+                           (λ i → P (canonicalizeResp (enqueue a q) (~ i)))
+                           (lem P emptyP insertP (insOrder (enqueue a q))))      
+                         (lem P emptyP insertP (insOrder (enqueue a q)))
+      lem4 q = symP (lem5 (enqueue a q))
+      lem6 : (q : Q) → PathP
+                         (λ i → P (depConstrInsert a (canonicalizeResp q (~ i))))
+                         (insertP _/_.[ insOrder q , [] ] a (lem P emptyP insertP (insOrder q)))
+                         (insertP _/_.[ q ] a
+                           (transport (λ i → P (canonicalizeResp q (~ i)))
+                             (lem P emptyP insertP (insOrder q))))
+      lem6 q = congP (λ i Pq → insertP (canonicalizeResp q (~ i)) a Pq ) (lem5 q)
+      lem8 : (q : Q) → _/_.[ insOrder (enqueue a q) , [] ] ≡ depConstrInsert a _/_.[ insOrder q , [] ]
+      lem8 (l1 , l2) = refl
+      lem7 : (q : Q) → PathP
+                         (λ i → P (lem8 q i))
+                         (lem P emptyP insertP (insOrder (enqueue a q)))
+                         (insertP _/_.[ insOrder q , [] ] a (lem P emptyP insertP (insOrder q)))
+      lem7 (l1 , l2) = refl
+      lem9 : (q : Q) → PathP
+                         (λ i → P (((canonicalizeResp (enqueue a q)) ∙ (lem8 q) ∙ (λ i → depConstrInsert a (canonicalizeResp q (~ i)))) i))
+                         (transport (λ i → P (canonicalizeResp (enqueue a q) (~ i)))
+                           (lem P emptyP insertP
+                             (insOrder (enqueue a q))))
+                         (insertP _/_.[ q ] a
+                           (transport (λ i → P (canonicalizeResp q (~ i)))
+                             (lem P emptyP insertP (insOrder q))))
+      lem9 q = compPathP' {B = P} (lem4 q) (compPathP' {B = P} (lem7 q) (lem6 q))
+      typesSame : (q : Q) →
+        PathP
+          (λ i → P (((canonicalizeResp (enqueue a q)) ∙ (lem8 q) ∙ (λ i → depConstrInsert a (canonicalizeResp q (~ i)))) i))
+          (transport (λ i → P (canonicalizeResp (enqueue a q) (~ i)))
+            (lem P emptyP insertP
+              (insOrder (enqueue a q))))
+          (insertP _/_.[ q ] a
+            (transport (λ i → P (canonicalizeResp q (~ i)))
+              (lem P emptyP insertP (insOrder q))))
+        ≡ PathP
+            (λ i → P (refl {x = _/_.[ enqueue a q ]} i))
+            (transport (λ i → P (canonicalizeResp (enqueue a q) (~ i)))
+              (lem P emptyP insertP
+                (insOrder (enqueue a q))))
+            (insertP _/_.[ q ] a
+              (transport (λ i → P (canonicalizeResp q (~ i)))
+                (lem P emptyP insertP (insOrder q))))
+      typesSame q =
+        cong
+         (λ x →
+           PathP
+            (λ i → P (x i))
+            (transport (λ i → P (canonicalizeResp (enqueue a q) (~ i)))
+              (lem P emptyP insertP
+                (insOrder (enqueue a q))))
+            (insertP _/_.[ q ] a
+              (transport (λ i → P (canonicalizeResp q (~ i)))
+                (lem P emptyP insertP (insOrder q)))))
+         (squash/ _ _ _ _)
       lem3 : (q : Q) → transport (λ i → P (canonicalizeResp (enqueue a q) (~ i)))
                          (lem P emptyP insertP
                            (insOrder (enqueue a q)))
                        ≡ insertP _/_.[ q ] a
                            (transport (λ i → P (canonicalizeResp q (~ i)))
                              (lem P emptyP insertP (insOrder q)))
-      lem3 q = {!!}
+      lem3 q = transport (typesSame q) (lem9 q)
 
     -- OneListIsoTwoList : Iso OneList.Q Q
     -- Iso.fun OneListIsoTwoList = canonicalizeInv
