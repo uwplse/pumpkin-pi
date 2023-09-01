@@ -51,14 +51,25 @@ module OneList where
        help : A → (Q × A) → (Maybe (Q × A))
        help x (xs , res) = just ((x ∷ xs) , res)
 
+    enqueue : A → Q → Q
+    enqueue x x' = x ∷ x'
 
-    OneList = record { A = A; Q = Q ; null = [] ; enqueue = λ x x' → x ∷ x' ; dequeue = last }
+    dequeue : Q → Maybe (Q × A)
+    dequeue [] = nothing
+    dequeue (x ∷ xs) with (dequeue xs)
+    ...                    | nothing = just ([] , x)
+    ...                    | just (q , a) = just (x ∷ q , a)
+
+    OneList = record { A = A; Q = Q ; null = [] ; enqueue = enqueue; dequeue = dequeue}
 
     depConstrEmpty : Q
     depConstrEmpty = []
 
     depConstrInsert : A → Q → Q
     depConstrInsert x x' = x ∷ x'
+
+    enqueueDequeueEmptyOk : (a : A) → dequeue (enqueue a depConstrEmpty) ≡ just (depConstrEmpty , a)
+    enqueueDequeueEmptyOk a = refl
 
     depElimOneList : (P : Q -> Type) -> (P depConstrEmpty) -> (∀ a q -> (P q) -> P (depConstrInsert a q)) -> ((x : Q) -> P x)
     depElimOneList P baseCase consCase [] = baseCase
@@ -298,6 +309,20 @@ module TwoList where
                            (transport (λ i → P (canonicalizeResp q (~ i)))
                              (lem P emptyP insertP (insOrder q)))
       lem3 q = transport (typesSame q) (lem9 q)
+
+    enqueue/R : A → TLQ → TLQ
+    enqueue/R x _/_.[ a ] = _/_.[ enqueue x a ]
+    enqueue/R x (eq/ a b r i) =  ?
+    enqueue/R x (squash/ q q₁ p q₂ i i₁) = {!!}
+
+    dequeue/R : TLQ → Maybe (TLQ × A)
+    dequeue/R _/_.[ a ] = {! !}
+    dequeue/R (eq/ a b r i) = {!!}
+    dequeue/R (squash/ x x₁ p q i i₁) = {!!}
+
+    enqueueDequeueEmptyOk : (a : A) → dequeue/R (enqueue/R a depConstrEmpty) ≡ just (depConstrEmpty , a)
+    enqueueDequeueEmptyOk a = {!!}
+
 
     -- OneListIsoTwoList : Iso OneList.Q Q
     -- Iso.fun OneListIsoTwoList = canonicalizeInv
