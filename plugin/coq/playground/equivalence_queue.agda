@@ -76,7 +76,7 @@ module OneList where
     depElimOneList P baseCase consCase (x ∷ l) = consCase x l (depElimOneList P baseCase consCase l)
 
     enqueue : A → Q → Q
-    enqueue a q = depElimOneList (λ _ → Q) (a ∷ []) (λ a q Pq → a ∷ Pq) q
+    enqueue = depConstrInsert
 
     isSetQ : isSet Q
     isSetQ = isOfHLevelList 0 isSetℕ
