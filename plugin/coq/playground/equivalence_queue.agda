@@ -235,7 +235,7 @@ module TwoList where
       SetQuotients.elim
         (λ x → isProp→isSet ((pset (depConstrInsert a x)) (depElimQ P pset emptyP insertP (depConstrInsert a x)) (insertP x a (depElimQ P pset emptyP insertP x))) )
         (λ q → lem3 q)
-        λ q1 q2 r → {!!} where
+        λ q1 q2 r → toPathP (pset _ _ _ _ _) where
       lem5 : (q : Q) → PathP
                          (λ i → P (canonicalizeResp q (~ i)))      
                          (lem P emptyP insertP (insOrder q))
@@ -309,10 +309,10 @@ module TwoList where
                            (transport (λ i → P (canonicalizeResp q (~ i)))
                              (lem P emptyP insertP (insOrder q)))
       lem3 q = transport (typesSame q) (lem9 q)
-
+      
     enqueue/R : A → TLQ → TLQ
     enqueue/R x _/_.[ a ] = _/_.[ enqueue x a ]
-    enqueue/R x (eq/ a b r i) =  ?
+    enqueue/R x (eq/ a b r i) =  {!!}
     enqueue/R x (squash/ q q₁ p q₂ i i₁) = {!!}
 
     dequeue/R : TLQ → Maybe (TLQ × A)
