@@ -51,8 +51,8 @@ module OneList where
        help : A → (Q × A) → (Maybe (Q × A))
        help x (xs , res) = just ((x ∷ xs) , res)
 
-    enqueue : A → Q → Q
-    enqueue x x' = x ∷ x'
+    enqueue' : A → Q → Q
+    enqueue' x x' = x ∷ x'
 
     dequeue : Q → Maybe (Q × A)
     dequeue [] = nothing
@@ -60,7 +60,7 @@ module OneList where
     ...                    | nothing = just ([] , x)
     ...                    | just (q , a) = just (x ∷ q , a)
 
-    OneList = record { A = A; Q = Q ; null = [] ; enqueue = enqueue; dequeue = dequeue}
+    OneList = record { A = A; Q = Q ; null = [] ; enqueue = enqueue'; dequeue = dequeue}
 
     depConstrEmpty : Q
     depConstrEmpty = []
@@ -68,13 +68,15 @@ module OneList where
     depConstrInsert : A → Q → Q
     depConstrInsert x x' = x ∷ x'
 
-    enqueueDequeueEmptyOk : (a : A) → dequeue (enqueue a depConstrEmpty) ≡ just (depConstrEmpty , a)
+    enqueueDequeueEmptyOk : (a : A) → dequeue (enqueue' a depConstrEmpty) ≡ just (depConstrEmpty , a)
     enqueueDequeueEmptyOk a = refl
 
     depElimOneList : (P : Q -> Type) -> (P depConstrEmpty) -> (∀ a q -> (P q) -> P (depConstrInsert a q)) -> ((x : Q) -> P x)
     depElimOneList P baseCase consCase [] = baseCase
     depElimOneList P baseCase consCase (x ∷ l) = consCase x l (depElimOneList P baseCase consCase l)
 
+    enqueue : A → Q → Q
+    enqueue a q = depElimOneList (λ _ → Q) (a ∷ []) (λ a q Pq → a ∷ Pq) q
 
     isSetQ : isSet Q
     isSetQ = isOfHLevelList 0 isSetℕ
