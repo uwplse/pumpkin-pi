@@ -336,19 +336,19 @@ module TwoList where
     enqueue/R = depConstrInsert
 
     dequeue/R : TLQ → Maybe (TLQ × A)
-    dequeue/R = depElimQ (λ x → Maybe (TLQ × A)) {!!} nothing recCase where
+    dequeue/R = depElimQ (λ x → Maybe (TLQ × A)) (λ _ → isOfHLevelMaybe 0 (isOfHLevelProd 2 squash/ isSetℕ)) nothing recCase where
       recCase : (q : TLQ) (outer : A) → Maybe (TLQ × A) → Maybe (TLQ × A)
       recCase q outer nothing = just (depConstrEmpty , outer)
       recCase q outer (just (q' , inner)) = just ((depConstrInsert outer q' , inner))
 
     isEmpty/R : TLQ → Bool
-    isEmpty/R = depElimQ (λ _ → Bool) {!!} true (λ _ _ _ →  false)
+    isEmpty/R = depElimQ (λ _ → Bool) (λ _ → isSetBool) true (λ _ _ _ →  false)
 
     emptyTrueOk : isEmpty/R depConstrEmpty ≡ true
     emptyTrueOk = refl
 
     emptyFalseOk : (a : A) (q : TLQ) → isEmpty/R (depConstrInsert a q) ≡ false
-    emptyFalseOk a = depElimQ (λ x → isEmpty/R (depConstrInsert a x) ≡ false) {!!} refl (λ q₁ a₁ x → {!!} ∙ x )
+    emptyFalseOk a = depElimQ (λ x → isEmpty/R (depConstrInsert a x) ≡ false) (λ _ → isProp→isSet (isSetBool _ _)) refl (λ q₁ a₁ x → {!!} ∙ x )
 
     enqueueDequeueEmptyOk : (a : A) → dequeue/R (enqueue/R a depConstrEmpty) ≡ just (depConstrEmpty , a)
     enqueueDequeueEmptyOk a = refl
