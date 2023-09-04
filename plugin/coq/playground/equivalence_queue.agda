@@ -325,12 +325,31 @@ module TwoList where
                            (transport (λ i → P (canonicalizeResp q (~ i)))
                              (lem P emptyP insertP (insOrder q)))
       lem3 q = transport (typesSame q) (lem9 q)
+
+    ιTLQInsert : (P : TLQ → Set) → (pset : (q : TLQ) → isSet (P q)) →
+      (emptyP : P depConstrEmpty) →
+      (insertP : (q : TLQ) → (a : A) → (P q) → P (depConstrInsert a q)) →
+      (a : A) → (q : TLQ) → (Q : P (depConstrInsert a q) → Set) →
+      Q (depElimQ P pset emptyP insertP (depConstrInsert a q)) →
+      Q (insertP q a (depElimQ P pset emptyP insertP q))
+    ιTLQInsert P pset emptyP insertP a q Q Qp = transport (cong Q (ιTLQInsertEq P pset emptyP insertP a q)) Qp
+
+    ιTLQInsert⁻ : (P : TLQ → Set) → (pset : (q : TLQ) → isSet (P q)) →
+      (emptyP : P depConstrEmpty) →
+      (insertP : (q : TLQ) → (a : A) → (P q) → P (depConstrInsert a q)) →
+      (a : A) → (q : TLQ) → (Q : P (depConstrInsert a q) → Set) →
+      Q (insertP q a (depElimQ P pset emptyP insertP q)) →
+      Q (depElimQ P pset emptyP insertP (depConstrInsert a q))
+    ιTLQInsert⁻ P pset emptyP insertP a q Q Qp = transport (cong Q (sym (ιTLQInsertEq P pset emptyP insertP a q))) Qp
       
     enqueue/R : A → TLQ → TLQ
     enqueue/R = depConstrInsert
 
+    isSetDeqReturnType : isSet (Maybe (TLQ × A))
+    isSetDeqReturnType = isOfHLevelMaybe 0 (isOfHLevelProd 2 squash/ isSetℕ)
+
     dequeue/R : TLQ → Maybe (TLQ × A)
-    dequeue/R = depElimQ (λ x → Maybe (TLQ × A)) (λ _ → isOfHLevelMaybe 0 (isOfHLevelProd 2 squash/ isSetℕ)) nothing recCase where
+    dequeue/R = depElimQ (λ x → Maybe (TLQ × A)) (λ _ → isSetDeqReturnType) nothing recCase where
       recCase : (q : TLQ) (outer : A) → Maybe (TLQ × A) → Maybe (TLQ × A)
       recCase q outer nothing = just (depConstrEmpty , outer)
       recCase q outer (just (q' , inner)) = just ((depConstrInsert outer q' , inner))
@@ -346,4 +365,40 @@ module TwoList where
 
     enqueueDequeueEmptyOk : (a : A) → dequeue/R (enqueue/R a depConstrEmpty) ≡ just (depConstrEmpty , a)
     enqueueDequeueEmptyOk a = refl
+
+    -- safe-head and safe-tail copied from std library List.Properties, these functions are private there
+    safe-head : A → List A → A
+    safe-head x []      = x
+    safe-head _ (x ∷ _) = x
+
+    safe-tail : List A → List A
+    safe-tail []       = []
+    safe-tail (_ ∷ xs) = xs
+
+    headTailNonempty : (a : A) (l : List A) → (safe-head a (l ++ (a ∷ []))) ∷ (safe-tail (l ++ (a ∷ []))) ≡ l ++ (a ∷ [])
+    headTailNonempty a [] = refl
+    headTailNonempty a (x ∷ l) = refl
+
+    fastDequeue/R : TLQ → Maybe (TLQ × A)
+    fastDequeue/R = SetQuotients.elim
+      (λ _ → isSetDeqReturnType)
+      func
+      {!wellDefined!} where
+
+      func : Q → Maybe (TLQ × A)
+      func ([] , []) = nothing
+      func ((a ∷ l1) , []) = just (_/_.[ [] , safe-tail (rev (a ∷ l1)) ] , safe-head a (rev (a ∷ l1)))
+      func ([] , (a ∷ l2)) = just (_/_.[ [] , l2 ] , a)
+      func ((b ∷ l1) , (a ∷ l2)) = just (_/_.[ (b ∷ l1) , l2 ] , a)
+
+      wellDefinedHelp : (q : Q) → func q ≡ func ([] , (rev (insOrder q)))
+      wellDefinedHelp ([] , []) = refl
+      wellDefinedHelp ((x ∷ l1) , []) = (cong (λ l → func ([] , l)) (headTailNonempty x (rev l1)))
+                                        ∙ (sym (cong (λ l → func ([] , (rev l) ++ (x ∷ []))) (++-unit-r l1)))
+      wellDefinedHelp ([] , (x ∷ l2)) = {!!}
+      wellDefinedHelp ((y ∷ l1) , (x ∷ l2)) = {!!}
+      --({!func (l1 , (x ∷ l2))!} ∙ cong just (×≡ {!eq/ (l1 ++ rev l2) (rev (l1 ++ rev l2)) ?!} refl)) ∙ cong (λ l → func ([] , l)) (sym (rev-snoc (l1 ++ rev l2) x) ∙ (cong rev (++-assoc l1 (rev l2) (x ∷ []))))
+      wellDefined : (a b : Q) (r : R a b) → func a ≡ func b
+      wellDefined (a1 , []) (b1 , b2) r = {!!}
+      wellDefined (a1 , (x ∷ a2)) (b1 , b2) r = {!!}
 
