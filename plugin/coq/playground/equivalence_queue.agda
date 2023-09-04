@@ -169,9 +169,6 @@ module TwoList where
     canonicalizeIdempotent : (q : Q) →  canonicalize q ≡ canonicalize (canonicalize q)
     canonicalizeIdempotent q = ×≡ (sym (++-unit-r (insOrder q))) refl
 
-    enqCanonicalResp : (a : A) → (q : Q) → _/_.[_] {R = R} (enqueue a q) ≡ _/_.[ enqueue a (canonicalize q) ]
-    enqCanonicalResp a (l1 , l2) = {!!}
-
     insOrderCons : (a : A) → (l1 l2 : List A) → a ∷ insOrder (l1 , l2) ≡ insOrder (a ∷ l1 , l2)
     insOrderCons a l1 l2 = refl
 
@@ -192,9 +189,6 @@ module TwoList where
 
     isSetFunc' : {A : Set} (B : A → Set) → ((a : A) → isSet (B a)) → isSet ((a : A) → (B a))
     isSetFunc' {A} B resultIsSet = isSetProd resultIsSet
-
-    revSwap : (l : List ℕ ) → _/_.[_] (rev l , []) ≡ _/_.[ [] , l ]
-    revSwap l = refl
 
     lem : (P : (Q / R) → Set) → P depConstrEmpty → ((q : Q / R) → (a : A) → P q → P (depConstrInsert a q)) → (l : List A) → P _/_.[ (l , []) ]
     lem P baseCase insertCase [] = baseCase
@@ -353,48 +347,3 @@ module TwoList where
     enqueueDequeueEmptyOk : (a : A) → dequeue/R (enqueue/R a depConstrEmpty) ≡ just (depConstrEmpty , a)
     enqueueDequeueEmptyOk a = refl
 
-    -- OneListIsoTwoList : Iso OneList.Q Q
-    -- Iso.fun OneListIsoTwoList = canonicalizeInv
-    -- Iso.inv OneListIsoTwoList = canonicalize
-    -- Iso.rightInv OneListIsoTwoList ([] , []) = refl
-    -- Iso.rightInv OneListIsoTwoList ([] , (x ∷ x')) = congPath (λ a → help x a) (Iso.rightInv OneListIsoTwoList ([] , x')) where
-    --   help : A → Q → Q
-    --   help x (x₁ , x₂) = (x₁ , {!x ∷ {!!}!})
-    -- Iso.rightInv OneListIsoTwoList ((x ∷ x₂) , x₁) = {!!}
-    -- Iso.leftInv OneListIsoTwoList [] = refl
-    -- Iso.leftInv OneListIsoTwoList (x ∷ a) = {!!}
-
-{-
-    quotientCanonicalizeLifted : (a b : Q) → quotient a b → canonicalize a ≡ canonicalize b
-    quotientCanonicalizeLifted a b x = canonicalizeInvEquiv (canonicalize a) (canonicalize b) (quotientGenCanonLifted a b x)
--}
-
-    -- canonicalizeQ : (Q / quotient) → OneList.Q
-    -- canonicalizeQ [ a ] = canonicalize a
-    -- canonicalizeQ (eq/ a b r i) = canonicalizeInvEquiv (canonicalize a) (canonicalize b) (quotientGenCanonLifted a b r) i
-    -- canonicalizeQ (squash/ a b p q i j) = canonicalizeInvEquiv
-    --   (canonicalizeInvEquiv (canonicalizeQ a) (canonicalizeQ b) (cong canonicalizeInv {!!}) i)
-    --   (canonicalizeInvEquiv (canonicalizeQ a) (canonicalizeQ b) (cong canonicalizeInv {!!}) i)
-    --   refl
-    --   j where
-    --     help : p ≡ q
-    --     help = squash/ a b p q
-    -- canonicalizeQ : (Q / quotient) → OneList.Q
-    -- canonicalizeQ = SetQuotients.rec OneList.isSetQ canonicalize quotientCanonicalizeLifted
-
-{-
-    canonicalizeInvQ : OneList.Q → (Q / quotient)
-    canonicalizeInvQ x = _/_.[ canonicalizeInv x ]
-
-    OneListIsoTwoList' : Iso OneList.Q (Q / quotient)
-    Iso.fun OneListIsoTwoList' = canonicalizeInvQ
-    Iso.inv OneListIsoTwoList' = canonicalizeQ
-    Iso.rightInv OneListIsoTwoList' [ a ] = eq/ (genCanon a) a (defEquivLLower (canonicalize a ++ []) (canonicalize a) (++-unit-r (canonicalize a)))
-    Iso.rightInv OneListIsoTwoList' (eq/ a b r i) = {!!}
--- canonicalizeInvQ (canonicalizeQ (eq/ a b r i)) ≡ eq/ a b r i
--- _/_.[ canonicalizeInv (canonicalizeQ (eq/ a b r i)) ] ≡ eq/ a b r i
--- _/_.[ [] , π₂ (defEquivQLifted ([] , canonicalize a) ([] , canonicalize b) r i) ] ≡ eq/ a b r i
--- _/_.[ [] , π₂ (defEquivQLifted ([] , canonicalize a) ([] , canonicalize b) r i) ] ≡ eq/ a b r i
-    Iso.rightInv OneListIsoTwoList' (squash/ b b₁ p q i i₁) = {!!}
-    Iso.leftInv OneListIsoTwoList' a = ++-unit-r a
--}
