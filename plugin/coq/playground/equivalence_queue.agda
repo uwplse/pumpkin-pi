@@ -76,10 +76,19 @@ module OneList where
     enqueue = depConstrInsert
 
     dequeue : Q → Maybe (Q × A)
-    dequeue = depElimOneList (λ x₁ → Maybe (Q × A)) nothing recCase where
+    dequeue = depElimOneList (λ _ → Maybe (Q × A)) nothing recCase where
       recCase : (q : Q) (outer : A) → Maybe (Q × A) → Maybe (Q × A)
       recCase q outer nothing = just (depConstrEmpty , outer)
       recCase q outer (just (q' , inner)) = just ((depConstrInsert outer q' , inner))
+
+    isEmpty : Q → Bool
+    isEmpty = depElimOneList (λ _ → Bool) true (λ _ _ _ →  false)
+
+    emptyTrueOk : isEmpty depConstrEmpty ≡ true
+    emptyTrueOk = refl
+
+    emptyFalseOk : (a : A) (q : Q) → isEmpty (depConstrInsert a q) ≡ false
+    emptyFalseOk a = depElimOneList (λ x → isEmpty (depConstrInsert a x) ≡ false) refl (λ q₁ a₁ x i → x i)
 
     implTest1 : dequeue (enqueue 2 (enqueue 1 [])) ≡ just (enqueue 2 [] , 1)
     implTest1 = refl
@@ -331,6 +340,15 @@ module TwoList where
       recCase : (q : TLQ) (outer : A) → Maybe (TLQ × A) → Maybe (TLQ × A)
       recCase q outer nothing = just (depConstrEmpty , outer)
       recCase q outer (just (q' , inner)) = just ((depConstrInsert outer q' , inner))
+
+    isEmpty/R : TLQ → Bool
+    isEmpty/R = depElimQ (λ _ → Bool) {!!} true (λ _ _ _ →  false)
+
+    emptyTrueOk : isEmpty/R depConstrEmpty ≡ true
+    emptyTrueOk = refl
+
+    emptyFalseOk : (a : A) (q : TLQ) → isEmpty/R (depConstrInsert a q) ≡ false
+    emptyFalseOk a = depElimQ (λ x → isEmpty/R (depConstrInsert a x) ≡ false) {!!} refl (λ q₁ a₁ x → {!!} ∙ x )
 
     enqueueDequeueEmptyOk : (a : A) → dequeue/R (enqueue/R a depConstrEmpty) ≡ just (depConstrEmpty , a)
     enqueueDequeueEmptyOk a = refl
