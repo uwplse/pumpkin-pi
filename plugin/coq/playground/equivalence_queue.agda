@@ -54,13 +54,12 @@ module OneList where
     enqueue' : A → Q → Q
     enqueue' x x' = x ∷ x'
 
-    dequeue : Q → Maybe (Q × A)
-    dequeue [] = nothing
-    dequeue (x ∷ xs) with (dequeue xs)
+    dequeue' : Q → Maybe (Q × A)
+    dequeue' [] = nothing
+    dequeue' (x ∷ xs) with (dequeue' xs)
     ...                    | nothing = just ([] , x)
     ...                    | just (q , a) = just (x ∷ q , a)
 
-    OneList = record { A = A; Q = Q ; null = [] ; enqueue = enqueue'; dequeue = dequeue}
 
     depConstrEmpty : Q
     depConstrEmpty = []
@@ -68,15 +67,27 @@ module OneList where
     depConstrInsert : A → Q → Q
     depConstrInsert x x' = x ∷ x'
 
-    enqueueDequeueEmptyOk : (a : A) → dequeue (enqueue' a depConstrEmpty) ≡ just (depConstrEmpty , a)
-    enqueueDequeueEmptyOk a = refl
 
-    depElimOneList : (P : Q -> Type) -> (P depConstrEmpty) -> (∀ a q -> (P q) -> P (depConstrInsert a q)) -> ((x : Q) -> P x)
+    depElimOneList : (P : Q -> Type) -> (P depConstrEmpty) -> (∀ q a -> (P q) -> P (depConstrInsert a q)) -> ((x : Q) -> P x)
     depElimOneList P baseCase consCase [] = baseCase
-    depElimOneList P baseCase consCase (x ∷ l) = consCase x l (depElimOneList P baseCase consCase l)
+    depElimOneList P baseCase consCase (x ∷ l) = consCase l x (depElimOneList P baseCase consCase l)
 
     enqueue : A → Q → Q
     enqueue = depConstrInsert
+
+    dequeue : Q → Maybe (Q × A)
+    dequeue = depElimOneList (λ x₁ → Maybe (Q × A)) nothing recCase where
+      recCase : (q : Q) (outer : A) → Maybe (Q × A) → Maybe (Q × A)
+      recCase q outer nothing = just (depConstrEmpty , outer)
+      recCase q outer (just (q' , inner)) = just ((depConstrInsert outer q' , inner))
+
+    implTest1 : dequeue (enqueue 2 (enqueue 1 [])) ≡ just (enqueue 2 [] , 1)
+    implTest1 = refl
+
+    enqueueDequeueEmptyOk : (a : A) → dequeue (enqueue a depConstrEmpty) ≡ just (depConstrEmpty , a)
+    enqueueDequeueEmptyOk a = refl
+
+    OneList = record { A = A; Q = Q ; null = [] ; enqueue = enqueue; dequeue = dequeue}
 
     isSetQ : isSet Q
     isSetQ = isOfHLevelList 0 isSetℕ
@@ -313,18 +324,16 @@ module TwoList where
       lem3 q = transport (typesSame q) (lem9 q)
       
     enqueue/R : A → TLQ → TLQ
-    enqueue/R x _/_.[ a ] = _/_.[ enqueue x a ]
-    enqueue/R x (eq/ a b r i) =  {!!}
-    enqueue/R x (squash/ q q₁ p q₂ i i₁) = {!!}
+    enqueue/R = depConstrInsert
 
     dequeue/R : TLQ → Maybe (TLQ × A)
-    dequeue/R _/_.[ a ] = {! !}
-    dequeue/R (eq/ a b r i) = {!!}
-    dequeue/R (squash/ x x₁ p q i i₁) = {!!}
+    dequeue/R = depElimQ (λ x → Maybe (TLQ × A)) {!!} nothing recCase where
+      recCase : (q : TLQ) (outer : A) → Maybe (TLQ × A) → Maybe (TLQ × A)
+      recCase q outer nothing = just (depConstrEmpty , outer)
+      recCase q outer (just (q' , inner)) = just ((depConstrInsert outer q' , inner))
 
     enqueueDequeueEmptyOk : (a : A) → dequeue/R (enqueue/R a depConstrEmpty) ≡ just (depConstrEmpty , a)
-    enqueueDequeueEmptyOk a = {!!}
-
+    enqueueDequeueEmptyOk a = refl
 
     -- OneListIsoTwoList : Iso OneList.Q Q
     -- Iso.fun OneListIsoTwoList = canonicalizeInv
