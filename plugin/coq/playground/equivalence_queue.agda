@@ -34,6 +34,19 @@ record Queue {ℓ} : Set (ℓ-suc ℓ) where
     enqueue : A → Q → Q
     dequeue : Q → Maybe (Q × A) -- similiar to the Cubical lib def but with Maybe bc monads
 
+ListRec : {A C : Set} →
+  C →
+  ((a : A) (l : List A) → C → C) →
+  (l : List A) → C
+ListRec emptyC insertC [] = emptyC
+ListRec emptyC insertC (a ∷ l) = insertC a l (ListRec emptyC insertC l)
+
+ListElim : {A : Set} (P : List A → Set) →
+  P [] →
+  ((a : A) (l : List A) → P l → P (a ∷ l)) →
+  (l : List A) → P l
+ListElim P emptyP insertP [] = emptyP
+ListElim P emptyP insertP (a ∷ l) = insertP a l (ListElim P emptyP insertP l)
 
 module OneList where
     Q = List ℕ
@@ -78,8 +91,11 @@ module OneList where
     dequeue : Q → Maybe (Q × A)
     dequeue = depElimOneList (λ _ → Maybe (Q × A)) nothing recCase where
       recCase : (q : Q) (outer : A) → Maybe (Q × A) → Maybe (Q × A)
-      recCase q outer nothing = just (depConstrEmpty , outer)
-      recCase q outer (just (q' , inner)) = just ((depConstrInsert outer q' , inner))
+      recCase q outer m =
+        Cubical.Data.Maybe.rec
+          (just (depConstrEmpty , outer))
+          (λ p → just (depConstrInsert outer (proj₁ p) , (proj₂ p)))
+          m
 
     isEmpty : Q → Bool
     isEmpty = depElimOneList (λ _ → Bool) true (λ _ _ _ →  false)
@@ -351,8 +367,11 @@ module TwoList where
     dequeue/R : TLQ → Maybe (TLQ × A)
     dequeue/R = depElimQ (λ x → Maybe (TLQ × A)) (λ _ → isSetDeqReturnType) nothing recCase where
       recCase : (q : TLQ) (outer : A) → Maybe (TLQ × A) → Maybe (TLQ × A)
-      recCase q outer nothing = just (depConstrEmpty , outer)
-      recCase q outer (just (q' , inner)) = just ((depConstrInsert outer q' , inner))
+      recCase q outer m =
+        Cubical.Data.Maybe.rec
+          (just (depConstrEmpty , outer))
+          (λ p → just (depConstrInsert outer (proj₁ p) , (proj₂ p)))
+          m
 
     isEmpty/R : TLQ → Bool
     isEmpty/R = depElimQ (λ _ → Bool) (λ _ → isSetBool) true (λ _ _ _ →  false)
