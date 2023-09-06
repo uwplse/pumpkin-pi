@@ -210,6 +210,17 @@ module TwoList where
     lem P baseCase insertCase [] = baseCase
     lem P baseCase insertCase (a ∷ l) = insertCase _/_.[ l , [] ] a (lem P baseCase insertCase l)
 
+    depRecQ : {C : Set} → (isSet C) → C → ((q : TLQ) (a : A) → C → C) → TLQ → C
+    depRecQ {C} set empty insert = SetQuotients.rec set func wellDefined where
+      help : (C : Set) → C → ((q : Q / R) → (a : A) → C → C) → (l : List A) → C
+      help C baseCase insertCase [] = baseCase
+      help C baseCase insertCase (a ∷ l) = insertCase _/_.[ l , [] ] a (help C baseCase insertCase l)
+      func : (q : Q) → C
+      func q = help C empty insert (insOrder q)
+      wellDefined : (q1 q2 : Q) → R q1 q2 → func q1 ≡ func q2
+      wellDefined q1 q2 r = cong (λ q → help C empty insert q) r
+      
+
     depElimQ : (P : (Q / R) → Set) → (∀ x → isSet (P x)) → P depConstrEmpty → ((q : Q / R) → (a : A) → P q → P (depConstrInsert a q)) → ∀ q' → P q'
     depElimQ P set baseCase insertCase = SetQuotients.elim set func wellDefined where
       func : (q : Q) → P _/_.[ q ]
@@ -264,10 +275,9 @@ module TwoList where
       depElimQ P pset emptyP insertP (depConstrInsert a q)
       ≡ insertP q a (depElimQ P pset emptyP insertP q)
     ιTLQInsertEq P pset emptyP insertP a =
-      SetQuotients.elim
-        (λ x → isProp→isSet ((pset (depConstrInsert a x)) (depElimQ P pset emptyP insertP (depConstrInsert a x)) (insertP x a (depElimQ P pset emptyP insertP x))) )
-        (λ q → lem3 q)
-        λ q1 q2 r → toPathP (pset _ _ _ _ _) where
+      SetQuotients.elimProp
+        (λ x → ((pset (depConstrInsert a x)) (depElimQ P pset emptyP insertP (depConstrInsert a x)) (insertP x a (depElimQ P pset emptyP insertP x))) )
+        (λ q → lem3 q) where
       lem5 : (q : Q) → PathP
                          (λ i → P (canonicalizeResp q (~ i)))      
                          (lem P emptyP insertP (insOrder q))
@@ -399,12 +409,16 @@ module TwoList where
     headTailNonempty a (x ∷ l) = refl
 
     fastDequeue/R : TLQ → Maybe (TLQ × A)
-    fastDequeue/R = SetQuotients.elim
-      (λ _ → isSetDeqReturnType)
-      func
-      {!wellDefined!} where
-
+    fastDequeue/R = SetQuotients.rec isSetDeqReturnType func {!wellDefined!} where
       func : Q → Maybe (TLQ × A)
+      {- func (l1 , l2) =
+        ListRec
+          (ListRec
+            nothing
+            (λ a l _ → just (_/_.[ [] , safe-tail (rev (a ∷ l1)) ] , safe-head a (rev (a ∷ l1))))
+            l1)
+          (λ a l _ → just (_/_.[ l1 , l ] , a))
+          l2-}
       func ([] , []) = nothing
       func ((a ∷ l1) , []) = just (_/_.[ [] , safe-tail (rev (a ∷ l1)) ] , safe-head a (rev (a ∷ l1)))
       func ([] , (a ∷ l2)) = just (_/_.[ [] , l2 ] , a)
@@ -414,10 +428,25 @@ module TwoList where
       wellDefinedHelp ([] , []) = refl
       wellDefinedHelp ((x ∷ l1) , []) = (cong (λ l → func ([] , l)) (headTailNonempty x (rev l1)))
                                         ∙ (sym (cong (λ l → func ([] , (rev l) ++ (x ∷ []))) (++-unit-r l1)))
-      wellDefinedHelp ([] , (x ∷ l2)) = {!!}
-      wellDefinedHelp ((y ∷ l1) , (x ∷ l2)) = {!!}
-      --({!func (l1 , (x ∷ l2))!} ∙ cong just (×≡ {!eq/ (l1 ++ rev l2) (rev (l1 ++ rev l2)) ?!} refl)) ∙ cong (λ l → func ([] , l)) (sym (rev-snoc (l1 ++ rev l2) x) ∙ (cong rev (++-assoc l1 (rev l2) (x ∷ []))))
+      wellDefinedHelp ([] , (x ∷ l2)) = cong (λ l → just (_/_.[ [] , l ] , x)) (sym (rev-rev l2))
+                                        ∙ (cong (λ l → func ([] , l)) (sym (rev-snoc (rev l2) x)))
+      wellDefinedHelp ((y ∷ l1) , (x ∷ l2)) =
+        (cong
+          just
+          (×≡
+            (eq/
+              (y ∷ l1 , l2)
+              ([] , rev (l1 ++ rev l2) ++ (y ∷ []))
+              (cong
+                (λ l → y ∷ l)
+                (sym (rev-rev (l1 ++ rev l2))) ∙ sym (rev-snoc (rev (l1 ++ rev l2)) y)))
+            refl)  -- (eq/ (y ∷ l1 , l2) ([] , rev (l1 ++ rev l2) ++ (y ∷ [])))
+        ∙ (cong (λ l → func ([] , l ++ (y ∷ []))) (sym (rev-snoc (l1 ++ rev l2) x))))
+        ∙ (cong (λ l → func ([] , (rev l) ++ (y ∷ []))) (++-assoc l1 (rev l2) (x ∷ [])))
       wellDefined : (a b : Q) (r : R a b) → func a ≡ func b
-      wellDefined (a1 , []) (b1 , b2) r = {!!}
-      wellDefined (a1 , (x ∷ a2)) (b1 , b2) r = {!!}
+      wellDefined a b r = wellDefinedHelp a ∙ cong (λ l → func ([] , rev l)) r ∙ (sym (wellDefinedHelp b))
+
+    deqIsFastDeq : dequeue/R ≡ fastDequeue/R
+    deqIsFastDeq = funExt (elimProp {!!} {!!}) where
+      -- func : (q : TLQ) → ?
 
