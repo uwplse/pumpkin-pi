@@ -48,6 +48,14 @@ ListElim : {A : Set} (P : List A → Set) →
 ListElim P emptyP insertP [] = emptyP
 ListElim P emptyP insertP (a ∷ l) = insertP a l (ListElim P emptyP insertP l)
 
+congMaybeRec : {T1 T2 T3 : Set} (a : T1) (b : T3 → T1) (m : Maybe T3) (f : T1 → T2) → (Cubical.Data.Maybe.rec (f a) (λ x → f (b x)) m) ≡ f (Cubical.Data.Maybe.rec a (λ x → b x) m)
+congMaybeRec a b m f =
+  Cubical.Data.Maybe.elim
+    (λ m → (Cubical.Data.Maybe.rec (f a) (λ x → f (b x)) m) ≡ f (Cubical.Data.Maybe.rec a (λ x → b x) m))
+    refl
+    (λ _ → refl)
+    m
+
 module OneList where
     Q = List ℕ
     A = ℕ
@@ -78,12 +86,19 @@ module OneList where
     depConstrEmpty = []
 
     depConstrInsert : A → Q → Q
-    depConstrInsert x x' = x ∷ x'
-
+    depConstrInsert a q = a ∷ q
 
     depElimOneList : (P : Q -> Type) -> (P depConstrEmpty) -> (∀ q a -> (P q) -> P (depConstrInsert a q)) -> ((x : Q) -> P x)
     depElimOneList P baseCase consCase [] = baseCase
     depElimOneList P baseCase consCase (x ∷ l) = consCase l x (depElimOneList P baseCase consCase l)
+
+    ιOneListInsertEq : (P : Q → Set) →
+      (emptyP : P depConstrEmpty) →
+      (insertP : (q : Q) → (a : A) → (P q) → P (depConstrInsert a q)) →
+      (a : A) → (q : Q) →
+      depElimOneList P emptyP insertP (depConstrInsert a q)
+      ≡ insertP q a (depElimOneList P emptyP insertP q)
+    ιOneListInsertEq P pset emptyP insertP a = refl
 
     enqueue : A → Q → Q
     enqueue = depConstrInsert
@@ -111,6 +126,24 @@ module OneList where
 
     enqueueDequeueEmptyOk : (a : A) → dequeue (enqueue a depConstrEmpty) ≡ just (depConstrEmpty , a)
     enqueueDequeueEmptyOk a = refl
+
+    --dequeueEnqueue formulation from "Internalizing Representation Independence with Univalence" by Angiuli et al.
+    returnOrEnq : A → Maybe (Q × A) → Q × A
+    returnOrEnq a m = Cubical.Data.Maybe.rec (depConstrEmpty , a) (λ p → (enqueue a (proj₁ p) , proj₂ p)) m
+
+    dequeueEnqueue : (a : A) (q : Q) → dequeue (enqueue a q) ≡ just (returnOrEnq a (dequeue q))
+    dequeueEnqueue a q =
+      congMaybeRec
+        ([] , a)
+        (λ p → ((a ∷ proj₁ p) , proj₂ p))
+        (depElimOneList
+          (λ _ → Maybe (List ℕ × ℕ))
+          nothing
+          (λ q₁ outer m →
+            Cubical.Data.Maybe.rec (just ([] , outer))
+            (λ p → just ((outer ∷ proj₁ p) , proj₂ p)) m)
+        q)
+        just
 
     OneList = record { A = A; Q = Q ; null = [] ; enqueue = enqueue; dequeue = dequeue}
 
@@ -409,7 +442,7 @@ module TwoList where
     headTailNonempty a (x ∷ l) = refl
 
     fastDequeue/R : TLQ → Maybe (TLQ × A)
-    fastDequeue/R = SetQuotients.rec isSetDeqReturnType func {!wellDefined!} where
+    fastDequeue/R = SetQuotients.rec isSetDeqReturnType func wellDefined where
       func : Q → Maybe (TLQ × A)
       {- func (l1 , l2) =
         ListRec
@@ -447,6 +480,9 @@ module TwoList where
       wellDefined a b r = wellDefinedHelp a ∙ cong (λ l → func ([] , rev l)) r ∙ (sym (wellDefinedHelp b))
 
     deqIsFastDeq : dequeue/R ≡ fastDequeue/R
-    deqIsFastDeq = funExt (elimProp {!!} {!!}) where
-      -- func : (q : TLQ) → ?
+    deqIsFastDeq = funExt (depElimQ (λ q → dequeue/R q ≡ fastDequeue/R q) (λ _ → isProp→isSet (isSetDeqReturnType _ _)) refl insertCase) where
+      -- help : (q : TLQ) (a : A) → depConstrInsert a (proj₁ (fastDequeue/R q)) ≡ proj₁ (fastDequeue/R (depConstrInsert a q))
+      -- help q a = ?
+      insertCase : (q : TLQ) (a : A) → dequeue/R q ≡ fastDequeue/R q → dequeue/R (depConstrInsert a q) ≡ fastDequeue/R (depConstrInsert a q)
+      insertCase q a Pq = {!!}
 
