@@ -130,6 +130,9 @@ module OneList where
     enqueueDequeueEmptyOk : (a : A) → dequeue (enqueue a depConstrEmpty) ≡ just (depConstrEmpty , a)
     enqueueDequeueEmptyOk a = refl
 
+    dequeueEmpty : dequeue depConstrEmpty ≡ nothing
+    dequeueEmpty = refl
+
     --dequeueEnqueue formulation from "Internalizing Representation Independence with Univalence" by Angiuli et al.
     returnOrEnq : A → Maybe (Q × A) → Q × A
     returnOrEnq a m = Cubical.Data.Maybe.rec (depConstrEmpty , a) (λ p → (enqueue a (proj₁ p) , proj₂ p)) m
@@ -438,6 +441,9 @@ module TwoList where
 
     enqueueDequeueEmptyOk : (a : A) → dequeue/R (enqueue/R a depConstrEmpty) ≡ just (depConstrEmpty , a)
     enqueueDequeueEmptyOk a = refl
+
+    dequeueEmpty : dequeue/R depConstrEmpty ≡ nothing
+    dequeueEmpty = refl
 
     --dequeueEnqueue formulation from "Internalizing Representation Independence with Univalence" by Angiuli et al.
     returnOrEnq : A → Maybe (TLQ × A) → TLQ × A
