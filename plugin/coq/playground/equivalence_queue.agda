@@ -112,6 +112,9 @@ module OneList where
           (λ p → just (depConstrInsert outer (proj₁ p) , (proj₂ p)))
           m
 
+    front : Q → Maybe (Q × A)
+    front = depElimOneList (λ x₁ → Maybe (Q × A)) nothing (λ q a x₁ → just (q , a))
+
     isEmpty : Q → Bool
     isEmpty = depElimOneList (λ _ → Bool) true (λ _ _ _ →  false)
 
@@ -418,16 +421,24 @@ module TwoList where
 
     isEmpty/R : TLQ → Bool
     isEmpty/R = depElimQ (λ _ → Bool) (λ _ → isSetBool) true (λ _ _ _ →  false)
-    {-
+
+    front/R : TLQ → Maybe (TLQ × A)
+    front/R = depElimQ (λ x → Maybe (TLQ × A)) (λ x → {!!}) nothing λ q a x → just (q , a)
+
     emptyTrueOk : isEmpty/R depConstrEmpty ≡ true
     emptyTrueOk = refl
 
     emptyFalseOk : (a : A) (q : TLQ) → isEmpty/R (depConstrInsert a q) ≡ false
-    emptyFalseOk a = depElimQ (λ x → isEmpty/R (depConstrInsert a x) ≡ false) (λ _ → isProp→isSet (isSetBool _ _)) refl (λ q₁ a₁ x → {!!} ∙ x )
-    
+    emptyFalseOk a =
+      depElimQ
+        (λ x → isEmpty/R (depConstrInsert a x) ≡ false)
+        (λ _ → isProp→isSet (isSetBool _ _))
+        refl
+        (λ q₁ a₁ x i → ιTLQEmpty (λ x₁ → Bool) (λ _ → isSetBool) (false) (λ q a₂ x₁ → x i) (λ x₁ → {! Bool!}) (x i))
+
     enqueueDequeueEmptyOk : (a : A) → dequeue/R (enqueue/R a depConstrEmpty) ≡ just (depConstrEmpty , a)
     enqueueDequeueEmptyOk a = refl
-    -}
+
     --dequeueEnqueue formulation from "Internalizing Representation Independence with Univalence" by Angiuli et al.
     returnOrEnq : A → Maybe (TLQ × A) → TLQ × A
     returnOrEnq a m = Cubical.Data.Maybe.rec (depConstrEmpty , a) (λ p → (enqueue/R a (proj₁ p) , proj₂ p)) m
