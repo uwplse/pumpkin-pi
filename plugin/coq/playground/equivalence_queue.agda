@@ -511,11 +511,27 @@ module TwoList where
         ∙ (cong (λ l → func ([] , (rev l) ++ (y ∷ []))) (++-assoc l1 (rev l2) (x ∷ [])))
       wellDefined : (a b : Q) (r : R a b) → func a ≡ func b
       wellDefined a b r = wellDefinedHelp a ∙ cong (λ l → func ([] , rev l)) r ∙ (sym (wellDefinedHelp b))
-{-
+
+    fastDequeueEnqueue : (a : A) (q : TLQ) → fastDequeue/R (enqueue/R a q) ≡ just (returnOrEnq a (fastDequeue/R q))
+    fastDequeueEnqueue a = SetQuotients.elimProp (λ _ → isSetDeqReturnType _ _ ) func where
+      safe-tailApp : (l : List A) (x a : A) → safe-tail ((l ++ (x ∷ [])) ++ (a ∷ [])) ≡ (safe-tail (l ++ (x ∷ []))) ++ (a ∷ [])
+      safe-tailApp [] x a = refl
+      safe-tailApp (y ∷ l) x a = refl
+      safe-headApp : (l : List A) (x a : A) → safe-head a ((l ++ (x ∷ [])) ++ (a ∷ [])) ≡ (safe-head x (l ++ (x ∷ [])))
+      safe-headApp [] x a = refl
+      safe-headApp (y ∷ l) x a = refl
+      func : (q : Q) → fastDequeue/R (enqueue/R a _/_.[ q ]) ≡ just (returnOrEnq a (fastDequeue/R _/_.[ q ]))
+      func ([] , []) = refl
+      func ((x ∷ l1) , []) = cong just (×≡
+        (eq/ _ _ ((cong rev (safe-tailApp (rev l1) x a)) ∙ (rev-snoc (safe-tail (rev l1 ++ (x ∷ []))) a)))
+        (safe-headApp (rev l1) x a))
+      func ([] , (y ∷ l2)) = cong just (×≡ refl refl)
+      func ((x ∷ l1) , (y ∷ l2)) = cong just (×≡ refl refl)
+
     deqIsFastDeq : dequeue/R ≡ fastDequeue/R
     deqIsFastDeq = funExt (depElimQ (λ q → dequeue/R q ≡ fastDequeue/R q) (λ _ → isProp→isSet (isSetDeqReturnType _ _)) refl insertCase) where
       -- help : (q : TLQ) (a : A) → depConstrInsert a (proj₁ (fastDequeue/R q)) ≡ proj₁ (fastDequeue/R (depConstrInsert a q))
       -- help q a = ?
       insertCase : (q : TLQ) (a : A) → dequeue/R q ≡ fastDequeue/R q → dequeue/R (depConstrInsert a q) ≡ fastDequeue/R (depConstrInsert a q)
-      insertCase q a Pq = {!!}
--}
+      insertCase q a Pq = dequeueEnqueue a q ∙ cong (λ x → just (returnOrEnq a x)) Pq ∙ (sym (fastDequeueEnqueue a q))
+
