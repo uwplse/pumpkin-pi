@@ -134,14 +134,14 @@ module OneList where
     dequeueEnqueue : (a : A) (q : Q) → dequeue (enqueue a q) ≡ just (returnOrEnq a (dequeue q))
     dequeueEnqueue a q =
       congMaybeRec
-        ([] , a)
-        (λ p → ((a ∷ proj₁ p) , proj₂ p))
+        (depConstrEmpty , a)
+        (λ p → ((depConstrInsert a (proj₁ p)) , proj₂ p))
         (depElimOneList
-          (λ _ → Maybe (List ℕ × ℕ))
+          (λ _ → Maybe (Q × ℕ))
           nothing
           (λ q₁ outer m →
-            Cubical.Data.Maybe.rec (just ([] , outer))
-            (λ p → just ((outer ∷ proj₁ p) , proj₂ p)) m)
+            Cubical.Data.Maybe.rec (just (depConstrEmpty , outer))
+            (λ p → just ((depConstrInsert outer (proj₁ p)) , proj₂ p)) m)
         q)
         just
 
@@ -253,7 +253,6 @@ module TwoList where
       wellDefined : (q1 q2 : Q) → R q1 q2 → func q1 ≡ func q2
       wellDefined q1 q2 r = cong (λ q → help C empty insert q) r
       
-
     depElimQ : (P : (Q / R) → Set) → (∀ x → isSet (P x)) → P depConstrEmpty → ((q : Q / R) → (a : A) → P q → P (depConstrInsert a q)) → ∀ q' → P q'
     depElimQ P set baseCase insertCase = SetQuotients.elim set func wellDefined where
       func : (q : Q) → P _/_.[ q ]
@@ -274,7 +273,7 @@ module TwoList where
       typesSame q1 q2 r = cong (λ x → PathP (λ i → P (x i)) (func q1) (func q2)) (pathsEq q1 q2 r)
       wellDefined : (q1 q2 : Q) (r : R q1 q2) → PathP (λ i → P (eq/ q1 q2 r i)) (func q1) (func q2)
       wellDefined q1 q2 r = transport (typesSame q1 q2 r) (composedPaths q1 q2 r)
-
+      
     ιTLQEmptyEq : (P : TLQ → Set) → (pset : (q : TLQ) → isSet (P q)) →
       (emptyP : P depConstrEmpty) →
       (insertP : (q : TLQ) → (a : A) → (P q) → P (depConstrInsert a q)) →
@@ -404,8 +403,9 @@ module TwoList where
     enqueue/R : A → TLQ → TLQ
     enqueue/R = depConstrInsert
 
-    isSetDeqReturnType : isSet (Maybe (TLQ × A))
-    isSetDeqReturnType = isOfHLevelMaybe 0 (isOfHLevelProd 2 squash/ isSetℕ)
+    abstract 
+      isSetDeqReturnType : isSet (Maybe (TLQ × A))
+      isSetDeqReturnType = isOfHLevelMaybe 0 (isOfHLevelProd 2 squash/ isSetℕ)
 
     dequeue/R : TLQ → Maybe (TLQ × A)
     dequeue/R = depElimQ (λ x → Maybe (TLQ × A)) (λ _ → isSetDeqReturnType) nothing recCase where
@@ -418,15 +418,48 @@ module TwoList where
 
     isEmpty/R : TLQ → Bool
     isEmpty/R = depElimQ (λ _ → Bool) (λ _ → isSetBool) true (λ _ _ _ →  false)
-
+    {-
     emptyTrueOk : isEmpty/R depConstrEmpty ≡ true
     emptyTrueOk = refl
 
     emptyFalseOk : (a : A) (q : TLQ) → isEmpty/R (depConstrInsert a q) ≡ false
     emptyFalseOk a = depElimQ (λ x → isEmpty/R (depConstrInsert a x) ≡ false) (λ _ → isProp→isSet (isSetBool _ _)) refl (λ q₁ a₁ x → {!!} ∙ x )
-
+    
     enqueueDequeueEmptyOk : (a : A) → dequeue/R (enqueue/R a depConstrEmpty) ≡ just (depConstrEmpty , a)
     enqueueDequeueEmptyOk a = refl
+    -}
+    --dequeueEnqueue formulation from "Internalizing Representation Independence with Univalence" by Angiuli et al.
+    returnOrEnq : A → Maybe (TLQ × A) → TLQ × A
+    returnOrEnq a m = Cubical.Data.Maybe.rec (depConstrEmpty , a) (λ p → (enqueue/R a (proj₁ p) , proj₂ p)) m
+
+    dequeueEnqueue : (a : A) (q : TLQ) → dequeue/R (enqueue/R a q) ≡ just (returnOrEnq a (dequeue/R q))
+    dequeueEnqueue a q =
+      ιTLQInsert⁻
+        (λ _ → Maybe (TLQ × A))
+        (λ _ → isSetDeqReturnType)
+        nothing
+        (λ q₁ outer m →
+          Cubical.Data.Maybe.rec (just (_/_.[ [] , [] ] , outer))
+          (λ p →
+             just
+             (SetQuotients.rec squash/ (λ q₂ → _/_.[ enqueue outer q₂ ])
+              (enqResp outer) (proj₁ p)
+              , proj₂ p))
+          m)
+        a
+        q
+        (λ m → m ≡ just (returnOrEnq a (dequeue/R q)) )
+        (congMaybeRec
+          (depConstrEmpty , a)
+          (λ p → ((depConstrInsert a (proj₁ p)) , proj₂ p))
+          (depElimQ
+            (λ _ → Maybe (TLQ × A))
+            (λ _ → isSetDeqReturnType)
+            nothing
+            (λ q1 outer m → Cubical.Data.Maybe.rec (just (depConstrEmpty , outer))
+            ((λ p → just ((depConstrInsert outer (proj₁ p)) , proj₂ p))) m)
+            q)
+          just)
 
     -- safe-head and safe-tail copied from std library List.Properties, these functions are private there
     safe-head : A → List A → A
@@ -478,11 +511,11 @@ module TwoList where
         ∙ (cong (λ l → func ([] , (rev l) ++ (y ∷ []))) (++-assoc l1 (rev l2) (x ∷ [])))
       wellDefined : (a b : Q) (r : R a b) → func a ≡ func b
       wellDefined a b r = wellDefinedHelp a ∙ cong (λ l → func ([] , rev l)) r ∙ (sym (wellDefinedHelp b))
-
+{-
     deqIsFastDeq : dequeue/R ≡ fastDequeue/R
     deqIsFastDeq = funExt (depElimQ (λ q → dequeue/R q ≡ fastDequeue/R q) (λ _ → isProp→isSet (isSetDeqReturnType _ _)) refl insertCase) where
       -- help : (q : TLQ) (a : A) → depConstrInsert a (proj₁ (fastDequeue/R q)) ≡ proj₁ (fastDequeue/R (depConstrInsert a q))
       -- help q a = ?
       insertCase : (q : TLQ) (a : A) → dequeue/R q ≡ fastDequeue/R q → dequeue/R (depConstrInsert a q) ≡ fastDequeue/R (depConstrInsert a q)
       insertCase q a Pq = {!!}
-
+-}
