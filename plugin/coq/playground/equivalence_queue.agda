@@ -124,6 +124,9 @@ module OneList where
     emptyFalseOk : (a : A) (q : Q) → isEmpty (depConstrInsert a q) ≡ false
     emptyFalseOk a = depElimOneList (λ x → isEmpty (depConstrInsert a x) ≡ false) refl (λ q₁ a₁ x i → x i)
 
+    frontEnqueueEmptyOk : (a : A) (q : Q) → isEmpty q ≡ true → front (enqueue a q) ≡ just (depConstrEmpty , a)
+    frontEnqueueEmptyOk a = depElimOneList (λ x → ∀ (proof : isEmpty x ≡ true) → front (enqueue a x) ≡ just (depConstrEmpty , a)) (λ x i → just (depConstrEmpty , a)) λ q a₁ proof proof' → Cubical.Data.Empty.elim (true≢false (sym proof'))
+
     implTest1 : dequeue (enqueue 2 (enqueue 1 [])) ≡ just (enqueue 2 [] , 1)
     implTest1 = refl
 
@@ -426,7 +429,7 @@ module TwoList where
     isEmpty/R = depElimQ (λ _ → Bool) (λ _ → isSetBool) true (λ _ _ _ →  false)
 
     front/R : TLQ → Maybe (TLQ × A)
-    front/R = depElimQ (λ x → Maybe (TLQ × A)) (λ x → {!!}) nothing λ q a x → just (q , a)
+    front/R = depElimQ (λ x → Maybe (TLQ × A)) (λ _ → isSetDeqReturnType) nothing λ q a x → just (q , a)
 
     emptyTrueOk : isEmpty/R depConstrEmpty ≡ true
     emptyTrueOk = refl
@@ -437,7 +440,10 @@ module TwoList where
         (λ x → isEmpty/R (depConstrInsert a x) ≡ false)
         (λ _ → isProp→isSet (isSetBool _ _))
         refl
-        (λ q₁ a₁ x i → ιTLQEmpty (λ x₁ → Bool) (λ _ → isSetBool) (false) (λ q a₂ x₁ → x i) (λ x₁ → {! Bool!}) (x i))
+        (λ q₁ a₁ x i → ιTLQEmpty (λ x₁ → Bool) (λ _ → isSetBool) (false) (λ q a₂ x₁ → x i) (λ x₁ → {! x !}) (x i))
+
+    frontEnqueueEmptyOk : (a : A) (q : TLQ) → isEmpty/R q ≡ true → front/R (enqueue/R a q) ≡ just (depConstrEmpty , a)
+    frontEnqueueEmptyOk a = depElimQ (λ x → ∀ (proof : isEmpty/R x ≡ true) → front/R (enqueue/R a x) ≡ just (depConstrEmpty , a)) {!!} (λ x i → just (depConstrEmpty , a)) (λ q a₁ proof proof' → Cubical.Data.Empty.elim (true≢false (sym {!!}))) -- needs iota here
 
     enqueueDequeueEmptyOk : (a : A) → dequeue/R (enqueue/R a depConstrEmpty) ≡ just (depConstrEmpty , a)
     enqueueDequeueEmptyOk a = refl
