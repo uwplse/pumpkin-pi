@@ -216,6 +216,9 @@ module TwoList where
     TLQ : Type
     TLQ = Q / R
 
+    isSetTLQ : isSet TLQ
+    isSetTLQ = squash/
+
     depConstrEmpty : Q / R
     depConstrEmpty = _/_.[ ([] , []) ]
 
@@ -271,8 +274,6 @@ module TwoList where
       lem2 q = transport-filler (cong P (canonicalizeResp⁻ q)) (lem P baseCase insertCase (insOrder q))
       lemResp : (q1 q2 : Q) → (r : R q1 q2) → PathP (λ i → P (cong (λ l → _/_.[ (l , []) ]) r i)) (lem P baseCase insertCase (insOrder q1)) (lem P baseCase insertCase (insOrder q2))
       lemResp q1 q2 r = congP (λ i a → lem P baseCase insertCase a) r
-      -- lem4 : (q1 q2 : Q) → (r : R q1 q2) → PathP (λ i → P ((cong (λ l → _/_.[ (l , []) ]) r ∙ canonicalizeResp⁻ q2) i)) (lem (insOrder q1)) (func q2)
-      -- lem4 q1 q2 r = compPathP' {B = P} {p = cong (λ l → _/_.[ (l , []) ]) r} {q = canonicalizeResp⁻ q2} (lemResp q1 q2 r) (lem2 q2)
       composedPaths : (q1 q2 : Q) → (r : R q1 q2) → PathP (λ i → P (((canonicalizeResp q1) ∙ (λ j → _/_.[ (r j , []) ]) ∙ (canonicalizeResp⁻ q2)) i)) (func q1) (func q2)
       composedPaths q1 q2 r = compPathP' {B = P} (symP (lem2 q1)) (compPathP' {B = P} (lemResp q1 q2 r) (lem2 q2))
       pathsEq : (q1 q2 : Q) → (r : R q1 q2) → ((canonicalizeResp q1) ∙ (λ j → _/_.[ (r j , []) ]) ∙ (canonicalizeResp⁻ q2)) ≡ eq/ q1 q2 r
@@ -497,14 +498,6 @@ module TwoList where
     fastDequeue/R : TLQ → Maybe (TLQ × A)
     fastDequeue/R = SetQuotients.rec isSetDeqReturnType func wellDefined where
       func : Q → Maybe (TLQ × A)
-      {- func (l1 , l2) =
-        ListRec
-          (ListRec
-            nothing
-            (λ a l _ → just (_/_.[ [] , safe-tail (rev (a ∷ l1)) ] , safe-head a (rev (a ∷ l1))))
-            l1)
-          (λ a l _ → just (_/_.[ l1 , l ] , a))
-          l2-}
       func ([] , []) = nothing
       func ((a ∷ l1) , []) = just (_/_.[ [] , safe-tail (rev (a ∷ l1)) ] , safe-head a (rev (a ∷ l1)))
       func ([] , (a ∷ l2)) = just (_/_.[ [] , l2 ] , a)
@@ -553,3 +546,44 @@ module TwoList where
       insertCase : (q : TLQ) (a : A) → dequeue/R q ≡ fastDequeue/R q → dequeue/R (depConstrInsert a q) ≡ fastDequeue/R (depConstrInsert a q)
       insertCase q a Pq = dequeueEnqueue a q ∙ cong (λ x → just (returnOrEnq a x)) Pq ∙ (sym (fastDequeueEnqueue a q))
 
+OLQ≡TLQ : OneList.Q ≡ TwoList.TLQ
+OLQ≡TLQ = isoToPath (iso f g sec ret) where
+  f : OneList.Q → TwoList.TLQ
+  f = OneList.depElimOneList
+        (λ _ → TwoList.TLQ)
+        TwoList.depConstrEmpty
+        (λ olq a tlq → TwoList.depConstrInsert a tlq)
+  g : TwoList.TLQ → OneList.Q
+  g = TwoList.depElimQ
+        (λ _ → OneList.Q)
+        (λ _ → OneList.isSetQ)
+        OneList.depConstrEmpty
+        λ tlq a olq → OneList.depConstrInsert a olq
+  sec : section f g
+  sec = TwoList.depElimQ
+          (λ x → f (g x) ≡ x)
+          (λ x → isProp→isSet (TwoList.isSetTLQ _ _))
+          refl
+          λ q a Pq → TwoList.ιTLQInsert⁻
+            (λ _ → OneList.Q)
+            (λ _ → OneList.isSetQ)
+            OneList.depConstrEmpty
+            (λ tlq a olq → OneList.depConstrInsert a olq)
+            a
+            q
+            (λ x → f x ≡ TwoList.depConstrInsert a q)
+            (cong (TwoList.depConstrInsert a) Pq)
+  ret : retract f g
+  ret = OneList.depElimOneList
+          (λ x → g (f x) ≡ x)
+          refl
+          λ q a Pq →
+            TwoList.ιTLQInsert⁻
+              (λ _ → OneList.Q)
+              (λ _ → OneList.isSetQ)
+              OneList.depConstrEmpty
+              (λ tlq a olq → OneList.depConstrInsert a olq)
+              a
+              (f q)
+              (λ x → x ≡ OneList.depConstrInsert a q)
+              (cong (OneList.depConstrInsert a) Pq)
