@@ -210,9 +210,6 @@ sumRememberEq (inr x) = inr (x , refl)
 
 open BinaryRelation
 
-Rrefl : {x : ℕ × ℕ} → R x x
-Rrefl {x1 , x2} = Nat.+-comm x1 x2
-
 -- 
 -- isSetProd : {A B : Set} → isSet A → isSet B → isSet (A × B)
 -- isSetProd {A} {B} setA setB = isOfHLevelProd 2 setA setB
@@ -221,7 +218,7 @@ Rprop : isPropValued R
 Rprop (a1 , a2) (b1 , b2) p1 p2 = isSetℕ (a1 Nat.+ b2) (a2 Nat.+ b1) p1 p2
 
 isReflR : isRefl R
-isReflR x = Rrefl
+isReflR (x1 , x2) = Nat.+-comm x1 x2
  
 isSymR : isSym R
 isSymR (x1 , x2) (y1 , y2) r = (Nat.+-comm y1 x2) ∙ (sym r) ∙ (Nat.+-comm x1 y2)
@@ -292,8 +289,8 @@ REquivRel = equivRel isReflR isSymR isTransR
 --R : (ℕ × ℕ) → (ℕ × ℕ) → Type
 --R (x1 , x2) (y1 , y2) = x1 Nat.+ y2 ≡ x2 Nat.+ y1
 
-RIrrel : ∀ x1 x2 (p : x1 Nat.+ x2 ≡ x2 Nat.+ x1) → p ≡ Rrefl {x1 , x2}
-RIrrel x1 x2 p = isSetℕ _ _ p (Rrefl {x1 , x2})
+RIrrel : ∀ x1 x2 (p : x1 Nat.+ x2 ≡ x2 Nat.+ x1) → p ≡ isReflR (x1 , x2)
+RIrrel x1 x2 p = isSetℕ _ _ p (isReflR (x1 , x2))
 
 depElimGZ : (P : GZ → Set) → (∀ x → isSet (P x)) → (∀ n → P (depConstrGZPos n)) → (∀ n → P (depConstrGZNegSuc n)) → ∀ z → P z
 depElimGZ P set posP negsucP = SetQuotients.elim set func resp where
@@ -971,3 +968,55 @@ addEqual = funExt (λ x → funExt (λ y → addEqualOnInputs x y))
 
 add'0LGZ : (z : GZ) → z ≡ addGZ' (depConstrGZPos 0) z
 add'0LGZ = subst (λ y → (z : GZ) → z ≡ y (depConstrGZPos 0) z) (sym addEqual) add0LGZ
+
+isSetℤ : isSet ℤ
+isSetℤ = {!!}
+
+IndZ≡GZ : ℤ ≡ GZ
+IndZ≡GZ = isoToPath (iso f g sec ret) where
+  f : ℤ → GZ
+  f = depElimIndZ (λ _ → GZ) depConstrGZPos depConstrGZNegSuc
+  g : GZ → ℤ
+  g = depElimGZ (λ _ → ℤ) (λ _ → isSetℤ) depConstrIndZPos depConstrIndZNegSuc
+  sec : section f g
+  sec =
+    depElimGZ
+      (λ x → f (g x) ≡ x)
+      (λ x → isProp→isSet (squash/ _ _))
+      (λ n → ιGZPos⁻
+        (λ _ → ℤ)
+        (λ _ → isSetℤ)
+        depConstrIndZPos
+        depConstrIndZNegSuc
+        n
+        (λ z → f z ≡ depConstrGZPos n)
+        refl)
+      λ n → ιGZNegSuc⁻
+        (λ _ → ℤ)
+        (λ _ → isSetℤ)
+        depConstrIndZPos
+        depConstrIndZNegSuc
+        n
+        (λ z → f z ≡ depConstrGZNegSuc n)
+        refl
+  ret : retract f g
+  ret =
+    depElimIndZ
+      (λ x → g (f x) ≡ x)
+      (λ n → ιGZPos⁻
+        (λ _ → ℤ)
+        (λ _ → isSetℤ)
+        depConstrIndZPos
+        depConstrIndZNegSuc
+        n
+        (λ z → z ≡ depConstrIndZPos n )
+        refl)
+      λ n → ιGZNegSuc⁻
+        (λ _ → ℤ)
+        (λ _ → isSetℤ)
+        depConstrIndZPos
+        depConstrIndZNegSuc
+        n
+        (λ z → z ≡ depConstrIndZNegSuc n )
+        refl
+  
