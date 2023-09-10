@@ -969,8 +969,47 @@ addEqual = funExt (λ x → funExt (λ y → addEqualOnInputs x y))
 add'0LGZ : (z : GZ) → z ≡ addGZ' (depConstrGZPos 0) z
 add'0LGZ = subst (λ y → (z : GZ) → z ≡ y (depConstrGZPos 0) z) (sym addEqual) add0LGZ
 
+-- copying in proof that ℤ is a set from the standard library
+injPos : ∀ {a b : ℕ} → pos a ≡ pos b → a ≡ b
+injPos {a} h = subst T h refl
+  where
+  T : ℤ → Type₀
+  T (pos x)    = a ≡ x
+  T (negsuc _) = ⊥
+
+injNegsuc : ∀ {a b : ℕ} → negsuc a ≡ negsuc b → a ≡ b
+injNegsuc {a} h = subst T h refl
+  where
+  T : ℤ → Type₀
+  T (pos _) = ⊥
+  T (negsuc x) = a ≡ x
+
+posNotnegsuc : ∀ (a b : ℕ) → ¬ (pos a ≡ negsuc b)
+posNotnegsuc a b h = subst T h 0
+  where
+  T : ℤ → Type₀
+  T (pos _)    = ℕ
+  T (negsuc _) = ⊥
+
+negsucNotpos : ∀ (a b : ℕ) → ¬ (negsuc a ≡ pos b)
+negsucNotpos a b h = subst T h 0
+  where
+  T : ℤ → Type₀
+  T (pos _)    = ⊥
+  T (negsuc _) = ℕ
+
+discreteℤ : Discrete ℤ
+discreteℤ (pos n) (pos m) with discreteℕ n m
+... | yes p = yes (cong pos p)
+... | no p  = no (λ x → p (injPos x))
+discreteℤ (pos n) (negsuc m) = no (posNotnegsuc n m)
+discreteℤ (negsuc n) (pos m) = no (negsucNotpos n m)
+discreteℤ (negsuc n) (negsuc m) with discreteℕ n m
+... | yes p = yes (cong negsuc p)
+... | no p  = no (λ x → p (injNegsuc x))
+
 isSetℤ : isSet ℤ
-isSetℤ = {!!}
+isSetℤ = Discrete→isSet discreteℤ
 
 IndZ≡GZ : ℤ ≡ GZ
 IndZ≡GZ = isoToPath (iso f g sec ret) where
