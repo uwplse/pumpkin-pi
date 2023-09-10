@@ -57,8 +57,10 @@ congMaybeRec a b m f =
     m
 
 module OneList where
-    Q = List ℕ
     A = ℕ
+    isSetA : isSet A
+    isSetA = isSetℕ
+    Q = List A
 
     bind : (Maybe (Q × A)) → ((Q × A) → (Maybe (Q × A))) → Maybe (Q × A)
     bind (just x) f = f x
@@ -143,7 +145,7 @@ module OneList where
         (depConstrEmpty , a)
         (λ p → ((depConstrInsert a (proj₁ p)) , proj₂ p))
         (depElimOneList
-          (λ _ → Maybe (Q × ℕ))
+          (λ _ → Maybe (Q × A))
           nothing
           (λ q₁ outer m →
             Cubical.Data.Maybe.rec (just (depConstrEmpty , outer))
@@ -154,11 +156,13 @@ module OneList where
     OneList = record { A = A; Q = Q ; null = [] ; enqueue = enqueue; dequeue = dequeue}
 
     isSetQ : isSet Q
-    isSetQ = isOfHLevelList 0 isSetℕ
+    isSetQ = isOfHLevelList 0 isSetA
 
 module TwoList where
-    Q = (List ℕ × List ℕ)
     A = ℕ
+    isSetA : isSet A
+    isSetA = isSetℕ
+    Q = (List A × List A)
 
     dequeue : Q → Maybe (Q × A)
     dequeue (x , []) = let xs = rev x in help xs where
@@ -181,14 +185,14 @@ module TwoList where
     insOrderCanonicalizeResp : (q : Q) → insOrder q ≡ insOrder (canonicalize q)
     insOrderCanonicalizeResp q = sym (++-unit-r (insOrder q))
 
-    isEmpty : List ℕ → Bool
+    isEmpty : List A → Bool
     isEmpty [] = true
     isEmpty (x ∷ x₁) = false
 
     head : List ℕ → ℕ
     head [] = 0
     head (x ∷ x₁) = x
-    tail : List ℕ → List ℕ
+    tail : List A → List A
     tail [] = []
     tail (x ∷ xs) = xs
 
@@ -196,14 +200,14 @@ module TwoList where
     last [] = 0
     last (x ∷ []) = x
     last (x ∷ xs ∷ xs') = last (xs ∷ xs')
-    allButLast : List ℕ → List ℕ
+    allButLast : List A → List A
     allButLast [] = []
     allButLast (x ∷ []) = []
     allButLast (x ∷ xs ∷ xs') = x ∷ allButLast (xs ∷ xs')
 
-    π₁ : Q → List ℕ
+    π₁ : Q → List A
     π₁ (x , x₁) = x
-    π₂ : Q → List ℕ
+    π₂ : Q → List A
     π₂ (x , x₁) = x₁
 
     R : Q → Q → Type
@@ -408,10 +412,9 @@ module TwoList where
       
     enqueue/R : A → TLQ → TLQ
     enqueue/R = depConstrInsert
-
-    abstract 
-      isSetDeqReturnType : isSet (Maybe (TLQ × A))
-      isSetDeqReturnType = isOfHLevelMaybe 0 (isOfHLevelProd 2 squash/ isSetℕ)
+ 
+    isSetDeqReturnType : isSet (Maybe (TLQ × A))
+    isSetDeqReturnType = isOfHLevelMaybe 0 (isOfHLevelProd 2 squash/ isSetA)
 
     dequeue/R : TLQ → Maybe (TLQ × A)
     dequeue/R = depElimQ (λ x → Maybe (TLQ × A)) (λ _ → isSetDeqReturnType) nothing recCase where
