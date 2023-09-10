@@ -550,8 +550,6 @@ module TwoList where
 
     deqIsFastDeq : dequeue/R ≡ fastDequeue/R
     deqIsFastDeq = funExt (depElimQ (λ q → dequeue/R q ≡ fastDequeue/R q) (λ _ → isProp→isSet (isSetDeqReturnType _ _)) refl insertCase) where
-      -- help : (q : TLQ) (a : A) → depConstrInsert a (proj₁ (fastDequeue/R q)) ≡ proj₁ (fastDequeue/R (depConstrInsert a q))
-      -- help q a = ?
       insertCase : (q : TLQ) (a : A) → dequeue/R q ≡ fastDequeue/R q → dequeue/R (depConstrInsert a q) ≡ fastDequeue/R (depConstrInsert a q)
       insertCase q a Pq = dequeueEnqueue a q ∙ cong (λ x → just (returnOrEnq a x)) Pq ∙ (sym (fastDequeueEnqueue a q))
 
