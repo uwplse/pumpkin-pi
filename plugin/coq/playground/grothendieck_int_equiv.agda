@@ -157,52 +157,11 @@ canonicalizeIdempotent (zero , p2) = refl
 canonicalizeIdempotent (suc p1 , zero) = refl
 canonicalizeIdempotent (suc p1 , suc p2) = canonicalizeIdempotent (p1 , p2)
 
-canonicalizeSignDecCanonicalType : (p : ℕ × ℕ) → (Σ[ n ∈ ℕ ] (canonicalize p ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((canonicalize p ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m)))) ≡ (Σ[ n ∈ ℕ ] (canonicalize (canonicalize p) ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((canonicalize (canonicalize p) ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m))))
-canonicalizeSignDecCanonicalType p = subst (λ x → (Σ[ n ∈ ℕ ] (canonicalize p ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((canonicalize p ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m)))) ≡ (Σ[ n ∈ ℕ ] (x ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((x ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m))))) (canonicalizeIdempotent p) refl
-
 isSetProd : {A B : Set} → isSet A → isSet B → isSet (A × B)
 isSetProd {A} {B} setA setB = isOfHLevelProd 2 setA setB
 
 isSetℕ×ℕ : isSet (ℕ × ℕ)
 isSetℕ×ℕ = isSetProd isSetℕ isSetℕ
-
-isSetCanonicalizeSignDecCanonicalType : (p : ℕ × ℕ) → isSet ((Σ[ n ∈ ℕ ] (canonicalize p ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((canonicalize p ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m)))))
-isSetCanonicalizeSignDecCanonicalType p = isSet⊎ (isSetΣ isSetℕ (λ n → isProp→isSet (isSetℕ×ℕ (canonicalize p) ((n , zero)))))
-                                                 (isSetΣ isSetℕ (λ n → isSetProd (isProp→isSet (isSetℕ×ℕ (canonicalize p) (zero , n)))
-                                                                                 (isSetΣ isSetℕ (λ x → isProp→isSet (isSetℕ n (suc x))))))
-
-canonicalizeSignDecCanonicalLeftFst : (p : ℕ × ℕ) → (Σ[ n ∈ ℕ ] (canonicalize p ≡ (n , zero))) ≡ (Σ[ n ∈ ℕ ] (canonicalize (canonicalize p) ≡ (n , zero)))
-canonicalizeSignDecCanonicalLeftFst p = subst (λ x → (Σ[ n ∈ ℕ ] (canonicalize p ≡ (n , zero))) ≡ (Σ[ n ∈ ℕ ] (x ≡ (n , zero)))) (canonicalizeIdempotent p) refl
-
--- idea: construct a PathP from canonicalizeSignDec p to canonicalizeSignDec (canonicalize p), then transport across it 
-
-canonicalizeSignDecCanonical : (p : ℕ × ℕ) → PathP (λ i → canonicalizeSignDecCanonicalType p i) (canonicalizeSignDec p) (canonicalizeSignDec (canonicalize p))
-canonicalizeSignDecCanonical (zero , p2) = subst (λ x → PathP (λ i → x i) (canonicalizeSignDec (zero , p2)) (canonicalizeSignDec (canonicalize (zero , p2)))) (lem p2) refl where
-  pathPLem : (p2 : ℕ) → PathP (λ i → (Σ[ n ∈ ℕ ] (canonicalize (zero , p2) ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((canonicalize (zero , p2) ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m)))) ≡ (Σ[ n ∈ ℕ ] ((refl i) ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] (((refl {x = (zero , p2)} i) ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m))))) refl (canonicalizeSignDecCanonicalType (zero , p2))
-  pathPLem p2 = subst-filler ((λ x → (Σ[ n ∈ ℕ ] (canonicalize (zero , p2) ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((canonicalize (zero , p2) ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m)))) ≡ (Σ[ n ∈ ℕ ] (x ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((x ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m)))))) refl refl
-  lem : (p2 : ℕ) → refl ≡ canonicalizeSignDecCanonicalType (zero , p2)
-  lem = pathPLem
-canonicalizeSignDecCanonical (suc p1 , zero) = subst (λ x → PathP (λ i → x i) (canonicalizeSignDec (suc p1 , zero)) (canonicalizeSignDec (canonicalize (suc p1 , zero)))) (lem p1) refl where
-  pathPLem : (p1 : ℕ) → PathP (λ i → (Σ[ n ∈ ℕ ] (canonicalize (suc p1 , zero) ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((canonicalize (suc p1 , zero) ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m)))) ≡ (Σ[ n ∈ ℕ ] ((refl i) ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((((refl {x = (suc p1 , zero)} i)) ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m))))) refl (canonicalizeSignDecCanonicalType (suc p1 , zero))
-  pathPLem p1 = subst-filler ((λ x → (Σ[ n ∈ ℕ ] (canonicalize (suc p1 , zero) ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((canonicalize (suc p1 , zero) ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m)))) ≡ (Σ[ n ∈ ℕ ] (x ≡ (n , zero))) ⊎ (Σ[ n ∈ ℕ ] ((x ≡ (zero , n)) × (Σ[ m ∈ ℕ ] (n ≡ suc m)))))) refl refl
-  lem : (p1 : ℕ) → refl ≡ canonicalizeSignDecCanonicalType (suc p1 , zero)
-  lem = pathPLem
-canonicalizeSignDecCanonical (suc p1 , suc p2) = canonicalizeSignDecCanonical (p1 , p2)
-
--- canonicalizeSignDecCanonicalLeft : (p : ℕ × ℕ) → (Σ[ y ∈ (Σ[ n ∈ ℕ ] (canonicalize p ≡ (n , zero))) ] (canonicalizeSignDec p ≡ inl y)) ≡ (Σ[ y ∈ (Σ[ n ∈ ℕ ] (canonicalize (canonicalize p) ≡ (n , zero))) ] (canonicalizeSignDec (canonicalize p) ≡ inl y))
--- canonicalizeSignDecCanonicalLeft p = Σ-cong' (canonicalizeSignDecCanonicalLeftFst p) ({!!})
-
-canonicalizeSignDecCanonicalLeft' : (p : ℕ × ℕ) → (Σ[ y ∈ (Σ[ n ∈ ℕ ] (canonicalize p ≡ (n , zero))) ] (canonicalizeSignDec p ≡ inl y)) → (Σ[ y ∈ (Σ[ n ∈ ℕ ] (canonicalize (canonicalize p) ≡ (n , zero))) ] (canonicalizeSignDec (canonicalize p) ≡ inl y))
-canonicalizeSignDecCanonicalLeft' p ((zero , s12) , s2) = subst (λ x → Σ-syntax (Σ-syntax ℕ
-                                                                                          (λ n → canonicalize x ≡ (n , zero)))
-                                                                                          (λ y → canonicalizeSignDec x ≡ inl y))
-                                                                                (sym s12)
-                                                                                ((zero , canonicalizeRZ zero) , refl)
-canonicalizeSignDecCanonicalLeft' p ((suc s11 , s12) , s2) = subst (λ x → Σ-syntax (Σ-syntax ℕ
-                                                                                             (λ n → canonicalize x ≡ (n , zero)))
-                                                                                             (λ y → canonicalizeSignDec x ≡ inl y))
-                                                                                   (sym s12)
-                                                                                   (((suc s11) , refl) , refl)
 
 sumRememberEq : {A B : Set} → (x : A ⊎ B) → (Σ[ a ∈ A ] x ≡ inl a) ⊎ (Σ[ b ∈ B ] x ≡ inr b)
 sumRememberEq (inl x) = inl (x , refl)
@@ -281,13 +240,6 @@ isTransR (x1 , x2) (y1 , y2) (z1 , z2) r1 r2 = addBothSides (sym r1) (addBothSid
 
 REquivRel : isEquivRel R
 REquivRel = equivRel isReflR isSymR isTransR
--- 
--- rFromPath : {a b : ℕ × ℕ } → [ a ] ≡ [ b ] → R a b
--- rFromPath {a} {b} p = effective Rprop REquivRel a b p
---
-
---R : (ℕ × ℕ) → (ℕ × ℕ) → Type
---R (x1 , x2) (y1 , y2) = x1 Nat.+ y2 ≡ x2 Nat.+ y1
 
 RIrrel : ∀ x1 x2 (p : x1 Nat.+ x2 ≡ x2 Nat.+ x1) → p ≡ isReflR (x1 , x2)
 RIrrel x1 x2 p = isSetℕ _ _ p (isReflR (x1 , x2))
@@ -569,8 +521,8 @@ add0LGZ z = depElimGZ
                           n)
                 z
 
-addNegSuc0LGZ : (z : GZ) → predGZ z ≡ (depConstrGZNegSuc zero) +GZ z
-addNegSuc0LGZ z = {!!}
+-- addNegSuc0LGZ : (z : GZ) → predGZ z ≡ (depConstrGZNegSuc zero) +GZ z
+-- addNegSuc0LGZ z = {!!}
 
 addHelpFunc' : (ℕ × ℕ) → (ℕ × ℕ) → (ℕ × ℕ)
 addHelpFunc' (n1 , n2) (m1 , m2) = (n1 + m1 , n2 + m2)
