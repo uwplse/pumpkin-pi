@@ -23,10 +23,8 @@ open import Cubical.Data.Unit
 open import Cubical.Data.Prod
 open import Cubical.Data.Bool
 open import Cubical.Data.List
--- open import Agda.Builtin.Equality renaming (_≡_ to _≡'_; refl to refl')
 
 record Queue {ℓ} : Set (ℓ-suc ℓ) where
--- record Queue {ℓ} (A : Set ℓ) : Set (ℓ-suc ℓ) where
   field
     A : Set ℓ
     Q : Set ℓ
@@ -60,73 +58,73 @@ module OneList where
     A = ℕ
     isSetA : isSet A
     isSetA = isSetℕ
-    Q = List A
+    OLQ = List A
 
-    bind : (Maybe (Q × A)) → ((Q × A) → (Maybe (Q × A))) → Maybe (Q × A)
+    bind : (Maybe (OLQ × A)) → ((OLQ × A) → (Maybe (OLQ × A))) → Maybe (OLQ × A)
     bind (just x) f = f x
     bind nothing f = nothing
 
-    last : Q → Maybe (Q × A)
+    last : OLQ → Maybe (OLQ × A)
     last [] = nothing
     last (x ∷ []) = just ([] ,  x)
     last (x ∷ (x₁ ∷ x')) = bind (last (x₁ ∷ x')) (help x)
        where
-       help : A → (Q × A) → (Maybe (Q × A))
+       help : A → (OLQ × A) → (Maybe (OLQ × A))
        help x (xs , res) = just ((x ∷ xs) , res)
 
-    enqueue' : A → Q → Q
+    enqueue' : A → OLQ → OLQ
     enqueue' x x' = x ∷ x'
 
-    dequeue' : Q → Maybe (Q × A)
+    dequeue' : OLQ → Maybe (OLQ × A)
     dequeue' [] = nothing
     dequeue' (x ∷ xs) with (dequeue' xs)
     ...                    | nothing = just ([] , x)
     ...                    | just (q , a) = just (x ∷ q , a)
 
 
-    depConstrEmpty : Q
+    depConstrEmpty : OLQ
     depConstrEmpty = []
 
-    depConstrInsert : A → Q → Q
+    depConstrInsert : A → OLQ → OLQ
     depConstrInsert a q = a ∷ q
 
-    depElimOneList : (P : Q -> Type) -> (P depConstrEmpty) -> (∀ q a -> (P q) -> P (depConstrInsert a q)) -> ((x : Q) -> P x)
+    depElimOneList : (P : OLQ -> Type) -> (P depConstrEmpty) -> (∀ q a -> (P q) -> P (depConstrInsert a q)) -> ((x : OLQ) -> P x)
     depElimOneList P baseCase consCase [] = baseCase
     depElimOneList P baseCase consCase (x ∷ l) = consCase l x (depElimOneList P baseCase consCase l)
 
-    ιOneListInsertEq : (P : Q → Set) →
+    ιOneListInsertEq : (P : OLQ → Set) →
       (emptyP : P depConstrEmpty) →
-      (insertP : (q : Q) → (a : A) → (P q) → P (depConstrInsert a q)) →
-      (a : A) → (q : Q) →
+      (insertP : (q : OLQ) → (a : A) → (P q) → P (depConstrInsert a q)) →
+      (a : A) → (q : OLQ) →
       depElimOneList P emptyP insertP (depConstrInsert a q)
       ≡ insertP q a (depElimOneList P emptyP insertP q)
     ιOneListInsertEq P pset emptyP insertP a = refl
 
-    enqueue : A → Q → Q
+    enqueue : A → OLQ → OLQ
     enqueue = depConstrInsert
 
-    dequeue : Q → Maybe (Q × A)
-    dequeue = depElimOneList (λ _ → Maybe (Q × A)) nothing recCase where
-      recCase : (q : Q) (outer : A) → Maybe (Q × A) → Maybe (Q × A)
+    dequeue : OLQ → Maybe (OLQ × A)
+    dequeue = depElimOneList (λ _ → Maybe (OLQ × A)) nothing recCase where
+      recCase : (q : OLQ) (outer : A) → Maybe (OLQ × A) → Maybe (OLQ × A)
       recCase q outer m =
         Cubical.Data.Maybe.rec
           (just (depConstrEmpty , outer))
           (λ p → just (depConstrInsert outer (proj₁ p) , (proj₂ p)))
           m
 
-    front : Q → Maybe (Q × A)
-    front = depElimOneList (λ x₁ → Maybe (Q × A)) nothing (λ q a x₁ → just (q , a))
+    front : OLQ → Maybe (OLQ × A)
+    front = depElimOneList (λ x₁ → Maybe (OLQ × A)) nothing (λ q a x₁ → just (q , a))
 
-    isEmpty : Q → Bool
+    isEmpty : OLQ → Bool
     isEmpty = depElimOneList (λ _ → Bool) true (λ _ _ _ →  false)
 
     emptyTrueOk : isEmpty depConstrEmpty ≡ true
     emptyTrueOk = refl
 
-    emptyFalseOk : (a : A) (q : Q) → isEmpty (depConstrInsert a q) ≡ false
+    emptyFalseOk : (a : A) (q : OLQ) → isEmpty (depConstrInsert a q) ≡ false
     emptyFalseOk a = depElimOneList (λ x → isEmpty (depConstrInsert a x) ≡ false) refl (λ q₁ a₁ x i → x i)
 
-    frontEnqueueEmptyOk : (a : A) (q : Q) → isEmpty q ≡ true → front (enqueue a q) ≡ just (depConstrEmpty , a)
+    frontEnqueueEmptyOk : (a : A) (q : OLQ) → isEmpty q ≡ true → front (enqueue a q) ≡ just (depConstrEmpty , a)
     frontEnqueueEmptyOk a = depElimOneList (λ x → ∀ (proof : isEmpty x ≡ true) → front (enqueue a x) ≡ just (depConstrEmpty , a)) (λ x i → just (depConstrEmpty , a)) λ q a₁ proof proof' → Cubical.Data.Empty.elim (true≢false (sym proof'))
 
     implTest1 : dequeue (enqueue 2 (enqueue 1 [])) ≡ just (enqueue 2 [] , 1)
@@ -139,16 +137,16 @@ module OneList where
     dequeueEmpty = refl
 
     --dequeueEnqueue formulation from "Internalizing Representation Independence with Univalence" by Angiuli et al.
-    returnOrEnq : A → Maybe (Q × A) → Q × A
+    returnOrEnq : A → Maybe (OLQ × A) → OLQ × A
     returnOrEnq a m = Cubical.Data.Maybe.rec (depConstrEmpty , a) (λ p → (enqueue a (proj₁ p) , proj₂ p)) m
 
-    dequeueEnqueue : (a : A) (q : Q) → dequeue (enqueue a q) ≡ just (returnOrEnq a (dequeue q))
+    dequeueEnqueue : (a : A) (q : OLQ) → dequeue (enqueue a q) ≡ just (returnOrEnq a (dequeue q))
     dequeueEnqueue a q =
       congMaybeRec
         (depConstrEmpty , a)
         (λ p → ((depConstrInsert a (proj₁ p)) , proj₂ p))
         (depElimOneList
-          (λ _ → Maybe (Q × A))
+          (λ _ → Maybe (OLQ × A))
           nothing
           (λ q₁ outer m →
             Cubical.Data.Maybe.rec (just (depConstrEmpty , outer))
@@ -156,10 +154,10 @@ module OneList where
         q)
         just
 
-    OneList = record { A = A; Q = Q ; null = [] ; enqueue = enqueue; dequeue = dequeue}
+    OneList = record { A = A; Q = OLQ ; null = [] ; enqueue = enqueue; dequeue = dequeue}
 
-    isSetQ : isSet Q
-    isSetQ = isOfHLevelList 0 isSetA
+    isSetOLQ : isSet OLQ
+    isSetOLQ = isOfHLevelList 0 isSetA
 
 module TwoList where
     A = ℕ
@@ -552,17 +550,17 @@ module TwoList where
       insertCase : (q : TLQ) (a : A) → dequeue/R q ≡ fastDequeue/R q → dequeue/R (depConstrInsert a q) ≡ fastDequeue/R (depConstrInsert a q)
       insertCase q a Pq = dequeueEnqueue a q ∙ cong (λ x → just (returnOrEnq a x)) Pq ∙ (sym (fastDequeueEnqueue a q))
 
-OLQ≡TLQ : OneList.Q ≡ TwoList.TLQ
+OLQ≡TLQ : OneList.OLQ ≡ TwoList.TLQ
 OLQ≡TLQ = isoToPath (iso f g sec ret) where
-  f : OneList.Q → TwoList.TLQ
+  f : OneList.OLQ → TwoList.TLQ
   f = OneList.depElimOneList
         (λ _ → TwoList.TLQ)
         TwoList.depConstrEmpty
         (λ olq a tlq → TwoList.depConstrInsert a tlq)
-  g : TwoList.TLQ → OneList.Q
+  g : TwoList.TLQ → OneList.OLQ
   g = TwoList.depElimQ
-        (λ _ → OneList.Q)
-        (λ _ → OneList.isSetQ)
+        (λ _ → OneList.OLQ)
+        (λ _ → OneList.isSetOLQ)
         OneList.depConstrEmpty
         λ tlq a olq → OneList.depConstrInsert a olq
   sec : section f g
@@ -571,8 +569,8 @@ OLQ≡TLQ = isoToPath (iso f g sec ret) where
           (λ x → isProp→isSet (TwoList.isSetTLQ _ _))
           refl
           λ q a Pq → TwoList.ιTLQInsert⁻
-            (λ _ → OneList.Q)
-            (λ _ → OneList.isSetQ)
+            (λ _ → OneList.OLQ)
+            (λ _ → OneList.isSetOLQ)
             OneList.depConstrEmpty
             (λ tlq a olq → OneList.depConstrInsert a olq)
             a
@@ -585,8 +583,8 @@ OLQ≡TLQ = isoToPath (iso f g sec ret) where
           refl
           λ q a Pq →
             TwoList.ιTLQInsert⁻
-              (λ _ → OneList.Q)
-              (λ _ → OneList.isSetQ)
+              (λ _ → OneList.OLQ)
+              (λ _ → OneList.isSetOLQ)
               OneList.depConstrEmpty
               (λ tlq a olq → OneList.depConstrInsert a olq)
               a
