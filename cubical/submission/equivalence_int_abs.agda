@@ -435,36 +435,6 @@ addOKPos = refl
 addOKNeg : addInt/rInt' [ neg 2 ] [ neg 7 ] ≡ [ neg 9 ]
 addOKNeg = refl
 
--- Proof of correctness of repaired function
-addCorrect :
-  ∀ (a b : ℕ) (a' b' : Int / rInt) →
-  ∀ (pa : PathP (λ i → Nat≡Int/rInt i) a a') (pb : PathP (λ i → Nat≡Int/rInt i) b b') →
-  PathP (λ i → Nat≡Int/rInt i) (add' a b) (addInt/rInt' a' b')
-addCorrect a b a' b' pa pb =
-  JDep
-    {A = Nat}
-    {B = λ _ → Int / rInt}
-    (λ y p z q → PathP (λ i → Nat≡Int/rInt i) y z)
-    (Cubical.Data.Nat.elim
-      {A = λ a → ∀ (a' : Int / rInt) (pa : PathP (λ i → Nat≡Int/rInt i) a a') →
-        PathP (λ i → Nat≡Int/rInt i) (add' a b) (addInt/rInt' (transport (λ i → Nat≡Int/rInt i) a) b')}
-      (λ _ _ → pb)
-      (λ a (IHa : ∀ a' pa → PathP _ (add' a b) (addInt/rInt' (transport (λ i → Nat≡Int/rInt i) a) b')) a' pa →
-        toPathP
-          (cong
-            depConstrInt/rIntS
-            (fromPathP (IHa (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl)))))
-      a
-      a'
-      pa)
-    refl
-    (subst
-      {x = a'}
-      {y = transport Nat≡Int/rInt a}
-      (λ (z : Int / rInt) → addInt/rInt' z b' ≡  addInt/rInt' a' b')
-      (sym (fromPathP pa))
-      refl)
-
 {- Correctness for dependent constructors and eliminators -}
 
 Nat≡Int/rIntIrrel : ∀ (a : ℕ) (b : Int / rInt) (p1 p2 : PathP (λ i → Nat≡Int/rInt i) a b) →
@@ -786,11 +756,11 @@ pathOK = ?
 
 {- From this, we can already prove add and the proofs about it correct (will do proofs at botom of file) -}
 
-addCorrectBetter :
+addCorrect :
   ∀ (a b : ℕ) (a' b' : Int / rInt) →
   ∀ (pa : PathP (λ i → Nat≡Int/rInt i) a a') (pb : PathP (λ i → Nat≡Int/rInt i) b b') →
   PathP (λ i → Nat≡Int/rInt i) (add' a b) (addInt/rInt' a' b')
-addCorrectBetter a b a' b' pa pb =
+addCorrect a b a' b' pa pb =
   appOK
     {T = λ i → Nat≡Int/rInt i}
     {F = λ i n → Nat≡Int/rInt i}
@@ -1154,10 +1124,10 @@ addCommInt/rInt' a b =
 
 sucLemBaseCaseCorrect : ∀ (i : I) (b : Nat≡Int/rInt i) →
   depConstrSCorrect _ _
-    (addCorrectBetter zero _ depConstrInt/rInt0 _ depConstr0Correct (λ j → alternateFunExtDep.coei→j _ i j b))
+    (addCorrect zero _ depConstrInt/rInt0 _ depConstr0Correct (λ j → alternateFunExtDep.coei→j _ i j b))
     i
   ≡
-  addCorrectBetter zero _ depConstrInt/rInt0 _ depConstr0Correct
+  addCorrect zero _ depConstrInt/rInt0 _ depConstr0Correct
     (depConstrSCorrect _ _ (λ j → alternateFunExtDep.coei→j _ i j b))
     i
 sucLemBaseCaseCorrect i b = -- TODO find a way to do this one systematically instead of by hand
@@ -1173,8 +1143,8 @@ sucLemElimCorrect :
         (λ (b : ℕ) → suc (add' a b) ≡ add' a (suc b))
         (λ (b : Int / rInt) → depConstrInt/rIntS (addInt/rInt' a' b) ≡ addInt/rInt' a' (depConstrInt/rIntS b))
         (λ {b} {b'} b≡b' j →
-          depConstrSCorrect (add' a b) (addInt/rInt' a' b') (addCorrectBetter a b a' b' a≡a' b≡b') j ≡
-          addCorrectBetter a (suc b) a' (depConstrInt/rIntS b') a≡a' (depConstrSCorrect b b' b≡b') j)
+          depConstrSCorrect (add' a b) (addInt/rInt' a' b') (addCorrect a b a' b' a≡a' b≡b') j ≡
+          addCorrect a (suc b) a' (depConstrInt/rIntS b') a≡a' (depConstrSCorrect b b' b≡b') j)
         i
         b)
     (λ b → sucLemNat'' a b)
@@ -1191,8 +1161,8 @@ sucLemElimCorrect a a' a≡a' =
         (λ (b : ℕ) → suc (add' a b) ≡ add' a (suc b))
         (λ (b : Int / rInt) → depConstrInt/rIntS (addInt/rInt' a' b) ≡ addInt/rInt' a' (depConstrInt/rIntS b))
         (λ {b} {b'} b≡b' j →
-          depConstrSCorrect (add' a b) (addInt/rInt' a' b') (addCorrectBetter a b a' b' a≡a' b≡b') j ≡
-          addCorrectBetter a (suc b) a' (depConstrInt/rIntS b') a≡a' (depConstrSCorrect b b' b≡b') j)
+          depConstrSCorrect (add' a b) (addInt/rInt' a' b') (addCorrect a b a' b' a≡a' b≡b') j ≡
+          addCorrect a (suc b) a' (depConstrInt/rIntS b') a≡a' (depConstrSCorrect b b' b≡b') j)
         i
         b)
     (λ b → refl {x = suc b})
@@ -1216,8 +1186,8 @@ sucLemCorrect :
   ∀ a a' (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') b b' (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
   PathP
     (λ i →
-      depConstrSCorrect (add' a b) (addInt/rInt' a' b') (addCorrectBetter a b a' b' a≡a' b≡b') i ≡
-      addCorrectBetter a (suc b) a' (depConstrInt/rIntS b') a≡a' (depConstrSCorrect b b' b≡b') i)
+      depConstrSCorrect (add' a b) (addInt/rInt' a' b') (addCorrect a b a' b' a≡a' b≡b') i ≡
+      addCorrect a (suc b) a' (depConstrInt/rIntS b') a≡a' (depConstrSCorrect b b' b≡b') i)
     (sucLemNat'' a b)
     (sucLemInt/rInt'' a' b')
 sucLemCorrect a a' a≡a' b b' b≡b' =
@@ -1235,7 +1205,7 @@ addCommCorrectType :
   (a : ℕ) (a' : Int / rInt) (a≡a' : PathP (λ i → Nat≡Int/rInt i) a a') (b : ℕ) (b' : Int / rInt) (b≡b' : PathP (λ i → Nat≡Int/rInt i) b b') →
   PathP (λ i → Type) (add' a b ≡ add' b a) (addInt/rInt' a' b' ≡ addInt/rInt' b' a')
 addCommCorrectType a a' a≡a' b b' b≡b' =
-  eqOK (addCorrectBetter a b a' b' a≡a' b≡b') (addCorrectBetter b a b' a' b≡b' a≡a')
+  eqOK (addCorrect a b a' b' a≡a' b≡b') (addCorrect b a b' a' b≡b' a≡a')
 
 -- TODO
 addCommMotiveCorrect :
@@ -1248,8 +1218,8 @@ addCommMotiveCorrect a a' a≡a =
     (λ (b : ℕ) → add' a b ≡ add' b a)
     (λ (b : Int / rInt) → addInt/rInt' a' b ≡ addInt/rInt' b a')
     λ {t} {t'} p → eqOK
-      (addCorrectBetter a t a' t' a≡a p)
-      (addCorrectBetter t a t' a' p a≡a)
+      (addCorrect a t a' t' a≡a p)
+      (addCorrect t a t' a' p a≡a)
 
 lhs : Int / rInt → Int / rInt
 lhs b' =
