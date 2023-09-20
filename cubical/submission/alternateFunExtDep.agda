@@ -4,6 +4,10 @@ module alternateFunExtDep where
 open import Cubical.Core.Everything
 open import Cubical.Foundations.Prelude
 
+-- This module implements a definitionally simpler version of funExtDep. The code comes from this pull request:
+-- https://github.com/agda/cubical/pull/1001#issuecomment-1724869895
+-- We copy it here so we can use it without modifying our version of the library. 
+
 erp : I → I → I → I
 erp t i j = (~ t ∧ i) ∨ (t ∧ j) ∨ (i ∧ j)
 
@@ -36,7 +40,7 @@ funExtDep : {A : I → Type ℓ} {B : (i : I) → A i → Type ℓ₁}
 funExtDep {A = A} {B} {f} {g} h i x =
   transp (λ k → B i (coei→i A i x k)) (i ∨ ~ i) (h (λ j → coei→j A i j x) i)
 
--- credit to Tom in the Univalent Agda discord server for the below term
+-- Credit to Tom in the Univalent Agda discord server for the below term.
 removeFunExtDep :
  {A B : Type} →
  (T : A ≡ B) →
