@@ -139,7 +139,6 @@ canonicalizeRZ : (a : ℕ) → canonicalize (a , zero) ≡ (a , zero)
 canonicalizeRZ zero = refl
 canonicalizeRZ (suc a) = refl
 
--- there is probably a better way to do this
 canonicalIsCanonical : (a b : ℕ × ℕ) → R a b → canonicalize a ≡ canonicalize b
 canonicalIsCanonical (zero , a2) (zero , b2) r = ×≡ refl (sym (r ∙ (+-zero a2)))
 canonicalIsCanonical (zero , zero) (suc b1 , zero) r = Cubical.Data.Empty.rec (znots r)
@@ -428,6 +427,8 @@ m +GZ n = depElimGZ
             (λ p → m +posGZ p)
             (λ p → m +negsucGZ p)
             n
+
+-- Repaired proof that 0 is a left identity for addition.
 
 add0LGZ : (z : GZ) → z ≡ (depConstrGZPos 0) +GZ z
 add0LGZ z = depElimGZ

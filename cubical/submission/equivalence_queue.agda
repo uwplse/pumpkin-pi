@@ -55,6 +55,7 @@ congMaybeRec a b m f =
     m
 
 module OneList where
+    -- We fix A here, but the proofs are generic over any set A.
     A = ℕ
     isSetA : isSet A
     isSetA = isSetℕ
@@ -133,12 +134,13 @@ module OneList where
     isSetOLQ = isOfHLevelList 0 isSetA
 
 module TwoList where
+    -- We fix A here, but the proofs are generic over any set A.
     A = ℕ
     isSetA : isSet A
     isSetA = isSetℕ
     Q = (List A × List A)
 
-    -- Enqueue on the unquotiented queue type. Used to define constructor.
+    -- Enqueue on the unquotiented queue type. Used to define dependent constructor.
     enqueue : A → Q → Q
     enqueue x (x₁ , x₂) = (x ∷ x₁ , x₂)
 
@@ -337,14 +339,14 @@ module TwoList where
       Q (depElimTLQ P pset emptyP insertP (depConstrTLQInsert a q))
     ιTLQInsert⁻ P pset emptyP insertP a q Q Qp = transport (cong Q (sym (ιTLQInsertEq P pset emptyP insertP a q))) Qp
 
-    -- repaired enqueue
+    -- Repaired enqueue.
     enqueue/R : A → TLQ → TLQ
     enqueue/R = depConstrTLQInsert
  
     isSetDeqReturnType : isSet (Maybe (TLQ × A))
     isSetDeqReturnType = isOfHLevelMaybe 0 (isOfHLevelProd 2 squash/ isSetA)
 
-    -- repaired dequeue
+    -- Repaired dequeue.
     dequeue/R : TLQ → Maybe (TLQ × A)
     dequeue/R = depElimTLQ (λ x → Maybe (TLQ × A)) (λ _ → isSetDeqReturnType) nothing recCase where
       recCase : (q : TLQ) (outer : A) → Maybe (TLQ × A) → Maybe (TLQ × A)
@@ -366,7 +368,7 @@ module TwoList where
     enqueueDequeueEmptyOk : (a : A) → dequeue/R (enqueue/R a depConstrTLQEmpty) ≡ just (depConstrTLQEmpty , a)
     enqueueDequeueEmptyOk a = refl
 
-    -- repaired dequeue spec
+    -- Repaired dequeue spec.
     dequeueEmpty : dequeue/R depConstrTLQEmpty ≡ nothing
     dequeueEmpty = refl
 

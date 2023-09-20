@@ -31,21 +31,11 @@ abs : Int -> Nat
 abs (pos x) = x
 abs (neg x) = x
 
-rIntSign : Int -> Int -> Type
-rIntSign (pos n) (pos n₁) = True
-rIntSign (pos n) (neg n₁) = ⊥
-rIntSign (neg n) (pos n₁) = ⊥
-rIntSign (neg n) (neg n₁) = True
-
 rNat : Nat -> Nat -> Type
 rNat zero zero = True
 rNat zero (suc b) = ⊥
 rNat (suc a) zero = ⊥
 rNat (suc a) (suc b) = rNat a b
-
-rNatEq : (a : Nat) -> (b : Nat) → (rNat a b) → a ≡ b
-rNatEq zero zero x = refl
-rNatEq (suc a) (suc b) x = cong suc (rNatEq a b x)
 
 rInt : Int -> Int -> Type
 rInt a b = rNat (abs a) (abs b)
@@ -132,8 +122,7 @@ sucInt (neg n) = neg (suc n)
 
 sucInt/rInt : (Int / rInt) -> (Int / rInt)
 sucInt/rInt [ a ] = [ sucInt a ]
--- sucInt/rInt (eq/ a b r i) = eq/ (sucInt a) (sucInt b) r i                      -- why do I need to break into cases here???
-sucInt/rInt (eq/ (pos a) (pos b) r i) = eq/ (sucInt (pos a)) (sucInt (pos b)) r i -- why do I need to break into cases here???
+sucInt/rInt (eq/ (pos a) (pos b) r i) = eq/ (sucInt (pos a)) (sucInt (pos b)) r i
 sucInt/rInt (eq/ (pos a) (neg b) r i) = eq/ (sucInt (pos a)) (sucInt (neg b)) r i
 sucInt/rInt (eq/ (neg a) (pos b) r i) = eq/ (sucInt (neg a)) (sucInt (pos b)) r i
 sucInt/rInt (eq/ (neg a) (neg b) r i) = eq/ (sucInt (neg a)) (sucInt (neg b)) r i
@@ -1204,7 +1193,7 @@ addCommBaseCorrect b b' b≡b' i =
       -- path between inductive cases
         ({!!})) -- This is the goal we reference in Section 5.2.2.
 -- The below comment is the term we reference is Section 5.2.2. The equality this PathP is along does not match the equality the goal PathP is along.
--- congOK {AL = ℕ} {AR = ℕ} {BL = Int / rInt} {BR = Int / rInt} equivOK equivOK {a1 = add' zero b} {a2 = add' b zero} IHb {b1 = addInt/rInt' depConstrInt/rInt0 b'} {b2 = addInt/rInt' b' depConstrInt/rInt0} IHb' (addCorrectBetter zero b depConstrInt/rInt0 b' depConstr0Correct b≡b') (addCorrectBetter b zero b' depConstrInt/rInt0 b≡b' depConstr0Correct) {fa = suc} {fb = depConstrInt/rIntS} depConstrSCorrect' IHb≡IHb' 
+-- congOK {AL = ℕ} {AR = ℕ} {BL = Int / rInt} {BR = Int / rInt} equivOK equivOK {a1 = add' zero b} {a2 = add' b zero} IHb {b1 = addInt/rInt' depConstrInt/rInt0 b'} {b2 = addInt/rInt' b' depConstrInt/rInt0} IHb' (addCorrect zero b depConstrInt/rInt0 b' depConstr0Correct b≡b') (addCorrect b zero b' depConstrInt/rInt0 b≡b' depConstr0Correct) {fa = suc} {fb = depConstrInt/rIntS} depConstrSCorrect' IHb≡IHb' 
     i
 
 T : I → Type
