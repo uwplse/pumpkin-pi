@@ -25,43 +25,43 @@ data ℤ : Type₀ where
   pos    : (n : ℕ) → ℤ
   negsuc : (n : ℕ) → ℤ
 
-depConstrIndZPos : ℕ → ℤ
-depConstrIndZPos n = pos n
+depConstrℤPos : ℕ → ℤ
+depConstrℤPos n = pos n
 
-depConstrIndZNegSuc : ℕ → ℤ
-depConstrIndZNegSuc n = negsuc n
+depConstrℤNegSuc : ℕ → ℤ
+depConstrℤNegSuc n = negsuc n
 
-depElimIndZ : (P : ℤ → Set) → (∀ n → P (depConstrIndZPos n)) → (∀ n → P (depConstrIndZNegSuc n)) → ∀ z → P z
-depElimIndZ P posP negP (pos n) = posP n
-depElimIndZ P posP negsucP (negsuc n) = negsucP n
+depElimℤ : (P : ℤ → Set) → (∀ n → P (depConstrℤPos n)) → (∀ n → P (depConstrℤNegSuc n)) → ∀ z → P z
+depElimℤ P posP negP (pos n) = posP n
+depElimℤ P posP negsucP (negsuc n) = negsucP n
 
-ιIndZPos : (P : ℤ → Set) → (posP : (n : ℕ) → P (depConstrIndZPos n)) → (negSucP : (n : ℕ) → P (depConstrIndZNegSuc n)) → (n : ℕ) →
-    (Q : P (depConstrIndZPos n) → Set) → Q (depElimIndZ P posP negSucP (depConstrIndZPos n)) → Q (posP n)
-ιIndZPos P posP negSucP n Q Qp = Qp
+ιℤPos : (P : ℤ → Set) → (posP : (n : ℕ) → P (depConstrℤPos n)) → (negSucP : (n : ℕ) → P (depConstrℤNegSuc n)) → (n : ℕ) →
+    (Q : P (depConstrℤPos n) → Set) → Q (depElimℤ P posP negSucP (depConstrℤPos n)) → Q (posP n)
+ιℤPos P posP negSucP n Q Qp = Qp
 
-ιIndZNegSuc : (P : ℤ → Set) → (posP : (n : ℕ) → P (depConstrIndZPos n)) → (negSucP : (n : ℕ) → P (depConstrIndZNegSuc n)) → (n : ℕ) →
-    (Q : P (depConstrIndZNegSuc n) → Set) → Q (depElimIndZ P posP negSucP (depConstrIndZNegSuc n)) → Q (negSucP n)
-ιIndZNegSuc P posP negSucP n Q Qp = Qp
+ιℤNegSuc : (P : ℤ → Set) → (posP : (n : ℕ) → P (depConstrℤPos n)) → (negSucP : (n : ℕ) → P (depConstrℤNegSuc n)) → (n : ℕ) →
+    (Q : P (depConstrℤNegSuc n) → Set) → Q (depElimℤ P posP negSucP (depConstrℤNegSuc n)) → Q (negSucP n)
+ιℤNegSuc P posP negSucP n Q Qp = Qp
 
 -- Addition on integers, based on standard library functions.
 sucℤ : ℤ → ℤ
-sucℤ z = depElimIndZ
+sucℤ z = depElimℤ
            (λ _ → ℤ)
-           (λ n → depConstrIndZPos (suc n))
+           (λ n → depConstrℤPos (suc n))
            (λ n → Nat.elim
-             (depConstrIndZPos zero)
-             (λ m _ → depConstrIndZNegSuc m )
+             (depConstrℤPos zero)
+             (λ m _ → depConstrℤNegSuc m )
              n)
            z
 
 predℤ : ℤ → ℤ
-predℤ z = depElimIndZ
+predℤ z = depElimℤ
             (λ _ → ℤ)
             (λ n → Nat.elim
-              (depConstrIndZNegSuc zero)
-              (λ m _ → depConstrIndZPos m)
+              (depConstrℤNegSuc zero)
+              (λ m _ → depConstrℤPos m)
               n)
-            (λ n → depConstrIndZNegSuc (suc n))
+            (λ n → depConstrℤNegSuc (suc n))
             z
 
 _+pos_ : ℤ → ℕ → ℤ
@@ -77,20 +77,20 @@ z +negsuc n = Nat.elim
                 n
 
 _+ℤ_ : ℤ → ℤ → ℤ
-m +ℤ n = depElimIndZ
+m +ℤ n = depElimℤ
           (λ _ → ℤ)
           (λ p → m +pos p)
           (λ p → m +negsuc p)
           n
 
-add0LIndZ : (z : ℤ) → z ≡ (depConstrIndZPos 0) +ℤ z
-add0LIndZ z = depElimIndZ
-                (λ z → z ≡ (depConstrIndZPos 0) +ℤ z)
-                (λ n → Nat.elim {A = λ m → depConstrIndZPos m ≡ (depConstrIndZPos 0) +ℤ (depConstrIndZPos m)} refl (λ m Pm → cong sucℤ Pm) n)
-                (λ n → Nat.elim {A = λ m → depConstrIndZNegSuc m ≡ (depConstrIndZPos 0) +ℤ (depConstrIndZNegSuc m)} refl (λ m Pm → cong predℤ Pm) n)
+add0Lℤ : (z : ℤ) → z ≡ (depConstrℤPos 0) +ℤ z
+add0Lℤ z = depElimℤ
+                (λ z → z ≡ (depConstrℤPos 0) +ℤ z)
+                (λ n → Nat.elim {A = λ m → depConstrℤPos m ≡ (depConstrℤPos 0) +ℤ (depConstrℤPos m)} refl (λ m Pm → cong sucℤ Pm) n)
+                (λ n → Nat.elim {A = λ m → depConstrℤNegSuc m ≡ (depConstrℤPos 0) +ℤ (depConstrℤNegSuc m)} refl (λ m Pm → cong predℤ Pm) n)
                 z
 
--- grothendieck group construction of ℤ
+-- Grothendieck group construction of ℤ.
 
 R : (ℕ × ℕ) → (ℕ × ℕ) → Type
 R (x1 , x2) (y1 , y2) = x1 Nat.+ y2 ≡ x2 Nat.+ y1
@@ -385,6 +385,8 @@ depElimGZ P set posP negsucP = SetQuotients.elim set func resp where
 isSetGZ : isSet GZ
 isSetGZ = squash/
 
+-- Repaired addition function.
+
 sucGZ : GZ → GZ
 sucGZ z = depElimGZ
            (λ _ → GZ)
@@ -520,9 +522,6 @@ add0LGZ z = depElimGZ
                                            (cong predGZ Pm))))
                           n)
                 z
-
--- addNegSuc0LGZ : (z : GZ) → predGZ z ≡ (depConstrGZNegSuc zero) +GZ z
--- addNegSuc0LGZ z = {!!}
 
 addHelpFunc' : (ℕ × ℕ) → (ℕ × ℕ) → (ℕ × ℕ)
 addHelpFunc' (n1 , n2) (m1 , m2) = (n1 + m1 , n2 + m2)
@@ -921,7 +920,7 @@ addEqual = funExt (λ x → funExt (λ y → addEqualOnInputs x y))
 add'0LGZ : (z : GZ) → z ≡ addGZ' (depConstrGZPos 0) z
 add'0LGZ = subst (λ y → (z : GZ) → z ≡ y (depConstrGZPos 0) z) (sym addEqual) add0LGZ
 
--- copying in proof that ℤ is a set from the standard library
+-- Copying in proof that ℤ is a set from the standard library.
 injPos : ∀ {a b : ℕ} → pos a ≡ pos b → a ≡ b
 injPos {a} h = subst T h refl
   where
@@ -963,12 +962,12 @@ discreteℤ (negsuc n) (negsuc m) with discreteℕ n m
 isSetℤ : isSet ℤ
 isSetℤ = Discrete→isSet discreteℤ
 
-IndZ≡GZ : ℤ ≡ GZ
-IndZ≡GZ = isoToPath (iso f g sec ret) where
+ℤ≡GZ : ℤ ≡ GZ
+ℤ≡GZ = isoToPath (iso f g sec ret) where
   f : ℤ → GZ
-  f = depElimIndZ (λ _ → GZ) depConstrGZPos depConstrGZNegSuc
+  f = depElimℤ (λ _ → GZ) depConstrGZPos depConstrGZNegSuc
   g : GZ → ℤ
-  g = depElimGZ (λ _ → ℤ) (λ _ → isSetℤ) depConstrIndZPos depConstrIndZNegSuc
+  g = depElimGZ (λ _ → ℤ) (λ _ → isSetℤ) depConstrℤPos depConstrℤNegSuc
   sec : section f g
   sec =
     depElimGZ
@@ -977,37 +976,37 @@ IndZ≡GZ = isoToPath (iso f g sec ret) where
       (λ n → ιGZPos⁻
         (λ _ → ℤ)
         (λ _ → isSetℤ)
-        depConstrIndZPos
-        depConstrIndZNegSuc
+        depConstrℤPos
+        depConstrℤNegSuc
         n
         (λ z → f z ≡ depConstrGZPos n)
         refl)
       λ n → ιGZNegSuc⁻
         (λ _ → ℤ)
         (λ _ → isSetℤ)
-        depConstrIndZPos
-        depConstrIndZNegSuc
+        depConstrℤPos
+        depConstrℤNegSuc
         n
         (λ z → f z ≡ depConstrGZNegSuc n)
         refl
   ret : retract f g
   ret =
-    depElimIndZ
+    depElimℤ
       (λ x → g (f x) ≡ x)
       (λ n → ιGZPos⁻
         (λ _ → ℤ)
         (λ _ → isSetℤ)
-        depConstrIndZPos
-        depConstrIndZNegSuc
+        depConstrℤPos
+        depConstrℤNegSuc
         n
-        (λ z → z ≡ depConstrIndZPos n )
+        (λ z → z ≡ depConstrℤPos n )
         refl)
       λ n → ιGZNegSuc⁻
         (λ _ → ℤ)
         (λ _ → isSetℤ)
-        depConstrIndZPos
-        depConstrIndZNegSuc
+        depConstrℤPos
+        depConstrℤNegSuc
         n
-        (λ z → z ≡ depConstrIndZNegSuc n )
+        (λ z → z ≡ depConstrℤNegSuc n )
         refl
   
