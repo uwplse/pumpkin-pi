@@ -81,16 +81,28 @@ Module TwoListQueue.
     forall l:list A, P (rev l).
   Proof.
     intros P ? ? l; induction l; auto.
-  Qed.
+  Defined.
+
+    Theorem rev_involutive : forall (A : Type) (l : list A), rev (rev l) = l.
+  Proof.
+    exact (fun (A : Type) (l : list A) =>
+list_ind (fun l0 : list A => rev (rev l0) = l0)
+  eq_refl
+  (fun (a : A) (l0 : list A) (IHl : rev (rev l0) = l0)
+   =>
+   eq_ind_r (fun l1 : list A => l1 = a :: l0)
+     (eq_ind_r (fun l1 : list A => a :: l1 = a :: l0)
+        eq_refl IHl) (rev_unit (rev l0) a)) l).
+  Defined. 
 
   Theorem rev_rect : forall P:list A -> Type,
     P [] ->
     (forall (x:A) (l:list A), P l -> P (l ++ [x])) -> forall l:list A, P l.
   Proof.
-    intros P ? ? l. rewrite <- (rev_involutive l).
+    intros P ? ? l. rewrite <- (rev_involutive A l).
     apply (rev_list_rect P); cbn; auto.
-  Qed.
-  
+  Defined. 
+
   Theorem depElim (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P) (pEmpty : P depConstrEmpty)
     (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
     (forall (x : queue), P x).
@@ -107,6 +119,26 @@ Module TwoListQueue.
         apply IHl0.
     - apply (pInsert b (l, l0)) in IHl.
       apply IHl.
+  Defined.
+
+Print rev_involutive.
+
+Theorem iotaEmptyEq (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P)
+    (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
+    depElim P p pEmpty pInsert depConstrEmpty = pEmpty.
+  Proof.
+    reflexivity.
   Qed.
-  
+
+Theorem iotaInsertEq (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P)
+    (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) (a : A) (q : queue) :
+    depElim P p pEmpty pInsert (depConstrInsert a q)
+    = pInsert a q (depElim P p pEmpty pInsert q).
+  Proof.
+    destruct q.
+    
+  Qed.
+    
 End TwoListQueue.
