@@ -138,7 +138,7 @@ Theorem iotaInsertEq (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue 
     = pInsert a q (depElim P p pEmpty pInsert q).
   Proof.
     destruct q.
-    
+    reflexivity.
   Qed.
     
 End TwoListQueue.
