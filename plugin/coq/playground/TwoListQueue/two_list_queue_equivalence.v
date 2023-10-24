@@ -121,7 +121,10 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
       apply IHl.
   Defined.
 
-Print rev_involutive.
+  (* Theorem depElimRespectful (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P) (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q))
+    (q1 q2 : queue) :
+  q1 [=] q2 -> depElim P p pEmpty pInsert q1 = depElim P p pEmpty pInsert q2.*)
 
 Theorem iotaEmptyEq (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P)
     (pEmpty : P depConstrEmpty)
@@ -129,6 +132,28 @@ Theorem iotaEmptyEq (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue =
     depElim P p pEmpty pInsert depConstrEmpty = pEmpty.
   Proof.
     reflexivity.
+  Qed.
+
+Theorem iotaEmpty (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P)
+    (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
+    forall (Q : P depConstrEmpty -> Type),
+      (Q (depElim P p pEmpty pInsert depConstrEmpty)) -> (Q pEmpty).
+  Proof.
+    intros.
+    rewrite iotaEmptyEq in X.
+    apply X.
+  Qed.
+
+Theorem iotaEmptyRev (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P)
+    (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
+    forall (Q : P depConstrEmpty -> Type),
+      (Q pEmpty) -> (Q (depElim P p pEmpty pInsert depConstrEmpty)).
+  Proof.
+    intros.
+    rewrite iotaEmptyEq.
+    apply X.
   Qed.
 
 Theorem iotaInsertEq (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P)
@@ -139,6 +164,30 @@ Theorem iotaInsertEq (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue 
   Proof.
     destruct q.
     reflexivity.
+  Qed.
+
+Theorem iotaInsert (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P)
+    (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
+  forall (a : A) (q : queue) (Q : P (depConstrInsert a q) -> Type), 
+    Q (depElim P p pEmpty pInsert (depConstrInsert a q))
+    -> Q (pInsert a q (depElim P p pEmpty pInsert q)).
+  Proof.
+    intros.
+    rewrite iotaInsertEq in X.
+    apply X.
+  Qed.
+
+Theorem iotaInsertRev (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P)
+    (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
+  forall (a : A) (q : queue) (Q : P (depConstrInsert a q) -> Type),
+    Q (pInsert a q (depElim P p pEmpty pInsert q))
+    -> Q (depElim P p pEmpty pInsert (depConstrInsert a q)).
+  Proof.
+    intros.
+    rewrite iotaInsertEq.
+    apply X.
   Qed.
     
 End TwoListQueue.
