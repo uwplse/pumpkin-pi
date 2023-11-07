@@ -132,7 +132,7 @@ Theorem iotaEmptyEq (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue =
     depElim P p pEmpty pInsert depConstrEmpty = pEmpty.
   Proof.
     reflexivity.
-  Qed.
+  Defined.
 
 Theorem iotaEmpty (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P)
     (pEmpty : P depConstrEmpty)
@@ -143,7 +143,7 @@ Theorem iotaEmpty (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==>
     intros.
     rewrite iotaEmptyEq in X.
     apply X.
-  Qed.
+  Defined.
 
 Theorem iotaEmptyRev (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P)
     (pEmpty : P depConstrEmpty)
@@ -154,7 +154,7 @@ Theorem iotaEmptyRev (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue 
     intros.
     rewrite iotaEmptyEq.
     apply X.
-  Qed.
+  Defined.
 
 Theorem iotaInsertEq (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P)
     (pEmpty : P depConstrEmpty)
@@ -164,7 +164,7 @@ Theorem iotaInsertEq (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue 
   Proof.
     destruct q.
     reflexivity.
-  Qed.
+  Defined.
 
 Theorem iotaInsert (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P)
     (pEmpty : P depConstrEmpty)
@@ -176,7 +176,7 @@ Theorem iotaInsert (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==
     intros.
     rewrite iotaInsertEq in X.
     apply X.
-  Qed.
+  Defined.
 
 Theorem iotaInsertRev (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P)
     (pEmpty : P depConstrEmpty)
@@ -188,6 +188,22 @@ Theorem iotaInsertRev (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue
     intros.
     rewrite iotaInsertEq.
     apply X.
-  Qed.
-    
+  Defined.
 End TwoListQueue.
+
+Module Examples.
+  Parameter A : Type.
+  Theorem dequeueOLQ : OneListQueue.queue -> option (OneListQueue.queue * A).
+  Proof.
+    apply OneListQueue.depElim.
+    * exact None.
+    * intros. exact X.
+  Defined.
+  Theorem dequeueTLQ : TwoListQueue.queue -> option (TwoListQueue.queue * A).
+  Proof.
+    apply TwoListQueue.depElim.
+    * give_up.
+    * exact None.
+    * intros. exact X.
+  Admitted.
+End Examples.
