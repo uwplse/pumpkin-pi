@@ -1,5 +1,6 @@
 Require Import List Relation_Definitions Morphisms Setoid.
 Import ListNotations.
+Require Import EqdepFacts.
 
 Module OneListQueue.
 
@@ -12,11 +13,27 @@ Module OneListQueue.
     (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
     (forall (x : queue), P x) :=
     list_rect P pEmpty pInsert.
+  Definition depRec (C : Type) (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C) :
+    (forall (x : queue), C) :=
+    list_rect (fun _ => C) pEmpty pInsert.
+
+  Definition dequeueHelp (outer : A) (q : queue) (m : option (queue * A)) : option (queue * A) :=
+  @option_rect
+    (queue * A)
+    (fun _ => option (queue * A))
+    (fun (p : (queue * A)) => Some (depConstrInsert outer (fst p) , (snd p)))
+    (Some (depConstrEmpty, outer))
+    m .
+
+  Definition dequeue : queue -> option (queue * A) :=
+    depRec (option (queue * A)) None dequeueHelp .
   
 End OneListQueue.
 
 Module TwoListQueue.
   Parameter A : Type.
+  Parameter uip : UIP_ A.
   Definition queue := (list A * list A) % type.
   Definition insOrder (q : queue) :=
     match q with
@@ -121,6 +138,78 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
       apply IHl.
   Defined.
 
+  Theorem depRec (C : Type) (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C) :
+    (forall (x : queue), C).
+  Proof.
+    intros.
+    destruct x.
+    induction l as [ | b l].
+    - induction l0 as [ | a l0] using rev_rect.
+      + apply pEmpty.
+      + apply (pInsert a ([], l0)) in IHl0.
+        apply IHl0.
+    - apply (pInsert b (l, l0)) in IHl.
+      apply IHl.
+  Defined.
+
+  Theorem depRecCanonical (C : Type) (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C)
+    (pInsertRespectful : forall (a : A) (q1 q2 : queue) (c : C),
+        q1 [=] q2 -> pInsert a q1 c = pInsert a q2 c) :
+    forall (l0 l1 : list A),
+      depRec C pEmpty pInsert (l0, l1) = depRec C pEmpty pInsert (l0 ++ rev l1, []).
+  Proof.
+    induction l0 as [ | a l0].
+    - induction l1 as [ | b l1] using rev_rect.
+      + reflexivity.
+      + assert (([], l1) [=] ([] ++ rev l1, [])).
+        unfold eq_queue.
+        simpl.
+        rewrite app_nil_r.
+        reflexivity.
+        eapply (pInsertRespectful b) in H.
+        assert (pInsert b ([], l1) (depRec C pEmpty pInsert ([], l1)) = depRec C pEmpty pInsert ([], l1 ++ [b])).
+        simpl.
+        unfold rev_rect.
+        unfold eq_rect.
+        assert (depRec C pEmpty pInsert ([], l1 ++ [b]) = pInsert b ([], l1) (depRec C pEmpty pInsert ([], l1))).
+        simpl.
+        unfold rev_rect.
+        unfold eq_rect.
+        (*rewrite (uip l1 (rev(rev l1))).
+        
+        simpl.
+        unfold rev_rect.
+        apply pInsertRespectful.
+        simpl.
+        apply (f_equal (pInsert b)) in IHl1.
+        simpl.
+        unfold rev_rect.
+        simpl.*)
+  Admitted.
+  
+  Add Parametric Morphism (C : Type) (equiv : C -> C -> Prop) (equiv_equiv : Equivalence equiv) (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C)
+    (pInsertRespectful : forall (a : A) (q1 q2 : queue) (c : C),
+        q1 [=] q2 -> pInsert a q1 c = pInsert a q2 c) :
+    (depRec C pEmpty pInsert)
+      with signature eq_queue ==> equiv as depRec_mor.
+  Proof.
+    intros.
+    destruct x.
+    unfold eq_queue in H.
+    destruct y.
+    simpl in H.
+    rewrite depRecCanonical.
+    rewrite H.
+    rewrite <- depRecCanonical.
+    reflexivity.
+    apply pInsertRespectful.
+    apply pInsertRespectful.
+  Qed.
+    
+  
   (* Theorem depElimRespectful (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P) (pEmpty : P depConstrEmpty)
     (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q))
     (q1 q2 : queue) :
@@ -189,5 +278,102 @@ Theorem iotaInsertRev (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue
     rewrite iotaInsertEq.
     apply X.
   Qed.
-    
+
+Definition enqueue (a : A) (q : queue) : queue :=
+  depConstrInsert a q.
+
+Instance enqueueProper (a : A) : Proper (eq_queue ==> eq_queue) (enqueue a).
+Proof.
+  intros q1 q2 H.
+  unfold enqueue.
+  apply insert_mor.
+  apply H.
+Qed.
+  
+Definition dequeueHelp (outer : A) (q : queue) (m : option (queue * A)) : option (queue * A) :=
+  @option_rect
+    (queue * A)
+    (fun _ => option (queue * A))
+    (fun (p : (queue * A)) => Some (depConstrInsert outer (fst p) , (snd p)))
+    (Some (depConstrEmpty, outer))
+    m .
+
+Definition eq_deq_ret (p1 p2 : option (queue * A)) : Prop :=
+  match p1, p2 with
+  | None, None => True
+  | Some _, None => False
+  | None, Some _ => False
+  | Some (q1, a1), Some (q2, a2) => (eq_queue q1 q2) /\ (a1 = a2)
+  end.
+
+Theorem eq_deq_ret_refl : reflexive _ eq_deq_ret.
+Proof.
+  intros q. unfold eq_deq_ret. destruct q.
+  - destruct p.
+    split; reflexivity.
+  - reflexivity.
+Qed.
+Theorem eq_deq_ret_sym : symmetric _ eq_deq_ret.
+Proof.
+  intros q1 q2 H. unfold eq_deq_ret. destruct q1; destruct q2.
+  - destruct p0. destruct p. split; symmetry; apply H.
+  - unfold eq_deq_ret in H. destruct p in H. apply H.
+  - unfold eq_deq_ret in H. contradiction.
+  - apply I.
+Qed.
+Theorem eq_deq_ret_trans : transitive _ eq_deq_ret.
+Proof.
+  intros q1 q2 q3. destruct q1; destruct q2; unfold eq_deq_ret; intros H1 H2.
+  - destruct p. destruct p0. destruct q3. destruct p. destruct H1; destruct H2. split.
+    + rewrite H. rewrite H1. reflexivity.
+    + rewrite H0. rewrite H2. reflexivity.
+    + apply H2.
+  - destruct p. contradiction.
+  - destruct p. contradiction.
+  - destruct q3; auto.
+Qed.
+
+Instance eq_deq_ret_equiv : Equivalence eq_deq_ret.
+Proof.
+  split.
+  apply eq_deq_ret_refl.
+  apply eq_deq_ret_sym.
+  apply eq_deq_ret_trans.
+Qed.
+       
+Definition dequeue : queue -> option (queue * A) :=
+  depRec (option (queue * A)) None dequeueHelp .
+
+Print Proper.
+
+Instance dequeueProper : Proper (eq_queue ==> eq_deq_ret) dequeue.
+Proof.
+  intros q1 q2 H.
+  unfold dequeue.
+  apply depRec_mor; auto.
+  apply eq_deq_ret_equiv.
+Qed.
+
+Theorem dequeueEmpty : dequeue depConstrEmpty = None.
+Proof.
+  reflexivity.
+Qed.
+
+Print option_rect.
+
+Definition returnOrEnq (a : A) (m : option (queue * A)) : (queue * A) :=
+  @option_rect
+    (queue * A)
+    (fun _ => prod queue A)
+    (fun (p : (queue * A)) => (enqueue a (fst p), snd p))
+    (depConstrEmpty, a)
+    m.
+
+Definition dequeueEnqueueType (a : A) (q : queue) := dequeue (enqueue a q) = Some (returnOrEnq a (dequeue q)).
+
+(*
+Theorem dequeueEnqueue (a : A) (q : queue) : dequeue (enqueue a q) = Some (returnOrEnq a (dequeue q)).
+Proof.
+  apply (iotaInsertRev (fun _ => option (queue * A))
+*) 
 End TwoListQueue.
