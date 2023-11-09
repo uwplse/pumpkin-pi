@@ -81,6 +81,17 @@ Module TwoListQueue.
 
   Notation "q1 [=] q2" := (eq_queue q1 q2) (at level 50). (* I picked this number arbitrarily does it matter*)
 
+  Definition canonicalize (q : queue) := (insOrder q, @nil A) .
+
+  Theorem canonicalizeResp (q : queue) :
+    canonicalize q [=] q.
+  Proof.
+    destruct q.
+    unfold eq_queue.
+    simpl.
+    apply app_nil_r.
+  Qed.
+
   Theorem shift : forall (a : A) (l1 l2 : list A), ((l1 ++ [a]), l2) [=] (l1, (l2 ++ [a])).
   Proof.
     intros.
@@ -119,6 +130,20 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
     intros P ? ? l. rewrite <- (rev_involutive A l).
     apply (rev_list_rect P); cbn; auto.
   Defined. 
+
+  Theorem depElim' (P : queue -> Type)
+    (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
+    (forall (x : queue), P (canonicalize x)).
+  Proof.
+    intros.
+    destruct x.
+    unfold canonicalize.
+    simpl.
+    induction (l ++ rev l0).
+    - apply pEmpty.
+    - apply (pInsert a (l1, []) IHl1).
+  Defined.
 
   Theorem depElim (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P) (pEmpty : P depConstrEmpty)
     (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
