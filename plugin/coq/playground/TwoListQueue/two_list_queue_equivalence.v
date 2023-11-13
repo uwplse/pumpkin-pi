@@ -4,7 +4,8 @@ Require Import EqdepFacts.
 
 Module OneListQueue.
 
-  Parameter A : Type.
+  (* Parameter A : Type.*)
+  Definition A : Type := nat.
   Definition queue := list A.
   Definition depConstrEmpty : queue := [].
   Definition depConstrInsert (a : A) (q : queue) : queue := a :: q.
@@ -13,10 +14,17 @@ Module OneListQueue.
     (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
     (forall (x : queue), P x) :=
     list_rect P pEmpty pInsert.
+  Definition depElimProp (P : queue -> Prop) (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
+    (forall (x : queue), P x) :=
+    list_rect P pEmpty pInsert.
   Definition depRec (C : Type) (pEmpty : C)
     (pInsert : forall (a : A) (q : queue), C -> C) :
     (forall (x : queue), C) :=
     list_rect (fun _ => C) pEmpty pInsert.
+
+  Definition enqueue (a : A) (q : queue) : queue :=
+    depConstrInsert a q.
 
   Definition dequeueHelp (outer : A) (q : queue) (m : option (queue * A)) : option (queue * A) :=
   @option_rect
@@ -28,11 +36,18 @@ Module OneListQueue.
 
   Definition dequeue : queue -> option (queue * A) :=
     depRec (option (queue * A)) None dequeueHelp .
-  
+  Definition returnOrEnq (a : A) (m : option (queue * A)) : (queue * A) :=
+    @option_rect
+      (queue * A)
+      (fun _ => prod queue A)
+      (fun (p : (queue * A)) => (enqueue a (fst p), snd p))
+      (depConstrEmpty, a)
+      m.
 End OneListQueue.
 
 Module TwoListQueue.
-  Parameter A : Type.
+  (* Parameter A : Type.*)
+  Definition A : Type := nat.
   Parameter uip : UIP_ A.
   Definition queue := (list A * list A) % type.
   Definition insOrder (q : queue) :=
@@ -396,26 +411,36 @@ Definition returnOrEnq (a : A) (m : option (queue * A)) : (queue * A) :=
 
 Definition dequeueEnqueueType (a : A) (q : queue) := dequeue (enqueue a q) = Some (returnOrEnq a (dequeue q)).
 
-(*
-Theorem dequeueEnqueue (a : A) (q : queue) : dequeue (enqueue a q) = Some (returnOrEnq a (dequeue q)).
-Proof.
-  apply (iotaInsertRev (fun _ => option (queue * A))
-*) 
 End TwoListQueue.
+
+Module Tests.
+  Theorem testOLQ1 : OneListQueue.dequeue (OneListQueue.enqueue 4 (3 :: 2 :: 1 :: nil)) = Some (OneListQueue.returnOrEnq 4 (OneListQueue.dequeue (3 :: 2 :: 1 :: nil))).
+  Proof. auto. Qed. 
+End Tests.
 
 Module Examples.
   Parameter A : Type.
   Theorem dequeueOLQ : OneListQueue.queue -> option (OneListQueue.queue * A).
   Proof.
-    apply OneListQueue.depElim.
+    apply OneListQueue.depRec.
     * exact None.
     * intros. exact X.
   Defined.
+
   Theorem dequeueTLQ : TwoListQueue.queue -> option (TwoListQueue.queue * A).
   Proof.
-    apply TwoListQueue.depElim.
-    * give_up.
+    apply TwoListQueue.depRec.
     * exact None.
     * intros. exact X.
+  Defined.
+
+
+  Theorem dequeueEnqueueOLQ : forall (q: OneListQueue.queue), forall (a : OneListQueue.A), OneListQueue.dequeue (OneListQueue.enqueue a q) = Some (OneListQueue.returnOrEnq a (OneListQueue.dequeue q)). 
+  Proof.
+    intros. apply (OneListQueue.depElimProp (fun q => (forall a, OneListQueue.dequeue (OneListQueue.enqueue a q) = Some (OneListQueue.returnOrEnq a (OneListQueue.dequeue q))))).
+    * auto.
+    * intros. apply (@option_rect _ _).
+      - intros. 
   Admitted.
+
 End Examples.
