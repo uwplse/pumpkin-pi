@@ -469,21 +469,47 @@ Definition returnOrEnq (a : A) (m : option (queue * A)) : (queue * A) :=
 
 Definition dequeueEnqueueType (a : A) (q : queue) := eq_deq_ret (dequeue (enqueue a q)) (Some (returnOrEnq a (dequeue q))).
 
+
+(* destructs on a queue in the env *)
+Ltac queuedestruct queue := 
+  let qleft := fresh "x" in
+  let qright := fresh "y" in
+  destruct queue as (qleft, qright); try destruct qleft; try destruct qright.
+
 Theorem dequeueEnqueueTypeProper (a : A) : Proper (eq_queue ==> iff) (dequeueEnqueueType a) .
 Proof.
   intros q1 q2 H.
   unfold dequeueEnqueueType.
-  split.
-  - intros H1.
-    assert (eq_deq_ret (dequeue (enqueue a q2)) (dequeue (enqueue a q1))).
+  split; intros H1.
+  - assert (eq_deq_ret (dequeue (enqueue a q2)) (dequeue (enqueue a q1))).
     apply dequeueProper.
     apply enqueueProper.
     apply symmetry.
     apply H.
     assert (eq_deq_ret (Some (returnOrEnq a (dequeue q1))) (Some (returnOrEnq a (dequeue q2)))).
-    rewrite H0.
-    
-  rewrite H.
+    * pose proof dequeueProper q1 q2 H. remember (dequeue q1) as dq1; destruct dq1; remember (dequeue q2) as dq2; destruct dq2; simpl.
+      + destruct p. destruct p0. split. 
+        assert (q [=] q0). apply H2. simpl. apply enqueueProper. apply H3.
+        assert (a0 = a1). apply H2. simpl. apply H3.
+      + unfold eq_deq_ret in H2. destruct p. contradiction.
+      + destruct p. unfold eq_deq_ret in H2. contradiction.
+      + split. apply (eq_queue_refl depConstrEmpty). reflexivity.
+    * pose proof (eq_deq_ret_trans _ _ _ H0 H1). exact (eq_deq_ret_trans _ _ _ H3 H2).
+  - assert (eq_deq_ret (dequeue (enqueue a q2)) (dequeue (enqueue a q1))).
+    apply dequeueProper.
+    apply enqueueProper.
+    apply symmetry.
+    apply H.
+    assert (eq_deq_ret (Some (returnOrEnq a (dequeue q1))) (Some (returnOrEnq a (dequeue q2)))).
+    * pose proof dequeueProper q1 q2 H. remember (dequeue q1) as dq1; destruct dq1; remember (dequeue q2) as dq2; destruct dq2; simpl.
+      + destruct p. destruct p0. split. 
+        assert (q [=] q0). apply H2. simpl. apply enqueueProper. apply H3.
+        assert (a0 = a1). apply H2. simpl. apply H3.
+      + unfold eq_deq_ret in H2. destruct p. contradiction.
+      + destruct p. unfold eq_deq_ret in H2. contradiction.
+      + split. apply (eq_queue_refl depConstrEmpty). reflexivity.
+    * apply symmetry in H0. pose proof (eq_deq_ret_trans _ _ _ H0 H1). apply symmetry in H2. exact (eq_deq_ret_trans _ _ _ H3 H2).
+Defined.
 
 End TwoListQueue.
 
