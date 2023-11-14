@@ -248,7 +248,24 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
     apply pInsertRespectful.
     apply pInsertRespectful.
   Qed.
-    
+
+  Theorem depElimProp (P : queue -> Prop) `(p : Proper (queue -> Prop) (eq_queue ==> iff) P) (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
+    (forall (x : queue), P x).
+  Proof.
+    intros.
+    destruct x.
+    induction l as [ | b l].
+    - induction l0 as [ | a l0] using rev_rect.
+      + apply pEmpty.
+      + apply (pInsert a ([], l0)) in IHl0.
+        pose proof (shift a nil l0).
+        apply p in H.
+        rewrite <- H.
+        apply IHl0.
+    - apply (pInsert b (l, l0)) in IHl.
+      apply IHl.
+  Defined.
   
   (* Theorem depElimRespectful (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P) (pEmpty : P depConstrEmpty)
     (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q))
@@ -338,6 +355,47 @@ Definition dequeueHelp (outer : A) (q : queue) (m : option (queue * A)) : option
     (Some (depConstrEmpty, outer))
     m .
 
+Definition eq_prod {A B : Type} (eqA : A -> A -> Prop) (eqB : B -> B -> Prop) (p1 p2 : A * B) : Prop :=
+  match p1, p2 with
+  | (a1 , b1) , (a2 , b2) => (eqA a1 a2) /\ (eqB b1 b2)
+  end.
+
+Theorem eq_prod_refl {A B : Type} (eqA : A -> A -> Prop) `(Reflexive _ eqA) (eqB : B -> B -> Prop) `(Reflexive _ eqB) : Reflexive (eq_prod eqA eqB).
+Proof.
+  intros q. unfold eq_prod. destruct q.
+  split; reflexivity.
+Qed.
+
+Theorem eq_prod_sym {A B : Type} (eqA : A -> A -> Prop) `(Symmetric _ eqA) (eqB : B -> B -> Prop) `(Symmetric _ eqB) : Symmetric (eq_prod eqA eqB).
+Proof.
+  intros q1 q2 H1. unfold eq_prod.
+  destruct q1.
+  destruct q2.
+  destruct H1.
+  split; symmetry; auto.
+Qed.
+
+Theorem eq_prod_trans {A B : Type} (eqA : A -> A -> Prop) `(Transitive _ eqA) (eqB : B -> B -> Prop) `(Transitive _ eqB) : Transitive (eq_prod eqA eqB).
+Proof.
+  intros q1 q2 q3 H1 H2. unfold eq_prod.
+  destruct q1.
+  destruct q2.
+  destruct q3.
+  destruct H1.
+  destruct H2.
+  split.
+  - apply (H a a0 a1); auto.
+  - apply (H0 b b0 b1); auto.
+Qed.
+
+Theorem eq_prod_equiv {A B : Type} (eqA : A -> A -> Prop) `(Equivalence _ eqA) (eqB : B -> B -> Prop) `(Equivalence _ eqB) : Equivalence (eq_prod eqA eqB).
+Proof.
+  destruct H. destruct H0. split.
+  - apply eq_prod_refl; auto.
+  - apply eq_prod_sym; auto.
+  - apply eq_prod_trans; auto.
+Qed.
+
 Definition eq_deq_ret (p1 p2 : option (queue * A)) : Prop :=
   match p1, p2 with
   | None, None => True
@@ -409,7 +467,23 @@ Definition returnOrEnq (a : A) (m : option (queue * A)) : (queue * A) :=
     (depConstrEmpty, a)
     m.
 
-Definition dequeueEnqueueType (a : A) (q : queue) := dequeue (enqueue a q) = Some (returnOrEnq a (dequeue q)).
+Definition dequeueEnqueueType (a : A) (q : queue) := eq_deq_ret (dequeue (enqueue a q)) (Some (returnOrEnq a (dequeue q))).
+
+Theorem dequeueEnqueueTypeProper (a : A) : Proper (eq_queue ==> iff) (dequeueEnqueueType a) .
+Proof.
+  intros q1 q2 H.
+  unfold dequeueEnqueueType.
+  split.
+  - intros H1.
+    assert (eq_deq_ret (dequeue (enqueue a q2)) (dequeue (enqueue a q1))).
+    apply dequeueProper.
+    apply enqueueProper.
+    apply symmetry.
+    apply H.
+    assert (eq_deq_ret (Some (returnOrEnq a (dequeue q1))) (Some (returnOrEnq a (dequeue q2)))).
+    rewrite H0.
+    
+  rewrite H.
 
 End TwoListQueue.
 
