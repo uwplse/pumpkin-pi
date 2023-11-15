@@ -205,8 +205,8 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
     intros.
     destruct q1 as (q1l, q1r).
     destruct q2 as (q2l, q2r).
-    induction q1l.
-    - induction q2l.
+    destruct q1l.
+    - destruct q2l.
       + unfold eq_queue in H. unfold insOrder in H. rewrite 2 app_nil_l in H.
         pose proof (f_equal (@rev (A)) H).
         rewrite rev_involutive in H0.
@@ -214,7 +214,26 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
         rewrite H0.
         unfold depRec at 1. (* should be solvable now *)
         give_up.
-      + give_up. (* the induction principle seems to be wrong here *)
+      + destruct q1r.
+        * unfold eq_queue in H. discriminate.
+        * assert (a1 :: q1r <> []) by discriminate.
+          pose proof (@app_removelast_last A (a1 :: q1r) a1 H0).
+          rewrite H1. rewrite H1 in H.
+          assert (last (a1 :: q1r) a1 = a0). give_up. (* should be solvable *)
+          rewrite H2. rewrite H2 in H.
+          assert (removelast (a1 :: q1r) = q2r ++ rev q2l).
+            unfold eq_queue in H. unfold insOrder in H. 
+            rewrite app_nil_l in H. rewrite rev_unit in H.
+            rewrite <- app_comm_cons in H.
+            pose proof (@f_equal (list A) (list A) (fun x => (rev (@tl TwoListQueue.A x))) _ _ H).
+            unfold tl in H3. rewrite rev_involutive in H3. rewrite rev_app_distr in H3. rewrite rev_involutive in H3. exact H3.
+          rewrite H3. (* at some point I may need an inductive hyp *)
+          
+    - destruct q2l.
+      + destruct q2r.
+        * unfold eq_queue in H. discriminate.
+        * give_up.
+      + give_up.
   Admitted.
 
   Theorem depRecCanonical (C : Type) (eq_C : C -> C -> Prop) `(eq_C_equiv: Equivalence _ (eq_C)) (pEmpty : C)
@@ -224,17 +243,20 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
     forall (l0 l1 : list A),
       eq_C (depRec C pEmpty pInsert (l0, l1)) (depRec C pEmpty pInsert (l0 ++ rev l1, [])).
   Proof.
+    intros.
+    assert ((l0, l1) = (l0 ++ rev l1, [])). give_up. (* easy goal *)
     induction l0 as [ | a l0].
-    - induction l1 as [ | b l1] using rev_rect.
+    - rewrite app_nil_l in H. rewrite app_nil_l . induction l1 as [ | b l1] using rev_rect.
       + reflexivity.
       + assert (([] ++ rev (l1 ++ [b]), []) = depConstrInsert b ([] ++ rev (l1), [])).
           simpl. rewrite <- rev_unit. reflexivity.
-        rewrite H. rewrite (depRecUnfoldInsert C eq_C eq_C_equiv pEmpty pInsert pInsertRespectful).
-        assert (([], l1 ++ [b]) [=] depConstrInsert b ([], l1)).
-          simpl. unfold eq_queue. unfold insOrder. rewrite rev_unit. apply app_nil_l.
-        unfold depRec at 1. unfold list_rect. 
-        (* the rough idea here is to apply pInsertRspectful, then rewrite by H0, then apply depRecUnfoldInsert *)
-        give_up.
+        rewrite H. 
+        reflexivity.
+    - induction l1 as [ | b l1] using rev_rect.
+      + unfold rev. rewrite app_nil_r. reflexivity.
+      + rewrite rev_app_distr. 
+        (* the rough idea here is to apply the ind hyp and use depRecUnfoldInsert *)
+
   Admitted.
   
   Add Parametric Morphism (C : Type) (equiv : C -> C -> Prop) (equiv_equiv : Equivalence equiv) (pEmpty : C)
