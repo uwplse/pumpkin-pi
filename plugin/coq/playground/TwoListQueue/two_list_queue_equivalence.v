@@ -193,46 +193,54 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
       apply IHl.
   Defined.
 
-  Theorem depRecCanonical (C : Type) (pEmpty : C)
+  Ltac canon := unfold eq_queue; simpl; try (rewrite app_nil_r; auto).
+
+  Theorem depRecUnfoldInsert (C : Type) (eq_C : C -> C -> Prop) `(eq_C_equiv: Equivalence _ (eq_C)) (pEmpty : C)
     (pInsert : forall (a : A) (q : queue), C -> C)
     (pInsertRespectful : forall (a : A) (q1 q2 : queue) (c : C),
-        q1 [=] q2 -> pInsert a q1 c = pInsert a q2 c) :
+        q1 [=] q2 -> eq_C (pInsert a q1 c) (pInsert a q2 c)) :
+    forall (a : A) (q1 q2 : queue),
+      q1 [=] q2 -> eq_C (depRec C pEmpty pInsert (depConstrInsert a q1)) (pInsert a q2 (depRec C pEmpty pInsert q2)).
+  Proof.
+    intros.
+    destruct q1 as (q1l, q1r).
+    destruct q2 as (q2l, q2r).
+    induction q1l.
+    - induction q2l.
+      + unfold eq_queue in H. unfold insOrder in H. rewrite 2 app_nil_l in H.
+        pose proof (f_equal (@rev (A)) H).
+        rewrite rev_involutive in H0.
+        rewrite rev_involutive in H0.
+        rewrite H0.
+        unfold depRec at 1. (* should be solvable now *)
+        give_up.
+      + give_up. (* the induction principle seems to be wrong here *)
+  Admitted.
+
+  Theorem depRecCanonical (C : Type) (eq_C : C -> C -> Prop) `(eq_C_equiv: Equivalence _ (eq_C)) (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C)
+    (pInsertRespectful : forall (a : A) (q1 q2 : queue) (c : C),
+        q1 [=] q2 -> eq_C (pInsert a q1 c) (pInsert a q2 c)) :
     forall (l0 l1 : list A),
-      depRec C pEmpty pInsert (l0, l1) = depRec C pEmpty pInsert (l0 ++ rev l1, []).
+      eq_C (depRec C pEmpty pInsert (l0, l1)) (depRec C pEmpty pInsert (l0 ++ rev l1, [])).
   Proof.
     induction l0 as [ | a l0].
     - induction l1 as [ | b l1] using rev_rect.
       + reflexivity.
-      + assert (([], l1) [=] ([] ++ rev l1, [])).
-        unfold eq_queue.
-        simpl.
-        rewrite app_nil_r.
-        reflexivity.
-        eapply (pInsertRespectful b) in H.
-        assert (pInsert b ([], l1) (depRec C pEmpty pInsert ([], l1)) = depRec C pEmpty pInsert ([], l1 ++ [b])).
-        simpl.
-        unfold rev_rect.
-        unfold eq_rect.
-        assert (depRec C pEmpty pInsert ([], l1 ++ [b]) = pInsert b ([], l1) (depRec C pEmpty pInsert ([], l1))).
-        simpl.
-        unfold rev_rect.
-        unfold eq_rect.
-        (*rewrite (uip l1 (rev(rev l1))).
-        
-        simpl.
-        unfold rev_rect.
-        apply pInsertRespectful.
-        simpl.
-        apply (f_equal (pInsert b)) in IHl1.
-        simpl.
-        unfold rev_rect.
-        simpl.*)
+      + assert (([] ++ rev (l1 ++ [b]), []) = depConstrInsert b ([] ++ rev (l1), [])).
+          simpl. rewrite <- rev_unit. reflexivity.
+        rewrite H. rewrite (depRecUnfoldInsert C eq_C eq_C_equiv pEmpty pInsert pInsertRespectful).
+        assert (([], l1 ++ [b]) [=] depConstrInsert b ([], l1)).
+          simpl. unfold eq_queue. unfold insOrder. rewrite rev_unit. apply app_nil_l.
+        unfold depRec at 1. unfold list_rect. 
+        (* the rough idea here is to apply pInsertRspectful, then rewrite by H0, then apply depRecUnfoldInsert *)
+        give_up.
   Admitted.
   
   Add Parametric Morphism (C : Type) (equiv : C -> C -> Prop) (equiv_equiv : Equivalence equiv) (pEmpty : C)
     (pInsert : forall (a : A) (q : queue), C -> C)
     (pInsertRespectful : forall (a : A) (q1 q2 : queue) (c : C),
-        q1 [=] q2 -> pInsert a q1 c = pInsert a q2 c) :
+        q1 [=] q2 -> equiv (pInsert a q1 c) (pInsert a q2 c)) :
     (depRec C pEmpty pInsert)
       with signature eq_queue ==> equiv as depRec_mor.
   Proof.
@@ -243,11 +251,9 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
     simpl in H.
     rewrite depRecCanonical.
     rewrite H.
-    rewrite <- depRecCanonical.
-    reflexivity.
-    apply pInsertRespectful.
-    apply pInsertRespectful.
-  Qed.
+    apply depRecCanonical.
+    give_up.
+  Admitted.
 
   Theorem depElimProp (P : queue -> Prop) `(p : Proper (queue -> Prop) (eq_queue ==> iff) P) (pEmpty : P depConstrEmpty)
     (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
