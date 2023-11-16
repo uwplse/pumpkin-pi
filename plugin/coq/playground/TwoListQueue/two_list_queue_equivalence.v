@@ -487,7 +487,7 @@ Proof.
   - apply eq_option_trans; auto.
 Qed.
 
-Theorem someProper {A : Type} (eqA : A -> A -> Prop) :
+Instance someProper {A : Type} (eqA : A -> A -> Prop) :
   Proper (eqA ==> eq_option eqA) Some.
 Proof.
   intros a1 a2 H1.
@@ -533,7 +533,7 @@ Proof.
   apply eq_deq_ret_trans.
 Qed.
 
-Definition dequeueHelpProper (a : A) :
+Instance dequeueHelpProper (a : A) :
   Proper (eq_queue ==> eq_deq_ret ==> eq_deq_ret) (dequeueHelp a).
 Proof.
   intros q1 q2 H0 m1 m2 H1.
@@ -586,7 +586,7 @@ Definition returnOrEnq (a : A) (m : option (queue * A)) : (queue * A) :=
     (depConstrEmpty, a)
     m.
 
-Theorem returnOrEnqProper (a : A) :
+Instance returnOrEnqProper (a : A) :
   Proper (eq_deq_ret ==> (eq_prod eq_queue eq)) (returnOrEnq a).
 Proof.
   intros m1 m2 H.
@@ -614,20 +614,11 @@ Ltac queuedestruct queue :=
   let qright := fresh "y" in
   destruct queue as (qleft, qright); try destruct qleft; try destruct qright.
 
-Theorem dequeueEnqueueTypeProper (a : A) : Proper (eq_queue ==> iff) (dequeueEnqueueType a) .
+Instance dequeueEnqueueTypeProper (a : A) : Proper (eq_queue ==> iff) (dequeueEnqueueType a) .
 Proof.
   intros q1 q2 H.
   unfold dequeueEnqueueType.
-  assert (eq_deq_ret (dequeue (enqueue a q1)) (dequeue (enqueue a q2))).
   rewrite H.
-  reflexivity.
-  assert (eq_deq_ret (Some (returnOrEnq a (dequeue q1))) (Some (returnOrEnq a (dequeue q2)))).
-  apply someProper.
-  apply returnOrEnqProper.
-  rewrite H.
-  reflexivity.
-  rewrite H0.
-  rewrite H1.
   reflexivity.
 Defined.
 
