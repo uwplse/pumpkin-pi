@@ -487,6 +487,13 @@ Proof.
   - apply eq_option_trans; auto.
 Qed.
 
+Theorem someProper {A : Type} (eqA : A -> A -> Prop) :
+  Proper (eqA ==> eq_option eqA) Some.
+Proof.
+  intros a1 a2 H1.
+  apply H1.
+Qed.
+
 Definition eq_deq_ret := eq_option (@eq_prod queue A eq_queue eq).
 
 Theorem eq_deq_ret_refl : reflexive _ eq_deq_ret.
@@ -579,6 +586,25 @@ Definition returnOrEnq (a : A) (m : option (queue * A)) : (queue * A) :=
     (depConstrEmpty, a)
     m.
 
+Theorem returnOrEnqProper (a : A) :
+  Proper (eq_deq_ret ==> (eq_prod eq_queue eq)) (returnOrEnq a).
+Proof.
+  intros m1 m2 H.
+  destruct m1; destruct m2.
+  -  simpl.
+     destruct p.
+     destruct p0.
+     destruct H.
+     split.
+     + apply enqueueProper.
+       apply H.
+     + apply H0.
+  - contradiction.
+  - contradiction.
+  - simpl.
+    split; reflexivity.
+Qed.       
+
 Definition dequeueEnqueueType (a : A) (q : queue) := eq_deq_ret (dequeue (enqueue a q)) (Some (returnOrEnq a (dequeue q))).
 
 
@@ -592,35 +618,18 @@ Theorem dequeueEnqueueTypeProper (a : A) : Proper (eq_queue ==> iff) (dequeueEnq
 Proof.
   intros q1 q2 H.
   unfold dequeueEnqueueType.
-  split; intros H1.
-  - assert (eq_deq_ret (dequeue (enqueue a q2)) (dequeue (enqueue a q1))).
-    apply dequeueProper.
-    apply enqueueProper.
-    apply symmetry.
-    apply H.
-    assert (eq_deq_ret (Some (returnOrEnq a (dequeue q1))) (Some (returnOrEnq a (dequeue q2)))).
-    * pose proof dequeueProper q1 q2 H. remember (dequeue q1) as dq1; destruct dq1; remember (dequeue q2) as dq2; destruct dq2; simpl.
-      + destruct p. destruct p0. split. 
-        assert (q [=] q0). apply H2. simpl. apply enqueueProper. apply H3.
-        assert (a0 = a1). apply H2. simpl. apply H3.
-      + unfold eq_deq_ret in H2. destruct p. contradiction.
-      + destruct p. unfold eq_deq_ret in H2. contradiction.
-      + split. apply (eq_queue_refl depConstrEmpty). reflexivity.
-    * pose proof (eq_deq_ret_trans _ _ _ H0 H1). exact (eq_deq_ret_trans _ _ _ H3 H2).
-  - assert (eq_deq_ret (dequeue (enqueue a q2)) (dequeue (enqueue a q1))).
-    apply dequeueProper.
-    apply enqueueProper.
-    apply symmetry.
-    apply H.
-    assert (eq_deq_ret (Some (returnOrEnq a (dequeue q1))) (Some (returnOrEnq a (dequeue q2)))).
-    * pose proof dequeueProper q1 q2 H. remember (dequeue q1) as dq1; destruct dq1; remember (dequeue q2) as dq2; destruct dq2; simpl.
-      + destruct p. destruct p0. split. 
-        assert (q [=] q0). apply H2. simpl. apply enqueueProper. apply H3.
-        assert (a0 = a1). apply H2. simpl. apply H3.
-      + unfold eq_deq_ret in H2. destruct p. contradiction.
-      + destruct p. unfold eq_deq_ret in H2. contradiction.
-      + split. apply (eq_queue_refl depConstrEmpty). reflexivity.
-    * apply symmetry in H0. pose proof (eq_deq_ret_trans _ _ _ H0 H1). apply symmetry in H2. exact (eq_deq_ret_trans _ _ _ H3 H2).
+  assert (eq_deq_ret (dequeue (enqueue a q1)) (dequeue (enqueue a q2))).
+  apply dequeueProper.
+  apply enqueueProper.
+  apply H.
+  assert (eq_deq_ret (Some (returnOrEnq a (dequeue q1))) (Some (returnOrEnq a (dequeue q2)))).
+  apply someProper.
+  apply returnOrEnqProper.
+  apply dequeueProper.
+  apply H.
+  rewrite H0.
+  rewrite H1.
+  reflexivity.
 Defined.
 
 End TwoListQueue.
