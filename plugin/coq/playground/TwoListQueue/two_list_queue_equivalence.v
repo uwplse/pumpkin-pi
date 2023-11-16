@@ -1,6 +1,7 @@
 Require Import List Relation_Definitions Morphisms Setoid.
 Import ListNotations.
 Require Import EqdepFacts.
+Require Import UIPList.
 
 Module OneListQueue.
 
@@ -49,6 +50,16 @@ Module TwoListQueue.
   (* Parameter A : Type.*)
   Definition A : Type := nat.
   Parameter uip : UIP_ A.
+  
+  Theorem listEqRectEq : Eq_rect_eq (list A).
+  Proof.
+    apply Streicher_K__eq_rect_eq.
+    apply UIP_refl__Streicher_K.
+    apply UIP__UIP_refl.
+    apply UIP_to_list.
+    apply uip.
+  Qed.
+  
   Definition queue := (list A * list A) % type.
   Definition insOrder (q : queue) :=
     match q with
@@ -144,7 +155,19 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
   Proof.
     intros P ? ? l. rewrite <- (rev_involutive A l).
     apply (rev_list_rect P); cbn; auto.
-  Defined. 
+  Defined.
+
+  Theorem rev_rect_iota (P : list A -> Type) (empty : P []) 
+    (append : forall (x : A) (l : list A), P l -> P (l ++ [x]))
+    (a : A) (l : list A) :
+    append a l (rev_rect P empty append l) = rev_rect P empty append (l ++ [a]).
+  Proof.
+    rewrite <- (rev_involutive A l).
+    pose (P' := fun (l : list A) => append a (rev l) (rev_rect P empty append (rev l)) = rev_rect P empty append (rev l ++ [a])).
+    apply (rev_list_ind P').
+    + unfold P'. simpl. unfold rev_rect. simpl.
+    give_up.
+  Admitted.
 
   Theorem depElim' (P : queue -> Type)
     (pEmpty : P depConstrEmpty)
@@ -178,7 +201,7 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
       apply IHl.
   Defined.
 
-  Theorem depRec (C : Type) (pEmpty : C)
+  Definition depRec (C : Type) (pEmpty : C)
     (pInsert : forall (a : A) (q : queue), C -> C) :
     (forall (x : queue), C).
   Proof.
@@ -236,46 +259,46 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
       + give_up.
   Admitted.
 
-  Theorem depRecCanonical (C : Type) (eq_C : C -> C -> Prop) `(eq_C_equiv: Equivalence _ (eq_C)) (pEmpty : C)
+  Theorem depRecCanonical (C : Type) (eqC : C -> C -> Prop) `(eqC_equiv: Equivalence _ (eqC)) (pEmpty : C)
     (pInsert : forall (a : A) (q : queue), C -> C)
-    (pInsertRespectful : forall (a : A) (q1 q2 : queue) (c : C),
-        q1 [=] q2 -> eq_C (pInsert a q1 c) (pInsert a q2 c)) :
+    (pInsertRespectful : forall (a : A), Proper (eq_queue ==> eqC ==> eqC) (pInsert a)) :
     forall (l0 l1 : list A),
-      eq_C (depRec C pEmpty pInsert (l0, l1)) (depRec C pEmpty pInsert (l0 ++ rev l1, [])).
+      eqC (depRec C pEmpty pInsert (l0, l1)) (depRec C pEmpty pInsert (l0 ++ rev l1, [])).
   Proof.
     intros.
-    assert ((l0, l1) = (l0 ++ rev l1, [])). give_up. (* easy goal *)
     induction l0 as [ | a l0].
-    - rewrite app_nil_l in H. rewrite app_nil_l . induction l1 as [ | b l1] using rev_rect.
-      + reflexivity.
-      + assert (([] ++ rev (l1 ++ [b]), []) = depConstrInsert b ([] ++ rev (l1), [])).
-          simpl. rewrite <- rev_unit. reflexivity.
-        rewrite H. 
-        reflexivity.
     - induction l1 as [ | b l1] using rev_rect.
-      + unfold rev. rewrite app_nil_r. reflexivity.
-      + rewrite rev_app_distr. 
-        (* the rough idea here is to apply the ind hyp and use depRecUnfoldInsert *)
-
-  Admitted.
+      + reflexivity.
+      + simpl. rewrite rev_app_distr. simpl.
+        rewrite <- rev_rect_iota.
+        apply (pInsertRespectful b).
+        * unfold eq_queue. simpl. rewrite app_nil_r. reflexivity.
+        * apply IHl1.
+    - simpl.
+      apply (pInsertRespectful a).
+      + unfold eq_queue.
+        simpl.
+        rewrite app_nil_r.
+        reflexivity.
+      + apply IHl0.
+  Qed.
   
-  Add Parametric Morphism (C : Type) (equiv : C -> C -> Prop) (equiv_equiv : Equivalence equiv) (pEmpty : C)
+  Add Parametric Morphism (C : Type) (eqC : C -> C -> Prop) `(eqC_equiv : Equivalence _ eqC) (pEmpty : C)
     (pInsert : forall (a : A) (q : queue), C -> C)
-    (pInsertRespectful : forall (a : A) (q1 q2 : queue) (c : C),
-        q1 [=] q2 -> equiv (pInsert a q1 c) (pInsert a q2 c)) :
+    (pInsertRespectful : forall (a : A), Proper (eq_queue ==> eqC ==> eqC) (pInsert a)) :
     (depRec C pEmpty pInsert)
-      with signature eq_queue ==> equiv as depRec_mor.
+      with signature eq_queue ==> eqC as depRec_mor.
   Proof.
     intros.
     destruct x.
-    unfold eq_queue in H.
     destruct y.
+    rewrite depRecCanonical; auto.
+    unfold eq_queue in H.
     simpl in H.
-    rewrite depRecCanonical.
     rewrite H.
-    apply depRecCanonical.
-    give_up.
-  Admitted.
+    rewrite (depRecCanonical C eqC eqC_equiv pEmpty pInsert pInsertRespectful l1 l2).
+    reflexivity.
+  Qed.
 
   Theorem depElimProp (P : queue -> Prop) `(p : Proper (queue -> Prop) (eq_queue ==> iff) P) (pEmpty : P depConstrEmpty)
     (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
