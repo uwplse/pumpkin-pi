@@ -227,7 +227,7 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
             rewrite <- app_comm_cons in H.
             pose proof (@f_equal (list A) (list A) (fun x => (rev (@tl TwoListQueue.A x))) _ _ H).
             unfold tl in H3. rewrite rev_involutive in H3. rewrite rev_app_distr in H3. rewrite rev_involutive in H3. exact H3.
-          rewrite H3. (* at some point I may need an inductive hyp *)
+          rewrite H3. (* at some point I may need an inductive hyp *) give_up.
           
     - destruct q2l.
       + destruct q2r.
@@ -424,39 +424,73 @@ Proof.
   - apply eq_prod_trans; auto.
 Qed.
 
-Definition eq_deq_ret (p1 p2 : option (queue * A)) : Prop :=
-  match p1, p2 with
+Definition eq_option {A : Type} (eqA : A -> A -> Prop) (m1 m2 : option A) : Prop :=
+  match m1, m2 with
   | None, None => True
   | Some _, None => False
   | None, Some _ => False
-  | Some (q1, a1), Some (q2, a2) => (eq_queue q1 q2) /\ (a1 = a2)
+  | Some a1, Some a2 => eqA a1 a2
   end.
+
+Theorem eq_option_refl {A : Type} (eqA : A -> A -> Prop) `(Reflexive _ eqA) : Reflexive (eq_option eqA).
+Proof.
+  intros m. unfold eq_option. destruct m. reflexivity. apply I.
+Qed.
+
+Theorem eq_option_sym {A : Type} (eqA : A -> A -> Prop) `(Symmetric _ eqA) : Symmetric (eq_option eqA).
+Proof.
+  intros m1 m2 H0.
+  unfold eq_option.
+  destruct m1; destruct m2; auto.
+Qed.
+
+Theorem eq_option_trans {A : Type} (eqA : A -> A -> Prop) `(Transitive _ eqA) : Transitive (eq_option eqA).
+Proof.
+  intros m1 m2 m3 H0 H1.
+  unfold eq_option.
+  destruct m1; destruct m2; destruct m3; auto.
+  - apply (H a a0 a1); auto.
+  - unfold eq_option in H0.
+    contradiction.
+Qed.
+
+Theorem eq_option_equiv {A : Type} (eqA : A -> A -> Prop) `(Equivalence _ eqA) : Equivalence (eq_option eqA).
+Proof.
+  destruct H. split.
+  - apply eq_option_refl; auto.
+  - apply eq_option_sym; auto.
+  - apply eq_option_trans; auto.
+Qed.
+
+Definition eq_deq_ret := eq_option (@eq_prod queue A eq_queue eq).
 
 Theorem eq_deq_ret_refl : reflexive _ eq_deq_ret.
 Proof.
-  intros q. unfold eq_deq_ret. destruct q.
-  - destruct p.
-    split; reflexivity.
-  - reflexivity.
+  unfold eq_deq_ret.
+  apply eq_option_refl.
+  apply eq_prod_refl.
+  apply eq_queue_refl.
+  auto.
 Qed.
+
 Theorem eq_deq_ret_sym : symmetric _ eq_deq_ret.
 Proof.
-  intros q1 q2 H. unfold eq_deq_ret. destruct q1; destruct q2.
-  - destruct p0. destruct p. split; symmetry; apply H.
-  - unfold eq_deq_ret in H. destruct p in H. apply H.
-  - unfold eq_deq_ret in H. contradiction.
-  - apply I.
+  unfold eq_deq_ret.
+  apply eq_option_sym.
+  apply eq_prod_sym.
+  apply eq_queue_sym.
+  auto.
 Qed.
+
 Theorem eq_deq_ret_trans : transitive _ eq_deq_ret.
 Proof.
-  intros q1 q2 q3. destruct q1; destruct q2; unfold eq_deq_ret; intros H1 H2.
-  - destruct p. destruct p0. destruct q3. destruct p. destruct H1; destruct H2. split.
-    + rewrite H. rewrite H1. reflexivity.
-    + rewrite H0. rewrite H2. reflexivity.
-    + apply H2.
-  - destruct p. contradiction.
-  - destruct p. contradiction.
-  - destruct q3; auto.
+  unfold eq_deq_ret.
+  apply eq_option_trans.
+  apply eq_prod_trans.
+  apply eq_queue_trans.
+  intros x y z H0 H1.
+  rewrite H0.
+  apply H1.
 Qed.
 
 Instance eq_deq_ret_equiv : Equivalence eq_deq_ret.
