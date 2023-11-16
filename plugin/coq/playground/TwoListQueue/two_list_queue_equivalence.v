@@ -166,6 +166,8 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
     pose (P' := fun (l : list A) => append a (rev l) (rev_rect P empty append (rev l)) = rev_rect P empty append (rev l ++ [a])).
     apply (rev_list_ind P').
     + unfold P'. simpl. unfold rev_rect. simpl.
+      unfold eq_rect. Print eq_ind_r.
+      simpl.
     give_up.
   Admitted.
 
@@ -523,6 +525,29 @@ Proof.
   apply eq_deq_ret_sym.
   apply eq_deq_ret_trans.
 Qed.
+
+Definition dequeueHelpProper (a : A) :
+  Proper (eq_queue ==> eq_deq_ret ==> eq_deq_ret) (dequeueHelp a).
+Proof.
+  intros q1 q2 H0 m1 m2 H1.
+  destruct m1; destruct m2; simpl.
+  - split.
+    + apply insert_mor.
+      destruct p.
+      destruct p0.
+      simpl.
+      simpl in H1.
+      destruct H1.
+      apply H.
+    + destruct p.
+      destruct p0.
+      simpl in H1.
+      destruct H1.
+      apply H1.
+  - contradiction.
+  - contradiction.
+  - split; reflexivity.
+Qed.  
        
 Definition dequeue : queue -> option (queue * A) :=
   depRec (option (queue * A)) None dequeueHelp .
@@ -533,8 +558,10 @@ Instance dequeueProper : Proper (eq_queue ==> eq_deq_ret) dequeue.
 Proof.
   intros q1 q2 H.
   unfold dequeue.
-  apply depRec_mor; auto.
+  apply depRec_mor.
   apply eq_deq_ret_equiv.
+  apply dequeueHelpProper.
+  apply H.
 Qed.
 
 Theorem dequeueEmpty : dequeue depConstrEmpty = None.
