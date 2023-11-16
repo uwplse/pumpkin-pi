@@ -619,14 +619,13 @@ Proof.
   intros q1 q2 H.
   unfold dequeueEnqueueType.
   assert (eq_deq_ret (dequeue (enqueue a q1)) (dequeue (enqueue a q2))).
-  apply dequeueProper.
-  apply enqueueProper.
-  apply H.
+  rewrite H.
+  reflexivity.
   assert (eq_deq_ret (Some (returnOrEnq a (dequeue q1))) (Some (returnOrEnq a (dequeue q2)))).
   apply someProper.
   apply returnOrEnqProper.
-  apply dequeueProper.
-  apply H.
+  rewrite H.
+  reflexivity.
   rewrite H0.
   rewrite H1.
   reflexivity.
