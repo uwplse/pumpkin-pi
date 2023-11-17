@@ -244,37 +244,37 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
       eq_C (depRec C pEmpty pInsert (l0, l1)) (depRec C pEmpty pInsert (l0 ++ rev l1, [])).
   Proof.
     intros.
-    assert ((l0, l1) = (l0 ++ rev l1, [])). give_up. (* easy goal *)
+    assert ((l0, l1) [=] (l0 ++ rev l1, [])). give_up. (* easy goal *)
     induction l0 as [ | a l0].
-    - rewrite app_nil_l in H. rewrite app_nil_l . induction l1 as [ | b l1] using rev_rect.
+    - rewrite app_nil_l in H. rewrite app_nil_l. induction l1 as [ | b l1] using rev_rect.
       + reflexivity.
-      + assert (([] ++ rev (l1 ++ [b]), []) = depConstrInsert b ([] ++ rev (l1), [])).
-          simpl. rewrite <- rev_unit. reflexivity.
-        rewrite H. 
-        reflexivity.
-    - induction l1 as [ | b l1] using rev_rect.
-      + unfold rev. rewrite app_nil_r. reflexivity.
-      + rewrite rev_app_distr. 
-        (* the rough idea here is to apply the ind hyp and use depRecUnfoldInsert *)
-
+      + assert (([], l1) [=] (rev l1, [])). unfold eq_queue. unfold insOrder. rewrite app_nil_l. rewrite app_nil_r. reflexivity.
+        pose proof (IHl1 H0).
+        rewrite rev_app_distr.
+        assert (rev [b] ++ (rev l1) = b :: (rev l1)) by auto.
+        rewrite H2.
+        give_up. (* unfold depRec using above theorem *)
+    - assert ((l0, l1) [=] (l0 ++ (rev l1), [])). unfold eq_queue. unfold insOrder. simpl. rewrite app_nil_r. reflexivity.
+      pose proof (IHl0 H0).
+      give_up.
   Admitted.
   
-  Add Parametric Morphism (C : Type) (equiv : C -> C -> Prop) (equiv_equiv : Equivalence equiv) (pEmpty : C)
+  Add Parametric Morphism (C : Type) (eq_C : C -> C -> Prop) `(eq_C_equiv : Equivalence _ eq_C) (pEmpty : C)
     (pInsert : forall (a : A) (q : queue), C -> C)
     (pInsertRespectful : forall (a : A) (q1 q2 : queue) (c : C),
-        q1 [=] q2 -> equiv (pInsert a q1 c) (pInsert a q2 c)) :
+        q1 [=] q2 -> eq_C (pInsert a q1 c) (pInsert a q2 c)) :
     (depRec C pEmpty pInsert)
-      with signature eq_queue ==> equiv as depRec_mor.
+      with signature eq_queue ==> eq_C as depRec_mor.
   Proof.
     intros.
-    destruct x.
-    unfold eq_queue in H.
-    destruct y.
-    simpl in H.
-    rewrite depRecCanonical.
-    rewrite H.
-    apply depRecCanonical.
-    give_up.
+    destruct x as (q1l, q1r). destruct y as (q2l, q2r).
+    induction q1l as [ | a q1l].
+    - induction q2l as [ | a q2l].
+      + unfold eq_queue in H. unfold insOrder in H. assert (rev (rev q1r) = rev (rev q2r)) by (auto using f_equal). assert (q1r = q2r). rewrite rev_involutive in H0. rewrite rev_involutive in H0. exact H0.
+        rewrite H1. reflexivity.
+      + rewrite H. (* more general inductive statement needed I think *)
+apply symmetry. apply symmetry in H.
+        pose proof (depRecUnfoldInsert C eq_C eq_C_equiv pEmpty pInsert pInsertRespectful a (q2l, q2r) ([], q1r) H).
   Admitted.
 
   Theorem depElimProp (P : queue -> Prop) `(p : Proper (queue -> Prop) (eq_queue ==> iff) P) (pEmpty : P depConstrEmpty)
