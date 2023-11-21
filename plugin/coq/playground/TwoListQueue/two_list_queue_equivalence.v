@@ -2,6 +2,13 @@ Require Import List Relation_Definitions Morphisms Setoid.
 Import ListNotations.
 Require Import EqdepFacts.
 Require Import UIPList.
+Print option_rect.
+
+Theorem congOptionRect {A B C : Type} (a : A) (b : C -> A) (m : option C) (f : A -> B) :
+  option_rect (fun _ => B) (fun x => f (b x)) (f a) m = f (option_rect (fun _ => A) b a m).
+Proof.
+  destruct m; reflexivity.
+Qed.
 
 Module OneListQueue.
 
@@ -217,6 +224,70 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
     - apply (pInsert b (l, l0)) in IHl.
       apply IHl.
   Defined.
+
+  Theorem iotaRecEmptyEq (C : Type)
+    (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C) :
+    depRec C pEmpty pInsert depConstrEmpty = pEmpty.
+  Proof.
+    reflexivity.
+  Defined.
+
+  Theorem iotaRecEmpty (C : Type)
+    (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C) :
+    forall (Q : C -> Type),
+      (Q (depRec C pEmpty pInsert depConstrEmpty)) -> (Q pEmpty).
+  Proof.
+    intros.
+    rewrite iotaRecEmptyEq in X.
+    apply X.
+  Defined.
+
+  Theorem iotaRecEmptyRev (C : Type)
+    (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C) :
+    forall (Q : C -> Type),
+      (Q pEmpty) -> (Q (depRec C pEmpty pInsert depConstrEmpty)).
+  Proof.
+    intros.
+    rewrite iotaRecEmptyEq.
+    apply X.
+  Defined.
+
+  Theorem iotaRecInsertEq (C : Type)
+    (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C) (a : A) (q : queue) :
+    depRec C pEmpty pInsert (depConstrInsert a q)
+    = pInsert a q (depRec C pEmpty pInsert q).
+  Proof.
+    destruct q.
+    reflexivity.
+  Defined.
+
+  Theorem iotaRecInsert (C : Type)
+    (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C) (a : A) (q : queue) :
+  forall (a : A) (q : queue) (Q : C -> Type), 
+    Q (depRec C pEmpty pInsert (depConstrInsert a q))
+    -> Q (pInsert a q (depRec C pEmpty pInsert q)).
+  Proof.
+    intros.
+    rewrite iotaRecInsertEq in X.
+    apply X.
+  Defined.
+
+  Theorem iotaRecInsertRev (C : Type)
+    (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C) (a : A) (q : queue) :
+  forall (a : A) (q : queue) (Q : C -> Type),
+    Q (pInsert a q (depRec C pEmpty pInsert q))
+    -> Q (depRec C pEmpty pInsert (depConstrInsert a q)).
+  Proof.
+    intros.
+    rewrite iotaRecInsertEq.
+    apply X.
+  Qed.
 
   Ltac canon := unfold eq_queue; simpl; try (rewrite app_nil_r; auto).
 
@@ -688,6 +759,17 @@ Proof.
   reflexivity.
 Defined.
 
+Theorem dequeueEnqueue (a : A) (q : queue) : dequeueEnqueueType a q .
+Proof.
+  unfold dequeueEnqueueType.
+  unfold dequeue.
+  apply (iotaRecInsertRev (option (queue * A)) None dequeueHelp a q).
+  unfold dequeueHelp.
+  unfold returnOrEnq.
+  rewrite congOptionRect.
+  reflexivity.
+Qed.
+  
 End TwoListQueue.
 
 Module Tests.
