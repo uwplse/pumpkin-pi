@@ -301,24 +301,6 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
     rewrite (depRecCanonical C eqC eqC_equiv pEmpty pInsert pInsertRespectful l1 l2).
     reflexivity.
   Qed.
-
-  Theorem depElimProp (P : queue -> Prop) `(p : Proper (queue -> Prop) (eq_queue ==> iff) P) (pEmpty : P depConstrEmpty)
-    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
-    (forall (x : queue), P x).
-  Proof.
-    intros.
-    destruct x.
-    induction l as [ | b l].
-    - induction l0 as [ | a l0] using rev_rect.
-      + apply pEmpty.
-      + apply (pInsert a ([], l0)) in IHl0.
-        pose proof (shift a nil l0).
-        apply p in H.
-        rewrite <- H.
-        apply IHl0.
-    - apply (pInsert b (l, l0)) in IHl.
-      apply IHl.
-  Defined.
   
   (* Theorem depElimRespectful (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue ==> eq) P) (pEmpty : P depConstrEmpty)
     (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q))
@@ -386,6 +368,90 @@ Theorem iotaInsertRev (P : queue -> Type) `(p : Proper (queue -> Type) (eq_queue
   Proof.
     intros.
     rewrite iotaInsertEq.
+    apply X.
+  Qed.
+
+Theorem depElimProp (P : queue -> Prop) `(p : Proper (queue -> Prop) (eq_queue ==> iff) P) (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
+    (forall (x : queue), P x).
+  Proof.
+    intros.
+    destruct x.
+    induction l as [ | b l].
+    - induction l0 as [ | a l0] using rev_rect.
+      + apply pEmpty.
+      + apply (pInsert a ([], l0)) in IHl0.
+        pose proof (shift a nil l0).
+        apply p in H.
+        rewrite <- H.
+        apply IHl0.
+    - apply (pInsert b (l, l0)) in IHl.
+      apply IHl.
+  Defined.
+
+Theorem iotaPropEmptyEq (P : queue -> Prop) `(p : Proper (queue -> Prop) (eq_queue ==> iff) P)
+    (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
+    depElimProp P p pEmpty pInsert depConstrEmpty = pEmpty.
+  Proof.
+    reflexivity.
+  Defined.
+
+Theorem iotaPropEmpty (P : queue -> Prop) `(p : Proper (queue -> Prop) (eq_queue ==> iff) P)
+    (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
+    forall (Q : P depConstrEmpty -> Type),
+      (Q (depElimProp P p pEmpty pInsert depConstrEmpty)) -> (Q pEmpty).
+  Proof.
+    intros.
+    rewrite iotaPropEmptyEq in X.
+    apply X.
+  Defined.
+
+  Theorem iotaPropEmptyRev (P : queue -> Prop)
+    `(p : Proper (queue -> Prop) (eq_queue ==> iff) P)
+    (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
+    forall (Q : P depConstrEmpty -> Type),
+      (Q pEmpty) -> (Q (depElimProp P p pEmpty pInsert depConstrEmpty)).
+  Proof.
+    intros.
+    rewrite iotaPropEmptyEq.
+    apply X.
+  Defined.
+
+Theorem iotaPropInsertEq (P : queue -> Prop) `(p : Proper (queue -> Prop) (eq_queue ==> iff) P)
+    (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) (a : A) (q : queue) :
+    depElimProp P p pEmpty pInsert (depConstrInsert a q)
+    = pInsert a q (depElimProp P p pEmpty pInsert q).
+  Proof.
+    destruct q.
+    reflexivity.
+  Defined.
+
+Theorem iotaPropInsert (P : queue -> Prop) `(p : Proper (queue -> Prop) (eq_queue ==> iff) P)
+    (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
+  forall (a : A) (q : queue) (Q : P (depConstrInsert a q) -> Type), 
+    Q (depElimProp P p pEmpty pInsert (depConstrInsert a q))
+    -> Q (pInsert a q (depElimProp P p pEmpty pInsert q)).
+  Proof.
+    intros.
+    rewrite iotaPropInsertEq in X.
+    apply X.
+  Defined.
+
+  Theorem iotaPropInsertRev (P : queue -> Prop)
+    `(p : Proper (queue -> Prop) (eq_queue ==> iff) P)
+    (pEmpty : P depConstrEmpty)
+    (pInsert : forall (a : A) (q : queue), P q -> P (depConstrInsert a q)) :
+  forall (a : A) (q : queue) (Q : P (depConstrInsert a q) -> Type),
+    Q (pInsert a q (depElimProp P p pEmpty pInsert q))
+    -> Q (depElimProp P p pEmpty pInsert (depConstrInsert a q)).
+  Proof.
+    intros.
+    rewrite iotaPropInsertEq.
     apply X.
   Qed.
 
