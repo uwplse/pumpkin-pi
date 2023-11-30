@@ -228,7 +228,7 @@ Module TwoListQueue.
     - intros. simpl. rewrite IHl. reflexivity.
   Defined.
 
-    Theorem rev_involutive : forall (A : Type) (l : list A), rev (rev l) = l.
+  Theorem rev_involutive : forall (A : Type) (l : list A), rev (rev l) = l.
   Proof.
     exact (fun (A : Type) (l : list A) =>
 list_ind (fun l0 : list A => rev (rev l0) = l0)
@@ -248,18 +248,36 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
     apply (rev_list_rect P); cbn; auto.
   Defined.
 
+  Lemma UIP_list_A:
+    UIP_ (list A).
+  Proof.
+    apply UIP_to_list. apply uip.
+  Qed.
+
+  Lemma rev_involutive':
+    forall (l : list A) (a : A),
+      rev (rev (l ++ [a])) = l ++ [a].
+  Proof.
+    intros. rewrite rev_unit. simpl. rewrite rev_involutive. reflexivity.
+  Defined.
+
+  Lemma rev_involutive'_OK:
+    forall (l : list A) (a : A), rev_involutive A (l ++ [a]) = rev_involutive' l a.
+  Proof.
+   intros. pose proof (UIP_list_A). unfold UIP_ in H.
+   specialize (H _ (l ++ [a]) (rev_involutive A (l ++ [a]))).
+   unfold UIP_on_ in H. apply H.
+  Defined.
+
   Theorem rev_rect_iota (P : list A -> Type) (empty : P []) 
     (append : forall (x : A) (l : list A), P l -> P (l ++ [x])) :
     forall (l : list A) (a : A),
       append a l (rev_rect P empty append l) = rev_rect P empty append (l ++ [a]).
   Proof.
-    unfold rev_rect.
-    unfold eq_rect.
-    induction l.
-    + reflexivity.
-    + simpl. unfold rev_rect.
-      unfold eq_rect.   
-  Admitted.
+    intros l a. unfold rev_rect. rewrite rev_involutive'_OK. unfold rev_involutive'.
+    destruct (rev_involutive A l). simpl. unfold eq_ind_r. simpl.
+    destruct (eq_sym (rev_unit l a)). simpl. reflexivity.
+  Defined.
 
   Theorem depElim' (P : queue -> Type)
     (pEmpty : P depConstrEmpty)
