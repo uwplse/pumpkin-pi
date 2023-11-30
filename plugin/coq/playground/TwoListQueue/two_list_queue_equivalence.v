@@ -30,6 +30,68 @@ Module OneListQueue.
     (pInsert : forall (a : A) (q : queue), C -> C) :
     (forall (x : queue), C) :=
     list_rect (fun _ => C) pEmpty pInsert.
+  Theorem iotaRecEmptyEq (C : Type)
+    (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C) :
+    depRec C pEmpty pInsert depConstrEmpty = pEmpty.
+  Proof.
+    reflexivity.
+  Defined.
+
+  Theorem iotaRecEmpty (C : Type)
+    (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C) :
+    forall (Q : C -> Type),
+      (Q (depRec C pEmpty pInsert depConstrEmpty)) -> (Q pEmpty).
+  Proof.
+    intros.
+    rewrite iotaRecEmptyEq in X.
+    apply X.
+  Defined.
+
+  Theorem iotaRecEmptyRev (C : Type)
+    (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C) :
+    forall (Q : C -> Type),
+      (Q pEmpty) -> (Q (depRec C pEmpty pInsert depConstrEmpty)).
+  Proof.
+    intros.
+    rewrite iotaRecEmptyEq.
+    apply X.
+  Defined.
+
+  Theorem iotaRecInsertEq (C : Type)
+    (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C) (a : A) (q : queue) :
+    depRec C pEmpty pInsert (depConstrInsert a q)
+    = pInsert a q (depRec C pEmpty pInsert q).
+  Proof.
+    reflexivity.
+  Defined.
+
+  Theorem iotaRecInsert (C : Type)
+    (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C) (a : A) (q : queue) :
+  forall (a : A) (q : queue) (Q : C -> Type), 
+    Q (depRec C pEmpty pInsert (depConstrInsert a q))
+    -> Q (pInsert a q (depRec C pEmpty pInsert q)).
+  Proof.
+    intros.
+    rewrite iotaRecInsertEq in X.
+    apply X.
+  Defined.
+
+  Theorem iotaRecInsertRev (C : Type)
+    (pEmpty : C)
+    (pInsert : forall (a : A) (q : queue), C -> C) (a : A) (q : queue) :
+  forall (a : A) (q : queue) (Q : C -> Type),
+    Q (pInsert a q (depRec C pEmpty pInsert q))
+    -> Q (depRec C pEmpty pInsert (depConstrInsert a q)).
+  Proof.
+    intros.
+    rewrite iotaRecInsertEq.
+    apply X.
+  Qed.
 
   Definition enqueue (a : A) (q : queue) : queue :=
     depConstrInsert a q.
@@ -44,6 +106,7 @@ Module OneListQueue.
 
   Definition dequeue : queue -> option (queue * A) :=
     depRec (option (queue * A)) None dequeueHelp .
+  
   Definition returnOrEnq (a : A) (m : option (queue * A)) : (queue * A) :=
     @option_rect
       (queue * A)
@@ -51,6 +114,20 @@ Module OneListQueue.
       (fun (p : (queue * A)) => (enqueue a (fst p), snd p))
       (depConstrEmpty, a)
       m.
+  
+  Definition dequeueEnqueueType (a : A) (q : queue) := (dequeue (enqueue a q)) = (Some (returnOrEnq a (dequeue q))).
+
+  Theorem dequeueEnqueue (a : A) (q : queue) : dequeueEnqueueType a q .
+  Proof.
+    unfold dequeueEnqueueType.
+    unfold dequeue.
+    apply (iotaRecInsertRev (option (queue * A)) None dequeueHelp a q).
+    unfold dequeueHelp.
+    unfold returnOrEnq.
+    rewrite congOptionRect.
+    reflexivity.
+  Qed.
+  
 End OneListQueue.
 
 Module TwoListQueue.
@@ -144,6 +221,13 @@ Module TwoListQueue.
     intros P ? ? l; induction l; auto.
   Defined.
 
+  Remark rev_unit {A : Type} : forall (l:list A) (a:A), rev (l ++ a :: nil) = a :: rev l.
+  Proof.
+    induction l.
+    - reflexivity.
+    - intros. simpl. rewrite IHl. reflexivity.
+  Defined.
+
     Theorem rev_involutive : forall (A : Type) (l : list A), rev (rev l) = l.
   Proof.
     exact (fun (A : Type) (l : list A) =>
@@ -165,17 +249,16 @@ list_ind (fun l0 : list A => rev (rev l0) = l0)
   Defined.
 
   Theorem rev_rect_iota (P : list A -> Type) (empty : P []) 
-    (append : forall (x : A) (l : list A), P l -> P (l ++ [x]))
-    (a : A) (l : list A) :
-    append a l (rev_rect P empty append l) = rev_rect P empty append (l ++ [a]).
+    (append : forall (x : A) (l : list A), P l -> P (l ++ [x])) :
+    forall (l : list A) (a : A),
+      append a l (rev_rect P empty append l) = rev_rect P empty append (l ++ [a]).
   Proof.
-    rewrite <- (rev_involutive A l).
-    pose (P' := fun (l : list A) => append a (rev l) (rev_rect P empty append (rev l)) = rev_rect P empty append (rev l ++ [a])).
-    apply (rev_list_ind P').
-    + unfold P'. simpl. unfold rev_rect. simpl.
-      unfold eq_rect. Print eq_ind_r.
-      simpl.
-    give_up.
+    unfold rev_rect.
+    unfold eq_rect.
+    induction l.
+    + reflexivity.
+    + simpl. unfold rev_rect.
+      unfold eq_rect.   
   Admitted.
 
   Theorem depElim' (P : queue -> Type)
