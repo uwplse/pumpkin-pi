@@ -860,15 +860,117 @@ Proof.
   reflexivity.
 Defined.
 
-Theorem dequeueEnqueue (a : A) (q : queue) : dequeueEnqueueType a q .
+Theorem dequeueEnqueue (a : A) (q : queue) : eq_deq_ret (dequeue (enqueue a q)) (Some (returnOrEnq a (dequeue q))).
 Proof.
-  unfold dequeueEnqueueType.
   unfold dequeue.
   apply (iotaRecInsertRev (option (queue * A)) None dequeueHelp a q).
   unfold dequeueHelp.
   unfold returnOrEnq.
   rewrite congOptionRect.
   reflexivity.
+Qed.
+
+Definition fastDequeue (q : queue) : option (queue * A) :=
+  let (l1, l2) := q in
+  match l1, l2 with
+  | [] , [] => None
+  | h1 :: t1 , [] => Some (([] , tl (rev l1)), hd h1 (rev l1))
+  | _ , h2 :: t2 => Some ((l1, t2), h2)
+  end.
+
+Theorem headTailNonempty (a : A) (l : list A) : (hd a (l ++ [a])) :: (tl (l ++ [a])) = l ++ [a].
+Proof.
+  destruct l; reflexivity.
+Qed.
+
+Theorem fastDequeueProperHelp (q : queue) : eq_deq_ret (fastDequeue q) (fastDequeue ([], rev (insOrder q))).
+Proof.
+  intros.
+  destruct q.
+  unfold eq_deq_ret.
+  unfold eq_option.
+  unfold eq_prod.
+  destruct l; destruct l0.
+  - apply I.
+  - simpl.
+    rewrite rev_unit.
+    rewrite rev_involutive.
+    unfold eq_queue.
+    split; reflexivity.
+  - simpl.
+    rewrite app_nil_r.
+    rewrite <- headTailNonempty.
+    split; reflexivity.
+  - simpl.
+    rewrite <- headTailNonempty.
+    rewrite app_assoc.
+    rewrite rev_app_distr.
+    simpl.
+    split.
+    + unfold eq_queue.
+      simpl.
+      rewrite rev_app_distr.
+      rewrite rev_involutive.
+      reflexivity.
+    + reflexivity.
+Qed.  
+
+Instance fastDequeueProper : Proper (eq_queue ==> eq_deq_ret) fastDequeue.
+Proof.
+  intros q1 q2 H1.
+  rewrite fastDequeueProperHelp.
+  rewrite (fastDequeueProperHelp q2).
+  f_equiv.
+  rewrite H1.
+  reflexivity.
+Qed.
+
+Theorem tlApp (l1 l2 : list A) : l1 <> [] -> tl (l1 ++ l2) = tl(l1) ++ l2.
+Proof.
+  intros.
+  destruct l1.
+  - contradiction.
+  - reflexivity.
+Qed.
+
+Theorem hdApp (l : list A) (a1 a2 : A) : hd a1 ((l ++ [a2]) ++ [a1]) = hd a2 (l ++ [a2]).
+Proof.
+  destruct l; reflexivity.
+Qed.
+
+Theorem fastDequeueEnqueue (a : A) (q : queue) : eq_deq_ret (fastDequeue (enqueue a q)) (Some (returnOrEnq a (fastDequeue q))).
+Proof.
+  queuedestruct q.
+  - reflexivity.
+  - split; reflexivity.
+  - simpl.
+    split.
+    + unfold eq_queue.
+      simpl.
+      rewrite tlApp.
+      rewrite rev_app_distr.
+      reflexivity.
+      rewrite <- headTailNonempty.
+      intros H.
+      symmetry in H.
+      apply nil_cons in H.
+      apply H.
+    + apply hdApp.
+  - split; reflexivity.
+Qed.      
+
+Theorem dequeueEqualsFastDequeue : forall (q : queue), eq_deq_ret (dequeue q) (fastDequeue q).
+Proof.
+  apply depElimProp.
+  - intros q1 q2 H.
+    rewrite H.
+    reflexivity.
+  - reflexivity.
+  - intros.
+    rewrite fastDequeueEnqueue.
+    rewrite dequeueEnqueue.
+    rewrite H.
+    reflexivity.
 Qed.
   
 End TwoListQueue.
