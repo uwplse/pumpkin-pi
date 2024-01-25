@@ -195,6 +195,17 @@ Proof.
       apply (f_equal predZ).
       apply IHn.
 Qed.
+
+Theorem addZ0R : forall (z : Z), z = (addZ z (depConstrPos 0)).
+  intros.
+  unfold addZ.
+  apply (iotaPosRev
+    constZ
+    (fun (p : nat) => add_posZ z p)
+    (fun (p : nat) => add_negsucZ z p)
+    0).
+  reflexivity.
+Qed.
        
 End IndInt.
 
@@ -945,9 +956,8 @@ Qed.
 
   Theorem add0LZ (z : Z) : eq_Z z (addZ (depConstrPos 0) z).
   Proof.
-    eapply (depElimProp (fun (z1 : Z) => eq_Z z1 (addZ (depConstrPos 0) z1))).
-    - apply add0LZTypeProper.
-      apply z.
+    apply (depElimProp (fun (z1 : Z) => eq_Z z1 (addZ (depConstrPos 0) z1))).
+    - apply (add0LZTypeProper z).
     - induction n.
       + reflexivity.
       + apply (iotaRecPos
@@ -1025,5 +1035,245 @@ Qed.
         f_equiv.
         apply IHn.
   Qed.
+
+  Theorem addZ0R : forall (z : Z), eq_Z z (addZ z (depConstrPos 0)).
+    intros.
+    unfold addZ.
+    apply (iotaRecPosRev
+      Z
+      (fun (p : nat) => add_posZ z p)
+      (fun (p : nat) => add_negsucZ z p)
+      0).
+    reflexivity.
+  Qed.
+
+  Definition fastAddZ (a b : Z) : Z :=
+    match b with
+    | (b1, b2) => match a with
+                  | (a1, a2) => (a1 + b1, a2 + b2)
+                  end
+    end.
+
+  Instance fastAddZProper : Proper (eq_Z ==> eq_Z ==> eq_Z) fastAddZ.
+  Proof.
+    unfold eq_Z.
+    intros z1 z2 H1 z3 z4 H2.
+    destruct z1.
+    destruct z2.
+    destruct z3.
+    destruct z4.
+    simpl.
+    lia.
+  Qed.
+
+  Theorem reduceSucZ : forall (n m : nat), eq_Z (sucZ (n, m)) (S n, m).
+  Proof.
+    intros.
+    pose proof (canonicalizePres (n, m)).
+    rewrite <- H.
+    pose proof (canonicalizeSignDec (n, m)).
+    destruct H0.
+    - destruct s.
+      rewrite e.
+      apply (iotaRecPosRev
+        Z
+        (fun (n : nat) => depConstrPos (S n))
+        (fun (n : nat) => nat_rec constZ (depConstrPos 0) (fun (m : nat) _ => depConstrNegSuc m) n)
+        x
+        (fun s => eq_Z s (S n, m))).
+      simpl.
+      f_equal.
+      rewrite e in H.
+      apply H.
+    - destruct s.
+      rewrite e.
+      apply (iotaRecNegSucRev
+        Z
+        (fun (n : nat) => depConstrPos (S n))
+        (fun (n : nat) => nat_rec constZ (depConstrPos 0) (fun (m : nat) _ => depConstrNegSuc m) n)
+        x
+        (fun s => eq_Z s (S n, m))).
+      destruct x.
+      + simpl.
+        rewrite e in H.
+        unfold eq_Z in H.
+        lia.
+      + simpl.
+        rewrite e in H.
+        unfold eq_Z in H.
+        lia.      
+  Qed.
+
+  Theorem reduceAddZPos : forall (z : Z) (n : nat), eq_Z (addZ z (depConstrPos (S n))) (sucZ (addZ z (depConstrPos n))).
+  Proof.
+    intros.
+    unfold addZ.
+    apply (iotaRecPosRev
+      Z
+      (fun (p : nat) => add_posZ z p)
+      (fun (p : nat) => add_negsucZ z p)).
+    simpl.
+    apply (iotaRecPos
+      Z
+      (fun (p : nat) => add_posZ z p)
+      (fun (p : nat) => add_negsucZ z p)).
+    reflexivity.
+  Qed.
+
+  Theorem reduceFastAddZPos : forall (z : Z) (n : nat), eq_Z (fastAddZ z (depConstrPos (S n))) (sucZ (fastAddZ z (depConstrPos n))).
+  Proof.
+    intros.
+    generalize dependent z.
+    apply depElimProp.
+    - intros z1 z2 H.
+      rewrite H.
+      reflexivity.
+    - intros.
+      simpl.
+      rewrite (surjective_pairing (sucZ (n0 + n, 0))).
+      pose proof (reduceSucZ (n0 + n) 0).
+      destruct (sucZ (n0 + n, 0)).
+      unfold eq_Z in H.
+      simpl.
+      lia.
+    - intros.
+      simpl.
+      rewrite (surjective_pairing (sucZ (n, S (n0 + 0)))).
+      pose proof (reduceSucZ n (S (n0 + 0))).
+      destruct (sucZ (n, S (n0 + 0))).
+      unfold eq_Z in H.
+      simpl.
+      lia.
+  Qed.
+
+  Theorem fastAddZ0R : forall (z : Z), eq_Z z (fastAddZ z (depConstrPos 0)).
+  Proof.
+    intros.
+    simpl.
+    destruct z.
+    rewrite PeanoNat.Nat.add_0_r.
+    rewrite PeanoNat.Nat.add_0_r.
+    reflexivity.
+  Qed.
+
+  Theorem reducePredZ : forall (n m : nat), eq_Z (predZ (n, m)) (n, S m).
+  Proof.
+    intros.
+    pose proof (canonicalizePres (n, m)).
+    rewrite <- H.
+    pose proof (canonicalizeSignDec (n, m)).
+    destruct H0.
+    - destruct s.
+      rewrite e.
+      apply (iotaRecPosRev
+        Z
+        (fun (n : nat) => nat_rec constZ (depConstrNegSuc 0) (fun (m : nat) _ => depConstrPos m) n)
+        (fun (n : nat) => depConstrNegSuc (S n))
+        x
+        (fun s => eq_Z s (n, S m))).
+      destruct x.
+      + simpl.
+        rewrite e in H.
+        unfold eq_Z in H.
+        lia.
+      + simpl.
+        rewrite e in H.
+        unfold eq_Z in H.
+        lia.    
+    - destruct s.
+      rewrite e.
+      apply (iotaRecNegSucRev
+        Z
+        (fun (n : nat) => nat_rec constZ (depConstrNegSuc 0) (fun (m : nat) _ => depConstrPos m) n)
+        (fun (n : nat) => depConstrNegSuc (S n))
+        x
+        (fun s => eq_Z s (n, S m))).
+      simpl.
+      f_equal.
+      rewrite e in H.
+      apply H.
+  Qed.          
+
+  Theorem reduceFastAddZNegSuc : forall (z : Z) (n : nat), eq_Z (fastAddZ z (depConstrNegSuc (S n))) (predZ (fastAddZ z (depConstrNegSuc n))).
+  Proof.
+    intros.
+    generalize dependent z.
+    apply depElimProp.
+    - intros z1 z2 H.
+      rewrite H.
+      reflexivity.
+    - intros.
+      simpl.
+      rewrite (surjective_pairing (predZ (n0 + 0, S n))).
+      pose proof (reducePredZ (n0 + 0) (S n)).
+      destruct (predZ (n0 + 0, (S n))).
+      unfold eq_Z in H.
+      simpl.
+      lia.
+    - intros.
+      simpl.
+      lia.
+  Qed.
+
+  Theorem reduceAddZNegSuc : forall (z : Z) (n : nat), eq_Z (addZ z (depConstrNegSuc (S n))) (predZ (addZ z (depConstrNegSuc n))).
+  Proof.
+    intros.
+    unfold addZ.
+    apply (iotaRecNegSucRev
+      Z
+      (fun (p : nat) => add_posZ z p)
+      (fun (p : nat) => add_negsucZ z p)).
+    simpl.
+    apply (iotaRecNegSuc
+      Z
+      (fun (p : nat) => add_posZ z p)
+      (fun (p : nat) => add_negsucZ z p)).
+    reflexivity.
+  Qed.
+
+  Theorem fastAddZNegSuc0R : forall (z : Z), eq_Z (predZ z) (fastAddZ z (depConstrNegSuc 0)).
+  Proof.
+    intros.
+    simpl.
+    destruct z.
+    rewrite PeanoNat.Nat.add_0_r.
+    rewrite reducePredZ.
+    rewrite PeanoNat.Nat.add_1_r.
+    reflexivity.
+  Qed.
+
+  Theorem addZNegSuc0R : forall (z : Z), eq_Z (predZ z) (addZ z (depConstrNegSuc 0)).
+  Proof.
+    intros.
+    unfold addZ.
+    apply (iotaRecNegSucRev
+      Z
+      (fun (p : nat) => add_posZ z p)
+      (fun (p : nat) => add_negsucZ z p)).
+    reflexivity.
+  Qed.
+
+  Theorem addEqualFastAdd : forall (a b : Z), eq_Z (addZ a b) (fastAddZ a b).
+  Proof.
+    intros a.
+    apply depElimProp.
+    - intros z1 z2 H. rewrite H. reflexivity.
+    - induction n.
+      + rewrite <- addZ0R.
+        rewrite <- fastAddZ0R.
+        reflexivity.
+      + rewrite (reduceFastAddZPos a n).
+        rewrite (reduceAddZPos a n).
+        f_equiv.
+        apply IHn.
+    - induction n.
+      + rewrite <- addZNegSuc0R.
+        rewrite <- fastAddZNegSuc0R.
+        reflexivity.
+      + rewrite (reduceFastAddZNegSuc a n).
+        rewrite (reduceAddZNegSuc a n).
+        f_equiv.
+        apply IHn.
+  Qed.    
 
 End GInt.
