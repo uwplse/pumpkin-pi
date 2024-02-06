@@ -284,6 +284,9 @@ let int_to_kind (i : int) globals =
   else if i = 4 then
     let typs = map_tuple UnivGen.constr_of_global globals in
     Custom typs
+  else if i = 5 then
+    let typs = map_tuple UnivGen.constr_of_global globals in
+    Setoid typs
   else
     failwith "Unsupported kind of ornament passed to interpret_kind in caching"
 
@@ -299,6 +302,8 @@ let kind_to_int (k : kind_of_orn) =
      3
   | Custom typs ->
      4
+  | Setoid typs ->
+     5
 
 (*
  * Wrapping the table for persistence
@@ -409,7 +414,7 @@ let save_ornament typs (orn, orn_inv, kind) =
     | SwapConstruct swap_map ->
        let ind_obj = inSwaps (globals, swap_map) in
        add_anonymous_leaf ind_obj
-    | CurryRecord | UnpackSigma | Custom _ ->
+    | CurryRecord | UnpackSigma | Custom _ | Setoid _ ->
        ()
   with _ ->
     Feedback.msg_warning
