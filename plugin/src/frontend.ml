@@ -128,7 +128,7 @@ let maybe_unpack_algebraic ?(hints=[]) n typs promote forget coh_o pfs_o kind : 
          let sigma, env = refresh_env () in
          let coh = UnivGen.constr_of_global (Option.get coh_o) in
          let pfs = map_tuple UnivGen.constr_of_global (Option.get pfs_o) in
-         let sigma, l = initialize_lifting_provided env sigma typs (promote, forget) false in
+         let sigma, l = initialize_lifting_provided env sigma typs (promote, forget) false false in
          let (f, g) = unpack_algebraic env sigma l coh pfs in
          () (* TODO *)
      else
@@ -158,7 +158,7 @@ let maybe_prove_equivalence ?(hints=[]) n typs promote forget : (Names.GlobRef.t
   in
   if go_ahead then
     let sigma, env = refresh_env () in
-    let sigma, l = initialize_lifting_provided env sigma typs (promote, forget) false in
+    let sigma, l = initialize_lifting_provided env sigma typs (promote, forget) false false in
     let ((section, section_typ), (retraction, retraction_typ)) =
       prove_equivalence env sigma l
     in
@@ -184,7 +184,7 @@ let maybe_prove_equivalence ?(hints=[]) n typs promote forget : (Names.GlobRef.t
 let maybe_find_smart_elims typs promote forget : unit =
   if is_smart_elim () then
     let sigma, env = refresh_env () in
-    let sigma, l = initialize_lifting_provided env sigma typs (promote, forget) false in
+    let sigma, l = initialize_lifting_provided env sigma typs (promote, forget) false false in
     let sigma, elims = find_smart_elims l env sigma in
     List.iter
       (fun (n, trm, typ) -> ignore (define_print ~typ:typ n trm sigma))
@@ -248,7 +248,7 @@ let infer_name_for_ornament env trm_o trm_n n_o =
 (*
  * Common function for find_ornament and save_ornament
  *)
-let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forget_o is_custom sigma =
+let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forget_o is_custom is_setoid sigma =
   try
     let sigma, def_o = intern env sigma d_old in
     let sigma, def_n = intern env sigma d_new in
@@ -264,7 +264,7 @@ let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forg
         let _ = Feedback.msg_info (Pp.str "Saving equivalence") in
         let promote = Option.get promote_o in
         let forget = Option.get forget_o in
-        let sigma, l = initialize_lifting_provided env sigma (trm_o, trm_n) (promote, forget) is_custom in
+        let sigma, l = initialize_lifting_provided env sigma (trm_o, trm_n) (promote, forget) is_custom is_setoid in
         sigma, l.orn
       else
         (* Save ornament with automatic inversion *)
@@ -333,12 +333,12 @@ let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forg
  *)
 let find_ornament ?(hints=[]) n_o d_old d_new swap_i_o =
   let (sigma, env) = Pfedit.get_current_context () in
-  find_ornament_common ~hints:hints env n_o d_old d_new swap_i_o None None false sigma
+  find_ornament_common ~hints:hints env n_o d_old d_new swap_i_o None None false false sigma
 
 (*
  * Save a user-provided ornament
  *)
-let save_ornament d_old d_new d_orn_o d_orn_inv_o is_custom =
+let save_ornament d_old d_new d_orn_o d_orn_inv_o is_custom is_setoid =
   Feedback.msg_warning (Pp.str "Custom equivalences are experimental. Use at your own risk!");
   let (sigma, env) = Pfedit.get_current_context () in
   if not (Option.has_some d_orn_o || Option.has_some d_orn_inv_o) then
@@ -363,7 +363,7 @@ let save_ornament d_old d_new d_orn_o d_orn_inv_o is_custom =
         get_base_name promote_o
       else
         with_suffix (get_base_name forget_o) "inv"
-    in find_ornament_common env (Some n) d_old d_new None promote_o forget_o is_custom sigma
+    in find_ornament_common env (Some n) d_old d_new None promote_o forget_o is_custom is_setoid sigma
 
 (*
  * Lift a definition according to a lifting configuration, defining the lifted
