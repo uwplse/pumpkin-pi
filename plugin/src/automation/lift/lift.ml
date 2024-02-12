@@ -241,6 +241,7 @@ let lift_core env c trm sigma =
            smart_cache c tr tr; (sigma, tr)
         | _ ->
            (sigma, tr))
+    | _ -> failwith "Lift case unimplemented"
   in lift_rec [] env sigma c trm
               
 (*
