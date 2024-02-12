@@ -28,7 +28,7 @@ Module Source.
   Theorem eq_rect_test2 : forall (x : unit), eq (1, x) (1, tt) -> eq (1, x) (1, tt).
   Proof.
     intros.
-    rewrite H.
+    rewrite H.   
     reflexivity.
   Qed.
   
@@ -40,6 +40,33 @@ Module Target.
   | two.
 
   Definition eq_unit (u1 u2 : unit) : Prop := True.
+
+  Instance eq_unit_refl : Reflexive eq_unit.
+  Proof.
+    intros z.
+    destruct z; reflexivity.
+  Qed.
+
+  Instance eq_unit_sym : Symmetric eq_unit.
+  Proof.
+    intros z1 z2 H.
+    apply I.
+  Qed.
+
+  Instance eq_unit_trans : Transitive eq_unit.
+  Proof.
+    intros z1 z2 z3 H1 H2.
+    apply I.
+  Qed.
+
+  Instance eq_unit_equiv : Equivalence eq_unit.
+  Proof.
+    split.
+    - apply eq_unit_refl.
+    - apply eq_unit_sym.
+    - apply eq_unit_trans.
+  Qed.
+  
 End Target.
 
 Definition SourceUnit := Source.unit.
