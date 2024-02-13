@@ -610,3 +610,132 @@ let save_iota typs iotas =
          [Pp.str "Failed to cache Iota configuration. ";
           Pp.str "Lifting may fail later. ";
           Pp.str "Please report a bug if this happens."])
+
+(* --- Derived equivalence relation cache. --- *)
+
+(* When lifting to a setoid, we need to maintain equivalence relations 
+ * for every type used involving the setoid carrier.
+ *)
+
+(* Initialize the equivalence relation cache *)
+let equiv_rel_cache = OrnamentsCache.create 100
+
+type equiv_rel_obj = (Names.GlobRef.t array * Names.GlobRef.t array) metadata
+
+let cache_equiv_rel (_, (typs, (eq_types, eq_rels))) =
+  OrnamentsCache.add equiv_rel_cache typs (eq_types, eq_rels)
+
+let sub_equiv_rel (subst, (typs, (eq_types, eq_rels))) =
+  let open Globnames in
+  let typs = map_tuple (subst_global_reference subst) typs in
+  let eq_types = Array.map (subst_global_reference subst) eq_types in
+  let eq_rels = Array.map (subst_global_reference subst) eq_rels in
+  typs, (eq_types, eq_rels)
+
+let inEquivRels : equiv_rel_obj -> obj =
+  declare_object { (default_object "EQUIV_RELS") with
+    cache_function = cache_equiv_rel;
+    load_function = (fun _ -> cache_equiv_rel);
+    open_function = (fun _ -> cache_equiv_rel);
+    classify_function = (fun equiv_rel_obj -> Substitute equiv_rel_obj);
+    subst_function = sub_equiv_rel }
+
+(*
+ * Lookup an equivalence relation assignment 
+ *)
+let lookup_equiv_rel_assgn typs =
+  if not (has_metadata_exact equiv_rel_cache typs) then
+    None
+  else
+    let globals = map_tuple Globnames.global_of_constr typs in
+    let (eq_types, eq_rels) = OrnamentsCache.find equiv_rel_cache globals in
+    try
+      let eq_types = Array.map UnivGen.constr_of_global eq_types in
+      let eq_rels = Array.map UnivGen.constr_of_global eq_rels in
+      Some (eq_types, eq_rels)
+    with _ ->
+      Feedback.msg_warning
+        (Pp.seq
+           [Pp.str "Failed to retrieve cached equivalence relations. ";
+            Pp.str "Lifting may fail later. ";
+            Pp.str "Please report a bug if this happens."]);
+      None
+
+(*
+ * Add equivalence relations to the config cache
+ *)
+let save_equiv_rels typs eq_rel_mapping =
+  try
+    let open Globnames in
+    let globals = map_tuple global_of_constr typs in
+    let eq_rel_mapping = map_tuple (Array.map global_of_constr) eq_rel_mapping in
+    let eq_rel_obj = inEquivRels (globals, eq_rel_mapping) in
+    add_anonymous_leaf eq_rel_obj
+  with _ ->
+    Feedback.msg_warning
+      (Pp.seq
+         [Pp.str "Failed to cache equivalence relations. ";
+          Pp.str "Lifting may fail later. ";
+          Pp.str "Please report a bug if this happens."])
+
+(* Initialize the equivalence instance proof cache *)
+let equiv_proof_cache = OrnamentsCache.create 100
+
+type equiv_proof_obj = (Names.GlobRef.t array * Names.GlobRef.t array) metadata
+
+let cache_equiv_proof (_, (typs, (eq_types, eq_proofs))) =
+  OrnamentsCache.add equiv_rel_cache typs (eq_types, eq_proofs)
+
+let sub_equiv_proof (subst, (typs, (eq_types, eq_proofs))) =
+  let open Globnames in
+  let typs = map_tuple (subst_global_reference subst) typs in
+  let eq_types = Array.map (subst_global_reference subst) eq_types in
+  let eq_proofs = Array.map (subst_global_reference subst) eq_proofs in
+  typs, (eq_types, eq_proofs)
+
+let inEquivRels : equiv_rel_obj -> obj =
+  declare_object { (default_object "EQUIV_PROOFS") with
+    cache_function = cache_equiv_proof;
+    load_function = (fun _ -> cache_equiv_proof);
+    open_function = (fun _ -> cache_equiv_proof);
+    classify_function = (fun equiv_proof_obj -> Substitute equiv_proof_obj);
+    subst_function = sub_equiv_proof }
+
+(*
+ * Lookup an equivalence instance proof assignment 
+ *)
+let lookup_equiv_proof_assgn typs =
+  if not (has_metadata_exact equiv_proof_cache typs) then
+    None
+  else
+    let globals = map_tuple Globnames.global_of_constr typs in
+    let (eq_types, eq_proofs) = OrnamentsCache.find equiv_proof_cache globals in
+    try
+      let eq_types = Array.map UnivGen.constr_of_global eq_types in
+      let eq_proofs = Array.map UnivGen.constr_of_global eq_proofs in
+      Some (eq_types, eq_proofs)
+    with _ ->
+      Feedback.msg_warning
+        (Pp.seq
+           [Pp.str "Failed to retrieve cached equivalence proofs. ";
+            Pp.str "Lifting may fail later. ";
+            Pp.str "Please report a bug if this happens."]);
+      None
+
+(*
+ * Add equivalence instance proofs to the config cache
+ *)
+
+let save_equiv_proofs typs eq_proof_mapping =
+  try
+    let open Globnames in
+    let globals = map_tuple global_of_constr typs in
+    let eq_proof_mapping = map_tuple (Array.map global_of_constr) eq_proof_mapping in
+    let eq_proof_obj = inEquivRels (globals, eq_proof_mapping) in
+    add_anonymous_leaf eq_proof_obj
+  with _ ->
+    Feedback.msg_warning
+      (Pp.seq
+         [Pp.str "Failed to cache equivalence proofs. ";
+          Pp.str "Lifting may fail later. ";
+          Pp.str "Please report a bug if this happens."])
