@@ -173,7 +173,7 @@ let initialize_types l env sigma =
      let a_t = reconstruct_lambda env_typs a_i_t in
      let b_t = reconstruct_lambda env_typs (unshift b_i_t) in
      sigma, (a_t, b_t)
-  | Custom typs | Setoid typs ->
+  | Custom typs | Setoid (typs, _) ->
      sigma, typs
 
 let get_types c = c.typs

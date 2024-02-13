@@ -299,7 +299,7 @@ let find_ornament_common ?(hints=[]) env n_o d_old d_new swap_i_o promote_o forg
         let sigma, typ = reduce_type env sigma orn.forget in
         inv_n, UnivGen.constr_of_global (define_print inv_n orn.forget ~typ:typ sigma)
     in
-    (if not is_custom then
+    (if not (is_custom || Option.has_some setoid_info) then
        (let coh_o = maybe_prove_coherence n promote forget orn.kind in
         let pfs_o =
           maybe_prove_equivalence ~hints:hints n (trm_o, trm_n) promote forget
