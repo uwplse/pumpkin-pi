@@ -249,17 +249,9 @@ let is_iota c env trm prev_rules sigma =
 let is_eliminator c env trm sigma =
   applies_elim c env trm sigma
 
-(* Premises for LIFT-EQ-TYPE *)
+(* Premises for LIFT-EQ *)
 let is_equality_type c env trm sigma =
-  match (get_lifting c).orn.kind with
-  | Setoid _ ->
-    (match (kind trm) with
-     | App (f, l) ->
-        if (f = Equtils.eq) then
-          sigma, Some (Array.to_list l)
-        else sigma, None
-     | _ -> sigma, None)
-  | _ -> sigma, None
+  applies_eq c env trm sigma
 
 (*
  * Given a term, determine the appropriate lift rule to run

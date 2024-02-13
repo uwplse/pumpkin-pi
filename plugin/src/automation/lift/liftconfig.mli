@@ -172,6 +172,17 @@ val applies_elim :
   evar_map ->
   ((constr option * (constr list)) option) state
 
+(*
+ * Check if the term applies equality
+ *)
+val applies_eq :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  ((constr list) option) state
+ 
+
 (* --- Custom simplification --- *)
                                      
 (*

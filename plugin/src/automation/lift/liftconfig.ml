@@ -889,6 +889,19 @@ let applies_iota c env trm sigma =
   | _ ->
      sigma, None
 
+(*
+ * Check if eq is applied and we are repairing to a setoid.
+ *)
+let applies_eq c env trm sigma =
+  match (get_lifting c).orn.kind with
+  | Setoid _ ->
+    if (isApp trm) then
+      if (first_fun trm = Equtils.eq) then
+        sigma, Some (unfold_args trm)
+      else sigma, None
+    else sigma, None
+  | _ -> sigma, None
+
 (* --- Smart simplification (for termination and efficiency) --- *)
 
 (*
