@@ -40,10 +40,11 @@ val initialize_lifting_cached :
  * 3) the old and new types
  * 4) the old and new user-supplied equivalence functions
  * 5) a boolean flag if it is a custom kind of equivalence
- * 6) a boolean flag if it is a setoid equivalence
+ * 6) an option with the equivalence relations and equivalence proofs
+ *    if it is a setoid equivalence
  *)
 val initialize_lifting_provided :
-  env -> evar_map -> types * types -> constr * constr -> bool -> bool -> lifting state
+  env -> evar_map -> types * types -> constr * constr -> bool -> (types list * constr list * constr list) option -> lifting state
 
 (* --- Control structures --- *)
     

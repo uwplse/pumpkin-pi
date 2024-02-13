@@ -239,8 +239,9 @@ let initialize_lifting_cached env sigma o n =
 (*
  * Initialize a lifting for a user-provided ornament
  *)
-let initialize_lifting_provided env sigma typs funs is_custom is_setoid =
+let initialize_lifting_provided env sigma typs funs is_custom setoid_info =
   let sigma, (is_fwd, (promote, forget), kind) =
+    let is_setoid = Option.has_some setoid_info in
     let sigma, (is_fwd, k) = get_kind_of_ornament env typs funs is_custom is_setoid sigma in
     let orns = map_if reverse (not is_fwd) funs in
     sigma, (is_fwd, orns, k)

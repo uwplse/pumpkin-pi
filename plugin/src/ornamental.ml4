@@ -18,15 +18,15 @@ END
 (* Save a user-supplied equivalence between two types *)
 VERNAC COMMAND EXTEND SaveOrnament CLASSIFIED AS SIDEFF
 | [ "Save" "ornament" constr(d_old) constr(d_new) "{" "promote" "=" constr(d_orn) ";" "forget" "=" constr(d_orn_inv) "}" ] ->
-  [ save_ornament d_old d_new (Some d_orn) (Some d_orn_inv) false false ]
+  [ save_ornament d_old d_new (Some d_orn) (Some d_orn_inv) false None ]
 | [ "Save" "ornament" constr(d_old) constr(d_new) "{" "promote" "=" constr(d_orn) "}" ] ->
-  [ save_ornament d_old d_new (Some d_orn) None false false ]
+  [ save_ornament d_old d_new (Some d_orn) None false None ]
 | [ "Save" "ornament" constr(d_old) constr(d_new) "{" "forget" "=" constr(d_orn_inv) "}" ] ->
-  [ save_ornament d_old d_new None (Some d_orn_inv) false false ]
+  [ save_ornament d_old d_new None (Some d_orn_inv) false None ]
 | [ "Save" "equivalence" constr(d_old) constr(d_new) "{" "promote" "=" constr(d_orn) ";" "forget" "=" constr(d_orn_inv) "}" ] ->
-  [ save_ornament d_old d_new (Some d_orn) (Some d_orn_inv) true false ]
-| [ "Save" "setoid" constr(d_old) constr(d_new) "{" "promote" "=" constr(d_orn) ";" "forget" "=" constr(d_orn_inv) "}" ] ->
-  [ save_ornament d_old d_new (Some d_orn) (Some d_orn_inv) true true ]
+  [ save_ornament d_old d_new (Some d_orn) (Some d_orn_inv) true None ]
+| [ "Save" "setoid" constr(d_old) constr(d_new) "{" "promote" "=" constr(d_orn) ";" "forget" "=" constr(d_orn_inv) ";" "types" "=" constr_list(types) ";" "rels" "=" constr_list(eq_rels) ";" "equiv_proofs" "=" constr_list(eq_proofs) "}" ] ->
+  [ save_ornament d_old d_new (Some d_orn) (Some d_orn_inv) true (Some (types, eq_rels, eq_proofs)) ]
 END
 
 (* Lift a function along an equivalence *)

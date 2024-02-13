@@ -23,7 +23,7 @@ val save_ornament :
   constr_expr option ->
   constr_expr option ->
   bool ->
-  bool ->
+  (constr_expr list * constr_expr list * constr_expr list) option ->
   unit
                                                                    
 (*
