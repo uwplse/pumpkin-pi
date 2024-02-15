@@ -158,6 +158,21 @@ let lift_evar c env trm lift_rec sigma =
     in sigma, { info with evar_concl; evar_body; evar_candidates }
   in Evd.add (Evd.remove sigma etrm) etrm lifted_info, trm
 
+let lift_eq_app c env l lift_rec sigma =
+  let kind = (get_lifting c).orn.kind in
+  match kind with
+  | Setoid (typs, (eq_types, eq_rels, eq_proofs)) ->
+     let eq_type = List.hd l in
+     let sigma, lifted_eq_type = lift_rec env sigma c eq_type in
+     let rel_map = List.combine eq_types eq_rels in
+     (try
+       (let eq_rel = List.assoc eq_type rel_map in
+        let sigma, lifted_args = map_rec_args_list lift_rec env sigma c (List.tl l) in
+        sigma, (mkAppl (eq_rel, lifted_eq_type :: lifted_args)))
+     with Not_found ->
+       failwith "Tried to lift an equality on a type for which no equivalence relation was provided.")
+  | _ -> failwith "Eq lifting unsupported outside of Setoid lifting"
+
 (* --- Core algorithm --- *)
 
 (*
@@ -187,6 +202,8 @@ let lift_core env c trm sigma =
        lift_app_lazy_delta c en f args (lift_rec lift_rules) sigma
     | Optimization (ConstLazyDelta (co, u)) ->
        lift_const_lazy_delta c en (co, u) (lift_rec lift_rules) sigma
+    | Eq l ->
+       lift_eq_app c en l (lift_rec lift_rules) sigma
     | CIC k ->
        let lift_rec = lift_rec lift_rules in
        (match k with
@@ -241,7 +258,6 @@ let lift_core env c trm sigma =
            smart_cache c tr tr; (sigma, tr)
         | _ ->
            (sigma, tr))
-    | _ -> failwith "Lift case unimplemented"
   in lift_rec [] env sigma c trm
               
 (*
