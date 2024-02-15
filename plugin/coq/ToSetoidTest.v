@@ -69,22 +69,28 @@ Module Target.
   
 End Target.
 
-Definition SourceUnit := Source.unit.
+Preprocess Module Source as Source_p.
 
-Definition depConstrSource := Source.tt.
-Definition depConstrTarget := Target.one.
+Definition old := Source_p.unit.
 
-Definition depRecSource (C : Type) := Source.unit_rect (fun _ => C).
+Preprocess Module Target as Target_p.
+
+Definition new := Target_p.unit.
+
+Definition depConstrSource := Source_p.tt.
+Definition depConstrTarget := Target_p.one.
+
+Definition depRecSource (C : Type) := Source_p.unit_rect (fun _ => C).
 
 Definition depRecTarget (C : Type)
     (out : C)
-    (u : Target.unit) :
+    (u : new) :
     C :=
   out.
 
 Definition iotaRecSourceEq (C : Type)
     (out : C)
-    (u : Source.unit) :
+    (u : old) :
   depRecSource C out u = out.
 Proof.
   destruct u.
@@ -93,7 +99,7 @@ Qed.
 
 Definition iotaRecSource (C : Type)
   (out : C)
-  (u : Source.unit) :
+  (u : old) :
   forall (Q : C -> Type),
     (Q (depRecSource C out u)) -> Q out.
 Proof.
@@ -104,7 +110,7 @@ Qed.
 
 Definition iotaRecSourceRev (C : Type)
   (out : C)
-  (u : Source.unit) :
+  (u : old) :
   forall (Q : C -> Type),
     Q out -> (Q (depRecSource C out u)).
 Proof.
@@ -115,7 +121,7 @@ Qed.
 
 Definition iotaRecTargetEq (C : Type)
     (out : C)
-    (u : Target.unit) :
+    (u : new) :
   depRecTarget C out u = out.
 Proof.
   destruct u; reflexivity.
@@ -123,7 +129,7 @@ Qed.
 
 Definition iotaRecTarget (C : Type)
   (out : C)
-  (u : Target.unit) :
+  (u : new) :
   forall (Q : C -> Type),
     (Q (depRecTarget C out u)) -> Q out.
 Proof.
@@ -134,7 +140,7 @@ Qed.
 
 Definition iotaRecTargetRev (C : Type)
   (out : C)
-  (u : Target.unit) :
+  (u : new) :
   forall (Q : C -> Type),
     Q out -> (Q (depRecTarget C out u)).
 Proof.
@@ -143,9 +149,30 @@ Proof.
   apply X.
 Qed.
 
-Definition p (x : Source.unit) := Target.one.
+Definition etaSource (x : old) := x.
 
-Definition f (x : Target.unit) := Source.tt.
+Definition etaTarget (x : new) := x.
+
+Definition p (x : old) := Target_p.one.
+
+Definition f (x : new) := Source_p.tt.
 
 (* this line does something bad in Proof General. *)
-Save setoid Source.unit Target.unit { promote = p ; forget = f }.
+Save setoid old new { promote = p ; forget = f ; types = Target_p.unit ; rels = Target_p.eq_unit ; equiv_proofs = Target_p.eq_unit_equiv}.
+
+Print tt.
+
+Configure Lift old new {
+    constrs_a = depConstrSource ;
+    constrs_b = depConstrTarget ;
+    elim_a = depElimSource ;
+    elim_b = depElimTarget ;
+    eta_a = etaSource ;
+    eta_b = etaTarget ;
+    iota_a = iotaRecSource ;
+    iota_b = iotaRecTarget
+}.
+
+Lift p f in Source_p.eq_test as eq_test.
+
+Print Target_p.eq_test.
