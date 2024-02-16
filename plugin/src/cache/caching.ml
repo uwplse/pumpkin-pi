@@ -358,7 +358,7 @@ let equiv_proof_cache = OrnamentsCache.create 100
 type equiv_proof_obj = (Names.GlobRef.t list * Names.GlobRef.t list) metadata
 
 let cache_equiv_proof (_, (typs, (eq_types, eq_proofs))) =
-  OrnamentsCache.add equiv_rel_cache typs (eq_types, eq_proofs)
+  OrnamentsCache.add equiv_proof_cache typs (eq_types, eq_proofs)
 
 let sub_equiv_proof (subst, (typs, (eq_types, eq_proofs))) =
   let open Globnames in

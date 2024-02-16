@@ -165,14 +165,16 @@ Print tt.
 Configure Lift old new {
     constrs_a = depConstrSource ;
     constrs_b = depConstrTarget ;
-    elim_a = depElimSource ;
-    elim_b = depElimTarget ;
+    elim_a = depRecSource ;
+    elim_b = depRecTarget ;
     eta_a = etaSource ;
     eta_b = etaTarget ;
     iota_a = iotaRecSource ;
     iota_b = iotaRecTarget
-}.
+  }.
 
-Lift p f in Source_p.eq_test as eq_test.
+Print tt.
 
-Print Target_p.eq_test.
+Lift old new in Source_p.eq_test as eq_test.
+
+Print eq_test.

@@ -159,16 +159,22 @@ let lift_evar c env trm lift_rec sigma =
   in Evd.add (Evd.remove sigma etrm) etrm lifted_info, trm
 
 let lift_eq_app c env l lift_rec sigma =
+  let _ = Feedback.msg_warning (Pp.str "lifting eq app") in
   let kind = (get_lifting c).orn.kind in
   match kind with
   | Setoid (typs, (eq_types, eq_rels, eq_proofs)) ->
+     let _ = Feedback.msg_warning (Pp.str "in setoid") in
      let eq_type = List.hd l in
      let sigma, lifted_eq_type = lift_rec env sigma c eq_type in
      let rel_map = List.combine eq_types eq_rels in
+     let _ = Feedback.msg_warning (Pp.str "constructed rel map") in
      (try
-       (let eq_rel = List.assoc eq_type rel_map in
+       (let _ = Feedback.msg_warning (Pp.str "looking for assoc of eq_type") in
+        let _ = Feedback.msg_warning (Ppconstr.pr_constr_expr (Defutils.extern env sigma lifted_eq_type)) in
+        let eq_rel = List.assoc lifted_eq_type rel_map in
+        let _ = Feedback.msg_warning (Ppconstr.pr_constr_expr (Defutils.extern env sigma eq_rel)) in
         let sigma, lifted_args = map_rec_args_list lift_rec env sigma c (List.tl l) in
-        sigma, (mkAppl (eq_rel, lifted_eq_type :: lifted_args)))
+        sigma, (mkAppl (eq_rel, lifted_args)))
      with Not_found ->
        failwith "Tried to lift an equality on a type for which no equivalence relation was provided.")
   | _ -> failwith "Eq lifting unsupported outside of Setoid lifting"

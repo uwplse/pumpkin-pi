@@ -271,8 +271,10 @@ let determine_lift_rule c env trm prev_rules sigma =
       let typ, args = Option.get args_o in
       sigma, Equivalence (typ, args)
     else
+      let _ = Feedback.msg_warning (Pp.str "past equivalence") in
       let sigma, eq_args_o = is_equality_type c env trm sigma in
       if Option.has_some eq_args_o then
+        let _ = Feedback.msg_warning (Pp.str "Eq returned.") in
         sigma, Eq (Option.get eq_args_o)
       else
         let sigma, to_proj_o = is_coh c env trm prev_rules sigma in

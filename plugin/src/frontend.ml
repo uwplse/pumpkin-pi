@@ -593,17 +593,26 @@ let remove_lifting_opaques d_orn d_orn_inv opaques =
  * Manual configuration
  *)
 let configure_manual d_orn d_orn_inv constrs elims etas iotas =
+  let _ = Feedback.msg_warning(Pp.str "1 config manual") in
   let (sigma, env) = Pfedit.get_current_context () in
+  let _ = Feedback.msg_warning(Pp.str "2 config manual") in
   let sigma, (env, l) = init_lift env d_orn d_orn_inv sigma in
+  let _ = Feedback.msg_warning(Pp.str "3 config manual") in
   let lookup_reference qid = mkConst (Nametab.locate_constant qid) in
+  let _ = Feedback.msg_warning(Pp.str "4 config manual") in
   let constrs = map_tuple (List.map lookup_reference) constrs in
+  let _ = Feedback.msg_warning(Pp.str "4.1 config manual") in
   let elims = map_tuple lookup_reference elims in
+  let _ = Feedback.msg_warning(Pp.str "4.2 config manual") in
   let etas = map_tuple lookup_reference etas in
+  let _ = Feedback.msg_warning(Pp.str "4.3 config manual") in
   let iotas = map_tuple (List.map lookup_reference) iotas in
+  let _ = Feedback.msg_warning(Pp.str "5 config manual") in
   save_dep_constrs (l.orn.promote, l.orn.forget) (map_tuple Array.of_list constrs);
   save_dep_elim (l.orn.promote, l.orn.forget) elims;
   save_eta (l.orn.promote, l.orn.forget) etas;
   save_iota (l.orn.promote, l.orn.forget) (map_tuple Array.of_list iotas);
+  let _ = Feedback.msg_warning(Pp.str "6 config manual") in
   List.iter2
     (fun c1 c2 ->
       save_lifting (l.orn.promote, l.orn.forget, c1) c2;
@@ -614,6 +623,7 @@ let configure_manual d_orn d_orn_inv constrs elims etas iotas =
   save_lifting (l.orn.forget, l.orn.promote, (snd elims)) (fst elims);
   save_lifting (l.orn.promote, l.orn.forget, (fst etas)) (snd etas);
   save_lifting (l.orn.forget, l.orn.promote, (snd etas)) (fst etas);
+  let _ = Feedback.msg_warning(Pp.str "7 config manual") in
   List.iter2
     (fun iota1 iota2 ->
       save_lifting (l.orn.promote, l.orn.forget, iota1) iota2;
