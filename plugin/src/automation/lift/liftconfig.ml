@@ -893,17 +893,10 @@ let applies_iota c env trm sigma =
  * Check if eq is applied and we are repairing to a setoid.
  *)
 let applies_eq c env trm sigma =
-  let _ = Feedback.msg_warning (Pp.str "enter applies_eq") in
   match (get_lifting c).orn.kind with
   | Setoid _ ->
-    let _ = Feedback.msg_warning (Pp.str "kind is setoid") in
-    let _ = Feedback.msg_warning (Ppconstr.pr_constr_expr (extern env sigma trm)) in
     if (isApp trm) then
-      let _ = Feedback.msg_warning (Pp.str "is an app") in
-      let _ = Feedback.msg_warning (Ppconstr.pr_constr_expr (extern env sigma (first_fun trm))) in
-      let _ = Feedback.msg_warning (Ppconstr.pr_constr_expr (extern env sigma (Equtils.eq))) in
-      if (first_fun trm = Equtils.eq) then
-        let _ = Feedback.msg_warning (Pp.str "first fun trm is eq") in
+      if (equal (first_fun trm) Equtils.eq) then
         sigma, Some (unfold_args trm)
       else sigma, None
     else sigma, None
