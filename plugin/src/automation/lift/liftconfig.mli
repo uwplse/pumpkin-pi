@@ -181,6 +181,16 @@ val applies_eq :
   constr ->
   evar_map ->
   ((constr list) option) state
+
+(*
+ * Check if the term applies eq_refl
+ *)
+val applies_eq_refl :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  ((constr list) option) state
  
 
 (* --- Custom simplification --- *)

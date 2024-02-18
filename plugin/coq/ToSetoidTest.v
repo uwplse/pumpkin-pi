@@ -14,7 +14,7 @@ Module Source.
 
   Definition eq_test2 := eq (1, tt) (1, tt).
 
-  Definition eq_refl_test : eq tt tt := eq_refl.
+  Definition eq_refl_test : eq tt tt := @eq_refl unit tt.
 
   Definition eq_refl_test2 : eq (1, tt) (1, tt) := eq_refl.
 
@@ -157,6 +157,15 @@ Definition p (x : old) := Target_p.one.
 
 Definition f (x : new) := Source_p.tt.
 
+Compute (@Equivalence_Reflexive new Target_p.eq_unit Target_p.eq_unit_equiv).
+
+Theorem test : forall (x : new), Target_p.eq_unit x x.
+Proof.
+  apply (@Equivalence_Reflexive new Target_p.eq_unit Target_p.eq_unit_equiv).
+Defined.
+
+Print test.
+                            
 (* this line does something bad in Proof General. *)
 Save setoid old new { promote = p ; forget = f ; types = Target_p.unit ; rels = Target_p.eq_unit ; equiv_proofs = Target_p.eq_unit_equiv}.
 
@@ -178,3 +187,7 @@ Print tt.
 Lift old new in Source_p.eq_test as eq_test.
 
 Print eq_test.
+
+Lift old new in Source_p.eq_refl_test as eq_refl_test.
+
+Print eq_refl_test.
