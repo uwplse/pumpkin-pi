@@ -191,6 +191,16 @@ val applies_eq_refl :
   constr ->
   evar_map ->
   ((constr list) option) state
+
+(*
+ * Check if the term is rewriting by an equality
+ *)
+val applies_eq_rewrite :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  (Equtils.rewrite_args option) state
  
 
 (* --- Custom simplification --- *)

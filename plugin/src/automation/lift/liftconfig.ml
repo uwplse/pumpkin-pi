@@ -915,6 +915,19 @@ let applies_eq_refl c env trm sigma =
      else sigma, None
   | _ -> sigma, None
 
+(*
+ * Check if the term is rewriting by an equality and we are repairing
+ * to a setoid.
+ *)
+let applies_eq_rewrite c env trm sigma =
+  match (get_lifting c).orn.kind with
+  | Setoid _ ->
+     if (isApp trm) then
+       let simplified_app = mkAppl (first_fun trm, unfold_args trm) in
+       sigma, Equtils.dest_rewrite simplified_app
+     else sigma, None
+  | _ -> sigma, None
+
 (* --- Smart simplification (for termination and efficiency) --- *)
 
 (*
