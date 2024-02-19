@@ -896,7 +896,7 @@ let applies_eq c env trm sigma =
   match (get_lifting c).orn.kind with
   | Setoid _ ->
     if (isApp trm) then
-      if (equal (first_fun trm) Equtils.eq) then
+      if (snd (convertible env (first_fun trm) Equtils.eq sigma)) then
         sigma, Some (unfold_args trm)
       else sigma, None
     else sigma, None
@@ -909,7 +909,7 @@ let applies_eq_refl c env trm sigma =
   match (get_lifting c).orn.kind with
   | Setoid _ ->
      if (isApp trm) then
-       if (equal (first_fun trm) Equtils.eq_refl) then
+       if (snd (convertible env (first_fun trm) Equtils.eq_refl sigma)) then
          sigma, Some (unfold_args trm)
        else sigma, None
      else sigma, None

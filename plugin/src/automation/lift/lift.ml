@@ -168,10 +168,10 @@ let lift_eq_app c env l lift_rec sigma =
      let sigma, lifted_eq_type = lift_rec env sigma c eq_type in
      let rel_map = List.combine eq_types eq_rels in
      (try
-       (let eq_rel = snd (List.find (fun t -> equal (fst t) lifted_eq_type) rel_map) in
+       (let eq_rel = snd (List.find (fun t -> snd (Convertibility.convertible env sigma (fst t) lifted_eq_type)) rel_map) in
         let sigma, lifted_args = map_rec_args_list lift_rec env sigma c (List.tl l) in
         sigma, (mkAppl (eq_rel, lifted_args)))
-     with Not_found ->
+      with Not_found ->
        failwith "Tried to lift an equality on a type for which no equivalence relation was provided.")
   | _ -> failwith "Eq lifting unsupported outside of Setoid lifting"
 
@@ -184,13 +184,16 @@ let lift_eq_refl_app c env l lift_rec sigma =
      let sigma, lifted_eq_type = lift_rec env sigma c eq_type in
      let rel_map = List.combine eq_types (List.combine eq_rels eq_proofs) in
      (try
-       (let eq_rel, eq_proof = snd (List.find (fun t -> equal (fst t) lifted_eq_type) rel_map) in
+       (let eq_rel, eq_proof = snd (List.find (fun t -> snd (Convertibility.convertible env sigma (fst t) lifted_eq_type)) rel_map) in
         let sigma, lifted_args = map_rec_args_list lift_rec env sigma c (List.tl l) in
         let refl_proof = mkAppl (Equivutils.equiv_refl_getter, [lifted_eq_type ; eq_rel ; eq_proof]) in
         sigma, mkAppl (refl_proof, lifted_args))
       with Not_found ->
         failwith "Tried to lift an eq_refl proof on a type for which no equivalence relation was provided.")
   | _ -> failwith "Eq_refl lifting unsupported outside of Setoid lifting."
+
+(* Lift equality rewriting *)
+let lift_eq_rewrite c en rewrite_info lift_rec sigma = failwith "unimplemented"
      
 
 (* --- Core algorithm --- *)
@@ -226,6 +229,8 @@ let lift_core env c trm sigma =
        lift_eq_app c en l (lift_rec lift_rules) sigma
     | EqRefl l ->
        lift_eq_refl_app c en l (lift_rec lift_rules) sigma
+    | EqRewrite rewrite_info ->
+       lift_eq_rewrite c en rewrite_info (lift_rec lift_rules) sigma
     | CIC k ->
        let lift_rec = lift_rec lift_rules in
        (match k with
