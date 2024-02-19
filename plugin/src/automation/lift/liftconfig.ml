@@ -896,7 +896,8 @@ let applies_eq c env trm sigma =
   match (get_lifting c).orn.kind with
   | Setoid _ ->
     if (isApp trm) then
-      if (snd (convertible env (first_fun trm) Equtils.eq sigma)) then
+      let sigma, is_eq = convertible env (first_fun trm) Equtils.eq sigma in
+      if is_eq then
         sigma, Some (unfold_args trm)
       else sigma, None
     else sigma, None
@@ -909,22 +910,58 @@ let applies_eq_refl c env trm sigma =
   match (get_lifting c).orn.kind with
   | Setoid _ ->
      if (isApp trm) then
-       if (snd (convertible env (first_fun trm) Equtils.eq_refl sigma)) then
+       let sigma, is_eq_refl = convertible env (first_fun trm) Equtils.eq_refl sigma in
+       if is_eq_refl then
          sigma, Some (unfold_args trm)
        else sigma, None
      else sigma, None
   | _ -> sigma, None
 
+(* 
+ * Check if a term is convertible to eq_ind, eq_rec, or eq_rect.
+ * Based on is_rewrite_l from coq-plugin-lib.
+ *)
+let is_conv_rewrite_l env (trm : types) sigma =
+  let eq_term = (fun trm2 -> convertible env trm trm2 sigma) in
+  let sigma, is_eq_ind = eq_term eq_ind in
+  let sigma, is_eq_rec = eq_term eq_rec in
+  let sigma, is_eq_rect = eq_term eq_rect in
+  sigma, (is_eq_ind || is_eq_rec || is_eq_rect)
+
+(* 
+ * Check if a term is convertible to eq_ind_r, eq_rec_r, or eq_rect_r .
+ * Based on is_rewrite_r from coq-plugin-lib.
+ *)
+let is_conv_rewrite_r env (trm : types) sigma =
+  let eq_term = (fun trm2 -> convertible env trm trm2 sigma) in
+  let sigma, is_eq_ind_r = eq_term eq_ind_r in
+  let sigma, is_eq_rec_r = eq_term eq_rec_r in
+  let sigma, is_eq_rect_r = eq_term eq_rect_r in
+  sigma, (is_eq_ind_r || is_eq_rec_r || is_eq_rect_r)
+
 (*
  * Check if the term is rewriting by an equality and we are repairing
  * to a setoid.
+ * Based on dest_rewrite from coq-plugin-lib.
  *)
 let applies_eq_rewrite c env trm sigma =
   match (get_lifting c).orn.kind with
   | Setoid _ ->
      if (isApp trm) then
-       let simplified_app = mkAppl (first_fun trm, unfold_args trm) in
-       sigma, Equtils.dest_rewrite simplified_app
+       let f = first_fun trm in
+       let args = unfold_args trm in
+       let sigma, is_rew_l = is_conv_rewrite_l env f sigma in
+       let sigma, is_rew_r = is_conv_rewrite_r env f sigma in
+       if is_rew_l || is_rew_r then
+         let left = is_rew_l in
+         match args with
+         | h0 :: h1 :: h2 :: h3 :: h4 :: h5 :: t ->
+            sigma, Some {a = h0 ; x = h1 ; p = h2 ; px = h3 ;
+                         y = h4 ; eq = h5 ; left = left ;
+                         params = Array.of_list t}
+         | _ -> sigma, None
+       else
+         sigma, None
      else sigma, None
   | _ -> sigma, None
 
