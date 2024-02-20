@@ -20,6 +20,7 @@ open Liftconfig
 open Liftrules
 open Evd
 open Equivutils
+open Equtils
 
 (*
  * The top-level lifting algorithm
@@ -192,8 +193,54 @@ let lift_eq_refl_app c env l lift_rec sigma =
         failwith "Tried to lift an eq_refl proof on a type for which no equivalence relation was provided.")
   | _ -> failwith "Eq_refl lifting unsupported outside of Setoid lifting."
 
+let lift_rewrite_args c env (rewrite_info : Equtils.rewrite_args) lift_rec sigma =
+  let sigma, a = lift_rec env sigma c rewrite_info.a in
+  let sigma, x = lift_rec env sigma c rewrite_info.x in
+  let sigma, p = lift_rec env sigma c rewrite_info.p in
+  let sigma, px = lift_rec env sigma c rewrite_info.px in
+  let sigma, y = lift_rec env sigma c rewrite_info.y in
+  let sigma, eq = lift_rec env sigma c rewrite_info.eq in
+  let sigma, params = map_rec_args lift_rec env sigma c (Array.copy rewrite_info.params) in
+  { a = a ; x ; p ; px ; y ; eq ; params ; left = rewrite_info.left}
+
+open Names
+open Tactics
+
+let coq_program_basics =
+  ModPath.MPfile
+    (DirPath.make (List.map Id.of_string ["Basics"; "Program"; "Coq"]))
+
+let funtype =
+  mkConst (Constant.make2 coq_program_basics (Label.make "arrow"))
+
+open Decompiler
+
+(*
+ * Create a tactic performing the rewrite represented by rewrite_info. 
+ * Based on show_tactic from the Decompiler module.
+ * (I am presently skeptical that this will work.)
+ *)
+let rewrite_tactic_from_args c env rewrite_info sigma =
+  let prnt e = Printer.pr_constr_env e sigma in
+  let s = prnt env rewrite_info.eq in
+  let arrow = if rewrite_info.left then "<- " else "" in
+  Decompiler.parse_tac_str (Pp.string_of_ppcmds (Pp.app (Pp.str ("rewrite " ^ arrow)) s))
+
 (* Lift equality rewriting *)
-let lift_eq_rewrite c en rewrite_info lift_rec sigma = failwith "unimplemented"
+let lift_eq_rewrite c env rewrite_info lift_rec sigma =
+  let lifted_rewrite_info = lift_rewrite_args c env rewrite_info lift_rec sigma in
+  let goal_consequent = mkAppl(rewrite_info.p, [lifted_rewrite_info.y]) in
+  let goal = mkAppl(funtype, [lifted_rewrite_info.px ; goal_consequent]) in
+  let proof = Proof.start sigma [(env, EConstr.of_constr goal)] in
+  let (proof, _) = Proof.run_tactic env Tactics.intros proof in
+  let (proof, _) = Proof.run_tactic env (rewrite_tactic_from_args c env rewrite_info sigma) proof in
+  let (proof, _) = Proof.run_tactic env Tactics.assumption proof in
+  if (Proof.is_done proof) then
+    match Proof.partial_proof proof with
+    | [] -> failwith "No proof of rewrite goal found."
+    | h :: t -> sigma, EConstr.to_constr sigma h 
+  else
+    failwith "Failed when attempting to lift a rewrite."
      
 
 (* --- Core algorithm --- *)

@@ -14,6 +14,7 @@ Module Source.
 
   Definition eq_test2 := eq (1, tt) (1, tt).
 
+  Definition eq_test3 := eq tt tt \/ (True /\ eq tt tt).
   Definition eq_refl_test : eq tt tt := @eq_refl unit tt.
 
   Definition eq_refl_test2 : eq (1, tt) (1, tt) := eq_refl.
@@ -25,6 +26,8 @@ Module Source.
     reflexivity.
   Qed.
 
+  Print eq_rect_test.
+
   Theorem eq_rect_test2 : forall (x : unit), eq (1, x) (1, tt) -> eq (1, x) (1, tt).
   Proof.
     intros.
@@ -33,6 +36,47 @@ Module Source.
   Qed.
   
 End Source.
+
+Definition eq_prod {A B : Type} (eqA : A -> A -> Prop) (eqB : B -> B -> Prop) (p1 p2 : A * B) : Prop :=
+  match p1, p2 with
+  | (a1 , b1) , (a2 , b2) => (eqA a1 a2) /\ (eqB b1 b2)
+  end.
+
+Theorem eq_prod_refl {A B : Type} (eqA : A -> A -> Prop) `(Reflexive _ eqA) (eqB : B -> B -> Prop) `(Reflexive _ eqB) : Reflexive (eq_prod eqA eqB).
+Proof.
+  intros q. unfold eq_prod. destruct q.
+  split; reflexivity.
+Qed.
+
+Theorem eq_prod_sym {A B : Type} (eqA : A -> A -> Prop) `(Symmetric _ eqA) (eqB : B -> B -> Prop) `(Symmetric _ eqB) : Symmetric (eq_prod eqA eqB).
+Proof.
+  intros q1 q2 H1. unfold eq_prod.
+  destruct q1.
+  destruct q2.
+  destruct H1.
+  split; symmetry; auto.
+Qed.
+
+Theorem eq_prod_trans {A B : Type} (eqA : A -> A -> Prop) `(Transitive _ eqA) (eqB : B -> B -> Prop) `(Transitive _ eqB) : Transitive (eq_prod eqA eqB).
+Proof.
+  intros q1 q2 q3 H1 H2. unfold eq_prod.
+  destruct q1.
+  destruct q2.
+  destruct q3.
+  destruct H1.
+  destruct H2.
+  split.
+  - apply (H a a0 a1); auto.
+  - apply (H0 b b0 b1); auto.
+Qed.
+
+Theorem eq_prod_equiv {A B : Type} (eqA : A -> A -> Prop) `(Equivalence _ eqA) (eqB : B -> B -> Prop) `(Equivalence _ eqB) : Equivalence (eq_prod eqA eqB).
+Proof.
+  destruct H. destruct H0. split.
+  - apply eq_prod_refl; auto.
+  - apply eq_prod_sym; auto.
+  - apply eq_prod_trans; auto.
+Qed.
 
 Module Target.
   Inductive unit :=
@@ -65,6 +109,18 @@ Module Target.
     - apply eq_unit_refl.
     - apply eq_unit_sym.
     - apply eq_unit_trans.
+  Qed.
+
+  Definition nat_unit_prod := prod nat unit.
+
+  Definition eq_nat_unit_prod : nat * unit -> nat * unit -> Prop :=
+    eq_prod (@eq nat) eq_unit.
+
+  Theorem eq_nat_unit_prod_equiv : Equivalence eq_nat_unit_prod.
+  Proof.
+    apply eq_prod_equiv.
+    apply eq_equivalence.
+    apply eq_unit_equiv.
   Qed.
   
 End Target.
@@ -167,7 +223,7 @@ Defined.
 Print test.
                             
 (* this line does something bad in Proof General. *)
-Save setoid old new { promote = p ; forget = f ; types = Target_p.unit ; rels = Target_p.eq_unit ; equiv_proofs = Target_p.eq_unit_equiv}.
+Save setoid old new { promote = p ; forget = f ; types = Target_p.unit Target_p.nat_unit_prod ; rels = Target_p.eq_unit Target_p.eq_nat_unit_prod ; equiv_proofs = Target_p.eq_unit_equiv Target_p.eq_nat_unit_prod_equiv }.
 
 Print tt.
 
@@ -191,3 +247,17 @@ Print eq_test.
 Lift old new in Source_p.eq_refl_test as eq_refl_test.
 
 Print eq_refl_test.
+
+Lift old new in Source_p.eq_test2 as eq_test2.
+
+Print eq_test2.
+
+Lift old new in Source_p.eq_refl_test2 as eq_refl_test2.
+
+Print eq_refl_test2.
+
+Lift old new in Source_p.eq_test3 as eq_test3.
+
+Print eq_test3.
+
+Lift old new in Source_p.eq_rect_test as eq_rect_test.
