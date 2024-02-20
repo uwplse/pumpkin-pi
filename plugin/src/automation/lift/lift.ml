@@ -230,7 +230,7 @@ let rewrite_tactic_from_args c env rewrite_info sigma =
   let arrow = if rewrite_info.left then "<- " else "" in
   let _ = Feedback.msg_warning (Pp.str "define arrow") in
   let _ = Feedback.msg_warning (Pp.str (Pp.string_of_ppcmds (Pp.app (Pp.str ("rewrite " ^ arrow)) s))) in
-  Decompiler.parse_tac_str (Pp.string_of_ppcmds (Pp.app (Pp.str ("rewrite " ^ arrow)) s))
+  Decompiler.parse_tac_str (Pp.string_of_ppcmds (Pp.app (Pp.str ("setoid_rewrite " ^ arrow)) s))
 
 (* Lift equality rewriting *)
 let lift_eq_rewrite c env rewrite_info lift_rec sigma =
@@ -242,19 +242,22 @@ let lift_eq_rewrite c env rewrite_info lift_rec sigma =
   let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma goal) in
   let proof = Proof.start sigma [(env, EConstr.of_constr goal)] in
   let _ = Feedback.msg_warning (Proof.pr_proof proof) in
+  let _ = Feedback.msg_warning (Printer.pr_econstr_env env sigma (List.hd (Proof.partial_proof proof))) in
   let (proof, _) = Proof.run_tactic env Tactics.intros proof in
   let _ = Feedback.msg_warning (Proof.pr_proof proof) in
+  let _ = Feedback.msg_warning (Printer.pr_econstr_env env sigma (List.hd (Proof.partial_proof proof))) in
   let rew_tac = rewrite_tactic_from_args c env rewrite_info sigma in
   let _ = Feedback.msg_warning (Pp.str "out of rewrite_tactic_from_args") in
   let (proof, _) = Proof.run_tactic env rew_tac proof in
   let _ = Feedback.msg_warning (Pp.str "run rewrite") in
   let _ = Feedback.msg_warning (Proof.pr_proof proof) in
+  let _ = Feedback.msg_warning (Printer.pr_econstr_env env sigma (List.hd (Proof.partial_proof proof))) in
   let (proof, _) = Proof.run_tactic env Tactics.assumption proof in
   let _ = Feedback.msg_warning (Proof.pr_proof proof) in
   if (Proof.is_done proof) then
     match Proof.partial_proof proof with
     | [] -> failwith "No proof of rewrite goal found."
-    | h :: t -> sigma, EConstr.to_constr sigma h 
+    | h :: t -> sigma, mkApp (EConstr.to_constr sigma h, lifted_rewrite_info.params)
   else
     failwith "Failed when attempting to lift a rewrite."
      
