@@ -193,16 +193,66 @@ let lift_eq_refl_app c env l lift_rec sigma =
         failwith "Tried to lift an eq_refl proof on a type for which no equivalence relation was provided.")
   | _ -> failwith "Eq_refl lifting unsupported outside of Setoid lifting."
 
+let print_top x = match (kind x) with
+  | App (f, l) ->
+    Feedback.msg_notice (Pp.str "App")
+  | Ind _ ->
+    Feedback.msg_notice (Pp.str "Ind")
+  | Prod _ ->
+    Feedback.msg_notice (Pp.str "Ind")
+  | Lambda _ ->
+    Feedback.msg_notice (Pp.str "Ind")
+  | Rel _ ->
+    Feedback.msg_notice (Pp.str "Rel")
+  | Var _ ->
+    Feedback.msg_notice (Pp.str "Var")
+  | Meta _ ->
+    Feedback.msg_notice (Pp.str "Meta")
+  | Sort _ ->
+    Feedback.msg_notice (Pp.str "Sort")
+  | Cast _ ->
+    Feedback.msg_notice (Pp.str "Cast")
+  | LetIn _ ->
+    Feedback.msg_notice (Pp.str "LetIn")
+  | Const _ ->
+    Feedback.msg_notice (Pp.str "Const")
+  | Construct _ ->
+    Feedback.msg_notice (Pp.str "Construct")
+  | Case _ ->
+    Feedback.msg_notice (Pp.str "Case")
+  | Fix _ ->
+    Feedback.msg_notice (Pp.str "Fix")
+  | CoFix _ ->
+    Feedback.msg_notice (Pp.str "CoFix")
+  | Proj _ ->
+    Feedback.msg_notice (Pp.str "Proj")
+  | _ ->
+    Feedback.msg_notice (Pp.str "Nothing")
+
 let lift_rewrite_args c env (rewrite_info : Equtils.rewrite_args) lift_rec sigma =
   let _ = Feedback.msg_warning (Pp.str "enter lift_rewrite_args") in
   let sigma, a = lift_rec env sigma c rewrite_info.a in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma rewrite_info.a) in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma a) in
   let sigma, x = lift_rec env sigma c rewrite_info.x in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma rewrite_info.x) in
+  let _ = print_top rewrite_info.x in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma x) in
+  let _ = print_top x in
   let sigma, p = lift_rec env sigma c rewrite_info.p in
   let sigma, px = lift_rec env sigma c rewrite_info.px in
   let sigma, y = lift_rec env sigma c rewrite_info.y in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma rewrite_info.y) in
+  let _ = print_top rewrite_info.y in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma y) in
+  let _ = print_top y in
   let sigma, eq = lift_rec env sigma c rewrite_info.eq in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma rewrite_info.eq) in
+  let _ = print_top rewrite_info.eq in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma eq) in
+  let _ = print_top eq in
   let sigma, params = map_rec_args lift_rec env sigma c (Array.copy rewrite_info.params) in
-  { a = a ; x ; p ; px ; y ; eq ; params ; left = rewrite_info.left}
+  sigma, { a ; x ; p ; px ; y ; eq ; params ; left = rewrite_info.left}
 
 open Names
 open Tactics
@@ -212,7 +262,7 @@ let coq_program_basics =
     (DirPath.make (List.map Id.of_string ["Basics"; "Program"; "Coq"]))
 
 let funtype =
-  mkConst (Constant.make2 coq_program_basics (Label.make "arrow"))
+  mkInd (MutInd.make1 (KerName.make2 coq_program_basics (Label.make "arrow")), 0)
 
 open Decompiler
 
@@ -227,6 +277,8 @@ let rewrite_tactic_from_args c env rewrite_info sigma =
   let _ = Feedback.msg_warning (Pp.str "define prnt") in
   let s = prnt env rewrite_info.eq in
   let _ = Feedback.msg_warning (Pp.str "define s") in
+  let _ = Feedback.msg_warning s in
+  let _ = Feedback.msg_warning (prnt env (EConstr.to_constr sigma (snd (Typing.type_of env sigma (EConstr.of_constr rewrite_info.eq))))) in
   let arrow = if rewrite_info.left then "<- " else "" in
   let _ = Feedback.msg_warning (Pp.str "define arrow") in
   let _ = Feedback.msg_warning (Pp.str (Pp.string_of_ppcmds (Pp.app (Pp.str ("rewrite " ^ arrow)) s))) in
@@ -235,10 +287,13 @@ let rewrite_tactic_from_args c env rewrite_info sigma =
 (* Lift equality rewriting *)
 let lift_eq_rewrite c env rewrite_info lift_rec sigma =
   let _ = Feedback.msg_warning (Pp.str "enter lift_eq_rewrite") in
-  let lifted_rewrite_info = lift_rewrite_args c env rewrite_info lift_rec sigma in
+  let sigma, lifted_rewrite_info = lift_rewrite_args c env rewrite_info lift_rec sigma in
+  let goal_hypothesis = mkAppl(lifted_rewrite_info.p, [lifted_rewrite_info.x]) in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma goal_hypothesis) in
   let goal_consequent = mkAppl(lifted_rewrite_info.p, [lifted_rewrite_info.y]) in
   let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma goal_consequent) in
-  let goal = mkAppl(funtype, [lifted_rewrite_info.px ; goal_consequent]) in
+  let goal = mkProd(Names.Anonymous, goal_hypothesis, goal_consequent) in
+  let _ = Feedback.msg_warning (Pp.str "constructed goal") in
   let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma goal) in
   let proof = Proof.start sigma [(env, EConstr.of_constr goal)] in
   let _ = Feedback.msg_warning (Proof.pr_proof proof) in
@@ -246,7 +301,10 @@ let lift_eq_rewrite c env rewrite_info lift_rec sigma =
   let (proof, _) = Proof.run_tactic env Tactics.intros proof in
   let _ = Feedback.msg_warning (Proof.pr_proof proof) in
   let _ = Feedback.msg_warning (Printer.pr_econstr_env env sigma (List.hd (Proof.partial_proof proof))) in
-  let rew_tac = rewrite_tactic_from_args c env rewrite_info sigma in
+  let (proof, _) = Proof.run_tactic env Tactics.simpl_in_concl proof in
+  let _ = Feedback.msg_warning (Proof.pr_proof proof) in
+  let _ = Feedback.msg_warning (Printer.pr_econstr_env env sigma (List.hd (Proof.partial_proof proof))) in
+  let rew_tac = rewrite_tactic_from_args c env lifted_rewrite_info sigma in
   let _ = Feedback.msg_warning (Pp.str "out of rewrite_tactic_from_args") in
   let (proof, _) = Proof.run_tactic env rew_tac proof in
   let _ = Feedback.msg_warning (Pp.str "run rewrite") in
@@ -257,7 +315,10 @@ let lift_eq_rewrite c env rewrite_info lift_rec sigma =
   if (Proof.is_done proof) then
     match Proof.partial_proof proof with
     | [] -> failwith "No proof of rewrite goal found."
-    | h :: t -> sigma, mkApp (EConstr.to_constr sigma h, lifted_rewrite_info.params)
+    | h :: t ->
+       sigma, mkApp (
+                  mkAppl (EConstr.to_constr sigma h, [lifted_rewrite_info.px]),
+                  lifted_rewrite_info.params)
   else
     failwith "Failed when attempting to lift a rewrite."
      
