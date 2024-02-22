@@ -116,12 +116,12 @@ Module Target.
   Definition eq_nat_unit_prod : nat * unit -> nat * unit -> Prop :=
     eq_prod (@eq nat) eq_unit.
 
-  Theorem eq_nat_unit_prod_equiv : Equivalence eq_nat_unit_prod.
+  Instance eq_nat_unit_prod_equiv : Equivalence eq_nat_unit_prod.
   Proof.
     apply eq_prod_equiv.
     apply eq_equivalence.
     apply eq_unit_equiv.
-  Qed.
+  Qed.    
   
 End Target.
 
@@ -132,6 +132,36 @@ Definition old := Source_p.unit.
 Preprocess Module Target as Target_p.
 
 Definition new := Target_p.unit.
+
+Instance eq_unit_equiv : Equivalence Target_p.eq_unit.
+Proof.
+  apply Target_p.eq_unit_equiv.
+Qed.
+
+Instance eq_nat_unit_prod_equiv : Equivalence Target_p.eq_nat_unit_prod.
+Proof.
+  apply Target_p.eq_nat_unit_prod_equiv.
+Qed.
+
+Theorem testing (x : Target_p.unit) (H : Target_p.eq_unit x Target_p.one) : (forall (_ : (Target_p.eq_unit Target_p.one Target_p.one)),
+                                         ((fun x : Target_p.unit => Target_p.eq_unit x Target_p.one) x)).
+Proof.
+  intros.
+  simpl.
+  rewrite H.
+  assumption.
+Qed.
+
+Theorem testing2 (x : Target_p.unit) (H : Target_p.eq_unit x Target_p.one) : ((fun p : nat * Target_p.unit =>
+  Target_p.eq_nat_unit_prod p (1, Target_p.one)) (1, Target_p.one) ->
+ (fun p : nat * Target_p.unit =>
+  Target_p.eq_nat_unit_prod p (1, Target_p.one)) (1, x)).
+Proof.
+  intros.
+  simpl.
+  rewrite H.
+  assumption.
+Qed.
 
 Definition depConstrSource := Source_p.tt.
 Definition depConstrTarget := Target_p.one.
@@ -261,3 +291,9 @@ Lift old new in Source_p.eq_test3 as eq_test3.
 Print eq_test3.
 
 Lift old new in Source_p.eq_rect_test as eq_rect_test.
+
+Print eq_rect_test.
+
+Lift old new in Source_p.eq_rect_test2 as eq_rect_test2.
+
+Print eq_rect_test2.
