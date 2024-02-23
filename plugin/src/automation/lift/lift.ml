@@ -280,7 +280,7 @@ let show_tactic sigma tac : Pp.t =
   | Rewrite (env, trm, left, _) ->
      let s = prnt env trm in
      let arrow = if left then "<- " else "" in
-     str ("rewrite " ^ arrow) ++ s
+     str ("setoid_rewrite " ^ arrow) ++ s
   | RewriteIn (env, prf, hyp, left) ->
      let prf_s, hyp_s = prnt env prf, prnt env hyp in
      let arrow = if left then "" else "<- " in
@@ -315,6 +315,9 @@ let coq_tac sigma t prefix =
     let s = show_tactic sigma t in
     let s' = Format.asprintf "%a" Pp.pp_with s in
     Decompiler.parse_tac_str (prefix ^ s')
+
+let cbn_test =
+  Decompiler.parse_tac_str (Format.asprintf "%a" Pp.pp_with (Pp.str "cbn beta delta"))
 
 (*
  * Create a tactic performing the rewrite represented by rewrite_info. 
@@ -406,7 +409,8 @@ let lift_eq_rewrite c env rewrite_info lift_rec sigma =
   let _ = Feedback.msg_warning (Pp.str "try print concl") in
   let (cur_goal, _, _, _, _) = Proof.proof proof in
   (*let _ = Feedback.msg_warning (Printer.pr_econstr_env lifted_env sigma (Goal.V82.concl sigma (List.hd cur_goal))) in*)
-  let (proof, pvm) = Proof.run_tactic lifted_env Tactics.simpl_in_concl proof in
+  (*let (proof, pvm) = Proof.run_tactic lifted_env Tactics.simpl_in_concl proof in*)
+  let (proof, pvm) = Proof.run_tactic lifted_env cbn_test proof in
   let _ = Feedback.msg_warning (Proof.pr_proof proof) in
   let _ = Feedback.msg_warning (Printer.pr_econstr_env lifted_env sigma (List.hd (Proof.partial_proof proof))) in
   let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
