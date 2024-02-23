@@ -126,7 +126,8 @@ Module OneListQueue.
     unfold returnOrEnq.
     rewrite congOptionRect.
     reflexivity.
-  Qed.
+  Defined.
+  Print dequeueEnqueue.
   
 End OneListQueue.
 
@@ -886,6 +887,8 @@ Proof.
   reflexivity.
 Qed.
 
+Print dequeueEnqueue.
+
 Definition fastDequeue (q : queue) : option (queue * A) :=
   let (l1, l2) := q in
   match l1, l2 with
@@ -1023,40 +1026,43 @@ Module Examples.
 
 End Examples.
 
-Theorem promotef : OneListQueue.queue -> TwoListQueue.queue.
+
+
+Require Import Ornamental.Ornaments.
+
+Theorem promotefnodep : OneListQueue.queue -> TwoListQueue.queue.
 Proof.
   intros.
-  induction X using OneListQueue.depElim.
+  induction X using OneListQueue.depRec.
   - exact TwoListQueue.depConstrEmpty.
   - exact (TwoListQueue.enqueue a IHX).
 Defined.
 
+Print TwoListQueue.depRec.
 (* forgetg is defined directly *)
-Definition forgetg := fun X : TwoListQueue.queue => 
-TwoListQueue.depElim' (fun _ : TwoListQueue.queue => OneListQueue.queue)
+Definition forgetgnodep := fun X : TwoListQueue.queue => 
+TwoListQueue.depRec OneListQueue.queue
   (OneListQueue.depConstrEmpty) 
   (fun (a : TwoListQueue.A) (_ : TwoListQueue.queue) (IHX : OneListQueue.queue) =>
    OneListQueue.enqueue a IHX) X.
 
-Require Import Ornamental.Ornaments.
-
-Save equivalence OneListQueue.queue TwoListQueue.queue { promote = promotef; forget = forgetg }.
-
+Save equivalence OneListQueue.queue TwoListQueue.queue { promote = promotefnodep; forget = forgetgnodep }.
 
 Definition eta_One (i : OneListQueue.queue) : OneListQueue.queue := i.
 Definition eta_Two (j : TwoListQueue.queue) : TwoListQueue.queue := j.
 
 
+(* New configuration *)
 Configure Lift OneListQueue.queue TwoListQueue.queue {
   constrs_a = OneListQueue.depConstrEmpty OneListQueue.depConstrInsert;
   constrs_b = TwoListQueue.depConstrEmpty TwoListQueue.depConstrInsert;
-  elim_a = OneListQueue.depElim;
-  elim_b = TwoListQueue.depElim';
+  elim_a = OneListQueue.depRec;
+  elim_b = TwoListQueue.depRec;
   eta_a = eta_One;
   eta_b = eta_Two;
   (* I want to pass more iotas, not sure how *)
   iota_a = OneListQueue.iotaRecEmpty OneListQueue.iotaRecInsert;
-           (* OneListQueue.iotaRecEmptyEq OneListQueue.iotaRecEmpty
+           (* OneListQueue.iotaRecEmptyEq OneListQueue.iotaRecEmpty; 
            OneListQueue.iotaRecEmptyRev OneListQueue.iotaRecInsertEq 
            OneListQueue.iotaRecInsert OneListQueue.iotaRecInsertRev; *)
   iota_b = TwoListQueue.iotaRecEmpty TwoListQueue.iotaRecInsert
@@ -1072,26 +1078,130 @@ Configure Lift OneListQueue.queue TwoListQueue.queue {
            TwoListQueue.iotaPropInsertRev *)
 }.
 
+
 Module OldGood.
     Import OneListQueue.
     Definition A : Type := nat.
-    Definition enqueueEasy (a : A) (q : queue) : queue := depConstrInsert a q.
+    Definition enqueueExplicit (a : A) (q : queue) : queue := depConstrInsert a q.
+
+    (* will repair and the repaired term will look very small/line up neatly *)
+    Definition dequeueExplicit := 
+      OneListQueue.depRec 
+        (option (queue * A)) 
+        (None)
+        (fun _ _ IHX => IHX) : queue -> option (queue * A).
+
+    (* will repair *)
+    Definition returnOrEnqExplicit (a : A) (m : option (queue * A)) : (queue * A) :=
+        @option_rect
+          (queue * A)
+          (fun _ => prod queue A)
+          (fun (p : (queue * A)) => (enqueueExplicit a (fst p), snd p))
+          (depConstrEmpty, a)
+          m.
+
+    (* won't repair even though term looks reasonable, due to unification issues, needs to be explicitly defined *)
+    (*
+    Theorem dequeueNaive : queue -> option (queue * A). 
+      intros.
+      induction X using depRec.
+      - exact None.
+      - exact IHX.
+    Defined. 
+    *)
+
+    (* this will repair, but will produce a large ugly repaired term compared to dequeueExplicit *)
+    Definition dequeueBigTerm := OneListQueue.dequeue.
+
+    (* suspected unification issues, probably will fail to repair but worth trying just in case when automation is extended *)
+    Definition dequeueEnqueueFail := OneListQueue.dequeueEnqueue. 
+
+    (* attempt at version without potential unification issues, commented out for now.
+    Program Definition dequeueEnqueueExplicit (a : A) (q : queue) := 
+      iotaRecInsertRev (option (queue * OneListQueue.A)) None _ a q a q 
+        ((fun o : option (queue * OneListQueue.A) => o = Some (returnOrEnqExplicit a (depRec (option (queue * OneListQueue.A)) None dequeueHelp q)))) _: ((dequeueExplicit (enqueueExplicit a q)) = (Some (returnOrEnqExplicit a (dequeueExplicit q)))
+    ).
+    Next Obligation. unfold returnOrEnqExplicit. Print congOptionRect.
+    Admitted. *)
+
+
+    Print enqueueExplicit.
 End OldGood.
 
 Repair Module OneListQueue.queue TwoListQueue.queue in OldGood as NewGood { hint "auto" }.
-Print OldGood.enqueueEasy.
-Print NewGood.enqueueEasy.
+Print OldGood.enqueueExplicit.
+Print NewGood.enqueueExplicit.
+Print OldGood.dequeueExplicit.
+Print NewGood.dequeueExplicit.
+Print NewGood.dequeueBigTerm.
+Print OldGood.returnOrEnqExplicit.
+Print NewGood.returnOrEnqExplicit.
+
+
+
+(* old stuff below, ignore *)
+(* ---- old stuff with depElim
+Theorem promotef : OneListQueue.queue -> TwoListQueue.queue.
+Proof.
+  intros.
+  induction X using OneListQueue.depElim.
+  - exact TwoListQueue.depConstrEmpty.
+  - exact (TwoListQueue.enqueue a IHX).
+Defined.
+
+(* forgetg is defined directly *)
+Definition forgetg := fun X : TwoListQueue.queue => 
+TwoListQueue.depElim' (fun _ : TwoListQueue.queue => OneListQueue.queue)
+  (OneListQueue.depConstrEmpty) 
+  (fun (a : TwoListQueue.A) (_ : TwoListQueue.queue) (IHX : OneListQueue.queue) =>
+   OneListQueue.enqueue a IHX) X.
+
+Save equivalence OneListQueue.queue TwoListQueue.queue { promote = promotef; forget = forgetg }.
+
+(* Old configuration *)
+(*
+Configure Lift OneListQueue.queue TwoListQueue.queue {
+  constrs_a = OneListQueue.depConstrEmpty OneListQueue.depConstrInsert;
+  constrs_b = TwoListQueue.depConstrEmpty TwoListQueue.depConstrInsert;
+  elim_a = OneListQueue.depElim;
+  elim_b = TwoListQueue.depElim';
+  eta_a = eta_One;
+  eta_b = eta_Two;
+  (* I want to pass more iotas, not sure how *)
+  iota_a = OneListQueue.iotaRecEmpty OneListQueue.iotaRecInsertRev;
+           (* OneListQueue.iotaRecEmptyEq OneListQueue.iotaRecEmpty; 
+           OneListQueue.iotaRecEmptyRev OneListQueue.iotaRecInsertEq 
+           OneListQueue.iotaRecInsert OneListQueue.iotaRecInsertRev; *)
+  iota_b = TwoListQueue.iotaRecEmpty TwoListQueue.iotaRecInsertRev
+           (* TwoListQueue.rev_rect_iota TwoListQueue.iotaRecEmptyEq
+           TwoListQueue.iotaRecEmpty TwoListQueue.iotaRecEmptyRev 
+           TwoListQueue.iotaRecInsertEq TwoListQueue.iotaRecInsert
+           TwoListQueue.iotaRecInsertRev TwoListQueue.iotaEmptyEq
+           TwoListQueue.iotaEmpty TwoListQueue.iotaEmptyRev
+           TwoListQueue.iotaInsertEq TwoListQueue.iotaInsert
+           TwoListQueue.iotaInsertRev TwoListQueue.iotaPropEmptyEq
+           TwoListQueue.iotaPropEmpty TwoListQueue.iotaPropEmptyRev
+           TwoListQueue.iotaPropInsertEq TwoListQueue.iotaPropInsert
+           TwoListQueue.iotaPropInsertRev *)
+}.
+*)
+ --- fin *)
 
 Module OldFail.
     Import OneListQueue.
     Definition A : Type := nat.
+    Definition enqueueNaive (a : A) (q : queue) : queue := depConstrInsert a q.
 
-    Theorem dequeueNaive : queue -> option (queue * A). 
-      intros.
-      induction X. Print option.
-      - exact None.
-      - exact IHX.
-    Defined.
+    Definition dequeueNaive (q : queue) := 
+      OneListQueue.depRec 
+        (option (queue * A)) 
+        (None)
+        (fun _ _ IHX => IHX).
+    
 End OldFail.
 
+Print OldFail.dequeueNaive.
+
 Repair Module OneListQueue.queue TwoListQueue.queue in OldFail as NewFail { hint "auto" }.
+
+Print NewFail.dequeueNaive.
