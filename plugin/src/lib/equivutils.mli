@@ -13,3 +13,6 @@ val equiv_sym_getter : constr
 
 (* Getter for the proof of transitivity from a proof of equivalence *)
 val equiv_trans_getter : constr
+
+(* Proof that eq is an equivalence *)
+val eq_equivalence : constr
