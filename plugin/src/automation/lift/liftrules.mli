@@ -44,6 +44,9 @@ type lift_rule =
 | Iota of constr * constr list
 | Coherence of reducer * (constr * constr list)
 | Optimization of lift_optimization
+| Eq of constr list
+| EqRefl of constr list
+| EqRewrite of Equtils.rewrite_args
 | CIC of (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
 
 (*

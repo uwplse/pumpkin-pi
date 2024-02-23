@@ -230,7 +230,7 @@ let cache_local c trm lifted =
     Hashtbl.add c gr lifted
   with _ ->
     Feedback.msg_warning (Pp.str "can't cache term")
-                         
+
 (* --- Equivalence cache --- *)
 
 (*
@@ -255,7 +255,26 @@ module OrnamentsCache =
             (ExtRefOrdered.hash (TrueGlobal n)))
     end)
 
-type 'a metadata = (Names.GlobRef.t * Names.GlobRef.t) * 'a 
+type 'a metadata = (Names.GlobRef.t * Names.GlobRef.t) * 'a
+
+(*
+ * Precise version
+ *)
+let has_metadata_exact cache typs =
+  try
+    let globals = map_tuple Globnames.global_of_constr typs in
+    OrnamentsCache.mem cache globals
+  with _ ->
+    false
+              
+(*
+ * Check if an ornament is cached
+ *)
+let has_metadata cache typs =
+  if has_metadata_exact cache typs then
+    true
+  else
+    has_metadata_exact cache (reverse typs)
 
 (* Initialize the ornament cache *)
 let orn_cache = OrnamentsCache.create 100
@@ -265,6 +284,135 @@ let indexer_cache = OrnamentsCache.create 100
 
 (* Initialize the private cache of swap maps for swap ornaments *)
 let swap_cache = OrnamentsCache.create 100
+
+(* --- Derived equivalence relation cache. --- *)
+
+(* When lifting to a setoid, we need to maintain equivalence relations 
+ * for every type used involving the setoid carrier.
+ *)
+
+(* Initialize the equivalence relation cache *)
+let equiv_rel_cache = OrnamentsCache.create 100
+
+type equiv_rel_obj = (Names.GlobRef.t list * Names.GlobRef.t list) metadata
+
+let cache_equiv_rel (_, (typs, (eq_types, eq_rels))) =
+  OrnamentsCache.add equiv_rel_cache typs (eq_types, eq_rels)
+
+let sub_equiv_rel (subst, (typs, (eq_types, eq_rels))) =
+  let open Globnames in
+  let typs = map_tuple (subst_global_reference subst) typs in
+  let eq_types = List.map (subst_global_reference subst) eq_types in
+  let eq_rels = List.map (subst_global_reference subst) eq_rels in
+  typs, (eq_types, eq_rels)
+
+let inEquivRels : equiv_rel_obj -> obj =
+  declare_object { (default_object "EQUIV_RELS") with
+    cache_function = cache_equiv_rel;
+    load_function = (fun _ -> cache_equiv_rel);
+    open_function = (fun _ -> cache_equiv_rel);
+    classify_function = (fun equiv_rel_obj -> Substitute equiv_rel_obj);
+    subst_function = sub_equiv_rel }
+
+(*
+ * Lookup an equivalence relation assignment 
+ *)
+let lookup_equiv_rel_assgn typs =
+  if not (has_metadata_exact equiv_rel_cache typs) then
+    None
+  else
+    let globals = map_tuple Globnames.global_of_constr typs in
+    let (eq_types, eq_rels) = OrnamentsCache.find equiv_rel_cache globals in
+    try
+      let eq_types = List.map UnivGen.constr_of_global eq_types in
+      let eq_rels = List.map UnivGen.constr_of_global eq_rels in
+      Some (eq_types, eq_rels)
+    with _ ->
+      Feedback.msg_warning
+        (Pp.seq
+           [Pp.str "Failed to retrieve cached equivalence relations. ";
+            Pp.str "Lifting may fail later. ";
+            Pp.str "Please report a bug if this happens."]);
+      None
+
+(*
+ * Add equivalence relations to the config cache
+ *)
+let save_equiv_rels typs eq_rel_mapping =
+  try
+    let open Globnames in
+    let globals = map_tuple global_of_constr typs in
+    let eq_rel_mapping = map_tuple (List.map global_of_constr) eq_rel_mapping in
+    let eq_rel_obj = inEquivRels (globals, eq_rel_mapping) in
+    add_anonymous_leaf eq_rel_obj
+  with _ ->
+    Feedback.msg_warning
+      (Pp.seq
+         [Pp.str "Failed to cache equivalence relations. ";
+          Pp.str "Lifting may fail later. ";
+          Pp.str "Please report a bug if this happens."])
+
+(* Initialize the equivalence instance proof cache *)
+let equiv_proof_cache = OrnamentsCache.create 100
+
+type equiv_proof_obj = (Names.GlobRef.t list * Names.GlobRef.t list) metadata
+
+let cache_equiv_proof (_, (typs, (eq_types, eq_proofs))) =
+  OrnamentsCache.add equiv_proof_cache typs (eq_types, eq_proofs)
+
+let sub_equiv_proof (subst, (typs, (eq_types, eq_proofs))) =
+  let open Globnames in
+  let typs = map_tuple (subst_global_reference subst) typs in
+  let eq_types = List.map (subst_global_reference subst) eq_types in
+  let eq_proofs = List.map (subst_global_reference subst) eq_proofs in
+  typs, (eq_types, eq_proofs)
+
+let inEquivProofs : equiv_rel_obj -> obj =
+  declare_object { (default_object "EQUIV_PROOFS") with
+    cache_function = cache_equiv_proof;
+    load_function = (fun _ -> cache_equiv_proof);
+    open_function = (fun _ -> cache_equiv_proof);
+    classify_function = (fun equiv_proof_obj -> Substitute equiv_proof_obj);
+    subst_function = sub_equiv_proof }
+
+(*
+ * Lookup an equivalence instance proof assignment 
+ *)
+let lookup_equiv_proof_assgn typs =
+  if not (has_metadata_exact equiv_proof_cache typs) then
+    None
+  else
+    let globals = map_tuple Globnames.global_of_constr typs in
+    let (eq_types, eq_proofs) = OrnamentsCache.find equiv_proof_cache globals in
+    try
+      let eq_types = List.map UnivGen.constr_of_global eq_types in
+      let eq_proofs = List.map UnivGen.constr_of_global eq_proofs in
+      Some (eq_types, eq_proofs)
+    with _ ->
+      Feedback.msg_warning
+        (Pp.seq
+           [Pp.str "Failed to retrieve cached equivalence proofs. ";
+            Pp.str "Lifting may fail later. ";
+            Pp.str "Please report a bug if this happens."]);
+      None
+
+(*
+ * Add equivalence instance proofs to the config cache
+ *)
+
+let save_equiv_proofs typs eq_proof_mapping =
+  try
+    let open Globnames in
+    let globals = map_tuple global_of_constr typs in
+    let eq_proof_mapping = map_tuple (List.map global_of_constr) eq_proof_mapping in
+    let eq_proof_obj = inEquivRels (globals, eq_proof_mapping) in
+    add_anonymous_leaf eq_proof_obj
+  with _ ->
+    Feedback.msg_warning
+      (Pp.seq
+         [Pp.str "Failed to cache equivalence proofs. ";
+          Pp.str "Lifting may fail later. ";
+          Pp.str "Please report a bug if this happens."])
 
 (*
  * The kind of ornament is saved as an int, so this interprets it
@@ -284,6 +432,14 @@ let int_to_kind (i : int) globals =
   else if i = 4 then
     let typs = map_tuple UnivGen.constr_of_global globals in
     Custom typs
+  else if i = 5 then
+    let typs = map_tuple UnivGen.constr_of_global globals in
+    let (eq_types, eq_rels) = OrnamentsCache.find equiv_rel_cache globals in
+    let (eq_types, eq_proofs) = OrnamentsCache.find equiv_proof_cache globals in
+    let eq_types = List.map UnivGen.constr_of_global eq_types in
+    let eq_rels = List.map UnivGen.constr_of_global eq_rels in
+    let eq_proofs = List.map UnivGen.constr_of_global eq_proofs in
+    Setoid (typs, (eq_types, eq_rels, eq_proofs))
   else
     failwith "Unsupported kind of ornament passed to interpret_kind in caching"
 
@@ -299,6 +455,8 @@ let kind_to_int (k : kind_of_orn) =
      3
   | Custom typs ->
      4
+  | Setoid _ ->
+     5
 
 (*
  * Wrapping the table for persistence
@@ -358,25 +516,6 @@ let inSwaps : swap_obj -> obj =
     subst_function = sub_swap_map }
 
 (*
- * Precise version
- *)
-let has_metadata_exact cache typs =
-  try
-    let globals = map_tuple Globnames.global_of_constr typs in
-    OrnamentsCache.mem cache globals
-  with _ ->
-    false
-              
-(*
- * Check if an ornament is cached
- *)
-let has_metadata cache typs =
-  if has_metadata_exact cache typs then
-    true
-  else
-    has_metadata_exact cache (reverse typs)
-
-(*
  * Lookup an ornament
  *)
 let lookup_ornament typs =
@@ -409,6 +548,14 @@ let save_ornament typs (orn, orn_inv, kind) =
     | SwapConstruct swap_map ->
        let ind_obj = inSwaps (globals, swap_map) in
        add_anonymous_leaf ind_obj
+    | Setoid (typs, (eq_types, eq_rels, eq_proofs))  ->
+       let eq_types = List.map Globnames.global_of_constr eq_types in
+       let eq_rels = List.map Globnames.global_of_constr eq_rels in
+       let eq_proofs = List.map Globnames.global_of_constr eq_proofs in
+       let eq_rel_obj = inEquivRels (globals, (eq_types, eq_rels)) in
+       let eq_proof_obj = inEquivProofs (globals, (eq_types, eq_proofs)) in
+       add_anonymous_leaf eq_rel_obj;
+       add_anonymous_leaf eq_proof_obj
     | CurryRecord | UnpackSigma | Custom _ ->
        ()
   with _ ->

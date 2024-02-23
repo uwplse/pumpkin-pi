@@ -103,6 +103,8 @@ src/lib/ornerrors.ml
 src/lib/ornerrors.mli
 src/lib/unificationutils.ml
 src/lib/unificationutils.mli
+src/lib/equivutils.ml
+src/lib/equivutils.mli
 
 src/ornaments/promotion.ml
 src/ornaments/promotion.mli

@@ -172,6 +172,37 @@ val applies_elim :
   evar_map ->
   ((constr option * (constr list)) option) state
 
+(*
+ * Check if the term applies equality
+ *)
+val applies_eq :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  ((constr list) option) state
+
+(*
+ * Check if the term applies eq_refl
+ *)
+val applies_eq_refl :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  ((constr list) option) state
+
+(*
+ * Check if the term is rewriting by an equality
+ *)
+val applies_eq_rewrite :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  (Equtils.rewrite_args option) state
+ 
+
 (* --- Custom simplification --- *)
                                      
 (*

@@ -108,3 +108,35 @@ val save_dep_constrs : (types * types) -> (constr array * constr array) -> unit
 val save_dep_elim : (types * types) -> (constr * constr) -> unit
 val save_eta : (types * types) -> (constr * constr) -> unit
 val save_iota : (types * types) -> (constr array * constr array) -> unit
+
+(* --- Database of equivalence relations and proofs of equivalence --- *)
+
+(* Lookup the type to equivalence relation assignment.
+ * Arguments: orn_o, orn_n
+ * 
+ * Return None if the equivalence relation assignment does not exist or is
+ * not in the current environment.
+ *) 
+val lookup_equiv_rel_assgn :
+  (types * types) -> (types list * constr list) option
+   
+(*
+ * Store type to equivalence relation assignment.
+ *)
+val save_equiv_rels :
+  (types * types) -> (types list * constr list) -> unit
+
+(* Lookup the type to equivalence instance proof assignment.
+ * Arguments: orn_o, orn_n
+ * 
+ * Return None if the equivalence instance proof assignment does not exist or is
+ * not in the current environment.
+ *) 
+val lookup_equiv_proof_assgn :
+  (types * types) -> (types list * constr list) option
+   
+(*
+ * Store type to equivalence instance proof assignment.
+ *)
+val save_equiv_proofs :
+  (types * types) -> (types list * constr list) -> unit

@@ -53,7 +53,7 @@ let pack env l unpacked sigma =
      sigma, eta_prod_rec unpacked typ_red
   | SwapConstruct _ | UnpackSigma ->
      sigma, unpacked
-  | Custom _ ->
+  | Custom _ | Setoid _ ->
      failwith "unsupported"
 
 (* --- Unpacking for unpack ornaments --- *)

@@ -144,8 +144,10 @@ let get_direction (from_typ_app, to_typ_app) orn_kind =
 (*
  * For an uncached ornament, get the kind and its direction
  *)
-let get_kind_of_ornament env typs (o, n) is_custom sigma =
-  if is_custom then
+let get_kind_of_ornament env typs (o, n) is_custom setoid_info sigma =
+  if Option.has_some setoid_info then
+    sigma, (true, Setoid (typs, Option.get setoid_info))
+  else if is_custom then
     sigma, (true, Custom typs)
   else
     let (from_typ_app, to_typ_app) = promotion_term_to_types env sigma o in
@@ -237,9 +239,9 @@ let initialize_lifting_cached env sigma o n =
 (*
  * Initialize a lifting for a user-provided ornament
  *)
-let initialize_lifting_provided env sigma typs funs is_custom =
+let initialize_lifting_provided env sigma typs funs is_custom setoid_info =
   let sigma, (is_fwd, (promote, forget), kind) =
-    let sigma, (is_fwd, k) = get_kind_of_ornament env typs funs is_custom sigma in
+    let sigma, (is_fwd, k) = get_kind_of_ornament env typs funs is_custom setoid_info sigma in
     let orns = map_if reverse (not is_fwd) funs in
     sigma, (is_fwd, orns, k)
   in

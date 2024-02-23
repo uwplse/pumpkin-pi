@@ -173,7 +173,7 @@ let initialize_types l env sigma =
      let a_t = reconstruct_lambda env_typs a_i_t in
      let b_t = reconstruct_lambda env_typs (unshift b_i_t) in
      sigma, (a_t, b_t)
-  | Custom typs ->
+  | Custom typs | Setoid (typs, _) ->
      sigma, typs
 
 let get_types c = c.typs
@@ -235,7 +235,7 @@ let rec optimize_is_from c env typ sigma =
             sigma, None
         with _ ->
           sigma, None)
-    | SwapConstruct _ | Custom _ ->
+    | SwapConstruct _ | Custom _ | Setoid _ ->
        if is_or_applies goal_typ typ then
          sigma, Some (unfold_args typ)
        else
@@ -429,7 +429,7 @@ let initialize_proj_rules c env sigma =
            Feedback.msg_warning
              (Pp.str "Can't find record accessors; skipping an optimization")
          in sigma, (([], []), ([], []))
-    | SwapConstruct _ | Custom _ ->
+    | SwapConstruct _ | Custom _ | Setoid _ ->
        (* no projections *)
        sigma, (([], []), ([], []))
   in
@@ -474,7 +474,7 @@ let initialize_etas c cached env sigma =
            in
            let e = pack_existT {index_type; packer; index; unpacked} in
            sigma, reconstruct_lambda env_eta e
-        | Algebraic _ | CurryRecord | SwapConstruct _ | Custom _ ->
+        | Algebraic _ | CurryRecord | SwapConstruct _ | Custom _ | Setoid _ ->
            (* identity *)
            sigma, reconstruct_lambda env_eta a
       in
@@ -527,7 +527,7 @@ let initialize_etas c cached env sigma =
              let trm2 = eq_typ_app.trm2 in
              mkAppl (eq_rect, [at_type; trm1; b_typ; b; trm2; eq])
            in sigma, reconstruct_lambda_n env_eq rewrite (nb_rel env)
-        | SwapConstruct _ | Custom _ ->
+        | SwapConstruct _ | Custom _ | Setoid _ ->
            (* identity *)
            sigma, reconstruct_lambda env_eta b
       in
@@ -756,7 +756,7 @@ let may_apply_eta c env trm =
        is_or_applies pair trm || is_or_applies (lift_back l) trm
     | SwapConstruct _ ->
        false (* impossible state *)
-    | Custom _ ->
+    | Custom _ | Setoid _ ->
        true (* not enough information without unification *)
 
 (*
@@ -769,7 +769,7 @@ let applies_eta c env trm sigma =
     (* Heuristic for unification again *)
     if Option.has_some typ_args_o then
       let typ_args = Option.get typ_args_o in
-      let is_custom = match c.l.orn.kind with | Custom _ -> true | _ -> false in
+      let is_custom = match c.l.orn.kind with | Custom _ | Setoid _ -> true | _ -> false in
       if (not is_custom) && equal (zoom_term zoom_lambda_term env (fst c.etas)) (mkRel 1) then
         sigma, Some (snoc trm typ_args)
       else
@@ -858,7 +858,7 @@ let applies_eta c env trm sigma =
              sigma, Some (snoc trm typ_args)
           | SwapConstruct _ ->
              sigma, None (* impossible state *)
-          | Custom _ ->
+          | Custom _ | Setoid _ ->
              (* attempt unification *)
              let eta = fst c.etas in
              let sigma, eargs = mk_n_evars (arity eta) env sigma in
@@ -883,11 +883,87 @@ let get_lifted_iota c = snd c.iotas
  *)
 let applies_iota c env trm sigma =
   match c.l.orn.kind with
-  | Custom _ ->
+  | Custom _ | Setoid _ ->
      (* no custom unification yet---require explicit expansion *)
      sigma, None
   | _ ->
      sigma, None
+
+(*
+ * Check if eq is applied and we are repairing to a setoid.
+ *)
+let applies_eq c env trm sigma =
+  match (get_lifting c).orn.kind with
+  | Setoid _ ->
+    if (isApp trm) then
+      let sigma, is_eq = convertible env (first_fun trm) Equtils.eq sigma in
+      if is_eq then
+        sigma, Some (unfold_args trm)
+      else sigma, None
+    else sigma, None
+  | _ -> sigma, None
+
+(*
+ * Check if eq_refl is applied and we are repairing to a setoid.
+ *)
+let applies_eq_refl c env trm sigma =
+  match (get_lifting c).orn.kind with
+  | Setoid _ ->
+     if (isApp trm) then
+       let sigma, is_eq_refl = convertible env (first_fun trm) Equtils.eq_refl sigma in
+       if is_eq_refl then
+         sigma, Some (unfold_args trm)
+       else sigma, None
+     else sigma, None
+  | _ -> sigma, None
+
+(* 
+ * Check if a term is convertible to eq_ind, eq_rec, or eq_rect.
+ * Based on is_rewrite_l from coq-plugin-lib.
+ *)
+let is_conv_rewrite_l env (trm : types) sigma =
+  let eq_term = (fun trm2 -> convertible env trm trm2 sigma) in
+  let sigma, is_eq_ind = eq_term eq_ind in
+  let sigma, is_eq_rec = eq_term eq_rec in
+  let sigma, is_eq_rect = eq_term eq_rect in
+  sigma, (is_eq_ind || is_eq_rec || is_eq_rect)
+
+(* 
+ * Check if a term is convertible to eq_ind_r, eq_rec_r, or eq_rect_r .
+ * Based on is_rewrite_r from coq-plugin-lib.
+ *)
+let is_conv_rewrite_r env (trm : types) sigma =
+  let eq_term = (fun trm2 -> convertible env trm trm2 sigma) in
+  let sigma, is_eq_ind_r = eq_term eq_ind_r in
+  let sigma, is_eq_rec_r = eq_term eq_rec_r in
+  let sigma, is_eq_rect_r = eq_term eq_rect_r in
+  sigma, (is_eq_ind_r || is_eq_rec_r || is_eq_rect_r)
+
+(*
+ * Check if the term is rewriting by an equality and we are repairing
+ * to a setoid.
+ * Based on dest_rewrite from coq-plugin-lib.
+ *)
+let applies_eq_rewrite c env trm sigma =
+  match (get_lifting c).orn.kind with
+  | Setoid _ ->
+     if (isApp trm) then
+       let f = first_fun trm in
+       let args = unfold_args trm in
+       let sigma, is_rew_l = is_conv_rewrite_l env f sigma in
+       let sigma, is_rew_r = is_conv_rewrite_r env f sigma in
+       if is_rew_l || is_rew_r then
+         let left = is_rew_l in
+         match args with
+         | h0 :: h1 :: h2 :: h3 :: h4 :: h5 :: t ->
+            sigma, Some {a = h0 ; x = h1 ; p = h2 ; px = h3 ;
+                         y = h4 ; eq = h5 ; left = left ;
+                         params = Array.of_list t}
+         | _ -> sigma, None
+       else
+         sigma, None
+     else sigma, None
+  | _ -> sigma, None
 
 (* --- Smart simplification (for termination and efficiency) --- *)
 
@@ -911,7 +987,7 @@ let initialize_optimize_proj_id_rules c env sigma =
        let proj1_rule = (fun a -> (dest_pair a).Produtils.trm1) in
        let proj2_rule = (fun a -> (dest_pair a).Produtils.trm2) in
        [(Desugarprod.fst_elim (), proj1_rule); (Desugarprod.snd_elim (), proj2_rule)]
-    | SwapConstruct _ | UnpackSigma | Custom _ ->
+    | SwapConstruct _ | UnpackSigma | Custom _ | Setoid _ ->
        []
   in
   let rules_bwd =
@@ -921,7 +997,7 @@ let initialize_optimize_proj_id_rules c env sigma =
        let proj1_rule = (fun a -> (dest_existT a).index) in
        let proj2_rule = (fun a -> (dest_existT a).unpacked) in
        [(projT1, proj1_rule); (projT2, proj2_rule)]
-    | SwapConstruct _ | Algebraic (_, _) | CurryRecord | Custom _ ->
+    | SwapConstruct _ | Algebraic (_, _) | CurryRecord | Custom _ | Setoid _ ->
        []
   in
   let optimize_proj_id_rules =
@@ -1193,7 +1269,7 @@ let initialize_dep_constrs c cached env sigma =
                in sigma, reconstruct_lambda_n env_packed app_red (nb_rel env))
              constrs
              sigma
-        | Custom _ ->
+        | Custom _ | Setoid _ ->
            failwith "impossible"
       in
       let sigma, b_constrs =
@@ -1250,7 +1326,7 @@ let initialize_dep_constrs c cached env sigma =
                sigma, reconstruct_lambda_n env_c_b app_red (nb_rel env))
              constrs
              sigma
-        | Custom _ ->
+        | Custom _ | Setoid _ ->
            failwith "impossible"
       in
       let dep_constrs =
@@ -1389,7 +1465,7 @@ let applies_constr_eta c env trm sigma =
          let b_typ_inner = first_fun (zoom_term zoom_lambda_term env (snd c.typs)) in
          let sigma, constrs = eta_constrs env b_typ_inner sigma in 
          is_inductive_constr id constrs trm sigma
-    | Custom _ ->
+    | Custom _ | Setoid _ ->
        (* attempt unification *)
        let dep_constrs = Array.to_list (fst c.dep_constrs) in
        let rec applies_dep_constr i constrs sigma =
@@ -1899,7 +1975,7 @@ let applies_elim c env trm sigma =
               (* eventually, use explicit depelim here too *)
               let args = unfold_args (apply_eliminator trm_elim) in
               sigma, Some args
-           | Custom _ ->
+           | Custom _ | Setoid _ ->
               (* attempt unification *)
               let dep_elim = fst c.dep_elims in
               if is_or_applies dep_elim trm then
