@@ -387,7 +387,6 @@ let abstract_out_subterm env trm subtrm sigma =
   let sigma, subtrm_type = Inference.infer_type env sigma subtrm in
   let subbed_term = Substitution.all_eq_substs (Debruijn.shift subtrm, mkRel 1) (Debruijn.shift trm) in
   sigma, mkLambda (fresh_var, subtrm_type, subbed_term)
-  
 
 (* Lift equality rewriting *)
 let lift_eq_rewrite c env rewrite_info lift_rec sigma =
@@ -396,10 +395,10 @@ let lift_eq_rewrite c env rewrite_info lift_rec sigma =
   let sigma, subbed_p = abstract_out_subterm lifted_env lifted_rewrite_info.p lifted_rewrite_info.y sigma in
   let fresh_var = Name (Envutils.fresh_name lifted_env Anonymous) in
   let sigma, var_type = Inference.infer_type lifted_env sigma lifted_rewrite_info.y in
-  let goal_hypothesis = mkAppl(subbed_p, [mkRel 2 ; lifted_rewrite_info.x]) in
-  let goal_consequent = mkAppl(subbed_p, [mkRel 2 ; lifted_rewrite_info.y]) in
-  let pregoal = mkProd(Names.Anonymous, goal_hypothesis, Debruijn.shift goal_consequent) in
-  let goal = mkProd(fresh_var, var_type, Debruijn.shift pregoal) in
+  let goal_hypothesis = mkAppl(Debruijn.shift subbed_p, [mkRel 1 ; Debruijn.shift lifted_rewrite_info.x]) in
+  let goal_consequent = mkAppl(Debruijn.shift_by 2 subbed_p, [mkRel 2 ; Debruijn.shift_by 2 lifted_rewrite_info.y]) in
+  let pregoal = mkProd(Names.Anonymous, goal_hypothesis, goal_consequent) in
+  let goal = mkProd(fresh_var, var_type, pregoal) in
   let proof = Proof.start sigma [(lifted_env, EConstr.of_constr goal)] in
   let (proof, pvm) = Proof.run_tactic lifted_env Tactics.intro proof in
   let (proof, pvm) = Proof.run_tactic lifted_env Tactics.intro proof in
