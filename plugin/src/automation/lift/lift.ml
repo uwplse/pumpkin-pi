@@ -422,7 +422,7 @@ let test_proof c lifted_env sigma g =
  *)
 let abstract_out_subterm env trm subtrm sigma =
   let fresh_var = Name (Envutils.fresh_name env Anonymous) in
-  let subbed_term = Substitution.all_eq_substs (subtrm, mkRel(0)) trm in
+  let subbed_term = Substitution.all_eq_substs (subtrm, mkRel 1) trm in
   let sigma, subtrm_type = Inference.infer_type env sigma subtrm in
   sigma, mkLambda (fresh_var, subtrm_type, Debruijn.shift subbed_term)
   
@@ -434,17 +434,17 @@ let lift_eq_rewrite c env rewrite_info lift_rec sigma =
   let sigma, lifted_env = lift_env c env lift_rec sigma in
   let sigma, subbed_p = abstract_out_subterm lifted_env lifted_rewrite_info.p lifted_rewrite_info.y sigma in
   let _ = Feedback.msg_warning (Pp.str "subbed term test") in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma subbed_p) in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env lifted_env sigma subbed_p) in
   let fresh_var = Name (Envutils.fresh_name lifted_env Anonymous) in
   let sigma, var_type = Inference.infer_type lifted_env sigma lifted_rewrite_info.y in
-  let goal_hypothesis = mkAppl(subbed_p, [mkRel(0) ; lifted_rewrite_info.x]) in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma goal_hypothesis) in
-  let goal_consequent = mkAppl(subbed_p, [mkRel(0) ; lifted_rewrite_info.y]) in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma goal_consequent) in
+  let goal_hypothesis = mkAppl(subbed_p, [mkRel 1 ; lifted_rewrite_info.x]) in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env lifted_env sigma goal_hypothesis) in
+  let goal_consequent = mkAppl(subbed_p, [mkRel 1 ; lifted_rewrite_info.y]) in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env lifted_env sigma goal_consequent) in
   let pregoal = mkProd(Names.Anonymous, goal_hypothesis, Debruijn.shift goal_consequent) in
   let goal = mkProd(fresh_var, var_type, Debruijn.shift pregoal) in
   let _ = Feedback.msg_warning (Pp.str "constructed goal") in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma goal) in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env lifted_env sigma goal) in
   let proof = Proof.start sigma [(lifted_env, EConstr.of_constr goal)] in
   let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   let _ = Feedback.msg_warning (Proof.pr_proof proof) in
