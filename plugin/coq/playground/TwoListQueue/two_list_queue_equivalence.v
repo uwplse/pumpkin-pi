@@ -165,12 +165,22 @@ Module TwoListQueue.
   Proof.
     intros q1 q2 q3. unfold eq_queue. intros H1 H2. rewrite H1. apply H2.
   Qed.
+
+  Instance eq_queue_equiv : Equivalence eq_queue.
+  Proof.
+    split.
+    - apply eq_queue_refl.
+    - apply eq_queue_sym.
+    - apply eq_queue_trans.
+  Qed.
+  
   Add Parametric Relation : queue eq_queue
     reflexivity proved by eq_queue_refl
     symmetry proved by eq_queue_sym
     transitivity proved by eq_queue_trans
     as eq_queue_rel.
-  
+
+
   Definition depConstrEmpty : queue := ([],[]).
 
   Definition depConstrInsert (a : A) (q : queue) : queue :=
