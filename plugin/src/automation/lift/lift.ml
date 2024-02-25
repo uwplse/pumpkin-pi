@@ -255,33 +255,12 @@ let print_top x = match (kind x) with
     Feedback.msg_notice (Pp.str "Nothing")
 
 let lift_rewrite_args c env (rewrite_info : Equtils.rewrite_args) lift_rec sigma =
-  let _ = Feedback.msg_warning (Pp.str "enter lift_rewrite_args") in
   let sigma, a = lift_rec env sigma c rewrite_info.a in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma rewrite_info.a) in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma a) in
   let sigma, x = lift_rec env sigma c rewrite_info.x in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma rewrite_info.x) in
-  let _ = print_top rewrite_info.x in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma x) in
-  let _ = print_top x in
   let sigma, p = lift_rec env sigma c rewrite_info.p in
-  let _ = Feedback.msg_warning (Pp.str "lift p") in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma rewrite_info.p) in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma p) in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma rewrite_info.px) in
-  let _ = print_top rewrite_info.px in
   let sigma, px = lift_rec env sigma c rewrite_info.px in
-  let _ = Feedback.msg_warning (Pp.str "lifted px") in
   let sigma, y = lift_rec env sigma c rewrite_info.y in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma rewrite_info.y) in
-  let _ = print_top rewrite_info.y in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma y) in
-  let _ = print_top y in
   let sigma, eq = lift_rec env sigma c rewrite_info.eq in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma rewrite_info.eq) in
-  let _ = print_top rewrite_info.eq in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma eq) in
-  let _ = print_top eq in
   let sigma, params = map_rec_args lift_rec env sigma c (Array.copy rewrite_info.params) in
   sigma, { a ; x ; p ; px ; y ; eq ; params ; left = rewrite_info.left}
 
@@ -356,27 +335,10 @@ let cbn_beta_delta =
  * (I am presently skeptical that this will work.)
  *)
 let rewrite_tactic_from_args c env rewrite_info sigma =
-  let _ = Feedback.msg_warning (Pp.str "enter rewrite_tactic_from_args") in
   let ir = Decompiler.Rewrite(env, rewrite_info.eq, rewrite_info.left, None) in
-  let _ = Feedback.msg_warning (Pp.str "define IR") in
   let rew_tac = coq_tac sigma ir "" in
-  let _ = Feedback.msg_warning (Pp.str "made tactic") in
   rew_tac
   
-(*  let _ = Feedback.msg_warning (Pp.str "enter rewrite_tactic_from_args") in
-  let prnt e = Printer.pr_constr_env e sigma in
-  let _ = Feedback.msg_warning (Pp.str "define prnt") in
-  let s = prnt env rewrite_info.eq in
-  let _ = Feedback.msg_warning (Pp.str "define s") in
-  let _ = Feedback.msg_warning s in
-  let _ = Feedback.msg_warning (prnt env (EConstr.to_constr sigma (snd (Typing.type_of env sigma (EConstr.of_constr rewrite_info.eq))))) in
-  let arrow = if rewrite_info.left then "<- " else "" in
-  let _ = Feedback.msg_warning (Pp.str "define arrow") in
-  let _ = Feedback.msg_warning (Pp.str (Pp.string_of_ppcmds (Pp.app (Pp.str ("setoid_rewrite " ^ arrow)) s))) in
-  (*let s' = Pp.string_of_ppcmds (Pp.app (Pp.str ("setoid_rewrite " ^ arrow)) s) in*)
-  let s'' = Format.asprintf "%a" Pp.pp_with s in
-  Decompiler.parse_tac_str s''*)
-
 (*
  * Given an environment, produce the environment where all terms
  * in the context have been lifted.
@@ -422,8 +384,8 @@ let test_proof c lifted_env sigma g =
  *)
 let abstract_out_subterm env trm subtrm sigma =
   let fresh_var = Name (Envutils.fresh_name env Anonymous) in
-  let subbed_term = Substitution.all_eq_substs (Debruijn.shift subtrm, mkRel 1) (Debruijn.shift trm) in
   let sigma, subtrm_type = Inference.infer_type env sigma subtrm in
+  let subbed_term = Substitution.all_eq_substs (Debruijn.shift subtrm, mkRel 1) (Debruijn.shift trm) in
   sigma, mkLambda (fresh_var, subtrm_type, subbed_term)
   
 
@@ -432,29 +394,19 @@ let lift_eq_rewrite c env rewrite_info lift_rec sigma =
   let sigma, lifted_rewrite_info = lift_rewrite_args c env rewrite_info lift_rec sigma in
   let sigma, lifted_env = lift_env c env lift_rec sigma in
   let sigma, subbed_p = abstract_out_subterm lifted_env lifted_rewrite_info.p lifted_rewrite_info.y sigma in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env lifted_env sigma subbed_p) in
   let fresh_var = Name (Envutils.fresh_name lifted_env Anonymous) in
   let sigma, var_type = Inference.infer_type lifted_env sigma lifted_rewrite_info.y in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env lifted_env sigma lifted_rewrite_info.x) in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env lifted_env sigma lifted_rewrite_info.y) in
   let goal_hypothesis = mkAppl(subbed_p, [mkRel 2 ; lifted_rewrite_info.x]) in
   let goal_consequent = mkAppl(subbed_p, [mkRel 2 ; lifted_rewrite_info.y]) in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env lifted_env sigma goal_hypothesis) in
   let pregoal = mkProd(Names.Anonymous, goal_hypothesis, Debruijn.shift goal_consequent) in
   let goal = mkProd(fresh_var, var_type, Debruijn.shift pregoal) in
   let proof = Proof.start sigma [(lifted_env, EConstr.of_constr goal)] in
   let (proof, pvm) = Proof.run_tactic lifted_env Tactics.intro proof in
   let (proof, pvm) = Proof.run_tactic lifted_env Tactics.intro proof in
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   let (proof, pvm) = Proof.run_tactic lifted_env cbn_beta_delta proof in
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   let rew_tac = rewrite_tactic_from_args c lifted_env lifted_rewrite_info sigma in
-  (*let _ = Feedback.msg_warning (Pp.str "out of rewrite_tactic_from_args") in*)
   let (proof, _) = Proof.run_tactic lifted_env rew_tac proof in
-  (*let _ = Feedback.msg_warning (Pp.str "run rewrite") in
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in*)
   let (proof, _) = Proof.run_tactic lifted_env Tactics.assumption proof in
-  (*let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in*)
   if (Proof.is_done proof) then
     match Proof.partial_proof proof with
     | [] -> failwith "No proof of rewrite goal found."
@@ -500,7 +452,6 @@ let lift_core env c trm sigma =
     | EqRefl l ->
        lift_eq_refl_app c en l (lift_rec lift_rules) sigma
     | EqRewrite rewrite_info ->
-       let _ = Feedback.msg_warning (Pp.str "made it to rewrite case") in
        lift_eq_rewrite c en rewrite_info (lift_rec lift_rules) sigma
     | CIC k ->
        let lift_rec = lift_rec lift_rules in
