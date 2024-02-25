@@ -660,7 +660,7 @@ Proof.
   apply X.
 Qed.
 
-Theorem depElimProp (P : GInt.Z -> Prop)
+Theorem depElimPropGZ (P : GInt.Z -> Prop)
   `(p : Proper (GInt.Z -> Prop) (eq_GZ ==> iff) P)
   (posP : forall (n : nat), P (depConstrGZPos n))
   (negSucP : forall (n : nat), P (depConstrGZNegSuc n))
@@ -886,209 +886,6 @@ Definition nat_ind_pos_motive :=
   (fun n0 : nat =>
       depConstrIndIntPos n0 = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos n0)).
 
-Lift IndInt_p.Z GInt_p.Z in nat_ind_pos_motive as nat_ind_pos_motive_GZ.
-
-Definition pos_iota_3 :=
-  (fun (n0 : nat)
-        (IHn : depConstrIndIntPos n0 = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos n0)) =>
-      iotaIndIntPos IndInt_p.Z (fun q : nat => depConstrIndIntPos (S q))
-        (fun q : nat =>
-         nat_rec (constIndIntZ nat) (depConstrIndIntPos 0)
-           (fun (m : nat) (_ : constIndIntZ nat m) => depConstrIndIntNegSuc m) q) n0
-        (fun s : IndInt_p.Z => s = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos (S n0)))).
-
-Lift IndInt_p.Z GInt_p.Z in pos_iota_3 as pos_iota_3_GZ.
-
-Definition pos_iota_2 (n0 : nat)
-  (IHn : depConstrIndIntPos n0 = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos n0)) :=
-   iotaIndIntPosRev IndInt_p.Z (fun q : nat => add_posIndIntZ (depConstrIndIntPos 0) q)
-     (fun q : nat => add_negsucIndIntZ (depConstrIndIntPos 0) q) (S n0)
-     (fun s : IndInt_p.Z =>
-      depRecIndInt IndInt_p.Z (fun m : nat => depConstrIndIntPos (S m))
-        (fun m : nat =>
-         nat_rec (constIndIntZ nat) (depConstrIndIntPos 0)
-           (fun (p : nat) (_ : constIndIntZ nat p) => depConstrIndIntNegSuc p) m)
-        (depConstrIndIntPos n0) = s).
-
-(*Definition t1 := (fun q : nat => add_posIndIntZ (depConstrIndIntPos 0) q).
-
-Lift IndInt_p.Z GInt_p.Z in t1 as t1_GZ.
-
-Definition t2 := (fun q : nat => add_negsucIndIntZ (depConstrIndIntPos 0) q).
-
-Lift IndInt_p.Z GInt_p.Z in t2 as t2_GZ.
-
-Definition t5 := (fun m : nat => depConstrIndIntPos (S m)).
-
-Lift IndInt_p.Z GInt_p.Z in t5 as t5_GZ.
-
-Definition t6 (n0 : nat) :=
-  (fun m : nat =>
-         nat_rec (constIndIntZ nat) (depConstrIndIntPos 0)
-           (fun (p : nat) (_ : constIndIntZ nat p) => depConstrIndIntNegSuc p) m).
-
-Lift IndInt_p.Z GInt_p.Z in t6 as t6_GZ.
-
-Definition t7 := constIndIntZ IndInt_p.Z.
-
-Lift IndInt_p.Z GInt_p.Z in t7 as t7_GZ.
-
-Definition t8 (n0 : nat) := depConstrIndIntPos n0.
-
-Lift IndInt_p.Z GInt_p.Z in t8 as t8_GZ.
-
-Definition t4 (n0 : nat) :=
-  depRecIndInt IndInt_p.Z t5
-        (t6 n0)
-        (t8 n0).
-
-Lift IndInt_p.Z GInt_p.Z in t4 as t4_GZ.
-
-Definition t3 (n0 : nat) :=
-  (fun s : IndInt_p.Z =>
-      depRecIndInt IndInt_p.Z (fun m : nat => depConstrIndIntPos (S m))
-        (fun m : nat =>
-         nat_rec (constIndIntZ nat) (depConstrIndIntPos 0)
-           (fun (p : nat) (_ : constIndIntZ nat p) => depConstrIndIntNegSuc p) m)
-        (depConstrIndIntPos n0) = s).
-
-Lift IndInt_p.Z GInt_p.Z in t3 as t3_GZ.*)
-
-Lift IndInt_p.Z GInt_p.Z in pos_iota_2 as pos_iota_2_GZ.
-
-Theorem f_equal_no_match : forall (f : IndInt_p.Z -> IndInt_p.Z) (x y : IndInt_p.Z), x = y -> f x = f y.
-Proof.
-  intros.
-  rewrite H.
-  reflexivity.
-Qed.
-
-Definition pos_iota_1 (n0 : nat)
-  (IHn : depConstrIndIntPos n0 = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos n0)) :=
-  iotaIndIntPos IndInt_p.Z (fun q : nat => add_posIndIntZ (depConstrIndIntPos 0) q)
-              (fun q : nat => add_negsucIndIntZ (depConstrIndIntPos 0) q) n0
-              (fun s : IndInt_p.Z =>
-               depRecIndInt IndInt_p.Z (fun m : nat => depConstrIndIntPos (S m))
-                 (fun m : nat =>
-                  nat_rec (constIndIntZ nat) (depConstrIndIntPos 0)
-                    (fun (p : nat) (_ : constIndIntZ nat p) => depConstrIndIntNegSuc p) m)
-                 (depConstrIndIntPos n0) = sucIndIntZ s).
-
-Lift IndInt_p.Z GInt_p.Z in pos_iota_1 as pos_iota_1_GZ.
-(*
-Definition eq_trm (n0 : nat) (IHn : depConstrIndIntPos n0 = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos n0)) := (f_equal_no_match sucIndIntZ (depConstrIndIntPos n0) (addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos n0)) IHn).
-
-Print f_equal_no_match.
-
-Lift IndInt_p.Z GInt_p.Z in f_equal_no_match as f_equal_no_match_GZ.
-
-Print f_equal_no_match_GZ.
-
-Fail.
-
-Lift IndInt_p.Z GInt_p.Z in eq_trm as eq_trm_GZ.
-
-Print eq_trm_GZ.
-
-Fail.
-
-Definition trm :=
-(fun n : nat =>
-   nat_ind
-     (fun n0 : nat =>
-      depConstrIndIntPos n0 = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos n0)) eq_refl
-     (fun (n0 : nat)
-        (IHn : depConstrIndIntPos n0 = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos n0)) =>
-      iotaIndIntPos IndInt_p.Z (fun q : nat => depConstrIndIntPos (S q))
-        (fun q : nat =>
-         nat_rec (constIndIntZ nat) (depConstrIndIntPos 0)
-           (fun (m : nat) (_ : constIndIntZ nat m) => depConstrIndIntNegSuc m) q) n0
-        (fun s : IndInt_p.Z => s = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos (S n0)))
-        (iotaIndIntPosRev IndInt_p.Z (fun q : nat => add_posIndIntZ (depConstrIndIntPos 0) q)
-           (fun q : nat => add_negsucIndIntZ (depConstrIndIntPos 0) q) (S n0)
-           (fun s : IndInt_p.Z =>
-            depRecIndInt IndInt_p.Z (fun m : nat => depConstrIndIntPos (S m))
-              (fun m : nat =>
-               nat_rec (constIndIntZ nat) (depConstrIndIntPos 0)
-                 (fun (p : nat) (_ : constIndIntZ nat p) => depConstrIndIntNegSuc p) m)
-              (depConstrIndIntPos n0) = s)
-           (iotaIndIntPos IndInt_p.Z (fun q : nat => add_posIndIntZ (depConstrIndIntPos 0) q)
-              (fun q : nat => add_negsucIndIntZ (depConstrIndIntPos 0) q) n0
-              (fun s : IndInt_p.Z =>
-               depRecIndInt IndInt_p.Z (fun m : nat => depConstrIndIntPos (S m))
-                 (fun m : nat =>
-                  nat_rec (constIndIntZ nat) (depConstrIndIntPos 0)
-                    (fun (p : nat) (_ : constIndIntZ nat p) => depConstrIndIntNegSuc p) m)
-                 (depConstrIndIntPos n0) = sucIndIntZ s) (eq_trm n0 IHn))))).
-
-Print add0LIndIntZ.
-
-Definition trm2 (n0 : nat)
-  (IHn : depConstrIndIntPos n0 = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos n0)) :=
-  (eq_trm n0 IHn).
-
-Lift IndInt_p.Z GInt_p.Z in trm2 as trm2GZ.
-
-Print trm2.
-
-Definition nat_ind_pos_ind_case :=
-(fun n : nat =>
-   nat_ind
-     (fun n0 : nat =>
-      depConstrIndIntPos n0 = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos n0)) eq_refl
-     (fun (n0 : nat)
-        (IHn : depConstrIndIntPos n0 = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos n0)) =>
-      iotaIndIntPos IndInt_p.Z (fun q : nat => depConstrIndIntPos (S q))
-        (fun q : nat =>
-         nat_rec (constIndIntZ nat) (depConstrIndIntPos 0)
-           (fun (m : nat) (_ : constIndIntZ nat m) => depConstrIndIntNegSuc m) q) n0
-        (fun s : IndInt_p.Z => s = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos (S n0)))
-        (iotaIndIntPosRev IndInt_p.Z (fun q : nat => add_posIndIntZ (depConstrIndIntPos 0) q)
-           (fun q : nat => add_negsucIndIntZ (depConstrIndIntPos 0) q) (S n0)
-           (fun s : IndInt_p.Z =>
-            depRecIndInt IndInt_p.Z (fun m : nat => depConstrIndIntPos (S m))
-              (fun m : nat =>
-               nat_rec (constIndIntZ nat) (depConstrIndIntPos 0)
-                 (fun (p : nat) (_ : constIndIntZ nat p) => depConstrIndIntNegSuc p) m)
-              (depConstrIndIntPos n0) = s)
-           (iotaIndIntPos IndInt_p.Z (fun q : nat => add_posIndIntZ (depConstrIndIntPos 0) q)
-              (fun q : nat => add_negsucIndIntZ (depConstrIndIntPos 0) q) n0
-              (fun s : IndInt_p.Z =>
-               depRecIndInt IndInt_p.Z (fun m : nat => depConstrIndIntPos (S m))
-                 (fun m : nat =>
-                  nat_rec (constIndIntZ nat) (depConstrIndIntPos 0)
-                    (fun (p : nat) (_ : constIndIntZ nat p) => depConstrIndIntNegSuc p) m)
-                 (depConstrIndIntPos n0) = sucIndIntZ s) (f_equal sucIndIntZ IHn)))) n).
-
-
-
-Lift IndInt_p.Z GInt_p.Z in nat_ind_pos_ind_case as nat_ind_pos_ind_case_GZ.*)
-
-Definition eq_trm (n0 : nat) (IHn : depConstrIndIntPos n0 = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos n0)) :=
-  @eq_rect_r
-    IndInt_p.Z
-    (addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos n0))
-                 (fun x : IndInt_p.Z =>
-                  depRecIndInt IndInt_p.Z (fun m : nat => depConstrIndIntPos (S m))
-                    (fun m : nat =>
-                     nat_rec (constIndIntZ nat) (depConstrIndIntPos 0)
-                       (fun (p : nat) (_ : constIndIntZ nat p) => depConstrIndIntNegSuc p) m) x =
-                  sucIndIntZ
-                    (depRecIndInt IndInt_p.Z
-                       (fun q : nat => add_posIndIntZ (depConstrIndIntPos 0) q)
-                       (fun q : nat => add_negsucIndIntZ (depConstrIndIntPos 0) q)
-                       (depConstrIndIntPos n0))).
-
-Print eq_trm.
-
-Lift IndInt_p.Z GInt_p.Z in eq_trm as eq_trm_GZ.
-
-Print eq_trm_GZ.
-
-Fail.
-
-Print add0LIndIntZ.
-
 Definition add0LPosCaseIndInt :=
     (fun n : nat =>
    nat_ind
@@ -1127,16 +924,11 @@ Definition add0LPosCaseIndInt :=
                     (depRecIndInt IndInt_p.Z
                        (fun q : nat => add_posIndIntZ (depConstrIndIntPos 0) q)
                        (fun q : nat => add_negsucIndIntZ (depConstrIndIntPos 0) q)
-                       (depConstrIndIntPos n0))) eq_refl IHn)))) n).
-  
+                       (depConstrIndIntPos n0))) eq_refl IHn)))) n).  
 
 Lift IndInt_p.Z GInt_p.Z in add0LPosCaseIndInt as add0LPosCaseGZ.
 
-Fail.
-
-Print add0LPosCaseGZ.
-
-Definition add0LNegSucCase := (fun n : nat =>
+Definition add0LNegSucCaseIndInt := (fun n : nat =>
    nat_ind
      (fun n0 : nat =>
       depConstrIndIntNegSuc n0 = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntNegSuc n0))
@@ -1153,7 +945,7 @@ Definition add0LNegSucCase := (fun n : nat =>
         (iotaIndIntNegSucRev IndInt_p.Z (fun q : nat => add_posIndIntZ (depConstrIndIntPos 0) q)
            (fun q : nat => add_negsucIndIntZ (depConstrIndIntPos 0) q) (S n0)
            (fun s : IndInt_p.Z =>
-            depElimIndInt (constIndIntZ IndInt_p.Z)
+            depRecIndInt IndInt_p.Z
               (fun m : nat =>
                nat_rec (constIndIntZ nat) (depConstrIndIntNegSuc 0)
                  (fun (p : nat) (_ : constIndIntZ nat p) => depConstrIndIntPos p) m)
@@ -1161,9 +953,60 @@ Definition add0LNegSucCase := (fun n : nat =>
            (iotaIndIntNegSuc IndInt_p.Z (fun q : nat => add_posIndIntZ (depConstrIndIntPos 0) q)
               (fun q : nat => add_negsucIndIntZ (depConstrIndIntPos 0) q) n0
               (fun s : IndInt_p.Z =>
-               depElimIndInt (constIndIntZ IndInt_p.Z)
+               depRecIndInt IndInt_p.Z
                  (fun m : nat =>
                   nat_rec (constIndIntZ nat) (depConstrIndIntNegSuc 0)
                     (fun (p : nat) (_ : constIndIntZ nat p) => depConstrIndIntPos p) m)
                  (fun m : nat => depConstrIndIntNegSuc (S m)) (depConstrIndIntNegSuc n0) =
-               predIndIntZ s) (f_equal predIndIntZ IHn)))) n).
+               predIndIntZ s)
+              (eq_rect_r
+                 (fun x : IndInt_p.Z =>
+                  depRecIndInt IndInt_p.Z
+                    (fun m : nat =>
+                     nat_rec (constIndIntZ nat) (depConstrIndIntNegSuc 0)
+                       (fun (p : nat) (_ : constIndIntZ nat p) => depConstrIndIntPos p) m)
+                    (fun m : nat => depConstrIndIntNegSuc (S m)) x =
+                  predIndIntZ
+                    (depRecIndInt IndInt_p.Z
+                       (fun q : nat => add_posIndIntZ (depConstrIndIntPos 0) q)
+                       (fun q : nat => add_negsucIndIntZ (depConstrIndIntPos 0) q)
+                       (depConstrIndIntNegSuc n0))) eq_refl IHn)))) n).
+
+Lift IndInt_p.Z GInt_p.Z in add0LNegSucCaseIndInt as add0LNecSucCaseGZ.
+
+Instance add0LMotiveProper :
+  Proper (eq_GZ ==> iff) add0LMotiveGZ.
+Proof.
+  intros z1 z2 H.
+  unfold add0LMotiveGZ.
+  rewrite H.
+  reflexivity.
+Qed.
+
+Definition appliedDepElimPropIndInt := depElimPropIndInt add0LMotiveIndInt.
+Definition appliedDepElimPropGZ := depElimPropGZ add0LMotiveGZ add0LMotiveProper.
+
+Configure Lift IndInt_p.Z GInt_p.Z {
+    constrs_a = depConstrIndIntPos depConstrIndIntNegSuc ;
+    constrs_b = depConstrGZPos depConstrGZNegSuc ;
+    elim_a = appliedDepElimPropIndInt ;
+    elim_b = appliedDepElimPropGZ ;
+    eta_a = etaIndInt ;
+    eta_b = etaGZ ;
+    iota_a = iotaIndIntPos iotaIndIntPosRev iotaIndIntNegSuc iotaIndIntNegSucRev ;
+    iota_b = iotaRecGZPos iotaRecGZPosRev iotaRecGZNegSuc iotaRecGZNegSucRev
+  }.
+
+Print appliedDepElimPropGZ.
+
+Theorem add0LIndIntZ' (z : IndInt_p.Z) : z = addIndIntZ (depConstrIndIntPos 0) z.
+Proof.
+  apply appliedDepElimPropIndInt.
+  apply add0LPosCaseIndInt.
+  apply add0LNegSucCaseIndInt.
+Qed.
+  
+Lift IndInt_p.Z GInt_p.Z in add0LIndIntZ' as add0LGZ.
+
+Print add0LMotiveGZ.
+Print add0LGZ.
