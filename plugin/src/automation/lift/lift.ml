@@ -160,6 +160,29 @@ let lift_evar c env trm lift_rec sigma =
     in sigma, { info with evar_concl; evar_body; evar_candidates }
   in Evd.add (Evd.remove sigma etrm) etrm lifted_info, trm
 
+(*
+ * If an element in the provided list matches the predicate,
+ * return the element. Returns None if no element exists.
+ * The evar map is threaded through calls to the predicate.
+ *)
+let rec find_assoc_list_state pred env l sigma =
+  match l with
+  | [] -> sigma, None
+  | h :: t ->
+     let sigma, result = pred env h sigma in
+     if result then
+       sigma, Some h
+     else
+       find_assoc_list_state pred env t sigma
+
+(*
+ * Given an association list l, returns the first (key, element) pair such that
+ * key is convertible to trm.
+ *)
+let find_key_convertible_to env l sigma trm =
+  let pred env t sigma = Convertibility.convertible env sigma (fst t) trm in
+  find_assoc_list_state pred env l sigma
+
 (* Lift equality types *)
 let lift_eq_app c env l lift_rec sigma =
   let kind = (get_lifting c).orn.kind in
@@ -168,12 +191,13 @@ let lift_eq_app c env l lift_rec sigma =
      let eq_type = List.hd l in
      let sigma, lifted_eq_type = lift_rec env sigma c eq_type in
      let rel_map = List.combine eq_types eq_rels in
-     (try
-       (let eq_rel = snd (List.find (fun t -> snd (Convertibility.convertible env sigma (fst t) lifted_eq_type)) rel_map) in
-        let sigma, lifted_args = map_rec_args_list lift_rec env sigma c (List.tl l) in
-        sigma, (mkAppl (eq_rel, lifted_args)))
-      with Not_found ->
-       failwith "Tried to lift an equality on a type for which no equivalence relation was provided.")
+     let sigma, found_rel = find_key_convertible_to env rel_map sigma lifted_eq_type in
+     let eq_rel =
+       match found_rel with
+       | None -> mkAppl (Equtils.eq, [lifted_eq_type])
+       | Some p -> snd p in
+     let sigma, lifted_args = map_rec_args_list lift_rec env sigma c (List.tl l) in
+     sigma, (mkAppl (eq_rel, lifted_args))
   | _ -> failwith "Eq lifting unsupported outside of Setoid lifting"
 
 (* Lift eq_refl applications *)
@@ -184,13 +208,14 @@ let lift_eq_refl_app c env l lift_rec sigma =
      let eq_type = List.hd l in
      let sigma, lifted_eq_type = lift_rec env sigma c eq_type in
      let rel_map = List.combine eq_types (List.combine eq_rels eq_proofs) in
-     (try
-       (let eq_rel, eq_proof = snd (List.find (fun t -> snd (Convertibility.convertible env sigma (fst t) lifted_eq_type)) rel_map) in
-        let sigma, lifted_args = map_rec_args_list lift_rec env sigma c (List.tl l) in
-        let refl_proof = mkAppl (Equivutils.equiv_refl_getter, [lifted_eq_type ; eq_rel ; eq_proof]) in
-        sigma, mkAppl (refl_proof, lifted_args))
-      with Not_found ->
-        failwith "Tried to lift an eq_refl proof on a type for which no equivalence relation was provided.")
+     let sigma, found_rel = find_key_convertible_to env rel_map sigma lifted_eq_type in
+     let (eq_rel, eq_proof) =
+       match found_rel with
+       | None -> mkAppl (Equtils.eq, [lifted_eq_type]), mkAppl (Equivutils.eq_equivalence, [lifted_eq_type])
+       | Some p -> snd p in
+     let sigma, lifted_args = map_rec_args_list lift_rec env sigma c (List.tl l) in
+     let refl_proof = mkAppl (Equivutils.equiv_refl_getter, [lifted_eq_type ; eq_rel ; eq_proof]) in
+     sigma, mkAppl (refl_proof, lifted_args)
   | _ -> failwith "Eq_refl lifting unsupported outside of Setoid lifting."
 
 let print_top x = match (kind x) with
@@ -240,7 +265,13 @@ let lift_rewrite_args c env (rewrite_info : Equtils.rewrite_args) lift_rec sigma
   let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma x) in
   let _ = print_top x in
   let sigma, p = lift_rec env sigma c rewrite_info.p in
+  let _ = Feedback.msg_warning (Pp.str "lift p") in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma rewrite_info.p) in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma p) in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma rewrite_info.px) in
+  let _ = print_top rewrite_info.px in
   let sigma, px = lift_rec env sigma c rewrite_info.px in
+  let _ = Feedback.msg_warning (Pp.str "lifted px") in
   let sigma, y = lift_rec env sigma c rewrite_info.y in
   let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma rewrite_info.y) in
   let _ = print_top rewrite_info.y in
@@ -280,7 +311,7 @@ let show_tactic sigma tac : Pp.t =
   | Rewrite (env, trm, left, _) ->
      let s = prnt env trm in
      let arrow = if left then "<- " else "" in
-     str ("rewrite " ^ arrow) ++ s
+     str ("setoid_rewrite " ^ arrow) ++ s
   | RewriteIn (env, prf, hyp, left) ->
      let prf_s, hyp_s = prnt env prf, prnt env hyp in
      let arrow = if left then "" else "<- " in
@@ -315,6 +346,9 @@ let coq_tac sigma t prefix =
     let s = show_tactic sigma t in
     let s' = Format.asprintf "%a" Pp.pp_with s in
     Decompiler.parse_tac_str (prefix ^ s')
+
+let cbn_beta_delta =
+  Decompiler.parse_tac_str (Format.asprintf "%a" Pp.pp_with (Pp.str "cbn beta delta"))
 
 (*
  * Create a tactic performing the rewrite represented by rewrite_info. 
@@ -399,14 +433,12 @@ let lift_eq_rewrite c env rewrite_info lift_rec sigma =
   let proof = Proof.start sigma [(lifted_env, EConstr.of_constr goal)] in
   let _ = Feedback.msg_warning (Proof.pr_proof proof) in
   let _ = Feedback.msg_warning (Printer.pr_econstr_env lifted_env sigma (List.hd (Proof.partial_proof proof))) in
-  let (proof, pvm) = Proof.run_tactic lifted_env Tactics.intros proof in
+  let (proof, pvm) = Proof.run_tactic lifted_env Tactics.intro proof in
   let _ = Feedback.msg_warning (Proof.pr_proof proof) in
   let _ = Feedback.msg_warning (Printer.pr_econstr_env lifted_env sigma (List.hd (Proof.partial_proof proof))) in
   let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   let _ = Feedback.msg_warning (Pp.str "try print concl") in
-  let (cur_goal, _, _, _, _) = Proof.proof proof in
-  (*let _ = Feedback.msg_warning (Printer.pr_econstr_env lifted_env sigma (Goal.V82.concl sigma (List.hd cur_goal))) in*)
-  let (proof, pvm) = Proof.run_tactic lifted_env Tactics.simpl_in_concl proof in
+  let (proof, pvm) = Proof.run_tactic lifted_env cbn_beta_delta proof in
   let _ = Feedback.msg_warning (Proof.pr_proof proof) in
   let _ = Feedback.msg_warning (Printer.pr_econstr_env lifted_env sigma (List.hd (Proof.partial_proof proof))) in
   let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in

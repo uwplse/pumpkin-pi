@@ -20,3 +20,7 @@ let equiv_sym_getter : constr =
 (* Getter for the proof of transitivity from a proof of equivalence *)
 let equiv_trans_getter : constr =
   mkConst (Constant.make2 coq_classes_relationclasses (Label.make "Equivalence_Transitive"))
+  
+(* Proof that eq is an equivalence *)
+let eq_equivalence : constr =
+  mkConst (Constant.make2 coq_classes_relationclasses (Label.make "eq_equivalence"))

@@ -34,6 +34,15 @@ Module Source.
     rewrite H.   
     reflexivity.
   Qed.
+
+  Definition f (x : unit) := 1.
+
+  Theorem proper_test : forall (x y : unit), x = y -> f x = f y.
+  Proof.
+    intros.
+    rewrite H.
+    reflexivity.
+  Qed.    
   
 End Source.
 
@@ -143,8 +152,9 @@ Proof.
   apply Target_p.eq_nat_unit_prod_equiv.
 Qed.
 
-Theorem testing (x : Target_p.unit) (H : Target_p.eq_unit x Target_p.one) : (forall (_ : (Target_p.eq_unit Target_p.one Target_p.one)),
-                                         ((fun x : Target_p.unit => Target_p.eq_unit x Target_p.one) x)).
+Theorem testing (x : Target_p.unit) (H : Target_p.eq_unit x Target_p.one) :
+  (forall (_ : (Target_p.eq_unit Target_p.one Target_p.one)),
+  ((fun x : Target_p.unit => Target_p.eq_unit x Target_p.one) x)).
 Proof.
   intros.
   simpl.
@@ -152,13 +162,13 @@ Proof.
   assumption.
 Qed.
 
-Theorem testing2 (x : Target_p.unit) (H : Target_p.eq_unit x Target_p.one) : ((fun p : nat * Target_p.unit =>
+Theorem testing2 (x : Target_p.unit) (H : Target_p.eq_nat_unit_prod (1, x) (1, Target_p.one)) : ((fun p : nat * Target_p.unit =>
   Target_p.eq_nat_unit_prod p (1, Target_p.one)) (1, Target_p.one) ->
  (fun p : nat * Target_p.unit =>
   Target_p.eq_nat_unit_prod p (1, Target_p.one)) (1, x)).
 Proof.
   intros.
-  simpl.
+  cbn beta delta.
   rewrite H.
   assumption.
 Qed.
@@ -290,6 +300,18 @@ Lift old new in Source_p.eq_test3 as eq_test3.
 
 Print eq_test3.
 
+Lift old new in Source_p.f as func.
+
+Print func.
+
+Instance func_proper : Proper (Target_p.eq_unit ==> eq) func.
+Proof.
+  intros x y H.
+  destruct x;
+  destruct y;
+  reflexivity.
+Qed.
+
 Lift old new in Source_p.eq_rect_test as eq_rect_test.
 
 Print eq_rect_test.
@@ -297,3 +319,9 @@ Print eq_rect_test.
 Lift old new in Source_p.eq_rect_test2 as eq_rect_test2.
 
 Print eq_rect_test2.
+
+Lift old new in Source_p.proper_test as proper_test.
+
+Print proper_test.
+
+
