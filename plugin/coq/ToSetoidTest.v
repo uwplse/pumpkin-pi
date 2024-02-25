@@ -337,6 +337,8 @@ Lift old new in Source_p.eq_rect_test3 as eq_rect_test3.
 
 Print eq_rect_test3.
 
+Print Source_p.proper_test.
+
 Lift old new in Source_p.proper_test as proper_test.
 
 Print proper_test.

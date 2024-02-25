@@ -422,7 +422,7 @@ let test_proof c lifted_env sigma g =
  *)
 let abstract_out_subterm env trm subtrm sigma =
   let fresh_var = Name (Envutils.fresh_name env Anonymous) in
-  let subbed_term = Substitution.all_eq_substs (subtrm, mkRel 1) trm in
+  let subbed_term = Substitution.all_eq_substs (Debruijn.shift subtrm, mkRel 1) (Debruijn.shift trm) in
   let sigma, subtrm_type = Inference.infer_type env sigma subtrm in
   sigma, mkLambda (fresh_var, subtrm_type, subbed_term)
   
