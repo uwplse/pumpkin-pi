@@ -37,6 +37,15 @@ Module Source.
 
   Definition f (x : unit) := 1.
 
+  Theorem eq_rect_test3 : forall (x y : unit), x = y -> x = y \/ x = y.
+  Proof.
+    intros.
+    apply (@eq_rect _ x (fun z => x = z \/ x = y)).
+    left.
+    reflexivity.
+    apply H.
+  Qed.    
+
   Theorem proper_test : forall (x y : unit), x = y -> f x = f y.
   Proof.
     intros.
@@ -125,12 +134,14 @@ Module Target.
   Definition eq_nat_unit_prod : nat * unit -> nat * unit -> Prop :=
     eq_prod (@eq nat) eq_unit.
 
+  About eq_equivalence.
+
   Instance eq_nat_unit_prod_equiv : Equivalence eq_nat_unit_prod.
   Proof.
     apply eq_prod_equiv.
     apply eq_equivalence.
     apply eq_unit_equiv.
-  Qed.    
+  Qed.   
   
 End Target.
 
@@ -317,6 +328,10 @@ Lift old new in Source_p.eq_rect_test as eq_rect_test.
 Print eq_rect_test.
 
 Lift old new in Source_p.eq_rect_test2 as eq_rect_test2.
+
+Print eq_rect_test2.
+
+Lift old new in Source_p.eq_rect_test3 as eq_rect_test3.
 
 Print eq_rect_test2.
 
