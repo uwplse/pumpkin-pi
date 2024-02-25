@@ -415,47 +415,61 @@ let test_proof c lifted_env sigma g =
   let (proof, pvm) = Proof.run_tactic lifted_env Tactics.assumption proof in
   let _ = Feedback.msg_warning (Pp.str "Test proof done?") in
   Feedback.msg_warning (Pp.bool (Proof.is_done proof))
+
+(*
+ * Given a term trm, replace all instances of subtrm with a fresh variable,
+ * then abstract the term by that variable.
+ *)
+let abstract_out_subterm env trm subtrm sigma =
+  let fresh_var = Name (Envutils.fresh_name env Anonymous) in
+  let subbed_term = Substitution.all_eq_substs (subtrm, mkRel(0)) trm in
+  let sigma, subtrm_type = Inference.infer_type env sigma subtrm in
+  sigma, mkLambda (fresh_var, subtrm_type, Debruijn.shift subbed_term)
   
 
 (* Lift equality rewriting *)
 let lift_eq_rewrite c env rewrite_info lift_rec sigma =
   let _ = Feedback.msg_warning (Pp.str "enter lift_eq_rewrite") in
   let sigma, lifted_rewrite_info = lift_rewrite_args c env rewrite_info lift_rec sigma in
-  let goal_hypothesis = mkAppl(lifted_rewrite_info.p, [lifted_rewrite_info.x]) in
+  let sigma, lifted_env = lift_env c env lift_rec sigma in
+  let sigma, subbed_p = abstract_out_subterm lifted_env lifted_rewrite_info.p lifted_rewrite_info.y sigma in
+  let _ = Feedback.msg_warning (Pp.str "subbed term test") in
+  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma subbed_p) in
+  let fresh_var = Name (Envutils.fresh_name lifted_env Anonymous) in
+  let sigma, var_type = Inference.infer_type lifted_env sigma lifted_rewrite_info.y in
+  let goal_hypothesis = mkAppl(subbed_p, [mkRel(0) ; lifted_rewrite_info.x]) in
   let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma goal_hypothesis) in
-  let goal_consequent = mkAppl(lifted_rewrite_info.p, [lifted_rewrite_info.y]) in
+  let goal_consequent = mkAppl(subbed_p, [mkRel(0) ; lifted_rewrite_info.y]) in
   let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma goal_consequent) in
-  let goal = mkProd(Names.Anonymous, goal_hypothesis, Debruijn.shift goal_consequent) in
+  let pregoal = mkProd(Names.Anonymous, goal_hypothesis, Debruijn.shift goal_consequent) in
+  let goal = mkProd(fresh_var, var_type, Debruijn.shift pregoal) in
   let _ = Feedback.msg_warning (Pp.str "constructed goal") in
   let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma goal) in
-  let sigma, lifted_env = lift_env c env lift_rec sigma in
-  let _ = test_proof c env sigma goal_hypothesis in
   let proof = Proof.start sigma [(lifted_env, EConstr.of_constr goal)] in
-  let _ = Feedback.msg_warning (Proof.pr_proof proof) in
-  let _ = Feedback.msg_warning (Printer.pr_econstr_env lifted_env sigma (List.hd (Proof.partial_proof proof))) in
-  let (proof, pvm) = Proof.run_tactic lifted_env Tactics.intro proof in
-  let _ = Feedback.msg_warning (Proof.pr_proof proof) in
-  let _ = Feedback.msg_warning (Printer.pr_econstr_env lifted_env sigma (List.hd (Proof.partial_proof proof))) in
   let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
-  let _ = Feedback.msg_warning (Pp.str "try print concl") in
-  let (proof, pvm) = Proof.run_tactic lifted_env cbn_beta_delta proof in
   let _ = Feedback.msg_warning (Proof.pr_proof proof) in
   let _ = Feedback.msg_warning (Printer.pr_econstr_env lifted_env sigma (List.hd (Proof.partial_proof proof))) in
+  let _ = Feedback.msg_warning (Pp.str "run intro") in
+  let (proof, pvm) = Proof.run_tactic lifted_env Tactics.intro proof in
+  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
+  let _ = Feedback.msg_warning (Pp.str "run intro") in
+  let (proof, pvm) = Proof.run_tactic lifted_env Tactics.intro proof in
+  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
+  let (proof, pvm) = Proof.run_tactic lifted_env cbn_beta_delta proof in
   let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   let rew_tac = rewrite_tactic_from_args c lifted_env lifted_rewrite_info sigma in
   let _ = Feedback.msg_warning (Pp.str "out of rewrite_tactic_from_args") in
   let (proof, _) = Proof.run_tactic lifted_env rew_tac proof in
   let _ = Feedback.msg_warning (Pp.str "run rewrite") in
-  let _ = Feedback.msg_warning (Proof.pr_proof proof) in
-  let _ = Feedback.msg_warning (Printer.pr_econstr_env lifted_env sigma (List.hd (Proof.partial_proof proof))) in
+  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   let (proof, _) = Proof.run_tactic lifted_env Tactics.assumption proof in
-  let _ = Feedback.msg_warning (Proof.pr_proof proof) in
+  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   if (Proof.is_done proof) then
     match Proof.partial_proof proof with
     | [] -> failwith "No proof of rewrite goal found."
     | h :: t ->
        sigma, mkApp (
-                  mkAppl (EConstr.to_constr sigma h, [lifted_rewrite_info.px]),
+                  mkAppl (EConstr.to_constr sigma h, [lifted_rewrite_info.y ; lifted_rewrite_info.px]),
                   lifted_rewrite_info.params)
   else
     failwith "Failed when attempting to lift a rewrite."
