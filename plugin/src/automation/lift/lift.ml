@@ -218,42 +218,6 @@ let lift_eq_refl_app c env l lift_rec sigma =
      sigma, mkAppl (refl_proof, lifted_args)
   | _ -> failwith "Eq_refl lifting unsupported outside of Setoid lifting."
 
-let print_top x = match (kind x) with
-  | App (f, l) ->
-    Feedback.msg_notice (Pp.str "App")
-  | Ind _ ->
-    Feedback.msg_notice (Pp.str "Ind")
-  | Prod _ ->
-    Feedback.msg_notice (Pp.str "Ind")
-  | Lambda _ ->
-    Feedback.msg_notice (Pp.str "Ind")
-  | Rel _ ->
-    Feedback.msg_notice (Pp.str "Rel")
-  | Var _ ->
-    Feedback.msg_notice (Pp.str "Var")
-  | Meta _ ->
-    Feedback.msg_notice (Pp.str "Meta")
-  | Sort _ ->
-    Feedback.msg_notice (Pp.str "Sort")
-  | Cast _ ->
-    Feedback.msg_notice (Pp.str "Cast")
-  | LetIn _ ->
-    Feedback.msg_notice (Pp.str "LetIn")
-  | Const _ ->
-    Feedback.msg_notice (Pp.str "Const")
-  | Construct _ ->
-    Feedback.msg_notice (Pp.str "Construct")
-  | Case _ ->
-    Feedback.msg_notice (Pp.str "Case")
-  | Fix _ ->
-    Feedback.msg_notice (Pp.str "Fix")
-  | CoFix _ ->
-    Feedback.msg_notice (Pp.str "CoFix")
-  | Proj _ ->
-    Feedback.msg_notice (Pp.str "Proj")
-  | _ ->
-    Feedback.msg_notice (Pp.str "Nothing")
-
 let lift_rewrite_args c env (rewrite_info : Equtils.rewrite_args) lift_rec sigma =
   let sigma, a = lift_rec env sigma c rewrite_info.a in
   let sigma, x = lift_rec env sigma c rewrite_info.x in
@@ -367,16 +331,7 @@ let lift_env c env lift_rec sigma =
       (fun env rel -> Environ.push_rel rel env)
       emptied_env
       lifted_env_terms in
-  let _ = Printing.debug_env env "old env" in
-  let _ = Printing.debug_env lifted_env "new env" in
   sigma, lifted_env
-
-let test_proof c lifted_env sigma g =
-  let proof = Proof.start sigma [(lifted_env, EConstr.of_constr (mkProd (Names.Anonymous, g, Debruijn.shift g)))] in
-  let (proof, pvm) = Proof.run_tactic lifted_env Tactics.intros proof in
-  let (proof, pvm) = Proof.run_tactic lifted_env Tactics.assumption proof in
-  let _ = Feedback.msg_warning (Pp.str "Test proof done?") in
-  Feedback.msg_warning (Pp.bool (Proof.is_done proof))
 
 (*
  * Given a term trm, replace all instances of subtrm with a fresh variable,
