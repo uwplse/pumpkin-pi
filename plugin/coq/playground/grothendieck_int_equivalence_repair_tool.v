@@ -2,9 +2,6 @@ Require Import Relation_Definitions Morphisms Lia.
 Require Import Coq.Program.Tactics.
 Require Import Ornamental.Ornaments.
 
-Set DEVOID search prove coherence.
-Set DEVOID search smart eliminators.
-
 (* 
  * In this file, we define two representations of integers.
  * The first is as an inductive type with two constructors,
