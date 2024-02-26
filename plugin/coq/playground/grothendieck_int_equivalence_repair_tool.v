@@ -5,6 +5,13 @@ Require Import Ornamental.Ornaments.
 Set DEVOID search prove coherence.
 Set DEVOID search smart eliminators.
 
+(* 
+ * In this file, we define two representations of integers.
+ * The first is as an inductive type with two constructors,
+ * representing adjoining two copies of nat to form the 
+ * number line.
+ *)
+
 Module IndInt.
 
 Inductive Z : Set :=
@@ -15,8 +22,20 @@ End IndInt.
 
 Preprocess Module IndInt as IndInt_p.
 
+(* 
+ * We define the side of the configuration corresponding to this type.
+ *)
+
 Definition depConstrIndIntPos (n : nat) : IndInt_p.Z := IndInt_p.pos n.
 Definition depConstrIndIntNegSuc (n : nat) : IndInt_p.Z := IndInt_p.negsuc n.
+
+(*
+ * Notice that we have two eliminators. The first is not dependently typed,
+ * but eliminates into Type, while the second is dependently typed but eliminates
+ * into Prop. While we could write a single eliminator for IndInt_p.Z, we need
+ * two for our repair target GInt_p.Z, and the eliminators used for both the source
+ * and target need their types to match.
+ *)
 
 Definition depRecIndInt (C : Type)
   (posP : forall (n : nat), C)
@@ -37,6 +56,12 @@ Definition depElimPropIndInt (P : IndInt_p.Z -> Prop)
   | IndInt_p.pos n => posP n
   | IndInt_p.negsuc n => negSucP n
   end.
+
+(* 
+ * Below, we define the iota reduction rules. We only define them
+ * for depRecIndInt, as we will not need to reduce applications of
+ * depElimPropIndInt.
+ *)
 
 Theorem iotaIndIntPos (C : Type)
   (posP : forall (n : nat), C)
@@ -81,6 +106,22 @@ Proof.
   intros.
   apply X.
 Qed.
+
+(* 
+ * We define eta, because the repair tool requires it,
+ * but it is not used when transforming these terms,
+ * so we just set it to the identity.
+ *)
+
+Definition etaIndInt (z : IndInt_p.Z) := z.
+
+(* 
+ * Now, we define functions and theorems on this type,
+ * explicitly using the constructors, eliminators,
+ * and iota reduction rules we defined above,
+ * and not the ones Coq generates automatically for the 
+ * inductive type.
+ *)
 
 Definition constIndIntZ (A : Type) (a : A) := IndInt_p.Z.
 
@@ -211,6 +252,16 @@ Theorem add0RIndIntZ : forall (z : IndInt_p.Z), z = (addIndIntZ z (depConstrIndI
   reflexivity.
 Qed.
 
+(*
+ * Here, we define a second representation of the integers.
+ * The pair (n1, n2) represents the integer n1 - n2.
+ * Multiple elements of this type represent the same integer, so 
+ * we would want to think of it as a quotient, with 
+ * [(n1, n2)] = [(n3, n4)] if n1 + n4 = n2 + n3.
+ * Coq does not support quotient types, so instead we represent
+ * this using a setoid.
+ *)
+
 Module GInt.
 
   Definition Z := (prod nat nat).
@@ -218,6 +269,12 @@ Module GInt.
 End GInt.
 
 Preprocess Module GInt as GInt_p.
+
+(*
+ * Here, we define the equivalence relation on GInt_p.Z,
+ * and register it as an instance of the Equivalence typeclass
+ * with Coq.
+ *)
 
 Definition eq_GZ (z1 z2 : GInt_p.Z) : Prop :=
   match z1, z2 with
@@ -258,6 +315,12 @@ Proof.
   - apply eq_GZ_sym.
   - apply eq_GZ_trans.
 Qed.
+
+(* 
+ * Now, we define the side of the configuration for GInt_p.Z.
+ * We define several other theorems along the way to help define
+ * the needed eliminators and iota-reduction rules.
+ *)
 
 Theorem eq_GZ_suc : forall (n1 n2 : nat),
     eq_GZ (n1, n2) (S n1, S n2).
@@ -456,6 +519,16 @@ Proof.
   - apply IHn.
 Qed.    
 
+(*
+ * Notice that we prove an instance of the Proper
+ * typeclass showing that depRecGZ is proper with respect to
+ * our equivalence relations. This is important to allow
+ * the setoid automation to automatically produce rewrite proofs.
+ * In general, we should prove that all functions we define are Proper, 
+ * but which functions must be proven proper for the automation
+ * to function will vary on a case-by-case basis.
+ *)
+
 Instance depRecProper (C : Type)
   (posP : forall (n : nat), C)
   (negSucP : forall (n : nat), C) :
@@ -477,46 +550,6 @@ Proof.
   rewrite H.
   reflexivity.
 Qed.
-
-  Definition ZExtEqual (C : Type) (eq_C : C -> C -> Prop)
-    `(eq_C_equiv : Equivalence _ (eq_C)) (f1 f2 : GInt.Z -> C) : Prop :=
-    Proper (eq_GZ ==> eq_C) f1 /\ Proper (eq_GZ ==> eq_C) f2 /\
-    forall (z1 z2 : GInt.Z), eq_GZ z1 z2 -> eq_C (f1 z1) (f2 z2).
-
-  Instance ZExtEqualSym (C : Type) (eq_C : C -> C -> Prop)
-    `(eq_C_equiv : Equivalence _ (eq_C)) : Symmetric (ZExtEqual C eq_C eq_C_equiv).
-  Proof.
-    intros f1 f2 H.
-    destruct H.
-    destruct H0.
-    split.
-    apply H0.
-    split.
-    apply H.
-    intros.
-    symmetry.
-    apply H1.
-    symmetry.
-    apply H2.
-  Qed.
-
-  Instance ZExtEqualTrans (C : Type) (eq_C : C -> C -> Prop)
-    `(eq_C_equiv : Equivalence _ (eq_C)) : Transitive (ZExtEqual C eq_C eq_C_equiv).
-  Proof.
-    intros f1 f2 f3 H1 H2.
-    destruct H1.
-    destruct H0.
-    destruct H2.
-    destruct H3.
-    split.
-    apply H.
-    split.
-    apply H3.
-    intros.
-    transitivity (f2 z1).
-    apply H1; auto. reflexivity.
-    apply H4; auto.
-  Qed.
 
 Definition natExtEqual (C : Type) (eq_C : C -> C -> Prop)
   `(eq_C_equiv : Equivalence _ (eq_C)) (f1 f2 : nat -> C) : Prop :=
@@ -566,7 +599,7 @@ Proof.
   apply natExtEqualTrans.
 Qed.
 
-Instance depRecGZProperMore (C : Type) (eq_C : C -> C -> Prop)
+Instance depRecGZCasesProper (C : Type) (eq_C : C -> C -> Prop)
   `(eq_C_equiv : Equivalence _ (eq_C)) :
   Proper ((natExtEqual C eq_C eq_C_equiv) ==> (natExtEqual C eq_C eq_C_equiv) ==> eq_GZ ==> eq_C) (depRecGZ C).
 Proof.
@@ -586,12 +619,38 @@ Proof.
     reflexivity.
 Qed.
 
+(*
+ * Notice that we de not prove that depElimPropGZ is proper.
+ * This is because its motive is dependently typed, and thus
+ * not compatible with the built in setoid automation.
+ * This is the primary reason for having two eliminators;
+ * we need a dependent eliminator to Prop to prove theorems,
+ * but a nondependent one to Type to easily do rewriting.
+ *)
+
+Theorem depElimPropGZ (P : GInt.Z -> Prop)
+  `(p : Proper (GInt.Z -> Prop) (eq_GZ ==> iff) P)
+  (posP : forall (n : nat), P (depConstrGZPos n))
+  (negSucP : forall (n : nat), P (depConstrGZNegSuc n))
+  (z : GInt.Z) :
+  P z.
+Proof.
+  destruct (canonicalizeSignDec z).
+  - destruct s.
+    rewrite <- canonicalizePres.
+    rewrite e.
+    apply posP.
+  - destruct s.
+    rewrite <- canonicalizePres.
+    rewrite e.
+    apply negSucP.
+Defined.
+
 Definition iotaRecGZPosEq (C : Type)
   (posP : forall (n : nat), C)
   (negSucP : forall (n : nat), C)
   (n : nat) :
-  forall (Q : C -> Type),
-    (Q (depRecGZ C posP negSucP (depConstrGZPos n))) = Q (posP n).
+  depRecGZ C posP negSucP (depConstrGZPos n) = posP n.
 Proof.
   intros.
   unfold depRecGZ.
@@ -627,8 +686,7 @@ Definition iotaRecGZNegSucEq (C : Type)
   (posP : forall (n : nat), C)
   (negSucP : forall (n : nat), C)
   (n : nat) :
-  forall (Q : C -> Type),
-    (Q (depRecGZ C posP negSucP (depConstrGZNegSuc n))) = Q (negSucP n).
+  depRecGZ C posP negSucP (depConstrGZNegSuc n) = negSucP n.
 Proof.
   intros.
   unfold depRecGZ.
@@ -660,28 +718,15 @@ Proof.
   apply X.
 Qed.
 
-Theorem depElimPropGZ (P : GInt.Z -> Prop)
-  `(p : Proper (GInt.Z -> Prop) (eq_GZ ==> iff) P)
-  (posP : forall (n : nat), P (depConstrGZPos n))
-  (negSucP : forall (n : nat), P (depConstrGZNegSuc n))
-  (z : GInt.Z) :
-  P z.
-Proof.
-  destruct (canonicalizeSignDec z).
-  - destruct s.
-    rewrite <- canonicalizePres.
-    rewrite e.
-    apply posP.
-  - destruct s.
-    rewrite <- canonicalizePres.
-    rewrite e.
-    apply negSucP.
-Defined.
-
-Definition etaIndInt (z : IndInt_p.Z) := z.
+(* Again, this eta is required as an input by the tool, but will not be used. *)
 
 Definition etaGZ (z : GInt_p.Z) := z.
 
+(* We define the setoid equivalence between IndInt_p.Z and GInt_p.Z here.
+ * We don't strictly need to have it defined to do the transformation, 
+ * but the existing repair tool currently uses the functions internally 
+ * as a key for caching.
+ *)
 Definition p (x : IndInt_p.Z) : GInt_p.Z :=
   match x with
   | IndInt_p.pos n => (n, 0)
@@ -689,16 +734,62 @@ Definition p (x : IndInt_p.Z) : GInt_p.Z :=
   end.
 
 Definition f (z : GInt_p.Z) : IndInt_p.Z :=
-  match canonicalizeSignDec z with
-  | inl x => IndInt_p.pos (proj1_sig x)
-  | inr x => IndInt_p.negsuc (proj1_sig x)
-  end.
+  depRecGZ IndInt_p.Z (fun n => IndInt_p.pos n) (fun n => IndInt_p.negsuc n) z.
 
-Print tt.
+(*
+ * Here, we prove that these functions actually form an equivalence.
+ * The proofs are not actually used in the transformation, but it 
+ * demonstrates the condition we require to hold for the transformation
+ * to be valid.
+ *)
+
+Theorem section : forall (x : IndInt_p.Z), f (p x) = x.
+Proof.
+  intros.
+  destruct x.
+  - unfold f.
+    simpl.
+    rewrite <- (iotaRecGZPosEq IndInt_p.Z (fun n => IndInt_p.pos n) (fun n => IndInt_p.negsuc n)).
+    reflexivity.
+  - unfold f.
+    simpl.
+    rewrite <- (iotaRecGZNegSucEq IndInt_p.Z (fun n => IndInt_p.pos n) (fun n => IndInt_p.negsuc n)).
+    reflexivity.
+Qed.
+
+Theorem retraction : forall (x : GInt_p.Z), eq_GZ (p (f x)) x.
+Proof.
+  apply depElimPropGZ.
+  - intros z1 z2 H.
+    rewrite H.
+    reflexivity.
+  - intros.
+    unfold f.
+    rewrite (iotaRecGZPosEq IndInt_p.Z _ _).
+    reflexivity.
+  - intros.
+    unfold f.
+    rewrite (iotaRecGZNegSucEq IndInt_p.Z _ _).
+    reflexivity.
+Qed.
+
+(*
+ * Now, we specify our setoid to the automation. Types contains a list of
+ * the types with specified equivalence relations, rels contains the equivalence
+ * relations, and equiv_proofs contains the proofs that the relations are 
+ * instances of Equvialence. They must be provided in the same order; that is,
+ * the nth element of types, rels, and equiv_proofs should all correspond to the
+ * same type.
+ *)
 
 Save setoid IndInt_p.Z GInt_p.Z { promote = p ; forget = f ; types = GInt.Z ; rels = eq_GZ ; equiv_proofs = eq_GZ_equiv }.
 
-Print tt.
+(*
+ * Next, we register the configuration we defined with Pumpkin Pi.
+ * We can currently only provide one kind of eliminator at a time to the repair tool,
+ * so we need to ensure that the terms we lift only have one kind of eliminator in them.
+ * We will see how work around this to lift a term with multiple kinds of eliminators later.
+ *)
 
 Configure Lift IndInt_p.Z GInt_p.Z {
     constrs_a = depConstrIndIntPos depConstrIndIntNegSuc ;
@@ -711,103 +802,41 @@ Configure Lift IndInt_p.Z GInt_p.Z {
     iota_b = iotaRecGZPos iotaRecGZPosRev iotaRecGZNegSuc iotaRecGZNegSucRev
   }.
 
+(*
+ * We first lift the dependent eliminator, which prevents the tool from
+ * unfolding the definition of the repaired eliminator. This helds the 
+ * setoid automation successfully discover proofs.
+ *)
+
 Lift IndInt_p.Z GInt_p.Z in depRecIndInt as depRecLifted.
 
-Print depRecLifted.
-
-Print sucIndIntZ.
-
-Configure Lift IndInt_p.Z GInt_p.Z { opaque nat_rec nat_ind }.
-
-(*Lift IndInt_p.Z GInt_p.Z in depConstrIndIntPos as depConstrIndIntPosLifted.
-
-Print depConstrIndIntPosLifted.
-
-Lift IndInt_p.Z GInt_p.Z in depConstrIndIntNegSuc as depConstrIndIntNegSucLifted.
-
-Print depConstrIndIntNegSucLifted.*)
+(* Now, we begin lifting the functions we defined over IndInt_p.Z. *)
 
 Lift IndInt_p.Z GInt_p.Z in constIndIntZ as constGZ.
 
-Print constGZ.
-
-(*sucIndIntZ = 
-fun z : IndInt_p.Z =>
-depElimIndInt (constIndIntZ _)
-  (fun n : nat =>
-   nat_rec (constIndIntZ _) (depConstrIndIntPos 0)
-     (fun (m : nat) (_ : constIndIntZ m) => depConstrIndIntNegSuc m) n) z
-     : IndInt_p.Z -> IndInt_p.Z*)
-
-Definition base_case := (fun n : nat => depConstrIndIntPos (S n)).
-
-Lift IndInt_p.Z GInt_p.Z in base_case as base_case_lifted.
-
-Print base_case_lifted.
-
-Definition ind_case := (fun n : nat =>
-   nat_rec (constIndIntZ _) (depConstrIndIntPos 0)
-           (fun (m : nat) (_ : constIndIntZ _ m) => depConstrIndIntNegSuc m) n).
-
-Lift IndInt_p.Z GInt_p.Z in ind_case as lifted_ind_case.
-
-Print lifted_ind_case.
-
-Definition constIndIntZIndInt := constIndIntZ IndInt_p.Z.
-
-Definition sucIndIntZ2 := 
-fun z : IndInt_p.Z =>
-  depRecIndInt
-    IndInt_p.Z
-    base_case
-    ind_case
-    z.
-
-(*Lift IndInt_p.Z GInt_p.Z in depRecIndInt as depRecLifted.
-
-Print depElimLifted.*)
-
-Lift IndInt_p.Z GInt_p.Z in sucIndIntZ2 as sucGZ2.
-
-Print sucIndIntZ2.
-
-Print sucGZ2.
-
 Lift IndInt_p.Z GInt_p.Z in sucIndIntZ as sucGZ.
 
-Print sucIndIntZ.
-
-Print sucGZ.
+(* At present, Pumpkin Pi will not generate proofs that the
+ * functions we define are Proper, so we need to do this manually.
+ * In the future, we can automatically discover many of these 
+ * proofs using tactics for proof search, such as the one below.
+ *)
 
 Instance sucGZProper :
   Proper (eq_GZ ==> eq_GZ) sucGZ.
 Proof.
-  intros z1 z2 H.
-  unfold sucGZ.
-  apply depRecProperEqGZ.
-  apply H.
+  solve_proper.
 Qed.
 
 Lift IndInt_p.Z GInt_p.Z in predIndIntZ as predGZ.
 
-Print predIndIntZ.
-
-Print predGZ.
-
 Instance predGZProper :
   Proper (eq_GZ ==> eq_GZ) predGZ.
 Proof.
-  intros z1 z2 H.
-  unfold predGZ.
-  apply depRecProperEqGZ.
-  apply H.
+  solve_proper.
 Qed.
 
 Lift IndInt_p.Z GInt_p.Z in add_posIndIntZ as add_posGZ.
-
-Print add_posIndIntZ.
-
-Print add_posGZ.
 
 Instance add_posGZProper :
   Proper (eq_GZ ==> eq ==> eq_GZ) add_posGZ.
@@ -822,10 +851,6 @@ Qed.
 
 Lift IndInt_p.Z GInt_p.Z in add_negsucIndIntZ as add_negsucGZ.
 
-Print add_negsucIndIntZ.
-
-Print add_negsucGZ.
-
 Instance add_negsucGZProper :
   Proper (eq_GZ ==> eq ==> eq_GZ) add_negsucGZ.
 Proof.
@@ -839,16 +864,12 @@ Qed.
 
 Lift IndInt_p.Z GInt_p.Z in addIndIntZ as addGZ.
 
-Print addIndIntZ.
-
-Print addGZ.
-
 Instance addGZProper :
   Proper (eq_GZ ==> eq_GZ ==> eq_GZ) addGZ.
 Proof.
   intros z1 z2 H1 z3 z4 H2.
   unfold addGZ.
-  apply (depRecGZProperMore GInt.Z eq_GZ eq_GZ_equiv).
+  apply (depRecGZCasesProper GInt.Z eq_GZ eq_GZ_equiv).
   - split.
     apply add_posGZProper.
     reflexivity.
@@ -874,20 +895,27 @@ Qed.
 
 Lift IndInt_p.Z GInt_p.Z in add0RIndIntZ as add0RGZ.
 
-Print add0RGZ.
-
-Print add0LIndIntZ.
+(* 
+ * Now, we will lift add0LIndIntZ. This theorem uses both depRecGZ and
+ * depElimPropGZ in its proof. As such, we cannot directly lift it,
+ * because we can't provide Pumpkin Pi with both eliminators at once.
+ * Instead, we first decompose the term into subterms which only 
+ * contain depRecGZ, and lift all of those terms.
+ *)
 
 Definition add0LMotiveIndInt := fun z1 : IndInt_p.Z => z1 = addIndIntZ (depConstrIndIntPos 0) z1.
 
 Lift IndInt_p.Z GInt_p.Z in add0LMotiveIndInt as add0LMotiveGZ.
 
-Definition nat_ind_pos_motive :=
-  (fun n0 : nat =>
-      depConstrIndIntPos n0 = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos n0)).
+(*
+ * These terms are large, but are directly copied and pasted from
+ * printing add0LIndIntZ, so they aren't hard to obtain. We could also
+ * generate these terms in proof mode instead if the terms
+ * become too large to handle manually.
+ *)
 
 Definition add0LPosCaseIndInt :=
-    (fun n : nat =>
+  (fun n : nat =>
    nat_ind
      (fun n0 : nat =>
       depConstrIndIntPos n0 = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntPos n0)) eq_refl
@@ -928,7 +956,8 @@ Definition add0LPosCaseIndInt :=
 
 Lift IndInt_p.Z GInt_p.Z in add0LPosCaseIndInt as add0LPosCaseGZ.
 
-Definition add0LNegSucCaseIndInt := (fun n : nat =>
+Definition add0LNegSucCaseIndInt :=
+  (fun n : nat =>
    nat_ind
      (fun n0 : nat =>
       depConstrIndIntNegSuc n0 = addIndIntZ (depConstrIndIntPos 0) (depConstrIndIntNegSuc n0))
@@ -974,6 +1003,11 @@ Definition add0LNegSucCaseIndInt := (fun n : nat =>
 
 Lift IndInt_p.Z GInt_p.Z in add0LNegSucCaseIndInt as add0LNecSucCaseGZ.
 
+(*
+ * depElimPropGZ requires as an argument that the motive is Proper,
+ * so we need to write this proof.
+ *)
+
 Instance add0LMotiveProper :
   Proper (eq_GZ ==> iff) add0LMotiveGZ.
 Proof.
@@ -983,8 +1017,21 @@ Proof.
   reflexivity.
 Qed.
 
+(* 
+ * To account for that depElimPropGZ requires a proof of Proper as an
+ * argument, we specialize our eliminator to this motive, so that the types
+ * align.
+ *)
+
 Definition appliedDepElimPropIndInt := depElimPropIndInt add0LMotiveIndInt.
 Definition appliedDepElimPropGZ := depElimPropGZ add0LMotiveGZ add0LMotiveProper.
+
+(*
+ * Now, we configure Pumpkin Pi to use these eliminators.
+ * We never defined iotas for these eliminators, nor do we 
+ * need them, so we just keep the olds ones; they will not
+ * be used.
+ *)
 
 Configure Lift IndInt_p.Z GInt_p.Z {
     constrs_a = depConstrIndIntPos depConstrIndIntNegSuc ;
@@ -997,7 +1044,16 @@ Configure Lift IndInt_p.Z GInt_p.Z {
     iota_b = iotaRecGZPos iotaRecGZPosRev iotaRecGZNegSuc iotaRecGZNegSucRev
   }.
 
-Print appliedDepElimPropGZ.
+(*
+ * We now redefine add0LIndIntZ using only these
+ * subterms and appliedDepElimPropGZ Because Pumpkin Pi 
+ * already has lifted add0LPosCaseIndInt and add0LNegSucCaseIndInt,
+ * it has the results of lifting them cached, and can lift them
+ * without seeing the call to depRecIndInt in it.
+ * This allows the lifting to go through.
+ * Eventually, Pumpkin Pi will support providing multiple eliminators
+ * at once, and this process will become unnecessary.
+ *)
 
 Theorem add0LIndIntZ' (z : IndInt_p.Z) : z = addIndIntZ (depConstrIndIntPos 0) z.
 Proof.
@@ -1008,5 +1064,260 @@ Qed.
   
 Lift IndInt_p.Z GInt_p.Z in add0LIndIntZ' as add0LGZ.
 
-Print add0LMotiveGZ.
-Print add0LGZ.
+(*
+ * The repaired addition function we have is correct, and comes with many theorems,
+ * but it is not especially efficient, because it require computing a canonical
+ * element of the equivalence class of its inputs. 
+ * Now, we see how we can define a more efficient addition function, and prove
+ * that it produces the same output as the lifted addition function.
+ * First, we define our fast addition function. Notice that it can directly
+ * add the elements of the input pairs. In a setting where we extract this code
+ * to another language, addition can be significantly faster than canonicalizing,
+ * since addition can be done directly by hardware.
+ *)
+
+Definition fastAddGZ (a b : GInt_p.Z) : GInt_p.Z :=
+  match b with
+  | (b1, b2) => match a with
+                | (a1, a2) => (a1 + b1, a2 + b2)
+                end
+  end.
+
+Instance fastAddGZProper : Proper (eq_GZ ==> eq_GZ ==> eq_GZ) fastAddGZ.
+Proof.
+  unfold eq_GZ.
+  intros z1 z2 H1 z3 z4 H2.
+  destruct z1.
+  destruct z2.
+  destruct z3.
+  destruct z4.
+  simpl.
+  lia.
+Qed.
+
+(*
+ * Next, we prove several theorems to show that 
+ * fastAddGZ and addGZ are extensionally equal.
+ *)
+
+Theorem reduceSucGZ : forall (n m : nat), eq_GZ (sucGZ (n, m)) (S n, m).
+Proof.
+  intros.
+  pose proof (canonicalizePres (n, m)).
+  rewrite <- H.
+  pose proof (canonicalizeSignDec (n, m)).
+  destruct H0.
+  - destruct s.
+    rewrite e.
+    apply (iotaRecGZPosRev
+      GInt_p.Z
+      (fun (n : nat) => depConstrGZPos (S n))
+      (fun (n : nat) => nat_rec (constGZ nat) (depConstrGZPos 0) (fun (m : nat) _ => depConstrGZNegSuc m) n)
+      x
+      (fun s => eq_GZ s (S n, m))).
+    simpl.
+    f_equal.
+    rewrite e in H.
+    apply H.
+  - destruct s.
+    rewrite e.
+    apply (iotaRecGZNegSucRev
+      GInt_p.Z
+      (fun (n : nat) => depConstrGZPos (S n))
+      (fun (n : nat) => nat_rec (constGZ nat) (depConstrGZPos 0) (fun (m : nat) _ => depConstrGZNegSuc m) n)
+      x
+      (fun s => eq_GZ s (S n, m))).
+    destruct x.
+    + simpl.
+      rewrite e in H.
+      unfold eq_GZ in H.
+      lia.
+    + simpl.
+      rewrite e in H.
+      unfold eq_GZ in H.
+      lia.      
+Qed.
+
+Theorem reduceAddZPos : forall (z : GInt_p.Z) (n : nat), eq_GZ (addGZ z (depConstrGZPos (S n))) (sucGZ (addGZ z (depConstrGZPos n))).
+Proof.
+  intros.
+  unfold addGZ.
+  apply (iotaRecGZPosRev
+    GInt_p.Z
+    (fun (p : nat) => add_posGZ z p)
+    (fun (p : nat) => add_negsucGZ z p)).
+  simpl.
+  apply (iotaRecGZPos
+    GInt_p.Z
+    (fun (p : nat) => add_posGZ z p)
+    (fun (p : nat) => add_negsucGZ z p)).
+  reflexivity.
+Qed.
+
+Theorem reduceFastAddZPos : forall (z : GInt_p.Z) (n : nat), eq_GZ (fastAddGZ z (depConstrGZPos (S n))) (sucGZ (fastAddGZ z (depConstrGZPos n))).
+Proof.
+  intros.
+  generalize dependent z.
+  apply depElimPropGZ.
+  - intros z1 z2 H.
+    rewrite H.
+    reflexivity.
+  - intros.
+    simpl.
+    rewrite (surjective_pairing (sucGZ (n0 + n, 0))).
+    pose proof (reduceSucGZ (n0 + n) 0).
+    destruct (sucGZ (n0 + n, 0)).
+    unfold eq_GZ in H.
+    simpl.
+    lia.
+  - intros.
+    simpl.
+    rewrite (surjective_pairing (sucGZ (n, S (n0 + 0)))).
+    pose proof (reduceSucGZ n (S (n0 + 0))).
+    destruct (sucGZ (n, S (n0 + 0))).
+    unfold eq_GZ in H.
+    simpl.
+    lia.
+Qed.
+
+Theorem fastAdd0RZ : forall (z : GInt_p.Z), eq_GZ z (fastAddGZ z (depConstrGZPos 0)).
+Proof.
+  intros.
+  simpl.
+  destruct z.
+  rewrite PeanoNat.Nat.add_0_r.
+  rewrite PeanoNat.Nat.add_0_r.
+  reflexivity.
+Qed.
+
+Theorem reducePredZ : forall (n m : nat), eq_GZ (predGZ (n, m)) (n, S m).
+Proof.
+  intros.
+  pose proof (canonicalizePres (n, m)).
+  rewrite <- H.
+  pose proof (canonicalizeSignDec (n, m)).
+  destruct H0.
+  - destruct s.
+    rewrite e.
+    apply (iotaRecGZPosRev
+      GInt_p.Z
+      (fun (n : nat) => nat_rec (constGZ nat) (depConstrGZNegSuc 0) (fun (m : nat) _ => depConstrGZPos m) n)
+      (fun (n : nat) => depConstrGZNegSuc (S n))
+      x
+      (fun s => eq_GZ s (n, S m))).
+    destruct x.
+    + simpl.
+      rewrite e in H.
+      unfold eq_GZ in H.
+      lia.
+    + simpl.
+      rewrite e in H.
+      unfold eq_GZ in H.
+      lia.    
+  - destruct s.
+    rewrite e.
+    apply (iotaRecGZNegSucRev
+      GInt_p.Z
+      (fun (n : nat) => nat_rec (constGZ nat) (depConstrGZNegSuc 0) (fun (m : nat) _ => depConstrGZPos m) n)
+      (fun (n : nat) => depConstrGZNegSuc (S n))
+      x
+      (fun s => eq_GZ s (n, S m))).
+    simpl.
+    f_equal.
+    rewrite e in H.
+    apply H.
+Qed.          
+
+Theorem reduceFastAddZNegSuc : forall (z : GInt_p.Z) (n : nat), eq_GZ (fastAddGZ z (depConstrGZNegSuc (S n))) (predGZ (fastAddGZ z (depConstrGZNegSuc n))).
+Proof.
+  intros.
+  generalize dependent z.
+  apply depElimPropGZ.
+  - intros z1 z2 H.
+    rewrite H.
+    reflexivity.
+  - intros.
+    simpl.
+    rewrite (surjective_pairing (predGZ (n0 + 0, S n))).
+    pose proof (reducePredZ (n0 + 0) (S n)).
+    destruct (predGZ (n0 + 0, (S n))).
+    unfold eq_GZ in H.
+    simpl.
+    lia.
+  - intros.
+    simpl.
+    lia.
+Qed.
+
+Theorem reduceAddZNegSuc : forall (z : GInt_p.Z) (n : nat), eq_GZ (addGZ z (depConstrGZNegSuc (S n))) (predGZ (addGZ z (depConstrGZNegSuc n))).
+Proof.
+  intros.
+  unfold addGZ.
+  apply (iotaRecGZNegSucRev
+    GInt_p.Z
+    (fun (p : nat) => add_posGZ z p)
+    (fun (p : nat) => add_negsucGZ z p)).
+  simpl.
+  apply (iotaRecGZNegSuc
+    GInt_p.Z
+    (fun (p : nat) => add_posGZ z p)
+    (fun (p : nat) => add_negsucGZ z p)).
+  reflexivity.
+Qed.
+
+Theorem fastAdd0RZNegSuc : forall (z : GInt_p.Z), eq_GZ (predGZ z) (fastAddGZ z (depConstrGZNegSuc 0)).
+Proof.
+  intros.
+  simpl.
+  destruct z.
+  rewrite PeanoNat.Nat.add_0_r.
+  rewrite reducePredZ.
+  rewrite PeanoNat.Nat.add_1_r.
+  reflexivity.
+Qed.
+
+Theorem add0RZNegSuc : forall (z : GInt_p.Z), eq_GZ (predGZ z) (addGZ z (depConstrGZNegSuc 0)).
+Proof.
+  intros.
+  unfold addGZ.
+  apply (iotaRecGZNegSucRev
+    GInt_p.Z
+    (fun (p : nat) => add_posGZ z p)
+    (fun (p : nat) => add_negsucGZ z p)).
+  reflexivity.
+Qed.
+
+(*
+ * Finally, we see that addGZ and fastAddGZ are extensionally equal.
+ * This theorem allows us to translate theorems about addGZ
+ * into theorems about fastAddGZ, so long as we can unfold definitions
+ * to the point where addGZ is being applied to arguments.
+ * If we could prove that addGZ = fastAddGZ, that restriction would not
+ * apply, and we could just rewrite terms by that equality. 
+ * However, we cannot prove that the functions themselves are equal, because
+ * we do not assume functional extensionality.
+ *)
+
+Theorem addEqualFastAdd : forall (a b : GInt_p.Z), eq_GZ (addGZ a b) (fastAddGZ a b).
+Proof.
+  intros a.
+  apply depElimPropGZ.
+  - intros z1 z2 H. rewrite H. reflexivity.
+  - induction n.
+    + unfold addGZ.
+      rewrite <- add0RGZ.
+      rewrite <- fastAdd0RZ.
+      reflexivity.
+    + rewrite (reduceFastAddZPos a n).
+      rewrite (reduceAddZPos a n).
+      f_equiv.
+      apply IHn.
+  - induction n.
+    + rewrite <- add0RZNegSuc.
+      rewrite <- fastAdd0RZNegSuc.
+      reflexivity.
+    + rewrite (reduceFastAddZNegSuc a n).
+      rewrite (reduceAddZNegSuc a n).
+      f_equiv.
+      apply IHn.
+Qed.
