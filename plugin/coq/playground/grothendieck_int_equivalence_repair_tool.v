@@ -1061,6 +1061,23 @@ Qed.
 Lift IndInt.Z GInt_p.Z in add0LIndIntZ' as add0LGZ.
 
 (*
+ * The types of add0LGZ' and add0RGZ' are superficially different from the 
+ * types we would get by lifting the types of the theorems in IndInt, 
+ * but these types are convertible, which we can see by proving manually lifted
+ * theorem statemets by applying add0LGZ' and add0RGZ'.
+ *)
+
+Theorem add0RGZ' (z : GInt_p.Z) : eq_GZ z (addGZ z (depConstrGZPos 0)).
+Proof.
+  apply add0RGZ.
+Qed.
+
+Theorem add0LGZ' (z : GInt_p.Z) : eq_GZ z (addGZ (depConstrGZPos 0) z).
+Proof.
+  apply add0LGZ.
+Qed.
+
+(*
  * The repaired addition function we have is correct, and comes with many theorems,
  * but it is not especially efficient, because it require computing a canonical
  * element of the equivalence class of its inputs. 
@@ -1331,4 +1348,4 @@ Proof.
   intros.
   rewrite <- addEqualFastAdd.
   apply add0LGZ.
-Qed.  
+Qed.
