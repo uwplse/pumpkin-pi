@@ -131,7 +131,8 @@ Definition etaOLQ (q : OLQ.queue) := q.
  * explicitly using the constructors, eliminators,
  * and iota reduction rules we defined above,
  * and not the ones Coq generates automatically for the 
- * inductive type.
+ * inductive type. This style of annotation is consistent with
+ * prior work.
  *)
 
 Definition enqueueOLQ (a : A) (q : OLQ.queue) : OLQ.queue :=
