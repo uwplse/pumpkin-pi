@@ -21,6 +21,8 @@ open Liftrules
 open Evd
 open Equivutils
 open Equtils
+open Names
+open Pp
 
 (*
  * The top-level lifting algorithm
@@ -227,11 +229,6 @@ let lift_rewrite_args c env (rewrite_info : Equtils.rewrite_args) lift_rec sigma
   let sigma, eq = lift_rec env sigma c rewrite_info.eq in
   let sigma, params = map_rec_args lift_rec env sigma c (Array.copy rewrite_info.params) in
   sigma, { a ; x ; p ; px ; y ; eq ; params ; left = rewrite_info.left}
-
-open Names
-open Tactics
-open Decompiler
-open Pp
 
 let cbn_beta_delta =
   Decompiler.parse_tac_str (Format.asprintf "%a" Pp.pp_with (Pp.str "cbn beta delta in *"))
