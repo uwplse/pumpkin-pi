@@ -277,13 +277,6 @@ let lift_env c env lift_rec sigma =
       lifted_env_terms in
   sigma, lifted_env
 
-let test_proof c lifted_env sigma g =
-  let proof = Proof.start sigma [(lifted_env, EConstr.of_constr (mkProd (Names.Anonymous, g, Debruijn.shift g)))] in
-  let (proof, pvm) = Proof.run_tactic lifted_env Tactics.intros proof in
-  let (proof, pvm) = Proof.run_tactic lifted_env Tactics.assumption proof in
-  let _ = Feedback.msg_warning (Pp.str "Test proof done?") in
-  Feedback.msg_warning (Pp.bool (Proof.is_done proof))
-
 (*
  * Given a term trm, replace all instances of subtrm with a fresh variable,
  * then abstract the term by that variable.
