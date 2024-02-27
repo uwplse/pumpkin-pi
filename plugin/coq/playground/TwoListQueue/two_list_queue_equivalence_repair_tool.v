@@ -5,9 +5,6 @@ Require Import UIPList.
 Require Import Coq.Program.Tactics.
 Require Import Ornamental.Ornaments.
 
-Set DEVOID search prove coherence.
-Set DEVOID search smart eliminators.
-
 (* 
  * In this file, we define two representations of queues.
  * The first is just as a list; we enqueue onto the front,
@@ -156,6 +153,13 @@ Definition returnOrEnqOLQ (a : A) (m : option (OLQ.queue * A)) : (OLQ.queue * A)
     (fun (p : (OLQ.queue * A)) => (enqueueOLQ a (fst p), snd p))
     (depConstrOLQEmpty, a)
     m.
+
+Theorem dequeueEmptyOLQ : (dequeueOLQ depConstrOLQEmpty) = None.
+Proof.
+  unfold dequeueOLQ.
+  apply (iotaRecOLQEmptyRev _ _ dequeueHelpOLQ).
+  reflexivity.
+Qed.
 
 Definition dequeueEnqueueTypeOLQ (a : A) (q : OLQ.queue) := (dequeueOLQ (enqueueOLQ a q)) = (Some (returnOrEnqOLQ a (dequeueOLQ q))).
 
@@ -783,7 +787,9 @@ Proof.
     split; reflexivity.
 Qed.
 
-(* We can similarly lift dequeueEnqueueTypeOLQ and dequeueEnqueueOLQ. *)
+(* We can similarly lift dequeueEmptyOLQ, dequeueEnqueueTypeOLQ and dequeueEnqueueOLQ. *)
+
+Lift OLQ.queue TLQ.queue in dequeueEmptyOLQ as dequeueEmptyTLQ.
 
 Lift OLQ.queue TLQ.queue in dequeueEnqueueTypeOLQ as dequeueEnqueueTypeTLQ.
 
