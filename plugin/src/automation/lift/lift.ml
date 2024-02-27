@@ -218,42 +218,6 @@ let lift_eq_refl_app c env l lift_rec sigma =
      sigma, mkAppl (refl_proof, lifted_args)
   | _ -> failwith "Eq_refl lifting unsupported outside of Setoid lifting."
 
-let print_top x = match (kind x) with
-  | App (f, l) ->
-    Feedback.msg_notice (Pp.str "App")
-  | Ind _ ->
-    Feedback.msg_notice (Pp.str "Ind")
-  | Prod _ ->
-    Feedback.msg_notice (Pp.str "Ind")
-  | Lambda _ ->
-    Feedback.msg_notice (Pp.str "Ind")
-  | Rel _ ->
-    Feedback.msg_notice (Pp.str "Rel")
-  | Var _ ->
-    Feedback.msg_notice (Pp.str "Var")
-  | Meta _ ->
-    Feedback.msg_notice (Pp.str "Meta")
-  | Sort _ ->
-    Feedback.msg_notice (Pp.str "Sort")
-  | Cast _ ->
-    Feedback.msg_notice (Pp.str "Cast")
-  | LetIn _ ->
-    Feedback.msg_notice (Pp.str "LetIn")
-  | Const _ ->
-    Feedback.msg_notice (Pp.str "Const")
-  | Construct _ ->
-    Feedback.msg_notice (Pp.str "Construct")
-  | Case _ ->
-    Feedback.msg_notice (Pp.str "Case")
-  | Fix _ ->
-    Feedback.msg_notice (Pp.str "Fix")
-  | CoFix _ ->
-    Feedback.msg_notice (Pp.str "CoFix")
-  | Proj _ ->
-    Feedback.msg_notice (Pp.str "Proj")
-  | _ ->
-    Feedback.msg_notice (Pp.str "Nothing")
-
 let lift_rewrite_args c env (rewrite_info : Equtils.rewrite_args) lift_rec sigma =
   let sigma, a = lift_rec env sigma c rewrite_info.a in
   let sigma, x = lift_rec env sigma c rewrite_info.x in
@@ -266,65 +230,8 @@ let lift_rewrite_args c env (rewrite_info : Equtils.rewrite_args) lift_rec sigma
 
 open Names
 open Tactics
-
-let coq_program_basics =
-  ModPath.MPfile
-    (DirPath.make (List.map Id.of_string ["Basics"; "Program"; "Coq"]))
-
-let funtype =
-  mkInd (MutInd.make1 (KerName.make2 coq_program_basics (Label.make "arrow")), 0)
-
 open Decompiler
 open Pp
-
-(* Return the string representation of a single tactic. *)
-let show_tactic sigma tac : Pp.t =
-  let prnt e = Printer.pr_constr_env e sigma in
-  match tac with
-  | Intros ns ->
-     let s = if List.tl ns == [] then "intro" else "intros" in
-     let names = String.concat " " (List.map Id.to_string ns) in
-     Pp.str (s ^ " " ^ names)
-  | Apply (env, trm) ->
-     Pp.str "apply " ++ prnt env trm
-  | Rewrite (env, trm, left, _) ->
-     let s = prnt env trm in
-     let arrow = if left then "<- " else "" in
-     str ("setoid_rewrite " ^ arrow) ++ s
-  | RewriteIn (env, prf, hyp, left) ->
-     let prf_s, hyp_s = prnt env prf, prnt env hyp in
-     let arrow = if left then "" else "<- " in
-     str ("rewrite " ^ arrow) ++ prf_s ++ str " in " ++ hyp_s
-  | ApplyIn (env, prf, hyp) ->
-     let prf_s, hyp_s = prnt env prf, prnt env hyp in
-     str "apply " ++ prf_s ++ str " in " ++ hyp_s
-  | Pose (env, hyp, n) ->
-     let n = str (Id.to_string n) in
-     str "pose " ++ prnt env hyp ++ str " as " ++ n
-  | Induction (env, trm, names) ->
-     let to_s ns = if ns == [] then " " (* prevent "||" *)
-                   else String.concat " " (List.map Id.to_string ns) in
-     let bindings = str (String.concat "|" (List.map to_s names)) in
-     str "induction " ++ prnt env trm ++
-       str " as [" ++ bindings ++ str "]"
-  | Reflexivity -> str "reflexivity"
-  | Simpl -> str "simpl"
-  | Left -> str "left"
-  | Right -> str "right"
-  | Split -> str "split"
-  | Revert ns ->
-     let names = String.concat " " (List.rev_map Id.to_string ns) in
-     str ("revert " ^ names)
-  | Symmetry -> str "symmetry"
-  | Exists (env, trm) ->
-     str "exists " ++ prnt env trm
-  | Auto -> str "auto"
-  | Expr s -> str s
-
-let coq_tac sigma t prefix =
-    let s = show_tactic sigma t in
-    let s' = Format.asprintf "%a" Pp.pp_with s in
-    Decompiler.parse_tac_str (prefix ^ s')
 
 let cbn_beta_delta =
   Decompiler.parse_tac_str (Format.asprintf "%a" Pp.pp_with (Pp.str "cbn beta delta in *"))
@@ -332,12 +239,13 @@ let cbn_beta_delta =
 (*
  * Create a tactic performing the rewrite represented by rewrite_info. 
  * Based on show_tactic from the Decompiler module.
- * (I am presently skeptical that this will work.)
  *)
 let rewrite_tactic_from_args c env rewrite_info sigma =
-  let ir = Decompiler.Rewrite(env, rewrite_info.eq, rewrite_info.left, None) in
-  let rew_tac = coq_tac sigma ir "" in
-  rew_tac
+  let s = Printer.pr_constr_env env sigma rewrite_info.eq in
+  let arrow = if rewrite_info.left then "<- " else "" in
+  let s' = str ("setoid_rewrite " ^ arrow) ++ s in
+  let s'' = Format.asprintf "%a" Pp.pp_with s' in
+  Decompiler.parse_tac_str s''
   
 (*
  * Given an environment, produce the environment where all terms
@@ -367,8 +275,6 @@ let lift_env c env lift_rec sigma =
       (fun env rel -> Environ.push_rel rel env)
       emptied_env
       lifted_env_terms in
-  let _ = Printing.debug_env env "old env" in
-  let _ = Printing.debug_env lifted_env "new env" in
   sigma, lifted_env
 
 let test_proof c lifted_env sigma g =
