@@ -115,7 +115,8 @@ Definition etaIndInt (z : IndInt.Z) := z.
  * explicitly using the constructors, eliminators,
  * and iota reduction rules we defined above,
  * and not the ones Coq generates automatically for the 
- * inductive type.
+ * inductive type. This style of annotation is consistent with
+ * prior work.
  *)
 
 Definition constIndIntZ (A : Type) (a : A) := IndInt.Z.
@@ -1316,3 +1317,18 @@ Proof.
       f_equiv.
       apply IHn.
 Qed.
+
+(*
+ * Here, we use the above theorem to translate a proof 
+ * on addGZ to a proof on fastAddGZ. This proof is
+ * easy because we can access all the sites where 
+ * fastAddGZ is applied in the theorem, but opaque 
+ * definitions could block this in general.
+ *)
+
+Theorem fastAdd0LGZ : forall (z : GInt_p.Z), eq_GZ z (fastAddGZ (depConstrGZPos 0) z).
+Proof.
+  intros.
+  rewrite <- addEqualFastAdd.
+  apply add0LGZ.
+Qed.  
