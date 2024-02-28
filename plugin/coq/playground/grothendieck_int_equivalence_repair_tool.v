@@ -315,7 +315,7 @@ Qed.
 
 (*
  * We can officially declare an instance showing that GInt_p.Z forms a setoid
- * with eq_queue as the equivalence relation. However, this is not necessary
+ * with GInt_p.Z as the equivalence relation. However, this is not necessary
  * for any of our repair work. The automation we need derives from instances of
  * Equivalence and Proper, not Setoid.
  *)
