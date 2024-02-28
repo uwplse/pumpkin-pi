@@ -1,6 +1,18 @@
 #!/bin/bash
 
-cd coq/playground
+cd coq
+
+echo "Running ToSetoidTest.v"
+
+if coqc ToSetoidTest.v 
+then
+  :
+else
+  echo "ERROR: setoid repair tests failed"
+  exit 1
+fi
+
+cd playground
 
 echo "Running integer case study"
 if coqc grothendieck_int_equivalence_repair_tool.v
