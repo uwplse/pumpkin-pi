@@ -1,6 +1,7 @@
 Require Import Relation_Definitions Morphisms Lia.
 Require Import Coq.Program.Tactics.
 Require Import Ornamental.Ornaments.
+Require Import SetoidClass.
 
 (* 
  * In this file, we define two representations of integers.
@@ -312,6 +313,15 @@ Proof.
   - apply eq_GZ_trans.
 Qed.
 
+(*
+ * We can officially declare an instance showing that GInt_p.Z forms a setoid
+ * with eq_queue as the equivalence relation. However, this is not necessary
+ * for any of our repair work. The automation we need derives from instances of
+ * Equivalence and Proper, not Setoid.
+ *)
+
+Instance GZ_setoid : Setoid GInt_p.Z := {equiv := eq_GZ ; setoid_equiv := eq_GZ_equiv}.
+
 (* 
  * Now, we define the side of the configuration for GInt_p.Z.
  * We define several other theorems along the way to help define
@@ -359,7 +369,6 @@ Definition canonicalize (z : GInt_p.Z) :=
   match z with
   | (a1, a2) => canonicalize' a1 a2
   end.
-Print sumbool.
 
 Theorem canonicalize'Respectful : forall (n1 n2 n3 n4 : nat),
     eq_GZ (n1, n2) (n3, n4) -> canonicalize' n1 n2 = canonicalize' n3 n4.
@@ -437,8 +446,6 @@ Proof.
   apply canonicalize'SignDec.
 Defined.
 
-Print canonicalizeSignDec.
-
 Theorem canonicalizePos : forall (n : nat),
     canonicalize (depConstrGZPos n) = depConstrGZPos n.
 Proof.
@@ -486,8 +493,6 @@ Proof.
   destruct z.
   apply canonicalize'Pres.
 Defined.
-
-Print eq_rect.
 
 Definition depRecGZ (C : Type)
   (posP : forall (n : nat), C)
@@ -547,6 +552,16 @@ Proof.
   reflexivity.
 Qed.
 
+(*
+ * We would like to be able to rewrite the function arguments to depRec, 
+ * but we can't actually prove functions are equal without some form of 
+ * extensionality. Instead, we define extensional equality as a relation. 
+ * It isn't an equivalence relation, because it isn't reflexive; not all 
+ * functions are proper morphisms. It is symmetric and transitive, though,
+ * so it forms a partial equivalence relation, which is good enough to 
+ * do rewriting.
+ *)
+
 Definition natExtEqual (C : Type) (eq_C : C -> C -> Prop)
   `(eq_C_equiv : Equivalence _ (eq_C)) (f1 f2 : nat -> C) : Prop :=
   Proper (eq ==> eq_C) f1 /\ Proper (eq ==> eq_C) f2 /\
@@ -594,6 +609,16 @@ Proof.
   apply natExtEqualSym.
   apply natExtEqualTrans.
 Qed.
+
+(*
+ * We have that depRec is proper with respect to the function arguments
+ * as a separate instance from our other proof. This is because the lack
+ * of reflexivity on natExtEqual means that we would need to manually
+ * prove that the function arguments are related to themselves when
+ * rewriting other arguments to depRec. Having both instances means that
+ * rewriting the non-function argument does not generate these extra
+ * obligations.
+ *)
 
 Instance depRecGZCasesProper (C : Type) (eq_C : C -> C -> Prop)
   `(eq_C_equiv : Equivalence _ (eq_C)) :

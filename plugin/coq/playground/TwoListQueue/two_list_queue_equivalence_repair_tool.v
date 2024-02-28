@@ -4,6 +4,7 @@ Require Import EqdepFacts.
 Require Import UIPList.
 Require Import Coq.Program.Tactics.
 Require Import Ornamental.Ornaments.
+Require Import SetoidClass.
 
 (* 
  * In this file, we define two representations of queues.
@@ -253,6 +254,15 @@ Proof.
   - apply eq_queue_sym.
   - apply eq_queue_trans.
 Qed.
+
+(*
+ * We can officially declare an instance showing that TLQ.queue forms a setoid
+ * with eq_queue as the equivalence relation. However, this is not necessary
+ * for any of our repair work. The automation we need derives from instances of
+ * Equivalence and Proper, not Setoid.
+ *)
+
+Instance TLQ_setoid : Setoid TLQ.queue := {equiv := eq_queue ; setoid_equiv := eq_queue_equiv}.
 
 (* 
  * Now, we define the side of the configuration for TLQ.queue.
