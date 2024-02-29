@@ -6,6 +6,14 @@ Set DEVOID search prove coherence.
 Set DEVOID search smart eliminators.
 Set DEVOID lift type.
 
+(*
+ * This file defines an extremely simple setoid equivalence.
+ * The source type has one element, and the target has
+ * two elements which are equivalent under our equivalence 
+ * relation. The terms that are repaired test the rules we
+ * use to repair terms across setoid equivalences.
+ *)
+
 Module Source.
   Inductive unit :=
   | tt.
@@ -25,8 +33,6 @@ Module Source.
     rewrite H.
     reflexivity.
   Qed.
-
-  Print eq_rect_test.
 
   Theorem eq_rect_test2 : forall (x : unit), eq (1, x) (1, tt) -> eq (1, x) (1, tt).
   Proof.
@@ -134,8 +140,6 @@ Module Target.
   Definition eq_nat_unit_prod : nat * unit -> nat * unit -> Prop :=
     eq_prod (@eq nat) eq_unit.
 
-  About eq_equivalence.
-
   Instance eq_nat_unit_prod_equiv : Equivalence eq_nat_unit_prod.
   Proof.
     apply eq_prod_equiv.
@@ -145,49 +149,24 @@ Module Target.
   
 End Target.
 
-Preprocess Module Source as Source_p.
+Definition old := Source.unit.
 
-Definition old := Source_p.unit.
+Definition new := Target.unit.
 
-Preprocess Module Target as Target_p.
-
-Definition new := Target_p.unit.
-
-Instance eq_unit_equiv : Equivalence Target_p.eq_unit.
+Instance eq_unit_equiv : Equivalence Target.eq_unit.
 Proof.
-  apply Target_p.eq_unit_equiv.
+  apply Target.eq_unit_equiv.
 Qed.
 
-Instance eq_nat_unit_prod_equiv : Equivalence Target_p.eq_nat_unit_prod.
+Instance eq_nat_unit_prod_equiv : Equivalence Target.eq_nat_unit_prod.
 Proof.
-  apply Target_p.eq_nat_unit_prod_equiv.
+  apply Target.eq_nat_unit_prod_equiv.
 Qed.
 
-Theorem testing (x : Target_p.unit) (H : Target_p.eq_unit x Target_p.one) :
-  (forall (_ : (Target_p.eq_unit Target_p.one Target_p.one)),
-  ((fun x : Target_p.unit => Target_p.eq_unit x Target_p.one) x)).
-Proof.
-  intros.
-  simpl.
-  rewrite H.
-  assumption.
-Qed.
+Definition depConstrSource := Source.tt.
+Definition depConstrTarget := Target.one.
 
-Theorem testing2 (x : Target_p.unit) (H : Target_p.eq_nat_unit_prod (1, x) (1, Target_p.one)) : ((fun p : nat * Target_p.unit =>
-  Target_p.eq_nat_unit_prod p (1, Target_p.one)) (1, Target_p.one) ->
- (fun p : nat * Target_p.unit =>
-  Target_p.eq_nat_unit_prod p (1, Target_p.one)) (1, x)).
-Proof.
-  intros.
-  cbn beta delta.
-  rewrite H.
-  assumption.
-Qed.
-
-Definition depConstrSource := Source_p.tt.
-Definition depConstrTarget := Target_p.one.
-
-Definition depRecSource (C : Type) := Source_p.unit_rect (fun _ => C).
+Definition depRecSource (C : Type) := Source.unit_rect (fun _ => C).
 
 Definition depRecTarget (C : Type)
     (out : C)
@@ -260,23 +239,11 @@ Definition etaSource (x : old) := x.
 
 Definition etaTarget (x : new) := x.
 
-Definition p (x : old) := Target_p.one.
+Definition p (x : old) := Target.one.
 
-Definition f (x : new) := Source_p.tt.
-
-Compute (@Equivalence_Reflexive new Target_p.eq_unit Target_p.eq_unit_equiv).
-
-Theorem test : forall (x : new), Target_p.eq_unit x x.
-Proof.
-  apply (@Equivalence_Reflexive new Target_p.eq_unit Target_p.eq_unit_equiv).
-Defined.
-
-Print test.
+Definition f (x : new) := Source.tt.
                             
-(* this line does something bad in Proof General. *)
-Save setoid old new { promote = p ; forget = f ; types = Target_p.unit Target_p.nat_unit_prod ; rels = Target_p.eq_unit Target_p.eq_nat_unit_prod ; equiv_proofs = Target_p.eq_unit_equiv Target_p.eq_nat_unit_prod_equiv }.
-
-Print tt.
+Save setoid old new { promote = p ; forget = f ; types = Target.unit Target.nat_unit_prod ; rels = Target.eq_unit Target.eq_nat_unit_prod ; equiv_proofs = Target.eq_unit_equiv Target.eq_nat_unit_prod_equiv }.
 
 Configure Lift old new {
     constrs_a = depConstrSource ;
@@ -289,33 +256,19 @@ Configure Lift old new {
     iota_b = iotaRecTarget
   }.
 
-Print tt.
+Lift old new in Source.eq_test as eq_test.
 
-Lift old new in Source_p.eq_test as eq_test.
+Lift old new in Source.eq_refl_test as eq_refl_test.
 
-Print eq_test.
+Lift old new in Source.eq_test2 as eq_test2.
 
-Lift old new in Source_p.eq_refl_test as eq_refl_test.
+Lift old new in Source.eq_refl_test2 as eq_refl_test2.
 
-Print eq_refl_test.
+Lift old new in Source.eq_test3 as eq_test3.
 
-Lift old new in Source_p.eq_test2 as eq_test2.
+Lift old new in Source.f as func.
 
-Print eq_test2.
-
-Lift old new in Source_p.eq_refl_test2 as eq_refl_test2.
-
-Print eq_refl_test2.
-
-Lift old new in Source_p.eq_test3 as eq_test3.
-
-Print eq_test3.
-
-Lift old new in Source_p.f as func.
-
-Print func.
-
-Instance func_proper : Proper (Target_p.eq_unit ==> eq) func.
+Instance func_proper : Proper (Target.eq_unit ==> eq) func.
 Proof.
   intros x y H.
   destruct x;
@@ -323,24 +276,10 @@ Proof.
   reflexivity.
 Qed.
 
-Lift old new in Source_p.eq_rect_test as eq_rect_test.
+Lift old new in Source.eq_rect_test as eq_rect_test.
 
-Print eq_rect_test.
+Lift old new in Source.eq_rect_test2 as eq_rect_test2.
 
-Lift old new in Source_p.eq_rect_test2 as eq_rect_test2.
+Lift old new in Source.eq_rect_test3 as eq_rect_test3.
 
-Print eq_rect_test2.
-
-Print Source_p.eq_rect_test3.
-
-Lift old new in Source_p.eq_rect_test3 as eq_rect_test3.
-
-Print eq_rect_test3.
-
-Print Source_p.proper_test.
-
-Lift old new in Source_p.proper_test as proper_test.
-
-Print proper_test.
-
-
+Lift old new in Source.proper_test as proper_test.
