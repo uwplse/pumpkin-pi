@@ -91,6 +91,14 @@ m +ℤ n = depElimℤ
           (λ p → m +negsuc p)
           n
 
+add+ℤ0R : (x : ℤ) → x ≡ x +ℤ (depConstrℤPos zero)
+add+ℤ0R x =
+  depElimℤ
+    (λ x → x ≡ x +ℤ (depConstrℤPos zero))
+    (λ n → refl)
+    (λ n → refl)
+    x
+
 add0Lℤ : (z : ℤ) → z ≡ (depConstrℤPos 0) +ℤ z
 add0Lℤ z = depElimℤ
                 (λ z → z ≡ (depConstrℤPos 0) +ℤ z)
