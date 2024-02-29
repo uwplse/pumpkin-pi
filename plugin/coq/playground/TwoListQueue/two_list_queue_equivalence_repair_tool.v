@@ -16,8 +16,6 @@ Parameter A : Type.
 
 Definition OLQ := list A.
 
-(* Preprocess Module OneListQueue as OLQ. *)
-
 (*
  * We define the side of the configuration corresponding to this type.
  *)
@@ -29,7 +27,7 @@ Definition depConstrOLQInsert (a : A) (q : OLQ) : OLQ := a :: q.
  * Notice that we have two eliminators. The first is not dependently typed,
  * but eliminates into Type, while the second is dependently typed but eliminates
  * into Prop. While we could write a single eliminator for OLQ, we need
- * two for our repair target TLQ.queue, and the eliminators used for both the source
+ * two for our repair target TLQ, and the eliminators used for both the source
  * and target need their types to match.
  *)
 
@@ -188,13 +186,8 @@ Defined.
  * this using a setoid.
  *)
 
-Module TwoListQueue.
 
-Definition queue := prod (list A) (list A).
-
-End TwoListQueue.
-
-Preprocess Module TwoListQueue as TLQ.
+Definition TLQ := prod (list A) (list A).
 
 (*
  * We're assuming UIP here specifically on the type A. 
@@ -215,17 +208,17 @@ Proof.
 Qed.
 
 (*
- * Here, we define the equivalence relation on TLQ.queue,
+ * Here, we define the equivalence relation on TLQ,
  * and register it as an instance of the Equivalence typeclass
  * with Coq.
  *)
 
-Definition insOrder (q : TLQ.queue) :=
+Definition insOrder (q : TLQ) :=
   match q with
   | (l1, l2) => l1 ++ rev l2
   end.
 
-Definition eq_queue (q1 q2 : TLQ.queue) : Prop :=
+Definition eq_queue (q1 q2 : TLQ) : Prop :=
   insOrder q1 = insOrder q2.
 
 Instance eq_queue_refl : Reflexive eq_queue.
@@ -252,23 +245,23 @@ Proof.
 Qed.
 
 (*
- * We can officially declare an instance showing that TLQ.queue forms a setoid
+ * We can officially declare an instance showing that TLQ forms a setoid
  * with eq_queue as the equivalence relation. However, this is not necessary
  * for any of our repair work. The automation we need derives from instances of
  * Equivalence and Proper, not Setoid.
  *)
 
-Instance TLQ_setoid : Setoid TLQ.queue := {equiv := eq_queue ; setoid_equiv := eq_queue_equiv}.
+Instance TLQ_setoid : Setoid TLQ := {equiv := eq_queue ; setoid_equiv := eq_queue_equiv}.
 
 (* 
- * Now, we define the side of the configuration for TLQ.queue.
+ * Now, we define the side of the configuration for TLQ.
  * We define several other theorems along the way to help define
  * the needed eliminators and iota-reduction rules.
  *)
 
-Definition depConstrTLQEmpty : TLQ.queue := ([],[]).
+Definition depConstrTLQEmpty : TLQ := ([],[]).
 
-Definition depConstrTLQInsert (a : A) (q : TLQ.queue) : TLQ.queue :=
+Definition depConstrTLQInsert (a : A) (q : TLQ) : TLQ :=
   match q with
   | (l1, l2) => (a :: l1, l2)
   end.
@@ -287,9 +280,9 @@ Qed.
 
 Notation "q1 [=] q2" := (eq_queue q1 q2) (at level 50).
 
-Definition canonicalize (q : TLQ.queue) := (insOrder q, @nil A) .
+Definition canonicalize (q : TLQ) := (insOrder q, @nil A) .
 
-Theorem canonicalizeResp (q : TLQ.queue) :
+Theorem canonicalizeResp (q : TLQ) :
   canonicalize q [=] q.
 Proof.
   destruct q.
@@ -376,8 +369,8 @@ Proof.
 Defined.
 
 Definition depRecTLQ (C : Type) (pEmpty : C)
-  (pInsert : forall (a : A) (q : TLQ.queue), C -> C) :
-  (forall (x : TLQ.queue), C).
+  (pInsert : forall (a : A) (q : TLQ), C -> C) :
+  (forall (x : TLQ), C).
 Proof.
   intros.
   destruct x.
@@ -392,7 +385,7 @@ Defined.
 
 Theorem depRecTLQCanonical (C : Type) (eqC : C -> C -> Prop)
   `(eqC_equiv: Equivalence _ (eqC)) (pEmpty : C)
-  (pInsert : forall (a : A) (q : TLQ.queue), C -> C)
+  (pInsert : forall (a : A) (q : TLQ), C -> C)
   (pInsertRespectful : forall (a : A), Proper (eq_queue ==> eqC ==> eqC) (pInsert a)) :
   forall (l0 l1 : list A),
     eqC (depRecTLQ C pEmpty pInsert (l0, l1)) (depRecTLQ C pEmpty pInsert (l0 ++ rev l1, [])).
@@ -427,7 +420,7 @@ Qed.
 
 Instance depRecTLQProper (C : Type) (eqC : C -> C -> Prop)
   `(eqC_equiv : Equivalence _ eqC) (pEmpty : C)
-  (pInsert : forall (a : A) (q : TLQ.queue), C -> C)
+  (pInsert : forall (a : A) (q : TLQ), C -> C)
   (pInsertRespectful : forall (a : A), Proper (eq_queue ==> eqC ==> eqC) (pInsert a)) :
   Proper (eq_queue ==> eqC) (depRecTLQ C pEmpty pInsert).
 Proof.
@@ -451,10 +444,10 @@ Qed.
  * but a nondependent one to Type to easily do rewriting.
  *)
 
-Theorem depElimPropTLQ (P : TLQ.queue -> Prop)
-  `(p : Proper (TLQ.queue -> Prop) (eq_queue ==> iff) P) (pEmpty : P depConstrTLQEmpty)
-  (pInsert : forall (a : A) (q : TLQ.queue), P q -> P (depConstrTLQInsert a q)) :
-  (forall (x : TLQ.queue), P x).
+Theorem depElimPropTLQ (P : TLQ -> Prop)
+  `(p : Proper (TLQ -> Prop) (eq_queue ==> iff) P) (pEmpty : P depConstrTLQEmpty)
+  (pInsert : forall (a : A) (q : TLQ), P q -> P (depConstrTLQInsert a q)) :
+  (forall (x : TLQ), P x).
 Proof.
   intros.
   destruct x.
@@ -472,7 +465,7 @@ Defined.
 
 Theorem iotaRecTLQEmptyEq (C : Type)
   (pEmpty : C)
-  (pInsert : forall (a : A) (q : TLQ.queue), C -> C) :
+  (pInsert : forall (a : A) (q : TLQ), C -> C) :
   depRecTLQ C pEmpty pInsert depConstrTLQEmpty = pEmpty.
 Proof.
   reflexivity.
@@ -480,7 +473,7 @@ Defined.
 
 Theorem iotaRecTLQEmpty (C : Type)
   (pEmpty : C)
-  (pInsert : forall (a : A) (q : TLQ.queue), C -> C) :
+  (pInsert : forall (a : A) (q : TLQ), C -> C) :
   forall (Q : C -> Type),
     (Q (depRecTLQ C pEmpty pInsert depConstrTLQEmpty)) -> (Q pEmpty).
 Proof.
@@ -491,7 +484,7 @@ Defined.
 
 Theorem iotaRecTLQEmptyRev (C : Type)
   (pEmpty : C)
-  (pInsert : forall (a : A) (q : TLQ.queue), C -> C) :
+  (pInsert : forall (a : A) (q : TLQ), C -> C) :
   forall (Q : C -> Type),
     (Q pEmpty) -> (Q (depRecTLQ C pEmpty pInsert depConstrTLQEmpty)).
 Proof.
@@ -502,7 +495,7 @@ Defined.
 
 Theorem iotaRecTLQInsertEq (C : Type)
   (pEmpty : C)
-  (pInsert : forall (a : A) (q : TLQ.queue), C -> C) (a : A) (q : TLQ.queue) :
+  (pInsert : forall (a : A) (q : TLQ), C -> C) (a : A) (q : TLQ) :
   depRecTLQ C pEmpty pInsert (depConstrTLQInsert a q)
   = pInsert a q (depRecTLQ C pEmpty pInsert q).
 Proof.
@@ -512,8 +505,8 @@ Defined.
 
 Theorem iotaRecTLQInsert (C : Type)
   (pEmpty : C)
-  (pInsert : forall (a : A) (q : TLQ.queue), C -> C) (a : A) (q : TLQ.queue) :
-forall (a : A) (q : TLQ.queue) (Q : C -> Type), 
+  (pInsert : forall (a : A) (q : TLQ), C -> C) (a : A) (q : TLQ) :
+forall (a : A) (q : TLQ) (Q : C -> Type),
   Q (depRecTLQ C pEmpty pInsert (depConstrTLQInsert a q))
   -> Q (pInsert a q (depRecTLQ C pEmpty pInsert q)).
 Proof.
@@ -524,8 +517,8 @@ Defined.
 
 Theorem iotaRecTLQInsertRev (C : Type)
   (pEmpty : C)
-  (pInsert : forall (a : A) (q : TLQ.queue), C -> C) (a : A) (q : TLQ.queue) :
-forall (a : A) (q : TLQ.queue) (Q : C -> Type),
+  (pInsert : forall (a : A) (q : TLQ), C -> C) (a : A) (q : TLQ) :
+forall (a : A) (q : TLQ) (Q : C -> Type),
   Q (pInsert a q (depRecTLQ C pEmpty pInsert q))
   -> Q (depRecTLQ C pEmpty pInsert (depConstrTLQInsert a q)).
 Proof.
@@ -534,7 +527,7 @@ Proof.
   apply X.
 Qed.
 
-Definition etaTLQ (q : TLQ.queue) := q.
+Definition etaTLQ (q : TLQ) := q.
 
 Definition eq_prod (A B : Type) (eqA : A -> A -> Prop)
   (eqB : B -> B -> Prop) (p1 p2 : A * B) : Prop :=
@@ -623,9 +616,9 @@ Proof.
   apply H1.
 Qed.
 
-Definition deq_ret := option (prod TLQ.queue A).
+Definition deq_ret := option (prod TLQ A).
 
-Definition eq_deq_ret := eq_option (prod TLQ.queue A) (@eq_prod TLQ.queue A eq_queue eq).
+Definition eq_deq_ret := eq_option (prod TLQ A) (@eq_prod TLQ A eq_queue eq).
 
 Instance eq_deq_ret_refl : Reflexive eq_deq_ret.
 Proof.
@@ -665,7 +658,7 @@ Proof.
 Qed.
 
 (* 
- * We define the setoid equivalence between OLQ and TLQ.queue here.
+ * We define the setoid equivalence between OLQ and TLQ here.
  * We don't strictly need to have it defined to do the transformation, 
  * but the existing repair tool currently uses the functions internally 
  * as a key for caching.
@@ -673,7 +666,7 @@ Qed.
 
 Definition promote (q : OLQ) := (q, @nil A).
 
-Definition forget (q : TLQ.queue) := insOrder q.
+Definition forget (q : TLQ) := insOrder q.
 
 Theorem section : forall (q : OLQ), forget (promote q) = q.
 Proof.
@@ -685,7 +678,7 @@ Proof.
     reflexivity.
 Qed.
 
-Theorem retraction : forall (q : TLQ.queue), promote (forget q) [=] q.
+Theorem retraction : forall (q : TLQ), promote (forget q) [=] q.
 Proof.
   intros.
   unfold promote.
@@ -704,9 +697,9 @@ Qed.
  * same type.
  *)
 
-Save setoid OLQ TLQ.queue { promote = promote ; forget = forget ; types = TLQ.queue deq_ret ; rels = eq_queue eq_deq_ret ; equiv_proofs = eq_queue_equiv eq_deq_ret_equiv }.
+Save setoid OLQ TLQ { promote = promote ; forget = forget ; types = TLQ deq_ret ; rels = eq_queue eq_deq_ret ; equiv_proofs = eq_queue_equiv eq_deq_ret_equiv }.
 
-Configure Lift OLQ TLQ.queue {
+Configure Lift OLQ TLQ {
     constrs_a = depConstrOLQEmpty depConstrOLQInsert ;
     constrs_b = depConstrTLQEmpty depConstrTLQInsert ;
     elim_a = depRecOLQ ;
@@ -723,11 +716,11 @@ Configure Lift OLQ TLQ.queue {
  * setoid automation successfully discover proofs.
  *)
 
-Lift OLQ TLQ.queue in depRecOLQ as depRecLifted.
+Lift OLQ TLQ in depRecOLQ as depRecLifted.
 
 (* Now, we begin lifting the functions we defined over OLQ. *)
 
-Lift OLQ TLQ.queue in enqueueOLQ as enqueueTLQ.
+Lift OLQ TLQ in enqueueOLQ as enqueueTLQ.
 
 (* At present, Pumpkin Pi will not generate proofs that the
  * functions we define are Proper, so we need to do this manually.
@@ -740,7 +733,7 @@ Proof.
   solve_proper.
 Qed.
 
-Lift OLQ TLQ.queue in dequeueHelpOLQ as dequeueHelpTLQ.
+Lift OLQ TLQ in dequeueHelpOLQ as dequeueHelpTLQ.
 
 Instance dequeueHelpTLQProper (a : A) :
   Proper (eq_queue ==> eq_deq_ret ==> eq_deq_ret) (dequeueHelpTLQ a).
@@ -765,17 +758,17 @@ Proof.
   - split; reflexivity.
 Qed.  
 
-Lift OLQ TLQ.queue in dequeueOLQ as dequeueTLQ.
+Lift OLQ TLQ in dequeueOLQ as dequeueTLQ.
 
 Instance dequeueTLQProper : Proper (eq_queue ==> eq_deq_ret) dequeueTLQ.
 Proof.
   solve_proper.
 Qed.
 
-Lift OLQ TLQ.queue in returnOrEnqOLQ as returnOrEnqTLQ.
+Lift OLQ TLQ in returnOrEnqOLQ as returnOrEnqTLQ.
 
 Instance returnOrEnqTLQProper (a : A) :
-  Proper (eq_deq_ret ==> (eq_prod TLQ.queue A eq_queue eq)) (returnOrEnqTLQ a).
+  Proper (eq_deq_ret ==> (eq_prod TLQ A eq_queue eq)) (returnOrEnqTLQ a).
 Proof.
   intros m1 m2 H.
   destruct m1; destruct m2.
@@ -795,11 +788,11 @@ Qed.
 
 (* We can similarly lift dequeueEmptyOLQ, dequeueEnqueueTypeOLQ and dequeueEnqueueOLQ. *)
 
-Lift OLQ TLQ.queue in dequeueEmptyOLQ as dequeueEmptyTLQ.
+Lift OLQ TLQ in dequeueEmptyOLQ as dequeueEmptyTLQ.
 
-Lift OLQ TLQ.queue in dequeueEnqueueTypeOLQ as dequeueEnqueueTypeTLQ.
+Lift OLQ TLQ in dequeueEnqueueTypeOLQ as dequeueEnqueueTypeTLQ.
 
-Lift OLQ TLQ.queue in dequeueEnqueueOLQ as dequeueEnqueueTLQ.
+Lift OLQ TLQ in dequeueEnqueueOLQ as dequeueEnqueueTLQ.
 
 (*
  * The repaired dequeue function we have is correct, and comes with many theorems,
@@ -813,7 +806,7 @@ Lift OLQ TLQ.queue in dequeueEnqueueOLQ as dequeueEnqueueTLQ.
  * runtime of the function from linear to constant.
  *)
 
-Definition fastDequeueTLQ (q : TLQ.queue) : deq_ret :=
+Definition fastDequeueTLQ (q : TLQ) : deq_ret :=
   let (l1, l2) := q in
   match l1, l2 with
   | [] , [] => None
@@ -832,7 +825,7 @@ Proof.
   destruct l; reflexivity.
 Qed.
 
-Theorem fastDequeueProperHelp (q : TLQ.queue) :
+Theorem fastDequeueProperHelp (q : TLQ) :
   eq_deq_ret (fastDequeueTLQ q) (fastDequeueTLQ ([], rev (insOrder q))).
 Proof.
   intros.
@@ -897,7 +890,7 @@ Ltac queuedestruct queue :=
   let qright := fresh "y" in
   destruct queue as (qleft, qright); try destruct qleft; try destruct qright.
 
-Theorem fastDequeueEnqueue (a : A) (q : TLQ.queue) :
+Theorem fastDequeueEnqueue (a : A) (q : TLQ) :
   eq_deq_ret
     (fastDequeueTLQ (enqueueTLQ a q))
     (Some (returnOrEnqTLQ a (fastDequeueTLQ q))).
@@ -932,7 +925,7 @@ Qed.
  * we do not assume functional extensionality.
  *)
 
-Theorem dequeueEqualsFastDequeue : forall (q : TLQ.queue),
+Theorem dequeueEqualsFastDequeue : forall (q : TLQ),
     eq_deq_ret (dequeueTLQ q) (fastDequeueTLQ q).
 Proof.
   apply depElimPropTLQ.
