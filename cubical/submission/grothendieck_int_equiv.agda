@@ -19,7 +19,7 @@ open import Cubical.Data.Sigma.Properties
 open import Cubical.Foundations.GroupoidLaws
 open import Cubical.Relation.Binary.Base
 
--- dependent constructors/eliminators on standard library inductive ℤ
+-- The configuration on the standard library inductive ℤ
 
 data ℤ : Type₀ where
   pos    : (n : ℕ) → ℤ
@@ -39,9 +39,17 @@ depElimℤ P posP negsucP (negsuc n) = negsucP n
     (Q : P (depConstrℤPos n) → Set) → Q (depElimℤ P posP negSucP (depConstrℤPos n)) → Q (posP n)
 ιℤPos P posP negSucP n Q Qp = Qp
 
+ιℤPos⁻ : (P : ℤ → Set) → (posP : (n : ℕ) → P (depConstrℤPos n)) → (negSucP : (n : ℕ) → P (depConstrℤNegSuc n)) → (n : ℕ) →
+    (Q : P (depConstrℤPos n) → Set) → Q (posP n) → Q (depElimℤ P posP negSucP (depConstrℤPos n))
+ιℤPos⁻ P posP negSucP n Q Qp = Qp
+
 ιℤNegSuc : (P : ℤ → Set) → (posP : (n : ℕ) → P (depConstrℤPos n)) → (negSucP : (n : ℕ) → P (depConstrℤNegSuc n)) → (n : ℕ) →
     (Q : P (depConstrℤNegSuc n) → Set) → Q (depElimℤ P posP negSucP (depConstrℤNegSuc n)) → Q (negSucP n)
 ιℤNegSuc P posP negSucP n Q Qp = Qp
+
+ιℤNegSuc⁻ : (P : ℤ → Set) → (posP : (n : ℕ) → P (depConstrℤPos n)) → (negSucP : (n : ℕ) → P (depConstrℤNegSuc n)) → (n : ℕ) →
+    (Q : P (depConstrℤNegSuc n) → Set) → Q (negSucP n) → Q (depElimℤ P posP negSucP (depConstrℤNegSuc n))
+ιℤNegSuc⁻ P posP negSucP n Q Qp = Qp
 
 -- Addition on integers, based on standard library functions.
 sucℤ : ℤ → ℤ
@@ -90,13 +98,15 @@ add0Lℤ z = depElimℤ
                 (λ n → Nat.elim {A = λ m → depConstrℤNegSuc m ≡ (depConstrℤPos 0) +ℤ (depConstrℤNegSuc m)} refl (λ m Pm → cong predℤ Pm) n)
                 z
 
--- Grothendieck group construction of ℤ.
+-- Grothendieck group construction of the integers.
 
 R : (ℕ × ℕ) → (ℕ × ℕ) → Type
 R (x1 , x2) (y1 , y2) = x1 Nat.+ y2 ≡ x2 Nat.+ y1
 
 GZ : Type
 GZ = (ℕ × ℕ) / R
+
+-- Configuration on GZ.
 
 depConstrGZPos : ℕ → GZ
 depConstrGZPos n = [ (n , 0) ]
@@ -168,10 +178,6 @@ sumRememberEq (inr x) = inr (x , refl)
 
 open BinaryRelation
 
--- 
--- isSetProd : {A B : Set} → isSet A → isSet B → isSet (A × B)
--- isSetProd {A} {B} setA setB = isOfHLevelProd 2 setA setB
--- 
 Rprop : isPropValued R
 Rprop (a1 , a2) (b1 , b2) p1 p2 = isSetℕ (a1 Nat.+ b2) (a2 Nat.+ b1) p1 p2
 
@@ -428,7 +434,7 @@ m +GZ n = depElimGZ
             (λ p → m +negsucGZ p)
             n
 
--- Repaired proof that 0 is a left identity for addition.
+-- Repaired proof that 0 is a left identity for addition. ιs inserted where necessary
 
 add0LGZ : (z : GZ) → z ≡ (depConstrGZPos 0) +GZ z
 add0LGZ z = depElimGZ
@@ -898,6 +904,8 @@ reduceAddGZ'NegSuc x n =
     (λ m → cong (λ k → [ 0 , suc k ]) (+-suc m (suc n)) ∙ reducePredGZ 0 (suc m + suc n))
     x
 
+-- Proving that addition and fast addition are extensionally equal
+
 addEqualOnInputs : (x y : GZ) → addGZ' x y ≡ x +GZ y
 addEqualOnInputs x y =
   depElimGZ
@@ -915,8 +923,12 @@ addEqualOnInputs x y =
       m)
     y
 
+-- Proving that addition and fast addition are equal by functional extensionality
+
 addEqual : addGZ' ≡ _+GZ_
 addEqual = funExt (λ x → funExt (λ y → addEqualOnInputs x y))
+
+-- Proving that add0LGZ holds about fast addition
 
 add'0LGZ : (z : GZ) → z ≡ addGZ' (depConstrGZPos 0) z
 add'0LGZ = subst (λ y → (z : GZ) → z ≡ y (depConstrGZPos 0) z) (sym addEqual) add0LGZ
@@ -962,6 +974,8 @@ discreteℤ (negsuc n) (negsuc m) with discreteℕ n m
 
 isSetℤ : isSet ℤ
 isSetℤ = Discrete→isSet discreteℤ
+
+-- Proving that ℤ and GZ are equal types
 
 ℤ≡GZ : ℤ ≡ GZ
 ℤ≡GZ = isoToPath (iso f g sec ret) where
