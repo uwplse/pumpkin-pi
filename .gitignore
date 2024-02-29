@@ -27,3 +27,4 @@ _opam
 *.vok
 *.vos
 *.merlin
+**/.lia.cache
