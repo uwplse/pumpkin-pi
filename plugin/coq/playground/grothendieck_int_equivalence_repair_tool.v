@@ -116,77 +116,77 @@ Definition etaZ (z : Z) := z.
  * prior work.
  *)
 
-Definition constZZ (A : Type) (a : A) := Z.
+Definition constZ (A : Type) (a : A) := Z.
 
-Definition sucZZ (z : Z) : Z :=
+Definition sucZ (z : Z) : Z :=
   depRecZ
     Z
     (fun (n : nat) => depConstrZPos (S n))
-    (fun (n : nat) => nat_rec (constZZ _) (depConstrZPos 0) (fun (m : nat) _ => depConstrZNegSuc m) n)
+    (fun (n : nat) => nat_rec (constZ _) (depConstrZPos 0) (fun (m : nat) _ => depConstrZNegSuc m) n)
     z.
 
-Definition predZZ (z : Z) : Z :=
+Definition predZ (z : Z) : Z :=
   depRecZ
     Z
-    (fun (n : nat) => nat_rec (constZZ _) (depConstrZNegSuc 0) (fun (m : nat) _ => depConstrZPos m) n)
+    (fun (n : nat) => nat_rec (constZ _) (depConstrZNegSuc 0) (fun (m : nat) _ => depConstrZPos m) n)
     (fun (n : nat) => depConstrZNegSuc (S n))
     z.
 
-Definition add_posZZ (z : Z) (n : nat) : Z :=
-  nat_rec (constZZ _) z (fun _ (p : Z) => sucZZ p) n.
+Definition add_posZ (z : Z) (n : nat) : Z :=
+  nat_rec (constZ _) z (fun _ (p : Z) => sucZ p) n.
 
-Definition add_negsucZZ (z : Z) (n : nat) : Z :=
-  nat_rec (constZZ _) (predZZ z) (fun _ (p : Z) => predZZ p) n.
+Definition add_negsucZ (z : Z) (n : nat) : Z :=
+  nat_rec (constZ _) (predZ z) (fun _ (p : Z) => predZ p) n.
 
-Definition addZZ (z1 z2 : Z) : Z :=
+Definition addZ (z1 z2 : Z) : Z :=
   depRecZ
     Z
-    (fun (p : nat) => add_posZZ z1 p)
-    (fun (p : nat) => add_negsucZZ z1 p)
+    (fun (p : nat) => add_posZ z1 p)
+    (fun (p : nat) => add_negsucZ z1 p)
     z2.
 
-Theorem add0LZZ (z : Z) : z = addZZ (depConstrZPos 0) z.
+Theorem add0LZ (z : Z) : z = addZ (depConstrZPos 0) z.
 Proof.
-  eapply (depElimPropZ (fun (z1 : Z) => z1 = addZZ (depConstrZPos 0) z1)).
+  eapply (depElimPropZ (fun (z1 : Z) => z1 = addZ (depConstrZPos 0) z1)).
   - induction n.
     + reflexivity.
     + apply (iotaZPos
                 Z
                 (fun q => depConstrZPos (S q))
-                (fun q => nat_rec (constZZ _) (depConstrZPos 0) (fun m _ => depConstrZNegSuc m) q)
+                (fun q => nat_rec (constZ _) (depConstrZPos 0) (fun m _ => depConstrZNegSuc m) q)
                 n
-                (fun s => s = addZZ (depConstrZPos 0) (depConstrZPos (S n)))).
+                (fun s => s = addZ (depConstrZPos 0) (depConstrZPos (S n)))).
       apply (iotaZPosRev
                Z
-               (fun q => add_posZZ (depConstrZPos 0) q)
-               (fun q => add_negsucZZ (depConstrZPos 0) q)
+               (fun q => add_posZ (depConstrZPos 0) q)
+               (fun q => add_negsucZ (depConstrZPos 0) q)
                (S n)
                (fun s => depRecZ
                            Z
                            (fun m => depConstrZPos (S m))
                            (fun m => nat_rec
-                                       (constZZ _)
+                                       (constZ _)
                                        (depConstrZPos 0)
                                        (fun p _ => depConstrZNegSuc p)
                                        m)
                            (depConstrZPos n) = s)).
       apply (iotaZPos
                Z
-               (fun q => add_posZZ (depConstrZPos 0) q)
-               (fun q => add_negsucZZ (depConstrZPos 0) q)
+               (fun q => add_posZ (depConstrZPos 0) q)
+               (fun q => add_negsucZ (depConstrZPos 0) q)
                n
                (fun s => depRecZ
                            Z
                            (fun m => depConstrZPos (S m))
                            (fun m => nat_rec
-                                       (constZZ _)
+                                       (constZ _)
                                        (depConstrZPos 0)
                                        (fun p _ => depConstrZNegSuc p)
                                        m)
-                           (depConstrZPos n) = sucZZ s)).
+                           (depConstrZPos n) = sucZ s)).
       apply (@eq_rect_r
                 Z
-                (addZZ (depConstrZPos 0) (depConstrZPos n))
+                (addZ (depConstrZPos 0) (depConstrZPos n))
                 (fun x => depRecZ _ _ _ x = _)).
       reflexivity.
       apply IHn.
@@ -194,19 +194,19 @@ Proof.
     + reflexivity.
     + apply (iotaZNegSuc
                 Z
-                (fun q => nat_rec (constZZ _) (depConstrZNegSuc 0) (fun m _ => depConstrZPos m) q)
+                (fun q => nat_rec (constZ _) (depConstrZNegSuc 0) (fun m _ => depConstrZPos m) q)
                 (fun q => depConstrZNegSuc (S q))
                 n
-                (fun s => s = addZZ (depConstrZPos 0) (depConstrZNegSuc (S n)))).
+                (fun s => s = addZ (depConstrZPos 0) (depConstrZNegSuc (S n)))).
       apply (iotaZNegSucRev
                Z
-               (fun q => add_posZZ (depConstrZPos 0) q)
-               (fun q => add_negsucZZ (depConstrZPos 0) q)
+               (fun q => add_posZ (depConstrZPos 0) q)
+               (fun q => add_negsucZ (depConstrZPos 0) q)
                (S n)
                (fun s => depRecZ
                            Z
                            (fun m => nat_rec
-                                       (constZZ _)
+                                       (constZ _)
                                        (depConstrZNegSuc 0)
                                        (fun p _ => depConstrZPos p)
                                        m)
@@ -214,33 +214,33 @@ Proof.
                            (depConstrZNegSuc n) = s)).
       apply (iotaZNegSuc
                Z
-               (fun q => add_posZZ (depConstrZPos 0) q)
-               (fun q => add_negsucZZ (depConstrZPos 0) q)
+               (fun q => add_posZ (depConstrZPos 0) q)
+               (fun q => add_negsucZ (depConstrZPos 0) q)
                n
                (fun s => depRecZ
                            Z
                            (fun m => nat_rec
-                                       (constZZ _)
+                                       (constZ _)
                                        (depConstrZNegSuc 0)
                                        (fun p _ => depConstrZPos p)
                                        m)
                            (fun m => depConstrZNegSuc (S m))
-                           (depConstrZNegSuc n) = predZZ s)).
+                           (depConstrZNegSuc n) = predZ s)).
       apply (@eq_rect_r
                 Z
-                (addZZ (depConstrZPos 0) (depConstrZNegSuc n))
+                (addZ (depConstrZPos 0) (depConstrZNegSuc n))
                 (fun x => depRecZ _ _ _ x = _)).
       reflexivity.
       apply IHn.
 Qed.
 
-Theorem add0RZZ : forall (z : Z), z = (addZZ z (depConstrZPos 0)).
+Theorem add0RZ : forall (z : Z), z = (addZ z (depConstrZPos 0)).
   intros.
-  unfold addZZ.
+  unfold addZ.
   apply (iotaZPosRev
     Z
-    (fun (p : nat) => add_posZZ z p)
-    (fun (p : nat) => add_negsucZZ z p)
+    (fun (p : nat) => add_posZ z p)
+    (fun (p : nat) => add_negsucZ z p)
     0).
   reflexivity.
 Qed.
@@ -829,9 +829,9 @@ Lift Z GZ in depRecZ as depRecLifted.
 
 (* Now, we begin lifting the functions we defined over Z. *)
 
-Lift Z GZ in constZZ as constGZ.
+Lift Z GZ in constZ as constGZ.
 
-Lift Z GZ in sucZZ as sucGZ.
+Lift Z GZ in sucZ as sucGZ.
 
 (* At present, Pumpkin Pi will not generate proofs that the
  * functions we define are Proper, so we need to do this manually.
@@ -845,7 +845,7 @@ Proof.
   solve_proper.
 Qed.
 
-Lift Z GZ in predZZ as predGZ.
+Lift Z GZ in predZ as predGZ.
 
 Instance predGZProper :
   Proper (eq_GZ ==> eq_GZ) predGZ.
@@ -853,7 +853,7 @@ Proof.
   solve_proper.
 Qed.
 
-Lift Z GZ in add_posZZ as add_posGZ.
+Lift Z GZ in add_posZ as add_posGZ.
 
 Instance add_posGZProper :
   Proper (eq_GZ ==> eq ==> eq_GZ) add_posGZ.
@@ -866,7 +866,7 @@ Proof.
   - simpl. f_equiv. apply IHn2.
 Qed.   
 
-Lift Z GZ in add_negsucZZ as add_negsucGZ.
+Lift Z GZ in add_negsucZ as add_negsucGZ.
 
 Instance add_negsucGZProper :
   Proper (eq_GZ ==> eq ==> eq_GZ) add_negsucGZ.
@@ -879,7 +879,7 @@ Proof.
   - simpl. f_equiv. apply IHn2.
 Qed.  
 
-Lift Z GZ in addZZ as addGZ.
+Lift Z GZ in addZ as addGZ.
 
 Instance addGZProper :
   Proper (eq_GZ ==> eq_GZ ==> eq_GZ) addGZ.
@@ -910,23 +910,23 @@ Proof.
   - apply H2.
 Qed.
 
-Lift Z GZ in add0RZZ as add0RGZ.
+Lift Z GZ in add0RZ as add0RGZ.
 
 (* 
- * Now, we will lift add0LZZ. This theorem uses both depRecGZ and
+ * Now, we will lift add0LZ. This theorem uses both depRecGZ and
  * depElimPropGZ in its proof. As such, we cannot directly lift it,
  * because we can't provide Pumpkin Pi with both eliminators at once.
  * Instead, we first decompose the term into subterms which only 
  * contain depRecGZ, and lift all of those terms.
  *)
 
-Definition add0LMotiveZ := fun z1 : Z => z1 = addZZ (depConstrZPos 0) z1.
+Definition add0LMotiveZ := fun z1 : Z => z1 = addZ (depConstrZPos 0) z1.
 
 Lift Z GZ in add0LMotiveZ as add0LMotiveGZ.
 
 (*
  * These terms are large, but are directly copied and pasted from
- * printing add0LZZ, so they aren't hard to obtain. We could also
+ * printing add0LZ, so they aren't hard to obtain. We could also
  * generate these terms in proof mode instead if the terms
  * become too large to handle manually.
  *)
@@ -935,40 +935,40 @@ Definition add0LPosCaseZ :=
   (fun n : nat =>
    nat_ind
      (fun n0 : nat =>
-      depConstrZPos n0 = addZZ (depConstrZPos 0) (depConstrZPos n0)) eq_refl
+      depConstrZPos n0 = addZ (depConstrZPos 0) (depConstrZPos n0)) eq_refl
      (fun (n0 : nat)
-        (IHn : depConstrZPos n0 = addZZ (depConstrZPos 0) (depConstrZPos n0)) =>
+        (IHn : depConstrZPos n0 = addZ (depConstrZPos 0) (depConstrZPos n0)) =>
       iotaZPos Z (fun q : nat => depConstrZPos (S q))
         (fun q : nat =>
-         nat_rec (constZZ nat) (depConstrZPos 0)
-           (fun (m : nat) (_ : constZZ nat m) => depConstrZNegSuc m) q) n0
-        (fun s : Z => s = addZZ (depConstrZPos 0) (depConstrZPos (S n0)))
-        (iotaZPosRev Z (fun q : nat => add_posZZ (depConstrZPos 0) q)
-           (fun q : nat => add_negsucZZ (depConstrZPos 0) q) (S n0)
+         nat_rec (constZ nat) (depConstrZPos 0)
+           (fun (m : nat) (_ : constZ nat m) => depConstrZNegSuc m) q) n0
+        (fun s : Z => s = addZ (depConstrZPos 0) (depConstrZPos (S n0)))
+        (iotaZPosRev Z (fun q : nat => add_posZ (depConstrZPos 0) q)
+           (fun q : nat => add_negsucZ (depConstrZPos 0) q) (S n0)
            (fun s : Z =>
             depRecZ Z (fun m : nat => depConstrZPos (S m))
               (fun m : nat =>
-               nat_rec (constZZ nat) (depConstrZPos 0)
-                 (fun (p : nat) (_ : constZZ nat p) => depConstrZNegSuc p) m)
+               nat_rec (constZ nat) (depConstrZPos 0)
+                 (fun (p : nat) (_ : constZ nat p) => depConstrZNegSuc p) m)
               (depConstrZPos n0) = s)
-           (iotaZPos Z (fun q : nat => add_posZZ (depConstrZPos 0) q)
-              (fun q : nat => add_negsucZZ (depConstrZPos 0) q) n0
+           (iotaZPos Z (fun q : nat => add_posZ (depConstrZPos 0) q)
+              (fun q : nat => add_negsucZ (depConstrZPos 0) q) n0
               (fun s : Z =>
                depRecZ Z (fun m : nat => depConstrZPos (S m))
                  (fun m : nat =>
-                  nat_rec (constZZ nat) (depConstrZPos 0)
-                    (fun (p : nat) (_ : constZZ nat p) => depConstrZNegSuc p) m)
-                 (depConstrZPos n0) = sucZZ s)
+                  nat_rec (constZ nat) (depConstrZPos 0)
+                    (fun (p : nat) (_ : constZ nat p) => depConstrZNegSuc p) m)
+                 (depConstrZPos n0) = sucZ s)
               (eq_rect_r
                  (fun x : Z =>
                   depRecZ Z (fun m : nat => depConstrZPos (S m))
                     (fun m : nat =>
-                     nat_rec (constZZ nat) (depConstrZPos 0)
-                       (fun (p : nat) (_ : constZZ nat p) => depConstrZNegSuc p) m) x =
-                  sucZZ
+                     nat_rec (constZ nat) (depConstrZPos 0)
+                       (fun (p : nat) (_ : constZ nat p) => depConstrZNegSuc p) m) x =
+                  sucZ
                     (depRecZ Z
-                       (fun q : nat => add_posZZ (depConstrZPos 0) q)
-                       (fun q : nat => add_negsucZZ (depConstrZPos 0) q)
+                       (fun q : nat => add_posZ (depConstrZPos 0) q)
+                       (fun q : nat => add_negsucZ (depConstrZPos 0) q)
                        (depConstrZPos n0))) eq_refl IHn)))) n).
 
 Lift Z GZ in add0LPosCaseZ as add0LPosCaseGZ.
@@ -977,45 +977,45 @@ Definition add0LNegSucCaseZ :=
   (fun n : nat =>
    nat_ind
      (fun n0 : nat =>
-      depConstrZNegSuc n0 = addZZ (depConstrZPos 0) (depConstrZNegSuc n0))
+      depConstrZNegSuc n0 = addZ (depConstrZPos 0) (depConstrZNegSuc n0))
      eq_refl
      (fun (n0 : nat)
         (IHn : depConstrZNegSuc n0 =
-               addZZ (depConstrZPos 0) (depConstrZNegSuc n0)) =>
+               addZ (depConstrZPos 0) (depConstrZNegSuc n0)) =>
       iotaZNegSuc Z
         (fun q : nat =>
-         nat_rec (constZZ nat) (depConstrZNegSuc 0)
-           (fun (m : nat) (_ : constZZ nat m) => depConstrZPos m) q)
+         nat_rec (constZ nat) (depConstrZNegSuc 0)
+           (fun (m : nat) (_ : constZ nat m) => depConstrZPos m) q)
         (fun q : nat => depConstrZNegSuc (S q)) n0
-        (fun s : Z => s = addZZ (depConstrZPos 0) (depConstrZNegSuc (S n0)))
-        (iotaZNegSucRev Z (fun q : nat => add_posZZ (depConstrZPos 0) q)
-           (fun q : nat => add_negsucZZ (depConstrZPos 0) q) (S n0)
+        (fun s : Z => s = addZ (depConstrZPos 0) (depConstrZNegSuc (S n0)))
+        (iotaZNegSucRev Z (fun q : nat => add_posZ (depConstrZPos 0) q)
+           (fun q : nat => add_negsucZ (depConstrZPos 0) q) (S n0)
            (fun s : Z =>
             depRecZ Z
               (fun m : nat =>
-               nat_rec (constZZ nat) (depConstrZNegSuc 0)
-                 (fun (p : nat) (_ : constZZ nat p) => depConstrZPos p) m)
+               nat_rec (constZ nat) (depConstrZNegSuc 0)
+                 (fun (p : nat) (_ : constZ nat p) => depConstrZPos p) m)
               (fun m : nat => depConstrZNegSuc (S m)) (depConstrZNegSuc n0) = s)
-           (iotaZNegSuc Z (fun q : nat => add_posZZ (depConstrZPos 0) q)
-              (fun q : nat => add_negsucZZ (depConstrZPos 0) q) n0
+           (iotaZNegSuc Z (fun q : nat => add_posZ (depConstrZPos 0) q)
+              (fun q : nat => add_negsucZ (depConstrZPos 0) q) n0
               (fun s : Z =>
                depRecZ Z
                  (fun m : nat =>
-                  nat_rec (constZZ nat) (depConstrZNegSuc 0)
-                    (fun (p : nat) (_ : constZZ nat p) => depConstrZPos p) m)
+                  nat_rec (constZ nat) (depConstrZNegSuc 0)
+                    (fun (p : nat) (_ : constZ nat p) => depConstrZPos p) m)
                  (fun m : nat => depConstrZNegSuc (S m)) (depConstrZNegSuc n0) =
-               predZZ s)
+               predZ s)
               (eq_rect_r
                  (fun x : Z =>
                   depRecZ Z
                     (fun m : nat =>
-                     nat_rec (constZZ nat) (depConstrZNegSuc 0)
-                       (fun (p : nat) (_ : constZZ nat p) => depConstrZPos p) m)
+                     nat_rec (constZ nat) (depConstrZNegSuc 0)
+                       (fun (p : nat) (_ : constZ nat p) => depConstrZPos p) m)
                     (fun m : nat => depConstrZNegSuc (S m)) x =
-                  predZZ
+                  predZ
                     (depRecZ Z
-                       (fun q : nat => add_posZZ (depConstrZPos 0) q)
-                       (fun q : nat => add_negsucZZ (depConstrZPos 0) q)
+                       (fun q : nat => add_posZ (depConstrZPos 0) q)
+                       (fun q : nat => add_negsucZ (depConstrZPos 0) q)
                        (depConstrZNegSuc n0))) eq_refl IHn)))) n).
 
 Lift Z GZ in add0LNegSucCaseZ as add0LNecSucCaseGZ.
@@ -1062,7 +1062,7 @@ Configure Lift Z GZ {
   }.
 
 (*
- * We now redefine add0LZZ using only these
+ * We now redefine add0LZ using only these
  * subterms and appliedDepElimPropGZ Because Pumpkin Pi 
  * already has lifted add0LPosCaseZ and add0LNegSucCaseZ,
  * it has the results of lifting them cached, and can lift them
@@ -1072,14 +1072,14 @@ Configure Lift Z GZ {
  * at once, and this process will become unnecessary.
  *)
 
-Theorem add0LZZ' (z : Z) : z = addZZ (depConstrZPos 0) z.
+Theorem add0LZ' (z : Z) : z = addZ (depConstrZPos 0) z.
 Proof.
   apply appliedDepElimPropZ.
   apply add0LPosCaseZ.
   apply add0LNegSucCaseZ.
 Qed.
   
-Lift Z GZ in add0LZZ' as add0LGZ.
+Lift Z GZ in add0LZ' as add0LGZ.
 
 (*
  * The types of add0LGZ' and add0RGZ' are superficially different from the 
