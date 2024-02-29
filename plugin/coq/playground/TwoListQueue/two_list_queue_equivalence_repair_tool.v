@@ -735,6 +735,15 @@ Qed.
 
 Lift OLQ TLQ in dequeueHelpOLQ as dequeueHelpTLQ.
 
+(* Sometimes, the types of the lifted terms that Coq shows are superficially
+ * different from what we might expect, but are convertible to the type we 
+ * expect. We show that this is the case by applying the lifted term to define
+ * a term of the type we naturally expect.
+ *)
+
+Definition dequeueHelpTLQ' (a : A) (q : TLQ) (m : option (TLQ * A)) : option (TLQ * A) :=
+  dequeueHelpTLQ a q m.
+
 Instance dequeueHelpTLQProper (a : A) :
   Proper (eq_queue ==> eq_deq_ret ==> eq_deq_ret) (dequeueHelpTLQ a).
 Proof.
