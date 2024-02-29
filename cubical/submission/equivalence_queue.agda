@@ -55,11 +55,14 @@ congMaybeRec a b m f =
     m
 
 module OneList where
+    -- We define the type of one list queues.
     -- We fix A here, but the proofs are generic over any set A.
     A = ℕ
     isSetA : isSet A
     isSetA = isSetℕ
     OLQ = List A
+
+    -- Now, we give the configuration for one list queues.
 
     depConstrOLQEmpty : OLQ
     depConstrOLQEmpty = []
@@ -71,7 +74,28 @@ module OneList where
     depElimOLQ P baseCase consCase [] = baseCase
     depElimOLQ P baseCase consCase (x ∷ l) = consCase l x (depElimOLQ P baseCase consCase l)
 
-    -- ι is trivial here, so we don't write the rewrite forms
+    ιOLQEmptyEq : (P : OLQ → Set) → 
+      (emptyP : P depConstrOLQEmpty) →
+      (insertP : (q : OLQ) → (a : A) → (P q) → P (depConstrOLQInsert a q)) →
+      depElimOLQ P emptyP insertP depConstrOLQEmpty ≡ emptyP
+    ιOLQEmptyEq P emptyP insertP = refl
+
+    ιOLQEmpty : (P : OLQ → Set) → 
+      (emptyP : P depConstrOLQEmpty) →
+      (insertP : (q : OLQ) → (a : A) → (P q) → P (depConstrOLQInsert a q)) →
+      (Q : P (depConstrOLQEmpty) → Set) →
+      Q (depElimOLQ P emptyP insertP (depConstrOLQEmpty)) →
+      Q (emptyP)
+    ιOLQEmpty P emptyP insertP Q Qp = Qp
+
+    ιOLQEmpty⁻ : (P : OLQ → Set) → 
+      (emptyP : P depConstrOLQEmpty) →
+      (insertP : (q : OLQ) → (a : A) → (P q) → P (depConstrOLQInsert a q)) →
+      (Q : P (depConstrOLQEmpty) → Set) →
+      Q (emptyP) →
+      Q (depElimOLQ P emptyP insertP (depConstrOLQEmpty))
+    ιOLQEmpty⁻ P emptyP insertP Q Qp = Qp
+
     ιOLQInsertEq : (P : OLQ → Set) →
       (emptyP : P depConstrOLQEmpty) →
       (insertP : (q : OLQ) → (a : A) → (P q) → P (depConstrOLQInsert a q)) →
@@ -79,6 +103,26 @@ module OneList where
       depElimOLQ P emptyP insertP (depConstrOLQInsert a q)
       ≡ insertP q a (depElimOLQ P emptyP insertP q)
     ιOLQInsertEq P pset emptyP insertP a = refl
+
+    ιOLQInsert : (P : OLQ → Set) → 
+      (emptyP : P depConstrOLQEmpty) →
+      (insertP : (q : OLQ) → (a : A) → (P q) → P (depConstrOLQInsert a q)) →
+      (a : A) → (q : OLQ) → (Q : P (depConstrOLQInsert a q) → Set) →
+      Q (depElimOLQ P emptyP insertP (depConstrOLQInsert a q)) →
+      Q (insertP q a (depElimOLQ P emptyP insertP q))
+    ιOLQInsert P emptyP insertP a q Q Qp = Qp
+
+    ιOLQInsert⁻ : (P : OLQ → Set) → 
+      (emptyP : P depConstrOLQEmpty) →
+      (insertP : (q : OLQ) → (a : A) → (P q) → P (depConstrOLQInsert a q)) →
+      (a : A) → (q : OLQ) → (Q : P (depConstrOLQInsert a q) → Set) →
+      Q (insertP q a (depElimOLQ P emptyP insertP q)) →
+      Q (depElimOLQ P emptyP insertP (depConstrOLQInsert a q))
+    ιOLQInsert⁻ P emptyP insertP a q Q Qp = Qp
+
+    -- Next, we define functions and theorems over one list queues
+    -- We don't explicitly write in ι here. When we repair, we add them in the
+    -- appropriate locations.
 
     enqueue : A → OLQ → OLQ
     enqueue = depConstrOLQInsert
@@ -134,6 +178,7 @@ module OneList where
     isSetOLQ = isOfHLevelList 0 isSetA
 
 module TwoList where
+    -- We define the type of two list queues.
     -- We fix A here, but the proofs are generic over any set A.
     A = ℕ
     isSetA : isSet A
@@ -165,6 +210,8 @@ module TwoList where
 
     isSetTLQ : isSet TLQ
     isSetTLQ = squash/
+
+    -- Now, we give the configuration for two list queues.
 
     depConstrTLQEmpty : TLQ
     depConstrTLQEmpty = _/_.[ ([] , []) ]
@@ -368,11 +415,11 @@ module TwoList where
     enqueueDequeueEmptyOk : (a : A) → dequeue/R (enqueue/R a depConstrTLQEmpty) ≡ just (depConstrTLQEmpty , a)
     enqueueDequeueEmptyOk a = refl
 
-    -- Repaired dequeue spec.
+    -- Repaired dequeue specification.
     dequeueEmpty : dequeue/R depConstrTLQEmpty ≡ nothing
     dequeueEmpty = refl
 
-    -- dequeueEnqueue formulation from "Internalizing Representation Independence with Univalence" by Angiuli et al.
+    -- Repairing the dequeueEnqueue formulation from "Internalizing Representation Independence with Univalence" by Angiuli et al.
     returnOrEnq : A → Maybe (TLQ × A) → TLQ × A
     returnOrEnq a m = Cubical.Data.Maybe.rec (depConstrTLQEmpty , a) (λ p → (enqueue/R a (proj₁ p) , proj₂ p)) m
 
@@ -405,7 +452,7 @@ module TwoList where
             q)
           just)
 
-    -- safe-head and safe-tail copied from std library List.Properties, these functions are private there
+    -- safe-head and safe-tail copied from std library List.Properties. These functions are private there.
     safe-head : A → List A → A
     safe-head x []      = x
     safe-head _ (x ∷ _) = x
@@ -417,6 +464,8 @@ module TwoList where
     headTailNonempty : (a : A) (l : List A) → (safe-head a (l ++ (a ∷ []))) ∷ (safe-tail (l ++ (a ∷ []))) ≡ l ++ (a ∷ [])
     headTailNonempty a [] = refl
     headTailNonempty a (x ∷ l) = refl
+
+    -- Defining our fast dequeue function.
 
     fastDequeue/R : TLQ → Maybe (TLQ × A)
     fastDequeue/R = SetQuotients.rec isSetDeqReturnType func wellDefined where
@@ -464,12 +513,16 @@ module TwoList where
       func ([] , (y ∷ l2)) = cong just (×≡ refl refl)
       func ((x ∷ l1) , (y ∷ l2)) = cong just (×≡ refl refl)
 
+    -- Proving that dequeue/R is equal to our fastDequeue/R.
+
     deqIsFastDeq : dequeue/R ≡ fastDequeue/R
     deqIsFastDeq = funExt (depElimTLQ (λ q → dequeue/R q ≡ fastDequeue/R q) (λ _ → isProp→isSet (isSetDeqReturnType _ _)) refl insertCase) where
       insertCase : (q : TLQ) (a : A) → dequeue/R q ≡ fastDequeue/R q → dequeue/R (depConstrTLQInsert a q) ≡ fastDequeue/R (depConstrTLQInsert a q)
       insertCase q a Pq = dequeueEnqueue a q ∙ cong (λ x → just (returnOrEnq a x)) Pq ∙ (sym (fastDequeueEnqueue a q))
 
     TwoList = record { A = A; Q = TLQ ; null = depConstrTLQEmpty ; enqueue = enqueue/R; dequeue = fastDequeue/R}
+
+-- Proving that our types of one list queues and two list queues are equal.
 
 OLQ≡TLQ : OneList.OLQ ≡ TwoList.TLQ
 OLQ≡TLQ = isoToPath (iso f g sec ret) where
