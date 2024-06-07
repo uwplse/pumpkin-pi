@@ -30,3 +30,10 @@ val do_lift_ind :
   constr list -> (* constants to treat as opaque *)
   bool -> (* whether we're lifting a whole module *)
   inductive (* lifted type and number of constructors for caching *)
+
+val find_eq_rel_for_type :
+  Lifting.lifting ->
+  env ->
+  evar_map ->
+  Constr.t ->
+  evar_map * Constr.t
