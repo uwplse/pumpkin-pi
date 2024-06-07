@@ -149,6 +149,8 @@ src/automation/lift/liftrules.ml
 src/automation/lift/liftrules.mli
 src/automation/lift/lift.ml
 src/automation/lift/lift.mli
+src/automation/lift/propergen.ml
+src/automation/lift/propergen.mli
 
 src/frontend.ml
 src/frontend.mli

@@ -396,6 +396,10 @@ let lift_definition_by_ornament env sigma n l c_old ignores =
        save_lifting (lift_back l, lift_to l, c_new) c_old
      with _ ->
        Feedback.msg_warning (Pp.str "Failed to cache lifting."));
+    (try
+       ignore (Propergen.generate_proper_proof l env sigma n lifted)
+     with _ ->
+       Feedback.msg_warning (Pp.str "Failed to prove term is proper with respect to equivalence relations."));
     def
   with
   | PretypeError (env, sigma, err) ->
