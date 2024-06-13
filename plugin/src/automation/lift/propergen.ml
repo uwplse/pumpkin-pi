@@ -55,7 +55,10 @@ let rec fun_type_from_type_list env typ_list =
      (let fresh_var = Name (Envutils.fresh_name env Anonymous) in
      mkProd (fresh_var, h1, fun_type_from_type_list env (h2 :: t)))
 
-let generate_proper_goal c env sigma trm =
+let generate_proper_goal c env sigma def =
+  let trmref = Globnames.destConstRef def in
+  let const = mkConst trmref in
+  let env, trm = Constutils.open_constant env trmref in
   let sigma, typ = Inference.infer_type env sigma trm in
   Feedback.msg_warning (Pp.str "infer type");
   let sigma, o = types_from_simple_fun_type env sigma typ in
@@ -84,36 +87,45 @@ let generate_proper_goal c env sigma trm =
      let _ = Feedback.msg_warning (Pp.int (List.length typ_list)) in
      let sigma, x = resp_from_typ_list c env sigma (List.append typ_list [out_typ]) in
      let _ = Feedback.msg_warning (Pp.str "resp from type list") in
-     Util.on_snd (fun x -> Some (mkAppl (proper, [typ ; x ; trm]))) (sigma, x)
+     Util.on_snd (fun x -> Some (mkAppl (proper, [typ ; x ; const]))) (sigma, x)
      
 
-let solve_proper_goal env sigma goal =
+let solve_proper_goal env sigma goal def =
+  let _ = Feedback.msg_warning (Pp.str "solving goal") in
   let proof = Proof.start sigma [(env, EConstr.of_constr goal)] in
+  let _ = Feedback.msg_warning (Pp.str "started proof") in
+  let (proof, pvm) = Proof.run_tactic env (Tactics.unfold_constr def) proof in
+  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
+  let (proof, pvm) = Proof.run_tactic env Tactics.intros proof in
+  let _ = Feedback.msg_warning (Pp.str "unfold") in
+  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   let (proof, pvm) = Proof.run_tactic env (solve_proper_tac ()) proof in
+  let _ = Feedback.msg_warning (Pp.str "solve proper tac") in
+  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   if (Proof.is_done proof) then
     match Proof.partial_proof proof with
     | [] -> failwith "No proof of proper found."
-    | h :: t -> Some h
+    | h :: t -> Some (EConstr.to_constr sigma h)
   else
     None
 
-let generate_proper_proof l env sigma n trm =
-  let sigma, goal = generate_proper_goal l env sigma trm in
+let generate_proper_proof l env sigma n def =
+  let sigma, goal = generate_proper_goal l env sigma def in
   Feedback.msg_info (Pp.str "generated");
   match goal with
-  | None -> failwith "Could not generate a Proper goal to prove."
+  | None -> sigma, None
   | Some g ->
      (let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma g) in
-      let generated_proof = solve_proper_goal env sigma g in
+      let generated_proof = solve_proper_goal env sigma g def in
       Feedback.msg_info (Pp.str "solved");
       match generated_proof with
       | None -> failwith "handle this better"
       | Some proof ->
          (let n_new = Nameutils.with_suffix n "proper" in
-          let def = Defutils.define_term n_new sigma trm true in
+          let def = Defutils.define_term n_new sigma proof true in
           let proper_ref = Names.GlobRef.ConstRef (fst (destConst proper)) in
           let proper_class = Typeclasses.class_info proper_ref in
           let proper_instance = Typeclasses.new_instance
                                   proper_class Hints.empty_hint_info true def in
           Typeclasses.add_instance proper_instance;
-          sigma, def))
+          sigma, Some def))

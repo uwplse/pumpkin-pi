@@ -3,5 +3,5 @@ val generate_proper_proof :
   Environ.env ->
   Evd.evar_map ->
   Names.Id.t ->
-  Constr.constr ->
-  Evd.evar_map * Names.GlobRef.t
+  Names.GlobRef.t ->
+  Evd.evar_map * (Names.GlobRef.t option)
