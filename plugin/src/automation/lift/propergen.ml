@@ -27,24 +27,26 @@ let rec no_rels trm =
   | Rel _ -> false
   | _ -> Constr.fold (fun b t -> b && (no_rels t)) true trm
 
+(* Returns true if typ is a non-dependent function type. *)
+let is_simple_fun_type typ =
+  Constr.isProd typ && no_rels typ
+
 (*
  * If typ is a (possibly 0-ary) function type and is not a 
  * dependent type, return Some (l, o), where l is list of 
  * the input types with the first input type at the head 
  * and o is the output type. 
- * Otherwise, return None.
+ * Undefined if typ is not a non-dependent function type. 
  *)
 let rec types_from_simple_fun_type env sigma typ =
-  if no_rels typ then
-    let kind_typ = Constr.kind typ in
-    match kind_typ with
-    | Prod (n, t, b) ->
-       (let sigma, o = types_from_simple_fun_type env sigma b in
-       match o with
-       | None -> sigma, None
-       | Some (l, t2) -> sigma, Some (t :: l, t2))
-    | _ -> sigma, Some ([], typ)
-  else sigma, None
+  let kind_typ = Constr.kind typ in
+  match kind_typ with
+  | Prod (n, t, b) ->
+     (let sigma, o = types_from_simple_fun_type env sigma b in
+     match o with
+     | None -> sigma, None
+     | Some (l, t2) -> sigma, Some (t :: l, t2))
+  | _ -> sigma, Some ([], typ)
 
 let rec fun_type_from_type_list env typ_list =
   let _ = Feedback.msg_warning (Pp.str "make fun type") in
@@ -60,34 +62,36 @@ let generate_proper_goal c env sigma def =
   let const = mkConst trmref in
   let env, trm = Constutils.open_constant env trmref in
   let sigma, typ = Inference.infer_type env sigma trm in
-  Feedback.msg_warning (Pp.str "infer type");
-  let sigma, o = types_from_simple_fun_type env sigma typ in
-  Feedback.msg_warning (Pp.str "decompose type");
-  match o with
-  | None -> sigma, None
-  | Some (typ_list, out_typ) ->
-     let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma out_typ) in
-     let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma (snd (Lift.find_eq_rel_for_type c env sigma out_typ))) in
-     let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma (List.hd typ_list)) in
-     let rec resp_from_typ_list c env sigma l =
-       match l with
-       | [] -> failwith "Undefined."
-       | h :: [] -> Lift.find_eq_rel_for_type c env sigma h
-       | h1 :: h2 :: t ->
-          (let sigma, eq_rel = Lift.find_eq_rel_for_type c env sigma h1 in
-           let _ = Feedback.msg_warning (Pp.str "eq rel h") in
-           let sigma, tail = resp_from_typ_list c env sigma (h2 :: t) in
-           let _ = Feedback.msg_warning (Pp.str "recurse") in
-           let f = (fun_type_from_type_list env (h2 :: t)) in
-           let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma f) in
-           let x = mkAppl (respectful, [h1 ; f ; eq_rel ; tail]) in
-           let _ = Feedback.msg_warning (Pp.str "make app") in
-           let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma x) in
-           (sigma, x)) in
-     let _ = Feedback.msg_warning (Pp.int (List.length typ_list)) in
-     let sigma, x = resp_from_typ_list c env sigma (List.append typ_list [out_typ]) in
-     let _ = Feedback.msg_warning (Pp.str "resp from type list") in
-     Util.on_snd (fun x -> Some (mkAppl (proper, [typ ; x ; const]))) (sigma, x)
+  if not (is_simple_fun_type typ) then
+    sigma, None
+  else 
+    let sigma, o = types_from_simple_fun_type env sigma typ in
+    Feedback.msg_warning (Pp.str "decompose type");
+    match o with
+    | None -> sigma, None
+    | Some (typ_list, out_typ) ->
+       let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma out_typ) in
+       let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma (snd (Lift.find_eq_rel_for_type c env sigma out_typ))) in
+       let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma (List.hd typ_list)) in
+       let rec resp_from_typ_list c env sigma l =
+         match l with
+         | [] -> failwith "Undefined."
+         | h :: [] -> Lift.find_eq_rel_for_type c env sigma h
+         | h1 :: h2 :: t ->
+            (let sigma, eq_rel = Lift.find_eq_rel_for_type c env sigma h1 in
+             let _ = Feedback.msg_warning (Pp.str "eq rel h") in
+             let sigma, tail = resp_from_typ_list c env sigma (h2 :: t) in
+             let _ = Feedback.msg_warning (Pp.str "recurse") in
+             let f = (fun_type_from_type_list env (h2 :: t)) in
+             let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma f) in
+             let x = mkAppl (respectful, [h1 ; f ; eq_rel ; tail]) in
+             let _ = Feedback.msg_warning (Pp.str "make app") in
+             let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma x) in
+             (sigma, x)) in
+       let _ = Feedback.msg_warning (Pp.int (List.length typ_list)) in
+       let sigma, x = resp_from_typ_list c env sigma (List.append typ_list [out_typ]) in
+       let _ = Feedback.msg_warning (Pp.str "resp from type list") in
+       Util.on_snd (fun x -> Some (mkAppl (proper, [typ ; x ; const]))) (sigma, x)
      
 
 let solve_proper_goal env sigma goal def =
@@ -104,7 +108,7 @@ let solve_proper_goal env sigma goal def =
   let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   if (Proof.is_done proof) then
     match Proof.partial_proof proof with
-    | [] -> failwith "No proof of proper found."
+    | [] -> None
     | h :: t -> Some (EConstr.to_constr sigma h)
   else
     None
@@ -119,7 +123,8 @@ let generate_proper_proof l env sigma n def =
       let generated_proof = solve_proper_goal env sigma g def in
       Feedback.msg_info (Pp.str "solved");
       match generated_proof with
-      | None -> failwith "handle this better"
+      | None -> Feedback.msg_warning (Pp.str "Failed to generate a proof that the lifted function is a proper morphism. You should prove this manually if necessary.");
+                sigma, None
       | Some proof ->
          (let n_new = Nameutils.with_suffix n "proper" in
           let def = Defutils.define_term n_new sigma proof true in
