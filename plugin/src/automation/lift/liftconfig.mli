@@ -146,8 +146,9 @@ val get_lifted_constrs : lift_config -> constr array
 (*
  * Get DepElim
  *)
-val get_dep_elim : lift_config -> types
-val get_lifted_dep_elim : lift_config -> types
+val get_dep_elim : lift_config -> types array
+val get_lifted_dep_elim : lift_config -> types array
+val get_lifting_of_dep_elim : lift_config -> constr -> constr option
 
 (*
  * Check if the term applies the eta expansion function
@@ -163,14 +164,14 @@ val applies_constr_eta :
 
 (*
  * Check if the term applies DepElim
- * If so return the eta-expanded term and the arguments
+ * If so return the eta-expanded term, the depElim, and the arguments
  *)
 val applies_elim :
   lift_config ->
   env ->
   constr ->
   evar_map ->
-  ((constr option * (constr list)) option) state
+  ((constr option * (constr * (constr list))) option) state
 
 (*
  * Check if the term applies equality

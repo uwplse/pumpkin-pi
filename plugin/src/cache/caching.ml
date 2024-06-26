@@ -582,7 +582,7 @@ let iota_cache = OrnamentsCache.create 100
  * Wrapping the table for persistence
  *)
 type dep_constr_obj = (Names.GlobRef.t array * Names.GlobRef.t array) metadata
-type dep_elim_obj = (Names.GlobRef.t * Names.GlobRef.t) metadata
+type dep_elim_obj = (Names.GlobRef.t array * Names.GlobRef.t array) metadata
 type eta_obj = (Names.GlobRef.t * Names.GlobRef.t) metadata
 type iota_obj = (Names.GlobRef.t array * Names.GlobRef.t array) metadata
 
@@ -605,11 +605,12 @@ let sub_dep_constr (subst, (typs, (constrs_o, constrs_n))) =
   let constrs_n = Array.map (subst_global_reference subst) constrs_n in
   typs, (constrs_o, constrs_n)
 
-let sub_dep_elim (subst, (typs, elims)) =
+let sub_dep_elim (subst, (typs, (elims_o, elims_n))) =
   let open Globnames in
   let typs = map_tuple (subst_global_reference subst) typs in
-  let elims = map_tuple (subst_global_reference subst) elims in
-  typs, elims
+  let elims_o = Array.map (subst_global_reference subst) elims_o in
+  let elims_n = Array.map (subst_global_reference subst) elims_n in
+  typs, (elims_o, elims_n)
 
 let sub_eta (subst, (typs, etas)) =
   let open Globnames in
@@ -673,7 +674,7 @@ let lookup_config typs =
     let iotas = OrnamentsCache.find iota_cache globals in
     try
       let constrs = map_tuple (Array.map UnivGen.constr_of_global) constrs in
-      let elims = map_tuple UnivGen.constr_of_global elims in
+      let elims = map_tuple (Array.map UnivGen.constr_of_global) elims in
       let etas = map_tuple UnivGen.constr_of_global etas in
       let iotas = map_tuple (Array.map UnivGen.constr_of_global) iotas in
       Some (constrs, elims, etas, iotas)
@@ -709,7 +710,7 @@ let save_dep_elim typs elims =
   try
     let open Globnames in
     let globals = map_tuple global_of_constr typs in
-    let elims = map_tuple global_of_constr elims in
+    let elims = map_tuple (Array.map global_of_constr) elims in
     let dep_elim_obj = inDepElims (globals, elims) in
     add_anonymous_leaf dep_elim_obj
   with _ ->

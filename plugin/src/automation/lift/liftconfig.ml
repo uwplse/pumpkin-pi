@@ -51,7 +51,7 @@ type lift_config =
     l : lifting;
     typs : types * types;
     elim_types : types * types;
-    dep_elims : constr * constr;
+    dep_elims : constr array * constr array;
     dep_constrs : constr array * constr array;
     proj_rules :
       ((constr * constr) list * (types * types) list) *
@@ -110,7 +110,7 @@ let is_opaque c trm =
   if is_locally_cached c.opaques trm then
     true
   else
-    if equal trm (snd c.dep_elims) then
+    if Array.fold_left (fun acc x -> acc || (equal trm x)) false (snd c.dep_elims) then
       true
     else
       lookup_opaque (lift_to c.l, lift_back c.l, trm)
@@ -1522,6 +1522,7 @@ let initialize_elim_types c env sigma =
        first_fun b_typ_packed
     | CurryRecord ->
        prod
+    
     | _ ->
        first_fun (zoom_term zoom_lambda_term env b_t)
   in
@@ -1910,12 +1911,12 @@ let initialize_dep_elims c cached env sigma =
         (with_suffix base_n "dep_elim_a", with_suffix base_n "dep_elim_b")
       in
       let elim_a, elim_b = ((elim_a_n, a_elim), (elim_b_n, b_elim)) in
-      let elim_a = define_term (fst elim_a) sigma (snd elim_a) true in
-      let elim_b = define_term (fst elim_b) sigma (snd elim_b) true in
-      let elims = map_tuple UnivGen.constr_of_global (elim_a, elim_b) in
+      let elim_a = UnivGen.constr_of_global (define_term (fst elim_a) sigma (snd elim_a) true) in
+      let elim_b = UnivGen.constr_of_global (define_term (fst elim_b) sigma (snd elim_b) true) in
+      let elims = (Array.make 1 elim_a, Array.make 1 elim_b) in
       save_dep_elim (c.l.orn.promote, c.l.orn.forget) elims;
-      save_lifting (c.l.orn.promote, c.l.orn.forget, (fst elims)) (snd elims);
-      save_lifting (c.l.orn.forget, c.l.orn.promote, (snd elims)) (fst elims);
+      save_lifting (c.l.orn.promote, c.l.orn.forget, elim_a) elim_b;
+      save_lifting (c.l.orn.forget, c.l.orn.promote, elim_b) elim_a;
       sigma, elims
   in
   let elims = if c.l.is_fwd then elims else rev_tuple elims in
@@ -1923,6 +1924,28 @@ let initialize_dep_elims c cached env sigma =
 
 let get_dep_elim c = fst (c.dep_elims)
 let get_lifted_dep_elim c = snd (c.dep_elims)
+
+(* Copied from a future version of the OCaml standard library *)
+let find_index p a =
+  let n = Array.length a in
+  let rec loop i =
+    if i = n then None
+    else if p (Array.unsafe_get a i) then Some i
+    else loop (succ i) in
+  loop 0
+
+let get_lifting_of_dep_elim c dep_elim =
+  match find_index (fun x -> x = dep_elim) (get_dep_elim c) with
+  | None -> None
+  | Some i -> Some (get_lifted_dep_elim c).(i)
+
+let find_map_env_sigma (env : Environ.env) (sigma : Evd.evar_map) f ar =
+  let func (x : Evd.evar_map * 'c option) a =
+    match x with
+    | sigma, None -> f env sigma a
+    | sigma, Some b -> sigma, Some b
+  in
+  Array.fold_left func (sigma, None) ar
 
 (*
  * Check if the term applies dep_elim, and if so return the arguments
@@ -1939,17 +1962,16 @@ let applies_elim c env trm sigma =
          let sigma, trm_eta = expand_eta env sigma trm in
          let env_elim, trm_b = zoom_lambda_term env trm_eta in
          let sigma, trm_elim = deconstruct_eliminator env_elim sigma trm_b in
-         let sigma, elim_app_o =
+         let try_dep_elim env sigma dep_elim =
            match l.orn.kind with
            | Algebraic _ | SwapConstruct _ | CurryRecord ->
               (* We return the elimination of dep_elim here *)
               if l.is_fwd then
                 let args = unfold_args (apply_eliminator trm_elim) in
-                sigma, Some args
+                sigma, Some (dep_elim, args)
               else
                 let sigma, is_from = if l.orn.kind = CurryRecord then type_is_from c env_elim (List.hd trm_elim.final_args) sigma else sigma, None in
                 if (not (l.orn.kind = CurryRecord)) || Option.has_some is_from then
-                  let elim = get_dep_elim c in
                   let sigma, pms =
                     let pms_old =
                       if l.orn.kind = CurryRecord then
@@ -1959,31 +1981,30 @@ let applies_elim c env trm sigma =
                     in initialize_dep_elim_pms c env_elim pms_old true sigma
                   in
                   let npms = List.length trm_elim.pms in
-                  let elim_delta = unwrap_definition env_elim elim in
+                  let elim_delta = unwrap_definition env_elim dep_elim in
                   let sigma, elim_pms = reduce_term env_elim sigma (mkAppl (elim_delta, pms)) in
                   let sigma, p = initialize_dep_elim_p c env_elim elim_pms npms trm_elim.p true sigma in
                   let sigma, elim_p = reduce_term env_elim sigma (mkAppl (elim_pms, [p])) in
                   let sigma, cs = initialize_dep_elim_cs c env_elim elim_p npms trm_elim.cs true sigma in
                   let sigma, elim_cs = reduce_term env_elim sigma (mkAppl (elim_p, cs)) in
                   let sigma, final_args = initialize_dep_elim_args c env_elim elim_cs npms trm_elim.final_args true sigma in
-                  let trm_elim = { elim; pms; p; cs; final_args } in
+                  let trm_elim = { elim = dep_elim; pms; p; cs; final_args } in
                   let args = unfold_args (apply_eliminator trm_elim) in
-                  sigma, Some args
+                  sigma, Some (dep_elim, args)
                 else
                   sigma, None
            | UnpackSigma ->
               (* eventually, use explicit depelim here too *)
               let args = unfold_args (apply_eliminator trm_elim) in
-              sigma, Some args
+              sigma, Some (dep_elim, args)
            | Custom _ | Setoid _ ->
               (* attempt unification *)
-              let dep_elim = fst c.dep_elims in
               if is_or_applies dep_elim trm then
-                sigma, Some (unfold_args trm)
+                sigma, Some (dep_elim, unfold_args trm)
               else
                 let dep_elim_def = lookup_definition env dep_elim in
                 if is_or_applies dep_elim_def trm then
-                  sigma, Some (unfold_args trm)
+                  sigma, Some (dep_elim, unfold_args trm)
                 else
                   let sigma, dep_elim_eta = expand_eta env sigma dep_elim in
                   let sigma, eargs = mk_n_evars (arity dep_elim_eta) env sigma in
@@ -1992,10 +2013,11 @@ let applies_elim c env trm sigma =
                   if Option.has_some resolved then
                     let (_, elim_app) = Option.get resolved in
                     let args = unfold_args elim_app in
-                    sigma, Some args
+                    sigma, Some (dep_elim, args)
                   else
                     sigma, None
          in
+         let sigma, elim_app_o = find_map_env_sigma env sigma try_dep_elim (get_dep_elim c) in
          if Option.has_some elim_app_o then
            let args = Option.get elim_app_o in
            if new_rels2 env_elim env > 0 then
@@ -2058,7 +2080,7 @@ let initialize_lift_config env l ignores sigma =
       l;
       typs;
       elim_types = (mkRel 1, mkRel 1);
-      dep_elims = (mkRel 1, mkRel 1);
+      dep_elims = (Array.make 0 (mkRel 1), Array.make 0 (mkRel 1));
       dep_constrs = Array.make 0 (mkRel 1), Array.make 0 (mkRel 1);
       proj_rules = ([], []), ([], []);
       optimize_proj_id_rules = [], [];

@@ -88,7 +88,7 @@ let lift_app_lazy_delta c env f args lift_rec sigma =
   let sigma, args' = map_rec_args lift_rec env sigma c args in
   if (not (equal f f')) || Array.length args = 0 || is_opaque c f then
     let app' = mkApp (f', args') in
-    if equal f' (get_lifted_dep_elim c) then
+    if Array.exists (fun x -> equal f' x) (get_lifted_dep_elim c) then
       (* eliminator---custom reduction *)
       reduce_lifted_elim c env sigma app'
     else

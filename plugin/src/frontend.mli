@@ -72,7 +72,7 @@ val configure_manual :
   constr_expr -> (* A *)
   constr_expr -> (* B *)
   (Libnames.qualid list) * (Libnames.qualid list) -> (* DepConstr *)
-  (Libnames.qualid * Libnames.qualid) -> (* DepElim *)
+  (Libnames.qualid list) * (Libnames.qualid list) -> (* DepElim *)
   (Libnames.qualid * Libnames.qualid) -> (* Eta *)
   (Libnames.qualid list) * (Libnames.qualid list) -> (* Iota *)
   unit
