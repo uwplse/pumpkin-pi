@@ -2,7 +2,6 @@
  * Walkthrough of search for Section 4
  *)
 
-Add LoadPath "coq/examples".
 Require Import Vector.
 Require Import List.
 Require Import Ornamental.Ornaments.

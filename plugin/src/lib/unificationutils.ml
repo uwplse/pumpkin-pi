@@ -16,7 +16,7 @@ let mk_n_evars n env =
     (fun r sigma ->
       let sigma, (earg_typ, _) = new_type_evar env sigma Evd.univ_flexible in
       let sigma, earg = new_evar env sigma earg_typ in
-      sigma, EConstr.to_constr sigma earg)
+      sigma, EConstr.to_constr ~abort_on_undefined_evars:false sigma earg)
     (mk_n_rels n)
 
 (*
@@ -24,7 +24,7 @@ let mk_n_evars n env =
  *)
 let eunify env etrm1 etrm2 sigma =
   try
-    the_conv_x env etrm1 etrm2 sigma, true
+    unify_delay ?flags:None env sigma etrm1 etrm2, true
   with _ ->
     sigma, false
     
@@ -42,12 +42,10 @@ let unify_resolve_evars env trm1 trm2 sigma =
   let etrm1, etrm2 = map_tuple EConstr.of_constr (trm1, trm2) in
   let sigma, unifies = eunify env etrm1 etrm2 sigma in
   if unifies then
-    let sigma_ref = ref sigma in
     try
-      let etrm1 = Typing.e_solve_evars env sigma_ref etrm1 in
-      let etrm2 = Typing.e_solve_evars env sigma_ref etrm2 in
-      let sigma = !sigma_ref in
-      sigma, Some (map_tuple (EConstr.to_constr sigma) (etrm1, etrm2))
+      let sigma, etrm1 = Typing.solve_evars env sigma etrm1 in
+      let sigma, etrm2 = Typing.solve_evars env sigma etrm2 in
+      sigma, Some (map_tuple (EConstr.to_constr ~abort_on_undefined_evars:false sigma) (etrm1, etrm2))
     with _ ->
       sigma, None
   else

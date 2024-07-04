@@ -1,7 +1,6 @@
-Add LoadPath "coq".
 Require Import Ornamental.Ornaments.
 Require Import List Sorting.Permutation.
-Require Import Test TestLift.
+Require Import Foo.Test Foo.TestLift.
 
 Notation "( x ; y )" := (existT _ x y) (no associativity).
 Notation "p .1" := (projT1 p) (left associativity, at level 8, format "p .1").

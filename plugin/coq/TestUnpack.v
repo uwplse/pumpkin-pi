@@ -2,13 +2,12 @@
  * Basic lifting tests for unpack, building on TestLift.v
  *)
 
-Add LoadPath "coq".
 Require Import Vector.
 Require Import List.
-Require Import Test.
-Require Import TestLift.
+Require Import Foo.Test.
+Require Import Foo.TestLift.
 Require Import Ornamental.Ornaments.
-Require Import Infrastructure.
+Require Import Foo.Infrastructure.
 
 Set DEVOID lift type.
 

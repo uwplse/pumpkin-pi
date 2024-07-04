@@ -1,5 +1,5 @@
 From Ornamental Require Import Ornaments.
-Require Import Infrastructure.
+Require Import Foo.Infrastructure.
 
 Set DEVOID search prove equivalence.
 Set DEVOID lift type.

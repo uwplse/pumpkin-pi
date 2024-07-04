@@ -122,7 +122,7 @@ let eq_lemmas env typ l pack_typ pack_trm nindices abstract_c_app sub_c_app_tran
             let c_app_trans = sub_c_app_trans (r1, r2) c_app in
             let typ_b = shift c_body_type in
             let p_b = { at_type = typ_b; trm1 = c_body_b; trm2 = abs_c_app } in
-            let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
+            let p = mkLambda (get_rel_ctx_name Anonymous, at_type, apply_eq p_b) in
             let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h; b} in
             let eq_proof = apply_eq_ind eq_proof_app in
             (eq_proof, shift_by (2 + nindices) h, c_app_trans))
@@ -152,7 +152,7 @@ let equiv_case env pms p eq_lemma l c dest_term sigma =
        let all_args = List.rev_append hypos (List.rev args) in
        reduce_stateless reduce_term e sigma (mkAppl (shift_by depth eq_lemma, all_args))
     | Prod (n, t, b) ->
-       let case_b = case (push_local (n, t) e) (shift_i depth) in
+       let case_b = case (push_local (n.binder_name, t) e) (shift_i depth) in
        let p_rel = shift_by depth (mkRel 1) in
        let h = mkRel 1 in
        if applies p_rel t then
@@ -197,7 +197,7 @@ let equiv_proof eq_lemmas equiv_case is_packed unpack_env index_args unpack_eq_p
   let sigma, elim_typ = infer_type env sigma elim in
   let (env_pms, elim_typ_p) = zoom_n_prod env npm elim_typ in
   let (n, p_t, elim_typ) = destProd elim_typ_p in
-  let env_p = push_local (n, p_t) env_pms in
+  let env_p = push_local (n.binder_name, p_t) env_pms in
   let pms = shift_all (mk_n_rels npm) in
   let env_motive = zoom_env zoom_product_type env_pms p_t in
   let sigma, p = equiv_motive env_motive pms l is_packed sigma in
@@ -448,7 +448,7 @@ let equiv_proof_body_curry_record env_to sigma p pms l =
             let pms = shift_all pms in
             let arg_abs = all_eq_substs (shift curr, curr) (shift arg) in
             let trm2 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc arg_abs pms)) pms) in
-            mkLambda (Anonymous, typ2, apply_eq { at_type = shift at_type; trm1 = arg_abs; trm2 })
+            mkLambda (get_rel_ctx_name Anonymous, typ2, apply_eq { at_type = shift at_type; trm1 = arg_abs; trm2 })
           in
           let proof = build_proof env_proof pms at_type to_elim arg in
           elim_prod { to_elim; p; proof; arg = curr }

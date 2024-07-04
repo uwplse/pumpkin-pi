@@ -57,7 +57,7 @@ let inLifts : lift_obj -> obj =
   declare_object { (default_object "LIFTINGS") with
     cache_function = cache_lifting;
     load_function = (fun _ -> cache_lifting);
-    open_function = (fun _ -> cache_lifting);
+    open_function = simple_open (fun _ -> cache_lifting);
     classify_function = (fun orn_obj -> Substitute orn_obj);
     subst_function = sub_lifting }
               
@@ -85,7 +85,7 @@ let lookup_lifting (orn_o, orn_n, trm) =
     let trm = global_of_constr trm in
     let lifted_trm = LiftingsCache.find lift_cache (orn_o, orn_n, trm) in
     try
-      Some (UnivGen.constr_of_global (Option.get lifted_trm))
+      Some (UnivGen.constr_of_monomorphic_global (Option.get lifted_trm))
     with _ ->
       None
 
@@ -127,7 +127,7 @@ let inOpaqueLifts : opaque_lift_obj -> obj =
   declare_object { (default_object "OPAQUE_LIFTINGS") with
     cache_function = cache_opaque_lifting;
     load_function = (fun _ -> cache_opaque_lifting);
-    open_function = (fun _ -> cache_opaque_lifting);
+    open_function = simple_open (fun _ -> cache_opaque_lifting);
     classify_function = (fun opaque_obj -> Substitute opaque_obj);
     subst_function = sub_opaque_lifting }
               
@@ -272,7 +272,7 @@ let swap_cache = OrnamentsCache.create 100
 let int_to_kind (i : int) globals =
   if i = 0 then
     let (indexer, off) = OrnamentsCache.find indexer_cache globals in
-    let indexer = UnivGen.constr_of_global indexer in
+    let indexer = UnivGen.constr_of_monomorphic_global indexer in
     Algebraic (indexer, off)
   else if i = 1 then
     CurryRecord
@@ -282,7 +282,7 @@ let int_to_kind (i : int) globals =
   else if i = 3 then
     UnpackSigma
   else if i = 4 then
-    let typs = map_tuple UnivGen.constr_of_global globals in
+    let typs = map_tuple UnivGen.constr_of_monomorphic_global globals in
     Custom typs
   else
     failwith "Unsupported kind of ornament passed to interpret_kind in caching"
@@ -337,7 +337,7 @@ let inOrns : orn_obj -> obj =
   declare_object { (default_object "ORNAMENTS") with
     cache_function = cache_ornament;
     load_function = (fun _ -> cache_ornament);
-    open_function = (fun _ -> cache_ornament);
+    open_function = simple_open (fun _ -> cache_ornament);
     classify_function = (fun orn_obj -> Substitute orn_obj);
     subst_function = sub_ornament }
 
@@ -345,7 +345,7 @@ let inIndexers : indexer_obj -> obj =
   declare_object { (default_object "INDEXERS") with
     cache_function = cache_indexer;
     load_function = (fun _ -> cache_indexer);
-    open_function = (fun _ -> cache_indexer);
+    open_function = simple_open (fun _ -> cache_indexer);
     classify_function = (fun ind_obj -> Substitute ind_obj);
     subst_function = sub_indexer }
 
@@ -353,7 +353,7 @@ let inSwaps : swap_obj -> obj =
   declare_object { (default_object "SWAPS") with
     cache_function = cache_swap_map;
     load_function = (fun _ -> cache_swap_map);
-    open_function = (fun _ -> cache_swap_map);
+    open_function = simple_open (fun _ -> cache_swap_map);
     classify_function = (fun ind_obj -> Substitute ind_obj);
     subst_function = sub_swap_map }
 
@@ -387,7 +387,7 @@ let lookup_ornament typs =
     let globals = map_tuple Globnames.global_of_constr typs in
     let (orn, orn_inv, i) = OrnamentsCache.find orn_cache globals in
     try
-      let orn, orn_inv = map_tuple UnivGen.constr_of_global (orn, orn_inv) in
+      let orn, orn_inv = map_tuple UnivGen.constr_of_monomorphic_global (orn, orn_inv) in
       Some (orn, orn_inv, int_to_kind i globals)
     with _ ->
       None
@@ -481,7 +481,7 @@ let inDepConstrs : dep_constr_obj -> obj =
   declare_object { (default_object "DEP_CONSTRS") with
     cache_function = cache_dep_constr;
     load_function = (fun _ -> cache_dep_constr);
-    open_function = (fun _ -> cache_dep_constr);
+    open_function = simple_open (fun _ -> cache_dep_constr);
     classify_function = (fun dep_constr_obj -> Substitute dep_constr_obj);
     subst_function = sub_dep_constr }
 
@@ -489,7 +489,7 @@ let inDepElims : dep_elim_obj -> obj =
   declare_object { (default_object "DEP_ELIMS") with
     cache_function = cache_dep_elim;
     load_function = (fun _ -> cache_dep_elim);
-    open_function = (fun _ -> cache_dep_elim);
+    open_function = simple_open (fun _ -> cache_dep_elim);
     classify_function = (fun dep_elim_obj -> Substitute dep_elim_obj);
     subst_function = sub_dep_elim }
 
@@ -497,7 +497,7 @@ let inEtas : eta_obj -> obj =
   declare_object { (default_object "ETAS") with
     cache_function = cache_eta;
     load_function = (fun _ -> cache_eta);
-    open_function = (fun _ -> cache_eta);
+    open_function = simple_open (fun _ -> cache_eta);
     classify_function = (fun eta_obj -> Substitute eta_obj);
     subst_function = sub_eta }
 
@@ -505,7 +505,7 @@ let inIotas : iota_obj -> obj =
   declare_object { (default_object "IOTAS") with
     cache_function = cache_iota;
     load_function = (fun _ -> cache_iota);
-    open_function = (fun _ -> cache_iota);
+    open_function = simple_open (fun _ -> cache_iota);
     classify_function = (fun iota_obj -> Substitute iota_obj);
     subst_function = sub_iota }
 
@@ -525,10 +525,10 @@ let lookup_config typs =
     let etas = OrnamentsCache.find eta_cache globals in
     let iotas = OrnamentsCache.find iota_cache globals in
     try
-      let constrs = map_tuple (Array.map UnivGen.constr_of_global) constrs in
-      let elims = map_tuple UnivGen.constr_of_global elims in
-      let etas = map_tuple UnivGen.constr_of_global etas in
-      let iotas = map_tuple (Array.map UnivGen.constr_of_global) iotas in
+      let constrs = map_tuple (Array.map UnivGen.constr_of_monomorphic_global) constrs in
+      let elims = map_tuple UnivGen.constr_of_monomorphic_global elims in
+      let etas = map_tuple UnivGen.constr_of_monomorphic_global etas in
+      let iotas = map_tuple (Array.map UnivGen.constr_of_monomorphic_global) iotas in
       Some (constrs, elims, etas, iotas)
     with _ ->
       Feedback.msg_warning

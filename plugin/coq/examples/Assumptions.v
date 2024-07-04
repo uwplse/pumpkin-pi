@@ -10,7 +10,6 @@
  * See issue #37 for the status of lifting restrictions that Search makes.
  *)
 
-Add LoadPath "coq/examples".
 Require Import Ornamental.Ornaments.
 Require Import List ZArith Nat.
 Require Import Search.

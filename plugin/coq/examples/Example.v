@@ -6,7 +6,6 @@
  * take a look at the state of this file in the ITP release.
  *)
 
-Add LoadPath "coq/examples".
 Require Import Vector.
 Require Import List.
 Require Import Ornamental.Ornaments.
@@ -309,7 +308,7 @@ Configure Lift packed vector { opaque Eqdep_dec.UIP_dec Nat.eq_dec }.
 (*
  * Then we repair (lifting hs_to_coqV_p first makes this faster and makes the result prettier):
  *)
-Lift Module packed vector in hs_to_coqV_p as hs_to_coqV_u.
+Lift Module packed vector in hs_to_coqV_p as hs_to_coqV_u {opaque hs_to_coqV_p.list_to_t_adjunction}.
 Repair Module packed vector in packed_vector as uf.
 
 (* We are done. Here are our final types: *)

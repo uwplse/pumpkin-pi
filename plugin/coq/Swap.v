@@ -46,7 +46,8 @@ opaque (* ignore these, just for speed *)
   Nat.lt_irrefl
   Nat.le_refl
   Nat.bi_induction
-  Nat.central_induction;
+  Nat.central_induction
+  Nat.sub_succ;
 hint (* some tacic hints for better scripts *)
   "auto"
 }.

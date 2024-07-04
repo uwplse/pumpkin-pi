@@ -23,3 +23,5 @@ plugin/Makefile
 plugin/.merlin
 *.out
 _opam
+*.vok
+*.vos

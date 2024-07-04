@@ -138,7 +138,7 @@ let refold_econv env (abs_red, abs) trm sigma =
       sigma, isApp t && not (is_or_applies (first_fun abs) t))
     (fun env sigma (abs_red, abs) t ->
       try
-        let sigma = the_conv_x env (EConstr.of_constr t) (EConstr.of_constr abs_red) sigma in
+        let sigma = unify_delay env sigma (EConstr.of_constr t) (EConstr.of_constr abs_red) in
         sigma, abs
       with _ ->
         sigma, t)
@@ -156,7 +156,7 @@ let refold_fwd l orn env arg app_red sigma =
   let typ_args = unfold_args arg_typ in
   let earg_typ = EConstr.of_constr arg_typ in
   let sigma, earg = new_evar env sigma earg_typ in
-  let earg = EConstr.to_constr sigma earg in
+  let earg = EConstr.to_constr ~abort_on_undefined_evars:false sigma earg in
   let sigma, orn_app_red = specialize_using reduce_nf env orn (snoc earg typ_args) sigma in
   let sigma, orn_app_red_conc = specialize_using reduce_nf env orn (snoc arg typ_args) sigma in
   let sigma, arg_lift = lift env l earg typ_args sigma in
@@ -193,7 +193,7 @@ let refold_bwd l orn env arg app_red sigma =
   let sigma, arg_typ = reduce_type env sigma arg in
   let earg_typ = EConstr.of_constr arg_typ in
   let sigma, earg = new_evar env sigma earg_typ in
-  let earg = EConstr.to_constr sigma earg in
+  let earg = EConstr.to_constr ~abort_on_undefined_evars:false sigma earg in
   let sigma, typ_args =
     match l.orn.kind with
     | Algebraic (_, off) ->

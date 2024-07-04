@@ -146,10 +146,10 @@ let index_case env sigma off p a b : types state =
            let a = map_tuple shift a in
            let b = (shift b_t, b_b) in
            bind
-             (diff_b (shift_subs subs) (push_local (n_b, t_b) e) a b)
+             (diff_b (shift_subs subs) (push_local (n_b.binder_name, t_b) e) a b)
              (fun b -> ret (unshift b)))
          (fun _ ->
-           let e_b = push_local (n_a, t_a) e in
+           let e_b = push_local (n_a.binder_name, t_a) e in
            let a = (shift a_t, b_a) in
            let b = (shift b_t, b_b) in
            if apply p_a_b t_a t_b then
@@ -179,7 +179,7 @@ let indexer_cases env off p nargs a b =
   let (b_t, elim_t_b) = b in
   match map_tuple kind (elim_t_a, elim_t_b) with
   | (Prod (n_a, p_a_t, b_a), Prod (_, _, b_b)) ->
-     let env_p_a = push_local (n_a, p_a_t) env in
+     let env_p_a = push_local (n_a.binder_name, p_a_t) env in
      map2_state
        (fun c_a c_b sigma ->
          Util.on_snd
@@ -242,7 +242,7 @@ let rec stretch_motive_type off env o n =
      if off = 0 then
        mkProd (n_n, t_n, shift p_o_typ)
      else
-       let env_b = push_local (n_o, t_o) env in
+       let env_b = push_local (n_o.binder_name, t_o) env in
        let o_b = (shift o_typ, b_o) in
        mkProd (n_o, t_o, stretch_motive_type (off - 1) env_b o_b n_b)
   | _ ->
@@ -292,7 +292,7 @@ let remove_rel (i : int) (env : env) : env =
     List.mapi
       (fun j rel ->
         let (n, _, t) = CRD.to_tuple rel in
-        (n, unshift_local (i - j - 1) 1 t))
+        (n.binder_name, unshift_local (i - j - 1) 1 t))
       (List.rev (List.tl (List.rev popped)))
   in List.fold_right push_local push env_pop
 
@@ -338,11 +338,11 @@ let promote_forget_case_algebraic env sigma off is_fwd p o n : types state =
            let o = (shift ind_o, directional (shift c_o) b_o) in
            let n = (shift ind_n, directional b_n (shift c_n)) in
            bind
-             (sub_b (shift_subs subs) (push_local (n_n, t_n) e) o n)
+             (sub_b (shift_subs subs) (push_local (n_n.binder_name, t_n) e) o n)
              (fun b ->
                ret ((directional unshift (fun b -> mkLambda (n_o, t_o, b))) b)))
          (fun (o, n) ->
-           let e_b = push_local (n_o, t_o) e in
+           let e_b = push_local (n_o.binder_name, t_o) e in
            let o = (shift ind_o, b_o) in
            let n = (shift ind_n, b_n) in
            if apply p_a_b t_o t_n then
@@ -447,8 +447,8 @@ let pack_unpacked env sigma packer ib_typ ib_rel unpacked =
   let adjust trm = shift_local ib_rel 1 (shift trm) in
   let typ_body = sub_index (sub_typ (adjust unpacked)) in
   let packer_indexed = apply_packer env sigma (shift packer) (mkRel 1) in
-  let index_body = mkLambda (Anonymous, packer_indexed, typ_body) in
-  mkLambda (Anonymous, shift ib_typ, index_body)
+  let index_body = mkLambda (get_rel_ctx_name Anonymous, packer_indexed, typ_body) in
+  mkLambda (get_rel_ctx_name Anonymous, shift ib_typ, index_body)
 
 (*
  * Pack the hypothesis of an ornamental forgetful function
@@ -458,7 +458,7 @@ let pack_hypothesis env idx b unpacked sigma =
   let (b_typ, _) = b in
   let (id, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
   let (sigma, packer) = make_packer env b_typ (unfold_args unpacked_typ) idx false sigma in
-  let env_push = pack_hypothesis_type env ib_typ packer (id, unpacked_typ) in
+  let env_push = pack_hypothesis_type env ib_typ packer (id.binder_name, unpacked_typ) in
   let ib_rel = new_rels (pop_rel_context 1 env) off in
   let unpacked = pack_unpacked env_push sigma packer ib_typ ib_rel unpacked in
   let adjusted = adjust_to_elim env_push ib_rel packer unpacked in
@@ -822,7 +822,7 @@ let find_promote_or_forget_curry_record env_pms a b is_fwd sigma =
   let sigma, body =
     if is_fwd then
       let elim = type_eliminator env_pms (fst (destInd a)) in
-      let p = mkLambda (Anonymous, a_pms, shift b_pms) in
+      let p = mkLambda (get_rel_ctx_name Anonymous, a_pms, shift b_pms) in
       let sigma, cs =
         let env_c = zoom_env zoom_product_type env_arg c_a_typ in
         let rec make_c n sigma =

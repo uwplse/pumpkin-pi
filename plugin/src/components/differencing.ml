@@ -140,7 +140,7 @@ let new_index_type env sigma elim_t_o elim_t_n =
          branch_state
            (fun (t_o, t_n) sigma -> convertible e sigma t_o t_n)
            (fun (t_o, t_n) sigma ->
-             let e_b = push_local (n_o, t_o) e in
+             let e_b = push_local (n_o.binder_name, t_o) e in
              let sigma, same = candidates e_b sigma b_o b_n in
              let diff = (0, t_n) in
              sigma, diff :: (List.map (fun (i, i_t) -> (shift_i i, i_t)) same))
