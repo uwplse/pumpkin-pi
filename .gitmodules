@@ -1,8 +1,8 @@
 [submodule "plugin/src/coq-plugin-lib"]
 	path = plugin/src/coq-plugin-lib
-	url = https://github.com/agrarpan/coq-plugin-lib.git
-	branch = coq-8.14
+	url = https://github.com/uwplse/coq-plugin-lib.git
+	branch = WIP-8.14
 [submodule "plugin/deps/fix-to-elim"]
 	path = plugin/deps/fix-to-elim
-	url = https://github.com/agrarpan/fix-to-elim.git
-	branch = coq-8.14
+	url = https://github.com/uwplse/coq-plugin-lib.git
+	branch = WIP-8.14
