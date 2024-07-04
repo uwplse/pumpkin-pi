@@ -194,4 +194,4 @@ val can_reduce_now : lift_config -> env -> constr -> reducer option
 (* --- Modifying the configuration --- *)
 
 val reverse : lift_config -> lift_config
-val zoom : lift_config -> lift_config
+val zoom : env -> lift_config -> lift_config

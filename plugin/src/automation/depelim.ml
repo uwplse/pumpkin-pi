@@ -8,6 +8,7 @@ open Nameops
 open Declarations
 open Apputils
 open Sigmautils
+open Contextutils
 
 (*
  * Given a relative context quantifying an inductive family's indices, assemble
@@ -85,16 +86,16 @@ let eta_guard_motive ncons nindex typ =
         in
         let { index_type; packer } = dest_sigT domain in
         let packed_type = Reduction.beta_app (Vars.lift 1 packer) (mkRel 1) in
-        let name_1 = Name.map (fun id -> add_suffix id "_1") name in
-        let name_2 = Name.map (fun id -> add_suffix id "_2") name in
+        let name_1 = Name.map (fun id -> add_suffix id "_1") (Context.binder_name name) in
+        let name_2 = Name.map (fun id -> add_suffix id "_2") (Context.binder_name name) in
         mkApp
           (sigT_rect,
            [|index_type; packer;
              mkLambda (name, domain, codomain);
-             mkLambda (name_1, index_type,
-                       mkLambda (name_2, packed_type, body))|])
+             mkLambda (get_rel_ctx_name name_1, index_type,
+                       mkLambda (get_rel_ctx_name name_2, packed_type, body))|])
       else
-        mkLambda (name, domain, body)
+        mkLambda ( name, domain, body)
   in
   Vars.lift (ncons + nindex + 1) typ |> aux 0
 

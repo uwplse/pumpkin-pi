@@ -116,7 +116,7 @@ let optimized_is_new env off p a b =
         ret false
       else
         (* call is_new *)
-        ret (computes_ih_index off (shift p) (mkRel 1) b_b))
+        ret (computes_ih_index env off (shift env p) (mkRel 1) b_b))
 
 (*
  * Get a single case for the indexer, given:
@@ -136,33 +136,33 @@ let index_case env sigma off p a b : types state =
     match map_tuple kind (c_a, c_b) with
     | (App (_, _), App (_, _)) ->
        (* INDEX-CONCLUSION *)
-       ret (List.fold_right all_eq_substs subs (get_arg off c_b))
+       ret (List.fold_right (all_eq_substs env) subs (get_arg off c_b))
     | (Prod (n_a, t_a, b_a), Prod (n_b, t_b, b_b)) ->
-       let diff_b = diff_case (shift p) (shift p_a_b) in
+       let diff_b = diff_case (shift env p) (shift env p_a_b) in
        branch_state
          (optimized_is_new e off p_a_b a)
          (fun _ -> 
            (* INDEX-HYPOTHESIS *)
-           let a = map_tuple shift a in
-           let b = (shift b_t, b_b) in
+           let a = map_tuple (shift env) a in
+           let b = (shift env b_t, b_b) in
            bind
-             (diff_b (shift_subs subs) (push_local (n_b, t_b) e) a b)
-             (fun b -> ret (unshift b)))
+             (diff_b (shift_subs env subs) (push_local (n_b.binder_name, t_b) e) a b)
+             (fun b -> ret (unshift env b)))
          (fun _ ->
-           let e_b = push_local (n_a, t_a) e in
-           let a = (shift a_t, b_a) in
-           let b = (shift b_t, b_b) in
+           let e_b = push_local (n_a.binder_name, t_a) e in
+           let a = (shift env a_t, b_a) in
+           let b = (shift env b_t, b_b) in
            if apply p_a_b t_a t_b then
              (* INDEX-IH *)
-             let sub_index = (shift (get_arg off t_b), mkRel 1) in
-             let subs_b = sub_index :: shift_subs subs in
+             let sub_index = (shift env (get_arg off t_b), mkRel 1) in
+             let subs_b = sub_index :: shift_subs env subs in
              bind
                (diff_b subs_b e_b a b)
                (fun b -> ret (mkLambda (n_a, mkAppl (p, unfold_args t_a), b)))
            else
              (* INDEX-PROD *)
              bind
-               (diff_b (shift_subs subs) e_b a b)
+               (diff_b (shift_subs env subs) e_b a b)
                (fun b -> ret (mkLambda (n_a, t_a, b))))
          b
     | _ ->
@@ -179,21 +179,21 @@ let indexer_cases env off p nargs a b =
   let (b_t, elim_t_b) = b in
   match map_tuple kind (elim_t_a, elim_t_b) with
   | (Prod (n_a, p_a_t, b_a), Prod (_, _, b_b)) ->
-     let env_p_a = push_local (n_a, p_a_t) env in
+     let env_p_a = push_local (n_a.binder_name, p_a_t) env in
      map2_state
        (fun c_a c_b sigma ->
          Util.on_snd
-           (shift_by (nargs - 1))
+           (shift_by env (nargs - 1))
            (index_case env_p_a sigma off p (a_t, c_a) (b_t, c_b)))
-       (take_except nargs (factor_product b_a))
-       (take_except (nargs + 1) (factor_product b_b))
+       (take_except nargs (factor_product env b_a))
+       (take_except (nargs + 1) (factor_product env b_b))
   | _ ->
      raise NotEliminators
 
 (* Find the motive for the indexer (INDEX-MOTIVE) *)
-let index_motive idx npm env_a =
+let index_motive env idx npm env_a =
   let (off, ib_t) = idx in
-  let ib_t = shift_by (npm + off) ib_t in
+  let ib_t = shift_by env (npm + off) ib_t in
   reconstruct_lambda_n env_a ib_t npm
 
 (* Search for an indexing function *)
@@ -205,16 +205,16 @@ let find_indexer env_pms idx elim_a a b =
   | Prod (_, p_a_t, _) ->
      let env_a = zoom_env zoom_product_type env_pms p_a_t in
      let nargs = new_rels env_a npm in
-     let p = index_motive idx npm env_a in
+     let p = index_motive env_pms idx npm env_a in
      bind
-       (indexer_cases env_pms off (shift p) nargs a b)
+       (indexer_cases env_pms off (shift env_pms p) nargs a b)
        (fun cs ->
          let app =
            apply_eliminator
              {
                elim = elim_a;
-               pms = shift_all_by nargs (mk_n_rels npm);
-               p = shift_by nargs p;
+               pms = shift_all_by env_pms nargs (mk_n_rels npm);
+               p = shift_by env_pms nargs p;
                cs;
                final_args = mk_n_rels nargs;
              }
@@ -238,12 +238,12 @@ let rec stretch_motive_type off env o n =
   let (n_typ, p_n_typ) = n in
   match map_tuple kind (p_o_typ, p_n_typ) with
   | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-     let n_b = (shift n_typ, b_n) in
+     let n_b = (shift env n_typ, b_n) in
      if off = 0 then
-       mkProd (n_n, t_n, shift p_o_typ)
+       mkProd (n_n, t_n, shift env p_o_typ)
      else
-       let env_b = push_local (n_o, t_o) env in
-       let o_b = (shift o_typ, b_o) in
+       let env_b = push_local (n_o.binder_name, t_o) env in
+       let o_b = (shift env o_typ, b_o) in
        mkProd (n_o, t_o, stretch_motive_type (off - 1) env_b o_b n_b)
   | _ ->
      p_o_typ
@@ -271,14 +271,14 @@ let stretch off env indexer npm o n is_fwd =
   let (_, p_b_t, _) = destProd elim_b_t in
   let p_exp = stretch_motive_type off env (a_t, p_a_t) (b_t, p_b_t) in
   let b_exp =
-    map_term_if
+    map_term_if env
       (fun (p, _) t -> applies p t)
       (fun (p, pms) t ->
         let non_pms = unfold_args t in
         let index = mkAppl (indexer, List.append pms non_pms) in
         mkAppl (p, insert_index off index non_pms))
-      (fun (p, pms) -> (shift p, shift_all pms))
-      (mkRel 1, shift_all (mk_n_rels npm))
+      (fun (p, pms) -> (shift env p, shift_all env pms))
+      (mkRel 1, shift_all env (mk_n_rels npm))
       b_a
   in mkProd (n_exp, p_exp, b_exp)
 
@@ -292,7 +292,7 @@ let remove_rel (i : int) (env : env) : env =
     List.mapi
       (fun j rel ->
         let (n, _, t) = CRD.to_tuple rel in
-        (n, unshift_local (i - j - 1) 1 t))
+        (n.binder_name, unshift_local env (i - j - 1) 1 t))
       (List.rev (List.tl (List.rev popped)))
   in List.fold_right push_local push env_pop
 
@@ -303,7 +303,7 @@ let remove_rel (i : int) (env : env) : env =
  * for an indexing function (PROMOTE-MOTIVE and FORGET-MOTIVE)
  *)
 let promote_forget_motive off env t arity npm indexer_opt =
-  let args = shift_all (mk_n_rels arity) in
+  let args = shift_all env (mk_n_rels arity) in
   let concl =
     match indexer_opt with
     | Some indexer ->
@@ -313,7 +313,7 @@ let promote_forget_motive off env t arity npm indexer_opt =
        mkAppl (t, insert_index (npm + off) index args)
     | None ->
        (* FORGET-MOTIVE *)
-       mkAppl (t, adjust_no_index (npm + off) (shift_all args))
+       mkAppl (t, adjust_no_index env (npm + off) (shift_all env args))
   in reconstruct_lambda_n env concl npm
 
 (*
@@ -327,36 +327,36 @@ let promote_forget_case_algebraic env sigma off is_fwd p o n : types state =
     match map_tuple kind (c_o, c_n) with
     | (App (f_o, args_o), App (f_n, args_n)) ->
        (* PROMOTE-CONCLUSION / FORGET-CONCLUSION *)
-       ret (List.fold_right all_eq_substs subs (last_arg c_n))
+       ret (List.fold_right (all_eq_substs env) subs (last_arg c_n))
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
-       let sub_b = sub (shift p) (shift p_a_b) in
+       let sub_b = sub (shift env p) (shift env p_a_b) in
        branch_state
          (fun (o, n) ->
            optimized_is_new e off p_a_b (directional o n) (directional n o))
          (fun (o, n) ->
            (* PROMOTE-HYPOTHESIS and FORGET-HYPOTHESIS *)
-           let o = (shift ind_o, directional (shift c_o) b_o) in
-           let n = (shift ind_n, directional b_n (shift c_n)) in
+           let o = (shift env ind_o, directional (shift env c_o) b_o) in
+           let n = (shift env ind_n, directional b_n (shift env c_n)) in
            bind
-             (sub_b (shift_subs subs) (push_local (n_n, t_n) e) o n)
+             (sub_b (shift_subs env subs) (push_local (n_n.binder_name, t_n) e) o n)
              (fun b ->
-               ret ((directional unshift (fun b -> mkLambda (n_o, t_o, b))) b)))
+               ret ((directional (unshift env) (fun b -> mkLambda (n_o, t_o, b))) b)))
          (fun (o, n) ->
-           let e_b = push_local (n_o, t_o) e in
-           let o = (shift ind_o, b_o) in
-           let n = (shift ind_n, b_n) in
+           let e_b = push_local (n_o.binder_name, t_o) e in
+           let o = (shift env ind_o, b_o) in
+           let n = (shift env ind_n, b_n) in
            if apply p_a_b t_o t_n then
              (* PROMOTE-IH / FORGET-IH *)
-             let ib_sub = map_tuple shift (map_tuple (get_arg off) (t_n, t_o)) in
-             let ih_sub = (shift (last_arg t_n), mkRel 1) in
-             let subs_b = List.append [ib_sub; ih_sub] (shift_subs subs) in
+             let ib_sub = map_tuple (shift env) (map_tuple (get_arg off) (t_n, t_o)) in
+             let ih_sub = (shift env (last_arg t_n), mkRel 1) in
+             let subs_b = List.append [ib_sub; ih_sub] (shift_subs env subs) in
              bind
                (sub_b subs_b e_b o n)
                (fun b -> ret (mkLambda (n_o, mkAppl (p, unfold_args t_o), b)))
            else
              (* PROMOTE-PROD / FORGET-PROD *)
              bind
-               (sub_b (shift_subs subs) e_b o n)
+               (sub_b (shift_subs env subs) e_b o n)
                (fun b -> ret (mkLambda (n_o, t_o, b))))
          (o, n)
     | _ ->
@@ -384,22 +384,22 @@ let promote_forget_cases_algebraic env off is_fwd orn_p nargs o n =
   let (n_t, elim_n_t) = n in
   let (n_o, p_o_t, b_o) = destProd elim_o_t in
   let (_, p_n_t, b_n) = destProd elim_n_t in
-  let adjust p = shift (stretch_motive off env (o_t, p) (n_t, p_n_t)) in
-  let p = map_if adjust is_fwd (unshift orn_p) in
+  let adjust p = shift env (stretch_motive off env (o_t, p) (n_t, p_n_t)) in
+  let p = map_if adjust is_fwd (unshift env orn_p) in
   map2_state
     (fun c_o c_n sigma ->
       Util.on_snd
-        (shift_by (directional (nargs - 1) (nargs - 2)))
+        (shift_by env (directional (nargs - 1) (nargs - 2)))
         (promote_forget_case_algebraic env sigma off is_fwd p (o_t, c_o) (n_t, c_n)))
-    (take_except nargs (factor_product b_o))
-    (take_except (directional (nargs + 1) (nargs - 1)) (factor_product b_n))
+    (take_except nargs (factor_product env b_o))
+    (take_except (directional (nargs + 1) (nargs - 1)) (factor_product env b_n))
 
 (*
  * Make a packer function for existT/sigT
  *)
 let make_packer env b_typ args (off, ib_typ) is_fwd sigma : types state =
   let sub_index = if is_fwd then insert_index else reindex in
-  let packed_args = sub_index off (mkRel 1) (shift_all args) in
+  let packed_args = sub_index off (mkRel 1) (shift_all env args) in
   let env_abs = push_local (Anonymous, ib_typ) env in
   abstract_arg env_abs sigma off (mkAppl (b_typ, packed_args))
 
@@ -409,7 +409,7 @@ let make_packer env b_typ args (off, ib_typ) is_fwd sigma : types state =
 let pack_conclusion f_indexer env idx b unpacked =
   let (b_typ, arity) = b in
   let off = arity - 1 in
-  let index_type = shift_by off (snd idx) in
+  let index_type = shift_by env off (snd idx) in
   bind
     (make_packer env b_typ (mk_n_rels off) idx true)
     (fun packer ->
@@ -420,7 +420,7 @@ let pack_conclusion f_indexer env idx b unpacked =
  * Pack the hypothesis type into a sigT, and update the environment
  *)
 let pack_hypothesis_type env ib_typ packer (id, unpacked_typ) : env =
-  let packer = unshift packer in
+  let packer = unshift env packer in
   let packed_typ = pack_sigT { index_type = ib_typ ; packer } in
   push_local (id, packed_typ) (pop_rel_context 1 env)
 
@@ -435,30 +435,30 @@ let apply_packer env sigma packer arg =
  *)
 let adjust_to_elim env ib_rel packer packed =
   let env_packed = remove_rel (ib_rel + 1) env in
-  let adjust = unshift_local ib_rel 1 in
+  let adjust = unshift_local env ib_rel 1 in
   (env_packed, adjust packer, adjust packed)
 
 (*
  * Pack the unpacked term to eliminate using the new hypothesis
  *)
 let pack_unpacked env sigma packer ib_typ ib_rel unpacked =
-  let sub_typ = all_eq_substs (mkRel (4 - ib_rel), mkRel 1) in
-  let sub_index = all_eq_substs (mkRel (ib_rel + 3), mkRel 2) in
-  let adjust trm = shift_local ib_rel 1 (shift trm) in
+  let sub_typ = all_eq_substs env (mkRel (4 - ib_rel), mkRel 1) in
+  let sub_index = all_eq_substs env (mkRel (ib_rel + 3), mkRel 2) in
+  let adjust trm = shift_local env ib_rel 1 (shift env trm) in
   let typ_body = sub_index (sub_typ (adjust unpacked)) in
-  let packer_indexed = apply_packer env sigma (shift packer) (mkRel 1) in
-  let index_body = mkLambda (Anonymous, packer_indexed, typ_body) in
-  mkLambda (Anonymous, shift ib_typ, index_body)
+  let packer_indexed = apply_packer env sigma (shift env packer) (mkRel 1) in
+  let index_body = mkLambda (get_rel_ctx_name Anonymous, packer_indexed, typ_body) in
+  mkLambda (get_rel_ctx_name Anonymous, shift env ib_typ, index_body)
 
 (*
  * Pack the hypothesis of an ornamental forgetful function
  *)
 let pack_hypothesis env idx b unpacked sigma =
-  let (off, ib_typ) = (fst idx, shift (snd idx)) in
+  let (off, ib_typ) = (fst idx, shift env (snd idx)) in
   let (b_typ, _) = b in
   let (id, _, unpacked_typ) = CRD.to_tuple @@ lookup_rel 1 env in
   let (sigma, packer) = make_packer env b_typ (unfold_args unpacked_typ) idx false sigma in
-  let env_push = pack_hypothesis_type env ib_typ packer (id, unpacked_typ) in
+  let env_push = pack_hypothesis_type env ib_typ packer (id.binder_name, unpacked_typ) in
   let ib_rel = new_rels (pop_rel_context 1 env) off in
   let unpacked = pack_unpacked env_push sigma packer ib_typ ib_rel unpacked in
   let adjusted = adjust_to_elim env_push ib_rel packer unpacked in
@@ -502,14 +502,14 @@ let find_promote_or_forget_algebraic env_pms idx indexer_n a b is_fwd sigma =
   let o = (o_typ, directional elim_a_typ_exp elim_o_typ) in
   let n = (n_typ, directional elim_n_typ elim_a_typ_exp) in
   let p = promote_forget_motive off env_p_o typ arity npm f_indexer_opt in
-  let adj = directional identity shift in
-  let sigma, cs = promote_forget_cases_algebraic env_pms off is_fwd (adj (shift p)) nargs o n sigma in
+  let adj = directional identity (shift env_pms) in
+  let sigma, cs = promote_forget_cases_algebraic env_pms off is_fwd (adj (shift env_pms p)) nargs o n sigma in
   let unpacked =
     apply_eliminator
       {
         elim;
-        pms = shift_all_by nargs (mk_n_rels npm);
-        p = shift_by nargs p;
+        pms = shift_all_by env_pms nargs (mk_n_rels npm);
+        p = shift_by env_pms nargs p;
         cs = List.map adj cs;
         final_args = mk_n_rels nargs;
       }
@@ -675,7 +675,7 @@ let prompt_swap_ambiguous env swap_maps ambiguous sigma =
  * Find the motive for promote or forget for swapping constructors
  *)
 let find_motive_swap env_motive typ nargs pms =
-  let typ_args = List.append (shift_all_by nargs pms) (shift_all (mk_n_rels (nargs - 1))) in
+  let typ_args = List.append (shift_all_by env_motive nargs pms) (shift_all env_motive (mk_n_rels (nargs - 1))) in
   let p_b = mkAppl (typ, typ_args) in
   reconstruct_lambda_n env_motive p_b (List.length pms)
 
@@ -687,7 +687,7 @@ let find_cases_swap env p elim_p_typ swap_map o nargs sigma =
   let ncons = List.length swap_map in
   List.mapi
     (fun i c ->
-      let env_c_b, c_b = zoom_product_type env_p (shift_by (nargs - 1) c) in
+      let env_c_b, c_b = zoom_product_type env_p (shift_by env_p (nargs - 1) c) in
       let (ind, u) = destInd o in
       let constr_from = ((ind, (i + 1)), u) in
       let constr_to = List.assoc constr_from swap_map in
@@ -696,9 +696,9 @@ let find_cases_swap env p elim_p_typ swap_map o nargs sigma =
           (fun j rel ->
             match rel with
             | CRD.(LocalAssum (n, t)) ->
-               j + 1, shift_by (j + 1) t
+               j + 1, shift_by env_p (j + 1) t
             | CRD.(LocalDef (n, e, t)) ->
-               j + 1, shift_by (j + 1) t)
+               j + 1, shift_by env_p (j + 1) t)
           (lookup_all_rels env_c_b)
       in
       let p_rel = first_fun c_b in
@@ -721,8 +721,8 @@ let find_cases_swap env p elim_p_typ swap_map o nargs sigma =
       in
       let constr_ih = mkAppl (mkConstructU constr_to, args_sub) in
       let c_p = reconstruct_lambda_n env_c_b constr_ih (nb_rel env_p) in
-      all_eq_substs (mkRel nargs, shift_by nargs p) c_p)
-    (take ncons (factor_product elim_p_typ))
+      all_eq_substs env_p (mkRel nargs, shift_by env_p nargs p) c_p)
+    (take ncons (factor_product env_p elim_p_typ))
         
 (*
  * Find promote or forget for swapping constructors
@@ -743,8 +743,8 @@ let find_promote_or_forget_swap env npm swap_map a b is_fwd sigma =
     apply_eliminator
       {
         elim;
-        pms = shift_all_by nargs pms;
-        p = shift_by nargs p;
+        pms = shift_all_by env_p_b nargs pms;
+        p = shift_by env_p_b nargs p;
         cs;
         final_args = mk_n_rels nargs;
       }
@@ -776,7 +776,7 @@ let search_swap_constructor env npm grouped swap_i_o promote_o forget_o a b sigm
         List.map
           (fun (repr, (ms, typ_a)) ->
             let (ms_a, ms_b) = List.partition (fun ((i, _), _) -> equal (mkInd i) a) ms in
-            let typ_b = all_eq_substs (a, b) typ_a in
+            let typ_b = all_eq_substs env (a, b) typ_a in
             (repr, ((List.rev ms_a, List.rev ms_b), (typ_a, typ_b))))
           grouped
       in
@@ -813,8 +813,8 @@ let find_promote_or_forget_curry_record env_pms a b is_fwd sigma =
   let a_pms = mkAppl (a, pms) in
   let b_pms = mkAppl (b, pms) in
   let env_arg = push_local (Anonymous, directional a_pms b_pms) env_pms in
-  let pms = shift_all pms in
-  let a_pms, b_pms = map_tuple shift (a_pms, b_pms) in
+  let pms = shift_all env_arg pms in
+  let a_pms, b_pms = map_tuple (shift env_arg) (a_pms, b_pms) in
   let c_a = mkAppl (mkConstruct (fst (destInd a), 1), pms) in
   let sigma, c_a_typ = reduce_type env_arg sigma c_a in
   let num_hyps = arity c_a_typ in
@@ -822,7 +822,7 @@ let find_promote_or_forget_curry_record env_pms a b is_fwd sigma =
   let sigma, body =
     if is_fwd then
       let elim = type_eliminator env_pms (fst (destInd a)) in
-      let p = mkLambda (Anonymous, a_pms, shift b_pms) in
+      let p = mkLambda (get_rel_ctx_name Anonymous, a_pms, shift env_arg b_pms) in
       let sigma, cs =
         let env_c = zoom_env zoom_product_type env_arg c_a_typ in
         let rec make_c n sigma =
@@ -982,7 +982,7 @@ let search_orn_inductive env sigma indexer_id_opt swap_i_o typ_o typ_n promote_o
                (fun grouped c sigma ->
                  let c_dest = destConstruct c in
                  let sigma, c_typ = infer_type env sigma c in
-                 let c_typ = all_eq_substs (typ_o, typ_n) c_typ in
+                 let c_typ = all_eq_substs env (typ_o, typ_n) c_typ in
                  try
                    let sigma, (repr, (matches, typ)) =
                      find_state
@@ -1074,7 +1074,7 @@ let search_orn_one_noninductive env sigma typ_o typ_n promote_o forget_o =
                let sigma, b_eq = reduce_nf env_sig_b sigma b_eq in
                let sigma, eq =
                  let trm1 =
-                   let typ = dest_sigT (shift b_sig_expected) in
+                   let typ = dest_sigT (shift env_sig_b b_sig_expected) in
                    project_index typ (mkRel 1)
                  in
                  let trm2 = (dest_eq b_eq).trm2 in

@@ -172,7 +172,7 @@ let get_kind_of_ornament env typs (o, n) is_custom sigma =
        let to_ind = snd (promotion_term_to_types env sigma promote_unpacked) in
        let to_args = unfold_args to_ind in
        let to_args_idx = List.mapi (fun i t -> (i, t)) to_args in
-       let (o, i) = List.find (fun (_, t) -> contains_term (mkRel 1) t) to_args_idx in
+       let (o, i) = List.find (fun (_, t) -> contains_term env (mkRel 1) t) to_args_idx in
        let indexer = first_fun i in
        sigma, (is_fwd, Algebraic (indexer, o))
     | SwapConstruct _ ->

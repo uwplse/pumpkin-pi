@@ -19,7 +19,8 @@
 -I src/automation/search
 -I src/automation/lift
 -I src
--R theories Ornamental
+-Q theories Ornamental
+-R coq Foo
 
 src/coq-plugin-lib/src/utilities/utilities.ml
 src/coq-plugin-lib/src/utilities/utilities.mli
@@ -148,7 +149,7 @@ src/automation/lift/lift.mli
 
 src/frontend.ml
 src/frontend.mli
-src/ornamental.ml4
+src/ornamental.mlg
 src/ornaments.mlpack
 
 theories/Adjoint.v

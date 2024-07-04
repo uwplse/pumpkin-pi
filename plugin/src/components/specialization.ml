@@ -66,7 +66,7 @@ let unpack_typ_args env_args b_sig_eq sigma =
   let sigma, i_b =
     let env_eq_typ, eq_typ = zoom_lambda_term env_args eq_sig.packer in
     let sigma, eq_typ = reduce_nf env_eq_typ sigma eq_typ in
-    sigma, Debruijn.unshift (dest_eq eq_typ).trm2
+    sigma, Debruijn.unshift env_args (dest_eq eq_typ).trm2
   in sigma, [i_b_typ; b; i_b]
               
 (* --- Lifting --- *)
@@ -90,7 +90,7 @@ let lift env l trm typ_args sigma =
  * Get all recursive constants
  *)
 let rec all_recursive_constants env trm =
-  let consts = all_const_subterms (fun _ _ -> true) (fun u -> u) () trm in
+  let consts = all_const_subterms env (fun _ _ -> true) (fun u -> u) () trm in
   let non_axioms =
     List.map
       Option.get
@@ -138,11 +138,11 @@ let refold_econv env (abs_red, abs) trm sigma =
       sigma, isApp t && not (is_or_applies (first_fun abs) t))
     (fun env sigma (abs_red, abs) t ->
       try
-        let sigma = the_conv_x env (EConstr.of_constr t) (EConstr.of_constr abs_red) sigma in
+        let sigma = unify_delay env sigma (EConstr.of_constr t) (EConstr.of_constr abs_red) in
         sigma, abs
       with _ ->
         sigma, t)
-    (map_tuple Debruijn.shift)
+    (map_tuple (Debruijn.shift env))
     env
     sigma
     (abs_red, abs)
@@ -156,7 +156,7 @@ let refold_fwd l orn env arg app_red sigma =
   let typ_args = unfold_args arg_typ in
   let earg_typ = EConstr.of_constr arg_typ in
   let sigma, earg = new_evar env sigma earg_typ in
-  let earg = EConstr.to_constr sigma earg in
+  let earg = EConstr.to_constr ~abort_on_undefined_evars:false sigma earg in
   let sigma, orn_app_red = specialize_using reduce_nf env orn (snoc earg typ_args) sigma in
   let sigma, orn_app_red_conc = specialize_using reduce_nf env orn (snoc arg typ_args) sigma in
   let sigma, arg_lift = lift env l earg typ_args sigma in
@@ -174,15 +174,15 @@ let refold_fwd l orn env arg app_red sigma =
      let arg_indexer_conc = project_index arg_sigT arg_lift_conc in
      let arg_value = project_value arg_sigT arg_lift in
      let arg_value_conc = project_value arg_sigT arg_lift_conc in
-     let refold_index_fast = all_eq_substs (orn_app_red_conc_ex.index, arg_indexer_conc) in
-     let refold_value_fast = all_eq_substs (orn_app_red_conc_ex.unpacked, arg_value_conc) in
+     let refold_index_fast = all_eq_substs env (orn_app_red_conc_ex.index, arg_indexer_conc) in
+     let refold_value_fast = all_eq_substs env (orn_app_red_conc_ex.unpacked, arg_value_conc) in
      let refold_index = refold_econv env (orn_app_red_ex.index, arg_indexer) in
      let refold_value = refold_econv env (orn_app_red_ex.unpacked, arg_value) in
      let sigma, refolded_value = refold_value (refold_value_fast app_red_ex.unpacked) sigma in
      let sigma, refolded_index = refold_index (refold_index_fast refolded_value)sigma in
      pack env l refolded_index sigma
   | _ ->
-     let refold_value_fast = all_eq_substs (orn_app_red_conc, arg_lift_conc) in
+     let refold_value_fast = all_eq_substs env (orn_app_red_conc, arg_lift_conc) in
      let refold_value = refold_econv env (orn_app_red, arg_lift) in
      refold_value (refold_value_fast app_red) sigma
        
@@ -193,7 +193,7 @@ let refold_bwd l orn env arg app_red sigma =
   let sigma, arg_typ = reduce_type env sigma arg in
   let earg_typ = EConstr.of_constr arg_typ in
   let sigma, earg = new_evar env sigma earg_typ in
-  let earg = EConstr.to_constr sigma earg in
+  let earg = EConstr.to_constr ~abort_on_undefined_evars:false sigma earg in
   let sigma, typ_args =
     match l.orn.kind with
     | Algebraic (_, off) ->
@@ -205,7 +205,7 @@ let refold_bwd l orn env arg app_red sigma =
   let sigma, orn_app_red_conc = specialize_using reduce_nf env orn (snoc arg typ_args) sigma in
   let sigma, arg_value = lift env l earg typ_args sigma in
   let sigma, arg_value_conc = lift env l arg typ_args sigma in
-  let refold_value_fast = all_eq_substs (orn_app_red_conc, arg_value_conc) in
+  let refold_value_fast = all_eq_substs env (orn_app_red_conc, arg_value_conc) in
   let refold_value = refold_econv env (orn_app_red, arg_value) in
   refold_value (refold_value_fast app_red) sigma
 

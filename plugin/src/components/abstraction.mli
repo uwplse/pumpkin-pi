@@ -16,4 +16,4 @@ val abstract_arg : env -> evar_map -> int -> types -> types state
  * lifting de Bruijn indices as needed. The notion of term equality is modulo
  * alpha, casts, application grouping, and universes.
 *)
-val abstract_subterm : constr -> constr -> constr
+val abstract_subterm : env -> constr -> constr -> constr

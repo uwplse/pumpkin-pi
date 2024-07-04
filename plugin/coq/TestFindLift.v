@@ -1,4 +1,3 @@
-Add LoadPath "coq".
 Require Import List.
 Require Import Ornamental.Ornaments.
 

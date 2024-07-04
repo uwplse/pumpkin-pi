@@ -58,7 +58,7 @@ let equiv_motive env_motive pms l is_packed sigma =
   let trm1_lifted = mkAppl (lift_to l, snoc trm1 typ_args) in
   let trm2 = mkAppl (lift_back l, snoc trm1_lifted typ_args) in
   let p_b = apply_eq { at_type; trm1; trm2 } in
-  sigma, shift (reconstruct_lambda_n env_motive p_b (List.length pms))
+  sigma, shift env_motive (reconstruct_lambda_n env_motive p_b (List.length pms))
 
 (*
  * The proofs of both section and retraction for algebraic ornaments
@@ -72,14 +72,14 @@ let equiv_motive env_motive pms l is_packed sigma =
 let eq_lemmas_env env recs l pack_typ pack_trm =
   fold_left_state
     (fun e r sigma ->
-      let r1 = shift_by (new_rels2 e env) r in
+      let r1 = shift_by env (new_rels2 e env) r in
       let sigma, r_t = reduce_type e sigma r1 in
       (* if applicable, pack the type *)
       let sigma, (e_ib, r_t) = pack_typ e r_t sigma in
       (* push new rec arg *)
       let e_r = push_local (Anonymous, r_t) e_ib in
       (* get the (possibly packed) equality type *)
-      let sigma, r1 = pack_trm e_r (shift_by (new_rels2 e_r e) r1) sigma in
+      let sigma, r1 = pack_trm e_r (shift_by e_r (new_rels2 e_r e) r1) sigma in
       let sigma, r2 = pack_trm e_r (mkRel 1) sigma in
       let sigma, r_t = reduce_type e_r sigma r1 in
       let r_eq = apply_eq {at_type = r_t; trm1 = r1; trm2 = r2} in
@@ -102,7 +102,7 @@ let eq_lemmas env typ l pack_typ pack_trm nindices abstract_c_app sub_c_app_tran
       let c_args = unfold_args c_body in
       let recs = List.filter (on_red_type_default (ignore_env (is_or_applies typ)) env_c_b sigma) c_args in
       let sigma, env_lemma = eq_lemmas_env env_c_b recs l pack_typ pack_trm sigma in
-      let sigma, c_body = pack_trm env_lemma (shift_by (new_rels2 env_lemma env_c_b) c_body) sigma in
+      let sigma, c_body = pack_trm env_lemma (shift_by env_lemma (new_rels2 env_lemma env_c_b) c_body) sigma in
       let sigma, c_body_type = reduce_type env_lemma sigma c_body in
       (* reflexivity proof: the identity case *)
       let refl = apply_eq_refl { typ = c_body_type; trm = c_body } in
@@ -112,20 +112,20 @@ let eq_lemmas env typ l pack_typ pack_trm nindices abstract_c_app sub_c_app_tran
             (* fold to recursively substitute each recursive argument *)
             let h_r = destRel h in
             let (_, _, h_t) = CRD.to_tuple @@ lookup_rel h_r env_lemma in
-            let app = dest_eq (shift_by h_r h_t) in
+            let app = dest_eq (shift_by env_lemma h_r h_t) in
             let at_type = app.at_type in
             let r1 = app.trm1 in
             let r2 = app.trm2 in
-            let c_body_b = shift c_body in
-            let c_app_b = shift c_app in
+            let c_body_b = shift env_lemma c_body in
+            let c_app_b = shift env_lemma c_app in
             let abs_c_app = abstract_c_app (r1, r2) at_type c_app_b in
             let c_app_trans = sub_c_app_trans (r1, r2) c_app in
-            let typ_b = shift c_body_type in
+            let typ_b = shift env_lemma c_body_type in
             let p_b = { at_type = typ_b; trm1 = c_body_b; trm2 = abs_c_app } in
-            let p = mkLambda (Anonymous, at_type, apply_eq p_b) in
+            let p = mkLambda (get_rel_ctx_name Anonymous, at_type, apply_eq p_b) in
             let eq_proof_app = {at_type; p; trm1 = r1; trm2 = r2; h; b} in
             let eq_proof = apply_eq_ind eq_proof_app in
-            (eq_proof, shift_by (2 + nindices) h, c_app_trans))
+            (eq_proof, shift_by env_lemma (2 + nindices) h, c_app_trans))
           recs
           (refl, mkRel 1, c_body)
       in sigma, reconstruct_lambda env_lemma body)
@@ -150,20 +150,20 @@ let equiv_case env pms p eq_lemma l c dest_term sigma =
     | App (_, _) ->
        (* conclusion: apply eq lemma and beta-reduce *)
        let all_args = List.rev_append hypos (List.rev args) in
-       reduce_stateless reduce_term e sigma (mkAppl (shift_by depth eq_lemma, all_args))
+       reduce_stateless reduce_term e sigma (mkAppl (shift_by env depth eq_lemma, all_args))
     | Prod (n, t, b) ->
-       let case_b = case (push_local (n, t) e) (shift_i depth) in
-       let p_rel = shift_by depth (mkRel 1) in
+       let case_b = case (push_local (n.binder_name, t) e) (shift_i depth) in
+       let p_rel = shift_by env depth (mkRel 1) in
        let h = mkRel 1 in
        if applies p_rel t then
          (* IH *)
-         let t = reduce_stateless reduce_term e sigma (mkAppl (shift_by depth p, unfold_args t)) in
+         let t = reduce_stateless reduce_term e sigma (mkAppl (shift_by env depth p, unfold_args t)) in
          let trm = (dest_eq t).trm2 in
          let args = List.rev_append (dest_term e trm sigma) args in
-         mkLambda (n, t, case_b (shift_all hypos) (h :: shift_all args) b)
+         mkLambda (n, t, case_b (shift_all env hypos) (h :: shift_all env args) b)
        else
          (* Product *)
-         mkLambda (n, t, case_b (h :: shift_all hypos) (shift_all args) b)
+         mkLambda (n, t, case_b (h :: shift_all env hypos) (shift_all env args) b)
     | _ ->
        failwith "unexpected case"
   in case env 0 [] [] c
@@ -177,7 +177,7 @@ let equiv_case env pms p eq_lemma l c dest_term sigma =
 let equiv_cases equiv_case env pms p lemmas l elim_typ sigma =
   List.mapi
     (fun j c -> equiv_case env pms p lemmas.(j) l c sigma)
-    (take (Array.length lemmas) (factor_product elim_typ))
+    (take (Array.length lemmas) (factor_product env elim_typ))
 
 (*
  * Prove section/retraction for either algebraic ornaments or
@@ -187,7 +187,7 @@ let equiv_proof eq_lemmas equiv_case is_packed unpack_env index_args unpack_eq_p
   let to_body = lookup_definition env (lift_to l) in
   let env_to = zoom_env zoom_lambda_term env to_body in
   let sigma, typ_app = reduce_type env_to sigma (mkRel 1) in
-  let typ = first_fun (zoom_if_sig_app typ_app) in
+  let typ = first_fun (zoom_if_sig_app env_to typ_app) in
   let ((i, i_index), _) = destInd typ in
   let npm = (lookup_mind i env).mind_nparams in
   let nargs = new_rels env_to npm in
@@ -197,21 +197,21 @@ let equiv_proof eq_lemmas equiv_case is_packed unpack_env index_args unpack_eq_p
   let sigma, elim_typ = infer_type env sigma elim in
   let (env_pms, elim_typ_p) = zoom_n_prod env npm elim_typ in
   let (n, p_t, elim_typ) = destProd elim_typ_p in
-  let env_p = push_local (n, p_t) env_pms in
-  let pms = shift_all (mk_n_rels npm) in
+  let env_p = push_local (n.binder_name, p_t) env_pms in
+  let pms = shift_all env_p (mk_n_rels npm) in
   let env_motive = zoom_env zoom_product_type env_pms p_t in
   let sigma, p = equiv_motive env_motive pms l is_packed sigma in
   let cs = equiv_cases equiv_case env_p pms p lemmas l elim_typ sigma in
-  let args = shift_all_by (new_rels2 env_eq_proof env_to) (mk_n_rels nargs) in
+  let args = shift_all_by env_motive (new_rels2 env_eq_proof env_to) (mk_n_rels nargs) in
   let final_args = index_args npm args in
-  let depth = new_rels2 env_eq_proof env_p in
+  let depth = new_rels2 env_motive env_p in
   let eq_proof =
     apply_eliminator
       {
         elim;
-        pms = shift_all_by depth pms;
-        p = shift_by depth p;
-        cs = shift_all_by depth cs;
+        pms = shift_all_by env_motive depth pms;
+        p = shift_by env_motive depth p;
+        cs = shift_all_by env_motive depth cs;
         final_args;
       }
   in
@@ -244,8 +244,8 @@ let eq_lemmas_algebraic env typ l =
          (fun env typ -> ret (env, typ)) (* no packing types *)
          (fun _ trm -> ret trm) (* no packing terms *)
          0 (* no indices *)
-         (fun (r1, r2) _ -> all_eq_substs (shift r1, mkRel 1)) (* no packing *)
-         all_eq_substs (* basic substitution *)
+         (fun (r1, r2) _ -> all_eq_substs env (shift env r1, mkRel 1)) (* no packing *)
+         (all_eq_substs env) (* basic substitution *)
      else
        eq_lemmas
          env
@@ -257,7 +257,7 @@ let eq_lemmas_algebraic env typ l =
              Util.on_snd
                (fun t -> push_local (Anonymous, t) env)
                (reduce_type env sigma (get_arg off typ))
-           in sigma, (env_ib, reindex_app (reindex off (mkRel 1)) (shift typ)))
+           in sigma, (env_ib, reindex_app (reindex off (mkRel 1)) (shift env typ)))
          (fun env -> pack env l) (* pack terms *)
          1 (* one index *)
          (fun (r1, r2) at_type c_app_b ->
@@ -265,10 +265,10 @@ let eq_lemmas_algebraic env typ l =
            let (r1_ex, r2_ex) = map_tuple dest_existT (r1, r2) in
            let r1_u = r1_ex.unpacked in
            let r1_ib = r1_ex.index in
-           let b_sig_typ = dest_sigT (shift at_type) in
+           let b_sig_typ = dest_sigT (shift env at_type) in
            let (ib, u) = projections b_sig_typ (mkRel 1) in
-           let abs_c_app_u = all_eq_substs (shift r1_u, u) c_app_b in
-           all_eq_substs (shift r1_ib, ib) abs_c_app_u)
+           let abs_c_app_u = all_eq_substs env (shift env r1_u, u) c_app_b in
+           all_eq_substs env (shift env r1_ib, ib) abs_c_app_u)
          (fun (r1, r2) c_app ->
            (* substitute both indices and values *)
            let (r1_ex, r2_ex) = map_tuple dest_existT (r1, r2) in
@@ -276,8 +276,8 @@ let eq_lemmas_algebraic env typ l =
            let r2_u = r2_ex.unpacked in
            let r1_ib = r1_ex.index in
            let r2_ib = r2_ex.index in
-           let c_app_trans_u = all_eq_substs (r1_u, r2_u) c_app in
-           all_eq_substs (r1_ib, r2_ib) c_app_trans_u)
+           let c_app_trans_u = all_eq_substs env (r1_u, r2_u) c_app in
+           all_eq_substs env (r1_ib, r2_ib) c_app_trans_u)
   | _ ->
      raise NotAlgebraic
         
@@ -333,7 +333,7 @@ let equiv_proof_algebraic env l =
            let b_sig_typ = dest_sigT typ_app in
            let ib_typ = b_sig_typ.index_type in
            let env_ib = push_local (Anonymous, ib_typ) env in
-           let b_typ = mkAppl (shift b_sig_typ.packer, [mkRel 1]) in
+           let b_typ = mkAppl (shift env_ib b_sig_typ.packer, [mkRel 1]) in
            push_local (Anonymous, b_typ) env_ib)
          (fun npm args ->
            (* reindex the args for retraction *)
@@ -342,8 +342,8 @@ let equiv_proof_algebraic env l =
            reindex_back (index_back args))
          (fun env typ_app eq_typ eq_proof ->
            let env_p = push_local (Anonymous, typ_app) env in
-           let trm2 = unshift (all_eq_substs (eq_typ.trm1, mkRel 2) eq_typ.trm2) in
-           let at_type = shift typ_app in
+           let trm2 = unshift env_p (all_eq_substs env_p (eq_typ.trm1, mkRel 2) eq_typ.trm2) in
+           let at_type = shift env_p typ_app in
            let p_b = apply_eq { at_type; trm1 = mkRel 1; trm2 } in
            let p = reconstruct_lambda_n env_p p_b (nb_rel env) in
            let to_elim = dest_sigT typ_app in
@@ -368,8 +368,8 @@ let eq_lemmas_swap env typ l =
     (fun env typ -> ret (env, typ)) (* no packing types *)
     (fun _ trm -> ret trm) (* no packing terms *)
     0 (* no indices *)
-    (fun (r1, r2) _ -> all_eq_substs (shift r1, mkRel 1)) (* no packing *)
-    all_eq_substs (* basic substitution *)
+    (fun (r1, r2) _ -> all_eq_substs env (shift env r1, mkRel 1)) (* no packing *)
+    (all_eq_substs env) (* basic substitution *)
 
 (*
  * Get a case of section/retraction
@@ -420,7 +420,7 @@ let equiv_proof_body_curry_record env_to sigma p pms l =
       let c_body = reduce_stateless reduce_term env_c_b sigma c_body in
       let sigma, c_body_type = reduce_type env_c_b sigma c_body in
       let refl = apply_eq_refl { typ = c_body_type; trm = c_body } in
-      [shift (reconstruct_lambda_n env_c_b refl (nb_rel env_to + (List.length pms)))]
+      [shift env_c_b (reconstruct_lambda_n env_c_b refl (nb_rel env_to + (List.length pms)))]
     in
     let elim = type_eliminator env_to (i, i_index) in
     sigma, apply_eliminator
@@ -435,20 +435,20 @@ let equiv_proof_body_curry_record env_to sigma p pms l =
     let open Produtils in
     let rec build_proof env pms at_type to_elim arg =
       let (typ1, typ2) as typs = (to_elim.typ1, to_elim.typ2) in
-      let env_proof = push_local (Anonymous, shift typ2) (push_local (Anonymous, typ1) env) in
-      let (typ1, typ2) as typs = map_tuple (shift_by 2) typs in
-      let at_type = shift_by 2 at_type in
-      let pms = shift_all_by 2 pms in
+      let env_proof = push_local (Anonymous, shift env typ2) (push_local (Anonymous, typ1) env) in
+      let (typ1, typ2) as typs = map_tuple (shift_by env_proof 2) typs in
+      let at_type = shift_by env_proof 2 at_type in
+      let pms = shift_all_by env_proof 2 pms in
       let curr = mkRel 1 in
-      let arg = all_eq_substs (mkRel 3, apply_pair { typ1; typ2; trm1 = mkRel 2; trm2 = curr }) (shift_by 2 arg) in
+      let arg = all_eq_substs env_proof (mkRel 3, apply_pair { typ1; typ2; trm1 = mkRel 2; trm2 = curr }) (shift_by env_proof 2 arg) in
       let proof_body =
         if equal prod (first_fun typ2) then
           let to_elim = dest_prod typ2 in
           let p =
-            let pms = shift_all pms in
-            let arg_abs = all_eq_substs (shift curr, curr) (shift arg) in
+            let pms = shift_all env_proof pms in
+            let arg_abs = all_eq_substs env_proof (shift env_proof curr, curr) (shift env_proof arg) in
             let trm2 = mkAppl (lift_back l, snoc (mkAppl (lift_to l, snoc arg_abs pms)) pms) in
-            mkLambda (Anonymous, typ2, apply_eq { at_type = shift at_type; trm1 = arg_abs; trm2 })
+            mkLambda (get_rel_ctx_name Anonymous, typ2, apply_eq { at_type = shift env_proof at_type; trm1 = arg_abs; trm2 })
           in
           let proof = build_proof env_proof pms at_type to_elim arg in
           elim_prod { to_elim; p; proof; arg = curr }
@@ -469,7 +469,7 @@ let equiv_proof_curry_record env l sigma =
   let to_body = lookup_definition env (lift_to l) in
   let env_to = zoom_env zoom_lambda_term env to_body in
   let npm = nb_rel env_to - 1 in
-  let pms = shift_all (mk_n_rels npm) in
+  let pms = shift_all env_to (mk_n_rels npm) in
   let sigma, p = equiv_motive env_to pms l false sigma in
   let sigma, eq_proof = equiv_proof_body_curry_record env_to sigma p pms l in
   let eq_typ = on_red_type_default (ignore_env dest_eq) env_to sigma eq_proof in
@@ -510,7 +510,7 @@ let equiv_proof_unpack env l sigma =
     let env_b_sig_eq, b_sig_eq = zoom_product_type env forget_typ in
     let sigma, args = unpack_typ_args env_b_sig_eq b_sig_eq sigma in
     let env_args = pop_rel_context 1 env_b_sig_eq in
-    sigma, (env_args, unshift_all args)
+    sigma, (env_args, unshift_all env_b_sig_eq args)
   in
   let sigma, app = reduce_term env sigma (mkAppl (f, args)) in
   let trm = reconstruct_lambda env_args app in
@@ -523,7 +523,7 @@ let equiv_proof_unpack env l sigma =
       in
       let sigma, eq =
         let sigma, trm1 =
-          let typ_args = shift_all (mk_n_rels (nb_rel env_args)) in
+          let typ_args = shift_all env_eq (mk_n_rels (nb_rel env_args)) in
           let sigma, lifted =
             let arg = last_arg (last_arg eq_app.trm1) in
             lift env_eq l arg typ_args sigma

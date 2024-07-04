@@ -62,14 +62,14 @@ let same_mod_indexing env sigma p_index o n =
  * Return a list of offsets paired with pairs of old and new 
  * indices. 
  *)
-let diff_motive_apps trm_o trm_n =
+let diff_motive_apps env trm_o trm_n =
   let rec diff off p trm_o trm_n =
     match map_tuple kind (trm_o, trm_n) with
     | (Prod (n_o, t_o, b_o), Prod (n_n, t_n, b_n)) ->
        if applies p t_o && not (applies p t_n) then
-         diff (shift_i off) (shift p) (shift trm_o) b_n
+         diff (shift_i off) (shift env p) (shift env trm_o) b_n
        else
-	 List.append (diff off p t_o t_n) (diff off (shift p) b_o b_n)
+	 List.append (diff off p t_o t_n) (diff off (shift env p) b_o b_n)
     | (App (_, _), App (_, _)) when applies p trm_o && applies p trm_n ->
        let args_o = all_but_last (unfold_args trm_o) in
        let args_n = all_but_last (unfold_args trm_n) in
@@ -95,8 +95,8 @@ let diff_motive_apps trm_o trm_n =
  *
  * The implementation of this uses an offset list to adjust as it goes.
  *)
-let is_new_index i b_o b_n =
-  let d = diff_motive_apps b_o b_n in
+let is_new_index env i b_o b_n =
+  let d = diff_motive_apps env b_o b_n in
   try
     let arg args = get_arg i args in
     let d_arg = List.map (fun (off, (o, n)) -> (off, (arg o, arg n))) d in
@@ -107,7 +107,7 @@ let is_new_index i b_o b_n =
 	   is_new tl
 	 else
 	   if off > 0 then
-	     is_new (List.map (fun (off, (o, n)) -> (off - 1, (o, shift n))) d)
+	     is_new (List.map (fun (off, (o, n)) -> (off - 1, (o, shift env n))) d)
 	   else
 	     true
       | [] ->
@@ -140,7 +140,7 @@ let new_index_type env sigma elim_t_o elim_t_n =
          branch_state
            (fun (t_o, t_n) sigma -> convertible e sigma t_o t_n)
            (fun (t_o, t_n) sigma ->
-             let e_b = push_local (n_o, t_o) e in
+             let e_b = push_local (n_o.binder_name, t_o) e in
              let sigma, same = candidates e_b sigma b_o b_n in
              let diff = (0, t_n) in
              sigma, diff :: (List.map (fun (i, i_t) -> (shift_i i, i_t)) same))
@@ -153,7 +153,7 @@ let new_index_type env sigma elim_t_o elim_t_n =
        failwith "could not find indexer motive"
   in
   Util.on_snd
-    (List.find (fun (i, _) -> is_new_index i b_o b_n))
+    (List.find (fun (i, _) -> is_new_index env i b_o b_n))
     (candidates env sigma p_o p_n)
                
 (*
@@ -177,7 +177,7 @@ let diff_context_simple env sigma decls_o decls_n =
             branch_state
               (not_state
                  (fun (type_o, type_i) sigma_b ->
-                   convertible env_b sigma_b (shift type_o) type_i))
+                   convertible env_b sigma_b (shift env type_o) type_i))
               (fun _  -> ret diff_b)
               (fun _ -> ret None) (* ambiguous, can't use this heuristic *)
               (type_o, type_i)

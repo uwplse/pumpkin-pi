@@ -1,8 +1,7 @@
-Add LoadPath "coq".
 Require Import List.
 Require Import Ornamental.Ornaments.
-Require Import Test.
-Require Import Infrastructure.
+Require Import Foo.Test.
+Require Import Foo.Infrastructure.
 
 (*
  * Test lifting directly
