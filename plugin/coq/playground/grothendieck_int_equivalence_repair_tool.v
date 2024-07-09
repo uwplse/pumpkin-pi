@@ -3,6 +3,8 @@ Require Import Coq.Program.Tactics.
 Require Import Ornamental.Ornaments.
 Require Import SetoidClass.
 
+Set DEVOID lift type.
+
 (* 
  * In this file, we define two representations of integers.
  * The first is as an inductive type with two constructors,
@@ -1338,8 +1340,7 @@ Proof.
   apply depElimPropGZ.
   - intros z1 z2 H. rewrite H. reflexivity.
   - induction n.
-    + unfold addGZ.
-      rewrite <- add0RGZ.
+    + rewrite <- add0RGZ.
       rewrite <- fastAdd0RZ.
       reflexivity.
     + rewrite (reduceFastAddZPos a n).

@@ -100,11 +100,12 @@ Definition conspv_index T n t v := projT1 (conspv' T n t v).
 Lift vector list in conspv_index as cons_index'.
 
 (*
- * Just without more heuristics (which I can implement at some point), it can't
- * figure out to lift the equality proof in the second projection:
+ * Just without more heuristics (which I can implement at some point), it infers
+ * the wrong value for the right projection:
  *)
 Definition conspv_value T n t v := projT2 (conspv' T n t v).
-Fail Lift vector list in conspv_value as cons_value'.
+Lift vector list in conspv_value as cons_value_bad'.
+Print cons_value_bad'.
 
 (*
  * So if we want packed cons over lists, we can get it, just for now we need
