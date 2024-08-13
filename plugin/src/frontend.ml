@@ -51,8 +51,12 @@ let define_print ?typ n trm sigma =
     let trm = Evarutil.flush_and_check_evars sigma (EConstr.of_constr trm) in
     let def =
       if Option.has_some typ then
-        let typ = Evarutil.flush_and_check_evars sigma (EConstr.of_constr (Option.get typ)) in
-        define_term ~typ n sigma trm true
+        try
+          let typ = Evarutil.flush_and_check_evars sigma (EConstr.of_constr (Option.get typ)) in
+          define_term ~typ n sigma trm true
+        with _ ->
+          Feedback.msg_warning (Pp.str "automatically lifting type failed; using Coq to infer type for this term instead");
+          define_term n sigma trm true
       else
         define_term n sigma trm true
     in
