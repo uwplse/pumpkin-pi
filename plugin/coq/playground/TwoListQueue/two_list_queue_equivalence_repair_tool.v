@@ -948,3 +948,34 @@ Proof.
     rewrite H.
     reflexivity.
 Qed.
+
+Ltac solve3 x t :=
+  match goal with
+  | |- respectful _ _ _ _ =>
+    let H := fresh "H" in
+    intros ? ? H; solve3 x ltac:(try setoid_rewrite H; t)
+  | _ => t; induction x; simpl; (try (f_equiv; auto); try (t; reflexivity))
+  end.
+
+Ltac solve2 x t :=
+  match goal with
+  | |- Proper _ _ =>
+    unfold Proper; solve3 x t
+  | _ => 
+    let H := fresh "H" in
+    intros H ?; solve2 x ltac:(try setoid_rewrite H; t)
+  end.
+
+Ltac solve1 :=
+  let x := fresh "x" in
+  intros x; solve2 x ltac:(idtac).
+
+Require Import List.
+Import ListNotations.
+
+Print list_rect.
+
+Theorem test : forall (l : list nat) (H1 : (forall (a : nat) (l : list nat), TLQ -> TLQ)) (H1prop : Proper (eq ==> eq ==> eq_queue ==> eq_queue) H1),
+    Proper (eq_queue ==> eq_queue) (fun x => list_rect (fun _ => TLQ) x H1 l).
+Proof.
+  solve1.

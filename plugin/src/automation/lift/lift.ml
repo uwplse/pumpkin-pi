@@ -182,6 +182,7 @@ let rec find_assoc_list_state pred env l sigma =
  * key is convertible to trm.
  *)
 let find_key_convertible_to env l sigma trm =
+  Feedback.msg_warning (Pp.str "here!");
   let pred env t sigma = Convertibility.convertible env sigma (fst t) trm in
   find_assoc_list_state pred env l sigma
 

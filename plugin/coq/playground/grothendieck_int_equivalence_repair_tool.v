@@ -790,6 +790,17 @@ Proof.
     reflexivity.
 Qed.
 
+Ltac solve_respectful2 t :=
+ match goal with
+   | |- respectful _ _ _ _ =>
+     let H := fresh "H" in
+     intros ? ? H; solve_respectful ltac:(try setoid_rewrite H; t)
+   | _ => t; reflexivity
+ end.
+
+Ltac solve_proper2 :=
+  unfold Proper; solve_respectful2 ltac:(idtac).
+
 (*
  * Now, we specify our setoid to the automation. Types contains a list of
  * the types with specified equivalence relations, rels contains the equivalence
@@ -853,7 +864,34 @@ Proof.
   solve_proper.
 Qed.
 
+Ltac solve3 x t :=
+  match goal with
+  | |- respectful _ _ _ _ =>
+    let H := fresh "H" in
+    intros ? ? H; solve3 x ltac:(try setoid_rewrite H; t)
+  | _ => t; induction x; simpl; (try (f_equiv; auto); try (t; reflexivity))
+  end.
+
+Ltac solve2 x t :=
+  match goal with
+  | |- Proper _ _ =>
+    unfold Proper; solve3 x t
+  | _ => 
+    let H := fresh "H" in
+    intros H ?; solve2 x ltac:(try setoid_rewrite H; t)
+  end.
+
+Ltac solve_elim_proper :=
+  let x := fresh "x" in
+  intros x; solve2 x ltac:(idtac).
+  
 Lift Z GZ in add_posZ as add_posGZ.
+
+Print add_posZ.
+
+Definition test4 := fun (z : Z) (n : nat) => nat_rec (constZ nat) (sucZ z) (fun (_ : nat) (p : Z) => sucZ p) n.
+
+Lift Z GZ in test4 as test5.
 
 Instance add_posGZProper :
   Proper (eq_GZ ==> eq ==> eq_GZ) add_posGZ.
@@ -1370,3 +1408,51 @@ Proof.
   rewrite <- addEqualFastAdd.
   apply add0LGZ.
 Qed.
+
+Print nat_rec.
+
+Theorem test : forall (n : nat) (H1 : forall n : nat, GZ -> GZ) (H1prop : Proper (eq ==> eq_GZ ==> eq_GZ) H1),
+    Proper (eq_GZ ==> eq_GZ) (fun x => nat_rec (constGZ nat) x H1 n).
+Proof.
+  solve_elim_proper.
+Qed.
+
+Theorem test3 : forall (H : nat)
+    (H0 : forall n : nat, (fun _ : nat => GZ) n -> (fun _ : nat => GZ) (S n)),
+  Proper (eq ==> eq_GZ ==> eq_GZ) H0 ->
+  Proper (eq_GZ ==> eq_GZ)
+    (fun H2 : (fun _ : nat => GZ) 0 => nat_rec (fun _ : nat => GZ) H2 H0 H).
+Proof.
+  solve_elim_proper.
+Defined.
+
+Print test3.
+
+Theorem test2 : Proper (eq_GZ ==> eq ==> eq_GZ)
+   (fun (z : GZ) (n : nat) =>
+      nat_rec (constGZ nat) z (fun (_ : nat) (p : GZ) => sucGZ p) n).
+Proof.
+  unfold Proper.
+  unfold respectful.
+  intros x1 x2 H1.
+  intros y1 y2 H2.
+  rewrite H2.
+  pose (fun (x : nat) (H : forall n : nat, (fun _ : nat => GZ) n -> (fun _ : nat => GZ) (S n)) (H0 : Proper (eq ==> eq_GZ ==> eq_GZ) H) (x0 y : GZ) (H1 : eq_GZ x0 y) =>
+trans_co_eq_inv_impl_morphism eq_GZ_trans (nat_rec (fun _ : nat => GZ) x0 H x) (nat_rec (fun _ : nat => GZ) y H x)
+  (PeanoNat.Nat.recursion_wd eq_GZ x0 y H1 H H (proper_proper_proxy H H0) x x (eq_proper_proxy x)) (nat_rec (fun _ : nat => GZ) y H x) (nat_rec (fun _ : nat => GZ) y H x)
+  (eq_proper_proxy (nat_rec (fun _ : nat => GZ) y H x))
+  (nat_ind (fun x1 : nat => eq_GZ (nat_rec (fun _ : nat => GZ) y H x1) (nat_rec (fun _ : nat => GZ) y H x1)) (reflexive_proper y)
+     (fun (x1 : nat) (_ : eq_GZ (nat_rec (fun _ : nat => GZ) y H x1) (nat_rec (fun _ : nat => GZ) y H x1)) =>
+      let R := eq_GZ in
+      let H2 : (R ==> eq_GZ)%signature (H x1) (H x1) := let R0 := eq in let H3 : (R0 ==> eq_GZ ==> eq_GZ)%signature H H := H0 in H3 x1 x1 eq_refl in
+      H2 (nat_rec (fun _ : nat => GZ) y H x1) (nat_rec (fun _ : nat => GZ) y H x1) (reflexivity (nat_rec (fun _ : nat => GZ) y H x1))) x)).
+  apply e.
+  - solve_proper2.
+  - try rewrite H1.
+    reflexivity.
+Qed.
+
+Inductive testi (P : nat -> Type) : Type :=
+| t : testi P.
+
+Print testi_rect.
