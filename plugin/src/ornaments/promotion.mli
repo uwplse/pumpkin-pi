@@ -14,7 +14,7 @@ type kind_of_orn =
   | SwapConstruct of (int * int) list
   | UnpackSigma
   | Custom of (types * types)
-  | Setoid of ((types * types) * (types list * constr list * constr list))
+  | Setoid of ((types * types) * (types list * (((constr * constr) option list)) * ((constr * constr) option list)))
 
 (*
  * An ornamental promotion is a function from T1 -> T2,

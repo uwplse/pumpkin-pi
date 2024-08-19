@@ -44,7 +44,7 @@ val initialize_lifting_cached :
  *    if it is a setoid equivalence
  *)
 val initialize_lifting_provided :
-  env -> evar_map -> types * types -> constr * constr -> bool -> (types list * constr list * constr list) option -> lifting state
+  env -> evar_map -> types * types -> constr * constr -> bool -> (types list * (constr * constr) option list * (constr * constr) option list) option -> lifting state
 
 (* --- Control structures --- *)
     

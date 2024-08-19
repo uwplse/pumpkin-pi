@@ -81,7 +81,7 @@ let rec resp_from_typ_list c env sigma l =
       if is_Prop typ then
          sigma, iff
       else
-        Lift.find_eq_rel_for_type c env sigma typ in
+        Lift.find_eq_rel_for_target_type c env sigma typ in
   match l with
   | [] -> failwith "Undefined."
   | h :: [] -> eq_rel_for_type sigma h

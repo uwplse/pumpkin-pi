@@ -31,7 +31,7 @@ val do_lift_ind :
   bool -> (* whether we're lifting a whole module *)
   inductive (* lifted type and number of constructors for caching *)
 
-val find_eq_rel_for_type :
+val find_eq_rel_for_target_type :
   Lifting.lifting ->
   env ->
   evar_map ->

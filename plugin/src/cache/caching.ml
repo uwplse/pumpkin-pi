@@ -294,7 +294,7 @@ let swap_cache = OrnamentsCache.create 100
 (* Initialize the equivalence relation cache *)
 let equiv_rel_cache = OrnamentsCache.create 100
 
-type equiv_rel_obj = (Names.GlobRef.t list * Names.GlobRef.t list) metadata
+type equiv_rel_obj = (Names.GlobRef.t list * (Names.GlobRef.t option * Names.GlobRef.t option) list) metadata
 
 let cache_equiv_rel (_, (typs, (eq_types, eq_rels))) =
   OrnamentsCache.add equiv_rel_cache typs (eq_types, eq_rels)
@@ -303,7 +303,7 @@ let sub_equiv_rel (subst, (typs, (eq_types, eq_rels))) =
   let open Globnames in
   let typs = map_tuple (subst_global_reference subst) typs in
   let eq_types = List.map (subst_global_reference subst) eq_types in
-  let eq_rels = List.map (subst_global_reference subst) eq_rels in
+  let eq_rels = List.map (map_tuple (Option.map (subst_global_reference subst))) eq_rels in
   typs, (eq_types, eq_rels)
 
 let inEquivRels : equiv_rel_obj -> obj =
@@ -325,7 +325,7 @@ let lookup_equiv_rel_assgn typs =
     let (eq_types, eq_rels) = OrnamentsCache.find equiv_rel_cache globals in
     try
       let eq_types = List.map UnivGen.constr_of_global eq_types in
-      let eq_rels = List.map UnivGen.constr_of_global eq_rels in
+      let eq_rels = List.map (map_tuple (Option.map (UnivGen.constr_of_global))) eq_rels in
       Some (eq_types, eq_rels)
     with _ ->
       Feedback.msg_warning
@@ -342,8 +342,10 @@ let save_equiv_rels typs eq_rel_mapping =
   try
     let open Globnames in
     let globals = map_tuple global_of_constr typs in
-    let eq_rel_mapping = map_tuple (List.map global_of_constr) eq_rel_mapping in
-    let eq_rel_obj = inEquivRels (globals, eq_rel_mapping) in
+    let eq_rel_mapping_key, eq_rel_mapping_val = eq_rel_mapping in
+    let eq_rel_mapping_key = List.map global_of_constr eq_rel_mapping_key in
+    let eq_rel_mapping_val = List.map (map_tuple (Option.map global_of_constr)) eq_rel_mapping_val in
+    let eq_rel_obj = inEquivRels (globals, (eq_rel_mapping_key, eq_rel_mapping_val)) in
     add_anonymous_leaf eq_rel_obj
   with _ ->
     Feedback.msg_warning
@@ -355,7 +357,7 @@ let save_equiv_rels typs eq_rel_mapping =
 (* Initialize the equivalence instance proof cache *)
 let equiv_proof_cache = OrnamentsCache.create 100
 
-type equiv_proof_obj = (Names.GlobRef.t list * Names.GlobRef.t list) metadata
+type equiv_proof_obj = (Names.GlobRef.t list * (Names.GlobRef.t option * Names.GlobRef.t option) list) metadata
 
 let cache_equiv_proof (_, (typs, (eq_types, eq_proofs))) =
   OrnamentsCache.add equiv_proof_cache typs (eq_types, eq_proofs)
@@ -364,10 +366,10 @@ let sub_equiv_proof (subst, (typs, (eq_types, eq_proofs))) =
   let open Globnames in
   let typs = map_tuple (subst_global_reference subst) typs in
   let eq_types = List.map (subst_global_reference subst) eq_types in
-  let eq_proofs = List.map (subst_global_reference subst) eq_proofs in
+  let eq_proofs = List.map (map_tuple (Option.map (subst_global_reference subst))) eq_proofs in
   typs, (eq_types, eq_proofs)
 
-let inEquivProofs : equiv_rel_obj -> obj =
+let inEquivProofs : equiv_proof_obj -> obj =
   declare_object { (default_object "EQUIV_PROOFS") with
     cache_function = cache_equiv_proof;
     load_function = (fun _ -> cache_equiv_proof);
@@ -386,7 +388,7 @@ let lookup_equiv_proof_assgn typs =
     let (eq_types, eq_proofs) = OrnamentsCache.find equiv_proof_cache globals in
     try
       let eq_types = List.map UnivGen.constr_of_global eq_types in
-      let eq_proofs = List.map UnivGen.constr_of_global eq_proofs in
+      let eq_proofs = List.map (map_tuple (Option.map (UnivGen.constr_of_global))) eq_proofs in
       Some (eq_types, eq_proofs)
     with _ ->
       Feedback.msg_warning
@@ -404,8 +406,10 @@ let save_equiv_proofs typs eq_proof_mapping =
   try
     let open Globnames in
     let globals = map_tuple global_of_constr typs in
-    let eq_proof_mapping = map_tuple (List.map global_of_constr) eq_proof_mapping in
-    let eq_proof_obj = inEquivRels (globals, eq_proof_mapping) in
+    let eq_proof_mapping_key, eq_proof_mapping_val = eq_proof_mapping in
+    let eq_proof_mapping_key = List.map global_of_constr eq_proof_mapping_key in
+    let eq_proof_mapping_val = List.map (map_tuple (Option.map global_of_constr)) eq_proof_mapping_val in
+    let eq_proof_obj = inEquivRels (globals, (eq_proof_mapping_key, eq_proof_mapping_val)) in
     add_anonymous_leaf eq_proof_obj
   with _ ->
     Feedback.msg_warning
@@ -437,9 +441,25 @@ let int_to_kind (i : int) globals =
     let (eq_types, eq_rels) = OrnamentsCache.find equiv_rel_cache globals in
     let (eq_types, eq_proofs) = OrnamentsCache.find equiv_proof_cache globals in
     let eq_types = List.map UnivGen.constr_of_global eq_types in
-    let eq_rels = List.map UnivGen.constr_of_global eq_rels in
-    let eq_proofs = List.map UnivGen.constr_of_global eq_proofs in
-    Setoid (typs, (eq_types, eq_rels, eq_proofs))
+    let eq_rels = List.map (map_tuple (Option.map UnivGen.constr_of_global)) eq_rels in
+    let eq_proofs = List.map (map_tuple (Option.map UnivGen.constr_of_global)) eq_proofs in
+    let rec combiner eq_rels eq_proofs acc1 acc2 =
+      match (eq_rels, eq_proofs) with
+      | (h1a, h1b) :: t1, (h2a, h2b) :: t2 ->
+         let ha =
+           if Option.has_some h1a && Option.has_some h2a then
+             Some (Option.get h1a, Option.get h2a)
+           else
+             None in
+         let hb =
+           if Option.has_some h1b && Option.has_some h2b then
+             Some (Option.get h1b, Option.get h2b)
+           else
+             None in
+         combiner t1 t2 (ha :: acc1) (hb :: acc2)
+      | _ -> (acc1, acc2) in
+    let a_val, b_val = combiner eq_rels eq_proofs [] [] in
+    Setoid (typs, (eq_types, a_val, b_val)) 
   else
     failwith "Unsupported kind of ornament passed to interpret_kind in caching"
 
@@ -548,10 +568,26 @@ let save_ornament typs (orn, orn_inv, kind) =
     | SwapConstruct swap_map ->
        let ind_obj = inSwaps (globals, swap_map) in
        add_anonymous_leaf ind_obj
-    | Setoid (typs, (eq_types, eq_rels, eq_proofs))  ->
+    | Setoid (typs, (eq_types, eq_rels_a, eq_rels_b))  ->
+       let rec combiner eq_rels_a eq_rels_b acc1 acc2 =
+         match (eq_rels_a, eq_rels_b) with
+         | h1 :: t1, h2 :: t2 ->
+            let h1rel, h1proof =
+              if Option.has_some h1 then
+                map_tuple (fun x -> Some x) (Option.get h1)
+              else
+                None, None in
+            let h2rel, h2proof =
+              if Option.has_some h2 then
+                map_tuple (fun x -> Some x) (Option.get h2)
+              else
+                None, None in
+            combiner t1 t2 ((h1rel, h2rel) :: acc1) ((h1proof, h2proof) :: acc2)
+         | _ -> acc1, acc2 in
+       let eq_rels, eq_proofs = combiner eq_rels_a eq_rels_b [] [] in
        let eq_types = List.map Globnames.global_of_constr eq_types in
-       let eq_rels = List.map Globnames.global_of_constr eq_rels in
-       let eq_proofs = List.map Globnames.global_of_constr eq_proofs in
+       let eq_rels = List.map (map_tuple (Option.map Globnames.global_of_constr)) eq_rels in
+       let eq_proofs = List.map (map_tuple (Option.map Globnames.global_of_constr)) eq_proofs in
        let eq_rel_obj = inEquivRels (globals, (eq_types, eq_rels)) in
        let eq_proof_obj = inEquivProofs (globals, (eq_types, eq_proofs)) in
        add_anonymous_leaf eq_rel_obj;

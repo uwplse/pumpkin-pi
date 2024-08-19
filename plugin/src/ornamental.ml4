@@ -25,8 +25,8 @@ VERNAC COMMAND EXTEND SaveOrnament CLASSIFIED AS SIDEFF
   [ save_ornament d_old d_new None (Some d_orn_inv) false None ]
 | [ "Save" "equivalence" constr(d_old) constr(d_new) "{" "promote" "=" constr(d_orn) ";" "forget" "=" constr(d_orn_inv) "}" ] ->
   [ save_ornament d_old d_new (Some d_orn) (Some d_orn_inv) true None ]
-| [ "Save" "setoid" constr(d_old) constr(d_new) "{" "promote" "=" constr(d_orn) ";" "forget" "=" constr(d_orn_inv) ";" "types" "=" constr_list(types) ";" "rels" "=" constr_list(eq_rels) ";" "equiv_proofs" "=" constr_list(eq_proofs) "}" ] ->
-  [ save_ornament d_old d_new (Some d_orn) (Some d_orn_inv) true (Some (types, eq_rels, eq_proofs)) ]
+| [ "Save" "setoid" constr(d_old) constr(d_new) "{" "promote" "=" constr(d_orn) ";" "forget" "=" constr(d_orn_inv) ";" "types_a" "=" constr_list(types_a) ";" "rels_a" "=" constr_list(eq_rels_a) ";" "equiv_proofs_a" "=" constr_list(eq_proofs_a) ";" "types_b" "=" constr_list(types_b) ";" "rels_b" "=" constr_list(eq_rels_b) ";" "equiv_proofs_b" "=" constr_list(eq_proofs_b) "}" ] ->
+  [ save_ornament d_old d_new (Some d_orn) (Some d_orn_inv) true (Some ((types_a, eq_rels_a, eq_proofs_a), (types_b, eq_rels_b, eq_proofs_b))) ]
 END
 
 (* Lift a function along an equivalence *)

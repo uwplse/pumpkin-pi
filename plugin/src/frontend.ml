@@ -370,11 +370,43 @@ let save_ornament d_old d_new d_orn_o d_orn_inv_o is_custom setoid_info =
     in let sigma, setoid_info =
          match setoid_info with
          | None -> sigma, None
-         | Some (l1, l2, l3) ->
+         | Some ((l1, l2, l3), (l4, l5, l6)) ->
              let sigma, (l1' : types list) = map_state (fun t sigma -> intern env sigma t) l1 sigma in
              let sigma, l2' = map_state (fun t sigma -> intern env sigma t) l2 sigma in
              let sigma, l3' = map_state (fun t sigma -> intern env sigma t) l3 sigma in
-             sigma, Some (l1', l2', l3')
+             let sigma, l4' = map_state (fun t sigma -> intern env sigma t) l4 sigma in
+             let sigma, l5' = map_state (fun t sigma -> intern env sigma t) l5 sigma in
+             let sigma, l6' = map_state (fun t sigma -> intern env sigma t) l6 sigma in
+             let rec merge_assoc_lists (l1, l2, l3) (l4, l5, l6) acc =
+               let rec update_val_a k v l =
+                 match l with
+                 | [] -> [(k, (Some v, None))]
+                 | (k', (va, vb)) :: t ->
+                    if equal k k' then
+                      (k', (Some v, vb)) :: t
+                    else
+                      update_val_a k v t in
+               let rec update_val_b k v l =
+                 match l with
+                 | [] -> [(k, (None, Some v))]
+                 | (k', (va, vb)) :: t ->
+                    if equal k k' then
+                      (k', (va, Some v)) :: t
+                    else
+                      update_val_a k v t in
+               match l1 with
+               | h :: t ->
+                  let acc = update_val_a h (List.hd l2, List.hd l3) acc in
+                  merge_assoc_lists (t, List.tl l2, List.tl l3) (l4, l5, l6) acc
+               | [] ->
+                  match l4 with
+                  | h :: t ->
+                     let acc = update_val_b h (List.hd l5, List.hd l6) acc in
+                     merge_assoc_lists ([], [], []) (t, List.tl l5, List.tl l6) acc
+                  | [] -> acc in
+             let types_list, rels_lists = List.split (merge_assoc_lists (l1', l2', l3') (l4', l5', l6') []) in
+             let rels_a_list, rels_b_list = List.split rels_lists in
+             sigma, Some (types_list, rels_a_list, rels_b_list)         
     in find_ornament_common env (Some n) d_old d_new None promote_o forget_o is_custom setoid_info sigma
 
 (*

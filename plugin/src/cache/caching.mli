@@ -118,13 +118,13 @@ val save_iota : (types * types) -> (constr array * constr array) -> unit
  * not in the current environment.
  *) 
 val lookup_equiv_rel_assgn :
-  (types * types) -> (types list * constr list) option
+  (types * types) -> (types list * (constr option * constr option) list) option
    
 (*
  * Store type to equivalence relation assignment.
  *)
 val save_equiv_rels :
-  (types * types) -> (types list * constr list) -> unit
+  (types * types) -> (types list * (constr option * constr option) list) -> unit
 
 (* Lookup the type to equivalence instance proof assignment.
  * Arguments: orn_o, orn_n
@@ -133,10 +133,10 @@ val save_equiv_rels :
  * not in the current environment.
  *) 
 val lookup_equiv_proof_assgn :
-  (types * types) -> (types list * constr list) option
+  (types * types) -> (types list * (constr option * constr option) list) option
    
 (*
  * Store type to equivalence instance proof assignment.
  *)
 val save_equiv_proofs :
-  (types * types) -> (types list * constr list) -> unit
+  (types * types) -> (types list * (constr option * constr option) list) -> unit
