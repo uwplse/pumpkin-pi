@@ -371,13 +371,6 @@ let save_ornament d_old d_new d_orn_o d_orn_inv_o is_custom setoid_info =
          match setoid_info with
          | None -> sigma, None
          | Some ((l1, l2, l3), (l4, l5, l6)) ->
-             let _ = Feedback.msg_warning (Pp.str "list lengths") in
-             let _ = Feedback.msg_warning (Pp.int (List.length l1)) in
-             let _ = Feedback.msg_warning (Pp.int (List.length l2)) in
-             let _ = Feedback.msg_warning (Pp.int (List.length l3)) in
-             let _ = Feedback.msg_warning (Pp.int (List.length l4)) in
-             let _ = Feedback.msg_warning (Pp.int (List.length l5)) in
-             let _ = Feedback.msg_warning (Pp.int (List.length l6)) in
              let sigma, (l1' : types list) = map_state (fun t sigma -> intern env sigma t) l1 sigma in
              let sigma, l2' = map_state (fun t sigma -> intern env sigma t) l2 sigma in
              let sigma, l3' = map_state (fun t sigma -> intern env sigma t) l3 sigma in
@@ -412,22 +405,7 @@ let save_ornament d_old d_new d_orn_o d_orn_inv_o is_custom setoid_info =
                      merge_assoc_lists ([], [], []) (t2, List.tl l5, List.tl l6) acc
                   | [] -> acc in
              let types_list, rels_lists = List.split (merge_assoc_lists (l1', l2', l3') (l4', l5', l6') []) in
-             let _ = List.map (fun x -> Feedback.msg_warning (Printer.pr_constr_env env sigma x)) types_list in
              let rels_a_list, rels_b_list = List.split rels_lists in
-             let rec print_rels_list l =
-               match l with
-               | [] -> ()
-               | None :: t ->
-                  let _ = Feedback.msg_warning (Pp.str "None") in print_rels_list t
-               | Some (veq, vp) :: t ->
-                  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma veq) in
-                  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma vp) in
-                  print_rels_list t in
-             let _ = print_rels_list rels_a_list in
-             let _ = print_rels_list rels_b_list in
-             let _ = Feedback.msg_warning (Pp.int (List.length types_list)) in
-             let _ = Feedback.msg_warning (Pp.int (List.length rels_a_list)) in
-             let _ = Feedback.msg_warning (Pp.int (List.length rels_b_list)) in
              sigma, Some (types_list, rels_a_list, rels_b_list)
     in find_ornament_common env (Some n) d_old d_new None promote_o forget_o is_custom setoid_info sigma
 
