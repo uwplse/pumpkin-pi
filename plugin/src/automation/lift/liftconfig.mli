@@ -193,6 +193,13 @@ val applies_eq_refl :
   evar_map ->
   ((constr list) option) state
 
+val applies_setoid_reflexivity :
+  lift_config ->
+  env ->
+  Constr.t ->
+  evar_map ->
+  (Constr.t list option) state
+
 (*
  * Check if the term is rewriting by an equality
  *)

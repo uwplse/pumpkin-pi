@@ -16,3 +16,6 @@ val equiv_trans_getter : constr
 
 (* Proof that eq is an equivalence *)
 val eq_equivalence : constr
+
+(* Proof of x [=] x for a setoid. *)
+val reflexivity : constr

@@ -24,3 +24,7 @@ let equiv_trans_getter : constr =
 (* Proof that eq is an equivalence *)
 let eq_equivalence : constr =
   mkConst (Constant.make2 coq_classes_relationclasses (Label.make "eq_equivalence"))
+  
+(* Proof of x [=] x for a setoid. *)
+let reflexivity : constr =
+  mkConst (Constant.make2 coq_classes_relationclasses (Label.make "reflexivity"))

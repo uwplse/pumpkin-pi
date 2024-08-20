@@ -917,6 +917,21 @@ let applies_eq_refl c env trm sigma =
      else sigma, None
   | _ -> sigma, None
 
+(*
+ * Check if the term is the reflexivity proof for the source setoid.
+ *)
+let applies_setoid_reflexivity c env trm sigma =
+  match (get_lifting c).orn.kind with
+  | Setoid _ ->
+     if (isApp trm) then
+       if equal (first_fun trm) Equivutils.reflexivity then
+         sigma, Some (unfold_args trm)
+       else
+         sigma, None
+     else
+       sigma, None
+  | _ -> sigma, None
+
 (* 
  * Check if a term is convertible to eq_ind, eq_rec, or eq_rect.
  * Based on is_rewrite_l from coq-plugin-lib.
