@@ -23,6 +23,7 @@ open Equivutils
 open Equtils
 open Names
 open Pp
+open Setoidutils
 
 (*
  * The top-level lifting algorithm
@@ -162,136 +163,18 @@ let lift_evar c env trm lift_rec sigma =
     in sigma, { info with evar_concl; evar_body; evar_candidates }
   in Evd.add (Evd.remove sigma etrm) etrm lifted_info, trm
 
-(*
- * If an element in the provided list matches the predicate,
- * return the element. Returns None if no element exists.
- * The evar map is threaded through calls to the predicate.
- *)
-let rec find_assoc_list_state pred env l sigma =
-  match l with
-  | [] -> sigma, None
-  | h :: t ->
-     let sigma, result = pred env h sigma in
-     if result then
-       sigma, Some h
-     else
-       find_assoc_list_state pred env t sigma
-
-(*
- * Given an association list l, returns the first (key, element) pair such that
- * key is convertible to trm.
- *)
-let find_key_convertible_to env l sigma trm =
-  Feedback.msg_warning (Pp.str "here!");
-  let pred env t sigma = Convertibility.convertible env sigma (fst t) trm in
-  find_assoc_list_state pred env l sigma
-
-(* Find the equivalence relation associated with a type in the source setoid. *)
-let find_eq_rel_for_source_type l env sigma typ =
-  let kind = l.orn.kind in
-  match kind with
-  | Setoid (typs, (eq_types, eq_rels_a, _)) ->
-     let rec get_as eq_types eq_rels acc1 acc2 =
-       match eq_types, eq_rels with
-       | h1 :: t1, h2 :: t2 ->
-          if Option.has_some h2 then
-            get_as t1 t2 (h1 :: acc1) ((fst (Option.get h2)) :: acc2)
-          else
-            get_as t1 t2 acc1 acc2
-       | _ :: _, [] -> failwith "More types than eq_rels in Setoid lifting"
-       | [], _ :: _ -> failwith "More eq_rels than types in Setoid lifting"
-       | [], [] -> acc1, acc2 in
-     let eq_types, eq_rels = get_as eq_types eq_rels_a [] [] in
-     let rel_map = List.combine eq_types eq_rels in
-     let sigma, found_rel = find_key_convertible_to env rel_map sigma typ in
-     let eq_rel =
-       match found_rel with
-       | None -> mkAppl (Equtils.eq, [typ])
-       | Some p -> snd p in
-     sigma, eq_rel
-  | _ -> failwith "Eq lifting unsupported outside of Setoid lifting"
-
-(* Find the equivalence relation associated with a type in the target setoid. *)
-let find_eq_rel_for_target_type l env sigma typ =
-  let kind = l.orn.kind in
-  match kind with
-  | Setoid (typs, (eq_types, eq_rels_a, eq_rels_b)) ->
-     let rec get_bs eq_types eq_rels acc1 acc2 =
-       match eq_types, eq_rels with
-       | h1 :: t1, h2 :: t2 ->
-          if Option.has_some h2 then
-            get_bs t1 t2 (h1 :: acc1) ((fst (Option.get h2)) :: acc2)
-          else
-            get_bs t1 t2 acc1 acc2
-       | _ :: _, [] -> failwith "More types than eq_rels in Setoid lifting"
-       | [], _ :: _ -> failwith "More eq_rels than types in Setoid lifting"
-       | [], [] -> acc1, acc2 in
-     let eq_types, eq_rels = get_bs eq_types eq_rels_b [] [] in
-     let rel_map = List.combine eq_types eq_rels in
-     let sigma, found_rel = find_key_convertible_to env rel_map sigma typ in
-     let eq_rel =
-       match found_rel with
-       | None -> mkAppl (Equtils.eq, [typ])
-       | Some p -> snd p in
-     sigma, eq_rel
-  | _ -> failwith "Eq lifting unsupported outside of Setoid lifting"
-
-(* Find the equivalence proof associated with a type in the source setoid. *)
-let find_eq_proof_for_source_type l env sigma typ =
-  let kind = l.orn.kind in
-  match kind with
-  | Setoid (typs, (eq_types, eq_rels_a, _)) ->
-     let rec get_as eq_types eq_rels acc1 acc2 =
-       match eq_types, eq_rels with
-       | h1 :: t1, h2 :: t2 ->
-          if Option.has_some h2 then
-            get_as t1 t2 (h1 :: acc1) ((snd (Option.get h2)) :: acc2)
-          else
-            get_as t1 t2 acc1 acc2
-       | _ :: _, [] -> failwith "More types than eq_rels in Setoid lifting"
-       | [], _ :: _ -> failwith "More eq_rels than types in Setoid lifting"
-       | [], [] -> acc1, acc2 in
-     let eq_types, eq_proofs = get_as eq_types eq_rels_a [] [] in
-     let rel_map = List.combine eq_types eq_proofs in
-     let sigma, found_proof = find_key_convertible_to env rel_map sigma typ in
-     let eq_proof =
-       match found_proof with
-       | None -> mkAppl (Equivutils.eq_equivalence, [typ])
-       | Some p -> snd p in
-     sigma, eq_proof
-  | _ -> failwith "Eq lifting unsupported outside of Setoid lifting"
-
-(* Find the equivalence proof associated with a type in the target setoid. *)
-let find_eq_proof_for_target_type l env sigma typ =
-  let kind = l.orn.kind in
-  match kind with
-  | Setoid (typs, (eq_types, _, eq_rels_b)) ->
-     let rec get_bs eq_types eq_rels acc1 acc2 =
-       match eq_types, eq_rels with
-       | h1 :: t1, h2 :: t2 ->
-          if Option.has_some h2 then
-            get_bs t1 t2 (h1 :: acc1) ((snd (Option.get h2)) :: acc2)
-          else
-            get_bs t1 t2 acc1 acc2
-       | _ :: _, [] -> failwith "More types than eq_rels in Setoid lifting"
-       | [], _ :: _ -> failwith "More eq_rels than types in Setoid lifting"
-       | [], [] -> acc1, acc2 in
-     let eq_types, eq_proofs = get_bs eq_types eq_rels_b [] [] in
-     let rel_map = List.combine eq_types eq_proofs in
-     let sigma, found_proof = find_key_convertible_to env rel_map sigma typ in
-     let eq_proof =
-       match found_proof with
-       | None -> mkAppl (Equivutils.eq_equivalence, [typ])
-       | Some p -> snd p in
-     sigma, eq_proof
-  | _ -> failwith "Eq lifting unsupported outside of Setoid lifting"
-
 (* Lift equality types *)
 let lift_eq_app c env l lift_rec sigma =
   let eq_type = List.hd l in
   let sigma, lifted_eq_type = lift_rec env sigma c eq_type in
   let sigma, eq_rel = find_eq_rel_for_target_type (get_lifting c) env sigma lifted_eq_type in
   let sigma, lifted_args = map_rec_args_list lift_rec env sigma c (List.tl l) in
+  sigma, (mkAppl (eq_rel, lifted_args))
+
+let lift_equiv_rel_app c env typ args lift_rec sigma =
+  let sigma, lifted_eq_type = lift_rec env sigma c typ in
+  let sigma, eq_rel = find_eq_rel_for_target_type (get_lifting c) env sigma lifted_eq_type in
+  let sigma, lifted_args = map_rec_args_list lift_rec env sigma c args in
   sigma, (mkAppl (eq_rel, lifted_args))
 
 (* Lift eq_refl applications *)
@@ -442,6 +325,8 @@ let lift_core env c trm sigma =
        lift_const_lazy_delta c en (co, u) (lift_rec lift_rules) sigma
     | Eq l ->
        lift_eq_app c en l (lift_rec lift_rules) sigma
+    | EquivRel (typ, args) ->
+       lift_equiv_rel_app c en typ args (lift_rec lift_rules) sigma
     | EqRefl l ->
        lift_eq_refl_app c en l (lift_rec lift_rules) sigma
     | SetoidRefl l ->

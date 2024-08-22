@@ -45,6 +45,7 @@ type lift_rule =
 | Coherence of reducer * (constr * constr list)
 | Optimization of lift_optimization
 | Eq of constr list
+| EquivRel of constr * constr list
 | EqRefl of constr list
 | SetoidRefl of constr list
 | EqRewrite of Equtils.rewrite_args

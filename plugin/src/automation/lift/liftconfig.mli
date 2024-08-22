@@ -184,6 +184,16 @@ val applies_eq :
   ((constr list) option) state
 
 (*
+ * Check if a registered equivalence relation is applied and we are repairing to a setoid.
+ *)
+val applies_equiv_rel :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  ((constr * constr list) option) state
+
+(*
  * Check if the term applies eq_refl
  *)
 val applies_eq_refl :
@@ -196,9 +206,9 @@ val applies_eq_refl :
 val applies_setoid_reflexivity :
   lift_config ->
   env ->
-  Constr.t ->
+  constr ->
   evar_map ->
-  (Constr.t list option) state
+  ((constr list) option) state
 
 (*
  * Check if the term is rewriting by an equality

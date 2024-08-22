@@ -189,3 +189,41 @@ Print test_reflexivityA.
 Lift A B in test_reflexivityA as test_reflexivityB.
 
 Print test_reflexivityB.
+
+Definition test_reflexivityA2 := reflexivity.
+
+Print test_reflexivityA2.
+
+Lift A B in test_reflexivityA2 as test_reflexivityB2.
+
+Print test_reflexivityB2.
+
+Definition test_equiv_relA := eqA.
+
+Lift A B in test_equiv_relA as test_equiv_relB.
+
+Print test_equiv_relB.
+
+Definition test_equiv_relA2 (a : A) (n : nat) := eqA a.
+
+Print test_equiv_relA2.
+
+Lift A B in test_equiv_relA2 as test_equiv_relB2.
+
+Print test_equiv_relB2.
+
+Definition test_equiv_relA3 (a a2 : A) (n : nat) := eqA a a2.
+
+Print test_equiv_relA3.
+
+Lift A B in test_equiv_relA3 as test_equiv_relB3.
+
+Print test_equiv_relB3.
+
+Definition test_equiv_relA4 := eqA depConstrAOne depConstrATwo.
+
+Print test_equiv_relA4.
+
+Lift A B in test_equiv_relA4 as test_equiv_relB4.
+
+Print test_equiv_relB4.

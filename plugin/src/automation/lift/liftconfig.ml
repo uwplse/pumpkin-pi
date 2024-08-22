@@ -904,6 +904,20 @@ let applies_eq c env trm sigma =
   | _ -> sigma, None
 
 (*
+ * Check if a registered equivalence relation is applied and we are repairing to a setoid.
+ *)
+let applies_equiv_rel c env trm sigma =
+  let l = get_lifting c in
+  match l.orn.kind with
+  | Setoid _ ->
+    let sigma, type_o = Setoidutils.find_type_for_eq_rel_source_setoid l env sigma (first_fun trm) in
+    if Option.has_some type_o then
+      let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma (Option.get type_o)) in
+      sigma, Some (Option.get type_o, (unfold_args trm))
+    else sigma, None
+  | _ -> sigma, None
+
+(*
  * Check if eq_refl is applied and we are repairing to a setoid.
  *)
 let applies_eq_refl c env trm sigma =

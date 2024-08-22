@@ -67,6 +67,7 @@ Equivalence
 Unpackalg
 Smartelim
 
+Setoidutils
 Liftconfig
 Liftrules
 Lift
