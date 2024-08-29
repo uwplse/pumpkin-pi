@@ -292,7 +292,60 @@ let lift_eq_rewrite c env rewrite_info lift_rec sigma =
                   lifted_rewrite_info.params)
   else
     failwith "Failed when attempting to lift a rewrite."
-     
+
+let rewrite_tactic_from_start_rewrite_annotation env sigma b eq_rel_proof =
+  let s = Printer.pr_constr_env env sigma eq_rel_proof in
+  let arrow = if b then "<- " else "" in
+  let s' = str ("setoid_rewrite " ^ arrow) ++ s in
+  let s'' = Format.asprintf "%a" Pp.pp_with s' in
+  Decompiler.parse_tac_str s''
+
+let lift_setoid_rewrite c env l lift_rec sigma =
+  let _ = Feedback.msg_warning (Pp.str "lift_setoid_rewrite") in
+  match l with
+  | _ :: _ :: a1 :: a2 :: _ :: eq_rel_proof :: source_goal :: rewrite_target :: args ->
+     let _ = Feedback.msg_warning (Pp.str "lift_setoid_rewrite 1") in
+     let sigma, lifted_eq_rel_proof = lift_rec env sigma c eq_rel_proof in
+     let _ = Feedback.msg_warning (Pp.str "lift_setoid_rewrite 1.1") in
+     let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma rewrite_target) in
+     let rewrite_target = List.nth (unfold_args rewrite_target) 1 in
+     let _ = Feedback.msg_warning (Pp.str "lift_setoid_rewrite 1.2") in
+     let sigma, lifted_rewrite_target = lift_rec env sigma c rewrite_target in
+     let _ = Feedback.msg_warning (Pp.str "lift_setoid_rewrite 1.3") in
+     let sigma, lifted_args = map_rec_args_list lift_rec env sigma c args in
+     let _ = Feedback.msg_warning (Pp.str "lift_setoid_rewrite 1.4") in
+     let sigma, lifted_env = lift_env c env lift_rec sigma in
+     let _ = Feedback.msg_warning (Pp.str "lift_setoid_rewrite 1.5") in
+     let sigma, lifted_goal = lift_rec env sigma c source_goal in
+     let _ = Feedback.msg_warning (Pp.str "lift_setoid_rewrite 2") in
+     let sigma, b1 = lift_rec env sigma c a1 in
+     let sigma, b2 = lift_rec env sigma c a2 in
+     let rewritten_goal = Substitution.all_eq_substs (b1, b2) lifted_goal in
+     let _ = Feedback.msg_warning (Printer.pr_constr_env lifted_env sigma rewritten_goal) in
+     let rewrite_goal = mkProd(Names.Anonymous, rewritten_goal, Debruijn.shift lifted_goal) in
+     let _ = Feedback.msg_warning (Pp.str "lift_setoid_rewrite 3") in
+     let proof = Proof.start sigma [(lifted_env, EConstr.of_constr rewrite_goal)] in
+     let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
+     let (proof, pvm) = Proof.run_tactic lifted_env Tactics.intro proof in
+     let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
+     let (proof, pvm) = Proof.run_tactic lifted_env (rewrite_tactic_from_start_rewrite_annotation lifted_env sigma false eq_rel_proof) proof in
+     let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
+     let (proof, _) = Proof.run_tactic lifted_env Tactics.assumption proof in
+     let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
+     let _ = Feedback.msg_warning (Pp.str "lift_setoid_rewrite 4") in
+     if (Proof.is_done proof) then
+     match Proof.partial_proof proof with
+     | [] -> failwith "No proof of rewrite goal found."
+     | h :: t ->
+        let result = mkAppl (
+                   mkAppl (EConstr.to_constr sigma h, [lifted_rewrite_target]),
+                   lifted_args) in
+        let _ = Feedback.msg_warning (Printer.pr_constr_env lifted_env sigma result) in
+        sigma, result
+  else
+    failwith "Failed when attempting to lift a rewrite."
+  | _ -> failwith "Cannot lift a partially applied rewrite."
+  
 
 (* --- Core algorithm --- *)
 
@@ -333,6 +386,8 @@ let lift_core env c trm sigma =
        lift_setoid_refl_app c en l (lift_rec lift_rules) sigma
     | EqRewrite rewrite_info ->
        lift_eq_rewrite c en rewrite_info (lift_rec lift_rules) sigma
+    | SetoidRewrite l ->
+       lift_setoid_rewrite c en l (lift_rec lift_rules) sigma
     | CIC k ->
        let lift_rec = lift_rec lift_rules in
        (match k with

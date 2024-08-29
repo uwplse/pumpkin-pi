@@ -143,6 +143,8 @@ src/automation/search/unpackalg.mli
 src/automation/search/smartelim.ml
 src/automation/search/smartelim.mli
 
+src/automation/lift/setoidutils.ml
+src/automation/lift/setoidutils.mli
 src/automation/lift/liftconfig.ml
 src/automation/lift/liftconfig.mli
 src/automation/lift/liftrules.ml
@@ -163,3 +165,4 @@ theories/Prod.v
 theories/Eliminators.v
 theories/Equivalences.v
 theories/Ornaments.v
+theories/SetoidDefs.v

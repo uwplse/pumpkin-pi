@@ -10,3 +10,4 @@ Export Ornamental.Eliminators.
 Export Ornamental.Equivalences.
 Export Ornamental.Unpack.Lemmas.
 Require Export Fixtranslation.Fixtoelim.
+Require Export SetoidDefs.

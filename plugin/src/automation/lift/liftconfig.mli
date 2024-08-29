@@ -219,6 +219,16 @@ val applies_eq_rewrite :
   constr ->
   evar_map ->
   (Equtils.rewrite_args option) state
+
+(*
+ * Check if the term is rewriting by an equivalence relation
+ *)
+val applies_setoid_rewrite :
+  lift_config ->
+  env ->
+  constr ->
+  evar_map ->
+  ((constr list) option) state
  
 
 (* --- Custom simplification --- *)

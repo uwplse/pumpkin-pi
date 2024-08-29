@@ -181,9 +181,20 @@ Configure Lift A B {
     iota_b = iotaRecBOne iotaRecBTwo
   }.
 
+Theorem test_rewriteA (x y : A) (H : eqA x y) : eqA x y.
+Proof.
+  rewrite_annotate H.
+  reflexivity.
+Qed.
+
+Print test_rewriteA.
+
+Lift A B in test_rewriteA as test_rewriteB.
+
+Print test_rewriteB.
+
 Definition test_reflexivityA (a : A) := reflexivity a.
 
-Set Printing All.
 Print test_reflexivityA.
 
 Lift A B in test_reflexivityA as test_reflexivityB.
@@ -227,3 +238,14 @@ Print test_equiv_relA4.
 Lift A B in test_equiv_relA4 as test_equiv_relB4.
 
 Print test_equiv_relB4.
+
+
+
+Theorem test2 {A : Type} (x y : A) (H : x = y) : x = y.
+Proof.
+  rewrite_annotate H.
+  reflexivity.
+Qed.
+Set Printing All.
+Print test2.
+Check trans_co_eq_inv_impl_morphism.

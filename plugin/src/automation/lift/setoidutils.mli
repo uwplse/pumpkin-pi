@@ -39,3 +39,14 @@ val find_eq_proof_for_target_type :
   evar_map ->
   Constr.t ->
   evar_map * Constr.t
+
+val start_rewrite_annotation :
+  Constr.t
+
+val rewrite_tactic_from_id :
+  Id.t ->
+  unit Proofview.tactic
+
+val setoid_rewrite_tactic_from_id :
+  Id.t ->
+  unit Proofview.tactic

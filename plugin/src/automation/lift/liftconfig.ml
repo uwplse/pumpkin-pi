@@ -934,7 +934,7 @@ let applies_eq_refl c env trm sigma =
 (*
  * Check if the term is the reflexivity proof for the source setoid.
  *)
-let applies_setoid_reflexivity c env trm sigma =
+let applies_setoid_reflexivity c env trm sigma = 
   match (get_lifting c).orn.kind with
   | Setoid _ ->
      if (isApp trm) then
@@ -993,6 +993,24 @@ let applies_eq_rewrite c env trm sigma =
          sigma, None
      else sigma, None
   | _ -> sigma, None
+
+(*
+ * Check if the term is a setoid rewrite.
+ *)
+let applies_setoid_rewrite c env trm sigma =
+  if (isApp trm) then
+    if equal (first_fun trm) Setoidutils.start_rewrite_annotation then
+      let args = unfold_args trm in
+      if List.length args < 8 then
+        sigma, None
+      else
+        let _ = Feedback.msg_warning (Pp.str "applies_setoid_rewrite some") in
+        let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma trm) in
+        sigma, Some args
+    else
+      sigma, None
+  else
+    sigma, None
 
 (* --- Smart simplification (for termination and efficiency) --- *)
 

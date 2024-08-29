@@ -812,7 +812,7 @@ Ltac solve_proper2 :=
  * same type.
  *)
 
-Save setoid Z GZ { promote = p ; forget = f ; types = GZ ; rels = eq_GZ ; equiv_proofs = eq_GZ_equiv }.
+Save setoid Z GZ { promote = p ; forget = f ; types_a = ; rels_a = ; equiv_proofs_a = ; types_b = GZ ; rels_b = eq_GZ ; equiv_proofs_b = eq_GZ_equiv }.
 
 (*
  * Next, we register the configuration we defined with Pumpkin Pi.
@@ -1457,3 +1457,17 @@ Inductive testi (P : nat -> Type) : Type :=
 | t : testi P.
 
 Print testi_rect.
+
+Definition START_REWRITE {A B : Type} {a1 a2 : A} {eq : relation A} (H : eq a1 a2) (x : B) := x.
+
+Ltac rewrite_annotate H := apply (START_REWRITE H); rewrite H.
+
+Theorem test7 (z1 z2 : GZ) (H : eq_GZ z1 z2) : eq_GZ (sucGZ z1) (sucGZ z2).
+Proof.
+  rewrite_annotate H.
+  reflexivity.
+Qed.
+
+Print test7.
+
+Print addEqualFastAdd.

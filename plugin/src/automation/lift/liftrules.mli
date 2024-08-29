@@ -49,6 +49,7 @@ type lift_rule =
 | EqRefl of constr list
 | SetoidRefl of constr list
 | EqRewrite of Equtils.rewrite_args
+| SetoidRewrite of constr list
 | CIC of (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
 
 (*

@@ -6,6 +6,8 @@ Require Import Coq.Program.Tactics.
 Require Import Ornamental.Ornaments.
 Require Import SetoidClass.
 
+Set DEVOID lift type.
+
 (* 
  * In this file, we define two representations of queues.
  * The first is just as a list; we enqueue onto the front,
@@ -657,6 +659,18 @@ Proof.
   apply eq_deq_ret_trans.
 Qed.
 
+Definition eq_ret_or_enq_ret := eq_prod TLQ A eq_queue eq.
+
+Definition ret_or_enq_ret := (prod TLQ A).
+
+Instance eq_ret_or_enq_ret_equiv : Equivalence eq_ret_or_enq_ret.
+Proof.
+  unfold eq_ret_or_enq_ret.
+  apply eq_prod_equiv.
+  - apply eq_queue_equiv.
+  - apply eq_equivalence.
+Qed.
+
 (* 
  * We define the setoid equivalence between OLQ and TLQ here.
  * We don't strictly need to have it defined to do the transformation, 
@@ -697,7 +711,7 @@ Qed.
  * same type.
  *)
 
-Save setoid OLQ TLQ { promote = promote ; forget = forget ; types = TLQ deq_ret ; rels = eq_queue eq_deq_ret ; equiv_proofs = eq_queue_equiv eq_deq_ret_equiv }.
+Save setoid OLQ TLQ { promote = promote ; forget = forget ; types_a = ; rels_a = ; equiv_proofs_a = ; types_b = TLQ deq_ret ; rels_b = eq_queue eq_deq_ret ; equiv_proofs_b = eq_queue_equiv eq_deq_ret_equiv }.
 
 Configure Lift OLQ TLQ {
     constrs_a = depConstrOLQEmpty depConstrOLQInsert ;
@@ -944,31 +958,12 @@ Proof.
   - reflexivity.
   - intros.
     rewrite fastDequeueEnqueue.
-    rewrite dequeueEnqueueTLQ.
+    pose proof dequeueEnqueueTLQ.
+    unfold dequeueEnqueueTypeTLQ in H0.
+    rewrite H0.
     rewrite H.
     reflexivity.
 Qed.
-
-Ltac solve3 x t :=
-  match goal with
-  | |- respectful _ _ _ _ =>
-    let H := fresh "H" in
-    intros ? ? H; solve3 x ltac:(try setoid_rewrite H; t)
-  | _ => t; induction x; simpl; (try (f_equiv; auto); try (t; reflexivity))
-  end.
-
-Ltac solve2 x t :=
-  match goal with
-  | |- Proper _ _ =>
-    unfold Proper; solve3 x t
-  | _ => 
-    let H := fresh "H" in
-    intros H ?; solve2 x ltac:(try setoid_rewrite H; t)
-  end.
-
-Ltac solve1 :=
-  let x := fresh "x" in
-  intros x; solve2 x ltac:(idtac).
 
 Require Import List.
 Import ListNotations.
@@ -978,4 +973,5 @@ Print list_rect.
 Theorem test : forall (l : list nat) (H1 : (forall (a : nat) (l : list nat), TLQ -> TLQ)) (H1prop : Proper (eq ==> eq ==> eq_queue ==> eq_queue) H1),
     Proper (eq_queue ==> eq_queue) (fun x => list_rect (fun _ => TLQ) x H1 l).
 Proof.
-  solve1.
+  solve_elim_proper.
+Qed.

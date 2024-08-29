@@ -1,6 +1,8 @@
 open Lifting
 open Apputils
 open Promotion
+open Constr
+open Names
 
 (*
  * If an element in the provided list matches the predicate,
@@ -22,7 +24,6 @@ let rec find_assoc_list_state pred env l sigma =
  * key is convertible to trm.
  *)
 let find_key_convertible_to env l sigma trm =
-  Feedback.msg_warning (Pp.str "here!");
   let pred env t sigma = Convertibility.convertible env sigma (fst t) trm in
   find_assoc_list_state pred env l sigma
 
@@ -148,3 +149,20 @@ let find_eq_proof_for_target_type l env sigma typ =
        | Some p -> snd p in
      sigma, eq_proof
   | _ -> failwith "Eq lifting unsupported outside of Setoid lifting"
+
+let setoid_defs_path =
+  ModPath.MPfile
+    (DirPath.make (List.map Id.of_string ["SetoidDefs" ; "Ornamental"]))
+
+let start_rewrite_annotation = 
+  mkConst (Constant.make2 setoid_defs_path (Label.make "START_REWRITE"))
+
+let rewrite_tactic_from_id id =
+  let s = Pp.str ("rewrite " ^ (Names.Id.to_string id)) in
+  let s' = Format.asprintf "%a" Pp.pp_with s in
+  Decompiler.parse_tac_str s'
+
+let setoid_rewrite_tactic_from_id id =
+  let s = Pp.str ("setoid_rewrite " ^ (Names.Id.to_string id)) in
+  let s' = Format.asprintf "%a" Pp.pp_with s in
+  Decompiler.parse_tac_str s'

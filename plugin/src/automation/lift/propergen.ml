@@ -417,11 +417,6 @@ let intro_all_respectfuls proof pvm env =
 let unfold_proper proof env =
   Proof.run_tactic env (Tactics.unfold_constr proper_glob_ref) proof
 
-let rewrite_tactic_from_id id =
-  let s = Pp.str ("rewrite " ^ (Names.Id.to_string id)) in
-  let s' = Format.asprintf "%a" Pp.pp_with s in
-  Decompiler.parse_tac_str s'
-
 let rewrite_equalities env proof pvm l =
   let rec help proof pvm l1 l2 =
     match l1 with
@@ -434,23 +429,18 @@ let rewrite_equalities env proof pvm l =
        let sigma', typ = Inference.infer_type proof_env sigma trm in
        let f = Apputils.first_fun typ in
        if (equal Equtils.eq f) && (List.length (unfold_args typ) = 3) then
-         let (proof, pvm) = Proof.run_tactic env (rewrite_tactic_from_id h) proof in
+         let (proof, pvm) = Proof.run_tactic env (Setoidutils.rewrite_tactic_from_id h) proof in
          let (proof, pvm) = Proof.run_tactic env (Tactics.clear [h; n1]) proof in
          help proof pvm t l2
        else
          help proof pvm t ((n1, n2, h) :: l2) in
   help proof pvm l []
 
-let setoid_rewrite_tactic_from_id id =
-  let s = Pp.str ("setoid_rewrite " ^ (Names.Id.to_string id)) in
-  let s' = Format.asprintf "%a" Pp.pp_with s in
-  Decompiler.parse_tac_str s'
-
 let rec try_setoid_rewrite_equalities env proof pvm l =
   match l with
   | [] -> (proof, pvm)
   | (n1, n2, h) :: t -> 
-      let (proof, pvm) = Proof.run_tactic env (try_tactical (setoid_rewrite_tactic_from_id h)) proof in
+      let (proof, pvm) = Proof.run_tactic env (try_tactical (Setoidutils.setoid_rewrite_tactic_from_id h)) proof in
       let (proof, pvm) = Proof.run_tactic env (Tactics.clear [h; n1]) proof in
       try_setoid_rewrite_equalities env proof pvm t
 

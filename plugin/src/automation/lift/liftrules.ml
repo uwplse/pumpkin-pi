@@ -115,6 +115,7 @@ type lift_rule =
 | EqRefl of constr list
 | SetoidRefl of constr list
 | EqRewrite of Equtils.rewrite_args
+| SetoidRewrite of constr list
 | CIC of (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
 
 (* --- Termination conditions --- *)
@@ -271,6 +272,9 @@ let is_setoid_reflexivity c env trm sigma =
 let is_eq_rewrite c env trm sigma =
   applies_eq_rewrite c env trm sigma
 
+let is_setoid_rewrite c env trm sigma =
+  applies_setoid_rewrite c env trm sigma
+
 (*
  * Given a term, determine the appropriate lift rule to run
  *)
@@ -310,67 +314,71 @@ let determine_lift_rule c env trm prev_rules sigma =
               if Option.has_some eq_rewrite_args_o then
                 sigma, EqRewrite (Option.get eq_rewrite_args_o)
               else
-                let sigma, to_proj_o = is_coh c env trm prev_rules sigma in
-                if Option.has_some to_proj_o then
-                  let proj, args, trm_eta = Option.get to_proj_o in
-                  if arity trm_eta > arity trm then
-                    sigma, Optimization (LazyEta trm_eta)
-                  else
-                    sigma, Coherence (reduce_coh c, (proj, args))
+                let sigma, setoid_rewrite_args_o = is_setoid_rewrite c env trm sigma in
+                if Option.has_some setoid_rewrite_args_o then
+                  sigma, SetoidRewrite (Option.get setoid_rewrite_args_o)
                 else
-                  let sigma, constr_o = is_constr c prev_rules env trm sigma in
-                  if Option.has_some constr_o then
-                    let f, args, simplify = Option.get constr_o in
-                    sigma, LiftConstr (simplify, (f, args))
-                  else
-                    let sigma, is_eta_o = is_eta c env trm prev_rules sigma in
-                    if Option.has_some is_eta_o then
-                      let simplify, (f, args) = Option.get is_eta_o in
-                      sigma, Eta (simplify, (f, args))
+                  let sigma, to_proj_o = is_coh c env trm prev_rules sigma in
+                  if Option.has_some to_proj_o then
+                    let proj, args, trm_eta = Option.get to_proj_o in
+                    if arity trm_eta > arity trm then
+                      sigma, Optimization (LazyEta trm_eta)
                     else
-                      let sigma, is_iota_o = is_iota c env trm prev_rules sigma in
-                      if Option.has_some is_iota_o then
-                        let (f, args) = Option.get is_iota_o in
-                        sigma, Iota (f, args)
+                      sigma, Coherence (reduce_coh c, (proj, args))
+                  else
+                    let sigma, constr_o = is_constr c prev_rules env trm sigma in
+                    if Option.has_some constr_o then
+                      let f, args, simplify = Option.get constr_o in
+                      sigma, LiftConstr (simplify, (f, args))
+                    else
+                      let sigma, is_eta_o = is_eta c env trm prev_rules sigma in
+                      if Option.has_some is_eta_o then
+                        let simplify, (f, args) = Option.get is_eta_o in
+                        sigma, Eta (simplify, (f, args))
                       else
-                        let sigma, is_elim_o = is_eliminator c env trm sigma in
-                        if Option.has_some is_elim_o then
-                          let eta_o, (dep_elim, args) = Option.get is_elim_o in
-                          if Option.has_some eta_o then
-                            sigma, Optimization (LazyEta (Option.get eta_o))
-                          else
-                            let lifted_dep_elim = get_lifting_of_dep_elim c dep_elim in
-                            if Option.has_some lifted_dep_elim then
-                              sigma, Optimization (AppLazyDelta (Option.get lifted_dep_elim, Array.of_list args))
-                            else
-                              failwith "Failed to find lifted dep_elim. This shouldn't happen." 
+                        let sigma, is_iota_o = is_iota c env trm prev_rules sigma in
+                        if Option.has_some is_iota_o then
+                          let (f, args) = Option.get is_iota_o in
+                          sigma, Iota (f, args)
                         else
-                          match kind trm with
-                          | App (f, args) ->
-                             let how_reduce_o = can_reduce_now c env trm in
-                             if Option.has_some how_reduce_o then
-                               let how_reduce = Option.get how_reduce_o in
-                               sigma, Optimization (SimplifyProjectId (how_reduce, (f, args)))
-                             else
-                               sigma, Optimization (AppLazyDelta (f, args))
-                          | Construct (((i, i_index), _), u) ->
-                             let ind = mkInd (i, i_index) in
-                             let (a_typ, b_typ) = get_types c in
-                             let b_typ =
-                               match l.orn.kind with
-                               | Algebraic _ ->
-                                  let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
-                                  first_fun b_typ_packed
-                               | _ ->
-                                  zoom_term zoom_lambda_term env b_typ
-                             in
-                             if equal ind (directional l a_typ b_typ) then
-                               let sigma, trm_eta = expand_eta env sigma trm in
-                               sigma, Optimization (LazyEta trm_eta)
-                             else
+                          let sigma, is_elim_o = is_eliminator c env trm sigma in
+                          if Option.has_some is_elim_o then
+                            let eta_o, (dep_elim, args) = Option.get is_elim_o in
+                            if Option.has_some eta_o then
+                              sigma, Optimization (LazyEta (Option.get eta_o))
+                            else
+                              let lifted_dep_elim = get_lifting_of_dep_elim c dep_elim in
+                              if Option.has_some lifted_dep_elim then
+                                sigma, Optimization (AppLazyDelta (Option.get lifted_dep_elim, Array.of_list args))
+                              else
+                                failwith "Failed to find lifted dep_elim. This shouldn't happen." 
+                          else
+                            match kind trm with
+                            | App (f, args) ->
+                               let how_reduce_o = can_reduce_now c env trm in
+                               if Option.has_some how_reduce_o then
+                                 let how_reduce = Option.get how_reduce_o in
+                                 sigma, Optimization (SimplifyProjectId (how_reduce, (f, args)))
+                               else
+                                 sigma, Optimization (AppLazyDelta (f, args))
+                            | Construct (((i, i_index), _), u) ->
+                               let ind = mkInd (i, i_index) in
+                               let (a_typ, b_typ) = get_types c in
+                               let b_typ =
+                                 match l.orn.kind with
+                                 | Algebraic _ ->
+                                    let b_typ_packed = dummy_index env sigma (dest_sigT (zoom_term zoom_lambda_term env b_typ)).packer in
+                                    first_fun b_typ_packed
+                                 | _ ->
+                                    zoom_term zoom_lambda_term env b_typ
+                               in
+                               if equal ind (directional l a_typ b_typ) then
+                                 let sigma, trm_eta = expand_eta env sigma trm in
+                                 sigma, Optimization (LazyEta trm_eta)
+                               else
+                                 sigma, CIC (kind trm)
+                            | Const (co, u) ->
+                               sigma, Optimization (ConstLazyDelta (co, u))
+                            | _ ->
                                sigma, CIC (kind trm)
-                          | Const (co, u) ->
-                             sigma, Optimization (ConstLazyDelta (co, u))
-                          | _ ->
-                             sigma, CIC (kind trm)
 
