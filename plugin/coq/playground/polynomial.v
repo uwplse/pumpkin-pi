@@ -355,6 +355,40 @@ Module CEPPoly.
 
   Definition CEPPoly := list (nat * nat).
 
+  Fixpoint get_max_degree (l: CEPPoly) : nat :=
+    match l with
+      | [] => 0
+      | (coe, exp) :: xs => match coe with
+        | 0 => get_max_degree xs
+        | _ => max exp (get_max_degree xs)
+        end
+    end.
+
+  Fixpoint get_combined_nth_degree_coes (l: CEPPoly) (deg : nat) : nat :=
+    match l with
+      | [] => 0
+      | (coe, exp) :: xs =>
+      if eqb coe deg then
+        coe + get_combined_nth_degree_coes xs deg
+      else
+        get_combined_nth_degree_coes xs deg
+    end.
+
+  Definition get_combined_nth_degree (l: CEPPoly) (deg : nat) : (nat * nat) :=
+    let coe : nat := get_combined_nth_degree_coes l deg in
+    (coe, deg).
+
+  Fixpoint iter_coes (max_deg : nat) : list nat :=
+    match max_deg with
+      | 0 => []
+      | S new_deg => max_deg :: iter_coes new_deg
+    end.
+
+  Fixpoint canonicalize_max (l: CEPPoly) : CEPPoly :=
+    let max_deg : nat := get_max_degree l in
+    map (get_combined_nth_degree l) (iter_coes (get_max_degree l)).
+
+
   Inductive eq_CEPPoly : CEPPoly -> CEPPoly -> Prop :=
   | Sym x y : eq_CEPPoly x y -> eq_CEPPoly y x
   | Trans x y z : eq_CEPPoly x y -> eq_CEPPoly y z -> eq_CEPPoly x z
