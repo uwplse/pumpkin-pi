@@ -1015,6 +1015,51 @@ Module CEPPoly.
       subst.
       specialize (H6 n1).
       contradiction.
+
+  Theorem eq_CEPPoly_respects_max_degree p q k:
+    eq_CEPPoly p q -> forall n, n <= k -> n = get_max_degree p -> get_max_degree p = (get_max_degree q).
+  Proof.
+    intro.
+    induction k.
+    - intros. destruct n.
+      * give_up.
+      * give_up.
+    - intros. destruct p.
+      * pose proof H1 as H1'. simpl in H1.
+        rewrite H1 in H0. rewrite H1 in H1'.
+        assert (0 <= k). lia.
+        apply (IHk 0 H2 H1').
+      * assert (n <= k). give_up.
+        apply (IHk n H2).
+        exact H1.
+  Admitted.
+
+  Theorem eqb_refl n : n =? n = true.
+  Proof.
+    intros.
+    induction n.
+    * auto.
+    * simpl. apply IHn.
+  Qed.
+
+  Instance canonicalIsCanonical' : Proper (eq_CEPPoly ==> eq) canonicalize_max.
+  Proof.
+    intros p1 p2 H.
+    apply CEPPolyIdentical.
+    induction p1.
+    * destruct p2.
+      - auto.
+      - destruct p. destruct n.
+        ** simpl. give_up.
+        ** pose proof (coeffsSame [] ((S n, n0) :: p2) H n0).
+           simpl in H0.
+           rewrite eqb_refl in H0.
+           discriminate.
+    * induction p2.
+      - destruct a. destruct n.
+        assert (eq_CEPPoly p1 ((0, n0) :: p1)).
+        apply Sym. apply Remove_Zero.
+        Print Trans.
   Qed.
 
   Instance canonicalIsCanonical : Proper (eq_CEPPoly ==> eq) canonicalize.
