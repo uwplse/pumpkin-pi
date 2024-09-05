@@ -384,9 +384,14 @@ Module CEPPoly.
       | S new_deg => max_deg :: iter_coes new_deg
     end.
 
+  Fixpoint canonicalize_max_help (acc : CEPPoly) (l: CEPPoly) (i : nat) : CEPPoly :=
+    match i with
+      | 0  => (get_combined_nth_degree l 0) :: acc
+      | S n => canonicalize_max_help ((get_combined_nth_degree l i) :: acc) l n
+    end.
+
   Fixpoint canonicalize_max (l: CEPPoly) : CEPPoly :=
-    let max_deg : nat := get_max_degree l in
-    map (get_combined_nth_degree l) (iter_coes (get_max_degree l)).
+    canonicalize_max_help [] l (get_max_degree l).
 
 
   Inductive eq_CEPPoly : CEPPoly -> CEPPoly -> Prop :=
