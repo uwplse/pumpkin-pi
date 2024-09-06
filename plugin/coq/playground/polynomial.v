@@ -1047,6 +1047,15 @@ Module CEPPoly.
     * simpl. apply IHn.
   Qed.
 
+  (* Shows that max degree will indeed find all the degrees for non-zero coeffs *)
+  Theorem get_max_degree_complete (l : CEPPoly) : forall deg, coeff l deg <> 0 -> deg <= get_max_degree l.
+  Proof.
+  Admitted.
+
+  Theorem canonicalize_max_preserves_coeffs (l : CEPPoly) : forall k, forall n, n <= k -> coeff l n = coeff (canonicalize_max l) n.
+  Proof.
+  Admitted.
+
   Instance canonicalIsCanonical' : Proper (eq_CEPPoly ==> eq) canonicalize_max.
   Proof.
     intros p1 p2 H.
