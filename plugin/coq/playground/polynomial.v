@@ -1381,9 +1381,14 @@ Module CEPPoly.
       | S new_deg => max_deg :: iter_coes new_deg
     end.
 
+  Fixpoint canonicalize_max_help (acc : CEPPoly) (l: CEPPoly) (i : nat) : CEPPoly :=
+    match i with
+      | 0  => (get_combined_nth_degree l 0) :: acc
+      | S n => canonicalize_max_help ((get_combined_nth_degree l i) :: acc) l n
+    end.
+
   Fixpoint canonicalize_max (l: CEPPoly) : CEPPoly :=
-    let max_deg : nat := get_max_degree l in
-    map (get_combined_nth_degree l) (iter_coes (get_max_degree l)).
+    canonicalize_max_help [] l (get_max_degree l).
 
 
   Inductive eq_CEPPoly : CEPPoly -> CEPPoly -> Prop :=
@@ -2039,6 +2044,15 @@ Module CEPPoly.
     * auto.
     * simpl. apply IHn.
   Qed.
+
+  (* Shows that max degree will indeed find all the degrees for non-zero coeffs *)
+  Theorem get_max_degree_complete (l : CEPPoly) : forall deg, coeff l deg <> 0 -> deg <= get_max_degree l.
+  Proof.
+  Admitted.
+
+  Theorem canonicalize_max_preserves_coeffs (l : CEPPoly) : forall k, forall n, n <= k -> coeff l n = coeff (canonicalize_max l) n.
+  Proof.
+  Admitted.
 
   Instance canonicalIsCanonical' : Proper (eq_CEPPoly ==> eq) canonicalize_max.
   Proof.
