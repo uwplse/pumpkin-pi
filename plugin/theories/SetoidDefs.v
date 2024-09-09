@@ -34,7 +34,7 @@ Ltac solve_respectful2 t :=
  match goal with
    | |- respectful _ _ _ _ =>
      let H := fresh "H" in
-     intros ? ? H; solve_respectful ltac:(try setoid_rewrite H; t)
+     intros ? ? H; solve_respectful2 ltac:(try rewrite H; t)
    | _ => t; reflexivity
  end.
 

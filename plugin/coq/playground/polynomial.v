@@ -246,11 +246,247 @@ Module CLPoly.
       + apply ((a + a0) :: (IHl1 l2)).
   Defined.
 
+    Theorem noLeadingZerosRemoveLeadingZeros :
+    forall (l l1 : list nat),
+      0 :: l1 <> removeLeadingZeros l.
+  Proof.
+    induction l.
+    - intros.
+      simpl.
+      discriminate.
+    - intros.
+      unfold removeLeadingZeros.
+      destruct (PeanoNat.Nat.eqb_spec a 0).
+      + simpl.
+        apply IHl.
+      + intros H.
+        inversion H.
+        symmetry in H1.
+        contradiction.
+  Qed.
+
+  Theorem noLeadingZerosHead :
+    forall (l : list nat),
+      noLeadingZeros l ->
+      l = [] \/ exists (l1 : list nat) (n : nat), n <> 0 /\ l = n :: l1.
+  Proof.
+    destruct l.
+    - intros.
+      left.
+      reflexivity.
+    - intros.
+      right.
+      unfold noLeadingZeros in H.
+      destruct n.
+      + apply noLeadingZerosRemoveLeadingZeros in H.
+        contradiction.
+      + exists l.
+        exists (S n).
+        split.
+        intros H1.
+        discriminate.
+        reflexivity.
+  Qed.
+
+  Theorem removeLeadingZerosEnd :
+    forall (l l1 : list nat) (n : nat),
+      n <> 0 ->
+      (removeLeadingZeros l) ++ (n :: l1) = removeLeadingZeros (l ++ (n :: l1)).
+  Proof.
+    intros.
+    induction l.
+    - simpl.
+      destruct (PeanoNat.Nat.eqb_spec n 0).
+      + contradiction.
+      + reflexivity.
+    - simpl.
+      destruct (PeanoNat.Nat.eqb_spec a 0).
+      + apply IHl.
+      + reflexivity.
+  Qed.
+
+  Theorem noLeadingZerosEnd :
+    forall (l l1 : list nat) (n : nat),
+      n <> 0 ->
+      noLeadingZeros l <-> noLeadingZeros (l ++ (n :: l1)).
+  Proof.
+    intros.
+    unfold noLeadingZeros.
+    rewrite <- removeLeadingZerosEnd; auto.
+    split.
+    - intros.
+      rewrite <- H0.
+      reflexivity.
+    - intros.
+      apply app_inv_tail in H0.
+      apply H0.
+  Qed.
+
+  Theorem addListsHelpEqualLength :
+    forall (l1 l2 : list nat) (n1 n2 : nat),
+      length l1 = length l2 ->
+      addListsHelp (l1 ++ [n1]) (l2 ++ [n2]) = addListsHelp l1 l2 ++ [n1 + n2].
+  Proof.
+    induction l1.
+    - intros.
+      simpl in H.
+      symmetry in H.
+      apply length_zero_iff_nil in H.
+      rewrite H.
+      reflexivity.
+    - intros.
+      destruct l2.
+      + inversion H.
+      + simpl in H.
+        inversion H.
+        simpl.
+        f_equal.
+        apply IHl1.
+        apply H1.
+  Qed.
+
+  Theorem addListsHelpFirstLonger :
+    forall (l1 l2 : list nat) (n : nat),
+      length l2 < S (length l1) ->
+      addListsHelp (l1 ++ [n]) l2 = addListsHelp l1 l2 ++ [n].
+  Proof.
+    induction l1.
+    - intros.
+      simpl in H.
+      unfold lt in H.
+      apply Le.le_S_n in H.
+      apply Le.le_n_0_eq in H.
+      symmetry in H.
+      apply length_zero_iff_nil in H.
+      rewrite H.
+      reflexivity.
+    - intros.
+      destruct l2.
+      + reflexivity.
+      + simpl.
+        f_equal.
+        apply IHl1.
+        simpl in H.
+        apply Lt.lt_S_n.
+        apply H.
+  Qed.
+
+  Theorem addListsHelpSecondLonger :
+    forall (l1 l2 : list nat) (n : nat),
+      length l1 < S (length l2) ->
+      addListsHelp l1 (l2 ++ [n]) = addListsHelp l1 l2 ++ [n].
+  Proof.
+    induction l1.
+    - intros.
+      reflexivity.
+    - intros.
+      destruct l2.
+      + simpl in H.
+        apply Lt.lt_S_n in H.
+        apply PeanoNat.Nat.nlt_0_r in H.
+        contradiction.
+      + simpl.
+        f_equal.
+        apply IHl1.
+        simpl in H.
+        apply Lt.lt_S_n.
+        apply H.
+  Qed.
+
+  (*Theorem noTrailingZerosTail :
+    forall (l : list nat) (n : nat),
+      noTrailingZeros l ->
+      n <> 0 ->
+      noTrailingZeros (n :: l).
+  Proof.
+    induction l.
+    - intros.
+      unfold noTrailingZeros.
+      unfold removeTrailingZeros.
+      simpl.
+      destruct (PeanoNat.Nat.eqb_spec n 0).
+      + contradiction.
+      + reflexivity.
+    - unfold noTrailingZeros.
+      unfold removeTrailingZeros.
+      intros.
+      simpl.
+      simpl in H.*)     
+
+  (*Theorem addListsHelpNoTrailingZeros :
+    forall (l1 l2 : list nat),
+      noTrailingZeros l1 ->
+      noTrailingZeros l2 ->
+      noTrailingZeros (addListsHelp l1 l2).
+  Proof.
+    unfold noTrailingZeros.
+    unfold removeTrailingZeros.
+    induction l1.
+    - intros.
+      simpl.
+      apply H0.
+    - intros.
+      induction l2.
+      + simpl.
+        apply H.
+      + simpl.
+        unfold noTrailingZeros.
+        unfold removeTrailingZeros.
+        simpl.*)
+
   Definition addLists (l1 l2 : list nat) :=
     let l1 := rev l1 in
     let l2 := rev l2 in
     let add_l := addListsHelp l1 l2 in
     rev add_l.
+
+  Theorem addListsEqualLength :
+    forall (l1 l2 : list nat) (n1 n2 : nat),
+      length l1 = length l2 ->
+      addLists (n1 :: l1) (n2 :: l2) = (n1 + n2) :: addLists l1 l2.
+    Proof.
+      unfold addLists.
+      simpl.
+      intros.
+      rewrite addListsHelpEqualLength.
+      rewrite rev_unit.
+      reflexivity.
+      rewrite rev_length.
+      rewrite rev_length.
+      apply H.
+  Qed.
+
+  Theorem addListsFirstLonger :
+    forall (l1 l2 : list nat) (n : nat),
+      length l2 < S (length l1) ->
+      addLists (n :: l1) l2 = n :: addLists l1 l2.
+  Proof.
+    unfold addLists.
+    intros.
+    simpl.
+    rewrite addListsHelpFirstLonger.
+    rewrite rev_unit.
+    reflexivity.
+    rewrite rev_length.
+    rewrite rev_length.
+    apply H.
+  Qed.
+
+  Theorem addListsSecondLonger :
+    forall (l1 l2 : list nat) (n : nat),
+      length l1 < S (length l2) ->
+      addLists l1 (n :: l2) = n :: addLists l1 l2.
+  Proof.
+    unfold addLists.
+    intros.
+    simpl.
+    rewrite addListsHelpSecondLonger.
+    rewrite rev_unit.
+    reflexivity.
+    rewrite rev_length.
+    rewrite rev_length.
+    apply H.
+  Qed.
 
   Theorem app_end_nonempty (l1 : list nat) (n : nat) :
     exists (l2 : list nat) (m : nat),
@@ -284,25 +520,121 @@ Module CLPoly.
 
   Theorem addListsFirstEntry :
     forall (l1 l2 : list nat) (n1 n2 : nat),
-      exists l, addLists (n1 :: l1) (n2 :: l2) = n1 :: l \/
-      exists l, addLists (n1 :: l1) (n2 :: l2) = n2 :: l \/
-      exists l, addLists (n1 :: l1) (n2 :: l2) = (n1 + n2) :: l.
+      addLists (n1 :: l1) (n2 :: l2) = n1 :: addLists l1 (n2 :: l2) \/
+      addLists (n1 :: l1) (n2 :: l2) = n2 :: addLists (n1 :: l1) l2 \/
+      addLists (n1 :: l1) (n2 :: l2) = (n1 + n2) :: addLists l1 l2.
   Proof.
     intros.
-    unfold addLists.
-    simpl.
-    destruct l1;
-    destruct l2.
-    - unfold add.
+    pose proof (PeanoNat.Nat.lt_trichotomy (length l1) (length l2)).
+    destruct H.
+    - right.
+      left.
+      apply addListsSecondLonger.
+      apply Lt.lt_n_S in H.
+      apply H.
+    - destruct H.
+      + right.
+        right.
+        apply addListsEqualLength.
+        apply H.
+      + left.
+        apply addListsFirstLonger.
+        apply Lt.lt_n_S in H.
+        apply H.
+  Qed.
 
+  Theorem addListsFirstEntryWithLength :
+    forall (l1 l2 : list nat) (n1 n2 : nat),
+      (addLists (n1 :: l1) (n2 :: l2) = n1 :: addLists l1 (n2 :: l2) /\ length l2 < length l1) \/
+      (addLists (n1 :: l1) (n2 :: l2) = n2 :: addLists (n1 :: l1) l2 /\ length l1 < length l2) \/
+      (addLists (n1 :: l1) (n2 :: l2) = (n1 + n2) :: addLists l1 l2 /\ length l1 = length l2).
+  Proof.
+    intros.
+    pose proof (PeanoNat.Nat.lt_trichotomy (length l1) (length l2)).
+    destruct H.
+    - right.
+      left.
+      split.
+      apply addListsSecondLonger.
+      apply Lt.lt_n_S in H.
+      apply H.
+      assumption.
+    - destruct H.
+      + right.
+        right.
+        split.
+        apply addListsEqualLength.
+        apply H.
+        assumption.
+      + left.
+        split.
+        apply addListsFirstLonger.
+        apply Lt.lt_n_S in H.
+        apply H.
+        assumption.
+  Qed.
+
+  Theorem noLeadingZerosHeadNonzero :
+    forall (l : list nat) (n : nat),
+      n <> 0 <-> noLeadingZeros (n :: l).
+  Proof.
+    unfold noLeadingZeros.
+    simpl.
+    split.
+    - intros.
+      rewrite <- PeanoNat.Nat.eqb_neq in H.
+      rewrite H.
+      reflexivity.
+    - intros.
+      intros H0.
+      rewrite <- PeanoNat.Nat.eqb_eq in H0.
+      rewrite H0 in H.
+      assert (forall (l0 l1 : list nat) (n : nat), (n :: l1) ++ l0 <> removeLeadingZeros l0).
+      induction l0.
+      + intros.
+        simpl.
+        intros H1.
+        inversion H1.
+      + intros.
+        intros H1.
+        simpl in H1.
+        destruct (PeanoNat.Nat.eqb_spec a 0).
+        * specialize (IHl0 (l1 ++ [a]) n0).
+          simpl in IHl0.
+          rewrite <- app_assoc in IHl0.
+          simpl in IHl0.
+          contradiction.
+        * inversion H1.
+          assert (length (l1 ++ a :: l0) = length l0).
+          f_equal.
+          apply H4.
+          rewrite app_length in H2.
+          simpl in H2.
+          lia.
+      + specialize (H1 l [] n).
+        contradiction.
+  Qed.
+
+  Theorem noLeadingZerosSameHead :
+    forall (l1 l2 : list nat) (n : nat),
+      noLeadingZeros (n :: l1) -> noLeadingZeros (n :: l2).
+  Proof.
+    intros.
+    apply noLeadingZerosHead in H.
+    destruct H.
+    - inversion H.
+    - destruct H, H, H.
+      apply noLeadingZerosHeadNonzero.
+      inversion H0.
+      apply H.
+  Qed.
+      
   Theorem addListsNoLeadingZeros :
     forall (l1 l2 : list nat),
       noLeadingZeros l1 ->
       noLeadingZeros l2 ->
       noLeadingZeros (addLists l1 l2).
   Proof.
-    intros l1.
-    unfold noLeadingZeros.
     induction l1.
     - intros.
       unfold addLists.
@@ -321,33 +653,698 @@ Module CLPoly.
         apply rev_append_list_end in H1.
         rewrite H1.
         apply H.
-      + unfold addLists.
-        simpl.
-        intros.
-        pose proof (app_end_nonempty (rev l1) a).
+      + intros.
+        pose proof (addListsFirstEntry l1 l2 a a0).
         destruct H1.
-        destruct H1.
-        rewrite H1.
-        pose proof (app_end_nonempty (rev l2) a0).
-        destruct H2, H2.
-        rewrite H2.
-        simpl.
-        
-        
-        
-    unfold noLeadingZeros in H1.
-    unfold noLeadingZeros in H2.
-    unfold addLists.
+        * rewrite H1.
+          apply (noLeadingZerosSameHead l1).
+          apply H.
+        * destruct H1.
+          -- rewrite H1.
+             apply (noLeadingZerosSameHead l2).
+             apply H0.
+          -- rewrite H1.
+             apply noLeadingZerosHeadNonzero in H.
+             apply noLeadingZerosHeadNonzero.
+             lia.
+  Qed.
     
-
   Theorem add (p1 p2 : CLPoly) : CLPoly.
   Proof.
     apply depRec.
     - intros.
       apply depRec.
       + intros.
-        
-    depRec CLPoly 
+        apply (depConstr (addLists l l0) (addListsNoLeadingZeros l l0 p p0)).
+      + apply p2.
+    - apply p1.
+  Defined.
+
+  Instance addProper : Proper (eq_CLPoly ==> eq_CLPoly ==> eq_CLPoly) add.
+  Proof.
+    unfold add.
+    intros p1 p2 H0 p3 p4 H1.
+    rewrite H0.
+    unfold depRec.
+    unfold depConstr.
+    rewrite H1.
+    reflexivity.
+  Qed.
+
+  Theorem evalList (l : list nat) (n : nat) : nat.
+  Proof.
+    induction l.
+    - apply 0.
+    - apply (a * (pow n (length l)) + IHl).
+  Defined.
+
+  Definition evalDepRecArg := (fun n l (proof : noLeadingZeros l) => evalList l n).
+
+  Definition eval (p : CLPoly) (n : nat) :=
+    depRec nat (evalDepRecArg n) p.
+
+  Instance evalProper : Proper (eq_CLPoly ==> eq ==> eq) eval.
+  Proof.
+    unfold eval.
+    solve_proper2.
+  Qed.
+
+  Theorem addListsFirstEmpty :
+    forall (l : list nat),
+      addLists [] l = l.
+  Proof.
+    unfold addLists.
+    simpl.
+    intros.
+    apply rev_involutive.
+  Qed.
+
+  Theorem addListsSecondEmpty :
+    forall (l : list nat),
+      addLists l [] = l.
+  Proof.
+    induction l.
+    - reflexivity.
+    - rewrite addListsFirstLonger.
+      + rewrite IHl.
+        reflexivity.
+      + apply PeanoNat.Nat.lt_0_succ.
+  Qed.
+
+  Theorem addListsLength :
+    forall (l1 l2 : list nat),
+      length (addLists l1 l2) = max (length l1) (length l2).
+  Proof.
+    induction l1.
+    - intros.
+      rewrite (addListsFirstEmpty l2).
+      reflexivity.
+    - induction l2.
+      + rewrite addListsSecondEmpty.
+        reflexivity.
+      + pose proof (addListsFirstEntryWithLength l1 l2 a a0).
+        destruct H.
+        * destruct H.
+          rewrite H.
+          simpl.
+          rewrite IHl1.
+          apply Lt.lt_le_S in H0.
+          pose proof H0.
+          apply max_l in H0.
+          simpl.
+          rewrite H0.
+          apply Le.le_Sn_le in H1.
+          apply max_l in H1.
+          rewrite H1.
+          reflexivity.
+        * destruct H, H; rewrite H; simpl.
+          -- rewrite IHl2.
+             apply Lt.lt_le_S in H0.
+             pose proof H0.
+             apply max_r in H0.
+             apply Le.le_Sn_le in H1.
+             apply max_r in H1.
+             rewrite H1.
+             rewrite <- H0 at 2.
+             reflexivity.
+          -- rewrite IHl1.
+             reflexivity.
+  Qed.
+
+  Theorem evalListRespectsAddLists :
+    forall (l1 l2 : list nat) (n : nat),
+      evalList (addLists l1 l2) n = evalList l1 n + evalList l2 n.
+  Proof.
+    induction l1.
+    - intros.
+      rewrite addListsFirstEmpty.
+      reflexivity.
+    - induction l2.
+      + rewrite addListsSecondEmpty.
+        intros.
+        rewrite PeanoNat.Nat.add_0_r.
+        reflexivity.
+      + pose proof (addListsFirstEntryWithLength l1 l2 a a0).
+        destruct H; destruct H.
+        * rewrite H.
+          simpl.
+          intros.
+          rewrite (IHl1 (a0 :: l2) n).
+          rewrite addListsLength.
+          apply Lt.lt_le_S in H0.
+          apply max_l in H0.
+          simpl.
+          rewrite H0.
+          rewrite PeanoNat.Nat.add_assoc.
+          reflexivity.
+        * destruct H.
+          intros n.
+          rewrite H.
+          simpl.
+          rewrite IHl2.
+          rewrite addListsLength.
+          apply Lt.lt_le_S in H0.
+          apply max_r in H0.
+          rewrite <- H0 at 2.
+          simpl.
+          lia.
+        * destruct H.
+          intros n.
+          rewrite H.
+          simpl.
+          rewrite IHl1.
+          rewrite addListsLength.
+          rewrite H0.
+          rewrite Max.max_idempotent.
+          lia.
+  Qed.
+
+  Definition evalRespectsAddFirstMotive (p2 : CLPoly) (n : nat) := (fun p => eval (add p p2) n = eval p n + eval p2 n).
+
+  Theorem evalRespectsAddFirstProperGoal : forall (p2 : CLPoly) (n : nat),
+      Proper (eq_CLPoly ==> iff) (fun p : CLPoly => eval (add p p2) n = eval p n + eval p2 n).
+  Proof.
+    intros.
+    solve_proper.
+  Qed.
+
+  Theorem evalRespectsAddSecondProperGoal : forall (l1 : list nat) (proof1 : noLeadingZeros l1) (n : nat),
+      Proper (eq_CLPoly ==> iff)
+        (fun p : CLPoly =>
+           eval (add (depConstr l1 proof1) p) n
+           = eval (depConstr l1 proof1) n + eval p n).
+  Proof.
+    intros.
+    solve_proper.
+  Qed.
+
+  Definition evalRespectsAddFirstDepElimProp := (fun (p1 : CLPoly) p2 n => depElimProp (evalRespectsAddFirstMotive p2 n) (evalRespectsAddFirstProperGoal p2 n)).
+
+  Definition evalRespectsAddSecondMotive l1 proof1 n :=
+    (fun p : CLPoly =>
+           eval (add (depConstr l1 proof1) p) n
+           = eval (depConstr l1 proof1) n + eval p n).
+
+  Definition evalRespectsAddSecondDepElimProp := (fun l1 proof1 n => depElimProp (evalRespectsAddSecondMotive l1 proof1 n) (evalRespectsAddSecondProperGoal l1 proof1 n)).
+  
+  Theorem evalRespectsAdd :
+    forall (p1 p2 : CLPoly) (n : nat),
+      eval (add p1 p2) n = (eval p1 n) + (eval p2 n).
+  Proof.
+    intros.
+    apply (evalRespectsAddFirstDepElimProp p1).
+    - intros l1 proof1.
+      apply (evalRespectsAddSecondDepElimProp l1 proof1 n).
+      + intros l2 proof2.
+        unfold evalRespectsAddSecondMotive.
+        unfold add.
+        apply iotaRecRev.
+        apply iotaRecRev.
+        unfold eval.
+        apply iotaRecRev.
+        apply iotaRecRev.
+        apply iotaRecRev.
+        apply evalListRespectsAddLists.
+  Qed.
+
+  Theorem addListsHelpSecondEmpty :
+    forall (l : list nat),
+      addListsHelp l [] = l.
+  Proof.
+    destruct l.
+    - reflexivity.
+    - reflexivity.
+  Qed.
+  
+  Theorem addListsHelpComm :
+    forall (l1 l2 : list nat),
+      addListsHelp l1 l2 = addListsHelp l2 l1.
+  Proof.
+    induction l1.
+    - intros.
+      rewrite addListsHelpSecondEmpty.
+      reflexivity.
+    - induction l2.
+      + reflexivity.
+      + simpl.
+        rewrite IHl1.
+        rewrite PeanoNat.Nat.add_comm.
+        reflexivity.
+  Qed.
+
+  Theorem addListsComm :
+    forall (l1 l2 : list nat),
+      addLists l1 l2 = addLists l2 l1.
+  Proof.
+    unfold addLists.
+    intros.
+    rewrite addListsHelpComm.
+    reflexivity.
+  Qed.
+
+  Theorem addComm :
+    forall (p1 p2 : CLPoly),
+      eq_CLPoly (add p1 p2) (add p2 p1).
+  Proof.
+    intros.
+    eapply (depElimProp (fun p => eq_CLPoly (add p p2) (add p2 p))).
+    - solve_proper.
+    - intros.
+      eapply (depElimProp (fun p => eq_CLPoly (add _ p) (add p _))).
+      + solve_proper.
+      + intros.
+        unfold add.
+        repeat (apply iotaRecRev).
+        pose proof (addListsComm l l0).
+        assert (eq_rect (addLists l l0) (fun x => noLeadingZeros x) (addListsNoLeadingZeros l l0 proof proof0) (addLists l0 l) H = addListsNoLeadingZeros l0 l proof0 proof).
+        apply noLeadingZerosProofIrr.
+        destruct H0.
+        destruct H.
+        simpl.
+        reflexivity.
+  Qed.
+
+  Theorem addListsHelpAssoc :
+    forall (l1 l2 l3 : list nat),
+      addListsHelp l1 (addListsHelp l2 l3) = addListsHelp (addListsHelp l1 l2) l3.
+  Proof.
+    induction l1; destruct l2; destruct l3; try reflexivity.
+    simpl.
+    rewrite PeanoNat.Nat.add_assoc.
+    rewrite IHl1.
+    reflexivity.
+  Qed.
+
+  Theorem addListsAssoc :
+    forall (l1 l2 l3 : list nat),
+      addLists l1 (addLists l2 l3) = addLists (addLists l1 l2) l3.
+  Proof.
+    intros.
+    unfold addLists.
+    rewrite rev_involutive.
+    rewrite rev_involutive.
+    rewrite addListsHelpAssoc.
+    reflexivity.
+  Qed.
+
+  Theorem addAssoc :
+    forall (p1 p2 p3 : CLPoly),
+      eq_CLPoly (add p1 (add p2 p3)) (add (add p1 p2) p3).
+  Proof.
+    intros.
+    eapply (depElimProp (fun p => eq_CLPoly (add p (add p2 p3)) (add (add p p2) p3))).
+    solve_proper.
+    intros.
+    eapply (depElimProp (fun p => eq_CLPoly (add (depConstr l proof) (add p p3)) (add (add (depConstr l proof) p) p3))).
+    solve_proper.
+    intros.
+    eapply (depElimProp (fun p => eq_CLPoly (add (depConstr l proof) (add (depConstr l0 proof0) p)) (add (add (depConstr l proof) (depConstr l0 proof0)) p))).
+    solve_proper.
+    intros.
+    unfold add.
+    repeat (apply iotaRecRev).
+    pose proof (addListsAssoc l l0 l1).
+    assert
+      (eq_rect
+         (addLists l (addLists l0 l1))
+         (fun x => noLeadingZeros x)
+         (addListsNoLeadingZeros l (addLists l0 l1) proof (addListsNoLeadingZeros l0 l1 proof0 proof1))
+         (addLists (addLists l l0) l1)
+         H
+       = addListsNoLeadingZeros (addLists l l0) l1 (addListsNoLeadingZeros l l0 proof proof0) proof1).
+    apply noLeadingZerosProofIrr.
+    destruct H0.
+    destruct H.
+    reflexivity.
+  Qed.
+
+  Theorem multListByConstant (l : list nat) (n : nat) : CLPoly.
+  Proof.
+    destruct n.
+    - apply [].
+    - induction l.
+      + apply [].
+      + apply (a * (S n) :: IHl).
+  Defined.
+
+  Theorem multListByConstantNoLeadingZeros :
+    forall (l : list nat) (proof : noLeadingZeros l) (n : nat),
+      noLeadingZeros (multListByConstant l n).
+  Proof.
+    intros l proof n.
+    destruct n.
+    - intros.
+      reflexivity.
+    - induction l.
+      + intros.
+        simpl.
+        reflexivity.
+      + intros.
+        simpl.
+        rewrite <- noLeadingZerosHeadNonzero in proof.
+        rewrite <- noLeadingZerosHeadNonzero.
+        intros H.
+        apply PeanoNat.Nat.eq_mul_0 in H.
+        destruct H; lia.
+  Qed.
+      
+  Definition multByConstant (p : CLPoly) (n : nat) :=
+    depRec CLPoly (fun l proof => depConstr (multListByConstant l n) (multListByConstantNoLeadingZeros l proof n)) p.
+
+  Instance multByConstantProper : Proper (eq_CLPoly ==> eq ==> eq_CLPoly) multByConstant.
+  Proof.
+    unfold multByConstant.
+    solve_proper2.
+  Qed.
+
+  Theorem lengthMultListByConstant :
+    forall (l : list nat) (n : nat),
+      length l = length (multListByConstant l (S n)).
+  Proof.
+    induction l.
+    - intros.
+      reflexivity.
+    - intros.
+      simpl.
+      rewrite (IHl n).
+      reflexivity.
+  Qed.    
+
+  Theorem evalListRespectsMultListByConstant :
+    forall (l : list nat) (n1 n2 : nat),
+      evalList (multListByConstant l n1) n2 = n1 * evalList l n2.
+  Proof.
+    destruct n1.
+    - simpl.
+      intros.
+      reflexivity.
+    - induction l.
+      + intros.
+        simpl.
+        lia.
+      + intros.
+        remember (S n1) as m.
+        simpl.
+        rewrite PeanoNat.Nat.mul_add_distr_l.
+        rewrite <- IHl.
+        rewrite Heqm.
+        simpl.
+        f_equal.
+        rewrite (lengthMultListByConstant l n1).
+        unfold multListByConstant.
+        lia.
+  Qed.
+
+  Theorem evalRespectsMultByConstant :
+    forall (p : CLPoly) (n1 n2 : nat),
+      eval (multByConstant p n1) n2 = n1 * eval p n2.
+  Proof.
+    intros.
+    apply (depElimProp (fun x => eval (multByConstant x n1) n2 = n1 * eval x n2)).
+    - solve_proper.
+    - intros.
+      unfold multByConstant.
+      apply iotaRecRev.
+      unfold eval.
+      apply iotaRecRev.
+      apply iotaRecRev.
+      apply evalListRespectsMultListByConstant.
+  Qed.
+
+  Definition multListByXToN (l : list nat) (n : nat) :=
+    list_rec (fun _ => list nat) [] (fun a l _ => (a :: l) ++ (repeat 0 n)) l.
+
+  Theorem multListByXToNNoLeadingZeros :
+    forall (l : list nat) (proof : noLeadingZeros l) (n : nat),
+      noLeadingZeros (multListByXToN l n).
+  Proof.
+    intros.
+    destruct l.
+    - reflexivity.
+    - simpl.
+      apply (noLeadingZerosSameHead l).
+      apply proof.
+  Qed.
+
+  Theorem evalListApp :
+    forall (l1 l2 : list nat) (n : nat),
+      evalList (l1 ++ l2) n = pow n (length l2) * evalList l1 n + evalList l2 n.
+  Proof.
+    induction l1.
+    - intros.
+      simpl.
+      lia.
+    - intros.
+      simpl.
+      rewrite IHl1.
+      rewrite app_length.
+      rewrite PeanoNat.Nat.pow_add_r.
+      lia.
+  Qed.
+
+  Theorem evalListZeros :
+    forall (n1 n2 : nat),
+      evalList (repeat 0 n1) n2 = 0.
+  Proof.
+    intros.
+    induction n1.
+    - reflexivity.
+    - simpl.
+      apply IHn1.
+  Qed.
+
+  Theorem evalListRespectsMultListByXToN :
+    forall (l : list nat) (n1 n2 : nat),
+      evalList (multListByXToN l n1) n2 = (pow n2 n1) * evalList l n2.
+  Proof.
+    induction l.
+    intros.
+    - rewrite PeanoNat.Nat.mul_0_r.
+      reflexivity.
+    - intros.
+      simpl.
+      rewrite evalListApp.
+      rewrite app_length.
+      rewrite repeat_length.
+      rewrite PeanoNat.Nat.pow_add_r.
+      rewrite evalListZeros.
+      lia.
+  Qed.
+
+  Definition multByXToN (p : CLPoly) (n : nat) :=
+    depRec
+      CLPoly
+      (fun l proof =>
+         depConstr
+           (multListByXToN l n)
+           (multListByXToNNoLeadingZeros l proof n))
+      p.
+
+  Instance multByXToNProper : Proper (eq_CLPoly ==> eq ==> eq) multByXToN.
+  Proof.
+    unfold multByXToN.
+    solve_proper2.
+  Qed.
+
+  Theorem evalRespectsMultByXToN :
+    forall (p : CLPoly) (n1 n2 : nat),
+      eval (multByXToN p n1) n2 = (pow n2 n1) * eval p n2.
+  Proof.
+    intros.
+    eapply (depElimProp (fun x => eval (multByXToN x n1) n2 = (pow n2 n1) * eval x n2)).
+    - solve_proper.
+    - intros.
+      unfold multByXToN.
+      apply iotaRecRev.
+      unfold eval.
+      apply iotaRecRev.
+      apply iotaRecRev.
+      apply evalListRespectsMultListByXToN.
+  Qed.
+
+  Theorem multLists :
+    forall (l1 l2 : list nat), list nat.
+  Proof.
+    intros l1.
+    induction l1.
+    - intros l2.
+      apply [].
+    - intros l2.
+      apply (addLists (IHl1 l2) (multListByXToN (multListByConstant l2 a) (length l1))).
+  Defined.
+
+  Theorem multListByXTo0 :
+    forall (l : list nat),
+      multListByXToN l 0 = l.
+  Proof.
+    induction l.
+    - reflexivity.
+    - simpl.
+      rewrite app_nil_r.
+      reflexivity.
+  Qed.
+
+  Theorem multListsSecondEmpty :
+    forall (l : list nat),
+      multLists l [] = [].
+  Proof.
+    induction l.
+    - reflexivity.
+    - destruct a.
+      + simpl.
+        rewrite IHl.
+        reflexivity.
+      + simpl.
+        rewrite IHl.
+        reflexivity.
+  Qed.
+
+  (*Theorem multListsComm :
+    forall (l1 l2 : list nat),
+      removeLeadingZeros (multLists l1 l2) = removeLeadingZeros (multLists l2 l1).
+  Proof.
+    induction l1.
+    - induction l2.
+      + reflexivity.
+      + destruct a.
+        * simpl.
+          rewrite multListsSecondEmpty.
+          reflexivity.
+        * simpl.
+          rewrite multListsSecondEmpty.
+          reflexivity.
+    - induction l2.
+      + simpl.
+        rewrite multListsSecondEmpty.
+        rewrite addListsFirstEmpty.
+        destruct a; reflexivity.
+      + simpl.
+        rewrite <- IHl2.
+        rewrite IHl1.
+        simpl.
+        destruct a, a0.
+        * simpl.
+          rewrite IHl1.
+          reflexivity.
+        * simpl.
+          rewrite addListsSecondEmpty.
+          rewrite addListsSecondEmpty.
+          rewrite IHl1.
+          f_equal.
+          rewrite multListByXTo0.
+
+  Theorem lengthMultLists :
+    forall (l1 l2 : list nat) (n1 n2 : nat),
+      noLeadingZeros (n1 :: l1) ->
+      noLeadingZeros (n2 :: l2) ->
+      length (multLists (n1 :: l1) (n2 :: l2)) = length (n1 :: l1) + length (n2 :: l2) - 1.
+  Proof.
+    induction l1.
+    - induction l2.
+      + intros.
+        apply noLeadingZerosHeadNonzero in H.
+        destruct n1.
+        * contradiction.
+        * reflexivity.
+      + intros.
+        apply noLeadingZerosHeadNonzero in H.
+        destruct n1.
+        * contradiction.
+        * apply (noLeadingZerosHeadNonzero [] (S n1)) in H.
+          apply (noLeadingZerosSameHead (a :: l2) l2 n2) in H0.
+          specialize (IHl2 (S n1) n2 H H0). 
+          simpl in IHl2.
+          rewrite addListsFirstEmpty in IHl2.
+          simpl.
+          rewrite addListsFirstEmpty.
+          rewrite <- IHl2.
+          reflexivity.
+    - induction l2.
+      Focus 2.
+      intros.
+      simpl.
+      + intros.
+        destruct n1.
+        * apply noLeadingZerosHeadNonzero in H.
+          contradiction.
+        * simpl.
+          destruct a.
+          Focus 2.
+          simpl.
+          -- simpl.
+             rewrite addListsSecondEmpty.
+             apply (noLeadingZerosSameHead (0 :: l1) l1) in H.
+             specialize (IHl1 [] (S n1) n2 H H0).
+             simpl in IHl1.
+             rewrite PeanoNat.Nat.sub_0_r in IHl1.
+             rewrite <- IHl1.
+             
+        simpl.*)
+
+  Theorem multListByXToNLength :
+    forall (l : list nat) (n1 n2 : nat),
+      length (multListByXToN (n1 :: l) n2) = length (n1 :: l) + n2.
+  Proof.
+    destruct l.
+    - intros.
+      simpl.
+      rewrite repeat_length.
+      reflexivity.
+    - intros.
+      simpl.
+      rewrite app_length.
+      rewrite repeat_length.
+      reflexivity.
+  Qed.
+
+  Theorem multEmptyListByConstant :
+    forall (n : nat),
+      multListByConstant [] n = [].
+  Proof.
+    destruct n; reflexivity.
+  Qed.
+
+  (*Theorem multListsLength :
+    forall (l1 l2 : list nat),
+      length (multLists l1 l2) <= length l1 + length l2 - 1.
+  Proof.
+    induction l1.
+    - intros.
+      simpl.
+      lia.
+    - simpl.
+      intros l2.
+      destruct l1.
+      + simpl.
+        rewrite addListsFirstEmpty.
+        rewrite multListByXTo0.
+        destruct a.
+        * simpl.
+          apply le_0_n.
+        * rewrite <- lengthMultListByConstant.
+          rewrite PeanoNat.Nat.sub_0_r.
+          reflexivity.
+      + assert (length (multLists (n :: l1) l2) <= length (multListByXToN (multListByConstant l2 a) (length (n :: l1)))).
+        * apply (PeanoNat.Nat.le_trans _ (length (n :: l1) + length l2 - 1)).
+          -- apply IHl1.
+          -- destruct l2.
+             ++ simpl.
+                rewrite multEmptyListByConstant.
+                simpl. rewrite multListByXToNLength.
+
+  Theorem multListsNoLeadingZeros :
+    forall (l1 l2 : list nat),
+      noLeadingZeros l1 ->
+      noLeadingZeros l2 ->
+      noLeadingZeros (multLists l1 l2).
+  Proof.
+    induction l1.
+    - intros.
+      reflexivity.
+    - intros.
+      simpl.
+      apply IHl1.
+      + apply noLeadingZerosTail.*)
   
 End CLPoly.
 
@@ -856,7 +1853,7 @@ Module CEPPoly.
   
   Definition coeffListFromCEP (p : CEPPoly) :=
     coeffListFromCEPHelp (canonicalize p).
-
+    
   Theorem canonicalizeNoZeroCoeffs (p : CEPPoly) (n e : nat) :
     In (n, e) (remove_zeros p) -> n <> 0.
   Proof.
@@ -1015,6 +2012,7 @@ Module CEPPoly.
       subst.
       specialize (H6 n1).
       contradiction.
+  Admitted.
 
   Theorem eq_CEPPoly_respects_max_degree p q k:
     eq_CEPPoly p q -> forall n, n <= k -> n = get_max_degree p -> get_max_degree p = (get_max_degree q).
@@ -1060,7 +2058,7 @@ Module CEPPoly.
         assert (eq_CEPPoly p1 ((0, n0) :: p1)).
         apply Sym. apply Remove_Zero.
         Print Trans.
-  Qed.
+  Admitted.
 
   Instance canonicalIsCanonical : Proper (eq_CEPPoly ==> eq) canonicalize.
   Proof.
@@ -1071,6 +2069,12 @@ Module CEPPoly.
     apply canonicalizeSorted.
     apply canonicalizeNoDupExp.
     apply canonicalizeNoDupExp.
+  Qed.
+
+  Instance coeffListFromCEPProper : Proper (eq_CEPPoly ==> eq) coeffListFromCEP.
+  Proof.
+    unfold coeffListFromCEP.
+    solve_proper.
   Qed.
 
   Import EqNotations.
@@ -1204,3 +2208,153 @@ Module GPoly.
   Qed.
 
 End GPoly.
+
+Definition p (p : CLPoly.CLPoly) := CLPoly.depRec CEPPoly.CEPPoly (fun l proof => CEPPoly.CEPFromCoeffList l) p.
+
+Definition f (p : CEPPoly.CEPPoly) := CEPPoly.depRec CLPoly.CLPoly (fun l proof => CLPoly.depConstr (CEPPoly.coeffListFromCEP p) (CEPPoly.coeffListFromCEPNoLeadingZeros p)) p.
+
+Save setoid CLPoly.CLPoly CEPPoly.CEPPoly { promote = p ; forget = f ; types_a = CLPoly.CLPoly; rels_a = CLPoly.eq_CLPoly; equiv_proofs_a = CLPoly.eq_CLPoly_equiv; types_b = CEPPoly.CEPPoly ; rels_b = CEPPoly.eq_CEPPoly ; equiv_proofs_b = CEPPoly.eq_CEPPoly_equiv }.
+
+Definition etaCLPoly (x : CLPoly.CLPoly) := x.
+Definition etaCEPPoly (x : CEPPoly.CEPPoly) := x.
+
+Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {
+    constrs_a = CLPoly.depConstr ;
+    constrs_b = CEPPoly.depConstr ;
+    elim_a = CLPoly.depRec ;
+    elim_b = CEPPoly.depRec ;
+    eta_a = etaCLPoly ;
+    eta_b = etaCEPPoly ;
+    iota_a = CLPoly.iotaRec CLPoly.iotaRecRev ;
+    iota_b = CEPPoly.iotaRec CEPPoly.iotaRecRev
+  }.
+
+Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {opaque noLeadingZeros CLPoly.addLists CLPoly.addListsNoLeadingZeros noLeadingZerosProofIrr CLPoly.evalList CLPoly.evalDepRecArg CLPoly.evalListRespectsAddLists}.
+
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.addLists as addListsCEP.
+
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.add as addCEP.
+
+Print CLPoly.add.
+Print addCEP.
+
+Instance addCEPProper : Proper (CEPPoly.eq_CEPPoly ==> CEPPoly.eq_CEPPoly ==> CEPPoly.eq_CEPPoly) addCEP.
+Proof.
+  unfold addCEP.
+  intros p1 p2 H0 p3 p4 H1.
+  unfold CEPPoly.depConstr.
+  unfold CEPPoly.coeffListFromCEP.
+  rewrite H0.
+  rewrite H1.
+  reflexivity.
+Qed.
+
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.addComm as addCommCEP.
+
+Print addCommCEP.
+
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.eval as evalCEP.
+
+Instance evalCEPProper : Proper (CEPPoly.eq_CEPPoly ==> eq ==> eq) evalCEP.
+Proof.
+  unfold evalCEP.
+  unfold CLPoly.evalDepRecArg.
+  solve_proper.
+Qed.
+
+Print evalCEP.
+
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.evalRespectsAddFirstMotive as evalRespectsAddFirstMotiveCEP.
+
+Print evalRespectsAddFirstMotiveCEP.
+
+Theorem evalRespectsAddFirstCEPProperGoal (p2 : CEPPoly.CEPPoly) (n : nat) :
+  Proper (CEPPoly.eq_CEPPoly ==> iff) (evalRespectsAddFirstMotiveCEP p2 n).
+Proof.
+  unfold evalRespectsAddFirstMotiveCEP.
+  solve_proper2.
+Qed.
+
+Definition evalRespectsAddSecondMotiveCEP l1 proof1 n :=
+    (fun p : CEPPoly.CEPPoly =>
+       evalCEP (addCEP (CEPPoly.depConstr l1 proof1) p) n
+       = evalCEP (CEPPoly.depConstr l1 proof1) n + evalCEP p n).
+
+Theorem evalRespectsAddSecondMotiveCEPProper l1 proof1 n : Proper (CEPPoly.eq_CEPPoly ==> iff) (evalRespectsAddSecondMotiveCEP l1 proof1 n).
+Proof.
+  intros.
+  unfold evalRespectsAddSecondMotiveCEP.
+  solve_proper.
+Qed.
+
+Definition evalRespectsAddFirstDepElimPropCEP := (fun (p1 : CEPPoly.CEPPoly) p2 n => CEPPoly.depElimProp (evalRespectsAddFirstMotiveCEP p2 n) (evalRespectsAddFirstCEPProperGoal p2 n)).
+
+Definition evalRespectsAddSecondDepElimPropCEP := (fun l1 proof1 n => CEPPoly.depElimProp (evalRespectsAddSecondMotiveCEP l1 proof1 n) (evalRespectsAddSecondMotiveCEPProper l1 proof1 n)).
+
+Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {
+    constrs_a = CLPoly.depConstr ;
+    constrs_b = CEPPoly.depConstr ;
+    elim_a = CLPoly.depRec CLPoly.evalRespectsAddFirstDepElimProp CLPoly.evalRespectsAddSecondDepElimProp ;
+    elim_b = CEPPoly.depRec evalRespectsAddFirstDepElimPropCEP evalRespectsAddSecondDepElimPropCEP ;
+    eta_a = etaCLPoly ;
+    eta_b = etaCEPPoly ;
+    iota_a = CLPoly.iotaRec CLPoly.iotaRecRev ;
+    iota_b = CEPPoly.iotaRec CEPPoly.iotaRecRev
+  }.
+
+Print CLPoly.evalRespectsAdd.
+
+Print CLPoly.add.
+
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.evalRespectsAdd as evalRespectsAddCEP.
+
+Print evalRespectsAddCEP.
+
+Print CLPoly.evalRespectsAdd.
+
+(*Definition test := fun (l1 : list nat) (proof1 : noLeadingZeros l1) (l2 : list nat) (proof2 : noLeadingZeros l2) (n : nat) =>
+      CLPoly.iotaRecRev CLPoly.CLPoly
+        (fun (l : list nat) (p : noLeadingZeros l) =>
+         CLPoly.depRec CLPoly.CLPoly
+           (fun (l0 : list nat) (p0 : noLeadingZeros l0) =>
+            CLPoly.depConstr (CLPoly.addLists l l0) (CLPoly.addListsNoLeadingZeros l l0 p p0))
+           (CLPoly.depConstr l2 proof2)) l1 proof1
+        (fun c : CLPoly.CLPoly =>
+         CLPoly.eval c n =
+         CLPoly.eval (CLPoly.depConstr l1 proof1) n + CLPoly.eval (CLPoly.depConstr l2 proof2) n)
+        (CLPoly.iotaRecRev CLPoly.CLPoly
+           (fun (l0 : list nat) (p0 : noLeadingZeros l0) =>
+            CLPoly.depConstr (CLPoly.addLists l1 l0) (CLPoly.addListsNoLeadingZeros l1 l0 proof1 p0))
+           l2 proof2
+           (fun c : CLPoly.CLPoly =>
+            CLPoly.eval c n =
+            CLPoly.eval (CLPoly.depConstr l1 proof1) n + CLPoly.eval (CLPoly.depConstr l2 proof2) n)
+           (CLPoly.iotaRecRev nat (fun (l : list nat) (_ : noLeadingZeros l) => CLPoly.evalList l n)
+              (CLPoly.addLists l1 l2) (CLPoly.addListsNoLeadingZeros l1 l2 proof1 proof2)
+              (fun n0 : nat =>
+               n0 =
+               CLPoly.depRec nat (fun (l : list nat) (_ : noLeadingZeros l) => CLPoly.evalList l n)
+                 (CLPoly.depConstr l1 proof1) +
+               CLPoly.depRec nat (fun (l : list nat) (_ : noLeadingZeros l) => CLPoly.evalList l n)
+                 (CLPoly.depConstr l2 proof2))
+              (CLPoly.iotaRecRev nat
+                 (fun (l : list nat) (_ : noLeadingZeros l) => CLPoly.evalList l n) l1 proof1
+                 (fun n0 : nat =>
+                  CLPoly.evalList (CLPoly.addLists l1 l2) n =
+                  n0 +
+                  CLPoly.depRec nat
+                    (fun (l : list nat) (_ : noLeadingZeros l) => CLPoly.evalList l n)
+                    (CLPoly.depConstr l2 proof2))
+                 (CLPoly.iotaRecRev nat
+                    (fun (l : list nat) (_ : noLeadingZeros l) => CLPoly.evalList l n) l2 proof2
+                    (fun n0 : nat =>
+                     CLPoly.evalList (CLPoly.addLists l1 l2) n = CLPoly.evalList l1 n + n0)
+                    (CLPoly.evalListRespectsAddLists l1 l2 n))))).*)
+
+Definition test := fun l : list nat => 0.
+
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in test as test_out.
+
+Print test_out.
+
+Print evalRespectsAddCEP.
