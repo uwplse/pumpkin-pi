@@ -82,159 +82,12 @@ Qed.
 
 Check CLPoly.
 
-Module CLPoly.
+Definition opaque_list := list nat.
 
-  Definition CLPoly := list nat.
-
-  Definition canonicalize (l : CLPoly) :=
-    removeLeadingZeros l.
-
-  Definition eq_CLPoly (l1 l2 : CLPoly) :=
-    canonicalize l1 = canonicalize l2.
-
-  Instance eq_CLPoly_refl : Reflexive eq_CLPoly.
-  Proof.
-    intros x.
-    reflexivity.
-  Qed.
-
-  Instance eq_CLPoly_sym : Symmetric eq_CLPoly.
-  Proof.
-    unfold eq_CLPoly.
-    intros x y H.
-    symmetry.
-    apply H.
-  Qed.
-
-  Instance eq_CLPoly_trans : Transitive eq_CLPoly.
-  Proof.
-    unfold eq_CLPoly.
-    intros x y z H1 H2.
-    rewrite H1.
-    apply H2.
-  Qed.
-
-  Instance eq_CLPoly_equiv : Equivalence eq_CLPoly.
-  Proof.
-    split.
-    - apply eq_CLPoly_refl.
-    - apply eq_CLPoly_sym.
-    - apply eq_CLPoly_trans.
-  Qed.
-
-  Definition depConstr (l : list nat) (p : noLeadingZeros l) := l.
-
-  Theorem noLeadingZerosCanonical (p : CLPoly) : noLeadingZeros (canonicalize p).
-  Proof.
-    unfold noLeadingZeros.
-    unfold canonicalize.
-    induction p.
-    reflexivity.
-    simpl.
-    destruct a; simpl.
-    - apply IHp.
-    - reflexivity.
-  Defined.
-
-  Definition depRec (C : Type)
-    (X : forall (l : list nat) (p : noLeadingZeros l), C)
-    (p : CLPoly) : C :=
-    X (canonicalize p) (noLeadingZerosCanonical p).
-
-  Instance canonicalIsCanonical : Proper (eq_CLPoly ==> eq) canonicalize.
-  Proof.
-    intros x1 x2 H.
-    unfold canonicalize.
-    apply H.
-  Qed.
-
-  Import EqNotations.
-
-  Instance depRecProper (C : Type)
-    (X : forall (l : list nat) (p : noLeadingZeros l), C) :
-    Proper (eq_CLPoly ==> eq) (depRec C X).
-  Proof.
-    intros p1 p2 H.
-    apply canonicalIsCanonical in H.
-    unfold depRec.
-    assert (eq_rect (canonicalize p1) (fun x => noLeadingZeros x) (noLeadingZerosCanonical p1) (canonicalize p2) H = noLeadingZerosCanonical p2).
-    apply noLeadingZerosProofIrr.
-    destruct H0.
-    destruct H.
-    reflexivity.
-  Qed.
-
-  Theorem canonicalizePres (p : CLPoly) :
-    eq_CLPoly p (canonicalize p).
-  Proof.
-    unfold eq_CLPoly.
-    unfold canonicalize.
-    apply noLeadingZerosCanonical.
-  Qed.
-
-  Theorem depElimProp (P : CLPoly -> Prop)
-    `(proper : Proper _ (eq_CLPoly ==> iff) P)
-    (X : forall (l : list nat) (proof : noLeadingZeros l), P (depConstr l proof))
-    (p : CLPoly) :
-    P p.
-  Proof.
-    rewrite canonicalizePres.
-    apply (X (canonicalize p) (noLeadingZerosCanonical p)).
-  Qed.
-
-  Theorem alreadyCanonical (l : CLPoly) (proof : noLeadingZeros l) :
-    l = canonicalize l.
-  Proof.
-    apply proof.
-  Qed.
-
-  Definition iotaRecEq (C : Type)
-    (X : forall (l : list nat) (p : noLeadingZeros l), C)
-    (l : list nat) (proof : noLeadingZeros l) :
-    depRec C X (depConstr l proof) = X l proof.
-  Proof.
-    unfold depRec.
-    unfold depConstr.
-    pose proof (alreadyCanonical l proof).
-    symmetry in H.
-    assert (eq_rect (canonicalize l) (fun x => noLeadingZeros x) (noLeadingZerosCanonical l) (l) H = proof).
-    apply noLeadingZerosProofIrr.
-    destruct H0.
-    pose (match
-               H as e in (eq _ y) return
-               eq (X (canonicalize l) (noLeadingZerosCanonical l)) (X y (eq_rect (canonicalize l) (fun x : list nat => noLeadingZeros x) (noLeadingZerosCanonical l) y e))
-             with
-             | eq_refl => eq_refl
-           end).
-    apply e.
-  Qed.
-
-  Definition iotaRec (C : Type)
-    (X : forall (l : list nat) (p : noLeadingZeros l), C)
-    (l : list nat) (proof : noLeadingZeros l) :
-    forall (Q : C -> Type),
-      (Q (depRec C X (depConstr l proof))) -> Q (X l proof).
-  Proof.
-    intros.
-    rewrite <- iotaRecEq.
-    assumption.
-  Qed.
-
-  Definition iotaRecRev (C : Type)
-    (X : forall (l : list nat) (p : noLeadingZeros l), C)
-    (l : list nat) (proof : noLeadingZeros l) :
-    forall (Q : C -> Type),
-      Q (X l proof) -> (Q (depRec C X (depConstr l proof))).
-  Proof.
-    intros.
-    rewrite iotaRecEq.
-    assumption.
-  Qed.
-
-  Print list_rec.
+Module ListFns.
 
   Theorem addListsHelp :
-    forall (l1 l2 : list nat), list nat.
+    forall (l1 l2 : opaque_list), opaque_list.
   Proof.
     intro l1.
     induction l1.
@@ -247,7 +100,7 @@ Module CLPoly.
   Defined.
 
     Theorem noLeadingZerosRemoveLeadingZeros :
-    forall (l l1 : list nat),
+    forall (l l1 : opaque_list),
       0 :: l1 <> removeLeadingZeros l.
   Proof.
     induction l.
@@ -266,9 +119,9 @@ Module CLPoly.
   Qed.
 
   Theorem noLeadingZerosHead :
-    forall (l : list nat),
+    forall (l : opaque_list),
       noLeadingZeros l ->
-      l = [] \/ exists (l1 : list nat) (n : nat), n <> 0 /\ l = n :: l1.
+      l = [] \/ exists (l1 : opaque_list) (n : nat), n <> 0 /\ l = n :: l1.
   Proof.
     destruct l.
     - intros.
@@ -289,7 +142,7 @@ Module CLPoly.
   Qed.
 
   Theorem removeLeadingZerosEnd :
-    forall (l l1 : list nat) (n : nat),
+    forall (l l1 : opaque_list) (n : nat),
       n <> 0 ->
       (removeLeadingZeros l) ++ (n :: l1) = removeLeadingZeros (l ++ (n :: l1)).
   Proof.
@@ -306,7 +159,7 @@ Module CLPoly.
   Qed.
 
   Theorem noLeadingZerosEnd :
-    forall (l l1 : list nat) (n : nat),
+    forall (l l1 : opaque_list) (n : nat),
       n <> 0 ->
       noLeadingZeros l <-> noLeadingZeros (l ++ (n :: l1)).
   Proof.
@@ -323,7 +176,7 @@ Module CLPoly.
   Qed.
 
   Theorem addListsHelpEqualLength :
-    forall (l1 l2 : list nat) (n1 n2 : nat),
+    forall (l1 l2 : opaque_list) (n1 n2 : nat),
       length l1 = length l2 ->
       addListsHelp (l1 ++ [n1]) (l2 ++ [n2]) = addListsHelp l1 l2 ++ [n1 + n2].
   Proof.
@@ -346,7 +199,7 @@ Module CLPoly.
   Qed.
 
   Theorem addListsHelpFirstLonger :
-    forall (l1 l2 : list nat) (n : nat),
+    forall (l1 l2 : opaque_list) (n : nat),
       length l2 < S (length l1) ->
       addListsHelp (l1 ++ [n]) l2 = addListsHelp l1 l2 ++ [n].
   Proof.
@@ -372,7 +225,7 @@ Module CLPoly.
   Qed.
 
   Theorem addListsHelpSecondLonger :
-    forall (l1 l2 : list nat) (n : nat),
+    forall (l1 l2 : opaque_list) (n : nat),
       length l1 < S (length l2) ->
       addListsHelp l1 (l2 ++ [n]) = addListsHelp l1 l2 ++ [n].
   Proof.
@@ -393,55 +246,14 @@ Module CLPoly.
         apply H.
   Qed.
 
-  (*Theorem noTrailingZerosTail :
-    forall (l : list nat) (n : nat),
-      noTrailingZeros l ->
-      n <> 0 ->
-      noTrailingZeros (n :: l).
-  Proof.
-    induction l.
-    - intros.
-      unfold noTrailingZeros.
-      unfold removeTrailingZeros.
-      simpl.
-      destruct (PeanoNat.Nat.eqb_spec n 0).
-      + contradiction.
-      + reflexivity.
-    - unfold noTrailingZeros.
-      unfold removeTrailingZeros.
-      intros.
-      simpl.
-      simpl in H.*)     
-
-  (*Theorem addListsHelpNoTrailingZeros :
-    forall (l1 l2 : list nat),
-      noTrailingZeros l1 ->
-      noTrailingZeros l2 ->
-      noTrailingZeros (addListsHelp l1 l2).
-  Proof.
-    unfold noTrailingZeros.
-    unfold removeTrailingZeros.
-    induction l1.
-    - intros.
-      simpl.
-      apply H0.
-    - intros.
-      induction l2.
-      + simpl.
-        apply H.
-      + simpl.
-        unfold noTrailingZeros.
-        unfold removeTrailingZeros.
-        simpl.*)
-
-  Definition addLists (l1 l2 : list nat) :=
+    Definition addLists (l1 l2 : opaque_list) : opaque_list :=
     let l1 := rev l1 in
     let l2 := rev l2 in
     let add_l := addListsHelp l1 l2 in
     rev add_l.
 
   Theorem addListsEqualLength :
-    forall (l1 l2 : list nat) (n1 n2 : nat),
+    forall (l1 l2 : opaque_list) (n1 n2 : nat),
       length l1 = length l2 ->
       addLists (n1 :: l1) (n2 :: l2) = (n1 + n2) :: addLists l1 l2.
     Proof.
@@ -457,7 +269,7 @@ Module CLPoly.
   Qed.
 
   Theorem addListsFirstLonger :
-    forall (l1 l2 : list nat) (n : nat),
+    forall (l1 l2 : opaque_list) (n : nat),
       length l2 < S (length l1) ->
       addLists (n :: l1) l2 = n :: addLists l1 l2.
   Proof.
@@ -473,7 +285,7 @@ Module CLPoly.
   Qed.
 
   Theorem addListsSecondLonger :
-    forall (l1 l2 : list nat) (n : nat),
+    forall (l1 l2 : opaque_list) (n : nat),
       length l1 < S (length l2) ->
       addLists l1 (n :: l2) = n :: addLists l1 l2.
   Proof.
@@ -488,8 +300,8 @@ Module CLPoly.
     apply H.
   Qed.
 
-  Theorem app_end_nonempty (l1 : list nat) (n : nat) :
-    exists (l2 : list nat) (m : nat),
+  Theorem app_end_nonempty (l1 : opaque_list) (n : nat) :
+    exists (l2 : opaque_list) (m : nat),
       l1 ++ [n] = m :: l2.
   Proof.
     destruct l1.
@@ -504,7 +316,7 @@ Module CLPoly.
   Qed.
 
   Theorem rev_append_list_end :
-    forall (l1 l2 : list nat) (x1 x2 : nat),
+    forall (l1 l2 : opaque_list) (x1 x2 : nat),
       rev l1 ++ [x1] = x2 :: l2 ->
       rev l2 ++ [x2] = x1 :: l1.
   Proof.
@@ -519,7 +331,7 @@ Module CLPoly.
   Qed.
 
   Theorem addListsFirstEntry :
-    forall (l1 l2 : list nat) (n1 n2 : nat),
+    forall (l1 l2 : opaque_list) (n1 n2 : nat),
       addLists (n1 :: l1) (n2 :: l2) = n1 :: addLists l1 (n2 :: l2) \/
       addLists (n1 :: l1) (n2 :: l2) = n2 :: addLists (n1 :: l1) l2 \/
       addLists (n1 :: l1) (n2 :: l2) = (n1 + n2) :: addLists l1 l2.
@@ -544,7 +356,7 @@ Module CLPoly.
   Qed.
 
   Theorem addListsFirstEntryWithLength :
-    forall (l1 l2 : list nat) (n1 n2 : nat),
+    forall (l1 l2 : opaque_list) (n1 n2 : nat),
       (addLists (n1 :: l1) (n2 :: l2) = n1 :: addLists l1 (n2 :: l2) /\ length l2 < length l1) \/
       (addLists (n1 :: l1) (n2 :: l2) = n2 :: addLists (n1 :: l1) l2 /\ length l1 < length l2) \/
       (addLists (n1 :: l1) (n2 :: l2) = (n1 + n2) :: addLists l1 l2 /\ length l1 = length l2).
@@ -575,7 +387,7 @@ Module CLPoly.
   Qed.
 
   Theorem noLeadingZerosHeadNonzero :
-    forall (l : list nat) (n : nat),
+    forall (l : opaque_list) (n : nat),
       n <> 0 <-> noLeadingZeros (n :: l).
   Proof.
     unfold noLeadingZeros.
@@ -589,7 +401,7 @@ Module CLPoly.
       intros H0.
       rewrite <- PeanoNat.Nat.eqb_eq in H0.
       rewrite H0 in H.
-      assert (forall (l0 l1 : list nat) (n : nat), (n :: l1) ++ l0 <> removeLeadingZeros l0).
+      assert (forall (l0 l1 : opaque_list) (n : nat), (n :: l1) ++ l0 <> removeLeadingZeros l0).
       induction l0.
       + intros.
         simpl.
@@ -616,7 +428,7 @@ Module CLPoly.
   Qed.
 
   Theorem noLeadingZerosSameHead :
-    forall (l1 l2 : list nat) (n : nat),
+    forall (l1 l2 : opaque_list) (n : nat),
       noLeadingZeros (n :: l1) -> noLeadingZeros (n :: l2).
   Proof.
     intros.
@@ -630,7 +442,7 @@ Module CLPoly.
   Qed.
       
   Theorem addListsNoLeadingZeros :
-    forall (l1 l2 : list nat),
+    forall (l1 l2 : opaque_list),
       noLeadingZeros l1 ->
       noLeadingZeros l2 ->
       noLeadingZeros (addLists l1 l2).
@@ -668,49 +480,16 @@ Module CLPoly.
              apply noLeadingZerosHeadNonzero.
              lia.
   Qed.
-    
-  Theorem add (p1 p2 : CLPoly) : CLPoly.
-  Proof.
-    apply depRec.
-    - intros.
-      apply depRec.
-      + intros.
-        apply (depConstr (addLists l l0) (addListsNoLeadingZeros l l0 p p0)).
-      + apply p2.
-    - apply p1.
-  Defined.
 
-  Instance addProper : Proper (eq_CLPoly ==> eq_CLPoly ==> eq_CLPoly) add.
-  Proof.
-    unfold add.
-    intros p1 p2 H0 p3 p4 H1.
-    rewrite H0.
-    unfold depRec.
-    unfold depConstr.
-    rewrite H1.
-    reflexivity.
-  Qed.
-
-  Theorem evalList (l : list nat) (n : nat) : nat.
+  Theorem evalList (l : opaque_list) (n : nat) : nat.
   Proof.
     induction l.
     - apply 0.
     - apply (a * (pow n (length l)) + IHl).
   Defined.
 
-  Definition evalDepRecArg := (fun n l (proof : noLeadingZeros l) => evalList l n).
-
-  Definition eval (p : CLPoly) (n : nat) :=
-    depRec nat (evalDepRecArg n) p.
-
-  Instance evalProper : Proper (eq_CLPoly ==> eq ==> eq) eval.
-  Proof.
-    unfold eval.
-    solve_proper2.
-  Qed.
-
-  Theorem addListsFirstEmpty :
-    forall (l : list nat),
+    Theorem addListsFirstEmpty :
+    forall (l : opaque_list),
       addLists [] l = l.
   Proof.
     unfold addLists.
@@ -720,7 +499,7 @@ Module CLPoly.
   Qed.
 
   Theorem addListsSecondEmpty :
-    forall (l : list nat),
+    forall (l : opaque_list),
       addLists l [] = l.
   Proof.
     induction l.
@@ -732,7 +511,7 @@ Module CLPoly.
   Qed.
 
   Theorem addListsLength :
-    forall (l1 l2 : list nat),
+    forall (l1 l2 : opaque_list),
       length (addLists l1 l2) = max (length l1) (length l2).
   Proof.
     induction l1.
@@ -772,7 +551,7 @@ Module CLPoly.
   Qed.
 
   Theorem evalListRespectsAddLists :
-    forall (l1 l2 : list nat) (n : nat),
+    forall (l1 l2 : opaque_list) (n : nat),
       evalList (addLists l1 l2) n = evalList l1 n + evalList l2 n.
   Proof.
     induction l1.
@@ -817,6 +596,256 @@ Module CLPoly.
           rewrite H0.
           rewrite Max.max_idempotent.
           lia.
+  Qed.
+
+    Theorem addListsHelpSecondEmpty :
+    forall (l : opaque_list),
+      addListsHelp l [] = l.
+  Proof.
+    destruct l.
+    - reflexivity.
+    - reflexivity.
+  Qed.
+  
+  Theorem addListsHelpComm :
+    forall (l1 l2 : opaque_list),
+      addListsHelp l1 l2 = addListsHelp l2 l1.
+  Proof.
+    induction l1.
+    - intros.
+      rewrite addListsHelpSecondEmpty.
+      reflexivity.
+    - induction l2.
+      + reflexivity.
+      + simpl.
+        rewrite IHl1.
+        rewrite PeanoNat.Nat.add_comm.
+        reflexivity.
+  Qed.
+
+  Theorem addListsComm :
+    forall (l1 l2 : opaque_list),
+      addLists l1 l2 = addLists l2 l1.
+  Proof.
+    unfold addLists.
+    intros.
+    rewrite addListsHelpComm.
+    reflexivity.
+  Qed.
+
+  Theorem addListsCommNoLeadingZerosProofIrr (l l0 : opaque_list) (proof : noLeadingZeros l) (proof0 : noLeadingZeros l0) :
+    eq_rect (addLists l l0) (fun x => noLeadingZeros x) (addListsNoLeadingZeros l l0 proof proof0) (addLists l0 l) (addListsComm l l0) = addListsNoLeadingZeros l0 l proof0 proof.
+  Proof.
+    apply noLeadingZerosProofIrr.
+  Qed.
+
+  Theorem addListsHelpAssoc :
+    forall (l1 l2 l3 : opaque_list),
+      addListsHelp l1 (addListsHelp l2 l3) = addListsHelp (addListsHelp l1 l2) l3.
+  Proof.
+    induction l1; destruct l2; destruct l3; try reflexivity.
+    simpl.
+    rewrite PeanoNat.Nat.add_assoc.
+    rewrite IHl1.
+    reflexivity.
+  Qed.
+
+  Theorem addListsAssoc :
+    forall (l1 l2 l3 : opaque_list),
+      addLists l1 (addLists l2 l3) = addLists (addLists l1 l2) l3.
+  Proof.
+    intros.
+    unfold addLists.
+    rewrite rev_involutive.
+    rewrite rev_involutive.
+    rewrite addListsHelpAssoc.
+    reflexivity.
+  Qed.
+  
+End ListFns.
+
+
+
+Module CLPoly.
+
+  Definition CLPoly := list nat.
+
+  Definition canonicalize (l : CLPoly) :=
+    removeLeadingZeros l.
+
+  Definition eq_CLPoly (l1 l2 : CLPoly) :=
+    canonicalize l1 = canonicalize l2.
+
+  Instance eq_CLPoly_refl : Reflexive eq_CLPoly.
+  Proof.
+    intros x.
+    reflexivity.
+  Qed.
+
+  Instance eq_CLPoly_sym : Symmetric eq_CLPoly.
+  Proof.
+    unfold eq_CLPoly.
+    intros x y H.
+    symmetry.
+    apply H.
+  Qed.
+
+  Instance eq_CLPoly_trans : Transitive eq_CLPoly.
+  Proof.
+    unfold eq_CLPoly.
+    intros x y z H1 H2.
+    rewrite H1.
+    apply H2.
+  Qed.
+
+  Instance eq_CLPoly_equiv : Equivalence eq_CLPoly.
+  Proof.
+    split.
+    - apply eq_CLPoly_refl.
+    - apply eq_CLPoly_sym.
+    - apply eq_CLPoly_trans.
+  Qed.
+
+  Definition depConstr (l : opaque_list) (p : noLeadingZeros l) : CLPoly := l.
+
+  Theorem noLeadingZerosCanonical (p : CLPoly) : noLeadingZeros (canonicalize p).
+  Proof.
+    unfold noLeadingZeros.
+    unfold canonicalize.
+    induction p.
+    reflexivity.
+    simpl.
+    destruct a; simpl.
+    - apply IHp.
+    - reflexivity.
+  Defined.
+
+  Definition depRec (C : Type)
+    (X : forall (l : opaque_list) (p : noLeadingZeros l), C)
+    (p : CLPoly) : C :=
+    X (canonicalize p) (noLeadingZerosCanonical p).
+
+  Instance canonicalIsCanonical : Proper (eq_CLPoly ==> eq) canonicalize.
+  Proof.
+    intros x1 x2 H.
+    unfold canonicalize.
+    apply H.
+  Qed.
+
+  Import EqNotations.
+
+  Instance depRecProper (C : Type)
+    (X : forall (l : opaque_list) (p : noLeadingZeros l), C) :
+    Proper (eq_CLPoly ==> eq) (depRec C X).
+  Proof.
+    intros p1 p2 H.
+    apply canonicalIsCanonical in H.
+    unfold depRec.
+    assert (eq_rect (canonicalize p1) (fun x => noLeadingZeros x) (noLeadingZerosCanonical p1) (canonicalize p2) H = noLeadingZerosCanonical p2).
+    apply noLeadingZerosProofIrr.
+    destruct H0.
+    destruct H.
+    reflexivity.
+  Qed.
+
+  Theorem canonicalizePres (p : CLPoly) :
+    eq_CLPoly p (canonicalize p).
+  Proof.
+    unfold eq_CLPoly.
+    unfold canonicalize.
+    apply noLeadingZerosCanonical.
+  Qed.
+
+  Theorem depElimProp (P : CLPoly -> Prop)
+    `(proper : Proper _ (eq_CLPoly ==> iff) P)
+    (X : forall (l : opaque_list) (proof : noLeadingZeros l), P (depConstr l proof))
+    (p : CLPoly) :
+    P p.
+  Proof.
+    rewrite canonicalizePres.
+    apply (X (canonicalize p) (noLeadingZerosCanonical p)).
+  Qed.
+
+  Theorem alreadyCanonical (l : CLPoly) (proof : noLeadingZeros l) :
+    l = canonicalize l.
+  Proof.
+    apply proof.
+  Qed.
+
+  Definition iotaRecEq (C : Type)
+    (X : forall (l : opaque_list) (p : noLeadingZeros l), C)
+    (l : opaque_list) (proof : noLeadingZeros l) :
+    depRec C X (depConstr l proof) = X l proof.
+  Proof.
+    unfold depRec.
+    unfold depConstr.
+    pose proof (alreadyCanonical l proof).
+    symmetry in H.
+    assert (eq_rect (canonicalize l) (fun x => noLeadingZeros x) (noLeadingZerosCanonical l) (l) H = proof).
+    apply noLeadingZerosProofIrr.
+    destruct H0.
+    pose (match
+               H as e in (eq _ y) return
+               eq (X (canonicalize l) (noLeadingZerosCanonical l)) (X y (eq_rect (canonicalize l) (fun x : list nat => noLeadingZeros x) (noLeadingZerosCanonical l) y e))
+             with
+             | eq_refl => eq_refl
+           end).
+    apply e.
+  Qed.
+
+  Definition iotaRec (C : Type)
+    (X : forall (l : opaque_list) (p : noLeadingZeros l), C)
+    (l : opaque_list) (proof : noLeadingZeros l) :
+    forall (Q : C -> Type),
+      (Q (depRec C X (depConstr l proof))) -> Q (X l proof).
+  Proof.
+    intros.
+    rewrite <- iotaRecEq.
+    assumption.
+  Qed.
+
+  Definition iotaRecRev (C : Type)
+    (X : forall (l : opaque_list) (p : noLeadingZeros l), C)
+    (l : opaque_list) (proof : noLeadingZeros l) :
+    forall (Q : C -> Type),
+      Q (X l proof) -> (Q (depRec C X (depConstr l proof))).
+  Proof.
+    intros.
+    rewrite iotaRecEq.
+    assumption.
+  Qed.
+
+  Import ListFns.
+    
+  Theorem add (p1 p2 : CLPoly) : CLPoly.
+  Proof.
+    apply depRec.
+    - intros.
+      apply depRec.
+      + intros.
+        apply (depConstr (addLists l l0) (addListsNoLeadingZeros l l0 p p0)).
+      + apply p2.
+    - apply p1.
+  Defined.
+
+  Instance addProper : Proper (eq_CLPoly ==> eq_CLPoly ==> eq_CLPoly) add.
+  Proof.
+    unfold add.
+    intros p1 p2 H0 p3 p4 H1.
+    rewrite H0.
+    unfold depRec.
+    unfold depConstr.
+    rewrite H1.
+    reflexivity.
+  Qed.
+
+  Definition eval (p : CLPoly) (n : nat) :=
+    depRec nat (fun (l : opaque_list) (proof : noLeadingZeros l) => evalList l n) p.
+
+  Instance evalProper : Proper (eq_CLPoly ==> eq ==> eq) eval.
+  Proof.
+    unfold eval.
+    solve_proper2.
   Qed.
 
   Definition evalRespectsAddFirstMotive (p2 : CLPoly) (n : nat) := (fun p => eval (add p p2) n = eval p n + eval p2 n).
@@ -867,85 +896,62 @@ Module CLPoly.
         apply evalListRespectsAddLists.
   Qed.
 
-  Theorem addListsHelpSecondEmpty :
-    forall (l : list nat),
-      addListsHelp l [] = l.
+  Definition addCommFirstDepElimMotive (p2 : CLPoly) :=
+    fun p => eq_CLPoly (add p p2) (add p2 p).
+
+  Definition addCommFirstProperGoal (p2 : CLPoly) :
+    Proper (eq_CLPoly ==> iff) (fun p : CLPoly => eq_CLPoly (add p p2) (add p2 p)).
   Proof.
-    destruct l.
-    - reflexivity.
-    - reflexivity.
-  Qed.
-  
-  Theorem addListsHelpComm :
-    forall (l1 l2 : list nat),
-      addListsHelp l1 l2 = addListsHelp l2 l1.
-  Proof.
-    induction l1.
-    - intros.
-      rewrite addListsHelpSecondEmpty.
-      reflexivity.
-    - induction l2.
-      + reflexivity.
-      + simpl.
-        rewrite IHl1.
-        rewrite PeanoNat.Nat.add_comm.
-        reflexivity.
+    solve_proper.
   Qed.
 
-  Theorem addListsComm :
-    forall (l1 l2 : list nat),
-      addLists l1 l2 = addLists l2 l1.
+  Definition addCommFirstDepElim p2 := depElimProp (addCommFirstDepElimMotive p2) (addCommFirstProperGoal p2).
+
+  Definition addCommSecondDepElimMotive (l : opaque_list) (proof : noLeadingZeros l) :=
+    fun p => eq_CLPoly (add (depConstr l proof) p) (add p (depConstr l proof)).
+
+  Theorem addCommSecondProperGoal (l : opaque_list) (proof : noLeadingZeros l) : 
+    Proper
+      (eq_CLPoly ==> iff)
+      (addCommSecondDepElimMotive l proof).
   Proof.
-    unfold addLists.
     intros.
-    rewrite addListsHelpComm.
-    reflexivity.
+    unfold addCommSecondDepElimMotive.
+    solve_proper.
   Qed.
+
+  Definition addCommSecondDepElim l proof :=
+    depElimProp (addCommSecondDepElimMotive l proof) (addCommSecondProperGoal l proof).
 
   Theorem addComm :
     forall (p1 p2 : CLPoly),
       eq_CLPoly (add p1 p2) (add p2 p1).
   Proof.
     intros.
-    eapply (depElimProp (fun p => eq_CLPoly (add p p2) (add p2 p))).
-    - solve_proper.
-    - intros.
-      eapply (depElimProp (fun p => eq_CLPoly (add _ p) (add p _))).
-      + solve_proper.
-      + intros.
-        unfold add.
-        repeat (apply iotaRecRev).
-        pose proof (addListsComm l l0).
-        assert (eq_rect (addLists l l0) (fun x => noLeadingZeros x) (addListsNoLeadingZeros l l0 proof proof0) (addLists l0 l) H = addListsNoLeadingZeros l0 l proof0 proof).
-        apply noLeadingZerosProofIrr.
-        destruct H0.
-        destruct H.
-        simpl.
-        reflexivity.
-  Qed.
-
-  Theorem addListsHelpAssoc :
-    forall (l1 l2 l3 : list nat),
-      addListsHelp l1 (addListsHelp l2 l3) = addListsHelp (addListsHelp l1 l2) l3.
-  Proof.
-    induction l1; destruct l2; destruct l3; try reflexivity.
-    simpl.
-    rewrite PeanoNat.Nat.add_assoc.
-    rewrite IHl1.
-    reflexivity.
-  Qed.
-
-  Theorem addListsAssoc :
-    forall (l1 l2 l3 : list nat),
-      addLists l1 (addLists l2 l3) = addLists (addLists l1 l2) l3.
-  Proof.
+    eapply (addCommFirstDepElim p2).
     intros.
-    unfold addLists.
-    rewrite rev_involutive.
-    rewrite rev_involutive.
-    rewrite addListsHelpAssoc.
-    reflexivity.
+    eapply (addCommSecondDepElim l proof).
+    unfold addCommSecondDepElimMotive.
+    intros.
+    unfold add.
+    repeat (apply iotaRecRev).
+    apply (fun y => eq_rect _ (fun (x : noLeadingZeros (addLists l0 l)) => eq_CLPoly (depConstr (addLists l l0) (addListsNoLeadingZeros l l0 proof proof0)) (depConstr (addLists l0 l) x)) y (addListsNoLeadingZeros l0 l proof0 proof) (addListsCommNoLeadingZerosProofIrr l l0 proof proof0)).
+    exact (internal_eq_rew_dep opaque_list (ListFns.addLists l l0)
+                       (fun (a : opaque_list) (e : ListFns.addLists l l0 = a) =>
+                        CLPoly.eq_CLPoly
+                          (CLPoly.depConstr (ListFns.addLists l l0)
+                             (ListFns.addListsNoLeadingZeros l l0 proof proof0))
+                          (CLPoly.depConstr a
+                             (eq_rect (ListFns.addLists l l0)
+                                (fun x : opaque_list => noLeadingZeros x)
+                                (ListFns.addListsNoLeadingZeros l l0 proof proof0) a e)))
+                       (reflexivity
+                          (CLPoly.depConstr (ListFns.addLists l l0)
+                             (ListFns.addListsNoLeadingZeros l l0 proof proof0))) (ListFns.addLists l0 l)
+                       (ListFns.addListsComm l l0)).
   Qed.
+
+  Print addComm.
 
   Theorem addAssoc :
     forall (p1 p2 p3 : CLPoly),
@@ -2243,9 +2249,9 @@ Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {
     iota_b = CEPPoly.iotaRec CEPPoly.iotaRecRev
   }.
 
-Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {opaque noLeadingZeros CLPoly.addLists CLPoly.addListsNoLeadingZeros noLeadingZerosProofIrr CLPoly.evalList CLPoly.evalDepRecArg CLPoly.evalListRespectsAddLists}.
+Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {opaque noLeadingZeros ListFns.addLists ListFns.addListsNoLeadingZeros noLeadingZerosProofIrr ListFns.evalList ListFns.evalListRespectsAddLists opaque_list ListFns.addListsCommNoLeadingZerosProofIrr ListFns.addListsComm}.
 
-Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.addLists as addListsCEP.
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.depRec as depRecCEP.
 
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.add as addCEP.
 
@@ -2257,24 +2263,15 @@ Proof.
   unfold addCEP.
   intros p1 p2 H0 p3 p4 H1.
   unfold CEPPoly.depConstr.
+  unfold depRecCEP.
+  unfold CEPPoly.depRec.
   unfold CEPPoly.coeffListFromCEP.
   rewrite H0.
   rewrite H1.
   reflexivity.
 Qed.
 
-Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.addComm as addCommCEP.
-
-Print addCommCEP.
-
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.eval as evalCEP.
-
-Instance evalCEPProper : Proper (CEPPoly.eq_CEPPoly ==> eq ==> eq) evalCEP.
-Proof.
-  unfold evalCEP.
-  unfold CLPoly.evalDepRecArg.
-  solve_proper.
-Qed.
 
 Print evalCEP.
 
@@ -2316,59 +2313,267 @@ Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {
     iota_b = CEPPoly.iotaRec CEPPoly.iotaRecRev
   }.
 
-Print CLPoly.evalRespectsAdd.
-
-Print CLPoly.add.
-
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.evalRespectsAdd as evalRespectsAddCEP.
 
 Print evalRespectsAddCEP.
 
-Print CLPoly.evalRespectsAdd.
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.addCommFirstDepElimMotive as addCommFirstDepElimMotiveCEP.
 
-(*Definition test := fun (l1 : list nat) (proof1 : noLeadingZeros l1) (l2 : list nat) (proof2 : noLeadingZeros l2) (n : nat) =>
+Print addCommFirstDepElimMotiveCEP.
+
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.addCommSecondDepElimMotive as addCommSecondDepElimMotiveCEP.
+
+Print addCommSecondDepElimMotiveCEP.
+
+Instance addCommFirstDepElimMotiveCEPProper (p2 : CEPPoly.CEPPoly) :
+  Proper
+    (CEPPoly.eq_CEPPoly ==> iff)
+    (addCommFirstDepElimMotiveCEP p2).
+Proof.
+  unfold addCommFirstDepElimMotiveCEP.
+  solve_proper.
+Qed.
+
+Instance addCommSecondDepElimMotiveCEPProper l proof :
+  Proper
+    (CEPPoly.eq_CEPPoly ==> iff)
+    (addCommSecondDepElimMotiveCEP l proof).
+Proof.
+  unfold addCommSecondDepElimMotiveCEP.
+  solve_proper.
+Qed.
+
+Definition addCommFirstDepElimCEP p2 :=
+  CEPPoly.depElimProp
+    (addCommFirstDepElimMotiveCEP p2)
+    (addCommFirstDepElimMotiveCEPProper p2).
+
+Definition addCommSecondDepElimCEP l proof :=
+  CEPPoly.depElimProp
+    (addCommSecondDepElimMotiveCEP l proof)
+    (addCommSecondDepElimMotiveCEPProper l proof).
+
+Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {
+    constrs_a = CLPoly.depConstr ;
+    constrs_b = CEPPoly.depConstr ;
+    elim_a = CLPoly.depRec CLPoly.addCommFirstDepElim CLPoly.addCommSecondDepElim ;
+    elim_b = CEPPoly.depRec addCommFirstDepElimCEP addCommSecondDepElimCEP ;
+    eta_a = etaCLPoly ;
+    eta_b = etaCEPPoly ;
+    iota_a = CLPoly.iotaRec CLPoly.iotaRecRev ;
+    iota_b = CEPPoly.iotaRec CEPPoly.iotaRecRev
+  }.
+
+Print CLPoly.addComm.
+
+Definition eq_rect_opaque := eq_rect.
+
+Definition eq_refl_opaque {A : Type} := @eq_refl A.
+
+Definition eq_opaque {A : Type} := @eq A.
+
+Print eq_rect_opaque.
+
+Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {opaque eq_rect_opaque eq_refl_opaque}.
+
+Definition test (l l0 : opaque_list) (proof : noLeadingZeros l) (proof0 : noLeadingZeros l0) := eq_rect
+                    (eq_rect (ListFns.addLists l l0) (fun x : opaque_list => noLeadingZeros x)
+                       (ListFns.addListsNoLeadingZeros l l0 proof proof0) 
+                       (ListFns.addLists l0 l) (ListFns.addListsComm l l0))
+                    (fun x : noLeadingZeros (ListFns.addLists l0 l) =>
+                     CLPoly.eq_CLPoly
+                       (CLPoly.depConstr (ListFns.addLists l l0)
+                          (ListFns.addListsNoLeadingZeros l l0 proof proof0))
+                       (CLPoly.depConstr (ListFns.addLists l0 l) x))
+                    (internal_eq_rew_dep (opaque_list) (ListFns.addLists l l0)
+                       (fun (a : opaque_list) (e : ListFns.addLists l l0 = a) =>
+                        CLPoly.eq_CLPoly
+                          (CLPoly.depConstr (ListFns.addLists l l0)
+                             (ListFns.addListsNoLeadingZeros l l0 proof proof0))
+                          (CLPoly.depConstr a
+                             (eq_rect_opaque opaque_list (ListFns.addLists l l0) (fun x : opaque_list => noLeadingZeros x)
+                                (ListFns.addListsNoLeadingZeros l l0 proof proof0) a e)))
+                       (reflexivity
+                          (CLPoly.depConstr (ListFns.addLists l l0)
+                             (eq_rect (ListFns.addLists l l0) (fun x : opaque_list => noLeadingZeros x)
+                                (ListFns.addListsNoLeadingZeros l l0 proof proof0)
+                                (ListFns.addLists l l0) eq_refl)))
+                       (ListFns.addLists l0 l)
+                       (ListFns.addListsComm l l0))
+                    (ListFns.addListsNoLeadingZeros l0 l proof0 proof)
+                    (ListFns.addListsCommNoLeadingZerosProofIrr l l0 proof proof0).
+
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in test as testCEP.
+
+Print testCEP.
+
+Definition trm l l0 proof proof0 := eq_rect (ListFns.addLists l l0) (fun x : opaque_list => noLeadingZeros x)
+                                (ListFns.addListsNoLeadingZeros l l0 proof proof0)
+                                (ListFns.addLists l l0) eq_refl.
+
+Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {opaque trm internal_eq_rew_dep}.
+
+Definition test2 (l l0 : opaque_list) (proof : noLeadingZeros l) (proof0 : noLeadingZeros l0) :=
+internal_eq_rew_dep (opaque_list) (ListFns.addLists l l0)
+                       (fun (a : opaque_list) (e : ListFns.addLists l l0 = a) =>
+                        CLPoly.eq_CLPoly
+                          (CLPoly.depConstr (ListFns.addLists l l0)
+                             (ListFns.addListsNoLeadingZeros l l0 proof proof0))
+                          (CLPoly.depConstr a
+                             (eq_rect_opaque opaque_list (ListFns.addLists l l0) (fun x : opaque_list => noLeadingZeros x)
+                                (ListFns.addListsNoLeadingZeros l l0 proof proof0) a e)))
+                       (reflexivity
+                          (CLPoly.depConstr (ListFns.addLists l l0)
+                             (trm l l0 proof proof0)))
+                       (ListFns.addLists l0 l)
+                       (ListFns.addListsComm l l0).
+
+Print test2.
+
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in test2 as test2CEP.
+
+Print test2CEP.
+
+Print CLPoly.addComm.
+
+Definition test3 (l l0 : opaque_list) (proof : noLeadingZeros l) (proof0 : noLeadingZeros l0) (p : CLPoly.CLPoly) := fun p1 p2 : CLPoly.CLPoly =>
+CLPoly.addCommFirstDepElim p2
+  (fun (l : opaque_list) (proof : noLeadingZeros l) =>
+   CLPoly.addCommSecondDepElim l proof
+     (fun (l0 : opaque_list) (proof0 : noLeadingZeros l0) =>
       CLPoly.iotaRecRev CLPoly.CLPoly
-        (fun (l : list nat) (p : noLeadingZeros l) =>
+        (fun (l1 : opaque_list) (p : noLeadingZeros l1) =>
          CLPoly.depRec CLPoly.CLPoly
-           (fun (l0 : list nat) (p0 : noLeadingZeros l0) =>
-            CLPoly.depConstr (CLPoly.addLists l l0) (CLPoly.addListsNoLeadingZeros l l0 p p0))
-           (CLPoly.depConstr l2 proof2)) l1 proof1
+           (fun (l2 : opaque_list) (p0 : noLeadingZeros l2) =>
+            CLPoly.depConstr (ListFns.addLists l1 l2) (ListFns.addListsNoLeadingZeros l1 l2 p p0))
+           (CLPoly.depConstr l0 proof0)) l proof
         (fun c : CLPoly.CLPoly =>
-         CLPoly.eval c n =
-         CLPoly.eval (CLPoly.depConstr l1 proof1) n + CLPoly.eval (CLPoly.depConstr l2 proof2) n)
+         CLPoly.eq_CLPoly c
+           (CLPoly.depRec CLPoly.CLPoly
+              (fun (l1 : opaque_list) (p : noLeadingZeros l1) =>
+               CLPoly.depRec CLPoly.CLPoly
+                 (fun (l2 : opaque_list) (p0 : noLeadingZeros l2) =>
+                  CLPoly.depConstr (ListFns.addLists l1 l2)
+                    (ListFns.addListsNoLeadingZeros l1 l2 p p0)) (CLPoly.depConstr l proof))
+              (CLPoly.depConstr l0 proof0)))
         (CLPoly.iotaRecRev CLPoly.CLPoly
-           (fun (l0 : list nat) (p0 : noLeadingZeros l0) =>
-            CLPoly.depConstr (CLPoly.addLists l1 l0) (CLPoly.addListsNoLeadingZeros l1 l0 proof1 p0))
-           l2 proof2
+           (fun (l1 : opaque_list) (p0 : noLeadingZeros l1) =>
+            CLPoly.depConstr (ListFns.addLists l l1) (ListFns.addListsNoLeadingZeros l l1 proof p0))
+           l0 proof0
            (fun c : CLPoly.CLPoly =>
-            CLPoly.eval c n =
-            CLPoly.eval (CLPoly.depConstr l1 proof1) n + CLPoly.eval (CLPoly.depConstr l2 proof2) n)
-           (CLPoly.iotaRecRev nat (fun (l : list nat) (_ : noLeadingZeros l) => CLPoly.evalList l n)
-              (CLPoly.addLists l1 l2) (CLPoly.addListsNoLeadingZeros l1 l2 proof1 proof2)
-              (fun n0 : nat =>
-               n0 =
-               CLPoly.depRec nat (fun (l : list nat) (_ : noLeadingZeros l) => CLPoly.evalList l n)
-                 (CLPoly.depConstr l1 proof1) +
-               CLPoly.depRec nat (fun (l : list nat) (_ : noLeadingZeros l) => CLPoly.evalList l n)
-                 (CLPoly.depConstr l2 proof2))
-              (CLPoly.iotaRecRev nat
-                 (fun (l : list nat) (_ : noLeadingZeros l) => CLPoly.evalList l n) l1 proof1
-                 (fun n0 : nat =>
-                  CLPoly.evalList (CLPoly.addLists l1 l2) n =
-                  n0 +
-                  CLPoly.depRec nat
-                    (fun (l : list nat) (_ : noLeadingZeros l) => CLPoly.evalList l n)
-                    (CLPoly.depConstr l2 proof2))
-                 (CLPoly.iotaRecRev nat
-                    (fun (l : list nat) (_ : noLeadingZeros l) => CLPoly.evalList l n) l2 proof2
-                    (fun n0 : nat =>
-                     CLPoly.evalList (CLPoly.addLists l1 l2) n = CLPoly.evalList l1 n + n0)
-                    (CLPoly.evalListRespectsAddLists l1 l2 n))))).*)
+            CLPoly.eq_CLPoly c
+              (CLPoly.depRec CLPoly.CLPoly
+                 (fun (l1 : opaque_list) (p : noLeadingZeros l1) =>
+                  CLPoly.depRec CLPoly.CLPoly
+                    (fun (l2 : opaque_list) (p0 : noLeadingZeros l2) =>
+                     CLPoly.depConstr (ListFns.addLists l1 l2)
+                       (ListFns.addListsNoLeadingZeros l1 l2 p p0)) (CLPoly.depConstr l proof))
+                 (CLPoly.depConstr l0 proof0)))
+           (CLPoly.iotaRecRev CLPoly.CLPoly
+              (fun (l1 : opaque_list) (p : noLeadingZeros l1) =>
+               CLPoly.depRec CLPoly.CLPoly
+                 (fun (l2 : opaque_list) (p0 : noLeadingZeros l2) =>
+                  CLPoly.depConstr (ListFns.addLists l1 l2)
+                    (ListFns.addListsNoLeadingZeros l1 l2 p p0)) (CLPoly.depConstr l proof)) l0
+              proof0
+              (fun c : CLPoly.CLPoly =>
+               CLPoly.eq_CLPoly
+                 (CLPoly.depConstr (ListFns.addLists l l0)
+                    (ListFns.addListsNoLeadingZeros l l0 proof proof0)) c)
+              (CLPoly.iotaRecRev CLPoly.CLPoly
+                 (fun (l1 : opaque_list) (p0 : noLeadingZeros l1) =>
+                  CLPoly.depConstr (ListFns.addLists l0 l1)
+                    (ListFns.addListsNoLeadingZeros l0 l1 proof0 p0)) l proof
+                 (fun c : CLPoly.CLPoly =>
+                  CLPoly.eq_CLPoly
+                    (CLPoly.depConstr (ListFns.addLists l l0)
+                       (ListFns.addListsNoLeadingZeros l l0 proof proof0)) c)
+                 (eq_rect
+                    (eq_rect (ListFns.addLists l l0) (fun x : opaque_list => noLeadingZeros x)
+                       (ListFns.addListsNoLeadingZeros l l0 proof proof0) 
+                       (ListFns.addLists l0 l) (ListFns.addListsComm l l0))
+                    (fun x : noLeadingZeros (ListFns.addLists l0 l) =>
+                     CLPoly.eq_CLPoly
+                       (CLPoly.depConstr (ListFns.addLists l l0)
+                          (ListFns.addListsNoLeadingZeros l l0 proof proof0))
+                       (CLPoly.depConstr (ListFns.addLists l0 l) x))
+                    (internal_eq_rew_dep opaque_list (ListFns.addLists l l0)
+                       (fun (a : opaque_list) (e : ListFns.addLists l l0 = a) =>
+                        CLPoly.eq_CLPoly
+                          (CLPoly.depConstr (ListFns.addLists l l0)
+                             (ListFns.addListsNoLeadingZeros l l0 proof proof0))
+                          (CLPoly.depConstr a
+                             (eq_rect (ListFns.addLists l l0)
+                                (fun x : opaque_list => noLeadingZeros x)
+                                (ListFns.addListsNoLeadingZeros l l0 proof proof0) a e)))
+                       (reflexivity
+                          (CLPoly.depConstr (ListFns.addLists l l0)
+                             (ListFns.addListsNoLeadingZeros l l0 proof proof0))) (ListFns.addLists l0 l)
+                       (ListFns.addListsComm l l0))
+                    (ListFns.addListsNoLeadingZeros l0 l proof0 proof)
+                    (ListFns.addListsCommNoLeadingZerosProofIrr l l0 proof proof0)))))) p2) p1.
+                             
 
-Definition test := fun l : list nat => 0.
+Print test3.
 
-Lift CLPoly.CLPoly CEPPoly.CEPPoly in test as test_out.
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in test3 as test3CEP.
 
-Print test_out.
+Print test3CEP.
 
-Print evalRespectsAddCEP.
+
+(* If we don't set lift type here, the default type of addCommCEP doesn't allow
+ * needed rewrites to be performed in comm_once and comm_twice.
+ *)
+Set DEVOID lift type.
+
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.addComm as addCommCEP.
+
+Print addCommCEP.
+
+Theorem comm_once :
+  forall (p1 p2 : CLPoly.CLPoly),
+    CLPoly.eq_CLPoly (CLPoly.add p1 p2) (CLPoly.add p2 p1).
+Proof.
+  intros.
+  rewrite_annotate (CLPoly.addComm p1 p2).
+  reflexivity.
+Qed.
+
+Set Printing All.
+
+Print comm_once.
+
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in comm_once as comm_onceCEP.
+
+Print comm_onceCEP.
+
+Theorem comm_twice :
+  forall (p1 p2 p3 : CLPoly.CLPoly),
+    CLPoly.eq_CLPoly (CLPoly.add p1 (CLPoly.add p2 p3)) (CLPoly.add (CLPoly.add p3 p2) p1).
+Proof.
+  intros.
+  rewrite_annotate (CLPoly.addComm p2 p3).
+  rewrite_annotate (CLPoly.addComm p1 (CLPoly.add p3 p2)).
+  reflexivity.
+Qed.
+
+Print comm_twice.
+
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in comm_twice as comm_twiceCEP.
+
+Print comm_twiceCEP.
+
+(*fun p1 p2 : CLPoly.CLPoly =>
+START_REWRITE (CLPoly.addComm p1 p2) (CLPoly.eq_CLPoly (CLPoly.add p1 p2) (CLPoly.add p2 p1))
+  ((fun lemma : CLPoly.eq_CLPoly (CLPoly.add p1 p2) (CLPoly.add p2 p1) =>
+    trans_co_eq_inv_impl_morphism CLPoly.eq_CLPoly_trans (CLPoly.add p1 p2) 
+      (CLPoly.add p2 p1) lemma (CLPoly.add p2 p1) (CLPoly.add p2 p1)
+      (eq_proper_proxy (CLPoly.add p2 p1))) (CLPoly.addComm p1 p2) (reflexivity (CLPoly.add p2 p1)))
+
+fun p1 p2 : CLPoly.CLPoly =>
+let H : CLPoly.eq_CLPoly (CLPoly.add p1 p2) (CLPoly.add p2 p1) := CLPoly.addComm p1 p2 in
+START_REWRITE H (CLPoly.eq_CLPoly (CLPoly.add p1 p2) (CLPoly.add p2 p1))
+  ((fun lemma : CLPoly.eq_CLPoly (CLPoly.add p1 p2) (CLPoly.add p2 p1) =>
+    trans_co_eq_inv_impl_morphism CLPoly.eq_CLPoly_trans (CLPoly.add p1 p2) 
+      (CLPoly.add p2 p1) lemma (CLPoly.add p2 p1) (CLPoly.add p2 p1)
+      (eq_proper_proxy (CLPoly.add p2 p1))) H (reflexivity (CLPoly.add p2 p1)))*)
