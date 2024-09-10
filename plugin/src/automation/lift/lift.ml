@@ -298,6 +298,7 @@ let rewrite_tactic_from_start_rewrite_annotation env sigma b eq_rel_proof =
   let arrow = if b then "<- " else "" in
   let s' = str ("setoid_rewrite " ^ arrow) ++ s in
   let s'' = Format.asprintf "%a" Pp.pp_with s' in
+  let _ = Feedback.msg_warning (Pp.str s'') in
   Decompiler.parse_tac_str s''
 
 let lift_setoid_rewrite c env l lift_rec sigma =
@@ -328,7 +329,9 @@ let lift_setoid_rewrite c env l lift_rec sigma =
      let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
      let (proof, pvm) = Proof.run_tactic lifted_env Tactics.intro proof in
      let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
-     let (proof, pvm) = Proof.run_tactic lifted_env (rewrite_tactic_from_start_rewrite_annotation lifted_env sigma false eq_rel_proof) proof in
+     let rewrite_tactic = rewrite_tactic_from_start_rewrite_annotation lifted_env sigma false lifted_eq_rel_proof in
+     let _ = Feedback.msg_warning (Pp.str "rewrite_tacitc_generated") in
+     let (proof, pvm) = Proof.run_tactic lifted_env rewrite_tactic proof in
      let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
      let (proof, _) = Proof.run_tactic lifted_env Tactics.assumption proof in
      let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
