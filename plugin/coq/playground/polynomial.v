@@ -374,20 +374,17 @@ Module CEPPoly.
         get_combined_nth_degree_coes xs deg
     end.
 
-  Definition get_combined_nth_degree (l: CEPPoly) (deg : nat) : (nat * nat) :=
-    let coe : nat := get_combined_nth_degree_coes l deg in
-    (coe, deg).
 
-  Fixpoint iter_coes (max_deg : nat) : list nat :=
-    match max_deg with
-      | 0 => []
-      | S new_deg => max_deg :: iter_coes new_deg
+  Fixpoint coeff (p : CEPPoly) (exp : nat) :=
+    match p with
+    | [] => 0
+    | (n, e) :: t => (if eqb exp e then n else 0) + (coeff t exp)
     end.
 
   Fixpoint canonicalize_max_help (acc : CEPPoly) (l: CEPPoly) (i : nat) : CEPPoly :=
     match i with
-      | 0  => (get_combined_nth_degree l 0) :: acc
-      | S n => canonicalize_max_help ((get_combined_nth_degree l i) :: acc) l n
+      | 0  => acc
+      | S n => canonicalize_max_help ((coeff l i, i) :: acc) l n
     end.
 
   Fixpoint canonicalize_max (l: CEPPoly) : CEPPoly :=
@@ -787,12 +784,6 @@ Module CEPPoly.
 
   Definition CEPFromCoeffList (l : list nat) := CEPFromCoeffListHelp l 0.
 
-  Fixpoint coeff (p : CEPPoly) (exp : nat) :=
-    match p with
-    | [] => 0
-    | (n, e) :: t => (if eqb exp e then n else 0) + (coeff t exp)
-    end.
-
   Theorem coeffs_in_combined_adjacent (p : CEPPoly) :
     forall (exp : nat), (coeff p exp = 0) \/ In (coeff p exp, exp) (combine_adjacent p).
   Proof.
@@ -1048,33 +1039,105 @@ Module CEPPoly.
   Qed.
 
   (* Shows that max degree will indeed find all the degrees for non-zero coeffs *)
-  Theorem get_max_degree_complete (l : CEPPoly) : forall deg, coeff l deg <> 0 -> deg <= get_max_degree l.
+  (* Theorem get_max_degree_complete (l : CEPPoly) : forall deg, coeff l deg <> 0 -> deg <= get_max_degree l. *)
+  (* Proof. *)
+  (* Admitted. *)
+
+  (* Theorem get_max_degree_complete_contrapositive (l : CEPPoly) : forall deg, deg > get_max_degree l -> coeff l deg = 0. *)
+  (* Proof. *)
+  (* Admitted. *)
+
+  (* Theroem coeff_inductive_push (l : CEPPoly). *)
+  (* Theroem coeff_inductive_canonicalize_push (l : CEPPoly). *)
+
+  (* Theorem canonicalize_max_help_preserves_coeffs (l : CEPPoly) : forall k, forall n, n <= k -> coeff l n = coeff (canonicalize_max_help [] l k) n. *)
+  (* Proof. *)
+  (* Admitted. *)
+
+
+  (* Theorem canonicalize_max_inductive_invariant (l : CEPPoly) : *)
+  (*   forall k, forall n, n <= k -> coeff l n = coeff (canonicalize_max_help [] l k) n. *)
+  (* Admitted. *)
+
+  Import Coq.Arith.Compare_dec.
+  Import Coq.Arith.Peano_dec.
+  Lemma canonicalize_max_help_red n l acc : ((fix canonicalize_max_help (acc0 l0 : CEPPoly) (i : nat) {struct i} : CEPPoly :=
+                  match i with
+                  | 0 => acc0
+                  | S n0 => canonicalize_max_help ((coeff l0 i, i) :: acc0) l0 n0
+                  end) acc l n =
+                (
+                  match n with
+                  | 0 => acc
+                  | S n0 => canonicalize_max_help ((coeff l n, n) :: acc) l n
+                  end)).
   Proof.
   Admitted.
 
-  Theorem canonicalize_max_preserves_coeffs (l : CEPPoly) : forall k, forall n, n <= k -> coeff l n = coeff (canonicalize_max l) n.
+  Theorem acc_always_contained_at_end_help_eq :
+    forall acc l n, ((canonicalize_max_help [] l n) ++ acc) = (canonicalize_max_help acc l n).
   Proof.
+  Admitted.
+
+  Theorem acc_always_contained_at_end_help :
+    forall acc l, eq_CEPPoly (l ++ acc) (canonicalize_max_help acc l (get_max_degree l)).
+  Admitted.
+
+  Theorem acc_always_contained_at_end_help_specialized :
+    forall l, eq_CEPPoly l (canonicalize_max_help [] l (get_max_degree l)).
+  Proof.
+    intros.
+    rewrite <- (app_nil_r l) at 1.
+    apply acc_always_contained_at_end_help.
+  Defined.
+
+  Theorem canonicalize_respects_eq : forall l, eq_CEPPoly l (canonicalize_max l).
+  Proof.
+    intros.
+    unfold canonicalize_max.
+    assert ((fix canonicalize_max (l0 : CEPPoly) : CEPPoly := canonicalize_max_help [] l0 (get_max_degree l0)) l = (canonicalize_max_help [] l (get_max_degree l))).
+    induction l; auto.
+    rewrite H.
+    apply acc_always_contained_at_end_help_specialized.
+  Defined.
+
+  Theorem canonicalize_coeffsSame (l : CEPPoly) : forall n, coeff l n = coeff (canonicalize_max l) n.
+  Proof.
+    intros.
+    apply coeffsSame.
+    apply canonicalize_respects_eq.
+  Defined.
+
+  Theorem eq_maxDegreeSame (l1 l2 : CEPPoly) : eq_CEPPoly l1 l2 -> get_max_degree l1 = get_max_degree l2.
+  Admitted.
+
+  Theorem canonicalize_helplengthsSame (l1 l2 : CEPPoly) : eq_CEPPoly l1 l2 -> length (canonicalize_max_help [] l1 (get_max_degree l1)) = length (canonicalize_max_help [] l2 (get_max_degree l2)).
+  Admitted.
+
+  Theorem canonicalize_lengthsSame (l1 l2 : CEPPoly) : eq_CEPPoly l1 l2 -> length (canonicalize_max l1) = length (canonicalize_max l2).
   Admitted.
 
   Instance canonicalIsCanonical' : Proper (eq_CEPPoly ==> eq) canonicalize_max.
   Proof.
     intros p1 p2 H.
-    apply CEPPolyIdentical.
-    induction p1.
-    * destruct p2.
-      - auto.
-      - destruct p. destruct n.
-        ** simpl. give_up.
-        ** pose proof (coeffsSame [] ((S n, n0) :: p2) H n0).
-           simpl in H0.
-           rewrite eqb_refl in H0.
-           discriminate.
-    * induction p2.
-      - destruct a. destruct n.
-        assert (eq_CEPPoly p1 ((0, n0) :: p1)).
-        apply Sym. apply Remove_Zero.
-        Print Trans.
-  Qed.
+    unfold canonicalize_max.
+    assert (forall p, (fix canonicalize_max (l : CEPPoly) : CEPPoly := canonicalize_max_help [] l (get_max_degree l)) p = canonicalize_max_help [] p (get_max_degree p)).
+    intros. induction p; reflexivity.
+    rewrite (H0 p1).
+    rewrite (H0 p2).
+    clear H0.
+    pose proof (eq_maxDegreeSame p1 p2 H).
+    rewrite <- H0.
+    remember (get_max_degree p1).
+    induction n in |- *.
+    * simpl. reflexivity.
+    * simpl.
+      rewrite <- (acc_always_contained_at_end_help_eq [(coeff p1 (S n), S n)] p1 n).
+      rewrite <- (acc_always_contained_at_end_help_eq [(coeff p2 (S n), S n)] p2 n).
+      rewrite <- (coeffsSame p1 p2 H (S n)).
+      rewrite IHn.
+      reflexivity.
+  Defined.
 
   Instance canonicalIsCanonical : Proper (eq_CEPPoly ==> eq) canonicalize.
   Proof.
