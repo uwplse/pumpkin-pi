@@ -414,32 +414,66 @@ Module CEPPoly.
     canonicalize_max_help [] l (get_max_degree l).
 
 
-  Inductive eq_CEPPoly : CEPPoly -> CEPPoly -> Prop :=
-  | Sym x y : eq_CEPPoly x y -> eq_CEPPoly y x
-  | Trans x y z : eq_CEPPoly x y -> eq_CEPPoly y z -> eq_CEPPoly x z
-  | Perm x y : Permutation x y -> eq_CEPPoly x y
-  | Add x c1 c2 e : eq_CEPPoly ((c1, e) :: (c2, e) :: x) (((c1 + c2), e) :: x)
-  | Append x y p : eq_CEPPoly x y -> eq_CEPPoly (p :: x) (p :: y)
-  | Remove x y p : eq_CEPPoly (p :: x) (p :: y) -> eq_CEPPoly x y
-  | Remove_Zero x e : eq_CEPPoly ((0, e) :: x) x.
+  (* Inductive eq_CEPPoly : CEPPoly -> CEPPoly -> Prop := *)
+  (* | Sym x y : eq_CEPPoly x y -> eq_CEPPoly y x *)
+  (* | Trans x y z : eq_CEPPoly x y -> eq_CEPPoly y z -> eq_CEPPoly x z *)
+  (* | Perm x y : Permutation x y -> eq_CEPPoly x y *)
+  (* | Add x c1 c2 e : eq_CEPPoly ((c1, e) :: (c2, e) :: x) (((c1 + c2), e) :: x) *)
+  (* | Append x y p : eq_CEPPoly x y -> eq_CEPPoly (p :: x) (p :: y) *)
+  (* | Remove x y p : eq_CEPPoly (p :: x) (p :: y) -> eq_CEPPoly x y *)
+  (* | Remove_Zero x e : eq_CEPPoly ((0, e) :: x) x. *)
+
+  (* Instance eq_CEPPoly_refl : Reflexive eq_CEPPoly. *)
+  (* Proof. *)
+  (*   intros x. *)
+  (*   apply Perm. *)
+  (*   reflexivity. *)
+  (* Qed. *)
+
+  (* Instance eq_CEPPoly_sym : Symmetric eq_CEPPoly. *)
+  (* Proof. *)
+  (*   unfold Symmetric. *)
+  (*   apply Sym. *)
+  (* Qed. *)
+
+  (* Instance eq_CEPPoly_trans : Transitive eq_CEPPoly. *)
+  (* Proof. *)
+  (*   unfold Transitive. *)
+  (*   apply Trans. *)
+  (* Qed. *)
+
+  (* Instance eq_CEPPoly_equiv : Equivalence eq_CEPPoly. *)
+  (* Proof. *)
+  (*   split. *)
+  (*   - apply eq_CEPPoly_refl. *)
+  (*   - apply eq_CEPPoly_sym. *)
+  (*   - apply eq_CEPPoly_trans. *)
+  (* Qed. *)
+
+  Definition eq_CEPPoly (p1 p2 : CEPPoly) :=
+    forall (exp : nat), coeff p1 exp = coeff p2 exp.
 
   Instance eq_CEPPoly_refl : Reflexive eq_CEPPoly.
   Proof.
     intros x.
-    apply Perm.
+    unfold eq_CEPPoly.
     reflexivity.
   Qed.
 
   Instance eq_CEPPoly_sym : Symmetric eq_CEPPoly.
   Proof.
-    unfold Symmetric.
-    apply Sym.
+    intros x1 x2 H.
+    unfold eq_CEPPoly.
+    unfold eq_CEPPoly in H.
+    symmetry.
+    apply H.
   Qed.
 
   Instance eq_CEPPoly_trans : Transitive eq_CEPPoly.
   Proof.
-    unfold Transitive.
-    apply Trans.
+    intros x1 x2 x3 H1 H2.
+    unfold eq_CEPPoly in *.
+    congruence.
   Qed.
 
   Instance eq_CEPPoly_equiv : Equivalence eq_CEPPoly.
@@ -449,6 +483,26 @@ Module CEPPoly.
     - apply eq_CEPPoly_sym.
     - apply eq_CEPPoly_trans.
   Qed.
+
+  Theorem permutation_implies_equiv p1 p2 : Permutation p1 p2 -> eq_CEPPoly p1 p2.
+  Proof.
+    intros.
+    induction H.
+    - reflexivity.
+    - unfold eq_CEPPoly. intro.
+      simpl. destruct x.
+      f_equal.
+      apply IHPermutation.
+    - unfold eq_CEPPoly.
+      simpl.
+      intro.
+      destruct x.
+      destruct y.
+      rewrite ->! PeanoNat.Nat.add_assoc.
+      f_equal.
+      apply PeanoNat.Nat.add_comm.
+    - congruence.
+  Defined.
 
   Fixpoint get_leading_same_exp_help (l : CEPPoly) (exp : nat) : CEPPoly :=
     match l with
