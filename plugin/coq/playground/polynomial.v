@@ -786,72 +786,6 @@ Module CEPPoly.
   Definition canonicalize (l : CEPPoly) : CEPPoly :=
     remove_zeros (combine_adjacent (sort l)).
 
-  Theorem sort_pres (l : CEPPoly) : eq_CEPPoly l (sort l).
-  Proof.
-    apply Perm.
-    apply (Permuted_sort l).
-  Qed.
-
-  Theorem combine_adjacent_pres (l : CEPPoly) : eq_CEPPoly l (combine_adjacent l).
-  Proof.
-    (*
-    enough (forall (l : CEPPoly) (p : nat * nat),
-               eq_CEPPoly l (combine_adjacent l) /\ eq_CEPPoly (p :: l) (combine_adjacent (p :: l))).
-    destruct (H l (0, 0)).
-    apply H0.
-    clear l.
-    induction l.
-    - intros.
-      split.
-      + reflexivity.
-      + simpl.
-        destruct p.
-        reflexivity.
-    - intro p.
-      destruct p, a.
-      split.
-      destruct (IHl (n1, n2)).
-      apply H0.
-      simpl.
-      pose proof (PeanoNat.Nat.eqb_spec n0 n2).
-      inversion H.
-      * rewrite H1.
-        apply (Trans _ ((n + n1, n2) :: l)).
-        apply Add.
-        apply Append.
-        destruct (IHl (n + n1, n2)).
-        apply H2.
-      * apply Append.
-        destruct (IHl (n1, n2)).
-        apply H3.*)
-  Admitted.
-
-  Theorem remove_zeros_pres (l : CEPPoly) : eq_CEPPoly l (remove_zeros l).
-  Proof.
-    induction l.
-    - simpl.
-      reflexivity.
-    - simpl.
-      destruct a.
-      destruct n.
-      + simpl.
-        apply (Trans _ l).
-        * apply Remove_Zero.
-        * apply IHl.
-      + simpl.
-        apply Append.
-        apply IHl.
-  Qed.
-
-  Theorem canonicalize_pres (l : CEPPoly) : eq_CEPPoly l (canonicalize l).
-  Proof.
-    unfold canonicalize.
-    rewrite <- remove_zeros_pres.
-    rewrite <- combine_adjacent_pres.
-    rewrite <- sort_pres.
-    reflexivity.
-  Qed.
-
   Fixpoint CEPFromCoeffListHelp (l : list nat) (exp : nat) :=
     match l with
     | [] => []
@@ -871,40 +805,6 @@ Module CEPPoly.
   Proof.
   Admitted.
   
-  Theorem coeffsSame (p1 p2 : CEPPoly) (H : eq_CEPPoly p1 p2) :
-    forall (exp : nat), coeff p1 exp = coeff p2 exp.
-  Proof.
-    intros exp.
-    induction H.
-    - symmetry.
-      assumption.
-    - rewrite IHeq_CEPPoly1.
-      assumption.
-    - induction H.
-      + reflexivity.
-      + simpl.
-        destruct x.
-        f_equal.
-        apply IHPermutation.
-      + simpl.
-        destruct y.
-        destruct x.
-        lia.
-      + rewrite IHPermutation1.
-        assumption.
-    - simpl.
-      destruct (exp =? e); lia.
-    - simpl.
-      destruct p.
-      f_equal.
-      apply IHeq_CEPPoly.
-    - simpl in IHeq_CEPPoly.
-      destruct p.
-      lia.
-    - simpl.
-      destruct (exp =? e); reflexivity.
-  Qed.
-
   Fixpoint zeros (n : nat) :=
     match n with
     | 0 => []
@@ -1176,7 +1076,7 @@ Module CEPPoly.
     forall l1 l2, eq_CEPPoly (l1 ++ l2) (l2 ++ l1).
   Proof.
     intros.
-    apply Perm.
+    apply permutation_implies_equiv.
     apply Permutation_app_comm.
   Defined.
 
@@ -1189,46 +1089,76 @@ Module CEPPoly.
     induction app.
     * simpl. apply H.
     * simpl.
-      apply Append.
+      unfold eq_CEPPoly.
+      intros.
+      simpl.
+      destruct a.
+      f_equal.
       apply IHapp.
   Defined.
 
-  Theorem canonicalize_max_respects_eq_help:
-    forall l n,
-        (n >= get_max_degree l) ->
-            eq_CEPPoly l (canonicalize_max_help [] l n).
+
+  Print get_max_degree.
+
+  Fixpoint get_min_degree (l: CEPPoly) : nat :=
+    match l with
+      | [] => 0
+      | (coe, exp) :: xs => match coe with
+        | 0 => get_min_degree xs
+        | _ => min exp (get_min_degree xs)
+        end
+    end.
+
+  Fixpoint remove_degrees_ge_n (l: CEPPoly) (n : nat): CEPPoly :=
+    match l with
+      | [] => []
+      | (coe, exp) :: xs => match leb n exp with
+          | true => remove_degrees_ge_n xs n
+          | false => (coe, exp) :: remove_degrees_ge_n xs n
+          end
+    end.
+
+  Theorem remove_degrees_ind l n : (eq_CEPPoly (remove_degrees_ge_n l (S n)) ((coeff l (S n), S n) :: remove_degrees_ge_n l n)).
   Proof.
-    intros.
-    induction l.
-    * clear H. induction n.
-      + simpl. reflexivity.
-      + simpl.
-        assert (eq_CEPPoly (canonicalize_max_help [] [] n) (canonicalize_max_help [] [] (S n))).
-        {
-          induction n.
-          * simpl. Print eq_CEPPoly.
-            apply Sym.
-            apply Remove_Zero.
-          * rewrite <- IHn.
-            simpl in IHn.
-            give_up.
-        }
-        apply (Trans _ _ _ IHn H).
-    * (* need to generalize *)
-      (* induction n. *)
-      (* - simpl. *)
-      (*   assert (0 >= get_max_degree l). give_up. *)
-      (*   apply IHl in H0. *)
-      (*   clear IHl. *)
-      (*   destruct a. *)
-      (*   destruct n. *)
-      (* - destruct a. destruct n0. simpl. *)
-      (* assert (a :: l = [a] ++ l). simpl. reflexivity. *)
-      (* rewrite H0 at 2. *)
-      (* simpl. *)
-      (* Check acc_always_contained_at_end_help_eq. *)
-      (* rewrite (acc_always_contained_at_end_help_eq n  *)
   Admitted.
+
+  Theorem canonicalize_max_respects_eq_help : forall n l acc,
+      eq_CEPPoly (remove_degrees_ge_n l n ++ acc) (canonicalize_max_help acc l n).
+  Proof.
+    intro.
+    induction n.
+    * simpl.
+      intros.
+      assert (remove_degrees_ge_n l 0 = []).
+      {
+        induction l.
+        - reflexivity.
+        - simpl. destruct a. apply IHl.
+      }
+      rewrite H.
+      simpl.
+      reflexivity.
+    * intros.
+      simpl.
+      pose proof (IHn l ((coeff l (S n), S n) :: acc)).
+      rewrite <- H.
+      assert (eq_CEPPoly (remove_degrees_ge_n l (S n)) ((coeff l (S n), S n) :: remove_degrees_ge_n l n)).
+      {
+        apply remove_degrees_ind.
+      }
+      assert ((remove_degrees_ge_n l n ++ (coeff l (S n), S n) :: acc) = (remove_degrees_ge_n l n ++ [(coeff l (S n), S n)] ++ acc)).
+      {
+        f_equal.
+      }
+      rewrite H1.
+      rewrite app_assoc.
+      apply eq_CEPPoly_app.
+      rewrite H0.
+      assert (((coeff l (S n), S n) :: remove_degrees_ge_n l n) =  ([(coeff l (S n), S n)] ++ remove_degrees_ge_n l n)).
+      reflexivity.
+      rewrite H2.
+      apply eq_CEPPoly_app_comm.
+  Defined.
 
   Theorem canonicalize_max_respects_eq:
     forall l,
