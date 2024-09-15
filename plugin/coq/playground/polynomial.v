@@ -670,11 +670,11 @@ Module CLPoly.
 
   Definition CLPoly := list nat.
 
+  Definition eq_CLPoly (l1 l2 : CLPoly) :=
+    removeLeadingZeros l1 = removeLeadingZeros l2.
+
   Definition canonicalize (l : CLPoly) :=
     removeLeadingZeros l.
-
-  Definition eq_CLPoly (l1 l2 : CLPoly) :=
-    canonicalize l1 = canonicalize l2.
 
   Instance eq_CLPoly_refl : Reflexive eq_CLPoly.
   Proof.
@@ -2411,6 +2411,20 @@ Definition trm l l0 proof proof0 := eq_rect (ListFns.addLists l l0) (fun x : opa
                                 (ListFns.addListsNoLeadingZeros l l0 proof proof0)
                                 (ListFns.addLists l l0) eq_refl.
 
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in trm as trmCEP.
+
+Print trmCEP.
+
+Definition trm2 (l : opaque_list) (l0 : opaque_list) (proof : noLeadingZeros l) (proof0 : noLeadingZeros l0) (p : CLPoly.CLPoly) := eq_rect (ListFns.addLists l l0) (fun x : opaque_list => noLeadingZeros x)
+                                (ListFns.addListsNoLeadingZeros l l0 proof proof0)
+                                (ListFns.addLists l l0) eq_refl.
+
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in trm2 as trm2CEP.
+
+Print trm2CEP.
+
+Check trm2.
+
 Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {opaque trm internal_eq_rew_dep}.
 
 Definition test2 (l l0 : opaque_list) (proof : noLeadingZeros l) (proof0 : noLeadingZeros l0) :=
@@ -2577,3 +2591,17 @@ START_REWRITE H (CLPoly.eq_CLPoly (CLPoly.add p1 p2) (CLPoly.add p2 p1))
     trans_co_eq_inv_impl_morphism CLPoly.eq_CLPoly_trans (CLPoly.add p1 p2) 
       (CLPoly.add p2 p1) lemma (CLPoly.add p2 p1) (CLPoly.add p2 p1)
       (eq_proper_proxy (CLPoly.add p2 p1))) H (reflexivity (CLPoly.add p2 p1)))*)
+
+Theorem sym (p1 p2 : CLPoly.CLPoly) (H : CLPoly.eq_CLPoly p1 p2) : CLPoly.eq_CLPoly p2 p1.
+Proof.
+  rewrite_annotate H.
+  reflexivity.
+Qed.
+
+Print sym.
+
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in sym as symCEP.
+
+Print symCEP.
+
+Print reflexivity.
