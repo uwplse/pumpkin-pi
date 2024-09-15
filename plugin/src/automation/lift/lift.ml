@@ -166,10 +166,15 @@ let lift_evar c env trm lift_rec sigma =
 (* Lift equality types *)
 let lift_eq_app c env l lift_rec sigma =
   let eq_type = List.hd l in
+  let sigma, source_eq_rel = find_eq_rel_for_source_type (get_lifting c) env sigma eq_type in
+  let sigma, b = Convertibility.convertible env sigma (mkAppl (Equtils.eq, [eq_type])) source_eq_rel in
   let sigma, lifted_eq_type = lift_rec env sigma c eq_type in
-  let sigma, eq_rel = find_eq_rel_for_target_type (get_lifting c) env sigma lifted_eq_type in
   let sigma, lifted_args = map_rec_args_list lift_rec env sigma c (List.tl l) in
-  sigma, (mkAppl (eq_rel, lifted_args))
+  if b then
+    let sigma, eq_rel = find_eq_rel_for_target_type (get_lifting c) env sigma lifted_eq_type in
+    sigma, (mkAppl (eq_rel, lifted_args))
+  else
+    sigma, (mkAppl (Equtils.eq, lifted_eq_type :: lifted_args))
 
 let lift_equiv_rel_app c env typ args lift_rec sigma =
   let sigma, lifted_eq_type = lift_rec env sigma c typ in
@@ -180,12 +185,17 @@ let lift_equiv_rel_app c env typ args lift_rec sigma =
 (* Lift eq_refl applications *)
 let lift_eq_refl_app c env l lift_rec sigma =
   let eq_type = List.hd l in
+  let sigma, source_eq_rel = find_eq_rel_for_source_type (get_lifting c) env sigma eq_type in
+  let sigma, b = Convertibility.convertible env sigma (mkAppl (Equtils.eq, [eq_type])) source_eq_rel in
   let sigma, lifted_eq_type = lift_rec env sigma c eq_type in
-  let sigma, eq_rel = find_eq_rel_for_target_type (get_lifting c) env sigma lifted_eq_type in
-  let sigma, eq_proof = find_eq_proof_for_target_type (get_lifting c) env sigma lifted_eq_type in
   let sigma, lifted_args = map_rec_args_list lift_rec env sigma c (List.tl l) in
-  let refl_proof = mkAppl (Equivutils.equiv_refl_getter, [lifted_eq_type ; eq_rel ; eq_proof]) in
-  sigma, mkAppl (refl_proof, lifted_args)
+  if b then
+    let sigma, eq_rel = find_eq_rel_for_target_type (get_lifting c) env sigma lifted_eq_type in
+    let sigma, eq_proof = find_eq_proof_for_target_type (get_lifting c) env sigma lifted_eq_type in
+    let refl_proof = mkAppl (Equivutils.equiv_refl_getter, [lifted_eq_type ; eq_rel ; eq_proof]) in
+    sigma, mkAppl (refl_proof, lifted_args)
+  else
+    sigma, mkAppl (Equtils.eq_refl, lifted_eq_type :: lifted_args)
 
 (* Lift setoid reflexivity applications *)
 let lift_setoid_refl_app c env l lift_rec sigma =
