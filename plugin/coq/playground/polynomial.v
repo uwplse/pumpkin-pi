@@ -1084,20 +1084,6 @@ Module CEPPoly.
         end
     end.
 
-  (* Fixpoint get_max_degree_coeff (l: CEPPoly) : nat := *)
-  (*   match l with *)
-  (*     | [] => 0 *)
-  (*     | (coe, exp) :: xs => match coeff [(coe, exp)] exp with *)
-  (*       | 0 => get_max_degree_coeff xs *)
-  (*       | _ => max exp (get_max_degree_coeff xs) *)
-  (*       end *)
-  (*   end. *)
-
-  (* Theorem get_max_degree_impls_same : *)
-  (*   forall l, get_max_degree l = get_max_degree_coeff l. *)
-  (* Proof. *)
-  (* Admitted. *)
-
   Fixpoint canonicalize_help (acc : CEPPoly) (l: CEPPoly) (i : nat) : CEPPoly :=
     match i with
       | 0  => (coeff l 0, 0) :: acc
