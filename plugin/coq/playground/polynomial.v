@@ -1084,6 +1084,20 @@ Module CEPPoly.
         end
     end.
 
+  (* Fixpoint get_max_degree_coeff (l: CEPPoly) : nat := *)
+  (*   match l with *)
+  (*     | [] => 0 *)
+  (*     | (coe, exp) :: xs => match coeff [(coe, exp)] exp with *)
+  (*       | 0 => get_max_degree_coeff xs *)
+  (*       | _ => max exp (get_max_degree_coeff xs) *)
+  (*       end *)
+  (*   end. *)
+
+  (* Theorem get_max_degree_impls_same : *)
+  (*   forall l, get_max_degree l = get_max_degree_coeff l. *)
+  (* Proof. *)
+  (* Admitted. *)
+
   Fixpoint canonicalize_help (acc : CEPPoly) (l: CEPPoly) (i : nat) : CEPPoly :=
     match i with
       | 0  => (coeff l 0, 0) :: acc
@@ -1428,9 +1442,165 @@ Module CEPPoly.
       reflexivity.
   Defined.
 
-  Theorem eq_maxDegreeSame (l1 l2 : CEPPoly) : forall (p : eq_CEPPoly l1 l2), get_max_degree l1 = get_max_degree l2.
+  Theorem eqb_refl n : n =? n = true.
   Proof.
-  Admitted.
+    intros.
+    induction n.
+    * auto.
+    * simpl. apply IHn.
+  Qed.
+
+  (* Shows that max degree will indeed find all the degrees for non-zero coeffs *)
+  Theorem get_max_degree_non_zero (l : CEPPoly) : get_max_degree l > 0 -> coeff l (get_max_degree l) <> 0.
+  Proof.
+    intros.
+    induction l.
+    + simpl in H. lia.
+    + destruct a.
+      destruct n.
+      - simpl. simpl in H. apply IHl in H. lia.
+      - pose proof (Arith.Compare_dec.lt_eq_lt_dec n0 (get_max_degree l)).
+        destruct H0.
+        * destruct s.
+           ++ simpl in H.
+              Search max.
+              assert (get_max_degree l > 0). lia.
+              apply IHl in H0.
+              simpl.
+              assert (max n0 (get_max_degree l) = get_max_degree l). lia.
+              rewrite H1.
+              lia.
+          ++ simpl in H.
+             assert (get_max_degree l > 0). lia.
+             apply IHl in H0.
+             simpl.
+             assert (max n0 (get_max_degree l) = get_max_degree l). lia.
+             rewrite H1.
+             lia.
+        * simpl in H.
+          assert (n0 > 0). lia.
+          simpl.
+          assert (max n0 (get_max_degree l) = n0). lia.
+          rewrite H1.
+          rewrite eqb_refl.
+          lia.
+  Defined.
+
+  Theorem get_max_degree_complete (l : CEPPoly) : forall deg, coeff l deg <> 0 -> deg <= get_max_degree l.
+  Proof.
+    induction l.
+    + intros.
+      induction deg.
+      - lia.
+      - simpl in H. lia.
+    + intros. destruct a.
+      destruct n.
+      * simpl in H.
+        simpl.
+        destruct (deg =? n0); simpl in H; apply (IHl deg) in H; apply H.
+      * pose proof (Peano_dec.eq_nat_dec deg n0).
+        destruct H0.
+        - rewrite e in *.
+          simpl. lia.
+        - simpl in H.
+          assert (deg =? n0 = false).
+          {
+            clear l IHl H n.
+            apply PeanoNat.Nat.eqb_neq.
+            apply n1.
+          }
+          pose proof (IHl n0).
+          rewrite H0 in H. simpl in H.
+          pose proof (IHl deg H).
+          simpl.
+          lia.
+  Defined.
+
+  Theorem eq_maxDegreeSame (l1 l2 : CEPPoly) : forall (p : eq_CEPPoly l1 l2), get_max_degree l1 <= get_max_degree l2.
+  Proof.
+    intros.
+    induction l2.
+    + unfold eq_CEPPoly in p.
+      simpl.
+      induction l1.
+      * auto.
+      * destruct a.
+        destruct n0.
+        - simpl.
+          {
+            destruct n.
+            +  apply IHl1.
+                intro.
+                pose proof (p exp).
+                simpl in H.
+                destruct exp; simpl in H; apply H.
+            + apply IHl1. intro.
+              pose proof (p exp).
+              simpl in H.
+              destruct (if exp =? 0 then S n else 0).
+              - simpl in H. apply H.
+              - discriminate.
+          }
+        - destruct n.
+          {
+            simpl.
+            apply IHl1.
+            intros.
+            pose proof (p exp).
+            simpl in H.
+            destruct (exp =? S n0); simpl in H; apply H.
+          }
+          pose proof (p (S n0)).
+          simpl in H.
+          rewrite eqb_refl in H.
+          discriminate.
+    + destruct a.
+      unfold eq_CEPPoly in p.
+      destruct n.
+      * simpl. apply IHl2.
+        simpl in p. intro.
+        pose proof (p exp).
+        destruct (exp =? n0); simpl in H; apply H.
+      * pose proof (get_max_degree_complete l2 (get_max_degree l1)).
+        pose proof (Arith.Compare_dec.lt_eq_lt_dec n0 (get_max_degree l1)).
+        destruct H0.
+        - destruct s.
+          -- unfold get_max_degree at 2.
+             Search max.
+             assert (n0 <= get_max_degree l1). lia.
+             assert (forall n m p, m < n -> n <= p -> n <= max m p).
+             {
+               intros.
+               induction m.
+               + simpl. apply H2.
+               + simpl. destruct p0; lia.
+             }
+             apply H1.
+             apply l.
+             fold get_max_degree.
+             apply H.
+             assert (get_max_degree l1 > 0) as side_lemma. lia.
+             pose proof (get_max_degree_non_zero l1 side_lemma).
+             pose proof (p (get_max_degree l1)).
+             clear H0.
+             rewrite H3 in H2.
+             simpl in H2.
+             assert (get_max_degree l1 =? n0 = false).
+             {
+               clear l2 p IHl2 H H1 H2 H3.
+               apply PeanoNat.Nat.eqb_neq.
+               intros H.
+               rewrite H in l. apply (PeanoNat.Nat.lt_irrefl (get_max_degree l1)).
+               lia.
+             }
+             rewrite H0 in H2. simpl in H2.
+             apply H2.
+          -- unfold get_max_degree at 2.
+             rewrite e.
+             lia.
+        -  unfold get_max_degree at 2.
+           lia.
+  Defined.
 
   Instance canonicalIsCanonical : Proper (eq_CEPPoly ==> eq) canonicalize.
   Proof.
@@ -1498,6 +1668,7 @@ Module CEPPoly.
   Definition depRec (C : Type) (X : forall (l : list nat) (p : noLeadingZeros l), C) (p : CEPPoly) : C :=
     X (coeffListFromCEP p) (coeffListFromCEPNoLeadingZeros p).
 
+
   Theorem eq_CEPPoly_respects_max_degree p q k:
     eq_CEPPoly p q -> forall n, n <= k -> n = get_max_degree p -> get_max_degree p = (get_max_degree q).
   Proof.
@@ -1524,19 +1695,14 @@ Module CEPPoly.
     * simpl. apply IHn.
   Qed.
 
-  (* Shows that max degree will indeed find all the degrees for non-zero coeffs *)
-  Theorem get_max_degree_complete (l : CEPPoly) : forall deg, coeff l deg <> 0 -> deg <= get_max_degree l.
-  Proof.
-  Admitted.
-
   Theorem canonicalize_max_preserves_coeffs (l : CEPPoly) : forall k, forall n, n <= k -> coeff l n = coeff (canonicalize l) n.
   Proof.
   Admitted.
 
-  Instance canonicalIsCanonical : Proper (eq_CEPPoly ==> eq) canonicalize.
+  Instance canonicalIsCanonical' : Proper (eq_CEPPoly ==> eq) canonicalize.
   Proof.
     intros p1 p2 H.
-    unfold canonicalize.
+    unfold eq_CEPPoly in H. unfold canonicalize.
     rewrite H.
   Qed.
 
