@@ -1516,7 +1516,7 @@ Module CEPPoly.
           lia.
   Defined.
 
-  Theorem eq_maxDegreeSame (l1 l2 : CEPPoly) : forall (p : eq_CEPPoly l1 l2), get_max_degree l1 <= get_max_degree l2.
+  Theorem eq_maxDegreeSame_le (l1 l2 : CEPPoly) : forall (p : eq_CEPPoly l1 l2), get_max_degree l1 <= get_max_degree l2.
   Proof.
     intros.
     induction l2.
@@ -1600,6 +1600,15 @@ Module CEPPoly.
              lia.
         -  unfold get_max_degree at 2.
            lia.
+  Defined.
+
+  Theorem eq_maxDegreeSame (l1 l2 : CEPPoly) : forall (p : eq_CEPPoly l1 l2), get_max_degree l1 = get_max_degree l2.
+  Proof.
+    intros.
+    pose proof (eq_maxDegreeSame_le l1 l2 p).
+    assert (eq_CEPPoly l2 l1). congruence.
+    pose proof (eq_maxDegreeSame_le l2 l1 H0).
+    lia.
   Defined.
 
   Instance canonicalIsCanonical : Proper (eq_CEPPoly ==> eq) canonicalize.
