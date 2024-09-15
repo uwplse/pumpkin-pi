@@ -984,379 +984,96 @@ Module CLPoly.
     reflexivity.
   Qed.
 
-  Theorem multListByConstant (l : list nat) (n : nat) : CLPoly.
-  Proof.
-    destruct n.
-    - apply [].
-    - induction l.
-      + apply [].
-      + apply (a * (S n) :: IHl).
-  Defined.
-
-  Theorem multListByConstantNoLeadingZeros :
-    forall (l : list nat) (proof : noLeadingZeros l) (n : nat),
-      noLeadingZeros (multListByConstant l n).
-  Proof.
-    intros l proof n.
-    destruct n.
-    - intros.
-      reflexivity.
-    - induction l.
-      + intros.
-        simpl.
-        reflexivity.
-      + intros.
-        simpl.
-        rewrite <- noLeadingZerosHeadNonzero in proof.
-        rewrite <- noLeadingZerosHeadNonzero.
-        intros H.
-        apply PeanoNat.Nat.eq_mul_0 in H.
-        destruct H; lia.
-  Qed.
-      
-  Definition multByConstant (p : CLPoly) (n : nat) :=
-    depRec CLPoly (fun l proof => depConstr (multListByConstant l n) (multListByConstantNoLeadingZeros l proof n)) p.
-
-  Instance multByConstantProper : Proper (eq_CLPoly ==> eq ==> eq_CLPoly) multByConstant.
-  Proof.
-    unfold multByConstant.
-    solve_proper2.
-  Qed.
-
-  Theorem lengthMultListByConstant :
-    forall (l : list nat) (n : nat),
-      length l = length (multListByConstant l (S n)).
-  Proof.
-    induction l.
-    - intros.
-      reflexivity.
-    - intros.
-      simpl.
-      rewrite (IHl n).
-      reflexivity.
-  Qed.    
-
-  Theorem evalListRespectsMultListByConstant :
-    forall (l : list nat) (n1 n2 : nat),
-      evalList (multListByConstant l n1) n2 = n1 * evalList l n2.
-  Proof.
-    destruct n1.
-    - simpl.
-      intros.
-      reflexivity.
-    - induction l.
-      + intros.
-        simpl.
-        lia.
-      + intros.
-        remember (S n1) as m.
-        simpl.
-        rewrite PeanoNat.Nat.mul_add_distr_l.
-        rewrite <- IHl.
-        rewrite Heqm.
-        simpl.
-        f_equal.
-        rewrite (lengthMultListByConstant l n1).
-        unfold multListByConstant.
-        lia.
-  Qed.
-
-  Theorem evalRespectsMultByConstant :
-    forall (p : CLPoly) (n1 n2 : nat),
-      eval (multByConstant p n1) n2 = n1 * eval p n2.
-  Proof.
-    intros.
-    apply (depElimProp (fun x => eval (multByConstant x n1) n2 = n1 * eval x n2)).
-    - solve_proper.
-    - intros.
-      unfold multByConstant.
-      apply iotaRecRev.
-      unfold eval.
-      apply iotaRecRev.
-      apply iotaRecRev.
-      apply evalListRespectsMultListByConstant.
-  Qed.
-
-  Definition multListByXToN (l : list nat) (n : nat) :=
-    list_rec (fun _ => list nat) [] (fun a l _ => (a :: l) ++ (repeat 0 n)) l.
-
-  Theorem multListByXToNNoLeadingZeros :
-    forall (l : list nat) (proof : noLeadingZeros l) (n : nat),
-      noLeadingZeros (multListByXToN l n).
-  Proof.
-    intros.
-    destruct l.
-    - reflexivity.
-    - simpl.
-      apply (noLeadingZerosSameHead l).
-      apply proof.
-  Qed.
-
-  Theorem evalListApp :
-    forall (l1 l2 : list nat) (n : nat),
-      evalList (l1 ++ l2) n = pow n (length l2) * evalList l1 n + evalList l2 n.
-  Proof.
-    induction l1.
-    - intros.
-      simpl.
-      lia.
-    - intros.
-      simpl.
-      rewrite IHl1.
-      rewrite app_length.
-      rewrite PeanoNat.Nat.pow_add_r.
-      lia.
-  Qed.
-
-  Theorem evalListZeros :
-    forall (n1 n2 : nat),
-      evalList (repeat 0 n1) n2 = 0.
-  Proof.
-    intros.
-    induction n1.
-    - reflexivity.
-    - simpl.
-      apply IHn1.
-  Qed.
-
-  Theorem evalListRespectsMultListByXToN :
-    forall (l : list nat) (n1 n2 : nat),
-      evalList (multListByXToN l n1) n2 = (pow n2 n1) * evalList l n2.
-  Proof.
-    induction l.
-    intros.
-    - rewrite PeanoNat.Nat.mul_0_r.
-      reflexivity.
-    - intros.
-      simpl.
-      rewrite evalListApp.
-      rewrite app_length.
-      rewrite repeat_length.
-      rewrite PeanoNat.Nat.pow_add_r.
-      rewrite evalListZeros.
-      lia.
-  Qed.
-
-  Definition multByXToN (p : CLPoly) (n : nat) :=
-    depRec
-      CLPoly
-      (fun l proof =>
-         depConstr
-           (multListByXToN l n)
-           (multListByXToNNoLeadingZeros l proof n))
-      p.
-
-  Instance multByXToNProper : Proper (eq_CLPoly ==> eq ==> eq) multByXToN.
-  Proof.
-    unfold multByXToN.
-    solve_proper2.
-  Qed.
-
-  Theorem evalRespectsMultByXToN :
-    forall (p : CLPoly) (n1 n2 : nat),
-      eval (multByXToN p n1) n2 = (pow n2 n1) * eval p n2.
-  Proof.
-    intros.
-    eapply (depElimProp (fun x => eval (multByXToN x n1) n2 = (pow n2 n1) * eval x n2)).
-    - solve_proper.
-    - intros.
-      unfold multByXToN.
-      apply iotaRecRev.
-      unfold eval.
-      apply iotaRecRev.
-      apply iotaRecRev.
-      apply evalListRespectsMultListByXToN.
-  Qed.
-
-  Theorem multLists :
-    forall (l1 l2 : list nat), list nat.
-  Proof.
-    intros l1.
-    induction l1.
-    - intros l2.
-      apply [].
-    - intros l2.
-      apply (addLists (IHl1 l2) (multListByXToN (multListByConstant l2 a) (length l1))).
-  Defined.
-
-  Theorem multListByXTo0 :
-    forall (l : list nat),
-      multListByXToN l 0 = l.
-  Proof.
-    induction l.
-    - reflexivity.
-    - simpl.
-      rewrite app_nil_r.
-      reflexivity.
-  Qed.
-
-  Theorem multListsSecondEmpty :
-    forall (l : list nat),
-      multLists l [] = [].
-  Proof.
-    induction l.
-    - reflexivity.
-    - destruct a.
-      + simpl.
-        rewrite IHl.
-        reflexivity.
-      + simpl.
-        rewrite IHl.
-        reflexivity.
-  Qed.
-
-  (*Theorem multListsComm :
-    forall (l1 l2 : list nat),
-      removeLeadingZeros (multLists l1 l2) = removeLeadingZeros (multLists l2 l1).
-  Proof.
-    induction l1.
-    - induction l2.
-      + reflexivity.
-      + destruct a.
-        * simpl.
-          rewrite multListsSecondEmpty.
-          reflexivity.
-        * simpl.
-          rewrite multListsSecondEmpty.
-          reflexivity.
-    - induction l2.
-      + simpl.
-        rewrite multListsSecondEmpty.
-        rewrite addListsFirstEmpty.
-        destruct a; reflexivity.
-      + simpl.
-        rewrite <- IHl2.
-        rewrite IHl1.
-        simpl.
-        destruct a, a0.
-        * simpl.
-          rewrite IHl1.
-          reflexivity.
-        * simpl.
-          rewrite addListsSecondEmpty.
-          rewrite addListsSecondEmpty.
-          rewrite IHl1.
-          f_equal.
-          rewrite multListByXTo0.
-
-  Theorem lengthMultLists :
-    forall (l1 l2 : list nat) (n1 n2 : nat),
-      noLeadingZeros (n1 :: l1) ->
-      noLeadingZeros (n2 :: l2) ->
-      length (multLists (n1 :: l1) (n2 :: l2)) = length (n1 :: l1) + length (n2 :: l2) - 1.
-  Proof.
-    induction l1.
-    - induction l2.
-      + intros.
-        apply noLeadingZerosHeadNonzero in H.
-        destruct n1.
-        * contradiction.
-        * reflexivity.
-      + intros.
-        apply noLeadingZerosHeadNonzero in H.
-        destruct n1.
-        * contradiction.
-        * apply (noLeadingZerosHeadNonzero [] (S n1)) in H.
-          apply (noLeadingZerosSameHead (a :: l2) l2 n2) in H0.
-          specialize (IHl2 (S n1) n2 H H0). 
-          simpl in IHl2.
-          rewrite addListsFirstEmpty in IHl2.
-          simpl.
-          rewrite addListsFirstEmpty.
-          rewrite <- IHl2.
-          reflexivity.
-    - induction l2.
-      Focus 2.
-      intros.
-      simpl.
-      + intros.
-        destruct n1.
-        * apply noLeadingZerosHeadNonzero in H.
-          contradiction.
-        * simpl.
-          destruct a.
-          Focus 2.
-          simpl.
-          -- simpl.
-             rewrite addListsSecondEmpty.
-             apply (noLeadingZerosSameHead (0 :: l1) l1) in H.
-             specialize (IHl1 [] (S n1) n2 H H0).
-             simpl in IHl1.
-             rewrite PeanoNat.Nat.sub_0_r in IHl1.
-             rewrite <- IHl1.
-             
-        simpl.*)
-
-  Theorem multListByXToNLength :
-    forall (l : list nat) (n1 n2 : nat),
-      length (multListByXToN (n1 :: l) n2) = length (n1 :: l) + n2.
-  Proof.
-    destruct l.
-    - intros.
-      simpl.
-      rewrite repeat_length.
-      reflexivity.
-    - intros.
-      simpl.
-      rewrite app_length.
-      rewrite repeat_length.
-      reflexivity.
-  Qed.
-
-  Theorem multEmptyListByConstant :
-    forall (n : nat),
-      multListByConstant [] n = [].
-  Proof.
-    destruct n; reflexivity.
-  Qed.
-
-  (*Theorem multListsLength :
-    forall (l1 l2 : list nat),
-      length (multLists l1 l2) <= length l1 + length l2 - 1.
-  Proof.
-    induction l1.
-    - intros.
-      simpl.
-      lia.
-    - simpl.
-      intros l2.
-      destruct l1.
-      + simpl.
-        rewrite addListsFirstEmpty.
-        rewrite multListByXTo0.
-        destruct a.
-        * simpl.
-          apply le_0_n.
-        * rewrite <- lengthMultListByConstant.
-          rewrite PeanoNat.Nat.sub_0_r.
-          reflexivity.
-      + assert (length (multLists (n :: l1) l2) <= length (multListByXToN (multListByConstant l2 a) (length (n :: l1)))).
-        * apply (PeanoNat.Nat.le_trans _ (length (n :: l1) + length l2 - 1)).
-          -- apply IHl1.
-          -- destruct l2.
-             ++ simpl.
-                rewrite multEmptyListByConstant.
-                simpl. rewrite multListByXToNLength.
-
-  Theorem multListsNoLeadingZeros :
-    forall (l1 l2 : list nat),
-      noLeadingZeros l1 ->
-      noLeadingZeros l2 ->
-      noLeadingZeros (multLists l1 l2).
-  Proof.
-    induction l1.
-    - intros.
-      reflexivity.
-    - intros.
-      simpl.
-      apply IHl1.
-      + apply noLeadingZerosTail.*)
-  
 End CLPoly.
 
 Module CEPPoly.
 
   Definition CEPPoly := list (nat * nat).
+
+  Fixpoint coeff (p : CEPPoly) (exp : nat) :=
+    match p with
+    | [] => 0
+    | (n, e) :: t => (if eqb exp e then n else 0) + (coeff t exp)
+    end.
+
+  Definition eq_CEPPoly (p1 p2 : CEPPoly) :=
+    forall (exp : nat), coeff p1 exp = coeff p2 exp.
+
+  Instance eq_CEPPoly_refl : Reflexive eq_CEPPoly.
+  Proof.
+    intros x.
+    unfold eq_CEPPoly.
+    reflexivity.
+  Qed.
+
+  Instance eq_CEPPoly_sym : Symmetric eq_CEPPoly.
+  Proof.
+    intros x1 x2 H.
+    unfold eq_CEPPoly.
+    unfold eq_CEPPoly in H.
+    symmetry.
+    apply H.
+  Qed.
+
+  Instance eq_CEPPoly_trans : Transitive eq_CEPPoly.
+  Proof.
+    intros x1 x2 x3 H1 H2.
+    unfold eq_CEPPoly in *.
+    congruence.
+  Qed.
+
+  Instance eq_CEPPoly_equiv : Equivalence eq_CEPPoly.
+  Proof.
+    split.
+    - apply eq_CEPPoly_refl.
+    - apply eq_CEPPoly_sym.
+    - apply eq_CEPPoly_trans.
+  Qed.
+
+  Theorem permutation_implies_equiv p1 p2 : Permutation p1 p2 -> eq_CEPPoly p1 p2.
+  Proof.
+    intros.
+    induction H.
+    - reflexivity.
+    - unfold eq_CEPPoly. intro.
+      simpl. destruct x.
+      f_equal.
+      apply IHPermutation.
+    - unfold eq_CEPPoly.
+      simpl.
+      intro.
+      destruct x.
+      destruct y.
+      rewrite ->! PeanoNat.Nat.add_assoc.
+      f_equal.
+      apply PeanoNat.Nat.add_comm.
+    - congruence.
+  Defined.
+
+  Theorem eq_CEPPoly_app_comm :
+    forall l1 l2, eq_CEPPoly (l1 ++ l2) (l2 ++ l1).
+  Proof.
+    intros.
+    apply permutation_implies_equiv.
+    apply Permutation_app_comm.
+  Defined.
+
+  Theorem eq_CEPPoly_app :
+    forall l1 l2 app, eq_CEPPoly l1 l2 -> eq_CEPPoly (l1 ++ app) (l2 ++ app).
+  Proof.
+    intros.
+    rewrite eq_CEPPoly_app_comm.
+    rewrite (eq_CEPPoly_app_comm l2 app).
+    induction app.
+    * simpl. apply H.
+    * simpl.
+      unfold eq_CEPPoly.
+      intros.
+      simpl.
+      destruct a.
+      f_equal.
+      apply IHapp.
+  Defined.
 
   Fixpoint get_max_degree (l: CEPPoly) : nat :=
     match l with
@@ -1367,71 +1084,14 @@ Module CEPPoly.
         end
     end.
 
-  Fixpoint get_combined_nth_degree_coes (l: CEPPoly) (deg : nat) : nat :=
-    match l with
-      | [] => 0
-      | (coe, exp) :: xs =>
-      if eqb coe deg then
-        coe + get_combined_nth_degree_coes xs deg
-      else
-        get_combined_nth_degree_coes xs deg
-    end.
-
-  Definition get_combined_nth_degree (l: CEPPoly) (deg : nat) : (nat * nat) :=
-    let coe : nat := get_combined_nth_degree_coes l deg in
-    (coe, deg).
-
-  Fixpoint iter_coes (max_deg : nat) : list nat :=
-    match max_deg with
-      | 0 => []
-      | S new_deg => max_deg :: iter_coes new_deg
-    end.
-
-  Fixpoint canonicalize_max_help (acc : CEPPoly) (l: CEPPoly) (i : nat) : CEPPoly :=
+  Fixpoint canonicalize_help (acc : CEPPoly) (l: CEPPoly) (i : nat) : CEPPoly :=
     match i with
-      | 0  => (get_combined_nth_degree l 0) :: acc
-      | S n => canonicalize_max_help ((get_combined_nth_degree l i) :: acc) l n
+      | 0  => (coeff l 0, 0) :: acc
+      | S n => canonicalize_help ((coeff l i, i) :: acc) l n
     end.
 
-  Fixpoint canonicalize_max (l: CEPPoly) : CEPPoly :=
-    canonicalize_max_help [] l (get_max_degree l).
-
-
-  Inductive eq_CEPPoly : CEPPoly -> CEPPoly -> Prop :=
-  | Sym x y : eq_CEPPoly x y -> eq_CEPPoly y x
-  | Trans x y z : eq_CEPPoly x y -> eq_CEPPoly y z -> eq_CEPPoly x z
-  | Perm x y : Permutation x y -> eq_CEPPoly x y
-  | Add x c1 c2 e : eq_CEPPoly ((c1, e) :: (c2, e) :: x) (((c1 + c2), e) :: x)
-  | Append x y p : eq_CEPPoly x y -> eq_CEPPoly (p :: x) (p :: y)
-  | Remove x y p : eq_CEPPoly (p :: x) (p :: y) -> eq_CEPPoly x y
-  | Remove_Zero x e : eq_CEPPoly ((0, e) :: x) x.
-
-  Instance eq_CEPPoly_refl : Reflexive eq_CEPPoly.
-  Proof.
-    intros x.
-    apply Perm.
-    reflexivity.
-  Qed.
-
-  Instance eq_CEPPoly_sym : Symmetric eq_CEPPoly.
-  Proof.
-    unfold Symmetric.
-    apply Sym.
-  Qed.
-
-  Instance eq_CEPPoly_trans : Transitive eq_CEPPoly.
-  Proof.
-    unfold Transitive.
-    apply Trans.
-  Qed.
-
-  Instance eq_CEPPoly_equiv : Equivalence eq_CEPPoly.
-  Proof.
-    split.
-    - apply eq_CEPPoly_refl.
-    - apply eq_CEPPoly_sym.
-    - apply eq_CEPPoly_trans.
-  Qed.
+  Definition canonicalize (l: CEPPoly) : CEPPoly :=
+    canonicalize_help [] l (get_max_degree l).
 
   Fixpoint get_leading_same_exp_help (l : CEPPoly) (exp : nat) : CEPPoly :=
     match l with
@@ -1443,342 +1103,353 @@ Module CEPPoly.
           get_leading_same_exp_help t exp
     end.
 
-  Fixpoint combine_adjacent_help (l : CEPPoly) (exp : nat) (total : nat) :=
-    match l with
-    | [] => [(total, exp)]
-    | (n1, e1) :: t =>
-        if eqb e1 exp then
-          combine_adjacent_help t exp (n1 + total)
-        else
-          (total, exp) :: combine_adjacent_help t e1 n1
+  Print filter.
+
+  Definition monomial_less_than_degree_n (n : nat) (p : nat * nat) :=
+    match p with
+    | (_, exp) => ltb exp n
     end.
 
-  Definition combine_adjacent (l : CEPPoly) :=
-    match l with
-    | [] => []
-    | (n1, e1) :: t => combine_adjacent_help t e1 n1
-    end.
+  Definition remove_degrees_ge_n (p : CEPPoly) (n : nat) : CEPPoly :=
+    filter (monomial_less_than_degree_n n) p.
 
-  (*Fixpoint combine_adjacent (l : CEPPoly) : CEPPoly :=
-    match l with
-    | (c1, e1) :: t1 =>
-        match t1 with
-        | (c2, e2) :: t2 => 
-            match (eqb e1 e2) with
-            | false => (c1, e1) :: (combine_adjacent t1)
-            | true => (c1 + c2, e1) :: (combine_adjacent t2)
-            end
-        | [] => (c1, e1) :: []
-        end
-    | [] => []
-    end.*)
-
-  Local Coercion is_true : bool >-> Sortclass.
-
-  Module DegreeOrder <: TotalLeBool.
-    Definition t := (prod nat nat).
-    Definition leb (p1 p2 : nat * nat) : bool :=
-      match p1, p2 with
-      | (c1, e1), (c2, e2) => leb e2 e1
-      end.
-    Theorem leb_total : forall a1 a2,
-        (leb a1 a2 = true) \/ (leb a2 a1 = true).
-    Proof.
+  Theorem greater_degrees_not_in_remove_degrees :
+    forall (p : CEPPoly) (n exp c : nat),
+      n <= exp -> ~ In (c, exp) (remove_degrees_ge_n p n).
+  Proof.
+    induction p.
+    - simpl.
       intros.
-      destruct a1, a2.
-      simpl.
-      pose proof (PeanoNat.Nat.le_ge_cases n2 n0).
-      destruct H.
-      - left.
-        apply PeanoNat.Nat.leb_le.
-        apply H.
-      - right.
-        apply PeanoNat.Nat.leb_le.
-        apply H.
-    Qed.
-    Theorem leb_trans : Transitive leb.
-    Proof.
-      unfold leb.
-      intros p1 p2 p3.
-      destruct p1, p2, p3.
-      unfold is_true.
-      rewrite PeanoNat.Nat.leb_le.
-      rewrite PeanoNat.Nat.leb_le.
-      rewrite PeanoNat.Nat.leb_le.
-      intros.
-      rewrite H0.
-      apply H.
-    Qed.      
-  End DegreeOrder.
-
-  Module Import DegreeSort := Sort DegreeOrder.
-
-  Theorem doubleListInduction {A : Type} (P : list A -> Prop) (pnil : P []) (pone : forall (a : A), P [ a ]) (pconscons : forall (a1 a2 : A) (l : list A), P l -> P (a2 :: l) -> P (a1 :: a2 :: l)) :
-    forall (l : list A), P l.
-  Proof.
-    enough (forall (l : list A) (a : A), P l /\ P (a :: l)).
-    destruct l.
-    assumption.
-    destruct (H l a).
-    apply H1.
-    induction l.
+      intros H0.
+      contradiction.
     - intros.
-      split.
-      assumption.
-      apply pone.
-    - intros.
-      split.
-      destruct l.
-      apply pone.
-      destruct (IHl a).
-      apply H0.
-      destruct (IHl a).
-      apply pconscons; assumption.
+      unfold remove_degrees_ge_n.
+      intros H0.
+      rewrite filter_In in H0.
+      destruct H0.
+      simpl in H0.
+      destruct H0.
+      + unfold monomial_less_than_degree_n in H1.
+        rewrite PeanoNat.Nat.ltb_lt in H1.
+        apply Lt.lt_not_le in H1.
+        contradiction.
+      + specialize (IHp n exp c H).
+        unfold remove_degrees_ge_n in IHp.
+        assert (In (c, exp) p /\ monomial_less_than_degree_n n (c, exp) = true).
+          split;
+          assumption.
+        apply filter_In in H2.
+        contradiction.  
   Qed.
 
-  Theorem locally_sorted_tail (p : CEPPoly) (x : nat * nat) :
-    LocallySorted DegreeOrder.leb (x :: p) ->
-    LocallySorted DegreeOrder.leb p.
-  Proof.
-    intros.
-    inversion H.
-    constructor.
-    apply H2.
-  Qed.
-
-  (*
-  Theorem combine_adjacent_help_sorted (p : CEPPoly) :
-    LocallySorted DegreeOrder.leb p ->
-    forall (exp total : nat),
-      LocallySorted DegreeOrder.leb (combine_adjacent_help p exp total).
+  Theorem remove_degrees_0_empty (p : CEPPoly) :
+    remove_degrees_ge_n p 0 = [].
   Proof.
     induction p.
-    - intros.
-      simpl.
-      constructor.
-    - intros.
-      simpl.
+    - reflexivity.
+    - simpl.
+      unfold remove_degrees_ge_n in IHp.
       destruct a.
-      destruct (PeanoNat.Nat.eqb_spec n0 exp).
-      + subst.
-        apply IHp.
-        apply locally_sorted_tail in H.
-        apply H.
-      +
-        inversion H.*)
-      
-  Theorem combine_adjacent_sorted (p : CEPPoly) :
-    LocallySorted DegreeOrder.leb p -> LocallySorted DegreeOrder.leb (combine_adjacent p).
-  Proof.
-  Admitted.
-    (*destruct p.
-    - intros.
-      constructor.
-    - induction p0.
-      + intros.
-        simpl.
-        destruct p.
-        constructor.
-      + intros.
-        simpl.
-        destruct p.
-        destruct a.
-        destruct (PeanoNatunfold combine_adjacent.
+      unfold monomial_less_than_degree_n.
+      simpl.
+      apply IHp.
+  Qed.
 
-    
-    induction p using doubleListInduction.
-    - intros.
-      simpl.
-      constructor.
-    - intros.
-      simpl.
-      destruct a.
-      constructor.
-    - intros.
-      simpl.
-      destruct a1, a2.
-      destruct (PeanoNat.Nat.eqb_spec n0 n2).
-      + rewrite <- e in H.
-        rewrite <- e in IHp0.
-        destruct l.
-        * constructor.
-        * destruct p.
-          inversion H.
-          specialize (IHp0 H2).
-          simpl in IHp0.
-          destruct (PeanoNat.Nat.eqb_spec n0 n4).
-          simpl in IHp0.
-
-          
-        inversion H.
-        specialize (IHp0 H2).
-        constructor.
-        remember (combine_adjacent l).
-        destruct c.
-        * constructor.
-        * constructor.
-          apply IHp.
-          inversion H.
-          inversion H2.
-          -- constructor.
-          -- apply H7.
-          --
-        destruct l.
-        * constructor.
-        * nstructor.*)
-        
-  Fixpoint remove_zeros (l : CEPPoly) : CEPPoly :=
-    match l with
-    | (c1, e1) :: t =>
-        if eqb c1 0 then remove_zeros t else (c1, e1) :: remove_zeros t
-    | [] => []
+  Definition monomial_degree_n (n : nat) (p : nat * nat) :=
+    match p with
+    | (_, exp) => eqb n exp
     end.
 
-  Theorem remove_zeros_subset (p : CEPPoly) (a : nat * nat) :
-    In a (remove_zeros p) -> In a p.
-  Proof.
-    induction p.
-    - intros.
-      inversion H.
-    - intros.
-      simpl in H.
-      destruct a0.
-      destruct (PeanoNat.Nat.eqb_spec n 0).
-      + specialize (IHp H).
-        right.
-        apply IHp.
-      + destruct H.
-        * constructor.
-          apply H.
-        * right.
-          apply IHp.
-          apply H.
-  Qed.
+  Definition degree_n_terms (p : CEPPoly) (n : nat) :=
+    filter (monomial_degree_n n) p.
 
-  Theorem remove_zeros_preserve_nonzeros (p : CEPPoly) (n e : nat) :
-    In (n, e) p -> n <> 0 -> In (n, e) (remove_zeros p).
+  Theorem coeff_only_degree_equal :
+    forall (p : CEPPoly) (n : nat),
+      coeff p n = coeff (degree_n_terms p n) n.
   Proof.
-  Admitted.
-
-  Theorem leb_head_sorted_list (p : CEPPoly) (a b c : nat * nat) :
-    DegreeOrder.leb a b ->
-    In c (b :: p) ->
-    LocallySorted DegreeOrder.leb (b :: p) ->
-    DegreeOrder.leb a c.
-  Proof.
+    induction p;
     intros.
-    rewrite <- Sorted_LocallySorted_iff in H1.
-    apply (Sorted_StronglySorted DegreeOrder.leb_trans) in H1.
-    inversion H1.
-    subst.
-    rewrite Forall_forall in H5.
-    destruct H0.
-    + subst.
-      apply H.
-    + specialize (H5 c H0).
-      apply (DegreeOrder.leb_trans _ b); auto.
-  Qed.
-
-  Theorem remove_zeros_sorted (p : CEPPoly) :
-    LocallySorted DegreeOrder.leb p -> LocallySorted DegreeOrder.leb (remove_zeros p).
-  Proof.
-    intros.
-    induction p.
-    constructor.
-    simpl.
-    destruct a.
-    destruct (PeanoNat.Nat.eqb_spec n 0).
-    - apply IHp.
-      apply locally_sorted_tail in H.
-      apply H.
-    - assert (StronglySorted DegreeOrder.leb ((n, n0) :: remove_zeros p)).
-      constructor.
-      + apply Sorted_StronglySorted.
-        apply DegreeOrder.leb_trans.
-        apply Sorted_LocallySorted_iff.
-        apply IHp.
-        apply locally_sorted_tail in H.
-        apply H.
-      + rewrite Forall_forall.
-        intros x H1.
-        apply remove_zeros_subset in H1.
-        inversion H.
-        * subst.
-          contradiction.
-        * subst.
-          apply (leb_head_sorted_list l _ b); auto.
-      + rewrite <- Sorted_LocallySorted_iff.
-        apply StronglySorted_Sorted.
-        apply H0.
-  Qed.
-
-  Definition canonicalize (l : CEPPoly) : CEPPoly :=
-    remove_zeros (combine_adjacent (sort l)).
-
-  Theorem sort_pres (l : CEPPoly) : eq_CEPPoly l (sort l).
-  Proof.
-    apply Perm.
-    apply (Permuted_sort l).
-  Qed.
-
-  Theorem combine_adjacent_pres (l : CEPPoly) : eq_CEPPoly l (combine_adjacent l).
-  Proof.
-    (*
-    enough (forall (l : CEPPoly) (p : nat * nat),
-               eq_CEPPoly l (combine_adjacent l) /\ eq_CEPPoly (p :: l) (combine_adjacent (p :: l))).
-    destruct (H l (0, 0)).
-    apply H0.
-    clear l.
-    induction l.
-    - intros.
-      split.
-      + reflexivity.
+    - reflexivity.
+    - simpl.
+      destruct a.
+      unfold monomial_degree_n.
+      destruct (PeanoNat.Nat.eqb_spec n n1).
       + simpl.
-        destruct p.
+        apply PeanoNat.Nat.eqb_eq in e.
+        rewrite e.
+        rewrite IHp.
         reflexivity.
-    - intro p.
-      destruct p, a.
-      split.
-      destruct (IHl (n1, n2)).
-      apply H0.
-      simpl.
-      pose proof (PeanoNat.Nat.eqb_spec n0 n2).
-      inversion H.
-      * rewrite H1.
-        apply (Trans _ ((n + n1, n2) :: l)).
-        apply Add.
-        apply Append.
-        destruct (IHl (n + n1, n2)).
-        apply H2.
-      * apply Append.
-        destruct (IHl (n1, n2)).
-        apply H3.*)
-  Admitted.
-
-  Theorem remove_zeros_pres (l : CEPPoly) : eq_CEPPoly l (remove_zeros l).
-  Proof.
-    induction l.
-    - simpl.
-      reflexivity.
-    - simpl.
-      destruct a.
-      destruct n.
-      + simpl.
-        apply (Trans _ l).
-        * apply Remove_Zero.
-        * apply IHl.
-      + simpl.
-        apply Append.
-        apply IHl.
+      + apply IHp.
   Qed.
 
-  Theorem canonicalize_pres (l : CEPPoly) : eq_CEPPoly l (canonicalize l).
+  Theorem no_degree_n_terms_after_removed :
+    forall (p : CEPPoly) (n exp : nat),
+      (n <= exp) ->
+      degree_n_terms (remove_degrees_ge_n p n) exp = [].
   Proof.
-    unfold canonicalize.
-    rewrite <- remove_zeros_pres.
-    rewrite <- combine_adjacent_pres.
-    rewrite <- sort_pres.
+    intros.
+    unfold degree_n_terms.
+    unfold remove_degrees_ge_n.
+    enough
+      (forall (c1 exp1 : nat),
+          ~ In (c1, exp1)
+            (filter (monomial_degree_n exp) (filter (monomial_less_than_degree_n n) p))).
+    - destruct (filter (monomial_degree_n exp) (filter (monomial_less_than_degree_n n) p)).
+      + reflexivity.
+      + destruct p0.
+        specialize (H0 n0 n1).
+        simpl in H0.
+        apply Decidable.not_or in H0.
+        destruct H0.
+        contradiction.
+    - intros.
+      intros H0.
+      apply filter_In in H0.
+      destruct H0.
+      apply filter_In in H0.
+      destruct H0.
+      unfold monomial_less_than_degree_n in H2.
+      unfold monomial_degree_n in H1.
+      apply PeanoNat.Nat.eqb_eq in H1.
+      rewrite H1 in H.
+      apply PeanoNat.Nat.ltb_lt in H2.
+      apply Lt.lt_not_le in H2.
+      contradiction.
+  Qed.
+
+  Theorem degree_n_terms_not_removed :
+    forall (p : CEPPoly) (n exp : nat),
+      (exp < n) ->
+      degree_n_terms (remove_degrees_ge_n p n) exp = degree_n_terms p exp.
+  Proof.
+    induction p.
+    - intros.
+      reflexivity.
+    - intros.
+      destruct a.
+      simpl.
+      destruct (PeanoNat.Nat.ltb_spec n1 n).
+      + simpl.
+        rewrite IHp; auto.
+      + assert (exp <> n1) by lia.
+        apply PeanoNat.Nat.eqb_neq in H1.
+        rewrite H1.
+        apply IHp.
+        apply H.
+  Qed.
+
+  Theorem coeff_of_removed_degree_0 : forall (n exp : nat) (p : CEPPoly),
+      (n <= exp) -> coeff (remove_degrees_ge_n p n) exp = 0.
+  Proof.
+    intros.
+    rewrite coeff_only_degree_equal.
+    rewrite no_degree_n_terms_after_removed.
+    - reflexivity.
+    - lia.
+  Qed.
+
+  Theorem remove_degrees_Sn :
+    forall (p : CEPPoly) (n : nat),
+      eq_CEPPoly
+        (remove_degrees_ge_n p (S n))
+        ((coeff p n, n) :: remove_degrees_ge_n p n).
+  Proof.
+    intros.
+    unfold eq_CEPPoly.
+    intros exp.
+    destruct (PeanoNat.Nat.lt_trichotomy n exp); [|destruct H].
+    - unfold lt in H.
+      pose proof (coeff_of_removed_degree_0 _ _ p H).
+      rewrite H0.
+      rewrite coeff_only_degree_equal.
+      simpl.
+      assert (exp <> n).
+      lia.
+      apply PeanoNat.Nat.eqb_neq in H1.
+      rewrite H1.
+      rewrite no_degree_n_terms_after_removed.
+      + reflexivity.
+      + lia.
+    - subst.
+      simpl.
+      rewrite <- EqNat.beq_nat_refl.
+      assert (exp <= exp) by lia.
+      rewrite (coeff_of_removed_degree_0 _ _ _ H).
+      rewrite coeff_only_degree_equal.
+      rewrite degree_n_terms_not_removed.
+      + rewrite <- coeff_only_degree_equal.
+        lia.
+      + lia.
+    - simpl.
+      assert (exp <> n) by lia.
+      apply PeanoNat.Nat.eqb_neq in H0.
+      rewrite H0.
+      rewrite coeff_only_degree_equal.
+      assert (exp < S n) by lia.
+      rewrite (degree_n_terms_not_removed _ _ _ H1).
+      rewrite (coeff_only_degree_equal (remove_degrees_ge_n p n)).
+      rewrite (degree_n_terms_not_removed _ _ _ H).
+      lia.
+  Qed.
+
+  Theorem unsimpl_app_cons {A : Type} :
+    forall (a : A) (l : list A),
+      a :: l = [a] ++ l.
+  Proof.
+    intros.
     reflexivity.
+  Qed.
+
+  Theorem canonicalize_respects_eq_help : forall n l acc,
+      eq_CEPPoly (remove_degrees_ge_n l (S n) ++ acc) (canonicalize_help acc l n).
+  Proof.
+    intro.
+    induction n.
+    * intros.
+      simpl.
+      rewrite unsimpl_app_cons.
+      apply eq_CEPPoly_app.
+      rewrite remove_degrees_Sn.
+      rewrite remove_degrees_0_empty.
+      reflexivity.
+    * intros.
+      simpl.
+      specialize (IHn l ((coeff l (S n), S n) :: acc)).
+      rewrite <- IHn.
+      simpl.
+      rewrite unsimpl_app_cons.
+      rewrite app_assoc.
+      apply eq_CEPPoly_app.
+      rewrite remove_degrees_Sn.
+      rewrite unsimpl_app_cons.
+      apply eq_CEPPoly_app_comm.
+  Qed.
+
+  Theorem get_max_degree_sublist : forall (p : CEPPoly) (c exp : nat),
+      get_max_degree p <= get_max_degree ((c, exp) :: p).
+  Proof.
+    intros.
+    simpl.
+    destruct c.
+    - reflexivity.
+    - lia.
+  Qed.
+
+  Theorem get_max_degree_head :
+    forall (p : CEPPoly) (c exp : nat),
+      (c <> 0) -> exp <= get_max_degree ((c, exp) :: p).
+  Proof.
+    intros.
+    simpl.
+    destruct c.
+    - contradiction. 
+    - lia.
+  Qed.
+
+  Theorem eq_CEPPoly_remove_0 :
+    forall (p : CEPPoly) (exp : nat),
+      eq_CEPPoly ((0, exp) :: p) p.
+  Proof.
+    unfold eq_CEPPoly.
+    intros.
+    simpl.
+    destruct (exp0 =? exp); reflexivity.
+  Qed.
+
+  Theorem eq_CEPPoly_cons :
+    forall (p1 p2 : CEPPoly) (c exp : nat),
+      eq_CEPPoly ((c, exp) :: p1) ((c, exp) :: p2) <->
+      eq_CEPPoly p1 p2.
+  Proof.
+    unfold eq_CEPPoly.
+    intros.
+    simpl.
+    split;
+    intros;
+    specialize (H exp0);
+    lia.
+  Qed.
+      
+  Theorem remove_greater_than_max_degree :
+    forall (p : CEPPoly) (n : nat),
+      (get_max_degree p < n) -> eq_CEPPoly (remove_degrees_ge_n p n) p.
+  Proof.
+    induction p.
+    - reflexivity.
+    - intros.
+      destruct a.
+      pose proof (get_max_degree_sublist p n0 n1).
+      assert (get_max_degree p < n) by lia.
+      simpl.
+      destruct (PeanoNat.Nat.eq_dec n0 0).
+      + subst.
+        simpl in H.
+        specialize (IHp _ H1).
+        destruct (PeanoNat.Nat.ltb_spec n1 n).
+        * rewrite eq_CEPPoly_remove_0.
+          rewrite eq_CEPPoly_remove_0.
+          apply IHp.
+        * rewrite eq_CEPPoly_remove_0.
+          apply IHp.
+      + apply (get_max_degree_head p _ n1) in n2.
+        assert (n1 < n) by lia.
+        apply PeanoNat.Nat.ltb_lt in H2.
+        rewrite H2.
+        rewrite eq_CEPPoly_cons.
+        apply (IHp _ H1).
+  Qed.
+
+  Theorem canonicalize_pres:
+    forall p,
+      eq_CEPPoly p (canonicalize p).
+  Proof.
+    intros.
+    unfold canonicalize.
+    rewrite <- canonicalize_respects_eq_help.
+    rewrite app_nil_r.
+    assert (get_max_degree p < S (get_max_degree p)) by lia.
+    apply remove_greater_than_max_degree in H.
+    symmetry.
+    apply H.
+  Qed.
+
+  Theorem acc_always_contained_at_end_help_eq :
+    forall n l acc, ((canonicalize_help [] l n) ++ acc) = (canonicalize_help acc l n).
+  Proof.
+    intro.
+    induction n.
+    * simpl. reflexivity.
+    * simpl.
+      intros.
+      rewrite <- (IHn l [(coeff l (S n), S n)]).
+      rewrite <- (IHn l ((coeff l (S n), S n) :: acc)).
+      rewrite <- (app_assoc (canonicalize_help [] l n) [(coeff l (S n), S n)] acc).
+      simpl.
+      reflexivity.
+  Defined.
+
+  Theorem eq_maxDegreeSame (l1 l2 : CEPPoly) : forall (p : eq_CEPPoly l1 l2), get_max_degree l1 = get_max_degree l2.
+  Proof.
+  Admitted.
+
+  Instance canonicalIsCanonical : Proper (eq_CEPPoly ==> eq) canonicalize.
+  Proof.
+    intros p1 p2 H.
+    unfold canonicalize.
+    pose proof (eq_maxDegreeSame p1 p2 H).
+    rewrite <- H0.
+    remember (get_max_degree p1).
+    induction n in |- *.
+    * simpl.
+      unfold eq_CEPPoly in H.
+      rewrite H.
+      reflexivity.
+    * simpl.
+      rewrite <- (acc_always_contained_at_end_help_eq n p1 [(coeff p1 (S n), S n)]).
+      rewrite <- (acc_always_contained_at_end_help_eq n p2 [(coeff p2 (S n), S n)]).
+      rewrite H.
+      rewrite IHn.
+      reflexivity.
   Qed.
 
   Fixpoint CEPFromCoeffListHelp (l : list nat) (exp : nat) :=
@@ -1789,56 +1460,6 @@ Module CEPPoly.
     end.
 
   Definition CEPFromCoeffList (l : list nat) := CEPFromCoeffListHelp l 0.
-
-  Fixpoint coeff (p : CEPPoly) (exp : nat) :=
-    match p with
-    | [] => 0
-    | (n, e) :: t => (if eqb exp e then n else 0) + (coeff t exp)
-    end.
-
-  Theorem coeffs_in_combined_adjacent (p : CEPPoly) :
-    forall (exp : nat), (coeff p exp = 0) \/ In (coeff p exp, exp) (combine_adjacent p).
-  Proof.
-  Admitted.
-
-  Theorem combine_adjacent_no_extra_coeffs (p : CEPPoly) :
-    forall (n exp : nat), In (n, exp) (combine_adjacent p) -> coeff p exp = n.
-  Proof.
-  Admitted.
-  
-  Theorem coeffsSame (p1 p2 : CEPPoly) (H : eq_CEPPoly p1 p2) :
-    forall (exp : nat), coeff p1 exp = coeff p2 exp.
-  Proof.
-    intros exp.
-    induction H.
-    - symmetry.
-      assumption.
-    - rewrite IHeq_CEPPoly1.
-      assumption.
-    - induction H.
-      + reflexivity.
-      + simpl.
-        destruct x.
-        f_equal.
-        apply IHPermutation.
-      + simpl.
-        destruct y.
-        destruct x.
-        lia.
-      + rewrite IHPermutation1.
-        assumption.
-    - simpl.
-      destruct (exp =? e); lia.
-    - simpl.
-      destruct p.
-      f_equal.
-      apply IHeq_CEPPoly.
-    - simpl in IHeq_CEPPoly.
-      destruct p.
-      lia.
-    - simpl.
-      destruct (exp =? e); reflexivity.
-  Qed.
 
   Fixpoint zeros (n : nat) :=
     match n with
@@ -1863,167 +1484,19 @@ Module CEPPoly.
     end.
   
   Definition coeffListFromCEP (p : CEPPoly) :=
-    coeffListFromCEPHelp (canonicalize p).
-    
-  Theorem canonicalizeNoZeroCoeffs (p : CEPPoly) (n e : nat) :
-    In (n, e) (remove_zeros p) -> n <> 0.
-  Proof.
-    induction p.
-    - intros.
-      contradiction.
-    - simpl.
-      destruct a.
-      destruct n0; simpl.
-      + apply IHp.
-      + intro H.
-        destruct H.
-        * apply (f_equal fst) in H.
-          simpl in H.
-          rewrite <- H.
-          intros H0.
-          inversion H0.
-        * apply (IHp H).
-  Qed.      
+    coeffListFromCEPHelp (canonicalize p).     
 
   Theorem coeffListFromCEPNoLeadingZeros (p : CEPPoly) :
     noLeadingZeros (coeffListFromCEP p).
   Proof.
     unfold coeffListFromCEP.
     unfold canonicalize.
-    pose proof (canonicalizeNoZeroCoeffs (combine_adjacent (sort p))).
-    induction (remove_zeros (combine_adjacent (sort p))).
-    - unfold noLeadingZeros.
-      reflexivity.
-    - simpl.
-      destruct a.
-      destruct c.
-      + unfold noLeadingZeros.
-        simpl.
-        specialize (H n n0).
-        simpl in H.
-        assert (n <> 0).
-        apply H.
-        left.
-        reflexivity.
-        rewrite <- PeanoNat.Nat.eqb_neq in H0.
-        rewrite H0.
-        reflexivity.
-      + destruct p0.
-        specialize (H n n0).
-        assert (n <> 0).
-        apply H.
-        left.
-        reflexivity.
-        simpl.
-        rewrite <- PeanoNat.Nat.eqb_neq in H0.
-        unfold noLeadingZeros.
-        unfold removeLeadingZeros.
-        rewrite H0.
-        reflexivity.
-  Defined.
+  Admitted.
 
   Definition depConstr (l : list nat) (p : noLeadingZeros l) := CEPFromCoeffList l.
 
-  Print sigT_rect.
-
   Definition depRec (C : Type) (X : forall (l : list nat) (p : noLeadingZeros l), C) (p : CEPPoly) : C :=
     X (coeffListFromCEP p) (coeffListFromCEPNoLeadingZeros p).
-
-  Theorem canonicalizePermutationProper : Proper (eq_CEPPoly ==> (@Permutation (prod nat nat))) canonicalize.
-  Proof.
-  Admitted.
-
-  Theorem canonicalizeSorted (p : CEPPoly) : LocallySorted DegreeOrder.leb (canonicalize p).
-  Proof.
-  Admitted.
-
-  Inductive NoDupExp : CEPPoly -> Prop :=
-  | NoDupExp_nil : NoDupExp []
-  | NoDupExp_cons :
-    forall p exp,
-      (forall c, ~ In (c, exp) p) ->
-      NoDupExp p ->
-      forall c, NoDupExp ((c, exp) :: p).
-
-  Theorem canonicalizeNoDupExp (p : CEPPoly) :
-    NoDupExp (canonicalize p).
-  Proof.
-  Admitted.
-
-  Theorem CEPPolyIdentical :
-    forall (p1 p2 : CEPPoly),
-      Permutation p1 p2 ->
-      LocallySorted DegreeOrder.leb p1 ->
-      LocallySorted DegreeOrder.leb p2 ->
-      NoDupExp p1 ->
-      NoDupExp p2 ->
-      p1 = p2.
-  Proof.
-    induction p1.
-    intros.
-    apply Permutation_nil in H.
-    symmetry.
-    apply H.
-    intros.
-    destruct p2.
-    symmetry in H.
-    apply Permutation_nil in H.
-    apply H.
-    enough (a = p).
-    subst.
-    f_equal.
-    apply IHp1.
-    - apply Permutation_cons_inv in H.
-      apply H.
-    - apply locally_sorted_tail in H0.
-      apply H0.
-    - apply locally_sorted_tail in H1.
-      apply H1.
-    - inversion H2.
-      apply H7.
-    - inversion H3.
-      apply H7.
-    - destruct a, p.
-      inversion H2.
-      inversion H3.
-      subst.
-      assert (In (n, n0) ((n1, n2) :: p2)).
-      apply (@Permutation_in (prod nat nat) ((n, n0) :: p1) ((n1, n2) :: p2)).
-      assumption.
-      left.
-      reflexivity.
-      destruct H4.
-      symmetry.
-      apply H4.
-      rewrite <- Sorted_LocallySorted_iff in H1.
-      apply (Sorted_extends DegreeOrder.leb_trans) in H1.
-      rewrite Forall_forall in H1.
-      pose proof H4 as H5.
-      apply H1 in H4.
-      unfold DegreeOrder.leb in H4.
-      unfold is_true in H4.
-      rewrite PeanoNat.Nat.leb_le in H4.
-      assert (In (n1, n2) ((n, n0) :: p1)).
-      symmetry in H.
-      apply (@Permutation_in (prod nat nat) ((n1, n2) :: p2) ((n, n0) :: p1)).
-      assumption.
-      left.
-      reflexivity.
-      destruct H7.
-      apply H7.
-      rewrite <- Sorted_LocallySorted_iff in H0.
-      apply (Sorted_extends DegreeOrder.leb_trans) in H0.
-      rewrite Forall_forall in H0.
-      pose proof H7 as H9.
-      apply H0 in H7.
-      unfold DegreeOrder.leb in H7.
-      unfold is_true in H7.
-      rewrite PeanoNat.Nat.leb_le in H7.
-      apply (PeanoNat.Nat.le_antisymm n0 n2 H4) in H7.
-      subst.
-      specialize (H6 n1).
-      contradiction.
-  Admitted.
 
   Theorem eq_CEPPoly_respects_max_degree p q k:
     eq_CEPPoly p q -> forall n, n <= k -> n = get_max_degree p -> get_max_degree p = (get_max_degree q).
@@ -2056,39 +1529,15 @@ Module CEPPoly.
   Proof.
   Admitted.
 
-  Theorem canonicalize_max_preserves_coeffs (l : CEPPoly) : forall k, forall n, n <= k -> coeff l n = coeff (canonicalize_max l) n.
+  Theorem canonicalize_max_preserves_coeffs (l : CEPPoly) : forall k, forall n, n <= k -> coeff l n = coeff (canonicalize l) n.
   Proof.
-  Admitted.
-
-  Instance canonicalIsCanonical' : Proper (eq_CEPPoly ==> eq) canonicalize_max.
-  Proof.
-    intros p1 p2 H.
-    apply CEPPolyIdentical.
-    induction p1.
-    * destruct p2.
-      - auto.
-      - destruct p. destruct n.
-        ** simpl. give_up.
-        ** pose proof (coeffsSame [] ((S n, n0) :: p2) H n0).
-           simpl in H0.
-           rewrite eqb_refl in H0.
-           discriminate.
-    * induction p2.
-      - destruct a. destruct n.
-        assert (eq_CEPPoly p1 ((0, n0) :: p1)).
-        apply Sym. apply Remove_Zero.
-        Print Trans.
   Admitted.
 
   Instance canonicalIsCanonical : Proper (eq_CEPPoly ==> eq) canonicalize.
   Proof.
     intros p1 p2 H.
-    apply CEPPolyIdentical.
-    apply (canonicalizePermutationProper _ _ H).
-    apply canonicalizeSorted.
-    apply canonicalizeSorted.
-    apply canonicalizeNoDupExp.
-    apply canonicalizeNoDupExp.
+    unfold canonicalize.
+    rewrite H.
   Qed.
 
   Instance coeffListFromCEPProper : Proper (eq_CEPPoly ==> eq) coeffListFromCEP.
