@@ -10,6 +10,7 @@ Require Import Ornaments.
 Require Import RelationClasses Morphisms.
 Require Import Permutation Sorting Sorted Orders.
 Require Import Lia.
+Require Import Wellfounded.
 
 Fixpoint removeLeadingZeros (l : list nat) :=
   match l with
@@ -86,6 +87,60 @@ Definition opaque_list := list nat.
 
 Module ListFns.
 
+  Theorem noLeadingZerosHeadNonzero :
+    forall (l : opaque_list) (n : nat),
+      n <> 0 <-> noLeadingZeros (n :: l).
+  Proof.
+    unfold noLeadingZeros.
+    simpl.
+    split.
+    - intros.
+      rewrite <- PeanoNat.Nat.eqb_neq in H.
+      rewrite H.
+      reflexivity.
+    - intros.
+      intros H0.
+      rewrite <- PeanoNat.Nat.eqb_eq in H0.
+      rewrite H0 in H.
+      assert (forall (l0 l1 : opaque_list) (n : nat), (n :: l1) ++ l0 <> removeLeadingZeros l0).
+      induction l0.
+      + intros.
+        simpl.
+        intros H1.
+        inversion H1.
+      + intros.
+        intros H1.
+        simpl in H1.
+        destruct (PeanoNat.Nat.eqb_spec a 0).
+        * specialize (IHl0 (l1 ++ [a]) n0).
+          simpl in IHl0.
+          rewrite <- app_assoc in IHl0.
+          simpl in IHl0.
+          contradiction.
+        * inversion H1.
+          assert (length (l1 ++ a :: l0) = length l0).
+          f_equal.
+          apply H4.
+          rewrite app_length in H2.
+          simpl in H2.
+          lia.
+      + specialize (H1 l [] n).
+        contradiction.
+  Qed.
+
+  Theorem noLeadingZerosRemoveLeadingZeros :
+    forall (l : opaque_list),
+      noLeadingZeros (removeLeadingZeros l).
+  Proof.
+    induction l.
+    - reflexivity.
+    - simpl.
+      destruct (PeanoNat.Nat.eqb_spec a 0).
+      + apply IHl.
+      + apply noLeadingZerosHeadNonzero.
+        apply n.
+  Qed.
+
   Theorem addListsHelp :
     forall (l1 l2 : opaque_list), opaque_list.
   Proof.
@@ -99,7 +154,7 @@ Module ListFns.
       + apply ((a + a0) :: (IHl1 l2)).
   Defined.
 
-    Theorem noLeadingZerosRemoveLeadingZeros :
+  Theorem removeLeadingZerosHeadNotZero :
     forall (l l1 : opaque_list),
       0 :: l1 <> removeLeadingZeros l.
   Proof.
@@ -131,7 +186,7 @@ Module ListFns.
       right.
       unfold noLeadingZeros in H.
       destruct n.
-      + apply noLeadingZerosRemoveLeadingZeros in H.
+      + apply removeLeadingZerosHeadNotZero in H.
         contradiction.
       + exists l.
         exists (S n).
@@ -246,7 +301,7 @@ Module ListFns.
         apply H.
   Qed.
 
-    Definition addLists (l1 l2 : opaque_list) : opaque_list :=
+  Definition addLists (l1 l2 : opaque_list) : opaque_list :=
     let l1 := rev l1 in
     let l2 := rev l2 in
     let add_l := addListsHelp l1 l2 in
@@ -384,47 +439,6 @@ Module ListFns.
         apply Lt.lt_n_S in H.
         apply H.
         assumption.
-  Qed.
-
-  Theorem noLeadingZerosHeadNonzero :
-    forall (l : opaque_list) (n : nat),
-      n <> 0 <-> noLeadingZeros (n :: l).
-  Proof.
-    unfold noLeadingZeros.
-    simpl.
-    split.
-    - intros.
-      rewrite <- PeanoNat.Nat.eqb_neq in H.
-      rewrite H.
-      reflexivity.
-    - intros.
-      intros H0.
-      rewrite <- PeanoNat.Nat.eqb_eq in H0.
-      rewrite H0 in H.
-      assert (forall (l0 l1 : opaque_list) (n : nat), (n :: l1) ++ l0 <> removeLeadingZeros l0).
-      induction l0.
-      + intros.
-        simpl.
-        intros H1.
-        inversion H1.
-      + intros.
-        intros H1.
-        simpl in H1.
-        destruct (PeanoNat.Nat.eqb_spec a 0).
-        * specialize (IHl0 (l1 ++ [a]) n0).
-          simpl in IHl0.
-          rewrite <- app_assoc in IHl0.
-          simpl in IHl0.
-          contradiction.
-        * inversion H1.
-          assert (length (l1 ++ a :: l0) = length l0).
-          f_equal.
-          apply H4.
-          rewrite app_length in H2.
-          simpl in H2.
-          lia.
-      + specialize (H1 l [] n).
-        contradiction.
   Qed.
 
   Theorem noLeadingZerosSameHead :
@@ -985,6 +999,8 @@ Module CLPoly.
   Qed.
 
 End CLPoly.
+
+
 
 Module CEPPoly.
 
@@ -1624,7 +1640,7 @@ Module CEPPoly.
         (h, exp) :: (CEPFromCoeffListHelp t (S exp))
     end.
 
-  Definition CEPFromCoeffList (l : list nat) := CEPFromCoeffListHelp l 0.
+  Definition CEPFromCoeffList (l : list nat) := rev (CEPFromCoeffListHelp (rev l) 0).
 
   Fixpoint zeros (n : nat) :=
     match n with
@@ -1632,31 +1648,18 @@ Module CEPPoly.
     | S m => 0 :: (zeros m)
     end.
 
-  Fixpoint coeffListFromCEPHelp (p : CEPPoly) :=
-    match p with
-    | [] => []
-    | h :: t =>
-        match h with
-          (n1, e1) =>
-            match t with
-            | [] => n1 :: (zeros e1)
-            | h0 :: t0 =>
-                match h0 with
-                | (n2, e2) => (n1 :: (zeros (e1 - e2))) ++ (coeffListFromCEPHelp t)
-                end
-            end
-        end
-    end.
+  Definition coeffListFromCEPHelp (p : CEPPoly) :=
+    map fst p.
   
   Definition coeffListFromCEP (p : CEPPoly) :=
-    coeffListFromCEPHelp (canonicalize p).     
-
+    removeLeadingZeros (coeffListFromCEPHelp (canonicalize p)).
+  
   Theorem coeffListFromCEPNoLeadingZeros (p : CEPPoly) :
     noLeadingZeros (coeffListFromCEP p).
   Proof.
     unfold coeffListFromCEP.
-    unfold canonicalize.
-  Admitted.
+    apply ListFns.noLeadingZerosRemoveLeadingZeros.
+  Qed.
 
   Definition depConstr (l : list nat) (p : noLeadingZeros l) := CEPFromCoeffList l.
 
@@ -1682,24 +1685,9 @@ Module CEPPoly.
         exact H1.
   Admitted.
 
-  Theorem eqb_refl n : n =? n = true.
-  Proof.
-    intros.
-    induction n.
-    * auto.
-    * simpl. apply IHn.
-  Qed.
-
   Theorem canonicalize_max_preserves_coeffs (l : CEPPoly) : forall k, forall n, n <= k -> coeff l n = coeff (canonicalize l) n.
   Proof.
   Admitted.
-
-  Instance canonicalIsCanonical' : Proper (eq_CEPPoly ==> eq) canonicalize.
-  Proof.
-    intros p1 p2 H.
-    unfold eq_CEPPoly in H. unfold canonicalize.
-    rewrite H.
-  Qed.
 
   Instance coeffListFromCEPProper : Proper (eq_CEPPoly ==> eq) coeffListFromCEP.
   Proof.
@@ -1717,24 +1705,156 @@ Module CEPPoly.
     apply canonicalIsCanonical in H.
     unfold depRec.    
     unfold coeffListFromCEP.
-    assert (eq_rect (canonicalize p1) (fun x => noLeadingZeros (coeffListFromCEPHelp x)) (coeffListFromCEPNoLeadingZeros p1) (canonicalize p2) H = coeffListFromCEPNoLeadingZeros p2).
+    assert (eq_rect (canonicalize p1) (fun x => noLeadingZeros (removeLeadingZeros (coeffListFromCEPHelp x))) (coeffListFromCEPNoLeadingZeros p1) (canonicalize p2) H = coeffListFromCEPNoLeadingZeros p2).
     apply noLeadingZerosProofIrr.
     destruct H0.
     destruct H.
     reflexivity.
   Qed.
 
-  Theorem coeffListCanonical (l : list nat) (proof : noLeadingZeros l) :
+  (*Theorem coeffListCanonical (l : list nat) (proof : noLeadingZeros l) :
     coeffListFromCEPHelp (canonicalize (depConstr l proof)) = l.
   Proof.
     unfold depConstr.
     unfold CEPFromCoeffList.
+  Admitted.*)
+
+  Theorem CEPFromCoeffListApp : forall (l1 l2 : list nat) (n : nat),
+      eq_CEPPoly
+        (CEPFromCoeffListHelp (l1 ++ l2) n)
+        ((CEPFromCoeffListHelp l1 n) ++ (CEPFromCoeffListHelp l2 (length l1 + n))).
+  Proof.
+    induction l1.
+    - intros.
+      reflexivity.
+    - simpl.
+      intros.
+      apply eq_CEPPoly_cons.
+      rewrite <- PeanoNat.Nat.add_succ_r.
+      apply IHl1.
+  Qed.
+
+  Theorem eq_CEPPoly_rev : forall (p : CEPPoly),
+      eq_CEPPoly (rev p) p.
+  Proof.
+    intros.
+    apply permutation_implies_equiv.
+    symmetry.
+    apply Permutation_rev.
+  Qed.
+
+  Theorem removeLeadingZerosCoeffListEquiv :
+    forall (l : list nat),
+      eq_CEPPoly (CEPFromCoeffList (removeLeadingZeros l)) (CEPFromCoeffList l).
+  Proof.
+    unfold CEPFromCoeffList.
+    induction l.
+    - reflexivity.
+    - simpl.
+      destruct (PeanoNat.Nat.eqb_spec a 0).
+      + rewrite e.
+        simpl.
+        rewrite eq_CEPPoly_rev.
+        rewrite eq_CEPPoly_rev.
+        rewrite CEPFromCoeffListApp.
+        simpl.
+        rewrite eq_CEPPoly_app_comm.
+        simpl.
+        rewrite eq_CEPPoly_remove_0.
+        rewrite eq_CEPPoly_rev in IHl.
+        rewrite eq_CEPPoly_rev in IHl.
+        apply IHl.
+      + reflexivity.
+  Qed.
+
+  Theorem inductOnDegree :
+    forall (P : CEPPoly -> Prop),
+      (forall (p : CEPPoly), get_max_degree p = 0 -> P p) ->
+      (forall (n : nat),
+          (forall (p : CEPPoly), get_max_degree p = n -> P p) ->
+          (forall (p : CEPPoly), get_max_degree p = S n -> P p)) ->
+      forall (p : CEPPoly), P p.
+  Proof.
+    intros.
   Admitted.
 
-  Theorem CEPFromCoeffListInv (p : CEPPoly) :
-    eq_CEPPoly (CEPFromCoeffList (coeffListFromCEP p)) p.
+  Theorem canonicalizeMaxDegreeLength :
+    forall (p : CEPPoly),
+      get_max_degree p = 0 \/
+      (get_max_degree p = S (length (canonicalize p)) /\ length (canonicalize p) <> 0).
   Proof.
   Admitted.
+
+  Theorem canonicalizeDegreeZero :
+    forall (p : CEPPoly),
+      get_max_degree p = 0 -> canonicalize p = [((coeff p 0), 0)].
+  Proof.
+    intros.
+    unfold canonicalize.
+    rewrite H.
+    reflexivity.
+  Qed.
+
+  Theorem canonicalizeDegreeSn :
+    forall (p : CEPPoly),
+      get_max_degree p <> 0 ->
+      canonicalize p = (coeff p (get_max_degree p), get_max_degree p) :: (canonicalize (remove_degrees_ge_n p (get_max_degree p))).
+  Proof.
+    intros.
+  Admitted.
+
+  Theorem canonicalizeHead :
+    forall (p : CEPPoly),
+      canonicalize p = [((coeff p 0), 0)] \/
+      canonicalize p = (coeff p (get_max_degree p), get_max_degree p) :: (canonicalize (remove_degrees_ge_n p (get_max_degree p))).
+  Proof.
+    intros.
+    unfold canonicalize.
+    
+  Admitted.
+
+  Theorem coeffListFromCEPCoeff :
+    forall (p : CEPPoly) (exp : nat),
+      exp <= get_max_degree p ->
+      (is_true (nth_ok exp (rev (coeffListFromCEP p)) (S (get_max_degree p)))) /\
+      (nth exp (rev (coeffListFromCEP p)) (S (get_max_degree p)) = coeff p exp).
+  Proof.
+    intros.
+    unfold coeffListFromCEP.
+  Admitted.
+
+  Theorem CEPFromCoeffListInv :
+    forall (p : CEPPoly),
+      eq_CEPPoly (CEPFromCoeffList (coeffListFromCEP p)) p.
+  Proof.
+    induction p using
+      (well_founded_induction
+         (wf_inverse_image _ nat _ get_max_degree
+            PeanoNat.Nat.lt_wf_0)).
+    unfold coeffListFromCEP.
+    rewrite removeLeadingZerosCoeffListEquiv.
+    unfold CEPFromCoeffList.
+    destruct (canonicalizeHead p).
+    - rewrite H0.
+      simpl.
+      rewrite (canonicalize_pres p) at 2.
+      rewrite H0.
+      reflexivity.
+    - rewrite H0.
+      simpl.
+      specialize (H (remove_degrees_ge_n p (length (canonicalize p)))).
+      rewrite eq_CEPPoly_rev.
+      rewrite CEPFromCoeffListApp.
+      simpl.
+      rewrite PeanoNat.Nat.add_0_r.
+      rewrite <- eq_CEPPoly_rev.
+      rewrite rev_app_distr.
+      simpl.
+      rewrite rev_length.
+      enough (length
+       (rev (coeffListFromCEPHelp (canonicalize (remove_degrees_ge_n p (length (canonicalize p)))))) = ).
+      unfold CEPFromCoeffList in H.
+  Qed.
 
   Theorem depElimProp (P : CEPPoly -> Prop)
     `(proper : Proper _ (eq_CEPPoly ==> iff) P)
