@@ -1109,6 +1109,10 @@ Module CEPPoly.
   Definition canonicalize (l: CEPPoly) : CEPPoly :=
     canonicalize_help [] l (get_max_degree l).
 
+  Definition canonicalize_alt (l: CEPPoly) : CEPPoly :=
+    let asec_seq := (seq 0 (S (get_max_degree l))) in
+    (combine (map (coeff l) asec_seq) asec_seq).
+
   Fixpoint get_leading_same_exp_help (l : CEPPoly) (exp : nat) : CEPPoly :=
     match l with
     | [] => []
@@ -1873,23 +1877,181 @@ Module CEPPoly.
           lia.
   Qed.
 
+  (* Theorem map_f_equal {A} {B} : *)
+  (*   forall (f1 : A -> B) (f2: A -> B) (l : list A), *)
+  (*     (forall a, f1 a = f2 a) -> map f1 l = map f2 l. *)
+  (* Proof. *)
+  (*   intros. *)
+  (*   induction l. *)
+  (*   - reflexivity. *)
+  (*   - simpl. rewrite IHl. rewrite H. reflexivity. *)
+  (* Defined. *)
+  Definition combined_n_m n m : list (nat * nat) :=
+              (combine
+                 (repeat 0 (n - m))
+                 (rev (seq m (n - m)))
+              ).
+  Compute (combined_n_m 6 3).
+
+
+  Theorem canonicalize_equiv_canonicalize_alt:
+    forall p, canonicalize p = canonicalize_alt p.
+  Proof.
+    intros.
+    induction p using
+      (well_founded_induction
+         (wf_inverse_image _ nat _  get_max_degree
+            PeanoNat.Nat.lt_wf_0)).
+    unfold canonicalize. unfold canonicalize_alt.
+    remember (get_max_degree p).
+    destruct n.
+    reflexivity.
+    simpl.
+    rewrite <- acc_always_contained_at_end_help_eq.
+    Print remove_degrees_ge_n.
+    assert (canonicalize_help [] p (get_max_degree p)
+                              =
+            canonicalize_help
+              (combined_n_m
+                 (get_max_degree p)
+                 (S (get_max_degree (remove_degrees_ge_n p (get_max_degree p))))
+              )
+              (remove_degrees_ge_n p (get_max_degree p))
+              (get_max_degree (remove_degrees_ge_n p (get_max_degree p)))
+              ++
+              [(coeff p (get_max_degree p), (get_max_degree p))]
+           ).
+
+              (* (repeat (0, 0) (length p - (S (get_max_degree p)))) *)
+    rewrite canon
+
+    -
+    induction (get_max_degree p).
+    + unfold canonicalize. unfold canonicalize_alt'.
+      simpl. reflexivity.
+    + unfold canonicalize. unfold canonicalize_alt'.
+      destruct a. simpl.
+      destruct n.
+      - assert (forall (bleh : bool), (if bleh then 0 else 0) = 0).
+        {
+          destruct bleh; reflexivity.
+        }
+      (* - assert ((if match n0 with *)
+      (*   | 0 => true *)
+      (*   | S _ => false *)
+      (*   end then 0 else 0) = 0). *)
+      (*   { *)
+      (*     destruct n0; reflexivity. *)
+      (*   } *)
+        rewrite H.
+        simpl.
+        assert (forall n m, (if n =? m then 0 else 0) = 0).
+        {
+          intros.
+          destruct (n =? m); reflexivity.
+        }
+        assert (forall n0 p a, (fun exp : nat => (if exp =? n0 then 0 else 0) + coeff p exp) a = (fun exp : nat => (coeff p exp)) a).
+        {
+          intros.
+          rewrite H0.
+          reflexivity.
+        }
+        pose proof (H1 n0 p).
+        rewrite (map_ext
+                   (fun exp : nat => (if exp =? n0 then 0 else 0) + coeff p exp)
+                   (fun exp : nat => coeff p exp)
+                 ).
+
+        induction (get_max_degree p).
+        {
+          simpl.
+          rewrite H.
+          reflexivity.
+        }
+        {
+          simpl.
+          rewrite H.
+          simpl.
+          rewrite <- app_assoc.
+          simpl.
+          rewrite (rev_unit).
+
+        }
+
+  Admitted.
+
+  Theorem map_fst_combine A B:
+    forall (l1 : list A) (l2 : list B), length l1 = length l2 -> (map fst (combine l1 l2)) = l1.
+  Proof.
+    induction l1.
+    + reflexivity.
+    + intros. destruct l2. discriminate.
+      simpl.
+      inversion H.
+      rewrite (IHl1 l2 H1).
+      reflexivity.
+  Defined.
+
+  Theorem removeLeadingZerosnth :
+    forall l n,
+      nth n (rev (removeLeadingZeros l)) 0 = nth n (rev l) 0.
+  Proof.
+    intros.
+    induction l.
+    - reflexivity.
+    - simpl. destruct a; simpl.
+      + rewrite IHl.
+        destruct (PeanoNat.Nat.lt_trichotomy n (length (rev l))).
+        * rewrite (app_nth1); auto.
+        * destruct H.
+          -- rewrite (app_nth2). rewrite H at 2.
+             rewrite (PeanoNat.Nat.sub_diag).
+             simpl.
+             rewrite nth_overflow.
+             reflexivity.
+             lia.
+             lia.
+          -- rewrite ->! nth_overflow. reflexivity.
+             rewrite app_length.
+             simpl.
+             lia.
+             lia.
+      + reflexivity.
+  Defined.
+
   Theorem coeffListFromCEPCoeff :
     forall (p : CEPPoly) (exp : nat),
       coeff p exp = nth exp (rev (coeffListFromCEP p)) 0.
   Proof.
     intros.
     unfold coeffListFromCEP.
-    unfold canonicalize.
-    induction p.
-    - simpl.
-      destruct exp;
-      reflexivity.
-    - unfold coeffListFromCEP.
-      (*enough (nth exp (rev (removeLeadingZeros (coeffListFromCEPHelp (canonicalize (a :: p)))))
-              = nth exp (rev (coeffListFromCEPHelp (canonicalize (a :: p))))).
-      rewrite H.
-      simpl.*)
-  Admitted.  
+    rewrite canonicalize_equiv_canonicalize_alt'.
+    unfold canonicalize_alt'.
+    rewrite rev_involutive.
+    unfold coeffListFromCEPHelp.
+    assert ((length (map (coeff p) (seq 0 (get_max_degree p)))) = (length (seq 0 (get_max_degree p)))).
+    rewrite map_length. reflexivity.
+    rewrite (map_fst_combine _ _ _ _ H).
+    rewrite removeLeadingZerosnth.
+    rewrite <- map_rev.
+    assert (nth exp (map (coeff p) (rev (seq 0 (get_max_degree p)))) 0 =
+            nth exp (map (coeff p) (rev (seq 0 (get_max_degree p)))) (coeff p exp)).
+    {
+      pose proof (get_max_degree_complete p exp).
+      Check get_max_degree_complete.
+      give_up.
+    }
+    rewrite H0.
+    rewrite map_nth.
+    assert (forall n, (nth exp (rev (seq 0 n)) exp) = exp).
+    give_up.
+    rewrite H1.
+    reflexivity.
+  Admitted.
+
+  (* Definition canonicalize_alt' (l: CEPPoly) : CEPPoly := *)
+  (*   let asec_seq := (seq 0 (get_max_degree l)) in *)
+  (*   rev (combine (map (coeff l) asec_seq) asec_seq). *)
 
   Theorem CEPFromCoeffListInv :
     forall (p : CEPPoly),
