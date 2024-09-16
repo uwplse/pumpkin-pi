@@ -1921,63 +1921,6 @@ Module CEPPoly.
               ++
               [(coeff p (get_max_degree p), (get_max_degree p))]
            ).
-
-              (* (repeat (0, 0) (length p - (S (get_max_degree p)))) *)
-    rewrite canon
-
-    -
-    induction (get_max_degree p).
-    + unfold canonicalize. unfold canonicalize_alt'.
-      simpl. reflexivity.
-    + unfold canonicalize. unfold canonicalize_alt'.
-      destruct a. simpl.
-      destruct n.
-      - assert (forall (bleh : bool), (if bleh then 0 else 0) = 0).
-        {
-          destruct bleh; reflexivity.
-        }
-      (* - assert ((if match n0 with *)
-      (*   | 0 => true *)
-      (*   | S _ => false *)
-      (*   end then 0 else 0) = 0). *)
-      (*   { *)
-      (*     destruct n0; reflexivity. *)
-      (*   } *)
-        rewrite H.
-        simpl.
-        assert (forall n m, (if n =? m then 0 else 0) = 0).
-        {
-          intros.
-          destruct (n =? m); reflexivity.
-        }
-        assert (forall n0 p a, (fun exp : nat => (if exp =? n0 then 0 else 0) + coeff p exp) a = (fun exp : nat => (coeff p exp)) a).
-        {
-          intros.
-          rewrite H0.
-          reflexivity.
-        }
-        pose proof (H1 n0 p).
-        rewrite (map_ext
-                   (fun exp : nat => (if exp =? n0 then 0 else 0) + coeff p exp)
-                   (fun exp : nat => coeff p exp)
-                 ).
-
-        induction (get_max_degree p).
-        {
-          simpl.
-          rewrite H.
-          reflexivity.
-        }
-        {
-          simpl.
-          rewrite H.
-          simpl.
-          rewrite <- app_assoc.
-          simpl.
-          rewrite (rev_unit).
-
-        }
-
   Admitted.
 
   Theorem map_fst_combine A B:
@@ -2025,8 +1968,8 @@ Module CEPPoly.
   Proof.
     intros.
     unfold coeffListFromCEP.
-    rewrite canonicalize_equiv_canonicalize_alt'.
-    unfold canonicalize_alt'.
+    rewrite canonicalize_equiv_canonicalize_alt.
+    unfold canonicalize_alt.
     rewrite rev_involutive.
     unfold coeffListFromCEPHelp.
     assert ((length (map (coeff p) (seq 0 (get_max_degree p)))) = (length (seq 0 (get_max_degree p)))).
