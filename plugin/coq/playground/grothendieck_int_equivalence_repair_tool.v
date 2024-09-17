@@ -53,7 +53,7 @@ Definition depElimPropZ (P : Z -> Prop)
 
 (* 
  * Below, we define the iota reduction rules. We only define them
- * for depRecZ, as we will not need to reduce applications of
+ * for depRecZ, as we will not need to iota reduce applications of
  * depElimPropZ.
  *)
 
@@ -147,9 +147,20 @@ Definition addZ (z1 z2 : Z) : Z :=
     (fun (p : nat) => add_negsucZ z1 p)
     z2.
 
+(*
+ * Here, we specialize depElimPropZ to use the motive we need for
+ * add0LZ. Then, when we go to lift this term, we can supply the 
+ * specialized version of the corresponding depElimPropGZ to the
+ * repair tool and repair the term.
+ *)
+
+Definition add0LZMotive := fun (z1 : Z) => z1 = addZ (depConstrZPos 0) z1.
+
+Definition depElimPropZAdd0LZ := depElimPropZ add0LZMotive.
+
 Theorem add0LZ (z : Z) : z = addZ (depConstrZPos 0) z.
 Proof.
-  eapply (depElimPropZ (fun (z1 : Z) => z1 = addZ (depConstrZPos 0) z1)).
+  eapply depElimPropZAdd0LZ.
   - induction n.
     + reflexivity.
     + apply (iotaZPos
@@ -492,6 +503,8 @@ Proof.
   apply canonicalize'Pres.
 Defined.
 
+(* With those theorems defined, we can define depRecGZ. *)
+
 Definition depRecGZ (C : Type)
   (posP : forall (n : nat), C)
   (negSucP : forall (n : nat), C)
@@ -540,87 +553,32 @@ Proof.
   reflexivity.
 Qed.
 
-Instance depRecProperEqGZ
-  (posP : forall (n : nat), GZ)
-  (negSucP : forall (n : nat), GZ) :
-  Proper (eq_GZ ==> eq_GZ) (depRecGZ GZ posP negSucP).
-Proof.
-  intros z1 z2 H.
-  rewrite H.
-  reflexivity.
-Qed.
-
 (*
  * We would like to be able to rewrite the function arguments to depRec, 
  * but we can't actually prove functions are equal without some form of 
- * extensionality. Instead, we define extensional equality as a relation. 
- * It isn't an equivalence relation, because it isn't reflexive; not all 
- * functions are proper morphisms. It is symmetric and transitive, though,
- * so it forms a partial equivalence relation, which is good enough to 
- * do rewriting.
- *)
-
-Definition natExtEqual (C : Type) (eq_C : C -> C -> Prop)
-  `(eq_C_equiv : Equivalence _ (eq_C)) (f1 f2 : nat -> C) : Prop :=
-  Proper (eq ==> eq_C) f1 /\ Proper (eq ==> eq_C) f2 /\
-  forall (n1 n2 : nat), n1 = n2 -> eq_C (f1 n1) (f2 n2).
-
-Instance natExtEqualSym (C : Type) (eq_C : C -> C -> Prop)
-  `(eq_C_equiv : Equivalence _ (eq_C)) : Symmetric (natExtEqual C eq_C eq_C_equiv).
-Proof.
-  intros f1 f2 H.
-  destruct H.
-  destruct H0.
-  split.
-  apply H0.
-  split.
-  apply H.
-  intros.
-  symmetry.
-  apply H1.
-  symmetry.
-  apply H2.
-Qed.
-
-Instance natExtEqualTrans (C : Type) (eq_C : C -> C -> Prop)
-  `(eq_C_equiv : Equivalence _ (eq_C)) : Transitive (natExtEqual C eq_C eq_C_equiv).
-Proof.
-  intros f1 f2 f3 H1 H2.
-  destruct H1.
-  destruct H0.
-  destruct H2.
-  destruct H3.
-  split.
-  apply H.
-  split.
-  apply H3.
-  intros.
-  transitivity (f2 n1).
-  apply H1; auto.
-  apply H4; auto.
-Qed.
-
-Instance natExtEqualPER (C : Type) (eq_C : C -> C -> Prop)
-  `(eq_C_equiv : Equivalence _ (eq_C)) : PER (natExtEqual C eq_C eq_C_equiv).
-Proof.
-  split.
-  apply natExtEqualSym.
-  apply natExtEqualTrans.
-Qed.
-
-(*
+ * extensionality. Instead, we use Coq's built in notion of a
+ * pointwise relation, which says that two functions are related
+ * if their outputs at each point are related. This relies on that
+ * the posP and negSucP cases for depRec are functions from nat, which 
+ * we are using strict equality for and not an equivalence relation.
+ * pointwise_relation does not support the case where the domain is a
+ * setoid and we wish to require that for related elements of the domain,
+ * the output is related. 
+ *
  * We have that depRec is proper with respect to the function arguments
- * as a separate instance from our other proof. This is because the lack
- * of reflexivity on natExtEqual means that we would need to manually
- * prove that the function arguments are related to themselves when
- * rewriting other arguments to depRec. Having both instances means that
- * rewriting the non-function argument does not generate these extra
- * obligations.
+ * as a separate instance from our other proof. Some rewrites will fail
+ * if only the following instance is present. I don't know the exact reason
+ * for this, but my assumption is that the type class search becomes too hard.
  *)
 
-Instance depRecGZCasesProper (C : Type) (eq_C : C -> C -> Prop)
+Instance depRecGZProper' (C : Type) (eq_C : C -> C -> Prop)
   `(eq_C_equiv : Equivalence _ (eq_C)) :
-  Proper ((natExtEqual C eq_C eq_C_equiv) ==> (natExtEqual C eq_C eq_C_equiv) ==> eq_GZ ==> eq_C) (depRecGZ C).
+  Proper
+    (pointwise_relation nat eq_C ==>
+       pointwise_relation nat eq_C ==>
+       eq_GZ ==>
+       eq_C)
+    (depRecGZ C).
 Proof.
   intros f1 f2 H1 f3 f4 H2 n1 n2 H3.
   rewrite depRecCanonical.
@@ -628,14 +586,8 @@ Proof.
   rewrite H3.
   unfold depRecGZ.
   destruct (canonicalizeSignDec (canonicalize n2)).
-  - destruct H1.
-    destruct H0.
-    apply H1.
-    reflexivity.
-  - destruct H2.
-    destruct H0.
-    apply H2.
-    reflexivity.
+  - apply H1.
+  - apply H2.
 Qed.
 
 (*
@@ -664,6 +616,8 @@ Proof.
     rewrite e.
     apply negSucP.
 Defined.
+
+(* Now, we define our iota reduction rules. *)
 
 Definition iotaRecGZPosEq (C : Type)
   (posP : forall (n : nat), C)
@@ -746,6 +700,7 @@ Definition etaGZ (z : GZ) := z.
  * but the existing repair tool currently uses the functions internally 
  * as a key for caching.
  *)
+
 Definition p (x : Z) : GZ :=
   match x with
   | pos n => (n, 0)
@@ -792,24 +747,14 @@ Proof.
     reflexivity.
 Qed.
 
-Ltac solve_respectful2 t :=
- match goal with
-   | |- respectful _ _ _ _ =>
-     let H := fresh "H" in
-     intros ? ? H; solve_respectful ltac:(try setoid_rewrite H; t)
-   | _ => t; reflexivity
- end.
-
-Ltac solve_proper2 :=
-  unfold Proper; solve_respectful2 ltac:(idtac).
-
 (*
- * Now, we specify our setoid to the automation. Types contains a list of
- * the types with specified equivalence relations, rels contains the equivalence
- * relations, and equiv_proofs contains the proofs that the relations are 
+ * Now, we specify our setoid to the automation. types_b contains a list of
+ * the types with specified equivalence relations, rels_b contains the equivalence
+ * relations, and equiv_proofs_b contains the proofs that the relations are 
  * instances of Equvialence. They must be provided in the same order; that is,
- * the nth element of types, rels, and equiv_proofs should all correspond to the
- * same type.
+ * the nth element of types_b, rels_b, and equiv_proofs_b should all correspond to the
+ * same type. types_a, rels_a, and equiv_proofs_a are empty because we don't specify 
+ * any types in the source to be setoids.
  *)
 
 Save setoid Z GZ { promote = p ; forget = f ; types_a = ; rels_a = ; equiv_proofs_a = ; types_b = GZ ; rels_b = eq_GZ ; equiv_proofs_b = eq_GZ_equiv }.
@@ -832,8 +777,10 @@ Configure Lift Z GZ {
     iota_b = iotaRecGZPos iotaRecGZPosRev iotaRecGZNegSuc iotaRecGZNegSucRev
   }.
 
+Set DEVOID lift type.
+
 (*
- * We first lift the dependent eliminator, which prevents the tool from
+ * We first call lift on the dependent eliminator, which prevents the tool from
  * unfolding the definition of the repaired eliminator. This helds the 
  * setoid automation successfully discover proofs.
  *)
@@ -844,140 +791,56 @@ Lift Z GZ in depRecZ as depRecLifted.
 
 Lift Z GZ in constZ as constGZ.
 
+Print constGZ.
+
 Lift Z GZ in sucZ as sucGZ.
 
-(* At present, Pumpkin Pi will not generate proofs that the
- * functions we define are Proper, so we need to do this manually.
- * In the future, we can automatically discover many of these 
- * proofs using tactics for proof search, such as the one below.
- *)
-
-Instance sucGZProper :
-  Proper (eq_GZ ==> eq_GZ) sucGZ.
-Proof.
-  solve_proper.
-Qed.
+Print sucGZ.
 
 Lift Z GZ in predZ as predGZ.
 
-Instance predGZProper :
-  Proper (eq_GZ ==> eq_GZ) predGZ.
-Proof.
-  solve_proper.
-Qed.
-
-Ltac solve3 x t :=
-  match goal with
-  | |- respectful _ _ _ _ =>
-    let H := fresh "H" in
-    intros ? ? H; solve3 x ltac:(try setoid_rewrite H; t)
-  | _ => t; induction x; simpl; (try (f_equiv; auto); try (t; reflexivity))
-  end.
-
-Ltac solve2 x t :=
-  match goal with
-  | |- Proper _ _ =>
-    unfold Proper; solve3 x t
-  | _ => 
-    let H := fresh "H" in
-    intros H ?; solve2 x ltac:(try setoid_rewrite H; t)
-  end.
-
-Ltac solve_elim_proper :=
-  let x := fresh "x" in
-  intros x; solve2 x ltac:(idtac).
+Print predGZ.
   
 Lift Z GZ in add_posZ as add_posGZ.
 
-Print add_posZ.
-
-Definition test4 := fun (z : Z) (n : nat) => nat_rec (constZ nat) (sucZ z) (fun (_ : nat) (p : Z) => sucZ p) n.
-
-Lift Z GZ in test4 as test5.
-
-Instance add_posGZProper :
-  Proper (eq_GZ ==> eq ==> eq_GZ) add_posGZ.
-Proof.
-  intros z1 z2 H1 n1 n2 H2.
-  unfold add_posGZ.
-  subst.
-  induction n2.
-  - simpl. apply H1.
-  - simpl. f_equiv. apply IHn2.
-Qed.   
+Print add_posGZ.
 
 Lift Z GZ in add_negsucZ as add_negsucGZ.
 
-Instance add_negsucGZProper :
-  Proper (eq_GZ ==> eq ==> eq_GZ) add_negsucGZ.
-Proof.
-  intros z1 z2 H1 n1 n2 H2.
-  unfold add_negsucGZ.
-  subst.
-  induction n2.
-  - simpl. f_equiv. apply H1.
-  - simpl. f_equiv. apply IHn2.
-Qed.  
+Print add_negsucGZ.
 
 Lift Z GZ in addZ as addGZ.
 
-Instance addGZProper :
-  Proper (eq_GZ ==> eq_GZ ==> eq_GZ) addGZ.
-Proof.
-  intros z1 z2 H1 z3 z4 H2.
-  unfold addGZ.
-  apply (depRecGZCasesProper GZ eq_GZ eq_GZ_equiv).
-  - split.
-    apply add_posGZProper.
-    reflexivity.
-    split.
-    apply add_posGZProper.
-    reflexivity.
-    intros.
-    rewrite H.
-    apply add_posGZProper;
-    auto.
-  - split.
-    apply add_negsucGZProper.
-    reflexivity.
-    split.
-    apply add_negsucGZProper.
-    reflexivity.
-    intros.
-    rewrite H.
-    apply add_negsucGZProper;
-    auto.
-  - apply H2.
-Qed.
+Print addGZ.
 
 Lift Z GZ in add0RZ as add0RGZ.
 
+Print add0RGZ.
+
 (* 
- * Now, we will lift add0LZ. This theorem uses both depRecGZ and
- * depElimPropGZ in its proof. As such, we cannot directly lift it,
- * because we can't provide Pumpkin Pi with both eliminators at once.
- * Instead, we first decompose the term into subterms which only 
- * contain depRecGZ, and lift all of those terms.
- *)
-
-Definition add0LMotiveZ := fun z1 : Z => z1 = addZ (depConstrZPos 0) z1.
-
-Lift Z GZ in add0LMotiveZ as add0LMotiveGZ.
-
-(*
- * These terms are large, but are directly copied and pasted from
- * printing add0LZ, so they aren't hard to obtain. We could also
- * generate these terms in proof mode instead if the terms
- * become too large to handle manually.
+ * Now, we will lift add0LZ. This theorem uses depElimPropGZ in its proof. 
+ * As such, we cannot immediately repair it. Instead, we need to specialize
+ * depElimPropGZ to use the lifted motive for the specialized depElimPropZ
+ * we defined earlier, and then provide it with a proof that the repaired motive
+ * is proper. In this case, the proper proof is automatically generated by
+ * Pumpkin Pi. Then, we reconfigure the tool to use the specialized depElimProps,
+ * and can repair add0LZ.
+ *
+ * A bug in Pumpkin Pi which only surfaces in this case study is causing 
+ * repairing calls to eq_rect_r to fail if Configure is called again, even
+ * when configuring with the same arguments as to the first call. 
+ * To circumvent this bug, we first repair each branch we pass to depElimProp, 
+ * then reconfigure with our specialized eliminators. Then, we can repair a version
+ * of add0LZ which is defined using these repaired branches. In addition, we need to
+ * repair the branches before repairing the motive, or the repair fails.
  *)
 
 Definition add0LPosCaseZ :=
   (fun n : nat =>
    nat_ind
-     (fun n0 : nat =>
-      depConstrZPos n0 = addZ (depConstrZPos 0) (depConstrZPos n0)) eq_refl
+     (fun n0 : nat => add0LZMotive (depConstrZPos n0)) eq_refl
      (fun (n0 : nat)
-        (IHn : depConstrZPos n0 = addZ (depConstrZPos 0) (depConstrZPos n0)) =>
+        (IHn : add0LZMotive (depConstrZPos n0)) =>
       iotaZPos Z (fun q : nat => depConstrZPos (S q))
         (fun q : nat =>
          nat_rec (constZ nat) (depConstrZPos 0)
@@ -1013,15 +876,12 @@ Definition add0LPosCaseZ :=
 
 Lift Z GZ in add0LPosCaseZ as add0LPosCaseGZ.
 
+Print add0LPosCaseGZ.
+
 Definition add0LNegSucCaseZ :=
   (fun n : nat =>
-   nat_ind
-     (fun n0 : nat =>
-      depConstrZNegSuc n0 = addZ (depConstrZPos 0) (depConstrZNegSuc n0))
-     eq_refl
-     (fun (n0 : nat)
-        (IHn : depConstrZNegSuc n0 =
-               addZ (depConstrZPos 0) (depConstrZNegSuc n0)) =>
+   nat_ind (fun n0 : nat => add0LZMotive (depConstrZNegSuc n0)) eq_refl
+     (fun (n0 : nat) (IHn : add0LZMotive (depConstrZNegSuc n0)) =>
       iotaZNegSuc Z
         (fun q : nat =>
          nat_rec (constZ nat) (depConstrZNegSuc 0)
@@ -1043,7 +903,7 @@ Definition add0LNegSucCaseZ :=
                  (fun m : nat =>
                   nat_rec (constZ nat) (depConstrZNegSuc 0)
                     (fun (p : nat) (_ : constZ nat p) => depConstrZPos p) m)
-                 (fun m : nat => depConstrZNegSuc (S m)) (depConstrZNegSuc n0) =
+                 (fun m : nat => depConstrZNegSuc (S m)) (depConstrZNegSuc n0) = 
                predZ s)
               (eq_rect_r
                  (fun x : Z =>
@@ -1053,90 +913,36 @@ Definition add0LNegSucCaseZ :=
                        (fun (p : nat) (_ : constZ nat p) => depConstrZPos p) m)
                     (fun m : nat => depConstrZNegSuc (S m)) x =
                   predZ
-                    (depRecZ Z
-                       (fun q : nat => add_posZ (depConstrZPos 0) q)
-                       (fun q : nat => add_negsucZ (depConstrZPos 0) q)
+                    (depRecZ Z (fun q : nat => add_posZ (depConstrZPos 0) q)
+                       (fun q : nat => add_negsucZ (depConstrZPos 0) q) 
                        (depConstrZNegSuc n0))) eq_refl IHn)))) n).
 
-Lift Z GZ in add0LNegSucCaseZ as add0LNecSucCaseGZ.
+Lift Z GZ in add0LNegSucCaseZ as add0LNegSucCaseGZ.
 
-(*
- * depElimPropGZ requires as an argument that the motive is Proper,
- * so we need to write this proof.
- *)
+Print add0LNegSucCaseGZ.
 
-Instance add0LMotiveProper :
-  Proper (eq_GZ ==> iff) add0LMotiveGZ.
-Proof.
-  intros z1 z2 H.
-  unfold add0LMotiveGZ.
-  rewrite H.
-  reflexivity.
-Qed.
+Lift Z GZ in add0LZMotive as add0LGZMotive.
 
-(* 
- * To account for that depElimPropGZ requires a proof of Proper as an
- * argument, we specialize our eliminator to this motive, so that the types
- * align.
- *)
+Print add0LGZMotive.
 
-Definition appliedDepElimPropZ := depElimPropZ add0LMotiveZ.
-Definition appliedDepElimPropGZ := depElimPropGZ add0LMotiveGZ add0LMotiveProper.
-
-(*
- * Now, we configure Pumpkin Pi to use these eliminators.
- * We never defined iotas for these eliminators, nor do we 
- * need them, so we just keep the olds ones; they will not
- * be used.
- *)
+Definition depElimPropGZAdd0LGZ := depElimPropGZ add0LGZMotive add0LGZMotive_proper.
 
 Configure Lift Z GZ {
     constrs_a = depConstrZPos depConstrZNegSuc ;
     constrs_b = depConstrGZPos depConstrGZNegSuc ;
-    elim_a = appliedDepElimPropZ ;
-    elim_b = appliedDepElimPropGZ ;
+    elim_a = depRecZ depElimPropZAdd0LZ ;
+    elim_b = depRecGZ depElimPropGZAdd0LGZ ;
     eta_a = etaZ ;
     eta_b = etaGZ ;
     iota_a = iotaZPos iotaZPosRev iotaZNegSuc iotaZNegSucRev ;
     iota_b = iotaRecGZPos iotaRecGZPosRev iotaRecGZNegSuc iotaRecGZNegSucRev
   }.
 
-(*
- * We now redefine add0LZ using only these
- * subterms and appliedDepElimPropGZ Because Pumpkin Pi 
- * already has lifted add0LPosCaseZ and add0LNegSucCaseZ,
- * it has the results of lifting them cached, and can lift them
- * without seeing the call to depRecZ in it.
- * This allows the lifting to go through.
- * Eventually, Pumpkin Pi will support providing multiple eliminators
- * at once, and this process will become unnecessary.
- *)
+Definition add0LZ' (z : Z) : z = addZ (depConstrZPos 0) z := depElimPropZAdd0LZ add0LPosCaseZ add0LNegSucCaseZ z.
 
-Theorem add0LZ' (z : Z) : z = addZ (depConstrZPos 0) z.
-Proof.
-  apply appliedDepElimPropZ.
-  apply add0LPosCaseZ.
-  apply add0LNegSucCaseZ.
-Qed.
-  
 Lift Z GZ in add0LZ' as add0LGZ.
 
-(*
- * The types of add0LGZ' and add0RGZ' are superficially different from the 
- * types we would get by lifting the types of the theorems in Z,
- * but these types are convertible, which we can see by proving manually lifted
- * theorem statemets by applying add0LGZ' and add0RGZ'.
- *)
-
-Theorem add0RGZ' (z : GZ) : eq_GZ z (addGZ z (depConstrGZPos 0)).
-Proof.
-  apply add0RGZ.
-Qed.
-
-Theorem add0LGZ' (z : GZ) : eq_GZ z (addGZ (depConstrGZPos 0) z).
-Proof.
-  apply add0LGZ.
-Qed.
+Print add0LGZ.
 
 (*
  * The repaired addition function we have is correct, and comes with many theorems,
@@ -1407,67 +1213,6 @@ Theorem fastAdd0LGZ : forall (z : GZ), eq_GZ z (fastAddGZ (depConstrGZPos 0) z).
 Proof.
   intros.
   rewrite <- addEqualFastAdd.
+  Check add0LGZ.
   apply add0LGZ.
 Qed.
-
-Print nat_rec.
-
-Theorem test : forall (n : nat) (H1 : forall n : nat, GZ -> GZ) (H1prop : Proper (eq ==> eq_GZ ==> eq_GZ) H1),
-    Proper (eq_GZ ==> eq_GZ) (fun x => nat_rec (constGZ nat) x H1 n).
-Proof.
-  solve_elim_proper.
-Qed.
-
-Theorem test3 : forall (H : nat)
-    (H0 : forall n : nat, (fun _ : nat => GZ) n -> (fun _ : nat => GZ) (S n)),
-  Proper (eq ==> eq_GZ ==> eq_GZ) H0 ->
-  Proper (eq_GZ ==> eq_GZ)
-    (fun H2 : (fun _ : nat => GZ) 0 => nat_rec (fun _ : nat => GZ) H2 H0 H).
-Proof.
-  solve_elim_proper.
-Defined.
-
-Print test3.
-
-Theorem test2 : Proper (eq_GZ ==> eq ==> eq_GZ)
-   (fun (z : GZ) (n : nat) =>
-      nat_rec (constGZ nat) z (fun (_ : nat) (p : GZ) => sucGZ p) n).
-Proof.
-  unfold Proper.
-  unfold respectful.
-  intros x1 x2 H1.
-  intros y1 y2 H2.
-  rewrite H2.
-  pose (fun (x : nat) (H : forall n : nat, (fun _ : nat => GZ) n -> (fun _ : nat => GZ) (S n)) (H0 : Proper (eq ==> eq_GZ ==> eq_GZ) H) (x0 y : GZ) (H1 : eq_GZ x0 y) =>
-trans_co_eq_inv_impl_morphism eq_GZ_trans (nat_rec (fun _ : nat => GZ) x0 H x) (nat_rec (fun _ : nat => GZ) y H x)
-  (PeanoNat.Nat.recursion_wd eq_GZ x0 y H1 H H (proper_proper_proxy H H0) x x (eq_proper_proxy x)) (nat_rec (fun _ : nat => GZ) y H x) (nat_rec (fun _ : nat => GZ) y H x)
-  (eq_proper_proxy (nat_rec (fun _ : nat => GZ) y H x))
-  (nat_ind (fun x1 : nat => eq_GZ (nat_rec (fun _ : nat => GZ) y H x1) (nat_rec (fun _ : nat => GZ) y H x1)) (reflexive_proper y)
-     (fun (x1 : nat) (_ : eq_GZ (nat_rec (fun _ : nat => GZ) y H x1) (nat_rec (fun _ : nat => GZ) y H x1)) =>
-      let R := eq_GZ in
-      let H2 : (R ==> eq_GZ)%signature (H x1) (H x1) := let R0 := eq in let H3 : (R0 ==> eq_GZ ==> eq_GZ)%signature H H := H0 in H3 x1 x1 eq_refl in
-      H2 (nat_rec (fun _ : nat => GZ) y H x1) (nat_rec (fun _ : nat => GZ) y H x1) (reflexivity (nat_rec (fun _ : nat => GZ) y H x1))) x)).
-  apply e.
-  - solve_proper2.
-  - try rewrite H1.
-    reflexivity.
-Qed.
-
-Inductive testi (P : nat -> Type) : Type :=
-| t : testi P.
-
-Print testi_rect.
-
-Definition START_REWRITE {A B : Type} {a1 a2 : A} {eq : relation A} (H : eq a1 a2) (x : B) := x.
-
-Ltac rewrite_annotate H := apply (START_REWRITE H); rewrite H.
-
-Theorem test7 (z1 z2 : GZ) (H : eq_GZ z1 z2) : eq_GZ (sucGZ z1) (sucGZ z2).
-Proof.
-  rewrite_annotate H.
-  reflexivity.
-Qed.
-
-Print test7.
-
-Print addEqualFastAdd.
