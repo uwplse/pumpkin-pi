@@ -439,8 +439,12 @@ let rewrite_equalities env proof pvm l =
 let rec try_setoid_rewrite_equalities env proof pvm l =
   match l with
   | [] -> (proof, pvm)
-  | (n1, n2, h) :: t -> 
-      let (proof, pvm) = Proof.run_tactic env (try_tactical (Setoidutils.setoid_rewrite_tactic_from_id h)) proof in
+  | (n1, n2, h) :: t ->
+     let rewrite_tac =
+       try_tactical (Proofview.tclOR
+                       (Setoidutils.setoid_rewrite_tactic_from_id h)
+                       (fun _ -> Setoidutils.rewrite_tactic_from_id h)) in
+     let (proof, pvm) = Proof.run_tactic env rewrite_tac proof in
       let (proof, pvm) = Proof.run_tactic env (Tactics.clear [h; n1]) proof in
       try_setoid_rewrite_equalities env proof pvm t
 
@@ -525,33 +529,6 @@ let solve_current_proper_subgoal c env sigma proof pvm eqs_to_rewrite =
   let _ = Feedback.msg_warning (Pp.str "solve_current_proper_subgoal 6") in
   let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   (proof, pvm)
-  (*let resp_glob_ref =
-  Names.GlobRef.ConstRef (Constant.make2 coq_classes_morphisms (Label.make "respectful")) in
-  let (proof, pvm) = unfold_proper proof env in
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
-  (*unfold_constr resp_glob_ref runs, but unfold_first_respectful doesn't; why? looks like it has to be the locus?*)
-  let (proof, pvm) = Proof.run_tactic
-    env
-     (Tactics.unfold_in_concl [(Locus.OnlyOccurrences [1]), respectful_evaluable_glob_ref])
-     proof in
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
-  let (proof, pvm) = Proof.run_tactic env (Tactics.unfold_constr resp_glob_ref) proof in
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
-  let _ = Feedback.msg_warning (Pp.str "solve_current_proper_subgoal 3") in
-  let (proof, pvm), eq_rel_proofs = intro_all_respectfuls proof pvm env in
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
-  let new_num_goals = num_focused_goals proof in
-  let _ = Feedback.msg_warning (Pp.str "solve_current_proper_subgoal 4") in
-  if num_goals != new_num_goals then
-    (proof, pvm)
-  else
-    let _ = Feedback.msg_warning (Pp.str "solve_current_proper_subgoal 5") in
-    let (proof, pvm) = try_setoid_rewrite_equalities env proof pvm eqs_to_rewrite in
-    let _ = Feedback.msg_warning (Pp.str "solve_current_proper_subgoal 6") in
-    let (proof, pvm) = Proof.run_tactic env Tactics.reflexivity proof in
-    let _ = Feedback.msg_warning (Pp.str "solve_current_proper_subgoal 7") in
-    (proof, pvm)*)
-    
     
 let solve_proper_goal c env sigma goal def =
   let proof = Proof.start sigma [(env, EConstr.of_constr goal)] in
