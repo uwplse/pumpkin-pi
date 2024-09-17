@@ -531,6 +531,16 @@ Qed.
 
 Definition etaTLQ (q : TLQ) := q.
 
+(* 
+ * Our functions have output types which are derived from TLQ.
+ * Thus, we need to define equivalence relations on them too if
+ * we want to compare their elements in the natural way.
+ * For instance, we need to define an equivalenec relation on
+ * A * TLQ if we want two elements of A * TLQ to be related if
+ * their first elements are equal and their second elements are
+ * related in the setoid.
+ *)
+
 Definition eq_prod (A B : Type) (eqA : A -> A -> Prop)
   (eqB : B -> B -> Prop) (p1 p2 : A * B) : Prop :=
   match p1, p2 with
@@ -703,12 +713,13 @@ Proof.
 Qed.
 
 (*
- * Now, we specify our setoid to the automation. Types contains a list of
- * the types with specified equivalence relations, rels contains the equivalence
- * relations, and equiv_proofs contains the proofs that the relations are 
+ * Now, we specify our setoid to the automation. types_b contains a list of
+ * the types with specified equivalence relations, rels_b contains the equivalence
+ * relations, and equiv_proofs_b contains the proofs that the relations are 
  * instances of Equvialence. They must be provided in the same order; that is,
  * the nth element of types, rels, and equiv_proofs should all correspond to the
- * same type.
+ * same type. types_a, rels_a, and equiv_proofs_a are empty because we don't consider
+ * any of the types in the source to be equivalence relations.
  *)
 
 Save setoid OLQ TLQ { promote = promote ; forget = forget ; types_a = ; rels_a = ; equiv_proofs_a = ; types_b = TLQ deq_ret ; rels_b = eq_queue eq_deq_ret ; equiv_proofs_b = eq_queue_equiv eq_deq_ret_equiv }.
@@ -724,39 +735,30 @@ Configure Lift OLQ TLQ {
     iota_b = iotaRecTLQEmpty iotaRecTLQEmptyRev iotaRecTLQInsert iotaRecTLQInsertRev
   }.
 
+Set DEVOID lift type.
+
 (*
- * We first lift the dependent eliminator, which prevents the tool from
+ * We first repair the dependent eliminator, which prevents the tool from
  * unfolding the definition of the repaired eliminator. This helps the 
  * setoid automation successfully discover proofs.
  *)
 
 Lift OLQ TLQ in depRecOLQ as depRecLifted.
 
-(* Now, we begin lifting the functions we defined over OLQ. *)
+(* Now, we begin repairing the functions we defined over OLQ. *)
 
 Lift OLQ TLQ in enqueueOLQ as enqueueTLQ.
 
-(* At present, Pumpkin Pi will not generate proofs that the
- * functions we define are Proper, so we need to do this manually.
- * In the future, we can automatically discover many of these 
- * proofs using tactics for proof search, such as the one below.
- *)
-
-Instance enqueueTLQProper (a : A) : Proper (eq_queue ==> eq_queue) (enqueueTLQ a).
-Proof.
-  solve_proper.
-Qed.
+Print enqueueTLQ.
 
 Lift OLQ TLQ in dequeueHelpOLQ as dequeueHelpTLQ.
 
-(* Sometimes, the types of the lifted terms that Coq shows are superficially
- * different from what we might expect, but are convertible to the type we 
- * expect. We show that this is the case by applying the lifted term to define
- * a term of the type we naturally expect.
- *)
+Print dequeueHelpTLQ.
 
-Definition dequeueHelpTLQ' (a : A) (q : TLQ) (m : option (TLQ * A)) : option (TLQ * A) :=
-  dequeueHelpTLQ a q m.
+(*
+ * Generating a proof that dequeueHelpTLQ is proper fails, 
+ * so we must do it manually.
+ *)
 
 Instance dequeueHelpTLQProper (a : A) :
   Proper (eq_queue ==> eq_deq_ret ==> eq_deq_ret) (dequeueHelpTLQ a).
@@ -783,12 +785,16 @@ Qed.
 
 Lift OLQ TLQ in dequeueOLQ as dequeueTLQ.
 
-Instance dequeueTLQProper : Proper (eq_queue ==> eq_deq_ret) dequeueTLQ.
-Proof.
-  solve_proper.
-Qed.
+Print dequeueTLQ.
 
 Lift OLQ TLQ in returnOrEnqOLQ as returnOrEnqTLQ.
+
+Print returnOrEnqTLQ.
+
+(*
+ * Generating a proof that returnOrEnqTLQ is proper fails, 
+ * so we must do it manually.
+ *)
 
 Instance returnOrEnqTLQProper (a : A) :
   Proper (eq_deq_ret ==> (eq_prod TLQ A eq_queue eq)) (returnOrEnqTLQ a).
@@ -800,7 +806,9 @@ Proof.
      destruct p0.
      destruct H.
      split.
-     + apply enqueueTLQProper.
+     + simpl.
+       apply enqueueTLQ_proper.
+       reflexivity.
        apply H.
      + apply H0.
   - contradiction.
@@ -809,20 +817,26 @@ Proof.
     split; reflexivity.
 Qed.
 
-(* We can similarly lift dequeueEmptyOLQ, dequeueEnqueueTypeOLQ and dequeueEnqueueOLQ. *)
+(* We can similarly repair dequeueEmptyOLQ, dequeueEnqueueTypeOLQ and dequeueEnqueueOLQ. *)
 
 Lift OLQ TLQ in dequeueEmptyOLQ as dequeueEmptyTLQ.
 
+Print dequeueEmptyTLQ.
+
 Lift OLQ TLQ in dequeueEnqueueTypeOLQ as dequeueEnqueueTypeTLQ.
 
+Print dequeueEnqueueTypeTLQ.
+
 Lift OLQ TLQ in dequeueEnqueueOLQ as dequeueEnqueueTLQ.
+
+Print dequeueEnqueueTLQ.
 
 (*
  * The repaired dequeue function we have is correct, and comes with many theorems,
  * but it is not especially efficient, because it require computing a canonical
  * element of the equivalence class of its inputs. 
  * Now, we see how we can define a more efficient dequeue function, and prove
- * that it produces the same output as the lifted dequeue function.
+ * that it produces the same output as the repaired dequeue function.
  * First, we define our fast dequeue function. Notice that it can directly access 
  * the head of the second list if it is nonempty, and only reverses the first list
  * onto the second list if the second list is empty. This improves the average case
@@ -963,15 +977,4 @@ Proof.
     rewrite H0.
     rewrite H.
     reflexivity.
-Qed.
-
-Require Import List.
-Import ListNotations.
-
-Print list_rect.
-
-Theorem test : forall (l : list nat) (H1 : (forall (a : nat) (l : list nat), TLQ -> TLQ)) (H1prop : Proper (eq ==> eq ==> eq_queue ==> eq_queue) H1),
-    Proper (eq_queue ==> eq_queue) (fun x => list_rect (fun _ => TLQ) x H1 l).
-Proof.
-  solve_elim_proper.
 Qed.
