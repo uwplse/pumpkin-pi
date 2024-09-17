@@ -1887,10 +1887,7 @@ Module CEPPoly.
   (*   - simpl. rewrite IHl. rewrite H. reflexivity. *)
   (* Defined. *)
   Definition combined_n_m n m : list (nat * nat) :=
-              (combine
-                 (repeat 0 (n - m))
-                 (rev (seq m (n - m)))
-              ).
+    combine (repeat 0 (n - m)) (rev (seq m (n - m))).
   Compute (combined_n_m 6 3).
 
 
@@ -1962,6 +1959,123 @@ Module CEPPoly.
       + reflexivity.
   Defined.
 
+  Print coeffListFromCEP.
+  Print canonicalize.
+  Print canonicalize_help.
+
+  Definition CoeffPairsNToMaxDeg (n : nat) (p : CEPPoly) :=
+    map (fun x => (coeff p x, x)) (seq n (get_max_degree p + 1 - n)).
+
+  Module Test.
+  Print canonicalize_help.
+
+  Definition p := [(3, 1); (2, 4); (5, 2)].
+  Definition n := 3.
+  Definition exp := 5.
+
+  Print canonicalize_help.
+  Print seq.
+
+  Eval compute in (seq 0 (get_max_degree p + 1 - 0)).
+
+  Eval compute in (canonicalize_help [] p n) ++ ((coeff p (S n), S n) :: (CoeffPairsNToMaxDeg (S n) p)).
+
+  Eval compute in (nth exp
+    (rev (removeLeadingZeros (coeffListFromCEPHelp (rev (canonicalize_help (CoeffPairsNToMaxDeg (S n) p) p n)))))
+    0).
+  Eval compute in (nth exp
+    (rev (removeLeadingZeros (coeffListFromCEPHelp (rev (canonicalize_help ((coeff p (S n), S n) :: (CoeffPairsNToMaxDeg (S n) p)) p n)))))
+    0).
+  End Test.
+
+  Module Test2.
+    Definition p := [(1, 0) ; (2, 1) ; (3, 2)].
+    Definition n := 3.
+    Eval compute in ((coeff p (S n), S n) :: CoeffPairsNToMaxDeg (S (S n)) p = CoeffPairsNToMaxDeg (S n) p).
+  Eval compute in (S n :: seq (S (S n)) (get_max_degree p + 1 - S (S n)) = seq (S n) (get_max_degree p + 1 - S n)).
+  End Test2.
+
+  Theorem coeffListFromCEPCoeff :
+    forall (n : nat) (p : CEPPoly) (exp : nat) (acc : CEPPoly),
+      acc = CoeffPairsNToMaxDeg (S n) p ->
+      coeff p exp = nth exp (rev (removeLeadingZeros (coeffListFromCEPHelp (rev (canonicalize_help acc p n))))) 0.
+  Proof.
+    induction n.
+    - intros.
+      simpl.
+      unfold coeffListFromCEPHelp.
+      rewrite map_app.
+      simpl.
+      rewrite removeLeadingZerosnth.
+      rewrite rev_app_distr.
+      simpl.
+      rewrite H.
+      rewrite map_rev.
+      rewrite rev_involutive.
+      unfold CoeffPairsNToMaxDeg.
+      rewrite map_map.
+      simpl.
+      enough (forall (A : Type) (d : A) (n len start : nat) (f : nat -> A), n < len -> nth n (map f (seq start len)) d = f (start + n)).
+      destruct (PeanoNat.Nat.le_decidable exp (get_max_degree p)).
+      destruct exp; auto.        
+      rewrite (H0 nat 0 exp (get_max_degree p + 1 - 1)).
+      reflexivity.
+      unfold lt.
+        lia.
+        destruct exp; auto.
+        rewrite nth_overflow.
+        assert (get_max_degree p < S exp).
+        lia.
+        Print remove_greater_than_max_degree.
+        enough (get_max_degree p < S exp -> coeff p (S exp) = 0).
+        * apply H3.
+          apply H2.
+        * give_up.
+        * rewrite map_length.
+          rewrite seq_length.
+          lia.
+        * give_up. (*prove this*)
+       (*this should be an assumption*)
+    - simpl.
+      intros.
+      rewrite H.
+      (*enough ((coeff p (S n), S n) :: CoeffPairsNToMaxDeg (S (S n)) p = CoeffPairsNToMaxDeg (S n) p).
+      rewrite H0.*)
+      pose proof (IHn p exp ((coeff p (S n), S n)  :: acc)).
+      destruct acc.
+      + simpl in H.
+        give_up.
+      + apply H0.
+      apply IHn.
+      reflexivity.
+      unfold CoeffPairsNToMaxDeg.
+      simpl.
+      assert ((coeff p (S n), S n) :: map (fun x : nat => (coeff p x, x)) (seq (S (S n)) (get_max_degree p + 1 - S (S n))) = map (fun x : nat => (coeff p x, x)) (S n :: seq (S (S n)) (get_max_degree p + 1 - S (S n)))).
+      reflexivity.
+      rewrite H0.
+      f_equal.
+      simpl.
+      rewrite (IHn _ _ (CoeffPairsNToMaxDeg (S (S n)) p)).
+      repeat f_equal.
+      rewrite H.
+      unfold CoeffPairsNToMaxDeg.
+      rewrite 
+        rewrite seq_shift.
+        rewrite seq_nth.
+      induction exp.
+      + reflexivity.
+      + rewrite map_rev.
+        rewrite rev_involutive.
+        
+        * rewrite H.
+          unfold CoeffPairsNToMaxDeg.
+          rewrite map_map.
+          simpl.
+    intros p.
+    remember (get_max_degree p).
+    revert Heqn.
+  
+  
   Theorem coeffListFromCEPCoeff :
     forall (p : CEPPoly) (exp : nat),
       coeff p exp = nth exp (rev (coeffListFromCEP p)) 0.
