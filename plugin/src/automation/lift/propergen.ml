@@ -86,37 +86,24 @@ let rec resp_from_typ_list c env sigma l =
   | [] -> failwith "Undefined."
   | h :: [] -> eq_rel_for_type sigma h
   | h1 :: h2 :: t ->
-     (Feedback.msg_warning (Pp.str "resp_from_typ_list 1");
-      let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma h1) in
-      let sigma, eq_rel = eq_rel_for_type sigma h1 in
-      Feedback.msg_warning (Pp.str "2");
+     (let sigma, eq_rel = eq_rel_for_type sigma h1 in
       let sigma, tail = resp_from_typ_list c env sigma (h2 :: t) in
-      Feedback.msg_warning (Pp.str "3");
       let f = (fun_type_from_type_list env (h2 :: t)) in
-      Feedback.msg_warning (Pp.str "4");
       let x = mkAppl (respectful, [h1 ; f ; eq_rel ; tail]) in
-      Feedback.msg_warning (Pp.str "5");
       (sigma, x))
 
 (* typ is the intended type of trm *)
 let proper_from_type_list c env sigma typ_list typ trm =
   let sigma, x = resp_from_typ_list c env sigma typ_list in
-  Feedback.msg_warning (Pp.str "h");
   sigma, Some (mkAppl (proper, [typ ; x ; trm]))
 
 let generate_proper_goal_from_trm c env sigma trm =
   let sigma, typ = Inference.infer_type env sigma trm in
-  let _ = Feedback.msg_warning (Pp.str "generate_proper_goal_from_trm") in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma typ) in
   let sigma, reduced_typ = Reducers.reduce_nf env sigma typ in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma reduced_typ) in
-  Feedback.msg_warning (Pp.str "f");
   if not (is_simple_fun_type reduced_typ) then
-    let _ = Feedback.msg_warning (Pp.str "i") in
     sigma, None
   else 
     let sigma, o = types_from_simple_fun_type env sigma reduced_typ in
-    Feedback.msg_warning (Pp.str "g");
     match o with
     | None -> sigma, None
     | Some (typ_list, out_typ) ->
@@ -130,19 +117,13 @@ let rec abstract_term_over_types env sigma types trm =
      mkLambda (fresh_var, h, abstract_term_over_types env sigma t trm)
 
 let resp_from_typ c env sigma typ =
-  let _ = Feedback.msg_warning (Pp.str "resp from typ 1") in
   let sigma, reduced_typ = Reducers.reduce_nf env sigma typ in
   let sigma, typ_list_o = types_from_simple_fun_type env sigma reduced_typ in
-  let _ = Feedback.msg_warning (Pp.str "resp from typ 2") in
   if not (Option.has_some typ_list_o) then
     sigma, None
   else
     let (typ_list, out_type) = Option.get typ_list_o in
-    let _ = Feedback.msg_warning (Pp.str "resp from typ 3") in
-    let _ = List.map (fun x -> Feedback.msg_warning (Printer.pr_constr_env env sigma x)) (List.append typ_list [out_type]) in
     let sigma, resp = resp_from_typ_list c env sigma (List.append typ_list [out_type]) in
-    let _ = Feedback.msg_warning (Pp.str "resp from typ 4") in
-    let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma resp) in
     sigma, Some resp
 
 let nparams_of_elim env elim =
@@ -154,48 +135,28 @@ let nparams_of_elim env elim =
     None
 
 let proper_goal_for_elim c env sigma elim out_typ =
-  (*TO FIX DEBRUIJN INDEX PROBLEMS:
-    when decomposing type of applied elim, shift non-local debruijn indices to what they should be if the term was moved to the first position under zoomed_elim.
-    then, shift variables again when building the final goal type. *)
-  let _ = Feedback.msg_warning (Pp.str "proper proof for elim 01") in
-  let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma elim) in
   let maybe_ind = Indutils.inductive_of_elim env (Constr.destConst elim) in
-  let _ = Feedback.msg_warning (Pp.str "proper proof for elim 02") in
   if not (Option.has_some maybe_ind) then
     sigma, None
   else
-    let _ = Feedback.msg_warning (Pp.str "proper proof for elim 03") in
     let ind = Option.get maybe_ind in
     let ind_typ = mkInd (ind, 0) in
     let nparams = Inductive.inductive_params (Inductive.lookup_mind_specif env (ind, 0)) in
-    let _ = Feedback.msg_warning (Pp.int nparams) in
-    let _ = Feedback.msg_warning (Pp.str "proper proof for elim 04") in
     let param_rel_list = List.rev (List.init nparams (fun x -> mkRel (x + 1))) in
-    let _ = Feedback.msg_warning (Pp.str "proper proof for elim 04.5") in
     (* construct constant function to out_type *)
     let fresh_var = Name (Envutils.fresh_name env Anonymous) in
-    let _ = Feedback.msg_warning (Pp.str "proper proof for elim 05") in
     let const_fn =
       if List.length param_rel_list = 0 then
         mkLambda (fresh_var, ind_typ, out_typ)
       else
         mkLambda (fresh_var, mkAppl (ind_typ, param_rel_list), out_typ) in
-    let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma const_fn) in
-    let _ = Feedback.msg_warning (Pp.str "proper proof for elim 06") in
     (* apply elim to constant function *)
     let unwrapped_elim = Envutils.unwrap_definition env elim in
-    let _ = Feedback.msg_warning (Pp.str "proper proof for elim 06.5") in
     let zoomed_env, zoomed_elim = Zooming.zoom_n_lambda env nparams unwrapped_elim in
-    let _ = Feedback.msg_warning (Pp.str "proper proof for elim 07") in
-    let _ = Feedback.msg_warning (Printer.pr_constr_env zoomed_env sigma zoomed_elim) in
     let elim_motive_app = mkAppl (zoomed_elim, [const_fn]) in
-    let _ = Feedback.msg_warning (Pp.str "proper proof for elim 08") in
-    let _ = Feedback.msg_warning (Printer.pr_constr_env zoomed_env sigma elim_motive_app) in
     let sigma, elim_motive_app_type = Inference.infer_type zoomed_env sigma elim_motive_app in
-    let _ = Feedback.msg_warning (Pp.str "proper proof for elim 09") in
     (* parse list to get ind hyps and base cases *)
     let sigma, o = types_from_simple_fun_type zoomed_env sigma elim_motive_app_type in
-    let _ = Feedback.msg_warning (Pp.str "proper proof for elim 1") in
     if not (Option.has_some o) then
       sigma, None
     else
@@ -204,15 +165,11 @@ let proper_goal_for_elim c env sigma elim out_typ =
         sigma, None
       else
         let hyp_list = List.rev (List.tl (List.rev typ_list)) in
-        let _ = List.map (fun x -> Feedback.msg_warning (Printer.pr_constr_env zoomed_env sigma x)) hyp_list in
-        let _ = Feedback.msg_warning (Pp.int (List.length hyp_list)) in
         let rec unshift_hyp_list l n =
           match l with
           | [] -> []
           | h :: t -> Debruijn.unshift_by n h :: (unshift_hyp_list t (n + 1)) in
         let hyp_list = unshift_hyp_list hyp_list 0 in
-        let _ = List.map (fun x -> Feedback.msg_warning (Printer.pr_constr_env zoomed_env sigma x)) hyp_list in
-        let _ = Feedback.msg_warning (Pp.int (List.length hyp_list)) in
         let sort_hyps (sigma, (base, inds)) typ =
           let sigma, test = Convertibility.convertible zoomed_env sigma typ out_typ in
           if test then
@@ -228,14 +185,9 @@ let proper_goal_for_elim c env sigma elim out_typ =
               sigma, Option.map (fun x -> mkAppl (proper, [typ ; x ; mkRel 1])) resp_o)
             ind_list
             sigma in
-        let _ = List.map (fun x -> Feedback.msg_warning (Printer.pr_constr_env zoomed_env sigma x)) ind_list in
-        let _ = Feedback.msg_warning (Pp.int (List.length ind_list)) in
-        let zzz = Option.get (List.hd ind_proper_goals) in
-        let _ = Feedback.msg_warning (Printer.pr_constr_env zoomed_env sigma zzz) in
         (* construct function type from proofs ind hyps are proper to that base cases are proper *)
         let num_base_cases = List.length base_list in
         let num_ind_cases = List.length ind_list in
-        let _ = Feedback.msg_warning (Pp.str "proper proof for elim 2") in
         let sigma, elim_args =
           (* Construct a list of DeBruijn indices for the final goal to pass to the eliminator as arguments.
              The order of the indices to the final function is:
@@ -247,29 +199,22 @@ let proper_goal_for_elim c env sigma elim out_typ =
             match l1 with
             | [] -> sigma, l2
             | h :: t ->
-               let _ = Feedback.msg_warning (Pp.str "elim_args_help call") in
                let sigma, eq = Convertibility.convertible zoomed_env sigma h out_typ in
                if eq then
                  (* this is a base case *)
-                 let _ = Feedback.msg_warning (Pp.str "elim_args_help base case") in
                  let num_of_var = num_base_cases - num_base_seen in
                  elim_args_help sigma (num_base_seen + 1) num_ind_seen t ((mkRel num_of_var) :: l2)
                else
                  (* this is an inductive case *)
-                 let _ = Feedback.msg_warning (Pp.str "elim_args_help ind case") in
                  let num_of_var = num_base_cases + 2 * (num_ind_cases - num_ind_seen) in
                  elim_args_help sigma num_base_seen (num_ind_seen + 1) t ((mkRel num_of_var) :: l2) in
           let sigma, l = elim_args_help sigma 0 0 hyp_list [] in
           sigma, List.rev ((mkRel (num_base_cases + 2 * num_ind_cases + 1)) :: l) in
-        let _ = List.map (fun x -> Feedback.msg_warning (Printer.pr_constr_env zoomed_env sigma x)) elim_args in
         let shifted_param_elim_args =
           List.map (Debruijn.shift_by_unconditional (num_base_cases + 2 * num_ind_cases + 1)) param_rel_list in
-        let _ = Feedback.msg_warning (Pp.str "proper proof for elim 3") in
         let shifted_const_fn = Debruijn.shift_by (2 * num_ind_cases + num_base_cases + 1) const_fn in
         let elim_args = List.append shifted_param_elim_args (shifted_const_fn :: elim_args) in
-        let _ = Feedback.msg_warning (Pp.str "proper proof for elim 3.1") in
         let applied_elim = mkAppl (elim, elim_args) in
-        let _ = Feedback.msg_warning (Pp.str "proper proof for elim 3.2") in
         let rec shift_list l n =
           match l with
           | [] -> []
@@ -277,16 +222,12 @@ let proper_goal_for_elim c env sigma elim out_typ =
         let base_list_shifted = shift_list base_list (2 * num_ind_cases + 1) in
         let abstracted_elim =
           abstract_term_over_types zoomed_env sigma base_list_shifted applied_elim in
-        let _ = Feedback.msg_warning (Pp.str "proper proof for elim 3.3") in
         let base_list_and_out_type = List.append base_list [out_typ] in
-        let _ = Feedback.msg_warning (Pp.str "proper proof for elim 3.4") in
         let type_of_abstracted_elim =
           fun_type_from_type_list zoomed_env (List.append base_list_shifted [out_typ]) in
-        let _ = Feedback.msg_warning (Pp.str "proper proof for elim 3.5") in
         let sigma, unabstracted_proper_goal =
           (proper_from_type_list c zoomed_env sigma base_list_and_out_type
              type_of_abstracted_elim abstracted_elim) in
-        let _ = Feedback.msg_warning (Pp.str "proper proof for elim 3.6") in
         let shifted_ind_list =
           let rec shift_ind_list l n =
           match l with
@@ -309,7 +250,6 @@ let proper_goal_for_elim c env sigma elim out_typ =
             (Some [])
             shifted_ind_list
             shifted_ind_proper_goals in
-        let _ = Feedback.msg_warning (Pp.str "proper proof for elim 3.7") in
         if not (Option.has_some unabstracted_proper_goal
                 || Option.has_some inds_with_proper_goals) then
           sigma, None
@@ -319,18 +259,11 @@ let proper_goal_for_elim c env sigma elim out_typ =
               mkAppl (ind_typ, param_rel_list)
             else
               ind_typ in
-          let _ = Feedback.msg_warning (Pp.str "proper proof for elim 3.8") in
-          let _ = Feedback.msg_warning (Pp.bool (Option.has_some inds_with_proper_goals)) in
-          let _ = Feedback.msg_warning (Pp.bool (Option.has_some unabstracted_proper_goal)) in
           let final_goal_types =
             List.append
               (ind_typ_app :: (Option.get inds_with_proper_goals))
               ([Option.get unabstracted_proper_goal]) in
-          let _ = Feedback.msg_warning (Pp.str "proper proof for elim 3.9") in
           let proper_goal = Zooming.reconstruct_product_n zoomed_env (fun_type_from_type_list zoomed_env final_goal_types) (Environ.nb_rel zoomed_env - nparams) in
-          let _ = Feedback.msg_warning (Pp.str "proper proof for elim 3.10") in
-          let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma proper_goal) in
-          let _ = Feedback.msg_warning (Pp.str "proper proof for elim 4") in
           sigma, Some proper_goal
 
 let generate_proper_goal_from_def c env sigma def =
@@ -346,7 +279,6 @@ let intro_in_proof proof env =
   let current_goal = List.hd current_goal_list in
   let proof_env = Goal.V82.env sigma current_goal in
   let name = Envutils.fresh_name proof_env Anonymous in
-  let _ = Feedback.msg_warning (Pp.str "pre intro using") in
   let (proof, pvm) = Proof.run_tactic env (Tactics.intro_using name) proof in
   (proof, pvm), name
 
@@ -365,13 +297,9 @@ let intro_in_proof_n_times env proof pvm n =
    the introed terms.
  *)
 let intro_respectful proof env =
-  let _ = Feedback.msg_warning (Pp.str "intro 1") in
   let (proof, _), name1 = intro_in_proof proof env in
-  let _ = Feedback.msg_warning (Pp.str "intro 2") in
   let (proof, _), name2 = intro_in_proof proof env in
-  let _ = Feedback.msg_warning (Pp.str "intro 3") in
   let (proof, pvm), eqName = intro_in_proof proof env in
-  let _ = Feedback.msg_warning (Pp.str "intro done") in
   (proof, pvm), (name1, name2, eqName)
 
 let goal_constr_from_proof proof =
@@ -401,17 +329,12 @@ let intro_all_respectfuls proof pvm env =
     if not (isApp goal_concl) then
       (proof, pvm), l
     else
-      let _ = Feedback.msg_warning (Printer.pr_constr_env proof_env sigma (Apputils.first_fun goal_concl)) in
       if equal (Apputils.first_fun goal_concl) respectful then
-        let _ = Feedback.msg_warning (Pp.str "respectful") in
         let (proof, pvm) = unfold_first_respectful proof env in
-        let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
         let (proof, pvm), (name1, name2, eqName) = intro_respectful proof env in
-        let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
         help proof pvm env ((name1, name2, eqName) :: l)
       else
         (proof, pvm), l in
-  let _ = Feedback.msg_warning (Pp.str "introing respectfuls") in
   help proof pvm env []
 
 let unfold_proper proof env =
@@ -445,31 +368,21 @@ let rec try_setoid_rewrite_equalities env proof pvm l =
                        (Setoidutils.setoid_rewrite_tactic_from_id h)
                        (fun _ -> Setoidutils.rewrite_tactic_from_id h)) in
      let (proof, pvm) = Proof.run_tactic env rewrite_tac proof in
-      let (proof, pvm) = Proof.run_tactic env (Tactics.clear [h; n1]) proof in
-      try_setoid_rewrite_equalities env proof pvm t
+     let (proof, pvm) = Proof.run_tactic env (Tactics.clear [h; n1]) proof in
+     try_setoid_rewrite_equalities env proof pvm t
 
 let prove_proper_for_elim c env sigma elim out_typ =
   let sigma, goal_o = proper_goal_for_elim c env sigma elim out_typ in
-  let _ = Feedback.msg_warning (Pp.bool (Option.has_some goal_o)) in
-  let _ = Feedback.msg_warning (Pp.str "prove_proper_for_elim 1") in
   let nparams_o = nparams_of_elim env elim in
-  let _ = Feedback.msg_warning (Pp.bool (Option.has_some nparams_o)) in
-  let _ = Feedback.msg_warning (Pp.str "prove_proper_for_elim 2") in
   if not ((Option.has_some goal_o) && (Option.has_some nparams_o)) then
     sigma, None
   else
-    let _ = Feedback.msg_warning (Pp.str "prove_proper_for_elim 2.5") in
     let goal = Option.get goal_o in
     let nparams = Option.get nparams_o in
     let proof = Proof.start sigma [(env, EConstr.of_constr goal)] in
-    let _ = Feedback.msg_warning (Pp.str "prove_proper_for_elim 3") in
     let (proof, pvm) = Proof.run_tactic env (Proofview.tclUNIT ()) proof in
-    let _ = Feedback.msg_warning (Pp.str "prove_proper_for_elim 4") in
     let (proof, pvm), _ = intro_in_proof_n_times env proof pvm nparams in
-    let _ = Feedback.msg_warning (Pp.str "prove_proper_for_elim 5") in
-    let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
     let (proof, pvm) = Proof.run_tactic env (solve_elim_proper_tac ()) proof in
-    let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
     if (Proof.is_done proof) then
       match Proof.partial_proof proof with
       | [] -> Proof.return proof, None
@@ -493,90 +406,40 @@ let solve_current_proper_subgoal c env sigma proof pvm eqs_to_rewrite =
   let focus_kind = Proof.new_focus_kind () in
   let focus_cond = Proof.done_cond focus_kind in
   let proof = Proof.focus focus_cond () 1 proof in
-  let _ = Feedback.msg_warning (Pp.str "solve_current_proper_subgoal 1") in
-  (*let (proof_env, proof_sigma, current_goal) = goal_econstr_from_proof proof in*)
-  let _ = Feedback.msg_warning (Pp.str "solve_current_proper_subgoal 2") in
-  (*let proof_subgoal = Proof.start sigma [(proof_env, current_goal)] in
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof_subgoal) in*)
-  (*let proof_subgoal =
-    (try Control.timeout 10 (fun x -> fst (Proof.run_tactic env (solve_proper_tac ()) x)) proof (Failure "Timeout")
-     with e -> Feedback.msg_warning (Pp.str "Timeout"); proof_subgoal) in*)
   let (proof, pvm) = unfold_proper proof env in
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   let (proof, pvm), eqs_to_rewrite_2 = intro_all_respectfuls proof pvm env in
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   let (proof, pvm) = try_setoid_rewrite_equalities env proof pvm (List.append eqs_to_rewrite_2 eqs_to_rewrite) in
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   let (proof, pvm) = Proof.run_tactic env Tactics.reflexivity proof in
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
-  (*let _, result =
-    if (Proof.is_done proof) then
-      match Proof.partial_proof proof with
-      | [] -> Proof.return proof_subgoal, None
-      | h :: t -> Proof.return proof_subgoal, Some h
-    else
-      raise (Failure "Failed to solve subgoal") in
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
-  let _ = Feedback.msg_warning (Pp.str "solve_current_proper_subgoal 3") in
-  let id, tac = pose_tac proof (Option.get result) in
-  let (proof, pvm) = Proof.run_tactic env tac proof in
-  let _ = Feedback.msg_warning (Pp.str "solve_current_proper_subgoal 4") in
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
-  let (proof, pvm) = Proof.run_tactic env (try_tactical Tactics.assumption) proof in
-  let _ = Feedback.msg_warning (Pp.str "solve_current_proper_subgoal 5") in
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in*)
   let proof = Proof.unfocus focus_kind proof () in
-  let _ = Feedback.msg_warning (Pp.str "solve_current_proper_subgoal 6") in
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   (proof, pvm)
     
 let solve_proper_goal c env sigma goal def =
   let proof = Proof.start sigma [(env, EConstr.of_constr goal)] in
   let (proof, pvm) = Proof.run_tactic env (Tactics.unfold_constr def) proof in
-  Feedback.msg_warning (Pp.str "c");
   let (proof, pvm) = Proof.run_tactic env Tactics.intros proof in
-  Feedback.msg_warning (Pp.str "d");
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   let (proof, pvm) =
     (try Control.timeout 10 (Proof.run_tactic env (solve_proper_tac ())) proof (Failure "Timeout")
      with e -> Feedback.msg_warning (Pp.str "Timeout"); (proof, pvm)) in
-  Feedback.msg_warning (Pp.str "e");
-  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
   if (Proof.is_done proof) then
     match Proof.partial_proof proof with
     | [] -> Proof.return proof, None
     | h :: t -> Proof.return proof, Some (EConstr.to_constr sigma h)
   else
     let (current_goal_list, _, _, _, proof_sigma) = Proof.proof proof in
-    Feedback.msg_warning (Pp.str "match on proof");
     if current_goal_list = [] then
       sigma, None
     else
-      let current_goal = List.hd current_goal_list in
-      Feedback.msg_warning (Pp.str "get current goal");
-      Feedback.msg_warning (Goal.pr_goal current_goal);
-      let (current_goal, proof_sigma) = Goal.V82.nf_evar proof_sigma current_goal in
-      let goal_concl = Goal.V82.concl proof_sigma current_goal in
-      Feedback.msg_warning (Pp.str "get goal conclusion");
-      let proof_env = Goal.V82.env proof_sigma current_goal in
-      Feedback.msg_warning (Pp.str "get goal env");
-      let _ = Feedback.msg_warning (Printer.pr_constr_env proof_env proof_sigma (EConstr.to_constr proof_sigma goal_concl)) in
       let proof_env, proof_sigma, goal_constr = goal_constr_from_proof proof in
       if Constr.isApp goal_constr then (
-        let _ = Feedback.msg_warning (Pp.str "goal is an app") in
         let f = Apputils.first_fun goal_constr in
         if equal f proper then 
           let (proof, pvm) = unfold_proper proof env in
           let (proof, pvm), eq_rel_proofs = intro_all_respectfuls proof pvm env in
-          let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
           let (proof, pvm), eq_rel_proofs = rewrite_equalities env proof pvm eq_rel_proofs in
-          let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
           let (proof_env, proof_sigma, concl) = goal_constr_from_proof proof in
           let compared_term = Apputils.last_arg concl in
           if Constr.isApp compared_term then
-            let _ = Feedback.msg_warning (Pp.str "last term is an app") in
             let (trm, _) = Constr.destApp compared_term in
-            Feedback.msg_warning (Pp.str "dest app last term");
             (*get out type from equiv rel not from inference*)
             let eq_rel = Apputils.first_fun concl in
             let proof_sigma, eq_rel_type = Inference.infer_type proof_env proof_sigma eq_rel in
@@ -584,23 +447,16 @@ let solve_proper_goal c env sigma goal def =
             if Option.has_some o then
               let (eq_rel_type_list, _) = Option.get o in
               let out_type = List.hd (List.rev eq_rel_type_list) in
-              let _ = Feedback.msg_warning (Printer.pr_constr_env proof_env proof_sigma out_type) in
-              Feedback.msg_warning (Pp.str "proper_proof_for_elim call");
               let sigma, o = prove_proper_for_elim c env sigma trm out_type in
               if Option.has_some o then
                 let elim_proper_proof = Option.get o in
                 let (proof_env, proof_sigma, concl) = goal_constr_from_proof proof in
-                let _ = Feedback.msg_warning (Pp.str "run let in") in
                 let letin_id = Envutils.fresh_name proof_env Anonymous in
                 let (proof, pvm) = Proof.run_tactic env (letin_tac letin_id elim_proper_proof) proof in
-                let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
-                let _ = Feedback.msg_warning (Pp.str "run apply") in
                 let (proof, pvm) = Proof.run_tactic env (Tactics.apply (EConstr.mkVar letin_id)) proof in
-                let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
                 let rec solve_subgoals proof pvm =
                   let num_goals = num_focused_goals proof in
                   let (proof, pvm) = solve_current_proper_subgoal c env sigma proof pvm eq_rel_proofs in
-                  let _ = Feedback.msg_warning (Printer.pr_open_subgoals ~proof:proof) in
                   let new_num_goals = num_focused_goals proof in
                   if new_num_goals < num_goals && 0 < new_num_goals then
                     solve_subgoals proof pvm
@@ -629,13 +485,10 @@ let generate_proper_proof l env sigma n def =
     sigma, None
   else
     let sigma, goal = generate_proper_goal_from_def l env sigma def in
-    Feedback.msg_warning (Pp.str "a");
     match goal with
     | None -> sigma, None
     | Some g -> (
-        let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma g) in
         let sigma, generated_proof = solve_proper_goal l env sigma g def in
-        Feedback.msg_warning (Pp.str "b");
         match generated_proof with
         | None -> Feedback.msg_warning (Pp.str "Failed to generate a proof that the lifted function is a proper morphism. You should prove this manually if necessary.");
                   sigma, None

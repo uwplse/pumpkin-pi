@@ -912,7 +912,6 @@ let applies_equiv_rel c env trm sigma =
   | Setoid _ ->
     let sigma, type_o = Setoidutils.find_type_for_eq_rel_source_setoid l env sigma (first_fun trm) in
     if Option.has_some type_o then
-      let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma (Option.get type_o)) in
       sigma, Some (Option.get type_o, (unfold_args trm))
     else sigma, None
   | _ -> sigma, None
@@ -1004,8 +1003,6 @@ let applies_setoid_rewrite c env trm sigma =
       if List.length args < 7 then
         sigma, None
       else
-        let _ = Feedback.msg_warning (Pp.str "applies_setoid_rewrite some") in
-        let _ = Feedback.msg_warning (Printer.pr_constr_env env sigma trm) in
         sigma, Some args
     else
       sigma, None
