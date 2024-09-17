@@ -2033,30 +2033,171 @@ Module CEPPoly.
     reflexivity.
   Qed.*)
 
+  Theorem CEPFromCoeffListHead : forall (l : list nat) (n : nat),
+    CEPFromCoeffList (n :: l) = (n, length l) :: CEPFromCoeffList l.
+  Proof.
+    intros.
+    unfold CEPFromCoeffList.
+    simpl.
+    rewrite CEPFromCoeffListApp.
+    rewrite rev_app_distr.
+    rewrite PeanoNat.Nat.add_0_r.
+    rewrite rev_length.
+    reflexivity.
+  Qed.
+
+  Theorem max_degree_bounded_by_exps :
+    forall (p : CEPPoly) (bound : nat),
+      ((forall (c exp : nat), In (c, exp) p -> exp <= bound) -> get_max_degree p <= bound).
+  Proof.
+    induction p.
+    - intros.
+      simpl.
+      lia.
+    - intros.
+      destruct a.
+      assert (In (n, n0) ((n, n0) :: p)).
+      + simpl.
+        left.
+        reflexivity.
+      + pose proof (H n n0 H0).
+        simpl.
+        destruct n.
+        * apply IHp.
+          intros.
+          apply (in_cons (0, n0)) in H2.
+          apply H in H2.
+          apply H2.
+        * apply PeanoNat.Nat.max_lub; auto.
+          apply IHp.
+          intros.
+          apply (in_cons (S n, n0)) in H2.
+          apply (H _ _ H2).
+  Qed.
+
+  Theorem CEPFromCoeffListDegreesLessThanLength :
+    forall (l : list nat),
+      (forall (c exp : nat), In (c, exp) (CEPFromCoeffListHelp (rev l) 0) -> S exp <= length l).
+  Proof.
+    induction l.
+    - intros.
+      simpl in H.
+      contradiction.
+    - intros.
+      simpl in H.
+      rewrite CEPFromCoeffListApp in H.
+      apply in_app_or in H.
+      destruct H.
+      + specialize (IHl _ _ H).
+        simpl.
+        lia.
+      + simpl in H.
+        destruct H; try contradiction.
+        inversion H.
+        rewrite rev_length.
+        simpl.
+        lia.
+  Qed.
+
+  Theorem maxDegreeCEPFromCoeffListLength :
+    forall (l : list nat),
+      l = [] \/
+        (noLeadingZeros l ->
+           S (get_max_degree (CEPFromCoeffList l)) = length l).
+  Proof.
+    Print get_max_degree.
+    intros.
+    destruct l.
+    - left.
+      reflexivity.
+    - unfold CEPFromCoeffList.
+      right.     
+      intros.
+      rewrite (eq_maxDegreeSame (rev (CEPFromCoeffListHelp (rev (n :: l)) 0)) (CEPFromCoeffListHelp (rev (n :: l)) 0)).
+      enough (S (get_max_degree (CEPFromCoeffListHelp (rev (n :: l)) 0)) >= length (n :: l) /\
+              S (get_max_degree (CEPFromCoeffListHelp (rev (n :: l)) 0)) <= length (n :: l)).
+      + destruct H0.
+        lia.
+      + split.
+        * simpl.
+          rewrite CEPFromCoeffListApp.
+          simpl.
+          rewrite PeanoNat.Nat.add_0_r.
+          rewrite (eq_maxDegreeSame (CEPFromCoeffListHelp (rev l) 0 ++ [(n, length (rev l))])
+                     ([(n, length (rev l))] ++ CEPFromCoeffListHelp (rev l) 0)).
+          -- rewrite rev_length.
+             apply ListFns.noLeadingZerosHeadNonzero in H.
+             pose proof (get_max_degree_head (CEPFromCoeffListHelp (rev l) 0) n (length l) H).
+             unfold ge.
+             simpl.
+             simpl in H0.
+             lia.
+          -- apply eq_CEPPoly_app_comm.
+        * pose proof (max_degree_bounded_by_exps (CEPFromCoeffListHelp (rev (n :: l)) 0)).
+          pose proof (CEPFromCoeffListDegreesLessThanLength (n ::l)).
+          simpl.
+          apply Le.le_n_S.
+          apply H0.
+          intros.
+          specialize (H1 c exp H2).
+          simpl in H1.
+          lia.
+      + apply eq_CEPPoly_rev.
+  Qed.
+
+  Theorem coeffListCanonicalHelp :
+    forall (l : list nat),
+      rev (map (fun x : nat => nth x (rev l) 0) (seq 0 (length l))) = l.
+  Proof.
+    induction l.
+    - reflexivity.
+    - assert (length (a :: l) = S (length l)) by reflexivity.
+      rewrite H.
+      rewrite seqEndSn.
+      rewrite <- map_rev.
+      rewrite rev_app_distr.
+      simpl.
+      rewrite app_nth2 by (rewrite rev_length; lia).
+      rewrite rev_length.
+      rewrite PeanoNat.Nat.sub_diag.
+      simpl.
+      f_equal.
+      rewrite map_rev.
+      enough (map (fun x : nat => nth x (rev l ++ [a]) 0) (seq 0 (length l)) = map (fun x : nat => nth x (rev l) 0) (seq 0 (length l))).
+      + rewrite H0.
+        apply IHl.
+      + apply map_ext_in.
+        intros.
+        rewrite in_seq in H0.
+        simpl in H0.
+        rewrite app_nth1.
+        * reflexivity.
+        * rewrite rev_length.
+          apply H0.
+  Qed.
+
   Theorem coeffListCanonical (l : list nat) (proof : noLeadingZeros l) :
     removeLeadingZeros (coeffListFromCEPHelp (rev (canonicalize (depConstr l proof)))) = l.
   Proof.
     unfold depConstr.
     unfold canonicalize.
-    enough
-      (forall (n : nat) (l : list nat),
-        (coeffListFromCEPHelp (canonicalize (CEPFromCoeffList (n :: l))) =
-        (n :: (coeffListFromCEPHelp (canonicalize (CEPFromCoeffList l)))))).
-    induction l.
-    - reflexivity.
-    - unfold depConstr.
-      unfold CEPFromCoeffList.
+    rewrite elim_canonicalize.
+    unfold coeffListFromCEPHelp.
+    unfold coeffPairsToN.
+    rewrite map_rev.
+    rewrite map_map.
+    pose proof (maxDegreeCEPFromCoeffListLength l).
+    destruct H.
+    - rewrite H.
+      reflexivity.
+    - specialize (H proof).
+      rewrite H.
       simpl.
-      rewrite CEPFromCoeffListApp.
-      rewrite rev_app_distr.
-      unfold canonicalize.
-      pose proof (proof).
-      apply ListFns.noLeadingZerosHeadNonzero in H0.
-      destruct a.
-      + contradiction.
-      + simpl.
-      
-  Admitted.
+      rewrite (map_ext (fun x => coeff (CEPFromCoeffList l) x) (fun x => nth x (rev l) 0) (CEPFromCoeffListCoeff l)).
+      rewrite coeffListCanonicalHelp.
+      symmetry.
+      apply proof.
+  Qed.
 
   Definition iotaRecEq (C : Type)
     (X : forall (l : list nat) (p : noLeadingZeros l), C)
@@ -2066,7 +2207,6 @@ Module CEPPoly.
     unfold depRec.
     unfold coeffListFromCEP.
     pose proof (coeffListCanonical l proof).
-    Check coeffListFromCEPNoLeadingZeros.
     assert (eq_rect (removeLeadingZeros (coeffListFromCEPHelp (rev (canonicalize (depConstr l proof))))) noLeadingZeros (coeffListFromCEPNoLeadingZeros (depConstr l proof)) l H = proof).
     apply noLeadingZerosProofIrr.
     rewrite <- H0 at 3.
