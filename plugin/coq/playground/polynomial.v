@@ -11,6 +11,7 @@ Require Import RelationClasses Morphisms.
 Require Import Permutation Sorting Sorted Orders.
 Require Import Lia.
 Require Import Wellfounded.
+Require Import Coq.Logic.Decidable.
 
 Fixpoint removeLeadingZeros (l : list nat) :=
   match l with
@@ -1877,49 +1878,6 @@ Module CEPPoly.
           lia.
   Qed.
 
-  (* Theorem map_f_equal {A} {B} : *)
-  (*   forall (f1 : A -> B) (f2: A -> B) (l : list A), *)
-  (*     (forall a, f1 a = f2 a) -> map f1 l = map f2 l. *)
-  (* Proof. *)
-  (*   intros. *)
-  (*   induction l. *)
-  (*   - reflexivity. *)
-  (*   - simpl. rewrite IHl. rewrite H. reflexivity. *)
-  (* Defined. *)
-  Definition combined_n_m n m : list (nat * nat) :=
-    combine (repeat 0 (n - m)) (rev (seq m (n - m))).
-  Compute (combined_n_m 6 3).
-
-
-  Theorem canonicalize_equiv_canonicalize_alt:
-    forall p, canonicalize p = canonicalize_alt p.
-  Proof.
-    intros.
-    induction p using
-      (well_founded_induction
-         (wf_inverse_image _ nat _  get_max_degree
-            PeanoNat.Nat.lt_wf_0)).
-    unfold canonicalize. unfold canonicalize_alt.
-    remember (get_max_degree p).
-    destruct n.
-    reflexivity.
-    simpl.
-    rewrite <- acc_always_contained_at_end_help_eq.
-    Print remove_degrees_ge_n.
-    assert (canonicalize_help [] p (get_max_degree p)
-                              =
-            canonicalize_help
-              (combined_n_m
-                 (get_max_degree p)
-                 (S (get_max_degree (remove_degrees_ge_n p (get_max_degree p))))
-              )
-              (remove_degrees_ge_n p (get_max_degree p))
-              (get_max_degree (remove_degrees_ge_n p (get_max_degree p)))
-              ++
-              [(coeff p (get_max_degree p), (get_max_degree p))]
-           ).
-  Admitted.
-
   Theorem map_fst_combine A B:
     forall (l1 : list A) (l2 : list B), length l1 = length l2 -> (map fst (combine l1 l2)) = l1.
   Proof.
@@ -1959,156 +1917,89 @@ Module CEPPoly.
       + reflexivity.
   Defined.
 
-  Print coeffListFromCEP.
-  Print canonicalize.
-  Print canonicalize_help.
+  Definition coeffPairsToN (p : CEPPoly) (n : nat) :=
+    map (fun x => (coeff p x, x)) (seq 0 (S n)).
 
-  Definition CoeffPairsNToMaxDeg (n : nat) (p : CEPPoly) :=
-    map (fun x => (coeff p x, x)) (seq n (get_max_degree p + 1 - n)).
-
-  Module Test.
-  Print canonicalize_help.
-
-  Definition p := [(3, 1); (2, 4); (5, 2)].
-  Definition n := 3.
-  Definition exp := 5.
-
-  Print canonicalize_help.
-  Print seq.
-
-  Eval compute in (seq 0 (get_max_degree p + 1 - 0)).
-
-  Eval compute in (canonicalize_help [] p n) ++ ((coeff p (S n), S n) :: (CoeffPairsNToMaxDeg (S n) p)).
-
-  Eval compute in (nth exp
-    (rev (removeLeadingZeros (coeffListFromCEPHelp (rev (canonicalize_help (CoeffPairsNToMaxDeg (S n) p) p n)))))
-    0).
-  Eval compute in (nth exp
-    (rev (removeLeadingZeros (coeffListFromCEPHelp (rev (canonicalize_help ((coeff p (S n), S n) :: (CoeffPairsNToMaxDeg (S n) p)) p n)))))
-    0).
-  End Test.
-
-  Module Test2.
-    Definition p := [(1, 0) ; (2, 1) ; (3, 2)].
-    Definition n := 3.
-    Eval compute in ((coeff p (S n), S n) :: CoeffPairsNToMaxDeg (S (S n)) p = CoeffPairsNToMaxDeg (S n) p).
-  Eval compute in (S n :: seq (S (S n)) (get_max_degree p + 1 - S (S n)) = seq (S n) (get_max_degree p + 1 - S n)).
-  End Test2.
-
-  Theorem coeffListFromCEPCoeff :
-    forall (n : nat) (p : CEPPoly) (exp : nat) (acc : CEPPoly),
-      acc = CoeffPairsNToMaxDeg (S n) p ->
-      coeff p exp = nth exp (rev (removeLeadingZeros (coeffListFromCEPHelp (rev (canonicalize_help acc p n))))) 0.
+  Theorem seqEndSn : forall n m,
+      seq m (S n) = (seq m n) ++ [m + n].
   Proof.
     induction n.
     - intros.
+      rewrite PeanoNat.Nat.add_0_r.
+      reflexivity.
+    - intros.
+      assert (seq m (S (S n)) = m :: (seq (S m) (S n))).
+      reflexivity.
+      rewrite H.
+      rewrite IHn.
       simpl.
-      unfold coeffListFromCEPHelp.
+      repeat f_equal.
+      lia.
+  Qed.
+
+  Theorem elim_canonicalize :
+    forall p n,
+      canonicalize_help [] p n = coeffPairsToN p n.
+  Proof.
+    unfold coeffPairsToN.
+    intros.
+    rewrite seqEndSn.
+    rewrite map_app.
+    simpl.
+    induction n.
+    - reflexivity.
+    - rewrite seqEndSn.
       rewrite map_app.
       simpl.
-      rewrite removeLeadingZerosnth.
-      rewrite rev_app_distr.
-      simpl.
-      rewrite H.
-      rewrite map_rev.
-      rewrite rev_involutive.
-      unfold CoeffPairsNToMaxDeg.
-      rewrite map_map.
-      simpl.
-      enough (forall (A : Type) (d : A) (n len start : nat) (f : nat -> A), n < len -> nth n (map f (seq start len)) d = f (start + n)).
-      destruct (PeanoNat.Nat.le_decidable exp (get_max_degree p)).
-      destruct exp; auto.        
-      rewrite (H0 nat 0 exp (get_max_degree p + 1 - 1)).
+      rewrite <- IHn.
+      rewrite <- acc_always_contained_at_end_help_eq.
       reflexivity.
-      unfold lt.
-        lia.
-        destruct exp; auto.
-        rewrite nth_overflow.
-        assert (get_max_degree p < S exp).
-        lia.
-        Print remove_greater_than_max_degree.
-        enough (get_max_degree p < S exp -> coeff p (S exp) = 0).
-        * apply H3.
-          apply H2.
-        * give_up.
-        * rewrite map_length.
-          rewrite seq_length.
-          lia.
-        * give_up. (*prove this*)
-       (*this should be an assumption*)
-    - simpl.
-      intros.
-      rewrite H.
-      (*enough ((coeff p (S n), S n) :: CoeffPairsNToMaxDeg (S (S n)) p = CoeffPairsNToMaxDeg (S n) p).
-      rewrite H0.*)
-      pose proof (IHn p exp ((coeff p (S n), S n)  :: acc)).
-      destruct acc.
-      + simpl in H.
-        give_up.
-      + apply H0.
-      apply IHn.
-      reflexivity.
-      unfold CoeffPairsNToMaxDeg.
-      simpl.
-      assert ((coeff p (S n), S n) :: map (fun x : nat => (coeff p x, x)) (seq (S (S n)) (get_max_degree p + 1 - S (S n))) = map (fun x : nat => (coeff p x, x)) (S n :: seq (S (S n)) (get_max_degree p + 1 - S (S n)))).
-      reflexivity.
-      rewrite H0.
-      f_equal.
-      simpl.
-      rewrite (IHn _ _ (CoeffPairsNToMaxDeg (S (S n)) p)).
-      repeat f_equal.
-      rewrite H.
-      unfold CoeffPairsNToMaxDeg.
-      rewrite 
-        rewrite seq_shift.
-        rewrite seq_nth.
-      induction exp.
-      + reflexivity.
-      + rewrite map_rev.
-        rewrite rev_involutive.
-        
-        * rewrite H.
-          unfold CoeffPairsNToMaxDeg.
-          rewrite map_map.
-          simpl.
-    intros p.
-    remember (get_max_degree p).
-    revert Heqn.
-  
-  
+  Qed.
+
+  Theorem coeffGreaterThanMaxDegree (p : CEPPoly) (exp : nat) :
+    get_max_degree p < exp -> coeff p exp = 0.
+  Proof.
+    apply contrapositive.
+    apply PeanoNat.Nat.eq_decidable.
+    intros.
+    pose proof (get_max_degree_complete p exp).
+    apply H1 in H.
+    lia.
+  Qed.
+
   Theorem coeffListFromCEPCoeff :
     forall (p : CEPPoly) (exp : nat),
       coeff p exp = nth exp (rev (coeffListFromCEP p)) 0.
   Proof.
-    intros.
     unfold coeffListFromCEP.
-    rewrite canonicalize_equiv_canonicalize_alt.
-    unfold canonicalize_alt.
-    rewrite rev_involutive.
-    unfold coeffListFromCEPHelp.
-    assert ((length (map (coeff p) (seq 0 (get_max_degree p)))) = (length (seq 0 (get_max_degree p)))).
-    rewrite map_length. reflexivity.
-    rewrite (map_fst_combine _ _ _ _ H).
+    unfold canonicalize.
+    intros.
+    rewrite elim_canonicalize.
     rewrite removeLeadingZerosnth.
-    rewrite <- map_rev.
-    assert (nth exp (map (coeff p) (rev (seq 0 (get_max_degree p)))) 0 =
-            nth exp (map (coeff p) (rev (seq 0 (get_max_degree p)))) (coeff p exp)).
-    {
-      pose proof (get_max_degree_complete p exp).
-      Check get_max_degree_complete.
-      give_up.
-    }
-    rewrite H0.
-    rewrite map_nth.
-    assert (forall n, (nth exp (rev (seq 0 n)) exp) = exp).
-    give_up.
-    rewrite H1.
-    reflexivity.
-  Admitted.
-
-  (* Definition canonicalize_alt' (l: CEPPoly) : CEPPoly := *)
-  (*   let asec_seq := (seq 0 (get_max_degree l)) in *)
-  (*   rev (combine (map (coeff l) asec_seq) asec_seq). *)
+    unfold coeffListFromCEPHelp.
+    rewrite map_rev.
+    rewrite rev_involutive.
+    unfold coeffPairsToN.
+    rewrite map_map.
+    enough (coeff p (S (get_max_degree p)) = 0).
+    - rewrite <- H at 2.
+      rewrite map_nth.
+      destruct (PeanoNat.Nat.le_decidable exp (get_max_degree p)).
+      + rewrite seq_nth.
+        simpl.
+        reflexivity.
+        lia.
+      + assert (get_max_degree p < exp) by lia.
+        rewrite nth_overflow.
+        simpl.
+        rewrite H.
+        apply coeffGreaterThanMaxDegree.
+        apply H1.
+        rewrite seq_length.
+        lia.
+    - apply coeffGreaterThanMaxDegree.
+      lia.
+  Qed.
 
   Theorem CEPFromCoeffListInv :
     forall (p : CEPPoly),
@@ -2120,52 +2011,6 @@ Module CEPPoly.
     rewrite coeffListFromCEPCoeff.
     reflexivity.
   Qed.
-   (* unfold coeffListFromCEP.
-    rewrite removeLeadingZerosCoeffListEquiv.
-    unfold CEPFromCoeffList.
-    unfold canonicalize.
-    induction p using
-      (well_founded_induction
-         (wf_inverse_image _ nat _ get_max_degree
-            PeanoNat.Nat.lt_wf_0)).
-    unfold coeffListFromCEP.
-    rewrite removeLeadingZerosCoeffListEquiv.
-    unfold CEPFromCoeffList.
-    destruct (PeanoNat.Nat.eq_dec (get_max_degree p) 0).
-    - apply canonicalizeDegreeZero in e.
-      rewrite e.
-      simpl.
-      rewrite (canonicalize_pres p) at 2.
-      rewrite e.
-      reflexivity.
-    - pose proof n.
-      apply canonicalizeDegreeSn in H0.
-      rewrite H0.
-      simpl.
-      specialize (H (remove_degrees_ge_n p (get_max_degree p))).
-      rewrite eq_CEPPoly_rev.
-      rewrite CEPFromCoeffListApp.
-      simpl.
-      rewrite PeanoNat.Nat.add_0_r.
-      rewrite <- eq_CEPPoly_rev.
-      rewrite rev_app_distr.
-      simpl.
-      rewrite rev_length.
-      enough (length (coeffListFromCEPHelp (canonicalize (remove_degrees_ge_n p (get_max_degree p)))) = get_max_degree p).
-      + rewrite H1.
-        rewrite (canonicalize_pres p) at 6.
-        rewrite H0.
-        apply eq_CEPPoly_cons.
-        rewrite <- canonicalize_pres at 2.
-        rewrite <- H at 2.
-        unfold coeffListFromCEP.
-        rewrite removeLeadingZerosCoeffListEquiv.
-        f_equiv.
-        give_up.
-      + unfold coeffListFromCEPHelp.
-        
-      unfold CEPFromCoeffList in H.
-  Qed.*)
 
   Theorem depElimProp (P : CEPPoly -> Prop)
     `(proper : Proper _ (eq_CEPPoly ==> iff) P)
