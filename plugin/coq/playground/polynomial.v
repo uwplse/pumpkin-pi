@@ -371,21 +371,6 @@ Module ListFns.
       reflexivity.
   Qed.
 
-  Theorem rev_append_list_end :
-    forall (l1 l2 : opaque_list) (x1 x2 : nat),
-      rev l1 ++ [x1] = x2 :: l2 ->
-      rev l2 ++ [x2] = x1 :: l1.
-  Proof.
-    intros.
-    apply (f_equal (@rev nat)) in H.
-    simpl in H.
-    rewrite rev_app_distr in H.
-    rewrite rev_involutive in H.
-    simpl in H.
-    symmetry.
-    apply H.
-  Qed.
-
   Theorem addListsFirstEntry :
     forall (l1 l2 : opaque_list) (n1 n2 : nat),
       addLists (n1 :: l1) (n2 :: l2) = n1 :: addLists l1 (n2 :: l2) \/
@@ -454,6 +439,21 @@ Module ListFns.
       apply noLeadingZerosHeadNonzero.
       inversion H0.
       apply H.
+  Qed.
+
+  Theorem rev_append_list_end :
+    forall (l1 l2 : opaque_list) (x1 x2 : nat),
+      rev l1 ++ [x1] = x2 :: l2 ->
+      rev l2 ++ [x2] = x1 :: l1.
+  Proof.
+    intros.
+    apply (f_equal (@rev nat)) in H.
+    simpl in H.
+    rewrite rev_app_distr in H.
+    rewrite rev_involutive in H.
+    simpl in H.
+    symmetry.
+    apply H.
   Qed.
       
   Theorem addListsNoLeadingZeros :
@@ -613,7 +613,7 @@ Module ListFns.
           lia.
   Qed.
 
-    Theorem addListsHelpSecondEmpty :
+  Theorem addListsHelpSecondEmpty :
     forall (l : opaque_list),
       addListsHelp l [] = l.
   Proof.
@@ -1470,7 +1470,6 @@ Module CEPPoly.
         destruct H0.
         * destruct s.
            ++ simpl in H.
-              Search max.
               assert (get_max_degree l > 0). lia.
               apply IHl in H0.
               simpl.
@@ -1671,29 +1670,6 @@ Module CEPPoly.
   Definition depRec (C : Type) (X : forall (l : list nat) (p : noLeadingZeros l), C) (p : CEPPoly) : C :=
     X (coeffListFromCEP p) (coeffListFromCEPNoLeadingZeros p).
 
-
-  Theorem eq_CEPPoly_respects_max_degree p q k:
-    eq_CEPPoly p q -> forall n, n <= k -> n = get_max_degree p -> get_max_degree p = (get_max_degree q).
-  Proof.
-    intro.
-    induction k.
-    - intros. destruct n.
-      * give_up.
-      * give_up.
-    - intros. destruct p.
-      * pose proof H1 as H1'. simpl in H1.
-        rewrite H1 in H0. rewrite H1 in H1'.
-        assert (0 <= k). lia.
-        apply (IHk 0 H2 H1').
-      * assert (n <= k). give_up.
-        apply (IHk n H2).
-        exact H1.
-  Admitted.
-
-  Theorem canonicalize_max_preserves_coeffs (l : CEPPoly) : forall k, forall n, n <= k -> coeff l n = coeff (canonicalize l) n.
-  Proof.
-  Admitted.
-
   Instance coeffListFromCEPProper : Proper (eq_CEPPoly ==> eq) coeffListFromCEP.
   Proof.
     unfold coeffListFromCEP.
@@ -1764,24 +1740,6 @@ Module CEPPoly.
       + reflexivity.
   Qed.
 
-  Theorem inductOnDegree :
-    forall (P : CEPPoly -> Prop),
-      (forall (p : CEPPoly), get_max_degree p = 0 -> P p) ->
-      (forall (n : nat),
-          (forall (p : CEPPoly), get_max_degree p = n -> P p) ->
-          (forall (p : CEPPoly), get_max_degree p = S n -> P p)) ->
-      forall (p : CEPPoly), P p.
-  Proof.
-    intros.
-  Admitted.
-
-  Theorem canonicalizeMaxDegreeLength :
-    forall (p : CEPPoly),
-      get_max_degree p = 0 \/
-      (S (get_max_degree p) = (length (canonicalize p)) /\ length (canonicalize p) <> 0).
-  Proof.
-  Admitted.
-
   Theorem canonicalizeDegreeZero :
     forall (p : CEPPoly),
       get_max_degree p = 0 -> canonicalize p = [((coeff p 0), 0)].
@@ -1791,34 +1749,6 @@ Module CEPPoly.
     rewrite H.
     reflexivity.
   Qed.
-
-  Theorem canonicalizeDegreeSn :
-    forall (p : CEPPoly),
-      get_max_degree p <> 0 ->
-      eq_CEPPoly (canonicalize p) ((coeff p (get_max_degree p), get_max_degree p) :: (canonicalize (remove_degrees_ge_n p (get_max_degree p)))).
-  Proof.
-    intros.
-  Admitted.
-
-  Theorem canonicalizeHead :
-    forall (p : CEPPoly),
-      canonicalize p = [((coeff p 0), 0)] \/
-      eq_CEPPoly (canonicalize p) ((coeff p (get_max_degree p), get_max_degree p) :: (canonicalize (remove_degrees_ge_n p (get_max_degree p)))).
-  Proof.
-    intros.
-    unfold canonicalize.
-    
-  Admitted.
-
-(*  Theorem coeffListFromCEPCoeff :
-    forall (p : CEPPoly) (exp : nat),
-      exp <= get_max_degree p ->
-      (is_true (nth_ok exp (rev (coeffListFromCEP p)) (S (get_max_degree p)))) /\
-      (nth exp (rev (coeffListFromCEP p)) (S (get_max_degree p)) = coeff p exp).
-  Proof.
-    intros.
-    unfold coeffListFromCEP.
-  Admitted.*)
 
   Theorem CEPFromCoeffListCoeff :
     forall (l : list nat) (exp : nat),
@@ -2021,18 +1951,7 @@ Module CEPPoly.
     rewrite <- CEPFromCoeffListInv.
     apply (X (coeffListFromCEP p) (coeffListFromCEPNoLeadingZeros p)).
   Qed.
-
-  (*Theorem CoeffListFromCEPInv :
-    forall (l : list nat),
-      coeffListFromCEP (CEPFromCoeffList l) = l.
-  Proof.
-    unfold eq_CEPPoly.
-    intros.
-    rewrite CEPFromCoeffListCoeff.
-    rewrite coeffListFromCEPCoeff.
-    reflexivity.
-  Qed.*)
-
+  
   Theorem CEPFromCoeffListHead : forall (l : list nat) (n : nat),
     CEPFromCoeffList (n :: l) = (n, length l) :: CEPFromCoeffList l.
   Proof.
