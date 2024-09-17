@@ -1812,7 +1812,7 @@ Print evalCEP.
  * Now, we repair our theorems. Because they use depElimProp, we need to
  * specialize CEPPoly.depElimProp to use lifted versions of the motives
  * of the CLPoly.depElimProp instances in the source term, as well as a 
- * proof that those instances are proper. We can generate thoes proper proofs,
+ * proof that those instances are proper. We could generate those proper proofs,
  * but because we define these motives at the top level, the motives we define
  * take arguments for terms that would be in scope in the original term. Thus,
  * the generated proper proofs don't have the right type, and we need to prove
