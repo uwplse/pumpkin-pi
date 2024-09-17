@@ -1,4 +1,3 @@
-(* list, grammar, list of coeff + exp pairs *)
 Require Import Nat.
 Require Import List.
 Import ListNotations.
@@ -10,10 +9,24 @@ Require Import Ornaments.
 Require Import RelationClasses Morphisms.
 Require Import Permutation Sorting Sorted Orders.
 Require Import Lia.
-Require Import Wellfounded.
 Require Import Coq.Logic.Decidable.
 
-Fixpoint removeLeadingZeros (l : list nat) :=
+(*
+ * This file defines two representations of polynomials.
+ * The first is as a list of its coefficients, with the head 
+ * being the highest degree term, and the second being a list
+ * of pairs of a coefficient and the exponent of that coefficient.
+ * Both of these types are setoids with equivalence relations 
+ * different from equality.
+ *)
+
+(*
+ * First, we define several functions over lists.
+ *)
+
+Module ListFns.
+
+  Fixpoint removeLeadingZeros (l : list nat) :=
   match l with
   | [] => []
   | h :: t =>
@@ -23,29 +36,35 @@ Fixpoint removeLeadingZeros (l : list nat) :=
       end
   end.
 
-Definition noLeadingZeros (l : list nat) :=
-  l = removeLeadingZeros l.
+  Definition noLeadingZeros (l : list nat) :=
+    l = removeLeadingZeros l.
 
-Theorem noLeadingZerosProofIrr : forall (l : list nat) (p1 p2 : noLeadingZeros l),
-    p1 = p2.
-Proof.
-  intros.
-  unfold noLeadingZeros in p1, p2.
-  Print UIP_.
-  enough (UIP_ (list nat)).
-  unfold UIP_ in H.
-  unfold UIP_on_ in H.
-  apply H.
-  apply UIP_to_list.
-  Print UIP_nat.
-  unfold UIP_.
-  unfold UIP_on_.
-  apply UIP_nat.
-Qed.
+  Theorem noLeadingZerosProofIrr : forall (l : list nat) (p1 p2 : noLeadingZeros l),
+      p1 = p2.
+  Proof.
+    intros.
+    unfold noLeadingZeros in p1, p2.
+    Print UIP_.
+    enough (UIP_ (list nat)).
+    unfold UIP_ in H.
+    unfold UIP_on_ in H.
+    apply H.
+    apply UIP_to_list.
+    unfold UIP_.
+    unfold UIP_on_.
+    apply UIP_nat.
+  Qed.
 
-Definition opaque_list := list nat.
+  (* 
+   * Here, we define a term opaque_list. Because we need to use
+   * lists both as a setoid and with equality, we need to distinguish these
+   * for Pumpkin Pi. To do this, we define functions and theorems over lists
+   * using this opaque_list type, and tell Pumpkin Pi to treat this type and 
+   * those functions and theorems as opaque. Then, it won't attempt to lift
+   * them to the target setoid.
+   *)
 
-Module ListFns.
+  Definition opaque_list := list nat.
 
   Theorem noLeadingZerosHeadNonzero :
     forall (l : opaque_list) (n : nat),
@@ -585,13 +604,21 @@ End ListFns.
 
 Module CLPoly.
 
+  Import ListFns.
+
+  (*
+   * Here is our first setoid. We define the type of lists of natural numbers.
+   * The list [an ; a(n-1) ; ... ; a0] represents the polynomial 
+   * an * x^n + a(n-1) * x^(n-1) + ... + a0. Each polynomial has multiple representations
+   * by appending any number of 0s to the front of the list. To account for this
+   * we define an equivalence relation saying that two representations are equivalent
+   * if they are equal after removing any leading 0s.
+   *)
+
   Definition CLPoly := list nat.
 
   Definition eq_CLPoly (l1 l2 : CLPoly) :=
     removeLeadingZeros l1 = removeLeadingZeros l2.
-
-  Definition canonicalize (l : CLPoly) :=
-    removeLeadingZeros l.
 
   Instance eq_CLPoly_refl : Reflexive eq_CLPoly.
   Proof.
@@ -623,7 +650,20 @@ Module CLPoly.
     - apply eq_CLPoly_trans.
   Qed.
 
+  (*
+   * Now, we begin defining the elements of the configuration.
+   * Our configuration needs to be based on an inductive type, but in this
+   * case our source type is a setoid. We base our configuration on the
+   * inductive type {l : list nat | noLeadingZeros l}. We then need to 
+   * write our functions on CLPoly in terms of the elements of this configuration.
+   *)
+  
   Definition depConstr (l : opaque_list) (p : noLeadingZeros l) : CLPoly := l.
+
+  (* We define a canonical element for each class of equivalent CLPolys. *)
+  
+  Definition canonicalize (l : CLPoly) :=
+    removeLeadingZeros l.
 
   Theorem noLeadingZerosCanonical (p : CLPoly) : noLeadingZeros (canonicalize p).
   Proof.
@@ -648,8 +688,6 @@ Module CLPoly.
     unfold canonicalize.
     apply H.
   Qed.
-
-  Import EqNotations.
 
   Instance depRecProper (C : Type)
     (X : forall (l : opaque_list) (p : noLeadingZeros l), C) :
@@ -732,7 +770,10 @@ Module CLPoly.
     assumption.
   Qed.
 
-  Import ListFns.
+  (* 
+   * Now that the configuration is defined, we define functions and theorems
+   * based off of the configuration.
+   *)
     
   Theorem add (p1 p2 : CLPoly) : CLPoly.
   Proof.
@@ -765,7 +806,13 @@ Module CLPoly.
     solve_proper2.
   Qed.
 
-  Definition evalRespectsAddFirstMotive (p2 : CLPoly) (n : nat) := (fun p => eval (add p p2) n = eval p n + eval p2 n).
+  (*
+   * The below theorems need to use depElimProp. To enable repair, we specialize depElimProp
+   * with a motive and a proof that the motive is proper before we apply it in our theorems.
+   *)
+
+  Definition evalRespectsAddFirstMotive (p2 : CLPoly) (n : nat) :=
+    (fun p => eval (add p p2) n = eval p n + eval p2 n).
 
   Theorem evalRespectsAddFirstProperGoal : forall (p2 : CLPoly) (n : nat),
       Proper (eq_CLPoly ==> iff) (fun p : CLPoly => eval (add p p2) n = eval p n + eval p2 n).
@@ -874,6 +921,17 @@ End CLPoly.
 
 Module CEPPoly.
 
+  Import ListFns.
+
+  (*
+   * Here is our secondc setoid. We define the type of lists of pairs natural numbers.
+   * The list [(an, expn) ; (a(n-1), exp(n-1) ; ... ; (a0, exp0)] represents the 
+   * polynomial an * x^expn + a(n-1) * x^exp^(n-1) + ... + a0 * x^exp0. 
+   * Each polynomial has multiple representations, since we allow for repeated exponents.
+   * To account for this we define an equivalence relation saying that two representations 
+   * are equivalent if their coefficients of the same degree sum to the same number.
+   *)
+
   Definition CEPPoly := list (nat * nat).
 
   Fixpoint coeff (p : CEPPoly) (exp : nat) :=
@@ -915,6 +973,8 @@ Module CEPPoly.
     - apply eq_CEPPoly_sym.
     - apply eq_CEPPoly_trans.
   Qed.
+
+  (* To define the configuration, we first prove a number of helper theorems. *)
 
   Theorem permutation_implies_equiv p1 p2 : Permutation p1 p2 -> eq_CEPPoly p1 p2.
   Proof.
@@ -1029,8 +1089,8 @@ Module CEPPoly.
       reflexivity.
   Defined.
 
-  (* Shows that max degree will indeed find all the degrees for non-zero coeffs *)
-  Theorem get_max_degree_non_zero (l : CEPPoly) : get_max_degree l > 0 -> coeff l (get_max_degree l) <> 0.
+  Theorem get_max_degree_non_zero (l : CEPPoly) :
+    get_max_degree l > 0 -> coeff l (get_max_degree l) <> 0.
   Proof.
     intros.
     induction l.
@@ -1231,27 +1291,7 @@ Module CEPPoly.
     apply ListFns.noLeadingZerosRemoveLeadingZeros.
   Qed.
 
-  Definition depConstr (l : list nat) (p : noLeadingZeros l) := CEPFromCoeffList l.
-
-  Definition depRec (C : Type) (X : forall (l : list nat) (p : noLeadingZeros l), C) (p : CEPPoly) : C :=
-    X (coeffListFromCEP p) (coeffListFromCEPNoLeadingZeros p).
-
-  Instance depRecProper (C : Type)
-    (X : forall (l : list nat) (p : noLeadingZeros l), C) :
-    Proper (eq_CEPPoly ==> eq) (depRec C X).
-  Proof.
-    intros p1 p2 H.
-    apply canonicalIsCanonical in H.
-    unfold depRec.    
-    unfold coeffListFromCEP.
-    assert (eq_rect (canonicalize p1) (fun x => noLeadingZeros (removeLeadingZeros (coeffListFromCEPHelp (rev x)))) (coeffListFromCEPNoLeadingZeros p1) (canonicalize p2) H = coeffListFromCEPNoLeadingZeros p2).
-    apply noLeadingZerosProofIrr.
-    destruct H0.
-    destruct H.
-    reflexivity.
-  Qed.
-
-  Theorem CEPFromCoeffListApp : forall (l1 l2 : list nat) (n : nat),
+    Theorem CEPFromCoeffListApp : forall (l1 l2 : list nat) (n : nat),
     (CEPFromCoeffListHelp (l1 ++ l2) n) =
     ((CEPFromCoeffListHelp l1 n) ++ (CEPFromCoeffListHelp l2 (length l1 + n))).
   Proof.
@@ -1454,16 +1494,6 @@ Module CEPPoly.
     reflexivity.
   Qed.
 
-  Theorem depElimProp (P : CEPPoly -> Prop)
-    `(proper : Proper _ (eq_CEPPoly ==> iff) P)
-    (X : forall (l : list nat) (proof : noLeadingZeros l), P (depConstr l proof))
-    (p : CEPPoly) :
-    P p.
-  Proof.
-    rewrite <- CEPFromCoeffListInv.
-    apply (X (coeffListFromCEP p) (coeffListFromCEPNoLeadingZeros p)).
-  Qed.
-
   Theorem max_degree_bounded_by_exps :
     forall (p : CEPPoly) (bound : nat),
       ((forall (c exp : nat), In (c, exp) p -> exp <= bound) -> get_max_degree p <= bound).
@@ -1594,6 +1624,41 @@ Module CEPPoly.
           apply H0.
   Qed.
 
+  (*
+   * Now, we define the configuration, again based off of 
+   * {l : list nat | noLeadingZeros l}.
+   *)
+
+  Definition depConstr (l : list nat) (p : noLeadingZeros l) := CEPFromCoeffList l.
+
+  Definition depRec (C : Type) (X : forall (l : list nat) (p : noLeadingZeros l), C) (p : CEPPoly) : C :=
+    X (coeffListFromCEP p) (coeffListFromCEPNoLeadingZeros p).
+
+  Instance depRecProper (C : Type)
+    (X : forall (l : list nat) (p : noLeadingZeros l), C) :
+    Proper (eq_CEPPoly ==> eq) (depRec C X).
+  Proof.
+    intros p1 p2 H.
+    apply canonicalIsCanonical in H.
+    unfold depRec.    
+    unfold coeffListFromCEP.
+    assert (eq_rect (canonicalize p1) (fun x => noLeadingZeros (removeLeadingZeros (coeffListFromCEPHelp (rev x)))) (coeffListFromCEPNoLeadingZeros p1) (canonicalize p2) H = coeffListFromCEPNoLeadingZeros p2).
+    apply noLeadingZerosProofIrr.
+    destruct H0.
+    destruct H.
+    reflexivity.
+  Qed.
+
+  Theorem depElimProp (P : CEPPoly -> Prop)
+    `(proper : Proper _ (eq_CEPPoly ==> iff) P)
+    (X : forall (l : list nat) (proof : noLeadingZeros l), P (depConstr l proof))
+    (p : CEPPoly) :
+    P p.
+  Proof.
+    rewrite <- CEPFromCoeffListInv.
+    apply (X (coeffListFromCEP p) (coeffListFromCEPNoLeadingZeros p)).
+  Qed.
+
   Theorem coeffListCanonical (l : list nat) (proof : noLeadingZeros l) :
     removeLeadingZeros (coeffListFromCEPHelp (rev (canonicalize (depConstr l proof)))) = l.
   Proof.
@@ -1656,14 +1721,33 @@ Module CEPPoly.
   
 End CEPPoly.
 
-(* If we don't set lift type, the default type of addCommCEP doesn't allow
- * needed rewrites to be performed in comm_once and comm_twice.
+(* 
+ * The lift type option makes Pumpkin Pi lift the types of terms as well as 
+ * the terms themselves. If we don't set lift type, the default type of 
+ * addCommCEP doesn't allow needed rewrites to be performed in 
+ * comm_once and comm_twice.
  *)
+
 Set DEVOID lift type.
+
+(*
+ * We define p and f, as well as etaCLPoly and etaCEPPoly, 
+ * which are part of the required input for the tool.
+ *) 
 
 Definition p (p : CLPoly.CLPoly) := CLPoly.depRec CEPPoly.CEPPoly (fun l proof => CEPPoly.CEPFromCoeffList l) p.
 
 Definition f (p : CEPPoly.CEPPoly) := CEPPoly.depRec CLPoly.CLPoly (fun l proof => CLPoly.depConstr (CEPPoly.coeffListFromCEP p) (CEPPoly.coeffListFromCEPNoLeadingZeros p)) p.
+
+(* 
+ * Here, we configure Pumpkin Pi to lift our setoids. We pass CLPoly.CLPoly to types_a,
+ * CLPoly.eq_CLPoly to rels_a, and CLPoly.eq_CLPoly_equiv to equiv_proofs_a to define
+ * CLPoly.CLPoly as a setoid with equivalence relation CLPoly.eq_CLPoly. Likewise,
+ * we pass CEPPoly.CEPPoly to types_b, CEPPoly.eq_CEPPoly to rels_b, and 
+ * CEPPoly.eq_CEPPoly_equiv to equiv_proofs_b to define CEPPoly.CEPPoly as a setoid 
+ * with equivalence relation CEPPoly.eq_CEPPoly. Pumpkin Pi will then repair 
+ * CLPoly.eq_CLPoly as CEPPoly.eq_CEPPoly when repairing terms.
+ *)
 
 Save setoid CLPoly.CLPoly CEPPoly.CEPPoly { promote = p ; forget = f ; types_a = CLPoly.CLPoly; rels_a = CLPoly.eq_CLPoly; equiv_proofs_a = CLPoly.eq_CLPoly_equiv; types_b = CEPPoly.CEPPoly ; rels_b = CEPPoly.eq_CEPPoly ; equiv_proofs_b = CEPPoly.eq_CEPPoly_equiv }.
 
@@ -1681,15 +1765,31 @@ Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {
     iota_b = CEPPoly.iotaRec CEPPoly.iotaRecRev
   }.
 
-Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {opaque noLeadingZeros ListFns.addLists ListFns.addListsNoLeadingZeros noLeadingZerosProofIrr ListFns.evalList ListFns.evalListRespectsAddLists opaque_list ListFns.addListsCommNoLeadingZerosProofIrr ListFns.addListsComm}.
+(*
+ * Here, we make opaque_list, as well as some functions and theorems over it,
+ * opaque, so that Pumpkin Pi will not repair them.
+ *)
+
+Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {opaque ListFns.noLeadingZeros ListFns.addLists ListFns.addListsNoLeadingZeros ListFns.noLeadingZerosProofIrr ListFns.evalList ListFns.evalListRespectsAddLists ListFns.opaque_list ListFns.addListsCommNoLeadingZerosProofIrr ListFns.addListsComm}.
+
+(* 
+ * We lift CLPoly.depRec, which prevents Pumpkin Pi from unfolding 
+ * its definition in lifted terms. This helps with proper proof 
+ * generation.
+ *)
 
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.depRec as depRecCEP.
 
-Print CLPoly.add.
+(* Now, we repair our functions. *)
 
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.add as addCEP.
 
 Print addCEP.
+
+(* 
+ * Pumpkin Pi fails to automatically generate a proof that addCEP is proper,
+ * so we prove it manually.
+ *)
 
 Instance addCEPProper : Proper (CEPPoly.eq_CEPPoly ==> CEPPoly.eq_CEPPoly ==> CEPPoly.eq_CEPPoly) addCEP.
 Proof.
@@ -1708,6 +1808,19 @@ Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.eval as evalCEP.
 
 Print evalCEP.
 
+(*
+ * Now, we repair our theorems. Because they use depElimProp, we need to
+ * specialize CEPPoly.depElimProp to use lifted versions of the motives
+ * of the CLPoly.depElimProp instances in the source term, as well as a 
+ * proof that those instances are proper. We can generate thoes proper proofs,
+ * but because we define these motives at the top level, the motives we define
+ * take arguments for terms that would be in scope in the original term. Thus,
+ * the generated proper proofs don't have the right type, and we need to prove
+ * our own. If Pumpkin Pi automatically lifted depElimProps, it could generate
+ * the proper proofs in the context they would appear in, preventing this 
+ * hiccup.
+ *)
+
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.evalRespectsAddFirstMotive as evalRespectsAddFirstMotiveCEP.
 
 Print evalRespectsAddFirstMotiveCEP.
@@ -1719,10 +1832,7 @@ Proof.
   solve_proper2.
 Qed.
 
-Definition evalRespectsAddSecondMotiveCEP l1 proof1 n :=
-    (fun p : CEPPoly.CEPPoly =>
-       evalCEP (addCEP (CEPPoly.depConstr l1 proof1) p) n
-       = evalCEP (CEPPoly.depConstr l1 proof1) n + evalCEP p n).
+Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.evalRespectsAddSecondMotive as evalRespectsAddSecondMotiveCEP.
 
 Theorem evalRespectsAddSecondMotiveCEPProper l1 proof1 n : Proper (CEPPoly.eq_CEPPoly ==> iff) (evalRespectsAddSecondMotiveCEP l1 proof1 n).
 Proof.
@@ -1749,6 +1859,8 @@ Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.evalRespectsAdd as evalRespectsAddCEP.
 
 Print evalRespectsAddCEP.
+
+(* Now, we lift CLPoly.addComm. *)
 
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.addCommFirstDepElimMotive as addCommFirstDepElimMotiveCEP.
 
@@ -1801,9 +1913,19 @@ Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.addComm as addCommCEP.
 
 Print addCommCEP.
 
+(*
+ * None of the above theorems used setoid rewriting in their proofs.
+ * Thus, to demonstrate repair of setoid writing, we quickly prove
+ * some simple theorems using setoid rewriting, and then repair them.
+ * Notice the use of rewrite_annotate, which is a tactic that 
+ * automatically annotates rewrites in proofs.
+ *)
+
 Theorem comm_once :
-  forall (p1 p2 : CLPoly.CLPoly),
-    CLPoly.eq_CLPoly (CLPoly.add p1 p2) (CLPoly.add p2 p1).
+  forall (p1 p2 p3 p4 : CLPoly.CLPoly),
+    CLPoly.eq_CLPoly
+      (CLPoly.add (CLPoly.add p3 p4) (CLPoly.add p1 p2))
+      (CLPoly.add (CLPoly.add p3 p4) (CLPoly.add p2 p1)).
 Proof.
   intros.
   rewrite_annotate (CLPoly.addComm p1 p2).
