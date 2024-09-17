@@ -314,7 +314,7 @@ let rewrite_tactic_from_start_rewrite_annotation env sigma b eq_rel_proof =
 let lift_setoid_rewrite c env l lift_rec sigma =
   let _ = Feedback.msg_warning (Pp.str "lift_setoid_rewrite") in
   match l with
-  | _ :: _ :: a1 :: a2 :: _ :: eq_rel_proof :: source_goal :: rewrite_target :: args ->
+  | _ :: a1 :: a2 :: _ :: eq_rel_proof :: source_goal :: rewrite_target :: args ->
      let _ = Feedback.msg_warning (Pp.str "lift_setoid_rewrite 1") in
      let sigma, lifted_eq_rel_proof = lift_rec env sigma c eq_rel_proof in
      let _ = Feedback.msg_warning (Pp.str "lift_setoid_rewrite 1.1") in

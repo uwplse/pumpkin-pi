@@ -1001,7 +1001,7 @@ let applies_setoid_rewrite c env trm sigma =
   if (isApp trm) then
     if equal (first_fun trm) Setoidutils.start_rewrite_annotation then
       let args = unfold_args trm in
-      if List.length args < 8 then
+      if List.length args < 7 then
         sigma, None
       else
         let _ = Feedback.msg_warning (Pp.str "applies_setoid_rewrite some") in

@@ -1,6 +1,6 @@
 Require Import Relation_Definitions Morphisms.
 
-Definition START_REWRITE {A B : Type} {a1 a2 : A} {eq : relation A} (H : eq a1 a2) (H2 : Type) (x : B) := x.
+Definition START_REWRITE {A : Type} {a1 a2 : A} {eq : relation A} (H : eq a1 a2) (H2 : Type) (x : H2) := x.
 
 Ltac rewrite_annotate H :=
   match goal with
