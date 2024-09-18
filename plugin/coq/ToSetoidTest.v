@@ -243,7 +243,7 @@ Definition p (x : old) := Target.one.
 
 Definition f (x : new) := Source.tt.
                             
-Save setoid old new { promote = p ; forget = f ; types = Target.unit Target.nat_unit_prod ; rels = Target.eq_unit Target.eq_nat_unit_prod ; equiv_proofs = Target.eq_unit_equiv Target.eq_nat_unit_prod_equiv }.
+Save setoid old new { promote = p ; forget = f ; types_a = Target.unit ; rels_a = Target.eq_unit; equiv_proofs_a = Target.eq_unit_equiv; types_b = Target.nat_unit_prod; rels_b = Target.eq_nat_unit_prod ; equiv_proofs_b = Target.eq_nat_unit_prod_equiv }.
 
 Configure Lift old new {
     constrs_a = depConstrSource ;
@@ -268,7 +268,7 @@ Lift old new in Source.eq_test3 as eq_test3.
 
 Lift old new in Source.f as func.
 
-Instance func_proper : Proper (Target.eq_unit ==> eq) func.
+Instance func_proper_manual : Proper (Target.eq_unit ==> eq) func.
 Proof.
   intros x y H.
   destruct x;
