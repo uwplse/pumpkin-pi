@@ -5,7 +5,7 @@ Require Import UIPList.
 Require Import EqdepFacts.
 Require Import Eqdep_dec.
 Require Import Coq.Arith.Peano_dec.
-Require Import Ornaments.
+Require Import Ornamental.Ornaments.
 Require Import RelationClasses Morphisms.
 Require Import Permutation Sorting Sorted Orders.
 Require Import Lia.

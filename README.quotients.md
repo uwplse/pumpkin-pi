@@ -5,12 +5,12 @@ To fetch and build everything, make sure you have Coq 8.9.1 installed (later ver
 Then, to build everything, run:
 ```
 cd plugin
-./build.sh
+bash build.sh
 ```
 
 To run the relevant case studies files, run:
 ```
-./setoids.sh
+bash setoids.sh
 ```
 
 which will first run the setoid repair tests contained within [`plugin/coq/ToSetoidTest.v`](plugin/coq/ToSetoidTest.v),then build the following two case studies:

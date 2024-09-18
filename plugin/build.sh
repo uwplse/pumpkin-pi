@@ -3,7 +3,7 @@ git submodule init
 git submodule update
 echo "building dependencies"
 cd deps/fix-to-elim/plugin
-./build.sh
+bash build.sh
 cd ../../..
 echo "building DEVOID"
 
