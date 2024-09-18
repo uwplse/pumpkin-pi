@@ -12,7 +12,7 @@ else
   exit 1
 fi
 
-cd playground
+cd ../case-studies
 
 echo "Running integer case study"
 if coqc grothendieck_int_equivalence_repair_tool.v
@@ -23,9 +23,7 @@ else
   exit 1
 fi
 
-cd TwoListQueue
-
-echo "Building UIPList"
+echo "Building UIPList (for one/two list queue case study)"
 if coqc UIPList.v
 then
   :
@@ -45,7 +43,7 @@ else
   exit 1
 fi
 
-echo "Running queue case study"
+echo "Running polynomial case study"
 
 cd ..
 
@@ -53,6 +51,6 @@ if coqc polynomial.v
 then
   :
 else
-  echo "ERROR: running queue case study failed"
+  echo "ERROR: running polynomial case study failed"
   exit 1
 fi
