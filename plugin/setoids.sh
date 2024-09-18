@@ -45,3 +45,14 @@ else
   exit 1
 fi
 
+echo "Running queue case study"
+
+cd ..
+
+if coqc polynomial.v 
+then
+  :
+else
+  echo "ERROR: running queue case study failed"
+  exit 1
+fi
