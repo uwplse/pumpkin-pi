@@ -45,8 +45,6 @@ fi
 
 echo "Running polynomial case study"
 
-cd ..
-
 if coqc polynomial.v 
 then
   :
