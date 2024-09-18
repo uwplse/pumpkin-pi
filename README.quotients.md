@@ -24,7 +24,9 @@ We do not assume it for all types, so we are not adding an axiom to our theory.
 Note: we only support proper proof generation for unix-based systems in our extension to Pumpkin Pi.
 
 ## Cubical Agda Manual Case Studies
-To run our Cubical Agda case studies, you should install [Cubical Agda](https://github.com/agda/cubical)
+To run our Cubical Agda case studies, you should install [Cubical Agda](https://github.com/agda/cubical).
+We tested our case studies on cubical library version v0.7, Agda version v2.6.4.1 (latest release as of 2024-09-17).
+
 The main corresponding files for our case studies in Cubical Agda can be found in the following locations:
 - [`plugin/case-studies/grothendieck_int_equiv.agda`](plugin/case-studies/grothendieck_int_equiv.agda) (for the integer case study in Cubical Agda)
 - [`plugin/case-studies/equivalence_queue.agda`](plugin/case-studies/equivalence_queue.agda) (for the queue case study in Cubical Agda)
