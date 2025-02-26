@@ -6,6 +6,7 @@ open import Cubical.Foundations.Prelude
 
 -- This module implements a definitionally simpler version of funExtDep. The code comes from this pull request:
 -- https://github.com/agda/cubical/pull/1001#issuecomment-1724869895
+-- It has been merged into master, but has yet to be included in the latest release version of the cubical library.
 -- We copy it here so we can use it without modifying our version of the library. 
 
 erp : I → I → I → I
@@ -39,6 +40,12 @@ funExtDep : {A : I → Type ℓ} {B : (i : I) → A i → Type ℓ₁}
   → PathP (λ i → (x : A i) → B i x) f g
 funExtDep {A = A} {B} {f} {g} h i x =
   transp (λ k → B i (coei→i A i x k)) (i ∨ ~ i) (h (λ j → coei→j A i j x) i)
+
+funExtNonDep : {A : I → Type ℓ} {B : I → Type ℓ₁}
+  {f : A i0 → B i0} {g : A i1 → B i1}
+  → ({x₀ : A i0} {x₁ : A i1} → PathP A x₀ x₁ → PathP B (f x₀) (g x₁))
+  → PathP (λ i → A i → B i) f g
+funExtNonDep {A = A} h i x = h (λ j → coei→j A i j x) i
 
 -- Credit to Tom in the Univalent Agda discord server for the below term.
 removeFunExtDep :
