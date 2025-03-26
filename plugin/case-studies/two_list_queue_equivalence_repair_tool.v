@@ -535,7 +535,7 @@ Definition etaTLQ (q : TLQ) := q.
  * Our functions have output types which are derived from TLQ.
  * Thus, we need to define equivalence relations on them too if
  * we want to compare their elements in the natural way.
- * For instance, we need to define an equivalenec relation on
+ * For instance, we need to define an equivalence relation on
  * A * TLQ if we want two elements of A * TLQ to be related if
  * their first elements are equal and their second elements are
  * related in the setoid.
@@ -983,4 +983,4 @@ Theorem fastDequeueEmptyTLQ : eq_deq_ret (fastDequeueTLQ depConstrTLQEmpty) None
 Proof.
   rewrite <- dequeueEqualsFastDequeue.
   apply dequeueEmptyTLQ.
-Qed.  
+Qed.
