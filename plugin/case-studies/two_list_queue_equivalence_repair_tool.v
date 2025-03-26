@@ -978,3 +978,9 @@ Proof.
     rewrite H.
     reflexivity.
 Qed.
+
+Theorem fastDequeueEmptyTLQ : eq_deq_ret (fastDequeueTLQ depConstrTLQEmpty) None.
+Proof.
+  rewrite <- dequeueEqualsFastDequeue.
+  apply dequeueEmptyTLQ.
+Qed.  
