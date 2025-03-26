@@ -934,12 +934,12 @@ open import Cubical.Data.Bool
 -- Thus, true at one end of the path is connected to false at the other end of the path.
 -- To get correct proofs of correct repair, we need to manually ensure that the PathP is along a path indicating correct repair;
 -- the presence of notEq in the first PathP argument here, as opposed to refl, indicates that this is not the case in this example.
-soundness_failure :
+incorrect_correctness_proof :
   PathP
     (λ i → notEq i)
     (Cubical.Data.Nat.elim {A = λ _ → Bool} true (λ _ _ → true) 0)
     (depElimSetInt/rInt (λ _ → Bool) (λ _ → isSetBool) false (λ _ _ → false) depConstrInt/rInt0) 
-soundness_failure =
+incorrect_correctness_proof =
   elimOK
     0
     depConstrInt/rInt0
