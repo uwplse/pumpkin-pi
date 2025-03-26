@@ -31,3 +31,4 @@ We tested our case studies on cubical library version v0.7, Agda version v2.6.4.
 The main corresponding files for our case studies in Cubical Agda can be found in the following locations:
 - [`plugin/case-studies/grothendieck_int_equiv.agda`](plugin/case-studies/grothendieck_int_equiv.agda) (for the integer case study in Cubical Agda)
 - [`plugin/case-studies/equivalence_queue.agda`](plugin/case-studies/equivalence_queue.agda) (for the queue case study in Cubical Agda)
+- [`plugin/case-studies/equivalence_int_abs.agda`](plugin/case-studies/equivalence_int_abs.agda) (for the internal proofs of correct repair in Cubical Agda). [`plugin/case-studies/alternateFunExtDep.agda`](plugin/case-studies/alternateFunExtDep.agda.agda) must be compiled prior.
