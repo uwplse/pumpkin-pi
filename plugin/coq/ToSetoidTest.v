@@ -243,7 +243,7 @@ Definition p (x : old) := Target.one.
 
 Definition f (x : new) := Source.tt.
                             
-Save setoid old new { promote = p ; forget = f ; types_a = Target.unit ; rels_a = Target.eq_unit; equiv_proofs_a = Target.eq_unit_equiv; types_b = Target.nat_unit_prod; rels_b = Target.eq_nat_unit_prod ; equiv_proofs_b = Target.eq_nat_unit_prod_equiv }.
+Save setoid old new { promote = p ; forget = f ; types_a = ; rels_a = ; equiv_proofs_a = ; types_b = Target.unit Target.nat_unit_prod; rels_b = Target.eq_unit Target.eq_nat_unit_prod ; equiv_proofs_b = Target.eq_unit_equiv Target.eq_nat_unit_prod_equiv }.
 
 Configure Lift old new {
     constrs_a = depConstrSource ;
@@ -258,15 +258,27 @@ Configure Lift old new {
 
 Lift old new in Source.eq_test as eq_test.
 
+Print eq_test.
+
 Lift old new in Source.eq_refl_test as eq_refl_test.
+
+Print eq_refl_test.
 
 Lift old new in Source.eq_test2 as eq_test2.
 
+Print eq_test2.
+
 Lift old new in Source.eq_refl_test2 as eq_refl_test2.
+
+Print eq_refl_test2.
 
 Lift old new in Source.eq_test3 as eq_test3.
 
+Print eq_test3.
+
 Lift old new in Source.f as func.
+
+Print func.
 
 Instance func_proper_manual : Proper (Target.eq_unit ==> eq) func.
 Proof.
@@ -278,8 +290,16 @@ Qed.
 
 Lift old new in Source.eq_rect_test as eq_rect_test.
 
+Print eq_rect_test.
+
 Lift old new in Source.eq_rect_test2 as eq_rect_test2.
+
+Print eq_rect_test2.
 
 Lift old new in Source.eq_rect_test3 as eq_rect_test3.
 
+Print eq_rect_test3.
+
 Lift old new in Source.proper_test as proper_test.
+
+Print proper_test.
