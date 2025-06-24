@@ -1,19 +1,10 @@
 {-# OPTIONS --safe --cubical #-}
 module equivalence_int_abs where
 
-open import Cubical.Core.Everything
 open import Cubical.HITs.SetQuotients as SetQuotients
 open import Cubical.Foundations.Path
 open import Cubical.Foundations.Prelude
-open import Cubical.Foundations.HLevels
 open import Cubical.Foundations.Isomorphism
-open import Cubical.Foundations.Equiv
-open import Cubical.Foundations.Isomorphism
-open import Cubical.Relation.Nullary
-open import Cubical.Foundations.Univalence
-open import Cubical.Data.Empty
-open import Cubical.Data.Sum
-open import Agda.Builtin.Nat
 open import Cubical.Data.Nat
 open import alternateFunExtDep
 
@@ -25,10 +16,10 @@ open import alternateFunExtDep
 -- the equivalence relation erasing the distinction between the left and right members of the disjoint union.
 
 data Int : Set where
-  pos : (n : Nat) → Int
-  neg : (n : Nat) → Int
+  pos : (n : ℕ) → Int
+  neg : (n : ℕ) → Int
 
-abs : Int -> Nat
+abs : Int -> ℕ
 abs (pos x) = x
 abs (neg x) = x
 
@@ -38,13 +29,10 @@ rInt a b = abs a ≡ abs b
 isSetInt/rInt : isSet (Int / rInt)
 isSetInt/rInt x y p q = squash/ x y p q
 
-f : Nat → Int / rInt
+f : ℕ → Int / rInt
 f n = [ pos n ]
 
-rIntPosNegQ : (n : Nat) -> ([_] {A = Int} {R = rInt} (pos n)  ≡ [_] {A = Int} {R = rInt} (neg n))
-rIntPosNegQ n = eq/ _ _ refl
-
-g : Int / rInt → Nat
+g : Int / rInt → ℕ
 g [ n ] = abs n
 g (eq/ a b r i) = r i
 g (squash/ a b p q i j) = isSetℕ (g a) (g b) (cong g p) (cong g q) i j
@@ -58,14 +46,14 @@ sec = elimProp (λ x → isSetInt/rInt (f (g x)) x) lem where
 ret : retract f g
 ret n = refl
 
-NatIsoInt/rInt : Iso Nat (Int / rInt)
+NatIsoInt/rInt : Iso ℕ (Int / rInt)
 NatIsoInt/rInt = iso f g sec ret
 
 -- Path equality corresponding to this isomorphism
-Nat≡Int/rInt : Nat ≡ Int / rInt
+Nat≡Int/rInt : ℕ ≡ Int / rInt
 Nat≡Int/rInt = isoToPath NatIsoInt/rInt
 
-sucLemNat : (a : Nat) -> (b : Nat) -> suc (a + b) ≡ a + suc b
+sucLemNat : (a : ℕ) -> (b : ℕ) -> suc (a + b) ≡ a + suc b
 sucLemNat zero b = refl
 sucLemNat (suc a) b = cong suc (sucLemNat a b)
 
@@ -110,8 +98,8 @@ transportEq≡transportEqRev/ n r1 r2 req P px =
       refl)
 
 -- Dependent eliminator for Int / rInt over Set (thanks to Amelia Liao for helping us figure this out)
-depElimSetInt/rInt : (P : Int / rInt -> Type) -> (∀ x -> isSet (P x)) -> (P depConstrInt/rInt0) -> (∀ n -> (P n) -> P (depConstrInt/rIntS n)) -> ((x : Int / rInt) -> P x)
-depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefined where
+depElimInt/rInt : (P : Int / rInt -> Type) -> (∀ x -> isSet (P x)) -> (P depConstrInt/rInt0) -> (∀ n -> (P n) -> P (depConstrInt/rIntS n)) -> ((x : Int / rInt) -> P x)
+depElimInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefined where
   -- points
   lem : (a : Int) → P [ a ]
   lem (pos zero) = baseCase
@@ -159,69 +147,34 @@ depElimSetInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefine
         x))
     r
 
--- Dependent prop sorted eliminator for Int / rInt
-
-depElimInt/rInt : (P : Int / rInt -> Type) -> (∀ x -> isProp (P x)) -> (P [ pos 0 ]) -> (∀ n -> (P n) -> P (sucInt/rInt n)) -> ((x : Int / rInt) -> P x)
-depElimInt/rInt P set baseCase sucCase = elimProp set lem where
-  lem : (a : Int) → P [ a ]
-  lem (pos zero) = baseCase
-  lem (pos (suc n)) = sucCase [ pos n ] (lem (pos n))
-  lem (neg zero) = subst P (eq/ (pos zero) (neg zero) refl) baseCase
-  lem (neg (suc n)) = sucCase [ neg n ] (lem (neg n))
-
--- ι for the Set eliminator
 ιInt/rInt0 : (P : Int / rInt → Type) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) →
-    (Q : P depConstrInt/rInt0 → Set) → Q (depElimSetInt/rInt P pset pz ps depConstrInt/rInt0) → Q pz
-ιInt/rInt0 P pset pz ps Q qz = qz 
+    (Q : P depConstrInt/rInt0 → Set) → Q (depElimInt/rInt P pset pz ps depConstrInt/rInt0) → Q pz
+ιInt/rInt0 P pset pz ps Q qz = qz
+
+rIntPosNegQ : (n : ℕ) -> ([_] {A = Int} {R = rInt} (pos n)  ≡ [_] {A = Int} {R = rInt} (neg n))
+rIntPosNegQ n = eq/ _ _ refl
 
 ιInt/rIntSEq : (P : Int / rInt → Type) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
-    depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n) ≡ ps n (depElimSetInt/rInt P pset pz ps n)
+    depElimInt/rInt P pset pz ps (depConstrInt/rIntS n) ≡ ps n (depElimInt/rInt P pset pz ps n)
 ιInt/rIntSEq P pset pz ps = elimProp prop fpoint where
-  fpoint : (x : Int) → depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS [ x ]) ≡ ps [ x ] (depElimSetInt/rInt P pset pz ps [ x ])
+  fpoint : (x : Int) → depElimInt/rInt P pset pz ps (depConstrInt/rIntS [ x ]) ≡ ps [ x ] (depElimInt/rInt P pset pz ps [ x ])
   fpoint (pos n) = refl
-  fpoint (neg n) = subst (λ e → depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS e) ≡ ps e (depElimSetInt/rInt P pset pz ps e)) (rIntPosNegQ n) refl
+  fpoint (neg n) = subst (λ e → depElimInt/rInt P pset pz ps (depConstrInt/rIntS e) ≡ ps e (depElimInt/rInt P pset pz ps e)) (rIntPosNegQ n) refl
   -- it's OK to use elimProp:
-  prop : (n : Int / rInt) → isProp (depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n) ≡ ps n (depElimSetInt/rInt P pset pz ps n))
-  prop n p q = pset (depConstrInt/rIntS n) (depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n)) (ps n (depElimSetInt/rInt P pset pz ps n)) p q
+  prop : (n : Int / rInt) → isProp (depElimInt/rInt P pset pz ps (depConstrInt/rIntS n) ≡ ps n (depElimInt/rInt P pset pz ps n))
+  prop n p q = pset (depConstrInt/rIntS n) (depElimInt/rInt P pset pz ps (depConstrInt/rIntS n)) (ps n (depElimInt/rInt P pset pz ps n)) p q
 
 ιInt/rIntS : (P : Int / rInt → Type) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
     (Q : P (depConstrInt/rIntS n) → Set) → 
-    Q (depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n)) →
-    Q (ps n (depElimSetInt/rInt P pset pz ps n))
+    Q (depElimInt/rInt P pset pz ps (depConstrInt/rIntS n)) →
+    Q (ps n (depElimInt/rInt P pset pz ps n))
 ιInt/rIntS P pset pz ps n Q Qb = subst (λ e → Q e) (ιInt/rIntSEq P pset pz ps n) Qb
 
 ιInt/rIntS⁻ : (P : Int / rInt → Type) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
     (Q : P (depConstrInt/rIntS n) → Set) → 
-    Q (ps n (depElimSetInt/rInt P pset pz ps n)) →
-    Q (depElimSetInt/rInt P pset pz ps (depConstrInt/rIntS n))
+    Q (ps n (depElimInt/rInt P pset pz ps n)) →
+    Q (depElimInt/rInt P pset pz ps (depConstrInt/rIntS n))
 ιInt/rIntS⁻ P pset pz ps n Q Qb = subst (λ e → Q e) (sym (ιInt/rIntSEq P pset pz ps n)) Qb
-
--- ι for the Prop eliminator
-ιInt/rInt0Prop : (P : Int / rInt → Set) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) →
-  (Q : P depConstrInt/rInt0 → Type) → Q (depElimInt/rInt P pprop pz ps depConstrInt/rInt0) → Q pz
-ιInt/rInt0Prop P pprop pz ps Q qz = qz
-
-ιInt/rIntSPropEq : (P : Int / rInt → Type) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
-    depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n) ≡ ps n (depElimInt/rInt P pprop pz ps n)
-ιInt/rIntSPropEq P pprop pz ps = elimProp prop fpoint where
-  fpoint : (x : Int) → depElimInt/rInt P pprop pz ps (depConstrInt/rIntS [ x ]) ≡ ps [ x ] (depElimInt/rInt P pprop pz ps [ x ])
-  fpoint (pos n) = refl
-  fpoint (neg n) = subst (λ e → depElimInt/rInt P pprop pz ps (depConstrInt/rIntS e) ≡ ps e (depElimInt/rInt P pprop pz ps e)) (rIntPosNegQ n) refl
-  -- it's OK to use elimProp:
-  prop : (n : Int / rInt) → isProp (depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n) ≡ ps n (depElimInt/rInt P pprop pz ps n))
-  prop n p q = isProp→isSet (pprop (depConstrInt/rIntS n)) (depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n)) (ps n (depElimInt/rInt P pprop pz ps n)) p q
-
-ιInt/rIntSProp : (P : Int / rInt → Type) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
-    (Q : P (depConstrInt/rIntS n) → Type) → 
-    Q (depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n)) →
-    Q (ps n (depElimInt/rInt P pprop pz ps n))
-ιInt/rIntSProp P pprop pz ps n Q Qb = subst (λ e → Q e) (ιInt/rIntSPropEq P pprop pz ps n) Qb
-
-ιInt/rIntSProp⁻ : (P : Int / rInt → Type) → (pprop : ∀ x → isProp (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) → (n : Int / rInt) →
-    (Q : P (depConstrInt/rIntS n) → Type) → 
-    Q (ps n (depElimInt/rInt P pprop pz ps n)) →
-    Q (depElimInt/rInt P pprop pz ps (depConstrInt/rIntS n))
-ιInt/rIntSProp⁻ P pprop pz ps n Q Qb = subst (λ e → Q e) (sym (ιInt/rIntSPropEq P pprop pz ps n)) Qb
 
 -- 3.1.6 in the HoTT book
 isSetProd : ∀ {A : Type} {B : A → Type} → (∀ (a : A) → isSet (B a)) → isSet (∀ (a : A) → B a)
@@ -244,7 +197,7 @@ add a b =
 
 addInt/rInt : (Int / rInt) -> (Int / rInt) -> (Int / rInt)
 addInt/rInt a b =
-  depElimSetInt/rInt
+  depElimInt/rInt
     (λ _ → Int / rInt → Int / rInt) -- motive P
     (λ (_ : Int / rInt) → isSetProd (λ _ → squash/)) -- ∀ n, isSet (P n)
     (λ b → b) -- P depConstrInt/rInt0
@@ -275,59 +228,56 @@ Nat≡Int/rIntIrrel a b p1 p2 =
 depConstr0Correct : PathP (λ i → Nat≡Int/rInt i) zero depConstrInt/rInt0
 depConstr0Correct = toPathP refl
 
-depConstr0CorrectIrrel : depConstr0Correct ≡ toPathP refl
-depConstr0CorrectIrrel = refl
-
 depConstrSCorrect :
   ∀ a b → PathP (λ i → Nat≡Int/rInt i) a b → PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)
 depConstrSCorrect a b a≡b =
   toPathP (cong depConstrInt/rIntS (fromPathP a≡b))
 
-depConstrSCorrectIrrel : ∀ (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) (Sa≡Sb : PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)) →
+depConstrSCorrectIrrel : ∀ (a : ℕ) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) (Sa≡Sb : PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS b)) →
   depConstrSCorrect a b a≡b ≡ Sa≡Sb
 depConstrSCorrectIrrel a b a≡b Sa≡Sb = Nat≡Int/rIntIrrel (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) Sa≡Sb
 
 private
   variable
-    ℓ ℓ' ℓ'' : Level
+    ℓ ℓ' : Level
 
 -- Proving that applications of the eliminators for Nat and Int / rInt have a path between them given that the inputs to the eliminators have paths between them.
 
 elimOK : -- based on elim_OK from Talia Ringer's PLDI 2021 paper
-  ∀ (a : Nat) (b : Int / rInt) →
+  ∀ (a : ℕ) (b : Int / rInt) →
   ∀ (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
-  ∀ (PA : Nat → Type) (PB : Int / rInt → Type) (PBSet : ∀ b → isSet (PB b)) →
-  ∀ (PA≡PB : ∀ (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → PathP (λ i → Type) (PA a) (PB b)) →
+  ∀ (PA : ℕ → Type) (PB : Int / rInt → Type) (PBSet : ∀ b → isSet (PB b)) →
+  ∀ (PA≡PB : ∀ (a : ℕ) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → PathP (λ i → Type) (PA a) (PB b)) →
   ∀ (PAO : PA zero) (PBO : PB depConstrInt/rInt0) →
   ∀ (PAO≡PBO : PathP (λ i → PA≡PB zero depConstrInt/rInt0 depConstr0Correct i) PAO PBO) →
   ∀ (PAS : ∀ a → PA a → PA (suc a)) (PBS : ∀ b → PB b → PB (depConstrInt/rIntS b)) →
   ∀ (PAS≡PBS : ∀ a b (IHa : PA a) (IHb : PB b) a≡b (IHa≡IHb : PathP (λ i → PA≡PB a b a≡b i) IHa IHb) → PathP (λ i → PA≡PB (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) i) (PAS a IHa) (PBS b IHb)) →
-  PathP (λ i → PA≡PB a b a≡b i) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b)
+  PathP (λ i → PA≡PB a b a≡b i) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimInt/rInt PB PBSet PBO PBS b)
 elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
   J -- adjust a≡b from pathP to path to make it easy to use JDep
     (λ a≡b' (H : toPathP (fromPathP a≡b) ≡ a≡b') →
-      PathP (λ i → PA≡PB a b a≡b' i) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b))
+      PathP (λ i → PA≡PB a b a≡b' i) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimInt/rInt PB PBSet PBO PBS b))
     (JDep -- adjust to a homogeneous PathP about proofs about a
        {A = Int / rInt}
        {B = λ (b : Int / rInt) → PB b}
-       {b =  depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)}
+       {b =  depElimInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)}
        (λ (b : Int / rInt) (a≡b : transport (λ i → Nat≡Int/rInt i) a ≡ b) (PBb : PB b)
-          (p : PathP (λ i → PB (a≡b i)) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)) PBb) →
-         PathP (λ i → PA≡PB a b (toPathP {A = λ i → Nat≡Int/rInt i} a≡b) i) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS b))
+          (p : PathP (λ i → PB (a≡b i)) (depElimInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)) PBb) →
+         PathP (λ i → PA≡PB a b (toPathP {A = λ i → Nat≡Int/rInt i} a≡b) i) (Cubical.Data.Nat.elim {A = PA} PAO PAS a) (depElimInt/rInt PB PBSet PBO PBS b))
        (Cubical.Data.Nat.elim
-         {A = λ (a : Nat) →
+         {A = λ (a : ℕ) →
            PathP
              (λ i → PA≡PB _ _ (toPathP {A = λ i → Nat≡Int/rInt i} (refl {x = transport (λ i → Nat≡Int/rInt i) a})) i)
              (Cubical.Data.Nat.elim PAO PAS a)
-             (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a))}
+             (depElimInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a))}
          PAO≡PBO -- base case holds by PAO≡PBO
-         (λ (a : Nat) IHa → -- inductive case holds by ι of PAS≡PBS
+         (λ (a : ℕ) IHa → -- inductive case holds by ι of PAS≡PBS
            (subst -- adjust to refl
             {A = PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a))}
             {x = depConstrSCorrect a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl)}
             {y = toPathP {A = λ i → Nat≡Int/rInt i} refl}
             (λ (Sa≡Sa : PathP (λ i → Nat≡Int/rInt i) (suc a) (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a))) →
-              PathP (λ i → PA≡PB _ _ Sa≡Sa i) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) (depElimSetInt/rInt PB PBSet PBO PBS (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a))))
+              PathP (λ i → PA≡PB _ _ Sa≡Sa i) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) (depElimInt/rInt PB PBSet PBO PBS (depConstrInt/rIntS (transport (λ i → Nat≡Int/rInt i) a))))
             (depConstrSCorrectIrrel a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl) (toPathP refl))
             (ιInt/rIntS⁻ -- ι reduce the successor case for proofs about Int/rInt
               PB
@@ -337,19 +287,19 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
               (transport (λ i → Nat≡Int/rInt i) a)
               (λ PBSa →
                 PathP (λ i → PA≡PB _ _ (depConstrSCorrect a (transport (λ i → Nat≡Int/rInt i) a) (toPathP refl)) i) (PAS a (Cubical.Data.Nat.elim PAO PAS a)) PBSa)
-              (PAS≡PBS a (transport (λ i → Nat≡Int/rInt i) a) (Cubical.Data.Nat.elim PAO PAS a) (depElimSetInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)) (toPathP refl) IHa))))
+              (PAS≡PBS a (transport (λ i → Nat≡Int/rInt i) a) (Cubical.Data.Nat.elim PAO PAS a) (depElimInt/rInt PB PBSet PBO PBS (transport (λ i → Nat≡Int/rInt i) a)) (toPathP refl) IHa))))
            a)
        {y = b}
        (fromPathP a≡b)
-       {z = depElimSetInt/rInt PB PBSet PBO PBS b}
-       (cong (depElimSetInt/rInt PB PBSet PBO PBS) (fromPathP a≡b)))
+       {z = depElimInt/rInt PB PBSet PBO PBS b}
+       (cong (depElimInt/rInt PB PBSet PBO PBS) (fromPathP a≡b)))
     (Iso.leftInv (PathPIsoPath (λ i → Nat≡Int/rInt i) a b) a≡b)
 
 -- Next, we prove that applications of the iota rules have paths between them given that the inputs have paths between them.
 
 -- iota: iota is OK at 0 by QAzero≡QBzero
-ιOK0 : (PA : Nat → Type) (PB : Int / rInt → Type)
-  (PA≡PB : ∀ (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → PathP (λ i → Type) (PA a) (PB b)) →
+ιOK0 : (PA : ℕ → Type) (PB : Int / rInt → Type)
+  (PA≡PB : ∀ (a : ℕ) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → PathP (λ i → Type) (PA a) (PB b)) →
   (PBset : ∀ x → isSet (PB x))
   (PAzero : PA zero) (PBzero : PB depConstrInt/rInt0)
   (PAzero≡PBzero : PathP (λ i → PA≡PB _ _ depConstr0Correct i) PAzero PBzero)
@@ -364,45 +314,45 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
   QAzero≡QBzero
 
 -- iota: iota is OK at S (it's cool to lift definitional to propositional equality) because we are eliminating into set (equality first)
-ιOKSEq : (PA : Nat → Type) (PB : Int / rInt → Type)
-  (PA≡PB : ∀ (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → PathP (λ i → Type) (PA a) (PB b))
+ιOKSEq : (PA : ℕ → Type) (PB : Int / rInt → Type)
+  (PA≡PB : ∀ (a : ℕ) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → PathP (λ i → Type) (PA a) (PB b))
   (PBset : ∀ x → isSet (PB x))
   (PAzero : PA zero) (PBzero : PB depConstrInt/rInt0)
   (PAzero≡PBzero : PathP (λ i → PA≡PB _ _ depConstr0Correct i) PAzero PBzero)
   (PAS : ∀ n → PA n → PA (suc n)) (PBS : ∀ n → PB n → PB (depConstrInt/rIntS n))
   (PAS≡PBS : ∀ a b (IHa : PA a) (IHb : PB b) a≡b (IHa≡IHb : PathP (λ i → PA≡PB _ _ a≡b i) IHa IHb) → PathP (λ i → PA≡PB _ _ (depConstrSCorrect a b a≡b) i) (PAS a IHa) (PBS b IHb))
-  (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
+  (a : ℕ) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
   PathP
     (λ i →
       elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i ≡
-      PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i)
+      PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i)
     (refl {x = Cubical.Data.Nat.elim {A = PA} PAzero PAS (suc a)})
     (ιInt/rIntSEq PB PBset PBzero PBS b)
 ιOKSEq PA PB PA≡PB PBset PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS a b a≡b =
   toPathP
     (PBset
       (depConstrInt/rIntS b)
-      (depElimSetInt/rInt PB PBset PBzero PBS (depConstrInt/rIntS b))
-      (PBS b (depElimSetInt/rInt PB PBset PBzero PBS b))
+      (depElimInt/rInt PB PBset PBzero PBS (depConstrInt/rIntS b))
+      (PBS b (depElimInt/rInt PB PBset PBzero PBS b))
       (transport
         (λ i →
            elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i ≡
-           PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i)
+           PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i)
         refl)
       (ιInt/rIntSEq PB PBset PBzero PBS b))
 
 -- rewrite version of the above
-ιOKS : (PA : Nat → Type) (PB : Int / rInt → Type)
-  (PA≡PB : ∀ (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → PathP (λ i → Type) (PA a) (PB b)) →
+ιOKS : (PA : ℕ → Type) (PB : Int / rInt → Type)
+  (PA≡PB : ∀ (a : ℕ) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → PathP (λ i → Type) (PA a) (PB b)) →
   (PBset : ∀ x → isSet (PB x))
   (PAzero : PA zero) (PBzero : PB depConstrInt/rInt0)
   (PAzero≡PBzero : PathP (λ i → PA≡PB _ _ depConstr0Correct i) PAzero PBzero)
   (PAS : ∀ n → PA n → PA (suc n)) (PBS : ∀ n → PB n → PB (depConstrInt/rIntS n))
   (PAS≡PBS : ∀ a b (IHa : PA a) (IHb : PB b) a≡b (IHa≡IHb : PathP (λ i → PA≡PB _ _ a≡b i) IHa IHb) → PathP (λ i → PA≡PB _ _ (depConstrSCorrect a b a≡b) i) (PAS a IHa) (PBS b IHb))
-  (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
+  (a : ℕ) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
   (QA : PA (suc a) → Type) (QB : PB (depConstrInt/rIntS b) → Type)
   (QA≡QB : PathP (λ i → PA≡PB _ _ (depConstrSCorrect a b a≡b) i → Type) QA QB)
-  (QAS : QA (Cubical.Data.Nat.elim {A = PA} PAzero PAS (suc a))) (QBS : QB (depElimSetInt/rInt PB PBset PBzero PBS (depConstrInt/rIntS b)))
+  (QAS : QA (Cubical.Data.Nat.elim {A = PA} PAzero PAS (suc a))) (QBS : QB (depElimInt/rInt PB PBset PBzero PBS (depConstrInt/rIntS b)))
   (QAS≡QBS :
     PathP
       (λ i → QA≡QB i
@@ -411,7 +361,7 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
       QBS) →
   PathP
     (λ i → QA≡QB i
-      (PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i))
+      (PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i))
     QAS
     (ιInt/rIntS PB PBset PBzero PBS b QB QBS)
 ιOKS PA PB PA≡PB PBset PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS a b a≡b QA QB QA≡QB QAS QBS QAS≡QBS =
@@ -420,33 +370,33 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
     {y = QAS}
     (λ QAS' →
       PathP
-        (λ i → QA≡QB i (PAS≡PBS a b (Cubical.Data.Nat.elim {A = PA} PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i))
+        (λ i → QA≡QB i (PAS≡PBS a b (Cubical.Data.Nat.elim {A = PA} PAzero PAS a) (depElimInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i))
         QAS'
         (ιInt/rIntS PB PBset PBzero PBS b QB QBS))
     (sym (subst-filler (λ e → QA e) refl QAS))
     (congP
       {A = λ i →
         elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i ≡
-        PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i}
-      {B = λ i p → QA≡QB i (PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i)}
+        PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i}
+      {B = λ i p → QA≡QB i (PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i)}
       (λ (i : I) (p : elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i ≡
-                      PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i) →
+                      PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i) →
         subst (λ e → QA≡QB i e) p (QAS≡QBS i))
       {x = refl {x = Cubical.Data.Nat.elim {A = PA} PAzero PAS (suc a)}}
       {y = ιInt/rIntSEq PB PBset PBzero PBS b}
       (ιOKSEq PA PB PA≡PB PBset PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS a b a≡b))
 
-ιOKSEq⁻ : (PA : Nat → Type) (PB : Int / rInt → Type)
-  (PA≡PB : ∀ (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → PathP (λ i → Type) (PA a) (PB b))
+ιOKSEq⁻ : (PA : ℕ → Type) (PB : Int / rInt → Type)
+  (PA≡PB : ∀ (a : ℕ) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → PathP (λ i → Type) (PA a) (PB b))
   (PBset : ∀ x → isSet (PB x))
   (PAzero : PA zero) (PBzero : PB depConstrInt/rInt0)
   (PAzero≡PBzero : PathP (λ i → PA≡PB _ _ depConstr0Correct i) PAzero PBzero)
   (PAS : ∀ n → PA n → PA (suc n)) (PBS : ∀ n → PB n → PB (depConstrInt/rIntS n))
   (PAS≡PBS : ∀ a b (IHa : PA a) (IHb : PB b) a≡b (IHa≡IHb : PathP (λ i → PA≡PB _ _ a≡b i) IHa IHb) → PathP (λ i → PA≡PB _ _ (depConstrSCorrect a b a≡b) i) (PAS a IHa) (PBS b IHb))
-  (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
+  (a : ℕ) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
   PathP
     (λ i →
-      PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i ≡
+      PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i ≡
       elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i)
     (refl {x = Cubical.Data.Nat.elim {A = PA} PAzero PAS (suc a)})
     (sym (ιInt/rIntSEq PB PBset PBzero PBS b))
@@ -454,29 +404,29 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
   toPathP
     (PBset
       (depConstrInt/rIntS b)
-      (PBS b (depElimSetInt/rInt PB PBset PBzero PBS b))
-      (depElimSetInt/rInt PB PBset PBzero PBS (depConstrInt/rIntS b))
+      (PBS b (depElimInt/rInt PB PBset PBzero PBS b))
+      (depElimInt/rInt PB PBset PBzero PBS (depConstrInt/rIntS b))
       (transport
         (λ i →
-           PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i ≡
+           PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i ≡
            elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i)
         refl)
       (sym (ιInt/rIntSEq PB PBset PBzero PBS b)))
 
-ιOKS⁻ : (PA : Nat → Type) (PB : Int / rInt → Type)
-  (PA≡PB : ∀ (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → PathP (λ i → Type) (PA a) (PB b)) →
+ιOKS⁻ : (PA : ℕ → Type) (PB : Int / rInt → Type)
+  (PA≡PB : ∀ (a : ℕ) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → PathP (λ i → Type) (PA a) (PB b)) →
   (PBset : ∀ x → isSet (PB x))
   (PAzero : PA zero) (PBzero : PB depConstrInt/rInt0)
   (PAzero≡PBzero : PathP (λ i → PA≡PB _ _ depConstr0Correct i) PAzero PBzero)
   (PAS : ∀ n → PA n → PA (suc n)) (PBS : ∀ n → PB n → PB (depConstrInt/rIntS n))
   (PAS≡PBS : ∀ a b (IHa : PA a) (IHb : PB b) a≡b (IHa≡IHb : PathP (λ i → PA≡PB _ _ a≡b i) IHa IHb) → PathP (λ i → PA≡PB _ _ (depConstrSCorrect a b a≡b) i) (PAS a IHa) (PBS b IHb))
-  (a : Nat) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
+  (a : ℕ) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) →
   (QA : PA (suc a) → Type) (QB : PB (depConstrInt/rIntS b) → Type)
   (QA≡QB : PathP (λ i → PA≡PB _ _ (depConstrSCorrect a b a≡b) i → Type) QA QB)
-  (QAS : QA (PAS a (Cubical.Data.Nat.elim {A = PA} PAzero PAS a))) (QBS : QB (PBS b (depElimSetInt/rInt PB PBset PBzero PBS b)))
+  (QAS : QA (PAS a (Cubical.Data.Nat.elim {A = PA} PAzero PAS a))) (QBS : QB (PBS b (depElimInt/rInt PB PBset PBzero PBS b)))
   (QAS≡QBS : PathP
     (λ i → QA≡QB i
-      (PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i))
+      (PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i))
     QAS
     QBS) →
   PathP
@@ -498,9 +448,9 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
     (sym (subst-filler (λ e → QA e) refl QAS))
     (congP
       {A = λ i →
-        PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i ≡
+        PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i ≡
         elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i}
-      (λ i (p : PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimSetInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i ≡
+      (λ i (p : PAS≡PBS a b (Cubical.Data.Nat.elim PAzero PAS a) (depElimInt/rInt PB PBset PBzero PBS b) a≡b (elimOK a b a≡b PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS) i ≡
                 elimOK (suc a) (depConstrInt/rIntS b) (depConstrSCorrect a b a≡b) PA PB PBset PA≡PB PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS i)
         → subst (λ e → QA≡QB i e) p (QAS≡QBS i))
       (ιOKSEq⁻ PA PB PA≡PB PBset PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS a b a≡b))
@@ -509,7 +459,7 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
 -- This can be used when proving repair was conducted correctly.
 
 -- equivalence is OK by A≡B
-equivOK : Nat ≡ Int / rInt
+equivOK : ℕ ≡ Int / rInt
 equivOK = Nat≡Int/rInt
 
 -- application: app is OK by congP
@@ -612,7 +562,7 @@ sucLemNat' a b =
 
 sucLemInt/rInt' : (a : Int / rInt) -> (b : Int / rInt) -> depConstrInt/rIntS (addInt/rInt a b) ≡ (addInt/rInt a (depConstrInt/rIntS b)) -- S (a + b) = a + S b
 sucLemInt/rInt' a b =
-  depElimSetInt/rInt
+  depElimInt/rInt
     (λ (a : Int / rInt) → ∀ (b : Int / rInt) → depConstrInt/rIntS (addInt/rInt a b) ≡ addInt/rInt a (depConstrInt/rIntS b))
     (λ (a : Int / rInt) → isSetProd (λ b → isProp→isSet (squash/ _ _)))
     (λ b → refl) -- base case
@@ -628,130 +578,6 @@ sucLemInt/rInt' a b =
         (cong depConstrInt/rIntS (IH b))) -- which holds by cong and the IH
       a
       b
-
--- Some thoughts on automating the above:
---
--- We would eventually like to be able to infer the iota applications automatically.
--- We have the corresponding proofs over nat, for which the iota reductions hold
--- definitionally. What does this mean?
---
--- It means that we know that over nat, we have:
---   Γ, IH : ∀ b → S (a + b) ≡ a + S b, b : Nat ⊢ cong S (IH b) : S (S a + b) ≡ S a + S b
--- since that is our goal shown by cong S (IH b) in the proof over Nat. But also:
---   Γ, IH : ∀ b → S (a + b) ≡ a + S b, b : Nat ⊢ cong S (IH b) : S (S (a + b)) ≡ S (a + S b)
--- before reduction of the type, just by the type signature of cong and of IH.
--- 
--- This means that we have:
---   (S (S a + b) ≡ S a + S b) ≝ (S (S (a + b)) ≡ S (a + S b))
--- So when we normalize both sides, over nat, we get the same normal form.
---
--- How do we actually get the particular normalization steps that happen, here?
--- Because we need to reify them when we move out of the original type, since
--- now these iota reductions do not hold definitionally. It would be nice to do this
--- fully automatically, rather than by hand. I see two potential paths forward:
---
--- 1. We could instrument Cubical Agda's definitional equality to track each reduction step.
--- This is probably overkill, but it doesn't require much knowledge of anything.
---
--- 2. We could figure out the normalization steps ourselves, after the fact. I think
--- we could potentially skip over knowing the entire normalization algorithm, since the
--- only thing that should change in significant ways will be the iota steps, so if it's
--- blocked it must be blocked on iota (or eta if we are yet to find that). But those iota
--- steps could be nested inside of other reductions, potentially, which might make it hard
--- to do anything unless we know everything about normalization. Maybe we can make some
--- simplifying assumptions, though.
---
--- Let us look at the example above in a bit more detail. What are the relevant ι-reduction
--- steps that happen to show:
---   (S (S a + b) ≡ S a + S b) ≝ (S (S (a + b)) ≡ S (a + S b))
--- over natural numbers? The RHS is fully normalized already, but the LHS is not.
--- δ unfolds + to an application of the Nat eliminator (we are again pretending general
--- pattern matching isn't a thing). Β-reduction a few times simplifies this to applying
--- the nat eliminator to (S a), which is when ι applies. This happens to both instances of
--- + on the LHS.
---
--- Thus, when we want to do this propositionally, what we must do is abstract every (S a) in
--- our call to ι specialized to + (over Int/rInt). Furthermore, we apply ι in the backwards
--- direction because our LHS (goal) is normalized already, but the RHS (the term we claim has the
--- type of our goal, and that indeed does when we are working over nat with definitional ι)
--- is not yet normalized, and needs those (S a) abstracted away.
---
--- OK, let's generalize. Let's say that over nat we have:
---   Γ ⊢ t : T
--- by definition, where t is the term that proves our goal T.
--- By raw syntactic type checking without normalizing, let us also say we have:
---   Γ ⊢ t : T'
--- Then over nat we can infer that:
---   Γ ⊢ T ≝ T'
--- Say we move to Int/rInt, now, and we no longer have that (lifted) T ≝ T'.
--- We want to show that (lifted) T ≡ T'. All significant changes in the equality between T and T'
--- must come from applications of of ι (unless eta is a thing; I guess we don't know yet). Thus:
---
--- 1. We should first fully normalize (lifted) T and T'. In the case of our example above,
--- this would δ-expand lifted + and Β-reduce its application.
---
--- 2. We should arrive at forms of T and T' that explicitly apply the lifted eliminator over
--- Int/rInt. Since ι is the only significant change, they should furthermore apply the lifted
--- eliminator to (S x) for some x (where S is shorthand for depConstrInt/rIntS; it is lifted S)
---
--- 3. Abstract everything definitionally equal to (S x) for some x, where that (S x) is eliminated
--- over in normalized T. This is the argument Q to ι in the backwards direction, while that x
--- is the argument n to ι in the backwards direction. Apply the ι rewrites propositionally
--- to get updated T, t.
---
--- 4. If T ≝ T', stop and return. Otherwise, abstract everything definitionally equal to (S x)
--- for some x, where that (S x) is eliminated over in normalized T'. This is the argument Q to
--- ι in the forwards direction, while that x is the argument n to ι in the forwards direction.
--- Apply the ι rewrites propositionally to get updated T', t.
---
--- 5. If T ≝ T', stop and return. Otherwise, repeat steps 1-5.
---
--- I think this is reasonable but it also means knowing how to fully normalize things in
--- between. I think we should write a constrained normalization algorithm over a restricted
--- fragment of the type theory that we define ourselves? Or something.
---
--- Maybe we can use Cubical Agda's normalization as an oracle. It remains to be seen
--- whether the information we get back from Cubical Agda is actually useful enough
--- to help us with that?
-
--- In any case, let us try this algorithm over the other proof
-sucLemInt/rInt'' : (a : Int / rInt) → (b : Int / rInt) → (addInt/rInt (depConstrInt/rIntS a) b) ≡ depConstrInt/rIntS (addInt/rInt a b)
-sucLemInt/rInt'' a b =
-  depElimSetInt/rInt
-    (λ a → ∀ (b : Int / rInt) → -- P
-      addInt/rInt (depConstrInt/rIntS a) b ≡ depConstrInt/rIntS (addInt/rInt a b))
-    (λ (a : Int / rInt) → isSetProd (λ b → isProp→isSet (squash/ _ _)))
-    (λ b → refl)
-    (λ a (IH : ∀ b → addInt/rInt (depConstrInt/rIntS a) b ≡ depConstrInt/rIntS (addInt/rInt a b)) b →
-      -- P (S a) b is T so
-      -- T is (S S a) + b ≡ S (S a + b)
-      -- cong depConstrInt/rIntS (IH b) : T', so
-      -- T' is S (S a + b) ≡ S (S (a + b))
-      -- Normalizing T blocks on ι in the RHS; let us abstract (S a):
-      ιInt/rIntS⁻
-        (λ _ → Int / rInt → Int / rInt)
-        (λ _ → isSetProd (λ _ → squash/))
-        (λ b → b)
-        (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
-        a
-        (λ (add-Sa : Int / rInt → Int / rInt) →
-          addInt/rInt (depConstrInt/rIntS (depConstrInt/rIntS a)) b ≡ depConstrInt/rIntS (add-Sa b))
-        ( -- We have simplified T to (S S a) + b ≡ S (S (a + b))
-          -- Normalizing T further blocks on ι on the LHS; let us abstract (S (S a)):
-          ιInt/rIntS⁻
-            (λ _ → Int / rInt → Int / rInt)
-            (λ _ → isSetProd (λ _ → squash/))
-            (λ b → b)
-            (λ _ (IH : Int / rInt → Int / rInt) (m : Int / rInt) → depConstrInt/rIntS (IH m))
-            (depConstrInt/rIntS a) -- note that we must also instantiate argument to Q
-            (λ (add-SSa : Int / rInt → Int / rInt) →
-              add-SSa b ≡ depConstrInt/rIntS (depConstrInt/rIntS (addInt/rInt a b)))
-            ( -- We have simplified T to S (S a + b) ≡ S (S (a + b))
-              -- I guess this points out one missed piece in our algorithm, which is
-              -- we can stop preemptively if T and T' are identical
-              cong depConstrInt/rIntS (IH b))))
-    a
-    b
 
 -- Now, we repair a proof of commutativity
 addCommNat : (a : ℕ) → (b : ℕ) → add a b ≡ add b a
@@ -772,13 +598,13 @@ addCommNat a b =
 
 addCommInt/rInt : (a : Int / rInt) → (b : Int / rInt) → addInt/rInt a b ≡ addInt/rInt b a
 addCommInt/rInt a b =
-  depElimSetInt/rInt
+  depElimInt/rInt
     (λ a → ∀ b → addInt/rInt a b ≡ addInt/rInt b a)
     (λ (a : Int / rInt) →
       isSetProd
         (λ b → isProp→isSet (squash/ _ _)))
     (λ b →
-      depElimSetInt/rInt
+      depElimInt/rInt
         (λ b → addInt/rInt [ pos zero ] b ≡ addInt/rInt b [ pos zero ])
         (λ b → isProp→isSet (squash/ _ _))
         refl
@@ -822,7 +648,7 @@ add0R =
 
 add0RInt/rInt : (n' : Int / rInt) → addInt/rInt n' depConstrInt/rInt0 ≡ n'
 add0RInt/rInt =
-  depElimSetInt/rInt
+  depElimInt/rInt
     (λ n' → addInt/rInt n' depConstrInt/rInt0 ≡ n')
     (λ n' → isProp→isSet (squash/ _ _))
     refl
@@ -891,7 +717,8 @@ repairSetEqsCorrect {A = A} =
         λ P P2 PA PB p → compPathL→PathP {p = P} {q = P2} {r = PA} {s = PB} (p t0 t2 _ _)
 
 -- Now, we prove that add0R and addComm were repaired correctly
-add0RCorrect : (n : ℕ) (n' : Int / rInt) (pn : PathP (λ i → Nat≡Int/rInt i) n n') → PathP (λ i → addCorrect n 0 n' depConstrInt/rInt0 pn depConstr0Correct i ≡ (pn i)) (add0R n) (add0RInt/rInt n')
+add0RCorrect : (n : ℕ) (n' : Int / rInt) (pn : PathP (λ i → Nat≡Int/rInt i) n n') →
+  PathP (λ i → addCorrect n 0 n' depConstrInt/rInt0 pn depConstr0Correct i ≡ (pn i)) (add0R n) (add0RInt/rInt n')
 add0RCorrect n n' pn =
   repairSetEqsCorrect
     Nat≡Int/rInt
@@ -938,7 +765,7 @@ incorrect_correctness_proof :
   PathP
     (λ i → notEq i)
     (Cubical.Data.Nat.elim {A = λ _ → Bool} true (λ _ _ → true) 0)
-    (depElimSetInt/rInt (λ _ → Bool) (λ _ → isSetBool) false (λ _ _ → false) depConstrInt/rInt0) 
+    (depElimInt/rInt (λ _ → Bool) (λ _ → isSetBool) false (λ _ _ → false) depConstrInt/rInt0) 
 incorrect_correctness_proof =
   elimOK
     0
