@@ -1,28 +1,16 @@
 {-# OPTIONS --safe --cubical #-}
 module equivalence_queue where
 
-open import Cubical.Core.Everything
 open import Cubical.HITs.SetQuotients as SetQuotients
-open import Cubical.Foundations.HLevels
-open import Cubical.Foundations.Path
 open import Cubical.Foundations.Prelude
-open import Cubical.Foundations.HLevels
 open import Cubical.Foundations.Isomorphism
-open import Cubical.Foundations.Equiv
-open import Cubical.Foundations.Isomorphism
-open import Cubical.Relation.Nullary
-open import Cubical.Foundations.Univalence
-open import Cubical.Data.Empty
-open import Cubical.Data.Sum
 open import Cubical.Data.Maybe
 open import Cubical.Data.Nat
 open import Cubical.Data.Bool
-open import Cubical.Data.Bool.Properties
-open import Cubical.Data.Empty
-open import Cubical.Data.Unit
 open import Cubical.Data.Prod
-open import Cubical.Data.Bool
 open import Cubical.Data.List
+
+-- This example is based an example from "Internalizing Representation Independence with Univalence" by Angiuli et al.
 
 record Queue {ℓ} : Set (ℓ-suc ℓ) where
   field
@@ -294,48 +282,48 @@ module TwoList where
     ιTLQInsertEq P pset emptyP insertP a =
       SetQuotients.elimProp
         (λ x → ((pset (depConstrTLQInsert a x)) (depElimTLQ P pset emptyP insertP (depConstrTLQInsert a x)) (insertP x a (depElimTLQ P pset emptyP insertP x))) )
-        (λ q → lem3 q) where
+        (λ q → lem7 q) where
       -- a significant number of lemmas are used to build the right PathP
-      lem5 : (q : Q) → PathP
+      lem : (q : Q) → PathP
                          (λ i → P (canonicalizeResp q (~ i)))      
                          (depElimHelp P emptyP insertP (insOrder q))
                          (transport
                            (λ i → P (canonicalizeResp q (~ i)))
                            (depElimHelp P emptyP insertP (insOrder q)))
-      lem5 q = transport-filler (cong P (canonicalizeResp⁻ q)) (depElimHelp P emptyP insertP (insOrder q))
-      lem4 : (q : Q) → PathP
+      lem q = transport-filler (cong P (canonicalizeResp⁻ q)) (depElimHelp P emptyP insertP (insOrder q))
+      lem2 : (q : Q) → PathP
                          (λ i → P (canonicalizeResp (enqueue a q) i))
                          (transport
                            (λ i → P (canonicalizeResp (enqueue a q) (~ i)))
                            (depElimHelp P emptyP insertP (insOrder (enqueue a q))))      
                          (depElimHelp P emptyP insertP (insOrder (enqueue a q)))
-      lem4 q = symP (lem5 (enqueue a q))
-      lem6 : (q : Q) → PathP
+      lem2 q = symP (lem (enqueue a q))
+      lem3 : (q : Q) → PathP
                          (λ i → P (depConstrTLQInsert a (canonicalizeResp q (~ i))))
                          (insertP _/_.[ insOrder q , [] ] a (depElimHelp P emptyP insertP (insOrder q)))
                          (insertP _/_.[ q ] a
                            (transport (λ i → P (canonicalizeResp q (~ i)))
                              (depElimHelp P emptyP insertP (insOrder q))))
-      lem6 q = congP (λ i Pq → insertP (canonicalizeResp q (~ i)) a Pq ) (lem5 q)
-      lem8 : (q : Q) → _/_.[ insOrder (enqueue a q) , [] ] ≡ depConstrTLQInsert a _/_.[ insOrder q , [] ]
-      lem8 (l1 , l2) = refl
-      lem7 : (q : Q) → PathP
-                         (λ i → P (lem8 q i))
+      lem3 q = congP (λ i Pq → insertP (canonicalizeResp q (~ i)) a Pq ) (lem q)
+      lem4 : (q : Q) → _/_.[ insOrder (enqueue a q) , [] ] ≡ depConstrTLQInsert a _/_.[ insOrder q , [] ]
+      lem4 (l1 , l2) = refl
+      lem5 : (q : Q) → PathP
+                         (λ i → P (lem4 q i))
                          (depElimHelp P emptyP insertP (insOrder (enqueue a q)))
                          (insertP _/_.[ insOrder q , [] ] a (depElimHelp P emptyP insertP (insOrder q)))
-      lem7 (l1 , l2) = refl
-      lem9 : (q : Q) → PathP
-                         (λ i → P (((canonicalizeResp (enqueue a q)) ∙ (lem8 q) ∙ (λ i → depConstrTLQInsert a (canonicalizeResp q (~ i)))) i))
+      lem5 (l1 , l2) = refl
+      lem6 : (q : Q) → PathP
+                         (λ i → P (((canonicalizeResp (enqueue a q)) ∙ (lem4 q) ∙ (λ i → depConstrTLQInsert a (canonicalizeResp q (~ i)))) i))
                          (transport (λ i → P (canonicalizeResp (enqueue a q) (~ i)))
                            (depElimHelp P emptyP insertP
                              (insOrder (enqueue a q))))
                          (insertP _/_.[ q ] a
                            (transport (λ i → P (canonicalizeResp q (~ i)))
                              (depElimHelp P emptyP insertP (insOrder q))))
-      lem9 q = compPathP' {B = P} (lem4 q) (compPathP' {B = P} (lem7 q) (lem6 q))
+      lem6 q = compPathP' {B = P} (lem2 q) (compPathP' {B = P} (lem5 q) (lem3 q))
       typesSame : (q : Q) →
         PathP
-          (λ i → P (((canonicalizeResp (enqueue a q)) ∙ (lem8 q) ∙ (λ i → depConstrTLQInsert a (canonicalizeResp q (~ i)))) i))
+          (λ i → P (((canonicalizeResp (enqueue a q)) ∙ (lem4 q) ∙ (λ i → depConstrTLQInsert a (canonicalizeResp q (~ i)))) i))
           (transport (λ i → P (canonicalizeResp (enqueue a q) (~ i)))
             (depElimHelp P emptyP insertP
               (insOrder (enqueue a q))))
@@ -362,13 +350,13 @@ module TwoList where
               (transport (λ i → P (canonicalizeResp q (~ i)))
                 (depElimHelp P emptyP insertP (insOrder q)))))
          (squash/ _ _ _ _)
-      lem3 : (q : Q) → transport (λ i → P (canonicalizeResp (enqueue a q) (~ i)))
+      lem7 : (q : Q) → transport (λ i → P (canonicalizeResp (enqueue a q) (~ i)))
                          (depElimHelp P emptyP insertP
                            (insOrder (enqueue a q)))
                        ≡ insertP _/_.[ q ] a
                            (transport (λ i → P (canonicalizeResp q (~ i)))
                              (depElimHelp P emptyP insertP (insOrder q)))
-      lem3 q = transport (typesSame q) (lem9 q)
+      lem7 q = transport (typesSame q) (lem6 q)
 
     ιTLQInsert : (P : TLQ → Set) → (pset : (q : TLQ) → isSet (P q)) →
       (emptyP : P depConstrTLQEmpty) →
@@ -408,9 +396,6 @@ module TwoList where
 
     front/R : TLQ → Maybe (TLQ × A)
     front/R = depElimTLQ (λ x → Maybe (TLQ × A)) (λ _ → isSetDeqReturnType) nothing λ q a x → just (q , a)
-
-    emptyTrueOk : isEmpty/R depConstrTLQEmpty ≡ true
-    emptyTrueOk = refl
 
     enqueueDequeueEmptyOk : (a : A) → dequeue/R (enqueue/R a depConstrTLQEmpty) ≡ just (depConstrTLQEmpty , a)
     enqueueDequeueEmptyOk a = refl
