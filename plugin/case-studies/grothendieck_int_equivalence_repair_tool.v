@@ -781,39 +781,66 @@ Set DEVOID lift type.
 
 (*
  * We first call lift on the dependent eliminator, which prevents the tool from
- * unfolding the definition of the repaired eliminator. This helds the 
- * setoid automation successfully discover proofs.
+ * unfolding the definition of the repaired eliminator. This helps the 
+ * setoid automation successfully discover proofs. We can see that depRecLifted
+ * is just defined as depRecGZ.
  *)
 
 Lift Z GZ in depRecZ as depRecLifted.
+
+Print depRecLifted.
 
 (* Now, we begin repairing the functions we defined over Z. *)
 
 Lift Z GZ in constZ as constGZ.
 
+Print constZ.
+
 Print constGZ.
 
 Lift Z GZ in sucZ as sucGZ.
 
+Print sucZ.
+
 Print sucGZ.
+
+Print sucGZ_proper.
 
 Lift Z GZ in predZ as predGZ.
 
+Print predZ.
+
 Print predGZ.
+
+Print predGZ_proper.
   
 Lift Z GZ in add_posZ as add_posGZ.
 
+Print add_posZ.
+
 Print add_posGZ.
+
+Print add_posGZ_proper.
 
 Lift Z GZ in add_negsucZ as add_negsucGZ.
 
+Print add_negsucZ.
+
 Print add_negsucGZ.
+
+Print add_negsucGZ_proper.
 
 Lift Z GZ in addZ as addGZ.
 
+Print addZ.
+
 Print addGZ.
 
+Print addGZ_proper.
+
 Lift Z GZ in add0RZ as add0RGZ.
+
+Print add0RZ.
 
 Print add0RGZ.
 
@@ -876,6 +903,8 @@ Definition add0LPosCaseZ :=
 
 Lift Z GZ in add0LPosCaseZ as add0LPosCaseGZ.
 
+Print add0LPosCaseZ.
+
 Print add0LPosCaseGZ.
 
 Definition add0LNegSucCaseZ :=
@@ -919,11 +948,17 @@ Definition add0LNegSucCaseZ :=
 
 Lift Z GZ in add0LNegSucCaseZ as add0LNegSucCaseGZ.
 
+Print add0LNegSucCaseZ.
+
 Print add0LNegSucCaseGZ.
 
 Lift Z GZ in add0LZMotive as add0LGZMotive.
 
+Print add0LZMotive.
+
 Print add0LGZMotive.
+
+Print add0LGZMotive_proper.
 
 Definition depElimPropGZAdd0LGZ := depElimPropGZ add0LGZMotive add0LGZMotive_proper.
 
@@ -941,6 +976,8 @@ Configure Lift Z GZ {
 Definition add0LZ' (z : Z) : z = addZ (depConstrZPos 0) z := depElimPropZAdd0LZ add0LPosCaseZ add0LNegSucCaseZ z.
 
 Lift Z GZ in add0LZ' as add0LGZ.
+
+Print add0LZ'.
 
 Print add0LGZ.
 

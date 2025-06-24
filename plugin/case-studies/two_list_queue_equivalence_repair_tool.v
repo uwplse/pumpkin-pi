@@ -745,13 +745,21 @@ Set DEVOID lift type.
 
 Lift OLQ TLQ in depRecOLQ as depRecLifted.
 
+Print depRecLifted.
+
 (* Now, we begin repairing the functions we defined over OLQ. *)
 
 Lift OLQ TLQ in enqueueOLQ as enqueueTLQ.
 
+Print enqueueOLQ.
+
 Print enqueueTLQ.
 
+Print enqueueTLQ_proper.
+
 Lift OLQ TLQ in dequeueHelpOLQ as dequeueHelpTLQ.
+
+Print dequeueHelpOLQ.
 
 Print dequeueHelpTLQ.
 
@@ -785,9 +793,15 @@ Qed.
 
 Lift OLQ TLQ in dequeueOLQ as dequeueTLQ.
 
+Print dequeueOLQ.
+
 Print dequeueTLQ.
 
+Print dequeueTLQ_proper.
+
 Lift OLQ TLQ in returnOrEnqOLQ as returnOrEnqTLQ.
+
+Print returnOrEnqOLQ.
 
 Print returnOrEnqTLQ.
 
@@ -821,13 +835,21 @@ Qed.
 
 Lift OLQ TLQ in dequeueEmptyOLQ as dequeueEmptyTLQ.
 
+Print dequeueEmptyOLQ.
+
 Print dequeueEmptyTLQ.
 
 Lift OLQ TLQ in dequeueEnqueueTypeOLQ as dequeueEnqueueTypeTLQ.
 
+Print dequeueEnqueueTypeOLQ.
+
 Print dequeueEnqueueTypeTLQ.
 
+Print dequeueEnqueueTypeTLQ_proper.
+
 Lift OLQ TLQ in dequeueEnqueueOLQ as dequeueEnqueueTLQ.
+
+Print dequeueEnqueueOLQ.
 
 Print dequeueEnqueueTLQ.
 

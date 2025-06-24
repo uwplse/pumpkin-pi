@@ -1780,9 +1780,13 @@ Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {opaque ListFns.noLeadingZeros List
 
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.depRec as depRecCEP.
 
+Print depRecCEP.
+
 (* Now, we repair our functions. *)
 
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.add as addCEP.
+
+Print CLPoly.add.
 
 Print addCEP.
 
@@ -1806,7 +1810,11 @@ Qed.
 
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.eval as evalCEP.
 
+Print CLPoly.eval.
+
 Print evalCEP.
+
+Print evalCEP_proper.
 
 (*
  * Now, we repair our theorems. Because they use depElimProp, we need to
@@ -1823,27 +1831,33 @@ Print evalCEP.
 
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.evalRespectsAddFirstMotive as evalRespectsAddFirstMotiveCEP.
 
+Print CLPoly.evalRespectsAddFirstMotive.
+
 Print evalRespectsAddFirstMotiveCEP.
 
-Theorem evalRespectsAddFirstCEPProperGoal (p2 : CEPPoly.CEPPoly) (n : nat) :
+Theorem evalRespectsAddFirstMotiveCEPProperGoal (p2 : CEPPoly.CEPPoly) (n : nat) :
   Proper (CEPPoly.eq_CEPPoly ==> iff) (evalRespectsAddFirstMotiveCEP p2 n).
 Proof.
-  unfold evalRespectsAddFirstMotiveCEP.
   solve_proper2.
 Qed.
 
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.evalRespectsAddSecondMotive as evalRespectsAddSecondMotiveCEP.
 
+Print CLPoly.evalRespectsAddSecondMotive.
+
+Print evalRespectsAddSecondMotiveCEP.
+
 Theorem evalRespectsAddSecondMotiveCEPProper l1 proof1 n : Proper (CEPPoly.eq_CEPPoly ==> iff) (evalRespectsAddSecondMotiveCEP l1 proof1 n).
 Proof.
-  intros.
   unfold evalRespectsAddSecondMotiveCEP.
   solve_proper.
 Qed.
 
-Definition evalRespectsAddFirstDepElimPropCEP := (fun (p1 : CEPPoly.CEPPoly) p2 n => CEPPoly.depElimProp (evalRespectsAddFirstMotiveCEP p2 n) (evalRespectsAddFirstCEPProperGoal p2 n)).
+Definition evalRespectsAddFirstDepElimPropCEP :=
+  (fun (p1 : CEPPoly.CEPPoly) p2 n => CEPPoly.depElimProp (evalRespectsAddFirstMotiveCEP p2 n) (evalRespectsAddFirstMotiveCEPProperGoal p2 n)).
 
-Definition evalRespectsAddSecondDepElimPropCEP := (fun l1 proof1 n => CEPPoly.depElimProp (evalRespectsAddSecondMotiveCEP l1 proof1 n) (evalRespectsAddSecondMotiveCEPProper l1 proof1 n)).
+Definition evalRespectsAddSecondDepElimPropCEP :=
+  (fun l1 proof1 n => CEPPoly.depElimProp (evalRespectsAddSecondMotiveCEP l1 proof1 n) (evalRespectsAddSecondMotiveCEPProper l1 proof1 n)).
 
 Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {
     constrs_a = CLPoly.depConstr ;
@@ -1858,15 +1872,21 @@ Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {
 
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.evalRespectsAdd as evalRespectsAddCEP.
 
+Print CLPoly.evalRespectsAdd.
+
 Print evalRespectsAddCEP.
 
 (* Now, we lift CLPoly.addComm. *)
 
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.addCommFirstDepElimMotive as addCommFirstDepElimMotiveCEP.
 
+Print CLPoly.addCommFirstDepElimMotive.
+
 Print addCommFirstDepElimMotiveCEP.
 
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.addCommSecondDepElimMotive as addCommSecondDepElimMotiveCEP.
+
+Print CLPoly.addCommSecondDepElimMotive.
 
 Print addCommSecondDepElimMotiveCEP.
 
@@ -1875,7 +1895,6 @@ Instance addCommFirstDepElimMotiveCEPProper (p2 : CEPPoly.CEPPoly) :
     (CEPPoly.eq_CEPPoly ==> iff)
     (addCommFirstDepElimMotiveCEP p2).
 Proof.
-  unfold addCommFirstDepElimMotiveCEP.
   solve_proper.
 Qed.
 
@@ -1910,6 +1929,8 @@ Configure Lift CLPoly.CLPoly CEPPoly.CEPPoly {
   }.
 
 Lift CLPoly.CLPoly CEPPoly.CEPPoly in CLPoly.addComm as addCommCEP.
+
+Print CLPoly.addComm.
 
 Print addCommCEP.
 
