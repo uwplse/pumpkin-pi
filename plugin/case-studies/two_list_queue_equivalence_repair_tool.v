@@ -8,6 +8,8 @@ Require Import SetoidClass.
 
 Set DEVOID lift type.
 
+(* This example is based an example from "Internalizing Representation Independence with Univalence" by Angiuli et al. *)
+
 (* 
  * In this file, we define two representations of queues.
  * The first is just as a list; we enqueue onto the front,
