@@ -42,12 +42,7 @@ congMaybeRec a b m f =
     (λ _ → refl)
     m
 
-module OneList where
-    -- We define the type of one list queues.
-    -- We fix A here, but the proofs are generic over any set A.
-    A = ℕ
-    isSetA : isSet A
-    isSetA = isSetℕ
+module OneList (A : Set) (isSetA : isSet A) where
     OLQ = List A
 
     -- Now, we give the configuration for one list queues.
@@ -130,15 +125,6 @@ module OneList where
     isEmpty : OLQ → Bool
     isEmpty = depElimOLQ (λ _ → Bool) true (λ _ _ _ →  false)
 
-    emptyTrueOk : isEmpty depConstrOLQEmpty ≡ true
-    emptyTrueOk = refl
-
-    implTest1 : dequeue (enqueue 2 (enqueue 1 [])) ≡ just (enqueue 2 [] , 1)
-    implTest1 = refl
-
-    enqueueDequeueEmptyOk : (a : A) → dequeue (enqueue a depConstrOLQEmpty) ≡ just (depConstrOLQEmpty , a)
-    enqueueDequeueEmptyOk a = refl
-
     dequeueEmpty : dequeue depConstrOLQEmpty ≡ nothing
     dequeueEmpty = refl
 
@@ -165,12 +151,7 @@ module OneList where
     isSetOLQ : isSet OLQ
     isSetOLQ = isOfHLevelList 0 isSetA
 
-module TwoList where
-    -- We define the type of two list queues.
-    -- We fix A here, but the proofs are generic over any set A.
-    A = ℕ
-    isSetA : isSet A
-    isSetA = isSetℕ
+module TwoList (A : Set) (isSetA : isSet A) where
     Q = (List A × List A)
 
     -- Enqueue on the unquotiented queue type. Used to define dependent constructor.
@@ -397,9 +378,6 @@ module TwoList where
     front/R : TLQ → Maybe (TLQ × A)
     front/R = depElimTLQ (λ x → Maybe (TLQ × A)) (λ _ → isSetDeqReturnType) nothing λ q a x → just (q , a)
 
-    enqueueDequeueEmptyOk : (a : A) → dequeue/R (enqueue/R a depConstrTLQEmpty) ≡ just (depConstrTLQEmpty , a)
-    enqueueDequeueEmptyOk a = refl
-
     -- Repaired dequeue specification.
     dequeueEmpty : dequeue/R depConstrTLQEmpty ≡ nothing
     dequeueEmpty = refl
@@ -509,44 +487,44 @@ module TwoList where
 
 -- Proving that our types of one list queues and two list queues are equal.
 
-OLQ≡TLQ : OneList.OLQ ≡ TwoList.TLQ
-OLQ≡TLQ = isoToPath (iso f g sec ret) where
-  f : OneList.OLQ → TwoList.TLQ
-  f = OneList.depElimOLQ
-        (λ _ → TwoList.TLQ)
-        TwoList.depConstrTLQEmpty
-        (λ olq a tlq → TwoList.depConstrTLQInsert a tlq)
-  g : TwoList.TLQ → OneList.OLQ
-  g = TwoList.depElimTLQ
-        (λ _ → OneList.OLQ)
-        (λ _ → OneList.isSetOLQ)
-        OneList.depConstrOLQEmpty
-        λ tlq a olq → OneList.depConstrOLQInsert a olq
+OLQ≡TLQ : (A : Set) (isSetA : isSet A) → OneList.OLQ A isSetA ≡ TwoList.TLQ A isSetA
+OLQ≡TLQ A isSetA = isoToPath (iso f g sec ret) where
+  f : OneList.OLQ A isSetA → TwoList.TLQ A isSetA
+  f = OneList.depElimOLQ A isSetA
+        (λ _ → TwoList.TLQ A isSetA)
+        (TwoList.depConstrTLQEmpty A isSetA)
+        (λ olq a tlq → TwoList.depConstrTLQInsert A isSetA a tlq)
+  g : TwoList.TLQ A isSetA → OneList.OLQ A isSetA
+  g = TwoList.depElimTLQ A isSetA
+        (λ _ → OneList.OLQ A isSetA)
+        (λ _ → OneList.isSetOLQ A isSetA)
+        (OneList.depConstrOLQEmpty A isSetA)
+        λ tlq a olq → OneList.depConstrOLQInsert A isSetA a olq
   sec : section f g
-  sec = TwoList.depElimTLQ
+  sec = TwoList.depElimTLQ A isSetA
           (λ x → f (g x) ≡ x)
-          (λ x → isProp→isSet (TwoList.isSetTLQ _ _))
+          (λ x → isProp→isSet (TwoList.isSetTLQ A isSetA _ _))
           refl
-          λ q a Pq → TwoList.ιTLQInsert⁻
-            (λ _ → OneList.OLQ)
-            (λ _ → OneList.isSetOLQ)
-            OneList.depConstrOLQEmpty
-            (λ tlq a olq → OneList.depConstrOLQInsert a olq)
+          λ q a Pq → TwoList.ιTLQInsert⁻ A isSetA
+            (λ _ → OneList.OLQ A isSetA)
+            (λ _ → OneList.isSetOLQ A isSetA)
+            (OneList.depConstrOLQEmpty A isSetA)
+            (λ tlq a olq → OneList.depConstrOLQInsert A isSetA a olq)
             a
             q
-            (λ x → f x ≡ TwoList.depConstrTLQInsert a q)
-            (cong (TwoList.depConstrTLQInsert a) Pq)
+            (λ x → f x ≡ TwoList.depConstrTLQInsert A isSetA a q)
+            (cong (TwoList.depConstrTLQInsert A isSetA a) Pq)
   ret : retract f g
-  ret = OneList.depElimOLQ
+  ret = OneList.depElimOLQ A isSetA
           (λ x → g (f x) ≡ x)
           refl
           λ q a Pq →
-            TwoList.ιTLQInsert⁻
-              (λ _ → OneList.OLQ)
-              (λ _ → OneList.isSetOLQ)
-              OneList.depConstrOLQEmpty
-              (λ tlq a olq → OneList.depConstrOLQInsert a olq)
+            TwoList.ιTLQInsert⁻ A isSetA
+              (λ _ → OneList.OLQ A isSetA)
+              (λ _ → OneList.isSetOLQ A isSetA)
+              (OneList.depConstrOLQEmpty A isSetA)
+              (λ tlq a olq → OneList.depConstrOLQInsert A isSetA a olq)
               a
               (f q)
-              (λ x → x ≡ OneList.depConstrOLQInsert a q)
-              (cong (OneList.depConstrOLQInsert a) Pq)
+              (λ x → x ≡ OneList.depConstrOLQInsert A isSetA a q)
+              (cong (OneList.depConstrOLQInsert A isSetA a) Pq)
