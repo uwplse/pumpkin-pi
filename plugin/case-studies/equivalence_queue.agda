@@ -483,6 +483,12 @@ module TwoList (A : Set) (isSetA : isSet A) where
       insertCase : (q : TLQ) (a : A) → dequeue/R q ≡ fastDequeue/R q → dequeue/R (depConstrTLQInsert a q) ≡ fastDequeue/R (depConstrTLQInsert a q)
       insertCase q a Pq = dequeueEnqueue a q ∙ cong (λ x → just (returnOrEnq a x)) Pq ∙ (sym (fastDequeueEnqueue a q))
 
+    -- Transporting proof of dequeueEmpty over deqIsFastDeq to fastDequeue/R
+    -- We could prove this by refl, but this demonstrates the general technique.
+
+    fastDequeueEmpty : fastDequeue/R depConstrTLQEmpty ≡ nothing
+    fastDequeueEmpty = subst (λ y → y depConstrTLQEmpty ≡ nothing) deqIsFastDeq dequeueEmpty
+
     TwoList = record { A = A; Q = TLQ ; null = depConstrTLQEmpty ; enqueue = enqueue/R; dequeue = fastDequeue/R}
 
 -- Proving that our types of one list queues and two list queues are equal.
