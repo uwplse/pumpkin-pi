@@ -151,6 +151,10 @@ depElimInt/rInt P set baseCase sucCase = SetQuotients.elim set lem wellDefined w
     (Q : P depConstrInt/rInt0 → Set) → Q (depElimInt/rInt P pset pz ps depConstrInt/rInt0) → Q pz
 ιInt/rInt0 P pset pz ps Q qz = qz
 
+ιInt/rInt0⁻ : (P : Int / rInt → Type) → (pset : ∀ x → isSet (P x)) → (pz : P depConstrInt/rInt0) → (ps : ∀ (n : Int / rInt) → (P n) → P (depConstrInt/rIntS n)) →
+    (Q : P depConstrInt/rInt0 → Set) → Q pz → Q (depElimInt/rInt P pset pz ps depConstrInt/rInt0)
+ιInt/rInt0⁻ P pset pz ps Q qz = qz
+
 rIntPosNegQ : (n : ℕ) -> ([_] {A = Int} {R = rInt} (pos n)  ≡ [_] {A = Int} {R = rInt} (neg n))
 rIntPosNegQ n = eq/ _ _ refl
 
