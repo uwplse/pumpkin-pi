@@ -13,10 +13,16 @@ Set DEVOID lift type.
 (* 
  * In this file, we define two representations of queues.
  * The first is just as a list; we enqueue onto the front,
- * and dequeue from the back.
+ * and dequeue from the back. We assume that the type
+ * A that the queues are over satisfies UIP, but this becomes
+ * an argument to the terms defined in the section,
+ * not an axiom.
  *)
 
-Parameter A : Type.
+Section Queues.
+
+Variable A : Type.
+Variable uip : UIP_ A.
 
 Definition OLQ := list A.
 
@@ -162,8 +168,8 @@ Qed.
 
 Definition dequeueEnqueueTypeOLQ (a : A) (q : OLQ) := (dequeueOLQ (enqueueOLQ a q)) = (Some (returnOrEnqOLQ a (dequeueOLQ q))).
 
-Theorem congOptionRect {A B C : Type} (a : A) (b : C -> A) (m : option C) (f : A -> B) :
-  option_rect (fun _ => B) (fun x => f (b x)) (f a) m = f (option_rect (fun _ => A) b a m).
+Theorem congOptionRect {B C D : Type} (a : B) (b : D -> B) (m : option D) (f : B -> C) :
+  option_rect (fun _ => C) (fun x => f (b x)) (f a) m = f (option_rect (fun _ => B) b a m).
 Proof.
   destruct m; reflexivity.
 Qed.
@@ -192,15 +198,6 @@ Defined.
 
 
 Definition TLQ := prod (list A) (list A).
-
-(*
- * We're assuming UIP here specifically on the type A. 
- * It gets used in the definition of our eliminator.
- * We do not assume it for all types, so we are not 
- * adding any axioms to our theory.
- *)
-
-Parameter uip : UIP_ A.
 
 Theorem listEqRectEq : Eq_rect_eq (list A).
 Proof.
@@ -306,7 +303,7 @@ Proof.
 Qed.
 
 (* The below two lemmas are adapted from standard library, but made transparent. *)
-Lemma rev_list_rect : forall P:list A-> Type,
+Lemma rev_list_rect : forall P : list A -> Type,
   P [] ->
   (forall (a:A) (l:list A), P (rev l) -> P (rev (a :: l))) ->
   forall l:list A, P (rev l).
@@ -314,14 +311,14 @@ Proof.
   intros P ? ? l; induction l; auto.
 Defined.
 
-Remark rev_unit {A : Type} : forall (l:list A) (a:A), rev (l ++ a :: nil) = a :: rev l.
+Remark rev_unit {B : Type} : forall (l : list B) (a : B), rev (l ++ a :: nil) = a :: rev l.
 Proof.
   induction l.
   - reflexivity.
   - intros. simpl. rewrite IHl. reflexivity.
 Defined.
 
-Theorem rev_involutive : forall (A : Type) (l : list A), rev (rev l) = l.
+Theorem rev_involutive : forall (B : Type) (l : list B), rev (rev l) = l.
 Proof.
   exact (fun (A : Type) (l : list A) =>
 list_ind (fun l0 : list A => rev (rev l0) = l0)
@@ -1008,3 +1005,5 @@ Proof.
   rewrite <- dequeueEqualsFastDequeue.
   apply dequeueEmptyTLQ.
 Qed.
+
+End Queues.
