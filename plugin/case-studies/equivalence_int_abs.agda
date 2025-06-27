@@ -302,6 +302,8 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
 -- Next, we prove that applications of the iota rules have paths between them given that the inputs have paths between them.
 
 -- iota: iota is OK at 0 by QAzero≡QBzero
+-- note that depElimInt/rInt PB PBSet PBzero PBS depConstrInt/rInt0 ≡ PBzero definitionally, so these statements are simpler
+-- than they would otherwise be, and are proven by reflexivity anyway.
 ιOK0 : (PA : ℕ → Type) (PB : Int / rInt → Type)
   (PA≡PB : ∀ (a : ℕ) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → PathP (λ i → Type) (PA a) (PB b)) →
   (PBset : ∀ x → isSet (PB x))
@@ -315,6 +317,21 @@ elimOK a b a≡b PA PB PBSet PA≡PB PAO PBO PAO≡PBO PAS PBS PAS≡PBS =
   (QAzero≡QBzero : PathP (λ i → (QA≡QB i) (PAzero≡PBzero i)) QAzero QBzero) → 
   PathP (λ i → (QA≡QB i) (PAzero≡PBzero i)) QAzero (ιInt/rInt0 PB PBset PBzero PBS QB QBzero)
 ιOK0 PA PB PA≡PB PBSet PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS QA QB QA≡QB QAzero QBzero QAzero≡QBzero =
+  QAzero≡QBzero
+
+ιOK0⁻ : (PA : ℕ → Type) (PB : Int / rInt → Type)
+  (PA≡PB : ∀ (a : ℕ) (b : Int / rInt) (a≡b : PathP (λ i → Nat≡Int/rInt i) a b) → PathP (λ i → Type) (PA a) (PB b)) →
+  (PBset : ∀ x → isSet (PB x))
+  (PAzero : PA zero) (PBzero : PB depConstrInt/rInt0)
+  (PAzero≡PBzero : PathP (λ i → PA≡PB _ _ depConstr0Correct i) PAzero PBzero)
+  (PAS : ∀ n → PA n → PA (suc n)) (PBS : ∀ n → PB n → PB (depConstrInt/rIntS n))
+  (PAS≡PBS : ∀ a b (IHa : PA a) (IHb : PB b) a≡b (IHa≡IHb : PathP (λ i → PA≡PB _ _ a≡b i) IHa IHb) → PathP (λ i → PA≡PB _ _ (depConstrSCorrect a b a≡b) i) (PAS a IHa) (PBS b IHb))
+  (QA : PA zero → Type) (QB : PB depConstrInt/rInt0 → Type)
+  (QA≡QB : PathP (λ i → PA≡PB _ _ depConstr0Correct i → Type) QA QB)
+  (QAzero : QA PAzero) (QBzero : QB PBzero)
+  (QAzero≡QBzero : PathP (λ i → (QA≡QB i) (PAzero≡PBzero i)) QAzero QBzero) → 
+  PathP (λ i → (QA≡QB i) (PAzero≡PBzero i)) QAzero (ιInt/rInt0⁻ PB PBset PBzero PBS QB QBzero)
+ιOK0⁻ PA PB PA≡PB PBSet PAzero PBzero PAzero≡PBzero PAS PBS PAS≡PBS QA QB QA≡QB QAzero QBzero QAzero≡QBzero =
   QAzero≡QBzero
 
 -- iota: iota is OK at S (it's cool to lift definitional to propositional equality) because we are eliminating into set (equality first)
