@@ -1,7 +1,7 @@
 ## Quotient Types Extension to Pumpkin Pi
 This document describes the quotient types/setoids extension to the existing PUMPKIN Pi infrastructure.
 To fetch and build everything, make sure you have Coq 8.9.1 installed (later versions are not currently supported).
-Building was tested using Ubuntu 22.04.5, but other Unix based systems may also work, as well as the Windows Subsystem for Linux.
+Building was tested using both Ubuntu 22.04.5 and 24.04.2, but other Unix based systems may also work, as well as the Windows Subsystem for Linux.
 
 Then, to build everything, run:
 ```
@@ -26,7 +26,7 @@ Note: we only support proper proof generation for unix-based systems in our exte
 
 ## Cubical Agda Manual Case Studies
 To run our Cubical Agda case studies, you should install [Cubical Agda](https://github.com/agda/cubical).
-We tested our case studies on cubical library version v0.7, Agda version v2.6.4.3.
+We tested our case studies on cubical library version v0.7, both with Agda version v2.6.4.1 on Ubuntu 24.04.2 and v2.6.4.3 on Ubuntu 22.04.5.
 
 The main corresponding files for our case studies in Cubical Agda can be found in the following locations:
 - [`plugin/case-studies/grothendieck_int_equiv.agda`](plugin/case-studies/grothendieck_int_equiv.agda) (for the integer case study in Cubical Agda)
